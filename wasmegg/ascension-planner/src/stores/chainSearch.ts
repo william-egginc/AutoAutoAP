@@ -789,6 +789,93 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     });
   }
 
+  /**
+   * Everything the run was GIVEN, as JSON, for diagnosing a result that looks wrong.
+   *
+   * WHY THE CSV IS NOT ENOUGH, and this is the whole reason it exists: the CSV is the run's OUTPUT.
+   * It records what came out leg by leg, and its header re-reads the stores at export time -- which
+   * is why a header can list a full inventory for a run that was handed nothing. Every diagnostic
+   * so far has had that flaw. This dumps the INPUT side instead, captured from the same
+   * `collectInputs()` object the worker pool is built from.
+   *
+   * THE RAW BACKUP IS NOT IN IT. It is megabytes, and it is the player's whole save; what matters
+   * for this is the handful of derived numbers the simulator actually reads, all of which are here.
+   * The player id is scrubbed for the same reason the submission scrubs it.
+   */
+  function buildRunDiagnostics(): string {
+    const inputs = collectInputs();
+    const ctx = inputs.context;
+    const backup = ctx.rawBackup as
+      | { approxTime?: number; userName?: string; virtue?: { eovEarned?: number[] } }
+      | undefined;
+    const inv = readInventory();
+    return scrubIdentifiers(
+      JSON.stringify(
+        {
+          note: 'Inputs handed to the chain-search workers. Output side is the CSV.',
+          takenAt: new Date().toISOString(),
+          backup: {
+            present: !!backup,
+            userName: backup?.userName,
+            approxTime: backup?.approxTime,
+            approxTimeISO: backup?.approxTime ? new Date(backup.approxTime * 1000).toISOString() : null,
+            ageMinutes: backup?.approxTime ? Math.round((Date.now() / 1000 - backup.approxTime) / 60) : null,
+            // The field every TE figure ultimately comes from. When a plan looks too long, this is
+            // the first number to check against the game itself.
+            eovEarned: backup?.virtue?.eovEarned ?? null,
+            eovEarnedSum: (backup?.virtue?.eovEarned ?? []).reduce((a, b) => a + (b || 0), 0),
+          },
+          te: {
+            searchStartsFrom: inputs.currentTE,
+            initialTeEarned: { ...useInitialStateStore().initialTeEarned },
+            target: inputs.final,
+          },
+          context: {
+            epicResearchCount: Object.keys(ctx.epicResearchLevels ?? {}).length,
+            epicResearchLevels: ctx.epicResearchLevels,
+            colleggtibleModifiers: ctx.colleggtibleModifiers,
+            assumeDoubleEarnings: ctx.assumeDoubleEarnings,
+            deferForEarningsMode: ctx.deferForEarningsMode,
+            ascensionStartTime: ctx.ascensionStartTime,
+            planStartOffset: ctx.planStartOffset,
+          },
+          farmState: { present: !!inputs.currentFarmState },
+          soulEggs: useInitialStateStore().soulEggs,
+          loadout: {
+            artifactCount: inv.artifacts.length,
+            stoneCount: inv.stones.reduce((n, x) => n + x.count, 0),
+            delivery: describeLoadoutSlots(inv.elr),
+            earnings: describeLoadoutSlots(inv.earnings),
+          },
+          schedule: {
+            planStart: inputs.planStart,
+            planStartISO: new Date(inputs.planStart * 1000).toISOString(),
+            availability: inputs.availability,
+            deferShifts: inputs.deferShifts,
+            forceContinue: inputs.forceContinue,
+          },
+          health: { setup: setupIssues.value, context: reviewRunInputs(inputs), result: resultIssues.value },
+          result: bestChain.value.length
+            ? {
+                chain: [...bestChain.value],
+                days: bestDays.value,
+                legs: bestLegs.value.map((l, i) => ({
+                  leg: i + 1,
+                  endTE: l.endTE,
+                  strategy: l.key,
+                  tier13: l.tier13Unlocked,
+                  days: l.durationSeconds / 86400,
+                  peakDeliveryQph: (l.maxELR * 3600) / 1e15,
+                })),
+              }
+            : null,
+        },
+        null,
+        2
+      )
+    );
+  }
+
   function collectInputs(): SearchInputs {
     const initialStateStore = useInitialStateStore();
     return {
@@ -2122,6 +2209,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     discardCheckpoint,
     runStartedAt,
     searchSpace,
+    buildRunDiagnostics,
     setupIssues,
     setupFacts,
     backupTE,

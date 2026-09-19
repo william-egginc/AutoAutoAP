@@ -1036,6 +1036,19 @@
         <span class="text-[11px] text-slate-500">
           {{ store.csvRows.toLocaleString() }} chains, one row per leg. Safe to take mid-run.
         </span>
+        <!-- The input side. The CSV records what came OUT; when a result looks wrong the question
+             is always what went IN, and until now nothing wrote that down. -->
+        <button
+          type="button"
+          class="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-[10px] font-black uppercase tracking-widest hover:bg-slate-50"
+          @click="downloadDiagnostics"
+        >
+          Download diagnostics
+        </button>
+        <span class="text-[11px] text-slate-500">
+          A small JSON of what this run was <em>given</em> — backup age, TE, research, loadout. No save data, no player
+          ID. Attach it when reporting a result that looks wrong.
+        </span>
       </div>
 
       <!-- Submission. Same payload, same opt-in, same disclosure as the main panel. -->
@@ -1163,6 +1176,14 @@ import LoadoutDisplay from './LoadoutDisplay.vue';
  * Chunked, because this is the panel whose runs get big enough for it to matter -- a large export
  * was crashing the tab outright rather than failing. See `chainsCsvChunks`.
  */
+function downloadDiagnostics(): void {
+  downloadParts(
+    `chain-search-diagnostics-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-')}.json`,
+    [store.buildRunDiagnostics()],
+    'application/json'
+  );
+}
+
 function downloadCsv(): void {
   downloadParts(store.csvFilename(), store.exportCsvChunks(), 'text/csv;charset=utf-8');
 }
