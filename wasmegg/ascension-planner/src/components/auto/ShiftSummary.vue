@@ -66,9 +66,13 @@
     <div v-if="summaryItems.length > 0" class="flex flex-wrap gap-1">
       <div v-for="(item, index) in summaryItems" :key="index" class="flex items-center">
         <template v-if="item.isPremium">
+          <!-- `carried` is a set that was already on rather than swapped here. Drawn quieter so a
+               shift that changed nothing does not look like a shift that changed everything, while
+               still answering "what was it wearing while it earned this". -->
           <span
-            class="badge-premium px-1.5 py-0.5 text-[8.5px] font-black tracking-tight"
-            :class="eggTheme.badge"
+            class="px-1.5 py-0.5 text-[8.5px] font-black tracking-tight"
+            :class="item.carried ? 'badge-carried' : ['badge-premium', eggTheme.badge]"
+            :title="item.carried ? 'Already equipped — not changed during this shift' : undefined"
           >
             {{ item.text }}
           </span>
@@ -182,7 +186,7 @@ const summaryItems = computed(() => {
   for (const action of props.actions) {
     if (action.type === 'buy_research') {
       const { researchId, fromLevel, toLevel } = action.payload;
-if (!(researchId in startResearch)) startResearch[researchId] = fromLevel;
+      if (!(researchId in startResearch)) startResearch[researchId] = fromLevel;
       finalResearch[researchId] = toLevel;
       modifiedResearchIds.add(researchId);
       const research = getResearchById(researchId);
@@ -248,50 +252,84 @@ if (!(researchId in startResearch)) startResearch[researchId] = fromLevel;
     }
   }
 
-    const items: any[] = [];
+  const items: any[] = [];
 
-    for (const setName of equippedSets) {
+  for (const setName of equippedSets) {
+    items.push({
+      isPremium: true,
+      text: `Equipped ${setName} Set`,
+    });
+  }
+
+  // --- Peak ELR / K3 Wait ---
+  const peakELRAction = props.actions.find(a => a.payload?.peakELR !== undefined);
+  if (peakELRAction) {
+    items.push({
+      isPeakELR: true,
+      text: `Peak Delivery Rate: ${formatNumber(peakELRAction.payload.peakELR * 3600, 3)}/hr`,
+    });
+  }
+  // --- TE Earned ---
+  const teWaitActions = props.actions.filter(a => a.type === 'wait_for_te' || a.payload?.isTEWait);
+  if (teWaitActions.length > 0) {
+    const totalTE = teWaitActions.reduce((sum, a) => sum + (a.payload.teGained || a.payload.teEarned || 0), 0);
+    if (totalTE > 0) {
       items.push({
         isPremium: true,
-        text: `Equipped ${setName} Set`,
+        text: `+${totalTE} Truth Eggs`,
       });
     }
+  }
 
-    // --- Peak ELR / K3 Wait ---
-    const peakELRAction = props.actions.find(a => a.payload?.peakELR !== undefined);
-    if (peakELRAction) {
-      items.push({
-        isPeakELR: true,
-        text: `Peak Delivery Rate: ${formatNumber(peakELRAction.payload.peakELR * 3600, 3)}/hr`,
-      });
-    }
-    // --- TE Earned ---
-    const teWaitActions = props.actions.filter(a => a.type === 'wait_for_te' || a.payload?.isTEWait);
-    if (teWaitActions.length > 0) {
-      const totalTE = teWaitActions.reduce((sum, a) => sum + (a.payload.teGained || a.payload.teEarned || 0), 0);
-      if (totalTE > 0) {
-        items.push({
-          isPremium: true,
-          text: `+${totalTE} Truth Eggs`,
-        });
-      }
-    }
-
-    // --- Overtake Info ---
-    const overtakeAction = props.actions.find(a => a.type === 'virtual_overtake_info');
-    if (overtakeAction) {
-      items.push({
-        isPeakELR: true, // Use same styling but different icon/color if possible
-        isOvertake: true,
-        text: `Overtakes 1-sale in ${overtakeAction.payload.daysToOvertake.toFixed(1)}d`,
-      });
-    }
+  // --- Overtake Info ---
+  const overtakeAction = props.actions.find(a => a.type === 'virtual_overtake_info');
+  if (overtakeAction) {
+    items.push({
+      isPeakELR: true, // Use same styling but different icon/color if possible
+      isOvertake: true,
+      text: `Overtakes 1-sale in ${overtakeAction.payload.daysToOvertake.toFixed(1)}d`,
+    });
+  }
 
   // --- Artifacts & Stones ---
+  //
+  // SHOWN ON EVERY SHIFT, not only the ones that change the set.
+  //
+  // The loop above collects artifacts from `change_artifacts` / `update_artifact_set`, so a shift
+  // that swapped nothing listed nothing -- and "nothing listed" reads as "nothing equipped", which
+  // is the opposite of the truth. That matters more than it sounds: a plan whose delivery rate
+  // comes out low is usually a question about WHICH set was worn while it was earning, and the
+  // answer was only visible on the one shift that happened to equip it.
+  //
+  // The fallback is the shift's own end state, which every action carries. It is the set in force
+  // when the shift ended, which is the right thing to attribute the shift's rate to.
+  if (!equippedArtifacts.length) {
+    const endState = [...props.actions].reverse().find(a => a.endState)?.endState as
+      | { artifactLoadout?: { artifactId?: string | null; stones?: (string | null)[] }[] }
+      | undefined;
+    for (const slot of endState?.artifactLoadout ?? []) {
+      const artifact = slot.artifactId ? getArtifact(slot.artifactId) : null;
+      if (!artifact) continue;
+      const stones = (slot.stones || [])
+        .map(x => (x ? getStone(x) : null))
+        .filter((x): x is NonNullable<typeof x> => x !== null);
+      equippedArtifacts.push({
+        name: artifact.familyName,
+        tier: artifact.tier,
+        rarity: artifact.rarityCode,
+        stones: stones.map(x => ({ name: x.familyName, tier: x.tier })),
+        // Marks it as carried rather than changed here, so the badge can say so and nobody reads a
+        // repeated set as a repeated swap.
+        carried: true,
+      });
+    }
+  }
+
   const totalStoneCounts: Record<string, number> = {};
   for (const art of equippedArtifacts) {
     items.push({
       isPremium: true,
+      carried: art.carried === true,
       text: `T${art.tier}${art.rarity} ${art.name}`,
     });
     for (const s of art.stones) {
@@ -303,6 +341,7 @@ if (!(researchId in startResearch)) startResearch[researchId] = fromLevel;
   for (const [label, count] of Object.entries(totalStoneCounts)) {
     items.push({
       isPremium: true,
+      carried: equippedArtifacts.every(a => a.carried === true),
       text: `${count}x ${label}`,
     });
   }
@@ -403,6 +442,15 @@ if (!(researchId in startResearch)) startResearch[researchId] = fromLevel;
 </script>
 
 <style scoped>
+/* A set carried into the shift rather than equipped by it. Same shape as badge-premium so the
+   row still reads as one list, without the colour that means "this changed". */
+.badge-carried {
+  border-radius: 9999px;
+  border: 1px solid rgb(226 232 240);
+  background: rgb(248 250 252);
+  color: rgb(100 116 139);
+}
+
 .badge-premium {
   @apply border rounded-lg;
 }
