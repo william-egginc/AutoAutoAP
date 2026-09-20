@@ -9,6 +9,7 @@ import {
   createMilestoneShiftHelpers,
 } from './helpers/milestones';
 import { computeSnapshot } from '../../engine/compute';
+import { ensureEarningsSetEquipped } from './helpers/earningsSet';
 import { isResearchSaleActive, getNextSaleEnd } from '@/lib/events';
 
 const FLEET_RESEARCH_IDS = [
@@ -40,6 +41,8 @@ const GRAVITON_COUPLING_ID = 'micro_coupling';
  *    attempt buys zero levels, it's rolled back in full (state/time/actions all restored to their
  *    pre-attempt checkpoint) so the time it would've burned goes to step 5 instead.
  * 5. Spend whatever time remains buying research in ROI order.
+ *
+ * Step 0, before any of that, is making sure the EARNINGS set is on — see `ensureEarningsSet`.
  */
 export function runC1(
   startState: EngineState,
@@ -75,6 +78,12 @@ export function runC1(
   const smartBuySweep = () => {
     mergeMilestone(runSmartBuyForSeconds(currentState, context, 3, remainingBudget()));
   };
+
+  // Step 0: the earnings set must be on before a single purchase is made. The reasoning, and the
+  // measurement that found it missing, are in the helper.
+  const earningsSwap = ensureEarningsSetEquipped(currentState, context);
+  currentState = earningsSwap.state;
+  actions.push(...earningsSwap.actions);
 
   // 1-2. Climb tier-by-tier (with a quick-buy sweep before each unlock attempt) up to the highest
   // tier any fleet_size research needs, then one final sweep once it's reached.
