@@ -1165,7 +1165,7 @@ import {
 import { MAX_RUNS } from '@/search/runLibrary';
 import SearchShapeChart from './charts/SearchShapeChart.vue';
 import HelpTip from './HelpTip.vue';
-import { downloadParts } from '@/utils/export';
+import { downloadCsv as saveCsvFile, downloadParts } from '@/utils/export';
 import LoadoutDisplay from './LoadoutDisplay.vue';
 
 /**
@@ -1185,7 +1185,7 @@ function downloadDiagnostics(): void {
 }
 
 function downloadCsv(): void {
-  downloadParts(store.csvFilename(), store.exportCsvChunks(), 'text/csv;charset=utf-8');
+  saveCsvFile(store.csvFilename(), store.exportCsvChunks());
 }
 
 const props = defineProps<{ playerId: string }>();

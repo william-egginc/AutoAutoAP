@@ -249,7 +249,7 @@ export const useInitialStateStore = defineStore('initialState', {
         const optimalEarnings = getOptimalEarningsSet(backup);
         this.artifactSets.earnings = optimalEarnings;
         this.artifactSets.elr = JSON.parse(JSON.stringify(backupLoadout));
-        this.setActiveArtifactSet('elr');
+        this.setActiveArtifactSet('earnings');
       }
 
       // Parse TE data from eovEarned array

@@ -665,15 +665,10 @@
       </div>
 
       <label class="flex items-start gap-3 cursor-pointer">
-        <input
-          v-model="store.keepAwake"
-          type="checkbox"
-          class="mt-0.5 rounded border-slate-300 text-indigo-600"
-        />
+        <input v-model="store.keepAwake" type="checkbox" class="mt-0.5 rounded border-slate-300 text-indigo-600" />
         <span class="text-[11px] text-slate-600 leading-relaxed">
-          <span class="font-bold text-slate-800">Keep my PC awake.</span> A run can take hours; if the machine
-          sleeps, every worker freezes until you wake it back up. Turn this off if you'd rather manage sleep
-          yourself.
+          <span class="font-bold text-slate-800">Keep my PC awake.</span> A run can take hours; if the machine sleeps,
+          every worker freezes until you wake it back up. Turn this off if you'd rather manage sleep yourself.
         </span>
       </label>
 
@@ -1479,7 +1474,7 @@ import SearchShapeChart from './charts/SearchShapeChart.vue';
 import type { EffortTier, LegSummary } from '@/search/types';
 import type { ShortlistRow } from '@/search/shortlist';
 import { VIEWS } from '@/search/views';
-import { downloadParts } from '@/utils/export';
+import { downloadCsv as saveCsvFile } from '@/utils/export';
 
 const props = defineProps<{ playerId: string }>();
 
@@ -1655,7 +1650,7 @@ function downloadSubmission(): void {
 /** Chunked for the same reason the Insane panel's is: a long run's table is tens of megabytes, and
  *  the one-string version needs three copies of it alive at once. See `chainsCsvChunks`. */
 function downloadCsv(): void {
-  downloadParts(store.csvFilename(), store.exportCsvChunks(), 'text/csv;charset=utf-8');
+  saveCsvFile(store.csvFilename(), store.exportCsvChunks());
 }
 
 /** The finish INSTANT, not the duration: durations from different plan starts are not comparable,
