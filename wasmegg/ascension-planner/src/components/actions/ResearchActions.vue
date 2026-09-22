@@ -704,16 +704,20 @@ function insertToggleEarningsBoost(
  * follows computes its own (correspondingly shorter) remaining wait from the bank/population the
  * wait action already advanced to. When no boundary is actually crossed, nothing is inserted at all.
  *
- * `checkRoiGate` (only passed `true` by `handleBuyMilestoneChain`) additionally enforces the same
- * "clears 70% ROI by the next research sale" bar `computeResearchMilestoneChain`'s own detour/target
- * steps now require before including a purchase — see that function's doc comment
- * (`milestoneChain.ts`) for why: without it, a purchase that only becomes affordable a few minutes
- * before a sale gets bought immediately at full price, when waiting those few minutes would have
- * meant 70% off. Recomputed fresh here (not trusted from the plan) for the same self-correcting
- * reason every other number in this function is. Not applied to `runSaleAwareBuyFlow`'s or
- * "Buy Until Sale Ends"'s own calls — their candidates are already selected by rules (the 70% button
- * literally, "Buy Until Sale Ends" by delivery impact rather than earnings ROI) this gate would be
- * redundant or actively wrong for.
+ * `checkRoiGate` (only passed `true` by `handleBuyMilestoneChain`, and only for a research-level
+ * milestone target) additionally enforces the same "clears 70% ROI by the next research sale" bar
+ * `computeResearchMilestoneChain`'s own detour/target steps now require before including a purchase
+ * — see that function's doc comment (`milestoneChain.ts`) for why: without it, a purchase that only
+ * becomes affordable a few minutes before a sale gets bought immediately at full price, when waiting
+ * those few minutes would have meant 70% off. Recomputed fresh here (not trusted from the plan) for
+ * the same self-correcting reason every other number in this function is. Deliberately NOT applied
+ * for a TIER milestone target: most of that chain is `computeTierMilestoneChain`'s cheapest-first
+ * tail, which buys by price/ROI-speed alone with no such gate (every purchase counts toward a tier
+ * unlock regardless of ROI) — checking it live there would defer cheap filler purchases the plan
+ * never screened for it, a real wait the preview never showed. Also not applied to
+ * `runSaleAwareBuyFlow`'s or "Buy Until Sale Ends"'s own calls — their candidates are already
+ * selected by rules (the 70% button literally, "Buy Until Sale Ends" by delivery impact rather than
+ * earnings ROI) this gate would be redundant or actively wrong for.
  */
 function syncEventStateForItem(item: { research: CommonResearch }, checkRoiGate = false) {
   const beforeSnapshot = prepareExecution();
@@ -1326,8 +1330,19 @@ async function handleBuyMilestoneChain() {
         );
       }
 
+      // `checkRoiGate` mirrors the "clears 70% ROI by the next research sale" bar that
+      // `computeResearchMilestoneChain`'s own target/detour steps already enforce at planning time
+      // for a research-level target — so re-checking it live here just self-corrects for drift
+      // between planning and execution (see `syncEventStateForItem`'s doc comment). For a TIER
+      // target, though, most of the chain is `computeTierMilestoneChain`'s cheapest-first tail
+      // (`reorderPurchaseListByROI`), which deliberately buys by price/ROI-speed alone with no such
+      // gate — every purchase counts toward a tier unlock regardless of ROI. Applying the gate live
+      // there re-judges purchases the plan never screened for it, deferring a cheap filler research
+      // to the next sale (a real multi-day wait the preview never showed) whenever that particular
+      // filler's own payback happens to be slow.
+      const checkRoiGate = milestoneTarget.value?.kind === 'research';
       for (const item of list) {
-        syncEventStateForItem(item, true);
+        syncEventStateForItem(item, checkRoiGate);
         buyOneLevel(item.research);
       }
 
