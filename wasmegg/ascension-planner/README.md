@@ -182,6 +182,31 @@ zero — it sorts last under "Kindest to my schedule" and shows `not recorded`. 
 date" needs a plan start to know which day a chain lands on; without one it falls back to the
 ranking rather than collapsing every chain onto the same epoch day.
 
+#### Highlighting one checkpoint's values
+
+Under the shape chart, name a position (`1st checkpoint`, … , `Last before target`) and a few
+values — `195, 196, 197`, or `195-200` — and each value gets its own colour, its own count and its
+own best-of line, while everything else greys out. It answers the conditional questions a cloud of
+25,000 points cannot: what opening on 195 is worth against 196, whether the third checkpoint is
+doing anything at all. On one real run, first checkpoint `201-203` came back 201 → 676.923 d over
+946 chains, 202 → +6.406 d, 203 → +6.260 d: the opener is worth six days and the choice between
+202 and 203 is worth nothing.
+
+Three adjacent values that separate into three clean bands is a real effect. Three that interleave
+is not, and that is the point of seeing them at once.
+
+#### The Chain Explorer (everybody's runs)
+
+A separate page, `explorer.html`, reads the collector and groups **every submitted run by ascension
+count** — 2, 3, 4, and up. For the count you pick it shows where each checkpoint lands as a
+fraction of that account's journey, how long each leg runs, how the peak delivery rate climbs leg
+over leg, and which accounts have tried more than one count. Open any run with a stored table and
+the full scatter comes with it, highlight and all.
+
+It needs no save file and no player ID, so it hosts anywhere static, GitHub Pages included. See
+[collector/README.md](collector/README.md#3-the-chain-explorer-page) for pointing it at a collector
+and for the one build flag a Pages deploy needs.
+
 ### Leaving a long run overnight (browser)
 
 An exhaustive run is hours to days of work in a tab, and the two things that end one early are

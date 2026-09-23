@@ -297,6 +297,63 @@ checkpoint keeps none. That is **unknown**, not zero, and it sorts accordingly.
 
 ---
 
+## 3. The Chain Explorer page
+
+`explorer.html` is a second page in the planner's build, and it is a READER of the two endpoints
+above — `GET /all` for every submitted run and `GET /csv?id=` for one run's full chain table.
+Nothing about it needs a save file, a player ID or the simulator, so it is a static bundle that
+works wherever it is served from.
+
+It groups every run by ascension count and, for the count you pick, shows where each checkpoint
+lands as a fraction of that account's own journey, how long each leg runs, and which accounts have
+tried more than one count. Open a run's table and the full scatter comes with it, including the
+per-checkpoint highlight: name a position and a few values (`195, 196, 197`) and each gets its own
+colour and its own best-of line, which is how you see what opening on 195 is actually worth.
+
+**Durations are never compared across accounts**, and the page says so in three places. A
+duration depends on artifacts, colleggtibles, research and starting TE at least as much as on the
+chain; what transfers is the SHAPE. The one exception is "does one more ascension help", which is
+drawn per account and marks whether a line came from a single exhaustive run (controlled) or from
+several runs on different days (not).
+
+**An "account" is a guess**, because a submission carries no player ID by design. The proxy is the
+timezone plus the eight virtue artifact labels, which on the live collector collapses 41 runs into
+the 8 accounts that actually sent them — people who retype their nickname every run still group
+correctly, and two people in one timezone with identical sets would wrongly merge.
+
+### Pointing it at a collector
+
+In order: `?collector=https://…` on the page's own URL, then `VITE_SUBMIT_URL` from the build
+(minus its `/submit`), then a box on the page that remembers what you type. The query parameter is
+what makes a hosted copy re-pointable without a rebuild, and only `http`/`https` are accepted there.
+
+### Hosting it on GitHub Pages
+
+The build's asset URLs are absolute, so the base path has to match where the files are served
+from. Pages serves a project site at `/<repo>/`:
+
+```bash
+VITE_BASE=/<repo>/ pnpm build     # or: VITE_BASE=./ for an unknown path
+```
+
+Then publish `dist/` (both `index.html` and `explorer.html` are in it) to the `gh-pages` branch or
+to `docs/` on `main`. The explorer is at `https://<user>.github.io/<repo>/explorer.html`. No
+server, no API keys: the collector answers `access-control-allow-origin: *`, so a page on
+`github.io` reads it exactly as one on `localhost` does. A build with the wrong base loads no
+JavaScript at all and sits on "Loading the explorer…" forever, which looks like a broken build and
+is really a one-flag mistake.
+
+The planner itself will also work from that build, but it needs the CORS proxy to allow the new
+origin before a player-ID fetch will succeed — see section 1.
+
+### The one browser requirement
+
+Run tables come down as gzip and are inflated on the page with `DecompressionStream`, which rules
+out Safari below 16.4 and Firefox below 113. Everything that does not involve opening a run's full
+table works without it.
+
+---
+
 ## Testing the Worker without deploying
 
 ```bash

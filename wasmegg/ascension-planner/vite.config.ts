@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import { defineConfig, loadEnv } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import vueJsx from '@vitejs/plugin-vue-jsx';
@@ -12,7 +13,15 @@ export default defineConfig(({ mode }) => {
   const env = { ...loadEnv(mode, process.cwd(), 'VITE_'), ...process.env };
 
   return {
-    base: '/ascension-planner/',
+    // Where the built pages will be SERVED from, which is not always where they are built.
+    //
+    // Netlify serves this at /ascension-planner/, which is why that is the default and why it is
+    // hardcoded historically. A GitHub Pages copy lives at /<repo>/ instead, and a page built with
+    // the wrong base loads no JS at all -- every asset 404s and the tab shows the "Loading..."
+    // fallback forever, which looks like a broken build rather than a path mistake. So it is an
+    // env var: `VITE_BASE=/AutoAutoAP/ pnpm build` for a Pages deploy, `VITE_BASE=./` for a folder
+    // opened over plain HTTP at an unknown path.
+    base: env.VITE_BASE || '/ascension-planner/',
     resolve: {
       tsconfigPaths: true,
       // `lib` and `ui` are workspace packages that declare their own vue/pinia. pnpm keys a
@@ -29,6 +38,17 @@ export default defineConfig(({ mode }) => {
     plugins: [vue(), vueJsx()],
     build: {
       chunkSizeWarningLimit: 2000,
+      // TWO PAGES, ONE BUILD. `explorer.html` is the Chain Explorer: a static reader of the
+      // collector's public endpoints that needs no save, no player id and no Pinia, so it is a
+      // separate document rather than a route inside the planner. Listing it here is what makes
+      // `dist/explorer.html` exist; vite's default single-entry build would simply ignore the file
+      // and the page would 404 in production while working perfectly in dev.
+      rollupOptions: {
+        input: {
+          index: fileURLToPath(new URL('./index.html', import.meta.url)),
+          explorer: fileURLToPath(new URL('./explorer.html', import.meta.url)),
+        },
+      },
     },
 
     // `vite preview` refuses any request whose Host header it does not recognise -- DNS-rebinding

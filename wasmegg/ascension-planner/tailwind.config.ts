@@ -3,7 +3,7 @@ import colors from 'tailwindcss/colors';
 import forms from '@tailwindcss/forms';
 
 export default {
-  content: ['./index.html', './src/**/*.{vue,ts}', '../../ui/**/*.vue'],
+  content: ['./index.html', './explorer.html', './src/**/*.{vue,ts}', '../../ui/**/*.vue'],
   safelist: ['h-4', 'w-4', 'h-5', 'w-5', 'h-6', 'w-6'],
   theme: {
     extend: {

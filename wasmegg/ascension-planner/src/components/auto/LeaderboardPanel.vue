@@ -20,6 +20,16 @@
             The fastest chain each person has submitted. Open a row for the artifacts, stones and per-leg timings it was
             simulated with.
           </p>
+          <!-- The board answers "who is fastest", which is the question with the least transferable
+               answer on it: durations are not comparable between accounts. The explorer answers the
+               one that is -- what SHAPE keeps winning, per ascension count -- so it is linked from
+               here, where somebody is already looking at other people's runs. -->
+          <a
+            :href="explorerHref"
+            class="inline-block mt-1 text-[11px] font-black text-indigo-700 hover:text-indigo-900 underline decoration-indigo-300"
+          >
+            Explore every run by ascension count →
+          </a>
         </div>
         <div class="flex items-end gap-2">
           <label class="block">
@@ -415,6 +425,9 @@ function margin(row: Row): number | null {
 const store = useChainSearchStore();
 
 const root = computed(() => store.leaderboardUrl.replace(/\/$/, ''));
+
+/** The explorer is a second page in this same build, so it lives under whatever base was built. */
+const explorerHref = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/explorer.html`;
 const csvRoot = computed(() => `${root.value}/csv`);
 
 const COLUMNS: { key: SortKey; label: string; right?: boolean }[] = [
