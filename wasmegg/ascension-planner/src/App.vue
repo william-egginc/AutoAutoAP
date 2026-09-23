@@ -700,6 +700,23 @@ if (insaneMode) {
     if (before && !now) plannerTab.value = 'automatic';
   });
 }
+
+/**
+ * In Insane mode, set the account up the way clicking the Auto Planner tab does.
+ *
+ * That click runs `initPlanFuture`, which is what fills the planner's working state from the save:
+ * the starting TE, the current virtue farm, the plan's start. Insane mode shows its panel as soon
+ * as a player is known and never went through that click -- so a tab opened straight onto
+ * `?insane=1` (every Chain Explorer "Run this sweep" link) planned from TE 0 with no farm, and the
+ * pre-flight refused it as "your virtue farm had not finished loading". Once per player id, so the
+ * loading watcher does not re-run it, and never over a load already in progress.
+ */
+let insaneInitFor = '';
+async function initInsaneOnce(): Promise<void> {
+  if (!insaneMode || !playerId.value || loading.value || insaneInitFor === playerId.value) return;
+  insaneInitFor = playerId.value;
+  await handleAutoPlannerTabClick();
+}
 const virtueStore = useVirtueStore();
 const fuelTankStore = useFuelTankStore();
 const truthEggsStore = useTruthEggsStore();
@@ -825,6 +842,9 @@ onMounted(async () => {
   ) {
     actionsStore.pushWaitForFullHabsAction();
   }
+
+  // A saved player id on a ?insane=1 page: set it up now rather than waiting for a tab click.
+  await initInsaneOnce();
 });
 
 // Auto-save logic
@@ -1078,7 +1098,10 @@ async function submitPlayerId(id: string) {
     loading.value = false;
     error.value = e instanceof Error ? e.message : 'Failed to load player data';
     console.error('Error fetching player data:', e);
+    return;
   }
+  // A player id typed on a ?insane=1 page: same set-up as the Auto Planner tab click.
+  await initInsaneOnce();
 }
 
 /**

@@ -115,7 +115,8 @@
             {{ store.isRunning ? 'Running...' : 'Start this sweep' }}
           </button>
           <span class="text-[10px] text-slate-500">
-            When it finishes, press Submit at the bottom: it is tagged as {{ sweepRequest.preset }} automatically.
+            This is the only button you need (the one further down does the same). When it finishes, press Submit
+            at the bottom: it is tagged as {{ sweepRequest.preset }} automatically.
           </span>
         </div>
         <!-- Said HERE as well as further down: the card's Start is at the top of a long page, and a
@@ -994,10 +995,21 @@
       <div class="flex flex-wrap gap-3">
         <button
           class="btn-premium btn-primary flex-1 py-4 text-sm shadow-xl shadow-rose-500/20 active:scale-[0.98]"
-          :disabled="store.isRunning || !chainCount"
+          :disabled="store.isRunning || !chainCount || (!!sweepRequest && !sweepConsent)"
           @click="start"
         >
-          {{ store.isRunning ? 'Pricing every chain...' : 'Start exhaustive search' }}
+          <!-- With a sweep request open this is the same run as the card's button, so it says the
+               same thing and waits for the same tick; two differently named Starts read as two
+               different actions. -->
+          {{
+            store.isRunning
+              ? 'Pricing every chain...'
+              : sweepRequest
+                ? sweepConsent
+                  ? 'Start this sweep'
+                  : 'Start this sweep (tick "I understand" at the top first)'
+                : 'Start exhaustive search'
+          }}
         </button>
         <button
           v-if="store.isRunning"
