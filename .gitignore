@@ -23,3 +23,7 @@ dist-search/
 # Vite machine-local env (proxy URLs, preview hostnames)
 .env.local
 .env.*.local
+
+# macOS Finder metadata. Appears in any directory the Finder has opened and is
+# never wanted in a commit.
+.DS_Store
