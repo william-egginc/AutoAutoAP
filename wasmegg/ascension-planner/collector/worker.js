@@ -429,6 +429,9 @@ function pickSubmission(s) {
     effort: text(s.effort, MAX.TEXT),
     window: s.window === null ? null : text(s.window, MAX.TEXT),
     holdShifts: flag(s.holdShifts),
+    // Whether leg 1 finished the current run first. Changes which chain wins, so the analysis must
+    // never pool runs that differ on it. Absent on submissions made before it was recorded.
+    forceContinue: flag(s.forceContinue),
     waitingHours: s.waitingHours === null ? null : num(s.waitingHours),
 
     // Labels, not counts: an artifact slot takes one artifact, so how many are owned never
@@ -495,8 +498,39 @@ function pickSubmission(s) {
 const CORS = {
   'access-control-allow-origin': '*',
   'access-control-allow-methods': 'GET,POST,OPTIONS',
-  'access-control-allow-headers': 'content-type',
+  'access-control-allow-headers': 'content-type,x-upload-token',
 };
+
+/**
+ * The token that lets ONE CSV be attached to ONE submission.
+ *
+ * `POST /csv?id=` used to store whatever it was sent under any id, and every id is public on the
+ * leaderboard -- so anyone could replace every player's table, or fill the namespace with ids
+ * nobody submitted. Now `/submit` hands back HMAC(CSV_UPLOAD_KEY, id) and `/csv` accepts only
+ * that, only once. The flood gate on `/submit` therefore covers `/csv` too: no submission, no
+ * token.
+ *
+ * AN HMAC, NOT A RANDOM TOKEN STORED IN KV. KV is eventually consistent across locations, and the
+ * app posts the CSV milliseconds after the submission; a token written by one request can be
+ * invisible to the next. A signature is checked with no read at all. The price is one secret:
+ * `wrangler secret put CSV_UPLOAD_KEY`. Without it CSV uploads are refused outright (503) rather
+ * than silently falling back to the old open door.
+ */
+async function uploadToken(env, id) {
+  const key = await crypto.subtle.importKey(
+    'raw', new TextEncoder().encode(env.CSV_UPLOAD_KEY), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+  );
+  const sig = new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode('csv:' + id)));
+  return [...sig].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** Compare without an early exit, so the response time does not leak how much of a guess matched. */
+function sameToken(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
 
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -535,7 +569,14 @@ export default {
         gate = { n: 0, until: now + 60000 };
       }
       if (gate.n >= MAX.SUBMITS_PER_MINUTE) {
-        return json({ error: `slow down - at most ${MAX.SUBMITS_PER_MINUTE} submissions a minute` }, 429);
+        // The wait goes in the BODY, not only a Retry-After header: a cross-origin page cannot read
+        // response headers the Worker does not also list in Access-Control-Expose-Headers, and the
+        // one thing the person needs is "how long", in words the panel can show as is.
+        const retryAfter = Math.max(1, Math.ceil((gate.until - now) / 1000));
+        return json(
+          { error: `slow down - at most ${MAX.SUBMITS_PER_MINUTE} submissions a minute`, retryAfter },
+          429
+        );
       }
       gate.n++;
 
@@ -560,7 +601,8 @@ export default {
       // the `until` inside decides, and the TTL only keeps the address from being retained.
       await env.SUBMISSIONS.put(gateKey, JSON.stringify(gate), { expirationTtl: 120 });
 
-      return json({ ok: true, id });
+      // No key configured means no token: the client then skips the CSV instead of being refused.
+      return json(env.CSV_UPLOAD_KEY ? { ok: true, id, uploadToken: await uploadToken(env, id) } : { ok: true, id });
     }
 
     // --------------------------------------------------------------- the CSV
@@ -586,6 +628,17 @@ export default {
     if (url.pathname === '/csv' && request.method === 'POST') {
       const id = url.searchParams.get('id');
       if (!id || !/^[a-f0-9-]{4,40}$/.test(id)) return json({ error: 'bad id' }, 400);
+
+      // Checked before the body is read, so a refused upload costs no bandwidth or CPU.
+      if (!env.CSV_UPLOAD_KEY) return json({ error: 'CSV uploads are not configured on this collector' }, 503);
+      if (!sameToken(request.headers.get('x-upload-token'), await uploadToken(env, id))) {
+        return json({ error: 'missing or wrong upload token - a CSV can only follow its own /submit' }, 403);
+      }
+      // Write-once. The token never expires, so without this it would let the submitter (or anyone
+      // who saw the token) replace the table later.
+      if ((await env.SUBMISSIONS.get(`csv:${id}`, 'arrayBuffer')) !== null) {
+        return json({ error: 'this submission already has a CSV' }, 409);
+      }
 
       const body = await request.arrayBuffer();
       if (!body.byteLength) return json({ error: 'empty body' }, 400);

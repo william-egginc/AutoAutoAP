@@ -16,9 +16,23 @@ import {
   SUBMISSION_SCHEMA,
   summariseProof,
   PROOF_RUNNERS_UP,
+  tooManySubmissionsMessage,
   validateSubmission,
   type SubmissionInputs,
 } from './submission';
+
+describe('tooManySubmissionsMessage', () => {
+  it('says how long to wait, and that nothing was lost', () => {
+    expect(tooManySubmissionsMessage(42)).toMatch(/about 42 seconds/);
+    expect(tooManySubmissionsMessage(1)).toMatch(/about 1 second\b/);
+    expect(tooManySubmissionsMessage(42)).toMatch(/Nothing was lost/);
+  });
+
+  it('falls back to "a minute" when the collector gave no wait', () => {
+    expect(tooManySubmissionsMessage()).toMatch(/wait a minute/);
+    expect(tooManySubmissionsMessage(0)).toMatch(/wait a minute/);
+  });
+});
 import type { LegSummary } from './types';
 
 const DENVER = 'America/Denver';
@@ -84,6 +98,13 @@ describe('buildSubmission', () => {
         'window',
       ].sort()
     );
+  });
+
+  it('records force-continue when told it, and leaves it off for callers that do not know', () => {
+    // It changes which chain wins, so the analysis must be able to keep the two kinds of run apart.
+    expect(buildSubmission(inputs({ forceContinue: true })).forceContinue).toBe(true);
+    expect(buildSubmission(inputs({ forceContinue: false })).forceContinue).toBe(false);
+    expect('forceContinue' in buildSubmission(inputs())).toBe(false);
   });
 
   it('carries the schema-6 variables when given them, and leaves each off when not', () => {

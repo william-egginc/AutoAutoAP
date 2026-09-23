@@ -325,15 +325,21 @@ describe('parseBand / parseBands', () => {
 });
 
 describe('suggestBands', () => {
-  it('suggests bands that scale with the account, not fixed TE values', () => {
-    const a = suggestBands(179, 490, 6);
-    const b = suggestBands(100, 490, 6);
-    expect(a).not.toBeNull();
-    expect(b).not.toBeNull();
-    // Same fractions, different journeys, so the absolute bands must differ.
-    expect(a!.text).not.toBe(b!.text);
-    expect(a!.bands).toHaveLength(5);
-    expect(b!.bands).toHaveLength(5);
+  it('anchors the later checkpoints at fixed TE, whatever the account starts at', () => {
+    // Measured: the checkpoint that sets up the final leg lands near 280-300 TE for accounts
+    // starting anywhere from 126 to 198, because that is where delivery reaches its ceiling. The
+    // old fraction-of-the-journey table slid it down for low-TE accounts and up for high ones.
+    const low = suggestBands(133, 490, 3, { step: 1, margin: 0 })!;
+    const high = suggestBands(181, 490, 3, { step: 1, margin: 0 })!;
+    expect(low.bands[1]).toEqual(high.bands[1]);
+    expect(Math.min(...low.bands[1])).toBeGreaterThanOrEqual(270);
+    expect(Math.max(...low.bands[1])).toBeLessThanOrEqual(300);
+  });
+
+  it('clips the first checkpoint to above where the account already is', () => {
+    const s = suggestBands(200, 490, 6, { step: 1, margin: 0 })!;
+    expect(Math.min(...s.bands[0])).toBe(201);
+    expect(s.bands).toHaveLength(5);
   });
 
   it('produces one band per intermediate checkpoint, so N ascensions gives N-1 boxes', () => {
@@ -513,9 +519,10 @@ describe('suggestBands', () => {
     // `margin` widens both sides, so an unbounded one turns a measured shape back into the whole
     // range and a negative one narrows it past what the corpus actually reported. Neither is a
     // thing the caller can ask for.
-    const huge = suggestBands(180, 490, 6, { step: 5, margin: 5 })!;
-    const capped = suggestBands(180, 490, 6, { step: 5, margin: 0.1 })!;
-    expect(huge.margin).toBe(0.1);
+    // Margin is in TE now; the ceiling is 30.
+    const huge = suggestBands(180, 490, 6, { step: 5, margin: 500 })!;
+    const capped = suggestBands(180, 490, 6, { step: 5, margin: 30 })!;
+    expect(huge.margin).toBe(30);
     expect(huge.bands).toEqual(capped.bands);
 
     const negative = suggestBands(180, 490, 6, { step: 5, margin: -1 })!;

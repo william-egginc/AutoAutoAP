@@ -49,6 +49,7 @@ import {
   scrubIdentifiers,
   submissionFilename,
   summariseProof,
+  tooManySubmissionsMessage,
   type SearchSpace,
   type Submission,
 } from '@/search/submission';
@@ -1143,6 +1144,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       effort: effort.value,
       availability: isConstrained(availability.value) ? availability.value : null,
       holdShifts: deferShifts.value,
+      forceContinue: forceContinue.value,
       artifacts: inv.artifacts,
       stones: inv.stones,
       // Already solved by readInventory() above, so this costs nothing extra -- `elr` is leg 1's
@@ -1224,6 +1226,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   async function sendSubmission(payload: Submission, csv?: string): Promise<{ ok: boolean; message: string }> {
     if (!submitUrl) return { ok: false, message: 'no collector configured' };
     let id: string | undefined;
+    let uploadToken: string | undefined;
     try {
       const res = await fetch(submitUrl, {
         method: 'POST',
@@ -1235,11 +1238,12 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         // schema 1", "chain must strictly increase" -- and reporting only the status code turned
         // an answerable message into a wall. A stale build submitting an old schema looked
         // exactly like a broken collector.
-        const detail = (await res.json().catch(() => ({}))) as { problems?: string[] };
+        const detail = (await res.json().catch(() => ({}))) as { problems?: string[]; retryAfter?: number };
+        if (res.status === 429) return { ok: false, message: tooManySubmissionsMessage(detail.retryAfter) };
         const why = detail.problems?.length ? `: ${detail.problems.join('; ')}` : '';
         return { ok: false, message: `collector said ${res.status}${why}` };
       }
-      id = ((await res.json().catch(() => ({}))) as { id?: string }).id;
+      ({ id, uploadToken } = (await res.json().catch(() => ({}))) as { id?: string; uploadToken?: string });
     } catch (e) {
       // Ordinary: someone is offline, or the collector is down. It must not look like the run
       // broke.
@@ -1248,6 +1252,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
 
     if (!csv) return { ok: true, message: 'sent' };
     if (!id) return { ok: true, message: 'sent (no id came back, so the CSV was skipped)' };
+    // The collector only accepts a CSV carrying the token its /submit answer signed for this id.
+    if (!uploadToken) return { ok: true, message: 'sent (the collector does not take CSVs, so it was skipped)' };
     try {
       const csvUrl = `${submitUrl.replace(/\/submit\/?$/, '/csv')}?id=${encodeURIComponent(id)}`;
       const body = await gzip(scrubIdentifiers(csv));
@@ -1256,7 +1262,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         // Deliberately not `content-encoding: gzip`, which would invite something in the path to
         // helpfully inflate the body before the Worker sees it. These are gzip bytes being posted
         // as data, not a transfer encoding, and the type says so.
-        headers: { 'content-type': 'application/gzip' },
+        headers: { 'content-type': 'application/gzip', 'x-upload-token': uploadToken },
         body,
       });
       const mb = (n: number) => (n / 1024 / 1024).toFixed(1);

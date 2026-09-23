@@ -134,7 +134,7 @@
 
 <script setup lang="ts">
 import { computed, ref, shallowRef, watch } from 'vue';
-import { scrubIdentifiers, type Submission } from '@/search/submission';
+import { afterPaint, scrubIdentifiers, tooManySubmissionsMessage, type Submission } from '@/search/submission';
 import type { CollectorRow } from './collector';
 import { inflateIfGzip } from './collector';
 import {
@@ -235,24 +235,48 @@ async function gzip(text: string): Promise<ArrayBuffer> {
 }
 
 async function send(): Promise<void> {
-  if (!preview.value || check.value?.errors.length) return;
+  // Clicks made while the page was busy arrive afterwards; each one would send another copy.
+  if (sending.value || !preview.value || check.value?.errors.length) return;
   sending.value = true;
-  sendMessage.value = '';
+  sendOk.value = true;
+  sendMessage.value = 'Preparing the upload…';
   try {
+    // Let the button's "Sending…" reach the screen before scrubbing a multi-megabyte table.
+    await afterPaint();
     const res = await fetch(`${props.base}/submit`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(preview.value),
     });
-    const body = (await res.json().catch(() => ({}))) as { id?: string; problems?: string[]; error?: string };
+    const body = (await res.json().catch(() => ({}))) as {
+      id?: string;
+      uploadToken?: string;
+      problems?: string[];
+      error?: string;
+      retryAfter?: number;
+    };
+    if (res.status === 429) {
+      sendOk.value = false;
+      const msg = tooManySubmissionsMessage(body.retryAfter);
+      sendMessage.value = msg.charAt(0).toUpperCase() + msg.slice(1);
+      return;
+    }
     if (!res.ok || !body.id) {
       sendOk.value = false;
       sendMessage.value = `The collector said ${res.status}${body.problems?.length ? `: ${body.problems.join('; ')}` : body.error ? `: ${body.error}` : ''}`;
       return;
     }
+    if (!body.uploadToken) {
+      // The collector signs a one-time token for the CSV; without one it would refuse the table.
+      sent.value = true;
+      sendOk.value = false;
+      sendMessage.value = `Stored as ${body.id}, but this collector does not accept tables.`;
+      emit('submitted', body.id);
+      return;
+    }
     const csvRes = await fetch(`${props.base}/csv?id=${encodeURIComponent(body.id)}`, {
       method: 'POST',
-      headers: { 'content-type': 'application/gzip' },
+      headers: { 'content-type': 'application/gzip', 'x-upload-token': body.uploadToken },
       body: await gzip(scrubIdentifiers(csvText.value)),
     });
     sent.value = true;

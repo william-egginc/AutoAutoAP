@@ -385,6 +385,7 @@ export function buildUploadSubmission(csv: UploadCsv, diag: Diagnostics, form: U
     effort: csv.effort,
     availability: isConstrained(availability) ? availability : null,
     holdShifts: !!diag.schedule?.deferShifts,
+    forceContinue: csv.forceContinue,
     artifacts: inventoryFromLabels(csv.artifacts),
     stones: stonesFromLabels(csv.stones),
     delivery: diag.loadout?.delivery,

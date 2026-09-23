@@ -138,8 +138,17 @@ database would be borrowing trouble.
 ```bash
 cd collector
 npx wrangler kv namespace create SUBMISSIONS   # paste the printed id into wrangler.toml
+npx wrangler secret put CSV_UPLOAD_KEY --config "$PWD/wrangler.toml"   # any long random string
 npx wrangler deploy --config "$PWD/wrangler.toml"
 ```
+
+**`CSV_UPLOAD_KEY` is what keeps strangers from overwriting CSVs.** Every submission id is public
+on the leaderboard, so `/csv` cannot trust an id on its own. `/submit` answers with an
+`uploadToken` -- an HMAC of the id under this key -- and `/csv` stores a table only when that
+token comes with it, and only if the submission has no table yet. Without the secret the
+collector still takes submissions but refuses every CSV (503), rather than falling back to an
+open upload. Generate one with `openssl rand -hex 32` and paste it at the prompt; it never needs
+to be seen again, and rotating it only stops tokens that have not been used yet.
 
 **One KV namespace holds everything — no R2, no payment method on the account.** Submissions are
 small JSON under `sub:`; a run's full CSV is gzipped by the browser and stored under `csv:`.
@@ -190,8 +199,8 @@ no button.
 
 | | |
 |---|---|
-| `POST /submit` | one submission; validated against a whitelist, rate-limited to 10 per IP per minute |
-| `POST /csv?id=<id>` | that run's gzipped CSV. Must be gzip, capped at 8 MB compressed |
+| `POST /submit` | one submission; validated against a whitelist, rate-limited to 10 per IP per minute. Answers `{ id, uploadToken }` |
+| `POST /csv?id=<id>` | that run's gzipped CSV, once. Needs the `x-upload-token` header `/submit` returned. Must be gzip, capped at 8 MB compressed |
 | `GET /csv?id=<id>` | it back, served `Content-Encoding: gzip` |
 | `GET /leaderboard?final=490&limit=50` | one row per distinct run, already in duration order |
 | `GET /all` | everything, for your own analysis |

@@ -1467,6 +1467,7 @@ import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { ACCURACY_SAMPLE, EFFORT_NOTES, EFFORT_ORDER, NEAR_OPTIMAL_SHARE } from '@/search/effort';
 import { formatDuration } from '@/lib/format';
 import { isAvailable } from '@/search/availability';
+import { afterPaint } from '@/search/submission';
 import ChainSearchExplainer from './ChainSearchExplainer.vue';
 import HelpTip from './HelpTip.vue';
 import LoadoutDisplay from './LoadoutDisplay.vue';
@@ -1619,15 +1620,29 @@ const payloadPreview = computed(() => {
 });
 
 async function submit(): Promise<void> {
-  if (!optIn.value) return;
-  const payload = store.buildRunSubmission(effectiveNickname.value);
-  if (!payload) return;
+  // The guard matters as much as the flag: clicks made while the page was frozen building the
+  // table are delivered afterwards, and each one used to send another copy.
+  if (!optIn.value || submitState.value === 'sending') return;
   submitState.value = 'sending';
-  submitMessage.value = '';
-  const res = await store.sendSubmission(payload, includeCsv.value ? store.exportCsv() : undefined);
-  submitState.value = 'done';
-  submitOk.value = res.ok;
-  submitMessage.value = res.ok ? `Thank you — ${res.message}` : `Not sent: ${res.message}`;
+  submitOk.value = true;
+  submitMessage.value = 'Preparing your result...';
+  try {
+    // Let the button's new state reach the screen before the heavy CSV build blocks the page.
+    await afterPaint();
+    const payload = store.buildRunSubmission(effectiveNickname.value);
+    if (!payload) {
+      submitOk.value = false;
+      submitMessage.value = 'Nothing to submit yet.';
+      return;
+    }
+    const csv = includeCsv.value ? store.exportCsv() : undefined;
+    submitMessage.value = 'Sending...';
+    const res = await store.sendSubmission(payload, csv);
+    submitOk.value = res.ok;
+    submitMessage.value = res.ok ? `Thank you — ${res.message}` : `Not sent: ${res.message}`;
+  } finally {
+    submitState.value = 'done';
+  }
 }
 
 /** The offline path, and the only one available with no collector configured. Same Blob dance as

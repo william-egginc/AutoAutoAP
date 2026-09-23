@@ -1168,6 +1168,7 @@ import { useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useEidsStore } from 'lib';
 import { useBackupPlanStart } from '@/composables/useBackupPlanStart';
+import { afterPaint } from '@/search/submission';
 import {
   buildPool,
   countChains,
@@ -1735,9 +1736,15 @@ async function remove(id: string): Promise<void> {
 }
 
 async function submit(): Promise<void> {
+  // Clicks made while the page was frozen building the table arrive afterwards; each one used to
+  // send another copy.
+  if (submitting.value) return;
   submitting.value = true;
-  submitMessage.value = '';
+  submitOk.value = true;
+  submitMessage.value = 'Preparing your result...';
   try {
+    // Let "Sending..." reach the screen before the table build blocks the page.
+    await afterPaint();
     const payload = store.buildRunSubmission(effectiveNickname.value);
     if (!payload) {
       submitOk.value = false;
@@ -1748,7 +1755,9 @@ async function submit(): Promise<void> {
     // every exhaustive row on the board reads "No CSV was attached", including the ones where the
     // full working is most worth having. The second argument is the whole fix; the store gzips it
     // and posts it separately, and a failed upload only downgrades the message.
-    const res = await store.sendSubmission(payload, includeCsv.value ? store.exportCsv() : undefined);
+    const csv = includeCsv.value ? store.exportCsv() : undefined;
+    submitMessage.value = 'Sending...';
+    const res = await store.sendSubmission(payload, csv);
     submitOk.value = res.ok;
     submitMessage.value = res.ok ? `Thank you — ${res.message}` : `Not sent: ${res.message}`;
   } finally {

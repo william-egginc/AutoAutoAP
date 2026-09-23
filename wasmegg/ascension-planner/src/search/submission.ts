@@ -201,6 +201,12 @@ export interface Submission {
   /** Human-readable window, or null when the run was unconstrained. */
   window: string | null;
   holdShifts: boolean;
+  /**
+   * Whether leg 1 was pinned to finishing the current ascension rather than prestiging now. It
+   * changes the answer, not just the display: measured on one account it moved the best 2-ascension
+   * plan by 135 days. Optional because submissions before this field did not record it.
+   */
+  forceContinue?: boolean;
   /** Total time the plan spends waiting for the player: prestiges held plus shifts held. */
   waitingHours: number | null;
 
@@ -428,6 +434,31 @@ export function scrubIdentifiers(text: string): string {
   return text.replace(/EI\d{16}/g, 'EI[redacted]');
 }
 
+/**
+ * What to tell someone the collector turned away for submitting too often (HTTP 429).
+ *
+ * The collector allows a burst per connection per minute and says how long is left
+ * (`retryAfter`, seconds). Re-sending with a name after sending anonymously is ordinary, and a bare
+ * "429" read like the collector was broken, so this says what happened and what to do.
+ */
+/**
+ * Resolve after the browser has painted at least one frame.
+ *
+ * Submitting builds the whole chain table first -- tens of megabytes of string work on a long run
+ * -- and that blocks the page. Flipping the button to "Sending..." and then starting that work in
+ * the same tick meant the flip was never drawn: the page froze on a button that still looked
+ * clickable, and people clicked again. Await this between the flip and the work.
+ */
+export function afterPaint(): Promise<void> {
+  return new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
+}
+
+export function tooManySubmissionsMessage(retryAfter?: number): string {
+  const wait =
+    retryAfter && retryAfter > 0 ? `about ${retryAfter} second${retryAfter === 1 ? '' : 's'}` : 'a minute';
+  return `too many submissions from your connection in the last minute. Nothing was lost - wait ${wait} and press Submit again.`;
+}
+
 /** `2026-09-09 19:04` in `timezone`, or '' for a missing instant. Never `1970-01-01`. */
 function localStamp(unixSeconds: number, timezone: string): string {
   if (!unixSeconds || !Number.isFinite(unixSeconds)) return '';
@@ -464,6 +495,7 @@ export interface SubmissionInputs {
   effort: string;
   availability: Availability | null;
   holdShifts: boolean;
+  forceContinue?: boolean;
   artifacts: InventoryCount[];
   stones: InventoryCount[];
   /** Solved sets, already reduced to words by `describeLoadoutSlots`. */
@@ -598,6 +630,7 @@ export function buildSubmission(i: SubmissionInputs): Submission {
     effort: i.effort,
     window: i.availability ? describeAvailability(i.availability) : null,
     holdShifts: i.holdShifts,
+    ...(i.forceContinue === undefined ? {} : { forceContinue: i.forceContinue }),
     waitingHours: waiting === null ? null : Number(waiting.toFixed(2)),
     // Stones are kept wholesale -- they slot into every family above -- while artifacts are
     // narrowed to what a virtue ascension can equip. See VIRTUE_ARTIFACT_FAMILIES.

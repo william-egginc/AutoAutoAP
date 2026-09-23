@@ -42,7 +42,7 @@ function makeKV() {
 
 let env;
 beforeEach(() => {
-  env = { SUBMISSIONS: makeKV() };
+  env = { SUBMISSIONS: makeKV(), CSV_UPLOAD_KEY: 'test-key' };
 });
 
 const post = (path, body, ip = '1.1.1.1') =>
@@ -77,6 +77,7 @@ const FULL = {
   effort: 'balanced',
   window: '08:00-23:00 daily',
   holdShifts: true,
+  forceContinue: true,
   waitingHours: 412.5,
   artifacts: ['T4L Quantum metronome', 'T4L Lunar totem'],
   stones: [{ label: 'T4 Tachyon stone', count: 40 }],
@@ -157,7 +158,11 @@ describe('rate limit', () => {
     }
     const over = await post('/submit', MINIMAL, '4.4.4.4');
     expect(over.status).toBe(429);
-    expect((await over.json()).error).toMatch(/slow down/);
+    const body = await over.json();
+    expect(body.error).toMatch(/slow down/);
+    // How long to wait, in the body where a cross-origin page can read it.
+    expect(body.retryAfter).toBeGreaterThanOrEqual(1);
+    expect(body.retryAfter).toBeLessThanOrEqual(60);
   });
 
   it('counts each address separately', async () => {
@@ -299,11 +304,17 @@ describe('the CSV half', () => {
     void w.close();
     return await new Response(cs.readable).arrayBuffer();
   };
-  const postCsv = (id, body, type = 'application/gzip') =>
+  const postCsv = (id, body, token, type = 'application/gzip') =>
     worker.fetch(
-      new Request('https://collector.test/csv?id=' + id, { method: 'POST', headers: { 'content-type': type }, body }),
+      new Request('https://collector.test/csv?id=' + id, {
+        method: 'POST',
+        headers: { 'content-type': type, ...(token ? { 'x-upload-token': token } : {}) },
+        body,
+      }),
       env
     );
+  /** A real submission, and the one-time token /submit signed for it. */
+  const submitted = async () => (await post('/submit', MINIMAL)).json();
 
   const gunzip = async buf => {
     const ds = new DecompressionStream('gzip');
@@ -318,9 +329,10 @@ describe('the CSV half', () => {
     const packed = await gz(csv);
     // The whole reason this design works: a chain table is repetitive enough that KV can hold it.
     expect(packed.byteLength).toBeLessThan(csv.length / 10);
-    expect((await postCsv('abcd1234', packed)).status).toBe(200);
+    const { id, uploadToken } = await submitted();
+    expect((await postCsv(id, packed, uploadToken)).status).toBe(200);
 
-    const res = await worker.fetch(new Request('https://collector.test/csv?id=abcd1234'), env);
+    const res = await worker.fetch(new Request('https://collector.test/csv?id=' + id), env);
     expect(res.status).toBe(200);
     // A gzip FILE, not a gzip-encoded CSV. Declaring `content-encoding: gzip` on a `text/csv`
     // body made Cloudflare compress the response a second time, so the client stripped one layer
@@ -335,14 +347,66 @@ describe('the CSV half', () => {
   // A raw CSV stored as-is would later be served with a Content-Encoding its bytes do not have:
   // a download that will not open. Refusing is the kinder failure.
   it('refuses a body that is not gzip', async () => {
-    const res = await postCsv('abcd1234', 'rank,chain\n1,195 490\n');
+    const { id, uploadToken } = await submitted();
+    const res = await postCsv(id, 'rank,chain\n1,195 490\n', uploadToken);
     expect(res.status).toBe(400);
     expect((await res.json()).error).toMatch(/gzip/);
   });
 
   it('refuses an empty body and a bad id', async () => {
-    expect((await postCsv('abcd1234', new ArrayBuffer(0))).status).toBe(400);
-    expect((await postCsv('not a valid id!', await gz('x'))).status).toBe(400);
+    const { id, uploadToken } = await submitted();
+    expect((await postCsv(id, new ArrayBuffer(0), uploadToken)).status).toBe(400);
+    expect((await postCsv('not a valid id!', await gz('x'), uploadToken)).status).toBe(400);
+  });
+
+  // The hole this closes: ids are public on the leaderboard, and the upload used to trust any of
+  // them. Anyone could overwrite every player's table, or park data under ids nobody submitted.
+  describe('only the submitter can attach a CSV, once', () => {
+    it('refuses an upload with no token, or a made-up one', async () => {
+      const { id } = await submitted();
+      expect((await postCsv(id, await gz('x'))).status).toBe(403);
+      expect((await postCsv(id, await gz('x'), 'f'.repeat(64))).status).toBe(403);
+      expect(env.SUBMISSIONS._m.has('csv:' + id)).toBe(false);
+    });
+
+    it("refuses one submission's token on another submission", async () => {
+      const a = await submitted();
+      const b = await submitted();
+      expect((await postCsv(b.id, await gz('x'), a.uploadToken)).status).toBe(403);
+    });
+
+    it('refuses an id that was never submitted', async () => {
+      const { uploadToken } = await submitted();
+      expect((await postCsv('deadbeef', await gz('x'), uploadToken)).status).toBe(403);
+      expect(env.SUBMISSIONS._m.has('csv:deadbeef')).toBe(false);
+    });
+
+    it('refuses a second upload, even with the right token', async () => {
+      const { id, uploadToken } = await submitted();
+      const first = await gz('rank,chain\n1,195 490\n');
+      expect((await postCsv(id, first, uploadToken)).status).toBe(200);
+      expect((await postCsv(id, await gz('vandalised'), uploadToken)).status).toBe(409);
+      expect(new Uint8Array(env.SUBMISSIONS._m.get('csv:' + id))).toEqual(new Uint8Array(first));
+    });
+
+    it('keeps the token out of the stored record and the leaderboard', async () => {
+      const { uploadToken } = await submitted();
+      expect(JSON.stringify(stored())).not.toContain(uploadToken);
+      expect(await (await get('/leaderboard?final=490')).text()).not.toContain(uploadToken);
+    });
+
+    it('with no key configured, hands out no token and refuses every CSV', async () => {
+      delete env.CSV_UPLOAD_KEY;
+      const body = await submitted();
+      expect(body.id).toBeTruthy();
+      expect(body.uploadToken).toBeUndefined();
+      expect((await postCsv(body.id, await gz('x'), 'anything')).status).toBe(503);
+    });
+
+    it('lets the browser send the token header cross-origin', async () => {
+      const res = await worker.fetch(new Request('https://collector.test/csv?id=x', { method: 'OPTIONS' }), env);
+      expect(res.headers.get('access-control-allow-headers')).toContain('x-upload-token');
+    });
   });
 
   it('404s for a CSV that was never uploaded', async () => {
@@ -352,13 +416,12 @@ describe('the CSV half', () => {
 
   // The board has to know which rows have one, without an extra read per row.
   it('marks rows on the leaderboard with whether a CSV exists', async () => {
-    const submit = await post('/submit', MINIMAL);
-    const { id } = await submit.json();
+    const { id, uploadToken } = await submitted();
     let board = await (await get('/leaderboard?final=490')).json();
     expect(board.rows[0].id).toBe(id);
     expect(board.rows[0].hasCsv).toBe(false);
 
-    await postCsv(id, await gz('rank,chain\n1,195 490\n'));
+    await postCsv(id, await gz('rank,chain\n1,195 490\n'), uploadToken);
     board = await (await get('/leaderboard?final=490')).json();
     expect(board.rows[0].hasCsv).toBe(true);
   });

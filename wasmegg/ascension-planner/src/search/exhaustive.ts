@@ -342,33 +342,30 @@ export function parseBands(text: string, defaultStep = 5): number[][] {
  * to spend a finite budget is to spend it where good chains have been found before. That is what
  * the table below is.
  *
- * Where the near-best chains in this project's corpus put each checkpoint, as a fraction of the
- * journey from current TE to the target. Two corpora, unioned:
+ * Where the near-best chains in this project's corpus put each checkpoint, IN TRUTH EGGS -- not
+ * as a fraction of the journey, which is what this table used to hold.
  *
- *   - the original ten CSVs, seven accounts, 21,667 priced chains, taking every chain within 2%
- *     of its run's best at that ascension count, then the median per run and the min/max ACROSS
- *     runs;
- *   - six later CSVs, three accounts, 121,401 priced chains, taking every chain within 1% of its
- *     run's best and then the full min/max WITHIN each run, so a band describes the plateau rather
- *     than where the run medians happened to fall. The old method could return a band two TE wide
- *     when its runs agreed, which is precision the corpus does not have.
+ * WHY ABSOLUTE TE. Measured 2026-09-23 on 58 runs (the collector's 490-target CSVs, minus the two
+ * with the delivery-set-for-earnings bug, plus fresh force-continue sweeps of a 181 TE and a 133 TE
+ * account): take every chain within 0.5% of its run's best at that ascension count, then the
+ * median per run. Across accounts starting anywhere from 126 to 198 TE, those medians agree 2-10x
+ * more tightly in absolute TE than as a fraction. The last checkpoint of a 3-ascension chain is
+ * 283-291 TE on every run (1% spread); as a fraction it is 0.32-0.43 (8%). The reason is physical:
+ * every account's peak delivery rate reaches its gear's ceiling at a leg starting around 280 TE,
+ * whatever its gear, so the checkpoint that sets up the final leg lands there for everybody. A
+ * fraction slid that band down for low-TE accounts and up for high ones.
  *
- * EDGE EXTENSION, because these are searches and not surveys. When a run's near-best set runs into
- * the edge of what that run actually enumerated, the optimum may well be outside the box and the
- * band is an artifact of where somebody pointed the search. The 7-ascension run's best chain,
- * 195 219 245 248 270 300, sits on its own upper edge at three of six checkpoints. So a band that
- * touches an explored edge is extended on that side by half the explored width, capped at 0.06 of
- * the journey. It is a hedge against the sampling, not a measurement.
+ * The first checkpoint is the exception: it depends on where the account starts (a 132 TE account
+ * picks ~140-150, a 181 TE account ~195), so its band is wide and `materialise` clips it to above
+ * the current TE.
  *
- * Accounts are counted by distinct save, and the two corpora are counted separately, so an account
- * appearing in both is counted twice. Runs are distinct files either way.
+ * Bands are the min/max of the per-run medians, widened by 5 TE either side. Accounts are counted
+ * by distinct save.
  *
- * WHY THIS IS 490-ONLY, AND NOT A LAW. The pattern does not transfer across targets. On 490 the
- * last checkpoint sits at 0.29-0.64 of the journey; on 300, measured on three independent runs, it
- * sits at 0.80-0.86. In absolute terms that is `final - 150ish` for 490 and `final - 25..35` for
- * 300. Neither a fixed offset nor a fixed fraction describes both, so suggesting 490's shape for a
- * 300 target would be worse than suggesting nothing. The complete sweep has no such limit, which
- * is the other reason to prefer it whenever it fits.
+ * WHY THIS IS 490-SHAPED. Every run behind it targeted 490. The anchor near 280 is a property of
+ * the delivery curve, not of the target, so nearby targets (420-560) reuse it; checkpoints past a
+ * lower target are clipped away. On 300 the last checkpoint sits much closer to the target, so a
+ * 300 target gets the complete sweep or nothing.
  *
  * AND THE BIGGER CAVEAT. These chains come from STAGED and BANDED searches, which explore a
  * neighbourhood. So this is where good chains were FOUND, which is not the same as where good
@@ -376,7 +373,7 @@ export function parseBands(text: string, defaultStep = 5): number[][] {
  * to spend a fixed budget on the region that has paid before, not evidence that nothing else pays.
  * ------------------------------------------------------------------------------------------- */
 
-/** Targets the fractions were measured on. Outside this, only the complete sweep is offered. */
+/** Targets the bands apply to. Outside this, only the complete sweep is offered. */
 export const SUGGESTION_TARGET_RANGE: [number, number] = [420, 560];
 
 /**
@@ -396,93 +393,85 @@ const STEP_LADDER = [1, 2, 5, 10, 15, 20, 25, 30];
 /** Phase 1 refines toward this resolution, as far as the budget reaches, before buying width. */
 const STEP_FLOOR = 5;
 
-/** Ceiling on widening either side, as a fraction of the journey. Clamps a caller's `margin` too. */
-const MAX_MARGIN = 0.1;
+/** Ceiling on widening either side, in TE. Clamps a caller's `margin` too. */
+const MAX_MARGIN = 30;
+
+/** Widening grows in steps of this many TE once resolution has been bought. */
+const MARGIN_STEP = 2;
 
 interface BandTable {
-  /** `[lo, hi]` fraction of the journey, one per intermediate checkpoint. */
+  /** `[lo, hi]` in truth eggs, one per intermediate checkpoint, measured on 490-target runs. */
   bands: [number, number][];
   runs: number;
   accounts: number;
 }
 
 const MEASURED_BANDS: Record<number, BandTable> = {
-  // 2 and 3 are the fallback for a journey too long for a complete sweep; on almost every real
-  // account `suggestBands` never reaches them. Every run behind them used step 1 -- every integer
-  // TE, no grid at all -- the older pair on 180 -> 490 and one later run on 132 -> 490, which is
-  // also why their bands are wide: two accounts that disagree, and no grid to blame it on.
-  2: {
-    bands: [[0.265, 0.365]],
-    runs: 3,
-    accounts: 2,
-  },
+  // 2 is the fallback for a journey too long for a complete sweep, which on a real account never
+  // happens. Wide on purpose: the runs disagree by whether the current run was finished first.
+  2: { bands: [[230, 300]], runs: 6, accounts: 3 },
   3: {
     bands: [
-      [0.052, 0.232],
-      [0.306, 0.447],
+      [193, 221],
+      [278, 296],
     ],
-    runs: 3,
-    accounts: 2,
+    runs: 9,
+    accounts: 5,
   },
-  // The only count with no second opinion: one exhaustive sweep, one account.
   4: {
     bands: [
-      [0.035, 0.1],
-      [0.129, 0.29],
-      [0.323, 0.452],
+      [145, 210],
+      [201, 266],
+      [278, 302],
     ],
-    runs: 1,
-    accounts: 1,
+    runs: 6,
+    accounts: 4,
   },
   5: {
     bands: [
-      [0.016, 0.169],
-      [0.136, 0.258],
-      [0.197, 0.422],
-      [0.379, 0.621],
+      [155, 238],
+      [199, 267],
+      [246, 287],
+      [288, 327],
     ],
-    runs: 7,
-    accounts: 5,
+    runs: 15,
+    accounts: 6,
   },
   6: {
     bands: [
-      [0.0, 0.136],
-      [0.046, 0.227],
-      [0.167, 0.379],
-      [0.258, 0.5],
-      [0.409, 0.641],
+      [135, 238],
+      [195, 267],
+      [221, 282],
+      [255, 306],
+      [285, 340],
     ],
-    runs: 7,
+    runs: 13,
     accounts: 5,
   },
   7: {
     bands: [
-      [0.024, 0.096],
-      [0.079, 0.189],
-      [0.142, 0.241],
-      [0.193, 0.343],
-      [0.238, 0.473],
-      [0.29, 0.548],
+      [163, 200],
+      [197, 227],
+      [221, 256],
+      [241, 284],
+      [261, 298],
+      [286, 353],
     ],
-    runs: 5,
-    accounts: 3,
+    runs: 8,
+    accounts: 4,
   },
-  // One run, 41,580 chains, 181 -> 490, and every band edge-extended because its near-best set
-  // filled the box it was given. Thin evidence for a shape, but the shape is unambiguous: eight
-  // ascensions wants seven checkpoints crowded into the first 40% of the journey, the last of them
-  // around 0.36, and then one enormous final leg.
   8: {
     bands: [
-      [0.025, 0.065],
-      [0.058, 0.13],
-      [0.093, 0.166],
-      [0.122, 0.195],
-      [0.19, 0.263],
-      [0.252, 0.324],
-      [0.32, 0.392],
+      [122, 200],
+      [150, 218],
+      [167, 234],
+      [202, 259],
+      [231, 296],
+      [266, 321],
+      [285, 346],
     ],
-    runs: 1,
-    accounts: 1,
+    runs: 7,
+    accounts: 4,
   },
 };
 
@@ -506,7 +495,7 @@ export interface BandSuggestion {
   steps: number[];
   runs: number;
   accounts: number;
-  /** Widening applied either side, as a fraction of the journey. 0 on a complete sweep. */
+  /** Widening applied either side, in TE. 0 on a complete sweep. */
   margin: number;
 }
 
@@ -515,7 +504,7 @@ export interface SuggestOptions {
   maxChains?: number;
   /** One step for every band, skipping the per-band tuning and the complete sweep. */
   step?: number;
-  /** Fixed widening either side, skipping the tuning and the complete sweep. */
+  /** Fixed widening either side, in TE, skipping the tuning and the complete sweep. */
   margin?: number;
 }
 
@@ -533,23 +522,29 @@ function materialise(
   margin: number,
   steps: number[]
 ): { bands: number[][]; text: string } | null {
-  const span = finalTE - currentTE;
   const bands: number[][] = [];
   const parts: string[] = [];
   const m = table.length;
   let prevLo = -Infinity;
   let prevHi = -Infinity;
+  // Fractional TE can arrive from a save mid-way to its next egg; the reachable values start at the
+  // next whole one.
+  const start = Math.floor(currentTE);
+  const end = Math.ceil(finalTE);
 
   for (let i = 0; i < m; i++) {
     // Leave room for the bands after this one, so the ascending nudges below cannot run out of it.
-    const floor = currentTE + 1 + i;
-    const ceil = finalTE - 1 - (m - 1 - i);
+    const floor = start + 1 + i;
+    const ceil = end - 1 - (m - 1 - i);
     if (ceil < floor) return null;
 
+    // TE values measured on 490 runs, widened by `margin` TE and clipped into this journey. An
+    // account starting above a band's top gets that band squeezed to just above its current TE,
+    // which is the honest answer: the corpus put the checkpoint somewhere it cannot go back to.
     const [lo, hi] = table[i];
-    let a = Math.round(currentTE + Math.max(0, lo - margin) * span);
+    let a = Math.round(lo - margin);
     a = Math.min(Math.max(a, floor, prevLo + 1), ceil);
-    let b = Math.round(currentTE + Math.min(1, hi + margin) * span);
+    let b = Math.round(hi + margin);
     b = Math.min(Math.max(b, a, prevHi + 1), ceil);
 
     // `b >= a` always holds here -- the clamps above guarantee it, since `prevLo + 1 <= ceil` and
@@ -626,8 +621,8 @@ function tuneToBudget(
   };
 
   refine(STEP_FLOOR);
-  while (margin + 0.01 <= MAX_MARGIN + 1e-9) {
-    const next = Math.round((margin + 0.01) * 1000) / 1000;
+  while (margin + MARGIN_STEP <= MAX_MARGIN) {
+    const next = margin + MARGIN_STEP;
     if (priceOf(next, steps).chains > budget) break;
     margin = next;
   }
