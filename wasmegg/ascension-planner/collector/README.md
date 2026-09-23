@@ -158,8 +158,10 @@ per value, so that fits with room to spare.
 
 Compression happens in the app, not here, and not only to shrink the upload: the free Workers
 plan allows roughly 10ms of CPU per request, and gzipping fifteen megabytes would spend that many
-times over. The Worker stores the bytes it is handed and serves them back still compressed with
-`Content-Encoding: gzip`, letting the browser inflate them.
+times over. The Worker stores the bytes it is handed and serves them back as a **gzip file**
+(`application/gzip`, saved as `.csv.gz`), not as a gzip-encoded CSV: with `Content-Encoding: gzip`
+on a text type, Cloudflare's edge compressed the response a second time and the download would not
+open.
 
 The cost of that: the `EI\d{16}` sweep the JSON path runs is a regex over text and cannot read an
 opaque gzip stream. So the sweep moved into the app, which scrubs before compressing. A hand-made
@@ -167,13 +169,16 @@ gzip posted directly to `/csv` is **not** swept — it is only size-capped and c
 magic. The CSV never carried a player id to begin with (`buildChainsCsv` has no `playerId` in its
 metadata), so this remains belt-and-braces, just enforced one step upstream.
 
-**The `--config` flag is not optional, and leaving it off is confusing rather than obviously
-wrong.** Wrangler picks its project root by walking up from the working directory looking for a
-`package.json`, and the first one it finds is the planner's, one level above. From there it
-looks for `wrangler.toml` in the planner directory, does not find one, and reports a *missing
-entry point* -- advice about `main = "src/index.ts"` for a Worker whose config it never read. An
-absolute path pins it. `kv namespace create` needs no config, which is why that half works
-unaided.
+**The `--config "$PWD/wrangler.toml"` form is not optional, and leaving it off is confusing
+rather than obviously wrong.** `npx` runs the command from the nearest folder with a
+`package.json`, which is the planner's, one level above -- so a bare `wrangler deploy` never sees
+this folder's `wrangler.toml`, and a relative `--config wrangler.toml` points at the wrong folder
+too ("Could not read file"). Wrangler 4 then offers *automatic configuration*: "Detected Project
+Settings -- Worker Name: ascension-planner, Framework: Vite". **Do not accept it** (Ctrl-C): it
+would build the whole planner and publish it as a new Worker instead of updating the collector.
+Older Wranglers reported a *missing entry point* instead. The absolute path pins it either way;
+the output should name `ascension-chain-collector`. `kv namespace create` and `secret put` with
+the same flag are fine.
 
 Check the whole thing without publishing:
 
@@ -199,9 +204,9 @@ no button.
 
 | | |
 |---|---|
-| `POST /submit` | one submission; validated against a whitelist, rate-limited to 10 per IP per minute. Answers `{ id, uploadToken }` |
+| `POST /submit` | one submission; validated against a whitelist, rate-limited to 10 per IP per minute. Answers `{ id, uploadToken }`, or `429` with `{ error, retryAfter }` (seconds left in the minute, in the body because a cross-origin page cannot read `Retry-After`) |
 | `POST /csv?id=<id>` | that run's gzipped CSV, once. Needs the `x-upload-token` header `/submit` returned. Must be gzip, capped at 8 MB compressed |
-| `GET /csv?id=<id>` | it back, served `Content-Encoding: gzip` |
+| `GET /csv?id=<id>` | it back, as a `.csv.gz` file (`application/gzip`) |
 | `GET /leaderboard?final=490&limit=50` | one row per distinct run, already in duration order |
 | `GET /all` | everything, for your own analysis |
 | `GET /` | the leaderboard page |
@@ -223,9 +228,16 @@ metadata and never printed one. The Worker still sweeps `EI\d{16}` out of every 
 writing, for the case where someone posts a hand-made payload.
 
 Stored: chain, ascension count, duration, local start/end, timezone, TE range, effort tier,
-schedule window, whether shifts were held, waiting hours, per-leg strategy and peak delivery,
-chains priced, the seed chain the search descended from, an optional 40-character nickname, and
-the inventory as described next.
+schedule window, whether shifts were held, whether leg 1 finished the current run first
+(`forceContinue`), waiting hours, per-leg strategy and peak delivery, chains priced, the seed chain
+the search descended from, an optional 40-character nickname, and the inventory as described next.
+
+Schema 6 adds the variables the Chain Explorer compares accounts on, each a single bounded number
+or short label: the delivery score (`deliveryScore`: lay, hab and shipping multipliers and the
+percent-of-perfect score), Clothed TE, TE per virtue egg (`teByEgg`), how old the backup was
+(`backupAgeHours`), the plan start's weekday, and -- on runs from a sweep preset or the Explorer's
+upload -- `sweep` (which preset, the bands as typed, the minimum gap), `machine` (cores, RAM as
+typed, workers) and `source: 'upload'`.
 
 **Exhaustive runs carry two extra blocks, and nothing else does.** Insane mode proves an optimum
 over a stated space rather than finding a good answer in one, and the board is worth more if it
@@ -244,7 +256,8 @@ Neither is present on a staged run. The `seed` is the mirror image: present on a
 absent on an exhaustive one, which enumerates rather than descending from a guess.
 
 Schema history: 2 narrowed the inventory, 3 added run cost and progression summaries, 4 added
-`space`, 5 added `proof` and `seed`. The Worker accepts 2–5 and stores the schema as sent, because
+`space`, 5 added `proof` and `seed`, 6 added the comparison variables above; `forceContinue` is an
+optional field on 6. The Worker accepts 2–6 and stores the schema as sent, because
 the app and the Worker deploy separately and insisting on an exact match guarantees a window where
 every submission is refused.
 

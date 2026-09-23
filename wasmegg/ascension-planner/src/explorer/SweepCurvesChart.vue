@@ -51,6 +51,7 @@
 </template>
 
 <script setup lang="ts">
+import { describeFetchError } from '@/utils/errors';
 import { computed, ref, shallowRef, watch } from 'vue';
 import EChart from '@/components/charts/EChart.vue';
 import type { ChartOption, ChartSeriesOption } from '@/lib/charts/echarts';
@@ -123,7 +124,7 @@ async function loadTables(): Promise<void> {
       envelopes.value = new Map(next);
     }
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'A table would not load.';
+    error.value = describeFetchError(e, 'the collector');
   } finally {
     loading.value = false;
   }

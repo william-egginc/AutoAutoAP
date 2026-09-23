@@ -207,6 +207,18 @@ It needs no save file and no player ID, so it hosts anywhere static, GitHub Page
 [collector/README.md](collector/README.md#3-the-chain-explorer-page) for pointing it at a collector
 and for the one build flag a Pages deploy needs.
 
+**Help fill the gaps.** A banner at the top jumps to a list, at the bottom beside the upload, of
+what the collected runs are still short of -- worked out from the rows, not a fixed list, so each
+item drops off once enough accounts cover it (`src/explorer/needs.ts`): more accounts per sweep
+preset (M1-M4), accounts outside the measured 126-198 TE range, one save run with force-continue
+on and then off, and weaker delivery gear. Each item names the bands to run, fitted to the TE the
+viewer types (the first band starts just above it), how many chains that is, and roughly how long
+it takes on a laptop, desktop and workstation -- per-chain speeds taken from submitted runs, so
+"about". **Run this sweep** opens the planner's Insane mode in a new tab with everything filled in
+(`src/search/sweepRequest.ts`); the player enters their ID there, never on the Explorer, picks how
+many workers to give it, ticks that they understand how long it takes, and presses Start. The
+result submits already tagged with its preset.
+
 ### Leaving a long run overnight (browser)
 
 An exhaustive run is hours to days of work in a tab, and the two things that end one early are
@@ -280,6 +292,36 @@ The run also checkpoints on `visibilitychange` as well as on its timer, because
 `beforeunload` and `unload` do **not** fire when a tab is discarded — going hidden is the last
 moment a page is reliably given.
 
+### Submitting, and what the messages mean
+
+**Submit result** sends two things: a small summary (the chain, its duration, the inventory it was
+simulated with) and, if ticked, the full chain table gzipped. They are separate requests on purpose
+-- the summary is the part that must land. The collector hands back a one-time token with the
+summary, and only a table carrying that token is accepted, once (see
+[collector/README.md](collector/README.md#2-the-collector)).
+
+| message | what happened | what to do |
+|---|---|---|
+| **Didn't start** — *your save had not finished loading* | Start was pressed before the save finished arriving. The run refuses rather than simulate a half-loaded account, which gives a confident answer two to three times too long | Wait a few seconds after the player loads and press Start again |
+| **Didn't start** — *no virtue ascension in progress* | The save's last sync was on the home farm or a contract, so there is no virtue farm to continue | Switch to a virtue egg in the game, let it sync, reload the player here |
+| **Search failed** — *the connection dropped while the search was starting its workers* | The workers' code could not be downloaded | Reconnect and press Start. Anything priced is checkpointed and not redone |
+| **Search failed** — *the browser ran out of memory* | Too many workers, or too much per-leg detail held | Fewer workers, or a smaller memory budget, then Start |
+| *could not reach the collector* | Offline at the moment of Submit. Nothing was sent | Press Submit again once online. Save the file instead keeps a copy either way |
+| *too many submissions from your connection* | More than 10 in a minute from one address | Wait the seconds it says; nothing was lost |
+| *sent, but the table did not upload* (amber) | The summary is in; the table was cut off | **Retry the table** sends just the table, with the same token. Submitting again would add a second row |
+| *sent, but the table was refused* (amber) | The token did not match -- in practice a tab running a build from before the collector's upload rules changed | Save first (Save this run, Save the file instead or Download CSV), reload, submit again |
+| **A newer version of this page is live** (banner) | This tab's code is older than what is deployed | Save, then Reload. A running search resumes from its checkpoint |
+
+**Going offline mid-run is fine.** The search runs entirely in the browser: once the save is loaded
+and the workers are up, no leg needs the network. The connection matters at three moments only --
+loading the save, starting workers (their code is downloaded then), and submitting. The site
+itself is served from one machine: if that machine goes down, open tabs keep running and
+submissions still land, because they go straight to the collector on Cloudflare.
+
+**The new-version check** re-fetches the page's HTML (about 1-2 KB) when the tab comes back into
+view or back online, and otherwise every 30 minutes while visible, and compares the hashed entry
+script against the one the tab loaded (`src/composables/useNewVersion.ts`).
+
 ### The older Python driver
 
 `scripts/autoplan.py` predates the shared driver and reimplements the staged search in
@@ -328,6 +370,9 @@ answer in under an hour, not to get *the* answer.
 |---|---|
 | `--max-hours N` | refuses to start a configuration projected past N hours. **Off by default** — the projection is printed either way and a long run is your call |
 | `--jobs N` | worker cap. The pool is sized **per batch** — see below |
+| `--csv FILE` | where the per-leg CSV goes. Honoured with `--jobs` > 1 too (it used to be ignored there, and every sharded run overwrote `fastsearch.csv`) |
+| `--start-date` / `--start-time` | plan start. Defaults to the current date and hour **in `--timezone`** (the date used to be UTC's, so an evening run in the Americas was dated a day ahead) |
+| `--force-continue` | finish the current ascension first. **The browser defaults this on; the CLI defaults it off** -- pass it to match the panel. It changes the answer: one account's best 2-ascension plan moved 135 days |
 | `--jobs-fixed` | honour `--jobs` literally instead of sizing per batch |
 | `--mod elr=1.05` | colleggtible what-if: scales one modifier dimension |
 | `--add-artifact metronome:legendary` | artifact what-if: injects into the **virtue** inventory |
@@ -503,6 +548,11 @@ answer — which is what the effort slider sells.
 ---
 
 ## Known limitations
+
+- **Insane mode's suggested bands are measured on accounts starting between 126 and 198 TE.**
+  They are fixed TE values now, not fractions of the journey (the checkpoint that sets up the
+  final leg lands near 280-300 TE whatever the start, where delivery reaches its ceiling), but
+  below 126 the first band is a guess. The Chain Explorer lists low-TE runs as a gap.
 
 - **`--effort thorough` projects to 7–13 h.** No longer refused (`--max-hours` is off by
   default and the projection is printed, so the call is yours). Stage 6 has exactly one

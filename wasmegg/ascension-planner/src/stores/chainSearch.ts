@@ -22,6 +22,7 @@ import { runChainSearch, type CacheEntry } from '@/search/driver';
 import { findStartingChain, planCoarseGrid } from '@/search/coarse';
 import { createChainSearchPool, type ChainSearchPool } from '@/search/pool';
 import { hardwareThreads, maxPoolSize, clampPoolSize } from '@/search/batch';
+import { describeRunError } from '@/utils/errors';
 import { loadChainBenchmark, saveChainBenchmark } from '@/lib/chainBenchmarkCache';
 import { EFFORT, estimateChains } from '@/search/effort';
 import {
@@ -1745,7 +1746,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       refreshShortlist(true);
       await persist(liveCache, true, !stopRequested.value);
     } catch (e) {
-      error.value = e instanceof Error ? e.message : String(e);
+      error.value = describeRunError(e);
       stage.value = 'failed';
     } finally {
       runEndedAt.value = Date.now();
@@ -1805,7 +1806,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         finalTE: finalTE.value,
       });
     } catch (e) {
-      benchmarkError.value = e instanceof Error ? e.message : String(e);
+      benchmarkError.value = describeRunError(e);
     } finally {
       bench?.terminate();
       benchmarking.value = false;
@@ -2137,7 +2138,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           ? 'done - every chain it needed was already priced'
           : 'done';
     } catch (e) {
-      error.value = e instanceof Error ? e.message : String(e);
+      error.value = describeRunError(e);
       stage.value = 'failed';
     } finally {
       runEndedAt.value = Date.now();

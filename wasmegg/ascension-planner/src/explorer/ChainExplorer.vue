@@ -433,6 +433,7 @@ import CountCompareChart from './CountCompareChart.vue';
 import FinalLegChart from './FinalLegChart.vue';
 import DataNeeds from './DataNeeds.vue';
 import NewVersionBanner from '@/components/NewVersionBanner.vue';
+import { describeFetchError, errorKind } from '@/utils/errors';
 import SweepCurvesChart from './SweepCurvesChart.vue';
 import GearScoreChart from './GearScoreChart.vue';
 import SweepUpload from './SweepUpload.vue';
@@ -522,7 +523,10 @@ async function load(): Promise<void> {
     // A failed fetch here is almost always CORS or a typo'd host, and the browser's own message
     // for both is "Failed to fetch". Say which two things to check rather than repeating it.
     rows.value = [];
-    error.value = `${e instanceof Error ? e.message : String(e)} — check the URL, and that the collector allows this origin.`;
+    error.value =
+      errorKind(e) === 'network'
+        ? describeFetchError(e, 'the collector')
+        : `${e instanceof Error ? e.message : String(e)} — check the URL, and that the collector allows this origin.`;
   } finally {
     if (allController === controller) {
       loading.value = false;
@@ -635,7 +639,7 @@ async function openTable(row: CollectorRow): Promise<void> {
     if (!parsed.chains.length) csvError.value = 'That table parsed to no chains, which means the format has moved.';
   } catch (e) {
     if (isAbort(e) || csvController !== controller) return;
-    csvError.value = e instanceof Error ? e.message : String(e);
+    csvError.value = describeFetchError(e, "that run's table");
   } finally {
     if (csvController === controller) {
       csvLoadingId.value = '';

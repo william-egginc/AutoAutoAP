@@ -351,6 +351,7 @@
 </template>
 
 <script setup lang="ts">
+import { describeFetchError } from '@/utils/errors';
 import { computed, onMounted, ref } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { sortRows, type SortKey } from '@/lib/leaderboardSort';
@@ -497,7 +498,7 @@ async function load(): Promise<void> {
       targets.value = [...seen].sort((a, b) => a - b);
     }
   } catch (e) {
-    error.value = e instanceof Error ? e.message : String(e);
+    error.value = describeFetchError(e, 'the leaderboard');
     rows.value = [];
   } finally {
     loading.value = false;
