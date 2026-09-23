@@ -52,6 +52,7 @@ import {
   tooManySubmissionsMessage,
   type SearchSpace,
   type Submission,
+  type SweepTag,
 } from '@/search/submission';
 import { describeAvailability, isConstrained, type Availability } from '@/search/availability';
 import { missedMilestones, usableMilestones, type Milestone } from '@/search/milestones';
@@ -125,6 +126,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    *  because A1 is the ascension you are already part-way through, and it is also the cheapest
    *  speedup available (it skips A1's whole build-variant fan-out). */
   const forceContinue = ref(true);
+  /** Set when Insane mode was opened from a Chain Explorer "Run this sweep" link; see InsanePanel. */
+  const sweepTag = ref<SweepTag | null>(null);
   /** Hold the first N checkpoints fixed. Moving X1 re-simulates every downstream leg, and X1 is
    *  usually the best-validated value, so pinning it is often the right trade. */
   const pin = ref(0);
@@ -1132,7 +1135,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     if (!bestChain.value.length || bestDays.value <= 0) return null;
     const inv = readInventory();
     const initialStateStore = useInitialStateStore();
-    return buildSubmission({
+    const sub = buildSubmission({
       nickname,
       chain: [...bestChain.value],
       seconds: bestDays.value * 86400,
@@ -1199,6 +1202,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       teByEgg: initialStateStore.rawBackup?.virtue?.eovEarned ?? null,
       backupTime: initialStateStore.rawBackup?.approxTime ?? null,
     });
+    // A run started from one of the Chain Explorer's "Run this sweep" links carries its preset, so it
+    // counts toward that sweep's coverage there without anyone having to tag it by hand.
+    return sweepTag.value ? { ...sub, sweep: { ...sweepTag.value } } : sub;
   }
 
   /**
@@ -2150,6 +2156,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     effort,
     finalTE,
     forceContinue,
+    sweepTag,
     pin,
     minPrestiges,
     maxLastOverride,

@@ -63,6 +63,22 @@
         <p v-else class="text-[10px] font-semibold text-amber-700">
           This preset has no chains from {{ teNow }} TE: its bands sit at or below where you already are.
         </p>
+        <div v-if="need.chains > 0" class="flex flex-wrap items-center gap-2 pt-1">
+          <a
+            v-for="link in need.links"
+            :key="link.href"
+            :href="link.href"
+            target="_blank"
+            rel="noopener"
+            class="px-3 py-1.5 rounded-lg bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-700"
+          >
+            {{ link.label }} &rarr;
+          </a>
+          <span class="text-[10px] text-slate-400">
+            Opens the planner in a new tab with all of this filled in. You enter your player ID there; this page never
+            sees it.
+          </span>
+        </div>
       </li>
     </ol>
   </div>
@@ -73,6 +89,7 @@ import { computed, ref, watch } from 'vue';
 import type { CollectorRow } from './collector';
 import { COMPUTE_TIERS, dataNeeds, estimateSeconds, formatEstimate, presetBandsFor, presetChains } from './needs';
 import { SWEEP_PRESETS } from './upload';
+import { sweepRequestQuery } from '@/search/sweepRequest';
 
 const props = defineProps<{ rows: CollectorRow[] }>();
 
@@ -96,15 +113,39 @@ watch(teNow, v => {
 
 const needs = computed(() => dataNeeds(props.rows));
 
+/**
+ * Links into the planner's Insane mode with the sweep filled in. Relative, so they resolve beside
+ * this page wherever it is hosted (explorer.html and the planner's index share a directory). The
+ * force-continue item is a pair on purpose: one run each way, on the same backup.
+ */
+function sweepLinks(
+  needId: string,
+  preset: string,
+  label: string,
+  bands: string,
+  minGap: number
+): { label: string; href: string }[] {
+  const href = (forceContinue?: boolean) => `./${sweepRequestQuery({ preset, label, bands, minGap, forceContinue })}`;
+  if (needId === 'force-continue') {
+    return [
+      { label: 'Run it finishing my current run first', href: href(true) },
+      { label: 'Run it prestiging straight away', href: href(false) },
+    ];
+  }
+  return [{ label: 'Run this sweep', href: href() }];
+}
+
 const rowsWithCost = computed(() =>
   needs.value.map(need => {
     const preset = SWEEP_PRESETS.find(p => p.id === need.preset)!;
     const te = Number.isFinite(teNow.value) && teNow.value > 0 ? teNow.value : 180;
     const { chains, ascensions } = presetChains(need.preset, te);
+    const bands = presetBandsFor(need.preset, te);
     return {
       ...need,
       presetLabel: preset.label,
-      bands: presetBandsFor(need.preset, te),
+      bands,
+      links: sweepLinks(need.id, need.preset, preset.label, bands, preset.minGap),
       minGap: preset.minGap,
       chains,
       times: COMPUTE_TIERS.map(t => ({

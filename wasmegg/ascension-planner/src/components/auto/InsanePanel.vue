@@ -39,6 +39,87 @@
         </div>
       </div>
 
+      <!-- A sweep requested from the Chain Explorer's "Help fill the gaps" list: everything is filled
+           in already, so the only decisions left are how much of the machine to give it and whether
+           the time is acceptable. -->
+      <div v-if="sweepRequest" class="p-4 rounded-xl border border-indigo-200 bg-indigo-50 space-y-3">
+        <div class="space-y-1">
+          <p class="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Sweep request from the Chain Explorer</p>
+          <h3 class="text-sm font-black text-slate-900">{{ sweepRequest.label }}</h3>
+          <p class="text-[11px] text-slate-600">
+            Bands <code class="rounded bg-white px-1 text-[10px]">{{ bandsText }}</code>, minimum gap {{ minGap }}<template
+              v-if="sweepRequest.forceContinue !== null"
+              >, {{ sweepRequest.forceContinue ? 'finishing your current run first' : 'prestiging straight away' }}</template
+            >. Already set below; you do not need to touch anything else.
+          </p>
+        </div>
+
+        <div class="grid gap-2 sm:grid-cols-3 text-[11px]">
+          <div class="rounded-lg bg-white px-3 py-2">
+            <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">Chains</div>
+            <div class="font-bold text-slate-800">{{ chainCountLabel }}</div>
+          </div>
+          <div class="rounded-lg bg-white px-3 py-2">
+            <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">Estimated time</div>
+            <div class="font-bold text-slate-800">{{ estimateLabel }}</div>
+            <div class="text-[10px] text-slate-400">
+              {{ measuredCost ? 'measured on this machine' : 'assumes 15 s a chain, so errs high' }}
+            </div>
+          </div>
+          <div class="rounded-lg bg-white px-3 py-2 flex items-center">
+            <button
+              type="button"
+              :disabled="store.isRunning"
+              class="px-3 py-1.5 rounded-lg border border-indigo-300 text-indigo-700 text-[10px] font-black uppercase tracking-widest hover:bg-indigo-50 disabled:opacity-40"
+              @click="benchmark"
+            >
+              {{ measuredCost ? 'Re-benchmark' : 'Benchmark this machine' }}
+            </button>
+          </div>
+        </div>
+
+        <label class="block space-y-1">
+          <span class="flex items-baseline justify-between text-[11px] font-bold text-slate-700">
+            <span>How much of this computer to use</span>
+            <span>{{ store.workerBudget }} of {{ store.machineThreads }} workers</span>
+          </span>
+          <input
+            type="range"
+            min="1"
+            :max="store.machineThreads"
+            :value="store.workerBudget"
+            :disabled="store.isRunning"
+            class="w-full accent-indigo-600"
+            @input="setWorkers(($event.target as HTMLInputElement).value)"
+          />
+          <span class="block text-[10px] text-slate-500">
+            Fewer keeps the computer usable and quieter; more finishes sooner. The estimate above follows the slider.
+          </span>
+        </label>
+
+        <label class="flex items-start gap-2 text-[11px] text-slate-700">
+          <input v-model="sweepConsent" type="checkbox" class="mt-0.5 rounded border-indigo-300 text-indigo-600" />
+          <span>
+            I understand this takes about <b>{{ estimateLabel }}</b>, and that this tab has to stay open (and the computer
+            awake) until it finishes.
+          </span>
+        </label>
+
+        <div class="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            :disabled="!sweepConsent || store.isRunning || !chainCount"
+            class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500 disabled:opacity-40"
+            @click="start"
+          >
+            {{ store.isRunning ? 'Running...' : 'Start this sweep' }}
+          </button>
+          <span class="text-[10px] text-slate-500">
+            When it finishes, press Submit at the bottom: it is tagged as {{ sweepRequest.preset }} automatically.
+          </span>
+        </div>
+      </div>
+
       <div class="p-4 rounded-xl border border-rose-200 bg-rose-50 text-xs text-rose-900 leading-relaxed space-y-2">
         <p>
           This prices <span class="font-bold">every</span> chain over the pool you describe. No descent, no stages, no
@@ -1169,6 +1250,7 @@ import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useEidsStore } from 'lib';
 import { useBackupPlanStart } from '@/composables/useBackupPlanStart';
 import { afterPaint } from '@/search/submission';
+import { parseSweepRequest } from '@/search/sweepRequest';
 import {
   buildPool,
   countChains,
@@ -1226,6 +1308,21 @@ const TOO_BIG_HOURS = 24 * 14;
 const spaceMode = ref<'pool' | 'bands'>('bands');
 const bandsText = ref('185-200:5; 215-245:10; 260-300:10; 320-360:20');
 const minGap = ref(0);
+
+/**
+ * A sweep handed over by the Chain Explorer's "Run this sweep" link (format in search/sweepRequest).
+ * Read once, at setup, and applied to the same refs a person would type into, so the panel below
+ * shows exactly what will run and can still be edited.
+ */
+const sweepRequest = typeof window === 'undefined' ? null : parseSweepRequest(window.location.search);
+const sweepConsent = ref(false);
+if (sweepRequest) {
+  spaceMode.value = 'bands';
+  bandsText.value = sweepRequest.bands;
+  minGap.value = sweepRequest.minGap;
+  store.sweepTag = { preset: sweepRequest.preset, bands: sweepRequest.bands, minGap: sweepRequest.minGap };
+  if (sweepRequest.forceContinue !== null) store.forceContinue = sweepRequest.forceContinue;
+}
 
 /** Ascension count the suggestion is built for. Bands fix the count, so this picks how many boxes. */
 const suggestAsc = ref(6);
