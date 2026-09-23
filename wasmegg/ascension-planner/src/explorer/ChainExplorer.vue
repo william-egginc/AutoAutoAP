@@ -376,6 +376,19 @@
         </section>
       </template>
 
+      <!-- ------------------------------------------------------------------------- data needs -->
+      <section v-if="base" class="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+        <div class="space-y-1">
+          <h2 class="text-lg font-black text-slate-900">Help fill the gaps</h2>
+          <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
+            What the collected runs are still short of, worked out from them: each item drops off once enough accounts
+            have covered it. Every run helps even if you are not on this list -- but these are where one more account
+            teaches the most.
+          </p>
+        </div>
+        <DataNeeds :rows="usable" />
+      </section>
+
       <!-- ---------------------------------------------------------------------------- upload -->
       <section v-if="base" class="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
         <div class="space-y-1">
@@ -399,6 +412,7 @@ import CountShapeChart from './CountShapeChart.vue';
 import LegProfileChart from './LegProfileChart.vue';
 import CountCompareChart from './CountCompareChart.vue';
 import FinalLegChart from './FinalLegChart.vue';
+import DataNeeds from './DataNeeds.vue';
 import SweepCurvesChart from './SweepCurvesChart.vue';
 import GearScoreChart from './GearScoreChart.vue';
 import SweepUpload from './SweepUpload.vue';
