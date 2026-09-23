@@ -89,21 +89,37 @@ def analyse(path: Path):
     for ascensions, priced in sorted(by_count.items()):
         best_days, best_chain = min(priced)
         near = [c for d, c in priced if d <= best_days * (1 + TOLERANCE)]
-        explored: list[list[int]] = [[] for _ in range(ascensions - 1)]
-        winners: list[list[int]] = [[] for _ in range(ascensions - 1)]
+        width = ascensions - 1
+        explored: list[list[int]] = [[] for _ in range(width)]
+        winners: list[list[int]] = [[] for _ in range(width)]
+
+        # Sliced to `width` rather than trusted to match it. `ascensions` is read from the
+        # prestiges COLUMN while the checkpoints come from the chain STRING, and a file where those
+        # two disagree -- a hand-edited export, a format that moved -- would otherwise walk off the
+        # end of these lists and kill the whole run with an IndexError partway through a corpus.
+        def checkpoints(chain: str) -> list[int]:
+            return [int(v) for v in chain.split()][:-1][:width]
+
         for _, chain in priced:
-            for i, value in enumerate([int(v) for v in chain.split()][:-1]):
+            for i, value in enumerate(checkpoints(chain)):
                 explored[i].append(value)
         for chain in near:
-            for i, value in enumerate([int(v) for v in chain.split()][:-1]):
+            for i, value in enumerate(checkpoints(chain)):
                 winners[i].append(value)
 
+        # A count whose chains never filled a column has nothing to report for it.
+        if not all(explored) or not all(winners):
+            print(f"  {path.name}: skipping {ascensions} ascensions -- chain lengths disagree with the prestiges column")
+            continue
+
         bands = []
-        for i in range(ascensions - 1):
+        for i in range(width):
             lo, hi = min(winners[i]), max(winners[i])
             floor, ceiling = min(explored[i]), max(explored[i])
-            width = (ceiling - floor) / span
-            extension = min(max(MIN_EXTENSION, width / 2), MAX_EXTENSION)
+            # Not `width`: that is the checkpoint count this loop is indexed by, and shadowing it
+            # here would leave a float in it for anything below that still expects the count.
+            explored_width = (ceiling - floor) / span
+            extension = min(max(MIN_EXTENSION, explored_width / 2), MAX_EXTENSION)
             bands.append(
                 dict(
                     lo=round(max(0.0, (lo - current) / span - (extension if lo <= floor else 0)), 3),

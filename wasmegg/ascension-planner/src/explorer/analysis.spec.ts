@@ -153,7 +153,14 @@ describe('groupByCount', () => {
   });
 
   it('counts a finished exhaustive run as a proof and a stopped one as not', () => {
-    const space = { mode: 'bands' as const, minGap: 0, minAscensions: 2, maxAscensions: 2, chains: 10, chainsPriced: 10 };
+    const space = {
+      mode: 'bands' as const,
+      minGap: 0,
+      minAscensions: 2,
+      maxAscensions: 2,
+      chains: 10,
+      chainsPriced: 10,
+    };
     const groups = groupByCount([
       row({ chain: [195, 490], currentTE: 180, finalTE: 490, space: { ...space, stoppedEarly: false } }),
       row({ chain: [196, 490], currentTE: 180, finalTE: 490, space: { ...space, stoppedEarly: true } }),

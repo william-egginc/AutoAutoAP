@@ -508,4 +508,39 @@ describe('suggestBands', () => {
     // Pinning also overrides the complete sweep, which would otherwise win at two ascensions.
     expect(suggestBands(180, 490, 2, { step: 5 })!.kind).toBe('measured');
   });
+
+  it('clamps a pinned margin to the same ceiling the tuner respects', () => {
+    // `margin` widens both sides, so an unbounded one turns a measured shape back into the whole
+    // range and a negative one narrows it past what the corpus actually reported. Neither is a
+    // thing the caller can ask for.
+    const huge = suggestBands(180, 490, 6, { step: 5, margin: 5 })!;
+    const capped = suggestBands(180, 490, 6, { step: 5, margin: 0.1 })!;
+    expect(huge.margin).toBe(0.1);
+    expect(huge.bands).toEqual(capped.bands);
+
+    const negative = suggestBands(180, 490, 6, { step: 5, margin: -1 })!;
+    expect(negative.margin).toBe(0);
+    expect(negative.bands).toEqual(suggestBands(180, 490, 6, { step: 5, margin: 0 })!.bands);
+  });
+
+  it('spends leftover budget on margin even when a band could not reach the step floor', () => {
+    // Documents the real ordering rather than the stronger claim the comment used to make.
+    // `refine` stops only once NO band can drop a notch and still fit, so anything left over
+    // provably cannot buy resolution -- and leaving it unspent would buy nothing at all.
+    const s = suggestBands(179, 490, 6)!;
+    expect(s.kind).toBe('measured');
+    expect(Math.max(...s.steps)).toBeGreaterThan(5);
+    expect(s.margin).toBeGreaterThan(0);
+    expect(s.chains).toBeLessThanOrEqual(SUGGESTION_CHAIN_BUDGET);
+  });
+
+  it('offers a complete sweep for a count the corpus never measured', () => {
+    // The sweep measures nothing, so nothing about it depends on the band table. A short journey
+    // at nine ascensions is still a provable answer; the measured path below it is not available.
+    const s = suggestBands(480, 490, 9);
+    expect(s?.kind).toBe('complete');
+    expect(s?.bands).toHaveLength(8);
+    // But the measured path still declines there, because there is no table to read.
+    expect(suggestBands(180, 490, 9)).toBeNull();
+  });
 });

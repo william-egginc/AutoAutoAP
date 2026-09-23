@@ -393,10 +393,10 @@ export const SUGGESTION_CHAIN_BUDGET = 75_000;
 /** Steps a suggested band may use. Familiar numbers; the corpus runs used 1, 2 and 5. */
 const STEP_LADDER = [1, 2, 5, 10, 15, 20, 25, 30];
 
-/** Phase 1 refines every band to at least this resolution before spending budget on width. */
+/** Phase 1 refines toward this resolution, as far as the budget reaches, before buying width. */
 const STEP_FLOOR = 5;
 
-/** Widening either side never exceeds this fraction of the journey, measured or not. */
+/** Ceiling on widening either side, as a fraction of the journey. Clamps a caller's `margin` too. */
 const MAX_MARGIN = 0.1;
 
 interface BandTable {
@@ -519,12 +519,6 @@ export interface SuggestOptions {
   margin?: number;
 }
 
-/** Smallest ladder step that is at least `want`. */
-function ladderStep(want: number): number {
-  for (const s of STEP_LADDER) if (s >= want) return s;
-  return STEP_LADDER[STEP_LADDER.length - 1];
-}
-
 /**
  * The table turned into actual values, or null when the journey has no room for it.
  *
@@ -558,10 +552,12 @@ function materialise(
     let b = Math.round(currentTE + Math.min(1, hi + margin) * span);
     b = Math.min(Math.max(b, a, prevHi + 1), ceil);
 
+    // `b >= a` always holds here -- the clamps above guarantee it, since `prevLo + 1 <= ceil` and
+    // `prevHi + 1 <= ceil` both follow from the slot reservation -- so the band always contains at
+    // least `a` and there is no empty-band case to guard.
     const step = Math.max(1, Math.floor(steps[i]));
     const values: number[] = [];
     for (let v = a; v <= b; v += step) values.push(v);
-    if (!values.length) return null;
 
     bands.push(values);
     parts.push(`${a}-${b}:${step}`);
@@ -576,9 +572,15 @@ function materialise(
  *
  * Resolution first, then width, then more resolution. A 10-TE grid cannot express the difference
  * between 213 and 215, and the corpus's best chains repeatedly land on values a coarse grid skips,
- * so every band is refined to 5 TE before a single chain is spent on widening. Once every band is
- * at 5 the extra budget goes into margin, because at that point another 5 TE either side is worth
+ * so refinement toward 5 TE runs to exhaustion before a single chain is spent on widening. Once it
+ * has, the extra budget goes into margin, because at that point another 5 TE either side is worth
  * more than telling 212 from 213. Only then does it go back for step 2 and step 1.
+ *
+ * "To exhaustion" is not the same as "until every band reaches 5", and on a tight budget the
+ * difference shows: 179 -> 490 at six ascensions settles on [5,5,5,10,10] with a margin of 0.01.
+ * That is deliberate rather than a fallthrough. `refine` only stops once no single band can drop
+ * one notch and still fit, so whatever is left over provably cannot buy resolution -- and leaving
+ * it unspent would buy nothing at all.
  *
  * Refinement always takes the coarsest band first, which equalises resolution across the chain
  * rather than lavishing step 1 on one band while another is still on 30.
@@ -652,9 +654,8 @@ export function suggestBands(
   const n = Math.floor(ascensions);
   const budget = opts.maxChains && opts.maxChains > 0 ? Math.floor(opts.maxChains) : SUGGESTION_CHAIN_BUDGET;
   const table = MEASURED_BANDS[n];
-  if (!table) return null;
   const span = finalTE - currentTE;
-  if (!(span > 0)) return null;
+  if (n < 2 || !(span > 0)) return null;
   const pinned = opts.step !== undefined || opts.margin !== undefined;
 
   // The whole space, when the whole space is affordable. Every band is the same full range; the
@@ -689,12 +690,19 @@ export function suggestBands(
     }
   }
 
-  // Everything below is 490-shaped, so it declines on targets the corpus never saw.
+  // Everything below reads the corpus, so a count it never measured has no answer here -- even
+  // though the sweep above, which measures nothing, was free to offer one.
+  if (!table) return null;
+
+  // And everything below is 490-shaped, so it declines on targets the corpus never saw.
   if (finalTE < SUGGESTION_TARGET_RANGE[0] || finalTE > SUGGESTION_TARGET_RANGE[1]) return null;
 
   if (pinned) {
     const step = opts.step && opts.step > 0 ? Math.floor(opts.step) : 5;
-    const margin = opts.margin !== undefined ? opts.margin : 0;
+    // Clamped to the same ceiling the tuner respects, and floored at 0: `margin` widens a band on
+    // both sides, so a negative one would narrow it past what the corpus actually reported, and an
+    // unbounded one would quietly turn a measured shape back into the whole range.
+    const margin = Math.min(MAX_MARGIN, Math.max(0, opts.margin ?? 0));
     const built = materialise(table.bands, currentTE, finalTE, margin, new Array(table.bands.length).fill(step));
     if (!built) return null;
     return {

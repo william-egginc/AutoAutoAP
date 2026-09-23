@@ -156,7 +156,10 @@
               </div>
             </button>
           </div>
-          <p v-else class="px-4 py-8 text-center text-[11px] text-slate-400 bg-white rounded-xl border border-slate-200">
+          <p
+            v-else
+            class="px-4 py-8 text-center text-[11px] text-slate-400 bg-white rounded-xl border border-slate-200"
+          >
             Nothing matches that filter yet.
           </p>
         </section>
@@ -171,8 +174,8 @@
               </span>
             </h2>
             <span class="text-[11px] text-slate-500">
-              fastest here: <b>{{ selected.best.durationDays.toFixed(2) }} d</b> on
-              {{ selected.best.currentTE }} → {{ selected.best.finalTE }}
+              fastest here: <b>{{ selected.best.durationDays.toFixed(2) }} d</b> on {{ selected.best.currentTE }} →
+              {{ selected.best.finalTE }}
               <span class="font-mono-premium">({{ selected.best.chain.join(' ') }})</span>
             </span>
           </div>
@@ -267,7 +270,9 @@
               Every chain {{ loadedRun.nickname || 'that run' }} priced
               <span class="text-[11px] font-bold text-slate-400">
                 · {{ loadedChains.length.toLocaleString() }} chains
-                <template v-if="loadedTruncated">(oldest {{ loadedTruncated.toLocaleString() }} dropped)</template>
+                <!-- The file is in rank order, fastest first, and the cap keeps the first N — so
+                     what a cap drops is the SLOW tail, not the old one. -->
+                <template v-if="loadedTruncated">(slowest {{ loadedTruncated.toLocaleString() }} dropped)</template>
               </span>
             </h2>
             <button
@@ -282,8 +287,7 @@
           <div v-if="plateau" class="rounded-lg bg-slate-50 border border-slate-200 p-3 space-y-1">
             <p class="text-[11px] text-slate-600 leading-relaxed">
               <b>{{ plateau.near.toLocaleString() }}</b> of {{ plateau.total.toLocaleString() }} chains at
-              {{ selectedCount }} ascensions came within 1% of this run's best
-              ({{ plateau.bestDays.toFixed(2) }} d,
+              {{ selectedCount }} ascensions came within 1% of this run's best ({{ plateau.bestDays.toFixed(2) }} d,
               <span class="font-mono-premium">{{ plateau.bestChain.join(' ') }}</span
               >). That plateau put each checkpoint here:
             </p>
@@ -335,15 +339,15 @@ import type { PricedChain } from '@/search/types';
 import CountShapeChart from './CountShapeChart.vue';
 import LegProfileChart from './LegProfileChart.vue';
 import CountCompareChart from './CountCompareChart.vue';
-import { fetchAll, fetchRunCsv, parseRunCsv, resolveCollectorBase, type CollectorRow } from './collector';
 import {
-  accountKey,
-  compareCounts,
-  groupByAccount,
-  groupByCount,
-  nearBestBands,
-  targetsPresent,
-} from './analysis';
+  fetchAll,
+  fetchRunCsv,
+  normaliseCollectorBase,
+  parseRunCsv,
+  resolveCollectorBase,
+  type CollectorRow,
+} from './collector';
+import { accountKey, compareCounts, groupByAccount, groupByCount, nearBestBands, targetsPresent } from './analysis';
 import { colorAt } from './palette';
 
 /** Where a pasted collector URL is remembered. Per-browser, not per-build. */
@@ -373,31 +377,58 @@ onMounted(() => {
   if (base.value) void load();
 });
 
+/**
+ * In-flight requests, so a second one can cancel the first.
+ *
+ * Both endpoints can be slow -- `/csv` is up to 15 MB -- and without this a click on run A followed
+ * by a click on run B is a race whose winner is whichever server response happens to land last.
+ * That is not a rare case: "Open" is right next to "Open". `fetchAll`/`fetchRunCsv` have always
+ * taken an AbortSignal; nothing was passing one.
+ */
+let allController: AbortController | null = null;
+let csvController: AbortController | null = null;
+
+/** An aborted request is the expected outcome of clicking twice, not an error to report. */
+function isAbort(e: unknown): boolean {
+  return e instanceof DOMException && e.name === 'AbortError';
+}
+
 async function load(): Promise<void> {
   if (!base.value) return;
+  allController?.abort();
+  const controller = new AbortController();
+  allController = controller;
   loading.value = true;
   error.value = '';
   try {
-    rows.value = await fetchAll(base.value);
+    const fetched = await fetchAll(base.value, controller.signal);
+    if (allController !== controller) return;
+    rows.value = fetched;
     if (!rows.value.length) error.value = 'The collector answered, but it is holding no runs yet.';
   } catch (e) {
+    if (isAbort(e) || allController !== controller) return;
     // A failed fetch here is almost always CORS or a typo'd host, and the browser's own message
     // for both is "Failed to fetch". Say which two things to check rather than repeating it.
     rows.value = [];
     error.value = `${e instanceof Error ? e.message : String(e)} — check the URL, and that the collector allows this origin.`;
   } finally {
-    loading.value = false;
+    if (allController === controller) {
+      loading.value = false;
+      allController = null;
+    }
   }
 }
 
 function adoptTypedBase(): void {
-  const trimmed = typedBase.value.trim().replace(/\/submit\/?$/, '').replace(/\/$/, '');
-  if (!/^https?:\/\//i.test(trimmed)) {
+  // Same normaliser the query parameter goes through, rather than a second copy of the same two
+  // regexes and the same scheme check drifting apart from it.
+  const normalised = normaliseCollectorBase(typedBase.value);
+  if (!normalised) {
     error.value = 'That does not look like an http(s) URL.';
     return;
   }
-  base.value = trimmed;
-  if (typeof localStorage !== 'undefined') localStorage.setItem(BASE_STORAGE_KEY, trimmed);
+  base.value = normalised;
+  if (typeof localStorage !== 'undefined') localStorage.setItem(BASE_STORAGE_KEY, normalised);
   void load();
 }
 
@@ -449,10 +480,17 @@ const comparisons = computed(() => compareCounts(filtered.value));
 
 async function openTable(row: CollectorRow): Promise<void> {
   if (!base.value) return;
+  csvController?.abort();
+  const controller = new AbortController();
+  csvController = controller;
   csvLoadingId.value = row.id;
   csvError.value = '';
   try {
-    const text = await fetchRunCsv(base.value, row.id);
+    const text = await fetchRunCsv(base.value, row.id, controller.signal);
+    // Two `await`s back, so re-check: a later click may have superseded this one while the 15 MB
+    // was still arriving, and writing these refs now would show that run's chart under this run's
+    // heading.
+    if (csvController !== controller) return;
     const parsed = parseRunCsv(text);
     loadedRun.value = row;
     loadedChains.value = parsed.chains;
@@ -463,18 +501,33 @@ async function openTable(row: CollectorRow): Promise<void> {
     loadedFinalTE.value = parsed.finalTE || row.finalTE;
     if (!parsed.chains.length) csvError.value = 'That table parsed to no chains, which means the format has moved.';
   } catch (e) {
+    if (isAbort(e) || csvController !== controller) return;
     csvError.value = e instanceof Error ? e.message : String(e);
   } finally {
-    csvLoadingId.value = '';
+    if (csvController === controller) {
+      csvLoadingId.value = '';
+      csvController = null;
+    }
   }
 }
 
 function closeTable(): void {
+  csvController?.abort();
+  csvController = null;
+  csvLoadingId.value = '';
   loadedRun.value = null;
   loadedChains.value = [];
   loadedTruncated.value = 0;
   csvError.value = '';
 }
+
+// The deep dive belongs to ONE run at ONE ascension count. Change the target or the count and it
+// no longer describes what the rest of the page is showing: `plateau` filters the loaded table by
+// `selectedCount`, finds nothing at the new count and silently disappears, leaving a 60,000-point
+// scatter sitting under a heading about a run that has been filtered out of view. Close it instead.
+watch([selectedCount, finalTE, exhaustiveOnly], () => {
+  if (loadedRun.value) closeTable();
+});
 
 const loadedBestChain = computed(() => {
   if (!loadedChains.value.length) return [];

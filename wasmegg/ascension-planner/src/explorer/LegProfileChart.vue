@@ -52,6 +52,7 @@
 import { computed, ref } from 'vue';
 import EChart from '@/components/charts/EChart.vue';
 import type { ChartOption, ChartSeriesOption } from '@/lib/charts/echarts';
+import { esc } from '@/lib/charts/tooltip';
 import type { CollectorRow } from './collector';
 import { accountKey } from './analysis';
 import { colorAt, AXIS_LABEL, SPLIT_LINE } from './palette';
@@ -98,7 +99,9 @@ const option = computed<ChartOption>(() => {
         const params = raw as { data?: [number, number, string]; seriesName?: string };
         if (!params.data) return '';
         const unit = metric.value === 'days' ? 'days' : 'q/hr';
-        return `<b>${params.seriesName ?? ''}</b><br/>leg ${params.data[0]}: ${params.data[1].toFixed(3)} ${unit}<br/><span style="color:#94a3b8">${params.data[2]}</span>`;
+        // Escaped throughout: the series name carries a submitted nickname and data[2] carries the
+        // leg's strategy string, both free text, and this becomes innerHTML. See charts/tooltip.ts.
+        return `<b>${esc(params.seriesName)}</b><br/>leg ${esc(params.data[0])}: ${esc(params.data[1].toFixed(3))} ${esc(unit)}<br/><span style="color:#94a3b8">${esc(params.data[2])}</span>`;
       },
     },
     xAxis: {

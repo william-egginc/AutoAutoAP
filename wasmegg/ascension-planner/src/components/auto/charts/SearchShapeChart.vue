@@ -100,10 +100,7 @@
 
     <!-- The footer is the actual answer when a highlight is on: best-of per value, side by side.
          Reading it off the cloud is guesswork; reading it off four numbers is not. -->
-    <div
-      v-if="highlightGroups.length"
-      class="rounded-lg border border-slate-200 divide-y divide-slate-100 text-[11px]"
-    >
+    <div v-if="highlightGroups.length" class="rounded-lg border border-slate-200 divide-y divide-slate-100 text-[11px]">
       <div
         v-for="group in highlightGroups"
         :key="group.value"
@@ -135,6 +132,7 @@
 import { computed, ref, watch } from 'vue';
 import EChart from '@/components/charts/EChart.vue';
 import type { ChartOption, ChartSeriesOption } from '@/lib/charts/echarts';
+import { esc } from '@/lib/charts/tooltip';
 import type { PricedChain } from '@/search/types';
 import { parseHighlightValues } from '@/search/highlight';
 
@@ -273,11 +271,16 @@ const highlightGroups = computed<HighlightGroup[]>(() => {
 
   const filled = [...buckets.entries()].filter(([, pts]) => pts.length);
   if (!filled.length) return [];
-  const bests = filled.map(([, pts]) => Math.min(...pts.map(p => p.y)));
-  const leader = Math.min(...bests);
+  // `reduce`, not `Math.min(...pts.map(…))`: one bucket can hold tens of thousands of points on a
+  // big run, and a spread passes one argument per element, which is a RangeError past ~125k on V8
+  // and lower on Safari. It also finds the winning POINT rather than just its y, which is what the
+  // footer needs anyway -- the old code computed the minimum twice, once each way.
+  const bestOf = (pts: Plotted[]): Plotted => pts.reduce((a, b) => (b.y < a.y ? b : a));
+  const bests = filled.map(([, pts]) => bestOf(pts));
+  const leader = bests.reduce((a, b) => (b.y < a.y ? b : a)).y;
 
   return filled.map(([value, pts], i) => {
-    const best = pts.reduce((a, b) => (b.y < a.y ? b : a));
+    const best = bests[i];
     return {
       value,
       color: HIGHLIGHT_PALETTE[i % HIGHLIGHT_PALETTE.length],
@@ -363,8 +366,11 @@ const option = computed<ChartOption>(() => {
         // C3 comparison chart does.
         const params = rawParams as { data?: [number, number, string]; seriesName?: string };
         if (!params.data) return '';
-        const label = params.seriesName ? `<br/><span style="color:#94a3b8">${params.seriesName}</span>` : '';
-        return `<b>${params.data[2]}</b><br/>${params.data[1].toFixed(3)} days${label}`;
+        // Escaped even though every field here is currently numeric: this component is now shared
+        // with the Chain Explorer, whose points are parsed out of a CSV served by whatever
+        // collector the page was pointed at. See lib/charts/tooltip.ts.
+        const label = params.seriesName ? `<br/><span style="color:#94a3b8">${esc(params.seriesName)}</span>` : '';
+        return `<b>${esc(params.data[2])}</b><br/>${esc(params.data[1].toFixed(3))} days${label}`;
       },
     },
     xAxis: {

@@ -100,6 +100,32 @@ export function median(values: number[]): number {
   return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
+/**
+ * Min and max in one pass, without spreading into `Math.min`.
+ *
+ * `Math.min(...values)` passes one argument per element, and a near-best set out of a full chain
+ * table can be tens of thousands of them -- `MAX_PARSED_CHAINS` alone allows 60,000. V8 throws
+ * RangeError somewhere past 125,000 and JavaScriptCore's limit is lower still, so the spread is a
+ * crash that only shows up on somebody else's phone, against somebody else's big run.
+ */
+function extent(values: number[]): { lo: number; hi: number } {
+  let lo = Infinity;
+  let hi = -Infinity;
+  for (const v of values) {
+    if (v < lo) lo = v;
+    if (v > hi) hi = v;
+  }
+  return { lo, hi };
+}
+
+/** Column of observed fractions -> the band it describes. Shared by both callers below. */
+function bandsFromColumns(columns: number[][]): PositionBand[] {
+  return columns.map((values, index) => {
+    const { lo, hi } = extent(values);
+    return { index, lo, mid: median(values), hi, samples: values.length };
+  });
+}
+
 /** Where one checkpoint position lands across a set of runs, in fractions of the journey. */
 export interface PositionBand {
   /** 0-based checkpoint index. The final target is never a position. */
@@ -127,13 +153,7 @@ export function positionBands(rows: Submission[]): PositionBand[] {
       columns[i].push(f);
     });
   }
-  return columns.map((values, index) => ({
-    index,
-    lo: Math.min(...values),
-    mid: median(values),
-    hi: Math.max(...values),
-    samples: values.length,
-  }));
+  return bandsFromColumns(columns);
 }
 
 export interface CountGroup {
@@ -292,13 +312,7 @@ export function nearBestBands(
   }
 
   return {
-    bands: columns.map((values, index) => ({
-      index,
-      lo: Math.min(...values),
-      mid: median(values),
-      hi: Math.max(...values),
-      samples: values.length,
-    })),
+    bands: bandsFromColumns(columns),
     near: near.length,
     total: atCount.length,
     bestDays: best.days,

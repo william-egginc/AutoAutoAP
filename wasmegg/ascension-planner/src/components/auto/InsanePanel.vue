@@ -623,12 +623,11 @@
                 Suggest a space
               </button>
               <HelpTip>
-                Fills the boxes with a space sized to about 75,000 chains, which is a few hours on
-                this machine. At two ascensions -- and three on most accounts -- that is the whole
-                reachable range at step 1, so the run proves the optimum and no measurement is
-                involved. Above that it is where near-best chains have actually landed across this
-                project's runs, refined to 5 TE everywhere before any of the budget is spent on
-                widening the bands. Both are starting points; edit them.
+                Fills the boxes with a space sized to about 75,000 chains, which is a few hours on this machine. At two
+                ascensions -- and three on most accounts -- that is the whole reachable range at step 1, so the run
+                proves the optimum and no measurement is involved. Above that it is where near-best chains have actually
+                landed across this project's runs, refined as close to 5 TE as the budget reaches before any of it is
+                spent on widening the bands. Both are starting points; edit them.
               </HelpTip>
               <span v-if="suggestion" class="text-[10px] text-slate-500">
                 {{ suggestAsc }} ascensions, {{ suggestion.chains.toLocaleString() }} chains &middot;
@@ -1176,7 +1175,6 @@ import {
   countBanded,
   parseBands,
   suggestBands,
-  SUGGESTION_TARGET_RANGE,
   SUGGESTABLE_ASCENSIONS,
   estimateHours,
   formatHours,

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseRunCsv, resolveCollectorBase, inflateIfGzip } from './collector';
+import { parseRunCsv, resolveCollectorBase, normaliseCollectorBase, inflateIfGzip } from './collector';
 
 /** A CSV in the shape `search/csv.ts` writes: comment block, header, then one row per leg. */
 const SAMPLE = [
@@ -88,6 +88,29 @@ describe('resolveCollectorBase', () => {
     const configured = import.meta.env.VITE_SUBMIT_URL as string | undefined;
     const expected = configured ? configured.replace(/\/submit\/?$/, '').replace(/\/$/, '') : null;
     expect(resolveCollectorBase('')).toBe(expected);
+  });
+
+  it('does not silently fall back when the query parameter is present but unusable', () => {
+    // Someone who put ?collector= on the URL asked for THAT collector. Quietly showing them the
+    // build-time one's data instead would be worse than showing them nothing.
+    expect(resolveCollectorBase('?collector=javascript:alert(1)')).toBeNull();
+    expect(resolveCollectorBase('?collector=not-a-url')).toBeNull();
+  });
+});
+
+describe('normaliseCollectorBase', () => {
+  // The typed box and the query parameter share this, so they cannot drift apart into two slightly
+  // different ideas of what a collector URL is.
+  it('accepts http(s) and trims the shapes people actually paste', () => {
+    expect(normaliseCollectorBase('  https://c.example.dev/submit  ')).toBe('https://c.example.dev');
+    expect(normaliseCollectorBase('https://c.example.dev/submit/')).toBe('https://c.example.dev');
+    expect(normaliseCollectorBase('http://localhost:8787')).toBe('http://localhost:8787');
+  });
+
+  it('refuses anything that is not http(s)', () => {
+    for (const bad of ['javascript:alert(1)', 'data:text/html,x', 'file:///etc/passwd', 'c.example.dev', '']) {
+      expect(normaliseCollectorBase(bad), bad).toBeNull();
+    }
   });
 });
 

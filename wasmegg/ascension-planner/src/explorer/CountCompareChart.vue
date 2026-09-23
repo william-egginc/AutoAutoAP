@@ -34,6 +34,7 @@
 import { computed } from 'vue';
 import EChart from '@/components/charts/EChart.vue';
 import type { ChartOption, ChartSeriesOption } from '@/lib/charts/echarts';
+import { esc } from '@/lib/charts/tooltip';
 import type { CountComparison } from './analysis';
 import { colorAt, AXIS_LABEL, SPLIT_LINE } from './palette';
 
@@ -66,7 +67,9 @@ const option = computed<ChartOption>(() => {
       formatter: raw => {
         const params = raw as { data?: [number, number, string]; seriesName?: string };
         if (!params.data) return '';
-        return `<b>${params.seriesName ?? ''}</b><br/>${params.data[0]} ascensions: ${params.data[1].toFixed(2)} days<br/><span style="color:#94a3b8">${params.data[2]}</span>`;
+        // Escaped throughout: the series name is `accountLabel()`, which is built from submitted
+        // nicknames, and this string becomes innerHTML. See lib/charts/tooltip.ts.
+        return `<b>${esc(params.seriesName)}</b><br/>${esc(params.data[0])} ascensions: ${esc(params.data[1].toFixed(2))} days<br/><span style="color:#94a3b8">${esc(params.data[2])}</span>`;
       },
     },
     xAxis: {

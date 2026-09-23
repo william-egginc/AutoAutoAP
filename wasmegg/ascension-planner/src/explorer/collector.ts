@@ -41,20 +41,29 @@ function stripSubmit(url: string): string {
 }
 
 /**
+ * A collector base this page is willing to fetch from, or null.
+ *
+ * Shared by the query parameter and the typed box so the two cannot drift: both trim, both drop a
+ * trailing `/submit`, and both refuse anything that is not http(s). That last one is the point --
+ * a `javascript:` or `data:` URL that gets fetched and rendered is the shape of every "look at this
+ * link" attack, and this page is meant to be linked around.
+ */
+export function normaliseCollectorBase(raw: string): string | null {
+  const trimmed = stripSubmit(raw.trim());
+  return /^https?:\/\//i.test(trimmed) ? trimmed : null;
+}
+
+/**
  * The collector this page should read, or null when nothing has pointed it at one.
  *
  * `search` is injectable so this is testable without a browser location.
  */
 export function resolveCollectorBase(search = typeof location === 'undefined' ? '' : location.search): string | null {
   const fromQuery = new URLSearchParams(search).get('collector');
-  if (fromQuery) {
-    const trimmed = stripSubmit(fromQuery.trim());
-    // Only http(s). A `javascript:` or `data:` URL in a query parameter that then gets fetched and
-    // rendered is the shape of every "look at this link" attack, and this page is meant to be
-    // linked around.
-    if (/^https?:\/\//i.test(trimmed)) return trimmed;
-    return null;
-  }
+  // A query parameter that is present but unusable returns null rather than falling through to the
+  // build-time default: someone who put `?collector=` on the URL asked for that collector, and
+  // quietly showing them a different one's data would be worse than showing them nothing.
+  if (fromQuery) return normaliseCollectorBase(fromQuery);
   const configured = import.meta.env.VITE_SUBMIT_URL as string | undefined;
   return configured ? stripSubmit(configured) : null;
 }
@@ -94,7 +103,9 @@ export async function inflateIfGzip(bytes: Uint8Array): Promise<string> {
   const isGzip = bytes.length > 2 && bytes[0] === 0x1f && bytes[1] === 0x8b;
   if (!isGzip) return new TextDecoder().decode(bytes);
   if (typeof DecompressionStream === 'undefined') {
-    throw new Error('This browser cannot inflate gzip (no DecompressionStream). Chrome, Edge, Firefox 113+ or Safari 16.4+ can.');
+    throw new Error(
+      'This browser cannot inflate gzip (no DecompressionStream). Chrome, Edge, Firefox 113+ or Safari 16.4+ can.'
+    );
   }
   const stream = new Blob([bytes as BlobPart]).stream().pipeThrough(new DecompressionStream('gzip'));
   return new Response(stream).text();

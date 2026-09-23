@@ -64,9 +64,7 @@
             <td class="py-1 pr-3 text-right font-mono-premium font-black text-slate-800">{{ band.mid.toFixed(3) }}</td>
             <td class="py-1 pr-3 text-right font-mono-premium text-slate-500">{{ band.hi.toFixed(3) }}</td>
             <td class="py-1 pr-3 text-right text-slate-400">{{ band.samples }}</td>
-            <td class="py-1 font-mono-premium text-slate-500">
-              {{ absolute(band.lo) }}–{{ absolute(band.hi) }}
-            </td>
+            <td class="py-1 font-mono-premium text-slate-500">{{ absolute(band.lo) }}–{{ absolute(band.hi) }}</td>
           </tr>
         </tbody>
       </table>
@@ -78,6 +76,7 @@
 import { computed, ref } from 'vue';
 import EChart from '@/components/charts/EChart.vue';
 import type { ChartOption, ChartSeriesOption } from '@/lib/charts/echarts';
+import { esc } from '@/lib/charts/tooltip';
 import type { CollectorRow } from './collector';
 import type { PositionBand } from './analysis';
 import { accountKey, chainFractions } from './analysis';
@@ -144,7 +143,9 @@ const option = computed<ChartOption>(() => {
         const params = raw as { data?: [number, number, string]; seriesName?: string };
         if (!params.data) return '';
         const value = axis.value === 'fraction' ? params.data[1].toFixed(3) : `${params.data[1]} TE`;
-        return `<b>${params.seriesName ?? ''}</b><br/>checkpoint ${params.data[0]}: ${value}<br/><span style="color:#94a3b8">${params.data[2]}</span>`;
+        // Every interpolation is escaped: the series name carries a submitted nickname, which is
+        // free text, and this string becomes innerHTML. See lib/charts/tooltip.ts.
+        return `<b>${esc(params.seriesName)}</b><br/>checkpoint ${esc(params.data[0])}: ${esc(value)}<br/><span style="color:#94a3b8">${esc(params.data[2])}</span>`;
       },
     },
     xAxis: {
