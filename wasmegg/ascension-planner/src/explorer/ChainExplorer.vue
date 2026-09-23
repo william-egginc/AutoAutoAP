@@ -25,6 +25,19 @@
         </p>
       </header>
 
+      <!-- Points at "Help fill the gaps", which lives at the bottom beside the upload on purpose. -->
+      <a
+        v-if="base"
+        href="#help-fill-the-gaps"
+        class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-indigo-900 hover:bg-indigo-100"
+        @click.prevent="scrollToGaps"
+      >
+        <span class="text-[13px] font-bold">
+          Want to help make AAAP better? Run one of the sweeps we still need and submit it.
+        </span>
+        <span class="text-[10px] font-black uppercase tracking-widest">See what's needed &darr;</span>
+      </a>
+
       <!-- ------------------------------------------------------------------ source and loading -->
       <section class="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
         <div v-if="!base" class="space-y-2">
@@ -377,7 +390,11 @@
       </template>
 
       <!-- ------------------------------------------------------------------------- data needs -->
-      <section v-if="base" class="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+      <section
+        v-if="base"
+        id="help-fill-the-gaps"
+        class="rounded-xl border border-slate-200 bg-white p-4 space-y-3 scroll-mt-4"
+      >
         <div class="space-y-1">
           <h2 class="text-lg font-black text-slate-900">Help fill the gaps</h2>
           <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
@@ -475,6 +492,12 @@ let allController: AbortController | null = null;
 let csvController: AbortController | null = null;
 
 /** An aborted request is the expected outcome of clicking twice, not an error to report. */
+/** The banner's jump. Smooth, and it keeps the #anchor in the URL so the link can be shared. */
+function scrollToGaps(): void {
+  document.getElementById('help-fill-the-gaps')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  history.replaceState(null, '', '#help-fill-the-gaps');
+}
+
 function isAbort(e: unknown): boolean {
   return e instanceof DOMException && e.name === 'AbortError';
 }
