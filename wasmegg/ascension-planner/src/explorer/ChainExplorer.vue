@@ -56,8 +56,18 @@
             <p v-if="loading" class="text-sm font-bold text-slate-500">Reading the collector…</p>
             <p v-else-if="error" class="text-sm font-bold text-rose-700">{{ error }}</p>
             <p v-else class="text-sm font-bold text-slate-700">
-              {{ rows.length.toLocaleString() }} runs · {{ accounts.length }} accounts ·
+              {{ usable.length.toLocaleString() }} runs · {{ accounts.length }} accounts ·
               {{ totalChainsPriced.toLocaleString() }} chains priced between them
+            </p>
+            <p v-if="!loading && (dupeIds.size || flagged.size)" class="text-[11px] text-slate-500">
+              <template v-if="dupeIds.size">{{ dupeIds.size }} exact duplicate{{ dupeIds.size === 1 ? '' : 's' }} hidden. </template>
+              <template v-if="flagged.size">
+                {{ flagged.size }} run{{ flagged.size === 1 ? '' : 's' }} flagged for the delivery-set bug,
+                <label class="inline-flex items-center gap-1 font-bold text-slate-600">
+                  <input v-model="showFlagged" type="checkbox" class="rounded border-slate-300 text-amber-600" />
+                  include them
+                </label>
+              </template>
             </p>
             <p class="text-[10px] font-mono-premium text-slate-400 truncate max-w-xl">{{ base }}</p>
           </div>
@@ -219,6 +229,13 @@
                         :style="{ background: colorAt(accountColors.get(accountKey(row)) ?? 0) }"
                       />
                       {{ row.nickname || 'anonymous' }}
+                      <span
+                        v-if="flagged.has(row.id)"
+                        class="ml-1 rounded bg-amber-100 px-1 text-[9px] font-black text-amber-800"
+                        :title="flagged.get(row.id)"
+                      >
+                        flagged
+                      </span>
                     </td>
                     <td class="py-1.5 pr-3 font-mono-premium text-slate-500">
                       {{ row.currentTE }} → {{ row.finalTE }}
@@ -261,6 +278,36 @@
             an account still and varies the count.
           </p>
           <CountCompareChart :comparisons="comparisons" :account-colors="accountColors" />
+        </section>
+
+        <!-- ------------------------------------------------------------------ virtue variables -->
+        <section class="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
+          <h2 class="text-lg font-black text-slate-900">The final leg, for everyone</h2>
+          <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
+            Final-leg days times the peak delivery rate it reached, against the last checkpoint. Dividing out the
+            delivery rate is what makes accounts comparable here: every account so far lands on one line to within a
+            percent, whatever their gear. A point off the line is a run something else happened to.
+          </p>
+          <FinalLegChart :rows="usable" :account-colors="accountColors" :account-labels="accountLabels" />
+        </section>
+
+        <section class="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
+          <h2 class="text-lg font-black text-slate-900">Each sweep, every account</h2>
+          <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
+            Best total days at each last checkpoint, one line per run. A flat bottom means the exact checkpoint barely
+            matters; a bottom at the same place for everyone means the shape carries between accounts.
+          </p>
+          <SweepCurvesChart
+            :base="base!"
+            :rows="usable"
+            :account-colors="accountColors"
+            :account-labels="accountLabels"
+          />
+        </section>
+
+        <section class="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
+          <h2 class="text-lg font-black text-slate-900">Gear, as percent of perfect</h2>
+          <GearScoreChart :accounts="accounts" :account-colors="accountColors" />
         </section>
 
         <!-- ------------------------------------------------------------------------- deep dive -->
@@ -328,6 +375,18 @@
           </p>
         </section>
       </template>
+
+      <!-- ---------------------------------------------------------------------------- upload -->
+      <section v-if="base" class="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+        <div class="space-y-1">
+          <h2 class="text-lg font-black text-slate-900">Submit a sweep</h2>
+          <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
+            Ran a sweep and closed the tab, or ran it on another machine? Upload its two files here. They are checked
+            against each other, for truncation and for the old delivery-set bug, before anything is sent.
+          </p>
+        </div>
+        <SweepUpload :base="base" :rows="rows" @submitted="load" />
+      </section>
     </div>
   </div>
 </template>
@@ -339,6 +398,10 @@ import type { PricedChain } from '@/search/types';
 import CountShapeChart from './CountShapeChart.vue';
 import LegProfileChart from './LegProfileChart.vue';
 import CountCompareChart from './CountCompareChart.vue';
+import FinalLegChart from './FinalLegChart.vue';
+import SweepCurvesChart from './SweepCurvesChart.vue';
+import GearScoreChart from './GearScoreChart.vue';
+import SweepUpload from './SweepUpload.vue';
 import {
   fetchAll,
   fetchRunCsv,
@@ -347,7 +410,16 @@ import {
   resolveCollectorBase,
   type CollectorRow,
 } from './collector';
-import { accountKey, compareCounts, groupByAccount, groupByCount, nearBestBands, targetsPresent } from './analysis';
+import {
+  accountKey,
+  compareCounts,
+  exactDuplicateIds,
+  flagOf,
+  groupByAccount,
+  groupByCount,
+  nearBestBands,
+  targetsPresent,
+} from './analysis';
 import { colorAt } from './palette';
 
 /** Where a pasted collector URL is remembered. Per-browser, not per-build. */
@@ -440,7 +512,26 @@ function forgetBase(): void {
   closeTable();
 }
 
-const targets = computed(() => targetsPresent(rows.value));
+/** Exact copies of an earlier row. Hidden everywhere: they would count one run twice. */
+const dupeIds = computed(() => exactDuplicateIds(rows.value));
+
+/** Rows whose delivery rate is not their gear's, by id, with the reason. See `flagOf`. */
+const flagged = computed(() => {
+  const map = new Map<string, string>();
+  for (const r of rows.value) {
+    const why = flagOf(r);
+    if (why) map.set(r.id, why);
+  }
+  return map;
+});
+const showFlagged = ref(false);
+
+/** What every view on the page reads. */
+const usable = computed(() =>
+  rows.value.filter(r => !dupeIds.value.has(r.id) && (showFlagged.value || !flagged.value.has(r.id)))
+);
+
+const targets = computed(() => targetsPresent(usable.value));
 
 // Default to the target most runs used, then leave it alone: re-picking it on every refresh would
 // yank the page out from under someone who had chosen another.
@@ -449,10 +540,10 @@ watch(targets, list => {
 });
 
 const filtered = computed(() =>
-  rows.value.filter(r => r.finalTE === finalTE.value && (!exhaustiveOnly.value || (r.space && !r.space.stoppedEarly)))
+  usable.value.filter(r => r.finalTE === finalTE.value && (!exhaustiveOnly.value || (r.space && !r.space.stoppedEarly)))
 );
 
-const accounts = computed(() => groupByAccount(rows.value));
+const accounts = computed(() => groupByAccount(usable.value));
 
 /** Colour index per account, fixed across every chart and the runs table. */
 const accountColors = computed(() => {
@@ -461,7 +552,9 @@ const accountColors = computed(() => {
   return map;
 });
 
-const totalChainsPriced = computed(() => rows.value.reduce((n, r) => n + (r.chainsPriced || 0), 0));
+const accountLabels = computed(() => new Map(accounts.value.map(a => [a.key, a.label])));
+
+const totalChainsPriced = computed(() => usable.value.reduce((n, r) => n + (r.chainsPriced || 0), 0));
 
 const countGroups = computed(() => groupByCount(filtered.value));
 

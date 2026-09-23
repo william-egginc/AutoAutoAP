@@ -61,10 +61,12 @@ import { summariseEpicResearch, summariseColleggtibles } from '@/search/progress
 import { reviewContext, reviewLegs, reviewSetup, type HealthIssue } from '@/search/health';
 import { listRuns, saveRun, loadRun, deleteRun, defaultRunLabel, type RunSummary } from '@/search/runLibrary';
 import { epicResearchDefs } from '@/lib/epicResearch';
+import { deliveryScore } from '@/search/virtueScore';
 import { getColleggtibleTiers } from 'lib/collegtibles';
 import {
   getArtifactLoadoutFromBackup,
   getOptimalEarningsSet,
+  calculateClothedTEForSet,
   getOptimalELRSet,
   type EquippedArtifact,
 } from '@/lib/artifacts';
@@ -1180,6 +1182,20 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       colleggtibles: initialStateStore.rawBackup
         ? summariseColleggtibles(getColleggtibleTiers(initialStateStore.rawBackup))
         : null,
+      // Leg 1's delivery set, the same one `delivery` above describes. Later legs re-solve, but
+      // the gear they choose from is the same, so the score is the account's and not the leg's.
+      deliveryScore: inv.elr ? deliveryScore(inv.elr) : null,
+      // The same formula the Clothed TE panel shows, against the TE this search starts from.
+      clothedTE: inv.earnings
+        ? calculateClothedTEForSet(inv.earnings, {
+            truthEggs: currentTE.value,
+            colleggtibleModifiers: getSimulationContext().colleggtibleModifiers,
+            labUpgradeLevel: initialStateStore.epicResearchLevels['cheaper_research'] ?? 0,
+            permitLevel: initialStateStore.rawBackup?.game?.permitLevel ?? null,
+          })
+        : null,
+      teByEgg: initialStateStore.rawBackup?.virtue?.eovEarned ?? null,
+      backupTime: initialStateStore.rawBackup?.approxTime ?? null,
     });
   }
 

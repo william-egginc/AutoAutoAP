@@ -29,6 +29,7 @@ import type { ColleggtibleSummary, EpicResearchSummary } from './progression';
 import type { Availability } from './availability';
 import { describeAvailability } from './availability';
 import type { LegSummary } from './types';
+import type { DeliveryScore } from './virtueScore';
 
 /** Bumped when the shape changes, so a collector can reject or migrate old submissions rather
  *  than mis-reading them. Receivers should refuse anything they do not recognise.
@@ -39,8 +40,11 @@ import type { LegSummary } from './types';
  *     nothing.
  *  5: `proof`, the outcome side of an exhaustive run -- runners-up, the best at each ascension
  *     count, and the spread. Additive and Insane-only, like `space` in 4. Plus `seed`, the chain
- *     the run started from, which applies to a staged run and not to an exhaustive one. */
-export const SUBMISSION_SCHEMA = 5;
+ *     the run started from, which applies to a staged run and not to an exhaustive one.
+ *  6: the variables a virtue run turns on that 5 left out -- `startWeekday`, `deliveryScore`,
+ *     `clothedTE`, `teByEgg`, `backupAgeHours` -- plus `sweep`, `machine` and `source` for runs
+ *     uploaded from files through the Chain Explorer. All additive and optional. */
+export const SUBMISSION_SCHEMA = 6;
 
 /**
  * The artifact families a virtue ascension can actually equip.
@@ -289,7 +293,43 @@ export interface Submission {
    */
   seed?: number[];
 
+  /**
+   * Schema 6: the variables a result turns on that 5 did not record.
+   *
+   * `startWeekday` is derivable from `startLocal`, and sent anyway because the weekly Saturday sale
+   * is a ~3-day sawtooth in every leg and grouping on it should not need a date library.
+   * `deliveryScore` and `clothedTE` are the gear as two percent-of-perfect numbers (see
+   * virtueScore.ts), so accounts can be compared on one axis. `teByEgg` is truth eggs per virtue egg
+   * rather than the total, because the split decides which shifts a plan can take. `backupAgeHours`
+   * is how stale the backup was at plan start: a plan from a day-old backup is a plan for a farm
+   * that has moved on.
+   */
+  startWeekday?: string;
+  deliveryScore?: DeliveryScore;
+  clothedTE?: number;
+  teByEgg?: number[];
+  backupAgeHours?: number;
+  /** Which sweep preset produced this run, e.g. `M2`, or `custom`. Set by the upload page. */
+  sweep?: SweepTag;
+  /** The machine the run was on. The browser cannot report RAM honestly, so the player types it. */
+  machine?: MachineInfo;
+  /** `upload` when the Chain Explorer built this from a CSV plus diagnostics; absent from the planner. */
+  source?: 'upload';
+
   submittedAt: string;
+}
+
+export interface SweepTag {
+  preset: string;
+  /** The bands as typed into per-checkpoint mode, e.g. `190-280:2; 270-372:2`. */
+  bands?: string;
+  minGap?: number;
+}
+
+export interface MachineInfo {
+  cores?: number;
+  ramGB?: number;
+  workers?: number;
 }
 
 /** A chain and what it cost, as the proof block records it. */
@@ -405,6 +445,13 @@ function localStamp(unixSeconds: number, timezone: string): string {
   return `${get('year')}-${get('month')}-${get('day')} ${hour}:${get('minute')}`;
 }
 
+/** `Sat`, in the plan's own zone. */
+export function weekdayIn(unixSeconds: number, timezone: string): string {
+  return new Intl.DateTimeFormat('en-US', { timeZone: timezone, weekday: 'short' }).format(
+    new Date(unixSeconds * 1000)
+  );
+}
+
 export interface SubmissionInputs {
   nickname?: string;
   chain: number[];
@@ -434,6 +481,11 @@ export interface SubmissionInputs {
   /** Omitted when the backup could not be read; never guessed. */
   epicResearch?: EpicResearchSummary | null;
   colleggtibles?: ColleggtibleSummary | null;
+  deliveryScore?: DeliveryScore | null;
+  clothedTE?: number | null;
+  teByEgg?: number[] | null;
+  /** Unix seconds the backup was taken. */
+  backupTime?: number | null;
   /** Injectable so tests are not clock-dependent. */
   now?: number;
 }
@@ -568,6 +620,17 @@ export function buildSubmission(i: SubmissionInputs): Submission {
     ...(i.seed?.length ? { seed: [...i.seed] } : {}),
     ...(i.epicResearch ? { epicResearch: i.epicResearch } : {}),
     ...(i.colleggtibles ? { colleggtibles: i.colleggtibles } : {}),
+    startWeekday: weekdayIn(i.planStart, tz),
+    ...(i.deliveryScore ? { deliveryScore: i.deliveryScore } : {}),
+    ...(i.clothedTE !== null && i.clothedTE !== undefined && Number.isFinite(i.clothedTE)
+      ? { clothedTE: Number(i.clothedTE.toFixed(2)) }
+      : {}),
+    ...(i.teByEgg?.length ? { teByEgg: i.teByEgg.map(v => Math.max(0, Math.round(v))) } : {}),
+    // Only when the backup predates the plan. A plan start set before the backup was taken is a
+    // what-if, and a negative age would read as a clock bug.
+    ...(i.backupTime && i.planStart >= i.backupTime
+      ? { backupAgeHours: Number(((i.planStart - i.backupTime) / 3600).toFixed(1)) }
+      : {}),
     submittedAt: new Date(i.now ?? Date.now()).toISOString(),
   };
 }

@@ -7,8 +7,8 @@
  * `echarts` package (which registers every chart type, including many this app never uses).
  */
 import * as echarts from 'echarts/core';
-import { LineChart, ScatterChart } from 'echarts/charts';
-import type { LineSeriesOption, ScatterSeriesOption } from 'echarts/charts';
+import { BarChart, LineChart, ScatterChart } from 'echarts/charts';
+import type { BarSeriesOption, LineSeriesOption, ScatterSeriesOption } from 'echarts/charts';
 import {
   GridComponent,
   TooltipComponent,
@@ -31,6 +31,8 @@ echarts.use([
   // Added for the chain-search shape chart: thousands of priced chains as points, which a line
   // series cannot render without implying an order between them that does not exist.
   ScatterChart,
+  // Added for the Chain Explorer's per-account gear scores: one value per account, which is a bar.
+  BarChart,
   GridComponent,
   TooltipComponent,
   LegendComponent,
@@ -43,6 +45,7 @@ echarts.use([
 export type ChartOption = ComposeOption<
   | LineSeriesOption
   | ScatterSeriesOption
+  | BarSeriesOption
   | GridComponentOption
   | TooltipComponentOption
   | LegendComponentOption
@@ -50,7 +53,7 @@ export type ChartOption = ComposeOption<
 >;
 
 /** The series kinds this app registers, for components that build a series array by hand. */
-export type ChartSeriesOption = LineSeriesOption | ScatterSeriesOption;
+export type ChartSeriesOption = LineSeriesOption | ScatterSeriesOption | BarSeriesOption;
 
 export { echarts };
 export type { ECharts } from 'echarts/core';

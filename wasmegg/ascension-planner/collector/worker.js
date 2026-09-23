@@ -30,7 +30,7 @@
 // 2: `artifacts` became a list of labels (best piece per family) instead of `{label, count}` for
 // every tier owned; see src/search/submission.ts. Rows already in KV at schema 1 keep their old
 // shape and the page renders both -- a stored row is history, not something to migrate.
-const SCHEMA = 5;
+const SCHEMA = 6;
 
 /**
  * Schemas this Worker will accept, newest last.
@@ -45,8 +45,11 @@ const SCHEMA = 5;
  * schema-2 row is a valid row that happens to carry none of them, and storing it is strictly better
  * than rejecting the run that produced it. The `schema` field is stored as sent, so a reader can
  * still tell which rows can have timing data and which cannot.
+ *
+ * 6 adds the virtue variables (weekday, delivery score, Clothed TE, TE per egg, backup age) and the
+ * upload page's sweep tag and machine block. All optional, so the same reasoning holds.
  */
-const ACCEPTED_SCHEMAS = new Set([2, 3, 4, 5]);
+const ACCEPTED_SCHEMAS = new Set([2, 3, 4, 5, 6]);
 
 /**
  * Bounds on everything countable.
@@ -229,6 +232,49 @@ function runCost(r) {
     ...(suspended !== undefined && suspended >= 0 && suspended <= 60 * 24 * 30 ? { suspendedMinutes: suspended } : {}),
     ...(stall !== undefined && stall >= 0 && stall <= 60 * 24 * 30 ? { longestStallMinutes: stall } : {}),
   };
+}
+
+/** A number inside [lo, hi], or undefined. The schema-6 fields are all single bounded numbers. */
+const within = (v, lo, hi) => (Number.isFinite(v) && v >= lo && v <= hi ? v : undefined);
+
+const WEEKDAYS = new Set(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']);
+
+/** Four multipliers, each bounded to what a real artifact set can reach. */
+function deliveryScore(d) {
+  if (!d || typeof d !== 'object') return undefined;
+  const out = {
+    lay: within(d.lay, 1, 10),
+    hab: within(d.hab, 1, 10),
+    shipping: within(d.shipping, 1, 10),
+    score: within(d.score, 0, 1.5),
+  };
+  return Object.values(out).some(v => v === undefined) ? undefined : out;
+}
+
+/** Truth eggs per virtue egg. Five eggs; each is a count, bounded like any TE. */
+function teByEgg(v) {
+  if (!Array.isArray(v) || !v.length || v.length > 8) return undefined;
+  const out = v.map(x => within(x, 0, MAX.TE));
+  return out.some(x => x === undefined) ? undefined : out.map(Math.round);
+}
+
+/** Which sweep preset a run came from. Short labels only; the bands are the ones typed into the panel. */
+function sweepTag(t) {
+  if (!t || typeof t !== 'object') return undefined;
+  const preset = text(t.preset, 16);
+  if (!preset) return undefined;
+  return defined({ preset, bands: text(t.bands, 200), minGap: within(t.minGap, 0, 1000) });
+}
+
+/** What the player says about their machine. Typed, not measured, so bounded generously and never trusted further. */
+function machineInfo(m) {
+  if (!m || typeof m !== 'object') return undefined;
+  const out = defined({
+    cores: within(m.cores, 1, 256),
+    ramGB: within(m.ramGB, 1, 4096),
+    workers: within(m.workers, 1, 256),
+  });
+  return Object.keys(out).length ? out : undefined;
 }
 
 /**
@@ -431,6 +477,17 @@ function pickSubmission(s) {
           .filter(v => v !== undefined && v > 0 && v <= MAX.TE)
       : undefined,
     chainsPriced: num(s.chainsPriced),
+
+    // Schema 6. See `Submission` in src/search/submission.ts for what each one is for.
+    startWeekday: WEEKDAYS.has(s.startWeekday) ? s.startWeekday : undefined,
+    deliveryScore: deliveryScore(s.deliveryScore),
+    clothedTE: within(s.clothedTE, -1000, MAX.TE),
+    teByEgg: teByEgg(s.teByEgg),
+    backupAgeHours: within(s.backupAgeHours, 0, 24 * 365),
+    sweep: sweepTag(s.sweep),
+    machine: machineInfo(s.machine),
+    source: s.source === 'upload' ? 'upload' : undefined,
+
     submittedAt: text(s.submittedAt, MAX.TEXT),
   });
 }

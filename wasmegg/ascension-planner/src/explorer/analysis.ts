@@ -24,6 +24,7 @@
 import type { Submission } from '@/search/submission';
 import type { PricedChain } from '@/search/types';
 import type { CollectorRow } from './collector';
+import { checkFinalLegRate, clothedTEFromLabels, deliveryScore, slotsFromLabels } from '@/search/virtueScore';
 
 /** Stable key for "probably the same account". See the module note on how coarse this is. */
 export function accountKey(row: Submission): string {
@@ -327,4 +328,85 @@ export function targetsPresent(rows: CollectorRow[]): { finalTE: number; runs: n
   return [...counts.entries()]
     .map(([finalTE, runs]) => ({ finalTE, runs }))
     .sort((a, b) => b.runs - a.runs || a.finalTE - b.finalTE);
+}
+
+/** JSON with keys sorted at every level, so two records that hold the same values compare equal. */
+function canonical(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
+  if (value && typeof value === 'object') {
+    return `{${Object.keys(value)
+      .sort()
+      .map(k => `${JSON.stringify(k)}:${canonical((value as Record<string, unknown>)[k])}`)
+      .join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
+/**
+ * Rows that are an exact copy of an earlier row: every field equal except the id and the moment
+ * it was posted. The earliest copy is kept and the rest are returned, to be hidden.
+ *
+ * EXACT, not "same run". Two runs of the same chain on one account that differ in chains priced or
+ * effort are two experiments and both stay -- that is `/leaderboard`'s collapse, and it is a
+ * different question. This is the same POST twice (a double-clicked Submit, a retry after a
+ * timeout), which counts one run as two in every average on the page.
+ */
+export function exactDuplicateIds(rows: CollectorRow[]): Set<string> {
+  const byContent = new Map<string, CollectorRow>();
+  const dupes = new Set<string>();
+  const sorted = [...rows].sort((a, b) => (a.submittedAt ?? '').localeCompare(b.submittedAt ?? ''));
+  for (const row of sorted) {
+    const { id: _id, submittedAt: _at, hasCsv: _csv, ...content } = row;
+    const key = canonical(content);
+    if (byContent.has(key)) dupes.add(row.id);
+    else byContent.set(key, row);
+  }
+  return dupes;
+}
+
+/**
+ * Why a row should not be trusted, or null.
+ *
+ * One rule so far: the final leg's delivery rate is far below what the row's own gear reaches from
+ * that checkpoint. That is how the "delivery set used for earnings research" bug shows up -- the
+ * earnings side was researched with the wrong set, the farm never reached its real delivery rate,
+ * and the plan took hundreds of days longer. See `checkFinalLegRate` for the threshold.
+ */
+export function flagOf(row: Submission): string | null {
+  const rate = checkFinalLegRate(row.chain, row.legs, row.delivery);
+  if (rate?.suspect) {
+    return `Final leg peaks at ${rate.measuredQph.toFixed(2)} q/hr; this gear reaches about ${rate.expectedQph.toFixed(2)} from ${row.chain[row.chain.length - 2]} TE. Looks like the old delivery-set-for-earnings bug.`;
+  }
+  return null;
+}
+
+/**
+ * Which sweep a row belongs to, for the per-sweep chart. A tagged upload says so itself; an
+ * untagged exhaustive run is grouped by its ascension count, which is what the presets differ by.
+ * A staged (seeded) run is not a sweep and gets null.
+ */
+export function sweepGroupOf(row: Submission): string | null {
+  if (row.sweep?.preset && row.sweep.preset !== 'custom') return row.sweep.preset;
+  if (row.space) return `${row.ascensions} ascensions`;
+  return null;
+}
+
+export interface Gear {
+  /** 0-1 share of the best delivery set. */
+  delivery: number | null;
+  clothedTE: number | null;
+  /** Highest peak delivery any leg reached, q/hr. */
+  peakQph: number | null;
+}
+
+/**
+ * A row's gear as the two percent-of-perfect numbers. Uses what the row recorded when it recorded
+ * it (schema 6) and recomputes from its loadouts otherwise, so older rows are not left blank.
+ */
+export function gearOf(row: Submission): Gear {
+  const delivery = row.deliveryScore?.score ?? deliveryScore(slotsFromLabels(row.delivery))?.score ?? null;
+  const maxed = !!row.colleggtibles?.maxed && !!row.epicResearch?.maxed;
+  const clothedTE = row.clothedTE ?? clothedTEFromLabels(row.currentTE, row.earnings, maxed);
+  const peaks = (row.legs ?? []).map(l => l.peakDeliveryQph).filter(v => Number.isFinite(v) && v > 0);
+  return { delivery, clothedTE, peakQph: peaks.length ? Math.max(...peaks) : null };
 }

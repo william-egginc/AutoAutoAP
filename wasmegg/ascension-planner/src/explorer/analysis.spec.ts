@@ -4,11 +4,15 @@ import {
   accountLabel,
   chainFractions,
   compareCounts,
+  exactDuplicateIds,
+  flagOf,
+  gearOf,
   groupByAccount,
   groupByCount,
   median,
   nearBestBands,
   positionBands,
+  sweepGroupOf,
   targetsPresent,
 } from './analysis';
 import type { CollectorRow } from './collector';
@@ -282,5 +286,55 @@ describe('targetsPresent', () => {
       { finalTE: 490, runs: 2 },
       { finalTE: 300, runs: 1 },
     ]);
+  });
+});
+
+const PERFECT = [
+  { artifact: 'T4L Quantum metronome', stones: ['T4 Tachyon stone', 'T4 Tachyon stone', 'T4 Tachyon stone'] },
+  { artifact: 'T4L Interstellar compass', stones: ['T4 Quantum stone', 'T4 Quantum stone'] },
+  { artifact: 'T4L Gusset', stones: ['T4 Quantum stone', 'T4 Tachyon stone', 'T4 Quantum stone'] },
+  { artifact: 'T4L Lunar totem', stones: ['T4 Tachyon stone', 'T4 Tachyon stone', 'T4 Tachyon stone'] },
+];
+const legsTo = (peak: number) => [
+  { te: 352, strategy: '2-sale', days: 300, peakDeliveryQph: 11 },
+  { te: 490, strategy: '2-sale', days: 519, peakDeliveryQph: peak },
+];
+
+describe('exactDuplicateIds', () => {
+  it('hides a byte-identical re-post and keeps the earliest', () => {
+    const a = row({ id: 'first', chain: [300, 490], currentTE: 180, finalTE: 490, submittedAt: '2026-09-19T03:41:07Z' });
+    const b = { ...a, id: 'second', submittedAt: '2026-09-19T03:41:23Z' };
+    expect([...exactDuplicateIds([b, a])]).toEqual(['second']);
+  });
+
+  it('keeps two runs that differ in anything but the id and the time', () => {
+    const a = row({ id: 'a', chain: [300, 490], currentTE: 180, finalTE: 490 });
+    expect(exactDuplicateIds([a, { ...a, id: 'b', chainsPriced: 101 }]).size).toBe(0);
+    expect(exactDuplicateIds([a, { ...a, id: 'b', nickname: 'someone' }]).size).toBe(0);
+  });
+});
+
+describe('flagOf', () => {
+  it('flags a final leg far below its gear, and leaves a normal one alone', () => {
+    const base = { chain: [352, 490], currentTE: 180, finalTE: 490, delivery: PERFECT };
+    expect(flagOf(row({ ...base, legs: legsTo(8.01) }))).toMatch(/delivery-set-for-earnings/);
+    expect(flagOf(row({ ...base, legs: legsTo(11.9) }))).toBeNull();
+    expect(flagOf(row({ ...base, delivery: undefined, legs: legsTo(3) }))).toBeNull();
+  });
+});
+
+describe('gearOf / sweepGroupOf', () => {
+  it('recomputes the delivery score for an old row and prefers a recorded one', () => {
+    const old = row({ chain: [300, 490], currentTE: 180, finalTE: 490, delivery: PERFECT, legs: legsTo(11.9) });
+    expect(gearOf(old)).toMatchObject({ delivery: 1, peakQph: 11.9, clothedTE: null });
+    const recorded = { ...old, deliveryScore: { lay: 1, hab: 1, shipping: 1, score: 0.9 }, clothedTE: 230 };
+    expect(gearOf(recorded)).toMatchObject({ delivery: 0.9, clothedTE: 230 });
+  });
+
+  it('groups tagged uploads by preset and untagged proofs by count', () => {
+    const r = row({ chain: [250, 300, 490], currentTE: 180, finalTE: 490 });
+    expect(sweepGroupOf({ ...r, sweep: { preset: 'M2' } })).toBe('M2');
+    expect(sweepGroupOf({ ...r, space: { mode: 'bands', minGap: 10, minAscensions: 3, maxAscensions: 3, chains: 9, chainsPriced: 9, stoppedEarly: false } })).toBe('3 ascensions');
+    expect(sweepGroupOf(r)).toBeNull();
   });
 });

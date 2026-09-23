@@ -626,3 +626,52 @@ describe('the seed a run started from', () => {
     expect(stored()[0][1].seed).toEqual([195, 490]);
   });
 });
+
+describe('schema 6: the virtue variables and the upload page', () => {
+  const V6 = {
+    ...MINIMAL,
+    schema: 6,
+    startWeekday: 'Sat',
+    deliveryScore: { lay: 1.5, hab: 1.4, shipping: 1.6, score: 0.97 },
+    clothedTE: 241.3,
+    teByEgg: [40, 38, 36, 34, 32],
+    backupAgeHours: 2.5,
+    sweep: { preset: 'M2', bands: '190-280:2; 270-372:2', minGap: 10 },
+    machine: { cores: 8, ramGB: 16, workers: 7 },
+    source: 'upload',
+  };
+
+  it('stores every schema-6 field a real client sends', async () => {
+    const res = await post('/submit', V6);
+    expect(res.status).toBe(200);
+    const row = stored()[0][1];
+    for (const k of ['startWeekday', 'deliveryScore', 'clothedTE', 'teByEgg', 'backupAgeHours', 'sweep', 'machine']) {
+      expect(row[k]).toEqual(V6[k]);
+    }
+    expect(row.source).toBe('upload');
+    expect(row.schema).toBe(6);
+  });
+
+  it('still accepts a schema-5 client, which simply has none of them', async () => {
+    expect((await post('/submit', { ...MINIMAL, schema: 5 })).status).toBe(200);
+    expect('deliveryScore' in stored()[0][1]).toBe(false);
+  });
+
+  it('drops out-of-range values field by field instead of storing them', async () => {
+    await post('/submit', {
+      ...V6,
+      startWeekday: 'Caturday',
+      deliveryScore: { lay: 1e9, hab: 1, shipping: 1, score: 1 },
+      teByEgg: [1, 2, -3],
+      backupAgeHours: -1,
+      sweep: { preset: 'x'.repeat(100) },
+      machine: { cores: 0, ramGB: 'lots' },
+      source: 'somewhere else',
+    });
+    const row = stored()[0][1];
+    for (const k of ['startWeekday', 'deliveryScore', 'teByEgg', 'backupAgeHours', 'machine', 'source']) {
+      expect(k in row).toBe(false);
+    }
+    expect(row.sweep.preset).toHaveLength(16);
+  });
+});

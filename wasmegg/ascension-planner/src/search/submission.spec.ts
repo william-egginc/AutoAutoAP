@@ -76,6 +76,7 @@ describe('buildSubmission', () => {
         'legs',
         'schema',
         'startLocal',
+        'startWeekday',
         'stones',
         'submittedAt',
         'timezone',
@@ -83,6 +84,31 @@ describe('buildSubmission', () => {
         'window',
       ].sort()
     );
+  });
+
+  it('carries the schema-6 variables when given them, and leaves each off when not', () => {
+    const s = buildSubmission(
+      inputs({
+        deliveryScore: { lay: 1.5, hab: 1.25, shipping: 1.6, score: 0.97 },
+        clothedTE: 201.234,
+        teByEgg: [40.4, 38, 36, 34, 32],
+        backupTime: inputs().planStart - 5400,
+      })
+    );
+    expect(s.deliveryScore?.score).toBe(0.97);
+    expect(s.clothedTE).toBe(201.23);
+    expect(s.teByEgg).toEqual([40, 38, 36, 34, 32]);
+    expect(s.backupAgeHours).toBe(1.5);
+    // A backup newer than the plan start is a what-if, not a stale backup.
+    expect('backupAgeHours' in buildSubmission(inputs({ backupTime: inputs().planStart + 60 }))).toBe(false);
+    expect(buildSubmission(inputs({ clothedTE: null })).clothedTE).toBeUndefined();
+  });
+
+  it('names the weekday in the plan zone, not the browser zone', () => {
+    // 2026-09-19 03:00 UTC is Saturday in UTC and still Friday evening in Chicago.
+    const at = Date.UTC(2026, 8, 19, 3, 0) / 1000;
+    expect(buildSubmission(inputs({ planStart: at, timezone: 'UTC' })).startWeekday).toBe('Sat');
+    expect(buildSubmission(inputs({ planStart: at, timezone: 'America/Chicago' })).startWeekday).toBe('Fri');
   });
 
   it('never contains a player id, even when one is typed into the nickname', () => {
