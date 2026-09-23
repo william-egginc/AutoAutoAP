@@ -1379,9 +1379,11 @@ function report(
 
 async function runSharded(jobs: number): Promise<void> {
   const { fork } = await import('node:child_process');
-  const out = arg('out');
+  // --csv is the documented flag; --out is what the shards are handed. Reading only --out here made
+  // every sharded run ignore --csv and overwrite the same fastsearch.csv.
+  const out = arg('out') ?? arg('csv');
   const base = process.argv.slice(2).filter((a, i, arr) =>
-    a !== '--jobs' && arr[i - 1] !== '--jobs' && a !== '--out' && arr[i - 1] !== '--out');
+    !['--jobs', '--out', '--csv'].includes(a) && !['--jobs', '--out', '--csv'].includes(arr[i - 1]));
   const parts: string[] = [];
   const t0 = Date.now();
 
@@ -1526,9 +1528,15 @@ async function main() {
   await loadPlayer();
 
   const final = +(arg('final', '490')!);
-  const now = new Date();
-  const startDate = arg('start-date', now.toISOString().slice(0, 10))!;
-  const startTime = arg('start-time', String(now.getHours()).padStart(2, '0') + ':00')!;
+  // Both defaults read the clock in --timezone. toISOString() is UTC, so pairing it with the local
+  // hour put an evening run a day into the future (22:00 Denver on the 22nd became "the 23rd 22:00").
+  const nowParts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hourCycle: 'h23' })
+      .formatToParts(new Date())
+      .map(p => [p.type, p.value])
+  );
+  const startDate = arg('start-date', `${nowParts.year}-${nowParts.month}-${nowParts.day}`)!;
+  const startTime = arg('start-time', nowParts.hour + ':00')!;
   const planStart = getLocalTimestampInTimezone(startDate, startTime, tz);
 
   // --milestone "248@2027-06-01", repeatable. A chain that misses one is not a candidate at all -
