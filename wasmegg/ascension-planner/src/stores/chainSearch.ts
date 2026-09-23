@@ -215,6 +215,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   const isRunning = ref(false);
   const stopRequested = ref(false);
   const error = ref<string | null>(null);
+  /** True when `error` is a pre-flight refusal: the run never started, so nothing was lost and the
+   *  crash advice (lower the effort tier, read the worker console) does not apply. */
+  const errorBeforeStart = ref(false);
 
   const stage = ref('');
   const detail = ref('');
@@ -620,6 +623,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     chainsEstimated.value = body.entries.length;
     csvRows.value = body.entries.length;
     error.value = null;
+    errorBeforeStart.value = false;
     stoppedEarly.value = !summary.complete;
     stage.value = summary.complete ? 'done' : 'stopped';
     // A reloaded run took no time HERE, so its cost is not this machine's and must not be submitted
@@ -791,6 +795,12 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     return reviewContext({
       hasBackup: !!inputs.context.rawBackup,
       hasFarmState: !!inputs.currentFarmState,
+      // Read off the save itself, so a missing farm state can be told apart: still loading (the save
+      // has a virtue farm, it just is not parsed yet) versus nothing to load (the save is on the home
+      // farm or a contract, and waiting will never fix it).
+      backupHasVirtueFarm: (inputs.context.rawBackup?.farms ?? []).some(
+        (f: { eggType?: number | null }) => typeof f.eggType === 'number' && f.eggType >= 50 && f.eggType <= 54
+      ),
       epicResearchCount: Object.keys(inputs.context.epicResearchLevels ?? {}).length,
     });
   }
@@ -1516,6 +1526,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     };
 
     error.value = null;
+    errorBeforeStart.value = false;
     stopRequested.value = false;
     stoppedEarly.value = false;
     isRunning.value = true;
@@ -1619,6 +1630,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const blocking = reviewRunInputs(startInputs);
     if (blocking.length) {
       error.value = blocking[0].message;
+      errorBeforeStart.value = true;
       isRunning.value = false;
       stage.value = 'idle';
       return;
@@ -1868,6 +1880,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     currentPlayerId = playerId;
 
     error.value = null;
+    errorBeforeStart.value = false;
     stopRequested.value = false;
     stoppedEarly.value = false;
     isRunning.value = true;
@@ -1938,6 +1951,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const blocking = reviewRunInputs(startInputs);
     if (blocking.length) {
       error.value = blocking[0].message;
+      errorBeforeStart.value = true;
       isRunning.value = false;
       stage.value = 'idle';
       return;
@@ -2157,6 +2171,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     finalTE,
     forceContinue,
     sweepTag,
+    errorBeforeStart,
     pin,
     minPrestiges,
     maxLastOverride,

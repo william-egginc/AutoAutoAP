@@ -29,6 +29,7 @@ export interface HealthIssue {
     | 'no-delivery-set'
     | 'no-earnings-set'
     | 'no-farm-state'
+    | 'no-virtue-farm'
     | 'no-epic-research'
     | 'te-mismatch'
     | 'rate-collapse'
@@ -60,21 +61,37 @@ export function reviewContext(ctx: {
   hasBackup: boolean;
   epicResearchCount: number;
   hasFarmState: boolean;
+  /**
+   * Whether the save contains a virtue farm (egg 50-54) at all. Optional so older callers keep the
+   * old message; when false, a missing farm state is not a loading race and waiting cannot fix it.
+   */
+  backupHasVirtueFarm?: boolean;
 }): HealthIssue[] {
   const issues: HealthIssue[] = [];
   if (!ctx.hasBackup) {
     issues.push({
       kind: 'no-backup',
       level: 'error',
-      message: 'The backup had not finished loading when this run tried to start. Wait for it and start again.',
+      message:
+        'Your save had not finished loading when this run tried to start. Give it a few seconds after the player loads, then press Start again.',
     });
     return issues;
   }
-  if (!ctx.hasFarmState) {
+  if (!ctx.hasFarmState && ctx.backupHasVirtueFarm === false) {
+    // Not a race: the save simply has no virtue ascension in progress. The search starts by
+    // finishing the current one, so there is nothing to start from until the game is on a virtue egg.
+    issues.push({
+      kind: 'no-virtue-farm',
+      level: 'error',
+      message:
+        'Your save has no virtue ascension in progress: the last sync was on your home farm or a contract. The search starts by finishing your current virtue ascension, so switch to a virtue egg in the game, let it sync (a minute or so), then reload your player here and start again.',
+    });
+  } else if (!ctx.hasFarmState) {
     issues.push({
       kind: 'no-farm-state',
       level: 'error',
-      message: 'The current farm had not finished loading when this run tried to start. Wait for it and start again.',
+      message:
+        'Your current virtue farm had not finished loading when this run tried to start. Give it a few seconds after the player loads, then press Start again.',
     });
   }
   // Zero is the tell. A real account has levels here even if none are maxed, and an empty map makes

@@ -1014,7 +1014,8 @@
         v-if="store.error"
         class="p-4 bg-red-50 border border-red-200 rounded-xl text-xs text-red-800 leading-relaxed"
       >
-        <span class="font-bold uppercase tracking-wide">Search failed</span> — {{ store.error }}
+        <span class="font-bold uppercase tracking-wide">{{ store.errorBeforeStart ? "Didn't start" : 'Search failed' }}</span>
+        — {{ store.error }}
       </div>
 
       <div v-if="store.bestDays > 0" class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 space-y-1">

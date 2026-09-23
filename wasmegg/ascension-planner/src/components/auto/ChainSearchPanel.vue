@@ -1194,8 +1194,16 @@
         v-if="store.error"
         class="p-4 bg-red-50 border border-red-200 rounded-xl text-xs text-red-800 leading-relaxed space-y-1.5"
       >
-        <p><span class="font-bold uppercase tracking-wide">Search failed</span> — {{ store.error }}</p>
-        <p v-if="store.chainsDone > 0" class="text-red-700">
+        <p>
+          <span class="font-bold uppercase tracking-wide">{{ store.errorBeforeStart ? "Didn't start" : 'Search failed' }}</span>
+          — {{ store.error }}
+        </p>
+        <!-- A pre-flight refusal: nothing ran, so the crash advice below would only send people
+             looking for a problem that is not there. -->
+        <p v-if="store.errorBeforeStart" class="text-red-700">
+          The search checked your save before starting and stopped, so no time was lost and nothing needs resuming.
+        </p>
+        <p v-else-if="store.chainsDone > 0" class="text-red-700">
           {{ store.chainsDone }} chains were priced before it stopped and are saved. Starting the search again replays
           them without re-simulating anything, so you are resuming rather than restarting.
         </p>

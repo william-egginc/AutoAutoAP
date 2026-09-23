@@ -146,6 +146,18 @@ describe('reviewContext', () => {
 
   it('catches a run starting before the farm state has loaded', () => {
     expect(reviewContext({ ...loaded, hasFarmState: false }).map(i => i.kind)).toEqual(['no-farm-state']);
+    expect(
+      reviewContext({ ...loaded, hasFarmState: false, backupHasVirtueFarm: true }).map(i => i.kind)
+    ).toEqual(['no-farm-state']);
+  });
+
+  // Not a race at all: the last sync was on the home farm or a contract, so there is no virtue farm
+  // to load and "wait and start again" can never work. It has to say what will.
+  it('tells a save with no virtue ascension in progress apart from one still loading', () => {
+    const issues = reviewContext({ ...loaded, hasFarmState: false, backupHasVirtueFarm: false });
+    expect(issues.map(i => i.kind)).toEqual(['no-virtue-farm']);
+    expect(issues[0].message).toMatch(/virtue egg/);
+    expect(issues[0].message).not.toMatch(/Give it a few seconds/);
   });
 
   it('reports the missing backup alone rather than its consequences', () => {
