@@ -1241,6 +1241,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    */
   async function sendSubmission(payload: Submission, csv?: string): Promise<{ ok: boolean; message: string }> {
     if (!submitUrl) return { ok: false, message: 'no collector configured' };
+    pendingTable.value = null;
     let id: string | undefined;
     let uploadToken: string | undefined;
     try {
@@ -1260,10 +1261,15 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         return { ok: false, message: `collector said ${res.status}${why}` };
       }
       ({ id, uploadToken } = (await res.json().catch(() => ({}))) as { id?: string; uploadToken?: string });
-    } catch (e) {
+    } catch {
       // Ordinary: someone is offline, or the collector is down. It must not look like the run
-      // broke.
-      return { ok: false, message: e instanceof Error ? e.message : 'could not reach the collector' };
+      // broke, and "Failed to fetch" -- the browser's own words -- says neither what happened nor
+      // that nothing is lost.
+      return {
+        ok: false,
+        message:
+          'could not reach the collector (check your connection). Your results are still here - press Submit again once you are back online, or use Save the file instead to keep a copy.',
+      };
     }
 
     if (!csv) return { ok: true, message: 'sent' };
@@ -1271,31 +1277,76 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // The collector only accepts a CSV carrying the token its /submit answer signed for this id.
     if (!uploadToken) return { ok: true, message: 'sent (the collector does not take CSVs, so it was skipped)' };
     try {
-      const csvUrl = `${submitUrl.replace(/\/submit\/?$/, '/csv')}?id=${encodeURIComponent(id)}`;
-      const body = await gzip(scrubIdentifiers(csv));
-      const res = await fetch(csvUrl, {
+      pendingTable.value = {
+        url: `${submitUrl.replace(/\/submit\/?$/, '/csv')}?id=${encodeURIComponent(id)}`,
+        token: uploadToken,
+        body: await gzip(scrubIdentifiers(csv)),
+      };
+    } catch {
+      return { ok: true, message: 'sent, but the table could not be compressed in this browser, so it was skipped' };
+    }
+    return postTable();
+  }
+
+  /**
+   * A table the summary landed without: kept, with its one-time token, so "Retry the table" can send
+   * just the table. Pressing Submit again instead would add a second row to the leaderboard to get
+   * one CSV in. Cleared once the table is stored, or once retrying cannot help.
+   */
+  const pendingTable = ref<{ url: string; token: string; body: ArrayBuffer } | null>(null);
+
+  /** Send `pendingTable`, and word the outcome as what to do next rather than a status code. */
+  async function postTable(): Promise<{ ok: boolean; message: string }> {
+    const table = pendingTable.value;
+    if (!table) return { ok: false, message: 'there is no table waiting to be sent' };
+    const mb = (table.body.byteLength / 1024 / 1024).toFixed(1);
+    let res: Response;
+    try {
+      res = await fetch(table.url, {
         method: 'POST',
         // Deliberately not `content-encoding: gzip`, which would invite something in the path to
         // helpfully inflate the body before the Worker sees it. These are gzip bytes being posted
         // as data, not a transfer encoding, and the type says so.
-        headers: { 'content-type': 'application/gzip', 'x-upload-token': uploadToken },
-        body,
+        headers: { 'content-type': 'application/gzip', 'x-upload-token': table.token },
+        body: table.body,
       });
-      const mb = (n: number) => (n / 1024 / 1024).toFixed(1);
-      return res.ok
-        ? { ok: true, message: `sent, with the full CSV (${mb(body.byteLength)} MB compressed)` }
-        : {
-            ok: true,
-            // 403 is the upload token not matching -- in practice a tab running a build from before
-            // the collector changed its upload rules. A reload fixes it; say so rather than a code.
-            message:
-              res.status === 403
-                ? 'sent, but the table was refused - reload the page (it may be an old version) and submit again'
-                : `sent, but the table was refused (${res.status})`,
-          };
     } catch {
-      return { ok: true, message: 'sent, but the CSV upload failed' };
+      // Offline or dropped mid-upload: the token is still good and no table is stored yet.
+      return {
+        ok: true,
+        message:
+          'sent, but the table did not upload (the connection dropped). The summary is in - press Retry the table to send just the table.',
+      };
     }
+    if (res.ok) {
+      pendingTable.value = null;
+      return { ok: true, message: `sent, with the full CSV (${mb} MB compressed)` };
+    }
+    if (res.status === 409) {
+      // Stored already -- most likely an earlier attempt that landed but whose answer was lost.
+      pendingTable.value = null;
+      return { ok: true, message: 'sent - the table was already stored' };
+    }
+    if (res.status === 403) {
+      // The token does not match. In practice a tab running a build from before the collector
+      // changed its upload rules; retrying from this tab cannot help, a reload can.
+      pendingTable.value = null;
+      return {
+        ok: true,
+        message:
+          'sent, but the table was refused. Save your results first (Save this run, Save the file instead, or Download CSV) so nothing is lost, then reload the page - it may be an old version - and submit again.',
+      };
+    }
+    // Anything else (a 5xx, a restart mid-deploy) is worth another go with the same token.
+    return {
+      ok: true,
+      message: `sent, but the table did not upload (${res.status}). The summary is in - press Retry the table to send just the table.`,
+    };
+  }
+
+  /** The "Retry the table" button. */
+  async function retryTable(): Promise<{ ok: boolean; message: string }> {
+    return postTable();
   }
 
   /**
@@ -2281,6 +2332,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     exportCsvChunks,
     buildRunSubmission,
     sendSubmission,
+    pendingTable,
+    retryTable,
     submitUrl,
     leaderboardUrl,
     submissionFilename,

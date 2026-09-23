@@ -127,6 +127,15 @@
         <span v-if="sendMessage" class="text-[11px] font-semibold" :class="sendOk ? 'text-emerald-700' : 'text-rose-700'">
           {{ sendMessage }}
         </span>
+        <button
+          v-if="pendingTable"
+          type="button"
+          :disabled="retrying"
+          class="px-3 py-1.5 rounded-lg border border-amber-300 text-amber-800 text-[10px] font-black uppercase tracking-widest hover:bg-amber-50 disabled:opacity-40"
+          @click="retryTable"
+        >
+          {{ retrying ? 'Sending the table…' : 'Retry the table' }}
+        </button>
       </div>
     </template>
   </div>
@@ -240,14 +249,23 @@ async function send(): Promise<void> {
   sending.value = true;
   sendOk.value = true;
   sendMessage.value = 'Preparing the upload…';
+  pendingTable.value = null;
   try {
     // Let the button's "Sending…" reach the screen before scrubbing a multi-megabyte table.
     await afterPaint();
-    const res = await fetch(`${props.base}/submit`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(preview.value),
-    });
+    let res: Response;
+    try {
+      res = await fetch(`${props.base}/submit`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(preview.value),
+      });
+    } catch {
+      sendOk.value = false;
+      sendMessage.value =
+        'Could not reach the collector (check your connection). Your files are still loaded here - press Submit again once you are back online.';
+      return;
+    }
     const body = (await res.json().catch(() => ({}))) as {
       id?: string;
       uploadToken?: string;
@@ -274,24 +292,67 @@ async function send(): Promise<void> {
       emit('submitted', body.id);
       return;
     }
-    const csvRes = await fetch(`${props.base}/csv?id=${encodeURIComponent(body.id)}`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/gzip', 'x-upload-token': body.uploadToken },
-      body: await gzip(scrubIdentifiers(csvText.value)),
-    });
+    // The summary is in from here on: whatever happens to the table, pressing Submit again would
+    // only add a second row. So mark it sent now, and keep the table for "Retry the table".
     sent.value = true;
-    sendOk.value = csvRes.ok;
-    sendMessage.value = csvRes.ok
-      ? `Stored as ${body.id}, with its table.`
-      : csvRes.status === 403
-        ? `Stored as ${body.id}, but the table was refused. Reload this page (it may be an old version) and upload again.`
-        : `Stored as ${body.id}, but the table was refused (${csvRes.status}).`;
     emit('submitted', body.id);
+    pendingTable.value = {
+      id: body.id,
+      token: body.uploadToken,
+      body: await gzip(scrubIdentifiers(csvText.value)),
+    };
+    await postTable();
   } catch (err) {
     sendOk.value = false;
-    sendMessage.value = err instanceof Error ? err.message : 'Could not reach the collector.';
+    sendMessage.value = err instanceof Error ? err.message : 'Something went wrong preparing the upload.';
   } finally {
     sending.value = false;
+  }
+}
+
+/** A table whose summary is stored but which has not landed itself, kept with its one-time token. */
+const pendingTable = shallowRef<{ id: string; token: string; body: ArrayBuffer } | null>(null);
+const retrying = ref(false);
+
+/** Send `pendingTable` and say what to do next. Same rules as the planner's postTable. */
+async function postTable(): Promise<void> {
+  const table = pendingTable.value;
+  if (!table) return;
+  let res: Response;
+  try {
+    res = await fetch(`${props.base}/csv?id=${encodeURIComponent(table.id)}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/gzip', 'x-upload-token': table.token },
+      body: table.body,
+    });
+  } catch {
+    sendOk.value = false;
+    sendMessage.value = `Stored as ${table.id}, but the table did not upload (the connection dropped). Press Retry the table.`;
+    return;
+  }
+  if (res.ok || res.status === 409) {
+    pendingTable.value = null;
+    sendOk.value = true;
+    sendMessage.value = res.ok ? `Stored as ${table.id}, with its table.` : `Stored as ${table.id}; the table was already there.`;
+    return;
+  }
+  sendOk.value = false;
+  if (res.status === 403) {
+    // Retrying from this tab cannot fix a token mismatch; a reload of the page can.
+    pendingTable.value = null;
+    sendMessage.value = `Stored as ${table.id}, but the table was refused. Keep your two files, reload this page (it may be an old version) and upload again.`;
+    return;
+  }
+  sendMessage.value = `Stored as ${table.id}, but the table did not upload (${res.status}). Press Retry the table.`;
+}
+
+async function retryTable(): Promise<void> {
+  if (retrying.value) return;
+  retrying.value = true;
+  try {
+    await postTable();
+  } finally {
+    retrying.value = false;
   }
 }
 </script>

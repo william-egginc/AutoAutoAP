@@ -13,6 +13,11 @@
  *
  * OFFLINE IS NOT AN ERROR. A failed fetch is ignored and tried again next time; nothing here may
  * interrupt a run that is still going.
+ *
+ * HOW OFTEN, AND WHY SO RARELY. One check is the page's HTML: ~1.2 KB (0.5 KB compressed) plus
+ * headers. The useful moment is when someone comes BACK to the tab, so that always checks, as does
+ * coming back online. Beyond that, once every 30 minutes and only while the tab is visible -- a
+ * phone in a pocket spends nothing. At a 5-minute poll an all-day tab cost ~0.5 MB for no benefit.
  */
 import { onMounted, onUnmounted, ref } from 'vue';
 
@@ -30,7 +35,7 @@ export function isNewerBuild(liveHtml: string, loadedSrc: string | null, entry: 
   return !!loaded && !!live && loaded !== live;
 }
 
-const CHECK_EVERY_MS = 5 * 60 * 1000;
+const CHECK_EVERY_MS = 30 * 60 * 1000;
 
 /**
  * `available` turns true once a newer build is live. `pageUrl` is the HTML to re-fetch (relative to
@@ -48,7 +53,9 @@ export function useNewVersion(pageUrl: string, entry: string) {
           .find(src => entryScriptIn(src, entry)) ?? null);
 
   async function check(): Promise<void> {
-    if (available.value || !loadedSrc || (typeof navigator !== 'undefined' && navigator.onLine === false)) return;
+    if (available.value || !loadedSrc) return;
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
     try {
       const res = await fetch(pageUrl, { cache: 'no-store' });
       if (res.ok && isNewerBuild(await res.text(), loadedSrc, entry)) available.value = true;

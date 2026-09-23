@@ -14,7 +14,7 @@
       <NewVersionBanner
         page-url="./"
         entry="index"
-        note="if a search is running, stop it first: it picks up from its checkpoint after the reload"
+        note="save your results first (Save this run, Save the file instead, or Download CSV) so nothing is lost; a search that is still running picks up from its checkpoint after the reload"
         class="mb-4"
       />
 

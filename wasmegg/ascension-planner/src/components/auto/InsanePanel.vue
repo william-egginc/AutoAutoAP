@@ -1235,10 +1235,21 @@
         <p
           v-if="submitMessage"
           class="text-[11px] font-semibold"
-          :class="submitOk ? 'text-emerald-700' : 'text-rose-700'"
+          :class="!submitOk ? 'text-rose-700' : submitPartial ? 'text-amber-700' : 'text-emerald-700'"
         >
           {{ submitMessage }}
         </p>
+        <!-- The summary landed but the table did not: send just the table, with the same one-time token,
+             rather than a second submission. -->
+        <button
+          v-if="store.pendingTable"
+          type="button"
+          :disabled="retryingTable"
+          class="px-3 py-1.5 rounded-lg border border-amber-300 text-amber-800 text-[10px] font-black uppercase tracking-widest hover:bg-amber-50 disabled:opacity-40"
+          @click="retryTable"
+        >
+          {{ retryingTable ? 'Sending the table...' : 'Retry the table' }}
+        </button>
       </div>
     </div>
   </div>
@@ -1584,6 +1595,20 @@ const effectiveNickname = computed(() => {
 
 const submitting = ref(false);
 const submitMessage = ref('');
+/** "Sent, but ..." -- the summary is in and something about the table is not. Amber, not green. */
+const submitPartial = computed(() => /\bbut\b/.test(submitMessage.value));
+const retryingTable = ref(false);
+async function retryTable(): Promise<void> {
+  if (retryingTable.value) return;
+  retryingTable.value = true;
+  try {
+    const res = await store.retryTable();
+    submitOk.value = res.ok;
+    submitMessage.value = res.ok ? `Thank you — ${res.message}` : `Not sent: ${res.message}`;
+  } finally {
+    retryingTable.value = false;
+  }
+}
 const submitOk = ref(false);
 
 const pool = computed(() =>
