@@ -219,6 +219,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   /** True when `error` is a pre-flight refusal: the run never started, so nothing was lost and the
    *  crash advice (lower the effort tier, read the worker console) does not apply. */
   const errorBeforeStart = ref(false);
+  /** Things worth knowing about the run just started that do not stop it -- e.g. "no virtue
+   *  ascension in progress, so leg 1 is a fresh one". Set at start, from the pre-flight review. */
+  const runNotes = ref<string[]>([]);
 
   const stage = ref('');
   const detail = ref('');
@@ -1687,7 +1690,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // confident, wrong answer after hours of CPU, and the operator cannot tell from the result --
     // which is how this was found in the first place, from a CSV rather than from the app.
     const startInputs = collectInputs();
-    const blocking = reviewRunInputs(startInputs);
+    const review = reviewRunInputs(startInputs);
+    runNotes.value = review.filter(i => i.level === 'warning').map(i => i.message);
+    const blocking = review.filter(i => i.level === 'error');
     if (blocking.length) {
       error.value = blocking[0].message;
       errorBeforeStart.value = true;
@@ -2008,7 +2013,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // confident, wrong answer after hours of CPU, and the operator cannot tell from the result --
     // which is how this was found in the first place, from a CSV rather than from the app.
     const startInputs = collectInputs();
-    const blocking = reviewRunInputs(startInputs);
+    const review = reviewRunInputs(startInputs);
+    runNotes.value = review.filter(i => i.level === 'warning').map(i => i.message);
+    const blocking = review.filter(i => i.level === 'error');
     if (blocking.length) {
       error.value = blocking[0].message;
       errorBeforeStart.value = true;
@@ -2232,6 +2239,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     forceContinue,
     sweepTag,
     errorBeforeStart,
+    runNotes,
     pin,
     minPrestiges,
     maxLastOverride,

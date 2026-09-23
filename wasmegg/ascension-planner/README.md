@@ -303,7 +303,7 @@ summary, and only a table carrying that token is accepted, once (see
 | message | what happened | what to do |
 |---|---|---|
 | **Didn't start** — *your save had not finished loading* | Start was pressed before the save finished arriving. The run refuses rather than simulate a half-loaded account, which gives a confident answer two to three times too long | Wait a few seconds after the player loads and press Start again |
-| **Didn't start** — *no virtue ascension in progress* | The save's last sync was on the home farm or a contract, so there is no virtue farm to continue | Switch to a virtue egg in the game, let it sync, reload the player here |
+| *no virtue ascension in progress, so the plan starts with a fresh one* (amber note) | The save's last sync was on the home farm or a contract, so there is no current run to finish. Not an error: leg 1 is a fresh virtue ascension, the same thing the player would do | Nothing. To plan from a run in progress instead, switch to a virtue egg in the game, let it sync, and reload |
 | **Search failed** — *the connection dropped while the search was starting its workers* | The workers' code could not be downloaded | Reconnect and press Start. Anything priced is checkpointed and not redone |
 | **Search failed** — *the browser ran out of memory* | Too many workers, or too much per-leg detail held | Fewer workers, or a smaller memory budget, then Start |
 | *could not reach the collector* | Offline at the moment of Submit. Nothing was sent | Press Submit again once online. Save the file instead keeps a copy either way |
@@ -549,6 +549,11 @@ answer — which is what the effort slider sells.
 
 ## Known limitations
 
+- **The build logic is tuned for accounts past ~200 Clothed TE, and very low accounts plan badly.**
+  One 93 TE account with weak gear spent ~480 days of its first simulated ascension stuck on one
+  egg at 0.27 q/hr, in every chain priced, while its later ascensions ran normally -- so every total
+  for that account is inflated by roughly that much. The same effect is behind the panel's existing
+  low-Clothed-TE warning. Low-TE runs are still worth collecting, as evidence of where it breaks.
 - **Insane mode's suggested bands are measured on accounts starting between 126 and 198 TE.**
   They are fixed TE values now, not fractions of the journey (the checkpoint that sets up the
   final leg lands near 280-300 TE whatever the start, where delivery reaches its ceiling), but

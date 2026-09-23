@@ -118,6 +118,20 @@
             When it finishes, press Submit at the bottom: it is tagged as {{ sweepRequest.preset }} automatically.
           </span>
         </div>
+        <!-- Said HERE as well as further down: the card's Start is at the top of a long page, and a
+             refusal that only appears below the fold reads as "the button does nothing". -->
+        <p v-if="store.error" class="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-[11px] text-red-800">
+          <b>{{ store.errorBeforeStart ? "Didn't start" : 'Search failed' }}</b> — {{ store.error }}
+        </p>
+        <p
+          v-else-if="store.runNotes.length"
+          class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-[11px] text-amber-900"
+        >
+          <span v-for="n in store.runNotes" :key="n" class="block">{{ n }}</span>
+        </p>
+        <p v-else-if="store.isRunning" class="text-[11px] font-semibold text-indigo-700">
+          Running: progress is shown further down. Leave this tab open.
+        </p>
       </div>
 
       <div class="p-4 rounded-xl border border-rose-200 bg-rose-50 text-xs text-rose-900 leading-relaxed space-y-2">
@@ -1009,6 +1023,13 @@
           {{ store.secondsPerChain.toFixed(2) }} s/chain measured here
         </div>
       </div>
+
+      <p
+        v-if="store.runNotes.length && !store.error"
+        class="p-3 rounded-xl border border-amber-200 bg-amber-50 text-[11px] text-amber-900 leading-relaxed"
+      >
+        <span v-for="n in store.runNotes" :key="n" class="block">{{ n }}</span>
+      </p>
 
       <div
         v-if="store.error"

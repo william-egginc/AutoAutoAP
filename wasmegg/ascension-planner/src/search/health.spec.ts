@@ -151,13 +151,14 @@ describe('reviewContext', () => {
     ).toEqual(['no-farm-state']);
   });
 
-  // Not a race at all: the last sync was on the home farm or a contract, so there is no virtue farm
-  // to load and "wait and start again" can never work. It has to say what will.
-  it('tells a save with no virtue ascension in progress apart from one still loading', () => {
+  // Not a race, and not a fault either: with no virtue ascension in progress, leg 1 is simply a fresh one. It used
+  // to block the run, which locked out everyone whose last sync was on the home farm or a contract.
+  it('lets a save with no virtue ascension in progress run, with a note rather than a refusal', () => {
     const issues = reviewContext({ ...loaded, hasFarmState: false, backupHasVirtueFarm: false });
     expect(issues.map(i => i.kind)).toEqual(['no-virtue-farm']);
-    expect(issues[0].message).toMatch(/virtue egg/);
-    expect(issues[0].message).not.toMatch(/Give it a few seconds/);
+    expect(issues[0].level).toBe('warning');
+    expect(issues[0].message).toMatch(/fresh virtue ascension/);
+    expect(issues.filter(i => i.level === 'error')).toEqual([]);
   });
 
   it('reports the missing backup alone rather than its consequences', () => {

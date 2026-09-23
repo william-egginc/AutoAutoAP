@@ -1190,6 +1190,13 @@
       <!-- A failure is not necessarily a total loss: anything already priced is on the checkpoint
            and a rerun replays it for free. Saying so is the difference between "start again" and
            "press Start search again and keep your three hours". -->
+      <p
+        v-if="store.runNotes.length && !store.error"
+        class="p-3 rounded-xl border border-amber-200 bg-amber-50 text-[11px] text-amber-900 leading-relaxed"
+      >
+        <span v-for="n in store.runNotes" :key="n" class="block">{{ n }}</span>
+      </p>
+
       <div
         v-if="store.error"
         class="p-4 bg-red-50 border border-red-200 rounded-xl text-xs text-red-800 leading-relaxed space-y-1.5"

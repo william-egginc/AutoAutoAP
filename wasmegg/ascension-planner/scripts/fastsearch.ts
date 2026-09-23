@@ -633,6 +633,9 @@ function shiftInstants(actions: any[], legStart: number): number[] {
  * about the farm as it stands right now, so it has no meaning further down a
  * chain, and the app only offers it there for the same reason.
  */
+/** `runLeg`'s no-farm notice, printed once per process. */
+let warnedNoContinue = false;
+
 function runLeg(
   baseState: any,
   startTime: number,
@@ -672,7 +675,16 @@ function runLeg(
     }
     // No usable farm state (or zero ELR) - fall through rather than return null,
     // so the run degrades to the normal variant search instead of dying.
-    console.warn('  --force-continue: no usable continue variant for A' + (idx + 1) + ', using build variants');
+    // Usually not a fault: a save whose last sync was on the home farm or a contract has no
+    // virtue ascension to finish, so leg 1 is a fresh one -- what the player would do. Warned once
+    // per process rather than per chain, and worded so it does not read as an error.
+    if (!warnedNoContinue) {
+      warnedNoContinue = true;
+      console.warn(
+        '  note: no current virtue ascension to finish (the save is on the home farm or a contract, or its ' +
+          'farm has no delivery yet), so leg 1 is a fresh virtue ascension. --force-continue has nothing to pin.'
+      );
+    }
   }
 
   // Single C1->R1 precompute shared by every build variant, exactly as the app

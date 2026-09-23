@@ -78,13 +78,17 @@ export function reviewContext(ctx: {
     return issues;
   }
   if (!ctx.hasFarmState && ctx.backupHasVirtueFarm === false) {
-    // Not a race: the save simply has no virtue ascension in progress. The search starts by
-    // finishing the current one, so there is nothing to start from until the game is on a virtue egg.
+    // NOT A FAULT. The save has no virtue ascension in progress (last sync on the home farm or a
+    // contract), so there is no current run to finish: leg 1 is a fresh virtue ascension instead,
+    // which is exactly what the player would do. Measured: an account's save with its virtue farm
+    // removed gives the identical plan (1,111.1 d both ways). This used to block the run outright,
+    // which locked out everyone not sitting on a virtue egg at their last sync. A warning, so the
+    // store reports it without refusing.
     issues.push({
       kind: 'no-virtue-farm',
-      level: 'error',
+      level: 'warning',
       message:
-        'Your save has no virtue ascension in progress: the last sync was on your home farm or a contract. The search starts by finishing your current virtue ascension, so switch to a virtue egg in the game, let it sync (a minute or so), then reload your player here and start again.',
+        'Your save has no virtue ascension in progress (the last sync was on your home farm or a contract), so the plan starts with a fresh virtue ascension rather than finishing a current one.',
     });
   } else if (!ctx.hasFarmState) {
     issues.push({
