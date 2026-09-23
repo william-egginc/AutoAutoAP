@@ -25,6 +25,8 @@
         </p>
       </header>
 
+      <NewVersionBanner page-url="./explorer.html" entry="explorer" />
+
       <!-- Points at "Help fill the gaps", which lives at the bottom beside the upload on purpose. -->
       <a
         v-if="base"
@@ -430,6 +432,7 @@ import LegProfileChart from './LegProfileChart.vue';
 import CountCompareChart from './CountCompareChart.vue';
 import FinalLegChart from './FinalLegChart.vue';
 import DataNeeds from './DataNeeds.vue';
+import NewVersionBanner from '@/components/NewVersionBanner.vue';
 import SweepCurvesChart from './SweepCurvesChart.vue';
 import GearScoreChart from './GearScoreChart.vue';
 import SweepUpload from './SweepUpload.vue';

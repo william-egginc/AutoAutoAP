@@ -10,6 +10,14 @@
     <div class="max-w-6xl mx-auto p-4">
       <CustomEggWatcher v-if="isDev" />
 
+      <!-- A tab left open through a deploy keeps running the old code; see useNewVersion. -->
+      <NewVersionBanner
+        page-url="./"
+        entry="index"
+        note="if a search is running, stop it first: it picks up from its checkpoint after the reload"
+        class="mb-4"
+      />
+
       <!-- Collapsible Header Region -->
       <div class="bg-white/95 backdrop-blur-xl rounded-2xl border border-slate-100 shadow-sm">
         <div
@@ -626,6 +634,7 @@ import { generateActionId } from '@/types';
 import { computeDependencies } from '@/lib/actions/executor';
 import { restoreFromSnapshot } from '@/lib/actions/snapshot';
 import { computeSnapshot } from '@/engine/compute';
+import NewVersionBanner from '@/components/NewVersionBanner.vue';
 import { getSimulationContext, createBaseEngineState } from '@/engine/adapter';
 import type { Action, VirtueEgg } from '@/types';
 import { countTEThresholdsPassed } from '@/lib/truthEggs';

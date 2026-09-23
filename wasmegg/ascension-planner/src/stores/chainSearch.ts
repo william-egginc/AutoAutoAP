@@ -1284,7 +1284,15 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       const mb = (n: number) => (n / 1024 / 1024).toFixed(1);
       return res.ok
         ? { ok: true, message: `sent, with the full CSV (${mb(body.byteLength)} MB compressed)` }
-        : { ok: true, message: `sent, but the CSV was refused (${res.status})` };
+        : {
+            ok: true,
+            // 403 is the upload token not matching -- in practice a tab running a build from before
+            // the collector changed its upload rules. A reload fixes it; say so rather than a code.
+            message:
+              res.status === 403
+                ? 'sent, but the table was refused - reload the page (it may be an old version) and submit again'
+                : `sent, but the table was refused (${res.status})`,
+          };
     } catch {
       return { ok: true, message: 'sent, but the CSV upload failed' };
     }

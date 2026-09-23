@@ -283,7 +283,9 @@ async function send(): Promise<void> {
     sendOk.value = csvRes.ok;
     sendMessage.value = csvRes.ok
       ? `Stored as ${body.id}, with its table.`
-      : `Stored as ${body.id}, but the table was refused (${csvRes.status}).`;
+      : csvRes.status === 403
+        ? `Stored as ${body.id}, but the table was refused. Reload this page (it may be an old version) and upload again.`
+        : `Stored as ${body.id}, but the table was refused (${csvRes.status}).`;
     emit('submitted', body.id);
   } catch (err) {
     sendOk.value = false;
