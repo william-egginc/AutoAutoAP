@@ -15,6 +15,7 @@ import {
   SMALLEST_MEASURED_GAP,
   suggestBands,
   SUGGESTION_TARGET_RANGE,
+  SUGGESTION_CHAIN_BUDGET,
   SUGGESTABLE_ASCENSIONS,
 } from './exhaustive';
 
@@ -397,5 +398,114 @@ describe('suggestBands', () => {
   it('parses back into the bands it claims', () => {
     const s = suggestBands(179, 490, 6)!;
     expect(parseBands(s.text)).toEqual(s.bands);
+  });
+
+  it('covers two through eight ascensions', () => {
+    expect([...SUGGESTABLE_ASCENSIONS].sort((a, b) => a - b)).toEqual([2, 3, 4, 5, 6, 7, 8]);
+    expect(suggestBands(181, 490, 8)!.bands).toHaveLength(7);
+    expect(suggestBands(181, 490, 2)!.bands).toHaveLength(1);
+  });
+
+  it('sweeps the whole reachable range when the whole range is affordable', () => {
+    // Two ascensions is a few hundred chains on any account, so quoting a corpus at somebody is
+    // strictly worse than handing them the proof.
+    const s = suggestBands(132, 490, 2)!;
+    expect(s.kind).toBe('complete');
+    expect(s.exact).toBe(true);
+    expect(s.bands[0][0]).toBe(133);
+    expect(s.bands[0][s.bands[0].length - 1]).toBe(489);
+    expect(s.chains).toBe(357);
+  });
+
+  it('offers the complete sweep on targets the measured shape declines', () => {
+    // 300 is outside SUGGESTION_TARGET_RANGE, which is why 6 ascensions is null there. The sweep
+    // measured nothing, so nothing about it is 490-shaped and it stands anyway.
+    const s = suggestBands(125, 300, 2)!;
+    expect(s.kind).toBe('complete');
+    expect(suggestBands(125, 300, 6)).toBeNull();
+  });
+
+  it('falls back to a 2 TE sweep before it falls back to the corpus', () => {
+    // 100 -> 490 at three ascensions is 75,466 chains at step 1, just over budget. Full coverage
+    // on a 2 TE grid beats a corpus-shaped slice of the same range.
+    const s = suggestBands(100, 490, 3)!;
+    expect(s.kind).toBe('complete');
+    expect(s.exact).toBe(false);
+    expect(s.steps).toEqual([2, 2]);
+  });
+
+  it('keeps every suggestion inside the chain budget, and says how many that is', () => {
+    for (const [currentTE, finalTE] of [
+      [180, 490],
+      [132, 490],
+      [160, 490],
+      [200, 520],
+      [100, 490],
+    ] as const) {
+      for (const n of SUGGESTABLE_ASCENSIONS) {
+        const s = suggestBands(currentTE, finalTE, n);
+        if (!s) continue;
+        const label = `${currentTE}->${finalTE} at ${n}`;
+        expect(countBanded(s.bands, finalTE, currentTE, 1), label).toBe(s.chains);
+        expect(s.chains, label).toBeLessThanOrEqual(SUGGESTION_CHAIN_BUDGET);
+        expect(parseBands(s.text), label).toEqual(s.bands);
+      }
+    }
+  });
+
+  it('spends the budget rather than leaving it on the table', () => {
+    // The point of the tuning is that a suggestion is as fine and as wide as the budget allows.
+    // A band set that could be refined one more notch and still fit is a worse suggestion.
+    for (const n of [5, 6, 7, 8]) {
+      const s = suggestBands(180, 490, n)!;
+      expect(s.chains, `${n} ascensions`).toBeGreaterThan(SUGGESTION_CHAIN_BUDGET / 10);
+      expect(Math.max(...s.steps), `${n} ascensions`).toBeLessThanOrEqual(10);
+    }
+  });
+
+  it('honours a smaller budget by coarsening rather than by refusing', () => {
+    const tight = suggestBands(180, 490, 7, { maxChains: 2_000 })!;
+    expect(tight.chains).toBeLessThanOrEqual(2_000);
+    expect(tight.bands).toHaveLength(6);
+  });
+
+  it('keeps measured bands strictly ascending at both ends, on every count and every account', () => {
+    // The complete sweep is deliberately N copies of one range -- the enumeration, not the bands,
+    // is what keeps a chain increasing there -- so this is the measured path's invariant only.
+    for (const [currentTE, finalTE] of [
+      [180, 490],
+      [132, 490],
+      [470, 490],
+      [440, 460],
+    ] as const) {
+      for (const n of SUGGESTABLE_ASCENSIONS) {
+        const s = suggestBands(currentTE, finalTE, n);
+        if (!s || s.kind === 'complete') continue;
+        for (let i = 1; i < s.bands.length; i++) {
+          const label = `${currentTE}->${finalTE} at ${n}, band ${i}`;
+          expect(s.bands[i][0], label).toBeGreaterThan(s.bands[i - 1][0]);
+          const top = (b: number[]) => b[b.length - 1];
+          expect(top(s.bands[i]), label).toBeGreaterThan(top(s.bands[i - 1]));
+        }
+      }
+    }
+  });
+
+  it('gives every checkpoint the same full range on a complete sweep', () => {
+    const s = suggestBands(470, 490, 5)!;
+    expect(s.kind).toBe('complete');
+    for (const band of s.bands) expect(band).toEqual(s.bands[0]);
+    // Which is not a chain of five identical checkpoints: enumeration still has to increase.
+    expect(bandedChains(s.bands, 490, 470).every(c => c.every((v, i) => !i || v > c[i - 1]))).toBe(true);
+  });
+
+  it('renders the table as-is when the caller pins the step or the margin', () => {
+    // The tuner is a default, not a policy: a caller reproducing an old run needs the exact space.
+    const s = suggestBands(180, 490, 6, { step: 10, margin: 0 })!;
+    expect(s.kind).toBe('measured');
+    expect(s.steps).toEqual([10, 10, 10, 10, 10]);
+    expect(s.text.endsWith(':10')).toBe(true);
+    // Pinning also overrides the complete sweep, which would otherwise win at two ascensions.
+    expect(suggestBands(180, 490, 2, { step: 5 })!.kind).toBe('measured');
   });
 });

@@ -620,10 +620,29 @@
                 class="px-3 py-1.5 rounded-md bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-700 disabled:opacity-40"
                 @click="applySuggestion"
               >
-                Suggest from measured runs
+                Suggest a space
               </button>
+              <HelpTip>
+                Fills the boxes with a space sized to about 75,000 chains, which is a few hours on
+                this machine. At two ascensions -- and three on most accounts -- that is the whole
+                reachable range at step 1, so the run proves the optimum and no measurement is
+                involved. Above that it is where near-best chains have actually landed across this
+                project's runs, refined to 5 TE everywhere before any of the budget is spent on
+                widening the bands. Both are starting points; edit them.
+              </HelpTip>
               <span v-if="suggestion" class="text-[10px] text-slate-500">
-                {{ suggestAsc }} ascensions, from {{ suggestion.runs }} runs across {{ suggestion.accounts }} accounts
+                {{ suggestAsc }} ascensions, {{ suggestion.chains.toLocaleString() }} chains &middot;
+                <template v-if="suggestion.kind === 'complete'">
+                  <span class="font-black text-emerald-700">complete sweep</span>
+                  {{
+                    suggestion.exact
+                      ? 'of every reachable TE, so the run proves the optimum'
+                      : 'of the whole reachable range on a 2 TE grid'
+                  }}
+                </template>
+                <template v-else>
+                  measured shape, from {{ suggestion.runs }} runs across {{ suggestion.accounts }} accounts
+                </template>
               </span>
               <span v-else class="text-[10px] text-amber-700"> No suggestion for this target or ascension count. </span>
             </div>
@@ -1213,10 +1232,16 @@ const minGap = ref(0);
 const suggestAsc = ref(6);
 
 /**
- * Bands from the measured corpus, or null when it cannot support one.
+ * A space sized to a few hours of this machine's time, or null when there isn't one.
  *
- * Deliberately not auto-applied. It narrows the space, and the whole value of this mode is that an
- * unconstrained run proves something; taking that away should be a decision, not a default.
+ * Two ascensions on any account, and three on most, come back as the COMPLETE sweep: every
+ * reachable TE at step 1, which proves the optimum outright and needs no corpus, so it is offered
+ * on targets the measured shape declines. Above that it is the measured shape, tuned to spend the
+ * same budget on resolution first and width second.
+ *
+ * Deliberately not auto-applied. Anything but the complete sweep narrows the space, and the whole
+ * value of this mode is that an unconstrained run proves something; taking that away should be a
+ * decision, not a default.
  */
 const suggestion = computed(() => suggestBands(store.currentTE, store.finalTE, suggestAsc.value));
 

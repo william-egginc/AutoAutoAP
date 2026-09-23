@@ -324,28 +324,80 @@ export function parseBands(text: string, defaultStep = 5): number[][] {
 }
 
 /* ------------------------------------------------------------------------------------------- *
- * Suggested bands, measured
+ * Suggesting a space to enumerate
  *
- * Where the near-best chains in this project's corpus actually put each checkpoint, expressed as a
- * fraction of the journey from current TE to the target. Derived from ten community CSVs covering
- * seven accounts and 21,667 priced chains, taking every chain within 2% of its run's best at that
- * ascension count, then the median per run and the min/max ACROSS runs. Weighted per run rather
- * than per chain on purpose: one 6,872-chain file would otherwise define the answer by itself.
+ * Two different answers live here, and which one the suggester gives depends on whether the
+ * honest one is affordable.
+ *
+ * COMPLETE, WHEN IT FITS. Choosing N-1 checkpoints freely from every reachable TE is the answer
+ * that proves something: no corpus, no assumed shape, and no restriction on the target, because
+ * nothing about it was measured on 490. Two ascensions is ~300 chains on any account and three is
+ * under the budget on most, so for the short chains this should not be quoting anybody's
+ * measurements -- it should be handing over the whole space. The 2-ascension corpus run is exactly
+ * that, every integer from 136 to 489 priced, and its winner (235) is not a multiple of 5, which
+ * no grid would ever have offered.
+ *
+ * MEASURED, WHEN IT DOES NOT. Past three ascensions the complete space is astronomical -- six
+ * ascensions is five checkpoints chosen from 181..489, which is 2.3e10 chains -- so the only way
+ * to spend a finite budget is to spend it where good chains have been found before. That is what
+ * the table below is.
+ *
+ * Where the near-best chains in this project's corpus put each checkpoint, as a fraction of the
+ * journey from current TE to the target. Two corpora, unioned:
+ *
+ *   - the original ten CSVs, seven accounts, 21,667 priced chains, taking every chain within 2%
+ *     of its run's best at that ascension count, then the median per run and the min/max ACROSS
+ *     runs;
+ *   - six later CSVs, three accounts, 121,401 priced chains, taking every chain within 1% of its
+ *     run's best and then the full min/max WITHIN each run, so a band describes the plateau rather
+ *     than where the run medians happened to fall. The old method could return a band two TE wide
+ *     when its runs agreed, which is precision the corpus does not have.
+ *
+ * EDGE EXTENSION, because these are searches and not surveys. When a run's near-best set runs into
+ * the edge of what that run actually enumerated, the optimum may well be outside the box and the
+ * band is an artifact of where somebody pointed the search. The 7-ascension run's best chain,
+ * 195 219 245 248 270 300, sits on its own upper edge at three of six checkpoints. So a band that
+ * touches an explored edge is extended on that side by half the explored width, capped at 0.06 of
+ * the journey. It is a hedge against the sampling, not a measurement.
+ *
+ * Accounts are counted by distinct save, and the two corpora are counted separately, so an account
+ * appearing in both is counted twice. Runs are distinct files either way.
  *
  * WHY THIS IS 490-ONLY, AND NOT A LAW. The pattern does not transfer across targets. On 490 the
- * last checkpoint sits at 0.42-0.63 of the journey; on 300, measured on three independent runs, it
+ * last checkpoint sits at 0.29-0.64 of the journey; on 300, measured on three independent runs, it
  * sits at 0.80-0.86. In absolute terms that is `final - 150ish` for 490 and `final - 25..35` for
  * 300. Neither a fixed offset nor a fixed fraction describes both, so suggesting 490's shape for a
- * 300 target would be worse than suggesting nothing.
+ * 300 target would be worse than suggesting nothing. The complete sweep has no such limit, which
+ * is the other reason to prefer it whenever it fits.
  *
- * AND THE BIGGER CAVEAT. These chains come from STAGED searches, which explore a neighbourhood
- * around a seed. So this is where good chains were FOUND, which is not the same as where good
- * chains ARE. Bands built from it can inherit the search's own blind spot. They are a way to spend
- * a fixed budget on the region that has paid before, not evidence that nothing else pays.
- */
+ * AND THE BIGGER CAVEAT. These chains come from STAGED and BANDED searches, which explore a
+ * neighbourhood. So this is where good chains were FOUND, which is not the same as where good
+ * chains ARE. Edge extension blunts that; it does not remove it. Bands built from this are a way
+ * to spend a fixed budget on the region that has paid before, not evidence that nothing else pays.
+ * ------------------------------------------------------------------------------------------- */
 
-/** Targets these fractions were measured on. Outside this, `suggestBands` declines. */
+/** Targets the fractions were measured on. Outside this, only the complete sweep is offered. */
 export const SUGGESTION_TARGET_RANGE: [number, number] = [420, 560];
+
+/**
+ * How many chains a suggestion may propose.
+ *
+ * Sized from the runs this project has actually completed in a browser: 17,892, 25,920 and 41,580
+ * chains. At the measured 0.66-3.2 s per chain across a worker pool that is a few hours, which is
+ * what someone opening this mode is signing up for. It is the knob to turn if that is wrong --
+ * every suggestion is tuned to fill it, so raising it buys resolution and width rather than
+ * nothing.
+ */
+export const SUGGESTION_CHAIN_BUDGET = 75_000;
+
+/** Steps a suggested band may use. Familiar numbers; the corpus runs used 1, 2 and 5. */
+const STEP_LADDER = [1, 2, 5, 10, 15, 20, 25, 30];
+
+/** Phase 1 refines every band to at least this resolution before spending budget on width. */
+const STEP_FLOOR = 5;
+
+/** Widening either side never exceeds this fraction of the journey, measured or not. */
+const MAX_MARGIN = 0.1;
 
 interface BandTable {
   /** `[lo, hi]` fraction of the journey, one per intermediate checkpoint. */
@@ -355,23 +407,24 @@ interface BandTable {
 }
 
 const MEASURED_BANDS: Record<number, BandTable> = {
-  // 2-4 come from exhaustive sweeps (180 -> 490, one account), so they are proven optima of their
-  // own space rather than the found-here sample the 5-7 tables are built from. 2 and 3 were then
-  // re-measured at step 1 -- every integer TE, no grid at all -- which is the strongest evidence in
-  // this table and the reason they moved: a step-5 grid can only ever report multiples of 5.
+  // 2 and 3 are the fallback for a journey too long for a complete sweep; on almost every real
+  // account `suggestBands` never reaches them. Every run behind them used step 1 -- every integer
+  // TE, no grid at all -- the older pair on 180 -> 490 and one later run on 132 -> 490, which is
+  // also why their bands are wide: two accounts that disagree, and no grid to blame it on.
   2: {
-    bands: [[0.281, 0.365]],
-    runs: 2,
-    accounts: 1,
+    bands: [[0.265, 0.365]],
+    runs: 3,
+    accounts: 2,
   },
   3: {
     bands: [
-      [0.052, 0.155],
-      [0.306, 0.426],
+      [0.052, 0.232],
+      [0.306, 0.447],
     ],
-    runs: 2,
-    accounts: 1,
+    runs: 3,
+    accounts: 2,
   },
+  // The only count with no second opinion: one exhaustive sweep, one account.
   4: {
     bands: [
       [0.035, 0.1],
@@ -383,83 +436,293 @@ const MEASURED_BANDS: Record<number, BandTable> = {
   },
   5: {
     bands: [
-      [0.024, 0.169],
-      [0.175, 0.241],
-      [0.288, 0.422],
-      [0.418, 0.553],
+      [0.016, 0.169],
+      [0.136, 0.258],
+      [0.197, 0.422],
+      [0.379, 0.621],
     ],
-    runs: 6,
-    accounts: 4,
+    runs: 7,
+    accounts: 5,
   },
   6: {
     bands: [
-      [0.042, 0.096],
-      [0.163, 0.169],
-      [0.241, 0.314],
-      [0.353, 0.407],
-      [0.486, 0.539],
+      [0.0, 0.136],
+      [0.046, 0.227],
+      [0.167, 0.379],
+      [0.258, 0.5],
+      [0.409, 0.641],
     ],
-    runs: 5,
-    accounts: 3,
+    runs: 7,
+    accounts: 5,
   },
   7: {
     bands: [
       [0.024, 0.096],
-      [0.163, 0.169],
-      [0.223, 0.241],
-      [0.314, 0.343],
-      [0.387, 0.473],
-      [0.424, 0.548],
+      [0.079, 0.189],
+      [0.142, 0.241],
+      [0.193, 0.343],
+      [0.238, 0.473],
+      [0.29, 0.548],
     ],
-    runs: 4,
-    accounts: 2,
+    runs: 5,
+    accounts: 3,
+  },
+  // One run, 41,580 chains, 181 -> 490, and every band edge-extended because its near-best set
+  // filled the box it was given. Thin evidence for a shape, but the shape is unambiguous: eight
+  // ascensions wants seven checkpoints crowded into the first 40% of the journey, the last of them
+  // around 0.36, and then one enormous final leg.
+  8: {
+    bands: [
+      [0.025, 0.065],
+      [0.058, 0.13],
+      [0.093, 0.166],
+      [0.122, 0.195],
+      [0.19, 0.263],
+      [0.252, 0.324],
+      [0.32, 0.392],
+    ],
+    runs: 1,
+    accounts: 1,
   },
 };
 
 export interface BandSuggestion {
-  /** Rendered for the bands box, e.g. `186-232:5; 230-232:5; ...`. */
+  /** Rendered for the bands box, e.g. `185-203:5; 195-223:5; ...`. */
   text: string;
   bands: number[][];
+  /**
+   * `complete` is every reachable checkpoint at step 1, so the run proves the optimum of the whole
+   * space. `measured` is the corpus shape, so it proves the optimum of that shape only.
+   */
+  kind: 'complete' | 'measured';
+  /**
+   * True only when nothing was gridded away: a complete sweep at step 1, where the run that
+   * follows returns the true optimum of the whole reachable space rather than of a sample of it.
+   */
+  exact: boolean;
+  /** Chains in the suggested space, counted with the strictly-increasing rule already applied. */
+  chains: number;
+  /** Step each band ended up with. All 1 on a complete sweep. */
+  steps: number[];
   runs: number;
   accounts: number;
-  /** Widening applied either side, as a fraction of the journey. */
+  /** Widening applied either side, as a fraction of the journey. 0 on a complete sweep. */
   margin: number;
 }
 
+export interface SuggestOptions {
+  /** Ceiling on the chains a suggestion may propose. Defaults to `SUGGESTION_CHAIN_BUDGET`. */
+  maxChains?: number;
+  /** One step for every band, skipping the per-band tuning and the complete sweep. */
+  step?: number;
+  /** Fixed widening either side, skipping the tuning and the complete sweep. */
+  margin?: number;
+}
+
+/** Smallest ladder step that is at least `want`. */
+function ladderStep(want: number): number {
+  for (const s of STEP_LADDER) if (s >= want) return s;
+  return STEP_LADDER[STEP_LADDER.length - 1];
+}
+
 /**
- * Bands for this account and ascension count, or null when the corpus cannot support a suggestion.
+ * The table turned into actual values, or null when the journey has no room for it.
  *
- * `margin` widens each measured band either side, because the corpus is small and its extremes are
- * not the true extremes. 0.06 of the journey is about 19 TE on a 179-to-490 run: enough to cover a
- * checkpoint the corpus happens not to contain, without reopening the whole range.
+ * Bands are forced strictly ascending in both ends. A wide margin on a short journey would
+ * otherwise clamp two adjacent bands onto the same value and produce a "suggestion" whose first
+ * two checkpoints are the same number, which every consumer downstream assumes cannot happen.
+ */
+function materialise(
+  table: [number, number][],
+  currentTE: number,
+  finalTE: number,
+  margin: number,
+  steps: number[]
+): { bands: number[][]; text: string } | null {
+  const span = finalTE - currentTE;
+  const bands: number[][] = [];
+  const parts: string[] = [];
+  const m = table.length;
+  let prevLo = -Infinity;
+  let prevHi = -Infinity;
+
+  for (let i = 0; i < m; i++) {
+    // Leave room for the bands after this one, so the ascending nudges below cannot run out of it.
+    const floor = currentTE + 1 + i;
+    const ceil = finalTE - 1 - (m - 1 - i);
+    if (ceil < floor) return null;
+
+    const [lo, hi] = table[i];
+    let a = Math.round(currentTE + Math.max(0, lo - margin) * span);
+    a = Math.min(Math.max(a, floor, prevLo + 1), ceil);
+    let b = Math.round(currentTE + Math.min(1, hi + margin) * span);
+    b = Math.min(Math.max(b, a, prevHi + 1), ceil);
+
+    const step = Math.max(1, Math.floor(steps[i]));
+    const values: number[] = [];
+    for (let v = a; v <= b; v += step) values.push(v);
+    if (!values.length) return null;
+
+    bands.push(values);
+    parts.push(`${a}-${b}:${step}`);
+    prevLo = a;
+    prevHi = b;
+  }
+  return { bands, text: parts.join('; ') };
+}
+
+/**
+ * Steps and margin that fill the budget, in the order that matters.
+ *
+ * Resolution first, then width, then more resolution. A 10-TE grid cannot express the difference
+ * between 213 and 215, and the corpus's best chains repeatedly land on values a coarse grid skips,
+ * so every band is refined to 5 TE before a single chain is spent on widening. Once every band is
+ * at 5 the extra budget goes into margin, because at that point another 5 TE either side is worth
+ * more than telling 212 from 213. Only then does it go back for step 2 and step 1.
+ *
+ * Refinement always takes the coarsest band first, which equalises resolution across the chain
+ * rather than lavishing step 1 on one band while another is still on 30.
+ */
+function tuneToBudget(
+  table: [number, number][],
+  currentTE: number,
+  finalTE: number,
+  budget: number
+): { steps: number[]; margin: number; bands: number[][]; text: string; chains: number } | null {
+  const m = table.length;
+  const coarsest = STEP_LADDER[STEP_LADDER.length - 1];
+  let steps = new Array(m).fill(coarsest);
+  let margin = 0;
+
+  const priceOf = (mg: number, st: number[]): { chains: number; built: ReturnType<typeof materialise> } => {
+    const built = materialise(table, currentTE, finalTE, mg, st);
+    return { chains: built ? countBanded(built.bands, finalTE, currentTE, 1) : Infinity, built };
+  };
+
+  const start = priceOf(margin, steps);
+  if (!start.built || start.chains > budget) return null;
+
+  const refine = (floor: number): void => {
+    for (;;) {
+      const candidates = steps
+        .map((s, i) => ({ s, i }))
+        .filter(x => x.s > floor)
+        .sort((x, y) => y.s - x.s || x.i - y.i);
+      if (!candidates.length) return;
+      let moved = false;
+      for (const { s, i } of candidates) {
+        const trial = [...steps];
+        trial[i] = STEP_LADDER[STEP_LADDER.indexOf(s) - 1];
+        if (priceOf(margin, trial).chains <= budget) {
+          steps = trial;
+          moved = true;
+          break;
+        }
+      }
+      if (!moved) return;
+    }
+  };
+
+  refine(STEP_FLOOR);
+  while (margin + 0.01 <= MAX_MARGIN + 1e-9) {
+    const next = Math.round((margin + 0.01) * 1000) / 1000;
+    if (priceOf(next, steps).chains > budget) break;
+    margin = next;
+  }
+  refine(1);
+
+  const final = priceOf(margin, steps);
+  if (!final.built) return null;
+  return { steps, margin, bands: final.built.bands, text: final.built.text, chains: final.chains };
+}
+
+/**
+ * A space to enumerate for this account at this ascension count, or null when there isn't one.
+ *
+ * Prefers the complete sweep -- every reachable TE at step 1 -- whenever it fits the budget, and
+ * falls back to the measured bands when it does not. Passing `step` or `margin` skips both the
+ * sweep and the tuning and just renders the table, which is how a caller pins down an exact space.
  */
 export function suggestBands(
   currentTE: number,
   finalTE: number,
   ascensions: number,
-  step = 5,
-  margin = 0.06
+  opts: SuggestOptions = {}
 ): BandSuggestion | null {
-  const table = MEASURED_BANDS[Math.floor(ascensions)];
+  const n = Math.floor(ascensions);
+  const budget = opts.maxChains && opts.maxChains > 0 ? Math.floor(opts.maxChains) : SUGGESTION_CHAIN_BUDGET;
+  const table = MEASURED_BANDS[n];
   if (!table) return null;
-  if (finalTE < SUGGESTION_TARGET_RANGE[0] || finalTE > SUGGESTION_TARGET_RANGE[1]) return null;
   const span = finalTE - currentTE;
   if (!(span > 0)) return null;
+  const pinned = opts.step !== undefined || opts.margin !== undefined;
 
-  const parts: string[] = [];
-  const bands: number[][] = [];
-  for (const [lo, hi] of table.bands) {
-    const a = Math.max(currentTE + 1, Math.round(currentTE + Math.max(0, lo - margin) * span));
-    const b = Math.min(finalTE - 1, Math.round(currentTE + Math.min(1, hi + margin) * span));
-    if (b < a) return null;
-    const values: number[] = [];
-    for (let v = a; v <= b; v += step) values.push(v);
-    if (!values.length) return null;
-    bands.push(values);
-    parts.push(`${a}-${b}:${step}`);
+  // The whole space, when the whole space is affordable. Every band is the same full range; the
+  // strictly-increasing rule is what makes that an enumeration rather than a product, so the count
+  // is the plain binomial and does not need the DP.
+  //
+  // Step 2 is offered as well, and nothing coarser. A full-range sweep at step 2 still cannot miss
+  // a region, and it only comes up in the narrow window where step 1 just misses the budget -- on
+  // a 100 -> 490 account three ascensions is 75,466 chains at step 1 and 18,915 at step 2. Past
+  // step 2 the grid is coarse enough that the measured shape at 5 TE is the better use of the
+  // same budget, so the sweep stops rather than degrading into a bad grid.
+  if (!pinned) {
+    const lo = Math.floor(currentTE) + 1;
+    const hi = Math.floor(finalTE) - 1;
+    for (const step of [1, 2]) {
+      const values: number[] = [];
+      for (let v = lo; v <= hi; v += step) values.push(v);
+      const chains = countChains(values.length, n, n);
+      if (values.length < n - 1 || chains > budget) continue;
+      const bands = Array.from({ length: n - 1 }, () => [...values]);
+      return {
+        text: bands.map(() => `${lo}-${values[values.length - 1]}:${step}`).join('; '),
+        bands,
+        kind: 'complete',
+        exact: step === 1,
+        chains,
+        steps: new Array(n - 1).fill(step),
+        runs: 0,
+        accounts: 0,
+        margin: 0,
+      };
+    }
   }
-  return { text: parts.join('; '), bands, runs: table.runs, accounts: table.accounts, margin };
+
+  // Everything below is 490-shaped, so it declines on targets the corpus never saw.
+  if (finalTE < SUGGESTION_TARGET_RANGE[0] || finalTE > SUGGESTION_TARGET_RANGE[1]) return null;
+
+  if (pinned) {
+    const step = opts.step && opts.step > 0 ? Math.floor(opts.step) : 5;
+    const margin = opts.margin !== undefined ? opts.margin : 0;
+    const built = materialise(table.bands, currentTE, finalTE, margin, new Array(table.bands.length).fill(step));
+    if (!built) return null;
+    return {
+      ...built,
+      kind: 'measured',
+      exact: false,
+      chains: countBanded(built.bands, finalTE, currentTE, 1),
+      steps: new Array(table.bands.length).fill(step),
+      runs: table.runs,
+      accounts: table.accounts,
+      margin,
+    };
+  }
+
+  const tuned = tuneToBudget(table.bands, currentTE, finalTE, budget);
+  if (!tuned) return null;
+  return {
+    text: tuned.text,
+    bands: tuned.bands,
+    kind: 'measured',
+    exact: false,
+    chains: tuned.chains,
+    steps: tuned.steps,
+    runs: table.runs,
+    accounts: table.accounts,
+    margin: tuned.margin,
+  };
 }
 
-/** Ascension counts the corpus can suggest for. */
+/** Ascension counts the suggester can speak to. */
 export const SUGGESTABLE_ASCENSIONS = Object.keys(MEASURED_BANDS).map(Number);
