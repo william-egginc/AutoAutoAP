@@ -209,7 +209,16 @@ no button.
 | `GET /csv?id=<id>` | it back, as a `.csv.gz` file (`application/gzip`) |
 | `GET /leaderboard?final=490&limit=50` | one row per distinct run, already in duration order |
 | `GET /all` | everything, for your own analysis |
+| `GET /flagged` | the flagged board (below): anonymous, except rows whose owner code the caller sends as `x-owner-token` |
 | `GET /` | the leaderboard page |
+
+**The flagged board.** A submission carrying `flags` (a stall on the Integrity shift, a plan past ten
+years, a result that contradicts itself) is stored under `flag:` instead of `sub:`, so `/leaderboard`,
+`/all` and everything built on them never see it. A plan past 3,652.5 days is flagged `decades-long`
+whatever the client sent. `/flagged` strips the nickname from every row except those whose owner code
+matches: the app keeps a random code per account in the submitting browser (`src/search/owner.ts`),
+sends it as `x-owner-token`, and the Worker stores only its SHA-256 (as `owner`, never served).
+Nothing in it is derived from the player id.
 
 Rows from `/leaderboard` and `/all` carry two fields that are **not stored**: `id`, taken from the
 last segment of the KV key, and `hasCsv`. The second comes from a single `list({prefix:'csv:'})`

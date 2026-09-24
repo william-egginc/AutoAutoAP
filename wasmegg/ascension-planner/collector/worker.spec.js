@@ -738,3 +738,69 @@ describe('schema 6: the virtue variables and the upload page', () => {
     expect(row.sweep.preset).toHaveLength(16);
   });
 });
+
+describe('the flagged board', () => {
+  const postAs = (body, token, ip = '9.9.9.9') =>
+    worker.fetch(
+      new Request('https://collector.test/submit', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'cf-connecting-ip': ip, ...(token ? { 'x-owner-token': token } : {}) },
+        body: JSON.stringify(body),
+      }),
+      env
+    );
+  const flaggedAs = token =>
+    worker.fetch(new Request('https://collector.test/flagged', { headers: token ? { 'x-owner-token': token } : {} }), env);
+  const TOKEN = 'a'.repeat(32);
+
+  it('keeps a flagged run off the main board and on its own', async () => {
+    const res = await postAs({ ...FULL, flags: ['integrity-stall'], integrityMinutes: 695520 }, TOKEN);
+    expect((await res.json()).flagged).toEqual(['integrity-stall']);
+    expect((await (await get('/leaderboard?final=490')).json()).rows).toHaveLength(0);
+    expect((await (await get('/all')).json()).rows).toHaveLength(0);
+    const board = await (await flaggedAs()).json();
+    expect(board.rows).toHaveLength(1);
+    expect(board.rows[0].integrityMinutes).toBe(695520);
+  });
+
+  it('is anonymous to everyone but the owner, and never serves the owner code', async () => {
+    await postAs({ ...FULL, flags: ['integrity-stall'] }, TOKEN);
+    const anon = (await (await flaggedAs()).json()).rows[0];
+    expect(anon.nickname).toBeUndefined();
+    expect(anon.yours).toBeUndefined();
+    expect(anon.owner).toBeUndefined();
+    const someoneElse = (await (await flaggedAs('b'.repeat(32))).json()).rows[0];
+    expect(someoneElse.nickname).toBeUndefined();
+    const mine = (await (await flaggedAs(TOKEN)).json()).rows[0];
+    expect(mine.nickname).toBe('Jordan');
+    expect(mine.yours).toBe(true);
+    expect(mine.owner).toBeUndefined();
+    // Stored hashed, never as sent.
+    const raw = [...env.SUBMISSIONS._m.values()].find(v => typeof v === 'string' && v.includes('"owner"'));
+    expect(raw).not.toContain(TOKEN);
+  });
+
+  it('flags a plan past ten years even when the client sent no flags', async () => {
+    const res = await postAs({ ...MINIMAL, durationDays: 31828 });
+    expect((await res.json()).flagged).toEqual(['decades-long']);
+    expect((await (await get('/all')).json()).rows).toHaveLength(0);
+  });
+
+  it('drops flags it does not know and leaves an ordinary run on the main board', async () => {
+    await postAs({ ...MINIMAL, flags: ['made-up'] });
+    expect((await (await get('/all')).json()).rows).toHaveLength(1);
+    expect((await (await flaggedAs()).json()).rows).toHaveLength(0);
+  });
+
+  it('does not serve the owner hash on the main board either', async () => {
+    await postAs(MINIMAL, TOKEN);
+    const row = (await (await get('/all')).json()).rows[0];
+    expect(row.owner).toBeUndefined();
+  });
+
+  it('keeps time off as whole dates and drops anything else', async () => {
+    await postAs({ ...MINIMAL, timeOff: [{ from: '2027-07-14', to: '2027-07-15' }, { from: 'soon', to: 'later' }] });
+    const row = (await (await get('/all')).json()).rows[0];
+    expect(row.timeOff).toEqual([{ from: '2027-07-14', to: '2027-07-15' }]);
+  });
+});

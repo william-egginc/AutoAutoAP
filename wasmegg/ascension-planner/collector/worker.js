@@ -8,6 +8,9 @@
  *   POST /submit       one submission, validated, stored, rate-limited by IP
  *   GET  /leaderboard  ?final=490&limit=50  -> the best chain per submitter
  *   GET  /all          everything, for anyone who wants to do their own analysis
+ *   GET  /flagged      the flagged board: runs from accounts the planner cannot help yet (a stall
+ *                      on the Integrity shift, a plan past ten years, a result that contradicts
+ *                      itself). Anonymous, except a row whose owner code the caller presents.
  *   GET  /             the leaderboard page (see leaderboard.html)
  *
  * VALIDATION IS DUPLICATED ON PURPOSE. `validateSubmission` in src/search/submission.ts is the
@@ -16,8 +19,11 @@
  * side by side; if they drift, the Worker's copy is the one that matters.
  *
  * WHAT THIS DELIBERATELY DOES NOT STORE. No IP addresses beyond a rate-limit key that lives in
- * KV under a 60-second TTL and is never read back into any record, no headers, no cookies,
- * nothing derived from the connection. A submission is what the
+ * KV under a 60-second TTL and is never read back into any record, no cookies, nothing derived
+ * from the connection. The one header read into a record is `x-owner-token`: a random code the
+ * app keeps per account in the submitter's browser, stored here only as its SHA-256 and never
+ * served back, so a player can find their own rows on the flagged board and nobody else can.
+ * It is not derived from the player id. A submission is what the
  * player chose to send and nothing more. If you change that, change the consent text in the app
  * to match -- people agreed to a specific list.
  *
@@ -238,6 +244,37 @@ function runCost(r) {
 const within = (v, lo, hi) => (Number.isFinite(v) && v >= lo && v <= hi ? v : undefined);
 
 const WEEKDAYS = new Set(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']);
+
+/** Why a run belongs on the flagged board. The app's list is `SUBMISSION_FLAGS` in
+ *  src/search/rules.ts; anything else is dropped. */
+const FLAGS = new Set(['integrity-stall', 'decades-long', 'contradicts-itself']);
+/** Past this a plan is flagged whatever the client said: ten years is a statement about the
+ *  account, not a route to the target, and an older app sends no flags at all. */
+const DECADES_LONG_DAYS = 3652.5;
+
+function flagList(v) {
+  if (!Array.isArray(v)) return undefined;
+  const out = [...new Set(v.filter(f => typeof f === 'string' && FLAGS.has(f)))];
+  return out.length ? out : undefined;
+}
+
+/** Time off from the virtue farm: whole local dates, a handful at most. */
+function timeOffList(v) {
+  if (!Array.isArray(v)) return undefined;
+  const date = x => (typeof x === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(x) ? x : undefined);
+  const out = v
+    .slice(0, 8)
+    .map(w => ({ from: date(w?.from), to: date(w?.to) }))
+    .filter(w => w.from && w.to && w.from <= w.to);
+  return out.length ? out : undefined;
+}
+
+/** SHA-256 of an owner token, hex. The token itself is never stored. */
+async function ownerHash(token) {
+  if (typeof token !== 'string' || !/^[a-f0-9]{32,64}$/.test(token)) return undefined;
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token));
+  return [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
 
 /** Four multipliers, each bounded to what a real artifact set can reach. */
 function deliveryScore(d) {
@@ -490,6 +527,10 @@ function pickSubmission(s) {
     sweep: sweepTag(s.sweep),
     machine: machineInfo(s.machine),
     source: s.source === 'upload' ? 'upload' : undefined,
+    // Board hygiene and time off (2026-09-24). Both optional: an older app sends neither.
+    flags: flagList(s.flags),
+    integrityMinutes: within(s.integrityMinutes, 0, 1e9),
+    timeOff: timeOffList(s.timeOff),
 
     submittedAt: text(s.submittedAt, MAX.TEXT),
   });
@@ -498,7 +539,7 @@ function pickSubmission(s) {
 const CORS = {
   'access-control-allow-origin': '*',
   'access-control-allow-methods': 'GET,POST,OPTIONS',
-  'access-control-allow-headers': 'content-type,x-upload-token',
+  'access-control-allow-headers': 'content-type,x-upload-token,x-owner-token',
 };
 
 /**
@@ -591,18 +632,31 @@ export default {
       if (problems.length) return json({ error: 'rejected', problems }, 400);
 
       const record = pickSubmission(body);
+      if (record.durationDays > DECADES_LONG_DAYS && !(record.flags || []).includes('decades-long')) {
+        record.flags = [...(record.flags || []), 'decades-long'];
+      }
+      const owner = await ownerHash(request.headers.get('x-owner-token'));
+      if (owner) record.owner = owner;
+      // A flagged run goes under its own prefix, so the main board -- /leaderboard, /all and every
+      // analysis built on them -- never sees it, and no reader has to remember to filter.
+      const board = record.flags?.length ? 'flag' : 'sub';
       // Keyed by finalTE then duration then a random suffix: KV lists lexicographically, so this
       // makes "best chains for a 490 target" a prefix scan in sorted order rather than a full
       // read-and-sort. Duration is zero-padded so 9.5 does not sort above 100.
       const dur = String(Math.round(record.durationDays * 10000)).padStart(10, '0');
       const id = crypto.randomUUID().slice(0, 8);
-      await env.SUBMISSIONS.put(`sub:${record.finalTE}:${dur}:${id}`, JSON.stringify(record));
+      await env.SUBMISSIONS.put(`${board}:${record.finalTE}:${dur}:${id}`, JSON.stringify(record));
       // TTL is longer than the window so a stale counter cannot outlive it and lock anyone out;
       // the `until` inside decides, and the TTL only keeps the address from being retained.
       await env.SUBMISSIONS.put(gateKey, JSON.stringify(gate), { expirationTtl: 120 });
 
       // No key configured means no token: the client then skips the CSV instead of being refused.
-      return json(env.CSV_UPLOAD_KEY ? { ok: true, id, uploadToken: await uploadToken(env, id) } : { ok: true, id });
+      const flagged = board === 'flag' ? { flagged: record.flags } : {};
+      return json(
+        env.CSV_UPLOAD_KEY
+          ? { ok: true, id, uploadToken: await uploadToken(env, id), ...flagged }
+          : { ok: true, id, ...flagged }
+      );
     }
 
     // --------------------------------------------------------------- the CSV
@@ -714,6 +768,8 @@ export default {
           // second thing that can disagree.
           row.id = k.name.slice(k.name.lastIndexOf(':') + 1);
           row.hasCsv = csvIds.has(row.id);
+          // Never served: it is what lets a player claim their own flagged rows.
+          delete row.owner;
           rows.push(row);
         } catch {
           /* skip */
@@ -772,6 +828,38 @@ export default {
         if (best.length >= limit) break;
       }
       return json({ count: best.length, rows: best });
+    }
+
+    // ------------------------------------------------------------ flagged board
+    // Runs from accounts the planner cannot help yet. Kept, because they are the evidence for where
+    // it stops working; kept APART, because they are not routes anyone should copy; and anonymous,
+    // because a stalled account is nobody's business -- except the owner's. A caller presenting a
+    // row's owner code (the app keeps one per account in the browser that submitted) gets that row
+    // with its nickname and `yours: true`; everybody else gets it without.
+    if (url.pathname === '/flagged' && request.method === 'GET') {
+      const mine = await ownerHash(request.headers.get('x-owner-token'));
+      const list = await env.SUBMISSIONS.list({ prefix: 'flag:', limit: 1000 });
+      const csvIds = new Set(
+        (await env.SUBMISSIONS.list({ prefix: 'csv:', limit: 1000 })).keys.map(k => k.name.slice(4))
+      );
+      const raws = await Promise.all(list.keys.map(k => env.SUBMISSIONS.get(k.name)));
+      const rows = [];
+      list.keys.forEach((k, i) => {
+        if (!raws[i]) return;
+        try {
+          const row = JSON.parse(raws[i]);
+          row.id = k.name.slice(k.name.lastIndexOf(':') + 1);
+          row.hasCsv = csvIds.has(row.id);
+          const yours = !!mine && row.owner === mine;
+          delete row.owner;
+          if (yours) row.yours = true;
+          else delete row.nickname;
+          rows.push(row);
+        } catch {
+          /* skip */
+        }
+      });
+      return json({ count: rows.length, rows });
     }
 
     // -------------------------------------------------------------------- page
