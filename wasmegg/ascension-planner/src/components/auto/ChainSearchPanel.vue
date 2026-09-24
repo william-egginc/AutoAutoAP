@@ -131,6 +131,19 @@
             </div>
           </div>
 
+          <!-- The way into Insane mode. It used to be URL-only on purpose; linked now (2026-09-24)
+               because the board needs exhaustive sweeps and nobody found the URL. A reload, so it is
+               not offered mid-run: leaving would stop the search. -->
+          <p class="text-[11px] text-slate-600 leading-relaxed">
+            <span class="font-bold text-slate-800">Not big enough?</span>
+            <template v-if="!store.isRunning">
+              <a :href="insaneHref" class="font-bold text-rose-700 underline hover:text-rose-600">Try Insane mode</a>:
+            </template>
+            <template v-else>Insane mode (once this search is stopped):</template>
+            an exhaustive search that prices every chain in a space you choose, so its winner is proven for that space
+            rather than found by descent. Hours instead of minutes.
+          </p>
+
           <!-- Starting point -->
           <label
             class="flex items-start gap-3 p-4 bg-white border border-slate-200 rounded-xl cursor-pointer hover:border-emerald-300"
@@ -689,12 +702,65 @@
         <span class="font-mono">200 250 300 {{ store.finalTE }}</span>), or tick "Find a starting chain for me".
       </div>
 
+      <!-- Submit on finish. Consent given BEFORE the run, where the player is, instead of after it at
+           the bottom of a page they may have walked away from. A run that is stopped early, fails,
+           or finds nothing sends nothing. -->
+      <div class="space-y-2">
+        <label class="flex items-start gap-3 cursor-pointer">
+          <input
+            v-model="autoSubmit"
+            type="checkbox"
+            :disabled="store.isRunning"
+            class="mt-0.5 rounded border-slate-300 text-indigo-600 disabled:opacity-40"
+          />
+          <span class="text-[11px] text-slate-600 leading-relaxed">
+            <span class="font-bold text-slate-800">Submit the result to the board when it finishes.</span> The chain, its
+            timings and the full CSV, with your artifact inventory, timezone and local plan start, plus a random code
+            this browser keeps for the account (never your player ID). Exactly what is sent is shown under Share this
+            result. Stop early and nothing is sent.
+          </span>
+        </label>
+        <div v-if="autoSubmit" class="flex flex-wrap items-center gap-4 pl-7 text-[11px] font-bold text-slate-700">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input v-model="anonymous" type="radio" :value="true" :disabled="store.isRunning" class="text-indigo-600" />
+            Submit anonymously
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input v-model="anonymous" type="radio" :value="false" :disabled="store.isRunning" class="text-indigo-600" />
+            Credit me as
+          </label>
+          <input
+            v-model="nickname"
+            type="text"
+            maxlength="40"
+            placeholder="nickname"
+            aria-label="Nickname"
+            :disabled="store.isRunning || anonymous"
+            class="w-48 rounded-md border-slate-200 text-[12px] font-normal text-slate-800 disabled:opacity-40"
+            @input="nicknameTouched = true"
+          />
+        </div>
+        <p
+          v-if="autoSubmitted && submitMessage && !store.isRunning"
+          class="rounded-lg border px-3 py-2 text-[11px]"
+          :class="
+            !submitOk
+              ? 'bg-red-50 border-red-200 text-red-800'
+              : submitPartial
+                ? 'bg-amber-50 border-amber-200 text-amber-900'
+                : 'bg-emerald-50 border-emerald-200 text-emerald-800'
+          "
+        >
+          <b>Submitted automatically.</b> {{ submitMessage }}
+        </p>
+      </div>
+
       <!-- Run / stop -->
       <div class="flex gap-3">
         <button
           class="btn-premium btn-primary flex-1 py-4 text-sm shadow-xl shadow-emerald-500/20 active:scale-[0.98]"
           :disabled="store.isRunning || store.integrityBlocked || store.singleAscensionAsked || (!store.findSeedFirst && store.seedChain.length < 2)"
-          @click="run(false)"
+          @click="void run(false)"
         >
           {{ store.isRunning ? 'Searching...' : 'Start search' }}
         </button>
@@ -1893,8 +1959,49 @@ function relativeTime(ms: number): string {
   return `${Math.round(hours / 24)}d ago`;
 }
 
-function run(resume: boolean): void {
-  void store.start(props.playerId, { resume });
+/** Insane mode is this page with `?insane=1`: same save, same player, the exhaustive panel. */
+const insaneHref = (() => {
+  const url = new URL(window.location.href);
+  url.searchParams.set('insane', '1');
+  url.hash = '';
+  return url.pathname + url.search;
+})();
+
+/**
+ * Submit on finish. Remembered per browser, like the other run settings: someone who contributes
+ * once usually means to keep contributing, and the box is right beside Start, so it is never on
+ * without being seen.
+ */
+const AUTO_SUBMIT_KEY = 'aap-chain-auto-submit';
+const autoSubmit = ref(readFlag(AUTO_SUBMIT_KEY));
+watch(autoSubmit, on => writeFlag(AUTO_SUBMIT_KEY, on));
+const autoSubmitted = ref(false);
+
+function readFlag(key: string): boolean {
+  try {
+    return localStorage.getItem(key) === '1';
+  } catch {
+    return false;
+  }
+}
+function writeFlag(key: string, on: boolean): void {
+  try {
+    if (on) localStorage.setItem(key, '1');
+    else localStorage.removeItem(key);
+  } catch {
+    // Private window or blocked storage: the box still works for this visit.
+  }
+}
+
+async function run(resume: boolean): Promise<void> {
+  const armed = autoSubmit.value;
+  autoSubmitted.value = false;
+  await store.start(props.playerId, { resume });
+  if (!armed || store.stoppedEarly || store.error || store.bestDays <= 0) return;
+  includeCsv.value = true;
+  optIn.value = true;
+  autoSubmitted.value = true;
+  await submit();
 }
 
 onMounted(() => void store.checkResumable(props.playerId));

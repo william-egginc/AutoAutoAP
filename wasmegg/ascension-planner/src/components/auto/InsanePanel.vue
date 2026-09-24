@@ -52,6 +52,17 @@
               >, {{ sweepRequest.forceContinue ? 'finishing your current run first' : 'prestiging straight away' }}</template
             >. Already set below; you do not need to touch anything else.
           </p>
+          <p class="text-[11px] text-slate-600">
+            <template v-if="timeOffText">
+              Planned around time off: <b>{{ timeOffText }}</b>. It still prices every chain, but the result is filed
+              with the time-off runs on the board rather than filling this gap.
+            </template>
+            <template v-else>
+              Taking time off, like Egg Day or a trip?
+              <a href="#insane-time-off" class="font-bold text-indigo-700 underline">Add it below</a> and the sweep
+              still prices every chain, around it.
+            </template>
+          </p>
         </div>
 
         <div class="grid gap-2 sm:grid-cols-3 text-[11px]">
@@ -489,9 +500,18 @@
           </span>
         </label>
 
-        <div v-if="showSchedule" class="pt-2 border-t border-slate-100">
-          <TimeOffEditor />
-        </div>
+      </div>
+
+      <!-- Time off, OUTSIDE the collapsed schedule card: it was in there first and nobody found it.
+           It changes the answer more than anything else on the page (a week away is a full rebuild),
+           and the sweep still prices every chain in the space with the gap in it. -->
+      <div id="insane-time-off" class="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
+        <TimeOffEditor />
+        <p class="text-[11px] text-slate-500 leading-relaxed">
+          Still exhaustive: every chain in the space is priced with the time off in it, so the winner is the best plan
+          around it. The Chain Explorer keeps runs with time off apart from the rest, since they answer a different
+          question.
+        </p>
       </div>
 
       <!--
@@ -1412,7 +1432,7 @@ import { sweepSeconds, workerSecondsFromRate, workerSecondsPerChain } from '@/se
 import { describeCompute } from '@/utils/computeTime';
 import IntegrityNotice from './IntegrityNotice.vue';
 import { useInitialStateStore } from '@/stores/initialState';
-import { usableTimeOff } from '@/search/timeOff';
+import { describeTimeOff, usableTimeOff } from '@/search/timeOff';
 import { downloadCsv as saveCsvFile, downloadParts } from '@/utils/export';
 import LoadoutDisplay from './LoadoutDisplay.vue';
 
@@ -1679,9 +1699,10 @@ const CHEVRON_DOWN = 'M2 4l4 4 4-4';
 
 const scheduleSummary = computed(() => {
   const when = store.planStartIsNow ? 'no start set' : `from ${autoPlannerStore.startDate}`;
-  const off = usableTimeOff(store.timeOff).length;
-  return `${when} · ${store.scheduleEnabled ? store.availabilityLabel : 'any hour'}${off ? ` · ${off} time off` : ''}`;
+  return `${when} · ${store.scheduleEnabled ? store.availabilityLabel : 'any hour'}`;
 });
+/** The time off this run is planned around, or '' for none. */
+const timeOffText = computed(() => (usableTimeOff(store.timeOff).length ? describeTimeOff(store.timeOff) : ''));
 const machineSummary = computed(
   () =>
     `${store.workerBudget} workers · detail for ${store.legDetailBudget ? store.legDetailBudget.toLocaleString() : 'every'} chains`

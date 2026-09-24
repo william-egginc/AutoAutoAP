@@ -80,12 +80,20 @@
               Worker time from the {{ computeTotal.runs }} run{{ computeTotal.runs === 1 ? '' : 's' }} that recorded it
               (minutes x workers); runs from older versions and from uploads did not.
             </p>
-            <p v-if="!loading && (dupeIds.size || flagged.size)" class="text-[11px] text-slate-500">
+            <p v-if="!loading && (dupeIds.size || flagged.size || withTimeOff.size)" class="text-[11px] text-slate-500">
               <template v-if="dupeIds.size">{{ dupeIds.size }} exact duplicate{{ dupeIds.size === 1 ? '' : 's' }} hidden. </template>
               <template v-if="flagged.size">
                 {{ flagged.size }} run{{ flagged.size === 1 ? '' : 's' }} flagged for the delivery-set bug,
                 <label class="inline-flex items-center gap-1 font-bold text-slate-600">
                   <input v-model="showFlagged" type="checkbox" class="rounded border-slate-300 text-amber-600" />
+                  include them
+                </label>
+              </template>
+              <template v-if="withTimeOff.size">
+                {{ withTimeOff.size }} run{{ withTimeOff.size === 1 ? '' : 's' }} planned around time off (a different
+                question: the farm stops and is rebuilt),
+                <label class="inline-flex items-center gap-1 font-bold text-slate-600">
+                  <input v-model="showTimeOff" type="checkbox" class="rounded border-slate-300 text-amber-600" />
                   include them
                 </label>
               </template>
@@ -599,9 +607,23 @@ const flagged = computed(() => {
 });
 const showFlagged = ref(false);
 
+/**
+ * Runs planned around time off from the virtue farm. Hidden by default: a week away ends the
+ * ascension in progress and costs a full rebuild, so its chain and total answer a different
+ * question from every other row, and mixed in they would bend the curves and count as filling a
+ * sweep gap they do not fill.
+ */
+const withTimeOff = computed(() => new Set(rows.value.filter(r => r.timeOff?.length).map(r => r.id)));
+const showTimeOff = ref(false);
+
 /** What every view on the page reads. */
 const usable = computed(() =>
-  rows.value.filter(r => !dupeIds.value.has(r.id) && (showFlagged.value || !flagged.value.has(r.id)))
+  rows.value.filter(
+    r =>
+      !dupeIds.value.has(r.id) &&
+      (showFlagged.value || !flagged.value.has(r.id)) &&
+      (showTimeOff.value || !withTimeOff.value.has(r.id))
+  )
 );
 
 const targets = computed(() => targetsPresent(usable.value));
