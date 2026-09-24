@@ -106,6 +106,7 @@
             raise your Clothed TE in the Virtue Progress section above first.
           </p>
         </div>
+        <div class="mt-4"><IntegrityNotice /></div>
 
         <button
           class="btn-premium btn-primary w-full py-4 mt-8 text-sm shadow-xl shadow-indigo-500/20 active:scale-[0.98]"
@@ -312,6 +313,7 @@
 </template>
 
 <script setup lang="ts">
+import IntegrityNotice from './IntegrityNotice.vue';
 import { ref, computed, watch, nextTick } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useAutoPlannerStore, type VariantKey } from '@/stores/autoPlanner';

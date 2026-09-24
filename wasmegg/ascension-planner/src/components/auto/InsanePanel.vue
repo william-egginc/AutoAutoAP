@@ -105,10 +105,11 @@
           </span>
         </label>
 
+        <IntegrityNotice />
         <div class="flex flex-wrap items-center gap-3">
           <button
             type="button"
-            :disabled="!sweepConsent || store.isRunning || !chainCount"
+            :disabled="!sweepConsent || store.isRunning || store.integrityBlocked || !chainCount"
             class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500 disabled:opacity-40"
             @click="start"
           >
@@ -1003,10 +1004,11 @@
         </span>
       </label>
 
+      <IntegrityNotice />
       <div class="flex flex-wrap gap-3">
         <button
           class="btn-premium btn-primary flex-1 py-4 text-sm shadow-xl shadow-rose-500/20 active:scale-[0.98]"
-          :disabled="store.isRunning || !chainCount || (!!sweepRequest && !sweepConsent)"
+          :disabled="store.isRunning || store.integrityBlocked || !chainCount || (!!sweepRequest && !sweepConsent)"
           @click="start"
         >
           <!-- With a sweep request open this is the same run as the card's button, so it says the
@@ -1358,6 +1360,8 @@ import { MAX_RUNS } from '@/search/runLibrary';
 import SearchShapeChart from './charts/SearchShapeChart.vue';
 import HelpTip from './HelpTip.vue';
 import TimeOffEditor from './TimeOffEditor.vue';
+import IntegrityNotice from './IntegrityNotice.vue';
+import { useInitialStateStore } from '@/stores/initialState';
 import { usableTimeOff } from '@/search/timeOff';
 import { downloadCsv as saveCsvFile, downloadParts } from '@/utils/export';
 import LoadoutDisplay from './LoadoutDisplay.vue';
@@ -1406,6 +1410,14 @@ const props = defineProps<{ playerId: string }>();
 // without this the one mode whose every output is a date ran from "whenever the page loaded".
 useBackupPlanStart();
 const store = useChainSearchStore();
+const initialStateStore = useInitialStateStore();
+// The integrity check up front (search/rules.ts), once a save is loaded and again if the account or
+// start changes, so a stalled account says so before Start rather than after.
+watch(
+  () => [props.playerId, store.currentTE, store.planStart, !!initialStateStore.rawBackup],
+  () => void store.probeIntegrity(props.playerId),
+  { immediate: true }
+);
 const autoPlannerStore = useAutoPlannerStore();
 
 /** Past this the estimate is longer than anyone will wait, and the form says so rather than

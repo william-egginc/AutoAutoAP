@@ -676,11 +676,13 @@
         </span>
       </label>
 
+      <IntegrityNotice />
+
       <!-- Run / stop -->
       <div class="flex gap-3">
         <button
           class="btn-premium btn-primary flex-1 py-4 text-sm shadow-xl shadow-emerald-500/20 active:scale-[0.98]"
-          :disabled="store.isRunning || (!store.findSeedFirst && store.seedChain.length < 2)"
+          :disabled="store.isRunning || store.integrityBlocked || (!store.findSeedFirst && store.seedChain.length < 2)"
           @click="run(false)"
         >
           {{ store.isRunning ? 'Searching...' : 'Start search' }}
@@ -1511,6 +1513,8 @@ import { afterPaint } from '@/search/submission';
 import ChainSearchExplainer from './ChainSearchExplainer.vue';
 import HelpTip from './HelpTip.vue';
 import TimeOffEditor from './TimeOffEditor.vue';
+import { useInitialStateStore } from '@/stores/initialState';
+import IntegrityNotice from './IntegrityNotice.vue';
 import LoadoutDisplay from './LoadoutDisplay.vue';
 import SearchShapeChart from './charts/SearchShapeChart.vue';
 import type { EffortTier, LegSummary } from '@/search/types';
@@ -1521,6 +1525,7 @@ import { downloadCsv as saveCsvFile } from '@/utils/export';
 const props = defineProps<{ playerId: string }>();
 
 const store = useChainSearchStore();
+const initialStateStore = useInitialStateStore();
 
 /** Open by default: a collapsed form on first load looks like the panel has nothing in it. */
 const settingsOpen = ref(true);
@@ -1881,6 +1886,14 @@ function run(resume: boolean): void {
 }
 
 onMounted(() => void store.checkResumable(props.playerId));
+
+// The integrity check up front (search/rules.ts), once a save is loaded and again if the account or
+// start changes, so a stalled account says so before Start rather than after.
+watch(
+  () => [props.playerId, store.currentTE, store.planStart, !!initialStateStore.rawBackup],
+  () => void store.probeIntegrity(props.playerId),
+  { immediate: true }
+);
 
 // A checkpoint only resumes onto identical inputs (see search/persistence.ts's fingerprint), so
 // re-check whenever anything that changes what a duration MEANS changes.

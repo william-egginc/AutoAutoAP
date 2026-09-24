@@ -413,6 +413,42 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     return true;
   }
 
+  /**
+   * The same integrity check, run AHEAD of any Start: on one background worker, as soon as a save
+   * is loaded, so a stalled account says so the moment the panel opens instead of after the player
+   * presses Start and waits for a pool to spin up. Keyed on what changes the answer (account, TE,
+   * plan start), so it runs once per loaded account, not on every render. Start still re-checks.
+   */
+  const integrityChecking = ref(false);
+  let integrityKey = '';
+  async function probeIntegrity(playerId: string): Promise<void> {
+    if (isRunning.value || !playerId || !useInitialStateStore().rawBackup) return;
+    const key = `${playerId}|${currentTE.value}|${planStart.value}`;
+    if (key === integrityKey) return;
+    integrityKey = key;
+    integrityWait.value = null;
+    integrityChecking.value = true;
+    let probe: ChainSearchPool | null = null;
+    try {
+      probe = await createChainSearchPool(collectInputs(), { size: 1 });
+      const wait = await probe.integrityWait();
+      if (integrityKey === key) integrityWait.value = wait;
+    } catch {
+      // Not worth a message: Start runs the same check again and reports properly.
+    } finally {
+      probe?.terminate();
+      if (integrityKey === key) integrityChecking.value = false;
+    }
+  }
+
+  /** What the panels show about the integrity check before a run: nothing when healthy. */
+  const integrityNotice = computed(() => {
+    const wait = integrityWait.value;
+    if (wait === null || wait <= INTEGRITY_WARN_SECONDS) return null;
+    return { blocked: wait > INTEGRITY_BLOCK_SECONDS, text: integrityMessage(wait) };
+  });
+  const integrityBlocked = computed(() => !!integrityNotice.value?.blocked);
+
   /** Why a result belongs on the flagged board rather than the main one. */
   function submissionFlags(): SubmissionFlag[] {
     const flags: SubmissionFlag[] = [];
@@ -2462,6 +2498,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     resultContradictions,
     continueWarning,
     integrityWait,
+    integrityChecking,
+    integrityNotice,
+    integrityBlocked,
+    probeIntegrity,
     openedRun,
     crashedRun,
     resumeCrashedRun,
