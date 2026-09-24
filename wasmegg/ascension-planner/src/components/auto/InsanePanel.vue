@@ -63,7 +63,7 @@
             <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">Estimated time</div>
             <div class="font-bold text-slate-800">{{ estimateLabel }}</div>
             <div class="text-[10px] text-slate-400">
-              {{ measuredCost ? 'measured on this machine' : 'assumes 15 s a chain, so errs high' }}
+              {{ measuredCost ? 'measured on this machine' : speedSourceLabel }}
             </div>
           </div>
           <div class="rounded-lg bg-white px-3 py-2 flex items-center">
@@ -937,7 +937,7 @@
                 'text-slate-900': !store.rateSource,
               }"
             >
-              {{ measuredCost ? measuredCost.toFixed(2) + ' s' : '15 s' }}
+              {{ assumedCostLabel }}
             </div>
           </div>
         </div>
@@ -970,15 +970,14 @@
             No chains: the ascension range asks for more checkpoints than {{ poolSize }} pool values can supply.
           </template>
           <template v-else-if="tooBig">
-            This will not finish. The estimate assumes {{ assumedCostLabel }} per chain{{
-              measuredCost ? '' : ', which is the measured floor'
-            }}; prefix sharing makes the real figure lower, but not by orders of magnitude. Raise the step or narrow the
-            ascension range.
+            This will not finish. The estimate assumes {{ assumedCostLabel }} per chain on {{ store.workerBudget }}
+            workers{{ measuredCost ? ', measured on this machine' : '' }}. Raise the step or narrow the ascension
+            range.
           </template>
           <template v-else>
-            The estimate assumes {{ assumedCostLabel }} per chain across {{ store.workersInPool }} workers and ignores
-            prefix sharing, so it errs high.
-            <template v-if="!measuredCost">Benchmark this machine above for a real number.</template>
+            The estimate assumes {{ assumedCostLabel }} per chain on {{ store.workerBudget }} workers,
+            {{ measuredCost ? 'measured on this machine' : speedSourceLabel }}.
+            <template v-if="!measuredCost">Benchmark this machine above for a number from your own computer.</template>
             Leave the tab open: a closed tab stops the workers.
           </template>
         </p>
@@ -1399,13 +1398,13 @@ import {
   parseBands,
   suggestBands,
   SUGGESTABLE_ASCENSIONS,
-  estimateHours,
   formatHours,
 } from '@/search/exhaustive';
 import { MAX_RUNS } from '@/search/runLibrary';
 import SearchShapeChart from './charts/SearchShapeChart.vue';
 import HelpTip from './HelpTip.vue';
 import TimeOffEditor from './TimeOffEditor.vue';
+import { sweepSeconds, workerSecondsFromRate, workerSecondsPerChain } from '@/search/speed';
 import { describeCompute } from '@/utils/computeTime';
 import IntegrityNotice from './IntegrityNotice.vue';
 import { useInitialStateStore } from '@/stores/initialState';
@@ -1852,12 +1851,27 @@ const suggestRange = computed<[number, number]>(() => [
 ]);
 
 const measuredCost = computed(() => (store.secondsPerChain > 0 ? store.secondsPerChain : 0));
-/** What the warning paragraph should say it's charging per chain — the real number once one exists,
- *  the fallback constant otherwise. Kept as a label rather than a bare number so the copy reads the
- *  same whether it's "15 s" or "2.34 s". */
-const assumedCostLabel = computed(() => (measuredCost.value ? `${measuredCost.value.toFixed(2)} s` : '15 s'));
 
-const hours = computed(() => estimateHours(chainCount.value, store.workersInPool, measuredCost.value || undefined));
+/**
+ * THE ESTIMATE (search/speed.ts), in worker-seconds per chain so it carries across worker counts:
+ * measured on this machine when there is a benchmark or a finished run, otherwise the typical
+ * figure for this chain length from players' recorded runs. It used to divide a rate that was
+ * ALREADY wall-clock across the whole pool by the worker count a second time, which after any run
+ * made the next estimate about the worker count too short (7 min read as "1 min").
+ */
+const sweepAscensions = computed(() => (spaceMode.value === 'bands' ? bands.value.length + 1 : maxAsc.value));
+const workerSeconds = computed(() =>
+  measuredCost.value
+    ? workerSecondsFromRate(measuredCost.value, store.rateWorkers || store.workerBudget)
+    : workerSecondsPerChain(sweepAscensions.value)
+);
+/** Wall-clock seconds per chain on the workers the slider asks for. */
+const wallPerChain = computed(() => sweepSeconds(1, store.workerBudget, workerSeconds.value));
+const speedSourceLabel = computed(() => `typical for ${sweepAscensions.value}-ascension chains in players' runs`);
+/** What the paragraph under the estimate says it charges per chain, on the chosen workers. */
+const assumedCostLabel = computed(() => `${wallPerChain.value.toFixed(2)} s`);
+
+const hours = computed(() => sweepSeconds(chainCount.value, store.workerBudget, workerSeconds.value) / 3600);
 
 /**
  * Once a run is going, project from what it has ACTUALLY done: elapsed x remaining / done. That

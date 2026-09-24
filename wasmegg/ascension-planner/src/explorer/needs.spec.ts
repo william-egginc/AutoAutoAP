@@ -93,6 +93,13 @@ describe('estimates', () => {
     expect(desktop).toBeGreaterThan(workstation);
   });
 
+  // Measured, and the case that showed the old flat figure was wrong: an 8-core desktop's M1 sweep
+  // (307 chains, 2 ascensions) took 7 minutes where the estimate said 2.
+  it('puts an 8-core desktop M1 at about the 7 minutes it really took', () => {
+    expect(estimateSeconds(307, 2, COMPUTE_TIERS[1]) / 60).toBeGreaterThan(6);
+    expect(estimateSeconds(307, 2, COMPUTE_TIERS[1]) / 60).toBeLessThan(8);
+  });
+
   it('charges longer chains more per chain', () => {
     const tier = COMPUTE_TIERS[1];
     expect(estimateSeconds(1000, 5, tier)).toBeGreaterThan(estimateSeconds(1000, 3, tier));

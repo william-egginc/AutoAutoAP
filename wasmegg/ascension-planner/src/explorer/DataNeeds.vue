@@ -88,10 +88,13 @@
 import { computed, ref, watch } from 'vue';
 import type { CollectorRow } from './collector';
 import { COMPUTE_TIERS, dataNeeds, estimateSeconds, formatEstimate, presetBandsFor, presetChains } from './needs';
+import { measuredWorkerSeconds } from '@/search/speed';
 import { SWEEP_PRESETS } from './upload';
 import { sweepRequestQuery } from '@/search/sweepRequest';
 
 const props = defineProps<{ rows: CollectorRow[] }>();
+/** The board's own sweep speeds by chain length (search/speed.ts), for the time estimates. */
+const measuredSpeed = computed(() => measuredWorkerSeconds(props.rows));
 
 const TE_KEY = 'chain-explorer:te-now';
 function readTE(): number {
@@ -152,7 +155,7 @@ const rowsWithCost = computed(() =>
         id: t.id,
         label: t.label,
         detail: t.detail,
-        text: formatEstimate(estimateSeconds(chains * need.runs, ascensions, t)),
+        text: formatEstimate(estimateSeconds(chains * need.runs, ascensions, t, measuredSpeed.value)),
       })),
     };
   })

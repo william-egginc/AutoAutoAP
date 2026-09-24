@@ -8,20 +8,14 @@
  * run with force-continue on and off, weak delivery gear -- and it drops off the list once enough
  * accounts have covered it. A static "please run M2" banner would still be asking a year from now.
  *
- * TIMES ARE ESTIMATES FROM THE COLLECTOR'S OWN `run` FIELD, not a benchmark of the viewer's machine
- * (the planner's Re-benchmark button does that). Seconds per chain, wall clock, for 3-4 ascension
- * sweeps in the browser, as submitted on 2026-09-22/23:
- *
- *   - 4 cores, 3 workers ............ ~1.1-2.2 s/chain
- *   - 8 cores, 7 workers ............ ~0.37-0.43 s/chain
- *   - 20 cores, 19 workers .......... ~0.34 s/chain
- *
- * Twenty cores barely beat eight in the browser -- the workers contend for memory more than for
- * cores -- which is why the big tier is not 2.5x the desktop. Longer chains cost more per chain
- * (more legs, less prefix sharing); `ascensionFactor` scales for that. Treat the result as "about",
- * which is how the panel words it.
+ * TIMES COME FROM THE COLLECTOR'S OWN `run` FIELD (search/speed.ts), not a benchmark of the viewer's
+ * machine (the planner's Re-benchmark button does that): worker-seconds per chain at this chain
+ * length, the board's median where enough exhaustive runs agree, divided by the tier's workers.
+ * They used to be one flat figure per machine size, which ignored chain length and came out 3-4x
+ * short for 2-ascension sweeps (an 8-core desktop's M1: estimated 2 min, took 7).
  */
 import { countBanded, parseBands } from '@/search/exhaustive';
+import { sweepSeconds, workerSecondsPerChain } from '@/search/speed';
 import { groupByAccount, gearOf } from './analysis';
 import type { CollectorRow } from './collector';
 import { SWEEP_PRESETS } from './upload';
@@ -30,23 +24,24 @@ export interface ComputeTier {
   id: string;
   label: string;
   detail: string;
-  /** Wall-clock seconds per chain for a 3-ascension sweep. */
-  secondsPerChain: number;
+  /** Workers the planner runs on this machine: one per core, less one for the page. */
+  workers: number;
 }
 
 export const COMPUTE_TIERS: ComputeTier[] = [
-  { id: 'laptop', label: 'Laptop', detail: '4 cores', secondsPerChain: 1.2 },
-  { id: 'desktop', label: 'Desktop', detail: '8 cores', secondsPerChain: 0.4 },
-  { id: 'workstation', label: 'Workstation', detail: '16-20 cores', secondsPerChain: 0.3 },
+  { id: 'laptop', label: 'Laptop', detail: '4 cores', workers: 3 },
+  { id: 'desktop', label: 'Desktop', detail: '8 cores', workers: 7 },
+  { id: 'workstation', label: 'Workstation', detail: '16-20 cores', workers: 17 },
 ];
 
-/** Per-chain cost relative to 3 ascensions: 2 is cheaper, 5 dearer. Fitted to the same runs. */
-export function ascensionFactor(ascensions: number): number {
-  return 0.6 + (0.4 / 3) * ascensions;
-}
-
-export function estimateSeconds(chains: number, ascensions: number, tier: ComputeTier): number {
-  return chains * tier.secondsPerChain * ascensionFactor(ascensions);
+/** Seconds a sweep of `chains` at this length takes on this tier, from the board's own speeds. */
+export function estimateSeconds(
+  chains: number,
+  ascensions: number,
+  tier: ComputeTier,
+  measured?: Map<number, { seconds: number }>
+): number {
+  return sweepSeconds(chains, tier.workers, workerSecondsPerChain(ascensions, measured));
 }
 
 /** `under a minute`, `25 min`, `3.5 h`. Coarse on purpose; these are estimates. */

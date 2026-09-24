@@ -294,6 +294,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   /** Measured on THIS machine, from this run's own batches. Not an assumption carried over from the
    *  CLI's 20-core box. */
   const secondsPerChain = ref(0);
+  /** How many workers were running when `secondsPerChain` was measured (search/speed.ts). */
+  const rateWorkers = ref(0);
   /** Where `secondsPerChain` came from: a live run's own first chunk, or a "Benchmark my PC" probe
    *  run before anything started. Both write the identical quantity; this is only so the UI can say
    *  which one it is showing. */
@@ -491,6 +493,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       : observed;
     lastRateChains = done;
     lastRateAt = now;
+    // The rate is wall-clock per chain WITH this many workers running; the estimate needs both.
+    rateWorkers.value = workersInPool.value;
 
     // The first real measurement for this run beats whatever a pre-run benchmark guessed — record
     // where it came from, and persist it the same way `benchmarkMachine` does, so a live-measured
@@ -1981,6 +1985,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       }
 
       secondsPerChain.value = elapsedSeconds / results.length;
+      rateWorkers.value = bench.size;
       rateSource.value = 'benchmark';
       benchmarkedAt.value = Date.now();
       benchmarkChainCount.value = results.length;
@@ -2011,6 +2016,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const cached = loadChainBenchmark(playerId);
     if (!cached) return;
     secondsPerChain.value = cached.secondsPerChain;
+    rateWorkers.value = cached.workers || workerBudget.value;
     rateSource.value = cached.source;
     benchmarkedAt.value = cached.at;
     benchmarkChainCount.value = cached.chainCount;
@@ -2467,6 +2473,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     stoppedEarly,
     workersInPool,
     secondsPerChain,
+    rateWorkers,
     rateSource,
     benchmarking,
     benchmarkError,
