@@ -45,6 +45,7 @@
         <p class="text-[11px] text-slate-700">
           Run <b>{{ need.presetLabel }}</b> in the planner's Insane panel, per-checkpoint bands
           <code class="rounded bg-white px-1 text-[10px]">{{ need.bands }}</code>, minimum gap {{ need.minGap }}.
+          <template v-if="stepWords(need.bands)"> {{ stepWords(need.bands) }}</template>
           <template v-if="need.runs > 1"> Twice.</template>
           <template v-if="need.note"> {{ need.note }}</template>
         </p>
@@ -91,6 +92,17 @@ import { COMPUTE_TIERS, dataNeeds, estimateSeconds, formatEstimate, presetBandsF
 import { measuredWorkerSeconds } from '@/search/speed';
 import { SWEEP_PRESETS } from './upload';
 import { sweepRequestQuery } from '@/search/sweepRequest';
+import { parseBands } from '@/search/exhaustive';
+import { gridIsComplete, gridStepLabel } from '@/search/polish';
+
+/** "181-250:5" in plain words. Players read past the notation; a Balanced result between grid
+ *  points then looks like the sweep got it wrong. */
+function stepWords(text: string): string {
+  const bands = parseBands(text);
+  if (!bands.length) return '';
+  if (gridIsComplete(bands)) return 'That is every TE in range.';
+  return `That tries ${gridStepLabel(bands)} (${bands[0].slice(0, 3).join(', ')}, ...), not every TE, then polishes the winner one TE at a time.`;
+}
 
 const props = defineProps<{ rows: CollectorRow[] }>();
 /** The board's own sweep speeds by chain length (search/speed.ts), for the time estimates. */

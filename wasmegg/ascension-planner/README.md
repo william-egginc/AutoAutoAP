@@ -265,6 +265,19 @@ staged search one wide stage can be a single long batch. The run log notes each 
 estimate re-measures from it, and the run's reported cost uses the time-weighted average worker
 count rather than whatever the slider ended on.
 
+**Grids, and the polish after them.** A band like `181-250:5` tries every 5th TE (181, 186, 191,
+...), never 227: pricing every TE for four ascensions from TE 198 would be about four million chains,
+a month of computing. So an Insane result is the best ON ITS GRID. Durations are jagged -- a leg
+that misses its Saturday sale jumps by about three days -- and a coarse grid can step over a faster
+chain; a player's Balanced search once beat an M3 sweep by 0.9 d with 227 259 297, none of which is
+on that grid. After the sweep, Insane therefore polishes: a Balanced search (coordinate descent,
+then every 1-TE pair of adjacent checkpoints) from the grid's winner, count fixed, reusing every
+chain already priced. It adds at most a few hundred chains (~630 measured for a 4-ascension chain).
+Checked on the main account: a 10-TE grid's best was 280 490 at 871.96 d, and the polish found
+279 490 at 850.339 d in 22 more chains, the same answer a complete every-TE sweep gives. The
+submission keeps the grid's winner in `space.polish` so the two answers stay distinguishable;
+`space.chainsPriced` counts the grid only.
+
 **Background tabs.** The search never pauses itself. "When this tab is in the background" (next to
 Keep my PC awake) drops the run to fewer workers while the tab is hidden and goes back to full speed
 when it is shown, so someone can use the computer for something else without stopping the run. What
