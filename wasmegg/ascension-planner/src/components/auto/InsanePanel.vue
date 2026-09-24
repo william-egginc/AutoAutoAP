@@ -1070,6 +1070,8 @@
         </span>
       </label>
 
+      <BackgroundSpeed />
+
       <IntegrityNotice />
       <div class="flex flex-wrap gap-3">
         <button
@@ -1428,6 +1430,7 @@ import { MAX_RUNS } from '@/search/runLibrary';
 import SearchShapeChart from './charts/SearchShapeChart.vue';
 import HelpTip from './HelpTip.vue';
 import TimeOffEditor from './TimeOffEditor.vue';
+import BackgroundSpeed from './BackgroundSpeed.vue';
 import { sweepSeconds, workerSecondsFromRate, workerSecondsPerChain } from '@/search/speed';
 import { describeCompute } from '@/utils/computeTime';
 import IntegrityNotice from './IntegrityNotice.vue';

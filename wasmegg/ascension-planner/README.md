@@ -265,6 +265,14 @@ staged search one wide stage can be a single long batch. The run log notes each 
 estimate re-measures from it, and the run's reported cost uses the time-weighted average worker
 count rather than whatever the slider ended on.
 
+**Background tabs.** The search never pauses itself. "When this tab is in the background" (next to
+Keep my PC awake) drops the run to fewer workers while the tab is hidden and goes back to full speed
+when it is shown, so someone can use the computer for something else without stopping the run. What
+DOES pause a run is the browser freezing a hidden tab (Safari; Chrome and Edge with memory saver or
+sleeping tabs), which a page cannot prevent: the pool notices the gap, logs it, and does not charge
+it to the run's cost. In Chrome or Edge, "Always keep these sites active" under Settings,
+Performance exempts the site.
+
 **The machine sleeping.** A suspended machine stops everything, workers included — the run
 resumes from its checkpoint when you come back, and `onSuspend` reports the gap in the run log
 rather than pretending the hours happened. While the tab is visible the run takes a **Screen Wake

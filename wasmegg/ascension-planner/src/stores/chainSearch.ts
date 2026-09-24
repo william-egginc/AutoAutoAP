@@ -22,7 +22,7 @@ import { runChainSearch, type CacheEntry } from '@/search/driver';
 import { findStartingChain, planCoarseGrid } from '@/search/coarse';
 import { createChainSearchPool, type ChainSearchPool } from '@/search/pool';
 import { timeWeightedWorkers } from '@/search/speed';
-import { hardwareThreads, maxPoolSize, clampPoolSize } from '@/search/batch';
+import { hardwareThreads, maxPoolSize, clampPoolSize, targetWorkerCount } from '@/search/batch';
 import { describeRunError } from '@/utils/errors';
 import { loadChainBenchmark, saveChainBenchmark } from '@/lib/chainBenchmarkCache';
 import { EFFORT, estimateChains } from '@/search/effort';
@@ -129,6 +129,27 @@ export interface ExhaustiveSpec {
   /** Per-checkpoint bands. When present these replace the single pool entirely, and the
    *  ascension count is `bands.length + 1` rather than the min/max range. */
   bands?: number[][];
+}
+
+/** Where the background worker count is remembered (per browser, a convenience only). */
+const BACKGROUND_WORKERS_KEY = 'aap-background-workers';
+
+function readStoredCount(key: string): number {
+  try {
+    const n = Number(localStorage.getItem(key));
+    return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+  } catch {
+    return 0; // Blocked storage or a private window: the default, "same as in front".
+  }
+}
+
+function writeStoredCount(key: string, n: number): void {
+  try {
+    if (n > 0) localStorage.setItem(key, String(n));
+    else localStorage.removeItem(key);
+  } catch {
+    // Not remembered this time; the setting still applies to this visit.
+  }
 }
 
 export const useChainSearchStore = defineStore('chainSearch', () => {
@@ -289,6 +310,20 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * not "how many may you have". Held to the machine's core count when a pool is built.
    */
   const workerBudget = ref(maxPoolSize());
+  /**
+   * Workers to use while this tab is in the BACKGROUND, 0 meaning "the same as in front".
+   *
+   * Nothing here ever pauses a run. What pauses one is the browser freezing a hidden tab, which a
+   * page cannot prevent. This is the other half: someone who switches away to work or play can have
+   * the search keep going at a lower draw instead of choosing between full speed and stopping it,
+   * and get full speed back the moment they return. Remembered per browser.
+   */
+  const backgroundWorkers = ref(readStoredCount(BACKGROUND_WORKERS_KEY));
+  watch(backgroundWorkers, n => writeStoredCount(BACKGROUND_WORKERS_KEY, n));
+  /** Whether this tab is hidden right now; tracked only while a run is going. */
+  const tabHidden = ref(false);
+  /** What the running pool should be sized to: the background count while hidden, if one is set. */
+  const targetWorkers = computed(() => targetWorkerCount(workerBudget.value, backgroundWorkers.value, tabHidden.value));
   /** Logical cores, for the panel to show alongside the knob. */
   const machineThreads = hardwareThreads();
   const workersInPool = ref(maxPoolSize());
@@ -436,15 +471,16 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     resizeTimer = null;
     if (!pool || !isRunning.value) return;
     const before = workersInPool.value;
-    const after = pool.resize(workerBudget.value);
+    const after = pool.resize(targetWorkers.value);
     if (after === before) return;
     bankWorkerTime();
     workersInPool.value = after;
-    runLog.value.push(`--- workers: ${before} -> ${after}`);
+    const why = tabHidden.value && backgroundWorkers.value > 0 ? ' (tab in the background)' : '';
+    runLog.value.push(`--- workers: ${before} -> ${after}${why}`);
     secondsPerChain.value = 0;
     noteRate(chainsDone.value, true);
   }
-  watch(workerBudget, () => {
+  watch(targetWorkers, () => {
     if (!pool || !isRunning.value) return;
     if (resizeTimer) clearTimeout(resizeTimer);
     resizeTimer = setTimeout(applyWorkerBudget, 400);
@@ -1936,6 +1972,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     holdRunLock();
     void holdScreenLock();
     document.addEventListener('visibilitychange', onVisibilityChange);
+    tabHidden.value = document.visibilityState === 'hidden';
     try {
       pool = await createChainSearchPool(startInputs, {
         size: workerBudget.value,
@@ -2192,6 +2229,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * it the one point where a save is worth paying for off-schedule.
    */
   function onVisibilityChange(): void {
+    tabHidden.value = document.visibilityState === 'hidden';
     if (!isRunning.value) return;
     if (document.visibilityState === 'hidden') void persist(liveCache, true);
     // Coming back into view is the only moment a screen lock can be taken again.
@@ -2288,6 +2326,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     holdRunLock();
     void holdScreenLock();
     document.addEventListener('visibilitychange', onVisibilityChange);
+    tabHidden.value = document.visibilityState === 'hidden';
     try {
       pool = await createChainSearchPool(startInputs, {
         size: workerBudget.value,
@@ -2551,6 +2590,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     benchmarkChainCount,
     resumable,
     keepAwake,
+    backgroundWorkers,
+    tabHidden,
     // derived
     progressFraction,
     secondsRemaining,

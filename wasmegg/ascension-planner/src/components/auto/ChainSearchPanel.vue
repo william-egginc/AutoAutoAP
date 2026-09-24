@@ -689,6 +689,8 @@
         </span>
       </label>
 
+      <BackgroundSpeed />
+
       <IntegrityNotice />
 
       <div
@@ -1590,6 +1592,7 @@ import { afterPaint } from '@/search/submission';
 import ChainSearchExplainer from './ChainSearchExplainer.vue';
 import HelpTip from './HelpTip.vue';
 import TimeOffEditor from './TimeOffEditor.vue';
+import BackgroundSpeed from './BackgroundSpeed.vue';
 import { describeCompute } from '@/utils/computeTime';
 import { useInitialStateStore } from '@/stores/initialState';
 import IntegrityNotice from './IntegrityNotice.vue';

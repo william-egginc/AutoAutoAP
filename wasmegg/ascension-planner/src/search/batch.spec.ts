@@ -3,7 +3,7 @@
  * a typed number and how many workers a machine is asked to run.
  */
 import { describe, expect, it } from 'vitest';
-import { clampPoolSize, maxPoolSize } from './batch';
+import { clampPoolSize, maxPoolSize, targetWorkerCount } from './batch';
 
 describe('clampPoolSize', () => {
   const withCores = (cores: number | undefined, run: () => void) => {
@@ -42,5 +42,18 @@ describe('clampPoolSize', () => {
 
   it('floors a fractional request instead of spawning a fraction of a worker', () => {
     withCores(8, () => expect(clampPoolSize(3.9)).toBe(3));
+  });
+});
+
+describe('targetWorkerCount', () => {
+  it('uses the full budget in front, and when no background count is set', () => {
+    expect(targetWorkerCount(9, 2, false)).toBe(9);
+    expect(targetWorkerCount(9, 0, true)).toBe(9);
+  });
+  it('drops to the background count while hidden', () => {
+    expect(targetWorkerCount(9, 2, true)).toBe(2);
+  });
+  it('never goes above the budget, even if the remembered background count is larger', () => {
+    expect(targetWorkerCount(3, 4, true)).toBe(3);
   });
 });

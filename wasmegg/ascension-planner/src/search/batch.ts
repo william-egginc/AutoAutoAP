@@ -107,3 +107,11 @@ export function splitByPrefix(chains: number[][], workers: number): number[][][]
   }
   return buckets.filter(b => b.length > 0);
 }
+
+/**
+ * Workers a running pool should have: the background count while the tab is hidden, when one is set
+ * (0 means "same as in front"), never more than the budget the player chose.
+ */
+export function targetWorkerCount(budget: number, background: number, hidden: boolean): number {
+  return hidden && background > 0 ? Math.min(background, budget) : budget;
+}
