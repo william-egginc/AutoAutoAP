@@ -57,7 +57,7 @@ import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useInitialStateStore } from '@/stores/initialState';
 import { formatUnixToDateInput, formatUnixToTimeInput } from '@/lib/format';
 import { getLocalTimestampInTimezone } from '@/lib/events';
-import { planStartDrift, formatDriftHours, DRIFT_TOLERANCE_HOURS } from '@/lib/planStartTime';
+import { describeSaveAge, siloSeconds } from '@/lib/saveAge';
 
 const { startDate, startTime, timezone } = storeToRefs(useAutoPlannerStore());
 const initialStateStore = useInitialStateStore();
@@ -96,40 +96,34 @@ const setStartTimeToNow = () => {
 };
 
 /**
- * Tell the user how the start time they are looking at relates to their backup.
+ * Tell the user how the start time they are looking at relates to their last sync.
  *
- * Auto-AP defaults the start to the backup's own instant so the farm state and the clock agree
- * (see `lib/planStartTime.ts`). Without a line saying so, a start time hours behind the wall clock
- * reads as a bug; and someone who presses "Now" is choosing to simulate a stale farm as a current
- * one, which is worth naming rather than leaving to be inferred from a date box.
+ * The start defaults to NOW and the farm is caught up from the sync to it, capped at what the silos
+ * hold (lib/saveAge.ts). Said out loud, because a caught-up farm is a prediction, and a save older
+ * than the silos means the sync is old or something was missed.
  */
 const backupHint = computed<{ text: string; class: string } | null>(() => {
-  const approxTime = initialStateStore.rawBackup?.approxTime;
   const chosen =
     startDate.value && startTime.value
       ? getLocalTimestampInTimezone(startDate.value, startTime.value, timezone.value)
       : null;
-
-  const drift = planStartDrift(typeof approxTime === 'number' ? approxTime : null, chosen);
-  if (drift === null) return null;
-
-  if (Math.abs(drift) < DRIFT_TOLERANCE_HOURS) {
-    return {
-      text: 'Matches your backup, so the farm being simulated and the clock agree.',
-      class: 'text-emerald-600',
-    };
-  }
-  if (drift < 0) {
-    return {
-      text: `Starts ${formatDriftHours(drift)} before your backup was taken, so the plan begins before the farm state it uses existed.`,
-      class: 'text-amber-600',
-    };
-  }
-  return {
-    text: `Starts ${formatDriftHours(drift)} after your backup was taken. The plan still uses the farm as it was at the backup, so anything you have earned since is not counted.`,
-    class: 'text-amber-600',
-  };
+  const note = describeSaveAge(saveSyncSeconds(), chosen, saveSiloSeconds());
+  if (!note) return null;
+  return { text: note.text, class: note.level === 'ok' ? 'text-emerald-600' : 'text-amber-600' };
 });
+
+/** The farm's own last sync when there is a virtue farm (what the catch-up runs from), else the backup's. */
+function saveSyncSeconds(): number | null {
+  const farm = initialStateStore.currentFarmState as { lastStepTime?: number } | null;
+  if (farm?.lastStepTime && farm.lastStepTime > 1e9) return farm.lastStepTime;
+  const approx = initialStateStore.rawBackup?.approxTime;
+  return typeof approx === 'number' ? approx : null;
+}
+
+function saveSiloSeconds(): number {
+  const farm = initialStateStore.currentFarmState as { numSilos?: number } | null;
+  return siloSeconds(farm?.numSilos, initialStateStore.epicResearchLevels?.['silo_capacity']);
+}
 
 const allTimezones = computed(() => {
   try {

@@ -75,6 +75,7 @@ import { createChainEvaluator } from '@/search/chain';
 import { CONTINUE_MAX_SECONDS, CONTINUE_PIN_MAX_SECONDS, CONTINUE_WARN_SECONDS, LAST_DATEABLE_SECONDS, integrityWaitSeconds } from '@/search/leg';
 import { INTEGRITY_BLOCK_SECONDS, INTEGRITY_WARN_SECONDS, describeDuration, integrityMessage, longContinueMessage } from '@/search/rules';
 import { describeTimeOff, timeOffWindows, usableTimeOff, type TimeOffDates } from '@/search/timeOff';
+import { describeSaveAge, siloSeconds } from '@/lib/saveAge';
 import { runChainSearch, type CacheEntry, type EvaluateBatch } from '@/search/driver';
 import { findStartingChain } from '@/search/coarse';
 import { EFFORT, EFFORT_ORDER, estimateChains } from '@/search/effort';
@@ -1665,6 +1666,16 @@ async function main() {
   // from here sits on its first Integrity shift. Printed every run; past an hour it is a warning,
   // past a week the run is refused -- the browser refuses too -- unless --allow-stall asks for the
   // numbers anyway, which is what studying a stalled account needs.
+  // The save's age against the plan start (src/lib/saveAge.ts): caught up at the current rate up to
+  // what the silos hold; past that the sync is old or something was missed.
+  {
+    const iss: any = useInitialStateStore();
+    const farm = iss.currentFarmState;
+    const sync = farm?.lastStepTime > 1e9 ? farm.lastStepTime : iss.rawBackup?.approxTime;
+    const note = describeSaveAge(sync, planStart, siloSeconds(farm?.numSilos, iss.epicResearchLevels?.silo_capacity));
+    if (note) (note.level === 'warning' ? console.warn : console.log)((note.level === 'warning' ? '\n  warning: ' : 'save: ') + note.text);
+  }
+
   const integrityWait = integrityWaitSeconds(inputs);
   // --integrity-only: print the check as seconds and stop (for sampling it across plan starts).
   if (has('integrity-only')) {

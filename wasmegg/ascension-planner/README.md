@@ -460,9 +460,11 @@ Policy, set 2026-09-24, in one module the page, the health checks and the CLI al
   collapses between legs is **flagged**: stored apart, shown on the Chain Explorer's flagged board, and
   anonymous to everyone except the browser that sent it (a random per-account code kept in
   localStorage; the collector stores only its hash).
-- **Stale saves.** Unchanged: the plan starts at the save's own time, and a later start is predicted
-  forward at the current lay rate (Joo's catch-up in `runContinueCurrent`), buying nothing in between.
-  Sync the game for the truest start.
+- **Stale saves** (`src/lib/saveAge.ts`). The plan starts **now** by default, and the farm is caught
+  up from its last sync to the start at its current rate (Joo's catch-up in `computeSnapshot` and
+  `runContinueCurrent`), buying nothing in between. The catch-up stops at what the **silos** hold (silo
+  count x Silo Capacity research), as the game caps time away, and a save older than that gets a
+  warning: the sync is old, or something was missed. The note under the start time says which.
 
 ### Time off from virtue (`--time-off`)
 

@@ -35,7 +35,8 @@ export interface HealthIssue {
     | 'te-mismatch'
     | 'rate-collapse'
     | 'slow-leg'
-    | 'long-continue';
+    | 'long-continue'
+    | 'save-past-silos';
   /** `error` means the numbers are probably wrong. `warning` means look before you trust them. */
   level: 'error' | 'warning';
   message: string;

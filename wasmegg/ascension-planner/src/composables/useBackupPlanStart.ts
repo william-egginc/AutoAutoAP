@@ -72,7 +72,7 @@ export function useBackupPlanStart(): void {
       // A backup arriving over an untouched placeholder replaces it outright, bypassing
       // `resolvePlanStart`'s "a later start is the player's choice" rule -- it was not a choice.
       if (usableBackup && untouched()) {
-        write(backupSeconds, false);
+        write(Math.max(Date.now() / 1000, backupSeconds), false);
         startDefaulted = true;
         return;
       }

@@ -6,8 +6,13 @@ const HOUR = 3600;
 const NOW = BACKUP + 5 * HOUR;
 
 describe('resolvePlanStart', () => {
-  it('defaults an empty form to the backup timestamp, not to now', () => {
-    expect(resolvePlanStart({ backupSeconds: BACKUP, currentSeconds: null, nowSeconds: NOW })).toBe(BACKUP);
+  // 2026-09-24: now, not the backup. The farm is caught up from the save to the start (lib/saveAge.ts).
+  it('defaults an empty form to now, with the farm caught up from the backup', () => {
+    expect(resolvePlanStart({ backupSeconds: BACKUP, currentSeconds: null, nowSeconds: NOW })).toBe(NOW);
+  });
+
+  it('never defaults to before the backup, even when the clock lags it', () => {
+    expect(resolvePlanStart({ backupSeconds: BACKUP, currentSeconds: null, nowSeconds: BACKUP - HOUR })).toBe(BACKUP);
   });
 
   it('falls back to now when no backup is loaded', () => {
@@ -18,7 +23,7 @@ describe('resolvePlanStart', () => {
     // The shape a stale cached form takes: yesterday's start against today's backup. Starting
     // there would simulate the farm before the state it is starting from existed.
     const stale = BACKUP - 26 * HOUR;
-    expect(resolvePlanStart({ backupSeconds: BACKUP, currentSeconds: stale, nowSeconds: NOW })).toBe(BACKUP);
+    expect(resolvePlanStart({ backupSeconds: BACKUP, currentSeconds: stale, nowSeconds: NOW })).toBe(NOW);
   });
 
   it('leaves a start after the backup alone', () => {

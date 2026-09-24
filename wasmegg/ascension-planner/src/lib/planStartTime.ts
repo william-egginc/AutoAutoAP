@@ -39,11 +39,14 @@ export interface PlanStartInput {
 export function resolvePlanStart({ backupSeconds, currentSeconds, nowSeconds }: PlanStartInput): number | null {
   const backup = isUsableTimestamp(backupSeconds) ? backupSeconds : null;
 
-  if (currentSeconds === null || !Number.isFinite(currentSeconds)) {
-    return backup ?? nowSeconds;
-  }
+  // NOW by default (2026-09-24): the farm is caught up from the save to the start (lib/saveAge.ts),
+  // so the plan describes the farm you have this minute. Never before the save, though -- a clock
+  // behind the backup's own stamp would ask the simulator to begin before its state existed.
+  const now = backup !== null ? Math.max(nowSeconds, backup) : nowSeconds;
+  if (currentSeconds === null || !Number.isFinite(currentSeconds)) return now;
   if (backup === null) return null;
-  return currentSeconds < backup ? backup : null;
+  // A start before the save is a stale cached form from an earlier visit, not a choice.
+  return currentSeconds < backup ? now : null;
 }
 
 /** Guards against the zero/negative/NaN that a backup missing `approx_time` decodes to. */

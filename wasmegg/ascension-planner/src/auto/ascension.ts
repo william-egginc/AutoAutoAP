@@ -1,5 +1,6 @@
 import { type Action, generateActionId } from '@/types/actions/meta';
 import { computeSnapshot } from '@/engine/compute';
+import { catchUpSeconds, siloSeconds } from '@/lib/saveAge';
 import { countTEThresholdsPassed, getThresholdForTE } from '@/lib/truthEggs';
 import { timeToEarnTE } from './te-thresholds';
 import { computeShiftCosts } from './se-tracker';
@@ -642,9 +643,14 @@ export function runContinueCurrent(
   // Catch-up: add eggs laid since the farm's last sync (lastStepTime) up to the plan
   // start, assuming a constant lay rate. Mirrors the guard in computeSnapshot —
   // lastStepTime > 1e9 distinguishes a real Unix timestamp from a 0-based sim offset.
+  // Capped at what the silos hold, as the game caps time away (lib/saveAge.ts).
   const lastSyncTime = actualStartState.lastStepTime;
   if (lastSyncTime > 1e9 && startTime > lastSyncTime) {
-    const elapsedSeconds = startTime - lastSyncTime;
+    const elapsedSeconds = catchUpSeconds(
+      lastSyncTime,
+      startTime,
+      siloSeconds(actualStartState.siloCount, context.epicResearchLevels?.['silo_capacity'])
+    );
     const catchUpEggs = currentELR * elapsedSeconds;
     const currentEgg = actualStartState.currentEgg;
     actualStartState.eggsDelivered[currentEgg] = (actualStartState.eggsDelivered[currentEgg] || 0) + catchUpEggs;

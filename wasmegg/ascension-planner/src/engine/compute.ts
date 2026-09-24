@@ -9,6 +9,7 @@ import type {
 } from '@/types';
 import { calculateArtifactModifiers } from '@/lib/artifacts';
 import { totalAwayTime } from '@/stores/silos';
+import { catchUpSeconds, siloSeconds } from '@/lib/saveAge';
 import { integrateRate } from './apply/math';
 
 import { calculateEggValue } from '@/calculations/eggValue';
@@ -154,7 +155,12 @@ export function computeSnapshot(
     !options.skipGrowth &&
     !options.freezePopulation
   ) {
-    const elapsedSeconds = context.ascensionStartTime - state.lastStepTime;
+    // Capped at what the silos hold, as the game caps time away (lib/saveAge.ts).
+    const elapsedSeconds = catchUpSeconds(
+      state.lastStepTime,
+      context.ascensionStartTime,
+      siloSeconds(state.siloCount, epicResearchLevels['silo_capacity'])
+    );
 
     // Accurate catch-up using integrated rate (accounts for population growth)
     extraEggs = integrateRate(

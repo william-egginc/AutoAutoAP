@@ -70,6 +70,7 @@ import {
   type SubmissionFlag,
 } from '@/search/rules';
 import { ownerToken } from '@/search/owner';
+import { describeSaveAge, siloSeconds } from '@/lib/saveAge';
 import { timeOffWindows, usableTimeOff, type TimeOffDates } from '@/search/timeOff';
 import { listRuns, saveRun, loadRun, deleteRun, defaultRunLabel, type RunSummary } from '@/search/runLibrary';
 import { epicResearchDefs } from '@/lib/epicResearch';
@@ -1151,11 +1152,25 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * before a run is literally what the run gets -- not a second, plausible-looking derivation that
    * can agree with the real one right up until the day it does not.
    */
+  /**
+   * The save's age against the plan start (lib/saveAge.ts): the farm is caught up to the start at
+   * its current rate, up to what its silos hold. Past that, the sync is old or something was missed.
+   */
+  const saveAgeNote = computed(() => {
+    const iss = useInitialStateStore();
+    const farm = iss.currentFarmState as { lastStepTime?: number; numSilos?: number } | null;
+    const approx = (iss.rawBackup as { approxTime?: number } | null)?.approxTime;
+    const sync = farm?.lastStepTime && farm.lastStepTime > 1e9 ? farm.lastStepTime : (approx ?? null);
+    return describeSaveAge(sync, planStart.value, siloSeconds(farm?.numSilos, iss.epicResearchLevels?.['silo_capacity']));
+  });
+
   const setupIssues = computed<HealthIssue[]>(() => {
     const blank = { artifacts: [], stones: [], delivery: [], earnings: [], currentTE: 0, backupTE: 0 };
     if (!getSimulationContext().rawBackup) return reviewSetup({ hasBackup: false, ...blank });
     const inv = readInventory();
-    return reviewSetup({
+    const stale: HealthIssue[] =
+      saveAgeNote.value?.level === 'warning' ? [{ kind: 'save-past-silos', level: 'warning', message: saveAgeNote.value.text }] : [];
+    return [...stale, ...reviewSetup({
       hasBackup: true,
       artifacts: inv.artifacts,
       stones: inv.stones,
@@ -1163,7 +1178,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       earnings: describeLoadoutSlots(inv.earnings),
       currentTE: currentTE.value,
       backupTE: backupTE.value,
-    });
+    })];
   });
 
   /**
@@ -1781,6 +1796,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const startInputs = collectInputs();
     const review = reviewRunInputs(startInputs);
     runNotes.value = review.filter(i => i.level === 'warning').map(i => i.message);
+    if (saveAgeNote.value?.level === 'warning') runNotes.value.push(saveAgeNote.value.text);
     const blocking = review.filter(i => i.level === 'error');
     if (blocking.length) {
       error.value = blocking[0].message;
@@ -2124,6 +2140,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const startInputs = collectInputs();
     const review = reviewRunInputs(startInputs);
     runNotes.value = review.filter(i => i.level === 'warning').map(i => i.message);
+    if (saveAgeNote.value?.level === 'warning') runNotes.value.push(saveAgeNote.value.text);
     const blocking = review.filter(i => i.level === 'error');
     if (blocking.length) {
       error.value = blocking[0].message;

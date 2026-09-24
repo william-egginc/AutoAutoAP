@@ -40,12 +40,15 @@ describe('useBackupPlanStart', () => {
     return { auto, initial };
   };
 
-  it('takes the backup timestamp when one is already loaded', () => {
+  it('starts now when a backup is already loaded, not at the backup', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime((BACKUP + 5 * 3600) * 1000);
     const { auto, initial } = setup();
     initial.rawBackup = { approxTime: BACKUP } as never;
     useBackupPlanStart();
-    expect(auto.startDate).toBe('2026-09-17');
-    expect(auto.startTime).toBe('21:21');
+    expect(auto.startDate).toBe('2026-09-18');
+    expect(auto.startTime).toBe('02:21');
+    vi.useRealTimers();
   });
 
   // The regression. Mounting before the backup arrives wrote "now" into the form; the backup then
@@ -57,10 +60,14 @@ describe('useBackupPlanStart', () => {
     const placeholder = { date: auto.startDate, time: auto.startTime };
     expect(placeholder.date).not.toBe('');
 
+    // Now, again, rather than the backup: the placeholder was not a choice, and the default is now.
+    vi.useFakeTimers();
+    vi.setSystemTime((BACKUP + 5 * 3600) * 1000);
     initial.rawBackup = { approxTime: BACKUP } as never;
     await nextTick();
-    expect(auto.startDate).toBe('2026-09-17');
-    expect(auto.startTime).toBe('21:21');
+    expect(auto.startDate).toBe('2026-09-18');
+    expect(auto.startTime).toBe('02:21');
+    vi.useRealTimers();
   });
 
   // The other half: a start the player typed is a decision, and "I will begin tomorrow morning" is
