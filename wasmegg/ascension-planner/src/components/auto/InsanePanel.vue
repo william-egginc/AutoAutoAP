@@ -100,9 +100,22 @@
         <label class="flex items-start gap-2 text-[11px] text-slate-700">
           <input v-model="sweepConsent" type="checkbox" class="mt-0.5 rounded border-indigo-300 text-indigo-600" />
           <span>
-            I understand this takes about <b>{{ estimateLabel }}</b>, and that this tab has to stay open (and the computer
-            awake) until it finishes.
+            I understand this takes about <b>{{ estimateLabel }}</b>, that this tab has to stay open (and the computer
+            awake) until it finishes, and that the result is then <b>sent to the board automatically</b>: the chain,
+            its timings and the full CSV, with my artifact inventory, timezone and local plan start, plus a random code
+            this browser keeps for the account (never my player ID).
           </span>
+        </label>
+        <label class="flex flex-wrap items-center gap-2 text-[11px] text-slate-700 pl-6">
+          Credit me as
+          <input
+            v-model="sweepName"
+            type="text"
+            maxlength="40"
+            placeholder="leave blank to stay anonymous"
+            :disabled="store.isRunning"
+            class="w-56 rounded-md border-indigo-200 text-[12px] text-slate-800 disabled:opacity-50"
+          />
         </label>
 
         <IntegrityNotice />
@@ -116,10 +129,27 @@
             {{ store.isRunning ? 'Running...' : 'Start this sweep' }}
           </button>
           <span class="text-[10px] text-slate-500">
-            This is the only button you need (the one further down does the same). When it finishes, press Submit
-            at the bottom: it is tagged as {{ sweepRequest.preset }} automatically. Submit only appears once the sweep
-            has found a chain that finishes.
+            One press is all it takes (the button further down does the same). When the sweep finishes, the result is
+            submitted by itself, tagged {{ sweepRequest.preset }}. Stop it early and nothing is sent; the Submit
+            section at the bottom is still there if you want to send a partial run by hand.
           </span>
+        </div>
+        <!-- The automatic submission, reported where the player pressed Start. -->
+        <div
+          v-if="autoSubmitted && submitMessage"
+          class="rounded-lg border px-3 py-2 text-[11px] space-y-2"
+          :class="!submitOk ? 'bg-red-50 border-red-200 text-red-800' : submitPartial ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-emerald-50 border-emerald-200 text-emerald-800'"
+        >
+          <p><b>Submitted automatically.</b> {{ submitMessage }}</p>
+          <button
+            v-if="store.pendingTable"
+            type="button"
+            :disabled="retryingTable"
+            class="px-3 py-1.5 rounded-lg border border-amber-300 text-amber-800 text-[10px] font-black uppercase tracking-widest hover:bg-amber-50 disabled:opacity-40"
+            @click="retryTable"
+          >
+            {{ retryingTable ? 'Retrying...' : 'Retry the table' }}
+          </button>
         </div>
         <!-- Said HERE as well as further down: the card's Start is at the top of a long page, and a
              refusal that only appears below the fold reads as "the button does nothing". -->
@@ -139,7 +169,9 @@
           <span v-for="n in store.runNotes" :key="n" class="block">{{ n }}</span>
         </p>
         <p v-else-if="store.isRunning" class="text-[11px] font-semibold text-indigo-700">
-          Running: progress is shown further down. Leave this tab open.
+          Running: progress is shown further down. Leave this tab open<template v-if="autoSubmitArmed"
+            >; the result is submitted automatically when it finishes</template
+          >.
         </p>
       </div>
 
@@ -1894,8 +1926,32 @@ function currentSpec(): {
   };
 }
 
+/**
+ * ONE CLICK for a sweep opened from the Chain Explorer: the card's checkbox is the consent to send,
+ * so pressing Start arms an automatic submission, and a run that finishes sends itself -- summary and
+ * CSV -- with no second visit to the bottom of the page. A run stopped early, one that failed, or one
+ * where nothing finished is not sent; the manual Submit section stays for those.
+ */
+const sweepName = ref('');
+const autoSubmitArmed = ref(false);
+const autoSubmitted = ref(false);
+
 async function start(): Promise<void> {
+  autoSubmitArmed.value = !!sweepRequest && sweepConsent.value;
+  autoSubmitted.value = false;
   await store.startExhaustive(props.playerId, currentSpec());
+  if (!autoSubmitArmed.value) return;
+  autoSubmitArmed.value = false;
+  if (store.stoppedEarly || store.error || store.bestDays <= 0) return;
+  const name = sweepName.value.trim();
+  anonymous.value = !name;
+  nickname.value = name;
+  nicknameTouched.value = true;
+  stampName.value = false;
+  includeCsv.value = true;
+  optIn.value = true;
+  autoSubmitted.value = true;
+  await submit();
 }
 
 async function benchmark(): Promise<void> {
