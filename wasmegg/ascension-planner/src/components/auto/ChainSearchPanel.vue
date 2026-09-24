@@ -678,11 +678,22 @@
 
       <IntegrityNotice />
 
+      <div
+        v-if="store.singleAscensionAsked && !store.isRunning"
+        class="p-3 rounded-xl border border-red-200 bg-red-50 text-[11px] text-red-800 leading-relaxed"
+      >
+        <span class="font-black uppercase tracking-wide">That's a single ascension.</span>
+        {{ store.finalTE }} on its own goes straight to the target, so there are no checkpoints for Chain Search to
+        look for. To plan that one ascension, use the classic Auto-AP above: type {{ store.finalTE }} in Target TE(s) and
+        press Generate plan. To search for a faster chain instead, give Starting chain some checkpoints (like
+        <span class="font-mono">200 250 300 {{ store.finalTE }}</span>), or tick "Find a starting chain for me".
+      </div>
+
       <!-- Run / stop -->
       <div class="flex gap-3">
         <button
           class="btn-premium btn-primary flex-1 py-4 text-sm shadow-xl shadow-emerald-500/20 active:scale-[0.98]"
-          :disabled="store.isRunning || store.integrityBlocked || (!store.findSeedFirst && store.seedChain.length < 2)"
+          :disabled="store.isRunning || store.integrityBlocked || store.singleAscensionAsked || (!store.findSeedFirst && store.seedChain.length < 2)"
           @click="run(false)"
         >
           {{ store.isRunning ? 'Searching...' : 'Start search' }}

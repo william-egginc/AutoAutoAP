@@ -644,6 +644,22 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     });
   });
 
+  /**
+   * True when what was typed is nothing but the final target (or beyond it): a single ascension
+   * straight to the end, which is not a chain to search. The seed builder above would quietly swap
+   * in a chain of its own, so the run searched something nobody asked for; now the panel refuses
+   * and points at the classic Auto-AP, which plans exactly that one ascension.
+   */
+  const singleAscensionAsked = computed(() => {
+    const raw = (seedOverride.value.trim() || useAutoPlannerStore().targetTE || '')
+      .trim()
+      .split(/\s+/)
+      .map(Number)
+      .filter(n => Number.isFinite(n) && n > 0);
+    // "Find a starting chain for me" ignores what was typed, so there is nothing to refuse then.
+    return !findSeedFirst.value && raw.length > 0 && raw.every(n => n >= finalTE.value);
+  });
+
   /** Why the current seed cannot produce an answer inside the Limits box, or null when it can.
    *  Probe-aware: on Quick and Balanced nothing in the run changes the seed's length at all. */
   const seedIssue = computed(() =>
@@ -1445,7 +1461,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   async function postTable(): Promise<{ ok: boolean; message: string }> {
     const table = pendingTable.value;
     if (!table) return { ok: false, message: 'there is no table waiting to be sent' };
-    const mb = (table.body.byteLength / 1024 / 1024).toFixed(1);
+    // KB under a tenth of a megabyte: a small sweep's table read "0.0 MB", which looks like nothing was sent.
+    const kb = table.body.byteLength / 1024;
+    const mb = kb < 100 ? `${Math.max(1, Math.round(kb))} KB` : `${(kb / 1024).toFixed(1)} MB`;
     let res: Response;
     try {
       res = await fetch(table.url, {
@@ -1466,7 +1484,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     }
     if (res.ok) {
       pendingTable.value = null;
-      return { ok: true, message: `sent, with the full CSV (${mb} MB compressed)` };
+      return { ok: true, message: `sent, with the full CSV (${mb} compressed)` };
     }
     if (res.status === 409) {
       // Stored already -- most likely an earlier attempt that landed but whose answer was lost.
@@ -2107,6 +2125,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
 
   async function start(playerId: string, options: { resume?: boolean } = {}): Promise<void> {
     if (isRunning.value) return;
+    if (singleAscensionAsked.value && !options.resume) return;
     currentPlayerId = playerId;
 
     error.value = null;
@@ -2498,6 +2517,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     resultContradictions,
     continueWarning,
     integrityWait,
+    singleAscensionAsked,
     integrityChecking,
     integrityNotice,
     integrityBlocked,
