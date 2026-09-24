@@ -3,12 +3,14 @@
   composables/useNewVersion.ts. No store, so it works on the Explorer page too.
 -->
 <template>
-  <!-- Floating, so it is seen wherever the page is scrolled to: a long run keeps people at the
-       results, far below where an inline banner at the top would sit. "Later" hides it for ten
+  <!-- Floating at the top of the screen, so it is seen wherever the page is scrolled to: a long run
+       keeps people at the results, far below where an inline banner would sit. A heavy border and
+       a dark drop shadow, because the page is full of pale amber notices and a floating banner in
+       the same colours disappears into whichever one it is passing over. "Later" hides it for ten
        minutes, never for good -- the tab is still running old code. -->
   <div
     v-if="available && !hidden"
-    class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-[min(94vw,52rem)] flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-300 bg-amber-50/95 backdrop-blur px-4 py-3 text-amber-900 shadow-xl shadow-amber-900/10"
+    class="fixed top-3 left-1/2 -translate-x-1/2 z-50 w-[min(94vw,52rem)] flex flex-wrap items-center justify-between gap-2 rounded-xl border-2 border-amber-500 bg-amber-50 px-4 py-3 text-amber-900 shadow-[0_12px_32px_rgba(0,0,0,0.35)] ring-4 ring-black/5"
     role="status"
   >
     <span class="text-[12px] font-semibold flex-1 min-w-[14rem]">
