@@ -42,10 +42,18 @@ function short(seconds: number): string {
 export function describeSaveAge(
   syncSeconds: number | null | undefined,
   startSeconds: number | null | undefined,
-  silo: number
+  silo: number,
+  /** False when the save has no virtue farm in progress: nothing is caught up, so silos do not apply. */
+  hasVirtueFarm = true
 ): SaveAgeNote | null {
   if (!syncSeconds || !(syncSeconds > 1e9) || !startSeconds || !Number.isFinite(startSeconds)) return null;
   const gap = startSeconds - syncSeconds;
+  if (!hasVirtueFarm && gap >= 15 * 60) {
+    return {
+      level: 'ok',
+      text: `Your save is ${short(gap)} old and has no virtue farm in progress, so there is nothing to catch up: the plan starts with a fresh ascension.`,
+    };
+  }
   const silos = formatSiloTime(Math.round(silo / 60));
   if (Math.abs(gap) < 15 * 60) {
     return { level: 'ok', text: 'Starts at your last sync, so the farm being simulated and the clock agree.' };

@@ -1672,7 +1672,7 @@ async function main() {
     const iss: any = useInitialStateStore();
     const farm = iss.currentFarmState;
     const sync = farm?.lastStepTime > 1e9 ? farm.lastStepTime : iss.rawBackup?.approxTime;
-    const note = describeSaveAge(sync, planStart, siloSeconds(farm?.numSilos, iss.epicResearchLevels?.silo_capacity));
+    const note = describeSaveAge(sync, planStart, siloSeconds(farm?.numSilos, iss.epicResearchLevels?.silo_capacity), !!farm);
     if (note) (note.level === 'warning' ? console.warn : console.log)((note.level === 'warning' ? '\n  warning: ' : 'save: ') + note.text);
   }
 

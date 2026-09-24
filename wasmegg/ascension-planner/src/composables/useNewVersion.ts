@@ -14,10 +14,12 @@
  * OFFLINE IS NOT AN ERROR. A failed fetch is ignored and tried again next time; nothing here may
  * interrupt a run that is still going.
  *
- * HOW OFTEN, AND WHY SO RARELY. One check is the page's HTML: ~1.2 KB (0.5 KB compressed) plus
- * headers. The useful moment is when someone comes BACK to the tab, so that always checks, as does
- * coming back online. Beyond that, once every 30 minutes and only while the tab is visible -- a
- * phone in a pocket spends nothing. At a 5-minute poll an all-day tab cost ~0.5 MB for no benefit.
+ * HOW OFTEN. One check is the page's HTML: ~1.2 KB (0.5 KB compressed) plus headers. The useful
+ * moment is when someone comes BACK to the tab, so that always checks, as does coming back online.
+ * Beyond that it depends on the device (2026-09-24): every 5 minutes on a desktop, where a long run
+ * sits open all day on a flat-rate connection, and every 30 on a phone or tablet -- or anything
+ * with data saver on -- where the same all-day tab at 5 minutes would spend ~0.5 MB of mobile data
+ * for nothing. Only ever while the tab is visible, so a phone in a pocket spends nothing.
  */
 import { onMounted, onUnmounted, ref } from 'vue';
 
@@ -35,7 +37,32 @@ export function isNewerBuild(liveHtml: string, loadedSrc: string | null, entry: 
   return !!loaded && !!live && loaded !== live;
 }
 
-const CHECK_EVERY_MS = 30 * 60 * 1000;
+/** The navigator fields the device guess reads; a parameter so the tests can supply their own. */
+export interface DeviceHints {
+  userAgent?: string;
+  platform?: string;
+  maxTouchPoints?: number;
+  userAgentData?: { mobile?: boolean };
+  connection?: { saveData?: boolean };
+}
+
+/**
+ * A phone or tablet, or anything asking to save data. The browser's own answer
+ * (`userAgentData.mobile`, Chromium) wins when there is one; otherwise the user agent, plus the one
+ * case it hides: an iPad reports itself as a Mac, and gives itself away with touch points.
+ */
+export function isMobileLike(nav: DeviceHints | undefined = typeof navigator === 'undefined' ? undefined : (navigator as DeviceHints)): boolean {
+  if (!nav) return false;
+  if (nav.connection?.saveData) return true;
+  if (typeof nav.userAgentData?.mobile === 'boolean' && nav.userAgentData.mobile) return true;
+  if (/Android|iPhone|iPad|iPod|Mobile/i.test(nav.userAgent ?? '')) return true;
+  return nav.platform === 'MacIntel' && (nav.maxTouchPoints ?? 0) > 1;
+}
+
+/** How often a visible tab checks for a new build. */
+export function checkEveryMs(mobile: boolean): number {
+  return (mobile ? 30 : 5) * 60 * 1000;
+}
 
 /**
  * `available` turns true once a newer build is live. `pageUrl` is the HTML to re-fetch (relative to
@@ -70,7 +97,7 @@ export function useNewVersion(pageUrl: string, entry: string) {
 
   onMounted(() => {
     if (!loadedSrc) return;
-    timer = setInterval(() => void check(), CHECK_EVERY_MS);
+    timer = setInterval(() => void check(), checkEveryMs(isMobileLike()));
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('online', onVisible);
   });

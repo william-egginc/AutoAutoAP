@@ -319,7 +319,8 @@ itself is served from one machine: if that machine goes down, open tabs keep run
 submissions still land, because they go straight to the collector on Cloudflare.
 
 **The new-version check** re-fetches the page's HTML (about 1-2 KB) when the tab comes back into
-view or back online, and otherwise every 30 minutes while visible, and compares the hashed entry
+view or back online, and otherwise while visible every 5 minutes on a desktop or every 30 on a phone,
+tablet or data-saver connection, and compares the hashed entry
 script against the one the tab loaded (`src/composables/useNewVersion.ts`).
 
 ### The older Python driver

@@ -40,6 +40,13 @@ describe('what the player is told', () => {
     expect(note.text).toMatch(/something was missed/);
   });
 
+  it('does not talk about silos for a save with no virtue farm, since nothing is caught up', () => {
+    const note = describeSaveAge(SYNC, SYNC + 72 * H, 3 * H, false)!;
+    expect(note.level).toBe('ok');
+    expect(note.text).toMatch(/nothing to catch up/);
+    expect(note.text).not.toMatch(/silos/);
+  });
+
   it('says nothing without a save to compare with', () => {
     expect(describeSaveAge(null, SYNC, 12 * H)).toBeNull();
     expect(describeSaveAge(0, SYNC, 12 * H)).toBeNull();

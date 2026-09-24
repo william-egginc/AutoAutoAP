@@ -1161,7 +1161,12 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const farm = iss.currentFarmState as { lastStepTime?: number; numSilos?: number } | null;
     const approx = (iss.rawBackup as { approxTime?: number } | null)?.approxTime;
     const sync = farm?.lastStepTime && farm.lastStepTime > 1e9 ? farm.lastStepTime : (approx ?? null);
-    return describeSaveAge(sync, planStart.value, siloSeconds(farm?.numSilos, iss.epicResearchLevels?.['silo_capacity']));
+    return describeSaveAge(
+      sync,
+      planStart.value,
+      siloSeconds(farm?.numSilos, iss.epicResearchLevels?.['silo_capacity']),
+      !!farm
+    );
   });
 
   const setupIssues = computed<HealthIssue[]>(() => {

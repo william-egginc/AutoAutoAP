@@ -107,7 +107,7 @@ const backupHint = computed<{ text: string; class: string } | null>(() => {
     startDate.value && startTime.value
       ? getLocalTimestampInTimezone(startDate.value, startTime.value, timezone.value)
       : null;
-  const note = describeSaveAge(saveSyncSeconds(), chosen, saveSiloSeconds());
+  const note = describeSaveAge(saveSyncSeconds(), chosen, saveSiloSeconds(), !!initialStateStore.currentFarmState);
   if (!note) return null;
   return { text: note.text, class: note.level === 'ok' ? 'text-emerald-600' : 'text-amber-600' };
 });
