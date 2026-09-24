@@ -1076,8 +1076,11 @@
         <div class="h-1.5 rounded-full bg-slate-100 overflow-hidden">
           <div class="h-full bg-rose-500 transition-all" :style="{ width: `${Math.round(livePercent)}%` }"></div>
         </div>
-        <div v-if="store.secondsPerChain > 0" class="text-[10px] text-slate-400 tabular-nums">
-          {{ store.secondsPerChain.toFixed(2) }} s/chain measured here
+        <div v-if="store.secondsPerChain > 0 || store.runCost" class="text-[10px] text-slate-400 tabular-nums">
+          <template v-if="store.secondsPerChain > 0">{{ store.secondsPerChain.toFixed(2) }} s/chain measured here</template>
+          <template v-if="!store.isRunning && store.runCost">
+            · took {{ describeCompute(store.runCost.minutes, store.runCost.workers) }}</template
+          >
         </div>
       </div>
 
@@ -1392,6 +1395,7 @@ import { MAX_RUNS } from '@/search/runLibrary';
 import SearchShapeChart from './charts/SearchShapeChart.vue';
 import HelpTip from './HelpTip.vue';
 import TimeOffEditor from './TimeOffEditor.vue';
+import { describeCompute } from '@/utils/computeTime';
 import IntegrityNotice from './IntegrityNotice.vue';
 import { useInitialStateStore } from '@/stores/initialState';
 import { usableTimeOff } from '@/search/timeOff';

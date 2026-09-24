@@ -61,7 +61,10 @@ export function isMobileLike(nav: DeviceHints | undefined = typeof navigator ===
 
 /** How often a visible tab checks for a new build. */
 export function checkEveryMs(mobile: boolean): number {
-  return (mobile ? 30 : 5) * 60 * 1000;
+  // TEMPORARY (2026-09-24): 30 seconds everywhere while testing the banner with a tester. Revert to
+  // `(mobile ? 30 : 5) * 60 * 1000` -- the next commit after testing should restore it.
+  void mobile;
+  return 30 * 1000;
 }
 
 /**

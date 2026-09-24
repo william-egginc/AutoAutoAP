@@ -734,13 +734,13 @@
           </p>
           <div class="flex items-center justify-between text-[10px] text-slate-400 font-bold mt-1.5">
             <span>{{ store.detail }}</span>
-            <span v-if="store.secondsPerChain > 0">
-              <template v-if="store.isRunning"
-                >~{{ formatDuration(store.secondsRemaining) }} left ({{ store.secondsPerChain.toFixed(1) }} s/chain
-                here)</template
-              >
-            </span>
-            <span v-else>timing the first batch...</span>
+            <span v-if="store.isRunning && store.secondsPerChain > 0"
+              >~{{ formatDuration(store.secondsRemaining) }} left ({{ store.secondsPerChain.toFixed(1) }} s/chain
+              here)</span
+            >
+            <span v-else-if="store.isRunning">timing the first batch...</span>
+            <!-- A finished run used to keep saying "timing the first batch..." here. -->
+            <span v-else-if="store.runCost">took {{ describeCompute(store.runCost.minutes, store.runCost.workers) }}</span>
           </div>
         </div>
 
@@ -1513,6 +1513,7 @@ import { afterPaint } from '@/search/submission';
 import ChainSearchExplainer from './ChainSearchExplainer.vue';
 import HelpTip from './HelpTip.vue';
 import TimeOffEditor from './TimeOffEditor.vue';
+import { describeCompute } from '@/utils/computeTime';
 import { useInitialStateStore } from '@/stores/initialState';
 import IntegrityNotice from './IntegrityNotice.vue';
 import LoadoutDisplay from './LoadoutDisplay.vue';

@@ -26,9 +26,10 @@ describe('new-version check', () => {
 });
 
 describe('how often it checks', () => {
-  it('checks every 5 minutes on a desktop and every 30 on a phone', () => {
-    expect(checkEveryMs(false)).toBe(5 * 60 * 1000);
-    expect(checkEveryMs(true)).toBe(30 * 60 * 1000);
+  // TEMPORARY: 30 s while testing the banner; restore 5 min desktop / 30 min phone afterwards.
+  it('checks every 30 seconds while the banner is being tested', () => {
+    expect(checkEveryMs(false)).toBe(30 * 1000);
+    expect(checkEveryMs(true)).toBe(30 * 1000);
   });
 
   it('tells phones and tablets from desktops', () => {

@@ -72,7 +72,13 @@
             <p v-else-if="error" class="text-sm font-bold text-rose-700">{{ error }}</p>
             <p v-else class="text-sm font-bold text-slate-700">
               {{ usable.length.toLocaleString() }} runs · {{ accounts.length }} accounts ·
-              {{ totalChainsPriced.toLocaleString() }} chains priced between them
+              {{ totalChainsPriced.toLocaleString() }} chains priced between them<template v-if="computeTotal.runs">
+                · {{ formatMinutes(computeTotal.minutes) }} of computing</template
+              >
+            </p>
+            <p v-if="!loading && computeTotal.runs" class="text-[11px] text-slate-500">
+              Worker time from the {{ computeTotal.runs }} run{{ computeTotal.runs === 1 ? '' : 's' }} that recorded it
+              (minutes x workers); runs from older versions and from uploads did not.
             </p>
             <p v-if="!loading && (dupeIds.size || flagged.size)" class="text-[11px] text-slate-500">
               <template v-if="dupeIds.size">{{ dupeIds.size }} exact duplicate{{ dupeIds.size === 1 ? '' : 's' }} hidden. </template>
@@ -233,6 +239,7 @@
                     <th class="text-right py-1 pr-3">Days</th>
                     <th class="text-left py-1 pr-3">Effort</th>
                     <th class="text-right py-1 pr-3">Priced</th>
+                    <th class="text-right py-1 pr-3">Compute</th>
                     <th class="text-left py-1">Full table</th>
                   </tr>
                 </thead>
@@ -265,6 +272,12 @@
                       <span v-else class="text-slate-500">{{ row.effort }}</span>
                     </td>
                     <td class="py-1.5 pr-3 text-right text-slate-500">{{ row.chainsPriced.toLocaleString() }}</td>
+                    <td
+                      class="py-1.5 pr-3 text-right text-slate-500 whitespace-nowrap"
+                      :title="row.run ? describeCompute(row.run.minutes, row.run.workers) : 'not recorded'"
+                    >
+                      {{ row.run ? `${formatMinutes(row.run.minutes)} × ${row.run.workers ?? 1}` : '—' }}
+                    </td>
                     <td class="py-1.5">
                       <button
                         v-if="row.hasCsv"
@@ -441,6 +454,7 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import SearchShapeChart from '@/components/auto/charts/SearchShapeChart.vue';
 import type { PricedChain } from '@/search/types';
+import { describeCompute, formatMinutes } from '@/utils/computeTime';
 import CountShapeChart from './CountShapeChart.vue';
 import LegProfileChart from './LegProfileChart.vue';
 import CountCompareChart from './CountCompareChart.vue';
@@ -614,6 +628,17 @@ const accountColors = computed(() => {
 const accountLabels = computed(() => new Map(accounts.value.map(a => [a.key, a.label])));
 
 const totalChainsPriced = computed(() => usable.value.reduce((n, r) => n + (r.chainsPriced || 0), 0));
+/** Worker time across the runs that recorded their cost: wall-clock minutes x workers, summed. */
+const computeTotal = computed(() => {
+  let minutes = 0;
+  let runs = 0;
+  for (const r of usable.value) {
+    if (!r.run || !Number.isFinite(r.run.minutes)) continue;
+    minutes += r.run.minutes * (r.run.workers || 1);
+    runs++;
+  }
+  return { minutes, runs };
+});
 
 const countGroups = computed(() => groupByCount(filtered.value));
 
