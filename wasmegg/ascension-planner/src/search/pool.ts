@@ -25,7 +25,7 @@
  */
 import { sanitizeLongs } from '@/lib/artifacts/utils';
 import { sortChainsDepthFirst } from './chain';
-import { clampPoolSize, maxPoolSize, splitByPrefix, workersForBatch } from './batch';
+import { clampPoolSize, hardwareThreads, maxPoolSize, splitByPrefix, workersForBatch } from './batch';
 import type { ChainResult, SearchInputs } from './types';
 import type { EvaluateResultMessage, WorkerRequest, WorkerResponse } from '@/workers/chainSearch.protocol';
 
@@ -103,7 +103,8 @@ export interface PoolOptions {
 }
 
 export interface ChainSearchPool {
-  /** Upper bound on workers. Workers are spawned lazily, so this is a ceiling, not a headcount. */
+  /** Upper bound on workers. Workers are spawned lazily, so this is a ceiling, not a headcount.
+   *  Changes with `resize`. */
   readonly size: number;
   /** How many workers actually exist right now. */
   readonly spawned: number;
@@ -116,13 +117,26 @@ export interface ChainSearchPool {
   /** The integrity check (search/rules.ts), run on the first worker against the pool's own inputs:
    *  how long a fresh ascension from the plan start sits on its first Integrity shift. */
   integrityWait(): Promise<number | null>;
+  /**
+   * Change the worker ceiling while a run is going. Held to [1, logical cores] like `size`, and
+   * returns the size it settled on.
+   *
+   * It never interrupts a batch in flight: a worker mid-request keeps its chains, because killing
+   * it would throw away work and its warm prefix memo. So a new size takes effect at the NEXT
+   * batch -- more workers spawn then, and workers above a smaller size are terminated as soon as
+   * they are idle (at once if they already are, otherwise when the batch they are on returns),
+   * which is what hands their memory and cores back.
+   */
+  resize(n: number): number;
   terminate(): void;
 }
 
 export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOptions = {}): Promise<ChainSearchPool> {
   // Caller's choice, held to what the machine has. Unset means the default -- one per core less one
   // for the main thread -- which is what this always did.
-  const size = opts.size === undefined ? maxPoolSize() : clampPoolSize(opts.size);
+  let size = opts.size === undefined ? maxPoolSize() : clampPoolSize(opts.size);
+  // Slots for every worker the machine could hold, so `resize` can grow without reallocating.
+  const cap = Math.max(size, hardwareThreads());
   const stallMs = opts.stallMs ?? STALL_MS;
   const now = opts.now ?? (() => Date.now());
   let nextRequestId = 0;
@@ -139,8 +153,8 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
   // backup by the init broadcast below. Stages 4-7 run 13-17 chain batches that `workersForBatch`
   // only ever wants 4-7 workers for, so most of that memory was allocated and never used, and the
   // tab is what paid for it.
-  const live: (PoolWorker | null)[] = Array.from({ length: size }, () => null);
-  const spawning: (Promise<PoolWorker> | null)[] = Array.from({ length: size }, () => null);
+  const live: (PoolWorker | null)[] = Array.from({ length: cap }, () => null);
+  const spawning: (Promise<PoolWorker> | null)[] = Array.from({ length: cap }, () => null);
 
   function makeWorker(index: number): PoolWorker {
     const worker = opts.spawn
@@ -307,12 +321,26 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
     return p;
   }
 
+  /** Terminate idle workers above the current size. A busy one is left to finish; `evaluate` calls
+   *  this again once its batch returns. */
+  function retireAboveSize(): void {
+    for (let i = size; i < cap; i++) {
+      const pw = live[i];
+      if (!pw || pw.pending.size) continue;
+      pw.worker.terminate();
+      live[i] = null;
+      spawning[i] = null;
+    }
+  }
+
   // One worker eagerly, so a broken worker bundle or a structured-clone failure on the inputs
   // throws HERE, when the user presses Start, instead of surfacing mid-run an hour later.
   await workerAt(0);
 
   return {
-    size,
+    get size(): number {
+      return size;
+    },
     get spawned(): number {
       return live.reduce((n, pw) => n + (pw ? 1 : 0), 0);
     },
@@ -363,6 +391,7 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
         return { results, legSims, workersUsed: buckets.length };
       } finally {
         onProgress = null;
+        if (!terminated) retireAboveSize();
       }
     },
 
@@ -372,6 +401,13 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
         seconds: number | null;
       };
       return reply.seconds;
+    },
+
+    resize(n: number): number {
+      if (terminated) return size;
+      size = Math.min(cap, clampPoolSize(n));
+      retireAboveSize();
+      return size;
     },
 
     terminate(): void {

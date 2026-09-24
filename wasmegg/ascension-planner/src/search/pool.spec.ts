@@ -17,6 +17,8 @@ import type { WorkerRequest, WorkerResponse } from '@/workers/chainSearch.protoc
 vi.mock('@/lib/artifacts/utils', () => ({ sanitizeLongs: <T>(v: T) => v }));
 vi.mock('./batch', () => ({
   maxPoolSize: () => 2,
+  hardwareThreads: () => 4,
+  clampPoolSize: (n: number) => Math.max(1, Math.min(4, Math.floor(n))),
   workersForBatch: (batch: number, pool: number) => Math.min(pool, Math.max(1, batch)),
   splitByPrefix: (chains: number[][], workers: number) => {
     const buckets: number[][][] = Array.from({ length: workers }, () => []);
@@ -32,7 +34,9 @@ class FakeWorker {
   terminated = false;
   static instances: FakeWorker[] = [];
   /** 'ok' replies; 'silent' answers init then never speaks again; 'heartbeat' only heartbeats. */
-  mode: 'ok' | 'silent' | 'heartbeat' = 'ok';
+  mode: 'ok' | 'silent' | 'heartbeat' | 'hold' = 'ok';
+  /** In 'hold' mode, the evaluate it is sitting on until `release()`. */
+  held: Extract<WorkerRequest, { kind: 'evaluate' }> | null = null;
 
   constructor() {
     FakeWorker.instances.push(this);
@@ -56,6 +60,22 @@ class FakeWorker {
       this.emit({ type: 'progress', requestId: msg.requestId, done: i + 1, total: msg.chains.length });
     }
     if (this.mode === 'heartbeat') return;
+    if (this.mode === 'hold') {
+      this.held = msg;
+      return;
+    }
+    this.reply(msg);
+  }
+
+  /** Answer the held evaluate, as a worker finishing its chains would. */
+  release(): void {
+    const msg = this.held;
+    this.held = null;
+    this.mode = 'ok';
+    if (msg) this.reply(msg);
+  }
+
+  private reply(msg: Extract<WorkerRequest, { kind: 'evaluate' }>): void {
     this.emit({
       type: 'result',
       requestId: msg.requestId,
@@ -294,3 +314,59 @@ describe('the integrity check', () => {
   });
 });
 
+describe('resizing while a run is going', () => {
+  const batch = (n: number) => Array.from({ length: n }, (_, i) => [200 + i, 490]);
+  const alive = () => FakeWorker.instances.filter(w => !w.terminated).length;
+
+  it('uses more workers from the next batch once grown', async () => {
+    const pool = await makePool();
+    await pool.evaluate(batch(8));
+    expect(alive()).toBe(2);
+    expect(pool.resize(4)).toBe(4);
+    expect(pool.size).toBe(4);
+    const out = await pool.evaluate(batch(8));
+    expect(out.workersUsed).toBe(4);
+    expect(alive()).toBe(4);
+    pool.terminate();
+  });
+
+  it('holds a request to the machine, like the starting size', async () => {
+    const pool = await makePool();
+    expect(pool.resize(64)).toBe(4);
+    expect(pool.resize(0)).toBe(1);
+    pool.terminate();
+  });
+
+  it('terminates idle workers above a smaller size at once, handing their memory back', async () => {
+    const pool = await makePool();
+    pool.resize(4);
+    await pool.evaluate(batch(8));
+    expect(alive()).toBe(4);
+    pool.resize(1);
+    expect(alive()).toBe(1);
+    expect(pool.spawned).toBe(1);
+    const out = await pool.evaluate(batch(8));
+    expect(out.workersUsed).toBe(1);
+    expect(out.results).toHaveLength(8);
+    pool.terminate();
+  });
+
+  it('lets a busy worker finish its chains before it goes', async () => {
+    const pool = await makePool(10 * 60 * 1000);
+    await pool.evaluate(batch(4)); // spawns both workers
+    const second = FakeWorker.instances[1];
+    second.mode = 'hold';
+    const running = pool.evaluate(batch(4));
+    await vi.advanceTimersByTimeAsync(0);
+
+    pool.resize(1);
+    expect(second.terminated).toBe(false); // mid-request: its chains are not thrown away
+
+    second.release();
+    const out = await running;
+    expect(out.results).toHaveLength(4); // every chain came back, the busy worker's included
+    expect(second.terminated).toBe(true); // and then it went
+    expect(pool.spawned).toBe(1);
+    pool.terminate();
+  });
+});

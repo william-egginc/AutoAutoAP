@@ -88,12 +88,13 @@
             min="1"
             :max="store.machineThreads"
             :value="store.workerBudget"
-            :disabled="store.isRunning"
             class="w-full accent-indigo-600"
             @input="setWorkers(($event.target as HTMLInputElement).value)"
           />
           <span class="block text-[10px] text-slate-500">
             Fewer keeps the computer usable and quieter; more finishes sooner. The estimate above follows the slider.
+            You can move it during a run too: the change takes effect within about a minute, and no chain in progress
+            is lost.
           </span>
         </label>
 
@@ -657,10 +658,13 @@
               type="number"
               min="1"
               :max="store.machineThreads"
-              :disabled="store.isRunning"
-              class="w-full rounded-lg border-slate-200 text-sm font-bold text-slate-800 disabled:bg-slate-50 disabled:text-slate-500"
+              class="w-full rounded-lg border-slate-200 text-sm font-bold text-slate-800"
               @change="setWorkers(($event.target as HTMLInputElement).value)"
             />
+            <span v-if="store.isRunning" class="block text-[10px] text-slate-500">
+              Changes apply to the running search from its next batch; workers above a lower count stop once the chains
+              they are on are done.
+            </span>
           </label>
         </div>
 

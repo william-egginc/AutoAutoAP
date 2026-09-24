@@ -257,6 +257,14 @@ last core, and asking for more than your core count buys nothing, since the work
 and would only take turns. Each worker also gets its own heap on top of the tab's, which is part
 of why the worker count is a memory decision as well as a speed one.
 
+**The worker count can change during a run.** Move the slider (or the Workers field) while a
+search is going and the running pool follows: extra workers join from the next batch, and workers
+above a lower count stop as soon as the chains they are on are done, so nothing in progress is
+lost. An Insane sweep's batches are about a minute long, so that is how soon it takes effect; in a
+staged search one wide stage can be a single long batch. The run log notes each change, the speed
+estimate re-measures from it, and the run's reported cost uses the time-weighted average worker
+count rather than whatever the slider ended on.
+
 **The machine sleeping.** A suspended machine stops everything, workers included — the run
 resumes from its checkpoint when you come back, and `onSuspend` reports the gap in the run log
 rather than pretending the hours happened. While the tab is visible the run takes a **Screen Wake
@@ -318,10 +326,13 @@ loading the save, starting workers (their code is downloaded then), and submitti
 itself is served from one machine: if that machine goes down, open tabs keep running and
 submissions still land, because they go straight to the collector on Cloudflare.
 
-**The new-version check** re-fetches the page's HTML (about 1-2 KB) when the tab comes back into
-view or back online, and otherwise while visible every 5 minutes on a desktop or every 30 on a phone,
-tablet or data-saver connection, and compares the hashed entry
-script against the one the tab loaded (`src/composables/useNewVersion.ts`).
+**The new-version check** fetches `version.json` (about 90 bytes, written by the build: each
+page's hashed entry script) when the tab comes back into view or back online, and otherwise while
+visible every minute on a desktop or every 5 on a phone, tablet or data-saver connection. Open tabs
+share one check over a BroadcastChannel, so ten tabs cost one request and all show the banner
+together. A rebuild that changed no code writes the same file, so nobody is told to reload for
+nothing. A host without the file falls back to comparing the page's HTML
+(`src/composables/useNewVersion.ts`).
 
 ### The older Python driver
 

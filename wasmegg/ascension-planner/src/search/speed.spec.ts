@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fallbackWorkerSeconds, measuredWorkerSeconds, sweepSeconds, workerSecondsOf, workerSecondsPerChain } from './speed';
+import { fallbackWorkerSeconds, measuredWorkerSeconds, sweepSeconds, workerSecondsOf, workerSecondsPerChain, timeWeightedWorkers } from './speed';
 
 describe('sweep speed', () => {
   it('reads worker-seconds per chain off a run: minutes x 60 x workers / chains', () => {
@@ -29,5 +29,21 @@ describe('sweep speed', () => {
   it('grows past the table for very long chains', () => {
     expect(fallbackWorkerSeconds(10)).toBe(19);
     expect(fallbackWorkerSeconds(1)).toBe(fallbackWorkerSeconds(2));
+  });
+});
+
+describe('time-weighted workers', () => {
+  const H = 3600_000;
+  it('is the plain count when it never changed', () => {
+    expect(timeWeightedWorkers(0, 1000, 8, 1000, 1000 + 2 * H)).toBe(8);
+  });
+  it('weights each count by how long it ran', () => {
+    // 4 h on 4 workers banked, then 10 min on 16.
+    const start = 1_000_000;
+    const changed = start + 4 * H;
+    expect(timeWeightedWorkers(4 * H * 4, changed, 16, start, changed + H / 6)).toBe(4.5);
+  });
+  it('falls back to the current count with no run to weigh', () => {
+    expect(timeWeightedWorkers(0, 0, 7, 0, 0)).toBe(7);
   });
 });

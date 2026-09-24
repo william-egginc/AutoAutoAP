@@ -1,7 +1,29 @@
 import { fileURLToPath } from 'node:url';
-import { defineConfig, loadEnv } from 'vite';
+import { defineConfig, loadEnv, type Plugin } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import vueJsx from '@vitejs/plugin-vue-jsx';
+
+/**
+ * `version.json`: each page's hashed entry script, `{"index":"assets/index-BGv8tSVu.js",...}`.
+ *
+ * An open tab polls this to learn that a newer build is live (src/composables/useNewVersion.ts).
+ * It is ~90 bytes where the page's HTML is ~1.2 KB, so a tab can check every minute for less than
+ * it used to spend every five. The entry names are content hashes, so a rebuild that changed no
+ * code writes the same file and no tab is told to reload for nothing.
+ */
+function versionFile(): Plugin {
+  return {
+    name: 'aap-version-file',
+    apply: 'build',
+    generateBundle(_options, bundle) {
+      const entries: Record<string, string> = {};
+      for (const out of Object.values(bundle)) {
+        if (out.type === 'chunk' && out.isEntry) entries[out.name] = out.fileName;
+      }
+      this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify(entries) });
+    },
+  };
+}
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
@@ -35,7 +57,7 @@ export default defineConfig(({ mode }) => {
       // not in the DOM, with no visible error. Force one copy of each.
       dedupe: ['vue', 'pinia'],
     },
-    plugins: [vue(), vueJsx()],
+    plugins: [vue(), vueJsx(), versionFile()],
     build: {
       chunkSizeWarningLimit: 2000,
       // TWO PAGES, ONE BUILD. `explorer.html` is the Chain Explorer: a static reader of the

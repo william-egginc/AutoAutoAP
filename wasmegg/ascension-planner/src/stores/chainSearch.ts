@@ -21,6 +21,7 @@ import { hashID } from '@/lib/storage/db';
 import { runChainSearch, type CacheEntry } from '@/search/driver';
 import { findStartingChain, planCoarseGrid } from '@/search/coarse';
 import { createChainSearchPool, type ChainSearchPool } from '@/search/pool';
+import { timeWeightedWorkers } from '@/search/speed';
 import { hardwareThreads, maxPoolSize, clampPoolSize } from '@/search/batch';
 import { describeRunError } from '@/utils/errors';
 import { loadChainBenchmark, saveChainBenchmark } from '@/lib/chainBenchmarkCache';
@@ -376,7 +377,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const minutes = runMinutes.value;
     if (minutes === null || chainsDone.value <= 0) return null;
     return {
-      workers: workersInPool.value,
+      workers: averageWorkers.value,
       cores: typeof navigator !== 'undefined' && navigator.hardwareConcurrency ? navigator.hardwareConcurrency : null,
       minutes,
       suspendedMinutes: suspendedSeconds.value / 60,
@@ -385,7 +386,70 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     };
   });
 
+  /**
+   * Worker-milliseconds spent so far this run, up to `workersChangedAt`. The worker count can change
+   * mid-run (the slider stays live), so what a run cost is the TIME-WEIGHTED average, not whatever
+   * the slider happened to say at the end: 4 hours on 4 workers and 10 minutes on 16 is a 4.4-worker
+   * run, and reporting it as 16 would make this machine look four times slower than it is.
+   */
+  const workerMs = ref(0);
+  const workersChangedAt = ref(0);
+
+  /** Start the worker clock for a run, at the pool's size. */
+  function startWorkerClock(): void {
+    workerMs.value = 0;
+    workersChangedAt.value = Date.now();
+  }
+
+  /** Bank the time spent at the old count before switching to a new one. */
+  function bankWorkerTime(at = Date.now()): void {
+    if (!workersChangedAt.value) return;
+    workerMs.value += Math.max(0, at - workersChangedAt.value) * workersInPool.value;
+    workersChangedAt.value = at;
+  }
+
+  /** The run's time-weighted worker count, to one decimal. */
+  const averageWorkers = computed(() =>
+    timeWeightedWorkers(
+      workerMs.value,
+      workersChangedAt.value,
+      workersInPool.value,
+      runStartedAt.value,
+      runEndedAt.value || Date.now()
+    )
+  );
+
   let pool: ChainSearchPool | null = null;
+
+  /**
+   * THE SLIDER STAYS LIVE DURING A RUN (2026-09-24). Moving it resizes the running pool: more workers
+   * join from the next batch, and workers above a lower count are let go as soon as they are idle,
+   * which gives their cores and memory back without throwing away a chain in progress. The rate
+   * measurement is re-based at the change, because a smoothed seconds-per-chain from 4 workers says
+   * nothing about 16.
+   */
+  //
+  // Debounced: a slider being dragged from 4 to 16 is one change, not twelve log lines and twelve
+  // rate resets.
+  let resizeTimer: ReturnType<typeof setTimeout> | null = null;
+  function applyWorkerBudget(): void {
+    resizeTimer = null;
+    if (!pool || !isRunning.value) return;
+    const before = workersInPool.value;
+    const after = pool.resize(workerBudget.value);
+    if (after === before) return;
+    bankWorkerTime();
+    workersInPool.value = after;
+    runLog.value.push(`--- workers: ${before} -> ${after}`);
+    secondsPerChain.value = 0;
+    noteRate(chainsDone.value, true);
+  }
+  watch(workerBudget, () => {
+    if (!pool || !isRunning.value) return;
+    if (resizeTimer) clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(applyWorkerBudget, 400);
+  });
+
   let lastCheckpointAt = 0;
   let lastRateAt = 0;
   let lastRateChains = 0;
@@ -1882,6 +1946,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         },
       });
       workersInPool.value = pool.size;
+      startWorkerClock();
       if (!(await checkIntegrity(pool))) return;
       stage.value = 'pricing every chain';
 
@@ -1894,13 +1959,17 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       // quiet stretch between printed lines; in a UI it looks broken. `* 2` keeps every worker fed
       // (the pool splits a batch by prefix internally) while checking the stop flag four times as
       // often, at the cost of a little prefix sharing across chunk boundaries.
-      const chunk = Math.max(pool.size * 2, 32);
-      for (let i = 0; i < toPrice.length && !stopRequested.value; i += chunk) {
+      //
+      // Re-read every chunk, not once: the worker count can change mid-run, and a chunk sized for 4
+      // workers would leave 12 of 16 idle.
+      for (let i = 0; i < toPrice.length && !stopRequested.value; ) {
+        const chunk = Math.max(pool.size * 2, 32);
         const slice = toPrice.slice(i, i + chunk);
         const { results } = await pool.evaluate(slice, noteBatch);
         for (const r of results) liveCache.push({ key: r.chain.join(','), seconds: r.seconds, legs: r.legs });
+        i += slice.length;
 
-        chainsDone.value = chainsReplayed.value + Math.min(i + chunk, toPrice.length);
+        chainsDone.value = chainsReplayed.value + i;
         csvRows.value = liveCache.length;
         noteRate(chainsDone.value);
         noteBest();
@@ -2231,6 +2300,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         },
       });
       workersInPool.value = pool.size;
+      startWorkerClock();
       if (!(await checkIntegrity(pool))) return;
       stage.value = 'running';
 

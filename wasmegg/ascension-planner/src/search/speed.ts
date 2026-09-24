@@ -94,3 +94,16 @@ export function workerSecondsFromRate(secondsPerChain: number, workers: number):
   const w = Math.max(1, workers);
   return (secondsPerChain * w) / contention(w);
 }
+
+/**
+ * The worker count a run averaged, weighted by time, when the count changed part-way through (the
+ * slider stays live during a run). `bankedMs` is worker-milliseconds up to `changedAt`; from there
+ * to `end` it ran on `current`. One decimal, which is what gets reported: 4 hours on 4 workers then
+ * 10 minutes on 16 is 4.5, not the 16 the slider ended on.
+ */
+export function timeWeightedWorkers(bankedMs: number, changedAt: number, current: number, start: number, end: number): number {
+  const span = end - start;
+  if (!(start > 0) || !(changedAt > 0) || !(span > 0)) return current;
+  const total = bankedMs + Math.max(0, end - changedAt) * current;
+  return Math.round((total / span) * 10) / 10 || current;
+}
