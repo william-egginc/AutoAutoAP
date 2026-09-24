@@ -113,6 +113,9 @@ export interface ChainSearchPool {
    *  only the chains that evaluated successfully. `onChainDone` fires as the batch progresses, so a
    *  caller can show movement during a single wide request. */
   evaluate(chains: number[][], onChainDone?: (done: number, total: number) => void): Promise<BatchOutcome>;
+  /** The integrity check (search/rules.ts), run on the first worker against the pool's own inputs:
+   *  how long a fresh ascension from the plan start sits on its first Integrity shift. */
+  integrityWait(): Promise<number | null>;
   terminate(): void;
 }
 
@@ -361,6 +364,14 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
       } finally {
         onProgress = null;
       }
+    },
+
+    async integrityWait(): Promise<number | null> {
+      const pw = await workerAt(0);
+      const reply = (await send(pw, { kind: 'integrity', requestId: ++nextRequestId }, 'worker 0 (integrity check)')) as {
+        seconds: number | null;
+      };
+      return reply.seconds;
     },
 
     terminate(): void {

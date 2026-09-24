@@ -408,6 +408,20 @@
         <DataNeeds :rows="usable" />
       </section>
 
+      <!-- ---------------------------------------------------------------------------- flagged -->
+      <section v-if="base" id="flagged-board" class="rounded-xl border border-slate-200 bg-white p-4 space-y-3 scroll-mt-4">
+        <div class="space-y-1">
+          <h2 class="text-lg font-black text-slate-900">Flagged runs</h2>
+          <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
+            Runs from accounts the planner cannot help yet: a first ascension that sits on the Integrity shift for over
+            an hour, a plan past ten years, or a result that contradicts itself. They are kept apart from everything
+            above, because they are not routes to copy, and shown anonymously — except runs sent from this browser,
+            which show as yours.
+          </p>
+        </div>
+        <FlaggedBoard :base="base" />
+      </section>
+
       <!-- ---------------------------------------------------------------------------- upload -->
       <section v-if="base" class="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
         <div class="space-y-1">
@@ -432,6 +446,7 @@ import LegProfileChart from './LegProfileChart.vue';
 import CountCompareChart from './CountCompareChart.vue';
 import FinalLegChart from './FinalLegChart.vue';
 import DataNeeds from './DataNeeds.vue';
+import FlaggedBoard from './FlaggedBoard.vue';
 import NewVersionBanner from '@/components/NewVersionBanner.vue';
 import { describeFetchError, errorKind } from '@/utils/errors';
 import SweepCurvesChart from './SweepCurvesChart.vue';

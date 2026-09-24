@@ -19,6 +19,7 @@
  * to one account is a false alarm on everybody else's.
  */
 import type { LegSummary } from './types';
+import { CONTINUE_WARN_SECONDS, longContinueMessage } from './rules';
 import type { InventoryCount, LoadoutSlot } from './csv';
 
 export interface HealthIssue {
@@ -33,7 +34,8 @@ export interface HealthIssue {
     | 'no-epic-research'
     | 'te-mismatch'
     | 'rate-collapse'
-    | 'slow-leg';
+    | 'slow-leg'
+    | 'long-continue';
   /** `error` means the numbers are probably wrong. `warning` means look before you trust them. */
   level: 'error' | 'warning';
   message: string;
@@ -148,6 +150,11 @@ export function reviewLegs(legs: LegSummary[]): HealthIssue[] {
   legs.forEach((leg, i) => {
     const days = leg.durationSeconds / 86400;
     const isFinalLeg = i === legs.length - 1;
+    // Not a fault: the rule allows continue up to six months when no fresh start beats it. Said so
+    // anyway past three (search/rules.ts), because that is a long time to leave one farm alone.
+    if (i === 0 && leg.key === 'continue' && leg.durationSeconds > CONTINUE_WARN_SECONDS) {
+      issues.push({ kind: 'long-continue', level: 'warning', message: longContinueMessage(days) });
+    }
     if (!isFinalLeg && days > SLOW_LEG_DAYS) {
       issues.push({
         kind: 'slow-leg',

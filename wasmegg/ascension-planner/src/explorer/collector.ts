@@ -29,6 +29,8 @@ import type { PricedChain } from '@/search/types';
 
 /** A row from `GET /all`: a stored submission, plus the two fields the Worker derives per request. */
 export interface CollectorRow extends Submission {
+  /** Set only on the flagged board, on a row whose owner code this browser presented. */
+  yours?: boolean;
   /** Last segment of the KV key. Also the id `GET /csv?id=` wants. */
   id: string;
   /** Whether this run's full chain table was uploaded alongside the summary. */
@@ -82,6 +84,31 @@ export async function fetchAll(base: string, signal?: AbortSignal): Promise<Coll
   // A row without a chain cannot be placed on any chart here, and one bad record should not empty
   // the page. Same posture the Worker takes when a stored value will not parse.
   return body.rows.filter(r => Array.isArray(r.chain) && r.chain.length >= 2 && Number.isFinite(r.durationDays));
+}
+
+/**
+ * The flagged board: runs from accounts the planner cannot help yet, kept apart from the main board.
+ *
+ * Anonymous, except rows whose owner code is presented: `tokens` are the codes this browser holds
+ * (search/owner.ts), and each is asked about separately so one account's code never vouches for
+ * another's rows. A row that comes back as `yours` from any of them replaces its anonymous copy.
+ */
+export async function fetchFlagged(base: string, tokens: string[] = [], signal?: AbortSignal): Promise<CollectorRow[]> {
+  const ask = async (token?: string) => {
+    const res = await fetch(`${base}/flagged`, { signal, headers: token ? { 'x-owner-token': token } : {} });
+    if (res.status === 404) {
+      throw new Error('This collector has no flagged board yet: it is running a Worker from before 2026-09-24 and needs redeploying.');
+    }
+    if (!res.ok) throw new Error(`The collector answered ${res.status} for /flagged.`);
+    const body = (await res.json()) as AllResponse;
+    return Array.isArray(body?.rows) ? body.rows : [];
+  };
+  const byId = new Map<string, CollectorRow>();
+  for (const row of await ask()) byId.set(row.id, row);
+  for (const token of tokens) {
+    for (const row of await ask(token)) if (row.yours) byId.set(row.id, row);
+  }
+  return [...byId.values()].filter(r => Array.isArray(r.chain) && Number.isFinite(r.durationDays));
 }
 
 /**

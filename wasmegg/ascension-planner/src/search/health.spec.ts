@@ -166,3 +166,23 @@ describe('reviewContext', () => {
     expect(issues.map(i => i.kind)).toEqual(['no-backup']);
   });
 });
+
+describe('the long-continue remark', () => {
+  const cont = (days: number): LegSummary => ({ ...leg(195, 3, days), key: 'continue' });
+
+  it('stays quiet on a continue leg 1 under three months', () => {
+    expect(reviewLegs([cont(89), leg(490, 3)]).map(i => i.kind)).toEqual([]);
+  });
+
+  it('speaks up past three months, as a warning and not a fault', () => {
+    const issues = reviewLegs([cont(120), leg(490, 3)]);
+    expect(issues.map(i => i.kind)).toEqual(['long-continue']);
+    expect(issues[0].level).toBe('warning');
+    expect(issues[0].message).toMatch(/120 days/);
+    expect(issues[0].message).toMatch(/SE-hungry alien thug/);
+  });
+
+  it('is only about leg 1, and only about continue', () => {
+    expect(reviewLegs([leg(195, 3, 120), leg(490, 3)]).map(i => i.kind)).toEqual([]);
+  });
+});

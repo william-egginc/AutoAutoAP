@@ -372,7 +372,7 @@ answer in under an hour, not to get *the* answer.
 | `--jobs N` | worker cap. The pool is sized **per batch** — see below |
 | `--csv FILE` | where the per-leg CSV goes. Honoured with `--jobs` > 1 too (it used to be ignored there, and every sharded run overwrote `fastsearch.csv`) |
 | `--start-date` / `--start-time` | plan start. Defaults to the current date and hour **in `--timezone`** (the date used to be UTC's, so an evening run in the Americas was dated a day ahead) |
-| `--force-continue` | finish the current ascension first. **The browser defaults this on; the CLI defaults it off** -- pass it to match the panel. It changes the answer: one account's best 2-ascension plan moved 135 days |
+| `--force-continue` | finish the current ascension first **when that takes under a week**; longer than that, leg 1 compares continue with the 1/2/3-sale fresh starts and takes the fastest (measured: continue always won under a week, and lost to a fresh 2-sale start on longer first legs, e.g. 120.9 vs 99.6 days). **The browser defaults this on; the CLI defaults it off** -- pass it to match the panel. It changes the answer: one account's best 2-ascension plan moved 135 days |
 | `--jobs-fixed` | honour `--jobs` literally instead of sizing per batch |
 | `--mod elr=1.05` | colleggtible what-if: scales one modifier dimension |
 | `--add-artifact metronome:legendary` | artifact what-if: injects into the **virtue** inventory |
@@ -439,6 +439,41 @@ Every accuracy figure in the effort table above was measured with **no schedule*
 scored with and without one are not comparable.
 
 New CSV columns: `A*_wait_h` (hours that prestige waited) and `A*_nightshifts`.
+
+### The rules (`src/search/rules.ts`)
+
+Policy, set 2026-09-24, in one module the page, the health checks and the CLI all read.
+
+- **Continue (leg 1).** Taken outright when finishing the current ascension takes under a week (it
+  was the fastest variant every time it did, across four accounts). From a week to six months it is
+  compared with fresh 1/2/3-sale starts and **stays the default**: a fresh start wins only when it is
+  strictly faster. Past three months a continue leg 1 carries a warning (with an easter egg). Past six
+  months continue is not offered at all. `--continue-pin-days` / `--continue-max-days` change the two
+  limits for experiments.
+- **Integrity (accounts that stall).** Before any chain is priced, a fresh ascension from the plan
+  start is simulated up to its build phase and the time it sits on its first Integrity shift is
+  measured. Healthy accounts: median under ten minutes, never more than 54 (about 25,000 fresh legs,
+  and 28 plan starts each on two accounts). Over an **hour** the run warns, with how long, and its
+  result goes to the flagged board. Over a **week** it does not start. The CLI prints the check on
+  every run and refuses the same way unless `--allow-stall`.
+- **Board hygiene.** A result from a stalled account, a plan past ten years, or one whose delivery
+  collapses between legs is **flagged**: stored apart, shown on the Chain Explorer's flagged board, and
+  anonymous to everyone except the browser that sent it (a random per-account code kept in
+  localStorage; the collector stores only its hash).
+- **Stale saves.** Unchanged: the plan starts at the save's own time, and a later start is predicted
+  forward at the current lay rate (Joo's catch-up in `runContinueCurrent`), buying nothing in between.
+  Sync the game for the truest start.
+
+### Time off from virtue (`--time-off`)
+
+Egg Day, a week chasing a legendary on the home farm. Whole local dates, repeatable:
+`--time-off 2027-07-14 --time-off 2027-08-01:2027-08-07`; in the browser, "Time off from virtue"
+beside the schedule. **The ascension in progress ends when the time off starts** and keeps the TE it
+reached; nothing happens while away; coming back is a **complete rebuild**, a fresh ascension toward
+the same checkpoint (never a continue). The search prices every chain with those gaps in it, so the
+winner is the best plan around the time off. A build that cannot finish before the time off is lost
+and starts again after it. The CSV marks the two legs `stopped` / `restarted` in a `time_off` column.
+Needs `--exhaustive` or `--effort` (the shared evaluator); the `--stages` path refuses it.
 
 ### Dated milestones (`--milestone`)
 

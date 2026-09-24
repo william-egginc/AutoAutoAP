@@ -50,6 +50,13 @@ export interface SearchInputs {
    *  letting the variant search decide. Also the cheapest speedup available — it skips the whole
    *  `runC3Variants` fan-out for A1 (up to six full C3 simulations). */
   forceContinue: boolean;
+  /** How long a pinned continue may take before leg 1 compares it with the fresh starts instead.
+   *  Unset means `CONTINUE_PIN_MAX_SECONDS` (search/leg.ts). Set only by the CLI's
+   *  `--continue-pin-days`, to measure one rule against another. */
+  continuePinSeconds?: number;
+  /** Longest continue that is still a candidate at all. Unset means `CONTINUE_MAX_SECONDS`. Set only
+   *  by the CLI's `--continue-max-days`, for the same kind of experiment. */
+  continueMaxSeconds?: number;
   /** When the player can act, so prestige instants are pushed into it and the delay is charged.
    *  Null/absent means the simulator's own assumption: the player acts the instant the plan asks.
    *  Changing this changes every duration, so it is part of the run fingerprint. See
@@ -65,6 +72,13 @@ export interface SearchInputs {
    *  a delay model layered on the simulated timeline rather than a re-simulation — see chain.ts for
    *  exactly what that approximates and in which direction it errs. */
   deferShifts?: boolean;
+  /**
+   * Time away from the virtue farm, absolute unix seconds, sorted and not overlapping: Egg Day, a
+   * week chasing a legendary on the home farm. The ascension in progress ENDS when the time off
+   * begins -- it keeps the TE it reached -- nothing happens while away, and the player comes back
+   * to a complete rebuild: a fresh ascension toward the same checkpoint. Null/absent means none.
+   */
+  timeOff?: TimeOffWindow[] | null;
 }
 
 /**
@@ -135,6 +149,10 @@ export interface LegSummary {
    *  "when am I being asked to do something, and to what", which a count cannot. `nightShifts` is
    *  derived from exactly these. */
   shifts?: ShiftMoment[];
+  /** Time off from the virtue farm (SearchInputs.timeOff). `stopped`: this leg was cut short when
+   *  the time off began, reaching whatever TE it had. `restarted`: this leg is the rebuild after it,
+   *  toward the same checkpoint. Absent on every other leg. */
+  timeOff?: 'stopped' | 'restarted';
 }
 
 /** A fully evaluated chain. `seconds` is what every stage of the driver minimises. */
@@ -200,3 +218,11 @@ export interface PricedChain {
   /** The checkpoint before the final target, which is the axis the sawtooth is visible against. */
   lastCheckpoint: number;
 }
+
+/** One stretch of time off, absolute unix seconds: from the start of the first day away to the start
+ *  of the day after the last. See `SearchInputs.timeOff`. */
+export interface TimeOffWindow {
+  from: number;
+  to: number;
+}
+

@@ -18,7 +18,7 @@
  * An availability schedule does not break any of that: a leg's start time is a deterministic
  * function of its prefix with or without one, so the prefix is still the whole cache key.
  */
-import { runLeg, type LegResult } from './leg';
+import { runLeg, LAST_DATEABLE_SECONDS, type LegResult } from './leg';
 import { countUnavailable, isConstrained, nextAvailable } from './availability';
 import { meetsAll, usableMilestones } from './milestones';
 import type { EngineState } from '@/engine/types';
@@ -36,10 +36,14 @@ export interface ChainEvaluator {
   readonly legSims: number;
 }
 
+/** One simulated ascension inside a chain step. A step is usually one; time off splits it in two. */
+type Segment = LegResult & { timeOff?: 'stopped' | 'restarted' };
+
 export function createChainEvaluator(inputs: SearchInputs): ChainEvaluator {
   // Insertion-ordered by construction (Map iterates in insertion order), which is all the eviction
   // below needs. `null` is a real memoised value: "this prefix is unevaluable", worth remembering.
-  const memo = new Map<string, LegResult | null>();
+  // A value is the step's SEGMENTS: one leg normally, more when time off cut it (see `priceStep`).
+  const memo = new Map<string, Segment[] | null>();
   let legSims = 0;
   // Validated once, not per leg. A schedule that excludes nothing becomes null so the hot path is
   // a single null check — and so a run with no schedule is byte-for-byte the same computation it
@@ -48,8 +52,10 @@ export function createChainEvaluator(inputs: SearchInputs): ChainEvaluator {
   // Filtered once, for the same reason: an empty list must cost nothing per chain.
   const milestones = usableMilestones(inputs.milestones, inputs.final);
   const deferShifts = !!inputs.deferShifts;
+  // Sorted once; empty costs nothing per leg, like the schedule.
+  const timeOff = [...(inputs.timeOff ?? [])].filter(w => w.to > w.from).sort((x, y) => x.from - y.from);
 
-  function remember(key: string, leg: LegResult | null): void {
+  function remember(key: string, segs: Segment[] | null): void {
     if (memo.size >= MEMO_CAPACITY) {
       // Drop the oldest quarter in one pass rather than one entry per insert — evicting singly
       // turns a full map into a churn machine where every new prefix costs a delete.
@@ -59,7 +65,72 @@ export function createChainEvaluator(inputs: SearchInputs): ChainEvaluator {
         memo.delete(k);
       }
     }
-    memo.set(key, leg);
+    memo.set(key, segs);
+  }
+
+  /** One leg, or null. A leg that throws is a chain that cannot be evaluated, not a run that should
+   *  die (the CLI counts them as `failed`); a leg that never ends is no result either -- kept, it
+   *  priced as Infinity, and the finished run had no best chain, no Save, no Submit and a CSV
+   *  download that threw on its date. `!(x < limit)` catches NaN too. */
+  function safeLeg(
+    state: EngineState,
+    start: number,
+    target: number,
+    allowContinue: boolean,
+    te: number,
+    idx: number,
+    endOverride?: number
+  ): LegResult | null {
+    legSims++;
+    let leg: LegResult | null;
+    try {
+      leg = runLeg(inputs, state, start, target, allowContinue, te, idx, endOverride);
+    } catch {
+      leg = null;
+    }
+    return leg && leg.summary.endTime < LAST_DATEABLE_SECONDS ? leg : null;
+  }
+
+  /**
+   * One chain step: from `start` to `target` TE, as one leg -- or, when time off begins before the
+   * leg would end, as the leg cut short at the start of the time off (keeping the TE it reached)
+   * followed by a complete rebuild from the end of it toward the same target. A leg that cannot
+   * finish its build before the time off gains nothing, and the rebuild simply starts after it.
+   *
+   * Time off is the player leaving virtue entirely, so there is no "continue" after it: the farm
+   * they left is gone. Deterministic in the prefix, so the memo is still keyed on the prefix alone.
+   */
+  function priceStep(state0: EngineState, start: number, target: number, first: boolean, te0: number, idx: number): Segment[] | null {
+    const segs: Segment[] = [];
+    let state = state0;
+    let t = start;
+    let te = te0;
+    let restarted = false;
+    for (let guard = 0; guard <= timeOff.length + 1; guard++) {
+      const away = timeOff.find(w => w.from <= t && t < w.to);
+      if (away) {
+        t = schedule ? nextAvailable(away.to, schedule) : away.to;
+        restarted = true;
+      }
+      const allowContinue = first && !restarted;
+      const whole = safeLeg(state, t, target, allowContinue, te, idx);
+      if (!whole) return null;
+      const cutBy = timeOff.find(w => w.from > t && w.from < whole.summary.endTime);
+      if (!cutBy) {
+        segs.push(restarted ? { ...whole, timeOff: 'restarted' } : whole);
+        return segs;
+      }
+      const cut = safeLeg(state, t, target, allowContinue, te, idx, cutBy.from);
+      if (cut && cut.summary.endTE > te) {
+        segs.push({ ...cut, timeOff: 'stopped' });
+        state = cut.nextState;
+        te = cut.summary.endTE;
+        if (te >= target) return segs;
+      }
+      t = cutBy.from; // the next pass finds itself inside the time off and moves to its end
+      restarted = true;
+    }
+    return null;
   }
 
   return {
@@ -75,9 +146,9 @@ export function createChainEvaluator(inputs: SearchInputs): ChainEvaluator {
 
       for (let i = 0; i < chain.length; i++) {
         const key = chain.slice(0, i + 1).join(',');
-        let leg = memo.get(key);
+        let segs = memo.get(key);
 
-        if (leg === undefined) {
+        if (segs === undefined) {
           if (i === 0) {
             // The first leg starts from a blank farm on curiosity, not from the backup's farm —
             // the "continue current ascension" variant is the one that reads the live farm, and it
@@ -89,77 +160,78 @@ export function createChainEvaluator(inputs: SearchInputs): ChainEvaluator {
             b.researchLevels = {};
             state = b;
           }
-          try {
-            leg = runLeg(inputs, state as EngineState, time, chain[i], i === 0, te, i);
-          } catch {
-            // A leg that throws is a chain that cannot be evaluated, not a run that should die.
-            // The CLI treats it identically (it counts them as `failed`).
-            leg = null;
+          segs = priceStep(state as EngineState, time, chain[i], i === 0, te, i);
+          remember(key, segs);
+        }
+
+        if (!segs) return null;
+
+        for (let s = 0; s < segs.length; s++) {
+          const leg = segs[s];
+          const stopped = leg.timeOff === 'stopped';
+          // Availability. The leg ends when its target TE is reached, and the plan's very next
+          // instruction is a prestige — so if that instant falls outside the player's schedule, the
+          // next leg cannot start until they are back. Only INTER-leg handoffs are pushed: reaching
+          // the final target is not an action, so being away for it costs nothing. See
+          // search/availability.ts for what this does and does not model.
+          // Shifts, when the player asked for them to be held too.
+          //
+          // A DELAY MODEL, NOT A RE-SIMULATION, and the distinction is worth being precise about.
+          // Each shift is pushed to the next available instant, carrying the accumulated delay
+          // forward, and the leg's end moves by the total — because everything after a held shift
+          // happens that much later, including reaching the target TE. That is right to first order:
+          // delaying a shift delays the next TE threshold by the same amount, since the threshold is
+          // on the egg you have not switched to yet.
+          //
+          // It errs in ONE direction, the safe one. While you wait, the farm keeps laying the egg you
+          // have not switched away from, so in real life you arrive at the next threshold slightly
+          // ahead of this model. Uncredited, exactly as the prestige delay is. An exact answer would
+          // need `auto/shifts/te-wait.ts` to schedule around availability itself, which would change
+          // the manual planner too.
+          let shiftDelay = 0;
+          let shifts = leg.shifts;
+          if (schedule && deferShifts && shifts.length) {
+            shifts = shifts.map(sh => {
+              const at = sh.at + shiftDelay;
+              const moved = nextAvailable(at, schedule);
+              shiftDelay += moved - at;
+              return { at: moved, egg: sh.egg, fromEgg: sh.fromEgg };
+            });
           }
-          legSims++;
-          remember(key, leg);
-        }
+          // A leg stopped by time off ends when the time off starts, whatever was held: the player
+          // is leaving, and the rebuild after it was already timed from the end of the time off.
+          if (stopped) shiftDelay = 0;
 
-        if (!leg) return null;
+          const rawEnd = leg.summary.endTime + shiftDelay;
+          const isFinalLeg = i === chain.length - 1 && s === segs.length - 1;
+          const handoff = schedule && !isFinalLeg && !stopped ? nextAvailable(rawEnd, schedule) : rawEnd;
 
-        // Availability. The leg ends when its target TE is reached, and the plan's very next
-        // instruction is a prestige — so if that instant falls outside the player's schedule, the
-        // next leg cannot start until they are back. Only INTER-leg handoffs are pushed: reaching
-        // the final target is not an action, so being away for it costs nothing. See
-        // search/availability.ts for what this does and does not model.
-        // Shifts, when the player asked for them to be held too.
-        //
-        // A DELAY MODEL, NOT A RE-SIMULATION, and the distinction is worth being precise about.
-        // Each shift is pushed to the next available instant, carrying the accumulated delay
-        // forward, and the leg's end moves by the total — because everything after a held shift
-        // happens that much later, including reaching the target TE. That is right to first order:
-        // delaying a shift delays the next TE threshold by the same amount, since the threshold is
-        // on the egg you have not switched to yet.
-        //
-        // It errs in ONE direction, the safe one. While you wait, the farm keeps laying the egg you
-        // have not switched away from, so in real life you arrive at the next threshold slightly
-        // ahead of this model. Uncredited, exactly as the prestige delay is. An exact answer would
-        // need `auto/shifts/te-wait.ts` to schedule around availability itself, which would change
-        // the manual planner too.
-        let shiftDelay = 0;
-        let shifts = leg.shifts;
-        if (schedule && deferShifts && shifts.length) {
-          shifts = shifts.map(sh => {
-            const at = sh.at + shiftDelay;
-            const moved = nextAvailable(at, schedule);
-            shiftDelay += moved - at;
-            return { at: moved, egg: sh.egg, fromEgg: sh.fromEgg };
+          legs.push({
+            key: leg.key,
+            endTE: leg.summary.endTE,
+            durationSeconds: leg.summary.totalDurationSeconds + shiftDelay,
+            maxELR: leg.summary.maxELR,
+            endTime: rawEnd,
+            tier13Unlocked: leg.summary.tier13Unlocked,
+            startTime: leg.summary.startTime,
+            buildPhaseEndTime: leg.summary.buildPhaseEndTime,
+            buildPhaseSaleCount: leg.summary.buildPhaseSaleCount,
+            // Counted on the ADJUSTED instants: with `deferShifts` on this is zero by
+            // construction, which is the point — the cost has moved into the duration instead.
+            nightShifts: countUnavailable(
+              shifts.map(x => x.at),
+              schedule
+            ),
+            shifts,
+            sleepDelaySeconds: handoff - rawEnd,
+            shiftDelaySeconds: shiftDelay,
+            ...(leg.timeOff ? { timeOff: leg.timeOff } : {}),
           });
+
+          state = leg.nextState;
+          time = handoff;
+          te = leg.summary.endTE;
         }
-
-        const rawEnd = leg.summary.endTime + shiftDelay;
-        const isFinalLeg = i === chain.length - 1;
-        const handoff = schedule && !isFinalLeg ? nextAvailable(rawEnd, schedule) : rawEnd;
-
-        legs.push({
-          key: leg.key,
-          endTE: leg.summary.endTE,
-          durationSeconds: leg.summary.totalDurationSeconds + shiftDelay,
-          maxELR: leg.summary.maxELR,
-          endTime: rawEnd,
-          tier13Unlocked: leg.summary.tier13Unlocked,
-          startTime: leg.summary.startTime,
-          buildPhaseEndTime: leg.summary.buildPhaseEndTime,
-          buildPhaseSaleCount: leg.summary.buildPhaseSaleCount,
-          // Counted on the ADJUSTED instants: with `deferShifts` on this is zero by
-          // construction, which is the point — the cost has moved into the duration instead.
-          nightShifts: countUnavailable(
-            shifts.map(x => x.at),
-            schedule
-          ),
-          shifts,
-          sleepDelaySeconds: handoff - rawEnd,
-          shiftDelaySeconds: shiftDelay,
-        });
-
-        state = leg.nextState;
-        time = handoff;
-        te = leg.summary.endTE;
       }
 
       // A chain that misses a dated milestone is not a candidate. Returning null puts it down the

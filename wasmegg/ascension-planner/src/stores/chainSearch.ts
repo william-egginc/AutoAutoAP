@@ -62,6 +62,15 @@ import { buildPool, exhaustiveChainsWithGap, bandedChains, sortByPrefix } from '
 import { applyLegBudget, estimateLegBytes } from '@/search/legBudget';
 import { summariseEpicResearch, summariseColleggtibles } from '@/search/progression';
 import { reviewContext, reviewLegs, reviewSetup, type HealthIssue } from '@/search/health';
+import {
+  DECADES_LONG_DAYS,
+  INTEGRITY_BLOCK_SECONDS,
+  INTEGRITY_WARN_SECONDS,
+  integrityMessage,
+  type SubmissionFlag,
+} from '@/search/rules';
+import { ownerToken } from '@/search/owner';
+import { timeOffWindows, usableTimeOff, type TimeOffDates } from '@/search/timeOff';
 import { listRuns, saveRun, loadRun, deleteRun, defaultRunLabel, type RunSummary } from '@/search/runLibrary';
 import { epicResearchDefs } from '@/lib/epicResearch';
 import { deliveryScore } from '@/search/virtueScore';
@@ -129,6 +138,16 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   const forceContinue = ref(true);
   /** Set when Insane mode was opened from a Chain Explorer "Run this sweep" link; see InsanePanel. */
   const sweepTag = ref<SweepTag | null>(null);
+  /** Time off from the virtue farm, as whole local dates (search/timeOff.ts). Each stretch ends the
+   *  ascension in progress, and the player comes back to a complete rebuild. */
+  const timeOff = ref<TimeOffDates[]>([]);
+  /**
+   * The tag the CURRENT RESULT was run under, captured when an exhaustive run starts. `sweepTag`
+   * itself only says a link was followed; a staged search started afterwards, or a sweep whose
+   * bands were edited first, is not that sweep. Both happened in one real session: a 6-ascension
+   * staged result arrived on the board filed under the 2-ascension M1 preset.
+   */
+  let runSweepTag: SweepTag | null = null;
   /** Hold the first N checkpoints fixed. Moving X1 re-simulates every downstream leg, and X1 is
    *  usually the best-validated value, so pinning it is often the right trade. */
   const pin = ref(0);
@@ -368,6 +387,39 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   let lastRateAt = 0;
   let lastRateChains = 0;
   let partitionHash = '';
+
+  /** Seconds a fresh ascension sat on its first Integrity shift, measured as the last run started
+   *  (search/rules.ts). Null until measured, and after a saved run is opened. */
+  const integrityWait = ref<number | null>(null);
+
+  /**
+   * The integrity check, on the run's own pool before a single chain is priced. False means the run
+   * is refused and `error` says why and for how long; a wait past an hour but under a week runs,
+   * with the same wording as a note, and flags the result for the flagged board.
+   */
+  async function checkIntegrity(p: ChainSearchPool): Promise<boolean> {
+    stage.value = 'checking this account can build';
+    const wait = await p.integrityWait();
+    integrityWait.value = wait;
+    if (wait === null || wait <= INTEGRITY_WARN_SECONDS) return true;
+    if (wait > INTEGRITY_BLOCK_SECONDS) {
+      error.value = integrityMessage(wait);
+      errorBeforeStart.value = true;
+      stage.value = 'idle';
+      return false;
+    }
+    runNotes.value = [...runNotes.value, integrityMessage(wait)];
+    return true;
+  }
+
+  /** Why a result belongs on the flagged board rather than the main one. */
+  function submissionFlags(): SubmissionFlag[] {
+    const flags: SubmissionFlag[] = [];
+    if ((integrityWait.value ?? 0) > INTEGRITY_WARN_SECONDS) flags.push('integrity-stall');
+    if (bestDays.value > DECADES_LONG_DAYS) flags.push('decades-long');
+    if (resultIssues.value.some(i => i.level === 'error')) flags.push('contradicts-itself');
+    return flags;
+  }
   let runFingerprint = '';
   /** Set at the top of `startExhaustive`/`start`, so `noteRate` can persist the first live-measured
    *  rate without every caller having to thread a player ID through it. */
@@ -425,14 +477,18 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   }
 
   /**
-   * True when milestones are set and the run has no finite answer.
+   * True when a run has finished (or stopped) having simulated chains, and none of them finishes.
    *
    * `bestDays` stays at 0 while nothing has been priced, and a run whose every candidate was
    * rejected never prices anything — so without this the panel would sit on "0.000 d" and look
    * like it was still starting up. It is a real outcome and deserves a real message.
+   *
+   * Not only a milestone outcome, which is what this first covered: an account whose first leg
+   * never finishes building rejects every chain in any space. A run that failed has its own
+   * message in `error`, so it is excluded here.
    */
   const noFeasibleChain = computed(
-    () => activeMilestones.value.length > 0 && !isRunning.value && chainsDone.value > 0 && bestDays.value <= 0
+    () => !isRunning.value && !error.value && chainsDone.value > 0 && bestDays.value <= 0
   );
 
   function noteBatch(done: number, total: number): void {
@@ -618,6 +674,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // Restored so the panel can say what this run covered, and so Resume has a space to hand back
     // to `startExhaustive`. Absent on a staged run and on anything saved before library version 2.
     searchSpace.value = summary.space ? { ...summary.space } : null;
+    runSweepTag = null;
+    integrityWait.value = null;
     openedRun.value = summary;
     bestChain.value = [...summary.bestChain];
     bestDays.value = summary.bestDays;
@@ -770,6 +828,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       availability: availability.value,
       milestones: activeMilestones.value,
       deferShifts: deferShifts.value,
+      timeOff: timeOffWindows(timeOff.value, planTimezone()),
     });
   }
 
@@ -909,7 +968,13 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       availability: availability.value,
       milestones: activeMilestones.value,
       deferShifts: deferShifts.value,
+      timeOff: timeOffWindows(timeOff.value, planTimezone()),
     };
+  }
+
+  /** The zone every date in the plan is read in: the planner's own setting, else this machine's. */
+  function planTimezone(): string {
+    return useAutoPlannerStore().timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
   }
 
   /**
@@ -1135,6 +1200,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
 
   /** The same review applied to the winning chain's legs, once there is one. */
   const resultIssues = computed<HealthIssue[]>(() => (bestLegs.value.length ? reviewLegs(bestLegs.value) : []));
+  /** The issues that say the numbers may be wrong, as opposed to the long-continue remark. */
+  const resultContradictions = computed(() => resultIssues.value.filter(i => i.kind !== 'long-continue'));
+  const continueWarning = computed(() => resultIssues.value.find(i => i.kind === 'long-continue')?.message ?? '');
 
   /**
    * Build the shareable summary of this run.
@@ -1215,10 +1283,13 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         : null,
       teByEgg: initialStateStore.rawBackup?.virtue?.eovEarned ?? null,
       backupTime: initialStateStore.rawBackup?.approxTime ?? null,
+      flags: submissionFlags(),
+      integrityWaitSeconds: integrityWait.value,
+      timeOff: usableTimeOff(timeOff.value),
     });
     // A run started from one of the Chain Explorer's "Run this sweep" links carries its preset, so it
     // counts toward that sweep's coverage there without anyone having to tag it by hand.
-    return sweepTag.value ? { ...sub, sweep: { ...sweepTag.value } } : sub;
+    return runSweepTag ? { ...sub, sweep: { ...runSweepTag } } : sub;
   }
 
   /**
@@ -1248,10 +1319,15 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     pendingTable.value = null;
     let id: string | undefined;
     let uploadToken: string | undefined;
+    let flagged: string[] | undefined;
+    // The owner code (search/owner.ts): what lets this browser find the run again if it lands on
+    // the flagged board. Random, per account, never derived from the player id.
+    const partition = partitionHash || (currentPlayerId ? await hashID(currentPlayerId).catch(() => '') : '');
+    const owner = partition ? ownerToken(partition) : null;
     try {
       const res = await fetch(submitUrl, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', ...(owner ? { 'x-owner-token': owner } : {}) },
         body: JSON.stringify(payload),
       });
       if (!res.ok) {
@@ -1264,7 +1340,11 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         const why = detail.problems?.length ? `: ${detail.problems.join('; ')}` : '';
         return { ok: false, message: `collector said ${res.status}${why}` };
       }
-      ({ id, uploadToken } = (await res.json().catch(() => ({}))) as { id?: string; uploadToken?: string });
+      ({ id, uploadToken, flagged } = (await res.json().catch(() => ({}))) as {
+        id?: string;
+        uploadToken?: string;
+        flagged?: string[];
+      });
     } catch {
       // Ordinary: someone is offline, or the collector is down. It must not look like the run
       // broke, and "Failed to fetch" -- the browser's own words -- says neither what happened nor
@@ -1276,10 +1356,15 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       };
     }
 
-    if (!csv) return { ok: true, message: 'sent' };
-    if (!id) return { ok: true, message: 'sent (no id came back, so the CSV was skipped)' };
+    // Said with every success message, because a run that went to the flagged board will not appear
+    // on the main one, and without this it looks lost.
+    const note = flagged?.length
+      ? ` It went to the flagged board (${flagged.join(', ')}), shown anonymously; the Chain Explorer shows it to you as yours in this browser.`
+      : '';
+    if (!csv) return { ok: true, message: 'sent' + note };
+    if (!id) return { ok: true, message: 'sent (no id came back, so the CSV was skipped)' + note };
     // The collector only accepts a CSV carrying the token its /submit answer signed for this id.
-    if (!uploadToken) return { ok: true, message: 'sent (the collector does not take CSVs, so it was skipped)' };
+    if (!uploadToken) return { ok: true, message: 'sent (the collector does not take CSVs, so it was skipped)' + note };
     try {
       pendingTable.value = {
         url: `${submitUrl.replace(/\/submit\/?$/, '/csv')}?id=${encodeURIComponent(id)}`,
@@ -1287,9 +1372,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         body: await gzip(scrubIdentifiers(csv)),
       };
     } catch {
-      return { ok: true, message: 'sent, but the table could not be compressed in this browser, so it was skipped' };
+      return { ok: true, message: 'sent, but the table could not be compressed in this browser, so it was skipped' + note };
     }
-    return postTable();
+    const table = await postTable();
+    return { ...table, message: table.message + note };
   }
 
   /**
@@ -1393,6 +1479,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       effort: effort.value,
       forceContinue: forceContinue.value,
       availability: availability.value,
+      timeOff: usableTimeOff(timeOff.value),
       seedChain: seedChain.value,
       // The ELR set is deliberately NOT listed. `getOptimalELRSet` re-solves the structure per leg
       // against that leg's research state (up to 495 combos, and the reason it is the hotspot in
@@ -1427,6 +1514,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       effort: effort.value,
       forceContinue: forceContinue.value,
       availability: availability.value,
+      timeOff: usableTimeOff(timeOff.value),
       seedChain: seedChain.value,
       // The ELR set is deliberately NOT listed. `getOptimalELRSet` re-solves the structure per leg
       // against that leg's research state (up to 495 combos, and the reason it is the hotspot in
@@ -1573,6 +1661,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     }
     const chains = built.chains;
 
+    runSweepTag = sweepTag.value ? { ...sweepTag.value } : null;
     // Stated before a single chain is priced, so the submission says what was ASKED for even when
     // the run is stopped halfway. chainsPriced and stoppedEarly are filled in at the end.
     searchSpace.value = {
@@ -1714,6 +1803,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         },
       });
       workersInPool.value = pool.size;
+      if (!(await checkIntegrity(pool))) return;
       stage.value = 'pricing every chain';
 
       // Chunked so progress is visible and so the pool re-deals by prefix each time. Sorted above,
@@ -1740,6 +1830,24 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         // On the checkpoint timer, not every chunk. Losing at most a few minutes of pricing to a
         // crash is the trade; losing eight hours is not.
         void persist(liveCache);
+      }
+
+      // A replayed winner has no per-leg detail. Entries carried over from an earlier run in
+      // memory have usually had their legs trimmed by the leg budget (they were slow there), and
+      // a checkpoint only keeps legs for its own best. A real submission arrived with a chain, a
+      // total and `legs: []` -- every one of its 365 chains replayed -- which leaves it out of
+      // every per-leg analysis. Re-pricing the one winning chain is seconds, and the simulation is
+      // deterministic under an unchanged fingerprint, so the total does not move.
+      if (bestChain.value.length && !bestLegs.value.length && pool) {
+        stage.value = 'filling in the winning chain';
+        const { results } = await pool.evaluate([bestChain.value]);
+        const r = results[0];
+        if (r) {
+          const key = r.chain.join(',');
+          const at = liveCache.findIndex(e => e.key === key);
+          if (at >= 0) liveCache[at] = { key, seconds: r.seconds, legs: r.legs };
+          noteBest();
+        }
       }
 
       stoppedEarly.value = stopRequested.value;
@@ -1955,6 +2063,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     runLog.value = [];
     // A staged run proves nothing over a stated space, and must not inherit the last one's.
     searchSpace.value = null;
+    runSweepTag = null;
     secondsPerChain.value = 0;
     rateSource.value = null;
     // A fresh run's export must not carry the previous run's rows: the settings that give every
@@ -2039,6 +2148,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         },
       });
       workersInPool.value = pool.size;
+      if (!(await checkIntegrity(pool))) return;
       stage.value = 'running';
 
       // Stages 2-3. One wide batch, so it is also the stage that parallelises best.
@@ -2238,6 +2348,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     finalTE,
     forceContinue,
     sweepTag,
+    timeOff,
     errorBeforeStart,
     runNotes,
     pin,
@@ -2326,6 +2437,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     setupFacts,
     backupTE,
     resultIssues,
+    resultContradictions,
+    continueWarning,
+    integrityWait,
     openedRun,
     crashedRun,
     resumeCrashedRun,

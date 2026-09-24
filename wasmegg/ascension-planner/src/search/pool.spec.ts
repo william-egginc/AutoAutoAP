@@ -48,6 +48,10 @@ class FakeWorker {
       return;
     }
     if (this.mode === 'silent') return;
+    if (msg.kind === 'integrity') {
+      this.emit({ type: 'integrity', requestId: msg.requestId, seconds: 120 });
+      return;
+    }
     for (let i = 0; i < msg.chains.length; i++) {
       this.emit({ type: 'progress', requestId: msg.requestId, done: i + 1, total: msg.chains.length });
     }
@@ -281,3 +285,12 @@ describe('createChainSearchPool', () => {
     pool.terminate();
   });
 });
+
+describe('the integrity check', () => {
+  it('asks one worker and returns its answer', async () => {
+    const pool = await makePool();
+    expect(await pool.integrityWait()).toBe(120);
+    pool.terminate();
+  });
+});
+

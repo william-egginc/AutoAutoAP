@@ -39,7 +39,14 @@ export interface EvaluateRequest {
   chains: number[][];
 }
 
-export type WorkerRequest = InitRequest | EvaluateRequest;
+/** How long a fresh ascension from the plan start sits on its first Integrity shift. See
+ *  `integrityWaitSeconds` in search/leg.ts. */
+export interface IntegrityRequest {
+  kind: 'integrity';
+  requestId: number;
+}
+
+export type WorkerRequest = InitRequest | EvaluateRequest | IntegrityRequest;
 
 export interface InitDoneMessage {
   type: 'init-done';
@@ -79,4 +86,16 @@ export interface WorkerErrorMessage {
   message: string;
 }
 
-export type WorkerResponse = InitDoneMessage | ProgressMessage | EvaluateResultMessage | WorkerErrorMessage;
+export interface IntegrityResultMessage {
+  type: 'integrity';
+  requestId: number;
+  /** Seconds, or null when a fresh ascension could not be simulated. */
+  seconds: number | null;
+}
+
+export type WorkerResponse =
+  | InitDoneMessage
+  | ProgressMessage
+  | EvaluateResultMessage
+  | IntegrityResultMessage
+  | WorkerErrorMessage;

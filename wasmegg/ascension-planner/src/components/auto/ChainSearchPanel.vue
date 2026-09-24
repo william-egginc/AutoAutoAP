@@ -383,6 +383,10 @@
             </div>
           </div>
 
+          <div class="p-4 rounded-xl border border-slate-200 bg-white">
+            <TimeOffEditor />
+          </div>
+
           <!-- What the simulator is wearing.
            This was only ever in the CSV header, which meant you had to finish a run and open a
            spreadsheet to find out what the two-year plan assumed you owned. It is a property of
@@ -762,6 +766,13 @@
             }}) guarantee.
           </p>
         </div>
+
+        <p
+          v-if="store.continueWarning && !store.isRunning"
+          class="p-3 rounded-xl border border-amber-200 bg-amber-50 text-[11px] text-amber-900 leading-relaxed"
+        >
+          {{ store.continueWarning }}
+        </p>
 
         <!-- Per-leg breakdown of the current best. Each row expands to the twelve shift
              instants, because "4 night shifts" tells you there is a problem and not when. -->
@@ -1376,7 +1387,10 @@
           with exact counts is close to a fingerprint among people who know you; your
           <span class="font-semibold">timezone</span> and local plan start; and your
           <span class="font-semibold">available hours</span>. The inventory is included because a duration means nothing
-          without knowing what it was simulated with — the same plan on commons is a different claim.
+          without knowing what it was simulated with — the same plan on commons is a different claim. It also carries
+          a <span class="font-semibold">random code this browser keeps for the account</span> (not derived from your
+          player ID), so if the run lands on the flagged board (a stalled first ascension, a plan past ten years) it
+          shows to you as yours and to everyone else anonymously.
           <span v-if="includeCsv"
             >The <span class="font-semibold">CSV goes too</span>, ticked by default above: the same run in full — every
             chain it priced, one row per leg, with start and end times in your plan's timezone. Untick it to send the
@@ -1496,6 +1510,7 @@ import { isAvailable } from '@/search/availability';
 import { afterPaint } from '@/search/submission';
 import ChainSearchExplainer from './ChainSearchExplainer.vue';
 import HelpTip from './HelpTip.vue';
+import TimeOffEditor from './TimeOffEditor.vue';
 import LoadoutDisplay from './LoadoutDisplay.vue';
 import SearchShapeChart from './charts/SearchShapeChart.vue';
 import type { EffortTier, LegSummary } from '@/search/types';

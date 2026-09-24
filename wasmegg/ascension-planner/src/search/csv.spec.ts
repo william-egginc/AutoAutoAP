@@ -185,6 +185,14 @@ describe('formatInZone', () => {
     expect(formatInZone(0, DENVER)).toBe('');
     expect(formatInZone(undefined, DENVER)).toBe('');
   });
+
+  // A continue leg on a bare farm priced at 17 billion days; the CSV download threw on its date
+  // and did nothing at all.
+  it('is blank, not a throw, for an instant past what a Date can hold', () => {
+    expect(formatInZone(1.5e15, DENVER)).toBe('');
+    expect(formatInZone(Infinity, DENVER)).toBe('');
+    expect(formatInZone(NaN, DENVER)).toBe('');
+  });
 });
 
 describe('describeVirtueInventory', () => {

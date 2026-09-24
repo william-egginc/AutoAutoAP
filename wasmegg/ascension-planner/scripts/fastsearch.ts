@@ -72,13 +72,16 @@ import { countUnavailable, describeAvailability, isConstrained, nextAvailable,
          type Availability } from '@/search/availability';
 import { meetsAll, usableMilestones, type LegArrival, type Milestone } from '@/search/milestones';
 import { createChainEvaluator } from '@/search/chain';
+import { CONTINUE_MAX_SECONDS, CONTINUE_PIN_MAX_SECONDS, CONTINUE_WARN_SECONDS, LAST_DATEABLE_SECONDS, integrityWaitSeconds } from '@/search/leg';
+import { INTEGRITY_BLOCK_SECONDS, INTEGRITY_WARN_SECONDS, describeDuration, integrityMessage, longContinueMessage } from '@/search/rules';
+import { describeTimeOff, timeOffWindows, usableTimeOff, type TimeOffDates } from '@/search/timeOff';
 import { runChainSearch, type CacheEntry, type EvaluateBatch } from '@/search/driver';
 import { findStartingChain } from '@/search/coarse';
 import { EFFORT, EFFORT_ORDER, estimateChains } from '@/search/effort';
 import { splitByPrefix, workersForBatch } from '@/search/batch';
 import { exhaustiveChains } from '@/search/exhaustive';
 import { buildChainsCsv, describeVirtueInventory } from '@/search/csv';
-import type { ChainResult, EffortTier, SearchInputs } from '@/search/types';
+import type { ChainResult, EffortTier, SearchInputs, TimeOffWindow } from '@/search/types';
 import {
   runUntilShift,
   deriveNextStartState,
@@ -467,7 +470,10 @@ WHEN THE PLAN STARTS
   --start-date YYYY-MM-DD   (default today)
   --start-time HH:MM        (default the current hour)
   --timezone IANA           (default this machine's)
-  --force-continue          Continue the current ascension rather than prestiging first.
+  --force-continue          Default leg 1 to continuing the current ascension: taken outright when
+                            it finishes within a week, kept up to six months unless a 1/2/3-sale
+                            fresh start is strictly faster, and dropped past six months (a warning
+                            is printed past three).
 
 EXHAUSTIVE
   --range lo:hi[:step]      Pool to enumerate, e.g. 185:390:5. Step defaults to 1.
@@ -495,6 +501,20 @@ DIAGNOSTICS  (for working on the search itself, not for planning a run)
                             drop the true optimum -- the default is what the accuracy figures
                             were measured with.
   --max-elr N               Cap peak delivery, for reproducing a bound by hand.
+  --continue-pin-days N     Continue is taken without comparison when it finishes within N days
+                            (default 7).
+  --continue-max-days N     Continue is not a candidate past N days (default 183). Between the two
+                            it is compared with the 1/2/3-sale fresh starts and wins unless one is
+                            strictly faster.
+  --time-off DATE[:DATE]    Days off the virtue farm, repeatable (e.g. 2027-07-14 for Egg Day, or
+                            2027-08-01:2027-08-07). The ascension in progress ends when it starts;
+                            coming back is a complete rebuild. Needs --exhaustive or --effort.
+  --allow-stall             Run an account whose first fresh ascension stalls on Integrity for
+                            over a week (refused by default, as in the browser).
+  --leg-variants            As --leg1-variants, for every leg (LEG_VARIANTS lines after leg 1).
+  --leg1-variants           Print every first-leg candidate (continue, 1/2/3-sale, tier-13) with
+                            its days, build-phase days and peak, as a LEG1_VARIANTS JSON line.
+                            Run without --force-continue, or continue is the only candidate.
   --override-ascension N --override-days D --override-hours H
                             Force one leg's length instead of simulating it. For isolating
                             whether a disagreement is in the chain or in one leg.
@@ -633,6 +653,17 @@ function shiftInstants(actions: any[], legStart: number): number[] {
  * about the farm as it stands right now, so it has no meaning further down a
  * chain, and the app only offers it there for the same reason.
  */
+/** `--continue-pin-days N` / `--continue-max-days N`: the continue rule to run under, for comparing
+ *  one rule with another. Defaults are the shipped rule in src/search/leg.ts. */
+const PIN_SECONDS = arg('continue-pin-days') !== undefined ? Number(arg('continue-pin-days')) * 86400 : CONTINUE_PIN_MAX_SECONDS;
+if (!Number.isFinite(PIN_SECONDS) || PIN_SECONDS < 0) throw new Error('--continue-pin-days must be a number of days');
+const MAX_CONTINUE_SECONDS = arg('continue-max-days') !== undefined ? Number(arg('continue-max-days')) * 86400 : CONTINUE_MAX_SECONDS;
+if (!Number.isFinite(MAX_CONTINUE_SECONDS) || MAX_CONTINUE_SECONDS < 0) throw new Error('--continue-max-days must be a number of days');
+
+/** Set once in main() from --time-off; read by planInputs and the CSV header. */
+let TIME_OFF_DATES: TimeOffDates[] = [];
+let TIME_OFF_WINDOWS: TimeOffWindow[] = [];
+
 /** `runLeg`'s no-farm notice, printed once per process. */
 let warnedNoContinue = false;
 
@@ -663,26 +694,28 @@ function runLeg(
   // full C3 (runC3Variants is the CPU hotspot - evaluateStones inside it is 20% of
   // runtime), and this skips all of them for A1, simulating one variant instead of
   // up to six.
+  // THE CONTINUE RULE, the same as src/search/leg.ts (see CONTINUE_PIN_MAX_SECONDS there): pinned
+  // under a week; compared with the fresh starts up to six months, continue winning unless a fresh
+  // start is strictly better; never a candidate past six months.
+  const byDeadline = endOverride !== undefined;
+  const asLeg = (v: any, key: VariantKey): LegResult => ({
+    summary: v.summary,
+    key,
+    nextState: deriveNextStartState(v.summary, createBaseEngineState(null)),
+    shiftTimes: shiftInstants(v.actions, startTime),
+  });
+  let cont: any = allowContinue ? buildContinueVariant(baseState, startTime, goalTE as number, idx, endOverride) : null;
+  if (cont && !(cont.summary.totalDurationSeconds <= MAX_CONTINUE_SECONDS)) cont = null;
   if (allowContinue && has('force-continue')) {
-    const only = buildContinueVariant(baseState, startTime, goalTE as number, idx, endOverride);
-    if (only) {
-      return {
-        summary: only.summary,
-        key: 'continue' as VariantKey,
-        nextState: deriveNextStartState(only.summary, createBaseEngineState(null)),
-        shiftTimes: shiftInstants(only.actions, startTime),
-      };
-    }
-    // No usable farm state (or zero ELR) - fall through rather than return null,
-    // so the run degrades to the normal variant search instead of dying.
+    if (cont && !byDeadline && cont.summary.totalDurationSeconds <= PIN_SECONDS) return asLeg(cont, 'continue' as VariantKey);
     // Usually not a fault: a save whose last sync was on the home farm or a contract has no
     // virtue ascension to finish, so leg 1 is a fresh one -- what the player would do. Warned once
     // per process rather than per chain, and worded so it does not read as an error.
-    if (!warnedNoContinue) {
+    if (!cont && !warnedNoContinue) {
       warnedNoContinue = true;
       console.warn(
-        '  note: no current virtue ascension to finish (the save is on the home farm or a contract, or its ' +
-          'farm has no delivery yet), so leg 1 is a fresh virtue ascension. --force-continue has nothing to pin.'
+        '  note: no current virtue ascension to finish within six months (the save is on the home farm or a ' +
+          'contract, or its farm is too bare), so leg 1 is a fresh virtue ascension.'
       );
     }
   }
@@ -694,12 +727,10 @@ function runLeg(
 
   const c3 = runC3Variants(pre.state, ctx, 3, startTE < TIER_13_MIN_STARTING_TE);
   let surviving = c3.filter(x => !x.impossible);
-  if (endOverride !== undefined) {
+  if (byDeadline) {
     // K3's mandatory wait to buildPhaseEnd cannot be truncated, so a variant whose
     // build phase ends after the deadline is not merely slower - it is unevaluable.
-    const feasible = surviving.filter((v: any) => v.buildPhaseEnd <= endOverride);
-    if (!feasible.length) return null;
-    surviving = feasible;
+    surviving = surviving.filter((v: any) => v.buildPhaseEnd <= endOverride!);
   }
   const variants: Record<string, VariantResult> = {};
   for (const v of surviving) {
@@ -710,21 +741,41 @@ function runLeg(
       baseState, preC3, v, ctx, startTime, 'asc_' + idx, goalTE, endOverride
     );
   }
+  if (!Object.keys(variants).length && !cont) return null;
 
-  if (allowContinue) {
-    const cont = buildContinueVariant(baseState, startTime, goalTE as number, idx, endOverride);
-    if (cont) variants.continue = cont;
+  // --leg1-variants: every candidate for the first leg, not just the winner, so "would continuing
+  // have been faster than a 1/2/3-sale fresh start?" has an answer. One JSON line per leg-1 target.
+  if ((idx === 0 && has('leg1-variants')) || has('leg-variants')) {
+    const d = (s: number) => +(s / 86400).toFixed(3);
+    const all: Record<string, any> = cont ? { ...variants, continue: cont } : variants;
+    console.log((idx === 0 ? 'LEG1_VARIANTS ' : 'LEG_VARIANTS ') + JSON.stringify({
+      leg: idx + 1,
+      startTE,
+      target: goalTE,
+      variants: Object.fromEntries(Object.entries(all).map(([k, v]: [string, any]) => [k, {
+        days: d(v.summary.totalDurationSeconds),
+        buildDays: d(v.summary.buildDurationSeconds ?? 0),
+        endTE: v.summary.endTE,
+        peakQph: +((v.summary.maxELR * 3600) / 1e15).toFixed(3),
+      }])),
+    }));
   }
-  if (!Object.keys(variants).length) return null;
 
-  const best = pickVariant(variants as any, undefined, false);
-  const entry = Object.entries(variants).find(([, v]) => v === best);
-  return {
-    summary: best.summary,
-    key: (entry ? entry[0] : '?') as VariantKey,
-    nextState: deriveNextStartState(best.summary, createBaseEngineState(null)),
-    shiftTimes: shiftInstants(best.actions, startTime),
-  };
+  const freshKeys = Object.keys(variants);
+  const freshBest = freshKeys.length ? pickVariant(variants as any, undefined, byDeadline) : null;
+  if (cont) {
+    const contWins = !freshBest
+      ? true
+      : has('force-continue')
+        ? byDeadline
+          ? cont.summary.endTE >= freshBest.summary.endTE
+          : cont.summary.totalDurationSeconds <= freshBest.summary.totalDurationSeconds
+        : pickVariant({ ...variants, continue: cont } as any, undefined, byDeadline) === cont;
+    if (contWins) return asLeg(cont, 'continue' as VariantKey);
+  }
+  if (!freshBest) return null;
+  const entry = Object.entries(variants).find(([, v]) => v === freshBest);
+  return asLeg(freshBest, (entry ? entry[0] : '?') as VariantKey);
 }
 
 /** A1-only "continue current ascension" variant, mirroring the generator's setup. */
@@ -902,9 +953,12 @@ function planInputs(o: {
     currentTE: o.currentTE,
     final: o.final,
     forceContinue: has('force-continue'),
+    continuePinSeconds: PIN_SECONDS,
+    continueMaxSeconds: MAX_CONTINUE_SECONDS,
     availability: o.availability,
     milestones: o.milestones,
     deferShifts: o.deferShifts,
+    timeOff: TIME_OFF_WINDOWS,
   };
 }
 
@@ -1339,7 +1393,10 @@ function writeCsv(
       final: o.final,
       effort: o.effort,
       forceContinue: has('force-continue'),
+    continuePinSeconds: PIN_SECONDS,
+    continueMaxSeconds: MAX_CONTINUE_SECONDS,
       availability: o.availability,
+      timeOff: TIME_OFF_DATES,
       seedChain: chain,
       inventory: raw ? describeVirtueInventory(raw) : undefined,
       loadouts: [],
@@ -1371,6 +1428,11 @@ function report(
   console.log('    ' + o.note);
   console.log('\n  ' + (seconds / 86400).toFixed(3) + ' d   ' + chain.join(' '));
   console.log('    ends ' + new Date((o.planStart + seconds) * 1000).toLocaleString('en-US', { timeZone: o.tz }));
+  // The three-month continue warning (search/rules.ts), on the chain being reported.
+  const firstLeg = cache.find(e => e.key === chain.join(','))?.legs?.[0];
+  if (firstLeg?.key === 'continue' && firstLeg.durationSeconds > CONTINUE_WARN_SECONDS) {
+    console.warn('\n  warning: ' + longContinueMessage(firstLeg.durationSeconds / 86400));
+  }
 
   const ranked = [...cache].filter(e => e.seconds > 0).sort((a, b) => a.seconds - b.seconds);
   const top = +(arg('top', '10')!);
@@ -1578,11 +1640,48 @@ async function main() {
     ? (Object.values(snap.teEarned as Record<VirtueEgg, number>) as number[]).reduce((a, b) => a + b, 0)
     : 0;
 
+  // --time-off: whole local dates away from the virtue farm (src/search/timeOff.ts). Handled by the
+  // shared chain evaluator, so only the modes that use it (--exhaustive, --effort, and the workers
+  // they fork) accept it; the --stages/--grid path has its own leg loop and would silently ignore it.
+  TIME_OFF_DATES = argAll('time-off').flatMap(v => v.split(',')).filter(Boolean).map(spec => {
+    const [from, to = from] = spec.trim().split(':');
+    return { from, to };
+  });
+  if (TIME_OFF_DATES.length) {
+    if (usableTimeOff(TIME_OFF_DATES).length !== TIME_OFF_DATES.length) {
+      throw new Error('--time-off must look like 2027-07-14 or 2027-07-14:2027-07-16');
+    }
+    if (!planMode && !has('worker')) throw new Error('--time-off needs --exhaustive or --effort (the shared evaluator)');
+    TIME_OFF_WINDOWS = timeOffWindows(TIME_OFF_DATES, tz);
+    console.log('time off from virtue: ' + describeTimeOff(TIME_OFF_DATES) + ' (each ends the ascension in progress; a rebuild follows)');
+  }
   const inputs = planInputs({ planStart, currentTE, final, availability, milestones: usable, deferShifts });
 
   // `--worker`: a pool member. Loads the player above like anyone else, then serves chains over
   // IPC forever. Must come before every other mode, and never returns.
   if (has('worker')) return runWorker(inputs);
+
+  // THE INTEGRITY CHECK (thresholds and wording in src/search/rules.ts): how long a fresh ascension
+  // from here sits on its first Integrity shift. Printed every run; past an hour it is a warning,
+  // past a week the run is refused -- the browser refuses too -- unless --allow-stall asks for the
+  // numbers anyway, which is what studying a stalled account needs.
+  const integrityWait = integrityWaitSeconds(inputs);
+  // --integrity-only: print the check as seconds and stop (for sampling it across plan starts).
+  if (has('integrity-only')) {
+    console.log('INTEGRITY_SECONDS ' + (integrityWait ?? 'null'));
+    return;
+  }
+  if (integrityWait === null) {
+    console.log('integrity check: could not simulate a fresh ascension from this save');
+  } else if (integrityWait <= INTEGRITY_WARN_SECONDS) {
+    console.log('integrity check: a fresh ascension clears Integrity in ' + describeDuration(integrityWait));
+  } else {
+    console.warn('\n  integrity check: ' + integrityMessage(integrityWait) + '\n');
+    if (integrityWait > INTEGRITY_BLOCK_SECONDS && !has('allow-stall')) {
+      throw new Error('refusing to run: a fresh ascension stalls on Integrity for ' + describeDuration(integrityWait) +
+        '. Pass --allow-stall to run it anyway.');
+    }
+  }
 
   if (planMode) return runPlanSearch(inputs, { jobs, tz, planStart, currentTE, final, availability, deferShifts, t0 });
 
@@ -1792,6 +1891,8 @@ async function main() {
           if (has('debug')) console.error('  leg ' + key + ' threw: ' + (e as Error).stack);
           leg = null;
         }
+        // Same rule as src/search/chain.ts: a leg that never ends is a failure, not an Infinity.
+        if (leg && !(leg.summary.endTime < LAST_DATEABLE_SECONDS)) leg = null;
         sims++;
         memo.set(key, leg);
       }
@@ -1902,8 +2003,13 @@ async function main() {
       fmt(r.seconds).padStart(10) + ((r.seconds - best) / 3600).toFixed(0).padStart(6) + 'h   ' +
       r.legs.map(l => l.key).join(' / '));
   }
+  if (rows.length && rows[0].legs[0]?.key === 'continue' && rows[0].legs[0].dur > CONTINUE_WARN_SECONDS) {
+    console.warn('\n  warning: ' + longContinueMessage(rows[0].legs[0].dur / 86400));
+  }
 
-  const out = arg('out');
+  // `--csv` as well, the same as runSharded: it is the flag every other mode documents, and with
+  // `--jobs 1` this is the only writer, so honouring just `--out` here silently dropped the file.
+  const out = arg('out') ?? arg('csv');
   if (out) {
     const head = ['chain', 'prestiges', 'duration', 'days', 'gap_hours', 'plan_start', 'pin_date', 'pin_time'];
     for (let i = 1; i <= 8; i++) head.push('A' + i + '_sale', 'A' + i + '_te', 'A' + i + '_days', 'A' + i + '_elr',

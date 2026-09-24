@@ -25,6 +25,8 @@
  *   new Worker(new URL('./chainSearch.worker.ts', import.meta.url), { type: 'module' })
  */
 import { createChainEvaluator, type ChainEvaluator } from '@/search/chain';
+import { integrityWaitSeconds } from '@/search/leg';
+import type { SearchInputs } from '@/search/types';
 import type { ChainResult } from '@/search/types';
 import type { WorkerRequest, WorkerResponse } from './chainSearch.protocol';
 
@@ -35,6 +37,7 @@ import type { WorkerRequest, WorkerResponse } from './chainSearch.protocol';
 const ctx = self as unknown as Worker;
 
 let evaluator: ChainEvaluator | null = null;
+let loaded: SearchInputs | null = null;
 
 function post(message: WorkerResponse): void {
   ctx.postMessage(message);
@@ -47,10 +50,16 @@ ctx.onmessage = (event: MessageEvent<WorkerRequest>) => {
     switch (msg.kind) {
       case 'init': {
         evaluator = createChainEvaluator(msg.inputs);
+        loaded = msg.inputs;
         post({ type: 'init-done', requestId: msg.requestId });
         break;
       }
 
+      case 'integrity': {
+        if (!loaded) throw new Error('chainSearch worker received integrity before init');
+        post({ type: 'integrity', requestId: msg.requestId, seconds: integrityWaitSeconds(loaded) });
+        break;
+      }
       case 'evaluate': {
         if (!evaluator) throw new Error('chainSearch worker received evaluate before init');
         const before = evaluator.legSims;

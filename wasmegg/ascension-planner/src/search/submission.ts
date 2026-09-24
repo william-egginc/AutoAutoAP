@@ -24,6 +24,7 @@
  *
  * The nickname is optional and free text; nothing is derived from the account.
  */
+import type { SubmissionFlag } from './rules';
 import type { InventoryCount, LoadoutSlot } from './csv';
 import type { ColleggtibleSummary, EpicResearchSummary } from './progression';
 import type { Availability } from './availability';
@@ -321,6 +322,12 @@ export interface Submission {
   machine?: MachineInfo;
   /** `upload` when the Chain Explorer built this from a CSV plus diagnostics; absent from the planner. */
   source?: 'upload';
+  /** Why this run belongs on the flagged board (search/rules.ts). Absent means the main board. */
+  flags?: SubmissionFlag[];
+  /** How long a fresh ascension sat on its first Integrity shift, when that was measured. */
+  integrityMinutes?: number;
+  /** Time away from the virtue farm the plan was built around, as whole local dates. */
+  timeOff?: { from: string; to: string }[];
 
   submittedAt: string;
 }
@@ -518,6 +525,10 @@ export interface SubmissionInputs {
   teByEgg?: number[] | null;
   /** Unix seconds the backup was taken. */
   backupTime?: number | null;
+  flags?: SubmissionFlag[];
+  /** Seconds, from the run's integrity check. */
+  integrityWaitSeconds?: number | null;
+  timeOff?: { from: string; to: string }[];
   /** Injectable so tests are not clock-dependent. */
   now?: number;
 }
@@ -664,6 +675,11 @@ export function buildSubmission(i: SubmissionInputs): Submission {
     ...(i.backupTime && i.planStart >= i.backupTime
       ? { backupAgeHours: Number(((i.planStart - i.backupTime) / 3600).toFixed(1)) }
       : {}),
+    ...(i.flags?.length ? { flags: [...i.flags] } : {}),
+    ...(i.integrityWaitSeconds !== null && i.integrityWaitSeconds !== undefined && Number.isFinite(i.integrityWaitSeconds)
+      ? { integrityMinutes: Math.round(i.integrityWaitSeconds / 60) }
+      : {}),
+    ...(i.timeOff?.length ? { timeOff: i.timeOff.map(w => ({ ...w })) } : {}),
     submittedAt: new Date(i.now ?? Date.now()).toISOString(),
   };
 }

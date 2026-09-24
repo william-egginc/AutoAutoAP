@@ -17,6 +17,7 @@
  * table; keeping them for every cached chain would multiply the record's size by roughly six for
  * information nothing reads.
  */
+import type { TimeOffWindow } from './types';
 import { loadMetadata, saveMetadata } from '@/lib/storage/db';
 import type { CacheEntry } from './driver';
 import type { SearchSpace } from './submission';
@@ -87,6 +88,7 @@ export function fingerprintRun(args: {
   availability?: Availability | null;
   milestones?: Milestone[] | null;
   deferShifts?: boolean;
+  timeOff?: TimeOffWindow[] | null;
 }): string {
   const parts = [args.playerId, args.planStart, args.currentTE, args.final, args.forceContinue ? 'fc' : 'auto'];
   const key = availabilityKey(args.availability);
@@ -95,6 +97,8 @@ export function fingerprintRun(args: {
   if (key) parts.push(args.deferShifts ? `${key}+shifts` : key);
   const ms = milestonesKey(args.milestones);
   if (ms) parts.push(ms);
+  // Only when set, so every checkpoint written before time off existed still matches.
+  if (args.timeOff?.length) parts.push('off:' + args.timeOff.map(w => `${w.from}-${w.to}`).join(','));
   return parts.join('|');
 }
 

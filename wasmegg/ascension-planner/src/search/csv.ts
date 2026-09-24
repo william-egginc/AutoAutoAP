@@ -22,6 +22,7 @@
  *      rather than being told what to wear. So they are recorded once in the header block, from the
  *      backup the run was launched against, and the header says which sets those are.
  */
+import { describeTimeOff, type TimeOffDates } from './timeOff';
 import { getArtifact, getStone } from '@/lib/artifacts/data';
 // The workspace tier table, the same source src/lib/artifacts/data.ts parses its own
 // options from. Needed raw here because an inventory item carries (afx name, level),
@@ -45,6 +46,8 @@ export interface CsvMeta {
   effort: string;
   forceContinue: boolean;
   availability?: Availability | null;
+  /** Time off from the virtue farm the plan was built around (search/timeOff.ts). */
+  timeOff?: TimeOffDates[];
   seedChain: number[];
   /** Named artifact/stone sets, in the order they should appear. */
   loadouts: { label: string; loadout: EquippedArtifact[] | null }[];
@@ -56,9 +59,11 @@ export interface CsvMeta {
   generatedAt?: number;
 }
 
-/** `2028-09-16 00:22` in `timezone`. Blank for a missing instant, never `1970-01-01`. */
+/** `2028-09-16 00:22` in `timezone`. Blank for a missing instant, never `1970-01-01`, and blank
+ *  for one past what a `Date` can hold: `formatToParts` throws on an invalid date, and one row
+ *  like that used to take the whole download down with it, silently, from a click handler. */
 export function formatInZone(unixSeconds: number | undefined, timezone: string): string {
-  if (!unixSeconds || !Number.isFinite(unixSeconds)) return '';
+  if (!unixSeconds || !Number.isFinite(unixSeconds) || Math.abs(unixSeconds) >= 8.64e12) return '';
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: timezone,
     year: 'numeric',
@@ -289,6 +294,9 @@ const COLUMNS = [
   'shift_hold_hours',
   'starts_on_egg',
   'shift_times_local',
+  // Last, so the readers that go by position (the Explorer's) are unaffected. `stopped` is a leg
+  // cut short when time off began; `restarted` is the rebuild after it. Blank otherwise.
+  'time_off',
 ] as const;
 
 function legRow(
@@ -328,6 +336,7 @@ function legRow(
     // split-on-semicolon better than twelve mostly-empty columns.
     leg?.shifts?.[0]?.fromEgg,
     leg?.shifts?.length ? leg.shifts.map(x => `${formatInZone(x.at, tz)} ${x.egg}`).join('; ') : undefined,
+    leg?.timeOff,
   ]
     .map(cell)
     .join(',');
@@ -371,6 +380,7 @@ export function* chainsCsvChunks(entries: CacheEntry[], meta: CsvMeta): Generato
   note(`current TE ${meta.currentTE} -> final target ${meta.final}`);
   note(`effort ${meta.effort}; force-continue ${meta.forceContinue ? 'on' : 'off'}`);
   note(`available ${describeAvailability(meta.availability)}`);
+  if (meta.timeOff?.length) note(`time off from virtue: ${describeTimeOff(meta.timeOff)} (each ends the ascension in progress; a rebuild follows)`);
   note(`seed chain ${meta.seedChain.join(' ')}`);
   note(`chains priced ${entries.length}`);
   note('');

@@ -116,11 +116,18 @@
           </button>
           <span class="text-[10px] text-slate-500">
             This is the only button you need (the one further down does the same). When it finishes, press Submit
-            at the bottom: it is tagged as {{ sweepRequest.preset }} automatically.
+            at the bottom: it is tagged as {{ sweepRequest.preset }} automatically. Submit only appears once the sweep
+            has found a chain that finishes.
           </span>
         </div>
         <!-- Said HERE as well as further down: the card's Start is at the top of a long page, and a
              refusal that only appears below the fold reads as "the button does nothing". -->
+        <p
+          v-if="store.noFeasibleChain && !store.error"
+          class="rounded-lg bg-rose-50 border border-rose-200 px-3 py-2 text-[11px] text-rose-800"
+        >
+          <b>No chain finished</b> — so there is nothing to save or submit. The reason is further down.
+        </p>
         <p v-if="store.error" class="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-[11px] text-red-800">
           <b>{{ store.errorBeforeStart ? "Didn't start" : 'Search failed' }}</b> — {{ store.error }}
         </p>
@@ -436,6 +443,10 @@
             most people actually do.
           </span>
         </label>
+
+        <div v-if="showSchedule" class="pt-2 border-t border-slate-100">
+          <TimeOffEditor />
+        </div>
       </div>
 
       <!--
@@ -1051,6 +1062,27 @@
         — {{ store.error }}
       </div>
 
+      <!-- The outcome with no best chain. Without it a finished run simply lacked the result card,
+           the Save button stayed grey and Submit never appeared, with nothing saying why -- which
+           read as three separate bugs to the person looking at it. -->
+      <div
+        v-if="store.noFeasibleChain && !store.error"
+        class="rounded-xl border border-rose-300 bg-rose-50 p-4 space-y-2"
+      >
+        <p class="text-[10px] font-black text-rose-800 uppercase tracking-widest">No chain in this space finishes</p>
+        <p class="text-[11px] text-rose-900/90 leading-relaxed">
+          Every chain was simulated, and none of them reaches {{ store.finalTE }} TE in any time the planner can put a
+          date on. That is a result, not a crash, so there is nothing to save or submit.
+        </p>
+        <p class="text-[11px] text-rose-900/90 leading-relaxed">
+          The usual cause is earnings. On a low-TE account the early ascensions cannot earn enough to buy the habs and
+          vehicles the plan is waiting on, so the very first leg stalls and everything after it inherits the stall. A
+          different space will not fix that; more Truth Eggs, or a stronger earnings set (totem, ankh, necklace and
+          their stones), will. If you think the planner has this wrong, download the diagnostics below and send them
+          in.
+        </p>
+      </div>
+
       <div v-if="store.bestDays > 0" class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 space-y-1">
         <div class="text-[10px] font-black text-emerald-700 uppercase tracking-widest">
           Best chain<template v-if="!store.isRunning && !store.stoppedEarly"> — proven optimum of this space</template>
@@ -1066,9 +1098,15 @@
         <!-- The result-side half of the same idea. Delivery cannot fall as TE rises; when it does,
              the state carried into that leg is wrong and every duration after it is too. Shown on
              the winning chain because that is the number people copy. -->
-        <div v-if="store.resultIssues.length" class="mt-2 rounded-lg border border-rose-300 bg-rose-50 p-3 space-y-1">
+        <p
+          v-if="store.continueWarning"
+          class="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-[11px] text-amber-900 leading-relaxed"
+        >
+          {{ store.continueWarning }}
+        </p>
+        <div v-if="store.resultContradictions.length" class="mt-2 rounded-lg border border-rose-300 bg-rose-50 p-3 space-y-1">
           <p class="text-[10px] font-black text-rose-800 uppercase tracking-widest">This result contradicts itself</p>
-          <p v-for="(issue, k) in store.resultIssues" :key="k" class="text-[11px] text-rose-900/90 leading-relaxed">
+          <p v-for="(issue, k) in store.resultContradictions" :key="k" class="text-[11px] text-rose-900/90 leading-relaxed">
             {{ issue.message }}
           </p>
           <p class="text-[11px] text-rose-900/80 leading-relaxed">
@@ -1158,17 +1196,21 @@
 
       <SearchShapeChart v-if="store.pricedChains.length" :points="store.pricedChains" :best-chain="store.bestChain" />
 
-      <div v-if="store.pricedChains.length" class="flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          class="px-4 py-2 rounded-lg bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-700"
-          @click="downloadCsv"
-        >
-          Download CSV
-        </button>
-        <span class="text-[11px] text-slate-500">
-          {{ store.csvRows.toLocaleString() }} chains, one row per leg. Safe to take mid-run.
-        </span>
+      <!-- Diagnostics are offered on a run with no answer too: that is exactly when someone wants to
+           report what went in. -->
+      <div v-if="store.pricedChains.length || store.noFeasibleChain" class="flex flex-wrap items-center gap-3">
+        <template v-if="store.csvRows > 0">
+          <button
+            type="button"
+            class="px-4 py-2 rounded-lg bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-700"
+            @click="downloadCsv"
+          >
+            Download CSV
+          </button>
+          <span class="text-[11px] text-slate-500">
+            {{ store.csvRows.toLocaleString() }} chains, one row per leg. Safe to take mid-run.
+          </span>
+        </template>
         <!-- The input side. The CSV records what came OUT; when a result looks wrong the question
              is always what went IN, and until now nothing wrote that down. -->
         <button
@@ -1182,6 +1224,7 @@
           A small JSON of what this run was <em>given</em> — backup age, TE, research, loadout. No save data, no player
           ID. Attach it when reporting a result that looks wrong.
         </span>
+        <p v-if="downloadError" class="w-full text-[11px] font-semibold text-red-700">{{ downloadError }}</p>
       </div>
 
       <!-- Submission. Same payload, same opt-in, same disclosure as the main panel. -->
@@ -1196,7 +1239,11 @@
         </p>
         <label class="flex items-start gap-3 text-xs text-indigo-900">
           <input v-model="optIn" type="checkbox" class="mt-0.5 rounded border-indigo-300 text-indigo-600" />
-          <span>Yes, contribute this result. Artifact inventory, timezone and local plan start are included.</span>
+          <span
+            >Yes, contribute this result. Artifact inventory, timezone and local plan start are included, plus a random
+            code this browser keeps for the account (not your player ID), so a run that lands on the flagged board shows
+            to you as yours and to everyone else anonymously.</span
+          >
         </label>
 
         <!-- Credit, behind the opt-in like everything else that leaves the machine. Anonymous is
@@ -1310,6 +1357,8 @@ import {
 import { MAX_RUNS } from '@/search/runLibrary';
 import SearchShapeChart from './charts/SearchShapeChart.vue';
 import HelpTip from './HelpTip.vue';
+import TimeOffEditor from './TimeOffEditor.vue';
+import { usableTimeOff } from '@/search/timeOff';
 import { downloadCsv as saveCsvFile, downloadParts } from '@/utils/export';
 import LoadoutDisplay from './LoadoutDisplay.vue';
 
@@ -1321,16 +1370,34 @@ import LoadoutDisplay from './LoadoutDisplay.vue';
  * Chunked, because this is the panel whose runs get big enough for it to matter -- a large export
  * was crashing the tab outright rather than failing. See `chainsCsvChunks`.
  */
+/**
+ * Said on the page, not just in the console. A throw inside a click handler is otherwise invisible:
+ * the button "does nothing", which is how a date the CSV could not format was reported.
+ */
+const downloadError = ref('');
+
+function tryDownload(what: string, fn: () => void): void {
+  downloadError.value = '';
+  try {
+    fn();
+  } catch (e) {
+    console.error(`${what} download failed`, e);
+    downloadError.value = `The ${what} download failed: ${e instanceof Error ? e.message : String(e)}. Please send a screenshot of this message with your report.`;
+  }
+}
+
 function downloadDiagnostics(): void {
-  downloadParts(
-    `chain-search-diagnostics-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-')}.json`,
-    [store.buildRunDiagnostics()],
-    'application/json'
+  tryDownload('diagnostics', () =>
+    downloadParts(
+      `chain-search-diagnostics-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-')}.json`,
+      [store.buildRunDiagnostics()],
+      'application/json'
+    )
   );
 }
 
 function downloadCsv(): void {
-  saveCsvFile(store.csvFilename(), store.exportCsvChunks());
+  tryDownload('CSV', () => saveCsvFile(store.csvFilename(), store.exportCsvChunks()));
 }
 
 const props = defineProps<{ playerId: string }>();
@@ -1368,6 +1435,14 @@ if (sweepRequest) {
   store.sweepTag = { preset: sweepRequest.preset, bands: sweepRequest.bands, minGap: sweepRequest.minGap };
   if (sweepRequest.forceContinue !== null) store.forceContinue = sweepRequest.forceContinue;
 }
+// The tag holds only while the space is still the one the link asked for. Edit the bands (or press
+// Suggest a space) and it is somebody's own run, which must not count toward that preset's coverage;
+// put them back and it is the preset again.
+watch([spaceMode, bandsText, minGap], ([mode, text, gap]) => {
+  if (!sweepRequest) return;
+  const same = mode === 'bands' && text.trim() === sweepRequest.bands.trim() && gap === sweepRequest.minGap;
+  store.sweepTag = same ? { preset: sweepRequest.preset, bands: sweepRequest.bands, minGap: sweepRequest.minGap } : null;
+});
 
 /** Ascension count the suggestion is built for. Bands fix the count, so this picks how many boxes. */
 const suggestAsc = ref(6);
@@ -1542,7 +1617,8 @@ const CHEVRON_DOWN = 'M2 4l4 4 4-4';
 
 const scheduleSummary = computed(() => {
   const when = store.planStartIsNow ? 'no start set' : `from ${autoPlannerStore.startDate}`;
-  return `${when} · ${store.scheduleEnabled ? store.availabilityLabel : 'any hour'}`;
+  const off = usableTimeOff(store.timeOff).length;
+  return `${when} · ${store.scheduleEnabled ? store.availabilityLabel : 'any hour'}${off ? ` · ${off} time off` : ''}`;
 });
 const machineSummary = computed(
   () =>
