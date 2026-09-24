@@ -865,9 +865,6 @@
             <span class="font-bold text-slate-800">This space tries {{ plannedGridLabel }}</span> (for example
             {{ gridExample }}), not every TE in between: checking every TE would take weeks. So the winner is the best
             on this grid, and a chain between grid points can be faster.
-            <template v-if="store.polishAfterSweep">
-              Polishing, below, then moves the winner's checkpoints one TE at a time to find it.
-            </template>
           </p>
         </div>
 
@@ -1079,22 +1076,6 @@
           every worker freezes until you wake it back up. Turn this off if you'd rather manage sleep yourself.
         </span>
       </label>
-
-      <label v-if="!plannedGridComplete" class="flex items-start gap-3 cursor-pointer">
-        <input
-          v-model="store.polishAfterSweep"
-          type="checkbox"
-          :disabled="store.isRunning"
-          class="mt-0.5 rounded border-slate-300 text-indigo-600 disabled:opacity-40"
-        />
-        <span class="text-[11px] text-slate-600 leading-relaxed">
-          <span class="font-bold text-slate-800">Polish the winner one TE at a time afterwards.</span> The grid tries
-          {{ plannedGridLabel }}; this runs a Balanced search from the grid's best chain so a faster chain between grid
-          points is not missed. Up to about {{ polishEstimate.toLocaleString() }} more chains, reusing everything
-          already priced.
-        </span>
-      </label>
-
       <BackgroundSpeed />
 
       <IntegrityNotice />
@@ -1332,7 +1313,7 @@
       <div v-if="store.bestDays > 0" class="rounded-xl border border-indigo-200 bg-indigo-50/60 p-4 space-y-3">
         <h3 class="text-[10px] font-black text-indigo-800 uppercase tracking-widest">Share this result</h3>
         <p class="text-[11px] text-indigo-900/80 leading-relaxed">
-          An exhaustive result is the most useful thing the board can receive: the best of a stated grid, polished one TE at a time, rather
+          An exhaustive result is the most useful thing the board can receive: the best of a stated grid rather
           than a search result. It goes with the space it covered and what it found there — the runners-up, the best
           chain at each ascension count, and the spread — so a reader can tell a real find from a flat neighbourhood
           without downloading the CSV. A run opened from the library above submits without a run cost, because the time
@@ -1464,7 +1445,7 @@ import { describeCompute } from '@/utils/computeTime';
 import IntegrityNotice from './IntegrityNotice.vue';
 import { useInitialStateStore } from '@/stores/initialState';
 import { describeTimeOff, usableTimeOff } from '@/search/timeOff';
-import { gridIsComplete, gridStepLabel, polishChainEstimate } from '@/search/polish';
+import { gridIsComplete, gridStepLabel } from '@/search/grid';
 import { downloadCsv as saveCsvFile, downloadParts } from '@/utils/export';
 import LoadoutDisplay from './LoadoutDisplay.vue';
 
@@ -1846,7 +1827,7 @@ const poolSize = computed(() =>
  *  does not fit in memory, and the whole point of showing this is to say so before that happens. */
 const bands = computed(() => (spaceMode.value === 'bands' ? parseBands(bandsText.value) : []));
 
-/** The grid the inputs above describe, before a run: for the step note and the polish option. */
+/** The grid the inputs above describe, before a run: for the step note. */
 const plannedGridComplete = computed(() =>
   gridIsComplete(bands.value.length ? bands.value : undefined, spaceMode.value === 'bands' ? undefined : rangeStep.value)
 );
@@ -1858,7 +1839,6 @@ const gridExample = computed(() => {
   const first = bands.value[0] ?? Array.from({ length: 4 }, (_, i) => rangeLo.value + i * rangeStep.value);
   return first.slice(0, 3).join(', ') + ', ...';
 });
-const polishEstimate = computed(() => polishChainEstimate(Math.max(1, bands.value.length || 3)));
 
 /** What the winner is, in words that hold: a grid's best is not the best of every TE. */
 const resultClaim = computed(() => {
@@ -1866,21 +1846,13 @@ const resultClaim = computed(() => {
   if (!sp) return 'best found';
   const complete = gridIsComplete(sp.bands, sp.range?.step);
   if (complete) return 'the best of every chain in this space';
-  if (sp.polish) return sp.polish.stoppedEarly ? 'best found (polish stopped early)' : 'best on the grid, polished one TE at a time';
   return `best on this grid (${gridStepLabel(sp.bands, sp.range?.step)})`;
 });
 const resultExplain = computed(() => {
   const sp = store.searchSpace;
   if (!sp || gridIsComplete(sp.bands, sp.range?.step)) return '';
   const step = gridStepLabel(sp.bands, sp.range?.step);
-  const p = sp.polish;
-  if (!p) {
-    return `Every chain on the grid (${step}) was priced and this is the fastest. Values between grid points were not tried, so a Balanced search can land on something faster in between.`;
-  }
-  const gain = p.fromDays - store.bestDays;
-  return gain > 0.0005
-    ? `The grid's best (${step}) was ${p.from.join(' ')} at ${p.fromDays.toFixed(3)} d. Moving its checkpoints one TE at a time found this, ${gain.toFixed(3)} d faster (${p.chains.toLocaleString()} more chains priced).`
-    : `The grid's best (${step}), and no one-TE move around it does better (${p.chains.toLocaleString()} more chains checked).`;
+  return `Every chain on the grid (${step}) was priced and this is the fastest. Values between grid points were not tried, so a Balanced search can land on something faster in between.`;
 });
 
 const chainCount = computed(() => {

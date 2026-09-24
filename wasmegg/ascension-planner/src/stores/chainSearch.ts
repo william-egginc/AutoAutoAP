@@ -26,7 +26,6 @@ import { hardwareThreads, maxPoolSize, clampPoolSize, targetWorkerCount } from '
 import { describeRunError } from '@/utils/errors';
 import { loadChainBenchmark, saveChainBenchmark } from '@/lib/chainBenchmarkCache';
 import { EFFORT, estimateChains } from '@/search/effort';
-import { fastestEntry, gridIsComplete } from '@/search/polish';
 import {
   buildCheckpoint,
   clearCheckpoint,
@@ -302,8 +301,6 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * unnoticed) is worse than the failure mode it risks (a screen kept on that didn't need to be).
    */
   const keepAwake = ref(true);
-  /** Polish the grid's winner one TE at a time after an Insane sweep (search/polish.ts). */
-  const polishAfterSweep = ref(true);
 
   /**
    * Workers this run may use. The knob, as opposed to `workersInPool`, which is the readback.
@@ -2020,67 +2017,6 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         void persist(liveCache);
       }
 
-      // THE GRID'S ANSWER, then the polish. Everything above priced the grid; `space.chainsPriced`
-      // counts only that, because it is the claim "every chain in the stated space was priced" and
-      // the collector refuses a count larger than the space.
-      const gridPriced = liveCache.length;
-      if (searchSpace.value) searchSpace.value.chainsPriced = gridPriced;
-      const gridBest = fastestEntry(liveCache);
-      const space = searchSpace.value;
-      if (
-        polishAfterSweep.value &&
-        !stopRequested.value &&
-        gridBest &&
-        space &&
-        !gridIsComplete(space.bands, space.range?.step)
-      ) {
-        const from = gridBest.key.split(',').map(Number);
-        stage.value = 'polishing the winner at 1-TE steps';
-        runLog.value.push(`--- polishing ${from.join(' ')} one TE at a time (Balanced search from the grid's winner)`);
-        const lastValues = space.bands?.length ? space.bands[space.bands.length - 1] : [space.range?.hi ?? 0];
-        const outcome = await runChainSearch({
-          seedChain: from,
-          final: finalTE.value,
-          currentTE: currentTE.value,
-          effort: 'balanced',
-          // The driver's default cap (final - 150) was measured for staged searches; the player's
-          // own bands may reach higher, and the polish must be free to move where the grid could.
-          maxLast: Math.max(finalTE.value - 150, ...lastValues),
-          minCheckpoints: from.length,
-          maxCheckpoints: from.length,
-          evaluateBatch: chains => pool!.evaluate(chains, noteBatch),
-          restoredCache: liveCache,
-          shouldStop: () => stopRequested.value,
-          onProgress: p => {
-            if (p.stage !== stage.value && p.stage) runLog.value.push(`--- polish: ${p.stage}`);
-            chainsDone.value = gridPriced + p.chainsDone;
-            chainsEstimated.value = Math.max(chains.length + p.chainsEstimated, chainsDone.value);
-            detail.value = p.detail;
-            noteRate(chainsDone.value);
-          },
-          onCache: entries => {
-            liveCache = entries;
-            csvRows.value = entries.length;
-            noteBest();
-            refreshShortlist();
-            void persist(liveCache);
-          },
-        });
-        space.polish = {
-          from,
-          fromDays: gridBest.seconds / 86400,
-          chains: Math.max(0, liveCache.length - gridPriced),
-          stoppedEarly: outcome.stoppedEarly,
-        };
-        const gain = (gridBest.seconds - outcome.seconds) / 86400;
-        runLog.value.push(
-          gain > 0.0005
-            ? `polish: ${outcome.chain.join(' ')} = ${(outcome.seconds / 86400).toFixed(3)} d, ${gain.toFixed(3)} d faster than the grid's best`
-            : `polish: no 1-TE move beats the grid's best`
-        );
-        noteBest();
-      }
-
       // A replayed winner has no per-leg detail. Entries carried over from an earlier run in
       // memory have usually had their legs trimmed by the leg budget (they were slow there), and
       // a checkpoint only keeps legs for its own best. A real submission arrived with a chain, a
@@ -2101,9 +2037,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
 
       stoppedEarly.value = stopRequested.value;
       if (searchSpace.value) {
-        // Polish chains excluded: see `gridPriced` above.
-        searchSpace.value.chainsPriced = Math.min(searchSpace.value.chains, searchSpace.value.chainsPriced || liveCache.length);
-        searchSpace.value.stoppedEarly = stopRequested.value && !searchSpace.value.polish;
+        searchSpace.value.chainsPriced = liveCache.length;
+        searchSpace.value.stoppedEarly = stopRequested.value;
       }
       stage.value = stopRequested.value ? 'stopped' : 'done';
       refreshShortlist(true);
@@ -2655,7 +2590,6 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     benchmarkChainCount,
     resumable,
     keepAwake,
-    polishAfterSweep,
     backgroundWorkers,
     tabHidden,
     // derived

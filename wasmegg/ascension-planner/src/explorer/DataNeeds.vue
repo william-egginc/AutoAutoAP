@@ -93,7 +93,7 @@ import { measuredWorkerSeconds } from '@/search/speed';
 import { SWEEP_PRESETS } from './upload';
 import { sweepRequestQuery } from '@/search/sweepRequest';
 import { parseBands } from '@/search/exhaustive';
-import { gridIsComplete, gridStepLabel } from '@/search/polish';
+import { gridIsComplete, gridStepLabel } from '@/search/grid';
 
 /** "181-250:5" in plain words. Players read past the notation; a Balanced result between grid
  *  points then looks like the sweep got it wrong. */
@@ -101,7 +101,7 @@ function stepWords(text: string): string {
   const bands = parseBands(text);
   if (!bands.length) return '';
   if (gridIsComplete(bands)) return 'That is every TE in range.';
-  return `That tries ${gridStepLabel(bands)} (${bands[0].slice(0, 3).join(', ')}, ...), not every TE, then polishes the winner one TE at a time.`;
+  return `That tries ${gridStepLabel(bands)} (${bands[0].slice(0, 3).join(', ')}, ...), not every TE in between.`;
 }
 
 const props = defineProps<{ rows: CollectorRow[] }>();

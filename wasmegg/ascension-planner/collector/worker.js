@@ -352,23 +352,6 @@ function searchSpace(sp) {
       out.range = { lo, hi, step };
     }
   }
-  // The 1-TE polish after the sweep (src/search/polish.ts), 2026-09-24. Optional: older apps send none.
-  if (sp.polish && typeof sp.polish === 'object' && Array.isArray(sp.polish.from)) {
-    const from = sp.polish.from
-      .slice(0, MAX.CHAIN)
-      .map(v => num(v))
-      .filter(v => v !== undefined && v > 0 && v <= MAX.TE);
-    const fromDays = num(sp.polish.fromDays);
-    const polished = num(sp.polish.chains);
-    if (from.length && fromDays !== undefined && fromDays > 0 && fromDays <= MAX.DURATION_DAYS) {
-      out.polish = {
-        from,
-        fromDays,
-        chains: polished !== undefined && polished >= 0 && polished <= 1e7 ? polished : 0,
-        stoppedEarly: sp.polish.stoppedEarly === true,
-      };
-    }
-  }
   if (mode === 'bands' && Array.isArray(sp.bands)) {
     out.bands = sp.bands.slice(0, MAX.BAND_CHECKPOINTS).map(b =>
       Array.isArray(b)

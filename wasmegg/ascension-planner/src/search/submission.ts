@@ -402,20 +402,6 @@ export interface SearchSpace {
    * optimum of the space, which is the difference between a result and a proof.
    */
   stoppedEarly: boolean;
-  /**
-   * The 1-TE polish after the sweep (search/polish.ts), when it ran. `from` is the grid's own winner
-   * and `fromDays` its duration, so a reader can tell the grid's answer from the polished one: the
-   * submission's top-level chain is the best of both, and may sit between grid points.
-   */
-  polish?: SearchPolish;
-}
-
-export interface SearchPolish {
-  from: number[];
-  fromDays: number;
-  /** Chains priced by the polish, on top of the grid's. */
-  chains: number;
-  stoppedEarly: boolean;
 }
 
 /** The cost side of a run, for calibrating the panel's estimates against real machines. */

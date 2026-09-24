@@ -637,17 +637,6 @@ describe('the board keeps experiments apart', () => {
     expect(await board()).toHaveLength(2);
   });
 
-  it('keeps the 1-TE polish record, and drops a malformed one', async () => {
-    const polish = { from: [249, 490], fromDays: 901.5, chains: 120, stoppedEarly: false };
-    await post('/submit', { ...NAMED, durationDays: 900, space: { ...SPACE, polish } });
-    expect((await board())[0].space.polish).toEqual(polish);
-  });
-
-  it('drops a polish record with no usable grid winner', async () => {
-    await post('/submit', { ...NAMED, durationDays: 900, space: { ...SPACE, polish: { from: 'x', fromDays: -1 } } });
-    expect((await board())[0].space.polish).toBeUndefined();
-  });
-
   it('still collapses the same space run twice, which is one experiment priced again', async () => {
     await post('/submit', { ...NAMED, durationDays: 900, space: SPACE });
     await post('/submit', { ...NAMED, durationDays: 901, space: SPACE });
