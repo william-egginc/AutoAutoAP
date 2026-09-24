@@ -58,7 +58,15 @@ export function accountLabel(rows: Submission[]): string {
         .trim()
     )
     .filter(Boolean);
-  return cleaned.length ? shortest(cleaned) : shortest(names);
+  if (!cleaned.length) return shortest(names);
+  // The name the most runs are filed under, counting a run for every name it STARTS WITH, so a bare
+  // name is credited with its annotated variants ("Williamthe5thc 8 exhaus"); the shortest only
+  // breaks a tie. Shortest alone let one typo'd run, "altfieldhouse", name an account whose other
+  // seventeen runs all said "allanfieldhouse".
+  const distinct = [...new Set(cleaned)];
+  const support = (n: string) => cleaned.filter(c => c.startsWith(n)).length;
+  const top = Math.max(...distinct.map(support));
+  return shortest(distinct.filter(n => support(n) === top));
 }
 
 export interface Account {

@@ -106,17 +106,28 @@
             this browser keeps for the account (never my player ID).
           </span>
         </label>
-        <label class="flex flex-wrap items-center gap-2 text-[11px] text-slate-700 pl-6">
-          Credit me as
+        <!-- The same two choices, and the same values, as the Submit section at the bottom: anonymous
+             unless the player picks otherwise, and the name box starts from their own nickname. -->
+        <div class="flex flex-wrap items-center gap-4 pl-6 text-[11px] font-bold text-slate-700">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input v-model="anonymous" type="radio" :value="true" :disabled="store.isRunning" class="text-indigo-600" />
+            Submit anonymously
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input v-model="anonymous" type="radio" :value="false" :disabled="store.isRunning" class="text-indigo-600" />
+            Credit me as
+          </label>
           <input
-            v-model="sweepName"
+            v-model="nickname"
             type="text"
             maxlength="40"
-            placeholder="leave blank to stay anonymous"
-            :disabled="store.isRunning"
-            class="w-56 rounded-md border-indigo-200 text-[12px] text-slate-800 disabled:opacity-50"
+            placeholder="nickname"
+            aria-label="Nickname"
+            :disabled="store.isRunning || anonymous"
+            class="w-48 rounded-md border-indigo-200 text-[12px] font-normal text-slate-800 disabled:opacity-40"
+            @input="nicknameTouched = true"
           />
-        </label>
+        </div>
 
         <IntegrityNotice />
         <div class="flex flex-wrap items-center gap-3">
@@ -1936,7 +1947,6 @@ function currentSpec(): {
  * CSV -- with no second visit to the bottom of the page. A run stopped early, one that failed, or one
  * where nothing finished is not sent; the manual Submit section stays for those.
  */
-const sweepName = ref('');
 const autoSubmitArmed = ref(false);
 const autoSubmitted = ref(false);
 
@@ -1947,10 +1957,8 @@ async function start(): Promise<void> {
   if (!autoSubmitArmed.value) return;
   autoSubmitArmed.value = false;
   if (store.stoppedEarly || store.error || store.bestDays <= 0) return;
-  const name = sweepName.value.trim();
-  anonymous.value = !name;
-  nickname.value = name;
-  nicknameTouched.value = true;
+  // The card's own choice (anonymous by default, or the nickname box) is what goes; blank name with
+  // "credit me" picked still goes anonymously, as `effectiveNickname` already decides.
   stampName.value = false;
   includeCsv.value = true;
   optIn.value = true;

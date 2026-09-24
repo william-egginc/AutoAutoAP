@@ -78,6 +78,13 @@ describe('accountLabel', () => {
     expect(accountLabel(rows)).toBe('Willsalt');
   });
 
+  it('goes with the name most runs use, not a one-off typo that happens to be shorter', () => {
+    const r = (nickname: string) => row({ chain: [195, 490], currentTE: 198, finalTE: 490, nickname });
+    expect(accountLabel([...Array.from({ length: 17 }, () => r('allanfieldhouse')), r('altfieldhouse')])).toBe(
+      'allanfieldhouse'
+    );
+  });
+
   it('strips the run notes people bolt onto their name', () => {
     // Every one of these is a real nickname on the live collector, and all four are one person.
     expect(
