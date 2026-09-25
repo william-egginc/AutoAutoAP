@@ -121,6 +121,9 @@
       </section>
 
       <template v-if="rows.length">
+        <!-- ---------------------------------------------------------------- what we know so far -->
+        <WhatWeKnow />
+
         <!-- ------------------------------------------------------------------------- filtering -->
         <section class="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
           <div class="flex flex-wrap items-center gap-3">
@@ -470,6 +473,7 @@ import FinalLegChart from './FinalLegChart.vue';
 import DataNeeds from './DataNeeds.vue';
 import FlaggedBoard from './FlaggedBoard.vue';
 import NewVersionBanner from '@/components/NewVersionBanner.vue';
+import WhatWeKnow from './WhatWeKnow.vue';
 import { describeFetchError, errorKind } from '@/utils/errors';
 import SweepCurvesChart from './SweepCurvesChart.vue';
 import GearScoreChart from './GearScoreChart.vue';

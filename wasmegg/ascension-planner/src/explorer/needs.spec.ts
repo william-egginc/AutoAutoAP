@@ -111,3 +111,32 @@ describe('estimates', () => {
     expect(formatEstimate(3.5 * 3600)).toBe('3.5 h');
   });
 });
+
+describe('fine sweeps (F2) and the later-start pair', () => {
+  const space = (bands: number[][]) =>
+    ({ mode: 'bands', bands, minGap: 10, minAscensions: 3, maxAscensions: 3, chains: 1, chainsPriced: 1, stoppedEarly: false }) as CollectorRow['space'];
+  const range = (lo: number, hi: number, step: number) => Array.from({ length: Math.floor((hi - lo) / step) + 1 }, (_, i) => lo + i * step);
+  const fine = space([range(195, 250, 1), range(276, 300, 1)]);
+  const coarse = space([range(190, 280, 2), range(270, 372, 2)]);
+
+  it('does not count an every-2-TE M2 toward F2, but counts it toward M2', () => {
+    const rows = [row({ nickname: 'a', space: coarse })];
+    const needs = dataNeeds(rows);
+    expect(needs.find(d => d.id === 'sweep-F2')?.have).toBe(0);
+    expect(needs.find(d => d.id === 'sweep-M2')?.have).toBe(1);
+  });
+
+  it('counts a 3-ascension run that checked every TE toward F2', () => {
+    expect(dataNeeds([row({ nickname: 'a', space: fine })]).find(d => d.id === 'sweep-F2')?.have).toBe(1);
+  });
+
+  it('counts a later-start pair only for two fine runs days apart on one account', () => {
+    const rows = [
+      row({ nickname: 'a', space: fine, startLocal: '2026-09-24 08:49' }),
+      row({ nickname: 'a', space: fine, startLocal: '2026-09-28 09:10' }),
+      row({ nickname: 'b', space: fine, startLocal: '2026-09-24 08:49' }),
+      row({ nickname: 'b', space: fine, startLocal: '2026-09-25 08:00' }),
+    ];
+    expect(dataNeeds(rows).find(d => d.id === 'later-start')?.have).toBe(1);
+  });
+});

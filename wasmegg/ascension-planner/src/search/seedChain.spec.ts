@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { defaultSeedChain, seedChainIssue, usableCheckpoints, fitSeedToLimits, MAX_LAST_GAP } from './seedChain';
+import { defaultSeedChain, seedChainIssue, usableCheckpoints, fitSeedToLimits, MAX_LAST_GAP, MEASURED_LAST_CHECKPOINT_490 } from './seedChain';
 
 describe('defaultSeedChain', () => {
   it('produces a chain inside the configured prestige range, not a 2-ascension one', () => {
@@ -151,5 +151,29 @@ describe('usableCheckpoints', () => {
 
   it('returns nothing when every checkpoint is unusable, so the caller can generate one', () => {
     expect(usableCheckpoints([135], 159, 490)).toEqual([]);
+  });
+});
+
+describe('measured last checkpoint on a 490 target', () => {
+  // The board's best chains (2026-09-25): the last checkpoint barely moves with the account and
+  // climbs with the chain length. The seed ends there instead of at final - 150.
+  it('ends a 4-ascension seed near 292, not 340', () => {
+    const chain = defaultSeedChain({ currentTE: 182, finalTE: 490, minPrestiges: 4, maxPrestiges: 4 });
+    expect(chain).toHaveLength(4);
+    expect(chain[chain.length - 2]).toBe(MEASURED_LAST_CHECKPOINT_490[4]);
+  });
+
+  it('puts a 2-ascension seed on the measured checkpoint', () => {
+    expect(defaultSeedChain({ currentTE: 133, finalTE: 490, minPrestiges: 2, maxPrestiges: 2 })).toEqual([280, 490]);
+  });
+
+  it('keeps the old cap for lengths it has no measurement for', () => {
+    const chain = defaultSeedChain({ currentTE: 182, finalTE: 490, minPrestiges: 8, maxPrestiges: 8 });
+    expect(chain[chain.length - 2]).toBe(340);
+  });
+
+  it('leaves other targets alone', () => {
+    const chain = defaultSeedChain({ currentTE: 150, finalTE: 400, minPrestiges: 4, maxPrestiges: 4 });
+    expect(chain[chain.length - 2]).toBe(250);
   });
 });

@@ -73,7 +73,19 @@ export interface DataNeed {
 }
 
 /** Accounts wanted per preset before that sweep stops being listed. */
-const PRESET_WANT: Record<string, number> = { M1: 6, M2: 6, M3: 4, M4: 3 };
+const PRESET_WANT: Record<string, number> = { M1: 6, M2: 6, M3: 4, M4: 3, F2: 6 };
+
+/** A finished exhaustive run that checked EVERY TE in every band (step 1 throughout). */
+function everyTE(r: CollectorRow): boolean {
+  const bands = r.space?.bands;
+  return !!bands?.length && bands.every(b => b.every((v, i) => i === 0 || v - b[i - 1] === 1));
+}
+
+/** Days between two runs' plan starts, from their `YYYY-MM-DD HH:MM` local stamps. */
+function daysApart(a: CollectorRow, b: CollectorRow): number {
+  const t = (r: CollectorRow) => Date.parse(`${(r.startLocal ?? '').slice(0, 10)}T00:00:00Z`);
+  return Math.abs(t(a) - t(b)) / 86400000;
+}
 
 /** The measured corpus started between 126 and 198 TE. Outside that, the shape is a guess. */
 const HIGH_TE = 200;
@@ -92,18 +104,26 @@ export function dataNeeds(rows: CollectorRow[]): DataNeed[] {
     // A tagged upload counts, and so does any finished exhaustive run at the same ascension count
     // on a 490 target: the planner's own Insane-mode submissions carry `space` but no preset tag,
     // and they measure the same thing.
+    // A fine preset is only covered by a fine run: an old every-2-TE M2 answers a coarser question.
+    const fine = preset.id.startsWith('F');
     const covers = (r: CollectorRow) =>
       r.sweep?.preset === preset.id ||
-      (!!r.space && !r.space.stoppedEarly && r.ascensions === preset.ascensions && r.finalTE === 490);
+      (!!r.space &&
+        !r.space.stoppedEarly &&
+        r.ascensions === preset.ascensions &&
+        r.finalTE === 490 &&
+        (!fine || everyTE(r)));
     const have = accounts.filter(a => a.rows.some(covers)).length;
     if (have >= want) continue;
     needs.push({
       id: `sweep-${preset.id}`,
       title: `${preset.label}, from more accounts`,
       why:
-        preset.ascensions <= 2
-          ? 'The baseline every other sweep is compared against: it pins down how your final leg scales with your gear.'
-          : `Lets the ${preset.ascensions}-ascension shape be compared across accounts, which is what a suggested chain for a new player would be built from.`,
+        preset.id === 'F2'
+          ? 'Best chains are needle-sharp: one TE off costs 2-22 days, so a grid that skips TEs misses them. This checks every TE where every best 3-ascension chain has landed so far, in fewer chains than M2.'
+          : preset.ascensions <= 2
+            ? 'The baseline every other sweep is compared against: it pins down how your final leg scales with your gear.'
+            : `Lets the ${preset.ascensions}-ascension shape be compared across accounts, which is what a suggested chain for a new player would be built from.`,
       who: 'anyone',
       have,
       want,
@@ -121,7 +141,7 @@ export function dataNeeds(rows: CollectorRow[]): DataNeed[] {
       who: `players at ${HIGH_TE}+ TE`,
       have: highAccounts,
       want: 2,
-      preset: 'M2',
+      preset: 'F2',
       runs: 1,
     });
   }
@@ -135,7 +155,7 @@ export function dataNeeds(rows: CollectorRow[]): DataNeed[] {
       who: `players under ${LOW_TE} TE`,
       have: lowAccounts,
       want: 2,
-      preset: 'M2',
+      preset: 'F2',
       runs: 1,
     });
   }
@@ -157,6 +177,27 @@ export function dataNeeds(rows: CollectorRow[]): DataNeed[] {
     });
   }
 
+  // Does the needle move with the date? The jagged final leg differs between two saves of the same
+  // account, and nobody knows yet whether that is the save or the calendar. Two fine runs from one
+  // account, planned days apart, answer it -- and decide whether a chain can be reused next week.
+  const later = accounts.filter(a => {
+    const fine = a.rows.filter(r => r.ascensions === 3 && !!r.space && !r.space.stoppedEarly && everyTE(r));
+    return fine.some(x => fine.some(y => daysApart(x, y) >= 3));
+  }).length;
+  if (later < 3) {
+    needs.push({
+      id: 'later-start',
+      title: 'The same account again, a few days later',
+      why: 'Shows whether the best chain moves when the plan starts later. If it does, a chain has to be re-searched before each ascension; if not, it can be reused.',
+      who: 'anyone who ran F2',
+      have: later,
+      want: 3,
+      preset: 'F2',
+      runs: 2,
+      note: 'Run F2 now, then again after a sync at least three days later, changing nothing else.',
+    });
+  }
+
   const weak = accounts.filter(a => a.rows.some(r => (gearOf(r).delivery ?? 1) < WEAK_GEAR)).length;
   if (weak < 2) {
     needs.push({
@@ -166,7 +207,7 @@ export function dataNeeds(rows: CollectorRow[]): DataNeed[] {
       who: `players under ${Math.round(WEAK_GEAR * 100)}% delivery score`,
       have: weak,
       want: 2,
-      preset: 'M2',
+      preset: 'F2',
       runs: 1,
     });
   }

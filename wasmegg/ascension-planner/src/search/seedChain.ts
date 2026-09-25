@@ -35,6 +35,18 @@ export const MAX_LAST_GAP = 150;
 const FIRST_GAP = 8;
 
 /**
+ * Where the LAST checkpoint of the best chain sits on a 490 target, by chain length (final
+ * included). Measured 2026-09-25 from the board's exhaustive and deep runs on the current rules, 11
+ * accounts from TE 124 to 198: median of each run's best chain. It barely moves with the account --
+ * 3 ascensions land at 282-292 and 4 at 283-297 whether the player starts at 124 or 198 -- and it
+ * climbs with the count: the extra checkpoints go above 290, not below. Ending every seed at
+ * `final - 150` (340) put a 3- or 4-ascension seed's last leg 50 TE from where it belongs.
+ *
+ * Only for 490, the only target with data. Other targets keep the geometric shape below.
+ */
+export const MEASURED_LAST_CHECKPOINT_490: Record<number, number> = { 2: 280, 3: 284, 4: 292, 5: 310, 6: 322 };
+
+/**
  * A chain of `clamp(6, min, max)` ascensions from `currentTE` to `finalTE`, inclusive of the
  * final target. Six is the middle of the default 5-8 range and the same length the chain-count
  * estimate already assumes when the coarse scan is picking.
@@ -58,10 +70,16 @@ export function defaultSeedChain({ currentTE, finalTE, minPrestiges, maxPrestige
   const high = Math.max(low, Math.floor(maxPrestiges));
   const ascensions = Math.min(high, Math.max(low, 6));
 
+  // A measured last checkpoint for this length, when the target is the one it was measured on and
+  // it leaves room above the first checkpoint. Longer chains than measured keep the cap.
+  const measured = Math.floor(finalTE) === 490 ? MEASURED_LAST_CHECKPOINT_490[ascensions] : undefined;
+  if (measured !== undefined && measured > lo + 1) hi = Math.min(hi, measured);
+
   // `ascensions` counts the final target, so this many checkpoints sit before it.
   const intermediate = ascensions - 1;
   if (intermediate < 1) return [Math.floor(finalTE)];
-  if (intermediate === 1) return [Math.round((lo + hi) / 2), Math.floor(finalTE)];
+  // One checkpoint: on a measured target it IS the last checkpoint; otherwise halfway, as before.
+  if (intermediate === 1) return [measured !== undefined && hi > lo ? hi : Math.round((lo + hi) / 2), Math.floor(finalTE)];
 
   const ratio = Math.pow(hi / lo, 1 / (intermediate - 1));
   const chain: number[] = [];

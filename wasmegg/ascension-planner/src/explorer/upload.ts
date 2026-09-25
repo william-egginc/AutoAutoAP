@@ -50,6 +50,12 @@ export const SWEEP_PRESETS: { id: string; label: string; ascensions: number; ban
     bands: '190-215:5; 210-250:5; 240-300:5; 285-350:5',
     minGap: 10,
   },
+  // Fine, not wide (2026-09-25). The best chains are needle-sharp: one TE off costs 2-22 days, and
+  // M2's every-2-TE grid loses 0.5-1 d on average against checking every TE. Every best 3-ascension
+  // chain so far put its checkpoints at 197-233 and 282-292, so this checks EVERY TE there and
+  // nothing else -- fewer chains than M2, and exact. After the M presets so a 3-ascension upload
+  // still defaults to M2.
+  { id: 'F2', label: 'F2 fine, 3 ascensions at every TE', ascensions: 3, bands: '195-250:1; 276-300:1', minGap: 10 },
   { id: 'custom', label: 'Something else', ascensions: 0, bands: '', minGap: 10 },
 ];
 
