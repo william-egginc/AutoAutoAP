@@ -146,6 +146,7 @@ import { computed, ref, shallowRef, watch } from 'vue';
 import { afterPaint, scrubIdentifiers, tooManySubmissionsMessage, type Submission } from '@/search/submission';
 import type { CollectorRow } from './collector';
 import { inflateIfGzip } from './collector';
+import { presetBandsFor } from './needs';
 import {
   SWEEP_PRESETS,
   buildUploadSubmission,
@@ -210,13 +211,17 @@ async function onFiles(e: Event): Promise<void> {
 // Pick the preset that matches the run's ascension count, once, when a new CSV arrives.
 watch(csv, c => {
   const n = c?.best?.chain.length ?? 0;
-  const match = SWEEP_PRESETS.find(p => p.ascensions === n);
+  // Never a FINE preset by default: that claims a grid this upload may not have run, and fine
+  // presets only count runs at least as fine (needs.ts). The uploader can still pick one.
+  const match = SWEEP_PRESETS.find(p => p.ascensions === n && !p.fine);
   presetId.value = match?.id ?? 'custom';
 });
 watch(presetId, id => {
   const p = SWEEP_PRESETS.find(x => x.id === id);
   if (p && p.id !== 'custom') {
-    bands.value = p.bands;
+    // Fitted to the run's own TE, as the Explorer's links are: a TE-relative first band
+    // (`+1-+35:2`) means nothing until it is.
+    bands.value = csv.value ? presetBandsFor(p.id, csv.value.currentTE) : p.bands;
     minGap.value = p.minGap;
   }
 });

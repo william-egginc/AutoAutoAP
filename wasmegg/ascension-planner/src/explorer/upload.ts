@@ -39,7 +39,25 @@ import { checkFinalLegRate, deliveryScore, slotsFromLabels, type RateCheck } fro
 import type { CollectorRow } from './collector';
 
 /** The sweeps players are asked to run, in per-checkpoint bands mode. See collector/README.md. */
-export const SWEEP_PRESETS: { id: string; label: string; ascensions: number; bands: string; minGap: number }[] = [
+export interface SweepPreset {
+  id: string;
+  label: string;
+  ascensions: number;
+  /** Per-checkpoint bands, `lo-hi:step`. The FIRST band may instead be `+a-+b:step`, meaning the
+   *  player's TE plus a to plus b: from 5 ascensions up the best first checkpoint sits just above
+   *  wherever the player is (they finish the run they are in), not at a fixed TE. See needs.ts
+   *  `presetBandsFor` for how either form is fitted to a player. */
+  bands: string;
+  minGap: number;
+  /** Only a run at least this fine (no band coarser than this preset's coarsest) counts toward it:
+   *  a coarse run answers a coarser question. */
+  fine?: boolean;
+  /** Where the Chain Explorer lists it: the main gaps, bigger runs for big machines, or the
+   *  end-of-the-line lengths. Unset is the main list. */
+  group?: 'main' | 'big' | 'end';
+}
+
+export const SWEEP_PRESETS: SweepPreset[] = [
   { id: 'M1', label: 'M1 baseline, 2 ascensions', ascensions: 2, bands: '189-489:1', minGap: 0 },
   { id: 'M2', label: 'M2, 3 ascensions', ascensions: 3, bands: '190-280:2; 270-372:2', minGap: 10 },
   { id: 'M3', label: 'M3, 4 ascensions', ascensions: 4, bands: '190-250:5; 215-300:5; 280-360:5', minGap: 10 },
@@ -55,7 +73,7 @@ export const SWEEP_PRESETS: { id: string; label: string; ascensions: number; ban
   // chain so far put its checkpoints at 197-233 and 282-292, so this checks EVERY TE there and
   // nothing else -- fewer chains than M2, and exact. After the M presets so a 3-ascension upload
   // still defaults to M2.
-  { id: 'F2', label: 'F2 fine, 3 ascensions at every TE', ascensions: 3, bands: '195-250:1; 276-300:1', minGap: 10 },
+  { id: 'F2', label: 'F2 fine, 3 ascensions at every TE', ascensions: 3, bands: '195-250:1; 276-300:1', minGap: 10, fine: true },
   { id: 'custom', label: 'Something else', ascensions: 0, bands: '', minGap: 10 },
 ];
 

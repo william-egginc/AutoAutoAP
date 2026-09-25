@@ -17,71 +17,83 @@
         />
       </label>
       <p class="text-[10px] text-slate-400 max-w-md">
-        The bands below are fitted to this: the first one starts just above your TE. Times are estimates from the
-        speeds other players' runs recorded; the planner's Re-benchmark button measures your own machine.
+        The bands below are fitted to this: the first one starts just above your TE. Times are estimates from the speeds
+        other players' runs recorded; the planner's Re-benchmark button measures your own machine.
       </p>
     </div>
 
     <p v-if="!needs.length" class="rounded-lg bg-emerald-50 px-3 py-2 text-[11px] font-semibold text-emerald-700">
-      Nothing on the list right now: every gap has enough accounts. New kinds of question will show up here as they
-      come up.
+      Nothing on the list right now: every gap has enough accounts. New kinds of question will show up here as they come
+      up.
     </p>
 
-    <p v-else class="text-[12px] font-bold text-slate-800">We could use more data for:</p>
-
-    <ol class="space-y-2">
-      <li
-        v-for="need in rowsWithCost"
-        :key="need.id"
-        class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 space-y-1.5"
-      >
-        <div class="flex flex-wrap items-baseline justify-between gap-2">
-          <span class="text-[12px] font-bold text-slate-900">{{ need.title }}</span>
-          <span class="text-[10px] font-semibold text-slate-500">
-            {{ need.have }} of {{ need.want }} accounts · who: {{ need.who }}
-          </span>
-        </div>
-        <p class="text-[11px] text-slate-600 leading-relaxed">{{ need.why }}</p>
-        <p class="text-[11px] text-slate-700">
-          Run <b>{{ need.presetLabel }}</b> in the planner's Insane panel, per-checkpoint bands
-          <code class="rounded bg-white px-1 text-[10px]">{{ need.bands }}</code>, minimum gap {{ need.minGap }}.
-          <template v-if="stepWords(need.bands)"> {{ stepWords(need.bands) }}</template>
-          <template v-if="need.runs > 1"> Twice.</template>
-          <template v-if="need.note"> {{ need.note }}</template>
-        </p>
-        <div v-if="need.chains > 0" class="grid gap-1 sm:grid-cols-4 text-[11px]">
-          <div class="rounded bg-white px-2 py-1">
-            <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">Chains</div>
-            <div class="font-bold text-slate-800">
-              {{ (need.chains * need.runs).toLocaleString() }}<template v-if="need.runs > 1"> ({{ need.runs }} runs)</template>
+    <!-- Three lists, not one: the everyday gaps, then runs sized for big machines, then the
+         longest chains. A 30,000-chain overnight job in the same list as a 20-minute sweep reads as
+         the same ask, and the 7-9 ascension runs answer a different question (where adding
+         ascensions stops paying) from the rest. -->
+    <section v-for="group in groups" :key="group.id" class="space-y-2">
+      <div v-if="group.items.length" class="space-y-1 pt-1">
+        <p class="text-[12px] font-bold text-slate-800">{{ group.title }}</p>
+        <p v-if="group.intro" class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">{{ group.intro }}</p>
+      </div>
+      <ol v-if="group.items.length" class="space-y-2">
+        <li
+          v-for="need in group.items"
+          :key="need.id"
+          class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 space-y-1.5"
+        >
+          <div class="flex flex-wrap items-baseline justify-between gap-2">
+            <span class="text-[12px] font-bold text-slate-900">{{ need.title }}</span>
+            <span class="text-[10px] font-semibold text-slate-500">
+              {{ need.have }} of {{ need.want }} accounts · who: {{ need.who }}
+            </span>
+          </div>
+          <p class="text-[11px] text-slate-600 leading-relaxed">{{ need.why }}</p>
+          <p class="text-[11px] text-slate-700">
+            Press <b>Run this sweep</b> below for <b>{{ need.presetLabel }}</b>. It fills in the ascension ranges
+            <code class="rounded bg-white px-1 text-[10px]">{{ need.bands }}</code>, with at least {{ need.minGap }} TE
+            between ascensions.
+            <template v-if="stepWords(need.bands)"> {{ stepWords(need.bands) }}</template>
+            <template v-if="need.runs > 1"> Run it twice.</template>
+            {{ need.note ? ' ' + need.note : '' }}
+          </p>
+          <div v-if="need.chains > 0" class="grid gap-1 sm:grid-cols-4 text-[11px]">
+            <div class="rounded bg-white px-2 py-1">
+              <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">Chains</div>
+              <div class="font-bold text-slate-800">
+                {{ (need.chains * need.runs).toLocaleString()
+                }}<template v-if="need.runs > 1"> ({{ need.runs }} runs)</template>
+              </div>
+            </div>
+            <div v-for="t in need.times" :key="t.id" class="rounded bg-white px-2 py-1">
+              <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">
+                {{ t.label }} · {{ t.detail }}
+              </div>
+              <div class="font-bold text-slate-800">about {{ t.text }}</div>
             </div>
           </div>
-          <div v-for="t in need.times" :key="t.id" class="rounded bg-white px-2 py-1">
-            <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">{{ t.label }} · {{ t.detail }}</div>
-            <div class="font-bold text-slate-800">about {{ t.text }}</div>
+          <p v-else class="text-[10px] font-semibold text-amber-700">
+            This preset has no chains from {{ teNow }} TE: its bands sit at or below where you already are.
+          </p>
+          <div v-if="need.chains > 0" class="flex flex-wrap items-center gap-2 pt-1">
+            <a
+              v-for="link in need.links"
+              :key="link.href"
+              :href="link.href"
+              target="_blank"
+              rel="noopener"
+              class="px-3 py-1.5 rounded-lg bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-700"
+            >
+              {{ link.label }} &rarr;
+            </a>
+            <span class="text-[10px] text-slate-400">
+              Opens the planner in a new tab with all of this filled in. You enter your player ID there; this page never
+              sees it.
+            </span>
           </div>
-        </div>
-        <p v-else class="text-[10px] font-semibold text-amber-700">
-          This preset has no chains from {{ teNow }} TE: its bands sit at or below where you already are.
-        </p>
-        <div v-if="need.chains > 0" class="flex flex-wrap items-center gap-2 pt-1">
-          <a
-            v-for="link in need.links"
-            :key="link.href"
-            :href="link.href"
-            target="_blank"
-            rel="noopener"
-            class="px-3 py-1.5 rounded-lg bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-700"
-          >
-            {{ link.label }} &rarr;
-          </a>
-          <span class="text-[10px] text-slate-400">
-            Opens the planner in a new tab with all of this filled in. You enter your player ID there; this page never
-            sees it.
-          </span>
-        </div>
-      </li>
-    </ol>
+        </li>
+      </ol>
+    </section>
   </div>
 </template>
 
@@ -100,8 +112,8 @@ import { gridIsComplete, gridStepLabel } from '@/search/grid';
 function stepWords(text: string): string {
   const bands = parseBands(text);
   if (!bands.length) return '';
-  if (gridIsComplete(bands)) return 'That is every TE in range.';
-  return `That tries ${gridStepLabel(bands)} (${bands[0].slice(0, 3).join(', ')}, ...), not every TE in between.`;
+  if (gridIsComplete(bands)) return 'It tries every TE in those ranges.';
+  return `It tries ${gridStepLabel(bands)} (${bands[0].slice(0, 3).join(', ')}, ...), not every TE in between.`;
 }
 
 const props = defineProps<{ rows: CollectorRow[] }>();
@@ -149,6 +161,26 @@ function sweepLinks(
   }
   return [{ label: 'Run this sweep', href: href() }];
 }
+
+const GROUPS: { id: 'main' | 'big' | 'end'; title: string; intro: string }[] = [
+  { id: 'main', title: 'We could use more data for:', intro: '' },
+  {
+    id: 'big',
+    title: 'Bigger runs, for big machines',
+    intro:
+      "Finer grids at 5 and 6 ascensions, where most accounts' best plans are. The best chains are needle-sharp, so the coarse M4 grid can miss them by days; these check far more of the TEs in between. Tens of thousands of chains: a workstation overnight, or a desktop over a weekend.",
+  },
+  {
+    id: 'end',
+    title: 'The end of the line: 7, 8 and 9 ascensions',
+    intro:
+      'These show what happens at the longest chains, so the board can show where adding ascensions stops paying and starts costing. Coarse on purpose: the question is how long the best 7-, 8- or 9-ascension plan takes, not its exact checkpoints.',
+  },
+];
+
+const groups = computed(() =>
+  GROUPS.map(g => ({ ...g, items: rowsWithCost.value.filter(n => (n.group ?? 'main') === g.id) }))
+);
 
 const rowsWithCost = computed(() =>
   needs.value.map(need => {

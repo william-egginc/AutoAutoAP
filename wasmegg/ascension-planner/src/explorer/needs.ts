@@ -70,15 +70,35 @@ export interface DataNeed {
   runs: number;
   /** Anything to change from the preset's defaults. */
   note?: string;
+  /** Which list it belongs in (see SweepPreset.group). Unset is the main list. */
+  group?: 'main' | 'big' | 'end';
 }
 
 /** Accounts wanted per preset before that sweep stops being listed. */
 const PRESET_WANT: Record<string, number> = { M1: 6, M2: 6, M3: 4, M4: 3, F2: 6 };
 
+/** The widest step inside any band, or null for a band set with nothing to measure. */
+function coarsestStep(bands: number[][] | undefined): number | null {
+  let worst = 0;
+  for (const b of bands ?? []) for (let i = 1; i < b.length; i++) worst = Math.max(worst, b[i] - b[i - 1]);
+  return bands?.length ? Math.max(1, worst) : null;
+}
+
+/** The bands a run actually priced: its own record, or the text an upload was tagged with. */
+function runBands(r: CollectorRow): number[][] | undefined {
+  if (r.space?.bands?.length) return r.space.bands;
+  return r.sweep?.bands ? parseBands(r.sweep.bands) : undefined;
+}
+
+/** A run whose grid is at least as fine as `step` everywhere. */
+function atLeastAsFine(r: CollectorRow, step: number): boolean {
+  const worst = coarsestStep(runBands(r));
+  return worst !== null && worst <= step;
+}
+
 /** A finished exhaustive run that checked EVERY TE in every band (step 1 throughout). */
 function everyTE(r: CollectorRow): boolean {
-  const bands = r.space?.bands;
-  return !!bands?.length && bands.every(b => b.every((v, i) => i === 0 || v - b[i - 1] === 1));
+  return !!r.space?.bands?.length && atLeastAsFine(r, 1);
 }
 
 /** Days between two runs' plan starts, from their `YYYY-MM-DD HH:MM` local stamps. */
@@ -104,15 +124,15 @@ export function dataNeeds(rows: CollectorRow[]): DataNeed[] {
     // A tagged upload counts, and so does any finished exhaustive run at the same ascension count
     // on a 490 target: the planner's own Insane-mode submissions carry `space` but no preset tag,
     // and they measure the same thing.
-    // A fine preset is only covered by a fine run: an old every-2-TE M2 answers a coarser question.
-    const fine = preset.id.startsWith('F');
+    // A fine preset is only covered by a run at least as fine: an old every-2-TE M2 answers a
+    // coarser question than F2. Checked on tagged runs too, since an upload can be tagged with any
+    // preset whatever grid it actually ran.
+    const presetStep = coarsestStep(parseBands(preset.bands.replace(/\+(\d+)\s*-\s*\+(\d+)/, '$1-$2')));
+    const fineEnough = (r: CollectorRow) => !preset.fine || (presetStep !== null && atLeastAsFine(r, presetStep));
     const covers = (r: CollectorRow) =>
-      r.sweep?.preset === preset.id ||
-      (!!r.space &&
-        !r.space.stoppedEarly &&
-        r.ascensions === preset.ascensions &&
-        r.finalTE === 490 &&
-        (!fine || everyTE(r)));
+      fineEnough(r) &&
+      (r.sweep?.preset === preset.id ||
+        (!!r.space && !r.space.stoppedEarly && r.ascensions === preset.ascensions && r.finalTE === 490));
     const have = accounts.filter(a => a.rows.some(covers)).length;
     if (have >= want) continue;
     needs.push({
@@ -120,15 +140,16 @@ export function dataNeeds(rows: CollectorRow[]): DataNeed[] {
       title: `${preset.label}, from more accounts`,
       why:
         preset.id === 'F2'
-          ? 'Best chains are needle-sharp: one TE off costs 2-22 days, so a grid that skips TEs misses them. This checks every TE where every best 3-ascension chain has landed so far, in fewer chains than M2.'
+          ? 'The best plans are very sharp: ascending just one TE off can cost 2 to 22 days. This checks every single TE where the best 3-ascension plans have landed so far.'
           : preset.ascensions <= 2
-            ? 'The baseline every other sweep is compared against: it pins down how your final leg scales with your gear.'
+            ? 'The 2-ascension baseline everything else is compared against: it shows how fast your delivery set finishes the last stretch to 490.'
             : `Lets the ${preset.ascensions}-ascension shape be compared across accounts, which is what a suggested chain for a new player would be built from.`,
       who: 'anyone',
       have,
       want,
       preset: preset.id,
       runs: 1,
+      group: preset.group ?? 'main',
     });
   }
 
@@ -137,7 +158,7 @@ export function dataNeeds(rows: CollectorRow[]): DataNeed[] {
     needs.push({
       id: 'te-high',
       title: `Accounts already past ${HIGH_TE} TE`,
-      why: 'Every measured run so far started below 200 TE, so nobody knows yet whether the checkpoint near 280 TE holds from higher up.',
+      why: 'Every run so far started below 200 TE, so we do not know yet whether ascending at about 280 TE is still right from higher up.',
       who: `players at ${HIGH_TE}+ TE`,
       have: highAccounts,
       want: 2,
@@ -150,9 +171,9 @@ export function dataNeeds(rows: CollectorRow[]): DataNeed[] {
   if (lowAccounts < 2) {
     needs.push({
       id: 'te-low',
-      title: `Accounts below ${LOW_TE} TE`,
-      why: 'The suggested first checkpoint is a guess below 126 TE: no clean run has started that low.',
-      who: `players under ${LOW_TE} TE`,
+      title: `Accounts under ${LOW_TE} TE with a strong earnings set`,
+      why: 'Plans only start working at about 225 Clothed TE (CTE). From 125 TE that needs an earnings set worth +100 TE, for example a T4L Lunar totem plus two other T4L earnings artifacts (Demeters necklace, Tungsten ankh or Puzzle cube), all with T4 Lunar stones. One account like this so far.',
+      who: `players under ${LOW_TE} TE with CTE 225+`,
       have: lowAccounts,
       want: 2,
       preset: 'F2',
@@ -166,8 +187,8 @@ export function dataNeeds(rows: CollectorRow[]): DataNeed[] {
   if (pairs < 3) {
     needs.push({
       id: 'force-continue',
-      title: 'The same save, with force-continue on and then off',
-      why: 'Finishing the current run first moved one account’s best plan by 135 days. Pairs from one save show when prestiging now is better.',
+      title: 'The same save twice: finishing your current ascension first, then ascending straight away',
+      why: 'Finishing the current ascension first moved one account’s best plan by 135 days. Both from the same save show when ascending right away is better.',
       who: 'anyone',
       have: pairs,
       want: 3,
@@ -202,9 +223,9 @@ export function dataNeeds(rows: CollectorRow[]): DataNeed[] {
   if (weak < 2) {
     needs.push({
       id: 'weak-gear',
-      title: 'Accounts with weaker delivery gear',
-      why: 'Tests whether weaker gear really wants more ascensions, as the few such accounts so far suggest.',
-      who: `players under ${Math.round(WEAK_GEAR * 100)}% delivery score`,
+      title: 'Accounts with a weaker delivery set',
+      why: 'For example an epic or rare Quantum metronome, Interstellar compass or Gusset, or missing Tachyon and Quantum stones. Tests whether weaker delivery gear wants more ascensions, as the few such accounts so far suggest.',
+      who: `players whose delivery set is under ${Math.round(WEAK_GEAR * 100)}% of the best (all T4L with T4 stones)`,
       have: weak,
       want: 2,
       preset: 'F2',
@@ -233,6 +254,14 @@ export function presetBandsFor(presetId: string, currentTE: number, final = 490)
     .map(s => s.trim())
     .filter(Boolean)
     .map((part, i) => {
+      // `+a-+b:step`, first band only: the player's TE plus a to plus b.
+      const rel = i === 0 ? part.match(/^\+(\d+)\s*-\s*\+(\d+)(?::(\d+))?$/) : null;
+      if (rel) {
+        const step = rel[3] ? Number(rel[3]) : 5;
+        const lo = Math.floor(currentTE) + Number(rel[1]);
+        const hi = Math.min(Math.floor(currentTE) + Number(rel[2]), final - 1);
+        return `${Math.min(lo, hi)}-${hi}:${step}`;
+      }
       const m = part.match(/^(\d+)\s*-\s*(\d+)(?::(\d+))?$/);
       if (!m) return part;
       const step = m[3] ? Number(m[3]) : 5;
