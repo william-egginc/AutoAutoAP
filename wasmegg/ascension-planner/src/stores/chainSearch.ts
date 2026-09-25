@@ -152,6 +152,13 @@ function writeStoredCount(key: string, n: number): void {
   }
 }
 
+/** The collector's cap on a gzipped table (collector/worker.js, MAX.CSV_BYTES). */
+const TABLE_LIMIT_BYTES = 8 * 1024 * 1024;
+
+function tableTooLargeMessage(size: string): string {
+  return `sent, but the table is too large for the board (${size} compressed, limit 8 MB). The summary is in. Keep the table with Download CSV and send the file to whoever runs the board; retrying will not help.`;
+}
+
 export const useChainSearchStore = defineStore('chainSearch', () => {
   const effort = ref<EffortTier>('balanced');
   const finalTE = ref(490);
@@ -1568,6 +1575,13 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // KB under a tenth of a megabyte: a small sweep's table read "0.0 MB", which looks like nothing was sent.
     const kb = table.body.byteLength / 1024;
     const mb = kb < 100 ? `${Math.max(1, Math.round(kb))} KB` : `${(kb / 1024).toFixed(1)} MB`;
+    // Past the collector's cap the upload can only be refused (413), and "Retry the table" would
+    // send the same bytes again forever. Say so, without spending the upload. The largest table
+    // so far (41,581 chains, 8 ascensions) is 3.3 MB compressed, so this takes ~100,000 chains of 8.
+    if (table.body.byteLength > TABLE_LIMIT_BYTES) {
+      pendingTable.value = null;
+      return { ok: true, message: tableTooLargeMessage(mb) };
+    }
     let res: Response;
     try {
       res = await fetch(table.url, {
@@ -1589,6 +1603,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     if (res.ok) {
       pendingTable.value = null;
       return { ok: true, message: `sent, with the full CSV (${mb} compressed)` };
+    }
+    if (res.status === 413) {
+      pendingTable.value = null;
+      return { ok: true, message: tableTooLargeMessage(mb) };
     }
     if (res.status === 409) {
       // Stored already -- most likely an earlier attempt that landed but whose answer was lost.

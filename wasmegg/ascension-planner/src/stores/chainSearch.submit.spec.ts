@@ -94,6 +94,16 @@ describe('submitting a result', () => {
     expect(s.pendingTable).toBeNull();
   });
 
+  it('on a table the collector refuses as too large, says so and offers no retry', async () => {
+    const s = await store();
+    collector(json({ ok: true, id: 'abcd1234', uploadToken: 't' }), json({ error: 'CSV too large' }, 413));
+    const res = await s.sendSubmission(PAYLOAD, 'rank,chain\n');
+    expect(res.ok).toBe(true);
+    expect(res.message).toMatch(/too large for the board/);
+    expect(res.message).toMatch(/Download CSV/);
+    expect(s.pendingTable).toBeNull();
+  });
+
   it('tells a player who submitted too often how long to wait', async () => {
     const s = await store();
     collector(json({ error: 'slow down', retryAfter: 42 }, 429));

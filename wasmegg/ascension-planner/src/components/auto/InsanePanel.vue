@@ -142,10 +142,14 @@
         </div>
 
         <IntegrityNotice />
+        <p v-if="ascMismatch" class="rounded-lg bg-rose-50 border border-rose-200 px-3 py-2 text-[11px] font-semibold text-rose-800">
+          The Ascensions box ({{ suggestAsc }}) no longer matches this sweep ({{ bands.length + 1 }} ascensions). Set it
+          back to {{ bands.length + 1 }} under The space to search to start.
+        </p>
         <div class="flex flex-wrap items-center gap-3">
           <button
             type="button"
-            :disabled="!sweepConsent || store.isRunning || store.integrityBlocked || !chainCount"
+            :disabled="!sweepConsent || store.isRunning || store.integrityBlocked || !chainCount || ascMismatch"
             class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500 disabled:opacity-40"
             @click="start"
           >
@@ -805,7 +809,7 @@
                 spent on widening the bands. Both are starting points; edit them.
               </HelpTip>
               <span v-if="suggestion" class="text-[10px] text-slate-500">
-                {{ suggestAsc }} ascensions, {{ suggestion.chains.toLocaleString() }} chains &middot;
+                Suggest would fill in {{ suggestAsc }} ascensions, {{ suggestion.chains.toLocaleString() }} chains &middot;
                 <template v-if="suggestion.kind === 'complete'">
                   <span class="font-black text-emerald-700">complete sweep</span>
                   {{
@@ -828,6 +832,17 @@
               </template>
               <template v-else>Nothing readable yet.</template>
             </span>
+            <!-- The box only chooses what Suggest a space fills in; the bands decide what runs. A
+                 player set it to 2 and then 8 on a 3-ascension sweep and it ran as 3 without a word,
+                 so a mismatch is now an error that blocks Start until one of the two is changed. -->
+            <p
+              v-if="ascMismatch"
+              class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-semibold text-rose-800 leading-relaxed"
+            >
+              Your bands make {{ bands.length + 1 }} ascensions, and that is what would run, but the Ascensions box says
+              {{ suggestAsc }}. The box only chooses what Suggest a space fills in: press Suggest a space to switch to
+              {{ suggestAsc }} ascensions, or set the box back to {{ bands.length + 1 }}.
+            </p>
           </label>
 
           <label class="space-y-1 block max-w-xs">
@@ -1082,7 +1097,7 @@
       <div class="flex flex-wrap gap-3">
         <button
           class="btn-premium btn-primary flex-1 py-4 text-sm shadow-xl shadow-rose-500/20 active:scale-[0.98]"
-          :disabled="store.isRunning || store.integrityBlocked || !chainCount || (!!sweepRequest && !sweepConsent)"
+          :disabled="store.isRunning || store.integrityBlocked || !chainCount || ascMismatch || (!!sweepRequest && !sweepConsent)"
           @click="start"
         >
           <!-- With a sweep request open this is the same run as the card's button, so it says the
@@ -1826,6 +1841,20 @@ const poolSize = computed(() =>
 /** Counted combinatorially, never by enumerating: at step 1 over a wide range the array of chains
  *  does not fit in memory, and the whole point of showing this is to say so before that happens. */
 const bands = computed(() => (spaceMode.value === 'bands' ? parseBands(bandsText.value) : []));
+
+// The Ascensions box follows the bands whenever they change -- typed, suggested, or filled in by a
+// Chain Explorer link -- so it only ever disagrees with them when someone changes the box itself.
+watch(
+  () => bands.value.length,
+  n => {
+    if (n) suggestAsc.value = n + 1;
+  },
+  { immediate: true }
+);
+/** The box says one count and the bands another: the run would use the bands, silently. */
+const ascMismatch = computed(
+  () => spaceMode.value === 'bands' && bands.value.length > 0 && suggestAsc.value !== bands.value.length + 1
+);
 
 /** The grid the inputs above describe, before a run: for the step note. */
 const plannedGridComplete = computed(() =>
