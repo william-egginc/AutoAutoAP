@@ -351,7 +351,11 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
     async evaluate(chains: number[][], onChainDone?: (done: number, total: number) => void): Promise<BatchOutcome> {
       if (!chains.length) return { results: [], legSims: 0, workersUsed: 0 };
 
-      const sorted = sortChainsDepthFirst(chains);
+      // Plain copies before anything is posted. A caller holding a Vue reactive array (the store's
+      // `bestChain`, anything read out of Pinia state) would otherwise reach `postMessage`, which
+      // cannot clone a proxy and throws "[object Object] could not be cloned" -- after the whole
+      // batch was dealt, so the run fails at the end instead of at the call. Cheap next to a chain.
+      const sorted = sortChainsDepthFirst(chains.map(c => Array.from(c)));
       const wanted = workersForBatch(sorted.length, size);
       const buckets = splitByPrefix(sorted, wanted);
 

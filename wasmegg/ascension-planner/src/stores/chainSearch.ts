@@ -2023,15 +2023,26 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       // total and `legs: []` -- every one of its 365 chains replayed -- which leaves it out of
       // every per-leg analysis. Re-pricing the one winning chain is seconds, and the simulation is
       // deterministic under an unchanged fingerprint, so the total does not move.
+      //
+      // OPTIONAL, so it cannot fail the run. Everything is priced by now; if this one extra chain
+      // does not come back, the result stands without per-leg detail rather than the whole run
+      // being reported as failed with nothing saved as complete.
       if (bestChain.value.length && !bestLegs.value.length && pool) {
         stage.value = 'filling in the winning chain';
-        const { results } = await pool.evaluate([bestChain.value]);
-        const r = results[0];
-        if (r) {
-          const key = r.chain.join(',');
-          const at = liveCache.findIndex(e => e.key === key);
-          if (at >= 0) liveCache[at] = { key, seconds: r.seconds, legs: r.legs };
-          noteBest();
+        try {
+          // A COPY, not `bestChain.value`: that is a Vue reactive proxy, and a proxy cannot be
+          // posted to a worker. It failed every resumed run at its very last step with "Failed to
+          // execute 'postMessage' on 'Worker': [object Object] could not be cloned" (2026-09-25).
+          const { results } = await pool.evaluate([[...bestChain.value]]);
+          const r = results[0];
+          if (r) {
+            const key = r.chain.join(',');
+            const at = liveCache.findIndex(e => e.key === key);
+            if (at >= 0) liveCache[at] = { key, seconds: r.seconds, legs: r.legs };
+            noteBest();
+          }
+        } catch (e) {
+          runLog.value.push(`--- could not fill in the winning chain's legs (${describeRunError(e)}); the result stands without them`);
         }
       }
 

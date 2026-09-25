@@ -46,7 +46,10 @@ class FakeWorker {
     this.onmessage?.({ data: msg } as MessageEvent<WorkerResponse>);
   }
 
-  postMessage(msg: WorkerRequest): void {
+  postMessage(raw: WorkerRequest): void {
+    // What a real worker boundary does first: structured-clone the message. A proxy (a Vue reactive
+    // array) throws here exactly as it does in a browser.
+    const msg = structuredClone(raw);
     if (msg.kind === 'init') {
       this.emit({ type: 'init-done', requestId: msg.requestId });
       return;
@@ -367,6 +370,19 @@ describe('resizing while a run is going', () => {
     expect(out.results).toHaveLength(4); // every chain came back, the busy worker's included
     expect(second.terminated).toBe(true); // and then it went
     expect(pool.spawned).toBe(1);
+    pool.terminate();
+  });
+});
+
+describe('what reaches a worker', () => {
+  it('posts a chain held in Vue reactive state, which the browser cannot clone as-is', async () => {
+    // The store re-prices its winner from `bestChain.value`, a reactive proxy. Posted as-is it threw
+    // "Failed to execute 'postMessage' on 'Worker': [object Object] could not be cloned".
+    const { reactive } = await import('vue');
+    const pool = await makePool();
+    const winner = reactive([201, 282, 490]);
+    const out = await pool.evaluate([winner]);
+    expect(out.results.map(r => r.chain)).toEqual([[201, 282, 490]]);
     pool.terminate();
   });
 });
