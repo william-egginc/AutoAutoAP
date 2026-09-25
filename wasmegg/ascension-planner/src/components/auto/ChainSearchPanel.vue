@@ -1417,11 +1417,11 @@
           <button
             v-if="store.submitUrl"
             type="button"
-            :disabled="!optIn || submitState === 'sending'"
+            :disabled="!optIn || submitState === 'sending' || store.alreadySubmitted"
             class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500 disabled:opacity-40"
             @click="submit"
           >
-            {{ submitState === 'sending' ? 'Sending...' : 'Submit result' }}
+            {{ submitState === 'sending' ? 'Sending...' : store.alreadySubmitted ? 'On the board' : 'Submit result' }}
           </button>
 
           <button
@@ -1763,6 +1763,12 @@ const payloadPreview = computed(() => {
 async function submit(): Promise<void> {
   // The guard matters as much as the flag: clicks made while the page was frozen building the
   // table are delivered afterwards, and each one used to send another copy.
+  // Already sent (automatically or by hand): a second send is only a duplicate row.
+  if (store.alreadySubmitted) {
+    submitOk.value = true;
+    submitMessage.value = 'Already on the board: this result was sent from this browser.';
+    return;
+  }
   if (!optIn.value || submitState.value === 'sending') return;
   submitState.value = 'sending';
   submitOk.value = true;

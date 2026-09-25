@@ -53,9 +53,26 @@ describe('dataNeeds', () => {
     expect(dataNeeds(rows).find(d => d.id === 'force-continue')?.have).toBe(1);
   });
 
-  it('notices accounts outside the measured TE range', () => {
-    const rows = [row({ nickname: 'hi1', currentTE: 230 }), row({ nickname: 'hi2', currentTE: 210 })];
-    expect(dataNeeds(rows).map(d => d.id)).not.toContain('te-high');
+  it('notices accounts outside the measured TE range, once they have finished a run', () => {
+    const done = { mode: 'bands', minGap: 0, minAscensions: 2, maxAscensions: 2, chains: 1, chainsPriced: 1, stoppedEarly: false } as unknown as CollectorRow['space'];
+    const unfinished = [row({ nickname: 'hi1', currentTE: 230 }), row({ nickname: 'hi2', currentTE: 210 })];
+    expect(dataNeeds(unfinished).map(d => d.id)).toContain('te-high');
+    const finished = unfinished.map(r => ({ ...r, space: done }));
+    expect(dataNeeds(finished).map(d => d.id)).not.toContain('te-high');
+  });
+
+  it('asks a high account for M1, which still has TEs to try from 250 up', () => {
+    expect(dataNeeds([]).find(d => d.id === 'te-high')?.preset).toBe('M1');
+  });
+
+  it('does not count a tagged run of the wrong length toward a preset', () => {
+    const rows = Array.from({ length: 6 }, (_, i) => row({ nickname: `p${i}`, ascensions: 6, sweep: { preset: 'M1' } }));
+    expect(dataNeeds(rows).find(d => d.id === 'sweep-M1')?.have).toBe(0);
+  });
+
+  it('lists gear the board has not seen in its own group', () => {
+    const gear = dataNeeds([]).filter(d => d.group === 'gear').map(d => d.id);
+    expect(gear).toEqual(expect.arrayContaining(['cte-edge', 'earnings-mix', 'delivery-mid', 'weak-gear']));
   });
 });
 
@@ -66,7 +83,8 @@ describe('presetBandsFor', () => {
   });
 
   it('drops what a high account has already passed, from every band', () => {
-    expect(presetBandsFor('M2', 275)).toBe('190-280:2; 276-372:2');
+    // The first range starts just above the player, not at the preset's 190 they passed long ago.
+    expect(presetBandsFor('M2', 275)).toBe('276-280:2; 276-372:2');
   });
 });
 
@@ -138,5 +156,64 @@ describe('fine sweeps (F2) and the later-start pair', () => {
       row({ nickname: 'b', space: fine, startLocal: '2026-09-25 08:00' }),
     ];
     expect(dataNeeds(rows).find(d => d.id === 'later-start')?.have).toBe(1);
+  });
+});
+
+describe('bigger and end-of-the-line presets', () => {
+  it('fits a TE-relative first range to the player', () => {
+    expect(presetBandsFor('F4', 182)).toBe('183-220:1; 201-257:2; 242-290:3; 281-329:3');
+    expect(presetBandsFor('F4', 133)).toBe('134-171:1; 201-257:2; 242-290:3; 281-329:3');
+  });
+
+  it('prices the counts the designs were checked at (independent recount, 25 Sep 2026)', () => {
+    expect(presetChains('F4', 182).chains).toBe(29904);
+    expect(presetChains('F4', 133).chains).toBe(120118);
+    expect(presetChains('F5', 182).chains).toBe(29952);
+    expect(presetChains('E7', 182).chains).toBe(6855);
+    expect(presetChains('E8', 182).chains).toBe(11262);
+    expect(presetChains('E9', 182).chains).toBe(11988);
+  });
+
+  it('lists them in their own groups', () => {
+    const needs = dataNeeds([]);
+    expect(needs.find(d => d.id === 'sweep-F4')?.group).toBe('big');
+    expect(needs.find(d => d.id === 'sweep-E9')?.group).toBe('end');
+  });
+
+  it('counts only a run at least as fine, range by range, toward a fine preset', () => {
+    const band = (lo: number, hi: number, step: number) => Array.from({ length: Math.floor((hi - lo) / step) + 1 }, (_, i) => lo + i * step);
+    const space = (bands: number[][]) => ({ mode: 'bands', bands, minGap: 29, minAscensions: 5, maxAscensions: 5, chains: 1, chainsPriced: 1, stoppedEarly: false }) as CollectorRow['space'];
+    const every3 = row({ nickname: 'a', ascensions: 5, space: space([band(183, 220, 3), band(201, 257, 3), band(242, 290, 3), band(281, 329, 3)]) });
+    const fineRun = row({ nickname: 'b', ascensions: 5, space: space([band(183, 220, 1), band(201, 257, 2), band(242, 290, 3), band(281, 329, 3)]) });
+    const have = dataNeeds([every3, fineRun]).find(d => d.id === 'sweep-F4')?.have;
+    expect(have).toBe(1); // every 3rd TE throughout is coarser than F4's every-TE first range
+  });
+});
+
+describe('review fixes (25 Sep 2026)', () => {
+  const band = (lo: number, hi: number, step: number) => Array.from({ length: Math.floor((hi - lo) / step) + 1 }, (_, i) => lo + i * step);
+  const f4space = (stoppedEarly: boolean) =>
+    ({ mode: 'bands', bands: [band(183, 220, 1), band(201, 257, 2), band(242, 290, 3), band(281, 329, 3)], minGap: 29, minAscensions: 5, maxAscensions: 5, chains: 29904, chainsPriced: stoppedEarly ? 500 : 29904, stoppedEarly }) as CollectorRow['space'];
+
+  it('does not count a tagged run that was stopped partway', () => {
+    const partial = row({ nickname: 'a', ascensions: 5, sweep: { preset: 'F4' }, space: f4space(true) });
+    expect(dataNeeds([partial]).find(d => d.id === 'sweep-F4')?.have).toBe(0);
+    const whole = row({ nickname: 'b', ascensions: 5, sweep: { preset: 'F4' }, space: f4space(false) });
+    expect(dataNeeds([whole]).find(d => d.id === 'sweep-F4')?.have).toBe(1);
+  });
+
+  it('counts an uploaded sweep, which carries no space, as finished', () => {
+    const upload = row({ nickname: 'u', currentTE: 210, source: 'upload' } as Partial<CollectorRow>);
+    expect(dataNeeds([upload]).find(d => d.id === 'te-high')?.have).toBe(1);
+  });
+
+  it('treats a single-value range as fine enough (F2 fitted at TE 249)', () => {
+    const at249 = row({
+      nickname: 'h',
+      ascensions: 3,
+      currentTE: 249,
+      space: { mode: 'bands', bands: [[250], band(276, 300, 1)], minGap: 10, minAscensions: 3, maxAscensions: 3, chains: 25, chainsPriced: 25, stoppedEarly: false } as CollectorRow['space'],
+    });
+    expect(dataNeeds([at249]).find(d => d.id === 'sweep-F2')?.have).toBe(1);
   });
 });

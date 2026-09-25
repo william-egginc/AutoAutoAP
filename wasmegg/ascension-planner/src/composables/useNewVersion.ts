@@ -42,8 +42,41 @@ export function isNewerBuild(liveHtml: string, loadedSrc: string | null, entry: 
   return !!loaded && !!live && loaded !== live;
 }
 
-/** `version.json` as the build writes it: entry name -> hashed file. */
-export type LiveEntries = Record<string, string>;
+/** `version.json` as the build writes it: entry name -> hashed file, plus `release` (below). */
+export type LiveEntries = Record<string, unknown>;
+
+/** How much a new build matters (vite.config.ts, release.json). */
+export interface ReleaseInfo {
+  /** "reload": fixes something an open tab could trip over. "minor": wording or looks. */
+  level: 'minor' | 'reload';
+  note: string;
+}
+
+/** This bundle's build time, or '' where the define is absent (tests, dev). */
+export const OWN_BUILD_TIME: string = typeof __BUILD_TIME__ === 'string' ? __BUILD_TIME__ : '';
+
+/**
+ * How much the live build matters to THIS tab. "reload" when the tab was built before the last
+ * change an open tab could trip over (release.ts `reloadIfBuiltBefore`) -- so a tab that slept
+ * through a reload-level deploy and then saw a later wording one is still told to reload -- and
+ * "minor" otherwise. A version.json without the marker (from before this existed), or a tab that
+ * does not know its own build time, counts as "reload": the only kind of notice there used to be.
+ */
+export function releaseFrom(versionJson: unknown, ownBuildTime: string = OWN_BUILD_TIME): ReleaseInfo {
+  const r = versionJson && typeof versionJson === 'object' ? (versionJson as LiveEntries).release : null;
+  if (!r || typeof r !== 'object') return { level: 'reload', note: '' };
+  const noteRaw = (r as { note?: unknown }).note;
+  const note = typeof noteRaw === 'string' ? noteRaw.slice(0, 200) : '';
+  const since = (r as { reloadIfBuiltBefore?: unknown }).reloadIfBuiltBefore;
+  if (typeof since !== 'string' || !since || !ownBuildTime) return { level: 'reload', note };
+  return { level: ownBuildTime < since ? 'reload' : 'minor', note };
+}
+
+/** Levels only go up: a tab already asking for a reload never drops back to the quiet note. */
+export function raiseLevel(current: ReleaseInfo | null, next: ReleaseInfo): ReleaseInfo {
+  if (current?.level === 'reload' && next.level === 'minor') return { ...current, note: next.note || current.note };
+  return next;
+}
 
 /** The live entry for `entry` from a `version.json` body, or null when it is not one. */
 export function liveEntryFrom(versionJson: unknown, entry: string): string | null {
@@ -106,6 +139,8 @@ const CHANNEL = 'aap-new-version';
  */
 export function useNewVersion(pageUrl: string, entry: string) {
   const available = ref(false);
+  /** What the newer build says about itself; meaningful once `available` is true. */
+  const release = ref<ReleaseInfo>({ level: 'reload', note: '' });
   let timer: ReturnType<typeof setInterval> | null = null;
   let channel: BroadcastChannel | null = null;
   let lastChecked = 0;
@@ -132,14 +167,18 @@ export function useNewVersion(pageUrl: string, entry: string) {
   }
 
   async function check(): Promise<void> {
-    if (available.value || !loadedSrc) return;
+    // After a MINOR notice keep looking: a later build may be one this tab has to reload for.
+    if ((available.value && release.value.level === 'reload') || !loadedSrc) return;
     if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
     if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
     lastChecked = Date.now();
     try {
       const entries = await fetchEntries();
       if (entries && liveEntryFrom(entries, entry)) {
-        if (isNewerEntry(entries, loadedSrc, entry)) available.value = true;
+        if (isNewerEntry(entries, loadedSrc, entry)) {
+          release.value = raiseLevel(available.value ? release.value : null, releaseFrom(entries));
+          available.value = true;
+        }
         channel?.postMessage({ kind: 'seen', entries } satisfies Seen);
         return;
       }
@@ -159,7 +198,10 @@ export function useNewVersion(pageUrl: string, entry: string) {
   const onSeen = (e: MessageEvent<Seen>) => {
     if (e.data?.kind !== 'seen') return;
     lastChecked = Date.now();
-    if (isNewerEntry(e.data.entries, loadedSrc, entry)) available.value = true;
+    if (isNewerEntry(e.data.entries, loadedSrc, entry)) {
+      release.value = raiseLevel(available.value ? release.value : null, releaseFrom(e.data.entries));
+      available.value = true;
+    }
   };
 
   onMounted(() => {
@@ -180,5 +222,5 @@ export function useNewVersion(pageUrl: string, entry: string) {
     channel?.close();
   });
 
-  return { available, check };
+  return { available, release, check };
 }

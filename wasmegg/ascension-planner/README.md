@@ -349,6 +349,13 @@ together. A rebuild that changed no code writes the same file, so nobody is told
 nothing. A host without the file falls back to comparing the page's HTML
 (`src/composables/useNewVersion.ts`).
 
+**Loud or quiet.** Each build also writes `release` into `version.json` from `release.ts`: a
+`reloadIfBuiltBefore` time and a one-line `note`. A tab built before that time gets the amber "Please
+reload" banner; a newer one gets a small corner note that asks for nothing. So before a deploy, move
+`reloadIfBuiltBefore` to now when the change fixes something an open tab could trip over, and leave it
+alone for wording or looks. Because it is a time rather than a per-deploy level, a tab that slept
+through a reload-level deploy is still told to reload by any later one.
+
 ### The older Python driver
 
 `scripts/autoplan.py` predates the shared driver and reimplements the staged search in

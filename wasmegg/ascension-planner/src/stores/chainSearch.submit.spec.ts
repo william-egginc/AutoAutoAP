@@ -104,6 +104,29 @@ describe('submitting a result', () => {
     expect(s.pendingTable).toBeNull();
   });
 
+  it('remembers a result once it is on the board, so the Submit button locks', async () => {
+    // The planner's own stores read browser storage when they start; give them some.
+    const mem = new Map<string, string>();
+    vi.stubGlobal('localStorage', {
+      getItem: (k: string) => mem.get(k) ?? null,
+      setItem: (k: string, v: string) => void mem.set(k, v),
+      removeItem: (k: string) => void mem.delete(k),
+      key: (i: number) => [...mem.keys()][i] ?? null,
+      get length() {
+        return mem.size;
+      },
+    });
+    const s = await store();
+    s.bestChain = [212, 280, 490];
+    s.bestDays = 760.5;
+    expect(s.alreadySubmitted).toBe(false);
+    collector(json({ ok: true, id: 'abcd1234' }));
+    await s.sendSubmission(PAYLOAD);
+    expect(s.alreadySubmitted).toBe(true);
+    s.bestDays = 755.1; // a different result is a new submission
+    expect(s.alreadySubmitted).toBe(false);
+  });
+
   it('tells a player who submitted too often how long to wait', async () => {
     const s = await store();
     collector(json({ error: 'slow down', retryAfter: 42 }, 429));

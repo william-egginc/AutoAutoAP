@@ -1399,11 +1399,11 @@
           <button
             v-if="store.submitUrl"
             type="button"
-            :disabled="!optIn || submitting"
+            :disabled="!optIn || submitting || store.alreadySubmitted"
             class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 disabled:opacity-40"
             @click="submit"
           >
-            {{ submitting ? 'Sending...' : 'Submit result' }}
+            {{ submitting ? 'Sending...' : store.alreadySubmitted ? 'On the board' : 'Submit result' }}
           </button>
           <span v-else class="text-[11px] text-indigo-900/70">
             No collector configured in this build (<code class="font-mono-premium">VITE_SUBMIT_URL</code>).
@@ -2159,6 +2159,12 @@ async function remove(id: string): Promise<void> {
 async function submit(): Promise<void> {
   // Clicks made while the page was frozen building the table arrive afterwards; each one used to
   // send another copy.
+  // Already sent (automatically or by hand): a second send is only a duplicate row.
+  if (store.alreadySubmitted) {
+    submitOk.value = true;
+    submitMessage.value = 'Already on the board: this result was sent from this browser.';
+    return;
+  }
   if (submitting.value) return;
   submitting.value = true;
   submitOk.value = true;

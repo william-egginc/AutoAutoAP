@@ -1497,8 +1497,76 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * is worth keeping even when the bulky half fails. A failed CSV upload therefore downgrades the
    * message rather than failing the whole submission.
    */
+  /**
+   * RESULTS ALREADY ON THE BOARD, remembered per browser. The same result was being sent twice --
+   * the automatic send and then the Send button, or anonymously and then with a name -- because a
+   * finished send re-enabled the button (13 plans on the board had copies, 25 Sep 2026). The key is
+   * what makes it the same result: target, chain, days to 1e-4 (the collector's own precision), plan
+   * start, starting TE and the settings that change the answer.
+   */
+  function resultKey(): string {
+    const sp = searchSpace.value;
+    return [
+      finalTE.value,
+      bestChain.value.join(' '),
+      Math.round(bestDays.value * 1e4),
+      // The plan start the submission itself carries (see buildRunSubmission): a reopened saved run
+      // has no planStartUsed.
+      planStartUsed.value || planStart.value,
+      currentTE.value,
+      forceContinue.value ? 'fc' : 'fresh',
+      deferShifts.value ? 'hold' : 'free',
+      // What makes it a different ROW on the board even with the same answer: a different space or
+      // sweep, or a partial run versus the finished one.
+      sp ? JSON.stringify([sp.mode, sp.bands ?? sp.range, sp.minGap]) : 'staged',
+      runSweepTag?.preset ?? '',
+      stoppedEarly.value ? 'partial' : 'whole',
+    ].join('|');
+  }
+  const SENT_PREFIX = 'aap-submitted:';
+  const sentKeys = ref<Set<string>>(
+    (() => {
+      try {
+        return new Set(
+          Object.keys(localStorage)
+            .filter(k => k.startsWith(SENT_PREFIX))
+            .map(k => k.slice(SENT_PREFIX.length))
+        );
+      } catch {
+        return new Set<string>();
+      }
+    })()
+  );
+  /** True once this exact result has been sent from this browser: the Submit buttons lock. */
+  const alreadySubmitted = computed(() => {
+    if (!(bestDays.value > 0)) return false;
+    try {
+      return sentKeys.value.has(resultKey());
+    } catch {
+      return false; // the settings it reads could not be read: never lock a button on a guess
+    }
+  });
+  function rememberSent(key: string | null): void {
+    // Never allowed to fail a send that has already landed.
+    if (!key) return;
+    try {
+      sentKeys.value = new Set([...sentKeys.value, key]);
+      localStorage.setItem(SENT_PREFIX + key, new Date().toISOString());
+    } catch {
+      // Not remembered past this visit; the button still locks until the page is reloaded.
+    }
+  }
+
   async function sendSubmission(payload: Submission, csv?: string): Promise<{ ok: boolean; message: string }> {
     if (!submitUrl) return { ok: false, message: 'no collector configured' };
+    // The key of the result being SENT, taken now: the awaits below give the page time to change it.
+    const sentKey = (() => {
+      try {
+        return resultKey();
+      } catch {
+        return null;
+      }
+    })();
     pendingTable.value = null;
     let id: string | undefined;
     let uploadToken: string | undefined;
@@ -1538,6 +1606,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           'could not reach the collector (check your connection). Your results are still here - press Submit again once you are back online, or use Save the file instead to keep a copy.',
       };
     }
+
+    // The summary is in: from here on this result is on the board, whatever happens to the table.
+    rememberSent(sentKey);
 
     // Said with every success message, because a run that went to the flagged board will not appear
     // on the main one, and without this it looks lost.
@@ -2603,6 +2674,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     suspendedSeconds,
     runMinutes,
     runCost,
+    alreadySubmitted,
     chainsEstimated,
     bestChain,
     bestDays,

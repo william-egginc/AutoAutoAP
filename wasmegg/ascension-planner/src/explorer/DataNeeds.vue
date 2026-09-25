@@ -17,8 +17,8 @@
         />
       </label>
       <p class="text-[10px] text-slate-400 max-w-md">
-        The bands below are fitted to this: the first one starts just above your TE. Times are estimates from the speeds
-        other players' runs recorded; the planner's Re-benchmark button measures your own machine.
+        The ranges below are fitted to this: your 1st ascension's range starts just above your TE. Times are estimates
+        from the speeds other players' runs recorded; the planner's Re-benchmark button measures your own machine.
       </p>
     </div>
 
@@ -49,13 +49,14 @@
             </span>
           </div>
           <p class="text-[11px] text-slate-600 leading-relaxed">{{ need.why }}</p>
-          <p class="text-[11px] text-slate-700">
-            Press <b>Run this sweep</b> below for <b>{{ need.presetLabel }}</b>. It fills in the ascension ranges
-            <code class="rounded bg-white px-1 text-[10px]">{{ need.bands }}</code>, with at least {{ need.minGap }} TE
-            between ascensions.
-            <template v-if="stepWords(need.bands)"> {{ stepWords(need.bands) }}</template>
-            <template v-if="need.runs > 1"> Run it twice.</template>
-            {{ need.note ? ' ' + need.note : '' }}
+          <!-- Only when there is something to run: with no chains there are no buttons to press. -->
+          <p v-if="need.chains > 0" class="text-[11px] text-slate-700">
+            {{
+              need.links.length > 1 ? 'Press both buttons below, one after the other.' : 'Press Run this sweep below.'
+            }}
+            It opens <b>“{{ need.presetLabel }}”</b> in the planner's Insane mode, trying {{ bandsInWords(need.bands) }}.
+            <template v-if="need.minGap > 0">Ascension targets stay at least {{ need.minGap }} TE apart.</template>
+            {{ need.note ? need.note : '' }}
           </p>
           <div v-if="need.chains > 0" class="grid gap-1 sm:grid-cols-4 text-[11px]">
             <div class="rounded bg-white px-2 py-1">
@@ -73,7 +74,8 @@
             </div>
           </div>
           <p v-else class="text-[10px] font-semibold text-amber-700">
-            This preset has no chains from {{ teNow }} TE: its bands sit at or below where you already are.
+            No plan fits this sweep from {{ teNow }} TE: its ascension ranges, with targets at least
+            {{ need.minGap }} TE apart, leave no room above where you already are.
           </p>
           <div v-if="need.chains > 0" class="flex flex-wrap items-center gap-2 pt-1">
             <a
@@ -105,15 +107,23 @@ import { measuredWorkerSeconds } from '@/search/speed';
 import { SWEEP_PRESETS } from './upload';
 import { sweepRequestQuery } from '@/search/sweepRequest';
 import { parseBands } from '@/search/exhaustive';
-import { gridIsComplete, gridStepLabel } from '@/search/grid';
 
-/** "181-250:5" in plain words. Players read past the notation; a Balanced result between grid
- *  points then looks like the sweep got it wrong. */
-function stepWords(text: string): string {
+const ORDINAL = ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th', '10th', '11th', '12th'];
+
+/** "181-250:1; 276-300:2" as players read it: "your 1st ascension at TE 181 to 250 (every TE) and
+ *  your 2nd at TE 276 to 300 (every 2nd TE)". The `lo-hi:step` notation meant nothing to them. */
+function bandsInWords(text: string): string {
   const bands = parseBands(text);
-  if (!bands.length) return '';
-  if (gridIsComplete(bands)) return 'It tries every TE in those ranges.';
-  return `It tries ${gridStepLabel(bands)} (${bands[0].slice(0, 3).join(', ')}, ...), not every TE in between.`;
+  if (!bands.length) return 'the ranges shown in the planner';
+  const every = (b: number[]) => {
+    const step = b.length > 1 ? b[1] - b[0] : 1;
+    return step <= 1 ? 'every TE' : `every ${ORDINAL[step - 1] ?? `${step}th`} TE`;
+  };
+  const parts = bands.map((b, i) => {
+    const where = b.length > 1 ? `TE ${b[0]} to ${b[b.length - 1]} (${every(b)})` : `TE ${b[0]}`;
+    return i === 0 ? `your 1st ascension at ${where}` : `your ${ORDINAL[i] ?? `${i + 1}th`} at ${where}`;
+  });
+  return parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`;
 }
 
 const props = defineProps<{ rows: CollectorRow[] }>();
@@ -155,26 +165,32 @@ function sweepLinks(
   const href = (forceContinue?: boolean) => `./${sweepRequestQuery({ preset, label, bands, minGap, forceContinue })}`;
   if (needId === 'force-continue') {
     return [
-      { label: 'Run it finishing my current run first', href: href(true) },
-      { label: 'Run it prestiging straight away', href: href(false) },
+      { label: 'Finish my current ascension first', href: href(true) },
+      { label: 'Ascend straight away', href: href(false) },
     ];
   }
   return [{ label: 'Run this sweep', href: href() }];
 }
 
-const GROUPS: { id: 'main' | 'big' | 'end'; title: string; intro: string }[] = [
+const GROUPS: { id: 'main' | 'gear' | 'big' | 'end'; title: string; intro: string }[] = [
   { id: 'main', title: 'We could use more data for:', intro: '' },
+  {
+    id: 'gear',
+    title: "Accounts and gear we haven't seen yet",
+    intro:
+      'Every account on the board so far is at CTE 240 or more with a T4L Lunar totem and a T4L Demeters necklace, so TE and CTE always rise together. If your account matches one of these, one run teaches more than ten from the accounts we already have.',
+  },
   {
     id: 'big',
     title: 'Bigger runs, for big machines',
     intro:
-      "Finer grids at 5 and 6 ascensions, where most accounts' best plans are. The best chains are needle-sharp, so the coarse M4 grid can miss them by days; these check far more of the TEs in between. Tens of thousands of chains: a workstation overnight, or a desktop over a weekend.",
+      "5 and 6 ascensions, looked at closely. Most accounts' fastest plans have 5 to 7 ascensions, and ascending even one TE off the best can cost days. M4 only tries every 5th TE, and on shorter plans that has landed 2 to 12 days behind trying every TE, so these runs try far more of the TEs in between. Each is tens of thousands of plans, more on lower accounts; each card shows how many from your TE and how long that takes.",
   },
   {
     id: 'end',
     title: 'The end of the line: 7, 8 and 9 ascensions',
     intro:
-      'These show what happens at the longest chains, so the board can show where adding ascensions stops paying and starts costing. Coarse on purpose: the question is how long the best 7-, 8- or 9-ascension plan takes, not its exact checkpoints.',
+      'These show where adding ascensions stops saving time and starts costing it, so nobody plans more ascensions than they need. So far a 7th ascension has changed the total by only about 0.1 days on the saves that tried it, but weaker gear may want more. They try far fewer TEs to stay affordable, so read the result as an upper bound: a close look around the winner can still take a week or two off.',
   },
 ];
 

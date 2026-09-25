@@ -58,22 +58,71 @@ export interface SweepPreset {
 }
 
 export const SWEEP_PRESETS: SweepPreset[] = [
-  { id: 'M1', label: 'M1 baseline, 2 ascensions', ascensions: 2, bands: '189-489:1', minGap: 0 },
-  { id: 'M2', label: 'M2, 3 ascensions', ascensions: 3, bands: '190-280:2; 270-372:2', minGap: 10 },
-  { id: 'M3', label: 'M3, 4 ascensions', ascensions: 4, bands: '190-250:5; 215-300:5; 280-360:5', minGap: 10 },
+  { id: 'M1', label: 'M1: 2 ascensions at every TE', ascensions: 2, bands: '189-489:1', minGap: 0 },
+  { id: 'M2', label: 'M2: 3 ascensions at every 2nd TE', ascensions: 3, bands: '190-280:2; 270-372:2', minGap: 10 },
+  { id: 'M3', label: 'M3: 4 ascensions at every 5th TE', ascensions: 4, bands: '190-250:5; 215-300:5; 280-360:5', minGap: 10 },
   {
     id: 'M4',
-    label: 'M4 check, 5 ascensions',
+    label: 'M4: 5 ascensions at every 5th TE',
     ascensions: 5,
     bands: '190-215:5; 210-250:5; 240-300:5; 285-350:5',
     minGap: 10,
   },
-  // Fine, not wide (2026-09-25). The best chains are needle-sharp: one TE off costs 2-22 days, and
-  // M2's every-2-TE grid loses 0.5-1 d on average against checking every TE. Every best 3-ascension
-  // chain so far put its checkpoints at 197-233 and 282-292, so this checks EVERY TE there and
-  // nothing else -- fewer chains than M2, and exact. After the M presets so a 3-ascension upload
-  // still defaults to M2.
-  { id: 'F2', label: 'F2 fine, 3 ascensions at every TE', ascensions: 3, bands: '195-250:1; 276-300:1', minGap: 10, fine: true },
+  // Fine, not wide (2026-09-25). One TE off the best costs up to 31 days (median 17 on 2- and
+  // 3-ascension plans), and on the same save M2's every-2nd-TE grid came out about 5 days behind.
+  // Every best 3-ascension chain so far put its checkpoints at 197-233 and 279-288, so this checks
+  // EVERY TE there and nothing else -- fewer chains than M2, and exact. After the M presets so a
+  // 3-ascension upload still defaults to M2.
+  { id: 'F2', label: 'F2: 3 ascensions at every TE', ascensions: 3, bands: '195-250:1; 276-300:1', minGap: 10, fine: true },
+  // BIGGER RUNS (2026-09-25), designed from the board's dense runs and checked by an independent
+  // recount. The first range is TE-relative: from 5 ascensions up the best first ascension sits just
+  // above wherever the player is. Chains at TE 182 / TE 124-133: F4 29,904 / 120,118; F5 29,952 /
+  // 151,625 -- low accounts get far more, and each card shows the viewer's own count and time.
+  {
+    id: 'F4',
+    label: 'F4: 5 ascensions, a close look',
+    ascensions: 5,
+    bands: '+1-+38:1; 201-257:2; 242-290:3; 281-329:3',
+    minGap: 29,
+    fine: true,
+    group: 'big',
+  },
+  {
+    id: 'F5',
+    label: 'F5: 6 ascensions, a close look',
+    ascensions: 6,
+    bands: '+1-+25:1; 193-225:1; 220-262:7; 260-296:6; 294-342:6',
+    minGap: 21,
+    fine: true,
+    group: 'big',
+  },
+  // THE END OF THE LINE: coarse on purpose, sized so the observed best 7-9-ascension chains sit
+  // inside the ranges (E7: all 16). At TE 182: E7 6,855 chains, E8 11,262, E9 11,988. E9 has no
+  // chains from TE 221 up: its second range ends at 231.
+  {
+    id: 'E7',
+    label: 'E7: 7 ascensions, a rough look',
+    ascensions: 7,
+    bands: '+1-+37:6; 190-251:4; 211-271:10; 229-306:11; 260-359:11; 280-370:10',
+    minGap: 16,
+    group: 'end',
+  },
+  {
+    id: 'E8',
+    label: 'E8: 8 ascensions, a rough look',
+    ascensions: 8,
+    bands: '+1-+34:3; 204-224:4; 216-240:12; 234-270:9; 250-283:11; 269-299:6; 291-346:5',
+    minGap: 10,
+    group: 'end',
+  },
+  {
+    id: 'E9',
+    label: 'E9: 9 ascensions, a rough look',
+    ascensions: 9,
+    bands: '+1-+36:7; 191-231:10; 196-256:10; 211-281:10; 231-287:7; 251-323:8; 269-341:9; 310-366:14',
+    minGap: 10,
+    group: 'end',
+  },
   { id: 'custom', label: 'Something else', ascensions: 0, bands: '', minGap: 10 },
 ];
 

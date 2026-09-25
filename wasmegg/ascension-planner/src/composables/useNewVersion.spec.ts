@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { entryScriptIn, isNewerBuild, isNewerEntry, liveEntryFrom, checkEveryMs, isDue, isMobileLike } from './useNewVersion';
+import { entryScriptIn, isNewerBuild, isNewerEntry, liveEntryFrom, releaseFrom, raiseLevel, checkEveryMs, isDue, isMobileLike } from './useNewVersion';
 
 const page = (hash: string, entry = 'index') =>
   `<html><head><script type="module" crossorigin src="/ascension-planner/assets/${entry}-${hash}.js"></script></head></html>`;
@@ -77,3 +77,38 @@ describe('how often it checks', () => {
   });
 });
 
+describe('how much an update matters', () => {
+  const live = (since: string, note = '') => ({ index: 'assets/index-a.js', release: { reloadIfBuiltBefore: since, note } });
+
+  it('asks a tab built before the last reload-level change to reload', () => {
+    expect(releaseFrom(live('2026-09-25T23:30:00Z', 'fixes'), '2026-09-25T10:00:00Z')).toEqual({ level: 'reload', note: 'fixes' });
+  });
+
+  it('tells a tab built after it that the update is minor', () => {
+    expect(releaseFrom(live('2026-09-25T23:30:00Z', 'wording'), '2026-09-26T09:00:00Z')).toEqual({ level: 'minor', note: 'wording' });
+  });
+
+  it('still asks for a reload when the tab skipped the reload deploy and sees a later minor one', () => {
+    // Tab built 24 Sep; a reload-level change shipped 25 Sep; the newest build (26 Sep) is wording.
+    // The marker still says 25 Sep, so the 24 Sep tab must reload.
+    expect(releaseFrom(live('2026-09-25T23:30:00Z'), '2026-09-24T12:00:00Z').level).toBe('reload');
+  });
+
+  it('treats a file from before the marker existed, or an unknown own build, as a reload', () => {
+    expect(releaseFrom({ index: 'assets/index-a.js' }, '2026-09-26T00:00:00Z').level).toBe('reload');
+    expect(releaseFrom(live('2026-09-25T23:30:00Z'), '').level).toBe('reload');
+    expect(releaseFrom(null, '2026-09-26T00:00:00Z').level).toBe('reload');
+  });
+
+  it('never drops from a reload back to a minor note', () => {
+    const reload = { level: 'reload' as const, note: 'fixes' };
+    expect(raiseLevel(reload, { level: 'minor', note: 'wording' }).level).toBe('reload');
+    expect(raiseLevel({ level: 'minor', note: '' }, reload).level).toBe('reload');
+    expect(raiseLevel(null, { level: 'minor', note: '' }).level).toBe('minor');
+  });
+
+  it('still finds the page entry beside the release block', () => {
+    const v = { index: 'assets/index-Je39JZti.js', release: { reloadIfBuiltBefore: '2026-01-01T00:00:00Z', note: '' } };
+    expect(isNewerEntry(v, '/ascension-planner/assets/index-BGv8tSVu.js', 'index')).toBe(true);
+  });
+});

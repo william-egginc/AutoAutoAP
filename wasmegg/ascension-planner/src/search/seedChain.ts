@@ -38,8 +38,9 @@ const FIRST_GAP = 8;
  * Where the LAST checkpoint of the best chain sits on a 490 target, by chain length (final
  * included). Measured 2026-09-25 from the board's exhaustive and deep runs on the current rules, 11
  * accounts from TE 124 to 198: median of each run's best chain. It barely moves with the account --
- * 3 ascensions land at 282-292 and 4 at 283-297 whether the player starts at 124 or 198 -- and it
- * climbs with the count: the extra checkpoints go above 290, not below. Ending every seed at
+ * 3 ascensions land at 279-288 and 4 at 283-297 whether the player starts at 124 or 198 -- and it
+ * climbs with the count, although most of the extra checkpoints go in BELOW 290 (a 6-ascension
+ * plan still has 3 or 4 of its 5 below 290; audited 25 Sep 2026). Ending every seed at
  * `final - 150` (340) put a 3- or 4-ascension seed's last leg 50 TE from where it belongs.
  *
  * Only for 490, the only target with data. Other targets keep the geometric shape below.

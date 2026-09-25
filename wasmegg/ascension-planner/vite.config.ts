@@ -2,6 +2,7 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig, loadEnv, type Plugin } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import vueJsx from '@vitejs/plugin-vue-jsx';
+import release from './release';
 
 /**
  * `version.json`: each page's hashed entry script, `{"index":"assets/index-BGv8tSVu.js",...}`.
@@ -10,7 +11,14 @@ import vueJsx from '@vitejs/plugin-vue-jsx';
  * It is ~90 bytes where the page's HTML is ~1.2 KB, so a tab can check every minute for less than
  * it used to spend every five. The entry names are content hashes, so a rebuild that changed no
  * code writes the same file and no tab is told to reload for nothing.
+ *
+ * `release` (from release.ts) says whether a tab built before a given time needs to reload: players
+ * asked for the difference between a real fix and a wording change -- the same loud banner on every
+ * deploy taught them to ignore it (2026-09-25). Each bundle carries its own build time
+ * (__BUILD_TIME__) to compare with.
  */
+const BUILD_TIME = new Date().toISOString();
+
 function versionFile(): Plugin {
   return {
     name: 'aap-version-file',
@@ -20,7 +28,14 @@ function versionFile(): Plugin {
       for (const out of Object.values(bundle)) {
         if (out.type === 'chunk' && out.isEntry) entries[out.name] = out.fileName;
       }
-      this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify(entries) });
+      this.emitFile({
+        type: 'asset',
+        fileName: 'version.json',
+        source: JSON.stringify({
+          ...entries,
+          release: { reloadIfBuiltBefore: release.reloadIfBuiltBefore, note: release.note.slice(0, 200) },
+        }),
+      });
     },
   };
 }
@@ -58,6 +73,7 @@ export default defineConfig(({ mode }) => {
       dedupe: ['vue', 'pinia'],
     },
     plugins: [vue(), vueJsx(), versionFile()],
+    define: { __BUILD_TIME__: JSON.stringify(BUILD_TIME) },
     build: {
       chunkSizeWarningLimit: 2000,
       // TWO PAGES, ONE BUILD. `explorer.html` is the Chain Explorer: a static reader of the
