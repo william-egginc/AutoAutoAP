@@ -9,7 +9,7 @@
     <div class="flex flex-wrap items-baseline justify-between gap-2">
       <h2 class="text-lg font-black text-slate-900">What we know so far</h2>
       <span class="text-[10px] font-bold text-slate-500">
-        25 Sep 2026 · 11 accounts from TE 124 to 198 · 80 runs · 339,000 priced chains · 490 target
+        25 Sep 2026 · 11 accounts from TE 124 to 198 · 81 runs · 361,000 priced chains · 490 target
       </span>
     </div>
 
@@ -22,7 +22,7 @@
       </li>
       <li>
         <b>Where the last checkpoint goes hardly depends on the account.</b> The best chains end their second-to-last
-        leg at about 280 TE with 2 ascensions, 282–292 with 3, 283–297 with 4, 293–320 with 5 and roughly 300–335 with 6,
+        leg at about 280 TE with 2 ascensions, 282–292 with 3, 283–297 with 4, 285–320 with 5 and roughly 300–335 with 6,
         whether the player starts at 124 or 198. Extra checkpoints go above 290, not below it. The planner's default
         starting chain now uses these.
       </li>
