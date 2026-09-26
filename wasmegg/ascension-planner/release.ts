@@ -12,5 +12,5 @@
  */
 export default {
   reloadIfBuiltBefore: '2026-09-25T22:30:00Z',
-  note: 'new sweeps for 5 to 9 ascensions, clearer wording on the board, and no more duplicate submissions',
+  note: 'the leaderboard now ranks by the date plans reach 490, with Race, My plans and All runs tabs',
 };

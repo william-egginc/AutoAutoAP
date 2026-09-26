@@ -14,7 +14,10 @@ export type SortKey =
   | 'waitingHours'
   | 'window'
   | 'effort'
-  | 'submittedAt';
+  | 'submittedAt'
+  | 'finish'
+  | 'daysLeft'
+  | 'planned';
 
 export interface SortableRow {
   nickname?: string;
@@ -27,6 +30,12 @@ export interface SortableRow {
   effort?: string;
   /** ISO 8601, so the default string compare below is already chronological. */
   submittedAt?: string;
+  /** When the plan reaches its target, ms since the epoch (lib/leaderboardRank.ts `finishMs`). */
+  finish?: number | null;
+  /** Days from now to `finish`. Same order as `finish`, kept so a column can say what it shows. */
+  daysLeft?: number | null;
+  /** When the plan starts, ms since the epoch. */
+  planned?: number | null;
 }
 
 /**
@@ -56,8 +65,12 @@ export function sortRows<T extends SortableRow>(rows: readonly T[], key: SortKey
   const dir = asc ? 1 : -1;
   return [...rows].sort((a, b) => {
     if (key === 'chain') return compareChains(a.chain ?? [], b.chain ?? []) * dir;
-    const av = a[key];
-    const bv = b[key];
+    // A number that is not finite (NaN from a date nobody could read) is as unknown as null, and
+    // must never reach the subtraction below: NaN makes the comparator inconsistent and the whole
+    // sort order undefined, not just that row's place.
+    const known = (v: unknown) => (typeof v === 'number' && !Number.isFinite(v) ? null : v);
+    const av = known(a[key]);
+    const bv = known(b[key]);
     if (av == null && bv == null) return 0;
     if (av == null) return 1;
     if (bv == null) return -1;
