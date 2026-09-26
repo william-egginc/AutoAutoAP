@@ -323,6 +323,36 @@ export function parseBands(text: string, defaultStep = 5): number[][] {
     .filter(b => b.length);
 }
 
+/**
+ * [185, 190, 195, 200] -> `185-200:5`: the inverse of `parseBand`, for showing what a run searched
+ * in the notation players type. The step is always written, `:1` included, because a band read
+ * back without one takes the default step. Values that are not evenly spaced (the panel never makes
+ * such a band, but a stored row could hold anything) come out as their evenly spaced runs joined by
+ * commas: readable, though not one band `parseBand` would read back.
+ */
+export function formatBand(values: readonly number[]): string {
+  const out: string[] = [];
+  let i = 0;
+  while (i < values.length) {
+    const step = i + 1 < values.length ? values[i + 1] - values[i] : 0;
+    if (step <= 0) {
+      out.push(String(values[i]));
+      i++;
+      continue;
+    }
+    let j = i + 1;
+    while (j + 1 < values.length && values[j + 1] - values[j] === step) j++;
+    out.push(`${values[i]}-${values[j]}:${step}`);
+    i = j + 1;
+  }
+  return out.join(', ');
+}
+
+/** One `formatBand` per checkpoint, `; `-separated, the way per-checkpoint bands are typed. */
+export function formatBands(bands: readonly (readonly number[])[]): string {
+  return bands.map(formatBand).join('; ');
+}
+
 /* ------------------------------------------------------------------------------------------- *
  * Suggesting a space to enumerate
  *

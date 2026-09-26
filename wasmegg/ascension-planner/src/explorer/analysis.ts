@@ -37,6 +37,7 @@
  * with identical sets would merge, which is a wrong answer this module can produce and says so in
  * the UI rather than pretending otherwise.
  */
+import { formatBand } from '@/search/exhaustive';
 import type { Submission } from '@/search/submission';
 import type { PricedChain } from '@/search/types';
 import type { CollectorRow } from './collector';
@@ -48,6 +49,7 @@ import {
   fileRows,
   foldCopies,
   formatDate,
+  foundByText,
   groupPlayers,
   mayJudge,
   ownCopies,
@@ -855,6 +857,86 @@ export function runTags(rows: readonly CollectorRow[]): Map<CollectorRow, string
   const tags = settingTags(rows);
   for (const r of rows) if (r.timeOff?.length) tags.set(r, [...(tags.get(r) ?? []), 'time off']);
   return tags;
+}
+
+/** What one run checked, as the runs table's "What was checked" column shows it. */
+export interface Searched {
+  /** How it searched: `exhaustive`, `partial` (a box it did not finish), or a staged search's effort. */
+  how: string;
+  /**
+   * Where it looked, in the notation players type into the planner (`181-250:5; 215-300:5`, the
+   * step always written), with the gap between targets and, when it covered several, the ascension
+   * counts. Empty for a staged search: it improved a seed chain rather than trying a fixed set of
+   * TEs, so there is no box to show.
+   */
+  where: string;
+  /**
+   * `where` cut where a line may wrap: one checkpoint's band each (with its `;`), then `· gap 10`.
+   * A band never breaks at its own hyphen, and joined with spaces the pieces are `where` again, so
+   * what a player copies off the page pastes straight into the planner.
+   */
+  pieces: string[];
+  /** The same in words, for the tooltip. */
+  title: string;
+}
+
+/** `every TE`, `every 5th TE`, or the one TE a band allowed. */
+function everyText(values: readonly number[]): string {
+  if (values.length === 1) return `only ${values[0]}`;
+  const step = values[1] - values[0];
+  const even = values.every((v, i) => i === 0 || v - values[i - 1] === step);
+  if (!even) return values.join(', ');
+  const every = step === 1 ? 'every TE' : `every ${step}${step === 2 ? 'nd' : step === 3 ? 'rd' : 'th'} TE`;
+  return `${values[0]} to ${values[values.length - 1]}, ${every}`;
+}
+
+/**
+ * What a run checked: the box an exhaustive (or cut-short) run enumerated, from `space`, which holds
+ * the TEs themselves rather than the typed text, so this is what was really tried; or, for a staged
+ * search, just its effort and size. A sweep's preset name (M3, F2 ...) goes with `how`.
+ */
+export function searchedOf(row: CollectorRow): Searched {
+  const sp = row.space;
+  const preset = row.sweep?.preset ? ` · ${row.sweep.preset}` : '';
+  const priced = (row.chainsPriced ?? 0).toLocaleString('en-US');
+  if (!sp) {
+    return {
+      how: `${foundByText(row)}${preset}`,
+      where: '',
+      pieces: [],
+      title: `A ${row.effort || 'staged'} search: it improved on a seed chain rather than trying a fixed set of TEs, so there is no box to show. ${priced} plans priced.`,
+    };
+  }
+  const asc = sp.minAscensions === sp.maxAscensions ? `${sp.minAscensions}` : `${sp.minAscensions}-${sp.maxAscensions}`;
+  const pieces: string[] = [];
+  const words: string[] = [];
+  if (sp.mode === 'range' && sp.range) {
+    const { lo, hi, step } = sp.range;
+    pieces.push(`${lo}-${hi}:${step} for every target`, `· ${asc} asc`);
+    words.push(
+      `Every target drawn from one pool, ${everyText(Array.from({ length: Math.floor((hi - lo) / step) + 1 }, (_, i) => lo + i * step))}; ${asc} ascensions.`
+    );
+  } else if (sp.bands?.length) {
+    sp.bands.forEach((b, i) => pieces.push(formatBand(b) + (i < sp.bands!.length - 1 ? ';' : '')));
+    if (sp.minAscensions !== sp.maxAscensions) pieces.push(`· ${asc} asc`);
+    words.push(`${sp.bands.map((b, i) => `ascension ${i + 1} at ${everyText(b)}`).join('; ')}.`);
+  }
+  if (sp.minGap > 0) {
+    pieces.push(`· gap ${sp.minGap}`);
+    words.push(`Targets at least ${sp.minGap} TE apart.`);
+  }
+  words.push(
+    sp.stoppedEarly
+      ? `Stopped after ${sp.chainsPriced.toLocaleString('en-US')} of ${sp.chains.toLocaleString('en-US')} plans in the box, so its best is the best of those, not a proof.`
+      : `All ${sp.chains.toLocaleString('en-US')} plans in the box priced, so its best is the best in the box.`
+  );
+  const title = words.join(' ');
+  return {
+    how: `${foundByText(row)}${preset}`,
+    where: pieces.join(' '),
+    pieces,
+    title: title[0].toUpperCase() + title.slice(1),
+  };
 }
 
 /**

@@ -15,6 +15,7 @@ import {
   positionBands,
   runsByAccount,
   runTags,
+  searchedOf,
   summariseRuns,
   sweepGroupOf,
   targetsPresent,
@@ -1176,5 +1177,81 @@ describe('gearOf / sweepGroupOf', () => {
       })
     ).toBe('3 ascensions');
     expect(sweepGroupOf(r)).toBeNull();
+  });
+});
+
+describe('searchedOf', () => {
+  const box = {
+    mode: 'bands' as const,
+    minAscensions: 3,
+    maxAscensions: 3,
+    chains: 2085,
+    chainsPriced: 2085,
+    stoppedEarly: false,
+  };
+
+  it('writes a proof box the way it is typed into the planner, with the gap and the preset', () => {
+    const r = row({
+      chain: [200, 300, 490],
+      currentTE: 180,
+      finalTE: 490,
+      sweep: { preset: 'M3' },
+      space: {
+        ...box,
+        minGap: 10,
+        bands: [
+          [181, 186, 191],
+          [215, 216, 217, 218],
+        ],
+      },
+    });
+    const s = searchedOf(r);
+    expect(s.how).toBe('exhaustive · M3');
+    expect(s.where).toBe('181-191:5; 215-218:1 · gap 10');
+    // Where a line may wrap: after each band, never inside one at its hyphen.
+    expect(s.pieces).toEqual(['181-191:5;', '215-218:1', '· gap 10']);
+    expect(s.title).toContain('Ascension 1 at 181 to 191, every 5th TE; ascension 2 at 215 to 218, every TE.');
+    expect(s.title).toContain('at least 10 TE apart');
+    expect(s.title).toContain('All 2,085 plans in the box priced');
+  });
+
+  it('shows one pool shared by every target, with the ascension counts it covered', () => {
+    const r = row({
+      chain: [200, 250, 300, 490],
+      currentTE: 180,
+      finalTE: 490,
+      space: {
+        ...box,
+        mode: 'range',
+        range: { lo: 140, hi: 280, step: 5 },
+        minAscensions: 4,
+        maxAscensions: 5,
+        minGap: 10,
+      },
+    });
+    expect(searchedOf(r).where).toBe('140-280:5 for every target · 4-5 asc · gap 10');
+  });
+
+  it('says a box it did not finish is not a proof', () => {
+    const r = row({
+      chain: [200, 300, 490],
+      currentTE: 180,
+      finalTE: 490,
+      space: { ...box, minGap: 0, bands: [[195], [300]], chainsPriced: 1, chains: 4, stoppedEarly: true },
+    });
+    const s = searchedOf(r);
+    expect(s.how).toBe('partial');
+    expect(s.where).toBe('195; 300');
+    expect(s.title).toContain('Stopped after 1 of 4 plans');
+    expect(s.title).toContain('not a proof');
+  });
+
+  it('has no box to show for a staged search', () => {
+    const s = searchedOf(
+      row({ chain: [200, 300, 490], currentTE: 180, finalTE: 490, effort: 'thorough', chainsPriced: 5806 })
+    );
+    expect(s.how).toBe('thorough');
+    expect(s.where).toBe('');
+    expect(s.title).toContain('5,806 plans priced');
   });
 });

@@ -292,7 +292,10 @@
               to this target, so Proofs only or picking one count can leave it out of the list; the block then says so.
               Runs whose finish no longer stands (a what-if, a plan re-measured by a newer run, one the player has
               fallen behind, one made from an old save) are greyed, with the reason on hover, and listed last when
-              sorted by finish.
+              sorted by finish. <b>What was checked</b> is how each run searched and, for a box it tried in full, the
+              TEs at each ascension as they are typed into the planner (<span class="font-mono-premium">181-250:5</span>
+              is every 5th TE from 181 to 250, <span class="font-mono-premium">:1</span> every TE); the full box is on
+              hover.
             </p>
             <div class="flex flex-wrap items-center gap-1.5">
               <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest mr-1"
@@ -403,7 +406,12 @@
                         ><br /><span class="normal-case tracking-normal font-bold">(from its start)</span>
                       </button>
                     </th>
-                    <th class="text-left py-1 pr-3">Effort</th>
+                    <th
+                      class="text-left py-1 pr-3"
+                      title="How each run searched and, for a box it tried in full, which TEs at each ascension (the notation typed into the planner)"
+                    >
+                      What was checked
+                    </th>
                     <th class="text-right py-1 pr-3" :aria-sort="ariaSort('priced')">
                       <button type="button" :class="sortHeadClass('priced')" @click="sortRunsBy('priced')">
                         Priced<span aria-hidden="true">{{ sortArrow('priced') }}</span>
@@ -539,12 +547,27 @@
                     <td class="py-1.5 pr-3 text-right text-slate-500 whitespace-nowrap">
                       {{ row.durationDays.toFixed(2) }} d
                     </td>
-                    <td class="py-1.5 pr-3">
-                      <span v-if="row.space && !row.space.stoppedEarly" class="font-black text-emerald-700">
-                        exhaustive
-                      </span>
-                      <span v-else-if="row.space" class="font-bold text-amber-700">partial</span>
-                      <span v-else class="text-slate-500">{{ row.effort }}</span>
+                    <td class="py-1.5 pr-3" :title="searched.get(row.id)?.title">
+                      <span
+                        :class="
+                          row.space
+                            ? row.space.stoppedEarly
+                              ? 'font-bold text-amber-700'
+                              : 'font-black text-emerald-700'
+                            : 'text-slate-500'
+                        "
+                        >{{ searched.get(row.id)?.how }}</span
+                      >
+                      <!-- Wraps only between checkpoints (after each ";"), never inside a band at its hyphen, and
+                           copies as the text a player would type into the planner. -->
+                      <div
+                        v-if="searched.get(row.id)?.pieces.length"
+                        class="font-mono-premium text-[10px] text-slate-500 max-w-[17rem]"
+                      >
+                        <template v-for="(piece, k) in searched.get(row.id)?.pieces" :key="k"
+                          >{{ k ? ' ' : '' }}<span class="whitespace-nowrap">{{ piece }}</span></template
+                        >
+                      </div>
                     </td>
                     <td class="py-1.5 pr-3 text-right text-slate-500">{{ row.chainsPriced.toLocaleString() }}</td>
                     <td
@@ -786,6 +809,7 @@ import {
   RUN_SORT_START,
   runsByAccount,
   runTags,
+  searchedOf,
   summariseRuns,
   targetsPresent,
   timeOffKey,
@@ -1183,6 +1207,9 @@ function unlistedWhy(best: CollectorRow): string {
  *  route and start that differ only in whether the first ascension finishes the current run first.
  *  Plus `time off` on any run planned around some, which the Leaderboard's tags leave out (`runTags`). */
 const tags = computed(() => runTags(usable.value));
+
+/** "What was checked" for each run listed, by id (`searchedOf`). */
+const searched = computed(() => new Map((selected.value?.rows ?? []).map(r => [r.id, searchedOf(r)])));
 
 const comparisons = computed(() => compareCounts(filtered.value, judged.value));
 

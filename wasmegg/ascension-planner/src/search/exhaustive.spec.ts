@@ -10,6 +10,8 @@ import {
   countChainsWithGap,
   bandedChains,
   countBanded,
+  formatBand,
+  formatBands,
   parseBand,
   parseBands,
   SMALLEST_MEASURED_GAP,
@@ -289,6 +291,32 @@ describe('countBanded', () => {
     for (const gap of [0, 20, 40]) {
       expect(countBanded(bands, 490, 100, gap)).toBe(bandedChains(bands, 490, 100, gap).length);
     }
+  });
+});
+
+describe('formatBand / formatBands', () => {
+  it('writes a band the way it is typed, step always included', () => {
+    expect(formatBand([185, 190, 195, 200])).toEqual('185-200:5');
+    expect(formatBand([215, 216, 217, 218])).toEqual('215-218:1');
+    expect(formatBand([195])).toEqual('195');
+    expect(formatBand([])).toEqual('');
+  });
+
+  it('reads back to the same values through parseBands', () => {
+    const bands = [
+      [181, 186, 191, 196, 201, 206, 211, 216, 221, 226, 231, 236, 241, 246],
+      [215, 216, 217],
+      [300],
+      [185, 200],
+    ];
+    const text = formatBands(bands);
+    expect(text).toEqual('181-246:5; 215-217:1; 300; 185-200:15');
+    expect(parseBands(text)).toEqual(bands);
+  });
+
+  it('writes an unevenly spaced band as its evenly spaced runs, rather than inventing a step', () => {
+    expect(formatBand([185, 190, 200])).toEqual('185-190:5, 200');
+    expect(formatBand([200, 190])).toEqual('200, 190');
   });
 });
 
