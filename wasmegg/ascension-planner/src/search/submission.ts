@@ -44,8 +44,16 @@ import type { DeliveryScore } from './virtueScore';
  *     the run started from, which applies to a staged run and not to an exhaustive one.
  *  6: the variables a virtue run turns on that 5 left out -- `startWeekday`, `deliveryScore`,
  *     `clothedTE`, `teByEgg`, `backupAgeHours` -- plus `sweep`, `machine` and `source` for runs
- *     uploaded from files through the Chain Explorer. All additive and optional. */
-export const SUBMISSION_SCHEMA = 6;
+ *     uploaded from files through the Chain Explorer. All additive and optional.
+ *  7: what the leaderboard's race needs to judge a plan without guessing (2026-09-25):
+ *     `startUtc`/`endUtc` (the plan start as an instant, so a start in the hour a clock change
+ *     repeats is not read an hour off), `backupTE` (the save's own TE, so a plan typed in from a
+ *     higher TE reads as the what-if it is), `build` (which planner priced it: a simulator change
+ *     moves finishes by days), `rechecks` (the player's best earlier plans priced again from this
+ *     save), and `backupAgeHours` now SIGNED and always sent, where 6 left it off when the plan
+ *     started before the save -- which read the same as "not recorded". All optional; a collector
+ *     that knows 7 still accepts 6. */
+export const SUBMISSION_SCHEMA = 7;
 
 /**
  * The artifact families a virtue ascension can actually equip.
@@ -188,12 +196,21 @@ export interface Submission {
   chain: number[];
   ascensions: number;
   durationDays: number;
-  /** Local wall-clock, in `timezone`. Absolute instants are deliberately not included: a unix
-   *  timestamp plus a duration is a sharper fingerprint than a date and buys a leaderboard
-   *  nothing. */
+  /** Local wall-clock, in `timezone`, to the minute. */
   startLocal: string;
   endLocal: string;
   timezone: string;
+  /**
+   * Schema 7: the same two moments as instants (ISO 8601, UTC), to the MINUTE.
+   *
+   * Until 6 these were deliberately left out on the grounds that a unix timestamp plus a duration
+   * is a sharper fingerprint than a date. To the minute, though, they say nothing `startLocal` plus
+   * `timezone` did not already say -- except in the one hour a year a clock change repeats, where
+   * "01:30 in Chicago" is two different instants and the race had to guess which. The finish date is
+   * what the race sorts on, so it stops guessing. Seconds are still never sent.
+   */
+  startUtc?: string;
+  endUtc?: string;
 
   currentTE: number;
   finalTE: number;
@@ -315,7 +332,31 @@ export interface Submission {
   deliveryScore?: DeliveryScore;
   clothedTE?: number;
   teByEgg?: number[];
+  /**
+   * Hours from the save to the plan start. SIGNED since schema 7: negative means the plan starts
+   * before the save it was made from -- a what-if, which the race drops. Schema 6 left the field off
+   * in exactly that case, so "absent" meant both "unknown" and "what-if"; now absent only means the
+   * save time was not known. Held to a year either way, the collector's bound.
+   */
   backupAgeHours?: number;
+  /** Schema 7: the save's own TE. A `currentTE` above it was typed in: the plan starts from a TE the
+   *  account does not have. */
+  backupTE?: number;
+  /** Schema 7: which build of the planner priced the run (`appBuildId`). Simulator changes move
+   *  finishes by days, and without this two builds' numbers cannot be told apart. */
+  build?: string;
+  /**
+   * Schema 7: the player's best current plans already on the board, cut to the checkpoints still
+   * ahead and priced again from THIS run's save and start. Up to three.
+   *
+   * A plan on the board stands until the same player measures it again; a player who moves on to a
+   * different route never does, so an optimistic old finish could stand for a month. Each new run
+   * therefore re-measures the top three for free (from its own table when it priced them, or with a
+   * few seconds of the run's workers), and the board treats each entry as a newer run of that plan.
+   * Nothing here is new about the account: the routes are the player's own public rows, and the days
+   * are what this save says about them.
+   */
+  rechecks?: Recheck[];
   /** Which sweep preset produced this run, e.g. `M2`, or `custom`. Set by the upload page. */
   sweep?: SweepTag;
   /** The machine the run was on. The browser cannot report RAM honestly, so the player types it. */
@@ -349,6 +390,63 @@ export interface MachineInfo {
 export interface ProofChain {
   chain: number[];
   days: number;
+}
+
+/** One earlier plan priced again from this run's save: its remaining route, ending at the target,
+ *  and its days from this run's start. */
+export type Recheck = ProofChain;
+
+/** How many earlier plans a submission re-measures. The collector refuses more. */
+export const MAX_RECHECKS = 3;
+/** The collector's ceilings, mirrored: a chain's length, a plan's days, a save's age in hours. */
+const MAX_CHAIN = 64;
+const MAX_DURATION_DAYS = 100000;
+const MAX_BACKUP_AGE_HOURS = 24 * 365;
+const MAX_BUILD = 40;
+
+/**
+ * Which build of the planner is running, for `build`. A commit id when the build was given one
+ * (`VITE_BUILD_SHA`), else the build's own timestamp (`__BUILD_TIME__`, vite.config.ts). Empty in a
+ * test run, where there is no build.
+ */
+export function appBuildId(): string {
+  const env = import.meta.env as Record<string, string | undefined>;
+  const sha = (env.VITE_BUILD_SHA ?? '').trim();
+  if (sha) return sha.slice(0, MAX_BUILD);
+  return (typeof __BUILD_TIME__ === 'string' ? __BUILD_TIME__ : '').slice(0, MAX_BUILD);
+}
+
+/** A re-measured route the collector will take: positive whole TEs, strictly rising, ending at the
+ *  target, no longer than a chain may be. */
+export function isRecheckChain(chain: unknown, finalTE: number): chain is number[] {
+  return (
+    Array.isArray(chain) &&
+    chain.length >= 1 &&
+    chain.length <= MAX_CHAIN &&
+    chain.every((v, k) => Number.isInteger(v) && v > 0 && (k === 0 || v > chain[k - 1])) &&
+    chain[chain.length - 1] === finalTE
+  );
+}
+
+/** Rechecks as sent: valid ones only, days to the collector's 1e-4, none repeating the winner or
+ *  each other, at most `MAX_RECHECKS`. */
+function cleanRechecks(
+  list: readonly Recheck[] | null | undefined,
+  winner: readonly number[],
+  finalTE: number
+): Recheck[] {
+  const seen = new Set([winner.join(',')]);
+  const out: Recheck[] = [];
+  for (const r of list ?? []) {
+    if (!isRecheckChain(r?.chain, finalTE)) continue;
+    if (!Number.isFinite(r.days) || r.days <= 0 || r.days > MAX_DURATION_DAYS) continue;
+    const key = r.chain.join(',');
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ chain: [...r.chain], days: Number(r.days.toFixed(4)) });
+    if (out.length >= MAX_RECHECKS) break;
+  }
+  return out;
 }
 
 /** The outcome side of an exhaustive run. Every field is derived from chains that were actually
@@ -461,9 +559,71 @@ export function afterPaint(): Promise<void> {
 }
 
 export function tooManySubmissionsMessage(retryAfter?: number): string {
-  const wait =
-    retryAfter && retryAfter > 0 ? `about ${retryAfter} second${retryAfter === 1 ? '' : 's'}` : 'a minute';
+  const wait = retryAfter && retryAfter > 0 ? `about ${retryAfter} second${retryAfter === 1 ? '' : 's'}` : 'a minute';
   return `too many submissions from your connection in the last minute. Nothing was lost - wait ${wait} and press Submit again.`;
+}
+
+/** What `duplicateMessage` can say about an exact copy beyond "it is already there". */
+export interface DuplicateNote {
+  /** When the stored copy arrived (the collector's clock). */
+  firstAt?: string;
+  /** The name the collector put on the stored row because it had none and this send did. */
+  renamed?: string;
+  /** The name this send carried; '' or absent for none. */
+  sent?: string;
+  /** The name the stored row is on the board under, as the collector said ('' for none); absent when
+   *  an older collector did not say. */
+  stored?: string;
+  /** What happened to the table this send carried, when one went to the stored row: `new` (it had
+   *  none, and now has this one) or `already` (it had one). `size` is the compressed size. */
+  table?: { landed: 'new' | 'already'; size?: string };
+}
+
+/**
+ * What to tell someone whose send the collector recognised (phase 2). Neutral on purpose: nothing
+ * went wrong, and a red "error" for pressing Submit on a result that is already there taught people
+ * to press it again.
+ *
+ *   - `exact`: the same result, from the same search, from the same sender, is already stored, so
+ *     nothing new was -- except, maybe, the table the stored row was missing, or the name it lacked.
+ *     A name that did NOT take is said too: otherwise "Already on the board" reads as if the board now
+ *     shows the name just typed, and nothing would suggest "Put my name on it".
+ *   - `result`: the same answer from a DIFFERENT search (a thorough run agreeing with a balanced one).
+ *     Stored as its own row, so its table and run cost are kept. Worded as a send -- it IS one -- and
+ *     starting with "sent", like every other success, so a table outcome reads on from it.
+ */
+export function duplicateMessage(kind: 'exact' | 'result', note: DuplicateNote = {}, now = Date.now()): string {
+  if (kind === 'result') return 'sent (the same answer as your earlier run, from another search)';
+  const when = sentAtText(note.firstAt, now);
+  const lead = `Already on the board${when ? ` (sent ${when})` : ''}`;
+  const clauses: string[] = [];
+  if (note.renamed) clauses.push(`your name is on it now (${note.renamed})`);
+  if (note.table?.landed === 'new') {
+    clauses.push(`its missing CSV was added${note.table.size ? ` (${note.table.size} compressed)` : ''}`);
+  } else if (note.table?.landed === 'already') {
+    clauses.push('its CSV was already there');
+  } else if (!note.renamed) {
+    clauses.push('nothing new stored');
+  }
+  let text = `${lead}${note.renamed || note.table ? '; ' : ', '}${clauses.join('; ')}`;
+  const sent = note.sent?.trim() ?? '';
+  if (sent && !note.renamed && note.stored !== sent) {
+    if (note.stored === undefined) text += '; the name on it was not changed';
+    else if (note.stored) text += `. It is on the board as ${note.stored}: press Put my name on it to make it ${sent}`;
+    else text += `. It is on the board without a name: press Put my name on it to add ${sent}`;
+  }
+  return text;
+}
+
+/** `at 19:46` today, `on 24 Sep at 19:46` before, in this browser's own zone; '' when unreadable. */
+function sentAtText(iso: string | undefined, now: number): string {
+  const t = iso ? Date.parse(iso) : NaN;
+  if (!Number.isFinite(t)) return '';
+  const day = (ms: number) =>
+    new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(ms);
+  const time = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }).format(t);
+  if (day(t) === day(now)) return `at ${time}`;
+  return `on ${new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' }).format(t)} at ${time}`;
 }
 
 /** `2026-09-09 19:04` in `timezone`, or '' for a missing instant. Never `1970-01-01`. */
@@ -481,6 +641,14 @@ function localStamp(unixSeconds: number, timezone: string): string {
   const get = (t: string) => parts.find(p => p.type === t)?.value ?? '';
   const hour = get('hour') === '24' ? '00' : get('hour');
   return `${get('year')}-${get('month')}-${get('day')} ${hour}:${get('minute')}`;
+}
+
+/** `2026-09-10T01:04:00.000Z`: the instant, cut to the minute `localStamp` shows. '' for a missing
+ *  instant, never 1970. */
+function utcStamp(unixSeconds: number): string {
+  if (!unixSeconds || !Number.isFinite(unixSeconds)) return '';
+  const d = new Date(Math.floor(unixSeconds / 60) * 60_000);
+  return Number.isFinite(d.getTime()) ? d.toISOString() : '';
 }
 
 /** `Sat`, in the plan's own zone. */
@@ -525,6 +693,13 @@ export interface SubmissionInputs {
   teByEgg?: number[] | null;
   /** Unix seconds the backup was taken. */
   backupTime?: number | null;
+  /** The save's own TE. Null when no save is loaded, never 0 for "unknown". */
+  backupTE?: number | null;
+  /** `appBuildId()` for a run priced in this tab. Omitted by the upload page: the files it sends
+   *  were priced by whichever build the sweep ran on, not by the page doing the upload. */
+  build?: string | null;
+  /** Earlier plans priced again from this save; see `Submission.rechecks`. */
+  rechecks?: Recheck[] | null;
   flags?: SubmissionFlag[];
   /** Seconds, from the run's integrity check. */
   integrityWaitSeconds?: number | null;
@@ -627,6 +802,17 @@ export function buildSubmission(i: SubmissionInputs): Submission {
 
   const nickname = i.nickname?.trim() ? scrubIdentifiers(i.nickname.trim()).slice(0, 40) : undefined;
 
+  const startUtc = utcStamp(i.planStart);
+  const endUtc = utcStamp(i.planStart + i.seconds);
+  // Signed: see `Submission.backupAgeHours`. Out of the collector's year either way, it would be
+  // dropped there, so it is dropped here and "exactly what is sent" stays exactly what is stored.
+  const age =
+    i.backupTime && Number.isFinite(i.backupTime) && Number.isFinite(i.planStart)
+      ? Number(((i.planStart - i.backupTime) / 3600).toFixed(1))
+      : null;
+  const rechecks = cleanRechecks(i.rechecks, i.chain, i.finalTE);
+  const build = i.build?.trim().slice(0, MAX_BUILD);
+
   return {
     schema: SUBMISSION_SCHEMA,
     ...(nickname ? { nickname } : {}),
@@ -636,6 +822,8 @@ export function buildSubmission(i: SubmissionInputs): Submission {
     startLocal: localStamp(i.planStart, tz),
     endLocal: localStamp(i.planStart + i.seconds, tz),
     timezone: tz,
+    ...(startUtc ? { startUtc } : {}),
+    ...(endUtc ? { endUtc } : {}),
     currentTE: i.currentTE,
     finalTE: i.finalTE,
     effort: i.effort,
@@ -670,13 +858,19 @@ export function buildSubmission(i: SubmissionInputs): Submission {
       ? { clothedTE: Number(i.clothedTE.toFixed(2)) }
       : {}),
     ...(i.teByEgg?.length ? { teByEgg: i.teByEgg.map(v => Math.max(0, Math.round(v))) } : {}),
-    // Only when the backup predates the plan. A plan start set before the backup was taken is a
-    // what-if, and a negative age would read as a clock bug.
-    ...(i.backupTime && i.planStart >= i.backupTime
-      ? { backupAgeHours: Number(((i.planStart - i.backupTime) / 3600).toFixed(1)) }
+    // Whenever the save time is known, negative included (schema 7). Schema 6 left it off when the
+    // plan started before the save, so a what-if start read exactly like "not recorded"; the race
+    // needs to tell the two apart. `+ 0` turns a rounded -0 into 0.
+    ...(age !== null && Math.abs(age) <= MAX_BACKUP_AGE_HOURS ? { backupAgeHours: age + 0 } : {}),
+    ...(i.backupTE !== null && i.backupTE !== undefined && Number.isFinite(i.backupTE) && i.backupTE >= 0
+      ? { backupTE: Number(i.backupTE.toFixed(2)) }
       : {}),
+    ...(build ? { build } : {}),
+    ...(rechecks.length ? { rechecks } : {}),
     ...(i.flags?.length ? { flags: [...i.flags] } : {}),
-    ...(i.integrityWaitSeconds !== null && i.integrityWaitSeconds !== undefined && Number.isFinite(i.integrityWaitSeconds)
+    ...(i.integrityWaitSeconds !== null &&
+    i.integrityWaitSeconds !== undefined &&
+    Number.isFinite(i.integrityWaitSeconds)
       ? { integrityMinutes: Math.round(i.integrityWaitSeconds / 60) }
       : {}),
     ...(i.timeOff?.length ? { timeOff: i.timeOff.map(w => ({ ...w })) } : {}),
@@ -710,6 +904,40 @@ export function validateSubmission(value: unknown): string[] {
   if (typeof s.finalTE !== 'number' || !(s.finalTE > 0)) problems.push('finalTE must be positive');
   if (s.nickname !== undefined && (typeof s.nickname !== 'string' || s.nickname.length > 40)) {
     problems.push('nickname must be a string of at most 40 characters');
+  }
+  // Schema 7. Optional, so absent is fine; present and malformed is a client bug worth saying.
+  if (s.rechecks !== undefined) {
+    if (!Array.isArray(s.rechecks) || s.rechecks.length > MAX_RECHECKS) {
+      problems.push(`rechecks must be an array of at most ${MAX_RECHECKS} entries`);
+    } else if (
+      !s.rechecks.every(
+        r =>
+          isRecheckChain(r?.chain, s.finalTE as number) &&
+          Number.isFinite(r.days) &&
+          r.days > 0 &&
+          r.days <= MAX_DURATION_DAYS
+      )
+    ) {
+      problems.push('each recheck must be a rising chain ending at finalTE, with positive days');
+    }
+  }
+  if (
+    s.backupAgeHours !== undefined &&
+    !(Number.isFinite(s.backupAgeHours) && Math.abs(s.backupAgeHours) <= MAX_BACKUP_AGE_HOURS)
+  ) {
+    problems.push(`backupAgeHours must be within ${MAX_BACKUP_AGE_HOURS} hours either way`);
+  }
+  if (s.backupTE !== undefined && !(Number.isFinite(s.backupTE) && s.backupTE >= 0)) {
+    problems.push('backupTE must be a number');
+  }
+  if (s.build !== undefined && (typeof s.build !== 'string' || s.build.length > MAX_BUILD)) {
+    problems.push(`build must be a string of at most ${MAX_BUILD} characters`);
+  }
+  for (const field of ['startUtc', 'endUtc'] as const) {
+    const v = s[field];
+    if (v !== undefined && (typeof v !== 'string' || !Number.isFinite(Date.parse(v)))) {
+      problems.push(`${field} must be an ISO date`);
+    }
   }
   if (typeof JSON.stringify(s) === 'string' && JSON.stringify(s).length > 200_000) {
     problems.push('submission is implausibly large');

@@ -492,8 +492,9 @@
       <div v-else-if="plannerTab === 'leaderboard'" class="max-w-6xl mx-auto mt-6">
         <!-- Reads the collector directly; the Worker serves the same data as its own page. `use`
              drops a chain into the Auto Planner, which is the only way a number from someone
-             else's account becomes a claim about yours. -->
-        <LeaderboardPanel @use="useLeaderboardChain" />
+             else's account becomes a claim about yours. The player id only picks which of this
+             browser's owner codes asks for "my" runs; it is hashed locally and never sent. -->
+        <LeaderboardPanel :player-id="playerId" @use="useLeaderboardChain" />
       </div>
 
       <!-- Undo Confirmation Dialog -->

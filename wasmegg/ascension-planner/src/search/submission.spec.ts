@@ -11,6 +11,7 @@ import {
   buildSubmission,
   keepVirtueStones,
   keepVirtueArtifacts,
+  MAX_RECHECKS,
   scrubIdentifiers,
   submissionFilename,
   SUBMISSION_SCHEMA,
@@ -85,11 +86,13 @@ describe('buildSubmission', () => {
         'durationDays',
         'effort',
         'endLocal',
+        'endUtc',
         'finalTE',
         'holdShifts',
         'legs',
         'schema',
         'startLocal',
+        'startUtc',
         'startWeekday',
         'stones',
         'submittedAt',
@@ -120,8 +123,6 @@ describe('buildSubmission', () => {
     expect(s.clothedTE).toBe(201.23);
     expect(s.teByEgg).toEqual([40, 38, 36, 34, 32]);
     expect(s.backupAgeHours).toBe(1.5);
-    // A backup newer than the plan start is a what-if, not a stale backup.
-    expect('backupAgeHours' in buildSubmission(inputs({ backupTime: inputs().planStart + 60 }))).toBe(false);
     expect(buildSubmission(inputs({ clothedTE: null })).clothedTE).toBeUndefined();
   });
 
@@ -148,13 +149,17 @@ describe('buildSubmission', () => {
     expect(s.nickname!.length).toBe(40);
   });
 
-  it('reports local wall-clock, not absolute instants', () => {
-    // A unix timestamp plus a duration pins a player harder than a date does, and a leaderboard
-    // gains nothing from it.
-    const s = buildSubmission(inputs());
+  it('reports the plan start to the minute, in the plan zone and as an instant, never to the second', () => {
+    // The instant says nothing the local time and zone did not, except which of the two 01:30s a
+    // clock change repeats. A unix timestamp to the second would, so it is never sent.
+    const s = buildSubmission(inputs({ planStart: PLAN_START + 37 }));
     expect(s.startLocal).toBe('2026-09-09 19:04');
+    expect(s.startUtc).toBe('2026-09-10T01:04:00.000Z');
     expect(s.endLocal).toMatch(/^2028-09-18 /);
+    expect(Date.parse(s.endUtc!) % 60_000).toBe(0);
     expect(JSON.stringify(s)).not.toContain(String(PLAN_START));
+    expect(JSON.stringify(s)).not.toContain(String(PLAN_START + 37));
+    expect('startUtc' in buildSubmission(inputs({ planStart: 0 }))).toBe(false);
   });
 
   it('says waiting time is unknown rather than zero when no legs were kept', () => {
@@ -585,5 +590,70 @@ describe('buildSubmission: run health', () => {
     const s = buildSubmission({ ...base, run });
     expect(s.run && 'suspendedMinutes' in s.run).toBe(false);
     expect(s.run && 'longestStallMinutes' in s.run).toBe(false);
+  });
+});
+
+describe('buildSubmission: schema 7', () => {
+  it('sends the save age signed, so a plan that starts before its save reads as a what-if', () => {
+    // Schema 6 left the field off in exactly this case, which read the same as "not recorded".
+    expect(buildSubmission(inputs({ backupTime: inputs().planStart + 3 * 3600 })).backupAgeHours).toBe(-3);
+    expect(buildSubmission(inputs({ backupTime: inputs().planStart - 5400 })).backupAgeHours).toBe(1.5);
+    // Rounded to a tenth, and never a negative zero.
+    expect(Object.is(buildSubmission(inputs({ backupTime: inputs().planStart + 60 })).backupAgeHours, 0)).toBe(true);
+    // Unknown save time: absent, never guessed.
+    expect('backupAgeHours' in buildSubmission(inputs({ backupTime: null }))).toBe(false);
+    // Past the collector's year either way it would be dropped there, so it is not sent.
+    expect('backupAgeHours' in buildSubmission(inputs({ backupTime: inputs().planStart - 400 * 86400 }))).toBe(false);
+  });
+
+  it("carries the save's TE and the build, and leaves each off when unknown", () => {
+    const s = buildSubmission(inputs({ backupTE: 177, build: '2026-09-25T20:40:00.000Z' }));
+    expect(s.backupTE).toBe(177);
+    expect(s.build).toBe('2026-09-25T20:40:00.000Z');
+    expect(buildSubmission(inputs({ build: 'x'.repeat(90) })).build).toHaveLength(40);
+    const bare = buildSubmission(inputs({ backupTE: null, build: '' }));
+    expect('backupTE' in bare || 'build' in bare).toBe(false);
+  });
+
+  it('sends only rechecks the collector will take, and never the winner again', () => {
+    const winner = inputs().chain;
+    const s = buildSubmission(
+      inputs({
+        rechecks: [
+          { chain: [195, 227, 270, 303, 490], days: 745.123456 },
+          { chain: [...winner], days: 739.4764 }, // the winner itself: says nothing new
+          { chain: [195, 227, 270, 303, 490], days: 746 }, // a repeat
+          { chain: [227, 195, 490], days: 750 }, // not rising
+          { chain: [200, 300], days: 750 }, // does not reach the target
+          { chain: [200, 490], days: NaN },
+          { chain: [210, 490], days: 760 },
+          { chain: [220, 490], days: 761 },
+          { chain: [230, 490], days: 762 },
+        ],
+      })
+    );
+    expect(s.rechecks).toEqual([
+      { chain: [195, 227, 270, 303, 490], days: 745.1235 },
+      { chain: [210, 490], days: 760 },
+      { chain: [220, 490], days: 761 },
+    ]);
+    expect(s.rechecks).toHaveLength(MAX_RECHECKS);
+    expect('rechecks' in buildSubmission(inputs({ rechecks: [] }))).toBe(false);
+    expect(validateSubmission(JSON.parse(JSON.stringify(s)))).toEqual([]);
+  });
+
+  it('validates the schema-7 fields the way the collector does', () => {
+    const ok = () => JSON.parse(JSON.stringify(buildSubmission(inputs({ backupTime: inputs().planStart - 3600 }))));
+    expect(validateSubmission({ ...ok(), rechecks: [{ chain: [200, 300], days: 5 }] })[0]).toMatch(/recheck/);
+    expect(
+      validateSubmission({
+        ...ok(),
+        rechecks: Array.from({ length: 4 }, (_, k) => ({ chain: [200 + k, 490], days: 5 })),
+      })[0]
+    ).toMatch(/at most 3/);
+    expect(validateSubmission({ ...ok(), backupAgeHours: -9000 })[0]).toMatch(/backupAgeHours/);
+    expect(validateSubmission({ ...ok(), backupAgeHours: -12 })).toEqual([]);
+    expect(validateSubmission({ ...ok(), build: 'x'.repeat(41) })[0]).toMatch(/build/);
+    expect(validateSubmission({ ...ok(), startUtc: 'soon' })[0]).toMatch(/startUtc/);
   });
 });

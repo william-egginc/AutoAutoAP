@@ -47,15 +47,22 @@ import {
 import { type ShortlistRow } from '@/search/shortlist';
 import { buildView, type ViewId } from '@/search/views';
 import {
+  appBuildId,
+  bestPerFamily,
   buildSubmission,
+  duplicateMessage,
+  keepVirtueArtifacts,
   scrubIdentifiers,
   submissionFilename,
   summariseProof,
   tooManySubmissionsMessage,
+  type Recheck,
   type SearchSpace,
   type Submission,
   type SweepTag,
 } from '@/search/submission';
+import { currentPlans, recheckChains, type RecheckRun } from '@/search/rechecks';
+import { accountKeyOf, type BoardRow, type Plan } from '@/lib/leaderboardRank';
 import { describeAvailability, isConstrained, type Availability } from '@/search/availability';
 import { missedMilestones, usableMilestones, type Milestone } from '@/search/milestones';
 import { defaultSeedChain, seedChainIssue, usableCheckpoints, fitSeedToLimits } from '@/search/seedChain';
@@ -70,7 +77,7 @@ import {
   integrityMessage,
   type SubmissionFlag,
 } from '@/search/rules';
-import { ownerToken } from '@/search/owner';
+import { existingOwnerToken, ownerToken } from '@/search/owner';
 import { describeSaveAge, siloSeconds } from '@/lib/saveAge';
 import { timeOffWindows, usableTimeOff, type TimeOffDates } from '@/search/timeOff';
 import { listRuns, saveRun, loadRun, deleteRun, defaultRunLabel, type RunSummary } from '@/search/runLibrary';
@@ -1337,16 +1344,21 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     if (!getSimulationContext().rawBackup) return reviewSetup({ hasBackup: false, ...blank });
     const inv = readInventory();
     const stale: HealthIssue[] =
-      saveAgeNote.value?.level === 'warning' ? [{ kind: 'save-past-silos', level: 'warning', message: saveAgeNote.value.text }] : [];
-    return [...stale, ...reviewSetup({
-      hasBackup: true,
-      artifacts: inv.artifacts,
-      stones: inv.stones,
-      delivery: describeLoadoutSlots(inv.elr),
-      earnings: describeLoadoutSlots(inv.earnings),
-      currentTE: currentTE.value,
-      backupTE: backupTE.value,
-    })];
+      saveAgeNote.value?.level === 'warning'
+        ? [{ kind: 'save-past-silos', level: 'warning', message: saveAgeNote.value.text }]
+        : [];
+    return [
+      ...stale,
+      ...reviewSetup({
+        hasBackup: true,
+        artifacts: inv.artifacts,
+        stones: inv.stones,
+        delivery: describeLoadoutSlots(inv.elr),
+        earnings: describeLoadoutSlots(inv.earnings),
+        currentTE: currentTE.value,
+        backupTE: backupTE.value,
+      }),
+    ];
   });
 
   /**
@@ -1466,6 +1478,15 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         : null,
       teByEgg: initialStateStore.rawBackup?.virtue?.eovEarned ?? null,
       backupTime: initialStateStore.rawBackup?.approxTime ?? null,
+      // Schema 7. The save's own TE only with a save loaded: `backupTE` reads 0 without one, which
+      // would claim every plan was typed in from above it.
+      backupTE: initialStateStore.rawBackup ? backupTE.value : null,
+      build: appBuildId(),
+      // The player's earlier plans priced again, once `prepareRechecks` (or the end of the run) has
+      // worked them out for THIS result. Until then the preview simply has none, and the send adds
+      // them if they arrive in time (see `sendSubmission`). Named plans for a named send, anonymous
+      // ones for an anonymous send: see `rechecksFor`.
+      rechecks: rechecksFor(safeResultKey(), !!nickname?.trim()),
       flags: submissionFlags(),
       integrityWaitSeconds: integrityWait.value,
       timeOff: usableTimeOff(timeOff.value),
@@ -1523,57 +1544,353 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       stoppedEarly.value ? 'partial' : 'whole',
     ].join('|');
   }
+  /** `resultKey()`, or null when the settings it reads cannot be read. */
+  function safeResultKey(): string | null {
+    try {
+      return resultKey();
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * What this browser knows about a result it sent: when, the row id the collector stored it under
+   * (or, for a copy it already had, the id of that row), and the name it went with ('' for none).
+   * The id and name are what "Put my name on it" needs. Stored as JSON under `aap-submitted:<key>`;
+   * a value from before this was recorded is a bare ISO date, read as a send with no id.
+   */
+  interface SentRecord {
+    at: string;
+    id?: string;
+    nickname?: string;
+  }
   const SENT_PREFIX = 'aap-submitted:';
-  const sentKeys = ref<Set<string>>(
-    (() => {
+  function readSentRecord(raw: string | null): SentRecord {
+    if (raw && raw.startsWith('{')) {
       try {
-        return new Set(
-          Object.keys(localStorage)
-            .filter(k => k.startsWith(SENT_PREFIX))
-            .map(k => k.slice(SENT_PREFIX.length))
-        );
+        const v = JSON.parse(raw) as Partial<SentRecord>;
+        return {
+          at: typeof v.at === 'string' ? v.at : '',
+          ...(typeof v.id === 'string' ? { id: v.id } : {}),
+          ...(typeof v.nickname === 'string' ? { nickname: v.nickname } : {}),
+        };
       } catch {
-        return new Set<string>();
+        /* fall through */
       }
+    }
+    return { at: raw ?? '' };
+  }
+  const sentRecords = ref<Map<string, SentRecord>>(
+    (() => {
+      const out = new Map<string, SentRecord>();
+      try {
+        for (const k of Object.keys(localStorage)) {
+          if (k.startsWith(SENT_PREFIX)) out.set(k.slice(SENT_PREFIX.length), readSentRecord(localStorage.getItem(k)));
+        }
+      } catch {
+        /* storage unavailable: nothing remembered */
+      }
+      return out;
     })()
   );
   /** True once this exact result has been sent from this browser: the Submit buttons lock. */
   const alreadySubmitted = computed(() => {
     if (!(bestDays.value > 0)) return false;
-    try {
-      return sentKeys.value.has(resultKey());
-    } catch {
-      return false; // the settings it reads could not be read: never lock a button on a guess
-    }
+    const key = safeResultKey();
+    // The settings it reads could not be read: never lock a button on a guess.
+    return key != null && sentRecords.value.has(key);
   });
-  function rememberSent(key: string | null): void {
+  /** The send of the result on screen, when it was sent from this browser. */
+  const sentRecord = computed<SentRecord | null>(() => {
+    if (!(bestDays.value > 0)) return null;
+    const key = safeResultKey();
+    return key != null ? (sentRecords.value.get(key) ?? null) : null;
+  });
+  function rememberSent(key: string | null, record: Omit<SentRecord, 'at'> = {}): void {
     // Never allowed to fail a send that has already landed.
     if (!key) return;
+    const full: SentRecord = { at: new Date().toISOString(), ...record };
+    const next = new Map(sentRecords.value);
+    next.set(key, full);
+    sentRecords.value = next;
     try {
-      sentKeys.value = new Set([...sentKeys.value, key]);
-      localStorage.setItem(SENT_PREFIX + key, new Date().toISOString());
+      localStorage.setItem(SENT_PREFIX + key, JSON.stringify(full));
     } catch {
       // Not remembered past this visit; the button still locks until the page is reloaded.
     }
   }
+  /** A name as the collector would store it: trimmed, any player id redacted, at most 40 characters. */
+  function cleanName(name: string): string {
+    const t = name.trim();
+    return t ? scrubIdentifiers(t).slice(0, 40) : '';
+  }
+  /**
+   * The name "Put my name on it" would put on the result on screen, or '' when there is nothing to
+   * do: it was not sent from this browser, the collector gave no id, the box is empty, or the box
+   * already says what was sent.
+   */
+  function nameToClaim(name: string): string {
+    const rec = sentRecord.value;
+    if (!rec?.id) return '';
+    const clean = cleanName(name);
+    return clean && clean !== (rec.nickname ?? '') ? clean : '';
+  }
 
-  async function sendSubmission(payload: Submission, csv?: string): Promise<{ ok: boolean; message: string }> {
+  // ------------------------------------------------------------------------- re-checks
+  //
+  // Schema 7's `rechecks` (search/rechecks.ts has the why): the player's best three current plans
+  // already on the board, priced again from THIS run's save. Their routes come from GET /mine -- the
+  // rows sent with this browser's code for the account -- or, from an older collector or for runs
+  // sent before the code existed, from GET /all rows with this save's timezone and artifacts. Their
+  // days come from this run's own table when it priced them, else from the run's workers in the last
+  // seconds before it ends (only when the run is going to send itself, `recheck: true`), else not at
+  // all. Nothing here may hold a send up by more than RECHECK_BUDGET_MS, or fail one.
+
+  const RECHECK_BUDGET_MS = 10_000;
+  /** How long a fetched set of plans is reused: a run's end and its send are seconds apart. */
+  const RECHECK_REUSE_MS = 5 * 60_000;
+  /**
+   * Rechecks from the player's NAMED plans and from their ANONYMOUS ones, kept apart. `rechecks` is
+   * public, and a re-check is by definition the same player's plan: sent with a named run it would
+   * put the player's name on the routes of their anonymous plans, and sent with an anonymous run it
+   * would spell out their named route -- either way tying an anonymous run to a name, which the
+   * consent text promises an anonymous send never does. So a send carries only the set that matches
+   * it, and both are worked out, since the name box can change after the run ends.
+   */
+  interface RecheckSets {
+    named: Recheck[];
+    anonymous: Recheck[];
+  }
+  const NO_RECHECKS: RecheckSets = { named: [], anonymous: [] };
+  /** The rechecks worked out for one result, by `resultKey()`. */
+  const recheckState = ref<{ key: string; rechecks: RecheckSets } | null>(null);
+  /** Days the run's workers priced for rechecks at its end, by chain key. Cleared when a run starts. */
+  let recheckPriced = new Map<string, number>();
+  let recheckFetch: { key: string; at: number; plans: Promise<Plan[]> } | null = null;
+
+  /** The rechecks for a send of this result, named or not; null when none are worked out yet. */
+  function rechecksFor(key: string | null, named: boolean): Recheck[] | null {
+    if (key == null || recheckState.value?.key !== key) return null;
+    return recheckState.value.rechecks[named ? 'named' : 'anonymous'];
+  }
+
+  /** The loaded account's partition hash (lib/storage/db.ts `hashID`), or '' with no account. */
+  async function accountPartition(): Promise<string> {
+    return partitionHash || (currentPlayerId ? await hashID(currentPlayerId).catch(() => '') : '');
+  }
+
+  /** This save's "timezone + best artifact per family", as a row from it carries; null with no save. */
+  function saveAccountKey(): string | null {
+    const raw = useInitialStateStore().rawBackup;
+    if (!raw) return null;
+    const labels = bestPerFamily(keepVirtueArtifacts(virtueInventory(raw).artifacts)).map(a => a.label);
+    return accountKeyOf({ timezone: planTimezone(), artifacts: labels });
+  }
+
+  /** Rows from a collector answer, loosely: a row without a route is not a row. */
+  function boardRows(body: unknown): BoardRow[] {
+    const rows = (body as { rows?: unknown } | null)?.rows;
+    return Array.isArray(rows) ? (rows as BoardRow[]).filter(r => r && Array.isArray(r.chain)) : [];
+  }
+
+  async function fetchRecheckPlans(partition: string, target: number): Promise<Plan[]> {
+    const base = submitUrl.replace(/\/submit\/?$/, '');
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), RECHECK_BUDGET_MS);
+    try {
+      let rows: BoardRow[] = [];
+      // Read-only: an account this browser never sent for has no code, and gets none minted here.
+      const token = existingOwnerToken(partition);
+      if (token) {
+        try {
+          const res = await fetch(`${base}/mine`, { headers: { 'x-owner-token': token }, signal: ctrl.signal });
+          if (res.ok) rows = boardRows(await res.json()).map(r => ({ ...r, yours: true }));
+        } catch {
+          // An older collector has no /mine; the fallback below still works.
+        }
+      }
+      let accountKey: string | null = null;
+      if (!rows.some(r => r.finalTE === target && !r.flags?.length)) {
+        accountKey = saveAccountKey();
+        if (accountKey) {
+          const res = await fetch(`${base}/all?final=${encodeURIComponent(String(target))}`, { signal: ctrl.signal });
+          if (res.ok) rows = [...rows, ...boardRows(await res.json()).filter(r => accountKeyOf(r) === accountKey)];
+        }
+      }
+      return currentPlans(rows, accountKey, target, Date.now());
+    } catch {
+      return [];
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  /** The player's current plans at this target, fetched once and shared by the run's end, the
+   *  preview and the send. Empty with no collector or no account. */
+  async function recheckPlans(): Promise<Plan[]> {
+    if (!submitUrl) return [];
+    const partition = await accountPartition();
+    if (!partition) return [];
+    const key = `${partition}|${finalTE.value}`;
+    if (recheckFetch && recheckFetch.key === key && Date.now() - recheckFetch.at < RECHECK_REUSE_MS) {
+      return recheckFetch.plans;
+    }
+    const plans = fetchRecheckPlans(partition, finalTE.value);
+    recheckFetch = { key, at: Date.now(), plans };
+    return plans;
+  }
+
+  /** The settings this run priced under, as `recheckChains` compares them. */
+  function recheckRun(): RecheckRun {
+    return {
+      currentTE: currentTE.value,
+      finalTE: finalTE.value,
+      winner: [...bestChain.value],
+      window: isConstrained(availability.value) ? describeAvailability(availability.value) : null,
+      holdShifts: deferShifts.value,
+      forceContinue: forceContinue.value,
+      timeOff: usableTimeOff(timeOff.value),
+    };
+  }
+
+  /** Seconds this run knows for each chain: its own table first, then the end-of-run pricing. */
+  function knownSeconds(chains: readonly number[][]): Map<string, number> {
+    const want = new Set(chains.map(c => c.join(',')));
+    const out = new Map<string, number>();
+    for (const cache of [coarseCache, liveCache]) {
+      for (const e of cache) if (want.has(e.key) && e.seconds > 0) out.set(e.key, e.seconds);
+    }
+    for (const k of want) {
+      const s = recheckPriced.get(k);
+      if (!out.has(k) && s && s > 0) out.set(k, s);
+    }
+    return out;
+  }
+
+  /** Resolves to the promise's value, or to null once `deadline` (ms since the epoch) passes. */
+  function byDeadline<T>(promise: Promise<T>, deadline: number): Promise<T | null> {
+    const wait = Math.max(0, deadline - Date.now());
+    return new Promise(resolve => {
+      const timer = setTimeout(() => resolve(null), wait);
+      promise.then(
+        v => {
+          clearTimeout(timer);
+          resolve(v);
+        },
+        () => {
+          clearTimeout(timer);
+          resolve(null);
+        }
+      );
+    });
+  }
+
+  /**
+   * Work out the rechecks for the result on screen within `budgetMs`, for a named send and for an
+   * anonymous one (`RecheckSets`). `livePool` is the run's own pool while it still exists (the end of
+   * a run); chains its table did not price are priced there. Never throws; empty lists when there is
+   * nothing to re-check or no time to do it.
+   */
+  async function computeRechecks(budgetMs: number, livePool: ChainSearchPool | null = null): Promise<RecheckSets> {
+    if (!submitUrl || !bestChain.value.length || !(bestDays.value > 0)) return NO_RECHECKS;
+    const deadline = Date.now() + budgetMs;
+    try {
+      const plans = await byDeadline(recheckPlans(), deadline);
+      if (!plans?.length) return NO_RECHECKS;
+      const run = recheckRun();
+      const isNamed = (p: Plan) => !!p.row.nickname?.trim();
+      const wanted = {
+        named: recheckChains(
+          plans.filter(p => isNamed(p)),
+          run
+        ),
+        anonymous: recheckChains(
+          plans.filter(p => !isNamed(p)),
+          run
+        ),
+      };
+      const byKey = new Map([...wanted.named, ...wanted.anonymous].map(c => [c.join(','), c]));
+      const chains = [...byKey.values()];
+      if (!chains.length) return NO_RECHECKS;
+      if (livePool) {
+        const known = knownSeconds(chains);
+        const missing = chains.filter(c => !known.has(c.join(',')));
+        if (missing.length) {
+          // Copies, not the arrays above: a worker cannot be posted a reactive proxy (see the
+          // winner fill-in in startExhaustive).
+          const got = await byDeadline(livePool.evaluate(missing.map(c => [...c])), deadline);
+          for (const r of got?.results ?? []) if (r.seconds > 0) recheckPriced.set(r.chain.join(','), r.seconds);
+        }
+      }
+      const known = knownSeconds(chains);
+      const priced = (list: readonly number[][]): Recheck[] =>
+        list.flatMap(c => {
+          const s = known.get(c.join(','));
+          return s ? [{ chain: [...c], days: Number((s / 86400).toFixed(4)) }] : [];
+        });
+      return { named: priced(wanted.named), anonymous: priced(wanted.anonymous) };
+    } catch {
+      return NO_RECHECKS;
+    }
+  }
+
+  /**
+   * Work the rechecks out ahead of the send, so "Show exactly what is sent" shows them. The panels
+   * call this once the player has opted in to sharing -- it reads the board with this browser's
+   * code, which is not something to do for a player who has not said they want to send anything.
+   */
+  async function prepareRechecks(): Promise<void> {
+    const key = safeResultKey();
+    if (key == null || recheckState.value?.key === key) return;
+    const rechecks = await computeRechecks(RECHECK_BUDGET_MS);
+    if (safeResultKey() === key) recheckState.value = { key, rechecks };
+  }
+
+  /** The end-of-run hook: price what the table did not, on the pool that is about to be terminated. */
+  async function recheckBeforeTheEnd(livePool: ChainSearchPool): Promise<void> {
+    const key = safeResultKey();
+    if (key == null) return;
+    const rechecks = await computeRechecks(RECHECK_BUDGET_MS, livePool);
+    recheckState.value = { key, rechecks };
+  }
+
+  /** The reply of a POST /submit, read loosely: an older collector sends only the first three. */
+  interface SubmitReply {
+    id?: string;
+    uploadToken?: string;
+    flagged?: string[];
+    duplicate?: 'exact' | 'result';
+    firstAt?: string;
+    renamed?: boolean;
+    /** On an exact copy: the name the stored row is on the board under ('' for none). */
+    nickname?: string;
+  }
+
+  async function sendSubmission(
+    payload: Submission,
+    csv?: string
+  ): Promise<{ ok: boolean; message: string; duplicate?: 'exact' | 'result' }> {
     if (!submitUrl) return { ok: false, message: 'no collector configured' };
     // The key of the result being SENT, taken now: the awaits below give the page time to change it.
-    const sentKey = (() => {
-      try {
-        return resultKey();
-      } catch {
-        return null;
-      }
-    })();
+    const sentKey = safeResultKey();
     pendingTable.value = null;
-    let id: string | undefined;
-    let uploadToken: string | undefined;
-    let flagged: string[] | undefined;
+    // Schema 7's rechecks, when the payload is this run's result and has none yet. Bounded, and a
+    // failure only means the send goes without them.
+    const thisRun =
+      payload.finalTE === finalTE.value &&
+      payload.chain?.length === bestChain.value.length &&
+      payload.chain.every((v, k) => v === bestChain.value[k]);
+    if (thisRun && !payload.rechecks?.length) {
+      // Only the set that matches this send's name, or lack of one (see `RecheckSets`).
+      const set = payload.nickname?.trim() ? 'named' : 'anonymous';
+      const rechecks = rechecksFor(sentKey, set === 'named') ?? (await computeRechecks(RECHECK_BUDGET_MS))[set];
+      if (rechecks.length) payload = { ...payload, rechecks };
+    }
+    let reply: SubmitReply;
     // The owner code (search/owner.ts): what lets this browser find the run again if it lands on
-    // the flagged board. Random, per account, never derived from the player id.
-    const partition = partitionHash || (currentPlayerId ? await hashID(currentPlayerId).catch(() => '') : '');
+    // the flagged board, fold a repeated send, put a name on it later, and let this account's later
+    // runs replace its older plans. Random, per account, never derived from the player id.
+    const partition = await accountPartition();
     const owner = partition ? ownerToken(partition) : null;
     try {
       const res = await fetch(submitUrl, {
@@ -1591,11 +1908,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         const why = detail.problems?.length ? `: ${detail.problems.join('; ')}` : '';
         return { ok: false, message: `collector said ${res.status}${why}` };
       }
-      ({ id, uploadToken, flagged } = (await res.json().catch(() => ({}))) as {
-        id?: string;
-        uploadToken?: string;
-        flagged?: string[];
-      });
+      reply = ((await res.json().catch(() => ({}))) ?? {}) as SubmitReply;
     } catch {
       // Ordinary: someone is offline, or the collector is down. It must not look like the run
       // broke, and "Failed to fetch" -- the browser's own words -- says neither what happened nor
@@ -1606,19 +1919,58 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           'could not reach the collector (check your connection). Your results are still here - press Submit again once you are back online, or use Save the file instead to keep a copy.',
       };
     }
+    const { id, uploadToken, flagged } = reply;
+    const duplicate = reply.duplicate === 'exact' || reply.duplicate === 'result' ? reply.duplicate : undefined;
 
     // The summary is in: from here on this result is on the board, whatever happens to the table.
-    rememberSent(sentKey);
+    // Remembered with the row it is on, which for a copy the collector already had is THAT row, and
+    // with the name that row is on the board under: what was sent for a new row; for a copy, the
+    // stored row's name as the collector says it (it renames only an anonymous row). An older
+    // collector that does not say leaves the name unknown, so "Put my name on it" is offered whenever
+    // the box holds a name, rather than never.
+    const storedName =
+      duplicate === 'exact'
+        ? reply.renamed
+          ? (payload.nickname ?? '')
+          : typeof reply.nickname === 'string'
+            ? reply.nickname
+            : undefined
+        : (payload.nickname ?? '');
+    rememberSent(sentKey, { ...(id ? { id } : {}), ...(storedName !== undefined ? { nickname: storedName } : {}) });
+    // The board has a new row of this account's: the next run's rechecks should see it.
+    recheckFetch = null;
 
     // Said with every success message, because a run that went to the flagged board will not appear
     // on the main one, and without this it looks lost.
     const note = flagged?.length
       ? ` It went to the flagged board (${flagged.join(', ')}), shown anonymously; the Chain Explorer shows it to you as yours in this browser.`
       : '';
-    if (!csv) return { ok: true, message: 'sent' + note };
-    if (!id) return { ok: true, message: 'sent (no id came back, so the CSV was skipped)' + note };
+    // A copy the collector caught is said as a plain note, not an error and not a thank-you for
+    // something that stored nothing (see `duplicateMessage`).
+    const exactNote = {
+      firstAt: reply.firstAt,
+      renamed: reply.renamed ? payload.nickname : undefined,
+      sent: payload.nickname ?? '',
+      stored: typeof reply.nickname === 'string' ? reply.nickname : undefined,
+    };
+    const lead = duplicate ? duplicateMessage(duplicate, exactNote) : 'sent';
+    const done = (message: string) => ({ ok: true, message, ...(duplicate ? { duplicate } : {}) });
+    if (!csv) return done(lead + note);
+    // An exact copy stores nothing; the collector hands back a CSV token only when the stored row is
+    // this browser's and has no table yet, so a table-less first send gets its table now.
+    if (duplicate === 'exact' && !uploadToken) return done(lead + note);
+    if (!id) return done(`${lead} (no id came back, so the CSV was skipped)${note}`);
     // The collector only accepts a CSV carrying the token its /submit answer signed for this id.
-    if (!uploadToken) return { ok: true, message: 'sent (the collector does not take CSVs, so it was skipped)' + note };
+    if (!uploadToken) return done(`${lead} (the collector does not take CSVs, so it was skipped)${note}`);
+    // A table's outcome is written to follow "sent". A result from another search IS a send, so it
+    // reads on from that lead; for a result already on the board it is what happened to THAT row's
+    // missing table ("its missing CSV was added"), never "nothing new stored - sent, with the CSV".
+    const withTable = (t: { message: string; landed?: 'new' | 'already' | null; size?: string }): string => {
+      if (duplicate === 'result') return t.message.replace(/^sent/, lead);
+      if (duplicate !== 'exact') return t.message;
+      if (t.landed) return duplicateMessage('exact', { ...exactNote, table: { landed: t.landed, size: t.size } });
+      return `${lead}, but ${t.message.replace(/^sent,?\s*(but\s+)?/, '')}`;
+    };
     try {
       pendingTable.value = {
         url: `${submitUrl.replace(/\/submit\/?$/, '/csv')}?id=${encodeURIComponent(id)}`,
@@ -1626,10 +1978,93 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         body: await gzip(scrubIdentifiers(csv)),
       };
     } catch {
-      return { ok: true, message: 'sent, but the table could not be compressed in this browser, so it was skipped' + note };
+      return done(
+        withTable({ message: 'sent, but the table could not be compressed in this browser, so it was skipped' }) + note
+      );
     }
     const table = await postTable();
-    return { ...table, message: table.message + note };
+    return { ok: table.ok, message: withTable(table) + note, ...(duplicate ? { duplicate } : {}) };
+  }
+
+  /** A claim this soon after its send that finds no row is the board catching up, not a lost run. */
+  const CLAIM_CATCH_UP_MS = 5 * 60_000;
+
+  /**
+   * "Put my name on it": name a result this browser already sent, typically sent anonymously (the
+   * Submit panel starts on "anonymous") and wanted in the race after all. POST /claim with the
+   * account's owner code; the collector renames the row only when it was stored with that same code,
+   * so nobody can put their name on another player's run. Resolves to a message; never throws.
+   */
+  async function claimName(id: string, nickname: string): Promise<{ ok: boolean; message: string }> {
+    if (!submitUrl) return { ok: false, message: 'no collector configured' };
+    const name = cleanName(nickname);
+    if (!name) return { ok: false, message: 'type the name to put on it first.' };
+    const partition = await accountPartition();
+    const token = partition ? existingOwnerToken(partition) : null;
+    if (!token) {
+      return {
+        ok: false,
+        message:
+          'this browser has no code for the account, so it cannot show the collector the run is yours (it was sent from another browser, or site data was cleared).',
+      };
+    }
+    let res: Response;
+    try {
+      res = await fetch(submitUrl.replace(/\/submit\/?$/, '/claim'), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-owner-token': token },
+        body: JSON.stringify({ id, nickname: name }),
+      });
+    } catch {
+      return {
+        ok: false,
+        message:
+          'could not reach the collector (check your connection). Nothing changed - try again once you are back online.',
+      };
+    }
+    if (res.ok) {
+      // Every result this browser remembers on that row now carries the name.
+      const next = new Map(sentRecords.value);
+      for (const [key, rec] of next) {
+        if (rec.id !== id) continue;
+        const full = { ...rec, nickname: name };
+        next.set(key, full);
+        try {
+          localStorage.setItem(SENT_PREFIX + key, JSON.stringify(full));
+        } catch {
+          /* remembered for this visit only */
+        }
+      }
+      sentRecords.value = next;
+      // The collector puts the name on its board before it answers, and the Leaderboard never reads a
+      // copy the browser kept, so a refresh shows it.
+      return { ok: true, message: `your name is on it now: ${name}. Refresh the Leaderboard to see it there.` };
+    }
+    const detail = (await res.json().catch(() => ({}))) as { problems?: string[]; retryAfter?: number; error?: string };
+    if (res.status === 403) {
+      return {
+        ok: false,
+        message:
+          "the board would not rename it: it was not stored with this browser's code for the account (sent from another browser, or before codes existed).",
+      };
+    }
+    if (res.status === 404) {
+      // Moments after the send, "not found" means the board has not caught up with it, not that the
+      // run is lost; saying the latter sent people to send it again, which only adds a copy.
+      const sentAt = [...sentRecords.value.values()].find(r => r.id === id)?.at;
+      const age = sentAt ? Date.now() - Date.parse(sentAt) : NaN;
+      if (age >= 0 && age < CLAIM_CATCH_UP_MS) {
+        return {
+          ok: false,
+          message: 'the board has not caught up with that send yet. Nothing is lost - try again in a minute.',
+        };
+      }
+      return { ok: false, message: 'the board does not have that run (or this collector cannot rename runs yet).' };
+    }
+    if (res.status === 429)
+      return { ok: false, message: tooManySubmissionsMessage(detail.retryAfter).replace('press Submit', 'press it') };
+    const why = detail.problems?.length ? `: ${detail.problems.join('; ')}` : detail.error ? `: ${detail.error}` : '';
+    return { ok: false, message: `collector said ${res.status}${why}` };
   }
 
   /**
@@ -1640,7 +2075,18 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   const pendingTable = ref<{ url: string; token: string; body: ArrayBuffer } | null>(null);
 
   /** Send `pendingTable`, and word the outcome as what to do next rather than a status code. */
-  async function postTable(): Promise<{ ok: boolean; message: string }> {
+  /**
+   * `landed`: whether a table is now stored for the row -- `new` when this upload stored it,
+   * `already` when one was there before, null when it did not land -- and `size` in the words the
+   * messages use. `sendSubmission` words an already-stored result's table from these rather than
+   * from the message, which is written for a fresh send.
+   */
+  async function postTable(): Promise<{
+    ok: boolean;
+    message: string;
+    landed?: 'new' | 'already' | null;
+    size?: string;
+  }> {
     const table = pendingTable.value;
     if (!table) return { ok: false, message: 'there is no table waiting to be sent' };
     // KB under a tenth of a megabyte: a small sweep's table read "0.0 MB", which looks like nothing was sent.
@@ -1673,7 +2119,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     }
     if (res.ok) {
       pendingTable.value = null;
-      return { ok: true, message: `sent, with the full CSV (${mb} compressed)` };
+      return { ok: true, message: `sent, with the full CSV (${mb} compressed)`, landed: 'new', size: mb };
     }
     if (res.status === 413) {
       pendingTable.value = null;
@@ -1682,7 +2128,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     if (res.status === 409) {
       // Stored already -- most likely an earlier attempt that landed but whose answer was lost.
       pendingTable.value = null;
-      return { ok: true, message: 'sent - the table was already stored' };
+      return { ok: true, message: 'sent - the table was already stored', landed: 'already', size: mb };
     }
     if (res.status === 403) {
       // The token does not match. In practice a tab running a build from before the collector
@@ -1703,7 +2149,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
 
   /** The "Retry the table" button. */
   async function retryTable(): Promise<{ ok: boolean; message: string }> {
-    return postTable();
+    const { ok, message } = await postTable();
+    return { ok, message };
   }
 
   /**
@@ -1916,9 +2363,20 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     return { chains, error: null };
   }
 
-  async function startExhaustive(playerId: string, spec: ExhaustiveSpec): Promise<void> {
+  /**
+   * `options.recheck`: the run will send itself when it finishes (the sweep card's consent), so its
+   * last seconds, while the workers still exist, go to pricing the player's best earlier plans for
+   * the submission's `rechecks`. See "re-checks" above.
+   */
+  async function startExhaustive(
+    playerId: string,
+    spec: ExhaustiveSpec,
+    options: { recheck?: boolean } = {}
+  ): Promise<void> {
     if (isRunning.value) return;
     currentPlayerId = playerId;
+    recheckPriced = new Map();
+    recheckFetch = null;
 
     const minGap = Math.max(0, Math.floor(spec.minGap ?? 0));
     const built = buildChainsForSpec(spec);
@@ -2131,7 +2589,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
             noteBest();
           }
         } catch (e) {
-          runLog.value.push(`--- could not fill in the winning chain's legs (${describeRunError(e)}); the result stands without them`);
+          runLog.value.push(
+            `--- could not fill in the winning chain's legs (${describeRunError(e)}); the result stands without them`
+          );
         }
       }
 
@@ -2143,6 +2603,12 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       stage.value = stopRequested.value ? 'stopped' : 'done';
       refreshShortlist(true);
       await persist(liveCache, true, !stopRequested.value);
+      if (options.recheck && !stopRequested.value && bestDays.value > 0 && pool) {
+        const finalStage = stage.value;
+        stage.value = 're-checking your earlier plans for the board';
+        await recheckBeforeTheEnd(pool);
+        stage.value = finalStage;
+      }
     } catch (e) {
       error.value = describeRunError(e);
       stage.value = 'failed';
@@ -2336,10 +2802,13 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     else void holdScreenLock();
   }
 
-  async function start(playerId: string, options: { resume?: boolean } = {}): Promise<void> {
+  /** `options.recheck`: as in `startExhaustive` -- the run will send itself when it finishes. */
+  async function start(playerId: string, options: { resume?: boolean; recheck?: boolean } = {}): Promise<void> {
     if (isRunning.value) return;
     if (singleAscensionAsked.value && !options.resume) return;
     currentPlayerId = playerId;
+    recheckPriced = new Map();
+    recheckFetch = null;
 
     error.value = null;
     errorBeforeStart.value = false;
@@ -2546,6 +3015,12 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         : outcome.chainsEvaluated === 0
           ? 'done - every chain it needed was already priced'
           : 'done';
+      if (options.recheck && !outcome.stoppedEarly && bestDays.value > 0 && pool) {
+        const finalStage = stage.value;
+        stage.value = 're-checking your earlier plans for the board';
+        await recheckBeforeTheEnd(pool);
+        stage.value = finalStage;
+      }
     } catch (e) {
       error.value = describeRunError(e);
       stage.value = 'failed';
@@ -2675,6 +3150,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     runMinutes,
     runCost,
     alreadySubmitted,
+    sentRecord,
+    nameToClaim,
     chainsEstimated,
     bestChain,
     bestDays,
@@ -2756,6 +3233,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     exportCsvChunks,
     buildRunSubmission,
     sendSubmission,
+    claimName,
+    prepareRechecks,
     pendingTable,
     retryTable,
     submitUrl,

@@ -20,6 +20,13 @@
       the header says so.
     - My plans: only the loaded save's account, where "is this plan better" has a real answer.
     - All runs: every row, exact copies shown once, every column sortable.
+
+  PHASE 2 (collector redeploy, 2026-09-25). Rows carry `acct`, a tag made from the sender's owner
+  code (search/owner.ts), so the race knows who is who exactly and nobody can knock a plan out with
+  rows dressed as someone else's (lib/leaderboardRank.ts `mayJudge`). My plans and the "you" chip come
+  from GET /mine -- the rows sent with this browser's code for the loaded account, anonymous ones
+  included -- plus, for runs from before codes existed, the timezone+artifacts match. An anonymous
+  viewer is told privately where they would place.
 -->
 <template>
   <div class="space-y-4">
@@ -92,6 +99,14 @@
           <p class="text-[11px] text-indigo-900/80 leading-relaxed">
             Who reaches {{ target }} first on their current best plan. Being further along counts, so this is a race,
             not a plan-quality score. To compare a route with yours, press <span class="font-semibold">Use</span>.
+          </p>
+          <!-- Only this browser sees it: the race is named-only, and saying where an anonymous run
+               would sit on the public board would tie it to the account. -->
+          <p
+            v-if="anonPlace"
+            class="rounded-lg border border-emerald-200 bg-emerald-50/70 px-3 py-2 text-[11px] text-emerald-900"
+          >
+            {{ anonPlace }}
           </p>
           <label v-if="myTE > 0" class="inline-flex items-center gap-2 text-[11px] text-indigo-900/80">
             <input v-model="nearMe" type="checkbox" class="rounded border-indigo-300 text-indigo-600" />
@@ -249,27 +264,33 @@
 
           <p class="text-[10px] text-slate-500 leading-relaxed">
             A player's line is their earliest-finishing plan that still counts. A plan stops counting when a newer run
-            of the same plan replaces it (the newest run always wins, earlier or later), when a newer run shows them 2
-            or more TE behind where it said they would be, when it is a what-if (it starts more than 12 hours after it
-            was sent, or was planned from a higher TE than a later run shows), or when it is older than 30 days.
-            Anonymous runs are not in the race: add a name to join. A re-run of a named plan sent without a name from
-            the same account still counts as a re-check of that plan. Every run is still in All runs. Finish dates and
-            days left are in your timezone ({{ viewZone }}); hover a date to see it in the player's own.
+            of the same plan replaces it (the newest run always wins, earlier or later; a newer run's automatic re-check
+            of it counts too), when a newer run shows them 2 or more TE behind where it said they would be, when it is a
+            what-if (it starts more than 12 hours after it was sent or before the save it was made from, or was planned
+            from a higher TE than the save or a later run shows), or when it is older than 30 days. Only the same
+            player's runs can do any of that: runs sent from the same browser for the same account (the board matches a
+            private code that is never shown), or, for runs sent before the board had that code, the same name or the
+            same timezone and artifacts. So nobody can knock a plan out by sending runs under someone else's name. A
+            name marked <span class="font-semibold">(no code)</span> was sent without the code another line under that
+            name carries, so it may be somebody else's run. Anonymous runs are not in the race: add a name to join.
+            Every run is still in All runs. Finish dates and days left are in your timezone ({{ viewZone }}); hover a
+            date to see it in the player's own.
           </p>
         </template>
       </template>
 
       <!-- ================================================================== MINE -->
       <template v-else-if="tab === 'mine'">
-        <p v-if="!myKey" class="text-[11px] text-indigo-900/70 py-4">
-          Load your save to see your own plans here. They are matched to your account by timezone and artifacts.
+        <p v-if="!myKey && !mineRows?.length" class="text-[11px] text-indigo-900/70 py-4">
+          Load your save to see your own plans here. They are the runs this browser sent for your account, plus older
+          runs with your timezone and artifacts.
         </p>
         <p v-else-if="target == null" class="text-[11px] text-indigo-900/70 py-4">
           Pick a target TE above to see your plans to it.
         </p>
         <p v-else-if="!mine" class="text-[11px] text-indigo-900/70 py-4">
-          Nothing on the board to {{ target }} matches your save (same timezone and artifacts). Share a result and it
-          shows up here. A run sent before you last upgraded an artifact will not match.
+          Nothing on the board to {{ target }} is yours yet: no run this browser sent for this account, and none with
+          your timezone and artifacts. Share a result and it shows up here.
         </p>
         <template v-else>
           <p class="text-[11px] text-indigo-900/80 leading-relaxed">
@@ -457,11 +478,11 @@ import {
   daysLeftText,
   finishDateText,
   finishMs,
+  fileRows,
   finishTitle,
   foldCopies,
   foundByText,
   localZone,
-  nameRoots,
   placeFor,
   plannedText,
   settingTags,
@@ -471,9 +492,16 @@ import {
 } from '@/lib/leaderboardRank';
 import { virtueInventory } from '@/search/csv';
 import { bestPerFamily, keepVirtueArtifacts } from '@/search/submission';
+import { existingOwnerToken } from '@/search/owner';
+import { hashID } from '@/lib/storage/db';
 import LeaderboardPlanList from './LeaderboardPlanList.vue';
 import LeaderboardRunDetail from './LeaderboardRunDetail.vue';
 
+const props = defineProps<{
+  /** The account whose owner code asks GET /mine for "my" rows. Only its hash is used, as the
+   *  storage key the code is kept under; the id itself never leaves the browser. */
+  playerId?: string;
+}>();
 const emit = defineEmits<{ use: [chain: number[]] }>();
 
 /** The collector's row shape (lib/leaderboardRank.ts). Loose on purpose: this reads a public
@@ -482,7 +510,8 @@ type Row = BoardRow;
 
 type Tab = 'race' | 'mine' | 'all';
 const TABS: Tab[] = ['race', 'mine', 'all'];
-/** `GET /all` lists at most this many keys. */
+/** How many rows an OLD collector's `GET /all` listed at most. The current one serves its whole
+ *  snapshot, uncapped, and says so by carrying `builtAt`; only an answer without it is checked. */
 const ALL_CAP = 1000;
 /** "Near me" means a best plan that starts within this many TE of the loaded save. */
 const NEAR_TE = 20;
@@ -546,8 +575,54 @@ const myKey = computed(() => {
 /** The save's own TE, for "near me". */
 const myTE = computed(() => (initialState.rawBackup ? store.backupTE : 0));
 
+/**
+ * The viewer's own rows, from GET /mine: sent with this browser's code for the loaded account,
+ * anonymous ones included, each marked `yours`. Null when that cannot be asked -- no account, no code
+ * yet (nothing sent from this browser), or a collector from before /mine.
+ */
+const mineRows = ref<Row[] | null>(null);
+const mineIds = computed(() => new Set((mineRows.value ?? []).map(r => r.id).filter((x): x is string => !!x)));
+const myAccts = computed(() => new Set((mineRows.value ?? []).map(r => r.acct).filter((x): x is string => !!x)));
+
+/** Every row, with the viewer's marked `yours`, plus any of theirs /all does not show yet (it is
+ *  cached for a minute at the edge; /mine is not). */
+const mergedRows = computed<Row[]>(() => {
+  const mine = mineRows.value;
+  if (!mine?.length) return allRows.value;
+  const ids = mineIds.value;
+  const seen = new Set(allRows.value.map(r => r.id));
+  return [
+    ...allRows.value.map(r => (r.id && ids.has(r.id) ? { ...r, yours: true } : r)),
+    ...mine.filter(r => !r.id || !seen.has(r.id)),
+  ];
+});
+
+/**
+ * Race lines that are provably the viewer's: an owner line whose tag /mine returned, or a line holding
+ * one of the rows /mine returned. Null when /mine could not be asked.
+ */
+const exactMe = computed<Set<string> | null>(() => {
+  if (!mineRows.value) return null;
+  const ids = mineIds.value;
+  const accts = myAccts.value;
+  const keys = new Set<string>();
+  for (const e of race.value?.entries ?? []) {
+    const owned = e.key.startsWith('acct:') && accts.has(e.key.slice('acct:'.length));
+    if (owned || e.plans.some(p => p.folded.copies.some(c => !!c.id && ids.has(c.id)))) keys.add(e.key);
+  }
+  return keys;
+});
+
+/**
+ * Is this race line the viewer's? Exactly, from /mine, when it says so. Otherwise the phase-1 guess --
+ * a line with the loaded save's timezone and artifacts -- and, once /mine has answered, only for a
+ * line from before owner codes: an owner line /mine did not return belongs to another browser's code.
+ */
 function isMe(e: RaceEntry): boolean {
-  return !!myKey.value && e.accounts.has(myKey.value);
+  const exact = exactMe.value;
+  if (exact?.size) return exact.has(e.key);
+  if (!myKey.value || !e.accounts.has(myKey.value)) return false;
+  return !exact || !e.key.startsWith('acct:');
 }
 
 // ------------------------------------------------------------------------------------ race
@@ -577,10 +652,23 @@ const raceShown = computed(() => {
 // -------------------------------------------------------------------------------- my plans
 
 const mine = computed(() =>
-  myKey.value && target.value != null
-    ? buildMyPlans(allRows.value, myKey.value, { target: target.value, now: now.value })
+  (myKey.value || mineRows.value?.length) && target.value != null
+    ? buildMyPlans(mergedRows.value, myKey.value, { target: target.value, now: now.value })
     : null
 );
+
+/**
+ * For a viewer with no line in the race: where their best plan would sit if it carried a name. Shown
+ * to them alone, above the race.
+ */
+const anonPlace = computed(() => {
+  const r = race.value;
+  const best = mine.value?.best;
+  if (!r || !best || r.entries.some(isMe)) return '';
+  const place = placeFor(r, best.finish);
+  if (place == null) return '';
+  return `You'd be #${place} of ${r.entries.length + 1} if you added a name: your best plan finishes ${finishDateText(best.finish, viewZone)}. Only you see this line.`;
+});
 
 /**
  * "#3 of 11 in the race", or where the viewer would sit if their best plan carried a name.
@@ -647,7 +735,7 @@ const COLUMNS: { key: SortKey; label: string; right?: boolean }[] = [
 const runLines = computed<RunLine[]>(() => {
   const rows = target.value == null ? allRows.value : allRows.value.filter(r => r.finalTE === target.value);
   // Names filed over every row, as the Race does, so both tabs fold the same copies together.
-  const folded = foldCopies(rows, nameRoots(allRows.value));
+  const folded = foldCopies(rows, fileRows(allRows.value));
   const tags = settingTags(folded.map(f => f.row));
   return folded.map(f => ({
     key: f.row.id ?? contentFingerprint(f.row),
@@ -688,11 +776,43 @@ const sortedLines = computed(() => sortRows(runLines.value, sortKey.value, sortA
 
 // ------------------------------------------------------------------------------------ load
 
-async function fetchAll(query: string): Promise<Row[]> {
-  const res = await fetch(`${root.value}/all${query}`);
+/**
+ * The viewer's rows from GET /mine, or null (see `mineRows`). Uses the code this browser already
+ * keeps for the account and never mints one: an account never sent for has nothing to find. Never
+ * throws, so a collector without /mine leaves the board exactly as it was.
+ */
+async function fetchMine(): Promise<Row[] | null> {
+  const id = props.playerId?.trim();
+  if (!id) return null;
+  try {
+    const token = existingOwnerToken(await hashID(id));
+    if (!token) return null;
+    const res = await fetch(`${root.value}/mine`, { headers: { 'x-owner-token': token } });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { rows?: Row[] };
+    return Array.isArray(data.rows)
+      ? data.rows.filter(r => r && Array.isArray(r.chain)).map(r => ({ ...r, yours: true }))
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * One `/all` read. `cut`: the answer may be missing rows -- an old collector's list stopped at
+ * ALL_CAP. The current collector sends every row with its snapshot's `builtAt`, so a board of a
+ * thousand runs or more is not taken for a truncated one (which used to cost an extra request and a
+ * false "runs may be missing" on every load, and a reload on every target change).
+ *
+ * Never from the browser's cache: Refresh, and the reload after a send or a rename, must show the
+ * board as it is now (the collector says `no-cache` too; this covers one that does not).
+ */
+async function fetchAll(query: string): Promise<{ rows: Row[]; cut: boolean }> {
+  const res = await fetch(`${root.value}/all${query}`, { cache: 'no-cache' });
   if (!res.ok) throw new Error(`the collector answered ${res.status}`);
-  const data = (await res.json()) as { rows?: Row[] };
-  return Array.isArray(data.rows) ? data.rows.filter(r => r && Array.isArray(r.chain)) : [];
+  const data = (await res.json()) as { rows?: Row[]; builtAt?: number };
+  const rows = Array.isArray(data.rows) ? data.rows.filter(r => r && Array.isArray(r.chain)) : [];
+  return { rows, cut: typeof data.builtAt !== 'number' && rows.length >= ALL_CAP };
 }
 
 /**
@@ -704,27 +824,37 @@ async function fetchAll(query: string): Promise<Row[]> {
 async function load(): Promise<void> {
   loading.value = true;
   error.value = '';
+  // In parallel with /all, and never able to fail the board.
+  const mine = fetchMine();
   try {
-    let rows = await fetchAll('');
-    let full = rows.length >= ALL_CAP;
-    // The list is in key order -- target, then plan length -- so past the cap the chosen target
-    // can be cut short. Ask for it on its own as well.
-    if (full && target.value != null) {
+    let { rows, cut } = await fetchAll('');
+    // An old collector's list is in key order -- target, then plan length -- so past its cap the
+    // chosen target can be cut short. Ask for it on its own as well.
+    if (cut && target.value != null) {
       const more = await fetchAll(`?final=${encodeURIComponent(String(target.value))}`);
       const seen = new Set(rows.map(r => r.id));
-      rows = [...rows, ...more.filter(r => !r.id || !seen.has(r.id))];
-      full = more.length >= ALL_CAP;
+      rows = [...rows, ...more.rows.filter(r => !r.id || !seen.has(r.id))];
+      cut = more.cut;
     }
     allRows.value = rows;
-    capped.value = full;
+    capped.value = cut;
     now.value = Date.now();
   } catch (e) {
     error.value = describeFetchError(e, 'the leaderboard');
     allRows.value = [];
   } finally {
+    mineRows.value = await mine;
     loading.value = false;
   }
 }
+
+// Another account loaded: its own rows, not the last one's.
+watch(
+  () => props.playerId,
+  async () => {
+    mineRows.value = await fetchMine();
+  }
+);
 
 // Everything is already in hand, so a new target is a re-sort -- unless the list was cut short.
 watch(final, () => {

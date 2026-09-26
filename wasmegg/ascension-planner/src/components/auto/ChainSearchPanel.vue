@@ -698,10 +698,11 @@
         class="p-3 rounded-xl border border-red-200 bg-red-50 text-[11px] text-red-800 leading-relaxed"
       >
         <span class="font-black uppercase tracking-wide">That's a single ascension.</span>
-        {{ store.finalTE }} on its own goes straight to the target, so there are no checkpoints for Chain Search to
-        look for. To plan that one ascension, use the classic Auto-AP above: type {{ store.finalTE }} in Target TE(s) and
+        {{ store.finalTE }} on its own goes straight to the target, so there are no checkpoints for Chain Search to look
+        for. To plan that one ascension, use the classic Auto-AP above: type {{ store.finalTE }} in Target TE(s) and
         press Generate plan. To search for a faster chain instead, give Starting chain some checkpoints (like
-        <span class="font-mono">200 250 300 {{ store.finalTE }}</span>), or tick "Find a starting chain for me".
+        <span class="font-mono">200 250 300 {{ store.finalTE }}</span
+        >), or tick "Find a starting chain for me".
       </div>
 
       <!-- Submit on finish. Consent given BEFORE the run, where the player is, instead of after it at
@@ -716,10 +717,13 @@
             class="mt-0.5 rounded border-slate-300 text-indigo-600 disabled:opacity-40"
           />
           <span class="text-[11px] text-slate-600 leading-relaxed">
-            <span class="font-bold text-slate-800">Submit the result to the board when it finishes.</span> The chain, its
-            timings and the full CSV, with your artifact inventory, timezone and local plan start, plus a random code
-            this browser keeps for the account (never your player ID). Exactly what is sent is shown under Share this
-            result. Stop early and nothing is sent.
+            <span class="font-bold text-slate-800">Submit the result to the board when it finishes.</span> The chain,
+            its timings and the full CSV, with your artifact inventory, timezone and local plan start, plus a random
+            code this browser keeps for the account (never your player ID, and never shown). The code is how the board
+            folds your repeated sends into one, lets you put your name on a run you sent anonymously, and lets your own
+            later runs replace your older plans. The run's last few seconds also re-price your best three plans already
+            on the board from this save, and those go too (named ones with a named send, anonymous ones with an
+            anonymous send). Exactly what is sent is shown under Share this result. Stop early and nothing is sent.
           </span>
         </label>
         <div v-if="autoSubmit" class="flex flex-wrap items-center gap-4 pl-7 text-[11px] font-bold text-slate-700">
@@ -728,7 +732,13 @@
             Submit anonymously
           </label>
           <label class="flex items-center gap-2 cursor-pointer">
-            <input v-model="anonymous" type="radio" :value="false" :disabled="store.isRunning" class="text-indigo-600" />
+            <input
+              v-model="anonymous"
+              type="radio"
+              :value="false"
+              :disabled="store.isRunning"
+              class="text-indigo-600"
+            />
             Credit me as
           </label>
           <input
@@ -754,6 +764,17 @@
           "
         >
           <b>Submitted automatically.</b> {{ submitMessage }}
+          <!-- Sent anonymously (the default), and the name box now says who to credit: name the
+               stored row rather than sending a second copy. -->
+          <button
+            v-if="nameToClaim"
+            type="button"
+            :disabled="claiming"
+            class="ml-2 px-2.5 py-1 rounded-md border border-current text-[10px] font-black uppercase tracking-widest hover:bg-white/60 disabled:opacity-40"
+            @click="claim"
+          >
+            {{ claiming ? 'Renaming...' : 'Put my name on it' }}
+          </button>
         </p>
       </div>
 
@@ -761,7 +782,12 @@
       <div class="flex gap-3">
         <button
           class="btn-premium btn-primary flex-1 py-4 text-sm shadow-xl shadow-emerald-500/20 active:scale-[0.98]"
-          :disabled="store.isRunning || store.integrityBlocked || store.singleAscensionAsked || (!store.findSeedFirst && store.seedChain.length < 2)"
+          :disabled="
+            store.isRunning ||
+            store.integrityBlocked ||
+            store.singleAscensionAsked ||
+            (!store.findSeedFirst && store.seedChain.length < 2)
+          "
           @click="void run(false)"
         >
           {{ store.isRunning ? 'Searching...' : 'Start search' }}
@@ -819,7 +845,9 @@
             >
             <span v-else-if="store.isRunning">timing the first batch...</span>
             <!-- A finished run used to keep saying "timing the first batch..." here. -->
-            <span v-else-if="store.runCost">took {{ describeCompute(store.runCost.minutes, store.runCost.workers) }}</span>
+            <span v-else-if="store.runCost"
+              >took {{ describeCompute(store.runCost.minutes, store.runCost.workers) }}</span
+            >
           </div>
         </div>
 
@@ -1294,7 +1322,9 @@
         class="p-4 bg-red-50 border border-red-200 rounded-xl text-xs text-red-800 leading-relaxed space-y-1.5"
       >
         <p>
-          <span class="font-bold uppercase tracking-wide">{{ store.errorBeforeStart ? "Didn't start" : 'Search failed' }}</span>
+          <span class="font-bold uppercase tracking-wide">{{
+            store.errorBeforeStart ? "Didn't start" : 'Search failed'
+          }}</span>
           — {{ store.error }}
         </p>
         <!-- A pre-flight refusal: nothing ran, so the crash advice below would only send people
@@ -1414,8 +1444,21 @@
             {{ showPayload ? '&#8964; Hide' : '&#8250; Show' }} exactly what is sent
           </button>
 
+          <!-- Already on the board and the name box now differs from what went (typically: sent
+               anonymously, now "Credit me as ..."): the button renames the stored row, which only
+               works from the browser that sent it. -->
           <button
-            v-if="store.submitUrl"
+            v-if="store.submitUrl && nameToClaim"
+            type="button"
+            :disabled="!optIn || claiming"
+            class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500 disabled:opacity-40"
+            :title="`Put ${nameToClaim} on the run already on the board, instead of sending it again`"
+            @click="claim"
+          >
+            {{ claiming ? 'Renaming...' : 'Put my name on it' }}
+          </button>
+          <button
+            v-else-if="store.submitUrl"
             type="button"
             :disabled="!optIn || submitState === 'sending' || store.alreadySubmitted"
             class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500 disabled:opacity-40"
@@ -1468,10 +1511,17 @@
           with exact counts is close to a fingerprint among people who know you; your
           <span class="font-semibold">timezone</span> and local plan start; and your
           <span class="font-semibold">available hours</span>. The inventory is included because a duration means nothing
-          without knowing what it was simulated with — the same plan on commons is a different claim. It also carries
-          a <span class="font-semibold">random code this browser keeps for the account</span> (not derived from your
-          player ID), so if the run lands on the flagged board (a stalled first ascension, a plan past ten years) it
-          shows to you as yours and to everyone else anonymously.
+          without knowing what it was simulated with — the same plan on commons is a different claim. It also carries a
+          <span class="font-semibold">random code this browser keeps for the account</span> (not derived from your
+          player ID). The code is never shown to anyone. The board uses it so a run that lands on the flagged board (a
+          stalled first ascension, a plan past ten years) shows to you as yours and to everyone else anonymously; so the
+          same result sent twice is stored once; so you can put your name on a run you sent anonymously; and so your own
+          later runs can replace your older plans in the race, which nobody else's can. A named run shows a short tag
+          made from the code, so your runs read as one player; an anonymous run shows nothing that links it to you. If
+          you have plans on the board already, it also carries
+          <span class="font-semibold">your best three of them re-priced from this save</span>, so the race can tell
+          whether they still hold: your named plans when this goes with your name, your anonymous ones when it goes
+          without, so a re-check never ties the two together.
           <span v-if="includeCsv"
             >The <span class="font-semibold">CSV goes too</span>, ticked by default above: the same run in full — every
             chain it priced, one row per leg, with start and end times in your plan's timezone. Untick it to send the
@@ -1491,9 +1541,10 @@
             class="font-bold text-indigo-700 underline hover:text-indigo-900"
             >chain leaderboard</a
           >
-          — fastest chain per person, and every row opens to show the artifacts, stones and per-leg timings it was
-          simulated with. Read it as "what shapes are winning for people": a duration depends on the account as much as
-          on the chain.
+          — the fastest plan lengths, one line per result (anonymous runs included), and every row opens to show the
+          artifacts, stones and per-leg timings it was simulated with. Read it as "what shapes are winning for people":
+          a duration depends on the account as much as on the chain. The race to the target by finish date, one line per
+          named player, is the planner's own Leaderboard tab.
         </p>
 
         <p v-if="!store.submitUrl" class="text-[11px] text-indigo-900/70 leading-relaxed">
@@ -1786,11 +1837,42 @@ async function submit(): Promise<void> {
     submitMessage.value = 'Sending...';
     const res = await store.sendSubmission(payload, csv);
     submitOk.value = res.ok;
-    submitMessage.value = res.ok ? `Thank you — ${res.message}` : `Not sent: ${res.message}`;
+    // A copy the collector already had stored nothing, so there is nothing to thank anyone for.
+    submitMessage.value = !res.ok
+      ? `Not sent: ${res.message}`
+      : res.duplicate === 'exact'
+        ? res.message
+        : `Thank you — ${res.message}`;
   } finally {
     submitState.value = 'done';
   }
 }
+
+/** The name "Put my name on it" would put on the stored row, or '' when there is nothing to rename. */
+const nameToClaim = computed(() => store.nameToClaim(effectiveNickname.value));
+const claiming = ref(false);
+async function claim(): Promise<void> {
+  const id = store.sentRecord?.id;
+  if (!id || claiming.value) return;
+  claiming.value = true;
+  try {
+    const res = await store.claimName(id, effectiveNickname.value);
+    submitOk.value = res.ok;
+    submitMessage.value = res.ok ? `Done — ${res.message}` : `Not renamed: ${res.message}`;
+  } finally {
+    claiming.value = false;
+  }
+}
+
+// Once the player has said yes to sharing, work out the rechecks (their best earlier plans priced
+// again from this save), so "Show exactly what is sent" shows them before Submit is pressed.
+watch(
+  () => optIn.value && store.bestDays > 0 && !store.isRunning,
+  ready => {
+    if (ready) void store.prepareRechecks();
+  },
+  { immediate: true }
+);
 
 /** The offline path, and the only one available with no collector configured. Same Blob dance as
  *  the CSV: a `data:` URI is length-capped in some browsers. */
@@ -2005,7 +2087,9 @@ function writeFlag(key: string, on: boolean): void {
 async function run(resume: boolean): Promise<void> {
   const armed = autoSubmit.value;
   autoSubmitted.value = false;
-  await store.start(props.playerId, { resume });
+  // Armed: the run sends itself at the end, so its last seconds may re-price the player's best
+  // earlier plans on the workers before they are shut down (the store's "re-checks").
+  await store.start(props.playerId, { resume, recheck: armed });
   if (!armed || store.stoppedEarly || store.error || store.bestDays <= 0) return;
   includeCsv.value = true;
   optIn.value = true;

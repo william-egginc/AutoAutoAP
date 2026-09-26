@@ -11,6 +11,6 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 export default {
-  reloadIfBuiltBefore: '2026-09-25T22:30:00Z',
-  note: 'the leaderboard now ranks by the date plans reach 490, with Race, My plans and All runs tabs',
+  reloadIfBuiltBefore: '2026-09-26T07:22:00Z',
+  note: 'duplicate sends are caught, you can put your name on an anonymous result, and the race knows exactly which runs are yours',
 };

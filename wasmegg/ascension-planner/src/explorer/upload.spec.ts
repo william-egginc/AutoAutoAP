@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildUploadSubmission, checkUpload, readDiagnostics, readUploadCsv, type Diagnostics } from './upload';
 import type { CollectorRow } from './collector';
+import { SUBMISSION_SCHEMA } from '@/search/submission';
 
 // The shape search/csv.ts writes, cut down to two chains. Header lines are verbatim from a real run.
 const COLS =
@@ -102,18 +103,26 @@ describe('checkUpload', () => {
 
   it('refuses a run the collector already holds', () => {
     const csv = readUploadCsv(CSV);
-    const row = { id: 'abcd1234', chain: [300, 490], durationDays: 900.5, currentTE: 188, startLocal: '2026-09-14 17:08' };
+    const row = {
+      id: 'abcd1234',
+      chain: [300, 490],
+      durationDays: 900.5,
+      currentTE: 188,
+      startLocal: '2026-09-14 17:08',
+    };
     expect(checkUpload(csv, diag(), [row as CollectorRow]).duplicateOf).toBe('abcd1234');
   });
 });
 
 describe('buildUploadSubmission', () => {
-  it('builds a schema-6 row with the variables, and never the backup user name', () => {
+  it('builds a current-schema row with the variables, and never the backup user name', () => {
     const d = diag() as Diagnostics & { backup: { userName: string } };
     d.backup.userName = 'SomeoneReal';
     const s = buildUploadSubmission(readUploadCsv(CSV), d, { ...FORM, nickname: 'tester' });
-    expect(s.schema).toBe(6);
+    expect(s.schema).toBe(SUBMISSION_SCHEMA);
     expect(s.source).toBe('upload');
+    // Priced by whichever build ran the sweep, not by this page: no build id is claimed for it.
+    expect(s.build).toBeUndefined();
     expect(s.sweep?.preset).toBe('M1');
     expect(s.machine).toEqual({ cores: 8, ramGB: 16 });
     expect(s.deliveryScore?.score).toBe(1);

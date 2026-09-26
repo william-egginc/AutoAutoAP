@@ -29,7 +29,9 @@
       </p>
     </div>
 
-    <p v-if="readError" class="rounded-lg bg-rose-50 px-3 py-2 text-[11px] font-semibold text-rose-700">{{ readError }}</p>
+    <p v-if="readError" class="rounded-lg bg-rose-50 px-3 py-2 text-[11px] font-semibold text-rose-700">
+      {{ readError }}
+    </p>
 
     <template v-if="csv && diag && check">
       <div class="grid gap-2 sm:grid-cols-3 text-[11px]">
@@ -37,7 +39,8 @@
           <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">Run</div>
           <div class="font-bold text-slate-800">{{ csv.currentTE }} → {{ csv.finalTE }} TE</div>
           <div class="text-slate-500">
-            best {{ csv.best?.chain.join(' ') }} · {{ csv.best?.days.toFixed(2) }} d · {{ csv.chainsFound.toLocaleString() }}
+            best {{ csv.best?.chain.join(' ') }} · {{ csv.best?.days.toFixed(2) }} d ·
+            {{ csv.chainsFound.toLocaleString() }}
             chains
           </div>
         </div>
@@ -49,19 +52,31 @@
         <div class="rounded-lg bg-slate-50 px-3 py-2">
           <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">Gear</div>
           <div class="font-bold text-slate-800">
-            delivery {{ preview?.deliveryScore ? (preview.deliveryScore.score * 100).toFixed(1) + '%' : '—' }} · Clothed TE
+            delivery {{ preview?.deliveryScore ? (preview.deliveryScore.score * 100).toFixed(1) + '%' : '—' }} · Clothed
+            TE
             {{ preview?.clothedTE ?? '—' }}
           </div>
           <div class="text-slate-500">
-            final leg {{ check.rate ? `${check.rate.measuredQph.toFixed(2)} of ~${check.rate.expectedQph.toFixed(2)} q/hr` : 'not checkable' }}
+            final leg
+            {{
+              check.rate
+                ? `${check.rate.measuredQph.toFixed(2)} of ~${check.rate.expectedQph.toFixed(2)} q/hr`
+                : 'not checkable'
+            }}
           </div>
         </div>
       </div>
 
-      <ul v-if="check.errors.length" class="space-y-1 rounded-lg bg-rose-50 px-3 py-2 text-[11px] font-semibold text-rose-700">
+      <ul
+        v-if="check.errors.length"
+        class="space-y-1 rounded-lg bg-rose-50 px-3 py-2 text-[11px] font-semibold text-rose-700"
+      >
         <li v-for="e in check.errors" :key="e">✕ {{ e }}</li>
       </ul>
-      <ul v-if="check.warnings.length" class="space-y-1 rounded-lg bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-800">
+      <ul
+        v-if="check.warnings.length"
+        class="space-y-1 rounded-lg bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-800"
+      >
         <li v-for="w in check.warnings" :key="w">! {{ w }}</li>
       </ul>
 
@@ -78,17 +93,31 @@
         </label>
         <label class="space-y-1">
           <span class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Minimum gap</span>
-          <input v-model.number="minGap" type="number" min="0" class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-[12px]" />
+          <input
+            v-model.number="minGap"
+            type="number"
+            min="0"
+            class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-[12px]"
+          />
         </label>
         <label class="space-y-1">
           <span class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Nickname (optional)</span>
-          <input v-model="nickname" maxlength="40" class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-[12px]" />
+          <input
+            v-model="nickname"
+            maxlength="40"
+            class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-[12px]"
+          />
         </label>
         <label class="space-y-1">
           <span class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">
             CPU threads on the machine that ran it
           </span>
-          <input v-model.number="cores" type="number" min="1" class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-[12px]" />
+          <input
+            v-model.number="cores"
+            type="number"
+            min="1"
+            class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-[12px]"
+          />
         </label>
         <label class="space-y-1">
           <span class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">RAM, GB</span>
@@ -101,8 +130,15 @@
           />
         </label>
         <label class="space-y-1">
-          <span class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Workers (jobs) the run used</span>
-          <input v-model.number="workers" type="number" min="1" class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-[12px]" />
+          <span class="block text-[10px] font-black text-slate-400 uppercase tracking-widest"
+            >Workers (jobs) the run used</span
+          >
+          <input
+            v-model.number="workers"
+            type="number"
+            min="1"
+            class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-[12px]"
+          />
         </label>
       </div>
 
@@ -112,7 +148,9 @@
           This record, plus the CSV (compressed, player ids swept out). No player id and no in-game name: those are in
           neither. The artifact set and time zone do narrow down who you are among people who know each other.
         </p>
-        <pre class="mt-1 max-h-72 overflow-auto rounded-lg bg-slate-900 p-3 text-[10px] text-slate-100">{{ previewJson }}</pre>
+        <pre class="mt-1 max-h-72 overflow-auto rounded-lg bg-slate-900 p-3 text-[10px] text-slate-100">{{
+          previewJson
+        }}</pre>
       </details>
 
       <div class="flex items-center gap-3">
@@ -124,7 +162,11 @@
         >
           {{ sending ? 'Sending…' : sent ? 'Sent' : 'Submit this sweep' }}
         </button>
-        <span v-if="sendMessage" class="text-[11px] font-semibold" :class="sendOk ? 'text-emerald-700' : 'text-rose-700'">
+        <span
+          v-if="sendMessage"
+          class="text-[11px] font-semibold"
+          :class="sendOk ? 'text-emerald-700' : 'text-rose-700'"
+        >
           {{ sendMessage }}
         </span>
         <button
@@ -143,7 +185,13 @@
 
 <script setup lang="ts">
 import { computed, ref, shallowRef, watch } from 'vue';
-import { afterPaint, scrubIdentifiers, tooManySubmissionsMessage, type Submission } from '@/search/submission';
+import {
+  afterPaint,
+  duplicateMessage,
+  scrubIdentifiers,
+  tooManySubmissionsMessage,
+  type Submission,
+} from '@/search/submission';
 import type { CollectorRow } from './collector';
 import { inflateIfGzip } from './collector';
 import { presetBandsFor } from './needs';
@@ -171,7 +219,9 @@ const presetId = ref('custom');
 const bands = ref('');
 const minGap = ref(10);
 const nickname = ref('');
-const cores = ref<number | undefined>(typeof navigator !== 'undefined' ? navigator.hardwareConcurrency || undefined : undefined);
+const cores = ref<number | undefined>(
+  typeof navigator !== 'undefined' ? navigator.hardwareConcurrency || undefined : undefined
+);
 const ramGB = ref<number | undefined>();
 const workers = ref<number | undefined>();
 
@@ -277,6 +327,8 @@ async function send(): Promise<void> {
       problems?: string[];
       error?: string;
       retryAfter?: number;
+      duplicate?: 'exact' | 'result';
+      firstAt?: string;
     };
     if (res.status === 429) {
       sendOk.value = false;
@@ -287,6 +339,18 @@ async function send(): Promise<void> {
     if (!res.ok || !body.id) {
       sendOk.value = false;
       sendMessage.value = `The collector said ${res.status}${body.problems?.length ? `: ${body.problems.join('; ')}` : body.error ? `: ${body.error}` : ''}`;
+      return;
+    }
+    // The same result from the same sender is already stored, so the collector stored nothing. It
+    // hands back a table token only when the stored row is the sender's by owner code and has no
+    // table, which an upload from this page never is -- so no token here means nothing is missing,
+    // not "this collector does not accept tables". Said as the neutral note it is.
+    const existing = body.duplicate === 'exact';
+    if (existing && !body.uploadToken) {
+      sent.value = true;
+      sendOk.value = true;
+      sendMessage.value = `${duplicateMessage('exact', { firstAt: body.firstAt })}.`;
+      emit('submitted', body.id);
       return;
     }
     if (!body.uploadToken) {
@@ -305,6 +369,7 @@ async function send(): Promise<void> {
       id: body.id,
       token: body.uploadToken,
       body: await gzip(scrubIdentifiers(csvText.value)),
+      existing,
     };
     await postTable();
   } catch (err) {
@@ -315,8 +380,9 @@ async function send(): Promise<void> {
   }
 }
 
-/** A table whose summary is stored but which has not landed itself, kept with its one-time token. */
-const pendingTable = shallowRef<{ id: string; token: string; body: ArrayBuffer } | null>(null);
+/** A table whose summary is stored but which has not landed itself, kept with its one-time token.
+ *  `existing`: the summary was a copy of a row already on the board, which the table now completes. */
+const pendingTable = shallowRef<{ id: string; token: string; body: ArrayBuffer; existing?: boolean } | null>(null);
 const retrying = ref(false);
 
 /** Send `pendingTable` and say what to do next. Same rules as the planner's postTable. */
@@ -338,7 +404,11 @@ async function postTable(): Promise<void> {
   if (res.ok || res.status === 409) {
     pendingTable.value = null;
     sendOk.value = true;
-    sendMessage.value = res.ok ? `Stored as ${table.id}, with its table.` : `Stored as ${table.id}; the table was already there.`;
+    sendMessage.value = res.ok
+      ? table.existing
+        ? `Already on the board as ${table.id}; its missing table was added.`
+        : `Stored as ${table.id}, with its table.`
+      : `Stored as ${table.id}; the table was already there.`;
     return;
   }
   sendOk.value = false;

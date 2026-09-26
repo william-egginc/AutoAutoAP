@@ -27,12 +27,28 @@
  *     they would be by then (linear inside each leg; rows without legs skip this test);
  *   - it was planned within the last 30 days.
  *
- * WHO COUNTS AS THE SAME PLAYER. Phase 1 has no owner code to go on, so it uses what the rows carry:
+ * WHO COUNTS AS THE SAME PLAYER. Phase 1 had no owner code to go on, so it used what the rows carry:
  * a cleaned name label (the annotations people type into the name box are stripped, see
  * `nameLabel`), and for evidence that can show a plan behind or a what-if, also the same timezone
- * plus artifact set -- the proxy `explorer/analysis.ts` `accountKey` uses. Two players with
- * identical gear in one timezone could therefore mark each other's plans; that is a known limit of
- * phase 1. Only the player's own lines (plus unnamed re-runs of their plans) can replace a plan.
+ * plus artifact set -- the proxy `explorer/analysis.ts` `accountKey` uses. Every one of those fields
+ * is public, so one forged row could knock a real player's plan out.
+ *
+ * PHASE 2 (collector redeploy, 2026-09-25): a named row sent with an owner code carries `acct`, a
+ * short HMAC of that code's hash (search/owner.ts). It is the player's identity, exactly: rows with
+ * the same `acct` are one player whatever name they were sent under, and the line is called by the
+ * newest name. What may judge a plan -- replace it, show the player behind it, make it a what-if --
+ * is now narrowed to `mayJudge`: a row with the SAME `acct`, or, when NEITHER row has one (runs from
+ * before owner codes, anonymous runs), the phase-1 rules above. A row with an `acct` never judges
+ * one without, nor the other way round, so nobody can drop another player's result by sending rows
+ * dressed as theirs. Rows sent under a name BEFORE the collector stamped rows (no `receivedAt`) still
+ * sit on the line of the first owner code seen with that name (`fileRows`), so a player is one line,
+ * not two; they are judged among themselves until they age out. A row sent under that name since,
+ * without a code, is not theirs to inherit: anyone can send one, so it files under the name alone
+ * (`playerKey`) and never stands for, names or badges the owner's line (`foldCopies`).
+ *
+ * RE-CHECKS. A schema-7 row carries `rechecks`: the player's best earlier plans priced again from
+ * that run's save. Each one counts as a newer run of the plan it matches (`recheckLines`), so a plan
+ * that has slipped is replaced without the player having to run it again.
  *
  * EXACT COPIES FOLD FIRST. The same result sent twice -- a double-clicked Submit, an auto-send plus a
  * manual one, an anonymous send and then a named one -- is one row with a "sent xN" badge. Two rows
@@ -56,6 +72,9 @@ const MAX_AGE_MS = 30 * DAY_MS;
 const SAME_SAVE_MS = 10 * 60_000;
 /** A re-measure whose finish moved less than this reads as "unchanged". */
 const UNCHANGED_MS = HOUR_MS;
+/** A plan starting more than this before the save it was made from is a what-if (schema 7). The
+ *  save age is rounded to a tenth of an hour, so anything closer is rounding. */
+const BEFORE_SAVE_HOURS = 0.1;
 
 /** The collector's row shape. Loose on purpose: a public endpoint may be a version ahead or behind,
  *  and a missing field should render a dash, not throw. */
@@ -80,10 +99,39 @@ export interface BoardRow {
   chainsPriced?: number;
   /** The chain the search descended from. Absent on an exhaustive run, which descends from none. */
   seed?: number[];
-  /** ISO 8601, stamped by the app when the submission was built. */
+  /** ISO 8601, stamped by the app when the submission was built. The sender's own clock. */
   submittedAt?: string;
-  /** How stale the save was at plan start, in hours. */
+  /** ISO 8601, stamped by the collector when the row arrived (phase 2). Unlike `submittedAt` the
+   *  sender cannot set it, so it is what the what-if rule reads when present. */
+  receivedAt?: string;
+  /** Schema of the row as sent. */
+  schema?: number;
+  /** Schema 7: the plan start and end as instants, to the minute. */
+  startUtc?: string;
+  endUtc?: string;
+  /** How stale the save was at plan start, in hours. Signed from schema 7: negative is a plan that
+   *  starts before its save. */
   backupAgeHours?: number;
+  /** Schema 7: the save's own TE. */
+  backupTE?: number;
+  /** Schema 7: which planner build priced it. */
+  build?: string;
+  /** Schema 7: the sender's best earlier plans priced again from this row's save and start. */
+  rechecks?: { chain: number[]; days: number }[];
+  /**
+   * The player, exactly (phase 2): 12 hex characters of an HMAC of the sender's owner code. Only on
+   * rows that carry a name AND were sent with a code, never on an anonymous row, so the board links
+   * no anonymous run to anyone.
+   */
+  acct?: string;
+  /** The first row with the same result found by a different search, from the same sender. */
+  dupOf?: string;
+  /** Only on rows from GET /mine: sent with the code this browser presented. */
+  yours?: boolean;
+  /** Why a row is on the flagged board. Such rows are never ranked. */
+  flags?: string[];
+  /** Set by this module on a line made from another row's `rechecks` entry: that row's id. */
+  recheckOf?: string;
   artifacts?: (string | { label: string; count: number })[];
   delivery?: { artifact: string; stones?: string[] }[];
   earnings?: { artifact: string; stones?: string[] }[];
@@ -168,8 +216,15 @@ export function localToUtcMs(local: string | undefined, timezone: string | undef
   return Number.isFinite(utc) ? utc : null;
 }
 
-/** When the plan starts, as an instant. */
-export function startMs(row: Pick<BoardRow, 'startLocal' | 'timezone'>): number | null {
+/**
+ * When the plan starts, as an instant. A schema-7 row says so itself (`startUtc`); an older one is
+ * read from its local start and zone, which is exact except in the hour a clock change repeats.
+ */
+export function startMs(row: Pick<BoardRow, 'startLocal' | 'timezone' | 'startUtc'>): number | null {
+  if (typeof row.startUtc === 'string') {
+    const t = Date.parse(row.startUtc);
+    if (Number.isFinite(t)) return t;
+  }
   return localToUtcMs(row.startLocal, row.timezone);
 }
 
@@ -177,7 +232,7 @@ export function startMs(row: Pick<BoardRow, 'startLocal' | 'timezone'>): number 
  * When the plan reaches its target: its own start plus its length. Never read from `endLocal`,
  * which is a local wall-clock string that sorts wrong across zones and daylight saving.
  */
-export function finishMs(row: Pick<BoardRow, 'startLocal' | 'timezone' | 'durationDays'>): number | null {
+export function finishMs(row: Pick<BoardRow, 'startLocal' | 'timezone' | 'durationDays' | 'startUtc'>): number | null {
   const start = startMs(row);
   const days = row.durationDays;
   if (start == null || typeof days !== 'number' || !Number.isFinite(days)) return null;
@@ -186,16 +241,32 @@ export function finishMs(row: Pick<BoardRow, 'startLocal' | 'timezone' | 'durati
 }
 
 /** Days from `now` to the finish, the same clock for everybody. Null when there is no finish. */
-export function daysLeft(row: Pick<BoardRow, 'startLocal' | 'timezone' | 'durationDays'>, now: number): number | null {
+export function daysLeft(
+  row: Pick<BoardRow, 'startLocal' | 'timezone' | 'durationDays' | 'startUtc'>,
+  now: number
+): number | null {
   const f = finishMs(row);
   return f == null ? null : (f - now) / DAY_MS;
 }
 
-/** When the row was sent, or null. */
+/** When the row was sent by the sender's own clock, or null. */
 export function submittedMs(row: Pick<BoardRow, 'submittedAt'>): number | null {
   if (!row.submittedAt) return null;
   const t = Date.parse(row.submittedAt);
   return Number.isFinite(t) ? t : null;
+}
+
+/**
+ * When the row was sent: the collector's own stamp when it has one (phase 2), else the sender's.
+ * `submittedAt` is whatever the posting client wrote, so a what-if dressed with a send time next to
+ * its start would pass for a real plan; `receivedAt` cannot be dressed.
+ */
+export function sentMs(row: Pick<BoardRow, 'submittedAt' | 'receivedAt'>): number | null {
+  if (row.receivedAt) {
+    const t = Date.parse(row.receivedAt);
+    if (Number.isFinite(t)) return t;
+  }
+  return submittedMs(row);
 }
 
 // ------------------------------------------------------------------------------------ identity
@@ -318,6 +389,65 @@ function rootKey(roots: ReadonlyMap<string, string>, raw: string | undefined): s
   return k ? (roots.get(k) ?? k) : '';
 }
 
+/** How the rows on the board are filed into players. Worked out once over every row. */
+export interface Filing {
+  /** Name variants onto one name (`nameRoots`). */
+  roots: ReadonlyMap<string, string>;
+  /**
+   * Name root -> the owner (`acct`) first seen sending under it. Rows sent under that name without an
+   * owner BEFORE the collector stamped rows (`receivedAt`, phase 2) sit on that owner's line rather
+   * than making a second line with the same name. Only those: nobody can add one now, where a
+   * code-less row sent since could be anybody's (see `playerKey`). They are filed there for DISPLAY
+   * only: `mayJudge` still never lets a row with an owner judge one without.
+   */
+  heirs: ReadonlyMap<string, string>;
+}
+
+export function fileRows(rows: readonly BoardRow[]): Filing {
+  const roots = nameRoots(rows);
+  const first = new Map<string, { acct: string; at: number }>();
+  for (const r of rows) {
+    if (!r.acct) continue;
+    const k = rootKey(roots, r.nickname);
+    if (!k) continue;
+    const at = sentMs(r) ?? Infinity;
+    const held = first.get(k);
+    if (!held || at < held.at) first.set(k, { acct: r.acct, at });
+  }
+  return { roots, heirs: new Map([...first].map(([k, v]) => [k, v.acct])) };
+}
+
+/**
+ * The player a row belongs to: `acct:<acct>` for a row with an owner (or a pre-stamp row under a name
+ * an owner inherited), `name:<root>` for any other named row, '' for an anonymous row.
+ *
+ * The heir takes a name's rows only from before the collector stamped `receivedAt`. A code-less row
+ * sent since under that name is not the owner's: filed on their line it would count as their own copy,
+ * could stand for their result with a bigger search, carry their `acct`, and then judge their plans
+ * -- a stranger re-posting Allan's row under his name, with no code and a `backupTE` of 0, knocked his
+ * only plan out of the race as a "what-if" (review, 2026-09-26). It files as `name:<root>` instead: a
+ * line of its own, judged only by rows without an owner.
+ */
+export function playerKey(filing: Filing, row: Pick<BoardRow, 'acct' | 'nickname' | 'receivedAt'>): string {
+  if (row.acct) return `acct:${row.acct}`;
+  const k = rootKey(filing.roots, row.nickname);
+  if (!k) return '';
+  const heir = row.receivedAt ? undefined : filing.heirs.get(k);
+  return heir ? `acct:${heir}` : `name:${k}`;
+}
+
+/**
+ * May `evidence` judge `plan` -- replace it, show the player behind it, make it a what-if? Only a row
+ * from the same owner, or, when neither has one, a row the phase-1 rules tie to it: the same name
+ * (as filed) or the same timezone and artifact set. See the module comment.
+ */
+export function mayJudge(filing: Filing, evidence: BoardRow, plan: BoardRow): boolean {
+  if (evidence.acct || plan.acct) return !!evidence.acct && evidence.acct === plan.acct;
+  if (accountKeyOf(evidence) === accountKeyOf(plan)) return true;
+  const a = rootKey(filing.roots, evidence.nickname);
+  return !!a && a === rootKey(filing.roots, plan.nickname);
+}
+
 // ---------------------------------------------------------------------------------- copies
 
 /**
@@ -351,6 +481,12 @@ export interface Folded<T extends BoardRow = BoardRow> {
   copies: T[];
   /** How the copies were found: `exhaustive` or the effort tier, one each. */
   foundBy: string[];
+  /**
+   * The player the line was folded for (`playerKey` of its earliest filed copy), '' for all-anonymous
+   * copies. The race files the line by this, not by its relabelled row: a row standing in for a name
+   * or an owner must not move the line onto somebody else's.
+   */
+  player?: string;
 }
 
 function searchSize(row: BoardRow): number {
@@ -363,19 +499,25 @@ function searchSize(row: BoardRow): number {
  * so an anonymous copy never hides who sent the result.
  *
  * Two DIFFERENT players are never folded together, even on identical content: that is somebody
- * re-sending another player's result, and folding would hand one of them the other's line. Names
- * are compared the way the race files them (`nameRoots`), so `Williamthe5thc` and
- * `Williamthe5thc- 7 Ascen` from the same account are one player and their copies fold. Anonymous
- * copies join the earliest named copy.
+ * re-sending another player's result, and folding would hand one of them the other's line. Players
+ * are compared the way the race files them (`playerKey`): by owner where rows have one, else by name
+ * (`nameRoots`), so `Williamthe5thc` and `Williamthe5thc- 7 Ascen` from the same account are one
+ * player and their copies fold. Anonymous copies join the earliest named copy.
  *
- * `roots` is the name filing to use; by default it is worked out from `rows` themselves.
+ * THE LINE SPEAKS ONLY FOR ITS OWN PLAYER (`ownCopies`). A copy stands for the group only when the
+ * group's player provably sent it: it carries their `acct` (or, for a line with no owner, it is
+ * filed under their name), the collector tied it to one of those (`dupOf` runs within one sender),
+ * or it predates the collector's stamp (`receivedAt`) and so the rules. Otherwise it is a stranger
+ * re-posting a public result, and letting it be the representative would let them attach a bigger
+ * search, an "exhaustive" badge, or their own schema-7 evidence (`backupTE`, `startUtc`, `rechecks`)
+ * to someone else's line. It still counts as a copy. The line carries its player's `acct` whichever
+ * of their copies stands for it, and never anyone else's.
+ *
+ * `filing` is how names and owners are filed; by default it is worked out from `rows` themselves.
  */
-export function foldCopies<T extends BoardRow>(
-  rows: readonly T[],
-  roots: ReadonlyMap<string, string> = nameRoots(rows)
-): Folded<T>[] {
-  const sentAt = (r: T) => submittedMs(r) ?? Infinity;
-  const who = (r: T) => rootKey(roots, r.nickname);
+export function foldCopies<T extends BoardRow>(rows: readonly T[], filing: Filing = fileRows(rows)): Folded<T>[] {
+  const sentAt = (r: T) => sentMs(r) ?? Infinity;
+  const who = (r: T) => playerKey(filing, r);
   const byContent = new Map<string, T[]>();
   for (const row of rows) {
     const key = contentFingerprint(row);
@@ -405,17 +547,61 @@ export function foldCopies<T extends BoardRow>(
   const out: Folded<T>[] = [];
   for (const group of groups) {
     const copies = [...group].sort((a, b) => sentAt(a) - sentAt(b));
-    let rep = copies[0];
+    const key = copies.map(who).find(Boolean) ?? '';
+    const own = ownCopies(copies, key, who);
+    let rep = copies.find(c => own.has(c)) ?? copies[0];
     for (const c of copies) {
+      if (!own.has(c)) continue;
       const d = searchSize(c) - searchSize(rep) || Number(!!c.hasCsv) - Number(!!rep.hasCsv);
       if (d > 0) rep = c;
     }
-    const named = copies.find(c => c.nickname?.trim());
-    const row = named && rep.nickname !== named.nickname ? { ...rep, nickname: named.nickname } : rep;
+    const named = copies.find(c => c.nickname?.trim() && (!key || who(c) === key));
+    // The line is the group's player: their `acct` when one of the copies was sent with their code
+    // (every copy that may stand for it is theirs, or predates owner codes and so carries none of the
+    // evidence a stranger could forge), and no `acct` otherwise -- a group of a name's pre-stamp rows
+    // is filed on its heir's line but judged among its own kind (`mayJudge`).
+    const owner = key.startsWith('acct:') ? key.slice('acct:'.length) : undefined;
+    const acct = owner && copies.some(c => c.acct === owner) ? owner : undefined;
+    let row = rep;
+    if (named && rep.nickname !== named.nickname) row = { ...row, nickname: named.nickname };
+    if (row.acct !== acct) {
+      row = { ...row, acct };
+      if (acct === undefined) delete row.acct;
+    }
     const foundBy = [...new Set(copies.map(foundByText))].sort();
-    out.push({ row, copies, foundBy });
+    out.push({ row, copies, foundBy, player: key });
   }
   return out;
+}
+
+/**
+ * The copies the group's own player can be taken to have sent (see `foldCopies`): the ones that prove
+ * it -- their `acct` for an owner's group, their name for a group with no owner -- and the ones the
+ * collector tied to those, plus rows from before the collector's stamp.
+ */
+function ownCopies<T extends BoardRow>(copies: readonly T[], key: string, who: (r: T) => string): Set<T> {
+  if (!key) return new Set(copies);
+  const acct = key.startsWith('acct:') ? key.slice('acct:'.length) : null;
+  // Filed under the owner is not enough: `heirs` files a name's old rows there for display.
+  const linked = new Set(copies.filter(c => (acct ? c.acct === acct : who(c) === key)));
+  // `dupOf` points at the first row of a result, and only between rows of one sender -- in either
+  // direction. Anchored only on copies that PROVE the sender: a pre-stamp row proves nothing about who
+  // sent a later copy pointing at it (the collector's code-less rule is "same nickname", and a legacy
+  // anonymous row's nickname is everybody's).
+  for (let grew = true; grew; ) {
+    grew = false;
+    const held = new Set([...linked].map(c => c.id).filter(Boolean));
+    const pointedAt = new Set([...linked].map(c => c.dupOf).filter(Boolean));
+    for (const c of copies) {
+      if (linked.has(c)) continue;
+      if ((c.dupOf && held.has(c.dupOf)) || (c.id && pointedAt.has(c.id))) {
+        linked.add(c);
+        grew = true;
+      }
+    }
+  }
+  for (const c of copies) if (!c.receivedAt) linked.add(c);
+  return linked;
 }
 
 // ----------------------------------------------------------------------------------- plans
@@ -426,8 +612,20 @@ export function remainingChain(chain: readonly number[], te: number): number[] {
   return [...chain.slice(0, -1).filter(c => c > te), chain[chain.length - 1]];
 }
 
-function sameSettings(a: BoardRow, b: BoardRow): boolean {
-  const off = (r: BoardRow) => (r.timeOff ?? []).map(t => `${t.from}~${t.to}`).join(',');
+/** Same target, schedule, held shifts, finish-the-current-ascension switch and time off: the
+ *  settings under which two routes are the same plan. */
+export function samePlanSettings(
+  a: Pick<BoardRow, 'finalTE' | 'window' | 'holdShifts' | 'forceContinue' | 'timeOff'>,
+  b: Pick<BoardRow, 'finalTE' | 'window' | 'holdShifts' | 'forceContinue' | 'timeOff'>
+): boolean {
+  return sameSettings(a, b);
+}
+
+function sameSettings(
+  a: Pick<BoardRow, 'finalTE' | 'window' | 'holdShifts' | 'forceContinue' | 'timeOff'>,
+  b: Pick<BoardRow, 'finalTE' | 'window' | 'holdShifts' | 'forceContinue' | 'timeOff'>
+): boolean {
+  const off = (r: Pick<BoardRow, 'timeOff'>) => (r.timeOff ?? []).map(t => `${t.from}~${t.to}`).join(',');
   return (
     a.finalTE === b.finalTE &&
     (a.window || '') === (b.window || '') &&
@@ -540,11 +738,38 @@ export function formatDate(ms: number | null, timezone: string | undefined, opts
   return f.format(new Date(ms));
 }
 
-/** Start more than 12 h after the send: "what if I started on 23 Nov". */
+/** Start more than 12 h after the send: "what if I started on 23 Nov". The send is the collector's
+ *  stamp when there is one (`sentMs`). */
 function futureStart(row: BoardRow): boolean {
   const s = startMs(row);
-  const sent = submittedMs(row);
+  const sent = sentMs(row);
   return s != null && sent != null && s > sent + WHAT_IF_LEAD_MS;
+}
+
+/**
+ * A schema-7 row that says of itself it was not planned from the account as it was: it starts before
+ * the save it was made from, or from a TE above the save's own (typed in, or planned part-way through
+ * another plan). The reason, or '' for a row that says neither.
+ */
+function selfWhatIf(row: BoardRow): string {
+  const age = row.backupAgeHours;
+  if (typeof age === 'number' && Number.isFinite(age) && age < -BEFORE_SAVE_HOURS) {
+    const h = -age;
+    const gap = h >= 48 ? `${Math.round(h / 24)} days` : `${h.toFixed(h < 10 ? 1 : 0)} h`;
+    return `what-if: planned to start ${gap} before the save it was made from`;
+  }
+  const te = row.currentTE;
+  const saved = row.backupTE;
+  if (
+    typeof te === 'number' &&
+    typeof saved === 'number' &&
+    Number.isFinite(te) &&
+    Number.isFinite(saved) &&
+    te > saved + 0.5
+  ) {
+    return `what-if: planned from TE ${te}, the save it was made from is at TE ${saved}`;
+  }
+  return '';
 }
 
 /** A run judged against the player's TE history. */
@@ -654,13 +879,13 @@ export function assessPlans<T extends BoardRow>(
   const evidence: Evidence<T>[] = [];
   for (const f of peers) {
     const start = startMs(f.row);
-    if (start == null || futureStart(f.row)) continue;
+    if (start == null || futureStart(f.row) || selfWhatIf(f.row)) continue;
     const te = f.row.currentTE;
     evidence.push({
       f,
       row: f.row,
       start,
-      sent: submittedMs(f.row),
+      sent: sentMs(f.row),
       save: saveMoment(f.row) ?? start,
       te: typeof te === 'number' && Number.isFinite(te) ? te : null,
     });
@@ -674,6 +899,8 @@ export function assessPlans<T extends BoardRow>(
     if (futureStart(row)) {
       return { state: 'what-if', reason: `what-if start (planned to start ${shortDate(start!, row.timezone)})` };
     }
+    const own = selfWhatIf(row);
+    if (own) return { state: 'what-if', reason: own };
     const e = byEvidence.get(f);
     if (!e) return null;
     const low = whatIf.get(e);
@@ -728,7 +955,10 @@ export function assessPlans<T extends BoardRow>(
     });
     if (remeasure) {
       p.state = 'replaced';
-      p.reason = `replaced by a newer run of the same plan (${shortDate(remeasure.start, remeasure.row.timezone)})`;
+      const when = shortDate(remeasure.start, remeasure.row.timezone);
+      p.reason = remeasure.row.recheckOf
+        ? `re-checked by a newer run (${when}), which priced it again from its own save`
+        : `replaced by a newer run of the same plan (${when})`;
       p.replacedBy = byFolded.get(remeasure.f);
       continue;
     }
@@ -856,16 +1086,20 @@ function pickLabel(rows: readonly BoardRow[]): string {
   return best;
 }
 
+/** Rows that can be ranked: on the main board, with a route. A flagged run (it can only arrive
+ *  through GET /mine) is evidence about an account the planner cannot help yet, not a plan. */
+function rankable<T extends BoardRow>(rows: readonly T[]): T[] {
+  return rows.filter(r => r && Array.isArray(r.chain) && !r.flags?.length);
+}
+
 /** Group folded rows into players and judge each one's plans. */
 export function groupPlayers<T extends BoardRow>(rows: readonly T[], opts: RankOptions): PlayerPlans<T>[] {
-  // One name filing for everything below, worked out over every row sent (copies included), so the
-  // copy fold and the player groups agree on who is who.
-  const roots = nameRoots(rows);
-  const folded = foldCopies(rows, roots);
-  const keyOf = (f: Folded<T>) => {
-    const k = rootKey(roots, f.row.nickname);
-    return k ? `name:${k}` : `account:${accountKeyOf(f.row)}`;
-  };
+  rows = rankable(rows);
+  // One filing for everything below, worked out over every row sent (copies included), so the copy
+  // fold and the player groups agree on who is who.
+  const filing = fileRows(rows);
+  const folded = foldCopies(rows, filing);
+  const keyOf = (f: Folded<T>) => (f.player ?? playerKey(filing, f.row)) || `account:${accountKeyOf(f.row)}`;
   const groups = new Map<string, Folded<T>[]>();
   for (const f of folded) {
     const k = keyOf(f);
@@ -873,24 +1107,139 @@ export function groupPlayers<T extends BoardRow>(rows: readonly T[], opts: RankO
     if (g) g.push(f);
     else groups.set(k, [f]);
   }
-  const byAccount = new Map<string, Folded<T>[]>();
-  for (const f of folded) {
-    const k = accountKeyOf(f.row);
-    const g = byAccount.get(k);
-    if (g) g.push(f);
-    else byAccount.set(k, [f]);
-  }
 
   const out: PlayerPlans<T>[] = [];
   for (const [key, group] of groups) {
-    // Evidence: this player's rows, plus any row from the same timezone and artifact set.
-    const peers = new Set(group);
-    for (const f of group) for (const x of byAccount.get(accountKeyOf(f.row)) ?? []) peers.add(x);
-    const named = key.startsWith('name:');
-    const candidates = named ? withUnnamedRechecks(group, peers, opts.target) : group;
-    const plans = assessPlans(candidates, [...peers], opts);
-    const label = named ? pickLabel(group.map(f => f.row)) : `anonymous · ${cityOf(group[0].row.timezone)}`;
+    const named = !key.startsWith('account:');
+    const plans = assessPlayer(group, folded, filing, opts, named);
+    let label = named ? playerLabel(group, filing) : `anonymous · ${cityOf(group[0].row.timezone)}`;
+    // A name an owner code already sends under, used since without one: a second line with the same
+    // name that may be anybody's (a re-post of the owner's public row, a browser that lost its code).
+    // Said on the line, so the two never read as one player listed twice.
+    if (key.startsWith('name:') && filing.heirs.has(key.slice('name:'.length))) label = `${label} (no code)`;
     out.push(summarise(key, label, named, plans));
+  }
+  return out;
+}
+
+/**
+ * What a player's line is called. An owner's line takes the name they sent most recently ("the code's
+ * newest name"), in its most common spelling, so a rename moves the line to the new name and a note
+ * bolted onto one run does not. A line from before owner codes takes its most common spelling.
+ */
+function playerLabel<T extends BoardRow>(group: readonly Folded<T>[], filing: Filing): string {
+  const rows = group.flatMap(f => (f.copies.length ? f.copies : [f.row])).filter(r => r.nickname?.trim());
+  const owned = rows.filter(r => r.acct);
+  if (!owned.length) return pickLabel(rows.length ? rows : group.map(f => f.row));
+  const newest = owned.reduce((a, b) => ((sentMs(b) ?? -Infinity) > (sentMs(a) ?? -Infinity) ? b : a));
+  const root = rootKey(filing.roots, newest.nickname);
+  return pickLabel(owned.filter(r => rootKey(filing.roots, r.nickname) === root));
+}
+
+/**
+ * Judge one player's lines, each against only the rows allowed to judge it (`mayJudge`).
+ *
+ * The lines are split by owner: each `acct` is judged against rows with that `acct` alone, and the
+ * lines with none (runs from before owner codes, anonymous runs) against the other rows with none that
+ * the phase-1 rules tie to them -- the same name, or the same timezone and artifact set. `named` adds
+ * the unnamed re-runs of a named player's older plans (`withUnnamedRechecks`), phase 1's rule, which
+ * applies only where neither side has an owner.
+ */
+function assessPlayer<T extends BoardRow>(
+  group: readonly Folded<T>[],
+  universe: readonly Folded<T>[],
+  filing: Filing,
+  opts: RankOptions,
+  named: boolean
+): Plan<T>[] {
+  const byOwner = new Map<string, Folded<T>[]>();
+  for (const f of group) {
+    const k = f.row.acct ?? '';
+    const g = byOwner.get(k);
+    if (g) g.push(f);
+    else byOwner.set(k, [f]);
+  }
+  const plans: Plan<T>[] = [];
+  for (const [acct, lines] of byOwner) {
+    const peers = new Set(
+      acct
+        ? universe.filter(x => x.row.acct === acct)
+        : universe.filter(x => !x.row.acct && lines.some(l => mayJudge(filing, x.row, l.row)))
+    );
+    for (const l of lines) peers.add(l);
+    const candidates = !acct && named ? withUnnamedRechecks(lines, peers, opts.target) : [...lines];
+    const extra = recheckLines(candidates, opts.target);
+    plans.push(...assessPlans([...candidates, ...extra], [...peers, ...extra], opts));
+  }
+  return plans;
+}
+
+/**
+ * Lines made from `rechecks`: each entry of a row is that row's run pricing an older plan again, from
+ * its own start and save, under its own settings -- a newer run of that plan in all but name. Made
+ * only for an entry that re-measures one of `lines` (an older line at the target that `samePlan`
+ * matches); an entry that matches nothing has nothing to say, and becomes nothing. The lines carry
+ * no copies, so they add no sends; the plan they replace is still counted once.
+ */
+function recheckLines<T extends BoardRow>(lines: readonly Folded<T>[], target: number): Folded<T>[] {
+  const out: Folded<T>[] = [];
+  for (const src of lines) {
+    // The line's own row, or a copy from the same owner. Never any copy: a stranger can re-post a
+    // player's result anonymously with made-up rechecks, and those must not re-measure their plans.
+    const list = src.row.rechecks?.length
+      ? src.row.rechecks
+      : src.copies.find(c => c.rechecks?.length && !!c.acct && c.acct === src.row.acct)?.rechecks;
+    if (!list?.length || src.row.finalTE !== target) continue;
+    const start = startMs(src.row);
+    if (start == null) continue;
+    const seen = new Set([(src.row.chain ?? []).join(',')]);
+    list.forEach((rc, i) => {
+      const chain = Array.isArray(rc?.chain) ? rc.chain : [];
+      const key = chain.join(',');
+      if (!chain.length || chain[chain.length - 1] !== target || seen.has(key)) return;
+      if (!chain.every((v, k) => Number.isFinite(v) && (k === 0 || v > chain[k - 1]))) return;
+      if (!Number.isFinite(rc.days) || rc.days <= 0) return;
+      seen.add(key);
+      const row = {
+        ...src.row,
+        id: `${src.row.id ?? 'row'}~recheck${i}`,
+        recheckOf: src.row.id ?? '',
+        chain: [...chain],
+        ascensions: chain.length,
+        durationDays: rc.days,
+        legs: [],
+        hasCsv: false,
+        waitingHours: null,
+      } as T;
+      // Nothing about how the source run searched carries over: this route was priced once, from
+      // that run's save, not found by its search. `effort` goes too, or a line re-checked by a sweep
+      // would read "balanced" (`foundByText` says "re-check" instead).
+      for (const k of [
+        'rechecks',
+        'space',
+        'proof',
+        'seed',
+        'chainsPriced',
+        'effort',
+        'dupOf',
+        'endLocal',
+        'endUtc',
+      ] as const) {
+        delete row[k];
+      }
+      const replaces = lines.some(p => {
+        const ps = startMs(p.row);
+        return (
+          p !== src &&
+          !p.row.recheckOf &&
+          p.row.finalTE === target &&
+          ps != null &&
+          start > ps + LATER_MS &&
+          samePlan(p.row, row)
+        );
+      });
+      if (replaces) out.push({ row, copies: [], foundBy: [foundByText(row)] });
+    });
   }
   return out;
 }
@@ -904,6 +1253,11 @@ export function groupPlayers<T extends BoardRow>(rows: readonly T[], opts: RankO
  * leaving it out would either keep an out-of-date finish or -- worse -- let it replace the named
  * plan with nothing standing in its place. Taking it into the player's lines keeps one line with
  * "re-checked x2". A run under a DIFFERENT name is never taken: that name is somebody's own line.
+ *
+ * PHASE 2: only between rows with no owner on either side (`assessPlayer`). An unnamed row carries
+ * no `acct`, so anyone could send one dressed as a player's; it no longer replaces an owner's plan.
+ * The owner's way to have an anonymous re-run count is to put their name on it (POST /claim), or to
+ * send it named, which the collector folds into the anonymous copy.
  */
 function withUnnamedRechecks<T extends BoardRow>(
   group: readonly Folded<T>[],
@@ -974,23 +1328,35 @@ export function placeFor<T extends BoardRow>(race: Race<T>, finish: number | nul
 }
 
 /**
- * The viewer's own plans: every row whose timezone and artifact set match the loaded save. Returns
- * null when nothing matches. Evidence also includes rows filed under the same names.
+ * The viewer's own plans: every row the collector confirmed as theirs (`yours`, from GET /mine), plus,
+ * as in phase 1, every row whose timezone and artifact set match the loaded save (`accountKey`; null
+ * when no save is loaded). Returns null when nothing is theirs at the target.
+ *
+ * The confirmed rows are ONE player, named or not: /mine answers for the code this browser sent them
+ * with, so an anonymous re-run of a named plan re-checks it here even though the public race cannot
+ * know the two are the same sender. They are judged as one owner; the phase-1 matches keep their own
+ * rules (`assessPlayer`), so a look-alike row from somebody else's browser is listed but never judges.
  */
 export function buildMyPlans<T extends BoardRow>(
   rows: readonly T[],
-  accountKey: string,
+  accountKey: string | null,
   opts: RankOptions
 ): PlayerPlans<T> | null {
-  const roots = nameRoots(rows);
-  const folded = foldCopies(rows, roots);
-  const mine = folded.filter(f => accountKeyOf(f.row) === accountKey);
+  const usable = rankable(rows);
+  // One identity for every confirmed row: the owner's `acct` where a named one shows it, else a
+  // stand-in no real `acct` can equal (those are hex).
+  const me = usable.find(r => r.yours && r.acct)?.acct ?? 'you';
+  const normalised = usable.map(r => (r.yours && r.acct !== me ? { ...r, acct: me } : r));
+  const filing = fileRows(normalised);
+  const folded = foldCopies(normalised, filing);
+  const mine = folded.filter(
+    f => f.copies.some(c => c.yours) || (accountKey != null && accountKeyOf(f.row) === accountKey)
+  );
   if (!mine.some(f => f.row.finalTE === opts.target)) return null;
-  const names = new Set(mine.map(f => rootKey(roots, f.row.nickname)).filter(Boolean));
-  const peers = folded.filter(f => accountKeyOf(f.row) === accountKey || names.has(rootKey(roots, f.row.nickname)));
-  const plans = assessPlans(mine, peers, opts);
+  const plans = assessPlayer(mine, folded, filing, opts, false);
   const named = mine.map(f => f.row).filter(r => r.nickname?.trim());
-  return summarise(`account:${accountKey}`, named.length ? pickLabel(named) : 'you', named.length > 0, plans);
+  const key = accountKey != null ? `account:${accountKey}` : `acct:${me}`;
+  return summarise(key, named.length ? pickLabel(named) : 'you', named.length > 0, plans);
 }
 
 /**
@@ -1071,7 +1437,7 @@ export function signedDays(days: number): string {
  */
 export function plannedText(plan: Plan): string {
   const tz = plan.row.timezone;
-  const sent = submittedMs(plan.row);
+  const sent = sentMs(plan.row);
   // A what-if start is not when the plan was made: say both, so "23 Nov" is not read as a date
   // that has already happened.
   const first =
@@ -1143,8 +1509,10 @@ export function settingTags<T extends BoardRow>(rows: readonly T[]): Map<T, stri
   return out;
 }
 
-/** What one copy of a result was found with: `exhaustive`, `partial`, or the effort tier. */
-export function foundByText(row: Pick<BoardRow, 'space' | 'effort'>): string {
+/** What one copy of a result was found with: `exhaustive`, `partial`, the effort tier, or `re-check`
+ *  for a line made from a later run's `rechecks` (that run priced the route; it did not search). */
+export function foundByText(row: Pick<BoardRow, 'space' | 'effort' | 'recheckOf'>): string {
+  if (row.recheckOf != null) return 're-check';
   if (row.space) return row.space.stoppedEarly ? 'partial' : 'exhaustive';
   return row.effort || 'unknown';
 }

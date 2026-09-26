@@ -37,16 +37,25 @@
             row.forceContinue ? 'finishes the current run first' : 'prestiges straight away'
           }}</span>
         </div>
+        <!-- A line made from a later run's `rechecks` (lib/leaderboardRank.ts `recheckLines`) was
+             never searched for: that run priced this one route again, from its own save and start,
+             and sent only its length. So it has no seed, no search size and no per-leg detail, and
+             saying "exhaustive" or "resumed" about it would describe a run that did not happen. -->
+        <div v-if="isRecheck" class="flex justify-between gap-3">
+          <span>Found by</span>
+          <span class="font-bold text-right">a re-check in a later run</span>
+        </div>
         <!-- A staged run descends from a seed, so how far it moved from one is part of reading
              the result. An exhaustive run has none: it enumerates rather than improves, and
              naming a seed would invent a starting point the search never used. -->
         <div class="flex justify-between gap-3">
           <span>Seed chain</span>
-          <span v-if="row.seed?.length" class="font-mono font-bold">{{ row.seed.join(' ') }}</span>
+          <span v-if="isRecheck" class="text-slate-400 text-right">none — priced again, not searched</span>
+          <span v-else-if="row.seed?.length" class="font-mono font-bold">{{ row.seed.join(' ') }}</span>
           <span v-else class="text-slate-400">exhaustive — no seed</span>
         </div>
         <div class="flex justify-between gap-3">
-          <span>{{ several ? 'First sent' : 'Submitted' }}</span>
+          <span>{{ isRecheck ? 'Re-checked' : several ? 'First sent' : 'Submitted' }}</span>
           <span class="font-bold">{{ utcText(firstSent) }}</span>
         </div>
         <div class="flex justify-between gap-3">
@@ -62,6 +71,11 @@
         class="inline-block mt-2 font-bold text-indigo-700 underline hover:text-indigo-900"
         >Download the full CSV (.csv.gz) ↓</a
       >
+      <!-- A line made from a later run's `rechecks` (lib/leaderboardRank.ts `recheckLines`): that run
+           priced this route again from its own save. It was never a send, so it has no table. -->
+      <p v-else-if="isRecheck" class="mt-2 text-slate-400">
+        Re-checked by a later run, priced again from that run's save. Not a send of its own, so there is no CSV.
+      </p>
       <p v-else class="mt-2 text-slate-400">No CSV was attached{{ several ? ' to this copy' : '' }}.</p>
     </div>
     <!-- The sets the simulator actually wears, which is the question the inventory only gestures
@@ -110,7 +124,12 @@
     </div>
     <div>
       <h4 class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1.5">Ascensions</h4>
-      <div v-if="!row.legs?.length" class="text-slate-400">no per-ascension detail — resumed from a saved search</div>
+      <div v-if="isRecheck" class="text-slate-400">
+        no per-ascension detail — a later run priced this route again and sent only its length
+      </div>
+      <div v-else-if="!row.legs?.length" class="text-slate-400">
+        no per-ascension detail — resumed from a saved search
+      </div>
       <div v-for="(l, k) in row.legs" :key="k" class="font-mono text-[10px] text-slate-600">
         A{{ k + 1 }} → {{ l.te }} {{ l.strategy }} {{ l.days?.toFixed(2) }} d {{ l.peakDeliveryQph?.toFixed(2) }} q/hr
       </div>
@@ -239,6 +258,9 @@ const props = defineProps<{
 
 /** More than one copy: list them all. */
 const several = computed(() => (props.copies?.length ?? 0) > 1);
+
+/** A line made from a later run's re-check of this route, not a send of its own. */
+const isRecheck = computed(() => props.row.recheckOf != null);
 
 /** When the result first appeared: the earliest copy, which is also what All runs' Submitted shows. */
 const firstSent = computed(() => (several.value ? props.copies![0].submittedAt : props.row.submittedAt));

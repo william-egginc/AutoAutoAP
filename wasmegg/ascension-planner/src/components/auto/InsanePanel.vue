@@ -44,18 +44,25 @@
            the time is acceptable. -->
       <div v-if="sweepRequest" class="p-4 rounded-xl border border-indigo-200 bg-indigo-50 space-y-3">
         <div class="space-y-1">
-          <p class="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Sweep request from the Chain Explorer</p>
+          <p class="text-[10px] font-black text-indigo-400 uppercase tracking-widest">
+            Sweep request from the Chain Explorer
+          </p>
           <h3 class="text-sm font-black text-slate-900">{{ sweepRequest.label }}</h3>
           <p class="text-[11px] text-slate-600">
-            Bands <code class="rounded bg-white px-1 text-[10px]">{{ bandsText }}</code>, minimum gap {{ minGap }}<template
-              v-if="sweepRequest.forceContinue !== null"
-              >, {{ sweepRequest.forceContinue ? 'finishing your current run first' : 'prestiging straight away' }}</template
+            Bands <code class="rounded bg-white px-1 text-[10px]">{{ bandsText }}</code
+            >, minimum gap {{ minGap
+            }}<template v-if="sweepRequest.forceContinue !== null"
+              >,
+              {{
+                sweepRequest.forceContinue ? 'finishing your current run first' : 'prestiging straight away'
+              }}</template
             >. Already set below; you do not need to touch anything else.
           </p>
           <p class="text-[11px] text-slate-600">
             <template v-if="timeOffText">
-              Planned around time off: <b>{{ timeOffText }}</b>. It still prices every chain, but the result is filed
-              with the time-off runs on the board rather than filling this gap.
+              Planned around time off: <b>{{ timeOffText }}</b
+              >. It still prices every chain, but the result is filed with the time-off runs on the board rather than
+              filling this gap.
             </template>
             <template v-else>
               Taking time off, like Egg Day or a trip?
@@ -104,18 +111,22 @@
           />
           <span class="block text-[10px] text-slate-500">
             Fewer keeps the computer usable and quieter; more finishes sooner. The estimate above follows the slider.
-            You can move it during a run too: the change takes effect within about a minute, and no chain in progress
-            is lost.
+            You can move it during a run too: the change takes effect within about a minute, and no chain in progress is
+            lost.
           </span>
         </label>
 
         <label class="flex items-start gap-2 text-[11px] text-slate-700">
           <input v-model="sweepConsent" type="checkbox" class="mt-0.5 rounded border-indigo-300 text-indigo-600" />
           <span>
-            I understand this takes about <b>{{ estimateLabel }}</b>, that this tab has to stay open (and the computer
-            awake) until it finishes, and that the result is then <b>sent to the board automatically</b>: the chain,
-            its timings and the full CSV, with my artifact inventory, timezone and local plan start, plus a random code
-            this browser keeps for the account (never my player ID).
+            I understand this takes about <b>{{ estimateLabel }}</b
+            >, that this tab has to stay open (and the computer awake) until it finishes, and that the result is then
+            <b>sent to the board automatically</b>: the chain, its timings and the full CSV, with my artifact inventory,
+            timezone and local plan start, plus a random code this browser keeps for the account (never my player ID,
+            and never shown), which folds my repeated sends, lets me put my name on a run sent anonymously, and lets my
+            own later runs replace my older plans. The sweep's last few seconds also re-price my best three plans
+            already on the board from this save, and those go too (named ones with a named send, anonymous ones with an
+            anonymous send).
           </span>
         </label>
         <!-- The same two choices, and the same values, as the Submit section at the bottom: anonymous
@@ -126,7 +137,13 @@
             Submit anonymously
           </label>
           <label class="flex items-center gap-2 cursor-pointer">
-            <input v-model="anonymous" type="radio" :value="false" :disabled="store.isRunning" class="text-indigo-600" />
+            <input
+              v-model="anonymous"
+              type="radio"
+              :value="false"
+              :disabled="store.isRunning"
+              class="text-indigo-600"
+            />
             Credit me as
           </label>
           <input
@@ -142,7 +159,10 @@
         </div>
 
         <IntegrityNotice />
-        <p v-if="ascMismatch" class="rounded-lg bg-rose-50 border border-rose-200 px-3 py-2 text-[11px] font-semibold text-rose-800">
+        <p
+          v-if="ascMismatch"
+          class="rounded-lg bg-rose-50 border border-rose-200 px-3 py-2 text-[11px] font-semibold text-rose-800"
+        >
           The Ascensions box ({{ suggestAsc }}) no longer matches this sweep ({{ bands.length + 1 }} ascensions). Set it
           back to {{ bands.length + 1 }} under The space to search to start.
         </p>
@@ -157,17 +177,34 @@
           </button>
           <span class="text-[10px] text-slate-500">
             One press is all it takes (the button further down does the same). When the sweep finishes, the result is
-            submitted by itself, tagged {{ sweepRequest.preset }}. Stop it early and nothing is sent; the Submit
-            section at the bottom is still there if you want to send a partial run by hand.
+            submitted by itself, tagged {{ sweepRequest.preset }}. Stop it early and nothing is sent; the Submit section
+            at the bottom is still there if you want to send a partial run by hand.
           </span>
         </div>
         <!-- The automatic submission, reported where the player pressed Start. -->
         <div
           v-if="autoSubmitted && submitMessage"
           class="rounded-lg border px-3 py-2 text-[11px] space-y-2"
-          :class="!submitOk ? 'bg-red-50 border-red-200 text-red-800' : submitPartial ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-emerald-50 border-emerald-200 text-emerald-800'"
+          :class="
+            !submitOk
+              ? 'bg-red-50 border-red-200 text-red-800'
+              : submitPartial
+                ? 'bg-amber-50 border-amber-200 text-amber-900'
+                : 'bg-emerald-50 border-emerald-200 text-emerald-800'
+          "
         >
           <p><b>Submitted automatically.</b> {{ submitMessage }}</p>
+          <!-- Sent anonymously (the default), and the name box above now says who to credit: name the
+               stored row rather than sending a second copy. -->
+          <button
+            v-if="nameToClaim"
+            type="button"
+            :disabled="claiming"
+            class="px-3 py-1.5 rounded-lg border border-current text-[10px] font-black uppercase tracking-widest hover:bg-white/60 disabled:opacity-40"
+            @click="claim"
+          >
+            {{ claiming ? 'Renaming...' : 'Put my name on it' }}
+          </button>
           <button
             v-if="store.pendingTable"
             type="button"
@@ -503,7 +540,6 @@
             most people actually do.
           </span>
         </label>
-
       </div>
 
       <!-- Time off, OUTSIDE the collapsed schedule card: it was in there first and nobody found it.
@@ -809,7 +845,8 @@
                 spent on widening the bands. Both are starting points; edit them.
               </HelpTip>
               <span v-if="suggestion" class="text-[10px] text-slate-500">
-                Suggest would fill in {{ suggestAsc }} ascensions, {{ suggestion.chains.toLocaleString() }} chains &middot;
+                Suggest would fill in {{ suggestAsc }} ascensions, {{ suggestion.chains.toLocaleString() }} chains
+                &middot;
                 <template v-if="suggestion.kind === 'complete'">
                   <span class="font-black text-emerald-700">complete sweep</span>
                   {{
@@ -1016,9 +1053,9 @@
             No chains: the ascension range asks for more checkpoints than {{ poolSize }} pool values can supply.
           </template>
           <template v-else-if="tooBig">
-            This will not finish. The estimate assumes {{ assumedCostLabel }} per chain on {{ store.workerBudget }}
-            workers{{ measuredCost ? ', measured on this machine' : '' }}. Raise the step or narrow the ascension
-            range.
+            This will not finish. The estimate assumes {{ assumedCostLabel }} per chain on
+            {{ store.workerBudget }} workers{{ measuredCost ? ', measured on this machine' : '' }}. Raise the step or
+            narrow the ascension range.
           </template>
           <template v-else>
             The estimate assumes {{ assumedCostLabel }} per chain on {{ store.workerBudget }} workers,
@@ -1097,7 +1134,9 @@
       <div class="flex flex-wrap gap-3">
         <button
           class="btn-premium btn-primary flex-1 py-4 text-sm shadow-xl shadow-rose-500/20 active:scale-[0.98]"
-          :disabled="store.isRunning || store.integrityBlocked || !chainCount || ascMismatch || (!!sweepRequest && !sweepConsent)"
+          :disabled="
+            store.isRunning || store.integrityBlocked || !chainCount || ascMismatch || (!!sweepRequest && !sweepConsent)
+          "
           @click="start"
         >
           <!-- With a sweep request open this is the same run as the card's button, so it says the
@@ -1134,7 +1173,9 @@
           <div class="h-full bg-rose-500 transition-all" :style="{ width: `${Math.round(livePercent)}%` }"></div>
         </div>
         <div v-if="store.secondsPerChain > 0 || store.runCost" class="text-[10px] text-slate-400 tabular-nums">
-          <template v-if="store.secondsPerChain > 0">{{ store.secondsPerChain.toFixed(2) }} s/chain measured here</template>
+          <template v-if="store.secondsPerChain > 0"
+            >{{ store.secondsPerChain.toFixed(2) }} s/chain measured here</template
+          >
           <template v-if="!store.isRunning && store.runCost">
             · took {{ describeCompute(store.runCost.minutes, store.runCost.workers) }}</template
           >
@@ -1152,7 +1193,9 @@
         v-if="store.error"
         class="p-4 bg-red-50 border border-red-200 rounded-xl text-xs text-red-800 leading-relaxed"
       >
-        <span class="font-bold uppercase tracking-wide">{{ store.errorBeforeStart ? "Didn't start" : 'Search failed' }}</span>
+        <span class="font-bold uppercase tracking-wide">{{
+          store.errorBeforeStart ? "Didn't start" : 'Search failed'
+        }}</span>
         — {{ store.error }}
       </div>
 
@@ -1172,8 +1215,7 @@
           The usual cause is earnings. On a low-TE account the early ascensions cannot earn enough to buy the habs and
           vehicles the plan is waiting on, so the very first leg stalls and everything after it inherits the stall. A
           different space will not fix that; more Truth Eggs, or a stronger earnings set (totem, ankh, necklace and
-          their stones), will. If you think the planner has this wrong, download the diagnostics below and send them
-          in.
+          their stones), will. If you think the planner has this wrong, download the diagnostics below and send them in.
         </p>
       </div>
 
@@ -1201,9 +1243,16 @@
         >
           {{ store.continueWarning }}
         </p>
-        <div v-if="store.resultContradictions.length" class="mt-2 rounded-lg border border-rose-300 bg-rose-50 p-3 space-y-1">
+        <div
+          v-if="store.resultContradictions.length"
+          class="mt-2 rounded-lg border border-rose-300 bg-rose-50 p-3 space-y-1"
+        >
           <p class="text-[10px] font-black text-rose-800 uppercase tracking-widest">This result contradicts itself</p>
-          <p v-for="(issue, k) in store.resultContradictions" :key="k" class="text-[11px] text-rose-900/90 leading-relaxed">
+          <p
+            v-for="(issue, k) in store.resultContradictions"
+            :key="k"
+            class="text-[11px] text-rose-900/90 leading-relaxed"
+          >
             {{ issue.message }}
           </p>
           <p class="text-[11px] text-rose-900/80 leading-relaxed">
@@ -1328,18 +1377,23 @@
       <div v-if="store.bestDays > 0" class="rounded-xl border border-indigo-200 bg-indigo-50/60 p-4 space-y-3">
         <h3 class="text-[10px] font-black text-indigo-800 uppercase tracking-widest">Share this result</h3>
         <p class="text-[11px] text-indigo-900/80 leading-relaxed">
-          An exhaustive result is the most useful thing the board can receive: the best of a stated grid rather
-          than a search result. It goes with the space it covered and what it found there — the runners-up, the best
-          chain at each ascension count, and the spread — so a reader can tell a real find from a flat neighbourhood
-          without downloading the CSV. A run opened from the library above submits without a run cost, because the time
-          it took was not this machine's.
+          An exhaustive result is the most useful thing the board can receive: the best of a stated grid rather than a
+          search result. It goes with the space it covered and what it found there — the runners-up, the best chain at
+          each ascension count, and the spread — so a reader can tell a real find from a flat neighbourhood without
+          downloading the CSV. A run opened from the library above submits without a run cost, because the time it took
+          was not this machine's.
         </p>
         <label class="flex items-start gap-3 text-xs text-indigo-900">
           <input v-model="optIn" type="checkbox" class="mt-0.5 rounded border-indigo-300 text-indigo-600" />
           <span
             >Yes, contribute this result. Artifact inventory, timezone and local plan start are included, plus a random
-            code this browser keeps for the account (not your player ID), so a run that lands on the flagged board shows
-            to you as yours and to everyone else anonymously.</span
+            code this browser keeps for the account (not your player ID, and never shown). The board uses it so a run
+            that lands on the flagged board shows to you as yours and to everyone else anonymously; so the same result
+            sent twice is stored once; so you can put your name on a run you sent anonymously; and so your own later
+            runs can replace your older plans in the race, which nobody else's can. A named run shows a short tag made
+            from the code; an anonymous run shows nothing that links it to you. If you have plans on the board already,
+            your best three of them re-priced from this save go too: named ones with a named send, anonymous ones with
+            an anonymous send, so a re-check never ties the two together.</span
           >
         </label>
 
@@ -1396,8 +1450,21 @@
         </div>
 
         <div class="flex flex-wrap gap-2">
+          <!-- Already on the board and the name box now differs from what went (typically: sent
+               anonymously, now "Credit me as ..."): the button renames the stored row, which only
+               works from the browser that sent it. -->
           <button
-            v-if="store.submitUrl"
+            v-if="store.submitUrl && nameToClaim"
+            type="button"
+            :disabled="!optIn || claiming"
+            class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 disabled:opacity-40"
+            :title="`Put ${nameToClaim} on the run already on the board, instead of sending it again`"
+            @click="claim"
+          >
+            {{ claiming ? 'Renaming...' : 'Put my name on it' }}
+          </button>
+          <button
+            v-else-if="store.submitUrl"
             type="button"
             :disabled="!optIn || submitting || store.alreadySubmitted"
             class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 disabled:opacity-40"
@@ -1551,7 +1618,9 @@ if (sweepRequest) {
 watch([spaceMode, bandsText, minGap], ([mode, text, gap]) => {
   if (!sweepRequest) return;
   const same = mode === 'bands' && text.trim() === sweepRequest.bands.trim() && gap === sweepRequest.minGap;
-  store.sweepTag = same ? { preset: sweepRequest.preset, bands: sweepRequest.bands, minGap: sweepRequest.minGap } : null;
+  store.sweepTag = same
+    ? { preset: sweepRequest.preset, bands: sweepRequest.bands, minGap: sweepRequest.minGap }
+    : null;
 });
 
 /** Ascension count the suggestion is built for. Bands fix the count, so this picks how many boxes. */
@@ -1858,7 +1927,10 @@ const ascMismatch = computed(
 
 /** The grid the inputs above describe, before a run: for the step note. */
 const plannedGridComplete = computed(() =>
-  gridIsComplete(bands.value.length ? bands.value : undefined, spaceMode.value === 'bands' ? undefined : rangeStep.value)
+  gridIsComplete(
+    bands.value.length ? bands.value : undefined,
+    spaceMode.value === 'bands' ? undefined : rangeStep.value
+  )
 );
 const plannedGridLabel = computed(() =>
   gridStepLabel(bands.value.length ? bands.value : undefined, spaceMode.value === 'bands' ? undefined : rangeStep.value)
@@ -2062,7 +2134,9 @@ const autoSubmitted = ref(false);
 async function start(): Promise<void> {
   autoSubmitArmed.value = !!sweepRequest && sweepConsent.value;
   autoSubmitted.value = false;
-  await store.startExhaustive(props.playerId, currentSpec());
+  // Armed: the sweep sends itself at the end, so its last seconds may re-price the player's best
+  // earlier plans on the workers before they are shut down (the store's "re-checks").
+  await store.startExhaustive(props.playerId, currentSpec(), { recheck: autoSubmitArmed.value });
   if (!autoSubmitArmed.value) return;
   autoSubmitArmed.value = false;
   if (store.stoppedEarly || store.error || store.bestDays <= 0) return;
@@ -2186,9 +2260,41 @@ async function submit(): Promise<void> {
     submitMessage.value = 'Sending...';
     const res = await store.sendSubmission(payload, csv);
     submitOk.value = res.ok;
-    submitMessage.value = res.ok ? `Thank you — ${res.message}` : `Not sent: ${res.message}`;
+    // A copy the collector already had stored nothing, so there is nothing to thank anyone for.
+    submitMessage.value = !res.ok
+      ? `Not sent: ${res.message}`
+      : res.duplicate === 'exact'
+        ? res.message
+        : `Thank you — ${res.message}`;
   } finally {
     submitting.value = false;
   }
 }
+
+/** The name "Put my name on it" would put on the stored row, or '' when there is nothing to rename.
+ *  With "Add the time to the name" ticked the stamp is part of it, as it would be on a send. */
+const nameToClaim = computed(() => store.nameToClaim(effectiveNickname.value));
+const claiming = ref(false);
+async function claim(): Promise<void> {
+  const id = store.sentRecord?.id;
+  if (!id || claiming.value) return;
+  claiming.value = true;
+  try {
+    const res = await store.claimName(id, effectiveNickname.value);
+    submitOk.value = res.ok;
+    submitMessage.value = res.ok ? `Done — ${res.message}` : `Not renamed: ${res.message}`;
+  } finally {
+    claiming.value = false;
+  }
+}
+
+// Once the player has said yes to sharing, work out the rechecks (their best earlier plans priced
+// again from this save), so the payload shows them before Submit is pressed.
+watch(
+  () => optIn.value && store.bestDays > 0 && !store.isRunning,
+  ready => {
+    if (ready) void store.prepareRechecks();
+  },
+  { immediate: true }
+);
 </script>

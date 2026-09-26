@@ -204,11 +204,13 @@ no button.
 
 | | |
 |---|---|
-| `POST /submit` | one submission; validated against a whitelist, rate-limited to 10 per IP per minute. Answers `{ id, uploadToken }`, or `429` with `{ error, retryAfter }` (seconds left in the minute, in the body because a cross-origin page cannot read `Retry-After`) |
+| `POST /submit` | one submission; validated against a whitelist, rate-limited to 10 per IP per minute. Answers `{ ok, id, uploadToken }`; for a copy of a result already on the board, see *Copies* below (`duplicate: 'exact'` with the stored row's `id` and `firstAt`, or `duplicate: 'result'` with `dupOf`). `429` with `{ error, retryAfter }` (seconds left in the minute, in the body because a cross-origin page cannot read `Retry-After`) |
+| `POST /claim` | `{ id, nickname }` with `x-owner-token`: puts a name on a row sent with that owner code. `403` if the row has no code or another one, `404` for an unknown id, `400` for a bad name (same rule as `/submit`, and not empty). Shares `/submit`'s rate limit |
 | `POST /csv?id=<id>` | that run's gzipped CSV, once. Needs the `x-upload-token` header `/submit` returned. Must be gzip, capped at 8 MB compressed |
 | `GET /csv?id=<id>` | it back, as a `.csv.gz` file (`application/gzip`) |
-| `GET /leaderboard?final=490&limit=50` | one row per distinct run, already in duration order |
-| `GET /all` | everything, for your own analysis |
+| `GET /leaderboard?final=490&limit=50` | one line per distinct result, already in duration order, copies folded (`copies: n` when more than one) |
+| `GET /all` | every row, for your own analysis. `?final=490` narrows it |
+| `GET /mine` | the caller's own rows from both boards, anonymous ones included, each with `yours: true`. `x-owner-token` may be a comma list (up to 20 codes). Never cached |
 | `GET /flagged` | the flagged board (below): anonymous, except rows whose owner code the caller sends as `x-owner-token` |
 | `GET /` | the leaderboard page |
 
@@ -220,11 +222,62 @@ matches: the app keeps a random code per account in the submitting browser (`src
 sends it as `x-owner-token`, and the Worker stores only its SHA-256 (as `owner`, never served).
 Nothing in it is derived from the player id.
 
-Rows from `/leaderboard` and `/all` carry two fields that are **not stored**: `id`, taken from the
-last segment of the KV key, and `hasCsv`. The second comes from a single `list({prefix:'csv:'})`
-per request rather than an existence check per row — the ids already line up, so storing a flag
-on the record would only add a read-modify-write on every upload, and writes are the scarce quota
-(~1,000/day on the free plan; each submission costs two).
+**What the owner code is used for** (phase 2 of the finish-date leaderboard, 2026-09-25): finding
+your own flagged rows; `GET /mine`; putting a name on a row you sent (`/claim`, or sending the same
+result again with a name); and folding a repeated send of one result into the row already stored.
+Only ever for rows sent with that same code — a copy of someone else's public row can never rename,
+replace or merge into theirs. The app's consent text lists these uses.
+
+Rows from `/leaderboard` and `/all` carry fields nobody sent:
+
+- `id` (the key's last segment) and `hasCsv` — added when the snapshot is built, not stored.
+- `receivedAt` — stored: the collector's clock at `/submit`, since `submittedAt` is the sender's.
+- `dupOf` — stored on a row whose exact result the same sender already had on the board from a
+  different search: the id of the first such row that is named when this one is, or anonymous when
+  this one is (never across the two).
+- `acct` — on the main board only, and only on rows with **both** a nickname and an owner code: the
+  first 12 hex of `HMAC(CSV_UPLOAD_KEY, 'acct:' + owner hash)`. Stable per code, so a reader can
+  tell one browser account from someone typing the same name, and computable by nobody without the
+  secret. Never on an anonymous row, so nobody can link a player's unnamed runs to their name; never
+  on the flagged board, for the same reason. Absent everywhere when `CSV_UPLOAD_KEY` is not set.
+
+**Board reads cost one KV read and no list.** Each board is kept as one value, `snap:sub` /
+`snap:flag`, read by every view. The value is two JSON documents on two lines: the first is exactly
+the `/all` response (`{"builtAt":…,"v":3,"settleAt":…,"finals":[490],"count":N,"rows":[…]}`), so an
+unfiltered `/all` — or `/all?final=490` when every row is for 490 — is sent as stored bytes, without
+the parse and re-serialise that would eat the free plan's ~10 ms of CPU. The second line is a private
+id → owner-prefix index for `/mine`, `/flagged` and the fold, and is never served. Every row is
+written with `id` first and `hasCsv` second, so the Worker can split, filter and patch rows as text:
+`/mine`, a filtered `/all`, `/claim` and every write work without parsing the board.
+
+**Writes patch the snapshot; they never re-list the board.** `/submit`, `/claim` and `/csv` read the
+snapshot, change the one row, and write it back (1 read, 1 write, no list) — `/submit` and `/claim`
+before they answer, so a CSV or a "Put my name on it" that follows finds the row. The first version
+rebuilt the snapshot from a `list()` on every write, which lost rows (a list lags a write by up to a
+minute, so the CSV posted a moment after its submission rebuilt the board without that submission)
+and read every row once per write (Workers Free caps an invocation at 1,000 KV operations).
+
+**A settle heals what a race drops.** Two writes at the same moment both read the old snapshot and
+the second wins; KV also refuses a second write to one key inside a second (429 — a refused snapshot
+write is tried once more a second later). So every patch stamps `settleAt` = now + 90 s, and the
+first read after that settles the board once: it lists the rows and the CSV ids, reads only rows the
+snapshot lacks or whose name the key metadata says changed, flips `hasCsv` where a table arrived,
+and clears `settleAt`. With no writes there are no rebuilds (a snapshot untouched for a day is
+settled once as a backstop). Building from nothing — the first read after deploying this version —
+reads at most 300 rows per request and carries on at the next read. After editing rows in KV by
+hand, delete `snap:sub` / `snap:flag` and the next read rebuilds it.
+
+**Caching.** `/all` and `/leaderboard` go through the Cache API for 60 s and are dropped after each
+write's snapshot lands; the browser is told `no-cache`, so Refresh always shows the board as it is.
+**The Cache API only works on a custom domain**: on a `*.workers.dev` host it stores nothing, so there
+every view costs its KV read.
+
+What a day costs on KV's free tier (100,000 reads, 1,000 writes, 1,000 lists): a leaderboard view is
+1 read for `/all` plus 2 for `/mine` (both boards) when the viewer has a code, and no list; a new
+submission with its CSV is 4 reads, 1 list (the copy check) and 5 writes (row, snapshot, rate-limit
+counter, table, snapshot); an exact copy is 1 read, 1 list and 1 write; `/claim` is 4 reads and 3
+writes; each settle after a burst of writes adds 2 lists, a write and a read per row it was missing.
+Writes are the tightest budget: about 200 submissions a day.
 
 ### What is stored, and what is not
 
@@ -264,11 +317,20 @@ can tell the difference:
 Neither is present on a staged run. The `seed` is the mirror image: present on a staged run,
 absent on an exhaustive one, which enumerates rather than descending from a guess.
 
+Schema 7 adds what the finish-date board needs to stop guessing: `startUtc` and `endUtc` (ISO
+instants, so no DST reconstruction from a local stamp), `backupTE` (the save's own TE), `build`
+(which planner priced it, at most 40 characters), `rechecks` (up to three of the sender's earlier
+plans priced again from this save: `{chain, days}`, the chain whole TEs, strictly increasing, one
+checkpoint or more, ending at this row's target) — and `backupAgeHours` becomes signed (−8760 to
+8760; negative means the plan starts before the save). More than three rechecks, or a `build` that
+is not a short string, refuses the submission; a single recheck or value that does not parse is
+dropped.
+
 Schema history: 2 narrowed the inventory, 3 added run cost and progression summaries, 4 added
 `space`, 5 added `proof` and `seed`, 6 added the comparison variables above; `forceContinue` is an
-optional field on 6. The Worker accepts 2–6 and stores the schema as sent, because
-the app and the Worker deploy separately and insisting on an exact match guarantees a window where
-every submission is refused.
+optional field on 6; 7 added the fields just listed. The Worker accepts 2–7 and stores the schema as
+sent, because the app and the Worker deploy separately and insisting on an exact match guarantees a
+window where every submission is refused.
 
 **Artifacts are labels; stones are counted, and both are narrowed.** Schema 2 sends the best piece
 per family by name -- eight entries, no numbers -- rather than every tier owned with exact counts.
@@ -281,8 +343,13 @@ how many you hold decides what can be built. Measured on a real account, this to
 from 102 entries and 2,455 characters to 8 artifacts and 7 stone lines -- a smaller payload and a much duller
 fingerprint, for no loss of anything that determined the result.
 
-Not stored: IP addresses beyond a rate-limit key that expires within two minutes, headers,
-cookies, or anything derived from the connection.
+Not stored: IP addresses beyond a rate-limit key that expires within two minutes, headers
+(except the owner code, as its SHA-256), cookies, or anything derived from the connection.
+
+**The upload page** on `/` sends a saved file the way the app sends a result: a file that carries
+the account's owner code as a top-level `ownerToken` has it lifted into the `x-owner-token` header
+and deleted from the body before posting. The Worker drops an unknown body field anyway, and never
+treats a code in the body as a claim — only the header counts.
 
 **Still identifying, and the app says so before the button is pressed.** The artifact
 inventory with exact counts is close to a fingerprint among people who know each other; the
@@ -301,27 +368,51 @@ research and starting TE at least as much as on the chain, and on whether the ru
 constrained to the player's waking hours. It answers "what shapes are winning for people",
 not "who is best". The page says so under the table.
 
-**One row per distinct RUN, not per person.** A submission is identified by nickname, target,
-chain, effort tier, schedule window, whether shifts were held, and — for an exhaustive run — the
-space it covered. Two that agree on all of it are
-the same experiment priced twice -- a re-run, the same plan from a different start -- and the
-faster one stands for both. Two that differ anywhere are different experiments and both show,
-because "does `thorough` beat `balanced` here" and "does this shape travel between accounts" are
-the questions the board exists to answer, and an earlier version that kept one row per person per
-target deleted the evidence for both. Duration is deliberately not part of the identity.
+**Copies.** Measured on the live board (2026-09-25), 103 rows held 12 groups of copies — an
+auto-send and then a press of Send; five sends in four minutes; a run sent anonymously and then
+again with a name. A result's *fingerprint* is everything that decides its finish and nothing about
+who sent it or how it was found: target, chain, the plan's start to the minute, the duration to
+1e-4 day, timezone, artifacts, starting TE, schedule, held shifts, `forceContinue`, time off. It is
+the same string as `contentFingerprint` in `src/lib/leaderboardRank.ts`. Between rows from the
+**same sender** — the same owner code, or no code on either side and the same nickname — `/submit`
+decides:
 
-The space is in that key for a reason worth stating on its own: two Insane runs over *different*
-spaces can land on the same chain, and the wider one is the more valuable row because it rules out
-more. Every other field would have been identical, so without the space signature the wider proof
-collapsed into the narrower one and the survivor was whichever was posted first. A run stopped
-halfway and the same run later finished are still one experiment — `chainsPriced` and
-`stoppedEarly` are not in the signature — and the completed one takes the slot on its own merits,
-since over one space it cannot be slower than the partial attempt it supersedes. An exhaustive row
-and a staged row that happen to agree on a chain are also kept apart, which is correct: a proof and
-a heuristic hit are not the same submission even when the answer matches.
+- **Exact copy** (same fingerprint and same search: effort, searched space, chains priced): nothing
+  is stored. The reply is `{ ok, id: <the stored row>, duplicate: 'exact', firstAt, nickname }` —
+  `nickname` being the name that row is on the board under (`''` for none), so the app can tell a name
+  that did not take from one that did — plus an
+  `uploadToken` when both sides carry the same code and that row has no CSV yet (so a CSV that failed
+  after the first send can follow a retry). If the stored row is anonymous, this copy is named and
+  both carry the same code, the stored row takes the name (`renamed: true`).
+- **Same result, other search** (a thorough search agreeing with a balanced one): stored as its own
+  row — its CSV and run timing are real data — and the reply says `duplicate: 'result'`. `dupOf`
+  names the first copy only when both are named or both anonymous: it is public and only ever joins
+  one sender's rows, so a link between a named row and an anonymous one would tell everybody whose the
+  anonymous run is.
+- **Different senders**, or a code on one side only: stored as usual.
 
-Anonymous rows are never collapsed: anonymous is not an identity, and two people who both tried
-the same chain would otherwise cost one of them their result.
+The check is one `list()` of `<board>:<final>:<dur>:` — a copy has the same target and the same key
+duration — and no reads: each row's key carries the fingerprint, search, owner prefix, nickname and
+receipt time as KV metadata, which `list()` returns. Rows stored before this have no metadata and
+are read once each. KV is eventually consistent, so two copies within a few seconds can both land;
+the fold below is the backstop.
+
+**One line per distinct RESULT on `/leaderboard`.** Rows are folded by fingerprint, whoever sent
+them and however they were found, with `copies` saying how many. Anonymous copies fold too —
+content that identical reveals nothing by being folded. Only copies from the sender of the
+*earliest* copy may stand for the group or name it, by `/submit`'s own sender rule: the same owner
+code, or — when the earliest copy has none — no code and either stored before the collector stamped
+rows or sent under exactly the earliest copy's nickname. So re-posting someone's public row, under
+your own name or none, takes nothing from them and lends their line no badge; among those, the
+biggest search stands (the space enumerated,
+else the chains priced; then how much of it was priced, so a finished proof beats the same proof
+stopped halfway), then one with a CSV, then the earliest.
+
+This replaces the old collapse, which kept the fastest row per nickname, chain, effort, schedule and
+space. It split one result by how it was found, and it folded what are not copies at all: the same
+chain priced again from a later save is a new *measurement* of that plan, and keeping the faster one
+kept whichever was more optimistic. Which measurement of a plan stands is the finish-date board's
+decision (`src/lib/leaderboardRank.ts`), with rules a plain read cannot apply. `/all` keeps every row.
 
 `waiting` blank means the submission carried no per-leg detail — a chain replayed from a saved
 checkpoint keeps none. That is **unknown**, not zero, and it sorts accordingly.

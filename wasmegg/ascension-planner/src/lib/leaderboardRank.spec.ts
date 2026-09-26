@@ -8,6 +8,7 @@ import {
   daysLeftPhrase,
   daysLeftText,
   displayName,
+  fileRows,
   finishDateText,
   finishMs,
   foldCopies,
@@ -16,6 +17,7 @@ import {
   localToUtcMs,
   nameLabel,
   placeFor,
+  playerKey,
   projectedTE,
   remainingChain,
   samePlan,
@@ -785,5 +787,365 @@ describe('finish dates and days left', () => {
     expect(daysLeftPhrase(NOW + 10 * DAY_MS, NOW, zone)).toBe('10 days left');
     expect(daysLeftPhrase(null, NOW, zone)).toBe('');
     expect(daysLeftText(NaN, NOW, zone)).toBe('—');
+  });
+});
+
+describe('phase 2: owner codes', () => {
+  const ALLAN = 'a11a11a11a11';
+  const KENZIE = 'c0ffeec0ffee';
+  const FORGER = 'bad0bad0bad0';
+  const LONDON_GEAR = ['T4L Gusset', 'T4E Chalice'];
+  /** Kenzie's plan, sent with her code: 194 215 490 from TE 178 on 20 Sep, gaining 1 TE a day. */
+  const kenzie = (over: Partial<BoardRow> = {}) =>
+    row({
+      id: 'kenzie',
+      nickname: 'Kenzie',
+      acct: KENZIE,
+      timezone: 'Europe/London',
+      window: null,
+      artifacts: LONDON_GEAR,
+      currentTE: 178,
+      chain: [194, 215, 490],
+      startLocal: '2026-09-20 10:00',
+      submittedAt: '2026-09-20T09:05:00Z',
+      receivedAt: '2026-09-20T09:05:01Z',
+      durationDays: 700,
+      legs: [
+        { te: 194, days: 16 },
+        { te: 215, days: 21 },
+        { te: 490, days: 663 },
+      ],
+      ...over,
+    });
+  const judged = (rows: BoardRow[]) =>
+    Object.fromEntries(
+      groupPlayers(rows, { target: 490, now: NOW }).flatMap(p => p.plans.map(x => [x.row.id, x.state]))
+    );
+
+  it('is the player, whatever name the runs were sent under, and the line takes the newest name', () => {
+    const first = row({ id: 'first', acct: ALLAN, nickname: 'Allan', receivedAt: '2026-09-24T20:00:00Z' });
+    const renamed = row({
+      id: 'renamed',
+      acct: ALLAN,
+      nickname: 'allanfieldhouse',
+      chain: [230, 490],
+      durationDays: 680,
+      startLocal: '2026-09-25 15:00',
+      submittedAt: '2026-09-25T20:05:00Z',
+      receivedAt: '2026-09-25T20:05:01Z',
+      legs: [],
+    });
+    const race = buildRace([first, renamed], { target: 490, now: NOW });
+    expect(race.entries.map(e => [e.key, e.label, e.plansTried])).toEqual([[`acct:${ALLAN}`, 'allanfieldhouse', 2]]);
+  });
+
+  it("never lets rows dressed as another player's knock their plan out", () => {
+    // Every field phase 1 matched on is public: name, timezone, artifacts. Four forged rows, sent
+    // after her plan: the same plan finishing a year later (a "re-measure"), a run 20 TE behind her
+    // plan, and a run from a lower TE that would make her plan a what-if -- under her name with
+    // another code, and anonymously.
+    const later = {
+      startLocal: '2026-09-25 10:00',
+      submittedAt: '2026-09-25T09:05:00Z',
+      receivedAt: '2026-09-25T09:05:01Z',
+    };
+    const forged = [
+      kenzie({ id: 'remeasure', acct: FORGER, durationDays: 1100, ...later }),
+      kenzie({ id: 'behind', acct: FORGER, currentTE: 163, chain: [200, 490], ...later }),
+      kenzie({ id: 'anonLow', acct: undefined, nickname: undefined, currentTE: 150, chain: [170, 490], ...later }),
+      kenzie({ id: 'anonSame', acct: undefined, nickname: undefined, durationDays: 1100, ...later }),
+    ];
+    const race = buildRace([kenzie(), ...forged], { target: 490, now: NOW });
+    const real = race.entries.find(e => e.key === `acct:${KENZIE}`)!;
+    expect(real.best.row.id).toBe('kenzie');
+    expect(real.dropped).toEqual([]);
+    expect(real.best.recheck).toBeNull();
+    // The same rows with no owner codes anywhere -- phase 1 -- did knock it out.
+    const phase1 = [kenzie(), ...forged].map(r => ({ ...r, acct: undefined }));
+    expect(judged(phase1).kenzie).not.toBe('current');
+  });
+
+  it("lets the owner's own newer run replace the plan, even under a new name", () => {
+    const again = kenzie({
+      id: 'again',
+      nickname: 'Kenzie (re-run)',
+      currentTE: 183,
+      chain: [194, 215, 490],
+      startLocal: '2026-09-25 10:00',
+      submittedAt: '2026-09-25T09:05:00Z',
+      receivedAt: '2026-09-25T09:05:01Z',
+      durationDays: 696,
+    });
+    const k = buildRace([kenzie(), again], { target: 490, now: NOW }).entries[0];
+    expect(k.best.row.id).toBe('again');
+    expect(k.best.recheck?.count).toBe(2);
+    expect(k.best.earlier.map(p => p.row.id)).toEqual(['kenzie']);
+  });
+
+  it('files runs from before owner codes on the first owner seen with the name, judged among themselves', () => {
+    const legacy = row({ id: 'legacy', startLocal: '2026-09-22 13:52', submittedAt: '2026-09-22T19:00:00Z' });
+    const legacyAgain = row({ id: 'legacyAgain', startLocal: '2026-09-23 13:52', submittedAt: '2026-09-23T19:00:00Z' });
+    const owned = row({
+      id: 'owned',
+      acct: ALLAN,
+      chain: [230, 490],
+      durationDays: 690,
+      receivedAt: '2026-09-25T20:02:00Z',
+      legs: [],
+    });
+    const ownedSame = row({ id: 'ownedSame', acct: ALLAN, receivedAt: '2026-09-25T20:03:00Z' });
+    const race = buildRace([legacy, legacyAgain, owned, ownedSame], { target: 490, now: NOW });
+    // One line, not two lines called allanfieldhouse.
+    expect(race.entries.map(e => [e.key, e.label])).toEqual([[`acct:${ALLAN}`, 'allanfieldhouse']]);
+    const states = judged([legacy, legacyAgain, owned, ownedSame]);
+    // Old rows still re-check each other; a row with a code does not judge one without (anyone
+    // could have used the name before its owner did).
+    expect(states).toEqual({ legacy: 'replaced', legacyAgain: 'current', owned: 'current', ownedSame: 'current' });
+  });
+
+  it('uses the collector stamp, not the sender clock, for a what-if start', () => {
+    const dressed = kenzie({
+      id: 'dressed',
+      startLocal: '2026-11-23 10:00',
+      submittedAt: '2026-11-23T09:30:00Z', // the sender's clock, set next to the start
+      receivedAt: '2026-09-25T09:30:00Z', // when it really arrived
+    });
+    expect(judged([dressed]).dressed).toBe('what-if');
+    expect(judged([{ ...dressed, receivedAt: undefined }]).dressed).toBe('current');
+  });
+
+  it('reads the start from startUtc when the row has it', () => {
+    // 01:30 on 1 Nov happens twice in Chicago. The row says which.
+    const r = row({ startLocal: '2026-11-01 01:30', startUtc: '2026-11-01T07:30:00.000Z', durationDays: 600 });
+    expect(finishMs(r)).toBe(Date.parse('2026-11-01T07:30:00Z') + 600 * DAY_MS);
+    expect(finishMs({ ...r, startUtc: 'garbage' })).toBe(localToUtcMs('2026-11-01 01:30', CHICAGO)! + 600 * DAY_MS);
+  });
+
+  it('drops a schema-7 plan that says it starts before its save, or above the save TE', () => {
+    const early = kenzie({ id: 'early', schema: 7, backupAgeHours: -30 });
+    const high = kenzie({ id: 'high', schema: 7, backupTE: 170, chain: [196, 490] });
+    const fine = kenzie({ id: 'fine', schema: 7, backupAgeHours: -0.05, backupTE: 178, chain: [195, 490] });
+    const plans = groupPlayers([early, high, fine], { target: 490, now: NOW })[0].plans;
+    expect(Object.fromEntries(plans.map(p => [p.row.id, [p.state, p.reason]]))).toEqual({
+      early: ['what-if', 'what-if: planned to start 30 h before the save it was made from'],
+      high: ['what-if', 'what-if: planned from TE 178, the save it was made from is at TE 170'],
+      fine: ['current', ''],
+    });
+  });
+
+  // Review, 2026-09-26: `heirs` filed EVERY code-less row under an owner's name on the owner's line,
+  // so a stranger's copy of Allan's public row, re-posted with no code under his name, counted as his
+  // own copy, stood for his line with its bigger search, took his `acct`, and then judged his plans.
+  it("never lets a code-less copy under an owner's name stand for, badge or judge their line", () => {
+    const plan = row({ id: 'plan', acct: ALLAN, chainsPriced: 400, receivedAt: '2026-09-25T20:02:00Z' });
+    const older = row({
+      id: 'older',
+      acct: ALLAN,
+      chain: [230, 260, 297, 490],
+      startLocal: '2026-09-23 13:52',
+      submittedAt: '2026-09-23T19:00:00Z',
+      receivedAt: '2026-09-23T19:00:01Z',
+      durationDays: 668,
+      legs: [],
+    });
+    // Copied from /all and POSTed to /submit with no x-owner-token, keeping his name.
+    const copy = (over: Partial<BoardRow>) =>
+      row({
+        ...plan,
+        id: 'forged',
+        acct: undefined,
+        receivedAt: '2026-09-26T01:00:00Z',
+        chainsPriced: 999999,
+        schema: 7,
+        ...over,
+      });
+    const variants: Record<string, BoardRow> = {
+      'a what-if by its own save TE': copy({ backupTE: 0 }),
+      'a start a year on': copy({ startUtc: '2027-09-25T18:52:00.000Z' }),
+      'a re-check of his older plan': copy({ rechecks: [{ chain: [230, 260, 297, 490], days: 5000 }] }),
+      'an exhaustive badge': copy({
+        space: {
+          mode: 'range',
+          range: { lo: 200, hi: 480, step: 1 },
+          minGap: 0,
+          minAscensions: 1,
+          maxAscensions: 5,
+          chains: 9e9,
+          chainsPriced: 9e9,
+          stoppedEarly: false,
+        },
+      }),
+    };
+    for (const [what, forged] of Object.entries(variants)) {
+      const race = buildRace([plan, older, forged], { target: 490, now: NOW });
+      const allan = race.entries.find(e => e.key === `acct:${ALLAN}`);
+      expect(allan, what).toBeDefined();
+      expect(
+        allan!.plans.map(p => [p.row.id, p.state]),
+        what
+      ).toEqual([
+        ['plan', 'current'],
+        ['older', 'current'],
+      ]);
+      expect(allan!.best.row.id, what).toBe('plan');
+      expect(allan!.best.row.space, what).toBeUndefined();
+      expect(
+        allan!.best.folded.copies.map(c => c.id),
+        what
+      ).toEqual(['plan']);
+      // The copy is a line of its own under the bare name, marked as not carrying his code.
+      const other = [...race.entries, ...race.waiting].find(e => e.key === 'name:allanfieldhouse');
+      expect(other?.label, what).toBe('allanfieldhouse (no code)');
+    }
+    // Before the fix all four knocked him out or re-labelled his line; the filing is what changed.
+    expect(playerKey(fileRows([plan, variants['an exhaustive badge']]), variants['an exhaustive badge'])).toBe(
+      'name:allanfieldhouse'
+    );
+  });
+
+  it('never lets a stranger reach an owner line through a legacy row the collector linked it to', () => {
+    // A pre-stamp anonymous copy of Kenzie's result, her own copy, and a stranger's anonymous re-post
+    // with a huge search. The collector's code-less rule ("no code, same nickname") pointed the
+    // stranger's copy at the legacy row -- which proves nothing about who sent it.
+    const legacyAnon = kenzie({ id: 'legacyAnon', acct: undefined, nickname: undefined, receivedAt: undefined });
+    const mine = kenzie({ id: 'mine', chainsPriced: 400 });
+    const stranger = kenzie({
+      id: 'stranger',
+      acct: undefined,
+      nickname: undefined,
+      receivedAt: '2026-09-21T00:00:00Z',
+      dupOf: 'legacyAnon',
+      chainsPriced: 999999,
+      backupAgeHours: -30,
+    });
+    const [line] = foldCopies([legacyAnon, mine, stranger]);
+    expect(line.copies.map(c => c.id)).toEqual(['legacyAnon', 'mine', 'stranger']);
+    expect(line.row.id).not.toBe('stranger');
+    expect(line.row).toMatchObject({ nickname: 'Kenzie', acct: KENZIE });
+    expect(buildRace([legacyAnon, mine, stranger], { target: 490, now: NOW }).entries[0].best.state).toBe('current');
+  });
+
+  it('folds a stranger re-posting a result without letting the copy speak for the line', () => {
+    const mine = kenzie({ id: 'mine', chainsPriced: 400, hasCsv: false });
+    // Posted after hers, anonymously, with no tie to her: someone else's copy of a public row.
+    const stranger = kenzie({
+      id: 'stranger',
+      acct: undefined,
+      nickname: undefined,
+      chainsPriced: 999999,
+      hasCsv: true,
+      receivedAt: '2026-09-21T00:00:00Z',
+    });
+    const [line] = foldCopies([mine, stranger]);
+    expect(line.copies.map(c => c.id)).toEqual(['mine', 'stranger']);
+    expect(line.row.id).toBe('mine');
+    // Her own bigger search of the same result, tied to hers by the collector, does stand for it.
+    const thorough = { ...stranger, id: 'thorough', dupOf: 'mine' };
+    expect(foldCopies([mine, thorough])[0].row).toMatchObject({ id: 'thorough', nickname: 'Kenzie', acct: KENZIE });
+  });
+});
+
+describe('phase 2: rechecks', () => {
+  const ALLAN = 'a11a11a11a11';
+  // 23 Sep: 225 255 290 328 490. 25 Sep: a different route, and the 23 Sep plan priced again from
+  // the 25 Sep save -- a day later than it first said.
+  const plan = row({
+    id: 'plan',
+    acct: ALLAN,
+    startLocal: '2026-09-23 13:52',
+    submittedAt: '2026-09-23T19:00:00Z',
+    durationDays: 665.2713,
+  });
+  const planFinish = finishMs(plan)!;
+  const start25 = Date.parse('2026-09-25T18:52:00Z');
+  const newer = (over: Partial<BoardRow> = {}) =>
+    row({
+      id: 'newer',
+      acct: ALLAN,
+      chain: [230, 260, 297, 490],
+      durationDays: 670,
+      legs: [],
+      rechecks: [{ chain: [225, 255, 290, 328, 490], days: (planFinish + DAY_MS - start25) / DAY_MS }],
+      ...over,
+    });
+
+  it('replaces the older plan with its re-measure, and says it moved', () => {
+    const allan = buildRace([plan, newer()], { target: 490, now: NOW }).entries[0];
+    expect(allan.best.row.recheckOf).toBe('newer');
+    expect(allan.best.row.chain).toEqual([225, 255, 290, 328, 490]);
+    expect(allan.best.finish! - planFinish).toBeCloseTo(DAY_MS, -3);
+    expect(allan.best.recheck).toMatchObject({ count: 2, unchanged: false });
+    expect(allan.best.earlier.map(p => [p.row.id, p.reason])).toEqual([
+      ['plan', expect.stringMatching(/^re-checked by a newer run \(25 \w+\)/)],
+    ]);
+    expect(allan.others.map(p => p.row.id)).toEqual(['newer']);
+    // Two runs sent, two plans; the re-measure is neither a send nor a plan of its own.
+    expect([allan.sends, allan.plansTried]).toEqual([2, 2]);
+  });
+
+  it('is ignored from another owner, and when it matches no older plan', () => {
+    const forged = newer({ acct: 'bad0bad0bad0' });
+    const race = buildRace([plan, forged], { target: 490, now: NOW });
+    expect(race.entries.find(e => e.key === `acct:${ALLAN}`)!.best.row.id).toBe('plan');
+    // A stranger re-posting her newer run anonymously, word for word, with rechecks of their own.
+    const repost = newer({
+      id: 'repost',
+      acct: undefined,
+      nickname: undefined,
+      receivedAt: '2026-09-26T01:00:00Z',
+      rechecks: [{ chain: [225, 255, 290, 328, 490], days: 900 }],
+    });
+    const withRepost = buildRace([plan, newer({ rechecks: undefined }), repost], { target: 490, now: NOW });
+    expect(withRepost.entries[0].best.row.id).toBe('plan');
+    const stray = newer({ rechecks: [{ chain: [240, 490], days: 700 }] });
+    const allan = buildRace([plan, stray], { target: 490, now: NOW }).entries[0];
+    expect(allan.plans.map(p => p.row.id).sort()).toEqual(['newer', 'plan']);
+  });
+});
+
+describe('phase 2: my plans from GET /mine', () => {
+  const ALLAN = 'a11a11a11a11';
+  const named = row({
+    id: 'named',
+    acct: ALLAN,
+    yours: true,
+    startLocal: '2026-09-24 13:52',
+    submittedAt: '2026-09-24T19:00:00Z',
+    durationDays: 664.2713,
+  });
+  const anonAgain = row({ id: 'anonAgain', nickname: undefined, yours: true, receivedAt: '2026-09-25T20:00:00Z' });
+
+  it('counts an anonymous re-run sent with the same code as a re-check, which the public race cannot', () => {
+    const mine = buildMyPlans([named, anonAgain], null, { target: 490, now: NOW })!;
+    expect(mine.best!.row.id).toBe('anonAgain');
+    expect(mine.best!.recheck?.count).toBe(2);
+    const race = buildRace(
+      [named, anonAgain].map(r => ({ ...r, yours: undefined })),
+      { target: 490, now: NOW }
+    );
+    expect(race.entries[0].best.row.id).toBe('named');
+  });
+
+  it("lists a look-alike from another browser without letting it judge the viewer's plans", () => {
+    const other = row({
+      id: 'other',
+      acct: 'bad0bad0bad0',
+      chain: [230, 490],
+      receivedAt: '2026-09-25T21:00:00Z',
+      durationDays: 690,
+      legs: [],
+    });
+    const mine = buildMyPlans([named, other], accountKeyOf(named), { target: 490, now: NOW })!;
+    expect(mine.plans.map(p => [p.row.id, p.state])).toEqual([
+      ['named', 'current'],
+      ['other', 'current'],
+    ]);
+    // Without a save loaded, only what the collector confirmed.
+    expect(buildMyPlans([named, other], null, { target: 490, now: NOW })!.plans.map(p => p.row.id)).toEqual(['named']);
+  });
+
+  it('never ranks a flagged run that came back through /mine', () => {
+    const flagged = row({ id: 'flagged', yours: true, acct: ALLAN, flags: ['decades-long'], durationDays: 5000 });
+    expect(buildMyPlans([flagged], null, { target: 490, now: NOW })).toBeNull();
   });
 });

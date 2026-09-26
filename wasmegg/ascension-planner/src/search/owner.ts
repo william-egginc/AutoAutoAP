@@ -10,9 +10,33 @@
  *
  * Per browser, by design: another device cannot claim the rows, and clearing site data forgets them.
  * That is the price of never sending anything that identifies the account.
+ *
+ * WHAT THE CODE DOES ON THE COLLECTOR (phase 2 of the leaderboard, 2026-09-25). Beyond the flagged
+ * board it now also:
+ *   - folds repeated sends: the same result sent twice with the same code is stored once;
+ *   - lets the sender put a name on a run sent anonymously (POST /claim, only with the same code);
+ *   - lets the sender's own later runs replace their older plans in the race. On the public board a
+ *     named row carries `acct`, a short HMAC of the code's hash, so rows sent with one code read as
+ *     one player; an anonymous row carries nothing, so nobody can link it to a name;
+ *   - answers GET /mine with the rows sent with the code, anonymous ones included.
+ * The code itself is still never shown to anyone, and its hash is never served.
  */
 
 const PREFIX = 'aap-owner:';
+
+/**
+ * The code for one account if this browser already has one, WITHOUT creating it. For reads
+ * (`/mine`, a rename): an account this browser never sent for has no rows to find, and minting a
+ * code just to ask would be a request carrying an identifier for nothing.
+ */
+export function existingOwnerToken(partition: string): string | null {
+  try {
+    const v = localStorage.getItem(PREFIX + partition);
+    return v && /^[a-f0-9]{32}$/.test(v) ? v : null;
+  } catch {
+    return null;
+  }
+}
 
 /** The code for one account (by its partition hash), created on first use. Null when storage is
  *  unavailable -- a private window -- in which case the run simply cannot be claimed later. */
@@ -31,7 +55,8 @@ export function ownerToken(partition: string): string | null {
   }
 }
 
-/** Every code this browser holds, for the Explorer's flagged board. */
+/** Every code this browser holds, for the Explorer's flagged board. `GET /mine` takes up to 20 of
+ *  them as a comma list. */
 export function allOwnerTokens(): string[] {
   const out: string[] = [];
   try {
