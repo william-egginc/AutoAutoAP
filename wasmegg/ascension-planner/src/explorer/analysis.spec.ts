@@ -1029,6 +1029,28 @@ describe('runsByAccount', () => {
     expect(ids({ by: 'compute', dir: 'asc' })).toEqual([['other'], ['c', 'b', 'a']]);
   });
 
+  it('orders by a value worked out outside, such as what is left, with runs that have none last', () => {
+    const a = row({ id: 'a', chain: [195, 300, 490], currentTE: 180, finalTE: 490, ...at(0) });
+    const b = row({ id: 'b', chain: [197, 305, 490], currentTE: 181, finalTE: 490, ...at(1) });
+    const c = row({ id: 'c', chain: [199, 310, 490], currentTE: 183, finalTE: 490, ...at(2) });
+    const rows = [a, b, c];
+    const left = new Map([
+      ['a', 5000],
+      ['c', 0],
+    ]);
+    const ids = (dir: 'asc' | 'desc') =>
+      runsByAccount(
+        rows,
+        judge(rows),
+        new Map(),
+        [],
+        { by: 'left', dir },
+        { left: r => left.get(r.id) ?? null }
+      )[0].rows.map(r => r.id);
+    expect(ids('asc')).toEqual(['c', 'a', 'b']);
+    expect(ids('desc')).toEqual(['a', 'c', 'b']);
+  });
+
   it('keeps runs whose finish no longer stands last by finish, but sorts them in by anything else', () => {
     const early = row({
       id: 'early',
@@ -1242,8 +1264,25 @@ describe('searchedOf', () => {
     const s = searchedOf(r);
     expect(s.how).toBe('partial');
     expect(s.where).toBe('195; 300');
-    expect(s.title).toContain('Stopped after 1 of 4 plans');
+    expect(s.title).toContain('Stopped after 1 of the 4 plans');
     expect(s.title).toContain('not a proof');
+  });
+
+  it("calls a box partial when the run never recorded finishing it, from the row's own count", () => {
+    // The planner writes 0 priced and not stopped when a run starts and fills both in at the end;
+    // a row still holding both is read by its own chainsPriced.
+    const bands = [
+      [181, 186, 191],
+      [215, 216, 217, 218],
+    ];
+    const space = { ...box, minGap: 0, bands, chains: 12, chainsPriced: 0 };
+    const done = searchedOf(row({ chain: [200, 300, 490], currentTE: 180, finalTE: 490, chainsPriced: 12, space }));
+    expect(done.finished).toBe(true);
+    expect(done.how).toBe('exhaustive');
+    const cut = searchedOf(row({ chain: [200, 300, 490], currentTE: 180, finalTE: 490, chainsPriced: 5, space }));
+    expect(cut.finished).toBe(false);
+    expect(cut.how).toBe('partial');
+    expect(cut.title).toContain('It recorded pricing only 5 of the 12 plans');
   });
 
   it('has no box to show for a staged search', () => {

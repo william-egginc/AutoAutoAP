@@ -470,7 +470,7 @@ export interface AccountRuns {
  * compares between accounts. Plan length is on the list because players ask for it, and the page
  * says beside it that it only compares runs from one save.
  */
-export type RunSortKey = 'finish' | 'planned' | 'length' | 'ascensions' | 'te' | 'priced' | 'compute';
+export type RunSortKey = 'finish' | 'planned' | 'length' | 'ascensions' | 'te' | 'priced' | 'left' | 'compute';
 
 export interface RunSort {
   by: RunSortKey;
@@ -488,11 +488,25 @@ export const RUN_SORT_START: Readonly<Record<RunSortKey, RunSort['dir']>> = {
   ascensions: 'asc',
   te: 'asc',
   priced: 'desc',
+  left: 'asc',
   compute: 'desc',
 };
 
+/** Orders worked out outside this module, by run: `left` is left.ts's count (the page passes it in). */
+export type RunSortValues = Partial<Record<RunSortKey, (row: CollectorRow) => number | null>>;
+
 /** The number a run is ordered by, or null when it has none (no date, no compute recorded). */
-function runSortValue(row: CollectorRow, by: RunSortKey, judged: FinishJudgement): number | null {
+function runSortValue(
+  row: CollectorRow,
+  by: RunSortKey,
+  judged: FinishJudgement,
+  values: RunSortValues
+): number | null {
+  const given = values[by];
+  if (given) {
+    const v = given(row);
+    return typeof v === 'number' && !Number.isNaN(v) ? v : null;
+  }
   const j = judged.byId.get(row.id);
   const finite = (v: number | null | undefined) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
   switch (by) {
@@ -510,6 +524,8 @@ function runSortValue(row: CollectorRow, by: RunSortKey, judged: FinishJudgement
       return finite(row.chainsPriced);
     case 'compute':
       return row.run ? finite(row.run.minutes * (row.run.workers || 1)) : null;
+    case 'left':
+      return null;
   }
 }
 
@@ -526,7 +542,8 @@ export function runsByAccount(
   judged: FinishJudgement,
   labels: ReadonlyMap<string, string>,
   order: readonly string[] = [],
-  sort: RunSort = DEFAULT_RUN_SORT
+  sort: RunSort = DEFAULT_RUN_SORT,
+  values: RunSortValues = {}
 ): AccountRuns[] {
   const blocks = new Map<string, CollectorRow[]>();
   for (const row of rows) {
@@ -550,8 +567,8 @@ export function runsByAccount(
   };
   const sign = sort.dir === 'asc' ? 1 : -1;
   const byPick = (a: CollectorRow, b: CollectorRow) => {
-    const x = runSortValue(a, sort.by, judged);
-    const y = runSortValue(b, sort.by, judged);
+    const x = runSortValue(a, sort.by, judged, values);
+    const y = runSortValue(b, sort.by, judged, values);
     if (x == null || y == null) return x == null && y == null ? byFinish(a, b) : x == null ? 1 : -1;
     return sign * (x - y) || byFinish(a, b);
   };
@@ -878,6 +895,8 @@ export interface Searched {
   pieces: string[];
   /** The same in words, for the tooltip. */
   title: string;
+  /** For a box: every plan in it was priced. False for a staged search, which has no box. */
+  finished: boolean;
 }
 
 /** `every TE`, `every 5th TE`, or the one TE a band allowed. */
@@ -895,6 +914,21 @@ function everyText(values: readonly number[]): string {
  * the TEs themselves rather than the typed text, so this is what was really tried; or, for a staged
  * search, just its effort and size. A sweep's preset name (M3, F2 ...) goes with `how`.
  */
+/**
+ * How many plans of its own box a run priced. The planner writes `space.chainsPriced` as 0, and
+ * `stoppedEarly` as false, when a run starts, and fills both in when it ends; a row still holding
+ * both starting values is a run whose end never filled them in (three on the board on 26 Sep, one
+ * saying 0 of 2,979 while the row priced 2,979). The row's own `chainsPriced` is then the best record
+ * of what it priced, capped at the box. A run marked stopped wrote its count when it stopped, so a 0
+ * there is real.
+ */
+export function boxPriced(row: CollectorRow): number {
+  const sp = row.space;
+  if (!sp) return 0;
+  const recorded = sp.chainsPriced > 0 || sp.stoppedEarly ? sp.chainsPriced : row.chainsPriced;
+  return Math.max(0, Math.min(Number.isFinite(recorded) ? recorded : 0, sp.chains));
+}
+
 export function searchedOf(row: CollectorRow): Searched {
   const sp = row.space;
   const preset = row.sweep?.preset ? ` · ${row.sweep.preset}` : '';
@@ -904,6 +938,7 @@ export function searchedOf(row: CollectorRow): Searched {
       how: `${foundByText(row)}${preset}`,
       where: '',
       pieces: [],
+      finished: false,
       title: `A ${row.effort || 'staged'} search: it improved on a seed chain rather than trying a fixed set of TEs, so there is no box to show. ${priced} plans priced.`,
     };
   }
@@ -925,14 +960,18 @@ export function searchedOf(row: CollectorRow): Searched {
     pieces.push(`· gap ${sp.minGap}`);
     words.push(`Targets at least ${sp.minGap} TE apart.`);
   }
+  const done = boxPriced(row);
+  const finished = done >= sp.chains && !sp.stoppedEarly;
   words.push(
-    sp.stoppedEarly
-      ? `Stopped after ${sp.chainsPriced.toLocaleString('en-US')} of ${sp.chains.toLocaleString('en-US')} plans in the box, so its best is the best of those, not a proof.`
-      : `All ${sp.chains.toLocaleString('en-US')} plans in the box priced, so its best is the best in the box.`
+    finished
+      ? `All ${sp.chains.toLocaleString('en-US')} plans in the box priced, so its best is the best in the box.`
+      : `${sp.stoppedEarly ? 'Stopped after' : 'It recorded pricing only'} ${done.toLocaleString('en-US')} of the ${sp.chains.toLocaleString('en-US')} plans in the box, so its best is the best of those, not a proof.`
   );
   const title = words.join(' ');
   return {
-    how: `${foundByText(row)}${preset}`,
+    // A box the run did not finish is partial, whether it was stopped or just never recorded the rest.
+    how: `${finished ? foundByText(row) : 'partial'}${preset}`,
+    finished,
     where: pieces.join(' '),
     pieces,
     title: title[0].toUpperCase() + title.slice(1),

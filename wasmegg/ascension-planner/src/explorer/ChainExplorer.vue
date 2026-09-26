@@ -295,7 +295,9 @@
               sorted by finish. <b>What was checked</b> is how each run searched and, for a box it tried in full, the
               TEs at each ascension as they are typed into the planner (<span class="font-mono-premium">181-250:5</span>
               is every 5th TE from 181 to 250, <span class="font-mono-premium">:1</span> every TE); the full box is on
-              hover.
+              hover. <b>What's left</b> is how much of that same box at every TE the run did not price (the TEs between
+              its steps, or the rest of a box it stopped early) and how long pricing the rest would take on a 16-20 core
+              machine. Runs that improved a seed chain instead of trying a fixed box have nothing to measure against.
             </p>
             <div class="flex flex-wrap items-center gap-1.5">
               <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest mr-1"
@@ -417,6 +419,15 @@
                         Priced<span aria-hidden="true">{{ sortArrow('priced') }}</span>
                       </button>
                     </th>
+                    <th
+                      class="text-right py-1 pr-3"
+                      :aria-sort="ariaSort('left')"
+                      title="Plans in the same box at every TE that the run did not price, and how long they would take"
+                    >
+                      <button type="button" :class="sortHeadClass('left')" @click="sortRunsBy('left')">
+                        What's left<span aria-hidden="true">{{ sortArrow('left') }}</span>
+                      </button>
+                    </th>
                     <th class="text-right py-1 pr-3" :aria-sort="ariaSort('compute')">
                       <button type="button" :class="sortHeadClass('compute')" @click="sortRunsBy('compute')">
                         Compute<span aria-hidden="true">{{ sortArrow('compute') }}</span>
@@ -427,7 +438,7 @@
                 </thead>
                 <tbody v-for="block in runBlocks" :key="block.key" class="divide-y divide-slate-100">
                   <tr class="bg-slate-50">
-                    <td :colspan="selectedCount === 'all' ? 12 : 11" class="p-0 text-[10px] text-slate-500">
+                    <td :colspan="selectedCount === 'all' ? 13 : 12" class="p-0 text-[10px] text-slate-500">
                       <!-- Pinned to the left edge and as wide as the visible part of the table: on a phone
                            the table is wider than the screen, and a line spanning all of it put the
                            route and the "not listed here" note off-screen. It wraps on screen instead. -->
@@ -551,9 +562,9 @@
                       <span
                         :class="
                           row.space
-                            ? row.space.stoppedEarly
-                              ? 'font-bold text-amber-700'
-                              : 'font-black text-emerald-700'
+                            ? searched.get(row.id)?.finished
+                              ? 'font-black text-emerald-700'
+                              : 'font-bold text-amber-700'
                             : 'text-slate-500'
                         "
                         >{{ searched.get(row.id)?.how }}</span
@@ -570,6 +581,28 @@
                       </div>
                     </td>
                     <td class="py-1.5 pr-3 text-right text-slate-500">{{ row.chainsPriced.toLocaleString() }}</td>
+                    <td
+                      class="py-1.5 pr-3 text-right whitespace-nowrap"
+                      :title="
+                        leftById.get(row.id)
+                          ? leftTitle(leftById.get(row.id)!)
+                          : row.space
+                            ? 'Its box could not be counted again from this row (the recount does not match what the run stored), so what is left is not shown rather than guessed.'
+                            : 'A staged search improved a seed chain rather than trying a fixed box of TEs, so there is nothing to measure what is left against.'
+                      "
+                    >
+                      <template v-if="leftById.get(row.id)">
+                        <span v-if="leftById.get(row.id)!.left === 0" class="font-bold text-emerald-700">nothing</span>
+                        <template v-else>
+                          <span class="font-bold text-slate-600">{{ plansText(leftById.get(row.id)!.left) }}</span>
+                          <span class="text-[9px] text-slate-400"> {{ leftShareText(leftById.get(row.id)!) }}</span>
+                          <div class="text-[10px] text-slate-400">
+                            ~{{ longEstimate(leftById.get(row.id)!.seconds) }}
+                          </div>
+                        </template>
+                      </template>
+                      <span v-else class="text-slate-300">—</span>
+                    </td>
                     <td
                       class="py-1.5 pr-3 text-right text-slate-500 whitespace-nowrap"
                       :title="row.run ? describeCompute(row.run.minutes, row.run.workers) : 'not recorded'"
@@ -826,6 +859,8 @@ import {
   whoText,
 } from '@/lib/leaderboardRank';
 import { colorAt } from './palette';
+import { leftOf, leftShareText, leftTitle, longEstimate, plansText, type Left } from './left';
+import { measuredWorkerSeconds } from '@/search/speed';
 
 /** Where a pasted collector URL is remembered. Per-browser, not per-build. */
 const BASE_STORAGE_KEY = 'chainExplorerCollector';
@@ -1117,6 +1152,7 @@ const runSortOptions = computed(() =>
       { by: 'ascensions', label: 'Ascensions' },
       { by: 'te', label: 'Starting TE' },
       { by: 'priced', label: 'Chains priced' },
+      { by: 'left', label: "What's left" },
       { by: 'compute', label: 'Compute' },
     ] as { by: RunSortKey; label: string }[]
   ).filter(o => o.by !== 'ascensions' || selectedCount.value === 'all')
@@ -1186,7 +1222,8 @@ const runBlocks = computed(() =>
     judged.value,
     accountLabels.value,
     accounts.value.map(a => a.key),
-    activeSort.value
+    activeSort.value,
+    { left: row => leftById.value.get(row.id)?.left ?? null }
   )
 );
 
@@ -1210,6 +1247,19 @@ const tags = computed(() => runTags(usable.value));
 
 /** "What was checked" for each run listed, by id (`searchedOf`). */
 const searched = computed(() => new Map((selected.value?.rows ?? []).map(r => [r.id, searchedOf(r)])));
+
+/** The board's own speed per plan by ascension count, for "how long the rest would take". */
+const speeds = computed(() => measuredWorkerSeconds(usable.value));
+
+/** "What's left" for each run listed that tried a fixed box, by id (`leftOf`). */
+const leftById = computed(() => {
+  const map = new Map<string, Left>();
+  for (const r of selected.value?.rows ?? []) {
+    const l = leftOf(r, speeds.value);
+    if (l) map.set(r.id, l);
+  }
+  return map;
+});
 
 const comparisons = computed(() => compareCounts(filtered.value, judged.value));
 

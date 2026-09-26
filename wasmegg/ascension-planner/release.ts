@@ -12,5 +12,5 @@
  */
 export default {
   reloadIfBuiltBefore: '2026-09-26T07:22:00Z',
-  note: "the Chain Explorer compares runs by the date they reach 490, not total days; sort and fold each account's runs, and see which TEs each run checked",
+  note: "the Chain Explorer compares runs by the date they reach 490, not total days; sort and fold each account's runs, and see which TEs each run checked and what it left",
 };
