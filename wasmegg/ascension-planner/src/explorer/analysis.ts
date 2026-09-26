@@ -457,22 +457,74 @@ export function judgeFinishes(
 export interface AccountRuns {
   key: string;
   label: string;
-  /** Standing finishes first, earliest first; then the rest, earliest first. */
+  /** In the order asked for (`RunSort`); by default standing finishes first, earliest first. */
   rows: CollectorRow[];
   best: AccountBest | null;
 }
 
 /**
+ * What the runs table can order an account's runs by, the player's pick. Only the runs INSIDE each
+ * account: the accounts themselves stay in colour order whatever is picked, because no number here
+ * compares between accounts. Plan length is on the list because players ask for it, and the page
+ * says beside it that it only compares runs from one save.
+ */
+export type RunSortKey = 'finish' | 'planned' | 'length' | 'ascensions' | 'te' | 'priced' | 'compute';
+
+export interface RunSort {
+  by: RunSortKey;
+  dir: 'asc' | 'desc';
+}
+
+export const DEFAULT_RUN_SORT: RunSort = { by: 'finish', dir: 'asc' };
+
+/** The way each order starts when picked: the end with the likely question first (the newest plan,
+ *  the biggest search), then a second pick flips it. */
+export const RUN_SORT_START: Readonly<Record<RunSortKey, RunSort['dir']>> = {
+  finish: 'asc',
+  planned: 'desc',
+  length: 'asc',
+  ascensions: 'asc',
+  te: 'asc',
+  priced: 'desc',
+  compute: 'desc',
+};
+
+/** The number a run is ordered by, or null when it has none (no date, no compute recorded). */
+function runSortValue(row: CollectorRow, by: RunSortKey, judged: FinishJudgement): number | null {
+  const j = judged.byId.get(row.id);
+  const finite = (v: number | null | undefined) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+  switch (by) {
+    case 'finish':
+      return finite(j?.finish);
+    case 'planned':
+      return finite(j?.start);
+    case 'length':
+      return finite(row.durationDays);
+    case 'ascensions':
+      return finite(row.ascensions);
+    case 'te':
+      return finite(row.currentTE);
+    case 'priced':
+      return finite(row.chainsPriced);
+    case 'compute':
+      return row.run ? finite(row.run.minutes * (row.run.workers || 1)) : null;
+  }
+}
+
+/**
  * The runs table: one block per account, in `order` (the page's colour order), each account's runs
- * earliest finish first. Accounts are never ranked against each other -- different gear -- so
- * there is no order between blocks to get wrong. Inside a block, runs whose finish no longer
- * stands (a what-if, a replaced plan, ...) come after the ones that do, whatever their date.
+ * in the order `sort` asks for. Accounts are never ranked against each other -- different gear -- so
+ * there is no order between blocks to get wrong. By finish date (the default), runs whose finish no
+ * longer stands (a what-if, a replaced plan, ...) come after the ones that do, whatever their date;
+ * by anything else they sort in with the rest (they stay greyed). A run with no value for the
+ * picked order goes last either way, and ties fall back to the finish-date order.
  */
 export function runsByAccount(
   rows: CollectorRow[],
   judged: FinishJudgement,
   labels: ReadonlyMap<string, string>,
-  order: readonly string[] = []
+  order: readonly string[] = [],
+  sort: RunSort = DEFAULT_RUN_SORT
 ): AccountRuns[] {
   const blocks = new Map<string, CollectorRow[]>();
   for (const row of rows) {
@@ -489,17 +541,29 @@ export function runsByAccount(
     const j = judged.byId.get(row.id);
     return { standing: j?.standing ? 0 : 1, finish: j?.finish ?? Infinity, start: j?.start ?? -Infinity };
   };
+  const byFinish = (a: CollectorRow, b: CollectorRow) => {
+    const x = sortKey(a);
+    const y = sortKey(b);
+    return x.standing - y.standing || x.finish - y.finish || y.start - x.start;
+  };
+  const sign = sort.dir === 'asc' ? 1 : -1;
+  const byPick = (a: CollectorRow, b: CollectorRow) => {
+    const x = runSortValue(a, sort.by, judged);
+    const y = runSortValue(b, sort.by, judged);
+    if (x == null || y == null) return x == null && y == null ? byFinish(a, b) : x == null ? 1 : -1;
+    return sign * (x - y) || byFinish(a, b);
+  };
+  const compare =
+    sort.by === 'finish'
+      ? (a: CollectorRow, b: CollectorRow) => sortKey(a).standing - sortKey(b).standing || byPick(a, b)
+      : byPick;
   return [...blocks.entries()]
     .sort(([a], [b]) => rank(a) - rank(b) || (labels.get(a) ?? a).localeCompare(labels.get(b) ?? b))
     .map(([key, block]) => ({
       key,
       label: labels.get(key) ?? accountLabel(block),
       best: judged.bestByAccount.get(key) ?? null,
-      rows: [...block].sort((a, b) => {
-        const x = sortKey(a);
-        const y = sortKey(b);
-        return x.standing - y.standing || x.finish - y.finish || y.start - x.start;
-      }),
+      rows: [...block].sort(compare),
     }));
 }
 

@@ -283,15 +283,76 @@
           <div class="space-y-2">
             <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">The runs</h3>
             <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
-              Grouped by account, earliest finish first. <b>Finishes</b> is the date the plan reaches {{ finalTE }} TE,
-              in your timezone (the player's own is on hover): it is the same whenever the same plan is run, so it is
-              what compares between an account's runs. <b>Plan length</b> counts from each run's own start, so a run
-              made a day later shows a day fewer; it only compares between runs from the same save. <b>vs best</b> is
-              days after that account's earliest finish, the run named at the top of its block. That run is picked from
-              all of the account's runs to this target, so Proofs only or picking one count can leave it out of the
-              list; the block then says so. Runs whose finish no longer stands (a what-if, a plan re-measured by a newer
-              run, one the player has fallen behind, one made from an old save) are listed last, greyed, with the reason
-              on hover.
+              Grouped by account, earliest finish first unless you pick another order below; click an account's name to
+              fold its runs away. <b>Finishes</b> is the date the plan reaches {{ finalTE }} TE, in your timezone (the
+              player's own is on hover): it is the same whenever the same plan is run, so it is what compares between an
+              account's runs. <b>Plan length</b> counts from each run's own start, so a run made a day later shows a day
+              fewer; it only compares between runs from the same save. <b>vs best</b> is days after that account's
+              earliest finish, the run named at the top of its block. That run is picked from all of the account's runs
+              to this target, so Proofs only or picking one count can leave it out of the list; the block then says so.
+              Runs whose finish no longer stands (a what-if, a plan re-measured by a newer run, one the player has
+              fallen behind, one made from an old save) are greyed, with the reason on hover, and listed last when
+              sorted by finish.
+            </p>
+            <div class="flex flex-wrap items-center gap-1.5">
+              <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest mr-1"
+                >Sort each account by</span
+              >
+              <button
+                v-for="opt in runSortOptions"
+                :key="opt.by"
+                type="button"
+                class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border transition-colors"
+                :class="
+                  activeSort.by === opt.by
+                    ? 'bg-slate-900 text-white border-slate-900'
+                    : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+                "
+                :aria-pressed="activeSort.by === opt.by"
+                @click="sortRunsBy(opt.by)"
+              >
+                {{ opt.label }}
+              </button>
+              <button
+                type="button"
+                class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                title="Flip the order"
+                @click="flipRunSort"
+              >
+                {{ activeSort.dir === 'asc' ? '↑' : '↓' }} {{ sortDirText(activeSort) }}
+              </button>
+              <span class="grow" />
+              <button
+                type="button"
+                class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border border-slate-200 bg-white text-slate-500 hover:border-slate-300 disabled:opacity-40"
+                :disabled="runBlocks.every(b => collapsed.has(b.key))"
+                @click="
+                  setCollapsed(
+                    runBlocks.map(b => b.key),
+                    true
+                  )
+                "
+              >
+                Collapse all
+              </button>
+              <button
+                type="button"
+                class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border border-slate-200 bg-white text-slate-500 hover:border-slate-300 disabled:opacity-40"
+                :disabled="!runBlocks.some(b => collapsed.has(b.key))"
+                @click="
+                  setCollapsed(
+                    runBlocks.map(b => b.key),
+                    false
+                  )
+                "
+              >
+                Expand all
+              </button>
+            </div>
+            <p v-if="activeSort.by === 'length'" class="text-[10px] text-amber-800 leading-relaxed max-w-3xl">
+              Plan length counts from each run's own start, so a plan made a day later shows a day fewer even when it is
+              the same plan. In this order, only runs from the same save compare; to see which plan is better, sort by
+              finish.
             </p>
             <!-- A size container, so each account's header line can be exactly as wide as what is on
                  screen (100cqw) however wide the table itself is: the Leaderboard's pattern. -->
@@ -300,18 +361,59 @@
                 <thead>
                   <tr class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
                     <th class="text-left py-1 pr-3">Who</th>
-                    <th v-if="selectedCount === 'all'" class="text-right py-1 pr-3">Asc.</th>
-                    <th class="text-left py-1 pr-3">Journey</th>
+                    <th v-if="selectedCount === 'all'" class="text-right py-1 pr-3" :aria-sort="ariaSort('ascensions')">
+                      <button type="button" :class="sortHeadClass('ascensions')" @click="sortRunsBy('ascensions')">
+                        Asc.<span aria-hidden="true">{{ sortArrow('ascensions') }}</span>
+                      </button>
+                    </th>
+                    <th class="text-left py-1 pr-3" :aria-sort="ariaSort('te')">
+                      <button
+                        type="button"
+                        :class="sortHeadClass('te')"
+                        title="Sort by starting TE"
+                        @click="sortRunsBy('te')"
+                      >
+                        Journey<span aria-hidden="true">{{ sortArrow('te') }}</span>
+                      </button>
+                    </th>
                     <th class="text-left py-1 pr-3">Chain</th>
-                    <th class="text-left py-1 pr-3">Planned</th>
-                    <th class="text-left py-1 pr-3">Finishes</th>
-                    <th class="text-right py-1 pr-3">vs best</th>
-                    <th class="text-right py-1 pr-3" title="Days from this run's own plan start to the target">
-                      Plan length<br /><span class="normal-case tracking-normal font-bold">(from its start)</span>
+                    <th class="text-left py-1 pr-3" :aria-sort="ariaSort('planned')">
+                      <button type="button" :class="sortHeadClass('planned')" @click="sortRunsBy('planned')">
+                        Planned<span aria-hidden="true">{{ sortArrow('planned') }}</span>
+                      </button>
+                    </th>
+                    <th class="text-left py-1 pr-3" :aria-sort="ariaSort('finish')">
+                      <button type="button" :class="sortHeadClass('finish')" @click="sortRunsBy('finish')">
+                        Finishes<span aria-hidden="true">{{ sortArrow('finish') }}</span>
+                      </button>
+                    </th>
+                    <th class="text-right py-1 pr-3">
+                      <!-- Inside one account, days after its earliest finish IS the finish order. -->
+                      <button type="button" :class="sortHeadClass('finish')" @click="sortRunsBy('finish')">
+                        vs best<span aria-hidden="true">{{ sortArrow('finish') }}</span>
+                      </button>
+                    </th>
+                    <th
+                      class="text-right py-1 pr-3"
+                      title="Days from this run's own plan start to the target"
+                      :aria-sort="ariaSort('length')"
+                    >
+                      <button type="button" :class="sortHeadClass('length')" @click="sortRunsBy('length')">
+                        Plan length<span aria-hidden="true">{{ sortArrow('length') }}</span
+                        ><br /><span class="normal-case tracking-normal font-bold">(from its start)</span>
+                      </button>
                     </th>
                     <th class="text-left py-1 pr-3">Effort</th>
-                    <th class="text-right py-1 pr-3">Priced</th>
-                    <th class="text-right py-1 pr-3">Compute</th>
+                    <th class="text-right py-1 pr-3" :aria-sort="ariaSort('priced')">
+                      <button type="button" :class="sortHeadClass('priced')" @click="sortRunsBy('priced')">
+                        Priced<span aria-hidden="true">{{ sortArrow('priced') }}</span>
+                      </button>
+                    </th>
+                    <th class="text-right py-1 pr-3" :aria-sort="ariaSort('compute')">
+                      <button type="button" :class="sortHeadClass('compute')" @click="sortRunsBy('compute')">
+                        Compute<span aria-hidden="true">{{ sortArrow('compute') }}</span>
+                      </button>
+                    </th>
                     <th class="text-left py-1">Full table</th>
                   </tr>
                 </thead>
@@ -322,11 +424,28 @@
                            the table is wider than the screen, and a line spanning all of it put the
                            route and the "not listed here" note off-screen. It wraps on screen instead. -->
                       <div class="sticky left-0 w-[100cqw] py-1.5 px-2">
-                        <span
-                          class="inline-block w-2 h-2 rounded-full mr-1.5 align-middle"
-                          :style="{ background: colorAt(accountColors.get(block.key) ?? 0) }"
-                        />
-                        <b class="text-slate-700">{{ block.label }}</b>
+                        <button
+                          type="button"
+                          class="mr-0.5 -ml-1 px-1 rounded align-middle hover:bg-slate-200/60"
+                          :aria-expanded="!collapsed.has(block.key)"
+                          :title="
+                            collapsed.has(block.key) ? 'Show this account\'s runs' : 'Fold this account\'s runs away'
+                          "
+                          @click="setCollapsed([block.key], !collapsed.has(block.key))"
+                        >
+                          <span
+                            aria-hidden="true"
+                            class="inline-block w-3.5 text-[13px] leading-none align-middle text-slate-500"
+                            >{{ collapsed.has(block.key) ? '▸' : '▾' }}</span
+                          >
+                          <span
+                            class="inline-block w-2 h-2 rounded-full mr-1.5 align-middle"
+                            :style="{ background: colorAt(accountColors.get(block.key) ?? 0) }"
+                          />
+                          <b class="text-slate-700">{{ block.label }}</b>
+                        </button>
+                        · {{ block.rows.length }} run{{ block.rows.length === 1 ? '' : 's'
+                        }}<template v-if="collapsed.has(block.key)"> folded</template>
                         <template v-if="block.best">
                           · earliest finish
                           <b class="text-slate-700" :title="finishTitle(block.best.finish, block.best.row.timezone)">{{
@@ -344,7 +463,7 @@
                     </td>
                   </tr>
                   <tr
-                    v-for="row in block.rows"
+                    v-for="row in collapsed.has(block.key) ? [] : block.rows"
                     :key="row.id"
                     class="hover:bg-slate-50"
                     :class="judged.byId.get(row.id)?.standing ? '' : 'text-slate-400'"
@@ -656,6 +775,7 @@ import {
 import {
   accountKey,
   compareCounts,
+  DEFAULT_RUN_SORT,
   flagOf,
   foldRuns,
   groupByAccount,
@@ -663,11 +783,14 @@ import {
   judgeFinishes,
   median,
   nearBestBands,
+  RUN_SORT_START,
   runsByAccount,
   runTags,
   summariseRuns,
   targetsPresent,
   timeOffKey,
+  type RunSort,
+  type RunSortKey,
 } from './analysis';
 import {
   finishDateText,
@@ -708,7 +831,12 @@ const loadedCurrentTE = ref(0);
 const loadedFinalTE = ref(0);
 
 onMounted(() => {
-  const stored = typeof localStorage === 'undefined' ? null : localStorage.getItem(BASE_STORAGE_KEY);
+  let stored: string | null = null;
+  try {
+    stored = localStorage.getItem(BASE_STORAGE_KEY);
+  } catch {
+    // Blocked storage (a private window, a browser set to refuse site data): nothing remembered.
+  }
   base.value = resolveCollectorBase() ?? stored;
   if (base.value) void load();
 });
@@ -774,12 +902,20 @@ function adoptTypedBase(): void {
     return;
   }
   base.value = normalised;
-  if (typeof localStorage !== 'undefined') localStorage.setItem(BASE_STORAGE_KEY, normalised);
+  try {
+    localStorage.setItem(BASE_STORAGE_KEY, normalised);
+  } catch {
+    // Not remembered, but still used for this visit.
+  }
   void load();
 }
 
 function forgetBase(): void {
-  if (typeof localStorage !== 'undefined') localStorage.removeItem(BASE_STORAGE_KEY);
+  try {
+    localStorage.removeItem(BASE_STORAGE_KEY);
+  } catch {
+    // Nothing could have been stored.
+  }
   typedBase.value = base.value ?? '';
   base.value = null;
   rows.value = [];
@@ -903,13 +1039,130 @@ const judged = computed(() =>
   judgeFinishes(judgedRows.value, finalTE.value, now.value, new Set(visible.value.map(r => r.id)))
 );
 
-/** The runs table: one block per account in colour order, earliest finish first inside each. */
+/* ------------------------------------------------------------ the runs table: order and folding */
+
+/** Where the runs table's order and folded accounts are remembered. Per-browser, like the URL. */
+const RUN_VIEW_STORAGE_KEY = 'chainExplorerRunView';
+
+/** The saved order and folded accounts, or nothing when there are none or storage is blocked. */
+function readRunView(): { sort: RunSort; collapsed: string[] } | null {
+  try {
+    const raw = localStorage.getItem(RUN_VIEW_STORAGE_KEY);
+    if (!raw) return null;
+    const saved = JSON.parse(raw) as { sort?: Partial<RunSort>; collapsed?: unknown };
+    const by = saved.sort?.by;
+    const dir = saved.sort?.dir;
+    return {
+      sort:
+        typeof by === 'string' && Object.hasOwn(RUN_SORT_START, by) && (dir === 'asc' || dir === 'desc')
+          ? { by, dir }
+          : { ...DEFAULT_RUN_SORT },
+      collapsed: Array.isArray(saved.collapsed)
+        ? saved.collapsed.filter((k): k is string => typeof k === 'string')
+        : [],
+    };
+  } catch {
+    return null;
+  }
+}
+
+const savedRunView = readRunView();
+/** The order the player picked for each account's runs. Accounts themselves never reorder. */
+const runSort = ref<RunSort>(savedRunView?.sort ?? { ...DEFAULT_RUN_SORT });
+/** Accounts whose runs are folded away (by `accountKey`). Replaced, never mutated, so it saves. */
+const collapsed = ref<ReadonlySet<string>>(new Set(savedRunView?.collapsed ?? []));
+
+watch([runSort, collapsed], () => {
+  try {
+    localStorage.setItem(
+      RUN_VIEW_STORAGE_KEY,
+      JSON.stringify({ sort: runSort.value, collapsed: [...collapsed.value] })
+    );
+  } catch {
+    // Private windows and blocked storage: the choice just lasts until the tab closes.
+  }
+});
+
+/** The picks on offer. The ascension count only means something with every count listed. */
+const runSortOptions = computed(() =>
+  (
+    [
+      { by: 'finish', label: 'Finish' },
+      { by: 'planned', label: 'Planned' },
+      { by: 'length', label: 'Plan length' },
+      { by: 'ascensions', label: 'Ascensions' },
+      { by: 'te', label: 'Starting TE' },
+      { by: 'priced', label: 'Chains priced' },
+      { by: 'compute', label: 'Compute' },
+    ] as { by: RunSortKey; label: string }[]
+  ).filter(o => o.by !== 'ascensions' || selectedCount.value === 'all')
+);
+
+/** The order in force: a count sort picked under "All" falls back to finish on one count. */
+const activeSort = computed<RunSort>(() =>
+  runSort.value.by === 'ascensions' && selectedCount.value !== 'all' ? DEFAULT_RUN_SORT : runSort.value
+);
+
+/** Pick an order; picking the one in force flips it, the way a column header usually does. */
+function sortRunsBy(by: RunSortKey): void {
+  runSort.value =
+    activeSort.value.by === by
+      ? { by, dir: activeSort.value.dir === 'asc' ? 'desc' : 'asc' }
+      : { by, dir: RUN_SORT_START[by] };
+}
+
+function flipRunSort(): void {
+  sortRunsBy(activeSort.value.by);
+}
+
+/** The direction in words that fit the order: "earliest first" reads better than "ascending". */
+function sortDirText(sort: RunSort): string {
+  const asc = sort.dir === 'asc';
+  switch (sort.by) {
+    case 'finish':
+      return asc ? 'earliest first' : 'latest first';
+    case 'planned':
+      return asc ? 'oldest first' : 'newest first';
+    case 'length':
+      return asc ? 'shortest first' : 'longest first';
+    default:
+      return asc ? 'lowest first' : 'highest first';
+  }
+}
+
+/** What a screen reader hears for a sortable column: the arrows are hidden from it. */
+function ariaSort(by: RunSortKey): 'ascending' | 'descending' | 'none' {
+  if (activeSort.value.by !== by) return 'none';
+  return activeSort.value.dir === 'asc' ? 'ascending' : 'descending';
+}
+
+function sortArrow(by: RunSortKey): string {
+  return activeSort.value.by === by ? (activeSort.value.dir === 'asc' ? ' ↑' : ' ↓') : '';
+}
+
+/** Header buttons keep the header's look (a button resets text-transform and centres its text) and
+ *  mark the order in force. */
+function sortHeadClass(by: RunSortKey): string {
+  return `uppercase tracking-widest [text-align:inherit] hover:text-slate-600 ${activeSort.value.by === by ? 'text-slate-700' : ''}`;
+}
+
+function setCollapsed(keys: string[], fold: boolean): void {
+  const next = new Set(collapsed.value);
+  for (const k of keys) {
+    if (fold) next.add(k);
+    else next.delete(k);
+  }
+  collapsed.value = next;
+}
+
+/** The runs table: one block per account in colour order, each ordered as picked inside. */
 const runBlocks = computed(() =>
   runsByAccount(
     selected.value?.rows ?? [],
     judged.value,
     accountLabels.value,
-    accounts.value.map(a => a.key)
+    accounts.value.map(a => a.key),
+    activeSort.value
   )
 );
 

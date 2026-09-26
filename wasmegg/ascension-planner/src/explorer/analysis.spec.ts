@@ -971,6 +971,117 @@ describe('runsByAccount', () => {
     expect(blocks[1].best?.row.id).toBe('early');
   });
 
+  it('orders the runs inside each account as picked, and never reorders the accounts', () => {
+    const a = row({
+      id: 'a',
+      chain: [195, 300, 490],
+      currentTE: 180,
+      finalTE: 490,
+      durationDays: 800,
+      chainsPriced: 50,
+      ...at(0),
+    });
+    const b = row({
+      id: 'b',
+      chain: [197, 305, 490],
+      currentTE: 181,
+      finalTE: 490,
+      durationDays: 799.5,
+      chainsPriced: 900,
+      run: { minutes: 30, workers: 4, cores: 8, secondsPerChain: 8 },
+      ...at(1),
+    });
+    const c = row({
+      id: 'c',
+      chain: [199, 310, 490],
+      currentTE: 183,
+      finalTE: 490,
+      durationDays: 798.9,
+      chainsPriced: 300,
+      run: { minutes: 10, workers: 2, cores: 8, secondsPerChain: 4 },
+      ...at(2),
+    });
+    const other = row({
+      id: 'other',
+      chain: [195, 300, 490],
+      currentTE: 150,
+      finalTE: 490,
+      chainsPriced: 99999,
+      timezone: 'Europe/Amsterdam',
+      ...at(0),
+    });
+    const rows = [c, other, a, b];
+    const judged = judge(rows);
+    const order = [accountKey(other), accountKey(a)];
+    const ids = (sort: Parameters<typeof runsByAccount>[4]) =>
+      runsByAccount(rows, judged, new Map(), order, sort).map(block => block.rows.map(r => r.id));
+
+    // Finish (the default): a finishes first, then b, then c.
+    expect(ids(undefined)).toEqual([['other'], ['a', 'b', 'c']]);
+    expect(ids({ by: 'finish', dir: 'desc' })).toEqual([['other'], ['c', 'b', 'a']]);
+    // Newest plan first; shortest plan length first (the plan made last, as ever).
+    expect(ids({ by: 'planned', dir: 'desc' })).toEqual([['other'], ['c', 'b', 'a']]);
+    expect(ids({ by: 'length', dir: 'asc' })).toEqual([['other'], ['c', 'b', 'a']]);
+    expect(ids({ by: 'priced', dir: 'desc' })).toEqual([['other'], ['b', 'c', 'a']]);
+    // A run with no compute recorded goes last in either direction.
+    expect(ids({ by: 'compute', dir: 'desc' })).toEqual([['other'], ['b', 'c', 'a']]);
+    expect(ids({ by: 'compute', dir: 'asc' })).toEqual([['other'], ['c', 'b', 'a']]);
+  });
+
+  it('keeps runs whose finish no longer stands last by finish, but sorts them in by anything else', () => {
+    const early = row({
+      id: 'early',
+      chain: [195, 300, 490],
+      currentTE: 180,
+      finalTE: 490,
+      durationDays: 800,
+      ...at(0),
+    });
+    const whatIf = row({
+      id: 'whatif',
+      chain: [201, 300, 490],
+      currentTE: 185,
+      finalTE: 490,
+      // Finishes AFTER the standing run, so "latest first" would put it first on dates alone.
+      durationDays: 900,
+      startLocal: '2026-11-23 09:00',
+      submittedAt: iso(0),
+    });
+    const rows = [whatIf, early];
+    const judged = judge(rows);
+    const ids = (sort: Parameters<typeof runsByAccount>[4]) =>
+      runsByAccount(rows, judged, new Map(), [], sort)[0].rows.map(r => r.id);
+    expect(ids({ by: 'finish', dir: 'asc' })).toEqual(['early', 'whatif']);
+    expect(ids({ by: 'finish', dir: 'desc' })).toEqual(['early', 'whatif']);
+    expect(ids({ by: 'length', dir: 'desc' })).toEqual(['whatif', 'early']);
+  });
+
+  it('breaks a tie on the picked value by finish date, whichever way it is sorted', () => {
+    const first = row({
+      id: 'first',
+      chain: [195, 300, 490],
+      currentTE: 180,
+      finalTE: 490,
+      durationDays: 800,
+      ...at(0),
+    });
+    const second = row({
+      id: 'second',
+      chain: [197, 305, 490],
+      currentTE: 181,
+      finalTE: 490,
+      durationDays: 800,
+      ...at(1),
+    });
+    const rows = [second, first];
+    const judged = judge(rows);
+    const ids = (sort: Parameters<typeof runsByAccount>[4]) =>
+      runsByAccount(rows, judged, new Map(), [], sort)[0].rows.map(r => r.id);
+    // Same chains priced (the default 100): earliest finish first, in either direction.
+    expect(ids({ by: 'priced', dir: 'desc' })).toEqual(['first', 'second']);
+    expect(ids({ by: 'priced', dir: 'asc' })).toEqual(['first', 'second']);
+  });
+
   it("names the account's earliest finish from every run, even one the filters leave out", () => {
     // Proofs only lists the exhaustive run alone; which runs stand, and the account's earliest
     // finish, are still judged on all of them, so the page can say that run is not listed.
