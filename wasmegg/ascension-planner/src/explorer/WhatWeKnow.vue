@@ -4,13 +4,26 @@
   number that silently changed under a sentence written about it would be worse than a dated one.
   Every number here was re-checked against the board by an independent audit on 25 Sep 2026
   (several earlier claims were corrected then). Update the date and the numbers when the board moves.
+
+  COMPARE FINISH DATES, NOT TOTALS, between runs made at different times. A run's total counts from
+  its own plan start, so the same plan run a day later shows a day fewer; the date it reaches 490 is
+  what stays put. On 26 Sep 2026 items 1, 4 and 6 were restated that way from /all (each account's
+  earliest finish at each count, among runs whose finish still stands -- analysis.ts
+  `judgeFinishes`). Totals are only quoted where both runs came from one save, where total and
+  finish date agree. Any new number here has to follow the same rule.
+
+  DATES ARE THE PLAYER'S OWN. No instant falls on the same calendar day in every timezone, so each
+  date here is the one in the player's own zone (the header says so), and a gap between two
+  finishes is given as a gap ("about 9 hours after") rather than as a second date that would read
+  differently elsewhere.
 -->
 <template>
   <section class="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 space-y-3">
     <div class="flex flex-wrap items-baseline justify-between gap-2">
       <h2 class="text-lg font-black text-slate-900">What we know so far</h2>
       <span class="text-[10px] font-bold text-slate-500"
-        >25 Sep 2026 · 85 runs · 12 accounts (11 players) from TE 124 to 199 · 366,000 plans timed · all to 490 TE</span
+        >25 Sep 2026 (finish dates 26 Sep; every date in the player's own timezone) · 85 runs · 12 accounts (11 players)
+        from TE 124 to 199 · 366,000 plans timed · all to 490 TE</span
       >
     </div>
 
@@ -19,17 +32,20 @@
         <b>More ascensions help, then level off.</b> Going from 2 ascensions to 3 saves 34 to 250 days, and far more on
         lower accounts: 188 days at TE 124, 184 at TE 133, 116 at TE 167, 99 at TE 182 and 34 at TE 198. (It was 250 at
         TE 124 on an earlier save taken partway through an ascension.) A 4th ascension saves another 4 to 28 days (57 on
-        that earlier save). After that, each extra ascension still saves up to about 15 days near TE 125, but under a
-        week above TE 180. For 9 of the 12 accounts the fastest plan has 5 to 7 ascensions. The other three only tried a
-        narrow range of ascension counts.
+        that earlier save). After that the gains shrink. Compared by finish date (runs made on different days do not
+        compare by total days), a 5th ascension brought the finish forward by 1.5 to 28 days on the four accounts that
+        tried 4 and 5, a 6th by 0.4 to 9 days on the six that tried 5 and 6, and a 7th by nothing: Allan's 7-ascension
+        plan finishes the same day as his 6, and William's was 0.1 days slower from the same save. For 9 of the 12
+        accounts the plan that finishes first has 5 to 7 ascensions. The other three only tried a narrow range of
+        ascension counts.
       </li>
       <li>
         <b>The last TE you ascend at is about the same on every account.</b> The last TE the best plans ascend at,
-        before playing on to 490, depends on how many ascensions the plan has: about 280 with 2 (274 to 287), 279 to 288
-        with 3, 283 to 297 with 4, 285 to 330 with 5, and roughly 300 to 335 with 6. That holds whether the account
-        starts at TE 124 or 199. More ascensions push that last TE up, but most of the extra ascensions go in below 290:
-        a 6-ascension plan still ascends 3 or 4 times below 290. The planner's suggested starting plan uses these
-        numbers.
+        before playing on to 490, depends on how many ascensions the plan has: about 280 with 2 (274 to 287 on six of
+        the seven accounts that tried it; 235 on the seventh), 279 to 288 with 3, 283 to 297 with 4, 285 to 330 with 5,
+        and roughly 300 to 335 with 6. That holds whether the account starts at TE 124 or 199. More ascensions push that
+        last TE up, but most of the extra ascensions go in below 290: a 6-ascension plan still ascends 3 or 4 times
+        below 290. The planner's suggested starting plan uses these numbers.
       </li>
       <li>
         <b>Ascending one TE off the best can cost weeks.</b> Moving one ascension target by a single TE, with the others
@@ -44,9 +60,9 @@
       <li>
         <b>So trying only some TEs misses the best plan.</b> Trying only every 5th TE ends up 2 to 12 days slower, on
         average, than trying every TE. Trying every 2nd TE ends up 0.4 to 6 days slower. Allan's example: trying every
-        TE around his Balanced result found 230 260 297 at 665.7 days, faster than M3 (every 5th TE, 667.4) and Balanced
-        (666.5). Those three runs started at different times, though. Timed from the same save, the gains are 1.6 and
-        0.2 days. His best 5- and 6-ascension plans (663.3 to 664.1 days) are faster still.
+        TE around his Balanced result found 230 260 297. It reaches 490 on 21 Jul 2028, 1.6 days before M3's best (every
+        5th TE) and 0.7 days before Balanced's, all three planned from one save. His 6- and 7-ascension plans finish on
+        19 Jul 2028, 1.9 days before it, and his best 5-ascension plan about 9 hours after those.
       </li>
       <li>
         <b>We can predict roughly where your best plan is, but not the exact TEs.</b> We can predict how many ascensions
@@ -57,9 +73,10 @@
       </li>
       <li>
         <b>The best plan can move from one day to the next.</b> On 24 Sep, Halceyx's best 3-ascension plan was 201 282,
-        at 932.5 days. Timed from his save a day later, that same plan took 946.0 days (13.5 more), and the best was now
-        206 279 at 929.5. William ran the same 2-ascension search twice, about 2 hours apart. The best TE stayed at 279,
-        but the total went from 850.3 to 856.8 days.
+        finishing on 14 Apr 2029. Priced again from his save a day later, that same plan finished about 14 days later
+        (around 28 Apr), and the new best, 206 279, finishes on 11 Apr. William ran the same 2-ascension search twice
+        from one save, the second time starting the plan about 2 hours later. The best TE stayed at 279, but the later
+        start changed his first ascension's plan, and the finish moved from 21 Jan to 28 Jan 2029.
       </li>
       <li>
         <b>Below about 220 CTE, the first ascension stalls.</b> Unless your Clothed TE is about 218 to 225 or more, your
@@ -85,10 +102,12 @@
       </p>
       <p>
         <b>Bigger:</b> 5 and 6 ascensions, tried far more closely than M4's every 5th TE. That is where most accounts'
-        fastest plans are. Only two runs have looked at long plans that closely so far: Allan's 4-ascension run (every
-        TE) and rontimes' 5-ascension run (every 2nd TE, 31,465 plans). F4 and F5 in the list below do this. Each one is
-        tens of thousands of plans, a night or more on a 16-core machine. Trying every single TE around the targets at 5
-        ascensions would take a day and a half to two days.
+        earliest-finishing plans are. Six runs have looked at long plans that closely so far: Allan's 4-ascension run
+        (every TE), 5-ascension runs from rontimes, William and Halceyx, and 6-ascension runs from William and Willsalt.
+        F4 and F5 in the list below do this, and more accounts running them would show whether the best 5- and
+        6-ascension plans sit in the same places for everyone. Each one is tens of thousands of plans, a night or more
+        on a 16-core machine. Trying every single TE around the targets at 5 ascensions would take a day and a half to
+        two days.
       </p>
       <p>
         <b>Wider gear:</b> every account so far has CTE 240 to 328, a T4L Lunar totem and a T4L Demeters necklace, so

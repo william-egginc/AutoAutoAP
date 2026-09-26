@@ -80,6 +80,7 @@ import { esc } from '@/lib/charts/tooltip';
 import type { CollectorRow } from './collector';
 import type { PositionBand } from './analysis';
 import { accountKey, chainFractions } from './analysis';
+import { whoText } from '@/lib/leaderboardRank';
 import { colorAt, AXIS_LABEL, SPLIT_LINE } from './palette';
 
 const props = defineProps<{
@@ -113,7 +114,7 @@ const option = computed<ChartOption>(() => {
         : row.chain.slice(0, -1).map(v => v);
     const color = colorAt(props.accountColors.get(accountKey(row)) ?? 0);
     return {
-      name: `${row.nickname || 'anonymous'} · ${row.currentTE}→${row.finalTE}`,
+      name: `${whoText(row) || 'anonymous'} · ${row.currentTE}→${row.finalTE}`,
       type: 'line' as const,
       data: values.map((v, i) => [i + 1, v, row.chain.join(' ')]),
       color,

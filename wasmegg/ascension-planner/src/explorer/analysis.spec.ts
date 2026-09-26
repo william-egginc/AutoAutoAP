@@ -4,19 +4,24 @@ import {
   accountLabel,
   chainFractions,
   compareCounts,
-  exactDuplicateIds,
   flagOf,
+  foldRuns,
   gearOf,
   groupByAccount,
   groupByCount,
+  judgeFinishes,
   median,
   nearBestBands,
   positionBands,
+  runsByAccount,
+  runTags,
+  summariseRuns,
   sweepGroupOf,
   targetsPresent,
 } from './analysis';
 import type { CollectorRow } from './collector';
 import type { PricedChain } from '@/search/types';
+import { DAY_MS } from '@/lib/leaderboardRank';
 
 /** Only the fields this module reads. The rest of a submission is irrelevant here by design. */
 function row(over: Partial<CollectorRow> & Pick<CollectorRow, 'chain' | 'currentTE' | 'finalTE'>): CollectorRow {
@@ -39,6 +44,29 @@ function row(over: Partial<CollectorRow> & Pick<CollectorRow, 'chain' | 'current
     id: Math.random().toString(36).slice(2),
     ...over,
   } as CollectorRow;
+}
+
+/** Plan starts on consecutive days at 10:00 in the default zone (America/Denver, MDT in September). */
+const START = Date.parse('2026-09-01T16:00:00Z');
+
+/** `YYYY-MM-DD` of day `n` after 1 Sep 2026. */
+function dayOf(n: number): string {
+  return new Date(Date.UTC(2026, 8, 1 + n)).toISOString().slice(0, 10);
+}
+
+/** When day `n`'s run was sent: a few minutes after its 10:00 start, unless told otherwise. */
+function iso(n: number, minutes = 5): string {
+  return new Date(START + n * DAY_MS + minutes * 60_000).toISOString();
+}
+
+/** A run planned to start on day `n`, sent right after. */
+function at(n: number): { startLocal: string; submittedAt: string } {
+  return { startLocal: `${dayOf(n)} 10:00`, submittedAt: iso(n) };
+}
+
+/** Each run's finish, judged at a moment after every run in `rows`. */
+function judge(rows: CollectorRow[], now = START + 60 * DAY_MS) {
+  return judgeFinishes(rows, 490, now);
 }
 
 describe('accountKey', () => {
@@ -105,6 +133,18 @@ describe('accountLabel', () => {
   it('names an anonymous group by its timezone rather than calling it nothing', () => {
     expect(accountLabel([row({ chain: [195, 490], currentTE: 180, finalTE: 490 })])).toContain('America/Denver');
   });
+
+  it('calls a name that is only a game icon what the Leaderboard calls it, not nothing', () => {
+    // One private-use character: it draws nothing outside the game's own font.
+    const icon = row({
+      chain: [195, 490],
+      currentTE: 167,
+      finalTE: 490,
+      nickname: '',
+      timezone: 'America/Los_Angeles',
+    });
+    expect(accountLabel([icon, { ...icon, nickname: undefined }])).toBe('(icon) · Los Angeles');
+  });
 });
 
 describe('chainFractions', () => {
@@ -156,11 +196,13 @@ describe('groupByCount', () => {
     row({ chain: [195, 300, 490], currentTE: 180, finalTE: 490, durationDays: 800 }),
   ];
 
-  it('buckets by ascension count, shortest chain first, fastest run first inside', () => {
+  it('buckets by ascension count, shortest chain first, and names no "fastest" run', () => {
+    // The lowest total in a bucket picks the best gear and the latest run, never the best plan, so
+    // the group does not offer one. The runs table orders each account by finish date instead.
     const groups = groupByCount(rows);
     expect(groups.map(g => g.ascensions)).toEqual([2, 3]);
-    expect(groups[0].rows.map(r => r.durationDays)).toEqual([880, 900]);
-    expect(groups[0].best.durationDays).toBe(880);
+    expect(groups[0].rows.map(r => r.durationDays)).toEqual([900, 880]);
+    expect(groups[0]).not.toHaveProperty('best');
   });
 
   it('counts a finished exhaustive run as a proof and a stopped one as not', () => {
@@ -184,12 +226,14 @@ describe('groupByCount', () => {
 describe('compareCounts', () => {
   it('prefers one exhaustive run that priced several counts, and marks it as controlled', () => {
     // The only airtight version of "does one more ascension help": same save, same instant, every
-    // chain at both counts priced.
+    // chain at both counts priced. One save, so its totals compare directly.
     const proven = row({
       chain: [185, 215, 255, 295, 335, 490],
       currentTE: 160,
       finalTE: 490,
+      durationDays: 800.6,
       nickname: 'rontimes',
+      ...at(0),
       proof: {
         runnersUp: [],
         spread: { best: 800, median: 810, worst: 820 },
@@ -199,43 +243,202 @@ describe('compareCounts', () => {
         ],
       },
     });
-    const [series] = compareCounts([proven]);
+    const [series] = compareCounts([proven], judge([proven]));
     expect(series.singleRun).toBe(true);
     expect(series.points.map(p => p.ascensions)).toEqual([5, 6]);
+    expect(series.points.map(p => p.behind)).toEqual([expect.closeTo(6.5, 6), expect.closeTo(0, 6)]);
+    expect(series.points[1].finish).toBe(START + 800.6 * DAY_MS);
+    expect(series).toMatchObject({ anchor: 'account', anchorFinish: START + 800.6 * DAY_MS });
     expect(series.label).toContain('exhaustive');
   });
 
-  it('falls back to one account’s several runs, and does not claim they are controlled', () => {
-    const series = compareCounts([
-      row({ chain: [195, 490], currentTE: 180, finalTE: 490, durationDays: 900, nickname: 'a' }),
-      row({ chain: [195, 300, 490], currentTE: 181, finalTE: 490, durationDays: 800, nickname: 'a' }),
+  /** An exhaustive run on day `n` that timed each count in `days` ({ascensions: days}) from one save. */
+  function proofRun(n: number, days: Record<number, number>, over: Partial<CollectorRow> = {}): CollectorRow {
+    const entries = Object.entries(days).map(([a, d]) => {
+      const ascensions = Number(a);
+      const chain = [...Array.from({ length: ascensions - 1 }, (_, i) => 190 + 20 * i), 490];
+      return { ascensions, days: d, priced: 100, chain };
+    });
+    const best = entries.reduce((x, y) => (y.days < x.days ? y : x));
+    return row({
+      id: `proof${n}`,
+      chain: best.chain,
+      currentTE: 180,
+      finalTE: 490,
+      durationDays: best.days,
+      ...at(n),
+      proof: { runnersUp: [], spread: { best: best.days, median: best.days, worst: best.days }, byAscensions: entries },
+      ...over,
+    });
+  }
+
+  it("measures an exhaustive run from the account's earliest finish, not from its own best", () => {
+    // rontimes, live: the exhaustive run's best (6 ascensions) finishes on 28 Nov, but another run of
+    // the account finishes on 18 Nov. Measured from its own best, the solid line put 6 on 0 and
+    // called it the earliest; it is ten days after the account's earliest finish.
+    const earlier = row({
+      id: 'earlier',
+      chain: [182, 212, 252, 293, 337, 490],
+      currentTE: 180,
+      finalTE: 490,
+      durationDays: 790,
+      ...at(0),
+    });
+    const five = row({
+      id: 'five',
+      chain: [183, 205, 243, 293, 490],
+      currentTE: 180,
+      finalTE: 490,
+      durationDays: 797,
+      ...at(1),
+    });
+    const proof = proofRun(5, { 5: 807.1, 6: 800.6 });
+    const rows = [earlier, five, proof];
+    const series = compareCounts(rows, judge(rows));
+    const solid = series.find(s => s.singleRun)!;
+    expect(solid).toMatchObject({ anchor: 'account', anchorFinish: START + 790 * DAY_MS });
+    expect(solid.points.map(p => [p.ascensions, p.behind])).toEqual([
+      [5, expect.closeTo(22.1, 6)],
+      [6, expect.closeTo(15.6, 6)],
     ]);
-    expect(series).toHaveLength(1);
-    expect(series[0].singleRun).toBe(false);
-    expect(series[0].points).toHaveLength(2);
+    // The dashed line counts from the same finish, so the two lines never disagree about a date.
+    const dashed = series.find(s => !s.singleRun)!;
+    expect(dashed.anchorFinish).toBe(solid.anchorFinish);
+    expect(dashed.points.map(p => [p.ascensions, p.behind])).toEqual([
+      [5, expect.closeTo(8, 6)],
+      [6, 0],
+    ]);
   });
 
-  it('keeps the fastest run at each count rather than whichever came last', () => {
-    const series = compareCounts([
-      row({ chain: [195, 490], currentTE: 180, finalTE: 490, durationDays: 900 }),
-      row({ chain: [196, 490], currentTE: 180, finalTE: 490, durationDays: 870 }),
-      row({ chain: [195, 300, 490], currentTE: 180, finalTE: 490, durationDays: 800 }),
+  it('still draws the counts an exhaustive run did not cover', () => {
+    // Halceyx to 300, live: one exhaustive run timed 2 to 4 ascensions; a 5-ascension run from the
+    // same save finishes 8.64 days before its best. It used to be left off the chart altogether.
+    const proof = proofRun(0, { 2: 900, 3: 860, 4: 850 });
+    const five = row({
+      id: 'five',
+      chain: [185, 215, 240, 270, 490],
+      currentTE: 180,
+      finalTE: 490,
+      durationDays: 841.36,
+      ...at(0),
+    });
+    const rows = [proof, five];
+    const series = compareCounts(rows, judge(rows));
+    expect(series).toHaveLength(2);
+    const solid = series.find(s => s.singleRun)!;
+    const dashed = series.find(s => !s.singleRun)!;
+    expect(solid.anchorFinish).toBe(START + 841.36 * DAY_MS);
+    expect(solid.points.map(p => [p.ascensions, p.behind])).toEqual([
+      [2, expect.closeTo(58.64, 6)],
+      [3, expect.closeTo(18.64, 6)],
+      [4, expect.closeTo(8.64, 6)],
     ]);
-    expect(series[0].points.find(p => p.ascensions === 2)?.days).toBe(870);
+    expect(dashed.points.map(p => [p.ascensions, p.behind])).toEqual([
+      [4, expect.closeTo(8.64, 6)],
+      [5, 0],
+    ]);
+  });
+
+  it('measures an exhaustive run that no longer stands from its own best, and says why', () => {
+    // A what-if planned to start in November: its finishes are not the account's, so they are not
+    // put against the account's earliest finish.
+    const real = row({ id: 'real', chain: [195, 300, 490], currentTE: 180, finalTE: 490, durationDays: 850, ...at(0) });
+    const whatIf = proofRun(0, { 5: 707.1, 6: 700.6 }, { startLocal: '2026-11-23 09:00', submittedAt: iso(0) });
+    const rows = [real, whatIf];
+    const [solid] = compareCounts(rows, judge(rows));
+    expect(solid.singleRun).toBe(true);
+    expect(solid.anchor).toBe('run');
+    expect(solid.note).toMatch(/what-if/);
+    expect(solid.points.map(p => [p.ascensions, p.behind])).toEqual([
+      [5, expect.closeTo(6.5, 6)],
+      [6, 0],
+    ]);
+  });
+
+  it('falls back to one account’s several runs, and does not claim they are controlled', () => {
+    const rows = [
+      row({ chain: [195, 490], currentTE: 180, finalTE: 490, durationDays: 900, nickname: 'a', ...at(0) }),
+      row({ chain: [195, 300, 490], currentTE: 181, finalTE: 490, durationDays: 800, nickname: 'a', ...at(1) }),
+    ];
+    const series = compareCounts(rows, judge(rows));
+    expect(series).toHaveLength(1);
+    expect(series[0].singleRun).toBe(false);
+    expect(series[0].points.map(p => [p.ascensions, p.behind])).toEqual([
+      [2, 99],
+      [3, 0],
+    ]);
+  });
+
+  it('keeps the earliest finish at each count, not the lowest total', () => {
+    // The 899-day run was made two days after the 900-day one, so it finishes a day LATER: the
+    // lower total is only the later start. Picking by total would move this account's 2-ascension
+    // point by a day in the wrong direction.
+    const rows = [
+      row({ chain: [195, 490], currentTE: 180, finalTE: 490, durationDays: 900, ...at(0) }),
+      row({ chain: [196, 490], currentTE: 180, finalTE: 490, durationDays: 899, ...at(2) }),
+      row({ chain: [195, 300, 490], currentTE: 180, finalTE: 490, durationDays: 850, ...at(0) }),
+    ];
+    const series = compareCounts(rows, judge(rows));
+    const two = series[0].points.find(p => p.ascensions === 2)!;
+    expect(two.days).toBe(900);
+    expect(two.behind).toBeCloseTo(50, 9);
+  });
+
+  it('shows no gain from running the same plans again later', () => {
+    // Both counts re-run a day later: every total drops by a day and nothing about the plans
+    // changed. By finish date the chart does not move.
+    const first = [
+      row({ chain: [195, 490], currentTE: 180, finalTE: 490, durationDays: 900, ...at(0) }),
+      row({ chain: [195, 300, 490], currentTE: 180, finalTE: 490, durationDays: 850, ...at(0) }),
+    ];
+    const again = [
+      ...first,
+      row({ chain: [195, 490], currentTE: 180, finalTE: 490, durationDays: 899, ...at(1) }),
+      row({ chain: [195, 300, 490], currentTE: 180, finalTE: 490, durationDays: 849, ...at(1) }),
+    ];
+    const pts = (rows: CollectorRow[]) =>
+      compareCounts(rows, judge(rows))[0].points.map(p => [p.ascensions, p.behind, p.finish]);
+    expect(pts(again)).toEqual(pts(first));
+  });
+
+  it('leaves out a run whose finish no longer stands', () => {
+    // A what-if planned to start in November finishes earliest of all, and is not the account's.
+    const rows = [
+      row({ chain: [195, 490], currentTE: 180, finalTE: 490, durationDays: 900, ...at(0) }),
+      row({ chain: [195, 300, 490], currentTE: 180, finalTE: 490, durationDays: 850, ...at(0) }),
+      row({
+        chain: [201, 300, 490],
+        currentTE: 185,
+        finalTE: 490,
+        durationDays: 700,
+        startLocal: '2026-11-23 09:00',
+        submittedAt: iso(0),
+      }),
+    ];
+    const three = compareCounts(rows, judge(rows))[0].points.find(p => p.ascensions === 3)!;
+    expect(three.days).toBe(850);
   });
 
   it('drops an account with only one ascension count, which compares nothing', () => {
-    expect(compareCounts([row({ chain: [195, 490], currentTE: 180, finalTE: 490 })])).toEqual([]);
+    const rows = [row({ chain: [195, 490], currentTE: 180, finalTE: 490, ...at(0) })];
+    expect(compareCounts(rows, judge(rows))).toEqual([]);
   });
 
   it('never mixes two accounts into one series', () => {
     // The mistake this whole module exists to prevent: 6 beating 8 because of whose artifacts they
     // were, not because of the chain.
-    const series = compareCounts([
-      row({ chain: [195, 490], currentTE: 180, finalTE: 490, durationDays: 900 }),
-      row({ chain: [195, 300, 490], currentTE: 180, finalTE: 490, durationDays: 400, timezone: 'Europe/Amsterdam' }),
-    ]);
-    expect(series).toEqual([]);
+    const rows = [
+      row({ chain: [195, 490], currentTE: 180, finalTE: 490, durationDays: 900, ...at(0) }),
+      row({
+        chain: [195, 300, 490],
+        currentTE: 180,
+        finalTE: 490,
+        durationDays: 400,
+        timezone: 'Europe/Amsterdam',
+        ...at(0),
+      }),
+    ];
+    expect(compareCounts(rows, judge(rows))).toEqual([]);
   });
 });
 
@@ -307,17 +510,523 @@ const legsTo = (peak: number) => [
   { te: 490, strategy: '2-sale', days: 519, peakDeliveryQph: peak },
 ];
 
-describe('exactDuplicateIds', () => {
-  it('hides a byte-identical re-post and keeps the earliest', () => {
-    const a = row({ id: 'first', chain: [300, 490], currentTE: 180, finalTE: 490, submittedAt: '2026-09-19T03:41:07Z' });
-    const b = { ...a, id: 'second', submittedAt: '2026-09-19T03:41:23Z' };
-    expect([...exactDuplicateIds([b, a])]).toEqual(['second']);
+describe('foldRuns', () => {
+  it('folds a named and an anonymous send of one result into one row carrying the name', () => {
+    // Allan's 663.27-day run was listed twice: once sent without a name, once with one.
+    const anon = row({ id: 'anon', chain: [225, 255, 290, 328, 490], currentTE: 199, finalTE: 490, ...at(0) });
+    const named = { ...anon, id: 'named', nickname: 'allanfieldhouse', submittedAt: iso(0, 10) };
+    const folded = foldRuns([anon, named]);
+    expect(folded.rows).toHaveLength(1);
+    expect(folded.rows[0].nickname).toBe('allanfieldhouse');
+    expect(folded.sends.get(folded.rows[0].id)).toBe(2);
+    expect(folded.hidden.size).toBe(1);
   });
 
-  it('keeps two runs that differ in anything but the id and the time', () => {
-    const a = row({ id: 'a', chain: [300, 490], currentTE: 180, finalTE: 490 });
-    expect(exactDuplicateIds([a, { ...a, id: 'b', chainsPriced: 101 }]).size).toBe(0);
-    expect(exactDuplicateIds([a, { ...a, id: 'b', nickname: 'someone' }]).size).toBe(0);
+  it('keeps the biggest search when two searches found the same result', () => {
+    const balanced = row({ id: 'balanced', chain: [300, 490], currentTE: 180, finalTE: 490, ...at(0) });
+    const sweep = {
+      ...balanced,
+      id: 'sweep',
+      effort: 'insane',
+      space: {
+        mode: 'bands' as const,
+        minGap: 0,
+        minAscensions: 2,
+        maxAscensions: 2,
+        chains: 5000,
+        chainsPriced: 5000,
+        stoppedEarly: false,
+      },
+    };
+    expect(foldRuns([balanced, sweep]).rows.map(r => r.id)).toEqual(['sweep']);
+  });
+
+  it('keeps different results, and the same result from two different players, apart', () => {
+    const a = row({ id: 'a', chain: [300, 490], currentTE: 180, finalTE: 490, nickname: 'one', ...at(0) });
+    expect(foldRuns([a, { ...a, id: 'b', chain: [301, 490] }]).rows).toHaveLength(2);
+    expect(foldRuns([a, { ...a, id: 'c', nickname: 'two' }]).rows).toHaveLength(2);
+  });
+
+  it('shows the finished proof of a result, not a bigger search that only agreed with it', () => {
+    // An F2 table (1,750 chains, finished) and a thorough run that found the same result (5,806 chains
+    // priced, no space). Folded by search size alone the thorough copy stood for it, and Proofs only,
+    // the sweep chart and the data needs all lost the proof.
+    const proof = row({
+      id: 'proof',
+      effort: 'insane',
+      chain: [206, 279, 490],
+      currentTE: 180,
+      finalTE: 490,
+      chainsPriced: 1750,
+      space: {
+        mode: 'bands',
+        minGap: 0,
+        minAscensions: 3,
+        maxAscensions: 3,
+        chains: 1750,
+        chainsPriced: 1750,
+        stoppedEarly: false,
+      },
+      sweep: { preset: 'F2' },
+      ...at(0),
+    });
+    const thorough = {
+      ...proof,
+      space: undefined,
+      sweep: undefined,
+      id: 'thorough',
+      effort: 'thorough',
+      chainsPriced: 5806,
+      nickname: 'Halceyx',
+      submittedAt: iso(0, 30),
+    };
+    const folded = foldRuns([proof, thorough]);
+    expect(folded.rows.map(r => r.id)).toEqual(['proof']);
+    // The name is the result's, as foldCopies gives it, and no owner tag is invented.
+    expect(folded.rows[0].nickname).toBe('Halceyx');
+    expect('acct' in folded.rows[0]).toBe(false);
+    expect(folded.sends.get('proof')).toBe(2);
+    expect([...folded.hidden]).toEqual(['thorough']);
+    expect(folded.rows.filter(r => r.space && !r.space.stoppedEarly)).toHaveLength(1);
+    expect(sweepGroupOf(folded.rows[0])).toBe('F2');
+    // The block header names the same copy, so Proofs only does not call it "not a proof".
+    expect(judge([proof, thorough]).bestByAccount.get(accountKey(proof))?.row).toMatchObject({
+      id: 'proof',
+      nickname: 'Halceyx',
+    });
+  });
+
+  it("never shows a stranger's copy with a made-up space in place of the owner's result", () => {
+    // The owner sent it with a code; a later anonymous copy of the same result, stamped by the
+    // collector, claims a finished proof. It still counts as a send, and is never the row shown.
+    const OWNER = 'fee1fee1fee1';
+    const owned = row({
+      id: 'owned',
+      nickname: 'allan',
+      acct: OWNER,
+      chain: [223, 253, 282, 316, 490],
+      currentTE: 199,
+      finalTE: 490,
+      receivedAt: iso(0, 6),
+      ...at(0),
+    });
+    const forged = {
+      ...owned,
+      nickname: undefined,
+      acct: undefined,
+      id: 'forged',
+      submittedAt: iso(1),
+      receivedAt: iso(1),
+      effort: 'insane',
+      space: {
+        mode: 'bands' as const,
+        minGap: 0,
+        minAscensions: 5,
+        maxAscensions: 5,
+        chains: 90_000,
+        chainsPriced: 90_000,
+        stoppedEarly: false,
+      },
+    };
+    const folded = foldRuns([owned, forged]);
+    expect(folded.rows.map(r => r.id)).toEqual(['owned']);
+    expect(folded.rows[0].space).toBeUndefined();
+    expect(folded.sends.get('owned')).toBe(2);
+    expect(judge([owned, forged]).bestByAccount.get(accountKey(owned))?.row.id).toBe('owned');
+  });
+});
+
+describe('judgeFinishes', () => {
+  it('gives the same plan run on 30 consecutive days one finish, and no false improvement', () => {
+    // A player's point, exactly: run your best plan every day for a month and every run is a day
+    // shorter than the one before. It is the same plan a day later, and it finishes on the same date.
+    const rows = Array.from({ length: 30 }, (_, i) =>
+      row({ id: `day${i}`, chain: [195, 300, 490], currentTE: 180, finalTE: 490, durationDays: 800 - i, ...at(i) })
+    );
+    const judged = judge(rows, START + 30 * DAY_MS);
+    const all = rows.map(r => judged.byId.get(r.id)!);
+    expect(new Set(all.map(j => j.finish))).toEqual(new Set([START + 800 * DAY_MS]));
+    // The newest measurement stands; the 29 before it were replaced by it, and none is "behind" it.
+    const standing = all.filter(j => j.standing);
+    expect(standing).toHaveLength(1);
+    expect(judged.byId.get('day29')).toMatchObject({ best: true, behind: 0, state: 'current' });
+    expect(all.filter(j => j.state === 'replaced')).toHaveLength(29);
+    expect(all.every(j => j.behind == null || j.behind === 0)).toBe(true);
+    expect(judged.bestByAccount.get(accountKey(rows[0]))?.finish).toBe(START + 800 * DAY_MS);
+  });
+
+  it('keeps the day gap between two plans made from one save', () => {
+    const a = row({ id: 'a', chain: [195, 300, 490], currentTE: 180, finalTE: 490, durationDays: 800, ...at(0) });
+    const b = row({ id: 'b', chain: [200, 310, 490], currentTE: 180, finalTE: 490, durationDays: 803.5, ...at(0) });
+    const judged = judge([a, b]);
+    expect(judged.byId.get('a')).toMatchObject({ best: true, behind: 0 });
+    expect(judged.byId.get('b')?.behind).toBeCloseTo(3.5, 9);
+    expect(judged.byId.get('b')?.sameSaveAsBest).toBe(true);
+  });
+
+  it('ranks a later run with a lower total behind an earlier run that finishes first', () => {
+    // 799.5 days from a day later finishes half a day after 800 days from today.
+    const a = row({ id: 'a', chain: [195, 300, 490], currentTE: 180, finalTE: 490, durationDays: 800, ...at(0) });
+    const b = row({ id: 'b', chain: [197, 305, 490], currentTE: 181, finalTE: 490, durationDays: 799.5, ...at(1) });
+    const judged = judge([a, b]);
+    expect(judged.byId.get('a')?.best).toBe(true);
+    expect(judged.byId.get('b')?.behind).toBeCloseTo(0.5, 9);
+    expect(judged.byId.get('b')?.sameSaveAsBest).toBe(false);
+  });
+
+  it('does not compare a what-if, however early it finishes', () => {
+    const real = row({ id: 'real', chain: [195, 300, 490], currentTE: 180, finalTE: 490, durationDays: 800, ...at(0) });
+    const whatIf = row({
+      id: 'whatif',
+      chain: [201, 300, 490],
+      currentTE: 185,
+      finalTE: 490,
+      durationDays: 677,
+      startLocal: '2026-11-23 09:00',
+      submittedAt: iso(0),
+    });
+    const judged = judge([real, whatIf]);
+    expect(judged.byId.get('whatif')).toMatchObject({ state: 'what-if', standing: false, behind: null, best: false });
+    expect(judged.byId.get('real')?.best).toBe(true);
+  });
+
+  it('judges each account on its own, and answers for every copy of a run', () => {
+    const here = row({ id: 'here', chain: [195, 300, 490], currentTE: 180, finalTE: 490, ...at(0) });
+    const copy = { ...here, id: 'copy', nickname: 'someone', submittedAt: iso(0, 10) };
+    const there = row({
+      id: 'there',
+      chain: [195, 300, 490],
+      currentTE: 150,
+      finalTE: 490,
+      durationDays: 1200,
+      timezone: 'Europe/Amsterdam',
+      ...at(0),
+    });
+    const judged = judge([here, copy, there]);
+    expect(judged.bestByAccount.size).toBe(2);
+    expect(judged.byId.get('there')?.best).toBe(true);
+    expect(judged.byId.get('copy')).toEqual(judged.byId.get('here'));
+  });
+
+  it('only judges runs at the target', () => {
+    const r = row({ id: 'r', chain: [195, 300], currentTE: 180, finalTE: 300, ...at(0) });
+    expect(judge([r]).byId.has('r')).toBe(false);
+  });
+
+  it('replaces a plan with a newer run of it from another line of the same account', () => {
+    // The Leaderboard judges an anonymous line and a named one apart; this page merges them into
+    // one account block, where the anonymous 1 Sep plan must not stand next to its 5 Sep re-run --
+    // and must not be the block's earliest finish because the re-run finished later.
+    const anon = row({ id: 'anon', chain: [200, 300, 490], currentTE: 180, finalTE: 490, durationDays: 800, ...at(0) });
+    const bob = row({
+      id: 'bob',
+      nickname: 'Bob',
+      chain: [200, 300, 490],
+      currentTE: 180,
+      finalTE: 490,
+      durationDays: 806,
+      ...at(4),
+    });
+    const judged = judge([anon, bob], START + 10 * DAY_MS);
+    expect(judged.byId.get('anon')).toMatchObject({ state: 'replaced', standing: false, best: false, behind: null });
+    expect(judged.byId.get('anon')?.reason).toMatch(/^replaced by a newer run of the same plan \(5 Sep/);
+    expect(judged.byId.get('bob')).toMatchObject({ state: 'current', best: true });
+    expect(judged.bestByAccount.get(accountKey(anon))?.finish).toBe(START + 810 * DAY_MS);
+  });
+
+  it('never lets a run with an owner code replace one without, as on the Leaderboard', () => {
+    // Allan's code-less 6-ascension plan and his coded re-run of it with the first checkpoint
+    // passed: `mayJudge` keeps them apart, so the older plan still stands.
+    const OWNER = 'fee1fee1fee1';
+    const old = row({
+      id: 'old',
+      nickname: 'allan',
+      chain: [199, 223, 253, 282, 316, 490],
+      currentTE: 198,
+      finalTE: 490,
+      durationDays: 665.74,
+      ...at(0),
+    });
+    const coded = row({
+      id: 'coded',
+      nickname: 'allan',
+      acct: OWNER,
+      chain: [223, 253, 282, 316, 490],
+      currentTE: 199,
+      finalTE: 490,
+      durationDays: 663.74,
+      ...at(2),
+    });
+    const judged = judge([old, coded], START + 10 * DAY_MS);
+    expect(judged.byId.get('old')).toMatchObject({ state: 'current', standing: true });
+    expect(judged.byId.get('coded')).toMatchObject({ state: 'current', standing: true });
+  });
+
+  it('judges a hidden run planned around time off, so hiding it changes no other run', () => {
+    // R1 was planned from TE 190; the next day's run started at TE 185, so R1 was a what-if. That
+    // stays true whether the time-off run is listed or not.
+    const r1 = row({ id: 'r1', chain: [200, 300, 490], currentTE: 190, finalTE: 490, durationDays: 790, ...at(0) });
+    const off = row({
+      id: 'off',
+      chain: [200, 300, 490],
+      currentTE: 185,
+      finalTE: 490,
+      durationDays: 820,
+      timeOff: [{ from: '2026-10-01', to: '2026-10-08' }],
+      ...at(1),
+    });
+    const now = START + 60 * DAY_MS;
+    const hidden = judgeFinishes([r1, off], 490, now, new Set(['r1']));
+    const shown = judgeFinishes([r1, off], 490, now, new Set(['r1', 'off']));
+    for (const judged of [hidden, shown]) {
+      expect(judged.byId.get('r1')).toMatchObject({ state: 'what-if', standing: false, best: false });
+      // Every run gets an answer, listed or not.
+      expect(judged.byId.has('off')).toBe(true);
+    }
+    // Hidden, it is evidence and nothing else: never the account's best.
+    expect(hidden.byId.get('off')).toMatchObject({ standing: true, best: false, behind: null });
+    expect(hidden.bestByAccount.size).toBe(0);
+    expect(shown.byId.get('off')).toMatchObject({ best: true, behind: 0 });
+  });
+
+  it('picks the best only from the runs shown', () => {
+    const shownRun = row({
+      id: 'shown',
+      chain: [195, 300, 490],
+      currentTE: 180,
+      finalTE: 490,
+      durationDays: 800,
+      ...at(0),
+    });
+    const hiddenRun = row({
+      id: 'hidden',
+      chain: [197, 300, 490],
+      currentTE: 180,
+      finalTE: 490,
+      durationDays: 790,
+      ...at(0),
+    });
+    const judged = judgeFinishes([shownRun, hiddenRun], 490, START + 60 * DAY_MS, new Set(['shown']));
+    expect(judged.byId.get('shown')).toMatchObject({ best: true, behind: 0 });
+    expect(judged.byId.get('hidden')).toMatchObject({ standing: true, best: false, behind: null });
+    expect(judged.bestByAccount.get(accountKey(shownRun))?.row.id).toBe('shown');
+  });
+
+  it('does not call a run planned around time off the same save as the normal run it copies', () => {
+    // Same save, start and route, nine days longer because the farm stops and is rebuilt: the gap is
+    // the time off, not the plans.
+    const normal = row({
+      id: 'normal',
+      chain: [200, 300, 490],
+      currentTE: 180,
+      finalTE: 490,
+      durationDays: 800,
+      ...at(0),
+    });
+    const off = { ...normal, id: 'off', durationDays: 809, timeOff: [{ from: '2026-10-01', to: '2026-10-08' }] };
+    const judged = judge([normal, off]);
+    expect(judged.byId.get('normal')?.best).toBe(true);
+    expect(judged.byId.get('off')).toMatchObject({ standing: true, sameSaveAsBest: false });
+    expect(judged.byId.get('off')?.behind).toBeCloseTo(9, 9);
+    // And the row says so, where the Leaderboard's setting chips do not.
+    const tags = runTags([normal, off]);
+    expect(tags.get(off)).toEqual(['time off']);
+    expect(tags.has(normal)).toBe(false);
+  });
+
+  describe('a run the Leaderboard lists on two lines', () => {
+    // An anonymous re-run of a plan sent under a name without an owner code sits on two Leaderboard
+    // lines: its own (its account's anonymous runs) and the named player's, which takes it in as a
+    // re-check (`withUnnamedRechecks`) and also weighs that name's runs from OTHER accounts. Only its
+    // own line is its account's judgement, and which line happens to come last must not decide it.
+    const OTHER = ['T4L Gusset', 'T4L Puzzle cube', 'T4L Lunar totem'];
+    const now = START + 20 * DAY_MS;
+    const p1 = row({
+      id: 'p1',
+      nickname: 'Foo',
+      chain: [200, 490],
+      currentTE: 150,
+      finalTE: 490,
+      durationDays: 900,
+      ...at(0),
+    });
+    const x = row({ id: 'x', chain: [200, 490], currentTE: 151, finalTE: 490, durationDays: 898.5, ...at(2) });
+
+    /** Every order of `items`. */
+    function orders<T>(items: T[]): T[][] {
+      if (items.length <= 1) return [items];
+      return items.flatMap((first, i) =>
+        orders([...items.slice(0, i), ...items.slice(i + 1)]).map(rest => [first, ...rest])
+      );
+    }
+
+    it("is not made a what-if by that name's run from another account", () => {
+      const b = row({
+        id: 'b',
+        nickname: 'Foo',
+        artifacts: OTHER,
+        chain: [250, 490],
+        currentTE: 120,
+        finalTE: 490,
+        durationDays: 1000,
+        ...at(3),
+      });
+      for (const rows of orders([p1, x, b])) {
+        const judged = judgeFinishes(rows, 490, now);
+        expect(judged.byId.get('x')).toMatchObject({ state: 'current', standing: true, best: true, reason: '' });
+        expect(judged.bestByAccount.get(accountKey(x))?.row.id).toBe('x');
+        // P1 is a what-if on the named line because of B: the Leaderboard's own verdict on its line.
+        expect(judged.byId.get('p1')).toMatchObject({ state: 'what-if', standing: false });
+      }
+    });
+
+    it("is still made a what-if by its own account's later, lower run", () => {
+      // On the named line, B2 (another account, TE 152) turns L into an old save and X survives; on
+      // X's own line nothing does, and L at TE 140 two days later makes X a what-if.
+      const l = row({ id: 'l', chain: [210, 490], currentTE: 140, finalTE: 490, durationDays: 905, ...at(4) });
+      const b2 = row({
+        id: 'b2',
+        nickname: 'Foo',
+        artifacts: OTHER,
+        chain: [250, 490],
+        currentTE: 152,
+        finalTE: 490,
+        durationDays: 880,
+        ...at(5),
+      });
+      for (const rows of orders([p1, x, l, b2])) {
+        const judged = judgeFinishes(rows, 490, now);
+        expect(judged.byId.get('x')).toMatchObject({ state: 'what-if', standing: false, best: false });
+        expect(judged.byId.get('x')?.reason).toMatch(/TE 140/);
+        expect(judged.bestByAccount.get(accountKey(x))?.row.id).toBe('l');
+      }
+    });
+
+    it("is not replaced by that name's newer run of the same plan from another account", () => {
+      const b3 = row({
+        id: 'b3',
+        nickname: 'Foo',
+        artifacts: OTHER,
+        chain: [200, 490],
+        currentTE: 155,
+        finalTE: 490,
+        durationDays: 890,
+        ...at(4),
+      });
+      expect(accountKey(b3)).not.toBe(accountKey(x));
+      for (const rows of orders([p1, x, b3])) {
+        const judged = judgeFinishes(rows, 490, now);
+        expect(judged.byId.get('x')).toMatchObject({ state: 'current', standing: true, best: true, reason: '' });
+        const [block] = runsByAccount(rows, judged, new Map(), [accountKey(x)]);
+        expect(block.rows.map(r => r.id).sort()).toEqual(['p1', 'x']);
+      }
+    });
+  });
+});
+
+describe('runsByAccount', () => {
+  it('lists each account earliest finish first, runs whose finish no longer stands last', () => {
+    const early = row({
+      id: 'early',
+      chain: [195, 300, 490],
+      currentTE: 180,
+      finalTE: 490,
+      durationDays: 800,
+      ...at(0),
+    });
+    const late = row({
+      id: 'late',
+      chain: [197, 305, 490],
+      currentTE: 181,
+      finalTE: 490,
+      durationDays: 799.5,
+      ...at(1),
+    });
+    const whatIf = row({
+      id: 'whatif',
+      chain: [201, 300, 490],
+      currentTE: 185,
+      finalTE: 490,
+      durationDays: 677,
+      startLocal: '2026-11-23 09:00',
+      submittedAt: iso(0),
+    });
+    const other = row({
+      id: 'other',
+      chain: [195, 300, 490],
+      currentTE: 150,
+      finalTE: 490,
+      timezone: 'Europe/Amsterdam',
+      ...at(0),
+    });
+    const rows = [late, whatIf, other, early];
+    const judged = judge(rows);
+    const labels = new Map([
+      [accountKey(early), 'Denver'],
+      [accountKey(other), 'Amsterdam'],
+    ]);
+    const blocks = runsByAccount(rows, judged, labels, [accountKey(other), accountKey(early)]);
+    expect(blocks.map(b => b.label)).toEqual(['Amsterdam', 'Denver']);
+    expect(blocks[1].rows.map(r => r.id)).toEqual(['early', 'late', 'whatif']);
+    expect(blocks[1].best?.row.id).toBe('early');
+  });
+
+  it("names the account's earliest finish from every run, even one the filters leave out", () => {
+    // Proofs only lists the exhaustive run alone; which runs stand, and the account's earliest
+    // finish, are still judged on all of them, so the page can say that run is not listed.
+    const space = {
+      mode: 'bands' as const,
+      minGap: 0,
+      minAscensions: 3,
+      maxAscensions: 3,
+      chains: 9,
+      chainsPriced: 9,
+      stoppedEarly: false,
+    };
+    const balanced = row({
+      id: 'balanced',
+      chain: [195, 300, 490],
+      currentTE: 180,
+      finalTE: 490,
+      durationDays: 800,
+      ...at(0),
+    });
+    const proof = row({
+      id: 'proof',
+      chain: [196, 301, 490],
+      currentTE: 180,
+      finalTE: 490,
+      durationDays: 801.9,
+      space,
+      ...at(0),
+    });
+    const judged = judge([balanced, proof]);
+    const [block] = runsByAccount([proof], judged, new Map());
+    expect(block.rows.map(r => r.id)).toEqual(['proof']);
+    expect(block.best?.row.id).toBe('balanced');
+    expect(block.rows.some(r => judged.byId.get(r.id)?.best)).toBe(false);
+    expect(judged.byId.get('proof')?.behind).toBeCloseTo(1.9, 9);
+  });
+});
+
+describe('summariseRuns', () => {
+  it('counts runs, accounts and proofs for the All card', () => {
+    const space = {
+      mode: 'bands' as const,
+      minGap: 0,
+      minAscensions: 2,
+      maxAscensions: 2,
+      chains: 9,
+      chainsPriced: 9,
+      stoppedEarly: false,
+    };
+    const g = summariseRuns([
+      row({ chain: [195, 490], currentTE: 180, finalTE: 490, space }),
+      row({ chain: [195, 300, 490], currentTE: 180, finalTE: 490 }),
+      row({ chain: [195, 300, 490], currentTE: 180, finalTE: 490, timezone: 'Europe/Amsterdam' }),
+    ]);
+    expect(g).toMatchObject({ accounts: 2, exhaustive: 1 });
+    expect(g.rows).toHaveLength(3);
   });
 });
 
@@ -341,7 +1050,20 @@ describe('gearOf / sweepGroupOf', () => {
   it('groups tagged uploads by preset and untagged proofs by count', () => {
     const r = row({ chain: [250, 300, 490], currentTE: 180, finalTE: 490 });
     expect(sweepGroupOf({ ...r, sweep: { preset: 'M2' } })).toBe('M2');
-    expect(sweepGroupOf({ ...r, space: { mode: 'bands', minGap: 10, minAscensions: 3, maxAscensions: 3, chains: 9, chainsPriced: 9, stoppedEarly: false } })).toBe('3 ascensions');
+    expect(
+      sweepGroupOf({
+        ...r,
+        space: {
+          mode: 'bands',
+          minGap: 10,
+          minAscensions: 3,
+          maxAscensions: 3,
+          chains: 9,
+          chainsPriced: 9,
+          stoppedEarly: false,
+        },
+      })
+    ).toBe('3 ascensions');
     expect(sweepGroupOf(r)).toBeNull();
   });
 });

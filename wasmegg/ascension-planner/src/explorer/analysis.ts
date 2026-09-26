@@ -3,13 +3,29 @@
  * @description Turning a pile of submitted runs into the few statements that can honestly be made
  * about them.
  *
- * THE ONE RULE THIS MODULE EXISTS TO ENFORCE: durations are not comparable between accounts. A
- * chain's length depends on artifacts, colleggtibles, epic research and starting TE at least as
- * much as on the chain, so "8 ascensions is faster than 6" computed across everybody is an
- * artifact of who happened to submit what. Every cross-count comparison here is therefore built
- * WITHIN an account, and every cross-account view is built on the chain SHAPE -- where the
- * checkpoints sit as a fraction of that account's own journey -- which is the part that does
- * travel.
+ * TWO RULES THIS MODULE EXISTS TO ENFORCE.
+ *
+ *   1. Totals never compare between accounts. A chain's length depends on artifacts,
+ *      colleggtibles, epic research and starting TE at least as much as on the chain, so "8
+ *      ascensions is faster than 6" computed across everybody is an artifact of who happened to
+ *      submit what. Every cross-count comparison here is built WITHIN an account, and every
+ *      cross-account view is built on the chain SHAPE -- where the checkpoints sit as a fraction of
+ *      that account's own journey -- or on one leg's own length, which is the part that travels.
+ *
+ *   2. Within an account, compare FINISH DATES, not totals. A run's total (`durationDays`) is
+ *      counted from its own plan start, so the same plan run a day later shows a day fewer
+ *      (Allan's two runs of 205 246 281 311 490, 87 minutes apart, differ by exactly those 87
+ *      minutes and finish at the same minute). The plan start plus the total is the date the plan
+ *      reaches the target, and that does not move when the same plan is run again; a better plan
+ *      finishes earlier. Totals only compare between runs from ONE save (same account, same plan
+ *      start, same TE), where total and finish date say the same thing. Which runs of an account
+ *      are still standing -- not a what-if, not made from an old save, not replaced by a newer run
+ *      of the same plan, not one the player has fallen behind -- is the Leaderboard's judgement
+ *      (lib/leaderboardRank.ts), reused here rather than restated (`judgeFinishes`).
+ *
+ * Per-leg durations (one ascension's length, the final stretch to 490) are intrinsic to the leg and
+ * fine as days, EXCEPT the first leg, which is the rest of the ascension in progress and shrinks
+ * one-for-one with a later start.
  *
  * ACCOUNT IDENTITY IS A PROXY, and a deliberately coarse one. Submissions carry no player id by
  * design (see search/submission.ts), so there is nothing exact to group on. The nickname is free
@@ -25,12 +41,33 @@ import type { Submission } from '@/search/submission';
 import type { PricedChain } from '@/search/types';
 import type { CollectorRow } from './collector';
 import { checkFinalLegRate, clothedTEFromLabels, deliveryScore, slotsFromLabels } from '@/search/virtueScore';
+import {
+  accountKeyOf,
+  DAY_MS,
+  displayName,
+  fileRows,
+  foldCopies,
+  formatDate,
+  groupPlayers,
+  mayJudge,
+  ownCopies,
+  playerKey,
+  samePlan,
+  sameSave,
+  settingTags,
+  type BoardRow,
+  type Filing,
+  type Folded,
+  type Plan,
+  type PlanState,
+} from '@/lib/leaderboardRank';
 
-/** Stable key for "probably the same account". See the module note on how coarse this is. */
-export function accountKey(row: Submission): string {
-  const artifacts = [...(row.artifacts ?? [])].sort().join('|');
-  return `${row.timezone ?? '?'}::${artifacts}`;
-}
+/**
+ * Stable key for "probably the same account": timezone plus the sorted artifact set. The
+ * Leaderboard's `accountKeyOf`, under the name this page has always used, so the two pages can never
+ * disagree about who is who. See the module note on how coarse this is.
+ */
+export const accountKey: (row: Pick<Submission, 'timezone' | 'artifacts'>) => string = accountKeyOf;
 
 /**
  * What to call an account in a legend.
@@ -41,24 +78,19 @@ export function accountKey(row: Submission): string {
  * annotations are stripped (a trailing date, a trailing parenthetical, a trailing run note) and
  * the SHORTEST survivor is taken, which is the part that did not change between runs.
  *
- * Falls back to the raw shortest if stripping leaves nothing, because a nickname that is entirely
- * a parenthetical is still better than calling somebody Anonymous.
+ * Each name is cleaned by the Leaderboard's `displayName`, so the two pages call one name the same
+ * thing: the stripping above, minus characters that draw nothing, and a name that is only a game icon
+ * (one private-use character, which renders blank outside the game's font) reads "(icon) · Los
+ * Angeles" rather than nothing. A nickname that is entirely a parenthetical keeps it, which is
+ * still better than calling somebody Anonymous.
  */
 export function accountLabel(rows: Submission[]): string {
-  const names = rows.map(r => r.nickname?.trim()).filter((n): n is string => !!n);
-  if (!names.length) return `Anonymous · ${rows[0]?.timezone ?? 'unknown zone'}`;
-  const shortest = (list: string[]) => list.reduce((a, b) => (b.length < a.length ? b : a));
-  const cleaned = names
-    .map(n =>
-      n
-        // A trailing timestamp, with or without a time: `Willsalt 2026-09-20 12:02`.
-        .replace(/\s*\d{4}-\d{2}-\d{2}([ T]\d{2}:\d{2})?.*$/, '')
-        // A trailing parenthetical, closed or not: `(bad sync)`, `(step exhaustiv`.
-        .replace(/\s*\([^)]*\)?\s*$/, '')
-        .trim()
-    )
+  const cleaned = rows
+    .filter(r => r.nickname?.trim())
+    .map(r => displayName(r.nickname, r.timezone))
     .filter(Boolean);
-  if (!cleaned.length) return shortest(names);
+  if (!cleaned.length) return `Anonymous · ${rows[0]?.timezone ?? 'unknown zone'}`;
+  const shortest = (list: string[]) => list.reduce((a, b) => (b.length < a.length ? b : a));
   // The name the most runs are filed under, counting a run for every name it STARTS WITH, so a bare
   // name is credited with its annotated variants ("Williamthe5thc 8 exhaus"); the shortest only
   // breaks a tie. Shortest alone let one typo'd run, "altfieldhouse", name an account whose other
@@ -165,19 +197,34 @@ export function positionBands(rows: Submission[]): PositionBand[] {
   return bandsFromColumns(columns);
 }
 
-export interface CountGroup {
-  ascensions: number;
+/** A set of runs, as the count cards and the "All" card describe it. */
+export interface RunGroup {
   rows: CollectorRow[];
   /** Distinct accounts behind those runs. */
   accounts: number;
-  /** Fastest run at this count, which is only meaningful next to the account it came from. */
-  best: CollectorRow;
-  bands: PositionBand[];
   /** Runs here that can prove their answer over a stated space rather than having found it. */
   exhaustive: number;
 }
 
-/** One group per ascension count present, shortest chain first. */
+export interface CountGroup extends RunGroup {
+  ascensions: number;
+  bands: PositionBand[];
+}
+
+/**
+ * The card numbers for any set of runs. There is deliberately no "fastest" here: the lowest total
+ * in a set picks whichever account has the best gear and whichever run was made last, which is two
+ * of the comparisons this page refuses to make. Each account's earliest finish is in the runs table.
+ */
+export function summariseRuns(rows: CollectorRow[]): RunGroup {
+  return {
+    rows,
+    accounts: new Set(rows.map(accountKey)).size,
+    exhaustive: rows.filter(r => r.space && !r.space.stoppedEarly).length,
+  };
+}
+
+/** One group per ascension count present, shortest chain first. Rows keep the order given. */
 export function groupByCount(rows: CollectorRow[]): CountGroup[] {
   const buckets = new Map<number, CollectorRow[]>();
   for (const row of rows) {
@@ -187,18 +234,286 @@ export function groupByCount(rows: CollectorRow[]): CountGroup[] {
   }
   return [...buckets.entries()]
     .sort((a, b) => a[0] - b[0])
-    .map(([ascensions, group]) => ({
-      ascensions,
-      rows: [...group].sort((a, b) => a.durationDays - b.durationDays),
-      accounts: new Set(group.map(accountKey)).size,
-      best: group.reduce((a, b) => (b.durationDays < a.durationDays ? b : a)),
-      bands: positionBands(group),
-      exhaustive: group.filter(r => r.space && !r.space.stoppedEarly).length,
+    .map(([ascensions, group]) => ({ ascensions, ...summariseRuns(group), bands: positionBands(group) }));
+}
+
+// ------------------------------------------------------------------------------ finish dates
+
+/**
+ * Plan states whose finish still stands, so it compares with the account's other finishes.
+ *
+ * The Leaderboard's `current`, plus `old` (planned over 30 days ago). The race drops an old plan
+ * because it wants a fresh one on the board; this page is a record of what runs found, and a plan
+ * that was not re-measured, not a what-if and not fallen behind still finished when it said. The
+ * rest do not stand: a what-if or an old-save run was not planned from the account as it was, a
+ * replaced one was re-measured by a newer run of the same plan (the newest measurement stands,
+ * earlier or later), and a behind one is a plan the player is no longer on.
+ */
+const STANDING: ReadonlySet<PlanState> = new Set<PlanState>(['current', 'old']);
+
+/**
+ * A later run has to start at least this much later to count as newer: the Leaderboard's `LATER_MS`
+ * (lib/leaderboardRank.ts), which it does not export. Keep the two equal.
+ */
+const LATER_MS = 60 * 60_000;
+
+/** A run in one of these states cannot re-measure a plan: it was not planned from the account as it
+ *  was, or it has no finish to measure with. Everything else can, as on the Leaderboard. */
+const NO_REMEASURE: ReadonlySet<PlanState> = new Set<PlanState>(['what-if', 'old-save', 'no-date']);
+
+/**
+ * The Leaderboard's "replaced" rule, applied across the player lines this page merges into one
+ * account block.
+ *
+ * `groupPlayers` judges each Leaderboard line on its own: an owner code, a name, or the anonymous
+ * runs of one timezone and artifact set. This page shows one block per account (`accountKey`), and a
+ * block can hold several of those lines, so an older plan on one line could stand -- and be the
+ * block's earliest finish -- after a newer run of the same plan on another line re-measured it: an
+ * anonymous 206 283 490 from 14 Sep next to the same plan sent under a name on 21 Sep. Here a plan
+ * that still stands is replaced by the earliest run in its block that starts more than an hour
+ * after it, is not a what-if, not from an old save, has a date, prices the same plan (`samePlan`)
+ * and may judge it (`mayJudge`).
+ *
+ * `mayJudge` keeps the Leaderboard's owner-code protection exactly: a row with an owner code never
+ * judges one without, nor the other way round. So an owner's newer run of a plan first sent without
+ * a code (Allan's 5-ascension 223 253 282 316 490, a re-run of his code-less 6-ascension plan with the
+ * first checkpoint passed) leaves the older plan standing here, as it does on the Leaderboard.
+ *
+ * Returns the reason for each plan this replaces, in the Leaderboard's words.
+ */
+function replacedAcrossLines(plans: readonly Plan<CollectorRow>[], filing: Filing): Map<Plan<CollectorRow>, string> {
+  const blocks = new Map<string, Plan<CollectorRow>[]>();
+  for (const plan of plans) {
+    if (plan.start == null) continue;
+    const key = accountKey(plan.row);
+    const block = blocks.get(key);
+    if (block) block.push(plan);
+    else blocks.set(key, [plan]);
+  }
+  const out = new Map<Plan<CollectorRow>, string>();
+  for (const block of blocks.values()) {
+    block.sort((a, b) => a.start! - b.start!);
+    for (const older of block) {
+      if (!STANDING.has(older.state)) continue;
+      const newer = block.find(
+        p =>
+          p.start! > older.start! + LATER_MS &&
+          p.finish != null &&
+          !NO_REMEASURE.has(p.state) &&
+          samePlan(older.row, p.row) &&
+          mayJudge(filing, p.row, older.row)
+      );
+      if (!newer) continue;
+      const when = formatDate(newer.start, newer.row.timezone, { day: 'numeric', month: 'short' });
+      // A line made from a newer run's `rechecks` carries `recheckOf`, which is not a collector field.
+      const line: BoardRow = newer.row;
+      out.set(
+        older,
+        line.recheckOf
+          ? `re-checked by a newer run (${when}), which priced it again from its own save`
+          : `replaced by a newer run of the same plan (${when})`
+      );
+    }
+  }
+  return out;
+}
+
+/** One run's finish, judged against its own account. */
+export interface RunFinish {
+  /** Plan start and finish, as instants (ms). Null when the start or timezone is missing. */
+  start: number | null;
+  finish: number | null;
+  state: PlanState;
+  /** Why the finish does not stand, in player words. Empty when it does. */
+  reason: string;
+  /** The finish still stands, so it compares with the account's other standing finishes. */
+  standing: boolean;
+  /**
+   * Days this finish is after the account's earliest standing finish at this target: 0 for that
+   * run, positive for any other standing run. Null when this finish does not stand, or when the run
+   * is not among the shown ones (see `judgeFinishes`).
+   */
+  behind: number | null;
+  /** This run is the account's earliest standing finish (ties go to the more recent start). */
+  best: boolean;
+  /**
+   * Made from the same save as the account's best and planned around the same time off, so the gap is
+   * the plans alone. A run planned around time off can share its save, start and route with a normal
+   * run, and then the gap is the farm stopping and being rebuilt (`sameSave` does not look at it).
+   */
+  sameSaveAsBest: boolean;
+}
+
+/** The time off a run was planned around, as one comparable string ('' for none). */
+export function timeOffKey(row: Pick<Submission, 'timeOff'>): string {
+  return (row.timeOff ?? []).map(t => `${t.from}~${t.to}`).join(',');
+}
+
+export interface AccountBest {
+  row: CollectorRow;
+  start: number;
+  finish: number;
+}
+
+export interface FinishJudgement {
+  /** Every copy of every run at the target, by id. */
+  byId: Map<string, RunFinish>;
+  /** Per account (`accountKey`): the shown run with the earliest standing finish. */
+  bestByAccount: Map<string, AccountBest>;
+}
+
+/**
+ * Each run's finish date and whether it still stands, from the Leaderboard's own rules.
+ *
+ * `rows` should be every run on the page at every target -- a run to 300 is still evidence of the
+ * TE the account had that day -- and exact copies included: `groupPlayers` folds them itself, and
+ * every copy's id is answered with the judgement of the result it is a copy of. That includes runs
+ * the page hides: whether a run is SHOWN must not change which OTHER runs stand. `now` only decides
+ * the Leaderboard's 30-day rule, which this page does not apply (see `STANDING`).
+ *
+ * `shown` is the ids of the runs the page lists (every copy's id will do). Only those can be an
+ * account's best or carry a `behind`: a best nobody can find in the table is no help. Leave it out
+ * and every run counts as shown.
+ *
+ * Lines the Leaderboard makes from a newer run's `rechecks` are used for what they replace but are
+ * never an account's best here, for the same reason: they are not rows in this page's table.
+ *
+ * EACH RUN IS JUDGED ON ITS OWN LINE. `groupPlayers` can list one run on two lines: an anonymous
+ * re-run of a plan sent under a name with no owner code is on its own line (the anonymous runs of its
+ * account) and on the named player's too (`withUnnamedRechecks`), and the named line also weighs that
+ * name's runs from OTHER accounts. So a same-name run on another account's gear could make the re-run
+ * a what-if, or replace it, and which of the two verdicts showed was whichever line came last in
+ * /all's order. Here a run's verdict, and what it may replace in `replacedAcrossLines`, come only from
+ * the line `groupPlayers` files it under -- its own copy on the named line is left out, and so are the
+ * lines that line made from its `rechecks`. Its re-check of the named plan still counts on the named
+ * line, as on the Leaderboard.
+ */
+export function judgeFinishes(
+  rows: CollectorRow[],
+  finalTE: number,
+  now: number,
+  shown?: ReadonlySet<string>
+): FinishJudgement {
+  // `groupPlayers`' own filing, over the rows it ranks (its `rankable`: a route and no flags), and its
+  // own key for the line a folded run is filed under. Keep both in step with it.
+  const filing = fileRows(rows.filter(r => Array.isArray(r.chain) && !r.flags?.length));
+  const lineOf = (f: Folded<CollectorRow>) =>
+    (f.player ?? playerKey(filing, f.row)) || `account:${accountKeyOf(f.row)}`;
+
+  const plans = new Map<string, Plan<CollectorRow>>();
+  const lines: Plan<CollectorRow>[] = [];
+  for (const player of groupPlayers(rows, { target: finalTE, now })) {
+    for (const plan of player.plans) {
+      if (lineOf(plan.folded) !== player.key) continue;
+      lines.push(plan);
+      for (const copy of plan.folded.copies) if (copy.id) plans.set(copy.id, plan);
+    }
+  }
+
+  const replaced = replacedAcrossLines(lines, filing);
+  const stateOf = (plan: Plan<CollectorRow>): PlanState => (replaced.has(plan) ? 'replaced' : plan.state);
+  const stands = (plan: Plan<CollectorRow>) => STANDING.has(stateOf(plan)) && plan.finish != null;
+  const isShown = (plan: Plan<CollectorRow>) => !shown || plan.folded.copies.some(c => shown.has(c.id));
+
+  const bestPlan = new Map<string, Plan<CollectorRow>>();
+  for (const plan of new Set(plans.values())) {
+    if (!stands(plan) || plan.start == null || !isShown(plan)) continue;
+    const key = accountKey(plan.row);
+    const held = bestPlan.get(key);
+    // Earliest finish; a tie goes to the more recent start, as on the Leaderboard.
+    if (!held || plan.finish! < held.finish! || (plan.finish === held.finish && plan.start > held.start!)) {
+      bestPlan.set(key, plan);
+    }
+  }
+
+  const byId = new Map<string, RunFinish>();
+  for (const [id, plan] of plans) {
+    const best = bestPlan.get(accountKey(plan.row));
+    const standing = stands(plan);
+    byId.set(id, {
+      start: plan.start,
+      finish: plan.finish,
+      state: stateOf(plan),
+      reason: standing ? '' : (replaced.get(plan) ?? plan.reason),
+      standing,
+      behind: standing && best && isShown(plan) ? (plan.finish! - best.finish!) / DAY_MS : null,
+      best: best === plan,
+      sameSaveAsBest:
+        !!best && best !== plan && sameSave(plan.row, best.row) && timeOffKey(plan.row) === timeOffKey(best.row),
+    });
+  }
+
+  // Named by the copy the table shows for it (`shownCopy`), so the block header describes the row the
+  // table lists: under Proofs only, a proof shown in place of a bigger search is not "not a proof".
+  const who = (r: CollectorRow) => playerKey(filing, r);
+  const bestByAccount = new Map<string, AccountBest>();
+  for (const [key, plan] of bestPlan) {
+    bestByAccount.set(key, { row: shownCopy(plan.folded, who), start: plan.start!, finish: plan.finish! });
+  }
+  return { byId, bestByAccount };
+}
+
+/** One account's runs in the runs table. */
+export interface AccountRuns {
+  key: string;
+  label: string;
+  /** Standing finishes first, earliest first; then the rest, earliest first. */
+  rows: CollectorRow[];
+  best: AccountBest | null;
+}
+
+/**
+ * The runs table: one block per account, in `order` (the page's colour order), each account's runs
+ * earliest finish first. Accounts are never ranked against each other -- different gear -- so
+ * there is no order between blocks to get wrong. Inside a block, runs whose finish no longer
+ * stands (a what-if, a replaced plan, ...) come after the ones that do, whatever their date.
+ */
+export function runsByAccount(
+  rows: CollectorRow[],
+  judged: FinishJudgement,
+  labels: ReadonlyMap<string, string>,
+  order: readonly string[] = []
+): AccountRuns[] {
+  const blocks = new Map<string, CollectorRow[]>();
+  for (const row of rows) {
+    const key = accountKey(row);
+    const block = blocks.get(key);
+    if (block) block.push(row);
+    else blocks.set(key, [row]);
+  }
+  const rank = (key: string) => {
+    const i = order.indexOf(key);
+    return i < 0 ? Infinity : i;
+  };
+  const sortKey = (row: CollectorRow) => {
+    const j = judged.byId.get(row.id);
+    return { standing: j?.standing ? 0 : 1, finish: j?.finish ?? Infinity, start: j?.start ?? -Infinity };
+  };
+  return [...blocks.entries()]
+    .sort(([a], [b]) => rank(a) - rank(b) || (labels.get(a) ?? a).localeCompare(labels.get(b) ?? b))
+    .map(([key, block]) => ({
+      key,
+      label: labels.get(key) ?? accountLabel(block),
+      best: judged.bestByAccount.get(key) ?? null,
+      rows: [...block].sort((a, b) => {
+        const x = sortKey(a);
+        const y = sortKey(b);
+        return x.standing - y.standing || x.finish - y.finish || y.start - x.start;
+      }),
     }));
 }
 
 export interface CountComparisonPoint {
   ascensions: number;
+  /**
+   * Days after the series' anchor (`CountComparison.anchor`): the account's earliest finish, so 0 only
+   * at the count that holds it, or on a solid line whose run no longer stands, that run's own best
+   * count. The one number on this chart that compares across runs made on different days.
+   */
+  behind: number;
+  /** When the plan reaches the target (ms), or null when the start or timezone is missing. */
+  finish: number | null;
+  /** The plan's own length, from its own start. For the tooltip, never for comparing. */
   days: number;
   /** Where the account was when it ran this, because it moves between runs and changes the total. */
   currentTE: number;
@@ -216,64 +531,112 @@ export interface CountComparison {
   points: CountComparisonPoint[];
   /** True when every point came out of ONE exhaustive run, which is the only airtight version. */
   singleRun: boolean;
+  /**
+   * What `behind` is measured from. `account`: the account's earliest finish, at `anchorFinish`.
+   * `run`: a solid line whose run no longer stands, measured from that run's own best count instead,
+   * because its finishes do not compare with the account's (`note` says why it no longer stands).
+   */
+  anchor: 'account' | 'run';
+  /** The finish `behind` counts from (ms), or null when it has no date. */
+  anchorFinish: number | null;
+  /** Why a `run`-anchored line's run no longer stands, in player words. Empty otherwise. */
+  note: string;
 }
 
 /**
- * "Does one more ascension help?", per account.
+ * "Does one more ascension help?", per account, as days after that account's earliest finish.
  *
  * Two grades of evidence, and the difference is worth stating on the chart rather than burying:
  *
  *   - A single exhaustive run that priced several counts knows the answer outright -- every chain
  *     at both counts was priced from the same save at the same instant, so the comparison holds
  *     every input fixed. That is `proof.byAscensions`, and a series built from it is marked
- *     `singleRun`.
- *   - Several runs from one account, submitted on different days at different current TE. Still
- *     far better than comparing strangers, still not a controlled experiment: an account that
- *     gained 50 TE between runs is not the same account.
+ *     `singleRun`. Each count's point is that run's own finish date at that count.
+ *   - Several runs from one account, made on different days. Their totals do NOT compare (a run
+ *     made a day later is a day shorter), so each count's point is the EARLIEST FINISH among that
+ *     account's runs at that count whose finish still stands (`judgeFinishes`): not a what-if, not
+ *     from an old save, not replaced by a newer run of the same plan, not fallen behind. Built for
+ *     an account with a proof too, so counts the proof did not cover still show.
  *
- * Accounts with only one count are dropped: a single point makes no comparison and adds a legend
+ * ONE ANCHOR PER ACCOUNT. Both lines count from the account's earliest finish: the earliest of its
+ * best standing finish (`judged.bestByAccount`, taken from every shown run, so it can be one that
+ * Proofs only leaves out of `rows`) and the proof run's own best finish. Measuring the solid line
+ * from its own best instead put rontimes' 6 ascensions on 0 at 28 Nov when that account's earliest
+ * finish is 18 Nov, ten days before. That holds only while the proof run stands: a what-if or a run
+ * from an old save does not compare with the account's finishes, so its line is measured from its
+ * own best count and says so (`anchor: 'run'`).
+ *
+ * A line with only one count is dropped: a single point makes no comparison and adds a legend
  * entry to a chart that lives on being readable.
  */
-export function compareCounts(rows: CollectorRow[]): CountComparison[] {
+export function compareCounts(rows: CollectorRow[], judged: FinishJudgement): CountComparison[] {
   const out: CountComparison[] = [];
 
   for (const account of groupByAccount(rows)) {
-    // Prefer a run that measured several counts by itself.
-    const proven = account.rows.find(r => (r.proof?.byAscensions?.length ?? 0) > 1);
+    let anchorFinish = judged.bestByAccount.get(account.key)?.finish ?? null;
+
+    // A run that measured several counts by itself; one that still stands if there is one.
+    const proofs = account.rows.filter(r => (r.proof?.byAscensions?.length ?? 0) > 1);
+    const proven = proofs.find(r => judged.byId.get(r.id)?.standing) ?? proofs[0];
     if (proven) {
+      const j = judged.byId.get(proven.id);
+      const entries = proven.proof!.byAscensions;
+      const fastest = Math.min(...entries.map(e => e.days));
+      const start = j?.start ?? null;
+      const stands = !!j?.standing && start != null;
+      if (stands) anchorFinish = Math.min(anchorFinish ?? Infinity, start + fastest * DAY_MS);
       out.push({
         key: `${account.key}#${proven.id}`,
         accountKey: account.key,
         label: `${account.label} (one exhaustive run)`,
         singleRun: true,
-        points: proven
-          .proof!.byAscensions.map(entry => ({
-            ascensions: entry.ascensions,
-            days: entry.days,
-            currentTE: proven.currentTE,
-            finalTE: proven.finalTE,
-            runId: proven.id,
-            chain: entry.chain,
-          }))
+        anchor: stands ? 'account' : 'run',
+        anchorFinish: stands ? anchorFinish : start == null ? null : start + fastest * DAY_MS,
+        note: stands ? '' : j?.reason || 'no finish date',
+        points: entries
+          .map(entry => {
+            const finish = start == null ? null : start + entry.days * DAY_MS;
+            return {
+              ascensions: entry.ascensions,
+              // Standing: from the account's earliest finish. Not: from its own best count, where one
+              // save and one start make the totals say what the finishes would.
+              behind: stands ? (finish! - anchorFinish!) / DAY_MS : entry.days - fastest,
+              finish,
+              days: entry.days,
+              currentTE: proven.currentTE,
+              finalTE: proven.finalTE,
+              runId: proven.id,
+              chain: entry.chain,
+            };
+          })
           .sort((a, b) => a.ascensions - b.ascensions),
       });
-      continue;
     }
 
-    if (account.counts.length < 2) continue;
-    const bestPerCount = new Map<number, CollectorRow>();
+    const bestPerCount = new Map<number, { row: CollectorRow; finish: number }>();
     for (const row of account.rows) {
+      const j = judged.byId.get(row.id);
+      if (!j?.standing || j.finish == null) continue;
       const held = bestPerCount.get(row.ascensions);
-      if (!held || row.durationDays < held.durationDays) bestPerCount.set(row.ascensions, row);
+      if (!held || j.finish < held.finish) bestPerCount.set(row.ascensions, { row, finish: j.finish });
     }
+    if (bestPerCount.size < 2) continue;
+    // Every run here stands and is shown, so the account's best is at or before each of them; the
+    // fallback is only for a judgement made without this account's runs in it.
+    const earliest = anchorFinish ?? Math.min(...[...bestPerCount.values()].map(b => b.finish));
     out.push({
       key: account.key,
       accountKey: account.key,
       label: account.label,
       singleRun: false,
+      anchor: 'account',
+      anchorFinish: earliest,
+      note: '',
       points: [...bestPerCount.values()]
-        .map(r => ({
+        .map(({ row: r, finish }) => ({
           ascensions: r.ascensions,
+          behind: (finish - earliest) / DAY_MS,
+          finish,
           days: r.durationDays,
           currentTE: r.currentTE,
           finalTE: r.finalTE,
@@ -338,38 +701,96 @@ export function targetsPresent(rows: CollectorRow[]): { finalTE: number; runs: n
     .sort((a, b) => b.runs - a.runs || a.finalTE - b.finalTE);
 }
 
-/** JSON with keys sorted at every level, so two records that hold the same values compare equal. */
-function canonical(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
-  if (value && typeof value === 'object') {
-    return `{${Object.keys(value)
-      .sort()
-      .map(k => `${JSON.stringify(k)}:${canonical((value as Record<string, unknown>)[k])}`)
-      .join(',')}}`;
-  }
-  return JSON.stringify(value);
+/** Every run once: the copies of one result folded onto the copy that stands for it. */
+export interface FoldedRuns {
+  /** One row per result, in the order the rows came in. */
+  rows: CollectorRow[];
+  /** Ids of the other copies, hidden everywhere on the page. */
+  hidden: Set<string>;
+  /** How many times each shown row's result was sent, by its id, when more than once. */
+  sends: Map<string, number>;
+}
+
+/** 2 for a finished proof, 1 for a run tagged with its sweep, 3 for both: what "Proofs only", the
+ *  sweep chart and the data needs look for in a row. */
+function evidenceRank(row: CollectorRow): number {
+  return (row.space && !row.space.stoppedEarly ? 2 : 0) + (row.sweep ? 1 : 0);
 }
 
 /**
- * Rows that are an exact copy of an earlier row: every field equal except the id and the moment
- * it was posted. The earliest copy is kept and the rest are returned, to be hidden.
+ * The copy this page shows for one result (`foldCopies`' group `f`), under the name and owner
+ * `foldCopies` gave it.
  *
- * EXACT, not "same run". Two runs of the same chain on one account that differ in chains priced or
- * effort are two experiments and both stay -- that is `/leaderboard`'s collapse, and it is a
- * different question. This is the same POST twice (a double-clicked Submit, a retry after a
- * timeout), which counts one run as two in every average on the page.
+ * `foldCopies` stands for a result by its biggest search, which suits the Leaderboard and not this
+ * page: an F2 table (1,750 chains, a finished proof) and a thorough run that found the same result
+ * (5,806 chains priced, no space) showed only the thorough one, so "Proofs only" dropped the result,
+ * the sweep chart lost its curve and the data needs lost the coverage. Here a finished proof, or a run
+ * tagged with its sweep, is shown when the result has one -- chosen only among the copies `foldCopies`
+ * would let stand for it (`ownCopies`), so a stranger's anonymous copy with a made-up `space` still
+ * cannot stand for an owner's result. Among equals it is `foldCopies`' order: the biggest search, then
+ * a CSV, then the earliest.
+ *
+ * `who` must file rows the way the fold that made `f` did (`playerKey` over that fold's filing).
  */
-export function exactDuplicateIds(rows: CollectorRow[]): Set<string> {
-  const byContent = new Map<string, CollectorRow>();
-  const dupes = new Set<string>();
-  const sorted = [...rows].sort((a, b) => (a.submittedAt ?? '').localeCompare(b.submittedAt ?? ''));
-  for (const row of sorted) {
-    const { id: _id, submittedAt: _at, hasCsv: _csv, ...content } = row;
-    const key = canonical(content);
-    if (byContent.has(key)) dupes.add(row.id);
-    else byContent.set(key, row);
+function shownCopy(f: Folded<CollectorRow>, who: (r: CollectorRow) => string): CollectorRow {
+  const own = ownCopies(f.copies, f.player ?? '', who);
+  const size = (r: CollectorRow) => r.space?.chains || r.chainsPriced || 0;
+  let pick = f.copies.find(c => c.id === f.row.id) ?? f.row;
+  for (const c of f.copies) {
+    if (!own.has(c)) continue;
+    const d =
+      evidenceRank(c) - evidenceRank(pick) || size(c) - size(pick) || Number(!!c.hasCsv) - Number(!!pick.hasCsv);
+    if (d > 0) pick = c;
   }
-  return dupes;
+  if (pick.id === f.row.id) return f.row;
+  // The name and the owner are the result's, as `foldCopies` gave them: never the copy's own.
+  let row = pick;
+  if (row.nickname !== f.row.nickname) {
+    row = { ...row, nickname: f.row.nickname };
+    if (row.nickname === undefined) delete row.nickname;
+  }
+  if (row.acct !== f.row.acct) {
+    row = { ...row, acct: f.row.acct };
+    if (row.acct === undefined) delete row.acct;
+  }
+  return row;
+}
+
+/**
+ * Fold copies of one result, with the Leaderboard's own rule (`foldCopies`): the same plan from the
+ * same save sent more than once -- a double-clicked Submit, an automatic send and a manual one, an
+ * anonymous send and then a named one -- is one row. The name and the owner tag do not count as
+ * content, so a named and an anonymous send of Allan's 663.27-day run are one run, not two, and the
+ * row shown carries the name. The copy shown is a finished proof or a tagged sweep when the result
+ * has one, else its biggest search (`shownCopy`), so "Proofs only" and the sweep chart keep it.
+ *
+ * Two different players are never folded together, even on identical content.
+ */
+export function foldRuns(rows: CollectorRow[]): FoldedRuns {
+  const shown: CollectorRow[] = [];
+  const hidden = new Set<string>();
+  const sends = new Map<string, number>();
+  const filing = fileRows(rows);
+  const who = (r: CollectorRow) => playerKey(filing, r);
+  for (const f of foldCopies(rows, filing)) {
+    const row = shownCopy(f, who);
+    shown.push(row);
+    for (const copy of f.copies) if (copy.id !== row.id) hidden.add(copy.id);
+    if (f.copies.length > 1) sends.set(row.id, f.copies.length);
+  }
+  return { rows: shown, hidden, sends };
+}
+
+/**
+ * The chips on a run's route in the runs table: the Leaderboard's `settingTags` (what tells two runs
+ * with one route and start apart), plus `time off` on every run planned around some, which
+ * `settingTags` does not look at. With those runs included, a time-off run with the same save, start
+ * and route as a normal one read as the same row nine days later.
+ */
+export function runTags(rows: readonly CollectorRow[]): Map<CollectorRow, string[]> {
+  const tags = settingTags(rows);
+  for (const r of rows) if (r.timeOff?.length) tags.set(r, [...(tags.get(r) ?? []), 'time off']);
+  return tags;
 }
 
 /**

@@ -9,10 +9,13 @@
   means it hosts anywhere: GitHub Pages, a file server, anywhere at all.
 
   WHAT IT WILL AND WILL NOT SAY. Durations are not comparable between accounts and this page never
-  compares them that way (see analysis.ts). Across accounts it compares SHAPE; within an account it
-  compares durations, and says which of the two grades of evidence each comparison rests on. The
-  caveats are on the page rather than in this comment because the reader needs them more than the
-  maintainer does.
+  compares them that way (see analysis.ts). Across accounts it compares SHAPE, or one leg's own
+  length. Within an account it compares FINISH DATES: a plan's total is counted from its own start,
+  so the same plan run a day later shows a day fewer, and only the date it reaches the target stays
+  put. Totals are compared only between runs from one save, where the two agree. Which of an
+  account's runs still stand (not a what-if, an old save, a replaced or a fallen-behind plan) is the
+  Leaderboard's judgement, reused (lib/leaderboardRank.ts). The caveats are on the page rather than
+  in this comment because the reader needs them more than the maintainer does.
 -->
 <template>
   <div class="min-h-screen bg-slate-100 text-slate-800">
@@ -80,8 +83,15 @@
               Worker time from the {{ computeTotal.runs }} run{{ computeTotal.runs === 1 ? '' : 's' }} that recorded it
               (minutes x workers); runs from older versions and from uploads did not.
             </p>
-            <p v-if="!loading && (dupeIds.size || flagged.size || withTimeOff.size)" class="text-[11px] text-slate-500">
-              <template v-if="dupeIds.size">{{ dupeIds.size }} exact duplicate{{ dupeIds.size === 1 ? '' : 's' }} hidden. </template>
+            <p
+              v-if="!loading && (folded.hidden.size || flagged.size || withTimeOff.size)"
+              class="text-[11px] text-slate-500"
+            >
+              <template v-if="folded.hidden.size">
+                {{ folded.hidden.size }} repeat send{{ folded.hidden.size === 1 ? '' : 's' }} of a result already listed
+                folded in (the same plan from the same save: sent twice, sent with and without a name, or found by two
+                searches).
+              </template>
               <template v-if="flagged.size">
                 {{ flagged.size }} run{{ flagged.size === 1 ? '' : 's' }} flagged for the delivery-set bug,
                 <label class="inline-flex items-center gap-1 font-bold text-slate-600">
@@ -168,6 +178,31 @@
           <h2 class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">By ascension count</h2>
           <div v-if="countGroups.length" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
             <button
+              type="button"
+              class="rounded-xl border p-3 text-left transition-colors"
+              :class="
+                selectedCount === 'all'
+                  ? 'border-slate-900 bg-slate-900 text-white'
+                  : 'border-slate-200 bg-white hover:border-slate-300'
+              "
+              @click="selectedCount = 'all'"
+            >
+              <div class="text-xl font-black leading-none">All</div>
+              <div
+                class="text-[9px] font-black uppercase tracking-widest mt-1"
+                :class="selectedCount === 'all' ? 'text-slate-300' : 'text-slate-400'"
+              >
+                ascension counts
+              </div>
+              <div class="mt-2 text-[11px] font-bold">
+                {{ allGroup.rows.length }} run{{ allGroup.rows.length === 1 ? '' : 's' }}
+              </div>
+              <div class="text-[10px]" :class="selectedCount === 'all' ? 'text-slate-300' : 'text-slate-400'">
+                {{ allGroup.accounts }} account{{ allGroup.accounts === 1 ? '' : 's' }}
+                <template v-if="allGroup.exhaustive">· {{ allGroup.exhaustive }} proven</template>
+              </div>
+            </button>
+            <button
               v-for="group in countGroups"
               :key="group.ascensions"
               type="button"
@@ -210,58 +245,133 @@
         <section v-if="selected" class="rounded-xl border border-slate-200 bg-white p-4 space-y-5">
           <div class="flex flex-wrap items-baseline justify-between gap-2">
             <h2 class="text-lg font-black text-slate-900">
-              {{ selected.ascensions }} ascensions
+              {{ selectedCount === 'all' ? 'Every ascension count' : `${selectedCount} ascensions` }}
               <span class="text-[11px] font-bold text-slate-400">
                 · {{ selected.rows.length }} runs from {{ selected.accounts }} accounts
               </span>
             </h2>
-            <span class="text-[11px] text-slate-500">
-              fastest here: <b>{{ selected.best.durationDays.toFixed(2) }} d</b> on {{ selected.best.currentTE }} →
-              {{ selected.best.finalTE }}
-              <span class="font-mono-premium">({{ selected.best.chain.join(' ') }})</span>
+            <span class="text-[11px] text-slate-500 max-w-md">
+              No "fastest" across accounts: gear decides that. Each account's earliest finish is named in the table.
             </span>
           </div>
 
-          <div class="space-y-2">
-            <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Where each checkpoint lands</h3>
-            <CountShapeChart
-              :rows="selected.rows"
-              :bands="selected.bands"
-              :account-colors="accountColors"
-              :journey-from="selected.best.currentTE"
-              :journey-to="selected.best.finalTE"
-            />
-          </div>
+          <template v-if="selectedCount !== 'all'">
+            <div class="space-y-2">
+              <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                Where each checkpoint lands
+              </h3>
+              <CountShapeChart
+                :rows="selected.rows"
+                :bands="selectedBands"
+                :account-colors="accountColors"
+                :journey-from="sampleJourneyFrom"
+                :journey-to="finalTE"
+              />
+            </div>
 
-          <div class="space-y-2">
-            <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">How each ascension goes</h3>
-            <LegProfileChart :rows="selected.rows" :account-colors="accountColors" />
-          </div>
+            <div class="space-y-2">
+              <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">How each ascension goes</h3>
+              <LegProfileChart :rows="selected.rows" :account-colors="accountColors" />
+            </div>
+          </template>
+          <p v-else class="text-[11px] text-slate-500 leading-relaxed">
+            Pick one count to see where its checkpoints land and how each ascension goes: the third ascension of a
+            4-ascension plan and of a 7-ascension plan are not the same thing, so those charts only work one count at a
+            time.
+          </p>
 
           <div class="space-y-2">
             <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">The runs</h3>
-            <div class="overflow-x-auto">
+            <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
+              Grouped by account, earliest finish first. <b>Finishes</b> is the date the plan reaches {{ finalTE }} TE,
+              in your timezone (the player's own is on hover): it is the same whenever the same plan is run, so it is
+              what compares between an account's runs. <b>Plan length</b> counts from each run's own start, so a run
+              made a day later shows a day fewer; it only compares between runs from the same save. <b>vs best</b> is
+              days after that account's earliest finish, the run named at the top of its block. That run is picked from
+              all of the account's runs to this target, so Proofs only or picking one count can leave it out of the
+              list; the block then says so. Runs whose finish no longer stands (a what-if, a plan re-measured by a newer
+              run, one the player has fallen behind, one made from an old save) are listed last, greyed, with the reason
+              on hover.
+            </p>
+            <!-- A size container, so each account's header line can be exactly as wide as what is on
+                 screen (100cqw) however wide the table itself is: the Leaderboard's pattern. -->
+            <div class="overflow-x-auto [container-type:inline-size]">
               <table class="w-full text-[11px]">
                 <thead>
                   <tr class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
                     <th class="text-left py-1 pr-3">Who</th>
+                    <th v-if="selectedCount === 'all'" class="text-right py-1 pr-3">Asc.</th>
                     <th class="text-left py-1 pr-3">Journey</th>
                     <th class="text-left py-1 pr-3">Chain</th>
-                    <th class="text-right py-1 pr-3">Days</th>
+                    <th class="text-left py-1 pr-3">Planned</th>
+                    <th class="text-left py-1 pr-3">Finishes</th>
+                    <th class="text-right py-1 pr-3">vs best</th>
+                    <th class="text-right py-1 pr-3" title="Days from this run's own plan start to the target">
+                      Plan length<br /><span class="normal-case tracking-normal font-bold">(from its start)</span>
+                    </th>
                     <th class="text-left py-1 pr-3">Effort</th>
                     <th class="text-right py-1 pr-3">Priced</th>
                     <th class="text-right py-1 pr-3">Compute</th>
                     <th class="text-left py-1">Full table</th>
                   </tr>
                 </thead>
-                <tbody class="divide-y divide-slate-100">
-                  <tr v-for="row in selected.rows" :key="row.id" class="hover:bg-slate-50">
+                <tbody v-for="block in runBlocks" :key="block.key" class="divide-y divide-slate-100">
+                  <tr class="bg-slate-50">
+                    <td :colspan="selectedCount === 'all' ? 12 : 11" class="p-0 text-[10px] text-slate-500">
+                      <!-- Pinned to the left edge and as wide as the visible part of the table: on a phone
+                           the table is wider than the screen, and a line spanning all of it put the
+                           route and the "not listed here" note off-screen. It wraps on screen instead. -->
+                      <div class="sticky left-0 w-[100cqw] py-1.5 px-2">
+                        <span
+                          class="inline-block w-2 h-2 rounded-full mr-1.5 align-middle"
+                          :style="{ background: colorAt(accountColors.get(block.key) ?? 0) }"
+                        />
+                        <b class="text-slate-700">{{ block.label }}</b>
+                        <template v-if="block.best">
+                          · earliest finish
+                          <b class="text-slate-700" :title="finishTitle(block.best.finish, block.best.row.timezone)">{{
+                            finishDateText(block.best.finish, viewZone)
+                          }}</b>
+                          ({{ block.best.row.ascensions }} ascensions,
+                          <span class="font-mono-premium">{{ block.best.row.chain.join(' ') }}</span
+                          >)
+                          <span v-if="!bestListed.has(block.key)" class="text-slate-400"
+                            >(not listed here: {{ unlistedWhy(block.best.row) }})</span
+                          >
+                        </template>
+                        <template v-else> · no run whose finish still stands</template>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr
+                    v-for="row in block.rows"
+                    :key="row.id"
+                    class="hover:bg-slate-50"
+                    :class="judged.byId.get(row.id)?.standing ? '' : 'text-slate-400'"
+                  >
                     <td class="py-1.5 pr-3">
+                      {{ whoText(row) || 'anonymous' }}
                       <span
-                        class="inline-block w-2 h-2 rounded-full mr-1.5 align-middle"
-                        :style="{ background: colorAt(accountColors.get(accountKey(row)) ?? 0) }"
-                      />
-                      {{ row.nickname || 'anonymous' }}
+                        v-if="judged.byId.get(row.id)?.best"
+                        class="ml-1 rounded bg-emerald-100 px-1 text-[9px] font-black text-emerald-800"
+                        title="This account's earliest finish at this target"
+                      >
+                        best
+                      </span>
+                      <span
+                        v-if="stateOf(row)"
+                        class="ml-1 rounded bg-slate-100 px-1 text-[9px] font-black text-slate-500"
+                        :title="judged.byId.get(row.id)?.reason"
+                      >
+                        {{ stateOf(row) }}
+                      </span>
+                      <span
+                        v-if="folded.sends.get(row.id)"
+                        class="ml-1 text-[9px] font-bold text-slate-400"
+                        title="The same result was sent more than once; it is listed once"
+                      >
+                        sent ×{{ folded.sends.get(row.id) }}
+                      </span>
                       <span
                         v-if="flagged.has(row.id)"
                         class="ml-1 rounded bg-amber-100 px-1 text-[9px] font-black text-amber-800"
@@ -270,11 +380,46 @@
                         flagged
                       </span>
                     </td>
-                    <td class="py-1.5 pr-3 font-mono-premium text-slate-500">
+                    <td v-if="selectedCount === 'all'" class="py-1.5 pr-3 text-right font-bold">
+                      {{ row.ascensions }}
+                    </td>
+                    <td class="py-1.5 pr-3 font-mono-premium text-slate-500 whitespace-nowrap">
                       {{ row.currentTE }} → {{ row.finalTE }}
                     </td>
-                    <td class="py-1.5 pr-3 font-mono-premium text-slate-700">{{ row.chain.join(' ') }}</td>
-                    <td class="py-1.5 pr-3 text-right font-black">{{ row.durationDays.toFixed(2) }}</td>
+                    <td
+                      class="py-1.5 pr-3 font-mono-premium whitespace-nowrap"
+                      :class="judged.byId.get(row.id)?.standing ? 'text-slate-700' : ''"
+                    >
+                      {{ row.chain.join(' ') }}
+                      <span
+                        v-for="t in tags.get(row) ?? []"
+                        :key="t"
+                        class="ml-1 rounded bg-sky-100 px-1 font-sans text-[9px] font-black text-sky-800"
+                        >{{ t }}</span
+                      >
+                    </td>
+                    <td class="py-1.5 pr-3 whitespace-nowrap" :title="`${row.startLocal}, ${row.timezone} time`">
+                      {{ plannedText(row) }}
+                    </td>
+                    <td
+                      class="py-1.5 pr-3 whitespace-nowrap font-black"
+                      :title="finishTitle(judged.byId.get(row.id)?.finish ?? null, row.timezone)"
+                    >
+                      {{ finishDateText(judged.byId.get(row.id)?.finish ?? null, viewZone) }}
+                    </td>
+                    <td class="py-1.5 pr-3 text-right whitespace-nowrap" :title="vsBestTitle(row)">
+                      <span v-if="judged.byId.get(row.id)?.best" class="font-black text-emerald-700">best</span>
+                      <template v-else-if="judged.byId.get(row.id)?.behind != null">
+                        {{ vsBestText(judged.byId.get(row.id)!.behind!) }}
+                        <span v-if="judged.byId.get(row.id)?.sameSaveAsBest" class="text-[9px] text-slate-400"
+                          >same save</span
+                        >
+                      </template>
+                      <span v-else class="text-slate-300">—</span>
+                    </td>
+                    <td class="py-1.5 pr-3 text-right text-slate-500 whitespace-nowrap">
+                      {{ row.durationDays.toFixed(2) }} d
+                    </td>
                     <td class="py-1.5 pr-3">
                       <span v-if="row.space && !row.space.stoppedEarly" class="font-black text-emerald-700">
                         exhaustive
@@ -314,7 +459,13 @@
           <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
             One line per account, never one line across accounts: a duration depends on artifacts, colleggtibles,
             research and starting TE at least as much as on the chain, so the only honest version of this question holds
-            an account still and varies the count.
+            an account still and varies the count. Each point is how many days after that account's earliest finish the
+            best plan at that count finishes, so a line only touches 0 at the count that holds it. That earliest finish
+            is taken from all of the account's runs that still stand, the same one the runs table names. A solid line is
+            one exhaustive run that timed several counts from one save; if that run no longer stands (a what-if, an old
+            save), it is measured from its own best count instead, and its tooltip says so. A dashed line is the
+            account's runs that still stand, the earliest finish at each count. Runs made on different days are compared
+            by finish date, never by their totals: the same plan run a day later shows a day fewer.
           </p>
           <CountCompareChart :comparisons="comparisons" :account-colors="accountColors" />
         </section>
@@ -333,8 +484,11 @@
         <section class="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
           <h2 class="text-lg font-black text-slate-900">Each sweep, every account</h2>
           <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
-            Best total days at each last checkpoint, one line per run. A flat bottom means the exact checkpoint barely
-            matters; a bottom at the same place for everyone means the shape carries between accounts.
+            For each last checkpoint, how many days the best plan ending there is behind that run's own best, one line
+            per run. Each line is one table priced from one save, so its shape is exact; the heights are measured from
+            each run's own best, because runs from different accounts, or made on different days, do not compare by
+            total. A flat bottom means the exact checkpoint barely matters; a bottom at the same place for everyone
+            means the shape carries between accounts.
           </p>
           <SweepCurvesChart
             :base="base!"
@@ -353,7 +507,7 @@
         <section v-if="loadedRun" class="rounded-xl border border-slate-200 bg-white p-4 space-y-4">
           <div class="flex flex-wrap items-baseline justify-between gap-2">
             <h2 class="text-lg font-black text-slate-900">
-              Every chain {{ loadedRun.nickname || 'that run' }} priced
+              Every chain {{ whoText(loadedRun) || 'that run' }} priced
               <span class="text-[11px] font-bold text-slate-400">
                 · {{ loadedChains.length.toLocaleString() }} chains
                 <!-- The file is in rank order, fastest first, and the cap keeps the first N — so
@@ -373,8 +527,10 @@
           <div v-if="plateau" class="rounded-lg bg-slate-50 border border-slate-200 p-3 space-y-1">
             <p class="text-[11px] text-slate-600 leading-relaxed">
               <b>{{ plateau.near.toLocaleString() }}</b> of {{ plateau.total.toLocaleString() }} chains at
-              {{ selectedCount }} ascensions came within 1% of this run's best ({{ plateau.bestDays.toFixed(2) }} d,
-              <span class="font-mono-premium">{{ plateau.bestChain.join(' ') }}</span
+              {{ loadedRun.ascensions }} ascensions came within 1% of this run's best ({{
+                plateau.bestDays.toFixed(2)
+              }}
+              d, <span class="font-mono-premium">{{ plateau.bestChain.join(' ') }}</span
               >). That plateau put each checkpoint here:
             </p>
             <p class="text-[11px] font-mono-premium text-slate-700">
@@ -408,6 +564,13 @@
             game's sale calendar and research curve. How long the plan takes is a fact about somebody's artifacts.
           </p>
           <p class="leading-relaxed">
+            <b class="text-slate-700">Compare finish dates, not totals.</b> A plan's length counts from its own start,
+            so a run made a day later shows a day fewer even when it is the same plan. The date it reaches the target
+            does not move, and a better plan finishes earlier, so an account's runs are compared by finish date. Totals
+            only compare between runs from the same save. The first ascension is the rest of the one in progress, so it
+            too is shorter when a plan is made later.
+          </p>
+          <p class="leading-relaxed">
             <b class="text-slate-700">These are searches, not surveys.</b> Most runs explored a band somebody typed, so
             this shows where good chains were FOUND, which is not the same as where good chains ARE. A band that stops
             dead at a round number is usually the edge of a search box.
@@ -433,7 +596,11 @@
       </section>
 
       <!-- ---------------------------------------------------------------------------- flagged -->
-      <section v-if="base" id="flagged-board" class="rounded-xl border border-slate-200 bg-white p-4 space-y-3 scroll-mt-4">
+      <section
+        v-if="base"
+        id="flagged-board"
+        class="rounded-xl border border-slate-200 bg-white p-4 space-y-3 scroll-mt-4"
+      >
         <div class="space-y-1">
           <h2 class="text-lg font-black text-slate-900">Flagged runs</h2>
           <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
@@ -489,13 +656,28 @@ import {
 import {
   accountKey,
   compareCounts,
-  exactDuplicateIds,
   flagOf,
+  foldRuns,
   groupByAccount,
   groupByCount,
+  judgeFinishes,
+  median,
   nearBestBands,
+  runsByAccount,
+  runTags,
+  summariseRuns,
   targetsPresent,
+  timeOffKey,
 } from './analysis';
+import {
+  finishDateText,
+  finishTitle,
+  formatDate,
+  localZone,
+  signedDays,
+  stateTag,
+  whoText,
+} from '@/lib/leaderboardRank';
 import { colorAt } from './palette';
 
 /** Where a pasted collector URL is remembered. Per-browser, not per-build. */
@@ -509,7 +691,13 @@ const error = ref('');
 
 const finalTE = ref(0);
 const exhaustiveOnly = ref(false);
-const selectedCount = ref(0);
+/** One ascension count, or every count at once. */
+const selectedCount = ref<number | 'all'>(0);
+/** The clock the Leaderboard's rules are judged on. Set at each load, so every judgement agrees. */
+const now = ref(Date.now());
+/** Every date on the page is shown in the viewer's timezone, one calendar for all of them; the
+ *  player's own is in the tooltip. Same convention as the Leaderboard. */
+const viewZone = localZone();
 
 const csvLoadingId = ref('');
 const csvError = ref('');
@@ -557,6 +745,7 @@ async function load(): Promise<void> {
   try {
     const fetched = await fetchAll(base.value, controller.signal);
     if (allController !== controller) return;
+    now.value = Date.now();
     rows.value = fetched;
     if (!rows.value.length) error.value = 'The collector answered, but it is holding no runs yet.';
   } catch (e) {
@@ -597,9 +786,6 @@ function forgetBase(): void {
   closeTable();
 }
 
-/** Exact copies of an earlier row. Hidden everywhere: they would count one run twice. */
-const dupeIds = computed(() => exactDuplicateIds(rows.value));
-
 /** Rows whose delivery rate is not their gear's, by id, with the reason. See `flagOf`. */
 const flagged = computed(() => {
   const map = new Map<string, string>();
@@ -620,15 +806,18 @@ const showFlagged = ref(false);
 const withTimeOff = computed(() => new Set(rows.value.filter(r => r.timeOff?.length).map(r => r.id)));
 const showTimeOff = ref(false);
 
-/** What every view on the page reads. */
-const usable = computed(() =>
+/** The rows the filters above let through, every copy of a result still in. */
+const visible = computed(() =>
   rows.value.filter(
-    r =>
-      !dupeIds.value.has(r.id) &&
-      (showFlagged.value || !flagged.value.has(r.id)) &&
-      (showTimeOff.value || !withTimeOff.value.has(r.id))
+    r => (showFlagged.value || !flagged.value.has(r.id)) && (showTimeOff.value || !withTimeOff.value.has(r.id))
   )
 );
+
+/** Copies of one result folded onto one row. Hidden everywhere: they would count one run twice. */
+const folded = computed(() => foldRuns(visible.value));
+
+/** What every view on the page reads: each result once. */
+const usable = computed(() => folded.value.rows);
 
 const targets = computed(() => targetsPresent(usable.value));
 
@@ -667,17 +856,129 @@ const computeTotal = computed(() => {
 });
 
 const countGroups = computed(() => groupByCount(filtered.value));
+const allGroup = computed(() => summariseRuns(filtered.value));
 
 watch(countGroups, list => {
+  // "All" always has something to show while any count does; only a count can vanish.
+  if (selectedCount.value === 'all') return;
   if (list.length && !list.some(g => g.ascensions === selectedCount.value)) {
     // The count with the most runs behind it, which is the one with something to say.
     selectedCount.value = list.reduce((a, b) => (b.rows.length > a.rows.length ? b : a)).ascensions;
   }
 });
 
-const selected = computed(() => countGroups.value.find(g => g.ascensions === selectedCount.value) ?? null);
+const selectedGroup = computed(() =>
+  selectedCount.value === 'all' ? null : (countGroups.value.find(g => g.ascensions === selectedCount.value) ?? null)
+);
+const selected = computed(() =>
+  selectedCount.value === 'all' ? (filtered.value.length ? allGroup.value : null) : selectedGroup.value
+);
+const selectedBands = computed(() => selectedGroup.value?.bands ?? []);
 
-const comparisons = computed(() => compareCounts(filtered.value));
+/**
+ * The sample journey the checkpoint table's absolute-TE column is drawn against: the median start
+ * of the runs shown. It used to be the run with the lowest total, which was a pick by gear and by
+ * how late the run was made; the median is just a typical journey.
+ */
+const sampleJourneyFrom = computed(() => {
+  const m = median((selected.value?.rows ?? []).map(r => r.currentTE));
+  return Number.isFinite(m) ? Math.round(m) : 0;
+});
+
+/**
+ * The runs the finishes are judged on. Whether a run is SHOWN must not change which OTHER runs
+ * stand, so runs planned around time off are judged whether or not they are listed: `samePlan`
+ * compares time off, so one never replaces a normal plan, but it is still evidence of the TE the
+ * account had that day, and hiding it used to let an older plan from a higher TE stand again. Runs
+ * flagged for the delivery-set bug stay out unless they are shown: their legs and totals are wrong,
+ * so as a newer run of a plan they would replace a good finish with a bad one, and their legs would
+ * put the player behind a plan they are on. Every copy and every target is in (a run to 300 is
+ * evidence of the account's TE too).
+ */
+const judgedRows = computed(() => rows.value.filter(r => showFlagged.value || !flagged.value.has(r.id)));
+
+/** Each run's finish date and whether it still stands, by the Leaderboard's rules. Only a run the
+ *  checkboxes above let through can be an account's best. */
+const judged = computed(() =>
+  judgeFinishes(judgedRows.value, finalTE.value, now.value, new Set(visible.value.map(r => r.id)))
+);
+
+/** The runs table: one block per account in colour order, earliest finish first inside each. */
+const runBlocks = computed(() =>
+  runsByAccount(
+    selected.value?.rows ?? [],
+    judged.value,
+    accountLabels.value,
+    accounts.value.map(a => a.key)
+  )
+);
+
+/** Accounts whose earliest finish is one of the runs listed. The rest say why it is not. */
+const bestListed = computed(
+  () => new Set(runBlocks.value.filter(b => b.rows.some(r => judged.value.byId.get(r.id)?.best)).map(b => b.key))
+);
+
+/** Why an account's earliest finish is not in the list, in a few words. */
+function unlistedWhy(best: CollectorRow): string {
+  const why: string[] = [];
+  if (selectedCount.value !== 'all' && best.ascensions !== selectedCount.value) why.push('a different count');
+  if (exhaustiveOnly.value && !(best.space && !best.space.stoppedEarly)) why.push('not a proof');
+  return why.join(', ') || 'filtered out';
+}
+
+/** The settings that tell look-alike runs apart (the Leaderboard's `settingTags`): two runs with one
+ *  route and start that differ only in whether the first ascension finishes the current run first.
+ *  Plus `time off` on any run planned around some, which the Leaderboard's tags leave out (`runTags`). */
+const tags = computed(() => runTags(usable.value));
+
+const comparisons = computed(() => compareCounts(filtered.value, judged.value));
+
+/** The Planned column: the plan start in the viewer's zone, to the minute. */
+function plannedText(row: CollectorRow): string {
+  return formatDate(judged.value.byId.get(row.id)?.start ?? null, viewZone, {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+/** The tag a run whose finish no longer stands carries: `what-if`, `replaced`, ... ('' otherwise). */
+function stateOf(row: CollectorRow): string {
+  const j = judged.value.byId.get(row.id);
+  return j && !j.standing ? stateTag(j.state) : '';
+}
+
+/** Under a minute apart is the same finish: `+0.00 d` would read as a measured gap. */
+function vsBestText(behind: number): string {
+  return behind < 1 / 1440 ? 'same finish' : signedDays(behind);
+}
+
+function vsBestTitle(row: CollectorRow): string {
+  const j = judged.value.byId.get(row.id);
+  if (!j) return '';
+  if (j.best) return "This account's earliest finish at this target.";
+  if (j.behind == null) return j.reason ? `Not compared: ${j.reason}.` : 'Not compared.';
+  // Name the run it is measured against: under Proofs only or one count it may not be listed.
+  const key = accountKey(row);
+  const best = judged.value.bestByAccount.get(key);
+  let against = "this account's earliest finish";
+  if (best) {
+    against += `, ${best.row.chain.join(' ')} (${best.row.ascensions} ascensions) on ${finishDateText(best.finish, viewZone)}`;
+    if (!bestListed.value.has(key)) against += ', not listed here';
+  }
+  const days =
+    j.behind < 1 / 1440
+      ? `Finishes at the same time as ${against}`
+      : `Finishes ${signedDays(j.behind).replace(/^[+−]/, '')} after ${against}`;
+  // Time off before saves: a time-off copy of a normal run shares its save, and the gap is the time away.
+  if (best && timeOffKey(row) !== timeOffKey(best.row)) {
+    return `${days}. The two are planned around different time off, so part of the gap is the time away, not the plans.`;
+  }
+  return j.sameSaveAsBest
+    ? `${days}. Planned from the same save as that run, so the gap is the plans alone.`
+    : `${days}. Planned from a different save, so part of the gap can be what changed in between.`;
+}
 
 /* ----------------------------------------------------------------- one run's full chain table */
 
@@ -724,12 +1025,12 @@ function closeTable(): void {
   csvError.value = '';
 }
 
-// The deep dive belongs to ONE run at ONE ascension count. Change the target or the count and it
-// no longer describes what the rest of the page is showing: `plateau` filters the loaded table by
-// `selectedCount`, finds nothing at the new count and silently disappears, leaving a 60,000-point
-// scatter sitting under a heading about a run that has been filtered out of view. Close it instead.
-watch([selectedCount, finalTE, exhaustiveOnly], () => {
-  if (loadedRun.value) closeTable();
+// The deep dive belongs to ONE run. Change the target, the count or a filter so that run is no longer
+// in view and it would be a 60,000-point scatter under a heading about a run nobody can see, so it
+// closes. Switching between "All" and the run's own count keeps it: the run is still listed.
+watch(selected, group => {
+  const run = loadedRun.value;
+  if (run && !group?.rows.some(r => r.id === run.id)) closeTable();
 });
 
 const loadedBestChain = computed(() => {
@@ -737,9 +1038,11 @@ const loadedBestChain = computed(() => {
   return loadedChains.value.reduce((a, b) => (b.days < a.days ? b : a)).chain;
 });
 
+// At the loaded run's own count, not the selected one: under "All" there is no selected count, and
+// the plateau is a question about that run's table.
 const plateau = computed(() =>
-  loadedChains.value.length
-    ? nearBestBands(loadedChains.value, loadedCurrentTE.value, loadedFinalTE.value, selectedCount.value)
+  loadedChains.value.length && loadedRun.value
+    ? nearBestBands(loadedChains.value, loadedCurrentTE.value, loadedFinalTE.value, loadedRun.value.ascensions)
     : null
 );
 

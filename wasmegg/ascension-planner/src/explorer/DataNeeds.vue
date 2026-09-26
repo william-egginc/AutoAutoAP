@@ -54,7 +54,8 @@
             {{
               need.links.length > 1 ? 'Press both buttons below, one after the other.' : 'Press Run this sweep below.'
             }}
-            It opens <b>“{{ need.presetLabel }}”</b> in the planner's Insane mode, trying {{ bandsInWords(need.bands) }}.
+            It opens <b>“{{ need.presetLabel }}”</b> in the planner's Insane mode, trying
+            {{ bandsInWords(need.bands) }}.
             <template v-if="need.minGap > 0">Ascension targets stay at least {{ need.minGap }} TE apart.</template>
             {{ need.note ? need.note : '' }}
           </p>
@@ -184,13 +185,13 @@ const GROUPS: { id: 'main' | 'gear' | 'big' | 'end'; title: string; intro: strin
     id: 'big',
     title: 'Bigger runs, for big machines',
     intro:
-      "5 and 6 ascensions, looked at closely. Most accounts' fastest plans have 5 to 7 ascensions, and ascending even one TE off the best can cost days. M4 only tries every 5th TE, and on shorter plans that has landed 2 to 12 days behind trying every TE, so these runs try far more of the TEs in between. Each is tens of thousands of plans, more on lower accounts; each card shows how many from your TE and how long that takes.",
+      "5 and 6 ascensions, looked at closely. Most accounts' earliest-finishing plans have 5 to 7 ascensions, and ascending even one TE off the best can cost days. M4 only tries every 5th TE, and on shorter plans that has landed 2 to 12 days behind trying every TE, so these runs try far more of the TEs in between. Each is tens of thousands of plans, more on lower accounts; each card shows how many from your TE and how long that takes.",
   },
   {
     id: 'end',
     title: 'The end of the line: 7, 8 and 9 ascensions',
     intro:
-      'These show where adding ascensions stops saving time and starts costing it, so nobody plans more ascensions than they need. So far a 7th ascension has changed the total by only about 0.1 days on the saves that tried it, but weaker gear may want more. They try far fewer TEs to stay affordable, so read the result as an upper bound: a close look around the winner can still take a week or two off.',
+      "These show where adding ascensions stops saving time and starts costing it, so nobody plans more ascensions than they need. So far a 7th ascension has not brought the finish forward on the two accounts that tried both 6 and 7 (the same date as the best 6-ascension plan on Allan's, 0.1 days later on Williamthe5thc's save), but weaker gear may want more. They try far fewer TEs to stay affordable, so read the result as an upper bound: a close look around the winner can still take a week or two off.",
   },
 ];
 

@@ -18,6 +18,12 @@
 
   Runs are coloured by account, so a fan of one colour is one person's several attempts and a fan
   of several is a shape that repeats across accounts.
+
+  LEG 1 IS DRAWN APART (hollow point, dashed line, days view). It is the rest of the ascension the
+  player is in when the plan starts, so it shrinks one-for-one with a later start: Allan's two runs
+  of one plan, 87 minutes apart, differ only in leg 1, by exactly those 87 minutes. Legs 2 onward
+  are whole ascensions and compare as they are. For the same reason a run is named by its finish
+  date, not its total, which is also shorter when the run is made later.
 -->
 <template>
   <div class="space-y-2">
@@ -54,6 +60,7 @@ import EChart from '@/components/charts/EChart.vue';
 import type { ChartOption, ChartSeriesOption } from '@/lib/charts/echarts';
 import { esc } from '@/lib/charts/tooltip';
 import type { CollectorRow } from './collector';
+import { finishDateText, finishMs, localZone, whoText } from '@/lib/leaderboardRank';
 import { accountKey } from './analysis';
 import { colorAt, AXIS_LABEL, SPLIT_LINE } from './palette';
 
@@ -65,7 +72,7 @@ const MODES: { id: Metric; label: string; hint: string }[] = [
   {
     id: 'days',
     label: 'Days per leg',
-    hint: 'How long each ascension takes. The last leg before the target is usually the biggest single block in the plan, which is what makes the last checkpoint the value worth arguing about.',
+    hint: 'How long each ascension takes. The last leg before the target is usually the biggest single block in the plan, which is what makes the last checkpoint the value worth arguing about. Leg 1 (hollow point, dashed line) is the rest of the ascension in progress when the plan starts, so it is shorter when the plan is made later; compare legs 2 onward.',
   },
   {
     id: 'rate',
@@ -77,31 +84,58 @@ const MODES: { id: Metric; label: string; hint: string }[] = [
 /** A submission replayed from a checkpoint carries no legs; it cannot be drawn and is not faked. */
 const withLegs = computed(() => props.rows.filter(r => Array.isArray(r.legs) && r.legs.length));
 
+/** Finish dates in the viewer's timezone, as everywhere else on the page. */
+const viewZone = localZone();
+
+/** One point: [leg, value, detail]. */
+type Datum = [number, number, string];
+
 const option = computed<ChartOption>(() => {
-  const series: ChartSeriesOption[] = withLegs.value.map(row => ({
-    name: `${row.nickname || 'anonymous'} · ${row.durationDays.toFixed(1)} d`,
-    type: 'line' as const,
-    data: row.legs.map((leg, i) => [
-      i + 1,
-      metric.value === 'days' ? leg.days : leg.peakDeliveryQph,
-      `${leg.te} TE · ${leg.strategy}`,
-    ]),
-    color: colorAt(props.accountColors.get(accountKey(row)) ?? 0),
-    symbolSize: 5,
-    lineStyle: { width: 1.2, opacity: 0.7 },
-  }));
+  const series: ChartSeriesOption[] = withLegs.value.flatMap(row => {
+    const name = `${whoText(row) || 'anonymous'} · finishes ${finishDateText(finishMs(row), viewZone)}`;
+    const color = colorAt(props.accountColors.get(accountKey(row)) ?? 0);
+    const data = row.legs.map(
+      (leg, i): Datum => [
+        i + 1,
+        metric.value === 'days' ? leg.days : leg.peakDeliveryQph,
+        `${leg.te} TE · ${leg.strategy}`,
+      ]
+    );
+    const line = { name, type: 'line' as const, color, symbolSize: 5 };
+    const solid = { width: 1.2, opacity: 0.7 };
+    if (metric.value !== 'days' || data.length < 2) return [{ ...line, data, lineStyle: solid }];
+    // Leg 1 on its own dashed segment with a hollow point, legs 2 onward solid: leg 1 is the rest of
+    // the ascension in progress and is shorter whenever the plan is made later.
+    return [
+      {
+        ...line,
+        data: [
+          { value: data[0], symbol: 'emptyCircle' },
+          { value: data[1], symbol: 'none' },
+        ],
+        lineStyle: { ...solid, type: 'dashed' as const },
+      },
+      { ...line, data: data.slice(1), lineStyle: solid },
+    ];
+  });
 
   return {
     grid: { left: 52, right: 16, top: 14, bottom: 38 },
     tooltip: {
       trigger: 'item',
       formatter: raw => {
-        const params = raw as { data?: [number, number, string]; seriesName?: string };
-        if (!params.data) return '';
+        // `value` rather than `data`: leg 1's point is an object carrying its own symbol.
+        const params = raw as { value?: Datum; seriesName?: string };
+        const d = params.value;
+        if (!Array.isArray(d)) return '';
         const unit = metric.value === 'days' ? 'days' : 'q/hr';
-        // Escaped throughout: the series name carries a submitted nickname and data[2] carries the
+        const note =
+          metric.value === 'days' && d[0] === 1
+            ? ' (rest of the ascension in progress; shorter when planned later)'
+            : '';
+        // Escaped throughout: the series name carries a submitted nickname and d[2] carries the
         // leg's strategy string, both free text, and this becomes innerHTML. See charts/tooltip.ts.
-        return `<b>${esc(params.seriesName)}</b><br/>leg ${esc(params.data[0])}: ${esc(params.data[1].toFixed(3))} ${esc(unit)}<br/><span style="color:#94a3b8">${esc(params.data[2])}</span>`;
+        return `<b>${esc(params.seriesName)}</b><br/>leg ${esc(d[0])}: ${esc(d[1].toFixed(3))} ${esc(unit)}${esc(note)}<br/><span style="color:#94a3b8">${esc(d[2])}</span>`;
       },
     },
     xAxis: {

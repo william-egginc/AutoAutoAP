@@ -6,7 +6,9 @@
 -->
 <template>
   <div class="space-y-3">
-    <p v-if="error" class="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-[11px] text-red-800">{{ error }}</p>
+    <p v-if="error" class="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-[11px] text-red-800">
+      {{ error }}
+    </p>
     <p v-else-if="loading" class="text-[11px] text-slate-400">Loading the flagged board...</p>
     <p v-else-if="!rows.length" class="rounded-lg bg-emerald-50 px-3 py-2 text-[11px] font-semibold text-emerald-700">
       Nothing flagged yet.
@@ -19,7 +21,7 @@
             <th class="py-1.5 pr-3">TE</th>
             <th class="py-1.5 pr-3">Clothed TE</th>
             <th class="py-1.5 pr-3">Chain</th>
-            <th class="py-1.5 pr-3">Plan</th>
+            <th class="py-1.5 pr-3">Plan length (from its start)</th>
             <th class="py-1.5 pr-3">Integrity wait</th>
             <th class="py-1.5 pr-3">Why it is here</th>
           </tr>
@@ -66,8 +68,12 @@ const error = ref('');
 onMounted(async () => {
   try {
     const all = await fetchFlagged(props.base, allOwnerTokens());
-    // Yours first, then the rest shortest plan first: the board is read for "where does it stop".
-    rows.value = all.sort((a, b) => Number(!!b.yours) - Number(!!a.yours) || a.durationDays - b.durationDays);
+    // Yours first, then the rest by Clothed TE, lowest first: the board is read for "where does the
+    // planner stop working", and that line is a Clothed TE. Not by plan length -- those are totals
+    // from different accounts and different plan starts, which never compare. No Clothed TE last.
+    const cte = (r: CollectorRow) =>
+      typeof r.clothedTE === 'number' && Number.isFinite(r.clothedTE) ? r.clothedTE : Infinity;
+    rows.value = all.sort((a, b) => Number(!!b.yours) - Number(!!a.yours) || cte(a) - cte(b) || 0);
   } catch (e) {
     error.value = describeFetchError(e, 'the flagged board');
   } finally {

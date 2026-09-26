@@ -579,7 +579,7 @@ export function foldCopies<T extends BoardRow>(rows: readonly T[], filing: Filin
  * it -- their `acct` for an owner's group, their name for a group with no owner -- and the ones the
  * collector tied to those, plus rows from before the collector's stamp.
  */
-function ownCopies<T extends BoardRow>(copies: readonly T[], key: string, who: (r: T) => string): Set<T> {
+export function ownCopies<T extends BoardRow>(copies: readonly T[], key: string, who: (r: T) => string): Set<T> {
   if (!key) return new Set(copies);
   const acct = key.startsWith('acct:') ? key.slice('acct:'.length) : null;
   // Filed under the owner is not enough: `heirs` files a name's old rows there for display.

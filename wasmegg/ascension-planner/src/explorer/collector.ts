@@ -35,6 +35,16 @@ export interface CollectorRow extends Submission {
   id: string;
   /** Whether this run's full chain table was uploaded alongside the summary. */
   hasCsv?: boolean;
+  /**
+   * The player, exactly (collector phase 2): a short HMAC of the sender's owner code, only on named
+   * rows sent with one. Read by the Leaderboard's rules (lib/leaderboardRank.ts `BoardRow`), which
+   * this page reuses to judge which finishes still stand. Never shown.
+   */
+  acct?: string;
+  /** ISO 8601, stamped by the collector when the row arrived (phase 2). See `BoardRow.receivedAt`. */
+  receivedAt?: string;
+  /** The first row with the same result found by a different search, from the same sender. */
+  dupOf?: string;
 }
 
 /** `https://…/submit` -> `https://…`. Tolerates a base that was already given without the path. */
@@ -97,7 +107,9 @@ export async function fetchFlagged(base: string, tokens: string[] = [], signal?:
   const ask = async (token?: string) => {
     const res = await fetch(`${base}/flagged`, { signal, headers: token ? { 'x-owner-token': token } : {} });
     if (res.status === 404) {
-      throw new Error('This collector has no flagged board yet: it is running a Worker from before 2026-09-24 and needs redeploying.');
+      throw new Error(
+        'This collector has no flagged board yet: it is running a Worker from before 2026-09-24 and needs redeploying.'
+      );
     }
     if (!res.ok) throw new Error(`The collector answered ${res.status} for /flagged.`);
     const body = (await res.json()) as AllResponse;

@@ -16,6 +16,7 @@
  */
 import { countBanded, parseBands } from '@/search/exhaustive';
 import { sweepSeconds, workerSecondsPerChain } from '@/search/speed';
+import { DAY_MS, localToUtcMs, startMs } from '@/lib/leaderboardRank';
 import { groupByAccount, gearOf } from './analysis';
 import type { CollectorRow } from './collector';
 import { SWEEP_PRESETS } from './upload';
@@ -98,7 +99,7 @@ const PRESET_TEXT: Record<string, { title: string; why: string; who?: string; no
   },
   M4: {
     title: '5 ascensions at every 5th TE (M4)',
-    why: 'Shows whether a 5th ascension pays on your account: up to about 15 days near TE 125, under a week above TE 180. It only tries every 5th TE, so take its best plan as the right area rather than the exact TEs. F4 below looks closer.',
+    why: 'Shows whether a 5th ascension pays on your account: so far it has brought the finish date forward by 1.5 to 28 days. It only tries every 5th TE, so take its best plan as the right area rather than the exact TEs. F4 below looks closer.',
   },
   F2: {
     title: '3 ascensions at every TE (F2)',
@@ -107,22 +108,22 @@ const PRESET_TEXT: Record<string, { title: string; why: string; who?: string; no
   },
   F4: {
     title: '5 ascensions, a close look (F4)',
-    why: "Most accounts' fastest plans have 5 to 7 ascensions, but 5-ascension plans have mostly been tried at every 5th TE, which on shorter plans has landed 2 to 12 days behind the best. F4 tries far more of the TEs in between.",
+    why: "Most accounts' earliest-finishing plans have 5 to 7 ascensions, but 5-ascension plans have mostly been tried at every 5th TE, which on shorter plans has landed 2 to 12 days behind the best. F4 tries far more of the TEs in between.",
     who: 'anyone who can leave a desktop or bigger running overnight',
   },
   F5: {
     title: '6 ascensions, a close look (F5)',
-    why: '6 ascensions is the most common count among the fastest plans (5 of the 12 accounts), but every 6-ascension run so far has mostly tried every 5th or 10th TE. F5 tries far more of the TEs in between.',
+    why: "6 ascensions is the most common count among the plans that finish first (7 of the 12 accounts; on Allan's it ties with 7), but only William's and Willsalt's 6-ascension runs have looked this closely; the rest mostly tried every 5th or 10th TE. F5 tries far more of the TEs in between.",
     who: 'anyone who can leave a desktop or bigger running overnight',
   },
   E7: {
     title: '7 ascensions, a rough look (E7)',
-    why: "On Allan's and Williamthe5thc's saves a 7th ascension changed the total by only about 0.1 days, once faster and once slower. Runs from more accounts show where adding ascensions stops saving time, so nobody plans more ascensions than they need.",
+    why: "On Allan's account a 7th ascension finished on the same date as his best 6-ascension plan; on Williamthe5thc's save it was 0.1 days slower. Runs from more accounts show where adding ascensions stops saving time, so nobody plans more ascensions than they need.",
     who: 'anyone who can leave a desktop or bigger running overnight',
   },
   E8: {
     title: '8 ascensions, a rough look (E8)',
-    why: 'Wherever 8 ascensions have been tried next to 6 or 7 on the same account, 8 has not won yet (the closest was half a day behind). More runs show whether it ever wins, and for which accounts.',
+    why: "Wherever 8 ascensions have been tried next to 6 or 7 on the same account, 8 has not finished first yet (the closest finished 3 days after that account's best plan). More runs show whether it ever wins, and for which accounts.",
     who: 'anyone who can leave a desktop or bigger running overnight',
   },
   E9: {
@@ -181,10 +182,14 @@ function finished490(r: CollectorRow): boolean {
   return finished && r.finalTE === 490;
 }
 
-/** Days between two runs' plan starts, from their `YYYY-MM-DD HH:MM` local stamps. */
+/** Days between two runs' plan starts, as instants (the Leaderboard's `startMs`). A row whose zone
+ *  cannot be read is taken at its local clock as if it were UTC, which is hours out at worst and fine
+ *  for a days-apart test. NaN when a start cannot be read at all, which fails every such test. */
 function daysApart(a: CollectorRow, b: CollectorRow): number {
-  const t = (r: CollectorRow) => Date.parse(`${(r.startLocal ?? '').slice(0, 10)}T00:00:00Z`);
-  return Math.abs(t(a) - t(b)) / 86400000;
+  const t = (r: CollectorRow) => startMs(r) ?? localToUtcMs(r.startLocal, 'UTC');
+  const x = t(a);
+  const y = t(b);
+  return x == null || y == null ? NaN : Math.abs(x - y) / DAY_MS;
 }
 
 /** Every run so far started between TE 124 and 199. Outside that, the shape is a guess. */
@@ -288,7 +293,7 @@ export function dataNeeds(rows: CollectorRow[]): DataNeed[] {
     needs.push({
       id: 'later-start',
       title: 'The same account again, a few days later',
-      why: "Halceyx's best 3-ascension plan changed overnight: it was 201 282 on 24 Sep and 206 279 the next day, and by then the old plan took 13.5 days longer. Runs a few days apart show how often that happens, and so whether you need a fresh search before each ascension.",
+      why: "Halceyx's best 3-ascension plan changed overnight: it was 201 282 on 24 Sep and 206 279 the next day, and priced again from that day's save the old plan finished about 14 days later. Runs a few days apart show how often that happens, and so whether you need a fresh search before each ascension.",
       who: 'anyone who has run F2 (3 ascensions at every TE)',
       have: later,
       want: 3,
@@ -303,7 +308,7 @@ export function dataNeeds(rows: CollectorRow[]): DataNeed[] {
     needs.push({
       id: 'weak-gear',
       title: 'Accounts with a weak delivery set',
-      why: "Wolfcry1993's and Zen_Ferret's delivery sets are about 80% of the best possible set, and their fastest plans had 7 and 8 ascensions. That hints that weaker delivery wants more ascensions, but both ran on an older planner, so we need runs on today's.",
+      why: "Wolfcry1993's and Zen_Ferret's delivery sets are about 80% of the best possible set, and their best plans had 7 and 8 ascensions. That hints that weaker delivery wants more ascensions, but both ran on an older planner, so we need runs on today's.",
       who: `players whose delivery set is under ${Math.round(WEAK_GEAR * 100)}% of the best (all T4L with T4 stones), usually two or more weaker pieces`,
       have: weak,
       want: 2,

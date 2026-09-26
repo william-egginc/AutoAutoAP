@@ -1,11 +1,17 @@
 <!--
-  One sweep, every account that ran it: total days against the last checkpoint.
+  One sweep, every account that ran it: days behind the run's own best, against the last checkpoint.
 
   A sweep prices every chain in a box, so for each last checkpoint X its table knows the best chain
   that ends there. Drawn as one line per run, the lines say two things a single winner cannot: how
   flat the bottom is (a wide flat bottom means the exact checkpoint barely matters), and whether
   the bottom sits at the same X for everybody (the chain shape travels between accounts) or moves
   with gear or TE (it does not).
+
+  WHY NOT TOTAL DAYS ON THE Y AXIS. Every point on one line is priced from one save at one start,
+  so the gaps along a line are exact. The HEIGHT of a line is not: it is a total counted from that
+  run's own start, and totals compare neither between accounts (gear) nor between one account's runs
+  on different days (a run made a day later is a day shorter). So each line is drawn as days behind
+  its own best, which keeps both things the chart is for and drops the one it could mislead with.
 
   The tables are the big objects on this page, so nothing is fetched until the button is pressed,
   and they are fetched one at a time.
@@ -34,7 +40,13 @@
         :disabled="loading || !pending.length"
         @click="loadTables"
       >
-        {{ loading ? `Loading ${progress}…` : pending.length ? `Load ${pending.length} table${pending.length === 1 ? '' : 's'}` : 'All loaded' }}
+        {{
+          loading
+            ? `Loading ${progress}…`
+            : pending.length
+              ? `Load ${pending.length} table${pending.length === 1 ? '' : 's'}`
+              : 'All loaded'
+        }}
       </button>
     </div>
     <p v-else class="px-4 py-8 text-center text-[11px] text-slate-400">
@@ -44,8 +56,8 @@
 
     <EChart v-if="curves.length" :option="option" height="320px" />
     <p v-else-if="current" class="px-4 py-6 text-center text-[11px] text-slate-400">
-      Load the tables to draw this sweep. {{ current.rows.filter(r => !r.hasCsv).length }} of its runs have no table stored
-      and cannot be drawn.
+      Load the tables to draw this sweep. {{ current.rows.filter(r => !r.hasCsv).length }} of its runs have no table
+      stored and cannot be drawn.
     </p>
   </div>
 </template>
@@ -91,7 +103,8 @@ watch(
 );
 const current = computed(() => groups.value.find(g => g.id === selected.value) ?? null);
 
-/** Per run id: best total days at each last checkpoint, sorted by checkpoint. Kept across group switches. */
+/** Per run id: best total days at each last checkpoint, sorted by checkpoint; drawn as the gap to the
+ *  run's own best. Kept across group switches. */
 const envelopes = shallowRef(new Map<string, [number, number, string][]>());
 const loading = ref(false);
 const progress = ref('');
@@ -140,10 +153,13 @@ const curves = computed(() =>
 const option = computed<ChartOption>(() => {
   const series: ChartSeriesOption[] = curves.value.map(({ row, points }, i) => {
     const key = accountKey(row);
+    // One table, one save: the gap to this run's own best is exact, whatever the account or date.
+    let best = Infinity;
+    for (const [, days] of points) if (days < best) best = days;
     return {
       name: `${props.accountLabels.get(key) ?? 'run'} · from ${row.currentTE} TE · ${row.id}`,
       type: 'line' as const,
-      data: points,
+      data: points.map(([x, days, chain]) => [x, days - best, chain, days]),
       color: colorAt(props.accountColors.get(key) ?? i),
       showSymbol: false,
       lineStyle: { width: 1.8 },
@@ -161,9 +177,11 @@ const option = computed<ChartOption>(() => {
     tooltip: {
       trigger: 'item',
       formatter: raw => {
-        const params = raw as { data?: [number, number, string]; seriesName?: string };
+        const params = raw as { data?: [number, number, string, number]; seriesName?: string };
         if (!params.data) return '';
-        return `<b>${esc(params.seriesName)}</b><br/>last checkpoint ${esc(params.data[0])}: ${esc(params.data[1].toFixed(1))} d<br/><span style="color:#94a3b8">${esc(params.data[2])}</span>`;
+        const behind =
+          params.data[1] < 0.005 ? "this run's best" : `${params.data[1].toFixed(2)} d behind this run's best`;
+        return `<b>${esc(params.seriesName)}</b><br/>last checkpoint ${esc(params.data[0])}: ${esc(behind)}<br/><span style="color:#94a3b8">${esc(params.data[2])} · plan length ${esc(params.data[3].toFixed(1))} d from its start</span>`;
       },
     },
     xAxis: {
@@ -178,9 +196,9 @@ const option = computed<ChartOption>(() => {
     },
     yAxis: {
       type: 'value',
-      name: 'best total days',
+      name: "days behind this run's best",
       nameTextStyle: AXIS_LABEL,
-      scale: true,
+      min: 0,
       axisLabel: AXIS_LABEL,
       splitLine: SPLIT_LINE,
     },
