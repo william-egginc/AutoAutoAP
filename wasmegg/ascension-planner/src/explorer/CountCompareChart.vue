@@ -64,7 +64,14 @@
         {{ clipped }} point{{ clipped === 1 ? '' : 's' }} above {{ NEAR_DAYS }} days, drawn as ↑ at the top edge
       </span>
     </div>
-    <EChart v-if="comparisons.length" :option="option" height="320px" />
+    <EChart v-if="comparisons.length" :option="option" height="300px" />
+    <!-- In HTML so every line is on screen at any width (legend.ts); each hides its line. -->
+    <ChartLegend
+      v-if="comparisons.length"
+      v-model:hidden="hidden"
+      :entries="legendEntries"
+      label="Lines: click to hide or show"
+    />
     <p v-else class="px-4 py-8 text-center text-[11px] text-slate-400">
       No account here has submitted two different ascension counts against this target yet, so there is nothing to
       compare. One exhaustive run covering a range of counts would answer it outright.
@@ -79,7 +86,9 @@
       <span><span aria-hidden="true">●</span> a finished box at every TE</span>
       <span><span aria-hidden="true">○</span> a finished box that stepped over TEs</span>
       <span><span aria-hidden="true">⊗</span> a staged search, or a box it did not finish</span>
-      <span v-if="zoom === 'near'"><span aria-hidden="true">↑</span> above {{ NEAR_DAYS }} days (value on hover)</span>
+      <span v-if="zoom === 'near'"
+        ><span aria-hidden="true">↑</span> above {{ NEAR_DAYS }} days (value on hover or tap)</span
+      >
     </div>
 
     <!-- The same lines as numbers, one row per line, with each step between neighbouring counts
@@ -97,9 +106,11 @@
         <tbody class="divide-y divide-slate-100">
           <tr v-for="line in table" :key="line.key" class="align-top">
             <td class="py-1.5 pr-3 whitespace-nowrap">
-              <span class="inline-block w-2 h-2 rounded-full mr-1.5 align-middle" :style="{ background: line.color }" />
+              <AccountDot :index="line.index" :line="line.singleRun ? 'solid' : 'dashed'" class="mr-1.5" />
               <b class="text-slate-700">{{ line.label }}</b>
-              <div v-if="line.singleRun" class="text-[10px] text-slate-400">one exhaustive run</div>
+              <!-- Says which line this row is: an account can have both, and the two can disagree,
+                   because one is a single run from one save and the other the best of several runs. -->
+              <div class="text-[10px] text-slate-400" :title="line.sourceTitle">{{ line.source }}</div>
             </td>
             <td class="py-1.5 pr-3 whitespace-nowrap">
               <b class="text-slate-700">{{ line.best.ascensions }} ascensions</b>
@@ -162,7 +173,10 @@ import {
   type SearchGrade,
   type StepVerdict,
 } from './analysis';
-import { colorAt, symbolAt, AXIS_LABEL, SPLIT_LINE } from './palette';
+import { colorAt, symbolAt, AXIS_LABEL, SPLIT_LINE, TOOLTIP_FIT } from './palette';
+import AccountDot from './AccountDot.vue';
+import ChartLegend from './ChartLegend.vue';
+import type { LegendEntry } from './legend';
 
 const props = defineProps<{ comparisons: CountComparison[]; accountColors: Map<string, number> }>();
 
@@ -275,6 +289,19 @@ type Item = { value: number; symbol: string; symbolSize: number; tip: Tip } | '-
 const ARROW_STEP_PX = 7;
 const ARROW_SPREAD_PX = 28;
 
+/** Lines the legend has turned off, by `CountComparison.key`. */
+const hidden = ref<ReadonlySet<string>>(new Set());
+
+/** One entry per line, in its account's colour and shape, solid or dashed as it is drawn. */
+const legendEntries = computed<LegendEntry[]>(() =>
+  props.comparisons.map((c, i) => ({
+    id: c.key,
+    label: c.label,
+    index: props.accountColors.get(c.accountKey) ?? i,
+    line: c.singleRun ? ('solid' as const) : ('dashed' as const),
+  }))
+);
+
 const option = computed<ChartOption>(() => {
   const near = zoom.value === 'near';
   const { labels, at } = slots.value;
@@ -290,6 +317,7 @@ const option = computed<ChartOption>(() => {
   }
   const placed = new Map<number, number>();
   props.comparisons.forEach((comparison, i) => {
+    if (hidden.value.has(comparison.key)) return;
     const index = props.accountColors.get(comparison.accountKey) ?? i;
     const color = colorAt(index);
     const shape = symbolAt(index);
@@ -366,22 +394,11 @@ const option = computed<ChartOption>(() => {
   });
 
   return {
-    // Room for the legend under the axis. Four account names on one line is exactly the width
-    // where echarts stops wrapping and starts overlapping them, so the legend gets its own band
-    // and long labels are cut rather than allowed to collide.
-    grid: { left: 60, right: 16, top: 18, bottom: 70 },
-    legend: {
-      type: 'scroll',
-      bottom: 0,
-      itemGap: 18,
-      textStyle: { fontSize: 10, color: '#64748b' },
-      formatter: (name: string) => (name.length > 30 ? `${name.slice(0, 29)}…` : name),
-    },
+    // The legend is HTML under the chart (legend.ts): ECharts' own paged accounts out of sight.
+    grid: { left: 60, right: 16, top: 18, bottom: 40 },
     tooltip: {
       trigger: 'item',
-      // Kept inside the chart and wrapped, so it fits a phone.
-      confine: true,
-      extraCssText: 'max-width: min(320px, 86vw); white-space: normal;',
+      ...TOOLTIP_FIT,
       formatter: raw => {
         const params = raw as { data?: { tip?: Tip }; seriesName?: string };
         const tip = params.data?.tip;
@@ -425,11 +442,20 @@ const table = computed(() =>
   props.comparisons.map((comparison, i) => {
     const sorted = [...comparison.points].sort((a, b) => a.ascensions - b.ascensions);
     const best = sorted.reduce((a, b) => (b.behind < a.behind ? b : a));
+    const twice = props.comparisons.filter(c => c.accountKey === comparison.accountKey).length > 1;
     return {
       key: comparison.key,
       label: comparison.label.replace(/ \(one exhaustive run\)$/, ''),
       singleRun: comparison.singleRun,
-      color: colorAt(props.accountColors.get(comparison.accountKey) ?? i),
+      index: props.accountColors.get(comparison.accountKey) ?? i,
+      source: comparison.singleRun
+        ? 'one exhaustive run (solid line): every count from one save'
+        : 'its runs that still stand (dashed line): earliest finish at each count',
+      sourceTitle: twice
+        ? comparison.singleRun
+          ? "This account has two rows. This one is a single run that timed every count from one save, so its steps compare exactly, but only over the counts and the box that run tried. The other row takes the account's earliest finish at each count from all its runs, so its steps, and their verdicts, can differ."
+          : "This account has two rows. This one takes the account's earliest finish at each count from all its runs that still stand, made on different days and searched differently, so its steps and their verdicts can differ from the other row's single run."
+        : undefined,
       best,
       others: sorted.filter(p => p !== best),
       ownAnchor: comparison.anchor === 'run',

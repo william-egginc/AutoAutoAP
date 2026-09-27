@@ -3,10 +3,12 @@ import {
   accountKey,
   accountLabel,
   accountOrder,
+  assessFinishes,
   bestPerCount,
   chainFractions,
   compareCounts,
   countSteps,
+  finishJudgement,
   flagOf,
   foldRuns,
   gearOf,
@@ -28,6 +30,7 @@ import {
   summariseRuns,
   sweepGroupOf,
   targetsPresent,
+  whatIfIds,
   type SearchGrade,
 } from './analysis';
 import type { CollectorRow } from './collector';
@@ -817,6 +820,20 @@ describe('judgeFinishes', () => {
     expect(judged.byId.get('anon')?.reason).toMatch(/^replaced by a newer run of the same plan \(5 Sep/);
     expect(judged.byId.get('bob')).toMatchObject({ state: 'current', best: true });
     expect(judged.bestByAccount.get(accountKey(anon))?.finish).toBe(START + 810 * DAY_MS);
+  });
+
+  it("reads the dates in its reasons on the viewer's calendar when it is given one", () => {
+    // The re-run starts 5 Sep at 20:00 in Denver, which is already 6 Sep in UTC. On another line
+    // (Bob's) it is this page's own rule that replaces the plan; on the same line, the Leaderboard's.
+    const rerun = { startLocal: `${dayOf(4)} 20:00`, submittedAt: iso(4, 10 * 60 + 5) };
+    const anon = row({ id: 'anon', chain: [200, 300, 490], currentTE: 180, finalTE: 490, durationDays: 800, ...at(0) });
+    const bob = row({ id: 'bob', nickname: 'Bob', chain: [200, 300, 490], currentTE: 180, finalTE: 490, ...rerun });
+    const again = row({ id: 'again', chain: [200, 300, 490], currentTE: 180, finalTE: 490, ...rerun });
+    const now = START + 10 * DAY_MS;
+    for (const newer of [bob, again]) {
+      expect(judgeFinishes([anon, newer], 490, now).byId.get('anon')?.reason).toMatch(/\(5 Sept?\)$/);
+      expect(judgeFinishes([anon, newer], 490, now, undefined, 'UTC').byId.get('anon')?.reason).toMatch(/\(6 Sept?\)$/);
+    }
   });
 
   it('never lets a run with an owner code replace one without, as on the Leaderboard', () => {
@@ -1694,5 +1711,53 @@ describe('rateCheckOf', () => {
     });
     // The filter's meaning does not change: only a suspect run is flagged.
     expect(flagOf(row({ ...base, delivery: undefined, legs: legsTo(3) }))).toBeNull();
+  });
+});
+
+describe('assessFinishes, finishJudgement and whatIfIds', () => {
+  // A what-if and a replaced plan at 490, a plain run, and a what-if at another target.
+  const real = row({ id: 'real', chain: [195, 300, 490], currentTE: 180, finalTE: 490, durationDays: 800, ...at(0) });
+  const typed = row({
+    id: 'typed',
+    chain: [201, 300, 490],
+    currentTE: 185,
+    finalTE: 490,
+    durationDays: 677,
+    startLocal: '2026-11-23 09:00',
+    submittedAt: iso(0),
+  });
+  const anon = row({ id: 'anon', chain: [200, 300, 490], currentTE: 180, finalTE: 490, durationDays: 800, ...at(1) });
+  const bob = row({ id: 'bob', nickname: 'Bob', chain: [200, 300, 490], currentTE: 180, finalTE: 490, ...at(4) });
+  const ahead = row({
+    id: 'ahead',
+    chain: [212, 300],
+    currentTE: 181,
+    finalTE: 300,
+    startLocal: '2026-11-23 10:00',
+    submittedAt: iso(2),
+  });
+  const low = row({ id: 'low', chain: [190, 300], currentTE: 170, finalTE: 300, ...at(3) });
+  const rows = [real, typed, anon, bob, ahead, low];
+  const now = START + 60 * DAY_MS;
+
+  it('together give exactly what judgeFinishes gives, for any shown set, from one assessment', () => {
+    const assessed = assessFinishes(rows, 490, now);
+    for (const shown of [undefined, new Set<string>(), new Set(['real']), new Set(['anon', 'bob', 'typed'])]) {
+      expect(finishJudgement(assessed, shown)).toEqual(judgeFinishes(rows, 490, now, shown));
+    }
+    expect(assessed.finalTE).toBe(490);
+  });
+
+  it('finds every run judgeFinishes calls a what-if, at every target, and nothing else', () => {
+    const targets = targetsPresent(rows).map(t => t.finalTE);
+    const expected = new Set(
+      targets.flatMap(t =>
+        [...judgeFinishes(rows, t, now).byId].filter(([, j]) => j.state === 'what-if').map(([id]) => id)
+      )
+    );
+    expect(expected).toEqual(new Set(['typed', 'ahead']));
+    expect(whatIfIds(targets.map(t => assessFinishes(rows, t, now)))).toEqual(expected);
+    // A replaced plan is not a what-if, and one target's assessment knows nothing of the other's runs.
+    expect(whatIfIds([assessFinishes(rows, 490, now)])).toEqual(new Set(['typed']));
   });
 });

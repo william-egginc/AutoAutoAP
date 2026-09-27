@@ -18,14 +18,24 @@
   >
     <p class="text-[11px] leading-relaxed">
       <span class="font-bold text-slate-900">Small update available</span
-      ><template v-if="release.note"> — {{ release.note }}</template>. No need to reload now; you will get it next time you
-      open the page.<template v-if="note"> If you reload anyway, {{ note }}.</template>
+      ><template v-if="whatsNew">. New: {{ whatsNew }}</template
+      >. No need to reload now; you will get it next time you open the page.<template v-if="note">
+        If you reload anyway, {{ note }}.</template
+      >
     </p>
     <div class="mt-1 flex justify-end gap-2">
-      <button type="button" class="px-2 py-1 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-800" @click="dismissed = true">
+      <button
+        type="button"
+        class="px-2 py-1 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-800"
+        @click="dismissed = true"
+      >
         Dismiss
       </button>
-      <button type="button" class="px-2 py-1 rounded-md bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-700" @click="reload">
+      <button
+        type="button"
+        class="px-2 py-1 rounded-md bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-700"
+        @click="reload"
+      >
         Reload anyway
       </button>
     </div>
@@ -36,10 +46,14 @@
     class="fixed top-3 left-1/2 -translate-x-1/2 z-[1100] w-[min(94vw,52rem)] flex flex-wrap items-center justify-between gap-2 rounded-xl border-2 border-amber-500 bg-amber-50 px-4 py-3 text-amber-900 shadow-[0_12px_32px_rgba(0,0,0,0.35)] ring-4 ring-black/5"
     role="status"
   >
+    <!-- The fix comes first, and the note (release.ts) is what else is new: it is usually a feature
+         list, and read as the fix it said the new Explorer views were something this tab could run
+         into (review, 2026-09-27). The advice is its own sentence: "Before you do, save your results
+         first" said "first" twice. -->
     <span class="text-[12px] font-semibold flex-1 min-w-[14rem]">
-      Please reload: a newer version fixes something this tab could run into<template v-if="release.note">
-        ({{ release.note }})</template
-      >.<template v-if="note"> Before you do, {{ note }}.</template>
+      Please reload: this tab is missing a fix from a newer version.<template v-if="whatsNew">
+        Also new: {{ whatsNew }}.</template
+      >{{ advice }}
     </span>
     <div class="flex items-center gap-2">
       <button
@@ -61,7 +75,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { useNewVersion } from '@/composables/useNewVersion';
 
 const props = defineProps<{
@@ -74,6 +88,22 @@ const props = defineProps<{
 }>();
 
 const { available, release } = useNewVersion(props.pageUrl, props.entry);
+
+/** release.ts's note, after "New:" or "Also new:" -- so a note that itself starts "new ..." does not
+ *  read "Also new: new ...". No trailing full stop: the template adds one. */
+const whatsNew = computed(() =>
+  release.value.note
+    .trim()
+    .replace(/^new\s+/i, '')
+    .replace(/[.\s]+$/, '')
+);
+
+/** The advice as a sentence of its own, capitalised, after the ones before it. In the text itself, not
+ *  a template: a leading space alone in a `<template>` is dropped when the page is compiled. */
+const advice = computed(() => {
+  const t = (props.note ?? '').trim().replace(/[.\s]+$/, '');
+  return t ? ` ${t.charAt(0).toUpperCase()}${t.slice(1)}.` : '';
+});
 /** The minor note, closed for the rest of this tab's life: it asks for nothing. */
 const dismissed = ref(false);
 

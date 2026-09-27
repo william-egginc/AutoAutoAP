@@ -434,9 +434,14 @@ const NO_REMEASURE: ReadonlySet<PlanState> = new Set<PlanState>(['what-if', 'old
  * a code (Allan's 5-ascension 223 253 282 316 490, a re-run of his code-less 6-ascension plan with the
  * first checkpoint passed) leaves the older plan standing here, as it does on the Leaderboard.
  *
- * Returns the reason for each plan this replaces, in the Leaderboard's words.
+ * Returns the reason for each plan this replaces, in the Leaderboard's words, its date on `zone`'s
+ * calendar when given (the Leaderboard's `RankOptions.zone`), else on the newer run's own.
  */
-function replacedAcrossLines(plans: readonly Plan<CollectorRow>[], filing: Filing): Map<Plan<CollectorRow>, string> {
+function replacedAcrossLines(
+  plans: readonly Plan<CollectorRow>[],
+  filing: Filing,
+  zone?: string
+): Map<Plan<CollectorRow>, string> {
   const blocks = new Map<string, Plan<CollectorRow>[]>();
   for (const plan of plans) {
     if (plan.start == null) continue;
@@ -459,7 +464,8 @@ function replacedAcrossLines(plans: readonly Plan<CollectorRow>[], filing: Filin
           mayJudge(filing, p.row, older.row)
       );
       if (!newer) continue;
-      const when = formatDate(newer.start, newer.row.timezone, { day: 'numeric', month: 'short' });
+      // On the viewer's calendar when the page gives one, as the Planned and Finishes cells are.
+      const when = formatDate(newer.start, zone ?? newer.row.timezone, { day: 'numeric', month: 'short' });
       // A line made from a newer run's `rechecks` carries `recheckOf`, which is not a collector field.
       const line: BoardRow = newer.row;
       out.set(
@@ -532,6 +538,11 @@ export interface FinishJudgement {
  * account's best or carry a `behind`: a best nobody can find in the table is no help. Leave it out
  * and every run counts as shown.
  *
+ * `zone` is the calendar the dates inside each `reason` are read on (the Leaderboard's
+ * `RankOptions.zone`): the page passes the viewer's, so "replaced by a newer run (24 Sep)" agrees
+ * with the Planned and Finishes cells beside it. Left out, each date is in the zone of the run it
+ * names.
+ *
  * Lines the Leaderboard makes from a newer run's `rechecks` are used for what they replace but are
  * never an account's best here, for the same reason: they are not rows in this page's table.
  *
@@ -549,8 +560,31 @@ export function judgeFinishes(
   rows: CollectorRow[],
   finalTE: number,
   now: number,
-  shown?: ReadonlySet<string>
+  shown?: ReadonlySet<string>,
+  zone?: string
 ): FinishJudgement {
+  return finishJudgement(assessFinishes(rows, finalTE, now, zone), shown);
+}
+
+/**
+ * The expensive half of `judgeFinishes`: every run at `finalTE` judged by the Leaderboard's rules
+ * (`groupPlayers`, then `replacedAcrossLines`), before `shown` picks each account's best. Nothing in
+ * it depends on which runs are shown, so a page can keep one per target and ask `finishJudgement`
+ * again when a filter changes, and read the what-ifs off it (`whatIfIds`) without grouping the
+ * players a second time. Opaque: read it through those two.
+ */
+export interface AssessedFinishes {
+  readonly finalTE: number;
+  /** @internal Every copy's id -> the plan it is judged on. */
+  readonly plans: ReadonlyMap<string, Plan<CollectorRow>>;
+  /** @internal Plans `replacedAcrossLines` replaced, with the reason. */
+  readonly replaced: ReadonlyMap<Plan<CollectorRow>, string>;
+  /** @internal `groupPlayers`' filing, for naming each account's best by its shown copy. */
+  readonly filing: Filing;
+}
+
+/** `rows`, `finalTE`, `now` and `zone` as for `judgeFinishes`. */
+export function assessFinishes(rows: CollectorRow[], finalTE: number, now: number, zone?: string): AssessedFinishes {
   // `groupPlayers`' own filing, over the rows it ranks (its `rankable`: a route and no flags), and its
   // own key for the line a folded run is filed under. Keep both in step with it.
   const filing = fileRows(rows.filter(r => Array.isArray(r.chain) && !r.flags?.length));
@@ -559,16 +593,38 @@ export function judgeFinishes(
 
   const plans = new Map<string, Plan<CollectorRow>>();
   const lines: Plan<CollectorRow>[] = [];
-  for (const player of groupPlayers(rows, { target: finalTE, now })) {
+  for (const player of groupPlayers(rows, { target: finalTE, now, zone })) {
     for (const plan of player.plans) {
       if (lineOf(plan.folded) !== player.key) continue;
       lines.push(plan);
       for (const copy of plan.folded.copies) if (copy.id) plans.set(copy.id, plan);
     }
   }
+  return { finalTE, plans, replaced: replacedAcrossLines(lines, filing, zone), filing };
+}
 
-  const replaced = replacedAcrossLines(lines, filing);
-  const stateOf = (plan: Plan<CollectorRow>): PlanState => (replaced.has(plan) ? 'replaced' : plan.state);
+/** A plan's state once `replacedAcrossLines` has had its say: what `RunFinish.state` reports. */
+function assessedState(assessed: AssessedFinishes, plan: Plan<CollectorRow>): PlanState {
+  return assessed.replaced.has(plan) ? 'replaced' : plan.state;
+}
+
+/**
+ * The ids of every run the Leaderboard's rules call a what-if in these assessments (one per target):
+ * the same runs `judgeFinishes(...).byId` gives the state `what-if`, without judging again.
+ */
+export function whatIfIds(assessments: Iterable<AssessedFinishes>): Set<string> {
+  const out = new Set<string>();
+  for (const assessed of assessments) {
+    for (const [id, plan] of assessed.plans) if (assessedState(assessed, plan) === 'what-if') out.add(id);
+  }
+  return out;
+}
+
+/** The cheap half of `judgeFinishes`: each account's best among the runs `shown`, and every run's
+ *  finish against it. */
+export function finishJudgement(assessed: AssessedFinishes, shown?: ReadonlySet<string>): FinishJudgement {
+  const { plans, replaced, filing } = assessed;
+  const stateOf = (plan: Plan<CollectorRow>): PlanState => assessedState(assessed, plan);
   const stands = (plan: Plan<CollectorRow>) => STANDING.has(stateOf(plan)) && plan.finish != null;
   const isShown = (plan: Plan<CollectorRow>) => !shown || plan.folded.copies.some(c => shown.has(c.id));
 
@@ -1310,8 +1366,10 @@ export function foldRuns(rows: CollectorRow[]): FoldedRuns {
  * `settingTags` does not look at. With those runs included, a time-off run with the same save, start
  * and route as a normal one read as the same row nine days later.
  */
-export function runTags(rows: readonly CollectorRow[]): Map<CollectorRow, string[]> {
-  const tags = settingTags(rows);
+export function runTags(rows: readonly CollectorRow[], zone?: string): Map<CollectorRow, string[]> {
+  // `zone`: the calendar any "starts HH:MM" tag is read on (the page passes the viewer's, as for
+  // every other date in the runs table).
+  const tags = settingTags(rows, zone);
   for (const r of rows) if (r.timeOff?.length) tags.set(r, [...(tags.get(r) ?? []), 'time off']);
   return tags;
 }

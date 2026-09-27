@@ -5,6 +5,7 @@ import {
   browserTag,
   buildMyPlans,
   buildRace,
+  calendarDaysLeft,
   daysLeft,
   daysLeftPhrase,
   daysLeftText,
@@ -988,8 +989,9 @@ describe('phase 2: owner codes', () => {
       const race = buildRace([plan, older, forged], { target: 490, now: NOW });
       const allan = race.entries.find(e => e.key === `acct:${ALLAN}`);
       expect(allan, what).toBeDefined();
+      // His own plans, judged by his own runs alone: the copy changed none of them.
       expect(
-        allan!.plans.map(p => [p.row.id, p.state]),
+        allan!.plans.filter(p => !allan!.noCode?.has(p)).map(p => [p.row.id, p.state]),
         what
       ).toEqual([
         ['plan', 'current'],
@@ -1001,9 +1003,19 @@ describe('phase 2: owner codes', () => {
         allan!.best.folded.copies.map(c => c.id),
         what
       ).toEqual(['plan']);
-      // The copy is a line of its own under the bare name, marked as not carrying his code.
-      const other = [...race.entries, ...race.waiting].find(e => e.key === 'name:allanfieldhouse');
+      // Its gear and TE fit his, so the copy is listed on his line, marked as not carrying his code,
+      // rather than as a second line under his name -- and it is never his best.
+      const copy = allan!.plans.find(p => p.row.id === 'forged')!;
+      expect(allan!.noCode?.has(copy), what).toBe(true);
+      expect(browserTag(allan!, copy), what).toBe('no code');
+      expect(allan!.lines, what).toEqual([`acct:${ALLAN}`, 'name:allanfieldhouse']);
+      expect(race.entries.length + race.waiting.length, what).toBe(1);
+      // From other gear it does not fit: a line of its own under the bare name, as before.
+      const elsewhere = { ...forged, artifacts: ['T2C Gusset'] };
+      const apart = buildRace([plan, older, elsewhere], { target: 490, now: NOW });
+      const other = [...apart.entries, ...apart.waiting].find(e => e.key === 'name:allanfieldhouse');
       expect(other?.label, what).toBe('allanfieldhouse (no code)');
+      expect(apart.entries.find(e => e.key === `acct:${ALLAN}`)!.noCode, what).toBeUndefined();
     }
     // Before the fix all four knocked him out or re-labelled his line; the filing is what changed.
     expect(playerKey(fileRows([plan, variants['an exhaustive badge']]), variants['an exhaustive badge'])).toBe(
@@ -1212,7 +1224,8 @@ describe('one player on two browsers', () => {
     expect(placeFor(race, F + 0.1 * DAY_MS, a.key)).toBe(1);
     expect(browserTag(a, a.best)).toBe('browser 1');
     expect(browserTag(a, a.plans.find(p => p.row.id === 'b2c')!)).toBe('browser 2');
-    expect(browserTag(a, a.plans.find(p => p.row.id === 'legacy')!)).toBe('no code');
+    // Sent before owner codes existed, and filed as his: not "no code", which means "may be anybody's".
+    expect(browserTag(a, a.plans.find(p => p.row.id === 'legacy')!)).toBe('before codes');
     expect(browserTag(race.entries[1], race.entries[1].best)).toBe('');
   });
 
@@ -1304,7 +1317,9 @@ describe('one player on two browsers', () => {
     expect([a.key, a.label, a.lines.length]).toEqual([`acct:${B1}`, 'allanfieldhouse', 3]);
     expect(a.best.row.id).toBe('b1a');
     expect(a.plans.find(p => p.row.id === 'b1a')!.state).toBe('current');
-    expect(a.resends.get(a.best)!.map(p => p.row.id)).toEqual(['lookAlike', 'b2c']);
+    // Its copy of his best plan finishes 300 days later: two answers, listed apart, not one plan.
+    expect(a.resends.get(a.best)!.map(p => p.row.id)).toEqual(['b2c']);
+    expect(a.listed.map(p => p.row.id)).toContain('lookAlike');
   });
 
   it('counts two sends of one plan minutes apart once', () => {
@@ -1358,5 +1373,301 @@ describe('schedule text', () => {
     expect(scheduleText('weekdays only')).toBe('weekdays only');
     expect(scheduleText(null)).toBe('any time');
     expect(scheduleText(undefined, 'no schedule')).toBe('no schedule');
+  });
+});
+
+describe('a code-less line under an owner name', () => {
+  // The live board on 2026-09-27: three sweeps posted at 16:16 UTC by a script under Williamthe5thc
+  // with no owner code, from the same save as his own runs (plan start 24 Sep 08:49, TE 182, his
+  // gear). They made a second race line, "Williamthe5thc (no code)", that took a place of its own.
+  const DENVER = 'America/Denver';
+  const W_GEAR = ['T4L Quantum metronome', 'T4E Interstellar compass', 'T4L Gusset', 'T4L The chalice'];
+  const OWNER = 'da7ada7ada7a';
+  const now = Date.parse('2026-09-27T21:00:00Z');
+  const opts = { target: 490, now };
+  /** A Williamthe5thc run: before owner codes unless `over` says otherwise. */
+  const will = (id: string, chain: number[], durationDays: number, over: Partial<BoardRow> = {}) =>
+    row({
+      id,
+      nickname: 'Williamthe5thc',
+      timezone: DENVER,
+      artifacts: W_GEAR,
+      window: null,
+      currentTE: 182,
+      chain,
+      durationDays,
+      startLocal: '2026-09-24 08:49',
+      submittedAt: '2026-09-24T15:27:05Z',
+      backupAgeHours: undefined,
+      legs: [],
+      ...over,
+    });
+  const before = [
+    will('b279', [279, 490], 850.3387),
+    will('b303', [195, 227, 270, 303, 490], 727.4411, { submittedAt: '2026-09-25T22:26:02Z' }),
+    will('b318', [195, 222, 248, 278, 318, 490], 724.642, { submittedAt: '2026-09-26T06:17:06Z' }),
+    will('b321', [195, 216, 257, 289, 321, 490], 731.8586, {
+      currentTE: 180,
+      startLocal: '2026-09-17 21:21',
+      submittedAt: '2026-09-18T18:25:32Z',
+    }),
+  ];
+  // His one run sent with his code: 279 490 again, from the same save 2.3 h on.
+  const owned = will('o279', [279, 490], 856.7845, {
+    acct: OWNER,
+    startLocal: '2026-09-24 11:06',
+    submittedAt: '2026-09-24T17:15:11Z',
+    backupAgeHours: 2.3,
+  });
+  const script = (id: string, chain: number[], durationDays: number, over: Partial<BoardRow> = {}) =>
+    will(id, chain, durationDays, {
+      submittedAt: '2026-09-27T16:16:47Z',
+      receivedAt: '2026-09-27T16:19:21Z',
+      ...over,
+    });
+  const sweeps = [
+    script('s346', [195, 216, 240, 252, 272, 293, 346, 490], 726.9387),
+    script('s352', [197, 221, 246, 261, 280, 291, 323, 352, 490], 728.7096),
+    script('s320', [195, 222, 251, 273, 293, 320, 490], 726.8842),
+  ];
+  const kenzie = rival('Kenzie', 1000);
+  const all = [...before, owned, ...sweeps, kenzie];
+
+  it('is one race line: the sweeps are listed on his, tagged "no code" and counted in Tried', () => {
+    const race = buildRace(all, opts);
+    expect(race.entries.map(e => [e.rank, e.label])).toEqual([
+      [1, 'Williamthe5thc'],
+      [2, 'Kenzie'],
+    ]);
+    const w = race.entries[0];
+    expect(w.key).toBe(`acct:${OWNER}`);
+    expect(w.lines).toEqual([`acct:${OWNER}`, 'name:williamthe5thc']);
+    expect([...w.noCode!].map(p => p.row.id).sort()).toEqual(['s320', 's346', 's352']);
+    expect(w.best.row.id).toBe('b318');
+    const tag = (id: string) => browserTag(w, w.plans.find(p => p.row.id === id)!);
+    // Only the sweeps are marked: one browser, so nothing else needs telling apart.
+    expect(['s346', 'b318', 'o279'].map(tag)).toEqual(['no code', '', '']);
+    // Every plan once: four from before codes, his coded 279 490, and the three sweeps.
+    expect([w.plansTried, w.sends]).toEqual([8, 8]);
+    expect(w.listed.map(p => p.row.id)).toEqual(expect.arrayContaining(['s346', 's352', 's320']));
+    // The Explorer's per-line judgement is untouched: the code-less line is still its own line there.
+    const lines = groupPlayers(all, opts);
+    expect(lines.find(p => p.key === 'name:williamthe5thc')?.label).toBe('Williamthe5thc (no code)');
+    expect(
+      lines
+        .find(p => p.key === `acct:${OWNER}`)
+        ?.plans.map(p => p.row.id)
+        .sort()
+    ).toEqual(['b279', 'b303', 'b318', 'b321', 'o279']);
+  });
+
+  it('never lets a code-less plan set his best or his place, however early it finishes', () => {
+    const early = script('early', [190, 230, 490], 700);
+    // Finishes after the code-less plan but before his own best.
+    const between = rival('Between', 0, {
+      durationDays:
+        (finishMs(before[2])! - 12 * 3_600_000 - localToUtcMs(rival('x', 0).startLocal, 'Europe/London')!) / DAY_MS,
+    });
+    const race = buildRace([...all, early, between], opts);
+    const w = race.entries.find(e => e.key === `acct:${OWNER}`)!;
+    expect(w.best.row.id).toBe('b318');
+    expect(race.entries.map(e => e.label)).toEqual(['Between', 'Williamthe5thc', 'Kenzie']);
+    // Listed, and first by finish, but as one of his other plans.
+    expect(w.others[0].row.id).toBe('early');
+    expect(browserTag(w, w.others[0])).toBe('no code');
+  });
+
+  it('lists the same route twice when the two finishes are a week apart', () => {
+    // b279 (before codes, 08:49) and o279 (his code, 11:06): neither may replace the other, and the
+    // later start finishes 6.5 days later. Folded, the earlier finish was hidden under the later one.
+    const w = buildRace(all, opts).entries[0];
+    expect(w.resends.size).toBe(0);
+    expect(w.listed.map(p => p.row.id)).toEqual(expect.arrayContaining(['b279', 'o279']));
+    // And the two rows say how they differ.
+    const tags = settingTags([before[0], owned], DENVER);
+    expect([tags.get(before[0]), tags.get(owned)]).toEqual([['starts 08:49'], ['starts 11:06']]);
+  });
+
+  it('keeps apart a code-less line whose TE, gear or owner does not fit', () => {
+    // A run from TE 150 sent after his TE 182 runs: not the same account's history.
+    const low = script('low', [170, 490], 900, { currentTE: 150, startLocal: '2026-09-26 10:00' });
+    const lowRace = buildRace([...before, owned, low], opts);
+    expect(lowRace.entries.map(e => e.label).sort()).toEqual(['Williamthe5thc', 'Williamthe5thc (no code)']);
+    // Another artifact set among them.
+    const gear = script('gear', [200, 490], 800, { artifacts: ['T2C Gusset'] });
+    const gearRace = buildRace([...before, owned, ...sweeps, gear], opts);
+    expect(gearRace.entries.map(e => e.label).sort()).toEqual(['Williamthe5thc', 'Williamthe5thc (no code)']);
+    // His own line has no plan that counts (all older than 30 days): folding would cost the sweeps their
+    // place and gain nobody anything, so they keep their line.
+    const later = { ...opts, now: Date.parse('2026-11-20T00:00:00Z') };
+    const fresh = sweeps.map(r => ({ ...r, startLocal: '2026-11-19 08:49', receivedAt: '2026-11-19T16:19:21Z' }));
+    const oldRace = buildRace([...before, owned, ...fresh], later);
+    expect(oldRace.entries.map(e => e.label)).toEqual(['Williamthe5thc (no code)']);
+    expect(oldRace.waiting.map(e => e.label)).toEqual(['Williamthe5thc']);
+  });
+});
+
+describe('look-alike tags', () => {
+  const LA = 'America/Los_Angeles';
+  // (icon) · Los Angeles's 274 490, from one save seven hours old: 16:11 finishing the current run
+  // first, 16:14 and 16:18 prestiging straight away.
+  const icon = (id: string, startLocal: string, age: number, forceContinue: boolean) =>
+    rival('', 0, {
+      id,
+      acct: 'feedfeedfeed',
+      timezone: LA,
+      chain: [274, 490],
+      currentTE: 167,
+      startLocal,
+      backupAgeHours: age,
+      forceContinue,
+      durationDays: 881.5,
+    });
+  const a = icon('a', '2026-09-24 16:11', 6.8, true);
+  const b = icon('b', '2026-09-24 16:14', 6.8, false);
+  const c = icon('c', '2026-09-24 16:18', 6.9, false);
+
+  it('groups plans of one route by save, not by the exact start minute', () => {
+    const tags = settingTags([a, c]);
+    expect([tags.get(a), tags.get(c)]).toEqual([['finishes current run first'], ['prestiges now']]);
+  });
+
+  it('says when each starts where the settings alone do not tell them apart, on the calendar asked for', () => {
+    const tags = settingTags([a, b, c], 'America/Denver');
+    expect([tags.get(a), tags.get(b), tags.get(c)]).toEqual([
+      ['finishes current run first'],
+      ['prestiges now', 'starts 17:14'],
+      ['prestiges now', 'starts 17:18'],
+    ]);
+    expect(settingTags([b, c]).get(b)).toEqual(['starts 16:14']);
+  });
+
+  it('leaves alone plans from different saves or routes', () => {
+    const otherSave = { ...c, id: 'd', startLocal: '2026-09-25 16:18', backupAgeHours: 0 };
+    expect(settingTags([a, otherSave]).size).toBe(0);
+    expect(settingTags([a, { ...b, chain: [275, 490] }]).size).toBe(0);
+  });
+});
+
+describe('reason dates', () => {
+  // A plan re-measured by a run that starts at 23:30 in Chicago on 24 Sep -- 25 Sep in London.
+  const first = row({ id: 'first', startLocal: '2026-09-23 13:52', submittedAt: '2026-09-23T19:00:00Z' });
+  const again = row({
+    id: 'again',
+    startLocal: '2026-09-24 23:30',
+    submittedAt: '2026-09-25T04:40:00Z',
+    durationDays: 662,
+  });
+  const reason = (zone?: string) =>
+    groupPlayers([first, again], { target: 490, now: NOW, zone })[0].plans.find(p => p.row.id === 'first')!.reason;
+
+  it("reads them in the run's own zone by default, and on the calendar a board passes", () => {
+    expect(reason()).toBe('replaced by a newer run of the same plan (24 Sept)');
+    expect(reason('Europe/London')).toBe('replaced by a newer run of the same plan (25 Sept)');
+  });
+});
+
+describe('memoised identity and time', () => {
+  /** The key as it was worked out before memoising. */
+  const plainKey = (r: Pick<BoardRow, 'timezone' | 'artifacts'>) =>
+    `${r.timezone ?? '?'}::${(r.artifacts ?? [])
+      .map(a => (typeof a === 'string' ? a : (a?.label ?? '')))
+      .sort()
+      .join('|')}`;
+
+  it('gives the same account key as before, for copies, other zones and a list that grew', () => {
+    const gear = ['T4L Gusset', 'T3E Chalice', 'T4L Compass'];
+    const cases: Pick<BoardRow, 'timezone' | 'artifacts'>[] = [
+      { timezone: CHICAGO, artifacts: gear },
+      { timezone: 'Europe/London', artifacts: gear },
+      { timezone: undefined, artifacts: gear },
+      { timezone: '', artifacts: gear },
+      { timezone: CHICAGO, artifacts: undefined },
+      { timezone: CHICAGO, artifacts: [...gear].reverse() },
+      { timezone: CHICAGO, artifacts: [{ label: 'T4L Gusset', count: 1 }, 'T1 Feather'] },
+    ];
+    for (let pass = 0; pass < 3; pass++) {
+      for (const c of cases) {
+        expect(accountKeyOf(c)).toBe(plainKey(c));
+        expect(accountKeyOf({ ...c })).toBe(plainKey(c));
+      }
+    }
+    const grows = ['T4L Gusset'];
+    const r = { timezone: CHICAGO, artifacts: grows };
+    expect(accountKeyOf(r)).toBe(`${CHICAGO}::T4L Gusset`);
+    grows.push('T1 Feather');
+    expect(accountKeyOf(r)).toBe(`${CHICAGO}::T1 Feather|T4L Gusset`);
+  });
+
+  /** An offset worked out from scratch, as before memoising. */
+  const formatters = new Map<string, Intl.DateTimeFormat | null>();
+  function plainOffset(timezone: string, utcMs: number): number | null {
+    if (!formatters.has(timezone)) {
+      try {
+        formatters.set(
+          timezone,
+          new Intl.DateTimeFormat('en-US', {
+            timeZone: timezone,
+            hourCycle: 'h23',
+            year: 'numeric',
+            month: 'numeric',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: 'numeric',
+            second: 'numeric',
+          })
+        );
+      } catch {
+        formatters.set(timezone, null);
+      }
+    }
+    const f = formatters.get(timezone);
+    if (!f) return null;
+    const parts = f.formatToParts(new Date(utcMs));
+    const get = (t: string) => Number(parts.find(p => p.type === t)?.value);
+    const wall = Date.UTC(get('year'), get('month') - 1, get('day'), get('hour') % 24, get('minute'), get('second'));
+    const offset = wall - Math.floor(utcMs / 1000) * 1000;
+    return Number.isFinite(offset) ? offset : null;
+  }
+  function plainLocalToUtc(local: string, timezone: string): number | null {
+    const m = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/.exec(local);
+    if (!m) return null;
+    const [y, mo, d, h, mi] = m.slice(1).map(Number);
+    const wall = Date.UTC(y, mo - 1, d, h, mi);
+    const first = plainOffset(timezone, wall);
+    if (first == null) return null;
+    let utc = wall - first;
+    const second = plainOffset(timezone, utc);
+    if (second == null) return null;
+    if (second !== first) utc = wall - second;
+    return utc;
+  }
+
+  it('reads every start and calendar day exactly as before, through clock changes on the half hour', () => {
+    // St John's changes at 02:00 local (05:30 UTC); Lord Howe moves by 30 minutes; Kathmandu is +5:45.
+    const zones = [
+      'America/St_Johns',
+      'Australia/Lord_Howe',
+      'Asia/Kathmandu',
+      'Europe/London',
+      CHICAGO,
+      'Pacific/Chatham',
+      'Mars/Olympus_Mons',
+    ];
+    const days = ['2026-03-08', '2026-04-05', '2026-10-04', '2026-11-01', '2026-03-29', '2026-10-25', '2026-09-27'];
+    const now = Date.parse('2026-09-27T12:00:00Z');
+    for (const tz of zones) {
+      for (const day of days) {
+        for (let q = 0; q < 24 * 4; q++) {
+          const local = `${day} ${String(Math.floor(q / 4)).padStart(2, '0')}:${String((q % 4) * 15 + 7).padStart(2, '0')}`;
+          expect(localToUtcMs(local, tz), `${tz} ${local}`).toBe(plainLocalToUtc(local, tz));
+          const at = Date.parse(`${day}T00:00:00Z`) + q * 15 * 60_000 + 7 * 60_000;
+          const plainDays =
+            Math.floor((at + (plainOffset(tz, at) ?? plainOffset('UTC', at)!)) / DAY_MS) -
+            Math.floor((now + (plainOffset(tz, now) ?? 0)) / DAY_MS);
+          expect(calendarDaysLeft(at, now, tz), `${tz} ${at}`).toBe(plainDays);
+        }
+      }
+    }
   });
 });

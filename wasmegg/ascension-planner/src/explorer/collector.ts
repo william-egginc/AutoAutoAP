@@ -85,9 +85,79 @@ export interface AllResponse {
   rows: CollectorRow[];
 }
 
+/**
+ * The build's own collector's `GET /all`, requested before the page has mounted.
+ *
+ * The Explorer can show nothing until this answers, and the component only asks from `onMounted`,
+ * after the whole bundle has downloaded and run. So the request starts earlier and `fetchAll` picks
+ * up the pending response instead of sending a second one:
+ *
+ *   - from explorer.html itself, while the scripts are still downloading: vite.config.ts
+ *     (`aap-collector-early-start`) writes a few lines there that leave it on `window.__aapEarlyAll`;
+ *   - otherwise from `prefetchAll`, which explorer/main.ts calls just before mounting.
+ *
+ * ONCE, AND ONLY FOR THE SAME BASE. The first `fetchAll` for that base takes it; every later call
+ * (a Reload click, a typed collector) fetches fresh, and a response older than a minute is not used
+ * at all -- this saves the first page load a round trip, it is not a cache. Only the build-time
+ * default is started early: `?collector=` means someone asked for a different collector.
+ */
+interface EarlyAll {
+  base: string;
+  response: Promise<Response>;
+  /** `Date.now()` when the request started. */
+  at: number;
+}
+
+const EARLY_MAX_AGE_MS = 60_000;
+let early: EarlyAll | null = null;
+
+/** Starts (or adopts, when explorer.html already started it) the default collector's `/all`. */
+export function prefetchAll(search = typeof location === 'undefined' ? '' : location.search): void {
+  if (early || new URLSearchParams(search).get('collector')) return;
+  const base = resolveCollectorBase(search);
+  if (!base) return;
+  const holder = globalThis as { __aapEarlyAll?: EarlyAll };
+  const fromHtml = holder.__aapEarlyAll;
+  holder.__aapEarlyAll = undefined;
+  if (fromHtml && fromHtml.base === base && fromHtml.response instanceof Promise) {
+    early = fromHtml;
+    return;
+  }
+  if (typeof fetch !== 'function') return;
+  const response = fetch(`${base}/all`);
+  // Nobody may ever await this (the page could be pointed elsewhere first); a failure here must
+  // not surface as an unhandled rejection. `fetchAll` still sees the rejection when it does await.
+  response.catch(() => {});
+  early = { base, response, at: Date.now() };
+}
+
+/** The early response for `base`, at most once, wired to `signal` so an abort still aborts. */
+function takeEarly(base: string, signal?: AbortSignal): Promise<Response> | null {
+  const taken = early;
+  early = null;
+  if (!taken || taken.base !== base || Date.now() - taken.at > EARLY_MAX_AGE_MS) return null;
+  if (!signal) return taken.response;
+  const aborted = () => new DOMException('The operation was aborted.', 'AbortError');
+  if (signal.aborted) return Promise.reject(aborted());
+  return new Promise<Response>((resolve, reject) => {
+    const onAbort = () => reject(aborted());
+    signal.addEventListener('abort', onAbort, { once: true });
+    taken.response.then(
+      res => {
+        signal.removeEventListener('abort', onAbort);
+        resolve(res);
+      },
+      (error: unknown) => {
+        signal.removeEventListener('abort', onAbort);
+        reject(error);
+      }
+    );
+  });
+}
+
 /** Every submission the collector holds, newest KV page first. Throws with a readable message. */
 export async function fetchAll(base: string, signal?: AbortSignal): Promise<CollectorRow[]> {
-  const res = await fetch(`${base}/all`, { signal });
+  const res = await (takeEarly(base, signal) ?? fetch(`${base}/all`, { signal }));
   if (!res.ok) throw new Error(`The collector answered ${res.status} for /all.`);
   const body = (await res.json()) as AllResponse;
   if (!body || !Array.isArray(body.rows)) throw new Error('The collector answered something that is not a run list.');

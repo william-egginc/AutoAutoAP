@@ -22,9 +22,10 @@
   it falls in the chain.
 
   Runs are coloured by account, so a fan of one colour is one person's several attempts and a fan
-  of several is a shape that repeats across accounts. The legend has one entry per account, so
-  toggling or hovering it takes all of that account's runs at once; past eight accounts the hues
-  repeat and the marker shape changes (`symbolAt`).
+  of several is a shape that repeats across accounts. The legend (HTML, so it wraps rather than
+  paging accounts out of sight on a phone: legend.ts) has one entry per account, so turning one off
+  takes all of that account's runs at once; past eight accounts the hues repeat and the marker shape
+  changes (`symbolAt`).
 
   LEG 1 IS DRAWN APART (hollow point, dashed line), in both views. It is the rest of the ascension
   the player is in when the plan starts, so it shrinks one-for-one with a later start: Allan's two
@@ -58,20 +59,29 @@
       </span>
     </div>
 
-    <EChart v-if="withLegs.length" :option="option" height="330px" />
+    <EChart v-if="withLegs.length" :option="option" height="310px" />
+    <!-- In HTML so every account is on screen at any width (legend.ts); each hides all its runs. -->
+    <ChartLegend
+      v-if="withLegs.length"
+      v-model:hidden="hidden"
+      :entries="legendEntries"
+      label="Accounts: click to hide or show"
+    />
     <p class="text-[10px] text-slate-400 leading-relaxed px-1">{{ MODES.find(m => m.id === metric)?.hint }}</p>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
+import ChartLegend from './ChartLegend.vue';
+import type { LegendEntry } from './legend';
 import EChart from '@/components/charts/EChart.vue';
 import type { ChartOption, ChartSeriesOption } from '@/lib/charts/echarts';
 import { esc } from '@/lib/charts/tooltip';
 import type { CollectorRow } from './collector';
 import { finishDateText, finishMs, localZone, whoText } from '@/lib/leaderboardRank';
 import { accountKey, groupByAccount } from './analysis';
-import { colorAt, symbolAt, AXIS_LABEL, SPLIT_LINE } from './palette';
+import { colorAt, symbolAt, AXIS_LABEL, SPLIT_LINE, TOOLTIP_FIT } from './palette';
 
 const props = defineProps<{
   rows: CollectorRow[];
@@ -114,17 +124,31 @@ const hollow = (symbol: string) => `empty${symbol[0].toUpperCase()}${symbol.slic
 /** One point: [leg, value, leg detail, run heading]. */
 type Datum = [number, number, string, string];
 
+/** Accounts the legend has turned off, by key. */
+const hidden = ref<ReadonlySet<string>>(new Set());
+
+/** One entry per account, in the order of its colour, with its own marker shape. */
+const legendEntries = computed<LegendEntry[]>(() => {
+  const seen = new Map<string, LegendEntry>();
+  for (const row of withLegs.value) {
+    const key = accountKey(row);
+    if (seen.has(key)) continue;
+    const index = props.accountColors.get(key) ?? 0;
+    seen.set(key, { id: key, label: labels.value(key, row), index, line: 'solid' });
+  }
+  return [...seen.values()].sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
+});
+
 const option = computed<ChartOption>(() => {
   const days = metric.value === 'days';
-  const legend = new Map<string, { index: number; symbol: string }>();
   let lowest = Infinity;
 
   const series: ChartSeriesOption[] = withLegs.value.flatMap((row): ChartSeriesOption[] => {
     const key = accountKey(row);
+    if (hidden.value.has(key)) return [];
     const index = props.accountColors.get(key) ?? 0;
     const label = labels.value(key, row);
     const symbol = symbolAt(index);
-    if (!legend.has(label)) legend.set(label, { index, symbol });
     // Named by account, so the legend has one entry per account and toggles all of its runs; the
     // run itself is told apart by its finish date, which is in every tooltip.
     const heading = `${label} · finishes ${finishDateText(finishMs(row), viewZone)}`;
@@ -159,22 +183,10 @@ const option = computed<ChartOption>(() => {
   });
 
   return {
-    grid: { left: 52, right: 16, top: 14, bottom: 66 },
-    legend: {
-      type: 'scroll',
-      bottom: 0,
-      itemGap: 14,
-      itemWidth: 14,
-      itemHeight: 8,
-      textStyle: { fontSize: 10, color: '#64748b' },
-      // Explicit, so each account shows once, with its own marker shape, in the order of its colour.
-      data: [...legend.entries()]
-        .sort((a, b) => a[1].index - b[1].index)
-        .map(([name, { symbol }]) => ({ name, icon: symbol })),
-      formatter: (name: string) => (name.length > 24 ? `${name.slice(0, 23)}…` : name),
-    },
+    grid: { left: 52, right: 16, top: 14, bottom: 40 },
     tooltip: {
       trigger: 'item',
+      ...TOOLTIP_FIT,
       formatter: raw => {
         // `value` rather than `data`: leg 1's point is an object carrying its own symbol.
         const params = raw as { value?: Datum };

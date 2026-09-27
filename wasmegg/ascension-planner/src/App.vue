@@ -593,7 +593,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch, h, type FunctionalComponent } from 'vue';
 import { storeToRefs } from 'pinia';
 import TheNavBar from 'ui/components/NavBar.vue';
 import { getSavedPlayerID, savePlayerID, requestFirstContact, resolveColleggtibleContracts } from 'lib';
@@ -621,11 +621,8 @@ import RecalculationOverlay from '@/components/RecalculationOverlay.vue';
 import LoadingOverlay from '@/components/LoadingOverlay.vue';
 import PlanLibrary from '@/components/PlanLibrary.vue';
 import PlanSelectionDialog from '@/components/PlanSelectionDialog.vue';
-import AutomaticPlanner from '@/components/auto/AutomaticPlanner.vue';
-import ChainSearchPanel from '@/components/auto/ChainSearchPanel.vue';
-import InsanePanel from '@/components/auto/InsanePanel.vue';
-import LeaderboardPanel from '@/components/auto/LeaderboardPanel.vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
+import { safeAsyncComponent } from '@/lib/import';
 import { useSalesStore } from '@/stores/sales';
 import { hashID, saveMetadata, loadMetadata } from '@/lib/storage/db';
 import { useActionExecutor } from '@/composables/useActionExecutor';
@@ -650,6 +647,15 @@ import {
   captureReconciliationTargets,
   catchUpFarmState,
 } from '@/lib/modes';
+
+// The four big tab panels load on first use: each sits behind a v-if (a tab, a loaded backup, or
+// `?insane=1`), and together they were a large share of the planner's first download that nobody
+// sees until they pick a tab. safeAsyncComponent retries and offers a reload if a deploy replaced
+// the files this tab was built against.
+const AutomaticPlanner = safeAsyncComponent(() => import('@/components/auto/AutomaticPlanner.vue'));
+const ChainSearchPanel = safeAsyncComponent(() => import('@/components/auto/ChainSearchPanel.vue'));
+const InsanePanel = safeAsyncComponent(() => import('@/components/auto/InsanePanel.vue'));
+const LeaderboardPanel = safeAsyncComponent(() => import('@/components/auto/LeaderboardPanel.vue'));
 
 // Dev server only (localhost or a LAN IP hitting the Vite dev server) - never in a production build.
 const isDev = import.meta.env.DEV;
@@ -1264,21 +1270,22 @@ async function savePlanAs() {
   }
 }
 
-// Chevron icon component
-const ChevronIcon = {
-  props: { expanded: Boolean },
-  template: `
-    <svg
-      class="w-5 h-5 text-gray-400 transition-transform"
-      :class="{ 'rotate-180': expanded }"
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-    >
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-    </svg>
-  `,
-};
+// Chevron for the collapsible sections. A render function, not a `template:` string: the app ships
+// Vue's runtime-only build, which cannot compile a template at runtime and renders such a component
+// as an empty comment, so the collapse buttons had no visible icon at all.
+const ChevronIcon: FunctionalComponent<{ expanded?: boolean }> = props =>
+  h(
+    'svg',
+    {
+      class: ['w-5 h-5 text-gray-400 transition-transform', { 'rotate-180': props.expanded }],
+      fill: 'none',
+      stroke: 'currentColor',
+      viewBox: '0 0 24 24',
+      'aria-hidden': 'true',
+    },
+    [h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M19 9l-7 7-7-7' })]
+  );
+ChevronIcon.props = { expanded: Boolean };
 </script>
 
 <style scoped>

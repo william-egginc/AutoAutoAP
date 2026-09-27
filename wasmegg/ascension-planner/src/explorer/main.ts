@@ -12,6 +12,18 @@
 import { createApp } from 'vue';
 
 import ChainExplorer from './ChainExplorer.vue';
+import { prefetchAll } from './collector';
+import { loadEcharts } from '@/lib/charts/loadEcharts';
 import '../index.css';
+
+// Both before mounting, so neither waits for the first render.
+//  - The run list: usually already in flight from explorer.html; this adopts it, or starts it. See
+//    collector.ts `prefetchAll`.
+//  - The chart library, which every chart here needs and which is no longer part of this bundle
+//    (lib/charts/loadEcharts.ts). Starting it now lets it download while the run list is fetched
+//    and folded, instead of after the first chart has mounted. A failure is left to the charts,
+//    which say so and offer a reload.
+prefetchAll();
+loadEcharts().catch(() => {});
 
 createApp(ChainExplorer).mount('#app');

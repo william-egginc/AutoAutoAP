@@ -27,8 +27,8 @@
 import type { SubmissionFlag } from './rules';
 import type { InventoryCount, LoadoutSlot } from './csv';
 import type { ColleggtibleSummary, EpicResearchSummary } from './progression';
-import type { Availability } from './availability';
-import { describeAvailability } from './availability';
+import type { Availability } from './availabilitySchedule';
+import { describeAvailability } from './availabilitySchedule';
 import type { LegSummary } from './types';
 import type { DeliveryScore } from './virtueScore';
 

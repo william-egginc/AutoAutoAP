@@ -34,7 +34,9 @@
       <span class="text-[10px] text-slate-400">lowest first, from each account's earliest-finish run</span>
     </div>
 
-    <div v-if="table.rows.length" class="overflow-x-auto">
+    <!-- A size container, so a tapped cell's details can be as wide as what is on screen (100cqw),
+         however wide the table is: the runs table's pattern. -->
+    <div v-if="table.rows.length" class="overflow-x-auto [container-type:inline-size]">
       <table class="text-[11px] border-separate [border-spacing:3px]">
         <thead>
           <tr class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
@@ -57,43 +59,72 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="row in table.rows" :key="row.key">
-            <!-- Only the name refuses to wrap: on a phone the rest wraps under it, so the pinned
+          <template v-for="row in table.rows" :key="row.key">
+            <tr>
+              <!-- Only the name refuses to wrap: on a phone the rest wraps under it, so the pinned
                  column leaves room for the counts. -->
-            <th scope="row" class="sticky left-0 z-10 bg-white text-left font-normal py-0.5 pr-3">
-              <span class="whitespace-nowrap"
-                ><span
-                  class="inline-block w-2 h-2 rounded-full mr-1.5 align-middle"
-                  :style="{ background: colorAt(row.color) }"
-                  aria-hidden="true"
-                /><b class="text-slate-700">{{ row.label }}</b></span
-              >
-              <div class="text-[10px] text-slate-400">
-                <template v-for="(part, k) in gearParts(row)" :key="part.id"
-                  >{{ k ? ' · ' : ''
-                  }}<span :class="part.id === order ? 'font-black text-slate-600' : ''">{{ part.text }}</span></template
+              <th scope="row" class="sticky left-0 z-10 bg-white text-left font-normal py-0.5 pr-3">
+                <span class="whitespace-nowrap"
+                  ><AccountDot :index="row.color" class="mr-1.5" /><b class="text-slate-700">{{ row.label }}</b></span
                 >
-              </div>
-              <div v-if="row.anchor && !row.anchorShown" class="text-[10px] text-slate-400">
-                earliest finish: {{ row.anchor.row.ascensions }} asc., not in this table
-              </div>
-              <div v-else-if="!row.anchor" class="text-[10px] text-slate-400">no finish still stands</div>
-            </th>
-            <td v-for="cell in row.cells" :key="cell.column.key" class="p-0" :title="cellTitle(row, cell, viewZone)">
-              <div
-                class="h-7 rounded flex items-center justify-center px-1 font-bold whitespace-nowrap [background-clip:padding-box]"
-                :style="cellStyle(cell)"
-              >
-                <span
-                  v-if="cell.text"
-                  :class="cell.style === 'hatched' ? 'rounded px-0.5' : ''"
-                  :style="cell.style === 'hatched' ? { background: fillOf(cell).color } : undefined"
-                  >{{ cell.text }}</span
+                <div class="text-[10px] text-slate-400">
+                  <template v-for="(part, k) in gearParts(row)" :key="part.id"
+                    >{{ k ? ' · ' : ''
+                    }}<span :class="part.id === order ? 'font-black text-slate-600' : ''">{{
+                      part.text
+                    }}</span></template
+                  >
+                </div>
+                <div v-if="row.anchor && !row.anchorShown" class="text-[10px] text-slate-400">
+                  earliest finish: {{ row.anchor.row.ascensions }} asc., not in this table
+                </div>
+                <div v-else-if="!row.anchor" class="text-[10px] text-slate-400">no finish still stands</div>
+              </th>
+              <!-- A button, so the details a mouse gets on hover are a tap away on a phone: they open in a
+                 row under this one. -->
+              <td v-for="cell in row.cells" :key="cell.column.key" class="p-0" :title="cellTitle(row, cell, viewZone)">
+                <button
+                  type="button"
+                  class="block w-full rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500"
+                  :class="isPicked(row, cell) ? 'ring-2 ring-indigo-500 ring-offset-1' : ''"
+                  :aria-expanded="isPicked(row, cell)"
+                  :aria-label="`${row.label}, ${cell.column.label} ascensions: details`"
+                  @click="pick(row, cell)"
                 >
-                <i v-else-if="cell.state === 'hidden'" class="text-[10px] font-normal text-slate-400">hidden</i>
-              </div>
-            </td>
-          </tr>
+                  <div
+                    class="h-7 rounded flex items-center justify-center px-1 font-bold whitespace-nowrap [background-clip:padding-box]"
+                    :style="cellStyle(cell)"
+                  >
+                    <span
+                      v-if="cell.text"
+                      :class="cell.style === 'hatched' ? 'rounded px-0.5' : ''"
+                      :style="cell.style === 'hatched' ? { background: fillOf(cell).color } : undefined"
+                      >{{ cell.text }}</span
+                    >
+                    <i v-else-if="cell.state === 'hidden'" class="text-[10px] font-normal text-slate-400">hidden</i>
+                  </div>
+                </button>
+              </td>
+            </tr>
+            <tr v-if="picked && picked.row === row.key && pickedCell">
+              <td :colspan="table.columns.length + 1" class="p-0">
+                <div
+                  class="sticky left-0 max-w-[100cqw] flex items-start gap-2 rounded-lg border border-indigo-200 bg-indigo-50/60 px-2.5 py-1.5 text-[11px] leading-relaxed text-slate-700"
+                  role="status"
+                >
+                  <p class="grow whitespace-pre-line">{{ cellTitle(row, pickedCell, viewZone) }}</p>
+                  <button
+                    type="button"
+                    class="shrink-0 rounded px-1 text-[13px] leading-none text-slate-500 hover:bg-indigo-100"
+                    aria-label="Close these details"
+                    @click="picked = null"
+                  >
+                    ×
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </template>
         </tbody>
         <tfoot>
           <tr class="text-[10px] text-slate-500">
@@ -150,9 +181,10 @@
       </div>
       <p>
         <b class="text-slate-600">—</b> tried, but no finish at that count still stands (a what-if, a replaced plan, one
-        the player has fallen behind; the reason is on hover). <i class="text-slate-400">hidden</i>: tried, but with no
-        finished box at that count, so Proofs only leaves those runs out. Blank: not tried. Hover a cell for the chain,
-        its finish date, how it searched and how the step from the next count down weighs up.
+        the player has fallen behind; hover or tap it for the reason). <i class="text-slate-400">hidden</i>: tried, but
+        with no finished box at that count, so Proofs only leaves those runs out. Blank: not tried. Hover or tap a cell
+        for the chain, its finish date, how it searched and how the step from the next count down weighs up: a tap (or a
+        click) opens it under the cell's row.
       </p>
     </div>
   </div>
@@ -174,7 +206,7 @@ import {
   type BestCountRow,
   type GradeStyle,
 } from './bestCount';
-import { colorAt } from './palette';
+import AccountDot from './AccountDot.vue';
 
 const props = defineProps<{
   /** The runs the page shows at the picked target (Proofs only applied), every count. */
@@ -199,6 +231,21 @@ const order = ref<BestCountOrder>('te');
 
 /** Finish dates in the viewer's timezone, as everywhere else on the page. */
 const viewZone = localZone();
+
+/** The cell whose details are open under its row: a phone has no hover to show them. */
+const picked = ref<{ row: string; column: string } | null>(null);
+const isPicked = (row: BestCountRow, cell: BestCountCell) =>
+  picked.value?.row === row.key && picked.value.column === cell.column.key;
+function pick(row: BestCountRow, cell: BestCountCell): void {
+  picked.value = isPicked(row, cell) ? null : { row: row.key, column: cell.column.key };
+}
+/** The open cell, looked up again from the table, so a change of order or filter never shows a
+ *  stale one (and closes the details when the cell has gone). */
+const pickedCell = computed(() => {
+  const p = picked.value;
+  if (!p) return null;
+  return table.value.rows.find(r => r.key === p.row)?.cells.find(c => c.column.key === p.column) ?? null;
+});
 
 const table = computed(() =>
   bestCountTable(props.rows, props.judged, {

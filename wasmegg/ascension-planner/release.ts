@@ -12,5 +12,5 @@
  */
 export default {
   reloadIfBuiltBefore: '2026-09-26T07:22:00Z',
-  note: 'new Explorer views: best count per account, which sale plan wins, a gear map, plan drift, what a missed checkpoint costs, and every plan a run priced',
+  note: 'faster pages, dates in your timezone, one race line per player, and phone fixes across the Explorer and the Leaderboard',
 };

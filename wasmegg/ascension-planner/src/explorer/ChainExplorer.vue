@@ -130,10 +130,23 @@
         </div>
       </section>
 
-      <template v-if="rows.length">
-        <!-- ---------------------------------------------------------------- what we know so far -->
-        <WhatWeKnow />
+      <!-- ------------------------------------------------------------------ what we know so far -->
+      <!-- Written, not computed from the runs, so it shows at once, before the collector answers. -->
+      <WhatWeKnow />
 
+      <!-- Holds the place of everything below while the collector loads, at a fixed height. The
+           sections that are worked out from the runs wait for them: drawn from no runs, "Help fill
+           the gaps" listed every ask at 0 of 6, then jumped some 12,000 px down the page when the
+           runs arrived and the page above it filled in. -->
+      <section
+        v-if="base && loading && !rows.length"
+        class="flex h-40 items-center justify-center rounded-xl border border-slate-200 bg-white text-[12px] font-bold text-slate-400"
+        role="status"
+      >
+        Reading the collector…
+      </section>
+
+      <template v-if="rows.length">
         <!-- ------------------------------------------------------------------------- filtering -->
         <section class="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
           <div class="flex flex-wrap items-center gap-3">
@@ -247,7 +260,8 @@
             <h2 class="text-lg font-black text-slate-900">
               {{ selectedCount === 'all' ? 'Every ascension count' : `${selectedCount} ascensions` }}
               <span class="text-[11px] font-bold text-slate-400">
-                · {{ selected.rows.length }} runs from {{ selected.accounts }} accounts
+                · {{ selected.rows.length }} run{{ selected.rows.length === 1 ? '' : 's' }} from
+                {{ selected.accounts }} account{{ selected.accounts === 1 ? '' : 's' }}
               </span>
             </h2>
             <span class="text-[11px] text-slate-500 max-w-md">
@@ -280,7 +294,7 @@
             time.
           </p>
 
-          <div class="space-y-2">
+          <div id="the-runs" class="space-y-2 scroll-mt-4">
             <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">The runs</h3>
             <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
               Grouped by account, earliest finish first unless you pick another order below; click an account's name to
@@ -291,9 +305,12 @@
               earliest finish, the run named at the top of its block. That run is picked from all of the account's runs
               to this target, so Proofs only or picking one count can leave it out of the list; the block then says so.
               Runs whose finish no longer stands (a what-if, a plan re-measured by a newer run, one the player has
-              fallen behind, one made from an old save) are greyed, with the reason on hover, and listed last when
-              sorted by finish. <b>What was checked</b> is how each run searched and, for a box it tried in full, the
-              TEs at each ascension as they are typed into the planner (<span class="font-mono-premium">181-250:5</span>
+              fallen behind, one made from an old save) are greyed, with the reason on hover (on a phone, under the
+              name), and listed last when sorted by finish. <b>What was checked</b> is how each run searched and, for a
+              box it tried in full, the TEs at each ascension as they are typed into the planner (<span
+                class="font-mono-premium"
+                >181-250:5</span
+              >
               is every 5th TE from 181 to 250, <span class="font-mono-premium">:1</span> every TE); the full box is on
               hover. <b>What's left</b> is how much of that same box at every TE the run did not price (the TEs between
               its steps, or the rest of a box it stopped early) and how long pricing the rest would take on a 16-20 core
@@ -460,10 +477,7 @@
                             class="inline-block w-3.5 text-[13px] leading-none align-middle text-slate-500"
                             >{{ collapsed.has(block.key) ? '▸' : '▾' }}</span
                           >
-                          <span
-                            class="inline-block w-2 h-2 rounded-full mr-1.5 align-middle"
-                            :style="{ background: colorAt(accountColors.get(block.key) ?? 0) }"
-                          />
+                          <AccountDot :index="accountColors.get(block.key) ?? 0" class="mr-1.5" />
                           <b class="text-slate-700">{{ block.label }}</b>
                         </button>
                         · {{ block.rows.length }} run{{ block.rows.length === 1 ? '' : 's'
@@ -501,14 +515,14 @@
                       </span>
                       <span
                         v-if="stateOf(row)"
-                        class="ml-1 rounded bg-slate-100 px-1 text-[9px] font-black text-slate-500"
+                        class="ml-1 whitespace-nowrap rounded bg-slate-100 px-1 text-[9px] font-black text-slate-500"
                         :title="judged.byId.get(row.id)?.reason"
                       >
                         {{ stateOf(row) }}
                       </span>
                       <span
                         v-if="folded.sends.get(row.id)"
-                        class="ml-1 text-[9px] font-bold text-slate-400"
+                        class="ml-1 whitespace-nowrap text-[9px] font-bold text-slate-400"
                         title="The same result was sent more than once; it is listed once"
                       >
                         sent ×{{ folded.sends.get(row.id) }}
@@ -527,6 +541,13 @@
                       >
                         can't check
                       </span>
+                      <!-- Why a run is greyed, on screen where there is no hover to show it: a phone. -->
+                      <div
+                        v-if="stateOf(row) && judged.byId.get(row.id)?.reason"
+                        class="sm:hidden mt-0.5 max-w-[14rem] text-[10px] leading-snug text-slate-400"
+                      >
+                        {{ judged.byId.get(row.id)?.reason }}
+                      </div>
                     </td>
                     <td v-if="selectedCount === 'all'" class="py-1.5 pr-3 text-right font-bold">
                       {{ row.ascensions }}
@@ -625,7 +646,7 @@
                         type="button"
                         class="px-2 py-0.5 rounded-md border border-slate-200 text-[9px] font-black uppercase tracking-widest text-slate-500 hover:border-slate-300 disabled:opacity-40"
                         :disabled="csvLoadingId === row.id"
-                        @click="openTable(row)"
+                        @click="openTable(row, $event)"
                       >
                         {{ csvLoadingId === row.id ? 'Loading…' : loadedRun?.id === row.id ? 'Loaded' : 'Open' }}
                       </button>
@@ -652,10 +673,10 @@
             account's runs that still stand, the earliest finish at each count. Runs made on different days are compared
             by finish date, never by their totals: the same plan run a day later shows a day fewer. The chart opens on
             the first 20 days, where the counts that are close actually differ; a point further behind is an arrow at
-            the top edge, its real value on hover. Each marker also says how the run behind it searched, because a point
-            is only the best plan that search found and the higher counts have mostly been searched more coarsely: the
-            table under the chart says, for each step between two counts, whether the gap is bigger than that could
-            explain.
+            the top edge, its real value on hover or tap. Each marker also says how the run behind it searched, because
+            a point is only the best plan that search found and the higher counts have mostly been searched more
+            coarsely: the table under the chart says, for each step between two counts, whether the gap is bigger than
+            that could explain.
           </p>
           <CountCompareChart :comparisons="comparisons" :account-colors="accountColors" />
         </section>
@@ -671,8 +692,8 @@
             how the run behind the cell searched: solid for a finished box at every TE, dashed for every 2nd-3rd TE,
             dotted for every 4th or coarser, striped for a staged search or a box it did not finish. A dark cell with a
             dotted or striped edge is a best count found by a search that could have missed a better plan, so it is
-            weaker than it looks. Hover a cell for the chain, its finish date, how it searched and whether the step from
-            the next count down is bigger than the search could explain.
+            weaker than it looks. Hover or tap a cell for the chain, its finish date, how it searched and whether the
+            step from the next count down is bigger than the search could explain.
           </p>
           <BestCountMatrix
             :rows="filtered"
@@ -726,11 +747,11 @@
             merges them and ranks every plan by finish date, the run's plan start plus the plan's days. That is how
             plans from different saves of one account compare, since a table made a day later counts every plan a day
             shorter. Only runs whose finish still stands are used; the line under the picker says which were left out
-            and why. A plan is a route under its run's settings, so a plan priced with a schedule, or with "prestige
-            now", is its own row, tagged. A plan two tables priced shows its newest measurement. A plan with a
-            checkpoint the account has since passed (most likely because it followed that plan) is matched on what is
-            left of it: a newer table's measurement of the rest stands, and with none the older one stays, the passed
-            checkpoint struck through. The tables are big, so they load one at a time and only when you press the
+            and why (tap one to see). A plan is a route under its run's settings, so a plan priced with a schedule, or
+            with "prestige now", is its own row, tagged. A plan two tables priced shows its newest measurement. A plan
+            with a checkpoint the account has since passed (most likely because it followed that plan) is matched on
+            what is left of it: a newer table's measurement of the rest stands, and with none the older one stays, the
+            passed checkpoint struck through. The tables are big, so they load one at a time and only when you press the
             button; Cancel keeps what has arrived.
           </p>
           <AccountTopPlans
@@ -793,17 +814,23 @@
           </template>
           <template v-else>
             <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
-              Left: each account's delivery set as a percent of the best possible, bars from 0. Right: what its earnings
-              set is worth, as Clothed TE minus TE, bars from 0 (TE and Clothed TE are on hover); Clothed TE alone
-              mostly says how far along an account is, not how good its gear is. The grey ticks are the best peak
-              delivery any of that account's runs to 490 reached.
+              <b>Delivery set</b>: each account's delivery set as a percent of the best possible, bars from 0; the grey
+              ticks are the best peak delivery any of that account's runs to 490 reached. <b>Earnings set</b>: what its
+              earnings set is worth, as Clothed TE minus TE, bars from 0 (TE and Clothed TE are in the tooltip: hover or
+              tap a bar); Clothed TE alone mostly says how far along an account is, not how good its gear is.
             </p>
             <GearScoreChart :accounts="accounts" :account-colors="accountColors" :what-ifs="whatIfs" />
           </template>
         </section>
 
         <!-- ------------------------------------------------------------------------- deep dive -->
-        <section v-if="loadedRun" class="rounded-xl border border-slate-200 bg-white p-4 space-y-4">
+        <!-- Scrolled to when a table loads (`openTable`): it sits thousands of px below the button
+             that opens it, so without the scroll "Open" looked like it did nothing. -->
+        <section
+          v-if="loadedRun"
+          ref="deepDive"
+          class="rounded-xl border border-slate-200 bg-white p-4 space-y-4 scroll-mt-4"
+        >
           <div class="flex flex-wrap items-baseline justify-between gap-2">
             <h2 class="text-lg font-black text-slate-900">
               Every chain {{ whoText(loadedRun) || 'that run' }} priced
@@ -814,13 +841,22 @@
                 <template v-if="loadedTruncated">(slowest {{ loadedTruncated.toLocaleString() }} dropped)</template>
               </span>
             </h2>
-            <button
-              type="button"
-              class="px-3 py-1 rounded-lg border border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-500"
-              @click="closeTable"
-            >
-              Close
-            </button>
+            <div class="flex gap-2">
+              <a
+                href="#the-runs"
+                class="px-3 py-1 rounded-lg border border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:border-slate-300"
+                @click.prevent="backToRuns"
+              >
+                &uarr; Back to the runs
+              </a>
+              <button
+                type="button"
+                class="px-3 py-1 rounded-lg border border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:border-slate-300"
+                @click="closeTable"
+              >
+                Close
+              </button>
+            </div>
           </div>
 
           <div v-if="plateau" class="rounded-lg bg-slate-50 border border-slate-200 p-3 space-y-1">
@@ -940,8 +976,10 @@
       </template>
 
       <!-- ------------------------------------------------------------------------- data needs -->
+      <!-- Only once the collector has answered: the asks are worked out from its runs, so from none
+           they were all wrong, and when it fails they cannot be worked out at all. -->
       <section
-        v-if="base"
+        v-if="base && (rows.length || !loading)"
         id="help-fill-the-gaps"
         class="rounded-xl border border-slate-200 bg-white p-4 space-y-3 scroll-mt-4"
       >
@@ -953,12 +991,16 @@
             teaches the most.
           </p>
         </div>
-        <DataNeeds :rows="usable" />
+        <DataNeeds v-if="rows.length" :rows="usable" />
+        <p v-else class="rounded-lg bg-slate-50 px-3 py-2 text-[11px] text-slate-500">
+          The asks are worked out from the runs on the board, so they need the board, and it
+          {{ error ? 'could not be read (see above)' : 'holds no runs yet' }}. Any run you submit below still helps.
+        </p>
       </section>
 
       <!-- ------------------------------------------------------------------------------ checks -->
-      <!-- Beside the flagged runs because it is the same kind of thing: a check on the runs, not a
-           finding about the game. -->
+      <!-- Beside the runs the planner cannot help yet because it is the same kind of thing: a check on
+           the runs, not a finding about the game. -->
       <section v-if="rows.length" class="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
         <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Checks</div>
         <h2 class="text-lg font-black text-slate-900">Did each final leg reach its gear's rate? (to 490)</h2>
@@ -974,26 +1016,34 @@
         <FinalLegChart :rows="checkRows" :account-colors="accountColors" :account-labels="accountLabels" />
       </section>
 
-      <!-- ---------------------------------------------------------------------------- flagged -->
+      <!-- -------------------------------------------------- runs the planner cannot help yet -->
+      <!-- Not "flagged": that word is the delivery-set check's, in the status line and the runs table,
+           and it is a different set of runs. The collector's own name for this list is the flagged
+           board (the id stays, for links already shared). Its own fetch, but it waits with the rest,
+           so nothing below the loading placeholder moves when the runs arrive. -->
       <section
-        v-if="base"
+        v-if="base && (rows.length || !loading)"
         id="flagged-board"
         class="rounded-xl border border-slate-200 bg-white p-4 space-y-3 scroll-mt-4"
       >
         <div class="space-y-1">
-          <h2 class="text-lg font-black text-slate-900">Flagged runs</h2>
+          <h2 class="text-lg font-black text-slate-900">Runs the planner can't help yet</h2>
           <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
-            Runs from accounts the planner cannot help yet: a first ascension that sits on the Integrity shift for over
-            an hour, a plan past ten years, or a result that contradicts itself. They are kept apart from everything
-            above, because they are not routes to copy, and shown anonymously — except runs sent from this browser,
-            which show as yours.
+            Runs from accounts where the planner stops working: a first ascension that sits on the Integrity shift for
+            over an hour, a plan past ten years, or a result that contradicts itself. They are kept apart from
+            everything above, because they are not routes to copy, and shown anonymously — except runs sent from this
+            browser, which show as yours. These are not the runs flagged for the delivery-set bug: those are counted at
+            the top of the page and drawn in the final-leg check.
           </p>
         </div>
         <FlaggedBoard :base="base" />
       </section>
 
       <!-- ---------------------------------------------------------------------------- upload -->
-      <section v-if="base" class="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+      <section
+        v-if="base && (rows.length || !loading)"
+        class="rounded-xl border border-slate-200 bg-white p-4 space-y-3"
+      >
         <div class="space-y-1">
           <h2 class="text-lg font-black text-slate-900">Submit a sweep</h2>
           <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
@@ -1008,7 +1058,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import SearchShapeChart from '@/components/auto/charts/SearchShapeChart.vue';
 import type { PricedChain } from '@/search/types';
 import { describeCompute, formatMinutes } from '@/utils/computeTime';
@@ -1029,7 +1079,6 @@ import AccountTopPlans from './AccountTopPlans.vue';
 import MissTable from './MissTable.vue';
 import RunPlansTable from './RunPlansTable.vue';
 import GearMap from './GearMap.vue';
-import { whatIfRuns } from './gearMap';
 import PlanDriftChart from './PlanDriftChart.vue';
 import SweepUpload from './SweepUpload.vue';
 import {
@@ -1043,15 +1092,16 @@ import {
 import {
   accountKey,
   accountOrder,
+  assessFinishes,
   bestPerCount,
   compareCounts,
   DEFAULT_RUN_SORT,
+  finishJudgement,
   flagOf,
   foldRuns,
   groupByAccount,
   groupByCount,
   isProof,
-  judgeFinishes,
   nearBestBands,
   rateCheckOf,
   RUN_SORT_START,
@@ -1062,6 +1112,8 @@ import {
   summariseRuns,
   targetsPresent,
   timeOffKey,
+  whatIfIds,
+  type AssessedFinishes,
   type RunSort,
   type RunSortKey,
 } from './analysis';
@@ -1076,7 +1128,7 @@ import {
   stateTag,
   whoText,
 } from '@/lib/leaderboardRank';
-import { colorAt } from './palette';
+import AccountDot from './AccountDot.vue';
 import { leftOf, leftShareText, leftTitle, longEstimate, plansText, type Left } from './left';
 import { measuredWorkerSeconds } from '@/search/speed';
 
@@ -1129,13 +1181,19 @@ onMounted(() => {
 let allController: AbortController | null = null;
 let csvController: AbortController | null = null;
 
-/** An aborted request is the expected outcome of clicking twice, not an error to report. */
-/** The banner's jump. Smooth, and it keeps the #anchor in the URL so the link can be shared. */
+/** The banner's jump. Smooth, and it keeps the #anchor in the URL so the link can be shared. While
+ *  the collector loads the section is not there yet (it waits for the runs), so the jump waits too. */
 function scrollToGaps(): void {
-  document.getElementById('help-fill-the-gaps')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   history.replaceState(null, '', '#help-fill-the-gaps');
+  const section = document.getElementById('help-fill-the-gaps');
+  if (section) section.scrollIntoView({ behavior: scrollBehaviour(), block: 'start' });
+  else gapsWanted = true;
 }
+/** A jump to "Help fill the gaps" asked for before the section was on the page: the banner clicked
+ *  during the load, or a shared link ending in #help-fill-the-gaps. Done once it appears. */
+let gapsWanted = typeof location !== 'undefined' && location.hash === '#help-fill-the-gaps';
 
+/** An aborted request is the expected outcome of clicking twice, not an error to report. */
 function isAbort(e: unknown): boolean {
   return e instanceof DOMException && e.name === 'AbortError';
 }
@@ -1166,6 +1224,11 @@ async function load(): Promise<void> {
     if (allController === controller) {
       loading.value = false;
       allController = null;
+      if (gapsWanted) {
+        gapsWanted = false;
+        // After the render this load causes, so the section is on the page and all above it drawn.
+        void nextTick(scrollToGaps);
+      }
     }
   }
 }
@@ -1329,15 +1392,41 @@ const selected = computed(() =>
  */
 const judgedRows = computed(() => rows.value.filter(r => showFlagged.value || !flagged.value.has(r.id)));
 
+/**
+ * The Leaderboard's judgement of `rows` at any target (`assessFinishes`), made at most once per
+ * target until the next load: the page's `judged` reads its target's, the what-ifs read every
+ * target's, so the players are grouped once per target rather than again for the what-ifs. The
+ * reasons read their dates on the viewer's calendar, like every other date on the page.
+ */
+function assessorOf(source: () => CollectorRow[]) {
+  return computed(() => {
+    const list = source();
+    const at = now.value;
+    const memo = new Map<number, AssessedFinishes>();
+    return (target: number): AssessedFinishes => {
+      let assessed = memo.get(target);
+      if (!assessed) {
+        assessed = assessFinishes(list, target, at, viewZone);
+        memo.set(target, assessed);
+      }
+      return assessed;
+    };
+  });
+}
+/** One for each set `judgedRows` can be, so ticking "include them" back and forth judges each set
+ *  once, not on every tick. */
+const assessWithoutFlagged = assessorOf(() => rows.value.filter(r => !flagged.value.has(r.id)));
+const assessWithFlagged = assessorOf(() => rows.value);
+const assessAt = computed(() => (showFlagged.value ? assessWithFlagged.value : assessWithoutFlagged.value));
+
 /** Each run's finish date and whether it still stands, by the Leaderboard's rules. Only a run the
  *  checkboxes above let through can be an account's best. */
-const judged = computed(() =>
-  judgeFinishes(judgedRows.value, finalTE.value, now.value, new Set(visible.value.map(r => r.id)))
-);
+const judged = computed(() => finishJudgement(assessAt.value(finalTE.value), new Set(visible.value.map(r => r.id))));
 
 /** Runs the Leaderboard's rules call what-ifs, at every target: the gear views never place an account
- *  by one, since its TE was typed in rather than the account's. */
-const whatIfs = computed(() => whatIfRuns(judgedRows.value, now.value));
+ *  by one, since its TE was typed in rather than the account's. The same set gearMap.ts `whatIfRuns`
+ *  gives, read off the judgements above. */
+const whatIfs = computed(() => whatIfIds(targetsPresent(judgedRows.value).map(t => assessAt.value(t.finalTE))));
 
 /**
  * The checkpoint chart's one run per account at the picked count: its earliest finish that still
@@ -1497,7 +1586,7 @@ function unlistedWhy(best: CollectorRow): string {
 /** The settings that tell look-alike runs apart (the Leaderboard's `settingTags`): two runs with one
  *  route and start that differ only in whether the first ascension finishes the current run first.
  *  Plus `time off` on any run planned around some, which the Leaderboard's tags leave out (`runTags`). */
-const tags = computed(() => runTags(usable.value));
+const tags = computed(() => runTags(usable.value, viewZone));
 
 /** "What was checked" for each run listed, by id (`searchedOf`). */
 const searched = computed(() => new Map((selected.value?.rows ?? []).map(r => [r.id, searchedOf(r)])));
@@ -1570,8 +1659,25 @@ function vsBestTitle(row: CollectorRow): string {
 
 /* ----------------------------------------------------------------- one run's full chain table */
 
-async function openTable(row: CollectorRow): Promise<void> {
+/** The deep dive, to scroll to when a table loads. */
+const deepDive = ref<HTMLElement | null>(null);
+/** The "Open" button a table was opened from, so "Back to the runs" can return to it. */
+let openedFrom: HTMLElement | null = null;
+
+/** Smooth unless the reader has asked for less motion. */
+function scrollBehaviour(): ScrollBehavior {
+  return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+}
+
+/** Back from the deep dive to the row it was opened from, or to the top of the runs table. */
+function backToRuns(): void {
+  const target = openedFrom?.isConnected ? openedFrom : document.getElementById('the-runs');
+  target?.scrollIntoView({ behavior: scrollBehaviour(), block: openedFrom?.isConnected ? 'center' : 'start' });
+}
+
+async function openTable(row: CollectorRow, event?: Event): Promise<void> {
   if (!base.value) return;
+  if (event?.currentTarget instanceof HTMLElement) openedFrom = event.currentTarget;
   csvController?.abort();
   const controller = new AbortController();
   csvController = controller;
@@ -1592,6 +1698,9 @@ async function openTable(row: CollectorRow): Promise<void> {
     loadedCurrentTE.value = parsed.currentTE || row.currentTE;
     loadedFinalTE.value = parsed.finalTE || row.finalTE;
     if (!parsed.chains.length) csvError.value = 'That table parsed to no chains, which means the format has moved.';
+    // It opens thousands of px below the button: take the reader there, or "Open" looks dead.
+    await nextTick();
+    if (csvController === controller) deepDive.value?.scrollIntoView({ behavior: scrollBehaviour(), block: 'start' });
   } catch (e) {
     if (isAbort(e) || csvController !== controller) return;
     csvError.value = describeFetchError(e, "that run's table");

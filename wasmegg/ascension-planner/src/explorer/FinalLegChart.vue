@@ -22,7 +22,14 @@
 -->
 <template>
   <div class="space-y-2">
-    <EChart v-if="points.length" :option="option" height="320px" />
+    <EChart v-if="points.length" :option="option" height="300px" />
+    <!-- In HTML so every account is on screen at any width (legend.ts); each hides its runs. -->
+    <ChartLegend
+      v-if="points.length"
+      v-model:hidden="hidden"
+      :entries="legendEntries"
+      label="Accounts: click to hide or show"
+    />
     <p v-else class="px-4 py-8 text-center text-[11px] text-slate-400">
       No run to 490 TE here carries both per-leg detail and a delivery set yet.
     </p>
@@ -41,7 +48,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import EChart from '@/components/charts/EChart.vue';
 import type { ChartOption, ChartSeriesOption } from '@/lib/charts/echarts';
 import { esc } from '@/lib/charts/tooltip';
@@ -55,7 +62,9 @@ import {
 } from '@/search/virtueScore';
 import type { CollectorRow } from './collector';
 import { accountKey, groupByAccount } from './analysis';
-import { colorAt, symbolAt, AXIS_LABEL, SPLIT_LINE } from './palette';
+import { colorAt, symbolAt, AXIS_LABEL, SPLIT_LINE, TOOLTIP_FIT } from './palette';
+import ChartLegend from './ChartLegend.vue';
+import type { LegendEntry } from './legend';
 
 const props = defineProps<{
   rows: CollectorRow[];
@@ -132,18 +141,29 @@ const hollow = (symbol: string) => `empty${symbol[0].toUpperCase()}${symbol.slic
 /** One point: [last checkpoint, % of expected, measured q/hr, expected q/hr, chain, 1 if flagged]. */
 type Datum = [number, number, number, number, string, number];
 
-const option = computed<ChartOption>(() => {
+/** The accounts with a point, in colour order, each with its points. */
+const accounts = computed(() => {
   const byAccount = new Map<string, Point[]>();
   for (const p of points.value) {
     const list = byAccount.get(p.key);
     if (list) list.push(p);
     else byAccount.set(p.key, [p]);
   }
-  const accounts = [...byAccount.entries()]
+  return [...byAccount.entries()]
     .map(([key, list], i) => ({ key, list, index: props.accountColors.get(key) ?? i }))
     .sort((a, b) => a.index - b.index);
+});
 
-  const series: ChartSeriesOption[] = accounts.map(({ key, list, index }) => {
+/** Accounts the legend has turned off, by key. */
+const hidden = ref<ReadonlySet<string>>(new Set());
+
+const legendEntries = computed<LegendEntry[]>(() =>
+  accounts.value.map(({ key, index }) => ({ id: key, label: labelOf.value(key), index, size: 9 }))
+);
+
+const option = computed<ChartOption>(() => {
+  const shown = accounts.value.filter(a => !hidden.value.has(a.key));
+  const series: ChartSeriesOption[] = shown.map(({ key, list, index }) => {
     const symbol = symbolAt(index);
     return {
       name: labelOf.value(key),
@@ -160,7 +180,7 @@ const option = computed<ChartOption>(() => {
     };
   });
   const threshold = SUSPECT_RATE_SHARE * 100;
-  // The flag line on a series of its own, so hiding an account in the legend does not take it too.
+  // The flag line on a series of its own, so it stays whichever accounts the legend hides.
   series.push({
     name: 'flag line',
     type: 'scatter' as const,
@@ -189,17 +209,10 @@ const option = computed<ChartOption>(() => {
   });
 
   return {
-    grid: { left: 52, right: 16, top: 14, bottom: 70 },
-    legend: {
-      type: 'scroll',
-      bottom: 0,
-      itemGap: 14,
-      textStyle: { fontSize: 10, color: '#64748b' },
-      data: accounts.map(({ key, index }) => ({ name: labelOf.value(key), icon: symbolAt(index) })),
-      formatter: (name: string) => (name.length > 24 ? `${name.slice(0, 23)}…` : name),
-    },
+    grid: { left: 52, right: 16, top: 14, bottom: 40 },
     tooltip: {
       trigger: 'item',
+      ...TOOLTIP_FIT,
       formatter: raw => {
         // `value` rather than `data`: each point is an object carrying its own symbol.
         const params = raw as { value?: Datum; seriesName?: string };

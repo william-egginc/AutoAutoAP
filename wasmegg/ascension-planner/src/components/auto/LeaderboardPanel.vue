@@ -121,147 +121,196 @@
             Nobody within {{ NEAR_TE }} TE of you has a current plan to {{ target }}.
           </p>
           <!-- A size container, so an opened player's plans can be exactly as wide as what is on
-               screen (100cqw) however wide the table itself is. -->
-          <div v-else class="overflow-x-auto [container-type:inline-size]">
-            <table class="w-full text-xs">
-              <thead>
-                <tr class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-left">
-                  <th class="py-2 pr-2"></th>
-                  <th class="py-2 pr-3 text-right">#</th>
-                  <th class="py-2 pr-3">Player</th>
-                  <th class="py-2 pr-3">Route</th>
-                  <th
-                    class="py-2 pr-3"
-                    :title="`Dates are in your timezone (${viewZone}); hover one for the player's own`"
+               screen (100cqw) however wide the table itself is. On a phone the route sits under
+               the name and the days left under the finish, so the finish is on screen without
+               scrolling (review, 2026-09-27); a shadow on an edge says there is more that way. -->
+          <p
+            v-else-if="narrow && raceEdges.right && !raceEdges.left"
+            class="-mb-2 text-right text-[10px] text-slate-400"
+          >
+            Swipe the table for more columns →
+          </p>
+          <div v-if="raceShown.length" class="relative">
+            <div
+              :ref="raceEdges.bind"
+              class="overflow-x-auto [container-type:inline-size]"
+              @scroll.passive="raceEdges.update"
+            >
+              <table class="w-full text-xs">
+                <thead>
+                  <tr
+                    class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-left whitespace-nowrap"
                   >
-                    Finishes
-                  </th>
-                  <th class="py-2 pr-3 text-right">Days left</th>
-                  <th class="py-2 pr-3 text-right">From TE</th>
-                  <th class="py-2 pr-3">Planned</th>
-                  <th class="py-2 pr-3">Schedule</th>
-                  <th class="py-2 pr-3 text-right">Tried</th>
-                  <th class="py-2"></th>
-                </tr>
-              </thead>
-              <tbody>
-                <template v-for="e in raceShown" :key="e.key">
-                  <tr class="border-t border-slate-100" :class="isMe(e) ? 'bg-emerald-50/60' : ''">
-                    <td class="py-2 pr-2">
-                      <button
-                        type="button"
-                        class="text-slate-400 hover:text-indigo-700"
-                        :aria-expanded="!!openPlayers[e.key]"
-                        :aria-label="`Show all of ${e.label}'s plans`"
-                        @click="openPlayers[e.key] = !openPlayers[e.key]"
-                      >
-                        {{ openPlayers[e.key] ? '⌄' : '›' }}
-                      </button>
-                    </td>
-                    <td class="py-2 pr-3 text-right font-black text-slate-500">{{ e.rank }}</td>
-                    <td class="py-2 pr-3 font-bold text-slate-700 whitespace-nowrap">
-                      {{ e.label }}
-                      <span
-                        v-if="isMe(e)"
-                        class="ml-1 px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[9px] font-black uppercase tracking-widest"
-                        >you</span
-                      >
-                    </td>
-                    <td class="py-2 pr-3 whitespace-nowrap">
-                      <span class="font-mono font-bold text-slate-700">{{ e.best.row.chain.join(' ') }}</span>
-                      <span
-                        v-for="t in raceTags.get(e.key) ?? []"
-                        :key="t"
-                        class="ml-1.5 px-1 py-0.5 rounded bg-sky-100 text-[9px] font-black text-sky-800"
-                        >{{ t }}</span
-                      >
-                    </td>
-                    <td
-                      class="py-2 pr-3 text-slate-700 font-bold whitespace-nowrap"
-                      :title="finishTitle(e.best.finish, e.best.row.timezone)"
+                    <th class="py-2 pr-2"></th>
+                    <th class="py-2 pr-3 text-right">#</th>
+                    <th class="py-2 pr-3">{{ narrow ? 'Player · route' : 'Player' }}</th>
+                    <th v-if="!narrow" class="py-2 pr-3">Route</th>
+                    <th
+                      class="py-2 pr-3"
+                      :title="`Dates are in your timezone (${viewZone}); hover one for the player's own`"
                     >
-                      {{ finishDateText(e.best.finish, viewZone) }}
-                    </td>
-                    <td class="py-2 pr-3 text-right text-slate-700 font-bold">
-                      {{ daysLeftText(e.best.finish, now, viewZone) }}
-                    </td>
-                    <td class="py-2 pr-3 text-right text-slate-600">{{ e.best.row.currentTE ?? '—' }}</td>
-                    <!-- Short, on one line, with the numbers in the tooltip: wrapped, the on-track
-                         figures made the row three lines tall. On your calendar, like Finishes. -->
-                    <td
-                      class="py-2 pr-3 text-slate-500 whitespace-nowrap"
-                      :title="plannedText(e.best, { zone: viewZone })"
+                      Finishes
+                    </th>
+                    <th v-if="!narrow" class="py-2 pr-3 text-right">Days left</th>
+                    <th class="py-2 pr-3 text-right">From TE</th>
+                    <th class="py-2 pr-3">Planned</th>
+                    <th class="py-2 pr-3">Schedule</th>
+                    <th class="py-2 pr-3 text-right">Tried</th>
+                    <th class="py-2"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template v-for="e in raceShown" :key="e.key">
+                    <tr
+                      class="border-t border-slate-100"
+                      :class="[isMe(e) ? 'bg-emerald-50/60' : '', narrow ? 'align-top' : '']"
                     >
-                      {{ plannedText(e.best, { zone: viewZone, brief: true }) }}
-                    </td>
-                    <td class="py-2 pr-3 text-slate-400 whitespace-nowrap" :title="e.best.row.window || undefined">
-                      {{ scheduleText(e.best.row.window) }}
-                    </td>
-                    <td class="py-2 pr-3 text-right text-slate-500 whitespace-nowrap" :title="triedTitle(e)">
-                      {{ e.plansTried }} {{ e.plansTried === 1 ? 'plan' : 'plans' }}
-                    </td>
-                    <td class="py-2 text-right">
-                      <button
-                        type="button"
-                        class="px-2.5 py-1 rounded-md border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-700"
-                        :title="`Put ${e.best.row.chain.join(' ')} into the Auto Planner and price it on your account`"
-                        @click="emit('use', e.best.row.chain)"
+                      <td class="py-2 pr-2">
+                        <button
+                          type="button"
+                          class="text-slate-400 hover:text-indigo-700"
+                          :aria-expanded="!!openPlayers[e.key]"
+                          :aria-label="`Show all of ${e.label}'s plans`"
+                          @click="openPlayers[e.key] = !openPlayers[e.key]"
+                        >
+                          {{ openPlayers[e.key] ? '⌄' : '›' }}
+                        </button>
+                      </td>
+                      <td class="py-2 pr-3 text-right font-black text-slate-500">{{ e.rank }}</td>
+                      <td class="py-2 pr-3 font-bold text-slate-700">
+                        <span class="whitespace-nowrap"
+                          >{{ e.label }}
+                          <span
+                            v-if="isMe(e)"
+                            class="ml-1 px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[9px] font-black uppercase tracking-widest"
+                            >you</span
+                          ></span
+                        >
+                        <!-- Under the name on a phone, wrapping rather than widening the column. -->
+                        <div v-if="narrow" class="mt-0.5 max-w-[10rem] leading-snug">
+                          <span class="font-mono text-slate-600">{{ e.best.row.chain.join(' ') }}</span>
+                          <span
+                            v-for="t in raceTags.get(e.key) ?? []"
+                            :key="t"
+                            class="ml-1 inline-block px-1 rounded bg-sky-100 text-[9px] font-black text-sky-800"
+                            :title="settingTagTitle(t)"
+                            >{{ t }}</span
+                          >
+                        </div>
+                      </td>
+                      <td v-if="!narrow" class="py-2 pr-3">
+                        <span class="font-mono font-bold text-slate-700 whitespace-nowrap">{{
+                          e.best.row.chain.join(' ')
+                        }}</span>
+                        <span
+                          v-for="t in raceTags.get(e.key) ?? []"
+                          :key="t"
+                          class="ml-1.5 inline-block whitespace-nowrap px-1 rounded bg-sky-100 text-[9px] font-black text-sky-800"
+                          :title="settingTagTitle(t)"
+                          >{{ t }}</span
+                        >
+                      </td>
+                      <td
+                        class="py-2 pr-3 text-slate-700 font-bold whitespace-nowrap"
+                        :title="finishTitle(e.best.finish, e.best.row.timezone)"
                       >
-                        Use
-                      </button>
-                    </td>
-                  </tr>
-                  <tr v-if="openPlayers[e.key]" class="bg-white/70">
-                    <td colspan="11" class="p-0">
-                      <!-- Exactly as wide as the visible part of the table and pinned to its left
-                           edge: on a phone the Race table is wider than the screen, and a plan list
-                           left to size itself would stretch it further and wrap every line. The
-                           list scrolls sideways inside this block instead. -->
-                      <div class="sticky left-0 w-[100cqw] px-3 py-3 space-y-3">
-                        <div>
-                          <h4 class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">
-                            {{ e.label }}'s current plans<template v-if="e.lines.length > 1">
-                              · sent from {{ e.lines.length }} browsers</template
-                            >
-                          </h4>
-                          <LeaderboardPlanList
-                            :plans="[e.best, ...e.listed]"
-                            :all-plans="e.plans"
-                            :best="e.best"
-                            :resends="e.resends"
-                            :lines="e.lines"
-                            :now="now"
-                            :view-zone="viewZone"
-                            :csv-root="csvRoot"
-                            gap-label="vs best"
-                            @use="c => emit('use', c)"
-                          />
-                          <p class="mt-1 text-[10px] text-slate-400">
-                            "vs best" is shown only for plans made from the same save as the best one and priced by the
-                            same version of the planner.
-                          </p>
+                        {{ finishDateText(e.best.finish, viewZone) }}
+                        <div v-if="narrow" class="font-normal text-slate-500">
+                          {{ daysLeftPhrase(e.best.finish, now, viewZone) }}
                         </div>
-                        <div v-if="e.dropped.length">
-                          <h4 class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">
-                            Not counted
-                          </h4>
-                          <LeaderboardPlanList
-                            :plans="e.dropped"
-                            :all-plans="e.plans"
-                            :lines="e.lines"
-                            :now="now"
-                            :view-zone="viewZone"
-                            :csv-root="csvRoot"
-                            show-reason
-                            @use="c => emit('use', c)"
-                          />
+                      </td>
+                      <td v-if="!narrow" class="py-2 pr-3 text-right text-slate-700 font-bold">
+                        {{ daysLeftText(e.best.finish, now, viewZone) }}
+                      </td>
+                      <td class="py-2 pr-3 text-right text-slate-600">{{ e.best.row.currentTE ?? '—' }}</td>
+                      <!-- Short, on one line, with the numbers in the tooltip: wrapped, the on-track
+                           figures made the row three lines tall. On your calendar, like Finishes. -->
+                      <td
+                        class="py-2 pr-3 text-slate-500 whitespace-nowrap"
+                        :title="plannedText(e.best, { zone: viewZone })"
+                      >
+                        {{ plannedText(e.best, { zone: viewZone, brief: true }) }}
+                      </td>
+                      <td class="py-2 pr-3 text-slate-400 whitespace-nowrap" :title="e.best.row.window || undefined">
+                        {{ scheduleText(e.best.row.window) }}
+                      </td>
+                      <td class="py-2 pr-3 text-right text-slate-500 whitespace-nowrap" :title="triedTitle(e)">
+                        {{ e.plansTried }} {{ e.plansTried === 1 ? 'plan' : 'plans' }}
+                      </td>
+                      <td class="py-2 text-right">
+                        <button
+                          type="button"
+                          class="px-2.5 py-1 rounded-md border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-700"
+                          :title="`Put ${e.best.row.chain.join(' ')} into the Auto Planner and price it on your account`"
+                          @click="emit('use', e.best.row.chain)"
+                        >
+                          Use
+                        </button>
+                      </td>
+                    </tr>
+                    <tr v-if="openPlayers[e.key]" class="bg-white/70">
+                      <td :colspan="narrow ? 9 : 11" class="p-0">
+                        <!-- Exactly as wide as the visible part of the table and pinned to its left
+                             edge: on a phone the Race table is wider than the screen, and a plan list
+                             left to size itself would stretch it further and wrap every line. The
+                             list scrolls sideways inside this block instead. -->
+                        <div class="sticky left-0 w-[100cqw] px-3 py-3 space-y-3">
+                          <div>
+                            <h4 class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">
+                              Current plans · {{ e.label
+                              }}<template v-if="browserCount(e) > 1">
+                                · sent from {{ browserCount(e) }} browsers</template
+                              >
+                            </h4>
+                            <LeaderboardPlanList
+                              :plans="[e.best, ...e.listed]"
+                              :all-plans="shownPlans(e)"
+                              :best="e.best"
+                              :resends="e.resends"
+                              :lines="e.lines"
+                              :no-code="e.noCode"
+                              :now="now"
+                              :view-zone="viewZone"
+                              :csv-root="csvRoot"
+                              gap-label="vs best"
+                              @use="c => emit('use', c)"
+                            />
+                            <p v-if="e.listed.length" class="mt-1 text-[10px] text-slate-400">
+                              "vs best" is shown only for plans made from the same save as the best one and priced by
+                              the same version of the planner.
+                            </p>
+                          </div>
+                          <div v-if="e.dropped.length">
+                            <h4 class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">
+                              Not counted
+                            </h4>
+                            <LeaderboardPlanList
+                              :plans="e.dropped"
+                              :all-plans="shownPlans(e)"
+                              :lines="e.lines"
+                              :no-code="e.noCode"
+                              :now="now"
+                              :view-zone="viewZone"
+                              :csv-root="csvRoot"
+                              show-reason
+                              @use="c => emit('use', c)"
+                            />
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                  </tr>
-                </template>
-              </tbody>
-            </table>
+                      </td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+            <div
+              v-if="raceEdges.left"
+              class="pointer-events-none absolute inset-y-0 left-0 w-4 bg-gradient-to-r from-slate-400/25 to-transparent"
+            ></div>
+            <div
+              v-if="raceEdges.right"
+              class="pointer-events-none absolute inset-y-0 right-0 w-4 bg-gradient-to-l from-slate-400/25 to-transparent"
+            ></div>
           </div>
 
           <details v-if="race && race.waiting.length" class="text-[11px] text-indigo-900/80">
@@ -278,22 +327,37 @@
           </details>
 
           <p class="text-[10px] text-slate-500 leading-relaxed">
-            A player's line is their earliest-finishing plan that still counts. A plan stops counting when a newer run
-            of the same plan replaces it (the newest run always wins, earlier or later; a newer run's automatic re-check
-            of it counts too), when a newer run shows them 2 or more TE behind where it said they would be, when it is a
-            what-if (it starts more than 12 hours after it was sent or before the save it was made from, or was planned
-            from a higher TE than the save or a later run shows), or when it is older than 30 days. Only the same
-            player's runs can do any of that: runs sent from the same browser for the same account (the board matches a
-            private code that is never shown), or, for runs sent before the board had that code, the same name or the
-            same timezone and artifacts. So nobody can knock a plan out by sending runs under someone else's name. A
-            player who sends from two browsers has two codes; their runs are still one line when the name, timezone,
-            artifacts and TE all agree, and each browser's plans are judged by that browser's runs. A name marked
-            <span class="font-semibold">(no code)</span> was sent without the code another line under that name carries,
-            and one marked <span class="font-semibold">(other code)</span> with a second code whose runs do not fit the
-            first; either may be somebody else. "Tried" counts each plan once, however often it was run or sent.
-            Anonymous runs are not in the race: add a name to join. Every run is still in All runs. Finish and plan
-            dates and days left are in your timezone ({{ viewZone }}); hover a finish to see it in the player's own.
+            Dates and days left are in your timezone ({{ viewZone }}); hover a finish for the player's own. Anonymous
+            runs are not in the race: add a name to join. Every run is in All runs.
           </p>
+          <details class="text-[10px] text-slate-500 leading-relaxed">
+            <summary class="cursor-pointer font-semibold text-slate-600">How the race is judged</summary>
+            <ul class="mt-1 ml-4 list-disc space-y-1">
+              <li>A player's line is their earliest-finishing plan that still counts.</li>
+              <li>
+                A plan stops counting when a newer run of the same plan replaces it (the newest run wins, earlier or
+                later, and so does a newer run's automatic re-check of it); when a newer run shows the player 2 or more
+                TE behind where the plan said they would be; when it is a what-if (it starts more than 12 hours after it
+                was sent or before its save, or was planned from a higher TE than the save or a later run shows); or
+                when it is older than 30 days.
+              </li>
+              <li>
+                Only the player's own runs can do that: runs sent from the same browser (the board matches a private
+                code that is never shown) or, for runs sent before codes existed, runs with the same name or the same
+                timezone and artifacts. Nobody can knock a plan out by sending runs under someone else's name.
+              </li>
+              <li>
+                One player is one line. Runs from a second browser (a second code) join it when the name, timezone,
+                artifacts and TE agree, and each browser's plans are judged by that browser's runs. Runs sent under the
+                name without a code since codes began join it the same way, tagged
+                <span class="font-semibold">no code</span>: anyone could have sent them, so they never set the line's
+                finish or place. A name marked <span class="font-semibold">(no code)</span> or
+                <span class="font-semibold">(other code)</span> is such a line that did not fit; it may be somebody
+                else.
+              </li>
+              <li>"Tried" counts each plan once, however often it was run or sent.</li>
+            </ul>
+          </details>
         </template>
       </template>
 
@@ -324,7 +388,7 @@
             {{ mine.sends }} {{ mine.sends === 1 ? 'run' : 'runs' }} sent, {{ mine.plansTried }} different
             {{ mine.plansTried === 1 ? 'plan' : 'plans' }}.
           </p>
-          <p class="text-[10px] text-slate-500 leading-relaxed">
+          <p v-if="mine.best && mine.listed.length" class="text-[10px] text-slate-500 leading-relaxed">
             "vs your best" compares plans made from the same save and priced by the same version of the planner, where
             the gap is the plans and nothing else. For a plan from an older save, press Use to price it again from
             today's save.
@@ -332,7 +396,7 @@
           <LeaderboardPlanList
             v-if="mine.best"
             :plans="[mine.best, ...mine.listed]"
-            :all-plans="mine.plans"
+            :all-plans="shownPlans(mine)"
             :best="mine.best"
             :resends="mine.resends"
             :now="now"
@@ -345,7 +409,7 @@
             <h4 class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Not counted</h4>
             <LeaderboardPlanList
               :plans="mine.dropped"
-              :all-plans="mine.plans"
+              :all-plans="shownPlans(mine)"
               :now="now"
               :view-zone="viewZone"
               :csv-root="csvRoot"
@@ -360,137 +424,192 @@
       <template v-else>
         <p class="text-[11px] text-indigo-900/80 leading-relaxed">
           Every run on the board. The same result sent more than once shows once, with how many times it was sent; open
-          it for every copy and its CSV. Two lines with the same route and start that differ in a setting say which.
-          Plan length counts from each run's own start, so it shrinks every day a plan is run again; compare finish
-          dates instead. A route's length on someone else's account says little about yours until you press
+          it for every copy and its CSV. Look-alike runs (same route and save) say how they differ, and a run sent under
+          a player's name without their code since codes began says <span class="font-semibold">no code</span>. Plan
+          length counts from each run's own start, so it shrinks every day a plan is run again; compare finish dates
+          instead. A route's length on someone else's account says little about yours until you press
           <span class="font-semibold">Use</span>.
         </p>
         <p v-if="!runLines.length" class="text-[11px] text-indigo-900/60 py-6 text-center">
           No runs to {{ target }} yet.
         </p>
-        <!-- A size container for the opened run's detail, as in Race. -->
-        <div v-else class="overflow-x-auto [container-type:inline-size]">
-          <table class="w-full text-xs">
-            <thead>
-              <tr class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-left">
-                <th class="py-2 pr-3"></th>
-                <th v-for="c in COLUMNS" :key="c.key" class="py-2 pr-3" :class="c.right ? 'text-right' : ''">
-                  <button
-                    type="button"
-                    class="uppercase tracking-widest hover:text-slate-700 whitespace-nowrap"
-                    :title="c.title"
-                    :class="sortKey === c.key ? 'text-slate-700' : ''"
-                    :aria-sort="sortKey === c.key ? (sortAsc ? 'ascending' : 'descending') : 'none'"
-                    @click="sortBy(c.key)"
-                  >
-                    {{ c.label }}<span v-if="sortKey === c.key">{{ sortAsc ? ' ▲' : ' ▼' }}</span>
-                  </button>
-                </th>
-                <th class="py-2"></th>
-              </tr>
-            </thead>
-            <tbody>
-              <template v-for="line in sortedLines" :key="line.key">
-                <tr class="border-t border-slate-100">
-                  <td class="py-2 pr-3">
+        <p v-else-if="narrow && runEdges.right && !runEdges.left" class="-mb-2 text-right text-[10px] text-slate-400">
+          Swipe the table for more columns →
+        </p>
+        <!-- A size container for the opened run's detail, as in Race. On a phone the route sits under
+             the name and Finishes comes next, so the finish is on screen without scrolling. -->
+        <div v-if="runLines.length" class="relative">
+          <div
+            :ref="runEdges.bind"
+            class="overflow-x-auto [container-type:inline-size]"
+            @scroll.passive="runEdges.update"
+          >
+            <table class="w-full text-xs">
+              <thead>
+                <tr class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-left whitespace-nowrap">
+                  <th class="py-2 pr-3"></th>
+                  <th v-for="c in shownColumns" :key="c.key" class="py-2 pr-3" :class="c.right ? 'text-right' : ''">
                     <button
                       type="button"
-                      class="text-slate-400 hover:text-indigo-700"
-                      :aria-expanded="open === line.key"
-                      :aria-label="`Show what ${line.row.chain.join(' ')} was simulated with`"
-                      @click="open = open === line.key ? '' : line.key"
+                      class="uppercase tracking-widest hover:text-slate-700 whitespace-nowrap"
+                      :title="c.title"
+                      :class="sortKey === c.key ? 'text-slate-700' : ''"
+                      :aria-sort="sortKey === c.key ? (sortAsc ? 'ascending' : 'descending') : 'none'"
+                      @click="sortBy(c.key)"
                     >
-                      {{ open === line.key ? '⌄' : '›' }}
+                      {{ narrow && c.key === 'nickname' ? 'Who · route' : c.label
+                      }}<span v-if="sortKey === c.key">{{ sortAsc ? ' ▲' : ' ▼' }}</span>
                     </button>
-                  </td>
-                  <!-- Capped: the name box doubles as a note field, and a long note pushed every other
-                       column off screen. The whole name is in the tooltip. -->
-                  <td class="py-2 pr-3 font-bold text-slate-700 whitespace-nowrap" :title="line.nickname || undefined">
-                    <span class="block max-w-[8rem] truncate">{{ line.nickname || 'anonymous' }}</span>
-                  </td>
-                  <td class="py-2 pr-3 whitespace-nowrap">
-                    <!-- A route of up to nine checkpoints stays on one line; a longer one (a 15-checkpoint
-                         sweep result) wraps rather than widening the table for every row. -->
-                    <span
-                      class="font-mono font-bold text-slate-700"
-                      :class="line.row.chain.length > 9 ? 'inline-block max-w-[16rem] whitespace-normal' : ''"
-                      >{{ line.row.chain.join(' ') }}</span
-                    >
-                    <span
-                      v-if="line.copies > 1"
-                      class="ml-1.5 px-1 py-0.5 rounded bg-slate-200 text-[9px] font-black text-slate-600"
-                      :title="`The same result was sent ${line.copies} times. Found by: ${line.foundBy.join(', ')}. Open the line for each copy and its CSV.`"
-                      >sent ×{{ line.copies }}</span
-                    >
-                    <span
-                      v-for="t in line.tags"
-                      :key="t"
-                      class="ml-1.5 px-1 py-0.5 rounded bg-sky-100 text-[9px] font-black text-sky-800"
-                      >{{ t }}</span
-                    >
-                  </td>
-                  <td class="py-2 pr-3 text-right text-slate-600 font-bold">{{ line.row.ascensions ?? '—' }}</td>
-                  <td class="py-2 pr-3 text-right text-slate-700 font-bold whitespace-nowrap">
-                    {{ Number.isFinite(line.row.durationDays) ? line.row.durationDays.toFixed(3) : '—' }}
-                  </td>
-                  <td
-                    class="py-2 pr-3 text-slate-500 whitespace-nowrap"
-                    :title="finishTitle(line.finish, line.row.timezone)"
-                  >
-                    {{ finishDateText(line.finish, viewZone) }}
-                  </td>
-                  <td class="py-2 pr-3 text-right whitespace-nowrap">
-                    <!-- null is "not recorded", not "free": a chain replayed from a saved search
-                         kept no per-leg detail, and printing 0 would be a claim nobody measured. -->
-                    <span v-if="line.row.waitingHours == null" class="text-slate-400">—</span>
-                    <span v-else-if="line.row.waitingHours < 0.05" class="text-slate-400">none</span>
-                    <span v-else class="font-bold text-amber-700">{{ line.row.waitingHours.toFixed(1) }} h</span>
-                  </td>
-                  <td class="py-2 pr-3 text-slate-400 whitespace-nowrap" :title="line.row.window || undefined">
-                    {{ scheduleText(line.row.window, 'no schedule') }}
-                  </td>
-                  <!-- A proof is not an effort tier. Insane mode does not use the effort knob, so
-                       the tier it sends is whatever the main panel was left on; showing "balanced"
-                       next to an exhaustive result reads as a weaker claim than the row is making.
-                       `space` is present only on schema-4 Insane rows, so older rows are untouched. -->
-                  <td class="py-2 pr-3 text-slate-400">
-                    <span
-                      v-if="line.row.space"
-                      class="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-widest text-white"
-                      :class="line.row.space.stoppedEarly ? 'bg-amber-600' : 'bg-indigo-600'"
-                    >
-                      {{ line.row.space.stoppedEarly ? 'partial' : 'exhaustive' }}
-                    </span>
-                    <span v-else>{{ line.row.effort || '—' }}</span>
-                  </td>
-                  <td class="py-2 pr-3 text-slate-400 whitespace-nowrap" :title="sentTitle(line.submittedAt)">
-                    {{ sentText(line.submittedAt) }}
-                  </td>
-                  <td class="py-2 text-right">
-                    <button
-                      type="button"
-                      class="px-2.5 py-1 rounded-md border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-700"
-                      @click="emit('use', line.row.chain)"
-                    >
-                      Use
-                    </button>
-                  </td>
+                  </th>
+                  <th class="py-2"></th>
                 </tr>
-                <tr v-if="open === line.key" class="bg-slate-50">
-                  <td :colspan="COLUMNS.length + 2" class="p-0">
-                    <div class="sticky left-0 w-[100cqw] px-3 py-3">
-                      <LeaderboardRunDetail
-                        :row="line.row"
-                        :copies="line.copyRows"
-                        :csv-root="csvRoot"
-                        :view-zone="viewZone"
-                      />
-                    </div>
-                  </td>
-                </tr>
-              </template>
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                <template v-for="line in sortedLines" :key="line.key">
+                  <tr class="border-t border-slate-100" :class="narrow ? 'align-top' : ''">
+                    <td class="py-2 pr-3">
+                      <button
+                        type="button"
+                        class="text-slate-400 hover:text-indigo-700"
+                        :aria-expanded="open === line.key"
+                        :aria-label="`Show what ${line.row.chain.join(' ')} was simulated with`"
+                        @click="open = open === line.key ? '' : line.key"
+                      >
+                        {{ open === line.key ? '⌄' : '›' }}
+                      </button>
+                    </td>
+                    <template v-for="c in shownColumns" :key="c.key">
+                      <!-- Capped: the name box doubles as a note field, and a long note pushed every
+                           other column off screen. The whole name is in the tooltip. -->
+                      <td
+                        v-if="c.key === 'nickname'"
+                        class="py-2 pr-3 font-bold text-slate-700"
+                        :title="line.nickname || undefined"
+                      >
+                        <span class="block max-w-[8rem] truncate whitespace-nowrap">{{
+                          line.nickname || 'anonymous'
+                        }}</span>
+                        <div v-if="narrow" class="mt-0.5 max-w-[10rem] font-normal leading-snug">
+                          <span class="font-mono text-slate-600">{{ line.row.chain.join(' ') }}</span>
+                          <span
+                            v-for="chip in line.chips"
+                            :key="chip.text"
+                            class="ml-1 inline-block px-1 rounded text-[9px] font-black"
+                            :class="chip.cls"
+                            :title="chip.title"
+                            >{{ chip.text }}</span
+                          >
+                        </div>
+                      </td>
+                      <!-- A route of up to nine checkpoints stays on one line; a longer one (a
+                           15-checkpoint sweep result) wraps rather than widening the table. The chips
+                           after it wrap under it when the table would not fit otherwise. -->
+                      <td v-else-if="c.key === 'chain'" class="py-2 pr-3">
+                        <span
+                          class="font-mono font-bold text-slate-700"
+                          :class="
+                            line.row.chain.length > 9
+                              ? 'inline-block max-w-[16rem] whitespace-normal'
+                              : 'whitespace-nowrap'
+                          "
+                          >{{ line.row.chain.join(' ') }}</span
+                        >
+                        <span
+                          v-for="chip in line.chips"
+                          :key="chip.text"
+                          class="ml-1.5 inline-block whitespace-nowrap px-1 rounded text-[9px] font-black"
+                          :class="chip.cls"
+                          :title="chip.title"
+                          >{{ chip.text }}</span
+                        >
+                      </td>
+                      <td v-else-if="c.key === 'ascensions'" class="py-2 pr-3 text-right text-slate-600 font-bold">
+                        {{ line.row.ascensions ?? '—' }}
+                      </td>
+                      <td
+                        v-else-if="c.key === 'durationDays'"
+                        class="py-2 pr-3 text-right text-slate-700 font-bold whitespace-nowrap"
+                      >
+                        {{ Number.isFinite(line.row.durationDays) ? line.row.durationDays.toFixed(3) : '—' }}
+                      </td>
+                      <td
+                        v-else-if="c.key === 'finish'"
+                        class="py-2 pr-3 whitespace-nowrap"
+                        :class="narrow ? 'text-slate-700 font-bold' : 'text-slate-500'"
+                        :title="finishTitle(line.finish, line.row.timezone)"
+                      >
+                        {{ finishDateText(line.finish, viewZone) }}
+                      </td>
+                      <td v-else-if="c.key === 'waitingHours'" class="py-2 pr-3 text-right whitespace-nowrap">
+                        <!-- null is "not recorded", not "free": a chain replayed from a saved search
+                             kept no per-leg detail, and printing 0 would be a claim nobody measured. -->
+                        <span v-if="line.row.waitingHours == null" class="text-slate-400">—</span>
+                        <span v-else-if="line.row.waitingHours < 0.05" class="text-slate-400">none</span>
+                        <span v-else class="font-bold text-amber-700">{{ line.row.waitingHours.toFixed(1) }} h</span>
+                      </td>
+                      <td
+                        v-else-if="c.key === 'window'"
+                        class="py-2 pr-3 text-slate-400 whitespace-nowrap"
+                        :title="line.row.window || undefined"
+                      >
+                        {{ scheduleText(line.row.window) }}
+                      </td>
+                      <!-- A proof is not an effort tier. Insane mode does not use the effort knob, so
+                           the tier it sends is whatever the main panel was left on; showing "balanced"
+                           next to an exhaustive result reads as a weaker claim than the row is making.
+                           `space` is present only on schema-4 Insane rows, so older rows are untouched. -->
+                      <td v-else-if="c.key === 'effort'" class="py-2 pr-3 text-slate-400">
+                        <span
+                          v-if="line.row.space"
+                          class="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-widest text-white"
+                          :class="line.row.space.stoppedEarly ? 'bg-amber-600' : 'bg-indigo-600'"
+                        >
+                          {{ line.row.space.stoppedEarly ? 'partial' : 'exhaustive' }}
+                        </span>
+                        <span v-else>{{ line.row.effort || '—' }}</span>
+                      </td>
+                      <td
+                        v-else-if="c.key === 'submittedAt'"
+                        class="py-2 pr-3 text-slate-400 whitespace-nowrap"
+                        :title="sentTitle(line.submittedAt)"
+                      >
+                        {{ sentText(line.submittedAt) }}
+                      </td>
+                    </template>
+                    <td class="py-2 text-right">
+                      <button
+                        type="button"
+                        class="px-2.5 py-1 rounded-md border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-700"
+                        @click="emit('use', line.row.chain)"
+                      >
+                        Use
+                      </button>
+                    </td>
+                  </tr>
+                  <tr v-if="open === line.key" class="bg-slate-50">
+                    <td :colspan="shownColumns.length + 2" class="p-0">
+                      <div class="sticky left-0 w-[100cqw] px-3 py-3">
+                        <LeaderboardRunDetail
+                          :row="line.row"
+                          :copies="line.copyRows"
+                          :csv-root="csvRoot"
+                          :view-zone="viewZone"
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+          <div
+            v-if="runEdges.left"
+            class="pointer-events-none absolute inset-y-0 left-0 w-4 bg-gradient-to-r from-slate-400/25 to-transparent"
+          ></div>
+          <div
+            v-if="runEdges.right"
+            class="pointer-events-none absolute inset-y-0 right-0 w-4 bg-gradient-to-l from-slate-400/25 to-transparent"
+          ></div>
         </div>
       </template>
 
@@ -503,13 +622,14 @@
 
 <script setup lang="ts">
 import { describeFetchError } from '@/utils/errors';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useInitialStateStore } from '@/stores/initialState';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { sortRows, type SortKey, type SortableRow } from '@/lib/leaderboardSort';
 import {
   accountKeyOf,
+  browserCount,
   buildMyPlans,
   buildRace,
   contentFingerprint,
@@ -522,13 +642,17 @@ import {
   foldCopies,
   formatDate,
   foundByText,
+  isNoCodeLine,
   localZone,
   placeFor,
   plannedText,
   scheduleText,
+  settingTagTitle,
   settingTags,
   whoText,
   type BoardRow,
+  type Plan,
+  type PlayerPlans,
   type RaceEntry,
 } from '@/lib/leaderboardRank';
 import { virtueInventory } from '@/search/csv';
@@ -586,6 +710,51 @@ const target = computed(() => (final.value ? Number(final.value) : null));
 const nearMe = ref(false);
 const openPlayers = ref<Record<string, boolean>>({});
 const open = ref('');
+
+// ------------------------------------------------------------------------------- phone layout
+
+/** Below Tailwind's `sm`: the tables put the route under the name so the finish is on screen. */
+const NARROW_QUERY = '(max-width: 639px)';
+const narrowQuery = typeof window !== 'undefined' && window.matchMedia ? window.matchMedia(NARROW_QUERY) : null;
+const narrow = ref(!!narrowQuery?.matches);
+function onNarrow(e: MediaQueryListEvent): void {
+  narrow.value = e.matches;
+}
+onMounted(() => narrowQuery?.addEventListener('change', onNarrow));
+onUnmounted(() => narrowQuery?.removeEventListener('change', onNarrow));
+
+/**
+ * Whether a sideways-scrolling table has more beyond its left or right edge, for the shadow on that
+ * edge and the "swipe" hint: on a phone the scroll bar is hidden until touched, and columns past the
+ * edge read as missing (review, 2026-09-27). `bind` is the scroller's function ref.
+ */
+function scrollEdges() {
+  let el: HTMLElement | null = null;
+  let watcher: ResizeObserver | null = null;
+  const edges = reactive({
+    left: false,
+    right: false,
+    update(): void {
+      edges.left = !!el && el.scrollLeft > 2;
+      edges.right = !!el && el.scrollLeft + el.clientWidth < el.scrollWidth - 2;
+    },
+    bind(target: unknown): void {
+      const next = target instanceof HTMLElement ? target : null;
+      if (next === el) return;
+      watcher?.disconnect();
+      el = next;
+      if (el && typeof ResizeObserver !== 'undefined') {
+        watcher = new ResizeObserver(() => edges.update());
+        watcher.observe(el);
+        if (el.firstElementChild) watcher.observe(el.firstElementChild);
+      }
+      edges.update();
+    },
+  });
+  return edges;
+}
+const raceEdges = scrollEdges();
+const runEdges = scrollEdges();
 
 function tabLabel(t: Tab): string {
   if (t === 'race') return target.value == null ? 'Race' : `Race to ${target.value}`;
@@ -669,15 +838,19 @@ function isMe(e: RaceEntry): boolean {
 
 // ------------------------------------------------------------------------------------ race
 
+// Reasons are dated on the viewer's calendar, like the Planned and Finishes cells beside them.
 const race = computed(() =>
-  target.value == null ? null : buildRace(allRows.value, { target: target.value, now: now.value })
+  target.value == null ? null : buildRace(allRows.value, { target: target.value, now: now.value, zone: viewZone })
 );
 
 /** Settings words for a race line whose best plan has a look-alike among the player's plans. */
 const raceTags = computed(() => {
   const out = new Map<string, string[]>();
   for (const e of race.value?.entries ?? []) {
-    const tags = settingTags(e.plans.map(p => p.row)).get(e.best.row);
+    const tags = settingTags(
+      shownPlans(e).map(p => p.row),
+      viewZone
+    ).get(e.best.row);
     if (tags) out.set(e.key, tags);
   }
   return out;
@@ -691,21 +864,35 @@ const raceShown = computed(() => {
   );
 });
 
-/** What "Tried" counted, and, for a line joined from several browsers, that it was. */
+/**
+ * The plans a line shows as rows of their own -- its best, the others listed, and those not counted --
+ * which are what the look-alike tags tell apart. A re-send listed under another plan (`resends`) or a
+ * run a newer one re-measured (in its `earlier`) is not a row, so not a look-alike either.
+ */
+function shownPlans(line: Pick<PlayerPlans, 'best' | 'listed' | 'dropped'>): Plan[] {
+  return [...(line.best ? [line.best] : []), ...line.listed, ...line.dropped];
+}
+
+/** What "Tried" counted: from how many browsers, and how many plans were sent without the code. */
 function triedTitle(e: RaceEntry): string {
   const sent = `${e.sends} ${e.sends === 1 ? 'run' : 'runs'} sent`;
+  const browsers = browserCount(e);
   const from =
-    e.lines.length > 1
-      ? `, from ${e.lines.length} browsers (each keeps its own code; they agree on name, timezone, artifacts and TE)`
+    browsers > 1
+      ? `, from ${browsers} browsers (each keeps its own code; they agree on name, timezone, artifacts and TE)`
       : '';
-  return `${sent}${from}. Each plan counts once, however often it was run or sent.`;
+  const codeless = e.noCode?.size ?? 0;
+  const noCode = codeless
+    ? ` It includes ${codeless} ${codeless === 1 ? 'plan' : 'plans'} sent under this name without the owner code, tagged "no code": listed and counted, but never this line's finish or place.`
+    : '';
+  return `${sent}${from}. Each plan counts once, however often it was run or sent.${noCode}`;
 }
 
 // -------------------------------------------------------------------------------- my plans
 
 const mine = computed(() =>
   (myKey.value || mineRows.value?.length) && target.value != null
-    ? buildMyPlans(mergedRows.value, myKey.value, { target: target.value, now: now.value })
+    ? buildMyPlans(mergedRows.value, myKey.value, { target: target.value, now: now.value, zone: viewZone })
     : null
 );
 
@@ -759,8 +946,8 @@ interface RunLine extends SortableRow {
   /** Every stored copy, so the detail panel can offer each one's CSV. */
   copyRows: Row[];
   foundBy: string[];
-  /** Settings words when another line has the same route and start. */
-  tags: string[];
+  /** The chips after the route: sent more than once, look-alike settings, sent without the code. */
+  chips: { text: string; title: string; cls: string }[];
   finish: number | null;
 }
 
@@ -781,7 +968,8 @@ const COLUMNS: { key: SortKey; label: string; right?: boolean; title?: string }[
   // sorts wrong across timezones.
   { key: 'finish', label: 'Finishes' },
   { key: 'waitingHours', label: 'Waiting', right: true },
-  { key: 'window', label: 'Window' },
+  // The same word and the same "any time" as Race and My plans.
+  { key: 'window', label: 'Schedule' },
   // Without this, two rows from the same person that differ only by effort tier are
   // indistinguishable -- which is exactly the comparison the board keeps rows for.
   { key: 'effort', label: 'Effort' },
@@ -802,18 +990,54 @@ function sentTitle(iso: string | undefined): string | undefined {
   return Number.isFinite(t) ? formatDate(t, viewZone, { dateStyle: 'medium', timeStyle: 'short' }) : undefined;
 }
 
+/** On a phone Finishes comes right after the name (the route sits under the name), so it is on screen. */
+const NARROW_ORDER: SortKey[] = [
+  'nickname',
+  'finish',
+  'durationDays',
+  'ascensions',
+  'waitingHours',
+  'window',
+  'effort',
+  'submittedAt',
+];
+const shownColumns = computed(() => (narrow.value ? NARROW_ORDER.map(k => COLUMNS.find(c => c.key === k)!) : COLUMNS));
+
+const NO_CODE_TITLE =
+  "Sent under this name without the owner code the player's other runs carry, since the board began stamping runs. " +
+  "Anyone can send such a run, so in the race it never sets the player's finish or place: it is listed on their line " +
+  'tagged "no code", or, when its timezone, artifacts or TE do not fit theirs, on a line of its own marked (no code).';
+
 const runLines = computed<RunLine[]>(() => {
   const rows = target.value == null ? allRows.value : allRows.value.filter(r => r.finalTE === target.value);
   // Names filed over every row, as the Race does, so both tabs fold the same copies together.
-  const folded = foldCopies(rows, fileRows(allRows.value));
-  const tags = settingTags(folded.map(f => f.row));
+  const filing = fileRows(allRows.value);
+  const folded = foldCopies(rows, filing);
+  const tags = settingTags(
+    folded.map(f => f.row),
+    viewZone
+  );
   return folded.map(f => ({
     key: f.row.id ?? contentFingerprint(f.row),
     row: f.row,
     copies: f.copies.length,
     copyRows: f.copies,
     foundBy: f.foundBy,
-    tags: tags.get(f.row) ?? [],
+    chips: [
+      ...(f.copies.length > 1
+        ? [
+            {
+              text: `sent ×${f.copies.length}`,
+              title: `The same result was sent ${f.copies.length} times. Found by: ${f.foundBy.join(', ')}. Open the line for each copy and its CSV.`,
+              cls: 'bg-slate-200 text-slate-600',
+            },
+          ]
+        : []),
+      ...(tags.get(f.row) ?? []).map(t => ({ text: t, title: settingTagTitle(t), cls: 'bg-sky-100 text-sky-800' })),
+      ...(isNoCodeLine(filing, f.player)
+        ? [{ text: 'no code', title: NO_CODE_TITLE, cls: 'bg-indigo-100 text-indigo-800' }]
+        : []),
+    ],
     nickname: whoText(f.row) || undefined,
     chain: f.row.chain,
     ascensions: f.row.ascensions,

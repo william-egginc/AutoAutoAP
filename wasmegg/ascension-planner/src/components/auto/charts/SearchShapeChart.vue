@@ -440,6 +440,8 @@ const option = computed<ChartOption>(() => {
     grid: { left: 58, right: 20, top: 16, bottom: props.explorerLook ? 70 : 56 },
     tooltip: {
       trigger: 'item',
+      // Kept inside the chart, so a point near the edge never puts its tooltip off a phone's screen.
+      confine: true,
       formatter: rawParams => {
         // echarts types the formatter param as a broad union that can be an array under
         // `trigger: 'axis'`. This chart is always `trigger: 'item'`, so it is one point, and the

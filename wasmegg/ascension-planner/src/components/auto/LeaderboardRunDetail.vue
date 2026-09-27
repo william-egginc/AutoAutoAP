@@ -68,7 +68,7 @@
         </div>
         <div class="flex justify-between gap-3">
           <span>{{ isRecheck ? 'Re-checked' : several ? 'First sent' : 'Submitted' }}</span>
-          <span class="font-bold">{{ utcText(firstSent) }}</span>
+          <span class="font-bold text-right" :title="utcTitle(firstSent)">{{ sentWhen(firstSent) }}</span>
         </div>
         <div class="flex justify-between gap-3">
           <span>Chains priced</span><span class="font-bold">{{ row.chainsPriced ?? '—' }}</span>
@@ -143,9 +143,20 @@
       <div v-else-if="!row.legs?.length" class="text-slate-400">
         no per-ascension detail — resumed from a saved search
       </div>
-      <div v-for="(l, k) in row.legs" :key="k" class="font-mono text-[10px] text-slate-600">
-        A{{ k + 1 }} → {{ l.te }} {{ l.strategy }} {{ l.days?.toFixed(2) }} d {{ l.peakDeliveryQph?.toFixed(2) }} q/hr
-      </div>
+      <!-- One line per leg, in columns, each value kept with its unit: run together as text, the
+           longest leg's "q/hr" wrapped onto a line of its own. -->
+      <table v-if="row.legs?.length" class="font-mono text-[10px] text-slate-600">
+        <tbody>
+          <tr v-for="(l, k) in row.legs" :key="k" class="whitespace-nowrap">
+            <td class="pr-1.5">A{{ k + 1 }} → {{ l.te }}</td>
+            <td class="pr-1.5">{{ l.strategy }}</td>
+            <td class="pr-1.5 text-right">{{ l.days?.toFixed(2) }} d</td>
+            <td class="text-right">
+              <template v-if="l.peakDeliveryQph != null">{{ l.peakDeliveryQph.toFixed(2) }} q/hr</template>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
     <!-- Shown in full rather than summarised: the value of an exhaustive row is that a reader can
          check the claim, and "fastest 2-ascension chain to 490 with a first target in {249, 299}"
@@ -172,8 +183,10 @@
           <span class="font-bold">{{ row.space.chainsPriced.toLocaleString() }}</span>
         </div>
       </div>
+      <!-- In the notation players type (`183-219:6`), not every TE: a band of every TE from 150 to
+           489 listed 340 numbers. -->
       <div v-if="row.space.bands?.length" class="mt-1 font-mono text-[10px] text-slate-600">
-        <div v-for="(b, k) in row.space.bands" :key="k">A{{ k + 1 }}: {{ b.join(' ') }}</div>
+        <div v-for="(b, k) in row.space.bands" :key="k">A{{ k + 1 }}: {{ formatBand(b) }}</div>
       </div>
       <!-- A run cut short enumerated a space it did not finish, so its answer is the best of what
            it reached -- an ordinary search result. Letting that render as a proof is the one way
@@ -219,41 +232,34 @@
         </div>
       </template>
     </div>
+    <!-- One line per copy, wrapping as a line of text does: as a table, its last two columns (chains
+         priced, Download) sat past the edge of a phone screen. -->
     <div v-if="several" class="col-span-full">
       <h4 class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1.5">
         Sent {{ copies!.length }} times — every copy
       </h4>
-      <div class="overflow-x-auto">
-        <table class="text-[11px] text-slate-600">
-          <thead>
-            <tr class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-left">
-              <th class="py-1 pr-4">Sent</th>
-              <th class="py-1 pr-4">Found by</th>
-              <th class="py-1 pr-4 text-right">Chains priced</th>
-              <th class="py-1 pr-4">CSV</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(c, k) in copies" :key="c.id ?? k" class="border-t border-slate-100">
-              <td class="py-1 pr-4 whitespace-nowrap">
-                {{ utcText(c.submittedAt) }}
-                <span v-if="isShown(c)" class="ml-1 text-slate-400">(shown above)</span>
-              </td>
-              <td class="py-1 pr-4">{{ foundByText(c) }}</td>
-              <td class="py-1 pr-4 text-right font-bold">{{ c.chainsPriced?.toLocaleString() ?? '—' }}</td>
-              <td class="py-1 pr-4 whitespace-nowrap">
-                <a
-                  v-if="c.hasCsv && c.id"
-                  :href="csvHref(c.id)"
-                  class="font-bold text-indigo-700 underline hover:text-indigo-900"
-                  >Download ↓</a
-                >
-                <span v-else class="text-slate-400">none attached</span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <ul class="text-[11px] text-slate-600 divide-y divide-slate-100">
+        <li v-for="(c, k) in copies" :key="c.id ?? k" class="py-1 flex flex-wrap items-baseline gap-x-1.5">
+          <span class="font-bold whitespace-nowrap" :title="utcTitle(c.submittedAt)">{{
+            sentWhen(c.submittedAt)
+          }}</span>
+          <span class="text-slate-400">·</span>
+          <span>{{ foundByText(c) }}</span>
+          <span class="text-slate-400">·</span>
+          <span class="whitespace-nowrap">{{
+            c.chainsPriced != null ? `${c.chainsPriced.toLocaleString()} priced` : 'priced: —'
+          }}</span>
+          <span class="text-slate-400">·</span>
+          <a
+            v-if="c.hasCsv && c.id"
+            :href="csvHref(c.id)"
+            class="font-bold text-indigo-700 underline hover:text-indigo-900 whitespace-nowrap"
+            >Download ↓</a
+          >
+          <span v-else class="text-slate-400 whitespace-nowrap">no CSV</span>
+          <span v-if="isShown(c)" class="text-slate-400 whitespace-nowrap">(shown above)</span>
+        </li>
+      </ul>
     </div>
   </div>
 </template>
@@ -261,6 +267,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { finishMs, formatDate, foundByText, startMs, type BoardRow } from '@/lib/leaderboardRank';
+import { formatBand } from '@/search/exhaustive';
 
 const props = defineProps<{
   row: BoardRow;
@@ -280,9 +287,24 @@ const isRecheck = computed(() => props.row.recheckOf != null);
 /** When the result first appeared: the earliest copy, which is also what All runs' Submitted shows. */
 const firstSent = computed(() => (several.value ? props.copies![0].submittedAt : props.row.submittedAt));
 
-function utcText(iso: string | undefined): string {
-  const t = (iso || '').replace('T', ' ').slice(0, 16);
-  return t ? `${t} UTC` : '—';
+/**
+ * When a copy was sent, on the viewer's calendar like every other date on the board (the player's own
+ * zone when no viewer zone is given). The legend says "in your timezone"; these used to be in UTC.
+ */
+function sentWhen(iso: string | undefined): string {
+  const t = iso ? Date.parse(iso) : NaN;
+  return formatDate(Number.isFinite(t) ? t : null, props.viewZone ?? props.row.timezone, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  });
+}
+
+/** The same moment in UTC, for the tooltip. */
+function utcTitle(iso: string | undefined): string | undefined {
+  const t = iso ? Date.parse(iso) : NaN;
+  if (!Number.isFinite(t)) return undefined;
+  const zone = props.viewZone ?? props.row.timezone ?? 'UTC';
+  return `${new Date(t).toISOString().replace('T', ' ').slice(0, 16)} UTC (shown in ${zone} time)`;
 }
 
 /** The copy whose numbers fill the panel. It may be a relabelled clone, so ids decide first. */

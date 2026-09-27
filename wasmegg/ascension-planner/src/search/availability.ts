@@ -36,40 +36,18 @@
  * comparable, and every accuracy figure on record was measured without one.
  */
 import { getTimezoneOffsetAt } from '@/lib/events';
+import { isConstrained, validDays, type Availability } from './availabilitySchedule';
 
-export interface Availability {
-  /** Days the player can act, 0 = Sunday .. 6 = Saturday. Empty means every day. */
-  days: number[];
-  /** Available hours, `[fromHour, toHour)`. Wraps, so 18 -> 2 is "evenings into the night".
-   *  `fromHour === toHour` means the whole day is available. */
-  fromHour: number;
-  toHour: number;
-  /** IANA zone the hours and days are read in. The plan's own timezone, not the browser's. */
-  timezone: string;
-}
-
-const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-function validDays(a: Availability): number[] {
-  return a.days.filter(d => Number.isInteger(d) && d >= 0 && d <= 6);
-}
-
-/**
- * True when this schedule actually rules anything out.
- *
- * Every day plus every hour is not a constraint, it is the default, and treating it as one would
- * mean a fingerprint change and a pointless push loop for a setting that excludes nothing.
- */
-export function isConstrained(a: Availability | null | undefined): a is Availability {
-  if (!a) return false;
-  const { fromHour: f, toHour: t } = a;
-  if (!Number.isInteger(f) || !Number.isInteger(t)) return false;
-  if (f < 0 || f > 23 || t < 0 || t > 23) return false;
-  const days = validDays(a);
-  const allDays = days.length === 0 || days.length === 7;
-  const allHours = f === t;
-  return !(allDays && allHours);
-}
+// The schedule's shape lives in availabilitySchedule.ts, which does not import lib/events (and so
+// not its Pacific-time table). Re-exported so every existing importer keeps working. A module the
+// Chain Explorer reaches must import from that file directly: see its header.
+export {
+  availabilityKey,
+  describeAvailability,
+  fromSleepHours,
+  isConstrained,
+  type Availability,
+} from './availabilitySchedule';
 
 /** Local hour-of-day, 0-23. One Intl call via `getTimezoneOffsetAt`, which is DST-exact — the
  *  offset is resolved AT that instant rather than assumed constant. */
@@ -167,27 +145,4 @@ export function countUnavailable(timestamps: number[], a: Availability | null | 
   let n = 0;
   for (const t of timestamps) if (!isAvailable(t, a)) n++;
   return n;
-}
-
-/** `Mon-Fri 18:00-23:00 America/Denver` — for logs, CSV headers and the panel. */
-export function describeAvailability(a: Availability | null | undefined): string {
-  if (!isConstrained(a)) return 'any time';
-  const pad = (h: number) => `${String(h).padStart(2, '0')}:00`;
-  const days = validDays(a).sort((x, y) => x - y);
-  const dayText = !days.length || days.length === 7 ? 'every day' : days.map(d => DAY_NAMES[d]).join(',');
-  const hourText = a.fromHour === a.toHour ? 'all day' : `${pad(a.fromHour)}-${pad(a.toHour)}`;
-  return `${dayText} ${hourText} ${a.timezone}`;
-}
-
-/** Stable, order-independent key for the run fingerprint. Reordering the day checkboxes must not
- *  invalidate a checkpoint. */
-export function availabilityKey(a: Availability | null | undefined): string {
-  if (!isConstrained(a)) return '';
-  const days = validDays(a).sort((x, y) => x - y);
-  return `avail${days.join('') || 'all'}-${a.fromHour}-${a.toHour}@${a.timezone}`;
-}
-
-/** The sleep preset: available every day between waking and bedtime. */
-export function fromSleepHours(sleepFrom: number, sleepUntil: number, timezone: string): Availability {
-  return { days: [], fromHour: sleepUntil, toHour: sleepFrom, timezone };
 }

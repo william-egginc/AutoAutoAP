@@ -26,7 +26,7 @@
       <label class="space-y-1">
         <span class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Account</span>
         <span class="flex items-center gap-1.5">
-          <span class="inline-block w-2.5 h-2.5 rounded-full" :style="{ background: colour }" aria-hidden="true" />
+          <AccountDot :index="colourIndex" :size="10" />
           <select v-model="account" class="rounded-lg border border-slate-200 px-2 py-1.5 text-[12px] bg-white">
             <option v-for="a in accounts" :key="a.key" :value="a.key">
               {{ a.label }} · {{ a.stored }} table{{ a.stored === 1 ? '' : 's' }}
@@ -85,15 +85,29 @@
       <span>{{ inputs.head }}</span>
       <template v-if="tables.left.length">
         <span>{{ '; left out: ' }}</span>
+        <!-- Buttons, so the reasons a mouse gets on hover are a tap away on a phone. -->
         <span v-for="(l, i) in tables.left" :key="l.tag"
-          ><span class="underline decoration-dotted cursor-help" :title="l.reasons.join('\n')">{{
-            leftOutText(l)
-          }}</span
+          ><button
+            type="button"
+            class="underline decoration-dotted text-left hover:text-slate-700"
+            :class="openLeft === l.tag ? 'font-bold text-slate-700' : ''"
+            :title="l.reasons.join('\n')"
+            :aria-expanded="openLeft === l.tag"
+            @click="openLeft = openLeft === l.tag ? '' : l.tag"
+          >
+            {{ leftOutText(l) }}</button
           >{{ i < tables.left.length - 1 ? ', ' : '' }}</span
         >
       </template>
       <span>{{ `.${inputs.tail ? ' ' + inputs.tail : ''}` }}</span>
     </p>
+    <ul
+      v-if="openLeftItem"
+      class="mx-1 list-disc space-y-0.5 rounded-lg border border-slate-200 bg-slate-50 py-1.5 pl-6 pr-2 text-[10px] text-slate-600"
+      :aria-label="`Why ${leftOutText(openLeftItem)} left out`"
+    >
+      <li v-for="(why, k) in openLeftItem.reasons" :key="k">{{ why }}</li>
+    </ul>
     <p v-if="error" class="text-[11px] font-semibold text-rose-700 px-1">{{ error }}</p>
 
     <template v-if="shown && view">
@@ -191,7 +205,7 @@ import type { CollectorRow } from './collector';
 import { fetchRunCsv } from './collector';
 import { accountKey, SAME_FINISH_DAYS, searchedOf, timeOffKey, type FinishJudgement } from './analysis';
 import { accountTables, bestPerAscensions, createPlanMerger, leftOutText, type AccountTop } from './accountTop';
-import { colorAt } from './palette';
+import AccountDot from './AccountDot.vue';
 import { parseAll } from './sweepStats';
 
 const props = defineProps<{
@@ -231,10 +245,13 @@ watch(
   },
   { immediate: true }
 );
-const colour = computed(() => colorAt(props.accountColors.get(account.value) ?? 0));
+const colourIndex = computed(() => props.accountColors.get(account.value) ?? 0);
 const storedHere = computed(() => accounts.value.find(a => a.key === account.value)?.stored ?? 0);
 
 const tables = computed(() => accountTables(props.rows, account.value, props.finalTE, props.judged));
+/** The "left out" group whose reasons are open under the sentence ('' for none). */
+const openLeft = ref('');
+const openLeftItem = computed(() => tables.value.left.find(l => l.tag === openLeft.value) ?? null);
 /** The sentence under the picker: which of the account's tables go in, and what is missing. */
 const inputs = computed(() => {
   const t = tables.value;
@@ -427,7 +444,9 @@ const view = computed(() => {
     const tz = row?.timezone;
     const searched = row ? searchedOf(row) : null;
     const after = (p.finish - anchor) / DAY_MS;
-    const save = saveOf(row, p.id);
+    // The first plan is what the column compares with, so it says nothing about itself.
+    const save =
+      i === 0 ? { save: '', title: 'The first plan: the others say whether they share its save.' } : saveOf(row, p.id);
     const passed = new Set(p.passed);
     const passedText = p.passed.length
       ? ` Struck through: a newer table shows the account already at or past ${p.passed.join(', ')} TE, most likely on this plan. No newer table priced the rest, ${p.rest.join(' ')}, so this measurement of the whole plan stands.`

@@ -25,15 +25,10 @@ import { cteFromArtifacts, cteFromColleggtibles, cteFromLabUpgrade } from 'lib/v
 import type { Modifiers } from 'lib/collegtibles';
 import { equippedArtifactsToLibArtifacts } from '@/lib/artifacts/utils';
 import { epicResearchDefs } from '@/lib/epicResearch';
-import { isConstrained, type Availability } from '@/search/availability';
+import { isConstrained, type Availability } from '@/search/availabilitySchedule';
 import type { InventoryCount, LoadoutSlot } from '@/search/csv';
 import { summariseEpicResearch } from '@/search/progression';
-import {
-  buildSubmission,
-  type MachineInfo,
-  type Submission,
-  type SweepTag,
-} from '@/search/submission';
+import { buildSubmission, type MachineInfo, type Submission, type SweepTag } from '@/search/submission';
 import type { LegSummary } from '@/search/types';
 import { checkFinalLegRate, deliveryScore, slotsFromLabels, type RateCheck } from '@/search/virtueScore';
 import type { CollectorRow } from './collector';
@@ -60,7 +55,13 @@ export interface SweepPreset {
 export const SWEEP_PRESETS: SweepPreset[] = [
   { id: 'M1', label: 'M1: 2 ascensions at every TE', ascensions: 2, bands: '189-489:1', minGap: 0 },
   { id: 'M2', label: 'M2: 3 ascensions at every 2nd TE', ascensions: 3, bands: '190-280:2; 270-372:2', minGap: 10 },
-  { id: 'M3', label: 'M3: 4 ascensions at every 5th TE', ascensions: 4, bands: '190-250:5; 215-300:5; 280-360:5', minGap: 10 },
+  {
+    id: 'M3',
+    label: 'M3: 4 ascensions at every 5th TE',
+    ascensions: 4,
+    bands: '190-250:5; 215-300:5; 280-360:5',
+    minGap: 10,
+  },
   {
     id: 'M4',
     label: 'M4: 5 ascensions at every 5th TE',
@@ -73,7 +74,14 @@ export const SWEEP_PRESETS: SweepPreset[] = [
   // Every best 3-ascension chain so far put its checkpoints at 197-233 and 279-288, so this checks
   // EVERY TE there and nothing else -- fewer chains than M2, and exact. After the M presets so a
   // 3-ascension upload still defaults to M2.
-  { id: 'F2', label: 'F2: 3 ascensions at every TE', ascensions: 3, bands: '195-250:1; 276-300:1', minGap: 10, fine: true },
+  {
+    id: 'F2',
+    label: 'F2: 3 ascensions at every TE',
+    ascensions: 3,
+    bands: '195-250:1; 276-300:1',
+    minGap: 10,
+    fine: true,
+  },
   // BIGGER RUNS (2026-09-25), designed from the board's dense runs and checked by an independent
   // recount. The first range is TE-relative: from 5 ascensions up the best first ascension sits just
   // above wherever the player is. Chains at TE 182 / TE 124-133: F4 29,904 / 120,118; F5 29,952 /
@@ -300,7 +308,11 @@ export function readDiagnostics(text: string): Diagnostics {
   } catch {
     throw new Error('The diagnostics file is not valid JSON; it may have been cut off while saving.');
   }
-  if (!d || typeof d !== 'object' || !String((d as Diagnostics).note ?? '').startsWith('Inputs handed to the chain-search')) {
+  if (
+    !d ||
+    typeof d !== 'object' ||
+    !String((d as Diagnostics).note ?? '').startsWith('Inputs handed to the chain-search')
+  ) {
     throw new Error('That JSON is not a chain-search diagnostics file (chain-search-diagnostics-*.json).');
   }
   return d as Diagnostics;
@@ -324,13 +336,15 @@ export function checkUpload(csv: UploadCsv, diag: Diagnostics, existing: Collect
   const errors: string[] = [];
   const warnings: string[] = [];
 
-  if (!csv.endsCleanly) errors.push('The CSV ends in the middle of a row. The download was cut off; save it again from the planner.');
+  if (!csv.endsCleanly)
+    errors.push('The CSV ends in the middle of a row. The download was cut off; save it again from the planner.');
   if (csv.chainsStated && csv.chainsFound < csv.chainsStated) {
     errors.push(
       `The CSV says it priced ${csv.chainsStated.toLocaleString()} chains but holds ${csv.chainsFound.toLocaleString()}. It is truncated.`
     );
   }
-  if (csv.outOfOrder) errors.push(`${csv.outOfOrder} chains are out of rank order, so the file has been edited or damaged.`);
+  if (csv.outOfOrder)
+    errors.push(`${csv.outOfOrder} chains are out of rank order, so the file has been edited or damaged.`);
   if (!csv.best) errors.push('The CSV has no chains in it.');
   if (!diag.result) errors.push('The diagnostics have no result. Save them after the run finishes, not before.');
   if (!diag.schedule?.planStart) errors.push('The diagnostics have no plan start.');
@@ -356,7 +370,8 @@ export function checkUpload(csv: UploadCsv, diag: Diagnostics, existing: Collect
       }
     }
   }
-  if (!diag.loadout?.delivery?.length) warnings.push('No delivery set in the diagnostics, so the delivery score and the bug check are skipped.');
+  if (!diag.loadout?.delivery?.length)
+    warnings.push('No delivery set in the diagnostics, so the delivery score and the bug check are skipped.');
   if (!csv.best?.legs.length) warnings.push('The best chain has no per-leg rows, so the graphs cannot place it.');
 
   const legs = (csv.best?.legs ?? []).map(l => ({ peakDeliveryQph: l.peakQph }));

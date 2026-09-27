@@ -26,6 +26,12 @@
   CHECKPOINT 1 IS DRAWN APART (hollow, and dashed in the share view): it is mostly timing -- when the
   ascension in progress ends -- like leg 1 in the chart below it.
 
+  ONE CHECKPOINT (2 ascensions, the count most runs have) has no stalk: it would run from the
+  checkpoint to itself. So there the marks take the account's colour and are filled, and the key
+  under the chart is the legend. They were grey and hollow, and the first chart a visitor saw talked
+  about coloured stalks nobody could find. Every legend here is HTML (legend.ts), with each account's
+  own shape: accounts 9 on share a hue with 1 on.
+
   Shapes compare across accounts; totals never do, so no duration appears here.
 -->
 <template>
@@ -55,21 +61,22 @@
       </span>
     </div>
 
-    <EChart v-if="bests.length" :option="option" height="320px" />
+    <EChart v-if="bests.length" :option="option" height="300px" />
 
-    <!-- Which stalk is whose, without hovering. The share view has a legend of accounts instead. -->
-    <div v-if="bests.length && view === 'map'" class="flex flex-wrap gap-x-3 gap-y-1 px-1 text-[10px] text-slate-500">
-      <span v-for="b in keyed" :key="b.accountKey" class="whitespace-nowrap">
-        <span class="inline-block w-2 h-2 rounded-full mr-1 align-middle" :style="{ background: b.color }" />{{
-          b.label
-        }}
-        <span class="text-slate-400">· start {{ b.row.currentTE }}</span>
-        <span v-if="!b.standing" class="text-slate-400" title="None of this account's runs at this count still stands"
-          >(newest run)</span
-        >
-      </span>
-    </div>
-    <p class="text-[10px] text-slate-400 leading-relaxed px-1">{{ MODES.find(m => m.id === view)?.hint }}</p>
+    <!-- In HTML, so every entry is on screen at any width (legend.ts). The map: which checkpoint is
+         which (only with two or more), then which stalk is whose, without hovering. The share view:
+         the accounts, each a button that hides its lines, as ECharts' legend did. -->
+    <template v-if="bests.length && view === 'map'">
+      <ChartLegend v-if="!single" :entries="checkpointKey" label="Checkpoints" />
+      <ChartLegend :entries="accountEntries" label="Accounts" />
+    </template>
+    <ChartLegend
+      v-else-if="bests.length"
+      v-model:hidden="hiddenShare"
+      :entries="[...accountEntries, MEDIAN_ENTRY]"
+      label="Accounts: click to hide or show"
+    />
+    <p class="text-[10px] text-slate-400 leading-relaxed px-1">{{ hint }}</p>
 
     <!-- The same numbers as the chart, for the reader who wants to copy one: the TEs the best plans
          really used, the same as TE above the start, and the slope that says which travels. -->
@@ -131,7 +138,9 @@ import { esc } from '@/lib/charts/tooltip';
 import type { CollectorRow } from './collector';
 import { accountKey, chainFractions, summariseCheckpoints, type CheckpointSummary, type CountBest } from './analysis';
 import { whoText } from '@/lib/leaderboardRank';
-import { colorAt, symbolAt, AXIS_LABEL, SPLIT_LINE } from './palette';
+import { colorAt, symbolAt, AXIS_LABEL, SPLIT_LINE, TOOLTIP_FIT } from './palette';
+import ChartLegend from './ChartLegend.vue';
+import type { LegendEntry } from './legend';
 
 const props = defineProps<{
   /** Every run shown at this count. */
@@ -147,18 +156,32 @@ const props = defineProps<{
 
 type View = 'map' | 'share';
 const view = ref<View>('map');
-const MODES: { id: View; label: string; hint: string }[] = [
-  {
-    id: 'map',
-    label: 'Checkpoint map',
-    hint: "Each coloured stalk is one account's best plan at this count, standing at the TE the plan started from; the dots on it are its checkpoints, darker for later ones, the last one largest. A row of dots that stays level across the stalks is a checkpoint at the same TE whoever you are; a row that climbs to the right moves with your start. Small faint dots are the account's other runs that still stand. Checkpoint 1 is hollow: it is mostly timing (when the ascension in progress ends), like leg 1 below.",
-  },
-  {
-    id: 'share',
-    label: 'Share of journey',
-    hint: "Each checkpoint as a share of that run's own journey, from the TE it started at to the target. One thin line per run, grey once its finish no longer stands; the thick line is the median over accounts, each counted once by its best plan. Checkpoint 1 is dashed and hollow: it is timing more than shape.",
-  },
+const MODES: { id: View; label: string }[] = [
+  { id: 'map', label: 'Checkpoint map' },
+  { id: 'share', label: 'Share of journey' },
 ];
+
+/** What the chart shows, in words; the map reads differently with one checkpoint. */
+const hint = computed(() => {
+  if (view.value === 'share') {
+    return "Each checkpoint as a share of that run's own journey, from the TE it started at to the target. One thin line per run in its account's colour, grey once its finish no longer stands; the thick dark line is the median over accounts, each counted once by its best plan. Checkpoint 1 is dashed and hollow: it is timing more than shape. Click a name to hide or show its lines; hover or tap a point for the run.";
+  }
+  if (single.value) {
+    return "Each large mark is one account's best plan at this count, in the account's colour and shape: across is the TE the plan started from, up is its one checkpoint. A row of marks that stays level is a checkpoint at the same TE whoever you are; one that climbs to the right moves with your start. Small faint marks are the account's other runs that still stand. With one checkpoint it is also when the ascension in progress ends, so part of it is timing. Hover or tap a mark for the run.";
+  }
+  return "Each coloured stalk is one account's best plan at this count, standing at the TE the plan started from; the marks on it are its checkpoints, in the account's shape, darker for later ones, the last one largest. A row of marks that stays level across the stalks is a checkpoint at the same TE whoever you are; a row that climbs to the right moves with your start. Small faint marks are the account's other runs that still stand. Checkpoint 1 is hollow: it is mostly timing (when the ascension in progress ends), like leg 1 below. Hover or tap a mark for the run.";
+});
+
+/** Accounts (by key) and the median the share view's legend has turned off. */
+const hiddenShare = ref<ReadonlySet<string>>(new Set());
+const MEDIAN_ID = '#median';
+const MEDIAN_ENTRY: LegendEntry = {
+  id: MEDIAN_ID,
+  label: 'Median of accounts',
+  color: '#0f172a',
+  symbol: 'circle',
+  line: 'solid',
+};
 
 /** Later checkpoints darker. Neutral on purpose: every hue on this page already means an account. */
 const SHADES = ['#94a3b8', '#64748b', '#475569', '#334155', '#1e293b', '#0f172a'];
@@ -189,12 +212,35 @@ function pct(share: number): string {
 const labelOf = (key: string, row: CollectorRow) => props.accountLabels.get(key) ?? (whoText(row) || 'anonymous');
 const indexOf = (key: string) => props.accountColors.get(key) ?? 0;
 
-/** The accounts on the chart, in colour order, for the key under it. */
-const keyed = computed(() =>
+/** One checkpoint: there is no stalk to colour, so the marks themselves carry the account. */
+const single = computed(() => summary.value.length <= 1);
+
+/** The accounts on the chart, in colour order, for the key under it: each in its colour and shape. */
+const accountEntries = computed<LegendEntry[]>(() =>
   [...props.bests]
     .sort((a, b) => indexOf(a.accountKey) - indexOf(b.accountKey))
-    .map(b => ({ ...b, label: labelOf(b.accountKey, b.row), color: colorAt(indexOf(b.accountKey)) }))
+    .map(b => ({
+      id: b.accountKey,
+      label: labelOf(b.accountKey, b.row),
+      note: ` · start ${b.row.currentTE}${b.standing ? '' : ' (newest run)'}`,
+      title: b.standing ? undefined : "None of this account's runs at this count still stands, so its newest is shown",
+      index: indexOf(b.accountKey),
+      line: view.value === 'share' ? ('solid' as const) : null,
+    }))
 );
+
+/** Which checkpoint is which on the map: the same shade, size and fill as its marks. */
+const checkpointKey = computed<LegendEntry[]>(() => {
+  const n = summary.value.length;
+  return summary.value.map((cp, i) => ({
+    id: `cp${cp.index}`,
+    label: `Checkpoint ${cp.index + 1}${i === n - 1 ? ' (last)' : ''}`,
+    color: shadeOf(i, n),
+    symbol: 'circle' as const,
+    hollow: i === 0,
+    size: i === n - 1 ? 10 : 8,
+  }));
+});
 
 const hollow = (symbol: string) => `empty${symbol[0].toUpperCase()}${symbol.slice(1)}`;
 
@@ -262,11 +308,16 @@ function mapOption(): ChartOption {
     });
   }
 
+  // With one checkpoint there is no stalk (it would run from the checkpoint to itself), so the marks
+  // take the account's colour and are filled: a grey hollow mark per account said nothing about whose
+  // it was. With two or more, the stalk carries the colour and the marks the checkpoint's shade.
+  const oneCheckpoint = single.value;
   summary.value.forEach(cp => {
     const i = cp.index;
     const last = i === n - 1;
     const name = `Checkpoint ${i + 1}${last ? ' (last)' : ''}`;
     const color = shadeOf(i, n);
+    const markColor = (key: string) => (oneCheckpoint ? colorAt(indexOf(key)) : color);
     series.push({
       name,
       type: 'scatter' as const,
@@ -275,19 +326,25 @@ function mapOption(): ChartOption {
       data: [
         ...props.bests.map(b => {
           const shape = symbolAt(indexOf(b.accountKey));
+          const open = i === 0 && !oneCheckpoint;
           return {
             value: [b.row.currentTE, b.row.chain[i]],
-            symbol: i === 0 ? hollow(shape) : shape,
+            symbol: open ? hollow(shape) : shape,
             symbolSize: last ? 11 : 8,
-            itemStyle: { color, borderColor: '#ffffff', borderWidth: i === 0 ? 1.5 : 1 },
+            itemStyle: {
+              color: markColor(b.accountKey),
+              borderColor: '#ffffff',
+              borderWidth: open ? 1.5 : 1,
+              opacity: oneCheckpoint && !b.standing ? 0.6 : 1,
+            },
             tip: tipFor(b.row, i, b.accountKey, roleOf(b.row, bestById)),
           };
         }),
         ...others.map(r => ({
           value: [r.currentTE, r.chain[i]],
-          symbol: 'circle',
-          symbolSize: 4,
-          itemStyle: { color, opacity: 0.35 },
+          symbol: oneCheckpoint ? symbolAt(indexOf(accountKey(r))) : 'circle',
+          symbolSize: oneCheckpoint ? 6 : 4,
+          itemStyle: { color: markColor(accountKey(r)), opacity: oneCheckpoint ? 0.45 : 0.35 },
           tip: tipFor(r, i, accountKey(r), 'other'),
         })),
       ] as never,
@@ -320,18 +377,16 @@ function mapOption(): ChartOption {
     dir < 0 ? Math.floor(v / step) * step : Math.ceil(v / step) * step;
   const xLo = xs.length ? pad(Math.min(...xs) - 3, 5, -1) : 0;
   const xHi = xs.length ? pad(Math.max(...xs) + 3, 5, 1) : 1;
+  // Labels on a round step, at most five gaps across, and the frame's own ends labelled only when
+  // they fall on that step: ECharts labels a fixed min and max whatever they are, which put "205"
+  // hard against "200".
+  const tick = [5, 10, 20, 25, 50, 100].find(s => (xHi - xLo) / s <= 5) ?? 100;
 
   return {
-    grid: { left: 54, right: 16, top: 16, bottom: 64 },
-    legend: {
-      type: 'scroll',
-      bottom: 0,
-      itemGap: 14,
-      textStyle: { fontSize: 10, color: '#64748b' },
-      data: summary.value.map((cp, i) => `Checkpoint ${cp.index + 1}${i === n - 1 ? ' (last)' : ''}`),
-    },
+    grid: { left: 54, right: 16, top: 16, bottom: 40 },
     tooltip: {
       trigger: 'item',
+      ...TOOLTIP_FIT,
       formatter: raw => {
         const tip = (raw as { data?: { tip?: Tip } }).data?.tip;
         if (!tip) return '';
@@ -348,7 +403,8 @@ function mapOption(): ChartOption {
       nameTextStyle: AXIS_LABEL,
       min: xLo,
       max: xHi,
-      axisLabel: AXIS_LABEL,
+      interval: tick,
+      axisLabel: { ...AXIS_LABEL, showMinLabel: xLo % tick === 0, showMaxLabel: xHi % tick === 0 },
       splitLine: SPLIT_LINE,
     },
     yAxis: {
@@ -370,8 +426,10 @@ function shareOption(): ChartOption {
   // best plan" told a player five different chains were the one best.
   const bestById = new Map(props.bests.map(b => [b.row.id, b]));
   let top = 0;
+  const hidden = hiddenShare.value;
   for (const row of props.rows) {
     const key = accountKey(row);
+    if (hidden.has(key)) continue;
     const index = indexOf(key);
     const fractions = chainFractions(row.chain, row.currentTE, row.finalTE);
     if (!fractions.length) continue;
@@ -411,25 +469,21 @@ function shareOption(): ChartOption {
     },
   }));
   const median = { name: 'Median of accounts', type: 'line' as const, color: '#0f172a', symbolSize: 7, z: 5 };
-  series.push({
-    ...median,
-    data: [{ ...mids[0], symbol: 'emptyCircle' }, ...(mids[1] ? [{ ...mids[1], symbol: 'none' }] : [])] as never,
-    lineStyle: { width: 2.5, type: 'dashed' },
-  });
-  if (mids.length > 1)
-    series.push({ ...median, data: mids.slice(1) as never, symbol: 'circle', lineStyle: { width: 2.5 } });
+  if (mids.length && !hidden.has(MEDIAN_ID)) {
+    series.push({
+      ...median,
+      data: [{ ...mids[0], symbol: 'emptyCircle' }, ...(mids[1] ? [{ ...mids[1], symbol: 'none' }] : [])] as never,
+      lineStyle: { width: 2.5, type: 'dashed' },
+    });
+    if (mids.length > 1)
+      series.push({ ...median, data: mids.slice(1) as never, symbol: 'circle', lineStyle: { width: 2.5 } });
+  }
 
   return {
-    grid: { left: 54, right: 16, top: 16, bottom: 64 },
-    legend: {
-      type: 'scroll',
-      bottom: 0,
-      itemGap: 14,
-      textStyle: { fontSize: 10, color: '#64748b' },
-      formatter: (name: string) => (name.length > 30 ? `${name.slice(0, 29)}…` : name),
-    },
+    grid: { left: 54, right: 16, top: 16, bottom: 40 },
     tooltip: {
       trigger: 'item',
+      ...TOOLTIP_FIT,
       formatter: raw => {
         const tip = (raw as { data?: { tip?: Tip } }).data?.tip;
         if (!tip) return '';

@@ -8,7 +8,7 @@
   and whose is slow because of earnings.
 
   BOTH BARS START AT 0. A bar's length is read as the value; a delivery axis starting at 60 drew an
-  80% score as half a bar. And the right panel is the earnings set alone, not Clothed TE: Clothed TE
+  80% score as half a bar. And the "Earnings set" chart is the set alone, not Clothed TE: Clothed TE
   is TE plus the set, TE spans 75 across these accounts while the set spans about 13, so Clothed TE
   bars mostly showed who has ascended further, not whose gear is better. TE and Clothed TE are in
   the tooltip.
@@ -19,9 +19,17 @@
 -->
 <template>
   <div class="space-y-2">
+    <!-- Each chart named above it: side by side on a wide screen, stacked on a phone, so the text
+         around them names them rather than saying "left" and "right". -->
     <div v-if="bars.length" class="grid gap-3 md:grid-cols-2">
-      <EChart :option="deliveryOption" :height="`${chartHeight}px`" />
-      <EChart :option="earningsOption" :height="`${chartHeight}px`" />
+      <div>
+        <h4 class="px-1 text-[10px] font-black text-slate-400 uppercase tracking-widest">Delivery set</h4>
+        <EChart :option="deliveryOption" :height="`${chartHeight}px`" />
+      </div>
+      <div>
+        <h4 class="px-1 text-[10px] font-black text-slate-400 uppercase tracking-widest">Earnings set</h4>
+        <EChart :option="earningsOption" :height="`${chartHeight}px`" />
+      </div>
     </div>
     <p v-else class="px-4 py-8 text-center text-[11px] text-slate-400">No run here recorded its artifact sets.</p>
     <p class="text-[10px] text-slate-400 leading-relaxed px-1">

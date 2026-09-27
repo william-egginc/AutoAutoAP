@@ -3,6 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <!-- When the build has a collector (VITE_SUBMIT_URL), vite.config.ts `collectorEarlyStart` writes
+         a preconnect to it and the start of its GET /all straight after the viewport tag, so the run
+         list downloads alongside the scripts instead of after them. -->
     <meta name="format-detection" content="telephone=no" />
     <title>Chain Explorer</title>
     <meta

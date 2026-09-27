@@ -3,15 +3,19 @@
   on the Integrity shift, a plan past ten years, a result that contradicts itself. Kept, because they
   are the evidence for where the planner stops working; kept apart from the main board, because they
   are not routes to copy; and anonymous, except the rows this browser submitted (search/owner.ts).
+
+  The page calls it "Runs the planner can't help yet", not "flagged": on the page that word means the
+  delivery-set check (analysis.ts `flagOf`), a different set of runs. The collector's endpoint keeps
+  its name (`fetchFlagged`).
 -->
 <template>
   <div class="space-y-3">
     <p v-if="error" class="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-[11px] text-red-800">
       {{ error }}
     </p>
-    <p v-else-if="loading" class="text-[11px] text-slate-400">Loading the flagged board...</p>
+    <p v-else-if="loading" class="text-[11px] text-slate-400">Loading these runs…</p>
     <p v-else-if="!rows.length" class="rounded-lg bg-emerald-50 px-3 py-2 text-[11px] font-semibold text-emerald-700">
-      Nothing flagged yet.
+      No run like that has been sent yet.
     </p>
     <div v-else class="overflow-x-auto">
       <table class="w-full text-[11px]">

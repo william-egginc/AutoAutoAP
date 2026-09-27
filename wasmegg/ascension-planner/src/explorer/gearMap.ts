@@ -21,7 +21,7 @@
  * are drawn hollow.
  */
 import type { Account } from './analysis';
-import { gearOf, judgeFinishes, targetsPresent } from './analysis';
+import { assessFinishes, gearOf, targetsPresent, whatIfIds } from './analysis';
 import type { CollectorRow } from './collector';
 import type { DataNeed } from './needs';
 
@@ -93,14 +93,12 @@ export function latestWithGear(rows: readonly CollectorRow[], skip?: ReadonlySet
 /**
  * Every run the Leaderboard's rules call a what-if, at every target present: a plan typed in from a
  * TE the account did not have, or dated ahead. Its TE says nothing about where the account is.
- * `rows` as for `judgeFinishes` (every copy, every target); `now` only feeds its 30-day rule.
+ * `rows` as for `judgeFinishes` (every copy, every target); `now` only feeds its 30-day rule. A page
+ * that already judges its own target keeps one `assessFinishes` per target and reads the what-ifs off
+ * those (`whatIfIds`) instead, so the players are grouped once per target, not twice for its own.
  */
 export function whatIfRuns(rows: CollectorRow[], now: number): Set<string> {
-  const out = new Set<string>();
-  for (const { finalTE } of targetsPresent(rows)) {
-    for (const [id, j] of judgeFinishes(rows, finalTE, now).byId) if (j.state === 'what-if') out.add(id);
-  }
-  return out;
+  return whatIfIds(targetsPresent(rows).map(({ finalTE }) => assessFinishes(rows, finalTE, now)));
 }
 
 export interface CteSource {

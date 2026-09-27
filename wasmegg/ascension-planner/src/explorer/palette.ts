@@ -36,3 +36,10 @@ export function symbolAt(index: number): SeriesSymbol {
 /** Axis furniture, matching the planner's own charts so the two pages look like one project. */
 export const AXIS_LABEL = { color: '#94a3b8', fontSize: 10 } as const;
 export const SPLIT_LINE = { lineStyle: { color: '#eef2f7' } } as const;
+
+/** Spread into every tooltip: kept inside the chart and wrapped, so a long one fits a phone rather
+ *  than running off the side of the screen. */
+export const TOOLTIP_FIT = {
+  confine: true,
+  extraCssText: 'max-width: min(320px, 86vw); white-space: normal;',
+} as const;

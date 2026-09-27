@@ -174,7 +174,14 @@
     </div>
     <p v-if="error" class="text-[11px] font-semibold text-rose-700 px-1">{{ error }}</p>
 
-    <EChart v-if="curves.length" :option="option" height="340px" />
+    <EChart v-if="curves.length" :option="option" height="310px" />
+    <!-- In HTML so every run is on screen at any width (legend.ts); each hides its line. -->
+    <ChartLegend
+      v-if="curves.length"
+      v-model:hidden="hidden"
+      :entries="legendEntries"
+      label="Runs: click to hide or show"
+    />
     <p v-else-if="current" class="px-4 py-6 text-center text-[11px] text-slate-400">
       Load the tables to draw this sweep.
       <template v-if="noTable">
@@ -300,6 +307,8 @@ import type { CollectorRow } from './collector';
 import { fetchRunCsv } from './collector';
 import { accountKey, SAME_FINISH_DAYS, sweepGroupOf } from './analysis';
 import { colorAt, symbolAt, AXIS_LABEL, SPLIT_LINE, type SeriesSymbol } from './palette';
+import ChartLegend from './ChartLegend.vue';
+import type { LegendEntry } from './legend';
 import {
   checkpointName,
   checkpointWalls,
@@ -489,7 +498,7 @@ const referenceDays = computed(() => {
 
 const hint = computed(() =>
   range.value === 'zoom'
-    ? `Zoomed to the plans within ${ZOOM_PCT}% of each run's best. The dashed line is ${REFERENCE_PCT}%, which on the runs drawn is ${referenceDays.value}: more than a 6th ascension has saved on most accounts, so a line under it can still be days behind. A wide flat bottom means many TEs at the ${checkpointWords(checkpoint.value)} come close; hover anywhere for every run's gap there in days.`
+    ? `Zoomed to the plans within ${ZOOM_PCT}% of each run's best. The dashed line is ${REFERENCE_PCT}%, which on the runs drawn is ${referenceDays.value}: more than a 6th ascension has saved on most accounts, so a line under it can still be days behind. A wide flat bottom means many TEs at the ${checkpointWords(checkpoint.value)} come close; hover or tap anywhere for every run's gap there in days.`
     : `Every TE each table priced at the ${checkpointWords(checkpoint.value)}. Far from the bottom the lines climb steeply, which is why the default view is zoomed in.`
 );
 
@@ -520,6 +529,28 @@ function reachOf(points: readonly EnvelopePoint[]): number {
 
 const seriesName = (c: (typeof curves.value)[number]) => `${c.label} · from ${c.stats.currentTE} TE · ${c.row.id}`;
 
+/** Runs the legend has turned off, by run id. */
+const hidden = ref<ReadonlySet<string>>(new Set());
+
+/** The line pattern each shape draws, as the legend's mark says it. */
+const LEGEND_LINE: Record<SeriesSymbol, 'solid' | 'dashed' | 'dotted' | 'dashdot'> = {
+  circle: 'solid',
+  triangle: 'dashed',
+  diamond: 'dotted',
+  rect: 'dashdot',
+};
+
+/** One entry per run drawn, in its account's colour, shape and line pattern. */
+const legendEntries = computed<LegendEntry[]>(() =>
+  curves.value.map(c => ({
+    id: c.row.id,
+    label: c.label,
+    note: ` · from ${c.stats.currentTE} TE · ${c.row.id}`,
+    index: c.index,
+    line: LEGEND_LINE[c.symbol],
+  }))
+);
+
 const option = computed<ChartOption>(() => {
   const zoomed = range.value === 'zoom';
   const above = xMode.value === 'above';
@@ -527,7 +558,10 @@ const option = computed<ChartOption>(() => {
   let hi = -Infinity;
   const glyphs: string[] = [];
   const reach: number[] = [];
-  const series: ChartSeriesOption[] = curves.value.map(c => {
+  // A run the legend turned off is left out of the lines and of the axis range, but keeps its place
+  // in the colour order.
+  const drawn = curves.value.filter(c => !hidden.value.has(c.row.id));
+  const series: ChartSeriesOption[] = drawn.map(c => {
     const { stats: s, points, index, symbol } = c;
     // One table, one save: the gap to this run's own best is exact, whatever the account or date.
     const best = s.bestDays;
@@ -557,8 +591,7 @@ const option = computed<ChartOption>(() => {
       emphasis: { focus: 'series' as const },
     };
   });
-  const runNames = series.map(s => String(s.name));
-  // The reference line on a series of its own, so hiding a run in the legend does not take it too.
+  // The reference line on a series of its own, so it stays whichever runs the legend hides.
   series.push({
     name: `${REFERENCE_PCT}% line`,
     type: 'line' as const,
@@ -594,17 +627,10 @@ const option = computed<ChartOption>(() => {
   const lastOnly = checkpoints.value.length > 0 && checkpoint.value === checkpoints.value.length - 1;
 
   return {
-    grid: { left: 52, right: 16, top: 18, bottom: 80 },
-    legend: {
-      type: 'scroll',
-      bottom: 0,
-      itemGap: 14,
-      textStyle: { fontSize: 10, color: '#64748b' },
-      data: runNames,
-      formatter: (name: string) => (name.length > 40 ? `${name.slice(0, 39)}…` : name),
-    },
+    grid: { left: 52, right: 16, top: 18, bottom: 40 },
     tooltip: {
       confine: true,
+      extraCssText: 'max-width: min(320px, 86vw); white-space: normal;',
       // By axis, not by item: these lines draw no points, and an item tooltip needs a point under
       // the pointer. The axis finds each run's nearest TE to wherever the pointer is.
       trigger: 'axis',

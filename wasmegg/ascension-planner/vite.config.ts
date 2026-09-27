@@ -1,4 +1,10 @@
+import { createReadStream, statSync, type Stats } from 'node:fs';
+import { readdir, readFile, writeFile } from 'node:fs/promises';
+import type { ServerResponse } from 'node:http';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
+import { brotliCompress, constants as zlibConstants } from 'node:zlib';
 import { defineConfig, loadEnv, type Plugin } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import vueJsx from '@vitejs/plugin-vue-jsx';
@@ -40,6 +46,220 @@ function versionFile(): Plugin {
   };
 }
 
+/**
+ * Hashed files under `assets/` are cached for a year by browsers and by Cloudflare, and sent
+ * brotli-compressed when the build made a `.br` copy (see `brotliAssets`); everything else (the two
+ * HTML pages, version.json, favicon) keeps `vite preview`'s `no-cache`.
+ *
+ * WHY. The live site is `vite preview` behind a Cloudflare tunnel, so netlify.toml's headers never
+ * apply. Preview's static server (sirv, in dev mode) sends `no-cache` on everything, which Cloudflare
+ * turns into a 4-hour browser TTL plus an origin revalidation on every edge hit: a returning player
+ * on a phone re-downloaded or re-checked ~650 KB of JavaScript that cannot have changed, because
+ * its name is a hash of its content. A new build writes new names and new HTML, and the HTML is
+ * still revalidated on every visit, so a year is safe.
+ *
+ * HOW. A pre-middleware sets the header before sirv runs; sirv copies any header already set on
+ * the response over its own default (vite 8.0.16's bundled sirv, `send`: `tmp = res.getHeader(key);
+ * if (tmp) headers[key] = tmp`), so the value survives to the 200 and the 304. Only for a file that
+ * EXISTS: an unknown name under assets/ gets preview's SPA fallback (index.html, status 200), and
+ * that marked immutable would be kept by the browser and Cloudflare for a year -- asking for a name
+ * a build has not finished writing yet (mid-deploy) is exactly when that would happen.
+ *
+ * Takes effect when `pnpm serve` restarts; it has nothing to do with `vite build`.
+ */
+const IMMUTABLE = 'public, max-age=31536000, immutable';
+
+function immutableAssets(): Plugin {
+  return {
+    name: 'aap-immutable-assets',
+    configurePreviewServer(server) {
+      const { config } = server;
+      // A relative base (`VITE_BASE=./`) is served from `/` by preview.
+      const base = config.base.startsWith('/') ? config.base : '/';
+      const prefix = `${base}${config.build.assetsDir}/`.replace(/\/{2,}/g, '/');
+      const outDir = path.resolve(config.root, config.build.outDir);
+      server.middlewares.use((req, res, next) => {
+        const pathname = (req.url ?? '').split('?')[0];
+        if ((req.method !== 'GET' && req.method !== 'HEAD') || !pathname.startsWith(prefix)) return next();
+        let file = '';
+        try {
+          file = path.join(outDir, decodeURIComponent(pathname.slice(base.length)));
+        } catch {
+          // Malformed escape: let sirv answer it, with its own headers.
+        }
+        if (!file.startsWith(outDir + path.sep) || !isFile(file)) return next();
+        res.setHeader('Cache-Control', IMMUTABLE);
+
+        // The build's brotli copy, when there is one and this client takes it. Sent here in full
+        // rather than through sirv, which preview runs without its brotli option. Anything unusual
+        // (a Range request, no .br, a client without br) falls through to the normal gzip path.
+        const brFile = `${file}.br`;
+        const type = BROTLI_TYPES[path.extname(file)];
+        if (!type || !isFile(brFile)) return next();
+        appendVary(res, 'Accept-Encoding');
+        if (req.headers.range || !acceptsBrotli(req.headers['accept-encoding'])) return next();
+        let stat: Stats;
+        try {
+          stat = statSync(brFile);
+        } catch {
+          return next();
+        }
+        const size = stat.size;
+        const etag = `W/"br-${stat.size}-${stat.mtime.getTime()}"`;
+        res.setHeader('Content-Type', type);
+        res.setHeader('Content-Encoding', 'br');
+        res.setHeader('ETag', etag);
+        if (req.headers['if-none-match'] === etag) {
+          res.statusCode = 304;
+          res.end();
+          return;
+        }
+        res.setHeader('Content-Length', size);
+        res.statusCode = 200;
+        if (req.method === 'HEAD') {
+          res.end();
+          return;
+        }
+        createReadStream(brFile)
+          .on('error', () => res.destroy())
+          .pipe(res);
+      });
+    },
+  };
+}
+
+function isFile(file: string): boolean {
+  try {
+    return statSync(file).isFile();
+  } catch {
+    return false;
+  }
+}
+
+/** True unless the client leaves `br` out or refuses it with `q=0`. */
+function acceptsBrotli(header: string | string[] | undefined): boolean {
+  const value = Array.isArray(header) ? header.join(',') : (header ?? '');
+  return value.split(',').some(part => {
+    const [token, ...params] = part.split(';').map(x => x.trim());
+    if (token.toLowerCase() !== 'br') return false;
+    const q = params.find(x => /^q=/i.test(x));
+    return !q || Number(q.slice(2)) > 0;
+  });
+}
+
+/** Adds to `Vary` without dropping what an earlier middleware (CORS: `Origin`) put there. */
+function appendVary(res: ServerResponse, field: string): void {
+  const prev = res.getHeader('Vary');
+  const list = (Array.isArray(prev) ? prev.join(',') : String(prev ?? ''))
+    .split(',')
+    .map(x => x.trim())
+    .filter(Boolean);
+  if (!list.some(x => x === '*' || x.toLowerCase() === field.toLowerCase())) list.push(field);
+  res.setHeader('Vary', list.join(', '));
+}
+
+/**
+ * Brotli copies of the text assets, written next to them at the end of `vite build`.
+ *
+ * WHY. Preview compresses on the fly with gzip at the default level, for every request. Brotli at
+ * its highest quality is about a quarter smaller on this bundle (the planner's first load ~660 KB
+ * gzip -> ~480 KB br; the Explorer's ~380 -> ~295), which on a slow phone connection is roughly a
+ * second, and it is paid once per build instead of once per request. Cloudflare asks the origin for
+ * `accept-encoding: br, gzip` and passes an origin brotli response through to browsers that accept
+ * it (developers.cloudflare.com/speed/optimization/content/compression/), so players get these
+ * bytes, not a recompression.
+ *
+ * Never fails the build: a file that will not compress simply has no copy, and preview then serves
+ * it as before. Build-only (`apply`), so a dev server shutting down never writes into dist.
+ */
+const BROTLI_TYPES: Record<string, string> = {
+  '.js': 'text/javascript',
+  '.css': 'text/css',
+  '.json': 'application/json',
+  '.svg': 'image/svg+xml',
+};
+const brotli = promisify(brotliCompress);
+
+function brotliAssets(): Plugin {
+  let assetsPath = '';
+  return {
+    name: 'aap-brotli-assets',
+    apply: 'build',
+    configResolved(config) {
+      assetsPath = path.resolve(config.root, config.build.outDir, config.build.assetsDir);
+    },
+    async closeBundle() {
+      let names: string[];
+      try {
+        names = await readdir(assetsPath);
+      } catch {
+        return;
+      }
+      await Promise.all(
+        names
+          .filter(name => BROTLI_TYPES[path.extname(name)])
+          .map(async name => {
+            const file = path.join(assetsPath, name);
+            try {
+              const data = await readFile(file);
+              if (data.length < 1024) return;
+              const compressed = await brotli(data, {
+                params: {
+                  [zlibConstants.BROTLI_PARAM_QUALITY]: 11,
+                  [zlibConstants.BROTLI_PARAM_SIZE_HINT]: data.length,
+                },
+              });
+              if (compressed.length < data.length) await writeFile(`${file}.br`, compressed);
+            } catch (error) {
+              console.warn(`[aap-brotli-assets] no brotli copy of ${name}:`, error);
+            }
+          })
+      );
+    },
+  };
+}
+
+/**
+ * The Chain Explorer's run list, requested while the page's JavaScript is still downloading.
+ *
+ * The Explorer can draw nothing until the collector's `GET /all` answers, and it used to ask only
+ * once the whole bundle had arrived and mounted: on a slow phone connection that is a fresh TLS
+ * handshake to another host plus the request itself, all after five seconds of script. This writes
+ * two tags at the top of explorer.html, only when the build has a collector (VITE_SUBMIT_URL, read
+ * from the same env as `import.meta.env`, so the URL is the one the bundle would fetch anyway):
+ *
+ *   - `<link rel="preconnect" crossorigin>` to its origin. `crossorigin` because the request is a
+ *     CORS fetch without credentials, which cannot reuse a connection opened for a credentialed one;
+ *   - a few lines that start the fetch and leave the pending response on `window.__aapEarlyAll`.
+ *     explorer/collector.ts `prefetchAll` adopts it and `fetchAll` uses it once, for that same base.
+ *
+ * `?collector=` on the URL means someone asked for a different collector, so the script skips it,
+ * exactly as `resolveCollectorBase` does. If anything here disagrees with the module (a base string
+ * that does not match), the module simply fetches for itself: the worst case is one wasted request.
+ */
+function collectorEarlyStart(submitUrl: string | undefined): Plugin {
+  // Same transformation as collector.ts `stripSubmit`, untrimmed like it, so the strings match.
+  const base = submitUrl?.replace(/\/submit\/?$/, '').replace(/\/$/, '');
+  const usable = base && /^https?:\/\/[^/]/i.test(base) ? base : null;
+  return {
+    name: 'aap-collector-early-start',
+    transformIndexHtml(html, ctx) {
+      if (!usable || path.basename(ctx.filename) !== 'explorer.html') return;
+      const literal = JSON.stringify(usable).replace(/</g, '\\u003c');
+      const tags =
+        `<link rel="preconnect" href="${new URL(usable).origin}" crossorigin>\n    ` +
+        `<script>(function(){try{if(new URLSearchParams(location.search).get('collector'))return;` +
+        `var b=${literal},r=fetch(b+'/all');r.catch(function(){});` +
+        `window.__aapEarlyAll={base:b,response:r,at:Date.now()}}catch(e){}})();</script>`;
+      // Straight after the charset and viewport, which should stay the first things in <head>.
+      const viewport = /<meta\s+name="viewport"[^>]*>/i;
+      return viewport.test(html)
+        ? html.replace(viewport, m => `${m}\n    ${tags}`)
+        : html.replace('<head>', `<head>\n    ${tags}`);
+    },
+  };
+}
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   // vite.config.ts is evaluated before vite loads .env files, so `process.env` here holds only
@@ -72,7 +292,14 @@ export default defineConfig(({ mode }) => {
       // not in the DOM, with no visible error. Force one copy of each.
       dedupe: ['vue', 'pinia'],
     },
-    plugins: [vue(), vueJsx(), versionFile()],
+    plugins: [
+      vue(),
+      vueJsx(),
+      versionFile(),
+      brotliAssets(),
+      immutableAssets(),
+      collectorEarlyStart(env.VITE_SUBMIT_URL),
+    ],
     define: { __BUILD_TIME__: JSON.stringify(BUILD_TIME) },
     build: {
       chunkSizeWarningLimit: 2000,
