@@ -17,7 +17,7 @@
 import { countBanded, parseBands } from '@/search/exhaustive';
 import { sweepSeconds, workerSecondsPerChain } from '@/search/speed';
 import { DAY_MS, localToUtcMs, startMs } from '@/lib/leaderboardRank';
-import { groupByAccount, gearOf } from './analysis';
+import { groupByAccount, gearOf, isProof } from './analysis';
 import type { CollectorRow } from './collector';
 import { SWEEP_PRESETS } from './upload';
 
@@ -81,7 +81,11 @@ const PRESET_WANT: Record<string, number> = { M1: 6, M2: 6, M3: 4, M4: 3, F2: 6,
 
 /**
  * What each sweep ask says, in player language. Audited against the board on 25 Sep 2026 (every
- * number below was recomputed from the rows and CSVs); update the numbers when the board moves on.
+ * number below was recomputed from the rows and CSVs) and again on 26 Sep 2026, when the count
+ * claims were restated from each account's earliest standing finish at each count (`bestPerCount`)
+ * with the page's own verdict on each gap (`countSteps`); update the numbers when the board moves on.
+ * Say how many accounts a claim rests on, and never that one more ascension "helps" where the two
+ * counts were searched too differently to tell.
  */
 const PRESET_TEXT: Record<string, { title: string; why: string; who?: string; note?: string }> = {
   M1: {
@@ -95,11 +99,11 @@ const PRESET_TEXT: Record<string, { title: string; why: string; who?: string; no
   },
   M3: {
     title: '4 ascensions at every 5th TE (M3)',
-    why: 'Shows roughly where a 4-ascension plan puts its targets on your account, and how much a 4th ascension saves you (4 to 28 days so far). It only tries every 5th TE, so its best plan can be 2 to 12 days behind the true best.',
+    why: 'Shows roughly where a 4-ascension plan puts its targets on your account, and how much a 4th ascension saves you: 4.5 to 28 days on four of the five accounts that have tried 3 and 4, while on the fifth (a small staged search) the 4 finished 1.5 days later. It only tries every 5th TE, so its best plan can be 2 to 12 days behind the true best.',
   },
   M4: {
     title: '5 ascensions at every 5th TE (M4)',
-    why: 'Shows whether a 5th ascension pays on your account: so far it has brought the finish date forward by 1.5 to 28 days. It only tries every 5th TE, so take its best plan as the right area rather than the exact TEs. F4 below looks closer.',
+    why: 'Shows whether a 5th ascension pays on your account: on the four accounts that have tried 4 and 5 it brought the finish date forward by 1.5 to 28 days. It only tries every 5th TE, so take its best plan as the right area rather than the exact TEs. F4 below looks closer.',
   },
   F2: {
     title: '3 ascensions at every TE (F2)',
@@ -108,27 +112,27 @@ const PRESET_TEXT: Record<string, { title: string; why: string; who?: string; no
   },
   F4: {
     title: '5 ascensions, a close look (F4)',
-    why: "Most accounts' earliest-finishing plans have 5 to 7 ascensions, but 5-ascension plans have mostly been tried at every 5th TE, which on shorter plans has landed 2 to 12 days behind the best. F4 tries far more of the TEs in between.",
+    why: 'Seven accounts have tried 5 ascensions, but most 5-ascension runs so far were staged searches or tried every 5th TE or coarser, and on shorter plans every 5th TE has landed 2 to 12 days behind the best. F4 tries far more of the TEs in between.',
     who: 'anyone who can leave a desktop or bigger running overnight',
   },
   F5: {
     title: '6 ascensions, a close look (F5)',
-    why: "6 ascensions is the most common count among the plans that finish first (7 of the 12 accounts; on Allan's it ties with 7), but only William's and Willsalt's 6-ascension runs have looked this closely; the rest mostly tried every 5th or 10th TE. F5 tries far more of the TEs in between.",
+    why: "The plan that finishes first has 6 ascensions on 6 of the 12 accounts (on Allan's it ties with 7), though on 4 of them 6 is also the most they tried. Only two 6-ascension runs have looked this closely, Williamthe5thc's and Willsalt · T4L cube's; the rest tried every 5th or 10th TE, or were staged searches. F5 tries far more of the TEs in between.",
     who: 'anyone who can leave a desktop or bigger running overnight',
   },
   E7: {
     title: '7 ascensions, a rough look (E7)',
-    why: "On Allan's account a 7th ascension finished on the same date as his best 6-ascension plan; on Williamthe5thc's save it was 0.1 days slower. Runs from more accounts show where adding ascensions stops saving time, so nobody plans more ascensions than they need.",
+    why: "Three accounts have tried both 6 and 7 ascensions. On Willsalt · T4L cube a 7th brought the finish forward 4.3 days; on Allan's it finished the same minute as his 6, and on Williamthe5thc's 0.9 days after it, both too close to call given how they were searched. Runs from more accounts show where adding ascensions stops saving time, so nobody plans more ascensions than they need.",
     who: 'anyone who can leave a desktop or bigger running overnight',
   },
   E8: {
     title: '8 ascensions, a rough look (E8)',
-    why: "Wherever 8 ascensions have been tried next to 6 or 7 on the same account, 8 has not finished first yet (the closest finished 3 days after that account's best plan). More runs show whether it ever wins, and for which accounts.",
+    why: "On the two accounts that have tried 8 ascensions next to 6 or 7 (Allan's and Williamthe5thc's), 8 has not finished first: it finished 3 and 8 days after that account's best plan. More runs show whether it ever wins, and for which accounts.",
     who: 'anyone who can leave a desktop or bigger running overnight',
   },
   E9: {
     title: '9 ascensions, a rough look (E9)',
-    why: 'Only a handful of 9-ascension plans have been tried, all on older runs, and each lost to a shorter plan on the same account. With 7 and 8 it fills in the picture from 2 to 9 ascensions, so players can stop considering plans this long.',
+    why: "No run on the board has tried 9 ascensions yet. The only longer plan, one quick 15-ascension search on Williamthe5thc's account, finishes 20 days after that account's best. With 7 and 8 it fills in the picture from 2 to 9 ascensions, so players can stop considering plans this long.",
     who: 'anyone who can leave a desktop or bigger running overnight',
   },
 };
@@ -174,11 +178,13 @@ function everyTE(r: CollectorRow): boolean {
   return !!bands?.length && bands.every(b => (stepOf(b) ?? 1) <= 1);
 }
 
-/** A finished exhaustive run to the main 490 target: the only kind the asks below count. An
- *  uploaded sweep carries no `space`; its CSV's own chain count already guards against a partial
- *  file, so it counts as finished. */
+/** A finished exhaustive run to the main 490 target: the only kind the asks below count. Finished is
+ *  the page's one proof test (`isProof`: every plan in its box priced), so a run whose end never
+ *  recorded its count -- Halceyx's 6-ascension run priced 4,192 of 61,749 -- is not finished here
+ *  while the runs table calls it partial. An uploaded sweep carries no `space`; its CSV's own chain
+ *  count already guards against a partial file, so it counts as finished. */
 function finished490(r: CollectorRow): boolean {
-  const finished = r.space ? !r.space.stoppedEarly : r.source === 'upload';
+  const finished = r.space ? isProof(r) : r.source === 'upload';
   return finished && r.finalTE === 490;
 }
 
@@ -217,9 +223,10 @@ export function dataNeeds(rows: CollectorRow[]): DataNeed[] {
     const covers = (r: CollectorRow) =>
       r.ascensions === preset.ascensions &&
       (!preset.fine || atLeastAsFineAs(r, steps)) &&
-      // A tagged run stopped partway does not cover the preset: these are the longest runs on the
-      // list, and one abandoned overnight F4 would otherwise fill a third of the ask.
-      ((r.sweep?.preset === preset.id && !r.space?.stoppedEarly) || finished490(r));
+      // A tagged run that did not price its whole box does not cover the preset (`isProof`): these
+      // are the longest runs on the list, and one abandoned overnight F4 would otherwise fill a third
+      // of the ask. A tagged upload has no box to check; its CSV is the whole sweep.
+      ((r.sweep?.preset === preset.id && (!r.space || isProof(r))) || finished490(r));
     const have = count(covers);
     if (have >= want) continue;
     needs.push({
@@ -256,7 +263,7 @@ export function dataNeeds(rows: CollectorRow[]): DataNeed[] {
     needs.push({
       id: 'te-low',
       title: `Accounts under ${LOW_TE} TE whose plans still work (CTE 225 or more)`,
-      why: 'Below about 218 to 225 CTE a first ascension gets stuck on Integrity saving up for habs, so under 125 TE only a strong earnings set makes a plan work at all. Runs from accounts like this show whether they want the same ascension targets as higher accounts.',
+      why: "Below about 218 to 225 CTE (the planner's estimate) a first ascension gets stuck on Integrity saving up for habs, so under 125 TE only a strong earnings set makes a plan work at all. Runs from accounts like this show whether they want the same ascension targets as higher accounts.",
       who: `players under ${LOW_TE} TE with CTE 225 or more`,
       have: lowAccounts,
       want: 2,
@@ -308,7 +315,7 @@ export function dataNeeds(rows: CollectorRow[]): DataNeed[] {
     needs.push({
       id: 'weak-gear',
       title: 'Accounts with a weak delivery set',
-      why: "Wolfcry1993's and Zen_Ferret's delivery sets are about 80% of the best possible set, and their best plans had 7 and 8 ascensions. That hints that weaker delivery wants more ascensions, but both ran on an older planner, so we need runs on today's.",
+      why: "Wolfcry1993's and Zen_Ferret's delivery sets are about 80% of the best possible set, but each tried only one ascension count (7 and 8), so nothing yet shows whether weaker delivery wants more ascensions. Both also ran on an older planner, so we need runs on today's.",
       who: `players whose delivery set is under ${Math.round(WEAK_GEAR * 100)}% of the best (all T4L with T4 stones), usually two or more weaker pieces`,
       have: weak,
       want: 2,
@@ -319,15 +326,15 @@ export function dataNeeds(rows: CollectorRow[]): DataNeed[] {
     });
   }
 
-  // GEAR THE BOARD HAS NEVER SEEN (audited 25 Sep 2026). Every account so far is at CTE 240 or more
-  // with a T4L Lunar totem and a T4L Demeters necklace, so TE and CTE always rise together and
-  // nothing separates what the gear decides from what the TE decides.
+  // GEAR THE BOARD HAS NEVER SEEN (audited 26 Sep 2026). Every account so far has a T4L Lunar totem
+  // and a T4L Demeters necklace, and every one (all 12) is at CTE 241 or more, so TE and CTE always
+  // rise together and nothing separates what the gear decides from what the TE decides.
   const cteEdge = count(r => finished490(r) && (gearOf(r).clothedTE ?? 0) >= 200 && (gearOf(r).clothedTE ?? 999) < 240);
   if (cteEdge < 3) {
     needs.push({
       id: 'cte-edge',
       title: 'Accounts at CTE 200 to 240, around where plans start working',
-      why: 'Below about 218 to 225 CTE a first ascension gets stuck on Integrity saving up for habs. That line rests on only two accounts below it, and the lowest account on the board is at CTE 240. Runs from CTE 200 to 240 would show exactly where the line is and whether the usual targets still hold there.',
+      why: "Below about 218 to 225 CTE (the planner's estimate) a first ascension gets stuck on Integrity saving up for habs. The runs only bracket that line: the two accounts measured below it (CTE 172 and 202) stalled, and the lowest account on the board is at CTE 241. Runs from CTE 200 to 240 would show exactly where the line is and whether the usual targets still hold there.",
       who: 'players at CTE 200 to 240',
       have: cteEdge,
       want: 3,

@@ -179,19 +179,19 @@ const GROUPS: { id: 'main' | 'gear' | 'big' | 'end'; title: string; intro: strin
     id: 'gear',
     title: "Accounts and gear we haven't seen yet",
     intro:
-      'Every account on the board so far is at CTE 240 or more with a T4L Lunar totem and a T4L Demeters necklace, so TE and CTE always rise together. If your account matches one of these, one run teaches more than ten from the accounts we already have.',
+      'Every account on the board so far has a T4L Lunar totem and a T4L Demeters necklace, and every one whose CTE we know is at CTE 240 or more, so TE and CTE always rise together. If your account matches one of these, one run teaches more than ten from the accounts we already have.',
   },
   {
     id: 'big',
     title: 'Bigger runs, for big machines',
     intro:
-      "5 and 6 ascensions, looked at closely. Most accounts' earliest-finishing plans have 5 to 7 ascensions, and ascending even one TE off the best can cost days. M4 only tries every 5th TE, and on shorter plans that has landed 2 to 12 days behind trying every TE, so these runs try far more of the TEs in between. Each is tens of thousands of plans, more on lower accounts; each card shows how many from your TE and how long that takes.",
+      '5 and 6 ascensions, looked at closely. On 9 of the 12 accounts the plan that finishes first has 5 to 7 ascensions (for 7 of them that is also the most they tried), and ascending even one TE off the best can cost days. M4 only tries every 5th TE, and on shorter plans that has landed 2 to 12 days behind trying every TE, so these runs try far more of the TEs in between. Each is tens of thousands of plans, more on lower accounts; each card shows how many from your TE and how long that takes.',
   },
   {
     id: 'end',
     title: 'The end of the line: 7, 8 and 9 ascensions',
     intro:
-      "These show where adding ascensions stops saving time and starts costing it, so nobody plans more ascensions than they need. So far a 7th ascension has not brought the finish forward on the two accounts that tried both 6 and 7 (the same date as the best 6-ascension plan on Allan's, 0.1 days later on Williamthe5thc's save), but weaker gear may want more. They try far fewer TEs to stay affordable, so read the result as an upper bound: a close look around the winner can still take a week or two off.",
+      "These show where adding ascensions stops saving time and starts costing it, so nobody plans more ascensions than they need. Three accounts have tried both 6 and 7: on Willsalt · T4L cube the 7th brought the finish forward 4.3 days, while on Allan's it finished the same minute as the 6 and on Williamthe5thc's 0.9 days after it, too close to call given how they were searched. They try far fewer TEs to stay affordable, so read the result as an upper bound: a close look around the winner can still take a week or two off.",
   },
 ];
 

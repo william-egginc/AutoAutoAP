@@ -262,16 +262,16 @@
               </h3>
               <CountShapeChart
                 :rows="selected.rows"
-                :bands="selectedBands"
+                :bests="selectedBests"
+                :standing="standingIds"
                 :account-colors="accountColors"
-                :journey-from="sampleJourneyFrom"
-                :journey-to="finalTE"
+                :account-labels="accountLabels"
               />
             </div>
 
             <div class="space-y-2">
               <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">How each ascension goes</h3>
-              <LegProfileChart :rows="selected.rows" :account-colors="accountColors" />
+              <LegProfileChart :rows="selected.rows" :account-colors="accountColors" :account-labels="accountLabels" />
             </div>
           </template>
           <p v-else class="text-[11px] text-slate-500 leading-relaxed">
@@ -298,6 +298,9 @@
               hover. <b>What's left</b> is how much of that same box at every TE the run did not price (the TEs between
               its steps, or the rest of a box it stopped early) and how long pricing the rest would take on a 16-20 core
               machine. Runs that improved a seed chain instead of trying a fixed box have nothing to measure against.
+              <b>can't check</b> marks a run the delivery-set check could not look at (no delivery set or per-leg detail
+              recorded, a last checkpoint under 190 TE, or a target other than 490): not flagged, and not cleared
+              either.
             </p>
             <div class="flex flex-wrap items-center gap-1.5">
               <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest mr-1"
@@ -517,6 +520,13 @@
                       >
                         flagged
                       </span>
+                      <span
+                        v-else-if="unchecked.has(row.id)"
+                        class="ml-1 whitespace-nowrap rounded border border-dashed border-slate-300 px-1 text-[9px] font-bold text-slate-400"
+                        :title="unchecked.get(row.id)"
+                      >
+                        can't check
+                      </span>
                     </td>
                     <td v-if="selectedCount === 'all'" class="py-1.5 pr-3 text-right font-bold">
                       {{ row.ascensions }}
@@ -640,30 +650,26 @@
             one exhaustive run that timed several counts from one save; if that run no longer stands (a what-if, an old
             save), it is measured from its own best count instead, and its tooltip says so. A dashed line is the
             account's runs that still stand, the earliest finish at each count. Runs made on different days are compared
-            by finish date, never by their totals: the same plan run a day later shows a day fewer.
+            by finish date, never by their totals: the same plan run a day later shows a day fewer. The chart opens on
+            the first 20 days, where the counts that are close actually differ; a point further behind is an arrow at
+            the top edge, its real value on hover. Each marker also says how the run behind it searched, because a point
+            is only the best plan that search found and the higher counts have mostly been searched more coarsely: the
+            table under the chart says, for each step between two counts, whether the gap is bigger than that could
+            explain.
           </p>
           <CountCompareChart :comparisons="comparisons" :account-colors="accountColors" />
         </section>
 
-        <!-- ------------------------------------------------------------------ virtue variables -->
         <section class="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
-          <h2 class="text-lg font-black text-slate-900">The final leg, for everyone</h2>
+          <h2 class="text-lg font-black text-slate-900">Each sweep, every account (to 490)</h2>
           <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
-            Final-leg days times the peak delivery rate it reached, against the last checkpoint. Dividing out the
-            delivery rate is what makes accounts comparable here: every account so far lands on one line to within a
-            percent, whatever their gear. A point off the line is a run something else happened to.
-          </p>
-          <FinalLegChart :rows="usable" :account-colors="accountColors" :account-labels="accountLabels" />
-        </section>
-
-        <section class="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
-          <h2 class="text-lg font-black text-slate-900">Each sweep, every account</h2>
-          <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
-            For each last checkpoint, how many days the best plan ending there is behind that run's own best, one line
-            per run. Each line is one table priced from one save, so its shape is exact; the heights are measured from
-            each run's own best, because runs from different accounts, or made on different days, do not compare by
-            total. A flat bottom means the exact checkpoint barely matters; a bottom at the same place for everyone
-            means the shape carries between accounts.
+            Runs to 490 only, whatever target is picked above. For each last checkpoint, how far the best plan ending
+            there is behind that run's own best, as a percent of it, one line per run. Each line is one table priced
+            from one save, so its shape is exact, and as a percent of its own best it compares between accounts whose
+            plans differ in length. It opens on 0 to 5% with a guide at 1%, which on a plan to 490 is a week or more,
+            more than a 6th ascension has saved on most accounts; "Whole range" shows the rest. A wide flat bottom means
+            many last checkpoints come close to the best (hover for how close, in days); a bottom at the same place for
+            everyone means the shape carries between accounts.
           </p>
           <SweepCurvesChart
             :base="base!"
@@ -674,7 +680,13 @@
         </section>
 
         <section class="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
-          <h2 class="text-lg font-black text-slate-900">Gear, as percent of perfect</h2>
+          <h2 class="text-lg font-black text-slate-900">Gear</h2>
+          <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
+            Left: each account's delivery set as a percent of the best possible, bars from 0. Right: what its earnings
+            set is worth, as Clothed TE minus TE, bars from 0 (TE and Clothed TE are on hover); Clothed TE alone mostly
+            says how far along an account is, not how good its gear is. The grey ticks are the best peak delivery any of
+            that account's runs to 490 reached.
+          </p>
           <GearScoreChart :accounts="accounts" :account-colors="accountColors" />
         </section>
 
@@ -700,9 +712,29 @@
           </div>
 
           <div v-if="plateau" class="rounded-lg bg-slate-50 border border-slate-200 p-3 space-y-1">
+            <div class="flex flex-wrap items-center gap-1.5">
+              <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest mr-1"
+                >Near the best means</span
+              >
+              <button
+                v-for="t in TOLERANCES"
+                :key="t.id"
+                type="button"
+                class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border transition-colors"
+                :class="
+                  plateauTolerance === t.id
+                    ? 'bg-slate-900 text-white border-slate-900'
+                    : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+                "
+                :aria-pressed="plateauTolerance === t.id"
+                @click="plateauTolerance = t.id"
+              >
+                within {{ t.label }}
+              </button>
+            </div>
             <p class="text-[11px] text-slate-600 leading-relaxed">
               <b>{{ plateau.near.toLocaleString() }}</b> of {{ plateau.total.toLocaleString() }} chains at
-              {{ loadedRun.ascensions }} ascensions came within 1% of this run's best ({{
+              {{ loadedRun.ascensions }} ascensions came within {{ toleranceText }} of this run's best ({{
                 plateau.bestDays.toFixed(2)
               }}
               d, <span class="font-mono-premium">{{ plateau.bestChain.join(' ') }}</span
@@ -716,11 +748,18 @@
             <p class="text-[10px] text-slate-400 leading-relaxed">
               A wide band means the exact value barely matters; a band one or two TE wide means it does. Both are
               measured against the space this run actually enumerated, so a band that runs to the edge of that space is
-              telling you about the search as much as about the game.
+              telling you about the search as much as about the game. 1% of a 700-day plan is 7 days, more than most
+              extra ascensions save, which is why this starts at 1 day. The chart marks the same line and the last
+              checkpoint's band.
             </p>
           </div>
 
-          <SearchShapeChart :points="loadedChains" :best-chain="loadedBestChain" />
+          <SearchShapeChart
+            :points="loadedChains"
+            :best-chain="loadedBestChain"
+            :ref-lines="plateauRefLines"
+            explorer-look
+          />
         </section>
 
         <p v-if="csvError" class="text-[11px] font-bold text-rose-700 px-1">{{ csvError }}</p>
@@ -768,6 +807,24 @@
           </p>
         </div>
         <DataNeeds :rows="usable" />
+      </section>
+
+      <!-- ------------------------------------------------------------------------------ checks -->
+      <!-- Beside the flagged runs because it is the same kind of thing: a check on the runs, not a
+           finding about the game. -->
+      <section v-if="rows.length" class="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
+        <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Checks</div>
+        <h2 class="text-lg font-black text-slate-900">Did each final leg reach its gear's rate? (to 490)</h2>
+        <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
+          One point per run to 490, whatever target is picked above. Across is the run's last checkpoint; up is the peak
+          delivery its final leg reached, as a percent of what its delivery set should reach from that checkpoint. Below
+          the 80% line the run is flagged for the old delivery-set bug (earnings researched with the wrong set, so the
+          farm never reached its real rate) and kept out of everything else on the page. Runs the check cannot judge — a
+          last checkpoint under 190 TE, no per-leg detail, or no delivery set recorded — are counted in the note under
+          the chart, not drawn. What each set "should reach" was fitted on these same runs, so clean runs sit near 100%
+          by construction: this checks the runs, it does not measure the game.
+        </p>
+        <FinalLegChart :rows="checkRows" :account-colors="accountColors" :account-labels="accountLabels" />
       </section>
 
       <!-- ---------------------------------------------------------------------------- flagged -->
@@ -830,18 +887,22 @@ import {
 } from './collector';
 import {
   accountKey,
+  accountOrder,
+  bestPerCount,
   compareCounts,
   DEFAULT_RUN_SORT,
   flagOf,
   foldRuns,
   groupByAccount,
   groupByCount,
+  isProof,
   judgeFinishes,
-  median,
   nearBestBands,
+  rateCheckOf,
   RUN_SORT_START,
   runsByAccount,
   runTags,
+  SAME_FINISH_DAYS,
   searchedOf,
   summariseRuns,
   targetsPresent,
@@ -855,6 +916,7 @@ import {
   formatDate,
   localZone,
   signedDays,
+  sameSave,
   stateTag,
   whoText,
 } from '@/lib/leaderboardRank';
@@ -992,6 +1054,17 @@ const flagged = computed(() => {
 });
 const showFlagged = ref(false);
 
+/** Runs the delivery-rate check could not look at, by id, with the reason (`rateCheckOf`). Not
+ *  flagged -- nothing is against them -- but shown as unchecked rather than passing as clean. */
+const unchecked = computed(() => {
+  const map = new Map<string, string>();
+  for (const r of rows.value) {
+    const check = rateCheckOf(r);
+    if (check.state === 'unchecked') map.set(r.id, check.why);
+  }
+  return map;
+});
+
 /**
  * Runs planned around time off from the virtue farm. Hidden by default: a week away ends the
  * ascension in progress and costs a full rebuild, so its chain and total answer a different
@@ -1022,20 +1095,38 @@ watch(targets, list => {
   if (list.length && !list.some(t => t.finalTE === finalTE.value)) finalTE.value = list[0].finalTE;
 });
 
-const filtered = computed(() =>
-  usable.value.filter(r => r.finalTE === finalTE.value && (!exhaustiveOnly.value || (r.space && !r.space.stoppedEarly)))
+/**
+ * What the final-leg check draws: every result once, flagged runs INCLUDED whatever the checkbox
+ * says, since the runs below its 80% line are the ones it exists to show. Time off still filters: a
+ * run planned around a week away has a final leg that answers another question.
+ */
+const checkRows = computed(
+  () => foldRuns(rows.value.filter(r => showTimeOff.value || !withTimeOff.value.has(r.id))).rows
 );
 
-const accounts = computed(() => groupByAccount(usable.value));
+const filtered = computed(() =>
+  usable.value.filter(r => r.finalTE === finalTE.value && (!exhaustiveOnly.value || isProof(r)))
+);
 
-/** Colour index per account, fixed across every chart and the runs table. */
-const accountColors = computed(() => {
-  const map = new Map<string, number>();
-  accounts.value.forEach((account, i) => map.set(account.key, i));
-  return map;
-});
+/**
+ * Every account there is, from every row, filters or not: the colour order and the names. Built on
+ * the unfiltered rows so ticking a box never repaints or renames an account (palette.ts).
+ */
+const everyAccount = computed(() => groupByAccount(foldRuns(rows.value).rows));
 
-const accountLabels = computed(() => new Map(accounts.value.map(a => [a.key, a.label])));
+/** Account keys in the order each first sent a run: the colour order, and the runs table's. */
+const colourOrder = computed(() => accountOrder(rows.value));
+
+/** Colour index per account, fixed across every chart and the runs table (`colorAt`, `symbolAt`). */
+const accountColors = computed(() => new Map(colourOrder.value.map((key, i) => [key, i])));
+
+/** One name per account for every chart, legend and table. No two accounts share one. */
+const accountLabels = computed(() => new Map(everyAccount.value.map(a => [a.key, a.label])));
+
+/** The accounts the filters let through, under the page's names. */
+const accounts = computed(() =>
+  groupByAccount(usable.value).map(a => ({ ...a, label: accountLabels.value.get(a.key) ?? a.label }))
+);
 
 const totalChainsPriced = computed(() => usable.value.reduce((n, r) => n + (r.chainsPriced || 0), 0));
 /** Worker time across the runs that recorded their cost: wall-clock minutes x workers, summed. */
@@ -1068,17 +1159,6 @@ const selectedGroup = computed(() =>
 const selected = computed(() =>
   selectedCount.value === 'all' ? (filtered.value.length ? allGroup.value : null) : selectedGroup.value
 );
-const selectedBands = computed(() => selectedGroup.value?.bands ?? []);
-
-/**
- * The sample journey the checkpoint table's absolute-TE column is drawn against: the median start
- * of the runs shown. It used to be the run with the lowest total, which was a pick by gear and by
- * how late the run was made; the median is just a typical journey.
- */
-const sampleJourneyFrom = computed(() => {
-  const m = median((selected.value?.rows ?? []).map(r => r.currentTE));
-  return Number.isFinite(m) ? Math.round(m) : 0;
-});
 
 /**
  * The runs the finishes are judged on. Whether a run is SHOWN must not change which OTHER runs
@@ -1096,6 +1176,24 @@ const judgedRows = computed(() => rows.value.filter(r => showFlagged.value || !f
  *  checkboxes above let through can be an account's best. */
 const judged = computed(() =>
   judgeFinishes(judgedRows.value, finalTE.value, now.value, new Set(visible.value.map(r => r.id)))
+);
+
+/**
+ * The checkpoint chart's one run per account at the picked count: its earliest finish that still
+ * stands, or its newest run there when none does (`bestPerCount`).
+ */
+const selectedBests = computed(() => {
+  const count = selectedCount.value;
+  if (count === 'all') return [];
+  return [...bestPerCount(selected.value?.rows ?? [], judged.value, { standIn: true }).values()].flatMap(counts => {
+    const best = counts.get(count);
+    return best ? [best] : [];
+  });
+});
+
+/** Ids of the listed runs whose finish still stands. */
+const standingIds = computed(
+  () => new Set((selected.value?.rows ?? []).filter(r => judged.value.byId.get(r.id)?.standing).map(r => r.id))
 );
 
 /* ------------------------------------------------------------ the runs table: order and folding */
@@ -1217,14 +1315,9 @@ function setCollapsed(keys: string[], fold: boolean): void {
 
 /** The runs table: one block per account in colour order, each ordered as picked inside. */
 const runBlocks = computed(() =>
-  runsByAccount(
-    selected.value?.rows ?? [],
-    judged.value,
-    accountLabels.value,
-    accounts.value.map(a => a.key),
-    activeSort.value,
-    { left: row => leftById.value.get(row.id)?.left ?? null }
-  )
+  runsByAccount(selected.value?.rows ?? [], judged.value, accountLabels.value, colourOrder.value, activeSort.value, {
+    left: row => leftById.value.get(row.id)?.left ?? null,
+  })
 );
 
 /** Accounts whose earliest finish is one of the runs listed. The rest say why it is not. */
@@ -1236,7 +1329,7 @@ const bestListed = computed(
 function unlistedWhy(best: CollectorRow): string {
   const why: string[] = [];
   if (selectedCount.value !== 'all' && best.ascensions !== selectedCount.value) why.push('a different count');
-  if (exhaustiveOnly.value && !(best.space && !best.space.stoppedEarly)) why.push('not a proof');
+  if (exhaustiveOnly.value && !isProof(best)) why.push('not a proof');
   return why.join(', ') || 'filtered out';
 }
 
@@ -1261,7 +1354,7 @@ const leftById = computed(() => {
   return map;
 });
 
-const comparisons = computed(() => compareCounts(filtered.value, judged.value));
+const comparisons = computed(() => compareCounts(filtered.value, judged.value, accountLabels.value));
 
 /** The Planned column: the plan start in the viewer's zone, to the minute. */
 function plannedText(row: CollectorRow): string {
@@ -1279,9 +1372,10 @@ function stateOf(row: CollectorRow): string {
   return j && !j.standing ? stateTag(j.state) : '';
 }
 
-/** Under a minute apart is the same finish: `+0.00 d` would read as a measured gap. */
+/** Closer than the two decimals days are shown in is the same finish: `+0.00 d` would read as a
+ *  measured gap. */
 function vsBestText(behind: number): string {
-  return behind < 1 / 1440 ? 'same finish' : signedDays(behind);
+  return behind < SAME_FINISH_DAYS ? 'same finish' : signedDays(behind);
 }
 
 function vsBestTitle(row: CollectorRow): string {
@@ -1298,16 +1392,19 @@ function vsBestTitle(row: CollectorRow): string {
     if (!bestListed.value.has(key)) against += ', not listed here';
   }
   const days =
-    j.behind < 1 / 1440
+    j.behind < SAME_FINISH_DAYS
       ? `Finishes at the same time as ${against}`
       : `Finishes ${signedDays(j.behind).replace(/^[+−]/, '')} after ${against}`;
   // Time off before saves: a time-off copy of a normal run shares its save, and the gap is the time away.
   if (best && timeOffKey(row) !== timeOffKey(best.row)) {
     return `${days}. The two are planned around different time off, so part of the gap is the time away, not the plans.`;
   }
-  return j.sameSaveAsBest
-    ? `${days}. Planned from the same save as that run, so the gap is the plans alone.`
-    : `${days}. Planned from a different save, so part of the gap can be what changed in between.`;
+  if (j.sameSaveAsBest) return `${days}. Planned from the same save as that run, so the gap is the plans alone.`;
+  // Same save, different planner build: the Leaderboard's "other version".
+  if (best && sameSave(row, best.row)) {
+    return `${days}. Planned from the same save as that run but by a different version of the planner, so part of the gap can be the planner itself.`;
+  }
+  return `${days}. Planned from a different save, so part of the gap can be what changed in between.`;
 }
 
 /* ----------------------------------------------------------------- one run's full chain table */
@@ -1368,13 +1465,56 @@ const loadedBestChain = computed(() => {
   return loadedChains.value.reduce((a, b) => (b.days < a.days ? b : a)).chain;
 });
 
+/**
+ * What "near the best" means for the plateau: a number of days by default, because 1% of a 700-day
+ * plan is 7 days -- more than most gains from one more ascension -- and on Allan's every-TE
+ * 4-ascension box it took in 5,705 of its 9,261 plans, a plateau that was the whole box.
+ */
+type Tolerance = '1d' | '3d' | '1pct';
+const TOLERANCES: { id: Tolerance; label: string; days?: number }[] = [
+  { id: '1d', label: '1 day', days: 1 },
+  { id: '3d', label: '3 days', days: 3 },
+  { id: '1pct', label: '1%' },
+];
+const plateauTolerance = ref<Tolerance>('1d');
+const tolerance = computed(() => TOLERANCES.find(t => t.id === plateauTolerance.value) ?? TOLERANCES[0]);
+
 // At the loaded run's own count, not the selected one: under "All" there is no selected count, and
 // the plateau is a question about that run's table.
 const plateau = computed(() =>
   loadedChains.value.length && loadedRun.value
-    ? nearBestBands(loadedChains.value, loadedCurrentTE.value, loadedFinalTE.value, loadedRun.value.ascensions)
+    ? nearBestBands(
+        loadedChains.value,
+        loadedCurrentTE.value,
+        loadedFinalTE.value,
+        loadedRun.value.ascensions,
+        tolerance.value.days != null ? { days: tolerance.value.days } : 0.01
+      )
     : null
 );
+
+/** The tolerance in days, whichever way it was picked. */
+const toleranceDays = computed(() => tolerance.value.days ?? (plateau.value?.bestDays ?? 0) * 0.01);
+
+/** The tolerance in words; 1% says what it comes to on this plan. */
+const toleranceText = computed(() =>
+  tolerance.value.days != null ? tolerance.value.label : `1% (${toleranceDays.value.toFixed(1)} days)`
+);
+
+/** The plateau on the deep-dive chart: a line at the best plus the tolerance, and the band the last
+ *  checkpoint's near-best plans used, labelled once. The labels are short: on a phone the long one
+ *  ran over the near-best plans, and the panel above already says it in full. */
+const plateauRefLines = computed(() => {
+  const p = plateau.value;
+  if (!p) return undefined;
+  const last = p.bands[p.bands.length - 1];
+  const plus = tolerance.value.days != null ? `${tolerance.value.days} d` : `1% (${toleranceDays.value.toFixed(1)} d)`;
+  return {
+    y: p.bestDays + toleranceDays.value,
+    yLabel: `best + ${plus}`,
+    band: last ? ([absoluteOf(last.lo), absoluteOf(last.hi)] as [number, number]) : undefined,
+  };
+});
 
 function absoluteOf(fraction: number): number {
   return Math.round(loadedCurrentTE.value + fraction * (loadedFinalTE.value - loadedCurrentTE.value));

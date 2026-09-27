@@ -6,9 +6,13 @@
   When the same result was sent more than once, the board shows it as one line, and the numbers
   here are the biggest search's. Every copy is still listed at the bottom with how it was found and
   its own CSV, so folding copies never hides a download that used to have a row of its own.
+
+  The columns follow this block's own width, not the screen's: it sits inside tables that scroll
+  sideways, and on a phone a viewport breakpoint gave one column as wide as the whole table, with
+  every value past the right edge of what was on screen (review, 2026-09-26).
 -->
 <template>
-  <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 text-[11px]">
+  <div class="grid gap-4 grid-cols-[repeat(auto-fit,minmax(14rem,1fr))] text-[11px]">
     <div>
       <h4 class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1.5">Run</h4>
       <div class="space-y-0.5 text-slate-600">
@@ -18,8 +22,13 @@
         <div class="flex justify-between gap-3">
           <span>Target TE</span><span class="font-bold">{{ row.finalTE }}</span>
         </div>
+        <!-- In the viewer's zone first, like every date on the board, then the player's own. -->
         <div class="flex justify-between gap-3">
-          <span>Plan starts</span><span class="font-bold">{{ row.startLocal || '—' }}</span>
+          <span class="shrink-0">Plan starts</span>
+          <span class="font-bold text-right"
+            >{{ startText.main
+            }}<span v-if="startText.own" class="block font-normal text-slate-400">{{ startText.own }}</span></span
+          >
         </div>
         <!-- Counted from the plan's own start, so it shrinks every day the same plan is run
              again. The finish date below is the number that holds still. -->
@@ -28,11 +37,14 @@
           <span class="font-bold">{{ lengthText }}</span>
         </div>
         <div class="flex justify-between gap-3">
-          <span>Finishes</span>
-          <span class="font-bold text-right">{{ finishText }}</span>
+          <span class="shrink-0">Finishes</span>
+          <span class="font-bold text-right"
+            >{{ finishText.main
+            }}<span v-if="finishText.own" class="block font-normal text-slate-400">{{ finishText.own }}</span></span
+          >
         </div>
         <div v-if="row.forceContinue != null" class="flex justify-between gap-3">
-          <span>First ascension</span>
+          <span class="shrink-0">First ascension</span>
           <span class="font-bold text-right">{{
             row.forceContinue ? 'finishes the current run first' : 'prestiges straight away'
           }}</span>
@@ -117,9 +129,10 @@
     <div>
       <h4 class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1.5">Stones</h4>
       <div v-if="!row.stones?.length" class="text-slate-400">none recorded</div>
-      <div v-for="(st, k) in row.stones" :key="k" class="flex justify-between gap-3 text-slate-600">
+      <!-- The count right after its label: pushed to the far edge it sat against the next column. -->
+      <div v-for="(st, k) in row.stones" :key="k" class="flex gap-2 text-slate-600">
         <span>{{ st.label }}</span
-        ><span class="font-bold">{{ st.count }}</span>
+        ><span class="font-bold">×{{ st.count }}</span>
       </div>
     </div>
     <div>
@@ -206,7 +219,7 @@
         </div>
       </template>
     </div>
-    <div v-if="several" class="sm:col-span-2 lg:col-span-4">
+    <div v-if="several" class="col-span-full">
       <h4 class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1.5">
         Sent {{ copies!.length }} times — every copy
       </h4>
@@ -254,6 +267,8 @@ const props = defineProps<{
   csvRoot: string;
   /** Every stored copy of this result, earliest sent first, when it was sent more than once. */
   copies?: BoardRow[];
+  /** The viewer's timezone, which the board's dates are in. Without it, dates are the player's. */
+  viewZone?: string;
 }>();
 
 /** More than one copy: list them all. */
@@ -302,12 +317,28 @@ const marginDays = computed(() => {
 const lengthText = computed(() => {
   const d = props.row.durationDays;
   if (typeof d !== 'number' || !Number.isFinite(d)) return '—';
-  const from = formatDate(startMs(props.row), props.row.timezone, { day: 'numeric', month: 'short' });
+  const from = formatDate(startMs(props.row), props.viewZone ?? props.row.timezone, { day: 'numeric', month: 'short' });
   return from === '—' ? `${d.toFixed(3)} d` : `${d.toFixed(3)} d from ${from}`;
 });
 
-const finishText = computed(() => {
-  const text = formatDate(finishMs(props.row), props.row.timezone, { dateStyle: 'medium', timeStyle: 'short' });
-  return text === '—' ? text : `${text} (${props.row.timezone})`;
+/**
+ * A moment in the viewer's zone, so it reads as the same date as the row above it, and in the player's
+ * own zone under it when that differs (Wolfcry's finish is 3 Aug in Denver and 4 Aug in Amsterdam).
+ */
+function whenText(ms: number | null): { main: string; own: string } {
+  const opts = { dateStyle: 'medium', timeStyle: 'short' } as const;
+  const tz = props.row.timezone;
+  const own = formatDate(ms, tz, opts);
+  if (own === '—') return { main: own, own: '' };
+  const view = props.viewZone;
+  if (!view || view === tz) return { main: `${own} (${tz || 'UTC'})`, own: '' };
+  return { main: `${formatDate(ms, view, opts)} your time`, own: `${own} ${tz || 'UTC'}` };
+}
+
+const startText = computed(() => {
+  const at = startMs(props.row);
+  return at == null ? { main: props.row.startLocal || '—', own: '' } : whenText(at);
 });
+
+const finishText = computed(() => whenText(finishMs(props.row)));
 </script>

@@ -9,8 +9,10 @@
  *      colleggtibles, epic research and starting TE at least as much as on the chain, so "8
  *      ascensions is faster than 6" computed across everybody is an artifact of who happened to
  *      submit what. Every cross-count comparison here is built WITHIN an account, and every
- *      cross-account view is built on the chain SHAPE -- where the checkpoints sit as a fraction of
- *      that account's own journey -- or on one leg's own length, which is the part that travels.
+ *      cross-account view is built on the chain SHAPE -- where the checkpoints sit against where
+ *      that account started -- or on one leg's own length, which is the part that travels. Across
+ *      accounts each account counts once, by its own best plan (`bestPerCount`), never by how many
+ *      runs it sent.
  *
  *   2. Within an account, compare FINISH DATES, not totals. A run's total (`durationDays`) is
  *      counted from its own plan start, so the same plan run a day later shows a day fewer
@@ -37,13 +39,14 @@
  * with identical sets would merge, which is a wrong answer this module can produce and says so in
  * the UI rather than pretending otherwise.
  */
-import { formatBand } from '@/search/exhaustive';
+import { formatBand, parseBands } from '@/search/exhaustive';
 import type { Submission } from '@/search/submission';
 import type { PricedChain } from '@/search/types';
 import type { CollectorRow } from './collector';
 import { checkFinalLegRate, clothedTEFromLabels, deliveryScore, slotsFromLabels } from '@/search/virtueScore';
 import {
   accountKeyOf,
+  artifactLabels,
   DAY_MS,
   displayName,
   fileRows,
@@ -55,6 +58,7 @@ import {
   ownCopies,
   playerKey,
   samePlan,
+  sameBuild,
   sameSave,
   settingTags,
   type BoardRow,
@@ -111,6 +115,61 @@ export interface Account {
   counts: number[];
 }
 
+/** When a row was sent, as an ISO string that sorts; '' when it carries neither stamp. */
+function sentAt(row: Pick<CollectorRow, 'submittedAt' | 'receivedAt'>): string {
+  return row.submittedAt || row.receivedAt || '';
+}
+
+/**
+ * Two accounts never share a name.
+ *
+ * One player can be two accounts here: the key is the artifact set, so upgrading one artifact starts
+ * a new account under the same nickname (Willsalt's Puzzle cube, T4E to T4L, between 19 and 24 Sep).
+ * ECharts builds a legend entry per series NAME, so the two drew as one "Willsalt" entry that toggled
+ * both lines, and the gear chart listed "Willsalt" twice with nothing to tell them apart. A shared
+ * name gets the artifact that tells the accounts apart ("Willsalt · T4E cube", "Willsalt · T4L
+ * cube"): it is what the key already is, what the player upgraded, and it never changes. The TE of
+ * each account's newest run, which this used before, renamed the account on every chart whenever it
+ * sent another run, while What we know still called it by the old name. When the artifacts do not
+ * tell them apart (the same set in two timezones, or several upgrades at once), a number in the
+ * order the accounts first sent a run ("Willsalt", "Willsalt (2)"), which does not move either. The
+ * key does not change, so colours do not either.
+ */
+function distinguishLabels(accounts: Account[]): void {
+  const byLabel = new Map<string, Account[]>();
+  for (const a of accounts) {
+    const same = byLabel.get(a.label);
+    if (same) same.push(a);
+    else byLabel.set(a.label, [a]);
+  }
+  for (const [label, same] of byLabel) {
+    if (same.length < 2) continue;
+    const byArtifact = same.map(a => ownArtifact(a, same));
+    if (byArtifact.every(Boolean) && new Set(byArtifact).size === same.length) {
+      same.forEach((a, i) => (a.label = `${label} · ${byArtifact[i]}`));
+      continue;
+    }
+    const first = (a: Account) => a.rows.map(sentAt).reduce((x, y) => (y && (!x || y < x) ? y : x), '');
+    [...same]
+      .sort((x, y) => first(x).localeCompare(first(y)) || x.key.localeCompare(y.key))
+      .forEach((a, i) => (a.label = i ? `${label} (${i + 1})` : label));
+  }
+}
+
+/**
+ * The one artifact this account has that none of the others under its name do, short: tier plus the
+ * last word of the name ("T4L Puzzle cube" -> "T4L cube"), which is what the legend has room for and
+ * still says which piece. Null when it has none, or more than one.
+ */
+function ownArtifact(account: Account, same: Account[]): string | null {
+  const others = new Set(same.filter(a => a !== account).flatMap(a => artifactLabels(a.rows[0])));
+  const own = artifactLabels(account.rows[0]).filter(label => !others.has(label));
+  if (own.length !== 1) return null;
+  const m = /^(T\d+[A-Z]?)\s+(.*\S)\s*$/.exec(own[0]);
+  return m ? `${m[1]} ${m[2].split(/\s+/).pop()}` : own[0];
+}
+
+/** Accounts on these rows, busiest first. No two share a label (`distinguishLabels`). */
 export function groupByAccount(rows: CollectorRow[]): Account[] {
   const buckets = new Map<string, CollectorRow[]>();
   for (const row of rows) {
@@ -119,14 +178,35 @@ export function groupByAccount(rows: CollectorRow[]): Account[] {
     if (bucket) bucket.push(row);
     else buckets.set(key, [row]);
   }
-  return [...buckets.entries()]
-    .map(([key, group]) => ({
-      key,
-      label: accountLabel(group),
-      rows: group,
-      counts: [...new Set(group.map(r => r.ascensions))].sort((a, b) => a - b),
-    }))
-    .sort((a, b) => b.rows.length - a.rows.length || a.label.localeCompare(b.label));
+  const accounts = [...buckets.entries()].map(([key, group]) => ({
+    key,
+    label: accountLabel(group),
+    rows: group,
+    counts: [...new Set(group.map(r => r.ascensions))].sort((a, b) => a - b),
+  }));
+  distinguishLabels(accounts);
+  return accounts.sort((a, b) => b.rows.length - a.rows.length || a.label.localeCompare(b.label));
+}
+
+/**
+ * Every account on these rows, in the order it first sent a run (then by key): the page's colour
+ * order. Pass it every row there is, filters or not, so that ticking a box never repaints an
+ * account. Ranked by run count, as the colours used to be, "include flagged runs" swapped
+ * allanfieldhouse's and Williamthe5thc's colours.
+ */
+export function accountOrder(rows: CollectorRow[]): string[] {
+  const first = new Map<string, string>();
+  for (const row of rows) {
+    const key = accountKey(row);
+    const at = sentAt(row);
+    const held = first.get(key);
+    if (held === undefined || (at && (!held || at < held))) first.set(key, at);
+  }
+  // A row with no stamp at all sorts after every stamped one, not before.
+  const rank = (at: string) => at || '￿';
+  return [...first.entries()]
+    .sort((a, b) => rank(a[1]).localeCompare(rank(b[1])) || a[0].localeCompare(b[0]))
+    .map(e => e[0]);
 }
 
 /** Checkpoints as fractions of this run's own journey, final target excluded. */
@@ -199,6 +279,79 @@ export function positionBands(rows: Submission[]): PositionBand[] {
   return bandsFromColumns(columns);
 }
 
+/**
+ * Least-squares slope of `ys` on `xs`, or null with fewer than three points or a single x: two
+ * points always sit on a line, so a slope from them says nothing about a trend.
+ */
+export function leastSquaresSlope(xs: readonly number[], ys: readonly number[]): number | null {
+  const n = Math.min(xs.length, ys.length);
+  if (n < 3) return null;
+  let mx = 0;
+  let my = 0;
+  for (let i = 0; i < n; i++) {
+    mx += xs[i] / n;
+    my += ys[i] / n;
+  }
+  let sxy = 0;
+  let sxx = 0;
+  for (let i = 0; i < n; i++) {
+    sxy += (xs[i] - mx) * (ys[i] - my);
+    sxx += (xs[i] - mx) ** 2;
+  }
+  return sxx > 0 ? sxy / sxx : null;
+}
+
+/** One checkpoint position across accounts, in every form the checkpoint chart's table shows. */
+export interface CheckpointSummary {
+  /** 0-based checkpoint index. */
+  index: number;
+  /** Runs behind it: one per account. */
+  accounts: number;
+  /** The checkpoint's TE, lowest and highest. */
+  te: { lo: number; hi: number };
+  /** The checkpoint's TE minus the TE its plan started from, lowest and highest. */
+  aboveStart: { lo: number; hi: number };
+  /** As a share of each plan's own journey: lowest, median, highest. */
+  share: PositionBand;
+  /**
+   * TE the checkpoint moves per TE higher the plan starts (`leastSquaresSlope`): about 0 is a fixed
+   * TE whoever you are, about 1 moves one-for-one with your start. Null under three accounts.
+   */
+  slope: number | null;
+}
+
+/**
+ * Where each checkpoint sits across accounts, from ONE run per account (`bestPerCount`), three ways:
+ * as a TE, as TE above the start, and as a share of the journey, with the slope that says which of
+ * them travels. None is right for every checkpoint: on 26 Sep the last 3-ascension checkpoint sat at
+ * 279-288 TE whether the account started at 124 or 199 (slope 0.05), while the first 6-ascension one
+ * moved almost one-for-one with the start (0.91), and at 5 to 7 ascensions the last one spreads 12 to
+ * 21 TE either way. The table used to turn the median share back into TE on a median journey, which
+ * put a 157->490 account's last 3-ascension checkpoint at 260-301 when every account's was 279-288.
+ */
+export function summariseCheckpoints(rows: readonly Submission[]): CheckpointSummary[] {
+  const shares = positionBands([...rows]);
+  const out: CheckpointSummary[] = [];
+  for (const share of shares) {
+    const i = share.index;
+    const at = rows.filter(r => r.chain.length - 1 > i);
+    const te = at.map(r => r.chain[i]);
+    const above = at.map(r => r.chain[i] - r.currentTE);
+    out.push({
+      index: i,
+      accounts: at.length,
+      te: extent(te),
+      aboveStart: extent(above),
+      share,
+      slope: leastSquaresSlope(
+        at.map(r => r.currentTE),
+        te
+      ),
+    });
+  }
+  return out;
+}
+
 /** A set of runs, as the count cards and the "All" card describe it. */
 export interface RunGroup {
   rows: CollectorRow[];
@@ -222,7 +375,7 @@ export function summariseRuns(rows: CollectorRow[]): RunGroup {
   return {
     rows,
     accounts: new Set(rows.map(accountKey)).size,
-    exhaustive: rows.filter(r => r.space && !r.space.stoppedEarly).length,
+    exhaustive: rows.filter(isProof).length,
   };
 }
 
@@ -339,9 +492,11 @@ export interface RunFinish {
   /** This run is the account's earliest standing finish (ties go to the more recent start). */
   best: boolean;
   /**
-   * Made from the same save as the account's best and planned around the same time off, so the gap is
-   * the plans alone. A run planned around time off can share its save, start and route with a normal
-   * run, and then the gap is the farm stopping and being rebuilt (`sameSave` does not look at it).
+   * Made from the same save as the account's best, planned around the same time off and priced by the
+   * same planner build, so the gap is the plans alone. A run planned around time off can share its
+   * save, start and route with a normal run, and then the gap is the farm stopping and being rebuilt
+   * (`sameSave` does not look at it); a new build moves finishes by itself (`sameBuild`, as on the
+   * Leaderboard).
    */
   sameSaveAsBest: boolean;
 }
@@ -441,7 +596,11 @@ export function judgeFinishes(
       behind: standing && best && isShown(plan) ? (plan.finish! - best.finish!) / DAY_MS : null,
       best: best === plan,
       sameSaveAsBest:
-        !!best && best !== plan && sameSave(plan.row, best.row) && timeOffKey(plan.row) === timeOffKey(best.row),
+        !!best &&
+        best !== plan &&
+        sameSave(plan.row, best.row) &&
+        sameBuild(plan.row, best.row) &&
+        timeOffKey(plan.row) === timeOffKey(best.row),
     });
   }
 
@@ -586,6 +745,269 @@ export function runsByAccount(
     }));
 }
 
+/** One account's representative run at one ascension count. */
+export interface CountBest {
+  accountKey: string;
+  ascensions: number;
+  row: CollectorRow;
+  /** When the plan reaches the target (ms). Null only on a stand-in with no date. */
+  finish: number | null;
+  /** False on a stand-in: the account's newest run at that count, none of which still stands. */
+  standing: boolean;
+}
+
+/**
+ * Per account, per ascension count: the run with the EARLIEST STANDING FINISH (`judgeFinishes`), so
+ * whatever summarises across accounts counts each account once, by the plan it would actually run.
+ * Counting runs instead let the account that sent the most decide the answer: seven of the sixteen
+ * 5-ascension runs were allanfieldhouse's, and the per-run median put checkpoint 3 about 10 TE lower
+ * than the median of the accounts' own best plans. A tie goes to the more recent start, as on the
+ * Leaderboard.
+ *
+ * `standIn`: for an account none of whose runs at a count still stands (all replaced, or behind),
+ * use its newest run there instead, marked `standing: false`, rather than drop the account. Right for
+ * a SHAPE, which is still that account's plan; never for a finish, which no longer compares.
+ *
+ * Returns account key -> ascension count -> its run, accounts in the order their rows come.
+ */
+export function bestPerCount(
+  rows: CollectorRow[],
+  judged: FinishJudgement,
+  { standIn = false }: { standIn?: boolean } = {}
+): Map<string, Map<number, CountBest>> {
+  const out = new Map<string, Map<number, CountBest>>();
+  const newest = new Map<string, Map<number, CollectorRow>>();
+  const startOf = (r: CollectorRow) => judged.byId.get(r.id)?.start ?? -Infinity;
+  for (const row of rows) {
+    const key = accountKey(row);
+    if (!out.has(key)) out.set(key, new Map());
+    const j = judged.byId.get(row.id);
+    if (j?.standing && j.finish != null) {
+      const counts = out.get(key)!;
+      const held = counts.get(row.ascensions);
+      if (
+        !held ||
+        j.finish < held.finish! ||
+        (j.finish === held.finish && (j.start ?? -Infinity) > startOf(held.row))
+      ) {
+        counts.set(row.ascensions, {
+          accountKey: key,
+          ascensions: row.ascensions,
+          row,
+          finish: j.finish,
+          standing: true,
+        });
+      }
+    } else if (standIn) {
+      if (!newest.has(key)) newest.set(key, new Map());
+      const counts = newest.get(key)!;
+      const held = counts.get(row.ascensions);
+      const later = (a: CollectorRow, b: CollectorRow) =>
+        startOf(a) > startOf(b) || (startOf(a) === startOf(b) && sentAt(a) > sentAt(b));
+      if (!held || later(row, held)) counts.set(row.ascensions, row);
+    }
+  }
+  for (const [key, counts] of newest) {
+    const own = out.get(key)!;
+    for (const [ascensions, row] of counts) {
+      if (own.has(ascensions)) continue;
+      own.set(ascensions, {
+        accountKey: key,
+        ascensions,
+        row,
+        finish: judged.byId.get(row.id)?.finish ?? null,
+        standing: false,
+      });
+    }
+  }
+  for (const [key, counts] of out) if (!counts.size) out.delete(key);
+  return out;
+}
+
+// ------------------------------------------------------------------------------ search effort
+
+/**
+ * Under this many days apart, two finishes are the same finish: half the two-decimal step the page
+ * prints days in, so a gap is never shown as `+0.00 d`.
+ */
+export const SAME_FINISH_DAYS = 0.005;
+
+/**
+ * The most a box that steps over TEs has been seen to leave on the table, in days: the top of each
+ * range in What we know (every 2nd TE has ended up 0.4 to 6 days behind trying every TE, every 5th
+ * 2 to 12). A gap bigger than this is bigger than anything a finer search has found so far. A 4th
+ * step sits between the two measured ones and takes the larger. Nothing coarser than every 5th TE
+ * has been measured (every 10th, 11th and 20th are on the board), so a box like that gets no bound
+ * at all (`searchGrade`: penalty null) and a gap it loses is never settled.
+ */
+export const STEP_PENALTY_DAYS = { everyTE: 0, fine: 6, coarse: 12 } as const;
+
+/** The coarsest step `STEP_PENALTY_DAYS` has a measurement for. */
+const MEASURED_STEP = 5;
+
+/** How thoroughly one run searched, for weighing a gap it is on one side of. */
+export interface SearchGrade {
+  /**
+   * `every-te`: a finished box at every TE, so its best is the best in its box. `coarse`: a finished
+   * box that stepped over TEs. `staged`: a staged search, or a box it did not finish, where nothing
+   * bounds what it missed.
+   */
+  kind: 'every-te' | 'coarse' | 'staged';
+  /** The widest step between the TEs it tried at any checkpoint; Infinity when there is no box. */
+  step: number;
+  /**
+   * The step at each checkpoint, first to last (1 for every TE or a single TE); empty when there is
+   * no box. `judgeStep` compares two searches checkpoint by checkpoint, not by the widest step alone.
+   */
+  steps: number[];
+  /**
+   * The most a finer search could still find, in days (`STEP_PENALTY_DAYS`); null when unknown: a
+   * staged search, or a box coarser than every 5th TE, which has never been measured.
+   */
+  penalty: number | null;
+  /** In player words: `every TE`, `every 5th TE`, `up to every 6th TE`, `staged (thorough)`. */
+  text: string;
+}
+
+function ordinal(n: number): string {
+  const teen = n % 100 >= 11 && n % 100 <= 13;
+  const suffix = teen ? 'th' : (['th', 'st', 'nd', 'rd'][n % 10] ?? 'th');
+  return `${n}${suffix}`;
+}
+
+/** The widest step between neighbouring TEs in one checkpoint's band; 1 for a single TE. */
+function bandStep(band: readonly number[]): number {
+  const sorted = [...band].sort((a, b) => a - b);
+  let widest = 1;
+  for (let i = 1; i < sorted.length; i++) widest = Math.max(widest, sorted[i] - sorted[i - 1]);
+  return widest;
+}
+
+/** Every step a box took between the TEs it tried, one per checkpoint. A pool (`range`) uses one
+ *  step at every checkpoint of the plan. */
+function boxSteps(space: NonNullable<CollectorRow['space']>, checkpoints: number): number[] {
+  if (space.mode === 'range' && space.range) return Array(Math.max(1, checkpoints)).fill(Math.max(1, space.range.step));
+  return (space.bands ?? []).map(bandStep);
+}
+
+/**
+ * An uploaded sweep's steps, read off the bands it was tagged with (`sweep.bands`, the text needs.ts
+ * reads too; a TE-relative first band like `+1-+38:1` has the same step). An upload carries no
+ * `space`, but its CSV's own chain count already guards against a partial file, so it is a finished
+ * box like any other: graded as a staged search, a finished every-TE sweep drew as a cross, could
+ * never settle a gap it lost and counted as the coarser side of one it won. Null when it was sent
+ * with no bands, so nothing says what it tried.
+ */
+function uploadSteps(row: CollectorRow): number[] | null {
+  const bands = row.sweep?.bands ? parseBands(row.sweep.bands) : [];
+  return bands.length ? bands.map(bandStep) : null;
+}
+
+export function searchGrade(row: CollectorRow): SearchGrade {
+  const upload = !row.space && row.source === 'upload';
+  const steps = row.space
+    ? isProof(row)
+      ? boxSteps(row.space, row.chain.length - 1)
+      : null
+    : upload
+      ? uploadSteps(row)
+      : null;
+  if (!steps) {
+    return {
+      kind: 'staged',
+      step: Infinity,
+      steps: [],
+      penalty: null,
+      text: row.space ? 'box not finished' : upload ? 'uploaded, box not given' : `staged (${foundByText(row)})`,
+    };
+  }
+  const step = steps.length ? Math.max(...steps) : 1;
+  if (step <= 1) {
+    return {
+      kind: 'every-te',
+      step: 1,
+      steps: steps.length ? steps : [1],
+      penalty: STEP_PENALTY_DAYS.everyTE,
+      text: 'every TE',
+    };
+  }
+  const uneven = steps.some(s => s !== step);
+  return {
+    kind: 'coarse',
+    step,
+    steps,
+    penalty: step <= 3 ? STEP_PENALTY_DAYS.fine : step <= MEASURED_STEP ? STEP_PENALTY_DAYS.coarse : null,
+    text: `${uneven ? 'up to ' : ''}every ${ordinal(step)} TE`,
+  };
+}
+
+/**
+ * Whether `a` was searched at least as coarsely as `b` at every checkpoint and more coarsely at one
+ * or more, lined up from the last checkpoint (a plan with one more ascension has one more checkpoint
+ * at the front). Comparing only the widest step anywhere let one wide checkpoint decide: Willsalt's
+ * F5-alt 6 ([3, 2, 7, 6, 6]) counted as coarser than its M4 5 ([5, 5, 5, 5]), though F5-alt looked
+ * closer at two of the checkpoints. A staged search has no box and counts as coarser than any box.
+ */
+function coarserThroughout(a: SearchGrade, b: SearchGrade): boolean {
+  if (a.kind === 'staged' || b.kind === 'staged') return a.kind === 'staged' && b.kind !== 'staged';
+  const n = Math.min(a.steps.length, b.steps.length);
+  let wider = false;
+  for (let i = 1; i <= n; i++) {
+    const x = a.steps[a.steps.length - i];
+    const y = b.steps[b.steps.length - i];
+    if (x < y) return false;
+    if (x > y) wider = true;
+  }
+  return wider;
+}
+
+/**
+ * What a gap between two counts of one account says, given how each side was searched.
+ *
+ *   - `settled`: the slower count lost by more than a finer search of it could make up
+ *     (`SearchGrade.penalty`). Never for a staged search, or a box coarser than every 5th TE, whose
+ *     shortfall is unknown.
+ *   - `direction`: not settled, but the count that won was searched AT LEAST AS COARSELY at every
+ *     checkpoint and more coarsely at one or more (`coarserThroughout`), so searching it as finely
+ *     as the other would more likely widen the gap than close it.
+ *   - `noise`: neither; the gap could be how the two were searched rather than the count.
+ *
+ * Only about the searches: both sides are still bounded by the boxes they tried.
+ */
+export type StepVerdict = 'settled' | 'direction' | 'noise';
+
+export interface CountStep {
+  /** The two counts, lower first. Adjacent among the counts the account tried, not always by one. */
+  from: number;
+  to: number;
+  /** The count whose plan finishes first (`from` on a tie). */
+  better: number;
+  /** Days between the two finishes, never negative. */
+  gap: number;
+  verdict: StepVerdict;
+}
+
+type Weighed = Pick<CountComparisonPoint, 'ascensions' | 'behind' | 'search'>;
+
+export function judgeStep(a: Weighed, b: Weighed): CountStep {
+  const [lo, hi] = a.ascensions <= b.ascensions ? [a, b] : [b, a];
+  const better = hi.behind < lo.behind ? hi : lo;
+  const worse = better === lo ? hi : lo;
+  const gap = Math.max(0, worse.behind - better.behind);
+  let verdict: StepVerdict = 'noise';
+  if (gap >= SAME_FINISH_DAYS) {
+    if (worse.search.penalty != null && gap > worse.search.penalty) verdict = 'settled';
+    else if (coarserThroughout(better.search, worse.search)) verdict = 'direction';
+  }
+  return { from: lo.ascensions, to: hi.ascensions, better: better.ascensions, gap, verdict };
+}
+
+/** Each step between neighbouring counts on one line, lowest first. */
+export function countSteps(points: readonly Weighed[]): CountStep[] {
+  const sorted = [...points].sort((a, b) => a.ascensions - b.ascensions);
+  return sorted.slice(1).map((p, i) => judgeStep(sorted[i], p));
+}
+
 export interface CountComparisonPoint {
   ascensions: number;
   /**
@@ -603,6 +1025,10 @@ export interface CountComparisonPoint {
   finalTE: number;
   runId: string;
   chain: number[];
+  /** How the run behind this point searched, so a gap can be weighed against it (`judgeStep`). */
+  search: SearchGrade;
+  /** Plans that run priced, for the tooltip. */
+  priced: number;
 }
 
 export interface CountComparison {
@@ -651,11 +1077,24 @@ export interface CountComparison {
  *
  * A line with only one count is dropped: a single point makes no comparison and adds a legend
  * entry to a chart that lives on being readable.
+ *
+ * Every point carries how its run searched (`search`): the best plan FOUND at a count is only as
+ * good as the search that found it, and the higher counts have mostly been searched more coarsely.
+ * `countSteps` weighs each gap against that.
+ *
+ * `labels` names the accounts (the page's one map, so this chart and every other agree); an account
+ * missing from it is named from these rows.
  */
-export function compareCounts(rows: CollectorRow[], judged: FinishJudgement): CountComparison[] {
+export function compareCounts(
+  rows: CollectorRow[],
+  judged: FinishJudgement,
+  labels?: ReadonlyMap<string, string>
+): CountComparison[] {
   const out: CountComparison[] = [];
+  const bests = bestPerCount(rows, judged);
 
   for (const account of groupByAccount(rows)) {
+    const label = labels?.get(account.key) ?? account.label;
     let anchorFinish = judged.bestByAccount.get(account.key)?.finish ?? null;
 
     // A run that measured several counts by itself; one that still stands if there is one.
@@ -668,10 +1107,11 @@ export function compareCounts(rows: CollectorRow[], judged: FinishJudgement): Co
       const start = j?.start ?? null;
       const stands = !!j?.standing && start != null;
       if (stands) anchorFinish = Math.min(anchorFinish ?? Infinity, start + fastest * DAY_MS);
+      const search = searchGrade(proven);
       out.push({
         key: `${account.key}#${proven.id}`,
         accountKey: account.key,
-        label: `${account.label} (one exhaustive run)`,
+        label: `${label} (one exhaustive run)`,
         singleRun: true,
         anchor: stands ? 'account' : 'run',
         anchorFinish: stands ? anchorFinish : start == null ? null : start + fastest * DAY_MS,
@@ -690,41 +1130,39 @@ export function compareCounts(rows: CollectorRow[], judged: FinishJudgement): Co
               finalTE: proven.finalTE,
               runId: proven.id,
               chain: entry.chain,
+              search,
+              priced: entry.priced,
             };
           })
           .sort((a, b) => a.ascensions - b.ascensions),
       });
     }
 
-    const bestPerCount = new Map<number, { row: CollectorRow; finish: number }>();
-    for (const row of account.rows) {
-      const j = judged.byId.get(row.id);
-      if (!j?.standing || j.finish == null) continue;
-      const held = bestPerCount.get(row.ascensions);
-      if (!held || j.finish < held.finish) bestPerCount.set(row.ascensions, { row, finish: j.finish });
-    }
-    if (bestPerCount.size < 2) continue;
+    const perCount = [...(bests.get(account.key)?.values() ?? [])];
+    if (perCount.length < 2) continue;
     // Every run here stands and is shown, so the account's best is at or before each of them; the
     // fallback is only for a judgement made without this account's runs in it.
-    const earliest = anchorFinish ?? Math.min(...[...bestPerCount.values()].map(b => b.finish));
+    const earliest = anchorFinish ?? Math.min(...perCount.map(b => b.finish!));
     out.push({
       key: account.key,
       accountKey: account.key,
-      label: account.label,
+      label,
       singleRun: false,
       anchor: 'account',
       anchorFinish: earliest,
       note: '',
-      points: [...bestPerCount.values()]
+      points: perCount
         .map(({ row: r, finish }) => ({
           ascensions: r.ascensions,
-          behind: (finish - earliest) / DAY_MS,
+          behind: (finish! - earliest) / DAY_MS,
           finish,
           days: r.durationDays,
           currentTE: r.currentTE,
           finalTE: r.finalTE,
           runId: r.id,
           chain: r.chain,
+          search: searchGrade(r),
+          priced: r.chainsPriced ?? 0,
         }))
         .sort((a, b) => a.ascensions - b.ascensions),
     });
@@ -738,8 +1176,10 @@ export function compareCounts(rows: CollectorRow[], judged: FinishJudgement): Co
  *
  * Same statistic `scripts/analyzeChainCorpus.py` computes for the suggester's band table, run here
  * on one file so the page can show where a single run's near-best chains actually sat. `tolerance`
- * is a fraction of that run's own best, not an absolute number of days: a 1% plateau on a 300-day
- * plan and on a 1,300-day plan are different questions and the same word.
+ * is a fraction of that run's own best (0.01 is 1%), or `{ days }` for an absolute number of days.
+ * The page asks for days first: 1% of a 700-day plan is 7 days, more than most gains from one more
+ * ascension, and on Allan's every-TE 4-ascension box it took in 5,705 of 9,261 plans -- a plateau
+ * that is the whole box says nothing. Within 1 day, 35 of them.
  *
  * Restricted to one ascension count because positions only line up within one: the third
  * checkpoint of a six-chain and of an eight-chain are not the same thing.
@@ -749,13 +1189,13 @@ export function nearBestBands(
   currentTE: number,
   finalTE: number,
   ascensions: number,
-  tolerance = 0.01
+  tolerance: number | { days: number } = 0.01
 ): { bands: PositionBand[]; near: number; total: number; bestDays: number; bestChain: number[] } | null {
   const atCount = chains.filter(c => c.prestiges === ascensions);
   if (!atCount.length || !(finalTE > currentTE)) return null;
 
   const best = atCount.reduce((a, b) => (b.days < a.days ? b : a));
-  const cutoff = best.days * (1 + tolerance);
+  const cutoff = typeof tolerance === 'number' ? best.days * (1 + tolerance) : best.days + tolerance.days;
   const near = atCount.filter(c => c.days <= cutoff);
 
   const columns: number[][] = [];
@@ -797,7 +1237,7 @@ export interface FoldedRuns {
 /** 2 for a finished proof, 1 for a run tagged with its sweep, 3 for both: what "Proofs only", the
  *  sweep chart and the data needs look for in a row. */
 function evidenceRank(row: CollectorRow): number {
-  return (row.space && !row.space.stoppedEarly ? 2 : 0) + (row.sweep ? 1 : 0);
+  return (isProof(row) ? 2 : 0) + (row.sweep ? 1 : 0);
 }
 
 /**
@@ -929,6 +1369,17 @@ export function boxPriced(row: CollectorRow): number {
   return Math.max(0, Math.min(Number.isFinite(recorded) ? recorded : 0, sp.chains));
 }
 
+/**
+ * The one test for "this run proved its answer over its box": it tried a stated box (`space`), was
+ * not stopped, and priced every plan in it (`boxPriced`). `space && !stoppedEarly` alone passed a run
+ * whose end never recorded its count: Halceyx's 6-ascension run from 23 Sep priced 4,192 of a
+ * 61,749-plan box and still counted as proven on the count cards and under Proofs only, while the
+ * runs table called it partial. Everything on the page that asks, asks this.
+ */
+export function isProof(row: CollectorRow): boolean {
+  return !!row.space && !row.space.stoppedEarly && boxPriced(row) >= row.space.chains;
+}
+
 export function searchedOf(row: CollectorRow): Searched {
   const sp = row.space;
   const preset = row.sweep?.preset ? ` · ${row.sweep.preset}` : '';
@@ -961,7 +1412,7 @@ export function searchedOf(row: CollectorRow): Searched {
     words.push(`Targets at least ${sp.minGap} TE apart.`);
   }
   const done = boxPriced(row);
-  const finished = done >= sp.chains && !sp.stoppedEarly;
+  const finished = isProof(row);
   words.push(
     finished
       ? `All ${sp.chains.toLocaleString('en-US')} plans in the box priced, so its best is the best in the box.`
@@ -987,11 +1438,46 @@ export function searchedOf(row: CollectorRow): Searched {
  * and the plan took hundreds of days longer. See `checkFinalLegRate` for the threshold.
  */
 export function flagOf(row: Submission): string | null {
+  const check = rateCheckOf(row);
+  return check.state === 'suspect' ? check.why : null;
+}
+
+/**
+ * The delivery-rate check in all three of its answers, for showing rather than filtering: `suspect`
+ * (what `flagOf` flags), `clean`, or `unchecked` with the reason it could not look. `flagOf` lets an
+ * unchecked run through like a clean one, which is right for the filter -- there is nothing against
+ * it -- but the page should not let it read as checked: four runs to 490 on 26 Sep could not be (two
+ * without legs, two with no delivery set and a last checkpoint under 190).
+ */
+export type RateCheckState =
+  | { state: 'suspect'; why: string }
+  | { state: 'clean' }
+  | { state: 'unchecked'; why: string };
+
+export function rateCheckOf(row: Submission): RateCheckState {
   const rate = checkFinalLegRate(row.chain, row.legs, row.delivery);
   if (rate?.suspect) {
-    return `Final leg peaks at ${rate.measuredQph.toFixed(2)} q/hr; this gear reaches about ${rate.expectedQph.toFixed(2)} from ${row.chain[row.chain.length - 2]} TE. Looks like the old delivery-set-for-earnings bug.`;
+    return {
+      state: 'suspect',
+      why: `Final leg peaks at ${rate.measuredQph.toFixed(2)} q/hr; this gear reaches about ${rate.expectedQph.toFixed(2)} from ${row.chain[row.chain.length - 2]} TE. Looks like the old delivery-set-for-earnings bug.`,
+    };
   }
-  return null;
+  if (rate) return { state: 'clean' };
+  // The same tests `checkFinalLegRate` makes, in its order, to say which one stopped it.
+  const last = row.legs?.[row.legs.length - 1];
+  const why =
+    row.chain?.[row.chain.length - 1] !== 490
+      ? 'The delivery-rate check only works on runs to 490: a shorter final leg can end before the farm reaches its rate.'
+      : !deliveryScore(slotsFromLabels(row.delivery))
+        ? 'This run did not record its delivery set, so there is nothing to check its final leg against.'
+        : !last
+          ? 'This run carried no per-leg detail, so its final leg cannot be checked.'
+          : !(last.peakDeliveryQph > 0)
+            ? 'Its final leg recorded no peak delivery rate to check.'
+            : row.chain.length < 2
+              ? 'A plan with one ascension has no checkpoint to check its final leg from.'
+              : `Its last checkpoint (${row.chain[row.chain.length - 2]} TE) is under 190, below where the delivery ramp was measured.`;
+  return { state: 'unchecked', why: `Not checked for the delivery-set bug. ${why}` };
 }
 
 /**

@@ -5,10 +5,15 @@
 
   The table scrolls sideways inside its own box rather than wrapping: on a phone a long route and a
   wrapped "Planned" line made every plan five lines tall. The box only scrolls when something
-  around it gives it a width (the opened Race line does), so it never stretches its parent.
+  around it gives it a width (the opened Race line does), so it never stretches its parent. It is a
+  size container, so an opened plan's detail is exactly as wide as the box (100cqw) and pinned to its
+  left edge, however wide the table: spanning the whole table, its values sat off screen on a phone.
+
+  The same plan sent twice and still standing twice (`resends`, lib/leaderboardRank.ts `sameSends`)
+  is one row, with the other sends named on it.
 -->
 <template>
-  <div class="overflow-x-auto">
+  <div class="overflow-x-auto [container-type:inline-size]">
     <table class="w-full text-[11px]">
       <thead>
         <tr class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-left">
@@ -47,10 +52,22 @@
                 >sent ×{{ p.folded.copies.length }}</span
               >
               <span
+                v-if="resends?.get(p)?.length"
+                class="ml-1.5 px-1 py-0.5 rounded bg-slate-200 text-[9px] font-black text-slate-600"
+                :title="resendTitle(p)"
+                >{{ resendTag(p) }}</span
+              >
+              <span
                 v-for="t in tags.get(p.row) ?? []"
                 :key="t"
                 class="ml-1.5 px-1 py-0.5 rounded bg-sky-100 text-[9px] font-black text-sky-800"
                 >{{ t }}</span
+              >
+              <span
+                v-if="lines && browserTag({ lines }, p)"
+                class="ml-1.5 px-1 py-0.5 rounded bg-indigo-100 text-[9px] font-black text-indigo-800"
+                :title="browserTitle(p)"
+                >{{ browserTag({ lines }, p) }}</span
               >
               <span
                 v-if="stateTag(p.state)"
@@ -64,7 +81,13 @@
             <td class="py-1.5 pr-3 text-right font-bold text-slate-700">{{ daysLeftText(p.finish, now, viewZone) }}</td>
             <td v-if="gapLabel" class="py-1.5 pr-3 text-right whitespace-nowrap">
               <span v-if="p === best" class="font-black text-emerald-700">best</span>
-              <span v-else-if="gap(p) != null" class="font-bold text-slate-700">{{ signedDays(gap(p)!) }}</span>
+              <span v-else-if="gap(p) != null" class="font-bold text-slate-700">{{ gapText(gap(p)!) }}</span>
+              <span
+                v-else-if="best && sameSave(p.row, best.row) && !sameBuild(p.row, best.row)"
+                class="text-slate-400"
+                title="Planned from the same save, but priced by a different version of the planner, so part of the gap would be the planner. Press Use to price both again on this version."
+                >other version</span
+              >
               <span
                 v-else
                 class="text-slate-400"
@@ -73,8 +96,14 @@
               >
             </td>
             <td class="py-1.5 pr-3 text-right text-slate-600">{{ p.row.currentTE ?? '—' }}</td>
-            <td class="py-1.5 pr-3 text-slate-600 whitespace-nowrap">{{ plannedText(p) }}</td>
-            <td class="py-1.5 pr-3 text-slate-400 whitespace-nowrap">{{ p.row.window || 'any time' }}</td>
+            <!-- Short, with the on-track numbers in the tooltip: in full they made the table wider
+                 than the box on a desktop screen. -->
+            <td class="py-1.5 pr-3 text-slate-600 whitespace-nowrap" :title="plannedText(p, { zone: viewZone })">
+              {{ plannedText(p, { zone: viewZone, brief: true }) }}
+            </td>
+            <td class="py-1.5 pr-3 text-slate-400 whitespace-nowrap" :title="p.row.window || undefined">
+              {{ scheduleText(p.row.window) }}
+            </td>
             <td v-if="showReason" class="py-1.5 pr-3 text-slate-600 min-w-[16rem]">{{ p.reason }}</td>
             <td class="py-1.5 text-right">
               <button
@@ -88,14 +117,27 @@
             </td>
           </tr>
           <tr v-if="open[keyOf(p, i)]" class="bg-slate-50">
-            <td :colspan="columns" class="px-3 py-3 space-y-3">
-              <div v-if="p.earlier.length" class="text-[11px] text-slate-600">
-                <span class="font-bold">Earlier runs of this plan:</span>
-                <span v-for="(e, k) in p.earlier" :key="k">
-                  {{ k ? ', ' : ' ' }}{{ plannedDay(e) }} (finish {{ finishDateText(e.finish, viewZone) }})
-                </span>
+            <td :colspan="columns" class="p-0">
+              <div class="sticky left-0 w-[100cqw] px-3 py-3 space-y-3">
+                <div v-if="p.earlier.length" class="text-[11px] text-slate-600">
+                  <span class="font-bold">Earlier runs of this plan:</span>
+                  <span v-for="(e, k) in p.earlier" :key="k">
+                    {{ k ? ', ' : ' ' }}{{ plannedDay(e) }} (finish {{ finishDateText(e.finish, viewZone) }})
+                  </span>
+                </div>
+                <div v-if="resends?.get(p)?.length" class="text-[11px] text-slate-600">
+                  <span class="font-bold">Also sent as the same plan, counted once:</span>
+                  <span v-for="(e, k) in resends?.get(p) ?? []" :key="k">
+                    {{ k ? ', ' : ' ' }}{{ resendText(e) }}
+                  </span>
+                </div>
+                <LeaderboardRunDetail
+                  :row="p.row"
+                  :copies="p.folded.copies"
+                  :csv-root="csvRoot"
+                  :view-zone="viewZone"
+                />
               </div>
-              <LeaderboardRunDetail :row="p.row" :copies="p.folded.copies" :csv-root="csvRoot" />
             </td>
           </tr>
         </template>
@@ -108,12 +150,16 @@
 import { computed, ref } from 'vue';
 import LeaderboardRunDetail from './LeaderboardRunDetail.vue';
 import {
+  browserTag,
   daysLeftText,
   finishDateText,
   finishTitle,
   formatDate,
   gapToBest,
   plannedText,
+  sameBuild,
+  sameSave,
+  scheduleText,
   settingTags,
   signedDays,
   stateTag,
@@ -135,6 +181,11 @@ const props = defineProps<{
   gapLabel?: string;
   /** Show why each plan does not count. */
   showReason?: boolean;
+  /** A listed plan -> the other current sends of the same plan, listed under it (`PlayerPlans.resends`). */
+  resends?: Map<Plan, Plan[]>;
+  /** The owner lines a joined Race line is made of (`RaceLine.lines`): each plan says which browser
+   *  sent it when there is more than one. */
+  lines?: string[];
 }>();
 
 const emit = defineEmits<{ use: [chain: number[]] }>();
@@ -155,7 +206,41 @@ function gap(p: Plan): number | null {
   return props.best ? gapToBest(p, props.best) : null;
 }
 
+/** Under about seven minutes is the same finish, as on the Chain Explorer: "+0.00 d" would read as a
+ *  measured gap between two plans that reach the target together. */
+function gapText(days: number): string {
+  return Math.abs(days) < 0.005 ? 'same finish' : signedDays(days);
+}
+
+/** When a plan was made, on the viewer's calendar like every other date here. */
 function plannedDay(p: Plan): string {
-  return formatDate(p.start, p.row.timezone, { day: 'numeric', month: 'short' });
+  return formatDate(p.start, props.viewZone, { day: 'numeric', month: 'short' });
+}
+
+/** `also sent 23 Sep` for one other send of the same plan, `also sent ×2` for two. */
+function resendTag(p: Plan): string {
+  const more = props.resends?.get(p) ?? [];
+  return more.length === 1 ? `also sent ${plannedDay(more[0])}` : `also sent ×${more.length}`;
+}
+
+/** One other send of the same plan: when, its finish, and where it came from when that differs. */
+function resendText(e: Plan): string {
+  const from = !e.row.acct ? 'sent without a code' : props.lines ? browserTag({ lines: props.lines }, e) : '';
+  return `${plannedDay(e)} (finish ${finishDateText(e.finish, props.viewZone)}${from ? `, ${from}` : ''})`;
+}
+
+function resendTitle(p: Plan): string {
+  const more = props.resends?.get(p) ?? [];
+  return (
+    `The same plan was also sent ${more.map(resendText).join(', ')}. Neither run may replace the other ` +
+    '(one was sent without the owner code, from another browser, or within the hour), so both still count, ' +
+    'but it is one plan and "Tried" counts it once. Open the line for details.'
+  );
+}
+
+function browserTitle(p: Plan): string {
+  return browserTag({ lines: props.lines ?? [] }, p) === 'no code'
+    ? "Sent before the board stamped runs, without an owner code, under this player's name. Filed with the first browser's runs."
+    : "This player sent from more than one browser, and each keeps its own private code. Each browser's plans are judged by that browser's runs only.";
 }
 </script>

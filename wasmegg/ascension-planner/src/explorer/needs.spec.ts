@@ -22,7 +22,16 @@ describe('dataNeeds', () => {
   it('asks for everything when nothing has been submitted', () => {
     const ids = dataNeeds([]).map(d => d.id);
     expect(ids).toEqual(
-      expect.arrayContaining(['sweep-M1', 'sweep-M2', 'sweep-M3', 'sweep-M4', 'te-high', 'te-low', 'force-continue', 'weak-gear'])
+      expect.arrayContaining([
+        'sweep-M1',
+        'sweep-M2',
+        'sweep-M3',
+        'sweep-M4',
+        'te-high',
+        'te-low',
+        'force-continue',
+        'weak-gear',
+      ])
     );
   });
 
@@ -34,7 +43,15 @@ describe('dataNeeds', () => {
   });
 
   it("counts the planner's own exhaustive runs, which carry a space but no preset tag", () => {
-    const space = { mode: 'bands', minGap: 0, minAscensions: 2, maxAscensions: 2 } as unknown as CollectorRow['space'];
+    const space = {
+      mode: 'bands',
+      minGap: 0,
+      minAscensions: 2,
+      maxAscensions: 2,
+      chains: 308,
+      chainsPriced: 308,
+      stoppedEarly: false,
+    } as unknown as CollectorRow['space'];
     const rows = [row({ nickname: 'ex', ascensions: 2, chain: [280, 490], space })];
     expect(dataNeeds(rows).find(d => d.id === 'sweep-M1')?.have).toBe(1);
   });
@@ -54,7 +71,15 @@ describe('dataNeeds', () => {
   });
 
   it('notices accounts outside the measured TE range, once they have finished a run', () => {
-    const done = { mode: 'bands', minGap: 0, minAscensions: 2, maxAscensions: 2, chains: 1, chainsPriced: 1, stoppedEarly: false } as unknown as CollectorRow['space'];
+    const done = {
+      mode: 'bands',
+      minGap: 0,
+      minAscensions: 2,
+      maxAscensions: 2,
+      chains: 1,
+      chainsPriced: 1,
+      stoppedEarly: false,
+    } as unknown as CollectorRow['space'];
     const unfinished = [row({ nickname: 'hi1', currentTE: 230 }), row({ nickname: 'hi2', currentTE: 210 })];
     expect(dataNeeds(unfinished).map(d => d.id)).toContain('te-high');
     const finished = unfinished.map(r => ({ ...r, space: done }));
@@ -66,12 +91,16 @@ describe('dataNeeds', () => {
   });
 
   it('does not count a tagged run of the wrong length toward a preset', () => {
-    const rows = Array.from({ length: 6 }, (_, i) => row({ nickname: `p${i}`, ascensions: 6, sweep: { preset: 'M1' } }));
+    const rows = Array.from({ length: 6 }, (_, i) =>
+      row({ nickname: `p${i}`, ascensions: 6, sweep: { preset: 'M1' } })
+    );
     expect(dataNeeds(rows).find(d => d.id === 'sweep-M1')?.have).toBe(0);
   });
 
   it('lists gear the board has not seen in its own group', () => {
-    const gear = dataNeeds([]).filter(d => d.group === 'gear').map(d => d.id);
+    const gear = dataNeeds([])
+      .filter(d => d.group === 'gear')
+      .map(d => d.id);
     expect(gear).toEqual(expect.arrayContaining(['cte-edge', 'earnings-mix', 'delivery-mid', 'weak-gear']));
   });
 });
@@ -132,8 +161,18 @@ describe('estimates', () => {
 
 describe('fine sweeps (F2) and the later-start pair', () => {
   const space = (bands: number[][]) =>
-    ({ mode: 'bands', bands, minGap: 10, minAscensions: 3, maxAscensions: 3, chains: 1, chainsPriced: 1, stoppedEarly: false }) as CollectorRow['space'];
-  const range = (lo: number, hi: number, step: number) => Array.from({ length: Math.floor((hi - lo) / step) + 1 }, (_, i) => lo + i * step);
+    ({
+      mode: 'bands',
+      bands,
+      minGap: 10,
+      minAscensions: 3,
+      maxAscensions: 3,
+      chains: 1,
+      chainsPriced: 1,
+      stoppedEarly: false,
+    }) as CollectorRow['space'];
+  const range = (lo: number, hi: number, step: number) =>
+    Array.from({ length: Math.floor((hi - lo) / step) + 1 }, (_, i) => lo + i * step);
   const fine = space([range(195, 250, 1), range(276, 300, 1)]);
   const coarse = space([range(190, 280, 2), range(270, 372, 2)]);
 
@@ -181,19 +220,48 @@ describe('bigger and end-of-the-line presets', () => {
   });
 
   it('counts only a run at least as fine, range by range, toward a fine preset', () => {
-    const band = (lo: number, hi: number, step: number) => Array.from({ length: Math.floor((hi - lo) / step) + 1 }, (_, i) => lo + i * step);
-    const space = (bands: number[][]) => ({ mode: 'bands', bands, minGap: 29, minAscensions: 5, maxAscensions: 5, chains: 1, chainsPriced: 1, stoppedEarly: false }) as CollectorRow['space'];
-    const every3 = row({ nickname: 'a', ascensions: 5, space: space([band(183, 220, 3), band(201, 257, 3), band(242, 290, 3), band(281, 329, 3)]) });
-    const fineRun = row({ nickname: 'b', ascensions: 5, space: space([band(183, 220, 1), band(201, 257, 2), band(242, 290, 3), band(281, 329, 3)]) });
+    const band = (lo: number, hi: number, step: number) =>
+      Array.from({ length: Math.floor((hi - lo) / step) + 1 }, (_, i) => lo + i * step);
+    const space = (bands: number[][]) =>
+      ({
+        mode: 'bands',
+        bands,
+        minGap: 29,
+        minAscensions: 5,
+        maxAscensions: 5,
+        chains: 1,
+        chainsPriced: 1,
+        stoppedEarly: false,
+      }) as CollectorRow['space'];
+    const every3 = row({
+      nickname: 'a',
+      ascensions: 5,
+      space: space([band(183, 220, 3), band(201, 257, 3), band(242, 290, 3), band(281, 329, 3)]),
+    });
+    const fineRun = row({
+      nickname: 'b',
+      ascensions: 5,
+      space: space([band(183, 220, 1), band(201, 257, 2), band(242, 290, 3), band(281, 329, 3)]),
+    });
     const have = dataNeeds([every3, fineRun]).find(d => d.id === 'sweep-F4')?.have;
     expect(have).toBe(1); // every 3rd TE throughout is coarser than F4's every-TE first range
   });
 });
 
 describe('review fixes (25 Sep 2026)', () => {
-  const band = (lo: number, hi: number, step: number) => Array.from({ length: Math.floor((hi - lo) / step) + 1 }, (_, i) => lo + i * step);
+  const band = (lo: number, hi: number, step: number) =>
+    Array.from({ length: Math.floor((hi - lo) / step) + 1 }, (_, i) => lo + i * step);
   const f4space = (stoppedEarly: boolean) =>
-    ({ mode: 'bands', bands: [band(183, 220, 1), band(201, 257, 2), band(242, 290, 3), band(281, 329, 3)], minGap: 29, minAscensions: 5, maxAscensions: 5, chains: 29904, chainsPriced: stoppedEarly ? 500 : 29904, stoppedEarly }) as CollectorRow['space'];
+    ({
+      mode: 'bands',
+      bands: [band(183, 220, 1), band(201, 257, 2), band(242, 290, 3), band(281, 329, 3)],
+      minGap: 29,
+      minAscensions: 5,
+      maxAscensions: 5,
+      chains: 29904,
+      chainsPriced: stoppedEarly ? 500 : 29904,
+      stoppedEarly,
+    }) as CollectorRow['space'];
 
   it('does not count a tagged run that was stopped partway', () => {
     const partial = row({ nickname: 'a', ascensions: 5, sweep: { preset: 'F4' }, space: f4space(true) });
@@ -212,8 +280,74 @@ describe('review fixes (25 Sep 2026)', () => {
       nickname: 'h',
       ascensions: 3,
       currentTE: 249,
-      space: { mode: 'bands', bands: [[250], band(276, 300, 1)], minGap: 10, minAscensions: 3, maxAscensions: 3, chains: 25, chainsPriced: 25, stoppedEarly: false } as CollectorRow['space'],
+      space: {
+        mode: 'bands',
+        bands: [[250], band(276, 300, 1)],
+        minGap: 10,
+        minAscensions: 3,
+        maxAscensions: 3,
+        chains: 25,
+        chainsPriced: 25,
+        stoppedEarly: false,
+      } as CollectorRow['space'],
     });
     expect(dataNeeds([at249]).find(d => d.id === 'sweep-F2')?.have).toBe(1);
+  });
+});
+
+describe('one proof test, shared with the page (26 Sep 2026)', () => {
+  const band = (lo: number, hi: number, step: number) =>
+    Array.from({ length: Math.floor((hi - lo) / step) + 1 }, (_, i) => lo + i * step);
+  // A box whose end never filled in its count: the planner writes chainsPriced 0 and stoppedEarly
+  // false when a run starts. Halceyx's 6-ascension run priced 4,192 of 61,749 and looked like this.
+  const unrecorded = (chains: number, priced: number, ascensions: number, bands: number[][]) =>
+    ({
+      space: {
+        mode: 'bands',
+        bands,
+        minGap: 10,
+        minAscensions: ascensions,
+        maxAscensions: ascensions,
+        chains,
+        chainsPriced: 0,
+        stoppedEarly: false,
+      } as CollectorRow['space'],
+      chainsPriced: priced,
+    }) as Partial<CollectorRow>;
+
+  it('does not count a run that priced only part of its box as finished', () => {
+    const partial = row({
+      nickname: 'hi',
+      currentTE: 230,
+      ascensions: 2,
+      ...unrecorded(259, 40, 2, [band(231, 489, 1)]),
+    });
+    expect(dataNeeds([partial]).find(d => d.id === 'te-high')?.have).toBe(0);
+  });
+
+  it('counts it once the row itself shows every plan in the box priced', () => {
+    const whole = row({
+      nickname: 'hi',
+      currentTE: 230,
+      ascensions: 2,
+      ...unrecorded(259, 259, 2, [band(231, 489, 1)]),
+    });
+    expect(dataNeeds([whole]).find(d => d.id === 'te-high')?.have).toBe(1);
+  });
+
+  it('does not let a tagged run that priced only part of its box cover its preset', () => {
+    const f4 = [band(183, 220, 1), band(201, 257, 2), band(242, 290, 3), band(281, 329, 3)];
+    const tagged = row({ nickname: 'a', ascensions: 5, sweep: { preset: 'F4' }, ...unrecorded(29904, 500, 5, f4) });
+    expect(dataNeeds([tagged]).find(d => d.id === 'sweep-F4')?.have).toBe(0);
+  });
+
+  it('still lets a tagged upload, which has no box, cover its preset', () => {
+    const upload = row({
+      nickname: 'u',
+      ascensions: 3,
+      sweep: { preset: 'M2' },
+      source: 'upload',
+    } as Partial<CollectorRow>);
+    expect(dataNeeds([upload]).find(d => d.id === 'sweep-M2')?.have).toBe(1);
   });
 });

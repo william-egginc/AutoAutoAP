@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   DAY_MS,
   accountKeyOf,
+  browserTag,
   buildMyPlans,
   buildRace,
   daysLeft,
@@ -17,10 +18,14 @@ import {
   localToUtcMs,
   nameLabel,
   placeFor,
+  plannedText,
   playerKey,
   projectedTE,
   remainingChain,
+  sameBuild,
   samePlan,
+  sameSave,
+  scheduleText,
   settingTags,
   type BoardRow,
 } from './leaderboardRank';
@@ -598,6 +603,9 @@ describe('plans that no longer count', () => {
     expect(p.best.progress?.te).toBe(182);
     expect(p.best.progress?.projected).toBeCloseTo(182.8, 1);
     expect(p.others.map(o => o.row.id)).toEqual(['probe']);
+    // Read on the viewer's calendar, like the finish beside it: 21:21 UTC is already the 18th in Tokyo.
+    expect(plannedText(p.best, { zone: 'UTC' })).toMatch(/^17 Sep\w* · on track \(TE 182, plan said 182\.8\)$/);
+    expect(plannedText(p.best, { zone: 'Asia/Tokyo', brief: true })).toMatch(/^18 Sep\w* · on track$/);
   });
 
   it('lets a newer run of the same plan replace the older one even when it finishes later', () => {
@@ -1147,5 +1155,208 @@ describe('phase 2: my plans from GET /mine', () => {
   it('never ranks a flagged run that came back through /mine', () => {
     const flagged = row({ id: 'flagged', yours: true, acct: ALLAN, flags: ['decades-long'], durationDays: 5000 });
     expect(buildMyPlans([flagged], null, { target: 490, now: NOW })).toBeNull();
+  });
+});
+
+describe('one player on two browsers', () => {
+  // Allan's pattern on the live board (2026-09-26): an owner code is kept per browser, so his runs
+  // came in under two codes, interleaved, with the same name, timezone and artifacts and TE 198 -> 199.
+  // The first code also holds his runs from before the collector stamped rows.
+  const B1 = 'a11a11a11a11';
+  const B2 = 'a22a22a22a22';
+  const FORGER = 'bad0bad0bad0';
+  const F = Date.parse('2028-07-19T16:00:00Z');
+  /** An Allan run from `startLocal` (Chicago) that finishes at `finish`. */
+  const run = (id: string, startLocal: string, sent: string, te: number, chain: number[], finish: number, over = {}) =>
+    row({
+      id,
+      startLocal,
+      submittedAt: sent,
+      currentTE: te,
+      chain,
+      durationDays: (finish - localToUtcMs(startLocal, CHICAGO)!) / DAY_MS,
+      legs: [],
+      ...over,
+    });
+  const SIX = [199, 223, 253, 282, 316, 490];
+  const SEVEN = [200, 225, 251, 279, 295, 324, 490];
+  // Sent before owner codes, so filed on the first code's line.
+  const legacy = run('legacy', '2026-09-23 10:46', '2026-09-23T15:50:00Z', 198, SIX, F + 0.6 * DAY_MS);
+  const b1a = run('b1a', '2026-09-24 11:40', '2026-09-24T16:46:00Z', 198, SEVEN, F, { acct: B1 });
+  const b2a = run('b2a', '2026-09-24 12:15', '2026-09-24T17:19:00Z', 198, [230, 260, 297, 490], F + 1.9 * DAY_MS, {
+    acct: B2,
+  });
+  // The legacy six-ascension plan with its first checkpoint passed, sent with the first code.
+  const b1b = run('b1b', '2026-09-25 11:43', '2026-09-25T16:45:00Z', 199, SIX.slice(1), F + 0.6 * DAY_MS + 7000, {
+    acct: B1,
+  });
+  // The first browser's best plan, run again from the second browser.
+  const b2c = run('b2c', '2026-09-25 13:52', '2026-09-25T18:55:00Z', 199, SEVEN, F + 0.3 * DAY_MS, { acct: B2 });
+  const b2b = run('b2b', '2026-09-25 15:00', '2026-09-25T20:02:00Z', 199, [283, 490], F + 40 * DAY_MS, { acct: B2 });
+  const allan = [legacy, b1a, b2a, b1b, b2c, b2b];
+  const opts = { target: 490, now: NOW };
+
+  it('is one place in the race, and everyone after him moves up', () => {
+    const race = buildRace([...allan, rival('Kenzie', 700)], opts);
+    expect(race.entries.map(e => [e.rank, e.label])).toEqual([
+      [1, 'allanfieldhouse'],
+      [2, 'Kenzie'],
+    ]);
+    const a = race.entries[0];
+    // The first code's key and name: the heir of his old rows, so a later code cannot re-key it.
+    expect(a.key).toBe(`acct:${B1}`);
+    expect(a.lines).toEqual([`acct:${B1}`, `acct:${B2}`]);
+    expect(a.best.row.id).toBe('b1a');
+    expect(a.sends).toBe(6);
+    // Where a viewer on the second browser would place is counted against 1 other player, not 2.
+    expect(placeFor(race, F + 0.1 * DAY_MS, a.key)).toBe(1);
+    expect(browserTag(a, a.best)).toBe('browser 1');
+    expect(browserTag(a, a.plans.find(p => p.row.id === 'b2c')!)).toBe('browser 2');
+    expect(browserTag(a, a.plans.find(p => p.row.id === 'legacy')!)).toBe('no code');
+    expect(browserTag(race.entries[1], race.entries[1].best)).toBe('');
+  });
+
+  it("judges each browser's plans by that browser's runs alone, and lists the same plan once", () => {
+    const a = buildRace(allan, opts).entries[0];
+    // b2c is a newer run of b1a's plan, and b1b of the legacy plan, but neither may judge the other:
+    // another code, or no code. So every plan still counts as judged ...
+    expect(Object.fromEntries(a.plans.map(p => [p.row.id, p.state]))).toEqual({
+      legacy: 'current',
+      b1a: 'current',
+      b2a: 'current',
+      b1b: 'current',
+      b2c: 'current',
+      b2b: 'current',
+    });
+    // ... and each plan is listed and counted once: the best stays listed, otherwise the newest run
+    // stands for the pair.
+    expect(a.listed.map(p => p.row.id)).toEqual(['b1b', 'b2a', 'b2b']);
+    expect([...a.resends].map(([p, under]) => [p.row.id, under.map(u => u.row.id)])).toEqual([
+      ['b1a', ['b2c']],
+      ['b1b', ['legacy']],
+    ]);
+    expect(a.plansTried).toBe(4);
+    // The per-code lines the Explorer reads are untouched.
+    const lines = groupPlayers(allan, opts).filter(p => p.key.startsWith('acct:'));
+    expect(lines.map(p => [p.key, p.plansTried]).sort()).toEqual([
+      [`acct:${B1}`, 2],
+      [`acct:${B2}`, 3],
+    ]);
+    // Sent from the first browser, the same re-run would have replaced the plan.
+    const one = buildRace([...allan.filter(r => r !== b2c), { ...b2c, acct: B1 }], opts).entries[0];
+    expect(one.plans.find(p => p.row.id === 'b1a')!.state).toBe('replaced');
+  });
+
+  it('keeps apart a second code under the name whose runs do not fit, and never shows two lines the same', () => {
+    // A code of its own, dressed in his name, timezone and artifacts, from TE 150 after his TE 199 runs.
+    const forged = run('forged', '2026-09-25 18:00', '2026-09-25T23:05:00Z', 150, [170, 490], F - 5 * DAY_MS, {
+      acct: FORGER,
+    });
+    const race = buildRace([...allan, forged], opts);
+    expect(race.entries.map(e => [e.rank, e.key, e.label])).toEqual([
+      [1, `acct:${FORGER}`, 'allanfieldhouse (other code)'],
+      [2, `acct:${B1}`, 'allanfieldhouse'],
+    ]);
+    expect(race.entries[1].lines).toEqual([`acct:${B1}`, `acct:${B2}`]);
+    // Nor the other way round: a code sent last, with a run from before his at a TE far above them.
+    const above = run('above', '2026-09-22 10:00', '2026-09-25T23:30:00Z', 260, [300, 490], F + 9 * DAY_MS, {
+      acct: FORGER,
+    });
+    expect(buildRace([...allan, above], opts).entries.map(e => [e.label, e.lines.length])).toEqual([
+      ['allanfieldhouse', 2],
+      ['allanfieldhouse (other code)', 1],
+    ]);
+    // The name stays with the code first seen under it at any target, even when the other code sent to
+    // this target first.
+    const to300 = run('to300', '2026-09-20 10:00', '2026-09-20T15:05:00Z', 197, [250, 300], F - 400 * DAY_MS, {
+      acct: B1,
+      finalTE: 300,
+    });
+    const early = run('early', '2026-09-21 10:00', '2026-09-21T15:05:00Z', 150, [170, 490], F + 50 * DAY_MS, {
+      acct: FORGER,
+    });
+    expect(
+      buildRace([to300, early, ...allan], opts)
+        .entries.map(e => [e.key, e.label])
+        .sort()
+    ).toEqual([
+      [`acct:${B1}`, 'allanfieldhouse'],
+      [`acct:${FORGER}`, 'allanfieldhouse (other code)'],
+    ]);
+    // Another account under the same name (other artifacts) is another player.
+    const k1 = rival('Kenzie', 700, { acct: 'c0ffeec0ffee' });
+    const k2 = rival('Kenzie', 710, {
+      acct: 'c1ffeec1ffee',
+      artifacts: ['T2C Gusset'],
+      submittedAt: new Date(NOW - DAY_MS).toISOString(),
+    });
+    expect(buildRace([k1, k2], opts).entries.map(e => e.label)).toEqual(['Kenzie', 'Kenzie (other code)']);
+  });
+
+  it('joins a look-alike that copies everything, but it can neither drop a plan nor rename the line', () => {
+    // Every field the join reads is public. A stranger with their own code, the same name, gear and
+    // TE, sends his best plan finishing 300 days later.
+    const lookAlike = run('lookAlike', '2026-09-25 17:30', '2026-09-25T22:35:00Z', 199, SEVEN, F + 300 * DAY_MS, {
+      acct: FORGER,
+      nickname: 'AllanFieldhouse',
+    });
+    const a = buildRace([...allan, lookAlike], opts).entries[0];
+    expect([a.key, a.label, a.lines.length]).toEqual([`acct:${B1}`, 'allanfieldhouse', 3]);
+    expect(a.best.row.id).toBe('b1a');
+    expect(a.plans.find(p => p.row.id === 'b1a')!.state).toBe('current');
+    expect(a.resends.get(a.best)!.map(p => p.row.id)).toEqual(['lookAlike', 'b2c']);
+  });
+
+  it('counts two sends of one plan minutes apart once', () => {
+    // (icon)'s 274 490, sent at 16:14 and again at 16:18: under an hour apart, so neither replaces the
+    // other, and both stand.
+    const at = (id: string, startLocal: string, finishDays: number) =>
+      rival('\ue001\ue002', 0, {
+        id,
+        acct: 'feedfeedfeed',
+        timezone: 'America/Los_Angeles',
+        chain: [274, 490],
+        startLocal,
+        submittedAt: `${startLocal.replace(' ', 'T')}:30-07:00`,
+        durationDays: finishDays,
+      });
+    const e = buildRace([at('first', '2026-09-23 16:14', 766.2), at('again', '2026-09-23 16:18', 766.4)], opts)
+      .entries[0];
+    expect(e.label).toBe('(icon) · Los Angeles');
+    expect(e.plans.map(p => p.state)).toEqual(['current', 'current']);
+    expect(e.best.row.id).toBe('first');
+    expect(e.listed).toEqual([]);
+    expect(e.resends.get(e.best)!.map(p => p.row.id)).toEqual(['again']);
+    expect([e.plansTried, e.sends]).toEqual([1, 2]);
+  });
+});
+
+describe('planner builds', () => {
+  it('compares finishes only between plans priced by the same build of the planner', () => {
+    const key = accountKeyOf(row());
+    const best = row({ id: 'best', build: 'b1' });
+    const same = row({ id: 'same', chain: [230, 260, 297, 490], durationDays: 663.6613, build: 'b1' });
+    const other = row({ id: 'other', chain: [230, 490], durationDays: 670, legs: [], build: 'b2' });
+    const unstamped = row({ id: 'unstamped', chain: [240, 490], durationDays: 671, legs: [] });
+    const mine = buildMyPlans([best, same, other, unstamped], key, { target: 490, now: NOW })!;
+    const byId = Object.fromEntries(mine.others.map(p => [p.row.id, p]));
+    expect(gapToBest(byId.same, mine.best!)).toBeCloseTo(0.39, 6);
+    // Same save, other build: the gap would be partly the planner.
+    expect(sameSave(byId.other.row, best)).toBe(true);
+    expect(gapToBest(byId.other, mine.best!)).toBeNull();
+    // A row from before builds were sent is another build than one that says which it is.
+    expect(sameBuild(unstamped, best)).toBe(false);
+    expect(gapToBest(byId.unstamped, mine.best!)).toBeNull();
+    expect(sameBuild(row(), row())).toBe(true);
+  });
+});
+
+describe('schedule text', () => {
+  it('drops the zone, which the full text in the tooltip keeps', () => {
+    expect(scheduleText(WINDOW)).toBe('every day 07:00-23:00');
+    expect(scheduleText('every day 06:00-22:00 America/Argentina/Buenos_Aires')).toBe('every day 06:00-22:00');
+    expect(scheduleText('weekdays only')).toBe('weekdays only');
+    expect(scheduleText(null)).toBe('any time');
+    expect(scheduleText(undefined, 'no schedule')).toBe('no schedule');
   });
 });

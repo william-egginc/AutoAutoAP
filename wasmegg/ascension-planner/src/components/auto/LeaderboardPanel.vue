@@ -186,9 +186,18 @@
                       {{ daysLeftText(e.best.finish, now, viewZone) }}
                     </td>
                     <td class="py-2 pr-3 text-right text-slate-600">{{ e.best.row.currentTE ?? '—' }}</td>
-                    <td class="py-2 pr-3 text-slate-500">{{ plannedText(e.best) }}</td>
-                    <td class="py-2 pr-3 text-slate-400">{{ e.best.row.window || 'any time' }}</td>
-                    <td class="py-2 pr-3 text-right text-slate-500 whitespace-nowrap" :title="`${e.sends} sent`">
+                    <!-- Short, on one line, with the numbers in the tooltip: wrapped, the on-track
+                         figures made the row three lines tall. On your calendar, like Finishes. -->
+                    <td
+                      class="py-2 pr-3 text-slate-500 whitespace-nowrap"
+                      :title="plannedText(e.best, { zone: viewZone })"
+                    >
+                      {{ plannedText(e.best, { zone: viewZone, brief: true }) }}
+                    </td>
+                    <td class="py-2 pr-3 text-slate-400 whitespace-nowrap" :title="e.best.row.window || undefined">
+                      {{ scheduleText(e.best.row.window) }}
+                    </td>
+                    <td class="py-2 pr-3 text-right text-slate-500 whitespace-nowrap" :title="triedTitle(e)">
                       {{ e.plansTried }} {{ e.plansTried === 1 ? 'plan' : 'plans' }}
                     </td>
                     <td class="py-2 text-right">
@@ -211,12 +220,16 @@
                       <div class="sticky left-0 w-[100cqw] px-3 py-3 space-y-3">
                         <div>
                           <h4 class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">
-                            {{ e.label }}'s current plans
+                            {{ e.label }}'s current plans<template v-if="e.lines.length > 1">
+                              · sent from {{ e.lines.length }} browsers</template
+                            >
                           </h4>
                           <LeaderboardPlanList
-                            :plans="[e.best, ...e.others]"
+                            :plans="[e.best, ...e.listed]"
                             :all-plans="e.plans"
                             :best="e.best"
+                            :resends="e.resends"
+                            :lines="e.lines"
                             :now="now"
                             :view-zone="viewZone"
                             :csv-root="csvRoot"
@@ -224,7 +237,8 @@
                             @use="c => emit('use', c)"
                           />
                           <p class="mt-1 text-[10px] text-slate-400">
-                            "vs best" is shown only for plans made from the same save as the best one.
+                            "vs best" is shown only for plans made from the same save as the best one and priced by the
+                            same version of the planner.
                           </p>
                         </div>
                         <div v-if="e.dropped.length">
@@ -234,6 +248,7 @@
                           <LeaderboardPlanList
                             :plans="e.dropped"
                             :all-plans="e.plans"
+                            :lines="e.lines"
                             :now="now"
                             :view-zone="viewZone"
                             :csv-root="csvRoot"
@@ -271,10 +286,13 @@
             player's runs can do any of that: runs sent from the same browser for the same account (the board matches a
             private code that is never shown), or, for runs sent before the board had that code, the same name or the
             same timezone and artifacts. So nobody can knock a plan out by sending runs under someone else's name. A
-            name marked <span class="font-semibold">(no code)</span> was sent without the code another line under that
-            name carries, so it may be somebody else's run. Anonymous runs are not in the race: add a name to join.
-            Every run is still in All runs. Finish dates and days left are in your timezone ({{ viewZone }}); hover a
-            date to see it in the player's own.
+            player who sends from two browsers has two codes; their runs are still one line when the name, timezone,
+            artifacts and TE all agree, and each browser's plans are judged by that browser's runs. A name marked
+            <span class="font-semibold">(no code)</span> was sent without the code another line under that name carries,
+            and one marked <span class="font-semibold">(other code)</span> with a second code whose runs do not fit the
+            first; either may be somebody else. "Tried" counts each plan once, however often it was run or sent.
+            Anonymous runs are not in the race: add a name to join. Every run is still in All runs. Finish and plan
+            dates and days left are in your timezone ({{ viewZone }}); hover a finish to see it in the player's own.
           </p>
         </template>
       </template>
@@ -307,14 +325,16 @@
             {{ mine.plansTried === 1 ? 'plan' : 'plans' }}.
           </p>
           <p class="text-[10px] text-slate-500 leading-relaxed">
-            "vs your best" compares plans made from the same save, where the gap is the plans and nothing else. For a
-            plan from an older save, press Use to price it again from today's save.
+            "vs your best" compares plans made from the same save and priced by the same version of the planner, where
+            the gap is the plans and nothing else. For a plan from an older save, press Use to price it again from
+            today's save.
           </p>
           <LeaderboardPlanList
             v-if="mine.best"
-            :plans="[mine.best, ...mine.others]"
+            :plans="[mine.best, ...mine.listed]"
             :all-plans="mine.plans"
             :best="mine.best"
+            :resends="mine.resends"
             :now="now"
             :view-zone="viewZone"
             :csv-root="csvRoot"
@@ -348,7 +368,8 @@
         <p v-if="!runLines.length" class="text-[11px] text-indigo-900/60 py-6 text-center">
           No runs to {{ target }} yet.
         </p>
-        <div v-else class="overflow-x-auto">
+        <!-- A size container for the opened run's detail, as in Race. -->
+        <div v-else class="overflow-x-auto [container-type:inline-size]">
           <table class="w-full text-xs">
             <thead>
               <tr class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-left">
@@ -356,7 +377,8 @@
                 <th v-for="c in COLUMNS" :key="c.key" class="py-2 pr-3" :class="c.right ? 'text-right' : ''">
                   <button
                     type="button"
-                    class="uppercase tracking-widest hover:text-slate-700"
+                    class="uppercase tracking-widest hover:text-slate-700 whitespace-nowrap"
+                    :title="c.title"
                     :class="sortKey === c.key ? 'text-slate-700' : ''"
                     :aria-sort="sortKey === c.key ? (sortAsc ? 'ascending' : 'descending') : 'none'"
                     @click="sortBy(c.key)"
@@ -381,11 +403,19 @@
                       {{ open === line.key ? '⌄' : '›' }}
                     </button>
                   </td>
-                  <td class="py-2 pr-3 font-bold text-slate-700 whitespace-nowrap">
-                    {{ line.nickname || 'anonymous' }}
+                  <!-- Capped: the name box doubles as a note field, and a long note pushed every other
+                       column off screen. The whole name is in the tooltip. -->
+                  <td class="py-2 pr-3 font-bold text-slate-700 whitespace-nowrap" :title="line.nickname || undefined">
+                    <span class="block max-w-[8rem] truncate">{{ line.nickname || 'anonymous' }}</span>
                   </td>
                   <td class="py-2 pr-3 whitespace-nowrap">
-                    <span class="font-mono font-bold text-slate-700">{{ line.row.chain.join(' ') }}</span>
+                    <!-- A route of up to nine checkpoints stays on one line; a longer one (a 15-checkpoint
+                         sweep result) wraps rather than widening the table for every row. -->
+                    <span
+                      class="font-mono font-bold text-slate-700"
+                      :class="line.row.chain.length > 9 ? 'inline-block max-w-[16rem] whitespace-normal' : ''"
+                      >{{ line.row.chain.join(' ') }}</span
+                    >
                     <span
                       v-if="line.copies > 1"
                       class="ml-1.5 px-1 py-0.5 rounded bg-slate-200 text-[9px] font-black text-slate-600"
@@ -416,7 +446,9 @@
                     <span v-else-if="line.row.waitingHours < 0.05" class="text-slate-400">none</span>
                     <span v-else class="font-bold text-amber-700">{{ line.row.waitingHours.toFixed(1) }} h</span>
                   </td>
-                  <td class="py-2 pr-3 text-slate-400">{{ line.row.window || 'no schedule' }}</td>
+                  <td class="py-2 pr-3 text-slate-400 whitespace-nowrap" :title="line.row.window || undefined">
+                    {{ scheduleText(line.row.window, 'no schedule') }}
+                  </td>
                   <!-- A proof is not an effort tier. Insane mode does not use the effort knob, so
                        the tier it sends is whatever the main panel was left on; showing "balanced"
                        next to an exhaustive result reads as a weaker claim than the row is making.
@@ -431,8 +463,8 @@
                     </span>
                     <span v-else>{{ line.row.effort || '—' }}</span>
                   </td>
-                  <td class="py-2 pr-3 text-slate-400 whitespace-nowrap">
-                    {{ (line.submittedAt || '').slice(0, 10) || '—' }}
+                  <td class="py-2 pr-3 text-slate-400 whitespace-nowrap" :title="sentTitle(line.submittedAt)">
+                    {{ sentText(line.submittedAt) }}
                   </td>
                   <td class="py-2 text-right">
                     <button
@@ -445,8 +477,15 @@
                   </td>
                 </tr>
                 <tr v-if="open === line.key" class="bg-slate-50">
-                  <td :colspan="COLUMNS.length + 2" class="px-3 py-3">
-                    <LeaderboardRunDetail :row="line.row" :copies="line.copyRows" :csv-root="csvRoot" />
+                  <td :colspan="COLUMNS.length + 2" class="p-0">
+                    <div class="sticky left-0 w-[100cqw] px-3 py-3">
+                      <LeaderboardRunDetail
+                        :row="line.row"
+                        :copies="line.copyRows"
+                        :csv-root="csvRoot"
+                        :view-zone="viewZone"
+                      />
+                    </div>
                   </td>
                 </tr>
               </template>
@@ -481,10 +520,12 @@ import {
   fileRows,
   finishTitle,
   foldCopies,
+  formatDate,
   foundByText,
   localZone,
   placeFor,
   plannedText,
+  scheduleText,
   settingTags,
   whoText,
   type BoardRow,
@@ -607,7 +648,8 @@ const exactMe = computed<Set<string> | null>(() => {
   const accts = myAccts.value;
   const keys = new Set<string>();
   for (const e of race.value?.entries ?? []) {
-    const owned = e.key.startsWith('acct:') && accts.has(e.key.slice('acct:'.length));
+    // A line joined from several browsers is the viewer's when any of them is this one.
+    const owned = e.lines.some(k => k.startsWith('acct:') && accts.has(k.slice('acct:'.length)));
     if (owned || e.plans.some(p => p.folded.copies.some(c => !!c.id && ids.has(c.id)))) keys.add(e.key);
   }
   return keys;
@@ -648,6 +690,16 @@ const raceShown = computed(() => {
     e => typeof e.best.row.currentTE === 'number' && Math.abs(e.best.row.currentTE - myTE.value) <= NEAR_TE
   );
 });
+
+/** What "Tried" counted, and, for a line joined from several browsers, that it was. */
+function triedTitle(e: RaceEntry): string {
+  const sent = `${e.sends} ${e.sends === 1 ? 'run' : 'runs'} sent`;
+  const from =
+    e.lines.length > 1
+      ? `, from ${e.lines.length} browsers (each keeps its own code; they agree on name, timezone, artifacts and TE)`
+      : '';
+  return `${sent}${from}. Each plan counts once, however often it was run or sent.`;
+}
 
 // -------------------------------------------------------------------------------- my plans
 
@@ -712,12 +764,19 @@ interface RunLine extends SortableRow {
   finish: number | null;
 }
 
-const COLUMNS: { key: SortKey; label: string; right?: boolean }[] = [
+const COLUMNS: { key: SortKey; label: string; right?: boolean; title?: string }[] = [
   { key: 'nickname', label: 'Who' },
   { key: 'chain', label: 'Route' },
-  { key: 'ascensions', label: 'Ascensions', right: true },
-  // Named for what it is. Counted from the run's own start, it rewards whoever ran last.
-  { key: 'durationDays', label: 'Plan length (from its start)', right: true },
+  // Short: its values are one digit, and the full word made the table scroll sideways on a desktop.
+  { key: 'ascensions', label: 'Asc', right: true, title: 'Ascensions in the route' },
+  // Counted from the run's own start, it rewards whoever ran last; the header says so on hover. Spelled
+  // out in the header it wrapped onto four lines.
+  {
+    key: 'durationDays',
+    label: 'Plan length',
+    right: true,
+    title: "Days from the plan's own start, so the same plan run a day later is a day shorter. Compare finishes.",
+  },
   // Worked out from the start and the length, never read from the local `endLocal` text, which
   // sorts wrong across timezones.
   { key: 'finish', label: 'Finishes' },
@@ -729,8 +788,19 @@ const COLUMNS: { key: SortKey; label: string; right?: boolean }[] = [
   // Dates matter here in a way they would not on a normal scoreboard: the simulator and the game
   // both change, so a result from two months ago was produced by different code than one from
   // yesterday, and a reader comparing them should be able to see that.
-  { key: 'submittedAt', label: 'Submitted' },
+  { key: 'submittedAt', label: 'Submitted', title: `When it was first sent, in your timezone (${viewZone})` },
 ];
+
+/** A send date on the viewer's calendar, like every other date on the board. */
+function sentText(iso: string | undefined): string {
+  const t = iso ? Date.parse(iso) : NaN;
+  return Number.isFinite(t) ? formatDate(t, viewZone, { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+}
+
+function sentTitle(iso: string | undefined): string | undefined {
+  const t = iso ? Date.parse(iso) : NaN;
+  return Number.isFinite(t) ? formatDate(t, viewZone, { dateStyle: 'medium', timeStyle: 'short' }) : undefined;
+}
 
 const runLines = computed<RunLine[]>(() => {
   const rows = target.value == null ? allRows.value : allRows.value.filter(r => r.finalTE === target.value);

@@ -2,23 +2,33 @@ import { describe, it, expect } from 'vitest';
 import {
   accountKey,
   accountLabel,
+  accountOrder,
+  bestPerCount,
   chainFractions,
   compareCounts,
+  countSteps,
   flagOf,
   foldRuns,
   gearOf,
   groupByAccount,
   groupByCount,
+  isProof,
   judgeFinishes,
+  judgeStep,
+  leastSquaresSlope,
   median,
   nearBestBands,
   positionBands,
+  rateCheckOf,
   runsByAccount,
   runTags,
   searchedOf,
+  searchGrade,
+  summariseCheckpoints,
   summariseRuns,
   sweepGroupOf,
   targetsPresent,
+  type SearchGrade,
 } from './analysis';
 import type { CollectorRow } from './collector';
 import type { PricedChain } from '@/search/types';
@@ -444,7 +454,7 @@ describe('compareCounts', () => {
 });
 
 describe('groupByAccount', () => {
-  it('sorts the busiest account first, so the colour order is stable and useful', () => {
+  it('sorts the busiest account first', () => {
     const accounts = groupByAccount([
       row({ chain: [195, 490], currentTE: 180, finalTE: 490, timezone: 'Europe/Amsterdam' }),
       row({ chain: [195, 490], currentTE: 180, finalTE: 490 }),
@@ -452,6 +462,64 @@ describe('groupByAccount', () => {
     ]);
     expect(accounts[0].rows).toHaveLength(2);
     expect(accounts[0].counts).toEqual([2]);
+  });
+
+  it('never gives two accounts one name: a shared name gets the artifact that tells them apart', () => {
+    // Willsalt, live: upgrading the Puzzle cube started a second account under the same name, and the
+    // legend merged the two lines into one "Willsalt" entry that toggled both.
+    const before = ['T4L Gusset', 'T4E Puzzle cube'];
+    const after = ['T4L Gusset', 'T4L Puzzle cube'];
+    const rows = [
+      row({ chain: [195, 490], currentTE: 130, finalTE: 490, nickname: 'Willsalt', artifacts: before, ...at(0) }),
+      row({ chain: [195, 490], currentTE: 132, finalTE: 490, nickname: 'Willsalt', artifacts: before, ...at(5) }),
+      row({ chain: [195, 490], currentTE: 133, finalTE: 490, nickname: 'Willsalt', artifacts: after, ...at(10) }),
+      row({ chain: [195, 490], currentTE: 180, finalTE: 490, nickname: 'allan', timezone: 'Europe/Amsterdam' }),
+    ];
+    const labelsOf = (list: CollectorRow[]) =>
+      new Map(groupByAccount(list).map(a => [a.rows[0].artifacts.join(','), a.label]));
+    const labels = labelsOf(rows);
+    expect(labels.get(before.join(','))).toBe('Willsalt · T4E cube');
+    expect(labels.get(after.join(','))).toBe('Willsalt · T4L cube');
+    expect(groupByAccount(rows).find(a => a.rows[0].nickname === 'allan')!.label).toBe('allan');
+    // A newer run from another TE renames nothing: What we know names these accounts in prose.
+    const later = row({
+      chain: [195, 490],
+      currentTE: 136,
+      finalTE: 490,
+      nickname: 'Willsalt',
+      artifacts: before,
+      ...at(20),
+    });
+    expect(labelsOf([...rows, later])).toEqual(labels);
+  });
+
+  it('numbers a shared name in the order the accounts first sent a run when the artifacts are shared too', () => {
+    const accounts = groupByAccount([
+      row({ chain: [195, 490], currentTE: 150, finalTE: 490, nickname: 'Kim', timezone: 'Asia/Tokyo', ...at(3) }),
+      row({ chain: [195, 490], currentTE: 150, finalTE: 490, nickname: 'Kim', timezone: 'Europe/Amsterdam', ...at(1) }),
+    ]);
+    expect(accounts.map(a => [a.rows[0].timezone, a.label]).sort()).toEqual([
+      ['Asia/Tokyo', 'Kim (2)'],
+      ['Europe/Amsterdam', 'Kim'],
+    ]);
+  });
+});
+
+describe('accountOrder', () => {
+  it('orders accounts by their first run, whatever the filters leave, so colours never move', () => {
+    // Ranked by run count, ticking "include flagged runs" swapped two accounts' colours.
+    const early = row({ chain: [195, 490], currentTE: 180, finalTE: 490, timezone: 'Asia/Tokyo', ...at(0) });
+    const busy = [1, 2, 3].map(n => row({ chain: [195, 490], currentTE: 180, finalTE: 490, ...at(n) }));
+    const late = row({ chain: [195, 490], currentTE: 180, finalTE: 490, timezone: 'Europe/Amsterdam', ...at(9) });
+    const order = accountOrder([...busy, late, early]);
+    expect(order).toEqual([accountKey(early), accountKey(busy[0]), accountKey(late)]);
+    expect(accountOrder([late, early, ...busy])).toEqual(order);
+  });
+
+  it('puts an account with no send time after every account that has one', () => {
+    const stamped = row({ chain: [195, 490], currentTE: 180, finalTE: 490, ...at(4) });
+    const bare = row({ chain: [195, 490], currentTE: 180, finalTE: 490, timezone: 'Asia/Tokyo', submittedAt: '' });
+    expect(accountOrder([bare, stamped])).toEqual([accountKey(stamped), accountKey(bare)]);
   });
 });
 
@@ -663,6 +731,22 @@ describe('judgeFinishes', () => {
     expect(judged.byId.get('a')).toMatchObject({ best: true, behind: 0 });
     expect(judged.byId.get('b')?.behind).toBeCloseTo(3.5, 9);
     expect(judged.byId.get('b')?.sameSaveAsBest).toBe(true);
+  });
+
+  it('does not call two plans from one save "the plans alone" when different planner builds priced them', () => {
+    const a = row({ id: 'a', chain: [195, 300, 490], currentTE: 180, finalTE: 490, durationDays: 800, ...at(0) });
+    const b = row({
+      id: 'b',
+      chain: [200, 310, 490],
+      currentTE: 180,
+      finalTE: 490,
+      durationDays: 803.5,
+      build: 'newer',
+      ...at(0),
+    });
+    const judged = judge([a, b]);
+    expect(judged.byId.get('b')?.behind).toBeCloseTo(3.5, 9);
+    expect(judged.byId.get('b')?.sameSaveAsBest).toBe(false);
   });
 
   it('ranks a later run with a lower total behind an earlier run that finishes first', () => {
@@ -1292,5 +1376,323 @@ describe('searchedOf', () => {
     expect(s.how).toBe('thorough');
     expect(s.where).toBe('');
     expect(s.title).toContain('5,806 plans priced');
+  });
+});
+
+/** A finished box at the given step at each of `bands` checkpoints, `priced` of `chains` recorded. */
+function boxed(
+  steps: number[],
+  over: { chains?: number; chainsPriced?: number; stoppedEarly?: boolean } = {}
+): NonNullable<CollectorRow['space']> {
+  return {
+    mode: 'bands',
+    minGap: 0,
+    minAscensions: steps.length + 1,
+    maxAscensions: steps.length + 1,
+    bands: steps.map((step, i) => [200 + 50 * i, 200 + 50 * i + step, 200 + 50 * i + 2 * step]),
+    chains: 27,
+    chainsPriced: 27,
+    stoppedEarly: false,
+    ...over,
+  };
+}
+
+describe('isProof', () => {
+  it('needs the whole box priced, not just a box that was never stopped', () => {
+    // Halceyx's 6-ascension run, live: 4,192 of a 61,749-plan box, never stopped, and its end never
+    // wrote the count back. It was "proven" on the count cards and under Proofs only.
+    const partial = row({
+      chain: [185, 215, 255, 295, 335, 490],
+      currentTE: 124,
+      finalTE: 490,
+      chainsPriced: 4192,
+      space: boxed([5, 5, 5, 10, 10], { chains: 61749, chainsPriced: 0 }),
+    });
+    const whole = row({ chain: [185, 490], currentTE: 124, finalTE: 490, space: boxed([1]) });
+    expect(isProof(partial)).toBe(false);
+    expect(isProof(whole)).toBe(true);
+    expect(isProof(row({ chain: [185, 490], currentTE: 124, finalTE: 490 }))).toBe(false);
+    expect(isProof({ ...whole, space: { ...whole.space!, stoppedEarly: true } })).toBe(false);
+    // Every count the page shows agrees with the runs table.
+    expect(summariseRuns([partial, whole]).exhaustive).toBe(1);
+    expect(searchedOf(partial).finished).toBe(false);
+  });
+});
+
+describe('bestPerCount', () => {
+  it("keeps each account's earliest standing finish at each count, never its lowest total", () => {
+    const rows = [
+      row({ id: 'a2', chain: [195, 490], currentTE: 180, finalTE: 490, durationDays: 900, ...at(0) }),
+      row({ id: 'b2', chain: [196, 490], currentTE: 180, finalTE: 490, durationDays: 899, ...at(2) }),
+      row({ id: 'a3', chain: [195, 300, 490], currentTE: 180, finalTE: 490, durationDays: 850, ...at(0) }),
+      row({ id: 'x3', chain: [195, 300, 490], currentTE: 180, finalTE: 490, timezone: 'Asia/Tokyo', ...at(0) }),
+    ];
+    const bests = bestPerCount(rows, judge(rows));
+    expect(bests.size).toBe(2);
+    const mine = bests.get(accountKey(rows[0]))!;
+    expect(mine.get(2)!.row.id).toBe('a2');
+    expect(mine.get(3)!.row.id).toBe('a3');
+    expect(mine.get(2)!.standing).toBe(true);
+    expect(bests.get(accountKey(rows[3]))!.get(3)!.row.id).toBe('x3');
+  });
+
+  it('stands in the newest run for a shape when none of an account’s runs at that count stands', () => {
+    // A what-if does not stand; for a finish it is left out, for the shape of the plan it is still
+    // the account's plan and better than dropping the account.
+    const whatIf = row({
+      id: 'wi',
+      chain: [201, 300, 490],
+      currentTE: 185,
+      finalTE: 490,
+      startLocal: '2026-11-23 09:00',
+      submittedAt: iso(0),
+    });
+    const two = row({ id: 'two', chain: [195, 490], currentTE: 180, finalTE: 490, ...at(0) });
+    const rows = [whatIf, two];
+    expect(bestPerCount(rows, judge(rows)).get(accountKey(two))!.has(3)).toBe(false);
+    const withStandIn = bestPerCount(rows, judge(rows), { standIn: true }).get(accountKey(two))!;
+    expect(withStandIn.get(3)).toMatchObject({ standing: false, row: { id: 'wi' } });
+    expect(withStandIn.get(2)).toMatchObject({ standing: true, row: { id: 'two' } });
+  });
+});
+
+describe('searchGrade', () => {
+  it('grades a finished box by its steps, with the most a finer search has made up', () => {
+    const at1 = searchGrade(row({ chain: [200, 250, 490], currentTE: 180, finalTE: 490, space: boxed([1, 1]) }));
+    expect(at1).toMatchObject({ kind: 'every-te', step: 1, steps: [1, 1], penalty: 0, text: 'every TE' });
+    const at2 = searchGrade(row({ chain: [200, 250, 490], currentTE: 180, finalTE: 490, space: boxed([2, 2]) }));
+    expect(at2).toMatchObject({ kind: 'coarse', step: 2, steps: [2, 2], penalty: 6, text: 'every 2nd TE' });
+    const at5 = searchGrade(
+      row({ chain: [200, 250, 300, 350, 490], currentTE: 180, finalTE: 490, space: boxed([5, 5, 5, 5]) })
+    );
+    expect(at5).toMatchObject({ kind: 'coarse', step: 5, penalty: 12, text: 'every 5th TE' });
+    const pool = searchGrade(
+      row({
+        chain: [200, 250, 490],
+        currentTE: 180,
+        finalTE: 490,
+        space: { ...boxed([1, 1]), mode: 'range', bands: undefined, range: { lo: 190, hi: 300, step: 5 } },
+      })
+    );
+    expect(pool).toMatchObject({ kind: 'coarse', step: 5, steps: [5, 5], penalty: 12, text: 'every 5th TE' });
+  });
+
+  it('puts no bound on a box coarser than every 5th TE, which has never been measured', () => {
+    // William's F4, live: every 6th TE at the last checkpoint only. iDaHooBone's 5 went to every 20th.
+    const uneven = searchGrade(
+      row({ chain: [200, 250, 300, 350, 490], currentTE: 180, finalTE: 490, space: boxed([1, 2, 3, 6]) })
+    );
+    expect(uneven).toMatchObject({ kind: 'coarse', step: 6, steps: [1, 2, 3, 6], penalty: null });
+    expect(uneven.text).toBe('up to every 6th TE');
+    const twentieth = searchGrade(
+      row({ chain: [200, 250, 490], currentTE: 180, finalTE: 490, space: boxed([20, 10]) })
+    );
+    expect(twentieth).toMatchObject({ kind: 'coarse', step: 20, penalty: null });
+  });
+
+  it('knows nothing about what a staged search, or a box it did not finish, left behind', () => {
+    const staged = searchGrade(row({ chain: [200, 490], currentTE: 180, finalTE: 490, effort: 'thorough' }));
+    expect(staged).toMatchObject({
+      kind: 'staged',
+      step: Infinity,
+      steps: [],
+      penalty: null,
+      text: 'staged (thorough)',
+    });
+    const cut = searchGrade(
+      row({
+        chain: [200, 490],
+        currentTE: 180,
+        finalTE: 490,
+        space: boxed([1], { chainsPriced: 3, stoppedEarly: true }),
+      })
+    );
+    expect(cut).toMatchObject({ kind: 'staged', penalty: null, text: 'box not finished' });
+  });
+
+  it('grades an uploaded sweep by the bands it was tagged with, a TE-relative first band included', () => {
+    // An upload carries no `space`; graded as staged, a finished F2 drew as a cross and could never
+    // settle a gap it lost.
+    const f2 = searchGrade(
+      row({
+        chain: [200, 285, 490],
+        currentTE: 180,
+        finalTE: 490,
+        source: 'upload',
+        sweep: { preset: 'F2', bands: '195-250:1; 276-300:1' },
+      })
+    );
+    expect(f2).toMatchObject({ kind: 'every-te', steps: [1, 1], penalty: 0, text: 'every TE' });
+    const f4 = searchGrade(
+      row({
+        chain: [190, 230, 270, 300, 490],
+        currentTE: 182,
+        finalTE: 490,
+        source: 'upload',
+        sweep: { preset: 'F4', bands: '+1-+38:1; 201-257:2; 242-290:3; 281-329:3' },
+      })
+    );
+    expect(f4).toMatchObject({ kind: 'coarse', steps: [1, 2, 3, 3], penalty: 6, text: 'up to every 3rd TE' });
+    const bare = searchGrade(
+      row({ chain: [200, 490], currentTE: 180, finalTE: 490, source: 'upload', sweep: { preset: 'custom' } })
+    );
+    expect(bare).toMatchObject({ kind: 'staged', penalty: null, text: 'uploaded, box not given' });
+  });
+});
+
+describe('judgeStep / countSteps', () => {
+  const grade = (steps: number[]): SearchGrade => {
+    const step = Math.max(...steps);
+    return step <= 1
+      ? { kind: 'every-te', step: 1, steps, penalty: 0, text: 'every TE' }
+      : { kind: 'coarse', step, steps, penalty: step <= 3 ? 6 : step <= 5 ? 12 : null, text: `every ${step}` };
+  };
+  const every = grade([1, 1, 1, 1]);
+  const second = grade([2, 2, 2, 2]);
+  const fifth = grade([5, 5, 5, 5]);
+  const staged: SearchGrade = { kind: 'staged', step: Infinity, steps: [], penalty: null, text: 'staged (thorough)' };
+  const p = (ascensions: number, behind: number, search: SearchGrade) => ({ ascensions, behind, search });
+
+  it('settles a gap bigger than a finer search of the slower count could make up', () => {
+    // rontimes, live: 5 from an every-2nd-TE pool, 6 from a staged search, 8.8 days apart. Every 2nd
+    // TE has cost at most 6 days, so the 5 cannot catch up.
+    expect(judgeStep(p(5, 8.8, second), p(6, 0, staged))).toMatchObject({
+      from: 5,
+      to: 6,
+      better: 6,
+      verdict: 'settled',
+    });
+    // A slower count searched at every TE has nothing left to find.
+    expect(judgeStep(p(4, 1.51, every), p(5, 0, staged)).verdict).toBe('settled');
+  });
+
+  it('never settles against a staged search, whose shortfall is unknown', () => {
+    // allanfieldhouse, live: 5 (845 plans) against 6 (5,806), both staged.
+    expect(judgeStep(p(5, 0.39, staged), p(6, 0, staged)).verdict).toBe('noise');
+    expect(judgeStep(p(3, 0, second), p(4, 1.51, staged)).verdict).toBe('noise');
+  });
+
+  it('never settles against a box coarser than every 5th TE, however big the gap', () => {
+    const twentieth = grade([20, 20, 20, 20]);
+    expect(judgeStep(p(5, 30, twentieth), p(6, 0, fifth)).verdict).toBe('noise');
+    expect(judgeStep(p(5, 30, fifth), p(6, 0, twentieth)).verdict).toBe('settled');
+  });
+
+  it('says the direction holds only when the winner was searched as coarsely at every checkpoint', () => {
+    // Willsalt, live: E7's 7 beat F5-alt's 6 by 4.28 days, and E7 is the coarser at every checkpoint.
+    const f5alt = grade([3, 2, 7, 6, 6]);
+    const e7 = grade([6, 4, 10, 11, 11, 10]);
+    expect(judgeStep(p(6, 4.28, f5alt), p(7, 0, e7)).verdict).toBe('direction');
+    // The other way round it could just be the search.
+    expect(judgeStep(p(6, 0, f5alt), p(7, 0.85, e7)).verdict).toBe('noise');
+    // William, live: F5 [1, 1, 7, 6, 6] beat F4 [1, 2, 3, 6] by 2.8 days; lined up from the last
+    // checkpoint F5 is never finer.
+    expect(judgeStep(p(5, 2.8, grade([1, 2, 3, 6])), p(6, 0, grade([1, 1, 7, 6, 6]))).verdict).toBe('direction');
+    // Willsalt, live: F5-alt's 6 beat M4's 5 by 5.55 days. F5-alt's widest step (7) is wider than
+    // M4's (5), but it looked closer at its second checkpoint, so one wide checkpoint decides nothing.
+    expect(judgeStep(p(5, 5.55, fifth), p(6, 0, f5alt)).verdict).toBe('noise');
+    // The same box on both sides says nothing about direction.
+    expect(judgeStep(p(5, 6.54, grade([10, 10, 10, 10])), p(6, 0, grade([10, 10, 10, 10, 10]))).verdict).toBe('noise');
+  });
+
+  it('calls the same finish noise, whatever the searches', () => {
+    expect(judgeStep(p(6, 0, every), p(7, 0.001, every))).toMatchObject({ better: 6, verdict: 'noise' });
+  });
+
+  it('weighs each pair of neighbouring counts an account tried, lowest first', () => {
+    const steps = countSteps([p(8, 8.19, fifth), p(2, 125.7, every), p(3, 26.58, second)]);
+    expect(steps.map(s => [s.from, s.to, s.better, s.verdict])).toEqual([
+      [2, 3, 3, 'settled'],
+      [3, 8, 8, 'settled'],
+    ]);
+    expect(steps[0].gap).toBeCloseTo(99.12, 9);
+  });
+});
+
+describe('compareCounts, search and names', () => {
+  it("carries each point's search and uses the page's names", () => {
+    const rows = [
+      row({ chain: [195, 490], currentTE: 180, finalTE: 490, durationDays: 900, space: boxed([1]), ...at(0) }),
+      row({ chain: [195, 300, 490], currentTE: 181, finalTE: 490, durationDays: 800, effort: 'balanced', ...at(1) }),
+    ];
+    const labels = new Map([[accountKey(rows[0]), 'Willsalt · T4E cube']]);
+    const [series] = compareCounts(rows, judge(rows), labels);
+    expect(series.label).toBe('Willsalt · T4E cube');
+    expect(series.points.map(pt => pt.search.kind)).toEqual(['every-te', 'staged']);
+    expect(series.points[1].priced).toBe(100);
+  });
+});
+
+describe('leastSquaresSlope / summariseCheckpoints', () => {
+  it('fits a slope only from three points at different starts', () => {
+    expect(leastSquaresSlope([1, 2, 3], [2, 4, 6])).toBeCloseTo(2, 9);
+    expect(leastSquaresSlope([1, 2], [2, 4])).toBeNull();
+    expect(leastSquaresSlope([5, 5, 5], [1, 2, 3])).toBeNull();
+  });
+
+  it('tells a checkpoint at a fixed TE from one that moves with the start', () => {
+    // The 26 Sep shape: the last 3-ascension checkpoint at 279-288 whatever the start, the first one
+    // moving with it. One run per account.
+    const rows = [
+      row({ chain: [140, 280, 490], currentTE: 124, finalTE: 490 }),
+      row({ chain: [175, 285, 490], currentTE: 160, finalTE: 490 }),
+      row({ chain: [214, 283, 490], currentTE: 199, finalTE: 490 }),
+    ];
+    const [first, last] = summariseCheckpoints(rows);
+    expect(first.slope).toBeCloseTo(1, 1);
+    expect(last.slope!).toBeLessThan(0.1);
+    expect(last.te).toEqual({ lo: 280, hi: 285 });
+    expect(last.aboveStart).toEqual({ lo: 84, hi: 156 });
+    expect(first.aboveStart).toEqual({ lo: 15, hi: 16 });
+    expect(last.accounts).toBe(3);
+    expect(last.share.mid).toBeCloseTo((285 - 160) / 330, 9);
+  });
+
+  it('gives each account one say in the median, however many runs it sent', () => {
+    // Seven runs from one account at 0.25, one each from two others at 0.40 and 0.45: per run the
+    // median is 0.25, per account 0.40.
+    const busy = Array.from({ length: 7 }, (_, i) =>
+      row({ id: `busy${i}`, chain: [200, 490], currentTE: 180, finalTE: 500, ...at(i) })
+    );
+    const b = row({ chain: [308, 490], currentTE: 180, finalTE: 500, timezone: 'Asia/Tokyo', ...at(0) });
+    const c = row({ chain: [324, 490], currentTE: 180, finalTE: 500, timezone: 'Europe/Amsterdam', ...at(0) });
+    const all = [...busy, b, c];
+    expect(positionBands(all)[0].mid).toBeCloseTo(0.0625, 9);
+    const bests = [...bestPerCount(all, judgeFinishes(all, 500, START + 60 * DAY_MS)).values()].map(m => m.get(2)!.row);
+    expect(bests).toHaveLength(3);
+    expect(summariseCheckpoints(bests)[0].share.mid).toBeCloseTo(0.4, 9);
+  });
+});
+
+describe('nearBestBands in days', () => {
+  it('takes an absolute tolerance in days', () => {
+    const chains: PricedChain[] = [
+      { chain: [195, 300, 490], days: 700, prestiges: 3, lastCheckpoint: 300 },
+      { chain: [196, 301, 490], days: 700.8, prestiges: 3, lastCheckpoint: 301 },
+      { chain: [197, 302, 490], days: 705, prestiges: 3, lastCheckpoint: 302 },
+    ];
+    // 1% of 700 days is 7 days, which takes in all three; 1 day takes two.
+    expect(nearBestBands(chains, 180, 490, 3, 0.01)!.near).toBe(3);
+    expect(nearBestBands(chains, 180, 490, 3, { days: 1 })!.near).toBe(2);
+  });
+});
+
+describe('rateCheckOf', () => {
+  it('answers suspect, clean, or unchecked with the reason', () => {
+    const base = { chain: [352, 490], currentTE: 180, finalTE: 490, delivery: PERFECT };
+    expect(rateCheckOf(row({ ...base, legs: legsTo(8.01) })).state).toBe('suspect');
+    expect(rateCheckOf(row({ ...base, legs: legsTo(11.9) })).state).toBe('clean');
+    const noSet = rateCheckOf(row({ ...base, delivery: undefined, legs: legsTo(3) }));
+    expect(noSet).toMatchObject({ state: 'unchecked', why: expect.stringMatching(/delivery set/) });
+    expect(rateCheckOf(row({ ...base, legs: [] }))).toMatchObject({ why: expect.stringMatching(/per-leg/) });
+    expect(rateCheckOf(row({ ...base, chain: [169, 490], legs: legsTo(3.68) }))).toMatchObject({
+      state: 'unchecked',
+      why: expect.stringMatching(/under 190/),
+    });
+    expect(rateCheckOf(row({ ...base, chain: [250, 300], finalTE: 300, legs: legsTo(3) }))).toMatchObject({
+      why: expect.stringMatching(/only works on runs to 490/),
+    });
+    // The filter's meaning does not change: only a suspect run is flagged.
+    expect(flagOf(row({ ...base, delivery: undefined, legs: legsTo(3) }))).toBeNull();
   });
 });

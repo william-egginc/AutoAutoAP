@@ -16,14 +16,23 @@
       that has stopped gaining from another prestige, and that is the argument for a shorter chain
       made visible.
 
-  Runs are coloured by account, so a fan of one colour is one person's several attempts and a fan
-  of several is a shape that repeats across accounts.
+  BOTH ARE ON A LOG SCALE. At 5 ascensions the last leg is 390-512 days and legs 2-4 are 37-171; on
+  a linear axis the last leg flattens everything before it into one smear. On a log axis equal
+  steps are equal ratios, so a leg that takes twice as long on one account looks the same wherever
+  it falls in the chain.
 
-  LEG 1 IS DRAWN APART (hollow point, dashed line, days view). It is the rest of the ascension the
-  player is in when the plan starts, so it shrinks one-for-one with a later start: Allan's two runs
-  of one plan, 87 minutes apart, differ only in leg 1, by exactly those 87 minutes. Legs 2 onward
-  are whole ascensions and compare as they are. For the same reason a run is named by its finish
-  date, not its total, which is also shorter when the run is made later.
+  Runs are coloured by account, so a fan of one colour is one person's several attempts and a fan
+  of several is a shape that repeats across accounts. The legend has one entry per account, so
+  toggling or hovering it takes all of that account's runs at once; past eight accounts the hues
+  repeat and the marker shape changes (`symbolAt`).
+
+  LEG 1 IS DRAWN APART (hollow point, dashed line), in both views. It is the rest of the ascension
+  the player is in when the plan starts, so it shrinks one-for-one with a later start: Allan's two
+  runs of one plan, 87 minutes apart, differ only in leg 1, by exactly those 87 minutes. Its peak
+  moves with the start too: Allan's leg 1 peaks at 5.95 q/hr when the plan starts on a fresh
+  ascension and 3.86 when it starts near the end of one. Legs 2 onward are whole ascensions and
+  compare as they are. For the same reason a run is named by its finish date, not its total, which
+  is also shorter when the run is made later.
 -->
 <template>
   <div class="space-y-2">
@@ -49,7 +58,7 @@
       </span>
     </div>
 
-    <EChart v-if="withLegs.length" :option="option" height="280px" />
+    <EChart v-if="withLegs.length" :option="option" height="330px" />
     <p class="text-[10px] text-slate-400 leading-relaxed px-1">{{ MODES.find(m => m.id === metric)?.hint }}</p>
   </div>
 </template>
@@ -61,10 +70,15 @@ import type { ChartOption, ChartSeriesOption } from '@/lib/charts/echarts';
 import { esc } from '@/lib/charts/tooltip';
 import type { CollectorRow } from './collector';
 import { finishDateText, finishMs, localZone, whoText } from '@/lib/leaderboardRank';
-import { accountKey } from './analysis';
-import { colorAt, AXIS_LABEL, SPLIT_LINE } from './palette';
+import { accountKey, groupByAccount } from './analysis';
+import { colorAt, symbolAt, AXIS_LABEL, SPLIT_LINE } from './palette';
 
-const props = defineProps<{ rows: CollectorRow[]; accountColors: Map<string, number> }>();
+const props = defineProps<{
+  rows: CollectorRow[];
+  accountColors: Map<string, number>;
+  /** The page's name per account key. Without it each account is named from its own runs here. */
+  accountLabels?: Map<string, string>;
+}>();
 
 type Metric = 'days' | 'rate';
 const metric = ref<Metric>('days');
@@ -72,12 +86,12 @@ const MODES: { id: Metric; label: string; hint: string }[] = [
   {
     id: 'days',
     label: 'Days per leg',
-    hint: 'How long each ascension takes. The last leg before the target is usually the biggest single block in the plan, which is what makes the last checkpoint the value worth arguing about. Leg 1 (hollow point, dashed line) is the rest of the ascension in progress when the plan starts, so it is shorter when the plan is made later; compare legs 2 onward.',
+    hint: 'How long each ascension takes, on a log scale so the short legs are not flattened by the long ones: each labelled gridline is ten times the one below. The last leg before the target is usually the biggest single block in the plan, which is what makes the last checkpoint the value worth arguing about. Leg 1 (hollow point, dashed line) is the rest of the ascension in progress when the plan starts, so it is shorter when the plan is made later; compare legs 2 onward.',
   },
   {
     id: 'rate',
     label: 'Peak delivery',
-    hint: 'Peak delivery rate each leg reaches, in q/hr. It should climb leg over leg as research carries forward — that climb is the whole reason chaining beats one long ascension, and a line that has flattened is an account that would do as well with fewer.',
+    hint: 'Peak delivery rate each leg reaches, in q/hr, on a log scale so equal steps are equal gains in percent. It should climb leg over leg as research carries forward — that climb is the whole reason chaining beats one long ascension, and a line that has flattened is an account that would do as well with fewer. Leg 1 (hollow point, dashed line) depends on how far into the ascension in progress the plan starts; compare legs 2 onward.',
   },
 ];
 
@@ -87,30 +101,55 @@ const withLegs = computed(() => props.rows.filter(r => Array.isArray(r.legs) && 
 /** Finish dates in the viewer's timezone, as everywhere else on the page. */
 const viewZone = localZone();
 
-/** One point: [leg, value, detail]. */
-type Datum = [number, number, string];
+/** Account key -> the name its legend entry and tooltips use. */
+const labels = computed(() => {
+  const own = new Map(groupByAccount(withLegs.value).map(a => [a.key, a.label]));
+  return (key: string, row: CollectorRow) =>
+    props.accountLabels?.get(key) ?? own.get(key) ?? (whoText(row) || 'anonymous');
+});
+
+/** ECharts draws any symbol hollow when its name is prefixed with `empty`. */
+const hollow = (symbol: string) => `empty${symbol[0].toUpperCase()}${symbol.slice(1)}`;
+
+/** One point: [leg, value, leg detail, run heading]. */
+type Datum = [number, number, string, string];
 
 const option = computed<ChartOption>(() => {
-  const series: ChartSeriesOption[] = withLegs.value.flatMap(row => {
-    const name = `${whoText(row) || 'anonymous'} · finishes ${finishDateText(finishMs(row), viewZone)}`;
-    const color = colorAt(props.accountColors.get(accountKey(row)) ?? 0);
-    const data = row.legs.map(
-      (leg, i): Datum => [
-        i + 1,
-        metric.value === 'days' ? leg.days : leg.peakDeliveryQph,
-        `${leg.te} TE · ${leg.strategy}`,
-      ]
-    );
-    const line = { name, type: 'line' as const, color, symbolSize: 5 };
-    const solid = { width: 1.2, opacity: 0.7 };
-    if (metric.value !== 'days' || data.length < 2) return [{ ...line, data, lineStyle: solid }];
+  const days = metric.value === 'days';
+  const legend = new Map<string, { index: number; symbol: string }>();
+  let lowest = Infinity;
+
+  const series: ChartSeriesOption[] = withLegs.value.flatMap((row): ChartSeriesOption[] => {
+    const key = accountKey(row);
+    const index = props.accountColors.get(key) ?? 0;
+    const label = labels.value(key, row);
+    const symbol = symbolAt(index);
+    if (!legend.has(label)) legend.set(label, { index, symbol });
+    // Named by account, so the legend has one entry per account and toggles all of its runs; the
+    // run itself is told apart by its finish date, which is in every tooltip.
+    const heading = `${label} · finishes ${finishDateText(finishMs(row), viewZone)}`;
+    const data = row.legs.map((leg, i): Datum => {
+      const value = days ? leg.days : leg.peakDeliveryQph;
+      if (value > 0 && value < lowest) lowest = value;
+      return [i + 1, value, `${leg.te} TE · ${leg.strategy}`, heading];
+    });
+    const line = {
+      name: label,
+      type: 'line' as const,
+      color: colorAt(index),
+      symbol,
+      symbolSize: 6,
+      emphasis: { focus: 'series' as const },
+    };
+    const solid = { width: 1.2, opacity: 0.75 };
+    if (data.length < 2) return [{ ...line, data, symbol: hollow(symbol), lineStyle: solid }];
     // Leg 1 on its own dashed segment with a hollow point, legs 2 onward solid: leg 1 is the rest of
-    // the ascension in progress and is shorter whenever the plan is made later.
+    // the ascension in progress, in days and in peak rate alike.
     return [
       {
         ...line,
         data: [
-          { value: data[0], symbol: 'emptyCircle' },
+          { value: data[0], symbol: hollow(symbol) },
           { value: data[1], symbol: 'none' },
         ],
         lineStyle: { ...solid, type: 'dashed' as const },
@@ -120,22 +159,37 @@ const option = computed<ChartOption>(() => {
   });
 
   return {
-    grid: { left: 52, right: 16, top: 14, bottom: 38 },
+    grid: { left: 52, right: 16, top: 14, bottom: 66 },
+    legend: {
+      type: 'scroll',
+      bottom: 0,
+      itemGap: 14,
+      itemWidth: 14,
+      itemHeight: 8,
+      textStyle: { fontSize: 10, color: '#64748b' },
+      // Explicit, so each account shows once, with its own marker shape, in the order of its colour.
+      data: [...legend.entries()]
+        .sort((a, b) => a[1].index - b[1].index)
+        .map(([name, { symbol }]) => ({ name, icon: symbol })),
+      formatter: (name: string) => (name.length > 24 ? `${name.slice(0, 23)}…` : name),
+    },
     tooltip: {
       trigger: 'item',
       formatter: raw => {
         // `value` rather than `data`: leg 1's point is an object carrying its own symbol.
-        const params = raw as { value?: Datum; seriesName?: string };
+        const params = raw as { value?: Datum };
         const d = params.value;
         if (!Array.isArray(d)) return '';
-        const unit = metric.value === 'days' ? 'days' : 'q/hr';
+        const value = days ? `${d[1].toFixed(1)} days` : `${d[1].toFixed(2)} q/hr`;
         const note =
-          metric.value === 'days' && d[0] === 1
-            ? ' (rest of the ascension in progress; shorter when planned later)'
-            : '';
-        // Escaped throughout: the series name carries a submitted nickname and d[2] carries the
-        // leg's strategy string, both free text, and this becomes innerHTML. See charts/tooltip.ts.
-        return `<b>${esc(params.seriesName)}</b><br/>leg ${esc(d[0])}: ${esc(d[1].toFixed(3))} ${esc(unit)}${esc(note)}<br/><span style="color:#94a3b8">${esc(d[2])}</span>`;
+          d[0] !== 1
+            ? ''
+            : days
+              ? ' (rest of the ascension in progress; shorter when planned later)'
+              : ' (depends on how far into the ascension in progress the plan starts)';
+        // Escaped throughout: the heading carries a submitted nickname and d[2] carries the leg's
+        // strategy string, both free text, and this becomes innerHTML. See charts/tooltip.ts.
+        return `<b>${esc(d[3])}</b><br/>leg ${esc(d[0])}: ${esc(value)}${esc(note)}<br/><span style="color:#94a3b8">${esc(d[2])}</span>`;
       },
     },
     xAxis: {
@@ -144,17 +198,25 @@ const option = computed<ChartOption>(() => {
       nameLocation: 'middle',
       nameGap: 24,
       nameTextStyle: AXIS_LABEL,
-      minInterval: 1,
+      // Legs are counted from 1; a 0 on the axis is a leg nobody ran.
+      min: 1,
+      max: 'dataMax',
+      interval: 1,
       axisLabel: AXIS_LABEL,
       splitLine: SPLIT_LINE,
     },
     yAxis: {
-      type: 'value',
-      name: metric.value === 'days' ? 'days' : 'q/hr',
+      type: 'log',
+      logBase: 10,
+      name: days ? 'days (log scale)' : 'q/hr (log scale)',
       nameTextStyle: AXIS_LABEL,
-      scale: true,
+      // From 1 day, or from a tenth of one when a leg 1 was shorter than a day, so no point is cut
+      // off below the axis. Peak rates sit between 1 and 12 q/hr.
+      min: days ? (lowest < 1 ? 0.1 : 1) : 1,
+      max: days ? undefined : 20,
       axisLabel: AXIS_LABEL,
       splitLine: SPLIT_LINE,
+      minorTick: { show: true },
     },
     series,
   };

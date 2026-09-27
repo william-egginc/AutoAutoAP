@@ -136,7 +136,31 @@ import { esc } from '@/lib/charts/tooltip';
 import type { PricedChain } from '@/search/types';
 import { parseHighlightValues } from '@/search/highlight';
 
-const props = defineProps<{ points: PricedChain[]; bestChain: number[] }>();
+/**
+ * Reference marks for the last-checkpoint view, all optional: a horizontal line at `y` days (say,
+ * best + 1 day) and a `band` of last checkpoints, `[lo, hi]` in TE (say, where the near-best plans
+ * put it), drawn as its two edges with one label centred over it: a label on each edge printed the
+ * two on top of each other on a phone ("282294"). Drawn only when the x axis is the last
+ * checkpoint, the one view where an x in TE means anything.
+ */
+interface SearchShapeRefLines {
+  y?: number;
+  yLabel?: string;
+  band?: [number, number];
+}
+
+const props = defineProps<{
+  points: PricedChain[];
+  bestChain: number[];
+  refLines?: SearchShapeRefLines;
+  /**
+   * The Chain Explorer's look: the best-found ring in ink, since every hue on that page means an
+   * account (the planner's green is also the third ascension count's), and more room under the plot
+   * so the axis name clears the zoom slider. With this and `refLines` both left out, the chart is
+   * exactly what the planner page has always drawn.
+   */
+  explorerLook?: boolean;
+}>();
 
 type AxisMode = 'last' | 'rank' | 'order';
 const axis = ref<AxisMode>('last');
@@ -174,6 +198,19 @@ const HIGHLIGHT_PALETTE = ['#e11d48', '#0284c7', '#ca8a04', '#7c3aed', '#059669'
 
 /** Everything not highlighted. Light enough to read as background, dark enough to still show shape. */
 const DIM = '#cbd5e1';
+
+/** The planner's "best found" ring. */
+const BEST_RING = '#059669';
+
+/**
+ * The explorer's ring (`explorerLook`) and the reference marks: ink, not a series hue. The planner's
+ * green is the third ascension count's (and the fifth highlight's), so on a table with three counts
+ * it read as one more point of that family.
+ */
+const INK = '#0f172a';
+const REF = '#64748b';
+/** Behind a reference label, so it stays readable where it crosses the cloud. */
+const LABEL_BACK = { backgroundColor: 'rgba(255,255,255,0.85)', padding: [1, 3], borderRadius: 2 };
 
 const groups = computed(() => {
   const counts = new Map<number, number>();
@@ -344,19 +381,63 @@ const option = computed<ChartOption>(() => {
 
   const best = plotted.value.find(p => p.chain.join(',') === bestKey.value);
   if (best) {
+    const ring = props.explorerLook ? INK : BEST_RING;
     series.push({
       name: 'Best found',
       type: 'scatter' as const,
       data: [[best.x, best.y, best.chain.join(' ')]],
-      color: '#059669',
+      color: ring,
       symbolSize: 16,
       // A ring, so it reads as a marker rather than another observation.
-      itemStyle: { color: 'transparent', borderColor: '#059669', borderWidth: 2.5 },
+      itemStyle: { color: 'transparent', borderColor: ring, borderWidth: 2.5 },
+    });
+  }
+
+  const marks = axis.value === 'last' ? props.refLines : undefined;
+  const lineData: object[] = [];
+  if (marks?.y !== undefined && Number.isFinite(marks.y)) {
+    // At the left end, short, on a light back: the near-best plans crowd the line wherever the cloud
+    // is, and a long label at the right end ran over them and the best-found ring on a phone.
+    lineData.push({
+      yAxis: marks.y,
+      label: { formatter: marks.yLabel ?? `${marks.y.toFixed(2)} d`, position: 'insideStartTop', ...LABEL_BACK },
+    });
+  }
+  const band = marks?.band;
+  if (band && band.every(Number.isFinite)) {
+    const [lo, hi] = band[0] <= band[1] ? band : [band[1], band[0]];
+    const label = (text: string) => ({ formatter: text, position: 'end', ...LABEL_BACK });
+    if (lo === hi) {
+      // One TE wide: one line, labelled once.
+      lineData.push({ xAxis: lo, label: label(String(lo)) });
+    } else {
+      // The edges unlabelled, and the label on an invisible line at the middle, so it sits over the
+      // band. (A shaded markArea would need a component the app's echarts build does not register.)
+      lineData.push({ xAxis: lo, label: { show: false } }, { xAxis: hi, label: { show: false } });
+      // Transparent by colour: an opacity of 0 hides the line's label with it.
+      lineData.push({ xAxis: (lo + hi) / 2, lineStyle: { color: 'transparent' }, label: label(`${lo}–${hi}`) });
+    }
+  }
+  if (lineData.length) {
+    // On a series of its own with no points, so it cannot be mistaken for, or dimmed with, the data.
+    series.push({
+      name: 'Reference',
+      type: 'scatter' as const,
+      data: [],
+      markLine: {
+        silent: true,
+        symbol: 'none',
+        lineStyle: { color: REF, type: 'dashed', width: 1 },
+        label: { color: REF, fontSize: 10 },
+        data: lineData as never,
+      },
     });
   }
 
   return {
-    grid: { left: 58, right: 20, top: 16, bottom: 56 },
+    // The explorer's look leaves room for the axis labels, the axis name and the zoom slider under
+    // each other: at 56 with a name gap of 28 the name sat on top of the slider.
+    grid: { left: 58, right: 20, top: 16, bottom: props.explorerLook ? 70 : 56 },
     tooltip: {
       trigger: 'item',
       formatter: rawParams => {
@@ -378,7 +459,7 @@ const option = computed<ChartOption>(() => {
       name:
         axis.value === 'last' ? 'last checkpoint (TE)' : axis.value === 'rank' ? 'rank, best first' : 'order priced',
       nameLocation: 'middle',
-      nameGap: 28,
+      nameGap: props.explorerLook ? 26 : 28,
       nameTextStyle: { color: '#94a3b8', fontSize: 10 },
       scale: true,
       axisLabel: { color: '#94a3b8', fontSize: 10 },
