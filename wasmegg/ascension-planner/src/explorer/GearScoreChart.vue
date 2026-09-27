@@ -13,8 +13,9 @@
   bars mostly showed who has ascended further, not whose gear is better. TE and Clothed TE are in
   the tooltip.
 
-  One bar per account, from its most recent run: gear changes when someone upgrades, and the
-  latest set is the one their next run will use.
+  One bar per account, from its most recent run that recorded a delivery set (gearMap.ts
+  `latestWithGear`, the same run the gear map places): gear changes when someone upgrades, and the
+  latest set is the one their next run will use. A what-if is passed over, since its TE was typed in.
 -->
 <template>
   <div class="space-y-2">
@@ -40,15 +41,17 @@ import { esc } from '@/lib/charts/tooltip';
 import { PERFECT_QPH } from '@/search/virtueScore';
 import type { Account } from './analysis';
 import { gearOf } from './analysis';
+import { latestWithGear } from './gearMap';
 import { colorAt, AXIS_LABEL, SPLIT_LINE } from './palette';
 
-const props = defineProps<{ accounts: Account[]; accountColors: Map<string, number> }>();
+/** `whatIfs`: ids of runs judged what-ifs (gearMap.ts `whatIfRuns`), passed over as on the gear map. */
+const props = defineProps<{ accounts: Account[]; accountColors: Map<string, number>; whatIfs?: Set<string> }>();
 
 const bars = computed(() =>
   props.accounts
-    .map(a => {
-      const latest = [...a.rows].sort((x, y) => (y.submittedAt ?? '').localeCompare(x.submittedAt ?? ''));
-      const withGear = latest.find(r => r.delivery?.length || r.deliveryScore) ?? latest[0];
+    .flatMap(a => {
+      const withGear = latestWithGear(a.rows, props.whatIfs);
+      if (!withGear) return [];
       // The peak is the best any run to 490 reached, not the latest run's: a short run to 300
       // ends before the farm reaches its rate and would read as worse gear.
       const peaks = a.rows
@@ -59,7 +62,7 @@ const bars = computed(() =>
       const te = withGear.currentTE;
       // What the earnings set adds, in TE: Clothed TE is TE plus exactly this.
       const earnings = gear.clothedTE === null ? null : gear.clothedTE - te;
-      return { key: a.key, label: a.label, gear, te, earnings };
+      return [{ key: a.key, label: a.label, gear, te, earnings }];
     })
     .filter(b => b.gear.delivery !== null || b.gear.clothedTE !== null)
     .sort((a, b) => (b.gear.delivery ?? 0) - (a.gear.delivery ?? 0))
@@ -72,7 +75,8 @@ const short = (s: string) => (s.length > 18 ? `${s.slice(0, 17)}…` : s);
 function base(title: string, max?: number): ChartOption {
   return {
     grid: { left: 120, right: 44, top: 26, bottom: 24 },
-    tooltip: { trigger: 'item' },
+    // Kept inside the chart and wrapped, so it fits a phone.
+    tooltip: { trigger: 'item', confine: true, extraCssText: 'max-width: min(320px, 86vw); white-space: normal;' },
     xAxis: {
       type: 'value',
       name: title,

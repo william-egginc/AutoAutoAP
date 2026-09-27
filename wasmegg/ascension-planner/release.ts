@@ -12,5 +12,5 @@
  */
 export default {
   reloadIfBuiltBefore: '2026-09-26T07:22:00Z',
-  note: 'the Chain Explorer now shows how thoroughly each result was searched and where checkpoints really land, and one player no longer takes two places in the race',
+  note: 'new Explorer views: best count per account, which sale plan wins, a gear map, plan drift, what a missed checkpoint costs, and every plan a run priced',
 };

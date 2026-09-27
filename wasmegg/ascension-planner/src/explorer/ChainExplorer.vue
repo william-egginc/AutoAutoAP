@@ -661,15 +661,54 @@
         </section>
 
         <section class="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
+          <h2 class="text-lg font-black text-slate-900">Which ascension count finishes first, account by account</h2>
+          <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
+            One row per account, one column per ascension count tried at this target. Each cell is that account's best
+            plan at that count whose finish still stands, as days after the account's own earliest finish (the one the
+            runs table names): "best" at 0, darker is closer. A row only compares with itself; nothing compares down a
+            column, because gear decides totals. The rows are ordered by starting TE (or Clothed TE, or delivery score),
+            so you can see whether the winning count moves with where an account is or with its gear. The border says
+            how the run behind the cell searched: solid for a finished box at every TE, dashed for every 2nd-3rd TE,
+            dotted for every 4th or coarser, striped for a staged search or a box it did not finish. A dark cell with a
+            dotted or striped edge is a best count found by a search that could have missed a better plan, so it is
+            weaker than it looks. Hover a cell for the chain, its finish date, how it searched and whether the step from
+            the next count down is bigger than the search could explain.
+          </p>
+          <BestCountMatrix
+            :rows="filtered"
+            :tried="atTarget"
+            :judged="judged"
+            :account-colors="accountColors"
+            :account-labels="accountLabels"
+          />
+        </section>
+
+        <section class="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
+          <h2 class="text-lg font-black text-slate-900">Which sale plan wins each leg?</h2>
+          <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
+            One mark per leg, from leg 2 on, of every plan whose finish still stands. Across is the TE the leg starts
+            at, up is how much TE it climbs, and the colour and shape are the sale plan the planner picked for that leg
+            (1, 2 or 3 sales); here the colours mean the sale plan, not an account. Leg 1 is left out: it is the rest of
+            the ascension in progress, so where it starts depends on when the plan was made. A sale plan is a choice for
+            one leg against a sale calendar everyone shares, so unlike a total it lines up across accounts by TE. A leg
+            one account sent in several runs is one mark. Larger, ringed marks are legs that unlock research tier 13.
+            The table under the chart names the commonest plan for each 20-TE start band and leg length. It shows which
+            plan won each leg of the winning chains, not by how much it won.
+          </p>
+          <SaleChoiceMap :rows="filtered" :judged="judged" :account-labels="accountLabels" />
+        </section>
+
+        <section class="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
           <h2 class="text-lg font-black text-slate-900">Each sweep, every account (to 490)</h2>
           <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
-            Runs to 490 only, whatever target is picked above. For each last checkpoint, how far the best plan ending
-            there is behind that run's own best, as a percent of it, one line per run. Each line is one table priced
-            from one save, so its shape is exact, and as a percent of its own best it compares between accounts whose
-            plans differ in length. It opens on 0 to 5% with a guide at 1%, which on a plan to 490 is a week or more,
-            more than a 6th ascension has saved on most accounts; "Whole range" shows the rest. A wide flat bottom means
-            many last checkpoints come close to the best (hover for how close, in days); a bottom at the same place for
-            everyone means the shape carries between accounts.
+            Runs to 490 only, whatever target is picked above. For each TE at the picked checkpoint (the last by
+            default), how far the best plan through it is behind that run's own best, as a percent of it, one line per
+            run. Each line is one table priced from one save, so its shape is exact, and as a percent of its own best it
+            compares between accounts whose plans differ in length; "TE above start" lines accounts up by where they
+            started. It opens on 0 to 5% with a guide at 1%, which on a plan to 490 is a week or more; "Whole range"
+            shows the rest. The table under the chart is in days, each run against its own best: the best TE at that
+            checkpoint, every TE within 1 and 3 days of it, and, for a run whose box tried every TE there, how many days
+            a search at every 2nd, 5th or 10th TE would have lost.
           </p>
           <SweepCurvesChart
             :base="base!"
@@ -679,15 +718,88 @@
           />
         </section>
 
-        <section class="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
-          <h2 class="text-lg font-black text-slate-900">Gear</h2>
+        <section v-if="base" class="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
+          <h2 class="text-lg font-black text-slate-900">An account's best plans, from all its stored tables</h2>
           <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
-            Left: each account's delivery set as a percent of the best possible, bars from 0. Right: what its earnings
-            set is worth, as Clothed TE minus TE, bars from 0 (TE and Clothed TE are on hover); Clothed TE alone mostly
-            says how far along an account is, not how good its gear is. The grey ticks are the best peak delivery any of
-            that account's runs to 490 reached.
+            A stored table is every plan one run priced, so an account's tables hold its runners-up, its other ascension
+            counts and the plans one TE over, not just each run's winner. Pick an account and load its tables: the list
+            merges them and ranks every plan by finish date, the run's plan start plus the plan's days. That is how
+            plans from different saves of one account compare, since a table made a day later counts every plan a day
+            shorter. Only runs whose finish still stands are used; the line under the picker says which were left out
+            and why. A plan is a route under its run's settings, so a plan priced with a schedule, or with "prestige
+            now", is its own row, tagged. A plan two tables priced shows its newest measurement. A plan with a
+            checkpoint the account has since passed (most likely because it followed that plan) is matched on what is
+            left of it: a newer table's measurement of the rest stands, and with none the older one stays, the passed
+            checkpoint struck through. The tables are big, so they load one at a time and only when you press the
+            button; Cancel keeps what has arrived.
           </p>
-          <GearScoreChart :accounts="accounts" :account-colors="accountColors" />
+          <AccountTopPlans
+            :base="base"
+            :rows="usable"
+            :judged="judged"
+            :final-t-e="finalTE"
+            :account-colors="accountColors"
+            :account-labels="accountLabels"
+          />
+        </section>
+
+        <section class="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
+          <h2 class="text-lg font-black text-slate-900">Does the best plan move from one day to the next?</h2>
+          <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
+            One account at a time. Each mark is a plan at the date it was made, measured by its finish date as days
+            after the account's earliest finish that still stands; totals never compare across starts. A line joins the
+            same plan each time it was priced: by a newer run of it, by a newer run with the checkpoints since passed
+            dropped, by a re-check sent with a newer run, or because it turned up among a newer run's runners-up. A line
+            that rises is a plan whose finish slipped when priced again; a flat one is a plan that holds. A plan that
+            won its search was the fastest of many priced that day, so a small rise when it is priced again is expected.
+            The colour is the ascension count, not an account: one account is shown at a time.
+          </p>
+          <PlanDriftChart :rows="usable" :judged="judged" :final-t-e="finalTE" :account-labels="accountLabels" />
+        </section>
+
+        <section class="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
+          <div class="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 class="text-lg font-black text-slate-900">Gear</h2>
+            <div class="flex gap-1.5">
+              <button
+                v-for="v in GEAR_VIEWS"
+                :key="v.id"
+                type="button"
+                class="px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest border transition-colors"
+                :class="
+                  gearView === v.id
+                    ? 'bg-slate-900 text-white border-slate-900'
+                    : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+                "
+                :aria-pressed="gearView === v.id"
+                @click="gearView = v.id"
+              >
+                {{ v.label }}
+              </button>
+            </div>
+          </div>
+          <template v-if="gearView === 'map'">
+            <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
+              Where the board's accounts sit, and where it has no data. One mark per account, from its newest run that
+              recorded its gear: across is the TE that run started from, up is its Clothed TE, darker is a stronger
+              delivery set. Clothed TE is TE plus what the earnings set adds, and every account so far adds between +115
+              and +129, so the marks sit on one narrow diagonal between the dashed guides. More TE has always come with
+              more Clothed TE, so these runs cannot yet say whether a plan follows the gear or the TE. The pink band is
+              where the planner estimates a first ascension stalls on Integrity, and no account is near it. The grey
+              areas are open asks from Help fill the gaps: places the board still wants more accounts from. One can
+              already hold an account or two ("1 of 2"); it stays grey until enough have covered it.
+            </p>
+            <GearMap :accounts="accounts" :what-ifs="whatIfs" />
+          </template>
+          <template v-else>
+            <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
+              Left: each account's delivery set as a percent of the best possible, bars from 0. Right: what its earnings
+              set is worth, as Clothed TE minus TE, bars from 0 (TE and Clothed TE are on hover); Clothed TE alone
+              mostly says how far along an account is, not how good its gear is. The grey ticks are the best peak
+              delivery any of that account's runs to 490 reached.
+            </p>
+            <GearScoreChart :accounts="accounts" :account-colors="accountColors" :what-ifs="whatIfs" />
+          </template>
         </section>
 
         <!-- ------------------------------------------------------------------------- deep dive -->
@@ -760,6 +872,41 @@
             :ref-lines="plateauRefLines"
             explorer-look
           />
+
+          <div class="space-y-2 border-t border-slate-100 pt-4">
+            <h3 class="text-sm font-black text-slate-900">What missing a checkpoint costs</h3>
+            <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
+              A plan rarely goes exactly to schedule: you are asleep when a checkpoint arrives, or you ascend a little
+              early. This reads what that costs off this run's own table, where every plan was priced from the same
+              save, so the days compare directly. For each checkpoint of the best plan and a miss of 1 or 2 TE either
+              way, "keep" is the same plan with only that checkpoint moved, and "re-plan" is the fastest plan this run
+              priced that shares the earlier checkpoints and the missed one, whatever it does after. On the tables sent
+              so far, re-planning after an early miss usually wins back much of what keeping the old plan loses. A miss
+              at the last checkpoint leaves nothing to re-plan: on some tables it is the costliest miss, on others an
+              earlier miss costs more even after re-planning. The line under the table says which, for this run.
+            </p>
+            <MissTable :chains="loadedChains" :ascensions="loadedRun.ascensions" :truncated="loadedTruncated" />
+          </div>
+
+          <div class="space-y-2 border-t border-slate-100 pt-4">
+            <h3 class="text-sm font-black text-slate-900">Every plan this run priced</h3>
+            <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
+              The run's whole table, fastest first: its top 10, 25 or 100, or every plan it checked, 100 to a page. All
+              of them were priced from one save, so here, and only here, days compare directly: "vs best" is the gap
+              between two plans and nothing else, and each finish date is this run's plan start plus that plan's days,
+              in your timezone. Filter to plans with a checkpoint at a TE (280) or in a range (275-285), or download the
+              full table with every leg.
+            </p>
+            <RunPlansTable
+              :key="loadedRun.id"
+              :chains="loadedChains"
+              :run="loadedRun"
+              :base="base ?? ''"
+              :plan-start="loadedStart"
+              :view-zone="viewZone"
+              :truncated="loadedTruncated"
+            />
+          </div>
         </section>
 
         <p v-if="csvError" class="text-[11px] font-bold text-rose-700 px-1">{{ csvError }}</p>
@@ -876,6 +1023,14 @@ import WhatWeKnow from './WhatWeKnow.vue';
 import { describeFetchError, errorKind } from '@/utils/errors';
 import SweepCurvesChart from './SweepCurvesChart.vue';
 import GearScoreChart from './GearScoreChart.vue';
+import BestCountMatrix from './BestCountMatrix.vue';
+import SaleChoiceMap from './SaleChoiceMap.vue';
+import AccountTopPlans from './AccountTopPlans.vue';
+import MissTable from './MissTable.vue';
+import RunPlansTable from './RunPlansTable.vue';
+import GearMap from './GearMap.vue';
+import { whatIfRuns } from './gearMap';
+import PlanDriftChart from './PlanDriftChart.vue';
 import SweepUpload from './SweepUpload.vue';
 import {
   fetchAll,
@@ -917,6 +1072,7 @@ import {
   localZone,
   signedDays,
   sameSave,
+  startMs,
   stateTag,
   whoText,
 } from '@/lib/leaderboardRank';
@@ -1104,9 +1260,10 @@ const checkRows = computed(
   () => foldRuns(rows.value.filter(r => showTimeOff.value || !withTimeOff.value.has(r.id))).rows
 );
 
-const filtered = computed(() =>
-  usable.value.filter(r => r.finalTE === finalTE.value && (!exhaustiveOnly.value || isProof(r)))
-);
+/** Every result at the picked target, before Proofs only: which counts an account tried at all. */
+const atTarget = computed(() => usable.value.filter(r => r.finalTE === finalTE.value));
+
+const filtered = computed(() => atTarget.value.filter(r => !exhaustiveOnly.value || isProof(r)));
 
 /**
  * Every account there is, from every row, filters or not: the colour order and the names. Built on
@@ -1177,6 +1334,10 @@ const judgedRows = computed(() => rows.value.filter(r => showFlagged.value || !f
 const judged = computed(() =>
   judgeFinishes(judgedRows.value, finalTE.value, now.value, new Set(visible.value.map(r => r.id)))
 );
+
+/** Runs the Leaderboard's rules call what-ifs, at every target: the gear views never place an account
+ *  by one, since its TE was typed in rather than the account's. */
+const whatIfs = computed(() => whatIfRuns(judgedRows.value, now.value));
 
 /**
  * The checkpoint chart's one run per account at the picked count: its earliest finish that still
@@ -1459,6 +1620,18 @@ watch(selected, group => {
   const run = loadedRun.value;
   if (run && !group?.rows.some(r => r.id === run.id)) closeTable();
 });
+
+/** The Gear section's two views: where accounts sit (TE against Clothed TE) or the per-account bars. */
+const GEAR_VIEWS = [
+  { id: 'map', label: 'Map' },
+  { id: 'bars', label: 'Bars' },
+] as const;
+const gearView = ref<'map' | 'bars'>('map');
+
+/** The loaded run's plan start (ms), so its plans list can give each plan a finish date. */
+const loadedStart = computed(() =>
+  loadedRun.value ? (judged.value.byId.get(loadedRun.value.id)?.start ?? startMs(loadedRun.value)) : null
+);
 
 const loadedBestChain = computed(() => {
   if (!loadedChains.value.length) return [];

@@ -379,6 +379,9 @@ const option = computed<ChartOption>(() => {
     },
     tooltip: {
       trigger: 'item',
+      // Kept inside the chart and wrapped, so it fits a phone.
+      confine: true,
+      extraCssText: 'max-width: min(320px, 86vw); white-space: normal;',
       formatter: raw => {
         const params = raw as { data?: { tip?: Tip }; seriesName?: string };
         const tip = params.data?.tip;
