@@ -129,7 +129,7 @@ const PRESET_TEXT: Record<string, { title: string; why: string; who?: string; no
   },
   E8: {
     title: '8 ascensions, a rough look (E8)',
-    why: "On the three accounts that have tried 8 next to 7 (Allan's, Williamthe5thc's and Willsalt · T4L cube's), 8 has not finished first: 3.0, 2.3 and 7.0 days after that account's best, each within search noise. More runs show whether it ever wins, and for which accounts.",
+    why: "On the three accounts that have tried 8 next to 7, 8 finished 3.0 days after the best on Allan's and 2.3 on Williamthe5thc's, and on Willsalt · T4L cube it now finishes about an hour before that account's 7 (a close look at 8 on 28 Sept): a tie at best, and every one within search noise. More runs show whether it ever clearly wins, and for which accounts.",
     who: 'anyone who can leave a desktop or bigger running overnight',
   },
   E9: {

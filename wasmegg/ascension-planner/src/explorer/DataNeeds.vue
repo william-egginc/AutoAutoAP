@@ -195,7 +195,7 @@ const GROUPS: { id: 'main' | 'gear' | 'big' | 'end'; title: string; intro: strin
     id: 'end',
     title: 'The end of the line: 7, 8 and 9 ascensions',
     intro:
-      "These show where adding ascensions stops saving time and starts costing it, so nobody plans more ascensions than they need. Three accounts have tried both 6 and 7: on Willsalt · T4L cube the 7th brought the finish forward 4.9 days, on Allan's it finished the same minute as the 6 and on Williamthe5thc's 0.9 days after it, all within search noise. All three have also tried 8, which finished after their 7 on every one (7.0 days on Willsalt · T4L cube, 3.0 on Allan's, 1.4 on Williamthe5thc's), and Williamthe5thc's 9 finished 1.8 days after his 8, again all within search noise. They try far fewer TEs to stay affordable, so read the result as an upper bound; the one close look so far (Willsalt · T4L cube, 7 ascensions) took 0.6 days off.",
+      "These show where adding ascensions stops saving time and starts costing it, so nobody plans more ascensions than they need. Three accounts have tried both 6 and 7: on Willsalt · T4L cube the 7th brought the finish forward 4.9 days, on Allan's it finished the same minute as the 6 and on Williamthe5thc's 0.9 days after it, all within search noise. All three have also tried 8: it finished 3.0 days after the 7 on Allan's and 1.4 on Williamthe5thc's, and on Willsalt · T4L cube a close look at 8 now finishes about an hour before its 7, a tie; Williamthe5thc's 9 finished 1.8 days after his 8, again all within search noise. They try far fewer TEs to stay affordable, so read the result as an upper bound; the one close look so far (Willsalt · T4L cube, 7 ascensions) took 0.6 days off.",
   },
 ];
 
