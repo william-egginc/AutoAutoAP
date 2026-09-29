@@ -97,7 +97,6 @@ import {
   saveRunInputs,
   type RunSaveSummary,
 } from '@/search/runSaves';
-import { initPlanFuture } from '@/lib/modes/planFuture';
 import { epicResearchDefs } from '@/lib/epicResearch';
 import { deliveryScore } from '@/search/virtueScore';
 import { getColleggtibleTiers } from 'lib/collegtibles';
@@ -405,7 +404,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   watch(
     () => useInitialStateStore().rawBackup,
     now => {
-      if (!ownSaveBackup || !useUIStore().runSaveLoaded || toRaw(now) === ownSaveBackup) return;
+      // Null is the moment between a reset and the next save landing, not a replacement: acting on
+      // it cleared the pin and then had no save time to move the start to.
+      if (!now || !ownSaveBackup || !useUIStore().runSaveLoaded || toRaw(now) === ownSaveBackup) return;
       ownSaveBackup = null;
       useUIStore().runSaveLoaded = null;
       resetPlanStartTo((toRaw(now) as { approxTime?: number } | null)?.approxTime);
@@ -1055,6 +1056,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const sameSave = !!loaded && loaded.approxTime === stored.approxTime && currentTE.value === inputs.currentTE;
     if (!sameSave) {
       try {
+        // Loaded on demand: it pulls in the whole save loader, which only a carry-on needs.
+        const { initPlanFuture } = await import('@/lib/modes/planFuture');
         await initPlanFuture(playerId, inputs.context.rawBackup);
       } catch (e) {
         error.value = `This run's stored save could not be loaded (${describeRunError(e)}). Reload your save and start again.`;

@@ -292,3 +292,53 @@ describe('unfinished runs are moved aside, not overwritten', () => {
     expect((await listInterrupted(HASH)).map(r => r.fingerprint)).toEqual(['P|2|170|490|fc']);
   });
 });
+
+describe('a different search on the same save', () => {
+  beforeEach(() => store.clear());
+  const space = (lo: number) => ({
+    mode: 'range' as const,
+    minAscensions: 4,
+    maxAscensions: 4,
+    minGap: 0,
+    range: { lo, hi: lo + 50, step: 5 },
+    chains: 80,
+    chainsPriced: 0,
+    stoppedEarly: false,
+  });
+  function run(keys: string[], sp: ReturnType<typeof space>, complete = false) {
+    return buildCheckpoint({
+      fingerprint: 'P|1|137|490|fc',
+      effort: 'thorough',
+      seedChain: [],
+      bestChain: [150, 490],
+      bestSeconds: 900 * 86400,
+      entries: keys.map(k => ({ key: k, seconds: 1, legs: [] })),
+      stage: '',
+      detail: '',
+      chainsDone: keys.length,
+      complete,
+      space: sp,
+      inputsKey: 'save-A',
+    });
+  }
+
+  it('moves the unfinished one aside with its own space, and still shares the priced chains', async () => {
+    await saveCheckpoint(HASH, run(['a', 'b'], space(140)));
+    await saveCheckpoint(HASH, run(['c'], space(145), true));
+    const slot = await loadAnyCheckpoint(HASH);
+    expect(slot?.space?.range?.lo).toBe(145);
+    expect(slot?.complete).toBe(true);
+    expect(slot?.durations.map(d => d[0]).sort()).toEqual(['a', 'b', 'c']);
+    const aside = await listInterrupted(HASH);
+    expect(aside.map(r => [r.space?.range?.lo, r.complete, r.durations.length])).toEqual([[140, false, 2]]);
+  });
+
+  it('swapping it back brings its own space and unfinished state', async () => {
+    await saveCheckpoint(HASH, run(['a', 'b'], space(140)));
+    await saveCheckpoint(HASH, run(['c'], space(145), true));
+    await restoreInterrupted(HASH, 0);
+    const slot = await loadAnyCheckpoint(HASH);
+    expect([slot?.space?.range?.lo, slot?.complete]).toEqual([140, false]);
+    expect(await listInterrupted(HASH)).toEqual([]);
+  });
+});

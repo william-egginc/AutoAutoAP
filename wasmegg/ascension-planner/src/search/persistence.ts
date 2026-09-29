@@ -197,6 +197,16 @@ export async function saveCheckpoint(partitionHash: string, record: SearchCheckp
   try {
     const prior = (await loadMetadata(partitionHash, METADATA_KEY)) as SearchCheckpoint | null;
     if (prior && prior.version === RECORD_VERSION && sameRun(prior, record)) {
+      // Same inputs but a different SPACE: the priced durations are still valid and are shared, but
+      // it is a different search, so an unfinished prior goes aside to be carried on later instead
+      // of being absorbed -- merging used to take the new space and the new "finished" flag, and the
+      // prior could never carry on again.
+      const otherSearch = !sameSpace(prior.space, record.space);
+      if (otherSearch && !prior.complete && prior.durations.length) {
+        await setAside(partitionHash, prior).catch(e => {
+          throw Object.assign(new Error('could not move the unfinished run aside'), { cause: e, setAside: true });
+        });
+      }
       const priorWins = prior.bestSeconds > 0 && (record.bestSeconds <= 0 || prior.bestSeconds < record.bestSeconds);
 
       const durations = new Map<string, number>(prior.durations);
@@ -212,8 +222,8 @@ export async function saveCheckpoint(partitionHash: string, record: SearchCheckp
         bestSeconds: priorWins ? prior.bestSeconds : record.bestSeconds,
         bestLegs: priorWins ? prior.bestLegs : record.bestLegs,
         durations: [...durations.entries()],
-        chainsDone: Math.max(prior.chainsDone, record.chainsDone),
-        complete: prior.complete || record.complete,
+        chainsDone: otherSearch ? record.chainsDone : Math.max(prior.chainsDone, record.chainsDone),
+        complete: otherSearch ? record.complete : prior.complete || record.complete,
       };
     } else if (prior && prior.version === RECORD_VERSION && !prior.complete && prior.durations.length) {
       // A DIFFERENT run is taking the slot. This used to overwrite an unfinished one without a
@@ -240,9 +250,16 @@ function sameRun(a: SearchCheckpoint, b: SearchCheckpoint): boolean {
   return !a.inputsKey || !b.inputsKey || a.inputsKey === b.inputsKey;
 }
 
+/** Whether two records searched the same space (both staged, with none, counts as the same). */
+function sameSpace(a: SearchSpace | undefined, b: SearchSpace | undefined): boolean {
+  const shape = (s: SearchSpace | undefined) =>
+    s ? JSON.stringify([s.mode, s.range ?? null, s.bands ?? null, s.minAscensions, s.maxAscensions, s.minGap]) : '';
+  return shape(a) === shape(b);
+}
+
 async function setAside(partitionHash: string, record: SearchCheckpoint): Promise<void> {
   const list = await listInterrupted(partitionHash);
-  const rest = list.filter(r => !sameRun(r, record));
+  const rest = list.filter(r => !(sameRun(r, record) && sameSpace(r.space, record.space)));
   await saveMetadata(partitionHash, INTERRUPTED_KEY, [record, ...rest].slice(0, MAX_INTERRUPTED));
 }
 
@@ -267,7 +284,7 @@ export async function restoreInterrupted(partitionHash: string, index: number): 
   await saveMetadata(
     partitionHash,
     INTERRUPTED_KEY,
-    after.filter(r => !(sameRun(r, picked) && r.updatedAt === picked.updatedAt))
+    after.filter(r => !(sameRun(r, picked) && sameSpace(r.space, picked.space) && r.updatedAt === picked.updatedAt))
   );
   return picked;
 }

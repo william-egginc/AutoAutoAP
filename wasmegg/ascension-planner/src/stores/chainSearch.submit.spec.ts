@@ -2,7 +2,7 @@
  * The submit path's failure handling: what the player is told, and whether "Retry the table" is
  * offered, for each way the collector or the connection can let a submission down.
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import type { Submission } from '@/search/submission';
 
@@ -33,6 +33,13 @@ async function store() {
   const { useChainSearchStore } = await import('./chainSearch');
   return useChainSearchStore();
 }
+
+// The store's module graph is large, and the FIRST test used to pay for transforming all of it
+// inside its 5 s budget -- which it missed whenever the machine was busy. Warm it once here.
+beforeAll(async () => {
+  await import('./chainSearch');
+}, 60_000);
+afterAll(() => vi.resetModules());
 
 beforeEach(() => vi.unstubAllGlobals());
 afterEach(() => {
