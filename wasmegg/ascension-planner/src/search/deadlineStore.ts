@@ -34,6 +34,8 @@ export interface DeadlineRunSpec {
   seedShapes?: number[][];
   /** The player's own space (one value list per early stop) and the last stop's lower bound. */
   bands?: number[][];
+  /** Several chains' spaces, run as one (see deadline.ts `bandSets`). */
+  bandSets?: number[][][];
   lastLo?: number;
 }
 

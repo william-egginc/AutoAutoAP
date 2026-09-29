@@ -175,7 +175,6 @@
               store.integrityBlocked ||
               store.staleBackupBlocked ||
               !chainCount ||
-              emptyBandBox ||
               ascMismatch
             "
             class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500 disabled:opacity-40"
@@ -901,39 +900,18 @@
                   Bands, one per checkpoint
                 </span>
                 <HelpTip>
-                  One box per ascension before the target, each `lo-hi` with an optional `:step`: `185-200:5` means that
-                  ascension lands between 185 and 200, every 5 TE. Change Ascensions below to add or remove a box. Bands
-                  may overlap; chains still have to increase.
+                  Semicolon separated, each `lo-hi` with an optional `:step`. `185-200:5; 210-240:10; 250-290:20` means
+                  the first ascension lands between 185 and 200, the second between 210 and 240, the third between 250
+                  and 290, then the target. Bands may overlap; chains still have to increase.
                 </HelpTip>
               </span>
-              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                <div v-for="(box, k) in bandBoxes" :key="k" class="space-y-0.5">
-                  <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest"
-                    >Ascension {{ k + 1 }}</span
-                  >
-                  <input
-                    :value="box"
-                    type="text"
-                    :disabled="store.isRunning"
-                    placeholder="185-200:5"
-                    class="w-full rounded-lg border-slate-300 text-sm font-mono-premium font-bold text-slate-800 disabled:opacity-50"
-                    @input="setBandBox(k, ($event.target as HTMLInputElement).value)"
-                  />
-                  <span class="block text-[10px]" :class="parseBand(box).length ? 'text-slate-500' : 'text-rose-600'">
-                    {{ parseBand(box).length ? `${parseBand(box).length} values` : 'nothing to try yet' }}
-                  </span>
-                </div>
-                <div class="space-y-0.5">
-                  <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest"
-                    >Ascension {{ bandBoxes.length + 1 }} — target</span
-                  >
-                  <div
-                    class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-600"
-                  >
-                    {{ store.finalTE }}
-                  </div>
-                </div>
-              </div>
+              <input
+                v-model="bandsText"
+                type="text"
+                :disabled="store.isRunning"
+                placeholder="185-200:5; 210-240:10; 250-290:20"
+                class="w-full rounded-lg border-slate-300 text-sm font-mono-premium font-bold text-slate-800 disabled:opacity-50"
+              />
               <div class="flex flex-wrap items-center gap-2 pt-1">
                 <label
                   class="flex items-center gap-1.5 text-[10px] font-black text-slate-500 uppercase tracking-widest"
@@ -946,7 +924,6 @@
                     :max="suggestRange[1]"
                     :disabled="store.isRunning"
                     class="w-16 rounded-md border-slate-300 text-xs font-bold text-slate-800 disabled:opacity-50"
-                    @input="resizeBands(Number(($event.target as HTMLInputElement).value))"
                   />
                 </label>
                 <button
@@ -1003,6 +980,77 @@
                 switch to {{ suggestAsc }} ascensions, or set the box back to {{ bands.length + 1 }}.
               </p>
             </label>
+
+            <!--
+              More chains for the same click: each its own space and ascension count, run one after
+              another. Short ones (1 or 2 ascensions) cost little alone; queued behind the main run
+              they need no second visit.
+            -->
+            <div v-if="spaceMode === 'bands' && !sweepRequest" class="space-y-2">
+              <div
+                v-for="(row, k) in extraChains"
+                :key="k"
+                class="rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-2"
+              >
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="text-[10px] font-black text-slate-600 uppercase tracking-widest">Chain {{ k + 2 }}</span>
+                  <label
+                    class="flex items-center gap-1.5 text-[10px] font-black text-slate-500 uppercase tracking-widest"
+                  >
+                    Ascensions
+                    <input
+                      v-model.number="row.asc"
+                      type="number"
+                      min="1"
+                      max="12"
+                      :disabled="store.isRunning"
+                      class="w-16 rounded-md border-slate-300 text-xs font-bold text-slate-800 disabled:opacity-50"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    :disabled="store.isRunning || row.asc < 2"
+                    class="px-2.5 py-1 rounded-md border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-white disabled:opacity-40"
+                    @click="suggestExtra(k)"
+                  >
+                    Suggest a space
+                  </button>
+                  <button
+                    type="button"
+                    :disabled="store.isRunning"
+                    class="ml-auto text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-rose-600 disabled:opacity-40"
+                    @click="extraChains.splice(k, 1)"
+                  >
+                    Remove
+                  </button>
+                </div>
+                <input
+                  v-if="row.asc >= 2"
+                  v-model="row.text"
+                  type="text"
+                  :disabled="store.isRunning"
+                  placeholder="185-200:5; 210-240:10"
+                  class="w-full rounded-lg border-slate-300 text-sm font-mono-premium font-bold text-slate-800 disabled:opacity-50"
+                />
+                <span class="block text-[10px]" :class="extraProblem(k) ? 'text-rose-600' : 'text-slate-500'">
+                  {{ extraProblem(k) || extraSummary(k) }}
+                </span>
+              </div>
+              <div class="flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  :disabled="store.isRunning"
+                  class="px-3 py-1.5 rounded-lg border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+                  @click="addChain"
+                >
+                  + Add another chain
+                </button>
+                <span v-if="extraChains.length" class="text-[11px] text-slate-500">
+                  One click runs all {{ extraChains.length + 1 }} chains, one after another. Each finished one is saved
+                  under Saved runs.
+                </span>
+              </div>
+            </div>
 
             <label class="space-y-1 block max-w-xs">
               <span class="flex items-center gap-1.5">
@@ -1260,6 +1308,23 @@
 
         <RunSaveNotice />
         <IntegrityNotice />
+        <!-- The same carry-on as the box at the top, next to Start where people look for it. -->
+        <div
+          v-if="store.crashedRun && !store.busy"
+          class="flex flex-wrap items-center gap-3 rounded-xl border border-amber-300 bg-amber-50 p-3"
+        >
+          <button
+            type="button"
+            class="px-4 py-2 rounded-lg bg-amber-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-800"
+            @click="resumeCrashed"
+          >
+            Carry on the unfinished run
+          </button>
+          <span class="text-[11px] text-amber-900">
+            {{ (store.crashedRun.durations?.length ?? 0).toLocaleString() }} chains already priced; its settings are put
+            back for you.
+          </span>
+        </div>
         <div class="flex flex-wrap gap-3">
           <button
             class="btn-premium btn-primary flex-1 py-4 text-sm shadow-xl shadow-rose-500/20 active:scale-[0.98]"
@@ -1268,9 +1333,9 @@
               store.integrityBlocked ||
               store.staleBackupBlocked ||
               !chainCount ||
-              emptyBandBox ||
               ascMismatch ||
-              (!!sweepRequest && !sweepConsent)
+              (!!sweepRequest && !sweepConsent) ||
+              (!sweepRequest && spaceMode === 'bands' && !extrasReady)
             "
             @click="start"
           >
@@ -1295,6 +1360,42 @@
           >
             {{ store.stopRequested ? 'Stopping...' : 'Stop & keep best' }}
           </button>
+        </div>
+
+        <!-- Which chain of a multi-chain click is running, and what the finished ones found. -->
+        <div
+          v-if="queueAt >= 0 || queueResults.length"
+          class="rounded-xl border border-slate-200 bg-white p-4 space-y-2"
+        >
+          <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+            <template v-if="queueAt >= 0">Running chain {{ queueAt + 1 }} of {{ extraChains.length + 1 }}</template>
+            <template v-else>All chains from the last click</template>
+          </p>
+          <div v-if="queueResults.length" class="overflow-x-auto">
+            <table class="w-full text-[11px] tabular-nums">
+              <thead>
+                <tr class="text-left text-[9px] font-black uppercase tracking-widest text-slate-400">
+                  <th class="pr-4 py-1">Chain</th>
+                  <th class="pr-4 py-1">Best found</th>
+                  <th class="pr-4 py-1">Days</th>
+                  <th class="pr-4 py-1">Finishes</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="q in queueResults" :key="q.label" class="border-t border-slate-100">
+                  <td class="pr-4 py-1 text-slate-500">
+                    {{ q.label }}<template v-if="q.stopped"> (stopped)</template>
+                  </td>
+                  <td class="pr-4 py-1 font-bold">{{ q.chain.join(' ') }}</td>
+                  <td class="pr-4 py-1">{{ q.days.toFixed(3) }}</td>
+                  <td class="pr-4 py-1">{{ saveWhen(store.planStartUsed + q.days * 86400) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="text-[10px] text-slate-500">
+            Each is saved under Saved runs, so you can open any of them again. Compare on the finish date.
+          </p>
         </div>
 
         <div v-if="store.stage" class="space-y-1">
@@ -1665,7 +1766,6 @@ import {
   countChains,
   countChainsWithGap,
   countBanded,
-  parseBand,
   parseBands,
   suggestBands,
   SUGGESTABLE_ASCENSIONS,
@@ -2070,44 +2170,6 @@ const poolSize = computed(() =>
  *  does not fit in memory, and the whole point of showing this is to say so before that happens. */
 const bands = computed(() => (spaceMode.value === 'bands' ? parseBands(bandsText.value) : []));
 
-/**
- * The bands as one box per checkpoint. `bandsText` stays the single source of truth -- Suggest, a
- * Chain Explorer sweep link and the chain count all read and write it -- and the boxes are a view
- * of it, one `;`-separated segment each.
- */
-const bandBoxes = computed(() => {
-  const parts = bandsText.value.split(';').map(t => t.trim());
-  while (parts.length > 1 && !parts[parts.length - 1]) parts.pop();
-  return parts;
-});
-function setBandBox(k: number, value: string): void {
-  const parts = [...bandBoxes.value];
-  parts[k] = value.replace(/;/g, ',').trim();
-  bandsText.value = parts.join('; ');
-}
-/**
- * Asked for: changing Ascensions adds or removes a box straight away, one per checkpoint, rather
- * than only deciding what Suggest fills in. A new box continues on from the last one.
- *
- * Called from the box's own input event, NOT a watcher: the count also follows the bands (below),
- * and emptying a box to retype it would otherwise shrink the count and delete the box being typed in.
- */
-function resizeBands(n: number): void {
-  if (spaceMode.value !== 'bands' || store.isRunning || !Number.isFinite(n)) return;
-  const want = Math.max(1, Math.floor(n || 2) - 1);
-  const parts = [...bandBoxes.value];
-  if (parts.length === want) return;
-  while (parts.length > want) parts.pop();
-  while (parts.length < want) {
-    const prev = parseBand(parts[parts.length - 1] ?? '');
-    const from = prev.length ? prev[prev.length - 1] + 10 : Math.floor(store.currentTE) + 10;
-    parts.push(`${from}-${Math.min(store.finalTE - 1, from + 40)}:10`);
-  }
-  bandsText.value = parts.join('; ');
-}
-/** A checkpoint box with nothing in it: the run would quietly have one ascension fewer. */
-const emptyBandBox = computed(() => spaceMode.value === 'bands' && bandBoxes.value.some(b => !parseBand(b).length));
-
 // The Ascensions box follows the bands whenever they change -- typed, suggested, or filled in by a
 // Chain Explorer link -- so it only ever disagrees with them when someone changes the box itself.
 watch(
@@ -2166,8 +2228,70 @@ const chainCount = computed(() => {
 const constrained = computed(() => spaceMode.value === 'bands' || minGap.value > 0);
 
 const chainCountLabel = computed(() =>
-  Number.isFinite(chainCount.value) ? Math.round(chainCount.value).toLocaleString() : '∞'
+  Number.isFinite(totalChains.value) ? Math.round(totalChains.value).toLocaleString() : '∞'
 );
+
+// ------------------------------------------------------------------ more chains for one click
+
+/** Chains to run after the first, each with its own ascension count and bands. */
+const extraChains = ref<{ asc: number; text: string }[]>([]);
+function extraBands(k: number): number[][] {
+  return parseBands(extraChains.value[k]?.text ?? '');
+}
+function extraCount(k: number): number {
+  const row = extraChains.value[k];
+  if (!row) return 0;
+  if (row.asc <= 1) return 1;
+  const b = extraBands(k);
+  return b.length === row.asc - 1 ? countBanded(b, store.finalTE, store.currentTE, minGap.value) : 0;
+}
+function extraProblem(k: number): string {
+  const row = extraChains.value[k];
+  if (!row || row.asc <= 1) return '';
+  const b = extraBands(k);
+  if (!b.length) return 'Nothing readable yet: press Suggest a space or type bands.';
+  if (b.length !== row.asc - 1) return `These bands make ${b.length + 1} ascensions, not ${row.asc}.`;
+  return extraCount(k) ? '' : 'No chain in these bands goes up to the target.';
+}
+function extraSummary(k: number): string {
+  const row = extraChains.value[k];
+  if (!row) return '';
+  if (row.asc <= 1) return `Straight to ${store.finalTE}: one route.`;
+  return `${extraCount(k).toLocaleString()} chains · ${extraBands(k)
+    .map(b => b.length)
+    .join(' x ')} values`;
+}
+function suggestExtra(k: number): void {
+  const row = extraChains.value[k];
+  if (!row) return;
+  const sug = suggestBands(store.currentTE, store.finalTE, row.asc);
+  if (sug) row.text = sug.text;
+}
+/** A new chain one ascension shorter than the last, since the short ones are what get queued. */
+function addChain(): void {
+  const used = [bands.value.length + 1, ...extraChains.value.map(r => r.asc)];
+  let asc = Math.max(1, Math.min(...used) - 1);
+  while (used.includes(asc) && asc < 12) asc++;
+  extraChains.value.push({ asc, text: '' });
+  if (asc >= 2) suggestExtra(extraChains.value.length - 1);
+}
+const extraTotal = computed(() => extraChains.value.reduce((n, _, k) => n + extraCount(k), 0));
+const extrasReady = computed(() => extraChains.value.every((_, k) => !extraProblem(k)));
+/** Every chain the one click will price. */
+const totalChains = computed(() => chainCount.value + (sweepRequest ? 0 : extraTotal.value));
+function specOfExtra(k: number): ReturnType<typeof currentSpec> {
+  const row = extraChains.value[k];
+  if (row.asc <= 1) {
+    // One ascension: straight to the target, which the pool form expresses as 1..1 ascensions.
+    const te = Math.floor(store.currentTE) + 1;
+    return { lo: te, hi: te, step: 1, minAsc: 1, maxAsc: 1, minGap: 0 };
+  }
+  return { lo: 0, hi: 0, step: 1, minAsc: row.asc, maxAsc: row.asc, minGap: minGap.value, bands: extraBands(k) };
+}
+
+/** What each chain of a multi-chain click found, for the table under the result. */
+const queueResults = ref<{ label: string; chain: number[]; days: number; stopped: boolean }[]>([]);
+const queueAt = ref(-1);
 
 /**
  * Chains finished, counting the chunk in flight.
@@ -2235,7 +2359,7 @@ const speedSourceLabel = computed(() => `typical for ${sweepAscensions.value}-as
 /** What the paragraph under the estimate says it charges per chain, on the chosen workers. */
 const assumedCostLabel = computed(() => `${wallPerChain.value.toFixed(2)} s`);
 
-const hours = computed(() => sweepSeconds(chainCount.value, store.workerBudget, workerSeconds.value) / 3600);
+const hours = computed(() => sweepSeconds(totalChains.value, store.workerBudget, workerSeconds.value) / 3600);
 
 /**
  * Once a run is going, project from what it has ACTUALLY done: elapsed x remaining / done. That
@@ -2339,6 +2463,10 @@ const autoSubmitArmed = ref(false);
 const autoSubmitted = ref(false);
 
 async function start(): Promise<void> {
+  if (!sweepRequest && spaceMode.value === 'bands' && extraChains.value.length) {
+    await startQueue();
+    return;
+  }
   autoSubmitArmed.value = !!sweepRequest && sweepConsent.value;
   autoSubmitted.value = false;
   // Armed: the sweep sends itself at the end, so its last seconds may re-price the player's best
@@ -2354,6 +2482,33 @@ async function start(): Promise<void> {
   optIn.value = true;
   autoSubmitted.value = true;
   await submit();
+}
+
+/**
+ * Run chain 1 and every added chain, one after another, from one click. Each is an ordinary run
+ * over its own space -- its own checkpoint, its own result -- and each finished one is saved to the
+ * run library so the earlier ones are still there to open once the next has taken the panel.
+ */
+async function startQueue(): Promise<void> {
+  queueResults.value = [];
+  const specs = [
+    { label: `Chain 1 · ${bands.value.length + 1} ascensions`, spec: currentSpec() },
+    ...extraChains.value.map((row, k) => ({
+      label: `Chain ${k + 2} · ${row.asc} ascension${row.asc === 1 ? '' : 's'}`,
+      spec: specOfExtra(k),
+    })),
+  ];
+  for (let k = 0; k < specs.length; k++) {
+    queueAt.value = k;
+    await store.startExhaustive(props.playerId, specs[k].spec);
+    const stopped = store.stoppedEarly;
+    if (store.bestDays > 0) {
+      queueResults.value.push({ label: specs[k].label, chain: [...store.bestChain], days: store.bestDays, stopped });
+      await store.saveCurrentRun(props.playerId, specs[k].label);
+    }
+    if (stopped || store.error) break;
+  }
+  queueAt.value = -1;
 }
 
 async function benchmark(): Promise<void> {

@@ -66,6 +66,12 @@ export interface DeadlineSpec {
    * for that space. The stop count is `bands.length + 1`; `minStops`/`maxStops`/`step` are ignored.
    */
   bands?: number[][];
+  /**
+   * Several spaces at once, one per chain the player queued (each its own ascension count): every
+   * route in any of them is tried in the one run. An empty set is one ascension -- no early stops.
+   * Takes precedence over `bands`.
+   */
+  bandSets?: number[][][];
   /** The fine pass around the best routes. On unless false. */
   refine?: boolean;
   /** Routes the fine pass starts from. */
@@ -190,9 +196,11 @@ export function bandShapes(bands: number[][], currentTE: number, lastHi: number)
   return out;
 }
 
-/** How many sets of early stops `bandShapes` gives, without building them (a DP across bands). */
+/** How many sets of early stops `bandShapes` gives, without building them (a DP across bands).
+ *  No bands at all is one set: straight to the last stop. */
 export function countBandShapes(bands: number[][], currentTE: number, lastHi: number): number {
-  if (!bands.length || bands.some(b => !b.length)) return 0;
+  if (!bands.length) return 1;
+  if (bands.some(b => !b.length)) return 0;
   let prevValues = bands[0].filter(v => v > Math.floor(currentTE) && v < lastHi);
   let prev = prevValues.map(() => 1);
   for (let slot = 1; slot < bands.length; slot++) {
@@ -221,6 +229,15 @@ export function parseStopBox(text: string, defaultStep = 5): number[] {
     }
   }
   return [...set].sort((a, b) => a - b);
+}
+
+/** A chain's text, Insane-style: one band per early stop, `;` between them, each a stop box
+ *  (`138-142:1; 160-200:10, 215; 230-260:5`). */
+export function parseChainText(text: string): number[][] {
+  return text
+    .split(';')
+    .map(part => parseStopBox(part))
+    .filter(b => b.length);
 }
 
 /** The finest step on the ladder, at or above the one asked for, whose shape count fits. */
@@ -395,8 +412,19 @@ export async function runDeadlineSearch(spec: DeadlineSpec, cb: DeadlineCallback
   const startAt = (floor: number) => (best ? best.chain[best.chain.length - 1] : Math.floor((floor + spec.lastHi) / 2));
 
   // ---- the player's own space: every combination in it, and nothing else
-  if (spec.bands?.length) {
-    const list = bandShapes(spec.bands, spec.currentTE, spec.lastHi);
+  const sets = spec.bandSets ?? (spec.bands?.length ? [spec.bands] : null);
+  if (sets?.length) {
+    const seen = new Set<string>();
+    const list: number[][] = [];
+    for (const set of sets) {
+      for (const shape of set.length ? bandShapes(set, spec.currentTE, spec.lastHi) : [[]]) {
+        const key = shape.join(',');
+        if (!seen.has(key)) {
+          seen.add(key);
+          list.push(shape);
+        }
+      }
+    }
     stage = `every route in your space: ${list.length.toLocaleString()} sets of early stops`;
     // A spread first, so the rest start their brackets next to the answer; same routes either way.
     await bracketAll(spread(list, 24), startAt);

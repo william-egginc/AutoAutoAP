@@ -3274,6 +3274,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           step: spec.step,
           seedShapes: spec.seedShapes ?? [],
           ...(spec.bands?.length ? { bands: spec.bands } : {}),
+          ...(spec.bandSets?.length ? { bandSets: spec.bandSets } : {}),
           ...(spec.ascendNeeded && schedule ? { ascendAt: (t: number) => nextAvailable(t, schedule) } : {}),
         },
         {

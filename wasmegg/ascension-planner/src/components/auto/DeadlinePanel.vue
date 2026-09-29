@@ -110,46 +110,61 @@
       </button>
     </div>
 
-    <!-- The player's own space, Insane-style: a box per stop. -->
+    <!-- The player's own space, Insane-style: one box per chain, and as many chains as you like. -->
     <template v-if="mode === 'space'">
-      <div class="flex flex-wrap items-end gap-4">
-        <label class="space-y-1">
-          <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest"
-            >Ascensions, including the last stop</span
+      <div v-for="(row, k) in chains" :key="k" class="rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-2">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-[10px] font-black text-slate-600 uppercase tracking-widest">Chain {{ k + 1 }}</span>
+          <label class="flex items-center gap-1.5 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+            Ascensions
+            <input
+              v-model.number="row.asc"
+              type="number"
+              min="1"
+              max="8"
+              :disabled="store.busy"
+              class="w-16 rounded-md border-slate-300 text-xs font-bold text-slate-800 disabled:opacity-50"
+            />
+          </label>
+          <button
+            type="button"
+            :disabled="store.busy || row.asc < 2"
+            class="px-2.5 py-1 rounded-md border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-white disabled:opacity-40"
+            @click="suggestRow(k)"
           >
-          <input
-            v-model.number="ascensions"
-            type="number"
-            min="1"
-            max="8"
+            Suggest a space
+          </button>
+          <button
+            v-if="chains.length > 1"
+            type="button"
             :disabled="store.busy"
-            class="w-20 rounded-lg border-slate-200 text-sm font-bold"
-          />
-        </label>
+            class="ml-auto text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-rose-600 disabled:opacity-40"
+            @click="chains.splice(k, 1)"
+          >
+            Remove
+          </button>
+        </div>
+        <input
+          v-if="row.asc >= 2"
+          v-model="row.text"
+          type="text"
+          :disabled="store.busy"
+          placeholder="138-142:1; 160-200:10; 200-240:10"
+          class="w-full rounded-lg border-slate-300 text-sm font-mono-premium font-bold text-slate-800 disabled:opacity-50"
+        />
+        <span class="block text-[10px]" :class="rowProblem(k) ? 'text-rose-600' : 'text-slate-500'">
+          {{ rowProblem(k) || rowSummary(k) }}
+        </span>
+      </div>
+      <div class="flex flex-wrap items-end gap-4">
         <button
           type="button"
           :disabled="store.busy"
-          class="px-3 py-2 rounded-lg border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 disabled:opacity-40"
-          @click="suggest"
+          class="px-3 py-1.5 rounded-lg border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+          @click="addChain"
         >
-          Suggest a space
+          + Add another chain
         </button>
-        <span class="text-[11px] text-slate-500">{{ suggestFrom }}</span>
-      </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        <label v-for="(_, k) in boxes" :key="k" class="space-y-1">
-          <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest">Stop {{ k + 1 }}</span>
-          <input
-            v-model="boxes[k]"
-            type="text"
-            :disabled="store.busy"
-            placeholder="e.g. 160-200:10"
-            class="w-full rounded-lg border-slate-300 text-sm font-mono-premium font-bold text-slate-800 disabled:opacity-50"
-          />
-          <span class="block text-[10px]" :class="boxValues[k].length ? 'text-slate-500' : 'text-rose-600'">
-            {{ boxValues[k].length ? `${boxValues[k].length} values` : 'nothing to try yet' }}
-          </span>
-        </label>
         <label class="space-y-1">
           <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest"
             >Last stop — the answer</span
@@ -159,18 +174,20 @@
             type="text"
             :disabled="store.busy"
             placeholder="e.g. 220-320"
-            class="w-full rounded-lg border-slate-300 text-sm font-mono-premium font-bold text-slate-800 disabled:opacity-50"
+            class="w-40 rounded-lg border-slate-300 text-sm font-mono-premium font-bold text-slate-800 disabled:opacity-50"
           />
-          <span class="block text-[10px]" :class="lastRange ? 'text-slate-500' : 'text-rose-600'">
-            {{ lastRange ? `found to the exact TE between ${lastRange[0]} and ${lastRange[1]}` : 'give it a range' }}
-          </span>
         </label>
+        <span class="text-[10px] pb-2" :class="lastRange ? 'text-slate-500' : 'text-rose-600'">
+          {{ lastRange ? `found to the exact TE between ${lastRange[0]} and ${lastRange[1]}` : 'give it a range' }}
+        </span>
       </div>
       <p class="text-[11px] text-slate-500 leading-relaxed">
-        One box per ascension before the last. Each takes <span class="font-mono-premium">lo-hi:step</span>, single
-        values, or several of either with commas: <span class="font-mono-premium">138-142:1, 150, 160-180:5</span>.
-        Every combination in your boxes is tried and nothing outside them, so the answer is proven for this space. The
-        last stop is found exactly, not stepped. Stops have to go up.
+        Each chain is one box, like Insane's bands: one band per ascension before the last, separated by
+        <span class="font-mono-premium">;</span>, each <span class="font-mono-premium">lo-hi:step</span>, single values,
+        or several with commas. Add chains with other ascension counts and they all run from the one click, a 1- or
+        2-ascension chain costing next to nothing. Every route in your chains is tried and nothing outside them, so the
+        answer is proven for that space; the last stop is found exactly, not stepped.
+        <template v-if="suggestFrom">{{ suggestFrom }}</template>
       </p>
     </template>
 
@@ -432,7 +449,7 @@ import { useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { getLocalTimestampInTimezone } from '@/lib/events';
 import { formatInZone } from '@/search/csv';
-import { countBandShapes, countShapes, parseStopBox, stepForBudget } from '@/search/deadline';
+import { countBandShapes, countShapes, parseChainText, parseStopBox, stepForBudget } from '@/search/deadline';
 import { estimateHours, formatHours } from '@/search/exhaustive';
 import { downloadCsv } from '@/utils/export';
 import IntegrityNotice from './IntegrityNotice.vue';
@@ -513,12 +530,11 @@ const MODES = [
 ] as const;
 const mode = ref<'space' | 'auto'>('space');
 
-/** Ascensions including the last stop; one box per ascension before it. */
-const ascensions = ref(4);
-const boxes = ref<string[]>([]);
+/** The chains to run from one click: each an ascension count and one box of bands. */
+const chains = ref<{ asc: number; text: string }[]>([{ asc: 4, text: '' }]);
 const lastBox = ref('');
 const suggestFrom = ref('');
-const boxValues = computed(() => boxes.value.map(b => parseStopBox(b)));
+const rowBands = (k: number) => parseChainText(chains.value[k]?.text ?? '');
 const lastRange = computed<[number, number] | null>(() => {
   const v = parseStopBox(lastBox.value, 1);
   if (!v.length) return null;
@@ -526,66 +542,86 @@ const lastRange = computed<[number, number] | null>(() => {
   const hi = Math.min(490, v[v.length - 1]);
   return hi >= lo ? [lo, hi] : null;
 });
+function rowShapes(k: number): number {
+  const row = chains.value[k];
+  if (!row || !lastRange.value) return 0;
+  if (row.asc <= 1) return 1;
+  const b = rowBands(k);
+  return b.length === row.asc - 1 ? countBandShapes(b, store.currentTE, lastRange.value[1]) : 0;
+}
+function rowProblem(k: number): string {
+  const row = chains.value[k];
+  if (!row || row.asc <= 1) return '';
+  const b = rowBands(k);
+  if (!b.length) return 'Nothing readable yet: press Suggest a space or type bands.';
+  if (b.length !== row.asc - 1) return `These bands make ${b.length + 1} ascensions, not ${row.asc}.`;
+  return lastRange.value && !rowShapes(k) ? 'No route in these bands goes up to the last stop.' : '';
+}
+function rowSummary(k: number): string {
+  const row = chains.value[k];
+  if (!row) return '';
+  if (row.asc <= 1) return 'No ascension: keep going on this farm to the last stop. One route.';
+  return `${rowShapes(k).toLocaleString()} sets of early stops · ${rowBands(k)
+    .map(b => b.length)
+    .join(' x ')} values`;
+}
 
 /**
- * Fill the boxes: around your last deadline answer at this many ascensions if there is one, else
- * around your own route (the chain in the planner), else evenly spaced. The first stop is tried at
- * every TE near your current one, where the first ascension usually belongs; the rest every 5 TE
- * either side, and the last stop over a range around the answer.
+ * Fill one chain's box: around your last deadline answer at that many ascensions if there is one,
+ * else around your own route (the chain in the planner), else evenly spaced. The first stop is
+ * tried at every TE near your current one, where the first ascension usually belongs; the rest
+ * every 5 TE either side. Also sets the last-stop range around the answer when it is empty.
  */
-function suggest(): void {
-  const n = Math.max(1, Math.min(8, Math.floor(ascensions.value || 1)));
+function suggestRow(k: number): void {
+  const row = chains.value[k];
+  if (!row) return;
+  const n = Math.max(1, Math.min(8, Math.floor(row.asc || 1)));
   const te = Math.floor(store.currentTE);
   const prior = store.deadlineResult?.byStops.find(r => r.chain.length === n) ?? store.deadlineResult?.routes[0];
   const lastGuess = prior ? prior.chain[prior.chain.length - 1] : Math.min(490, te + 110);
   let early: number[];
   if (prior && prior.chain.length === n) {
     early = prior.chain.slice(0, -1);
-    suggestFrom.value = `Around your last answer, ${prior.chain.join(' ')}.`;
+    suggestFrom.value = `Chain ${k + 1} was suggested around your last answer, ${prior.chain.join(' ')}.`;
   } else {
     const route = store.seedChain.filter(v => v > te && v < lastGuess);
     if (route.length >= n - 1) {
       early = route.slice(0, n - 1);
-      suggestFrom.value = `Around your route, ${route.slice(0, n - 1).join(' ')}.`;
+      suggestFrom.value = `Chain ${k + 1} was suggested around your route, ${route.slice(0, n - 1).join(' ')}.`;
     } else {
       early = Array.from({ length: n - 1 }, (_, i) => Math.round(te + ((i + 1) * (lastGuess - te)) / n));
-      suggestFrom.value = 'Evenly spaced: no answer or route to start from yet.';
+      suggestFrom.value = `Chain ${k + 1} was spaced evenly: no answer or route to start from yet.`;
     }
   }
-  boxes.value = early.map((c, i) => {
-    if (i === 0 && c - te <= 12) return `${te + 1}-${Math.max(te + 6, c + 4)}:1`;
-    if (i === 0) return `${c - 8}-${c + 8}:2`;
-    return `${c - 15}-${c + 15}:5`;
-  });
-  lastBox.value = `${Math.max(te + 2, lastGuess - 20)}-${Math.min(490, lastGuess + 20)}`;
+  row.text = early
+    .map((c, i) => {
+      if (i === 0 && c - te <= 12) return `${te + 1}-${Math.max(te + 6, c + 4)}:1`;
+      if (i === 0) return `${c - 8}-${c + 8}:2`;
+      return `${c - 15}-${c + 15}:5`;
+    })
+    .join('; ');
+  if (!lastRange.value) lastBox.value = `${Math.max(te + 2, lastGuess - 20)}-${Math.min(490, lastGuess + 20)}`;
 }
 
-// A new box when the count goes up (spaced on from the last one), one fewer when it goes down.
-watch(ascensions, n => {
-  const want = Math.max(0, Math.min(7, Math.floor(n || 1) - 1));
-  const b = [...boxes.value];
-  while (b.length > want) b.pop();
-  while (b.length < want) {
-    const prev = boxValues.value[b.length - 1];
-    const from = prev?.length ? prev[prev.length - 1] + 10 : Math.floor(store.currentTE) + 10;
-    b.push(`${from}-${from + 30}:5`);
-  }
-  boxes.value = b;
-});
-// First fill once the save has loaded, so the boxes start from something real.
+/** A new chain one ascension shorter than the shortest, since the short ones are what get added. */
+function addChain(): void {
+  const used = chains.value.map(r => r.asc);
+  let asc = Math.max(1, Math.min(...used) - 1);
+  while (used.includes(asc) && asc < 8) asc++;
+  chains.value.push({ asc, text: '' });
+  if (asc >= 2) suggestRow(chains.value.length - 1);
+}
+
+// First fill once the save has loaded, so the box starts from something real.
 watch(
   () => store.currentTE,
   te => {
-    if (te > 0 && !boxes.value.length && !lastBox.value) suggest();
+    if (te > 0 && !chains.value[0]?.text && !lastBox.value) suggestRow(0);
   },
   { immediate: true }
 );
 
-const spaceShapes = computed(() =>
-  lastRange.value && boxValues.value.every(v => v.length)
-    ? countBandShapes(boxValues.value, store.currentTE, lastRange.value[1])
-    : 0
-);
+const spaceShapes = computed(() => chains.value.reduce((n, _, k) => n + rowShapes(k), 0));
 
 // ------------------------------------------------------------------ estimate and live progress
 
@@ -647,9 +683,10 @@ const startIssue = computed(() => {
   if (!deadline.value) return '';
   if (deadline.value <= store.planStart) return 'The deadline is before the plan starts.';
   if (mode.value === 'space') {
-    if (!boxValues.value.every(v => v.length)) return 'Every stop box needs at least one value.';
     if (!lastRange.value) return 'Give the last stop a range above your TE now.';
-    if (!spaceShapes.value) return 'No route in these boxes goes up from your TE to the last stop.';
+    const bad = chains.value.findIndex((_, k) => !!rowProblem(k));
+    if (bad >= 0) return `Chain ${bad + 1}: ${rowProblem(bad)}`;
+    if (!spaceShapes.value) return 'No route in these chains goes up from your TE to the last stop.';
     return '';
   }
   if (minStops.value > maxStops.value) return 'The fewest stops is more than the most.';
@@ -662,16 +699,16 @@ const canStart = computed(() => !!deadline.value && !startIssue.value && store.c
 async function start(): Promise<void> {
   runEstimate.value = plannedRoutes.value;
   if (mode.value === 'space' && lastRange.value) {
-    const n = boxValues.value.length + 1;
+    const counts = chains.value.map(r => Math.max(1, Math.floor(r.asc)));
     await store.startDeadline(props.playerId, {
       deadline: deadline.value,
-      minStops: n,
-      maxStops: n,
+      minStops: Math.min(...counts),
+      maxStops: Math.max(...counts),
       lastLo: lastRange.value[0],
       lastHi: lastRange.value[1],
       step: 1,
       ascendNeeded: ascendNeeded.value,
-      bands: boxValues.value.map(v => [...v]),
+      bandSets: chains.value.map((r, k) => (r.asc <= 1 ? [] : rowBands(k).map(b => [...b]))),
     });
     return;
   }

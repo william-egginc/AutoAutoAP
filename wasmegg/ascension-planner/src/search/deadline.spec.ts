@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ChainResult } from './types';
 import {
+  parseChainText,
   bandShapes,
   countBandShapes,
   parseStopBox,
@@ -228,5 +229,36 @@ describe('your own space, Insane-style', () => {
     }
     expect(out.routes[0].chain.at(-1)).toBe(bestT);
     expect(out.step).toBe(0);
+  });
+});
+
+describe('several chains from one click', () => {
+  it("reads a chain's box: one band per early stop, ; between them", () => {
+    expect(parseChainText('138-140:1; 160, 170; 200-210:5')).toEqual([
+      [138, 139, 140],
+      [160, 170],
+      [200, 205, 210],
+    ]);
+  });
+
+  it('tries every route of every chain, a one-ascension chain included, and nothing else', async () => {
+    const bandSets = [
+      [],
+      [[110, 120]],
+      [
+        [103, 105],
+        [125, 130],
+      ],
+    ];
+    const s = spec({ lastLo: 131, lastHi: 170, bandSets });
+    const seen = new Set<string>();
+    const out = await runDeadlineSearch(s, {
+      evaluate: async chains => {
+        for (const c of chains) seen.add(c.slice(0, -1).join(' '));
+        return chains.map(c => priceChain(100, c));
+      },
+    });
+    expect([...seen].sort()).toEqual(['', '103 125', '103 130', '105 125', '105 130', '110', '120'].sort());
+    expect([...out.byStops.keys()].sort()).toEqual([1, 2, 3]);
   });
 });
