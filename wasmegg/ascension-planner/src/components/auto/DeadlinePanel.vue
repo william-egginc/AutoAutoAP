@@ -326,6 +326,30 @@
         Stop
       </button>
     </div>
+    <!-- Everything above greys out while anything else in this tab is busy; say what, and offer a way out. -->
+    <div
+      v-if="store.busy && !store.deadlineRunning"
+      class="flex flex-wrap items-center gap-3 rounded-xl border border-slate-300 bg-slate-50 p-3 text-[11px] text-slate-700"
+    >
+      <span>
+        <span class="font-bold">Waiting for another run in this tab:</span>
+        <template v-if="store.isRunning">
+          the fastest-to-a-target search ({{ store.stage || 'running' }}, {{ store.chainsDone.toLocaleString() }} of
+          {{ store.chainsEstimated.toLocaleString() }})</template
+        >
+        <template v-else-if="store.preparing">getting an unfinished run ready to carry on</template>
+        <template v-else>re-checking routes on your latest save</template>. The deadline search can start once it is
+        done.
+      </span>
+      <button
+        v-if="store.isRunning"
+        type="button"
+        class="px-3 py-1.5 rounded-lg border border-slate-400 text-[10px] font-black uppercase tracking-widest hover:bg-white"
+        @click="store.stop()"
+      >
+        Stop that run
+      </button>
+    </div>
     <p v-if="startIssue" class="text-[11px] font-semibold text-rose-700">{{ startIssue }}</p>
     <p v-if="store.error" class="text-[11px] font-semibold text-rose-700">{{ store.error }}</p>
 
