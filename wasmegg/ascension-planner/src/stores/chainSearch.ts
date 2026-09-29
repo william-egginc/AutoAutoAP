@@ -29,7 +29,11 @@ import { EFFORT, estimateChains } from '@/search/effort';
 import {
   buildCheckpoint,
   clearCheckpoint,
+  fingerprintChanges,
+  fingerprintPlanStart,
   fingerprintRun,
+  withPlanStart,
+  loadAnyCheckpoint,
   loadCheckpoint,
   restoreEntries,
   saveCheckpoint,
@@ -95,6 +99,7 @@ import type { EffortTier, LegSummary, PricedChain, SearchInputs } from '@/search
 import { useActionsStore } from './actions';
 import { useAutoPlannerStore } from './autoPlanner';
 import { useInitialStateStore } from './initialState';
+import { useUIStore } from './ui';
 
 /** Don't write to IndexedDB more often than this. A checkpoint costs a JSON round-trip over the
  *  whole cache; a batch takes tens of seconds, so this loses at most one batch on a crash. */
@@ -361,6 +366,14 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   const startedAt = ref(0);
   /** A checkpoint from a previous session that matches the current inputs, if any. */
   const resumable = ref<SearchCheckpoint | null>(null);
+  /**
+   * An unfinished checkpoint that CANNOT resume, and why ("TE was 147, now 170").
+   *
+   * It used to simply not appear, so an overnight run lost to a crash looked like it had never been
+   * saved at all. Usually the reason is a backup that loaded stale on one visit and fresh on the
+   * next, and saying so is the only way the player finds out.
+   */
+  const blockedCheckpoint = ref<{ record: SearchCheckpoint; changes: string[] } | null>(null);
 
   /**
    * The saved run currently loaded into the panel, when one is.
@@ -565,6 +578,15 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   });
   const integrityBlocked = computed(() => !!integrityNotice.value?.blocked);
 
+  /** The player said to run on the older save anyway (see ui.ts `staleBackup`). Kept across a
+   *  retry that fails the same way; a different failure asks again. */
+  const staleBackupAccepted = ref(false);
+  watch(
+    () => useUIStore().staleBackup,
+    () => (staleBackupAccepted.value = false)
+  );
+  const staleBackupBlocked = computed(() => !!useUIStore().staleBackup && !staleBackupAccepted.value);
+
   /** Why a result belongs on the flagged board rather than the main one. */
   function submissionFlags(): SubmissionFlag[] {
     const flags: SubmissionFlag[] = [];
@@ -697,11 +719,64 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    *  duration depends on (chain, plan start) jointly — comparing chains scored from different
    *  starts is meaningless, which is why the whole run pins one. */
   const planStart = computed(() => {
+    if (planStartPin.value) return planStartPin.value;
+    return plannerStart.value ?? Math.floor(Date.now() / 1000);
+  });
+
+  /** The Auto Planner's own start, or null when it has none (the plan is then timed from now). */
+  const plannerStart = computed<number | null>(() => {
     const s = useAutoPlannerStore();
     const tz = s.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
-    if (!s.startDate || !s.startTime) return Math.floor(Date.now() / 1000);
+    if (!s.startDate || !s.startTime) return null;
     return getLocalTimestampInTimezone(s.startDate, s.startTime, tz);
   });
+
+  /**
+   * The plan start a resumed run was priced against, held to the SECOND.
+   *
+   * The Auto Planner's start boxes only hold minutes, and a run timed "from now" was fingerprinted
+   * with seconds, so writing its start back into those boxes could never reproduce the fingerprint.
+   * The pin carries the exact value; the boxes are set as well so every panel shows the same start.
+   * Dropped the moment the boxes stop holding exactly what `pinPlanStart` wrote -- the player typed
+   * or cleared a start, which is a new problem, not the resumed one. Compared as STRINGS, not by
+   * reading the boxes back as a time: near a DST change that read-back is off by an hour, which
+   * dropped the pin mid-resume and priced half a run from one start and half from another.
+   */
+  const planStartPin = ref(0);
+  let pinnedBoxes: { date: string; time: string } | null = null;
+  watch(
+    () => [useAutoPlannerStore().startDate, useAutoPlannerStore().startTime] as const,
+    ([date, time]) => {
+      if (planStartPin.value && (!pinnedBoxes || date !== pinnedBoxes.date || time !== pinnedBoxes.time)) {
+        planStartPin.value = 0;
+        pinnedBoxes = null;
+      }
+    }
+  );
+
+  /** Put a run's own plan start back, in the store and in the Auto Planner's boxes. */
+  function pinPlanStart(ts: number): void {
+    if (!ts || ts === planStart.value) return;
+    const planner = useAutoPlannerStore();
+    const tz = planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const [d, t] = formatInZone(ts, tz).split(' ');
+    if (!d || !t) return;
+    pinnedBoxes = { date: d, time: t };
+    planner.startDate = d;
+    planner.startTime = t;
+    planStartPin.value = ts;
+  }
+
+  /** The run inputs that decide whether a checkpoint can resume -- the fingerprint without its
+   *  plan start, which resuming restores. The panels re-check for a resumable run when it moves. */
+  const resumeInputsKey = computed(() => withPlanStart(fingerprint(''), 0));
+
+  /** "Plan start goes back to 2026-09-28 22:14" when resuming `fp` would move it, else null. */
+  function planStartRestoreNote(fp: string | undefined): string | null {
+    const ts = fingerprintPlanStart(fp);
+    if (!ts || ts === planStart.value) return null;
+    return formatInZone(ts, planTimezone());
+  }
 
   /**
    * True when the Auto Planner has no start date/time and the plan is therefore timed from NOW.
@@ -724,10 +799,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    */
   const planStartUsed = ref(0);
 
-  const planStartIsNow = computed(() => {
-    const s = useAutoPlannerStore();
-    return !s.startDate || !s.startTime;
-  });
+  const planStartIsNow = computed(() => !planStartPin.value && plannerStart.value === null);
 
   /** The chain the search starts from: whatever the user has typed in the Auto Planner's Target TE
    *  field. `autoplan.py` reaches its own seed with a coarse subset scan (stage 2, measured 15 min
@@ -885,6 +957,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   async function resumeCrashedRun(playerId: string): Promise<boolean> {
     const sp = crashedRun.value?.space;
     if (!sp) return false;
+    // The run's own clock, so the checkpoint's fingerprint matches again (see `checkResumable`).
+    const ts = fingerprintPlanStart(crashedRun.value?.fingerprint);
+    if (ts) pinPlanStart(ts);
     await startExhaustive(playerId, {
       lo: sp.range?.lo ?? 0,
       hi: sp.range?.hi ?? 0,
@@ -912,14 +987,14 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       return 'this run was saved before the space was recorded, so there is nothing to continue from — set the same bands and start again, and anything it already priced will be replayed';
     }
     if (!currentPlayerId) return 'no player id, so there is no way to check the run is still valid';
-    if (run.fingerprint && run.fingerprint !== fingerprint(currentPlayerId)) {
-      // The unset-plan-start case gets its own sentence because blaming the player for a change
-      // they did not make is worse than saying nothing. With no start set, `planStart` is the moment
-      // the page loaded, so it moves on every reload and the fingerprint moves with it -- the run is
-      // genuinely unresumable, but the cause is a missing setting rather than an edited one.
-      return planStartIsNow.value
-        ? 'no plan start is set, so the plan is timed from the moment this page loaded — which is a different clock from the one this run was priced against. Set a start date and time (or load a backup) and save runs against that'
-        : 'the plan start, TE or schedule has changed since this run, so its durations no longer describe the same problem';
+    if (run.fingerprint) {
+      // The plan start is NOT a reason: resuming puts the run's own start back (`resumeOpenedRun`).
+      // It used to be the commonest one -- with no start set, the plan is timed from the moment the
+      // page loaded, so every reload "changed" it and no interrupted run could ever be picked up.
+      const changes = fingerprintChanges(run.fingerprint, fingerprint(currentPlayerId));
+      if (changes.length) {
+        return `${changes.join('; ')} — so its durations describe a different farm. If a number looks wrong, your backup may not have loaded fresh: reload it and check. Otherwise start a new run`;
+      }
     }
     return null;
   });
@@ -938,6 +1013,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const run = openedRun.value;
     if (!run?.space || !canResumeOpenedRun.value) return false;
     const sp = run.space;
+    const ts = fingerprintPlanStart(run.fingerprint);
+    if (ts) pinPlanStart(ts);
     await startExhaustive(playerId, {
       lo: sp.range?.lo ?? 0,
       hi: sp.range?.hi ?? 0,
@@ -1007,10 +1084,17 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    *  or the settings change. */
   async function checkResumable(playerId: string): Promise<void> {
     resumable.value = null;
+    blockedCheckpoint.value = null;
     if (!playerId) return;
     try {
       partitionHash = await hashID(playerId);
-      resumable.value = await loadCheckpoint(partitionHash, fingerprint(playerId));
+      // Matched on everything EXCEPT the plan start, which resuming restores. An exact match here
+      // meant a run timed "from now" was unreachable after any reload -- a crash included.
+      const cp = await loadAnyCheckpoint(partitionHash);
+      if (!cp) return;
+      const changes = fingerprintChanges(cp.fingerprint, fingerprint(playerId));
+      if (!changes.length) resumable.value = cp;
+      else if (!cp.complete) blockedCheckpoint.value = { record: cp, changes };
     } catch (e) {
       // A missing/blocked IndexedDB must not stop somebody running a search.
       console.warn('chain search: could not read checkpoint', e);
@@ -2256,7 +2340,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // there is still no reason to write a placeholder.
     if (bestDays.value <= 0) return;
     const now = Date.now();
-    if (!force && now - lastCheckpointAt < CHECKPOINT_INTERVAL_MS) return;
+    // Spaced out as the cache grows: each write copies the WHOLE cache, and at 40,000 chains doing
+    // that every 20 s is steady churn on a tab Safari is already squeezing for memory. 2 ms a chain
+    // is about 80 s at 40,000 -- still under two minutes of pricing lost to a crash.
+    if (!force && now - lastCheckpointAt < Math.max(CHECKPOINT_INTERVAL_MS, entries.length * 2)) return;
     lastCheckpointAt = now;
     try {
       await saveCheckpoint(
@@ -2472,9 +2559,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // checkpoint wins a tie, and a tie means the same chain priced under the same inputs twice --
     // identical numbers either way.
     const alreadyPriced = new Map<string, CacheEntry>(carried);
+    // Before the try, so a storage failure cannot leave the previous run's fingerprint in place.
+    runFingerprint = currentFingerprint;
     try {
       partitionHash = await hashID(playerId);
-      runFingerprint = currentFingerprint;
       const saved = await loadCheckpoint(partitionHash, runFingerprint);
       if (saved) {
         for (const e of restoreEntries(saved)) if (e.seconds > 0) alreadyPriced.set(e.key, e);
@@ -2508,8 +2596,14 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     runNotes.value = review.filter(i => i.level === 'warning').map(i => i.message);
     if (saveAgeNote.value?.level === 'warning') runNotes.value.push(saveAgeNote.value.text);
     const blocking = review.filter(i => i.level === 'error');
-    if (blocking.length) {
-      error.value = blocking[0].message;
+    // The inputs moved during the awaits above (a backup landing and rewriting the start boxes, say).
+    // The replayed chains were priced under `runFingerprint`; pricing the rest under different
+    // inputs would file two problems' durations as one.
+    const moved = fingerprint(playerId) !== runFingerprint;
+    if (blocking.length || moved) {
+      error.value = blocking.length
+        ? blocking[0].message
+        : 'Your plan start or settings changed while the run was starting. Check them, then press Start again.';
       errorBeforeStart.value = true;
       isRunning.value = false;
       stage.value = 'idle';
@@ -2807,6 +2901,11 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     if (isRunning.value) return;
     if (singleAscensionAsked.value && !options.resume) return;
     currentPlayerId = playerId;
+    // Before anything reads `planStart`: the checkpoint only matches under its own clock.
+    if (options.resume && resumable.value) {
+      const ts = fingerprintPlanStart(resumable.value.fingerprint);
+      if (ts) pinPlanStart(ts);
+    }
     recheckPriced = new Map();
     recheckFetch = null;
 
@@ -2859,7 +2958,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     try {
       partitionHash = await hashID(playerId);
       runFingerprint = fingerprint(playerId);
-      if (options.resume && resumable.value) {
+      // Checked again AFTER the await: anything that moved the inputs meanwhile (a backup landing
+      // and rewriting the start boxes) would otherwise save old durations under a new fingerprint.
+      if (options.resume && resumable.value && resumable.value.fingerprint === runFingerprint) {
         restoredCache = restoreEntries(resumable.value);
         bestChain.value = [...resumable.value.bestChain];
         bestDays.value = resumable.value.bestSeconds / 86400;
@@ -3107,6 +3208,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     if (!partitionHash) return;
     await clearCheckpoint(partitionHash);
     resumable.value = null;
+    blockedCheckpoint.value = null;
   }
 
   return {
@@ -3176,6 +3278,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     currentTE,
     planStart,
     planStartIsNow,
+    planStartRestoreNote,
+    pinPlanStart,
+    resumeInputsKey,
+    blockedCheckpoint,
     finishedCleanly,
     seedChain,
     seedIssue,
@@ -3217,6 +3323,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     integrityChecking,
     integrityNotice,
     integrityBlocked,
+    staleBackupAccepted,
+    staleBackupBlocked,
     probeIntegrity,
     openedRun,
     crashedRun,

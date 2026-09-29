@@ -1039,6 +1039,22 @@ async function handleRefreshReconcile() {
   }
 }
 
+/** The fetch error in words a player can act on. The raw one names the forwarder's URL. */
+function backupFailureReason(e: unknown): string {
+  const msg = e instanceof Error ? e.message : String(e);
+  if (/timeout|timed out/i.test(msg)) return "the game's server didn't answer in time";
+  if (/failed to fetch|network|load failed/i.test(msg)) return "the game's server couldn't be reached";
+  return msg.length > 140 ? msg.slice(0, 140) + '…' : msg;
+}
+
+// IntegrityNotice's "Try again". Only initPlanFuture clears the warning: it is the one path that also
+// rebuilds the plan snapshot the TE is read from (the header's reconcile refresh loads a save but
+// leaves that snapshot as it was).
+watch(
+  () => uiStore.backupRetryRequested,
+  () => void handleAutoPlannerTabClick()
+);
+
 async function handleAutoPlannerTabClick() {
   plannerTab.value = 'automatic';
   isHeaderCollapsed.value = true;
@@ -1048,9 +1064,11 @@ async function handleAutoPlannerTabClick() {
     try {
       // Fetch fresh backup and initialize for "Plan Future" mode (zeroed farm)
       await initPlanFuture(playerId.value);
+      uiStore.staleBackup = null;
     } catch (e) {
       console.error('Failed to auto-init Auto Planner:', e);
       error.value = 'Failed to load fresh backup for Auto Planner.';
+      uiStore.staleBackup = backupFailureReason(e);
     } finally {
       loading.value = false;
     }
@@ -1225,9 +1243,11 @@ async function planNextAscension() {
     plannerTab.value = 'manual';
     savePlayerID(playerId.value);
     await initPlanFuture(playerId.value);
+    uiStore.staleBackup = null;
     isHeaderCollapsed.value = true;
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Plan Next failed';
+    uiStore.staleBackup = backupFailureReason(e);
     console.error('Plan Next Ascension error:', e);
   } finally {
     loading.value = false;

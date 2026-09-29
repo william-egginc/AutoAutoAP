@@ -169,7 +169,14 @@
         <div class="flex flex-wrap items-center gap-3">
           <button
             type="button"
-            :disabled="!sweepConsent || store.isRunning || store.integrityBlocked || !chainCount || ascMismatch"
+            :disabled="
+              !sweepConsent ||
+              store.isRunning ||
+              store.integrityBlocked ||
+              store.staleBackupBlocked ||
+              !chainCount ||
+              ascMismatch
+            "
             class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500 disabled:opacity-40"
             @click="start"
           >
@@ -379,6 +386,11 @@
           already priced and will be replayed rather than re-simulated. It was last written
           {{ agoLabel(store.crashedRun.updatedAt) }}.
           <span class="font-bold">Starting a different search overwrites it.</span>
+          <template v-if="store.planStartRestoreNote(store.crashedRun.fingerprint)">
+            Carrying on puts the plan start back to
+            <span class="font-bold">{{ store.planStartRestoreNote(store.crashedRun.fingerprint) }}</span
+            >, the time it was priced from.
+          </template>
         </p>
         <button
           type="button"
@@ -387,6 +399,32 @@
           @click="resumeCrashed"
         >
           Carry on from where it stopped
+        </button>
+      </div>
+
+      <!--
+        An interrupted run that cannot carry on, with the reason. It used to just not appear, so a
+        crashed overnight run looked as if it had never been saved.
+      -->
+      <div
+        v-if="store.blockedCheckpoint && !store.crashedRun && !store.isRunning"
+        class="rounded-xl border border-slate-300 bg-slate-50 p-4 space-y-2"
+      >
+        <h3 class="text-[10px] font-black text-slate-700 uppercase tracking-widest">Unfinished run can't continue</h3>
+        <p class="text-[11px] text-slate-700 leading-relaxed">
+          A run on this machine stopped after pricing
+          <span class="font-bold">{{ store.blockedCheckpoint.record.durations.length.toLocaleString() }}</span> chains
+          ({{ agoLabel(store.blockedCheckpoint.record.updatedAt) }}), but
+          <span class="font-bold">{{ store.blockedCheckpoint.changes.join('; ') }}</span
+          >. Its durations describe a different farm, so they can't be reused. If a number looks wrong, your backup may
+          not have loaded fresh on one of the two visits: reload it and check before starting again.
+        </p>
+        <button
+          type="button"
+          class="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-700"
+          @click="store.discardCheckpoint()"
+        >
+          Discard it
         </button>
       </div>
 
@@ -1125,17 +1163,25 @@
         <input v-model="store.keepAwake" type="checkbox" class="mt-0.5 rounded border-slate-300 text-indigo-600" />
         <span class="text-[11px] text-slate-600 leading-relaxed">
           <span class="font-bold text-slate-800">Keep my PC awake.</span> A run is hours long; if the machine sleeps,
-          every worker freezes until you wake it back up. Turn this off if you'd rather manage sleep yourself.
+          every worker freezes until you wake it back up. It can't stop a laptop sleeping when the lid is closed. Turn
+          this off if you'd rather manage sleep yourself.
         </span>
       </label>
       <BackgroundSpeed />
+
+      <SafariNotice />
 
       <IntegrityNotice />
       <div class="flex flex-wrap gap-3">
         <button
           class="btn-premium btn-primary flex-1 py-4 text-sm shadow-xl shadow-rose-500/20 active:scale-[0.98]"
           :disabled="
-            store.isRunning || store.integrityBlocked || !chainCount || ascMismatch || (!!sweepRequest && !sweepConsent)
+            store.isRunning ||
+            store.integrityBlocked ||
+            store.staleBackupBlocked ||
+            !chainCount ||
+            ascMismatch ||
+            (!!sweepRequest && !sweepConsent)
           "
           @click="start"
         >
@@ -1273,8 +1319,9 @@
           <span class="text-[10px] font-bold text-slate-400">{{ store.savedRuns.length }} / {{ MAX_RUNS }}</span>
         </div>
         <p class="text-[11px] text-slate-500 leading-relaxed">
-          Kept in this browser, per player. Separate from the crash-recovery checkpoint, which holds one run and only
-          resumes onto identical settings. The oldest is dropped past {{ MAX_RUNS }}.
+          Kept in this browser, per player. Separate from the crash-recovery checkpoint, which holds one run. Either
+          kind resumes only while your TE, target and schedule are unchanged; the plan start goes back to the run's own.
+          The oldest is dropped past {{ MAX_RUNS }}.
         </p>
 
         <div class="flex flex-wrap gap-2">
@@ -1525,6 +1572,7 @@ import BackgroundSpeed from './BackgroundSpeed.vue';
 import { sweepSeconds, workerSecondsFromRate, workerSecondsPerChain } from '@/search/speed';
 import { describeCompute } from '@/utils/computeTime';
 import IntegrityNotice from './IntegrityNotice.vue';
+import SafariNotice from './SafariNotice.vue';
 import { useInitialStateStore } from '@/stores/initialState';
 import { describeTimeOff, usableTimeOff } from '@/search/timeOff';
 import { gridIsComplete, gridStepLabel } from '@/search/grid';
@@ -2100,6 +2148,15 @@ onMounted(() => {
 });
 onUnmounted(() => heapTimer && clearInterval(heapTimer));
 
+// Re-check whenever what decides resumability moves (TE, target, schedule...), so "can't continue"
+// goes away when the player puts a setting back, and appears when a fresh save changes the TE.
+watch(
+  () => [props.playerId, store.resumeInputsKey],
+  () => {
+    if (!store.isRunning) void store.checkResumable(props.playerId);
+  }
+);
+
 /** The bands-vs-pool configuration `startExhaustive` and `benchmarkMachine` both need — one literal,
  *  so the two can never be asked to look at different spaces. */
 function currentSpec(): {
@@ -2220,6 +2277,8 @@ async function resume(id: string): Promise<void> {
       resumeNote.value = `Cannot resume: ${store.resumeBlocker}.`;
       return;
     }
+    const restored = store.planStartRestoreNote(store.openedRun?.fingerprint);
+    if (restored) resumeNote.value = `Plan start set back to ${restored}, the time this run was priced from.`;
     await store.resumeOpenedRun(props.playerId);
   } finally {
     resuming.value = '';

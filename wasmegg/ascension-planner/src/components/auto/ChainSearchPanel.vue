@@ -587,6 +587,25 @@
         </div>
       </div>
 
+      <!-- An unfinished run that can't carry on, and why (usually a backup that loaded stale once). -->
+      <div
+        v-if="store.blockedCheckpoint && !store.resumable && !store.isRunning"
+        class="p-4 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-700 space-y-2"
+      >
+        <p class="leading-relaxed">
+          <span class="font-bold">An unfinished run can't continue:</span>
+          {{ store.blockedCheckpoint.changes.join('; ') }}, so the
+          {{ store.blockedCheckpoint.record.durations.length.toLocaleString() }} chains it priced describe a different
+          farm. If a number looks wrong, your backup may not have loaded fresh: reload it and check.
+        </p>
+        <button
+          class="px-4 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-700"
+          @click="store.discardCheckpoint()"
+        >
+          Discard it
+        </button>
+      </div>
+
       <!-- Resume banner -->
       <div
         v-if="store.resumable && !store.isRunning"
@@ -605,6 +624,11 @@
             replay all {{ store.resumable.durations.length }} priced chains for free and carry on from there.</template
           >
           <template v-else>Resuming replays those instantly and carries on — nothing is re-simulated.</template>
+          <template v-if="store.planStartRestoreNote(store.resumable.fingerprint)">
+            It puts the plan start back to
+            <span class="font-black">{{ store.planStartRestoreNote(store.resumable.fingerprint) }}</span
+            >, the time it was priced from.</template
+          >
         </p>
         <div class="flex gap-2">
           <button class="btn-premium btn-primary px-4 py-1.5 text-[10px]" @click="run(true)">Resume</button>
@@ -685,12 +709,14 @@
         <input v-model="store.keepAwake" type="checkbox" class="mt-0.5 rounded border-slate-300 text-indigo-600" />
         <span class="text-[11px] text-slate-600 leading-relaxed">
           <span class="font-bold text-slate-800">Keep my PC awake.</span> A run can take hours; if the machine sleeps,
-          every worker freezes until you wake it back up. Turn this off if you'd rather manage sleep yourself.
+          every worker freezes until you wake it back up. It can't stop a laptop sleeping when the lid is closed. Turn
+          this off if you'd rather manage sleep yourself.
         </span>
       </label>
 
       <BackgroundSpeed />
 
+      <SafariNotice />
       <IntegrityNotice />
 
       <div
@@ -785,6 +811,7 @@
           :disabled="
             store.isRunning ||
             store.integrityBlocked ||
+            store.staleBackupBlocked ||
             store.singleAscensionAsked ||
             (!store.findSeedFirst && store.seedChain.length < 2)
           "
@@ -1647,6 +1674,7 @@ import BackgroundSpeed from './BackgroundSpeed.vue';
 import { describeCompute } from '@/utils/computeTime';
 import { useInitialStateStore } from '@/stores/initialState';
 import IntegrityNotice from './IntegrityNotice.vue';
+import SafariNotice from './SafariNotice.vue';
 import LoadoutDisplay from './LoadoutDisplay.vue';
 import SearchShapeChart from './charts/SearchShapeChart.vue';
 import type { EffortTier, LegSummary } from '@/search/types';
@@ -2107,10 +2135,11 @@ watch(
   { immediate: true }
 );
 
-// A checkpoint only resumes onto identical inputs (see search/persistence.ts's fingerprint), so
-// re-check whenever anything that changes what a duration MEANS changes.
+// A checkpoint resumes only onto the same inputs, plan start aside (resuming restores it; see
+// search/persistence.ts's fingerprint), so re-check whenever anything that changes what a duration
+// MEANS changes.
 watch(
-  () => [props.playerId, store.planStart, store.currentTE, store.finalTE, store.forceContinue],
+  () => [props.playerId, store.resumeInputsKey],
   () => {
     if (!store.isRunning) void store.checkResumable(props.playerId);
   }

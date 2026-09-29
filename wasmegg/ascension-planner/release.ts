@@ -12,5 +12,5 @@
  */
 export default {
   reloadIfBuiltBefore: '2026-09-26T07:22:00Z',
-  note: 'faster pages, dates in your timezone, one race line per player, and phone fixes across the Explorer and the Leaderboard',
+  note: 'interrupted runs pick up again after a reload, a clear warning when your save did not load fresh, faster pages, and phone fixes',
 };

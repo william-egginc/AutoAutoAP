@@ -18,7 +18,16 @@ vi.mock('@/lib/storage/db', () => ({
   hashID: vi.fn(async (id: string) => id),
 }));
 
-const { buildCheckpoint, loadCheckpoint, saveCheckpoint } = await import('./persistence');
+const {
+  buildCheckpoint,
+  fingerprintChanges,
+  fingerprintPlanStart,
+  fingerprintRun,
+  loadAnyCheckpoint,
+  loadCheckpoint,
+  saveCheckpoint,
+  withPlanStart,
+} = await import('./persistence');
 
 const HASH = 'partition';
 const FP = 'player|1000|175|490|fc';
@@ -159,5 +168,65 @@ describe('the space a checkpoint was searching', () => {
     const back = await loadCheckpoint(HASH, FP);
     expect(back?.space?.bands).toEqual([[240, 245, 250]]);
     expect(back?.chainsDone).toBe(99);
+  });
+});
+
+/**
+ * Resuming after a reload. With no plan start set, the plan is timed from the moment the page
+ * loaded, so a reload moved the start and every interrupted run refused to resume -- an overnight
+ * run at 39,904 of 58,459 chains included. Resuming now restores the run's own start, and refuses
+ * only for a real change, which it names.
+ */
+describe("resuming under the run's own plan start", () => {
+  const base = { playerId: 'EI123', planStart: 1_790_000_123, currentTE: 147, final: 490, forceContinue: true };
+
+  it('reads the plan start back out of a fingerprint, and swaps it', () => {
+    const fp = fingerprintRun(base);
+    expect(fingerprintPlanStart(fp)).toBe(1_790_000_123);
+    expect(withPlanStart(fp, 1_790_009_999)).toBe(fingerprintRun({ ...base, planStart: 1_790_009_999 }));
+    expect(fingerprintPlanStart(undefined)).toBeNull();
+    expect(fingerprintPlanStart('garbage')).toBeNull();
+  });
+
+  it('does not count a moved plan start as a change', () => {
+    expect(fingerprintChanges(fingerprintRun(base), fingerprintRun({ ...base, planStart: 1_790_050_000 }))).toEqual([]);
+  });
+
+  it("names a stale backup's TE, with both numbers", () => {
+    expect(fingerprintChanges(fingerprintRun(base), fingerprintRun({ ...base, currentTE: 170 }))).toEqual([
+      'TE was 147, now 170',
+    ]);
+  });
+
+  it('names each other change separately', () => {
+    const avail = { days: [], fromHour: 8, toHour: 23, timezone: 'Europe/London' };
+    const changed = fingerprintRun({
+      ...base,
+      final: 500,
+      forceContinue: false,
+      availability: avail,
+      milestones: [{ te: 250, by: 1_796_000_000 }],
+      timeOff: [{ from: 1, to: 2 }],
+    });
+    expect(fingerprintChanges(fingerprintRun(base), changed)).toEqual([
+      'the final target was 490, now 500',
+      'the "keep going past the target" setting changed',
+      'the availability schedule changed',
+      'the TE milestones changed',
+      'the time off changed',
+    ]);
+  });
+
+  it('refuses another player outright', () => {
+    expect(fingerprintChanges(fingerprintRun(base), fingerprintRun({ ...base, playerId: 'EI999' }))).toEqual([
+      'it belongs to a different player',
+    ]);
+  });
+
+  it('hands back a checkpoint whatever its fingerprint, for the caller to judge', async () => {
+    store.clear();
+    await saveCheckpoint(HASH, record([196, 490], 700, ['196,490']));
+    expect(await loadCheckpoint(HASH, 'someone|else|1|2|fc')).toBeNull();
+    expect((await loadAnyCheckpoint(HASH))?.fingerprint).toBe(FP);
   });
 });

@@ -103,6 +103,54 @@ export function fingerprintRun(args: {
 }
 
 /**
+ * The plan start a fingerprint was written under, or null for one that does not parse.
+ *
+ * WHY THIS IS READ BACK OUT. With no start date set, the plan is timed from the moment the page
+ * loaded, so a reload moved the start and the fingerprint with it. Every checkpoint and every
+ * unfinished saved run then refused to resume -- after a crash, which is the one time resuming
+ * matters. The start is not a setting the player chose, it is just a clock the run was priced
+ * against, so resuming now puts THAT clock back (see the store's `pinPlanStart`) instead of refusing.
+ */
+export function fingerprintPlanStart(fp: string | undefined): number | null {
+  const n = Number(fp?.split('|')[1]);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+/** The fingerprint with its plan start replaced: what `fp` would read had it been priced from `planStart`. */
+export function withPlanStart(fp: string, planStart: number): string {
+  const parts = fp.split('|');
+  if (parts.length < 2) return fp;
+  parts[1] = String(planStart);
+  return parts.join('|');
+}
+
+/**
+ * What differs between the inputs a run was priced under and the current ones, in words a player
+ * can check against their save -- IGNORING the plan start, which resuming restores.
+ *
+ * Empty means the run can carry on. Anything else is a real reason its durations describe a
+ * different problem, and "TE was 147, now 170" tells the player whether that is a stale backup or
+ * their own edit; "the plan start, TE or schedule has changed" told them neither.
+ */
+export function fingerprintChanges(saved: string, current: string): string[] {
+  const a = saved.split('|');
+  const b = current.split('|');
+  const out: string[] = [];
+  if (a[0] !== b[0]) return ['it belongs to a different player'];
+  if (a[2] !== b[2]) out.push(`TE was ${a[2]}, now ${b[2]}`);
+  if (a[3] !== b[3]) out.push(`the final target was ${a[3]}, now ${b[3]}`);
+  if (a[4] !== b[4]) out.push('the "keep going past the target" setting changed');
+  const tail = (parts: string[], pick: (p: string) => boolean) => parts.slice(5).filter(pick).join('|');
+  const isOff = (p: string) => p.startsWith('off:');
+  const isMs = (p: string) => p.startsWith('ms');
+  const isAvail = (p: string) => !isOff(p) && !isMs(p);
+  if (tail(a, isAvail) !== tail(b, isAvail)) out.push('the availability schedule changed');
+  if (tail(a, isMs) !== tail(b, isMs)) out.push('the TE milestones changed');
+  if (tail(a, isOff) !== tail(b, isOff)) out.push('the time off changed');
+  return out;
+}
+
+/**
  * Write a checkpoint, and NEVER let one go backwards.
  *
  * There is one checkpoint per fingerprint, so starting a second run on the same inputs used to
@@ -147,9 +195,16 @@ export async function saveCheckpoint(partitionHash: string, record: SearchCheckp
 }
 
 export async function loadCheckpoint(partitionHash: string, fingerprint: string): Promise<SearchCheckpoint | null> {
+  const raw = await loadAnyCheckpoint(partitionHash);
+  if (!raw || raw.fingerprint !== fingerprint) return null;
+  return raw;
+}
+
+/** The checkpoint whatever its fingerprint, for the caller to compare with `fingerprintChanges`:
+ *  an unfinished run that CANNOT resume should say why rather than silently not appear. */
+export async function loadAnyCheckpoint(partitionHash: string): Promise<SearchCheckpoint | null> {
   const raw = (await loadMetadata(partitionHash, METADATA_KEY)) as SearchCheckpoint | null;
   if (!raw || raw.version !== RECORD_VERSION) return null;
-  if (raw.fingerprint !== fingerprint) return null;
   return raw;
 }
 
