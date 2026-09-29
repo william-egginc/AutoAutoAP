@@ -23,8 +23,10 @@ const {
   fingerprintChanges,
   fingerprintPlanStart,
   fingerprintRun,
+  listInterrupted,
   loadAnyCheckpoint,
   loadCheckpoint,
+  restoreInterrupted,
   saveCheckpoint,
   withPlanStart,
 } = await import('./persistence');
@@ -228,5 +230,65 @@ describe("resuming under the run's own plan start", () => {
     await saveCheckpoint(HASH, record([196, 490], 700, ['196,490']));
     expect(await loadCheckpoint(HASH, 'someone|else|1|2|fc')).toBeNull();
     expect((await loadAnyCheckpoint(HASH))?.fingerprint).toBe(FP);
+  });
+});
+
+/**
+ * One checkpoint slot, and a new run used to overwrite whatever unfinished run was in it -- an
+ * overnight run's 39,904 priced chains, gone on the next run's first write.
+ */
+describe('unfinished runs are moved aside, not overwritten', () => {
+  beforeEach(() => store.clear());
+
+  function run(fp: string, keys: string[], opts: { complete?: boolean; inputsKey?: string } = {}) {
+    return buildCheckpoint({
+      fingerprint: fp,
+      effort: 'thorough',
+      seedChain: [200, 490],
+      bestChain: [200, 490],
+      bestSeconds: 700 * 86400,
+      entries: keys.map(k => ({ key: k, seconds: 1, legs: [] })),
+      stage: 'running',
+      detail: '',
+      chainsDone: keys.length,
+      complete: opts.complete,
+      inputsKey: opts.inputsKey,
+    });
+  }
+
+  it('moves an unfinished run to the list when a different one takes the slot', async () => {
+    await saveCheckpoint(HASH, run('P|1|147|490|fc', ['a', 'b']));
+    await saveCheckpoint(HASH, run('P|2|170|490|fc', ['c']));
+    expect((await loadAnyCheckpoint(HASH))?.fingerprint).toBe('P|2|170|490|fc');
+    expect((await listInterrupted(HASH)).map(r => r.durations.length)).toEqual([2]);
+  });
+
+  it('does not keep a finished run, and keeps only the last three', async () => {
+    await saveCheckpoint(HASH, run('P|1|100|490|fc', ['a'], { complete: true }));
+    for (let i = 2; i <= 6; i++) await saveCheckpoint(HASH, run(`P|${i}|${100 + i}|490|fc`, ['x']));
+    const list = await listInterrupted(HASH);
+    expect(list.map(r => r.fingerprint)).toEqual(['P|5|105|490|fc', 'P|4|104|490|fc', 'P|3|103|490|fc']);
+  });
+
+  it('never merges two saves that share a fingerprint', async () => {
+    await saveCheckpoint(HASH, run('P|1|170|490|fc', ['a'], { inputsKey: 'save-A' }));
+    await saveCheckpoint(HASH, run('P|1|170|490|fc', ['b'], { inputsKey: 'save-B' }));
+    expect((await loadAnyCheckpoint(HASH))?.durations.map(d => d[0])).toEqual(['b']);
+    expect((await listInterrupted(HASH))[0].inputsKey).toBe('save-A');
+  });
+
+  it('still merges the same run on the same save', async () => {
+    await saveCheckpoint(HASH, run('P|1|170|490|fc', ['a'], { inputsKey: 'save-A' }));
+    await saveCheckpoint(HASH, run('P|1|170|490|fc', ['b'], { inputsKey: 'save-A' }));
+    expect((await loadAnyCheckpoint(HASH))?.durations.map(d => d[0]).sort()).toEqual(['a', 'b']);
+    expect(await listInterrupted(HASH)).toEqual([]);
+  });
+
+  it('swaps a moved-aside run back in, and moves the one it replaces aside', async () => {
+    await saveCheckpoint(HASH, run('P|1|147|490|fc', ['a', 'b']));
+    await saveCheckpoint(HASH, run('P|2|170|490|fc', ['c']));
+    await restoreInterrupted(HASH, 0);
+    expect((await loadAnyCheckpoint(HASH))?.fingerprint).toBe('P|1|147|490|fc');
+    expect((await listInterrupted(HASH)).map(r => r.fingerprint)).toEqual(['P|2|170|490|fc']);
   });
 });

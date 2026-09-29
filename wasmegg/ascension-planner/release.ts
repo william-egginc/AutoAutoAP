@@ -12,5 +12,5 @@
  */
 export default {
   reloadIfBuiltBefore: '2026-09-26T07:22:00Z',
-  note: 'interrupted runs pick up again after a reload, a clear warning when your save did not load fresh, faster pages, and phone fixes',
+  note: 'interrupted runs carry on with the save they started with, the last few unfinished runs are kept, and a clear warning when your save did not load fresh',
 };

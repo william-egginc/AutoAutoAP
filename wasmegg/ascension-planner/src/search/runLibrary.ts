@@ -89,6 +89,10 @@ export interface RunSummary {
    * ordinary. With it, the mismatch is detectable and the panel can say so.
    */
   fingerprint?: string;
+
+  /** The stored save it was priced under (search/runSaves.ts), kept while the run is unfinished so
+   *  Resume can carry on with that exact save. Optional and additive, like `space`. */
+  inputsKey?: string;
 }
 
 /** The body, loaded only when a run is opened. */
@@ -114,6 +118,7 @@ export interface SaveRunInput {
   complete: boolean;
   space?: SearchSpace;
   fingerprint?: string;
+  inputsKey?: string;
   /** Injectable so tests are not clock-dependent. */
   now?: number;
   /** Injectable for the same reason; ids are otherwise random. */
@@ -166,6 +171,7 @@ export async function saveRun(partitionHash: string, input: SaveRunInput): Promi
     // `structuredClone` into IndexedDB would keep as a present-but-empty field.
     ...(input.space ? { space: input.space } : {}),
     ...(input.fingerprint ? { fingerprint: input.fingerprint } : {}),
+    ...(input.inputsKey ? { inputsKey: input.inputsKey } : {}),
   };
 
   const existing = await listRuns(partitionHash);

@@ -12,6 +12,7 @@ vi.mock('@/lib/storage/db', () => ({
 const { useChainSearchStore } = await import('./chainSearch');
 const { useAutoPlannerStore } = await import('./autoPlanner');
 const { buildCheckpoint, saveCheckpoint } = await import('@/search/persistence');
+const { saveRunInputs } = await import('@/search/runSaves');
 
 /** See chainSearch.seed.spec.ts: the actions store reads localStorage the moment it exists. */
 function installStorageStub(): void {
@@ -32,7 +33,7 @@ const PRICED_AT = 1_790_000_123;
 
 /** An unfinished exhaustive run's checkpoint. `currentTE` reads 0 here (no backup loaded), and the
  *  store's defaults add nothing past `fc`, so `P|<start>|0|490|fc` is what the store would write. */
-async function crashed(fingerprint: string): Promise<void> {
+async function crashed(fingerprint: string, inputsKey?: string): Promise<void> {
   await saveCheckpoint(
     'P',
     buildCheckpoint({
@@ -55,6 +56,7 @@ async function crashed(fingerprint: string): Promise<void> {
         chainsPriced: 1,
         stoppedEarly: true,
       },
+      inputsKey,
     })
   );
 }
@@ -105,6 +107,25 @@ describe('chainSearch: resuming after a reload', () => {
     await nextTick();
     expect(store.planStartIsNow).toBe(true);
     expect(store.planStart).not.toBe(PRICED_AT);
+  });
+
+  it('offers a run on a different TE when its own save was kept: it carries on with that save', async () => {
+    const store = useChainSearchStore();
+    const kept = await saveRunInputs('P', {
+      context: { rawBackup: { approxTime: 1_790_640_095 } },
+      baseState: {},
+      currentFarmState: null,
+      planStart: PRICED_AT,
+      currentTE: 147,
+      final: 490,
+      forceContinue: true,
+    } as never);
+    await crashed(`P|${PRICED_AT}|147|490|fc`, kept.key);
+
+    await store.checkResumable('P');
+    expect(store.crashedRun?.inputsKey).toBe(kept.key);
+    expect(store.blockedCheckpoint).toBeNull();
+    expect(store.runSaveFor(kept.key)).toMatchObject({ te: 147, backupAt: 1_790_640_095 });
   });
 
   it('refuses a run priced on a stale save, and says what moved', async () => {

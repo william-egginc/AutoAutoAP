@@ -20,16 +20,14 @@
     "
   >
     <!--
-      Two cases. initPlanFuture wipes the stores BEFORE it fetches, so when the fetch fails there is
-      usually no save loaded at all -- but the plan snapshot from an earlier load survives, taken
-      before pending TE is rolled in. That is how a player at 170 TE saw 147 with nothing saying why.
-      Nothing can run in that state (the health check refuses it), so there is no "anyway" to offer.
+      Two cases. With a save kept on this device from an earlier visit, App.vue rebuilds the planner
+      from it after the failed fetch, so the page is consistent, just old. With none, there is
+      nothing to plan from; the health check refuses a run, so there is no "anyway" to offer.
     -->
     <p v-if="!initialState.rawBackup">
       <span class="font-black uppercase tracking-wide">Your save didn't load.</span>
-      Fetching it failed ({{ ui.staleBackup }}), so no save is loaded. Any TE or farm figures still on this page are
-      left over from an earlier load and may not count TE waiting to be claimed. Nothing can run until it loads: try
-      again in a minute.
+      Fetching it failed ({{ ui.staleBackup }}) and there's no earlier copy on this device, so there is nothing to plan
+      from yet. Try again in a minute.
     </p>
     <p v-else>
       <span class="font-black uppercase tracking-wide">Your save didn't load fresh.</span>
@@ -41,7 +39,7 @@
     <div class="flex flex-wrap items-center gap-3">
       <button
         type="button"
-        :disabled="ui.loading || store.isRunning"
+        :disabled="ui.loading || store.busy"
         :title="store.isRunning ? 'Stop the run first: reloading the save resets the planner under it' : undefined"
         class="px-3 py-1.5 rounded-lg bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-700 disabled:opacity-40"
         @click="ui.backupRetryRequested++"

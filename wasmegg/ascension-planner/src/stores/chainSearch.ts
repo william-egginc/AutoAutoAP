@@ -14,7 +14,7 @@
  * itself calls is already Pinia-free.
  */
 import { defineStore } from 'pinia';
-import { computed, ref, watch } from 'vue';
+import { computed, ref, shallowRef, toRaw, watch } from 'vue';
 import { getSimulationContext, createBaseEngineState } from '@/engine/adapter';
 import { getLocalTimestampInTimezone } from '@/lib/events';
 import { hashID } from '@/lib/storage/db';
@@ -30,11 +30,15 @@ import {
   buildCheckpoint,
   clearCheckpoint,
   fingerprintChanges,
+  settingsChanges,
   fingerprintPlanStart,
   fingerprintRun,
   withPlanStart,
   loadAnyCheckpoint,
   loadCheckpoint,
+  listInterrupted,
+  restoreInterrupted,
+  discardInterrupted,
   restoreEntries,
   saveCheckpoint,
   type SearchCheckpoint,
@@ -85,6 +89,15 @@ import { existingOwnerToken, ownerToken } from '@/search/owner';
 import { describeSaveAge, siloSeconds } from '@/lib/saveAge';
 import { timeOffWindows, usableTimeOff, type TimeOffDates } from '@/search/timeOff';
 import { listRuns, saveRun, loadRun, deleteRun, defaultRunLabel, type RunSummary } from '@/search/runLibrary';
+import {
+  listRunSaves,
+  loadRunInputs,
+  pruneRunSaves,
+  runSaveKey,
+  saveRunInputs,
+  type RunSaveSummary,
+} from '@/search/runSaves';
+import { initPlanFuture } from '@/lib/modes/planFuture';
 import { epicResearchDefs } from '@/lib/epicResearch';
 import { deliveryScore } from '@/search/virtueScore';
 import { getColleggtibleTiers } from 'lib/collegtibles';
@@ -374,6 +387,46 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * next, and saying so is the only way the player finds out.
    */
   const blockedCheckpoint = ref<{ record: SearchCheckpoint; changes: string[] } | null>(null);
+  /** Unfinished runs a later run moved out of the checkpoint slot (persistence.ts), newest first. */
+  const interrupted = shallowRef<SearchCheckpoint[]>([]);
+  /** The saves stored for unfinished runs (search/runSaves.ts), so a panel can label a run and know
+   *  it can carry on without loading multi-MB bodies. */
+  const runSaves = ref<RunSaveSummary[]>([]);
+  function runSaveFor(key: string | undefined): RunSaveSummary | null {
+    return key ? (runSaves.value.find(s => s.key === key) ?? null) : null;
+  }
+  /** True while a run is being got ready to carry on (a stored save loading): every Start and
+   *  Resume waits, or a second click would launch a second run against half-reset stores. */
+  const preparing = ref(false);
+  /** Anything that must not overlap a run: the run, getting one ready, or the latest-save re-check. */
+  const busy = computed(() => isRunning.value || preparing.value || recheckingLatest.value);
+  // Any other load replacing the carried-on run's save (the header's refresh, Plan Next, a plan
+  // from the library...) ends "on the run's own save": drop the notice and the run's pinned start.
+  watch(
+    () => useInitialStateStore().rawBackup,
+    now => {
+      if (!ownSaveBackup || !useUIStore().runSaveLoaded || toRaw(now) === ownSaveBackup) return;
+      ownSaveBackup = null;
+      useUIStore().runSaveLoaded = null;
+      resetPlanStartTo((toRaw(now) as { approxTime?: number } | null)?.approxTime);
+    }
+  );
+  /** The planner's save as loaded for a carried-on run, to notice when anything replaces it. */
+  let ownSaveBackup: unknown = null;
+  /** The stored save the current run is priced under ('' when it could not be stored). */
+  let runInputsKey = '';
+  /**
+   * Set when the results on screen were priced on a run's OWN (older) save rather than the latest
+   * one. They are right for that save, but the player has moved on since, so the panel offers to
+   * re-price the fastest few on the latest save before anyone follows one.
+   */
+  const resultsFromOlderSave = ref<{ te: number; backupAt: number; planStart: number } | null>(null);
+  const recheckingLatest = ref(false);
+  const latestRecheck = ref<{
+    rows: { chain: number[]; oldFinish: number; newFinish: number | null; newDays: number | null }[];
+    te: number;
+    at: number;
+  } | null>(null);
 
   /**
    * The saved run currently loaded into the panel, when one is.
@@ -888,7 +941,11 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       // not picked back up -- which is how an interrupted overnight run became an afternoon of
       // re-pricing chains that were already sitting in the file.
       ...(searchSpace.value ? { space: searchSpace.value } : {}),
-      fingerprint: fingerprint(playerId),
+      // An opened saved run keeps ITS identity; anything else is the run that just ran.
+      fingerprint: openedRun.value?.fingerprint ?? (runFingerprint || fingerprint(playerId)),
+      ...((openedRun.value ? openedRun.value.inputsKey : runInputsKey)
+        ? { inputsKey: openedRun.value ? openedRun.value.inputsKey : runInputsKey }
+        : {}),
     });
     await refreshSavedRuns(playerId);
     return summary;
@@ -952,23 +1009,103 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     return cp && !cp.complete && cp.space ? cp : null;
   });
 
+  /**
+   * Get a run ready to carry on, and return the exact inputs its workers should be given.
+   *
+   * With its save kept, the workers get that stored payload itself, so the carried-on half is priced
+   * on precisely the farm the first half was. The planner is switched to that save as well, so
+   * everything that describes the run -- the CSV header, the submission, Apply -- describes the same
+   * save; target, shift handling and plan start are put back from it too.
+   *
+   * Without one (a run from before saves were kept, or a body that did not survive), it falls back
+   * to the old rule: carry on onto the CURRENT save only if it still matches, under the run's clock.
+   *
+   * Returns the inputs, 'current' to carry on with the current save, or null (with `error` set) to
+   * stop. The settings a save does not carry are checked BEFORE anything is switched, so a refusal
+   * never leaves the planner quietly sitting on an older save.
+   */
+  async function prepareToCarryOn(
+    playerId: string,
+    record: { fingerprint?: string; inputsKey?: string }
+  ): Promise<SearchInputs | 'current' | null> {
+    partitionHash = partitionHash || (await hashID(playerId));
+    const inputs =
+      record.inputsKey && runSaveFor(record.inputsKey) ? await loadRunInputs(partitionHash, record.inputsKey) : null;
+
+    if (!inputs?.context?.rawBackup) {
+      const changes = record.fingerprint ? fingerprintChanges(record.fingerprint, fingerprint(playerId)) : [];
+      if (changes.length) {
+        error.value = `This run's save isn't stored on this device, and ${changes.join('; ')}, so it can't carry on.`;
+        return null;
+      }
+      const ts = fingerprintPlanStart(record.fingerprint);
+      if (ts) pinPlanStart(ts);
+      return 'current';
+    }
+
+    const unsaved = record.fingerprint ? settingsChanges(record.fingerprint, fingerprint(playerId)) : [];
+    if (unsaved.length) {
+      error.value = `To carry on, set this back to how it was for the run: ${unsaved.join('; ')}.`;
+      return null;
+    }
+
+    const stored = inputs.context.rawBackup as { approxTime?: number };
+    const loaded = useInitialStateStore().rawBackup as { approxTime?: number } | null;
+    // Already on that very save (a reload with nothing new synced): nothing to switch.
+    const sameSave = !!loaded && loaded.approxTime === stored.approxTime && currentTE.value === inputs.currentTE;
+    if (!sameSave) {
+      try {
+        await initPlanFuture(playerId, inputs.context.rawBackup);
+      } catch (e) {
+        error.value = `This run's stored save could not be loaded (${describeRunError(e)}). Reload your save and start again.`;
+        return null;
+      }
+    }
+    finalTE.value = inputs.final;
+    forceContinue.value = inputs.forceContinue;
+    if (typeof inputs.deferShifts === 'boolean') deferShifts.value = inputs.deferShifts;
+    pinPlanStart(inputs.planStart);
+
+    if (!sameSave) {
+      const backupAt = runSaveFor(record.inputsKey)?.backupAt ?? stored.approxTime ?? 0;
+      const ui = useUIStore();
+      ui.runSaveLoaded = { te: inputs.currentTE, backupAt };
+      // Deliberately older, not stale: the notice for this case is `runSaveLoaded`.
+      ui.staleBackup = null;
+      ownSaveBackup = toRaw(useInitialStateStore().rawBackup);
+      resultsFromOlderSave.value = { te: inputs.currentTE, backupAt, planStart: inputs.planStart };
+      latestRecheck.value = null;
+    }
+    return inputs;
+  }
+
   /** Carry on an interrupted run from its checkpoint. The durations replay inside
    *  `startExhaustive`; this only has to hand back the space the checkpoint recorded. */
   async function resumeCrashedRun(playerId: string): Promise<boolean> {
-    const sp = crashedRun.value?.space;
-    if (!sp) return false;
-    // The run's own clock, so the checkpoint's fingerprint matches again (see `checkResumable`).
-    const ts = fingerprintPlanStart(crashedRun.value?.fingerprint);
-    if (ts) pinPlanStart(ts);
-    await startExhaustive(playerId, {
-      lo: sp.range?.lo ?? 0,
-      hi: sp.range?.hi ?? 0,
-      step: sp.range?.step ?? 1,
-      minAsc: sp.minAscensions,
-      maxAsc: sp.maxAscensions,
-      minGap: sp.minGap,
-      ...(sp.mode === 'bands' && sp.bands?.length ? { bands: sp.bands.map(b => [...b]) } : {}),
-    });
+    const cp = crashedRun.value;
+    const sp = cp?.space;
+    if (!cp || !sp || busy.value) return false;
+    preparing.value = true;
+    let own: SearchInputs | 'current' | null;
+    try {
+      own = await prepareToCarryOn(playerId, cp);
+    } finally {
+      preparing.value = false;
+    }
+    if (!own) return false;
+    await startExhaustive(
+      playerId,
+      {
+        lo: sp.range?.lo ?? 0,
+        hi: sp.range?.hi ?? 0,
+        step: sp.range?.step ?? 1,
+        minAsc: sp.minAscensions,
+        maxAsc: sp.maxAscensions,
+        minGap: sp.minGap,
+        ...(sp.mode === 'bands' && sp.bands?.length ? { bands: sp.bands.map(b => [...b]) } : {}),
+      },
+      { own: own === 'current' ? undefined : own }
+    );
     return true;
   }
 
@@ -987,6 +1124,12 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       return 'this run was saved before the space was recorded, so there is nothing to continue from — set the same bands and start again, and anything it already priced will be replayed';
     }
     if (!currentPlayerId) return 'no player id, so there is no way to check the run is still valid';
+    // With its own save stored, the run carries on with that save, not the current one; only the
+    // settings a save does not carry can stop it.
+    if (runSaveFor(run.inputsKey)) {
+      const unsaved = run.fingerprint ? settingsChanges(run.fingerprint, fingerprint(currentPlayerId)) : [];
+      return unsaved.length ? `set this back to how it was for the run first: ${unsaved.join('; ')}` : null;
+    }
     if (run.fingerprint) {
       // The plan start is NOT a reason: resuming puts the run's own start back (`resumeOpenedRun`).
       // It used to be the commonest one -- with no start set, the plan is timed from the moment the
@@ -1013,17 +1156,28 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const run = openedRun.value;
     if (!run?.space || !canResumeOpenedRun.value) return false;
     const sp = run.space;
-    const ts = fingerprintPlanStart(run.fingerprint);
-    if (ts) pinPlanStart(ts);
-    await startExhaustive(playerId, {
-      lo: sp.range?.lo ?? 0,
-      hi: sp.range?.hi ?? 0,
-      step: sp.range?.step ?? 1,
-      minAsc: sp.minAscensions,
-      maxAsc: sp.maxAscensions,
-      minGap: sp.minGap,
-      ...(sp.mode === 'bands' && sp.bands?.length ? { bands: sp.bands.map(b => [...b]) } : {}),
-    });
+    if (busy.value) return false;
+    preparing.value = true;
+    let own: SearchInputs | 'current' | null;
+    try {
+      own = await prepareToCarryOn(playerId, run);
+    } finally {
+      preparing.value = false;
+    }
+    if (!own) return false;
+    await startExhaustive(
+      playerId,
+      {
+        lo: sp.range?.lo ?? 0,
+        hi: sp.range?.hi ?? 0,
+        step: sp.range?.step ?? 1,
+        minAsc: sp.minAscensions,
+        maxAsc: sp.maxAscensions,
+        minGap: sp.minGap,
+        ...(sp.mode === 'bands' && sp.bands?.length ? { bands: sp.bands.map(b => [...b]) } : {}),
+      },
+      { own: own === 'current' ? undefined : own }
+    );
     return true;
   }
 
@@ -1080,8 +1234,43 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     });
   }
 
-  /** Look for a resumable checkpoint for the current inputs. Safe to call whenever the panel opens
-   *  or the settings change. */
+  /** Drop stored saves nothing unfinished refers to: the checkpoint slot, the moved-aside runs, the
+   *  saved runs, and the run in progress. They exist only to finish a run. */
+  async function pruneSaves(slot: SearchCheckpoint | null): Promise<void> {
+    const keep = new Set<string>();
+    if (runInputsKey) keep.add(runInputsKey);
+    if (slot && !slot.complete && slot.inputsKey) keep.add(slot.inputsKey);
+    try {
+      for (const r of await listInterrupted(partitionHash)) if (r.inputsKey) keep.add(r.inputsKey);
+      // Read here rather than from `savedRuns`, which a panel may not have loaded yet -- pruning
+      // against an empty list would delete the saves of every unfinished saved run.
+      for (const r of await listRuns(partitionHash)) if (!r.complete && r.inputsKey) keep.add(r.inputsKey);
+      await pruneRunSaves(partitionHash, keep);
+      runSaves.value = await listRunSaves(partitionHash);
+    } catch (e) {
+      console.warn('chain search: could not tidy stored saves', e);
+    }
+  }
+
+  /**
+   * Put a moved-aside run back in the checkpoint slot, ready to carry on. The unfinished run in the
+   * slot now is moved aside in its place, so nothing is lost either way.
+   */
+  async function promoteInterrupted(playerId: string, index: number): Promise<boolean> {
+    partitionHash = partitionHash || (await hashID(playerId));
+    const picked = await restoreInterrupted(partitionHash, index);
+    await checkResumable(playerId);
+    return !!picked && !!resumable.value;
+  }
+
+  async function discardInterruptedRun(playerId: string, index: number): Promise<void> {
+    partitionHash = partitionHash || (await hashID(playerId));
+    await discardInterrupted(partitionHash, index);
+    await checkResumable(playerId);
+  }
+
+  /** Look for a resumable checkpoint for the current inputs, and refresh the moved-aside list and
+   *  the stored saves. Safe to call whenever the panel opens or the settings change. */
   async function checkResumable(playerId: string): Promise<void> {
     resumable.value = null;
     blockedCheckpoint.value = null;
@@ -1090,11 +1279,20 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       partitionHash = await hashID(playerId);
       // Matched on everything EXCEPT the plan start, which resuming restores. An exact match here
       // meant a run timed "from now" was unreachable after any reload -- a crash included.
+      runSaves.value = await listRunSaves(partitionHash);
+      interrupted.value = await listInterrupted(partitionHash);
       const cp = await loadAnyCheckpoint(partitionHash);
-      if (!cp) return;
-      const changes = fingerprintChanges(cp.fingerprint, fingerprint(playerId));
-      if (!changes.length) resumable.value = cp;
-      else if (!cp.complete) blockedCheckpoint.value = { record: cp, changes };
+      if (cp) {
+        // A run with its own save carries on with that save, whatever is loaded now: only the
+        // settings a save does not carry can stop it.
+        const own = !cp.complete && !!runSaveFor(cp.inputsKey);
+        const changes = own
+          ? settingsChanges(cp.fingerprint, fingerprint(playerId))
+          : fingerprintChanges(cp.fingerprint, fingerprint(playerId));
+        if (!changes.length) resumable.value = cp;
+        else if (!cp.complete) blockedCheckpoint.value = { record: cp, changes };
+      }
+      await pruneSaves(cp);
     } catch (e) {
       // A missing/blocked IndexedDB must not stop somebody running a search.
       console.warn('chain search: could not read checkpoint', e);
@@ -2332,6 +2530,22 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     return `chain-search-${effort.value}-${stamp}.csv`;
   }
 
+  /** Keep the save a run is about to be priced under, so a crash can carry on with it. A storage
+   *  failure only costs that ability; it never stops the run. */
+  async function storeRunSave(inputs: SearchInputs, key: string): Promise<void> {
+    // The key is the run's IDENTITY and goes into every checkpoint whether or not the body could be
+    // stored: a checkpoint with no key merges with any run on the same fingerprint, which is the
+    // two-farms mix this exists to prevent. `runSaveFor` answers the separate question of whether
+    // the save itself is there to carry on with.
+    runInputsKey = key;
+    try {
+      partitionHash = partitionHash || (await hashID(currentPlayerId));
+      await saveRunInputs(partitionHash, inputs, key);
+    } catch (e) {
+      console.warn('chain search: could not store the save for this run', e);
+    }
+  }
+
   async function persist(entries: CacheEntry[], force = false, complete = false): Promise<void> {
     if (!partitionHash) return;
     // Nothing priced yet. start() seeds bestDays at 0, so persisting here would write the
@@ -2361,6 +2575,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           detail: detail.value,
           chainsDone: chainsDone.value,
           complete,
+          inputsKey: runInputsKey || null,
         })
       );
     } catch (e) {
@@ -2458,9 +2673,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   async function startExhaustive(
     playerId: string,
     spec: ExhaustiveSpec,
-    options: { recheck?: boolean } = {}
+    /** `own`: the stored inputs of a run carried on with its own save (see `prepareToCarryOn`). */
+    options: { recheck?: boolean; own?: SearchInputs } = {}
   ): Promise<void> {
-    if (isRunning.value) return;
+    if (isRunning.value || preparing.value || recheckingLatest.value) return;
     currentPlayerId = playerId;
     recheckPriced = new Map();
     recheckFetch = null;
@@ -2519,9 +2735,21 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // every one of those is editable between saving a run and reopening it. Same fingerprint, the
     // numbers describe the same problem and replaying them is free; different, and they are dropped
     // rather than quietly mixed into a ranking with chains priced under another clock.
+    //
+    // And by the SAVE, when the opened run knows which one it was priced under: two saves at the
+    // same TE are two farms, and the fingerprint cannot tell them apart.
+    const startInputs = options.own ?? collectInputs();
+    if (!options.own) resultsFromOlderSave.value = null;
+    latestRecheck.value = null;
+    const startKey = runSaveKey(startInputs);
     const carried = new Map<string, CacheEntry>();
     const currentFingerprint = fingerprint(playerId);
-    if (!openedRun.value || !openedRun.value.fingerprint || openedRun.value.fingerprint === currentFingerprint) {
+    const opened = openedRun.value;
+    if (
+      !opened ||
+      !opened.fingerprint ||
+      (opened.fingerprint === currentFingerprint && (!opened.inputsKey || opened.inputsKey === startKey))
+    ) {
       for (const e of [...liveCache, ...coarseCache]) if (e.seconds > 0) carried.set(e.key, e);
     }
     liveCache = [];
@@ -2564,7 +2792,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     try {
       partitionHash = await hashID(playerId);
       const saved = await loadCheckpoint(partitionHash, runFingerprint);
-      if (saved) {
+      if (saved && (!saved.inputsKey || saved.inputsKey === startKey)) {
         for (const e of restoreEntries(saved)) if (e.seconds > 0) alreadyPriced.set(e.key, e);
       }
     } catch (e) {
@@ -2591,7 +2819,6 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // REFUSE rather than warn. A run started against a half-loaded save produces a complete,
     // confident, wrong answer after hours of CPU, and the operator cannot tell from the result --
     // which is how this was found in the first place, from a CSV rather than from the app.
-    const startInputs = collectInputs();
     const review = reviewRunInputs(startInputs);
     runNotes.value = review.filter(i => i.level === 'warning').map(i => i.message);
     if (saveAgeNote.value?.level === 'warning') runNotes.value.push(saveAgeNote.value.text);
@@ -2609,6 +2836,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       stage.value = 'idle';
       return;
     }
+    await storeRunSave(startInputs, startKey);
 
     holdRunLock();
     void holdScreenLock();
@@ -2726,6 +2954,84 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * real run's own chunk size and prefix-sorted ordering is what makes this number mean the same
    * thing as "what the live rate would read after one chunk" rather than a differently-biased guess.
    */
+  /**
+   * Put the plan start back on the latest save after a run carried on with an older one: the pin
+   * held the run's own start, and a new plan from it would begin before the save it uses existed.
+   */
+  function resetPlanStartTo(ts: number | null | undefined): void {
+    planStartPin.value = 0;
+    pinnedBoxes = null;
+    if (!ts || !(ts > 1e9)) return;
+    const planner = useAutoPlannerStore();
+    const tz = planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const [d, t] = formatInZone(Math.max(ts, Date.now() / 1000), tz).split(' ');
+    if (d && t) {
+      planner.startDate = d;
+      planner.startTime = t;
+    }
+  }
+
+  /**
+   * Re-price the fastest few chains of results that came from an older save, on the latest save.
+   *
+   * Compared by FINISH DATE, never by days: the two runs start from different instants, so their
+   * day counts answer different questions. A handful of chains on a throwaway pool, the same way
+   * the benchmark prices its probe.
+   */
+  async function recheckOnLatestSave(n = 10): Promise<void> {
+    const older = resultsFromOlderSave.value;
+    if (busy.value || !older || useUIStore().runSaveLoaded) return;
+    if (staleBackupBlocked.value) {
+      error.value = "Your latest save didn't load, so there is nothing newer to re-check against yet.";
+      return;
+    }
+    const top = [...liveCache]
+      .filter(e => e.seconds > 0)
+      .sort((a, b) => a.seconds - b.seconds)
+      .slice(0, n);
+    if (!top.length) return;
+    recheckingLatest.value = true;
+    error.value = null;
+    let pool: ChainSearchPool | null = null;
+    try {
+      const inputs = collectInputs();
+      const blocking = reviewRunInputs(inputs).filter(i => i.level === 'error');
+      if (blocking.length) {
+        error.value = blocking[0].message;
+        return;
+      }
+      // Stops the latest save has already passed are dropped, as the board's own re-checks do:
+      // asking the simulator for a TE already behind it fails the whole batch.
+      const routes = top.map(e => {
+        const chain = e.key.split(',').map(Number);
+        const final = chain[chain.length - 1];
+        return { e, chain: [...usableCheckpoints(chain.slice(0, -1), inputs.currentTE, final), final] };
+      });
+      const unique = [...new Map(routes.map(r => [r.chain.join(','), r.chain])).values()];
+      pool = await createChainSearchPool(inputs, { size: Math.min(workerBudget.value, unique.length) });
+      const { results } = await pool.evaluate(unique);
+      const priced = new Map(results.map(r => [r.chain.join(','), r.seconds]));
+      latestRecheck.value = {
+        te: inputs.currentTE,
+        at: Date.now(),
+        rows: routes.map(({ e, chain }) => {
+          const sec = priced.get(chain.join(','));
+          return {
+            chain,
+            oldFinish: older.planStart + e.seconds,
+            newFinish: sec && sec > 0 ? inputs.planStart + sec : null,
+            newDays: sec && sec > 0 ? sec / 86400 : null,
+          };
+        }),
+      };
+    } catch (e) {
+      error.value = describeRunError(e);
+    } finally {
+      pool?.terminate();
+      recheckingLatest.value = false;
+    }
+  }
+
   async function benchmarkMachine(playerId: string, spec: ExhaustiveSpec): Promise<void> {
     if (isRunning.value || benchmarking.value) return;
 
@@ -2898,13 +3204,25 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
 
   /** `options.recheck`: as in `startExhaustive` -- the run will send itself when it finishes. */
   async function start(playerId: string, options: { resume?: boolean; recheck?: boolean } = {}): Promise<void> {
-    if (isRunning.value) return;
+    if (isRunning.value || preparing.value || recheckingLatest.value) return;
     if (singleAscensionAsked.value && !options.resume) return;
     currentPlayerId = playerId;
-    // Before anything reads `planStart`: the checkpoint only matches under its own clock.
-    if (options.resume && resumable.value) {
-      const ts = fingerprintPlanStart(resumable.value.fingerprint);
-      if (ts) pinPlanStart(ts);
+    // Captured NOW: loading a stored save moves the TE, a panel watcher re-reads the checkpoint, and
+    // `resumable` is briefly null while it does -- which made a resume quietly start from scratch.
+    const resumeFrom = options.resume ? resumable.value : null;
+    // Before anything reads `planStart`: the checkpoint only matches under its own clock -- and,
+    // when it kept its save, only on that save.
+    let own: SearchInputs | undefined;
+    if (resumeFrom) {
+      preparing.value = true;
+      let got: SearchInputs | 'current' | null;
+      try {
+        got = await prepareToCarryOn(playerId, resumeFrom);
+      } finally {
+        preparing.value = false;
+      }
+      if (!got) return;
+      if (got !== 'current') own = got;
     }
     recheckPriced = new Map();
     recheckFetch = null;
@@ -2950,6 +3268,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     stage.value = 'starting workers';
     detail.value = '';
 
+    const startInputs = own ?? collectInputs();
+    if (!own) resultsFromOlderSave.value = null;
+    latestRecheck.value = null;
+    const startKey = runSaveKey(startInputs);
     let restoredCache: CacheEntry[] | undefined;
     let cacheAtEnd: CacheEntry[] = [];
     // Chains already priced before the driver starts, so its own 0-based counter does not
@@ -2960,11 +3282,15 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       runFingerprint = fingerprint(playerId);
       // Checked again AFTER the await: anything that moved the inputs meanwhile (a backup landing
       // and rewriting the start boxes) would otherwise save old durations under a new fingerprint.
-      if (options.resume && resumable.value && resumable.value.fingerprint === runFingerprint) {
-        restoredCache = restoreEntries(resumable.value);
-        bestChain.value = [...resumable.value.bestChain];
-        bestDays.value = resumable.value.bestSeconds / 86400;
-        bestLegs.value = resumable.value.bestLegs;
+      if (
+        resumeFrom &&
+        resumeFrom.fingerprint === runFingerprint &&
+        (!resumeFrom.inputsKey || resumeFrom.inputsKey === startKey)
+      ) {
+        restoredCache = restoreEntries(resumeFrom);
+        bestChain.value = [...resumeFrom.bestChain];
+        bestDays.value = resumeFrom.bestSeconds / 86400;
+        bestLegs.value = resumeFrom.bestLegs;
         chainsReplayed.value = restoredCache.length;
         detail.value = `resumed with ${restoredCache.length} chains already priced`;
         // Seed the export with what we replayed, so a CSV taken before the first batch reports the
@@ -2980,7 +3306,6 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // REFUSE rather than warn. A run started against a half-loaded save produces a complete,
     // confident, wrong answer after hours of CPU, and the operator cannot tell from the result --
     // which is how this was found in the first place, from a CSV rather than from the app.
-    const startInputs = collectInputs();
     const review = reviewRunInputs(startInputs);
     runNotes.value = review.filter(i => i.level === 'warning').map(i => i.message);
     if (saveAgeNote.value?.level === 'warning') runNotes.value.push(saveAgeNote.value.text);
@@ -2992,6 +3317,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       stage.value = 'idle';
       return;
     }
+    await storeRunSave(startInputs, startKey);
 
     holdRunLock();
     void holdScreenLock();
@@ -3209,6 +3535,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     await clearCheckpoint(partitionHash);
     resumable.value = null;
     blockedCheckpoint.value = null;
+    await pruneSaves(null);
   }
 
   return {
@@ -3282,6 +3609,18 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     pinPlanStart,
     resumeInputsKey,
     blockedCheckpoint,
+    preparing,
+    busy,
+    interrupted,
+    runSaves,
+    runSaveFor,
+    promoteInterrupted,
+    discardInterruptedRun,
+    resultsFromOlderSave,
+    recheckingLatest,
+    latestRecheck,
+    recheckOnLatestSave,
+    resetPlanStartTo,
     finishedCleanly,
     seedChain,
     seedIssue,

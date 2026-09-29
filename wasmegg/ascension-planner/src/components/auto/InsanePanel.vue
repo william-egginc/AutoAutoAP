@@ -171,7 +171,7 @@
             type="button"
             :disabled="
               !sweepConsent ||
-              store.isRunning ||
+              store.busy ||
               store.integrityBlocked ||
               store.staleBackupBlocked ||
               !chainCount ||
@@ -385,7 +385,12 @@
           <span class="font-bold">{{ (store.crashedRun.durations?.length ?? 0).toLocaleString() }}</span> chains are
           already priced and will be replayed rather than re-simulated. It was last written
           {{ agoLabel(store.crashedRun.updatedAt) }}.
-          <span class="font-bold">Starting a different search overwrites it.</span>
+          <template v-if="store.runSaveFor(store.crashedRun.inputsKey)">
+            It carries on with the save it started with (from
+            {{ saveWhen(store.runSaveFor(store.crashedRun.inputsKey)?.backupAt) }}, TE
+            {{ store.runSaveFor(store.crashedRun.inputsKey)?.te }}), so both halves are priced on the same farm.
+          </template>
+          Starting a different search moves it to the list below rather than losing it.
           <template v-if="store.planStartRestoreNote(store.crashedRun.fingerprint)">
             Carrying on puts the plan start back to
             <span class="font-bold">{{ store.planStartRestoreNote(store.crashedRun.fingerprint) }}</span
@@ -394,13 +399,15 @@
         </p>
         <button
           type="button"
-          :disabled="store.isRunning || resuming !== ''"
+          :disabled="store.busy || resuming !== ''"
           class="px-4 py-2 rounded-lg bg-amber-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-800 disabled:opacity-40"
           @click="resumeCrashed"
         >
           Carry on from where it stopped
         </button>
       </div>
+
+      <UnfinishedRuns :player-id="playerId" kind="exhaustive" @resume="resumeCrashed" />
 
       <!--
         An interrupted run that cannot carry on, with the reason. It used to just not appear, so a
@@ -416,8 +423,15 @@
           <span class="font-bold">{{ store.blockedCheckpoint.record.durations.length.toLocaleString() }}</span> chains
           ({{ agoLabel(store.blockedCheckpoint.record.updatedAt) }}), but
           <span class="font-bold">{{ store.blockedCheckpoint.changes.join('; ') }}</span
-          >. Its durations describe a different farm, so they can't be reused. If a number looks wrong, your backup may
-          not have loaded fresh on one of the two visits: reload it and check before starting again.
+          >.
+          <template v-if="store.runSaveFor(store.blockedCheckpoint.record.inputsKey)">
+            Its save is kept, so put that setting back and it can carry on.
+          </template>
+          <template v-else>
+            Its save wasn't kept, so its durations describe a different farm and can't be reused. If a number looks
+            wrong, your backup may not have loaded fresh on one of the two visits: reload it and check before starting
+            again.
+          </template>
         </p>
         <button
           type="button"
@@ -1171,12 +1185,13 @@
 
       <SafariNotice />
 
+      <RunSaveNotice />
       <IntegrityNotice />
       <div class="flex flex-wrap gap-3">
         <button
           class="btn-premium btn-primary flex-1 py-4 text-sm shadow-xl shadow-rose-500/20 active:scale-[0.98]"
           :disabled="
-            store.isRunning ||
+            store.busy ||
             store.integrityBlocked ||
             store.staleBackupBlocked ||
             !chainCount ||
@@ -1363,7 +1378,7 @@
             <button
               v-if="!run.complete && run.space"
               type="button"
-              :disabled="store.isRunning || resuming !== ''"
+              :disabled="store.busy || resuming !== ''"
               class="px-3 py-1.5 rounded-md bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 disabled:opacity-40"
               @click="resume(run.id)"
             >
@@ -1550,6 +1565,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
+import { formatInZone } from '@/search/csv';
 import { useEidsStore } from 'lib';
 import { useBackupPlanStart } from '@/composables/useBackupPlanStart';
 import { afterPaint } from '@/search/submission';
@@ -1573,6 +1589,8 @@ import { sweepSeconds, workerSecondsFromRate, workerSecondsPerChain } from '@/se
 import { describeCompute } from '@/utils/computeTime';
 import IntegrityNotice from './IntegrityNotice.vue';
 import SafariNotice from './SafariNotice.vue';
+import RunSaveNotice from './RunSaveNotice.vue';
+import UnfinishedRuns from './UnfinishedRuns.vue';
 import { useInitialStateStore } from '@/stores/initialState';
 import { describeTimeOff, usableTimeOff } from '@/search/timeOff';
 import { gridIsComplete, gridStepLabel } from '@/search/grid';
@@ -2151,9 +2169,10 @@ onUnmounted(() => heapTimer && clearInterval(heapTimer));
 // Re-check whenever what decides resumability moves (TE, target, schedule...), so "can't continue"
 // goes away when the player puts a setting back, and appears when a fresh save changes the TE.
 watch(
-  () => [props.playerId, store.resumeInputsKey],
+  // `busy` too: a run ending (or a stored save finishing loading) is when the lists change.
+  () => [props.playerId, store.resumeInputsKey, store.busy],
   () => {
-    if (!store.isRunning) void store.checkResumable(props.playerId);
+    if (!store.busy) void store.checkResumable(props.playerId);
   }
 );
 
@@ -2219,6 +2238,11 @@ onMounted(() => {
   ageTimer = setInterval(() => (nowForAge.value = Date.now()), 30_000);
 });
 onUnmounted(() => ageTimer && clearInterval(ageTimer));
+
+function saveWhen(unixSeconds: number | undefined): string {
+  if (!unixSeconds) return 'an unknown time';
+  return formatInZone(unixSeconds, autoPlannerStore.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
+}
 
 function agoLabel(ms: number): string {
   const diffS = Math.max(0, Math.round((nowForAge.value - ms) / 1000));

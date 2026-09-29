@@ -1039,6 +1039,21 @@ async function handleRefreshReconcile() {
   }
 }
 
+/**
+ * After a failed fetch, rebuild the planner from the last save that DID load (fetchBackup keeps it on
+ * this device), so the older save and the plan built from it match -- rather than leaving a plan from
+ * one load beside a save from another. That mismatch is how a player at 170 TE was shown 147.
+ */
+async function planFromLastGoodSave(): Promise<void> {
+  const older = initialStateStore.rawBackup;
+  if (!playerId.value || !older) return;
+  try {
+    await initPlanFuture(playerId.value, older);
+  } catch (e) {
+    console.error('Could not rebuild the planner from the saved copy:', e);
+  }
+}
+
 /** The fetch error in words a player can act on. The raw one names the forwarder's URL. */
 function backupFailureReason(e: unknown): string {
   const msg = e instanceof Error ? e.message : String(e);
@@ -1065,10 +1080,14 @@ async function handleAutoPlannerTabClick() {
       // Fetch fresh backup and initialize for "Plan Future" mode (zeroed farm)
       await initPlanFuture(playerId.value);
       uiStore.staleBackup = null;
+      // Back from a run's own older save: its pinned start belongs to that save, not this one.
+      if (uiStore.runSaveLoaded) chainSearchStore.resetPlanStartTo(initialStateStore.rawBackup?.approxTime);
+      uiStore.runSaveLoaded = null;
     } catch (e) {
       console.error('Failed to auto-init Auto Planner:', e);
       error.value = 'Failed to load fresh backup for Auto Planner.';
       uiStore.staleBackup = backupFailureReason(e);
+      await planFromLastGoodSave();
     } finally {
       loading.value = false;
     }
@@ -1244,10 +1263,13 @@ async function planNextAscension() {
     savePlayerID(playerId.value);
     await initPlanFuture(playerId.value);
     uiStore.staleBackup = null;
+    if (uiStore.runSaveLoaded) chainSearchStore.resetPlanStartTo(initialStateStore.rawBackup?.approxTime);
+    uiStore.runSaveLoaded = null;
     isHeaderCollapsed.value = true;
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Plan Next failed';
     uiStore.staleBackup = backupFailureReason(e);
+    await planFromLastGoodSave();
     console.error('Plan Next Ascension error:', e);
   } finally {
     loading.value = false;

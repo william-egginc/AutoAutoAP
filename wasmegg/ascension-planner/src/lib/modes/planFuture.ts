@@ -18,17 +18,23 @@
 import { resetAllStores } from './reset';
 import { fetchPlayerBackup } from './fetchBackup';
 import { loadAndSyncBackup, rollUpPendingTE } from './utils';
+import type { ei } from 'lib';
 import { useActionsStore } from '@/stores/actions';
 import { useVirtueStore } from '@/stores/virtue';
 import { computeSnapshot } from '@/engine/compute';
 import { getSimulationContext, createBaseEngineState } from '@/engine/adapter';
 
-export async function initPlanFuture(playerId: string): Promise<void> {
+/**
+ * @param stored A save kept in this browser (search/runSaves.ts) to load INSTEAD of fetching one:
+ *   carrying on an interrupted run under the exact save it started with.
+ */
+export async function initPlanFuture(playerId: string, stored?: ei.IBackup): Promise<void> {
+  // 2 first when it can fail: a fetch that throws after the reset left the planner with no save at
+  // all and the previous plan's leftovers on screen.
+  const backup = stored ?? (await fetchPlayerBackup(playerId)).backup;
+
   // 1. Clean slate
   await resetAllStores();
-
-  // 2. Fetch backup
-  const { backup } = await fetchPlayerBackup(playerId);
 
   // 3. Load global progress from backup and sync stores
   loadAndSyncBackup(playerId, backup, 'plan_next');

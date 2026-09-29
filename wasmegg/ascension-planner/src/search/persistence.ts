@@ -26,6 +26,10 @@ import { milestonesKey, type Milestone } from './milestones';
 import type { EffortTier, LegSummary } from './types';
 
 const METADATA_KEY = 'chainSearchRun';
+/** Unfinished runs moved aside when a different run took the slot, newest first. */
+const INTERRUPTED_KEY = 'chainSearchInterrupted';
+/** How many moved-aside runs are kept. Each can be a couple of MB plus its save. */
+export const MAX_INTERRUPTED = 3;
 
 /** Bumped whenever the shape below changes, or whenever a simulator change would make old cached
  *  durations wrong. A mismatched version discards the checkpoint rather than resuming onto numbers
@@ -68,6 +72,13 @@ export interface SearchCheckpoint {
    * on the release that introduced it -- the exact accident this field is meant to prevent.
    */
   space?: SearchSpace;
+
+  /**
+   * The stored save this run was priced under (search/runSaves.ts), when it has one. With it, a
+   * resume hands the workers that exact payload, whatever save is loaded now. Optional: a record
+   * written before this existed resumes the old way, onto a matching current save only.
+   */
+  inputsKey?: string;
 }
 
 /**
@@ -140,6 +151,23 @@ export function fingerprintChanges(saved: string, current: string): string[] {
   if (a[2] !== b[2]) out.push(`TE was ${a[2]}, now ${b[2]}`);
   if (a[3] !== b[3]) out.push(`the final target was ${a[3]}, now ${b[3]}`);
   if (a[4] !== b[4]) out.push('the "keep going past the target" setting changed');
+  return [...out, ...tailChanges(a, b)];
+}
+
+/**
+ * Only the settings a stored save does NOT carry -- schedule, milestones, time off. A run that
+ * carries on with its own save gets TE, target and plan start from that save; these three the
+ * player has to put back, and they must be checked BEFORE the planner is switched to the old save.
+ */
+export function settingsChanges(saved: string, current: string): string[] {
+  const a = saved.split('|');
+  const b = current.split('|');
+  if (a[0] !== b[0]) return ['it belongs to a different player'];
+  return tailChanges(a, b);
+}
+
+function tailChanges(a: string[], b: string[]): string[] {
+  const out: string[] = [];
   const tail = (parts: string[], pick: (p: string) => boolean) => parts.slice(5).filter(pick).join('|');
   const isOff = (p: string) => p.startsWith('off:');
   const isMs = (p: string) => p.startsWith('ms');
@@ -168,7 +196,7 @@ export async function saveCheckpoint(partitionHash: string, record: SearchCheckp
   let merged = record;
   try {
     const prior = (await loadMetadata(partitionHash, METADATA_KEY)) as SearchCheckpoint | null;
-    if (prior && prior.version === RECORD_VERSION && prior.fingerprint === record.fingerprint) {
+    if (prior && prior.version === RECORD_VERSION && sameRun(prior, record)) {
       const priorWins = prior.bestSeconds > 0 && (record.bestSeconds <= 0 || prior.bestSeconds < record.bestSeconds);
 
       const durations = new Map<string, number>(prior.durations);
@@ -179,6 +207,7 @@ export async function saveCheckpoint(partitionHash: string, record: SearchCheckp
         // Kept from whichever record has one. A merge that dropped the space would quietly turn a
         // resumable checkpoint back into an unresumable one on the next periodic write.
         ...((record.space ?? prior.space) ? { space: record.space ?? prior.space } : {}),
+        ...((record.inputsKey ?? prior.inputsKey) ? { inputsKey: record.inputsKey ?? prior.inputsKey } : {}),
         bestChain: priorWins ? [...prior.bestChain] : record.bestChain,
         bestSeconds: priorWins ? prior.bestSeconds : record.bestSeconds,
         bestLegs: priorWins ? prior.bestLegs : record.bestLegs,
@@ -186,12 +215,70 @@ export async function saveCheckpoint(partitionHash: string, record: SearchCheckp
         chainsDone: Math.max(prior.chainsDone, record.chainsDone),
         complete: prior.complete || record.complete,
       };
+    } else if (prior && prior.version === RECORD_VERSION && !prior.complete && prior.durations.length) {
+      // A DIFFERENT run is taking the slot. This used to overwrite an unfinished one without a
+      // word -- 39,904 priced chains gone the moment the next run wrote its first checkpoint.
+      // If moving it aside fails, the write below must not happen either: throw instead.
+      await setAside(partitionHash, prior).catch(e => {
+        throw Object.assign(new Error('could not move the unfinished run aside'), { cause: e, setAside: true });
+      });
     }
-  } catch {
+  } catch (e) {
+    if ((e as { setAside?: boolean }).setAside) throw e;
     // A read failure must not stop the write. Losing the merge is survivable; losing the
     // checkpoint entirely is what this whole module exists to prevent.
   }
   await saveMetadata(partitionHash, METADATA_KEY, merged);
+}
+
+/**
+ * Whether two records are the same run, whose caches may be merged. Same fingerprint, and -- when
+ * both know it -- the same stored save: two saves at the same TE are two different farms.
+ */
+function sameRun(a: SearchCheckpoint, b: SearchCheckpoint): boolean {
+  if (a.fingerprint !== b.fingerprint) return false;
+  return !a.inputsKey || !b.inputsKey || a.inputsKey === b.inputsKey;
+}
+
+async function setAside(partitionHash: string, record: SearchCheckpoint): Promise<void> {
+  const list = await listInterrupted(partitionHash);
+  const rest = list.filter(r => !sameRun(r, record));
+  await saveMetadata(partitionHash, INTERRUPTED_KEY, [record, ...rest].slice(0, MAX_INTERRUPTED));
+}
+
+/** Unfinished runs a later run moved out of the slot, newest first. */
+export async function listInterrupted(partitionHash: string): Promise<SearchCheckpoint[]> {
+  const raw = (await loadMetadata(partitionHash, INTERRUPTED_KEY)) as SearchCheckpoint[] | null;
+  return Array.isArray(raw) ? raw.filter(r => r && r.version === RECORD_VERSION) : [];
+}
+
+/**
+ * Put a moved-aside run back in the slot so it can carry on. Whatever unfinished run is in the slot
+ * now goes into the list in its place (via `saveCheckpoint`), so swapping never loses either.
+ */
+export async function restoreInterrupted(partitionHash: string, index: number): Promise<SearchCheckpoint | null> {
+  const list = await listInterrupted(partitionHash);
+  const picked = list[index];
+  if (!picked) return null;
+  // Slot first, THEN out of the list: a failed write leaves it listed rather than nowhere. The
+  // write may itself move the slot's run into the list, so remove by identity, not position.
+  await saveCheckpoint(partitionHash, picked);
+  const after = await listInterrupted(partitionHash);
+  await saveMetadata(
+    partitionHash,
+    INTERRUPTED_KEY,
+    after.filter(r => !(sameRun(r, picked) && r.updatedAt === picked.updatedAt))
+  );
+  return picked;
+}
+
+export async function discardInterrupted(partitionHash: string, index: number): Promise<void> {
+  const list = await listInterrupted(partitionHash);
+  await saveMetadata(
+    partitionHash,
+    INTERRUPTED_KEY,
+    list.filter((_, i) => i !== index)
+  );
 }
 
 export async function loadCheckpoint(partitionHash: string, fingerprint: string): Promise<SearchCheckpoint | null> {
@@ -226,6 +313,7 @@ export function buildCheckpoint(args: {
   chainsDone: number;
   complete?: boolean;
   space?: SearchSpace | null;
+  inputsKey?: string | null;
 }): SearchCheckpoint {
   const bestKey = args.bestChain.join(',');
   return {
@@ -243,6 +331,7 @@ export function buildCheckpoint(args: {
     complete: args.complete ?? false,
     updatedAt: Date.now(),
     ...(args.space ? { space: args.space } : {}),
+    ...(args.inputsKey ? { inputsKey: args.inputsKey } : {}),
   };
 }
 

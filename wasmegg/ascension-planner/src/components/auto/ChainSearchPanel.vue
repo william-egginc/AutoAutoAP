@@ -606,6 +606,8 @@
         </button>
       </div>
 
+      <UnfinishedRuns :player-id="playerId" kind="staged" @resume="run(true)" />
+
       <!-- Resume banner -->
       <div
         v-if="store.resumable && !store.isRunning"
@@ -624,6 +626,10 @@
             replay all {{ store.resumable.durations.length }} priced chains for free and carry on from there.</template
           >
           <template v-else>Resuming replays those instantly and carries on — nothing is re-simulated.</template>
+          <template v-if="!store.resumable.complete && store.runSaveFor(store.resumable.inputsKey)">
+            It carries on with the save it started with (TE {{ store.runSaveFor(store.resumable.inputsKey)?.te }}), so
+            both halves are priced on the same farm.</template
+          >
           <template v-if="store.planStartRestoreNote(store.resumable.fingerprint)">
             It puts the plan start back to
             <span class="font-black">{{ store.planStartRestoreNote(store.resumable.fingerprint) }}</span
@@ -631,7 +637,9 @@
           >
         </p>
         <div class="flex gap-2">
-          <button class="btn-premium btn-primary px-4 py-1.5 text-[10px]" @click="run(true)">Resume</button>
+          <button class="btn-premium btn-primary px-4 py-1.5 text-[10px]" :disabled="store.busy" @click="run(true)">
+            Resume
+          </button>
           <button
             class="px-4 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-700"
             @click="store.discardCheckpoint()"
@@ -717,6 +725,7 @@
       <BackgroundSpeed />
 
       <SafariNotice />
+      <RunSaveNotice />
       <IntegrityNotice />
 
       <div
@@ -809,7 +818,7 @@
         <button
           class="btn-premium btn-primary flex-1 py-4 text-sm shadow-xl shadow-emerald-500/20 active:scale-[0.98]"
           :disabled="
-            store.isRunning ||
+            store.busy ||
             store.integrityBlocked ||
             store.staleBackupBlocked ||
             store.singleAscensionAsked ||
@@ -1675,6 +1684,8 @@ import { describeCompute } from '@/utils/computeTime';
 import { useInitialStateStore } from '@/stores/initialState';
 import IntegrityNotice from './IntegrityNotice.vue';
 import SafariNotice from './SafariNotice.vue';
+import RunSaveNotice from './RunSaveNotice.vue';
+import UnfinishedRuns from './UnfinishedRuns.vue';
 import LoadoutDisplay from './LoadoutDisplay.vue';
 import SearchShapeChart from './charts/SearchShapeChart.vue';
 import type { EffortTier, LegSummary } from '@/search/types';
@@ -2139,9 +2150,9 @@ watch(
 // search/persistence.ts's fingerprint), so re-check whenever anything that changes what a duration
 // MEANS changes.
 watch(
-  () => [props.playerId, store.resumeInputsKey],
+  () => [props.playerId, store.resumeInputsKey, store.busy],
   () => {
-    if (!store.isRunning) void store.checkResumable(props.playerId);
+    if (!store.busy) void store.checkResumable(props.playerId);
   }
 );
 </script>
