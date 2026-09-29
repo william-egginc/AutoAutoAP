@@ -2502,6 +2502,12 @@ async function startQueue(): Promise<void> {
     queueAt.value = k;
     await store.startExhaustive(props.playerId, specs[k].spec);
     const stopped = store.stoppedEarly;
+    // A chain that could not start leaves the previous chain's result on screen; recording that as
+    // this chain's would be a lie, so the queue stops there and says which one.
+    if (store.error) {
+      queueResults.value.push({ label: `${specs[k].label} — ${store.error}`, chain: [], days: 0, stopped: true });
+      break;
+    }
     if (store.bestDays > 0) {
       queueResults.value.push({ label: specs[k].label, chain: [...store.bestChain], days: store.bestDays, stopped });
       await store.saveCurrentRun(props.playerId, specs[k].label);

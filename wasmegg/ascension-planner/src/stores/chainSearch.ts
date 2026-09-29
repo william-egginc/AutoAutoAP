@@ -2701,6 +2701,12 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   function buildChainsForSpec(spec: ExhaustiveSpec, limit = Infinity): { chains: number[][]; error: string | null } {
     const minGap = Math.max(0, Math.floor(spec.minGap ?? 0));
 
+    // One ascension: no checkpoints at all, straight to the target. Asked for as a quick chain to
+    // queue behind a bigger one; the pool form cannot express "zero values from the pool".
+    if (!spec.bands?.length && spec.minAsc === 1 && spec.maxAsc === 1) {
+      return { chains: [[finalTE.value]], error: null };
+    }
+
     if (spec.bands?.length) {
       const chains = sortByPrefix(bandedChains(spec.bands, finalTE.value, currentTE.value, minGap, limit));
       if (!chains.length) {
