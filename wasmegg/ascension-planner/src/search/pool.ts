@@ -102,6 +102,36 @@ export interface PoolOptions {
   size?: number;
 }
 
+export interface EvaluateOptions {
+  /**
+   * Send every chain sharing its first `stickyDepth` entries to the SAME worker, batch after batch
+   * (chosen by hashing that prefix), instead of dealing groups round-robin by position.
+   *
+   * For searches that come back to the same prefixes over many small batches (the deadline search
+   * re-probes each route shape round after round). Round-robin gives a shape a different worker
+   * whenever the batch's make-up changes, and that worker has to re-simulate the shape's early legs
+   * its own memo never saw. Sticky keeps them warm. Balance comes from there being many prefixes.
+   *
+   * Negative counts from the end, as `slice` does: -1 is "everything but the last entry".
+   */
+  stickyDepth?: number;
+}
+
+/** Split into per-worker buckets by a stable hash of each chain's first `depth` entries. */
+export function stickyBuckets(chains: number[][], depth: number, workers: number): Map<number, number[][]> {
+  const out = new Map<number, number[][]>();
+  for (const c of chains) {
+    const key = c.slice(0, depth).join(',');
+    let h = 2166136261;
+    for (let i = 0; i < key.length; i++) h = Math.imul(h ^ key.charCodeAt(i), 16777619);
+    const w = (h >>> 0) % workers;
+    const b = out.get(w);
+    if (b) b.push(c);
+    else out.set(w, [c]);
+  }
+  return out;
+}
+
 export interface ChainSearchPool {
   /** Upper bound on workers. Workers are spawned lazily, so this is a ceiling, not a headcount.
    *  Changes with `resize`. */
@@ -113,7 +143,11 @@ export interface ChainSearchPool {
   /** Evaluate a set of chains, split across as many workers as the batch is worth. Resolves with
    *  only the chains that evaluated successfully. `onChainDone` fires as the batch progresses, so a
    *  caller can show movement during a single wide request. */
-  evaluate(chains: number[][], onChainDone?: (done: number, total: number) => void): Promise<BatchOutcome>;
+  evaluate(
+    chains: number[][],
+    onChainDone?: (done: number, total: number) => void,
+    opts?: EvaluateOptions
+  ): Promise<BatchOutcome>;
   /** The integrity check (search/rules.ts), run on the first worker against the pool's own inputs:
    *  how long a fresh ascension from the plan start sits on its first Integrity shift. */
   integrityWait(): Promise<number | null>;
@@ -348,7 +382,11 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
       return suspendedSeconds;
     },
 
-    async evaluate(chains: number[][], onChainDone?: (done: number, total: number) => void): Promise<BatchOutcome> {
+    async evaluate(
+      chains: number[][],
+      onChainDone?: (done: number, total: number) => void,
+      opts: EvaluateOptions = {}
+    ): Promise<BatchOutcome> {
       if (!chains.length) return { results: [], legSims: 0, workersUsed: 0 };
 
       // Plain copies before anything is posted. A caller holding a Vue reactive array (the store's
@@ -356,8 +394,17 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
       // cannot clone a proxy and throws "[object Object] could not be cloned" -- after the whole
       // batch was dealt, so the run fails at the end instead of at the call. Cheap next to a chain.
       const sorted = sortChainsDepthFirst(chains.map(c => Array.from(c)));
-      const wanted = workersForBatch(sorted.length, size);
-      const buckets = splitByPrefix(sorted, wanted);
+      // Worker index per bucket: positional normally, the hash's choice when sticky.
+      let buckets: number[][][];
+      let workerOf: number[];
+      if (opts.stickyDepth) {
+        const byWorker = stickyBuckets(sorted, opts.stickyDepth, size);
+        workerOf = [...byWorker.keys()];
+        buckets = workerOf.map(w => byWorker.get(w) as number[][]);
+      } else {
+        buckets = splitByPrefix(sorted, workersForBatch(sorted.length, size));
+        workerOf = buckets.map((_, i) => i);
+      }
 
       // Aggregate the per-worker heartbeats into one batch-wide count. Without this the widest
       // sweep in the search (stage 6, one ~2200-chain request) shows no movement at all until it
@@ -373,7 +420,7 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
       }
 
       try {
-        const pws = await Promise.all(buckets.map((_, i) => workerAt(i)));
+        const pws = await Promise.all(workerOf.map(w => workerAt(w)));
         const sends = buckets.map((bucket, i) =>
           send(pws[i], { kind: 'evaluate', requestId: ++nextRequestId, chains: bucket }, `worker ${i}`, bucket.length)
         );
@@ -401,7 +448,11 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
 
     async integrityWait(): Promise<number | null> {
       const pw = await workerAt(0);
-      const reply = (await send(pw, { kind: 'integrity', requestId: ++nextRequestId }, 'worker 0 (integrity check)')) as {
+      const reply = (await send(
+        pw,
+        { kind: 'integrity', requestId: ++nextRequestId },
+        'worker 0 (integrity check)'
+      )) as {
         seconds: number | null;
       };
       return reply.seconds;

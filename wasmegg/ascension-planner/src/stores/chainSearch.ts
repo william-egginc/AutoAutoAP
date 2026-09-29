@@ -71,7 +71,8 @@ import {
 } from '@/search/submission';
 import { currentPlans, recheckChains, type RecheckRun } from '@/search/rechecks';
 import { accountKeyOf, type BoardRow, type Plan } from '@/lib/leaderboardRank';
-import { describeAvailability, isConstrained, type Availability } from '@/search/availability';
+import { describeAvailability, isConstrained, nextAvailable, type Availability } from '@/search/availability';
+import { runDeadlineSearch, type DeadlineProgress, type DeadlineRoute } from '@/search/deadline';
 import { missedMilestones, usableMilestones, type Milestone } from '@/search/milestones';
 import { defaultSeedChain, seedChainIssue, usableCheckpoints, fitSeedToLimits } from '@/search/seedChain';
 import { buildPool, exhaustiveChainsWithGap, bandedChains, sortByPrefix } from '@/search/exhaustive';
@@ -397,8 +398,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   /** True while a run is being got ready to carry on (a stored save loading): every Start and
    *  Resume waits, or a second click would launch a second run against half-reset stores. */
   const preparing = ref(false);
-  /** Anything that must not overlap a run: the run, getting one ready, or the latest-save re-check. */
-  const busy = computed(() => isRunning.value || preparing.value || recheckingLatest.value);
+  /** Anything that must not overlap a run: a run of either kind, getting one ready, or the
+   *  latest-save re-check. */
+  const busy = computed(() => isRunning.value || preparing.value || recheckingLatest.value || deadlineRunning.value);
   // Any other load replacing the carried-on run's save (the header's refresh, Plan Next, a plan
   // from the library...) ends "on the run's own save": drop the notice and the run's pinned start.
   watch(
@@ -3035,6 +3037,112 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     }
   }
 
+  // ------------------------------------------------------------------ highest TE by a deadline
+  //
+  // search/deadline.ts does the searching; this owns the workers, the progress and the result. Kept
+  // apart from `isRunning` on purpose: the exhaustive panel reads that for its own progress, and a
+  // deadline run is a different question with its own results.
+
+  const deadlineRunning = ref(false);
+  const deadlineProgress = ref<DeadlineProgress | null>(null);
+  const deadlineResult = ref<{
+    routes: DeadlineRoute[];
+    byStops: DeadlineRoute[];
+    deadline: number;
+    planStart: number;
+    te: number;
+    step: number;
+    shapes: number;
+    priced: number;
+    stoppedEarly: boolean;
+    ascendNeeded: boolean;
+    lastHi: number;
+    at: number;
+  } | null>(null);
+  let deadlineStop = false;
+
+  /**
+   * Find the highest last stop reachable by `deadline`, over routes of `minStops`-`maxStops` stops.
+   * Uses the Insane panel's schedule, time off and machine settings like any run.
+   */
+  async function startDeadline(
+    playerId: string,
+    spec: { deadline: number; minStops: number; maxStops: number; lastHi: number; step: number; ascendNeeded: boolean }
+  ): Promise<void> {
+    if (busy.value) return;
+    currentPlayerId = playerId;
+    error.value = null;
+    const inputs = collectInputs();
+    // `final` only filters milestones in the evaluator; the last stops here go up to `lastHi`.
+    inputs.final = Math.max(inputs.final, spec.lastHi);
+    const blocking = reviewRunInputs(inputs).filter(i => i.level === 'error');
+    if (blocking.length) {
+      error.value = blocking[0].message;
+      return;
+    }
+    if (!(spec.deadline > inputs.planStart)) {
+      error.value = 'The deadline is before the plan starts.';
+      return;
+    }
+    const schedule = isConstrained(inputs.availability) ? inputs.availability : null;
+    deadlineRunning.value = true;
+    deadlineStop = false;
+    deadlineResult.value = null;
+    deadlineProgress.value = { stage: 'starting workers', priced: 0, best: null, open: 0, shapes: 0 };
+    holdRunLock();
+    void holdScreenLock();
+    let pool: ChainSearchPool | null = null;
+    try {
+      pool = await createChainSearchPool(inputs, { size: workerBudget.value });
+      const out = await runDeadlineSearch(
+        {
+          currentTE: inputs.currentTE,
+          planStart: inputs.planStart,
+          deadline: spec.deadline,
+          minStops: spec.minStops,
+          maxStops: spec.maxStops,
+          lastLo: Math.floor(inputs.currentTE) + 1,
+          lastHi: spec.lastHi,
+          step: spec.step,
+          ...(spec.ascendNeeded && schedule ? { ascendAt: (t: number) => nextAvailable(t, schedule) } : {}),
+        },
+        {
+          // Sticky on the route's shape: each round re-probes the same shapes with new last stops,
+          // and only the worker that priced a shape before still has its early legs in memory.
+          evaluate: async chains =>
+            (await (pool as ChainSearchPool).evaluate(chains, undefined, { stickyDepth: -1 })).results,
+          onProgress: p => (deadlineProgress.value = p),
+          shouldStop: () => deadlineStop,
+        }
+      );
+      deadlineResult.value = {
+        routes: out.routes.slice(0, 50),
+        byStops: [...out.byStops.entries()].sort((a, b) => a[0] - b[0]).map(([, r]) => r),
+        deadline: spec.deadline,
+        planStart: inputs.planStart,
+        te: inputs.currentTE,
+        step: out.step,
+        shapes: out.shapes,
+        priced: out.priced,
+        stoppedEarly: out.stoppedEarly,
+        ascendNeeded: spec.ascendNeeded && !!schedule,
+        lastHi: spec.lastHi,
+        at: Date.now(),
+      };
+    } catch (e) {
+      error.value = describeRunError(e);
+    } finally {
+      pool?.terminate();
+      dropRunLock();
+      dropScreenLock();
+      deadlineRunning.value = false;
+    }
+  }
+
+  function stopDeadline(): void {
+    deadlineStop = true;
+  }
+
   async function benchmarkMachine(playerId: string, spec: ExhaustiveSpec): Promise<void> {
     if (isRunning.value || benchmarking.value) return;
 
@@ -3619,6 +3727,11 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     runSaveFor,
     promoteInterrupted,
     discardInterruptedRun,
+    deadlineRunning,
+    deadlineProgress,
+    deadlineResult,
+    startDeadline,
+    stopDeadline,
     resultsFromOlderSave,
     recheckingLatest,
     latestRecheck,

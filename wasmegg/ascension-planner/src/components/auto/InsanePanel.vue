@@ -246,7 +246,41 @@
         </p>
       </div>
 
-      <div class="p-4 rounded-xl border border-rose-200 bg-rose-50 text-xs text-rose-900 leading-relaxed space-y-2">
+      <!--
+        Two questions. The first is everything below as it always was; the second
+        (DeadlinePanel, search/deadline.ts) turns the finish line into a date.
+      -->
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">What are you after?</span>
+        <button
+          v-for="g in GOALS"
+          :key="g.id"
+          type="button"
+          :disabled="store.busy"
+          class="px-3 py-1.5 rounded-lg border text-[10px] font-black uppercase tracking-widest disabled:opacity-40"
+          :class="
+            goal === g.id
+              ? 'border-slate-800 bg-slate-800 text-white'
+              : 'border-slate-200 text-slate-500 hover:text-slate-700'
+          "
+          @click="goal = g.id"
+        >
+          {{ g.label }}
+        </button>
+      </div>
+      <div
+        v-if="goal === 'deadline'"
+        class="p-4 rounded-xl border border-rose-200 bg-rose-50 text-xs text-rose-900 leading-relaxed"
+      >
+        The highest TE you can reach by a date: every route shape on a grid, the highest last stop each one makes by the
+        deadline, then a closer look around the best. It uses the schedule, time off and machine settings below, like
+        any run.
+      </div>
+
+      <div
+        v-if="goal === 'fastest'"
+        class="p-4 rounded-xl border border-rose-200 bg-rose-50 text-xs text-rose-900 leading-relaxed space-y-2"
+      >
         <p>
           This prices <span class="font-bold">every</span> chain over the pool you describe. No descent, no stages, no
           pruning, so the winner is the true optimum of that space rather than a local one. It is also the mode that
@@ -720,843 +754,854 @@
         </p>
       </div>
 
-      <!-- The space. These numbers are the whole definition of the search. -->
-      <div class="rounded-xl border border-slate-200 bg-white p-4 space-y-5">
-        <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">The space to search</h3>
+      <DeadlinePanel v-if="goal === 'deadline'" :player-id="playerId" />
+      <template v-else>
+        <!-- The space. These numbers are the whole definition of the search. -->
+        <div class="rounded-xl border border-slate-200 bg-white p-4 space-y-5">
+          <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">The space to search</h3>
 
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <label class="space-y-1">
-            <span class="flex items-center gap-1.5">
-              <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Final target TE</span>
-              <HelpTip
-                >The TE every chain ends at. It is appended to each chain automatically, so it never appears in the pool
-                below and never counts as a pool value.</HelpTip
-              >
-            </span>
-            <input
-              v-model.number="store.finalTE"
-              type="number"
-              min="1"
-              :disabled="store.isRunning"
-              class="w-full rounded-lg border-slate-300 text-sm font-bold text-slate-800 disabled:opacity-50"
-            />
-          </label>
-          <label class="space-y-1">
-            <span class="flex items-center gap-1.5">
-              <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Your TE now</span>
-              <HelpTip
-                >Read from your backup, not editable here. It is the floor for every checkpoint in the pool.</HelpTip
-              >
-            </span>
-            <input
-              :value="store.currentTE"
-              type="number"
-              disabled
-              class="w-full rounded-lg border-slate-200 bg-slate-50 text-sm font-bold text-slate-500"
-            />
-          </label>
-          <label class="space-y-1">
-            <span class="flex items-center gap-1.5">
-              <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Workers</span>
-              <HelpTip
-                >Background threads this run may use. The default is one less than your logical core count, which leaves
-                the main thread free so the progress bar keeps painting and Stop stays responsive. You can spend that
-                last core too; past your core count there is nothing to buy, because the workers are CPU-bound and would
-                only take turns. Chains are dealt out across them; see "How the work is split" below.</HelpTip
-              >
-            </span>
-            <input
-              :value="store.workerBudget"
-              type="number"
-              min="1"
-              :max="store.machineThreads"
-              class="w-full rounded-lg border-slate-200 text-sm font-bold text-slate-800"
-              @change="setWorkers(($event.target as HTMLInputElement).value)"
-            />
-            <span v-if="store.isRunning" class="block text-[10px] text-slate-500">
-              Changes apply to the running search from its next batch; workers above a lower count stop once the chains
-              they are on are done.
-            </span>
-          </label>
-        </div>
-
-        <div v-if="spaceMode === 'pool'" class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <label class="space-y-1">
-            <span class="flex items-center gap-1.5">
-              <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Checkpoints from</span>
-              <HelpTip
-                >Lowest TE the search may use as an intermediate checkpoint. Anything at or below your current TE is
-                dropped: you cannot ascend to a target you have already passed.</HelpTip
-              >
-            </span>
-            <input
-              v-model.number="rangeLo"
-              type="number"
-              min="1"
-              :disabled="store.isRunning"
-              class="w-full rounded-lg border-slate-300 text-sm font-bold text-slate-800 disabled:opacity-50"
-            />
-          </label>
-          <label class="space-y-1">
-            <span class="flex items-center gap-1.5">
-              <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">to</span>
-              <HelpTip
-                >Highest TE the search may use as an intermediate checkpoint. Nothing at or above the final target is
-                kept, since that is the target itself.</HelpTip
-              >
-            </span>
-            <input
-              v-model.number="rangeHi"
-              type="number"
-              min="1"
-              :disabled="store.isRunning"
-              class="w-full rounded-lg border-slate-300 text-sm font-bold text-slate-800 disabled:opacity-50"
-            />
-          </label>
-          <label class="space-y-1">
-            <span class="flex items-center gap-1.5">
-              <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">every N TE (step)</span>
-              <HelpTip
-                >How finely the range is sampled. Step 15 over 185 to 390 gives 185, 200, 215 and so on: 14 values. Step
-                is the single most expensive number on this page, because the chain count is combinatorial in the pool
-                size, not linear. Over 185 to 390 at 5 to 7 ascensions: step 25 is 336 chains, step 15 is 6,006, step 10
-                is 80,598, step 5 is 6.2 million, and step 1 is about 102 billion. Halving the step does not double the
-                work.</HelpTip
-              >
-            </span>
-            <input
-              v-model.number="rangeStep"
-              type="number"
-              min="1"
-              :disabled="store.isRunning"
-              class="w-full rounded-lg border-slate-300 text-sm font-bold text-slate-800 disabled:opacity-50"
-            />
-          </label>
-        </div>
-
-        <div class="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-3">
-          <div class="flex flex-wrap items-center gap-4">
-            <label class="flex items-center gap-2 text-[11px] font-black text-slate-600 uppercase tracking-widest">
-              <input v-model="spaceMode" type="radio" value="pool" class="text-rose-600 focus:ring-rose-500" />
-              One range
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <label class="space-y-1">
+              <span class="flex items-center gap-1.5">
+                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Final target TE</span>
+                <HelpTip
+                  >The TE every chain ends at. It is appended to each chain automatically, so it never appears in the
+                  pool below and never counts as a pool value.</HelpTip
+                >
+              </span>
+              <input
+                v-model.number="store.finalTE"
+                type="number"
+                min="1"
+                :disabled="store.isRunning"
+                class="w-full rounded-lg border-slate-300 text-sm font-bold text-slate-800 disabled:opacity-50"
+              />
             </label>
-            <label class="flex items-center gap-2 text-[11px] font-black text-slate-600 uppercase tracking-widest">
-              <input v-model="spaceMode" type="radio" value="bands" class="text-rose-600 focus:ring-rose-500" />
-              Per-checkpoint bands
+            <label class="space-y-1">
+              <span class="flex items-center gap-1.5">
+                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Your TE now</span>
+                <HelpTip
+                  >Read from your backup, not editable here. It is the floor for every checkpoint in the pool.</HelpTip
+                >
+              </span>
+              <input
+                :value="store.currentTE"
+                type="number"
+                disabled
+                class="w-full rounded-lg border-slate-200 bg-slate-50 text-sm font-bold text-slate-500"
+              />
             </label>
-            <HelpTip>
-              One range lets any checkpoint take any pool value, which is what allows 185 200 215 230 490: three 15-TE
-              rebuilds in a row. Bands say where each ascension should land, so the shape is decided by you rather than
-              by the enumeration. Bands fix the ascension count: N bands is N+1 ascensions.
-            </HelpTip>
+            <label class="space-y-1">
+              <span class="flex items-center gap-1.5">
+                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Workers</span>
+                <HelpTip
+                  >Background threads this run may use. The default is one less than your logical core count, which
+                  leaves the main thread free so the progress bar keeps painting and Stop stays responsive. You can
+                  spend that last core too; past your core count there is nothing to buy, because the workers are
+                  CPU-bound and would only take turns. Chains are dealt out across them; see "How the work is split"
+                  below.</HelpTip
+                >
+              </span>
+              <input
+                :value="store.workerBudget"
+                type="number"
+                min="1"
+                :max="store.machineThreads"
+                class="w-full rounded-lg border-slate-200 text-sm font-bold text-slate-800"
+                @change="setWorkers(($event.target as HTMLInputElement).value)"
+              />
+              <span v-if="store.isRunning" class="block text-[10px] text-slate-500">
+                Changes apply to the running search from its next batch; workers above a lower count stop once the
+                chains they are on are done.
+              </span>
+            </label>
           </div>
 
-          <label v-if="spaceMode === 'bands'" class="space-y-1 block">
-            <span class="flex items-center gap-1.5">
-              <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                Bands, one per checkpoint
+          <div v-if="spaceMode === 'pool'" class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <label class="space-y-1">
+              <span class="flex items-center gap-1.5">
+                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Checkpoints from</span>
+                <HelpTip
+                  >Lowest TE the search may use as an intermediate checkpoint. Anything at or below your current TE is
+                  dropped: you cannot ascend to a target you have already passed.</HelpTip
+                >
               </span>
-              <HelpTip>
-                Semicolon separated, each `lo-hi` with an optional `:step`. `185-200:5; 210-240:10; 250-290:20` means
-                the first ascension lands between 185 and 200, the second between 210 and 240, the third between 250 and
-                290, then the target. Bands may overlap; chains still have to increase.
-              </HelpTip>
-            </span>
-            <input
-              v-model="bandsText"
-              type="text"
-              :disabled="store.isRunning"
-              placeholder="185-200:5; 210-240:10; 250-290:20"
-              class="w-full rounded-lg border-slate-300 text-sm font-mono-premium font-bold text-slate-800 disabled:opacity-50"
-            />
-            <div class="flex flex-wrap items-center gap-2 pt-1">
-              <label class="flex items-center gap-1.5 text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                Ascensions
-                <input
-                  v-model.number="suggestAsc"
-                  type="number"
-                  :min="suggestRange[0]"
-                  :max="suggestRange[1]"
-                  :disabled="store.isRunning"
-                  class="w-16 rounded-md border-slate-300 text-xs font-bold text-slate-800 disabled:opacity-50"
-                />
+              <input
+                v-model.number="rangeLo"
+                type="number"
+                min="1"
+                :disabled="store.isRunning"
+                class="w-full rounded-lg border-slate-300 text-sm font-bold text-slate-800 disabled:opacity-50"
+              />
+            </label>
+            <label class="space-y-1">
+              <span class="flex items-center gap-1.5">
+                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">to</span>
+                <HelpTip
+                  >Highest TE the search may use as an intermediate checkpoint. Nothing at or above the final target is
+                  kept, since that is the target itself.</HelpTip
+                >
+              </span>
+              <input
+                v-model.number="rangeHi"
+                type="number"
+                min="1"
+                :disabled="store.isRunning"
+                class="w-full rounded-lg border-slate-300 text-sm font-bold text-slate-800 disabled:opacity-50"
+              />
+            </label>
+            <label class="space-y-1">
+              <span class="flex items-center gap-1.5">
+                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">every N TE (step)</span>
+                <HelpTip
+                  >How finely the range is sampled. Step 15 over 185 to 390 gives 185, 200, 215 and so on: 14 values.
+                  Step is the single most expensive number on this page, because the chain count is combinatorial in the
+                  pool size, not linear. Over 185 to 390 at 5 to 7 ascensions: step 25 is 336 chains, step 15 is 6,006,
+                  step 10 is 80,598, step 5 is 6.2 million, and step 1 is about 102 billion. Halving the step does not
+                  double the work.</HelpTip
+                >
+              </span>
+              <input
+                v-model.number="rangeStep"
+                type="number"
+                min="1"
+                :disabled="store.isRunning"
+                class="w-full rounded-lg border-slate-300 text-sm font-bold text-slate-800 disabled:opacity-50"
+              />
+            </label>
+          </div>
+
+          <div class="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-3">
+            <div class="flex flex-wrap items-center gap-4">
+              <label class="flex items-center gap-2 text-[11px] font-black text-slate-600 uppercase tracking-widest">
+                <input v-model="spaceMode" type="radio" value="pool" class="text-rose-600 focus:ring-rose-500" />
+                One range
               </label>
-              <button
-                type="button"
-                :disabled="store.isRunning || !suggestion"
-                class="px-3 py-1.5 rounded-md bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-700 disabled:opacity-40"
-                @click="applySuggestion"
-              >
-                Suggest a space
-              </button>
+              <label class="flex items-center gap-2 text-[11px] font-black text-slate-600 uppercase tracking-widest">
+                <input v-model="spaceMode" type="radio" value="bands" class="text-rose-600 focus:ring-rose-500" />
+                Per-checkpoint bands
+              </label>
               <HelpTip>
-                Fills the boxes with a space sized to about 75,000 chains, which is a few hours on this machine. At two
-                ascensions -- and three on most accounts -- that is the whole reachable range at step 1, so the run
-                proves the optimum and no measurement is involved. Above that it is where near-best chains have actually
-                landed across this project's runs, refined as close to 5 TE as the budget reaches before any of it is
-                spent on widening the bands. Both are starting points; edit them.
+                One range lets any checkpoint take any pool value, which is what allows 185 200 215 230 490: three 15-TE
+                rebuilds in a row. Bands say where each ascension should land, so the shape is decided by you rather
+                than by the enumeration. Bands fix the ascension count: N bands is N+1 ascensions.
               </HelpTip>
-              <span v-if="suggestion" class="text-[10px] text-slate-500">
-                Suggest would fill in {{ suggestAsc }} ascensions, {{ suggestion.chains.toLocaleString() }} chains
-                &middot;
-                <template v-if="suggestion.kind === 'complete'">
-                  <span class="font-black text-emerald-700">complete sweep</span>
-                  {{
-                    suggestion.exact
-                      ? 'of every reachable TE, so the run proves the optimum'
-                      : 'of the whole reachable range on a 2 TE grid'
-                  }}
-                </template>
-                <template v-else>
-                  measured shape, from {{ suggestion.runs }} runs across {{ suggestion.accounts }} accounts
-                </template>
-              </span>
-              <span v-else class="text-[10px] text-amber-700"> No suggestion for this target or ascension count. </span>
             </div>
 
-            <span class="block text-[10px] text-slate-400">
-              <template v-if="bands.length">
-                {{ bands.length }} bands -> {{ bands.length + 1 }} ascensions ·
-                {{ bands.map(b => b.length).join(' x ') }} values
-              </template>
-              <template v-else>Nothing readable yet.</template>
-            </span>
-            <!-- The box only chooses what Suggest a space fills in; the bands decide what runs. A
+            <label v-if="spaceMode === 'bands'" class="space-y-1 block">
+              <span class="flex items-center gap-1.5">
+                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                  Bands, one per checkpoint
+                </span>
+                <HelpTip>
+                  Semicolon separated, each `lo-hi` with an optional `:step`. `185-200:5; 210-240:10; 250-290:20` means
+                  the first ascension lands between 185 and 200, the second between 210 and 240, the third between 250
+                  and 290, then the target. Bands may overlap; chains still have to increase.
+                </HelpTip>
+              </span>
+              <input
+                v-model="bandsText"
+                type="text"
+                :disabled="store.isRunning"
+                placeholder="185-200:5; 210-240:10; 250-290:20"
+                class="w-full rounded-lg border-slate-300 text-sm font-mono-premium font-bold text-slate-800 disabled:opacity-50"
+              />
+              <div class="flex flex-wrap items-center gap-2 pt-1">
+                <label
+                  class="flex items-center gap-1.5 text-[10px] font-black text-slate-500 uppercase tracking-widest"
+                >
+                  Ascensions
+                  <input
+                    v-model.number="suggestAsc"
+                    type="number"
+                    :min="suggestRange[0]"
+                    :max="suggestRange[1]"
+                    :disabled="store.isRunning"
+                    class="w-16 rounded-md border-slate-300 text-xs font-bold text-slate-800 disabled:opacity-50"
+                  />
+                </label>
+                <button
+                  type="button"
+                  :disabled="store.isRunning || !suggestion"
+                  class="px-3 py-1.5 rounded-md bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-700 disabled:opacity-40"
+                  @click="applySuggestion"
+                >
+                  Suggest a space
+                </button>
+                <HelpTip>
+                  Fills the boxes with a space sized to about 75,000 chains, which is a few hours on this machine. At
+                  two ascensions -- and three on most accounts -- that is the whole reachable range at step 1, so the
+                  run proves the optimum and no measurement is involved. Above that it is where near-best chains have
+                  actually landed across this project's runs, refined as close to 5 TE as the budget reaches before any
+                  of it is spent on widening the bands. Both are starting points; edit them.
+                </HelpTip>
+                <span v-if="suggestion" class="text-[10px] text-slate-500">
+                  Suggest would fill in {{ suggestAsc }} ascensions, {{ suggestion.chains.toLocaleString() }} chains
+                  &middot;
+                  <template v-if="suggestion.kind === 'complete'">
+                    <span class="font-black text-emerald-700">complete sweep</span>
+                    {{
+                      suggestion.exact
+                        ? 'of every reachable TE, so the run proves the optimum'
+                        : 'of the whole reachable range on a 2 TE grid'
+                    }}
+                  </template>
+                  <template v-else>
+                    measured shape, from {{ suggestion.runs }} runs across {{ suggestion.accounts }} accounts
+                  </template>
+                </span>
+                <span v-else class="text-[10px] text-amber-700">
+                  No suggestion for this target or ascension count.
+                </span>
+              </div>
+
+              <span class="block text-[10px] text-slate-400">
+                <template v-if="bands.length">
+                  {{ bands.length }} bands -> {{ bands.length + 1 }} ascensions ·
+                  {{ bands.map(b => b.length).join(' x ') }} values
+                </template>
+                <template v-else>Nothing readable yet.</template>
+              </span>
+              <!-- The box only chooses what Suggest a space fills in; the bands decide what runs. A
                  player set it to 2 and then 8 on a 3-ascension sweep and it ran as 3 without a word,
                  so a mismatch is now an error that blocks Start until one of the two is changed. -->
-            <p
-              v-if="ascMismatch"
-              class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-semibold text-rose-800 leading-relaxed"
-            >
-              Your bands make {{ bands.length + 1 }} ascensions, and that is what would run, but the Ascensions box says
-              {{ suggestAsc }}. The box only chooses what Suggest a space fills in: press Suggest a space to switch to
-              {{ suggestAsc }} ascensions, or set the box back to {{ bands.length + 1 }}.
-            </p>
-          </label>
+              <p
+                v-if="ascMismatch"
+                class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-semibold text-rose-800 leading-relaxed"
+              >
+                Your bands make {{ bands.length + 1 }} ascensions, and that is what would run, but the Ascensions box
+                says {{ suggestAsc }}. The box only chooses what Suggest a space fills in: press Suggest a space to
+                switch to {{ suggestAsc }} ascensions, or set the box back to {{ bands.length + 1 }}.
+              </p>
+            </label>
 
-          <label class="space-y-1 block max-w-xs">
-            <span class="flex items-center gap-1.5">
-              <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                Minimum gap between checkpoints
+            <label class="space-y-1 block max-w-xs">
+              <span class="flex items-center gap-1.5">
+                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                  Minimum gap between checkpoints
+                </span>
+                <HelpTip>
+                  Drops chains whose consecutive checkpoints sit closer than this. 0 is off. Measured caution: the best
+                  7-ascension chain found on this account, 185 200 215 230 290 380 490 at 746.354 d, has 15-TE interior
+                  gaps, so anything above 15 would have excluded it. Small early gaps are cheap when the ascension is
+                  short. The leap to the final target is never constrained by this.
+                </HelpTip>
               </span>
-              <HelpTip>
-                Drops chains whose consecutive checkpoints sit closer than this. 0 is off. Measured caution: the best
-                7-ascension chain found on this account, 185 200 215 230 290 380 490 at 746.354 d, has 15-TE interior
-                gaps, so anything above 15 would have excluded it. Small early gaps are cheap when the ascension is
-                short. The leap to the final target is never constrained by this.
-              </HelpTip>
-            </span>
-            <input
-              v-model.number="minGap"
-              type="number"
-              min="0"
-              :disabled="store.isRunning"
-              class="w-full rounded-lg border-slate-300 text-sm font-bold text-slate-800 disabled:opacity-50"
-            />
-          </label>
+              <input
+                v-model.number="minGap"
+                type="number"
+                min="0"
+                :disabled="store.isRunning"
+                class="w-full rounded-lg border-slate-300 text-sm font-bold text-slate-800 disabled:opacity-50"
+              />
+            </label>
 
-          <p
-            v-if="constrained"
-            class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2.5 leading-relaxed"
-          >
-            You have narrowed the space, so the winner will be the best
-            <span class="font-semibold">of what you described</span>, not of everything reachable. That is still a
-            stronger claim than the staged search makes, but it is a smaller one than an unconstrained run.
-          </p>
-          <!-- Plain words for the step, which players read past: "181-250:5" means 181, 186, 191... and
+            <p
+              v-if="constrained"
+              class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2.5 leading-relaxed"
+            >
+              You have narrowed the space, so the winner will be the best
+              <span class="font-semibold">of what you described</span>, not of everything reachable. That is still a
+              stronger claim than the staged search makes, but it is a smaller one than an unconstrained run.
+            </p>
+            <!-- Plain words for the step, which players read past: "181-250:5" means 181, 186, 191... and
                never 227. Said up front so a faster Balanced result between grid points is no surprise. -->
-          <p v-if="!plannedGridComplete" class="text-[11px] text-slate-600 leading-relaxed">
-            <span class="font-bold text-slate-800">This space tries {{ plannedGridLabel }}</span> (for example
-            {{ gridExample }}), not every TE in between: checking every TE would take weeks. So the winner is the best
-            on this grid, and a chain between grid points can be faster.
-          </p>
-        </div>
-
-        <div v-if="spaceMode === 'pool'" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <label class="space-y-1">
-            <span class="flex items-center gap-1.5">
-              <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Fewest ascensions</span>
-              <HelpTip
-                >Shortest chain to enumerate, counting the final target. 5 ascensions takes four values from the pool
-                plus the target. Each ascension is a full rebuild: twelve shifts and a fresh research grind.</HelpTip
-              >
-            </span>
-            <input
-              v-model.number="minAsc"
-              type="number"
-              min="2"
-              :disabled="store.isRunning"
-              class="w-full rounded-lg border-slate-300 text-sm font-bold text-slate-800 disabled:opacity-50"
-            />
-          </label>
-          <label class="space-y-1">
-            <span class="flex items-center gap-1.5">
-              <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Most ascensions</span>
-              <HelpTip
-                >Longest chain to enumerate. Every length between fewest and most is enumerated in full, so widening
-                this adds whole combinatorial layers rather than a few chains.</HelpTip
-              >
-            </span>
-            <input
-              v-model.number="maxAsc"
-              type="number"
-              min="2"
-              :disabled="store.isRunning"
-              class="w-full rounded-lg border-slate-300 text-sm font-bold text-slate-800 disabled:opacity-50"
-            />
-          </label>
-        </div>
-
-        <p class="text-[11px] text-slate-500 leading-relaxed">
-          Ascension count includes the final target, so 5 ascensions takes four values from the pool. Values at or below
-          your current TE, and at or above the target, are dropped: neither is an ascension you can perform.
-        </p>
-      </div>
-
-      <!-- The number that should decide whether you press the button. -->
-      <div
-        class="rounded-xl border p-4 space-y-2"
-        :class="tooBig ? 'border-red-300 bg-red-50' : 'border-slate-200 bg-white'"
-      >
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
-          <div>
-            <div class="flex items-center justify-center gap-1.5">
-              <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Pool values</span>
-              <HelpTip
-                >Checkpoint values left after the range is sampled by step and anything outside (your TE, target) is
-                dropped. This is the number the chain count is combinatorial in.</HelpTip
-              >
-            </div>
-            <div class="text-lg font-black text-slate-900 tabular-nums">{{ poolSize }}</div>
+            <p v-if="!plannedGridComplete" class="text-[11px] text-slate-600 leading-relaxed">
+              <span class="font-bold text-slate-800">This space tries {{ plannedGridLabel }}</span> (for example
+              {{ gridExample }}), not every TE in between: checking every TE would take weeks. So the winner is the best
+              on this grid, and a chain between grid points can be faster.
+            </p>
           </div>
-          <div>
-            <div class="flex items-center justify-center gap-1.5">
-              <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Chains</span>
-              <HelpTip
-                >Every strictly-increasing combination of pool values at each allowed ascension count, with the target
-                appended. Computed combinatorially, never by building the list: at small steps the list would not fit in
-                memory, and saying so before that happens is the point.</HelpTip
-              >
-            </div>
-            <div class="text-lg font-black tabular-nums" :class="tooBig ? 'text-red-700' : 'text-slate-900'">
-              {{ chainCountLabel }}
-            </div>
-          </div>
-          <div>
-            <div class="flex items-center justify-center gap-1.5">
-              <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Est. wall clock</span>
-              <HelpTip
-                >Chains x assumed cost / workers. It errs high on purpose: the assumed cost is a cold-leg floor — 15 s
-                until something better is known, this machine's own measured or benchmarked rate afterward — and prefix
-                sharing means most chains cost far less than a full simulation.</HelpTip
-              >
-            </div>
-            <div class="text-lg font-black tabular-nums" :class="tooBig ? 'text-red-700' : 'text-slate-900'">
-              {{ estimateLabel }}
-            </div>
-          </div>
-          <div>
-            <div class="flex items-center justify-center gap-1.5">
-              <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Assumed cost</span>
-              <HelpTip
-                >What the estimate charges per chain. It starts at the 15 s assumption and switches to this machine's
-                own measured rate once the first chunk lands — or as soon as you press "Benchmark my PC" below, which
-                prices that first chunk right now instead of waiting for a real run.</HelpTip
-              >
-            </div>
-            <div
-              class="text-lg font-black tabular-nums"
-              :class="{
-                'text-emerald-700': store.rateSource === 'live',
-                'text-indigo-700': store.rateSource === 'benchmark',
-                'text-slate-900': !store.rateSource,
-              }"
-            >
-              {{ assumedCostLabel }}
-            </div>
-          </div>
-        </div>
 
-        <div class="flex flex-wrap items-center gap-3 pt-1">
-          <button
-            type="button"
-            :disabled="store.isRunning || store.benchmarking || !chainCount"
-            class="px-3 py-1.5 rounded-md border border-indigo-300 text-indigo-700 text-[10px] font-black uppercase tracking-widest hover:bg-indigo-50 disabled:opacity-40"
-            @click="benchmark"
-          >
-            {{ store.benchmarking ? 'Benchmarking…' : store.benchmarkedAt ? 'Re-benchmark' : 'Benchmark my PC' }}
-          </button>
-          <span v-if="store.benchmarking" class="text-[11px] text-slate-500">
-            Pricing the first {{ Math.max(store.workerBudget * 2, 32) }} chains on a throwaway pool — same as what a
-            real run's opening chunk would cost.
-          </span>
-          <span v-else-if="store.benchmarkedAt" class="text-[11px] text-slate-500">
-            {{ store.rateSource === 'live' ? 'Measured' : 'Benchmarked' }} on this machine ·
-            {{ store.benchmarkChainCount }} chains · {{ agoLabel(store.benchmarkedAt) }}
-          </span>
-        </div>
-        <p v-if="store.benchmarkError" class="text-[11px] font-semibold text-red-700">{{ store.benchmarkError }}</p>
-
-        <p class="text-[11px] leading-relaxed" :class="tooBig ? 'text-red-800' : 'text-slate-500'">
-          <template v-if="!poolSize">
-            The pool is empty once values outside ({{ store.currentTE }}, {{ store.finalTE }}) are dropped.
-          </template>
-          <template v-else-if="!chainCount">
-            No chains: the ascension range asks for more checkpoints than {{ poolSize }} pool values can supply.
-          </template>
-          <template v-else-if="tooBig">
-            This will not finish. The estimate assumes {{ assumedCostLabel }} per chain on
-            {{ store.workerBudget }} workers{{ measuredCost ? ', measured on this machine' : '' }}. Raise the step or
-            narrow the ascension range.
-          </template>
-          <template v-else>
-            The estimate assumes {{ assumedCostLabel }} per chain on {{ store.workerBudget }} workers,
-            {{ measuredCost ? 'measured on this machine' : speedSourceLabel }}.
-            <template v-if="!measuredCost">Benchmark this machine above for a number from your own computer.</template>
-            Leave the tab open: a closed tab stops the workers.
-          </template>
-        </p>
-      </div>
-
-      <!-- The question everyone asks before committing a machine for an afternoon. -->
-      <div class="rounded-xl border border-slate-200 bg-white overflow-hidden">
-        <button
-          type="button"
-          class="w-full px-4 py-3 flex items-center gap-2 text-left group hover:bg-slate-50"
-          :aria-expanded="showSplit"
-          @click="showSplit = !showSplit"
-        >
-          <svg
-            class="w-3 h-3 flex-shrink-0 text-slate-400 group-hover:text-slate-600"
-            viewBox="0 0 12 12"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
-          >
-            <path :d="showSplit ? CHEVRON_DOWN : CHEVRON_RIGHT" />
-          </svg>
-          <h3 class="text-[10px] font-black text-slate-600 uppercase tracking-widest">How the work is split</h3>
-        </button>
-        <div v-if="showSplit" class="px-4 pb-4 space-y-3 text-[11px] text-slate-600 leading-relaxed">
-          <p>
-            <span class="font-bold text-slate-800">Chains are sorted so relatives sit together.</span> Every chain
-            starting <code class="font-mono-premium">195 229</code> is adjacent to every other one, because the
-            expensive unit is not a chain, it is a <span class="font-semibold">leg</span>. Two chains sharing their
-            first three checkpoints share those three leg simulations exactly.
-          </p>
-          <p>
-            <span class="font-bold text-slate-800"
-              >The sorted list is cut into chunks of {{ store.workersInPool * 2 }}</span
-            >
-            (workers × 2) and handed to the pool one chunk at a time. The pool splits each chunk across workers by
-            prefix, so a worker gets a family of related chains rather than a random handful, and its memo pays.
-          </p>
-          <p>
-            <span class="font-bold text-slate-800">Each worker simulates legs and remembers them.</span> A leg is a full
-            farm simulation: research purchases, hab and vehicle upgrades, twelve egg switches, sale timing. That is the
-            ~15 s. A chain whose prefix the worker has already priced only pays for its new legs, which is why the real
-            cost lands well under the estimate.
-          </p>
-          <p>
-            <span class="font-bold text-slate-800">Progress is a heartbeat, not a guess.</span> Each worker posts after
-            every chain it finishes, so the bar moves continuously and a worker that has died is distinguishable from
-            one that is thinking. The s/chain figure under the bar is measured here, not carried from another machine.
-          </p>
-          <p>
-            <span class="font-bold text-slate-800">Stop is checked between chunks.</span> A chunk in flight finishes
-            first, so on a space with long chains "Stopping…" can sit for a minute or two. Nothing is lost: everything
-            priced so far stays, and the best of it is your answer.
-          </p>
-        </div>
-      </div>
-
-      <label class="flex items-start gap-3 cursor-pointer">
-        <input v-model="store.keepAwake" type="checkbox" class="mt-0.5 rounded border-slate-300 text-indigo-600" />
-        <span class="text-[11px] text-slate-600 leading-relaxed">
-          <span class="font-bold text-slate-800">Keep my PC awake.</span> A run is hours long; if the machine sleeps,
-          every worker freezes until you wake it back up. It can't stop a laptop sleeping when the lid is closed. Turn
-          this off if you'd rather manage sleep yourself.
-        </span>
-      </label>
-      <BackgroundSpeed />
-
-      <SafariNotice />
-
-      <RunSaveNotice />
-      <IntegrityNotice />
-      <div class="flex flex-wrap gap-3">
-        <button
-          class="btn-premium btn-primary flex-1 py-4 text-sm shadow-xl shadow-rose-500/20 active:scale-[0.98]"
-          :disabled="
-            store.busy ||
-            store.integrityBlocked ||
-            store.staleBackupBlocked ||
-            !chainCount ||
-            ascMismatch ||
-            (!!sweepRequest && !sweepConsent)
-          "
-          @click="start"
-        >
-          <!-- With a sweep request open this is the same run as the card's button, so it says the
-               same thing and waits for the same tick; two differently named Starts read as two
-               different actions. -->
-          {{
-            store.isRunning
-              ? 'Pricing every chain...'
-              : sweepRequest
-                ? sweepConsent
-                  ? 'Start this sweep'
-                  : 'Start this sweep (tick "I understand" at the top first)'
-                : 'Start exhaustive search'
-          }}
-        </button>
-        <button
-          v-if="store.isRunning"
-          class="px-6 py-4 rounded-xl bg-slate-900 text-white text-[11px] font-black uppercase tracking-widest hover:bg-slate-800"
-          :disabled="store.stopRequested"
-          @click="store.stop()"
-        >
-          {{ store.stopRequested ? 'Stopping...' : 'Stop & keep best' }}
-        </button>
-      </div>
-
-      <div v-if="store.stage" class="space-y-1">
-        <div class="flex items-center justify-between text-[10px] font-black uppercase tracking-widest">
-          <span class="text-slate-500">{{ store.stage }}</span>
-          <span class="text-slate-400 tabular-nums">
-            {{ pricedSoFar.toLocaleString() }} / {{ store.chainsEstimated.toLocaleString() }}
-          </span>
-        </div>
-        <div class="h-1.5 rounded-full bg-slate-100 overflow-hidden">
-          <div class="h-full bg-rose-500 transition-all" :style="{ width: `${Math.round(livePercent)}%` }"></div>
-        </div>
-        <div v-if="store.secondsPerChain > 0 || store.runCost" class="text-[10px] text-slate-400 tabular-nums">
-          <template v-if="store.secondsPerChain > 0"
-            >{{ store.secondsPerChain.toFixed(2) }} s/chain measured here</template
-          >
-          <template v-if="!store.isRunning && store.runCost">
-            · took {{ describeCompute(store.runCost.minutes, store.runCost.workers) }}</template
-          >
-        </div>
-      </div>
-
-      <p
-        v-if="store.runNotes.length && !store.error"
-        class="p-3 rounded-xl border border-amber-200 bg-amber-50 text-[11px] text-amber-900 leading-relaxed"
-      >
-        <span v-for="n in store.runNotes" :key="n" class="block">{{ n }}</span>
-      </p>
-
-      <div
-        v-if="store.error"
-        class="p-4 bg-red-50 border border-red-200 rounded-xl text-xs text-red-800 leading-relaxed"
-      >
-        <span class="font-bold uppercase tracking-wide">{{
-          store.errorBeforeStart ? "Didn't start" : 'Search failed'
-        }}</span>
-        — {{ store.error }}
-      </div>
-
-      <!-- The outcome with no best chain. Without it a finished run simply lacked the result card,
-           the Save button stayed grey and Submit never appeared, with nothing saying why -- which
-           read as three separate bugs to the person looking at it. -->
-      <div
-        v-if="store.noFeasibleChain && !store.error"
-        class="rounded-xl border border-rose-300 bg-rose-50 p-4 space-y-2"
-      >
-        <p class="text-[10px] font-black text-rose-800 uppercase tracking-widest">No chain in this space finishes</p>
-        <p class="text-[11px] text-rose-900/90 leading-relaxed">
-          Every chain was simulated, and none of them reaches {{ store.finalTE }} TE in any time the planner can put a
-          date on. That is a result, not a crash, so there is nothing to save or submit.
-        </p>
-        <p class="text-[11px] text-rose-900/90 leading-relaxed">
-          The usual cause is earnings. On a low-TE account the early ascensions cannot earn enough to buy the habs and
-          vehicles the plan is waiting on, so the very first leg stalls and everything after it inherits the stall. A
-          different space will not fix that; more Truth Eggs, or a stronger earnings set (totem, ankh, necklace and
-          their stones), will. If you think the planner has this wrong, download the diagnostics below and send them in.
-        </p>
-      </div>
-
-      <div v-if="store.bestDays > 0" class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 space-y-1">
-        <div class="text-[10px] font-black text-emerald-700 uppercase tracking-widest">
-          Best chain<template v-if="!store.isRunning && !store.stoppedEarly"> — {{ resultClaim }}</template>
-        </div>
-        <div class="font-mono-premium text-lg font-black text-slate-900">{{ store.bestChain.join(' ') }}</div>
-        <div class="text-xs text-emerald-800">
-          {{ store.bestDays.toFixed(3) }} days &middot; <span class="font-semibold">ends {{ endDate }}</span>
-        </div>
-        <p v-if="!store.isRunning && resultExplain" class="text-[11px] text-emerald-900/80 leading-relaxed">
-          {{ resultExplain }}
-        </p>
-        <p class="text-[10px] text-emerald-900/60">
-          Compare runs on the finish date. Two runs started hours apart have different plan starts, so their day counts
-          are not measuring the same thing; the date they land on is.
-        </p>
-        <!-- The result-side half of the same idea. Delivery cannot fall as TE rises; when it does,
-             the state carried into that leg is wrong and every duration after it is too. Shown on
-             the winning chain because that is the number people copy. -->
-        <p
-          v-if="store.continueWarning"
-          class="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-[11px] text-amber-900 leading-relaxed"
-        >
-          {{ store.continueWarning }}
-        </p>
-        <div
-          v-if="store.resultContradictions.length"
-          class="mt-2 rounded-lg border border-rose-300 bg-rose-50 p-3 space-y-1"
-        >
-          <p class="text-[10px] font-black text-rose-800 uppercase tracking-widest">This result contradicts itself</p>
-          <p
-            v-for="(issue, k) in store.resultContradictions"
-            :key="k"
-            class="text-[11px] text-rose-900/90 leading-relaxed"
-          >
-            {{ issue.message }}
-          </p>
-          <p class="text-[11px] text-rose-900/80 leading-relaxed">
-            Reload your backup and run it again before trusting these dates, and compare leg 1 against the official
-            planner — if leg 1 agrees and a later leg does not, the fault is in the state carried between legs.
-          </p>
-        </div>
-
-        <p v-if="store.stoppedEarly" class="text-[11px] text-emerald-900/70 pt-1">
-          You stopped it early, so this is the best of what was priced, not the optimum of the space.
-        </p>
-      </div>
-
-      <!-- Saved runs. Kept in this browser, reloadable at any time. -->
-      <div class="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
-        <div class="flex items-center justify-between gap-3">
-          <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Saved runs</h3>
-          <span class="text-[10px] font-bold text-slate-400">{{ store.savedRuns.length }} / {{ MAX_RUNS }}</span>
-        </div>
-        <p class="text-[11px] text-slate-500 leading-relaxed">
-          Kept in this browser, per player. Separate from the crash-recovery checkpoint, which holds one run. Either
-          kind resumes only while your TE, target and schedule are unchanged; the plan start goes back to the run's own.
-          The oldest is dropped past {{ MAX_RUNS }}.
-        </p>
-
-        <div class="flex flex-wrap gap-2">
-          <input
-            v-model="saveLabel"
-            type="text"
-            placeholder="Name this run (optional)"
-            class="flex-1 min-w-[12rem] rounded-lg border-slate-300 text-sm text-slate-800"
-          />
-          <button
-            type="button"
-            :disabled="store.bestDays <= 0 || saving"
-            class="px-4 py-2 rounded-lg bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-700 disabled:opacity-40"
-            @click="save"
-          >
-            {{ saving ? 'Saving...' : 'Save this run' }}
-          </button>
-        </div>
-
-        <p v-if="resumeNote" class="text-[11px] font-semibold text-amber-700 leading-relaxed">{{ resumeNote }}</p>
-
-        <p v-if="!store.savedRuns.length" class="text-[11px] text-slate-400">Nothing saved yet.</p>
-        <div v-else class="divide-y divide-slate-100">
-          <div v-for="run in store.savedRuns" :key="run.id" class="flex flex-wrap items-center gap-3 py-2">
-            <div class="flex-1 min-w-[14rem]">
-              <div class="text-xs font-bold text-slate-800">{{ run.label }}</div>
-              <div class="text-[10px] text-slate-400 font-mono-premium">
-                {{ run.bestChain.join(' ') }} · {{ run.bestDays.toFixed(3) }} d · {{ run.chainsPriced }} chains<template
-                  v-if="!run.complete"
+          <div v-if="spaceMode === 'pool'" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <label class="space-y-1">
+              <span class="flex items-center gap-1.5">
+                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Fewest ascensions</span>
+                <HelpTip
+                  >Shortest chain to enumerate, counting the final target. 5 ascensions takes four values from the pool
+                  plus the target. Each ascension is a full rebuild: twelve shifts and a fresh research grind.</HelpTip
                 >
-                  · stopped early at {{ run.chainsPriced.toLocaleString() }} of
-                  {{ (run.space?.chains ?? 0).toLocaleString() }}</template
+              </span>
+              <input
+                v-model.number="minAsc"
+                type="number"
+                min="2"
+                :disabled="store.isRunning"
+                class="w-full rounded-lg border-slate-300 text-sm font-bold text-slate-800 disabled:opacity-50"
+              />
+            </label>
+            <label class="space-y-1">
+              <span class="flex items-center gap-1.5">
+                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Most ascensions</span>
+                <HelpTip
+                  >Longest chain to enumerate. Every length between fewest and most is enumerated in full, so widening
+                  this adds whole combinatorial layers rather than a few chains.</HelpTip
+                >
+              </span>
+              <input
+                v-model.number="maxAsc"
+                type="number"
+                min="2"
+                :disabled="store.isRunning"
+                class="w-full rounded-lg border-slate-300 text-sm font-bold text-slate-800 disabled:opacity-50"
+              />
+            </label>
+          </div>
+
+          <p class="text-[11px] text-slate-500 leading-relaxed">
+            Ascension count includes the final target, so 5 ascensions takes four values from the pool. Values at or
+            below your current TE, and at or above the target, are dropped: neither is an ascension you can perform.
+          </p>
+        </div>
+
+        <!-- The number that should decide whether you press the button. -->
+        <div
+          class="rounded-xl border p-4 space-y-2"
+          :class="tooBig ? 'border-red-300 bg-red-50' : 'border-slate-200 bg-white'"
+        >
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+            <div>
+              <div class="flex items-center justify-center gap-1.5">
+                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Pool values</span>
+                <HelpTip
+                  >Checkpoint values left after the range is sampled by step and anything outside (your TE, target) is
+                  dropped. This is the number the chain count is combinatorial in.</HelpTip
                 >
               </div>
+              <div class="text-lg font-black text-slate-900 tabular-nums">{{ poolSize }}</div>
             </div>
-            <!-- Resume, not just Open. An unfinished run holds every chain it managed to price, and
-                 without this the only way to use it was to retype the space and let the search
-                 rediscover them -- which is exactly the afternoon this is meant to give back. -->
-            <button
-              v-if="!run.complete && run.space"
-              type="button"
-              :disabled="store.busy || resuming !== ''"
-              class="px-3 py-1.5 rounded-md bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 disabled:opacity-40"
-              @click="resume(run.id)"
-            >
-              {{ resuming === run.id ? 'Resuming…' : 'Resume' }}
-            </button>
-            <button
-              type="button"
-              class="px-3 py-1.5 rounded-md border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-300 hover:text-emerald-700"
-              @click="open(run.id)"
-            >
-              Open
-            </button>
-            <button
-              type="button"
-              class="px-3 py-1.5 rounded-md border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:border-red-300 hover:text-red-600"
-              @click="remove(run.id)"
-            >
-              Delete
-            </button>
+            <div>
+              <div class="flex items-center justify-center gap-1.5">
+                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Chains</span>
+                <HelpTip
+                  >Every strictly-increasing combination of pool values at each allowed ascension count, with the target
+                  appended. Computed combinatorially, never by building the list: at small steps the list would not fit
+                  in memory, and saying so before that happens is the point.</HelpTip
+                >
+              </div>
+              <div class="text-lg font-black tabular-nums" :class="tooBig ? 'text-red-700' : 'text-slate-900'">
+                {{ chainCountLabel }}
+              </div>
+            </div>
+            <div>
+              <div class="flex items-center justify-center gap-1.5">
+                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Est. wall clock</span>
+                <HelpTip
+                  >Chains x assumed cost / workers. It errs high on purpose: the assumed cost is a cold-leg floor — 15 s
+                  until something better is known, this machine's own measured or benchmarked rate afterward — and
+                  prefix sharing means most chains cost far less than a full simulation.</HelpTip
+                >
+              </div>
+              <div class="text-lg font-black tabular-nums" :class="tooBig ? 'text-red-700' : 'text-slate-900'">
+                {{ estimateLabel }}
+              </div>
+            </div>
+            <div>
+              <div class="flex items-center justify-center gap-1.5">
+                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Assumed cost</span>
+                <HelpTip
+                  >What the estimate charges per chain. It starts at the 15 s assumption and switches to this machine's
+                  own measured rate once the first chunk lands — or as soon as you press "Benchmark my PC" below, which
+                  prices that first chunk right now instead of waiting for a real run.</HelpTip
+                >
+              </div>
+              <div
+                class="text-lg font-black tabular-nums"
+                :class="{
+                  'text-emerald-700': store.rateSource === 'live',
+                  'text-indigo-700': store.rateSource === 'benchmark',
+                  'text-slate-900': !store.rateSource,
+                }"
+              >
+                {{ assumedCostLabel }}
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
 
-      <SearchShapeChart v-if="store.pricedChains.length" :points="store.pricedChains" :best-chain="store.bestChain" />
-
-      <!-- Diagnostics are offered on a run with no answer too: that is exactly when someone wants to
-           report what went in. -->
-      <div v-if="store.pricedChains.length || store.noFeasibleChain" class="flex flex-wrap items-center gap-3">
-        <template v-if="store.csvRows > 0">
-          <button
-            type="button"
-            class="px-4 py-2 rounded-lg bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-700"
-            @click="downloadCsv"
-          >
-            Download CSV
-          </button>
-          <span class="text-[11px] text-slate-500">
-            {{ store.csvRows.toLocaleString() }} chains, one row per leg. Safe to take mid-run.
-          </span>
-        </template>
-        <!-- The input side. The CSV records what came OUT; when a result looks wrong the question
-             is always what went IN, and until now nothing wrote that down. -->
-        <button
-          type="button"
-          class="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-[10px] font-black uppercase tracking-widest hover:bg-slate-50"
-          @click="downloadDiagnostics"
-        >
-          Download diagnostics
-        </button>
-        <span class="text-[11px] text-slate-500">
-          A small JSON of what this run was <em>given</em> — backup age, TE, research, loadout. No save data, no player
-          ID. Attach it when reporting a result that looks wrong.
-        </span>
-        <p v-if="downloadError" class="w-full text-[11px] font-semibold text-red-700">{{ downloadError }}</p>
-      </div>
-
-      <!-- Submission. Same payload, same opt-in, same disclosure as the main panel. -->
-      <div v-if="store.bestDays > 0" class="rounded-xl border border-indigo-200 bg-indigo-50/60 p-4 space-y-3">
-        <h3 class="text-[10px] font-black text-indigo-800 uppercase tracking-widest">Share this result</h3>
-        <p class="text-[11px] text-indigo-900/80 leading-relaxed">
-          An exhaustive result is the most useful thing the board can receive: the best of a stated grid rather than a
-          search result. It goes with the space it covered and what it found there — the runners-up, the best chain at
-          each ascension count, and the spread — so a reader can tell a real find from a flat neighbourhood without
-          downloading the CSV. A run opened from the library above submits without a run cost, because the time it took
-          was not this machine's.
-        </p>
-        <label class="flex items-start gap-3 text-xs text-indigo-900">
-          <input v-model="optIn" type="checkbox" class="mt-0.5 rounded border-indigo-300 text-indigo-600" />
-          <span
-            >Yes, contribute this result. Artifact inventory, timezone and local plan start are included, plus a random
-            code this browser keeps for the account (not your player ID, and never shown). The board uses it so a run
-            that lands on the flagged board shows to you as yours and to everyone else anonymously; so the same result
-            sent twice is stored once; so you can put your name on a run you sent anonymously; and so your own later
-            runs can replace your older plans in the race, which nobody else's can. A named run shows a short tag made
-            from the code; an anonymous run shows nothing that links it to you. If you have plans on the board already,
-            your best three of them re-priced from this save go too: named ones with a named send, anonymous ones with
-            an anonymous send, so a re-check never ties the two together.</span
-          >
-        </label>
-
-        <!-- Credit, behind the opt-in like everything else that leaves the machine. Anonymous is
-             the default: crediting yourself should be a choice, not the fallback. -->
-        <div v-if="optIn" class="space-y-2">
-          <div class="flex flex-wrap items-center gap-4">
-            <label class="flex items-center gap-2 cursor-pointer text-[11px] font-bold text-indigo-900">
-              <input v-model="anonymous" type="radio" :value="true" class="text-indigo-600" />
-              Submit anonymously
-            </label>
-            <label class="flex items-center gap-2 cursor-pointer text-[11px] font-bold text-indigo-900">
-              <input v-model="anonymous" type="radio" :value="false" class="text-indigo-600" />
-              Credit me as
-            </label>
-            <input
-              v-model="nickname"
-              type="text"
-              :maxlength="NICKNAME_MAX"
-              :disabled="anonymous"
-              placeholder="nickname"
-              aria-label="Nickname"
-              class="rounded-lg border-indigo-200 text-sm font-bold text-slate-800 w-48 disabled:opacity-40"
-              @input="nicknameTouched = true"
-            />
+          <div class="flex flex-wrap items-center gap-3 pt-1">
+            <button
+              type="button"
+              :disabled="store.isRunning || store.benchmarking || !chainCount"
+              class="px-3 py-1.5 rounded-md border border-indigo-300 text-indigo-700 text-[10px] font-black uppercase tracking-widest hover:bg-indigo-50 disabled:opacity-40"
+              @click="benchmark"
+            >
+              {{ store.benchmarking ? 'Benchmarking…' : store.benchmarkedAt ? 'Re-benchmark' : 'Benchmark my PC' }}
+            </button>
+            <span v-if="store.benchmarking" class="text-[11px] text-slate-500">
+              Pricing the first {{ Math.max(store.workerBudget * 2, 32) }} chains on a throwaway pool — same as what a
+              real run's opening chunk would cost.
+            </span>
+            <span v-else-if="store.benchmarkedAt" class="text-[11px] text-slate-500">
+              {{ store.rateSource === 'live' ? 'Measured' : 'Benchmarked' }} on this machine ·
+              {{ store.benchmarkChainCount }} chains · {{ agoLabel(store.benchmarkedAt) }}
+            </span>
           </div>
-          <label class="flex items-start gap-3 cursor-pointer text-[11px] text-indigo-900/80">
-            <input v-model="includeCsv" type="checkbox" class="mt-0.5 rounded border-indigo-300 text-indigo-600" />
-            <span>
-              <span class="font-bold">Include the full CSV</span> — every chain this run priced, one row per leg ({{
-                store.csvRows.toLocaleString()
-              }}
-              chains). The submission above is the headline; this is the working. It is compressed before it leaves your
-              machine. Chains past the memory budget export with their per-leg cells blank.
-            </span>
-          </label>
-          <label class="flex items-start gap-3 cursor-pointer text-[11px] text-indigo-900/80">
-            <input
-              v-model="stampName"
-              type="checkbox"
-              :disabled="anonymous"
-              class="mt-0.5 rounded border-indigo-300 text-indigo-600 disabled:opacity-40"
-            />
-            <span>
-              <span class="font-bold">Add the time to the name.</span> Optional. The board already keeps each space you
-              prove as its own row, so nothing is lost without this — it is just a way to tell your own runs apart at a
-              glance when several are on the board.
-            </span>
-          </label>
-          <p v-if="!anonymous" class="text-[11px] text-indigo-900/70">
-            Submitting as
-            <span class="font-mono-premium font-bold">{{ effectiveNickname || '(blank — anonymous)' }}</span>
+          <p v-if="store.benchmarkError" class="text-[11px] font-semibold text-red-700">{{ store.benchmarkError }}</p>
+
+          <p class="text-[11px] leading-relaxed" :class="tooBig ? 'text-red-800' : 'text-slate-500'">
+            <template v-if="!poolSize">
+              The pool is empty once values outside ({{ store.currentTE }}, {{ store.finalTE }}) are dropped.
+            </template>
+            <template v-else-if="!chainCount">
+              No chains: the ascension range asks for more checkpoints than {{ poolSize }} pool values can supply.
+            </template>
+            <template v-else-if="tooBig">
+              This will not finish. The estimate assumes {{ assumedCostLabel }} per chain on
+              {{ store.workerBudget }} workers{{ measuredCost ? ', measured on this machine' : '' }}. Raise the step or
+              narrow the ascension range.
+            </template>
+            <template v-else>
+              The estimate assumes {{ assumedCostLabel }} per chain on {{ store.workerBudget }} workers,
+              {{ measuredCost ? 'measured on this machine' : speedSourceLabel }}.
+              <template v-if="!measuredCost"
+                >Benchmark this machine above for a number from your own computer.</template
+              >
+              Leave the tab open: a closed tab stops the workers.
+            </template>
           </p>
         </div>
 
-        <div class="flex flex-wrap gap-2">
-          <!-- Already on the board and the name box now differs from what went (typically: sent
+        <!-- The question everyone asks before committing a machine for an afternoon. -->
+        <div class="rounded-xl border border-slate-200 bg-white overflow-hidden">
+          <button
+            type="button"
+            class="w-full px-4 py-3 flex items-center gap-2 text-left group hover:bg-slate-50"
+            :aria-expanded="showSplit"
+            @click="showSplit = !showSplit"
+          >
+            <svg
+              class="w-3 h-3 flex-shrink-0 text-slate-400 group-hover:text-slate-600"
+              viewBox="0 0 12 12"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path :d="showSplit ? CHEVRON_DOWN : CHEVRON_RIGHT" />
+            </svg>
+            <h3 class="text-[10px] font-black text-slate-600 uppercase tracking-widest">How the work is split</h3>
+          </button>
+          <div v-if="showSplit" class="px-4 pb-4 space-y-3 text-[11px] text-slate-600 leading-relaxed">
+            <p>
+              <span class="font-bold text-slate-800">Chains are sorted so relatives sit together.</span> Every chain
+              starting <code class="font-mono-premium">195 229</code> is adjacent to every other one, because the
+              expensive unit is not a chain, it is a <span class="font-semibold">leg</span>. Two chains sharing their
+              first three checkpoints share those three leg simulations exactly.
+            </p>
+            <p>
+              <span class="font-bold text-slate-800"
+                >The sorted list is cut into chunks of {{ store.workersInPool * 2 }}</span
+              >
+              (workers × 2) and handed to the pool one chunk at a time. The pool splits each chunk across workers by
+              prefix, so a worker gets a family of related chains rather than a random handful, and its memo pays.
+            </p>
+            <p>
+              <span class="font-bold text-slate-800">Each worker simulates legs and remembers them.</span> A leg is a
+              full farm simulation: research purchases, hab and vehicle upgrades, twelve egg switches, sale timing. That
+              is the ~15 s. A chain whose prefix the worker has already priced only pays for its new legs, which is why
+              the real cost lands well under the estimate.
+            </p>
+            <p>
+              <span class="font-bold text-slate-800">Progress is a heartbeat, not a guess.</span> Each worker posts
+              after every chain it finishes, so the bar moves continuously and a worker that has died is distinguishable
+              from one that is thinking. The s/chain figure under the bar is measured here, not carried from another
+              machine.
+            </p>
+            <p>
+              <span class="font-bold text-slate-800">Stop is checked between chunks.</span> A chunk in flight finishes
+              first, so on a space with long chains "Stopping…" can sit for a minute or two. Nothing is lost: everything
+              priced so far stays, and the best of it is your answer.
+            </p>
+          </div>
+        </div>
+
+        <label class="flex items-start gap-3 cursor-pointer">
+          <input v-model="store.keepAwake" type="checkbox" class="mt-0.5 rounded border-slate-300 text-indigo-600" />
+          <span class="text-[11px] text-slate-600 leading-relaxed">
+            <span class="font-bold text-slate-800">Keep my PC awake.</span> A run is hours long; if the machine sleeps,
+            every worker freezes until you wake it back up. It can't stop a laptop sleeping when the lid is closed. Turn
+            this off if you'd rather manage sleep yourself.
+          </span>
+        </label>
+        <BackgroundSpeed />
+
+        <SafariNotice />
+
+        <RunSaveNotice />
+        <IntegrityNotice />
+        <div class="flex flex-wrap gap-3">
+          <button
+            class="btn-premium btn-primary flex-1 py-4 text-sm shadow-xl shadow-rose-500/20 active:scale-[0.98]"
+            :disabled="
+              store.busy ||
+              store.integrityBlocked ||
+              store.staleBackupBlocked ||
+              !chainCount ||
+              ascMismatch ||
+              (!!sweepRequest && !sweepConsent)
+            "
+            @click="start"
+          >
+            <!-- With a sweep request open this is the same run as the card's button, so it says the
+               same thing and waits for the same tick; two differently named Starts read as two
+               different actions. -->
+            {{
+              store.isRunning
+                ? 'Pricing every chain...'
+                : sweepRequest
+                  ? sweepConsent
+                    ? 'Start this sweep'
+                    : 'Start this sweep (tick "I understand" at the top first)'
+                  : 'Start exhaustive search'
+            }}
+          </button>
+          <button
+            v-if="store.isRunning"
+            class="px-6 py-4 rounded-xl bg-slate-900 text-white text-[11px] font-black uppercase tracking-widest hover:bg-slate-800"
+            :disabled="store.stopRequested"
+            @click="store.stop()"
+          >
+            {{ store.stopRequested ? 'Stopping...' : 'Stop & keep best' }}
+          </button>
+        </div>
+
+        <div v-if="store.stage" class="space-y-1">
+          <div class="flex items-center justify-between text-[10px] font-black uppercase tracking-widest">
+            <span class="text-slate-500">{{ store.stage }}</span>
+            <span class="text-slate-400 tabular-nums">
+              {{ pricedSoFar.toLocaleString() }} / {{ store.chainsEstimated.toLocaleString() }}
+            </span>
+          </div>
+          <div class="h-1.5 rounded-full bg-slate-100 overflow-hidden">
+            <div class="h-full bg-rose-500 transition-all" :style="{ width: `${Math.round(livePercent)}%` }"></div>
+          </div>
+          <div v-if="store.secondsPerChain > 0 || store.runCost" class="text-[10px] text-slate-400 tabular-nums">
+            <template v-if="store.secondsPerChain > 0"
+              >{{ store.secondsPerChain.toFixed(2) }} s/chain measured here</template
+            >
+            <template v-if="!store.isRunning && store.runCost">
+              · took {{ describeCompute(store.runCost.minutes, store.runCost.workers) }}</template
+            >
+          </div>
+        </div>
+
+        <p
+          v-if="store.runNotes.length && !store.error"
+          class="p-3 rounded-xl border border-amber-200 bg-amber-50 text-[11px] text-amber-900 leading-relaxed"
+        >
+          <span v-for="n in store.runNotes" :key="n" class="block">{{ n }}</span>
+        </p>
+
+        <div
+          v-if="store.error"
+          class="p-4 bg-red-50 border border-red-200 rounded-xl text-xs text-red-800 leading-relaxed"
+        >
+          <span class="font-bold uppercase tracking-wide">{{
+            store.errorBeforeStart ? "Didn't start" : 'Search failed'
+          }}</span>
+          — {{ store.error }}
+        </div>
+
+        <!-- The outcome with no best chain. Without it a finished run simply lacked the result card,
+           the Save button stayed grey and Submit never appeared, with nothing saying why -- which
+           read as three separate bugs to the person looking at it. -->
+        <div
+          v-if="store.noFeasibleChain && !store.error"
+          class="rounded-xl border border-rose-300 bg-rose-50 p-4 space-y-2"
+        >
+          <p class="text-[10px] font-black text-rose-800 uppercase tracking-widest">No chain in this space finishes</p>
+          <p class="text-[11px] text-rose-900/90 leading-relaxed">
+            Every chain was simulated, and none of them reaches {{ store.finalTE }} TE in any time the planner can put a
+            date on. That is a result, not a crash, so there is nothing to save or submit.
+          </p>
+          <p class="text-[11px] text-rose-900/90 leading-relaxed">
+            The usual cause is earnings. On a low-TE account the early ascensions cannot earn enough to buy the habs and
+            vehicles the plan is waiting on, so the very first leg stalls and everything after it inherits the stall. A
+            different space will not fix that; more Truth Eggs, or a stronger earnings set (totem, ankh, necklace and
+            their stones), will. If you think the planner has this wrong, download the diagnostics below and send them
+            in.
+          </p>
+        </div>
+
+        <div v-if="store.bestDays > 0" class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 space-y-1">
+          <div class="text-[10px] font-black text-emerald-700 uppercase tracking-widest">
+            Best chain<template v-if="!store.isRunning && !store.stoppedEarly"> — {{ resultClaim }}</template>
+          </div>
+          <div class="font-mono-premium text-lg font-black text-slate-900">{{ store.bestChain.join(' ') }}</div>
+          <div class="text-xs text-emerald-800">
+            {{ store.bestDays.toFixed(3) }} days &middot; <span class="font-semibold">ends {{ endDate }}</span>
+          </div>
+          <p v-if="!store.isRunning && resultExplain" class="text-[11px] text-emerald-900/80 leading-relaxed">
+            {{ resultExplain }}
+          </p>
+          <p class="text-[10px] text-emerald-900/60">
+            Compare runs on the finish date. Two runs started hours apart have different plan starts, so their day
+            counts are not measuring the same thing; the date they land on is.
+          </p>
+          <!-- The result-side half of the same idea. Delivery cannot fall as TE rises; when it does,
+             the state carried into that leg is wrong and every duration after it is too. Shown on
+             the winning chain because that is the number people copy. -->
+          <p
+            v-if="store.continueWarning"
+            class="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-[11px] text-amber-900 leading-relaxed"
+          >
+            {{ store.continueWarning }}
+          </p>
+          <div
+            v-if="store.resultContradictions.length"
+            class="mt-2 rounded-lg border border-rose-300 bg-rose-50 p-3 space-y-1"
+          >
+            <p class="text-[10px] font-black text-rose-800 uppercase tracking-widest">This result contradicts itself</p>
+            <p
+              v-for="(issue, k) in store.resultContradictions"
+              :key="k"
+              class="text-[11px] text-rose-900/90 leading-relaxed"
+            >
+              {{ issue.message }}
+            </p>
+            <p class="text-[11px] text-rose-900/80 leading-relaxed">
+              Reload your backup and run it again before trusting these dates, and compare leg 1 against the official
+              planner — if leg 1 agrees and a later leg does not, the fault is in the state carried between legs.
+            </p>
+          </div>
+
+          <p v-if="store.stoppedEarly" class="text-[11px] text-emerald-900/70 pt-1">
+            You stopped it early, so this is the best of what was priced, not the optimum of the space.
+          </p>
+        </div>
+
+        <!-- Saved runs. Kept in this browser, reloadable at any time. -->
+        <div class="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+          <div class="flex items-center justify-between gap-3">
+            <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Saved runs</h3>
+            <span class="text-[10px] font-bold text-slate-400">{{ store.savedRuns.length }} / {{ MAX_RUNS }}</span>
+          </div>
+          <p class="text-[11px] text-slate-500 leading-relaxed">
+            Kept in this browser, per player. Separate from the crash-recovery checkpoint, which holds one run. Either
+            kind resumes only while your TE, target and schedule are unchanged; the plan start goes back to the run's
+            own. The oldest is dropped past {{ MAX_RUNS }}.
+          </p>
+
+          <div class="flex flex-wrap gap-2">
+            <input
+              v-model="saveLabel"
+              type="text"
+              placeholder="Name this run (optional)"
+              class="flex-1 min-w-[12rem] rounded-lg border-slate-300 text-sm text-slate-800"
+            />
+            <button
+              type="button"
+              :disabled="store.bestDays <= 0 || saving"
+              class="px-4 py-2 rounded-lg bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-700 disabled:opacity-40"
+              @click="save"
+            >
+              {{ saving ? 'Saving...' : 'Save this run' }}
+            </button>
+          </div>
+
+          <p v-if="resumeNote" class="text-[11px] font-semibold text-amber-700 leading-relaxed">{{ resumeNote }}</p>
+
+          <p v-if="!store.savedRuns.length" class="text-[11px] text-slate-400">Nothing saved yet.</p>
+          <div v-else class="divide-y divide-slate-100">
+            <div v-for="run in store.savedRuns" :key="run.id" class="flex flex-wrap items-center gap-3 py-2">
+              <div class="flex-1 min-w-[14rem]">
+                <div class="text-xs font-bold text-slate-800">{{ run.label }}</div>
+                <div class="text-[10px] text-slate-400 font-mono-premium">
+                  {{ run.bestChain.join(' ') }} · {{ run.bestDays.toFixed(3) }} d ·
+                  {{ run.chainsPriced }} chains<template v-if="!run.complete">
+                    · stopped early at {{ run.chainsPriced.toLocaleString() }} of
+                    {{ (run.space?.chains ?? 0).toLocaleString() }}</template
+                  >
+                </div>
+              </div>
+              <!-- Resume, not just Open. An unfinished run holds every chain it managed to price, and
+                 without this the only way to use it was to retype the space and let the search
+                 rediscover them -- which is exactly the afternoon this is meant to give back. -->
+              <button
+                v-if="!run.complete && run.space"
+                type="button"
+                :disabled="store.busy || resuming !== ''"
+                class="px-3 py-1.5 rounded-md bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 disabled:opacity-40"
+                @click="resume(run.id)"
+              >
+                {{ resuming === run.id ? 'Resuming…' : 'Resume' }}
+              </button>
+              <button
+                type="button"
+                class="px-3 py-1.5 rounded-md border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-300 hover:text-emerald-700"
+                @click="open(run.id)"
+              >
+                Open
+              </button>
+              <button
+                type="button"
+                class="px-3 py-1.5 rounded-md border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:border-red-300 hover:text-red-600"
+                @click="remove(run.id)"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <SearchShapeChart v-if="store.pricedChains.length" :points="store.pricedChains" :best-chain="store.bestChain" />
+
+        <!-- Diagnostics are offered on a run with no answer too: that is exactly when someone wants to
+           report what went in. -->
+        <div v-if="store.pricedChains.length || store.noFeasibleChain" class="flex flex-wrap items-center gap-3">
+          <template v-if="store.csvRows > 0">
+            <button
+              type="button"
+              class="px-4 py-2 rounded-lg bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-700"
+              @click="downloadCsv"
+            >
+              Download CSV
+            </button>
+            <span class="text-[11px] text-slate-500">
+              {{ store.csvRows.toLocaleString() }} chains, one row per leg. Safe to take mid-run.
+            </span>
+          </template>
+          <!-- The input side. The CSV records what came OUT; when a result looks wrong the question
+             is always what went IN, and until now nothing wrote that down. -->
+          <button
+            type="button"
+            class="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-[10px] font-black uppercase tracking-widest hover:bg-slate-50"
+            @click="downloadDiagnostics"
+          >
+            Download diagnostics
+          </button>
+          <span class="text-[11px] text-slate-500">
+            A small JSON of what this run was <em>given</em> — backup age, TE, research, loadout. No save data, no
+            player ID. Attach it when reporting a result that looks wrong.
+          </span>
+          <p v-if="downloadError" class="w-full text-[11px] font-semibold text-red-700">{{ downloadError }}</p>
+        </div>
+
+        <!-- Submission. Same payload, same opt-in, same disclosure as the main panel. -->
+        <div v-if="store.bestDays > 0" class="rounded-xl border border-indigo-200 bg-indigo-50/60 p-4 space-y-3">
+          <h3 class="text-[10px] font-black text-indigo-800 uppercase tracking-widest">Share this result</h3>
+          <p class="text-[11px] text-indigo-900/80 leading-relaxed">
+            An exhaustive result is the most useful thing the board can receive: the best of a stated grid rather than a
+            search result. It goes with the space it covered and what it found there — the runners-up, the best chain at
+            each ascension count, and the spread — so a reader can tell a real find from a flat neighbourhood without
+            downloading the CSV. A run opened from the library above submits without a run cost, because the time it
+            took was not this machine's.
+          </p>
+          <label class="flex items-start gap-3 text-xs text-indigo-900">
+            <input v-model="optIn" type="checkbox" class="mt-0.5 rounded border-indigo-300 text-indigo-600" />
+            <span
+              >Yes, contribute this result. Artifact inventory, timezone and local plan start are included, plus a
+              random code this browser keeps for the account (not your player ID, and never shown). The board uses it so
+              a run that lands on the flagged board shows to you as yours and to everyone else anonymously; so the same
+              result sent twice is stored once; so you can put your name on a run you sent anonymously; and so your own
+              later runs can replace your older plans in the race, which nobody else's can. A named run shows a short
+              tag made from the code; an anonymous run shows nothing that links it to you. If you have plans on the
+              board already, your best three of them re-priced from this save go too: named ones with a named send,
+              anonymous ones with an anonymous send, so a re-check never ties the two together.</span
+            >
+          </label>
+
+          <!-- Credit, behind the opt-in like everything else that leaves the machine. Anonymous is
+             the default: crediting yourself should be a choice, not the fallback. -->
+          <div v-if="optIn" class="space-y-2">
+            <div class="flex flex-wrap items-center gap-4">
+              <label class="flex items-center gap-2 cursor-pointer text-[11px] font-bold text-indigo-900">
+                <input v-model="anonymous" type="radio" :value="true" class="text-indigo-600" />
+                Submit anonymously
+              </label>
+              <label class="flex items-center gap-2 cursor-pointer text-[11px] font-bold text-indigo-900">
+                <input v-model="anonymous" type="radio" :value="false" class="text-indigo-600" />
+                Credit me as
+              </label>
+              <input
+                v-model="nickname"
+                type="text"
+                :maxlength="NICKNAME_MAX"
+                :disabled="anonymous"
+                placeholder="nickname"
+                aria-label="Nickname"
+                class="rounded-lg border-indigo-200 text-sm font-bold text-slate-800 w-48 disabled:opacity-40"
+                @input="nicknameTouched = true"
+              />
+            </div>
+            <label class="flex items-start gap-3 cursor-pointer text-[11px] text-indigo-900/80">
+              <input v-model="includeCsv" type="checkbox" class="mt-0.5 rounded border-indigo-300 text-indigo-600" />
+              <span>
+                <span class="font-bold">Include the full CSV</span> — every chain this run priced, one row per leg ({{
+                  store.csvRows.toLocaleString()
+                }}
+                chains). The submission above is the headline; this is the working. It is compressed before it leaves
+                your machine. Chains past the memory budget export with their per-leg cells blank.
+              </span>
+            </label>
+            <label class="flex items-start gap-3 cursor-pointer text-[11px] text-indigo-900/80">
+              <input
+                v-model="stampName"
+                type="checkbox"
+                :disabled="anonymous"
+                class="mt-0.5 rounded border-indigo-300 text-indigo-600 disabled:opacity-40"
+              />
+              <span>
+                <span class="font-bold">Add the time to the name.</span> Optional. The board already keeps each space
+                you prove as its own row, so nothing is lost without this — it is just a way to tell your own runs apart
+                at a glance when several are on the board.
+              </span>
+            </label>
+            <p v-if="!anonymous" class="text-[11px] text-indigo-900/70">
+              Submitting as
+              <span class="font-mono-premium font-bold">{{ effectiveNickname || '(blank — anonymous)' }}</span>
+            </p>
+          </div>
+
+          <div class="flex flex-wrap gap-2">
+            <!-- Already on the board and the name box now differs from what went (typically: sent
                anonymously, now "Credit me as ..."): the button renames the stored row, which only
                works from the browser that sent it. -->
-          <button
-            v-if="store.submitUrl && nameToClaim"
-            type="button"
-            :disabled="!optIn || claiming"
-            class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 disabled:opacity-40"
-            :title="`Put ${nameToClaim} on the run already on the board, instead of sending it again`"
-            @click="claim"
+            <button
+              v-if="store.submitUrl && nameToClaim"
+              type="button"
+              :disabled="!optIn || claiming"
+              class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 disabled:opacity-40"
+              :title="`Put ${nameToClaim} on the run already on the board, instead of sending it again`"
+              @click="claim"
+            >
+              {{ claiming ? 'Renaming...' : 'Put my name on it' }}
+            </button>
+            <button
+              v-else-if="store.submitUrl"
+              type="button"
+              :disabled="!optIn || submitting || store.alreadySubmitted"
+              class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 disabled:opacity-40"
+              @click="submit"
+            >
+              {{ submitting ? 'Sending...' : store.alreadySubmitted ? 'On the board' : 'Submit result' }}
+            </button>
+            <span v-else class="text-[11px] text-indigo-900/70">
+              No collector configured in this build (<code class="font-mono-premium">VITE_SUBMIT_URL</code>).
+            </span>
+          </div>
+          <p
+            v-if="submitMessage"
+            class="text-[11px] font-semibold"
+            :class="!submitOk ? 'text-rose-700' : submitPartial ? 'text-amber-700' : 'text-emerald-700'"
           >
-            {{ claiming ? 'Renaming...' : 'Put my name on it' }}
-          </button>
-          <button
-            v-else-if="store.submitUrl"
-            type="button"
-            :disabled="!optIn || submitting || store.alreadySubmitted"
-            class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 disabled:opacity-40"
-            @click="submit"
-          >
-            {{ submitting ? 'Sending...' : store.alreadySubmitted ? 'On the board' : 'Submit result' }}
-          </button>
-          <span v-else class="text-[11px] text-indigo-900/70">
-            No collector configured in this build (<code class="font-mono-premium">VITE_SUBMIT_URL</code>).
-          </span>
-        </div>
-        <p
-          v-if="submitMessage"
-          class="text-[11px] font-semibold"
-          :class="!submitOk ? 'text-rose-700' : submitPartial ? 'text-amber-700' : 'text-emerald-700'"
-        >
-          {{ submitMessage }}
-        </p>
-        <!-- The summary landed but the table did not: send just the table, with the same one-time token,
+            {{ submitMessage }}
+          </p>
+          <!-- The summary landed but the table did not: send just the table, with the same one-time token,
              rather than a second submission. -->
-        <button
-          v-if="store.pendingTable"
-          type="button"
-          :disabled="retryingTable"
-          class="px-3 py-1.5 rounded-lg border border-amber-300 text-amber-800 text-[10px] font-black uppercase tracking-widest hover:bg-amber-50 disabled:opacity-40"
-          @click="retryTable"
-        >
-          {{ retryingTable ? 'Sending the table...' : 'Retry the table' }}
-        </button>
-      </div>
+          <button
+            v-if="store.pendingTable"
+            type="button"
+            :disabled="retryingTable"
+            class="px-3 py-1.5 rounded-lg border border-amber-300 text-amber-800 text-[10px] font-black uppercase tracking-widest hover:bg-amber-50 disabled:opacity-40"
+            @click="retryTable"
+          >
+            {{ retryingTable ? 'Sending the table...' : 'Retry the table' }}
+          </button>
+        </div>
+      </template>
     </div>
   </div>
 </template>
@@ -1591,6 +1636,7 @@ import IntegrityNotice from './IntegrityNotice.vue';
 import SafariNotice from './SafariNotice.vue';
 import RunSaveNotice from './RunSaveNotice.vue';
 import UnfinishedRuns from './UnfinishedRuns.vue';
+import DeadlinePanel from './DeadlinePanel.vue';
 import { useInitialStateStore } from '@/stores/initialState';
 import { describeTimeOff, usableTimeOff } from '@/search/timeOff';
 import { gridIsComplete, gridStepLabel } from '@/search/grid';
@@ -2238,6 +2284,15 @@ onMounted(() => {
   ageTimer = setInterval(() => (nowForAge.value = Date.now()), 30_000);
 });
 onUnmounted(() => ageTimer && clearInterval(ageTimer));
+
+const GOALS = [
+  { id: 'fastest', label: 'Fastest to a target' },
+  { id: 'deadline', label: 'Highest TE by a date' },
+] as const;
+/** Opens on the date question with `#deadline` in the link, for sharing the Egg Day search. */
+const goal = ref<'fastest' | 'deadline'>(
+  typeof window !== 'undefined' && /deadline/.test(window.location.hash) ? 'deadline' : 'fastest'
+);
 
 function saveWhen(unixSeconds: number | undefined): string {
   if (!unixSeconds) return 'an unknown time';

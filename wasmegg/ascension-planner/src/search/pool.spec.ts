@@ -155,7 +155,11 @@ afterEach(() => {
 describe('createChainSearchPool', () => {
   it('evaluates a batch across workers and merges the replies', async () => {
     const pool = await makePool();
-    const out = await pool.evaluate([[195, 490], [196, 490], [197, 490]]);
+    const out = await pool.evaluate([
+      [195, 490],
+      [196, 490],
+      [197, 490],
+    ]);
     expect(out.results).toHaveLength(3);
     expect(out.legSims).toBe(3);
     pool.terminate();
@@ -166,7 +170,15 @@ describe('createChainSearchPool', () => {
     // with no intra-batch reporting the counter did not move for half an hour at a time.
     const pool = await makePool();
     const seen: number[] = [];
-    await pool.evaluate([[195, 490], [196, 490], [197, 490], [198, 490]], done => seen.push(done));
+    await pool.evaluate(
+      [
+        [195, 490],
+        [196, 490],
+        [197, 490],
+        [198, 490],
+      ],
+      done => seen.push(done)
+    );
     expect(seen.length).toBeGreaterThan(1);
     expect(seen[seen.length - 1]).toBe(4);
     pool.terminate();
@@ -175,7 +187,10 @@ describe('createChainSearchPool', () => {
   it('rejects a request whose worker goes silent, instead of hanging forever', async () => {
     const pool = await makePool(1000);
     // Two chains -> two workers under the stubbed split; the second never answers.
-    const promise = pool.evaluate([[195, 490], [196, 490]]);
+    const promise = pool.evaluate([
+      [195, 490],
+      [196, 490],
+    ]);
     FakeWorker.instances[1].mode = 'silent';
     const settled = expectRejection(promise, /stopped responding/);
 
@@ -188,7 +203,10 @@ describe('createChainSearchPool', () => {
     // A hang cost a user a night's compute. The message has to say what happened and that the
     // work is not lost, not just fail.
     const pool = await makePool(1000);
-    const promise = pool.evaluate([[195, 490], [196, 490]]);
+    const promise = pool.evaluate([
+      [195, 490],
+      [196, 490],
+    ]);
     FakeWorker.instances[1].mode = 'silent';
     const named = expectRejection(promise, /worker 1[\s\S]*chains done/);
     const reassuring = expectRejection(promise, /checkpointed/);
@@ -200,7 +218,10 @@ describe('createChainSearchPool', () => {
 
   it('drops a stalled worker so a later batch does not send into a void', async () => {
     const pool = await makePool(1000);
-    const first = pool.evaluate([[195, 490], [196, 490]]);
+    const first = pool.evaluate([
+      [195, 490],
+      [196, 490],
+    ]);
     FakeWorker.instances[1].mode = 'silent';
     const settled = expectRejection(first, /stopped responding/);
     await letItGoQuiet(5000);
@@ -209,7 +230,10 @@ describe('createChainSearchPool', () => {
     expect(FakeWorker.instances[1].terminated).toBe(true);
     // Slot freed: the next batch spawns a replacement rather than reusing the dead one.
     const before = FakeWorker.instances.length;
-    await pool.evaluate([[195, 490], [196, 490]]);
+    await pool.evaluate([
+      [195, 490],
+      [196, 490],
+    ]);
     expect(FakeWorker.instances.length).toBeGreaterThan(before);
     pool.terminate();
   });
@@ -384,5 +408,38 @@ describe('what reaches a worker', () => {
     const out = await pool.evaluate([winner]);
     expect(out.results.map(r => r.chain)).toEqual([[201, 282, 490]]);
     pool.terminate();
+  });
+});
+
+describe('stickyBuckets', () => {
+  it('sends a shape to the same worker whatever else is in the batch', async () => {
+    const { stickyBuckets } = await import('./pool');
+    const shape = [150, 180, 210];
+    const whereIs = (chains: number[][]) => {
+      for (const [w, b] of stickyBuckets(chains, -1, 4))
+        if (b.some(c => c.slice(0, -1).join() === shape.join())) return w;
+      return -1;
+    };
+    const a = whereIs([
+      [...shape, 240],
+      [140, 170, 200, 230],
+      [160, 190, 220, 250],
+    ]);
+    const b = whereIs([
+      [...shape, 243],
+      [145, 175, 205, 235],
+    ]);
+    expect(a).toBe(b);
+    // and every last stop of that shape goes together
+    const buckets = stickyBuckets(
+      [
+        [...shape, 240],
+        [...shape, 241],
+        [...shape, 242],
+      ],
+      -1,
+      4
+    );
+    expect(buckets.size).toBe(1);
   });
 });

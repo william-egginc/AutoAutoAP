@@ -12,5 +12,5 @@
  */
 export default {
   reloadIfBuiltBefore: '2026-09-26T07:22:00Z',
-  note: 'interrupted runs carry on with the save they started with, the last few unfinished runs are kept, and a clear warning when your save did not load fresh',
+  note: 'new in Insane mode: the highest TE you can reach by a date (Egg Day preset), and interrupted runs carry on with the save they started with',
 };
