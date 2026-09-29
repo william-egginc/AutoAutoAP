@@ -342,3 +342,43 @@ describe('a different search on the same save', () => {
     expect(await listInterrupted(HASH)).toEqual([]);
   });
 });
+
+describe('putting a run’s settings back from its fingerprint', () => {
+  it('reads back target, keep-going, schedule, milestones and time off', async () => {
+    const { fingerprintSettings, lockedChanges } = await import('./persistence');
+    const fp = fingerprintRun({
+      playerId: 'EI1',
+      planStart: 1_790_000_000,
+      currentTE: 137,
+      final: 480,
+      forceContinue: false,
+      availability: { days: [1, 2, 3], fromHour: 9, toHour: 1, timezone: 'America/Port-au-Prince' },
+      deferShifts: true,
+      milestones: [{ te: 250, by: 1_800_000_000 }],
+      timeOff: [{ from: 1_795_000_000, to: 1_795_600_000 }],
+    });
+    expect(fingerprintSettings(fp)).toEqual({
+      final: 480,
+      forceContinue: false,
+      availability: { days: [1, 2, 3], fromHour: 9, toHour: 1, timezone: 'America/Port-au-Prince' },
+      deferShifts: true,
+      milestones: [{ te: 250, by: 1_800_000_000 }],
+      timeOff: [{ from: 1_795_000_000, to: 1_795_600_000 }],
+    });
+    const plain = fingerprintRun({ playerId: 'EI1', planStart: 1, currentTE: 137, final: 490, forceContinue: true });
+    expect(fingerprintSettings(plain)).toMatchObject({
+      final: 490,
+      forceContinue: true,
+      availability: null,
+      timeOff: [],
+    });
+    // Settings are not locked; the TE is.
+    expect(lockedChanges(fp, plain)).toEqual([]);
+    expect(
+      lockedChanges(
+        fp,
+        fingerprintRun({ playerId: 'EI1', planStart: 1, currentTE: 170, final: 490, forceContinue: true })
+      )
+    ).toEqual(['TE was 137, now 170']);
+  });
+});

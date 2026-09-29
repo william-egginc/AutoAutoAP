@@ -30,6 +30,8 @@ import {
   buildCheckpoint,
   clearCheckpoint,
   fingerprintChanges,
+  fingerprintSettings,
+  lockedChanges,
   settingsChanges,
   fingerprintPlanStart,
   fingerprintRun,
@@ -1024,6 +1026,45 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   });
 
   /**
+   * Put a run's settings back from its fingerprint: target, keep going, schedule (hours, days,
+   * timezone, shift holding), milestones and time off. What carrying on needs so the player does
+   * not have to set everything up again from memory.
+   */
+  function applyRunSettings(fp: string): void {
+    const set = fingerprintSettings(fp);
+    if (!set) return;
+    finalTE.value = set.final;
+    forceContinue.value = set.forceContinue;
+    const planner = useAutoPlannerStore();
+    if (set.availability) {
+      scheduleEnabled.value = true;
+      availableFrom.value = set.availability.fromHour;
+      availableTo.value = set.availability.toHour;
+      availableDays.value = set.availability.days.length ? [...set.availability.days] : [0, 1, 2, 3, 4, 5, 6];
+      if (set.availability.timezone && planner.timezone !== set.availability.timezone) {
+        planner.timezone = set.availability.timezone;
+      }
+      if (set.deferShifts !== null) deferShifts.value = set.deferShifts;
+    } else {
+      scheduleEnabled.value = false;
+    }
+    milestones.value = set.milestones.map(m => ({ ...m }));
+    const tz = planTimezone();
+    timeOff.value = set.timeOff.map(w => ({
+      from: formatInZone(w.from, tz).slice(0, 10),
+      // Windows end at the start of the day after the last one away.
+      to: formatInZone(w.to - 1, tz).slice(0, 10),
+    }));
+  }
+
+  /** "Carrying on puts back: the final target; the time off" -- what a resume would change, if anything. */
+  function settingsRestoreNote(fp: string | undefined): string {
+    if (!fp || !currentPlayerId) return '';
+    const changes = fingerprintChanges(fp, fingerprint(currentPlayerId)).filter(c => !c.startsWith('TE was'));
+    return changes.length ? changes.join('; ') : '';
+  }
+
+  /**
    * Get a run ready to carry on, and return the exact inputs its workers should be given.
    *
    * With its save kept, the workers get that stored payload itself, so the carried-on half is priced
@@ -1047,21 +1088,22 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       record.inputsKey && runSaveFor(record.inputsKey) ? await loadRunInputs(partitionHash, record.inputsKey) : null;
 
     if (!inputs?.context?.rawBackup) {
-      const changes = record.fingerprint ? fingerprintChanges(record.fingerprint, fingerprint(playerId)) : [];
-      if (changes.length) {
-        error.value = `This run's save isn't stored on this device, and ${changes.join('; ')}, so it can't carry on.`;
+      // No stored save: it can only carry on with the current one, so the TE must still match. The
+      // settings it can put back itself.
+      const locked = record.fingerprint ? lockedChanges(record.fingerprint, fingerprint(playerId)) : [];
+      if (locked.length) {
+        error.value = `This run's save isn't stored on this device, and ${locked.join('; ')}, so it can't carry on.`;
         return null;
       }
+      if (record.fingerprint) applyRunSettings(record.fingerprint);
       const ts = fingerprintPlanStart(record.fingerprint);
       if (ts) pinPlanStart(ts);
       return 'current';
     }
 
-    const unsaved = record.fingerprint ? settingsChanges(record.fingerprint, fingerprint(playerId)) : [];
-    if (unsaved.length) {
-      error.value = `To carry on, set this back to how it was for the run: ${unsaved.join('; ')}.`;
-      return null;
-    }
+    // The settings the save does not carry -- schedule, time off, milestones, target -- put back
+    // from the run's own fingerprint, rather than asking the player to re-enter them.
+    if (record.fingerprint) applyRunSettings(record.fingerprint);
 
     const stored = inputs.context.rawBackup as { approxTime?: number };
     const loaded = useInitialStateStore().rawBackup as { approxTime?: number } | null;
@@ -1081,6 +1123,12 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     forceContinue.value = inputs.forceContinue;
     if (typeof inputs.deferShifts === 'boolean') deferShifts.value = inputs.deferShifts;
     pinPlanStart(inputs.planStart);
+    const left = record.fingerprint ? settingsChanges(record.fingerprint, fingerprint(playerId)) : [];
+    if (left.length) {
+      // Should not happen now that the settings are put back; says which if it ever does.
+      error.value = `Couldn't put this run's settings back exactly (${left.join('; ')}). Check them and try again.`;
+      return null;
+    }
 
     if (!sameSave) {
       const backupAt = runSaveFor(record.inputsKey)?.backupAt ?? stored.approxTime ?? 0;
@@ -1143,17 +1191,17 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // With its own save stored, the run carries on with that save, not the current one; only the
     // settings a save does not carry can stop it.
     if (runSaveFor(run.inputsKey)) {
-      const unsaved = run.fingerprint ? settingsChanges(run.fingerprint, fingerprint(currentPlayerId)) : [];
-      return unsaved.length ? `set this back to how it was for the run first: ${unsaved.join('; ')}` : null;
+      const locked = run.fingerprint ? lockedChanges(run.fingerprint, fingerprint(currentPlayerId)) : [];
+      return locked.filter(c => !c.startsWith('TE was')).join('; ') || null;
     }
     if (run.fingerprint) {
+      // Settings are put back on resume; only a different player or TE stops a run with no save.
+      const locked = lockedChanges(run.fingerprint, fingerprint(currentPlayerId));
+      if (!locked.length) return null;
       // The plan start is NOT a reason: resuming puts the run's own start back (`resumeOpenedRun`).
       // It used to be the commonest one -- with no start set, the plan is timed from the moment the
       // page loaded, so every reload "changed" it and no interrupted run could ever be picked up.
-      const changes = fingerprintChanges(run.fingerprint, fingerprint(currentPlayerId));
-      if (changes.length) {
-        return `${changes.join('; ')} — so its durations describe a different farm. If a number looks wrong, your backup may not have loaded fresh: reload it and check. Otherwise start a new run`;
-      }
+      return `${locked.join('; ')}, and its save isn't stored — so its durations describe a different farm. If a number looks wrong, your backup may not have loaded fresh: reload it and check. Otherwise start a new run`;
     }
     return null;
   });
@@ -1290,6 +1338,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   /** Look for a resumable checkpoint for the current inputs, and refresh the moved-aside list and
    *  the stored saves. Safe to call whenever the panel opens or the settings change. */
   async function checkResumable(playerId: string): Promise<void> {
+    // Recorded here too: the panels' "puts your settings back" note compares against this player.
+    if (playerId) currentPlayerId = playerId;
     resumable.value = null;
     blockedCheckpoint.value = null;
     if (!playerId) return;
@@ -1303,10 +1353,11 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       if (cp) {
         // A run with its own save carries on with that save, whatever is loaded now: only the
         // settings a save does not carry can stop it.
+        // Settings never block: carrying on puts them back. Only a different player, or a
+        // different TE with no stored save to go back to, can stop it.
         const own = !cp.complete && !!runSaveFor(cp.inputsKey);
-        const changes = own
-          ? settingsChanges(cp.fingerprint, fingerprint(playerId))
-          : fingerprintChanges(cp.fingerprint, fingerprint(playerId));
+        const locked = lockedChanges(cp.fingerprint, fingerprint(playerId));
+        const changes = own ? locked.filter(c => !c.startsWith('TE was')) : locked;
         if (!changes.length) resumable.value = cp;
         else if (!cp.complete) blockedCheckpoint.value = { record: cp, changes };
       }
@@ -3924,6 +3975,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     planStart,
     planStartIsNow,
     planStartRestoreNote,
+    settingsRestoreNote,
     pinPlanStart,
     resumeInputsKey,
     blockedCheckpoint,

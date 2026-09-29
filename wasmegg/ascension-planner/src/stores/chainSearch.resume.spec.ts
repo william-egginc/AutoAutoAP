@@ -128,6 +128,16 @@ describe('chainSearch: resuming after a reload', () => {
     expect(store.runSaveFor(kept.key)).toMatchObject({ te: 147, backupAt: 1_790_640_095 });
   });
 
+  it('still offers a run whose settings differ, and says it will put them back', async () => {
+    // Priced with a 480 target and a week off; the panel now says 490 and no time off.
+    const store = useChainSearchStore();
+    await crashed(`P|${PRICED_AT}|0|480|fc|off:1795000000-1795600000`);
+    await store.checkResumable('P');
+    expect(store.crashedRun).not.toBeNull();
+    expect(store.blockedCheckpoint).toBeNull();
+    expect(store.settingsRestoreNote(store.crashedRun?.fingerprint)).toMatch(/final target was 480.*time off/);
+  });
+
   it('refuses a run priced on a stale save, and says what moved', async () => {
     const store = useChainSearchStore();
     await crashed(`P|${PRICED_AT}|147|490|fc`);

@@ -154,6 +154,75 @@ export function fingerprintChanges(saved: string, current: string): string[] {
   return [...out, ...tailChanges(a, b)];
 }
 
+/** A run's settings as its fingerprint records them: everything `fingerprintRun` wrote but the
+ *  player, the plan start and the TE. */
+export interface FingerprintSettings {
+  final: number;
+  forceContinue: boolean;
+  availability: { days: number[]; fromHour: number; toHour: number; timezone: string } | null;
+  deferShifts: boolean | null;
+  milestones: { te: number; by: number }[];
+  timeOff: { from: number; to: number }[];
+}
+
+/**
+ * Read a run's settings back out of its fingerprint, so carrying on can put them back instead of
+ * asking the player to re-enter every one. Reported (BobSki778): an unfinished run only appeared
+ * once target, schedule and the rest were set up exactly as before -- by hand, from memory.
+ */
+export function fingerprintSettings(fp: string): FingerprintSettings | null {
+  const parts = fp.split('|');
+  if (parts.length < 5) return null;
+  const final = Number(parts[3]);
+  if (!Number.isFinite(final)) return null;
+  const out: FingerprintSettings = {
+    final,
+    forceContinue: parts[4] === 'fc',
+    availability: null,
+    deferShifts: null,
+    milestones: [],
+    timeOff: [],
+  };
+  for (const part of parts.slice(5)) {
+    if (part.startsWith('off:')) {
+      out.timeOff = part
+        .slice(4)
+        .split(',')
+        .map(w => w.split('-').map(Number))
+        .filter(w => w.length === 2 && w.every(Number.isFinite))
+        .map(([from, to]) => ({ from, to }));
+    } else if (part.startsWith('ms')) {
+      out.milestones = part
+        .slice(2)
+        .split(',')
+        .map(m => m.split('@').map(Number))
+        .filter(m => m.length === 2 && m.every(Number.isFinite))
+        .map(([te, by]) => ({ te, by }));
+    } else {
+      const m = /^avail(all|\d*)-(\d+)-(\d+)@(.+?)(\+shifts)?$/.exec(part);
+      if (m) {
+        out.availability = {
+          days: m[1] === 'all' ? [] : m[1].split('').map(Number),
+          fromHour: Number(m[2]),
+          toHour: Number(m[3]),
+          timezone: m[4],
+        };
+        out.deferShifts = !!m[5];
+      }
+    }
+  }
+  return out;
+}
+
+/** What differs that carrying on can NOT put back: a different player, or a different TE (a
+ *  different save). Everything else is a setting, restored from the fingerprint. */
+export function lockedChanges(saved: string, current: string): string[] {
+  const a = saved.split('|');
+  const b = current.split('|');
+  if (a[0] !== b[0]) return ['it belongs to a different player'];
+  return a[2] !== b[2] ? [`TE was ${a[2]}, now ${b[2]}`] : [];
+}
+
 /**
  * Only the settings a stored save does NOT carry -- schedule, milestones, time off. A run that
  * carries on with its own save gets TE, target and plan start from that save; these three the

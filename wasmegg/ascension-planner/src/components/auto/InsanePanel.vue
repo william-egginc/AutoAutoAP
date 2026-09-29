@@ -175,6 +175,7 @@
               store.integrityBlocked ||
               store.staleBackupBlocked ||
               !chainCount ||
+              emptyBandBox ||
               ascMismatch
             "
             class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500 disabled:opacity-40"
@@ -425,6 +426,12 @@
             {{ store.runSaveFor(store.crashedRun.inputsKey)?.te }}), so both halves are priced on the same farm.
           </template>
           Starting a different search moves it to the list below rather than losing it.
+          <template v-if="store.settingsRestoreNote(store.crashedRun.fingerprint)">
+            Carrying on also puts your settings back to the run's (<span class="font-bold">{{
+              store.settingsRestoreNote(store.crashedRun.fingerprint)
+            }}</span
+            >), so you don't have to set them up again.
+          </template>
           <template v-if="store.planStartRestoreNote(store.crashedRun.fingerprint)">
             Carrying on puts the plan start back to
             <span class="font-bold">{{ store.planStartRestoreNote(store.crashedRun.fingerprint) }}</span
@@ -894,18 +901,39 @@
                   Bands, one per checkpoint
                 </span>
                 <HelpTip>
-                  Semicolon separated, each `lo-hi` with an optional `:step`. `185-200:5; 210-240:10; 250-290:20` means
-                  the first ascension lands between 185 and 200, the second between 210 and 240, the third between 250
-                  and 290, then the target. Bands may overlap; chains still have to increase.
+                  One box per ascension before the target, each `lo-hi` with an optional `:step`: `185-200:5` means that
+                  ascension lands between 185 and 200, every 5 TE. Change Ascensions below to add or remove a box. Bands
+                  may overlap; chains still have to increase.
                 </HelpTip>
               </span>
-              <input
-                v-model="bandsText"
-                type="text"
-                :disabled="store.isRunning"
-                placeholder="185-200:5; 210-240:10; 250-290:20"
-                class="w-full rounded-lg border-slate-300 text-sm font-mono-premium font-bold text-slate-800 disabled:opacity-50"
-              />
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                <div v-for="(box, k) in bandBoxes" :key="k" class="space-y-0.5">
+                  <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest"
+                    >Ascension {{ k + 1 }}</span
+                  >
+                  <input
+                    :value="box"
+                    type="text"
+                    :disabled="store.isRunning"
+                    placeholder="185-200:5"
+                    class="w-full rounded-lg border-slate-300 text-sm font-mono-premium font-bold text-slate-800 disabled:opacity-50"
+                    @input="setBandBox(k, ($event.target as HTMLInputElement).value)"
+                  />
+                  <span class="block text-[10px]" :class="parseBand(box).length ? 'text-slate-500' : 'text-rose-600'">
+                    {{ parseBand(box).length ? `${parseBand(box).length} values` : 'nothing to try yet' }}
+                  </span>
+                </div>
+                <div class="space-y-0.5">
+                  <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest"
+                    >Ascension {{ bandBoxes.length + 1 }} — target</span
+                  >
+                  <div
+                    class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-600"
+                  >
+                    {{ store.finalTE }}
+                  </div>
+                </div>
+              </div>
               <div class="flex flex-wrap items-center gap-2 pt-1">
                 <label
                   class="flex items-center gap-1.5 text-[10px] font-black text-slate-500 uppercase tracking-widest"
@@ -918,6 +946,7 @@
                     :max="suggestRange[1]"
                     :disabled="store.isRunning"
                     class="w-16 rounded-md border-slate-300 text-xs font-bold text-slate-800 disabled:opacity-50"
+                    @input="resizeBands(Number(($event.target as HTMLInputElement).value))"
                   />
                 </label>
                 <button
@@ -1239,6 +1268,7 @@
               store.integrityBlocked ||
               store.staleBackupBlocked ||
               !chainCount ||
+              emptyBandBox ||
               ascMismatch ||
               (!!sweepRequest && !sweepConsent)
             "
@@ -1635,6 +1665,7 @@ import {
   countChains,
   countChainsWithGap,
   countBanded,
+  parseBand,
   parseBands,
   suggestBands,
   SUGGESTABLE_ASCENSIONS,
@@ -2038,6 +2069,44 @@ const poolSize = computed(() =>
 /** Counted combinatorially, never by enumerating: at step 1 over a wide range the array of chains
  *  does not fit in memory, and the whole point of showing this is to say so before that happens. */
 const bands = computed(() => (spaceMode.value === 'bands' ? parseBands(bandsText.value) : []));
+
+/**
+ * The bands as one box per checkpoint. `bandsText` stays the single source of truth -- Suggest, a
+ * Chain Explorer sweep link and the chain count all read and write it -- and the boxes are a view
+ * of it, one `;`-separated segment each.
+ */
+const bandBoxes = computed(() => {
+  const parts = bandsText.value.split(';').map(t => t.trim());
+  while (parts.length > 1 && !parts[parts.length - 1]) parts.pop();
+  return parts;
+});
+function setBandBox(k: number, value: string): void {
+  const parts = [...bandBoxes.value];
+  parts[k] = value.replace(/;/g, ',').trim();
+  bandsText.value = parts.join('; ');
+}
+/**
+ * Asked for: changing Ascensions adds or removes a box straight away, one per checkpoint, rather
+ * than only deciding what Suggest fills in. A new box continues on from the last one.
+ *
+ * Called from the box's own input event, NOT a watcher: the count also follows the bands (below),
+ * and emptying a box to retype it would otherwise shrink the count and delete the box being typed in.
+ */
+function resizeBands(n: number): void {
+  if (spaceMode.value !== 'bands' || store.isRunning || !Number.isFinite(n)) return;
+  const want = Math.max(1, Math.floor(n || 2) - 1);
+  const parts = [...bandBoxes.value];
+  if (parts.length === want) return;
+  while (parts.length > want) parts.pop();
+  while (parts.length < want) {
+    const prev = parseBand(parts[parts.length - 1] ?? '');
+    const from = prev.length ? prev[prev.length - 1] + 10 : Math.floor(store.currentTE) + 10;
+    parts.push(`${from}-${Math.min(store.finalTE - 1, from + 40)}:10`);
+  }
+  bandsText.value = parts.join('; ');
+}
+/** A checkpoint box with nothing in it: the run would quietly have one ascension fewer. */
+const emptyBandBox = computed(() => spaceMode.value === 'bands' && bandBoxes.value.some(b => !parseBand(b).length));
 
 // The Ascensions box follows the bands whenever they change -- typed, suggested, or filled in by a
 // Chain Explorer link -- so it only ever disagrees with them when someone changes the box itself.

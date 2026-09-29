@@ -630,6 +630,11 @@
             It carries on with the save it started with (TE {{ store.runSaveFor(store.resumable.inputsKey)?.te }}), so
             both halves are priced on the same farm.</template
           >
+          <template v-if="!store.resumable.complete && store.settingsRestoreNote(store.resumable.fingerprint)">
+            Resuming also puts your settings back to the run's ({{
+              store.settingsRestoreNote(store.resumable.fingerprint)
+            }}).</template
+          >
           <template v-if="store.planStartRestoreNote(store.resumable.fingerprint)">
             It puts the plan start back to
             <span class="font-black">{{ store.planStartRestoreNote(store.resumable.fingerprint) }}</span
