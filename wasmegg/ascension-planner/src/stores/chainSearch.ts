@@ -72,7 +72,7 @@ import {
 import { currentPlans, recheckChains, type RecheckRun } from '@/search/rechecks';
 import { accountKeyOf, type BoardRow, type Plan } from '@/lib/leaderboardRank';
 import { describeAvailability, isConstrained, nextAvailable, type Availability } from '@/search/availability';
-import { runDeadlineSearch, type DeadlineProgress } from '@/search/deadline';
+import { runDeadlineSearch, type DeadlineProgress, type DeadlineRoute } from '@/search/deadline';
 import {
   clearDeadlineCheckpoint,
   loadDeadlineCheckpoint,
@@ -3174,7 +3174,11 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       best: null,
       open: 0,
       shapes: 0,
+      top: [],
     };
+    deadlineStartedAt.value = Date.now();
+    deadlineInBatch.value = 0;
+    deadlineAll = [];
     holdRunLock();
     void holdScreenLock();
     let pool: ChainSearchPool | null = null;
@@ -3200,10 +3204,13 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       const workers = pool;
       // Sticky on the route's shape: each round re-probes the same shapes with new last stops, and
       // only the worker that priced a shape before still has its early legs in memory.
-      const replay = replayingEvaluator(
-        async chains => (await workers.evaluate(chains, undefined, { stickyDepth: -1 })).results,
-        seed
-      );
+      const replay = replayingEvaluator(async chains => {
+        // Counted as each route finishes, not per batch: a batch of 64 on a slow machine is minutes,
+        // and a counter stuck at 0 that long reads as a hang.
+        const r = await workers.evaluate(chains, done => (deadlineInBatch.value = done), { stickyDepth: -1 });
+        deadlineInBatch.value = 0;
+        return r.results;
+      }, seed);
       const out = await runDeadlineSearch(
         {
           currentTE: inputs.currentTE,
@@ -3211,10 +3218,11 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           deadline: spec.deadline,
           minStops: spec.minStops,
           maxStops: spec.maxStops,
-          lastLo: Math.floor(inputs.currentTE) + 1,
+          lastLo: Math.max(Math.floor(inputs.currentTE) + 1, spec.lastLo ?? 0),
           lastHi: spec.lastHi,
           step: spec.step,
           seedShapes: spec.seedShapes ?? [],
+          ...(spec.bands?.length ? { bands: spec.bands } : {}),
           ...(spec.ascendNeeded && schedule ? { ascendAt: (t: number) => nextAvailable(t, schedule) } : {}),
         },
         {
@@ -3227,6 +3235,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           shouldStop: () => deadlineStop,
         }
       );
+      deadlineAll = out.routes;
       deadlineResult.value = {
         routes: out.routes.slice(0, 50),
         byStops: [...out.byStops.entries()].sort((a, b) => a[0] - b[0]).map(([, r]) => r),
@@ -3267,6 +3276,37 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       dropScreenLock();
       deadlineRunning.value = false;
     }
+  }
+
+  /** When the current deadline run started, and routes finished inside the batch in flight. */
+  const deadlineStartedAt = ref(0);
+  const deadlineInBatch = ref(0);
+  /** Every route the last run found (each shape's best), for the CSV. Not persisted: large. */
+  let deadlineAll: DeadlineRoute[] = [];
+
+  /** The last deadline run as CSV: every route found, best first. */
+  function deadlineCsv(): string {
+    const r = deadlineResult.value;
+    if (!r) return '';
+    const tz = planTimezone();
+    const routes = deadlineAll.length ? deadlineAll : r.routes;
+    const lines = [
+      `# highest TE by ${formatInZone(r.deadline, tz)} (${tz}); plan start ${formatInZone(r.planStart, tz)} at ${r.te} TE`,
+      `# ${r.priced} routes priced${r.stoppedEarly ? ', stopped early' : ''}${r.ascendNeeded ? '; must ascend at the last stop in awake hours' : ''}`,
+      'rank,route,stops,last_stop,reached_local,ascend_from_local,spare_hours',
+      ...routes.map((x, i) =>
+        [
+          i + 1,
+          x.chain.join(' '),
+          x.chain.length,
+          x.chain[x.chain.length - 1],
+          formatInZone(x.reachAt, tz),
+          formatInZone(x.ascendAt, tz),
+          (x.spare / 3600).toFixed(2),
+        ].join(',')
+      ),
+    ];
+    return lines.join('\n') + '\n';
   }
 
   function stopDeadline(): void {
@@ -3898,6 +3938,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     deadlineProgress,
     deadlineResult,
     deadlineUnfinished,
+    deadlineStartedAt,
+    deadlineInBatch,
+    deadlineCsv,
     loadDeadlineState,
     startDeadline,
     resumeDeadline,

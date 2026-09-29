@@ -4,6 +4,9 @@
 import { describe, expect, it } from 'vitest';
 import type { ChainResult } from './types';
 import {
+  bandShapes,
+  countBandShapes,
+  parseStopBox,
   countShapes,
   firstStopValues,
   gridValues,
@@ -179,5 +182,51 @@ describe('the first stop, which the grid would miss', () => {
     });
     // In the very first batch: the seed pass, before any of the grid.
     expect(batches[0]).toContain('113 147');
+  });
+});
+
+describe('your own space, Insane-style', () => {
+  it('reads a box the way Insane reads a band, commas included', () => {
+    expect(parseStopBox('138-142:1, 150, 160-170:5')).toEqual([138, 139, 140, 141, 142, 150, 160, 165, 170]);
+    expect(parseStopBox('')).toEqual([]);
+  });
+
+  it('counts the sets of early stops without building them', () => {
+    const bands = [
+      [101, 102, 103, 110],
+      [105, 110, 120],
+      [120, 130, 140],
+    ];
+    expect(countBandShapes(bands, 100, 135)).toBe(bandShapes(bands, 100, 135).length);
+    expect(bandShapes(bands, 100, 135).every(s => s[0] < s[1] && s[1] < s[2] && s[2] < 135)).toBe(true);
+  });
+
+  it('tries exactly the space, and finds the same answer as trying every route in it', async () => {
+    const bands = [
+      [101, 103, 105, 110],
+      [115, 120, 125, 130],
+    ];
+    const s = spec({ lastLo: 131, lastHi: 170, bands });
+    const seen = new Set<string>();
+    const out = await runDeadlineSearch(s, {
+      evaluate: async chains => {
+        for (const c of chains) seen.add(c.slice(0, -1).join(' '));
+        return chains.map(c => priceChain(100, c));
+      },
+    });
+    // Nothing outside the boxes...
+    const allowed = new Set(bandShapes(bands, 100, 170).map(x => x.join(' ')));
+    for (const k of seen) expect(allowed.has(k)).toBe(true);
+    // ...and the best of everything in them.
+    let bestT = -1;
+    for (const shape of bandShapes(bands, 100, 170)) {
+      for (let t = 131; t <= 170; t++) {
+        if (t <= shape[shape.length - 1]) continue;
+        const r = priceChain(100, [...shape, t]);
+        if (START + r.seconds <= s.deadline) bestT = Math.max(bestT, t);
+      }
+    }
+    expect(out.routes[0].chain.at(-1)).toBe(bestT);
+    expect(out.step).toBe(0);
   });
 });

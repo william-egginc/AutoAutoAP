@@ -59,6 +59,13 @@ export interface DeadlineSpec {
    * best. A good starting point makes every other bracket start next to the answer.
    */
   seedShapes?: number[][];
+  /**
+   * The player's own space, Insane-style: one list of values per early stop, in order. When given,
+   * EXACTLY these combinations are tried (strictly increasing, above the current TE, below
+   * `lastHi`) -- no guessing, no seed spread, no homing in outside them -- so the answer is proven
+   * for that space. The stop count is `bands.length + 1`; `minStops`/`maxStops`/`step` are ignored.
+   */
+  bands?: number[][];
   /** The fine pass around the best routes. On unless false. */
   refine?: boolean;
   /** Routes the fine pass starts from. */
@@ -88,6 +95,8 @@ export interface DeadlineProgress {
   /** Shapes still being bracketed in this pass, of how many. */
   open: number;
   shapes: number;
+  /** The best routes so far, best first (each shape's best last stop), for a live table. */
+  top: DeadlineRoute[];
 }
 
 export interface DeadlineCallbacks {
@@ -163,6 +172,57 @@ export function countShapes(spec: ShapeSpec, step: number): number {
   return total;
 }
 
+/** Every strictly increasing pick of one value per band: above the current TE, below `lastHi`. */
+export function bandShapes(bands: number[][], currentTE: number, lastHi: number): number[][] {
+  if (!bands.length || bands.some(b => !b.length)) return [];
+  const out: number[][] = [];
+  const walk = (slot: number, acc: number[]) => {
+    if (slot === bands.length) {
+      out.push([...acc]);
+      return;
+    }
+    for (const v of bands[slot]) {
+      const floor = acc.length ? acc[acc.length - 1] : Math.floor(currentTE);
+      if (v > floor && v < lastHi) walk(slot + 1, [...acc, v]);
+    }
+  };
+  walk(0, []);
+  return out;
+}
+
+/** How many sets of early stops `bandShapes` gives, without building them (a DP across bands). */
+export function countBandShapes(bands: number[][], currentTE: number, lastHi: number): number {
+  if (!bands.length || bands.some(b => !b.length)) return 0;
+  let prevValues = bands[0].filter(v => v > Math.floor(currentTE) && v < lastHi);
+  let prev = prevValues.map(() => 1);
+  for (let slot = 1; slot < bands.length; slot++) {
+    const values = bands[slot].filter(v => v < lastHi);
+    prev = values.map(v => prevValues.reduce((n, u, i) => (v > u ? n + prev[i] : n), 0));
+    prevValues = values;
+  }
+  return prev.reduce((a, b) => a + b, 0);
+}
+
+/**
+ * One box's text as values: `160-200:10`, `175`, or several of either joined by commas
+ * (`138-142:1, 150, 160-180:5`). Sorted, duplicates dropped. Same notation as Insane's bands.
+ */
+export function parseStopBox(text: string, defaultStep = 5): number[] {
+  const set = new Set<number>();
+  for (const part of text.split(',')) {
+    const t = part.trim();
+    if (!t) continue;
+    const [range, stepPart] = t.split(':');
+    const bounds = range.split(/[-–]/).map(x => Number(x.trim()));
+    const step = Number(stepPart) > 0 ? Math.floor(Number(stepPart)) : defaultStep;
+    if (bounds.length === 1 && Number.isFinite(bounds[0])) set.add(Math.floor(bounds[0]));
+    else if (bounds.length === 2 && bounds.every(Number.isFinite) && bounds[1] >= bounds[0]) {
+      for (let v = Math.floor(bounds[0]); v <= Math.floor(bounds[1]); v += step) set.add(v);
+    }
+  }
+  return [...set].sort((a, b) => a - b);
+}
+
 /** The finest step on the ladder, at or above the one asked for, whose shape count fits. */
 export function stepForBudget(spec: DeadlineSpec): number {
   const budget = spec.maxShapes ?? DEFAULT_MAX_SHAPES;
@@ -211,7 +271,15 @@ export async function runDeadlineSearch(spec: DeadlineSpec, cb: DeadlineCallback
   // What `bracketAll` is working on, for progress reported from inside a round.
   let openNow = 0;
   let shapesNow = 0;
-  const report = () => cb.onProgress?.({ stage, priced, best, open: openNow, shapes: shapesNow });
+  const report = () =>
+    cb.onProgress?.({
+      stage,
+      priced,
+      best,
+      open: openNow,
+      shapes: shapesNow,
+      top: rank([...found.values()]).slice(0, 10),
+    });
 
   const better = (a: DeadlineRoute, b: DeadlineRoute | null): boolean => {
     if (!b) return true;
@@ -326,6 +394,22 @@ export async function runDeadlineSearch(spec: DeadlineSpec, cb: DeadlineCallback
   // or, before anything has made the deadline, halfway up what this shape could reach.
   const startAt = (floor: number) => (best ? best.chain[best.chain.length - 1] : Math.floor((floor + spec.lastHi) / 2));
 
+  // ---- the player's own space: every combination in it, and nothing else
+  if (spec.bands?.length) {
+    const list = bandShapes(spec.bands, spec.currentTE, spec.lastHi);
+    stage = `every route in your space: ${list.length.toLocaleString()} sets of early stops`;
+    // A spread first, so the rest start their brackets next to the answer; same routes either way.
+    await bracketAll(spread(list, 24), startAt);
+    if (!stoppedEarly) await bracketAll(list, startAt);
+    const routes = rank([...found.values()]);
+    const byStops = new Map<number, DeadlineRoute>();
+    for (const r of routes) if (!byStops.has(r.chain.length)) byStops.set(r.chain.length, r);
+    stage = stoppedEarly ? 'stopped' : 'done';
+    openNow = 0;
+    report();
+    return { routes, byStops, step: 0, shapes: list.length, priced, stoppedEarly };
+  }
+
   const step = stepForBudget(spec);
   const byCount = new Map<number, number[][]>();
   for (let k = Math.max(1, spec.minStops); k <= spec.maxStops; k++) byCount.set(k, [...shapesFor(spec, step, k)]);
@@ -403,7 +487,10 @@ export async function runDeadlineSearch(spec: DeadlineSpec, cb: DeadlineCallback
   const routes = rank([...found.values()]);
   const byStops = new Map<number, DeadlineRoute>();
   for (const r of routes) if (!byStops.has(r.chain.length)) byStops.set(r.chain.length, r);
-  cb.onProgress?.({ stage: stoppedEarly ? 'stopped' : 'done', priced, best, open: 0, shapes });
+  stage = stoppedEarly ? 'stopped' : 'done';
+  openNow = 0;
+  shapesNow = shapes;
+  report();
   return { routes, byStops, step, shapes, priced, stoppedEarly };
 }
 

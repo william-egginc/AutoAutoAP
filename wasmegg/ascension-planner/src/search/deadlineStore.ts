@@ -32,6 +32,9 @@ export interface DeadlineRunSpec {
   /** Shapes tried first (the account's current route). Kept with the run so a carry-on replays
    *  the very same search. */
   seedShapes?: number[][];
+  /** The player's own space (one value list per early stop) and the last stop's lower bound. */
+  bands?: number[][];
+  lastLo?: number;
 }
 
 /** The leg detail the results panel reads. The full LegSummary carries shifts and CSV detail
