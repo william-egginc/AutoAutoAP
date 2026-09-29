@@ -1370,6 +1370,20 @@
           <p v-if="store.stoppedEarly" class="text-[11px] text-emerald-900/70 pt-1">
             You stopped it early, so this is the best of what was priced, not the optimum of the space.
           </p>
+          <div v-if="!store.isRunning" class="flex flex-wrap items-center gap-3 pt-2">
+            <button
+              type="button"
+              :disabled="store.busy"
+              class="px-4 py-2 rounded-lg bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-emerald-800 disabled:opacity-40"
+              @click="buildPlan"
+            >
+              Build this plan in the Auto Planner
+            </button>
+            <span v-if="store.timeOff.length" class="text-[11px] text-emerald-900/80">
+              Your time off goes into the plan too: the ascension it interrupts ends when it starts, and the next one
+              starts after it.
+            </span>
+          </div>
         </div>
 
         <!-- Saved runs. Kept in this browser, reloadable at any time. -->
@@ -1611,6 +1625,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { formatInZone } from '@/search/csv';
+import { useUIStore } from '@/stores/ui';
 import { useEidsStore } from 'lib';
 import { useBackupPlanStart } from '@/composables/useBackupPlanStart';
 import { afterPaint } from '@/search/submission';
@@ -1696,6 +1711,7 @@ watch(
   { immediate: true }
 );
 const autoPlannerStore = useAutoPlannerStore();
+const ui = useUIStore();
 
 /** Past this the estimate is longer than anyone will wait, and the form says so rather than
  *  refusing: the point of this page is that the decision is the operator's. */
@@ -2293,6 +2309,13 @@ const GOALS = [
 const goal = ref<'fastest' | 'deadline'>(
   typeof window !== 'undefined' && /deadline/.test(window.location.hash) ? 'deadline' : 'fastest'
 );
+
+/** Into the Auto Planner with this run's best chain -- time off worked in -- and build it there. */
+function buildPlan(): void {
+  store.applyChain([...store.bestChain]);
+  store.generateWhenPlannerOpens = true;
+  ui.openPlannerRequested++;
+}
 
 function saveWhen(unixSeconds: number | undefined): string {
   if (!unixSeconds) return 'an unknown time';

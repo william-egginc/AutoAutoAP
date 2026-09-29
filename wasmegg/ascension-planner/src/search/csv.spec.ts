@@ -279,3 +279,23 @@ describe('chainsCsvChunks', () => {
     expect(dataRows([...chainsCsvChunks([], META)].join(''))).toEqual([]);
   });
 });
+
+describe('time off in the CSV', () => {
+  it('marks the leg cut by time off and the rebuild after it', () => {
+    const entries: CacheEntry[] = [
+      {
+        key: '200,490',
+        seconds: 900 * 86400,
+        legs: [
+          leg({ endTE: 180, timeOff: 'stopped' }),
+          leg({ endTE: 200, timeOff: 'restarted' }),
+          leg({ endTE: 490 }),
+        ],
+      },
+    ];
+    const csv = buildChainsCsv(entries, { ...META, timeOff: [{ from: '2026-11-20', to: '2026-11-26' }] });
+    const last = (row: number) => dataRows(csv)[row].split(',').pop();
+    expect([last(0), last(1), last(2)]).toEqual(['stopped', 'restarted', '']);
+    expect(csv).toContain('time off from virtue: 2026-11-20 to 2026-11-26');
+  });
+});

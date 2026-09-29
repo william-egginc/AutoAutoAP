@@ -68,8 +68,8 @@ export const useAutoPlannerStore = defineStore('autoPlanner', () => {
   const targetTE = ref<string>('');
   const targetEndDate = ref('');
   const targetEndTime = ref('');
-  const nextGoals = ref<Record<number, { te: number | null, date: string, time: string }>>({
-    0: { te: 490, date: '', time: '' }
+  const nextGoals = ref<Record<number, { te: number | null; date: string; time: string }>>({
+    0: { te: 490, date: '', time: '' },
   });
 
   const planVariantOverrides = ref<Record<number, VariantKey>>({});
@@ -83,6 +83,19 @@ export const useAutoPlannerStore = defineStore('autoPlanner', () => {
    * recomputed, mirroring `planVariantOverrides`' own dirty-invalidation treatment there.
    */
   const endTimeOverrides = ref<Record<number, number>>({});
+  /**
+   * Where time off cuts this plan, exactly as the chain search priced it: an ascension that ENDS
+   * when the time off starts (index -> unix seconds), and the next one that may not START until it
+   * is over. Written by the chain search's Apply; `useAscensionGenerator` applies them.
+   *
+   * Kept apart from `endTimeOverrides` on purpose: Generate/Update Plan clears every user override
+   * before regenerating, and that must not quietly drop the player's days off. Tied to the Target
+   * TE text it was worked out for (`targets`), and ignored the moment that text changes -- a cut at
+   * "ascension 2" means nothing for a different chain.
+   */
+  const timeOffCuts = ref<{ targets: string; ends: Record<number, number>; starts: Record<number, number> } | null>(
+    null
+  );
   const deferForEarningsMode = ref(false);
 
   function setPlan(data: {
@@ -93,7 +106,7 @@ export const useAutoPlannerStore = defineStore('autoPlanner', () => {
     targetTE: string;
     targetEndDate?: string;
     targetEndTime?: string;
-    nextGoals: Record<number, { te: number | null, date: string, time: string }>;
+    nextGoals: Record<number, { te: number | null; date: string; time: string }>;
     planVariantOverrides?: Record<number, VariantKey>;
     endTimeOverrides?: Record<number, number>;
     /** @deprecated use planVariantOverrides */
@@ -108,6 +121,8 @@ export const useAutoPlannerStore = defineStore('autoPlanner', () => {
     targetEndTime.value = data.targetEndTime || '';
     nextGoals.value = data.nextGoals;
     endTimeOverrides.value = data.endTimeOverrides || {};
+    // A saved plan carries its time-off cuts inside its end times and its simulated start times.
+    timeOffCuts.value = null;
     if (data.planVariantOverrides) {
       planVariantOverrides.value = data.planVariantOverrides;
     } else if (data.a1ForceMode === 'continue') {
@@ -125,6 +140,7 @@ export const useAutoPlannerStore = defineStore('autoPlanner', () => {
     nextGoals.value = { 0: { te: 490, date: '', time: '' } };
     planVariantOverrides.value = {};
     endTimeOverrides.value = {};
+    timeOffCuts.value = null;
   }
 
   return {
@@ -138,6 +154,7 @@ export const useAutoPlannerStore = defineStore('autoPlanner', () => {
     nextGoals,
     planVariantOverrides,
     endTimeOverrides,
+    timeOffCuts,
     deferForEarningsMode,
     setPlan,
     clear,

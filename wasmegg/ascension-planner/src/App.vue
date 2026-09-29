@@ -683,11 +683,28 @@ const { plannerTab, isHeaderCollapsed, isFooterCollapsed, loading, error } = sto
  * mid-session while a search is running would leave two panels driving one store -- and a reload is
  * both the obvious way in and the obvious way out.
  */
-const insaneMode = (() => {
-  if (typeof window === 'undefined') return false;
-  const params = new URLSearchParams(window.location.search);
-  return params.get('insane') === '1' || window.location.hash.replace(/^#\/?/, '') === 'insane';
-})();
+const insaneMode = ref(
+  (() => {
+    if (typeof window === 'undefined') return false;
+    const params = new URLSearchParams(window.location.search);
+    return params.get('insane') === '1' || window.location.hash.replace(/^#\/?/, '') === 'insane';
+  })()
+);
+
+// Insane mode's "Build this plan in the Auto Planner": leave Insane for the planner in place, so
+// the loaded save, the chain and its time-off cuts all carry over, and drop the flag from the URL
+// so a reload lands where the player now is.
+watch(
+  () => uiStore.openPlannerRequested,
+  () => {
+    insaneMode.value = false;
+    plannerTab.value = 'automatic';
+    const url = new URL(window.location.href);
+    url.searchParams.delete('insane');
+    url.hash = '';
+    window.history.replaceState(null, '', url.toString());
+  }
+);
 
 /**
  * In Insane mode, land on the Auto Planner rather than on Manual.
@@ -701,10 +718,10 @@ const insaneMode = (() => {
  * finishes and would otherwise undo a one-shot switch. It only fires on the load finishing, so a
  * deliberate click on Manual afterwards is respected until the next load.
  */
-if (insaneMode) {
+if (insaneMode.value) {
   plannerTab.value = 'automatic';
   watch(loading, (now, before) => {
-    if (before && !now) plannerTab.value = 'automatic';
+    if (insaneMode.value && before && !now) plannerTab.value = 'automatic';
   });
 }
 
@@ -720,7 +737,7 @@ if (insaneMode) {
  */
 let insaneInitFor = '';
 async function initInsaneOnce(): Promise<void> {
-  if (!insaneMode || !playerId.value || loading.value || insaneInitFor === playerId.value) return;
+  if (!insaneMode.value || !playerId.value || loading.value || insaneInitFor === playerId.value) return;
   insaneInitFor = playerId.value;
   await handleAutoPlannerTabClick();
 }

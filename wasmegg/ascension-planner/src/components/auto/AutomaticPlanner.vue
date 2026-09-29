@@ -53,11 +53,11 @@
                     <input
                       ref="targetInput"
                       v-model="targetTE"
-                      @input="handleTargetTEInput"
-                      @keydown.enter="runGenerate()"
                       type="text"
                       class="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm font-black text-slate-900 outline-none focus:border-indigo-500/50 transition-all pr-10"
                       placeholder="e.g. 300 400 490"
+                      @input="handleTargetTEInput"
+                      @keydown.enter="runGenerate()"
                     />
                     <div class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 font-black text-[10px]">
                       TE
@@ -193,9 +193,9 @@
         <h2 class="text-lg font-black text-slate-800 uppercase tracking-tight">Generated Roadmap</h2>
         <div class="flex flex-wrap justify-center items-center gap-3">
           <button
-            @click="copySummary"
             :disabled="isGenerating"
             class="flex items-center gap-2 px-6 py-2.5 bg-white border border-slate-200 hover:border-indigo-300 hover:text-indigo-600 text-slate-600 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-slate-200 disabled:hover:text-slate-600"
+            @click="copySummary"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -208,9 +208,9 @@
             {{ copySuccess ? 'Copied!' : 'Copy Summary' }}
           </button>
           <button
-            @click="saveToLibrary"
             :disabled="isGenerating || isSavingToLibrary"
             class="flex items-center gap-2 px-6 py-2.5 bg-white border border-slate-200 hover:border-indigo-300 hover:text-indigo-600 text-slate-600 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-slate-200 disabled:hover:text-slate-600"
+            @click="saveToLibrary"
           >
             <svg v-if="isSavingToLibrary" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
@@ -236,9 +236,9 @@
             {{ isSavingToLibrary ? 'Saving...' : saveToLibrarySuccess ? 'Saved!' : 'Save to Library' }}
           </button>
           <button
-            @click="exportCurrentPlan"
             :disabled="isGenerating || isExporting"
             class="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-indigo-100 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-indigo-600"
+            @click="exportCurrentPlan"
           >
             <svg v-if="isExporting" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
@@ -286,6 +286,16 @@
         </template>
       </div>
 
+      <!-- Time off worked into this plan by the chain search's Apply (stores/autoPlanner.ts). -->
+      <div
+        v-if="timeOffInPlan.length"
+        class="mt-4 p-3 rounded-xl border border-sky-200 bg-sky-50 text-[11px] text-sky-900 leading-relaxed"
+      >
+        <span class="font-black uppercase tracking-wide">Includes your time off.</span>
+        {{ timeOffInPlan.join(' ') }} Change the Target TE and this is dropped: re-apply from the chain search to put it
+        back.
+      </div>
+
       <SimulationErrorAlert v-if="simulationError" :message="simulationError" />
     </div>
 
@@ -314,13 +324,14 @@
 
 <script setup lang="ts">
 import IntegrityNotice from './IntegrityNotice.vue';
-import { ref, computed, watch, nextTick } from 'vue';
+import { ref, computed, watch, nextTick, onMounted } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useAutoPlannerStore, type VariantKey } from '@/stores/autoPlanner';
 import { useVirtueStore } from '@/stores/virtue';
 import { useTruthEggsStore } from '@/stores/truthEggs';
 import { useAscensionGenerator } from '@/auto/useAscensionGenerator';
 import { useChainSearchStore } from '@/stores/chainSearch';
+import { formatInZone } from '@/search/csv';
 import { useEarningsClothedTE } from '@/composables/useEarningsClothedTE';
 import { loadAutoPlannerSchedule, saveAutoPlannerSchedule } from '@/lib/autoPlannerFormCache';
 import { useBackupPlanStart } from '@/composables/useBackupPlanStart';
@@ -435,12 +446,30 @@ const runGenerate = () => {
 // in between. Generating through the instance this component already owns keeps the progress
 // visible where the user is looking.
 const chainSearchStore = useChainSearchStore();
+
+/** The time-off cuts in force for the chain in Target TE, in words. Empty when there are none. */
+const timeOffInPlan = computed(() => {
+  const c = autoPlannerStore.timeOffCuts;
+  const targets = (autoPlannerStore.targetTE || '').trim().split(/\s+/).filter(Boolean).map(Number).join(' ');
+  if (!c || c.targets !== targets) return [];
+  const tz = autoPlannerStore.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const out: string[] = [];
+  for (const i of Object.keys(c.ends).map(Number)) out.push(`A${i + 1} stops ${formatInZone(c.ends[i], tz)}.`);
+  for (const i of Object.keys(c.starts).map(Number)) out.push(`A${i + 1} starts ${formatInZone(c.starts[i], tz)}.`);
+  return out;
+});
 watch(
   () => chainSearchStore.generateRequested,
   () => {
     regeneratePlan();
   }
 );
+// Arrived from Insane mode's "Build this plan": the signal above fired before this existed.
+onMounted(() => {
+  if (!chainSearchStore.generateWhenPlannerOpens) return;
+  chainSearchStore.generateWhenPlannerOpens = false;
+  regeneratePlan();
+});
 
 const handleTargetTEInput = (e: Event) => {
   const input = e.target as HTMLInputElement;

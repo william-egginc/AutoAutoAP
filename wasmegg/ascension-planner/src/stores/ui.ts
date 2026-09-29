@@ -22,6 +22,8 @@ export const useUIStore = defineStore('ui', () => {
    * on an interrupted run loads the save it started with. Cleared by the next fresh fetch.
    */
   const runSaveLoaded = ref<{ te: number; backupAt: number } | null>(null);
+  /** Bumped to ask App.vue to leave Insane mode for the Auto Planner, in place (no reload). */
+  const openPlannerRequested = ref(0);
   /** Bumped to ask App.vue to fetch the backup again (it owns the fetch). */
   const backupRetryRequested = ref(0);
 
@@ -49,6 +51,7 @@ export const useUIStore = defineStore('ui', () => {
     error,
     staleBackup,
     runSaveLoaded,
+    openPlannerRequested,
     backupRetryRequested,
     setActiveTab,
     setHeaderCollapsed,

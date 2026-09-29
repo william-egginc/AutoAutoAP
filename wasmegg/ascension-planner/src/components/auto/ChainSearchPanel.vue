@@ -1089,6 +1089,9 @@
             Sent {{ applied }} to the Auto Planner{{ generated ? ' and started building the plan.' : "'s Target TE." }}
           </span>
         </div>
+        <p v-if="applied && store.applyNote" class="text-[11px] font-semibold text-emerald-800 leading-relaxed">
+          {{ store.applyNote }}
+        </p>
       </div>
 
       <!-- The generated plan does NOT know about the schedule. Said here rather than buried,

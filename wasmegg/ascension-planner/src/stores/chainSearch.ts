@@ -3752,12 +3752,49 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         planner.startTime = t;
       }
     }
-    planner.targetTE = chain.join(' ');
+    // TIME OFF. The search priced this route with each stretch of time off cutting the ascension in
+    // progress short and a rebuild after it (chain.ts `priceStep`), but the plan builder only knew
+    // the chain -- so "Apply" produced a plan that farmed straight through the days off, with dates
+    // that matched nothing the search had said. Now the plan gets the ascensions the search
+    // actually simulated: the cut one ending when the time off starts, the next starting after it.
+    const key = chain.join(',');
+    const legs =
+      bestChain.value.join(',') === key && bestLegs.value.length
+        ? bestLegs.value
+        : ([...liveCache, ...coarseCache].find(e => e.key === key)?.legs ?? []);
+    applyNote.value = '';
+    if (legs.some(l => l.timeOff)) {
+      const targets = legs.map(l => l.endTE);
+      const ends: Record<number, number> = {};
+      const starts: Record<number, number> = {};
+      legs.forEach((l, i) => {
+        if (l.timeOff === 'stopped') ends[i] = l.endTime;
+        if (l.timeOff === 'restarted' && l.startTime) starts[i] = l.startTime;
+      });
+      planner.targetTE = targets.join(' ');
+      planner.timeOffCuts = { targets: targets.join(' '), ends, starts };
+      const tz = planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const stops = Object.keys(ends).map(i => `A${+i + 1} ends ${formatInZone(ends[+i], tz)} at ${legs[+i].endTE} TE`);
+      applyNote.value = `The plan includes your time off: ${stops.join('; ')}, and the ascension after each starts when the time off is over.`;
+    } else {
+      planner.targetTE = key.split(',').join(' ');
+      planner.timeOffCuts = null;
+      if (usableTimeOff(timeOff.value).length && !legs.length) {
+        applyNote.value =
+          "This route's leg detail isn't kept (only the fastest routes keep it), so the plan can't show where your time off cuts it. Apply one of the top routes, or re-run to price it again.";
+      }
+    }
     // The seed box keeps the checkpoints WITHOUT the final target: `seedChain` appends `finalTE`
     // itself, so leaving it in would ask for it twice.
     seedOverride.value = chain.filter(v => v !== finalTE.value).join(' ');
     if (alsoGenerate) generateRequested.value++;
   }
+
+  /** What Apply did beyond copying the chain -- time off worked into the plan -- for the panels. */
+  const applyNote = ref('');
+  /** Set by Insane mode's "Build this plan": the Auto Planner is not on the page yet, so it builds
+   *  the plan when it mounts rather than on the `generateRequested` signal it would miss. */
+  const generateWhenPlannerOpens = ref(false);
 
   /** Recompute the runners-up now — for the panel, when a run is not writing batches. */
   /** Switch view and rebuild immediately -- this reads the cache the run already has, so it is
@@ -3941,6 +3978,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     csvFilename,
     applyChain,
     generateRequested,
+    applyNote,
+    generateWhenPlannerOpens,
     rebuildShortlist,
   };
 });

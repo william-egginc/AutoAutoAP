@@ -21,7 +21,6 @@ import type { VirtueEgg } from '@/types';
 import type { ChainedAscension, VariantKey, VariantResult } from '@/stores/autoPlanner';
 import { pickVariant } from '@/stores/autoPlanner';
 
-
 const VIRTUE_EGGS_MAP: Record<number, VirtueEgg> = {
   50: 'curiosity',
   51: 'integrity',
@@ -39,7 +38,7 @@ const TIER_13_MIN_STARTING_TE = 190;
 function pickVariantSummary(
   item: ChainedAscension,
   overrides: Record<number, VariantKey>,
-  endTimeOverrides: Record<number, number>,
+  endTimeOverrides: Record<number, number>
 ): AscensionSummary {
   return pickVariant(item.variants, overrides[item.index], !!endTimeOverrides[item.index]).summary;
 }
@@ -66,7 +65,7 @@ export function computeFirstDiffIdx(
   effectiveTargets: number[],
   existingChain: ChainedAscension[],
   planVariantOverrides: Record<number, VariantKey>,
-  endTimeOverrides: Record<number, number>,
+  endTimeOverrides: Record<number, number>
 ): number {
   let matchCount = 0;
   for (let i = 0; i < effectiveTargets.length; i++) {
@@ -117,6 +116,21 @@ export function useAscensionGenerator() {
       .filter(n => !isNaN(n) && n > 0);
   };
 
+  /** The chain search's time-off cuts, when they were worked out for the chain in Target TE now. */
+  const timeOffCuts = () => {
+    const c = autoPlannerStore.timeOffCuts;
+    return c && c.targets === getTargets().join(' ') ? c : null;
+  };
+  /**
+   * End times that bind each ascension: the player's own overrides, over the time-off cuts. A cut
+   * is an end-time override the player did not have to type -- the ascension ends when the time off
+   * starts, keeping the TE it reached -- so everything that reads one reads the other.
+   */
+  const endTimes = (): Record<number, number> => ({
+    ...(timeOffCuts()?.ends ?? {}),
+    ...autoPlannerStore.endTimeOverrides,
+  });
+
   const currentTE = computed(() => {
     const snapshot = actionsStore.effectiveSnapshot;
     if (!snapshot?.teEarned) return 0;
@@ -125,11 +139,12 @@ export function useAscensionGenerator() {
 
   const bestResults = computed(() => {
     return ascensionChain.value.map(item => {
-      const hasEndTimeOverride = !!autoPlannerStore.endTimeOverrides[item.index];
+      const hasEndTimeOverride = !!endTimes()[item.index];
       const override = autoPlannerStore.planVariantOverrides[item.index];
       const best = pickVariant(item.variants, override, hasEndTimeOverride);
-      const present = (Object.entries(item.variants) as [VariantKey, VariantResult | undefined][])
-        .filter((entry): entry is [VariantKey, VariantResult] => !!entry[1]);
+      const present = (Object.entries(item.variants) as [VariantKey, VariantResult | undefined][]).filter(
+        (entry): entry is [VariantKey, VariantResult] => !!entry[1]
+      );
       const bestKey = present.find(([, v]) => v === best)?.[0];
 
       // Always exactly one comparison badge. Under an end-time override every surviving variant was
@@ -145,12 +160,20 @@ export function useAscensionGenerator() {
         if (isHighest && sortedByTE.length > 1) {
           const teLead = best.summary.endTE - sortedByTE[1][1].summary.endTE;
           if (teLead > 0) {
-            comparison = { daysFaster: 0, otherPlanLabel: '', message: `+${teLead} TE vs. the next best build by this deadline` };
+            comparison = {
+              daysFaster: 0,
+              otherPlanLabel: '',
+              message: `+${teLead} TE vs. the next best build by this deadline`,
+            };
           }
         } else if (!isHighest) {
           const teBehind = highestTE.summary.endTE - best.summary.endTE;
           if (teBehind > 0) {
-            comparison = { daysFaster: 0, otherPlanLabel: '', message: `${teBehind} TE less than the best build by this deadline` };
+            comparison = {
+              daysFaster: 0,
+              otherPlanLabel: '',
+              message: `${teBehind} TE less than the best build by this deadline`,
+            };
           }
         }
       } else {
@@ -178,12 +201,11 @@ export function useAscensionGenerator() {
         }
       }
 
-      const alternativeELRs = present
-        .map(([key, v]) => ({
-          elr: v.summary.maxELR,
-          label: key === 'continue' ? 'Continue' : key,
-          isActive: key === bestKey,
-        }));
+      const alternativeELRs = present.map(([key, v]) => ({
+        elr: v.summary.maxELR,
+        label: key === 'continue' ? 'Continue' : key,
+        isActive: key === bestKey,
+      }));
 
       return {
         ...best,
@@ -277,10 +299,10 @@ export function useAscensionGenerator() {
 
       const firstDiffIdx = initialParamsDirty
         ? 0
-        : computeFirstDiffIdx(
-            effectiveTargets, ascensionChain.value,
-            autoPlannerStore.planVariantOverrides, autoPlannerStore.endTimeOverrides
-          );
+        : computeFirstDiffIdx(effectiveTargets, ascensionChain.value, autoPlannerStore.planVariantOverrides, {
+            ...endTimes(),
+            ...(timeOffCuts()?.starts ?? {}),
+          });
 
       let currentBaseState: any;
       let currentStartTime: number;
@@ -293,9 +315,7 @@ export function useAscensionGenerator() {
           newChain.push(ascensionChain.value[i]);
         }
         const lastValid = newChain[firstDiffIdx - 1];
-        const lastValidSummary = pickVariantSummary(
-          lastValid, autoPlannerStore.planVariantOverrides, autoPlannerStore.endTimeOverrides
-        );
+        const lastValidSummary = pickVariantSummary(lastValid, autoPlannerStore.planVariantOverrides, endTimes());
 
         const baseBackupState = createBaseEngineState(null);
         currentBaseState = deriveNextStartState(lastValidSummary, baseBackupState);
@@ -320,9 +340,13 @@ export function useAscensionGenerator() {
         // An end-time override supersedes this step's Target TE goal entirely — `runAscension`/
         // `runContinueCurrent` only look at `targetEndTime` when `targetTE` is absent (see their own
         // doc comments), so leaving `stepTargetTE` set here would silently ignore the override.
-        const hasEndTimeOverride = autoPlannerStore.endTimeOverrides[i] !== undefined;
-        const stepTargetTE: number | undefined = hasEndTimeOverride ? undefined : (effectiveTargets[i] || undefined);
-        const stepEndTime: number | undefined = hasEndTimeOverride ? autoPlannerStore.endTimeOverrides[i] : undefined;
+        const boundEnd = endTimes()[i];
+        const hasEndTimeOverride = boundEnd !== undefined;
+        const stepTargetTE: number | undefined = hasEndTimeOverride ? undefined : effectiveTargets[i] || undefined;
+        const stepEndTime: number | undefined = hasEndTimeOverride ? boundEnd : undefined;
+        // Back from time off: this ascension starts when it ends, not the moment the last one did.
+        const notBefore = timeOffCuts()?.starts[i];
+        if (notBefore !== undefined && notBefore > currentStartTime) currentStartTime = notBefore;
         const t_asc = performance.now();
 
         const currentContext = getSimulationContext();
@@ -350,7 +374,10 @@ export function useAscensionGenerator() {
         // impossible anyway.
         const ascensionStartTE = currentSummary?.endTE ?? currentTE.value;
         const c3Variants = runC3Variants(
-          precomputed.state, currentContext, 3, ascensionStartTE < TIER_13_MIN_STARTING_TE
+          precomputed.state,
+          currentContext,
+          3,
+          ascensionStartTE < TIER_13_MIN_STARTING_TE
         );
         // Variants where the requested Tier 13 unlock couldn't finish in time are dropped here, not
         // completed through K3-H2: `runC3` returns early on that failure, before actually reaching
@@ -367,7 +394,7 @@ export function useAscensionGenerator() {
             const earliestBuildPhaseEnd = Math.min(...survivingVariants.map(v => v.buildPhaseEnd));
             throw new Error(
               `The overridden end time for A${i + 1} is too early — even the fastest build (1-sale) ` +
-              `can't finish its build phase before ${new Date(earliestBuildPhaseEnd * 1000).toLocaleString()}.`
+                `can't finish its build phase before ${new Date(earliestBuildPhaseEnd * 1000).toLocaleString()}.`
             );
           }
           survivingVariants = feasibleVariants;
@@ -380,13 +407,18 @@ export function useAscensionGenerator() {
             ? (`${variant.saleCount}-sale-tier13` as VariantKey)
             : (`${variant.saleCount}-sale` as VariantKey);
 
-          generateProgress.value =
-            `Simulating A${i + 1} of ${loops} (build variant ${vIdx + 1} of ${survivingVariants.length})...`;
+          generateProgress.value = `Simulating A${i + 1} of ${loops} (build variant ${vIdx + 1} of ${survivingVariants.length})...`;
           await new Promise(resolve => setTimeout(resolve, 15));
 
           variants[key] = runAscensionFromC3Variant(
-            currentBaseState, preC3, variant, currentContext, currentStartTime,
-            `asc_${i}`, stepTargetTE, stepEndTime
+            currentBaseState,
+            preC3,
+            variant,
+            currentContext,
+            currentStartTime,
+            `asc_${i}`,
+            stepTargetTE,
+            stepEndTime
           );
         }
 
@@ -466,8 +498,13 @@ export function useAscensionGenerator() {
 
             if (realELR > 0) {
               variants.continue = runContinueCurrent(
-                continueState, continueContext, currentStartTime,
-                realELR, stepTargetTE, `asc_${i}_continue`, stepEndTime
+                continueState,
+                continueContext,
+                currentStartTime,
+                realELR,
+                stepTargetTE,
+                `asc_${i}_continue`,
+                stepEndTime
               );
             }
           }
@@ -506,7 +543,7 @@ export function useAscensionGenerator() {
           }
         }
 
-        console.log(`[A${i+1} total time] ${(performance.now()-t_asc).toFixed(1)}ms`);
+        console.log(`[A${i + 1} total time] ${(performance.now() - t_asc).toFixed(1)}ms`);
       }
 
       if (newChain.length > 0) {
@@ -534,7 +571,8 @@ export function useAscensionGenerator() {
     startTime: getLocalTimestampInTimezone(startDate.value, startTime.value, timezone.value),
     timezone: timezone.value,
     planVariantOverrides: { ...autoPlannerStore.planVariantOverrides },
-    endTimeOverrides: { ...autoPlannerStore.endTimeOverrides },
+    // Time-off cuts included: a saved or exported plan must pick the same variants it was built with.
+    endTimeOverrides: endTimes(),
     initialState: {
       epicResearchLevels: { ...initialStateStore.epicResearchLevels },
       colleggtibleTiers: { ...initialStateStore.colleggtibleTiers },
@@ -546,16 +584,18 @@ export function useAscensionGenerator() {
       initialEggsDelivered: { ...initialStateStore.initialEggsDelivered },
       initialTeEarned: { ...initialStateStore.initialTeEarned },
     },
-    ascensions: ascensionChain.value.filter(item => !item.forcedTarget490).map((item, idx) => {
-      const asc: ExportedPlan['ascensions'][number] = {
-        index: idx,
-        targetTE: item.goal.te || pickVariant(item.variants).summary.endTE,
-        variants: item.variants,
-        goal: item.goal,
-      };
-      if (item.result3SkippedReason) asc.result3SkippedReason = item.result3SkippedReason;
-      return asc;
-    }),
+    ascensions: ascensionChain.value
+      .filter(item => !item.forcedTarget490)
+      .map((item, idx) => {
+        const asc: ExportedPlan['ascensions'][number] = {
+          index: idx,
+          targetTE: item.goal.te || pickVariant(item.variants).summary.endTE,
+          variants: item.variants,
+          goal: item.goal,
+        };
+        if (item.result3SkippedReason) asc.result3SkippedReason = item.result3SkippedReason;
+        return asc;
+      }),
   });
 
   const isExporting = ref(false);
@@ -595,7 +635,9 @@ export function useAscensionGenerator() {
       actionsStore.libraryUpdateTick++;
       broadcastLibraryUpdate();
       saveToLibrarySuccess.value = true;
-      setTimeout(() => { saveToLibrarySuccess.value = false; }, 2000);
+      setTimeout(() => {
+        saveToLibrarySuccess.value = false;
+      }, 2000);
     } finally {
       isSavingToLibrary.value = false;
     }
@@ -623,7 +665,9 @@ export function useAscensionGenerator() {
       actionsStore.libraryUpdateTick++;
       broadcastLibraryUpdate();
       savedIndex.value = idx;
-      setTimeout(() => { if (savedIndex.value === idx) savedIndex.value = null; }, 2000);
+      setTimeout(() => {
+        if (savedIndex.value === idx) savedIndex.value = null;
+      }, 2000);
     } finally {
       savingIndex.value = null;
     }
@@ -638,7 +682,7 @@ export function useAscensionGenerator() {
 
     const bestPlans = ascensionChain.value
       .filter(item => !item.forcedTarget490)
-      .map(item => pickVariantSummary(item, autoPlannerStore.planVariantOverrides, autoPlannerStore.endTimeOverrides));
+      .map(item => pickVariantSummary(item, autoPlannerStore.planVariantOverrides, endTimes()));
 
     const finalTE = bestPlans[bestPlans.length - 1].endTE;
     let totalSeconds = 0;
@@ -657,12 +701,16 @@ export function useAscensionGenerator() {
       totalSE += plan.startSoulEggs - plan.endSoulEggs;
     });
 
-    lines.push(`Total: ${startTE} → ${finalTE} TE in ~${(totalSeconds / 86400).toFixed(1)} days, ${formatNumber(totalSE)} SE consumed`);
+    lines.push(
+      `Total: ${startTE} → ${finalTE} TE in ~${(totalSeconds / 86400).toFixed(1)} days, ${formatNumber(totalSE)} SE consumed`
+    );
 
     try {
       await navigator.clipboard.writeText(lines.join('\n'));
       copySuccess.value = true;
-      setTimeout(() => { copySuccess.value = false; }, 2000);
+      setTimeout(() => {
+        copySuccess.value = false;
+      }, 2000);
     } catch (err) {
       console.error('Failed to copy text: ', err);
     }
