@@ -413,7 +413,9 @@
         v-if="store.crashedRun && !store.isRunning"
         class="rounded-xl border border-amber-300 bg-amber-50 p-4 space-y-2"
       >
-        <h3 class="text-[10px] font-black text-amber-800 uppercase tracking-widest">Unfinished run found</h3>
+        <h3 class="text-[10px] font-black text-amber-800 uppercase tracking-widest">
+          {{ goal === 'deadline' ? 'Unfinished fastest-to-a-target run' : 'Unfinished run found' }}
+        </h3>
         <p class="text-[11px] text-amber-900/90 leading-relaxed">
           A run on this machine stopped without finishing —
           <span class="font-bold">{{ (store.crashedRun.durations?.length ?? 0).toLocaleString() }}</span> chains are
@@ -760,7 +762,7 @@
         </p>
       </div>
 
-      <DeadlinePanel v-if="goal === 'deadline'" :player-id="playerId" />
+      <DeadlinePanel v-if="goal === 'deadline'" :player-id="playerId" @show-fastest="goal = 'fastest'" />
       <template v-else>
         <!-- The space. These numbers are the whole definition of the search. -->
         <div class="rounded-xl border border-slate-200 bg-white p-4 space-y-5">
@@ -2578,6 +2580,9 @@ async function open(id: string): Promise<void> {
 }
 
 async function resumeCrashed(): Promise<void> {
+  // A carried-on run is a "fastest to a target" run: show that view, or its progress is hidden and
+  // the deadline panel just says it is waiting (a player clicked this from the deadline view).
+  goal.value = 'fastest';
   resuming.value = 'checkpoint';
   try {
     await store.resumeCrashedRun(props.playerId);

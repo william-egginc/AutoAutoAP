@@ -345,6 +345,14 @@
         v-if="store.isRunning"
         type="button"
         class="px-3 py-1.5 rounded-lg border border-slate-400 text-[10px] font-black uppercase tracking-widest hover:bg-white"
+        @click="emit('show-fastest')"
+      >
+        Show that run
+      </button>
+      <button
+        v-if="store.isRunning"
+        type="button"
+        class="px-3 py-1.5 rounded-lg border border-slate-400 text-[10px] font-black uppercase tracking-widest hover:bg-white"
         @click="store.stop()"
       >
         Stop that run
@@ -496,6 +504,7 @@ import IntegrityNotice from './IntegrityNotice.vue';
 import SafariNotice from './SafariNotice.vue';
 
 const props = defineProps<{ playerId: string }>();
+const emit = defineEmits<{ (e: 'show-fastest'): void }>();
 const store = useChainSearchStore();
 const planner = useAutoPlannerStore();
 
