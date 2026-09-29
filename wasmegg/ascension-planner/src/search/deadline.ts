@@ -47,6 +47,18 @@ export interface DeadlineSpec {
   step: number;
   /** Coarse-pass budget in shapes (sets of early stops), summed over all stop counts. */
   maxShapes?: number;
+  /**
+   * The FIRST stop is also tried at every TE this far above the current TE, whatever the grid.
+   * Default 5. It matters most and the grid misses it: on the alt's 24 Sep save the best first
+   * ascension was 139 or 140 (137, 139 and 140 within 0.01 d), and a later first one cost 3-13 d --
+   * a 20-TE grid starting at 140 could only offer 140 and 160.
+   */
+  firstStopFine?: number;
+  /**
+   * Shapes to try first, alongside the spread-out sample: the account's current route, its last
+   * best. A good starting point makes every other bracket start next to the answer.
+   */
+  seedShapes?: number[][];
   /** The fine pass around the best routes. On unless false. */
   refine?: boolean;
   /** Routes the fine pass starts from. */
@@ -116,14 +128,38 @@ export function gridValues(currentTE: number, lastHi: number, step: number): num
   return values;
 }
 
-/** Shapes the coarse pass would try at this step: sum over stop counts of C(values, stops - 1). */
-export function countShapes(
-  spec: Pick<DeadlineSpec, 'currentTE' | 'lastHi' | 'minStops' | 'maxStops'>,
-  step: number
-): number {
-  const n = gridValues(spec.currentTE, spec.lastHi, step).length;
+/** First-stop values: every TE just above the current one, then the grid. */
+export function firstStopValues(currentTE: number, lastHi: number, step: number, fine = 5): number[] {
+  const set = new Set(gridValues(currentTE, lastHi, step));
+  for (let v = Math.floor(currentTE) + 1; v <= Math.floor(currentTE) + fine && v < lastHi; v++) set.add(v);
+  return [...set].sort((a, b) => a - b);
+}
+
+type ShapeSpec = Pick<DeadlineSpec, 'currentTE' | 'lastHi' | 'minStops' | 'maxStops' | 'firstStopFine'>;
+
+/** Every shape (set of early stops) with `k - 1` stops: a first stop from the fine list, the rest
+ *  on the grid above it. */
+function* shapesFor(spec: ShapeSpec, step: number, k: number): Generator<number[]> {
+  if (k <= 1) {
+    yield [];
+    return;
+  }
+  const grid = gridValues(spec.currentTE, spec.lastHi, step);
+  for (const f of firstStopValues(spec.currentTE, spec.lastHi, step, spec.firstStopFine ?? 5)) {
+    const above = grid.filter(v => v > f);
+    for (const rest of combinations(above, k - 2)) yield [f, ...rest];
+  }
+}
+
+/** Shapes the coarse pass would try at this step, summed over the stop counts. */
+export function countShapes(spec: ShapeSpec, step: number): number {
+  const grid = gridValues(spec.currentTE, spec.lastHi, step);
+  const firsts = firstStopValues(spec.currentTE, spec.lastHi, step, spec.firstStopFine ?? 5);
   let total = 0;
-  for (let k = Math.max(1, spec.minStops); k <= spec.maxStops; k++) total += choose(n, k - 1);
+  for (let k = Math.max(1, spec.minStops); k <= spec.maxStops; k++) {
+    if (k === 1) total += 1;
+    else for (const f of firsts) total += choose(grid.filter(v => v > f).length, k - 2);
+  }
   return total;
 }
 
@@ -291,13 +327,18 @@ export async function runDeadlineSearch(spec: DeadlineSpec, cb: DeadlineCallback
   const startAt = (floor: number) => (best ? best.chain[best.chain.length - 1] : Math.floor((floor + spec.lastHi) / 2));
 
   const step = stepForBudget(spec);
-  const values = gridValues(spec.currentTE, spec.lastHi, step);
   const byCount = new Map<number, number[][]>();
-  for (let k = Math.max(1, spec.minStops); k <= spec.maxStops; k++) byCount.set(k, [...combinations(values, k - 1)]);
+  for (let k = Math.max(1, spec.minStops); k <= spec.maxStops; k++) byCount.set(k, [...shapesFor(spec, step, k)]);
 
-  // ---- 0. seed: a spread of shapes from every count, bracketed from mid-range, so the full pass
-  // starts every shape next to the answer instead of walking up to it from the bottom.
-  const sample = spread([...byCount.values()].flat(), 24);
+  // ---- 0. seed: the caller's own shapes (the account's current route) plus a spread from every
+  // count, bracketed from mid-range, so the full pass starts every shape next to the answer
+  // instead of walking up to it from the bottom.
+  const valid = (shape: number[]) =>
+    shape.length + 1 >= spec.minStops &&
+    shape.length + 1 <= spec.maxStops &&
+    shape.every((v, i) => v > (i ? shape[i - 1] : Math.floor(spec.currentTE)) && v < spec.lastHi);
+  const own = (spec.seedShapes ?? []).filter(valid);
+  const sample = [...own, ...spread([...byCount.values()].flat(), 24)];
   stage = `finding the rough answer on ${sample.length} spread-out routes`;
   await bracketAll(sample, startAt);
 

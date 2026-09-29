@@ -3,7 +3,15 @@
  */
 import { describe, expect, it } from 'vitest';
 import type { ChainResult } from './types';
-import { countShapes, gridValues, rank, runDeadlineSearch, stepForBudget, type DeadlineSpec } from './deadline';
+import {
+  countShapes,
+  firstStopValues,
+  gridValues,
+  rank,
+  runDeadlineSearch,
+  stepForBudget,
+  type DeadlineSpec,
+} from './deadline';
 
 const DAY = 86400;
 const START = 1_790_000_000;
@@ -139,5 +147,37 @@ describe('deadline search', () => {
     const r = (chain: number[], spare: number) => ({ chain, reachAt: 0, ascendAt: 0, spare, legs: [] });
     const ranked = rank([r([120, 150], 5), r([120, 148], 50), r([130, 150], 9)]);
     expect(ranked.map(x => x.chain.join(' '))).toEqual(['130 150', '120 150']);
+  });
+});
+
+describe('the first stop, which the grid would miss', () => {
+  it('is tried at every TE just above the current one, as well as on the grid', () => {
+    expect(firstStopValues(137, 300, 20).slice(0, 7)).toEqual([138, 139, 140, 141, 142, 160, 180]);
+  });
+
+  it('finds a best first stop that sits between grid points', async () => {
+    // Ascending first at exactly 102 is worth ten days; anywhere else is not. A 20-TE grid alone
+    // (120, 140, ...) can never offer it.
+    const s = spec({ lastHi: 200, maxStops: 3, step: 20 });
+    const out = await runDeadlineSearch(s, {
+      evaluate: async chains =>
+        chains.map(c => {
+          const r = priceChain(100, c);
+          return c.length > 1 && c[0] === 102 ? { ...r, seconds: r.seconds - 10 * DAY } : r;
+        }),
+    });
+    expect(out.routes[0].chain[0]).toBe(102);
+  });
+
+  it("starts from the caller's own route", async () => {
+    const batches: string[][] = [];
+    await runDeadlineSearch(spec({ lastHi: 170, maxStops: 3, step: 20, seedShapes: [[113, 147]] }), {
+      evaluate: async chains => {
+        batches.push(chains.map(c => c.slice(0, -1).join(' ')));
+        return chains.map(c => priceChain(100, c));
+      },
+    });
+    // In the very first batch: the seed pass, before any of the grid.
+    expect(batches[0]).toContain('113 147');
   });
 });

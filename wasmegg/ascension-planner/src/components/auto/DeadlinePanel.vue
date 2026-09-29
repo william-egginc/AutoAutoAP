@@ -6,6 +6,43 @@
 -->
 <template>
   <div class="rounded-xl border border-slate-200 bg-white p-4 space-y-4">
+    <!-- A run that stopped before finishing: a reload, a crash, or Stop. -->
+    <div
+      v-if="store.deadlineUnfinished && !store.busy"
+      class="rounded-xl border border-amber-300 bg-amber-50 p-4 space-y-2 text-[11px] text-amber-900 leading-relaxed"
+    >
+      <h3 class="text-[10px] font-black text-amber-800 uppercase tracking-widest">Unfinished deadline search</h3>
+      <p>
+        <span class="font-bold">{{ store.deadlineUnfinished.priced.toLocaleString() }}</span> routes are already priced
+        for {{ inPlannerZone(store.deadlineUnfinished.spec.deadline) }}, {{ store.deadlineUnfinished.spec.minStops }}–{{
+          store.deadlineUnfinished.spec.maxStops
+        }}
+        stops, from {{ store.deadlineUnfinished.te }} TE ({{ ago(store.deadlineUnfinished.updatedAt) }}).
+        <template v-if="store.deadlineUnfinished.saveKept">
+          Carrying on replays them instantly and continues on the save it started with.</template
+        >
+        <template v-else> Its save wasn't kept on this device, so it can't carry on.</template>
+        Starting a new search replaces it.
+      </p>
+      <div class="flex flex-wrap gap-3">
+        <button
+          v-if="store.deadlineUnfinished.saveKept"
+          type="button"
+          class="px-4 py-2 rounded-lg bg-amber-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-800"
+          @click="store.resumeDeadline(playerId)"
+        >
+          Carry on from where it stopped
+        </button>
+        <button
+          type="button"
+          class="text-[10px] font-black uppercase tracking-widest text-amber-700/70 hover:text-amber-900"
+          @click="store.discardDeadlineRun(playerId)"
+        >
+          Discard it
+        </button>
+      </div>
+    </div>
+
     <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">The deadline</h3>
     <div class="flex flex-wrap items-end gap-3">
       <button
@@ -104,7 +141,8 @@
       </label>
     </div>
     <p class="text-[11px] text-slate-500 leading-relaxed">
-      It guesses the early stops itself: every set of them on a {{ usedStep }}-TE grid
+      It guesses the early stops itself, starting from your current route: the first stop at every TE for the first 5
+      above your TE, the rest on a {{ usedStep }}-TE grid
       <template v-if="usedStep !== step">(raised from {{ step }} to keep it to {{ shapes.toLocaleString() }})</template
       ><template v-else>({{ shapes.toLocaleString() }} of them)</template>, and for each one the highest last stop that
       still makes the deadline. Then it homes in on the best few, moving one stop at a time by {{ resolutionsText }} TE.
@@ -168,6 +206,9 @@
       <div v-if="best" class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 space-y-2">
         <p class="text-[10px] font-black uppercase tracking-widest text-emerald-800">
           Highest by {{ inPlannerZone(result.deadline) }}
+          <span v-if="!store.deadlineRunning && fromEarlier" class="font-semibold normal-case tracking-normal">
+            · saved result from {{ ago(result.at) }}</span
+          >
         </p>
         <p class="text-lg font-black text-emerald-900">
           {{ best.chain[best.chain.length - 1] }} TE
@@ -250,7 +291,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { getLocalTimestampInTimezone } from '@/lib/events';
@@ -307,6 +348,7 @@ const step = ref(20);
 const ascendNeeded = ref(false);
 
 const specForCount = computed(() => ({
+  firstStopFine: 5,
   currentTE: store.currentTE,
   lastHi: lastHi.value,
   minStops: Math.max(1, Math.floor(minStops.value || 1)),
@@ -347,6 +389,21 @@ async function start(): Promise<void> {
 }
 
 const result = computed(() => store.deadlineResult);
+/** A result loaded from this browser rather than produced since the panel opened. */
+const openedAt = Date.now();
+const fromEarlier = computed(() => !!result.value && result.value.at < openedAt);
+onMounted(() => void store.loadDeadlineState(props.playerId));
+watch(
+  () => props.playerId,
+  id => void store.loadDeadlineState(id)
+);
+
+function ago(ms: number): string {
+  const m = Math.max(0, Math.round((Date.now() - ms) / 60000));
+  if (m < 60) return `${m} min ago`;
+  const h = Math.round(m / 60);
+  return h < 48 ? `${h} h ago` : `${Math.round(h / 24)} days ago`;
+}
 const best = computed(() => result.value?.routes[0] ?? null);
 const atCeiling = computed(() => !!best.value && best.value.chain[best.value.chain.length - 1] >= result.value!.lastHi);
 
