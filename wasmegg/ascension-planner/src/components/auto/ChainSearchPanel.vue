@@ -1880,7 +1880,10 @@ async function submit(): Promise<void> {
       submitMessage.value = 'Nothing to submit yet.';
       return;
     }
+    // Black box: a page that dies while building or sending the table says so on the next visit.
+    store.blackBoxMark('submit', includeCsv.value ? 'building the CSV' : 'building the result');
     const csv = includeCsv.value ? store.exportCsv() : undefined;
+    store.blackBoxMark('submit', `sending${csv ? ` (${Math.round(csv.length / 1048576)} MB of CSV)` : ''}`);
     submitMessage.value = 'Sending...';
     const res = await store.sendSubmission(payload, csv);
     submitOk.value = res.ok;
@@ -1891,6 +1894,7 @@ async function submit(): Promise<void> {
         ? res.message
         : `Thank you — ${res.message}`;
   } finally {
+    store.blackBoxEnd('submit');
     submitState.value = 'done';
   }
 }

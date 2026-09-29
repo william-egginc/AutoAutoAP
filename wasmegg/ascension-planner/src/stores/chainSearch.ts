@@ -75,6 +75,7 @@ import { currentPlans, recheckChains, type RecheckRun } from '@/search/rechecks'
 import { accountKeyOf, type BoardRow, type Plan } from '@/lib/leaderboardRank';
 import { describeAvailability, isConstrained, nextAvailable, type Availability } from '@/search/availability';
 import { runDeadlineSearch, type DeadlineProgress, type DeadlineRoute } from '@/search/deadline';
+import * as blackBox from '@/search/blackBox';
 import {
   clearDeadlineCheckpoint,
   loadDeadlineCheckpoint,
@@ -3367,6 +3368,79 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     return lines.join('\n') + '\n';
   }
 
+  // ------------------------------------------------------------------ the black box (search/blackBox.ts)
+
+  /** What the previous page was doing when it stopped without finishing, read once at load. */
+  const lastCrash = ref(typeof window !== 'undefined' ? blackBox.readUnfinished() : null);
+  function dismissCrash(): void {
+    blackBox.clearUnfinished();
+    lastCrash.value = null;
+  }
+  function blackBoxBeat(): void {
+    if (deadlineRunning.value) {
+      const p = deadlineProgress.value;
+      blackBox.beat({
+        phase: 'deadline search',
+        detail: p?.stage,
+        done: (p?.priced ?? 0) + deadlineInBatch.value,
+        workers: workersInPool.value,
+      });
+    } else if (isRunning.value) {
+      blackBox.beat({
+        phase: 'search',
+        detail: stage.value,
+        done: chainsDone.value,
+        total: chainsEstimated.value,
+        workers: workersInPool.value,
+        entries: liveCache.length,
+      });
+    }
+  }
+  let blackBoxTimer: ReturnType<typeof setInterval> | null = null;
+  watch(
+    () => isRunning.value || deadlineRunning.value,
+    running => {
+      if (blackBoxTimer) clearInterval(blackBoxTimer);
+      blackBoxTimer = null;
+      if (running) {
+        blackBoxBeat();
+        blackBoxTimer = setInterval(blackBoxBeat, 15_000);
+      } else {
+        blackBox.end('search');
+        blackBox.end('deadline search');
+      }
+    }
+  );
+  if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', () => {
+      if (!isRunning.value && !deadlineRunning.value) return;
+      blackBox.note(document.visibilityState === 'hidden' ? 'tab hidden' : 'tab visible');
+      blackBoxBeat();
+    });
+  }
+  /** For the panels' own risky steps (building and sending a submission). */
+  function blackBoxMark(phase: string, detail?: string): void {
+    blackBox.beat({ phase, detail, entries: liveCache.length, workers: workersInPool.value });
+  }
+  function blackBoxEnd(phase: string): void {
+    blackBox.end(phase);
+  }
+  /** Everything worth sending in a bug report, as JSON text. */
+  function blackBoxReport(): string {
+    return JSON.stringify(
+      {
+        note: 'ascension-planner black box: what the page was doing when it stopped',
+        unfinished: lastCrash.value,
+        userAgent: navigator.userAgent,
+        cores: machineThreads,
+        workers: workerBudget.value,
+        at: new Date().toISOString(),
+      },
+      null,
+      2
+    );
+  }
+
   function stopDeadline(): void {
     deadlineStop = true;
   }
@@ -3993,6 +4067,11 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     runSaveFor,
     promoteInterrupted,
     discardInterruptedRun,
+    lastCrash,
+    dismissCrash,
+    blackBoxMark,
+    blackBoxEnd,
+    blackBoxReport,
     deadlineRunning,
     deadlineProgress,
     deadlineResult,

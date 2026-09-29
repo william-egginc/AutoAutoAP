@@ -2647,7 +2647,10 @@ async function submit(): Promise<void> {
     // every exhaustive row on the board reads "No CSV was attached", including the ones where the
     // full working is most worth having. The second argument is the whole fix; the store gzips it
     // and posts it separately, and a failed upload only downgrades the message.
+    // Black box: a page that dies while building or sending the table says so on the next visit.
+    store.blackBoxMark('submit', includeCsv.value ? 'building the CSV' : 'building the result');
     const csv = includeCsv.value ? store.exportCsv() : undefined;
+    store.blackBoxMark('submit', `sending${csv ? ` (${Math.round(csv.length / 1048576)} MB of CSV)` : ''}`);
     submitMessage.value = 'Sending...';
     const res = await store.sendSubmission(payload, csv);
     submitOk.value = res.ok;
@@ -2658,6 +2661,7 @@ async function submit(): Promise<void> {
         ? res.message
         : `Thank you — ${res.message}`;
   } finally {
+    store.blackBoxEnd('submit');
     submitting.value = false;
   }
 }
