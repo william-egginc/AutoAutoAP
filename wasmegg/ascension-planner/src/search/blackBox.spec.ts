@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { beat, clearUnfinished, end, readUnfinished } from './blackBox';
+import { beat, clearUnfinished, end, pageClosing, readUnfinished } from './blackBox';
 
 describe('black box', () => {
   beforeEach(() => {
@@ -25,5 +25,12 @@ describe('black box', () => {
     beat({ phase: 'search' });
     clearUnfinished();
     expect(readUnfinished()).toBeNull();
+  });
+
+  it('tells a reload or close apart from a crash', () => {
+    beat({ phase: 'search' });
+    expect(readUnfinished()?.last.pageClosed).toBeUndefined();
+    pageClosing();
+    expect(readUnfinished()?.last.pageClosed).toBe(true);
   });
 });

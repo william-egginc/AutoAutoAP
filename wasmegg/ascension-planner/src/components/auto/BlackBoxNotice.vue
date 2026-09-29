@@ -14,8 +14,12 @@
         >, {{ crash.last.done.toLocaleString()
         }}<template v-if="crash.last.total"> of {{ crash.last.total.toLocaleString() }}</template> done</template
       >, with the tab {{ crash.last.hidden ? 'hidden' : 'on screen'
-      }}<template v-if="crash.last.heapMB !== undefined"> and {{ crash.last.heapMB }} MB in use</template>. The browser
-      most likely closed the page, usually for memory. If a run was going, its progress is saved: carry on below.
+      }}<template v-if="crash.last.heapMB !== undefined"> and {{ crash.last.heapMB }} MB in use</template>.
+      <template v-if="crash.last.pageClosed"
+        >The page was reloaded or closed while it was going, which ends a run.</template
+      >
+      <template v-else>The browser closed the page itself, most likely for memory.</template>
+      If a run was going, its progress is saved: carry on below.
     </p>
     <div class="flex flex-wrap gap-3">
       <button

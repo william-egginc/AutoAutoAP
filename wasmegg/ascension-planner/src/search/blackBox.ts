@@ -26,6 +26,9 @@ export interface Beat {
   hidden: boolean;
   /** JS heap in use, MB -- Chrome only; Safari and Firefox do not report it. */
   heapMB?: number;
+  /** The page was reloaded, closed or navigated away from (`pagehide` fired): the player ended
+   *  it, not the browser. A crash gives no such event, so this is never set by one. */
+  pageClosed?: boolean;
 }
 
 interface Box {
@@ -100,6 +103,15 @@ export function end(phase: string): void {
       heapMB: heapMB(),
     },
   ].slice(-HISTORY);
+  write(box);
+}
+
+/** The page is going away on purpose (reload, close, another URL). Called from `pagehide`, which
+ *  a crash never fires -- so an unfinished beat without this is the browser's doing. */
+export function pageClosing(): void {
+  const box = read();
+  if (!box.open) return;
+  box.open = { ...box.open, pageClosed: true };
   write(box);
 }
 

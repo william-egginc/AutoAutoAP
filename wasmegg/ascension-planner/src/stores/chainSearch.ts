@@ -3411,6 +3411,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       }
     }
   );
+  if (typeof window !== 'undefined') window.addEventListener('pagehide', () => blackBox.pageClosing());
   if (typeof document !== 'undefined') {
     document.addEventListener('visibilitychange', () => {
       if (!isRunning.value && !deadlineRunning.value) return;
