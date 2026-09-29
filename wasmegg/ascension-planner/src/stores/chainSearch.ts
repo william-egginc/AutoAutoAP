@@ -2828,6 +2828,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     chainsReplayed.value = liveCache.length;
     chainsDone.value = liveCache.length;
     csvRows.value = liveCache.length;
+    // Start the clock AFTER the replay. Measured from zero, the first batch looked like it had
+    // priced every replayed chain as well, and a resumed run promised to finish absurdly soon.
+    noteRate(chainsDone.value, true);
     if (chainsReplayed.value) {
       runLog.value.push(`replayed ${chainsReplayed.value.toLocaleString()} chains from a previous run`);
       noteBest();
