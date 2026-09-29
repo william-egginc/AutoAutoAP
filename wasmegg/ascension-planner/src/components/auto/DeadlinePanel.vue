@@ -293,6 +293,22 @@
     </label>
     <SafariNotice />
     <IntegrityNotice />
+    <!-- The unfinished run's carry-on again, next to Start where people look for it. -->
+    <div
+      v-if="store.deadlineUnfinished?.saveKept && !store.busy"
+      class="flex flex-wrap items-center gap-3 rounded-xl border border-amber-300 bg-amber-50 p-3"
+    >
+      <button
+        type="button"
+        class="px-4 py-2 rounded-lg bg-amber-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-800"
+        @click="store.resumeDeadline(playerId)"
+      >
+        Carry on the unfinished search
+      </button>
+      <span class="text-[11px] text-amber-900"
+        >{{ store.deadlineUnfinished.priced.toLocaleString() }} routes already priced.</span
+      >
+    </div>
 
     <div class="flex flex-wrap gap-3">
       <button
