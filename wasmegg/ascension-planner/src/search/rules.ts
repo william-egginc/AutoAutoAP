@@ -73,16 +73,77 @@ export function longContinueMessage(days: number): string {
   );
 }
 
-export function integrityMessage(seconds: number): string {
+/** The Clothed TE accounts get through the Integrity shift at (measured on the PC, 23 Sept). */
+export const CTE_CLEARS = 225;
+/** What a full T4L earnings set (with its stones) adds to Clothed TE: every account on the board
+ *  that owns one shows +128.7. */
+export const BEST_EARNINGS_SET_CTE = 128.7;
+
+/** An account's Clothed TE, part by part (lib/artifacts/virtue.ts `calculateClothedTEForSet`). */
+export interface CteParts {
+  total: number;
+  /** Truth Eggs: each one is +1. */
+  te: number;
+  /** The best earnings set it owns. */
+  gear: number;
+  /** Colleggtibles, against a full collection (0 or negative). */
+  colleggtibles: number;
+  /** Lab Upgrade epic research, against maxed (0 or negative). */
+  lab: number;
+  /** The standard permit's offline-earnings penalty (0 with the Pro permit). */
+  permit: number;
+}
+
+const one = (n: number) => (Math.round(n * 10) / 10).toFixed(1).replace(/\.0$/, '');
+const signed = (n: number) => (n >= 0 ? `+${one(n)}` : `-${one(-n)}`);
+
+/** What this account could do to reach CTE_CLEARS, in its own numbers. '' when nothing is known. */
+export function cteAdvice(c: CteParts | null | undefined): string {
+  if (!c || !Number.isFinite(c.total)) return '';
+  const gap = CTE_CLEARS - c.total;
+  const parts = [
+    `${one(c.te)} TE`,
+    `earnings gear ${signed(c.gear)}`,
+    ...(c.colleggtibles < -0.05 ? [`colleggtibles ${signed(c.colleggtibles)}`] : []),
+    ...(c.lab < -0.05 ? [`Lab Upgrade ${signed(c.lab)}`] : []),
+    ...(c.permit < -0.05 ? [`standard permit ${signed(c.permit)}`] : []),
+  ];
+  const where = `Your Clothed TE is about ${one(c.total)} (${parts.join(', ')}).`;
+  if (gap <= 0)
+    return `${where} That's already past the usual line of about ${CTE_CLEARS}, so something else is holding this account back.`;
+  const options = [
+    `about ${Math.ceil(gap)} more Truth Eggs (each adds 1)`,
+    ...(BEST_EARNINGS_SET_CTE - c.gear > 0.5
+      ? [
+          `a stronger earnings set: a full T4L set is worth about +${one(BEST_EARNINGS_SET_CTE)} and yours is ${signed(c.gear)}, so up to +${one(BEST_EARNINGS_SET_CTE - c.gear)} there`,
+        ]
+      : []),
+    ...(c.colleggtibles < -0.05 ? [`finishing your colleggtibles: up to +${one(-c.colleggtibles)}`] : []),
+    ...(c.lab < -0.05 ? [`maxing Lab Upgrade: +${one(-c.lab)}`] : []),
+    ...(c.permit < -0.05 ? [`the Pro permit: +${one(-c.permit)}`] : []),
+  ];
+  return (
+    `${where} Accounts get through at about ${CTE_CLEARS}, so you're about ${Math.ceil(gap)} short. ` +
+    `Any mix of these that adds up to about ${Math.ceil(gap)} does it: ${options.join('; ')}.`
+  );
+}
+
+export function integrityMessage(seconds: number, cte?: CteParts | null): string {
   const blocked = seconds > INTEGRITY_BLOCK_SECONDS;
   const wait = describeDuration(seconds);
+  const advice = cteAdvice(cte);
   return blocked
     ? `A fresh ascension on this account would sit on the Integrity shift for ${wait}, saving up for habs while ` +
         `shipping almost nothing (a healthy account is through it in under an hour). Nobody really waits that long: ` +
         `in the game you'd wait for a hab sale or add an extra shift to get through, and this tool isn't built to ` +
-        `plan either, so this run won't start. What fixes it is earnings: Truth Eggs, or a stronger earnings set ` +
-        `(totem, ankh, necklace and their stones). Accounts clear it at a Clothed TE of about 225, so please come ` +
-        `back once you're closer to that.`
+        `plan either, so this run won't start. ` +
+        (advice
+          ? cte && cte.total < CTE_CLEARS
+            ? `${advice} Please come back once you're closer.`
+            : `${advice} Please share this on Discord so we can look into it.`
+          : `What fixes it is earnings: Truth Eggs, or a stronger earnings set (totem, ankh, necklace and their ` +
+            `stones). Accounts clear it at a Clothed TE of about ${CTE_CLEARS}, so please come back once you're ` +
+            `closer to that.`)
     : `A fresh ascension on this account sits on the Integrity shift for ${wait} before it can afford its habs ` +
         `(a healthy account is through it in under an hour). The plan runs, but that wait is in every date it gives, ` +
         `and a result will go to the flagged board rather than the main one.`;

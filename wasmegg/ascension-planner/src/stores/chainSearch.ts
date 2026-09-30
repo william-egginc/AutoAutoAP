@@ -26,6 +26,7 @@ import { hardwareThreads, maxPoolSize, clampPoolSize, targetWorkerCount } from '
 import { describeRunError } from '@/utils/errors';
 import { loadChainBenchmark, saveChainBenchmark } from '@/lib/chainBenchmarkCache';
 import { patchAutoPlannerSchedule } from '@/lib/autoPlannerFormCache';
+import { cteFromColleggtibles, cteFromLabUpgrade, multiplierToTE } from 'lib/virtue';
 import { EFFORT, estimateChains } from '@/search/effort';
 import {
   buildCheckpoint,
@@ -101,6 +102,7 @@ import {
   INTEGRITY_BLOCK_SECONDS,
   INTEGRITY_WARN_SECONDS,
   integrityMessage,
+  type CteParts,
   type SubmissionFlag,
 } from '@/search/rules';
 import { existingOwnerToken, ownerToken } from '@/search/owner';
@@ -619,12 +621,12 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     integrityWait.value = wait;
     if (wait === null || wait <= INTEGRITY_WARN_SECONDS) return true;
     if (wait > INTEGRITY_BLOCK_SECONDS) {
-      error.value = integrityMessage(wait);
+      error.value = integrityMessage(wait, cteParts());
       errorBeforeStart.value = true;
       stage.value = 'idle';
       return false;
     }
-    runNotes.value = [...runNotes.value, integrityMessage(wait)];
+    runNotes.value = [...runNotes.value, integrityMessage(wait, cteParts())];
     return true;
   }
 
@@ -656,11 +658,39 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     }
   }
 
+  /**
+   * This account's Clothed TE, part by part, for the "can't be planned yet" advice: its best earnings
+   * set, colleggtibles, Lab Upgrade and permit, from the save loaded now. Null without a save.
+   */
+  function cteParts(): CteParts | null {
+    const initialStateStore = useInitialStateStore();
+    const raw = initialStateStore.rawBackup;
+    if (!raw) return null;
+    const inv = readInventory();
+    const opts = {
+      truthEggs: currentTE.value,
+      colleggtibleModifiers: getSimulationContext().colleggtibleModifiers,
+      labUpgradeLevel: initialStateStore.epicResearchLevels['cheaper_research'] ?? 0,
+      permitLevel: raw.game?.permitLevel ?? null,
+    };
+    const bare = calculateClothedTEForSet([], opts);
+    const total = inv.earnings ? calculateClothedTEForSet(inv.earnings, opts) : bare;
+    return {
+      total,
+      te: currentTE.value,
+      gear: total - bare,
+      colleggtibles: cteFromColleggtibles(opts.colleggtibleModifiers),
+      lab: cteFromLabUpgrade(opts.labUpgradeLevel),
+      permit: opts.permitLevel === 1 ? 0 : multiplierToTE(0.5),
+    };
+  }
+
   /** What the panels show about the integrity check before a run: nothing when healthy. */
   const integrityNotice = computed(() => {
     const wait = integrityWait.value;
     if (wait === null || wait <= INTEGRITY_WARN_SECONDS) return null;
-    return { blocked: wait > INTEGRITY_BLOCK_SECONDS, text: integrityMessage(wait) };
+    const blocked = wait > INTEGRITY_BLOCK_SECONDS;
+    return { blocked, text: integrityMessage(wait, blocked ? cteParts() : null) };
   });
   const integrityBlocked = computed(() => !!integrityNotice.value?.blocked);
 
@@ -4427,6 +4457,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     exportCsvChunks,
     buildRunSubmission,
     buildDeadlineSubmission,
+    cteParts,
     otherAccountKeys,
     deadlineWorkerSeconds,
     sendSubmission,

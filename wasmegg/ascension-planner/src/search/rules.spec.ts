@@ -36,3 +36,49 @@ describe('describeDuration', () => {
     expect(describeDuration(Infinity)).toBe('forever');
   });
 });
+
+describe('what a blocked account needs, in its own numbers', () => {
+  it('says how short it is and what each fix is worth for it', async () => {
+    const { integrityMessage } = await import('./rules');
+    const msg = integrityMessage(309 * 86400, {
+      total: 172,
+      te: 87,
+      gear: 91.4,
+      colleggtibles: -3.1,
+      lab: 0,
+      permit: -7.3,
+    });
+    expect(msg).toMatch(
+      /Clothed TE is about 172 \(87 TE, earnings gear \+91\.4, colleggtibles -3\.1, standard permit -7\.3\)/
+    );
+    expect(msg).toMatch(/about 53 short/);
+    expect(msg).toMatch(/about 53 more Truth Eggs/);
+    expect(msg).toMatch(/up to \+37\.3 there/);
+    expect(msg).toMatch(/colleggtibles: up to \+3\.1/);
+    expect(msg).toMatch(/the Pro permit: \+7\.3/);
+    expect(msg).not.toMatch(/Lab Upgrade/);
+    expect(msg).toMatch(/won't start/);
+  });
+
+  it('keeps the general advice when nothing is known about the account', async () => {
+    const { integrityMessage } = await import('./rules');
+    expect(integrityMessage(309 * 86400)).toMatch(/Clothed TE of about 225/);
+  });
+});
+
+describe('an account past the usual line but still blocked', () => {
+  it('asks to hear about it instead of telling it to come back', async () => {
+    const { integrityMessage } = await import('./rules');
+    const msg = integrityMessage(483 * 86400, {
+      total: 263.4,
+      te: 137,
+      gear: 126.4,
+      colleggtibles: 0,
+      lab: 0,
+      permit: 0,
+    });
+    expect(msg).toMatch(/already past the usual line/);
+    expect(msg).toMatch(/share this on Discord/);
+    expect(msg).not.toMatch(/come back/);
+  });
+});
