@@ -187,11 +187,11 @@
         </span>
       </div>
       <p class="text-[11px] text-slate-500 leading-relaxed">
-        Each chain is one box of bands, like Insane's: one band per ascension before the last, separated by
-        <span class="font-mono-premium">;</span>. A band is <span class="font-mono-premium">lo-hi:step</span>, a single
-        value, or several values with commas. Chains with other ascension counts all run from the same click, and a 1-
-        or 2-ascension chain costs next to nothing. Every route in your chains is tried, and nothing outside them, so
-        the answer is proven for that space. The last stop is found to the exact TE.
+        Each chain is one box of bands, like the {{ NAMES.full }}'s: one band per ascension before the last, separated
+        by <span class="font-mono-premium">;</span>. A band is <span class="font-mono-premium">lo-hi:step</span>, a
+        single value, or several values with commas. Chains with other ascension counts all run from the same click, and
+        a 1- or 2-ascension chain costs next to nothing. Every route in your chains is tried, and nothing outside them,
+        so the answer is proven for that space. The last stop is found to the exact TE.
         <template v-if="suggestFrom">{{ suggestFrom }}</template>
       </p>
     </template>
@@ -539,8 +539,9 @@
         Download CSV
       </button>
       <p class="text-[11px] text-slate-500 leading-relaxed">
-        Priced from {{ inPlannerZone(result.planStart) }} at {{ result.te }} TE, with the hours and time off in Your setup. A
-        route that reaches one more TE usually has much less time to spare: the table shows both so you can choose.
+        Priced from {{ inPlannerZone(result.planStart) }} at {{ result.te }} TE, with the hours and time off in Your
+        setup. A route that reaches one more TE usually has much less time to spare: the table shows both so you can
+        choose.
       </p>
 
       <!-- Share: the leaderboard's Egg Day tab for an Egg Day answer, else "By a date". Same opt-in as Insane. -->
@@ -618,6 +619,7 @@
 </template>
 
 <script setup lang="ts">
+import { NAMES } from '@/lib/siteNav';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { sentence } from '@/utils/errors';

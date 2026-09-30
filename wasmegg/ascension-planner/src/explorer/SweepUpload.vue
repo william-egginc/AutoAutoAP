@@ -11,7 +11,7 @@
   <div class="space-y-4">
     <div class="space-y-1.5">
       <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">
-        The two files from the planner's Insane panel
+        The two files from the {{ NAMES.full }} (Download CSV and Download diagnostics)
       </label>
       <input
         type="file"
@@ -184,6 +184,7 @@
 </template>
 
 <script setup lang="ts">
+import { NAMES } from '@/lib/siteNav';
 import { computed, ref, shallowRef, watch } from 'vue';
 import {
   afterPaint,

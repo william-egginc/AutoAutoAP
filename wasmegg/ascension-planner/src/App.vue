@@ -244,6 +244,25 @@
             </div>
           </div>
         </template>
+
+        <div v-else-if="plannerTab === 'science'" class="flex justify-center">
+          <div class="flex flex-wrap justify-center gap-1 border-b border-slate-200">
+            <button
+              v-for="v in scienceTabs"
+              :key="v.id"
+              type="button"
+              class="px-4 py-2 -mb-px border-b-2 text-[11px] font-black uppercase tracking-widest"
+              :class="
+                scienceView === v.id
+                  ? 'border-amber-600 text-amber-700'
+                  : 'border-transparent text-slate-400 hover:text-slate-700'
+              "
+              @click="scienceView = v.id"
+            >
+              {{ v.label }}
+            </button>
+          </div>
+        </div>
       </nav>
 
       <!-- Current Mode Label -->
@@ -443,34 +462,18 @@
         <LeaderboardPanel :player-id="playerId" @use="useLeaderboardChain" />
       </div>
 
-      <!-- Science: for now, the way into the Explorer's two sections that belong here. They move
-           into this tab in a later step of the redesign. -->
-      <div v-else-if="plannerTab === 'science'" class="max-w-4xl mx-auto mt-6 space-y-4">
-        <p class="text-sm text-slate-600 leading-relaxed">
-          Nobody outside the game knows exactly how it works out a run. Every sweep players send in narrows it down.
-          Here's what we still need to check, and how to help.
-        </p>
-        <div class="grid gap-4 sm:grid-cols-2">
-          <a
-            :href="`${explorerHref}#help-fill-the-gaps`"
-            class="block rounded-2xl border border-slate-200 bg-white p-5 hover:border-indigo-300 hover:shadow-sm"
-          >
-            <h2 class="text-base font-black text-slate-900">What we need to check</h2>
-            <p class="mt-1 text-[12px] text-slate-600 leading-relaxed">
-              The questions still open, with a sweep for each one that your account could answer.
-            </p>
-          </a>
-          <a
-            :href="`${explorerHref}#submit-a-sweep`"
-            class="block rounded-2xl border border-slate-200 bg-white p-5 hover:border-indigo-300 hover:shadow-sm"
-          >
-            <h2 class="text-base font-black text-slate-900">Submit a sweep</h2>
-            <p class="mt-1 text-[12px] text-slate-600 leading-relaxed">
-              Ran a sweep and closed the tab, or ran it on another machine? Upload its two files.
-            </p>
-          </a>
+      <!-- Science: what the collected runs still can't tell us, and a way to send a sweep in. The
+           Chain Explorer's two sections, moved here from its page (it renders just them). -->
+      <div v-else-if="plannerTab === 'science'" class="max-w-6xl mx-auto mt-6 space-y-4">
+        <div>
+          <h2 class="text-2xl font-black text-slate-900">Help crack the algorithm</h2>
+          <p class="text-sm text-slate-600 leading-relaxed max-w-3xl">
+            Nobody outside the game knows exactly how it works out a run, and every sweep players send in narrows it
+            down. Each question below is one the board can't answer yet: run its sweep on your account and it fills the
+            gap.
+          </p>
         </div>
-        <p class="text-[11px] text-slate-400">Both open in the Chain Explorer for now.</p>
+        <ChainExplorer part="science" embedded :science-view="scienceView" :te-now="saveTE" />
       </div>
 
       <!-- Undo Confirmation Dialog -->
@@ -577,6 +580,7 @@ import {
   routeFromLocation,
   type AutoView,
   type Depth,
+  type ScienceView,
   type Section,
   type SiteRoute,
 } from '@/lib/siteNav';
@@ -644,6 +648,7 @@ const FastestRoute = safeAsyncComponent(() => import('@/components/auto/FastestR
 const InsanePanel = safeAsyncComponent(() => import('@/components/auto/InsanePanel.vue'));
 const LeaderboardPanel = safeAsyncComponent(() => import('@/components/auto/LeaderboardPanel.vue'));
 const YourSetup = safeAsyncComponent(() => import('@/components/auto/YourSetup.vue'));
+const ChainExplorer = safeAsyncComponent(() => import('@/explorer/ChainExplorer.vue'));
 
 // Dev server only (localhost or a LAN IP hitting the Vite dev server) - never in a production build.
 const isDev = import.meta.env.DEV;
@@ -671,7 +676,7 @@ const { plannerTab, isHeaderCollapsed, isFooterCollapsed, loading, error } = sto
  * and rewritten to the new address.
  */
 const initialRoute = routeFromLocation(window.location.search, window.location.hash);
-const { autoView, fastestDepth } = storeToRefs(uiStore);
+const { autoView, fastestDepth, compareView, scienceView } = storeToRefs(uiStore);
 
 function currentRoute(): SiteRoute {
   const section: Section =
@@ -682,12 +687,20 @@ function currentRoute(): SiteRoute {
         : plannerTab.value === 'science'
           ? 'science'
           : 'manual';
-  return { section, auto: autoView.value, depth: fastestDepth.value };
+  return {
+    section,
+    auto: autoView.value,
+    depth: fastestDepth.value,
+    compare: compareView.value,
+    science: scienceView.value,
+  };
 }
 
 function applyRoute(r: SiteRoute): void {
   autoView.value = r.auto;
   fastestDepth.value = r.depth;
+  if (r.compare) compareView.value = r.compare;
+  if (r.science) scienceView.value = r.science;
   plannerTab.value =
     r.section === 'auto'
       ? 'automatic'
@@ -795,7 +808,6 @@ watch(loading, (now, before) => {
  * the pre-flight refused it as "your virtue farm had not finished loading". Once per player id, so
  * the loading watcher does not re-run it, and never over a load already in progress.
  */
-const explorerHref = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/explorer.html`;
 
 const topTabs = computed(() => [
   {
@@ -832,6 +844,26 @@ const autoTabs: { id: AutoView; label: string; screen: SearchScreen | null }[] =
   { id: 'classic', label: NAMES.classic, screen: null },
   { id: 'fastest', label: NAMES.fastest, screen: null },
   { id: 'by-date', label: NAMES.byDate, screen: 'by-date' },
+];
+/**
+ * TE straight from the loaded save, pending Truth Eggs included, the way the planner counts it when
+ * it sets the save up (initialState + rollUpPendingTE: per egg, the claimed TE or the thresholds
+ * passed, whichever is more, capped at 98). Science isn't a screen that sets the save up, and its
+ * sweep ranges start from this.
+ */
+const saveTE = computed(() => {
+  const virtue = initialStateStore.rawBackup?.virtue;
+  const earned = virtue?.eovEarned ?? [];
+  const delivered = virtue?.eggsDelivered ?? [];
+  let total = 0;
+  for (let i = 0; i < 5; i++) {
+    total += Math.min(98, Math.max(earned[i] ?? 0, countTEThresholdsPassed(delivered[i] ?? 0)));
+  }
+  return total;
+});
+const scienceTabs: { id: ScienceView; label: string }[] = [
+  { id: 'check', label: NAMES.check },
+  { id: 'submit', label: NAMES.submit },
 ];
 const lockedTitle = 'A search is running on another screen. Stop it there first.';
 

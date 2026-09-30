@@ -130,7 +130,7 @@
         </ul>
         <p class="text-[10px] text-slate-400 leading-snug">
           Counted in accounts, from finished searches to 490 only; each ask drops off once enough accounts have covered
-          it. What to run for each is under Help fill the gaps.
+          it. What to run for each is under What we need to check, on the planner's Science tab.
         </p>
       </aside>
     </div>

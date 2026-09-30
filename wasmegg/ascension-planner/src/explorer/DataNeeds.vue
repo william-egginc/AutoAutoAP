@@ -58,8 +58,7 @@
             {{
               need.links.length > 1 ? 'Press both buttons below, one after the other.' : 'Press Run this sweep below.'
             }}
-            It opens <b>“{{ need.presetLabel }}”</b> in the planner's Insane mode, trying
-            {{ bandsInWords(need.bands) }}.
+            It opens <b>“{{ need.presetLabel }}”</b> in the {{ NAMES.full }}, trying {{ bandsInWords(need.bands) }}.
             <template v-if="need.minGap > 0">Ascension targets stay at least {{ need.minGap }} TE apart.</template>
             {{ need.note ? need.note : '' }}
           </p>
@@ -94,8 +93,7 @@
               {{ link.label }} &rarr;
             </a>
             <span class="text-[10px] text-slate-400">
-              Opens the planner in a new tab with all of this filled in. You enter your player ID there; this page never
-              sees it.
+              Opens the {{ NAMES.full }} in a new tab with all of this filled in, on the save you have loaded.
             </span>
           </div>
         </li>
@@ -105,6 +103,7 @@
 </template>
 
 <script setup lang="ts">
+import { NAMES } from '@/lib/siteNav';
 import { computed, ref, watch } from 'vue';
 import type { CollectorRow } from './collector';
 import { COMPUTE_TIERS, dataNeeds, estimateSeconds, formatEstimate, presetBandsFor, presetChains } from './needs';
@@ -131,7 +130,11 @@ function bandsInWords(text: string): string {
   return parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`;
 }
 
-const props = defineProps<{ rows: CollectorRow[] }>();
+const props = defineProps<{
+  rows: CollectorRow[];
+  /** The loaded save's TE, inside the planner (the Science tab): the ranges start from it. */
+  teFromSave?: number;
+}>();
 /** The board's own sweep speeds by chain length (search/speed.ts), for the time estimates. */
 const measuredSpeed = computed(() => measuredWorkerSeconds(props.rows));
 
@@ -145,6 +148,14 @@ function readTE(): number {
   }
 }
 const teNow = ref(readTE());
+// Inside the planner the save says where you are: start there (still editable, to plan ahead).
+watch(
+  () => props.teFromSave,
+  te => {
+    if (te && te > 0 && te < 490) teNow.value = te;
+  },
+  { immediate: true }
+);
 watch(teNow, v => {
   try {
     if (Number.isFinite(v) && v > 0) localStorage.setItem(TE_KEY, String(v));

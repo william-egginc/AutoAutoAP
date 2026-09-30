@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import type { AutoView, Depth } from '@/lib/siteNav';
+import type { AutoView, CompareView, Depth, ScienceView } from '@/lib/siteNav';
 
 export type PlannerTab = 'manual' | 'automatic' | 'leaderboard' | 'science';
 
@@ -10,6 +10,9 @@ export const useUIStore = defineStore('ui', () => {
   /** Which Auto Planner screen, and how thorough the fastest-route one is. */
   const autoView = ref<AutoView>('classic');
   const fastestDepth = ref<Depth>('smart');
+  /** Compare's view (a leaderboard tab, or Insights) and Science's. */
+  const compareView = ref<CompareView>('eggday');
+  const scienceView = ref<ScienceView>('check');
   const isHeaderCollapsed = ref(false);
   const isFooterCollapsed = ref(false);
   const loading = ref(false);
@@ -56,6 +59,8 @@ export const useUIStore = defineStore('ui', () => {
     plannerTab,
     autoView,
     fastestDepth,
+    compareView,
+    scienceView,
     isHeaderCollapsed,
     isFooterCollapsed,
     loading,

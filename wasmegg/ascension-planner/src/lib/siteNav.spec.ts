@@ -4,12 +4,10 @@ import { canonicalUrl, hashFor, routeFromLocation, type SiteRoute } from './site
 const R = (
   section: SiteRoute['section'],
   auto: SiteRoute['auto'] = 'classic',
-  depth: SiteRoute['depth'] = 'smart'
-) => ({
-  section,
-  auto,
-  depth,
-});
+  depth: SiteRoute['depth'] = 'smart',
+  compare: NonNullable<SiteRoute['compare']> = 'eggday',
+  science: NonNullable<SiteRoute['science']> = 'check'
+) => ({ section, auto, depth, compare, science });
 
 describe('siteNav', () => {
   it('round-trips every tab through its hash', () => {
@@ -21,6 +19,9 @@ describe('siteNav', () => {
       R('auto', 'fastest'),
       R('auto', 'fastest', 'full'),
       R('auto', 'by-date'),
+      R('compare', 'classic', 'smart', 'insights'),
+      R('compare', 'classic', 'smart', 'dates'),
+      R('science', 'classic', 'smart', 'eggday', 'submit'),
     ];
     for (const r of all) expect(routeFromLocation('', hashFor(r))).toEqual(r);
   });
@@ -35,6 +36,12 @@ describe('siteNav', () => {
     expect(routeFromLocation('', '#insane')).toEqual(R('auto', 'fastest', 'full'));
     expect(routeFromLocation('?insane=1&goal=deadline&eggday=1&asc=1,2,3', '')).toEqual(R('auto', 'by-date'));
     expect(routeFromLocation('?insane=1', '#deadline')).toEqual(R('auto', 'by-date'));
+  });
+
+  it('opens Compare on Egg Day and Science on what to check when the view is left out or unknown', () => {
+    expect(hashFor(R('compare'))).toBe('#/compare');
+    expect(routeFromLocation('', '#/compare/nonsense')).toEqual(R('compare'));
+    expect(hashFor(R('science'))).toBe('#/science');
   });
 
   it('lets a new-style hash win over the old flags', () => {

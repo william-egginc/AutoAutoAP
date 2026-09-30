@@ -18,33 +18,36 @@
   in this comment because the reader needs them more than the maintainer does.
 -->
 <template>
-  <div class="min-h-screen bg-slate-100 text-slate-800">
-    <div class="max-w-6xl mx-auto px-4 py-8 space-y-6">
-      <header class="space-y-1">
-        <h1 class="text-2xl font-black tracking-tight text-slate-900">Chain Explorer</h1>
-        <p class="text-sm text-slate-500 max-w-3xl leading-relaxed">
-          Every run submitted to the collector, grouped by how many ascensions it takes. Pick a count to see where each
-          ascension lands, how long each leg runs, and whether the shape repeats across accounts.
-        </p>
-      </header>
+  <div :class="embedded ? 'text-slate-800' : 'min-h-screen bg-slate-100 text-slate-800'">
+    <div :class="embedded ? 'space-y-6' : 'max-w-6xl mx-auto px-4 py-8 space-y-6'">
+      <!-- The page's own header, banner and update notice; inside the planner (Compare > Insights,
+           Science) the planner has its own. -->
+      <template v-if="!embedded">
+        <header class="space-y-1">
+          <h1 class="text-2xl font-black tracking-tight text-slate-900">Chain Explorer</h1>
+          <p class="text-sm text-slate-500 max-w-3xl leading-relaxed">
+            Every run submitted to the collector, grouped by how many ascensions it takes. Pick a count to see where
+            each ascension lands, how long each leg runs, and whether the shape repeats across accounts.
+          </p>
+        </header>
 
-      <NewVersionBanner page-url="./explorer.html" entry="explorer" />
+        <NewVersionBanner page-url="./explorer.html" entry="explorer" />
 
-      <!-- Points at "Help fill the gaps", which lives at the bottom beside the upload on purpose. -->
-      <a
-        v-if="base"
-        href="#help-fill-the-gaps"
-        class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-indigo-900 hover:bg-indigo-100"
-        @click.prevent="scrollToGaps"
-      >
-        <span class="text-[13px] font-bold">
-          Want to help make AAAP better? Run one of the sweeps we still need and submit it.
-        </span>
-        <span class="text-[10px] font-black uppercase tracking-widest">See what's needed &darr;</span>
-      </a>
+        <!-- "Help fill the gaps" moved to the planner's Science tab (the unified layout, phase 4). -->
+        <a
+          v-if="base"
+          :href="scienceHref('check')"
+          class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-indigo-900 hover:bg-indigo-100"
+        >
+          <span class="text-[13px] font-bold">
+            Want to help make AAAP better? Run one of the sweeps we still need and submit it.
+          </span>
+          <span class="text-[10px] font-black uppercase tracking-widest">See what's needed &rarr;</span>
+        </a>
+      </template>
 
       <!-- ------------------------------------------------------------------ source and loading -->
-      <section class="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+      <section v-if="part === 'insights'" class="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
         <div v-if="!base" class="space-y-2">
           <p class="text-sm font-bold text-slate-700">No collector configured for this copy of the page.</p>
           <p class="text-[12px] text-slate-500 leading-relaxed">
@@ -130,9 +133,18 @@
         </div>
       </section>
 
+      <!-- Science needs the runs too, but not the collector's details: just say when they can't load. -->
+      <p
+        v-if="part === 'science' && (!base || error)"
+        class="rounded-xl border border-slate-200 bg-white p-4 text-sm font-bold"
+        :class="base ? 'text-rose-700' : 'text-slate-600'"
+      >
+        {{ base ? error : "No collector is set up for this copy of the site, so there's nothing to show here." }}
+      </p>
+
       <!-- ------------------------------------------------------------------ what we know so far -->
       <!-- Written, not computed from the runs, so it shows at once, before the collector answers. -->
-      <WhatWeKnow />
+      <WhatWeKnow v-if="part === 'insights'" />
 
       <!-- Holds the place of everything below while the collector loads, at a fixed height. The
            sections that are worked out from the runs wait for them: drawn from no runs, "Help fill
@@ -146,7 +158,7 @@
         Reading the collector…
       </section>
 
-      <template v-if="rows.length">
+      <template v-if="part === 'insights' && rows.length">
         <!-- ------------------------------------------------------------------------- filtering -->
         <section class="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
           <div class="flex flex-wrap items-center gap-3">
@@ -807,8 +819,9 @@
               and +129, so the marks sit on one narrow diagonal between the dashed guides. More TE has always come with
               more Clothed TE, so these runs cannot yet say whether a plan follows the gear or the TE. The pink band is
               where the planner estimates a first ascension stalls on Integrity, and no account is near it. The grey
-              areas are open asks from Help fill the gaps: places the board still wants more accounts from. One can
-              already hold an account or two ("1 of 2"); it stays grey until enough have covered it.
+              areas are open asks from What we need to check (the Science tab): places the board still wants more
+              accounts from. One can already hold an account or two ("1 of 2"); it stays grey until enough have covered
+              it.
             </p>
             <GearMap :accounts="accounts" :what-ifs="whatIfs" />
           </template>
@@ -979,11 +992,12 @@
       <!-- Only once the collector has answered: the asks are worked out from its runs, so from none
            they were all wrong, and when it fails they cannot be worked out at all. -->
       <section
-        v-if="base && (rows.length || !loading)"
+        v-if="part === 'science' && scienceView === 'check' && base && (rows.length || !loading)"
         id="help-fill-the-gaps"
         class="rounded-xl border border-slate-200 bg-white p-4 space-y-3 scroll-mt-4"
       >
-        <div class="space-y-1">
+        <!-- Inside the planner the Science tab's own heading says this. -->
+        <div v-if="!embedded" class="space-y-1">
           <h2 class="text-lg font-black text-slate-900">Help fill the gaps</h2>
           <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
             What the collected runs are still short of, worked out from them: each item drops off once enough accounts
@@ -991,7 +1005,7 @@
             one more account teaches the most.
           </p>
         </div>
-        <DataNeeds v-if="rows.length" :rows="usable" />
+        <DataNeeds v-if="rows.length" :rows="usable" :te-from-save="teNow" />
         <p v-else class="rounded-lg bg-slate-50 px-3 py-2 text-[11px] text-slate-500">
           The asks are worked out from the runs on the board, so they need the board, and it
           {{ error ? 'could not be read (see above)' : 'holds no runs yet' }}. Any run you submit below still helps.
@@ -1001,7 +1015,10 @@
       <!-- ------------------------------------------------------------------------------ checks -->
       <!-- Beside the runs the planner cannot help yet because it is the same kind of thing: a check on
            the runs, not a finding about the game. -->
-      <section v-if="rows.length" class="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
+      <section
+        v-if="part === 'insights' && rows.length"
+        class="rounded-xl border border-slate-200 bg-white p-4 space-y-2"
+      >
         <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Checks</div>
         <h2 class="text-lg font-black text-slate-900">Did each final leg reach its gear's rate? (to 490)</h2>
         <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
@@ -1022,7 +1039,7 @@
            board (the id stays, for links already shared). Its own fetch, but it waits with the rest,
            so nothing below the loading placeholder moves when the runs arrive. -->
       <section
-        v-if="base && (rows.length || !loading)"
+        v-if="part === 'insights' && base && (rows.length || !loading)"
         id="flagged-board"
         class="rounded-xl border border-slate-200 bg-white p-4 space-y-3 scroll-mt-4"
       >
@@ -1041,7 +1058,7 @@
 
       <!-- ---------------------------------------------------------------------------- upload -->
       <section
-        v-if="base && (rows.length || !loading)"
+        v-if="part === 'science' && scienceView === 'submit' && base && (rows.length || !loading)"
         id="submit-a-sweep"
         class="rounded-xl border border-slate-200 bg-white p-4 space-y-3 scroll-mt-4"
       >
@@ -1053,6 +1070,29 @@
           </p>
         </div>
         <SweepUpload :base="base" :rows="rows" @submitted="load" />
+      </section>
+
+      <!-- Where the two sections that used to end this page went. -->
+      <section
+        v-if="!embedded && part === 'insights' && base"
+        class="rounded-xl border border-indigo-200 bg-indigo-50 p-4 space-y-2"
+      >
+        <h2 class="text-lg font-black text-slate-900">Help fill the gaps, and Submit a sweep</h2>
+        <p class="text-[12px] text-indigo-900/80 leading-relaxed max-w-3xl">
+          Both are on the planner's Science tab now, next to the searches that run the sweeps.
+        </p>
+        <div class="flex flex-wrap gap-2">
+          <a
+            :href="scienceHref('check')"
+            class="px-3 py-2 rounded-lg bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-800"
+            >What we need to check &rarr;</a
+          >
+          <a
+            :href="scienceHref('submit')"
+            class="px-3 py-2 rounded-lg border border-indigo-300 bg-white text-[10px] font-black uppercase tracking-widest text-indigo-800 hover:border-indigo-500"
+            >Submit a sweep &rarr;</a
+          >
+        </div>
       </section>
     </div>
   </div>
@@ -1133,6 +1173,23 @@ import AccountDot from './AccountDot.vue';
 import { leftOf, leftShareText, leftTitle, longEstimate, plansText, type Left } from './left';
 import { measuredWorkerSeconds } from '@/search/speed';
 
+/**
+ * Which part of the Explorer to draw. On its own page (explorer.html) it's the charts, "Insights".
+ * Inside the planner it's Compare > Insights, or the Science tab: what the runs still need and the
+ * sweep upload, which moved there from this page (the unified layout, phase 4). `embedded` drops
+ * the page's own header and update notice, which the planner has.
+ */
+const props = withDefaults(
+  defineProps<{
+    part?: 'insights' | 'science';
+    embedded?: boolean;
+    scienceView?: 'check' | 'submit';
+    /** The planner's loaded TE, for What we need to check's ranges. */
+    teNow?: number;
+  }>(),
+  { part: 'insights', embedded: false, scienceView: 'check', teNow: 0 }
+);
+
 /** Where a pasted collector URL is remembered. Per-browser, not per-build. */
 const BASE_STORAGE_KEY = 'chainExplorerCollector';
 
@@ -1182,19 +1239,15 @@ onMounted(() => {
 let allController: AbortController | null = null;
 let csvController: AbortController | null = null;
 
-/** The banner's jump. Smooth, and it keeps the #anchor in the URL so the link can be shared. While
- *  the collector loads the section is not there yet (it waits for the runs), so the jump waits too. */
-function scrollToGaps(): void {
-  history.replaceState(null, '', '#help-fill-the-gaps');
-  const section = document.getElementById('help-fill-the-gaps');
-  if (section) section.scrollIntoView({ behavior: scrollBehaviour(), block: 'start' });
-  else gapsWanted = true;
+/** The planner's Science tab, a page in this same build (lib/siteNav.ts has its addresses). */
+function scienceHref(view: 'check' | 'submit'): string {
+  return `./${view === 'submit' ? '#/science/submit' : '#/science'}`;
 }
-/** A jump to "Help fill the gaps" asked for before the section was on the page: the banner clicked
- *  during the load, or a shared link ending in #help-fill-the-gaps. Done once it appears. */
-let gapsWanted = typeof location !== 'undefined' && location.hash === '#help-fill-the-gaps';
-/** The same for a link ending in #submit-a-sweep (the planner's Science tab links here). */
-let sweepUploadWanted = typeof location !== 'undefined' && location.hash === '#submit-a-sweep';
+// Links to the two sections this page used to end with go where they are now.
+if (!props.embedded && typeof location !== 'undefined') {
+  if (location.hash === '#help-fill-the-gaps') location.replace(scienceHref('check'));
+  else if (location.hash === '#submit-a-sweep') location.replace(scienceHref('submit'));
+}
 
 /** An aborted request is the expected outcome of clicking twice, not an error to report. */
 function isAbort(e: unknown): boolean {
@@ -1227,17 +1280,6 @@ async function load(): Promise<void> {
     if (allController === controller) {
       loading.value = false;
       allController = null;
-      if (gapsWanted) {
-        gapsWanted = false;
-        // After the render this load causes, so the section is on the page and all above it drawn.
-        void nextTick(scrollToGaps);
-      }
-      if (sweepUploadWanted) {
-        sweepUploadWanted = false;
-        void nextTick(() =>
-          document.getElementById('submit-a-sweep')?.scrollIntoView({ behavior: scrollBehaviour(), block: 'start' })
-        );
-      }
     }
   }
 }

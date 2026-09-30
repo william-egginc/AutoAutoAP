@@ -41,14 +41,16 @@
           <!-- The board answers "who gets there first", which says little about which SHAPE of
                chain works. The explorer answers that one, per ascension count, so it is linked
                from here, where somebody is already looking at other people's runs. -->
-          <a
-            :href="explorerHref"
+          <button
+            v-if="tab !== 'insights'"
+            type="button"
             class="inline-block mt-1 text-[11px] font-black text-indigo-700 hover:text-indigo-900 underline decoration-indigo-300"
+            @click="tab = 'insights'"
           >
-            Explore every run by ascension count →
-          </a>
+            Explore every run by ascension count in {{ NAMES.insights }} →
+          </button>
         </div>
-        <div class="flex items-end gap-2">
+        <div v-if="tab !== 'insights'" class="flex items-end gap-2">
           <label v-if="tab !== 'dates' && tab !== 'eggday'" class="block">
             <span class="block text-[9px] font-black uppercase tracking-widest text-indigo-700/70 mb-1">Target TE</span>
             <select v-model="final" class="rounded-lg border-indigo-200 text-xs font-bold text-slate-700 py-1.5">
@@ -86,7 +88,11 @@
         </button>
       </div>
 
-      <p v-if="error" class="text-[11px] text-red-700 font-semibold">Could not reach the collector: {{ error }}</p>
+      <!-- Insights: the Chain Explorer's charts (its own load, filters and refresh), in place of a
+           link out to its page (the unified layout, phase 4). -->
+      <ChainExplorer v-if="tab === 'insights'" part="insights" embedded />
+
+      <p v-else-if="error" class="text-[11px] text-red-700 font-semibold">Could not reach the collector: {{ error }}</p>
 
       <p v-else-if="loading && !allRows.length" class="text-[11px] text-indigo-900/60 py-6 text-center">Loading…</p>
 
@@ -370,8 +376,8 @@
       <!-- ======================================================= EGG DAY, AND BY A DATE -->
       <template v-else-if="tab === 'eggday' || tab === 'dates'">
         <p v-if="tab === 'eggday'" class="text-[11px] text-indigo-900/80 leading-relaxed">
-          The highest TE each player can reach by Egg Day {{ eggDayYear }} (14 July, 9:00 AM Pacific), from Insane
-          mode's <span class="font-bold">Highest TE by a date</span> search with the Egg Day preset. Players are ranked
+          The highest TE each player can reach by Egg Day {{ eggDayYear }} (14 July, 9:00 AM Pacific), from the Auto
+          Planner's <span class="font-bold">{{ NAMES.byDate }}</span> search with the Egg Day preset. Players are ranked
           by the TE they reach, then by time to spare, using each player's best answer. Game events aren't simulated,
           including Egg Day's own.
         </p>
@@ -786,7 +792,9 @@
 </template>
 
 <script setup lang="ts">
-import { NAMES } from '@/lib/siteNav';
+import { COMPARE_VIEWS, NAMES, type CompareView } from '@/lib/siteNav';
+import { useUIStore } from '@/stores/ui';
+import { safeAsyncComponent } from '@/lib/import';
 import { describeFetchError } from '@/utils/errors';
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
@@ -831,6 +839,9 @@ import { eggDaySeconds, nextEggDayYear } from '@/lib/eggDay';
 import LeaderboardPlanList from './LeaderboardPlanList.vue';
 import LeaderboardRunDetail from './LeaderboardRunDetail.vue';
 
+/** Insights: the Explorer's charts and their chart library load only when that tab opens. */
+const ChainExplorer = safeAsyncComponent(() => import('@/explorer/ChainExplorer.vue'));
+
 const props = defineProps<{
   /** The account whose owner code asks GET /mine for "my" rows. Only its hash is used, as the
    *  storage key the code is kept under; the id itself never leaves the browser. */
@@ -842,9 +853,9 @@ const emit = defineEmits<{ use: [chain: number[]] }>();
  *  endpoint that may be a version ahead or behind, and a missing field should render a dash. */
 type Row = BoardRow;
 
-type Tab = 'eggday' | 'race' | 'mine' | 'all' | 'dates';
-/** Egg Day first (the user, 29 Sep): the one date everyone is aiming at. */
-const TABS: Tab[] = ['eggday', 'race', 'mine', 'all', 'dates'];
+type Tab = CompareView;
+/** Egg Day first (the user, 29 Sep): the one date everyone is aiming at. Insights last. */
+const TABS: Tab[] = COMPARE_VIEWS;
 /** How many rows an OLD collector's `GET /all` listed at most. The current one serves its whole
  *  snapshot, uncapped, and says so by carrying `builtAt`; only an answer without it is checked. */
 const ALL_CAP = 1000;
@@ -857,11 +868,14 @@ const planner = useAutoPlannerStore();
 
 const root = computed(() => store.leaderboardUrl.replace(/\/$/, ''));
 
-/** The explorer is a second page in this same build, so it lives under whatever base was built. */
-const explorerHref = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/explorer.html`;
 const csvRoot = computed(() => `${root.value}/csv`);
 
-const tab = ref<Tab>('eggday');
+/** The open view, which the page address follows (#/compare/<view>, lib/siteNav.ts). */
+const ui = useUIStore();
+const tab = computed<Tab>({
+  get: () => ui.compareView,
+  set: v => (ui.compareView = v),
+});
 const allRows = ref<Row[]>([]);
 const loading = ref(false);
 const error = ref('');
@@ -930,6 +944,7 @@ function tabLabel(t: Tab): string {
   if (t === 'race') return target.value == null ? 'Race' : `Race to ${target.value}`;
   if (t === 'dates') return 'By a date';
   if (t === 'eggday') return `Egg Day ${eggDayYear}`;
+  if (t === 'insights') return NAMES.insights;
   return t === 'mine' ? 'My plans' : 'All runs';
 }
 

@@ -42,7 +42,7 @@
         </div>
       </div>
 
-      <!-- A sweep requested from the Chain Explorer's "Help fill the gaps" list: everything is filled
+      <!-- A sweep requested from the Science tab's "What we need to check" list: everything is filled
            in already, so the only decisions left are how much of the machine to give it and whether
            the time is acceptable. -->
       <div v-if="sweepRequest" class="p-4 rounded-xl border border-indigo-200 bg-indigo-50 space-y-3">
