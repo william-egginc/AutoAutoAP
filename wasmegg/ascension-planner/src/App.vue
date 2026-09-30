@@ -221,9 +221,24 @@
               :aria-current="plannerTab === t.tab ? 'page' : undefined"
               @click="goTo({ section: t.id, auto: autoView, depth: fastestDepth })"
             >
-              {{ t.label }}
+              <span class="block">{{ t.label }}</span>
+              <span
+                class="block mt-0.5 text-[9px] font-bold normal-case tracking-normal"
+                :class="plannerTab === t.tab ? 'text-white/80' : 'text-slate-400'"
+                >{{ t.sub }}</span
+              >
             </button>
           </div>
+        </div>
+
+        <div v-if="!showGuide" class="flex justify-center -mt-1">
+          <button
+            type="button"
+            class="text-[10px] font-bold text-slate-400 hover:text-indigo-700 underline decoration-dotted"
+            @click="showGuide = true"
+          >
+            What moved? The new layout, explained
+          </button>
         </div>
 
         <template v-if="plannerTab === 'automatic'">
@@ -268,6 +283,9 @@
           </div>
         </div>
       </nav>
+
+      <!-- The new layout explained once, for players who knew the old one (dismissed for good). -->
+      <NewLayoutGuide v-if="playerId && showGuide" class="mt-4" @close="closeGuide" />
 
       <!-- Current Mode Label -->
       <div v-if="plannerTab === 'manual' && plannerModeLabel" class="mt-4 flex justify-center">
@@ -445,7 +463,14 @@
         <!-- One setup for all three screens (plan start, hours, time off, this computer), so a change
              on one is already on the others. -->
         <YourSetup :screen="autoView" />
-        <AutomaticPlanner v-if="autoView === 'classic'" />
+        <template v-if="autoView === 'classic'">
+          <p class="max-w-4xl mx-auto text-sm text-slate-600 leading-relaxed">
+            <span class="font-bold text-slate-900">{{ NAMES.classic }}</span> is Joo's Auto AP: type the TE you want to
+            ascend at and it lays out every ascension from your start. To have the checkpoints found for you, use
+            {{ NAMES.fastest }} or {{ NAMES.byDate }}.
+          </p>
+          <AutomaticPlanner />
+        </template>
         <!-- One screen, two depths: the "How thorough" cards are on it (FastestRoute.vue). -->
         <FastestRoute
           v-else-if="autoView === 'fastest'"
@@ -618,6 +643,7 @@ import PlanSelectionDialog from '@/components/PlanSelectionDialog.vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { safeAsyncComponent } from '@/lib/import';
 import RunProgressBar from '@/components/auto/RunProgressBar.vue';
+import NewLayoutGuide from '@/components/NewLayoutGuide.vue';
 import { useSalesStore } from '@/stores/sales';
 import { hashID, saveMetadata, loadMetadata } from '@/lib/storage/db';
 import { useActionExecutor } from '@/composables/useActionExecutor';
@@ -838,12 +864,14 @@ const topTabs = computed(() => [
     id: 'manual' as const,
     tab: 'manual',
     label: NAMES.manual,
+    sub: 'Build it yourself',
     on: 'bg-slate-900 text-white shadow-lg shadow-slate-200',
   },
   {
     id: 'auto' as const,
     tab: 'automatic',
     label: NAMES.auto,
+    sub: 'Let it find a plan',
     on: 'bg-indigo-600 text-white shadow-lg shadow-indigo-100',
   },
   // Only with a collector: a fork with no VITE_SUBMIT_URL has no board and no Explorer.
@@ -853,12 +881,14 @@ const topTabs = computed(() => [
           id: 'compare' as const,
           tab: 'leaderboard',
           label: NAMES.compare,
+          sub: 'Leaderboard and insights',
           on: 'bg-emerald-600 text-white shadow-lg shadow-emerald-100',
         },
         {
           id: 'science' as const,
           tab: 'science',
           label: NAMES.science,
+          sub: 'Help crack the algorithm',
           on: 'bg-amber-600 text-white shadow-lg shadow-amber-100',
         },
       ]
@@ -885,6 +915,26 @@ const saveTE = computed(() => {
   }
   return total;
 });
+/** The new-layout guide (NewLayoutGuide.vue): open until "Got it", remembered in this browser. */
+const GUIDE_KEY = 'aap-new-layout-seen';
+const showGuide = ref(
+  (() => {
+    try {
+      return localStorage.getItem(GUIDE_KEY) !== '1';
+    } catch {
+      return true;
+    }
+  })()
+);
+function closeGuide(): void {
+  showGuide.value = false;
+  try {
+    localStorage.setItem(GUIDE_KEY, '1');
+  } catch {
+    /* private window: it shows again next visit */
+  }
+}
+
 const scienceTabs: { id: ScienceView; label: string }[] = [
   { id: 'check', label: NAMES.check },
   { id: 'submit', label: NAMES.submit },

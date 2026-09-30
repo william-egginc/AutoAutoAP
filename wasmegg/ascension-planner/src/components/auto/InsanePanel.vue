@@ -235,7 +235,10 @@
         >
           <b>No chain finished</b>, so there is nothing to save or submit. The reason is further down.
         </p>
-        <p v-if="store.error" class="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-[11px] text-red-800">
+        <p
+          v-if="store.error && !store.errorIsIntegrityNotice"
+          class="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-[11px] text-red-800"
+        >
           <b>{{ store.errorBeforeStart ? "Didn't start" : 'Search failed' }}:</b> {{ store.error }}
         </p>
         <p
@@ -1153,7 +1156,7 @@
         </p>
 
         <div
-          v-if="store.error"
+          v-if="store.error && !store.errorIsIntegrityNotice"
           class="p-4 bg-red-50 border border-red-200 rounded-xl text-xs text-red-800 leading-relaxed"
         >
           <span class="font-bold uppercase tracking-wide"

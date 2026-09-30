@@ -755,6 +755,11 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     return { blocked, text: integrityMessage(wait, blocked ? cteParts() : null) };
   });
   const integrityBlocked = computed(() => !!integrityNotice.value?.blocked);
+  /** A start refused for the integrity block says exactly what the notice beside every Start already
+   *  says; the panels show it once (a player saw the same paragraph twice, one above the other). */
+  const errorIsIntegrityNotice = computed(
+    () => !!error.value && errorBeforeStart.value && error.value === integrityNotice.value?.text
+  );
 
   /** The player said to run on the older save anyway (see ui.ts `staleBackup`). Kept across a
    *  retry that fails the same way; a different failure asks again. */
@@ -4496,6 +4501,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   }
 
   return {
+    errorIsIntegrityNotice,
     runProgress,
     stopRun,
     sweepQueue,

@@ -1123,7 +1123,7 @@
       </p>
 
       <div
-        v-if="store.error"
+        v-if="store.error && !store.errorIsIntegrityNotice"
         class="p-4 bg-red-50 border border-red-200 rounded-xl text-xs text-red-800 leading-relaxed space-y-1.5"
       >
         <p>

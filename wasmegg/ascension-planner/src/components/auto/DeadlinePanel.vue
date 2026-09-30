@@ -408,7 +408,9 @@
       </button>
     </div>
     <p v-if="startIssue" class="text-[11px] font-semibold text-rose-700">{{ startIssue }}</p>
-    <p v-if="store.error" class="text-[11px] font-semibold text-rose-700">{{ store.error }}</p>
+    <p v-if="store.error && !store.errorIsIntegrityNotice" class="text-[11px] font-semibold text-rose-700">
+      {{ store.error }}
+    </p>
 
     <!-- Live progress, Insane-style. -->
     <div v-if="store.deadlineRunning && store.deadlineProgress" class="space-y-2">
