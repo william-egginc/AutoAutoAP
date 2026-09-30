@@ -322,3 +322,25 @@ describe('stop boxes that used to hang the tab', () => {
     expect(parseStopBox('995-1e9:1')).toEqual([995, 996, 997, 998, 999, 1000]);
   });
 });
+
+describe('the last-stop box is where to start, not a wall (extend)', () => {
+  it('finds a last stop above a box set too low', async () => {
+    const s = spec({ lastLo: 110, lastHi: 120, bandSets: [[]], deadline: START + 120 * DAY });
+    const walled = await search(s);
+    const open = await search({ ...s, extend: true });
+    let truth = -1;
+    for (let t = 101; t <= 490; t++) if (START + priceChain(100, [t]).seconds <= s.deadline) truth = t;
+    expect(walled.routes[0].chain.at(-1)).toBe(120);
+    expect(open.routes[0].chain.at(-1)).toBe(truth);
+    expect(truth).toBeGreaterThan(120);
+  });
+
+  it('finds the real answer below a single value nobody can reach', async () => {
+    const s = spec({ lastLo: 400, lastHi: 400, bandSets: [[]] });
+    expect((await search(s)).routes).toEqual([]);
+    const open = await search({ ...s, extend: true });
+    let truth = -1;
+    for (let t = 101; t <= 490; t++) if (START + priceChain(100, [t]).seconds <= s.deadline) truth = t;
+    expect(open.routes[0].chain.at(-1)).toBe(truth);
+  });
+});

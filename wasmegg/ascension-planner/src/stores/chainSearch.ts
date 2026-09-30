@@ -21,7 +21,7 @@ import { hashID } from '@/lib/storage/db';
 import { runChainSearch, type CacheEntry } from '@/search/driver';
 import { findStartingChain, planCoarseGrid } from '@/search/coarse';
 import { createChainSearchPool, type ChainSearchPool } from '@/search/pool';
-import { timeWeightedWorkers } from '@/search/speed';
+import { timeWeightedWorkers, workerSecondsFromRate } from '@/search/speed';
 import { hardwareThreads, maxPoolSize, clampPoolSize, targetWorkerCount } from '@/search/batch';
 import { describeRunError } from '@/utils/errors';
 import { loadChainBenchmark, saveChainBenchmark } from '@/lib/chainBenchmarkCache';
@@ -76,7 +76,7 @@ import {
 import { currentPlans, recheckChains, type RecheckRun } from '@/search/rechecks';
 import { accountKeyOf, type BoardRow, type Plan } from '@/lib/leaderboardRank';
 import { describeAvailability, isConstrained, nextAvailable, type Availability } from '@/search/availability';
-import { runDeadlineSearch, type DeadlineProgress, type DeadlineRoute } from '@/search/deadline';
+import { MAX_LAST_STOP, runDeadlineSearch, type DeadlineProgress, type DeadlineRoute } from '@/search/deadline';
 import * as blackBox from '@/search/blackBox';
 import {
   clearDeadlineCheckpoint,
@@ -3410,6 +3410,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           step: spec.step,
           seedShapes: spec.seedShapes ?? [],
           parallel: spec.parallel ?? 1,
+          ...(spec.extend ? { extend: true } : {}),
           ...(spec.bands?.length ? { bands: spec.bands } : {}),
           ...(spec.bandSets?.length ? { bandSets: spec.bandSets } : {}),
           ...(spec.ascendNeeded && schedule ? { ascendAt: (t: number) => nextAvailable(t, schedule) } : {}),
@@ -3425,6 +3426,12 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         }
       );
       deadlineAll = out.routes;
+      // Its own speed, for the next estimate: only the routes this run priced, not the replayed ones.
+      noteDeadlineSpeed(
+        replay.entries().length - seed.length,
+        (Date.now() - deadlineStartedAt.value) / 1000,
+        pool ? Math.max(1, Math.min(workerBudget.value, targetWorkers.value)) : workerBudget.value
+      );
       deadlineResult.value = {
         routes: out.routes.slice(0, 50),
         byStops: [...out.byStops.entries()].sort((a, b) => a[0] - b[0]).map(([, r]) => r),
@@ -3437,6 +3444,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         stoppedEarly: out.stoppedEarly,
         ascendNeeded: spec.ascendNeeded && !!schedule,
         lastHi: spec.lastHi,
+        ceiling: spec.extend ? Math.max(spec.lastHi, MAX_LAST_STOP) : spec.lastHi,
         at: Date.now(),
       };
       try {
@@ -3484,6 +3492,35 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       dropRunLock();
       dropScreenLock();
       deadlineRunning.value = false;
+    }
+  }
+
+  /**
+   * What one deadline route costs a worker, in seconds, measured on this machine by the last deadline
+   * run that priced enough routes to tell (remembered in this browser). The panel's estimate starts
+   * from it. Not Insane's `secondsPerChain`: that is a wall-clock rate across the whole pool, and
+   * Insane's chains share early stops far more than deadline routes do.
+   */
+  const DEADLINE_SPEED_KEY = 'aap.deadlineWorkerSeconds';
+  const deadlineWorkerSeconds = ref(
+    (() => {
+      try {
+        const n = Number(localStorage.getItem(DEADLINE_SPEED_KEY));
+        return Number.isFinite(n) && n > 0 ? n : 0;
+      } catch {
+        return 0;
+      }
+    })()
+  );
+  function noteDeadlineSpeed(freshRoutes: number, seconds: number, workers: number): void {
+    if (freshRoutes < 20 || !(seconds > 0)) return;
+    const ws = workerSecondsFromRate(seconds / freshRoutes, workers);
+    if (!Number.isFinite(ws) || ws <= 0) return;
+    deadlineWorkerSeconds.value = ws;
+    try {
+      localStorage.setItem(DEADLINE_SPEED_KEY, String(ws));
+    } catch {
+      // a nicety
     }
   }
 
@@ -4338,6 +4375,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     exportCsvChunks,
     buildRunSubmission,
     buildDeadlineSubmission,
+    deadlineWorkerSeconds,
     sendSubmission,
     claimName,
     prepareRechecks,

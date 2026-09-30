@@ -41,6 +41,8 @@ export interface DeadlineRunSpec {
   parallel?: number;
   /** The panel's estimate of routes to price, for the progress bar of a carried-on run. */
   estimate?: number;
+  /** The last stop may go past its box (deadline.ts `extend`). Absent on runs saved before it. */
+  extend?: boolean;
 }
 
 /** The leg detail the results panel reads. The full LegSummary carries shifts and CSV detail
@@ -73,6 +75,8 @@ export interface SavedDeadlineResult {
   stoppedEarly: boolean;
   ascendNeeded: boolean;
   lastHi: number;
+  /** The highest last stop the search could reach: `lastHi`, or 490 for an extended search. */
+  ceiling?: number;
   at: number;
 }
 

@@ -168,7 +168,7 @@
         </button>
         <label class="space-y-1">
           <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest"
-            >Last stop (the answer)</span
+            >Last stop: where to start looking</span
           >
           <input
             v-model="lastBox"
@@ -179,7 +179,11 @@
           />
         </label>
         <span class="text-[10px] pb-2" :class="lastRange ? 'text-slate-500' : 'text-rose-600'">
-          {{ lastRange ? `found to the exact TE between ${lastRange[0]} and ${lastRange[1]}` : 'give it a range' }}
+          {{
+            lastRange
+              ? `starts at ${lastRange[0]}-${lastRange[1]} and looks higher or lower if the answer is outside it; found to the exact TE`
+              : 'give it a rough range, e.g. 300-340'
+          }}
         </span>
       </div>
       <p class="text-[11px] text-slate-500 leading-relaxed">
@@ -221,7 +225,7 @@
         </label>
         <label class="space-y-1">
           <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest"
-            >Highest last stop to consider</span
+            >Rough guess for the last stop</span
           >
           <input
             v-model.number="lastHi"
@@ -272,9 +276,12 @@
         </div>
       </div>
       <p class="pt-2 text-[10px] text-slate-500 leading-relaxed">
-        About {{ PROBES }} routes per set: the last stop is narrowed down, not tried at every TE. The estimate uses this
-        machine's measured speed on {{ store.workerBudget }} workers if there is one. It errs high, since these routes
-        are shorter than a run to 490.
+        About {{ PROBES }} routes per set: the last stop is narrowed down, not tried at every TE. The estimate uses
+        <template v-if="store.deadlineWorkerSeconds">this machine's speed from its last deadline search</template
+        ><template v-else
+          >the typical speed for routes this long in players' runs, until this machine has done a deadline search of its
+          own</template
+        >, on {{ store.workerBudget }} workers.
       </p>
     </div>
 
@@ -416,8 +423,11 @@
       </div>
       <p class="text-[11px] text-slate-600">
         <span class="font-bold">{{ liveDone.toLocaleString() }}</span
-        ><template v-if="runEstimate"> of ~{{ liveTotal.toLocaleString() }}</template> routes priced ·
-        {{ elapsedLabel }} so far<template v-if="remainingLabel"> · about {{ remainingLabel }} left</template>
+        ><template v-if="runEstimate && liveDone < runEstimate"> of ~{{ runEstimate.toLocaleString() }}</template>
+        routes priced<template v-if="runEstimate && liveDone >= runEstimate">
+          (more than the ~{{ runEstimate.toLocaleString() }} estimated)</template
+        >
+        · {{ elapsedLabel }} so far<template v-if="remainingLabel"> · about {{ remainingLabel }} left</template>
       </p>
       <p class="text-[11px] text-slate-500">{{ store.deadlineProgress.stage }}</p>
       <div v-if="store.deadlineProgress.top.length" class="overflow-x-auto">
@@ -465,7 +475,7 @@
           <template v-if="atCeiling">
             <span class="font-bold">That is the highest last stop it was allowed to try</span>, so more may be
             reachable: raise
-            {{ result.step ? '"Highest last stop to consider"' : "the top of the last stop's range" }} and run it
+            {{ result.step ? '"Rough guess for the last stop"' : "the top of the last stop's range" }} and run it
             again.</template
           >
         </p>
@@ -628,7 +638,8 @@ import {
   parseStopBox,
   stepForBudget,
 } from '@/search/deadline';
-import { estimateHours, formatBand, formatHours } from '@/search/exhaustive';
+import { formatBand, formatHours } from '@/search/exhaustive';
+import { sweepSeconds, workerSecondsPerChain } from '@/search/speed';
 import type { DeadlineRunSpec } from '@/search/deadlineStore';
 import { downloadCsv } from '@/utils/export';
 import { useEidsStore } from 'lib';
@@ -856,14 +867,12 @@ const spaceShapes = computed(() => {
  * Routes per set of early stops: the last stop is found by halving its range down to one TE, plus
  * a couple to step out and confirm -- log2(range) + 2. Measured: 8 a set over a 30-TE range.
  */
-const lastWidth = computed(() =>
-  Math.max(
-    2,
-    mode.value === 'space' && lastRange.value
-      ? lastRange.value[1] - lastRange.value[0] + 1
-      : Math.min(490, Math.floor(lastHi.value)) - Math.floor(store.currentTE) // as the run caps it
-  )
-);
+/**
+ * The span the last stop may be looked for in. Runs now go past the box when the answer is outside it
+ * (deadline.ts `extend`), up to 490 and down to just above your TE, so that whole span is charged: a
+ * box of one value used to be priced at 3 routes a set when the run took 10 or more.
+ */
+const lastWidth = computed(() => Math.max(2, 490 - Math.floor(store.currentTE)));
 const PROBES = computed(() => Math.ceil(Math.log2(lastWidth.value)) + 2);
 const plannedShapes = computed(() => (mode.value === 'space' ? spaceShapes.value : shapes.value));
 /**
@@ -878,9 +887,21 @@ const plannedRoutes = computed(() => {
   const perShape = k === 1 ? PROBES.value : k * (Math.ceil(Math.log(lastWidth.value) / Math.log(k + 1)) + 1);
   return Math.round(n * perShape * (mode.value === 'auto' ? 1.2 : 1));
 });
-const secondsPerRoute = computed(() => store.secondsPerChain || 15);
+/**
+ * Seconds of one worker per route: this machine's own measure from its last deadline run, else the
+ * typical figure for routes this long in players' runs. Charged through `sweepSeconds`, which counts
+ * the workers ONCE (with their contention). It used to take Insane's `secondsPerChain`, which is
+ * already wall-clock across the pool, and divide by the workers again: about 7x too short on 7.
+ */
+const longestChain = computed(() =>
+  mode.value === 'space' ? Math.max(1, ...chains.value.map(r => Math.floor(r.asc) || 1)) : Math.max(1, maxStops.value)
+);
+const workerSecondsPerRoute = computed(() => store.deadlineWorkerSeconds || workerSecondsPerChain(longestChain.value));
+const secondsPerRoute = computed(() => sweepSeconds(1, store.workerBudget, workerSecondsPerRoute.value));
 const estimateLabel = computed(() =>
-  plannedRoutes.value ? formatHours(estimateHours(plannedRoutes.value, store.workerBudget, secondsPerRoute.value)) : '—'
+  plannedRoutes.value
+    ? formatHours(sweepSeconds(plannedRoutes.value, store.workerBudget, workerSecondsPerRoute.value) / 3600)
+    : '—'
 );
 const costLabel = computed(() => `${secondsPerRoute.value.toFixed(secondsPerRoute.value < 10 ? 2 : 1)} s`);
 
@@ -1004,6 +1025,7 @@ async function find(): Promise<void> {
       step: 1,
       ascendNeeded: ascendNeeded.value,
       estimate: plannedRoutes.value,
+      extend: true,
       bandSets: chains.value.map((r, k) => (r.asc <= 1 ? [] : rowBands(k).map(b => [...b]))),
     });
     return;
@@ -1016,6 +1038,7 @@ async function find(): Promise<void> {
     step: step.value,
     ascendNeeded: ascendNeeded.value,
     estimate: plannedRoutes.value,
+    extend: true,
   });
 }
 
@@ -1099,7 +1122,9 @@ function ago(ms: number): string {
   return h < 48 ? `${h} h ago` : `${Math.round(h / 24)} days ago`;
 }
 const best = computed(() => result.value?.routes[0] ?? null);
-const atCeiling = computed(() => !!best.value && best.value.chain[best.value.chain.length - 1] >= result.value!.lastHi);
+const atCeiling = computed(
+  () => !!best.value && best.value.chain[best.value.chain.length - 1] >= (result.value!.ceiling ?? result.value!.lastHi)
+);
 
 function inPlannerZone(unixSeconds: number): string {
   return showDateTime(unixSeconds, plannerZone.value);

@@ -87,6 +87,14 @@ export interface DeadlineSpec {
    */
   parallel?: number;
   /**
+   * Let the last stop go past `lastLo`..`lastHi`: down to one above the last early stop and up to
+   * `MAX_LAST_STOP`. The box is then where the search STARTS looking, not a wall. Without it a box
+   * set too low stopped at its top with days to spare, and one set too high (or a single value
+   * nobody can reach) found nothing at all (Allan, 30 Sept). Unset: the box is the whole range, as
+   * before, so a run saved without it replays the same way.
+   */
+  extend?: boolean;
+  /**
    * When the player can actually ASCEND at the last stop, given when it is reached -- the next
    * awake moment under their schedule. Absent: reaching it is enough.
    */
@@ -225,6 +233,9 @@ export function countBandShapes(bands: number[][], currentTE: number, lastHi: nu
  * One box's text as values: `160-200:10`, `175`, or several of either joined by commas
  * (`138-142:1, 150, 160-180:5`). Sorted, duplicates dropped. Same notation as Insane's bands.
  */
+/** The highest last stop an extended search goes to: the planner's target. */
+export const MAX_LAST_STOP = 490;
+
 /** Above any TE the game has; a stop box never lists more than this. */
 const MAX_STOP = 1000;
 
@@ -372,11 +383,16 @@ export async function runDeadlineSearch(spec: DeadlineSpec, cb: DeadlineCallback
 
   /** Bracket the highest last stop for every shape, a round (one batch) at a time. */
   async function bracketAll(shapes: number[][], startAt: (floor: number) => number): Promise<void> {
-    const first = Math.max(1, spec.step);
+    // The first step out of a bracket. An extended search may start far from the answer (a box of one
+    // value, set well off), so it steps out faster; doubling from 1 TE cost two extra rounds a shape.
+    const first = spec.extend ? Math.max(4, spec.step) : Math.max(1, spec.step);
     const brackets: Bracket[] = shapes.map(shape => ({ shape, ok: null, miss: null, jump: first, done: false }));
+    // The hard bounds: the box itself, or with `extend` everything from just above the last early stop
+    // to MAX_LAST_STOP. The box still decides where the first guesses go.
+    const hi = spec.extend ? Math.max(spec.lastHi, MAX_LAST_STOP) : spec.lastHi;
     const floorOf = (b: Bracket) =>
-      Math.max(spec.lastLo, (b.shape[b.shape.length - 1] ?? Math.floor(spec.currentTE)) + 1);
-    for (const b of brackets) if (floorOf(b) > spec.lastHi) b.done = true;
+      Math.max(spec.extend ? 0 : spec.lastLo, (b.shape[b.shape.length - 1] ?? Math.floor(spec.currentTE)) + 1);
+    for (const b of brackets) if (floorOf(b) > hi) b.done = true;
 
     const width = Math.max(1, Math.floor(spec.parallel ?? 1));
     /** `n` whole numbers spread evenly strictly between `lo` and `hi` (fewer when the gap is small). */
@@ -393,18 +409,19 @@ export async function runDeadlineSearch(spec: DeadlineSpec, cb: DeadlineCallback
     const probesOf = (b: Bracket, k: number): number[] => {
       const floor = floorOf(b);
       if (b.ok === null && b.miss === null) {
-        const t0 = Math.min(spec.lastHi, Math.max(floor, startAt(floor)));
-        // The guess, plus the rest spread over everything this shape could reach.
-        return k === 1 ? [t0] : [...new Set([t0, ...evenly(floor - 1, spec.lastHi + 1, k - 1)])];
+        const boxFloor = Math.max(floor, Math.min(spec.lastLo, spec.lastHi));
+        const t0 = Math.min(spec.lastHi, Math.max(boxFloor, startAt(boxFloor)));
+        // The guess, plus the rest spread over the box (an extended search gallops out of it after).
+        return k === 1 ? [t0] : [...new Set([t0, ...evenly(boxFloor - 1, spec.lastHi + 1, k - 1)])];
       }
       if (b.ok !== null && b.miss !== null) {
         if (b.miss - b.ok <= 1) return [];
         return k === 1 ? [Math.floor((b.ok + b.miss) / 2)] : evenly(b.ok, b.miss, k);
       }
       if (b.ok !== null) {
-        if (b.ok >= spec.lastHi) return [];
+        if (b.ok >= hi) return [];
         const ok = b.ok;
-        const pts = Array.from({ length: k }, (_, j) => Math.min(spec.lastHi, ok + (j + 1) * b.jump));
+        const pts = Array.from({ length: k }, (_, j) => Math.min(hi, ok + (j + 1) * b.jump));
         b.jump *= k + 1;
         return [...new Set(pts)];
       }
