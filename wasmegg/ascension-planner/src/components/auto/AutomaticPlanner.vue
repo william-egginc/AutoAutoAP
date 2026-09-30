@@ -33,7 +33,7 @@
           </div>
 
           <div class="space-y-8">
-            <SchedulingInputs />
+            <!-- Start time and timezone are in Your setup (YourSetup.vue), shared by every Auto Planner screen. -->
             <VirtueProgressSection />
 
             <!-- Ascension Targets -->
@@ -339,17 +339,14 @@ import IntegrityNotice from './IntegrityNotice.vue';
 import { ref, computed, watch, nextTick, onMounted } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useAutoPlannerStore, type VariantKey } from '@/stores/autoPlanner';
-import { useVirtueStore } from '@/stores/virtue';
 import { useTruthEggsStore } from '@/stores/truthEggs';
 import { useAscensionGenerator } from '@/auto/useAscensionGenerator';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { showDateTime } from '@/lib/displayTime';
 import { useEarningsClothedTE } from '@/composables/useEarningsClothedTE';
 import { loadAutoPlannerSchedule, saveAutoPlannerSchedule } from '@/lib/autoPlannerFormCache';
-import { useBackupPlanStart } from '@/composables/useBackupPlanStart';
 import { isTestingEnvironment } from '@/lib/isTestingEnvironment';
 import { iconURL } from 'lib';
-import SchedulingInputs from './SchedulingInputs.vue';
 import VirtueProgressSection from './VirtueProgressSection.vue';
 import ChainSummaryBar from './ChainSummaryBar.vue';
 import SimulationErrorAlert from './SimulationErrorAlert.vue';
@@ -358,7 +355,6 @@ import ForcedAscensionPreview from './ForcedAscensionPreview.vue';
 import ValidationDialog from './ValidationDialog.vue';
 
 const autoPlannerStore = useAutoPlannerStore();
-const virtueStore = useVirtueStore();
 const truthEggsStore = useTruthEggsStore();
 
 const { ascensionChain, timezone, startDate, startTime, targetTE, deferForEarningsMode } =
@@ -376,14 +372,11 @@ const showLowClothedTEWarning = computed(() => earningsClothedTe.value !== null 
 const targetInput = ref<HTMLInputElement | null>(null);
 const isCollapsed = ref(typeof window !== 'undefined' ? window.innerWidth < 768 : false);
 
-// Restore a cached form (start date/time/timezone, target TE) from a previous visit, if any,
-// so a page reload doesn't wipe out what the user had entered. This runs before the defaulting
-// logic below, which only fills in fields that are still empty.
+// Restore the rest of the cached form (target TE and its time-off cuts) from a previous visit, so a
+// page reload doesn't wipe out what the user had entered. The start and timezone are restored, and
+// defaulted to the save, by Your setup (usePlanStartForm), which is on every Auto Planner screen.
 const cachedSchedule = loadAutoPlannerSchedule();
 if (cachedSchedule) {
-  if (cachedSchedule.timezone) timezone.value = cachedSchedule.timezone;
-  if (cachedSchedule.startDate) startDate.value = cachedSchedule.startDate;
-  if (cachedSchedule.startTime) startTime.value = cachedSchedule.startTime;
   if (cachedSchedule.targetTE) targetTE.value = cachedSchedule.targetTE;
   // The cuts for that chain, if the search put some there. The generator still checks they match the
   // Target TE and start before using them.
@@ -391,15 +384,6 @@ if (cachedSchedule) {
     autoPlannerStore.timeOffCuts = cachedSchedule.timeOffCuts;
   if (cachedSchedule.deferForEarningsMode && isTestingEnvironment) deferForEarningsMode.value = true;
 }
-
-// Initialize timezone default
-if (!timezone.value) {
-  timezone.value = virtueStore.ascensionTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
-}
-
-// Plan start defaults to the backup's timestamp. Lives in a composable rather than here because
-// Insane mode replaces this component and needs the same default -- see useBackupPlanStart.
-useBackupPlanStart();
 
 // Initialize Target TE to current + 30 once store data loads
 let targetTEInitialized = false;

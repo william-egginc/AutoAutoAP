@@ -244,165 +244,12 @@
             </p>
           </div>
 
-          <!-- Availability. Off by default: it changes the objective, so a plan built with it is not
-           comparable to one built without it.
-
-           LOCKED WHILE RUNNING, LOUDLY. Every one of these inputs was already `:disabled` and that
-           was not enough: a greyed checkbox reads as "not applicable here" rather than "you cannot
-           change this right now", and the run it belongs to lasts hours. Reported from use — the
-           search was started with the box unticked and there was nothing on screen to say the
-           setting could not simply be corrected. So the whole card turns red and says what to do
-           instead. -->
-          <div
-            class="p-4 rounded-xl border space-y-3"
-            :class="store.isRunning ? 'border-rose-200 bg-rose-50/40' : 'border-slate-200 bg-white'"
-          >
-            <div
-              v-if="store.isRunning"
-              class="flex items-start gap-2.5 rounded-lg border border-rose-300 bg-rose-50 p-3"
-            >
-              <span class="text-rose-600 text-base leading-none mt-0.5" aria-hidden="true">&#128683;</span>
-              <p class="text-[11px] text-rose-800 leading-relaxed">
-                <span class="font-black uppercase tracking-wide">Locked during calculations.</span>
-                Your schedule changes which chain is fastest, so it cannot be edited part-way through a run: the chains
-                already priced were priced under the old setting. To change it, hit
-                <span class="font-bold">Stop and keep best</span> below, adjust, and start again.
-                <span class="font-semibold">Nothing is lost: every chain priced so far is checkpointed</span>
-                and replays instantly if the setting you change does not affect it.
-              </p>
-            </div>
-
-            <label class="flex items-start gap-3" :class="store.isRunning ? 'cursor-not-allowed' : 'cursor-pointer'">
-              <input
-                v-model="store.scheduleEnabled"
-                type="checkbox"
-                :disabled="store.isRunning"
-                class="mt-0.5 rounded focus:ring-emerald-500"
-                :class="
-                  store.isRunning
-                    ? 'border-rose-300 text-rose-400 opacity-60 cursor-not-allowed'
-                    : 'border-slate-300 text-emerald-600'
-                "
-              />
-              <span class="text-xs text-slate-600 leading-relaxed">
-                <span class="font-bold text-slate-800">Plan around my schedule.</span>
-                Say when you can actually play, and no plan will ask you to prestige outside those hours. Each prestige
-                that would land while you are away is moved to your next available hour and the delay is
-                <span class="font-semibold">charged</span>. That changes which chain is fastest, which is why this has
-                to be on before the search starts.
-              </span>
-            </label>
-
-            <div v-if="store.scheduleEnabled" class="space-y-3 pl-8">
-              <div class="flex flex-wrap items-end gap-4">
-                <div>
-                  <label for="avail-from" class="block text-[9px] font-black text-slate-400 uppercase tracking-widest"
-                    >Free from</label
-                  >
-                  <select
-                    id="avail-from"
-                    v-model.number="store.availableFrom"
-                    :disabled="store.isRunning"
-                    class="mt-1 rounded-lg border-slate-300 text-sm font-bold text-slate-800 disabled:opacity-50"
-                  >
-                    <option v-for="h in 24" :key="h - 1" :value="h - 1">{{ showHour(h - 1) }}</option>
-                  </select>
-                </div>
-                <div>
-                  <label for="avail-to" class="block text-[9px] font-black text-slate-400 uppercase tracking-widest"
-                    >Until</label
-                  >
-                  <select
-                    id="avail-to"
-                    v-model.number="store.availableTo"
-                    :disabled="store.isRunning"
-                    class="mt-1 rounded-lg border-slate-300 text-sm font-bold text-slate-800 disabled:opacity-50"
-                  >
-                    <option v-for="h in 24" :key="h - 1" :value="h - 1">
-                      {{ showHour(h - 1) }}{{ h - 1 < store.availableFrom ? ' (next day)' : '' }}
-                    </option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Days</span>
-                <div class="flex flex-wrap gap-1.5">
-                  <button
-                    v-for="(name, i) in DAY_NAMES"
-                    :key="i"
-                    type="button"
-                    :disabled="store.isRunning"
-                    class="px-2.5 py-1 rounded-md border text-[10px] font-black uppercase tracking-widest disabled:opacity-50"
-                    :class="
-                      store.availableDays.includes(i)
-                        ? 'bg-emerald-600 border-emerald-600 text-white'
-                        : 'bg-white border-slate-300 text-slate-400'
-                    "
-                    @click="toggleDay(i)"
-                  >
-                    {{ name }}
-                  </button>
-                </div>
-              </div>
-
-              <p class="text-[11px] text-slate-500 leading-relaxed">
-                <span class="font-semibold text-slate-700">{{ showSchedule(store.availability) }}</span
-                >. Timezone comes from the Auto Planner's scheduling inputs.
-                <span v-if="store.scheduleIsEmpty" class="text-amber-700 font-semibold"
-                  >Every day at all hours rules nothing out, so the search will run unconstrained.</span
-                >
-                <span v-else-if="!store.availableDays.length" class="text-amber-700 font-semibold"
-                  >No days selected. Pick at least one or nothing can be scheduled.</span
-                >
-              </p>
-
-              <label class="flex items-start gap-3 cursor-pointer">
-                <input
-                  v-model="store.deferShifts"
-                  type="checkbox"
-                  :disabled="store.isRunning"
-                  class="mt-0.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 disabled:opacity-50"
-                />
-                <span class="text-[11px] text-slate-600 leading-relaxed">
-                  <span class="font-bold text-slate-800">Hold the shifts for my hours too.</span>
-                  As well as the prestige, each of the twelve switches inside an ascension waits for your next available
-                  hour and the delay is charged, so the search looks for a chain whose shifts really land when you are
-                  around. Turning this off makes shifts
-                  <span class="font-semibold">reported but free</span>, which is what the numbers below mean when it is
-                  unticked.
-                </span>
-              </label>
-
-              <p
-                v-if="store.deferShifts"
-                class="text-[11px] text-slate-600 bg-slate-50 border border-slate-200 rounded-lg p-3 leading-relaxed"
-              >
-                <span class="font-bold uppercase tracking-wide text-slate-500">How exact this is.</span>
-                Shifts are pushed on top of the simulated timeline rather than re-simulated, because the simulator
-                schedules them itself and teaching it about your hours would change the manual planner too. It errs one
-                way only: while you wait, the farm keeps laying the egg you have not switched away from, and that extra
-                progress is not credited, so a plan built this way should, if anything, run slightly faster than it
-                says.
-              </p>
-
-              <p
-                v-else
-                class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3 leading-relaxed"
-              >
-                <span class="font-bold uppercase tracking-wide">What this does not fix.</span>
-                Only the prestige between two ascensions is moved. The twelve shifts inside an ascension are scheduled
-                by the simulator's own timing and are not moved, so some will still fall outside your hours. Open a leg
-                below to see exactly which, or tick the box above to have them held too. The prestige delay is charged
-                in full while the extra TE you keep earning while away is not credited, so a plan built this way should,
-                if anything, run slightly faster than it says. Every accuracy figure above was measured with this off.
-              </p>
-            </div>
-          </div>
-
-          <div class="p-4 rounded-xl border border-slate-200 bg-white">
-            <TimeOffEditor />
-          </div>
+          <!-- Plan start, awake hours and time off: in Your setup at the top (YourSetup.vue), one
+               copy for every Auto Planner screen. They lock there while a search runs. -->
+          <p class="text-[11px] text-slate-500 leading-relaxed">
+            Your plan start, awake hours and time off are in <span class="font-bold text-slate-700">Your setup</span>
+            at the top of the page. The search uses them, so set them before you start.
+          </p>
 
           <!-- What the simulator is wearing.
            This was only ever in the CSV header, which meant you had to finish a run and open a
@@ -722,18 +569,7 @@
         </div>
       </div>
 
-      <label class="flex items-start gap-3 cursor-pointer">
-        <input v-model="store.keepAwake" type="checkbox" class="mt-0.5 rounded border-slate-300 text-indigo-600" />
-        <span class="text-[11px] text-slate-600 leading-relaxed">
-          <span class="font-bold text-slate-800">Keep my PC awake.</span> A run can take hours; if the machine sleeps,
-          every worker freezes until you wake it back up. It can't stop a laptop sleeping when the lid is closed. Turn
-          this off if you'd rather manage sleep yourself.
-        </span>
-      </label>
-
-      <WorkerSlider />
-      <DateStyleToggle />
-      <BackgroundSpeed />
+      <!-- Workers, background speed, keep awake and date format: in Your setup at the top. -->
 
       <SafariNotice />
       <RunSaveNotice />
@@ -1336,7 +1172,7 @@
           An unfinished run still carries on after a reload: it goes back to the start it was priced from. But
           <span class="font-semibold">day counts stop being comparable:</span> the same chain reports a smaller number
           simply because the stopwatch started later, so compare <span class="font-semibold">finish dates</span>, which
-          do not move. Set a start date and time in the scheduling inputs above to pin it.
+          do not move. Set a start date and time in Your setup to pin it.
         </p>
       </div>
 
@@ -1677,8 +1513,9 @@
           <li>Accuracy figures come from 3 accounts. Only one of them has a proven optimum to check against.</li>
           <li>A refresh is safe: progress is checkpointed and resumes without re-simulating anything.</li>
           <li>
-            "Plan around my schedule" moves the prestige between ascensions. Shifts inside an ascension can still land
-            outside your hours unless "Hold the shifts for my hours too" is ticked; the CSV counts them per leg.
+            "Only count on me during these hours" (in Your setup) moves the prestige between ascensions. Shifts inside an
+            ascension can still land outside your hours unless "Hold egg shifts for my hours too" is ticked; the CSV
+            counts them per leg.
           </li>
         </ul>
       </div>
@@ -1700,12 +1537,7 @@ import { isAvailable } from '@/search/availability';
 import { afterPaint } from '@/search/submission';
 import ChainSearchExplainer from './ChainSearchExplainer.vue';
 import HelpTip from './HelpTip.vue';
-import TimeOffEditor from './TimeOffEditor.vue';
-import BackgroundSpeed from './BackgroundSpeed.vue';
-import WorkerSlider from './WorkerSlider.vue';
 import StartTimeFinder from './StartTimeFinder.vue';
-import DateStyleToggle from './DateStyleToggle.vue';
-import { showHour, showSchedule } from '@/lib/displayTime';
 import { describeCompute } from '@/utils/computeTime';
 import { useInitialStateStore } from '@/stores/initialState';
 import IntegrityNotice from './IntegrityNotice.vue';
@@ -2079,17 +1911,6 @@ function scheduleCost(row: ShortlistRow): number | null {
 function outsideSchedule(unixSeconds: number): boolean {
   const a = store.availability;
   return a ? !isAvailable(unixSeconds, a) : false;
-}
-
-/** Sunday-first, matching `Availability.days` where 0 is Sunday. */
-const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-function toggleDay(day: number): void {
-  if (store.isRunning) return;
-  const days = store.availableDays.includes(day)
-    ? store.availableDays.filter(d => d !== day)
-    : [...store.availableDays, day].sort((a, b) => a - b);
-  store.availableDays = days;
 }
 
 /** What was last sent to the Auto Planner, so the click has visible consequence. */

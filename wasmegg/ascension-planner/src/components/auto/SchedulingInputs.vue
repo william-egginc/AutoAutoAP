@@ -1,10 +1,11 @@
 <template>
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+  <!-- Stacked: it sits in a half-width card in Your setup (YourSetup.vue), its only user. -->
+  <div class="grid grid-cols-1 gap-4">
     <div class="space-y-2">
       <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Start Time</label>
       <div class="flex gap-3">
         <input
-          v-model="startDate"
+          :value="startDate"
           type="date"
           :min="formatUnixToDateInput(Date.now() / 1000 - 86400 * 7, timezone)"
           class="flex-grow bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-indigo-500/50 bg-white transition-all"
@@ -12,7 +13,7 @@
         />
         <input
           ref="startTimeInput"
-          v-model="startTime"
+          :value="startTime"
           type="time"
           class="w-32 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-indigo-500/50 bg-white transition-all"
           @input="handleStartTimeInput"
@@ -71,8 +72,12 @@ const timezoneSelect = ref<HTMLSelectElement | null>(null);
 // those sub-fields as you type. So the moment a field's value flips from
 // incomplete to complete, the user has just finished its last sub-field -
 // that's our cue to carry the cursor on into the next field.
+// `:value` and these handlers rather than v-model: v-model writes the box's first value after the
+// render, from the value at render time, so a start restored in the same tick (usePlanStartForm)
+// showed as an empty box. A prop binding is patched in the render itself.
 let wasStartDateComplete = false;
 const handleStartDateInput = (event: Event) => {
+  startDate.value = (event.target as HTMLInputElement).value;
   const isComplete = (event.target as HTMLInputElement).value !== '';
   if (isComplete && !wasStartDateComplete) {
     startTimeInput.value?.focus();
@@ -82,6 +87,7 @@ const handleStartDateInput = (event: Event) => {
 
 let wasStartTimeComplete = false;
 const handleStartTimeInput = (event: Event) => {
+  startTime.value = (event.target as HTMLInputElement).value;
   const isComplete = (event.target as HTMLInputElement).value !== '';
   if (isComplete && !wasStartTimeComplete) {
     timezoneSelect.value?.focus();

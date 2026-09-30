@@ -68,8 +68,10 @@
             </template>
             <template v-else>
               Taking time off, like Egg Day or a trip?
-              <a href="#insane-time-off" class="font-bold text-indigo-700 underline">Add it below</a> and the sweep
-              still prices every chain around it.
+              <button type="button" class="font-bold text-indigo-700 underline" @click="ui.openSetupRequested++">
+                Add it in Your setup
+              </button>
+              and the sweep still prices every chain around it.
             </template>
           </p>
         </div>
@@ -278,7 +280,7 @@
       >
         Finds the highest TE you can reach by a date. You set the early stops and it tries every route in them, or it
         picks them for you on a grid and looks more closely around the best. Either way the last stop is found to the
-        exact TE. Like any run, it uses the schedule, time off and machine settings below.
+        exact TE. Like any run, it uses the plan start, hours, time off and computer settings in Your setup.
       </div>
 
       <div
@@ -486,289 +488,13 @@
         </button>
       </div>
 
-      <!--
-        When the plan runs, and around what. Bound to the SAME store fields the Auto Planner and
-        Chain Search write, so this is one setting shown in a second place rather than a second
-        setting -- change it here and the main panels agree, and vice versa.
-
-        It is here because Insane mode replaces those panels rather than sitting beside them: with
-        no controls of its own, an exhaustive run silently took whatever the defaults happened to
-        be -- no schedule at all, timed from the moment the page loaded -- and then reported a
-        finish date computed from them. Every number this panel produces is a date, so the inputs
-        that decide dates cannot live on a tab you have to leave the mode to reach.
-      -->
-      <div class="rounded-xl border border-slate-200 bg-white p-4 space-y-4">
-        <button
-          type="button"
-          class="w-full flex items-center gap-2 text-left group"
-          :aria-expanded="showSchedule"
-          @click="showSchedule = !showSchedule"
-        >
-          <svg
-            class="w-3 h-3 flex-shrink-0 text-slate-400 group-hover:text-slate-600"
-            viewBox="0 0 12 12"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
-          >
-            <path :d="showSchedule ? CHEVRON_DOWN : CHEVRON_RIGHT" />
-          </svg>
-          <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">When the plan runs</h3>
-          <span class="ml-auto text-[10px] font-bold text-slate-400">{{ scheduleSummary }}</span>
-        </button>
-
-        <div v-if="showSchedule" class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <label class="space-y-1">
-            <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Plan starts</span>
-            <input
-              v-model="autoPlannerStore.startDate"
-              type="date"
-              :disabled="store.isRunning"
-              class="w-full rounded-lg border-slate-200 text-sm font-bold text-slate-800 disabled:bg-slate-50 disabled:text-slate-500"
-            />
-          </label>
-          <label class="space-y-1">
-            <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">At</span>
-            <input
-              v-model="autoPlannerStore.startTime"
-              type="time"
-              :disabled="store.isRunning"
-              class="w-full rounded-lg border-slate-200 text-sm font-bold text-slate-800 disabled:bg-slate-50 disabled:text-slate-500"
-            />
-          </label>
-          <div class="space-y-1">
-            <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Timezone</span>
-            <p class="text-sm font-bold text-slate-700 truncate">{{ autoPlannerStore.timezone }}</p>
-          </div>
-        </div>
-        <!-- An unset start is not harmless: it means "now", which moves on every reload, and plan
-             start is part of the run fingerprint -- so a checkpoint saved before a refresh stops
-             matching and a long run restarts from nothing. -->
-        <p v-if="showSchedule && store.planStartIsNow" class="text-[11px] font-semibold text-amber-700 leading-relaxed">
-          No start set, so the plan is timed from right now, and that moves every time you reload. An unfinished run
-          still carries on from the start it was priced from, but day counts from different visits won't compare. Set a
-          date and time before starting a long run.
-        </p>
-
-        <label v-if="showSchedule" class="flex items-start gap-3 cursor-pointer">
-          <input
-            v-model="store.scheduleEnabled"
-            type="checkbox"
-            :disabled="store.isRunning"
-            class="mt-0.5 rounded border-slate-300 text-indigo-600 disabled:opacity-40"
-          />
-          <span class="text-[11px] text-slate-600 leading-relaxed">
-            <span class="font-bold text-slate-800">Only count on me during these hours.</span> Off means the plan
-            assumes you're available at any hour. That gives a faster answer, but usually not a realistic one.
-          </span>
-        </label>
-        <div v-if="showSchedule && store.scheduleEnabled" class="pl-8 space-y-3">
-          <div class="flex flex-wrap items-center gap-3">
-            <label class="flex items-center gap-2 text-[11px] font-bold text-slate-600">
-              From
-              <select
-                v-model.number="store.availableFrom"
-                :disabled="store.isRunning"
-                class="rounded-lg border-slate-200 text-sm font-bold text-slate-800 disabled:bg-slate-50 disabled:text-slate-500"
-              >
-                <option v-for="h in 24" :key="h - 1" :value="h - 1">{{ showHour(h - 1) }}</option>
-              </select>
-            </label>
-            <label class="flex items-center gap-2 text-[11px] font-bold text-slate-600">
-              to
-              <select
-                v-model.number="store.availableTo"
-                :disabled="store.isRunning"
-                class="rounded-lg border-slate-200 text-sm font-bold text-slate-800 disabled:bg-slate-50 disabled:text-slate-500"
-              >
-                <option v-for="h in 24" :key="h - 1" :value="h - 1">
-                  {{ showHour(h - 1) }}{{ h - 1 < store.availableFrom ? ' (next day)' : '' }}
-                </option>
-              </select>
-            </label>
-            <div class="flex flex-wrap gap-1">
-              <button
-                v-for="(label, day) in DAY_LABELS"
-                :key="day"
-                type="button"
-                class="px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-widest"
-                :disabled="store.isRunning"
-                :class="
-                  store.availableDays.includes(day)
-                    ? 'bg-slate-800 text-white'
-                    : 'border border-slate-200 text-slate-400 hover:text-slate-600'
-                "
-                @click="toggleDay(day)"
-              >
-                {{ label }}
-              </button>
-            </div>
-          </div>
-          <!-- Ticked but describing no restriction at all is a trap: it reads as a constraint and
-               is not one. Say so rather than letting the run be misread. -->
-          <p v-if="store.scheduleIsEmpty" class="text-[11px] font-semibold text-amber-700">
-            Every day, all hours: that is no restriction at all, and it will be recorded as no schedule.
-          </p>
-          <p v-else class="text-[11px] text-slate-500">{{ scheduleText(store.availability) }}</p>
-        </div>
-
-        <!-- Locked mid-run, and said out loud. These are inputs to the OBJECTIVE, not filters over
-             the answer: every chain already priced was priced against the old schedule, so a change
-             taken mid-run would silently mix two questions in one result table. The main panel locks
-             the same fields for the same reason. -->
-        <p v-if="showSchedule && store.isRunning" class="text-[11px] font-semibold text-amber-700 leading-relaxed">
-          Locked while a run is going. These settings change which chain is fastest, not just how results are shown, so
-          they can't apply to chains already priced. To price the space against a new schedule, stop, change them, and
-          start again.
-        </p>
-
-        <label v-if="showSchedule" class="flex items-start gap-3 cursor-pointer">
-          <input
-            v-model="store.deferShifts"
-            type="checkbox"
-            :disabled="store.isRunning"
-            class="mt-0.5 rounded border-slate-300 text-indigo-600 disabled:opacity-40"
-          />
-          <span class="text-[11px] text-slate-600 leading-relaxed">
-            <span class="font-bold text-slate-800">Hold egg shifts for my waking hours.</span> Costs time, but it's what
-            most people actually do.
-          </span>
-        </label>
-      </div>
-
-      <!-- Time off, OUTSIDE the collapsed schedule card: it was in there first and nobody found it.
-           It changes the answer more than anything else on the page (a week away is a full rebuild),
-           and the sweep still prices every chain in the space with the gap in it. -->
-      <div id="insane-time-off" class="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
-        <TimeOffEditor />
-        <p class="text-[11px] text-slate-500 leading-relaxed">
-          Still exhaustive: every chain in the space is priced with the time off in it, so the winner is the best plan
-          around it. The Chain Explorer keeps runs with time off apart from the rest, since they answer a different
-          question.
-        </p>
-      </div>
-
-      <!--
-        What this run is allowed to spend, and what the browser will admit about the machine.
-
-        A page is told very little about its hardware, on purpose: core count is the one solid
-        number, memory is coarse and capped, and there is no GPU or total-RAM figure at all. So the
-        panel shows exactly what it is given, says where each number stops being trustworthy, and
-        leaves the rest as knobs -- which is the honest arrangement anyway, because "background job
-        while I work" and "the machine is yours until morning" are different answers that no
-        amount of detection would choose between.
-      -->
-      <div class="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
-        <div class="flex flex-wrap items-center justify-between gap-3">
-          <button
-            type="button"
-            class="flex items-center gap-2 text-left group"
-            :aria-expanded="showMachine"
-            @click="showMachine = !showMachine"
-          >
-            <svg
-              class="w-3 h-3 flex-shrink-0 text-slate-400 group-hover:text-slate-600"
-              viewBox="0 0 12 12"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <path :d="showMachine ? CHEVRON_DOWN : CHEVRON_RIGHT" />
-            </svg>
-            <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">This machine</h3>
-            <span class="text-[10px] font-bold text-slate-400">{{ machineSummary }}</span>
-          </button>
-          <div class="flex flex-wrap gap-1">
-            <button
-              v-for="p in PROFILES"
-              :key="p.id"
-              type="button"
-              :disabled="store.isRunning"
-              class="px-2.5 py-1 rounded-md border text-[10px] font-black uppercase tracking-widest disabled:opacity-40"
-              :class="
-                activeProfile === p.id
-                  ? 'border-slate-800 bg-slate-800 text-white'
-                  : 'border-slate-200 text-slate-500 hover:text-slate-700'
-              "
-              :title="p.blurb"
-              @click="applyProfile(p.id)"
-            >
-              {{ p.label }}
-            </button>
-          </div>
-        </div>
-        <!-- Always showing, in both goals: the other worker control sits in the fastest view's space settings. -->
-        <WorkerSlider />
-        <DateStyleToggle />
-        <dl v-if="showMachine" class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-[11px]">
-          <div>
-            <dt class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Logical cores</dt>
-            <dd class="font-bold text-slate-700">{{ store.machineThreads }}</dd>
-          </div>
-          <div>
-            <dt class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Tab heap limit</dt>
-            <dd class="font-bold text-slate-700">{{ heapLimitMb || 'not reported' }}</dd>
-          </div>
-          <div>
-            <dt class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Heap in use</dt>
-            <dd class="font-bold text-slate-700">{{ heapUsedMb || 'not reported' }}</dd>
-          </div>
-          <div>
-            <dt class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Reported RAM</dt>
-            <dd class="font-bold text-slate-700">{{ deviceMemoryLabel }}</dd>
-          </div>
-        </dl>
-        <p v-if="showMachine" class="text-[11px] text-slate-500 leading-relaxed">
-          Cores is the only hardware figure a web page gets accurately.
-          <span class="font-bold text-slate-700">Reported RAM is deliberately coarse</span>: it's rounded to a power of
-          two and capped at a ceiling the browser picks, so a 64 GB machine reads as whatever that ceiling is. It's an
-          anti-fingerprinting measure, not a bug, and it's why the budget below is a setting you choose instead of
-          something detected. A page can't see your GPU or your real memory. The tab's heap limit is separate from your
-          RAM and much smaller. Each worker gets its own heap on top of it, which is part of why more workers buy more
-          than just speed.
-        </p>
-
-        <h3 v-if="showMachine" class="text-[10px] font-black text-slate-500 uppercase tracking-widest pt-1">Memory</h3>
-        <div v-if="showMachine" class="flex flex-wrap items-end gap-4">
-          <label class="space-y-1">
-            <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-              Keep per-leg detail for
-            </span>
-            <div class="flex items-center gap-2">
-              <input
-                v-model.number="store.legDetailBudget"
-                type="number"
-                min="0"
-                step="500"
-                class="w-32 rounded-lg border-slate-200 text-sm font-bold text-slate-800"
-              />
-              <span class="text-[11px] font-bold text-slate-500">fastest chains</span>
-            </div>
-          </label>
-          <p class="text-[11px] text-slate-500">
-            Holding detail for
-            <span class="font-bold text-slate-700">{{ store.legsHeld.toLocaleString() }}</span> chains (<span
-              class="font-bold text-slate-700"
-              >{{ heldMb }}</span
-            >).
-            <span v-if="heapLimitMb">{{ heapUsedMb }} of {{ heapLimitMb }} used in this tab.</span>
-            <span v-else>This browser does not report heap usage.</span>
-          </p>
-        </div>
-        <p v-if="showMachine" class="text-[11px] text-slate-500 leading-relaxed">
-          Every chain keeps its duration no matter what. That's the answer, and it's what the leaderboard, the CSV
-          totals and the checkpoint are built from. Past this number, the chains that didn't win lose their per-leg
-          timing detail, which is what the runners-up table opens.
-          <span class="font-bold text-slate-700">0 means keep everything</span>. On a run of hundreds of thousands of
-          chains, that is how a tab gets killed overnight with nothing in the log.
-        </p>
-      </div>
+      <!-- Plan start, awake hours, time off and this computer: in Your setup at the top
+           (YourSetup.vue), one copy for every Auto Planner screen. -->
+      <p class="text-[11px] text-slate-500 leading-relaxed">
+        Your plan start, awake hours, time off and how much of this computer to use are in
+        <span class="font-bold text-slate-700">Your setup</span> at the top of the page. Every route here is priced with
+        them.
+      </p>
 
       <DeadlinePanel v-if="goal === 'deadline'" :player-id="playerId" @show-fastest="goal = 'fastest'" />
       <template v-else>
@@ -1304,16 +1030,6 @@
           </div>
         </div>
 
-        <label class="flex items-start gap-3 cursor-pointer">
-          <input v-model="store.keepAwake" type="checkbox" class="mt-0.5 rounded border-slate-300 text-indigo-600" />
-          <span class="text-[11px] text-slate-600 leading-relaxed">
-            <span class="font-bold text-slate-800">Keep my PC awake.</span> A run takes hours; if the machine sleeps,
-            every worker freezes until you wake it back up. It can't stop a laptop sleeping when the lid is closed. Turn
-            this off if you'd rather manage sleep yourself.
-          </span>
-        </label>
-        <BackgroundSpeed />
-
         <SafariNotice />
 
         <RunSaveNotice />
@@ -1835,7 +1551,6 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { sentence } from '@/utils/errors';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
-import { formatInZone } from '@/search/csv';
 import { useUIStore } from '@/stores/ui';
 import { useEidsStore } from 'lib';
 import { useBackupPlanStart } from '@/composables/useBackupPlanStart';
@@ -1854,12 +1569,8 @@ import {
 import { MAX_RUNS } from '@/search/runLibrary';
 import SearchShapeChart from './charts/SearchShapeChart.vue';
 import HelpTip from './HelpTip.vue';
-import TimeOffEditor from './TimeOffEditor.vue';
-import BackgroundSpeed from './BackgroundSpeed.vue';
-import WorkerSlider from './WorkerSlider.vue';
 import StartTimeFinder from './StartTimeFinder.vue';
-import DateStyleToggle from './DateStyleToggle.vue';
-import { showDateTime, showDay, showHour, showSchedule as scheduleText } from '@/lib/displayTime';
+import { showDateTime } from '@/lib/displayTime';
 import { sweepSeconds, workerSecondsFromRate, workerSecondsPerChain } from '@/search/speed';
 import { describeCompute } from '@/utils/computeTime';
 import IntegrityNotice from './IntegrityNotice.vue';
@@ -1995,97 +1706,6 @@ function applySuggestion(): void {
   spaceMode.value = 'bands';
 }
 
-/** Sunday-first, matching `availableDays`, which stores JS `getDay()` numbers. */
-const DAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-
-function toggleDay(day: number): void {
-  const days = store.availableDays;
-  const i = days.indexOf(day);
-  // Mutated in place rather than reassigned: `availableDays` is a ref on the store that other
-  // panels read, and swapping the array would leave any existing reference pointing at the old one.
-  if (i === -1) days.push(day);
-  else days.splice(i, 1);
-}
-
-/**
- * Heap readout, where the browser offers one.
- *
- * `performance.memory` is a Chromium-only, non-standard extension and its figures are quantised, so
- * this is a gauge and not an accounting record -- which is all it needs to be. Firefox and Safari
- * report nothing and the panel says so rather than showing a made-up number.
- */
-const heap = ref<{ used: number; limit: number } | null>(null);
-let heapTimer: ReturnType<typeof setInterval> | null = null;
-
-function readHeap(): void {
-  const m = (performance as Performance & { memory?: { usedJSHeapSize: number; jsHeapSizeLimit: number } }).memory;
-  heap.value = m ? { used: m.usedJSHeapSize, limit: m.jsHeapSizeLimit } : null;
-}
-
-const mb = (bytes: number): string => `${(bytes / 1024 / 1024).toFixed(0)} MB`;
-const heldMb = computed(() => mb(store.legDetailBytes));
-const heapUsedMb = computed(() => (heap.value ? mb(heap.value.used) : ''));
-const heapLimitMb = computed(() => (heap.value ? mb(heap.value.limit) : ''));
-
-/**
- * `navigator.deviceMemory`: coarse by design and absent outside Chromium.
- *
- * Rounded to a power of two and clamped, but NOT to a fixed 8 -- the spec describes an upper bound
- * the implementation chooses, and browsers differ. Measured while building this panel: a machine
- * reported 16 here while the surrounding copy claimed a hard 8 GB cap, which is why that copy now
- * says "a ceiling the browser picks" instead of naming a number the page might contradict on screen.
- */
-const deviceMemoryLabel = computed(() => {
-  const gb = (navigator as Navigator & { deviceMemory?: number }).deviceMemory;
-  return gb ? `${gb} GB or more` : 'not reported';
-});
-
-/**
- * Presets, because the real question is what the machine is FOR right now.
- *
- * No amount of hardware detection answers "am I working on this machine or have I gone to bed",
- * and that is the only input that matters here: the same 20-core box wants a quarter of itself
- * while someone is using it and all of itself overnight. Three named answers beat two numbers
- * nobody knows how to set, and the numbers stay visible and editable underneath.
- */
-const PROFILES = [
-  {
-    id: 'background',
-    label: 'Background',
-    blurb: 'A quarter of your cores and a small cache. For running while you use the machine.',
-    workers: () => Math.max(1, Math.floor(store.machineThreads / 4)),
-    legDetail: 1000,
-  },
-  {
-    id: 'balanced',
-    label: 'Balanced',
-    blurb: 'Every core but one, so the tab stays responsive. The default.',
-    workers: () => Math.max(1, store.machineThreads - 1),
-    legDetail: 2000,
-  },
-  {
-    id: 'overnight',
-    label: 'Overnight',
-    blurb: "Every core, and detail kept for far more chains. For a machine you're done using.",
-    workers: () => store.machineThreads,
-    legDetail: 20000,
-  },
-] as const;
-
-type ProfileId = (typeof PROFILES)[number]['id'];
-
-const activeProfile = computed<ProfileId | ''>(() => {
-  const hit = PROFILES.find(p => p.workers() === store.workerBudget && p.legDetail === store.legDetailBudget);
-  return hit ? hit.id : '';
-});
-
-function applyProfile(id: ProfileId): void {
-  const p = PROFILES.find(x => x.id === id);
-  if (!p) return;
-  store.workerBudget = p.workers();
-  store.legDetailBudget = p.legDetail;
-}
-
 /**
  * Both budget cards start collapsed.
  *
@@ -2094,8 +1714,6 @@ function applyProfile(id: ProfileId): void {
  * collapsed card still says what it is holding -- a collapsed setting that hides its own value is
  * how people end up running with a schedule they forgot they set.
  */
-const showSchedule = ref(false);
-const showMachine = ref(false);
 const showSplit = ref(false);
 const showSetup = ref(false);
 
@@ -2142,16 +1760,8 @@ const setupSummary = computed(() => {
 const CHEVRON_RIGHT = 'M4 2l4 4-4 4';
 const CHEVRON_DOWN = 'M2 4l4 4 4-4';
 
-const scheduleSummary = computed(() => {
-  const when = store.planStartIsNow ? 'no start set' : `from ${showDay(autoPlannerStore.startDate)}`;
-  return `${when} · ${store.scheduleEnabled ? scheduleText(store.availability) : 'any hour'}`;
-});
 /** The time off this run is planned around, or '' for none. */
 const timeOffText = computed(() => (usableTimeOff(store.timeOff).length ? describeTimeOff(store.timeOff) : ''));
-const machineSummary = computed(
-  () =>
-    `${store.workerBudget} workers · detail for ${store.legDetailBudget ? store.legDetailBudget.toLocaleString() : 'every'} chains`
-);
 
 /** Held to the machine's cores here as well as in the pool, so the field cannot read 19 on an
  *  8-core box and quietly run 8. The store's value is the one the run uses either way. */
@@ -2520,12 +2130,7 @@ onMounted(() => {
   // A rate measured in an earlier session beats the 15 s assumption on a fresh page load, whether it
   // came from a benchmark or from a real run that finished a chunk.
   store.restoreBenchmark(props.playerId);
-  readHeap();
-  // Five seconds, not one: it is a slow-moving gauge, and polling it on the frame timer would put a
-  // reactive write in front of a run that is already competing for the main thread.
-  heapTimer = setInterval(readHeap, 5000);
 });
-onUnmounted(() => heapTimer && clearInterval(heapTimer));
 
 // Re-check whenever what decides resumability moves (TE, target, schedule...), so "can't continue"
 // goes away when the player puts a setting back, and appears when a fresh save changes the TE.

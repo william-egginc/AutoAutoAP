@@ -293,13 +293,7 @@
       </span>
     </label>
 
-    <label class="flex items-start gap-3 cursor-pointer">
-      <input v-model="store.keepAwake" type="checkbox" class="mt-0.5 rounded border-slate-300" />
-      <span class="text-[11px] text-slate-600 leading-relaxed">
-        <span class="font-bold text-slate-800">Keep my PC awake.</span> It can't stop a laptop sleeping when the lid is
-        closed.
-      </span>
-    </label>
+    <!-- Keep awake is in Your setup at the top, with the other computer settings. -->
     <SafariNotice />
     <IntegrityNotice />
     <!-- The unfinished run's carry-on again, next to Start where people look for it. -->
@@ -545,7 +539,7 @@
         Download CSV
       </button>
       <p class="text-[11px] text-slate-500 leading-relaxed">
-        Priced from {{ inPlannerZone(result.planStart) }} at {{ result.te }} TE, with the schedule and time off above. A
+        Priced from {{ inPlannerZone(result.planStart) }} at {{ result.te }} TE, with the hours and time off in Your setup. A
         route that reaches one more TE usually has much less time to spare: the table shows both so you can choose.
       </p>
 

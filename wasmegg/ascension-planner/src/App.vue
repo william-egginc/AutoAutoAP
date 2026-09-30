@@ -441,7 +441,10 @@
 
       <!-- The Auto Planner's three screens. The full sweep and Highest TE by a date are one panel
            (the one Insane mode was), so moving between them keeps what was typed in it. -->
-      <div v-if="plannerTab === 'automatic' && playerId && !loading" class="mt-4">
+      <div v-if="plannerTab === 'automatic' && playerId && !loading" class="mt-4 space-y-4">
+        <!-- One setup for all three screens (plan start, hours, time off, this computer), so a change
+             on one is already on the others. -->
+        <YourSetup :screen="autoView" />
         <AutomaticPlanner v-if="autoView === 'classic'" />
         <ChainSearchPanel v-else-if="autoView === 'fastest' && fastestDepth === 'smart'" :player-id="playerId" />
         <InsanePanel
@@ -660,6 +663,7 @@ const AutomaticPlanner = safeAsyncComponent(() => import('@/components/auto/Auto
 const ChainSearchPanel = safeAsyncComponent(() => import('@/components/auto/ChainSearchPanel.vue'));
 const InsanePanel = safeAsyncComponent(() => import('@/components/auto/InsanePanel.vue'));
 const LeaderboardPanel = safeAsyncComponent(() => import('@/components/auto/LeaderboardPanel.vue'));
+const YourSetup = safeAsyncComponent(() => import('@/components/auto/YourSetup.vue'));
 
 // Dev server only (localhost or a LAN IP hitting the Vite dev server) - never in a production build.
 const isDev = import.meta.env.DEV;
