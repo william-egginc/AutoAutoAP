@@ -92,3 +92,20 @@ describe('the message, with its two key phrases picked out', () => {
     expect(parts.filter(p => p.bold).map(p => p.text)).toEqual(['483 days', 'Nobody really waits that long']);
   });
 });
+
+describe('pending Truth Eggs', () => {
+  it('counts them, and says so, since the next ascension claims them', async () => {
+    const { integrityMessage } = await import('./rules');
+    const msg = integrityMessage(309 * 86400, {
+      total: 176,
+      te: 87,
+      pending: 4,
+      gear: 91.4,
+      colleggtibles: -3.1,
+      lab: 0,
+      permit: -7.3,
+    });
+    expect(msg).toMatch(/\(87 TE, 4 pending, earnings gear \+91\.4/);
+    expect(msg).toMatch(/about 49 short/);
+  });
+});

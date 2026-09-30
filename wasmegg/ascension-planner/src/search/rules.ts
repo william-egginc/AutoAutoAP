@@ -84,6 +84,8 @@ export interface CteParts {
   total: number;
   /** Truth Eggs: each one is +1. */
   te: number;
+  /** Truth Eggs earned but not claimed yet: they come with the next ascension, so they count. */
+  pending?: number;
   /** The best earnings set it owns. */
   gear: number;
   /** Colleggtibles, against a full collection (0 or negative). */
@@ -103,6 +105,7 @@ export function cteAdvice(c: CteParts | null | undefined): string {
   const gap = CTE_CLEARS - c.total;
   const parts = [
     `${one(c.te)} TE`,
+    ...(c.pending && c.pending > 0 ? [`${one(c.pending)} pending`] : []),
     `earnings gear ${signed(c.gear)}`,
     ...(c.colleggtibles < -0.05 ? [`colleggtibles ${signed(c.colleggtibles)}`] : []),
     ...(c.lab < -0.05 ? [`Lab Upgrade ${signed(c.lab)}`] : []),

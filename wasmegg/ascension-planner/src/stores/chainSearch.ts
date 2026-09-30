@@ -667,8 +667,16 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const raw = initialStateStore.rawBackup;
     if (!raw) return null;
     const inv = readInventory();
+    // Pending Truth Eggs are claimed at the next ascension -- the fresh one this is about -- so they
+    // count. Loading through the planner already rolls them in (and clears them here); any still
+    // listed are the ones it didn't, capped at 98 an egg as the roll-up caps them.
+    let pending = 0;
+    for (const [egg, p] of Object.entries(initialStateStore.initialTePending ?? {}) as [string, number][]) {
+      const earned = (initialStateStore.initialTeEarned as Record<string, number>)[egg] ?? 0;
+      if (p > 0) pending += Math.max(0, Math.min(98, earned + p) - earned);
+    }
     const opts = {
-      truthEggs: currentTE.value,
+      truthEggs: currentTE.value + pending,
       colleggtibleModifiers: getSimulationContext().colleggtibleModifiers,
       labUpgradeLevel: initialStateStore.epicResearchLevels['cheaper_research'] ?? 0,
       permitLevel: raw.game?.permitLevel ?? null,
@@ -678,6 +686,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     return {
       total,
       te: currentTE.value,
+      pending,
       gear: total - bare,
       colleggtibles: cteFromColleggtibles(opts.colleggtibleModifiers),
       lab: cteFromLabUpgrade(opts.labUpgradeLevel),
