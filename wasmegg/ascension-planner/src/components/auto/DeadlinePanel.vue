@@ -530,6 +530,13 @@
               @input="shareNameTouched = true"
             />
           </div>
+          <label class="flex items-start gap-3 cursor-pointer text-[11px] text-indigo-900/80">
+            <input v-model="shareCsv" type="checkbox" class="mt-0.5 rounded border-indigo-300 text-indigo-600" />
+            <span>
+              <span class="font-bold">Include the CSV</span>: every route this search found, best first (the same file
+              as Download CSV). It is compressed before it leaves your machine.
+            </span>
+          </label>
           <p class="text-[11px] text-indigo-900/80">
             Only named answers are ranked. Anonymous ones are listed below the ranking.
           </p>
@@ -922,6 +929,8 @@ async function start(): Promise<void> {
 
 const collectorConfigured = computed(() => store.leaderboardUrl.replace(/\/$/, '') !== '');
 const shareOptIn = ref(false);
+/** On, like Insane's: the table is what lets someone check an answer, not just read it. */
+const shareCsv = ref(true);
 const shareAnonymous = ref(true);
 const shareNameTouched = ref(false);
 /** The name in the header's ID box, never the raw EID (see InsanePanel's `accountName`). */
@@ -961,7 +970,7 @@ async function share(): Promise<void> {
       shareMessage.value = 'Nothing to send yet.';
       return;
     }
-    const res = await store.sendSubmission(payload);
+    const res = await store.sendSubmission(payload, shareCsv.value ? store.deadlineCsv() : undefined);
     shareOk.value = res.ok;
     if (res.ok) sentKey.value = resultKey.value;
     shareMessage.value = res.ok

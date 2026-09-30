@@ -699,6 +699,8 @@
             </button>
           </div>
         </div>
+        <!-- Always showing, in both goals: the other worker control sits in the fastest view's space settings. -->
+        <WorkerSlider />
         <dl v-if="showMachine" class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-[11px]">
           <div>
             <dt class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Logical cores</dt>
@@ -1784,6 +1786,7 @@ import SearchShapeChart from './charts/SearchShapeChart.vue';
 import HelpTip from './HelpTip.vue';
 import TimeOffEditor from './TimeOffEditor.vue';
 import BackgroundSpeed from './BackgroundSpeed.vue';
+import WorkerSlider from './WorkerSlider.vue';
 import { sweepSeconds, workerSecondsFromRate, workerSecondsPerChain } from '@/search/speed';
 import { describeCompute } from '@/utils/computeTime';
 import IntegrityNotice from './IntegrityNotice.vue';
