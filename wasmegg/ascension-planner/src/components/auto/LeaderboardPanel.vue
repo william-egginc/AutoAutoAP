@@ -449,32 +449,75 @@
                   <th class="pr-3 py-1">Spare</th>
                   <th class="pr-3 py-1">From</th>
                   <th class="pr-3 py-1">Sent</th>
+                  <th class="pr-3 py-1">CSV</th>
                 </tr>
               </thead>
               <tbody>
-                <tr
-                  v-for="e in [...g.entries, ...g.anonymous]"
-                  :key="e.best.id ?? `${e.key}-${e.best.chain.join(',')}`"
-                  class="border-t border-indigo-50"
-                  :class="e.rank ? '' : 'text-slate-500'"
-                >
-                  <td class="pr-3 py-1 font-black">{{ e.rank ?? '—' }}</td>
-                  <td class="pr-3 py-1 font-bold">
-                    {{ e.label
-                    }}<span v-if="e.others.length" class="font-normal text-slate-400">
-                      · {{ e.others.length }} more</span
-                    >
-                  </td>
-                  <td class="pr-3 py-1 font-black text-indigo-900">{{ e.te }}</td>
-                  <td class="pr-3 py-1">{{ e.best.chain.join(' ') }}</td>
-                  <td class="pr-3 py-1">{{ spareText(e.spare) }}</td>
-                  <td class="pr-3 py-1" :title="e.best.startLocal ? `plan start ${e.best.startLocal}` : undefined">
-                    {{ e.best.currentTE ?? '—' }} TE
-                  </td>
-                  <td class="pr-3 py-1" :title="sentTitle(e.best.receivedAt ?? e.best.submittedAt)">
-                    {{ sentText(e.best.receivedAt ?? e.best.submittedAt) }}
-                  </td>
-                </tr>
+                <template v-for="e in [...g.entries, ...g.anonymous]" :key="dateKey(g.deadline, e)">
+                  <tr
+                    class="border-t border-indigo-50 cursor-pointer hover:bg-indigo-50/40"
+                    :class="e.rank ? '' : 'text-slate-500'"
+                    :title="
+                      openDate === dateKey(g.deadline, e)
+                        ? 'Hide the details'
+                        : 'Show the details and any other answers'
+                    "
+                    @click="openDate = openDate === dateKey(g.deadline, e) ? '' : dateKey(g.deadline, e)"
+                  >
+                    <td class="pr-3 py-1 font-black">{{ e.rank ?? '—' }}</td>
+                    <td class="pr-3 py-1 font-bold">
+                      {{ e.label
+                      }}<span v-if="e.others.length" class="font-normal text-slate-400">
+                        · {{ e.others.length }} more</span
+                      >
+                    </td>
+                    <td class="pr-3 py-1 font-black text-indigo-900">{{ e.te }}</td>
+                    <td class="pr-3 py-1">{{ e.best.chain.join(' ') }}</td>
+                    <td class="pr-3 py-1">{{ spareText(e.spare) }}</td>
+                    <td class="pr-3 py-1" :title="e.best.startLocal ? `plan start ${e.best.startLocal}` : undefined">
+                      {{ e.best.currentTE ?? '—' }} TE
+                    </td>
+                    <td class="pr-3 py-1" :title="sentTitle(e.best.receivedAt ?? e.best.submittedAt)">
+                      {{ sentText(e.best.receivedAt ?? e.best.submittedAt) }}
+                    </td>
+                    <td class="pr-3 py-1">
+                      <a
+                        v-if="e.best.hasCsv && e.best.id"
+                        :href="`${csvRoot}?id=${encodeURIComponent(e.best.id)}`"
+                        class="font-bold text-indigo-700 underline hover:text-indigo-900"
+                        title="Every route this search found, as a gzipped CSV"
+                        @click.stop
+                        >CSV ↓</a
+                      >
+                      <span v-else class="text-slate-300" title="Sent without a CSV">—</span>
+                    </td>
+                  </tr>
+                  <tr v-if="openDate === dateKey(g.deadline, e)" class="bg-slate-50">
+                    <td colspan="8" class="px-3 py-3 space-y-3">
+                      <LeaderboardRunDetail
+                        :row="e.best"
+                        :copies="[e.best]"
+                        :csv-root="csvRoot"
+                        :view-zone="viewZone"
+                      />
+                      <div v-if="e.others.length" class="space-y-1">
+                        <p class="text-[9px] font-black uppercase tracking-widest text-indigo-700/60">
+                          Their other answers for this date
+                        </p>
+                        <p v-for="o in e.others" :key="o.id ?? o.chain.join(',')" class="text-[11px] text-slate-600">
+                          <span class="font-bold text-indigo-900">{{ o.finalTE }} TE</span> via {{ o.chain.join(' ') }},
+                          from {{ o.currentTE ?? '—' }} TE, sent {{ sentText(o.receivedAt ?? o.submittedAt) }}
+                          <a
+                            v-if="o.hasCsv && o.id"
+                            :href="`${csvRoot}?id=${encodeURIComponent(o.id)}`"
+                            class="ml-1 font-bold text-indigo-700 underline hover:text-indigo-900"
+                            >CSV ↓</a
+                          >
+                        </p>
+                      </div>
+                    </td>
+                  </tr>
+                </template>
               </tbody>
             </table>
           </div>
@@ -1130,6 +1173,11 @@ const dateBoard = computed(() =>
     filter: { ascensions: dateAsc.value, hours: dateHours.value, timeOff: dateOff.value },
   })
 );
+/** The date-board line that is open, if any. */
+const openDate = ref('');
+function dateKey(deadline: number, e: { key: string; best: Row }): string {
+  return `${deadline}|${e.key || 'anon'}|${e.best.id ?? e.best.chain.join(',')}`;
+}
 const dateFiltered = computed(() => dateAsc.value !== null || dateHours.value !== null || dateOff.value !== null);
 /** The next Egg Day (lib/eggDay.ts, the same moment the deadline search's preset sends). */
 const eggDayYear = nextEggDayYear();
