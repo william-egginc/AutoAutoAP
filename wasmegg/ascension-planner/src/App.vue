@@ -17,6 +17,8 @@
         note="save your results first (Save this run, Save the file instead, or Download CSV) so nothing is lost; a search that is still running picks up from its checkpoint after the reload"
         class="mb-4"
       />
+      <!-- A blocked account says so the moment its save loads, not after the form is filled in. -->
+      <IntegrityAlert />
 
       <!-- Collapsible Header Region -->
       <div class="bg-white/95 backdrop-blur-xl rounded-2xl border border-slate-100 shadow-sm">
@@ -632,6 +634,7 @@ import { computeDependencies } from '@/lib/actions/executor';
 import { restoreFromSnapshot } from '@/lib/actions/snapshot';
 import { computeSnapshot } from '@/engine/compute';
 import NewVersionBanner from '@/components/NewVersionBanner.vue';
+import IntegrityAlert from '@/components/auto/IntegrityAlert.vue';
 import { getSimulationContext, createBaseEngineState } from '@/engine/adapter';
 import type { Action, VirtueEgg } from '@/types';
 import { countTEThresholdsPassed } from '@/lib/truthEggs';
