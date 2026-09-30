@@ -45,6 +45,27 @@
     </div>
 
     <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">The deadline</h3>
+    <!-- Which deadline is set, said in words: the dark Egg Day button alone didn't read as "selected". -->
+    <p
+      class="rounded-lg border px-3 py-2 text-[12px] leading-relaxed"
+      :class="isEggDay ? 'border-amber-300 bg-amber-50 text-amber-900' : 'border-slate-200 bg-slate-50 text-slate-700'"
+    >
+      <template v-if="isEggDay">
+        <span class="font-black">🥚 Egg Day {{ eggDayYear }} is selected:</span> 14 July {{ eggDayYear }}, 9:00 AM
+        Pacific. Answers go on the leaderboard's Egg Day {{ eggDayYear }} tab.
+      </template>
+      <template v-else>
+        <span class="font-black">A date of your own.</span> Answers go on the leaderboard's By a date tab.
+        <button
+          type="button"
+          class="ml-1 font-bold text-indigo-700 underline"
+          :disabled="store.busy"
+          @click="useEggDay"
+        >
+          Use Egg Day {{ eggDayYear }} instead
+        </button>
+      </template>
+    </p>
     <div class="flex flex-wrap items-end gap-3">
       <button
         type="button"
@@ -238,7 +259,9 @@
           />
         </label>
         <label class="space-y-1">
-          <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest">Early stops every</span>
+          <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest"
+            >First look: early stops every</span
+          >
           <select v-model.number="step" :disabled="store.busy" class="rounded-lg border-slate-200 text-sm font-bold">
             <option :value="10">10 TE</option>
             <option :value="20">20 TE</option>
@@ -246,13 +269,28 @@
           </select>
         </label>
       </div>
-      <p class="text-[11px] text-slate-500 leading-relaxed">
-        It picks the early stops itself, starting from your current route. The first stop is tried at every TE for the
-        first 5 above yours and the rest on a {{ usedStep }}-TE grid ({{ shapes.toLocaleString() }} sets). For each set
-        it finds the highest last stop that still makes the deadline, then homes in on the best few, moving one stop at
-        a time by {{ resolutionsText }} TE. It's quicker than setting the stops yourself but not proven: it can miss a
-        route off the grid.
-      </p>
+      <div class="text-[11px] text-slate-600 leading-relaxed space-y-1.5">
+        <p>
+          <span class="font-bold text-slate-800">It looks wide, then zooms in.</span> The first look tries early stops
+          every {{ usedStep }} TE ({{ shapes.toLocaleString() }} sets, plus every TE for the first 5 above yours, and
+          the chain in your planner and your last best): rough, but across everything, so it can't miss a whole region.
+          Then it zooms in on the best few, moving one stop at a time by {{ resolutionsText }} TE and keeping anything
+          that helps, so the answer ends up placed to the exact TE, not on the grid. The last stop is always found to
+          the exact TE.
+        </p>
+        <p>
+          <span class="font-bold text-slate-800">Why not every TE from the start?</span> Good and bad stops sit a few TE
+          apart (each missed Research Sale is a jump), so you can't just walk downhill from one guess, and every TE for
+          every stop is tens of thousands of routes. A wide first look finds the right area; the zoom does the fine work
+          only there. It's the same idea as Smart search.
+        </p>
+        <p>
+          <span class="font-bold text-slate-800">The other way, "I'll set the stops",</span> tries every route in boxes
+          you give, so its answer is proven for those boxes, but only as good as the boxes. This way covers far more
+          ground for the time, but isn't proven: a narrow winner between first-look points could be missed if the zoom
+          doesn't start near it.
+        </p>
+      </div>
     </template>
 
     <!-- The numbers that should decide whether you press the button. -->
@@ -315,68 +353,30 @@
       >
     </div>
 
-    <!-- Find and submit: the share opt-in and name, before the run, so it can send itself at the end.
-         The same settings as the Share this answer box under the result. -->
-    <div
-      v-if="collectorConfigured && !store.deadlineRunning"
-      class="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3 space-y-2 text-[11px] text-indigo-900"
+    <!-- Find / Find and submit: the same bar as Fastest route (FindBar.vue), with this screen's own
+         consent wording. The same share settings as the Share this answer box under the result. -->
+    <FindBar
+      v-model:opt-in="shareOptIn"
+      v-model:anonymous="shareAnonymous"
+      v-model:nickname="shareName"
+      :find-disabled="store.busy || store.integrityBlocked || store.staleBackupBlocked || !canStart"
+      :running="store.deadlineRunning"
+      :stopping="stopAsked"
+      :running-label="autoShare ? 'Searching, then submitting...' : 'Searching...'"
+      :show-submit="collectorConfigured"
+      @find="andSubmit => void start(andSubmit)"
+      @stop="stopDeadline"
+      @nickname-typed="shareNameTouched = true"
     >
-      <label class="flex items-start gap-3">
-        <input v-model="shareOptIn" type="checkbox" class="mt-0.5 rounded border-indigo-300 text-indigo-600" />
+      <template #consent>
         <span
           >For <span class="font-bold">Find and submit</span>: share the best answer on the leaderboard when the search
           finishes. It sends the route, its dates and the deadline, with your artifact inventory, timezone, local plan
           start and the random code this browser keeps for the account (not your player ID, and never shown), plus the
-          CSV if ticked under Share this answer.</span
+          CSV if ticked under Share this answer. Stop it early and it shares the best it found so far.</span
         >
-      </label>
-      <div v-if="shareOptIn" class="flex flex-wrap items-center gap-4">
-        <label class="flex items-center gap-2 cursor-pointer font-bold">
-          <input v-model="shareAnonymous" type="radio" :value="true" class="text-indigo-600" />
-          Anonymously
-        </label>
-        <label class="flex items-center gap-2 cursor-pointer font-bold">
-          <input v-model="shareAnonymous" type="radio" :value="false" class="text-indigo-600" />
-          Credit me as
-        </label>
-        <input
-          v-model="shareName"
-          type="text"
-          maxlength="40"
-          :disabled="shareAnonymous"
-          placeholder="nickname"
-          aria-label="Nickname"
-          class="rounded-lg border-indigo-200 text-sm font-bold text-slate-800 w-48 disabled:opacity-40"
-          @input="shareNameTouched = true"
-        />
-      </div>
-    </div>
-
-    <div class="flex flex-wrap gap-3">
-      <button
-        class="btn-premium btn-primary flex-1 py-4 text-sm shadow-xl shadow-rose-500/20 active:scale-[0.98]"
-        :disabled="store.busy || store.integrityBlocked || store.staleBackupBlocked || !canStart"
-        @click="start(false)"
-      >
-        {{ store.deadlineRunning ? (autoShare ? 'Searching, then submitting...' : 'Searching...') : 'Find' }}
-      </button>
-      <button
-        v-if="collectorConfigured && !store.deadlineRunning"
-        class="px-6 py-4 rounded-xl bg-indigo-700 text-white text-[11px] font-black uppercase tracking-widest hover:bg-indigo-800 disabled:opacity-40"
-        :disabled="store.busy || store.integrityBlocked || store.staleBackupBlocked || !canStart || !shareOptIn"
-        :title="shareOptIn ? '' : 'Tick the share box above first'"
-        @click="start(true)"
-      >
-        Find and submit
-      </button>
-      <button
-        v-if="store.deadlineRunning"
-        class="px-6 py-4 rounded-xl border border-slate-300 text-sm font-black text-slate-700 hover:bg-slate-50"
-        @click="store.stopDeadline()"
-      >
-        Stop
-      </button>
-    </div>
+      </template>
+    </FindBar>
     <!-- Everything above greys out while anything else in this tab is busy; say what, and offer a way out. -->
     <div
       v-if="store.busy && !store.deadlineRunning"
@@ -623,6 +623,7 @@
 </template>
 
 <script setup lang="ts">
+import FindBar from './FindBar.vue';
 import AutoSendReport from './AutoSendReport.vue';
 import { NAMES } from '@/lib/siteNav';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
@@ -1002,6 +1003,19 @@ async function resume(): Promise<void> {
 const autoShare = ref(false);
 
 /** Find, and with `andSubmit` share the best answer at the end (not when stopped early or failed). */
+/** Stop pressed, until the run ends: the store's stop flag for a date search isn't reactive. */
+const stopAsked = ref(false);
+watch(
+  () => store.deadlineRunning,
+  running => {
+    if (!running) stopAsked.value = false;
+  }
+);
+function stopDeadline(): void {
+  stopAsked.value = true;
+  store.stopDeadline();
+}
+
 async function start(andSubmit: boolean): Promise<void> {
   autoShare.value = andSubmit && shareOptIn.value;
   store.lastAutoSend = null;
@@ -1013,7 +1027,9 @@ async function start(andSubmit: boolean): Promise<void> {
     store.submitsWhenDone = false;
     const go = autoShare.value;
     autoShare.value = false;
-    if (go && result.value && best.value && !result.value.stoppedEarly && !store.error) {
+    // Stopped early it still shares: its best is a real route to that TE by the date, just maybe not
+    // the highest, and on a board ranked by TE that only ever ranks it lower.
+    if (go && result.value && best.value && !store.error) {
       await share();
       store.lastAutoSend = { kind: 'by-date', ok: shareOk.value, text: shareMessage.value };
     }

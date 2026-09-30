@@ -27,25 +27,33 @@
           type="button"
           role="radio"
           :aria-checked="depth === d.id"
-          :disabled="!!lockedTo && lockedTo !== d.id"
-          :title="
-            lockedTo && lockedTo !== d.id ? 'A search is running on the other one. Stop it there first.' : undefined
-          "
-          class="rounded-xl border-2 p-4 text-left transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          class="rounded-xl border-2 p-4 text-left transition-colors"
           :class="
             depth === d.id ? 'border-indigo-600 bg-indigo-50' : 'border-slate-200 bg-white hover:border-slate-300'
           "
           @click="emit('update:depth', d.id)"
         >
-          <span class="block text-base font-black text-slate-900">{{ d.label }}</span>
+          <span class="flex items-center gap-2 text-base font-black text-slate-900"
+            >{{ d.label }}
+            <span
+              v-if="lockedTo === d.id"
+              class="px-1.5 py-0.5 rounded bg-indigo-600 text-white text-[9px] font-black uppercase tracking-widest"
+              >Running</span
+            ></span
+          >
           <span class="block mt-1 text-[12px] text-slate-600 leading-relaxed">{{ d.blurb }}</span>
           <span class="block mt-2 text-[10px] font-black text-indigo-700 uppercase tracking-widest">{{ d.time }}</span>
         </button>
       </div>
     </div>
 
-    <ChainSearchPanel v-if="depth === 'smart'" :player-id="playerId" />
-    <InsanePanel v-else :player-id="playerId" goal="fastest" @update:goal="onGoal" />
+    <!-- A search running elsewhere: this depth greyed out under a line saying so (the cards above
+         stay clickable, to switch back). -->
+    <RunningElsewhere v-if="blockedBy" :running="blockedBy" :here="depth === 'smart' ? NAMES.smart : NAMES.full" />
+    <div :class="blockedBy ? 'opacity-40 pointer-events-none select-none' : ''" :inert="blockedBy ? true : undefined">
+      <ChainSearchPanel v-if="depth === 'smart'" :player-id="playerId" />
+      <InsanePanel v-else :player-id="playerId" goal="fastest" @update:goal="onGoal" />
+    </div>
   </div>
 </template>
 
@@ -53,13 +61,15 @@
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { NAMES, type Depth } from '@/lib/siteNav';
 import { safeAsyncComponent } from '@/lib/import';
+import RunningElsewhere from './RunningElsewhere.vue';
 
 defineProps<{
   playerId: string;
   depth: Depth;
-  /** The screen a running search belongs to ('smart', 'full' or 'by-date'); any other card is
-   *  locked until it stops. */
+  /** The screen a running search belongs to ('smart', 'full' or 'by-date'): its card says Running. */
   lockedTo: string | null;
+  /** The running search's name when it isn't this depth's: the panel is shown greyed out. */
+  blockedBy: string;
 }>();
 const emit = defineEmits<{ 'update:depth': [depth: Depth]; goal: [goal: 'fastest' | 'deadline'] }>();
 

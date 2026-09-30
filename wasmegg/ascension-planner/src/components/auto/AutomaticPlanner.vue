@@ -33,7 +33,9 @@
           </div>
 
           <div class="space-y-8">
-            <!-- Start time and timezone are in Your setup (YourSetup.vue), shared by every Auto Planner screen. -->
+            <!-- Start time, timezone and the rest: one setup shared by every Auto Planner screen
+                 (YourSetup.vue), here where the start time used to be. -->
+            <YourSetup screen="classic" />
             <VirtueProgressSection />
 
             <!-- Ascension Targets -->
@@ -348,6 +350,7 @@ import { loadAutoPlannerSchedule, saveAutoPlannerSchedule } from '@/lib/autoPlan
 import { isTestingEnvironment } from '@/lib/isTestingEnvironment';
 import { iconURL } from 'lib';
 import VirtueProgressSection from './VirtueProgressSection.vue';
+import YourSetup from './YourSetup.vue';
 import ChainSummaryBar from './ChainSummaryBar.vue';
 import SimulationErrorAlert from './SimulationErrorAlert.vue';
 import AscensionOverview from './AscensionOverview.vue';

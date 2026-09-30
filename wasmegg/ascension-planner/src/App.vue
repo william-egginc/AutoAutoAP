@@ -39,6 +39,17 @@
 
             <the-player-id-form :player-id="playerId" @submit="submitPlayerId" />
 
+            <!-- The tabs, where they always were: under the player ID. -->
+            <SiteTabs
+              v-if="playerId && !isHeaderCollapsed"
+              class="mt-6"
+              :tabs="topTabs"
+              :current="plannerTab"
+              :show-guide-link="!showGuide"
+              @select="selectSection"
+              @guide="showGuide = true"
+            />
+
             <!-- Plan Library Section -->
             <div v-if="playerId && plannerTab === 'manual'" class="max-w-6xl mx-auto mt-6">
               <PlanLibrary @plan-loaded="handlePlanLoaded" />
@@ -208,38 +219,15 @@
       <RunProgressBar v-if="showRunBar" class="mt-4" @show="showRun" />
 
       <nav v-if="playerId" class="mt-4 space-y-3" aria-label="Site">
-        <div class="flex justify-center">
-          <div
-            class="bg-white p-1.5 rounded-2xl border border-slate-200/70 shadow-sm flex flex-wrap justify-center gap-1"
-          >
-            <button
-              v-for="t in topTabs"
-              :key="t.id"
-              type="button"
-              class="px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-[0.15em] transition-all duration-300"
-              :class="plannerTab === t.tab ? t.on : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'"
-              :aria-current="plannerTab === t.tab ? 'page' : undefined"
-              @click="goTo({ section: t.id, auto: autoView, depth: fastestDepth })"
-            >
-              <span class="block">{{ t.label }}</span>
-              <span
-                class="block mt-0.5 text-[9px] font-bold normal-case tracking-normal"
-                :class="plannerTab === t.tab ? 'text-white/80' : 'text-slate-400'"
-                >{{ t.sub }}</span
-              >
-            </button>
-          </div>
-        </div>
-
-        <div v-if="!showGuide" class="flex justify-center -mt-1">
-          <button
-            type="button"
-            class="text-[10px] font-bold text-slate-400 hover:text-indigo-700 underline decoration-dotted"
-            @click="showGuide = true"
-          >
-            What moved? The new layout, explained
-          </button>
-        </div>
+        <!-- The header (with the tabs in it) folds away on the Auto Planner: the same tabs here then. -->
+        <SiteTabs
+          v-if="isHeaderCollapsed"
+          :tabs="topTabs"
+          :current="plannerTab"
+          :show-guide-link="!showGuide"
+          @select="selectSection"
+          @guide="showGuide = true"
+        />
 
         <template v-if="plannerTab === 'automatic'">
           <div class="flex justify-center">
@@ -248,17 +236,25 @@
                 v-for="v in autoTabs"
                 :key="v.id"
                 type="button"
-                :disabled="v.screen ? screenLocked(v.screen) : false"
-                :title="v.screen && screenLocked(v.screen) ? lockedTitle : undefined"
-                class="px-4 py-2 -mb-px border-b-2 text-[11px] font-black uppercase tracking-widest disabled:opacity-40 disabled:cursor-not-allowed"
+                class="px-4 py-2 -mb-px border-b-2 text-[11px] font-black uppercase tracking-widest"
                 :class="
                   autoView === v.id
                     ? 'border-indigo-600 text-indigo-700'
                     : 'border-transparent text-slate-400 hover:text-slate-700'
                 "
-                @click="goAuto(v.id)"
+                @click="onAutoTab(v.id)"
               >
                 {{ v.label }}
+                <span
+                  v-if="
+                    activeScreen &&
+                    (v.id === 'by-date'
+                      ? activeScreen === 'by-date'
+                      : v.id === 'fastest' && (activeScreen === 'smart' || activeScreen === 'full'))
+                  "
+                  class="ml-1 inline-block w-1.5 h-1.5 rounded-full bg-indigo-600 align-middle"
+                  title="A search is running here"
+                ></span>
               </button>
             </div>
           </div>
@@ -458,29 +454,38 @@
         </div>
       </div>
 
-      <!-- The Auto Planner's three screens, under the one setup they share. -->
+      <!-- The Auto Planner's three screens; each has Your setup where its settings used to be. -->
       <div v-if="plannerTab === 'automatic' && playerId && !loading" class="mt-4 space-y-4">
-        <!-- One setup for all three screens (plan start, hours, time off, this computer), so a change
-             on one is already on the others. -->
-        <YourSetup :screen="autoView" />
-        <template v-if="autoView === 'classic'">
-          <p class="max-w-4xl mx-auto text-sm text-slate-600 leading-relaxed">
-            <span class="font-bold text-slate-900">{{ NAMES.classic }}</span> is Joo's Auto AP: type the TE you want to
-            ascend at and it lays out every ascension from your start. To have the checkpoints found for you, use
-            {{ NAMES.fastest }} or {{ NAMES.byDate }}.
-          </p>
-          <AutomaticPlanner />
-        </template>
-        <!-- One screen, two depths: the "How thorough" cards are on it (FastestRoute.vue). -->
-        <FastestRoute
-          v-else-if="autoView === 'fastest'"
-          :player-id="playerId"
-          :depth="fastestDepth"
-          :locked-to="runningScreen"
-          @update:depth="onDepth"
-          @goal="onInsaneGoal"
-        />
-        <InsanePanel v-else :player-id="playerId" goal="deadline" @update:goal="onInsaneGoal" />
+        <!-- A search running on another Auto Planner screen: this one greyed out under a line saying
+             which, with Stop on the progress bar above. Fastest route greys only its panel, below its
+             depth cards (FastestRoute.vue). -->
+        <RunningElsewhere v-if="blockedBy && autoView !== 'fastest'" :running="blockedBy" :here="hereLabel" />
+        <div
+          :class="
+            blockedBy && autoView !== 'fastest' ? 'opacity-40 pointer-events-none select-none space-y-4' : 'space-y-4'
+          "
+          :inert="blockedBy && autoView !== 'fastest' ? true : undefined"
+        >
+          <template v-if="autoView === 'classic'">
+            <p class="max-w-4xl mx-auto text-sm text-slate-600 leading-relaxed">
+              <span class="font-bold text-slate-900">{{ NAMES.classic }}</span> is Joo's Auto AP: type the TE you want
+              to ascend at and it lays out every ascension from your start. To have the checkpoints found for you, use
+              {{ NAMES.fastest }} or {{ NAMES.byDate }}.
+            </p>
+            <AutomaticPlanner />
+          </template>
+          <!-- One screen, two depths: the "How thorough" cards are on it (FastestRoute.vue). -->
+          <FastestRoute
+            v-else-if="autoView === 'fastest'"
+            :player-id="playerId"
+            :depth="fastestDepth"
+            :locked-to="activeScreen"
+            :blocked-by="blockedBy"
+            @update:depth="onDepth"
+            @goal="onInsaneGoal"
+          />
+          <ByDateScreen v-else :player-id="playerId" @goal="onInsaneGoal" />
+        </div>
       </div>
 
       <div v-else-if="plannerTab === 'leaderboard'" class="max-w-6xl mx-auto mt-6">
@@ -645,6 +650,8 @@ import { safeAsyncComponent } from '@/lib/import';
 import RunProgressBar from '@/components/auto/RunProgressBar.vue';
 import { usePlanStartForm } from '@/composables/usePlanStartForm';
 import NewLayoutGuide from '@/components/NewLayoutGuide.vue';
+import SiteTabs from '@/components/SiteTabs.vue';
+import RunningElsewhere from '@/components/auto/RunningElsewhere.vue';
 import { useSalesStore } from '@/stores/sales';
 import { hashID, saveMetadata, loadMetadata } from '@/lib/storage/db';
 import { useActionExecutor } from '@/composables/useActionExecutor';
@@ -677,9 +684,8 @@ import {
 // the files this tab was built against.
 const AutomaticPlanner = safeAsyncComponent(() => import('@/components/auto/AutomaticPlanner.vue'));
 const FastestRoute = safeAsyncComponent(() => import('@/components/auto/FastestRoute.vue'));
-const InsanePanel = safeAsyncComponent(() => import('@/components/auto/InsanePanel.vue'));
+const ByDateScreen = safeAsyncComponent(() => import('@/components/auto/ByDateScreen.vue'));
 const LeaderboardPanel = safeAsyncComponent(() => import('@/components/auto/LeaderboardPanel.vue'));
-const YourSetup = safeAsyncComponent(() => import('@/components/auto/YourSetup.vue'));
 const ChainExplorer = safeAsyncComponent(() => import('@/explorer/ChainExplorer.vue'));
 
 // Dev server only (localhost or a LAN IP hitting the Vite dev server) - never in a production build.
@@ -791,9 +797,6 @@ const searchActive = computed(() => chainSearchStore.busy || chainSearchStore.sw
 watch(searchActive, active => {
   runningScreen.value = active ? (searchScreenOf(currentRoute()) ?? runningScreen.value) : null;
 });
-function screenLocked(screen: SearchScreen): boolean {
-  return !!runningScreen.value && runningScreen.value !== screen;
-}
 
 /**
  * The screen the running search belongs to, for the progress bar: the one it was started from, or,
@@ -806,6 +809,23 @@ const runScreen = computed<SearchScreen | null>(() => {
   if (kind === 'by-date' || kind === 'full' || kind === 'smart') return kind;
   return fastestDepth.value;
 });
+/** The screen a search is going on, gaps between a queue's chains included. */
+const activeScreen = computed<SearchScreen | null>(() => runningScreen.value ?? runScreen.value);
+/** The screen shown now, in the same terms. */
+const screenHere = computed<SearchScreen | 'classic'>(() =>
+  autoView.value === 'classic' ? 'classic' : autoView.value === 'by-date' ? 'by-date' : fastestDepth.value
+);
+function screenName(s: SearchScreen | 'classic'): string {
+  return s === 'classic' ? NAMES.classic : s === 'by-date' ? NAMES.byDate : s === 'full' ? NAMES.full : NAMES.smart;
+}
+/** The running search's name when this Auto Planner screen isn't where it runs, else ''. */
+const blockedBy = computed(() => {
+  const a = activeScreen.value;
+  if (plannerTab.value !== 'automatic' || !a || a === screenHere.value) return '';
+  return chainSearchStore.runProgress?.kind === 'start-times' ? 'When should I start?' : screenName(a);
+});
+const hereLabel = computed(() => screenName(screenHere.value));
+
 /** On every screen but the run's own, where the panel shows its progress in full. */
 const showRunBar = computed(() => !!runScreen.value && searchScreenOf(currentRoute()) !== runScreen.value);
 function showRun(): void {
@@ -816,12 +836,8 @@ function showRun(): void {
 
 /** Open a tab: a deliberate choice, so a backup finishing loading no longer pulls the page back. */
 function goTo(r: SiteRoute): void {
-  // "Fastest route" while its other depth is running: open the running one rather than do nothing.
-  if (r.section === 'auto' && r.auto === 'fastest' && screenLocked(r.depth)) {
-    if (runningScreen.value === 'smart' || runningScreen.value === 'full') r = { ...r, depth: runningScreen.value };
-  }
-  const screen = searchScreenOf(r);
-  if (screen && screenLocked(screen)) return;
+  // Every screen opens, running search or not: the ones it isn't on show greyed out under a line
+  // saying so (RunningElsewhere.vue), rather than refusing the click (the user, 30 Sept).
   pinnedRoute = null;
   const enteringAuto = r.section === 'auto' && plannerTab.value !== 'automatic';
   applyRoute(r);
@@ -830,8 +846,19 @@ function goTo(r: SiteRoute): void {
   // it started with, which is already set up.
   if (enteringAuto && !searchActive.value) void handleAutoPlannerTabClick();
 }
+/** A top tab: that section, as it was last left. */
+function selectSection(section: Section): void {
+  goTo({ ...currentRoute(), section });
+}
 function goAuto(auto: AutoView, depth: Depth = fastestDepth.value): void {
   goTo({ section: 'auto', auto, depth });
+}
+
+/** An Auto Planner sub-tab. "Fastest route" opens the depth that's running, if one is. */
+function onAutoTab(auto: AutoView): void {
+  const a = activeScreen.value;
+  if (auto === 'fastest' && (a === 'smart' || a === 'full')) goAuto('fastest', a);
+  else goAuto(auto);
 }
 
 /** A "How thorough" card on Fastest route. */
@@ -968,7 +995,6 @@ const scienceTabs: { id: ScienceView; label: string }[] = [
   { id: 'check', label: NAMES.check },
   { id: 'submit', label: NAMES.submit },
 ];
-const lockedTitle = 'A search is running on another screen. Stop it there first.';
 
 let autoInitFor = '';
 async function initAutoOnce(): Promise<void> {

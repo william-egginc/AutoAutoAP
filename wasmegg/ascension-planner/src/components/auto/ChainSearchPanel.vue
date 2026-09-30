@@ -33,6 +33,10 @@
         </div>
       </details>
 
+      <!-- Plan start, hours, time off, this computer and what it simulates: one setup shared by every
+           Auto Planner screen (YourSetup.vue), here where this screen's settings used to be. -->
+      <YourSetup screen="fastest" />
+
       <!-- Collapsible so a repeat visitor can skip straight to the button. Open by default; a
            collapsed form looks like an empty panel. -->
       <div class="rounded-xl border border-slate-200 bg-white overflow-hidden">
@@ -120,21 +124,6 @@
               </p>
             </div>
           </div>
-
-          <!-- The way into Insane mode. It used to be URL-only on purpose; linked now (2026-09-24)
-               because the board needs exhaustive sweeps and nobody found the URL. A reload, so it is
-               not offered mid-run: leaving would stop the search. -->
-          <p class="text-[11px] text-slate-600 leading-relaxed">
-            <span class="font-bold text-slate-800">Not big enough?</span>{{ ' ' }}
-            <template v-if="!store.isRunning">
-              <a :href="insaneHref" class="font-bold text-rose-700 underline hover:text-rose-600"
-                >Try the {{ NAMES.full }}</a
-              >:
-            </template>
-            <template v-else>The {{ NAMES.full }} (once this search is stopped):</template>
-            an exhaustive search that prices every chain in a space you choose, so its winner is proven for that space
-            rather than found by descent. It takes hours instead of minutes.
-          </p>
 
           <!-- Starting point -->
           <label
@@ -232,131 +221,6 @@
                 checkpoint re-simulates every leg after it, so pinning it is usually the cheapest speedup available.
               </span>
             </p>
-          </div>
-
-          <!-- Plan start, awake hours and time off: in Your setup at the top (YourSetup.vue), one
-               copy for every Auto Planner screen. They lock there while a search runs. -->
-          <p class="text-[11px] text-slate-500 leading-relaxed">
-            Your plan start, awake hours and time off are in <span class="font-bold text-slate-700">Your setup</span>
-            at the top of the page. The search uses them, so set them before you start.
-          </p>
-
-          <!-- What the simulator is wearing.
-           This was only ever in the CSV header, which meant you had to finish a run and open a
-           spreadsheet to find out what the two-year plan assumed you owned. It is a property of
-           the RUN, not of a candidate, so it belongs beside the settings that produced it - and
-           the "held fixed" caveat below is the honest limit of the whole model. -->
-          <div class="p-4 rounded-xl border border-slate-200 bg-white space-y-3">
-            <button
-              type="button"
-              class="w-full flex items-center justify-between gap-3 text-left"
-              :aria-expanded="inventoryOpen"
-              @click="toggleInventory"
-            >
-              <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                Artifacts it is simulating with
-              </h3>
-              <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                {{ inventoryOpen ? '&#8964; Hide' : '&#8250; Show' }}
-              </span>
-            </button>
-
-            <div v-if="inventoryOpen && inventory" class="space-y-4">
-              <p class="text-[11px] text-slate-500 leading-relaxed">
-                The simulator does not wear a fixed set, and it does not wear what you have equipped. It re-solves the
-                best loadout inside <span class="font-semibold">every leg</span> out of your virtue inventory, and swaps
-                between these two: the <span class="font-semibold">delivery</span> set while it is building the farm,
-                and the <span class="font-semibold">earnings</span> set when it cashes out.
-              </p>
-
-              <div class="flex gap-1 bg-slate-200/50 p-1 rounded-xl w-fit">
-                <button
-                  v-for="tab in ['elr', 'earnings'] as const"
-                  :key="tab"
-                  type="button"
-                  class="px-4 py-1 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all"
-                  :class="setTab === tab ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'"
-                  @click="setTab = tab"
-                >
-                  {{ tab === 'elr' ? 'Delivery' : 'Earnings' }}
-                </button>
-              </div>
-
-              <LoadoutDisplay :loadout="setTab === 'elr' ? inventory.elr : inventory.earnings" />
-
-              <p v-if="setTab === 'elr'" class="text-[11px] text-slate-500 leading-relaxed">
-                Solved against your research levels <span class="font-semibold">as they are today</span>, so this is the
-                set the first leg runs with. Every later leg re-solves against its own research state and will pick
-                something different, so there is no single delivery set for the whole plan.
-              </p>
-              <p v-else class="text-[11px] text-slate-500 leading-relaxed">
-                The best earnings set your inventory can build. Unlike the delivery set this does not depend on
-                research, so it is the same in every leg.
-              </p>
-
-              <!-- The inventory itself, behind a second click.
-               It was open by default in the first version and that was a mistake: ten thousand
-               artifacts as text chips, most of them T1 commons the solver would never look at
-               twice, buried the two sets that actually answer the question. -->
-              <div class="border-t border-slate-100 pt-3">
-                <button
-                  type="button"
-                  class="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-emerald-700"
-                  :aria-expanded="rawInventoryOpen"
-                  @click="rawInventoryOpen = !rawInventoryOpen"
-                >
-                  {{ rawInventoryOpen ? '&#8964;' : '&#8250;' }} Everything it had to choose from ({{
-                    totalArtifacts.toLocaleString()
-                  }}
-                  artifacts, {{ totalStones.toLocaleString() }} stones)
-                </button>
-
-                <div v-if="rawInventoryOpen" class="mt-3 space-y-3">
-                  <div v-if="inventory.artifacts.length" class="flex flex-wrap gap-1.5">
-                    <span
-                      v-for="a in inventory.artifacts"
-                      :key="a.label"
-                      class="px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-[10px] font-bold text-slate-700"
-                    >
-                      <span v-if="a.count > 1" class="text-slate-400">{{ a.count }}&#215; </span>{{ a.label }}
-                    </span>
-                  </div>
-                  <div v-if="inventory.stones.length" class="flex flex-wrap gap-1.5">
-                    <span
-                      v-for="st in inventory.stones"
-                      :key="st.label"
-                      class="px-2 py-0.5 rounded-md bg-indigo-50 border border-indigo-200 text-[10px] font-bold text-indigo-800"
-                    >
-                      <span v-if="st.count > 1" class="text-indigo-400">{{ st.count }}&#215; </span>{{ st.label }}
-                    </span>
-                  </div>
-                  <p class="text-[11px] text-slate-400 leading-relaxed">
-                    Most of these never get worn. They are listed because the solver picks from the whole pile, so the
-                    pile is its input, but only the two sets above are what any leg actually runs with.
-                  </p>
-                </div>
-              </div>
-
-              <p
-                v-if="!inventory.artifacts.length && !inventory.stones.length"
-                class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3 leading-relaxed"
-              >
-                No virtue artifacts found in this backup. Every leg is being simulated bare, which will make the plan
-                look considerably slower than it will actually be.
-              </p>
-
-              <p class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3 leading-relaxed">
-                <span class="font-black uppercase tracking-wide">Held fixed for the whole plan.</span>
-                This is what you own <span class="font-semibold">today</span>, and the search assumes it never changes
-                across all
-                <span class="font-semibold">{{ store.bestDays > 0 ? Math.round(store.bestDays) : '700+' }}</span>
-                days. In practice you will craft and upgrade along the way, so the real run should come in
-                <span class="font-semibold">faster</span> than every number here. The model is off, but in the safe
-                direction. Comparisons between chains stay fair, because every candidate is simulated with the same
-                inventory; the absolute dates are what will drift early. Re-run the search with a fresh backup after any
-                significant crafting.
-              </p>
-            </div>
           </div>
         </div>
       </div>
@@ -686,10 +550,13 @@
           :source="store.searchSpace ? `From the ${NAMES.full} you ran` : ''"
           :busy="store.busy"
           can-fill
+          can-save
+          :saving="saving"
           :note="applied ? `Sent ${applied} to Classic${generated ? ' and started building the plan.' : '.'}` : ''"
           @build="use(store.bestChain, true)"
           @fill="use(store.bestChain)"
           @csv="downloadCsv"
+          @save="save"
         >
           <p v-if="!store.searchSpace" class="text-[11px] text-emerald-800 leading-relaxed">
             The stages are nested (each one starts from the answer the previous one produced), so stopping is safe: you
@@ -864,6 +731,9 @@
         v-if="store.bestChain.length && store.bestDays > 0 && !store.isRunning"
         :chain="store.bestChain"
       />
+
+      <!-- Saved runs: the same list as the Full sweep's (SavedRuns.vue). -->
+      <SavedRuns :player-id="playerId" />
 
       <!-- The generated plan does NOT know about the schedule. Said here rather than buried,
            because the two numbers WILL disagree and the search's is the realistic one. -->
@@ -1441,7 +1311,7 @@
 </template>
 
 <script setup lang="ts">
-import { NAMES, hashFor } from '@/lib/siteNav';
+import { NAMES } from '@/lib/siteNav';
 import { useUIStore } from '@/stores/ui';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useEidsStore } from 'lib';
@@ -1456,6 +1326,8 @@ import ChainSearchExplainer from './ChainSearchExplainer.vue';
 import HelpTip from './HelpTip.vue';
 import StartTimeFinder from './StartTimeFinder.vue';
 import FindBar from './FindBar.vue';
+import SavedRuns from './SavedRuns.vue';
+import YourSetup from './YourSetup.vue';
 import AutoSendReport from './AutoSendReport.vue';
 import RouteResultCard from './RouteResultCard.vue';
 import { describeCompute } from '@/utils/computeTime';
@@ -1464,7 +1336,6 @@ import IntegrityNotice from './IntegrityNotice.vue';
 import SafariNotice from './SafariNotice.vue';
 import RunSaveNotice from './RunSaveNotice.vue';
 import UnfinishedRuns from './UnfinishedRuns.vue';
-import LoadoutDisplay from './LoadoutDisplay.vue';
 import SearchShapeChart from './charts/SearchShapeChart.vue';
 import type { EffortTier, LegSummary } from '@/search/types';
 import type { ShortlistRow } from '@/search/shortlist';
@@ -1533,27 +1404,6 @@ const effortIndex = computed({
 });
 
 const note = computed(() => EFFORT_NOTES[store.effort]);
-
-/**
- * The artifact readout, resolved once on first open.
- *
- * Not a computed: `readInventory` calls `getOptimalEarningsSet`, which solves a set-cover over the
- * whole inventory. As a computed it would re-run on every unrelated store change, on the main
- * thread, while a search is streaming progress into that same store.
- */
-const inventoryOpen = ref(false);
-const inventory = ref<ReturnType<typeof store.readInventory> | null>(null);
-
-const rawInventoryOpen = ref(false);
-const setTab = ref<'elr' | 'earnings'>('elr');
-
-const totalArtifacts = computed(() => inventory.value?.artifacts.reduce((n, a) => n + a.count, 0) ?? 0);
-const totalStones = computed(() => inventory.value?.stones.reduce((n, x) => n + x.count, 0) ?? 0);
-
-function toggleInventory(): void {
-  inventoryOpen.value = !inventoryOpen.value;
-  if (inventoryOpen.value && !inventory.value) inventory.value = store.readInventory();
-}
 
 /**
  * Hand the run's CSV to the browser as a file.
@@ -1864,8 +1714,16 @@ function relativeTime(ms: number): string {
   return `${Math.round(hours / 24)}d ago`;
 }
 
-/** The full sweep's tab (lib/siteNav.ts): same save, same player, the page's tabs switch to it. */
-const insaneHref = hashFor({ section: 'auto', auto: 'fastest', depth: 'full' });
+/** The result card's Save run (named later, or not, in Saved runs). */
+const saving = ref(false);
+async function save(): Promise<void> {
+  saving.value = true;
+  try {
+    await store.saveCurrentRun(props.playerId);
+  } finally {
+    saving.value = false;
+  }
+}
 
 /** This run sends itself when it finishes (Find and submit), so the result says it did. */
 const autoSubmitted = ref(false);
@@ -1885,7 +1743,9 @@ async function run(resume: boolean, andSubmit = false): Promise<void> {
   } finally {
     store.submitsWhenDone = false;
   }
-  if (!armed || store.stoppedEarly || store.error || store.bestDays <= 0) return;
+  // Stopped early it still sends: the best of what was priced is a real result, and the player asked
+  // for it to be shared (the user, 30 Sept: "why does stopping early mean nothing is sent?").
+  if (!armed || store.error || store.bestDays <= 0) return;
   includeCsv.value = true;
   optIn.value = true;
   autoSubmitted.value = true;

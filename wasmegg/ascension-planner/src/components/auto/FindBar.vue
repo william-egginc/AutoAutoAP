@@ -47,12 +47,16 @@
     >
       <label class="flex items-start gap-3">
         <input v-model="optIn" type="checkbox" class="mt-0.5 rounded border-indigo-300 text-indigo-600" />
-        <span
+        <!-- The screen's own wording where it sends something else (Highest TE by a date sends a route
+             and its deadline, not a chain's CSV). -->
+        <slot v-if="$slots.consent" name="consent" />
+        <span v-else
           >For <span class="font-bold">Find and submit</span>: share the result on the leaderboard when the search
           finishes<template v-if="consentNote"> ({{ consentNote }})</template>. It sends what Share this result sends:
           the chain, its timings and the full CSV, with your artifact inventory, timezone and local plan start, the
           random code this browser keeps for the account (not your player ID, and never shown), and your best three
-          plans already on the board re-priced from this save. Stop early and nothing is sent.</span
+          plans already on the board re-priced from this save. Stop it early and it sends the best it found so
+          far.</span
         >
       </label>
       <div v-if="optIn" class="flex flex-wrap items-center gap-4">

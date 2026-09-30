@@ -1,5 +1,10 @@
 <!--
-  The Chain Search explainer: what the problem is, how the search attacks it, and the ask.
+  The Smart search explainer: what the problem is, what the players' runs have shown so far, and how
+  the search attacks it. (The ask for runs lived here as "Help crack the formula"; it is the Science
+  tab now, and this points there.)
+
+  Updated 30 Sept 2026 from the Explorer's "What we know so far" card (29 Sept: 109 runs to 490 TE,
+  13 accounts), the fact-checked source for every board number quoted here.
 
   The panel below this one asks for hours of the reader's own CPU on a run that can take all
   night, so the case for spending it has to be reachable without leaving the page. Everything here
@@ -52,9 +57,9 @@
           You reach a Truth Egg target by ascending to a checkpoint, prestiging, ascending to a higher one, and so on.
           That list of checkpoints is a chain:
           <code class="font-mono-premium text-slate-800">195 219 248 286 327 490</code>. You pick them and the game does
-          the rest. Two chains that reach the same target can finish
-          <span class="font-bold text-slate-800">twelve days</span> apart on a plan that runs about seven hundred, which
-          is what this panel is for.
+          the rest. The plans players have sent in run two to three years, and two chains to the same target can finish
+          <span class="font-bold text-slate-800">weeks apart</span>: moving one checkpoint by a single TE, with the rest
+          left where they are, has cost up to 31 days. Finding the chain that lands first is what this search is for.
         </p>
 
         <div>
@@ -83,10 +88,11 @@
           </div>
           <p class="mt-3">
             Scoring one chain means simulating every leg of it: research purchases, hab and vehicle upgrades, twelve egg
-            switches, sale timing. That costs about <span class="font-bold text-slate-800">15 seconds</span>. At 7.29 ×
-            10<sup>16</sup> chains it comes to roughly
-            <span class="font-bold text-slate-800">3.5 × 10<sup>10</sup> years</span> on one core, and twenty cores
-            barely dents that.
+            switches, sale timing. A chain from scratch costs about
+            <span class="font-bold text-slate-800">15 seconds</span> of one core. Chains that share their first
+            checkpoints reuse that work, so a search spends less than that on each, but at 7.29 × 10<sup>16</sup> chains
+            it is still <span class="font-bold text-slate-800">billions of years</span> on one core, and twenty cores
+            barely dent it.
           </p>
         </div>
 
@@ -106,6 +112,38 @@
             <span class="font-semibold text-slate-700">{{ DISTRIBUTION.top100Span }} days</span>. Picking checkpoints by
             feel drops you somewhere in the middle of that hump, about a week behind.
           </ChainMathFigure>
+        </div>
+
+        <div>
+          <p class="font-bold text-slate-800 mb-2">What 109 players' runs have shown (29 Sept)</p>
+          <ul class="space-y-2 list-disc list-outside pl-4">
+            <li>
+              <span class="font-semibold text-slate-700">Trying only some TEs misses the best plan.</span> Every 5th TE
+              ends up 2 to 12 days slower, on average, than every TE; every 2nd TE, 0.4 to 6 days. That is why this
+              search sweeps every TE around each checkpoint in its later stages.
+            </li>
+            <li>
+              <span class="font-semibold text-slate-700">More ascensions help, then level off.</span> A 3rd brought the
+              finish forward 34 to 245 days on the accounts that tried 2 and 3; past 5, the search matters about as much
+              as the count. The plan that finishes first has 5 to 7 ascensions on 9 of the 13 accounts.
+            </li>
+            <li>
+              <span class="font-semibold text-slate-700">Some of it is predictable.</span> With up to 4 ascensions, the
+              last TE you ascend at is about 275 to 297 on nearly every account, whatever it starts from, and the
+              planner's suggested starting chain uses that. The exact TEs still differ account by account, so they have
+              to be searched.
+            </li>
+            <li>
+              <span class="font-semibold text-slate-700">The best plan can move from one day to the next,</span> so a
+              fresh search before each ascension is worth it.
+            </li>
+          </ul>
+          <p class="mt-2">
+            The charts behind these are on
+            <a href="#/compare/insights" class="font-bold text-indigo-700 underline"
+              >{{ NAMES.compare }} › {{ NAMES.insights }}</a
+            >.
+          </p>
         </div>
 
         <div>
@@ -244,63 +282,20 @@
           </p>
           <p class="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-[11px] leading-relaxed text-amber-800">
             What you get out of this is a strong local optimum. It has never been proven to be the global one, and the
-            search cannot tell you how far off it is. The accuracy figures come from three accounts, only one of which
-            has a proven optimum to check against. That is also why there are no confidence percentages anywhere in this
-            project: three observations cannot honestly be turned into a probability.
+            search cannot tell you how far off it is. The effort tiers' accuracy figures still come from three accounts,
+            only one of which has a proven optimum to check against (the board has 13 accounts, but few ran the same
+            space both ways). That is also why there are no confidence percentages here: three observations cannot
+            honestly be turned into a probability.
           </p>
         </div>
       </div>
     </section>
 
-    <!-- The ask. Last of the three, so it lands after the reader knows why the sample size is the
-         thing holding everything up. -->
-    <section class="rounded-xl border border-emerald-200 bg-emerald-50/60 overflow-hidden">
-      <button
-        type="button"
-        class="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-emerald-50 transition-colors"
-        :aria-expanded="open.help"
-        aria-controls="cs-help"
-        @click="open.help = !open.help"
-      >
-        <svg
-          class="w-4 h-4 flex-shrink-0 text-emerald-600 transition-transform duration-200"
-          :class="{ 'rotate-90': open.help }"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-        </svg>
-        <span class="text-[11px] font-black text-emerald-800 uppercase tracking-widest">Help crack the formula</span>
-        <span class="text-[10px] font-bold text-emerald-600/70 normal-case tracking-normal ml-auto">
-          run a search, submit the result
-        </span>
-      </button>
-
-      <div v-show="open.help" id="cs-help" class="px-4 pb-5 pt-1 space-y-3 text-xs text-emerald-900/80 leading-relaxed">
-        <p>
-          Everything above is a search. There is still no formula for
-          <span class="font-bold text-emerald-900">where the best places to prestige are</span>, or why the good
-          checkpoints land where they do. We know the sale calendar cuts the range into teeth and that optima sit on
-          run-ends. We do not know what decides which run-end wins, how the answer moves as delivery rate or artifact
-          loadout changes, or whether the spacing between checkpoints follows any rule. Shift order is in the same
-          state: the twelve shifts run in a hand-tuned fixed sequence that nobody has shown to be optimal.
-        </p>
-        <p>
-          What is holding it up is sample size. The board has runs from about a dozen accounts, still too few to
-          separate a rule from a coincidence, and no one person can brute-force past that, since every extra data point
-          costs somebody hours of CPU.
-        </p>
-        <p class="font-semibold text-emerald-900">
-          So if you run a search, submit the result when it finishes. The button is further down this panel.
-        </p>
-        <p>
-          A submission holds the chain, its timings and the settings that produced it, which is enough to go looking for
-          the pattern across many accounts. It is opt-in, it leaves out your player ID, and you can download the same
-          data as a CSV for yourself. More accounts on the board is the only thing that turns any of this into a rule.
-        </p>
-      </div>
-    </section>
+    <!-- The ask for runs is the Science tab now; one line points there. -->
+    <p class="px-1 text-[11px] text-slate-500 leading-relaxed">
+      Want to help work out the rules? The sweeps we still need, one per open question, are on the
+      <a href="#/science" class="font-bold text-indigo-700 underline">{{ NAMES.science }}</a> tab.
+    </p>
   </div>
 </template>
 
@@ -310,11 +305,9 @@ import { reactive } from 'vue';
 import ChainMathFigure from './charts/ChainMathFigure.vue';
 import { DISTRIBUTION, SAWTOOTH_STATS, SEED_SENSITIVITY } from '@/lib/charts/chainSearchMath';
 
-// The two long reads start closed: they are reference material, and a repeat visitor scrolling
-// for the effort slider should not have to scroll past four figures to reach it. The ask stays
-// open because it is three short paragraphs and nobody opens a section titled "help crack the
-// formula" on spec.
-const open = reactive({ how: false, algorithm: false, help: true });
+// Both long reads start closed: they are reference material, and a repeat visitor scrolling for
+// the effort slider should not have to scroll past four figures to reach it.
+const open = reactive({ how: false, algorithm: false });
 
 // Read off the data rather than transcribed into the prose, so re-running the sweeps and pasting a
 // new SEED_SENSITIVITY cannot leave the sentence claiming the old numbers.

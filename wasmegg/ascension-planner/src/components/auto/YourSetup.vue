@@ -13,7 +13,7 @@
   a running search resizes to them.
 -->
 <template>
-  <section class="max-w-4xl mx-auto rounded-2xl border border-indigo-100 bg-white shadow-sm">
+  <section class="rounded-2xl border border-indigo-100 bg-white shadow-sm text-left">
     <!-- Folded: one line, every value visible. -->
     <button
       type="button"
@@ -39,6 +39,18 @@
         open ? 'Done' : 'Edit setup'
       }}</span>
     </button>
+
+    <!-- Problems with the save show folded too: nobody opens a card to look for them. -->
+    <div v-if="!open && store.setupIssues.length" class="border-t border-indigo-50 px-4 py-2 space-y-1">
+      <p
+        v-for="(issue, k) in store.setupIssues"
+        :key="k"
+        class="text-[11px] font-semibold leading-relaxed"
+        :class="issue.level === 'error' ? 'text-rose-700' : 'text-amber-700'"
+      >
+        {{ issue.level === 'error' ? '✕' : '!' }} {{ issue.message }}
+      </p>
+    </div>
 
     <div v-if="open" class="border-t border-indigo-50 p-4 space-y-4">
       <p class="text-[11px] text-slate-500">
@@ -277,6 +289,11 @@
           </details>
         </div>
 
+        <!-- What it will simulate: the artifact sets and the save's state, the same on every screen. -->
+        <div class="rounded-xl border border-slate-200 p-4 min-w-0 md:col-span-2">
+          <SimulationSetup />
+        </div>
+
         <!-- How the site shows things -->
         <div class="rounded-xl border border-slate-200 p-4 space-y-3 min-w-0 md:col-span-2">
           <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">How the site shows things</h3>
@@ -301,6 +318,7 @@ import TimeOffEditor from './TimeOffEditor.vue';
 import WorkerSlider from './WorkerSlider.vue';
 import BackgroundSpeed from './BackgroundSpeed.vue';
 import DateStyleToggle from './DateStyleToggle.vue';
+import SimulationSetup from './SimulationSetup.vue';
 
 defineProps<{ screen: AutoView }>();
 

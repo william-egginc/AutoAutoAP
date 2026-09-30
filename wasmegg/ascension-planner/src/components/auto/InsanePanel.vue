@@ -23,25 +23,7 @@
     <div class="absolute -right-20 -top-20 w-64 h-64 bg-rose-500/5 rounded-full blur-3xl"></div>
 
     <div class="relative z-10 space-y-6">
-      <!-- On Fastest route the screen has its own heading (FastestRoute.vue). -->
-      <div v-if="goal !== 'fastest'" class="flex items-center gap-4">
-        <div
-          class="w-12 h-12 bg-rose-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-rose-200"
-        >
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-          </svg>
-        </div>
-        <div>
-          <h2 class="text-xl font-black text-slate-900 uppercase tracking-tight">
-            {{ goal === 'deadline' ? NAMES.byDate : NAMES.full }}
-          </h2>
-          <p class="text-[10px] font-black text-rose-400 uppercase tracking-widest mt-0.5">
-            Exhaustive search · no caps
-          </p>
-        </div>
-      </div>
-
+      <!-- Each screen has its own heading (FastestRoute.vue, ByDateScreen.vue). -->
       <!-- A sweep requested from the Science tab's "What we need to check" list: everything is filled
            in already, so the only decisions left are how much of the machine to give it and whether
            the time is acceptable. -->
@@ -189,8 +171,8 @@
           </button>
           <span class="text-[10px] text-slate-500">
             One press starts it (the button further down does the same). When the sweep finishes, the result is
-            submitted automatically, tagged {{ sweepRequest.preset }}. If you stop it early, nothing is sent, but you
-            can still send a partial run by hand from the Submit section at the bottom.
+            submitted automatically, tagged {{ sweepRequest.preset }}. If you stop it early, what it priced so far is
+            sent, marked as partial.
           </span>
         </div>
         <!-- The automatic submission, reported where the player pressed Start. -->
@@ -278,14 +260,16 @@
           {{ g.label }}
         </button>
       </div>
-      <div
-        v-if="goal === 'deadline'"
-        class="p-4 rounded-xl border border-rose-200 bg-rose-50 text-xs text-rose-900 leading-relaxed"
-      >
-        Finds the highest TE you can reach by a date. You set the early stops and it tries every route in them, or it
-        picks them for you on a grid and looks more closely around the best. Either way the last stop is found to the
-        exact TE. Like any run, it uses the plan start, hours, time off and computer settings in Your setup.
-      </div>
+      <details v-if="goal === 'deadline'" class="rounded-xl border border-slate-200 bg-white">
+        <summary class="cursor-pointer px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+          How {{ NAMES.byDate }} works
+        </summary>
+        <div class="px-4 pb-4 text-xs text-slate-600 leading-relaxed">
+          Finds the highest TE you can reach by a date. You set the early stops and it tries every route in them, or it
+          picks them for you on a grid and looks more closely around the best. Either way the last stop is found to the
+          exact TE. Like any run, it uses the plan start, hours, time off and computer settings in Your setup.
+        </div>
+      </details>
 
       <details v-if="goal === 'fastest'" class="rounded-xl border border-slate-200 bg-white">
         <summary class="cursor-pointer px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">
@@ -302,120 +286,41 @@
             Nothing here is capped, and nothing asks you to confirm. The count and estimate below update as you type, so
             check them before you press Find.
           </p>
-        </div>
-      </details>
-
-      <!--
-        WHAT THIS RUN IS ABOUT TO SIMULATE, above the form and open by default.
-        
-        A search has no opinion about whether its inputs make sense: an empty inventory prices every
-        chain consistently against a farm nobody owns and returns a confident answer three times too
-        slow. Hours later the only clue is a number that looks wrong. This is the cheapest possible
-        fix -- print what was loaded, before the button.
-      -->
-      <div class="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
-        <button
-          type="button"
-          class="w-full flex items-center gap-2 text-left group"
-          :aria-expanded="showSetup"
-          @click="showSetup = !showSetup"
-        >
-          <svg
-            class="w-3 h-3 flex-shrink-0 text-slate-400 group-hover:text-slate-600"
-            viewBox="0 0 12 12"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
-          >
-            <path :d="showSetup ? CHEVRON_DOWN : CHEVRON_RIGHT" />
-          </svg>
-          <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">What it will simulate</h3>
-          <span
-            class="ml-auto text-[10px] font-bold"
-            :class="store.setupIssues.length ? 'text-rose-700' : 'text-emerald-700'"
-          >
-            {{ setupSummary }}
-          </span>
-        </button>
-
-        <!-- Shown whether or not the card is expanded. A problem that only appears once you go
-             looking is a problem nobody finds. -->
-        <p
-          v-for="(issue, k) in store.setupIssues"
-          :key="k"
-          class="text-[11px] font-semibold leading-relaxed"
-          :class="issue.level === 'error' ? 'text-rose-700' : 'text-amber-700'"
-        >
-          {{ issue.level === 'error' ? '✕' : '!' }} {{ issue.message }}
-        </p>
-
-        <div v-if="showSetup" class="space-y-4">
-          <!-- The same LoadoutDisplay the main panel uses, rather than a second rendering of the
-               same idea in text. If the two cards are showing the same thing they should look like
-               the same thing. -->
-          <div class="grid gap-4 sm:grid-cols-2">
-            <div>
-              <h4 class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1.5">
-                Delivery set (leg 1)
-              </h4>
-              <LoadoutDisplay :loadout="setup.elr" />
-              <p class="text-[10px] text-slate-400 mt-1">
-                Later legs re-solve against their own research, so this is leg 1's set, not the whole run's.
-              </p>
-            </div>
-            <div>
-              <h4 class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1.5">Earnings set</h4>
-              <LoadoutDisplay :loadout="setup.earnings" />
-            </div>
-          </div>
-
-          <!-- The economic half of the state, which is what the reported bad load appeared to lose:
-               leg 1 continued an already-built farm and was right, and every later leg had to fund
-               its own research out of earnings and could not. -->
-          <dl class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-[11px] border-t border-slate-100 pt-3">
-            <div>
-              <dt class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Soul eggs</dt>
-              <dd class="font-bold" :class="store.setupFacts.soulEggs > 0 ? 'text-slate-700' : 'text-rose-700'">
-                {{ formatSoulEggs(store.setupFacts.soulEggs) }}
-              </dd>
-            </div>
-            <!-- Both numbers, side by side, because the reported failure was exactly these two
-                 disagreeing and only one of them being visible anywhere. -->
-            <div>
-              <dt class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Starting TE</dt>
-              <dd
-                class="font-bold"
-                :class="
-                  Math.abs(store.setupFacts.currentTE - store.setupFacts.backupTE) > 3
-                    ? 'text-rose-700'
-                    : 'text-slate-700'
-                "
-              >
-                {{ store.setupFacts.currentTE }}
-                <span class="font-normal text-slate-400">· save says {{ store.setupFacts.backupTE }}</span>
-              </dd>
-            </div>
-            <div>
-              <dt class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Epic research</dt>
-              <dd class="font-bold text-slate-700">
-                {{ store.setupFacts.epicAtMax }} / {{ store.setupFacts.epicTotal }} maxed
-              </dd>
-            </div>
-            <div>
-              <dt class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Colleggtibles</dt>
-              <dd class="font-bold text-slate-700">{{ store.setupFacts.colleggtibles }}</dd>
-            </div>
-          </dl>
-          <p class="text-[11px] text-slate-500 leading-relaxed">
-            {{ setup.artifacts.length }} virtue artifacts and {{ setup.stones.reduce((n, x) => n + x.count, 0) }} stones
-            were available to choose from. If any of these look empty or out of date, reload your backup before
-            starting. A half-loaded save prices every chain against a farm you don't have, without any warning.
+          <!-- How the work is split: explanation, so it sits here with the rest (it was between the
+               estimate and Find). -->
+          <p class="pt-2 font-bold text-slate-800">How the work is split</p>
+          <p>
+            <span class="font-bold text-slate-800">Chains are sorted so related ones sit together.</span> Every chain
+            starting <code class="font-mono-premium">195 229</code> sits next to the others that start that way, because
+            the expensive unit is the <span class="font-semibold">leg</span>, not the chain. Two chains that share their
+            first three checkpoints share those three leg simulations exactly.
+          </p>
+          <p>
+            <span class="font-bold text-slate-800"
+              >The sorted list is cut into chunks of {{ store.workersInPool * 2 }}</span
+            >
+            (workers × 2) and handed to the pool one chunk at a time. The pool splits each chunk across workers by
+            prefix, so each worker gets a family of related chains instead of a random handful, and its memo pays off.
+          </p>
+          <p>
+            <span class="font-bold text-slate-800">Each worker simulates legs and remembers them.</span> A leg is a full
+            farm simulation: research purchases, hab and vehicle upgrades, twelve egg switches, sale timing. That is
+            where the ~15 s goes. A chain whose prefix the worker has already priced only pays for its new legs, which
+            is why the real cost lands well under the estimate.
+          </p>
+          <p>
+            <span class="font-bold text-slate-800">Progress comes from the workers themselves.</span> Each worker
+            reports after every chain it finishes, so the bar moves steadily and you can tell a dead worker from one
+            that is still thinking. The s/chain figure under the bar is measured on this machine, not carried over from
+            another one.
+          </p>
+          <p>
+            <span class="font-bold text-slate-800">Stop is checked between chunks.</span> A chunk in flight finishes
+            first, so on a space with long chains "Stopping…" can sit for a minute or two. Nothing is lost: everything
+            priced so far stays, and the best of it is your answer.
           </p>
         </div>
-      </div>
+      </details>
 
       <!--
         An interrupted run, found on load. Above everything, because it is time-sensitive in a way
@@ -494,13 +399,9 @@
         </button>
       </div>
 
-      <!-- Plan start, awake hours, time off and this computer: in Your setup at the top
-           (YourSetup.vue), one copy for every Auto Planner screen. -->
-      <p class="text-[11px] text-slate-500 leading-relaxed">
-        Your plan start, awake hours, time off and how much of this computer to use are in
-        <span class="font-bold text-slate-700">Your setup</span> at the top of the page. Every route here is priced with
-        them.
-      </p>
+      <!-- Plan start, hours, time off, this computer and what it simulates: one setup shared by every
+           Auto Planner screen (YourSetup.vue), here where this screen's settings used to be. -->
+      <YourSetup :screen="goal === 'deadline' ? 'by-date' : 'fastest'" />
 
       <DeadlinePanel v-if="goal === 'deadline'" :player-id="playerId" @show-fastest="goal = 'fastest'" />
       <template v-else>
@@ -508,7 +409,8 @@
         <div class="rounded-xl border border-slate-200 bg-white p-4 space-y-5">
           <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">The space to search</h3>
 
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <!-- Workers are in Your setup (This computer), with the other machine settings. -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <label class="space-y-1">
               <span class="flex items-center gap-1.5">
                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Final target TE</span>
@@ -538,29 +440,6 @@
                 disabled
                 class="w-full rounded-lg border-slate-200 bg-slate-50 text-sm font-bold text-slate-500"
               />
-            </label>
-            <label class="space-y-1">
-              <span class="flex items-center gap-1.5">
-                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Workers</span>
-                <HelpTip
-                  >Background threads this run can use. The default is one less than your logical core count, which
-                  leaves the main thread free so the progress bar keeps updating and Stop stays responsive. You can use
-                  that last core too. Going past your core count gains nothing, because the workers are CPU-bound and
-                  would only take turns. Chains are dealt out across them; see "How the work is split" below.</HelpTip
-                >
-              </span>
-              <input
-                :value="store.workerBudget"
-                type="number"
-                min="1"
-                :max="store.machineThreads"
-                class="w-full rounded-lg border-slate-200 text-sm font-bold text-slate-800"
-                @change="setWorkers(($event.target as HTMLInputElement).value)"
-              />
-              <span v-if="store.isRunning" class="block text-[10px] text-slate-500">
-                Changes apply to the running search from its next batch. If you lower the count, the extra workers stop
-                once they finish their current chains.
-              </span>
             </label>
           </div>
 
@@ -618,6 +497,11 @@
             </label>
           </div>
 
+          <p v-if="spaceMode === 'pool' && !plannedGridComplete" class="text-[11px] text-slate-600 leading-relaxed">
+            <span class="font-bold text-slate-800">This space tries {{ plannedGridLabel }}</span> (for example
+            {{ gridExample }}), not every TE in between, which would take weeks. The winner is the best on this grid,
+            and a chain between grid points can be faster.
+          </p>
           <div class="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-3">
             <div class="flex flex-wrap items-center gap-4">
               <label class="flex items-center gap-2 text-[11px] font-black text-slate-600 uppercase tracking-widest">
@@ -636,6 +520,10 @@
             </div>
 
             <label v-if="spaceMode === 'bands'" class="space-y-1 block">
+              <!-- Labelled like the chains added below it (Chain 2, 3...), so it reads as one of them. -->
+              <span v-if="!sweepRequest" class="block text-[10px] font-black text-slate-600 uppercase tracking-widest">
+                Chain 1<template v-if="bands.length"> · {{ bands.length + 1 }} ascensions</template>
+              </span>
               <span class="flex items-center gap-1.5">
                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
                   Bands, one per checkpoint
@@ -709,6 +597,13 @@
                 </template>
                 <template v-else>Nothing readable yet.</template>
               </span>
+              <!-- Plain words for the step, right under the bands it describes: "181-250:5" means 181,
+                   186, 191... and never 227, so a faster Balanced result between grid points is no surprise. -->
+              <p v-if="!plannedGridComplete" class="text-[11px] text-slate-600 leading-relaxed">
+                <span class="font-bold text-slate-800">This space tries {{ plannedGridLabel }}</span> (for example
+                {{ gridExample }}), not every TE in between, which would take weeks. The winner is the best on this
+                grid, and a chain between grid points can be faster.
+              </p>
               <!-- The box only chooses what Suggest a space fills in; the bands decide what runs. A
                  player set it to 2 and then 8 on a 3-ascension sweep and it ran as 3 without a word,
                  so a mismatch is now an error that blocks Start until one of the two is changed. -->
@@ -796,13 +691,13 @@
             <label class="space-y-1 block max-w-xs">
               <span class="flex items-center gap-1.5">
                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                  Minimum gap between checkpoints
+                  Keep checkpoints at least this many TE apart
                 </span>
                 <HelpTip>
-                  Drops chains with consecutive checkpoints closer than this. 0 is off. Set it carefully: on one tested
-                  account the best 7-ascension chain found, 185 200 215 230 290 380 490 at 746.354 d, has 15-TE interior
-                  gaps, so anything above 15 would have excluded it. Small early gaps are cheap when the ascension is
-                  short. This never limits the jump to the final target.
+                  Skips any chain where two checkpoints in a row are closer than this, to save time on chains you'd
+                  never play. 0 means no limit. Be careful raising it: on one account the best 7-ascension chain found,
+                  185 200 215 230 290 380 490, has checkpoints only 15 TE apart, so anything above 15 would have skipped
+                  it. It never applies to the last jump, up to the target.
                 </HelpTip>
               </span>
               <input
@@ -812,6 +707,13 @@
                 :disabled="store.isRunning"
                 class="w-full rounded-lg border-slate-300 text-sm font-bold text-slate-800 disabled:opacity-50"
               />
+              <span class="block text-[10px] text-slate-500">
+                {{
+                  minGap > 0
+                    ? `e.g. after ascending at 200, the next checkpoint is ${200 + minGap} or higher. 0 = no limit.`
+                    : 'No limit: checkpoints can be any distance apart.'
+                }}
+              </span>
             </label>
 
             <p
@@ -821,13 +723,6 @@
               You've narrowed the space, so the winner will be the best
               <span class="font-semibold">of what you described</span>, not of everything reachable. That's still a
               stronger claim than the staged search makes, but a smaller one than an unconstrained run.
-            </p>
-            <!-- Plain words for the step, which players read past: "181-250:5" means 181, 186, 191... and
-               never 227. Said up front so a faster Balanced result between grid points is no surprise. -->
-            <p v-if="!plannedGridComplete" class="text-[11px] text-slate-600 leading-relaxed">
-              <span class="font-bold text-slate-800">This space tries {{ plannedGridLabel }}</span> (for example
-              {{ gridExample }}), not every TE in between, which would take weeks. The winner is the best on this grid,
-              and a chain between grid points can be faster.
             </p>
           </div>
 
@@ -978,62 +873,6 @@
               Leave the tab open: a closed tab stops the workers.
             </template>
           </p>
-        </div>
-
-        <!-- The question everyone asks before committing a machine for an afternoon. -->
-        <div class="rounded-xl border border-slate-200 bg-white overflow-hidden">
-          <button
-            type="button"
-            class="w-full px-4 py-3 flex items-center gap-2 text-left group hover:bg-slate-50"
-            :aria-expanded="showSplit"
-            @click="showSplit = !showSplit"
-          >
-            <svg
-              class="w-3 h-3 flex-shrink-0 text-slate-400 group-hover:text-slate-600"
-              viewBox="0 0 12 12"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <path :d="showSplit ? CHEVRON_DOWN : CHEVRON_RIGHT" />
-            </svg>
-            <h3 class="text-[10px] font-black text-slate-600 uppercase tracking-widest">How the work is split</h3>
-          </button>
-          <div v-if="showSplit" class="px-4 pb-4 space-y-3 text-[11px] text-slate-600 leading-relaxed">
-            <p>
-              <span class="font-bold text-slate-800">Chains are sorted so related ones sit together.</span> Every chain
-              starting <code class="font-mono-premium">195 229</code> sits next to the others that start that way,
-              because the expensive unit is the <span class="font-semibold">leg</span>, not the chain. Two chains that
-              share their first three checkpoints share those three leg simulations exactly.
-            </p>
-            <p>
-              <span class="font-bold text-slate-800"
-                >The sorted list is cut into chunks of {{ store.workersInPool * 2 }}</span
-              >
-              (workers × 2) and handed to the pool one chunk at a time. The pool splits each chunk across workers by
-              prefix, so each worker gets a family of related chains instead of a random handful, and its memo pays off.
-            </p>
-            <p>
-              <span class="font-bold text-slate-800">Each worker simulates legs and remembers them.</span> A leg is a
-              full farm simulation: research purchases, hab and vehicle upgrades, twelve egg switches, sale timing. That
-              is where the ~15 s goes. A chain whose prefix the worker has already priced only pays for its new legs,
-              which is why the real cost lands well under the estimate.
-            </p>
-            <p>
-              <span class="font-bold text-slate-800">Progress comes from the workers themselves.</span> Each worker
-              reports after every chain it finishes, so the bar moves steadily and you can tell a dead worker from one
-              that is still thinking. The s/chain figure under the bar is measured on this machine, not carried over
-              from another one.
-            </p>
-            <p>
-              <span class="font-bold text-slate-800">Stop is checked between chunks.</span> A chunk in flight finishes
-              first, so on a space with long chains "Stopping…" can sit for a minute or two. Nothing is lost: everything
-              priced so far stays, and the best of it is your answer.
-            </p>
-          </div>
         </div>
 
         <SafariNotice />
@@ -1249,82 +1088,8 @@
           :chain="store.bestChain"
         />
 
-        <!-- Saved runs. Kept in this browser, reloadable at any time. -->
-        <div class="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
-          <div class="flex items-center justify-between gap-3">
-            <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Saved runs</h3>
-            <span class="text-[10px] font-bold text-slate-400">{{ store.savedRuns.length }} / {{ MAX_RUNS }}</span>
-          </div>
-          <p class="text-[11px] text-slate-500 leading-relaxed">
-            Kept in this browser, per player, and separate from the crash-recovery checkpoint (which holds one run).
-            Either kind carries on with the save it started with while that save is kept here, and puts its target,
-            schedule, time off and plan start back; without that save, your TE has to be the same. Past
-            {{ MAX_RUNS }}, the oldest is dropped.
-          </p>
-
-          <div class="flex flex-wrap gap-2">
-            <input
-              v-model="saveLabel"
-              type="text"
-              placeholder="Name this run (optional)"
-              class="flex-1 min-w-[12rem] rounded-lg border-slate-300 text-sm text-slate-800"
-            />
-            <button
-              type="button"
-              :disabled="store.bestDays <= 0 || saving"
-              class="px-4 py-2 rounded-lg bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-700 disabled:opacity-40"
-              @click="save"
-            >
-              {{ saving ? 'Saving...' : 'Save this run' }}
-            </button>
-          </div>
-
-          <p v-if="resumeNote" class="text-[11px] font-semibold text-amber-700 leading-relaxed">{{ resumeNote }}</p>
-
-          <p v-if="!store.savedRuns.length" class="text-[11px] text-slate-400">Nothing saved yet.</p>
-          <div v-else class="divide-y divide-slate-100">
-            <div v-for="run in store.savedRuns" :key="run.id" class="flex flex-wrap items-center gap-3 py-2">
-              <div class="flex-1 min-w-[14rem]">
-                <div class="text-xs font-bold text-slate-800">{{ run.label }}</div>
-                <div class="text-[10px] text-slate-400 font-mono-premium">
-                  {{ run.bestChain.join(' ') }} · {{ run.bestDays.toFixed(3) }} d ·
-                  {{ run.chainsPriced }} chains<template v-if="!run.complete">
-                    · stopped early at {{ run.chainsPriced.toLocaleString() }} of
-                    {{ (run.space?.chains ?? 0).toLocaleString() }}</template
-                  >
-                </div>
-              </div>
-              <!-- Resume, not just Open. An unfinished run holds every chain it managed to price, and
-                 without this the only way to use it was to retype the space and let the search
-                 rediscover them -- which is exactly the afternoon this is meant to give back. -->
-              <button
-                v-if="!run.complete && run.space"
-                type="button"
-                :disabled="store.busy || resuming !== ''"
-                class="px-3 py-1.5 rounded-md bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 disabled:opacity-40"
-                @click="resume(run.id)"
-              >
-                {{ resuming === run.id ? 'Resuming…' : 'Resume' }}
-              </button>
-              <button
-                type="button"
-                class="px-3 py-1.5 rounded-md border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-300 hover:text-emerald-700 disabled:opacity-40"
-                :disabled="store.busy || queueAt >= 0"
-                title="Opening a run replaces what the panel holds, so it's disabled while a run is going"
-                @click="open(run.id)"
-              >
-                Open
-              </button>
-              <button
-                type="button"
-                class="px-3 py-1.5 rounded-md border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:border-red-300 hover:text-red-600"
-                @click="remove(run.id)"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
+        <!-- Saved runs: the same list on both depths (SavedRuns.vue); carrying a sweep on is this one's. -->
+        <SavedRuns :player-id="playerId" can-resume />
 
         <SearchShapeChart v-if="store.pricedChains.length" :points="store.pricedChains" :best-chain="store.bestChain" />
 
@@ -1501,6 +1266,8 @@ import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useUIStore } from '@/stores/ui';
 import { useEidsStore } from 'lib';
 import FindBar from './FindBar.vue';
+import SavedRuns from './SavedRuns.vue';
+import YourSetup from './YourSetup.vue';
 import AutoSendReport from './AutoSendReport.vue';
 import RouteResultCard from './RouteResultCard.vue';
 import { afterPaint } from '@/search/submission';
@@ -1515,7 +1282,6 @@ import {
   SUGGESTABLE_ASCENSIONS,
   formatHours,
 } from '@/search/exhaustive';
-import { MAX_RUNS } from '@/search/runLibrary';
 import SearchShapeChart from './charts/SearchShapeChart.vue';
 import HelpTip from './HelpTip.vue';
 import StartTimeFinder from './StartTimeFinder.vue';
@@ -1531,7 +1297,6 @@ import { useInitialStateStore } from '@/stores/initialState';
 import { describeTimeOff, usableTimeOff } from '@/search/timeOff';
 import { gridIsComplete, gridStepLabel } from '@/search/grid';
 import { downloadCsv as saveCsvFile, downloadParts } from '@/utils/export';
-import LoadoutDisplay from './LoadoutDisplay.vue';
 
 /**
  * `exportCsvChunks()` yields the text and hands it back; it does not save anything. This panel used
@@ -1660,51 +1425,6 @@ function applySuggestion(): void {
  * collapsed card still says what it is holding -- a collapsed setting that hides its own value is
  * how people end up running with a schedule they forgot they set.
  */
-const showSplit = ref(false);
-const showSetup = ref(false);
-
-/** The loadout the run will actually use, read through the store so it is the same call the CSV
- *  header and the submission make rather than a second derivation that can drift from them. */
-const setup = computed(() => {
-  const inv = store.readInventory();
-  return {
-    artifacts: inv.artifacts,
-    stones: inv.stones,
-    // The solved sets as LoadoutDisplay wants them. The word form the health check needs is built
-    // in the store, against the same readInventory() call, rather than a second time here.
-    elr: inv.elr,
-    earnings: inv.earnings,
-  };
-});
-
-/** Soul eggs run to 1e21 and beyond, so the raw number is unreadable and `toLocaleString` is
- *  worse. Same short-scale suffixes the rest of the app uses. */
-function formatSoulEggs(n: number): string {
-  if (!(n > 0)) return 'none, so the farm cannot buy anything';
-  const units = ['', 'K', 'M', 'B', 'T', 'q', 'Q', 's', 'S', 'o', 'N', 'd', 'U'];
-  const tier = Math.min(units.length - 1, Math.floor(Math.log10(n) / 3));
-  return `${(n / 10 ** (tier * 3)).toFixed(2)}${units[tier]}`;
-}
-
-const setupSummary = computed(() => {
-  const errors = store.setupIssues.filter(i => i.level === 'error').length;
-  if (errors) return `${errors} problem${errors > 1 ? 's' : ''}`;
-  if (store.setupIssues.length) return `${store.setupIssues.length} to check`;
-  return `${setup.value.artifacts.length} artifacts loaded`;
-});
-
-/**
- * The two states of every disclosure on this panel, as path data rather than a rotation.
- *
- * Rotating one chevron with a CSS transform is the obvious way to do this and it does not work
- * here: measured in the running app, `rotate-90` lands on the element with `--tw-rotate: 90deg`
- * set, and the rendered path keeps its 4x8 bounding box either way -- transform is simply not
- * applied to these SVGs. An inline `style.transform` was ignored too, so it is not Tailwind.
- * Swapping the geometry cannot be ignored by anything, and two distinct glyphs read more clearly
- * than one glyph at two angles.
- */
-const CHEVRON_RIGHT = 'M4 2l4 4-4 4';
-const CHEVRON_DOWN = 'M2 4l4 4 4-4';
 
 /** The time off this run is planned around, or '' for none. */
 const timeOffText = computed(() => (usableTimeOff(store.timeOff).length ? describeTimeOff(store.timeOff) : ''));
@@ -1722,7 +1442,6 @@ const rangeStep = ref(15);
 const minAsc = ref(5);
 const maxAsc = ref(7);
 
-const saveLabel = ref('');
 const saving = ref(false);
 const optIn = ref(false);
 
@@ -2145,7 +1864,8 @@ async function start(andSubmit = false): Promise<void> {
 
 /** The result on screen, sent the way the sweep card sends one (CSV included, no time stamp on the name). */
 async function sendFinished(): Promise<void> {
-  if (store.stoppedEarly || store.error || store.bestDays <= 0) return;
+  // Stopped early it still sends: the board labels it partial rather than exhaustive (leaderboardRank).
+  if (store.error || store.bestDays <= 0) return;
   stampName.value = false;
   includeCsv.value = true;
   optIn.value = true;
@@ -2318,20 +2038,14 @@ function agoLabel(ms: number): string {
   return `${Math.round(diffH / 24)}d ago`;
 }
 
+/** The result card's Save run (named later, or not, in Saved runs). */
 async function save(): Promise<void> {
   saving.value = true;
   try {
-    await store.saveCurrentRun(props.playerId, saveLabel.value);
-    saveLabel.value = '';
+    await store.saveCurrentRun(props.playerId);
   } finally {
     saving.value = false;
   }
-}
-
-async function open(id: string): Promise<void> {
-  queueResults.value = [];
-  await store.openSavedRun(props.playerId, id);
-  resumeNote.value = store.openedRun && !store.canResumeOpenedRun ? `Cannot resume: ${store.resumeBlocker}.` : '';
 }
 
 async function resumeCrashed(): Promise<void> {
@@ -2348,38 +2062,6 @@ async function resumeCrashed(): Promise<void> {
 
 /** Which run is mid-resume, for the button's own label. Empty when none is. */
 const resuming = ref('');
-const resumeNote = ref('');
-
-/**
- * Load a saved run and carry straight on from where it stopped.
- *
- * Opening first is not a convenience -- it is what puts the run's priced chains into the store's
- * cache, which is the thing `startExhaustive` carries forward. Resuming without it would start the
- * right space against an empty cache and re-price everything.
- */
-async function resume(id: string): Promise<void> {
-  resuming.value = id;
-  resumeNote.value = '';
-  try {
-    if (!(await store.openSavedRun(props.playerId, id))) {
-      resumeNote.value = 'That run could not be opened.';
-      return;
-    }
-    if (!store.canResumeOpenedRun) {
-      resumeNote.value = `Cannot resume: ${store.resumeBlocker}.`;
-      return;
-    }
-    const restored = store.planStartRestoreNote(store.openedRun?.fingerprint);
-    if (restored) resumeNote.value = `Plan start set back to ${restored}, the time this run was priced from.`;
-    await store.resumeOpenedRun(props.playerId);
-  } finally {
-    resuming.value = '';
-  }
-}
-
-async function remove(id: string): Promise<void> {
-  await store.deleteSavedRun(props.playerId, id);
-}
 
 async function submit(): Promise<void> {
   // Clicks made while the page was frozen building the table arrive afterwards; each one used to
