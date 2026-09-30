@@ -1311,7 +1311,32 @@ export function deadlineAscendMs(r: BoardRow): number | null {
  * starts more than an hour before the save it was priced on (`backupAgeHours`), which the race
  * leaves out as well.
  */
-export function buildDeadlineBoard<T extends BoardRow>(rows: readonly T[], opts: { now: number }): DeadlineGroup<T>[] {
+/** The categories the By a date boards filter on. */
+export interface DeadlineFilter {
+  /** Ascensions in the route (its chain length), or null for any. */
+  ascensions?: number | null;
+  /** 'awake': priced with the player's awake hours; 'any': any time of day. */
+  hours?: 'awake' | 'any' | null;
+  /** 'with': the plan includes time off; 'without': it doesn't. */
+  timeOff?: 'with' | 'without' | null;
+}
+
+/** Whether a deadline row is in the filter's categories. */
+export function inDeadlineFilter(r: BoardRow, f: DeadlineFilter = {}): boolean {
+  if (f.ascensions && r.chain.length !== f.ascensions) return false;
+  const awake = !!r.window;
+  if (f.hours === 'awake' && !awake) return false;
+  if (f.hours === 'any' && awake) return false;
+  const off = !!r.timeOff?.length;
+  if (f.timeOff === 'with' && !off) return false;
+  if (f.timeOff === 'without' && off) return false;
+  return true;
+}
+
+export function buildDeadlineBoard<T extends BoardRow>(
+  rows: readonly T[],
+  opts: { now: number; filter?: DeadlineFilter }
+): DeadlineGroup<T>[] {
   const usable = rows.filter(
     r =>
       r &&
@@ -1320,9 +1345,11 @@ export function buildDeadlineBoard<T extends BoardRow>(rows: readonly T[], opts:
       isDeadlineRow(r) &&
       !(typeof r.backupAgeHours === 'number' && r.backupAgeHours < -1)
   );
+  // Identity from every answer; the filter only decides which answers are ranked.
   const filing = fileRows(usable);
   const byDate = new Map<number, T[]>();
   for (const r of usable) {
+    if (!inDeadlineFilter(r, opts.filter)) continue;
     const at = deadlineAscendMs(r);
     if (at === null || at > (r.deadline as number) * 1000) continue;
     const list = byDate.get(r.deadline as number);

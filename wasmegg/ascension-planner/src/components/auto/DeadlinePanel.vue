@@ -312,13 +312,59 @@
       >
     </div>
 
+    <!-- Find and submit: the share opt-in and name, before the run, so it can send itself at the end.
+         The same settings as the Share this answer box under the result. -->
+    <div
+      v-if="collectorConfigured && !store.deadlineRunning"
+      class="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3 space-y-2 text-[11px] text-indigo-900"
+    >
+      <label class="flex items-start gap-3">
+        <input v-model="shareOptIn" type="checkbox" class="mt-0.5 rounded border-indigo-300 text-indigo-600" />
+        <span
+          >For <span class="font-bold">Find and submit</span>: share the best answer on the leaderboard when the search
+          finishes. It sends the route, its dates and the deadline, with your artifact inventory, timezone, local plan
+          start and the random code this browser keeps for the account (not your player ID, and never shown), plus the
+          CSV if ticked under Share this answer.</span
+        >
+      </label>
+      <div v-if="shareOptIn" class="flex flex-wrap items-center gap-4">
+        <label class="flex items-center gap-2 cursor-pointer font-bold">
+          <input v-model="shareAnonymous" type="radio" :value="true" class="text-indigo-600" />
+          Anonymously
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer font-bold">
+          <input v-model="shareAnonymous" type="radio" :value="false" class="text-indigo-600" />
+          Credit me as
+        </label>
+        <input
+          v-model="shareName"
+          type="text"
+          maxlength="40"
+          :disabled="shareAnonymous"
+          placeholder="nickname"
+          aria-label="Nickname"
+          class="rounded-lg border-indigo-200 text-sm font-bold text-slate-800 w-48 disabled:opacity-40"
+          @input="shareNameTouched = true"
+        />
+      </div>
+    </div>
+
     <div class="flex flex-wrap gap-3">
       <button
         class="btn-premium btn-primary flex-1 py-4 text-sm shadow-xl shadow-rose-500/20 active:scale-[0.98]"
         :disabled="store.busy || store.integrityBlocked || store.staleBackupBlocked || !canStart"
-        @click="start"
+        @click="start(false)"
       >
-        {{ store.deadlineRunning ? 'Searching...' : 'Find the highest TE by then' }}
+        {{ store.deadlineRunning ? (autoShare ? 'Searching, then submitting...' : 'Searching...') : 'Find' }}
+      </button>
+      <button
+        v-if="collectorConfigured && !store.deadlineRunning"
+        class="px-6 py-4 rounded-xl bg-indigo-700 text-white text-[11px] font-black uppercase tracking-widest hover:bg-indigo-800 disabled:opacity-40"
+        :disabled="store.busy || store.integrityBlocked || store.staleBackupBlocked || !canStart || !shareOptIn"
+        :title="shareOptIn ? '' : 'Tick the share box above first'"
+        @click="start(true)"
+      >
+        Find and submit
       </button>
       <button
         v-if="store.deadlineRunning"
@@ -897,7 +943,22 @@ async function resume(): Promise<void> {
   await store.resumeDeadline(props.playerId);
 }
 
-async function start(): Promise<void> {
+/** Set while a Find and submit run is going: it shares its best answer when it finishes. */
+const autoShare = ref(false);
+
+/** Find, and with `andSubmit` share the best answer at the end (not when stopped early or failed). */
+async function start(andSubmit: boolean): Promise<void> {
+  autoShare.value = andSubmit && shareOptIn.value;
+  try {
+    await find();
+  } finally {
+    const go = autoShare.value;
+    autoShare.value = false;
+    if (go && result.value && best.value && !result.value.stoppedEarly && !store.error) await share();
+  }
+}
+
+async function find(): Promise<void> {
   runEstimate.value = plannedRoutes.value;
   if (mode.value === 'space' && lastRange.value) {
     const counts = chains.value.map(r => Math.max(1, Math.floor(r.asc)));

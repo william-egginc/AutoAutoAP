@@ -1759,3 +1759,39 @@ describe('the By a date board (schema 8)', () => {
     expect(board.map(g => g.deadline)).toEqual([EGG_DAY, later, past]);
   });
 });
+
+describe('filtering the By a date boards', () => {
+  const EGG_DAY = 1815580800;
+  // The row helper gives every row a schedule; these start with none.
+  const base = {
+    finalTE: 300,
+    durationDays: 10,
+    startLocal: '2026-09-28 16:27',
+    deadline: EGG_DAY,
+    acct: undefined,
+    window: null,
+  };
+  const rows = [
+    row({ ...base, nickname: 'Two', chain: [200, 300], artifacts: ['a'] }),
+    row({ ...base, nickname: 'Three', chain: [180, 240, 300], artifacts: ['b'], window: '08:00-23:00' }),
+    row({
+      ...base,
+      nickname: 'Off',
+      chain: [200, 300],
+      artifacts: ['c'],
+      timeOff: [{ from: '2027-07-14', to: '2027-07-15' }],
+    }),
+  ];
+  const names = (filter: Parameters<typeof buildDeadlineBoard>[1]['filter']) =>
+    buildDeadlineBoard(rows, { now: Date.parse('2026-09-30T00:00:00Z'), filter })[0]
+      ?.entries.map(e => e.label)
+      .sort() ?? [];
+
+  it('by ascensions, awake hours and time off, and all together', () => {
+    expect(names({})).toEqual(['Off', 'Three', 'Two']);
+    expect(names({ ascensions: 2 })).toEqual(['Off', 'Two']);
+    expect(names({ hours: 'awake' })).toEqual(['Three']);
+    expect(names({ hours: 'any', timeOff: 'without' })).toEqual(['Two']);
+    expect(names({ ascensions: 3, timeOff: 'with' })).toEqual([]);
+  });
+});

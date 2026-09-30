@@ -178,7 +178,7 @@
               ascMismatch
             "
             class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500 disabled:opacity-40"
-            @click="start"
+            @click="start(false)"
           >
             {{ store.isRunning ? 'Running...' : 'Start this sweep' }}
           </button>
@@ -1344,20 +1344,40 @@
               (!sweepRequest && spaceMode === 'bands' && !extrasReady) ||
               queueAt >= 0
             "
-            @click="start"
+            @click="start(false)"
           >
             <!-- With a sweep request open this is the same run as the card's button, so it says the
                same thing and waits for the same tick; two differently named Starts read as two
                different actions. -->
             {{
-              store.isRunning
-                ? 'Pricing every chain...'
+              store.isRunning || queueAt >= 0
+                ? findAndSubmit
+                  ? 'Pricing every chain, then submitting...'
+                  : 'Pricing every chain...'
                 : sweepRequest
                   ? sweepConsent
                     ? 'Start this sweep'
                     : 'Start this sweep (tick "I understand" at the top first)'
-                  : 'Start exhaustive search'
+                  : 'Find'
             }}
+          </button>
+          <!-- A sweep link already sends itself; everywhere else this is the one-click version. -->
+          <button
+            v-if="!sweepRequest && !store.isRunning && queueAt < 0"
+            class="px-6 py-4 rounded-xl bg-indigo-700 text-white text-[11px] font-black uppercase tracking-widest hover:bg-indigo-800 disabled:opacity-40"
+            :disabled="
+              store.busy ||
+              store.integrityBlocked ||
+              store.staleBackupBlocked ||
+              !chainCount ||
+              ascMismatch ||
+              (spaceMode === 'bands' && !extrasReady) ||
+              !optIn
+            "
+            :title="optIn ? '' : 'Tick the share box below first'"
+            @click="start(true)"
+          >
+            Find and submit
           </button>
           <button
             v-if="store.isRunning || queueAt >= 0"
@@ -1367,6 +1387,44 @@
           >
             {{ store.stopRequested || queueCancelled ? 'Stopping...' : 'Stop & keep best' }}
           </button>
+        </div>
+
+        <!-- Find and submit: the share opt-in and name before the run, the same settings as Share this
+             result below, so the run can send itself when it finishes. -->
+        <div
+          v-if="!sweepRequest && !store.isRunning && queueAt < 0"
+          class="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3 space-y-2 text-[11px] text-indigo-900"
+        >
+          <label class="flex items-start gap-3">
+            <input v-model="optIn" type="checkbox" class="mt-0.5 rounded border-indigo-300 text-indigo-600" />
+            <span
+              >For <span class="font-bold">Find and submit</span>: share the result on the leaderboard when the search
+              finishes (each chain's, when you queued several). It sends what Share this result sends: the chain, its
+              timings and the full CSV, with your artifact inventory, timezone and local plan start, the random code
+              this browser keeps for the account (not your player ID, and never shown), and your best three plans
+              already on the board re-priced from this save.</span
+            >
+          </label>
+          <div v-if="optIn" class="flex flex-wrap items-center gap-4">
+            <label class="flex items-center gap-2 cursor-pointer font-bold">
+              <input v-model="anonymous" type="radio" :value="true" class="text-indigo-600" />
+              Anonymously
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer font-bold">
+              <input v-model="anonymous" type="radio" :value="false" class="text-indigo-600" />
+              Credit me as
+            </label>
+            <input
+              v-model="nickname"
+              type="text"
+              :maxlength="NICKNAME_MAX"
+              :disabled="anonymous"
+              placeholder="nickname"
+              aria-label="Nickname"
+              class="rounded-lg border-indigo-200 text-sm font-bold text-slate-800 w-48 disabled:opacity-40"
+              @input="nicknameTouched = true"
+            />
+          </div>
         </div>
 
         <!-- Which chain of a multi-chain click is running, and what the finished ones found. -->
@@ -2490,26 +2548,44 @@ function currentSpec(): {
 const autoSubmitArmed = ref(false);
 const autoSubmitted = ref(false);
 
-async function start(): Promise<void> {
+/** Set for the length of a Find and submit click (one run or a whole queue). */
+const findAndSubmit = ref(false);
+
+/** Find; with `andSubmit`, each finished result is sent as Share this result would send it. */
+async function start(andSubmit = false): Promise<void> {
+  findAndSubmit.value = andSubmit && optIn.value;
+  try {
+    await startOne();
+  } finally {
+    findAndSubmit.value = false;
+  }
+}
+
+/** The result on screen, sent the way the sweep card sends one (CSV included, no time stamp on the name). */
+async function sendFinished(): Promise<void> {
+  if (store.stoppedEarly || store.error || store.bestDays <= 0) return;
+  stampName.value = false;
+  includeCsv.value = true;
+  optIn.value = true;
+  autoSubmitted.value = true;
+  await submit();
+}
+
+async function startOne(): Promise<void> {
   if (!sweepRequest && spaceMode.value === 'bands' && extraChains.value.length) {
     await startQueue();
     return;
   }
-  autoSubmitArmed.value = !!sweepRequest && sweepConsent.value;
+  autoSubmitArmed.value = (!!sweepRequest && sweepConsent.value) || findAndSubmit.value;
   autoSubmitted.value = false;
   // Armed: the sweep sends itself at the end, so its last seconds may re-price the player's best
   // earlier plans on the workers before they are shut down (the store's "re-checks").
   await store.startExhaustive(props.playerId, currentSpec(), { recheck: autoSubmitArmed.value });
   if (!autoSubmitArmed.value) return;
   autoSubmitArmed.value = false;
-  if (store.stoppedEarly || store.error || store.bestDays <= 0) return;
   // The card's own choice (anonymous by default, or the nickname box) is what goes; blank name with
   // "credit me" picked still goes anonymously, as `effectiveNickname` already decides.
-  stampName.value = false;
-  includeCsv.value = true;
-  optIn.value = true;
-  autoSubmitted.value = true;
-  await submit();
+  await sendFinished();
 }
 
 /**
@@ -2542,7 +2618,8 @@ async function startQueue(): Promise<void> {
         break;
       }
       queueAt.value = k;
-      await store.startExhaustive(player, specs[k].spec);
+      autoSubmitted.value = false;
+      await store.startExhaustive(player, specs[k].spec, { recheck: findAndSubmit.value });
       // Stop pressed while the chain was writing its last checkpoint arrives after the store copied
       // `stoppedEarly`; the queue's own flag catches it (see the watch below).
       const stopped = store.stoppedEarly || queueCancelled.value;
@@ -2562,6 +2639,8 @@ async function startQueue(): Promise<void> {
           stopped,
           finish: store.planStartUsed + store.bestDays * 86400,
         });
+        // Find and submit: each chain's result goes as it finishes, before the next takes the panel.
+        if (findAndSubmit.value && !stopped) await sendFinished();
         try {
           await store.saveCurrentRun(player, specs[k].label);
         } catch (e) {

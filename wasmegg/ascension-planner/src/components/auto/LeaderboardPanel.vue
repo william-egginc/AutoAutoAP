@@ -381,7 +381,47 @@
           ({{ viewZone }}). Players are ranked by the TE they reach, then by time to spare, using each player's best
           answer. Egg Day {{ eggDayYear }} has its own tab.
         </p>
-        <p v-if="!shownDates.length" class="text-[11px] text-indigo-900/60 py-6 text-center">
+        <div class="flex flex-wrap items-end gap-3">
+          <label class="block">
+            <span class="block text-[9px] font-black uppercase tracking-widest text-indigo-700/70 mb-1"
+              >Ascensions</span
+            >
+            <select v-model="dateAsc" class="rounded-lg border-indigo-200 text-xs font-bold text-slate-700 py-1.5">
+              <option :value="null">any</option>
+              <option v-for="n in dateAscOptions" :key="n" :value="n">{{ n }}</option>
+            </select>
+          </label>
+          <label class="block">
+            <span class="block text-[9px] font-black uppercase tracking-widest text-indigo-700/70 mb-1"
+              >Awake hours</span
+            >
+            <select v-model="dateHours" class="rounded-lg border-indigo-200 text-xs font-bold text-slate-700 py-1.5">
+              <option :value="null">either</option>
+              <option value="awake">planned around awake hours</option>
+              <option value="any">any time of day</option>
+            </select>
+          </label>
+          <label class="block">
+            <span class="block text-[9px] font-black uppercase tracking-widest text-indigo-700/70 mb-1">Time off</span>
+            <select v-model="dateOff" class="rounded-lg border-indigo-200 text-xs font-bold text-slate-700 py-1.5">
+              <option :value="null">either</option>
+              <option value="with">with time off</option>
+              <option value="without">without time off</option>
+            </select>
+          </label>
+          <button
+            v-if="dateFiltered"
+            type="button"
+            class="text-[10px] font-black uppercase tracking-widest text-indigo-700/70 hover:text-indigo-900 pb-2"
+            @click="((dateAsc = null), (dateHours = null), (dateOff = null))"
+          >
+            Clear
+          </button>
+        </div>
+        <p v-if="!shownDates.length && dateFiltered" class="text-[11px] text-indigo-900/60 py-6 text-center">
+          No answers in these categories.
+        </p>
+        <p v-else-if="!shownDates.length" class="text-[11px] text-indigo-900/60 py-6 text-center">
           No answers yet. Run Insane mode's Highest TE by a date<template v-if="tab === 'eggday'">
             with the Egg Day preset</template
           >
@@ -1076,7 +1116,21 @@ const COLUMNS: { key: SortKey; label: string; right?: boolean; title?: string }[
 
 // ----------------------------------------------------------------------------- By a date
 
-const dateBoard = computed(() => buildDeadlineBoard(allRows.value, { now: now.value }));
+/** The Egg Day / By a date filters: ascensions, awake hours, time off. */
+const dateAsc = ref<number | null>(null);
+const dateHours = ref<'awake' | 'any' | null>(null);
+const dateOff = ref<'with' | 'without' | null>(null);
+/** Ascension counts that answers actually have, for the filter's options. */
+const dateAscOptions = computed(() =>
+  [...new Set(allRows.value.filter(r => isDeadlineRow(r)).map(r => r.chain.length))].sort((a, b) => a - b)
+);
+const dateBoard = computed(() =>
+  buildDeadlineBoard(allRows.value, {
+    now: now.value,
+    filter: { ascensions: dateAsc.value, hours: dateHours.value, timeOff: dateOff.value },
+  })
+);
+const dateFiltered = computed(() => dateAsc.value !== null || dateHours.value !== null || dateOff.value !== null);
 /** The next Egg Day (lib/eggDay.ts, the same moment the deadline search's preset sends). */
 const eggDayYear = nextEggDayYear();
 const eggDayAt = eggDaySeconds(eggDayYear);
