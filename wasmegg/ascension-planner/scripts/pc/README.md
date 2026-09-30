@@ -33,7 +33,8 @@ Environment variables:
 | `jobF.ps1` | Runs one job. `jobR.ps1` is the same, with the output folder as `-base`. |
 | `seqF.ps1` | A sequential queue. It re-reads `queue.txt` (`who\|preset\|bands\|mingap`) between jobs. |
 | `postwatch2.ps1` + `post_pair.mjs` | Post finished runs to the collector. `main-*` post as Williamthe5thc, `alt-*` as Willsalt. They strip `run` and refuse a payload that mentions a player ID. |
-| `refine.ps1` | Self-steering refinement toward 490: head box, then neighbouring pairs every TE until a round finds nothing, then every combination ±1, more probes, and a wider box. |
+| `refine.ps1` | Self-steering refinement toward a target (`-final`, default 490; `-from`/`-to` for playing hours; `-quick` skips the last two steps): head box, then neighbouring pairs every TE until a round finds nothing, then every combination ±1, more probes, and a wider box. |
+| `tonight.ps1` | The 29 Sep Egg Day night: update and rebuild, the 5- and 6-ascension grids, then `refine.ps1` on the best 4-, 5- and 6-ascension routes one TE higher at a time, until a route misses the date. |
 | `horizon.ps1` | Plans to a nearer target (e.g. 225 or 260) with playing hours. |
 | `eggday.ps1` | "Highest TE by a date": the fastest plan to each target T; the answer is the highest T that makes the date. `eggwide.ps1` tries other stop counts. |
 | `update-after.ps1` | Once the queue is done: pull, install, rebuild, then re-price a few routes. |

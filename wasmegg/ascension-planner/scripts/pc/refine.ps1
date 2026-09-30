@@ -21,10 +21,17 @@ param(
   [double]$hours = 12,
   [string]$prefix = 'R',
   [string]$pindays = '',
+  [int]$final = 490,
+  [int]$from = 0,
+  [int]$to = 0,
+  [switch]$quick,
   [switch]$test
 )
 # Inherited by jobR.ps1 -> the harness -> the CLI workers (--continue-pin-days): leg 1 is continue.
 if ($pindays) { $env:E2E_PIN_DAYS = $pindays } else { Remove-Item Env:E2E_PIN_DAYS -ErrorAction SilentlyContinue }
+# A nearer final target than 490, and the player's hours (-from = -to: any hour). Added 2026-09-29.
+$env:E2E_FINAL = "$final"
+if ($from -ne $to) { $env:E2E_AVAIL_FROM = "$from"; $env:E2E_AVAIL_TO = "$to" } else { Remove-Item Env:E2E_AVAIL_FROM, Env:E2E_AVAIL_TO -ErrorAction SilentlyContinue }
 $ErrorActionPreference = 'Continue'
 (Get-Process -Id $PID).PriorityClass = 'BelowNormal'
 $priv = 'C:\Users\cha12\aaap-private'
@@ -51,19 +58,19 @@ function Run([string]$tag, [string]$bands, [double]$estMin, [switch]$post, [swit
   while (-not $p.HasExited) { Start-Sleep -Seconds 20; Pin-Cores }
   $dir = "$base\$who-$name"
   $mins = [math]::Round(((Get-Date) - $t0).TotalMinutes, 1)
-  $m = Select-String -Path "$dir\log.txt" -Pattern '^best ((?:\d+ )+)490 = ([0-9.]+) d' -ErrorAction SilentlyContinue | Select-Object -Last 1
+  $m = Select-String -Path "$dir\log.txt" -Pattern '^best ([\d ]+?) (\d+) = ([0-9.]+) d' -ErrorAction SilentlyContinue | Select-Object -Last 1
   if (-not $m) { Log "done $name in $mins min: NO RESULT (see $dir\vitest.log)"; return $false }
   $chain = @($m.Matches[0].Groups[1].Value.Trim() -split ' ' | ForEach-Object { [int]$_ })
-  $days = [double]$m.Matches[0].Groups[2].Value
+  $days = [double]$m.Matches[0].Groups[3].Value
   $better = $days -lt ($script:best - 0.0005)
   if ($probe) {
-    Log "done $name in $mins min: best $($chain -join ' ') 490 = $days d$(if ($better) { '  BEATS THE REFINED PATH (not followed)' })"
+    Log "done $name in $mins min: best $($chain -join ' ') $final = $days d$(if ($better) { '  BEATS THE REFINED PATH (not followed)' })"
     $better = $false
   } else {
-    Log "done $name in $mins min: best $($chain -join ' ') 490 = $days d$(if ($better) { '  NEW BEST' })"
+    Log "done $name in $mins min: best $($chain -join ' ') $final = $days d$(if ($better) { '  NEW BEST' })"
     if ($better) { $script:W = $chain; $script:best = $days }
   }
-  if ($post) { Copy-Item $dir "$priv\fine0925\$who-$name" -Recurse -Force; Log "  queued for posting as $who-$name" }
+  if ($post -and $final -eq 490) { Copy-Item $dir "$priv\fine0925\$who-$name" -Recurse -Force; Log "  queued for posting as $who-$name" }
   return $better
 }
 
@@ -101,13 +108,13 @@ function PairRound([int]$r) {
   return $improved
 }
 
-Log "START $who refine from $($script:W -join ' ') 490, first checkpoint $c1lo-$c1hi, gap $mingap, continue pin $(if ($pindays) { "$pindays d" } else { 'default' }), until $($deadline.ToString('s'))$(if ($test) { ' [TEST]' })"
+Log "START $who refine from $($script:W -join ' ')  $final, first checkpoint $c1lo-$c1hi, gap $mingap, continue pin $(if ($pindays) { "$pindays d" } else { 'default' }), until $($deadline.ToString('s'))$(if ($test) { ' [TEST]' })"
 
 if ($test) {
   [void](Run 'one' (Around (@(0) * $script:W.Count)) 5)
   $rad = @(0) * $script:W.Count; $rad[$script:W.Count - 1] = 1
   [void](Run 'three' (Around $rad) 5)
-  Log "TEST END best $($script:W -join ' ') 490 = $($script:best) d"
+  Log "TEST END best $($script:W -join ' ') $final = $($script:best) d"
   exit
 }
 
@@ -118,7 +125,7 @@ if ($pindays) {
   [void](Run 'soon' "137-146:1; 154-176:2; 196-200:2; 226; 252; 282; 318" (Est @(10, 12, 3, 1, 1, 1, 1)) -post)
   [void](Run 'weeks' "146-160:2; 168-188:4; 198-202:4; 226; 252; 282; 318" (Est @(8, 6, 2, 1, 1, 1, 1)) -post)
   [void](Run 'later' "150-176:2; 194-206:3; 226; 252; 282; 318" (Est @(14, 5, 1, 1, 1, 1)) -post)
-  Log "SCAN winner $($script:W -join ' ') 490 = $($script:best) d"
+  Log "SCAN winner $($script:W -join ' ') $final = $($script:best) d"
 }
 
 # 1. When to ascend next (every TE 4 either side), and the checkpoint after it (every 2nd TE).
@@ -141,6 +148,8 @@ $moved = $false
 for ($round = 1; $round -le 2; $round++) { if (PairRound 3) { $moved = $true } else { break } }
 if ($moved) { [void](Run 'j1b' (Around $one) (Est (@(3) * $k)) -post) }
 
+if ($quick) { Log "END best $($script:W -join ' ') $final = $($script:best) d (quick: no probes, no wide box)"; exit }
+
 # 5. One more ascension: an extra checkpoint between the 2nd and 3rd, or between the 3rd and 4th.
 $k = $script:W.Count
 if ($k -ge 4) {
@@ -160,4 +169,4 @@ $k = $script:W.Count
 $wide = @(1) * $k; for ($i = 0; $i -lt [math]::Min(3, $k); $i++) { $wide[$i] = 2 }
 [void](Run 'j2' (Around $wide) (Est (@(5) * [math]::Min(3, $k) + @(3) * [math]::Max(0, $k - 3))) -post)
 
-Log "END best $($script:W -join ' ') 490 = $($script:best) d"
+Log "END best $($script:W -join ' ') $final = $($script:best) d"
