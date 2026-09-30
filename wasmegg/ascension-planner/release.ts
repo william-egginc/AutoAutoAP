@@ -15,5 +15,5 @@
  */
 export default {
   reloadIfBuiltBefore: '2026-09-30T20:12:00Z',
-  note: 'the new layout: four tabs (Manual, Auto Planner, Compare, Science), one Your setup for every search, and a progress bar that follows you. What moved? under the tabs explains it',
+  note: 'the new layout: four tabs, Your setup in every Auto Planner screen, Save for Smart search too, and a progress bar that follows you. What moved? under the tabs explains it',
 };
