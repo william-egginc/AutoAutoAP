@@ -1091,6 +1091,8 @@
           @stop="stopRun"
           @nickname-typed="nicknameTouched = true"
         />
+        <!-- A Find and submit that finished (and sent) while this panel was closed for another tab. -->
+        <AutoSendReport v-if="!autoSubmitted" kind="full" />
 
         <!-- Which chain of a multi-chain click is running, and what the finished ones found. -->
         <div
@@ -1358,8 +1360,10 @@
         </div>
 
         <!-- Submission. Same payload, same opt-in, same disclosure as the main panel. -->
+        <!-- Not while a Find and submit run is going: it sends itself with the choice made at Find,
+             and a box here saying "anonymously" would not be what goes. -->
         <div
-          v-if="store.bestDays > 0"
+          v-if="store.bestDays > 0 && !(store.isRunning && store.submitsWhenDone)"
           id="share-this-result"
           class="rounded-xl border border-indigo-200 bg-indigo-50/60 p-4 space-y-3 scroll-mt-4"
         >
@@ -1496,11 +1500,11 @@ import { sentence } from '@/utils/errors';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useUIStore } from '@/stores/ui';
 import { useEidsStore } from 'lib';
-import { useBackupPlanStart } from '@/composables/useBackupPlanStart';
 import FindBar from './FindBar.vue';
+import AutoSendReport from './AutoSendReport.vue';
 import RouteResultCard from './RouteResultCard.vue';
 import { afterPaint } from '@/search/submission';
-import { parseSweepRequest } from '@/search/sweepRequest';
+import { parseSweepRequest, withoutSweepParams } from '@/search/sweepRequest';
 import {
   buildPool,
   countChains,
@@ -1574,9 +1578,6 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ 'update:goal': [goal: 'fastest' | 'deadline'] }>();
 
-// The same backup-to-plan-start default the Auto Planner gets. This panel replaces that form, so
-// without this the one mode whose every output is a date ran from "whenever the page loaded".
-useBackupPlanStart();
 const store = useChainSearchStore();
 const initialStateStore = useInitialStateStore();
 // The integrity check up front (search/rules.ts), once a save is loaded and again if the account or
@@ -1950,13 +1951,7 @@ const queueResults = computed({
   get: () => store.sweepQueue.results,
   set: v => (store.sweepQueue.results = v),
 });
-// The table is the last click's; a single run or an opened run afterwards takes the panel over.
-watch(
-  () => store.isRunning,
-  running => {
-    if (running && queueAt.value < 0) queueResults.value = [];
-  }
-);
+// The table is the last click's; a single run afterwards replaces it (the store does that now).
 const queueAt = computed({
   get: () => store.sweepQueue.at,
   set: v => (store.sweepQueue.at = v),
@@ -2044,7 +2039,9 @@ watch(
   running => {
     if (ticker) clearInterval(ticker);
     ticker = running ? setInterval(() => (tick.value = Date.now()), 1000) : null;
-  }
+  },
+  // Immediate: coming back to a run that's going (the planner's tabs) is the normal case now.
+  { immediate: true }
 );
 onUnmounted(() => ticker && clearInterval(ticker));
 
@@ -2132,6 +2129,10 @@ const findAndSubmit = ref(false);
 /** Find; with `andSubmit`, each finished result is sent as Share this result would send it. */
 async function start(andSubmit = false): Promise<void> {
   findAndSubmit.value = andSubmit && optIn.value;
+  store.lastAutoSend = null;
+  // The sweep link has done its job: later visits to this screen (and reloads) start from the
+  // player's own settings, not the link's again.
+  if (sweepRequest && sweepConsent.value) history.replaceState(null, '', withoutSweepParams(location.href));
   // For the progress bar on other tabs: this run sends itself when it finishes.
   store.submitsWhenDone = findAndSubmit.value || (!!sweepRequest && sweepConsent.value);
   try {
@@ -2150,6 +2151,7 @@ async function sendFinished(): Promise<void> {
   optIn.value = true;
   autoSubmitted.value = true;
   await submit();
+  store.lastAutoSend = { kind: 'full', ok: submitOk.value, text: submitMessage.value };
 }
 
 async function startOne(): Promise<void> {
@@ -2236,6 +2238,9 @@ async function startQueue(): Promise<void> {
     }
   } finally {
     queueAt.value = -1;
+    // Stop's "the rest don't start" ends with the queue: left set, a later single run's Stop read
+    // "Stopping..." from the start.
+    queueCancelled.value = false;
   }
 }
 

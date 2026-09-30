@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseSweepRequest, sweepRequestQuery } from './sweepRequest';
+import { parseSweepRequest, sweepRequestQuery, withoutSweepParams } from './sweepRequest';
 
 describe('sweep request links', () => {
   it('round-trips everything the Explorer puts in a link', () => {
@@ -36,5 +36,15 @@ describe('sweep request links', () => {
   it('bounds a label that is too long', () => {
     const r = parseSweepRequest(`?sweep=M2&bands=181-280:2&label=${'x'.repeat(500)}`);
     expect(r?.label.length).toBe(80);
+  });
+});
+
+describe('withoutSweepParams', () => {
+  it('drops only the sweep link parameters, keeping the rest and the hash', () => {
+    const href = `https://x.test/p/${sweepRequestQuery({ preset: 'F2', label: 'F2', bands: '181-250:1', minGap: 10, forceContinue: true })}&playerId=EI1#/auto/fastest/full`;
+    expect(parseSweepRequest(new URL(href).search)).not.toBeNull();
+    const out = withoutSweepParams(href);
+    expect(out).toBe('https://x.test/p/?insane=1&playerId=EI1#/auto/fastest/full');
+    expect(parseSweepRequest(new URL(out).search)).toBeNull();
   });
 });

@@ -4,9 +4,10 @@
   search" and a remembered "submit when it finishes" box; the Full sweep had these two buttons. Two
   ways to do one thing, on two tabs of one screen, and players asked which one sent what.
 
-  The parent owns what the buttons do and when they're allowed (each search has its own checks);
-  this owns how they look and the opt-in, which is remembered in this browser: ticking it sends
-  nothing, only pressing Find and submit does.
+  The parent owns what the buttons do and when they're allowed (each search has its own checks), and
+  the opt-in: it is the same consent as Share this result's "Yes, contribute", so it starts unticked
+  on every visit like that one. (It was remembered for a while; that pre-ticked the Share consent
+  too, and let the board lookup that waits for consent run on arrival. Review, 30 Sept.)
 -->
 <template>
   <div class="space-y-3">
@@ -79,8 +80,6 @@
 </template>
 
 <script setup lang="ts">
-import { watch } from 'vue';
-
 withDefaults(
   defineProps<{
     /** Find can't start (each search's own checks). Find and submit also needs the opt-in. */
@@ -114,24 +113,4 @@ function onNickname(e: Event): void {
   nickname.value = (e.target as HTMLInputElement).value;
   emit('nicknameTyped');
 }
-
-/** The opt-in, remembered in this browser for both depths (and read from Smart search's old key). */
-const KEY = 'aap-find-submit-opt-in';
-const OLD_KEY = 'aap-chain-auto-submit';
-try {
-  if (!optIn.value && (localStorage.getItem(KEY) ?? localStorage.getItem(OLD_KEY)) === '1') optIn.value = true;
-} catch {
-  /* blocked storage: the box still works for this visit */
-}
-watch(optIn, on => {
-  try {
-    if (on) localStorage.setItem(KEY, '1');
-    else {
-      localStorage.removeItem(KEY);
-      localStorage.removeItem(OLD_KEY);
-    }
-  } catch {
-    /* as above */
-  }
-});
 </script>

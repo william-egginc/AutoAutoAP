@@ -784,7 +784,7 @@
         </div>
       </template>
 
-      <p v-if="capped" class="text-[10px] text-amber-800">
+      <p v-if="capped && tab !== 'insights'" class="text-[10px] text-amber-800">
         The collector sent its maximum of {{ ALL_CAP }} runs, so the oldest or slowest runs may be missing.
       </p>
     </div>
@@ -1401,5 +1401,12 @@ watch(final, () => {
   if (capped.value) void load();
 });
 
-onMounted(load);
+// Not while Insights is open: the Explorer there fetches the runs itself. The board loads the first
+// time one of its own views is shown.
+onMounted(() => {
+  if (tab.value !== 'insights') void load();
+});
+watch(tab, t => {
+  if (t !== 'insights' && !allRows.value.length && !loading.value && !error.value) void load();
+});
 </script>

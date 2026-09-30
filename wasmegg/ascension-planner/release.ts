@@ -15,5 +15,5 @@
  */
 export default {
   reloadIfBuiltBefore: '2026-09-30T20:12:00Z',
-  note: 'a "When should I start?" finder under Chain Search and Insane results, pending Truth Eggs counted, and a fix so another account\'s unfinished run is never offered',
+  note: 'the new layout: four tabs (Manual, Auto Planner, Compare, Science), one Your setup for every search, and a progress bar that follows you. What moved? under the tabs explains it',
 };

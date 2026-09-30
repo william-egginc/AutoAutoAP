@@ -310,8 +310,10 @@ async function handleImport(event: Event) {
         if (resolution === 'cancel') return;
 
         if (resolution === 'restore') {
-          // 1. Switch tab
+          // 1. Switch tab: Classic, where a restored auto plan is shown (the Auto Planner has three
+          //    screens now, and the last one visited may be a search).
           uiStore.plannerTab = 'automatic';
+          uiStore.autoView = 'classic';
           uiStore.isHeaderCollapsed = true;
 
           // 2. Load fresh backup first (ensures we have latest epic research/artifacts as a baseline)

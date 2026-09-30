@@ -10,10 +10,12 @@
  * showed nothing (v-model writes an input's first value after the render, from the value it had
  * when it rendered, so a store change in between is undone on screen).
  *
- * Called from Your setup (YourSetup.vue), which is on every Auto Planner screen. The restore runs
- * once per page load: after that the store is the truth, and a remount must not put back what the
- * cache held. Changes are saved into the same cache from here too, because the planner that used
- * to save them is only mounted on Classic.
+ * Called from App.vue's own setup, before any screen: Your setup and the search panels are separate
+ * chunks that load in either order, and a panel that set the default first (useBackupPlanStart,
+ * which then counts as taken) let a stale cached start from an earlier visit be restored over it
+ * (review, 30 Sept). The restore runs once per page load: after that the store is the truth.
+ * Changes are saved into the same cache from here too, because the planner that used to save them
+ * is only mounted on Classic.
  */
 import { watch } from 'vue';
 import { storeToRefs } from 'pinia';

@@ -21,9 +21,29 @@ export interface SweepRequest {
   forceContinue: boolean | null;
 }
 
-/** The query string (with a leading `?`) that opens Insane mode on this sweep. */
+/** The sweep link's own parameters, which `parseSweepRequest` reads. */
+const SWEEP_PARAMS = ['sweep', 'label', 'bands', 'gap', 'fc'];
+
+/**
+ * `href` without the sweep link's parameters (everything else kept). Used once the sweep has
+ * started: the panel reads them every time it opens, which since the planner's tabs is every
+ * return to the Full sweep, so a link run hours ago kept re-filling its box and re-tagging runs.
+ */
+export function withoutSweepParams(href: string): string {
+  const url = new URL(href);
+  for (const k of SWEEP_PARAMS) url.searchParams.delete(k);
+  return url.toString();
+}
+
+/** The query string (with a leading `?`) that opens the Full sweep on this sweep. */
 export function sweepRequestQuery(r: Omit<SweepRequest, 'forceContinue'> & { forceContinue?: boolean | null }): string {
-  const q = new URLSearchParams({ insane: '1', sweep: r.preset, label: r.label, bands: r.bands, gap: String(r.minGap) });
+  const q = new URLSearchParams({
+    insane: '1',
+    sweep: r.preset,
+    label: r.label,
+    bands: r.bands,
+    gap: String(r.minGap),
+  });
   if (r.forceContinue === true) q.set('fc', '1');
   if (r.forceContinue === false) q.set('fc', '0');
   return `?${q.toString()}`;

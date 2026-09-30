@@ -1099,7 +1099,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import SearchShapeChart from '@/components/auto/charts/SearchShapeChart.vue';
 import type { PricedChain } from '@/search/types';
 import { describeCompute, formatMinutes } from '@/utils/computeTime';
@@ -1238,10 +1238,17 @@ onMounted(() => {
  */
 let allController: AbortController | null = null;
 let csvController: AbortController | null = null;
+// Inside the planner this goes away on every tab switch: don't leave a 15 MB CSV downloading.
+onUnmounted(() => {
+  allController?.abort();
+  csvController?.abort();
+});
 
-/** The planner's Science tab, a page in this same build (lib/siteNav.ts has its addresses). */
+/** The planner's Science tab, a page in this same build (lib/siteNav.ts has its addresses). The
+ *  query goes along, so a link aimed at another collector (?collector=) still reads that one. */
 function scienceHref(view: 'check' | 'submit'): string {
-  return `./${view === 'submit' ? '#/science/submit' : '#/science'}`;
+  const search = typeof location === 'undefined' ? '' : location.search;
+  return `./${search}${view === 'submit' ? '#/science/submit' : '#/science'}`;
 }
 // Links to the two sections this page used to end with go where they are now.
 if (!props.embedded && typeof location !== 'undefined') {

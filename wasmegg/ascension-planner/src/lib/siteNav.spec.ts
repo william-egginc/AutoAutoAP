@@ -34,6 +34,8 @@ describe('siteNav', () => {
   it('sends old Insane links to the full sweep, and deadline ones to Highest TE by a date', () => {
     expect(routeFromLocation('?insane=1&sweep=M2&bands=181-280:2&gap=10', '')).toEqual(R('auto', 'fastest', 'full'));
     expect(routeFromLocation('', '#insane')).toEqual(R('auto', 'fastest', 'full'));
+    expect(routeFromLocation('', '#/insane')).toEqual(R('auto', 'fastest', 'full'));
+    expect(routeFromLocation('', '#/deadline')).toEqual(R('auto', 'by-date'));
     expect(routeFromLocation('?insane=1&goal=deadline&eggday=1&asc=1,2,3', '')).toEqual(R('auto', 'by-date'));
     expect(routeFromLocation('?insane=1', '#deadline')).toEqual(R('auto', 'by-date'));
   });

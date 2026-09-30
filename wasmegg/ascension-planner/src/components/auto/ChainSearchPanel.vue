@@ -622,6 +622,9 @@
         </button>
       </p>
 
+      <!-- The same, for a run that finished (and sent) while this panel was closed for another tab. -->
+      <AutoSendReport v-if="!autoSubmitted" kind="smart" />
+
       <!-- Live progress -->
       <div v-if="store.isRunning || store.bestDays > 0" class="space-y-4">
         <div>
@@ -1453,6 +1456,7 @@ import ChainSearchExplainer from './ChainSearchExplainer.vue';
 import HelpTip from './HelpTip.vue';
 import StartTimeFinder from './StartTimeFinder.vue';
 import FindBar from './FindBar.vue';
+import AutoSendReport from './AutoSendReport.vue';
 import RouteResultCard from './RouteResultCard.vue';
 import { describeCompute } from '@/utils/computeTime';
 import { useInitialStateStore } from '@/stores/initialState';
@@ -1871,6 +1875,7 @@ const autoSubmitted = ref(false);
 async function run(resume: boolean, andSubmit = false): Promise<void> {
   const armed = andSubmit && optIn.value;
   autoSubmitted.value = false;
+  store.lastAutoSend = null;
   // For the progress bar on other tabs: this run sends itself when it finishes.
   store.submitsWhenDone = armed;
   // Armed: the run sends itself at the end, so its last seconds may re-price the player's best
@@ -1885,6 +1890,7 @@ async function run(resume: boolean, andSubmit = false): Promise<void> {
   optIn.value = true;
   autoSubmitted.value = true;
   await submit();
+  store.lastAutoSend = { kind: 'smart', ok: submitOk.value, text: submitMessage.value };
 }
 
 onMounted(() => void store.checkResumable(props.playerId));

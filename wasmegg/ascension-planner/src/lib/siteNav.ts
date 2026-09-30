@@ -94,8 +94,8 @@ export function routeFromLocation(search: string, hash: string): Required<SiteRo
     }
   }
   const params = new URLSearchParams(search);
-  const insane = params.get('insane') === '1' || h === 'insane';
-  const deadline = params.get('goal') === 'deadline' || h === 'deadline';
+  const insane = params.get('insane') === '1' || h === 'insane' || h === '/insane';
+  const deadline = params.get('goal') === 'deadline' || h === 'deadline' || h === '/deadline';
   if (deadline) return { ...DEFAULT_ROUTE, section: 'auto', auto: 'by-date' };
   if (insane) return { ...DEFAULT_ROUTE, section: 'auto', auto: 'fastest', depth: 'full' };
   return null;

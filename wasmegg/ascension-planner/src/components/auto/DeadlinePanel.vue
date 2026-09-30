@@ -296,6 +296,8 @@
     <!-- Keep awake is in Your setup at the top, with the other computer settings. -->
     <SafariNotice />
     <IntegrityNotice />
+    <!-- A Find and submit that finished (and shared) while this panel was closed for another tab. -->
+    <AutoSendReport v-if="!shareMessage" kind="by-date" />
     <!-- The unfinished run's carry-on again, next to Start where people look for it. -->
     <div
       v-if="store.deadlineUnfinished?.saveKept && !store.busy"
@@ -621,6 +623,7 @@
 </template>
 
 <script setup lang="ts">
+import AutoSendReport from './AutoSendReport.vue';
 import { NAMES } from '@/lib/siteNav';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
@@ -1001,6 +1004,7 @@ const autoShare = ref(false);
 /** Find, and with `andSubmit` share the best answer at the end (not when stopped early or failed). */
 async function start(andSubmit: boolean): Promise<void> {
   autoShare.value = andSubmit && shareOptIn.value;
+  store.lastAutoSend = null;
   // For the progress bar on other tabs: this run shares its answer when it finishes.
   store.submitsWhenDone = autoShare.value;
   try {
@@ -1009,7 +1013,10 @@ async function start(andSubmit: boolean): Promise<void> {
     store.submitsWhenDone = false;
     const go = autoShare.value;
     autoShare.value = false;
-    if (go && result.value && best.value && !result.value.stoppedEarly && !store.error) await share();
+    if (go && result.value && best.value && !result.value.stoppedEarly && !store.error) {
+      await share();
+      store.lastAutoSend = { kind: 'by-date', ok: shareOk.value, text: shareMessage.value };
+    }
   }
 }
 

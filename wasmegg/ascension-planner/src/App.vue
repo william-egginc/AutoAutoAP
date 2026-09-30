@@ -643,6 +643,7 @@ import PlanSelectionDialog from '@/components/PlanSelectionDialog.vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { safeAsyncComponent } from '@/lib/import';
 import RunProgressBar from '@/components/auto/RunProgressBar.vue';
+import { usePlanStartForm } from '@/composables/usePlanStartForm';
 import NewLayoutGuide from '@/components/NewLayoutGuide.vue';
 import { useSalesStore } from '@/stores/sales';
 import { hashID, saveMetadata, loadMetadata } from '@/lib/storage/db';
@@ -692,11 +693,14 @@ const chainSearchStore = useChainSearchStore();
  *  for this account -- their artifacts and starting TE produced it -- so this loads the shape and
  *  leaves the pricing to a run here. */
 function useLeaderboardChain(chain: number[]): void {
+  pinnedRoute = null;
   chainSearchStore.applyChain(chain, false);
   uiStore.autoView = 'classic';
   plannerTab.value = 'automatic';
 }
 const initialStateStore = useInitialStateStore();
+// The Auto Planner's start and timezone, restored and defaulted before any screen or chunk loads.
+usePlanStartForm();
 const actionsStore = useActionsStore();
 const uiStore = useUIStore();
 const { plannerTab, isHeaderCollapsed, isFooterCollapsed, loading, error } = storeToRefs(uiStore);
@@ -758,7 +762,14 @@ watch(
 // A link inside the page (or an edited address) to another tab. Plain `#anchors` are not routes.
 function onHashChange(): void {
   const r = routeFromLocation('', window.location.hash);
-  if (r) goTo(r);
+  if (!r) return;
+  // Only the section the link names changes: a link to #/compare must not reset the Auto Planner's
+  // screen and depth to their defaults (review, 30 Sept), or the other way round.
+  const here = currentRoute();
+  if (r.section === 'auto') goTo({ ...here, section: 'auto', auto: r.auto, depth: r.depth });
+  else if (r.section === 'compare') goTo({ ...here, section: 'compare', compare: r.compare });
+  else if (r.section === 'science') goTo({ ...here, section: 'science', science: r.science });
+  else goTo({ ...here, section: r.section });
 }
 onMounted(() => window.addEventListener('hashchange', onHashChange));
 onUnmounted(() => window.removeEventListener('hashchange', onHashChange));
@@ -774,12 +785,12 @@ function searchScreenOf(r: SiteRoute): SearchScreen | null {
   return r.auto === 'by-date' ? 'by-date' : r.depth;
 }
 const runningScreen = ref<SearchScreen | null>(null);
-watch(
-  () => chainSearchStore.busy,
-  busy => {
-    runningScreen.value = busy ? (searchScreenOf(currentRoute()) ?? runningScreen.value) : null;
-  }
-);
+/** A search going, counting the gaps between a Full sweep queue's chains (saving one, starting the
+ *  next): without them the lock dropped between chains and another screen could take the run over. */
+const searchActive = computed(() => chainSearchStore.busy || chainSearchStore.sweepQueue.at >= 0);
+watch(searchActive, active => {
+  runningScreen.value = active ? (searchScreenOf(currentRoute()) ?? runningScreen.value) : null;
+});
 function screenLocked(screen: SearchScreen): boolean {
   return !!runningScreen.value && runningScreen.value !== screen;
 }
@@ -805,12 +816,19 @@ function showRun(): void {
 
 /** Open a tab: a deliberate choice, so a backup finishing loading no longer pulls the page back. */
 function goTo(r: SiteRoute): void {
+  // "Fastest route" while its other depth is running: open the running one rather than do nothing.
+  if (r.section === 'auto' && r.auto === 'fastest' && screenLocked(r.depth)) {
+    if (runningScreen.value === 'smart' || runningScreen.value === 'full') r = { ...r, depth: runningScreen.value };
+  }
   const screen = searchScreenOf(r);
   if (screen && screenLocked(screen)) return;
   pinnedRoute = null;
   const enteringAuto = r.section === 'auto' && plannerTab.value !== 'automatic';
   applyRoute(r);
-  if (enteringAuto) void handleAutoPlannerTabClick();
+  // Entering the Auto Planner fetches a fresh save and resets the planner around it -- never under a
+  // search that's running (the progress bar's "Show it" is exactly that way in): it keeps the save
+  // it started with, which is already set up.
+  if (enteringAuto && !searchActive.value) void handleAutoPlannerTabClick();
 }
 function goAuto(auto: AutoView, depth: Depth = fastestDepth.value): void {
   goTo({ section: 'auto', auto, depth });
@@ -848,6 +866,17 @@ let pinnedRoute: SiteRoute | null = initialRoute && initialRoute.section !== 'ma
 watch(loading, (now, before) => {
   if (pinnedRoute && before && !now) applyRoute(pinnedRoute);
 });
+// Picking a leaderboard view or a Science view is picking a tab too (loads never change these).
+watch([compareView, scienceView], () => (pinnedRoute = null));
+// Another account loaded: a Full sweep queue started for the last one doesn't start its next chain
+// on this one's save (its panel used to stop it by closing, which the tabs now do all the time).
+watch(playerId, () => {
+  if (chainSearchStore.sweepQueue.at >= 0) chainSearchStore.sweepQueue.cancelled = true;
+});
+// A copy with no collector has no Compare or Science tab: an address for one opens the Manual Planner.
+if (!chainSearchStore.submitUrl && (plannerTab.value === 'leaderboard' || plannerTab.value === 'science')) {
+  plannerTab.value = 'manual';
+}
 
 /**
  * On a link into the Auto Planner, set the account up the way clicking its tab does.

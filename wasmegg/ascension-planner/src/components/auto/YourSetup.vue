@@ -301,7 +301,6 @@ import TimeOffEditor from './TimeOffEditor.vue';
 import WorkerSlider from './WorkerSlider.vue';
 import BackgroundSpeed from './BackgroundSpeed.vue';
 import DateStyleToggle from './DateStyleToggle.vue';
-import { usePlanStartForm } from '@/composables/usePlanStartForm';
 
 defineProps<{ screen: AutoView }>();
 
@@ -309,8 +308,6 @@ const store = useChainSearchStore();
 const planner = useAutoPlannerStore();
 const initialState = useInitialStateStore();
 const ui = useUIStore();
-// Before the date boxes below render: the saved start and timezone, and the save's default start.
-usePlanStartForm();
 
 /** Open or folded, remembered in this browser. */
 const OPEN_KEY = 'aap-your-setup-open';
@@ -436,6 +433,13 @@ function onAdvanced(e: Event): void {
   }
 }
 onUnmounted(() => heapTimer && clearInterval(heapTimer));
+// Folding the setup removes an open Advanced without a toggle event: stop its timer then too.
+watch(open, isOpen => {
+  if (!isOpen && heapTimer) {
+    clearInterval(heapTimer);
+    heapTimer = null;
+  }
+});
 const mb = (bytes: number): string => `${(bytes / 1024 / 1024).toFixed(0)} MB`;
 const heldMb = computed(() => mb(store.legDetailBytes));
 const heapUsedMb = computed(() => (heap.value ? mb(heap.value.used) : ''));

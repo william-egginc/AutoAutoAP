@@ -474,6 +474,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   /** Set by the panel that started the run when it will send the result itself at the end (Find and
    *  submit), so the progress bar on other tabs can say so. */
   const submitsWhenDone = ref(false);
+  /** How the last automatic send went (Find and submit), for a panel opened after it: the run and
+   *  its send outlive the panel that started them (AutoSendReport.vue). Cleared by the next Find. */
+  const lastAutoSend = ref<{ kind: 'smart' | 'full' | 'by-date'; ok: boolean; text: string } | null>(null);
   // Any other load replacing the carried-on run's save (the header's refresh, Plan Next, a plan
   // from the library...) ends "on the run's own save": drop the notice and the run's pinned start.
   watch(
@@ -4500,7 +4503,14 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     else if (isRunning.value) stop();
   }
 
+  // A run that isn't part of a Full sweep queue replaces the queue's table (the panel used to do this,
+  // but only while it was on screen).
+  watch(isRunning, running => {
+    if (running && sweepQueue.value.at < 0) sweepQueue.value.results = [];
+  });
+
   return {
+    lastAutoSend,
     errorIsIntegrityNotice,
     runProgress,
     stopRun,
