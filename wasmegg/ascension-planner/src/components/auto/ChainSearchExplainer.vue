@@ -238,8 +238,9 @@
             Good and bad starting chains really do end up in different places, which puts a lot of weight on the coarse
             scan that picks one for you. Its own answer measured
             <span class="font-bold text-slate-800">8.6 and 12.0 days</span> off the final result on the two accounts
-            tested. When it picks badly, every later stage does a careful job on the wrong hill. Running twice from
-            different starting chains and comparing the answers is the only way to catch that at the moment.
+            tested. When it picks badly, every later stage does a careful job on the wrong hill. To catch that, run
+            twice from different starting chains and compare the answers, or use Insane mode, which prices every chain
+            in a space you choose.
           </p>
           <p class="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-[11px] leading-relaxed text-amber-800">
             What you get out of this is a strong local optimum. It has never been proven to be the global one, and the
@@ -286,8 +287,9 @@
           state: the twelve shifts run in a hand-tuned fixed sequence that nobody has shown to be optimal.
         </p>
         <p>
-          What is holding it up is sample size. Three accounts cannot separate a rule from a coincidence, and no one
-          person can brute-force past that, since every extra data point costs somebody hours of CPU.
+          What is holding it up is sample size. The board has runs from about a dozen accounts, still too few to
+          separate a rule from a coincidence, and no one person can brute-force past that, since every extra data point
+          costs somebody hours of CPU.
         </p>
         <p class="font-semibold text-emerald-900">
           So if you run a search, submit the result when it finishes. The button is further down this panel.

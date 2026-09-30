@@ -4125,7 +4125,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       planner.timeOffCuts = null;
       if (usableTimeOff(timeOff.value).length && !legs.length) {
         applyNote.value =
-          "This route's leg detail isn't kept (only the fastest routes keep it), so the plan can't show where your time off cuts it. Apply one of the top routes, or re-run to price it again.";
+          "This route's leg detail isn't kept (only the fastest routes keep it), so the plan can't show where your time off cuts it. Use one of the top routes, or re-run to price it again.";
       }
     }
     // The seed box keeps the checkpoints WITHOUT the final target: `seedChain` appends `finalTE`

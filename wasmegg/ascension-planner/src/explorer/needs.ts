@@ -119,7 +119,7 @@ const PRESET_TEXT: Record<string, { title: string; why: string; who?: string; no
   },
   F5: {
     title: '6 ascensions, a close look (F5)',
-    why: "The plan that finishes first has 6 ascensions on 6 of the 13 accounts (on Allan's it ties with 7), though on 4 of them 6 is also the most they tried. Only two 6-ascension runs have looked this closely, Williamthe5thc's and Willsalt · T4L cube's; the rest tried every 5th or 10th TE, or were staged searches. F5 tries far more of the TEs in between.",
+    why: "The plan that finishes first has 6 ascensions on 6 of the 13 accounts (on Allan's it ties with 7), though on 4 of them 6 is also the most they tried. Only two 6-ascension runs have looked this closely, Williamthe5thc's and Willsalt · T4L cube's; the rest tried every 5th TE or coarser, or were staged searches. F5 tries far more of the TEs in between.",
     who: 'anyone who can leave a desktop or bigger running overnight',
   },
   E7: {
@@ -317,7 +317,7 @@ export function dataNeeds(rows: CollectorRow[]): DataNeed[] {
     needs.push({
       id: 'weak-gear',
       title: 'Accounts with a weak delivery set',
-      why: "Wolfcry1993's and Zen_Ferret's delivery sets are about 80% of the best possible set, but each tried only one ascension count (7 and 8), so nothing yet shows whether weaker delivery wants more ascensions. Zen_Ferret's run came from an older planner, and Wolfcry1993's newest (on today's) is a staged search for a later start, so neither counts yet: we need a finished F2 on today's planner.",
+      why: "Wolfcry1993's and Zen_Ferret's delivery sets are about 80% of the best possible set, but each tried only one ascension count (7 and 8), so nothing yet shows whether weaker delivery wants more ascensions. Zen_Ferret's run came from an older planner, and Wolfcry1993's newest (from today's planner) is a staged search for a later start, so neither counts yet: we need a finished F2 on today's planner.",
       who: `players whose delivery set is under ${Math.round(WEAK_GEAR * 100)}% of the best (all T4L with T4 stones), usually two or more weaker pieces`,
       have: weak,
       want: 2,

@@ -84,7 +84,7 @@ export const EFFORT_NOTES: Record<EffortTier, EffortNote> = {
       'captured by stage 5 alone. On the main, a 4913-chain 3-D exhaustive over X3xX4xX5 matched ' +
       'the recipe exactly, so there stage 6 had nothing to add.',
     warning:
-      'Stage 6 is ~74% of this tier’s chains (6591 of 8865 on a 7-checkpoint chain) and it runs ' +
+      'Stage 6 is ~79% of this tier’s chains (8788 of about 11062 on a 7-ascension chain) and it runs ' +
       'before the prestige-count probe, so the probe (the stage that produced the main’s proven ' +
       'answer) waits behind all of it.',
   },

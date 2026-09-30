@@ -134,7 +134,8 @@
             </li>
             <li>
               <span class="font-semibold">No downtime between ascensions.</span> Each ascension is assumed to start the
-              moment the previous one ends.
+              moment the previous one ends. A plan built from a Chain Search or Insane mode result keeps that search's
+              time off.
             </li>
             <li><span class="font-semibold">You never sleep.</span> Auto-AP doesn't account for sleep hours.</li>
           </ul>

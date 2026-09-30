@@ -1321,10 +1321,8 @@
           <span class="font-semibold">right now</span>, and "now" moves every time you reload.
         </p>
         <p>
-          That has two consequences worth knowing before a long run.
-          <span class="font-semibold">Saved runs stop matching:</span> the plan start is part of what identifies a run,
-          so after a reload the search will not offer to resume and re-prices everything.
-          <span class="font-semibold">Day counts stop being comparable:</span> the same chain reports a smaller number
+          An unfinished run still carries on after a reload: it goes back to the start it was priced from. But
+          <span class="font-semibold">day counts stop being comparable:</span> the same chain reports a smaller number
           simply because the stopwatch started later, so compare <span class="font-semibold">finish dates</span>, which
           do not move. Set a start date and time in the scheduling inputs above to pin it.
         </p>
@@ -1589,7 +1587,7 @@
           >. It lists the fastest plan lengths, one line per result (anonymous runs included), and every row opens to
           show the artifacts, stones and per-leg timings it was simulated with. Read it as "what shapes are winning for
           people": a duration depends on the account as much as on the chain. The race to the target by finish date, one
-          line per named player, is the planner's own Leaderboard tab.
+          line per named player, is the Race tab of the planner's own Leaderboard.
         </p>
 
         <p v-if="!store.submitUrl" class="text-[11px] text-indigo-900/70 leading-relaxed">
@@ -1667,8 +1665,8 @@
           <li>Accuracy figures come from 3 accounts. Only one of them has a proven optimum to check against.</li>
           <li>A refresh is safe: progress is checkpointed and resumes without re-simulating anything.</li>
           <li>
-            "Plan around my schedule" moves the prestige between ascensions and nothing else. Shifts inside an ascension
-            can still land outside your hours; the CSV counts them per leg.
+            "Plan around my schedule" moves the prestige between ascensions. Shifts inside an ascension can still land
+            outside your hours unless "Hold the shifts for my hours too" is ticked; the CSV counts them per leg.
           </li>
         </ul>
       </div>

@@ -34,7 +34,7 @@
         <div>
           <h2 class="text-xl font-black text-slate-900 uppercase tracking-tight">Insane mode</h2>
           <p class="text-[10px] font-black text-rose-400 uppercase tracking-widest mt-0.5">
-            Exhaustive search · no caps · URL only
+            Exhaustive search · no caps
           </p>
         </div>
       </div>
@@ -272,9 +272,9 @@
         v-if="goal === 'deadline'"
         class="p-4 rounded-xl border border-rose-200 bg-rose-50 text-xs text-rose-900 leading-relaxed"
       >
-        Finds the highest TE you can reach by a date. It tries every route shape on a grid, finds the highest last stop
-        each one reaches by the deadline, then looks more closely around the best. Like any run, it uses the schedule,
-        time off and machine settings below.
+        Finds the highest TE you can reach by a date. You set the early stops and it tries every route in them, or it
+        picks them for you on a grid and looks more closely around the best. Either way the last stop is found to the
+        exact TE. Like any run, it uses the schedule, time off and machine settings below.
       </div>
 
       <div
@@ -544,8 +544,9 @@
              start is part of the run fingerprint -- so a checkpoint saved before a refresh stops
              matching and a long run restarts from nothing. -->
         <p v-if="showSchedule && store.planStartIsNow" class="text-[11px] font-semibold text-amber-700 leading-relaxed">
-          No start set, so the plan is timed from right now. That moves every time you reload and takes your saved
-          checkpoint with it. Set a date and time before starting a long run.
+          No start set, so the plan is timed from right now, and that moves every time you reload. An unfinished run
+          still carries on from the start it was priced from, but day counts from different visits won't compare. Set a
+          date and time before starting a long run.
         </p>
 
         <label v-if="showSchedule" class="flex items-start gap-3 cursor-pointer">
@@ -1059,8 +1060,8 @@
                   Minimum gap between checkpoints
                 </span>
                 <HelpTip>
-                  Drops chains with consecutive checkpoints closer than this. 0 is off. Set it carefully: the best
-                  7-ascension chain found on this account, 185 200 215 230 290 380 490 at 746.354 d, has 15-TE interior
+                  Drops chains with consecutive checkpoints closer than this. 0 is off. Set it carefully: on one tested
+                  account the best 7-ascension chain found, 185 200 215 230 290 380 490 at 746.354 d, has 15-TE interior
                   gaps, so anything above 15 would have excluded it. Small early gaps are cheap when the ascension is
                   short. This never limits the jump to the final target.
                 </HelpTip>
@@ -1528,8 +1529,9 @@
           </div>
           <p class="text-[11px] text-slate-500 leading-relaxed">
             Kept in this browser, per player, and separate from the crash-recovery checkpoint (which holds one run).
-            Either kind resumes only while your TE, target and schedule are unchanged, and the plan start goes back to
-            the run's own. Past {{ MAX_RUNS }}, the oldest is dropped.
+            Either kind carries on with the save it started with while that save is kept here, and puts its target,
+            schedule, time off and plan start back; without that save, your TE has to be the same. Past
+            {{ MAX_RUNS }}, the oldest is dropped.
           </p>
 
           <div class="flex flex-wrap gap-2">

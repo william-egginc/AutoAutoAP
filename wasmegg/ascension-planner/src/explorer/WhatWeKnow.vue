@@ -5,9 +5,15 @@
   Every number here was re-checked against the board by an independent audit on 25 Sept 2026
   (several earlier claims were corrected then), and the count, checkpoint and gear claims again on
   26 and 27 Sept 2026 by replaying the page's own pipeline over /all (27 Sept: after eleven new runs,
-  among them Williamthe5thc's E7, E8 and E9 and Willsalt · T4L cube's E8 and close look at 7). The
-  header says it is a dated snapshot and that the tables below are the live counts. Update the date
-  and the numbers when the board moves.
+  among them Williamthe5thc's E7, E8 and E9 and Willsalt · T4L cube's E8 and close look at 7). On 29
+  Sept 2026 the count, checkpoint and gear claims were checked again against the 144-row board
+  (BobSkiMajoo778's 4-7 ascension run, Willsalt · T4L cube's every-TE 8 and its 9) with the page's
+  own functions, and the one-TE move, first-ascension, grid-loss and Halceyx figures against the
+  CSVs of the runs that tried every TE (`missTable`, and every grid offset of each coarse step). Not
+  re-checked: the CTE 172 and 202 stalls, the artifact TE values, item 4's later-leg jumps and
+  final-stretch steadiness, and item 6's prediction widths.
+  The header says it is a dated snapshot and that the tables below are the live counts. Update the
+  date and the numbers when the board moves.
 
   COMPARE FINISH DATES, NOT TOTALS, between runs made at different times. A run's total counts from
   its own plan start, so the same plan run a day later shows a day fewer; the date it reaches 490 is
@@ -82,7 +88,7 @@
       </li>
       <li>
         <b>Ascending one TE off the best can cost weeks.</b> Moving one ascension target by a single TE, with the others
-        left where they are, costs up to 31 days. A typical one-TE move costs about 17 days on 2- and 3-ascension plans,
+        left where they are, costs up to 31 days. A typical one-TE move costs about 19 days on 2- and 3-ascension plans,
         and under 5 on Allan's 4-ascension plan. Being one TE off typically costs about as much as being 8 TE off. The
         first ascension changes smoothly: each extra TE you wait before ascending adds about 2 to 6 days to it (about
         2.5 at TE 198, about 5.5 at TE 124 to 150). Every later ascension jumps around, because moving an earlier target

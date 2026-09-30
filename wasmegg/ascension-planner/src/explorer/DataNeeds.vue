@@ -4,7 +4,7 @@
   takes on three sizes of machine. The coverage rules and the timing model are in needs.ts.
 
   The group intros (GROUPS below) are written, not computed, like What we know and the asks' own text
-  in needs.ts: re-checked against the board on 27 Sept 2026 with the page's own helpers. Update the
+  in needs.ts: re-checked against the board on 29 Sept 2026 with the page's own helpers. Update the
   numbers when the board moves.
 -->
 <template>
@@ -195,7 +195,7 @@ const GROUPS: { id: 'main' | 'gear' | 'big' | 'end'; title: string; intro: strin
     id: 'end',
     title: 'The end of the line: 7, 8 and 9 ascensions',
     intro:
-      "These show where adding ascensions stops saving time and starts costing it, so nobody plans more ascensions than they need. Four accounts have tried both 6 and 7: the 7th brought the finish forward 4.9 days on Willsalt · T4L cube and 1.0 day on BobSkiMajoo778, on Allan's it finished the same minute as the 6 and on Williamthe5thc's 0.9 days after it, all within search noise. The other three have also tried 8: it finished 3.0 days after the 7 on Allan's and 1.4 on Williamthe5thc's, and on Willsalt · T4L cube it now finishes 2.1 days before its 7 (every-TE close looks, 28 Sept). Williamthe5thc's 9 finished 1.8 days after his 8. All of these are within search noise. They try far fewer TEs to stay affordable, so read the result as an upper bound; the close looks so far took 0.6 days off Willsalt · T4L cube's 7 and 2.1 days off its 8.",
+      "These show where adding ascensions stops saving time and starts costing it, so nobody plans more ascensions than they need. Four accounts have tried both 6 and 7: the 7th brought the finish forward 4.9 days on Willsalt · T4L cube and 1.0 day on BobSkiMajoo778, on Allan's it finished the same minute as the 6 and on Williamthe5thc's 0.9 days after it, all within search noise. The other three have also tried 8: it finished 3.0 days after the 7 on Allan's and 1.4 on Williamthe5thc's, and on Willsalt · T4L cube it now finishes 2.1 days before its 7 (every-TE close looks, 28 Sept). Both accounts that tried 9 found it slower than 8: 1.8 days after the 8 on Williamthe5thc's and 3.3 days on Willsalt · T4L cube. All of these are within search noise. They try far fewer TEs to stay affordable, so read the result as an upper bound: later, closer looks took 0.6 days off Willsalt · T4L cube's first 7-ascension result and 9.1 days off its first 8.",
   },
 ];
 

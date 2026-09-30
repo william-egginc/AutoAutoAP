@@ -726,10 +726,10 @@
             default), how far the best plan through it is behind that run's own best, as a percent of it, one line per
             run. Each line is one table priced from one save, so its shape is exact, and as a percent of its own best it
             compares between accounts whose plans differ in length; "TE above start" lines accounts up by where they
-            started. It opens on 0 to 5% with a guide at 1%, which on a plan to 490 is a week or more; "Whole range"
-            shows the rest. The table under the chart is in days, each run against its own best: the best TE at that
-            checkpoint, every TE within 1 and 3 days of it, and, for a run whose box tried every TE there, how many days
-            a search at every 2nd, 5th or 10th TE would have lost.
+            started. It opens on 0 to 5% with a guide at 1%, which on a plan to 490 is about a week or more; "Whole
+            range" shows the rest. The table under the chart is in days, each run against its own best: the best TE at
+            that checkpoint, every TE within 1 and 3 days of it, and, for a run whose box tried every TE there, how many
+            days a search at every 2nd, 5th or 10th TE would have lost.
           </p>
           <SweepCurvesChart
             :base="base!"

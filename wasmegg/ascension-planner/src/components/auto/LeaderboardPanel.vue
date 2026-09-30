@@ -1158,7 +1158,8 @@ const runLines = computed<RunLine[]>(() => {
         ? [
             {
               text: `by ${deadlineText(f.row.deadline as number)}`,
-              title: 'A "highest TE by a date" answer: see the By a date tab.',
+              title:
+                'A "highest TE by a date" answer: Egg Day answers are on the Egg Day tab, other dates on By a date.',
               cls: 'bg-rose-100 text-rose-800',
             },
           ]

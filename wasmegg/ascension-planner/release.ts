@@ -12,5 +12,5 @@
  */
 export default {
   reloadIfBuiltBefore: '2026-09-26T07:22:00Z',
-  note: 'new in Insane mode: the highest TE you can reach by a date (Egg Day preset), and interrupted runs carry on with the save they started with',
+  note: 'an Egg Day 2027 leaderboard. Find the highest TE you can reach by then in Insane mode (Highest TE by a date) and share it',
 };
