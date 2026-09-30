@@ -19,7 +19,8 @@
         }}
         stops, from {{ store.deadlineUnfinished.te }} TE ({{ ago(store.deadlineUnfinished.updatedAt) }}).
         <template v-if="store.deadlineUnfinished.saveKept">
-          Carrying on replays them instantly and continues on the save it started with.</template
+          Carrying on replays them instantly and continues on the save it started with, and puts its deadline and stops
+          back in the boxes below.</template
         >
         <template v-else> Its save wasn't kept on this device, so it can't carry on.</template>
         Starting a new search replaces it.
@@ -570,7 +571,8 @@ import {
   parseStopBox,
   stepForBudget,
 } from '@/search/deadline';
-import { estimateHours, formatHours } from '@/search/exhaustive';
+import { estimateHours, formatBand, formatHours } from '@/search/exhaustive';
+import type { DeadlineRunSpec } from '@/search/deadlineStore';
 import { downloadCsv } from '@/utils/export';
 import { useEidsStore } from 'lib';
 import { eggDayYearOf, nextEggDayYear } from '@/lib/eggDay';
@@ -843,8 +845,44 @@ const canStart = computed(() => !!deadline.value && !startIssue.value && store.c
 
 /** Carry on the unfinished run, with the estimate it started with (0 for one saved before runs
  *  kept it: the bar then counts routes without guessing at a total). */
+/**
+ * Put a run's own settings back in the boxes: the deadline, the chains or the stop counts, the last
+ * stop's range, "must ascend while awake". A carried-on run replays the spec it was started with,
+ * whatever the boxes say -- so the boxes used to show whatever was typed since, and the result read
+ * as the answer to a question nobody could see.
+ */
+function fillFromSpec(spec: DeadlineRunSpec): void {
+  if (eggDayYearOf(spec.deadline)) {
+    date.value = `${eggDayYearOf(spec.deadline)}-07-14`;
+    time.value = '09:00';
+    zone.value = 'America/Los_Angeles';
+  } else {
+    const [d, t] = formatInZone(spec.deadline, zone.value).split(' ');
+    if (d && t) {
+      date.value = d;
+      time.value = t;
+    }
+  }
+  ascendNeeded.value = spec.ascendNeeded;
+  const sets = spec.bandSets?.length ? spec.bandSets : spec.bands?.length ? [spec.bands] : null;
+  if (sets) {
+    mode.value = 'space';
+    chains.value = sets.map(set => ({ asc: set.length + 1, text: set.map(b => formatBand(b)).join('; ') }));
+    lastBox.value = `${spec.lastLo ?? Math.floor(store.currentTE) + 1}-${spec.lastHi}`;
+  } else {
+    mode.value = 'auto';
+    minStops.value = spec.minStops;
+    maxStops.value = spec.maxStops;
+    lastHi.value = spec.lastHi;
+    lastHiTouched.value = true;
+    step.value = spec.step;
+  }
+}
+
 async function resume(): Promise<void> {
-  runEstimate.value = store.deadlineUnfinished?.spec.estimate ?? 0;
+  const spec = store.deadlineUnfinished?.spec;
+  if (spec) fillFromSpec(spec);
+  runEstimate.value = spec?.estimate ?? 0;
   await store.resumeDeadline(props.playerId);
 }
 
