@@ -129,6 +129,33 @@ describe('chainSearch: resuming after a reload', () => {
     expect(store.runSaveFor(kept.key)).toMatchObject({ te: 147, backupAt: 1_790_640_095 });
   });
 
+  it("never offers another account's run, even under the same player id (Kelli's account, 30 Sept)", async () => {
+    const store = useChainSearchStore();
+    const theirs = await saveRunInputs('P', {
+      context: { rawBackup: { approxTime: 1_790_640_095, eiUserId: 'EI1111111111111111' } },
+      baseState: {},
+      currentFarmState: null,
+      planStart: PRICED_AT,
+      currentTE: 147,
+      final: 490,
+      forceContinue: true,
+    } as never);
+    await crashed(`P|${PRICED_AT}|147|490|fc`, theirs.key);
+    // The save loaded now is a different account's.
+    const { useInitialStateStore } = await import('./initialState');
+    useInitialStateStore().rawBackup = { eiUserId: 'EI2222222222222222' } as never;
+
+    await store.checkResumable('P');
+    expect(store.crashedRun).toBeNull();
+    expect(store.blockedCheckpoint).toBeNull();
+    expect(store.otherAccountKeys.has(theirs.key)).toBe(true);
+
+    // The same account's save: offered as before.
+    useInitialStateStore().rawBackup = { eiUserId: 'EI1111111111111111' } as never;
+    await store.checkResumable('P');
+    expect(store.crashedRun?.inputsKey).toBe(theirs.key);
+  });
+
   it('still offers a run whose settings differ, and says it will put them back', async () => {
     // Priced with a 480 target and a week off; the panel now says 490 and no time off.
     const store = useChainSearchStore();

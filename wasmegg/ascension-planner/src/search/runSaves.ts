@@ -30,6 +30,21 @@ export interface RunSaveSummary {
   te: number;
   /** When the game took the save, unix seconds; 0 when it carries none. */
   backupAt: number;
+  /** Whose save it is: a hash of the game's own user id (`accountOf`). Absent on older saves. */
+  account?: string;
+}
+
+/**
+ * The account a save belongs to, as a short hash of the game's own user id in it (never the id
+ * itself). '' when the save has none. What an unfinished run is checked against before it is
+ * offered: the player id in the box can disagree with the save actually loaded, and a run carrying
+ * on with its own save skips the TE check -- so another account's run could be offered and carried
+ * on (Kelli's account showed someone else's run, 30 Sept).
+ */
+export function accountOf(rawBackup: unknown): string {
+  const b = rawBackup as { eiUserId?: string | null; userId?: string | null } | null | undefined;
+  const id = String(b?.eiUserId || b?.userId || '').trim();
+  return id ? hash53(`account:${id}`) : '';
 }
 
 /**
@@ -97,6 +112,7 @@ export async function saveRunInputs(
     savedAt: Date.now(),
     te: inputs.currentTE,
     backupAt: typeof rawBackup?.approxTime === 'number' ? rawBackup.approxTime : 0,
+    ...(accountOf(rawBackup) ? { account: accountOf(rawBackup) } : {}),
   };
   // Body first, then the index: a quota failure leaves an orphan nothing lists, not a listed save
   // that cannot be read.

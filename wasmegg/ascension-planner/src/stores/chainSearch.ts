@@ -114,6 +114,7 @@ import {
   runSaveKey,
   saveRunInputs,
   type RunSaveSummary,
+  accountOf,
 } from '@/search/runSaves';
 import { epicResearchDefs } from '@/lib/epicResearch';
 import { deliveryScore } from '@/search/virtueScore';
@@ -1110,6 +1111,11 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     record: { fingerprint?: string; inputsKey?: string }
   ): Promise<SearchInputs | 'current' | null> {
     partitionHash = partitionHash || (await hashID(playerId));
+    // Never another account's run, whatever the player id says (see `accountOf`).
+    if (await fromOtherAccount(partitionHash, record.inputsKey)) {
+      error.value = `This run can't carry on: ${OTHER_ACCOUNT}.`;
+      return null;
+    }
     const inputs =
       record.inputsKey && runSaveFor(record.inputsKey) ? await loadRunInputs(partitionHash, record.inputsKey) : null;
 
@@ -1367,6 +1373,38 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
 
   /** Look for a resumable checkpoint for the current inputs, and refresh the moved-aside list and
    *  the stored saves. Safe to call whenever the panel opens or the settings change. */
+  /**
+   * Stored saves' accounts, by key: read from the index when it has one, else once from the stored
+   * save itself (older saves were written before the index kept it).
+   */
+  const accountByKey = new Map<string, string>();
+  async function savedAccount(hash: string, key: string | null | undefined): Promise<string> {
+    if (!key) return '';
+    const listed = runSaves.value.find(r => r.key === key)?.account;
+    if (listed) return listed;
+    const held = accountByKey.get(key);
+    if (held !== undefined) return held;
+    let account = '';
+    try {
+      const inputs = await loadRunInputs(hash, key);
+      account = inputs ? accountOf(inputs.context.rawBackup) : '';
+    } catch {
+      // unreadable: unknown, which does not block
+    }
+    accountByKey.set(key, account);
+    return account;
+  }
+  /** A run whose stored save is another account's than the one loaded now. Unknown never counts. */
+  async function fromOtherAccount(hash: string, key: string | null | undefined): Promise<boolean> {
+    const now = accountOf(useInitialStateStore().rawBackup);
+    if (!now || !key) return false;
+    const then = await savedAccount(hash, key);
+    return !!then && then !== now;
+  }
+  /** Stored-save keys of unfinished runs that belong to another account: never offered here. */
+  const otherAccountKeys = shallowRef<Set<string>>(new Set());
+  const OTHER_ACCOUNT = 'it was started on a different account (the save loaded now is another account)';
+
   async function checkResumable(playerId: string): Promise<void> {
     // Recorded here too: the panels' "puts your settings back" note compares against this player.
     if (playerId) currentPlayerId = playerId;
@@ -1384,8 +1422,16 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       // Another player's check started meanwhile: its answer is the one that counts.
       if (currentPlayerId !== playerId) return;
       runSaves.value = saves;
+      // Whose runs these are, against the save loaded now (see `accountOf`).
+      const other = new Set<string>();
+      for (const r of [...(cp ? [cp] : []), ...aside])
+        if (r.inputsKey && (await fromOtherAccount(hash, r.inputsKey))) other.add(r.inputsKey);
+      if (currentPlayerId !== playerId) return;
+      otherAccountKeys.value = other;
       interrupted.value = aside;
-      if (cp) {
+      if (cp && cp.inputsKey && other.has(cp.inputsKey)) {
+        // Someone else's run: not this account's business, so nothing is shown for it at all.
+      } else if (cp) {
         // A run with its own save carries on with that save, whatever is loaded now: only the
         // settings a save does not carry can stop it.
         // Settings never block: carrying on puts them back. Only a different player, or a
@@ -3222,7 +3268,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       runSaves.value = await listRunSaves(partitionHash);
       deadlineAll = []; // the last run's full list, which may be another account's
       deadlineResult.value = await loadDeadlineResult(partitionHash);
-      const cp = await loadDeadlineCheckpoint(partitionHash);
+      const loaded = await loadDeadlineCheckpoint(partitionHash);
+      // Another account's unfinished deadline search is not offered on this one.
+      const cp = loaded && (await fromOtherAccount(partitionHash, loaded.inputsKey)) ? null : loaded;
       deadlineUnfinished.value = cp
         ? {
             spec: cp.spec,
@@ -3311,6 +3359,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       partitionHash = partitionHash || (await hashID(playerId));
       const cp = await loadDeadlineCheckpoint(partitionHash);
       if (!cp) return;
+      if (await fromOtherAccount(partitionHash, cp.inputsKey)) {
+        error.value = `This search can't carry on: ${OTHER_ACCOUNT}.`;
+        return;
+      }
       const inputs = await loadRunInputs(partitionHash, cp.inputsKey);
       if (!inputs) {
         error.value = "This search's save is no longer stored on this device, so it can't carry on. Start it again.";
@@ -4375,6 +4427,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     exportCsvChunks,
     buildRunSubmission,
     buildDeadlineSubmission,
+    otherAccountKeys,
     deadlineWorkerSeconds,
     sendSubmission,
     claimName,

@@ -60,6 +60,8 @@ const items = computed(() =>
   store.interrupted
     .map((record, index) => ({ record, index, save: store.runSaveFor(record.inputsKey) }))
     .filter(i => (props.kind === 'exhaustive' ? !!i.record.space : !i.record.space))
+    // Another account's runs are never offered here (stores/chainSearch.ts `otherAccountKeys`).
+    .filter(i => !i.record.inputsKey || !store.otherAccountKeys.has(i.record.inputsKey))
 );
 
 async function carryOn(index: number): Promise<void> {
