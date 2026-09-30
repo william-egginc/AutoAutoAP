@@ -10,7 +10,7 @@
   other page's styling into the middle of this one, would not share the planner's TE target, and
   could not offer "use this chain". Nothing here re-simulates anything -- it is one GET.
 
-  THREE TABS, because a plan length answers none of the questions people bring here. A plan's
+  THREE RACE TABS, because a plan length answers none of the questions people bring here. A plan's
   length counts from its own start, so the same plan run a day later is a day shorter; a board
   sorted by it rewards whoever submitted most recently (a player's own words: "every day the new
   run shows up 1 day faster than the previous best, but it's the same plan"). So:
@@ -20,6 +20,10 @@
       the header says so.
     - My plans: only the loaded save's account, where "is this plan better" has a real answer.
     - All runs: every row, exact copies shown once, every column sortable.
+
+  And two for the deadline search's answers (schema 8), "the highest TE by this date": Egg Day
+  (first, and open by default) and By a date for every other deadline (lib/leaderboardRank.ts
+  `buildDeadlineBoard`).
 
   PHASE 2 (collector redeploy, 2026-09-25). Rows carry `acct`, a tag made from the sender's owner
   code (search/owner.ts), so the race knows who is who exactly and nobody can knock a plan out with
@@ -45,7 +49,7 @@
           </a>
         </div>
         <div class="flex items-end gap-2">
-          <label v-if="tab !== 'dates'" class="block">
+          <label v-if="tab !== 'dates' && tab !== 'eggday'" class="block">
             <span class="block text-[9px] font-black uppercase tracking-widest text-indigo-700/70 mb-1">Target TE</span>
             <select v-model="final" class="rounded-lg border-indigo-200 text-xs font-bold text-slate-700 py-1.5">
               <option value="">all</option>
@@ -362,21 +366,28 @@
       </template>
 
       <!-- ================================================================== MINE -->
-      <!-- ================================================================== BY A DATE -->
-      <template v-else-if="tab === 'dates'">
-        <p class="text-[11px] text-indigo-900/80 leading-relaxed">
-          The highest TE each player can reach by a date, from Insane mode's
-          <span class="font-bold">Highest TE by a date</span> search. Answers for the same deadline are ranked by the TE
-          reached, then the time to spare before it; each player's best answer counts. Dates are in your timezone ({{
-            viewZone
-          }}).
+      <!-- ======================================================= EGG DAY, AND BY A DATE -->
+      <template v-else-if="tab === 'eggday' || tab === 'dates'">
+        <p v-if="tab === 'eggday'" class="text-[11px] text-indigo-900/80 leading-relaxed">
+          The highest TE each player can reach by Egg Day {{ eggDayYear }} (14 July, 9:00 AM Pacific), from Insane
+          mode's <span class="font-bold">Highest TE by a date</span> search with the Egg Day preset. Ranked by the TE
+          reached, then the time to spare; each player's best answer counts. Game events, Egg Day's own included, aren't
+          simulated.
         </p>
-        <p v-if="!dateBoard.length" class="text-[11px] text-indigo-900/60 py-6 text-center">
-          No answers yet. Run Insane mode's Highest TE by a date and use
-          <span class="font-semibold">Share this answer</span>.
+        <p v-else class="text-[11px] text-indigo-900/80 leading-relaxed">
+          The highest TE each player can reach by any other date, from Insane mode's
+          <span class="font-bold">Highest TE by a date</span> search, one table per deadline. Ranked by the TE reached,
+          then the time to spare; each player's best answer counts. Dates are in your timezone ({{ viewZone }}). Egg Day
+          {{ eggDayYear }} has its own tab.
+        </p>
+        <p v-if="!shownDates.length" class="text-[11px] text-indigo-900/60 py-6 text-center">
+          No answers yet. Run Insane mode's Highest TE by a date<template v-if="tab === 'eggday'">
+            with the Egg Day preset</template
+          >
+          and use <span class="font-semibold">Share this answer</span>.
         </p>
         <div
-          v-for="g in dateBoard"
+          v-for="g in shownDates"
           :key="g.deadline"
           class="rounded-xl border border-indigo-100 bg-white p-3 space-y-2"
         >
@@ -731,6 +742,7 @@ import { virtueInventory } from '@/search/csv';
 import { bestPerFamily, keepVirtueArtifacts } from '@/search/submission';
 import { existingOwnerToken } from '@/search/owner';
 import { hashID } from '@/lib/storage/db';
+import { eggDaySeconds, nextEggDayYear } from '@/lib/eggDay';
 import LeaderboardPlanList from './LeaderboardPlanList.vue';
 import LeaderboardRunDetail from './LeaderboardRunDetail.vue';
 
@@ -745,8 +757,9 @@ const emit = defineEmits<{ use: [chain: number[]] }>();
  *  endpoint that may be a version ahead or behind, and a missing field should render a dash. */
 type Row = BoardRow;
 
-type Tab = 'race' | 'mine' | 'all' | 'dates';
-const TABS: Tab[] = ['race', 'mine', 'all', 'dates'];
+type Tab = 'eggday' | 'race' | 'mine' | 'all' | 'dates';
+/** Egg Day first (the user, 29 Sep): the one date everyone is aiming at. */
+const TABS: Tab[] = ['eggday', 'race', 'mine', 'all', 'dates'];
 /** How many rows an OLD collector's `GET /all` listed at most. The current one serves its whole
  *  snapshot, uncapped, and says so by carrying `builtAt`; only an answer without it is checked. */
 const ALL_CAP = 1000;
@@ -763,7 +776,7 @@ const root = computed(() => store.leaderboardUrl.replace(/\/$/, ''));
 const explorerHref = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/explorer.html`;
 const csvRoot = computed(() => `${root.value}/csv`);
 
-const tab = ref<Tab>('race');
+const tab = ref<Tab>('eggday');
 const allRows = ref<Row[]>([]);
 const loading = ref(false);
 const error = ref('');
@@ -831,6 +844,7 @@ const runEdges = scrollEdges();
 function tabLabel(t: Tab): string {
   if (t === 'race') return target.value == null ? 'Race' : `Race to ${target.value}`;
   if (t === 'dates') return 'By a date';
+  if (t === 'eggday') return `Egg Day ${eggDayYear}`;
   return t === 'mine' ? 'My plans' : 'All runs';
 }
 
@@ -1062,6 +1076,15 @@ const COLUMNS: { key: SortKey; label: string; right?: boolean; title?: string }[
 // ----------------------------------------------------------------------------- By a date
 
 const dateBoard = computed(() => buildDeadlineBoard(allRows.value, { now: now.value }));
+/** The next Egg Day (lib/eggDay.ts, the same moment the deadline search's preset sends). */
+const eggDayYear = nextEggDayYear();
+const eggDayAt = eggDaySeconds(eggDayYear);
+/** The tables the open tab shows: the Egg Day one, or every other date. */
+const shownDates = computed(() =>
+  tab.value === 'eggday'
+    ? dateBoard.value.filter(g => g.deadline === eggDayAt)
+    : dateBoard.value.filter(g => g.deadline !== eggDayAt)
+);
 /** A deadline on the viewer's calendar, to the minute (Egg Day is 09:00 Pacific, not a whole day). */
 function deadlineText(seconds: number): string {
   return formatDate(seconds * 1000, viewZone, { dateStyle: 'medium', timeStyle: 'short' });

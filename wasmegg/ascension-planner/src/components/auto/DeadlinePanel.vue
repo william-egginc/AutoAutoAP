@@ -489,13 +489,13 @@
         route that reaches one more TE usually has much less time to spare: the table shows both so you can choose.
       </p>
 
-      <!-- Share: the leaderboard's "By a date" tab, grouped by deadline. Same opt-in as Insane. -->
+      <!-- Share: the leaderboard's Egg Day tab for an Egg Day answer, else "By a date". Same opt-in as Insane. -->
       <div v-if="best && collectorConfigured" class="rounded-xl border border-indigo-200 bg-indigo-50/60 p-4 space-y-3">
         <h3 class="text-[10px] font-black text-indigo-800 uppercase tracking-widest">Share this answer</h3>
         <p class="text-[11px] text-indigo-900/80 leading-relaxed">
-          Sends the best route above to the leaderboard's <span class="font-bold">By a date</span> tab, where answers
-          for the same deadline are ranked by the highest TE reached, then the time to spare. It stays out of the race
-          to 490, which answers a different question.
+          Sends the best route above to the leaderboard's <span class="font-bold">{{ shareTab }}</span> tab, where
+          answers for the same deadline are ranked by the highest TE reached, then the time to spare. It stays out of
+          the race to 490, which answers a different question.
         </p>
         <label class="flex items-start gap-3 text-xs text-indigo-900">
           <input v-model="shareOptIn" type="checkbox" class="mt-0.5 rounded border-indigo-300 text-indigo-600" />
@@ -573,6 +573,7 @@ import {
 import { estimateHours, formatHours } from '@/search/exhaustive';
 import { downloadCsv } from '@/utils/export';
 import { useEidsStore } from 'lib';
+import { eggDayYearOf, nextEggDayYear } from '@/lib/eggDay';
 import IntegrityNotice from './IntegrityNotice.vue';
 import SafariNotice from './SafariNotice.vue';
 
@@ -583,12 +584,7 @@ const planner = useAutoPlannerStore();
 
 const plannerZone = computed(() => planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
 
-/** The next Egg Day (14 July) at 9:00 AM Pacific that has not passed yet. */
-function nextEggDayYear(): number {
-  const now = new Date();
-  const y = now.getUTCFullYear();
-  return Date.now() / 1000 < getLocalTimestampInTimezone(`${y}-07-14`, '09:00', 'America/Los_Angeles') ? y : y + 1;
-}
+/** The next Egg Day (14 July) at 9:00 AM Pacific that has not passed yet (lib/eggDay.ts). */
 const eggDayYear = nextEggDayYear();
 const date = ref(`${eggDayYear}-07-14`);
 const time = ref('09:00');
@@ -904,6 +900,11 @@ const resultKey = computed(() =>
   result.value && best.value ? `${result.value.deadline}|${result.value.at}|${best.value.chain.join(',')}` : ''
 );
 const sentKey = ref('');
+/** The leaderboard tab this answer goes on: Egg Day has its own. */
+const shareTab = computed(() => {
+  const y = result.value ? eggDayYearOf(result.value.deadline) : null;
+  return y ? `Egg Day ${y}` : 'By a date';
+});
 
 async function share(): Promise<void> {
   if (!best.value || sharing.value) return;
@@ -924,7 +925,7 @@ async function share(): Promise<void> {
     shareMessage.value = res.ok
       ? res.duplicate === 'exact'
         ? res.message
-        : `Thank you — ${res.message}. It is on the leaderboard's By a date tab.`
+        : `Thank you — ${res.message}. It is on the leaderboard's ${shareTab.value} tab.`
       : `Not sent: ${res.message}`;
   } finally {
     sharing.value = false;
