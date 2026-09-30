@@ -56,7 +56,7 @@
         on the six accounts that tried both, more on lower accounts (191 days at TE 124, 245 and 184 at TE 132 and 133,
         116 at TE 167, 99 at TE 182, 34 at TE 198). On these six, lower TE has also meant lower CTE, so we can't yet
         tell which of the two makes the difference. A 4th brought it forward another 4.5 to 28 days on four of the five
-        accounts that tried 3 and 4; on (icon) · Los Angeles the 4 finishes 1.5 days after the 3, from a small staged
+        accounts that tried 3 and 4; on 👽 · Los Angeles the 4 finishes 1.5 days after the 3, from a small staged
         search (635 plans). A 5th brought it forward 1.5 to 28 days on all five accounts that tried 4 and 5. Each of
         those gaps is bigger than the searches could explain except BobSkiMajoo778's (5.2 days), which is within search
         noise because he tried only every 15th TE.
@@ -73,7 +73,7 @@
         plan that finishes first has 5 to 7 ascensions on 9 of the 13 accounts, but only four accounts tried counts both
         above and below their best: Allan (tried 2 to 8, best 6, tied with 7), William (tried 2 to 9 and 15, best 6),
         Willsalt · T4L cube (tried 2 to 9, best 8: 2.1 days before its 7 and 3.3 days before its 9, both within search
-        noise) and (icon) · Los Angeles (tried 2 to 4, best 3). For Halceyx, Willsalt · T4E cube, rontimes, iDaHooBone,
+        noise) and 👽 · Los Angeles (tried 2 to 4, best 3). For Halceyx, Willsalt · T4E cube, rontimes, iDaHooBone,
         Kenzie and BobSkiMajoo778 the best is simply the most ascensions they tried; Wolfcry1993, wood_420 and
         Zen_Ferret tried one count each.
       </li>

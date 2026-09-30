@@ -396,10 +396,34 @@ export function isIconName(raw: string | undefined): boolean {
   return !!raw?.trim() && !/[\p{L}\p{N}]/u.test(visibleName(raw));
 }
 
-/** What to call a name on screen: its label, or "(icon) · <city>" for a name nobody can read. */
+/**
+ * Egg Inc's own symbols, which players put in names: private-use characters only the game's font
+ * can draw (a browser shows an empty box). Mapped to the nearest emoji FOR DISPLAY ONLY: grouping,
+ * name matching and ownership still read the name exactly as sent. Add one when a player's name
+ * shows "(icon)" and someone says what it is in the game.
+ */
+const GAME_GLYPHS: Record<string, string> = {
+  '\ue10c': '👽', // the alien (seen 30 Sept 2026)
+};
+const GAME_GLYPH_RE = new RegExp(`[${Object.keys(GAME_GLYPHS).join('')}]`, 'g');
+
+/** A name with the game's symbols drawn as emoji. */
+export function withGameGlyphs(text: string): string {
+  return text.replace(GAME_GLYPH_RE, c => GAME_GLYPHS[c] ?? c);
+}
+
+/**
+ * What to call a name on screen: its label with the game's symbols as emoji, and for a name that is
+ * only symbols the player's city too (two players with the same symbol stay apart). "(icon)" is left
+ * for a symbol not in `GAME_GLYPHS`, which nobody could read.
+ */
 export function displayName(raw: string | undefined, timezone: string | undefined): string {
-  if (isIconName(raw)) return `(icon) · ${cityOf(timezone)}`;
-  return nameLabel(raw);
+  if (isIconName(raw)) {
+    // Mapped BEFORE `visibleName`, which drops private-use characters as unreadable.
+    const shown = visibleName(withGameGlyphs(raw ?? ''));
+    return `${shown || '(icon)'} · ${cityOf(timezone)}`;
+  }
+  return nameLabel(withGameGlyphs(raw ?? '')) || nameLabel(raw);
 }
 
 /** Name as typed -> `nameKey`. A pure function of the text, asked for many times per row per render. */

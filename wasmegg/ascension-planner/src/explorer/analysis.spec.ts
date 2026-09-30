@@ -157,7 +157,7 @@ describe('accountLabel', () => {
       nickname: '',
       timezone: 'America/Los_Angeles',
     });
-    expect(accountLabel([icon, { ...icon, nickname: undefined }])).toBe('(icon) · Los Angeles');
+    expect(accountLabel([icon, { ...icon, nickname: undefined }])).toBe('👽 · Los Angeles');
   });
 });
 
