@@ -13,6 +13,19 @@ export interface VariantResult {
   actions: Action[];
 }
 
+/** Where time off cuts a plan -- see `timeOffCuts` in the store below. */
+export interface TimeOffCuts {
+  /** The Target TE text the cuts were worked out for. */
+  targets: string;
+  /** Ascension index -> when it ends (the time off starts), unix seconds. */
+  ends: Record<number, number>;
+  /** Ascension index -> the earliest it may start (the time off is over), unix seconds. */
+  starts: Record<number, number>;
+  /** The plan start they were worked out from, as the start boxes read (`YYYY-MM-DD HH:MM`).
+   *  Absent on cuts from before this was kept. */
+  start?: string;
+}
+
 export interface ChainedAscension {
   index: number;
   /** Only keys that were actually computed/survived pruning are present. */
@@ -91,11 +104,11 @@ export const useAutoPlannerStore = defineStore('autoPlanner', () => {
    * Kept apart from `endTimeOverrides` on purpose: Generate/Update Plan clears every user override
    * before regenerating, and that must not quietly drop the player's days off. Tied to the Target
    * TE text it was worked out for (`targets`), and ignored the moment that text changes -- a cut at
-   * "ascension 2" means nothing for a different chain.
+   * "ascension 2" means nothing for a different chain. Likewise the plan start (`start`): the cuts
+   * are absolute instants, so a plan moved to another start (or another account's save, which
+   * brings its own) would put them on the wrong ascensions.
    */
-  const timeOffCuts = ref<{ targets: string; ends: Record<number, number>; starts: Record<number, number> } | null>(
-    null
-  );
+  const timeOffCuts = ref<TimeOffCuts | null>(null);
   const deferForEarningsMode = ref(false);
 
   function setPlan(data: {

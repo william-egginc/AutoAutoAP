@@ -902,6 +902,8 @@ export function validateSubmission(value: unknown): string[] {
   }
   if (typeof s.durationDays !== 'number' || !(s.durationDays > 0)) problems.push('durationDays must be positive');
   if (typeof s.finalTE !== 'number' || !(s.finalTE > 0)) problems.push('finalTE must be positive');
+  else if (Array.isArray(s.chain) && s.chain.length && s.chain[s.chain.length - 1] !== s.finalTE)
+    problems.push('the chain must end at finalTE');
   if (s.nickname !== undefined && (typeof s.nickname !== 'string' || s.nickname.length > 40)) {
     problems.push('nickname must be a string of at most 40 characters');
   }

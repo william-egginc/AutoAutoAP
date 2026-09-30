@@ -292,8 +292,23 @@
         class="mt-4 p-3 rounded-xl border border-sky-200 bg-sky-50 text-[11px] text-sky-900 leading-relaxed"
       >
         <span class="font-black uppercase tracking-wide">Includes your time off.</span>
-        {{ timeOffInPlan.join(' ') }} Change the Target TE and this is dropped: re-apply from the chain search to put it
-        back.
+        {{ timeOffInPlan.join(' ') }} Change the Target TE or the start and this is dropped: re-apply from the chain
+        search to put it back.
+      </div>
+      <div
+        v-if="timeOffDroppedFor"
+        class="mt-4 p-3 rounded-xl border border-amber-200 bg-amber-50 text-[11px] text-amber-900 leading-relaxed"
+      >
+        <span class="font-black uppercase tracking-wide">Time off left out.</span>
+        It was worked into this chain for a plan starting {{ timeOffDroppedFor }}, and the start is now
+        {{ autoPlannerStore.startDate }} {{ autoPlannerStore.startTime }} (a newer save moves it up), so this plan farms
+        straight through it. Search again, or re-apply from the search, to put it back.
+      </div>
+      <div
+        v-if="olderSaveNote"
+        class="mt-4 p-3 rounded-xl border border-amber-200 bg-amber-50 text-[11px] text-amber-900 leading-relaxed"
+      >
+        {{ olderSaveNote }}
       </div>
 
       <SimulationErrorAlert v-if="simulationError" :message="simulationError" />
@@ -373,6 +388,10 @@ if (cachedSchedule) {
   if (cachedSchedule.startDate) startDate.value = cachedSchedule.startDate;
   if (cachedSchedule.startTime) startTime.value = cachedSchedule.startTime;
   if (cachedSchedule.targetTE) targetTE.value = cachedSchedule.targetTE;
+  // The cuts for that chain, if the search put some there. The generator still checks they match the
+  // Target TE and start before using them.
+  if (!autoPlannerStore.timeOffCuts && cachedSchedule.timeOffCuts?.targets === targetTE.value)
+    autoPlannerStore.timeOffCuts = cachedSchedule.timeOffCuts;
   if (cachedSchedule.deferForEarningsMode && isTestingEnvironment) deferForEarningsMode.value = true;
 }
 
@@ -399,13 +418,14 @@ watch(
 );
 
 // Persist the form (start date/time/timezone, target TE, defer for earnings mode) so it survives a page reload.
-watch([timezone, startDate, startTime, targetTE, deferForEarningsMode], () => {
+watch([timezone, startDate, startTime, targetTE, deferForEarningsMode, () => autoPlannerStore.timeOffCuts], () => {
   saveAutoPlannerSchedule({
     timezone: timezone.value,
     startDate: startDate.value,
     startTime: startTime.value,
     targetTE: targetTE.value,
     deferForEarningsMode: deferForEarningsMode.value,
+    timeOffCuts: autoPlannerStore.timeOffCuts ? JSON.parse(JSON.stringify(autoPlannerStore.timeOffCuts)) : null,
   });
 });
 
@@ -448,10 +468,25 @@ const runGenerate = () => {
 const chainSearchStore = useChainSearchStore();
 
 /** The time-off cuts in force for the chain in Target TE, in words. Empty when there are none. */
+const plannerTargets = computed(() =>
+  (autoPlannerStore.targetTE || '').trim().split(/\s+/).filter(Boolean).map(Number).join(' ')
+);
+const olderSaveNote = computed(() => {
+  const n = chainSearchStore.olderSaveNote;
+  return n && n.targets === plannerTargets.value ? n.text : '';
+});
+/** Time off worked in for THIS chain but from another start (a newer save moved the start up, or
+ *  the player changed it): left out, and said so rather than silently farming through the days off. */
+const timeOffDroppedFor = computed(() => {
+  const c = autoPlannerStore.timeOffCuts;
+  if (!c || !c.start || c.targets !== plannerTargets.value) return '';
+  return c.start !== `${autoPlannerStore.startDate} ${autoPlannerStore.startTime}` ? c.start : '';
+});
 const timeOffInPlan = computed(() => {
   const c = autoPlannerStore.timeOffCuts;
-  const targets = (autoPlannerStore.targetTE || '').trim().split(/\s+/).filter(Boolean).map(Number).join(' ');
-  if (!c || c.targets !== targets) return [];
+  if (!c || c.targets !== plannerTargets.value) return [];
+  // Same test the generator applies (useAscensionGenerator `timeOffCuts`): a moved start drops them.
+  if (c.start && c.start !== `${autoPlannerStore.startDate} ${autoPlannerStore.startTime}`) return [];
   const tz = autoPlannerStore.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
   const out: string[] = [];
   for (const i of Object.keys(c.ends).map(Number)) out.push(`A${i + 1} stops ${formatInZone(c.ends[i], tz)}.`);

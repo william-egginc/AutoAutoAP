@@ -301,16 +301,22 @@ export function countBanded(bands: number[][], final: number, currentTE: number,
 }
 
 /** `185-200:5` -> [185, 190, 195, 200]. The band form of a pool spec, for the UI's text entry. */
+/** Above any TE the game has. */
+const MAX_BAND_TE = 1000;
+
 export function parseBand(text: string, defaultStep = 5): number[] {
   const trimmed = text.trim();
   if (!trimmed) return [];
   const [rangePart, stepPart] = trimmed.split(':');
   const bounds = rangePart.split(/[-–]/).map(x => Number(x.trim()));
-  const step = Number(stepPart) > 0 ? Math.floor(Number(stepPart)) : defaultStep;
+  // Whole steps of at least 1: `:0.5` floored to 0 and looped forever, freezing the tab mid-typing.
+  const step = Math.floor(Number(stepPart)) >= 1 ? Math.floor(Number(stepPart)) : defaultStep;
   if (bounds.length === 1 && Number.isFinite(bounds[0])) return [Math.floor(bounds[0])];
   if (bounds.length !== 2 || !bounds.every(Number.isFinite) || bounds[1] < bounds[0]) return [];
+  // No TE goes past MAX_BAND_TE, so neither does a band: `185-200000000` is not 40 million values.
+  const hi = Math.min(Math.floor(bounds[1]), MAX_BAND_TE);
   const out: number[] = [];
-  for (let v = Math.floor(bounds[0]); v <= Math.floor(bounds[1]); v += step) out.push(v);
+  for (let v = Math.floor(bounds[0]); v <= hi; v += step) out.push(v);
   return out;
 }
 

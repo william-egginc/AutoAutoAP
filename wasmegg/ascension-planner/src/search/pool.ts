@@ -432,7 +432,12 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
       try {
         const pws = await Promise.all(workerOf.map(w => workerAt(w)));
         const sends = buckets.map((bucket, i) =>
-          send(pws[i], { kind: 'evaluate', requestId: ++nextRequestId, chains: bucket }, `worker ${i}`, bucket.length)
+          send(
+            pws[i],
+            { kind: 'evaluate', requestId: ++nextRequestId, chains: bucket },
+            `worker ${workerOf[i]}`,
+            bucket.length
+          )
         );
         // Attach a no-op handler to each send BEFORE awaiting them together. `Promise.all` rejects
         // on the first failure and abandons its siblings; those siblings still reject later (the

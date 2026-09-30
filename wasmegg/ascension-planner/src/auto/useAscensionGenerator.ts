@@ -116,10 +116,12 @@ export function useAscensionGenerator() {
       .filter(n => !isNaN(n) && n > 0);
   };
 
-  /** The chain search's time-off cuts, when they were worked out for the chain in Target TE now. */
+  /** The chain search's time-off cuts, when they were worked out for the chain in Target TE now,
+   *  from the plan start in the boxes now. */
   const timeOffCuts = () => {
     const c = autoPlannerStore.timeOffCuts;
-    return c && c.targets === getTargets().join(' ') ? c : null;
+    if (!c || c.targets !== getTargets().join(' ')) return null;
+    return !c.start || c.start === `${startDate.value} ${startTime.value}` ? c : null;
   };
   /**
    * End times that bind each ascension: the player's own overrides, over the time-off cuts. A cut
@@ -580,6 +582,12 @@ export function useAscensionGenerator() {
     planVariantOverrides: { ...autoPlannerStore.planVariantOverrides },
     // Time-off cuts included: a saved or exported plan must pick the same variants it was built with.
     endTimeOverrides: endTimes(),
+    // ...and kept apart as well, starts included, so an import can rebuild the plan around them
+    // rather than only replay it (the end times alone let the ascension after the time off start
+    // when it began, the first time anything was regenerated).
+    ...(timeOffCuts()
+      ? { timeOffCuts: { ends: { ...timeOffCuts()!.ends }, starts: { ...timeOffCuts()!.starts } } }
+      : {}),
     initialState: {
       epicResearchLevels: { ...initialStateStore.epicResearchLevels },
       colleggtibleTiers: { ...initialStateStore.colleggtibleTiers },

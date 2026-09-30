@@ -580,10 +580,22 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     noteRate(chainsDone.value, true);
   }
   watch(targetWorkers, () => {
+    // The deadline search has a pool of its own; the slider and the background-tab throttle reach it
+    // too (they used to reach only the fastest-run pool). The guesses per round stay as the run
+    // started (deadline.ts `parallel`), so a carry-on still replays; only the workers change.
+    if (deadlinePool && deadlineRunning.value) {
+      if (deadlineResizeTimer) clearTimeout(deadlineResizeTimer);
+      deadlineResizeTimer = setTimeout(() => {
+        deadlineResizeTimer = null;
+        deadlinePool?.resize(targetWorkers.value);
+      }, 400);
+    }
     if (!pool || !isRunning.value) return;
     if (resizeTimer) clearTimeout(resizeTimer);
     resizeTimer = setTimeout(applyWorkerBudget, 400);
   });
+  let deadlinePool: ChainSearchPool | null = null;
+  let deadlineResizeTimer: ReturnType<typeof setTimeout> | null = null;
 
   let lastCheckpointAt = 0;
   let lastRateAt = 0;
@@ -947,7 +959,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const summary = await saveRun(await hashID(playerId), {
       label: label?.trim() || defaultRunLabel(finalTE.value, bestChain.value, bestDays.value),
       currentTE: currentTE.value,
-      finalTE: finalTE.value,
+      // The run's own target -- its chain ends there -- not the box as it reads now: a run finished
+      // at 309 and sent after the box was changed to 308 was filed under 308.
+      finalTE: bestChain.value[bestChain.value.length - 1] ?? finalTE.value,
       effort: effort.value,
       seedChain: seedChain.value,
       bestChain: bestChain.value,
@@ -1049,7 +1063,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       scheduleEnabled.value = true;
       availableFrom.value = set.availability.fromHour;
       availableTo.value = set.availability.toHour;
-      availableDays.value = set.availability.days.length ? [...set.availability.days] : [0, 1, 2, 3, 4, 5, 6];
+      // As the run had them, none ticked included: filling in all seven fingerprints as a different
+      // schedule (`avail0123456` against `availall`) and the carry-on was refused for it.
+      availableDays.value = [...set.availability.days];
       if (set.availability.timezone && planner.timezone !== set.availability.timezone) {
         planner.timezone = set.availability.timezone;
       }
@@ -1309,19 +1325,23 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
 
   /** Drop stored saves nothing unfinished refers to: the checkpoint slot, the moved-aside runs, the
    *  saved runs, and the run in progress. They exist only to finish a run. */
-  async function pruneSaves(slot: SearchCheckpoint | null): Promise<void> {
+  async function pruneSaves(slot: SearchCheckpoint | null, hash = partitionHash): Promise<void> {
+    // One player's partition throughout, fixed at the call: `partitionHash` is store-wide, and a
+    // player switch during these awaits used to build the keep-list from one player's runs and prune
+    // the other's saves with it.
     const keep = new Set<string>();
     if (runInputsKey) keep.add(runInputsKey);
     if (slot && !slot.complete && slot.inputsKey) keep.add(slot.inputsKey);
     try {
-      for (const r of await listInterrupted(partitionHash)) if (r.inputsKey) keep.add(r.inputsKey);
-      const dl = await loadDeadlineCheckpoint(partitionHash);
+      for (const r of await listInterrupted(hash)) if (r.inputsKey) keep.add(r.inputsKey);
+      const dl = await loadDeadlineCheckpoint(hash);
       if (dl) keep.add(dl.inputsKey);
       // Read here rather than from `savedRuns`, which a panel may not have loaded yet -- pruning
       // against an empty list would delete the saves of every unfinished saved run.
-      for (const r of await listRuns(partitionHash)) if (!r.complete && r.inputsKey) keep.add(r.inputsKey);
-      await pruneRunSaves(partitionHash, keep);
-      runSaves.value = await listRunSaves(partitionHash);
+      for (const r of await listRuns(hash)) if (!r.complete && r.inputsKey) keep.add(r.inputsKey);
+      await pruneRunSaves(hash, keep);
+      const list = await listRunSaves(hash);
+      if (hash === partitionHash) runSaves.value = list;
     } catch (e) {
       console.warn('chain search: could not tidy stored saves', e);
     }
@@ -1353,12 +1373,17 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     blockedCheckpoint.value = null;
     if (!playerId) return;
     try {
-      partitionHash = await hashID(playerId);
+      const hash = await hashID(playerId);
+      partitionHash = hash;
       // Matched on everything EXCEPT the plan start, which resuming restores. An exact match here
       // meant a run timed "from now" was unreachable after any reload -- a crash included.
-      runSaves.value = await listRunSaves(partitionHash);
-      interrupted.value = await listInterrupted(partitionHash);
-      const cp = await loadAnyCheckpoint(partitionHash);
+      const saves = await listRunSaves(hash);
+      const aside = await listInterrupted(hash);
+      const cp = await loadAnyCheckpoint(hash);
+      // Another player's check started meanwhile: its answer is the one that counts.
+      if (currentPlayerId !== playerId) return;
+      runSaves.value = saves;
+      interrupted.value = aside;
       if (cp) {
         // A run with its own save carries on with that save, whatever is loaded now: only the
         // settings a save does not carry can stop it.
@@ -1370,7 +1395,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         if (!changes.length) resumable.value = cp;
         else if (!cp.complete) blockedCheckpoint.value = { record: cp, changes };
       }
-      await pruneSaves(cp);
+      await pruneSaves(cp, hash);
     } catch (e) {
       // A missing/blocked IndexedDB must not stop somebody running a search.
       console.warn('chain search: could not read checkpoint', e);
@@ -3306,6 +3331,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     };
     try {
       pool = await createChainSearchPool(inputs, { size: workerBudget.value });
+      deadlinePool = pool;
+      if (targetWorkers.value < workerBudget.value) pool.resize(targetWorkers.value);
       const workers = pool;
       // Sticky on the route's shape: each round re-probes the same shapes with new last stops, and
       // only the worker that priced a shape before still has its early legs in memory.
@@ -3403,6 +3430,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       error.value = describeRunError(e);
     } finally {
       pool?.terminate();
+      deadlinePool = null;
       dropRunLock();
       dropScreenLock();
       deadlineRunning.value = false;
@@ -3997,10 +4025,14 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
 
   function applyChain(chain: number[], alsoGenerate = false): void {
     const planner = useAutoPlannerStore();
+    // Results priced on a run's own older save, with the latest save loaded since ("Load my latest
+    // save"): the old run's start is from before this save existed, and its time-off instants belong
+    // to that start. The plan is built on the save that is loaded, from its own start, and says so.
+    const olderResults = !!resultsFromOlderSave.value && !useUIStore().runSaveLoaded;
     // Pin the planner to the start this answer was computed against. Without it the plan can be
     // built from a different instant entirely (see `planStartUsed`), and every date in it would be
     // answering a question the search never asked.
-    if (planStartUsed.value) {
+    if (planStartUsed.value && !olderResults) {
       const tz = planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
       const [d, t] = formatInZone(planStartUsed.value, tz).split(' ');
       if (d && t) {
@@ -4019,7 +4051,14 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         ? bestLegs.value
         : ([...liveCache, ...coarseCache].find(e => e.key === key)?.legs ?? []);
     applyNote.value = '';
-    if (legs.some(l => l.timeOff)) {
+    olderSaveNote.value = null;
+    if (olderResults) {
+      planner.targetTE = key.split(',').join(' ');
+      planner.timeOffCuts = null;
+      olderSaveNote.value = { targets: planner.targetTE, text: '' };
+      applyNote.value = `This route was priced on your older save (TE ${resultsFromOlderSave.value?.te}), and your latest save is loaded now, so the plan is built on the latest save from its own start: its dates can differ from the search's${legs.some(l => l.timeOff) ? ", and your time off isn't worked in" : ''}. Re-check on the latest save, or run again, for dates that match.`;
+      olderSaveNote.value.text = applyNote.value;
+    } else if (legs.some(l => l.timeOff)) {
       const targets = legs.map(l => l.endTE);
       const ends: Record<number, number> = {};
       const starts: Record<number, number> = {};
@@ -4028,7 +4067,12 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         if ((l.timeOff === 'restarted' || l.afterTimeOff) && l.startTime) starts[i] = l.startTime;
       });
       planner.targetTE = targets.join(' ');
-      planner.timeOffCuts = { targets: targets.join(' '), ends, starts };
+      planner.timeOffCuts = {
+        targets: targets.join(' '),
+        ends,
+        starts,
+        ...(planner.startDate && planner.startTime ? { start: `${planner.startDate} ${planner.startTime}` } : {}),
+      };
       const tz = planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
       const stops = Object.keys(ends).map(i => `A${+i + 1} ends ${formatInZone(ends[+i], tz)} at ${legs[+i].endTE} TE`);
       applyNote.value = `The plan includes your time off: ${stops.join('; ')}, and the ascension after each starts when the time off is over.`;
@@ -4045,6 +4089,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     seedOverride.value = chain.filter(v => v !== finalTE.value).join(' ');
     patchAutoPlannerSchedule({
       targetTE: planner.targetTE,
+      timeOffCuts: planner.timeOffCuts ? JSON.parse(JSON.stringify(planner.timeOffCuts)) : null,
       ...(planStartUsed.value ? { startDate: planner.startDate, startTime: planner.startTime } : {}),
     });
     if (alsoGenerate) generateRequested.value++;
@@ -4052,6 +4097,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
 
   /** What Apply did beyond copying the chain -- time off worked into the plan -- for the panels. */
   const applyNote = ref('');
+  /** Apply's warning that it built on the latest save from results priced on an older one, for the
+   *  Auto Planner (Insane's Build goes straight there), while its Target TE is still that chain. */
+  const olderSaveNote = ref<{ targets: string; text: string } | null>(null);
   /** Set by Insane mode's "Build this plan": the Auto Planner is not on the page yet, so it builds
    *  the plan when it mounts rather than on the `generateRequested` signal it would miss. */
   const generateWhenPlannerOpens = ref(false);
@@ -4173,6 +4221,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     discardDeadlineRun,
     stopDeadline,
     resultsFromOlderSave,
+    olderSaveNote,
     recheckingLatest,
     latestRecheck,
     recheckOnLatestSave,

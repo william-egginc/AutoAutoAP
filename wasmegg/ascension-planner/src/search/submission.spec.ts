@@ -281,6 +281,13 @@ describe('validateSubmission', () => {
     expect(validateSubmission({ ...ok(), chain: [195, 195, 490] })).toContain('chain must strictly increase');
   });
 
+  it('rejects a chain that ends somewhere other than its final target', () => {
+    // A run to 309, sent after the target box was changed to 308 (b7c361cc on the board).
+    expect(validateSubmission({ ...ok(), chain: [195, 238, 309], finalTE: 308 })).toContain(
+      'the chain must end at finalTE'
+    );
+  });
+
   it('rejects nonsense durations and oversized payloads', () => {
     expect(validateSubmission({ ...ok(), durationDays: 0 })).toContain('durationDays must be positive');
     const huge = { ...ok(), artifacts: Array.from({ length: 20000 }, () => 'x'.repeat(20)) };

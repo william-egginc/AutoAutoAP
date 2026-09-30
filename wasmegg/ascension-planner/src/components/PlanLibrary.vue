@@ -376,8 +376,20 @@ async function handleImport(event: Event) {
               targetEndTime: formatUnixToTimeInput(a1EndTime, plan.timezone),
               nextGoals: nextGoalsMap,
               planVariantOverrides: importedOverrides,
-              endTimeOverrides: plan.endTimeOverrides ?? {},
+              // The cut ends are in there for older importers; they belong to the cuts, not to the
+              // player (Generate clears player overrides, and must not clear the days off).
+              endTimeOverrides: Object.fromEntries(
+                Object.entries(plan.endTimeOverrides ?? {}).filter(([k, v]) => plan.timeOffCuts?.ends[Number(k)] !== v)
+              ),
             });
+            if (plan.timeOffCuts) {
+              autoPlannerStore.timeOffCuts = {
+                targets: autoPlannerStore.targetTE,
+                ends: { ...plan.timeOffCuts.ends },
+                starts: { ...plan.timeOffCuts.starts },
+                start: `${autoPlannerStore.startDate} ${autoPlannerStore.startTime}`,
+              };
+            }
 
             // Hydrate stores so the form shows the correct numbers from the plan
             initialStateStore.hydrate(plan.initialState);

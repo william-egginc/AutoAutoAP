@@ -33,6 +33,9 @@ export interface ExportedPlan {
    * `endTimeOverrides` — see its doc comment in `stores/autoPlanner.ts`. Absent on exports made
    * before this field existed; treated as `{}` on import. */
   endTimeOverrides?: Record<number, number>;
+  /** The chain search's time-off cuts in this plan (their ends are in `endTimeOverrides` too, for
+   *  older importers). Absent when the plan has none. */
+  timeOffCuts?: { ends: Record<number, number>; starts: Record<number, number> };
   /** @deprecated use planVariantOverrides */
   a1ForceMode?: 'continue' | 'prestige' | null;
   ascensions: {

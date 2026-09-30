@@ -1307,7 +1307,8 @@
         <SafariNotice />
 
         <RunSaveNotice />
-        <IntegrityNotice />
+        <!-- With a sweep open, the card at the top already shows it. -->
+        <IntegrityNotice v-if="!sweepRequest" />
         <!-- The same carry-on as the box at the top, next to Start where people look for it. -->
         <div
           v-if="store.crashedRun && !store.busy"
@@ -1388,8 +1389,8 @@
                     {{ q.label }}<template v-if="q.stopped"> (stopped)</template>
                   </td>
                   <td class="pr-4 py-1 font-bold">{{ q.chain.join(' ') }}</td>
-                  <td class="pr-4 py-1">{{ q.days.toFixed(3) }}</td>
-                  <td class="pr-4 py-1">{{ saveWhen(store.planStartUsed + q.days * 86400) }}</td>
+                  <td class="pr-4 py-1">{{ q.days ? q.days.toFixed(3) : '—' }}</td>
+                  <td class="pr-4 py-1">{{ q.finish ? saveWhen(q.finish) : '—' }}</td>
                 </tr>
               </tbody>
             </table>
@@ -2238,15 +2239,21 @@ const chainCountLabel = computed(() =>
 
 /** Chains to run after the first, each with its own ascension count and bands. */
 const extraChains = ref<{ asc: number; text: string }[]>([]);
+// Parsed and counted once per edit, not on every call from the template (each row asks several
+// times a render, and a run re-renders every second).
+const extraParsed = computed(() => extraChains.value.map(row => parseBands(row.text)));
+const extraCounts = computed(() =>
+  extraChains.value.map((row, k) => {
+    if (row.asc <= 1) return 1;
+    const b = extraParsed.value[k];
+    return b.length === row.asc - 1 ? countBanded(b, store.finalTE, store.currentTE, minGap.value) : 0;
+  })
+);
 function extraBands(k: number): number[][] {
-  return parseBands(extraChains.value[k]?.text ?? '');
+  return extraParsed.value[k] ?? [];
 }
 function extraCount(k: number): number {
-  const row = extraChains.value[k];
-  if (!row) return 0;
-  if (row.asc <= 1) return 1;
-  const b = extraBands(k);
-  return b.length === row.asc - 1 ? countBanded(b, store.finalTE, store.currentTE, minGap.value) : 0;
+  return extraCounts.value[k] ?? 0;
 }
 function extraProblem(k: number): string {
   const row = extraChains.value[k];
@@ -2297,7 +2304,14 @@ function specOfExtra(k: number): ReturnType<typeof currentSpec> {
 }
 
 /** What each chain of a multi-chain click found, for the table under the result. */
-const queueResults = ref<{ label: string; chain: number[]; days: number; stopped: boolean }[]>([]);
+const queueResults = ref<{ label: string; chain: number[]; days: number; stopped: boolean; finish: number }[]>([]);
+// The table is the last click's; a single run or an opened run afterwards takes the panel over.
+watch(
+  () => store.isRunning,
+  running => {
+    if (running && queueAt.value < 0) queueResults.value = [];
+  }
+);
 const queueAt = ref(-1);
 
 /**
@@ -2509,7 +2523,7 @@ async function startQueue(): Promise<void> {
     })),
   ];
   const fail = (label: string, why: string) =>
-    queueResults.value.push({ label: `${label} — ${why}`, chain: [], days: 0, stopped: true });
+    queueResults.value.push({ label: `${label} — ${why}`, chain: [], days: 0, stopped: true, finish: 0 });
   try {
     for (let k = 0; k < specs.length; k++) {
       // Stopped between chains, the panel gone, or another account loaded: the rest don't run.
@@ -2532,7 +2546,15 @@ async function startQueue(): Promise<void> {
         break;
       }
       if (store.bestDays > 0) {
-        queueResults.value.push({ label: specs[k].label, chain: [...store.bestChain], days: store.bestDays, stopped });
+        // The finish is fixed now, against this run's own start: worked out later it used whatever
+        // run was on screen by then.
+        queueResults.value.push({
+          label: specs[k].label,
+          chain: [...store.bestChain],
+          days: store.bestDays,
+          stopped,
+          finish: store.planStartUsed + store.bestDays * 86400,
+        });
         try {
           await store.saveCurrentRun(player, specs[k].label);
         } catch (e) {
@@ -2541,7 +2563,7 @@ async function startQueue(): Promise<void> {
           fail(specs[k].label, `finished, but couldn't be saved to your runs (${(e as Error)?.message ?? e})`);
           break;
         }
-      }
+      } else if (!stopped) fail(specs[k].label, 'no chain in this space finishes');
       if (stopped) break;
     }
   } finally {
@@ -2619,6 +2641,7 @@ async function save(): Promise<void> {
 }
 
 async function open(id: string): Promise<void> {
+  queueResults.value = [];
   await store.openSavedRun(props.playerId, id);
   resumeNote.value = store.openedRun && !store.canResumeOpenedRun ? `Cannot resume: ${store.resumeBlocker}.` : '';
 }

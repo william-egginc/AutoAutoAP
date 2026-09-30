@@ -579,3 +579,12 @@ describe('suggestBands', () => {
     expect(suggestBands(180, 490, 9)).toBeNull();
   });
 });
+
+describe('band boxes that used to freeze the tab', () => {
+  it('treats a step under 1 as no step instead of looping forever', () => {
+    expect(parseBand('160-170:0.5')).toEqual([160, 165, 170]);
+  });
+  it('stops a huge range at the highest TE there is', () => {
+    expect(parseBand('998-200000000:1')).toEqual([998, 999, 1000]);
+  });
+});

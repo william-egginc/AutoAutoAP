@@ -498,7 +498,14 @@ import { useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { getLocalTimestampInTimezone } from '@/lib/events';
 import { formatInZone } from '@/search/csv';
-import { countBandShapes, countShapes, parseChainText, parseStopBox, stepForBudget } from '@/search/deadline';
+import {
+  bandShapes,
+  countBandShapes,
+  countShapes,
+  parseChainText,
+  parseStopBox,
+  stepForBudget,
+} from '@/search/deadline';
 import { estimateHours, formatHours } from '@/search/exhaustive';
 import { downloadCsv } from '@/utils/export';
 import IntegrityNotice from './IntegrityNotice.vue';
@@ -671,7 +678,24 @@ watch(
   { immediate: true }
 );
 
-const spaceShapes = computed(() => chains.value.reduce((n, _, k) => n + rowShapes(k), 0));
+/**
+ * Sets of early stops the run will try. Two chains with the same number of ascensions can share
+ * some, and the run tries each once -- so they are counted once, by listing them, when that is
+ * cheap; past that the plain sum is close enough for an estimate.
+ */
+const spaceShapes = computed(() => {
+  const counts = chains.value.map((_, k) => rowShapes(k));
+  const total = counts.reduce((a, b) => a + b, 0);
+  const asc = chains.value.filter((r, k) => counts[k] > 0).map(r => Math.max(1, Math.floor(r.asc)));
+  if (new Set(asc).size === asc.length || total > 50_000 || !lastRange.value) return total;
+  const seen = new Set<string>();
+  chains.value.forEach((row, k) => {
+    if (!counts[k]) return;
+    const list = row.asc <= 1 ? [[]] : bandShapes(rowBands(k), store.currentTE, lastRange.value![1]);
+    for (const s of list) seen.add(s.join(','));
+  });
+  return seen.size;
+});
 
 // ------------------------------------------------------------------ estimate and live progress
 
@@ -684,7 +708,7 @@ const lastWidth = computed(() =>
     2,
     mode.value === 'space' && lastRange.value
       ? lastRange.value[1] - lastRange.value[0] + 1
-      : lastHi.value - Math.floor(store.currentTE)
+      : Math.min(490, Math.floor(lastHi.value)) - Math.floor(store.currentTE) // as the run caps it
   )
 );
 const PROBES = computed(() => Math.ceil(Math.log2(lastWidth.value)) + 2);
