@@ -78,9 +78,11 @@ export function integrityMessage(seconds: number): string {
   const wait = describeDuration(seconds);
   return blocked
     ? `A fresh ascension on this account would sit on the Integrity shift for ${wait}, saving up for habs while ` +
-        `shipping almost nothing (a healthy account is through it in under an hour). The planner cannot build a ` +
-        `workable plan from that, so this run will not start. What fixes it is earnings: Truth Eggs, or a stronger ` +
-        `earnings set (totem, ankh, necklace and their stones). Accounts clear it at a Clothed TE of about 225.`
+        `shipping almost nothing (a healthy account is through it in under an hour). Nobody really waits that long: ` +
+        `in the game you'd wait for a hab sale or add an extra shift to get through, and this tool isn't built to ` +
+        `plan either, so this run won't start. What fixes it is earnings: Truth Eggs, or a stronger earnings set ` +
+        `(totem, ankh, necklace and their stones). Accounts clear it at a Clothed TE of about 225, so please come ` +
+        `back once you're closer to that.`
     : `A fresh ascension on this account sits on the Integrity shift for ${wait} before it can afford its habs ` +
         `(a healthy account is through it in under an hour). The plan runs, but that wait is in every date it gives, ` +
         `and a result will go to the flagged board rather than the main one.`;

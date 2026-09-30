@@ -20,9 +20,9 @@ describe('the rules, as decided', () => {
     expect(INTEGRITY_WARN_SECONDS).toBe(3600);
     expect(INTEGRITY_BLOCK_SECONDS).toBe(7 * 86400);
     expect(integrityMessage(2 * 3600)).toMatch(/2\.0 hours/);
-    expect(integrityMessage(2 * 3600)).not.toMatch(/will not start/);
+    expect(integrityMessage(2 * 3600)).not.toMatch(/won't start/);
     expect(integrityMessage(483 * 86400)).toMatch(/483 days/);
-    expect(integrityMessage(483 * 86400)).toMatch(/will not start/);
+    expect(integrityMessage(483 * 86400)).toMatch(/won't start/);
   });
 });
 
