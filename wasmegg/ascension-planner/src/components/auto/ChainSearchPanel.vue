@@ -27,8 +27,8 @@
       <!-- What it is, and what it costs -->
       <div class="p-4 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600 leading-relaxed space-y-2">
         <p>
-          This takes the Target TE chain above as its starting point and tries to improve it, scoring every candidate
-          with the same simulator the Auto Planner uses. It runs in
+          This takes a starting chain (the Target TE on the Classic tab, or one you type below) and tries to improve it,
+          scoring every candidate with the same simulator the Auto Planner uses. It runs in
           <span class="font-bold text-slate-800">up to {{ store.workersInPool }} background workers</span> on your own
           machine. One chain costs at least 15 seconds of CPU, so a run takes <span class="font-bold">hours</span>, not
           seconds. Leave the tab open. It can be in the background, but closing the tab stops the workers.
@@ -137,9 +137,11 @@
           <p class="text-[11px] text-slate-600 leading-relaxed">
             <span class="font-bold text-slate-800">Not big enough?</span>{{ ' ' }}
             <template v-if="!store.isRunning">
-              <a :href="insaneHref" class="font-bold text-rose-700 underline hover:text-rose-600">Try Insane mode</a>:
+              <a :href="insaneHref" class="font-bold text-rose-700 underline hover:text-rose-600"
+                >Try the {{ NAMES.full }}</a
+              >:
             </template>
-            <template v-else>Insane mode (once this search is stopped):</template>
+            <template v-else>The {{ NAMES.full }} (once this search is stopped):</template>
             an exhaustive search that prices every chain in a space you choose, so its winner is proven for that space
             rather than found by descent. It takes hours instead of minutes.
           </p>
@@ -554,7 +556,7 @@
             class="w-full mt-1 bg-transparent text-sm font-black text-slate-800 border-0 border-b border-slate-300 focus:border-indigo-500 focus:ring-0 p-0 disabled:opacity-50"
           />
           <div class="text-[9px] text-slate-400 mt-1">
-            {{ store.seedOverride.trim() ? 'using ' + store.seedChain.join(' ') : 'from Target TE above' }}
+            {{ store.seedOverride.trim() ? 'using ' + store.seedChain.join(' ') : 'from Target TE on the Classic tab' }}
           </div>
         </div>
         <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl">
@@ -743,8 +745,8 @@
       >
         <span class="font-black uppercase tracking-wide">That's a single ascension.</span>
         {{ store.finalTE }} on its own goes straight to the target, so there are no checkpoints for Chain Search to look
-        for. To plan that one ascension, use the classic Auto-AP above: type {{ store.finalTE }} in Target TE(s) and
-        press Generate plan. To search for a faster chain instead, give Starting chain some checkpoints (like
+        for. To plan that one ascension, use the Classic tab: type {{ store.finalTE }} in Target TE(s) and press
+        Generate plan. To search for a faster chain instead, give Starting chain some checkpoints (like
         <span class="font-mono">200 250 300 {{ store.finalTE }}</span
         >), or tick "Find a starting chain for me".
       </div>
@@ -1685,6 +1687,8 @@
 </template>
 
 <script setup lang="ts">
+import { NAMES, hashFor } from '@/lib/siteNav';
+import { useUIStore } from '@/stores/ui';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useEidsStore } from 'lib';
 import { useChainSearchStore } from '@/stores/chainSearch';
@@ -2095,6 +2099,10 @@ const generated = ref(false);
 
 function use(chain: number[], alsoGenerate = false): void {
   store.applyChain(chain, alsoGenerate);
+  // The planner is on its own tab (Classic) now, not above this panel: open it, and have it build
+  // the plan as it mounts -- the `generateRequested` signal alone would reach no one.
+  store.generateWhenPlannerOpens = alsoGenerate;
+  useUIStore().openPlannerRequested++;
   applied.value = chain.filter(v => v !== store.finalTE).join(' ');
   generated.value = alsoGenerate;
 }
@@ -2115,13 +2123,8 @@ function relativeTime(ms: number): string {
   return `${Math.round(hours / 24)}d ago`;
 }
 
-/** Insane mode is this page with `?insane=1`: same save, same player, the exhaustive panel. */
-const insaneHref = (() => {
-  const url = new URL(window.location.href);
-  url.searchParams.set('insane', '1');
-  url.hash = '';
-  return url.pathname + url.search;
-})();
+/** The full sweep's tab (lib/siteNav.ts): same save, same player, the page's tabs switch to it. */
+const insaneHref = hashFor({ section: 'auto', auto: 'fastest', depth: 'full' });
 
 /**
  * Submit on finish. Remembered per browser, like the other run settings: someone who contributes

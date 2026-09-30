@@ -1042,7 +1042,8 @@
       <!-- ---------------------------------------------------------------------------- upload -->
       <section
         v-if="base && (rows.length || !loading)"
-        class="rounded-xl border border-slate-200 bg-white p-4 space-y-3"
+        id="submit-a-sweep"
+        class="rounded-xl border border-slate-200 bg-white p-4 space-y-3 scroll-mt-4"
       >
         <div class="space-y-1">
           <h2 class="text-lg font-black text-slate-900">Submit a sweep</h2>
@@ -1192,6 +1193,8 @@ function scrollToGaps(): void {
 /** A jump to "Help fill the gaps" asked for before the section was on the page: the banner clicked
  *  during the load, or a shared link ending in #help-fill-the-gaps. Done once it appears. */
 let gapsWanted = typeof location !== 'undefined' && location.hash === '#help-fill-the-gaps';
+/** The same for a link ending in #submit-a-sweep (the planner's Science tab links here). */
+let sweepUploadWanted = typeof location !== 'undefined' && location.hash === '#submit-a-sweep';
 
 /** An aborted request is the expected outcome of clicking twice, not an error to report. */
 function isAbort(e: unknown): boolean {
@@ -1228,6 +1231,12 @@ async function load(): Promise<void> {
         gapsWanted = false;
         // After the render this load causes, so the section is on the page and all above it drawn.
         void nextTick(scrollToGaps);
+      }
+      if (sweepUploadWanted) {
+        sweepUploadWanted = false;
+        void nextTick(() =>
+          document.getElementById('submit-a-sweep')?.scrollIntoView({ behavior: scrollBehaviour(), block: 'start' })
+        );
       }
     }
   }

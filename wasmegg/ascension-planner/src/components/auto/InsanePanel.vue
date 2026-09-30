@@ -32,7 +32,9 @@
           </svg>
         </div>
         <div>
-          <h2 class="text-xl font-black text-slate-900 uppercase tracking-tight">Insane mode</h2>
+          <h2 class="text-xl font-black text-slate-900 uppercase tracking-tight">
+            {{ goal === 'deadline' ? NAMES.byDate : NAMES.full }}
+          </h2>
           <p class="text-[10px] font-black text-rose-400 uppercase tracking-widest mt-0.5">
             Exhaustive search · no caps
           </p>
@@ -250,7 +252,9 @@
         Two questions. The first is everything below as it always was; the second
         (DeadlinePanel, search/deadline.ts) turns the finish line into a date.
       -->
-      <div class="flex flex-wrap items-center gap-2">
+      <!-- The site's tabs pick the goal now (Fastest route / Highest TE by a date); this switch is
+           only for the panel on its own. -->
+      <div v-if="!props.goal" class="flex flex-wrap items-center gap-2">
         <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">What are you after?</span>
         <button
           v-for="g in GOALS"
@@ -1826,6 +1830,7 @@
 </template>
 
 <script setup lang="ts">
+import { NAMES } from '@/lib/siteNav';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { sentence } from '@/utils/errors';
@@ -1906,7 +1911,12 @@ function downloadCsv(): void {
   tryDownload('CSV', () => saveCsvFile(store.csvFilename(), store.exportCsvChunks()));
 }
 
-const props = defineProps<{ playerId: string }>();
+const props = defineProps<{
+  playerId: string;
+  /** Set by the site's tabs, which then own the choice: a change here asks them (update:goal). */
+  goal?: 'fastest' | 'deadline';
+}>();
+const emit = defineEmits<{ 'update:goal': [goal: 'fastest' | 'deadline'] }>();
 
 // The same backup-to-plan-start default the Auto Planner gets. This panel replaces that form, so
 // without this the one mode whose every output is a date ran from "whenever the page loaded".
@@ -2699,13 +2709,21 @@ const GOALS = [
   { id: 'fastest', label: 'Fastest to a target' },
   { id: 'deadline', label: 'Highest TE by a date' },
 ] as const;
-/** Opens on the date question with `#deadline` in the link, for sharing the Egg Day search. */
-const goal = ref<'fastest' | 'deadline'>(
+/** Opens on the date question with `#deadline` in the link, for sharing the Egg Day search. With the
+ *  site's tabs in charge (the `goal` prop), theirs is the answer and a switch here goes to them. */
+const ownGoal = ref<'fastest' | 'deadline'>(
   typeof window !== 'undefined' &&
     (/deadline/.test(window.location.hash) || new URLSearchParams(window.location.search).get('goal') === 'deadline')
     ? 'deadline'
     : 'fastest'
 );
+const goal = computed<'fastest' | 'deadline'>({
+  get: () => props.goal ?? ownGoal.value,
+  set: g => {
+    ownGoal.value = g;
+    if (props.goal && props.goal !== g) emit('update:goal', g);
+  },
+});
 
 /** Into the Auto Planner with this run's best chain -- time off worked in -- and build it there. */
 function buildPlan(): void {

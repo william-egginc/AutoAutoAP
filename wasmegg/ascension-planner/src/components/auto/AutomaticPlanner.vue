@@ -134,8 +134,8 @@
             </li>
             <li>
               <span class="font-semibold">No downtime between ascensions.</span> Each ascension is assumed to start the
-              moment the previous one ends. A plan built from a Chain Search or Insane mode result keeps that search's
-              time off.
+              moment the previous one ends. A plan built from a {{ NAMES.fastest }} or {{ NAMES.byDate }} result keeps
+              that search's time off.
             </li>
             <li><span class="font-semibold">You never sleep.</span> Auto-AP doesn't account for sleep hours.</li>
           </ul>
@@ -334,6 +334,7 @@
 </template>
 
 <script setup lang="ts">
+import { NAMES } from '@/lib/siteNav';
 import IntegrityNotice from './IntegrityNotice.vue';
 import { ref, computed, watch, nextTick, onMounted } from 'vue';
 import { storeToRefs } from 'pinia';

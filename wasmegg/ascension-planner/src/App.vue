@@ -39,79 +39,6 @@
 
             <the-player-id-form :player-id="playerId" @submit="submitPlayerId" />
 
-            <!-- Mode Tabs -->
-            <div
-              v-if="playerId && !loading"
-              class="mt-6 flex justify-center animate-in fade-in slide-in-from-top-4 duration-500"
-              :class="plannerTab === 'automatic' ? 'pb-8' : ''"
-            >
-              <div class="bg-slate-50 p-1.5 rounded-2xl border border-slate-200/50 shadow-sm flex gap-1">
-                <button
-                  class="px-6 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-[0.15em] transition-all duration-300 flex items-center gap-2"
-                  :class="
-                    plannerTab === 'manual'
-                      ? 'bg-slate-900 text-white shadow-lg shadow-slate-200'
-                      : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
-                  "
-                  @click="plannerTab = 'manual'"
-                >
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                    />
-                  </svg>
-                  Manual Planner
-                </button>
-                <button
-                  class="px-6 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-[0.15em] transition-all duration-300 flex items-center gap-2"
-                  :class="
-                    plannerTab === 'automatic'
-                      ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100'
-                      : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
-                  "
-                  @click="handleAutoPlannerTabClick"
-                >
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M13 10V3L4 14h7v7l9-11h-7z"
-                    />
-                  </svg>
-                  Auto Planner
-                  <span class="bg-indigo-500 text-[8px] px-1.5 py-0.5 rounded-md ml-1 border border-indigo-400/30"
-                    >BETA</span
-                  >
-                </button>
-                <!-- Only when a collector is configured. A fork with no VITE_SUBMIT_URL has no
-                     board to show, and a tab that opens onto an error is worse than no tab. -->
-                <button
-                  v-if="chainSearchStore.submitUrl"
-                  class="px-6 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-[0.15em] transition-all duration-300 flex items-center gap-2"
-                  :class="
-                    plannerTab === 'leaderboard'
-                      ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100'
-                      : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
-                  "
-                  @click="plannerTab = 'leaderboard'"
-                >
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
-                    />
-                  </svg>
-                  Leaderboard
-                </button>
-              </div>
-            </div>
-
             <!-- Plan Library Section -->
             <div v-if="playerId && plannerTab === 'manual'" class="max-w-6xl mx-auto mt-6">
               <PlanLibrary @plan-loaded="handlePlanLoaded" />
@@ -273,6 +200,73 @@
           </svg>
         </button>
       </div>
+
+      <!-- The site's tabs (lib/siteNav.ts has the names and addresses). Outside the header, which
+           folds away on the Auto Planner: the tabs are how you get anywhere, so they never hide. -->
+      <nav v-if="playerId" class="mt-4 space-y-3" aria-label="Site">
+        <div class="flex justify-center">
+          <div
+            class="bg-white p-1.5 rounded-2xl border border-slate-200/70 shadow-sm flex flex-wrap justify-center gap-1"
+          >
+            <button
+              v-for="t in topTabs"
+              :key="t.id"
+              type="button"
+              class="px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-[0.15em] transition-all duration-300"
+              :class="plannerTab === t.tab ? t.on : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'"
+              :aria-current="plannerTab === t.tab ? 'page' : undefined"
+              @click="goTo({ section: t.id, auto: autoView, depth: fastestDepth })"
+            >
+              {{ t.label }}
+            </button>
+          </div>
+        </div>
+
+        <template v-if="plannerTab === 'automatic'">
+          <div class="flex justify-center">
+            <div class="flex flex-wrap justify-center gap-1 border-b border-slate-200">
+              <button
+                v-for="v in autoTabs"
+                :key="v.id"
+                type="button"
+                :disabled="v.screen ? screenLocked(v.screen) : false"
+                :title="v.screen && screenLocked(v.screen) ? lockedTitle : undefined"
+                class="px-4 py-2 -mb-px border-b-2 text-[11px] font-black uppercase tracking-widest disabled:opacity-40 disabled:cursor-not-allowed"
+                :class="
+                  autoView === v.id
+                    ? 'border-indigo-600 text-indigo-700'
+                    : 'border-transparent text-slate-400 hover:text-slate-700'
+                "
+                @click="goAuto(v.id)"
+              >
+                {{ v.label }}
+              </button>
+            </div>
+          </div>
+
+          <!-- How thorough: one screen, two depths (the redesign's "Fastest route"). -->
+          <div v-if="autoView === 'fastest'" class="max-w-4xl mx-auto flex flex-wrap items-center gap-2">
+            <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">How thorough?</span>
+            <button
+              v-for="d in depths"
+              :key="d.id"
+              type="button"
+              :disabled="screenLocked(d.id)"
+              :title="screenLocked(d.id) ? lockedTitle : undefined"
+              class="px-3 py-1.5 rounded-lg border text-[10px] font-black uppercase tracking-widest disabled:opacity-40 disabled:cursor-not-allowed"
+              :class="
+                fastestDepth === d.id
+                  ? 'border-slate-800 bg-slate-800 text-white'
+                  : 'border-slate-200 bg-white text-slate-500 hover:text-slate-700'
+              "
+              @click="goAuto('fastest', d.id)"
+            >
+              {{ d.label }}
+            </button>
+            <span class="text-[11px] text-slate-500">{{ depths.find(d => d.id === fastestDepth)?.blurb }}</span>
+          </div>
+        </template>
+      </nav>
 
       <!-- Current Mode Label -->
       <div v-if="plannerTab === 'manual' && plannerModeLabel" class="mt-4 flex justify-center">
@@ -445,49 +439,17 @@
         </div>
       </div>
 
-      <!-- Insane mode. URL only (`?insane=1`), never linked: every knob on it overrides a default
-           that the main panel's measured accuracy figures were taken with.
-
-           NOT on the leaderboard tab. This branch heads the v-if chain below, so an unscoped
-           `insaneMode` made every later branch unreachable: with ?insane=1 set, clicking
-           Leaderboard moved the tab highlight and went on rendering the Insane panel, which read
-           as "the site only shows the insane calculator". Insane replaces Chain Search; it does
-           not replace the board. Excluded by name rather than pinned to the automatic tab so the
-           panel stays where it has always been -- visible as soon as a backup loads, without
-           having to find the right tab first. -->
-      <div v-if="insaneMode && plannerTab !== 'leaderboard' && playerId && !loading">
-        <InsanePanel :player-id="playerId" />
-      </div>
-
-      <div v-else-if="plannerTab === 'automatic' && playerId && !loading">
-        <!-- The header above is tall on first load, so on a laptop the tool opens below the fold
-             and the tab looks empty. Say what is down there before anyone starts scrolling. -->
-        <div
-          class="max-w-4xl mx-auto mt-4 rounded-2xl border border-indigo-100 bg-indigo-50/60 px-5 py-4 flex items-start gap-3"
-        >
-          <svg
-            class="w-5 h-5 flex-shrink-0 mt-0.5 text-indigo-500"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-          </svg>
-          <p class="text-xs text-indigo-900/80 leading-relaxed">
-            <span class="font-bold text-indigo-900"
-              >The beta AAAP (Auto Auto Ascension Planner) is below AAP (Auto Ascension Planner), so keep
-              scrolling.</span
-            >{{ ' ' }} <span class="font-semibold">Chain Search</span> sits under AAP. It takes the chain you typed and
-            spends hours of your CPU looking for a faster one, if your computer catches on fire please call 0118 999 881
-            99 9119 725 3 (for leagal and serious reasons this is a joke.)
-          </p>
-        </div>
-
-        <AutomaticPlanner />
-        <!-- Sits under the Auto Planner rather than in its own tab: it searches for a better
-             version of the very chain that form's Target TE field holds, and reads its plan start
-             from the same scheduling inputs. -->
-        <ChainSearchPanel :player-id="playerId" />
+      <!-- The Auto Planner's three screens. The full sweep and Highest TE by a date are one panel
+           (the one Insane mode was), so moving between them keeps what was typed in it. -->
+      <div v-if="plannerTab === 'automatic' && playerId && !loading" class="mt-4">
+        <AutomaticPlanner v-if="autoView === 'classic'" />
+        <ChainSearchPanel v-else-if="autoView === 'fastest' && fastestDepth === 'smart'" :player-id="playerId" />
+        <InsanePanel
+          v-else
+          :player-id="playerId"
+          :goal="autoView === 'by-date' ? 'deadline' : 'fastest'"
+          @update:goal="onInsaneGoal"
+        />
       </div>
 
       <div v-else-if="plannerTab === 'leaderboard'" class="max-w-6xl mx-auto mt-6">
@@ -496,6 +458,36 @@
              else's account becomes a claim about yours. The player id only picks which of this
              browser's owner codes asks for "my" runs; it is hashed locally and never sent. -->
         <LeaderboardPanel :player-id="playerId" @use="useLeaderboardChain" />
+      </div>
+
+      <!-- Science: for now, the way into the Explorer's two sections that belong here. They move
+           into this tab in a later step of the redesign. -->
+      <div v-else-if="plannerTab === 'science'" class="max-w-4xl mx-auto mt-6 space-y-4">
+        <p class="text-sm text-slate-600 leading-relaxed">
+          Nobody outside the game knows exactly how it works out a run. Every sweep players send in narrows it down.
+          Here's what we still need to check, and how to help.
+        </p>
+        <div class="grid gap-4 sm:grid-cols-2">
+          <a
+            :href="`${explorerHref}#help-fill-the-gaps`"
+            class="block rounded-2xl border border-slate-200 bg-white p-5 hover:border-indigo-300 hover:shadow-sm"
+          >
+            <h2 class="text-base font-black text-slate-900">What we need to check</h2>
+            <p class="mt-1 text-[12px] text-slate-600 leading-relaxed">
+              The questions still open, with a sweep for each one that your account could answer.
+            </p>
+          </a>
+          <a
+            :href="`${explorerHref}#submit-a-sweep`"
+            class="block rounded-2xl border border-slate-200 bg-white p-5 hover:border-indigo-300 hover:shadow-sm"
+          >
+            <h2 class="text-base font-black text-slate-900">Submit a sweep</h2>
+            <p class="mt-1 text-[12px] text-slate-600 leading-relaxed">
+              Ran a sweep and closed the tab, or ran it on another machine? Upload its two files.
+            </p>
+          </a>
+        </div>
+        <p class="text-[11px] text-slate-400">Both open in the Chain Explorer for now.</p>
       </div>
 
       <!-- Undo Confirmation Dialog -->
@@ -594,7 +586,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, h, type FunctionalComponent } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch, h, type FunctionalComponent } from 'vue';
+import {
+  NAMES,
+  canonicalUrl,
+  hashFor,
+  routeFromLocation,
+  type AutoView,
+  type Depth,
+  type Section,
+  type SiteRoute,
+} from '@/lib/siteNav';
 import { storeToRefs } from 'pinia';
 import TheNavBar from 'ui/components/NavBar.vue';
 import { getSavedPlayerID, savePlayerID, requestFirstContact, resolveColleggtibleContracts } from 'lib';
@@ -671,6 +673,7 @@ const chainSearchStore = useChainSearchStore();
  *  leaves the pricing to a run here. */
 function useLeaderboardChain(chain: number[]): void {
   chainSearchStore.applyChain(chain, false);
+  uiStore.autoView = 'classic';
   plannerTab.value = 'automatic';
 }
 const initialStateStore = useInitialStateStore();
@@ -679,68 +682,182 @@ const uiStore = useUIStore();
 const { plannerTab, isHeaderCollapsed, isFooterCollapsed, loading, error } = storeToRefs(uiStore);
 
 /**
- * Insane mode is reached only by URL: `?insane=1`, or `#insane` for a host that eats query strings.
- *
- * Read once at load rather than made reactive. It is a mode, not a toggle -- switching into it
- * mid-session while a search is running would leave two panels driving one store -- and a reload is
- * both the obvious way in and the obvious way out.
+ * Which tab is open, and its address (lib/siteNav.ts). The address follows every change, so a
+ * reload or a copied link opens the same screen; old `?insane=1` / `#deadline` links are read once
+ * and rewritten to the new address.
  */
-const insaneMode = ref(
-  (() => {
-    if (typeof window === 'undefined') return false;
-    const params = new URLSearchParams(window.location.search);
-    return params.get('insane') === '1' || window.location.hash.replace(/^#\/?/, '') === 'insane';
-  })()
-);
+const initialRoute = routeFromLocation(window.location.search, window.location.hash);
+const { autoView, fastestDepth } = storeToRefs(uiStore);
 
-// Insane mode's "Build this plan in the Auto Planner": leave Insane for the planner in place, so
-// the loaded save, the chain and its time-off cuts all carry over, and drop the flag from the URL
-// so a reload lands where the player now is.
+function currentRoute(): SiteRoute {
+  const section: Section =
+    plannerTab.value === 'automatic'
+      ? 'auto'
+      : plannerTab.value === 'leaderboard'
+        ? 'compare'
+        : plannerTab.value === 'science'
+          ? 'science'
+          : 'manual';
+  return { section, auto: autoView.value, depth: fastestDepth.value };
+}
+
+function applyRoute(r: SiteRoute): void {
+  autoView.value = r.auto;
+  fastestDepth.value = r.depth;
+  plannerTab.value =
+    r.section === 'auto'
+      ? 'automatic'
+      : r.section === 'compare'
+        ? 'leaderboard'
+        : r.section === 'science'
+          ? 'science'
+          : 'manual';
+}
+
+if (initialRoute) {
+  applyRoute(initialRoute);
+  window.history.replaceState(null, '', canonicalUrl(window.location.href, initialRoute));
+}
+
+// The address follows the tabs. Replaced, not pushed: Back leaves the site rather than stepping
+// through every tab clicked on the way.
+watch(
+  () => hashFor(currentRoute()),
+  hash => {
+    if (window.location.hash !== hash) window.history.replaceState(null, '', hash);
+  }
+);
+// A link inside the page (or an edited address) to another tab. Plain `#anchors` are not routes.
+function onHashChange(): void {
+  const r = routeFromLocation('', window.location.hash);
+  if (r) goTo(r);
+}
+onMounted(() => window.addEventListener('hashchange', onHashChange));
+onUnmounted(() => window.removeEventListener('hashchange', onHashChange));
+
+/**
+ * The search screen a running search belongs to. The searches share one store, so while one runs
+ * the other search screens are locked: Smart search's panel would otherwise show a full sweep's
+ * progress as its own. Classic, Manual and Compare stay open, as the other tabs always did.
+ */
+type SearchScreen = 'smart' | 'full' | 'by-date';
+function searchScreenOf(r: SiteRoute): SearchScreen | null {
+  if (r.section !== 'auto' || r.auto === 'classic') return null;
+  return r.auto === 'by-date' ? 'by-date' : r.depth;
+}
+const runningScreen = ref<SearchScreen | null>(null);
+watch(
+  () => chainSearchStore.busy,
+  busy => {
+    runningScreen.value = busy ? (searchScreenOf(currentRoute()) ?? runningScreen.value) : null;
+  }
+);
+function screenLocked(screen: SearchScreen): boolean {
+  return !!runningScreen.value && runningScreen.value !== screen;
+}
+
+/** Open a tab: a deliberate choice, so a backup finishing loading no longer pulls the page back. */
+function goTo(r: SiteRoute): void {
+  const screen = searchScreenOf(r);
+  if (screen && screenLocked(screen)) return;
+  pinnedRoute = null;
+  const enteringAuto = r.section === 'auto' && plannerTab.value !== 'automatic';
+  applyRoute(r);
+  if (enteringAuto) void handleAutoPlannerTabClick();
+}
+function goAuto(auto: AutoView, depth: Depth = fastestDepth.value): void {
+  goTo({ section: 'auto', auto, depth });
+}
+
+/** The Insane panel's own goal switch, when it asks (carrying on a fastest run from the date view). */
+function onInsaneGoal(g: 'fastest' | 'deadline'): void {
+  goAuto(g === 'deadline' ? 'by-date' : 'fastest', 'full');
+}
+
+// "Build this plan in the Auto Planner" from a search: Classic, in place, so the loaded save, the
+// chain and its time-off cuts all carry over.
 watch(
   () => uiStore.openPlannerRequested,
   () => {
-    insaneMode.value = false;
-    plannerTab.value = 'automatic';
-    const url = new URL(window.location.href);
-    url.searchParams.delete('insane');
-    url.hash = '';
-    window.history.replaceState(null, '', url.toString());
+    pinnedRoute = null;
+    applyRoute({ section: 'auto', auto: 'classic', depth: fastestDepth.value });
   }
 );
 
 /**
- * In Insane mode, land on the Auto Planner rather than on Manual.
+ * A link to a tab keeps the page there while the save loads.
  *
  * The tab defaults to Manual, and every path that finishes loading a backup or a plan sets it back
- * to Manual -- reasonable defaults for the normal app, and wrong for a URL whose entire purpose is
- * the exhaustive panel. Someone opening `?insane=1` had to find the right tab before seeing the
- * thing they came for.
- *
- * Driven off `loading` rather than set once at setup, because those handlers run AFTER a backup
- * finishes and would otherwise undo a one-shot switch. It only fires on the load finishing, so a
- * deliberate click on Manual afterwards is respected until the next load.
+ * to Manual -- reasonable for the Manual Planner, and wrong for a link whose whole purpose is another
+ * tab (every "Run this sweep" link). Driven off `loading` because those handlers run AFTER a backup
+ * finishes and would undo a one-shot switch. Only until the player picks a tab themselves.
  */
-if (insaneMode.value) {
-  plannerTab.value = 'automatic';
-  watch(loading, (now, before) => {
-    if (insaneMode.value && before && !now) plannerTab.value = 'automatic';
-  });
-}
+let pinnedRoute: SiteRoute | null = initialRoute && initialRoute.section !== 'manual' ? initialRoute : null;
+watch(loading, (now, before) => {
+  if (pinnedRoute && before && !now) applyRoute(pinnedRoute);
+});
 
 /**
- * In Insane mode, set the account up the way clicking the Auto Planner tab does.
+ * On a link into the Auto Planner, set the account up the way clicking its tab does.
  *
  * That click runs `initPlanFuture`, which is what fills the planner's working state from the save:
- * the starting TE, the current virtue farm, the plan's start. Insane mode shows its panel as soon
- * as a player is known and never went through that click -- so a tab opened straight onto
- * `?insane=1` (every Chain Explorer "Run this sweep" link) planned from TE 0 with no farm, and the
- * pre-flight refused it as "your virtue farm had not finished loading". Once per player id, so the
- * loading watcher does not re-run it, and never over a load already in progress.
+ * the starting TE, the current virtue farm, the plan's start. A tab opened straight onto a search
+ * never went through that click -- so a "Run this sweep" link planned from TE 0 with no farm, and
+ * the pre-flight refused it as "your virtue farm had not finished loading". Once per player id, so
+ * the loading watcher does not re-run it, and never over a load already in progress.
  */
-let insaneInitFor = '';
-async function initInsaneOnce(): Promise<void> {
-  if (!insaneMode.value || !playerId.value || loading.value || insaneInitFor === playerId.value) return;
-  insaneInitFor = playerId.value;
+const explorerHref = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/explorer.html`;
+
+const topTabs = computed(() => [
+  {
+    id: 'manual' as const,
+    tab: 'manual',
+    label: NAMES.manual,
+    on: 'bg-slate-900 text-white shadow-lg shadow-slate-200',
+  },
+  {
+    id: 'auto' as const,
+    tab: 'automatic',
+    label: NAMES.auto,
+    on: 'bg-indigo-600 text-white shadow-lg shadow-indigo-100',
+  },
+  // Only with a collector: a fork with no VITE_SUBMIT_URL has no board and no Explorer.
+  ...(chainSearchStore.submitUrl
+    ? [
+        {
+          id: 'compare' as const,
+          tab: 'leaderboard',
+          label: NAMES.compare,
+          on: 'bg-emerald-600 text-white shadow-lg shadow-emerald-100',
+        },
+        {
+          id: 'science' as const,
+          tab: 'science',
+          label: NAMES.science,
+          on: 'bg-amber-600 text-white shadow-lg shadow-amber-100',
+        },
+      ]
+    : []),
+]);
+const autoTabs: { id: AutoView; label: string; screen: SearchScreen | null }[] = [
+  { id: 'classic', label: NAMES.classic, screen: null },
+  { id: 'fastest', label: NAMES.fastest, screen: null },
+  { id: 'by-date', label: NAMES.byDate, screen: 'by-date' },
+];
+const depths: { id: Depth; label: string; blurb: string }[] = [
+  { id: 'smart', label: NAMES.smart, blurb: 'Starts from your chain and looks around it. Minutes.' },
+  {
+    id: 'full',
+    label: NAMES.full,
+    blurb: 'Prices every route in a box you set, so its winner is the best there. Hours.',
+  },
+];
+const lockedTitle = 'A search is running on another screen. Stop it there first.';
+
+let autoInitFor = '';
+async function initAutoOnce(): Promise<void> {
+  if (plannerTab.value !== 'automatic' || !playerId.value || loading.value || autoInitFor === playerId.value) return;
+  autoInitFor = playerId.value;
   await handleAutoPlannerTabClick();
 }
 const virtueStore = useVirtueStore();
@@ -869,8 +986,8 @@ onMounted(async () => {
     actionsStore.pushWaitForFullHabsAction();
   }
 
-  // A saved player id on a ?insane=1 page: set it up now rather than waiting for a tab click.
-  await initInsaneOnce();
+  // A saved player id on a link into the Auto Planner: set it up now rather than waiting for a click.
+  await initAutoOnce();
 });
 
 // Auto-save logic
@@ -1163,8 +1280,8 @@ async function submitPlayerId(id: string) {
     console.error('Error fetching player data:', e);
     return;
   }
-  // A player id typed on a ?insane=1 page: same set-up as the Auto Planner tab click.
-  await initInsaneOnce();
+  // A player id typed on a link into the Auto Planner: same set-up as the tab click.
+  await initAutoOnce();
 }
 
 /**

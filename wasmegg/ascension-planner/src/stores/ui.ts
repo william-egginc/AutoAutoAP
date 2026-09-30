@@ -1,8 +1,15 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
+import type { AutoView, Depth } from '@/lib/siteNav';
+
+export type PlannerTab = 'manual' | 'automatic' | 'leaderboard' | 'science';
 
 export const useUIStore = defineStore('ui', () => {
-  const plannerTab = ref<'manual' | 'automatic' | 'leaderboard'>('manual');
+  /** The top tab (lib/siteNav.ts has the names and addresses): Manual, Auto, Compare, Science. */
+  const plannerTab = ref<PlannerTab>('manual');
+  /** Which Auto Planner screen, and how thorough the fastest-route one is. */
+  const autoView = ref<AutoView>('classic');
+  const fastestDepth = ref<Depth>('smart');
   const isHeaderCollapsed = ref(false);
   const isFooterCollapsed = ref(false);
   const loading = ref(false);
@@ -22,12 +29,12 @@ export const useUIStore = defineStore('ui', () => {
    * on an interrupted run loads the save it started with. Cleared by the next fresh fetch.
    */
   const runSaveLoaded = ref<{ te: number; backupAt: number } | null>(null);
-  /** Bumped to ask App.vue to leave Insane mode for the Auto Planner, in place (no reload). */
+  /** Bumped to ask App.vue to open Classic with the chain a search just applied, in place (no reload). */
   const openPlannerRequested = ref(0);
   /** Bumped to ask App.vue to fetch the backup again (it owns the fetch). */
   const backupRetryRequested = ref(0);
 
-  function setActiveTab(tab: 'manual' | 'automatic' | 'leaderboard') {
+  function setActiveTab(tab: PlannerTab) {
     plannerTab.value = tab;
   }
 
@@ -45,6 +52,8 @@ export const useUIStore = defineStore('ui', () => {
 
   return {
     plannerTab,
+    autoView,
+    fastestDepth,
     isHeaderCollapsed,
     isFooterCollapsed,
     loading,

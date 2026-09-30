@@ -239,8 +239,8 @@
             scan that picks one for you. Its own answer measured
             <span class="font-bold text-slate-800">8.6 and 12.0 days</span> off the final result on the two accounts
             tested. When it picks badly, every later stage does a careful job on the wrong hill. To catch that, run
-            twice from different starting chains and compare the answers, or use Insane mode, which prices every chain
-            in a space you choose.
+            twice from different starting chains and compare the answers, or use the {{ NAMES.full }}, which prices
+            every chain in a space you choose.
           </p>
           <p class="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-[11px] leading-relaxed text-amber-800">
             What you get out of this is a strong local optimum. It has never been proven to be the global one, and the
@@ -305,6 +305,7 @@
 </template>
 
 <script setup lang="ts">
+import { NAMES } from '@/lib/siteNav';
 import { reactive } from 'vue';
 import ChainMathFigure from './charts/ChainMathFigure.vue';
 import { DISTRIBUTION, SAWTOOTH_STATS, SEED_SENSITIVITY } from '@/lib/charts/chainSearchMath';

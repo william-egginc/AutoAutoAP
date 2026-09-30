@@ -376,8 +376,8 @@
           including Egg Day's own.
         </p>
         <p v-else class="text-[11px] text-indigo-900/80 leading-relaxed">
-          The highest TE each player can reach by any other date, from Insane mode's
-          <span class="font-bold">Highest TE by a date</span> search, one table per deadline. Dates are in your timezone
+          The highest TE each player can reach by any other date, from the Auto Planner's
+          <span class="font-bold">{{ NAMES.byDate }}</span> search, one table per deadline. Dates are in your timezone
           ({{ viewZone }}). Players are ranked by the TE they reach, then by time to spare, using each player's best
           answer. Egg Day {{ eggDayYear }} has its own tab.
         </p>
@@ -422,7 +422,7 @@
           No answers in these categories.
         </p>
         <p v-else-if="!shownDates.length" class="text-[11px] text-indigo-900/60 py-6 text-center">
-          No answers yet. Run Insane mode's Highest TE by a date<template v-if="tab === 'eggday'">
+          No answers yet. Run {{ NAMES.byDate }} in the Auto Planner<template v-if="tab === 'eggday'">
             with the Egg Day preset</template
           >
           and use <span class="font-semibold">Share this answer</span>.
@@ -786,6 +786,7 @@
 </template>
 
 <script setup lang="ts">
+import { NAMES } from '@/lib/siteNav';
 import { describeFetchError } from '@/utils/errors';
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
