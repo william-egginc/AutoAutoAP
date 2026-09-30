@@ -204,6 +204,23 @@ function tableTooLargeMessage(size: string): string {
   return `sent, but the table is too large for the board (${size} compressed, limit 8 MB). The summary is in. Keep the table with Download CSV and send the file to whoever runs the board; retrying will not help.`;
 }
 
+/** What the progress bar shows for the run going now (see `runProgress`). */
+export interface RunProgress {
+  kind: 'smart' | 'full' | 'by-date' | 'start-times';
+  stage: string;
+  done: number;
+  /** Null when the run has no estimate; never below `done`. */
+  total: number | null;
+  unit: string;
+  /** Seconds, from a measured rate; null when this kind has none (the bar estimates from pace). */
+  secondsLeft: number | null;
+  /** Date.now() when it started. */
+  startedAt: number;
+  stopping: boolean;
+  /** The best so far: its route, the TE it reaches, and when (unix seconds). */
+  best: { chain: number[]; te: number; at: number } | null;
+}
+
 export const useChainSearchStore = defineStore('chainSearch', () => {
   const effort = ref<EffortTier>('balanced');
   const finalTE = ref(490);
@@ -440,6 +457,23 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     at: number;
   } | null>(null);
   let startSweepPool: ChainSearchPool | null = null;
+
+  /**
+   * A Full sweep's multi-chain click (InsanePanel): which chain is running (-1 for none), of how
+   * many, whether Stop asked the rest not to start, and what the finished ones found. In the store
+   * rather than the panel, because the panel now closes whenever the player looks at another tab
+   * (the unified layout) and the queue keeps going; back on the Full sweep, the panel shows it.
+   */
+  const sweepQueue = ref<{
+    at: number;
+    total: number;
+    cancelled: boolean;
+    results: { label: string; chain: number[]; days: number; stopped: boolean; finish: number }[];
+  }>({ at: -1, total: 0, cancelled: false, results: [] });
+
+  /** Set by the panel that started the run when it will send the result itself at the end (Find and
+   *  submit), so the progress bar on other tabs can say so. */
+  const submitsWhenDone = ref(false);
   // Any other load replacing the carried-on run's save (the header's refresh, Plan Next, a plan
   // from the library...) ends "on the run's own save": drop the notice and the run's pinned start.
   watch(
@@ -3448,6 +3482,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   ): Promise<void> {
     const schedule = isConstrained(inputs.availability) ? inputs.availability : null;
     deadlineRunning.value = true;
+    deadlineEstimate.value = Math.max(0, Math.floor(spec.estimate ?? 0));
     deadlineStop = false;
     deadlineResult.value = null;
     deadlineUnfinished.value = null;
@@ -3636,6 +3671,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
 
   /** When the current deadline run started, and routes finished inside the batch in flight. */
   const deadlineStartedAt = ref(0);
+  /** The panel's estimate of routes to price (spec.estimate), for progress shown off its screen. */
+  const deadlineEstimate = ref(0);
   const deadlineInBatch = ref(0);
   /** Every route the last run found (each shape's best), for the CSV. Not persisted: large. */
   let deadlineAll: DeadlineRoute[] = [];
@@ -4196,6 +4233,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   function stop(): void {
     stopRequested.value = true;
     stage.value = 'stopping after the current batch...';
+    // A queued Full sweep stops after this chain whichever Stop was pressed (the panel's, or the
+    // progress bar's on another tab, where the panel isn't there to hear it).
+    if (sweepQueue.value.at >= 0) sweepQueue.value.cancelled = true;
   }
 
   /**
@@ -4387,7 +4427,80 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     await pruneSaves(null);
   }
 
+  /**
+   * One reading of whatever search is running, the same shape for all four kinds, for the progress
+   * bar that follows the player across tabs (RunProgressBar.vue). They already shared this store,
+   * the worker pool and the simulator; what differed was where each kept its count: Smart search and
+   * the Full sweep in chainsDone/chainsEstimated (the sweep also counts the chunk in flight), a date
+   * search in deadlineProgress with its estimate in its panel, and a start-time sweep in startSweep.
+   * Time left is only here for the chain searches (a measured s/chain); the bar works the others out
+   * from how fast they've gone so far. Null when nothing is running.
+   */
+  const runProgress = computed<RunProgress | null>(() => {
+    if (startSweepRunning.value && startSweep.value) {
+      const sw = startSweep.value;
+      return {
+        kind: 'start-times',
+        stage: `trying ${sw.chain.join(' ')} from each start`,
+        done: sw.done,
+        total: sw.total || null,
+        unit: 'start times',
+        secondsLeft: null,
+        startedAt: sw.at,
+        stopping: false,
+        best: null,
+      };
+    }
+    if (deadlineRunning.value) {
+      const p = deadlineProgress.value;
+      const done = (p?.priced ?? 0) + deadlineInBatch.value;
+      const best = p?.best ?? null;
+      return {
+        kind: 'by-date',
+        stage: p?.stage ?? '',
+        done,
+        total: deadlineEstimate.value ? Math.max(deadlineEstimate.value, done) : null,
+        unit: 'routes',
+        secondsLeft: null,
+        startedAt: deadlineStartedAt.value,
+        stopping: false,
+        best: best ? { chain: [...best.chain], te: best.chain[best.chain.length - 1], at: best.reachAt } : null,
+      };
+    }
+    if (isRunning.value) {
+      const full = !!searchSpace.value;
+      const done = chainsDone.value + (full ? batchDone.value : 0);
+      return {
+        kind: full ? 'full' : 'smart',
+        stage: stage.value,
+        done,
+        total: chainsEstimated.value ? Math.max(chainsEstimated.value, done) : null,
+        unit: 'chains',
+        secondsLeft: secondsRemaining.value || null,
+        startedAt: startedAt.value,
+        stopping: stopRequested.value,
+        best:
+          bestDays.value > 0
+            ? { chain: [...bestChain.value], te: finalTE.value, at: planStart.value + bestDays.value * 86400 }
+            : null,
+      };
+    }
+    return null;
+  });
+
+  /** Stop whatever is running, keeping its best so far: one Stop for the bar, whichever kind it is. */
+  function stopRun(): void {
+    if (startSweepRunning.value) stopStartSweep();
+    else if (deadlineRunning.value) stopDeadline();
+    else if (isRunning.value) stop();
+  }
+
   return {
+    runProgress,
+    stopRun,
+    sweepQueue,
+    submitsWhenDone,
+    deadlineEstimate,
     // settings
     effort,
     finalTE,

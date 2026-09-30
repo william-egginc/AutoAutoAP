@@ -203,6 +203,10 @@
 
       <!-- The site's tabs (lib/siteNav.ts has the names and addresses). Outside the header, which
            folds away on the Auto Planner: the tabs are how you get anywhere, so they never hide. -->
+      <!-- The search that's running, on every tab but its own (RunProgressBar.vue), so looking at
+           the leaderboard or Classic mid-run doesn't mean losing sight of it or its Stop. -->
+      <RunProgressBar v-if="showRunBar" class="mt-4" @show="showRun" />
+
       <nav v-if="playerId" class="mt-4 space-y-3" aria-label="Site">
         <div class="flex justify-center">
           <div
@@ -613,6 +617,7 @@ import PlanLibrary from '@/components/PlanLibrary.vue';
 import PlanSelectionDialog from '@/components/PlanSelectionDialog.vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { safeAsyncComponent } from '@/lib/import';
+import RunProgressBar from '@/components/auto/RunProgressBar.vue';
 import { useSalesStore } from '@/stores/sales';
 import { hashID, saveMetadata, loadMetadata } from '@/lib/storage/db';
 import { useActionExecutor } from '@/composables/useActionExecutor';
@@ -751,6 +756,25 @@ watch(
 );
 function screenLocked(screen: SearchScreen): boolean {
   return !!runningScreen.value && runningScreen.value !== screen;
+}
+
+/**
+ * The screen the running search belongs to, for the progress bar: the one it was started from, or,
+ * for a run that started elsewhere (a carry-on from another screen), the one its kind lives on.
+ */
+const runScreen = computed<SearchScreen | null>(() => {
+  const kind = chainSearchStore.runProgress?.kind;
+  if (!kind) return null;
+  if (runningScreen.value) return runningScreen.value;
+  if (kind === 'by-date' || kind === 'full' || kind === 'smart') return kind;
+  return fastestDepth.value;
+});
+/** On every screen but the run's own, where the panel shows its progress in full. */
+const showRunBar = computed(() => !!runScreen.value && searchScreenOf(currentRoute()) !== runScreen.value);
+function showRun(): void {
+  const s = runScreen.value;
+  if (s === 'by-date') goAuto('by-date');
+  else if (s) goAuto('fastest', s);
 }
 
 /** Open a tab: a deliberate choice, so a backup finishing loading no longer pulls the page back. */

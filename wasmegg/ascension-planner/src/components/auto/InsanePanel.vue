@@ -1095,7 +1095,7 @@
           class="rounded-xl border border-slate-200 bg-white p-4 space-y-2"
         >
           <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-            <template v-if="queueAt >= 0">Running chain {{ queueAt + 1 }} of {{ extraChains.length + 1 }}</template>
+            <template v-if="queueAt >= 0">Running chain {{ queueAt + 1 }} of {{ store.sweepQueue.total }}</template>
             <template v-else>All chains from the last click</template>
           </p>
           <div v-if="queueResults.length" class="overflow-x-auto">
@@ -1941,7 +1941,12 @@ function specOfExtra(k: number): ReturnType<typeof currentSpec> {
 }
 
 /** What each chain of a multi-chain click found, for the table under the result. */
-const queueResults = ref<{ label: string; chain: number[]; days: number; stopped: boolean; finish: number }[]>([]);
+/** The queue lives in the store (sweepQueue), so it keeps going, and shows again, when this panel
+ *  closes for another tab and opens again. */
+const queueResults = computed({
+  get: () => store.sweepQueue.results,
+  set: v => (store.sweepQueue.results = v),
+});
 // The table is the last click's; a single run or an opened run afterwards takes the panel over.
 watch(
   () => store.isRunning,
@@ -1949,7 +1954,10 @@ watch(
     if (running && queueAt.value < 0) queueResults.value = [];
   }
 );
-const queueAt = ref(-1);
+const queueAt = computed({
+  get: () => store.sweepQueue.at,
+  set: v => (store.sweepQueue.at = v),
+});
 
 /**
  * Chains finished, counting the chunk in flight.
@@ -2121,10 +2129,13 @@ const findAndSubmit = ref(false);
 /** Find; with `andSubmit`, each finished result is sent as Share this result would send it. */
 async function start(andSubmit = false): Promise<void> {
   findAndSubmit.value = andSubmit && optIn.value;
+  // For the progress bar on other tabs: this run sends itself when it finishes.
+  store.submitsWhenDone = findAndSubmit.value || (!!sweepRequest && sweepConsent.value);
   try {
     await startOne();
   } finally {
     findAndSubmit.value = false;
+    store.submitsWhenDone = false;
   }
 }
 
@@ -2172,11 +2183,12 @@ async function startQueue(): Promise<void> {
       spec: specOfExtra(k),
     })),
   ];
+  store.sweepQueue.total = specs.length;
   const fail = (label: string, why: string) =>
     queueResults.value.push({ label: `${label}: ${why}`, chain: [], days: 0, stopped: true, finish: 0 });
   try {
     for (let k = 0; k < specs.length; k++) {
-      // Stopped between chains, the panel gone, or another account loaded: the rest don't run.
+      // Stopped between chains, or another account loaded: the rest don't run.
       if (queueCancelled.value || props.playerId !== player) break;
       // Anything else going (a carry-on clicked between chains) and `startExhaustive` returns without
       // a word -- and the row would be filled with that run's result.
@@ -2224,15 +2236,19 @@ async function startQueue(): Promise<void> {
   }
 }
 
-/** Set by Stop, and by the panel going away: the queue checks it between chains. */
-const queueCancelled = ref(false);
+/** Set by Stop (the store's stop() sets it too, for the progress bar's): the queue checks it between
+ *  chains. No longer set by the panel going away: with the planner's tabs that happens whenever
+ *  someone looks at the leaderboard, and the queue is meant to keep going. */
+const queueCancelled = computed({
+  get: () => store.sweepQueue.cancelled,
+  set: v => (store.sweepQueue.cancelled = v),
+});
 watch(
   () => store.stopRequested,
   v => {
     if (v && queueAt.value >= 0) queueCancelled.value = true;
   }
 );
-onUnmounted(() => (queueCancelled.value = true));
 function stopRun(): void {
   if (queueAt.value >= 0) queueCancelled.value = true;
   if (store.isRunning) store.stop();

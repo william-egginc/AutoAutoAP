@@ -1871,9 +1871,15 @@ const autoSubmitted = ref(false);
 async function run(resume: boolean, andSubmit = false): Promise<void> {
   const armed = andSubmit && optIn.value;
   autoSubmitted.value = false;
+  // For the progress bar on other tabs: this run sends itself when it finishes.
+  store.submitsWhenDone = armed;
   // Armed: the run sends itself at the end, so its last seconds may re-price the player's best
   // earlier plans on the workers before they are shut down (the store's "re-checks").
-  await store.start(props.playerId, { resume, recheck: armed });
+  try {
+    await store.start(props.playerId, { resume, recheck: armed });
+  } finally {
+    store.submitsWhenDone = false;
+  }
   if (!armed || store.stoppedEarly || store.error || store.bestDays <= 0) return;
   includeCsv.value = true;
   optIn.value = true;

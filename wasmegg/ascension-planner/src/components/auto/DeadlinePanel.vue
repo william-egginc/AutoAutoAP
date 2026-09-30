@@ -999,9 +999,12 @@ const autoShare = ref(false);
 /** Find, and with `andSubmit` share the best answer at the end (not when stopped early or failed). */
 async function start(andSubmit: boolean): Promise<void> {
   autoShare.value = andSubmit && shareOptIn.value;
+  // For the progress bar on other tabs: this run shares its answer when it finishes.
+  store.submitsWhenDone = autoShare.value;
   try {
     await find();
   } finally {
+    store.submitsWhenDone = false;
     const go = autoShare.value;
     autoShare.value = false;
     if (go && result.value && best.value && !result.value.stoppedEarly && !store.error) await share();
