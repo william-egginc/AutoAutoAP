@@ -66,7 +66,10 @@
     <span class="font-black uppercase tracking-wide"
       >{{ store.integrityNotice.blocked ? "This account can't be planned yet" : 'This account stalls' }}.</span
     >
-    {{ store.integrityNotice.text }}
+    <template v-for="(part, i) in noticeParts" :key="i"
+      ><b v-if="part.bold" class="font-black">{{ part.text }}</b
+      ><template v-else>{{ part.text }}</template></template
+    >
   </div>
 </template>
 
@@ -76,10 +79,14 @@ import BlackBoxNotice from './BlackBoxNotice.vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useInitialStateStore } from '@/stores/initialState';
 import { useUIStore } from '@/stores/ui';
+import { integrityHighlights } from '@/search/rules';
 
 const store = useChainSearchStore();
 const ui = useUIStore();
 const initialState = useInitialStateStore();
+const noticeParts = computed(() =>
+  store.integrityNotice ? integrityHighlights(store.integrityNotice.text, store.integrityWait) : []
+);
 
 /** "3 hours ago" for the copy in use, from the save's own backup time. Empty when it has none. */
 const savedAgo = computed(() => {

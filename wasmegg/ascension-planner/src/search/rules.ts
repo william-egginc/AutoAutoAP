@@ -128,6 +128,35 @@ export function cteAdvice(c: CteParts | null | undefined): string {
   );
 }
 
+/**
+ * The message cut into plain and bold pieces for display: the wait and "Nobody really waits that
+ * long" stand out (the user, 30 Sept). The text itself stays one plain string for errors and notes.
+ */
+export function integrityHighlights(text: string, seconds: number | null): { text: string; bold: boolean }[] {
+  const marks = [seconds ? describeDuration(seconds) : '', 'Nobody really waits that long'].filter(Boolean);
+  const out: { text: string; bold: boolean }[] = [];
+  let rest = text;
+  while (rest) {
+    let at = -1;
+    let hit = '';
+    for (const m of marks) {
+      const i = rest.indexOf(m);
+      if (i >= 0 && (at < 0 || i < at)) {
+        at = i;
+        hit = m;
+      }
+    }
+    if (at < 0) {
+      out.push({ text: rest, bold: false });
+      break;
+    }
+    if (at > 0) out.push({ text: rest.slice(0, at), bold: false });
+    out.push({ text: hit, bold: true });
+    rest = rest.slice(at + hit.length);
+  }
+  return out;
+}
+
 export function integrityMessage(seconds: number, cte?: CteParts | null): string {
   const blocked = seconds > INTEGRITY_BLOCK_SECONDS;
   const wait = describeDuration(seconds);

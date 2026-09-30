@@ -18,7 +18,12 @@
       <p id="integrity-alert-title" class="text-[11px] font-black uppercase tracking-widest text-rose-800">
         This account can't be planned yet
       </p>
-      <p class="text-[13px] leading-relaxed text-slate-700">{{ store.integrityNotice?.text }}</p>
+      <p class="text-[13px] leading-relaxed text-slate-700">
+        <template v-for="(part, i) in parts" :key="i"
+          ><b v-if="part.bold" class="font-black text-slate-900">{{ part.text }}</b
+          ><template v-else>{{ part.text }}</template></template
+        >
+      </p>
       <div class="flex flex-wrap justify-end gap-3 pt-1">
         <button
           ref="okButton"
@@ -37,12 +42,14 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useInitialStateStore } from '@/stores/initialState';
+import { integrityHighlights } from '@/search/rules';
 
 const store = useChainSearchStore();
 const initialState = useInitialStateStore();
 /** The account and TE this was last dismissed for: the same one isn't asked about twice. */
 const dismissedFor = ref('');
 const okButton = ref<HTMLButtonElement | null>(null);
+const parts = computed(() => integrityHighlights(store.integrityNotice?.text ?? '', store.integrityWait));
 
 const key = computed(() => `${initialState.playerId}|${Math.floor(store.currentTE)}`);
 const open = computed(() => !!store.integrityNotice?.blocked && dismissedFor.value !== key.value);

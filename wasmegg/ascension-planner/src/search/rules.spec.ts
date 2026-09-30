@@ -82,3 +82,13 @@ describe('an account past the usual line but still blocked', () => {
     expect(msg).not.toMatch(/come back/);
   });
 });
+
+describe('the message, with its two key phrases picked out', () => {
+  it('bolds the wait and "Nobody really waits that long", and loses no text', async () => {
+    const { integrityMessage, integrityHighlights } = await import('./rules');
+    const text = integrityMessage(483 * 86400);
+    const parts = integrityHighlights(text, 483 * 86400);
+    expect(parts.map(p => p.text).join('')).toBe(text);
+    expect(parts.filter(p => p.bold).map(p => p.text)).toEqual(['483 days', 'Nobody really waits that long']);
+  });
+});
