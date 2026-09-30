@@ -73,7 +73,7 @@ import { computed } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useUIStore } from '@/stores/ui';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
-import { formatInZone } from '@/search/csv';
+import { showDateTime } from '@/lib/displayTime';
 
 const store = useChainSearchStore();
 const ui = useUIStore();
@@ -81,7 +81,7 @@ const planner = useAutoPlannerStore();
 
 function when(unixSeconds: number): string {
   if (!unixSeconds) return 'an unknown time';
-  return formatInZone(unixSeconds, planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
+  return showDateTime(unixSeconds, planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
 }
 
 /** Fastest on the latest save first; the ones that could not be priced last. */

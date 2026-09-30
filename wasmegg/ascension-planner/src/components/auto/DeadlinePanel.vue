@@ -633,6 +633,7 @@ import type { DeadlineRunSpec } from '@/search/deadlineStore';
 import { downloadCsv } from '@/utils/export';
 import { useEidsStore } from 'lib';
 import { eggDayYearOf, nextEggDayYear } from '@/lib/eggDay';
+import { showDateTime } from '@/lib/displayTime';
 import IntegrityNotice from './IntegrityNotice.vue';
 import SafariNotice from './SafariNotice.vue';
 
@@ -1069,7 +1070,7 @@ const best = computed(() => result.value?.routes[0] ?? null);
 const atCeiling = computed(() => !!best.value && best.value.chain[best.value.chain.length - 1] >= result.value!.lastHi);
 
 function inPlannerZone(unixSeconds: number): string {
-  return formatInZone(unixSeconds, plannerZone.value);
+  return showDateTime(unixSeconds, plannerZone.value);
 }
 function spareLabel(seconds: number): string {
   if (seconds < 3600) return `${Math.max(0, Math.round(seconds / 60))} min`;

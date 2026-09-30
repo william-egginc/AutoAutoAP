@@ -565,25 +565,25 @@
           <div class="flex flex-wrap items-center gap-3">
             <label class="flex items-center gap-2 text-[11px] font-bold text-slate-600">
               From
-              <input
+              <select
                 v-model.number="store.availableFrom"
-                type="number"
-                min="0"
-                max="23"
                 :disabled="store.isRunning"
-                class="w-20 rounded-lg border-slate-200 text-sm font-bold text-slate-800 disabled:bg-slate-50 disabled:text-slate-500"
-              />
+                class="rounded-lg border-slate-200 text-sm font-bold text-slate-800 disabled:bg-slate-50 disabled:text-slate-500"
+              >
+                <option v-for="h in 24" :key="h - 1" :value="h - 1">{{ showHour(h - 1) }}</option>
+              </select>
             </label>
             <label class="flex items-center gap-2 text-[11px] font-bold text-slate-600">
               to
-              <input
+              <select
                 v-model.number="store.availableTo"
-                type="number"
-                min="0"
-                max="23"
                 :disabled="store.isRunning"
-                class="w-20 rounded-lg border-slate-200 text-sm font-bold text-slate-800 disabled:bg-slate-50 disabled:text-slate-500"
-              />
+                class="rounded-lg border-slate-200 text-sm font-bold text-slate-800 disabled:bg-slate-50 disabled:text-slate-500"
+              >
+                <option v-for="h in 24" :key="h - 1" :value="h - 1">
+                  {{ showHour(h - 1) }}{{ h - 1 < store.availableFrom ? ' (next day)' : '' }}
+                </option>
+              </select>
             </label>
             <div class="flex flex-wrap gap-1">
               <button
@@ -608,7 +608,7 @@
           <p v-if="store.scheduleIsEmpty" class="text-[11px] font-semibold text-amber-700">
             Every day, all hours: that is no restriction at all, and it will be recorded as no schedule.
           </p>
-          <p v-else class="text-[11px] text-slate-500">{{ store.availabilityLabel }}</p>
+          <p v-else class="text-[11px] text-slate-500">{{ scheduleText(store.availability) }}</p>
         </div>
 
         <!-- Locked mid-run, and said out loud. These are inputs to the OBJECTIVE, not filters over
@@ -701,6 +701,7 @@
         </div>
         <!-- Always showing, in both goals: the other worker control sits in the fastest view's space settings. -->
         <WorkerSlider />
+        <DateStyleToggle />
         <dl v-if="showMachine" class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-[11px]">
           <div>
             <dt class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Logical cores</dt>
@@ -1845,6 +1846,8 @@ import HelpTip from './HelpTip.vue';
 import TimeOffEditor from './TimeOffEditor.vue';
 import BackgroundSpeed from './BackgroundSpeed.vue';
 import WorkerSlider from './WorkerSlider.vue';
+import DateStyleToggle from './DateStyleToggle.vue';
+import { showDateTime, showDay, showHour, showSchedule as scheduleText } from '@/lib/displayTime';
 import { sweepSeconds, workerSecondsFromRate, workerSecondsPerChain } from '@/search/speed';
 import { describeCompute } from '@/utils/computeTime';
 import IntegrityNotice from './IntegrityNotice.vue';
@@ -2123,8 +2126,8 @@ const CHEVRON_RIGHT = 'M4 2l4 4-4 4';
 const CHEVRON_DOWN = 'M2 4l4 4 4-4';
 
 const scheduleSummary = computed(() => {
-  const when = store.planStartIsNow ? 'no start set' : `from ${autoPlannerStore.startDate}`;
-  return `${when} · ${store.scheduleEnabled ? store.availabilityLabel : 'any hour'}`;
+  const when = store.planStartIsNow ? 'no start set' : `from ${showDay(autoPlannerStore.startDate)}`;
+  return `${when} · ${store.scheduleEnabled ? scheduleText(store.availability) : 'any hour'}`;
 });
 /** The time off this run is planned around, or '' for none. */
 const timeOffText = computed(() => (usableTimeOff(store.timeOff).length ? describeTimeOff(store.timeOff) : ''));
@@ -2703,7 +2706,7 @@ function buildPlan(): void {
 
 function saveWhen(unixSeconds: number | undefined): string {
   if (!unixSeconds) return 'an unknown time';
-  return formatInZone(unixSeconds, autoPlannerStore.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
+  return showDateTime(unixSeconds, autoPlannerStore.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
 }
 
 function agoLabel(ms: number): string {

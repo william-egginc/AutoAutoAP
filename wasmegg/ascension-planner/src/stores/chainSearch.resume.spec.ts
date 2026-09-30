@@ -80,7 +80,8 @@ describe('chainSearch: resuming after a reload', () => {
     await store.checkResumable('P');
     expect(store.crashedRun).not.toBeNull();
     expect(store.blockedCheckpoint).toBeNull();
-    expect(store.planStartRestoreNote(store.crashedRun?.fingerprint)).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/);
+    // Shown in the player's chosen date style (lib/displayTime.ts): the run's own day, whichever.
+    expect(store.planStartRestoreNote(store.crashedRun?.fingerprint)).toMatch(/2026/);
   });
 
   it('pins the start to the second, and lets go when the player types a different one', async () => {

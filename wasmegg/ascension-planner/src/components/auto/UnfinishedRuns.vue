@@ -42,7 +42,7 @@
 import { computed, ref } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
-import { formatInZone } from '@/search/csv';
+import { showDateTime } from '@/lib/displayTime';
 
 const props = defineProps<{
   playerId: string;
@@ -80,7 +80,7 @@ async function carryOn(index: number): Promise<void> {
 
 function when(unixSeconds: number): string {
   if (!unixSeconds) return 'an unknown time';
-  return formatInZone(unixSeconds, planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
+  return showDateTime(unixSeconds, planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
 }
 
 function ago(ms: number): string {

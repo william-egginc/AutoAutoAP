@@ -55,6 +55,7 @@ import {
   virtueInventory,
   type InventoryCount,
 } from '@/search/csv';
+import { showDateTime } from '@/lib/displayTime';
 import { type ShortlistRow } from '@/search/shortlist';
 import { buildView, type ViewId } from '@/search/views';
 import {
@@ -859,7 +860,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   function planStartRestoreNote(fp: string | undefined): string | null {
     const ts = fingerprintPlanStart(fp);
     if (!ts || ts === planStart.value) return null;
-    return formatInZone(ts, planTimezone());
+    return showDateTime(ts, planTimezone());
   }
 
   /**
@@ -4126,7 +4127,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         ...(planner.startDate && planner.startTime ? { start: `${planner.startDate} ${planner.startTime}` } : {}),
       };
       const tz = planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
-      const stops = Object.keys(ends).map(i => `A${+i + 1} ends ${formatInZone(ends[+i], tz)} at ${legs[+i].endTE} TE`);
+      const stops = Object.keys(ends).map(i => `A${+i + 1} ends ${showDateTime(ends[+i], tz)} at ${legs[+i].endTE} TE`);
       applyNote.value = `The plan includes your time off: ${stops.join('; ')}, and the ascension after each starts when the time off is over.`;
     } else {
       planner.targetTE = key.split(',').join(' ');

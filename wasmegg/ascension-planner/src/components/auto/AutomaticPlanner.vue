@@ -342,7 +342,7 @@ import { useVirtueStore } from '@/stores/virtue';
 import { useTruthEggsStore } from '@/stores/truthEggs';
 import { useAscensionGenerator } from '@/auto/useAscensionGenerator';
 import { useChainSearchStore } from '@/stores/chainSearch';
-import { formatInZone } from '@/search/csv';
+import { showDateTime } from '@/lib/displayTime';
 import { useEarningsClothedTE } from '@/composables/useEarningsClothedTE';
 import { loadAutoPlannerSchedule, saveAutoPlannerSchedule } from '@/lib/autoPlannerFormCache';
 import { useBackupPlanStart } from '@/composables/useBackupPlanStart';
@@ -485,8 +485,8 @@ const timeOffInPlan = computed(() => {
   if (c.start && c.start !== `${autoPlannerStore.startDate} ${autoPlannerStore.startTime}`) return [];
   const tz = autoPlannerStore.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
   const out: string[] = [];
-  for (const i of Object.keys(c.ends).map(Number)) out.push(`A${i + 1} stops ${formatInZone(c.ends[i], tz)}.`);
-  for (const i of Object.keys(c.starts).map(Number)) out.push(`A${i + 1} starts ${formatInZone(c.starts[i], tz)}.`);
+  for (const i of Object.keys(c.ends).map(Number)) out.push(`A${i + 1} stops ${showDateTime(c.ends[i], tz)}.`);
+  for (const i of Object.keys(c.starts).map(Number)) out.push(`A${i + 1} starts ${showDateTime(c.starts[i], tz)}.`);
   return out;
 });
 watch(

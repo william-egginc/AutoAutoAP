@@ -303,7 +303,7 @@
                     :disabled="store.isRunning"
                     class="mt-1 rounded-lg border-slate-300 text-sm font-bold text-slate-800 disabled:opacity-50"
                   >
-                    <option v-for="h in 24" :key="h - 1" :value="h - 1">{{ String(h - 1).padStart(2, '0') }}:00</option>
+                    <option v-for="h in 24" :key="h - 1" :value="h - 1">{{ showHour(h - 1) }}</option>
                   </select>
                 </div>
                 <div>
@@ -316,7 +316,9 @@
                     :disabled="store.isRunning"
                     class="mt-1 rounded-lg border-slate-300 text-sm font-bold text-slate-800 disabled:opacity-50"
                   >
-                    <option v-for="h in 24" :key="h - 1" :value="h - 1">{{ String(h - 1).padStart(2, '0') }}:00</option>
+                    <option v-for="h in 24" :key="h - 1" :value="h - 1">
+                      {{ showHour(h - 1) }}{{ h - 1 < store.availableFrom ? ' (next day)' : '' }}
+                    </option>
                   </select>
                 </div>
               </div>
@@ -343,7 +345,7 @@
               </div>
 
               <p class="text-[11px] text-slate-500 leading-relaxed">
-                <span class="font-semibold text-slate-700">{{ store.availabilityLabel }}</span
+                <span class="font-semibold text-slate-700">{{ showSchedule(store.availability) }}</span
                 >. Timezone comes from the Auto Planner's scheduling inputs.
                 <span v-if="store.scheduleIsEmpty" class="text-amber-700 font-semibold"
                   >Every day at all hours rules nothing out, so the search will run unconstrained.</span
@@ -728,6 +730,7 @@
       </label>
 
       <WorkerSlider />
+      <DateStyleToggle />
       <BackgroundSpeed />
 
       <SafariNotice />
@@ -1690,6 +1693,8 @@ import HelpTip from './HelpTip.vue';
 import TimeOffEditor from './TimeOffEditor.vue';
 import BackgroundSpeed from './BackgroundSpeed.vue';
 import WorkerSlider from './WorkerSlider.vue';
+import DateStyleToggle from './DateStyleToggle.vue';
+import { showHour, showSchedule } from '@/lib/displayTime';
 import { describeCompute } from '@/utils/computeTime';
 import { useInitialStateStore } from '@/stores/initialState';
 import IntegrityNotice from './IntegrityNotice.vue';
