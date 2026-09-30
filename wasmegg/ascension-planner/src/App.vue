@@ -243,28 +243,6 @@
               </button>
             </div>
           </div>
-
-          <!-- How thorough: one screen, two depths (the redesign's "Fastest route"). -->
-          <div v-if="autoView === 'fastest'" class="max-w-4xl mx-auto flex flex-wrap items-center gap-2">
-            <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">How thorough?</span>
-            <button
-              v-for="d in depths"
-              :key="d.id"
-              type="button"
-              :disabled="screenLocked(d.id)"
-              :title="screenLocked(d.id) ? lockedTitle : undefined"
-              class="px-3 py-1.5 rounded-lg border text-[10px] font-black uppercase tracking-widest disabled:opacity-40 disabled:cursor-not-allowed"
-              :class="
-                fastestDepth === d.id
-                  ? 'border-slate-800 bg-slate-800 text-white'
-                  : 'border-slate-200 bg-white text-slate-500 hover:text-slate-700'
-              "
-              @click="goAuto('fastest', d.id)"
-            >
-              {{ d.label }}
-            </button>
-            <span class="text-[11px] text-slate-500">{{ depths.find(d => d.id === fastestDepth)?.blurb }}</span>
-          </div>
         </template>
       </nav>
 
@@ -439,20 +417,22 @@
         </div>
       </div>
 
-      <!-- The Auto Planner's three screens. The full sweep and Highest TE by a date are one panel
-           (the one Insane mode was), so moving between them keeps what was typed in it. -->
+      <!-- The Auto Planner's three screens, under the one setup they share. -->
       <div v-if="plannerTab === 'automatic' && playerId && !loading" class="mt-4 space-y-4">
         <!-- One setup for all three screens (plan start, hours, time off, this computer), so a change
              on one is already on the others. -->
         <YourSetup :screen="autoView" />
         <AutomaticPlanner v-if="autoView === 'classic'" />
-        <ChainSearchPanel v-else-if="autoView === 'fastest' && fastestDepth === 'smart'" :player-id="playerId" />
-        <InsanePanel
-          v-else
+        <!-- One screen, two depths: the "How thorough" cards are on it (FastestRoute.vue). -->
+        <FastestRoute
+          v-else-if="autoView === 'fastest'"
           :player-id="playerId"
-          :goal="autoView === 'by-date' ? 'deadline' : 'fastest'"
-          @update:goal="onInsaneGoal"
+          :depth="fastestDepth"
+          :locked-to="runningScreen"
+          @update:depth="onDepth"
+          @goal="onInsaneGoal"
         />
+        <InsanePanel v-else :player-id="playerId" goal="deadline" @update:goal="onInsaneGoal" />
       </div>
 
       <div v-else-if="plannerTab === 'leaderboard'" class="max-w-6xl mx-auto mt-6">
@@ -660,7 +640,7 @@ import {
 // sees until they pick a tab. safeAsyncComponent retries and offers a reload if a deploy replaced
 // the files this tab was built against.
 const AutomaticPlanner = safeAsyncComponent(() => import('@/components/auto/AutomaticPlanner.vue'));
-const ChainSearchPanel = safeAsyncComponent(() => import('@/components/auto/ChainSearchPanel.vue'));
+const FastestRoute = safeAsyncComponent(() => import('@/components/auto/FastestRoute.vue'));
 const InsanePanel = safeAsyncComponent(() => import('@/components/auto/InsanePanel.vue'));
 const LeaderboardPanel = safeAsyncComponent(() => import('@/components/auto/LeaderboardPanel.vue'));
 const YourSetup = safeAsyncComponent(() => import('@/components/auto/YourSetup.vue'));
@@ -773,6 +753,11 @@ function goAuto(auto: AutoView, depth: Depth = fastestDepth.value): void {
   goTo({ section: 'auto', auto, depth });
 }
 
+/** A "How thorough" card on Fastest route. */
+function onDepth(d: Depth): void {
+  goAuto('fastest', d);
+}
+
 /** The Insane panel's own goal switch, when it asks (carrying on a fastest run from the date view). */
 function onInsaneGoal(g: 'fastest' | 'deadline'): void {
   goAuto(g === 'deadline' ? 'by-date' : 'fastest', 'full');
@@ -847,14 +832,6 @@ const autoTabs: { id: AutoView; label: string; screen: SearchScreen | null }[] =
   { id: 'classic', label: NAMES.classic, screen: null },
   { id: 'fastest', label: NAMES.fastest, screen: null },
   { id: 'by-date', label: NAMES.byDate, screen: 'by-date' },
-];
-const depths: { id: Depth; label: string; blurb: string }[] = [
-  { id: 'smart', label: NAMES.smart, blurb: 'Starts from your chain and looks around it. Minutes.' },
-  {
-    id: 'full',
-    label: NAMES.full,
-    blurb: 'Prices every route in a box you set, so its winner is the best there. Hours.',
-  },
 ];
 const lockedTitle = 'A search is running on another screen. Stop it there first.';
 

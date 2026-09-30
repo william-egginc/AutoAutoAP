@@ -23,7 +23,8 @@
     <div class="absolute -right-20 -top-20 w-64 h-64 bg-rose-500/5 rounded-full blur-3xl"></div>
 
     <div class="relative z-10 space-y-6">
-      <div class="flex items-center gap-4">
+      <!-- On Fastest route the screen has its own heading (FastestRoute.vue). -->
+      <div v-if="goal !== 'fastest'" class="flex items-center gap-4">
         <div
           class="w-12 h-12 bg-rose-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-rose-200"
         >
@@ -283,21 +284,23 @@
         exact TE. Like any run, it uses the plan start, hours, time off and computer settings in Your setup.
       </div>
 
-      <div
-        v-if="goal === 'fastest'"
-        class="p-4 rounded-xl border border-rose-200 bg-rose-50 text-xs text-rose-900 leading-relaxed space-y-2"
-      >
-        <p>
-          This prices <span class="font-bold">every</span> chain in the pool you describe, with no descent, stages or
-          pruning, so the winner is the true optimum of that space, not a local one. It is also the mode that gets out
-          of hand fastest: the chain count is combinatorial in the pool size, so halving the step does far more than
-          double the work.
-        </p>
-        <p>
-          Nothing here is capped, and nothing asks you to confirm. The count and estimate below update as you type, so
-          check them before you press Start.
-        </p>
-      </div>
+      <details v-if="goal === 'fastest'" class="rounded-xl border border-slate-200 bg-white">
+        <summary class="cursor-pointer px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+          How the {{ NAMES.full }} works, and what it costs
+        </summary>
+        <div class="px-4 pb-4 text-xs text-slate-600 leading-relaxed space-y-2">
+          <p>
+            This prices <span class="font-bold">every</span> chain in the pool you describe, with no descent, stages or
+            pruning, so the winner is the true optimum of that space, not a local one. It is also the mode that gets out
+            of hand fastest: the chain count is combinatorial in the pool size, so halving the step does far more than
+            double the work.
+          </p>
+          <p>
+            Nothing here is capped, and nothing asks you to confirm. The count and estimate below update as you type, so
+            check them before you press Find.
+          </p>
+        </div>
+      </details>
 
       <!--
         WHAT THIS RUN IS ABOUT TO SIMULATE, above the form and open by default.
@@ -1052,101 +1055,39 @@
             back for you.
           </span>
         </div>
-        <div class="flex flex-wrap gap-3">
-          <button
-            class="btn-premium btn-primary flex-1 py-4 text-sm shadow-xl shadow-rose-500/20 active:scale-[0.98]"
-            :disabled="
-              store.busy ||
-              store.integrityBlocked ||
-              store.staleBackupBlocked ||
-              !chainCount ||
-              ascMismatch ||
-              (!!sweepRequest && !sweepConsent) ||
-              (!sweepRequest && spaceMode === 'bands' && !extrasReady) ||
-              queueAt >= 0
-            "
-            @click="start(false)"
-          >
-            <!-- With a sweep request open this is the same run as the card's button, so it says the
-               same thing and waits for the same tick; two differently named Starts read as two
-               different actions. -->
-            {{
-              store.isRunning || queueAt >= 0
-                ? findAndSubmit
-                  ? 'Pricing every chain, then submitting...'
-                  : 'Pricing every chain...'
-                : sweepRequest
-                  ? sweepConsent
-                    ? 'Start this sweep'
-                    : 'Start this sweep (tick "I understand" at the top first)'
-                  : 'Find'
-            }}
-          </button>
-          <!-- A sweep link already sends itself; everywhere else this is the one-click version. -->
-          <button
-            v-if="!sweepRequest && !store.isRunning && queueAt < 0"
-            class="px-6 py-4 rounded-xl bg-indigo-700 text-white text-[11px] font-black uppercase tracking-widest hover:bg-indigo-800 disabled:opacity-40"
-            :disabled="
-              store.busy ||
-              store.integrityBlocked ||
-              store.staleBackupBlocked ||
-              !chainCount ||
-              ascMismatch ||
-              (spaceMode === 'bands' && !extrasReady) ||
-              !optIn
-            "
-            :title="optIn ? '' : 'Tick the share box below first'"
-            @click="start(true)"
-          >
-            Find and submit
-          </button>
-          <button
-            v-if="store.isRunning || queueAt >= 0"
-            class="px-6 py-4 rounded-xl bg-slate-900 text-white text-[11px] font-black uppercase tracking-widest hover:bg-slate-800"
-            :disabled="store.stopRequested || queueCancelled"
-            @click="stopRun"
-          >
-            {{ store.stopRequested || queueCancelled ? 'Stopping...' : 'Stop & keep best' }}
-          </button>
-        </div>
-
-        <!-- Find and submit: the share opt-in and name before the run, the same settings as Share this
-             result below, so the run can send itself when it finishes. -->
-        <div
-          v-if="!sweepRequest && !store.isRunning && queueAt < 0"
-          class="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3 space-y-2 text-[11px] text-indigo-900"
-        >
-          <label class="flex items-start gap-3">
-            <input v-model="optIn" type="checkbox" class="mt-0.5 rounded border-indigo-300 text-indigo-600" />
-            <span
-              >For <span class="font-bold">Find and submit</span>: share the result on the leaderboard when the search
-              finishes (each chain's, when you queued several). It sends what Share this result sends: the chain, its
-              timings and the full CSV, with your artifact inventory, timezone and local plan start, the random code
-              this browser keeps for the account (not your player ID, and never shown), and your best three plans
-              already on the board re-priced from this save.</span
-            >
-          </label>
-          <div v-if="optIn" class="flex flex-wrap items-center gap-4">
-            <label class="flex items-center gap-2 cursor-pointer font-bold">
-              <input v-model="anonymous" type="radio" :value="true" class="text-indigo-600" />
-              Anonymously
-            </label>
-            <label class="flex items-center gap-2 cursor-pointer font-bold">
-              <input v-model="anonymous" type="radio" :value="false" class="text-indigo-600" />
-              Credit me as
-            </label>
-            <input
-              v-model="nickname"
-              type="text"
-              :maxlength="NICKNAME_MAX"
-              :disabled="anonymous"
-              placeholder="nickname"
-              aria-label="Nickname"
-              class="rounded-lg border-indigo-200 text-sm font-bold text-slate-800 w-48 disabled:opacity-40"
-              @input="nicknameTouched = true"
-            />
-          </div>
-        </div>
+        <!-- Find / Find and submit: the same bar as Smart search (FindBar.vue). A sweep link already
+             sends itself, so it gets Find alone, labelled as the card at the top labels it. -->
+        <FindBar
+          v-model:opt-in="optIn"
+          v-model:anonymous="anonymous"
+          v-model:nickname="nickname"
+          :find-disabled="
+            store.busy ||
+            store.integrityBlocked ||
+            store.staleBackupBlocked ||
+            !chainCount ||
+            ascMismatch ||
+            (!!sweepRequest && !sweepConsent) ||
+            (!sweepRequest && spaceMode === 'bands' && !extrasReady) ||
+            queueAt >= 0
+          "
+          :running="store.isRunning || queueAt >= 0"
+          :stopping="store.stopRequested || queueCancelled"
+          :find-label="
+            sweepRequest
+              ? sweepConsent
+                ? 'Start this sweep'
+                : 'Start this sweep (tick &quot;I understand&quot; at the top first)'
+              : 'Find'
+          "
+          :running-label="findAndSubmit ? 'Pricing every chain, then submitting...' : 'Pricing every chain...'"
+          :show-submit="!sweepRequest"
+          consent-note="each chain's, when you queued several"
+          :nickname-max="NICKNAME_MAX"
+          @find="andSubmit => void start(andSubmit)"
+          @stop="stopRun"
+          @nickname-typed="nicknameTouched = true"
+        />
 
         <!-- Which chain of a multi-chain click is running, and what the finished ones found. -->
         <div
@@ -1241,14 +1182,23 @@
           </p>
         </div>
 
-        <div v-if="store.bestDays > 0" class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 space-y-1">
-          <div class="text-[10px] font-black text-emerald-700 uppercase tracking-widest">
-            Best chain<template v-if="!store.isRunning && !store.stoppedEarly">: {{ resultClaim }}</template>
-          </div>
-          <div class="font-mono-premium text-lg font-black text-slate-900">{{ store.bestChain.join(' ') }}</div>
-          <div class="text-xs text-emerald-800">
-            {{ store.bestDays.toFixed(3) }} days &middot; <span class="font-semibold">ends {{ endDate }}</span>
-          </div>
+        <!-- The answer: the same card as Smart search (RouteResultCard.vue). -->
+        <RouteResultCard
+          v-if="store.bestDays > 0"
+          :chain="store.bestChain"
+          :days="store.bestDays"
+          :final-t-e="store.finalTE"
+          :end-label="endDate"
+          :running="store.isRunning"
+          :claim="store.stoppedEarly ? '' : resultClaim"
+          :source="store.searchSpace ? '' : `From the ${NAMES.smart} you ran`"
+          :busy="store.busy"
+          can-save
+          :saving="saving"
+          @build="buildPlan"
+          @csv="downloadCsv"
+          @save="save"
+        >
           <p v-if="!store.isRunning && resultExplain" class="text-[11px] text-emerald-900/80 leading-relaxed">
             {{ resultExplain }}
           </p>
@@ -1256,9 +1206,6 @@
             Compare runs by finish date. Two runs started hours apart have different plan starts, so their day counts
             don't measure the same thing, but the dates they land on do.
           </p>
-          <!-- The result-side half of the same idea. Delivery cannot fall as TE rises; when it does,
-             the state carried into that leg is wrong and every duration after it is too. Shown on
-             the winning chain because that is the number people copy. -->
           <p
             v-if="store.continueWarning"
             class="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-[11px] text-amber-900 leading-relaxed"
@@ -1282,25 +1229,14 @@
               planner. If leg 1 agrees and a later leg doesn't, the fault is in the state carried between legs.
             </p>
           </div>
-
           <p v-if="store.stoppedEarly" class="text-[11px] text-emerald-900/70 pt-1">
             You stopped it early, so this is the best of what was priced, not the optimum of the space.
           </p>
-          <div v-if="!store.isRunning" class="flex flex-wrap items-center gap-3 pt-2">
-            <button
-              type="button"
-              :disabled="store.busy"
-              class="px-4 py-2 rounded-lg bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-emerald-800 disabled:opacity-40"
-              @click="buildPlan"
-            >
-              Build this plan in the Auto Planner
-            </button>
-            <span v-if="store.timeOff.length" class="text-[11px] text-emerald-900/80">
-              Your time off goes into the plan too: the ascension it interrupts ends when the time off starts, and the
-              next one starts after it.
-            </span>
-          </div>
-        </div>
+          <p v-if="store.timeOff.length && !store.isRunning" class="text-[11px] text-emerald-900/80">
+            Your time off goes into the plan too: the ascension it interrupts ends when the time off starts, and the
+            next one starts after it.
+          </p>
+        </RouteResultCard>
 
         <!-- When to start this route: every hour of the next week, as fresh starts. -->
         <StartTimeFinder
@@ -1419,7 +1355,11 @@
         </div>
 
         <!-- Submission. Same payload, same opt-in, same disclosure as the main panel. -->
-        <div v-if="store.bestDays > 0" class="rounded-xl border border-indigo-200 bg-indigo-50/60 p-4 space-y-3">
+        <div
+          v-if="store.bestDays > 0"
+          id="share-this-result"
+          class="rounded-xl border border-indigo-200 bg-indigo-50/60 p-4 space-y-3 scroll-mt-4"
+        >
           <h3 class="text-[10px] font-black text-indigo-800 uppercase tracking-widest">Share this result</h3>
           <p class="text-[11px] text-indigo-900/80 leading-relaxed">
             An exhaustive result is the most useful thing the board can get: the best of a stated grid rather than a
@@ -1554,6 +1494,8 @@ import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useUIStore } from '@/stores/ui';
 import { useEidsStore } from 'lib';
 import { useBackupPlanStart } from '@/composables/useBackupPlanStart';
+import FindBar from './FindBar.vue';
+import RouteResultCard from './RouteResultCard.vue';
 import { afterPaint } from '@/search/submission';
 import { parseSweepRequest } from '@/search/sweepRequest';
 import {

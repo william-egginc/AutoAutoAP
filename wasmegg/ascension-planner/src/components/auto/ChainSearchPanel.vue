@@ -3,45 +3,35 @@
     <div class="absolute -right-20 -top-20 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl"></div>
 
     <div class="relative z-10 space-y-8">
-      <div class="flex items-center gap-4">
-        <div
-          class="w-12 h-12 bg-emerald-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-emerald-200"
-        >
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-            />
-          </svg>
-        </div>
-        <div>
-          <h2 class="text-xl font-black text-slate-900 uppercase tracking-tight">Chain Search</h2>
-          <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5">
-            Beta: searches for a faster set of checkpoints than the one you typed
-          </p>
-        </div>
-      </div>
+      <!-- What it is, what it costs, the maths and the algorithm: folded, since the screen's own
+           heading and the "How thorough" card already say what it does (FastestRoute.vue). -->
+      <details class="rounded-xl border border-slate-200 bg-white">
+        <summary class="cursor-pointer px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+          How {{ NAMES.smart }} works, and what it costs
+        </summary>
+        <div class="px-4 pb-4 space-y-4">
+          <div
+            class="p-4 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600 leading-relaxed space-y-2"
+          >
+            <p>
+              This takes a starting chain (the Target TE on the Classic tab, or one you type below) and tries to improve
+              it, scoring every candidate with the same simulator the Auto Planner uses. It runs in
+              <span class="font-bold text-slate-800">up to {{ store.workersInPool }} background workers</span> on your
+              own machine. One chain costs at least 15 seconds of CPU, so a run takes
+              <span class="font-bold">hours</span>, not seconds. Leave the tab open. It can be in the background, but
+              closing the tab stops the workers.
+            </p>
+            <p>
+              It matters because good chains are rare: {{ NEAR_OPTIMAL_SHARE }} on the one account where every chain was
+              measured. You are not going to land there by trying a few by hand.
+            </p>
+          </div>
 
-      <!-- What it is, and what it costs -->
-      <div class="p-4 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600 leading-relaxed space-y-2">
-        <p>
-          This takes a starting chain (the Target TE on the Classic tab, or one you type below) and tries to improve it,
-          scoring every candidate with the same simulator the Auto Planner uses. It runs in
-          <span class="font-bold text-slate-800">up to {{ store.workersInPool }} background workers</span> on your own
-          machine. One chain costs at least 15 seconds of CPU, so a run takes <span class="font-bold">hours</span>, not
-          seconds. Leave the tab open. It can be in the background, but closing the tab stops the workers.
-        </p>
-        <p>
-          It matters because good chains are rare: {{ NEAR_OPTIMAL_SHARE }} on the one account where every chain was
-          measured. You are not going to land there by trying a few by hand.
-        </p>
-      </div>
-
-      <!-- Maths, then algorithm, then controls. This panel asks someone for hours of their own
-           CPU, so the reasons to say yes come before the knobs. -->
-      <ChainSearchExplainer />
+          <!-- Maths, then algorithm, then controls. This panel asks someone for hours of their own
+               CPU, so the reasons to say yes come before the knobs. -->
+          <ChainSearchExplainer />
+        </div>
+      </details>
 
       <!-- Collapsible so a repeat visitor can skip straight to the button. Open by default; a
            collapsed form looks like an empty panel. -->
@@ -587,103 +577,50 @@
         >), or tick "Find a starting chain for me".
       </div>
 
-      <!-- Submit on finish. Consent given BEFORE the run, where the player is, instead of after it at
-           the bottom of a page they may have walked away from. A run that is stopped early, fails,
-           or finds nothing sends nothing. -->
-      <div class="space-y-2">
-        <label class="flex items-start gap-3 cursor-pointer">
-          <input
-            v-model="autoSubmit"
-            type="checkbox"
-            :disabled="store.isRunning"
-            class="mt-0.5 rounded border-slate-300 text-indigo-600 disabled:opacity-40"
-          />
-          <span class="text-[11px] text-slate-600 leading-relaxed">
-            <span class="font-bold text-slate-800">Submit the result to the board when it finishes.</span> It sends the
-            chain, its timings and the full CSV, with your artifact inventory, timezone and local plan start, plus a
-            random code this browser keeps for the account (never your player ID, and never shown). The code is how the
-            board folds your repeated sends into one, lets you put your name on a run you sent anonymously, and lets
-            your own later runs replace your older plans. The run's last few seconds also re-price your best three plans
-            already on the board from this save, and those go too (named ones with a named send, anonymous ones with an
-            anonymous send). Exactly what is sent is shown under Share this result. Stop early and nothing is sent.
-          </span>
-        </label>
-        <div v-if="autoSubmit" class="flex flex-wrap items-center gap-4 pl-7 text-[11px] font-bold text-slate-700">
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input v-model="anonymous" type="radio" :value="true" :disabled="store.isRunning" class="text-indigo-600" />
-            Submit anonymously
-          </label>
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input
-              v-model="anonymous"
-              type="radio"
-              :value="false"
-              :disabled="store.isRunning"
-              class="text-indigo-600"
-            />
-            Credit me as
-          </label>
-          <input
-            v-model="nickname"
-            type="text"
-            maxlength="40"
-            placeholder="nickname"
-            aria-label="Nickname"
-            :disabled="store.isRunning || anonymous"
-            class="w-48 rounded-md border-slate-200 text-[12px] font-normal text-slate-800 disabled:opacity-40"
-            @input="nicknameTouched = true"
-          />
-        </div>
-        <p
-          v-if="autoSubmitted && submitMessage && !store.isRunning"
-          class="rounded-lg border px-3 py-2 text-[11px]"
-          :class="
-            !submitOk
-              ? 'bg-red-50 border-red-200 text-red-800'
-              : submitPartial
-                ? 'bg-amber-50 border-amber-200 text-amber-900'
-                : 'bg-emerald-50 border-emerald-200 text-emerald-800'
-          "
-        >
-          <b>Submitted automatically.</b> {{ submitMessage }}
-          <!-- Sent anonymously (the default), and the name box now says who to credit: name the
-               stored row rather than sending a second copy. -->
-          <button
-            v-if="nameToClaim"
-            type="button"
-            :disabled="claiming"
-            class="ml-2 px-2.5 py-1 rounded-md border border-current text-[10px] font-black uppercase tracking-widest hover:bg-white/60 disabled:opacity-40"
-            @click="claim"
-          >
-            {{ claiming ? 'Renaming...' : 'Put my name on it' }}
-          </button>
-        </p>
-      </div>
-
-      <!-- Run / stop -->
-      <div class="flex gap-3">
+      <!-- Find / Find and submit: the same bar as the Full sweep (FindBar.vue). The share opt-in is
+           given BEFORE the run, where the player is, instead of at the bottom of a page they may
+           have walked away from. A run that is stopped early, fails, or finds nothing sends nothing. -->
+      <FindBar
+        v-model:opt-in="optIn"
+        v-model:anonymous="anonymous"
+        v-model:nickname="nickname"
+        :find-disabled="
+          store.busy ||
+          store.integrityBlocked ||
+          store.staleBackupBlocked ||
+          store.singleAscensionAsked ||
+          (!store.findSeedFirst && store.seedChain.length < 2)
+        "
+        :running="store.isRunning"
+        :stopping="store.stopRequested"
+        @find="andSubmit => void run(false, andSubmit)"
+        @stop="store.stop()"
+        @nickname-typed="nicknameTouched = true"
+      />
+      <p
+        v-if="autoSubmitted && submitMessage && !store.isRunning"
+        class="rounded-lg border px-3 py-2 text-[11px]"
+        :class="
+          !submitOk
+            ? 'bg-red-50 border-red-200 text-red-800'
+            : submitPartial
+              ? 'bg-amber-50 border-amber-200 text-amber-900'
+              : 'bg-emerald-50 border-emerald-200 text-emerald-800'
+        "
+      >
+        <b>Submitted automatically.</b> {{ submitMessage }}
+        <!-- Sent anonymously (the default), and the name box now says who to credit: name the
+             stored row rather than sending a second copy. -->
         <button
-          class="btn-premium btn-primary flex-1 py-4 text-sm shadow-xl shadow-emerald-500/20 active:scale-[0.98]"
-          :disabled="
-            store.busy ||
-            store.integrityBlocked ||
-            store.staleBackupBlocked ||
-            store.singleAscensionAsked ||
-            (!store.findSeedFirst && store.seedChain.length < 2)
-          "
-          @click="void run(false)"
+          v-if="nameToClaim"
+          type="button"
+          :disabled="claiming"
+          class="ml-2 px-2.5 py-1 rounded-md border border-current text-[10px] font-black uppercase tracking-widest hover:bg-white/60 disabled:opacity-40"
+          @click="claim"
         >
-          {{ store.isRunning ? 'Searching...' : 'Start search' }}
+          {{ claiming ? 'Renaming...' : 'Put my name on it' }}
         </button>
-        <button
-          v-if="store.isRunning"
-          class="px-6 py-4 rounded-xl bg-slate-900 text-white text-[11px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all active:scale-[0.98] disabled:opacity-50"
-          :disabled="store.stopRequested"
-          @click="store.stop()"
-        >
-          {{ store.stopRequested ? 'Stopping...' : 'Stop & keep best' }}
-        </button>
-      </div>
+      </p>
 
       <!-- Live progress -->
       <div v-if="store.isRunning || store.bestDays > 0" class="space-y-4">
@@ -734,30 +671,29 @@
           </div>
         </div>
 
-        <!-- Best so far. This is the point of the whole panel: it is always usable. -->
-        <div class="p-4 bg-emerald-50 border border-emerald-200 rounded-xl space-y-2">
-          <div class="flex items-baseline justify-between gap-4 flex-wrap">
-            <div>
-              <div class="text-[9px] font-black text-emerald-700 uppercase tracking-widest">Best chain so far</div>
-              <div class="text-lg font-black text-slate-900 mt-0.5">{{ store.bestChain.join(' ') }}</div>
-            </div>
-            <div class="text-right">
-              <div class="text-[9px] font-black text-emerald-700 uppercase tracking-widest">Plan length</div>
-              <!-- bestDays starts at 0 and is only real once a batch has reported. Rendering
-                   "0.000 d" in that window looks like a broken result rather than a pending one. -->
-              <div class="text-lg font-black text-slate-900 mt-0.5">
-                {{ store.bestDays > 0 ? store.bestDays.toFixed(3) + ' d' : 'pricing…' }}
-              </div>
-              <div class="text-[10px] font-bold text-slate-500">ends {{ endDate }}</div>
-            </div>
-          </div>
-          <p class="text-[11px] text-emerald-800 leading-relaxed">
-            The stages are nested (each one starts from the answer the previous one produced), so stopping now is safe.
-            You keep this chain, and it is exactly what the stages that already finished ({{
-              store.lastCompletedStage
-            }}) guarantee.
+        <!-- Best so far, and the answer once it stops: the same card as the Full sweep
+             (RouteResultCard.vue). Always usable: the stages are nested, so stopping is safe. -->
+        <RouteResultCard
+          :chain="store.bestChain"
+          :days="store.bestDays"
+          :final-t-e="store.finalTE"
+          :end-label="endDate"
+          :running="store.isRunning"
+          :claim="store.stoppedEarly ? 'the best of what was priced' : ''"
+          :source="store.searchSpace ? `From the ${NAMES.full} you ran` : ''"
+          :busy="store.busy"
+          can-fill
+          :note="applied ? `Sent ${applied} to Classic${generated ? ' and started building the plan.' : '.'}` : ''"
+          @build="use(store.bestChain, true)"
+          @fill="use(store.bestChain)"
+          @csv="downloadCsv"
+        >
+          <p v-if="!store.searchSpace" class="text-[11px] text-emerald-800 leading-relaxed">
+            The stages are nested (each one starts from the answer the previous one produced), so stopping is safe: you
+            keep this chain, and it is exactly what the stages that already finished ({{ store.lastCompletedStage }})
+            guarantee.
           </p>
-        </div>
+        </RouteResultCard>
 
         <p
           v-if="store.continueWarning && !store.isRunning"
@@ -915,29 +851,6 @@
           </table>
         </div>
 
-        <!-- Apply. Until this existed the only route from a three-hour search to an actual plan
-             was reading the chain off the screen and retyping it in a different card. -->
-        <div class="flex flex-wrap items-center gap-3 pt-1">
-          <button
-            type="button"
-            :disabled="!store.bestChain.length"
-            class="px-4 py-2 rounded-lg bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-emerald-500 disabled:opacity-40"
-            @click="use(store.bestChain, true)"
-          >
-            Use this chain and build the plan
-          </button>
-          <button
-            type="button"
-            :disabled="!store.bestChain.length"
-            class="px-3 py-2 rounded-lg border border-slate-300 text-slate-600 text-[10px] font-black uppercase tracking-widest hover:border-emerald-400 disabled:opacity-40"
-            @click="use(store.bestChain)"
-          >
-            Just fill it in
-          </button>
-          <span v-if="applied" class="text-[11px] font-semibold text-emerald-700">
-            Sent {{ applied }} to the Auto Planner{{ generated ? ' and started building the plan.' : "'s Target TE." }}
-          </span>
-        </div>
         <p v-if="applied && store.applyNote" class="text-[11px] font-semibold text-emerald-800 leading-relaxed">
           {{ store.applyNote }}
         </p>
@@ -1262,7 +1175,8 @@
            the only option is a file the player hands over themselves. -->
       <div
         v-if="store.bestDays > 0 && !store.isRunning"
-        class="p-4 rounded-xl border border-indigo-200 bg-indigo-50/40 space-y-3"
+        id="share-this-result"
+        class="p-4 rounded-xl border border-indigo-200 bg-indigo-50/40 space-y-3 scroll-mt-4"
       >
         <h3 class="text-[10px] font-black text-indigo-700 uppercase tracking-widest">Share this result</h3>
 
@@ -1513,8 +1427,8 @@
           <li>Accuracy figures come from 3 accounts. Only one of them has a proven optimum to check against.</li>
           <li>A refresh is safe: progress is checkpointed and resumes without re-simulating anything.</li>
           <li>
-            "Only count on me during these hours" (in Your setup) moves the prestige between ascensions. Shifts inside an
-            ascension can still land outside your hours unless "Hold egg shifts for my hours too" is ticked; the CSV
+            "Only count on me during these hours" (in Your setup) moves the prestige between ascensions. Shifts inside
+            an ascension can still land outside your hours unless "Hold egg shifts for my hours too" is ticked; the CSV
             counts them per leg.
           </li>
         </ul>
@@ -1538,6 +1452,8 @@ import { afterPaint } from '@/search/submission';
 import ChainSearchExplainer from './ChainSearchExplainer.vue';
 import HelpTip from './HelpTip.vue';
 import StartTimeFinder from './StartTimeFinder.vue';
+import FindBar from './FindBar.vue';
+import RouteResultCard from './RouteResultCard.vue';
 import { describeCompute } from '@/utils/computeTime';
 import { useInitialStateStore } from '@/stores/initialState';
 import IntegrityNotice from './IntegrityNotice.vue';
@@ -1947,34 +1863,13 @@ function relativeTime(ms: number): string {
 /** The full sweep's tab (lib/siteNav.ts): same save, same player, the page's tabs switch to it. */
 const insaneHref = hashFor({ section: 'auto', auto: 'fastest', depth: 'full' });
 
-/**
- * Submit on finish. Remembered per browser, like the other run settings: someone who contributes
- * once usually means to keep contributing, and the box is right beside Start, so it is never on
- * without being seen.
- */
-const AUTO_SUBMIT_KEY = 'aap-chain-auto-submit';
-const autoSubmit = ref(readFlag(AUTO_SUBMIT_KEY));
-watch(autoSubmit, on => writeFlag(AUTO_SUBMIT_KEY, on));
+/** This run sends itself when it finishes (Find and submit), so the result says it did. */
 const autoSubmitted = ref(false);
 
-function readFlag(key: string): boolean {
-  try {
-    return localStorage.getItem(key) === '1';
-  } catch {
-    return false;
-  }
-}
-function writeFlag(key: string, on: boolean): void {
-  try {
-    if (on) localStorage.setItem(key, '1');
-    else localStorage.removeItem(key);
-  } catch {
-    // Private window or blocked storage: the box still works for this visit.
-  }
-}
-
-async function run(resume: boolean): Promise<void> {
-  const armed = autoSubmit.value;
+/** Find (or carry on a run, `resume`); with `andSubmit`, the result is sent as Share this result
+ *  would send it once the run finishes. */
+async function run(resume: boolean, andSubmit = false): Promise<void> {
+  const armed = andSubmit && optIn.value;
   autoSubmitted.value = false;
   // Armed: the run sends itself at the end, so its last seconds may re-price the player's best
   // earlier plans on the workers before they are shut down (the store's "re-checks").
