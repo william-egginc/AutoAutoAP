@@ -8,9 +8,12 @@
  *   newer tab just gets a quiet "small update available" note.
  * - note: one short line players will read in either notice.
  *
+ * Update both with every deploy that players will notice: `pnpm build` warns when src/ has commits
+ * newer than this file's last one (vite.config.ts `warnIfReleaseStale`).
+ *
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 export default {
-  reloadIfBuiltBefore: '2026-09-26T07:22:00Z',
-  note: 'an Egg Day 2027 leaderboard. Find the highest TE you can reach by then in Insane mode (Highest TE by a date) and share it',
+  reloadIfBuiltBefore: '2026-09-30T20:12:00Z',
+  note: 'a "When should I start?" finder under Chain Search and Insane results, pending Truth Eggs counted, and a fix so another account\'s unfinished run is never offered',
 };

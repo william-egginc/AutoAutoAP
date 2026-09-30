@@ -3,6 +3,7 @@ import { readdir, readFile, writeFile } from 'node:fs/promises';
 import type { ServerResponse } from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { execFileSync } from 'node:child_process';
 import { promisify } from 'node:util';
 import { brotliCompress, constants as zlibConstants } from 'node:zlib';
 import { defineConfig, loadEnv, type Plugin } from 'vite';
@@ -42,6 +43,47 @@ function versionFile(): Plugin {
           release: { reloadIfBuiltBefore: release.reloadIfBuiltBefore, note: release.note.slice(0, 200) },
         }),
       });
+    },
+  };
+}
+
+/**
+ * A loud line in the build output when src/ has commits newer than release.ts's last one. The note
+ * is written by hand, and it went four days without a change (26-30 Sep 2026): every deploy in that
+ * time told players "New: an Egg Day 2027 leaderboard", and the fixes in them only got the quiet
+ * "small update" note instead of a reload. Only a warning: a build with no git (or no history) goes
+ * ahead silently, and a deploy of wording alone rightly leaves release.ts alone.
+ */
+const HERE = fileURLToPath(new URL('.', import.meta.url));
+
+function warnIfReleaseStale(): Plugin {
+  return {
+    name: 'aap-release-stale',
+    apply: 'build',
+    buildStart() {
+      try {
+        const last = (paths: string[]) =>
+          Number(
+            execFileSync('git', ['log', '-1', '--format=%ct', '--', ...paths], { cwd: HERE })
+              .toString()
+              .trim()
+          );
+        const src = last(['src']);
+        const rel = last(['release.ts']);
+        if (src && rel && src > rel) {
+          const n = execFileSync('git', ['rev-list', '--count', `--since=${rel + 1}`, 'HEAD', '--', 'src'], {
+            cwd: HERE,
+          })
+            .toString()
+            .trim();
+          this.warn(
+            `release.ts is older than ${n} commit(s) in src/: open tabs will be shown its old note ` +
+              `("${release.note.slice(0, 60)}..."). Update its note, and reloadIfBuiltBefore if a fix ships.`
+          );
+        }
+      } catch {
+        /* no git here: nothing to compare */
+      }
     },
   };
 }
@@ -296,6 +338,7 @@ export default defineConfig(({ mode }) => {
       vue(),
       vueJsx(),
       versionFile(),
+      warnIfReleaseStale(),
       brotliAssets(),
       immutableAssets(),
       collectorEarlyStart(env.VITE_SUBMIT_URL),
