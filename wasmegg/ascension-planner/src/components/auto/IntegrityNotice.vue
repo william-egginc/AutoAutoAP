@@ -31,7 +31,7 @@
       from yet. Try again in a minute.
     </p>
     <p v-else>
-      <span class="font-black uppercase tracking-wide">Your save didn't load fresh.</span>
+      <span class="font-black uppercase tracking-wide">Your latest save didn't load.</span>
       Fetching it failed ({{ ui.staleBackup }}), so the planner is working from an older copy<template v-if="savedAgo">
         ({{ savedAgo }})</template
       ><template v-if="store.currentTE > 0">, at {{ store.currentTE }} TE</template>. If you've played since, every plan

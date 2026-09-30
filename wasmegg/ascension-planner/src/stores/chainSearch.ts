@@ -1208,9 +1208,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   const resumeBlocker = computed<string | null>(() => {
     const run = openedRun.value;
     if (!run) return 'no run is loaded';
-    if (run.complete) return 'this run finished — there is nothing left to price';
+    if (run.complete) return 'this run finished, so there is nothing left to price';
     if (!run.space) {
-      return 'this run was saved before the space was recorded, so there is nothing to continue from — set the same bands and start again, and anything it already priced will be replayed';
+      return 'this run was saved before the space was recorded, so there is nothing to continue from. Set the same bands and start again, and anything it already priced will be replayed';
     }
     if (!currentPlayerId) return 'no player id, so there is no way to check the run is still valid';
     // With its own save stored, the run carries on with that save, not the current one; only the
@@ -1226,7 +1226,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       // The plan start is NOT a reason: resuming puts the run's own start back (`resumeOpenedRun`).
       // It used to be the commonest one -- with no start set, the plan is timed from the moment the
       // page loaded, so every reload "changed" it and no interrupted run could ever be picked up.
-      return `${locked.join('; ')}, and its save isn't stored — so its durations describe a different farm. If a number looks wrong, your backup may not have loaded fresh: reload it and check. Otherwise start a new run`;
+      return `${locked.join('; ')}, and its save isn't stored, so its durations describe a different farm. If a number looks wrong, your backup may not have loaded fresh: reload it and check. Otherwise start a new run`;
     }
     return null;
   });
@@ -2344,7 +2344,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       return {
         ok: false,
         message:
-          'could not reach the collector (check your connection). Your results are still here - press Submit again once you are back online, or use Save the file instead to keep a copy.',
+          'could not reach the collector (check your connection). Your results are still here. Press Submit again once you are back online, or use Save the file instead to keep a copy.',
       };
     }
     const { id, uploadToken, flagged } = reply;
@@ -2448,7 +2448,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       return {
         ok: false,
         message:
-          'could not reach the collector (check your connection). Nothing changed - try again once you are back online.',
+          'could not reach the collector (check your connection). Nothing changed. Try again once you are back online.',
       };
     }
     if (res.ok) {
@@ -2485,7 +2485,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       if (age >= 0 && age < CLAIM_CATCH_UP_MS) {
         return {
           ok: false,
-          message: 'the board has not caught up with that send yet. Nothing is lost - try again in a minute.',
+          message: 'the board has not caught up with that send yet. Nothing is lost. Try again in a minute.',
         };
       }
       return { ok: false, message: 'the board does not have that run (or this collector cannot rename runs yet).' };
@@ -2543,7 +2543,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       return {
         ok: true,
         message:
-          'sent, but the table did not upload (the connection dropped). The summary is in - press Retry the table to send just the table.',
+          'sent, but the table did not upload (the connection dropped). The summary is in. Press Retry the table to send just the table.',
       };
     }
     if (res.ok) {
@@ -2557,7 +2557,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     if (res.status === 409) {
       // Stored already -- most likely an earlier attempt that landed but whose answer was lost.
       pendingTable.value = null;
-      return { ok: true, message: 'sent - the table was already stored', landed: 'already', size: mb };
+      return { ok: true, message: 'sent, and the table was already stored', landed: 'already', size: mb };
     }
     if (res.status === 403) {
       // The token does not match. In practice a tab running a build from before the collector
@@ -2566,13 +2566,13 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       return {
         ok: true,
         message:
-          'sent, but the table was refused. Save your results first (Save this run, Save the file instead, or Download CSV) so nothing is lost, then reload the page - it may be an old version - and submit again.',
+          'sent, but the table was refused. Save your results first (Save this run, Save the file instead, or Download CSV) so nothing is lost, then reload the page (it may be an old version) and submit again.',
       };
     }
     // Anything else (a 5xx, a restart mid-deploy) is worth another go with the same token.
     return {
       ok: true,
-      message: `sent, but the table did not upload (${res.status}). The summary is in - press Retry the table to send just the table.`,
+      message: `sent, but the table did not upload (${res.status}). The summary is in. Press Retry the table to send just the table.`,
     };
   }
 
@@ -3621,7 +3621,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       const elapsedSeconds = (performance.now() - probeStartedAt) / 1000;
 
       if (!results.length) {
-        benchmarkError.value = 'No chains in this batch could be evaluated — nothing to benchmark.';
+        benchmarkError.value = 'No chains in this batch could be evaluated, so there is nothing to benchmark.';
         return;
       }
 

@@ -50,7 +50,7 @@ export const EFFORT_NOTES: Record<EffortTier, EffortNote> = {
     adds: 'Coordinate descent only (radius 8), re-solving the last checkpoint after every accepted move.',
     accuracy:
       'Measured 5 h, 0 h and 61 h behind the best answer found, on 3 accounts. ' +
-      'Then two further runs on one of those same accounts landed about 6 DAYS worse — ' +
+      'Two later runs on one of those accounts landed about 6 days worse, ' +
       'so this tier’s spread is much wider than the single 5 h figure suggested. Treat it as ' +
       '"usually close, occasionally days off", not as a tight bound.',
     warning: 'Widest spread of the four tiers. Two repeat runs on one account landed ~6 days behind.',
@@ -77,16 +77,16 @@ export const EFFORT_NOTES: Record<EffortTier, EffortNote> = {
     adds: '+ exhaustive 3-D slices over adjacent checkpoint triples.',
     accuracy:
       'One measured win, and it is a big one: on the alt an exhaustive X4xX5xX6 slice (13^3 = ' +
-      '2197 chains) beat the 2-D-polished answer by 1.665 d (40 h) — the recipe ranked 55 of 2197. ' +
+      '2197 chains) beat the 2-D-polished answer by 1.665 d (40 h); the recipe ranked 55 of 2197. ' +
       'X6=289 is only good jointly with X4=229; at X4=231 it costs 3.4 d, which no single-axis or ' +
-      '2-D sweep can see. BUT that was measured before stage 5 was fixed to sweep the LAST ' +
+      '2-D sweep can see. But that was measured before stage 5 was fixed to sweep the last ' +
       'adjacent pair, which it previously skipped, so an unknown share of those 40 h may now be ' +
       'captured by stage 5 alone. On the main, a 4913-chain 3-D exhaustive over X3xX4xX5 matched ' +
       'the recipe exactly, so there stage 6 had nothing to add.',
     warning:
       'Stage 6 is ~74% of this tier’s chains (6591 of 8865 on a 7-checkpoint chain) and it runs ' +
-      'BEFORE the prestige-count probe, so the probe — the stage that produced the main’s proven ' +
-      'answer — is gated behind all of it.',
+      'before the prestige-count probe, so the probe (the stage that produced the main’s proven ' +
+      'answer) waits behind all of it.',
   },
 };
 

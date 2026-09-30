@@ -570,7 +570,7 @@ export function afterPaint(): Promise<void> {
 
 export function tooManySubmissionsMessage(retryAfter?: number): string {
   const wait = retryAfter && retryAfter > 0 ? `about ${retryAfter} second${retryAfter === 1 ? '' : 's'}` : 'a minute';
-  return `too many submissions from your connection in the last minute. Nothing was lost - wait ${wait} and press Submit again.`;
+  return `too many submissions from your connection in the last minute. Nothing was lost: wait ${wait} and press Submit again.`;
 }
 
 /** What `duplicateMessage` can say about an exact copy beyond "it is already there". */

@@ -297,9 +297,10 @@ function originTitle(tag: string): string {
   switch (tag) {
     case 'no code':
       return (
-        "Sent under this player's name since the board began stamping runs, without the owner code their runs carry. " +
-        'Its timezone, artifacts and TE fit theirs, so it is listed here and counted in "Tried", but anyone can send ' +
-        "such a run: it never sets this line's best finish or its place in the race, and it judges none of their plans."
+        "Sent under this player's name since the board began stamping runs, but without the owner code their runs " +
+        'carry. Its timezone, artifacts and TE fit theirs, so it is listed here and counted in "Tried". Anyone can send ' +
+        "a run like this, though, so it never sets this line's best finish or its place in the race, and it is never " +
+        'used to judge their plans.'
       );
     case 'before codes':
       return (
@@ -308,8 +309,8 @@ function originTitle(tag: string): string {
       );
     case 'no name':
       return (
-        "Sent without a name, from this player's timezone and artifacts: a newer run of a plan they sent before " +
-        'owner codes, so it counts as a re-run of it.'
+        "Sent without a name, from this player's timezone and artifacts. It is a newer run of a plan they sent before " +
+        'owner codes, so it counts as a re-run of that plan.'
       );
     default:
       return "This player sent from more than one browser, and each keeps its own private code. Each browser's plans are judged by that browser's runs only.";
@@ -337,9 +338,10 @@ function resendText(e: Plan): string {
 function resendTitle(p: Plan): string {
   const more = props.resends?.get(p) ?? [];
   return (
-    `The same plan was also sent ${more.map(resendText).join(', ')}. Neither run may replace the other ` +
-    '(one was sent without the owner code, from another browser, or within the hour), so both still count, ' +
-    'but they finish within a day of each other: it is one plan and "Tried" counts it once. Open the line for details.'
+    `The same plan was also sent ${more.map(resendText).join(', ')}. Neither run can replace the other ` +
+    '(one was sent without the owner code, from another browser, or within the hour), so both still count. ' +
+    'They finish within a day of each other, so they are listed as one plan and "Tried" counts it once. Open the ' +
+    'line for details.'
   );
 }
 </script>

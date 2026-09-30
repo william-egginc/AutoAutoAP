@@ -123,7 +123,7 @@
       <p class="mt-1 px-1 text-[10px] text-slate-500 leading-relaxed max-w-3xl">
         Each account counts once, by its best plan at this count. <b>Slope vs start</b>: how many TE the checkpoint
         moves for each TE higher the plan starts; about 0 is the same TE whoever you are, about 1 moves with your start
-        (from {{ summary[0]?.accounts ?? 0 }} accounts at most, so read it as a lean, not a law). Of the two ranges, the
+        (from {{ summary[0]?.accounts ?? 0 }} accounts at most, so it is only a rough trend). Of the two ranges, the
         narrower is in bold: the way of stating that checkpoint that holds across accounts.
       </p>
     </div>

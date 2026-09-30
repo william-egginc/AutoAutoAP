@@ -318,7 +318,7 @@ async function send(): Promise<void> {
     } catch {
       sendOk.value = false;
       sendMessage.value =
-        'Could not reach the collector (check your connection). Your files are still loaded here - press Submit again once you are back online.';
+        'Could not reach the collector (check your connection). Your files are still loaded here, so press Submit again once you are back online.';
       return;
     }
     const body = (await res.json().catch(() => ({}))) as {

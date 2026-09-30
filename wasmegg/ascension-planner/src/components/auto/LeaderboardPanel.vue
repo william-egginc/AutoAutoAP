@@ -101,8 +101,9 @@
         </p>
         <template v-else>
           <p class="text-[11px] text-indigo-900/80 leading-relaxed">
-            Who reaches {{ target }} first on their current best plan. Being further along counts, so this is a race,
-            not a plan-quality score. To compare a route with yours, press <span class="font-semibold">Use</span>.
+            Players ranked by when their current best plan reaches {{ target }}. How far along they already are counts,
+            so this shows who gets there first, not whose plan is best. To compare a route with yours, press
+            <span class="font-semibold">Use</span>.
           </p>
           <!-- Only this browser sees it: the race is named-only, and saying where an anonymous run
                would sit on the public board would tie it to the account. -->
@@ -118,8 +119,8 @@
           </label>
 
           <p v-if="!race || !race.entries.length" class="text-[11px] text-indigo-900/60 py-6 text-center">
-            No named player has a current plan to {{ target }} yet. Put a name in the box when you share a result to
-            join.
+            No named player has a current plan to {{ target }} yet. To join, put a name in the box when you share a
+            result.
           </p>
           <p v-else-if="!raceShown.length" class="text-[11px] text-indigo-900/60 py-6 text-center">
             Nobody within {{ NEAR_TE }} TE of you has a current plan to {{ target }}.
@@ -280,8 +281,8 @@
                               @use="c => emit('use', c)"
                             />
                             <p v-if="e.listed.length" class="mt-1 text-[10px] text-slate-400">
-                              "vs best" is shown only for plans made from the same save as the best one and priced by
-                              the same version of the planner.
+                              "vs best" only compares plans made from the same save as the best one and priced by the
+                              same version of the planner.
                             </p>
                           </div>
                           <div v-if="e.dropped.length">
@@ -325,25 +326,25 @@
             <ul class="mt-1 space-y-0.5">
               <li v-for="w in race.waiting" :key="w.key">
                 <span class="font-bold">{{ w.label }}</span>
-                <span class="text-slate-500"> — {{ w.dropped[0]?.reason || 'no plan that counts' }}</span>
+                <span class="text-slate-500">: {{ w.dropped[0]?.reason || 'no plan that counts' }}</span>
               </li>
             </ul>
           </details>
 
           <p class="text-[10px] text-slate-500 leading-relaxed">
             Dates and days left are in your timezone ({{ viewZone }}); hover a finish for the player's own. Anonymous
-            runs are not in the race: add a name to join. Every run is in All runs.
+            runs are not in the race, so add a name to join. All runs lists every run.
           </p>
           <details class="text-[10px] text-slate-500 leading-relaxed">
             <summary class="cursor-pointer font-semibold text-slate-600">How the race is judged</summary>
             <ul class="mt-1 ml-4 list-disc space-y-1">
               <li>A player's line is their earliest-finishing plan that still counts.</li>
               <li>
-                A plan stops counting when a newer run of the same plan replaces it (the newest run wins, earlier or
-                later, and so does a newer run's automatic re-check of it); when a newer run shows the player 2 or more
-                TE behind where the plan said they would be; when it is a what-if (it starts more than 12 hours after it
-                was sent or before its save, or was planned from a higher TE than the save or a later run shows); or
-                when it is older than 30 days.
+                A plan stops counting when a newer run of the same plan replaces it. The newest run wins whether it
+                finishes earlier or later, and a newer run's automatic re-check of the plan replaces it too. A plan also
+                stops counting when a newer run shows the player 2 or more TE behind where the plan said they would be,
+                when it is a what-if (it starts more than 12 hours after it was sent or before its save, or was planned
+                from a higher TE than the save or a later run shows), or when it is older than 30 days.
               </li>
               <li>
                 Only the player's own runs can do that: runs sent from the same browser (the board matches a private
@@ -351,13 +352,13 @@
                 timezone and artifacts. Nobody can knock a plan out by sending runs under someone else's name.
               </li>
               <li>
-                One player is one line. Runs from a second browser (a second code) join it when the name, timezone,
+                Each player gets one line. Runs from a second browser (a second code) join it when the name, timezone,
                 artifacts and TE agree, and each browser's plans are judged by that browser's runs. Runs sent under the
                 name without a code since codes began join it the same way, tagged
-                <span class="font-semibold">no code</span>: anyone could have sent them, so they never set the line's
+                <span class="font-semibold">no code</span>. Anyone could have sent those, so they never set the line's
                 finish or place. A name marked <span class="font-semibold">(no code)</span> or
-                <span class="font-semibold">(other code)</span> is such a line that did not fit; it may be somebody
-                else.
+                <span class="font-semibold">(other code)</span> is one of these lines that did not fit, and it may be
+                somebody else.
               </li>
               <li>"Tried" counts each plan once, however often it was run or sent.</li>
             </ul>
@@ -370,15 +371,15 @@
       <template v-else-if="tab === 'eggday' || tab === 'dates'">
         <p v-if="tab === 'eggday'" class="text-[11px] text-indigo-900/80 leading-relaxed">
           The highest TE each player can reach by Egg Day {{ eggDayYear }} (14 July, 9:00 AM Pacific), from Insane
-          mode's <span class="font-bold">Highest TE by a date</span> search with the Egg Day preset. Ranked by the TE
-          reached, then the time to spare; each player's best answer counts. Game events, Egg Day's own included, aren't
-          simulated.
+          mode's <span class="font-bold">Highest TE by a date</span> search with the Egg Day preset. Players are ranked
+          by the TE they reach, then by time to spare, using each player's best answer. Game events aren't simulated,
+          including Egg Day's own.
         </p>
         <p v-else class="text-[11px] text-indigo-900/80 leading-relaxed">
           The highest TE each player can reach by any other date, from Insane mode's
-          <span class="font-bold">Highest TE by a date</span> search, one table per deadline. Ranked by the TE reached,
-          then the time to spare; each player's best answer counts. Dates are in your timezone ({{ viewZone }}). Egg Day
-          {{ eggDayYear }} has its own tab.
+          <span class="font-bold">Highest TE by a date</span> search, one table per deadline. Dates are in your timezone
+          ({{ viewZone }}). Players are ranked by the TE they reach, then by time to spare, using each player's best
+          answer. Egg Day {{ eggDayYear }} has its own tab.
         </p>
         <p v-if="!shownDates.length" class="text-[11px] text-indigo-900/60 py-6 text-center">
           No answers yet. Run Insane mode's Highest TE by a date<template v-if="tab === 'eggday'">
@@ -438,7 +439,7 @@
             </table>
           </div>
           <p v-if="g.anonymous.length" class="text-[10px] text-slate-500">
-            Anonymous answers are listed, not ranked, as in the race.
+            Anonymous answers are listed but not ranked, as in the race.
           </p>
         </div>
       </template>
@@ -452,8 +453,8 @@
           Pick a target TE above to see your plans to it.
         </p>
         <p v-else-if="!mine" class="text-[11px] text-indigo-900/70 py-4">
-          Nothing on the board to {{ target }} is yours yet: no run this browser sent for this account, and none with
-          your timezone and artifacts. Share a result and it shows up here.
+          None of the runs to {{ target }} on the board are yours yet. This browser hasn't sent one for this account,
+          and none match your timezone and artifacts. Share a result and it will show up here.
         </p>
         <template v-else>
           <p class="text-[11px] text-indigo-900/80 leading-relaxed">
@@ -465,14 +466,14 @@
               ({{ daysLeftPhrase(mine.best.finish, now, viewZone) }})<template v-if="myPlace">, {{ myPlace }}</template
               >.
             </template>
-            <template v-else>None of your plans to {{ target }} counts right now; see why below.</template>
+            <template v-else>None of your plans to {{ target }} count right now. The reasons are below.</template>
             {{ mine.sends }} {{ mine.sends === 1 ? 'run' : 'runs' }} sent, {{ mine.plansTried }} different
             {{ mine.plansTried === 1 ? 'plan' : 'plans' }}.
           </p>
           <p v-if="mine.best && mine.listed.length" class="text-[10px] text-slate-500 leading-relaxed">
-            "vs your best" compares plans made from the same save and priced by the same version of the planner, where
-            the gap is the plans and nothing else. For a plan from an older save, press Use to price it again from
-            today's save.
+            "vs your best" only compares plans made from the same save and priced by the same version of the planner, so
+            the gap comes from the plans alone. For a plan from an older save, press Use to price it again from today's
+            save.
           </p>
           <LeaderboardPlanList
             v-if="mine.best"
@@ -504,12 +505,12 @@
       <!-- ================================================================== ALL RUNS -->
       <template v-else>
         <p class="text-[11px] text-indigo-900/80 leading-relaxed">
-          Every run on the board. The same result sent more than once shows once, with how many times it was sent; open
-          it for every copy and its CSV. Look-alike runs (same route and save) say how they differ, and a run sent under
-          a player's name without their code since codes began says <span class="font-semibold">no code</span>. Plan
-          length counts from each run's own start, so it shrinks every day a plan is run again; compare finish dates
-          instead. A route's length on someone else's account says little about yours until you press
-          <span class="font-semibold">Use</span>.
+          Every run on the board. A result sent more than once shows once, with how many times it was sent; open it to
+          see each copy and its CSV. Look-alike runs (same route and save) are tagged with how they differ. A run sent
+          under a player's name without their code since codes began is tagged
+          <span class="font-semibold">no code</span>. Plan length counts from each run's own start, so it shrinks every
+          day a plan is run again. Compare finish dates instead. A route's length on someone else's account says little
+          about yours until you press <span class="font-semibold">Use</span>.
         </p>
         <p v-if="!runLines.length" class="text-[11px] text-indigo-900/60 py-6 text-center">
           No runs to {{ target }} yet.
@@ -977,7 +978,7 @@ function triedTitle(e: RaceEntry): string {
       : '';
   const codeless = e.noCode?.size ?? 0;
   const noCode = codeless
-    ? ` It includes ${codeless} ${codeless === 1 ? 'plan' : 'plans'} sent under this name without the owner code, tagged "no code": listed and counted, but never this line's finish or place.`
+    ? ` That includes ${codeless} ${codeless === 1 ? 'plan' : 'plans'} sent under this name without the owner code, tagged "no code". Those are listed and counted, but never set this line's finish or place.`
     : '';
   return `${sent}${from}. Each plan counts once, however often it was run or sent.${noCode}`;
 }
@@ -1120,9 +1121,9 @@ const NARROW_ORDER: SortKey[] = [
 const shownColumns = computed(() => (narrow.value ? NARROW_ORDER.map(k => COLUMNS.find(c => c.key === k)!) : COLUMNS));
 
 const NO_CODE_TITLE =
-  "Sent under this name without the owner code the player's other runs carry, since the board began stamping runs. " +
-  "Anyone can send such a run, so in the race it never sets the player's finish or place: it is listed on their line " +
-  'tagged "no code", or, when its timezone, artifacts or TE do not fit theirs, on a line of its own marked (no code).';
+  "Sent under this name since the board began stamping runs, but without the owner code the player's other runs carry. " +
+  "Anyone can send a run like this, so in the race it never sets the player's finish or place. It is listed on their " +
+  'line tagged "no code", or, if its timezone, artifacts or TE do not fit theirs, on a separate line marked (no code).';
 
 const runLines = computed<RunLine[]>(() => {
   const rows = target.value == null ? allRows.value : allRows.value.filter(r => r.finalTE === target.value);

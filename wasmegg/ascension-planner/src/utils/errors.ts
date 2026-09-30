@@ -58,3 +58,10 @@ export function describeRunError(e: unknown): string {
       return rawMessage(e);
   }
 }
+
+/** A store message ("sent, but ...") as a sentence of its own: capital first letter, one full stop. */
+export function sentence(message: string): string {
+  const m = message.trim();
+  if (!m) return m;
+  return m.charAt(0).toUpperCase() + m.slice(1) + (/[.!?]$/.test(m) ? '' : '.');
+}

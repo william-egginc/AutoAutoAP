@@ -19,7 +19,7 @@
         <div>
           <h2 class="text-xl font-black text-slate-900 uppercase tracking-tight">Chain Search</h2>
           <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5">
-            Beta — searches for a faster set of checkpoints than the one you typed
+            Beta: searches for a faster set of checkpoints than the one you typed
           </p>
         </div>
       </div>
@@ -31,7 +31,7 @@
           with the same simulator the Auto Planner uses. It runs in
           <span class="font-bold text-slate-800">up to {{ store.workersInPool }} background workers</span> on your own
           machine. One chain costs at least 15 seconds of CPU, so a run takes <span class="font-bold">hours</span>, not
-          seconds. Leave the tab open — it can be in the background, but a closed tab stops the workers.
+          seconds. Leave the tab open. It can be in the background, but closing the tab stops the workers.
         </p>
         <p>
           It matters because good chains are rare: {{ NEAR_OPTIMAL_SHARE }} on the one account where every chain was
@@ -77,8 +77,8 @@
                   Effort
                 </label>
                 <HelpTip
-                  >How many search stages to run. They are strictly nested, so a higher tier is a later stop point, not
-                  a different algorithm — stopping one early always leaves you the lower tier's answer at no extra
+                  >How many search stages to run. The stages are strictly nested: a higher tier runs the same algorithm
+                  and just stops later, so stopping one early always leaves you the lower tier's answer at no extra
                   cost.</HelpTip
                 >
               </span>
@@ -109,18 +109,18 @@
             <div class="p-4 bg-white border border-slate-200 rounded-xl space-y-2">
               <p class="text-xs text-slate-700 leading-relaxed">{{ note.adds }}</p>
               <p class="text-[11px] text-slate-500 leading-relaxed">
-                <span class="font-black uppercase tracking-widest text-slate-400">Measured accuracy</span>
-                — {{ note.accuracy }}
+                <span class="font-black uppercase tracking-widest text-slate-400">Measured accuracy:</span>
+                {{ note.accuracy }}
               </p>
               <p class="text-[10px] text-slate-400 leading-relaxed">
                 Every figure above is hours behind the best answer <em>found</em>, {{ ACCURACY_SAMPLE }}. There is no
                 confidence percentage here on purpose: three observations cannot honestly be turned into one.
               </p>
               <p class="text-[11px] text-slate-500">
-                <span class="font-black uppercase tracking-widest text-slate-400">Reference time</span>
-                — {{ note.cliDuration }} on a 20-core desktop running the command-line version at 12 jobs. Your machine
-                has {{ store.workersInPool + 1 }} logical cores, so expect a different number; the live estimate below
-                is measured here, not carried over.
+                <span class="font-black uppercase tracking-widest text-slate-400">Reference time:</span>
+                {{ note.cliDuration }} on a 20-core desktop running the command-line version at 12 jobs. Your machine
+                has {{ store.workersInPool + 1 }} logical cores, so expect a different number. The live estimate below
+                is measured on your machine.
               </p>
               <p
                 v-if="note.warning"
@@ -135,13 +135,13 @@
                because the board needs exhaustive sweeps and nobody found the URL. A reload, so it is
                not offered mid-run: leaving would stop the search. -->
           <p class="text-[11px] text-slate-600 leading-relaxed">
-            <span class="font-bold text-slate-800">Not big enough?</span>
+            <span class="font-bold text-slate-800">Not big enough?</span>{{ ' ' }}
             <template v-if="!store.isRunning">
               <a :href="insaneHref" class="font-bold text-rose-700 underline hover:text-rose-600">Try Insane mode</a>:
             </template>
             <template v-else>Insane mode (once this search is stopped):</template>
             an exhaustive search that prices every chain in a space you choose, so its winner is proven for that space
-            rather than found by descent. Hours instead of minutes.
+            rather than found by descent. It takes hours instead of minutes.
           </p>
 
           <!-- Starting point -->
@@ -155,13 +155,13 @@
               class="mt-0.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 disabled:opacity-50"
             />
             <span class="text-xs text-slate-600 leading-relaxed">
-              <span class="font-bold text-slate-800">Find a starting chain for me</span>
-              — scan a coarse grid of checkpoints first and pick the prestige count, instead of starting from the chain
+              <span class="font-bold text-slate-800">Find a starting chain for me.</span>
+              Scans a coarse grid of checkpoints first and picks the prestige count, instead of starting from the chain
               above. Turn this on if you do not already have a chain you trust. It costs one extra wide batch (<span
                 class="font-semibold"
                 >372 chains, about 15 minutes on a 20-core desktop</span
               >) and its answer is only a rough shape: measured 12.0 and 8.6 days off the final result on the two
-              accounts tested. The stages after it are what close that gap.
+              accounts tested. The later stages close that gap.
             </span>
           </label>
 
@@ -212,9 +212,9 @@
                     Lock the first
                   </label>
                   <HelpTip
-                    >Hold this many leading checkpoints exactly as typed. Useful once you have committed to them in game
-                    — and it is the cheapest speedup here, because moving the first checkpoint forces every later leg to
-                    be re-simulated.</HelpTip
+                    >Hold this many leading checkpoints exactly as typed. Useful once you have committed to them in
+                    game. It is also the cheapest speedup here, because moving the first checkpoint forces every later
+                    leg to be re-simulated.</HelpTip
                   >
                 </span>
                 <input
@@ -232,7 +232,7 @@
               Ascension count is the chain length including your final target, and it bounds both the coarse scan and
               the prestige-count probe.
               <span v-if="store.pin > 0" class="font-semibold text-slate-700">
-                Locking {{ store.pin }} holds {{ store.seedChain.slice(0, store.pin).join(' ') }} fixed — the search
+                Locking {{ store.pin }} holds {{ store.seedChain.slice(0, store.pin).join(' ') }} fixed, so the search
                 will not move {{ store.pin === 1 ? 'it' : 'them' }}.
               </span>
               <span v-else>
@@ -262,7 +262,7 @@
               <span class="text-rose-600 text-base leading-none mt-0.5" aria-hidden="true">&#128683;</span>
               <p class="text-[11px] text-rose-800 leading-relaxed">
                 <span class="font-black uppercase tracking-wide">Locked during calculations.</span>
-                Your schedule changes which chain is fastest, so it cannot be edited part-way through a run — the chains
+                Your schedule changes which chain is fastest, so it cannot be edited part-way through a run: the chains
                 already priced were priced under the old setting. To change it, hit
                 <span class="font-bold">Stop and keep best</span> below, adjust, and start again.
                 <span class="font-semibold">Nothing is lost: every chain priced so far is checkpointed</span>
@@ -283,11 +283,11 @@
                 "
               />
               <span class="text-xs text-slate-600 leading-relaxed">
-                <span class="font-bold text-slate-800">Plan around my schedule</span>
-                — say when you can actually play, and no plan will ask you to prestige outside it. Each prestige that
-                would land while you are away is moved to your next available hour and the delay is
-                <span class="font-semibold">charged</span>, which is why this has to be on before the search starts: it
-                changes which chain is fastest, not just how the answer is displayed.
+                <span class="font-bold text-slate-800">Plan around my schedule.</span>
+                Say when you can actually play, and no plan will ask you to prestige outside those hours. Each prestige
+                that would land while you are away is moved to your next available hour and the delay is
+                <span class="font-semibold">charged</span>. That changes which chain is fastest, which is why this has
+                to be on before the search starts.
               </span>
             </label>
 
@@ -346,7 +346,7 @@
                 <span class="font-semibold text-slate-700">{{ store.availabilityLabel }}</span
                 >. Timezone comes from the Auto Planner's scheduling inputs.
                 <span v-if="store.scheduleIsEmpty" class="text-amber-700 font-semibold"
-                  >Every day, all hours — that rules nothing out, so the search will run unconstrained.</span
+                  >Every day at all hours rules nothing out, so the search will run unconstrained.</span
                 >
                 <span v-else-if="!store.availableDays.length" class="text-amber-700 font-semibold"
                   >No days selected. Pick at least one or nothing can be scheduled.</span
@@ -361,10 +361,10 @@
                   class="mt-0.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 disabled:opacity-50"
                 />
                 <span class="text-[11px] text-slate-600 leading-relaxed">
-                  <span class="font-bold text-slate-800">Hold the shifts for my hours too</span>
-                  — not just the prestige. Each of the twelve switches inside an ascension waits for your next available
-                  hour and the delay is charged, so the search looks for a chain whose shifts genuinely land when you
-                  are around. Turning this off makes shifts
+                  <span class="font-bold text-slate-800">Hold the shifts for my hours too.</span>
+                  As well as the prestige, each of the twelve switches inside an ascension waits for your next available
+                  hour and the delay is charged, so the search looks for a chain whose shifts really land when you are
+                  around. Turning this off makes shifts
                   <span class="font-semibold">reported but free</span>, which is what the numbers below mean when it is
                   unticked.
                 </span>
@@ -378,7 +378,7 @@
                 Shifts are pushed on top of the simulated timeline rather than re-simulated, because the simulator
                 schedules them itself and teaching it about your hours would change the manual planner too. It errs one
                 way only: while you wait, the farm keeps laying the egg you have not switched away from, and that extra
-                progress is not credited — so a plan built this way should, if anything, run slightly faster than it
+                progress is not credited, so a plan built this way should, if anything, run slightly faster than it
                 says.
               </p>
 
@@ -388,7 +388,7 @@
               >
                 <span class="font-bold uppercase tracking-wide">What this does not fix.</span>
                 Only the prestige between two ascensions is moved. The twelve shifts inside an ascension are scheduled
-                by the simulator's own timing and are not moved, so some will still fall outside your hours — open a leg
+                by the simulator's own timing and are not moved, so some will still fall outside your hours. Open a leg
                 below to see exactly which, or tick the box above to have them held too. The prestige delay is charged
                 in full while the extra TE you keep earning while away is not credited, so a plan built this way should,
                 if anything, run slightly faster than it says. Every accuracy figure above was measured with this off.
@@ -446,7 +446,7 @@
               <p v-if="setTab === 'elr'" class="text-[11px] text-slate-500 leading-relaxed">
                 Solved against your research levels <span class="font-semibold">as they are today</span>, so this is the
                 set the first leg runs with. Every later leg re-solves against its own research state and will pick
-                something different — there is no single delivery set for the whole plan.
+                something different, so there is no single delivery set for the whole plan.
               </p>
               <p v-else class="text-[11px] text-slate-500 leading-relaxed">
                 The best earnings set your inventory can build. Unlike the delivery set this does not depend on
@@ -490,8 +490,8 @@
                     </span>
                   </div>
                   <p class="text-[11px] text-slate-400 leading-relaxed">
-                    Most of these never get worn. They are listed because the solver's job is to pick out of the whole
-                    pile, so the pile is the input — but only the two sets above are what any leg actually runs with.
+                    Most of these never get worn. They are listed because the solver picks from the whole pile, so the
+                    pile is its input, but only the two sets above are what any leg actually runs with.
                   </p>
                 </div>
               </div>
@@ -510,10 +510,10 @@
                 across all
                 <span class="font-semibold">{{ store.bestDays > 0 ? Math.round(store.bestDays) : '700+' }}</span>
                 days. In practice you will craft and upgrade along the way, so the real run should come in
-                <span class="font-semibold">faster</span> than every number here — the model errs in the safe direction,
-                but it errs. Comparisons BETWEEN chains stay fair, because every candidate is simulated with the same
-                inventory; it is the absolute dates that will drift early. Re-run the search with a fresh backup after
-                any significant crafting.
+                <span class="font-semibold">faster</span> than every number here. The model is off, but in the safe
+                direction. Comparisons between chains stay fair, because every candidate is simulated with the same
+                inventory; the absolute dates are what will drift early. Re-run the search with a fresh backup after any
+                significant crafting.
               </p>
             </div>
           </div>
@@ -538,8 +538,8 @@
               Starting chain
             </label>
             <HelpTip
-              >Where the search begins. It only MOVES checkpoints and adds at most one, so a seed with too few cannot
-              reach a longer answer. Leave the final target off — it is appended for you.</HelpTip
+              >Where the search begins. It only moves checkpoints and adds at most one, so a seed with too few cannot
+              reach a longer answer. Leave the final target off; it is added for you.</HelpTip
             >
           </span>
           <input
@@ -579,8 +579,8 @@
           <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
             Chains to price (max)
             <HelpTip
-              >An upper bound, not a target. Coordinate descent stops as soon as no checkpoint moves, so a run routinely
-              finishes well short of this.</HelpTip
+              >An upper bound. Coordinate descent stops as soon as no checkpoint moves, so a run routinely finishes well
+              short of this.</HelpTip
             >
           </div>
           <div class="text-sm font-black text-slate-800 mt-1">~{{ store.estimateForCurrentSettings }}</div>
@@ -622,10 +622,10 @@
           }}), best so far <span class="font-black">{{ store.resumable.bestChain.join(' ') }}</span> at
           {{ (store.resumable.bestSeconds / 86400).toFixed(3) }} days.
           <template v-if="store.resumable.complete"
-            >That run reached the end of its tier, so resuming it finds nothing new — but a HIGHER effort tier will
-            replay all {{ store.resumable.durations.length }} priced chains for free and carry on from there.</template
+            >That run reached the end of its tier, so resuming it finds nothing new. A higher effort tier will replay
+            all {{ store.resumable.durations.length }} priced chains for free and carry on from there.</template
           >
-          <template v-else>Resuming replays those instantly and carries on — nothing is re-simulated.</template>
+          <template v-else>Resuming replays those instantly and carries on without re-simulating anything.</template>
           <template v-if="!store.resumable.complete && store.runSaveFor(store.resumable.inputsKey)">
             It carries on with the save it started with (TE {{ store.runSaveFor(store.resumable.inputsKey)?.te }}), so
             both halves are priced on the same farm.</template
@@ -757,12 +757,12 @@
             class="mt-0.5 rounded border-slate-300 text-indigo-600 disabled:opacity-40"
           />
           <span class="text-[11px] text-slate-600 leading-relaxed">
-            <span class="font-bold text-slate-800">Submit the result to the board when it finishes.</span> The chain,
-            its timings and the full CSV, with your artifact inventory, timezone and local plan start, plus a random
-            code this browser keeps for the account (never your player ID, and never shown). The code is how the board
-            folds your repeated sends into one, lets you put your name on a run you sent anonymously, and lets your own
-            later runs replace your older plans. The run's last few seconds also re-price your best three plans already
-            on the board from this save, and those go too (named ones with a named send, anonymous ones with an
+            <span class="font-bold text-slate-800">Submit the result to the board when it finishes.</span> It sends the
+            chain, its timings and the full CSV, with your artifact inventory, timezone and local plan start, plus a
+            random code this browser keeps for the account (never your player ID, and never shown). The code is how the
+            board folds your repeated sends into one, lets you put your name on a run you sent anonymously, and lets
+            your own later runs replace your older plans. The run's last few seconds also re-price your best three plans
+            already on the board from this save, and those go too (named ones with a named send, anonymous ones with an
             anonymous send). Exactly what is sent is shown under Share this result. Stop early and nothing is sent.
           </span>
         </label>
@@ -875,8 +875,8 @@
             v-if="store.finishedCleanly && store.chainsDone < store.chainsEstimated * 0.9"
             class="text-[10px] text-emerald-700 font-bold mt-1.5"
           >
-            Finished early — the estimate is an upper bound, and descent stops as soon as no checkpoint moves. Starting
-            from an already-good chain is exactly when that happens.
+            Finished early. The estimate is an upper bound, and descent stops as soon as no checkpoint moves, which is
+            what happens when you start from a chain that is already good.
           </p>
           <div class="flex items-center justify-between text-[10px] text-slate-400 font-bold mt-1.5">
             <span>{{ store.detail }}</span>
@@ -910,7 +910,7 @@
             </div>
           </div>
           <p class="text-[11px] text-emerald-800 leading-relaxed">
-            The stages are nested — each one starts from the answer the previous one produced — so stopping now is safe.
+            The stages are nested (each one starts from the answer the previous one produced), so stopping now is safe.
             You keep this chain, and it is exactly what the stages that already finished ({{
               store.lastCompletedStage
             }}) guarantee.
@@ -944,7 +944,9 @@
                 </th>
                 <th class="py-2 pr-3">
                   Finish
-                  <HelpTip>When its target TE is reached — the moment you prestige into the next ascension.</HelpTip>
+                  <HelpTip
+                    >When its target TE is reached, which is the moment you prestige into the next ascension.</HelpTip
+                  >
                 </th>
                 <th class="py-2 pr-3">
                   Strategy
@@ -959,8 +961,8 @@
                 <th class="py-2 pr-3">
                   Peak delivery
                   <HelpTip
-                    >The highest egg delivery rate this ascension reaches, after the K3 research purchases. It is what
-                    caps how fast the last stretch of the leg earns.</HelpTip
+                    >The highest egg delivery rate this ascension reaches, after the K3 research purchases. It caps how
+                    fast the last stretch of the leg earns.</HelpTip
                   >
                 </th>
                 <!-- "Night shifts" lived here and has moved into the expander, next to the
@@ -1032,7 +1034,7 @@
                 <tr v-if="expandedLeg === i && leg.shifts?.length" class="bg-slate-50">
                   <td :colspan="store.scheduleEnabled ? 9 : 7" class="px-3 py-3">
                     <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
-                      A{{ i + 1 }} — {{ eggBlocks(leg).length }} eggs, {{ leg.shifts.length }} switches
+                      A{{ i + 1 }}: {{ eggBlocks(leg).length }} eggs, {{ leg.shifts.length }} switches
                       <span v-if="store.scheduleEnabled" class="text-amber-600">· amber falls outside your hours</span>
                     </p>
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5">
@@ -1060,7 +1062,7 @@
                     </div>
                     <p class="text-[11px] text-slate-500 mt-2 leading-relaxed">
                       One row per egg, with when you start laying it and how long you stay. The
-                      <span class="font-semibold text-emerald-700">first row is where the ascension begins</span> — no
+                      <span class="font-semibold text-emerald-700">first row is where the ascension begins</span>: no
                       action needed, you are already on it. Every row after it is one manual switch, which is why twelve
                       eggs means eleven switches. This matches the Auto Planner's own C1 / I1 / K1 list.
                     </p>
@@ -1102,17 +1104,17 @@
       <!-- The generated plan does NOT know about the schedule. Said here rather than buried,
            because the two numbers WILL disagree and the search's is the realistic one. -->
       <div
-        v-if="applied && store.scheduleEnabled && store.availability"
+        v-if="applied && store.scheduleEnabled && store.availability && totalPrestigeWait"
         class="p-4 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-900 leading-relaxed space-y-1.5"
       >
         <p class="font-bold uppercase tracking-wide text-amber-700">
           The built plan will show slightly earlier dates than this search
         </p>
         <p>
-          The Auto Planner does not know about your available hours — only this search does. It will lay the plan out
+          Only this search knows about your available hours; the Auto Planner does not. It will lay the plan out
           assuming you prestige the instant each target is hit, so its dates omit the
-          <span class="font-semibold">{{ totalPrestigeWait }}</span> of waiting the search charged. The checkpoints are
-          the same and the strategies are the same; only the clock differs, and
+          <span class="font-semibold">{{ totalPrestigeWait }}</span> of waiting the search charged. The checkpoints and
+          strategies are the same; only the clock differs, and
           <span class="font-semibold">this panel's finish date is the realistic one</span>.
         </p>
       </div>
@@ -1135,7 +1137,7 @@
         </div>
 
         <p class="text-[11px] text-slate-500 leading-relaxed">
-          Fastest is not always best. Every prestige is a full rebuild — twelve shifts and a fresh research grind — so
+          Fastest is not always best. Every prestige is a full rebuild (twelve shifts and a fresh research grind), so
           half a day slower for one fewer ascension may well be the trade you want. Pick on the
           <span class="font-semibold">finish date</span>, not the day count: durations from different plan starts are
           not comparable.
@@ -1187,11 +1189,11 @@
                   <HelpTip v-if="store.deferShifts">
                     How much of this option's length is waiting for you: prestiges plus the twelve shifts per ascension,
                     all held until you are available. It is the part of the finish date your schedule is responsible
-                    for, and it is the number that actually differs between these options — the night-shift count
-                    cannot, because holding them drives it to zero for every row.
+                    for, and the number that actually differs between these options. The night-shift count cannot
+                    differ, because holding the shifts drives it to zero for every row.
                   </HelpTip>
                   <HelpTip v-else>
-                    Shifts landing outside your hours. You are not holding them, so they are reported and free — this is
+                    Shifts landing outside your hours. You are not holding them, so they are reported and free. This is
                     the count you would have to get up for.
                   </HelpTip>
                 </th>
@@ -1279,16 +1281,16 @@
                       </div>
                     </div>
                     <p class="text-[10px] text-slate-400 leading-relaxed pt-1">
-                      One entry per egg. The first is where the ascension starts &mdash; you are already on it &mdash;
-                      and each one after it is a manual switch.
+                      One entry per egg. The first is where the ascension starts (you are already on it), and each one
+                      after it is a manual switch.
                       <template v-if="store.scheduleEnabled && store.deferShifts">
                         These have already been moved into your hours, which is what this option's
-                        <span class="font-semibold">cost</span> above paid for &mdash; so none are amber. Untick "hold
-                        the shifts" and re-run to see where they would fall unassisted.
+                        <span class="font-semibold">cost</span> above paid for, so none are amber. Untick "hold the
+                        shifts" and re-run to see where they would fall unassisted.
                       </template>
                       <template v-else-if="store.scheduleEnabled">
-                        <span class="font-semibold text-amber-700">Amber ones fall outside your hours</span>
-                        &mdash; you would have to be up for them. Compare the amber between options.
+                        <span class="font-semibold text-amber-700">Amber ones fall outside your hours</span>, so you
+                        would have to be up for them. Compare the amber between options.
                       </template>
                     </p>
                   </td>
@@ -1300,7 +1302,7 @@
 
         <p class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3 leading-relaxed">
           Every view above reads the <span class="font-semibold">{{ store.csvRows.toLocaleString() }}</span>
-          chains this run priced — switching costs nothing and re-simulates nothing. A chain missing from all of them
+          chains this run priced, so switching costs nothing and re-simulates nothing. A chain missing from all of them
           was almost certainly never evaluated rather than evaluated and beaten: the search stays in its own
           neighbourhood. Download the CSV for the full list.
         </p>
@@ -1316,15 +1318,15 @@
         <p class="font-bold uppercase tracking-wide text-amber-700">No plan start is set</p>
         <p>
           The Auto Planner has no start date and time, so this plan is timed from
-          <span class="font-semibold">right now</span> — and "now" moves every time you reload.
+          <span class="font-semibold">right now</span>, and "now" moves every time you reload.
         </p>
         <p>
           That has two consequences worth knowing before a long run.
           <span class="font-semibold">Saved runs stop matching:</span> the plan start is part of what identifies a run,
           so after a reload the search will not offer to resume and re-prices everything.
           <span class="font-semibold">Day counts stop being comparable:</span> the same chain reports a smaller number
-          simply because the stopwatch started later — compare <span class="font-semibold">finish dates</span>, which do
-          not move. Set a start date and time in the scheduling inputs above to pin it.
+          simply because the stopwatch started later, so compare <span class="font-semibold">finish dates</span>, which
+          do not move. Set a start date and time in the scheduling inputs above to pin it.
         </p>
       </div>
 
@@ -1338,8 +1340,8 @@
           Your browser suspended this tab for {{ formatDuration(store.suspendedSeconds) }}
         </p>
         <p>
-          Nothing ran during that time — a frozen tab freezes its background workers too, so the search was paused
-          rather than working. It has been resumed and no progress was lost.
+          Nothing ran during that time: a frozen tab freezes its background workers too, so the search was paused. It
+          has been resumed and no progress was lost.
         </p>
         <p>
           To stop it happening on a long run: in Edge, open
@@ -1367,9 +1369,9 @@
       >
         <p>
           <span class="font-bold uppercase tracking-wide">{{
-            store.errorBeforeStart ? "Didn't start" : 'Search failed'
+            store.errorBeforeStart ? "Didn't start:" : 'Search failed:'
           }}</span>
-          — {{ store.error }}
+          {{ store.error }}
         </p>
         <!-- A pre-flight refusal: nothing ran, so the crash advice below would only send people
              looking for a problem that is not there. -->
@@ -1469,7 +1471,7 @@
               class="mt-0.5 rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500"
             />
             <span class="text-[11px] text-indigo-900/80 leading-relaxed">
-              <span class="font-bold">Include the full CSV</span> — every chain this run priced, one row per leg ({{
+              <span class="font-bold">Include the full CSV:</span> every chain this run priced, one row per leg ({{
                 (store.csvRows || 0).toLocaleString()
               }}
               chains). The JSON above is the headline; this is the working. It is compressed before it leaves your
@@ -1550,12 +1552,12 @@
           <span class="font-black uppercase tracking-wide">What this does and does not include.</span>
           It is built from a fixed list of fields, not by stripping things out of the CSV, so nothing added to the CSV
           later can leak by being forgotten here. Your
-          <span class="font-semibold">player ID is not in it</span> — it was never in the CSV either. What
+          <span class="font-semibold">player ID is not in it</span>, and it was never in the CSV either. What
           <em>is</em> in it and is still identifying: <span class="font-semibold">your artifact inventory</span>, which
           with exact counts is close to a fingerprint among people who know you; your
           <span class="font-semibold">timezone</span> and local plan start; and your
           <span class="font-semibold">available hours</span>. The inventory is included because a duration means nothing
-          without knowing what it was simulated with — the same plan on commons is a different claim. It also carries a
+          without knowing what it was simulated with: the same plan on commons is a different claim. It also carries a
           <span class="font-semibold">random code this browser keeps for the account</span> (not derived from your
           player ID). The code is never shown to anyone. The board uses it so a run that lands on the flagged board (a
           stalled first ascension, a plan past ten years) shows to you as yours and to everyone else anonymously; so the
@@ -1567,7 +1569,7 @@
           whether they still hold: your named plans when this goes with your name, your anonymous ones when it goes
           without, so a re-check never ties the two together.
           <span v-if="includeCsv"
-            >The <span class="font-semibold">CSV goes too</span>, ticked by default above: the same run in full — every
+            >The <span class="font-semibold">CSV goes too</span>, ticked by default above. It is the whole run: every
             chain it priced, one row per leg, with start and end times in your plan's timezone. Untick it to send the
             headline alone.</span
           >
@@ -1584,11 +1586,10 @@
             rel="noopener"
             class="font-bold text-indigo-700 underline hover:text-indigo-900"
             >chain leaderboard</a
-          >
-          — the fastest plan lengths, one line per result (anonymous runs included), and every row opens to show the
-          artifacts, stones and per-leg timings it was simulated with. Read it as "what shapes are winning for people":
-          a duration depends on the account as much as on the chain. The race to the target by finish date, one line per
-          named player, is the planner's own Leaderboard tab.
+          >. It lists the fastest plan lengths, one line per result (anonymous runs included), and every row opens to
+          show the artifacts, stones and per-leg timings it was simulated with. Read it as "what shapes are winning for
+          people": a duration depends on the account as much as on the chain. The race to the target by finish date, one
+          line per named player, is the planner's own Leaderboard tab.
         </p>
 
         <p v-if="!store.submitUrl" class="text-[11px] text-indigo-900/70 leading-relaxed">
@@ -1623,8 +1624,8 @@
                 : 'border-amber-200 bg-amber-50 text-amber-900'
             "
           >
-            <span class="font-bold uppercase tracking-wide">{{ runOutcome.title }}</span>
-            &mdash; {{ runOutcome.detail }}
+            <span class="font-bold uppercase tracking-wide">{{ runOutcome.title }}:</span>
+            {{ runOutcome.detail }}
           </div>
 
           <SearchShapeChart :points="store.pricedChains" :best-chain="store.bestChain" />
@@ -1644,7 +1645,7 @@
           Download CSV
         </button>
         <p class="text-[11px] text-slate-500 leading-relaxed flex-1 min-w-[16rem]">
-          {{ store.csvRows || store.resumable?.durations.length || 0 }} chains, one row per leg — strategy, sale count,
+          {{ store.csvRows || store.resumable?.durations.length || 0 }} chains, one row per leg: strategy, sale count,
           start and end times in your plan's timezone, peak delivery, and how many shifts fall in your schedule.
           Artifacts and stones are in the header block: the search never varies them.
           <span v-if="store.isRunning" class="font-semibold text-slate-600">Safe to download mid-run.</span>
@@ -1659,9 +1660,9 @@
         <ul class="space-y-1 list-disc list-inside">
           <li>The result is a strong <span class="font-semibold">local</span> optimum, never a proven global one.</li>
           <li>
-            The search starts from the chain you typed above, unless you tick "find a starting chain for me" — then it
-            scans a coarse grid and picks the prestige count first, the same as the command-line tool. Either way it
-            never scans the whole space, so a bad starting chain can still strand it in a bad neighbourhood.
+            The search starts from the chain you typed above, unless you tick "find a starting chain for me", in which
+            case it scans a coarse grid and picks the prestige count first, the same as the command-line tool. Either
+            way it never scans the whole space, so a bad starting chain can still strand it in a bad neighbourhood.
           </li>
           <li>Accuracy figures come from 3 accounts. Only one of them has a proven optimum to check against.</li>
           <li>A refresh is safe: progress is checkpointed and resumes without re-simulating anything.</li>
@@ -1679,6 +1680,7 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { useEidsStore } from 'lib';
 import { useChainSearchStore } from '@/stores/chainSearch';
+import { sentence } from '@/utils/errors';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { ACCURACY_SAMPLE, EFFORT_NOTES, EFFORT_ORDER, NEAR_OPTIMAL_SHARE } from '@/search/effort';
 import { formatDuration } from '@/lib/format';
@@ -1840,7 +1842,7 @@ async function retryTable(): Promise<void> {
   try {
     const res = await store.retryTable();
     submitOk.value = res.ok;
-    submitMessage.value = res.ok ? `Thank you — ${res.message}` : `Not sent: ${res.message}`;
+    submitMessage.value = res.ok ? `Thanks! ${sentence(res.message)}` : `Not sent: ${res.message}`;
   } finally {
     retryingTable.value = false;
   }
@@ -1855,7 +1857,7 @@ const effectiveNickname = computed(() => (anonymous.value ? '' : nickname.value)
 
 const payloadPreview = computed(() => {
   const p = store.buildRunSubmission(effectiveNickname.value);
-  return p ? JSON.stringify(p, null, 2) : 'nothing to share yet - run a search first';
+  return p ? JSON.stringify(p, null, 2) : 'Nothing to share yet. Run a search first.';
 });
 
 async function submit(): Promise<void> {
@@ -1892,7 +1894,7 @@ async function submit(): Promise<void> {
       ? `Not sent: ${res.message}`
       : res.duplicate === 'exact'
         ? res.message
-        : `Thank you — ${res.message}`;
+        : `Thanks! ${sentence(res.message)}`;
   } finally {
     store.blackBoxEnd('submit');
     submitState.value = 'done';
@@ -1909,7 +1911,7 @@ async function claim(): Promise<void> {
   try {
     const res = await store.claimName(id, effectiveNickname.value);
     submitOk.value = res.ok;
-    submitMessage.value = res.ok ? `Done — ${res.message}` : `Not renamed: ${res.message}`;
+    submitMessage.value = res.ok ? `Done: ${res.message}` : `Not renamed: ${res.message}`;
   } finally {
     claiming.value = false;
   }
@@ -2090,7 +2092,7 @@ function use(chain: number[], alsoGenerate = false): void {
  *  understated the gap by the larger of the two whenever shifts were being held. */
 const totalPrestigeWait = computed(() => {
   const s = store.bestLegs.reduce((n, l) => n + (l.sleepDelaySeconds ?? 0) + (l.shiftDelaySeconds ?? 0), 0);
-  return s > 0 ? formatDuration(s) : 'no';
+  return s > 0 ? formatDuration(s) : '';
 });
 
 function relativeTime(ms: number): string {

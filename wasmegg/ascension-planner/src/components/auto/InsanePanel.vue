@@ -56,18 +56,18 @@
               {{
                 sweepRequest.forceContinue ? 'finishing your current run first' : 'prestiging straight away'
               }}</template
-            >. Already set below; you do not need to touch anything else.
+            >. These are already filled in below, so you don't need to change anything else.
           </p>
           <p class="text-[11px] text-slate-600">
             <template v-if="timeOffText">
               Planned around time off: <b>{{ timeOffText }}</b
-              >. It still prices every chain, but the result is filed with the time-off runs on the board rather than
-              filling this gap.
+              >. It still prices every chain, but the result goes on the board with the time-off runs and won't fill
+              this gap.
             </template>
             <template v-else>
               Taking time off, like Egg Day or a trip?
               <a href="#insane-time-off" class="font-bold text-indigo-700 underline">Add it below</a> and the sweep
-              still prices every chain, around it.
+              still prices every chain around it.
             </template>
           </p>
         </div>
@@ -110,9 +110,9 @@
             @input="setWorkers(($event.target as HTMLInputElement).value)"
           />
           <span class="block text-[10px] text-slate-500">
-            Fewer keeps the computer usable and quieter; more finishes sooner. The estimate above follows the slider.
-            You can move it during a run too: the change takes effect within about a minute, and no chain in progress is
-            lost.
+            Fewer workers keep the computer usable and quieter; more finish sooner. The estimate above follows the
+            slider. You can move it during a run too: the change takes effect within about a minute, and no chain in
+            progress is lost.
           </span>
         </label>
 
@@ -121,12 +121,12 @@
           <span>
             I understand this takes about <b>{{ estimateLabel }}</b
             >, that this tab has to stay open (and the computer awake) until it finishes, and that the result is then
-            <b>sent to the board automatically</b>: the chain, its timings and the full CSV, with my artifact inventory,
-            timezone and local plan start, plus a random code this browser keeps for the account (never my player ID,
-            and never shown), which folds my repeated sends, lets me put my name on a run sent anonymously, and lets my
-            own later runs replace my older plans. The sweep's last few seconds also re-price my best three plans
-            already on the board from this save, and those go too (named ones with a named send, anonymous ones with an
-            anonymous send).
+            <b>sent to the board automatically</b>. What gets sent: the chain, its timings and the full CSV, with my
+            artifact inventory, timezone and local plan start, plus a random code this browser keeps for the account
+            (never my player ID, and never shown). The code folds my repeated sends together, lets me put my name on a
+            run sent anonymously, and lets my own later runs replace my older plans. In its last few seconds the sweep
+            also re-prices my best three plans already on the board from this save, and those are sent too (named ones
+            with a named send, anonymous ones with an anonymous send).
           </span>
         </label>
         <!-- The same two choices, and the same values, as the Submit section at the bottom: anonymous
@@ -163,8 +163,8 @@
           v-if="ascMismatch"
           class="rounded-lg bg-rose-50 border border-rose-200 px-3 py-2 text-[11px] font-semibold text-rose-800"
         >
-          The Ascensions box ({{ suggestAsc }}) no longer matches this sweep ({{ bands.length + 1 }} ascensions). Set it
-          back to {{ bands.length + 1 }} under The space to search to start.
+          The Ascensions box ({{ suggestAsc }}) no longer matches this sweep ({{ bands.length + 1 }} ascensions). To
+          start, set it back to {{ bands.length + 1 }} under The space to search.
         </p>
         <div class="flex flex-wrap items-center gap-3">
           <button
@@ -183,9 +183,9 @@
             {{ store.isRunning ? 'Running...' : 'Start this sweep' }}
           </button>
           <span class="text-[10px] text-slate-500">
-            One press is all it takes (the button further down does the same). When the sweep finishes, the result is
-            submitted by itself, tagged {{ sweepRequest.preset }}. Stop it early and nothing is sent; the Submit section
-            at the bottom is still there if you want to send a partial run by hand.
+            One press starts it (the button further down does the same). When the sweep finishes, the result is
+            submitted automatically, tagged {{ sweepRequest.preset }}. If you stop it early, nothing is sent, but you
+            can still send a partial run by hand from the Submit section at the bottom.
           </span>
         </div>
         <!-- The automatic submission, reported where the player pressed Start. -->
@@ -228,10 +228,10 @@
           v-if="store.noFeasibleChain && !store.error"
           class="rounded-lg bg-rose-50 border border-rose-200 px-3 py-2 text-[11px] text-rose-800"
         >
-          <b>No chain finished</b> — so there is nothing to save or submit. The reason is further down.
+          <b>No chain finished</b>, so there is nothing to save or submit. The reason is further down.
         </p>
         <p v-if="store.error" class="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-[11px] text-red-800">
-          <b>{{ store.errorBeforeStart ? "Didn't start" : 'Search failed' }}</b> — {{ store.error }}
+          <b>{{ store.errorBeforeStart ? "Didn't start" : 'Search failed' }}:</b> {{ store.error }}
         </p>
         <p
           v-else-if="store.runNotes.length"
@@ -272,9 +272,9 @@
         v-if="goal === 'deadline'"
         class="p-4 rounded-xl border border-rose-200 bg-rose-50 text-xs text-rose-900 leading-relaxed"
       >
-        The highest TE you can reach by a date: every route shape on a grid, the highest last stop each one makes by the
-        deadline, then a closer look around the best. It uses the schedule, time off and machine settings below, like
-        any run.
+        Finds the highest TE you can reach by a date. It tries every route shape on a grid, finds the highest last stop
+        each one reaches by the deadline, then looks more closely around the best. Like any run, it uses the schedule,
+        time off and machine settings below.
       </div>
 
       <div
@@ -282,14 +282,14 @@
         class="p-4 rounded-xl border border-rose-200 bg-rose-50 text-xs text-rose-900 leading-relaxed space-y-2"
       >
         <p>
-          This prices <span class="font-bold">every</span> chain over the pool you describe. No descent, no stages, no
-          pruning, so the winner is the true optimum of that space rather than a local one. It is also the mode that
-          runs away from you fastest: the chain count is combinatorial in the pool size, so halving the step does not
-          double the work, it multiplies it.
+          This prices <span class="font-bold">every</span> chain in the pool you describe, with no descent, stages or
+          pruning, so the winner is the true optimum of that space, not a local one. It is also the mode that gets out
+          of hand fastest: the chain count is combinatorial in the pool size, so halving the step does far more than
+          double the work.
         </p>
         <p>
-          Nothing here is capped and nothing asks you to confirm. The count and the estimate below update as you type;
-          they are what you should be reading before you press start.
+          Nothing here is capped, and nothing asks you to confirm. The count and estimate below update as you type, so
+          check them before you press Start.
         </p>
       </div>
 
@@ -399,8 +399,8 @@
           </dl>
           <p class="text-[11px] text-slate-500 leading-relaxed">
             {{ setup.artifacts.length }} virtue artifacts and {{ setup.stones.reduce((n, x) => n + x.count, 0) }} stones
-            were available to choose from. If any of these read as empty or obviously stale, reload your backup before
-            starting — a half-loaded save prices every chain against a farm you do not have, and says nothing about it.
+            were available to choose from. If any of these look empty or out of date, reload your backup before
+            starting. A half-loaded save prices every chain against a farm you don't have, without any warning.
           </p>
         </div>
       </div>
@@ -415,16 +415,16 @@
       >
         <h3 class="text-[10px] font-black text-amber-800 uppercase tracking-widest">Unfinished run found</h3>
         <p class="text-[11px] text-amber-900/90 leading-relaxed">
-          A run on this machine stopped without finishing —
+          A run on this machine stopped without finishing.
           <span class="font-bold">{{ (store.crashedRun.durations?.length ?? 0).toLocaleString() }}</span> chains are
-          already priced and will be replayed rather than re-simulated. It was last written
+          already priced and will be replayed instead of simulated again. It was last saved
           {{ agoLabel(store.crashedRun.updatedAt) }}.
           <template v-if="store.runSaveFor(store.crashedRun.inputsKey)">
             It carries on with the save it started with (from
             {{ saveWhen(store.runSaveFor(store.crashedRun.inputsKey)?.backupAt) }}, TE
             {{ store.runSaveFor(store.crashedRun.inputsKey)?.te }}), so both halves are priced on the same farm.
           </template>
-          Starting a different search moves it to the list below rather than losing it.
+          Starting a different search moves it to the list below, so it isn't lost.
           <template v-if="store.settingsRestoreNote(store.crashedRun.fingerprint)">
             Carrying on also puts your settings back to the run's (<span class="font-bold">{{
               store.settingsRestoreNote(store.crashedRun.fingerprint)
@@ -544,7 +544,7 @@
              start is part of the run fingerprint -- so a checkpoint saved before a refresh stops
              matching and a long run restarts from nothing. -->
         <p v-if="showSchedule && store.planStartIsNow" class="text-[11px] font-semibold text-amber-700 leading-relaxed">
-          No start set, so the plan is timed from right now — which moves every time you reload, and takes your saved
+          No start set, so the plan is timed from right now. That moves every time you reload and takes your saved
           checkpoint with it. Set a date and time before starting a long run.
         </p>
 
@@ -557,7 +557,7 @@
           />
           <span class="text-[11px] text-slate-600 leading-relaxed">
             <span class="font-bold text-slate-800">Only count on me during these hours.</span> Off means the plan
-            assumes you are available at any hour, which is the faster answer and not usually the real one.
+            assumes you're available at any hour. That gives a faster answer, but usually not a realistic one.
           </span>
         </label>
         <div v-if="showSchedule && store.scheduleEnabled" class="pl-8 space-y-3">
@@ -605,7 +605,7 @@
           <!-- Ticked but describing no restriction at all is a trap: it reads as a constraint and
                is not one. Say so rather than letting the run be misread. -->
           <p v-if="store.scheduleIsEmpty" class="text-[11px] font-semibold text-amber-700">
-            Every day, all hours — that is no restriction at all, and will be recorded as no schedule.
+            Every day, all hours: that is no restriction at all, and it will be recorded as no schedule.
           </p>
           <p v-else class="text-[11px] text-slate-500">{{ store.availabilityLabel }}</p>
         </div>
@@ -615,9 +615,9 @@
              taken mid-run would silently mix two questions in one result table. The main panel locks
              the same fields for the same reason. -->
         <p v-if="showSchedule && store.isRunning" class="text-[11px] font-semibold text-amber-700 leading-relaxed">
-          Locked while a run is going. These change which chain is fastest rather than how it is displayed, so they
-          cannot be applied to chains already priced — stop, change them, and start again to price the space against the
-          new schedule.
+          Locked while a run is going. These settings change which chain is fastest, not just how results are shown, so
+          they can't apply to chains already priced. To price the space against a new schedule, stop, change them, and
+          start again.
         </p>
 
         <label v-if="showSchedule" class="flex items-start gap-3 cursor-pointer">
@@ -628,7 +628,7 @@
             class="mt-0.5 rounded border-slate-300 text-indigo-600 disabled:opacity-40"
           />
           <span class="text-[11px] text-slate-600 leading-relaxed">
-            <span class="font-bold text-slate-800">Hold egg shifts for my waking hours.</span> Costs time and is what
+            <span class="font-bold text-slate-800">Hold egg shifts for my waking hours.</span> Costs time, but it's what
             most people actually do.
           </span>
         </label>
@@ -717,13 +717,13 @@
           </div>
         </dl>
         <p v-if="showMachine" class="text-[11px] text-slate-500 leading-relaxed">
-          Cores is the one hardware figure a web page is told accurately.
-          <span class="font-bold text-slate-700">Reported RAM is deliberately coarse</span> — rounded to a power of two
-          and clamped to a ceiling the browser picks, so a 64 GB machine reads as whatever that ceiling is. It is an
-          anti-fingerprinting measure rather than a bug, and it is why the budget below is a knob instead of something
-          detected. There is no way for a page to see your GPU, and no way to see your real memory. The tab's heap limit
-          is separate from your RAM and much smaller; each worker gets its own heap on top of it, which is part of why
-          more workers buys more than just speed.
+          Cores is the only hardware figure a web page gets accurately.
+          <span class="font-bold text-slate-700">Reported RAM is deliberately coarse</span>: it's rounded to a power of
+          two and capped at a ceiling the browser picks, so a 64 GB machine reads as whatever that ceiling is. It's an
+          anti-fingerprinting measure, not a bug, and it's why the budget below is a setting you choose instead of
+          something detected. A page can't see your GPU or your real memory. The tab's heap limit is separate from your
+          RAM and much smaller. Each worker gets its own heap on top of it, which is part of why more workers buy more
+          than just speed.
         </p>
 
         <h3 v-if="showMachine" class="text-[10px] font-black text-slate-500 uppercase tracking-widest pt-1">Memory</h3>
@@ -745,18 +745,20 @@
           </label>
           <p class="text-[11px] text-slate-500">
             Holding detail for
-            <span class="font-bold text-slate-700">{{ store.legsHeld.toLocaleString() }}</span> chains,
-            <span class="font-bold text-slate-700">{{ heldMb }}</span> —
+            <span class="font-bold text-slate-700">{{ store.legsHeld.toLocaleString() }}</span> chains (<span
+              class="font-bold text-slate-700"
+              >{{ heldMb }}</span
+            >).
             <span v-if="heapLimitMb">{{ heapUsedMb }} of {{ heapLimitMb }} used in this tab.</span>
-            <span v-else>this browser does not report heap usage.</span>
+            <span v-else>This browser does not report heap usage.</span>
           </p>
         </div>
         <p v-if="showMachine" class="text-[11px] text-slate-500 leading-relaxed">
-          Every chain keeps its duration no matter what — that is the answer, and it is what the leaderboard, the CSV
-          totals and the checkpoint are built from. What gets dropped past this number is the per-leg timing detail for
-          the chains you did not win with, which is what the runners-up table opens.
-          <span class="font-bold text-slate-700">0 means keep everything</span>, which on a run of hundreds of thousands
-          of chains is how a tab gets killed overnight with nothing in the log.
+          Every chain keeps its duration no matter what. That's the answer, and it's what the leaderboard, the CSV
+          totals and the checkpoint are built from. Past this number, the chains that didn't win lose their per-leg
+          timing detail, which is what the runners-up table opens.
+          <span class="font-bold text-slate-700">0 means keep everything</span>. On a run of hundreds of thousands of
+          chains, that is how a tab gets killed overnight with nothing in the log.
         </p>
       </div>
 
@@ -771,8 +773,8 @@
               <span class="flex items-center gap-1.5">
                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Final target TE</span>
                 <HelpTip
-                  >The TE every chain ends at. It is appended to each chain automatically, so it never appears in the
-                  pool below and never counts as a pool value.</HelpTip
+                  >The TE every chain ends at. It's added to the end of each chain automatically, so it never appears in
+                  the pool below or counts as a pool value.</HelpTip
                 >
               </span>
               <input
@@ -801,11 +803,10 @@
               <span class="flex items-center gap-1.5">
                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Workers</span>
                 <HelpTip
-                  >Background threads this run may use. The default is one less than your logical core count, which
-                  leaves the main thread free so the progress bar keeps painting and Stop stays responsive. You can
-                  spend that last core too; past your core count there is nothing to buy, because the workers are
-                  CPU-bound and would only take turns. Chains are dealt out across them; see "How the work is split"
-                  below.</HelpTip
+                  >Background threads this run can use. The default is one less than your logical core count, which
+                  leaves the main thread free so the progress bar keeps updating and Stop stays responsive. You can use
+                  that last core too. Going past your core count gains nothing, because the workers are CPU-bound and
+                  would only take turns. Chains are dealt out across them; see "How the work is split" below.</HelpTip
                 >
               </span>
               <input
@@ -817,8 +818,8 @@
                 @change="setWorkers(($event.target as HTMLInputElement).value)"
               />
               <span v-if="store.isRunning" class="block text-[10px] text-slate-500">
-                Changes apply to the running search from its next batch; workers above a lower count stop once the
-                chains they are on are done.
+                Changes apply to the running search from its next batch. If you lower the count, the extra workers stop
+                once they finish their current chains.
               </span>
             </label>
           </div>
@@ -861,10 +862,10 @@
                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">every N TE (step)</span>
                 <HelpTip
                   >How finely the range is sampled. Step 15 over 185 to 390 gives 185, 200, 215 and so on: 14 values.
-                  Step is the single most expensive number on this page, because the chain count is combinatorial in the
-                  pool size, not linear. Over 185 to 390 at 5 to 7 ascensions: step 25 is 336 chains, step 15 is 6,006,
-                  step 10 is 80,598, step 5 is 6.2 million, and step 1 is about 102 billion. Halving the step does not
-                  double the work.</HelpTip
+                  Step is the most expensive number on this page, because the chain count is combinatorial in the pool
+                  size, not linear, so halving the step does far more than double the work. Over 185 to 390 at 5 to 7
+                  ascensions: step 25 is 336 chains, step 15 is 6,006, step 10 is 80,598, step 5 is 6.2 million, and
+                  step 1 is about 102 billion.</HelpTip
                 >
               </span>
               <input
@@ -889,8 +890,8 @@
               </label>
               <HelpTip>
                 One range lets any checkpoint take any pool value, which is what allows 185 200 215 230 490: three 15-TE
-                rebuilds in a row. Bands say where each ascension should land, so the shape is decided by you rather
-                than by the enumeration. Bands fix the ascension count: N bands is N+1 ascensions.
+                rebuilds in a row. Bands say where each ascension should land, so you decide the shape instead of the
+                enumeration. Bands fix the ascension count: N bands is N+1 ascensions.
               </HelpTip>
             </div>
 
@@ -935,11 +936,11 @@
                   Suggest a space
                 </button>
                 <HelpTip>
-                  Fills the boxes with a space sized to about 75,000 chains, which is a few hours on this machine. At
-                  two ascensions -- and three on most accounts -- that is the whole reachable range at step 1, so the
-                  run proves the optimum and no measurement is involved. Above that it is where near-best chains have
-                  actually landed across this project's runs, refined as close to 5 TE as the budget reaches before any
-                  of it is spent on widening the bands. Both are starting points; edit them.
+                  Fills the boxes with a space of about 75,000 chains, which is a few hours on this machine. At two
+                  ascensions (and three on most accounts) that is the whole reachable range at step 1, so the run proves
+                  the optimum and no measurement is involved. Above that, it uses where near-best chains have actually
+                  landed across this project's runs, refined as close to 5 TE as the budget allows before any of it goes
+                  to widening the bands. Either way it's a starting point you can edit.
                 </HelpTip>
                 <span v-if="suggestion" class="text-[10px] text-slate-500">
                   Suggest would fill in {{ suggestAsc }} ascensions, {{ suggestion.chains.toLocaleString() }} chains
@@ -1058,10 +1059,10 @@
                   Minimum gap between checkpoints
                 </span>
                 <HelpTip>
-                  Drops chains whose consecutive checkpoints sit closer than this. 0 is off. Measured caution: the best
+                  Drops chains with consecutive checkpoints closer than this. 0 is off. Set it carefully: the best
                   7-ascension chain found on this account, 185 200 215 230 290 380 490 at 746.354 d, has 15-TE interior
                   gaps, so anything above 15 would have excluded it. Small early gaps are cheap when the ascension is
-                  short. The leap to the final target is never constrained by this.
+                  short. This never limits the jump to the final target.
                 </HelpTip>
               </span>
               <input
@@ -1077,16 +1078,16 @@
               v-if="constrained"
               class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2.5 leading-relaxed"
             >
-              You have narrowed the space, so the winner will be the best
-              <span class="font-semibold">of what you described</span>, not of everything reachable. That is still a
-              stronger claim than the staged search makes, but it is a smaller one than an unconstrained run.
+              You've narrowed the space, so the winner will be the best
+              <span class="font-semibold">of what you described</span>, not of everything reachable. That's still a
+              stronger claim than the staged search makes, but a smaller one than an unconstrained run.
             </p>
             <!-- Plain words for the step, which players read past: "181-250:5" means 181, 186, 191... and
                never 227. Said up front so a faster Balanced result between grid points is no surprise. -->
             <p v-if="!plannedGridComplete" class="text-[11px] text-slate-600 leading-relaxed">
               <span class="font-bold text-slate-800">This space tries {{ plannedGridLabel }}</span> (for example
-              {{ gridExample }}), not every TE in between: checking every TE would take weeks. So the winner is the best
-              on this grid, and a chain between grid points can be faster.
+              {{ gridExample }}), not every TE in between, which would take weeks. The winner is the best on this grid,
+              and a chain between grid points can be faster.
             </p>
           </div>
 
@@ -1151,9 +1152,9 @@
               <div class="flex items-center justify-center gap-1.5">
                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Chains</span>
                 <HelpTip
-                  >Every strictly-increasing combination of pool values at each allowed ascension count, with the target
-                  appended. Computed combinatorially, never by building the list: at small steps the list would not fit
-                  in memory, and saying so before that happens is the point.</HelpTip
+                  >Every strictly increasing combination of pool values at each allowed ascension count, with the target
+                  added at the end. It's counted with combinatorics, never by building the list: at small steps the list
+                  wouldn't fit in memory, and this number warns you before that happens.</HelpTip
                 >
               </div>
               <div class="text-lg font-black tabular-nums" :class="tooBig ? 'text-red-700' : 'text-slate-900'">
@@ -1164,8 +1165,8 @@
               <div class="flex items-center justify-center gap-1.5">
                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Est. wall clock</span>
                 <HelpTip
-                  >Chains x assumed cost / workers. It errs high on purpose: the assumed cost is a cold-leg floor — 15 s
-                  until something better is known, this machine's own measured or benchmarked rate afterward — and
+                  >Chains x assumed cost / workers. It errs high on purpose: the assumed cost is the typical cost of a
+                  chain this long in players' runs until this machine has its own measured or benchmarked rate, and
                   prefix sharing means most chains cost far less than a full simulation.</HelpTip
                 >
               </div>
@@ -1177,9 +1178,10 @@
               <div class="flex items-center justify-center gap-1.5">
                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Assumed cost</span>
                 <HelpTip
-                  >What the estimate charges per chain. It starts at the 15 s assumption and switches to this machine's
-                  own measured rate once the first chunk lands — or as soon as you press "Benchmark my PC" below, which
-                  prices that first chunk right now instead of waiting for a real run.</HelpTip
+                  >What the estimate charges per chain. It starts at the typical cost for chains this long in players'
+                  runs and switches to this machine's own measured rate once the first chunk lands, or as soon as you
+                  press "Benchmark my PC" below, which prices that first chunk right away instead of waiting for a real
+                  run.</HelpTip
                 >
               </div>
               <div
@@ -1205,8 +1207,8 @@
               {{ store.benchmarking ? 'Benchmarking…' : store.benchmarkedAt ? 'Re-benchmark' : 'Benchmark my PC' }}
             </button>
             <span v-if="store.benchmarking" class="text-[11px] text-slate-500">
-              Pricing the first {{ Math.max(store.workerBudget * 2, 32) }} chains on a throwaway pool — same as what a
-              real run's opening chunk would cost.
+              Pricing the first {{ Math.max(store.workerBudget * 2, 32) }} chains on a throwaway pool, at the same cost
+              as a real run's opening chunk.
             </span>
             <span v-else-if="store.benchmarkedAt" class="text-[11px] text-slate-500">
               {{ store.rateSource === 'live' ? 'Measured' : 'Benchmarked' }} on this machine ·
@@ -1262,29 +1264,29 @@
           </button>
           <div v-if="showSplit" class="px-4 pb-4 space-y-3 text-[11px] text-slate-600 leading-relaxed">
             <p>
-              <span class="font-bold text-slate-800">Chains are sorted so relatives sit together.</span> Every chain
-              starting <code class="font-mono-premium">195 229</code> is adjacent to every other one, because the
-              expensive unit is not a chain, it is a <span class="font-semibold">leg</span>. Two chains sharing their
-              first three checkpoints share those three leg simulations exactly.
+              <span class="font-bold text-slate-800">Chains are sorted so related ones sit together.</span> Every chain
+              starting <code class="font-mono-premium">195 229</code> sits next to the others that start that way,
+              because the expensive unit is the <span class="font-semibold">leg</span>, not the chain. Two chains that
+              share their first three checkpoints share those three leg simulations exactly.
             </p>
             <p>
               <span class="font-bold text-slate-800"
                 >The sorted list is cut into chunks of {{ store.workersInPool * 2 }}</span
               >
               (workers × 2) and handed to the pool one chunk at a time. The pool splits each chunk across workers by
-              prefix, so a worker gets a family of related chains rather than a random handful, and its memo pays.
+              prefix, so each worker gets a family of related chains instead of a random handful, and its memo pays off.
             </p>
             <p>
               <span class="font-bold text-slate-800">Each worker simulates legs and remembers them.</span> A leg is a
               full farm simulation: research purchases, hab and vehicle upgrades, twelve egg switches, sale timing. That
-              is the ~15 s. A chain whose prefix the worker has already priced only pays for its new legs, which is why
-              the real cost lands well under the estimate.
+              is where the ~15 s goes. A chain whose prefix the worker has already priced only pays for its new legs,
+              which is why the real cost lands well under the estimate.
             </p>
             <p>
-              <span class="font-bold text-slate-800">Progress is a heartbeat, not a guess.</span> Each worker posts
-              after every chain it finishes, so the bar moves continuously and a worker that has died is distinguishable
-              from one that is thinking. The s/chain figure under the bar is measured here, not carried from another
-              machine.
+              <span class="font-bold text-slate-800">Progress comes from the workers themselves.</span> Each worker
+              reports after every chain it finishes, so the bar moves steadily and you can tell a dead worker from one
+              that is still thinking. The s/chain figure under the bar is measured on this machine, not carried over
+              from another one.
             </p>
             <p>
               <span class="font-bold text-slate-800">Stop is checked between chunks.</span> A chunk in flight finishes
@@ -1297,7 +1299,7 @@
         <label class="flex items-start gap-3 cursor-pointer">
           <input v-model="store.keepAwake" type="checkbox" class="mt-0.5 rounded border-slate-300 text-indigo-600" />
           <span class="text-[11px] text-slate-600 leading-relaxed">
-            <span class="font-bold text-slate-800">Keep my PC awake.</span> A run is hours long; if the machine sleeps,
+            <span class="font-bold text-slate-800">Keep my PC awake.</span> A run takes hours; if the machine sleeps,
             every worker freezes until you wake it back up. It can't stop a laptop sleeping when the lid is closed. Turn
             this off if you'd rather manage sleep yourself.
           </span>
@@ -1396,7 +1398,7 @@
             </table>
           </div>
           <p class="text-[10px] text-slate-500">
-            Each is saved under Saved runs, so you can open any of them again. Compare on the finish date.
+            Each is saved under Saved runs, so you can open any of them again. Compare them by finish date.
           </p>
         </div>
 
@@ -1431,10 +1433,10 @@
           v-if="store.error"
           class="p-4 bg-red-50 border border-red-200 rounded-xl text-xs text-red-800 leading-relaxed"
         >
-          <span class="font-bold uppercase tracking-wide">{{
-            store.errorBeforeStart ? "Didn't start" : 'Search failed'
-          }}</span>
-          — {{ store.error }}
+          <span class="font-bold uppercase tracking-wide"
+            >{{ store.errorBeforeStart ? "Didn't start" : 'Search failed' }}:</span
+          >
+          {{ store.error }}
         </div>
 
         <!-- The outcome with no best chain. Without it a finished run simply lacked the result card,
@@ -1451,16 +1453,15 @@
           </p>
           <p class="text-[11px] text-rose-900/90 leading-relaxed">
             The usual cause is earnings. On a low-TE account the early ascensions cannot earn enough to buy the habs and
-            vehicles the plan is waiting on, so the very first leg stalls and everything after it inherits the stall. A
-            different space will not fix that; more Truth Eggs, or a stronger earnings set (totem, ankh, necklace and
-            their stones), will. If you think the planner has this wrong, download the diagnostics below and send them
-            in.
+            vehicles the plan is waiting on, so the very first leg stalls and every leg after it inherits the stall. A
+            different space won't fix that. More Truth Eggs or a stronger earnings set (totem, ankh, necklace and their
+            stones) will. If you think the planner has this wrong, download the diagnostics below and send them in.
           </p>
         </div>
 
         <div v-if="store.bestDays > 0" class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 space-y-1">
           <div class="text-[10px] font-black text-emerald-700 uppercase tracking-widest">
-            Best chain<template v-if="!store.isRunning && !store.stoppedEarly"> — {{ resultClaim }}</template>
+            Best chain<template v-if="!store.isRunning && !store.stoppedEarly">: {{ resultClaim }}</template>
           </div>
           <div class="font-mono-premium text-lg font-black text-slate-900">{{ store.bestChain.join(' ') }}</div>
           <div class="text-xs text-emerald-800">
@@ -1470,8 +1471,8 @@
             {{ resultExplain }}
           </p>
           <p class="text-[10px] text-emerald-900/60">
-            Compare runs on the finish date. Two runs started hours apart have different plan starts, so their day
-            counts are not measuring the same thing; the date they land on is.
+            Compare runs by finish date. Two runs started hours apart have different plan starts, so their day counts
+            don't measure the same thing, but the dates they land on do.
           </p>
           <!-- The result-side half of the same idea. Delivery cannot fall as TE rises; when it does,
              the state carried into that leg is wrong and every duration after it is too. Shown on
@@ -1496,7 +1497,7 @@
             </p>
             <p class="text-[11px] text-rose-900/80 leading-relaxed">
               Reload your backup and run it again before trusting these dates, and compare leg 1 against the official
-              planner — if leg 1 agrees and a later leg does not, the fault is in the state carried between legs.
+              planner. If leg 1 agrees and a later leg doesn't, the fault is in the state carried between legs.
             </p>
           </div>
 
@@ -1513,8 +1514,8 @@
               Build this plan in the Auto Planner
             </button>
             <span v-if="store.timeOff.length" class="text-[11px] text-emerald-900/80">
-              Your time off goes into the plan too: the ascension it interrupts ends when it starts, and the next one
-              starts after it.
+              Your time off goes into the plan too: the ascension it interrupts ends when the time off starts, and the
+              next one starts after it.
             </span>
           </div>
         </div>
@@ -1526,9 +1527,9 @@
             <span class="text-[10px] font-bold text-slate-400">{{ store.savedRuns.length }} / {{ MAX_RUNS }}</span>
           </div>
           <p class="text-[11px] text-slate-500 leading-relaxed">
-            Kept in this browser, per player. Separate from the crash-recovery checkpoint, which holds one run. Either
-            kind resumes only while your TE, target and schedule are unchanged; the plan start goes back to the run's
-            own. The oldest is dropped past {{ MAX_RUNS }}.
+            Kept in this browser, per player, and separate from the crash-recovery checkpoint (which holds one run).
+            Either kind resumes only while your TE, target and schedule are unchanged, and the plan start goes back to
+            the run's own. Past {{ MAX_RUNS }}, the oldest is dropped.
           </p>
 
           <div class="flex flex-wrap gap-2">
@@ -1579,7 +1580,7 @@
                 type="button"
                 class="px-3 py-1.5 rounded-md border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-300 hover:text-emerald-700 disabled:opacity-40"
                 :disabled="store.busy || queueAt >= 0"
-                title="Opening a run swaps what the panel holds, so not while one is going"
+                title="Opening a run replaces what the panel holds, so it's disabled while a run is going"
                 @click="open(run.id)"
               >
                 Open
@@ -1609,7 +1610,7 @@
               Download CSV
             </button>
             <span class="text-[11px] text-slate-500">
-              {{ store.csvRows.toLocaleString() }} chains, one row per leg. Safe to take mid-run.
+              {{ store.csvRows.toLocaleString() }} chains, one row per leg. Safe to download mid-run.
             </span>
           </template>
           <!-- The input side. The CSV records what came OUT; when a result looks wrong the question
@@ -1622,8 +1623,8 @@
             Download diagnostics
           </button>
           <span class="text-[11px] text-slate-500">
-            A small JSON of what this run was <em>given</em> — backup age, TE, research, loadout. No save data, no
-            player ID. Attach it when reporting a result that looks wrong.
+            A small JSON file of what this run was <em>given</em>: backup age, TE, research and loadout. No save data
+            and no player ID. Attach it when you report a result that looks wrong.
           </span>
           <p v-if="downloadError" class="w-full text-[11px] font-semibold text-red-700">{{ downloadError }}</p>
         </div>
@@ -1632,23 +1633,23 @@
         <div v-if="store.bestDays > 0" class="rounded-xl border border-indigo-200 bg-indigo-50/60 p-4 space-y-3">
           <h3 class="text-[10px] font-black text-indigo-800 uppercase tracking-widest">Share this result</h3>
           <p class="text-[11px] text-indigo-900/80 leading-relaxed">
-            An exhaustive result is the most useful thing the board can receive: the best of a stated grid rather than a
-            search result. It goes with the space it covered and what it found there — the runners-up, the best chain at
-            each ascension count, and the spread — so a reader can tell a real find from a flat neighbourhood without
-            downloading the CSV. A run opened from the library above submits without a run cost, because the time it
-            took was not this machine's.
+            An exhaustive result is the most useful thing the board can get: the best of a stated grid rather than a
+            search result. It is sent with the space it covered and what it found there (the runners-up, the best chain
+            at each ascension count, and the spread), so a reader can tell a real find from a flat neighbourhood without
+            downloading the CSV. A run opened from the library above is sent without a run cost, because the time it
+            took wasn't this machine's.
           </p>
           <label class="flex items-start gap-3 text-xs text-indigo-900">
             <input v-model="optIn" type="checkbox" class="mt-0.5 rounded border-indigo-300 text-indigo-600" />
             <span
-              >Yes, contribute this result. Artifact inventory, timezone and local plan start are included, plus a
-              random code this browser keeps for the account (not your player ID, and never shown). The board uses it so
-              a run that lands on the flagged board shows to you as yours and to everyone else anonymously; so the same
-              result sent twice is stored once; so you can put your name on a run you sent anonymously; and so your own
-              later runs can replace your older plans in the race, which nobody else's can. A named run shows a short
-              tag made from the code; an anonymous run shows nothing that links it to you. If you have plans on the
-              board already, your best three of them re-priced from this save go too: named ones with a named send,
-              anonymous ones with an anonymous send, so a re-check never ties the two together.</span
+              >Yes, contribute this result. It includes your artifact inventory, timezone and local plan start, plus a
+              random code this browser keeps for the account (not your player ID, and never shown). The board uses the
+              code so that a run landing on the flagged board shows to you as yours and to everyone else anonymously,
+              the same result sent twice is stored once, you can put your name on a run you sent anonymously, and your
+              own later runs can replace your older plans in the race (nobody else's can). A named run shows a short tag
+              made from the code. An anonymous run shows nothing that links it to you. If you already have plans on the
+              board, your best three, re-priced from this save, are sent too: named ones with a named send and anonymous
+              ones with an anonymous send, so a re-check never ties the two together.</span
             >
           </label>
 
@@ -1678,11 +1679,11 @@
             <label class="flex items-start gap-3 cursor-pointer text-[11px] text-indigo-900/80">
               <input v-model="includeCsv" type="checkbox" class="mt-0.5 rounded border-indigo-300 text-indigo-600" />
               <span>
-                <span class="font-bold">Include the full CSV</span> — every chain this run priced, one row per leg ({{
+                <span class="font-bold">Include the full CSV</span>: every chain this run priced, one row per leg ({{
                   store.csvRows.toLocaleString()
                 }}
-                chains). The submission above is the headline; this is the working. It is compressed before it leaves
-                your machine. Chains past the memory budget export with their per-leg cells blank.
+                chains). The submission above is the headline and this is the working behind it. It's compressed before
+                it leaves your machine. Chains past the memory budget export with their per-leg cells blank.
               </span>
             </label>
             <label class="flex items-start gap-3 cursor-pointer text-[11px] text-indigo-900/80">
@@ -1694,13 +1695,13 @@
               />
               <span>
                 <span class="font-bold">Add the time to the name.</span> Optional. The board already keeps each space
-                you prove as its own row, so nothing is lost without this — it is just a way to tell your own runs apart
-                at a glance when several are on the board.
+                you prove as its own row, so nothing is lost without it. It just makes your own runs easier to tell
+                apart at a glance when several are on the board.
               </span>
             </label>
             <p v-if="!anonymous" class="text-[11px] text-indigo-900/70">
               Submitting as
-              <span class="font-mono-premium font-bold">{{ effectiveNickname || '(blank — anonymous)' }}</span>
+              <span class="font-mono-premium font-bold">{{ effectiveNickname || '(blank, so anonymous)' }}</span>
             </p>
           </div>
 
@@ -1758,6 +1759,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
+import { sentence } from '@/utils/errors';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { formatInZone } from '@/search/csv';
 import { useUIStore } from '@/stores/ui';
@@ -1981,7 +1983,7 @@ const PROFILES = [
   {
     id: 'overnight',
     label: 'Overnight',
-    blurb: 'Every core, and detail kept for far more chains. For a machine you have finished with.',
+    blurb: "Every core, and detail kept for far more chains. For a machine you're done using.",
     workers: () => store.machineThreads,
     legDetail: 20000,
   },
@@ -2031,7 +2033,7 @@ const setup = computed(() => {
 /** Soul eggs run to 1e21 and beyond, so the raw number is unreadable and `toLocaleString` is
  *  worse. Same short-scale suffixes the rest of the app uses. */
 function formatSoulEggs(n: number): string {
-  if (!(n > 0)) return 'none — the farm cannot buy anything';
+  if (!(n > 0)) return 'none, so the farm cannot buy anything';
   const units = ['', 'K', 'M', 'B', 'T', 'q', 'Q', 's', 'S', 'o', 'N', 'd', 'U'];
   const tier = Math.min(units.length - 1, Math.floor(Math.log10(n) / 3));
   return `${(n / 10 ** (tier * 3)).toFixed(2)}${units[tier]}`;
@@ -2156,7 +2158,7 @@ async function retryTable(): Promise<void> {
   try {
     const res = await store.retryTable();
     submitOk.value = res.ok;
-    submitMessage.value = res.ok ? `Thank you — ${res.message}` : `Not sent: ${res.message}`;
+    submitMessage.value = res.ok ? `Thanks! ${sentence(res.message)}` : `Not sent: ${res.message}`;
   } finally {
     retryingTable.value = false;
   }
@@ -2216,7 +2218,7 @@ const resultExplain = computed(() => {
   const sp = store.searchSpace;
   if (!sp || gridIsComplete(sp.bands, sp.range?.step)) return '';
   const step = gridStepLabel(sp.bands, sp.range?.step);
-  return `Every chain on the grid (${step}) was priced and this is the fastest. Values between grid points were not tried, so a Balanced search can land on something faster in between.`;
+  return `Every chain on the grid (${step}) was priced, and this is the fastest. Values between grid points were not tried, so a Balanced search can land on something faster in between.`;
 });
 
 const chainCount = computed(() => {
@@ -2523,7 +2525,7 @@ async function startQueue(): Promise<void> {
     })),
   ];
   const fail = (label: string, why: string) =>
-    queueResults.value.push({ label: `${label} — ${why}`, chain: [], days: 0, stopped: true, finish: 0 });
+    queueResults.value.push({ label: `${label}: ${why}`, chain: [], days: 0, stopped: true, finish: 0 });
   try {
     for (let k = 0; k < specs.length; k++) {
       // Stopped between chains, the panel gone, or another account loaded: the rest don't run.
@@ -2731,7 +2733,7 @@ async function submit(): Promise<void> {
       ? `Not sent: ${res.message}`
       : res.duplicate === 'exact'
         ? res.message
-        : `Thank you — ${res.message}`;
+        : `Thanks! ${sentence(res.message)}`;
   } finally {
     store.blackBoxEnd('submit');
     submitting.value = false;
@@ -2749,7 +2751,7 @@ async function claim(): Promise<void> {
   try {
     const res = await store.claimName(id, effectiveNickname.value);
     submitOk.value = res.ok;
-    submitMessage.value = res.ok ? `Done — ${res.message}` : `Not renamed: ${res.message}`;
+    submitMessage.value = res.ok ? `Done: ${res.message}` : `Not renamed: ${res.message}`;
   } finally {
     claiming.value = false;
   }

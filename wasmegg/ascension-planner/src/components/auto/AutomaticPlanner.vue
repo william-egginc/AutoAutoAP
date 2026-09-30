@@ -66,7 +66,7 @@
                   <button
                     v-if="deferForEarningsMode"
                     type="button"
-                    title="Defer for earnings mode is on — click to turn it off"
+                    title="Defer for earnings mode is on. Click to turn it off."
                     class="flex-shrink-0 w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center hover:bg-indigo-100 transition-colors"
                     @click="deferForEarningsMode = false"
                   >
@@ -74,8 +74,7 @@
                   </button>
                 </div>
                 <p class="text-[10px] font-bold text-slate-400 leading-relaxed px-1 mt-2">
-                  Enter a sequence of target TEs separated by spaces to generate an entire multi-ascension chain at
-                  once.
+                  Enter several target TEs separated by spaces to generate a whole multi-ascension chain at once.
                 </p>
               </div>
             </div>
@@ -100,10 +99,10 @@
             />
           </svg>
           <p class="leading-relaxed">
-            Auto-AP is really built for players farther along — below 200 Clothed TE, its assumptions (like habs staying
-            full throughout) don't hold up well, so the plan it generates may be pretty suboptimal for you right now.
-            You're welcome to generate one anyway just to see what it does, but for a plan you can actually rely on,
-            raise your Clothed TE in the Virtue Progress section above first.
+            Auto-AP is really built for players farther along. Below 200 Clothed TE its assumptions (like habs staying
+            full the whole time) don't hold up well, so the plan it generates may be pretty suboptimal for you right
+            now. You can still generate one to see what it does, but for a plan you can rely on, raise your Clothed TE
+            in the Virtue Progress section above first.
           </p>
         </div>
         <div class="mt-4"><IntegrityNotice /></div>
@@ -122,7 +121,7 @@
           class="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 space-y-2"
         >
           <p class="font-bold uppercase tracking-wide text-amber-700">
-            Before you generate — a few assumptions to know about
+            Before you generate: a few assumptions to know about
           </p>
           <ul class="space-y-1.5 list-disc list-inside leading-relaxed">
             <li>
@@ -130,20 +129,16 @@
               habs throughout. Results are most reliable once you're around 100 TE and time to fill habs is negligible.
             </li>
             <li>
-              <span class="font-semibold">Your artifacts don't improve.</span> The plan is built around whatever
-              artifacts you have right now — it won't account for better gear you might find later.
+              <span class="font-semibold">Your artifacts don't improve.</span> The plan is built around the artifacts
+              you have right now and won't account for better gear you might find later.
             </li>
             <li>
               <span class="font-semibold">No downtime between ascensions.</span> Each ascension is assumed to start the
               moment the previous one ends.
             </li>
-            <li>
-              <span class="font-semibold">You never sleep.</span> Auto-AP doesn't do any accounting for sleep hours.
-            </li>
+            <li><span class="font-semibold">You never sleep.</span> Auto-AP doesn't account for sleep hours.</li>
           </ul>
-          <p class="text-amber-600 leading-relaxed">
-            Use this as a starting point, not a final word. Your actual results may vary.
-          </p>
+          <p class="text-amber-600 leading-relaxed">Treat this as a starting point. Your actual results may vary.</p>
 
           <div class="border-t border-amber-200 pt-3 mt-1">
             <p class="font-bold uppercase tracking-wide text-amber-700 mb-2">
@@ -151,35 +146,35 @@
             </p>
             <ul class="space-y-1.5 list-disc list-inside leading-relaxed">
               <li>
-                <span class="font-semibold">C1</span> — Spends up to 30 minutes with the primary target being fleet size
-                and Graviton Coupling.
+                <span class="font-semibold">C1:</span> Spends up to 30 minutes, aiming mainly at fleet size and Graviton
+                Coupling.
               </li>
               <li>
-                <span class="font-semibold">K1</span> — Spends up to 30 minutes buying the best vehicles it can afford.
+                <span class="font-semibold">K1:</span> Spends up to 30 minutes buying the best vehicles it can afford.
                 Swaps places with I1 below if I1 can finish in under an hour.
               </li>
               <li>
-                <span class="font-semibold">I1</span> — Max Chicken Universes. Runs before K1 instead if it can finish
-                in under an hour.
+                <span class="font-semibold">I1:</span> Max Chicken Universes. Runs before K1 instead if it can finish in
+                under an hour.
               </li>
               <li>
-                <span class="font-semibold">C2</span> — Maxes fleet size research. If it can afford Graviton Coupling
+                <span class="font-semibold">C2:</span> Maxes fleet size research. If it can afford Graviton Coupling
                 within 4 hours, it does.
               </li>
-              <li><span class="font-semibold">K2</span> — Max Vehicles and Hyperloop Train Cars.</li>
-              <li><span class="font-semibold">R1</span> — Buys as many silos as possible within one hour.</li>
+              <li><span class="font-semibold">K2:</span> Max Vehicles and Hyperloop Train Cars.</li>
+              <li><span class="font-semibold">R1:</span> Buys as many silos as possible within one hour.</li>
               <li>
-                <span class="font-semibold">C3</span> — Purchases remaining Delivery Rate-boosting research: lay rate,
-                shipping capacity, and hab capacity.
+                <span class="font-semibold">C3:</span> Buys the rest of the Delivery Rate research (lay rate, shipping
+                capacity, and hab capacity).
               </li>
-              <li><span class="font-semibold">H1</span> — Swaps to the optimal artifact loadout for Delivery Rate.</li>
+              <li><span class="font-semibold">H1:</span> Swaps to the best artifact loadout for Delivery Rate.</li>
               <li>
-                <span class="font-semibold">K3</span> — Buys new hyperloop cars unlocked by C3, then waits out the
+                <span class="font-semibold">K3:</span> Buys the new hyperloop cars C3 unlocked, then waits out the
                 ascension until the TE goal is reached.
               </li>
               <li>
-                <span class="font-semibold">C4 / I2 / R2 / H2</span> — Each shifts to its respective virtue egg and
-                waits until that egg's share of the TE goal is met.
+                <span class="font-semibold">C4 / I2 / R2 / H2:</span> Each shifts to its own virtue egg and waits until
+                that egg's share of the TE goal is met.
               </li>
             </ul>
           </div>
@@ -292,7 +287,7 @@
         class="mt-4 p-3 rounded-xl border border-sky-200 bg-sky-50 text-[11px] text-sky-900 leading-relaxed"
       >
         <span class="font-black uppercase tracking-wide">Includes your time off.</span>
-        {{ timeOffInPlan.join(' ') }} Change the Target TE or the start and this is dropped: re-apply from the chain
+        {{ timeOffInPlan.join(' ') }} If you change the Target TE or the start, this is dropped. Re-apply from the chain
         search to put it back.
       </div>
       <div

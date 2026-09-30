@@ -18,7 +18,7 @@
       <template v-if="crash.last.pageClosed"
         >The page was reloaded or closed while it was going, which ends a run.</template
       >
-      <template v-else>The browser closed the page itself, most likely for memory.</template>
+      <template v-else>The browser closed the page itself, most likely because of memory.</template>
       If a run was going, its progress is saved: carry on below.
     </p>
     <div class="flex flex-wrap gap-3">

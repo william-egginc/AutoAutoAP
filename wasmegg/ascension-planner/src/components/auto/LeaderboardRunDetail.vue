@@ -62,9 +62,9 @@
              naming a seed would invent a starting point the search never used. -->
         <div class="flex justify-between gap-3">
           <span>Seed chain</span>
-          <span v-if="isRecheck" class="text-slate-400 text-right">none — priced again, not searched</span>
+          <span v-if="isRecheck" class="text-slate-400 text-right">none (priced again, not searched)</span>
           <span v-else-if="row.seed?.length" class="font-mono font-bold">{{ row.seed.join(' ') }}</span>
-          <span v-else class="text-slate-400">exhaustive — no seed</span>
+          <span v-else class="text-slate-400">none (exhaustive)</span>
         </div>
         <div class="flex justify-between gap-3">
           <span>{{ isRecheck ? 'Re-checked' : several ? 'First sent' : 'Submitted' }}</span>
@@ -86,7 +86,8 @@
       <!-- A line made from a later run's `rechecks` (lib/leaderboardRank.ts `recheckLines`): that run
            priced this route again from its own save. It was never a send, so it has no table. -->
       <p v-else-if="isRecheck" class="mt-2 text-slate-400">
-        Re-checked by a later run, priced again from that run's save. Not a send of its own, so there is no CSV.
+        A later run re-checked this route and priced it again from that run's save. It was never sent on its own, so
+        there is no CSV.
       </p>
       <p v-else class="mt-2 text-slate-400">No CSV was attached{{ several ? ' to this copy' : '' }}.</p>
     </div>
@@ -138,10 +139,10 @@
     <div>
       <h4 class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1.5">Ascensions</h4>
       <div v-if="isRecheck" class="text-slate-400">
-        no per-ascension detail — a later run priced this route again and sent only its length
+        no per-ascension detail: a later run priced this route again and sent only its length
       </div>
       <div v-else-if="!row.legs?.length" class="text-slate-400">
-        no per-ascension detail — resumed from a saved search
+        no per-ascension detail (resumed from a saved search)
       </div>
       <!-- One line per leg, in columns, each value kept with its unit: run together as text, the
            longest leg's "q/hr" wrapped onto a line of its own. -->
@@ -192,7 +193,7 @@
            it reached -- an ordinary search result. Letting that render as a proof is the one way
            this block could mislead. -->
       <p v-if="row.space.stoppedEarly" class="mt-1 font-semibold text-amber-700">
-        Stopped before the space was finished — best of what it reached, not a proof.
+        Stopped before the space was finished, so this is the best of what it reached, not a proof.
       </p>
     </div>
     <!-- The distribution the proof sits in. The margin leads because it is what changes how the
@@ -236,7 +237,7 @@
          priced, Download) sat past the edge of a phone screen. -->
     <div v-if="several" class="col-span-full">
       <h4 class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1.5">
-        Sent {{ copies!.length }} times — every copy
+        Sent {{ copies!.length }} times: every copy
       </h4>
       <ul class="text-[11px] text-slate-600 divide-y divide-slate-100">
         <li v-for="(c, k) in copies" :key="c.id ?? k" class="py-1 flex flex-wrap items-baseline gap-x-1.5">

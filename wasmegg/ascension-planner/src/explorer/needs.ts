@@ -105,7 +105,7 @@ const PRESET_TEXT: Record<string, { title: string; why: string; who?: string; no
   },
   M4: {
     title: '5 ascensions at every 5th TE (M4)',
-    why: 'Shows whether a 5th ascension pays on your account: on the four accounts that have tried 4 and 5 it brought the finish date forward by 1.5 to 28 days. It only tries every 5th TE, so take its best plan as the right area rather than the exact TEs. F4 below looks closer.',
+    why: 'Shows whether a 5th ascension pays on your account: on the five accounts that have tried 4 and 5 it brought the finish date forward by 1.5 to 28 days. It only tries every 5th TE, so its best plan shows the right area but not the exact TEs. F4 below looks closer.',
   },
   F2: {
     title: '3 ascensions at every TE (F2)',
@@ -114,27 +114,27 @@ const PRESET_TEXT: Record<string, { title: string; why: string; who?: string; no
   },
   F4: {
     title: '5 ascensions, a close look (F4)',
-    why: 'Seven accounts have tried 5 ascensions, but most 5-ascension runs so far were staged searches or tried every 5th TE or coarser, and on shorter plans every 5th TE has landed 2 to 12 days behind the best. F4 tries far more of the TEs in between.',
+    why: 'Eight accounts have tried 5 ascensions, but most 5-ascension runs so far were staged searches or tried every 5th TE or coarser, and on shorter plans every 5th TE has landed 2 to 12 days behind the best. F4 tries far more of the TEs in between.',
     who: 'anyone who can leave a desktop or bigger running overnight',
   },
   F5: {
     title: '6 ascensions, a close look (F5)',
-    why: "The plan that finishes first has 6 ascensions on 6 of the 12 accounts (on Allan's it ties with 7), though on 4 of them 6 is also the most they tried. Only two 6-ascension runs have looked this closely, Williamthe5thc's and Willsalt · T4L cube's; the rest tried every 5th or 10th TE, or were staged searches. F5 tries far more of the TEs in between.",
+    why: "The plan that finishes first has 6 ascensions on 6 of the 13 accounts (on Allan's it ties with 7), though on 4 of them 6 is also the most they tried. Only two 6-ascension runs have looked this closely, Williamthe5thc's and Willsalt · T4L cube's; the rest tried every 5th or 10th TE, or were staged searches. F5 tries far more of the TEs in between.",
     who: 'anyone who can leave a desktop or bigger running overnight',
   },
   E7: {
     title: '7 ascensions, a rough look (E7)',
-    why: "Three accounts have tried both 6 and 7 ascensions. On Willsalt · T4L cube a 7th brought the finish forward 4.9 days; on Allan's it finished the same minute as his 6, and on Williamthe5thc's 0.9 days after it, all three too close to call given how they were searched. Runs from more accounts show where adding ascensions stops saving time, so nobody plans more ascensions than they need.",
+    why: "Four accounts have tried both 6 and 7 ascensions. A 7th brought the finish forward 4.9 days on Willsalt · T4L cube and 1.0 day on BobSkiMajoo778; on Allan's it finished the same minute as his 6, and on Williamthe5thc's 0.9 days after it. All four are too close to call given how they were searched. Runs from more accounts show where adding ascensions stops saving time, so nobody plans more ascensions than they need.",
     who: 'anyone who can leave a desktop or bigger running overnight',
   },
   E8: {
     title: '8 ascensions, a rough look (E8)',
-    why: "On the three accounts that have tried 8 next to 7, 8 finished 3.0 days after the best on Allan's and 2.3 on Williamthe5thc's, and on Willsalt · T4L cube it now finishes about an hour before that account's 7 (a close look at 8 on 28 Sept): a tie at best, and every one within search noise. More runs show whether it ever clearly wins, and for which accounts.",
+    why: "On the three accounts that have tried 8 next to 7, 8 finished 3.0 days after the best on Allan's and 2.3 on Williamthe5thc's, and on Willsalt · T4L cube it now finishes 2.1 days before that account's 7 (every-TE close looks, 28 Sept). All three are within search noise. More runs show whether it ever clearly wins, and for which accounts.",
     who: 'anyone who can leave a desktop or bigger running overnight',
   },
   E9: {
     title: '9 ascensions, a rough look (E9)',
-    why: "One account has tried 9 ascensions: on Williamthe5thc's, E9 finishes 4.1 days after his best plan (6 ascensions) and 1.8 days after his 8, within search noise. His one quick 15-ascension search finishes 20 days after his best. A second account shows whether 9 ever wins and, with 7 and 8, fills in the picture from 2 to 9 ascensions, so players can stop considering plans this long.",
+    why: "Two accounts have tried 9 ascensions. On Williamthe5thc's, E9 finishes 4.1 days after his best plan (6 ascensions) and 1.8 days after his 8, within search noise; his one quick 15-ascension search finishes 20 days after his best. On Willsalt · T4L cube, 9 finishes 3.3 days after its best plan (8 ascensions), also within search noise. More accounts show whether 9 ever wins and, with 7 and 8, fill in the picture from 2 to 9 ascensions, so players can stop considering plans this long.",
     who: 'anyone who can leave a desktop or bigger running overnight',
   },
 };
@@ -374,7 +374,7 @@ export function dataNeeds(rows: CollectorRow[]): DataNeed[] {
     needs.push({
       id: 'delivery-mid',
       title: 'Accounts whose delivery set is a little short of the best',
-      why: 'Nine accounts have delivery sets at about 96 to 100% of the best possible set and two at about 80%; only one sits in between. More in the middle would show whether a slightly weaker delivery set changes your best plan a little at a time, or not at all until it is quite weak.',
+      why: 'Ten accounts have delivery sets at about 96 to 100% of the best possible set and two at about 80%; only one sits in between. More in the middle would show whether a slightly weaker delivery set changes your best plan a little at a time, or not at all until it is quite weak.',
       who: 'players whose delivery set is a step or two short of all T4L pieces with T4 stones',
       have: mid,
       want: 2,

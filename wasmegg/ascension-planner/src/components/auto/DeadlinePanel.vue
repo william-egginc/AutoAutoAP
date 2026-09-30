@@ -14,12 +14,12 @@
       <h3 class="text-[10px] font-black text-amber-800 uppercase tracking-widest">Unfinished deadline search</h3>
       <p>
         <span class="font-bold">{{ store.deadlineUnfinished.priced.toLocaleString() }}</span> routes are already priced
-        for {{ inPlannerZone(store.deadlineUnfinished.spec.deadline) }}, {{ store.deadlineUnfinished.spec.minStops }}–{{
-          store.deadlineUnfinished.spec.maxStops
-        }}
-        stops, from {{ store.deadlineUnfinished.te }} TE ({{ ago(store.deadlineUnfinished.updatedAt) }}).
+        for {{ inPlannerZone(store.deadlineUnfinished.spec.deadline) }}, {{ store.deadlineUnfinished.spec.minStops }} to
+        {{ store.deadlineUnfinished.spec.maxStops }} stops, from {{ store.deadlineUnfinished.te }} TE ({{
+          ago(store.deadlineUnfinished.updatedAt)
+        }}).
         <template v-if="store.deadlineUnfinished.saveKept">
-          Carrying on replays them instantly and continues on the save it started with, and puts its deadline and stops
+          Carrying on replays them instantly, continues on the save it started with, and puts its deadline and stops
           back in the boxes below.</template
         >
         <template v-else> Its save wasn't kept on this device, so it can't carry on.</template>
@@ -89,7 +89,7 @@
         starts.</template
       >
       <template v-else>Pick a date and time.</template>
-      Game events, Egg Day's own bonuses included, aren't simulated: the plan is for reaching the TE by then.
+      Game events (including Egg Day's own bonuses) aren't simulated. The plan is for reaching the TE by then.
     </p>
 
     <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest pt-1">The routes to try</h3>
@@ -168,7 +168,7 @@
         </button>
         <label class="space-y-1">
           <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest"
-            >Last stop — the answer</span
+            >Last stop (the answer)</span
           >
           <input
             v-model="lastBox"
@@ -183,11 +183,11 @@
         </span>
       </div>
       <p class="text-[11px] text-slate-500 leading-relaxed">
-        Each chain is one box, like Insane's bands: one band per ascension before the last, separated by
-        <span class="font-mono-premium">;</span>, each <span class="font-mono-premium">lo-hi:step</span>, single values,
-        or several with commas. Add chains with other ascension counts and they all run from the one click, a 1- or
-        2-ascension chain costing next to nothing. Every route in your chains is tried and nothing outside them, so the
-        answer is proven for that space; the last stop is found exactly, not stepped.
+        Each chain is one box of bands, like Insane's: one band per ascension before the last, separated by
+        <span class="font-mono-premium">;</span>. A band is <span class="font-mono-premium">lo-hi:step</span>, a single
+        value, or several values with commas. Chains with other ascension counts all run from the same click, and a 1-
+        or 2-ascension chain costs next to nothing. Every route in your chains is tried, and nothing outside them, so
+        the answer is proven for that space. The last stop is found to the exact TE.
         <template v-if="suggestFrom">{{ suggestFrom }}</template>
       </p>
     </template>
@@ -243,10 +243,11 @@
         </label>
       </div>
       <p class="text-[11px] text-slate-500 leading-relaxed">
-        It picks the early stops itself, starting from your current route: the first stop at every TE for the first 5
-        above your TE, the rest on a {{ usedStep }}-TE grid ({{ shapes.toLocaleString() }} sets), and for each one the
-        highest last stop that still makes the deadline. Then it homes in on the best few, moving one stop at a time by
-        {{ resolutionsText }} TE. Quicker than a space of your own, but not proven: it can miss a route off the grid.
+        It picks the early stops itself, starting from your current route. The first stop is tried at every TE for the
+        first 5 above yours and the rest on a {{ usedStep }}-TE grid ({{ shapes.toLocaleString() }} sets). For each set
+        it finds the highest last stop that still makes the deadline, then homes in on the best few, moving one stop at
+        a time by {{ resolutionsText }} TE. It's quicker than setting the stops yourself but not proven: it can miss a
+        route off the grid.
       </p>
     </template>
 
@@ -272,8 +273,8 @@
       </div>
       <p class="pt-2 text-[10px] text-slate-500 leading-relaxed">
         About {{ PROBES }} routes per set: the last stop is narrowed down, not tried at every TE. The estimate uses this
-        machine's measured speed on {{ store.workerBudget }} workers when there is one, and errs high: these routes are
-        shorter than a run to 490.
+        machine's measured speed on {{ store.workerBudget }} workers if there is one. It errs high, since these routes
+        are shorter than a run to 490.
       </p>
     </div>
 
@@ -281,7 +282,7 @@
       <input v-model="ascendNeeded" type="checkbox" :disabled="store.busy" class="mt-0.5 rounded border-slate-300" />
       <span class="text-[11px] text-slate-600 leading-relaxed">
         <span class="font-bold text-slate-800">I need to ascend at the last stop before the deadline.</span> Counts the
-        wait for your awake hours after reaching it, so the last stop is reached in time to act on it.
+        wait until your awake hours after reaching it, so you reach the last stop in time to act on it.
       </span>
     </label>
 
@@ -417,7 +418,9 @@
           <template v-if="result.stoppedEarly"> Stopped early, so a better route may not have been tried.</template>
           <template v-if="atCeiling">
             <span class="font-bold">That is the highest last stop it was allowed to try</span>, so more may be
-            reachable: raise "Highest last stop to consider" and run it again.</template
+            reachable: raise
+            {{ result.step ? '"Highest last stop to consider"' : "the top of the last stop's range" }} and run it
+            again.</template
           >
         </p>
         <div class="overflow-x-auto">
@@ -496,14 +499,14 @@
         <p class="text-[11px] text-indigo-900/80 leading-relaxed">
           Sends the best route above to the leaderboard's <span class="font-bold">{{ shareTab }}</span> tab, where
           answers for the same deadline are ranked by the highest TE reached, then the time to spare. It stays out of
-          the race to 490, which answers a different question.
+          the race to 490.
         </p>
         <label class="flex items-start gap-3 text-xs text-indigo-900">
           <input v-model="shareOptIn" type="checkbox" class="mt-0.5 rounded border-indigo-300 text-indigo-600" />
           <span
-            >Yes, contribute this answer. The route, its dates and the deadline go, with your artifact inventory,
-            timezone and local plan start, plus the random code this browser keeps for the account (not your player ID,
-            and never shown), exactly as for any run you share.</span
+            >Yes, contribute this answer. This sends the route, its dates and the deadline, along with your artifact
+            inventory, timezone, local plan start and the random code this browser keeps for the account (not your
+            player ID, and never shown), exactly as for any run you share.</span
           >
         </label>
         <div v-if="shareOptIn" class="space-y-2">
@@ -528,7 +531,7 @@
             />
           </div>
           <p class="text-[11px] text-indigo-900/80">
-            Only a named answer is ranked; an anonymous one is listed under the ranking.
+            Only named answers are ranked. Anonymous ones are listed below the ranking.
           </p>
           <button
             type="button"
@@ -560,6 +563,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
+import { sentence } from '@/utils/errors';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { getLocalTimestampInTimezone } from '@/lib/events';
 import { formatInZone } from '@/search/csv';
@@ -963,7 +967,7 @@ async function share(): Promise<void> {
     shareMessage.value = res.ok
       ? res.duplicate === 'exact'
         ? res.message
-        : `Thank you — ${res.message}. It is on the leaderboard's ${shareTab.value} tab.`
+        : `Thanks! ${sentence(res.message)} It's on the leaderboard's ${shareTab.value} tab.`
       : `Not sent: ${res.message}`;
   } finally {
     sharing.value = false;

@@ -34,13 +34,13 @@
     <div class="flex flex-wrap items-baseline justify-between gap-2">
       <h2 class="text-lg font-black text-slate-900">What we know so far</h2>
       <span class="text-[10px] font-bold text-slate-500"
-        >27 Sept 2026 · 94 runs to 490 TE · 12 accounts (11 players) from TE 124 to 199 · 568,000 plans timed</span
+        >29 Sept 2026 · 109 runs to 490 TE · 13 accounts (12 players) from TE 124 to 199 · 613,000 plans timed</span
       >
     </div>
     <p class="text-[11px] text-slate-500 leading-relaxed">
-      A dated snapshot, not live: every number on this card is as of the date above, and every date on it is in the
-      player's own timezone. The live counts are in the charts and tables further down, which recount the board each
-      time the page loads and show dates in your timezone.
+      This card is a dated snapshot. Every number on it is as of the date above, and every date on it is in the player's
+      own timezone. The charts and tables further down are live: they recount the board each time the page loads and
+      show dates in your timezone.
     </p>
 
     <ol class="list-decimal pl-5 space-y-2 text-[12px] text-slate-700 leading-relaxed">
@@ -48,31 +48,35 @@
         <b>More ascensions help, then level off.</b> By finish date (not total days), from each account's
         earliest-finishing plan at each count: going from 2 ascensions to 3 brought the finish forward by 34 to 245 days
         on the six accounts that tried both, more on lower accounts (191 days at TE 124, 245 and 184 at TE 132 and 133,
-        116 at TE 167, 99 at TE 182, 34 at TE 198). On these six, lower TE has also meant lower CTE, so this cannot yet
-        say which of the two it is. A 4th brought it forward another 4.5 to 28 days on four of the five accounts that
-        tried 3 and 4; on (icon) · Los Angeles the 4 finishes 1.5 days after the 3, from a small staged search (635
-        plans). A 5th: 1.5 to 28 days on all four that tried 4 and 5, each gap bigger than the searches could explain.
+        116 at TE 167, 99 at TE 182, 34 at TE 198). On these six, lower TE has also meant lower CTE, so we can't yet
+        tell which of the two makes the difference. A 4th brought it forward another 4.5 to 28 days on four of the five
+        accounts that tried 3 and 4; on (icon) · Los Angeles the 4 finishes 1.5 days after the 3, from a small staged
+        search (635 plans). A 5th brought it forward 1.5 to 28 days on all five accounts that tried 4 and 5. Each of
+        those gaps is bigger than the searches could explain except BobSkiMajoo778's (5.2 days), which is within search
+        noise because he tried only every 15th TE.
       </li>
       <li>
-        <b>Past 5 ascensions, the search matters as much as the count.</b> A 6th brought the finish forward on all six
-        accounts that tried 5 and 6, by 0.4 to 8.8 days: settled on rontimes (8.8 days) and Halceyx (1.0); the direction
-        holds on William (2.8), whose 6 was searched at least as coarsely as his 5 at every checkpoint and still won;
-        within search noise on Allan (0.4) and Willsalt · T4E cube (8.7), where one side was a staged search, and on
-        Willsalt · T4L cube (5.6), whose 6 was searched more closely than its 5 at one checkpoint and more coarsely at
-        others. Of the three accounts that tried 6 and 7, a 7th brought Willsalt · T4L cube's finish forward 4.9 days;
-        on Allan it finishes the same minute as the 6 and on William 0.9 days after it. All three are within search
-        noise. The plan that finishes first has 5 to 7 ascensions on 9 of the 12 accounts, but only four accounts tried
-        counts both above and below their best: Allan (tried 2 to 8, best 6, tied with 7), William (tried 2 to 9 and 15,
-        best 6), Willsalt · T4L cube (tried 2 to 8, best 7) and (icon) · Los Angeles (tried 2 to 4, best 3). For
-        Halceyx, Willsalt · T4E cube, rontimes, iDaHooBone and Kenzie the best is simply the most ascensions they tried;
-        Wolfcry1993, wood_420 and Zen_Ferret tried one count each.
+        <b>Past 5 ascensions, the search matters as much as the count.</b> A 6th brought the finish forward on six of
+        the seven accounts that tried 5 and 6, by 0.4 to 8.8 days: settled on rontimes (8.8 days) and Halceyx (1.0); the
+        direction holds on William (2.8), whose 6 was searched at least as coarsely as his 5 at every checkpoint and
+        still won; within search noise on Allan (0.4) and Willsalt · T4E cube (8.7), where one side was a staged search,
+        and on Willsalt · T4L cube (5.6), whose 6 was searched more closely than its 5 at one checkpoint and more
+        coarsely at others. On BobSkiMajoo778 the 6 finishes 17 minutes after the 5. Of the four accounts that tried 6
+        and 7, a 7th brought the finish forward 4.9 days on Willsalt · T4L cube and 1.0 day on BobSkiMajoo778; on Allan
+        it finishes the same minute as the 6 and on William 0.9 days after it. All four are within search noise. The
+        plan that finishes first has 5 to 7 ascensions on 9 of the 13 accounts, but only four accounts tried counts both
+        above and below their best: Allan (tried 2 to 8, best 6, tied with 7), William (tried 2 to 9 and 15, best 6),
+        Willsalt · T4L cube (tried 2 to 9, best 8: 2.1 days before its 7 and 3.3 days before its 9, both within search
+        noise) and (icon) · Los Angeles (tried 2 to 4, best 3). For Halceyx, Willsalt · T4E cube, rontimes, iDaHooBone,
+        Kenzie and BobSkiMajoo778 the best is simply the most ascensions they tried; Wolfcry1993, wood_420 and
+        Zen_Ferret tried one count each.
       </li>
       <li>
         <b>With up to 4 ascensions, the last TE you ascend at is about the same on every account.</b> Taking each
         account's best plan at each count, the last TE it ascends at before playing on to 490 is about 280 with 2
         ascensions (274 to 287 on six of the seven accounts that tried it; 235 on the seventh), 279 to 288 with 3 (7
-        accounts) and 283 to 297 with 4 (6 accounts), whether the account starts at TE 124 or 198. With more ascensions
-        it spreads out: 285 to 328 with 5 and 294 to 337 with 6 (7 accounts each). More ascensions push that last TE up,
+        accounts) and 283 to 297 with 4 (7 accounts), whether the account starts at TE 124 or 198. With more ascensions
+        it spreads out: 285 to 335 with 5 and 294 to 337 with 6 (8 accounts each). More ascensions push that last TE up,
         but most of the extra ascensions go in below 290: a 6-ascension plan still ascends 3 or 4 times below 290. The
         planner's suggested starting plan uses these numbers.
       </li>
@@ -115,7 +119,7 @@
         <b>Below about 220 CTE, the first ascension stalls.</b> Unless your Clothed TE is about 218 to 225 or more (the
         planner's estimate), your first ascension sits on Integrity saving up for habs. The planner won't run a plan
         that stalls for more than a week. The runs only bracket that line: the two accounts we measured below it (CTE
-        172 and 202) both stalled, and every account whose CTE we know (11 of the 12) is at CTE 241 or more. A full T4L
+        172 and 202) both stalled, and every account whose CTE we know (12 of the 13) is at CTE 241 or more. A full T4L
         earnings set (Demeters necklace, Tungsten ankh, Lunar totem and Puzzle cube, each with 3 T4 Lunar stones) adds
         +128.7 TE to your CTE. The T4L Lunar totem with its stones is +66.2 of that on its own.
       </li>
@@ -136,7 +140,7 @@
       </p>
       <p>
         <b>Bigger:</b> 5 and 6 ascensions with far more plans than M4, which tries every 5th TE: F4 and F5 try every TE
-        at the first checkpoint or two and every 2nd to 7th TE after that. On 7 of the 12 accounts the plan that
+        at the first checkpoint or two and every 2nd to 7th TE after that. On 7 of the 13 accounts the plan that
         finishes first has 5 or 6 ascensions. Six runs so far have looked closer than M4 at some or all of the
         checkpoints: 5-ascension runs from William (F4), Halceyx (every TE, in a narrow box) and rontimes (every 2nd
         TE), and 6-ascension runs from William (F5), Willsalt · T4L cube (F5-alt) and Willsalt · T4E cube (every 2nd TE
@@ -146,7 +150,7 @@
         and a half to two days.
       </p>
       <p>
-        <b>Wider gear:</b> every account so far has a T4L Lunar totem and a T4L Demeters necklace, and on the 11 whose
+        <b>Wider gear:</b> every account so far has a T4L Lunar totem and a T4L Demeters necklace, and on the 12 whose
         CTE we know the earnings set adds 115 to 129 TE, so CTE and TE always rise together. We need accounts at CTE 200
         to 240, weaker earnings sets at a higher TE, and weaker delivery sets. They would show whether TE, CTE or the
         delivery set decides the best plan.

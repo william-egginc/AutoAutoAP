@@ -6,8 +6,8 @@
 <template>
   <div v-if="isSafari" class="p-3 rounded-xl border border-sky-200 bg-sky-50 text-[11px] text-sky-900 leading-relaxed">
     <span class="font-black uppercase tracking-wide">Long runs in Safari.</span>
-    Safari doesn't tell pages how much memory they're using, so this page can't warn you before it runs short. If the
-    page goes white mid-run, Safari has stopped drawing it, but the workers may still be running: check Activity
+    Safari doesn't tell pages how much memory they're using, so this page can't warn you before memory runs short. If
+    the page goes white mid-run, Safari has stopped drawing it, but the workers may still be running: check Activity
     Monitor. For runs longer than a few hours:
     <span class="font-bold">use {{ workers }} workers or fewer</span> (this machine has {{ store.machineThreads }}),
     turn off extensions that change web pages for this site (Safari › Settings › Extensions), keep the window open

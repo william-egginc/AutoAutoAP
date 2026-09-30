@@ -170,7 +170,7 @@ export function reviewLegs(legs: LegSummary[]): HealthIssue[] {
       issues.push({
         kind: 'rate-collapse',
         level: 'error',
-        message: `Leg ${i + 1} (to ${leg.endTE} TE) peaks at ${here.toFixed(3)} q/hr, down from ${prev.toFixed(3)} on the leg before it. Delivery should not fall as TE rises — this usually means the state the simulator carried into this leg is wrong, and every duration after it is too.`,
+        message: `Leg ${i + 1} (to ${leg.endTE} TE) peaks at ${here.toFixed(3)} q/hr, down from ${prev.toFixed(3)} on the leg before it. Delivery should not fall as TE rises. This usually means the state the simulator carried into this leg is wrong, and every duration after it is too.`,
       });
     }
   });
@@ -251,7 +251,7 @@ export function reviewSetup(i: SetupInputs): HealthIssue[] {
     issues.push({
       kind: 'te-mismatch',
       level: 'error',
-      message: `This run will start from ${i.currentTE} TE, but your loaded save reports ${i.backupTE} TE. Starting from the wrong TE changes every duration in the plan — a run from ${Math.min(i.currentTE, i.backupTE)} TE is far longer than the same run from ${Math.max(i.currentTE, i.backupTE)}. If you are not deliberately planning from a point part-way through an existing plan, reset to today's defaults or reload your backup before starting.`,
+      message: `This run will start from ${i.currentTE} TE, but your loaded save reports ${i.backupTE} TE. Starting from the wrong TE changes every duration in the plan: a run from ${Math.min(i.currentTE, i.backupTE)} TE is far longer than the same run from ${Math.max(i.currentTE, i.backupTE)}. If you are not deliberately planning from a point part-way through an existing plan, reset to today's defaults or reload your backup before starting.`,
     });
   }
   return issues;

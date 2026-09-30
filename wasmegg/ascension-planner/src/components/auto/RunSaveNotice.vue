@@ -11,7 +11,7 @@
     class="p-3 rounded-xl border border-violet-200 bg-violet-50 text-[11px] text-violet-900 leading-relaxed space-y-2"
   >
     <p>
-      <span class="font-black uppercase tracking-wide">On the save this run started with.</span>
+      <span class="font-black uppercase tracking-wide">Using the save this run started with.</span>
       The planner is using your save from {{ when(ui.runSaveLoaded.backupAt) }} (TE {{ ui.runSaveLoaded.te }}), so the
       run carries on with the farm it began on. Your latest save may differ; load it again when the run is done.
     </p>

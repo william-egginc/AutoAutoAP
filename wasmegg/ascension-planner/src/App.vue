@@ -475,10 +475,9 @@
             <span class="font-bold text-indigo-900"
               >The beta AAAP (Auto Auto Ascension Planner) is below AAP (Auto Ascension Planner), so keep
               scrolling.</span
-            >
-            <span class="font-semibold">Chain Search</span> sits under AAP. It takes the chain you typed and spends
-            hours of your CPU looking for a faster one, if your computer catches on fire please call 0118 999 881 99
-            9119 725 3 (for leagal and serious reasons this is a joke.)
+            >{{ ' ' }} <span class="font-semibold">Chain Search</span> sits under AAP. It takes the chain you typed and
+            spends hours of your CPU looking for a faster one, if your computer catches on fire please call 0118 999 881
+            99 9119 725 3 (for leagal and serious reasons this is a joke.)
           </p>
         </div>
 

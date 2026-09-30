@@ -42,3 +42,12 @@ describe('messages', () => {
     expect(describeRunError(new Error('shard 2 exited 1'))).toBe('shard 2 exited 1');
   });
 });
+
+describe('sentence', () => {
+  it('capitalises a store message and ends it once', async () => {
+    const { sentence } = await import('./errors');
+    expect(sentence('sent')).toBe('Sent.');
+    expect(sentence('sent, but the table did not upload.')).toBe('Sent, but the table did not upload.');
+    expect(sentence('')).toBe('');
+  });
+});

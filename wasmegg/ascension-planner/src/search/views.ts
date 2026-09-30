@@ -38,7 +38,7 @@ export const VIEWS: ViewDef[] = [
     hint:
       'The leader, the best chain at each other ascension count, then whatever else is a genuinely ' +
       'different plan rather than the same one nudged by a few TE. Anything more than five days ' +
-      'behind is left out here — switch to "Fastest" to see the raw ranking.',
+      'behind is left out here. Switch to "Fastest" to see the raw ranking.',
   },
   {
     id: 'fastest',
@@ -52,8 +52,8 @@ export const VIEWS: ViewDef[] = [
     id: 'cheapest-hours',
     label: 'Kindest to my schedule',
     hint:
-      'Sorted by how much of the plan is spent waiting for you — prestiges held plus shifts held — ' +
-      'rather than by total length. The fastest chain is rarely the one that asks least of you, and ' +
+      'Sorted by how much of the plan is spent waiting for you (prestiges held plus shifts held) ' +
+      'instead of by total length. The fastest chain is rarely the one that asks least of you, and ' +
       'a chain that costs you two fewer days of waiting may be worth half a day of plan.',
   },
   {
@@ -61,7 +61,7 @@ export const VIEWS: ViewDef[] = [
     label: 'By ascension count',
     hint:
       'The best chain at every ascension count the run saw, shortest chain first. Each prestige is a ' +
-      'full rebuild — twelve shifts and a fresh research grind — so one fewer for half a day is a ' +
+      'full rebuild (twelve shifts and a fresh research grind), so one fewer for half a day is a ' +
       'trade worth seeing plainly.',
   },
   {

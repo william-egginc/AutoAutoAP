@@ -2091,11 +2091,11 @@ export function settingTagTitle(tag: string): string {
   if (tag.startsWith('starts ')) {
     return (
       'When this plan starts. Another run of this route to this target, from the same save and with the same ' +
-      'settings, starts at a different time, and a different start moves every leg and the finish.'
+      'settings, starts at a different time. A different start shifts every leg and the finish.'
     );
   }
   if (tag === 'finishes current run first' || tag === 'prestiges now') {
-    return 'Whether the first ascension finishes the run already under way first. A look-alike of this plan from the same save was planned the other way.';
+    return 'Whether the first ascension finishes the run already under way or prestiges straight away. A look-alike of this plan from the same save was planned the other way.';
   }
   return 'Whether shifts are held. A look-alike of this plan from the same save was planned the other way.';
 }

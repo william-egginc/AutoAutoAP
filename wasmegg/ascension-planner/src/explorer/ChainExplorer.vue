@@ -48,7 +48,7 @@
         <div v-if="!base" class="space-y-2">
           <p class="text-sm font-bold text-slate-700">No collector configured for this copy of the page.</p>
           <p class="text-[12px] text-slate-500 leading-relaxed">
-            Paste the collector's base URL — the same Worker the planner's Submit button posts to, without the
+            Paste the collector's base URL: the same Worker the planner's Submit button posts to, without the
             <code class="font-mono-premium">/submit</code>. It is remembered in this browser, and
             <code class="font-mono-premium">?collector=…</code> on this page's own URL does the same thing for a link
             you want to share.
@@ -618,7 +618,7 @@
                         leftById.get(row.id)
                           ? leftTitle(leftById.get(row.id)!)
                           : row.space
-                            ? 'Its box could not be counted again from this row (the recount does not match what the run stored), so what is left is not shown rather than guessed.'
+                            ? 'Its box could not be counted again from this row (the recount does not match what the run stored), so what is left is not shown.'
                             : 'A staged search improved a seed chain rather than trying a fixed box of TEs, so there is nothing to measure what is left against.'
                       "
                     >
@@ -664,10 +664,10 @@
           <h2 class="text-lg font-black text-slate-900">Does one more ascension help?</h2>
           <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
             One line per account, never one line across accounts: a duration depends on artifacts, colleggtibles,
-            research and starting TE at least as much as on the chain, so the only honest version of this question holds
-            an account still and varies the count. Each point is how many days after that account's earliest finish the
-            best plan at that count finishes, so a line only touches 0 at the count that holds it. That earliest finish
-            is taken from all of the account's runs that still stand, the same one the runs table names. A solid line is
+            research and starting TE at least as much as on the chain, so the fair way to ask this is to hold one
+            account still and vary the count. Each point is how many days after that account's earliest finish the best
+            plan at that count finishes, so a line only touches 0 at the count that holds it. That earliest finish is
+            taken from all of the account's runs that still stand, the same one the runs table names. A solid line is
             one exhaustive run that timed several counts from one save; if that run no longer stands (a what-if, an old
             save), it is measured from its own best count instead, and its tooltip says so. A dashed line is the
             account's runs that still stand, the earliest finish at each count. Runs made on different days are compared
@@ -742,9 +742,9 @@
         <section v-if="base" class="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
           <h2 class="text-lg font-black text-slate-900">An account's best plans, from all its stored tables</h2>
           <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
-            A stored table is every plan one run priced, so an account's tables hold its runners-up, its other ascension
-            counts and the plans one TE over, not just each run's winner. Pick an account and load its tables: the list
-            merges them and ranks every plan by finish date, the run's plan start plus the plan's days. That is how
+            A stored table is every plan one run priced, so besides each run's winner an account's tables hold its
+            runners-up, its other ascension counts and the plans one TE over. Pick an account and load its tables: the
+            list merges them and ranks every plan by finish date, the run's plan start plus the plan's days. That is how
             plans from different saves of one account compare, since a table made a day later counts every plan a day
             shorter. Only runs whose finish still stands are used; the line under the picker says which were left out
             and why (tap one to see). A plan is a route under its run's settings, so a plan priced with a schedule, or
@@ -969,7 +969,7 @@
           </p>
           <p class="leading-relaxed">
             <b class="text-slate-700">These are searches, not surveys.</b> Most runs explored a band somebody typed, so
-            this shows where good chains were FOUND, which is not the same as where good chains ARE. A band that stops
+            this shows where good chains were found, which is not always where the good chains are. A band that stops
             dead at a round number is usually the edge of a search box.
           </p>
         </section>
@@ -987,8 +987,8 @@
           <h2 class="text-lg font-black text-slate-900">Help fill the gaps</h2>
           <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
             What the collected runs are still short of, worked out from them: each item drops off once enough accounts
-            have covered it. Every run helps even if you are not on this list -- but these are where one more account
-            teaches the most.
+            have covered it. Every run helps, even if nothing here matches your account, but these are the gaps where
+            one more account teaches the most.
           </p>
         </div>
         <DataNeeds v-if="rows.length" :rows="usable" />
@@ -1008,10 +1008,10 @@
           One point per run to 490, whatever target is picked above. Across is the run's last checkpoint; up is the peak
           delivery its final leg reached, as a percent of what its delivery set should reach from that checkpoint. Below
           the 80% line the run is flagged for the old delivery-set bug (earnings researched with the wrong set, so the
-          farm never reached its real rate) and kept out of everything else on the page. Runs the check cannot judge — a
-          last checkpoint under 190 TE, no per-leg detail, or no delivery set recorded — are counted in the note under
-          the chart, not drawn. What each set "should reach" was fitted on these same runs, so clean runs sit near 100%
-          by construction: this checks the runs, it does not measure the game.
+          farm never reached its real rate) and kept out of everything else on the page. Runs the check cannot judge (a
+          last checkpoint under 190 TE, no per-leg detail, or no delivery set recorded) are counted in the note under
+          the chart but not drawn. What each set "should reach" was fitted on these same runs, so clean runs sit near
+          100% by construction: this checks the runs, it does not measure the game.
         </p>
         <FinalLegChart :rows="checkRows" :account-colors="accountColors" :account-labels="accountLabels" />
       </section>
@@ -1031,7 +1031,7 @@
           <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
             Runs from accounts where the planner stops working: a first ascension that sits on the Integrity shift for
             over an hour, a plan past ten years, or a result that contradicts itself. They are kept apart from
-            everything above, because they are not routes to copy, and shown anonymously — except runs sent from this
+            everything above, because they are not routes to copy, and shown anonymously, except runs sent from this
             browser, which show as yours. These are not the runs flagged for the delivery-set bug: those are counted at
             the top of the page and drawn in the final-leg check.
           </p>
@@ -1219,7 +1219,7 @@ async function load(): Promise<void> {
     error.value =
       errorKind(e) === 'network'
         ? describeFetchError(e, 'the collector')
-        : `${e instanceof Error ? e.message : String(e)} — check the URL, and that the collector allows this origin.`;
+        : `Check the URL, and that the collector allows this origin. (${e instanceof Error ? e.message : String(e)})`;
   } finally {
     if (allController === controller) {
       loading.value = false;

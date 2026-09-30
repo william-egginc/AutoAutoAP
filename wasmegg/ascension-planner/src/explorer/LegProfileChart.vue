@@ -101,7 +101,7 @@ const MODES: { id: Metric; label: string; hint: string }[] = [
   {
     id: 'rate',
     label: 'Peak delivery',
-    hint: 'Peak delivery rate each leg reaches, in q/hr, on a log scale so equal steps are equal gains in percent. It should climb leg over leg as research carries forward — that climb is the whole reason chaining beats one long ascension, and a line that has flattened is an account that would do as well with fewer. Leg 1 (hollow point, dashed line) depends on how far into the ascension in progress the plan starts; compare legs 2 onward.',
+    hint: 'Peak delivery rate each leg reaches, in q/hr, on a log scale so equal steps are equal gains in percent. It should climb leg over leg as research carries forward. That climb is why chaining beats one long ascension, and a line that has flattened belongs to an account that would do as well with fewer ascensions. Leg 1 (hollow point, dashed line) depends on how far into the ascension in progress the plan starts; compare legs 2 onward.',
   },
 ];
 
