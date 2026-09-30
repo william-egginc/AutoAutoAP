@@ -3354,6 +3354,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     deadlineAll = [];
     holdRunLock();
     void holdScreenLock();
+    // The same hidden-tab tracking the other runs have: without it "When this tab is in the
+    // background" never slowed a deadline run, and the screen lock was not taken back on return.
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    tabHidden.value = document.visibilityState === 'hidden';
     let pool: ChainSearchPool | null = null;
     let replayed: ReturnType<typeof replayingEvaluator> | null = null;
     const checkpoint = async (replay: ReturnType<typeof replayingEvaluator>, force = false) => {
@@ -3475,6 +3479,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     } finally {
       pool?.terminate();
       deadlinePool = null;
+      document.removeEventListener('visibilitychange', onVisibilityChange);
       dropRunLock();
       dropScreenLock();
       deadlineRunning.value = false;
@@ -3764,9 +3769,12 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * it the one point where a save is worth paying for off-schedule.
    */
   function onVisibilityChange(): void {
+    // Read by `targetWorkers`, so the background setting slows a deadline run as well as the others.
     tabHidden.value = document.visibilityState === 'hidden';
-    if (!isRunning.value) return;
-    if (document.visibilityState === 'hidden') void persist(liveCache, true);
+    if (!isRunning.value && !deadlineRunning.value) return;
+    if (document.visibilityState === 'hidden') {
+      if (isRunning.value) void persist(liveCache, true);
+    }
     // Coming back into view is the only moment a screen lock can be taken again.
     else void holdScreenLock();
   }
