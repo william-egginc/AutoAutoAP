@@ -1912,3 +1912,53 @@ describe('dupOf never ties an anonymous row to a named one', () => {
     expect(again).toMatchObject({ duplicate: 'result', dupOf: first.id });
   });
 });
+
+describe('schema 8: the highest TE by a date', () => {
+  // 14 Jul 2027 09:00 PT, Egg Day.
+  const EGG_DAY = 1815926400;
+  const D8 = {
+    ...MINIMAL,
+    schema: 8,
+    chain: [195, 238, 307],
+    finalTE: 307,
+    deadline: EGG_DAY,
+    deadlineAscendAt: EGG_DAY - 46440,
+  };
+
+  it('stores the deadline and when the last ascension can be made', async () => {
+    expect((await post('/submit', D8)).status).toBe(200);
+    const row = stored()[0][1];
+    expect([row.schema, row.deadline, row.deadlineAscendAt]).toEqual([8, EGG_DAY, EGG_DAY - 46440]);
+  });
+
+  it('refuses a deadline row without a usable deadline, or ascending after it', async () => {
+    expect((await post('/submit', { ...D8, deadline: undefined })).status).toBe(400);
+    expect((await post('/submit', { ...D8, deadline: 12 })).status).toBe(400);
+    expect((await post('/submit', { ...D8, deadlineAscendAt: EGG_DAY + 60 })).status).toBe(400);
+  });
+
+  it('ignores a deadline on an older schema, which never meant one', async () => {
+    await post('/submit', { ...MINIMAL, schema: 7, deadline: EGG_DAY });
+    expect('deadline' in stored()[0][1]).toBe(false);
+  });
+});
+
+describe('schema 8: one ascension straight to the last stop', () => {
+  it('is a valid deadline answer, and still not a valid ordinary run', async () => {
+    expect(
+      (await post('/submit', { ...MINIMAL, schema: 8, chain: [225], finalTE: 225, deadline: 1815926400 })).status
+    ).toBe(200);
+    expect((await post('/submit', { ...MINIMAL, schema: 7, chain: [490] })).status).toBe(400);
+  });
+});
+
+describe('schema 8 on the read side', () => {
+  it('serves deadline answers from /all, and keeps them off the plan-length /leaderboard', async () => {
+    await post('/submit', { ...MINIMAL, schema: 8, chain: [195, 238, 307], finalTE: 307, deadline: 1815926400 });
+    await post('/submit', { ...MINIMAL, schema: 7 });
+    const all = await (await get('/all')).json();
+    expect(all.rows.map(r => r.finalTE).sort()).toEqual([307, 490]);
+    const board = await (await get('/leaderboard')).json();
+    expect(board.rows.map(r => r.finalTE)).toEqual([490]);
+  });
+});

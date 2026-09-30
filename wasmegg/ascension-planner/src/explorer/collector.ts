@@ -163,7 +163,15 @@ export async function fetchAll(base: string, signal?: AbortSignal): Promise<Coll
   if (!body || !Array.isArray(body.rows)) throw new Error('The collector answered something that is not a run list.');
   // A row without a chain cannot be placed on any chart here, and one bad record should not empty
   // the page. Same posture the Worker takes when a stored value will not parse.
-  return body.rows.filter(r => Array.isArray(r.chain) && r.chain.length >= 2 && Number.isFinite(r.durationDays));
+  // Deadline answers (schema 8) too: they are ranked on the leaderboard's By a date tab, and a
+  // route cut short at whatever TE a date allowed says nothing about chain shapes to a target.
+  return body.rows.filter(
+    r =>
+      Array.isArray(r.chain) &&
+      r.chain.length >= 2 &&
+      Number.isFinite(r.durationDays) &&
+      typeof (r as { deadline?: unknown }).deadline !== 'number'
+  );
 }
 
 /**

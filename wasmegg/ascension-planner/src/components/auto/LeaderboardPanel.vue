@@ -45,7 +45,7 @@
           </a>
         </div>
         <div class="flex items-end gap-2">
-          <label class="block">
+          <label v-if="tab !== 'dates'" class="block">
             <span class="block text-[9px] font-black uppercase tracking-widest text-indigo-700/70 mb-1">Target TE</span>
             <select v-model="final" class="rounded-lg border-indigo-200 text-xs font-bold text-slate-700 py-1.5">
               <option value="">all</option>
@@ -362,6 +362,76 @@
       </template>
 
       <!-- ================================================================== MINE -->
+      <!-- ================================================================== BY A DATE -->
+      <template v-else-if="tab === 'dates'">
+        <p class="text-[11px] text-indigo-900/80 leading-relaxed">
+          The highest TE each player can reach by a date, from Insane mode's
+          <span class="font-bold">Highest TE by a date</span> search. Answers for the same deadline are ranked by the TE
+          reached, then the time to spare before it; each player's best answer counts. Dates are in your timezone ({{
+            viewZone
+          }}).
+        </p>
+        <p v-if="!dateBoard.length" class="text-[11px] text-indigo-900/60 py-6 text-center">
+          No answers yet. Run Insane mode's Highest TE by a date and use
+          <span class="font-semibold">Share this answer</span>.
+        </p>
+        <div
+          v-for="g in dateBoard"
+          :key="g.deadline"
+          class="rounded-xl border border-indigo-100 bg-white p-3 space-y-2"
+        >
+          <p class="text-[10px] font-black uppercase tracking-widest text-indigo-800">
+            By {{ deadlineText(g.deadline) }}
+            <span v-if="g.deadline * 1000 < now" class="font-semibold normal-case tracking-normal text-slate-500"
+              >· this date has passed</span
+            >
+          </p>
+          <div class="overflow-x-auto">
+            <table class="w-full text-[11px] tabular-nums">
+              <thead>
+                <tr class="text-left text-[9px] font-black uppercase tracking-widest text-indigo-700/60">
+                  <th class="pr-3 py-1">#</th>
+                  <th class="pr-3 py-1">Who</th>
+                  <th class="pr-3 py-1">TE by then</th>
+                  <th class="pr-3 py-1">Route</th>
+                  <th class="pr-3 py-1">Spare</th>
+                  <th class="pr-3 py-1">From</th>
+                  <th class="pr-3 py-1">Sent</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="e in [...g.entries, ...g.anonymous]"
+                  :key="e.best.id ?? `${e.key}-${e.best.chain.join(',')}`"
+                  class="border-t border-indigo-50"
+                  :class="e.rank ? '' : 'text-slate-500'"
+                >
+                  <td class="pr-3 py-1 font-black">{{ e.rank ?? '—' }}</td>
+                  <td class="pr-3 py-1 font-bold">
+                    {{ e.label
+                    }}<span v-if="e.others.length" class="font-normal text-slate-400">
+                      · {{ e.others.length }} more</span
+                    >
+                  </td>
+                  <td class="pr-3 py-1 font-black text-indigo-900">{{ e.te }}</td>
+                  <td class="pr-3 py-1">{{ e.best.chain.join(' ') }}</td>
+                  <td class="pr-3 py-1">{{ spareText(e.spare) }}</td>
+                  <td class="pr-3 py-1" :title="e.best.startLocal ? `plan start ${e.best.startLocal}` : undefined">
+                    {{ e.best.currentTE ?? '—' }} TE
+                  </td>
+                  <td class="pr-3 py-1" :title="sentTitle(e.best.receivedAt ?? e.best.submittedAt)">
+                    {{ sentText(e.best.receivedAt ?? e.best.submittedAt) }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p v-if="g.anonymous.length" class="text-[10px] text-slate-500">
+            Anonymous answers are listed, not ranked, as in the race.
+          </p>
+        </div>
+      </template>
+
       <template v-else-if="tab === 'mine'">
         <p v-if="!myKey && !mineRows?.length" class="text-[11px] text-indigo-900/70 py-4">
           Load your save to see your own plans here. They are the runs this browser sent for your account, plus older
@@ -630,6 +700,7 @@ import { sortRows, type SortKey, type SortableRow } from '@/lib/leaderboardSort'
 import {
   accountKeyOf,
   browserCount,
+  buildDeadlineBoard,
   buildMyPlans,
   buildRace,
   contentFingerprint,
@@ -642,6 +713,7 @@ import {
   foldCopies,
   formatDate,
   foundByText,
+  isDeadlineRow,
   isNoCodeLine,
   localZone,
   placeFor,
@@ -673,8 +745,8 @@ const emit = defineEmits<{ use: [chain: number[]] }>();
  *  endpoint that may be a version ahead or behind, and a missing field should render a dash. */
 type Row = BoardRow;
 
-type Tab = 'race' | 'mine' | 'all';
-const TABS: Tab[] = ['race', 'mine', 'all'];
+type Tab = 'race' | 'mine' | 'all' | 'dates';
+const TABS: Tab[] = ['race', 'mine', 'all', 'dates'];
 /** How many rows an OLD collector's `GET /all` listed at most. The current one serves its whole
  *  snapshot, uncapped, and says so by carrying `builtAt`; only an answer without it is checked. */
 const ALL_CAP = 1000;
@@ -758,12 +830,20 @@ const runEdges = scrollEdges();
 
 function tabLabel(t: Tab): string {
   if (t === 'race') return target.value == null ? 'Race' : `Race to ${target.value}`;
+  if (t === 'dates') return 'By a date';
   return t === 'mine' ? 'My plans' : 'All runs';
 }
 
 /** Target-TE options, from what has actually been submitted plus the player's own target. */
 const targets = computed(() => {
-  const seen = new Set(allRows.value.map(r => r.finalTE).filter(v => Number.isFinite(v)));
+  // Not a deadline answer's last stop: those are ranked by date on their own tab, and a target of
+  // 307 because someone reached 307 by Egg Day is not a finish line anybody is racing to.
+  const seen = new Set(
+    allRows.value
+      .filter(r => !isDeadlineRow(r))
+      .map(r => r.finalTE)
+      .filter(v => Number.isFinite(v))
+  );
   if (store.finalTE) seen.add(store.finalTE);
   return [...seen].sort((a, b) => a - b);
 });
@@ -979,6 +1059,19 @@ const COLUMNS: { key: SortKey; label: string; right?: boolean; title?: string }[
   { key: 'submittedAt', label: 'Submitted', title: `When it was first sent, in your timezone (${viewZone})` },
 ];
 
+// ----------------------------------------------------------------------------- By a date
+
+const dateBoard = computed(() => buildDeadlineBoard(allRows.value, { now: now.value }));
+/** A deadline on the viewer's calendar, to the minute (Egg Day is 09:00 Pacific, not a whole day). */
+function deadlineText(seconds: number): string {
+  return formatDate(seconds * 1000, viewZone, { dateStyle: 'medium', timeStyle: 'short' });
+}
+function spareText(seconds: number): string {
+  if (seconds < 3600) return `${Math.round(seconds / 60)} min`;
+  if (seconds < 3 * 86400) return `${(seconds / 3600).toFixed(1)} h`;
+  return `${(seconds / 86400).toFixed(1)} d`;
+}
+
 /** A send date on the viewer's calendar, like every other date on the board. */
 function sentText(iso: string | undefined): string {
   const t = iso ? Date.parse(iso) : NaN;
@@ -1036,6 +1129,15 @@ const runLines = computed<RunLine[]>(() => {
       ...(tags.get(f.row) ?? []).map(t => ({ text: t, title: settingTagTitle(t), cls: 'bg-sky-100 text-sky-800' })),
       ...(isNoCodeLine(filing, f.player)
         ? [{ text: 'no code', title: NO_CODE_TITLE, cls: 'bg-indigo-100 text-indigo-800' }]
+        : []),
+      ...(isDeadlineRow(f.row)
+        ? [
+            {
+              text: `by ${deadlineText(f.row.deadline as number)}`,
+              title: 'A "highest TE by a date" answer: see the By a date tab.',
+              cls: 'bg-rose-100 text-rose-800',
+            },
+          ]
         : []),
     ],
     nickname: whoText(f.row) || undefined,

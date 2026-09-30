@@ -488,6 +488,70 @@
         Priced from {{ inPlannerZone(result.planStart) }} at {{ result.te }} TE, with the schedule and time off above. A
         route that reaches one more TE usually has much less time to spare: the table shows both so you can choose.
       </p>
+
+      <!-- Share: the leaderboard's "By a date" tab, grouped by deadline. Same opt-in as Insane. -->
+      <div v-if="best && collectorConfigured" class="rounded-xl border border-indigo-200 bg-indigo-50/60 p-4 space-y-3">
+        <h3 class="text-[10px] font-black text-indigo-800 uppercase tracking-widest">Share this answer</h3>
+        <p class="text-[11px] text-indigo-900/80 leading-relaxed">
+          Sends the best route above to the leaderboard's <span class="font-bold">By a date</span> tab, where answers
+          for the same deadline are ranked by the highest TE reached, then the time to spare. It stays out of the race
+          to 490, which answers a different question.
+        </p>
+        <label class="flex items-start gap-3 text-xs text-indigo-900">
+          <input v-model="shareOptIn" type="checkbox" class="mt-0.5 rounded border-indigo-300 text-indigo-600" />
+          <span
+            >Yes, contribute this answer. The route, its dates and the deadline go, with your artifact inventory,
+            timezone and local plan start, plus the random code this browser keeps for the account (not your player ID,
+            and never shown), exactly as for any run you share.</span
+          >
+        </label>
+        <div v-if="shareOptIn" class="space-y-2">
+          <div class="flex flex-wrap items-center gap-4">
+            <label class="flex items-center gap-2 cursor-pointer text-[11px] font-bold text-indigo-900">
+              <input v-model="shareAnonymous" type="radio" :value="true" class="text-indigo-600" />
+              Submit anonymously
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer text-[11px] font-bold text-indigo-900">
+              <input v-model="shareAnonymous" type="radio" :value="false" class="text-indigo-600" />
+              Credit me as
+            </label>
+            <input
+              v-model="shareName"
+              type="text"
+              maxlength="40"
+              :disabled="shareAnonymous"
+              placeholder="nickname"
+              aria-label="Nickname"
+              class="rounded-lg border-indigo-200 text-sm font-bold text-slate-800 w-48 disabled:opacity-40"
+              @input="shareNameTouched = true"
+            />
+          </div>
+          <p class="text-[11px] text-indigo-900/80">
+            Only a named answer is ranked; an anonymous one is listed under the ranking.
+          </p>
+          <button
+            type="button"
+            :disabled="sharing || store.deadlineRunning || sentKey === resultKey"
+            class="px-4 py-2 rounded-lg bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-800 disabled:opacity-40"
+            @click="share"
+          >
+            {{
+              sharing
+                ? 'Sending...'
+                : sentKey === resultKey
+                  ? 'Sent'
+                  : `Send ${best.chain[best.chain.length - 1]} TE by this date`
+            }}
+          </button>
+          <p
+            v-if="shareMessage"
+            class="text-[11px] font-semibold"
+            :class="shareOk ? 'text-emerald-800' : 'text-rose-700'"
+          >
+            {{ shareMessage }}
+          </p>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -508,6 +572,7 @@ import {
 } from '@/search/deadline';
 import { estimateHours, formatHours } from '@/search/exhaustive';
 import { downloadCsv } from '@/utils/export';
+import { useEidsStore } from 'lib';
 import IntegrityNotice from './IntegrityNotice.vue';
 import SafariNotice from './SafariNotice.vue';
 
@@ -813,6 +878,57 @@ async function start(): Promise<void> {
     ascendNeeded: ascendNeeded.value,
     estimate: plannedRoutes.value,
   });
+}
+
+// ------------------------------------------------------------------ share to the board
+
+const collectorConfigured = computed(() => store.leaderboardUrl.replace(/\/$/, '') !== '');
+const shareOptIn = ref(false);
+const shareAnonymous = ref(true);
+const shareNameTouched = ref(false);
+/** The name in the header's ID box, never the raw EID (see InsanePanel's `accountName`). */
+const eidsStore = useEidsStore();
+const accountName = computed(() => {
+  const entry = eidsStore.eids.get(props.playerId.trim());
+  return entry?.nickname || entry?.username || '';
+});
+const shareName = ref(accountName.value);
+watch(accountName, name => {
+  if (!shareNameTouched.value) shareName.value = name;
+});
+const sharing = ref(false);
+const shareMessage = ref('');
+const shareOk = ref(true);
+/** Which answer was sent, so the button says so and a second click can't send it twice. */
+const resultKey = computed(() =>
+  result.value && best.value ? `${result.value.deadline}|${result.value.at}|${best.value.chain.join(',')}` : ''
+);
+const sentKey = ref('');
+
+async function share(): Promise<void> {
+  if (!best.value || sharing.value) return;
+  sharing.value = true;
+  shareOk.value = true;
+  shareMessage.value = '';
+  try {
+    const name = shareAnonymous.value ? '' : shareName.value.trim().slice(0, 40);
+    const payload = store.buildDeadlineSubmission(best.value, name);
+    if (!payload) {
+      shareOk.value = false;
+      shareMessage.value = 'Nothing to send yet.';
+      return;
+    }
+    const res = await store.sendSubmission(payload);
+    shareOk.value = res.ok;
+    if (res.ok) sentKey.value = resultKey.value;
+    shareMessage.value = res.ok
+      ? res.duplicate === 'exact'
+        ? res.message
+        : `Thank you — ${res.message}. It is on the leaderboard's By a date tab.`
+      : `Not sent: ${res.message}`;
+  } finally {
+    sharing.value = false;
+  }
 }
 
 function downloadResultCsv(): void {

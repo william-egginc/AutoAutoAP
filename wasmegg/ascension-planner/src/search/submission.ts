@@ -54,6 +54,10 @@ import type { DeliveryScore } from './virtueScore';
  *     started before the save -- which read the same as "not recorded". All optional; a collector
  *     that knows 7 still accepts 6. */
 export const SUBMISSION_SCHEMA = 7;
+/** 8 = 7 plus `deadline`/`deadlineAscendAt`: the deadline search's "highest TE by this date". Sent
+ *  only by a deadline run, so every other send stays at 7 and works with a collector that has not
+ *  learned 8 yet. */
+export const DEADLINE_SUBMISSION_SCHEMA = 8;
 
 /**
  * The artifact families a virtue ascension can actually equip.
@@ -357,6 +361,12 @@ export interface Submission {
    * are what this save says about them.
    */
   rechecks?: Recheck[];
+  /** Schema 8: the date this route was searched against (unix seconds). Its chain ends at the
+   *  highest last stop the search found reachable by then, so `finalTE` IS the answer. */
+  deadline?: number;
+  /** Schema 8: when that last ascension can actually be made -- the moment the stop is reached, or
+   *  the next awake moment after it when the run counted awake hours. Always <= `deadline`. */
+  deadlineAscendAt?: number;
   /** Which sweep preset produced this run, e.g. `M2`, or `custom`. Set by the upload page. */
   sweep?: SweepTag;
   /** The machine the run was on. The browser cannot report RAM honestly, so the player types it. */
@@ -700,6 +710,8 @@ export interface SubmissionInputs {
   build?: string | null;
   /** Earlier plans priced again from this save; see `Submission.rechecks`. */
   rechecks?: Recheck[] | null;
+  /** A deadline run's date and when its last ascension can be made (see `Submission.deadline`). */
+  deadline?: { at: number; ascendAt: number } | null;
   flags?: SubmissionFlag[];
   /** Seconds, from the run's integrity check. */
   integrityWaitSeconds?: number | null;
@@ -814,7 +826,7 @@ export function buildSubmission(i: SubmissionInputs): Submission {
   const build = i.build?.trim().slice(0, MAX_BUILD);
 
   return {
-    schema: SUBMISSION_SCHEMA,
+    schema: i.deadline ? DEADLINE_SUBMISSION_SCHEMA : SUBMISSION_SCHEMA,
     ...(nickname ? { nickname } : {}),
     chain: [...i.chain],
     ascensions: i.chain.length,
@@ -867,6 +879,7 @@ export function buildSubmission(i: SubmissionInputs): Submission {
       : {}),
     ...(build ? { build } : {}),
     ...(rechecks.length ? { rechecks } : {}),
+    ...(i.deadline ? { deadline: Math.round(i.deadline.at), deadlineAscendAt: Math.round(i.deadline.ascendAt) } : {}),
     ...(i.flags?.length ? { flags: [...i.flags] } : {}),
     ...(i.integrityWaitSeconds !== null &&
     i.integrityWaitSeconds !== undefined &&
@@ -894,8 +907,18 @@ export function validateSubmission(value: unknown): string[] {
   const problems: string[] = [];
   const s = value as Partial<Submission> | null;
   if (!s || typeof s !== 'object') return ['not an object'];
-  if (s.schema !== SUBMISSION_SCHEMA) problems.push(`unknown schema ${String(s.schema)}`);
-  if (!Array.isArray(s.chain) || s.chain.length < 2) problems.push('chain must have at least two entries');
+  if (s.schema !== SUBMISSION_SCHEMA && s.schema !== DEADLINE_SUBMISSION_SCHEMA)
+    problems.push(`unknown schema ${String(s.schema)}`);
+  if (s.schema === DEADLINE_SUBMISSION_SCHEMA) {
+    if (typeof s.deadline !== 'number' || !Number.isFinite(s.deadline))
+      problems.push('a deadline run needs its deadline');
+    else if (typeof s.deadlineAscendAt === 'number' && s.deadlineAscendAt > s.deadline)
+      problems.push('the last ascension must be on or before the deadline');
+  }
+  // A deadline answer (schema 8) can be one ascension straight to its last stop.
+  const minChain = s.schema === DEADLINE_SUBMISSION_SCHEMA ? 1 : 2;
+  if (!Array.isArray(s.chain) || s.chain.length < minChain)
+    problems.push(minChain === 1 ? 'chain must have at least one entry' : 'chain must have at least two entries');
   else {
     if (!s.chain.every(v => Number.isInteger(v) && v > 0)) problems.push('chain must be positive integers');
     if (!s.chain.every((v, k) => k === 0 || v > s.chain![k - 1])) problems.push('chain must strictly increase');

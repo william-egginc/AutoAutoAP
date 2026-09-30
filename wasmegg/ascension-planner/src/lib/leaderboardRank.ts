@@ -137,6 +137,11 @@ export interface BoardRow {
   build?: string;
   /** Schema 7: the sender's best earlier plans priced again from this row's save and start. */
   rechecks?: { chain: number[]; days: number }[];
+  /** Schema 8: a deadline search's answer -- the highest TE found reachable by this date (unix
+   *  seconds). Such a row belongs to the "By a date" board, never to the race. */
+  deadline?: number;
+  /** Schema 8: when the route's last ascension can be made (awake hours counted), unix seconds. */
+  deadlineAscendAt?: number;
   /**
    * The player, exactly (phase 2): 12 hex characters of an HMAC of the sender's owner code. Only on
    * rows that carry a name AND were sent with a code, never on an anonymous row, so the board links
@@ -1250,9 +1255,126 @@ function pickLabel(rows: readonly BoardRow[]): string {
 }
 
 /** Rows that can be ranked: on the main board, with a route. A flagged run (it can only arrive
- *  through GET /mine) is evidence about an account the planner cannot help yet, not a plan. */
+ *  through GET /mine) is evidence about an account the planner cannot help yet, not a plan. A
+ *  deadline answer (schema 8) is ranked on its own board (`buildDeadlineBoard`), not in the race. */
 function rankable<T extends BoardRow>(rows: readonly T[]): T[] {
-  return rows.filter(r => r && Array.isArray(r.chain) && !r.flags?.length);
+  return rows.filter(r => r && Array.isArray(r.chain) && !r.flags?.length && !isDeadlineRow(r));
+}
+
+/** A deadline search's answer (schema 8). */
+export function isDeadlineRow(r: Pick<BoardRow, 'deadline'>): boolean {
+  return typeof r.deadline === 'number' && Number.isFinite(r.deadline);
+}
+
+// ---------------------------------------------------------------------------- the By a date board
+
+export interface DeadlineEntry<T extends BoardRow> {
+  /** `playerKey`, or '' for an anonymous row. */
+  key: string;
+  label: string;
+  /** The player's best answer for this deadline: highest TE, then the most time to spare. */
+  best: T;
+  /** The TE that answer reaches by the deadline (its last stop). */
+  te: number;
+  /** Seconds between the last ascension and the deadline. */
+  spare: number;
+  /** Their other answers for the same deadline, best first. */
+  others: T[];
+  /** 1-based, named players only. */
+  rank?: number;
+}
+
+export interface DeadlineGroup<T extends BoardRow> {
+  deadline: number;
+  /** Named players, ranked. */
+  entries: DeadlineEntry<T>[];
+  /** Anonymous answers, best first: shown, never ranked (as in the race). */
+  anonymous: DeadlineEntry<T>[];
+}
+
+/** When a deadline row's last ascension can be made: as sent, else when its last stop is reached. */
+export function deadlineAscendMs(r: BoardRow): number | null {
+  if (typeof r.deadlineAscendAt === 'number' && Number.isFinite(r.deadlineAscendAt)) return r.deadlineAscendAt * 1000;
+  return finishMs(r);
+}
+
+/**
+ * "The highest TE by this date", grouped by date, soonest first (a date that has passed goes after
+ * the ones still ahead).
+ *
+ * One line per player per date, by the same identity the race uses (`fileRows`/`playerKey`), with
+ * their best answer: the highest last stop reached in time, then the most time to spare. Answers
+ * from the same deadline on different saves compete as the race's plans do -- by what they reach by
+ * the same instant, which, unlike days, IS comparable across plan starts.
+ *
+ * Left out: flagged rows, answers whose last ascension misses the deadline, and what-ifs whose plan
+ * starts more than an hour before the save it was priced on (`backupAgeHours`), which the race
+ * leaves out as well.
+ */
+export function buildDeadlineBoard<T extends BoardRow>(rows: readonly T[], opts: { now: number }): DeadlineGroup<T>[] {
+  const usable = rows.filter(
+    r =>
+      r &&
+      Array.isArray(r.chain) &&
+      !r.flags?.length &&
+      isDeadlineRow(r) &&
+      !(typeof r.backupAgeHours === 'number' && r.backupAgeHours < -1)
+  );
+  const filing = fileRows(usable);
+  const byDate = new Map<number, T[]>();
+  for (const r of usable) {
+    const at = deadlineAscendMs(r);
+    if (at === null || at > (r.deadline as number) * 1000) continue;
+    const list = byDate.get(r.deadline as number);
+    if (list) list.push(r);
+    else byDate.set(r.deadline as number, [r]);
+  }
+  const spareOf = (r: T) => (r.deadline as number) - (deadlineAscendMs(r) as number) / 1000;
+  const better = (a: T, b: T) =>
+    b.finalTE - a.finalTE || spareOf(b) - spareOf(a) || (sentMs(b) ?? 0) - (sentMs(a) ?? 0);
+  const groups: DeadlineGroup<T>[] = [];
+  for (const [deadline, list] of byDate) {
+    const players = new Map<string, T[]>();
+    const anonymous: DeadlineEntry<T>[] = [];
+    for (const r of list) {
+      const key = playerKey(filing, r);
+      if (!key) {
+        anonymous.push({
+          key: '',
+          label: `anonymous · ${cityOf(r.timezone)}`,
+          best: r,
+          te: r.finalTE,
+          spare: spareOf(r),
+          others: [],
+        });
+        continue;
+      }
+      const held = players.get(key);
+      if (held) held.push(r);
+      else players.set(key, [r]);
+    }
+    const entries = [...players].map(([key, rs]) => {
+      const sorted = [...rs].sort(better);
+      const newest = [...rs].sort((a, b) => (sentMs(b) ?? 0) - (sentMs(a) ?? 0))[0];
+      return {
+        key,
+        label: displayName(newest.nickname, newest.timezone),
+        best: sorted[0],
+        te: sorted[0].finalTE,
+        spare: spareOf(sorted[0]),
+        others: sorted.slice(1),
+      };
+    });
+    entries.sort((a, b) => better(a.best, b.best) || a.label.localeCompare(b.label));
+    anonymous.sort((a, b) => better(a.best, b.best));
+    groups.push({ deadline, entries: entries.map((e, i) => ({ ...e, rank: i + 1 })), anonymous });
+  }
+  const nowS = opts.now / 1000;
+  return groups.sort((a, b) => {
+    const pa = a.deadline < nowS;
+    const pb = b.deadline < nowS;
+    return pa !== pb ? (pa ? 1 : -1) : pa ? b.deadline - a.deadline : a.deadline - b.deadline;
+  });
 }
 
 /** Group folded rows into players and judge each one's plans. */

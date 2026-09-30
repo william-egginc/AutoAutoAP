@@ -53,7 +53,7 @@
 // 2: `artifacts` became a list of labels (best piece per family) instead of `{label, count}` for
 // every tier owned; see src/search/submission.ts. Rows already in KV at schema 1 keep their old
 // shape and the page renders both -- a stored row is history, not something to migrate.
-const SCHEMA = 7;
+const SCHEMA = 8;
 
 /**
  * Schemas this Worker will accept, newest last.
@@ -78,8 +78,13 @@ const SCHEMA = 7;
  * `rechecks` (the sender's best older plans priced again from this save) -- and `backupAgeHours`
  * becomes SIGNED, because a start before the save is exactly the case the app used to omit it for.
  * All optional again, so 6 is still a valid 7 that carries none of them.
+ *
+ * 8 (2026-09-29) is the deadline search's answer to "the highest TE by this date": `deadline` (unix
+ * seconds) and `deadlineAscendAt` (when the route's last ascension can actually be made, awake hours
+ * counted). Only a deadline run sends 8 -- every other run still sends 7 -- so an app built before
+ * this Worker is deployed loses nothing but the new send, which says "unknown schema 8".
  */
-const ACCEPTED_SCHEMAS = new Set([2, 3, 4, 5, 6, 7]);
+const ACCEPTED_SCHEMAS = new Set([2, 3, 4, 5, 6, 7, 8]);
 
 /**
  * Bounds on everything countable.
@@ -126,6 +131,9 @@ const MAX = {
   /** Owner codes one /mine call may present -- one per account this browser has sent for. */
   OWNER_TOKENS: 20,
   DURATION_DAYS: 100000,
+  /** Schema 8: a deadline between 2020 and 2100. */
+  DEADLINE_FROM: 1577836800,
+  DEADLINE_TO: 4102444800,
   TE: 1000000,
   /** Gzipped CSV bytes. 8 MB compressed is roughly 180 MB of raw CSV at the ~23x this data
    *  achieves -- far past the largest run anyone has produced, and still inside KV's 25 MB
@@ -163,8 +171,10 @@ function validateSubmission(s) {
   if (!ACCEPTED_SCHEMAS.has(s.schema)) {
     problems.push(`unknown schema ${String(s.schema)}; this collector accepts ${[...ACCEPTED_SCHEMAS].join(', ')}`);
   }
-  if (!Array.isArray(s.chain) || s.chain.length < 2) {
-    problems.push('chain must have at least two entries');
+  // A deadline answer can be one ascension straight to its last stop; any other run is a chain to a
+  // target with at least one checkpoint on the way.
+  if (!Array.isArray(s.chain) || s.chain.length < (s.schema === 8 ? 1 : 2)) {
+    problems.push(s.schema === 8 ? 'chain must have at least one entry' : 'chain must have at least two entries');
   } else if (s.chain.length > MAX.CHAIN) {
     problems.push(`chain must have at most ${MAX.CHAIN} entries`);
   } else {
@@ -202,6 +212,17 @@ function validateSubmission(s) {
   }
   if (s.build !== undefined && (typeof s.build !== 'string' || s.build.length > MAX.BUILD)) {
     problems.push(`build must be a string of at most ${MAX.BUILD} characters`);
+  }
+  // Schema 8. A deadline row is ranked by it, so it is required and checked, not dropped quietly.
+  if (s.schema === 8) {
+    if (!Number.isFinite(s.deadline) || s.deadline < MAX.DEADLINE_FROM || s.deadline > MAX.DEADLINE_TO) {
+      problems.push('deadline must be a date (unix seconds)');
+    } else if (
+      s.deadlineAscendAt !== undefined &&
+      (!Number.isFinite(s.deadlineAscendAt) || s.deadlineAscendAt > s.deadline)
+    ) {
+      problems.push('deadlineAscendAt must be a time on or before the deadline');
+    }
   }
   return problems;
 }
@@ -621,6 +642,11 @@ function pickSubmission(s) {
     startUtc: isoStamp(s.startUtc),
     endUtc: isoStamp(s.endUtc),
     rechecks: recheckList(s.rechecks, s.finalTE),
+
+    // Schema 8 (2026-09-29): a deadline search's answer. Validated above for schema 8; ignored on
+    // anything older, which never meant it.
+    deadline: s.schema === 8 ? within(s.deadline, MAX.DEADLINE_FROM, MAX.DEADLINE_TO) : undefined,
+    deadlineAscendAt: s.schema === 8 ? within(s.deadlineAscendAt, MAX.DEADLINE_FROM, MAX.DEADLINE_TO) : undefined,
 
     submittedAt: text(s.submittedAt, MAX.TEXT),
     // NOT here, on purpose: `receivedAt`, `dupOf`, `owner`. The collector sets those itself after
@@ -1745,7 +1771,11 @@ export default {
 
         const limit = Math.min(Number(url.searchParams.get('limit')) || 50, 200);
         const snap = parseSnapshot(raw);
-        const rows = final ? snap.rows.filter(r => String(r.finalTE) === final) : snap.rows;
+        // Deadline answers (schema 8) are not plans to a target: a board of plan lengths has no
+        // place for them. /all serves them for the app's By a date tab.
+        const rows = (final ? snap.rows.filter(r => String(r.finalTE) === final) : snap.rows).filter(
+          r => typeof r.deadline !== 'number'
+        );
 
         // One line per distinct RESULT, for clients that do not fold for themselves.
         //

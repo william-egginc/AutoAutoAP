@@ -959,8 +959,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const summary = await saveRun(await hashID(playerId), {
       label: label?.trim() || defaultRunLabel(finalTE.value, bestChain.value, bestDays.value),
       currentTE: currentTE.value,
-      // The run's own target -- its chain ends there -- not the box as it reads now: a run finished
-      // at 309 and sent after the box was changed to 308 was filed under 308.
+      // The run's own target -- its chain ends there -- not the target box as it reads now, which the
+      // player may have changed since the run finished.
       finalTE: bestChain.value[bestChain.value.length - 1] ?? finalTE.value,
       effort: effort.value,
       seedChain: seedChain.value,
@@ -1793,10 +1793,55 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * `search/submission.ts`, so a field added to the CSV later cannot leak by being forgotten
    * about here.
    */
-  function buildRunSubmission(nickname?: string): Submission | null {
-    if (!bestChain.value.length || bestDays.value <= 0) return null;
+  /**
+   * What a submission says about the ACCOUNT, rather than the run: gear, research, colleggtibles,
+   * the save. The same for a fastest run and a deadline run from the same save. `te` is the TE the
+   * search started from, which Clothed TE is worked out against.
+   */
+  function accountFields(te: number) {
     const inv = readInventory();
     const initialStateStore = useInitialStateStore();
+    return {
+      artifacts: inv.artifacts,
+      stones: inv.stones,
+      delivery: describeLoadoutSlots(inv.elr),
+      earnings: describeLoadoutSlots(inv.earnings),
+      // Read straight off the loaded backup. Null when there is no backup to read, never guessed:
+      // "all maxed" asserted for an account nobody looked at would be worse than saying nothing.
+      epicResearch: summariseEpicResearch(
+        epicResearchDefs.map(d => ({
+          id: d.id,
+          name: d.name,
+          level: initialStateStore.epicResearchLevels[d.id] ?? 0,
+          maxLevel: d.maxLevel,
+        }))
+      ),
+      colleggtibles: initialStateStore.rawBackup
+        ? summariseColleggtibles(getColleggtibleTiers(initialStateStore.rawBackup))
+        : null,
+      // Leg 1's delivery set, the same one `delivery` above describes. Later legs re-solve, but
+      // the gear they choose from is the same, so the score is the account's and not the leg's.
+      deliveryScore: inv.elr ? deliveryScore(inv.elr) : null,
+      // The same formula the Clothed TE panel shows, against the TE this search starts from.
+      clothedTE: inv.earnings
+        ? calculateClothedTEForSet(inv.earnings, {
+            truthEggs: te,
+            colleggtibleModifiers: getSimulationContext().colleggtibleModifiers,
+            labUpgradeLevel: initialStateStore.epicResearchLevels['cheaper_research'] ?? 0,
+            permitLevel: initialStateStore.rawBackup?.game?.permitLevel ?? null,
+          })
+        : null,
+      teByEgg: initialStateStore.rawBackup?.virtue?.eovEarned ?? null,
+      backupTime: initialStateStore.rawBackup?.approxTime ?? null,
+      // Schema 7. The save's own TE only with a save loaded: `backupTE` reads 0 without one, which
+      // would claim every plan was typed in from above it.
+      backupTE: initialStateStore.rawBackup ? backupTE.value : null,
+      build: appBuildId(),
+    };
+  }
+
+  function buildRunSubmission(nickname?: string): Submission | null {
+    if (!bestChain.value.length || bestDays.value <= 0) return null;
     const sub = buildSubmission({
       nickname,
       chain: [...bestChain.value],
@@ -1805,17 +1850,13 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       planStart: planStartUsed.value || planStart.value,
       timezone: useAutoPlannerStore().timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
       currentTE: currentTE.value,
-      finalTE: finalTE.value,
+      // The run's own target -- its chain ends there -- not the box as it reads now: a run finished
+      // at 309 and sent after the box was changed to 308 was filed under 308 (b7c361cc).
+      finalTE: bestChain.value[bestChain.value.length - 1] ?? finalTE.value,
       effort: effort.value,
       availability: isConstrained(availability.value) ? availability.value : null,
       holdShifts: deferShifts.value,
       forceContinue: forceContinue.value,
-      artifacts: inv.artifacts,
-      stones: inv.stones,
-      // Already solved by readInventory() above, so this costs nothing extra -- `elr` is leg 1's
-      // delivery set and `earnings` is the same in every leg.
-      delivery: describeLoadoutSlots(inv.elr),
-      earnings: describeLoadoutSlots(inv.earnings),
       chainsPriced: csvRows.value,
       // Null for a checkpoint replay, and left off entirely in that case, so the board never reads
       // "0 minutes for 400 chains" as a very fast machine.
@@ -1836,37 +1877,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
             ),
           }
         : {}),
-      // Read straight off the loaded backup. Null when there is no backup to read, never guessed:
-      // "all maxed" asserted for an account nobody looked at would be worse than saying nothing.
-      epicResearch: summariseEpicResearch(
-        epicResearchDefs.map(d => ({
-          id: d.id,
-          name: d.name,
-          level: initialStateStore.epicResearchLevels[d.id] ?? 0,
-          maxLevel: d.maxLevel,
-        }))
-      ),
-      colleggtibles: initialStateStore.rawBackup
-        ? summariseColleggtibles(getColleggtibleTiers(initialStateStore.rawBackup))
-        : null,
-      // Leg 1's delivery set, the same one `delivery` above describes. Later legs re-solve, but
-      // the gear they choose from is the same, so the score is the account's and not the leg's.
-      deliveryScore: inv.elr ? deliveryScore(inv.elr) : null,
-      // The same formula the Clothed TE panel shows, against the TE this search starts from.
-      clothedTE: inv.earnings
-        ? calculateClothedTEForSet(inv.earnings, {
-            truthEggs: currentTE.value,
-            colleggtibleModifiers: getSimulationContext().colleggtibleModifiers,
-            labUpgradeLevel: initialStateStore.epicResearchLevels['cheaper_research'] ?? 0,
-            permitLevel: initialStateStore.rawBackup?.game?.permitLevel ?? null,
-          })
-        : null,
-      teByEgg: initialStateStore.rawBackup?.virtue?.eovEarned ?? null,
-      backupTime: initialStateStore.rawBackup?.approxTime ?? null,
-      // Schema 7. The save's own TE only with a save loaded: `backupTE` reads 0 without one, which
-      // would claim every plan was typed in from above it.
-      backupTE: initialStateStore.rawBackup ? backupTE.value : null,
-      build: appBuildId(),
+      ...accountFields(currentTE.value),
       // The player's earlier plans priced again, once `prepareRechecks` (or the end of the run) has
       // worked them out for THIS result. Until then the preview simply has none, and the send adds
       // them if they arrive in time (see `sendSubmission`). Named plans for a named send, anonymous
@@ -1879,6 +1890,34 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // A run started from one of the Chain Explorer's "Run this sweep" links carries its preset, so it
     // counts toward that sweep's coverage there without anyone having to tag it by hand.
     return runSweepTag ? { ...sub, sweep: { ...runSweepTag } } : sub;
+  }
+
+  /**
+   * A deadline route as a submission (schema 8): its chain ends at the highest last stop found
+   * reachable by the date, so `finalTE` is that stop and the board ranks on it. Priced from the
+   * run's own plan start and TE; the account half is the loaded save's, as for any send.
+   */
+  function buildDeadlineSubmission(route: DeadlineRoute, nickname?: string): Submission | null {
+    const r = deadlineResult.value;
+    if (!r || !route.chain.length || !(route.reachAt > r.planStart)) return null;
+    return buildSubmission({
+      nickname,
+      chain: [...route.chain],
+      seconds: route.reachAt - r.planStart,
+      legs: route.legs ?? [],
+      planStart: r.planStart,
+      timezone: useAutoPlannerStore().timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+      currentTE: r.te,
+      finalTE: route.chain[route.chain.length - 1],
+      effort: 'deadline',
+      availability: isConstrained(availability.value) ? availability.value : null,
+      holdShifts: deferShifts.value,
+      forceContinue: forceContinue.value,
+      chainsPriced: r.priced,
+      ...accountFields(r.te),
+      timeOff: usableTimeOff(timeOff.value),
+      deadline: { at: r.deadline, ascendAt: route.ascendAt },
+    });
   }
 
   /**
@@ -2256,13 +2295,17 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     csv?: string
   ): Promise<{ ok: boolean; message: string; duplicate?: 'exact' | 'result' }> {
     if (!submitUrl) return { ok: false, message: 'no collector configured' };
+    // A deadline route (schema 8) is its own result: it must not mark the fastest run on screen as
+    // sent, nor drop that run's pending table, nor pick up its rechecks.
+    const deadlineSend = payload.deadline !== undefined;
     // The key of the result being SENT, taken now: the awaits below give the page time to change it.
     const sentKey = safeResultKey();
-    pendingTable.value = null;
+    if (!deadlineSend) pendingTable.value = null;
     // Schema 7's rechecks, when the payload is this run's result and has none yet. Bounded, and a
     // failure only means the send goes without them.
+    // By the chain alone (it ends at the run's target): the target box may have changed since.
     const thisRun =
-      payload.finalTE === finalTE.value &&
+      !deadlineSend &&
       payload.chain?.length === bestChain.value.length &&
       payload.chain.every((v, k) => v === bestChain.value[k]);
     if (thisRun && !payload.rechecks?.length) {
@@ -2321,7 +2364,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
             ? reply.nickname
             : undefined
         : (payload.nickname ?? '');
-    rememberSent(sentKey, { ...(id ? { id } : {}), ...(storedName !== undefined ? { nickname: storedName } : {}) });
+    if (!deadlineSend)
+      rememberSent(sentKey, { ...(id ? { id } : {}), ...(storedName !== undefined ? { nickname: storedName } : {}) });
     // The board has a new row of this account's: the next run's rechecks should see it.
     recheckFetch = null;
 
@@ -4284,6 +4328,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     exportCsv,
     exportCsvChunks,
     buildRunSubmission,
+    buildDeadlineSubmission,
     sendSubmission,
     claimName,
     prepareRechecks,

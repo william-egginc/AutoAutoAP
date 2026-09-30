@@ -72,6 +72,13 @@ function inputs(over: Partial<SubmissionInputs> = {}): SubmissionInputs {
 }
 
 describe('buildSubmission', () => {
+  it('sends a deadline answer as schema 8 with its deadline, and everything else as 7', () => {
+    expect(buildSubmission(inputs()).schema).toBe(SUBMISSION_SCHEMA);
+    const d = buildSubmission(inputs({ deadline: { at: 1815926400.4, ascendAt: 1815880000.6 } }));
+    expect([d.schema, d.deadline, d.deadlineAscendAt]).toEqual([8, 1815926400, 1815880001]);
+    expect(validateSubmission(d)).toEqual([]);
+  });
+
   it('carries only the agreed fields, and no others', () => {
     // A whitelist is only a whitelist if nothing else survives. If someone widens the input
     // type later, this is what notices.
@@ -274,7 +281,19 @@ describe('validateSubmission', () => {
   });
 
   it('rejects a foreign or future schema rather than guessing', () => {
-    expect(validateSubmission({ ...ok(), schema: SUBMISSION_SCHEMA + 1 })[0]).toMatch(/unknown schema/);
+    // 8 is taken, by deadline answers (below).
+    expect(validateSubmission({ ...ok(), schema: SUBMISSION_SCHEMA + 2 })[0]).toMatch(/unknown schema/);
+  });
+
+  it('takes a deadline answer as schema 8, and only with its deadline', () => {
+    const d = { ...ok(), schema: 8, deadline: 1815926400, deadlineAscendAt: 1815900000 };
+    expect(validateSubmission(d)).toEqual([]);
+    expect(validateSubmission({ ...d, deadline: undefined })).toContain('a deadline run needs its deadline');
+    expect(validateSubmission({ ...d, chain: [225], finalTE: 225 })).toEqual([]);
+    expect(validateSubmission({ ...ok(), chain: [490] })).toContain('chain must have at least two entries');
+    expect(validateSubmission({ ...d, deadlineAscendAt: 1815926400 + 60 })).toContain(
+      'the last ascension must be on or before the deadline'
+    );
   });
 
   it('rejects a chain that does not strictly increase', () => {

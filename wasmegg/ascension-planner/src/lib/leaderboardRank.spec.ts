@@ -5,6 +5,7 @@ import {
   browserTag,
   buildMyPlans,
   buildRace,
+  buildDeadlineBoard,
   calendarDaysLeft,
   daysLeft,
   daysLeftPhrase,
@@ -1669,5 +1670,92 @@ describe('memoised identity and time', () => {
         }
       }
     }
+  });
+});
+
+describe('the By a date board (schema 8)', () => {
+  // Egg Day, 14 Jul 2027 09:00 PT.
+  const EGG_DAY = 1815926400;
+  const START = '2026-09-28 16:27';
+  /** A deadline answer from 184 TE: `days` after the 16:27 Chicago start, to `last`. */
+  const answer = (nickname: string, last: number, days: number, over: Partial<BoardRow> = {}) =>
+    row({
+      nickname,
+      chain: [195, 238, last],
+      finalTE: last,
+      durationDays: days,
+      startLocal: START,
+      currentTE: 184,
+      deadline: EGG_DAY,
+      acct: undefined,
+      artifacts: [nickname],
+      ...over,
+    });
+  // The start in Chicago, in seconds, so days can be chosen to land either side of the deadline.
+  const startS = Date.parse('2026-09-28T21:27:00Z') / 1000;
+  const daysTo = (deadlineOffsetHours: number) => (EGG_DAY + deadlineOffsetHours * 3600 - startS) / 86400;
+
+  it('ranks by the highest TE reached in time, then the time to spare, one line per player', () => {
+    const board = buildDeadlineBoard(
+      [
+        answer('William', 307, daysTo(-13)),
+        answer('William', 305, daysTo(-100)),
+        answer('Kenzie', 307, daysTo(-40)),
+        answer('Allan', 310, daysTo(-1)),
+      ],
+      { now: Date.parse('2026-09-30T00:00:00Z') }
+    );
+    expect(board).toHaveLength(1);
+    expect(board[0].entries.map(e => [e.rank, e.label, e.te])).toEqual([
+      [1, 'Allan', 310],
+      [2, 'Kenzie', 307],
+      [3, 'William', 307],
+    ]);
+    expect(board[0].entries[2].others.map(r => r.finalTE)).toEqual([305]);
+  });
+
+  it('leaves out answers that miss the deadline, what-ifs, and flagged rows; lists anonymous ones unranked', () => {
+    const board = buildDeadlineBoard(
+      [
+        answer('Late', 320, daysTo(+2)),
+        answer('Backdated', 330, daysTo(-5), { backupAgeHours: -70 }),
+        answer('Flagged', 340, daysTo(-5), { flags: ['bad-delivery'] }),
+        answer('', 300, daysTo(-5)),
+        answer('Ok', 299, daysTo(-5)),
+      ],
+      { now: Date.parse('2026-09-30T00:00:00Z') }
+    );
+    expect(board[0].entries.map(e => e.label)).toEqual(['Ok']);
+    expect(board[0].anonymous.map(e => e.te)).toEqual([300]);
+  });
+
+  it('counts the last ascension from when it can be made, awake hours included', () => {
+    const board = buildDeadlineBoard([answer('Sleepy', 307, daysTo(-2), { deadlineAscendAt: EGG_DAY + 3600 })], {
+      now: Date.parse('2026-09-30T00:00:00Z'),
+    });
+    expect(board).toEqual([]);
+  });
+
+  it('keeps deadline answers out of the race to their final', () => {
+    const race = buildRace([answer('William', 307, daysTo(-13))], {
+      target: 307,
+      now: Date.parse('2026-09-30T00:00:00Z'),
+    });
+    expect(race.entries).toEqual([]);
+  });
+
+  it('puts dates still ahead first, soonest first, and past ones after', () => {
+    const now = Date.parse('2027-01-01T00:00:00Z');
+    const past = 1790000000; // Sep 2026
+    const later = EGG_DAY + 86400 * 30;
+    const board = buildDeadlineBoard(
+      [
+        answer('A', 300, 10, { deadline: later, durationDays: 1 }),
+        answer('B', 300, 1, { deadline: past, startLocal: '2026-09-01 00:00', durationDays: 1 }),
+        answer('C', 300, daysTo(-5)),
+      ],
+      { now }
+    );
+    expect(board.map(g => g.deadline)).toEqual([EGG_DAY, later, past]);
   });
 });
