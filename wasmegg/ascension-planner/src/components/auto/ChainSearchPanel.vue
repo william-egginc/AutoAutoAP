@@ -1105,6 +1105,12 @@
         </p>
       </div>
 
+      <!-- When to start this route: every hour of the next week, as fresh starts. -->
+      <StartTimeFinder
+        v-if="store.bestChain.length && store.bestDays > 0 && !store.isRunning"
+        :chain="store.bestChain"
+      />
+
       <!-- The generated plan does NOT know about the schedule. Said here rather than buried,
            because the two numbers WILL disagree and the search's is the realistic one. -->
       <div
@@ -1693,6 +1699,7 @@ import HelpTip from './HelpTip.vue';
 import TimeOffEditor from './TimeOffEditor.vue';
 import BackgroundSpeed from './BackgroundSpeed.vue';
 import WorkerSlider from './WorkerSlider.vue';
+import StartTimeFinder from './StartTimeFinder.vue';
 import DateStyleToggle from './DateStyleToggle.vue';
 import { showHour, showSchedule } from '@/lib/displayTime';
 import { describeCompute } from '@/utils/computeTime';

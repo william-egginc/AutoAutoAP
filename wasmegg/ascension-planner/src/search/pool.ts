@@ -159,6 +159,16 @@ export interface ChainSearchPool {
    *  how long a fresh ascension from the plan start sits on its first Integrity shift. */
   integrityWait(): Promise<number | null>;
   /**
+   * One route priced from each of `starts` (unix seconds), shared out across the workers. Resolves
+   * with the seconds from each start to the route's end, in the order given (null where it failed).
+   */
+  evaluateStarts(
+    chain: number[],
+    starts: number[],
+    opts?: { fresh?: boolean },
+    onDone?: (done: number, total: number) => void
+  ): Promise<(number | null)[]>;
+  /**
    * Change the worker ceiling while a run is going. Held to [1, logical cores] like `size`, and
    * returns the size it settled on.
    *
@@ -216,6 +226,7 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
         entry.done = msg.done;
         entry.total = msg.total;
         onProgress?.(pw.index, msg.done, msg.total);
+        progressHooks.get(msg.requestId)?.(msg.done);
         return;
       }
 
@@ -254,6 +265,8 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
 
   /** Set while a batch is in flight, so heartbeats can be forwarded to the caller. */
   let onProgress: ((workerIndex: number, done: number, total: number) => void) | null = null;
+  /** Per-request progress, for requests that aren't a batch evaluate (`evaluateStarts`). */
+  const progressHooks = new Map<number, (done: number) => void>();
 
   /** When the watchdog last actually ran. A big jump means the page was frozen, not that time
    *  passed normally. */
@@ -459,6 +472,41 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
         onProgress = null;
         if (!terminated) retireAboveSize();
       }
+    },
+
+    async evaluateStarts(chain, starts, opts = {}, onDone) {
+      const n = Math.max(1, Math.min(size, starts.length));
+      // Dealt round-robin, so every worker gets a spread of hours (some are slower than others).
+      const groups: number[][] = Array.from({ length: n }, () => []);
+      const where: [number, number][] = [];
+      starts.forEach((s, i) => {
+        groups[i % n].push(s);
+        where.push([i % n, groups[i % n].length - 1]);
+      });
+      const done = new Map<number, number>();
+      const replies = await Promise.all(
+        groups.map(async (g, w) => {
+          const pw = await workerAt(w);
+          const requestId = ++nextRequestId;
+          const watch = (d: number) => {
+            done.set(w, d);
+            onDone?.([...done.values()].reduce((a, b) => a + b, 0), starts.length);
+          };
+          progressHooks.set(requestId, watch);
+          try {
+            const reply = (await send(
+              pw,
+              { kind: 'starts', requestId, chain: [...chain], starts: g, fresh: !!opts.fresh },
+              `worker ${w} (start times)`,
+              g.length
+            )) as { seconds: (number | null)[] };
+            return reply.seconds;
+          } finally {
+            progressHooks.delete(requestId);
+          }
+        })
+      );
+      return where.map(([w, k]) => replies[w][k] ?? null);
     },
 
     async integrityWait(): Promise<number | null> {

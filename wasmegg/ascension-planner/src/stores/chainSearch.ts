@@ -420,7 +420,26 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   const preparing = ref(false);
   /** Anything that must not overlap a run: a run of either kind, getting one ready, or the
    *  latest-save re-check. */
-  const busy = computed(() => isRunning.value || preparing.value || recheckingLatest.value || deadlineRunning.value);
+  const busy = computed(
+    () =>
+      isRunning.value || preparing.value || recheckingLatest.value || deadlineRunning.value || startSweepRunning.value
+  );
+  /**
+   * "When should I start?": one route priced from every hour of the next week (or every few), so a
+   * player can see whether waiting a few hours to begin catches the sales and finishes sooner. The
+   * answer belongs to that route: another route's legs line up with the weekly sales differently.
+   */
+  const startSweepRunning = ref(false);
+  const startSweep = ref<{
+    chain: number[];
+    step: number;
+    done: number;
+    total: number;
+    results: { start: number; finish: number | null }[];
+    stoppedEarly: boolean;
+    at: number;
+  } | null>(null);
+  let startSweepPool: ChainSearchPool | null = null;
   // Any other load replacing the carried-on run's save (the header's refresh, Plan Next, a plan
   // from the library...) ends "on the run's own save": drop the notice and the run's pinned start.
   watch(
@@ -4285,6 +4304,69 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    *  the plan when it mounts rather than on the `generateRequested` signal it would miss. */
   const generateWhenPlannerOpens = ref(false);
 
+  /**
+   * Price `chain` from start times across the next `days` days, every `stepMinutes`, as fresh
+   * ascensions (starting virtue), skipping hours outside the player's awake schedule. The results
+   * are finish INSTANTS, which is what compares across start times.
+   */
+  async function findBestStart(chain: number[], opts: { days?: number; stepMinutes?: number } = {}): Promise<void> {
+    if (busy.value || !chain.length) return;
+    error.value = null;
+    const inputs = collectInputs();
+    const blocking = reviewRunInputs(inputs).filter(i => i.level === 'error');
+    if (blocking.length) {
+      error.value = blocking[0].message;
+      return;
+    }
+    if (integrityBlocked.value) {
+      error.value = integrityNotice.value?.text ?? "This account can't be planned yet.";
+      return;
+    }
+    const step = Math.max(15, Math.floor(opts.stepMinutes ?? 60)) * 60;
+    const days = Math.max(1, Math.min(14, opts.days ?? 7));
+    const schedule = isConstrained(inputs.availability) ? inputs.availability : null;
+    const first = Math.ceil(inputs.planStart / step) * step;
+    const starts: number[] = [];
+    for (let t = first; t < first + days * 86400; t += step) {
+      // You can't start a run while you're asleep, so those hours aren't worth pricing.
+      if (!schedule || nextAvailable(t, schedule) === t) starts.push(t);
+    }
+    startSweepRunning.value = true;
+    startSweep.value = {
+      chain: [...chain],
+      step,
+      done: 0,
+      total: starts.length,
+      results: [],
+      stoppedEarly: false,
+      at: Date.now(),
+    };
+    try {
+      startSweepPool = await createChainSearchPool(inputs, { size: workerBudget.value });
+      const secs = await startSweepPool.evaluateStarts(chain, starts, { fresh: true }, (done, total) => {
+        if (startSweep.value) startSweep.value = { ...startSweep.value, done, total };
+      });
+      startSweep.value = {
+        ...startSweep.value,
+        done: starts.length,
+        results: starts.map((s, i) => ({ start: s, finish: secs[i] === null ? null : s + (secs[i] as number) })),
+      };
+    } catch (e) {
+      if (startSweep.value && !startSweepStopped) error.value = describeRunError(e);
+      if (startSweep.value) startSweep.value = { ...startSweep.value, stoppedEarly: true };
+    } finally {
+      startSweepPool?.terminate();
+      startSweepPool = null;
+      startSweepStopped = false;
+      startSweepRunning.value = false;
+    }
+  }
+  let startSweepStopped = false;
+  function stopStartSweep(): void {
+    startSweepStopped = true;
+    startSweepPool?.terminate();
+  }
+
   /** Recompute the runners-up now — for the panel, when a run is not writing batches. */
   /** Switch view and rebuild immediately -- this reads the cache the run already has, so it is
    *  instant and costs no simulation. */
@@ -4466,6 +4548,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     exportCsvChunks,
     buildRunSubmission,
     buildDeadlineSubmission,
+    startSweep,
+    startSweepRunning,
+    findBestStart,
+    stopStartSweep,
     cteParts,
     otherAccountKeys,
     deadlineWorkerSeconds,

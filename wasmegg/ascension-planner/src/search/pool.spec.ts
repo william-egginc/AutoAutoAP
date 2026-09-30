@@ -59,6 +59,14 @@ class FakeWorker {
       this.emit({ type: 'integrity', requestId: msg.requestId, seconds: 120 });
       return;
     }
+    if (msg.kind === 'starts') {
+      // A stand-in that depends on the start, so an answer filed under the wrong start shows.
+      msg.starts.forEach((_, i) =>
+        this.emit({ type: 'progress', requestId: msg.requestId, done: i + 1, total: msg.starts.length })
+      );
+      this.emit({ type: 'starts', requestId: msg.requestId, seconds: msg.starts.map(s => 1000 + (s % 97)) });
+      return;
+    }
     for (let i = 0; i < msg.chains.length; i++) {
       this.emit({ type: 'progress', requestId: msg.requestId, done: i + 1, total: msg.chains.length });
     }
@@ -441,5 +449,17 @@ describe('stickyBuckets', () => {
       4
     );
     expect(buckets.size).toBe(1);
+  });
+});
+
+describe('evaluateStarts', () => {
+  it('shares the start times across the workers and answers them in the order given', async () => {
+    const pool = await createChainSearchPool({} as never, { size: 3, spawn: () => new FakeWorker() as never });
+    const starts = [5000, 5100, 5200, 5300, 5400, 5500, 5600];
+    const ticks: number[] = [];
+    const out = await pool.evaluateStarts([150, 490], starts, { fresh: true }, done => ticks.push(done));
+    expect(out).toEqual(starts.map(s => 1000 + (s % 97)));
+    expect(Math.max(...ticks)).toBe(starts.length);
+    pool.terminate();
   });
 });

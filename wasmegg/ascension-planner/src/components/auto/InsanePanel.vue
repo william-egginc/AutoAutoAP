@@ -1582,6 +1582,12 @@
           </div>
         </div>
 
+        <!-- When to start this route: every hour of the next week, as fresh starts. -->
+        <StartTimeFinder
+          v-if="store.bestChain.length && store.bestDays > 0 && !store.isRunning"
+          :chain="store.bestChain"
+        />
+
         <!-- Saved runs. Kept in this browser, reloadable at any time. -->
         <div class="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
           <div class="flex items-center justify-between gap-3">
@@ -1846,6 +1852,7 @@ import HelpTip from './HelpTip.vue';
 import TimeOffEditor from './TimeOffEditor.vue';
 import BackgroundSpeed from './BackgroundSpeed.vue';
 import WorkerSlider from './WorkerSlider.vue';
+import StartTimeFinder from './StartTimeFinder.vue';
 import DateStyleToggle from './DateStyleToggle.vue';
 import { showDateTime, showDay, showHour, showSchedule as scheduleText } from '@/lib/displayTime';
 import { sweepSeconds, workerSecondsFromRate, workerSecondsPerChain } from '@/search/speed';

@@ -46,7 +46,20 @@ export interface IntegrityRequest {
   requestId: number;
 }
 
-export type WorkerRequest = InitRequest | EvaluateRequest | IntegrityRequest;
+/**
+ * One route from many start times ("when should I start?"): how long it takes from each. Each start
+ * gets its own evaluator, since every leg is timed from the plan start. `fresh`: price the first leg
+ * as a fresh ascension (no "keep the current one going"), which is what starting virtue means.
+ */
+export interface StartsRequest {
+  kind: 'starts';
+  requestId: number;
+  chain: number[];
+  starts: number[];
+  fresh: boolean;
+}
+
+export type WorkerRequest = InitRequest | EvaluateRequest | IntegrityRequest | StartsRequest;
 
 export interface InitDoneMessage {
   type: 'init-done';
@@ -93,7 +106,16 @@ export interface IntegrityResultMessage {
   seconds: number | null;
 }
 
+export interface StartsResultMessage {
+  type: 'starts';
+  requestId: number;
+  /** Seconds from each start to the end of the route, in the order the starts were sent; null
+   *  where it could not be simulated. */
+  seconds: (number | null)[];
+}
+
 export type WorkerResponse =
+  | StartsResultMessage
   | InitDoneMessage
   | ProgressMessage
   | EvaluateResultMessage

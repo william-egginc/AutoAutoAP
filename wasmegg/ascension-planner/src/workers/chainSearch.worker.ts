@@ -55,6 +55,25 @@ ctx.onmessage = (event: MessageEvent<WorkerRequest>) => {
         break;
       }
 
+      case 'starts': {
+        if (!loaded) throw new Error('chainSearch worker received starts before init');
+        const base = loaded;
+        const seconds: (number | null)[] = [];
+        const total = msg.starts.length;
+        for (let i = 0; i < total; i++) {
+          const inputs = {
+            ...base,
+            planStart: msg.starts[i],
+            ...(msg.fresh ? { currentFarmState: null } : {}),
+          };
+          const r = createChainEvaluator(inputs).evaluate(msg.chain);
+          seconds.push(r ? r.seconds : null);
+          post({ type: 'progress', requestId: msg.requestId, done: i + 1, total });
+        }
+        post({ type: 'starts', requestId: msg.requestId, seconds });
+        break;
+      }
+
       case 'integrity': {
         if (!loaded) throw new Error('chainSearch worker received integrity before init');
         post({ type: 'integrity', requestId: msg.requestId, seconds: integrityWaitSeconds(loaded) });
