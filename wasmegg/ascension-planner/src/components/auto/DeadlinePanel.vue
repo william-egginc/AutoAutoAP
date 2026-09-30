@@ -790,11 +790,43 @@ function addChain(): void {
   if (asc >= 2) suggestRow(chains.value.length - 1);
 }
 
-// First fill once the save has loaded, so the box starts from something real.
+/**
+ * A link can set the search up: `?insane=1&goal=deadline&eggday=1&asc=1,2,3` opens this panel on
+ * Egg Day with one chain per ascension count, each suggested from the opener's own save (like
+ * Suggest; no account is in the link). `chain2=150-160:2` (the chain with that many ascensions) and
+ * `last=220-300` set a box exactly instead.
+ */
+const linkParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+const linkAsc = [
+  ...new Set(
+    (linkParams?.get('asc') ?? '')
+      .split(',')
+      .map(x => Math.floor(Number(x)))
+      .filter(n => n >= 1 && n <= 8)
+  ),
+];
+if (linkParams?.get('eggday') === '1') useEggDay();
+if (linkAsc.length) {
+  mode.value = 'space';
+  chains.value = linkAsc.map(asc => ({ asc, text: (linkParams?.get(`chain${asc}`) ?? '').slice(0, 300) }));
+  const last = (linkParams?.get('last') ?? '').slice(0, 100);
+  if (last) lastBox.value = last;
+}
+
+// First fill once the save has loaded, so the box starts from something real. A link's chains are
+// each filled the same way, where the link didn't give them.
 watch(
   () => store.currentTE,
   te => {
-    if (te > 0 && !chains.value[0]?.text && !lastBox.value) suggestRow(0);
+    if (!(te > 0)) return;
+    if (linkAsc.length) {
+      chains.value.forEach((row, k) => {
+        if (row.asc >= 2 && !row.text) suggestRow(k);
+      });
+      if (!lastBox.value) lastBox.value = `${Math.floor(te) + 2}-${Math.min(490, Math.floor(te) + 130)}`;
+      return;
+    }
+    if (!chains.value[0]?.text && !lastBox.value) suggestRow(0);
   },
   { immediate: true }
 );

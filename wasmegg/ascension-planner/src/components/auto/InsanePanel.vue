@@ -2694,7 +2694,10 @@ const GOALS = [
 ] as const;
 /** Opens on the date question with `#deadline` in the link, for sharing the Egg Day search. */
 const goal = ref<'fastest' | 'deadline'>(
-  typeof window !== 'undefined' && /deadline/.test(window.location.hash) ? 'deadline' : 'fastest'
+  typeof window !== 'undefined' &&
+    (/deadline/.test(window.location.hash) || new URLSearchParams(window.location.search).get('goal') === 'deadline')
+    ? 'deadline'
+    : 'fastest'
 );
 
 /** Into the Auto Planner with this run's best chain -- time off worked in -- and build it there. */
