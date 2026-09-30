@@ -410,12 +410,10 @@
         nothing else on this page is: starting anything else overwrites the checkpoint it lives in.
       -->
       <div
-        v-if="store.crashedRun && !store.isRunning"
+        v-if="goal === 'fastest' && store.crashedRun && !store.isRunning"
         class="rounded-xl border border-amber-300 bg-amber-50 p-4 space-y-2"
       >
-        <h3 class="text-[10px] font-black text-amber-800 uppercase tracking-widest">
-          {{ goal === 'deadline' ? 'Unfinished fastest-to-a-target run' : 'Unfinished run found' }}
-        </h3>
+        <h3 class="text-[10px] font-black text-amber-800 uppercase tracking-widest">Unfinished run found</h3>
         <p class="text-[11px] text-amber-900/90 leading-relaxed">
           A run on this machine stopped without finishing —
           <span class="font-bold">{{ (store.crashedRun.durations?.length ?? 0).toLocaleString() }}</span> chains are
@@ -449,14 +447,14 @@
         </button>
       </div>
 
-      <UnfinishedRuns :player-id="playerId" kind="exhaustive" @resume="resumeCrashed" />
+      <UnfinishedRuns v-if="goal === 'fastest'" :player-id="playerId" kind="exhaustive" @resume="resumeCrashed" />
 
       <!--
         An interrupted run that cannot carry on, with the reason. It used to just not appear, so a
         crashed overnight run looked as if it had never been saved.
       -->
       <div
-        v-if="store.blockedCheckpoint && !store.crashedRun && !store.isRunning"
+        v-if="goal === 'fastest' && store.blockedCheckpoint && !store.crashedRun && !store.isRunning"
         class="rounded-xl border border-slate-300 bg-slate-50 p-4 space-y-2"
       >
         <h3 class="text-[10px] font-black text-slate-700 uppercase tracking-widest">Unfinished run can't continue</h3>
