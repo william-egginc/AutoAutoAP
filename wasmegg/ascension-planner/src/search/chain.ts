@@ -37,7 +37,7 @@ export interface ChainEvaluator {
 }
 
 /** One simulated ascension inside a chain step. A step is usually one; time off splits it in two. */
-type Segment = LegResult & { timeOff?: 'stopped' | 'restarted' };
+type Segment = LegResult & { timeOff?: 'stopped' | 'restarted'; afterTimeOff?: true };
 
 export function createChainEvaluator(inputs: SearchInputs): ChainEvaluator {
   // Insertion-ordered by construction (Map iterates in insertion order), which is all the eviction
@@ -100,7 +100,14 @@ export function createChainEvaluator(inputs: SearchInputs): ChainEvaluator {
    * Time off is the player leaving virtue entirely, so there is no "continue" after it: the farm
    * they left is gone. Deterministic in the prefix, so the memo is still keyed on the prefix alone.
    */
-  function priceStep(state0: EngineState, start: number, target: number, first: boolean, te0: number, idx: number): Segment[] | null {
+  function priceStep(
+    state0: EngineState,
+    start: number,
+    target: number,
+    first: boolean,
+    te0: number,
+    idx: number
+  ): Segment[] | null {
     const segs: Segment[] = [];
     let state = state0;
     let t = start;
@@ -122,7 +129,8 @@ export function createChainEvaluator(inputs: SearchInputs): ChainEvaluator {
       }
       const cut = safeLeg(state, t, target, allowContinue, te, idx, cutBy.from);
       if (cut && cut.summary.endTE > te) {
-        segs.push({ ...cut, timeOff: 'stopped' });
+        // Between two stretches of time off a leg is both: started after one, cut by the next.
+        segs.push({ ...cut, timeOff: 'stopped', ...(restarted ? { afterTimeOff: true as const } : {}) });
         state = cut.nextState;
         te = cut.summary.endTE;
         if (te >= target) return segs;
@@ -226,6 +234,7 @@ export function createChainEvaluator(inputs: SearchInputs): ChainEvaluator {
             sleepDelaySeconds: handoff - rawEnd,
             shiftDelaySeconds: shiftDelay,
             ...(leg.timeOff ? { timeOff: leg.timeOff } : {}),
+            ...(leg.afterTimeOff ? { afterTimeOff: true as const } : {}),
           });
 
           state = leg.nextState;

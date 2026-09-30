@@ -29,7 +29,7 @@
           v-if="store.deadlineUnfinished.saveKept"
           type="button"
           class="px-4 py-2 rounded-lg bg-amber-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-800"
-          @click="store.resumeDeadline(playerId)"
+          @click="resume"
         >
           Carry on from where it stopped
         </button>
@@ -301,7 +301,7 @@
       <button
         type="button"
         class="px-4 py-2 rounded-lg bg-amber-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-800"
-        @click="store.resumeDeadline(playerId)"
+        @click="resume"
       >
         Carry on the unfinished search
       </button>
@@ -367,8 +367,9 @@
         <div class="h-full bg-rose-500 transition-all" :style="{ width: `${progressPct}%` }"></div>
       </div>
       <p class="text-[11px] text-slate-600">
-        <span class="font-bold">{{ liveDone.toLocaleString() }}</span> of ~{{ liveTotal.toLocaleString() }} routes
-        priced · {{ elapsedLabel }} so far<template v-if="remainingLabel"> · about {{ remainingLabel }} left</template>
+        <span class="font-bold">{{ liveDone.toLocaleString() }}</span
+        ><template v-if="runEstimate"> of ~{{ liveTotal.toLocaleString() }}</template> routes priced ·
+        {{ elapsedLabel }} so far<template v-if="remainingLabel"> · about {{ remainingLabel }} left</template>
       </p>
       <p class="text-[11px] text-slate-500">{{ store.deadlineProgress.stage }}</p>
       <div v-if="store.deadlineProgress.top.length" class="overflow-x-auto">
@@ -678,18 +679,28 @@ const spaceShapes = computed(() => chains.value.reduce((n, _, k) => n + rowShape
  * Routes per set of early stops: the last stop is found by halving its range down to one TE, plus
  * a couple to step out and confirm -- log2(range) + 2. Measured: 8 a set over a 30-TE range.
  */
-const PROBES = computed(() => {
-  const width =
+const lastWidth = computed(() =>
+  Math.max(
+    2,
     mode.value === 'space' && lastRange.value
       ? lastRange.value[1] - lastRange.value[0] + 1
-      : Math.max(2, lastHi.value - Math.floor(store.currentTE));
-  return Math.ceil(Math.log2(Math.max(2, width))) + 2;
-});
-const plannedShapes = computed(() => (mode.value === 'space' ? spaceShapes.value : shapes.value));
-/** Picking the stops adds its seed pass and the homing in on top of the grid: about a fifth more. */
-const plannedRoutes = computed(() =>
-  Math.round(plannedShapes.value * PROBES.value * (mode.value === 'auto' ? 1.2 : 1))
+      : lastHi.value - Math.floor(store.currentTE)
+  )
 );
+const PROBES = computed(() => Math.ceil(Math.log2(lastWidth.value)) + 2);
+const plannedShapes = computed(() => (mode.value === 'space' ? spaceShapes.value : shapes.value));
+/**
+ * Picking the stops adds its seed pass and the homing in on top of the grid: about a fifth more.
+ * Fewer sets than workers: each gets several guesses a round (deadline.ts `parallel`) -- more routes
+ * in fewer rounds, so the time comes out as rounds rather than routes.
+ */
+const plannedRoutes = computed(() => {
+  const n = plannedShapes.value;
+  if (!n) return 0;
+  const k = Math.max(1, Math.min(16, Math.floor(store.workerBudget / n)));
+  const perShape = k === 1 ? PROBES.value : k * (Math.ceil(Math.log(lastWidth.value) / Math.log(k + 1)) + 1);
+  return Math.round(n * perShape * (mode.value === 'auto' ? 1.2 : 1));
+});
 const secondsPerRoute = computed(() => store.secondsPerChain || 15);
 const estimateLabel = computed(() =>
   plannedRoutes.value ? formatHours(estimateHours(plannedRoutes.value, store.workerBudget, secondsPerRoute.value)) : '—'
@@ -713,7 +724,7 @@ const liveDone = computed(() => (store.deadlineProgress?.priced ?? 0) + store.de
 /** The estimate, never below what is already done: an estimate is a guess, a count is a fact. */
 const liveTotal = computed(() => Math.max(runEstimate.value, liveDone.value));
 const progressPct = computed(() =>
-  liveTotal.value ? Math.min(99, Math.round((100 * liveDone.value) / liveTotal.value)) : 0
+  runEstimate.value && liveTotal.value ? Math.min(99, Math.round((100 * liveDone.value) / liveTotal.value)) : 0
 );
 const elapsedSeconds = computed(() => (store.deadlineStartedAt ? (now.value - store.deadlineStartedAt) / 1000 : 0));
 function durationLabel(sec: number): string {
@@ -745,6 +756,13 @@ const startIssue = computed(() => {
 });
 const canStart = computed(() => !!deadline.value && !startIssue.value && store.currentTE > 0);
 
+/** Carry on the unfinished run, with the estimate it started with (0 for one saved before runs
+ *  kept it: the bar then counts routes without guessing at a total). */
+async function resume(): Promise<void> {
+  runEstimate.value = store.deadlineUnfinished?.spec.estimate ?? 0;
+  await store.resumeDeadline(props.playerId);
+}
+
 async function start(): Promise<void> {
   runEstimate.value = plannedRoutes.value;
   if (mode.value === 'space' && lastRange.value) {
@@ -757,6 +775,7 @@ async function start(): Promise<void> {
       lastHi: lastRange.value[1],
       step: 1,
       ascendNeeded: ascendNeeded.value,
+      estimate: plannedRoutes.value,
       bandSets: chains.value.map((r, k) => (r.asc <= 1 ? [] : rowBands(k).map(b => [...b]))),
     });
     return;
@@ -768,6 +787,7 @@ async function start(): Promise<void> {
     lastHi: Math.min(490, Math.floor(lastHi.value)),
     step: step.value,
     ascendNeeded: ascendNeeded.value,
+    estimate: plannedRoutes.value,
   });
 }
 

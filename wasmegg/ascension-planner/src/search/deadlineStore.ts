@@ -37,6 +37,10 @@ export interface DeadlineRunSpec {
   /** Several chains' spaces, run as one (see deadline.ts `bandSets`). */
   bandSets?: number[][][];
   lastLo?: number;
+  /** Routes priced at once (deadline.ts `parallel`), fixed at the start so a carry-on replays. */
+  parallel?: number;
+  /** The panel's estimate of routes to price, for the progress bar of a carried-on run. */
+  estimate?: number;
 }
 
 /** The leg detail the results panel reads. The full LegSummary carries shifts and CSV detail

@@ -424,7 +424,14 @@ export function useAscensionGenerator() {
 
         let result3SkippedReason: string | null = null;
 
-        if (i === 0 && (stepTargetTE || stepEndTime) && initialStateStore.currentFarmState) {
+        // Not when time off moves A1's start: the farm being continued is gone by then, and the
+        // search never offered continue there either (chain.ts `priceStep`).
+        if (
+          i === 0 &&
+          (stepTargetTE || stepEndTime) &&
+          initialStateStore.currentFarmState &&
+          timeOffCuts()?.starts[0] === undefined
+        ) {
           const nowSecs = Date.now() / 1000;
           if (absStartTime > nowSecs + 3600) {
             result3SkippedReason = 'startTimeTooFar';

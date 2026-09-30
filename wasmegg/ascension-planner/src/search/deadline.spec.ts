@@ -262,3 +262,63 @@ describe('several chains from one click', () => {
     expect([...out.byStops.keys()].sort()).toEqual([1, 2, 3]);
   });
 });
+
+describe('spare workers on a few shapes', () => {
+  /** Rounds the search waited on, and the answer. */
+  async function rounds(s: DeadlineSpec) {
+    let n = 0;
+    const out = await runDeadlineSearch(s, {
+      evaluate: async chains => {
+        n++;
+        return chains.map(c => priceChain(s.currentTE, c));
+      },
+    });
+    return { n, out };
+  }
+
+  it('finds the same answer on one shape with several guesses a round, in far fewer rounds', async () => {
+    const one = spec({ lastLo: 101, lastHi: 400, bandSets: [[]] });
+    const alone = await rounds(one);
+    const wide = await rounds({ ...one, parallel: 7 });
+    expect(wide.out.routes[0].chain).toEqual(alone.out.routes[0].chain);
+    expect(wide.n).toBeLessThanOrEqual(Math.ceil(alone.n / 2));
+  });
+
+  it('matches trying every last stop, over many random deadlines', async () => {
+    for (let i = 0; i < 40; i++) {
+      const deadline = START + (20 + ((i * 37) % 150)) * DAY;
+      const s = spec({ deadline, lastLo: 101, lastHi: 350, bandSets: [[], [[120, 140]]], parallel: 5 + (i % 9) });
+      const out = await runDeadlineSearch(s, { evaluate: async cs => cs.map(c => priceChain(100, c)) });
+      let bestT = -1;
+      for (const shape of [[], [120], [140]])
+        for (let t = Math.max(101, (shape.at(-1) ?? 100) + 1); t <= 350; t++)
+          if (START + priceChain(100, [...shape, t]).seconds <= deadline) bestT = Math.max(bestT, t);
+      expect(out.routes[0]?.chain.at(-1) ?? -1).toBe(bestT);
+    }
+  });
+
+  it('leaves a many-shape search exactly as it was: one guess a shape a round', async () => {
+    const s = spec({ lastHi: 170, maxStops: 3, step: 20 });
+    const seen: string[][] = [];
+    const wideSeen: string[][] = [];
+    await runDeadlineSearch(s, {
+      evaluate: async cs => (seen.push(cs.map(c => c.join())), cs.map(c => priceChain(100, c))),
+    });
+    await runDeadlineSearch(
+      { ...s, parallel: 1 },
+      {
+        evaluate: async cs => (wideSeen.push(cs.map(c => c.join())), cs.map(c => priceChain(100, c))),
+      }
+    );
+    expect(wideSeen).toEqual(seen);
+  });
+});
+
+describe('stop boxes that used to hang the tab', () => {
+  it('treats a step under 1 as no step, instead of looping forever', () => {
+    expect(parseStopBox('160-170:0.5')).toEqual([160, 165, 170]);
+  });
+  it('stops a huge range at the highest TE there is', () => {
+    expect(parseStopBox('995-1e9:1')).toEqual([995, 996, 997, 998, 999, 1000]);
+  });
+});

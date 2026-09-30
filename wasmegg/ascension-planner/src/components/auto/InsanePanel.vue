@@ -1335,7 +1335,8 @@
               !chainCount ||
               ascMismatch ||
               (!!sweepRequest && !sweepConsent) ||
-              (!sweepRequest && spaceMode === 'bands' && !extrasReady)
+              (!sweepRequest && spaceMode === 'bands' && !extrasReady) ||
+              queueAt >= 0
             "
             @click="start"
           >
@@ -1353,12 +1354,12 @@
             }}
           </button>
           <button
-            v-if="store.isRunning"
+            v-if="store.isRunning || queueAt >= 0"
             class="px-6 py-4 rounded-xl bg-slate-900 text-white text-[11px] font-black uppercase tracking-widest hover:bg-slate-800"
-            :disabled="store.stopRequested"
-            @click="store.stop()"
+            :disabled="store.stopRequested || queueCancelled"
+            @click="stopRun"
           >
-            {{ store.stopRequested ? 'Stopping...' : 'Stop & keep best' }}
+            {{ store.stopRequested || queueCancelled ? 'Stopping...' : 'Stop & keep best' }}
           </button>
         </div>
 
@@ -1575,7 +1576,9 @@
               </button>
               <button
                 type="button"
-                class="px-3 py-1.5 rounded-md border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-300 hover:text-emerald-700"
+                class="px-3 py-1.5 rounded-md border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-300 hover:text-emerald-700 disabled:opacity-40"
+                :disabled="store.busy || queueAt >= 0"
+                title="Opening a run swaps what the panel holds, so not while one is going"
                 @click="open(run.id)"
               >
                 Open
@@ -2278,7 +2281,11 @@ function addChain(): void {
 const extraTotal = computed(() => extraChains.value.reduce((n, _, k) => n + extraCount(k), 0));
 const extrasReady = computed(() => extraChains.value.every((_, k) => !extraProblem(k)));
 /** Every chain the one click will price. */
-const totalChains = computed(() => chainCount.value + (sweepRequest ? 0 : extraTotal.value));
+// The added chains only run in "Set each checkpoint" mode (they are hidden in the others), so they
+// only count there -- otherwise the estimate warned about chains that were never going to run.
+const totalChains = computed(
+  () => chainCount.value + (!sweepRequest && spaceMode.value === 'bands' ? extraTotal.value : 0)
+);
 function specOfExtra(k: number): ReturnType<typeof currentSpec> {
   const row = extraChains.value[k];
   if (row.asc <= 1) {
@@ -2490,7 +2497,10 @@ async function start(): Promise<void> {
  * run library so the earlier ones are still there to open once the next has taken the panel.
  */
 async function startQueue(): Promise<void> {
+  if (queueAt.value >= 0 || store.busy) return;
+  queueCancelled.value = false;
   queueResults.value = [];
+  const player = props.playerId;
   const specs = [
     { label: `Chain 1 · ${bands.value.length + 1} ascensions`, spec: currentSpec() },
     ...extraChains.value.map((row, k) => ({
@@ -2498,23 +2508,59 @@ async function startQueue(): Promise<void> {
       spec: specOfExtra(k),
     })),
   ];
-  for (let k = 0; k < specs.length; k++) {
-    queueAt.value = k;
-    await store.startExhaustive(props.playerId, specs[k].spec);
-    const stopped = store.stoppedEarly;
-    // A chain that could not start leaves the previous chain's result on screen; recording that as
-    // this chain's would be a lie, so the queue stops there and says which one.
-    if (store.error) {
-      queueResults.value.push({ label: `${specs[k].label} — ${store.error}`, chain: [], days: 0, stopped: true });
-      break;
+  const fail = (label: string, why: string) =>
+    queueResults.value.push({ label: `${label} — ${why}`, chain: [], days: 0, stopped: true });
+  try {
+    for (let k = 0; k < specs.length; k++) {
+      // Stopped between chains, the panel gone, or another account loaded: the rest don't run.
+      if (queueCancelled.value || props.playerId !== player) break;
+      // Anything else going (a carry-on clicked between chains) and `startExhaustive` returns without
+      // a word -- and the row would be filled with that run's result.
+      if (store.busy) {
+        fail(specs[k].label, 'another run was going, so the queue stopped here');
+        break;
+      }
+      queueAt.value = k;
+      await store.startExhaustive(player, specs[k].spec);
+      // Stop pressed while the chain was writing its last checkpoint arrives after the store copied
+      // `stoppedEarly`; the queue's own flag catches it (see the watch below).
+      const stopped = store.stoppedEarly || queueCancelled.value;
+      // A chain that could not start leaves the previous chain's result on screen; recording that as
+      // this chain's would be a lie, so the queue stops there and says which one.
+      if (store.error) {
+        fail(specs[k].label, store.error);
+        break;
+      }
+      if (store.bestDays > 0) {
+        queueResults.value.push({ label: specs[k].label, chain: [...store.bestChain], days: store.bestDays, stopped });
+        try {
+          await store.saveCurrentRun(player, specs[k].label);
+        } catch (e) {
+          // Its checkpoint still has it; only the library copy is missing. Say so and stop, rather
+          // than leave "Running chain 2 of 3" on screen with nothing running.
+          fail(specs[k].label, `finished, but couldn't be saved to your runs (${(e as Error)?.message ?? e})`);
+          break;
+        }
+      }
+      if (stopped) break;
     }
-    if (store.bestDays > 0) {
-      queueResults.value.push({ label: specs[k].label, chain: [...store.bestChain], days: store.bestDays, stopped });
-      await store.saveCurrentRun(props.playerId, specs[k].label);
-    }
-    if (stopped || store.error) break;
+  } finally {
+    queueAt.value = -1;
   }
-  queueAt.value = -1;
+}
+
+/** Set by Stop, and by the panel going away: the queue checks it between chains. */
+const queueCancelled = ref(false);
+watch(
+  () => store.stopRequested,
+  v => {
+    if (v && queueAt.value >= 0) queueCancelled.value = true;
+  }
+);
+onUnmounted(() => (queueCancelled.value = true));
+function stopRun(): void {
+  if (queueAt.value >= 0) queueCancelled.value = true;
+  if (store.isRunning) store.stop();
 }
 
 async function benchmark(): Promise<void> {

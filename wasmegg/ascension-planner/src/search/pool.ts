@@ -115,6 +115,13 @@ export interface EvaluateOptions {
    * Negative counts from the end, as `slice` does: -1 is "everything but the last entry".
    */
   stickyDepth?: number;
+  /**
+   * Give every chain its own worker, up to the pool's size, however few there are. The default
+   * keeps at least two chains a worker so a small batch still shares its prefix memo; for chains
+   * that share nothing worth keeping and each take seconds (the deadline search's guesses at one
+   * shape's last stop), an idle worker is the bigger waste.
+   */
+  spreadOut?: boolean;
 }
 
 /** Split into per-worker buckets by a stable hash of each chain's first `depth` entries. */
@@ -402,7 +409,10 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
         workerOf = [...byWorker.keys()];
         buckets = workerOf.map(w => byWorker.get(w) as number[][]);
       } else {
-        buckets = splitByPrefix(sorted, workersForBatch(sorted.length, size));
+        buckets = splitByPrefix(
+          sorted,
+          opts.spreadOut ? Math.min(size, sorted.length) : workersForBatch(sorted.length, size)
+        );
         workerOf = buckets.map((_, i) => i);
       }
 

@@ -77,6 +77,16 @@ export interface DeadlineSpec {
   /** Routes the fine pass starts from. */
   refineFrom?: number;
   /**
+   * How many routes the workers can price at once. A round asks one route per open shape, each
+   * guess depending on the last -- so with fewer shapes open than workers (one chain of one
+   * ascension is ONE shape) most workers sat idle while it halved its way down, eight rounds in a
+   * row. With room to spare, each open shape now gets several guesses a round, spread across its
+   * gap: seven workers on one shape cut a 300-TE range in three rounds instead of nine. Same answer,
+   * more routes priced, less time. Unset or 1: one guess a shape a round, as before, so a run saved
+   * without it replays the same way.
+   */
+  parallel?: number;
+  /**
    * When the player can actually ASCEND at the last stop, given when it is reached -- the next
    * awake moment under their schedule. Absent: reaching it is enough.
    */
@@ -215,6 +225,9 @@ export function countBandShapes(bands: number[][], currentTE: number, lastHi: nu
  * One box's text as values: `160-200:10`, `175`, or several of either joined by commas
  * (`138-142:1, 150, 160-180:5`). Sorted, duplicates dropped. Same notation as Insane's bands.
  */
+/** Above any TE the game has; a stop box never lists more than this. */
+const MAX_STOP = 1000;
+
 export function parseStopBox(text: string, defaultStep = 5): number[] {
   const set = new Set<number>();
   for (const part of text.split(',')) {
@@ -222,10 +235,13 @@ export function parseStopBox(text: string, defaultStep = 5): number[] {
     if (!t) continue;
     const [range, stepPart] = t.split(':');
     const bounds = range.split(/[-–]/).map(x => Number(x.trim()));
-    const step = Number(stepPart) > 0 ? Math.floor(Number(stepPart)) : defaultStep;
+    // Whole steps of at least 1: `:0.5` used to floor to 0 and loop forever, on a keystroke.
+    const step = Math.floor(Number(stepPart)) >= 1 ? Math.floor(Number(stepPart)) : defaultStep;
     if (bounds.length === 1 && Number.isFinite(bounds[0])) set.add(Math.floor(bounds[0]));
     else if (bounds.length === 2 && bounds.every(Number.isFinite) && bounds[1] >= bounds[0]) {
-      for (let v = Math.floor(bounds[0]); v <= Math.floor(bounds[1]); v += step) set.add(v);
+      // No TE is above MAX_STOP, so neither is a stop: `220-1e9` is 220 up to it, not a billion.
+      const hi = Math.min(Math.floor(bounds[1]), MAX_STOP);
+      for (let v = Math.floor(bounds[0]); v <= hi; v += step) set.add(v);
     }
   }
   return [...set].sort((a, b) => a - b);
@@ -362,47 +378,62 @@ export async function runDeadlineSearch(spec: DeadlineSpec, cb: DeadlineCallback
       Math.max(spec.lastLo, (b.shape[b.shape.length - 1] ?? Math.floor(spec.currentTE)) + 1);
     for (const b of brackets) if (floorOf(b) > spec.lastHi) b.done = true;
 
-    for (let round = 0; round < 64; round++) {
-      const probes = new Map<Bracket, number>();
-      for (const b of brackets) {
-        if (b.done) continue;
-        const floor = floorOf(b);
-        let t: number;
-        if (b.ok === null && b.miss === null) t = Math.min(spec.lastHi, Math.max(floor, startAt(floor)));
-        else if (b.ok !== null && b.miss !== null) {
-          if (b.miss - b.ok <= 1) {
-            b.done = true;
-            continue;
-          }
-          t = Math.floor((b.ok + b.miss) / 2);
-        } else if (b.ok !== null) {
-          if (b.ok >= spec.lastHi) {
-            b.done = true;
-            continue;
-          }
-          t = Math.min(spec.lastHi, b.ok + b.jump);
-          b.jump *= 2;
-        } else {
-          if ((b.miss as number) <= floor) {
-            b.done = true;
-            continue;
-          }
-          t = Math.max(floor, (b.miss as number) - b.jump);
-          b.jump *= 2;
-        }
-        probes.set(b, t);
+    const width = Math.max(1, Math.floor(spec.parallel ?? 1));
+    /** `n` whole numbers spread evenly strictly between `lo` and `hi` (fewer when the gap is small). */
+    const evenly = (lo: number, hi: number, n: number): number[] => {
+      const out = new Set<number>();
+      for (let j = 1; j <= n; j++) {
+        const v = lo + Math.round((j * (hi - lo)) / (n + 1));
+        if (v > lo && v < hi) out.add(v);
       }
+      return [...out];
+    };
+    /** This round's guesses for one bracket, `k` of them; empty when the bracket is closed. With
+     *  k = 1 exactly the single probe the search always made: halve, or gallop by a doubling jump. */
+    const probesOf = (b: Bracket, k: number): number[] => {
+      const floor = floorOf(b);
+      if (b.ok === null && b.miss === null) {
+        const t0 = Math.min(spec.lastHi, Math.max(floor, startAt(floor)));
+        // The guess, plus the rest spread over everything this shape could reach.
+        return k === 1 ? [t0] : [...new Set([t0, ...evenly(floor - 1, spec.lastHi + 1, k - 1)])];
+      }
+      if (b.ok !== null && b.miss !== null) {
+        if (b.miss - b.ok <= 1) return [];
+        return k === 1 ? [Math.floor((b.ok + b.miss) / 2)] : evenly(b.ok, b.miss, k);
+      }
+      if (b.ok !== null) {
+        if (b.ok >= spec.lastHi) return [];
+        const ok = b.ok;
+        const pts = Array.from({ length: k }, (_, j) => Math.min(spec.lastHi, ok + (j + 1) * b.jump));
+        b.jump *= k + 1;
+        return [...new Set(pts)];
+      }
+      const miss = b.miss as number;
+      if (miss <= floor) return [];
+      const pts = Array.from({ length: k }, (_, j) => Math.max(floor, miss - (j + 1) * b.jump));
+      b.jump *= k + 1;
+      return [...new Set(pts)];
+    };
+
+    for (let round = 0; round < 64; round++) {
+      const live = brackets.filter(b => !b.done && probesOf({ ...b }, 1).length);
+      for (const b of brackets) if (!b.done && !live.includes(b)) b.done = true;
+      const k = Math.max(1, Math.min(16, Math.floor(width / Math.max(1, live.length))));
+      const probes = new Map<Bracket, number[]>();
+      for (const b of live) probes.set(b, probesOf(b, k));
       const open = probes.size;
       openNow = open;
       shapesNow = brackets.length;
       report();
       if (!open) return;
-      await price([...probes.entries()].map(([b, t]) => [...b.shape, t]));
+      await price([...probes.entries()].flatMap(([b, ts]) => ts.map(t => [...b.shape, t])));
       if (stoppedEarly) return;
-      for (const [b, t] of probes) {
-        const m = makes([...b.shape, t]);
-        if (m) b.ok = Math.max(b.ok ?? -Infinity, t);
-        else b.miss = Math.min(b.miss ?? Infinity, t);
+      for (const [b, ts] of probes) {
+        for (const t of ts) {
+          const m = makes([...b.shape, t]);
+          if (m) b.ok = Math.max(b.ok ?? -Infinity, t);
+          else b.miss = Math.min(b.miss ?? Infinity, t);
+        }
       }
     }
   }

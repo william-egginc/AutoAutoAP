@@ -25,6 +25,7 @@ import { timeWeightedWorkers } from '@/search/speed';
 import { hardwareThreads, maxPoolSize, clampPoolSize, targetWorkerCount } from '@/search/batch';
 import { describeRunError } from '@/utils/errors';
 import { loadChainBenchmark, saveChainBenchmark } from '@/lib/chainBenchmarkCache';
+import { patchAutoPlannerSchedule } from '@/lib/autoPlannerFormCache';
 import { EFFORT, estimateChains } from '@/search/effort';
 import {
   buildCheckpoint,
@@ -83,6 +84,7 @@ import {
   replayingEvaluator,
   saveDeadlineCheckpoint,
   saveDeadlineResult,
+  type DeadlineCheckpoint,
   type DeadlineRunSpec,
   type PricedEntry,
   type SavedDeadlineResult,
@@ -994,6 +996,12 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     runSweepTag = null;
     integrityWait.value = null;
     openedRun.value = summary;
+    // Its own start, for "Build this plan": that pins the planner to `planStartUsed`, which still
+    // held whichever run last went in this tab. Unknown (no fingerprint): don't pin at all.
+    planStartUsed.value = fingerprintPlanStart(summary.fingerprint) ?? 0;
+    // Banners about the PREVIOUS results (a carry-on on an older save, its re-check) don't apply.
+    resultsFromOlderSave.value = null;
+    latestRecheck.value = null;
     bestChain.value = [...summary.bestChain];
     bestDays.value = summary.bestDays;
     bestLegs.value = body.bestLegs;
@@ -2821,10 +2829,15 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const carried = new Map<string, CacheEntry>();
     const currentFingerprint = fingerprint(playerId);
     const opened = openedRun.value;
+    // With nothing opened, what is in memory is the LAST RUN's, held to the same test: it used to be
+    // carried over unchecked, so a carry-on on an older save picked up the latest save's durations
+    // for every chain the two spaces shared (and "Load my latest save" then Start did the reverse).
+    const sameAsLastRun = runFingerprint === currentFingerprint && (!runInputsKey || runInputsKey === startKey);
     if (
-      !opened ||
-      !opened.fingerprint ||
-      (opened.fingerprint === currentFingerprint && (!opened.inputsKey || opened.inputsKey === startKey))
+      opened
+        ? !opened.fingerprint ||
+          (opened.fingerprint === currentFingerprint && (!opened.inputsKey || opened.inputsKey === startKey))
+        : sameAsLastRun
     ) {
       for (const e of [...liveCache, ...coarseCache]) if (e.seconds > 0) carried.set(e.key, e);
     }
@@ -3137,6 +3150,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     try {
       partitionHash = await hashID(playerId);
       runSaves.value = await listRunSaves(partitionHash);
+      deadlineAll = []; // the last run's full list, which may be another account's
       deadlineResult.value = await loadDeadlineResult(partitionHash);
       const cp = await loadDeadlineCheckpoint(partitionHash);
       deadlineUnfinished.value = cp
@@ -3160,11 +3174,34 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    */
   async function startDeadline(playerId: string, spec: DeadlineRunSpec): Promise<void> {
     if (busy.value) return;
+    // Held until `runDeadline` takes over (it sets `deadlineRunning` before its first await): the
+    // save below is an IndexedDB write of megabytes, and a second click in that gap started a
+    // second run on top of the first.
+    preparing.value = true;
+    try {
+      await prepareDeadline(playerId, spec);
+    } finally {
+      preparing.value = false;
+    }
+    if (deadlineReady) {
+      const [s, inputs, key] = deadlineReady;
+      deadlineReady = null;
+      await runDeadline(s, inputs, key, []);
+    }
+  }
+
+  let deadlineReady: [DeadlineRunSpec, SearchInputs, string] | null = null;
+
+  async function prepareDeadline(playerId: string, spec: DeadlineRunSpec): Promise<void> {
+    deadlineReady = null;
     currentPlayerId = playerId;
     error.value = null;
     const inputs = collectInputs();
-    // `final` only filters milestones in the evaluator; the last stops here go up to `lastHi`.
-    inputs.final = Math.max(inputs.final, spec.lastHi);
+    // Dated milestones are Insane's filter on routes to its target, not this search's: a milestone
+    // above the last stops rejected every route ("nothing reaches any stop"), and one inside their
+    // range broke the assumption that a lower last stop is always the easier one, so the halving
+    // walked away from the answer. The deadline IS the date here.
+    inputs.milestones = [];
     const blocking = reviewRunInputs(inputs).filter(i => i.level === 'error');
     if (blocking.length) {
       error.value = blocking[0].message;
@@ -3188,7 +3225,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       const stops = chain.filter(v => v > inputs.currentTE && v < spec.lastHi && v !== finalTE.value);
       for (let n = 1; n <= stops.length; n++) seeds.push(stops.slice(0, n));
     }
-    await runDeadline({ ...spec, seedShapes: seeds }, inputs, key, []);
+    // The worker count goes in with the run, so a carry-on on a different budget still makes the
+    // same guesses in the same order and replays them all.
+    deadlineReady = [{ ...spec, seedShapes: seeds, parallel: clampPoolSize(workerBudget.value) }, inputs, key];
   }
 
   /** Carry on the unfinished deadline run, on the save it started with. */
@@ -3196,15 +3235,22 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     if (busy.value) return;
     currentPlayerId = playerId;
     error.value = null;
-    partitionHash = partitionHash || (await hashID(playerId));
-    const cp = await loadDeadlineCheckpoint(partitionHash);
-    if (!cp) return;
-    const inputs = await loadRunInputs(partitionHash, cp.inputsKey);
-    if (!inputs) {
-      error.value = "This search's save is no longer stored on this device, so it can't carry on. Start it again.";
-      return;
+    let ready: [DeadlineCheckpoint, SearchInputs] | undefined;
+    preparing.value = true; // see startDeadline: two Carry on buttons, two awaits before the run
+    try {
+      partitionHash = partitionHash || (await hashID(playerId));
+      const cp = await loadDeadlineCheckpoint(partitionHash);
+      if (!cp) return;
+      const inputs = await loadRunInputs(partitionHash, cp.inputsKey);
+      if (!inputs) {
+        error.value = "This search's save is no longer stored on this device, so it can't carry on. Start it again.";
+        return;
+      }
+      ready = [cp, inputs];
+    } finally {
+      preparing.value = false;
     }
-    await runDeadline(cp.spec, inputs, cp.inputsKey, cp.entries);
+    if (ready) await runDeadline(ready[0].spec, ready[1], ready[0].inputsKey, ready[0].entries);
   }
 
   async function discardDeadlineRun(playerId: string): Promise<void> {
@@ -3240,6 +3286,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     holdRunLock();
     void holdScreenLock();
     let pool: ChainSearchPool | null = null;
+    let replayed: ReturnType<typeof replayingEvaluator> | null = null;
     const checkpoint = async (replay: ReturnType<typeof replayingEvaluator>, force = false) => {
       const now = Date.now();
       if (!force && now - deadlineSavedAt < 30_000) return;
@@ -3265,10 +3312,16 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       const replay = replayingEvaluator(async chains => {
         // Counted as each route finishes, not per batch: a batch of 64 on a slow machine is minutes,
         // and a counter stuck at 0 that long reads as a hang.
-        const r = await workers.evaluate(chains, done => (deadlineInBatch.value = done), { stickyDepth: -1 });
+        // Many shapes: each back to the worker that knows it. A handful, each with several guesses at
+        // its last stop (deadline.ts `parallel`): every guess on its own worker, or one worker gets
+        // them all and the rest wait.
+        const shapes = new Set(chains.map(c => c.slice(0, -1).join(','))).size;
+        const opts = shapes >= workers.size ? { stickyDepth: -1 } : { spreadOut: true };
+        const r = await workers.evaluate(chains, done => (deadlineInBatch.value = done), opts);
         deadlineInBatch.value = 0;
         return r.results;
       }, seed);
+      replayed = replay;
       const out = await runDeadlineSearch(
         {
           currentTE: inputs.currentTE,
@@ -3280,6 +3333,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           lastHi: spec.lastHi,
           step: spec.step,
           seedShapes: spec.seedShapes ?? [],
+          parallel: spec.parallel ?? 1,
           ...(spec.bands?.length ? { bands: spec.bands } : {}),
           ...(spec.bandSets?.length ? { bandSets: spec.bandSets } : {}),
           ...(spec.ascendNeeded && schedule ? { ascendAt: (t: number) => nextAvailable(t, schedule) } : {}),
@@ -3328,6 +3382,24 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         console.warn('chain search: could not save the deadline result', e);
       }
     } catch (e) {
+      // A crashed worker or a stall: keep what was priced and offer the carry-on now. The error text
+      // says anything priced is saved -- true only if this writes it, and the box is what uses it
+      // (Start begins afresh).
+      if (replayed && replayed.entries().length) {
+        await checkpoint(replayed, true);
+        try {
+          runSaves.value = await listRunSaves(partitionHash);
+        } catch {
+          // the box still shows; it just can't say whether the save is kept
+        }
+        deadlineUnfinished.value = {
+          spec,
+          priced: replayed.entries().length,
+          te: inputs.currentTE,
+          updatedAt: Date.now(),
+          saveKept: !!runSaveFor(key),
+        };
+      }
       error.value = describeRunError(e);
     } finally {
       pool?.terminate();
@@ -3372,6 +3444,17 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
 
   /** What the previous page was doing when it stopped without finishing, read once at load. */
   const lastCrash = ref(typeof window !== 'undefined' ? blackBox.readUnfinished() : null);
+  // Another tab with a run going holds the run lock, and its beat is in the shared box: that run is
+  // alive, not crashed. Without this, opening a second tab said the browser had killed the first.
+  if (lastCrash.value && typeof navigator !== 'undefined') {
+    const locks = (navigator as Navigator & { locks?: LockManager }).locks;
+    void locks
+      ?.query()
+      .then(state => {
+        if (state.held?.some(l => l.name === 'ascension-planner:chain-search')) lastCrash.value = null;
+      })
+      .catch(() => {});
+  }
   function dismissCrash(): void {
     blackBox.clearUnfinished();
     lastCrash.value = null;
@@ -3942,7 +4025,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       const starts: Record<number, number> = {};
       legs.forEach((l, i) => {
         if (l.timeOff === 'stopped') ends[i] = l.endTime;
-        if (l.timeOff === 'restarted' && l.startTime) starts[i] = l.startTime;
+        if ((l.timeOff === 'restarted' || l.afterTimeOff) && l.startTime) starts[i] = l.startTime;
       });
       planner.targetTE = targets.join(' ');
       planner.timeOffCuts = { targets: targets.join(' '), ends, starts };
@@ -3960,6 +4043,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // The seed box keeps the checkpoints WITHOUT the final target: `seedChain` appends `finalTE`
     // itself, so leaving it in would ask for it twice.
     seedOverride.value = chain.filter(v => v !== finalTE.value).join(' ');
+    patchAutoPlannerSchedule({
+      targetTE: planner.targetTE,
+      ...(planStartUsed.value ? { startDate: planner.startDate, startTime: planner.startTime } : {}),
+    });
     if (alsoGenerate) generateRequested.value++;
   }
 

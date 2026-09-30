@@ -261,7 +261,12 @@ function tailChanges(a: string[], b: string[]): string[] {
  *   - `durations` are unioned, so priced chains are never lost either
  * `bestSeconds <= 0` means "no result yet" and can never win.
  */
-export async function saveCheckpoint(partitionHash: string, record: SearchCheckpoint): Promise<void> {
+export async function saveCheckpoint(
+  partitionHash: string,
+  record: SearchCheckpoint,
+  /** A listed run on its way out of the list (restoreInterrupted): not counted against the limit. */
+  leaving?: SearchCheckpoint
+): Promise<void> {
   let merged = record;
   try {
     const prior = (await loadMetadata(partitionHash, METADATA_KEY)) as SearchCheckpoint | null;
@@ -272,7 +277,7 @@ export async function saveCheckpoint(partitionHash: string, record: SearchCheckp
       // prior could never carry on again.
       const otherSearch = !sameSpace(prior.space, record.space);
       if (otherSearch && !prior.complete && prior.durations.length) {
-        await setAside(partitionHash, prior).catch(e => {
+        await setAside(partitionHash, prior, leaving).catch(e => {
           throw Object.assign(new Error('could not move the unfinished run aside'), { cause: e, setAside: true });
         });
       }
@@ -285,7 +290,8 @@ export async function saveCheckpoint(partitionHash: string, record: SearchCheckp
         ...record,
         // Kept from whichever record has one. A merge that dropped the space would quietly turn a
         // resumable checkpoint back into an unresumable one on the next periodic write.
-        ...((record.space ?? prior.space) ? { space: record.space ?? prior.space } : {}),
+        // Not across searches, though: a staged record (no space) took an exhaustive one's.
+        ...((record.space ?? (otherSearch ? undefined : prior.space)) ? { space: record.space ?? prior.space } : {}),
         ...((record.inputsKey ?? prior.inputsKey) ? { inputsKey: record.inputsKey ?? prior.inputsKey } : {}),
         bestChain: priorWins ? [...prior.bestChain] : record.bestChain,
         bestSeconds: priorWins ? prior.bestSeconds : record.bestSeconds,
@@ -298,7 +304,7 @@ export async function saveCheckpoint(partitionHash: string, record: SearchCheckp
       // A DIFFERENT run is taking the slot. This used to overwrite an unfinished one without a
       // word -- 39,904 priced chains gone the moment the next run wrote its first checkpoint.
       // If moving it aside fails, the write below must not happen either: throw instead.
-      await setAside(partitionHash, prior).catch(e => {
+      await setAside(partitionHash, prior, leaving).catch(e => {
         throw Object.assign(new Error('could not move the unfinished run aside'), { cause: e, setAside: true });
       });
     }
@@ -326,10 +332,16 @@ function sameSpace(a: SearchSpace | undefined, b: SearchSpace | undefined): bool
   return shape(a) === shape(b);
 }
 
-async function setAside(partitionHash: string, record: SearchCheckpoint): Promise<void> {
+const sameEntry = (a: SearchCheckpoint, b: SearchCheckpoint) =>
+  sameRun(a, b) && sameSpace(a.space, b.space) && a.updatedAt === b.updatedAt;
+
+async function setAside(partitionHash: string, record: SearchCheckpoint, leaving?: SearchCheckpoint): Promise<void> {
   const list = await listInterrupted(partitionHash);
   const rest = list.filter(r => !(sameRun(r, record) && sameSpace(r.space, record.space)));
-  await saveMetadata(partitionHash, INTERRUPTED_KEY, [record, ...rest].slice(0, MAX_INTERRUPTED));
+  // The run being carried on still sits in the list until the caller removes it; counting it here
+  // trimmed the oldest real one to make room for an entry about to go anyway.
+  const room = MAX_INTERRUPTED + (leaving && rest.some(r => sameEntry(r, leaving)) ? 1 : 0);
+  await saveMetadata(partitionHash, INTERRUPTED_KEY, [record, ...rest].slice(0, room));
 }
 
 /** Unfinished runs a later run moved out of the slot, newest first. */
@@ -348,12 +360,12 @@ export async function restoreInterrupted(partitionHash: string, index: number): 
   if (!picked) return null;
   // Slot first, THEN out of the list: a failed write leaves it listed rather than nowhere. The
   // write may itself move the slot's run into the list, so remove by identity, not position.
-  await saveCheckpoint(partitionHash, picked);
+  await saveCheckpoint(partitionHash, picked, picked);
   const after = await listInterrupted(partitionHash);
   await saveMetadata(
     partitionHash,
     INTERRUPTED_KEY,
-    after.filter(r => !(sameRun(r, picked) && sameSpace(r.space, picked.space) && r.updatedAt === picked.updatedAt))
+    after.filter(r => !sameEntry(r, picked)).slice(0, MAX_INTERRUPTED)
   );
   return picked;
 }

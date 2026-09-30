@@ -153,6 +153,9 @@ export interface LegSummary {
    *  the time off began, reaching whatever TE it had. `restarted`: this leg is the rebuild after it,
    *  toward the same checkpoint. Absent on every other leg. */
   timeOff?: 'stopped' | 'restarted';
+  /** A `stopped` leg that also STARTED after time off: it sits between two stretches of it. Its
+   *  start then matters to the plan builder as much as its end. */
+  afterTimeOff?: true;
 }
 
 /** A fully evaluated chain. `seconds` is what every stage of the driver minimises. */
@@ -225,4 +228,3 @@ export interface TimeOffWindow {
   from: number;
   to: number;
 }
-

@@ -97,4 +97,18 @@ describe('time off', () => {
     expect(r.legs.map(l => l.timeOff)).toEqual([undefined, 'restarted']);
     expect(r.seconds).toBe(22 * DAY);
   });
+
+  it('marks the ascension between two stretches of time off as starting after the first', () => {
+    // 90 -> 130: off days 10-13, and again days 20-22 while the rebuild is still going.
+    const r = evaluate([130], [
+      { from: at(10), to: at(13) },
+      { from: at(20), to: at(22) },
+    ])!;
+    expect(r.legs.map(l => [l.timeOff, l.afterTimeOff ?? false, l.endTE])).toEqual([
+      ['stopped', false, 100],
+      ['stopped', true, 107], // started day 13, cut day 20: the plan needs BOTH instants
+      ['restarted', false, 130],
+    ]);
+    expect(r.legs[1].startTime).toBe(at(13));
+  });
 });

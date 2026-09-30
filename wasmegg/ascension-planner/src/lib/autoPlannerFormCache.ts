@@ -36,6 +36,24 @@ export function saveAutoPlannerSchedule(data: AutoPlannerScheduleCache): void {
   }
 }
 
+/**
+ * Update some of the saved form without the Auto Planner being open. For a search result applied
+ * from elsewhere (Insane's "Build this plan", the leaderboard): the planner restores the saved form
+ * every time it mounts, so without this it put back whatever was typed on the last visit over the
+ * plan just applied.
+ */
+export function patchAutoPlannerSchedule(patch: Partial<AutoPlannerScheduleCache>): void {
+  const current = loadAutoPlannerSchedule() ?? {};
+  saveAutoPlannerSchedule({
+    timezone: '',
+    startDate: '',
+    startTime: '',
+    targetTE: '',
+    ...current,
+    ...patch,
+  });
+}
+
 export interface AutoPlannerTEInputsCache {
   teEarned: Partial<Record<VirtueEgg, number>>;
 }

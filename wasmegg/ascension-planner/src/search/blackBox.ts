@@ -61,8 +61,13 @@ function heapMB(): number | undefined {
   return m ? Math.round(m.usedJSHeapSize / 1048576) : undefined;
 }
 
+/** Whether THIS page wrote the open beat. The box is one key shared by every tab, and a second
+ *  tab closing must not mark the first tab's run as closed by the player. */
+let mine = false;
+
 /** Record that `phase` is going on right now, with whatever progress is known. */
 export function beat(b: Omit<Beat, 'at' | 'hidden' | 'heapMB'>): void {
+  mine = true;
   const box = read();
   const full: Beat = {
     ...b,
@@ -92,7 +97,10 @@ export function note(detail: string): void {
 /** The phase finished normally: nothing to report next time. */
 export function end(phase: string): void {
   const box = read();
-  if (box.open && box.open.phase === phase) box.open = null;
+  if (box.open && box.open.phase === phase) {
+    box.open = null;
+    mine = false;
+  }
   box.history = [
     ...box.history,
     {
@@ -109,6 +117,7 @@ export function end(phase: string): void {
 /** The page is going away on purpose (reload, close, another URL). Called from `pagehide`, which
  *  a crash never fires -- so an unfinished beat without this is the browser's doing. */
 export function pageClosing(): void {
+  if (!mine) return;
   const box = read();
   if (!box.open) return;
   box.open = { ...box.open, pageClosed: true };

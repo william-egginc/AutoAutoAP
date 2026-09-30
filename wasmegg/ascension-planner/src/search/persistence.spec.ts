@@ -162,14 +162,18 @@ describe('the space a checkpoint was searching', () => {
     expect('space' in withSpace(null, 1, true)).toBe(false);
   });
 
-  // The periodic write is a merge against whatever is already on disk. Dropping the space there
-  // would quietly turn a resumable checkpoint back into an unresumable one a few minutes later.
-  it('survives a later write that does not carry one', async () => {
+  // Every exhaustive write carries its space; one without is a STAGED run on the same save. It used
+  // to inherit the exhaustive run's space, so the staged checkpoint was offered as an Insane carry-on
+  // and every periodic write moved the real one aside again. Now the exhaustive run goes aside with
+  // its space, still resumable from the list, and the staged record stays a staged record.
+  it('is not handed to a staged run on the same save; the exhaustive run keeps it, aside', async () => {
     await saveCheckpoint(HASH, withSpace(SPACE));
     await saveCheckpoint(HASH, withSpace(null, 99));
     const back = await loadCheckpoint(HASH, FP);
-    expect(back?.space?.bands).toEqual([[240, 245, 250]]);
+    expect(back?.space).toBeUndefined();
     expect(back?.chainsDone).toBe(99);
+    const aside = await listInterrupted(HASH);
+    expect(aside.map(r => r.space?.bands)).toEqual([[[240, 245, 250]]]);
   });
 });
 
@@ -290,6 +294,19 @@ describe('unfinished runs are moved aside, not overwritten', () => {
     await restoreInterrupted(HASH, 0);
     expect((await loadAnyCheckpoint(HASH))?.fingerprint).toBe('P|1|147|490|fc');
     expect((await listInterrupted(HASH)).map(r => r.fingerprint)).toEqual(['P|2|170|490|fc']);
+  });
+
+  it('carrying one on from a full list keeps the other two, and the run it replaces', async () => {
+    for (const n of [1, 2, 3, 4]) await saveCheckpoint(HASH, run(`P|${n}|10${n}|490|fc`, [`k${n}`]));
+    await saveCheckpoint(HASH, run('P|5|105|490|fc', ['k5']));
+    // Slot: 5. Aside, newest first: 4, 3, 2 (1 fell off, as the limit says).
+    await restoreInterrupted(HASH, 0);
+    expect((await loadAnyCheckpoint(HASH))?.fingerprint).toBe('P|4|104|490|fc');
+    expect((await listInterrupted(HASH)).map(r => r.fingerprint)).toEqual([
+      'P|5|105|490|fc',
+      'P|3|103|490|fc',
+      'P|2|102|490|fc',
+    ]);
   });
 });
 
