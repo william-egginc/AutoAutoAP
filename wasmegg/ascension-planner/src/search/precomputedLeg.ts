@@ -198,8 +198,9 @@ export interface TailSweep {
   /** Seconds to each checkpoint; NaN where it cannot be reached. */
   seconds: Float64Array;
   endTE: Int16Array;
-  /** End egg counts, five per checkpoint (EGG_ORDER). */
-  delivered: Float64Array;
+  /** The end egg counts for checkpoint index `i` (EGG_ORDER), written into `out`. Worked out when
+   *  asked rather than stored: a route search asks for few of them. */
+  deliveredInto(i: number, out: number[] | Float64Array): void;
 }
 
 /**
@@ -225,12 +226,17 @@ export function sweepTails(p: BuildParams, top: number, lateBy = 0, lowest?: num
   const n = to - from + 1;
   const seconds = new Float64Array(Math.max(0, n)).fill(NaN);
   const endTE = new Int16Array(Math.max(0, n));
-  const delivered = new Float64Array(Math.max(0, n) * 5);
-  if (n <= 0) return { from, to, seconds, endTE, delivered };
+  // Per checkpoint, what kindness and the other four were asked for: the end counts follow from them.
+  const needKAt = new Int16Array(Math.max(0, n));
+  const leftAt = new Int16Array(Math.max(0, n));
+  if (n <= 0) return { from, to, seconds, endTE, deliveredInto: () => {} };
 
   const span = Math.max(0, to - now);
   const all = greedyOrder(d, GREEDY_IDX, span);
-  const others = greedyOrder(d, OTHERS_IDX, span);
+  // The four eggs' own order is the same order with kindness taken out: each egg's thresholds are its
+  // own, and ties break the same way, so leaving one egg out does not reorder the rest. Of the first
+  // m, the four are never asked for more than the five-egg order gave them (kindness only overshoots).
+  const others = all.filter(e => e !== KIND);
   // kind[m]: kindness's TEs among the first m; per[e * (L + 1) + m]: egg e's among the first m of theirs.
   const kind = new Int16Array(all.length + 1);
   for (let i = 0; i < all.length; i++) kind[i + 1] = kind[i] + (all[i] === KIND ? 1 : 0);
@@ -314,13 +320,15 @@ export function sweepTails(p: BuildParams, top: number, lateBy = 0, lowest?: num
     const i = target - from;
     seconds[i] = t;
     endTE[i] = total;
-    for (const e of OTHERS_IDX) {
-      const need = left > 0 ? per[e * (L + 1) + left] : 0;
-      delivered[i * 5 + e] = oEggs[e * (L + 1) + need];
-    }
-    delivered[i * 5 + KIND] = kEggs[needK];
+    needKAt[i] = needK;
+    leftAt[i] = left;
   }
-  return { from, to, seconds, endTE, delivered };
+  const deliveredInto = (i: number, out: number[] | Float64Array): void => {
+    const left = leftAt[i];
+    for (const e of OTHERS_IDX) out[e] = oEggs[e * (L + 1) + (left > 0 ? per[e * (L + 1) + left] : 0)];
+    out[KIND] = kEggs[needKAt[i]];
+  };
+  return { from, to, seconds, endTE, deliveredInto };
 }
 
 /** Hours in a week: the table's second key. */
@@ -333,6 +341,15 @@ export const WEEK_HOURS = 168;
  * at the same points.
  */
 const offsetByDay = new Map<number, number | null>();
+const offsetAtDayStart = new Map<number, number>();
+function dayStartOffset(day: number): number {
+  let o = offsetAtDayStart.get(day);
+  if (o === undefined) {
+    o = getTimezoneOffsetAt(PACIFIC_TIMEZONE, day * 86400);
+    offsetAtDayStart.set(day, o);
+  }
+  return o;
+}
 const offsetByHour = new Map<number, number>();
 /** Pacific's offset from UTC at an instant. It changes twice a year, on an hour boundary, so it is
  *  asked of the date formatter (slow: it was most of a route search's time) once per day, and per
@@ -341,8 +358,9 @@ function pacificOffset(unixSeconds: number): number {
   const day = Math.floor(unixSeconds / 86400);
   let whole = offsetByDay.get(day);
   if (whole === undefined) {
-    const a = getTimezoneOffsetAt(PACIFIC_TIMEZONE, day * 86400);
-    const b = getTimezoneOffsetAt(PACIFIC_TIMEZONE, day * 86400 + 86399);
+    // The same at the start of this day and the next: no change inside it (it changes twice a year).
+    const a = dayStartOffset(day);
+    const b = dayStartOffset(day + 1);
     whole = a === b ? a : null;
     offsetByDay.set(day, whole);
   }

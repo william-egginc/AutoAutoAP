@@ -195,9 +195,9 @@ import { calculateArtifactModifiers, getOptimalELRSet } from '@/lib/artifacts';
 import { equippedArtifactsToLibArtifacts } from '@/lib/artifacts/utils';
 import { computeRealisticELR } from '@/calculations/realisticELR';
 import type { EquippedArtifact } from '@/lib/artifacts/types';
-import type { Route } from '@/search/routeFinder';
+import { findRoutes, type Route } from '@/search/routeFinder';
+import { poolSize, RoutePool } from '@/search/routePool';
 import type { TableHeader } from '@/search/precomputedTable';
-import type { RouteWorkerResponse } from '@/workers/routeFinder.protocol';
 
 const props = defineProps<{
   /** Highest TE by a date: the unix second. Without it, the fastest route to the target. */
@@ -266,77 +266,86 @@ const leftOut = computed(() => {
  *  1-2% on every ascension (the board's own legs), which the instant answer does not take off. */
 const bonusShort = computed(() => (header.value ? header.value.cteBonus - bonus.value : 0));
 
-let worker: Worker | null = null;
-let nextId = 0;
-function getWorker(): Worker {
-  if (!worker) {
-    worker = new Worker(new URL('../../workers/routeFinder.worker.ts', import.meta.url), { type: 'module' });
-    worker.onmessage = (e: MessageEvent<RouteWorkerResponse>) => {
-      const m = e.data;
-      if (m.id !== nextId) return; // an older request, superseded
-      if (m.kind === 'header') {
-        header.value = m.header;
-        find();
-        return;
-      }
-      if (m.kind === 'progress') {
-        loadingText.value = `Working out every route: ${m.done} of ${m.of} ascension counts done…`;
-        return;
-      }
-      if (m.kind === 'not-yet') {
-        header.value = m.header;
-        result.value = null;
-        status.value = 'error';
-        errorText.value = `The table is still being built, from the top down: it starts at TE ${m.header.from} so far, and your route starts at ${Math.floor(store.currentTE)}. It fills in over the next day; the searches below work as always.`;
-        return;
-      }
-      if (m.kind === 'error') {
-        status.value = 'error';
-        errorText.value = /404/.test(m.message)
-          ? 'The precomputed table isn’t on this site yet.'
-          : `The instant answer couldn’t run: ${m.message}`;
-        return;
-      }
-      result.value = { best: m.best, byAscensions: m.byAscensions, byDate: m.byDate };
-      header.value = m.header;
-      ms.value = m.ms;
-      status.value = 'done';
-    };
-  }
-  return worker;
+let pool: RoutePool | null = null;
+function getPool(): RoutePool {
+  pool ??= new RoutePool(
+    poolSize(),
+    () => new Worker(new URL('../../workers/routeFinder.worker.ts', import.meta.url), { type: 'module' })
+  );
+  return pool;
 }
-onUnmounted(() => worker?.terminate());
+onUnmounted(() => pool?.terminate());
 
-/** Ask for the table's header first (that loads the table), then for the routes. */
-function run(): void {
+/** Each run's number: a run that has been superseded (the save or the date changed) is dropped. */
+let runs = 0;
+
+/**
+ * The table's header, the player's first ascension and then the search itself, here on the page,
+ * with each step's arithmetic split across the workers (search/routePool.ts).
+ */
+async function run(): Promise<void> {
   const te = Math.floor(store.currentTE);
   if (!(te > 0) || !(target.value > te)) return;
+  const id = ++runs;
   status.value = 'loading';
-  loadingText.value = 'Loading the table (about 12 MB, once) and working out every route…';
-  nextId++;
-  getWorker().postMessage({ kind: 'header', id: nextId, url: TABLE_URL });
-}
-
-function find(): void {
-  const inputs = store.collectInputs();
-  loadingText.value = 'Working out every route…';
-  getWorker().postMessage({
-    kind: 'find',
-    id: nextId,
-    url: TABLE_URL,
-    startTE: Math.floor(store.currentTE),
-    start: inputs.planStart,
-    final: target.value,
-    maxAscensions: 10,
-    ...(props.deadline ? { deadline: props.deadline } : {}),
-    deliveryScale: deliveryScale.value ?? 1,
-    delivered: EGG_ORDER.map(e => inputs.baseState.eggsDelivered?.[e] || 0),
-    // A plain copy: the worker gets structured-cloned data, never a reactive proxy.
-    cont: JSON.parse(JSON.stringify(continueTailParams(inputs, inputs.planStart))),
-    forceContinue: store.forceContinue,
-    pinSeconds: CONTINUE_PIN_MAX_SECONDS,
-    maxContinueSeconds: CONTINUE_MAX_SECONDS,
-  });
+  loadingText.value = header.value
+    ? 'Working out every route…'
+    : 'Loading the table (about 12 MB, once) and working out every route…';
+  try {
+    const p = getPool();
+    const h = await p.header(TABLE_URL);
+    if (id !== runs) return;
+    header.value = h;
+    // Every TE from the player's up is needed; a table still being built covers only the top.
+    if (te < h.from) {
+      result.value = null;
+      status.value = 'error';
+      errorText.value = `The table is still being built, from the top down: it starts at TE ${h.from} so far, and your route starts at ${te}. It fills in over the next day; the searches below work as always.`;
+      return;
+    }
+    const inputs = store.collectInputs();
+    const scale = deliveryScale.value ?? 1;
+    const t0 = performance.now();
+    const firstLegs = await p.firstLegs({
+      url: TABLE_URL,
+      startTE: te,
+      start: inputs.planStart,
+      final: target.value,
+      deliveryScale: scale,
+      delivered: EGG_ORDER.map(e => inputs.baseState.eggsDelivered?.[e] || 0),
+      // A plain copy: workers get structured-cloned data, never a reactive proxy.
+      cont: JSON.parse(JSON.stringify(continueTailParams(inputs, inputs.planStart))),
+      forceContinue: store.forceContinue,
+      pinSeconds: CONTINUE_PIN_MAX_SECONDS,
+      maxContinueSeconds: CONTINUE_MAX_SECONDS,
+    });
+    if (id !== runs) return;
+    const found = await findRoutes({
+      table: () => null,
+      startTE: te,
+      start: inputs.planStart,
+      final: target.value,
+      maxAscensions: 10,
+      firstLegs,
+      deliveryScale: scale,
+      ...(props.deadline ? { deadline: props.deadline } : {}),
+      onProgress: (done, of) => {
+        if (id === runs) loadingText.value = `Working out every route: ${done} of ${of} ascension counts done…`;
+      },
+      expand: (items, settings) => p.expand(TABLE_URL, items, settings),
+    });
+    if (id !== runs) return;
+    result.value = found;
+    ms.value = performance.now() - t0;
+    status.value = 'done';
+  } catch (err) {
+    if (id !== runs) return;
+    const message = err instanceof Error ? err.message : String(err);
+    status.value = 'error';
+    errorText.value = /404/.test(message)
+      ? 'The precomputed table isn’t on this site yet.'
+      : `The instant answer couldn’t run: ${message}`;
+  }
 }
 
 // Again whenever what it depends on changes (a new save, a new plan start, another target).
@@ -345,7 +354,7 @@ watch(
   () => [Math.floor(store.currentTE), store.planStart, target.value, props.deadline, store.forceContinue, bonus.value],
   () => {
     if (timer) clearTimeout(timer);
-    timer = setTimeout(run, 300);
+    timer = setTimeout(() => void run(), 300);
   },
   { immediate: true }
 );

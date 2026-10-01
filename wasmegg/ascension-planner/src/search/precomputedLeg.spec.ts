@@ -55,7 +55,9 @@ describe('sweepTails', () => {
         }
         expect(sweep.seconds[i]).toBe(one.seconds);
         expect(sweep.endTE[i]).toBe(one.endTE);
-        expect(Array.from(sweep.delivered.subarray(i * 5, i * 5 + 5))).toEqual(one.delivered);
+        const ends = [0, 0, 0, 0, 0];
+        sweep.deliveredInto(i, ends);
+        expect(ends).toEqual(one.delivered);
         compared++;
       }
     }

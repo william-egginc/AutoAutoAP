@@ -78,6 +78,7 @@ import { computeRealisticELR } from '@/calculations/realisticELR';
 import {
   bestTailTo,
   canonicalDelivered,
+  sweepTails,
   rebase,
   EGG_ORDER,
   pacificHourOfWeek,
@@ -85,7 +86,8 @@ import {
   WEEK_HOURS,
   type BuildParams,
 } from '@/search/precomputedLeg';
-import { findRoutes, nextHour, type Route } from '@/search/routeFinder';
+import { expandArrivals, findRoutes, nextHour, type Route } from '@/search/routeFinder';
+import { splitByWork } from '@/search/routePool';
 import { packTable, readTable } from '@/search/precomputedTable';
 import { deliveryScore, slotsFromLabels } from '@/search/virtueScore';
 import { describeLoadoutSlots } from '@/search/csv';
@@ -699,14 +701,17 @@ async function recordK3(file: string): Promise<void> {
   );
 }
 
-function routeBin(): void {
+async function routeBin(): Promise<void> {
   const buf = readFileSync(arg('route-bin')!);
   const table = readTable(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer);
   const te = Number(arg('te'));
   const start = arg('start') ? Math.floor(Date.parse(arg('start')!) / 1000) : Math.floor(Date.now() / 1000);
   const t0 = performance.now();
   const stats = { expanded: 0, sweeps: 0, cached: 0 };
-  const { best, byAscensions } = findRoutes({
+  // --split N: each step in N runs, as the page's worker pool splits it, merged in order.
+  const split = Number(arg('split', '1'));
+  const caches: Map<string, ReturnType<typeof sweepTails>>[] = [];
+  const { best, byAscensions } = await findRoutes({
     table: table.lookup,
     startTE: te,
     start,
@@ -714,6 +719,15 @@ function routeBin(): void {
     maxAscensions: Number(arg('max-asc', '10')),
     ...(arg('keep') ? { keep: Number(arg('keep')) } : {}),
     stats,
+    ...(split > 1
+      ? {
+          // One cache per run, as each worker keeps one.
+          expand: (items, st) =>
+            splitByWork(items, st.top, split).flatMap((chunk, w) =>
+              expandArrivals(table.lookup, st, chunk, stats, (caches[w] ??= new Map()))
+            ),
+        }
+      : {}),
   });
   console.log(`arrivals expanded ${stats.expanded}, sweeps ${stats.sweeps}, reused ${stats.cached}`);
   console.log(
@@ -781,7 +795,7 @@ async function route(file: string): Promise<void> {
   const startArg = arg('start');
   const start = startArg ? Math.floor(Date.parse(startArg) / 1000) : Math.floor(Date.now() / 1000);
   const t0 = performance.now();
-  const { best, byAscensions } = findRoutes({
+  const { best, byAscensions } = await findRoutes({
     table: table.lookup,
     startTE: te,
     start,

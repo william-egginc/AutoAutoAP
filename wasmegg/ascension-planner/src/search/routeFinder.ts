@@ -86,9 +86,6 @@ export interface FindOptions {
   startDelivered?: number[];
   /** Scale the peak delivery rate (a player's delivery score against the table's). */
   deliveryScale?: number;
-  /** Map a start TE to the table row whose earning power matches (a player's Clothed TE bonus
-   *  against the table's): the build is read from that row. */
-  rowFor?: (te: number) => number;
   /** Arrivals kept per TE and number of ascensions (`DEFAULT_KEEP`). */
   keep?: number;
   /** Also find the highest TE reachable by this unix second (Highest TE by a date), from the same
@@ -109,6 +106,7 @@ export function nextHour(t: number): number {
 }
 
 interface Label {
+  id: number;
   time: number;
   /** Eggs delivered per egg on arrival: each ascension's build is moved onto these (`rebase`). */
   delivered: number[];
@@ -119,6 +117,12 @@ interface Label {
 
 function scaled(builds: BuildParams[], scale: number): BuildParams[] {
   return scale === 1 ? builds : builds.map(b => ({ ...b, peakELR: b.peakELR * scale }));
+}
+
+function eggsOf(sweep: TailSweep, i: number): number[] {
+  const out = [0, 0, 0, 0, 0];
+  sweep.deliveredInto(i, out);
+  return out;
 }
 
 /** The build that reaches `target` soonest, as `bestTailTo` picks (least time, the first of equals). */
@@ -152,7 +156,7 @@ const EGG_SLACK = 1e14;
 /** No later, and at least as many eggs on every egg (within the slack): then `a` can do anything `b`
  *  can, as soon or sooner (an ascension started later never ends sooner, and more eggs never make a
  *  wait longer). */
-function dominates(a: Label, b: Label): boolean {
+function dominates(a: { time: number; delivered: number[] }, b: { time: number; delivered: number[] }): boolean {
   if (a.time > b.time + TIME_SLACK) return false;
   for (let i = 0; i < a.delivered.length; i++) if (a.delivered[i] < b.delivered[i] - EGG_SLACK) return false;
   return true;
@@ -161,57 +165,70 @@ function dominates(a: Label, b: Label): boolean {
 /** Arrivals kept per (TE, ascensions) by default. */
 export const DEFAULT_KEEP = 6;
 
+/** One arrival handed out to be carried one ascension further (`expandArrivals`). */
+export interface ArrivalItem {
+  id: number;
+  te: number;
+  time: number;
+  delivered: number[];
+}
+
+/** Where an arrival can get with one more ascension, and which arrival it came from. */
+export interface Candidate {
+  from: number;
+  te: number;
+  time: number;
+  delivered: number[];
+  leg: RouteLeg;
+}
+
+/** What `expandArrivals` needs besides the table; plain data, so it can go to a worker. */
+export interface ExpandSettings {
+  top: number;
+  deliveryScale: number;
+  onTheHour: boolean;
+  keep: number;
+}
+
+type Kept<T> = T & { time: number; delivered: number[] };
+
+/** Add to an earliest-first list of arrivals, keeping only the unbeaten and at most `keep`. */
+function keepUnbeaten<T>(list: Kept<T>[] | undefined, item: Kept<T>, keep: number): Kept<T>[] {
+  if (!list) return [item];
+  if (list.some(l => dominates(l, item))) return list;
+  const kept = list.filter(l => !dominates(item, l));
+  let at = kept.findIndex(l => l.time > item.time);
+  if (at < 0) at = kept.length;
+  kept.splice(at, 0, item);
+  if (kept.length > keep) kept.length = keep;
+  return kept;
+}
+
 /**
- * The fastest route to `final` with each number of ascensions (index = ascensions; empty where none
- * reaches it), plus the fastest overall.
- *
- * At each TE and number of ascensions it keeps every arrival no other one beats on both time and egg
- * counts (`dominates`), the earliest `keep` of them: losing a beaten arrival loses nothing, so with
- * room for them all the result is the best route under the table's model. Each ascension takes the
- * fastest sale strategy for its own checkpoint, as the simulator does.
+ * Carry each arrival one ascension further: every checkpoint above it, from the table's builds for
+ * its TE and start hour moved onto its egg counts, keeping per end TE only what nothing beats. The
+ * step the route search repeats once per number of ascensions; it needs nothing but the table and
+ * plain data, so the page can split one step's arrivals across workers and merge what comes back.
  */
-export function findRoutes(o: FindOptions): {
-  best: Route | null;
-  byAscensions: (Route | null)[];
-  /** With `deadline`: the route to the highest TE reached by then, or null when none is. */
-  byDate: Route | null;
-} {
-  const K = o.maxAscensions ?? 10;
-  const scale = o.deliveryScale ?? 1;
-  const keep = o.keep ?? DEFAULT_KEEP;
-  const top = o.final;
-  const onTheHour = o.onTheHour ?? true;
-  // arrivals[k].get(te): the arrivals at TE `te` after k ascensions, earliest first.
-  const arrivals: Map<number, Label[]>[] = Array.from({ length: K + 1 }, () => new Map());
-  arrivals[0].set(o.startTE, [
-    { time: o.start, delivered: o.startDelivered ?? canonicalDelivered(o.startTE), prev: null, leg: null },
-  ]);
-
-  const relax = (k: number, te: number, label: Label) => {
-    const list = arrivals[k].get(te);
-    if (!list) {
-      arrivals[k].set(te, [label]);
-      return;
-    }
-    if (list.some(l => dominates(l, label))) return;
-    const kept = list.filter(l => !dominates(label, l));
-    let at = kept.findIndex(l => l.time > label.time);
-    if (at < 0) at = kept.length;
-    kept.splice(at, 0, label);
-    if (kept.length > keep) kept.length = keep;
-    arrivals[k].set(te, kept);
-  };
-
-  /** Would an arrival at (k, te) with this time and these counts be beaten by one already kept?
-   *  Asked before anything is made for it: most candidates are. */
-  const beaten = (k: number, te: number, time: number, eggs: Float64Array, at: number): boolean => {
-    const list = arrivals[k].get(te);
+export function expandArrivals(
+  table: BuildLookup,
+  s: ExpandSettings,
+  items: ArrivalItem[],
+  stats?: { expanded: number; sweeps: number; cached: number },
+  /** Sweeps kept from earlier steps of the same search: the same counts at the same TE and hour come
+   *  back at other numbers of ascensions. Its owner keeps it to one table and one `s`. */
+  sweepCache: Map<string, TailSweep> = new Map()
+): Candidate[] {
+  const top = s.top;
+  const lists = new Map<number, Candidate[]>();
+  const beaten = (te: number, time: number, eggs: number[]): boolean => {
+    const list = lists.get(te);
     if (!list) return false;
     for (const l of list) {
       if (l.time > time + TIME_SLACK) continue;
       let all = true;
       for (let e = 0; e < 5; e++) {
-        if (l.delivered[e] < eggs[at + e] - EGG_SLACK) {
+        if (l.delivered[e] < eggs[e] - EGG_SLACK) {
           all = false;
           break;
         }
@@ -220,71 +237,52 @@ export function findRoutes(o: FindOptions): {
     }
     return false;
   };
-
   // A build moved onto the same counts at the same hour prices the same; arrivals at one TE often
   // share counts (several routes ending on thresholds), so each such sweep is worked out once.
-  const sweepCache = new Map<string, TailSweep>();
   const sweepOf = (b: BuildParams, key: string, lateBy: number, lowest: number): TailSweep => {
     let sw = sweepCache.get(key);
     if (!sw) {
       sw = sweepTails(b, top, lateBy, lowest);
       sweepCache.set(key, sw);
-      if (o.stats) o.stats.sweeps++;
-    } else if (o.stats) o.stats.cached++;
+      if (stats) stats.sweeps++;
+    } else if (stats) stats.cached++;
     return sw;
   };
+  // Reused for each checkpoint's end counts; copied only when the arrival is kept.
+  const scratch = [0, 0, 0, 0, 0];
 
-  for (let k = 0; k < K; k++) {
-    o.onProgress?.(k, K);
-    // Upward through the TEs: every arrival at k ascensions spreads to k + 1.
-    const tes = [...arrivals[k].keys()].filter(te => te < top).sort((a, b) => a - b);
-    for (const te of tes) {
-      for (const label of arrivals[k].get(te)!) {
-        if (k === 0 && o.firstLegs) {
-          for (const f of o.firstLegs) {
-            relax(1, Math.min(f.endTE, top), {
-              time: f.end,
-              delivered: f.delivered,
-              prev: label,
-              leg: {
-                from: te,
-                to: f.to,
-                endTE: f.endTE,
-                start: label.time,
-                end: f.end,
-                sales: 0,
-                tier13: false,
-                label: f.label ?? 'first',
-              },
-            });
-          }
-          continue;
-        }
-        const startAt = onTheHour ? nextHour(label.time) : label.time;
-        const hour = pacificHourOfWeek(startAt);
-        // Seconds into the hour (0 on the hour): the table was built at the hour's first second.
-        const lateBy = ((startAt % 3600) + 3600) % 3600;
-        const row = o.rowFor ? o.rowFor(te) : te;
-        const raw = o.table(row, hour);
-        if (!raw?.length) continue;
-        // The table's builds, moved onto the eggs this route really arrived with, each priced to
-        // every checkpoint at once (sweepTails, the same numbers as tailTo).
-        if (o.stats) o.stats.expanded++;
-        const builds = scaled(raw, scale).map(b => rebase(b, row, label.delivered));
-        const countsKey = `${row}|${startAt}|${label.delivered.join(',')}|`;
-        const sweeps = builds.map((b, j) => sweepOf(b, countsKey + j, lateBy, te + 1));
-        for (let target = te + 1; target <= top; target++) {
-          const pick = fastest(sweeps, builds, target);
-          if (!pick) continue;
-          const { sweep, build, i } = pick;
-          const end = startAt + sweep.seconds[i];
-          const endTE = sweep.endTE[i];
-          const at = Math.min(endTE, top);
-          if (beaten(k + 1, at, end, sweep.delivered, i * 5)) continue;
-          relax(k + 1, at, {
+  for (const item of items) {
+    const te = item.te;
+    const startAt = s.onTheHour ? nextHour(item.time) : item.time;
+    const hour = pacificHourOfWeek(startAt);
+    // Seconds into the hour (0 on the hour): the table was built at the hour's first second.
+    const lateBy = ((startAt % 3600) + 3600) % 3600;
+    const raw = table(te, hour);
+    if (!raw?.length) continue;
+    if (stats) stats.expanded++;
+    // The table's builds, moved onto the eggs this route really arrived with, each priced to every
+    // checkpoint at once (sweepTails, the same numbers as tailTo).
+    const builds = scaled(raw, s.deliveryScale).map(b => rebase(b, te, item.delivered));
+    const countsKey = `${te}|${startAt}|${item.delivered.join(',')}|`;
+    const sweeps = builds.map((b, j) => sweepOf(b, countsKey + j, lateBy, te + 1));
+    for (let target = te + 1; target <= top; target++) {
+      const pick = fastest(sweeps, builds, target);
+      if (!pick) continue;
+      const { sweep, build, i } = pick;
+      const end = startAt + sweep.seconds[i];
+      const endTE = sweep.endTE[i];
+      const at = Math.min(endTE, top);
+      sweep.deliveredInto(i, scratch);
+      if (beaten(at, end, scratch)) continue;
+      lists.set(
+        at,
+        keepUnbeaten(
+          lists.get(at),
+          {
+            from: item.id,
+            te: at,
             time: end,
-            delivered: Array.from(sweep.delivered.subarray(i * 5, i * 5 + 5)),
-            prev: label,
+            delivered: scratch.slice(),
             leg: {
               from: te,
               to: target,
@@ -295,9 +293,99 @@ export function findRoutes(o: FindOptions): {
               tier13: build.tier13,
               label: `${build.sales}-sale${build.tier13 ? '-tier13' : ''}`,
             },
-          });
-        }
+          },
+          s.keep
+        )
+      );
+    }
+  }
+  return [...lists.keys()].sort((a, b) => a - b).flatMap(te => lists.get(te)!);
+}
+
+/**
+ * The fastest route to `final` with each number of ascensions (index = ascensions; empty where none
+ * reaches it), plus the fastest overall.
+ *
+ * At each TE and number of ascensions it keeps every arrival no other one beats on both time and egg
+ * counts (`dominates`), the earliest `keep` of them: losing a beaten arrival loses nothing, so with
+ * room for them all the result is the best route under the table's model. Each ascension takes the
+ * fastest sale strategy for its own checkpoint, as the simulator does.
+ *
+ * Each number of ascensions is one `expandArrivals` step over all the arrivals so far. By default it
+ * runs here; `expand` lets a caller run it elsewhere (the page splits it across workers) and merge.
+ */
+export async function findRoutes(
+  o: FindOptions & {
+    /** Run one step somewhere else and give back its candidates (default: here, on `o.table`). */
+    expand?: (items: ArrivalItem[], settings: ExpandSettings) => Promise<Candidate[]> | Candidate[];
+  }
+): Promise<{
+  best: Route | null;
+  byAscensions: (Route | null)[];
+  /** With `deadline`: the route to the highest TE reached by then, or null when none is. */
+  byDate: Route | null;
+}> {
+  const K = o.maxAscensions ?? 10;
+  const keep = o.keep ?? DEFAULT_KEEP;
+  const top = o.final;
+  const settings: ExpandSettings = {
+    top,
+    deliveryScale: o.deliveryScale ?? 1,
+    onTheHour: o.onTheHour ?? true,
+    keep,
+  };
+  const cache = new Map<string, TailSweep>();
+  const expand =
+    o.expand ?? ((items: ArrivalItem[], st: ExpandSettings) => expandArrivals(o.table, st, items, o.stats, cache));
+  let nextId = 0;
+  const byId = new Map<number, Label>();
+  const label = (l: Omit<Label, 'id'>): Label => {
+    const made = { ...l, id: nextId++ };
+    byId.set(made.id, made);
+    return made;
+  };
+  // arrivals[k].get(te): the arrivals at TE `te` after k ascensions, earliest first.
+  const arrivals: Map<number, Label[]>[] = Array.from({ length: K + 1 }, () => new Map());
+  arrivals[0].set(o.startTE, [
+    label({ time: o.start, delivered: o.startDelivered ?? canonicalDelivered(o.startTE), prev: null, leg: null }),
+  ]);
+  const relax = (k: number, te: number, l: Omit<Label, 'id'>) => {
+    const list = arrivals[k].get(te);
+    if (list?.some(x => dominates(x, l))) return;
+    arrivals[k].set(te, keepUnbeaten(list, label(l), keep));
+  };
+
+  for (let k = 0; k < K; k++) {
+    o.onProgress?.(k, K);
+    // Upward through the TEs: every arrival at k ascensions spreads to k + 1.
+    const tes = [...arrivals[k].keys()].filter(te => te < top).sort((a, b) => a - b);
+    if (k === 0 && o.firstLegs) {
+      const start = arrivals[0].get(o.startTE)![0];
+      for (const f of o.firstLegs) {
+        relax(1, Math.min(f.endTE, top), {
+          time: f.end,
+          delivered: f.delivered,
+          prev: start,
+          leg: {
+            from: o.startTE,
+            to: f.to,
+            endTE: f.endTE,
+            start: start.time,
+            end: f.end,
+            sales: 0,
+            tier13: false,
+            label: f.label ?? 'first',
+          },
+        });
       }
+      continue;
+    }
+    const items: ArrivalItem[] = [];
+    for (const te of tes)
+      for (const l of arrivals[k].get(te)!) items.push({ id: l.id, te, time: l.time, delivered: l.delivered });
+    if (!items.length) break;
+    for (const c of await expand(items, settings)) {
+      relax(k + 1, c.te, { time: c.time, delivered: c.delivered, prev: byId.get(c.from) ?? null, leg: c.leg });
     }
   }
 
@@ -339,8 +427,7 @@ export interface FirstLegOptions {
   startTE: number;
   start: number;
   final: number;
-  /** As FindOptions: the row with the player's earning power, and their delivery against the table's. */
-  rowFor?: (te: number) => number;
+  /** As FindOptions: the player's delivery against the table's. */
   deliveryScale?: number;
   /** The player's eggs delivered on each egg at the plan start (EGG_ORDER): a fresh first build starts
    *  from these, not the table's canonical share. */
@@ -363,7 +450,7 @@ export function firstLegOptions(o: FirstLegOptions): FirstLeg[] {
   // one in progress needs no ascension and runs from the plan start itself.
   const freshAt = nextHour(o.start);
   const hour = pacificHourOfWeek(freshAt);
-  const row = o.rowFor ? o.rowFor(o.startTE) : o.startTE;
+  const row = o.startTE;
   const raw = o.table(row, hour) ?? [];
   const fresh = scaled(raw, o.deliveryScale ?? 1).map(b => rebase(b, row, o.delivered));
   const freshSweeps = fresh.map(b => sweepTails(b, o.final, 0, Math.floor(o.startTE) + 1));
@@ -375,7 +462,7 @@ export function firstLegOptions(o: FirstLegOptions): FirstLeg[] {
       ? {
           seconds: fp.sweep.seconds[fp.i],
           endTE: fp.sweep.endTE[fp.i],
-          delivered: Array.from(fp.sweep.delivered.subarray(fp.i * 5, fp.i * 5 + 5)),
+          delivered: eggsOf(fp.sweep, fp.i),
           build: fp.build,
         }
       : null;
@@ -387,7 +474,7 @@ export function firstLegOptions(o: FirstLegOptions): FirstLeg[] {
         ? {
             seconds: contSweep.seconds[ci],
             endTE: contSweep.endTE[ci],
-            delivered: Array.from(contSweep.delivered.subarray(ci * 5, ci * 5 + 5)),
+            delivered: eggsOf(contSweep, ci),
           }
         : null;
     if (c && !(c.seconds <= o.maxContinueSeconds)) c = null;

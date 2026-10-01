@@ -1,15 +1,21 @@
 /**
- * The instant route search (search/routeFinder.ts) off the page's thread: it reads every TE's builds
- * and works out tens of thousands of ascensions, which is a second or more of solid work.
+ * A route-search worker (search/routeFinder.ts): it holds the precomputed table and does the heavy
+ * steps the page hands it. The page runs a few of these and splits each step's arrivals among them,
+ * so the search uses several cores; merging and reading routes back stay on the page.
  *
  * The table (search/precomputedTable.ts) is fetched here on the first request and kept for the
  * worker's life, so a second search (another start time, another target) costs no download.
  */
 import { readTable, type Table } from '@/search/precomputedTable';
-import { findRoutes, firstLegOptions } from '@/search/routeFinder';
+import { expandArrivals, firstLegOptions } from '@/search/routeFinder';
+import type { TailSweep } from '@/search/precomputedLeg';
 import type { RouteWorkerRequest, RouteWorkerResponse } from './routeFinder.protocol';
 
 const ctx = self as unknown as Worker;
+/** Sweeps reused across steps (search/routeFinder.ts `expandArrivals`); cleared past this many. */
+const CACHE_LIMIT = 60000;
+let cache = new Map<string, TailSweep>();
+let cacheKey = '';
 let table: Promise<Table> | null = null;
 let tableUrl = '';
 
@@ -30,59 +36,53 @@ function load(url: string): Promise<Table> {
   return table;
 }
 
+function reply(message: RouteWorkerResponse): void {
+  ctx.postMessage(message);
+}
+
 ctx.onmessage = async (event: MessageEvent<RouteWorkerRequest>) => {
   const m = event.data;
   try {
     const t = await load(m.url);
-    const h = t.header;
-    if (m.kind === 'header') {
-      ctx.postMessage({ kind: 'header', id: m.id, header: h } satisfies RouteWorkerResponse);
-      return;
+    switch (m.kind) {
+      case 'header':
+        reply({ kind: 'header', id: m.id, header: t.header });
+        return;
+      case 'first-legs':
+        reply({
+          kind: 'first-legs',
+          id: m.id,
+          firstLegs: firstLegOptions({
+            table: t.lookup,
+            startTE: m.startTE,
+            start: m.start,
+            final: m.final,
+            deliveryScale: m.deliveryScale,
+            delivered: m.delivered,
+            cont: m.cont,
+            forceContinue: m.forceContinue,
+            pinSeconds: m.pinSeconds,
+            maxContinueSeconds: m.maxContinueSeconds,
+          }),
+        });
+        return;
+      case 'expand': {
+        // One cache per table and settings, kept across a search's steps (and the next search with
+        // the same settings), bounded so a long session does not grow it without end.
+        const key = `${tableUrl}|${JSON.stringify(m.settings)}`;
+        if (key !== cacheKey || cache.size > CACHE_LIMIT) {
+          cache = new Map();
+          cacheKey = key;
+        }
+        reply({
+          kind: 'expand',
+          id: m.id,
+          candidates: expandArrivals(t.lookup, m.settings, m.items, undefined, cache),
+        });
+        return;
+      }
     }
-    const t0 = performance.now();
-    // Every TE from the player's up is needed; a table still being built covers only the top.
-    if (Math.floor(m.startTE) < h.from) {
-      ctx.postMessage({ kind: 'not-yet', id: m.id, header: h } satisfies RouteWorkerResponse);
-      return;
-    }
-    // Each ascension reads the row for its own TE. Moving it by the player's Clothed TE bonus (to
-    // match earning power) was tried and was worse: the row's TE also sets the hatchery, so a short
-    // earnings set came out 5-7% slow against the board (scripts/precompute.ts --verify-table).
-    const deliveryScale = m.deliveryScale;
-    const firstLegs = firstLegOptions({
-      table: t.lookup,
-      startTE: m.startTE,
-      start: m.start,
-      final: m.final,
-      deliveryScale,
-      delivered: m.delivered,
-      cont: m.cont,
-      forceContinue: m.forceContinue,
-      pinSeconds: m.pinSeconds,
-      maxContinueSeconds: m.maxContinueSeconds,
-    });
-    const { best, byAscensions, byDate } = findRoutes({
-      table: t.lookup,
-      startTE: m.startTE,
-      start: m.start,
-      final: m.final,
-      maxAscensions: m.maxAscensions,
-      firstLegs,
-      deliveryScale,
-      ...(m.deadline !== undefined ? { deadline: m.deadline } : {}),
-      onProgress: (done, of) => ctx.postMessage({ kind: 'progress', id: m.id, done, of } satisfies RouteWorkerResponse),
-    });
-    const reply: RouteWorkerResponse = {
-      kind: 'routes',
-      id: m.id,
-      header: h,
-      best,
-      byAscensions,
-      byDate,
-      ms: performance.now() - t0,
-    };
-    ctx.postMessage(reply);
   } catch (err) {
-    ctx.postMessage({ kind: 'error', id: m.id, message: err instanceof Error ? err.message : String(err) });
+    reply({ kind: 'error', id: m.id, message: err instanceof Error ? err.message : String(err) });
   }
 };
