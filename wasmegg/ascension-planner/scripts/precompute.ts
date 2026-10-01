@@ -36,6 +36,8 @@
  *                    them as the site's instant answer does for the save (its TE, eggs, farm and
  *                    delivery rate; no --te); --scaled starts at --te with the save's delivery rate.
  *                    Without --reference, --check then prices them for the account the save is.
+ *                    --deadline ISO: also the highest TE by then (By a date); --check then prices
+ *                    only that route.
  *   --grid-error --table DIR
  *                    How well an hour's builds are predicted from an earlier hour's with `lateBy`
  *                    (the case for a coarser grid of start hours), and which hours break it.
@@ -868,8 +870,10 @@ async function route(file: string): Promise<void> {
         maxContinueSeconds: inputs!.continueMaxSeconds ?? CONTINUE_MAX_SECONDS,
       })
     : undefined;
+  // --deadline ISO: also the highest TE reachable by then (the By a date screen's instant answer).
+  const deadline = arg('deadline') ? Math.floor(Date.parse(arg('deadline')!) / 1000) : undefined;
   const t0 = performance.now();
-  const { best, byAscensions } = await findRoutes({
+  const { best, byAscensions, byDate } = await findRoutes({
     table: table.lookup,
     startTE: te,
     start,
@@ -877,6 +881,7 @@ async function route(file: string): Promise<void> {
     maxAscensions: Number(arg('max-asc', '10')),
     deliveryScale,
     ...(firstLegs ? { firstLegs } : {}),
+    ...(deadline !== undefined ? { deadline } : {}),
   });
   const ms = performance.now() - t0;
   const days = (r: Route) => (r.seconds / 86400).toFixed(3) + ' d';
@@ -889,6 +894,14 @@ async function route(file: string): Promise<void> {
     (r, k) => r && console.log(`  ${k} ascensions: ${days(r)}  ${r.chain.join(' ')}  (first: ${r.legs[0].label})`)
   );
   if (best) console.log(`  fastest: ${days(best)}  ${best.chain.join(' ')}`);
+  const spare = (end: number) => ((deadline! - end) / 86400).toFixed(3) + ' d';
+  if (deadline !== undefined)
+    console.log(
+      `  highest TE by ${new Date(deadline * 1000).toISOString()}: ` +
+        (byDate
+          ? `${byDate.legs[byDate.legs.length - 1].endTE} via ${byDate.chain.join(' ')} (${byDate.legs.length} ascensions, first: ${byDate.legs[0].label}), ${spare(byDate.end)} to spare`
+          : 'none')
+    );
 
   if (has('check')) {
     // Each route again through the simulator itself, ascension by ascension from the state the last
@@ -897,7 +910,7 @@ async function route(file: string): Promise<void> {
     // one ends, as a search would (which can only match or beat it). With --player the first
     // ascension is the save's own: continuing the farm starts at once, as the route has it; the
     // search's way lets the continue rule choose (runLeg with continue allowed).
-    const simulate = (r: Route, onTheHour: boolean): number | null => {
+    const simulate = (r: Route, onTheHour: boolean): { seconds: number; endTE: number } | null => {
       let state = player ? (JSON.parse(JSON.stringify(inputs!.baseState)) as EngineState) : startStateAt(inputs!, te);
       let t = start;
       let startTE = te;
@@ -911,13 +924,28 @@ async function route(file: string): Promise<void> {
         startTE = Object.values(leg.summary.finalTE).reduce((a, b) => a + b, 0);
         state = leg.nextState;
       }
-      return t - start;
+      return { seconds: t - start, endTE: startTE };
     };
+    if (deadline !== undefined) {
+      // The date's route only: does the simulator get as high by the date?
+      for (const [how, onTheHour] of [
+        ['on the hour', true],
+        ['starting at once', false],
+      ] as const) {
+        const x = byDate ? simulate(byDate, onTheHour) : null;
+        if (byDate)
+          console.log(
+            `  check the date's route, simulator ${how}: ` +
+              (x ? `ends at TE ${x.endTE}, ${spare(start + x.seconds)} to spare` : 'failed')
+          );
+      }
+      return;
+    }
     const simulated: { k: number; table: number; hourly: number | null; immediate: number | null }[] = [];
     for (const r of byAscensions) {
       if (!r) continue;
-      const hourly = simulate(r, true);
-      const immediate = simulate(r, false);
+      const hourly = simulate(r, true)?.seconds ?? null;
+      const immediate = simulate(r, false)?.seconds ?? null;
       simulated.push({ k: r.legs.length, table: r.seconds, hourly, immediate });
       const pct = (x: number | null) =>
         x === null ? 'failed' : `${(x / 86400).toFixed(3)} d (${(((r.seconds - x) / x) * 100).toFixed(3)}%)`;
