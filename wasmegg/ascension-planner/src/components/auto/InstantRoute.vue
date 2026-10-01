@@ -47,6 +47,13 @@
       {{ errorText }}
     </p>
 
+    <p
+      v-if="header?.fake"
+      class="rounded-lg bg-rose-50 border border-rose-200 px-3 py-2 text-[12px] font-bold text-rose-800"
+    >
+      Test table: rows below what has been simulated are filled in from the nearest real ones, to try the page. These
+      routes and dates are not real answers.
+    </p>
     <template v-if="result">
       <div v-if="result.best" class="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 space-y-1">
         <div class="text-[10px] font-black uppercase tracking-widest text-emerald-700">Fastest route</div>
@@ -187,6 +194,10 @@ function getWorker(): Worker {
     worker.onmessage = (e: MessageEvent<RouteWorkerResponse>) => {
       const m = e.data;
       if (m.id !== nextId) return; // an older request, superseded
+      if (m.kind === 'progress') {
+        loadingText.value = `Working out every route: ${m.done} of ${m.of} ascension counts done…`;
+        return;
+      }
       if (m.kind === 'not-yet') {
         header.value = m.header;
         result.value = null;

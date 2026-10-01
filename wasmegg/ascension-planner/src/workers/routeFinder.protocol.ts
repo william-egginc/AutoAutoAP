@@ -31,6 +31,8 @@ export type RouteWorkerRequest = FindRequest;
 
 export type RouteWorkerResponse =
   | { kind: 'routes'; id: number; header: TableHeader; best: Route | null; byAscensions: (Route | null)[]; ms: number }
+  /** How far along: `done` of `of` numbers of ascensions worked through. */
+  | { kind: 'progress'; id: number; done: number; of: number }
   /** The table does not reach down to the player's TE (it is built from the top down). */
   | { kind: 'not-yet'; id: number; header: TableHeader }
   | { kind: 'error'; id: number; message: string };

@@ -91,6 +91,10 @@ export interface FindOptions {
   rowFor?: (te: number) => number;
   /** Arrivals kept per TE and number of ascensions (`DEFAULT_KEEP`). */
   keep?: number;
+  /** Told after each number of ascensions is done (k of `maxAscensions`), for a progress bar. */
+  onProgress?: (done: number, of: number) => void;
+  /** Filled in with what the search did, for tuning (scripts/precompute.ts --route-bin). */
+  stats?: { expanded: number; sweeps: number; cached: number };
   /** False: start the moment the last one ends and shift the sale by the minutes past the hour
    *  (`lateBy`), the approximation, kept for comparing. Default: on the next whole hour. */
   onTheHour?: boolean;
@@ -132,11 +136,22 @@ function fastest(
   return best;
 }
 
-/** No later, and at least as many eggs on every egg: then `a` can do anything `b` can, as soon or
- *  sooner (an ascension started later never ends sooner, and more eggs never make a wait longer). */
+/**
+ * Differences too small to matter between two arrivals: a minute, and the eggs of a few tens of
+ * seconds at peak delivery. Every wait ends a millisecond past its threshold (`timeToEarnTE`'s
+ * buffer), so routes that meet at a TE differ by a few billion eggs; without a little slack each of
+ * those near-copies "beats" another on one egg, nothing is ever discarded, and the search does many
+ * times the work for answers that differ by seconds. The routes reported keep their own exact times.
+ */
+const TIME_SLACK = 60;
+const EGG_SLACK = 1e14;
+
+/** No later, and at least as many eggs on every egg (within the slack): then `a` can do anything `b`
+ *  can, as soon or sooner (an ascension started later never ends sooner, and more eggs never make a
+ *  wait longer). */
 function dominates(a: Label, b: Label): boolean {
-  if (a.time > b.time) return false;
-  for (let i = 0; i < a.delivered.length; i++) if (a.delivered[i] < b.delivered[i]) return false;
+  if (a.time > b.time + TIME_SLACK) return false;
+  for (let i = 0; i < a.delivered.length; i++) if (a.delivered[i] < b.delivered[i] - EGG_SLACK) return false;
   return true;
 }
 
@@ -179,7 +194,40 @@ export function findRoutes(o: FindOptions): { best: Route | null; byAscensions: 
     arrivals[k].set(te, kept);
   };
 
+  /** Would an arrival at (k, te) with this time and these counts be beaten by one already kept?
+   *  Asked before anything is made for it: most candidates are. */
+  const beaten = (k: number, te: number, time: number, eggs: Float64Array, at: number): boolean => {
+    const list = arrivals[k].get(te);
+    if (!list) return false;
+    for (const l of list) {
+      if (l.time > time + TIME_SLACK) continue;
+      let all = true;
+      for (let e = 0; e < 5; e++) {
+        if (l.delivered[e] < eggs[at + e] - EGG_SLACK) {
+          all = false;
+          break;
+        }
+      }
+      if (all) return true;
+    }
+    return false;
+  };
+
+  // A build moved onto the same counts at the same hour prices the same; arrivals at one TE often
+  // share counts (several routes ending on thresholds), so each such sweep is worked out once.
+  const sweepCache = new Map<string, TailSweep>();
+  const sweepOf = (b: BuildParams, key: string, lateBy: number, lowest: number): TailSweep => {
+    let sw = sweepCache.get(key);
+    if (!sw) {
+      sw = sweepTails(b, top, lateBy, lowest);
+      sweepCache.set(key, sw);
+      if (o.stats) o.stats.sweeps++;
+    } else if (o.stats) o.stats.cached++;
+    return sw;
+  };
+
   for (let k = 0; k < K; k++) {
+    o.onProgress?.(k, K);
     // Upward through the TEs: every arrival at k ascensions spreads to k + 1.
     const tes = [...arrivals[k].keys()].filter(te => te < top).sort((a, b) => a - b);
     for (const te of tes) {
@@ -213,15 +261,19 @@ export function findRoutes(o: FindOptions): { best: Route | null; byAscensions: 
         if (!raw?.length) continue;
         // The table's builds, moved onto the eggs this route really arrived with, each priced to
         // every checkpoint at once (sweepTails, the same numbers as tailTo).
+        if (o.stats) o.stats.expanded++;
         const builds = scaled(raw, scale).map(b => rebase(b, row, label.delivered));
-        const sweeps = builds.map(b => sweepTails(b, top, lateBy, te + 1));
+        const countsKey = `${row}|${startAt}|${label.delivered.join(',')}|`;
+        const sweeps = builds.map((b, j) => sweepOf(b, countsKey + j, lateBy, te + 1));
         for (let target = te + 1; target <= top; target++) {
           const pick = fastest(sweeps, builds, target);
           if (!pick) continue;
           const { sweep, build, i } = pick;
           const end = startAt + sweep.seconds[i];
           const endTE = sweep.endTE[i];
-          relax(k + 1, Math.min(endTE, top), {
+          const at = Math.min(endTE, top);
+          if (beaten(k + 1, at, end, sweep.delivered, i * 5)) continue;
+          relax(k + 1, at, {
             time: end,
             delivered: Array.from(sweep.delivered.subarray(i * 5, i * 5 + 5)),
             prev: label,

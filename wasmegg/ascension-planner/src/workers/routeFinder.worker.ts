@@ -67,6 +67,7 @@ ctx.onmessage = async (event: MessageEvent<RouteWorkerRequest>) => {
       firstLegs,
       deliveryScale,
       rowFor,
+      onProgress: (done, of) => ctx.postMessage({ kind: 'progress', id: m.id, done, of } satisfies RouteWorkerResponse),
     });
     const reply: RouteWorkerResponse = {
       kind: 'routes',

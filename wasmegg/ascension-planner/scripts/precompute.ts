@@ -32,9 +32,13 @@
  *   --grid-error --table DIR
  *                    How well an hour's builds are predicted from an earlier hour's with `lateBy`
  *                    (the case for a coarser grid of start hours), and which hours break it.
- *   --pack --table DIR --out FILE
+ *   --pack --table DIR --out FILE [--fake-below TE]
  *                    Pack a generated table into the one file the site loads
  *                    (search/precomputedTable.ts), covering the start TEs finished so far.
+ *                    --fake-below fills the rows down to TE from the nearest real one (marked fake),
+ *                    only to try the page out before the table reaches a player's TE.
+ *   --route-bin FILE --te TE [--start ISO] [--keep N] [--max-asc N]
+ *                    The route finder on a packed table file, timed (what the site's worker runs).
  *   --generate --out DIR [--from TE] [--to TE] [--jobs N]
  *                    Build the table: every start TE in the range (default 100-489) at each of the
  *                    168 Pacific hours of the week, one file per start TE (DIR/te-NNN.jsonl), with
@@ -78,14 +82,13 @@ import {
   type BuildParams,
 } from '@/search/precomputedLeg';
 import { findRoutes, nextHour, type Route } from '@/search/routeFinder';
-import { packTable } from '@/search/precomputedTable';
+import { packTable, readTable } from '@/search/precomputedTable';
 import { deliveryScore } from '@/search/virtueScore';
 import { describeLoadoutSlots } from '@/search/csv';
 import { cteFromArtifacts } from 'lib/virtue';
 import { equippedArtifactsToLibArtifacts } from '@/lib/artifacts/utils';
 import type { EngineState } from '@/engine/types';
 import type { SearchInputs } from '@/search/types';
-import type { VirtueEgg } from '@/types';
 
 function arg(name: string, dflt?: string): string | undefined {
   const i = process.argv.indexOf('--' + name);
@@ -105,14 +108,19 @@ const REFERENCE_ADDITIONS: [number, number, number, number][] = [
   [36, 2, 0, 12],
 ];
 
-function addReferenceGear(backup: any): void {
+/** The part of a backup `--reference` touches: the owned virtue artifacts. */
+interface VirtueAfxBackup {
+  artifactsDb?: { virtueAfxDb?: { inventoryItems?: unknown[] } };
+}
+
+function addReferenceGear(backup: VirtueAfxBackup): void {
   const db = backup?.artifactsDb?.virtueAfxDb;
   if (!db) throw new Error('--reference: the save has no virtue artifacts to add to');
-  db.inventoryItems ??= [];
+  const items = (db.inventoryItems ??= []);
   REFERENCE_ADDITIONS.forEach(([name, level, rarity, quantity], i) =>
     // An itemId far above any real one (real ids are Longs in the tens of thousands), as fastsearch's
     // --add-artifact does: owned, never equipped.
-    db.inventoryItems.push({
+    items.push({
       itemId: 910000000 + i,
       artifact: { spec: { name, level, rarity, egg: 1000 } },
       quantity,
@@ -428,8 +436,22 @@ async function generate(file: string): Promise<void> {
 }
 
 /** A generated table read back: (start TE, Pacific hour) -> builds. */
-function loadTable(dir: string): { lookup: (te: number, h: number) => BuildParams[] | null; meta: any; tes: number[] } {
-  const meta = JSON.parse(readFileSync(`${dir}/meta.json`, 'utf8'));
+/** A generated table's meta.json (written by `generate`). */
+interface TableMeta {
+  referenceWeek: number;
+  cteBonus: number;
+  deliveryScore: { score: number } | null;
+  from: number;
+  to: number;
+  builtAt: string;
+}
+
+function loadTable(dir: string): {
+  lookup: (te: number, h: number) => BuildParams[] | null;
+  meta: TableMeta;
+  tes: number[];
+} {
+  const meta = JSON.parse(readFileSync(`${dir}/meta.json`, 'utf8')) as TableMeta;
   const map = new Map<number, BuildParams[]>();
   const tes: number[] = [];
   for (let te = meta.from; te <= meta.to; te++) {
@@ -579,6 +601,29 @@ function gridError(): void {
   }
 }
 
+function routeBin(): void {
+  const buf = readFileSync(arg('route-bin')!);
+  const table = readTable(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer);
+  const te = Number(arg('te'));
+  const start = arg('start') ? Math.floor(Date.parse(arg('start')!) / 1000) : Math.floor(Date.now() / 1000);
+  const t0 = performance.now();
+  const stats = { expanded: 0, sweeps: 0, cached: 0 };
+  const { best, byAscensions } = findRoutes({
+    table: table.lookup,
+    startTE: te,
+    start,
+    final: 490,
+    maxAscensions: Number(arg('max-asc', '10')),
+    ...(arg('keep') ? { keep: Number(arg('keep')) } : {}),
+    stats,
+  });
+  console.log(`arrivals expanded ${stats.expanded}, sweeps ${stats.sweeps}, reused ${stats.cached}`);
+  console.log(
+    `${(performance.now() - t0).toFixed(0)} ms; fastest ${best ? (best.seconds / 86400).toFixed(3) + ' d ' + best.chain.join(' ') : 'none'}`
+  );
+  byAscensions.forEach((r, k) => r && console.log(`  ${k}: ${(r.seconds / 86400).toFixed(3)} d ${r.chain.join(' ')}`));
+}
+
 function pack(): void {
   const dir = arg('table');
   const out = arg('out');
@@ -597,6 +642,17 @@ function pack(): void {
   // longest one ending at the top of what exists.
   let from = tes[tes.length - 1];
   while (tes.includes(from - 1)) from--;
+  const fakeBelow = arg('fake-below') ? Number(arg('fake-below')) : null;
+  if (fakeBelow !== null && fakeBelow < from) {
+    // Copies of the lowest real row, moved onto each lower TE's canonical counts. Not real numbers.
+    const src = cells.filter(c => c.te === from);
+    for (let te = fakeBelow; te < from; te++) {
+      for (const c of src) {
+        cells.push({ te, h: c.h, builds: c.builds.map(b => rebase(b, from, canonicalDelivered(te))) });
+      }
+    }
+    from = fakeBelow;
+  }
   const bytes = packTable(
     {
       version: 1,
@@ -606,6 +662,7 @@ function pack(): void {
       from,
       to: tes[tes.length - 1],
       builtAt: meta.builtAt,
+      ...(fakeBelow !== null ? { fake: true } : {}),
     },
     cells
   );
@@ -789,6 +846,7 @@ async function profile(file: string): Promise<void> {
 async function main(): Promise<void> {
   if (has('pack')) return pack();
   if (has('grid-error')) return gridError();
+  if (arg('route-bin')) return routeBin();
   const backup = arg('backup');
   if (!backup) throw new Error('--backup FILE.json is required');
   if (has('generate-worker')) return generateWorker(backup, arg('out')!);
