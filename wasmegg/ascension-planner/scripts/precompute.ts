@@ -956,18 +956,21 @@ async function route(file: string): Promise<void> {
   }
 
   if (arg('debug-chain') && inputs) {
-    // One route, ascension by ascension: the table's cell against the simulator from the real state.
+    // One route, ascension by ascension: the table's cell against the simulator from the real state
+    // (at the save's delivery rate with --scaled or --player, as the route was found).
     const chain = arg('debug-chain')!.trim().split(/\s+/).map(Number);
+    const atRate = (bs: BuildParams[]) =>
+      deliveryScale === 1 ? bs : bs.map(b => ({ ...b, peakELR: b.peakELR * deliveryScale }));
     let state = startStateAt(inputs, te);
     let t = start;
     let cur = te;
     for (const [i, target] of chain.entries()) {
       t = nextHour(t);
       const hour = pacificHourOfWeek(t);
-      const tab = bestTailTo(table.lookup(cur, hour) ?? [], target);
+      const tab = bestTailTo(atRate(table.lookup(cur, hour) ?? []), target);
       const realNow = EGG_ORDER.map(e => state.eggsDelivered[e] || 0);
       const moved = bestTailTo(
-        (table.lookup(cur, hour) ?? []).map(b => rebase(b, cur, realNow)),
+        atRate(table.lookup(cur, hour) ?? []).map(b => rebase(b, cur, realNow)),
         target
       );
       const leg = runLeg(inputs, state, t, target, false, cur, i + 2);
@@ -978,6 +981,9 @@ async function route(file: string): Promise<void> {
         `  leg ${i + 1} ${cur}->${target} at hour ${hour}: table ${tab ? (tab.seconds / 86400).toFixed(4) + ' d, ends ' + tab.endTE + ', ' + tab.build.sales + '-sale' + (tab.build.tier13 ? '-t13' : '') : 'none'}` +
           ` | on real eggs ${moved ? (moved.seconds / 86400).toFixed(4) + ' d, ends ' + moved.endTE : 'none'}` +
           ` | simulator ${leg ? (leg.summary.totalDurationSeconds / 86400).toFixed(4) + ' d, ends ' + simEnd + ', ' + leg.key : 'none'}` +
+          (leg && moved
+            ? ` | sim - table ${((leg.summary.totalDurationSeconds - moved.seconds) / 3600).toFixed(2)} h, sim ends ${new Date((t + leg.summary.totalDurationSeconds) * 1000).toISOString().slice(0, 16)} (${(((t + leg.summary.totalDurationSeconds) % 3600) / 60).toFixed(0)} min past the hour)`
+            : '') +
           `\n      start eggs real ${realDelivered.map(x => x.toExponential(4)).join(' ')}\n      start eggs table ${canon.map(x => x.toExponential(4)).join(' ')}`
       );
       if (!leg) break;
