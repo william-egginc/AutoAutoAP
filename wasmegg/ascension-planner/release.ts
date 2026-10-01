@@ -15,5 +15,5 @@
  */
 export default {
   reloadIfBuiltBefore: '2026-09-30T20:12:00Z',
-  note: 'Your setup now floats behind the ⚙ Setup button (workers adjustable from it), size sliders for Suggest a space and Pick them for me, and browser-specific tips for long runs',
+  note: 'the ⚙ Setup pill can be dragged anywhere (double-click puts it back), size sliders for Suggest a space and Pick them for me, and browser-specific tips for long runs',
 };
