@@ -186,7 +186,6 @@
 import { computed, onUnmounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
-import { NAMES } from '@/lib/siteNav';
 import { showDateTime } from '@/lib/displayTime';
 import { continueTailParams } from '@/search/leg';
 import { CONTINUE_MAX_SECONDS, CONTINUE_PIN_MAX_SECONDS } from '@/search/rules';
