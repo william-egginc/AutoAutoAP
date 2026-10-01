@@ -808,9 +808,14 @@ function rowSummary(k: number): string {
   const row = chains.value[k];
   if (!row) return '';
   if (row.asc <= 1) return 'No ascension: keep going on this farm to the last stop. One route.';
-  return `${rowShapes(k).toLocaleString()} sets of early stops · ${rowBands(k)
-    .map(b => b.length)
-    .join(' x ')} values`;
+  const sizes = rowBands(k).map(b => b.length);
+  const all = sizes.reduce((n, x) => n * x, 1);
+  const sets = rowShapes(k);
+  // Only the playable sets are run (each stop above the one before): say so when the bands overlap,
+  // or "12 x 31 x 31" next to a smaller count reads as a mistake (the user, 1 Oct).
+  return sets < all
+    ? `${sets.toLocaleString()} playable sets of early stops (each above the one before), of ${sizes.join(' x ')} = ${all.toLocaleString()} combinations`
+    : `${sets.toLocaleString()} sets of early stops · ${sizes.join(' x ')} values`;
 }
 
 /**

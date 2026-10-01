@@ -277,10 +277,9 @@
         </summary>
         <div class="px-4 pb-4 text-xs text-slate-600 leading-relaxed space-y-2">
           <p>
-            This prices <span class="font-bold">every</span> chain in the pool you describe, with no descent, stages or
+            This prices <span class="font-bold">every</span> chain in the bands you describe, with no descent, stages or
             pruning, so the winner is the true optimum of that space, not a local one. It is also the mode that gets out
-            of hand fastest: the chain count is combinatorial in the pool size, so halving the step does far more than
-            double the work.
+            of hand fastest: the bands multiply, so halving the step in each does far more than double the work.
           </p>
           <p>
             Nothing here is capped, and nothing asks you to confirm. The count and estimate below update as you type, so
@@ -415,8 +414,8 @@
               <span class="flex items-center gap-1.5">
                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Final target TE</span>
                 <HelpTip
-                  >The TE every chain ends at. It's added to the end of each chain automatically, so it never appears in
-                  the pool below or counts as a pool value.</HelpTip
+                  >The TE every chain ends at. It's added to the end of each chain automatically, so it never goes in
+                  the bands below.</HelpTip
                 >
               </span>
               <input
@@ -431,7 +430,7 @@
               <span class="flex items-center gap-1.5">
                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Your TE now</span>
                 <HelpTip
-                  >Read from your backup, not editable here. It is the floor for every checkpoint in the pool.</HelpTip
+                  >Read from your backup, not editable here. It is the floor for every checkpoint in the bands.</HelpTip
                 >
               </span>
               <input
@@ -443,83 +442,8 @@
             </label>
           </div>
 
-          <div v-if="spaceMode === 'pool'" class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <label class="space-y-1">
-              <span class="flex items-center gap-1.5">
-                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Checkpoints from</span>
-                <HelpTip
-                  >Lowest TE the search may use as an intermediate checkpoint. Anything at or below your current TE is
-                  dropped: you cannot ascend to a target you have already passed.</HelpTip
-                >
-              </span>
-              <input
-                v-model.number="rangeLo"
-                type="number"
-                min="1"
-                :disabled="store.isRunning"
-                class="w-full rounded-lg border-slate-300 text-sm font-bold text-slate-800 disabled:opacity-50"
-              />
-            </label>
-            <label class="space-y-1">
-              <span class="flex items-center gap-1.5">
-                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">to</span>
-                <HelpTip
-                  >Highest TE the search may use as an intermediate checkpoint. Nothing at or above the final target is
-                  kept, since that is the target itself.</HelpTip
-                >
-              </span>
-              <input
-                v-model.number="rangeHi"
-                type="number"
-                min="1"
-                :disabled="store.isRunning"
-                class="w-full rounded-lg border-slate-300 text-sm font-bold text-slate-800 disabled:opacity-50"
-              />
-            </label>
-            <label class="space-y-1">
-              <span class="flex items-center gap-1.5">
-                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">every N TE (step)</span>
-                <HelpTip
-                  >How finely the range is sampled. Step 15 over 185 to 390 gives 185, 200, 215 and so on: 14 values.
-                  Step is the most expensive number on this page, because the chain count is combinatorial in the pool
-                  size, not linear, so halving the step does far more than double the work. Over 185 to 390 at 5 to 7
-                  ascensions: step 25 is 336 chains, step 15 is 6,006, step 10 is 80,598, step 5 is 6.2 million, and
-                  step 1 is about 102 billion.</HelpTip
-                >
-              </span>
-              <input
-                v-model.number="rangeStep"
-                type="number"
-                min="1"
-                :disabled="store.isRunning"
-                class="w-full rounded-lg border-slate-300 text-sm font-bold text-slate-800 disabled:opacity-50"
-              />
-            </label>
-          </div>
-
-          <p v-if="spaceMode === 'pool' && !plannedGridComplete" class="text-[11px] text-slate-600 leading-relaxed">
-            <span class="font-bold text-slate-800">This space tries {{ plannedGridLabel }}</span> (for example
-            {{ gridExample }}), not every TE in between, which would take weeks. The winner is the best on this grid,
-            and a chain between grid points can be faster.
-          </p>
           <div class="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-3">
-            <div class="flex flex-wrap items-center gap-4">
-              <label class="flex items-center gap-2 text-[11px] font-black text-slate-600 uppercase tracking-widest">
-                <input v-model="spaceMode" type="radio" value="pool" class="text-rose-600 focus:ring-rose-500" />
-                One range
-              </label>
-              <label class="flex items-center gap-2 text-[11px] font-black text-slate-600 uppercase tracking-widest">
-                <input v-model="spaceMode" type="radio" value="bands" class="text-rose-600 focus:ring-rose-500" />
-                Per-checkpoint bands
-              </label>
-              <HelpTip>
-                One range lets any checkpoint take any pool value, which is what allows 185 200 215 230 490: three 15-TE
-                rebuilds in a row. Bands say where each ascension should land, so you decide the shape instead of the
-                enumeration. Bands fix the ascension count: N bands is N+1 ascensions.
-              </HelpTip>
-            </div>
-
-            <label v-if="spaceMode === 'bands'" class="space-y-1 block">
+            <label class="space-y-1 block">
               <!-- Labelled like the chains added below it (Chain 2, 3...), so it reads as one of them. -->
               <span v-if="!sweepRequest" class="block text-[10px] font-black text-slate-600 uppercase tracking-widest">
                 Chain 1<template v-if="bands.length"> · {{ bands.length + 1 }} ascensions</template>
@@ -638,7 +562,7 @@
               another. Short ones (1 or 2 ascensions) cost little alone; queued behind the main run
               they need no second visit.
             -->
-            <div v-if="spaceMode === 'bands' && !sweepRequest" class="space-y-2">
+            <div v-if="!sweepRequest" class="space-y-2">
               <div
                 v-for="(row, k) in extraChains"
                 :key="k"
@@ -732,54 +656,16 @@
               </span>
             </label>
 
-            <p
-              v-if="constrained"
-              class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2.5 leading-relaxed"
-            >
-              You've narrowed the space, so the winner will be the best
-              <span class="font-semibold">of what you described</span>, not of everything reachable. That's still a
-              stronger claim than the staged search makes, but a smaller one than an unconstrained run.
+            <p class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2.5 leading-relaxed">
+              The winner will be the best <span class="font-semibold">of the bands you set</span>, not of everything
+              reachable. That's still a stronger claim than {{ NAMES.smart }} makes, which homes in rather than trying
+              everything.
             </p>
           </div>
 
-          <div v-if="spaceMode === 'pool'" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <label class="space-y-1">
-              <span class="flex items-center gap-1.5">
-                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Fewest ascensions</span>
-                <HelpTip
-                  >Shortest chain to enumerate, counting the final target. 5 ascensions takes four values from the pool
-                  plus the target. Each ascension is a full rebuild: twelve shifts and a fresh research grind.</HelpTip
-                >
-              </span>
-              <input
-                v-model.number="minAsc"
-                type="number"
-                min="2"
-                :disabled="store.isRunning"
-                class="w-full rounded-lg border-slate-300 text-sm font-bold text-slate-800 disabled:opacity-50"
-              />
-            </label>
-            <label class="space-y-1">
-              <span class="flex items-center gap-1.5">
-                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Most ascensions</span>
-                <HelpTip
-                  >Longest chain to enumerate. Every length between fewest and most is enumerated in full, so widening
-                  this adds whole combinatorial layers rather than a few chains.</HelpTip
-                >
-              </span>
-              <input
-                v-model.number="maxAsc"
-                type="number"
-                min="2"
-                :disabled="store.isRunning"
-                class="w-full rounded-lg border-slate-300 text-sm font-bold text-slate-800 disabled:opacity-50"
-              />
-            </label>
-          </div>
-
           <p class="text-[11px] text-slate-500 leading-relaxed">
-            Ascension count includes the final target, so 5 ascensions takes four values from the pool. Values at or
-            below your current TE, and at or above the target, are dropped: neither is an ascension you can perform.
+            The ascension count includes the final target, so 4 bands is 5 ascensions. Values at or below your current
+            TE, and at or above the target, are dropped: neither is an ascension you can perform.
           </p>
         </div>
 
@@ -791,25 +677,31 @@
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
             <div>
               <div class="flex items-center justify-center gap-1.5">
-                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Pool values</span>
+                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Values tried</span>
                 <HelpTip
-                  >Checkpoint values left after the range is sampled by step and anything outside (your TE, target) is
-                  dropped. This is the number the chain count is combinatorial in.</HelpTip
+                  >Checkpoint values across all the bands, after anything outside (your TE, target) is dropped.</HelpTip
                 >
               </div>
               <div class="text-lg font-black text-slate-900 tabular-nums">{{ poolSize }}</div>
             </div>
             <div>
               <div class="flex items-center justify-center gap-1.5">
-                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Chains</span>
+                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Chains it will run</span>
                 <HelpTip
-                  >Every strictly increasing combination of pool values at each allowed ascension count, with the target
-                  added at the end. It's counted with combinatorics, never by building the list: at small steps the list
-                  wouldn't fit in memory, and this number warns you before that happens.</HelpTip
+                  >Every chain through the bands that can actually be played: each checkpoint above the one before it
+                  (and at least the minimum gap above it), with the target added at the end. Combinations that go down,
+                  stand still, or fall outside your TE and the target can't be played, so they aren't counted or run.
+                  It's counted, never built as a list: at small steps the list wouldn't fit in memory, and this number
+                  warns you before that happens.</HelpTip
                 >
               </div>
               <div class="text-lg font-black tabular-nums" :class="tooBig ? 'text-red-700' : 'text-slate-900'">
                 {{ chainCountLabel }}
+              </div>
+              <!-- Only the playable ones (the user, 1 Oct: "we are running the feasible total chains... however
+                   the lay user may not know that"). -->
+              <div v-if="unplayable > 0 && totalChains === chainCount" class="text-[10px] text-slate-500 leading-snug">
+                playable, of {{ combinations.toLocaleString() }} the bands could make
               </div>
             </div>
             <div>
@@ -858,7 +750,7 @@
               {{ store.benchmarking ? 'Benchmarking…' : store.benchmarkedAt ? 'Re-benchmark' : 'Benchmark my PC' }}
             </button>
             <span v-if="store.benchmarking" class="text-[11px] text-slate-500">
-              Pricing the first {{ Math.max(store.workerBudget * 2, 32) }} chains on a throwaway pool, at the same cost
+              Pricing the first {{ Math.max(store.workerBudget * 2, 32) }} chains as a throwaway run, at the same cost
               as a real run's opening chunk.
             </span>
             <span v-else-if="store.benchmarkedAt" class="text-[11px] text-slate-500">
@@ -870,10 +762,12 @@
 
           <p class="text-[11px] leading-relaxed" :class="tooBig ? 'text-red-800' : 'text-slate-500'">
             <template v-if="!poolSize">
-              The pool is empty once values outside ({{ store.currentTE }}, {{ store.finalTE }}) are dropped.
+              The bands are empty once values outside ({{ store.currentTE }}, {{ store.finalTE }}) are dropped.
             </template>
             <template v-else-if="!chainCount">
-              No chains: the ascension range asks for more checkpoints than {{ poolSize }} pool values can supply.
+              No chains: no way through these bands goes up at every checkpoint{{
+                minGap > 0 ? ` by at least ${minGap} TE` : ''
+              }}.
             </template>
             <template v-else-if="tooBig">
               This will not finish. The estimate assumes {{ assumedCostLabel }} per chain on
@@ -926,7 +820,7 @@
             !chainCount ||
             ascMismatch ||
             (!!sweepRequest && !sweepConsent) ||
-            (!sweepRequest && spaceMode === 'bands' && !extrasReady) ||
+            (!sweepRequest && !extrasReady) ||
             queueAt >= 0
           "
           :running="store.isRunning || queueAt >= 0"
@@ -1289,9 +1183,6 @@ import RouteResultCard from './RouteResultCard.vue';
 import { sendRunResult } from '@/search/sendRun';
 import { parseSweepRequest, withoutSweepParams } from '@/search/sweepRequest';
 import {
-  buildPool,
-  countChains,
-  countChainsWithGap,
   countBanded,
   parseBands,
   suggestBands,
@@ -1376,12 +1267,13 @@ const ui = useUIStore();
  *  refusing: the point of this page is that the decision is the operator's. */
 const TOO_BIG_HOURS = 24 * 14;
 
-/** `pool` is one range any checkpoint may draw from; `bands` gives each checkpoint its own. */
-// Bands by default. A single pooled range is the simpler thing to explain, but it is almost never
-// what someone running this mode wants: it lets every checkpoint draw from the whole range, so the
-// chain count is combinatorial in the pool size and the space is mostly chains nobody would run.
-// Bands are how the measured suggestions are expressed and how every real run here has been set up.
-const spaceMode = ref<'pool' | 'bands'>('bands');
+/**
+ * The space is bands: one per checkpoint. There was also "One range", a single pool every checkpoint
+ * drew from; it was removed on 1 Oct (the user: "if it doesn't have any worth"). It let every
+ * checkpoint take any value, so the chain count was combinatorial in the pool and the space was
+ * mostly chains nobody would run, and no run on the board used it. Saved runs over a range still
+ * open and resume: that is the store's, which keeps both kinds.
+ */
 const bandsText = ref('185-200:5; 215-245:10; 260-300:10; 320-360:20');
 const minGap = ref(0);
 
@@ -1393,7 +1285,6 @@ const minGap = ref(0);
 const sweepRequest = typeof window === 'undefined' ? null : parseSweepRequest(window.location.search);
 const sweepConsent = ref(false);
 if (sweepRequest) {
-  spaceMode.value = 'bands';
   bandsText.value = sweepRequest.bands;
   minGap.value = sweepRequest.minGap;
   store.sweepTag = { preset: sweepRequest.preset, bands: sweepRequest.bands, minGap: sweepRequest.minGap };
@@ -1402,9 +1293,9 @@ if (sweepRequest) {
 // The tag holds only while the space is still the one the link asked for. Edit the bands (or press
 // Suggest a space) and it is somebody's own run, which must not count toward that preset's coverage;
 // put them back and it is the preset again.
-watch([spaceMode, bandsText, minGap], ([mode, text, gap]) => {
+watch([bandsText, minGap], ([text, gap]) => {
   if (!sweepRequest) return;
-  const same = mode === 'bands' && text.trim() === sweepRequest.bands.trim() && gap === sweepRequest.minGap;
+  const same = text.trim() === sweepRequest.bands.trim() && gap === sweepRequest.minGap;
   store.sweepTag = same
     ? { preset: sweepRequest.preset, bands: sweepRequest.bands, minGap: sweepRequest.minGap }
     : null;
@@ -1442,7 +1333,6 @@ function applySuggestion(): void {
   const s = suggestion.value;
   if (!s) return;
   bandsText.value = s.text;
-  spaceMode.value = 'bands';
 }
 
 /**
@@ -1463,12 +1353,6 @@ function setWorkers(raw: string): void {
   const n = Number(raw);
   store.workerBudget = Number.isFinite(n) ? Math.max(1, Math.min(store.machineThreads, Math.floor(n))) : 1;
 }
-
-const rangeLo = ref(185);
-const rangeHi = ref(390);
-const rangeStep = ref(15);
-const minAsc = ref(5);
-const maxAsc = ref(7);
 
 const saving = ref(false);
 const optIn = ref(false);
@@ -1551,16 +1435,12 @@ async function retryTable(): Promise<void> {
 }
 const submitOk = ref(false);
 
-const pool = computed(() =>
-  buildPool({ lo: rangeLo.value, hi: rangeHi.value, step: rangeStep.value }, store.currentTE, store.finalTE)
-);
-const poolSize = computed(() =>
-  spaceMode.value === 'bands' ? bands.value.reduce((n, b) => n + b.length, 0) : pool.value.length
-);
+/** Values across all the bands (the "Values tried" figure). */
+const poolSize = computed(() => bands.value.reduce((n, b) => n + b.length, 0));
 
 /** Counted combinatorially, never by enumerating: at step 1 over a wide range the array of chains
  *  does not fit in memory, and the whole point of showing this is to say so before that happens. */
-const bands = computed(() => (spaceMode.value === 'bands' ? parseBands(bandsText.value) : []));
+const bands = computed(() => parseBands(bandsText.value));
 
 // The Ascensions box follows the bands whenever they change -- typed, suggested, or filled in by a
 // Chain Explorer link -- so it only ever disagrees with them when someone changes the box itself.
@@ -1572,25 +1452,13 @@ watch(
   { immediate: true }
 );
 /** The box says one count and the bands another: the run would use the bands, silently. */
-const ascMismatch = computed(
-  () => spaceMode.value === 'bands' && bands.value.length > 0 && suggestAsc.value !== bands.value.length + 1
-);
+const ascMismatch = computed(() => bands.value.length > 0 && suggestAsc.value !== bands.value.length + 1);
 
 /** The grid the inputs above describe, before a run: for the step note. */
-const plannedGridComplete = computed(() =>
-  gridIsComplete(
-    bands.value.length ? bands.value : undefined,
-    spaceMode.value === 'bands' ? undefined : rangeStep.value
-  )
-);
-const plannedGridLabel = computed(() =>
-  gridStepLabel(bands.value.length ? bands.value : undefined, spaceMode.value === 'bands' ? undefined : rangeStep.value)
-);
+const plannedGridComplete = computed(() => gridIsComplete(bands.value.length ? bands.value : undefined, undefined));
+const plannedGridLabel = computed(() => gridStepLabel(bands.value.length ? bands.value : undefined, undefined));
 /** The first band's first few values, so "every 5 TE" has something concrete beside it. */
-const gridExample = computed(() => {
-  const first = bands.value[0] ?? Array.from({ length: 4 }, (_, i) => rangeLo.value + i * rangeStep.value);
-  return first.slice(0, 3).join(', ') + ', ...';
-});
+const gridExample = computed(() => (bands.value[0] ?? []).slice(0, 3).join(', ') + ', ...');
 
 /** What the winner is, in words that hold: a grid's best is not the best of every TE. */
 const resultClaim = computed(() => {
@@ -1607,17 +1475,14 @@ const resultExplain = computed(() => {
   return `Every chain on the grid (${step}) was priced, and this is the fastest. Values between grid points were not tried, so a Balanced search can land on something faster in between.`;
 });
 
-const chainCount = computed(() => {
-  if (spaceMode.value === 'bands') {
-    return bands.value.length ? countBanded(bands.value, store.finalTE, store.currentTE, minGap.value) : 0;
-  }
-  return minGap.value > 0
-    ? countChainsWithGap(pool.value, minAsc.value, maxAsc.value, minGap.value)
-    : countChains(poolSize.value, minAsc.value, maxAsc.value);
-});
+const chainCount = computed(() =>
+  bands.value.length ? countBanded(bands.value, store.finalTE, store.currentTE, minGap.value) : 0
+);
 
-/** True when the space has been narrowed, which shrinks what the result proves. */
-const constrained = computed(() => spaceMode.value === 'bands' || minGap.value > 0);
+/** Every pick of one value per band, playable or not, and how many of those can't be played (a
+ *  checkpoint at or below the one before it, or closer than the minimum gap). Chain 1 only. */
+const combinations = computed(() => (bands.value.length ? bands.value.reduce((n, b) => n * b.length, 1) : 0));
+const unplayable = computed(() => Math.max(0, combinations.value - chainCount.value));
 
 const chainCountLabel = computed(() =>
   Number.isFinite(totalChains.value) ? Math.round(totalChains.value).toLocaleString() : '∞'
@@ -1678,9 +1543,7 @@ const extrasReady = computed(() => extraChains.value.every((_, k) => !extraProbl
 /** Every chain the one click will price. */
 // The added chains only run in "Set each checkpoint" mode (they are hidden in the others), so they
 // only count there -- otherwise the estimate warned about chains that were never going to run.
-const totalChains = computed(
-  () => chainCount.value + (!sweepRequest && spaceMode.value === 'bands' ? extraTotal.value : 0)
-);
+const totalChains = computed(() => chainCount.value + (!sweepRequest ? extraTotal.value : 0));
 function specOfExtra(k: number): ReturnType<typeof currentSpec> {
   const row = extraChains.value[k];
   if (row.asc <= 1) {
@@ -1758,7 +1621,7 @@ const measuredCost = computed(() => (store.secondsPerChain > 0 ? store.secondsPe
  * ALREADY wall-clock across the whole pool by the worker count a second time, which after any run
  * made the next estimate about the worker count too short (7 min read as "1 min").
  */
-const sweepAscensions = computed(() => (spaceMode.value === 'bands' ? bands.value.length + 1 : maxAsc.value));
+const sweepAscensions = computed(() => bands.value.length + 1);
 const workerSeconds = computed(() =>
   measuredCost.value
     ? workerSecondsFromRate(measuredCost.value, store.rateWorkers || store.workerBudget)
@@ -1808,17 +1671,6 @@ const estimateLabel = computed(() => {
 });
 const tooBig = computed(() => chainCount.value > 0 && hours.value > TOO_BIG_HOURS);
 
-// The pool's lower bound is only meaningful above current TE, and current TE arrives with the
-// backup rather than at mount. Nudge the default up once rather than leaving a range whose bottom
-// half is silently discarded.
-watch(
-  () => store.currentTE,
-  te => {
-    if (te > 0 && rangeLo.value <= te) rangeLo.value = te + 5;
-  },
-  { immediate: true }
-);
-
 onMounted(() => {
   void store.refreshSavedRuns(props.playerId);
   // Look for an interrupted run. Nothing else on this panel did, so a checkpoint written by a run
@@ -1839,8 +1691,8 @@ watch(
   }
 );
 
-/** The bands-vs-pool configuration `startExhaustive` and `benchmarkMachine` both need — one literal,
- *  so the two can never be asked to look at different spaces. */
+/** The space `startExhaustive` and `benchmarkMachine` both need — one literal, so the two can never
+ *  be asked to look at different spaces. The range fields are unused with bands. */
 function currentSpec(): {
   lo: number;
   hi: number;
@@ -1851,13 +1703,13 @@ function currentSpec(): {
   bands?: number[][];
 } {
   return {
-    lo: rangeLo.value,
-    hi: rangeHi.value,
-    step: rangeStep.value,
-    minAsc: minAsc.value,
-    maxAsc: maxAsc.value,
+    lo: 0,
+    hi: 0,
+    step: 1,
+    minAsc: bands.value.length + 1,
+    maxAsc: bands.value.length + 1,
     minGap: minGap.value,
-    ...(spaceMode.value === 'bands' ? { bands: bands.value } : {}),
+    bands: bands.value,
   };
 }
 
@@ -1903,7 +1755,7 @@ async function sendFinished(): Promise<void> {
 }
 
 async function startOne(): Promise<void> {
-  if (!sweepRequest && spaceMode.value === 'bands' && extraChains.value.length) {
+  if (!sweepRequest && extraChains.value.length) {
     await startQueue();
     return;
   }
