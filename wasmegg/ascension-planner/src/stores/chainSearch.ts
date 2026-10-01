@@ -1945,16 +1945,14 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * the save. The same for a fastest run and a deadline run from the same save. `te` is the TE the
    * search started from, which Clothed TE is worked out against.
    */
-  function accountFields(te: number) {
-    const inv = readInventory();
+  /**
+   * The loaded account's epic research and colleggtibles, summarised (search/progression.ts). Read
+   * straight off the loaded backup. Null when there is no backup to read, never guessed: "all maxed"
+   * asserted for an account nobody looked at would be worse than saying nothing.
+   */
+  function progression() {
     const initialStateStore = useInitialStateStore();
     return {
-      artifacts: inv.artifacts,
-      stones: inv.stones,
-      delivery: describeLoadoutSlots(inv.elr),
-      earnings: describeLoadoutSlots(inv.earnings),
-      // Read straight off the loaded backup. Null when there is no backup to read, never guessed:
-      // "all maxed" asserted for an account nobody looked at would be worse than saying nothing.
       epicResearch: summariseEpicResearch(
         epicResearchDefs.map(d => ({
           id: d.id,
@@ -1966,6 +1964,20 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       colleggtibles: initialStateStore.rawBackup
         ? summariseColleggtibles(getColleggtibleTiers(initialStateStore.rawBackup))
         : null,
+    };
+  }
+
+  function accountFields(te: number) {
+    const inv = readInventory();
+    const initialStateStore = useInitialStateStore();
+    const prog = progression();
+    return {
+      artifacts: inv.artifacts,
+      stones: inv.stones,
+      delivery: describeLoadoutSlots(inv.elr),
+      earnings: describeLoadoutSlots(inv.earnings),
+      epicResearch: prog.epicResearch,
+      colleggtibles: prog.colleggtibles,
       // Leg 1's delivery set, the same one `delivery` above describes. Later legs re-solve, but
       // the gear they choose from is the same, so the score is the account's and not the leg's.
       deliveryScore: inv.elr ? deliveryScore(inv.elr) : null,
@@ -4709,6 +4721,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     collectInputs,
     submissionFilename,
     readInventory,
+    progression,
     csvFilename,
     applyChain,
     generateRequested,

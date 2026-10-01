@@ -83,12 +83,6 @@
         </template>
         <p v-else class="text-[12px] text-amber-800">No route gets above your TE by then.</p>
       </div>
-      <p
-        v-if="leftOut.length"
-        class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"
-      >
-        Not in the instant answer: your {{ leftOut.join(', ') }}. Check exactly prices a route with them.
-      </p>
     </template>
 
     <template v-if="result && !deadline">
@@ -109,7 +103,10 @@
         </button>
       </div>
       <p v-else class="text-[12px] text-amber-800">No route reaches {{ store.finalTE }} from here in the table.</p>
+    </template>
 
+    <!-- What the answer above does not account for, on both screens. -->
+    <template v-if="result">
       <p
         v-if="bonusShort > 0.05"
         class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"
@@ -119,13 +116,22 @@
         exactly gives your own times.
       </p>
       <p
+        v-if="progressionShort"
+        class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"
+      >
+        The table's account has every epic research and colleggtible maxed; yours has {{ progressionShort }}. Your real
+        ascensions run slower than these, more so the further short you are. Check exactly gives your own times.
+      </p>
+      <p
         v-if="leftOut.length"
         class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"
       >
-        Not in the instant answer: your {{ leftOut.join(', ') }}. It's the fastest route without them; Check exactly
-        prices a route with them.
+        Not in the instant answer: your {{ leftOut.join(', ') }}.
+        {{ deadline ? '' : "It's the fastest route without them; " }}Check exactly prices a route with them.
       </p>
+    </template>
 
+    <template v-if="result && !deadline">
       <div class="overflow-x-auto">
         <table class="w-full text-[12px]">
           <thead>
@@ -194,6 +200,7 @@ import { EGG_ORDER } from '@/search/precomputedLeg';
 import { cteFromArtifacts } from 'lib/virtue';
 import { equippedArtifactsToLibArtifacts } from '@/lib/artifacts/utils';
 import { findRoutes, type Route } from '@/search/routeFinder';
+import { describeColleggtibles } from '@/search/progression';
 import { poolSize, RoutePool } from '@/search/routePool';
 import type { TableHeader } from '@/search/precomputedTable';
 
@@ -245,6 +252,18 @@ const leftOut = computed(() => {
 /** How far the player's earnings set is from the table's: each point of Clothed TE short is about
  *  1-2% on every ascension (the board's own legs), which the instant answer does not take off. */
 const bonusShort = computed(() => (header.value ? header.value.cteBonus - bonus.value : 0));
+
+/** What the player's epic research and colleggtibles are short of the table's (all maxed), said
+ *  plainly; empty when nothing is, or nothing could be read. Both speed every build and every wait,
+ *  and the instant answer takes neither off. */
+const progressionShort = computed(() => {
+  const { epicResearch, colleggtibles } = store.progression();
+  const out: string[] = [];
+  if (epicResearch && !epicResearch.maxed)
+    out.push(`${epicResearch.atMax} of ${epicResearch.total} epic research at max`);
+  if (colleggtibles && !colleggtibles.maxed) out.push(`colleggtibles ${describeColleggtibles(colleggtibles)}`);
+  return out.join(' and ');
+});
 
 let pool: RoutePool | null = null;
 function getPool(): RoutePool {
