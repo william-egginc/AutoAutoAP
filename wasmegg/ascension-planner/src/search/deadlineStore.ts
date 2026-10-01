@@ -28,6 +28,9 @@ export interface DeadlineRunSpec {
   maxStops: number;
   lastHi: number;
   step: number;
+  /** "Pick them for me": how many sets of early stops the first look may try (deadline.ts
+   *  `maxShapes`); the grid widens until it fits. Absent on runs saved before the slider. */
+  maxShapes?: number;
   ascendNeeded: boolean;
   /** Shapes tried first (the account's current route). Kept with the run so a carry-on replays
    *  the very same search. */

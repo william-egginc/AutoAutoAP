@@ -3561,6 +3561,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           lastLo: Math.max(Math.floor(inputs.currentTE) + 1, spec.lastLo ?? 0),
           lastHi: spec.lastHi,
           step: spec.step,
+          ...(spec.maxShapes ? { maxShapes: spec.maxShapes } : {}),
           seedShapes: spec.seedShapes ?? [],
           parallel: spec.parallel ?? 1,
           ...(spec.extend ? { extend: true } : {}),

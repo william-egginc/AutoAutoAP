@@ -260,15 +260,25 @@
             @input="lastHiTouched = true"
           />
         </label>
+        <!-- How thorough, as one slider (the user, 30 Sept): how many sets of early stops the first
+             look tries; the grid it uses follows, and so do the routes and the time below. -->
         <label class="space-y-1">
-          <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest"
-            >First look: early stops every</span
-          >
-          <select v-model.number="step" :disabled="store.busy" class="rounded-lg border-slate-200 text-sm font-bold">
-            <option :value="10">10 TE</option>
-            <option :value="20">20 TE</option>
-            <option :value="30">30 TE</option>
-          </select>
+          <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest">How thorough</span>
+          <span class="flex items-center gap-2">
+            <input
+              v-model.number="thoroughIx"
+              type="range"
+              min="0"
+              :max="THOROUGH.length - 1"
+              step="1"
+              :disabled="store.busy"
+              class="w-36 accent-slate-800"
+              aria-label="How thorough the first look is"
+            />
+            <span class="text-[11px] font-bold text-slate-700"
+              >{{ THOROUGH[thoroughIx].label }} · first look every {{ usedStep }} TE</span
+            >
+          </span>
         </label>
       </div>
       <div class="text-[11px] text-slate-600 leading-relaxed space-y-1.5">
@@ -699,10 +709,23 @@ watch(
   },
   { immediate: true }
 );
-const step = ref(20);
+/** The finest first-look grid allowed; the thoroughness slider decides how far it widens. */
+const step = ref(5);
 const ascendNeeded = ref(false);
 
+/** The first look's budget in sets of early stops; the middle one is the long-standing default. */
+const THOROUGH = [
+  { label: 'Quick', shapes: 500 },
+  { label: 'Light', shapes: 1500 },
+  { label: 'Standard', shapes: 3000 },
+  { label: 'Thorough', shapes: 6000 },
+  { label: 'Very thorough', shapes: 12000 },
+] as const;
+const thoroughIx = ref(2);
+const maxShapes = computed(() => THOROUGH[thoroughIx.value]?.shapes ?? 3000);
+
 const specForCount = computed(() => ({
+  maxShapes: maxShapes.value,
   firstStopFine: 5,
   currentTE: store.currentTE,
   lastHi: lastHi.value,
@@ -998,6 +1021,9 @@ function fillFromSpec(spec: DeadlineRunSpec): void {
     lastHi.value = spec.lastHi;
     lastHiTouched.value = true;
     step.value = spec.step;
+    // Its thoroughness (runs from before the slider ran on the old default, the middle step).
+    const ix = THOROUGH.findIndex(t => t.shapes === (spec.maxShapes ?? 3000));
+    thoroughIx.value = ix >= 0 ? ix : 2;
   }
 }
 
@@ -1069,6 +1095,7 @@ async function find(): Promise<void> {
     maxStops: specForCount.value.maxStops,
     lastHi: Math.min(490, Math.floor(lastHi.value)),
     step: step.value,
+    maxShapes: maxShapes.value,
     ascendNeeded: ascendNeeded.value,
     estimate: plannedRoutes.value,
     extend: true,

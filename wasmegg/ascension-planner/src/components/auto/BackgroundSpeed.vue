@@ -21,10 +21,8 @@
     </label>
     <p class="text-[10px] text-slate-500 leading-relaxed">
       Lets the search keep going at a lower draw while you use the computer for something else, and go back to full
-      speed when you return. Takes effect within about a minute, and no chain in progress is lost. Some browsers
-      freeze a background tab entirely whatever this says (Safari, and Chrome or Edge with memory saving or sleeping
-      tabs on): in Chrome or Edge, add this site under Settings, Performance, "Always keep these sites active"; in
-      Safari, give the run its own window and leave it open rather than minimised.
+      speed when you return. Takes effect within about a minute, and no chain in progress is lost.
+      <span class="font-semibold text-slate-600">{{ BROWSER_ADVICE[browser] }}</span>
     </p>
   </div>
 </template>
@@ -32,11 +30,28 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
+import { browserKind, type BrowserKind } from '@/lib/browser';
 
 const store = useChainSearchStore();
 
+/** Advice for the browser this is (the user asked for it, 30 Sept): each can freeze a background
+ *  tab whatever this setting says, and each has its own way to stop it. */
+const browser = browserKind();
+const BROWSER_ADVICE: Record<BrowserKind, string> = {
+  chrome:
+    'In Chrome, Memory Saver can freeze a background tab whatever this says: add this site under Settings › Performance › "Always keep these sites active".',
+  edge: 'In Edge, sleeping tabs can freeze a background tab whatever this says: add this site under Settings › System and performance › "Never put these sites to sleep".',
+  safari:
+    'Safari can freeze a background tab whatever this says: give the run its own window and leave it open rather than minimised.',
+  firefox: 'Firefox can unload a background tab when memory runs low: give the run its own window and leave it open.',
+  other:
+    'Some browsers freeze a background tab whatever this says: give the run its own window and leave it open rather than minimised.',
+};
+
 /** Every count below the current worker budget, largest first. */
-const slower = computed(() => Array.from({ length: Math.max(0, store.workerBudget - 1) }, (_, i) => store.workerBudget - 1 - i));
+const slower = computed(() =>
+  Array.from({ length: Math.max(0, store.workerBudget - 1) }, (_, i) => store.workerBudget - 1 - i)
+);
 
 function set(raw: string): void {
   const n = Math.floor(Number(raw));

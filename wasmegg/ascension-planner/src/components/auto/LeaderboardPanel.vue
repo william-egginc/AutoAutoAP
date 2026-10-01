@@ -38,17 +38,6 @@
       <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 class="text-[10px] font-black text-indigo-700 uppercase tracking-widest">Chain leaderboard</h3>
-          <!-- The board answers "who gets there first", which says little about which SHAPE of
-               chain works. The explorer answers that one, per ascension count, so it is linked
-               from here, where somebody is already looking at other people's runs. -->
-          <button
-            v-if="tab !== 'insights'"
-            type="button"
-            class="inline-block mt-1 text-[11px] font-black text-indigo-700 hover:text-indigo-900 underline decoration-indigo-300"
-            @click="tab = 'insights'"
-          >
-            Explore every run by ascension count in {{ NAMES.insights }} →
-          </button>
         </div>
         <div v-if="tab !== 'insights'" class="flex items-end gap-2">
           <label v-if="tab !== 'dates' && tab !== 'eggday'" class="block">

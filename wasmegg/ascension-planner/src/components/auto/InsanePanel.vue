@@ -555,6 +555,22 @@
                     class="w-16 rounded-md border-slate-300 text-xs font-bold text-slate-800 disabled:opacity-50"
                   />
                 </label>
+                <label class="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                  Size
+                  <input
+                    v-model.number="suggestSizeIx"
+                    type="range"
+                    min="0"
+                    :max="SUGGEST_SIZES.length - 1"
+                    step="1"
+                    :disabled="store.isRunning"
+                    class="w-28 accent-slate-800"
+                    aria-label="How big a space to suggest"
+                  />
+                  <span class="normal-case tracking-normal font-bold text-slate-700"
+                    >~{{ suggestBudget.toLocaleString() }} chains, about {{ suggestTimeLabel }}</span
+                  >
+                </label>
                 <button
                   type="button"
                   :disabled="store.isRunning || !suggestion"
@@ -564,11 +580,11 @@
                   Suggest a space
                 </button>
                 <HelpTip>
-                  Fills the boxes with a space of about 75,000 chains, which is a few hours on this machine. At two
-                  ascensions (and three on most accounts) that is the whole reachable range at step 1, so the run proves
-                  the optimum and no measurement is involved. Above that, it uses where near-best chains have actually
-                  landed across this project's runs, refined as close to 5 TE as the budget allows before any of it goes
-                  to widening the bands. Either way it's a starting point you can edit.
+                  Fills the boxes with a space of the size set beside it. When the whole reachable range fits (at two
+                  ascensions, and three on most accounts), it suggests that at step 1, so the run proves the optimum and
+                  no measurement is involved. Above that, it uses where near-best chains have actually landed across
+                  this project's runs, refined as close to 5 TE as the budget allows before any of it goes to widening
+                  the bands. Either way it's a starting point you can edit.
                 </HelpTip>
                 <span v-if="suggestion" class="text-[10px] text-slate-500">
                   Suggest would fill in {{ suggestAsc }} ascensions, {{ suggestion.chains.toLocaleString() }} chains
@@ -1279,6 +1295,7 @@ import {
   countBanded,
   parseBands,
   suggestBands,
+  SUGGESTION_CHAIN_BUDGET,
   SUGGESTABLE_ASCENSIONS,
   formatHours,
 } from '@/search/exhaustive';
@@ -1408,7 +1425,18 @@ const suggestAsc = ref(6);
  * value of this mode is that an unconstrained run proves something; taking that away should be a
  * decision, not a default.
  */
-const suggestion = computed(() => suggestBands(store.currentTE, store.finalTE, suggestAsc.value));
+/** How big a space Suggest a space fills in, in chains (the user, 30 Sept: "how full do they want
+ *  it?"). The middle step is the long-standing default. */
+const SUGGEST_SIZES = [10_000, 25_000, 50_000, 75_000, 150_000, 300_000];
+const suggestSizeIx = ref(SUGGEST_SIZES.indexOf(SUGGESTION_CHAIN_BUDGET));
+const suggestBudget = computed(() => SUGGEST_SIZES[suggestSizeIx.value] ?? SUGGESTION_CHAIN_BUDGET);
+/** About how long a space that size takes here, at this chain length and worker count. */
+const suggestTimeLabel = computed(() =>
+  formatHours(sweepSeconds(suggestBudget.value, store.workerBudget, workerSeconds.value) / 3600)
+);
+const suggestion = computed(() =>
+  suggestBands(store.currentTE, store.finalTE, suggestAsc.value, { maxChains: suggestBudget.value })
+);
 
 function applySuggestion(): void {
   const s = suggestion.value;
@@ -1634,7 +1662,7 @@ function extraSummary(k: number): string {
 function suggestExtra(k: number): void {
   const row = extraChains.value[k];
   if (!row) return;
-  const sug = suggestBands(store.currentTE, store.finalTE, row.asc);
+  const sug = suggestBands(store.currentTE, store.finalTE, row.asc, { maxChains: suggestBudget.value });
   if (sug) row.text = sug.text;
 }
 /** A new chain one ascension shorter than the last, since the short ones are what get queued. */
