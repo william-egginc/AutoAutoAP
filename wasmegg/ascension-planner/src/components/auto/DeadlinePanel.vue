@@ -45,39 +45,41 @@
     </div>
 
     <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">The deadline</h3>
-    <!-- Which deadline is set, said in words: the dark Egg Day button alone didn't read as "selected". -->
-    <p
-      class="rounded-lg border px-3 py-2 text-[12px] leading-relaxed"
-      :class="isEggDay ? 'border-amber-300 bg-amber-50 text-amber-900' : 'border-slate-200 bg-slate-50 text-slate-700'"
-    >
-      <template v-if="isEggDay">
-        <span class="font-black">🥚 Egg Day {{ eggDayYear }} is selected:</span> 14 July {{ eggDayYear }}, 9:00 AM
-        Pacific. Answers go on the leaderboard's Egg Day {{ eggDayYear }} tab.
-      </template>
-      <template v-else>
-        <span class="font-black">A date of your own.</span> Answers go on the leaderboard's By a date tab.
-        <button
-          type="button"
-          class="ml-1 font-bold text-indigo-700 underline"
-          :disabled="store.busy"
-          @click="useEggDay"
-        >
-          Use Egg Day {{ eggDayYear }} instead
-        </button>
-      </template>
-    </p>
-    <div class="flex flex-wrap items-end gap-3">
+    <!-- Egg Day or a date of your own, as one choice of two: a dark "Egg Day" button beside date
+         boxes that already held Egg Day read oddly (the user, 30 Sept). The boxes show for a date
+         of your own. -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" role="radiogroup" aria-label="The deadline">
       <button
         type="button"
+        role="radio"
+        :aria-checked="!showCustomDate"
         :disabled="store.busy"
-        class="px-3 py-1.5 rounded-lg border text-[10px] font-black uppercase tracking-widest disabled:opacity-40"
-        :class="
-          isEggDay ? 'border-slate-800 bg-slate-800 text-white' : 'border-slate-200 text-slate-600 hover:text-slate-800'
-        "
-        @click="useEggDay"
+        class="rounded-xl border-2 p-3 text-left transition-colors disabled:opacity-50"
+        :class="!showCustomDate ? 'border-indigo-600 bg-indigo-50' : 'border-slate-200 bg-white hover:border-slate-300'"
+        @click="chooseEggDay"
       >
-        Egg Day {{ eggDayYear }}
+        <span class="block text-sm font-black text-slate-900">Egg Day {{ eggDayYear }}</span>
+        <span class="block mt-0.5 text-[11px] text-slate-600 leading-relaxed"
+          >14 July {{ eggDayYear }}, 9:00 AM Pacific. Answers go on the leaderboard's Egg Day
+          {{ eggDayYear }} tab.</span
+        >
       </button>
+      <button
+        type="button"
+        role="radio"
+        :aria-checked="showCustomDate"
+        :disabled="store.busy"
+        class="rounded-xl border-2 p-3 text-left transition-colors disabled:opacity-50"
+        :class="showCustomDate ? 'border-indigo-600 bg-indigo-50' : 'border-slate-200 bg-white hover:border-slate-300'"
+        @click="customDate = true"
+      >
+        <span class="block text-sm font-black text-slate-900">Another date</span>
+        <span class="block mt-0.5 text-[11px] text-slate-600 leading-relaxed"
+          >Any date and time you like. Answers go on the leaderboard's By a date tab.</span
+        >
+      </button>
+    </div>
+    <div v-if="showCustomDate" class="flex flex-wrap items-end gap-3">
       <label class="space-y-1">
         <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest">Date</span>
         <input
@@ -669,6 +671,13 @@ function useEggDay(): void {
   date.value = `${eggDayYear}-07-14`;
   time.value = '09:00';
   zone.value = 'America/Los_Angeles';
+}
+/** "Another date" picked: its boxes show (holding Egg Day until changed). */
+const customDate = ref(false);
+const showCustomDate = computed(() => customDate.value || !isEggDay.value);
+function chooseEggDay(): void {
+  customDate.value = false;
+  useEggDay();
 }
 
 const deadline = computed(() => {

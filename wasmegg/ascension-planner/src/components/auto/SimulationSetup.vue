@@ -1,15 +1,15 @@
 <!--
-  What the searches will simulate: the artifact sets, the save's economic state, and anything that
-  looks wrong with it. One card in Your setup (YourSetup.vue) for every screen; Smart search and the
+  What artifacts the searches will use: the two sets each leg swaps between, and the inventory they
+  are solved from. One card in Your setup (YourSetup.vue) for every screen; Smart search and the
   Full sweep each had their own, showing different things (the user, 30 Sept: "it isn't the same in
-  every place"). This keeps the best of both: the Full sweep's problem list and save figures, Smart
-  search's Delivery / Earnings toggle, the full inventory behind a second click, and the caveat that
-  the inventory is held fixed for the whole plan.
+  every place"). This keeps Smart search's Delivery / Earnings toggle, the full inventory behind a
+  second click, and the caveat that the inventory is held fixed for the whole plan. The save's own
+  figures and anything wrong with it went to Your setup's "Your save" card: the user asked for this
+  one to be just the artifacts.
 
   WHY IT EXISTS. A search has no opinion about whether its inputs make sense: an empty inventory
   prices every chain consistently against a farm nobody owns and returns a confident answer three
-  times too slow. The problems show even while the card is folded (a problem that only appears once
-  you go looking is a problem nobody finds); Your setup shows them folded too.
+  times too slow. Seeing the sets before pressing Find is the cheapest check there is.
 -->
 <template>
   <div class="space-y-3">
@@ -19,20 +19,9 @@
       :aria-expanded="open"
       @click="toggle"
     >
-      <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">What it will simulate</h3>
-      <span class="text-[10px] font-bold" :class="store.setupIssues.length ? 'text-rose-700' : 'text-emerald-700'">
-        {{ summary }} · {{ open ? 'hide' : 'show' }}
-      </span>
+      <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">What artifacts it will use</h3>
+      <span class="text-[10px] font-bold text-indigo-700">{{ open ? 'hide' : 'show' }}</span>
     </button>
-
-    <p
-      v-for="(issue, k) in store.setupIssues"
-      :key="k"
-      class="text-[11px] font-semibold leading-relaxed"
-      :class="issue.level === 'error' ? 'text-rose-700' : 'text-amber-700'"
-    >
-      {{ issue.level === 'error' ? '✕' : '!' }} {{ issue.message }}
-    </p>
 
     <div v-if="open && inventory" class="space-y-4">
       <p class="text-[11px] text-slate-500 leading-relaxed">
@@ -62,40 +51,6 @@
       <p v-else class="text-[11px] text-slate-500 leading-relaxed">
         The best earnings set your inventory can build. It doesn't depend on research, so it's the same in every leg.
       </p>
-
-      <!-- The economic half of the state: leg 1 continues an already-built farm, and every later leg
-           funds its own research out of earnings. -->
-      <dl class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-[11px] border-t border-slate-100 pt-3">
-        <div>
-          <dt class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Soul eggs</dt>
-          <dd class="font-bold" :class="store.setupFacts.soulEggs > 0 ? 'text-slate-700' : 'text-rose-700'">
-            {{ formatSoulEggs(store.setupFacts.soulEggs) }}
-          </dd>
-        </div>
-        <!-- Both, side by side: a reported failure was exactly these two disagreeing. -->
-        <div>
-          <dt class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Starting TE</dt>
-          <dd
-            class="font-bold"
-            :class="
-              Math.abs(store.setupFacts.currentTE - store.setupFacts.backupTE) > 3 ? 'text-rose-700' : 'text-slate-700'
-            "
-          >
-            {{ store.setupFacts.currentTE }}
-            <span class="font-normal text-slate-400">· save says {{ store.setupFacts.backupTE }}</span>
-          </dd>
-        </div>
-        <div>
-          <dt class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Epic research</dt>
-          <dd class="font-bold text-slate-700">
-            {{ store.setupFacts.epicAtMax }} / {{ store.setupFacts.epicTotal }} maxed
-          </dd>
-        </div>
-        <div>
-          <dt class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Colleggtibles</dt>
-          <dd class="font-bold text-slate-700">{{ store.setupFacts.colleggtibles }}</dd>
-        </div>
-      </dl>
 
       <!-- The pile itself, behind a second click: ten thousand chips of T1 commons buried the two sets. -->
       <div class="border-t border-slate-100 pt-3">
@@ -178,19 +133,4 @@ function toggle(): void {
 
 const totalArtifacts = computed(() => inventory.value?.artifacts.reduce((n, a) => n + a.count, 0) ?? 0);
 const totalStones = computed(() => inventory.value?.stones.reduce((n, x) => n + x.count, 0) ?? 0);
-
-const summary = computed(() => {
-  const errors = store.setupIssues.filter(i => i.level === 'error').length;
-  if (errors) return `${errors} problem${errors > 1 ? 's' : ''}`;
-  if (store.setupIssues.length) return `${store.setupIssues.length} to check`;
-  return 'nothing looks wrong';
-});
-
-/** Soul eggs run to 1e21 and beyond: the same short-scale suffixes the rest of the app uses. */
-function formatSoulEggs(n: number): string {
-  if (!(n > 0)) return 'none, so the farm cannot buy anything';
-  const units = ['', 'K', 'M', 'B', 'T', 'q', 'Q', 's', 'S', 'o', 'N', 'd', 'U'];
-  const tier = Math.min(units.length - 1, Math.floor(Math.log10(n) / 3));
-  return `${(n / 10 ** (tier * 3)).toFixed(2)}${units[tier]}`;
-}
 </script>

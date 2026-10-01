@@ -920,14 +920,12 @@ const topTabs = computed(() => [
     id: 'manual' as const,
     tab: 'manual',
     label: NAMES.manual,
-    sub: 'Build it yourself',
     on: 'bg-slate-900 text-white shadow-lg shadow-slate-200',
   },
   {
     id: 'auto' as const,
     tab: 'automatic',
     label: NAMES.auto,
-    sub: 'Let it find a plan',
     on: 'bg-indigo-600 text-white shadow-lg shadow-indigo-100',
   },
   // Only with a collector: a fork with no VITE_SUBMIT_URL has no board and no Explorer.
@@ -937,14 +935,12 @@ const topTabs = computed(() => [
           id: 'compare' as const,
           tab: 'leaderboard',
           label: NAMES.compare,
-          sub: 'Leaderboard and insights',
           on: 'bg-emerald-600 text-white shadow-lg shadow-emerald-100',
         },
         {
           id: 'science' as const,
           tab: 'science',
           label: NAMES.science,
-          sub: 'Help crack the algorithm',
           on: 'bg-amber-600 text-white shadow-lg shadow-amber-100',
         },
       ]

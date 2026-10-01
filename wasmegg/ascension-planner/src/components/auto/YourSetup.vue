@@ -13,31 +13,44 @@
   a running search resizes to them.
 -->
 <template>
-  <section class="rounded-2xl border border-indigo-100 bg-white shadow-sm text-left">
+  <!-- Strong colour and a real button: folded into a thin line it was easy to miss (the user, 30 Sept). -->
+  <section class="rounded-2xl border-2 border-indigo-200 bg-indigo-50/50 shadow-sm text-left">
     <!-- Folded: one line, every value visible. -->
     <button
       type="button"
-      class="w-full flex flex-wrap items-center gap-x-5 gap-y-1 px-4 py-3 text-left"
+      class="w-full flex flex-wrap items-center gap-x-5 gap-y-2 px-4 py-3.5 text-left"
       :aria-expanded="open"
       @click="setOpen(!open)"
     >
-      <span class="text-[10px] font-black text-indigo-900 uppercase tracking-widest">Your setup</span>
-      <span class="text-[11px] text-slate-500"
-        >Plan starts <span class="font-bold text-slate-800">{{ startLabel }}</span></span
+      <span class="flex items-center gap-2 text-sm font-black text-indigo-900">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M10.3 4.3c.4-1.8 3-1.8 3.4 0a1.7 1.7 0 002.6 1.1c1.5-1 3.4.9 2.4 2.4a1.7 1.7 0 001.1 2.6c1.8.4 1.8 3 0 3.4a1.7 1.7 0 00-1.1 2.6c1 1.5-.9 3.4-2.4 2.4a1.7 1.7 0 00-2.6 1.1c-.4 1.8-3 1.8-3.4 0a1.7 1.7 0 00-2.6-1.1c-1.5 1-3.4-.9-2.4-2.4a1.7 1.7 0 00-1.1-2.6c-1.8-.4-1.8-3 0-3.4a1.7 1.7 0 001.1-2.6c-1-1.5.9-3.4 2.4-2.4a1.7 1.7 0 002.6-1.1zM15 12a3 3 0 11-6 0 3 3 0 016 0z"
+          />
+        </svg>
+        Your setup
+      </span>
+      <span class="text-[12px] text-slate-600"
+        >Plan starts <span class="font-bold text-slate-900">{{ startLabel }}</span></span
       >
-      <span class="text-[11px] text-slate-500"
-        >Awake <span class="font-bold text-slate-800">{{ awakeLabel }}</span></span
+      <span class="text-[12px] text-slate-600"
+        >Awake <span class="font-bold text-slate-900">{{ awakeLabel }}</span></span
       >
-      <span class="text-[11px] text-slate-500"
-        >Time off <span class="font-bold text-slate-800">{{ timeOffCount || 'none' }}</span></span
+      <span class="text-[12px] text-slate-600"
+        >Time off <span class="font-bold text-slate-900">{{ timeOffCount || 'none' }}</span></span
       >
-      <span class="text-[11px] text-slate-500"
-        ><span class="font-bold text-slate-800">{{ store.workerBudget }} of {{ store.machineThreads }}</span>
+      <span class="text-[12px] text-slate-600"
+        ><span class="font-bold text-slate-900">{{ store.workerBudget }} of {{ store.machineThreads }}</span>
         workers</span
       >
-      <span class="ml-auto text-[10px] font-black text-indigo-700 uppercase tracking-widest">{{
-        open ? 'Done' : 'Edit setup'
-      }}</span>
+      <span
+        class="ml-auto px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest"
+        :class="open ? 'border border-indigo-300 text-indigo-700 bg-white' : 'bg-indigo-600 text-white'"
+        >{{ open ? 'Done' : 'Edit setup' }}</span
+      >
     </button>
 
     <!-- Problems with the save show folded too: nobody opens a card to look for them. -->
@@ -52,7 +65,7 @@
       </p>
     </div>
 
-    <div v-if="open" class="border-t border-indigo-50 p-4 space-y-4">
+    <div v-if="open" class="border-t border-indigo-100 bg-white rounded-b-2xl p-4 space-y-4">
       <p class="text-[11px] text-slate-500">
         One setup for all three Auto Planner screens: change it here and Classic, {{ NAMES.fastest }} and
         {{ NAMES.byDate }} all use it.
@@ -83,6 +96,49 @@
           >
             Load latest save
           </button>
+          <!-- What the plan starts from, besides the artifacts: leg 1 continues an already-built farm,
+               and every later leg funds its own research out of earnings. -->
+          <dl class="grid grid-cols-2 gap-3 text-[11px] border-t border-slate-100 pt-3">
+            <div>
+              <dt class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Soul eggs</dt>
+              <dd class="font-bold" :class="store.setupFacts.soulEggs > 0 ? 'text-slate-700' : 'text-rose-700'">
+                {{ formatSoulEggs(store.setupFacts.soulEggs) }}
+              </dd>
+            </div>
+            <!-- Both, side by side: a reported failure was exactly these two disagreeing. -->
+            <div>
+              <dt class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Starting TE</dt>
+              <dd
+                class="font-bold"
+                :class="
+                  Math.abs(store.setupFacts.currentTE - store.setupFacts.backupTE) > 3
+                    ? 'text-rose-700'
+                    : 'text-slate-700'
+                "
+              >
+                {{ store.setupFacts.currentTE }}
+                <span class="font-normal text-slate-400">· save says {{ store.setupFacts.backupTE }}</span>
+              </dd>
+            </div>
+            <div>
+              <dt class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Epic research</dt>
+              <dd class="font-bold text-slate-700">
+                {{ store.setupFacts.epicAtMax }} / {{ store.setupFacts.epicTotal }} maxed
+              </dd>
+            </div>
+            <div>
+              <dt class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Colleggtibles</dt>
+              <dd class="font-bold text-slate-700">{{ store.setupFacts.colleggtibles }}</dd>
+            </div>
+          </dl>
+          <p
+            v-for="(issue, k) in saveCardIssues"
+            :key="k"
+            class="text-[11px] font-semibold leading-relaxed"
+            :class="issue.level === 'error' ? 'text-rose-700' : 'text-amber-700'"
+          >
+            {{ issue.level === 'error' ? '✕' : '!' }} {{ issue.message }}
+          </p>
         </div>
 
         <!-- When the plan starts -->
@@ -289,7 +345,7 @@
           </details>
         </div>
 
-        <!-- What it will simulate: the artifact sets and the save's state, the same on every screen. -->
+        <!-- What artifacts it will use: the same on every screen. -->
         <div class="rounded-xl border border-slate-200 p-4 min-w-0 md:col-span-2">
           <SimulationSetup />
         </div>
@@ -379,6 +435,18 @@ const saveAgeLabel = computed(() => {
           : `${Math.round(mins / 1440)} days ago`;
   return `Save from ${age} (${showDateTime(at, zone.value)}).`;
 });
+
+/** Problems with the save, for its card. Not the save-age note: Start time, beside it, already says
+ *  exactly that (folded, the setup shows them all, since Start time is hidden then). */
+const saveCardIssues = computed(() => store.setupIssues.filter(i => i.kind !== 'save-past-silos'));
+
+/** Soul eggs run to 1e21 and beyond: the same short-scale suffixes the rest of the app uses. */
+function formatSoulEggs(n: number): string {
+  if (!(n > 0)) return 'none, so the farm cannot buy anything';
+  const units = ['', 'K', 'M', 'B', 'T', 'q', 'Q', 's', 'S', 'o', 'N', 'd', 'U'];
+  const tier = Math.min(units.length - 1, Math.floor(Math.log10(n) / 3));
+  return `${(n / 10 ** (tier * 3)).toFixed(2)}${units[tier]}`;
+}
 
 /** Sunday-first, matching `availableDays`, which stores JS `getDay()` numbers. */
 const DAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
