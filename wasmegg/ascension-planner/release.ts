@@ -15,5 +15,5 @@
  */
 export default {
   reloadIfBuiltBefore: '2026-09-30T20:12:00Z',
-  note: 'the ⚙ Setup pill can be dragged anywhere (double-click puts it back), size sliders for Suggest a space and Pick them for me, and browser-specific tips for long runs',
+  note: 'Smart search's explanation corrected and in plain words, a tidier Insights header, and the ⚙ Setup pill can be dragged anywhere (double-click puts it back)',
 };
