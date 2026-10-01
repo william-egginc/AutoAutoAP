@@ -137,6 +137,28 @@
 
     <!-- The player's own space, Insane-style: one box per chain, and as many chains as you like. -->
     <template v-if="mode === 'space'">
+      <!-- How big a space Suggest a space fills in, as on the Full sweep (the user, 1 Oct). -->
+      <label class="flex flex-wrap items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+        Suggest a space: size
+        <input
+          v-model.number="suggestSizeIx"
+          type="range"
+          min="0"
+          :max="STOP_SET_SIZES.length - 1"
+          step="1"
+          :disabled="store.busy"
+          class="w-32 accent-slate-800"
+          aria-label="How big a space Suggest a space fills in"
+        />
+        <span class="normal-case tracking-normal font-bold text-slate-700"
+          >up to {{ suggestSets.toLocaleString() }} sets of early stops, about {{ suggestTimeLabel }}</span
+        >
+      </label>
+      <p class="text-[10px] text-slate-500 leading-relaxed -mt-1">
+        Suggest a space tries your first stop at every TE from just above your TE, since that is where the answers on
+        the board differ most (anywhere from 1 to 38 TE up), then makes the later stops finer and wider as the size
+        allows. Move the slider, then press Suggest a space again.
+      </p>
       <div v-for="(row, k) in chains" :key="k" class="rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-2">
         <div class="flex flex-wrap items-center gap-2">
           <span class="text-[10px] font-black text-slate-600 uppercase tracking-widest">Chain {{ k + 1 }}</span>
@@ -656,6 +678,7 @@ import {
 import { formatBand, formatHours } from '@/search/exhaustive';
 import { sweepSeconds, workerSecondsPerChain } from '@/search/speed';
 import type { DeadlineRunSpec } from '@/search/deadlineStore';
+import { DEFAULT_STOP_SETS, STOP_SET_SIZES, suggestStops } from '@/search/deadlineSuggest';
 import { downloadCsv } from '@/utils/export';
 import { useEidsStore } from 'lib';
 import { eggDayYearOf, nextEggDayYear } from '@/lib/eggDay';
@@ -817,15 +840,25 @@ function suggestRow(k: number): void {
       suggestFrom.value = `Chain ${k + 1} was spaced evenly: no answer or route to start from yet.`;
     }
   }
-  row.text = early
-    .map((c, i) => {
-      if (i === 0 && c - te <= 12) return `${te + 1}-${Math.max(te + 6, c + 4)}:1`;
-      if (i === 0) return `${c - 8}-${c + 8}:2`;
-      return `${c - 15}-${c + 15}:5`;
-    })
-    .join('; ');
   if (!lastRange.value) lastBox.value = `${Math.max(te + 2, lastGuess - 20)}-${Math.min(490, lastGuess + 20)}`;
+  // Sized to the slider (search/deadlineSuggest.ts): the first stop at every TE from just above
+  // yours, the later ones as fine and as wide as the size allows.
+  const lastHi = lastRange.value?.[1] ?? Math.min(490, lastGuess + 20);
+  const sug = suggestStops(te, early, lastHi, suggestSets.value);
+  if (sug) row.text = sug.text;
 }
+
+/** How big a space Suggest a space fills in, in sets of early stops (the Full sweep has the same). */
+const suggestSizeIx = ref(STOP_SET_SIZES.indexOf(DEFAULT_STOP_SETS));
+const suggestSets = computed(() => STOP_SET_SIZES[suggestSizeIx.value] ?? DEFAULT_STOP_SETS);
+/** About how long that many sets takes here, charged the way the estimate below charges them. */
+const suggestTimeLabel = computed(() => {
+  const k = Math.max(1, Math.min(16, Math.floor(store.workerBudget / suggestSets.value)));
+  const perShape = k === 1 ? PROBES.value : k * (Math.ceil(Math.log(lastWidth.value) / Math.log(k + 1)) + 1);
+  return formatHours(
+    sweepSeconds(suggestSets.value * perShape, store.workerBudget, workerSecondsPerRoute.value) / 3600
+  );
+});
 
 /** A new chain one ascension shorter than the shortest, since the short ones are what get added. */
 function addChain(): void {
