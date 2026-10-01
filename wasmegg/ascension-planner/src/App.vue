@@ -217,6 +217,16 @@
       <!-- The search that's running, on every tab but its own (RunProgressBar.vue), so looking at
            the leaderboard or Classic mid-run doesn't mean losing sight of it or its Stop. -->
       <RunProgressBar v-if="showRunBar" class="mt-4" @show="showRun" />
+      <!-- A Science sweep, run in place (SweepRunner.vue): a window over the page, so the figures and
+           Start sit where the sweep was clicked rather than on another screen. -->
+      <SweepRunner
+        v-if="uiStore.scienceSweep"
+        :key="sweepKey(uiStore.scienceSweep)"
+        :request="uiStore.scienceSweep"
+        :player-id="playerId"
+        :prepare="prepareAutoPlanner"
+        @show-result="showSweepResult"
+      />
 
       <nav v-if="playerId" class="mt-4 space-y-3" aria-label="Site">
         <!-- The header (with the tabs in it) folds away on the Auto Planner: the same tabs here then. -->
@@ -508,7 +518,7 @@
             gap.
           </p>
         </div>
-        <ChainExplorer part="science" embedded :science-view="scienceView" :te-now="saveTE" />
+        <ChainExplorer part="science" embedded :science-view="scienceView" :te-now="saveTE" @run-sweep="openSweep" />
       </div>
 
       <!-- Your setup, floating, on every Auto Planner screen: the gear opens it; workers adjust folded. -->
@@ -656,6 +666,8 @@ import { usePlanStartForm } from '@/composables/usePlanStartForm';
 import NewLayoutGuide from '@/components/NewLayoutGuide.vue';
 import SiteTabs from '@/components/SiteTabs.vue';
 import SetupDock from '@/components/auto/SetupDock.vue';
+import SweepRunner from '@/components/science/SweepRunner.vue';
+import type { SweepRequest } from '@/search/sweepRequest';
 import RunningElsewhere from '@/components/auto/RunningElsewhere.vue';
 import { useSalesStore } from '@/stores/sales';
 import { hashID, saveMetadata, loadMetadata } from '@/lib/storage/db';
@@ -834,6 +846,13 @@ const hereLabel = computed(() => screenName(screenHere.value));
 /** On every screen but the run's own, where the panel shows its progress in full. */
 const showRunBar = computed(() => !!runScreen.value && searchScreenOf(currentRoute()) !== runScreen.value);
 function showRun(): void {
+  // A sweep started from Science: back to its window there, which is where it was started from.
+  const science = uiStore.scienceRun;
+  if (science && science.phase !== 'done' && !runningScreen.value) {
+    goTo({ ...currentRoute(), section: 'science', science: 'check' });
+    uiStore.scienceSweep = science.request;
+    return;
+  }
   const s = runScreen.value;
   if (s === 'by-date') goAuto('by-date');
   else if (s) goAuto('fastest', s);
@@ -1352,25 +1371,50 @@ watch(
 async function handleAutoPlannerTabClick() {
   plannerTab.value = 'automatic';
   isHeaderCollapsed.value = true;
+  await prepareAutoPlanner();
+}
 
-  if (playerId.value && !loading.value) {
-    loading.value = true;
-    try {
-      // Fetch fresh backup and initialize for "Plan Future" mode (zeroed farm)
-      await initPlanFuture(playerId.value);
-      uiStore.staleBackup = null;
-      // Back from a run's own older save: its pinned start belongs to that save, not this one.
-      if (uiStore.runSaveLoaded) chainSearchStore.resetPlanStartTo(initialStateStore.rawBackup?.approxTime);
-      uiStore.runSaveLoaded = null;
-    } catch (e) {
-      console.error('Failed to auto-init Auto Planner:', e);
-      error.value = 'Failed to load fresh backup for Auto Planner.';
-      uiStore.staleBackup = backupFailureReason(e);
-      await planFromLastGoodSave();
-    } finally {
-      loading.value = false;
-    }
+/**
+ * Fetch a fresh save and set the planner up from it for the searches ("Plan Future" mode, zeroed
+ * farm): what entering the Auto Planner does, and what a Science sweep does before showing its
+ * figures (SweepRunner.vue). Resolves to '' when the planner is ready, else why not. A failed fetch
+ * falls back to the last good save, and IntegrityNotice says so beside Start.
+ */
+async function prepareAutoPlanner(): Promise<string> {
+  if (!playerId.value) return 'Enter your player ID at the top of the page first.';
+  // Never under a search that is running: it is pricing against the planner as it is.
+  if (searchActive.value) return 'A search is running. Let it finish or stop it first.';
+  if (loading.value) return 'Your save is still loading. Try again in a moment.';
+  loading.value = true;
+  try {
+    await initPlanFuture(playerId.value);
+    uiStore.staleBackup = null;
+    // Back from a run's own older save: its pinned start belongs to that save, not this one.
+    if (uiStore.runSaveLoaded) chainSearchStore.resetPlanStartTo(initialStateStore.rawBackup?.approxTime);
+    uiStore.runSaveLoaded = null;
+    return '';
+  } catch (e) {
+    console.error('Failed to auto-init Auto Planner:', e);
+    error.value = 'Failed to load fresh backup for Auto Planner.';
+    uiStore.staleBackup = backupFailureReason(e);
+    await planFromLastGoodSave();
+    return initialStateStore.rawBackup ? '' : `Your save could not be loaded: ${uiStore.staleBackup}.`;
+  } finally {
+    loading.value = false;
   }
+}
+
+/** What we need to check's Run this sweep, on the Science tab: open its window. */
+function openSweep(request: SweepRequest): void {
+  uiStore.scienceSweep = request;
+}
+function sweepKey(r: SweepRequest): string {
+  return `${r.preset}|${r.bands}|${r.minGap}|${r.forceContinue}`;
+}
+/** The window's "See it in the Full sweep": the result is the store's, so that screen has it all. */
+function showSweepResult(): void {
+  uiStore.scienceSweep = null;
+  goAuto('fastest', 'full');
 }
 
 /**

@@ -58,7 +58,9 @@
             {{
               need.links.length > 1 ? 'Press both buttons below, one after the other.' : 'Press Run this sweep below.'
             }}
-            It opens <b>“{{ need.presetLabel }}”</b> in the {{ NAMES.full }}, trying {{ bandsInWords(need.bands) }}.
+            It {{ runInPlace ? 'runs' : 'opens' }} <b>“{{ need.presetLabel }}”</b
+            ><template v-if="!runInPlace"> in the {{ NAMES.full }}</template
+            >, trying {{ bandsInWords(need.bands) }}.
             <template v-if="need.minGap > 0">Ascension targets stay at least {{ need.minGap }} TE apart.</template>
             {{ need.note ? need.note : '' }}
           </p>
@@ -82,19 +84,37 @@
             {{ need.minGap }} TE apart, leave no room above where you already are.
           </p>
           <div v-if="need.chains > 0" class="flex flex-wrap items-center gap-2 pt-1">
-            <a
-              v-for="link in need.links"
-              :key="link.href"
-              :href="link.href"
-              target="_blank"
-              rel="noopener"
-              class="px-3 py-1.5 rounded-lg bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-700"
-            >
-              {{ link.label }} &rarr;
-            </a>
-            <span class="text-[10px] text-slate-400">
-              Opens the {{ NAMES.full }} in a new tab with all of this filled in, on the save you have loaded.
-            </span>
+            <!-- Inside the planner (the Science tab) it runs right here, in SweepRunner.vue; on the
+                 standalone Explorer page there is no save to run it on, so it opens the planner. -->
+            <template v-if="runInPlace">
+              <button
+                v-for="link in need.links"
+                :key="link.href"
+                type="button"
+                class="px-3 py-1.5 rounded-lg bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-700"
+                @click="emit('run', link.request)"
+              >
+                {{ link.label }}
+              </button>
+              <span class="text-[10px] text-slate-400">
+                Shows how many chains and about how long on this computer before anything starts.
+              </span>
+            </template>
+            <template v-else>
+              <a
+                v-for="link in need.links"
+                :key="link.href"
+                :href="link.href"
+                target="_blank"
+                rel="noopener"
+                class="px-3 py-1.5 rounded-lg bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-700"
+              >
+                {{ link.label }} &rarr;
+              </a>
+              <span class="text-[10px] text-slate-400">
+                Opens the {{ NAMES.full }} in a new tab with all of this filled in, on the save you have loaded.
+              </span>
+            </template>
           </div>
         </li>
       </ol>
@@ -109,7 +129,7 @@ import type { CollectorRow } from './collector';
 import { COMPUTE_TIERS, dataNeeds, estimateSeconds, formatEstimate, presetBandsFor, presetChains } from './needs';
 import { measuredWorkerSeconds } from '@/search/speed';
 import { SWEEP_PRESETS } from './upload';
-import { sweepRequestQuery } from '@/search/sweepRequest';
+import { sweepRequestQuery, type SweepRequest } from '@/search/sweepRequest';
 import { parseBands } from '@/search/exhaustive';
 
 const ORDINAL = ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th', '10th', '11th', '12th'];
@@ -134,7 +154,10 @@ const props = defineProps<{
   rows: CollectorRow[];
   /** The loaded save's TE, inside the planner (the Science tab): the ranges start from it. */
   teFromSave?: number;
+  /** Run a sweep here (emit `run`) rather than link to the planner: true inside the planner. */
+  runInPlace?: boolean;
 }>();
+const emit = defineEmits<{ run: [request: SweepRequest] }>();
 /** The board's own sweep speeds by chain length (search/speed.ts), for the time estimates. */
 const measuredSpeed = computed(() => measuredWorkerSeconds(props.rows));
 
@@ -169,7 +192,8 @@ const needs = computed(() => dataNeeds(props.rows));
 /**
  * Links into the planner's Insane mode with the sweep filled in. Relative, so they resolve beside
  * this page wherever it is hosted (explorer.html and the planner's index share a directory). The
- * force-continue item is a pair on purpose: one run each way, on the same backup.
+ * force-continue item is a pair on purpose: one run each way, on the same backup. Each also carries
+ * the sweep itself, which the Science tab hands to its runner instead of following the link.
  */
 function sweepLinks(
   needId: string,
@@ -177,15 +201,16 @@ function sweepLinks(
   label: string,
   bands: string,
   minGap: number
-): { label: string; href: string }[] {
-  const href = (forceContinue?: boolean) => `./${sweepRequestQuery({ preset, label, bands, minGap, forceContinue })}`;
+): { label: string; href: string; request: SweepRequest }[] {
+  const link = (text: string, forceContinue?: boolean) => ({
+    label: text,
+    href: `./${sweepRequestQuery({ preset, label, bands, minGap, forceContinue })}`,
+    request: { preset, label, bands, minGap, forceContinue: forceContinue ?? null },
+  });
   if (needId === 'force-continue') {
-    return [
-      { label: 'Finish my current ascension first', href: href(true) },
-      { label: 'Ascend straight away', href: href(false) },
-    ];
+    return [link('Finish my current ascension first', true), link('Ascend straight away', false)];
   }
-  return [{ label: 'Run this sweep', href: href() }];
+  return [link('Run this sweep')];
 }
 
 const GROUPS: { id: 'main' | 'gear' | 'big' | 'end'; title: string; intro: string }[] = [

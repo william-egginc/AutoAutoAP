@@ -1164,7 +1164,13 @@
             one more account teaches the most.
           </p>
         </div>
-        <DataNeeds v-if="rows.length" :rows="usable" :te-from-save="teNow" />
+        <DataNeeds
+          v-if="rows.length"
+          :rows="usable"
+          :te-from-save="teNow"
+          :run-in-place="embedded"
+          @run="r => emit('run-sweep', r)"
+        />
         <p v-else class="rounded-lg bg-slate-50 px-3 py-2 text-[11px] text-slate-500">
           The asks are worked out from the runs on the board, so they need the board, and it
           {{ error ? 'could not be read (see above)' : 'holds no runs yet' }}. Any run you submit below still helps.
@@ -1223,6 +1229,7 @@ import LegProfileChart from './LegProfileChart.vue';
 import CountCompareChart from './CountCompareChart.vue';
 import FinalLegChart from './FinalLegChart.vue';
 import DataNeeds from './DataNeeds.vue';
+import type { SweepRequest } from '@/search/sweepRequest';
 import FlaggedBoard from './FlaggedBoard.vue';
 import NewVersionBanner from '@/components/NewVersionBanner.vue';
 import WhatWeKnow from './WhatWeKnow.vue';
@@ -1304,6 +1311,9 @@ const props = withDefaults(
   }>(),
   { part: 'insights', embedded: false, scienceView: 'check', teNow: 0 }
 );
+/** A sweep from What we need to check, to run in the planner (embedded only; the planner owns the
+ *  stores a run needs, which this page never touches). */
+const emit = defineEmits<{ 'run-sweep': [request: SweepRequest] }>();
 
 /** Where a pasted collector URL is remembered. Per-browser, not per-build. */
 const BASE_STORAGE_KEY = 'chainExplorerCollector';

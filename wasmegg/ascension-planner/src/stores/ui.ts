@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import type { AutoView, CompareView, Depth, ScienceView } from '@/lib/siteNav';
+import type { SweepRequest } from '@/search/sweepRequest';
 
 export type PlannerTab = 'manual' | 'automatic' | 'leaderboard' | 'science';
 
@@ -40,6 +41,19 @@ export const useUIStore = defineStore('ui', () => {
   const openSetupRequested = ref(0);
   /** Bumped to ask App.vue to fetch the backup again (it owns the fetch). */
   const backupRetryRequested = ref(0);
+  /** The sweep the Science tab's runner (SweepRunner.vue) is showing; null when it is closed. */
+  const scienceSweep = ref<SweepRequest | null>(null);
+  /**
+   * A sweep started from the Science tab, kept here rather than in the runner so closing the runner
+   * (or leaving the tab) loses nothing: the run goes on, sends itself, and opening the runner again
+   * shows where it got to. Null once dismissed.
+   */
+  const scienceRun = ref<{
+    request: SweepRequest;
+    phase: 'starting' | 'running' | 'sending' | 'done';
+    /** How the automatic send went, once it has. */
+    report: { ok: boolean; text: string } | null;
+  } | null>(null);
 
   function setActiveTab(tab: PlannerTab) {
     plannerTab.value = tab;
@@ -73,6 +87,8 @@ export const useUIStore = defineStore('ui', () => {
     backupRetryRequested,
     openSetupRequested,
     setupOpen,
+    scienceSweep,
+    scienceRun,
     setActiveTab,
     setHeaderCollapsed,
     setLoading,

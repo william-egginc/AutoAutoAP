@@ -1286,7 +1286,7 @@ import SavedRuns from './SavedRuns.vue';
 import YourSetup from './YourSetup.vue';
 import AutoSendReport from './AutoSendReport.vue';
 import RouteResultCard from './RouteResultCard.vue';
-import { afterPaint } from '@/search/submission';
+import { sendRunResult } from '@/search/sendRun';
 import { parseSweepRequest, withoutSweepParams } from '@/search/sweepRequest';
 import {
   buildPool,
@@ -2103,35 +2103,16 @@ async function submit(): Promise<void> {
   if (submitting.value) return;
   submitting.value = true;
   submitOk.value = true;
-  submitMessage.value = 'Preparing your result...';
   try {
-    // Let "Sending..." reach the screen before the table build blocks the page.
-    await afterPaint();
-    const payload = store.buildRunSubmission(effectiveNickname.value);
-    if (!payload) {
-      submitOk.value = false;
-      submitMessage.value = 'Nothing to submit yet.';
-      return;
-    }
-    // The CSV was never sent from this panel -- it called sendSubmission with one argument -- so
-    // every exhaustive row on the board reads "No CSV was attached", including the ones where the
-    // full working is most worth having. The second argument is the whole fix; the store gzips it
-    // and posts it separately, and a failed upload only downgrades the message.
-    // Black box: a page that dies while building or sending the table says so on the next visit.
-    store.blackBoxMark('submit', includeCsv.value ? 'building the CSV' : 'building the result');
-    const csv = includeCsv.value ? store.exportCsv() : undefined;
-    store.blackBoxMark('submit', `sending${csv ? ` (${Math.round(csv.length / 1048576)} MB of CSV)` : ''}`);
-    submitMessage.value = 'Sending...';
-    const res = await store.sendSubmission(payload, csv);
+    // The steps themselves are shared with the Science tab's runner (search/sendRun.ts). The CSV
+    // goes as the second argument there: this panel once sent without it, so every exhaustive row
+    // on the board read "No CSV was attached".
+    const res = await sendRunResult(store, effectiveNickname.value, includeCsv.value, text => {
+      submitMessage.value = text;
+    });
     submitOk.value = res.ok;
-    // A copy the collector already had stored nothing, so there is nothing to thank anyone for.
-    submitMessage.value = !res.ok
-      ? `Not sent: ${res.message}`
-      : res.duplicate === 'exact'
-        ? res.message
-        : `Thanks! ${sentence(res.message)}`;
+    submitMessage.value = res.text;
   } finally {
-    store.blackBoxEnd('submit');
     submitting.value = false;
   }
 }
