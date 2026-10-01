@@ -4511,6 +4511,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   });
 
   return {
+    /** The coarse scan's chain count at the current limits (shown beside "Find a starting chain"). */
+    coarseChains,
     lastAutoSend,
     errorIsIntegrityNotice,
     runProgress,

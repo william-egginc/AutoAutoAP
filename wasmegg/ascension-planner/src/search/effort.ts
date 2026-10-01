@@ -4,8 +4,9 @@
  * Ported verbatim from `EFFORT`/`EFFORT_NOTE` in scripts/autoplan.py, including the numbers. Two
  * rules govern everything in this file and they are not stylistic:
  *
- *   1. The stages are strictly NESTED (resolve_last -> descent -> 2-D slices -> count probe), so a
- *      tier is a STOP POINT, not a different algorithm. A user who picks a higher tier and loses
+ *   1. The stages run resolve_last -> descent -> 2-D -> 3-D -> count probe; each tier enables more of
+ *      them. Not strictly nested: thorough runs 3-D BEFORE the probe that `normal` ends with, so a
+ *      stopped thorough run holds balanced's answer, not normal's (fact-check, 30 Sept 2026). A user who picks a higher tier and loses
  *      patience already holds the lower tier's answer at zero extra cost. The UI says so out loud,
  *      because it is the thing that makes "Stop" a safe button.
  *   2. Accuracy is stated as HOURS BEHIND THE BEST ANSWER FOUND, with the sample size attached, and
@@ -58,35 +59,29 @@ export const EFFORT_NOTES: Record<EffortTier, EffortNote> = {
   balanced: {
     label: 'Balanced',
     cliDuration: '~2 h 55 m',
-    adds: '+ exhaustive step-1 2-D slices over adjacent checkpoint pairs, which single-axis descent cannot see.',
+    adds: '+ every combination of each neighbouring pair of checkpoints, which moving one at a time can miss.',
     accuracy: 'Measured 1.3 h and 0 h behind the best answer found, on 2 accounts. Within a day on both.',
     warning: null,
   },
   normal: {
     label: 'Exact',
     cliDuration: '~3 h 30 m',
-    adds: '+ the prestige-count probe: drop a checkpoint or insert one, then re-polish.',
+    adds: '+ tries one ascension fewer or one more, then fine-tunes again.',
     accuracy:
-      'Matched a 4913-chain exhaustive of the surrounding box on 1 account (rank 1 of 4913). ' +
+      'Matched the best of all 4,913 plans tested in full around it, on 1 account. ' +
       'The other accounts have no proven answer to check against.',
     warning: null,
   },
   thorough: {
     label: 'Very high',
     cliDuration: '7–13 h',
-    adds: '+ exhaustive 3-D slices over adjacent checkpoint triples.',
+    adds: '+ every combination of each group of three neighbouring checkpoints.',
     accuracy:
-      'One measured win, and it is a big one: on the alt an exhaustive X4xX5xX6 slice (13^3 = ' +
-      '2197 chains) beat the 2-D-polished answer by 1.665 d (40 h); the recipe ranked 55 of 2197. ' +
-      'X6=289 is only good jointly with X4=229; at X4=231 it costs 3.4 d, which no single-axis or ' +
-      '2-D sweep can see. But that was measured before stage 5 was fixed to sweep the last ' +
-      'adjacent pair, which it previously skipped, so an unknown share of those 40 h may now be ' +
-      'captured by stage 5 alone. On the main, a 4913-chain 3-D exhaustive over X3xX4xX5 matched ' +
-      'the recipe exactly, so there stage 6 had nothing to add.',
+      'On one account this step found a plan 1.7 days (40 h) faster than the pairs alone; on another it added ' +
+      'nothing. A later fix to the pairs step may have taken some of that gain.',
     warning:
-      'Stage 6 is ~79% of this tier’s chains (8788 of about 11062 on a 7-ascension chain) and it runs ' +
-      'before the prestige-count probe, so the probe (the stage that produced the main’s proven ' +
-      'answer) waits behind all of it.',
+      'Most of this level’s time goes on the extra step (about 8,788 of 11,062 chains on a 7-ascension ' +
+      'chain), and the one-more-or-fewer check waits until it finishes.',
   },
 };
 

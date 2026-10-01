@@ -76,42 +76,49 @@
           <div class="space-y-0.5">
             <p v-if="loading" class="text-sm font-bold text-slate-500">Reading the collector…</p>
             <p v-else-if="error" class="text-sm font-bold text-rose-700">{{ error }}</p>
+            <!-- Inside the planner, a plain headline and what was left out, one line each (the user's
+                 screenshot, 30 Sept: the checkboxes ran into the next sentence, and the collector URL and
+                 worker-time note read like developer notes). The page on its own keeps the detail. -->
             <p v-else class="text-sm font-bold text-slate-700">
-              {{ usable.length.toLocaleString() }} runs · {{ accounts.length }} accounts ·
-              {{ totalChainsPriced.toLocaleString() }} chains priced between them<template v-if="computeTotal.runs">
-                · {{ formatMinutes(computeTotal.minutes) }} of computing</template
+              {{ usable.length.toLocaleString() }} runs from {{ accounts.length }} accounts<template v-if="!embedded">
+                · {{ totalChainsPriced.toLocaleString() }} chains priced between them<template v-if="computeTotal.runs">
+                  · {{ formatMinutes(computeTotal.minutes) }} of computing</template
+                ></template
               >
             </p>
-            <p v-if="!loading && computeTotal.runs" class="text-[11px] text-slate-500">
+            <p v-if="!embedded && !loading && computeTotal.runs" class="text-[11px] text-slate-500">
               Worker time from the {{ computeTotal.runs }} run{{ computeTotal.runs === 1 ? '' : 's' }} that recorded it
               (minutes x workers); runs from older versions and from uploads did not.
             </p>
-            <p
-              v-if="!loading && (folded.hidden.size || flagged.size || withTimeOff.size)"
-              class="text-[11px] text-slate-500"
-            >
-              <template v-if="folded.hidden.size">
+            <div v-if="!loading" class="space-y-0.5 text-[11px] text-slate-500">
+              <p v-if="folded.hidden.size">
                 {{ folded.hidden.size }} repeat send{{ folded.hidden.size === 1 ? '' : 's' }} of a result already listed
-                folded in (the same plan from the same save: sent twice, sent with and without a name, or found by two
-                searches).
-              </template>
-              <template v-if="flagged.size">
-                {{ flagged.size }} run{{ flagged.size === 1 ? '' : 's' }} flagged for the delivery-set bug,
+                {{ folded.hidden.size === 1 ? 'is' : 'are' }} counted once (the same plan from the same save, sent twice
+                or found by two searches).
+              </p>
+              <p v-if="flagged.size" class="flex flex-wrap items-center gap-x-2">
+                <span
+                  >{{ flagged.size }} run{{ flagged.size === 1 ? '' : 's' }} hit by an old delivery-set bug
+                  {{ flagged.size === 1 ? 'is' : 'are' }} left out.</span
+                >
                 <label class="inline-flex items-center gap-1 font-bold text-slate-600">
                   <input v-model="showFlagged" type="checkbox" class="rounded border-slate-300 text-amber-600" />
-                  include them
+                  Include {{ flagged.size === 1 ? 'it' : 'them' }}
                 </label>
-              </template>
-              <template v-if="withTimeOff.size">
-                {{ withTimeOff.size }} run{{ withTimeOff.size === 1 ? '' : 's' }} planned around time off (a different
-                question: the farm stops and is rebuilt),
+              </p>
+              <p v-if="withTimeOff.size" class="flex flex-wrap items-center gap-x-2">
+                <span
+                  >{{ withTimeOff.size }} run{{ withTimeOff.size === 1 ? '' : 's' }} planned around time off
+                  {{ withTimeOff.size === 1 ? 'is' : 'are' }} left out (a different question: the farm stops and is
+                  rebuilt).</span
+                >
                 <label class="inline-flex items-center gap-1 font-bold text-slate-600">
                   <input v-model="showTimeOff" type="checkbox" class="rounded border-slate-300 text-amber-600" />
-                  include them
+                  Include {{ withTimeOff.size === 1 ? 'it' : 'them' }}
                 </label>
-              </template>
-            </p>
-            <p class="text-[10px] font-mono-premium text-slate-400 truncate max-w-xl">{{ base }}</p>
+              </p>
+            </div>
+            <p v-if="!embedded" class="text-[10px] font-mono-premium text-slate-400 truncate max-w-xl">{{ base }}</p>
           </div>
           <div class="flex gap-2">
             <button
@@ -123,6 +130,7 @@
               Refresh
             </button>
             <button
+              v-if="!embedded"
               type="button"
               class="px-3 py-1.5 rounded-lg border border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:border-slate-300"
               @click="forgetBase"

@@ -163,7 +163,7 @@ three hours.
   observations*, and it is load-bearing — it is what made the coarse scan's out-of-range
   proposal possible in the first place. If someone finds a real optimum above `final − 150`,
   this is wrong and the search cannot currently find it.
-- **Stage 6 (3-D slices) earns its 74% of Thorough's chains.** One measured win: 1.665 d
+- **Stage 6 (3-D slices) earns its 79% of Thorough's chains.** One measured win: 1.665 d
   (40 h) on the alt, where an exhaustive 13³ slice beat the 2-D-polished answer and the
   recipe ranked 55 of 2197. But that predates the fix that taught stage 5 to sweep the last
   adjacent pair, so an unknown share of those 40 h may now be caught by stage 5 alone. On

@@ -71,9 +71,9 @@
                   Effort
                 </label>
                 <HelpTip
-                  >How many search stages to run. The stages are strictly nested: a higher tier runs the same algorithm
-                  and just stops later, so stopping one early always leaves you the lower tier's answer at no extra
-                  cost.</HelpTip
+                  >How many search steps to run. Each level adds steps to the one below, and stopping keeps what the
+                  finished steps found. (Very high's extra step comes before the check Exact ends with, so stopping Very
+                  high early gives Balanced's answer, not Exact's.)</HelpTip
                 >
               </span>
               <span class="text-[10px] font-black text-emerald-600 uppercase tracking-widest">{{ note.label }}</span>
@@ -107,14 +107,13 @@
                 {{ note.accuracy }}
               </p>
               <p class="text-[10px] text-slate-400 leading-relaxed">
-                Every figure above is hours behind the best answer <em>found</em>, {{ ACCURACY_SAMPLE }}. There is no
-                confidence percentage here on purpose: three observations cannot honestly be turned into one.
+                Measured on at most three players' accounts, against the best answer found (only one account has a
+                proven best), so there's no confidence percentage: that few cannot honestly be turned into one.
               </p>
               <p class="text-[11px] text-slate-500">
                 <span class="font-black uppercase tracking-widest text-slate-400">Reference time:</span>
-                {{ note.cliDuration }} on a 20-core desktop running the command-line version at 12 jobs. Your machine
-                has {{ store.workersInPool + 1 }} logical cores, so expect a different number. The live estimate below
-                is measured on your machine.
+                {{ note.cliDuration }} measured on a 20-core PC. Your machine has {{ store.workersInPool + 1 }} logical
+                cores, so expect a different number. The live estimate below is measured on your machine.
               </p>
               <p
                 v-if="note.warning"
@@ -140,7 +139,7 @@
               Scans a coarse grid of checkpoints first and picks the prestige count, instead of starting from the chain
               above. Turn this on if you do not already have a chain you trust. It costs one extra wide batch (<span
                 class="font-semibold"
-                >372 chains, about 15 minutes on a 20-core desktop</span
+                >{{ store.coarseChains.toLocaleString() }} chains at your limits</span
               >) and its answer is only a rough shape: measured 12.0 and 8.6 days off the final result on the two
               accounts tested. The later stages close that gap.
             </span>
@@ -1318,7 +1317,7 @@ import { useEidsStore } from 'lib';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { sentence } from '@/utils/errors';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
-import { ACCURACY_SAMPLE, EFFORT_NOTES, EFFORT_ORDER, NEAR_OPTIMAL_SHARE } from '@/search/effort';
+import { EFFORT_NOTES, EFFORT_ORDER, NEAR_OPTIMAL_SHARE } from '@/search/effort';
 import { formatDuration } from '@/lib/format';
 import { isAvailable } from '@/search/availability';
 import { afterPaint } from '@/search/submission';

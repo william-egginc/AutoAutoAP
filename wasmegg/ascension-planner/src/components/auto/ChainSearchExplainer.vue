@@ -59,14 +59,15 @@
           <code class="font-mono-premium text-slate-800">195 219 248 286 327 490</code>. You pick them and the game does
           the rest. The plans players have sent in run two to three years, and two chains to the same target can finish
           <span class="font-bold text-slate-800">weeks apart</span>: moving one checkpoint by a single TE, with the rest
-          left where they are, has cost up to 31 days. Finding the chain that lands first is what this search is for.
+          left where they are, has cost up to 31 days in players' every-TE runs. Finding the chain that lands first is
+          what this search is for.
         </p>
 
         <div>
           <p class="font-bold text-slate-800 mb-2">Why you can't just try them all</p>
           <p class="mb-3">
             A checkpoint is a whole number of Truth Eggs, and a chain is a strictly increasing subset of them. Between a
-            current 177 and a final 490 there are 313 to pick from:
+            current 177 and a final 490 there are 312 to pick from:
           </p>
           <div class="overflow-x-auto">
             <table class="w-full text-[11px] font-mono-premium">
@@ -88,27 +89,31 @@
           </div>
           <p class="mt-3">
             Scoring one chain means simulating every leg of it: research purchases, hab and vehicle upgrades, twelve egg
-            switches, sale timing. A chain from scratch costs about
-            <span class="font-bold text-slate-800">15 seconds</span> of one core. Chains that share their first
-            checkpoints reuse that work, so a search spends less than that on each, but at 7.29 × 10<sup>16</sup> chains
-            it is still <span class="font-bold text-slate-800">billions of years</span> on one core, and twenty cores
-            barely dent it.
+            switches, sale timing. That takes seconds of one core per chain. Even at one second each, the 2.09 × 10<sup
+              >15</sup
+            >
+            chains would take <span class="font-bold text-slate-800">tens of millions of years</span>
+            on one core, and twenty cores barely dent it.
           </p>
         </div>
 
         <div>
           <p class="font-bold text-slate-800 mb-2">Good chains are rare</p>
           <p class="mb-3">
-            The figure below covers one box priced in full: all {{ DISTRIBUTION.n.toLocaleString() }} chains of the form
-            <code class="font-mono-premium text-slate-800">195 X₂ X₃ X₄ 490</code> over a fixed range of each
-            checkpoint. Since nothing in it was skipped, the winner there is a
-            <span class="font-bold text-slate-800">proven</span> optimum of that box rather than something a search
-            happened to land on.
+            The figure below covers one box priced almost in full: {{ DISTRIBUTION.n.toLocaleString() }} of its 10,416
+            chains of the form <code class="font-mono-premium text-slate-800">195 X₂ X₃ X₄ 490</code> over a fixed range
+            of each checkpoint (3 could not be priced). So the winner there is all but
+            <span class="font-bold text-slate-800">proven</span> the best in that box, not something a search happened
+            to land on.
           </p>
           <ChainMathFigure kind="distribution">
             Best to worst spans {{ (DISTRIBUTION.worst - DISTRIBUTION.best).toFixed(1) }} days. Only
-            <span class="font-semibold text-slate-700">{{ DISTRIBUTION.within1 }} chains (0.50%)</span> land within a
-            day of the best, and the whole top 100 fits inside
+            <span class="font-semibold text-slate-700"
+              >{{ DISTRIBUTION.within1 }} chains ({{
+                ((100 * DISTRIBUTION.within1) / DISTRIBUTION.n).toFixed(2)
+              }}%)</span
+            >
+            land within a day of the best, and the whole top 100 fits inside
             <span class="font-semibold text-slate-700">{{ DISTRIBUTION.top100Span }} days</span>. Picking checkpoints by
             feel drops you somewhere in the middle of that hump, about a week behind.
           </ChainMathFigure>
@@ -150,19 +155,18 @@
           <p class="font-bold text-slate-800 mb-2">Three things that do not work</p>
           <ul class="space-y-2 list-disc list-outside pl-4">
             <li>
-              Guessing a chain's duration without simulating it. A feature-based predictor scored Spearman ρ = −0.053
-              against the truth, a median error of 15.6 days, and zero overlap with the true top 100. It is
-              anti-correlated, so it is worse than having nothing. Unmodelled farm state shifts a single leg by 1 to 2.6
-              days while the whole top 100 spans under two, so the noise is larger than the signal.
+              Guessing a chain's time without simulating it. We tried: the guesses were no better than random, off by
+              about 15 days, and missed every one of the real top 100. Small things about the farm move one ascension by
+              1 to 2.6 days, more than the whole top 100 is spread over.
             </li>
             <li>
-              Discarding chains that start slowly. A prefix that arrives later can arrive with a higher delivery rate
-              and win overall, so early-leg time is not a safe basis for pruning. An implemented branch-and-bound cut 0
-              of 69 chains on a real run.
+              Skipping chains that start slowly. A chain that reaches its first checkpoints later can get there with a
+              stronger farm and still finish first, so a slow start is no reason to drop it. When we tried, it could not
+              safely rule out a single plan.
             </li>
             <li>
-              Assuming the shape is well behaved. It is not unimodal, as the second figure below shows, so "keep going
-              until it gets worse" stops you early.
+              Assuming it only dips once. It dips, rises and dips again, as the second figure below shows, so "keep
+              going until it gets worse" stops you too early.
             </li>
           </ul>
         </div>
@@ -217,8 +221,9 @@
           </ChainMathFigure>
           <p class="mt-3">
             That run length is what makes a narrow sweep viable. The function is piecewise and the pieces are a few
-            Truth Eggs wide, so a <span class="font-bold text-slate-800">±8 sweep</span> is wide enough to hold a whole
-            run plus the boundary that ends it. Replaying the search across 4913 exhaustive grid points put the knee at
+            Truth Eggs wide, so looking <span class="font-bold text-slate-800">8 TE either side</span> of a checkpoint
+            is wide enough to hold a whole run plus the jump that ends it (the last checkpoint gets a wider look, 12 TE
+            either side, widening up to 36). Replaying the search across 4913 exhaustive grid points put the knee at
             radius 4 and exactness at radius 7. The code uses 8, one step of margin.
           </p>
         </div>
@@ -226,22 +231,24 @@
         <div>
           <p class="font-bold text-slate-800 mb-2">Zoomed out, it is not a bowl</p>
           <ChainMathFigure kind="wide">
-            The same sweep across 86 consecutive values. The left side drops in
+            A similar sweep, on a longer chain (195 226 277 X 490), across 86 values of its last checkpoint. The left
+            side drops in
             <span class="font-semibold text-slate-700">ledges of 10 to 50 days</span> as whole legs reorganise. It
             falls, rises, and falls again, which is what
             <span class="font-semibold text-slate-700">not unimodal</span> means here: a hill-climb that stops at the
-            first upturn strands early. The floor is a broad plain around 283 to 290. Parking the last checkpoint near
-            the target instead costs 37.4 days, because a tiny final leg pays for a full farm rebuild and then has
-            almost no time left to earn.
+            first upturn strands early. The floor is a broad plain around 283 to 290. Pushing that last checkpoint up to
+            340 instead costs 37.4 days: the final leg pays for a full farm rebuild and then has less time left to earn.
           </ChainMathFigure>
         </div>
 
         <div>
           <p class="font-bold text-slate-800 mb-2">What the search actually runs</p>
           <p class="mb-3">
-            Coordinate descent with exhaustive slices, scored by the same simulator the Auto Planner uses. The stages
-            are <span class="font-semibold text-slate-700">strictly nested</span>, so a higher effort tier stops later
-            in the same sequence. Whichever tier you stop at, you keep everything the completed stages guarantee.
+            It nudges checkpoints one at a time, then tries pairs (and on Very high, triples) in full, scoring every
+            plan with the same simulator the Auto Planner uses. Each effort level adds steps to the one below, and
+            stopping keeps everything the finished steps found. One exception: Very high's extra step comes before the
+            one-more-or-fewer check that Exact ends with, so stopping Very high early gives Balanced's answer, not
+            Exact's.
           </p>
           <ol class="space-y-2 list-decimal list-outside pl-4">
             <li v-for="stage in STAGES" :key="stage.name">
@@ -249,21 +256,23 @@
             </li>
           </ol>
           <p class="mt-3">
-            On a 7-ascension chain the highest tier prices about 11,062 chains, roughly
-            <span class="font-bold text-slate-800">one in ten trillion</span> of the space, and lands within hours of
-            the best answer found. It gets away with that because the sale calendar has already cut the range into
-            pieces small enough to sweep.
+            On a 7-ascension chain the highest tier prices at most about 11,062 chains, roughly
+            <span class="font-bold text-slate-800">one in a hundred million</span> of the 7-ascension chains it could
+            try. It gets away with that because the sale calendar has already cut the range into pieces small enough to
+            sweep.
           </p>
         </div>
 
         <div>
           <p class="font-bold text-slate-800 mb-2">Where it goes wrong: the chain you start from</p>
           <p class="mb-3">
-            Coordinate descent cannot cross a ridge wider than its radius, and nothing in the algorithm notices when it
-            is stuck on the wrong hill. The figure below measures what that costs. Each column is a different
+            Nudging checkpoints only looks 8 TE either side, so it cannot reach a better plan that is further away, and
+            nothing in it notices when it is stuck near the wrong one. The figure below measures what that costs. Each
+            column is a different
             <span class="font-semibold text-slate-700">first checkpoint</span>, and its height is the best chain
-            reachable from there. The same {{ SEED_SENSITIVITY.cells.toLocaleString() }}-chain box was priced under
-            every column, so they are directly comparable.
+            reachable from there. These are chains to 320, and the same
+            {{ SEED_SENSITIVITY.cells.toLocaleString() }}-chain box was priced under every column, so they are directly
+            comparable.
           </p>
           <ChainMathFigure kind="seed">
             Starting at {{ seed.bestX1 }} reaches {{ seed.bestDays }} days. Starting at {{ seed.worstX1 }} cannot do
@@ -325,27 +334,35 @@ const seed = (() => {
 })();
 
 const SPACE_SIZE = [
-  { label: '6 checkpoints', count: '1.245 × 10¹²', emphasis: false },
-  { label: '7 checkpoints', count: '5.458 × 10¹³', emphasis: false },
-  { label: '8 checkpoints', count: '2.088 × 10¹⁵', emphasis: false },
-  { label: 'all lengths 3–9', count: '7.29 × 10¹⁶', emphasis: true },
+  // Counted the way the app counts ascensions (the final target is one): a 6-ascension chain picks 5
+  // of the 312 TEs between 177 and 490. Recomputed 30 Sept 2026 (it was one value and one checkpoint off).
+  { label: '6 ascensions', count: '2.39 × 10¹⁰', emphasis: false },
+  { label: '7 ascensions', count: '1.22 × 10¹²', emphasis: false },
+  { label: '8 ascensions', count: '5.34 × 10¹³', emphasis: false },
+  { label: '3 to 9 ascensions', count: '2.09 × 10¹⁵', emphasis: true },
 ];
 
 const STAGES = [
   {
     name: 'Coarse scan (optional)',
-    what: 'a wide grid at step 15 to 25, to pick a starting shape and an ascension count. Deliberately rough.',
+    what: 'a wide grid (every 15 TE, wider if needed to stay near 1,200 chains) to pick a starting shape and an ascension count. Deliberately rough.',
   },
   {
-    name: 'Resolve last',
+    name: 'Fine-tune the last checkpoint',
     what: 'sweep the final checkpoint one Truth Egg at a time over a window that widens while the winner is pinned to an edge.',
   },
   {
-    name: 'Coordinate descent',
-    what: 'move one checkpoint at a time, ±8, re-solving the last checkpoint after every accepted move.',
+    name: 'Nudge each checkpoint',
+    what: 'move one checkpoint at a time, up to 8 TE either way, fine-tuning the last one again whenever one moves.',
   },
-  { name: '2-D slices', what: 'exhaustive 17×17 over every adjacent pair, catching pairs that only pay off jointly.' },
-  { name: '3-D slices', what: 'exhaustive 13×13×13 over every adjacent triple.' },
-  { name: 'Prestige-count probe', what: 'drop a checkpoint or insert one, then re-polish.' },
+  {
+    name: 'Pairs',
+    what: 'try every combination of each neighbouring pair of checkpoints (17 × 17), for pairs that only pay off together.',
+  },
+  {
+    name: 'Triples (Very high only)',
+    what: 'the same for each group of three neighbouring checkpoints (13 × 13 × 13).',
+  },
+  { name: 'One more or one fewer', what: 'try dropping a checkpoint or adding one, then fine-tune again.' },
 ];
 </script>
