@@ -20,6 +20,10 @@
       </p>
     </div>
 
+    <!-- The instant answer from the precomputed table (the precompute fork): every route, at once.
+         Check exactly hands a route to the Full sweep, which prices it with the full simulator. -->
+    <InstantRoute @check="checkExactly" />
+
     <div class="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
       <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">How thorough</h3>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" role="radiogroup" aria-label="How thorough">
@@ -64,6 +68,8 @@ import { useChainSearchStore } from '@/stores/chainSearch';
 import { NAMES, type Depth } from '@/lib/siteNav';
 import { safeAsyncComponent } from '@/lib/import';
 import RunningElsewhere from './RunningElsewhere.vue';
+import InstantRoute from './InstantRoute.vue';
+import { useUIStore } from '@/stores/ui';
 
 defineProps<{
   playerId: string;
@@ -76,6 +82,14 @@ defineProps<{
 const emit = defineEmits<{ 'update:depth': [depth: Depth]; goal: [goal: 'fastest' | 'deadline'] }>();
 
 const store = useChainSearchStore();
+const ui = useUIStore();
+
+/** The instant answer's Check exactly: the route's checkpoints as one-value bands in the Full sweep,
+ *  so the sweep prices exactly that route with the full simulator. */
+function checkExactly(chain: number[]): void {
+  ui.fullSweepBands = chain.slice(0, -1).join('; ');
+  emit('update:depth', 'full');
+}
 
 /** The Full sweep's own goal switch (carrying on a date run from here): App changes screen. */
 function onGoal(g: 'fastest' | 'deadline'): void {

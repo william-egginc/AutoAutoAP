@@ -15,8 +15,28 @@
  *                    split gives exactly what the search's own `runLeg` gives.
  *   --verify         Check `tailTo` (search/precomputedLeg.ts) against the simulator on every
  *                    checkpoint from several starts and hours.
+ *   --verify-continue
+ *                    Check continue-current-ascension through the tail (search/leg.ts
+ *                    `continueTailParams`) against the simulator's own continue, every checkpoint.
  *   --check          Print the account the table would be built on: its delivery set and score,
  *                    and its earnings set's Clothed TE bonus.
+ *   --verify-table --table DIR [--corpus FILE.json]
+ *                    Measure the table against the simulator: real starts at random times (any
+ *                    minute, any week of a year) priced by `runLeg` and by the table; and, with
+ *                    --corpus, the board's own legs (scratch tails.json rows) predicted from it.
+ *   --route --table DIR --te TE [--final TE] [--start ISO] [--check] [--brute]
+ *                    The fastest route from the table (search/routeFinder.ts), overall and for each
+ *                    number of ascensions. --check re-prices each with the simulator, ascension by
+ *                    ascension from the real end state; --brute enumerates every route of up to 3
+ *                    ascensions from the table and confirms none beats the finder.
+ *   --pack --table DIR --out FILE
+ *                    Pack a generated table into the one file the site loads
+ *                    (search/precomputedTable.ts), covering the start TEs finished so far.
+ *   --generate --out DIR [--from TE] [--to TE] [--jobs N]
+ *                    Build the table: every start TE in the range (default 100-489) at each of the
+ *                    168 Pacific hours of the week, one file per start TE (DIR/te-NNN.jsonl), with
+ *                    DIR/meta.json describing the account and the reference week. Re-running skips
+ *                    the start TEs already finished, so an interrupted run carries on.
  *
  *   --reference      Make the save a perfect maxed account first, by adding what the alt's save is
  *                    missing (a T4L quantum metronome and T4 stones) to its owned artifacts. The
@@ -28,22 +48,31 @@ import { markRaw } from 'vue';
 import { createPinia, setActivePinia } from 'pinia';
 setActivePinia(createPinia());
 
-import { readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { fork } from 'node:child_process';
+import { getLocalTimestampInTimezone, PACIFIC_TIMEZONE } from '@/lib/events';
 import { resolveColleggtibleContracts } from 'lib';
 import { initPlanFuture } from '@/lib/modes/planFuture';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { deriveNextStartState, runAscensionFromC3Variant, runUntilShift } from '@/auto/ascension';
 import { runC3Variants } from '@/auto/shifts/c3';
-import { distributeTargetTE } from '@/auto/shifts/te-wait';
-import { TE_BREAKPOINTS } from '@/lib/truthEggs';
+import { countTEThresholdsPassed } from '@/lib/truthEggs';
 import { pickVariant, type VariantKey, type VariantResult } from '@/stores/autoPlanner';
-import { runLeg, TIER_13_MIN_STARTING_TE } from '@/search/leg';
+import { continueTailParams, continueVariantForCheck, runLeg, TIER_13_MIN_STARTING_TE } from '@/search/leg';
 import { runH1 } from '@/auto/shifts/h1';
 import { applyShiftAction } from '@/auto/shifts/helpers/actionHelpers';
 import { runMaxVehiclesPlan } from '@/auto/shifts/helpers/vehicles';
 import { calculateArtifactModifiers } from '@/lib/artifacts';
 import { computeRealisticELR } from '@/calculations/realisticELR';
-import { bestTailTo, EGG_ORDER, tailTo, type BuildParams } from '@/search/precomputedLeg';
+import {
+  bestTailTo,
+  canonicalDelivered,
+  EGG_ORDER,
+  pacificHourOfWeek,
+  tailTo,
+  WEEK_HOURS,
+  type BuildParams,
+} from '@/search/precomputedLeg';
 import { deliveryScore } from '@/search/virtueScore';
 import { describeLoadoutSlots } from '@/search/csv';
 import { cteFromArtifacts } from 'lib/virtue';
@@ -51,8 +80,6 @@ import { equippedArtifactsToLibArtifacts } from '@/lib/artifacts/utils';
 import type { EngineState } from '@/engine/types';
 import type { SearchInputs } from '@/search/types';
 import type { VirtueEgg } from '@/types';
-
-const EGGS: VirtueEgg[] = ['curiosity', 'kindness', 'integrity', 'resilience', 'humility'];
 
 function arg(name: string, dflt?: string): string | undefined {
   const i = process.argv.indexOf('--' + name);
@@ -104,19 +131,14 @@ async function loadInputs(file: string): Promise<SearchInputs> {
  * that got a player there is shown (by the board's legs) to barely matter.
  */
 export function startStateAt(inputs: SearchInputs, te: number): EngineState {
-  const zero = Object.fromEntries(EGGS.map(e => [e, 0])) as Record<VirtueEgg, number>;
-  const perEgg = distributeTargetTE(zero, te);
-  const delivered = Object.fromEntries(EGGS.map(e => [e, perEgg[e] > 0 ? TE_BREAKPOINTS[perEgg[e] - 1] : 0])) as Record<
-    VirtueEgg,
-    number
-  >;
+  const delivered = canonicalDelivered(te);
   const base = JSON.parse(JSON.stringify(inputs.baseState)) as EngineState;
   return deriveNextStartState(
     {
-      finalTE: perEgg,
+      finalTE: Object.fromEntries(EGG_ORDER.map((e, i) => [e, countTEThresholdsPassed(delivered[i])])),
       endSoulEggs: base.soulEggs,
       endShiftCount: base.shiftCount,
-      eggsDelivered: delivered,
+      eggsDelivered: Object.fromEntries(EGG_ORDER.map((e, i) => [e, delivered[i]])),
     } as never,
     base
   );
@@ -236,6 +258,32 @@ async function verify(file: string): Promise<void> {
   );
 }
 
+async function verifyContinue(file: string): Promise<void> {
+  const inputs = await loadInputs(file);
+  let worst = 0;
+  let n = 0;
+  for (const offset of [0, 3600 * 7 + 123, 86400 * 3 + 999]) {
+    const start = inputs.planStart + offset;
+    const params = continueTailParams(inputs, start);
+    if (!params) throw new Error('this save has no farm to continue');
+    const te = Math.floor(inputs.currentTE);
+    for (let target = te + 1; target <= 490; target++) {
+      const sim = continueVariantForCheck(inputs, JSON.parse(JSON.stringify(inputs.baseState)), start, target, 0);
+      const mine = tailTo(params, target);
+      if (!sim || !mine) {
+        if (!!sim !== !!mine) worst = Infinity;
+        continue;
+      }
+      n++;
+      worst = Math.max(
+        worst,
+        Math.abs(sim.summary.totalDurationSeconds - mine.seconds) / Math.max(1, sim.summary.totalDurationSeconds)
+      );
+    }
+  }
+  console.log(`continue: ${n} checkpoints checked, worst relative difference ${worst.toExponential(3)}`);
+}
+
 async function check(file: string): Promise<void> {
   await loadInputs(file);
   const inv = useChainSearchStore().readInventory();
@@ -250,6 +298,363 @@ async function check(file: string): Promise<void> {
     'Clothed TE bonus from the earnings set: ' +
       (inv.earnings ? cteFromArtifacts(equippedArtifactsToLibArtifacts(inv.earnings)).toFixed(2) : 'none')
   );
+}
+
+/**
+ * The week every table entry is simulated in: Monday 11 January 2027, 00:00 Pacific. Weeks are
+ * alike for the build (the sale and the boost are weekly), so one week stands for all; this one is
+ * clear of daylight saving changes for the three weeks a 3-sale build can take from its last hour.
+ */
+const REFERENCE_WEEK = getLocalTimestampInTimezone('2027-01-11', '00:00', PACIFIC_TIMEZONE);
+
+/** The table's start TEs by default: from below where the board's players are, to the last one. */
+const TABLE_FROM = 100;
+const TABLE_TO = 489;
+
+/** One start TE's 168 hours, as JSON lines: {te, h, builds}. */
+function generateStartTE(inputs: SearchInputs, te: number): string {
+  const lines: string[] = [];
+  for (let h = 0; h < WEEK_HOURS; h++) {
+    const start = REFERENCE_WEEK + h * 3600;
+    const state = startStateAt(inputs, te);
+    const build = buildAt(inputs, state, start, te);
+    lines.push(JSON.stringify({ te, h, builds: build.variants.map(v => paramsOf(build, v, start)) }));
+  }
+  return lines.join('\n') + '\n';
+}
+
+/** A generator child: loads the save once, then builds whatever start TE it is handed. */
+async function generateWorker(file: string, out: string): Promise<void> {
+  const inputs = await loadInputs(file);
+  process.send!({ ready: true });
+  process.on('message', (m: { te?: number; quit?: boolean }) => {
+    if (m.quit) process.exit(0);
+    if (m.te === undefined) return;
+    const t0 = Date.now();
+    const path = `${out}/te-${String(m.te).padStart(3, '0')}.jsonl`;
+    writeFileSync(path + '.tmp', generateStartTE(inputs, m.te));
+    renameSync(path + '.tmp', path);
+    process.send!({ done: m.te, ms: Date.now() - t0 });
+  });
+}
+
+async function generate(file: string): Promise<void> {
+  const out = arg('out');
+  if (!out) throw new Error('--generate needs --out DIR');
+  mkdirSync(out, { recursive: true });
+  if (pacificHourOfWeek(REFERENCE_WEEK) !== 0) throw new Error('reference week does not start at Monday 00:00 Pacific');
+  const from = Number(arg('from', String(TABLE_FROM)));
+  const to = Number(arg('to', String(TABLE_TO)));
+  const jobs = Math.max(1, Number(arg('jobs', '4')));
+
+  // What the table was built on, written first so a half-built table still says what it is.
+  const inputs = await loadInputs(file);
+  const inv = useChainSearchStore().readInventory();
+  writeFileSync(
+    `${out}/meta.json`,
+    JSON.stringify(
+      {
+        version: 1,
+        referenceWeek: REFERENCE_WEEK,
+        reference: has('reference'),
+        cteBonus: inv.earnings
+          ? Number(cteFromArtifacts(equippedArtifactsToLibArtifacts(inv.earnings)).toFixed(2))
+          : null,
+        deliveryScore: inv.elr ? deliveryScore(inv.elr) : null,
+        delivery: describeLoadoutSlots(inv.elr),
+        earnings: describeLoadoutSlots(inv.earnings),
+        eggOrder: EGG_ORDER,
+        from,
+        to,
+        builtAt: new Date().toISOString(),
+      },
+      null,
+      1
+    )
+  );
+  void inputs;
+
+  const todo: number[] = [];
+  for (let te = from; te <= to; te++) {
+    if (!existsSync(`${out}/te-${String(te).padStart(3, '0')}.jsonl`)) todo.push(te);
+  }
+  console.log(`${todo.length} start TEs to build (${to - from + 1 - todo.length} already done), ${jobs} processes`);
+  if (!todo.length) return;
+
+  const t0 = Date.now();
+  let finished = 0;
+  const childArgs = process.argv.slice(2).filter(a => a !== '--generate');
+  await Promise.all(
+    Array.from(
+      { length: Math.min(jobs, todo.length) },
+      () =>
+        new Promise<void>((resolve, reject) => {
+          const child = fork(process.argv[1], [...childArgs, '--generate-worker']);
+          const next = () => {
+            const te = todo.shift();
+            if (te === undefined) {
+              child.send({ quit: true });
+              resolve();
+            } else child.send({ te });
+          };
+          child.on('message', (m: { ready?: boolean; done?: number; ms?: number }) => {
+            if (m.ready) return next();
+            if (m.done !== undefined) {
+              finished++;
+              // Processes run side by side, so the rate is start TEs finished per minute across all of them.
+              const perMinute = finished / ((Date.now() - t0) / 60000);
+              const left = todo.length / perMinute;
+              (((todo.length + jobs - 1) / jobs) * perTE * jobs) / Math.min(jobs, finished + todo.length) / 60000;
+              console.log(
+                `  TE ${m.done} done in ${((m.ms ?? 0) / 60000).toFixed(1)} min; ${finished} finished, ${todo.length} queued, about ${left.toFixed(0)} min left`
+              );
+              next();
+            }
+          });
+          child.on('exit', code =>
+            code ? reject(new Error(`a generator process exited with code ${code}`)) : resolve()
+          );
+        })
+    )
+  );
+  console.log(`done in ${((Date.now() - t0) / 3600000).toFixed(2)} h`);
+}
+
+/** A generated table read back: (start TE, Pacific hour) -> builds. */
+function loadTable(dir: string): { lookup: (te: number, h: number) => BuildParams[] | null; meta: any; tes: number[] } {
+  const meta = JSON.parse(readFileSync(`${dir}/meta.json`, 'utf8'));
+  const map = new Map<number, BuildParams[]>();
+  const tes: number[] = [];
+  for (let te = meta.from; te <= meta.to; te++) {
+    const path = `${dir}/te-${String(te).padStart(3, '0')}.jsonl`;
+    if (!existsSync(path)) continue;
+    tes.push(te);
+    for (const line of readFileSync(path, 'utf8').split('\n')) {
+      if (!line) continue;
+      const r = JSON.parse(line) as { te: number; h: number; builds: BuildParams[] };
+      map.set(r.te * WEEK_HOURS + r.h, r.builds);
+    }
+  }
+  return { lookup: (te, h) => map.get(te * WEEK_HOURS + h) ?? null, meta, tes };
+}
+
+/** A tiny seeded generator, so a verification run can be repeated exactly. */
+function rng(seed: number): () => number {
+  let x = seed >>> 0 || 1;
+  return () => (x = (x * 1664525 + 1013904223) >>> 0) / 2 ** 32;
+}
+
+function stats(errs: number[]): string {
+  if (!errs.length) return 'none';
+  const a = [...errs].sort((x, y) => x - y);
+  const q = (p: number) => a[Math.min(a.length - 1, Math.floor(p * a.length))];
+  const abs = errs.map(Math.abs).sort((x, y) => x - y);
+  const qa = (p: number) => abs[Math.min(abs.length - 1, Math.floor(p * abs.length))];
+  const pct = (x: number) => (100 * x).toFixed(2) + '%';
+  return `n=${errs.length} median ${pct(q(0.5))}, |error| median ${pct(qa(0.5))}, 90th ${pct(qa(0.9))}, 99th ${pct(qa(0.99))}, max ${pct(abs[abs.length - 1])}`;
+}
+
+async function verifyTable(file: string): Promise<void> {
+  const dir = arg('table');
+  if (!dir) throw new Error('--verify-table needs --table DIR');
+  const table = loadTable(dir);
+  if (!table.tes.length) throw new Error('the table has no start TEs yet');
+  const inputs = await loadInputs(file);
+  const random = rng(Number(arg('seed', '7')));
+  const samples = Number(arg('samples', '60'));
+
+  // 1. Real starts: any week of a year from the reference week, any second of the hour.
+  const errs: number[] = [];
+  const hourErrs: number[] = [];
+  for (let i = 0; i < samples; i++) {
+    const te = table.tes[Math.floor(random() * table.tes.length)];
+    const start = REFERENCE_WEEK + Math.floor(random() * 52 * 7 * 86400);
+    const target = Math.min(490, te + 1 + Math.floor(random() * Math.min(200, 490 - te)));
+    const leg = runLeg(inputs, startStateAt(inputs, te), start, target, false, te, 2);
+    const builds = table.lookup(te, pacificHourOfWeek(start));
+    if (!leg || !builds) continue;
+    const lateBy = ((start % 3600) + 3600) % 3600;
+    const mine = bestTailTo(builds, target, lateBy);
+    if (!mine) continue;
+    const real = leg.summary.totalDurationSeconds;
+    errs.push((mine.seconds - real) / real);
+    hourErrs.push((mine.seconds - real) / 3600);
+  }
+  console.log('real starts at random times vs the table: ' + stats(errs));
+  const h = hourErrs.map(Math.abs).sort((a, b) => a - b);
+  if (h.length)
+    console.log(`  in hours: median ${h[Math.floor(h.length / 2)].toFixed(2)} h, max ${h[h.length - 1].toFixed(2)} h`);
+
+  // 2. The board's own legs, for the accounts whose gear is known.
+  const corpusFile = arg('corpus');
+  if (!corpusFile) return;
+  const rows = JSON.parse(readFileSync(corpusFile, 'utf8')) as {
+    who: string;
+    start: number;
+    te: number;
+    target: number;
+    days: number;
+  }[];
+  // Gear from the board (deliveryScore.score, Clothed TE bonus); the table's is 1.00 and its meta's bonus.
+  const ACCOUNTS: Record<string, { score: number; bonus: number }> = {
+    allan: { score: 1.0, bonus: 128.71 },
+    Williamthe5thc: { score: 0.9661, bonus: 128.71 },
+    Halceyx: { score: 0.9952, bonus: 127.93 },
+    Willsalt: { score: 0.9577, bonus: 126.38 },
+  };
+  const tableBonus = table.meta.cteBonus as number;
+  for (const [who, acct] of Object.entries(ACCOUNTS)) {
+    const plain: number[] = [];
+    const corrected: number[] = [];
+    const seen = new Set<string>();
+    for (const r of rows) {
+      if (r.who !== who || !table.lookup(r.te, 0)) continue;
+      const key = `${r.start}|${r.te}|${r.target}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const hour = pacificHourOfWeek(r.start);
+      const lateBy = ((r.start % 3600) + 3600) % 3600;
+      const real = r.days * 86400;
+      const p = bestTailTo(table.lookup(r.te, hour) ?? [], r.target, lateBy);
+      if (p) plain.push((p.seconds - real) / real);
+      // Corrected: the build from the row with the player's earning power, the waits at their rate.
+      const row = Math.round(r.te + acct.bonus - tableBonus);
+      const builds = (table.lookup(row, hour) ?? []).map(b => ({ ...b, peakELR: b.peakELR * acct.score }));
+      const c = builds.length ? bestTailTo(builds, r.target, lateBy) : null;
+      if (c) corrected.push((c.seconds - real) / real);
+    }
+    console.log(`${who}: as the table's account ${stats(plain)}`);
+    console.log(`${' '.repeat(who.length)}  corrected for gear  ${stats(corrected)}`);
+  }
+}
+
+function pack(): void {
+  const dir = arg('table');
+  const out = arg('out');
+  if (!dir || !out) throw new Error('--pack needs --table DIR and --out FILE');
+  const meta = JSON.parse(readFileSync(`${dir}/meta.json`, 'utf8'));
+  const cells: { te: number; h: number; builds: BuildParams[] }[] = [];
+  const tes: number[] = [];
+  for (let te = meta.from; te <= meta.to; te++) {
+    const path = `${dir}/te-${String(te).padStart(3, '0')}.jsonl`;
+    if (!existsSync(path)) continue;
+    tes.push(te);
+    for (const line of readFileSync(path, 'utf8').split('\n')) if (line) cells.push(JSON.parse(line));
+  }
+  if (!tes.length) throw new Error('nothing generated yet in ' + dir);
+  // Only a contiguous run of start TEs is useful to a route (it climbs through every TE), so pack the
+  // longest one ending at the top of what exists.
+  let from = tes[tes.length - 1];
+  while (tes.includes(from - 1)) from--;
+  const bytes = packTable(
+    {
+      version: 1,
+      referenceWeek: meta.referenceWeek,
+      cteBonus: meta.cteBonus,
+      deliveryScore: meta.deliveryScore?.score ?? 1,
+      from,
+      to: tes[tes.length - 1],
+      builtAt: meta.builtAt,
+    },
+    cells
+  );
+  mkdirSync(out.replace(/\/[^/]*$/, ''), { recursive: true });
+  writeFileSync(out, bytes);
+  console.log(
+    `packed start TEs ${from}-${tes[tes.length - 1]} (${cells.length} cells) into ${out}: ${(bytes.length / 1e6).toFixed(1)} MB`
+  );
+}
+
+async function route(file: string): Promise<void> {
+  const dir = arg('table');
+  if (!dir) throw new Error('--route needs --table DIR');
+  const table = loadTable(dir);
+  const te = Number(arg('te'));
+  const final = Number(arg('final', '490'));
+  const startArg = arg('start');
+  const start = startArg ? Math.floor(Date.parse(startArg) / 1000) : Math.floor(Date.now() / 1000);
+  const t0 = performance.now();
+  const { best, byAscensions } = findRoutes({
+    table: table.lookup,
+    startTE: te,
+    start,
+    final,
+    maxAscensions: Number(arg('max-asc', '10')),
+  });
+  const ms = performance.now() - t0;
+  const days = (r: Route) => (r.seconds / 86400).toFixed(3) + ' d';
+  console.log(
+    `routes from TE ${te} to ${final}, starting ${new Date(start * 1000).toISOString()}: ${ms.toFixed(0)} ms`
+  );
+  byAscensions.forEach((r, k) => r && console.log(`  ${k} ascensions: ${days(r)}  ${r.chain.join(' ')}`));
+  if (best) console.log(`  fastest: ${days(best)}  ${best.chain.join(' ')}`);
+
+  if (has('check')) {
+    // Each route again through the simulator itself: every ascension from the state the last one
+    // really ended in (not the table's canonical one), at the second it really starts.
+    const inputs = await loadInputs(file);
+    for (const r of byAscensions) {
+      if (!r) continue;
+      let state = startStateAt(inputs, te);
+      let t = start;
+      let startTE = te;
+      let ok = true;
+      for (const [i, target] of r.chain.entries()) {
+        const leg = runLeg(inputs, state, t, target, false, startTE, i + 2);
+        if (!leg) {
+          ok = false;
+          break;
+        }
+        t += leg.summary.totalDurationSeconds;
+        startTE = Object.values(leg.summary.finalTE).reduce((a, b) => a + b, 0);
+        state = leg.nextState;
+      }
+      const real = t - start;
+      console.log(
+        `  check ${r.legs.length} ascensions: table ${days(r)}, simulator ${ok ? (real / 86400).toFixed(3) + ' d' : 'failed'}` +
+          (ok ? ` (${(((r.seconds - real) / real) * 100).toFixed(3)}%)` : '')
+      );
+    }
+  }
+
+  if (has('brute')) {
+    // Every route of 1-3 ascensions, priced from the table directly (the finder's own model): none
+    // may beat what the finder returned for its length.
+    const price = (chain: number[]): number | null => {
+      let t = start;
+      let cur = te;
+      for (const target of chain) {
+        if (target <= cur) return null;
+        const builds = table.lookup(cur, pacificHourOfWeek(t));
+        const tail = builds ? bestTailTo(builds, target, ((t % 3600) + 3600) % 3600) : null;
+        if (!tail) return null;
+        t += tail.seconds;
+        cur = tail.endTE;
+      }
+      return cur >= final ? t - start : null;
+    };
+    for (let k = 1; k <= 3; k++) {
+      let bestBrute = Infinity;
+      let bestChain: number[] = [];
+      const walk = (prefix: number[], from: number) => {
+        if (prefix.length === k - 1) {
+          const sec = price([...prefix, final]);
+          if (sec !== null && sec < bestBrute) {
+            bestBrute = sec;
+            bestChain = [...prefix, final];
+          }
+          return;
+        }
+        for (let c = from + 1; c < final; c++) walk([...prefix, c], c);
+      };
+      walk([], te);
+      const found = byAscensions[k];
+      console.log(
+        `  brute ${k}: ${Number.isFinite(bestBrute) ? (bestBrute / 86400).toFixed(3) + ' d ' + bestChain.join(' ') : 'none'}` +
+          ` | finder ${found ? days(found) + ' ' + found.chain.join(' ') : 'none'}`
+      );
+    }
+  }
 }
 
 async function profile(file: string): Promise<void> {
@@ -285,16 +690,23 @@ async function profile(file: string): Promise<void> {
 }
 
 async function main(): Promise<void> {
+  if (has('pack')) return pack();
   const backup = arg('backup');
   if (!backup) throw new Error('--backup FILE.json is required');
+  if (has('generate-worker')) return generateWorker(backup, arg('out')!);
+  if (has('generate')) return generate(backup);
+  if (has('verify-table')) return verifyTable(backup);
+  if (has('route')) return route(backup);
   if (has('profile')) return profile(backup);
   if (has('verify')) return verify(backup);
   if (has('check')) return check(backup);
+  if (has('verify-continue')) return verifyContinue(backup);
   throw new Error('nothing to do: pass --profile, --verify or --check');
 }
 
 main().then(
-  () => process.exit(0),
+  // A generator child keeps running, serving the parent, until it is told to quit.
+  () => (has('generate-worker') ? undefined : process.exit(0)),
   err => {
     console.error(err instanceof Error ? err.message : err);
     process.exit(1);

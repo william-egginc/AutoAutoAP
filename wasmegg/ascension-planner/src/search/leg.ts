@@ -25,6 +25,8 @@ import type { AscensionSummary } from '@/auto/types';
 import type { VirtueEgg } from '@/types';
 import type { SearchInputs, ShiftMoment } from './types';
 import { CONTINUE_PIN_MAX_SECONDS, CONTINUE_MAX_SECONDS } from './rules';
+import { catchUpSeconds, siloSeconds } from '@/lib/saveAge';
+import { EGG_ORDER, type BuildParams } from './precomputedLeg';
 
 /** Mirrors useAscensionGenerator's own constant: below this starting TE a Tier 13 unlock cannot
  *  realistically land inside one build phase, so those variants are skipped rather than simulated
@@ -41,7 +43,6 @@ export const TIER_13_MIN_STARTING_TE = 190;
  * past three months carries a warning (health.ts).
  */
 export { CONTINUE_PIN_MAX_SECONDS, CONTINUE_WARN_SECONDS, CONTINUE_MAX_SECONDS } from './rules';
-
 
 /**
  * The last instant a JS `Date` can hold, in unix seconds. A leg that ends past it cannot be shown,
@@ -204,14 +205,9 @@ export function runLeg(
  *   - the ELR set is recomputed rather than reusing the equipped (earnings) loadout. Filing the
  *     earnings set under `artifactSets.elr` made "continue" report 1.580q/hr instead of 3.574q/hr.
  */
-function buildContinueVariant(
-  inputs: SearchInputs,
-  baseState: EngineState,
-  startTime: number,
-  targetTE: number | undefined,
-  idx: number,
-  endOverride?: number
-): VariantResult | null {
+/** The farm "continue current ascension" carries on with: the save's own farm, the best delivery
+ *  set it can wear, its eggs and TE. Null without a farm in the save. */
+function continueState(inputs: SearchInputs, baseState: EngineState): EngineState | null {
   const farmState = inputs.currentFarmState;
   const raw = inputs.context.rawBackup;
   if (!farmState || !raw) return null;
@@ -250,12 +246,57 @@ function buildContinueVariant(
     activeSales: { research: false, hab: false, vehicle: false },
     earningsBoost: { active: false, multiplier: 1 },
   } as EngineState;
+  return state;
+}
 
+function buildContinueVariant(
+  inputs: SearchInputs,
+  baseState: EngineState,
+  startTime: number,
+  targetTE: number | undefined,
+  idx: number,
+  endOverride?: number
+): VariantResult | null {
+  const state = continueState(inputs, baseState);
+  if (!state) return null;
   const ctx = legContext(inputs, startTime);
   const elrNow = computeSnapshot(state, ctx, { skipGrowth: true }).elr;
   if (!(elrNow > 0)) return null;
   return runContinueCurrent(state, ctx, startTime, elrNow, targetTE, `asc_${idx}_continue`, endOverride);
 }
+
+/**
+ * Continue current ascension as the precomputed tail takes it (search/precomputedLeg.ts): no build
+ * and no sale, the farm's own delivery rate, and its eggs after the catch-up `runContinueCurrent`
+ * credits from the last sync to the plan start. `tailTo` on this gives continue's time to any
+ * checkpoint, the same as `buildContinueVariant` does for one (scripts/precompute.ts checks).
+ */
+export function continueTailParams(inputs: SearchInputs, startTime: number): BuildParams | null {
+  const state = continueState(inputs, cloneBaseState(inputs));
+  if (!state) return null;
+  const ctx = legContext(inputs, startTime);
+  const elr = computeSnapshot(state, ctx, { skipGrowth: true }).elr;
+  if (!(elr > 0)) return null;
+  const delivered = { ...state.eggsDelivered };
+  const last = state.lastStepTime;
+  if (last > 1e9 && startTime > last) {
+    const egg = state.currentEgg as VirtueEgg;
+    delivered[egg] =
+      (delivered[egg] || 0) +
+      elr * catchUpSeconds(last, startTime, siloSeconds(state.siloCount, ctx.epicResearchLevels?.['silo_capacity']));
+  }
+  return {
+    sales: 0,
+    tier13: false,
+    waitStart: 0,
+    saleEnd: 0,
+    peakELR: elr,
+    delivered: EGG_ORDER.map(e => delivered[e] || 0),
+  };
+}
+
+/** `buildContinueVariant` for checks (scripts/precompute.ts); the search calls it through `runLeg`. */
+export const continueVariantForCheck = buildContinueVariant;
 
 /**
  * How long a FRESH ascension from the plan start sits on its first Integrity shift, in seconds, or
@@ -290,4 +331,3 @@ export function integrityWaitSeconds(inputs: SearchInputs): number | null {
   const until = shifts[at + 1]?.at ?? inputs.planStart + pre.elapsedSeconds;
   return Math.max(0, until - shifts[at].at);
 }
-

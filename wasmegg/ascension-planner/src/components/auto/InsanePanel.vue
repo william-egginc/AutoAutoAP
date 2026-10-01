@@ -1314,6 +1314,20 @@ if (sweepRequest) {
   store.sweepTag = { preset: sweepRequest.preset, bands: sweepRequest.bands, minGap: sweepRequest.minGap };
   if (sweepRequest.forceContinue !== null) store.forceContinue = sweepRequest.forceContinue;
 }
+// A route handed over by the instant answer's "Check exactly" (InstantRoute.vue): its checkpoints as
+// single-value bands, so the sweep prices exactly that route. Taken once and cleared.
+watch(
+  () => ui.fullSweepBands,
+  text => {
+    if (!text) return;
+    bandsText.value = text;
+    minGap.value = 0;
+    // `kept`, not the `extraChains` binding: that is declared further down, and this runs at once.
+    kept.extraChains.value = [];
+    ui.fullSweepBands = null;
+  },
+  { immediate: true }
+);
 // The tag holds only while the space is still the one the link asked for. Edit the bands (or press
 // Suggest a space) and it is somebody's own run, which must not count toward that preset's coverage;
 // put them back and it is the preset again.

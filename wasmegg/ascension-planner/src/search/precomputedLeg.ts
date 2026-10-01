@@ -16,7 +16,7 @@
  */
 import { distributeTargetTE } from '@/auto/shifts/te-wait';
 import { computeTEEarned, timeToEarnTE } from '@/auto/te-thresholds';
-import { countTEThresholdsPassed } from '@/lib/truthEggs';
+import { countTEThresholdsPassed, TE_BREAKPOINTS } from '@/lib/truthEggs';
 import { getTimezoneOffsetAt, PACIFIC_TIMEZONE } from '@/lib/events';
 import type { VirtueEgg } from '@/types';
 
@@ -48,18 +48,44 @@ export interface Tail {
   endTE: number;
 }
 
-/** The time from the ascension's start to `target` total TE with this build (`runAscension`'s
- *  K3..H2 for a whole-TE goal), or null when the eggs cannot carry that much TE. */
-export function tailTo(p: BuildParams, target: number): Tail | null {
+/**
+ * The eggs delivered on each egg (EGG_ORDER) at TE `te`, shared the way the simulator shares a goal
+ * (cheapest next TE first, from nothing) with each egg exactly on its threshold. The table's every
+ * build starts from this; `rebase` moves a build onto a player's real counts.
+ */
+export function canonicalDelivered(te: number): number[] {
+  const zero = Object.fromEntries(EGG_ORDER.map(e => [e, 0])) as Record<VirtueEgg, number>;
+  const perEgg = distributeTargetTE(zero, te);
+  return EGG_ORDER.map(e => (perEgg[e] > 0 ? TE_BREAKPOINTS[perEgg[e] - 1] : 0));
+}
+
+/** A table build (made from `canonicalDelivered(te)`) moved onto a player's own egg counts at the
+ *  same TE: the eggs the build itself delivers, added to theirs. */
+export function rebase(b: BuildParams, te: number, delivered: number[]): BuildParams {
+  const canon = canonicalDelivered(te);
+  return { ...b, delivered: b.delivered.map((d, i) => delivered[i] + (d - canon[i])) };
+}
+
+/**
+ * The time from the ascension's start to `target` total TE with this build (`runAscension`'s K3..H2
+ * for a whole-TE goal), or null when the eggs cannot carry that much TE.
+ *
+ * `lateBy`: seconds into the table's hour the ascension really starts. The build's purchases take as
+ * long either way, but the sale ends at a fixed moment, so it ends that much sooner after a late
+ * start. (Exact at 0, which is what the table was built at; scripts/precompute.ts --verify-table
+ * measures it in between.)
+ */
+export function tailTo(p: BuildParams, target: number, lateBy = 0): Tail | null {
   const delivered = Object.fromEntries(EGG_ORDER.map((e, i) => [e, p.delivered[i]])) as Record<VirtueEgg, number>;
   const locked: VirtueEgg[] = [];
+  const saleEnd = p.saleEnd - lateBy;
   let t = p.waitStart;
   for (const egg of WAIT_ORDER) {
     const targets = distributeTargetTE(delivered, target, locked);
     const have = countTEThresholdsPassed(delivered[egg] || 0);
     const need = Math.max(0, targets[egg] - have);
     // K3 waits for the sale to end whatever the goal; the others only for their share.
-    let wait = egg === 'kindness' ? Math.max(0, p.saleEnd - t) : 0;
+    let wait = egg === 'kindness' ? Math.max(0, saleEnd - t) : 0;
     if (need > 0) {
       const teWait = timeToEarnTE(delivered[egg] || 0, p.peakELR, need);
       if (!Number.isFinite(teWait)) return null;
@@ -77,10 +103,10 @@ export function tailTo(p: BuildParams, target: number): Tail | null {
 
 /** The fastest of a start's builds to `target`, as the app picks (`pickVariant`: least time, the
  *  first of equals). Null when none can reach it. */
-export function bestTailTo(builds: BuildParams[], target: number): (Tail & { build: BuildParams }) | null {
+export function bestTailTo(builds: BuildParams[], target: number, lateBy = 0): (Tail & { build: BuildParams }) | null {
   let best: (Tail & { build: BuildParams }) | null = null;
   for (const b of builds) {
-    const t = tailTo(b, target);
+    const t = tailTo(b, target, lateBy);
     if (t && (!best || t.seconds < best.seconds)) best = { ...t, build: b };
   }
   return best;

@@ -41,6 +41,9 @@ export const useUIStore = defineStore('ui', () => {
   const openSetupRequested = ref(0);
   /** Bumped to ask App.vue to fetch the backup again (it owns the fetch). */
   const backupRetryRequested = ref(0);
+  /** A route handed to the Full sweep to price exactly (the instant answer's "Check exactly",
+   *  InstantRoute.vue): its bands, one value per checkpoint. InsanePanel takes it and clears it. */
+  const fullSweepBands = ref<string | null>(null);
   /** The sweep the Science tab's runner (SweepRunner.vue) is showing; null when it is closed. */
   const scienceSweep = ref<SweepRequest | null>(null);
   /**
@@ -89,6 +92,7 @@ export const useUIStore = defineStore('ui', () => {
     setupOpen,
     scienceSweep,
     scienceRun,
+    fullSweepBands,
     setActiveTab,
     setHeaderCollapsed,
     setLoading,
