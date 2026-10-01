@@ -70,7 +70,7 @@ setActivePinia(createPinia());
 
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { fork } from 'node:child_process';
-import { getLocalTimestampInTimezone, PACIFIC_TIMEZONE } from '@/lib/events';
+import { getLocalTimestampInTimezone, getNextSaleEnd, PACIFIC_TIMEZONE } from '@/lib/events';
 import { resolveColleggtibleContracts } from 'lib';
 import { initPlanFuture } from '@/lib/modes/planFuture';
 import { useChainSearchStore } from '@/stores/chainSearch';
@@ -103,7 +103,7 @@ import {
   WEEK_HOURS,
   type BuildParams,
 } from '@/search/precomputedLeg';
-import { expandArrivals, findRoutes, firstLegOptions, nextHour, type Route } from '@/search/routeFinder';
+import { expandArrivals, findRoutes, firstLegOptions, nextHour, priceLeg, type Route } from '@/search/routeFinder';
 import { splitByWork } from '@/search/routePool';
 import { packTable, readTable, type TableHeader } from '@/search/precomputedTable';
 import { deliveryScore } from '@/search/virtueScore';
@@ -524,30 +524,49 @@ async function verifyTable(file: string): Promise<void> {
   const random = rng(Number(arg('seed', '7')));
   const samples = Number(arg('samples', '60'));
 
-  // 1. Real starts: any week of a year from the reference week, any second of the hour.
+  // 1. Real starts: any week of a year from the reference week, any second of the hour. --sale-hours H:
+  // only starts in the last H hours of a weekly sale, where a start priced late from its own hour's
+  // cell (routeFinder.ts `startInSale`) should match the simulator exactly.
+  const saleHours = arg('sale-hours') ? Number(arg('sale-hours')) : null;
   const errs: number[] = [];
   const hourErrs: number[] = [];
+  const lateErrs: number[] = [];
+  const lateGains: number[] = [];
   for (let i = 0; i < samples; i++) {
     const te = table.tes[Math.floor(random() * table.tes.length)];
-    const start = REFERENCE_WEEK + Math.floor(random() * 52 * 7 * 86400);
+    const anyTime = REFERENCE_WEEK + Math.floor(random() * 52 * 7 * 86400);
+    const start = saleHours ? getNextSaleEnd(anyTime) - Math.floor(random() * saleHours * 3600) - 1 : anyTime;
     const target = Math.min(490, te + 1 + Math.floor(random() * Math.min(200, 490 - te)));
-    // The table's way: ascend at the next whole hour. Against the simulator starting at once (what a
-    // search does), measured from the same moment.
-    const at = nextHour(start);
-    const builds = table.lookup(te, pacificHourOfWeek(at));
+    // The site's way (`priceLeg`): the next whole hour's cell, or inside the sale this hour's cell
+    // started late, whichever ends sooner. Against the simulator starting at once (what a search
+    // does), measured from the same moment.
     const leg = runLeg(inputs, startStateAt(inputs, te), start, target, false, te, 2);
-    if (!leg || !builds) continue;
-    const mine = bestTailTo(builds, target);
-    if (!mine) continue;
-    const tableSeconds = at - start + mine.seconds;
+    const mine = priceLeg(table.lookup, te, start, canonicalDelivered(te), target);
+    if (!leg || !mine) continue;
+    const tableSeconds = mine.end - start;
     const real = leg.summary.totalDurationSeconds;
     errs.push((tableSeconds - real) / real);
     hourErrs.push((tableSeconds - real) / 3600);
+    if (mine.start === start) {
+      lateErrs.push((tableSeconds - real) / real);
+      const onHour = bestTailTo(table.lookup(te, pacificHourOfWeek(nextHour(start))) ?? [], target);
+      if (onHour) lateGains.push((nextHour(start) - start + onHour.seconds - tableSeconds) / 3600);
+    }
   }
-  console.log('table (ascend on the next hour) vs simulator starting at once, random times: ' + stats(errs));
+  console.log(
+    `table (the site's way) vs simulator starting at once, random times${saleHours ? ` in the sale's last ${saleHours} h` : ''}: ` +
+      stats(errs)
+  );
   const h = hourErrs.map(Math.abs).sort((a, b) => a - b);
   if (h.length)
     console.log(`  in hours: median ${h[Math.floor(h.length / 2)].toFixed(2)} h, max ${h[h.length - 1].toFixed(2)} h`);
+  if (lateErrs.length) {
+    const g = [...lateGains].sort((a, b) => a - b);
+    console.log(
+      `  started late inside the sale: ${lateErrs.length} of ${errs.length}, ${stats(lateErrs)}; ` +
+        `sooner than the next hour's cell by median ${(g[Math.floor(g.length / 2)] ?? 0).toFixed(2)} h, max ${(g[g.length - 1] ?? 0).toFixed(1)} h`
+    );
+  }
 
   // 2. The board's own legs, for the accounts whose gear is known.
   const corpusFile = arg('corpus');
@@ -901,7 +920,9 @@ async function route(file: string): Promise<void> {
       for (const [i, target] of r.chain.entries()) {
         const first = player && i === 0;
         const continues = first && r.legs[0].label === 'continue';
-        if (onTheHour && !continues) t = nextHour(t);
+        // A leg the route starts off the hour was priced late inside the sale (startInSale): at once.
+        const offHour = r.legs[i].start % 3600 !== 0;
+        if (onTheHour && !continues && !offHour) t = nextHour(t);
         const leg = runLeg(inputs!, state, t, target, first && (continues || !onTheHour), startTE, i + 2);
         if (!leg) return null;
         t += leg.summary.totalDurationSeconds;
@@ -1002,19 +1023,12 @@ async function route(file: string): Promise<void> {
       let eggs = canonicalDelivered(te);
       for (const target of chain) {
         if (target <= cur) return null;
-        t = nextHour(t);
-        const builds = table.lookup(cur, pacificHourOfWeek(t));
-        const here = eggs;
-        const tail = builds
-          ? bestTailTo(
-              builds.map(b => rebase(b, cur, here)),
-              target
-            )
-          : null;
-        if (!tail) return null;
-        t += tail.seconds;
-        cur = tail.endTE;
-        eggs = tail.delivered;
+        // The finder's own pricing of one ascension (on the hour, or late inside the sale).
+        const leg = priceLeg(table.lookup, cur, t, eggs, target, deliveryScale);
+        if (!leg) return null;
+        t = leg.end;
+        cur = leg.endTE;
+        eggs = leg.delivered;
       }
       return cur >= final ? t - start : null;
     };

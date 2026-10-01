@@ -17,7 +17,9 @@
  * an estimate. Shifting a start within the hour instead (`lateBy`) is right to a few hundredths of a
  * percent most of the time, but near a sale an hour's difference can mean catching it or waiting a
  * week (scripts/precompute.ts --grid-error), so the route keeps to what was simulated. A later start
- * never ends sooner, so the simulator's own immediate start can only match or beat these times.
+ * never ends sooner, so the simulator's own immediate start can only match or beat these times. The
+ * one exception is inside the weekly sale, where a start can also be priced late from its own hour's
+ * cell when that is exact (`startInSale`), so a route does not wait a week for want of an hour.
  *
  * EGGS CARRIED FORWARD. Where each egg's count stands matters (about one TE's wait an ascension), so
  * each arrival keeps the counts its route really reached, and the next build is moved onto them
@@ -25,6 +27,7 @@
  * player's own (finishing the one in progress, from the real save), so callers can supply it.
  */
 import {
+  bestTailTo,
   canonicalDelivered,
   pacificHourOfWeek,
   rebase,
@@ -32,6 +35,7 @@ import {
   type BuildParams,
   type TailSweep,
 } from './precomputedLeg';
+import { getNextSaleEnd, isResearchSaleActive } from '@/lib/events';
 
 /** The table as the finder reads it: the builds for a start TE at a Pacific hour of the week. */
 export type BuildLookup = (te: number, hour: number) => BuildParams[] | null;
@@ -103,6 +107,73 @@ export interface FindOptions {
 /** The next whole hour at or after `t` (unix seconds). Pacific hours begin on UTC hour boundaries. */
 export function nextHour(t: number): number {
   return Math.ceil(t / 3600) * 3600;
+}
+
+/** Purchases must end this long before the sale does to count as inside it (events.ts treats
+ *  instants within a few seconds of a boundary as on it). */
+const SALE_MARGIN = 60;
+
+/**
+ * THE SALE'S LAST HOURS (the collector analyst's B1, 1 Oct). Ascending on the next whole hour costs
+ * nothing most of the week, but inside the weekly Research Sale an hour can decide whether a build's
+ * purchases finish before the sale ends or it waits a week for the next one (LA-166, 487->490 from
+ * Sat 08:03 PT: 8.96 d on the board, a week more from the 09:00 cell). So a start inside the sale is
+ * also priced from its own hour's cell, moved the seconds it is late (`lateBy`), for each build whose
+ * purchases still finish before this sale ends.
+ *
+ * That is exact, not an estimate: such a build lies wholly inside one sale window (Fri 09:00 to Sat
+ * 09:00 PT; the earnings boost is Mon-Tue), where nothing the simulator does depends on the clock but
+ * the sale's end, and the sale's end is what `lateBy` moves. Outside the sale nothing changes: a start
+ * on the next whole hour can always be made, so those times stay what the simulator gives.
+ */
+export function startInSale(
+  table: BuildLookup,
+  te: number,
+  t: number
+): { lateBy: number; builds: BuildParams[] } | null {
+  const cell = Math.floor(t / 3600) * 3600;
+  const lateBy = t - cell;
+  if (!(lateBy > 0) || !isResearchSaleActive(cell) || !isResearchSaleActive(t)) return null;
+  const left = getNextSaleEnd(t) - t;
+  // A sale lasts a day; anything longer means the end found was the next week's.
+  if (!(left > 0 && left <= 86400)) return null;
+  const builds = (table(te, pacificHourOfWeek(cell)) ?? []).filter(b => b.waitStart <= left - SALE_MARGIN);
+  return builds.length ? { lateBy, builds } : null;
+}
+
+/**
+ * One ascension from `te` at `t` to `target`, as the finder prices it: from the next whole hour's
+ * cell, or from this hour's when the start is inside the sale (`startInSale`), whichever ends
+ * sooner. For checks (scripts/precompute.ts); the finder itself does the same on whole sweeps.
+ */
+export function priceLeg(
+  table: BuildLookup,
+  te: number,
+  t: number,
+  delivered: number[],
+  target: number,
+  deliveryScale = 1
+): { start: number; end: number; endTE: number; delivered: number[]; build: BuildParams } | null {
+  const options: { start: number; lateBy: number; builds: BuildParams[] }[] = [];
+  const at = nextHour(t);
+  const raw = table(te, pacificHourOfWeek(at));
+  if (raw?.length) options.push({ start: at, lateBy: 0, builds: raw });
+  const late = at !== t ? startInSale(table, te, t) : null;
+  if (late) options.push({ start: t, ...late });
+  let best: ReturnType<typeof priceLeg> = null;
+  for (const o of options) {
+    const moved = scaled(o.builds, deliveryScale).map(b => rebase(b, te, delivered));
+    const tail = bestTailTo(moved, target, o.lateBy);
+    if (tail && (!best || o.start + tail.seconds < best.end))
+      best = {
+        start: o.start,
+        end: o.start + tail.seconds,
+        endTE: tail.endTE,
+        delivered: tail.delivered,
+        build: tail.build,
+      };
+  }
+  return best;
 }
 
 interface Label {
@@ -257,19 +328,29 @@ export function expandArrivals(
     const hour = pacificHourOfWeek(startAt);
     // Seconds into the hour (0 on the hour): the table was built at the hour's first second.
     const lateBy = ((startAt % 3600) + 3600) % 3600;
-    const raw = table(te, hour);
-    if (!raw?.length) continue;
+    const raw = table(te, hour) ?? [];
+    // Inside the sale, this hour's own cell started late too (`startInSale`); whichever ends sooner.
+    const late = s.onTheHour && startAt !== item.time ? startInSale(table, te, item.time) : null;
+    if (!raw.length && !late) continue;
     if (stats) stats.expanded++;
     // The table's builds, moved onto the eggs this route really arrived with, each priced to every
     // checkpoint at once (sweepTails, the same numbers as tailTo).
     const builds = scaled(raw, s.deliveryScale).map(b => rebase(b, te, item.delivered));
     const countsKey = `${te}|${startAt}|${item.delivered.join(',')}|`;
     const sweeps = builds.map((b, j) => sweepOf(b, countsKey + j, lateBy, te + 1));
+    const lateBuilds = late ? scaled(late.builds, s.deliveryScale).map(b => rebase(b, te, item.delivered)) : [];
+    const lateKey = `${te}|${item.time}|${item.delivered.join(',')}|late|`;
+    const lateSweeps = lateBuilds.map((b, j) => sweepOf(b, lateKey + j, late!.lateBy, te + 1));
     for (let target = te + 1; target <= top; target++) {
-      const pick = fastest(sweeps, builds, target);
+      const onHour = fastest(sweeps, builds, target);
+      const early = late ? fastest(lateSweeps, lateBuilds, target) : null;
+      const takeEarly =
+        !!early && (!onHour || item.time + early.sweep.seconds[early.i] < startAt + onHour.sweep.seconds[onHour.i]);
+      const pick = takeEarly ? early : onHour;
       if (!pick) continue;
       const { sweep, build, i } = pick;
-      const end = startAt + sweep.seconds[i];
+      const legStart = takeEarly ? item.time : startAt;
+      const end = legStart + sweep.seconds[i];
       const endTE = sweep.endTE[i];
       const at = Math.min(endTE, top);
       sweep.deliveredInto(i, scratch);
@@ -287,7 +368,7 @@ export function expandArrivals(
               from: te,
               to: target,
               endTE,
-              start: startAt,
+              start: legStart,
               end,
               sales: build.sales,
               tier13: build.tier13,
@@ -454,20 +535,33 @@ export function firstLegOptions(o: FirstLegOptions): FirstLeg[] {
   const raw = o.table(row, hour) ?? [];
   const fresh = scaled(raw, o.deliveryScale ?? 1).map(b => rebase(b, row, o.delivered));
   const freshSweeps = fresh.map(b => sweepTails(b, o.final, 0, Math.floor(o.startTE) + 1));
+  // Inside the sale, ascending right away from this hour's cell can catch what the next hour misses.
+  const late = freshAt !== o.start ? startInSale(o.table, row, o.start) : null;
+  const lateFresh = late ? scaled(late.builds, o.deliveryScale ?? 1).map(b => rebase(b, row, o.delivered)) : [];
+  const lateSweeps = lateFresh.map(b => sweepTails(b, o.final, late!.lateBy, Math.floor(o.startTE) + 1));
   const contSweep = o.cont ? sweepTails(o.cont, o.final, 0, Math.floor(o.startTE) + 1) : null;
   const out: FirstLeg[] = [];
   for (let target = Math.floor(o.startTE) + 1; target <= o.final; target++) {
     const fp = fastest(freshSweeps, fresh, target);
-    const f0 = fp
+    const lp = late ? fastest(lateSweeps, lateFresh, target) : null;
+    // Measured from the plan start, so it compares with continue on the same clock.
+    const onHour = fp
       ? {
-          seconds: fp.sweep.seconds[fp.i],
+          seconds: fp.sweep.seconds[fp.i] + (freshAt - o.start),
           endTE: fp.sweep.endTE[fp.i],
           delivered: eggsOf(fp.sweep, fp.i),
           build: fp.build,
         }
       : null;
-    // Measured from the plan start, so it compares with continue on the same clock.
-    const f = f0 ? { ...f0, seconds: f0.seconds + (freshAt - o.start) } : null;
+    const now = lp
+      ? {
+          seconds: lp.sweep.seconds[lp.i],
+          endTE: lp.sweep.endTE[lp.i],
+          delivered: eggsOf(lp.sweep, lp.i),
+          build: lp.build,
+        }
+      : null;
+    const f = now && (!onHour || now.seconds < onHour.seconds) ? now : onHour;
     const ci = contSweep ? target - contSweep.from : -1;
     let c =
       contSweep && ci >= 0 && ci < contSweep.seconds.length && !Number.isNaN(contSweep.seconds[ci])

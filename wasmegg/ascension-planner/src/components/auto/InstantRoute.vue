@@ -111,9 +111,9 @@
         Your gear isn't the table's account's (<template v-if="bonusShort > 0.05"
           >earnings set {{ bonusShort.toFixed(2) }} Clothed TE short, </template
         >delivery {{ ((deliveryScale ?? 1) * 100).toFixed(1) }}% of its at full research). Ascensions that start below
-        about TE {{ FULL_RESEARCH_TE }} can take a few percent more or less than these: your earnings set, and how your
-        delivery gear does before research is complete, aren't fully taken off. From there up they match. Check exactly
-        gives your own times.
+        about TE {{ FULL_RESEARCH_TE }} can take a few percent more or less than these, and may need a longer build (one
+        more research sale) than shown: your earnings set, and how your delivery gear does before research is complete,
+        aren't fully taken off. From there up they match. Check exactly gives your own times.
       </p>
       <p
         v-if="progressionShort"
@@ -253,13 +253,16 @@ const leftOut = computed(() => {
 const bonusShort = computed(() => (header.value ? header.value.cteBonus - bonus.value : 0));
 
 /**
- * The start TE from which an ascension's build reaches full research, so the delivery adjustment is
- * exact and the earnings set stops mattering. Measured on the board's legs (the collector analyst,
- * 1 Oct): from about 300 up, Willsalt's legs priced the site's way are a median 0.00% off (99th
- * percentile 0.11%); at 245-251 the earnings set costs ~0.3% of leg time per Clothed TE point and
- * delivery gear on incomplete research is off by 1-2.6% either way.
+ * The start TE from which the table's builds hold for any gear: the build reaches full research, so
+ * the delivery adjustment is exact and the earnings set stops mattering. Measured on the board's legs
+ * priced the site's way (the collector analyst, 1 Oct): from 340 every account is exact (median
+ * 0.00%, 90th percentile at most 0.02%, 168k legs). At 300-339 accounts that earn less than the
+ * table's (a smaller bonus or weaker delivery: a build earns eggs shipped times egg value) need one
+ * more sale week on many legs (7-57% of identical legs, by account). At 245-251 the earnings set
+ * costs ~0.3% of leg time per Clothed TE point and delivery gear on incomplete research is off by
+ * 1-2.6% either way.
  */
-const FULL_RESEARCH_TE = 300;
+const FULL_RESEARCH_TE = 340;
 
 /** The player's gear is not the table's account's, and the route starts where that shows. */
 const gearDiffers = computed(
