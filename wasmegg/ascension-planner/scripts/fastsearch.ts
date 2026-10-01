@@ -53,13 +53,19 @@
  */
 // MUST be first: installs localStorage/window/document before any store module
 // whose top-level state() reads them (lib's eids store throws at import without it).
-import './node-shims';
+import { persistLocalStorage } from './node-shims';
 
 import { markRaw } from 'vue';
 import { createPinia, setActivePinia } from 'pinia';
 setActivePinia(createPinia());
 
 import { readFileSync, writeFileSync, unlinkSync, existsSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
+import { runSiteSearch, type SiteKind, type SiteRunOptions } from './siteRun';
+import { parseBands } from '@/search/exhaustive';
+import { parseChainText, parseStopBox } from '@/search/deadline';
+import { nextEggDayYear } from '@/lib/eggDay';
 
 import { requestFirstContact, resolveColleggtibleContracts } from 'lib';
 import { loadAndSyncBackup, rollUpPendingTE } from '@/lib/modes';
@@ -661,6 +667,11 @@ if (!Number.isFinite(PIN_SECONDS) || PIN_SECONDS < 0) throw new Error('--continu
 const MAX_CONTINUE_SECONDS = arg('continue-max-days') !== undefined ? Number(arg('continue-max-days')) * 86400 : CONTINUE_MAX_SECONDS;
 if (!Number.isFinite(MAX_CONTINUE_SECONDS) || MAX_CONTINUE_SECONDS < 0) throw new Error('--continue-max-days must be a number of days');
 
+/** Leg 1 continues the ascension in progress (the continue rule above). ON by default, as on the
+ *  site (chainSearch.ts `forceContinue`); `--no-force-continue` turns it off. `--force-continue` is
+ *  still accepted, and is now what happens anyway. */
+const FORCE_CONTINUE = !has('no-force-continue');
+
 /** Set once in main() from --time-off; read by planInputs and the CSV header. */
 let TIME_OFF_DATES: TimeOffDates[] = [];
 let TIME_OFF_WINDOWS: TimeOffWindow[] = [];
@@ -707,7 +718,7 @@ function runLeg(
   });
   let cont: any = allowContinue ? buildContinueVariant(baseState, startTime, goalTE as number, idx, endOverride) : null;
   if (cont && !(cont.summary.totalDurationSeconds <= MAX_CONTINUE_SECONDS)) cont = null;
-  if (allowContinue && has('force-continue')) {
+  if (allowContinue && FORCE_CONTINUE) {
     if (cont && !byDeadline && cont.summary.totalDurationSeconds <= PIN_SECONDS) return asLeg(cont, 'continue' as VariantKey);
     // Usually not a fault: a save whose last sync was on the home farm or a contract has no
     // virtue ascension to finish, so leg 1 is a fresh one -- what the player would do. Warned once
@@ -767,7 +778,7 @@ function runLeg(
   if (cont) {
     const contWins = !freshBest
       ? true
-      : has('force-continue')
+      : FORCE_CONTINUE
         ? byDeadline
           ? cont.summary.endTE >= freshBest.summary.endTE
           : cont.summary.totalDurationSeconds <= freshBest.summary.totalDurationSeconds
@@ -953,7 +964,7 @@ function planInputs(o: {
     planStart: o.planStart,
     currentTE: o.currentTE,
     final: o.final,
-    forceContinue: has('force-continue'),
+    forceContinue: FORCE_CONTINUE,
     continuePinSeconds: PIN_SECONDS,
     continueMaxSeconds: MAX_CONTINUE_SECONDS,
     availability: o.availability,
@@ -1240,18 +1251,7 @@ async function runPlanSearch(
 
   if (has('exhaustive')) return runExhaustive(inputs, o);
 
-  // The panel labels the tiers Fast / Balanced / Exact / Very high while the keys are
-  // quick / balanced / normal / thorough. Accept BOTH spellings: someone reaching for the CLI
-  // after using the slider will type what the slider said, and being told "exact" is not a tier
-  // when the screen says EXACT is a pointless thing to be right about.
-  const TIER_ALIASES: Record<string, EffortTier> = { fast: 'quick', exact: 'normal' };
-  const effortRaw = (arg('effort', 'normal') || '').toLowerCase();
-  const effort = (TIER_ALIASES[effortRaw] ?? effortRaw) as EffortTier;
-  if (!(EFFORT_ORDER as readonly string[]).includes(effort)) {
-    throw new Error(
-      '--effort must be one of fast|quick, balanced, exact|normal, thorough (got "' + effortRaw + '")'
-    );
-  }
+  const effort = effortTier();
 
   // Seed. `--seed "195 219 248"` matches the panel's Starting chain box, final target appended
   // for you either way. Without one there is nothing to descend from, so --find-seed is required.
@@ -1260,8 +1260,9 @@ async function runPlanSearch(
     ? [...new Set(seedArg.trim().split(/\s+/).map(Number).filter(v => v > currentTE && v < final))].sort((a, b) => a - b)
     : [];
 
-  const minPrestiges = +(arg('min-prestiges', '4')!);
-  const maxPrestiges = +(arg('max-prestiges', '9')!);
+  // The site's defaults (chainSearch.ts minPrestiges/maxPrestiges); these were 4 and 9 here.
+  const minPrestiges = +(arg('min-prestiges', '5')!);
+  const maxPrestiges = +(arg('max-prestiges', '8')!);
   const pin = +(arg('pin', '0')!);
 
   if (!seedFromArg.length && !has('find-seed')) {
@@ -1393,7 +1394,7 @@ function writeCsv(
       currentTE: o.currentTE,
       final: o.final,
       effort: o.effort,
-      forceContinue: has('force-continue'),
+      forceContinue: FORCE_CONTINUE,
     continuePinSeconds: PIN_SECONDS,
     continueMaxSeconds: MAX_CONTINUE_SECONDS,
       availability: o.availability,
@@ -1507,6 +1508,160 @@ async function runSharded(jobs: number): Promise<void> {
   }
 }
 
+/**
+ * `--effort` as a tier. The panel labels the tiers Fast / Balanced / Exact / Very high while the keys
+ * are quick / balanced / normal / thorough. Accept BOTH spellings: someone reaching for the CLI after
+ * using the slider will type what the slider said. Balanced by default, as on the site.
+ */
+function effortTier(): EffortTier {
+  const TIER_ALIASES: Record<string, EffortTier> = { fast: 'quick', exact: 'normal' };
+  const raw = (arg('effort', 'balanced') || '').toLowerCase();
+  const effort = (TIER_ALIASES[raw] ?? raw) as EffortTier;
+  if (!(EFFORT_ORDER as readonly string[]).includes(effort)) {
+    throw new Error('--effort must be one of fast|quick, balanced, exact|normal, thorough (got "' + raw + '")');
+  }
+  return effort;
+}
+
+/**
+ * The site's three searches run as the site runs them (scripts/siteRun.ts): Smart search (--effort),
+ * the Full sweep (--bands) and Highest TE by a date (--by-date / --egg-day). `--direct` keeps --effort
+ * on this script's own evaluator, which is what the what-ifs and diagnostics need.
+ */
+function isSiteMode(): boolean {
+  if (has('bands') || has('by-date') || has('egg-day')) return true;
+  return has('effort') && !has('direct');
+}
+
+/** Flags only this script's own evaluator understands; the site's searches would ignore them. */
+const DIRECT_ONLY = [
+  'mod', 'continue-pin-days', 'continue-max-days', 'max-elr', 'prune', 'override-ascension',
+  'override-days', 'override-hours', 'leg-variants', 'leg1-variants', 'dump-state', 'show-loadout',
+];
+
+/** Checks that need nothing but argv, run before the save is loaded (see main). */
+function checkSiteFlags(siteMode: boolean): void {
+  if (has('submit') && !siteMode) {
+    throw new Error('--submit sends a Smart search (--effort), Full sweep (--bands) or By a date (--by-date) result');
+  }
+  if (has('submit') && (has('mod') || has('add-artifact'))) {
+    throw new Error('--submit with a what-if (--mod, --add-artifact) would put gear you do not own on the board');
+  }
+  if (!siteMode) return;
+  const direct = DIRECT_ONLY.filter(f => has(f));
+  if (direct.length) {
+    throw new Error(
+      '--' + direct.join(', --') + ' only work on this script\'s own evaluator: add --direct (with --effort), ' +
+        'or use --stages / --grid / --exhaustive --range'
+    );
+  }
+  if (has('bands') && (has('by-date') || has('egg-day'))) throw new Error('--bands is the Full sweep; By a date takes --chain');
+  if (has('nickname') && !has('submit')) throw new Error('--nickname names a --submit; there is no --submit');
+}
+
+/** The next Egg Day (14 July, 09:00 Pacific) that has not passed, or `--egg-day YEAR`'s. */
+function eggDayDeadline(): number {
+  const i = process.argv.indexOf('--egg-day');
+  const next = process.argv[i + 1];
+  const year = next && /^\d{4}$/.test(next) ? +next : nextEggDayYear();
+  return getLocalTimestampInTimezone(`${year}-07-14`, '09:00', 'America/Los_Angeles');
+}
+
+/** Everything scripts/siteRun.ts needs, from the flags and the loaded save. */
+function siteOptions(o: {
+  jobs: number;
+  tz: string;
+  startDate: string;
+  startTime: string;
+  final: number;
+  availability: Availability | null;
+  deferShifts: boolean;
+  milestones: Milestone[];
+  currentTE: number;
+}): SiteRunOptions {
+  const kind: SiteKind = has('by-date') || has('egg-day') ? 'by-date' : has('bands') ? 'full' : 'smart';
+
+  const seedArg = arg('seed');
+  const seed = seedArg
+    ? [...new Set(seedArg.trim().split(/\s+/).map(Number).filter(v => v > o.currentTE && v < o.final))].sort((a, b) => a - b)
+    : [];
+  if (kind === 'smart' && !seed.length && !has('find-seed')) {
+    throw new Error('--effort needs a starting point: pass --seed "195 219 248" or --find-seed');
+  }
+
+  const bandsText = (arg('bands') ?? '').trim();
+  const bands = bandsText ? parseBands(bandsText) : [];
+  if (kind === 'full' && !bands.length) throw new Error('--bands: nothing readable, e.g. "185-200:5; 215-245:10"');
+  const minGap = Math.max(0, Math.floor(+(arg('min-gap', '0')!)));
+  const tag = arg('tag') ?? null;
+  // The site's own rule for a sweep tag (search/sweepRequest.ts): it is shown on the board.
+  if (tag !== null && !/^[A-Za-z0-9-]{1,16}$/.test(tag)) throw new Error('--tag: up to 16 letters, digits or dashes');
+
+  let deadline = 0;
+  if (has('egg-day')) deadline = eggDayDeadline();
+  else if (has('by-date')) {
+    const m = /^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})$/.exec((arg('by-date') ?? '').trim());
+    if (!m) throw new Error('--by-date must look like "2027-03-01 18:00" (in --timezone), or use --egg-day');
+    deadline = getLocalTimestampInTimezone(m[1], m[2], o.tz);
+  }
+  const chainTexts = argAll('chain');
+  const chains = chainTexts.length
+    ? chainTexts.map(text => {
+        const t = text.trim();
+        if (t === '1' || t === 'none') return { asc: 1, bands: [] };
+        const b = parseChainText(t);
+        if (!b.length) throw new Error('--chain: nothing readable in "' + t + '" (one band per early stop, ; between)');
+        return { asc: b.length + 1, bands: b };
+      })
+    : null;
+  let lastRange: [number, number] | null = null;
+  if (kind === 'by-date' && chains) {
+    const v = parseStopBox(arg('last') ?? '', 1);
+    if (!v.length) throw new Error('--chain needs --last lo-hi: where to start looking for the last stop');
+    lastRange = [Math.max(v[0], Math.floor(o.currentTE) + 1), Math.min(490, v[v.length - 1])];
+  }
+  const THOROUGH: Record<string, number> = { quick: 500, light: 1500, standard: 3000, thorough: 6000, very: 12000 };
+  const thorough = (arg('thoroughness', 'standard') ?? 'standard').toLowerCase();
+  if (!(thorough in THOROUGH)) throw new Error('--thoroughness: quick, light, standard, thorough or very');
+
+  return {
+    kind,
+    account: arg('player-id') ?? (useInitialStateStore() as any).rawBackup?.eiUserId ?? 'file',
+    jobs: o.jobs,
+    tz: o.tz,
+    startDate: o.startDate,
+    startTime: o.startTime,
+    final: o.final,
+    availability: o.availability,
+    deferShifts: o.deferShifts,
+    milestones: o.milestones,
+    timeOff: TIME_OFF_DATES,
+    forceContinue: FORCE_CONTINUE,
+    effort: effortTier(),
+    seed,
+    findSeed: has('find-seed'),
+    minPrestiges: +(arg('min-prestiges', '5')!),
+    maxPrestiges: +(arg('max-prestiges', '8')!),
+    pin: +(arg('pin', '0')!),
+    bandsText,
+    bands,
+    minGap,
+    tag,
+    deadline,
+    chains,
+    lastRange,
+    minStops: +(arg('min-stops', '3')!),
+    maxStops: +(arg('max-stops', '5')!),
+    lastHi: +(arg('last-hi', String(Math.min(490, Math.floor(o.currentTE) + 200)))!),
+    step: +(arg('step', '5')!),
+    maxShapes: THOROUGH[thorough],
+    ascendNeeded: has('ascend-needed'),
+    submit: has('submit') ? { nickname: (arg('nickname') ?? '').trim().slice(0, 40), csv: !has('no-submit-csv') } : null,
+    csvPath: resolveCsvPath(),
+    top: +(arg('top', '10')!),
+  };
+}
+
 async function main() {
   if (has('help') || process.argv.length <= 2) return printHelp();
 
@@ -1515,7 +1670,18 @@ async function main() {
   // `runSharded` forks one child per shard of a FIXED candidate list and merges their CSVs. The
   // staged search has no fixed list -- it decides the next batch from the last one's answer -- so
   // it does its own parallelism with a persistent pool instead. A worker must never re-shard.
-  const planMode = has('effort') || has('exhaustive');
+  // The site's searches (scripts/siteRun.ts) run on worker threads of their own, sized by --jobs.
+  const siteMode = isSiteMode();
+  const planMode = has('effort') || has('exhaustive') || siteMode;
+  checkSiteFlags(siteMode);
+  if (siteMode) {
+    // Before the store is first used: it reads the collector once, and the owner code from storage.
+    const collector = arg('collector');
+    if (collector) (globalThis as any).__AAP_SUBMIT_URL__ = collector.replace(/\/?$/, '').replace(/(\/submit)?$/, '/submit');
+    if (has('submit') || has('state')) {
+      persistLocalStorage(arg('state') ?? join(homedir(), '.config', 'autoautoap', 'cli-state.json'));
+    }
+  }
   if (jobs > 1 && !arg('shard') && !planMode && !has('worker')) return runSharded(jobs);
 
   // Argument parsing and validation runs BEFORE the backup is touched. Every check in here is
@@ -1692,6 +1858,13 @@ async function main() {
       throw new Error('refusing to run: a fresh ascension stalls on Integrity for ' + describeDuration(integrityWait) +
         '. Pass --allow-stall to run it anyway.');
     }
+  }
+
+  if (siteMode) {
+    process.exitCode = await runSiteSearch(
+      siteOptions({ jobs, tz, startDate, startTime, final, availability, deferShifts, milestones: usable, currentTE })
+    );
+    return;
   }
 
   if (planMode) return runPlanSearch(inputs, { jobs, tz, planStart, currentTE, final, availability, deferShifts, t0 });

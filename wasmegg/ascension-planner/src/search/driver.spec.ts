@@ -134,6 +134,38 @@ describe('runChainSearch', () => {
     expect(outcome.chain[outcome.chain.length - 1]).toBe(FINAL);
   });
 
+  /**
+   * A stop in the middle of a step still returns the fastest chain priced. `ever` was only moved at
+   * the end of each step, so a run stopped mid-sweep returned the step before's best while a faster
+   * chain from the sweep sat in the cache: 895.745 d returned with 893.752 d priced (1 Oct, a
+   * command-line Smart search stopped during stage 4a). The stop here lands right after the last
+   * checkpoint's sweep has priced its candidates, before that step records its winner.
+   */
+  it('returns the fastest chain priced even when stopped in the middle of a step', async () => {
+    const { evaluate } = makeEvaluator([195, 219, 248, 286, 327]);
+    const priced: ChainResult[] = [];
+    let batches = 0;
+    const recording: EvaluateBatch = async chains => {
+      batches++;
+      const out = await evaluate(chains);
+      priced.push(...out.results);
+      return out;
+    };
+
+    const outcome = await runChainSearch({
+      seedChain: [195, 219, 248, 286, 340, FINAL],
+      final: FINAL,
+      currentTE: CURRENT_TE,
+      effort: 'normal',
+      evaluateBatch: recording,
+      shouldStop: () => batches >= 2,
+    });
+
+    const fastest = Math.min(...priced.map(r => r.seconds));
+    expect(outcome.stoppedEarly).toBe(true);
+    expect(outcome.seconds).toBe(fastest);
+  });
+
   it('replays a restored cache without re-evaluating anything', async () => {
     const optimum = [195, 219, 248, 286, 327];
     const first = makeEvaluator(optimum);

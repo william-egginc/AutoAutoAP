@@ -23,8 +23,7 @@ export async function sendRunResult(
   onStage: (text: string) => void = () => {}
 ): Promise<{ ok: boolean; text: string }> {
   // Already sent (automatically or by hand): a second send is only a duplicate row.
-  if (store.alreadySubmitted)
-    return { ok: true, text: 'Already on the board: this result was sent from this browser.' };
+  if (store.alreadySubmitted) return { ok: true, text: 'Already on the board: this result was sent from here before.' };
   onStage('Preparing your result...');
   try {
     // Let the status reach the screen before the table build blocks the page.

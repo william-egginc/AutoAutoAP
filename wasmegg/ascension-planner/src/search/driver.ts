@@ -204,6 +204,7 @@ export async function runChainSearch(opts: DriverOptions): Promise<SearchOutcome
   let cur = [...opts.seedChain];
   if (cur[cur.length - 1] !== final) cur = [...cur, final];
 
+  const seedLen = cur.length;
   const minLen = opts.minCheckpoints ?? Math.max(2, cur.length - 1);
   const maxLen = opts.maxCheckpoints ?? cur.length + 1;
   const chainsEstimated = estimateChains(cur.length - 1, cfg);
@@ -216,7 +217,20 @@ export async function runChainSearch(opts: DriverOptions): Promise<SearchOutcome
    *  this cannot. */
   let ever = { chain: [...cur], seconds: best };
 
+  /**
+   * Fold in the best chain priced anywhere so far. `note` runs at the end of each step, so a stop in
+   * the middle of one returned the best as of the step before, while a faster chain the step had
+   * already priced sat in the cache: a stopped run reported 895.745 d with 893.752 d priced, and the
+   * runners-up table (built from the cache) led with the faster one. Within the counts the run may
+   * use, and the seed's own, the same set every stage draws from.
+   */
+  function noteBestSeen(): void {
+    const seen = cache.bestSeen(Math.min(minLen, seedLen), Math.max(maxLen, seedLen));
+    if (seen) note(seen.chain, seen.seconds);
+  }
+
   function report(detail: string): void {
+    noteBestSeen();
     opts.onProgress?.({
       stage,
       detail,
@@ -519,6 +533,7 @@ export async function runChainSearch(opts: DriverOptions): Promise<SearchOutcome
   }
 
   stage = stopped ? 'stopped' : 'done';
+  noteBestSeen();
   report(`${days(ever.seconds)} d  ${ever.chain.join(' ')}`);
 
   return {

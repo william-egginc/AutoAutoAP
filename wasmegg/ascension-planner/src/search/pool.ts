@@ -182,6 +182,17 @@ export interface ChainSearchPool {
   terminate(): void;
 }
 
+/**
+ * How workers are made when a caller passes no `spawn`: null in the browser, which uses the real
+ * Web Worker below. The command line (scripts/fastsearch.ts) sets a Node worker thread that speaks
+ * the same protocol, so the store's runs work there unchanged: the same pool, the same chunking and
+ * watchdog, the same results, rather than a second copy of all of it in the script.
+ */
+let defaultSpawn: (() => Worker) | null = null;
+export function setDefaultWorkerSpawn(spawn: (() => Worker) | null): void {
+  defaultSpawn = spawn;
+}
+
 export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOptions = {}): Promise<ChainSearchPool> {
   // Caller's choice, held to what the machine has. Unset means the default -- one per core less one
   // for the main thread -- which is what this always did.
@@ -208,8 +219,9 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
   const spawning: (Promise<PoolWorker> | null)[] = Array.from({ length: cap }, () => null);
 
   function makeWorker(index: number): PoolWorker {
-    const worker = opts.spawn
-      ? opts.spawn()
+    const spawn = opts.spawn ?? defaultSpawn;
+    const worker = spawn
+      ? spawn()
       : new Worker(new URL('../workers/chainSearch.worker.ts', import.meta.url), { type: 'module' });
     const pw: PoolWorker = { worker, pending: new Map(), index };
 
@@ -490,7 +502,10 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
           const requestId = ++nextRequestId;
           const watch = (d: number) => {
             done.set(w, d);
-            onDone?.([...done.values()].reduce((a, b) => a + b, 0), starts.length);
+            onDone?.(
+              [...done.values()].reduce((a, b) => a + b, 0),
+              starts.length
+            );
           };
           progressHooks.set(requestId, watch);
           try {

@@ -2074,8 +2074,14 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * self-hosted and there is no single collector anyone should be posting to by default. With it
    * unset the UI falls back to "save the file and share it yourself", which needs no server at
    * all and is the only mode that works offline.
+   *
+   * The command line can name one with `--collector` (scripts/siteRun.ts sets `__AAP_SUBMIT_URL__`
+   * before the store is first used): its build may have been made where no collector was configured.
    */
-  const submitUrl = (import.meta.env.VITE_SUBMIT_URL as string | undefined)?.trim() || '';
+  const submitUrl =
+    ((globalThis as { __AAP_SUBMIT_URL__?: string }).__AAP_SUBMIT_URL__ ?? '').trim() ||
+    (import.meta.env.VITE_SUBMIT_URL as string | undefined)?.trim() ||
+    '';
 
   /** The board itself, derived from the submit endpoint rather than configured separately: they
    *  are the same Worker, and two env vars that have to agree is one more thing to get wrong. */
@@ -3184,6 +3190,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         i += slice.length;
 
         chainsDone.value = chainsReplayed.value + i;
+        // The chunk is in `chainsDone` now. Left at its last heartbeat, it was counted twice by
+        // everything that adds the chunk in flight (`runProgress`, the panels' "priced so far")
+        // until the next chunk's first heartbeat: 32 of 32 on a 16-chain sweep, at the end.
+        batchDone.value = 0;
         csvRows.value = liveCache.length;
         noteRate(chainsDone.value);
         noteBest();

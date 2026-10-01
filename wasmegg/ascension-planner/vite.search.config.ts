@@ -2,7 +2,8 @@ import { defineConfig } from 'vite';
 import { fileURLToPath } from 'node:url';
 
 /**
- * Bundles scripts/fastsearch.ts into a single Node-runnable ESM file.
+ * Bundles scripts/fastsearch.ts (and the worker thread it starts, scripts/node-worker.ts) into
+ * Node-runnable ESM files.
  *
  * Node 24 strips TypeScript natively, but it will not resolve the `@/` and `lib`
  * aliases the app's source uses everywhere, and there is no vite-node binary in
@@ -26,13 +27,19 @@ export default defineConfig({
     target: 'node',
   },
   build: {
-    ssr: 'scripts/fastsearch.ts',
+    ssr: true,
     outDir: 'dist-search',
     emptyOutDir: true,
     target: 'node22',
     minify: false,
     rollupOptions: {
-      output: { entryFileNames: 'fastsearch.js' },
+      // Two entries: the command line, and the worker thread it runs searches on (scripts/node-worker.ts),
+      // which has to be its own file because a worker thread is started from a path.
+      input: {
+        fastsearch: 'scripts/fastsearch.ts',
+        'chain-worker': 'scripts/node-worker.ts',
+      },
+      output: { entryFileNames: '[name].js' },
     },
   },
 });
