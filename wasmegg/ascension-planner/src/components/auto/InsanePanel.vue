@@ -30,7 +30,7 @@
       <div v-if="sweepRequest" class="p-4 rounded-xl border border-indigo-200 bg-indigo-50 space-y-3">
         <div class="space-y-1">
           <p class="text-[10px] font-black text-indigo-400 uppercase tracking-widest">
-            Sweep request from the Chain Explorer
+            Sweep request from {{ NAMES.science }}
           </p>
           <h3 class="text-sm font-black text-slate-900">{{ sweepRequest.label }}</h3>
           <p class="text-[11px] text-slate-600">
@@ -1167,6 +1167,28 @@
   </div>
 </template>
 
+<script lang="ts">
+import { ref as keptRef } from 'vue';
+import { SUGGESTION_CHAIN_BUDGET as KEPT_BUDGET } from '@/search/exhaustive';
+
+/** How big a space Suggest a space fills in, in chains (the user, 30 Sept: "how full do they want
+ *  it?"). The middle step is the long-standing default. */
+const SUGGEST_SIZES = [10_000, 25_000, 50_000, 75_000, 150_000, 300_000];
+
+/**
+ * The space the player set up, kept for the page load rather than per mount: leaving the screen
+ * unmounts it (the planner's tabs), and the bands typed came back as the defaults. A sweep link still
+ * fills them in when it opens the screen, until its sweep starts.
+ */
+const kept = {
+  bandsText: keptRef('185-200:5; 215-245:10; 260-300:10; 320-360:20'),
+  minGap: keptRef(0),
+  suggestAsc: keptRef(6),
+  suggestSizeIx: keptRef(SUGGEST_SIZES.indexOf(KEPT_BUDGET)),
+  extraChains: keptRef<{ asc: number; text: string }[]>([]),
+};
+</script>
+
 <script setup lang="ts">
 import { NAMES } from '@/lib/siteNav';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
@@ -1274,15 +1296,17 @@ const TOO_BIG_HOURS = 24 * 14;
  * mostly chains nobody would run, and no run on the board used it. Saved runs over a range still
  * open and resume: that is the store's, which keeps both kinds.
  */
-const bandsText = ref('185-200:5; 215-245:10; 260-300:10; 320-360:20');
-const minGap = ref(0);
+const { bandsText, minGap } = kept;
 
 /**
  * A sweep handed over by the Chain Explorer's "Run this sweep" link (format in search/sweepRequest).
  * Read once, at setup, and applied to the same refs a person would type into, so the panel below
  * shows exactly what will run and can still be edited.
  */
-const sweepRequest = typeof window === 'undefined' ? null : parseSweepRequest(window.location.search);
+// Not on Highest TE by a date, which this panel also draws: a sweep is a fastest-route run, and a
+// sweep link left in the address put its banner and its tag on the date search too.
+const sweepRequest =
+  typeof window === 'undefined' || props.goal === 'deadline' ? null : parseSweepRequest(window.location.search);
 const sweepConsent = ref(false);
 if (sweepRequest) {
   bandsText.value = sweepRequest.bands;
@@ -1302,7 +1326,7 @@ watch([bandsText, minGap], ([text, gap]) => {
 });
 
 /** Ascension count the suggestion is built for. Bands fix the count, so this picks how many boxes. */
-const suggestAsc = ref(6);
+const { suggestAsc } = kept;
 
 /**
  * A space sized to a few hours of this machine's time, or null when there isn't one.
@@ -1316,10 +1340,7 @@ const suggestAsc = ref(6);
  * value of this mode is that an unconstrained run proves something; taking that away should be a
  * decision, not a default.
  */
-/** How big a space Suggest a space fills in, in chains (the user, 30 Sept: "how full do they want
- *  it?"). The middle step is the long-standing default. */
-const SUGGEST_SIZES = [10_000, 25_000, 50_000, 75_000, 150_000, 300_000];
-const suggestSizeIx = ref(SUGGEST_SIZES.indexOf(SUGGESTION_CHAIN_BUDGET));
+const { suggestSizeIx } = kept;
 const suggestBudget = computed(() => SUGGEST_SIZES[suggestSizeIx.value] ?? SUGGESTION_CHAIN_BUDGET);
 /** About how long a space that size takes here, at this chain length and worker count. */
 const suggestTimeLabel = computed(() =>
@@ -1491,7 +1512,7 @@ const chainCountLabel = computed(() =>
 // ------------------------------------------------------------------ more chains for one click
 
 /** Chains to run after the first, each with its own ascension count and bands. */
-const extraChains = ref<{ asc: number; text: string }[]>([]);
+const { extraChains } = kept;
 // Parsed and counted once per edit, not on every call from the template (each row asks several
 // times a render, and a run re-renders every second).
 const extraParsed = computed(() => extraChains.value.map(row => parseBands(row.text)));

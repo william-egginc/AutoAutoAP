@@ -433,8 +433,8 @@
         class="p-3 rounded-xl border border-red-200 bg-red-50 text-[11px] text-red-800 leading-relaxed"
       >
         <span class="font-black uppercase tracking-wide">That's a single ascension.</span>
-        {{ store.finalTE }} on its own goes straight to the target, so there are no checkpoints for Chain Search to look
-        for. To plan that one ascension, use the Classic tab: type {{ store.finalTE }} in Target TE(s) and press
+        {{ store.finalTE }} on its own goes straight to the target, so there are no checkpoints for {{ NAMES.smart }} to
+        look for. To plan that one ascension, use the Classic tab: type {{ store.finalTE }} in Target TE(s) and press
         Generate plan. To search for a faster chain instead, give Starting chain some checkpoints (like
         <span class="font-mono">200 250 300 {{ store.finalTE }}</span
         >), or tick "Find a starting chain for me".
@@ -1211,17 +1211,14 @@
         <!-- Where a submission ends up. A board nobody can find is not a shared repository of
              anything, and "it was sent somewhere" is a poor answer to "sent where?". -->
         <p v-if="store.submitUrl" class="text-[11px] text-indigo-900/70 leading-relaxed">
-          Submissions land on the
-          <a
-            :href="store.leaderboardUrl"
-            target="_blank"
-            rel="noopener"
-            class="font-bold text-indigo-700 underline hover:text-indigo-900"
-            >chain leaderboard</a
-          >. It lists the fastest plan lengths, one line per result (anonymous runs included), and every row opens to
-          show the artifacts, stones and per-leg timings it was simulated with. Read it as "what shapes are winning for
-          people": a duration depends on the account as much as on the chain. The race to the target by finish date, one
-          line per named player, is the Race tab of the planner's own Leaderboard.
+          Submissions land on
+          <a href="#/compare/all" class="font-bold text-indigo-700 underline hover:text-indigo-900"
+            >{{ NAMES.compare }} › All runs</a
+          >: one line per result (anonymous runs included), and every row opens to show the artifacts, stones and
+          per-leg timings it was simulated with. Read it as "what shapes are winning for people": a duration depends on
+          the account as much as on the chain. The race to the target by finish date, one line per named player, is
+          <a href="#/compare/race" class="font-bold text-indigo-700 underline hover:text-indigo-900">Race</a>, next to
+          it.
         </p>
 
         <p v-if="!store.submitUrl" class="text-[11px] text-indigo-900/70 leading-relaxed">

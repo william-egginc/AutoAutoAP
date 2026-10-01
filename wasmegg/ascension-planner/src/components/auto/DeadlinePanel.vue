@@ -60,7 +60,7 @@
       >
         <span class="block text-sm font-black text-slate-900">Egg Day {{ eggDayYear }}</span>
         <span class="block mt-0.5 text-[11px] text-slate-600 leading-relaxed"
-          >14 July {{ eggDayYear }}, 9:00 AM Pacific. Answers go on the leaderboard's Egg Day
+          >14 July {{ eggDayYear }}, 9:00 AM Pacific. Answers go on {{ NAMES.compare }}'s Egg Day
           {{ eggDayYear }} tab.</span
         >
       </button>
@@ -75,7 +75,7 @@
       >
         <span class="block text-sm font-black text-slate-900">Another date</span>
         <span class="block mt-0.5 text-[11px] text-slate-600 leading-relaxed"
-          >Any date and time you like. Answers go on the leaderboard's By a date tab.</span
+          >Any date and time you like. Answers go on {{ NAMES.compare }}'s By a date tab.</span
         >
       </button>
     </div>
@@ -583,11 +583,11 @@
         choose.
       </p>
 
-      <!-- Share: the leaderboard's Egg Day tab for an Egg Day answer, else "By a date". Same opt-in as Insane. -->
+      <!-- Share: Compare's Egg Day tab for an Egg Day answer, else "By a date". Same opt-in as Insane. -->
       <div v-if="best && collectorConfigured" class="rounded-xl border border-indigo-200 bg-indigo-50/60 p-4 space-y-3">
         <h3 class="text-[10px] font-black text-indigo-800 uppercase tracking-widest">Share this answer</h3>
         <p class="text-[11px] text-indigo-900/80 leading-relaxed">
-          Sends the best route above to the leaderboard's <span class="font-bold">{{ shareTab }}</span> tab, where
+          Sends the best route above to {{ NAMES.compare }}'s <span class="font-bold">{{ shareTab }}</span> tab, where
           answers for the same deadline are ranked by the highest TE reached, then the time to spare. It stays out of
           the race to 490.
         </p>
@@ -657,6 +657,37 @@
   </div>
 </template>
 
+<script lang="ts">
+import { ref as keptRef } from 'vue';
+import { nextEggDayYear as keptEggDayYear } from '@/lib/eggDay';
+import { DEFAULT_STOP_SETS as KEPT_DEFAULT_SETS, STOP_SET_SIZES as KEPT_SIZES } from '@/search/deadlineSuggest';
+
+/**
+ * What the player set on this screen, kept for the page load rather than per mount. Since the
+ * planner's tabs, leaving this screen unmounts it, and everything typed (the date, the boxes, the
+ * sliders) came back as the defaults; the Egg Day link's boxes came back instead, every visit.
+ */
+const eggDayYearAtLoad = keptEggDayYear();
+const kept = {
+  date: keptRef(`${eggDayYearAtLoad}-07-14`),
+  time: keptRef('09:00'),
+  zone: keptRef('America/Los_Angeles'),
+  customDate: keptRef(false),
+  minStops: keptRef(3),
+  maxStops: keptRef(5),
+  lastHi: keptRef(490),
+  lastHiTouched: keptRef(false),
+  step: keptRef(5),
+  ascendNeeded: keptRef(false),
+  thoroughIx: keptRef(2),
+  mode: keptRef<'space' | 'auto'>('space'),
+  chains: keptRef<{ asc: number; text: string }[]>([{ asc: 4, text: '' }]),
+  lastBox: keptRef(''),
+  suggestFrom: keptRef(''),
+  suggestSizeIx: keptRef(KEPT_SIZES.indexOf(KEPT_DEFAULT_SETS)),
+};
+</script>
+
 <script setup lang="ts">
 import FindBar from './FindBar.vue';
 import AutoSendReport from './AutoSendReport.vue';
@@ -679,9 +710,10 @@ import { formatBand, formatHours } from '@/search/exhaustive';
 import { sweepSeconds, workerSecondsPerChain } from '@/search/speed';
 import type { DeadlineRunSpec } from '@/search/deadlineStore';
 import { DEFAULT_STOP_SETS, STOP_SET_SIZES, suggestStops } from '@/search/deadlineSuggest';
+import { firstTime } from '@/lib/linkOnce';
 import { downloadCsv } from '@/utils/export';
 import { useEidsStore } from 'lib';
-import { eggDayYearOf, nextEggDayYear } from '@/lib/eggDay';
+import { eggDayYearOf } from '@/lib/eggDay';
 import { showDateTime } from '@/lib/displayTime';
 import IntegrityNotice from './IntegrityNotice.vue';
 import SafariNotice from './SafariNotice.vue';
@@ -694,10 +726,8 @@ const planner = useAutoPlannerStore();
 const plannerZone = computed(() => planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
 
 /** The next Egg Day (14 July) at 9:00 AM Pacific that has not passed yet (lib/eggDay.ts). */
-const eggDayYear = nextEggDayYear();
-const date = ref(`${eggDayYear}-07-14`);
-const time = ref('09:00');
-const zone = ref('America/Los_Angeles');
+const eggDayYear = eggDayYearAtLoad;
+const { date, time, zone } = kept;
 const isEggDay = computed(
   () => date.value === `${eggDayYear}-07-14` && time.value === '09:00' && zone.value === 'America/Los_Angeles'
 );
@@ -707,7 +737,7 @@ function useEggDay(): void {
   zone.value = 'America/Los_Angeles';
 }
 /** "Another date" picked: its boxes show (holding Egg Day until changed). */
-const customDate = ref(false);
+const { customDate } = kept;
 const showCustomDate = computed(() => customDate.value || !isEggDay.value);
 function chooseEggDay(): void {
   customDate.value = false;
@@ -721,11 +751,9 @@ const deadline = computed(() => {
 });
 const daysAway = computed(() => (deadline.value - store.planStart) / 86400);
 
-const minStops = ref(3);
-const maxStops = ref(5);
+const { minStops, maxStops } = kept;
 /** 200 TE above where you are, unless you set it: the save usually loads after this panel does. */
-const lastHi = ref(490);
-const lastHiTouched = ref(false);
+const { lastHi, lastHiTouched } = kept;
 watch(
   () => store.currentTE,
   te => {
@@ -734,8 +762,7 @@ watch(
   { immediate: true }
 );
 /** The finest first-look grid allowed; the thoroughness slider decides how far it widens. */
-const step = ref(5);
-const ascendNeeded = ref(false);
+const { step, ascendNeeded } = kept;
 
 /** The first look's budget in sets of early stops; the middle one is the long-standing default. */
 const THOROUGH = [
@@ -745,7 +772,7 @@ const THOROUGH = [
   { label: 'Thorough', shapes: 6000 },
   { label: 'Very thorough', shapes: 12000 },
 ] as const;
-const thoroughIx = ref(2);
+const { thoroughIx } = kept;
 const maxShapes = computed(() => THOROUGH[thoroughIx.value]?.shapes ?? 3000);
 
 const specForCount = computed(() => ({
@@ -775,12 +802,10 @@ const MODES = [
   { id: 'space', label: "I'll set the stops" },
   { id: 'auto', label: 'Pick them for me' },
 ] as const;
-const mode = ref<'space' | 'auto'>('space');
+const { mode } = kept;
 
 /** The chains to run from one click: each an ascension count and one box of bands. */
-const chains = ref<{ asc: number; text: string }[]>([{ asc: 4, text: '' }]);
-const lastBox = ref('');
-const suggestFrom = ref('');
+const { chains, lastBox, suggestFrom } = kept;
 const rowBands = (k: number) => parseChainText(chains.value[k]?.text ?? '');
 const lastRange = computed<[number, number] | null>(() => {
   const v = parseStopBox(lastBox.value, 1);
@@ -854,7 +879,7 @@ function suggestRow(k: number): void {
 }
 
 /** How big a space Suggest a space fills in, in sets of early stops (the Full sweep has the same). */
-const suggestSizeIx = ref(STOP_SET_SIZES.indexOf(DEFAULT_STOP_SETS));
+const { suggestSizeIx } = kept;
 const suggestSets = computed(() => STOP_SET_SIZES[suggestSizeIx.value] ?? DEFAULT_STOP_SETS);
 /** About how long that many sets takes here, charged the way the estimate below charges them. */
 const suggestTimeLabel = computed(() => {
@@ -880,7 +905,9 @@ function addChain(): void {
  * Suggest; no account is in the link). `chain2=150-160:2` (the chain with that many ascensions) and
  * `last=220-300` set a box exactly instead.
  */
-const linkParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+// Once per page load (lib/linkOnce.ts): coming back to this screen keeps what the player typed.
+const linkParams =
+  typeof window !== 'undefined' && firstTime('by-date-link') ? new URLSearchParams(window.location.search) : null;
 const linkAsc = [
   ...new Set(
     (linkParams?.get('asc') ?? '')
@@ -1192,7 +1219,7 @@ async function share(): Promise<void> {
     shareMessage.value = res.ok
       ? res.duplicate === 'exact'
         ? res.message
-        : `Thanks! ${sentence(res.message)} It's on the leaderboard's ${shareTab.value} tab.`
+        : `Thanks! ${sentence(res.message)} It's on ${NAMES.compare}'s ${shareTab.value} tab.`
       : `Not sent: ${res.message}`;
   } finally {
     sharing.value = false;

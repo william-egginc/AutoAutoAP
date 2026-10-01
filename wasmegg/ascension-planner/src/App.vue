@@ -710,6 +710,14 @@ const isDev = import.meta.env.DEV;
 
 const playerId = ref(new URLSearchParams(window.location.search).get('playerId') || getSavedPlayerID() || '');
 
+// The Update button's cache-buster (PlanFinalSummary.vue) has done its job once the page is here;
+// left in, it rode along in every link copied afterwards.
+if (new URLSearchParams(window.location.search).has('_hardReload')) {
+  const url = new URL(window.location.href);
+  url.searchParams.delete('_hardReload');
+  window.history.replaceState(window.history.state, '', url.toString());
+}
+
 const chainSearchStore = useChainSearchStore();
 
 /** Take a chain off the board into the Auto Planner. It is someone else's ANSWER, not a result
@@ -1425,6 +1433,13 @@ function showSweepResult(): void {
 async function submitPlayerId(id: string) {
   playerId.value = id;
   savePlayerID(id);
+  // A `?playerId=` in the address wins over the saved ID on load, so it has to follow a change here:
+  // otherwise a reload went back to the link's account after the player had entered their own.
+  const url = new URL(window.location.href);
+  if (url.searchParams.has('playerId') && url.searchParams.get('playerId') !== id) {
+    url.searchParams.set('playerId', id);
+    window.history.replaceState(window.history.state, '', url.toString());
+  }
   error.value = '';
   loading.value = true;
   notesStore.$reset();

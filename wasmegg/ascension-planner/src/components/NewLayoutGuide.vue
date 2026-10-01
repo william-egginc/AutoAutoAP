@@ -73,7 +73,7 @@ const MOVES: { where: string; href?: string; what: string }[] = [
   {
     where: NAMES.science,
     href: '#/science',
-    what: `Was the Explorer's Help fill the gaps and Submit a sweep: the sweeps we still need, and where to upload one.`,
+    what: `Was the Explorer's Help fill the gaps and Submit a sweep: the sweeps we still need (they run right there), and where to upload one.`,
   },
   {
     where: 'A search that is running',
