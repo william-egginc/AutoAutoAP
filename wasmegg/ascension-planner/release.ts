@@ -15,5 +15,5 @@
  */
 export default {
   reloadIfBuiltBefore: '2026-09-30T20:12:00Z',
-  note: 'the new layout: four tabs, Your setup in every Auto Planner screen, Save for Smart search too, and a progress bar that follows you. What moved? under the tabs explains it',
+  note: 'a tidier Insights tab (the short answer first), the original tab buttons, an easier-to-find Your setup, and Egg Day as a clear choice. What moved? under the tabs explains the new layout',
 };
