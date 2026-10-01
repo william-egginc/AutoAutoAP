@@ -15,5 +15,5 @@
  */
 export default {
   reloadIfBuiltBefore: '2026-09-30T20:12:00Z',
-  note: 'Insights reworked: the short answer first, and every chart says how to read it. Also the original tab buttons, an easier-to-find Your setup, and Egg Day as a clear choice',
+  note: 'Your setup now floats behind the ⚙ Setup button (workers adjustable from it), size sliders for Suggest a space and Pick them for me, and browser-specific tips for long runs',
 };
