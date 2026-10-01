@@ -116,6 +116,10 @@
       bonuses) aren't. The plan is for reaching the TE by then.
     </p>
 
+    <!-- The instant answer from the precomputed table (the precompute fork): the highest TE by this
+         date, from every route at once. Check exactly sets its stops in the boxes below. -->
+    <InstantRoute v-if="deadline" :deadline="deadline" @check="checkByDate" />
+
     <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest pt-1">The routes to try</h3>
     <div class="flex flex-wrap items-center gap-2">
       <button
@@ -716,6 +720,7 @@ import { useEidsStore } from 'lib';
 import { eggDayYearOf } from '@/lib/eggDay';
 import { showDateTime } from '@/lib/displayTime';
 import IntegrityNotice from './IntegrityNotice.vue';
+import InstantRoute from './InstantRoute.vue';
 import SafariNotice from './SafariNotice.vue';
 
 const props = defineProps<{ playerId: string }>();
@@ -889,6 +894,19 @@ const suggestTimeLabel = computed(() => {
     sweepSeconds(suggestSets.value * perShape, store.workerBudget, workerSecondsPerRoute.value) / 3600
   );
 });
+
+/**
+ * The instant answer's Check exactly: its route as one chain of single-value boxes, with the last stop
+ * looked for around where it lands, so Find prices exactly that route with the full simulator.
+ */
+function checkByDate(chain: number[]): void {
+  const last = chain[chain.length - 1];
+  const te = Math.floor(store.currentTE);
+  mode.value = 'space';
+  chains.value = [{ asc: chain.length, text: chain.slice(0, -1).join('; ') }];
+  lastBox.value = `${Math.max(te + 1, last - 5)}-${Math.min(490, last + 5)}`;
+  suggestFrom.value = `Set from the instant answer's route, ${chain.join(' ')}.`;
+}
 
 /** A new chain one ascension shorter than the shortest, since the short ones are what get added. */
 function addChain(): void {

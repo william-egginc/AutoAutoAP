@@ -91,6 +91,9 @@ export interface FindOptions {
   rowFor?: (te: number) => number;
   /** Arrivals kept per TE and number of ascensions (`DEFAULT_KEEP`). */
   keep?: number;
+  /** Also find the highest TE reachable by this unix second (Highest TE by a date), from the same
+   *  pass: the highest TE whose earliest arrival is no later. */
+  deadline?: number;
   /** Told after each number of ascensions is done (k of `maxAscensions`), for a progress bar. */
   onProgress?: (done: number, of: number) => void;
   /** Filled in with what the search did, for tuning (scripts/precompute.ts --route-bin). */
@@ -167,7 +170,12 @@ export const DEFAULT_KEEP = 6;
  * room for them all the result is the best route under the table's model. Each ascension takes the
  * fastest sale strategy for its own checkpoint, as the simulator does.
  */
-export function findRoutes(o: FindOptions): { best: Route | null; byAscensions: (Route | null)[] } {
+export function findRoutes(o: FindOptions): {
+  best: Route | null;
+  byAscensions: (Route | null)[];
+  /** With `deadline`: the route to the highest TE reached by then, or null when none is. */
+  byDate: Route | null;
+} {
   const K = o.maxAscensions ?? 10;
   const scale = o.deliveryScale ?? 1;
   const keep = o.keep ?? DEFAULT_KEEP;
@@ -293,17 +301,37 @@ export function findRoutes(o: FindOptions): { best: Route | null; byAscensions: 
     }
   }
 
-  const readBack = (k: number): Route | null => {
-    const last = arrivals[k].get(top)?.[0];
-    if (!last) return null;
+  const routeTo = (last: Label): Route => {
     const legs: RouteLeg[] = [];
     for (let l: Label | null = last; l?.leg; l = l.prev) legs.unshift(l.leg);
     return { chain: legs.map(l => l.to), legs, end: last.time, seconds: last.time - o.start };
   };
+  const readBack = (k: number): Route | null => {
+    const last = arrivals[k].get(top)?.[0];
+    return last ? routeTo(last) : null;
+  };
 
   const byAscensions = Array.from({ length: K + 1 }, (_, k) => (k ? readBack(k) : null));
   const best = byAscensions.reduce<Route | null>((a, r) => (r && (!a || r.end < a.end) ? r : a), null);
-  return { best, byAscensions };
+
+  // Highest TE by the date: the highest TE any route reaches in time, and of those the earliest.
+  let byDate: Route | null = null;
+  if (o.deadline !== undefined) {
+    let bestTE = -1;
+    let bestLabel: Label | null = null;
+    for (let k = 1; k <= K; k++) {
+      for (const [te, list] of arrivals[k]) {
+        const l = list[0];
+        if (l.time > o.deadline) continue;
+        if (te > bestTE || (te === bestTE && bestLabel && l.time < bestLabel.time)) {
+          bestTE = te;
+          bestLabel = l;
+        }
+      }
+    }
+    byDate = bestLabel ? routeTo(bestLabel) : null;
+  }
+  return { best, byAscensions, byDate };
 }
 
 export interface FirstLegOptions {

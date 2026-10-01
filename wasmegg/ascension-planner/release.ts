@@ -15,5 +15,5 @@
  */
 export default {
   reloadIfBuiltBefore: '2026-09-30T20:12:00Z',
-  note: 'The instant answer is on Fastest route: every route at once from a table of ascensions simulated ahead of time. The table is still being built, from the top down, so it may not reach your TE yet',
+  note: 'Instant answers on Fastest route and on Highest TE by a date, Egg Day included, from a table of ascensions simulated ahead of time. The table is still being built from the top down',
 };

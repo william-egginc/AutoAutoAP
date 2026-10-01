@@ -14,6 +14,8 @@ export interface FindRequest {
   startTE: number;
   /** Unix seconds. */
   start: number;
+  /** Also the highest TE reachable by this unix second (Highest TE by a date). */
+  deadline?: number;
   final: number;
   maxAscensions: number;
   /** The player's peak delivery rate against the table's, at the research a build waits with. */
@@ -38,7 +40,15 @@ export type RouteWorkerRequest = FindRequest | HeaderRequest;
 
 export type RouteWorkerResponse =
   | { kind: 'header'; id: number; header: TableHeader }
-  | { kind: 'routes'; id: number; header: TableHeader; best: Route | null; byAscensions: (Route | null)[]; ms: number }
+  | {
+      kind: 'routes';
+      id: number;
+      header: TableHeader;
+      best: Route | null;
+      byAscensions: (Route | null)[];
+      byDate: Route | null;
+      ms: number;
+    }
   /** How far along: `done` of `of` numbers of ascensions worked through. */
   | { kind: 'progress'; id: number; done: number; of: number }
   /** The table does not reach down to the player's TE (it is built from the top down). */

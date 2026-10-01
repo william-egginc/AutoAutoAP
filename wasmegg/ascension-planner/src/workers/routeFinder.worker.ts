@@ -61,7 +61,7 @@ ctx.onmessage = async (event: MessageEvent<RouteWorkerRequest>) => {
       pinSeconds: m.pinSeconds,
       maxContinueSeconds: m.maxContinueSeconds,
     });
-    const { best, byAscensions } = findRoutes({
+    const { best, byAscensions, byDate } = findRoutes({
       table: t.lookup,
       startTE: m.startTE,
       start: m.start,
@@ -69,6 +69,7 @@ ctx.onmessage = async (event: MessageEvent<RouteWorkerRequest>) => {
       maxAscensions: m.maxAscensions,
       firstLegs,
       deliveryScale,
+      ...(m.deadline !== undefined ? { deadline: m.deadline } : {}),
       onProgress: (done, of) => ctx.postMessage({ kind: 'progress', id: m.id, done, of } satisfies RouteWorkerResponse),
     });
     const reply: RouteWorkerResponse = {
@@ -77,6 +78,7 @@ ctx.onmessage = async (event: MessageEvent<RouteWorkerRequest>) => {
       header: h,
       best,
       byAscensions,
+      byDate,
       ms: performance.now() - t0,
     };
     ctx.postMessage(reply);

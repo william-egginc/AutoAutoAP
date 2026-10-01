@@ -32,8 +32,12 @@
     </div>
     <p class="text-[12px] text-slate-600 leading-relaxed">
       Every ascension a maxed account can make was simulated ahead of time, from every TE at every hour of the week, so
-      finding your fastest route is arithmetic: it tries every checkpoint at every TE, with any number of ascensions.
-      It's adjusted for your gear. <b>Check exactly</b> prices a route with the full simulator in the {{ NAMES.full }}.
+      {{
+        deadline
+          ? 'finding the highest TE you can reach by the date is arithmetic'
+          : 'finding your fastest route is arithmetic'
+      }}: it tries every checkpoint at every TE, with any number of ascensions. It's adjusted for your gear.
+      <b>Check exactly</b> prices a route with the full simulator.
     </p>
 
     <p v-if="status === 'loading'" class="text-[12px] text-slate-500 flex items-center gap-2">
@@ -54,7 +58,39 @@
       Test table: rows below what has been simulated are filled in from the nearest real ones, to try the page. These
       routes and dates are not real answers.
     </p>
-    <template v-if="result">
+    <template v-if="result && deadline">
+      <div class="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 space-y-1">
+        <div class="text-[10px] font-black uppercase tracking-widest text-emerald-700">
+          Highest TE by {{ show(deadline) }}
+        </div>
+        <template v-if="result.byDate">
+          <div class="text-2xl font-black text-slate-900">
+            {{ result.byDate.legs[result.byDate.legs.length - 1].endTE }} TE
+          </div>
+          <div class="font-mono-premium text-sm font-bold text-slate-800">{{ result.byDate.chain.join(' → ') }}</div>
+          <div class="text-[12px] text-slate-700">
+            Reached {{ show(result.byDate.end) }} · {{ result.byDate.legs.length }} ascensions ·
+            {{ days(deadline - result.byDate.end) }} to spare
+          </div>
+          <button
+            type="button"
+            class="mt-1 px-3 py-1.5 rounded-lg bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-emerald-800"
+            @click="emit('check', result.byDate.chain)"
+          >
+            Check exactly
+          </button>
+        </template>
+        <p v-else class="text-[12px] text-amber-800">No route gets above your TE by then.</p>
+      </div>
+      <p
+        v-if="leftOut.length"
+        class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"
+      >
+        Not in the instant answer: your {{ leftOut.join(', ') }}. Check exactly prices a route with them.
+      </p>
+    </template>
+
+    <template v-if="result && !deadline">
       <div v-if="result.best" class="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 space-y-1">
         <div class="text-[10px] font-black uppercase tracking-widest text-emerald-700">Fastest route</div>
         <div class="font-mono-premium text-base font-black text-slate-900">{{ result.best.chain.join(' → ') }}</div>
@@ -164,6 +200,10 @@ import type { Route } from '@/search/routeFinder';
 import type { TableHeader } from '@/search/precomputedTable';
 import type { RouteWorkerResponse } from '@/workers/routeFinder.protocol';
 
+const props = defineProps<{
+  /** Highest TE by a date: the unix second. Without it, the fastest route to the target. */
+  deadline?: number;
+}>();
 const emit = defineEmits<{ check: [chain: number[]] }>();
 const store = useChainSearchStore();
 const planner = useAutoPlannerStore();
@@ -173,7 +213,7 @@ const TABLE_URL = `${import.meta.env.BASE_URL}precompute/table.bin`;
 const status = ref<'idle' | 'loading' | 'error' | 'done'>('idle');
 const loadingText = ref('');
 const errorText = ref('');
-const result = ref<{ best: Route | null; byAscensions: (Route | null)[] } | null>(null);
+const result = ref<{ best: Route | null; byAscensions: (Route | null)[]; byDate: Route | null } | null>(null);
 const header = ref<TableHeader | null>(null);
 const ms = ref<number | null>(null);
 
@@ -208,6 +248,9 @@ const deliveryScale = computed<number | null>(() => {
   const theirs = rate(k3.delivery as EquippedArtifact[]);
   return mine && theirs > 0 ? rate(mine as EquippedArtifact[]) / theirs : 1;
 });
+
+/** The TE routes are found to: the planner's target, or for a date every TE up to the last. */
+const target = computed(() => (props.deadline ? 490 : store.finalTE));
 
 const rows = computed(() => (result.value?.byAscensions ?? []).filter((r): r is Route => !!r));
 
@@ -255,7 +298,7 @@ function getWorker(): Worker {
           : `The instant answer couldn’t run: ${m.message}`;
         return;
       }
-      result.value = { best: m.best, byAscensions: m.byAscensions };
+      result.value = { best: m.best, byAscensions: m.byAscensions, byDate: m.byDate };
       header.value = m.header;
       ms.value = m.ms;
       status.value = 'done';
@@ -268,7 +311,7 @@ onUnmounted(() => worker?.terminate());
 /** Ask for the table's header first (that loads the table), then for the routes. */
 function run(): void {
   const te = Math.floor(store.currentTE);
-  if (!(te > 0) || !(store.finalTE > te)) return;
+  if (!(te > 0) || !(target.value > te)) return;
   status.value = 'loading';
   loadingText.value = 'Loading the table (about 12 MB, once) and working out every route…';
   nextId++;
@@ -284,8 +327,9 @@ function find(): void {
     url: TABLE_URL,
     startTE: Math.floor(store.currentTE),
     start: inputs.planStart,
-    final: store.finalTE,
+    final: target.value,
     maxAscensions: 10,
+    ...(props.deadline ? { deadline: props.deadline } : {}),
     deliveryScale: deliveryScale.value ?? 1,
     delivered: EGG_ORDER.map(e => inputs.baseState.eggsDelivered?.[e] || 0),
     // A plain copy: the worker gets structured-cloned data, never a reactive proxy.
@@ -299,7 +343,7 @@ function find(): void {
 // Again whenever what it depends on changes (a new save, a new plan start, another target).
 let timer: ReturnType<typeof setTimeout> | null = null;
 watch(
-  () => [Math.floor(store.currentTE), store.planStart, store.finalTE, store.forceContinue, bonus.value],
+  () => [Math.floor(store.currentTE), store.planStart, target.value, props.deadline, store.forceContinue, bonus.value],
   () => {
     if (timer) clearTimeout(timer);
     timer = setTimeout(run, 300);
