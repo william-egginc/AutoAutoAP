@@ -24,6 +24,7 @@ import { useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { sendRunResult } from '@/search/sendRun';
 import { eggDayYearOf } from '@/lib/eggDay';
+import { sentence } from '@/utils/errors';
 import type { Availability } from '@/search/availability';
 import type { Milestone } from '@/search/milestones';
 import type { TimeOffDates } from '@/search/timeOff';
@@ -279,10 +280,11 @@ export async function runSiteSearch(o: SiteRunOptions): Promise<number> {
       }
       const res = await store.sendSubmission(payload, o.submit.csv ? store.deadlineCsv() : undefined);
       const year = eggDayYearOf(r.deadline);
+      // Worded as the site's Share says it (DeadlinePanel.vue `share`).
       console.log(
         res.ok
-          ? `\n  sent: ${res.message} (Compare > ${year ? `Egg Day ${year}` : 'By a date'})`
-          : `\n  not sent: ${res.message}`
+          ? `\n  ${res.duplicate === 'exact' ? res.message : `Thanks! ${sentence(res.message)}`} It's on Compare > ${year ? `Egg Day ${year}` : 'By a date'}.`
+          : `\n  Not sent: ${res.message}`
       );
       return res.ok ? 0 : 1;
     }
@@ -310,7 +312,7 @@ export async function runSiteSearch(o: SiteRunOptions): Promise<number> {
   if (o.submit && !store.error) {
     // The site's own send (search/sendRun.ts): summary, then the table, with its re-checks.
     const res = await sendRunResult(store, o.submit.nickname, o.submit.csv, stage => console.log(`  ${stage}`));
-    console.log(res.ok ? `\n  sent: ${res.text}` : `\n  ${res.text}`);
+    console.log(`\n  ${res.text}`);
     return res.ok ? 0 : 1;
   }
   return store.error ? 1 : 0;

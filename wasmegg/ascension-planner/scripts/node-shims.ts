@@ -84,6 +84,7 @@ export function persistLocalStorage(file: string): void {
   };
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- a browser global scope, assembled by hand
 const g = globalThis as any;
 if (!g.localStorage) g.localStorage = memoryStorage();
 if (!g.sessionStorage) g.sessionStorage = memoryStorage();

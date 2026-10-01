@@ -6,6 +6,7 @@
 import './node-shims';
 import { parentPort } from 'node:worker_threads';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- a browser global scope, assembled by hand
 const g = globalThis as any;
 g.self = g;
 g.postMessage = (message: unknown) => parentPort!.postMessage(message);

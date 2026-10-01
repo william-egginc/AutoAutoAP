@@ -25,22 +25,23 @@
  *     the "X4 = 0 mod 4" rule and the "X2 225-231 all tie" rule. Here the start
  *     is pinned once and shared by every chain in the run.
  *
- * TWO MODES.
+ * THE SITE'S SEARCHES (scripts/siteRun.ts). Smart search (--effort), the Full sweep (--bands) and
+ * Highest TE by a date (--by-date / --egg-day) are the planner's own chain-search store, run in
+ * Node with the browser's own worker module on worker threads: one implementation, two front ends,
+ * so the command line cannot drift from the site. --submit sends a result the way the site does.
  *
- *   --effort <tier>   Runs the SAME staged search the browser panel runs, against the same
- *                     evaluator, by importing src/search/driver.ts and src/search/chain.ts
- *                     directly. Not a reimplementation: one driver, two front ends, so the
- *                     command line cannot drift from the GUI the way scripts/autoplan.py did.
- *                     Everything the panel exposes has a flag here; see --help.
- *
- *   --stages/--grid   The original explicit-candidate mode: you name the chains, it prices all
- *                     of them. Still what autoplan.py drives, and what --exhaustive uses.
+ * THIS SCRIPT'S OWN TOOLS. --stages/--grid name the chains and price all of them (what autoplan.py
+ * drives), --exhaustive --range prices every route over one pool, and --direct runs --effort on
+ * this script's evaluator. These are what the what-ifs and diagnostics work with; none of them is
+ * something the site does.
  *
  * Fully offline with --backup: nothing is fetched, so an air-gapped machine with a saved
  * backup JSON runs the whole thing. --player-id is the only flag that touches the network.
  *
- * Usage (after `pnpm search:build`):
- *   node dist-search/fastsearch.js --backup backup.json --effort thorough --jobs 12
+ * Usage (after `pnpm search:build`; --help has every flag):
+ *   node dist-search/fastsearch.js --backup backup.json --effort thorough --find-seed --jobs 12
+ *   node dist-search/fastsearch.js --backup backup.json --bands "185-200:5; 215-245:10" --jobs 12 --submit
+ *   node dist-search/fastsearch.js --backup backup.json --egg-day --jobs 8
  *   node dist-search/fastsearch.js --backup backup.json --exhaustive --range 185:390:5 --prestiges 6-8
  *   node dist-search/fastsearch.js --player-id EI... --stages "195;225-231;270-290;310-330"
  *   node dist-search/fastsearch.js --backup backup.json --grid 195,226,277,317,362 --prestiges 5-8
@@ -433,104 +434,135 @@ function reportChosenLoadout(): void {
  *  side. Printed by --help; nothing else runs. */
 function printHelp(): void {
   console.log(`
-fastsearch - the Ascension Planner's chain search, headless.
+fastsearch - the Ascension Planner's searches, headless.
 
-  Finds the fastest sequence of prestige checkpoints to a Truth Egg target, scoring every
-  candidate with the planner's own simulator. Runs fully offline with --backup.
+  Finds the fastest route of ascension checkpoints to a Truth Egg target, or the highest TE you can
+  reach by a date, scoring every candidate with the planner's own simulator. Runs offline with
+  --backup. The site's three searches run through the site's own code, so a result here and one in
+  the browser, from the same save and settings, are the same result, and --submit sends it the
+  same way.
 
 ACCOUNT  (one is required)
-  --backup FILE.json        A saved backup. Nothing is fetched; works air-gapped.
-  --player-id EI...         Fetch the backup from the API. The only flag that uses the network.
+  --backup FILE.json        A saved backup. Nothing is fetched.
+  --player-id EI...         Fetch the backup from the game's API.
   --save-backup FILE        With --player-id, write the fetched backup for offline reuse.
 
-MODE  (one of)
-  --effort TIER             The browser panel's staged search.
-                            fast|balanced|exact|thorough (the slider's labels; the internal
-                            names quick|balanced|normal|thorough also work).
-  --exhaustive              Price EVERY chain over a pool. No staged search, no pruning; the
-                            winner is the true optimum of that space. Needs --range or --grid.
+THE SITE'S SEARCHES  (Auto Planner > Fastest route and Highest TE by a date)
+  --effort TIER             Smart search: homes in from a starting route.
+                            fast|balanced|exact|thorough (the slider's labels; quick|normal also
+                            work). Default balanced. Needs --seed or --find-seed.
+  --bands "a-b:s; c-d:s"    Full sweep: prices every route with one checkpoint in each band, as
+                            the Full sweep's box (4 bands = 5 ascensions).
+  --by-date "YYYY-MM-DD HH:MM"
+                            Highest TE by a date, in --timezone.
+  --egg-day [YEAR]          The same, by Egg Day: 14 July, 9:00 AM Pacific, the next one by default.
+
+  Smart search
+  --seed "195 219 248"      Starting route; the final target is added for you.
+  --find-seed               Find a starting route first (the panel's "Find a starting chain for me").
+  --min-prestiges N         Fewest ascensions, counting the last.     (default 5)
+  --max-prestiges N         Most ascensions.                          (default 8)
+  --pin N                   Hold the first N checkpoints fixed.
+  --final TE                Final target.                             (default 490)
+
+  Full sweep
+  --min-gap N               Checkpoints at least N TE apart.          (default 0)
+  --tag PRESET              File the result under a Science sweep's name (e.g. M2), as the site
+                            does for a sweep run from Science. Only for that sweep's own bands.
+
+  Highest TE by a date
+  --chain "a-b:s; c-d:s"    "I'll set the stops": one box per chain, one band per stop before the
+                            last; repeat for several chains ("1" for no early stop). Needs --last.
+  --last lo-hi              Where to start looking for the last stop; it looks beyond if it must.
+  Without --chain it picks the stops for you:
+  --min-stops N --max-stops N   Ascensions to try.                    (default 3-5)
+  --thoroughness T          quick|light|standard|thorough|very.       (default standard)
+  --last-hi TE              Highest last stop to look at.             (default your TE + 200)
+  --step N                  Finest first-look grid.                   (default 5)
+  --ascend-needed           Reach the last stop in time to ascend at it in your hours.
+
+  Sending the result  (the site's Share / Find and submit)
+  --submit                  Send it to the board when the search finishes (stopped early with
+                            Ctrl+C, it still sends what it has, marked partial). Includes the CSV.
+  --nickname NAME           Credit a name (up to 40 characters). Anonymous without it.
+  --no-submit-csv           Send the summary only.
+  --collector URL           Where to send (default: the collector this build was made with).
+  --state FILE              Where the account's owner code is kept between runs, so your sends
+                            fold together and can be renamed later, as a browser keeps it.
+                            (default ~/.config/autoautoap/cli-state.json)
+
+  Ctrl+C stops a site search and keeps its best so far; Ctrl+C again quits at once. There are no
+  checkpoints here: a stopped run starts again from the top.
+
+THIS SCRIPT'S OWN TOOLS  (not on the site; their own evaluator)
+  --exhaustive --range lo:hi[:step] --prestiges lo-hi
+                            Every route over one pool of values (the Full sweep's old "One range").
+                            --prestiges defaults to 5-8; --yes goes past the 5000-chain cap.
   --stages "a;b,c;d-e"      Explicit candidates: one pick per group, in order.
   --grid a,b,c --prestiges 5-8
-                            Every subset of a pool at those chain lengths.
+                            Every subset of a pool at those route lengths.
+  --direct                  Run --effort on this evaluator instead of the site's, for the
+                            what-ifs and diagnostics below.
 
-THE PANEL'S SETTINGS  (--effort mode)
-  --seed "195 219 248"      Starting chain, final target appended for you. Panel: Starting chain.
-  --find-seed               Coarse-scan for a seed first. Panel: "Find a starting chain for me".
-  --min-prestiges N         Panel: Fewest ascensions.          (default 4)
-  --max-prestiges N         Panel: Most ascensions.            (default 9)
-  --pin N                   Hold the first N checkpoints fixed. Panel: "Lock the first".
-  --final TE                Panel: Final target TE.            (default 490)
-
-WHEN YOU CAN PLAY  (all modes; changes which chain wins, not just the display)
+WHEN YOU CAN PLAY  (changes which route wins, not just the display)
   --available-from H --available-to H
-                            Hours you are around, in --timezone. Panel: "Plan around my schedule".
+                            Hours you are around, in --timezone (the panel's "Plan around my schedule").
   --sleep-from H --sleep-until H
-                            The same thing inverted, for the common case.
-  --available-days sat,sun  Restrict to those days.            (default every day)
-  --no-hold-shifts          Do NOT hold the twelve in-ascension shifts for your hours -- report
-                            them and charge nothing. Panel: untick "Hold the shifts for my hours
-                            too". Holding is the default, as in the panel.
+                            The same thing inverted.
+  --available-days sat,sun  Only those days.                          (default every day)
+  --no-hold-shifts          Do not hold the twelve in-ascension shifts for your hours (held by
+                            default, as on the site).
   --milestone "248@2027-06-01"
-                            Hard constraint, repeatable. Panel: "Dates you need to hit".
+                            Be at that TE by the end of that day; repeatable.
+  --time-off DATE[:DATE]    Days off the virtue farm, repeatable (2027-07-14, or 2027-08-01:2027-08-07).
+                            The ascension in progress ends; coming back is a complete rebuild.
+                            Not with --stages or --grid.
 
 WHEN THE PLAN STARTS
   --start-date YYYY-MM-DD   (default today)
   --start-time HH:MM        (default the current hour)
   --timezone IANA           (default this machine's)
-  --force-continue          Default leg 1 to continuing the current ascension: taken outright when
-                            it finishes within a week, kept up to six months unless a 1/2/3-sale
-                            fresh start is strictly faster, and dropped past six months (a warning
-                            is printed past three).
-
-EXHAUSTIVE
-  --range lo:hi[:step]      Pool to enumerate, e.g. 185:390:5. Step defaults to 1.
-  --prestiges lo-hi         Chain lengths to enumerate.        (default 5-8)
-  --yes                     Proceed past the 5000-chain safety cap.
+  --no-force-continue       Leg 1 does NOT default to finishing the ascension in progress. By
+                            default it does, as on the site: taken outright when it finishes
+                            within a week, kept up to six months unless a 1/2/3-sale fresh start is
+                            strictly faster, dropped past six months. (--force-continue is accepted
+                            and is the default.)
 
 OUTPUT
-  --jobs N                  Worker processes. The staged search keeps a persistent pool.
-  --csv FILE                Where to write the per-leg CSV of every chain priced.
-                            Defaults to fastsearch-<timestamp>.csv; nothing is discarded
-                            unless you pass --no-csv.
-  --no-csv                  Do not write a CSV. Only the printed summary survives the run.
-  --top N                   Runners-up to print.               (default 10)
+  --jobs N                  Worker threads (site searches) or processes (this script's tools).
+  --csv FILE                Where the CSV of every route priced goes. Defaults to
+                            fastsearch-<timestamp>.csv; --no-csv writes none.
+  --top N                   Runners-up to print.                      (default 10)
 
-WHAT-IF  (neither edits the save)
-  --mod elr=1.05            Scale a colleggtible dimension.
+WHAT-IF  (neither edits the save; never with --submit)
   --add-artifact compass:legendary
-  --show-loadout            Print the chosen ELR loadout and exit.
+                            Pretend you own one more artifact.
+  --mod elr=1.05            Scale a colleggtible dimension. --direct, --stages, --grid or --exhaustive.
+  --show-loadout            Print the delivery set the simulator picks (with --stages or --grid).
 
-DIAGNOSTICS  (for working on the search itself, not for planning a run)
-  --debug                   Verbose per-stage tracing.
-  --dump-state              Print the parsed farm state and exit.
-  --show-loadout            As above; pairs with --add-artifact to check what a new piece changes.
-  --prune N                 Override the descent pruning bound. Lower prunes harder and can
-                            drop the true optimum -- the default is what the accuracy figures
-                            were measured with.
-  --max-elr N               Cap peak delivery, for reproducing a bound by hand.
-  --continue-pin-days N     Continue is taken without comparison when it finishes within N days
-                            (default 7).
-  --continue-max-days N     Continue is not a candidate past N days (default 183). Between the two
-                            it is compared with the 1/2/3-sale fresh starts and wins unless one is
-                            strictly faster.
-  --time-off DATE[:DATE]    Days off the virtue farm, repeatable (e.g. 2027-07-14 for Egg Day, or
-                            2027-08-01:2027-08-07). The ascension in progress ends when it starts;
-                            coming back is a complete rebuild. Needs --exhaustive or --effort.
-  --allow-stall             Run an account whose first fresh ascension stalls on Integrity for
-                            over a week (refused by default, as in the browser).
-  --leg-variants            As --leg1-variants, for every leg (LEG_VARIANTS lines after leg 1).
-  --leg1-variants           Print every first-leg candidate (continue, 1/2/3-sale, tier-13) with
-                            its days, build-phase days and peak, as a LEG1_VARIANTS JSON line.
-                            Run without --force-continue, or continue is the only candidate.
+DIAGNOSTICS  (for working on the search itself; --direct, --stages or --grid)
+  --integrity-only          Print how long a fresh ascension sits on Integrity, in seconds, and stop.
+  --debug                   Verbose tracing.
+  --dump-state              Print the parsed farm state and stop.
+  --prune                   Branch and bound over --stages / --grid, cutting routes a bound says
+                            cannot win. For checking the bound against an unpruned run.
+  --max-elr N               The bound's peak delivery, q/hr.          (default 11.585)
+  --continue-pin-days N     Continue is taken without comparison under N days. (default 7)
+  --continue-max-days N     Continue is not a candidate past N days.  (default 183)
+  --allow-stall             Run an account whose first fresh ascension stalls on Integrity for over
+                            a week (refused by default, as on the site).
+  --leg-variants / --leg1-variants
+                            Print every candidate for each leg / the first leg as JSON lines. Use
+                            --no-force-continue, or continue is the only first-leg candidate.
   --override-ascension N --override-days D --override-hours H
-                            Force one leg's length instead of simulating it. For isolating
-                            whether a disagreement is in the chain or in one leg.
-  --reactive-backup         Hand the backup to Pinia reactively. Much slower; only useful when
-                            chasing a mismatch between CLI and browser results.
+                            Force one leg's length instead of simulating it.
+  --reactive-backup         Hand the backup to Pinia reactively (much slower).
 
 EXAMPLES
-  node dist-search/fastsearch.js --backup me.json --effort thorough --find-seed --jobs 12 \\
-      --available-from 9 --available-to 23 --csv run.csv
+  node dist-search/fastsearch.js --backup me.json --effort thorough --find-seed --jobs 12
+  node dist-search/fastsearch.js --backup me.json --bands "185-200:5; 215-245:10; 260-300:10" --jobs 12 \\
+      --submit --nickname Me
+  node dist-search/fastsearch.js --backup me.json --egg-day --chain "138-176:1; 167-187:3" --last 200-240 --jobs 8
   node dist-search/fastsearch.js --backup me.json --exhaustive --range 185:390:15 --prestiges 6-7 --jobs 12
 `);
 }
@@ -1537,6 +1569,7 @@ function isSiteMode(): boolean {
 const DIRECT_ONLY = [
   'mod', 'continue-pin-days', 'continue-max-days', 'max-elr', 'prune', 'override-ascension',
   'override-days', 'override-hours', 'leg-variants', 'leg1-variants', 'dump-state', 'show-loadout',
+  'debug', 'allow-stall',
 ];
 
 /** Checks that need nothing but argv, run before the save is loaded (see main). */
@@ -1551,12 +1584,13 @@ function checkSiteFlags(siteMode: boolean): void {
   const direct = DIRECT_ONLY.filter(f => has(f));
   if (direct.length) {
     throw new Error(
-      '--' + direct.join(', --') + ' only work on this script\'s own evaluator: add --direct (with --effort), ' +
+      '--' + direct.join(', --') + (direct.length === 1 ? ' only works' : ' only work') +
+        ' on this script\'s own evaluator: add --direct (with --effort), ' +
         'or use --stages / --grid / --exhaustive --range'
     );
   }
   if (has('bands') && (has('by-date') || has('egg-day'))) throw new Error('--bands is the Full sweep; By a date takes --chain');
-  if (has('nickname') && !has('submit')) throw new Error('--nickname names a --submit; there is no --submit');
+  if (has('nickname') && !has('submit')) throw new Error('--nickname is the name a --submit is sent under: add --submit');
 }
 
 /** The next Egg Day (14 July, 09:00 Pacific) that has not passed, or `--egg-day YEAR`'s. */

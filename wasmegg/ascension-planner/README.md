@@ -60,8 +60,8 @@ hours a day.
 
 ## Setup
 
-This lives on top of [wasmegg-carpet/egg](https://github.com/wasmegg-carpet/egg). Against
-that repo's `ascension-planner` branch it is **2 modified files and 15 added**.
+This lives on top of [wasmegg-carpet/egg](https://github.com/wasmegg-carpet/egg), on that
+repo's `ascension-planner` branch.
 
 ### 1. Requirements
 
@@ -90,14 +90,12 @@ honest comparison is against the best set they can actually field. Every plan he
 
 | file | why |
 |---|---|
-| `scripts/fastsearch.ts` | the harness — wraps the app's own simulator |
-| `scripts/node-shims.ts` | **required**; `fastsearch.ts` does `import './node-shims'` |
-| `vite.search.config.ts` | bundles the above into `dist-search/` |
-| `scripts/autoplan.py` | the staged search driver |
-| `scripts/evalchains.py` | score chains you name yourself |
-
-`beam_search.py`, `predict.py`, `bruteforce.py`, `cadence.py`, `shift_timing.py` and
-`dbg.ts` are superseded and imported by nothing. Ignore them.
+| `scripts/fastsearch.ts` | the command line: flags, and its own tools (`--stages`, `--grid`, `--exhaustive --range`) |
+| `scripts/siteRun.ts` | runs the site's own searches (Smart search, Full sweep, By a date) and `--submit` |
+| `scripts/node-worker.ts`, `scripts/node-worker-shim.ts` | the browser's search worker, run on a Node worker thread |
+| `scripts/node-shims.ts` | **required**; the browser globals the app's code expects, imported first |
+| `vite.search.config.ts` | bundles the above into `dist-search/` (`fastsearch.js` and `chain-worker.js`) |
+| `scripts/autoplan.py` | the older Python staged search, driving `fastsearch --stages` |
 
 ### 4. Build
 
@@ -106,7 +104,7 @@ pnpm install                 # at the REPO ROOT, not here - it is a workspace in
 ```
 
 ```bash
-pnpm search:build            # in this directory; writes dist-search/fastsearch.js
+pnpm search:build            # in this directory; writes dist-search/fastsearch.js and chain-worker.js
 ```
 
 `dist-search/` is not committed, so this step is mandatory on a fresh clone.
@@ -126,24 +124,39 @@ stop — something in the build differs and every result would be suspect.
 
 ## Running a search
 
-`fastsearch` runs the **same search the browser panel runs** -- it imports
-`src/search/driver.ts` and `src/search/chain.ts` directly, so there is one staged search
-with two front ends rather than two implementations that can disagree:
+The site's three searches run **through the site's own code**: the planner's chain-search
+store, with the browser's own worker module on Node worker threads (`scripts/siteRun.ts`).
+There is one implementation with two front ends, so a result from the command line and one
+from the browser, from the same save and settings, are the same result.
 
 ```bash
 pnpm search:build
-node dist-search/fastsearch.js --backup me.json --effort thorough --find-seed --jobs 12 --csv run.csv
+# Smart search (Fastest route)
+node dist-search/fastsearch.js --backup me.json --effort thorough --find-seed --jobs 12
+# Full sweep: one band per checkpoint, as the Full sweep's box
+node dist-search/fastsearch.js --backup me.json --bands "185-200:5; 215-245:10; 260-300:10" --jobs 12
+# Highest TE by a date (or --by-date "2027-03-01 18:00"); --chain/--last to set the stops yourself
+node dist-search/fastsearch.js --backup me.json --egg-day --jobs 8
 ```
 
-`node dist-search/fastsearch.js --help` lists every flag, grouped the way the panel groups
-its settings. Everything the panel exposes has one: `--effort`, `--seed`, `--find-seed`,
-`--min-prestiges` / `--max-prestiges`, `--pin`, `--available-from` / `--available-to` /
-`--available-days`, `--no-hold-shifts`, `--milestone`, `--final`, `--start-date` /
-`--start-time` / `--timezone`, `--force-continue`, `--csv`.
+`node dist-search/fastsearch.js --help` lists every flag. The defaults are the site's:
+balanced effort, 5 to 8 ascensions, and leg 1 finishing the ascension in progress
+(`--no-force-continue` turns that off). Ctrl+C stops a search and keeps its best so far.
 
-**`--backup file.json` runs fully offline** -- nothing is fetched, so an air-gapped machine
-with a saved backup runs the whole thing. `--player-id` is the only flag that touches the
-network, and `--save-backup` writes what it fetched so you only need it once.
+**`--submit` sends the result to the board** exactly as the site's Share does (the same
+payload, the CSV, the re-checks), anonymously unless you pass `--nickname`. Stopped early, it
+sends what it has, marked partial. `--tag PRESET` files a Full sweep under a Science sweep's
+name. The account's owner code (what folds your sends together and lets you rename them) is
+kept in `--state`, by default `~/.config/autoautoap/cli-state.json`. A what-if
+(`--add-artifact`, `--mod`) is never sent.
+
+**`--backup file.json` runs offline** -- nothing is fetched, unless you `--submit`.
+`--player-id` fetches the save, and `--save-backup` writes it so you only need it once.
+
+The script's own tools are still here for the work the site doesn't do: `--stages` and
+`--grid` price chains you name, `--exhaustive --range` prices every route over one pool, and
+`--direct` runs `--effort` on the script's own evaluator. The what-ifs and diagnostics work
+with these.
 
 ### Proving it, rather than trusting it
 
@@ -400,13 +413,16 @@ answer in under an hour, not to get *the* answer.
 
 ### Flags worth knowing
 
+`--max-hours`, `--jobs-fixed` and `--radius` are `autoplan.py`'s; the rest are `fastsearch`'s
+(some are both).
+
 | flag | effect |
 |---|---|
 | `--max-hours N` | refuses to start a configuration projected past N hours. **Off by default** — the projection is printed either way and a long run is your call |
 | `--jobs N` | worker cap. The pool is sized **per batch** — see below |
 | `--csv FILE` | where the per-leg CSV goes. Honoured with `--jobs` > 1 too (it used to be ignored there, and every sharded run overwrote `fastsearch.csv`) |
 | `--start-date` / `--start-time` | plan start. Defaults to the current date and hour **in `--timezone`** (the date used to be UTC's, so an evening run in the Americas was dated a day ahead) |
-| `--force-continue` | finish the current ascension first **when that takes under a week**; longer than that, leg 1 compares continue with the 1/2/3-sale fresh starts and takes the fastest (measured: continue always won under a week, and lost to a fresh 2-sale start on longer first legs, e.g. 120.9 vs 99.6 days). **The browser defaults this on; the CLI defaults it off** -- pass it to match the panel. It changes the answer: one account's best 2-ascension plan moved 135 days |
+| `--force-continue` | finish the current ascension first **when that takes under a week**; longer than that, leg 1 compares continue with the 1/2/3-sale fresh starts and takes the fastest (measured: continue always won under a week, and lost to a fresh 2-sale start on longer first legs, e.g. 120.9 vs 99.6 days). **On by default, in the browser and on the command line** (`--no-force-continue` turns it off on `fastsearch`). It changes the answer: one account's best 2-ascension plan moved 135 days |
 | `--jobs-fixed` | honour `--jobs` literally instead of sizing per batch |
 | `--mod elr=1.05` | colleggtible what-if: scales one modifier dimension |
 | `--add-artifact metronome:legendary` | artifact what-if: injects into the **virtue** inventory |
