@@ -15,5 +15,5 @@
  */
 export default {
   reloadIfBuiltBefore: '2026-09-30T20:12:00Z',
-  note: 'a tidier Insights tab (the short answer first), the original tab buttons, an easier-to-find Your setup, and Egg Day as a clear choice. What moved? under the tabs explains the new layout',
+  note: 'Insights reworked: the short answer first, and every chart says how to read it. Also the original tab buttons, an easier-to-find Your setup, and Egg Day as a clear choice',
 };
