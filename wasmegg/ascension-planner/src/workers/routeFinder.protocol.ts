@@ -16,9 +16,8 @@ export interface FindRequest {
   start: number;
   final: number;
   maxAscensions: number;
-  /** The player's gear against the table's: delivery score and earnings set's Clothed TE bonus. */
-  deliveryScore: number;
-  cteBonus: number;
+  /** The player's peak delivery rate against the table's, at the research a build waits with. */
+  deliveryScale: number;
   /** The player's eggs delivered per egg at the plan start (EGG_ORDER). */
   delivered: number[];
   cont: BuildParams | null;
@@ -27,9 +26,18 @@ export interface FindRequest {
   maxContinueSeconds: number;
 }
 
-export type RouteWorkerRequest = FindRequest;
+/** Load the table (once) and say what it is: the page needs its header to work out the player's
+ *  delivery against it before asking for routes. */
+export interface HeaderRequest {
+  kind: 'header';
+  id: number;
+  url: string;
+}
+
+export type RouteWorkerRequest = FindRequest | HeaderRequest;
 
 export type RouteWorkerResponse =
+  | { kind: 'header'; id: number; header: TableHeader }
   | { kind: 'routes'; id: number; header: TableHeader; best: Route | null; byAscensions: (Route | null)[]; ms: number }
   /** How far along: `done` of `of` numbers of ascensions worked through. */
   | { kind: 'progress'; id: number; done: number; of: number }

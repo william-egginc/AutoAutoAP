@@ -34,23 +34,26 @@ ctx.onmessage = async (event: MessageEvent<RouteWorkerRequest>) => {
   const m = event.data;
   try {
     const t = await load(m.url);
-    const t0 = performance.now();
     const h = t.header;
+    if (m.kind === 'header') {
+      ctx.postMessage({ kind: 'header', id: m.id, header: h } satisfies RouteWorkerResponse);
+      return;
+    }
+    const t0 = performance.now();
     // Every TE from the player's up is needed; a table still being built covers only the top.
-    if (Math.round(m.startTE + m.cteBonus - h.cteBonus) < h.from) {
+    if (Math.floor(m.startTE) < h.from) {
       ctx.postMessage({ kind: 'not-yet', id: m.id, header: h } satisfies RouteWorkerResponse);
       return;
     }
-    // The row with the player's earning power: their start TE moved by their bonus against the
-    // table's, held inside the table.
-    const rowFor = (te: number) => Math.min(h.to, Math.max(h.from, Math.round(te + m.cteBonus - h.cteBonus)));
-    const deliveryScale = m.deliveryScore / (h.deliveryScore || 1);
+    // Each ascension reads the row for its own TE. Moving it by the player's Clothed TE bonus (to
+    // match earning power) was tried and was worse: the row's TE also sets the hatchery, so a short
+    // earnings set came out 5-7% slow against the board (scripts/precompute.ts --verify-table).
+    const deliveryScale = m.deliveryScale;
     const firstLegs = firstLegOptions({
       table: t.lookup,
       startTE: m.startTE,
       start: m.start,
       final: m.final,
-      rowFor,
       deliveryScale,
       delivered: m.delivered,
       cont: m.cont,
@@ -66,7 +69,6 @@ ctx.onmessage = async (event: MessageEvent<RouteWorkerRequest>) => {
       maxAscensions: m.maxAscensions,
       firstLegs,
       deliveryScale,
-      rowFor,
       onProgress: (done, of) => ctx.postMessage({ kind: 'progress', id: m.id, done, of } satisfies RouteWorkerResponse),
     });
     const reply: RouteWorkerResponse = {

@@ -32,6 +32,10 @@
  *   --grid-error --table DIR
  *                    How well an hour's builds are predicted from an earlier hour's with `lateBy`
  *                    (the case for a coarser grid of start hours), and which hours break it.
+ *   --k3 --table DIR
+ *                    Record, beside the table, the research levels and delivery set a build waits
+ *                    with (DIR/k3.json): the site compares a player's peak delivery rate with the
+ *                    table's at that research, with the simulator's own rate function.
  *   --pack --table DIR --out FILE [--fake-below TE]
  *                    Pack a generated table into the one file the site loads
  *                    (search/precomputedTable.ts), covering the start TEs finished so far.
@@ -69,7 +73,7 @@ import { continueTailParams, continueVariantForCheck, runLeg, TIER_13_MIN_STARTI
 import { runH1 } from '@/auto/shifts/h1';
 import { applyShiftAction } from '@/auto/shifts/helpers/actionHelpers';
 import { runMaxVehiclesPlan } from '@/auto/shifts/helpers/vehicles';
-import { calculateArtifactModifiers } from '@/lib/artifacts';
+import { calculateArtifactModifiers, getOptimalELRSet } from '@/lib/artifacts';
 import { computeRealisticELR } from '@/calculations/realisticELR';
 import {
   bestTailTo,
@@ -83,7 +87,7 @@ import {
 } from '@/search/precomputedLeg';
 import { findRoutes, nextHour, type Route } from '@/search/routeFinder';
 import { packTable, readTable } from '@/search/precomputedTable';
-import { deliveryScore } from '@/search/virtueScore';
+import { deliveryScore, slotsFromLabels } from '@/search/virtueScore';
 import { describeLoadoutSlots } from '@/search/csv';
 import { cteFromArtifacts } from 'lib/virtue';
 import { equippedArtifactsToLibArtifacts } from '@/lib/artifacts/utils';
@@ -190,11 +194,11 @@ export function legTo(
  * A variant's build as `BuildParams`: H1 and K3's purchases replayed exactly as `runAscension` runs
  * them when it resumes a C3 variant at H1, stopping where K3's wait would begin.
  */
-export function paramsOf(
+/** H1 and K3's purchases replayed (see `paramsOf`): the state K3's wait begins in, and when. */
+function k3StateOf(
   build: ReturnType<typeof buildAt>,
-  v: ReturnType<typeof buildAt>['variants'][number],
-  start: number
-): BuildParams {
+  v: ReturnType<typeof buildAt>['variants'][number]
+): { k3: EngineState; waitStart: number } {
   const ctx = build.ctx;
   let state = JSON.parse(JSON.stringify(v.result.endState)) as EngineState;
   let elapsed = build.preC3.elapsedSeconds + v.result.elapsedSeconds;
@@ -205,7 +209,16 @@ export function paramsOf(
   state.lastStepTime = elapsed;
   const shifted = applyShiftAction(state, ctx, 'kindness');
   const vehicles = runMaxVehiclesPlan(shifted.state, ctx, Infinity);
-  const k3 = vehicles.endState;
+  return { k3: vehicles.endState, waitStart: elapsed + vehicles.elapsedSeconds };
+}
+
+export function paramsOf(
+  build: ReturnType<typeof buildAt>,
+  v: ReturnType<typeof buildAt>['variants'][number],
+  start: number
+): BuildParams {
+  const ctx = build.ctx;
+  const { k3, waitStart } = k3StateOf(build, v);
   const peakELR = computeRealisticELR(
     k3.researchLevels,
     calculateArtifactModifiers(k3.artifactLoadout),
@@ -215,7 +228,7 @@ export function paramsOf(
   return {
     sales: v.saleCount,
     tier13: !!v.attemptTier13Unlock,
-    waitStart: elapsed + vehicles.elapsedSeconds,
+    waitStart,
     saleEnd: v.buildPhaseEnd - start,
     peakELR,
     delivered: EGG_ORDER.map(e => k3.eggsDelivered[e] || 0),
@@ -535,9 +548,60 @@ async function verifyTable(file: string): Promise<void> {
     Willsalt: { score: 0.9577, bonus: 126.38 },
   };
   const tableBonus = table.meta.cteBonus as number;
+  // The exact rate correction: each account's peak delivery with its own set against the table's, at
+  // the research a build waits with (k3.json), through the simulator's own rate function.
+  const k3 = existsSync(`${dir}/k3.json`)
+    ? (JSON.parse(readFileSync(`${dir}/k3.json`, 'utf8')) as {
+        research: Record<string, number>;
+        delivery: EngineState['artifactLoadout'];
+      })
+    : null;
+  const SETS: Record<string, string> = {
+    allan: 'T4L Gusset:Q,Q,Q|T4L Interstellar compass:Q,Q|T4L Quantum metronome:Q,T,T|T4L Puzzle cube:T,T,T',
+    Williamthe5thc: 'T4L Quantum metronome:T,T,T|T4E Interstellar compass:Q,Q|T4L Gusset:T,T,T|T4L The chalice:Q,Q,Q',
+    Halceyx: 'T4L Gusset:Q,Q,Q|T4L Interstellar compass:Q,Q|T4L Quantum metronome:Q,Q3,T|T4L Puzzle cube:T,T,T',
+    Willsalt: 'T4E Quantum metronome:T,T|T4L Interstellar compass:Q,Q|T3L Tungsten ankh:T,T,T|T4L Gusset:Q,Q,Q',
+  };
+  const stoneLabel = (x: string) =>
+    x === 'Q' ? 'T4 Quantum stone' : x === 'Q3' ? 'T3 Quantum stone' : 'T4 Tachyon stone';
+  const rate = (set: EngineState['artifactLoadout']) =>
+    computeRealisticELR(
+      k3!.research,
+      calculateArtifactModifiers(set),
+      inputs.context.epicResearchLevels,
+      inputs.context.colleggtibleModifiers
+    ).effectiveRate;
+  const exactScale = (who: string): number | null => {
+    if (!k3 || !SETS[who]) return null;
+    const set = slotsFromLabels(
+      SETS[who].split('|').map(part => {
+        const [artifact, stones] = part.split(':');
+        return { artifact, stones: stones.split(',').map(stoneLabel) };
+      })
+    );
+    return rate(set as EngineState['artifactLoadout']) / rate(k3.delivery);
+  };
+  // --as NAME: the loaded save is that account's real one (run without --reference). Its exact rate
+  // correction then comes from its own inventory: the best set it can wear at the waiting research,
+  // as the site will work it out for a player.
+  const asWho = arg('as');
+  const ownScale = (): number | null => {
+    if (!k3 || !inputs.context.rawBackup) return null;
+    const set = getOptimalELRSet(inputs.context.rawBackup, {
+      commonResearch: k3.research,
+      epicResearchLevels: inputs.context.epicResearchLevels,
+      colleggtibleModifiers: inputs.context.colleggtibleModifiers,
+      assumeMaxHabsVehicles: true,
+    });
+    return set ? rate(set as EngineState['artifactLoadout']) / rate(k3.delivery) : null;
+  };
   for (const [who, acct] of Object.entries(ACCOUNTS)) {
+    if (asWho && who !== asWho) continue;
     const plain: number[] = [];
     const corrected: number[] = [];
+    const exact: number[] = [];
+    const exactSameRow: number[] = [];
+    const scale = asWho ? ownScale() : exactScale(who);
     const seen = new Set<string>();
     for (const r of rows) {
       if (r.who !== who || !table.lookup(r.te, 0)) continue;
@@ -555,9 +619,19 @@ async function verifyTable(file: string): Promise<void> {
       const builds = (table.lookup(row, hour) ?? []).map(b => ({ ...b, peakELR: b.peakELR * acct.score }));
       const c = builds.length ? bestTailTo(builds, r.target) : null;
       if (c) corrected.push((c.seconds + wait - real) / real);
+      if (scale !== null) {
+        const xb = (table.lookup(row, hour) ?? []).map(b => ({ ...b, peakELR: b.peakELR * scale }));
+        const x = xb.length ? bestTailTo(xb, r.target) : null;
+        if (x) exact.push((x.seconds + wait - real) / real);
+        const sb = (table.lookup(r.te, hour) ?? []).map(b => ({ ...b, peakELR: b.peakELR * scale }));
+        const y = sb.length ? bestTailTo(sb, r.target) : null;
+        if (y) exactSameRow.push((y.seconds + wait - real) / real);
+      }
     }
     console.log(`${who}: as the table's account ${stats(plain)}`);
     console.log(`${' '.repeat(who.length)}  corrected for gear  ${stats(corrected)}`);
+    if (scale !== null) console.log(`${' '.repeat(who.length)}  exact rate (x${scale.toFixed(4)}) ${stats(exact)}`);
+    if (scale !== null) console.log(`${' '.repeat(who.length)}  exact rate, own TE row ${stats(exactSameRow)}`);
   }
 }
 
@@ -599,6 +673,30 @@ function gridError(): void {
         (worstHours.length ? `, mostly from ${worstHours.join(', ')}` : '')
     );
   }
+}
+
+async function recordK3(file: string): Promise<void> {
+  const dir = arg('table');
+  if (!dir) throw new Error('--k3 needs --table DIR');
+  const inputs = await loadInputs(file);
+  // A start in the upper middle, at the reference week's first hour: research there is the build's
+  // full complement, which is what every later ascension waits with.
+  const te = 400;
+  const start = REFERENCE_WEEK;
+  const state = startStateAt(inputs, te);
+  const build = buildAt(inputs, state, start, te);
+  const { k3 } = k3StateOf(build, build.variants[0]);
+  const out = { research: k3.researchLevels, delivery: k3.artifactLoadout };
+  writeFileSync(`${dir}/k3.json`, JSON.stringify(out, null, 1));
+  const peak = computeRealisticELR(
+    out.research,
+    calculateArtifactModifiers(out.delivery),
+    inputs.context.epicResearchLevels,
+    inputs.context.colleggtibleModifiers
+  ).effectiveRate;
+  console.log(
+    `k3.json written: ${Object.keys(out.research).length} research levels, peak ${((peak * 3600) / 1e15).toFixed(2)} q/hr with ${out.delivery.length} artifacts`
+  );
 }
 
 function routeBin(): void {
@@ -663,6 +761,7 @@ function pack(): void {
       to: tes[tes.length - 1],
       builtAt: meta.builtAt,
       ...(fakeBelow !== null ? { fake: true } : {}),
+      ...(existsSync(`${dir}/k3.json`) ? { k3: JSON.parse(readFileSync(`${dir}/k3.json`, 'utf8')) } : {}),
     },
     cells
   );
@@ -857,6 +956,7 @@ async function main(): Promise<void> {
   if (has('verify')) return verify(backup);
   if (has('check')) return check(backup);
   if (has('verify-continue')) return verifyContinue(backup);
+  if (has('k3')) return recordK3(backup);
   throw new Error('nothing to do: pass --profile, --verify or --check');
 }
 

@@ -74,6 +74,14 @@
       <p v-else class="text-[12px] text-amber-800">No route reaches {{ store.finalTE }} from here in the table.</p>
 
       <p
+        v-if="bonusShort > 0.05"
+        class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"
+      >
+        Your earnings set is {{ bonusShort.toFixed(2) }} Clothed TE short of the table's account, so your real
+        ascensions run a little slower than these (about 1-2% each per point). The routes are still a good guide; Check
+        exactly gives your own times.
+      </p>
+      <p
         v-if="leftOut.length"
         class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"
       >
@@ -128,9 +136,10 @@
           epic research and colleggtibles. Each of its ascensions is the simulator's own build, and the waiting after it
           is the simulator's own arithmetic, so on that account a route here matches the full simulator to the second.
           For you: your first ascension is your own (continuing the one in progress when the continue rule would, from
-          your save), the waits run at your delivery score ({{ gear.score.toFixed(3) }}), and each build is read from
-          the row with your earning power (your bonus {{ gear.bonus.toFixed(2) }}). Ascension starts are matched to the
-          Pacific hour of the week, because the weekly sale is at a fixed Pacific time.
+          your save), the waits run at your own peak delivery rate (the best set your inventory can wear at full
+          research: {{ ((deliveryScale ?? 1) * 100).toFixed(1) }}% of the table's), and each ascension is read from the
+          row for its own TE. Each fresh ascension starts on the hour, where the table was simulated; the weekly sale is
+          at a fixed Pacific time, so the hour of the week is what matters.
         </p>
       </details>
     </template>
@@ -145,10 +154,12 @@ import { NAMES } from '@/lib/siteNav';
 import { showDateTime } from '@/lib/displayTime';
 import { continueTailParams } from '@/search/leg';
 import { CONTINUE_MAX_SECONDS, CONTINUE_PIN_MAX_SECONDS } from '@/search/rules';
-import { deliveryScore } from '@/search/virtueScore';
 import { EGG_ORDER } from '@/search/precomputedLeg';
 import { cteFromArtifacts } from 'lib/virtue';
+import { calculateArtifactModifiers, getOptimalELRSet } from '@/lib/artifacts';
 import { equippedArtifactsToLibArtifacts } from '@/lib/artifacts/utils';
+import { computeRealisticELR } from '@/calculations/realisticELR';
+import type { EquippedArtifact } from '@/lib/artifacts/types';
 import type { Route } from '@/search/routeFinder';
 import type { TableHeader } from '@/search/precomputedTable';
 import type { RouteWorkerResponse } from '@/workers/routeFinder.protocol';
@@ -166,13 +177,36 @@ const result = ref<{ best: Route | null; byAscensions: (Route | null)[] } | null
 const header = ref<TableHeader | null>(null);
 const ms = ref<number | null>(null);
 
-/** The player's gear against the table's (read from the save the planner loaded). */
-const gear = computed(() => {
+/** The player's earnings set's Clothed TE bonus (read from the save the planner loaded). */
+const bonus = computed(() => {
   const inv = store.readInventory();
-  return {
-    score: inv.elr ? (deliveryScore(inv.elr)?.score ?? 1) : 1,
-    bonus: inv.earnings ? cteFromArtifacts(equippedArtifactsToLibArtifacts(inv.earnings)) : 0,
-  };
+  return inv.earnings ? cteFromArtifacts(equippedArtifactsToLibArtifacts(inv.earnings)) : 0;
+});
+
+/**
+ * The player's peak delivery rate against the table's, at the research a build waits with (the
+ * table's `k3`): the best set the player's own inventory can wear there, through the simulator's own
+ * rate function. Their whole inventory rather than a score, because at that research nearly every
+ * stone goes to lay rate, and the set a save shows (chosen at today's research) would understate
+ * everyone (scripts/precompute.ts --verify-table --as). Null until the table's header is in.
+ */
+const deliveryScale = computed<number | null>(() => {
+  const k3 = header.value?.k3;
+  if (!k3) return header.value ? 1 : null;
+  const ctx = store.collectInputs().context;
+  const raw = ctx.rawBackup;
+  if (!raw) return 1;
+  const rate = (set: EquippedArtifact[]) =>
+    computeRealisticELR(k3.research, calculateArtifactModifiers(set), ctx.epicResearchLevels, ctx.colleggtibleModifiers)
+      .effectiveRate;
+  const mine = getOptimalELRSet(raw, {
+    commonResearch: k3.research,
+    epicResearchLevels: ctx.epicResearchLevels,
+    colleggtibleModifiers: ctx.colleggtibleModifiers,
+    assumeMaxHabsVehicles: true,
+  });
+  const theirs = rate(k3.delivery as EquippedArtifact[]);
+  return mine && theirs > 0 ? rate(mine as EquippedArtifact[]) / theirs : 1;
 });
 
 const rows = computed(() => (result.value?.byAscensions ?? []).filter((r): r is Route => !!r));
@@ -186,6 +220,10 @@ const leftOut = computed(() => {
   return out;
 });
 
+/** How far the player's earnings set is from the table's: each point of Clothed TE short is about
+ *  1-2% on every ascension (the board's own legs), which the instant answer does not take off. */
+const bonusShort = computed(() => (header.value ? header.value.cteBonus - bonus.value : 0));
+
 let worker: Worker | null = null;
 let nextId = 0;
 function getWorker(): Worker {
@@ -194,6 +232,11 @@ function getWorker(): Worker {
     worker.onmessage = (e: MessageEvent<RouteWorkerResponse>) => {
       const m = e.data;
       if (m.id !== nextId) return; // an older request, superseded
+      if (m.kind === 'header') {
+        header.value = m.header;
+        find();
+        return;
+      }
       if (m.kind === 'progress') {
         loadingText.value = `Working out every route: ${m.done} of ${m.of} ascension counts done…`;
         return;
@@ -222,25 +265,28 @@ function getWorker(): Worker {
 }
 onUnmounted(() => worker?.terminate());
 
+/** Ask for the table's header first (that loads the table), then for the routes. */
 function run(): void {
   const te = Math.floor(store.currentTE);
   if (!(te > 0) || !(store.finalTE > te)) return;
-  const inputs = store.collectInputs();
   status.value = 'loading';
-  loadingText.value = header.value
-    ? 'Working out every route…'
-    : 'Loading the table (about 12 MB, once) and working out every route…';
+  loadingText.value = 'Loading the table (about 12 MB, once) and working out every route…';
   nextId++;
+  getWorker().postMessage({ kind: 'header', id: nextId, url: TABLE_URL });
+}
+
+function find(): void {
+  const inputs = store.collectInputs();
+  loadingText.value = 'Working out every route…';
   getWorker().postMessage({
     kind: 'find',
     id: nextId,
     url: TABLE_URL,
-    startTE: te,
+    startTE: Math.floor(store.currentTE),
     start: inputs.planStart,
     final: store.finalTE,
     maxAscensions: 10,
-    deliveryScore: gear.value.score,
-    cteBonus: gear.value.bonus,
+    deliveryScale: deliveryScale.value ?? 1,
     delivered: EGG_ORDER.map(e => inputs.baseState.eggsDelivered?.[e] || 0),
     // A plain copy: the worker gets structured-cloned data, never a reactive proxy.
     cont: JSON.parse(JSON.stringify(continueTailParams(inputs, inputs.planStart))),
@@ -253,14 +299,7 @@ function run(): void {
 // Again whenever what it depends on changes (a new save, a new plan start, another target).
 let timer: ReturnType<typeof setTimeout> | null = null;
 watch(
-  () => [
-    Math.floor(store.currentTE),
-    store.planStart,
-    store.finalTE,
-    store.forceContinue,
-    gear.value.score,
-    gear.value.bonus,
-  ],
+  () => [Math.floor(store.currentTE), store.planStart, store.finalTE, store.forceContinue, bonus.value],
   () => {
     if (timer) clearTimeout(timer);
     timer = setTimeout(run, 300);
