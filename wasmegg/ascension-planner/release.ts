@@ -15,5 +15,5 @@
  */
 export default {
   reloadIfBuiltBefore: '2026-09-30T20:12:00Z',
-  note: 'Science sweeps now run right on the Science tab: press Run this sweep to see the chains and time on this computer, then Start. Progress shows there, and the result is sent when it finishes',
+  note: 'Science sweeps run on the Science tab, By a date gets a size slider for Suggest a space, One range is gone from the Full sweep, and boxes you type in are kept when you switch screens',
 };
