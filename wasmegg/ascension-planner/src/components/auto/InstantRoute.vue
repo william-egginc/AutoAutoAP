@@ -107,13 +107,13 @@
 
     <!-- What the answer above does not account for, on both screens. -->
     <template v-if="result">
-      <p
-        v-if="bonusShort > 0.05"
-        class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"
-      >
-        Your earnings set is {{ bonusShort.toFixed(2) }} Clothed TE short of the table's account, so your real
-        ascensions run a little slower than these (about 1-2% each per point). The routes are still a good guide; Check
-        exactly gives your own times.
+      <p v-if="gearDiffers" class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+        Your gear isn't the table's account's (<template v-if="bonusShort > 0.05"
+          >earnings set {{ bonusShort.toFixed(2) }} Clothed TE short, </template
+        >delivery {{ ((deliveryScale ?? 1) * 100).toFixed(1) }}% of its at full research). Ascensions that start below
+        about TE {{ FULL_RESEARCH_TE }} can take a few percent more or less than these: your earnings set, and how your
+        delivery gear does before research is complete, aren't fully taken off. From there up they match. Check exactly
+        gives your own times.
       </p>
       <p
         v-if="progressionShort"
@@ -249,9 +249,24 @@ const leftOut = computed(() => {
   return out;
 });
 
-/** How far the player's earnings set is from the table's: each point of Clothed TE short is about
- *  1-2% on every ascension (the board's own legs), which the instant answer does not take off. */
+/** How far the player's earnings set is from the table's Clothed TE bonus. */
 const bonusShort = computed(() => (header.value ? header.value.cteBonus - bonus.value : 0));
+
+/**
+ * The start TE from which an ascension's build reaches full research, so the delivery adjustment is
+ * exact and the earnings set stops mattering. Measured on the board's legs (the collector analyst,
+ * 1 Oct): from about 300 up, Willsalt's legs priced the site's way are a median 0.00% off (99th
+ * percentile 0.11%); at 245-251 the earnings set costs ~0.3% of leg time per Clothed TE point and
+ * delivery gear on incomplete research is off by 1-2.6% either way.
+ */
+const FULL_RESEARCH_TE = 300;
+
+/** The player's gear is not the table's account's, and the route starts where that shows. */
+const gearDiffers = computed(
+  () =>
+    Math.floor(store.currentTE) < FULL_RESEARCH_TE &&
+    (bonusShort.value > 0.05 || Math.abs((deliveryScale.value ?? 1) - 1) > 0.005)
+);
 
 /** What the player's epic research and colleggtibles are short of the table's (all maxed), said
  *  plainly; empty when nothing is, or nothing could be read. Both speed every build and every wait,

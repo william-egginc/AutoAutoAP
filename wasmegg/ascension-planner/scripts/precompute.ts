@@ -106,7 +106,7 @@ import {
 import { expandArrivals, findRoutes, firstLegOptions, nextHour, type Route } from '@/search/routeFinder';
 import { splitByWork } from '@/search/routePool';
 import { packTable, readTable, type TableHeader } from '@/search/precomputedTable';
-import { deliveryScore, slotsFromLabels } from '@/search/virtueScore';
+import { deliveryScore } from '@/search/virtueScore';
 import { describeLoadoutSlots } from '@/search/csv';
 import { cteFromArtifacts } from 'lib/virtue';
 import { equippedArtifactsToLibArtifacts } from '@/lib/artifacts/utils';
@@ -567,52 +567,26 @@ async function verifyTable(file: string): Promise<void> {
     Willsalt: { score: 0.9577, bonus: 126.38 },
   };
   const tableBonus = table.meta.cteBonus as number;
-  // The exact rate correction: each account's peak delivery with its own set against the table's, at
-  // the research a build waits with (k3.json), through the simulator's own rate function.
-  const k3 = existsSync(`${dir}/k3.json`)
-    ? (JSON.parse(readFileSync(`${dir}/k3.json`, 'utf8')) as {
-        research: Record<string, number>;
-        delivery: EngineState['artifactLoadout'];
-      })
-    : null;
-  const SETS: Record<string, string> = {
-    allan: 'T4L Gusset:Q,Q,Q|T4L Interstellar compass:Q,Q|T4L Quantum metronome:Q,T,T|T4L Puzzle cube:T,T,T',
-    Williamthe5thc: 'T4L Quantum metronome:T,T,T|T4E Interstellar compass:Q,Q|T4L Gusset:T,T,T|T4L The chalice:Q,Q,Q',
-    Halceyx: 'T4L Gusset:Q,Q,Q|T4L Interstellar compass:Q,Q|T4L Quantum metronome:Q,Q3,T|T4L Puzzle cube:T,T,T',
-    Willsalt: 'T4E Quantum metronome:T,T|T4L Interstellar compass:Q,Q|T3L Tungsten ankh:T,T,T|T4L Gusset:Q,Q,Q',
-  };
-  const stoneLabel = (x: string) =>
-    x === 'Q' ? 'T4 Quantum stone' : x === 'Q3' ? 'T3 Quantum stone' : 'T4 Tachyon stone';
-  const rate = (set: EngineState['artifactLoadout']) =>
-    computeRealisticELR(
-      k3!.research,
-      calculateArtifactModifiers(set),
-      inputs.context.epicResearchLevels,
-      inputs.context.colleggtibleModifiers
-    ).effectiveRate;
-  const exactScale = (who: string): number | null => {
-    if (!k3 || !SETS[who]) return null;
-    const set = slotsFromLabels(
-      SETS[who].split('|').map(part => {
-        const [artifact, stones] = part.split(':');
-        return { artifact, stones: stones.split(',').map(stoneLabel) };
-      })
-    );
-    return rate(set as EngineState['artifactLoadout']) / rate(k3.delivery);
-  };
   // --as NAME: the loaded save is that account's real one (run without --reference). Its exact rate
-  // correction then comes from its own inventory: the best set it can wear at the waiting research,
-  // as the site will work it out for a player.
+  // correction comes from its own inventory: the best set it can wear at the research a build waits
+  // with (k3.json), as the site works it out for a player. Without --as there is no exact line: the
+  // board only has the sets accounts wore at today's research, which lose ~22% to the best set at
+  // the waiting research (allan, the table's own account, came out x0.78), so they would mislead.
+  const k3 = existsSync(`${dir}/k3.json`)
+    ? (JSON.parse(readFileSync(`${dir}/k3.json`, 'utf8')) as NonNullable<TableHeader['k3']>)
+    : null;
   const asWho = arg('as');
-  const ownScale = (): number | null =>
-    k3 && inputs.context.rawBackup ? instantDeliveryScale(inputs, k3 as NonNullable<TableHeader['k3']>) : null;
+  const ownScale = (): number | null => (k3 && inputs.context.rawBackup ? instantDeliveryScale(inputs, k3) : null);
   for (const [who, acct] of Object.entries(ACCOUNTS)) {
     if (asWho && who !== asWho) continue;
     const plain: number[] = [];
     const corrected: number[] = [];
     const exact: number[] = [];
     const exactSameRow: number[] = [];
-    const scale = asWho ? ownScale() : exactScale(who);
+    // The site's way, by the start TE's band: below full research the gear shows, from ~300 it should not.
+    const bands = [120, 200, 300, 490];
+    const byBand: number[][] = bands.slice(1).map(() => []);
+    const scale = asWho ? ownScale() : null;
     const seen = new Set<string>();
     for (const r of rows) {
       if (r.who !== who || !table.lookup(r.te, 0)) continue;
@@ -636,13 +610,23 @@ async function verifyTable(file: string): Promise<void> {
         if (x) exact.push((x.seconds + wait - real) / real);
         const sb = (table.lookup(r.te, hour) ?? []).map(b => ({ ...b, peakELR: b.peakELR * scale }));
         const y = sb.length ? bestTailTo(sb, r.target) : null;
-        if (y) exactSameRow.push((y.seconds + wait - real) / real);
+        if (y) {
+          exactSameRow.push((y.seconds + wait - real) / real);
+          const b = bands.findIndex((lo, i) => i < bands.length - 1 && r.te >= lo && r.te < bands[i + 1]);
+          if (b >= 0) byBand[b].push((y.seconds + wait - real) / real);
+        }
       }
     }
     console.log(`${who}: as the table's account ${stats(plain)}`);
     console.log(`${' '.repeat(who.length)}  corrected for gear  ${stats(corrected)}`);
     if (scale !== null) console.log(`${' '.repeat(who.length)}  exact rate (x${scale.toFixed(4)}) ${stats(exact)}`);
     if (scale !== null) console.log(`${' '.repeat(who.length)}  exact rate, own TE row ${stats(exactSameRow)}`);
+    if (scale !== null)
+      byBand.forEach(
+        (errs, b) =>
+          errs.length &&
+          console.log(`${' '.repeat(who.length)}    start TE ${bands[b]}-${bands[b + 1] - 1}: ${stats(errs)}`)
+      );
   }
 }
 
