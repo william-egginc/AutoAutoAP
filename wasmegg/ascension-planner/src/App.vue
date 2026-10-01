@@ -469,8 +469,9 @@
           <template v-if="autoView === 'classic'">
             <p class="max-w-4xl mx-auto text-sm text-slate-600 leading-relaxed">
               <span class="font-bold text-slate-900">{{ NAMES.classic }}</span> is Joo's Auto AP: type the TE you want
-              to ascend at and it lays out every ascension from your start. To have the checkpoints found for you, use
-              {{ NAMES.fastest }} or {{ NAMES.byDate }}.
+              to ascend at and it lays out every ascension from your start, with the weekly Research Sale and the Monday
+              2× earnings boost in it. To have the checkpoints found for you, use {{ NAMES.fastest }} or
+              {{ NAMES.byDate }}.
             </p>
             <AutomaticPlanner />
           </template>

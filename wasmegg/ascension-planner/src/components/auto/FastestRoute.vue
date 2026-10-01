@@ -14,7 +14,9 @@
     <div>
       <h2 class="text-2xl font-black text-slate-900">Fastest route to {{ store.finalTE }}</h2>
       <p class="text-sm text-slate-600">
-        Finds the checkpoints that get you to {{ store.finalTE }} TE soonest, from your save and your setup.
+        Finds the checkpoints that get you to {{ store.finalTE }} TE soonest, from your save and your setup. Plans
+        include the weekly Research Sale and the Monday 2× earnings boost, the same as Classic; other game events aren't
+        simulated.
       </p>
     </div>
 

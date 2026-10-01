@@ -5,10 +5,12 @@
   one-line bar of the values, whose Edit setup opens this.
 -->
 <template>
-  <div class="fixed z-50 right-3 sm:right-4" style="bottom: calc(env(safe-area-inset-bottom, 0px) + 1rem)">
+  <div ref="dock" class="fixed z-50" :style="dockStyle">
+    <!-- Opens on whichever side of the pill has room, wherever it has been dragged. -->
     <div
       v-if="ui.setupOpen"
-      class="absolute bottom-full right-0 mb-2 w-[min(94vw,46rem)] max-h-[75vh] overflow-y-auto rounded-2xl border-2 border-indigo-200 bg-white shadow-[0_16px_40px_rgba(0,0,0,0.3)]"
+      class="absolute w-[min(94vw,46rem)] max-h-[70vh] overflow-y-auto rounded-2xl border-2 border-indigo-200 bg-white shadow-[0_16px_40px_rgba(0,0,0,0.3)]"
+      :class="[opensUp ? 'bottom-full mb-2' : 'top-full mt-2', alignRight ? 'right-0' : 'left-0']"
       role="dialog"
       aria-label="Your setup"
     >
@@ -27,7 +29,16 @@
       <YourSetup :screen="screen" docked />
     </div>
 
-    <div class="flex items-center gap-1 rounded-full bg-indigo-600 text-white shadow-xl pl-1.5 pr-2 py-1.5">
+    <div class="flex items-center gap-1 rounded-full bg-indigo-600 text-white shadow-xl pl-1 pr-2 py-1.5">
+      <!-- Drag it anywhere (the user, 30 Sept); where it was left is remembered. Double-click puts it back. -->
+      <span
+        class="cursor-grab active:cursor-grabbing touch-none select-none px-1 text-white/70 hover:text-white"
+        title="Drag to move · double-click to put back"
+        aria-hidden="true"
+        @pointerdown="startDrag"
+        @dblclick="resetPos"
+        >⋮⋮</span
+      >
       <button
         type="button"
         class="relative flex items-center gap-1.5 rounded-full px-2.5 py-1 hover:bg-white/15"
@@ -78,7 +89,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useUIStore } from '@/stores/ui';
 import type { AutoView } from '@/lib/siteNav';
@@ -105,12 +116,81 @@ watch(
   }
 );
 
+/** Where it was dragged to (top-left, px), remembered in this browser; null is the corner default. */
+const POS_KEY = 'aap-setup-dock-pos';
+const dock = ref<HTMLElement | null>(null);
+const pos = ref<{ x: number; y: number } | null>(readPos());
+function readPos(): { x: number; y: number } | null {
+  try {
+    const v = JSON.parse(localStorage.getItem(POS_KEY) ?? 'null');
+    return v && Number.isFinite(v.x) && Number.isFinite(v.y) ? v : null;
+  } catch {
+    return null;
+  }
+}
+function savePos(): void {
+  try {
+    if (pos.value) localStorage.setItem(POS_KEY, JSON.stringify(pos.value));
+    else localStorage.removeItem(POS_KEY);
+  } catch {
+    /* not remembered: fine */
+  }
+}
+const viewport = ref({ w: window.innerWidth, h: window.innerHeight });
+/** Kept on screen whatever the window does after. */
+function clamped(p: { x: number; y: number }): { x: number; y: number } {
+  const w = dock.value?.offsetWidth ?? 260;
+  const h = dock.value?.offsetHeight ?? 44;
+  return {
+    x: Math.min(Math.max(4, p.x), Math.max(4, viewport.value.w - w - 4)),
+    y: Math.min(Math.max(4, p.y), Math.max(4, viewport.value.h - h - 4)),
+  };
+}
+const dockStyle = computed(() => {
+  if (!pos.value) return { right: '1rem', bottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' };
+  const p = clamped(pos.value);
+  return { left: `${p.x}px`, top: `${p.y}px` };
+});
+const opensUp = computed(() => !pos.value || pos.value.y > viewport.value.h / 2);
+const alignRight = computed(() => !pos.value || pos.value.x > viewport.value.w / 2);
+
+let dragFrom: { px: number; py: number; x: number; y: number } | null = null;
+function startDrag(e: PointerEvent): void {
+  const r = dock.value?.getBoundingClientRect();
+  if (!r) return;
+  dragFrom = { px: e.clientX, py: e.clientY, x: r.left, y: r.top };
+  window.addEventListener('pointermove', onDrag);
+  window.addEventListener('pointerup', endDrag, { once: true });
+  e.preventDefault();
+}
+function onDrag(e: PointerEvent): void {
+  if (!dragFrom) return;
+  pos.value = clamped({ x: dragFrom.x + e.clientX - dragFrom.px, y: dragFrom.y + e.clientY - dragFrom.py });
+}
+function endDrag(): void {
+  dragFrom = null;
+  window.removeEventListener('pointermove', onDrag);
+  savePos();
+}
+function resetPos(): void {
+  pos.value = null;
+  savePos();
+}
+function onResize(): void {
+  viewport.value = { w: window.innerWidth, h: window.innerHeight };
+}
+
 function onKey(e: KeyboardEvent): void {
   if (e.key === 'Escape' && ui.setupOpen) ui.setupOpen = false;
 }
-onMounted(() => window.addEventListener('keydown', onKey));
+onMounted(() => {
+  window.addEventListener('keydown', onKey);
+  window.addEventListener('resize', onResize);
+});
 onUnmounted(() => {
   window.removeEventListener('keydown', onKey);
+  window.removeEventListener('resize', onResize);
+  window.removeEventListener('pointermove', onDrag);
   ui.setupOpen = false;
 });
 </script>

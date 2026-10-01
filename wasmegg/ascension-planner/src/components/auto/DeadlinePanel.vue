@@ -112,7 +112,8 @@
         starts.</template
       >
       <template v-else>Pick a date and time.</template>
-      Game events (including Egg Day's own bonuses) aren't simulated. The plan is for reaching the TE by then.
+      The weekly Research Sale and Monday 2× earnings boost are in the plan; other game events (including Egg Day's own
+      bonuses) aren't. The plan is for reaching the TE by then.
     </p>
 
     <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest pt-1">The routes to try</h3>
