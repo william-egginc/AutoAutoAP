@@ -144,7 +144,7 @@
 
       <!-- ------------------------------------------------------------------ what we know so far -->
       <!-- Written, not computed from the runs, so it shows at once, before the collector answers. -->
-      <WhatWeKnow v-if="part === 'insights'" />
+      <WhatWeKnow v-if="part === 'insights'" :live-runs="runsTo490" />
 
       <!-- Holds the place of everything below while the collector loads, at a fixed height. The
            sections that are worked out from the runs wait for them: drawn from no runs, "Help fill
@@ -159,6 +159,37 @@
       </section>
 
       <template v-if="part === 'insights' && rows.length">
+        <!-- The caveats, folded and first: "accounts are a guess" matters before reading any account row. -->
+        <details class="rounded-xl border border-slate-200 bg-white p-4 text-[11px] text-slate-500">
+          <summary class="cursor-pointer text-[10px] font-black text-slate-500 uppercase tracking-widest">
+            How to read all of this
+          </summary>
+          <div class="mt-2 space-y-2">
+            <p class="leading-relaxed">
+              <b class="text-slate-700">Accounts are a guess.</b> Submissions carry no player id by design, so an
+              "account" here is one timezone plus one set of virtue artifacts. People who retype their nickname every
+              run still group correctly; two people in the same timezone with identical artifact sets would be merged
+              into one.
+            </p>
+            <p class="leading-relaxed">
+              <b class="text-slate-700">Shapes travel, durations do not.</b> Where the checkpoints sit is a fact about
+              the game's sale calendar and research curve. How long the plan takes is a fact about somebody's artifacts.
+            </p>
+            <p class="leading-relaxed">
+              <b class="text-slate-700">Compare finish dates, not totals.</b> A plan's length counts from its own start,
+              so a run made a day later shows a day fewer even when it is the same plan. The date it reaches the target
+              does not move, and a better plan finishes earlier, so an account's runs are compared by finish date.
+              Totals only compare between runs from the same save. The first ascension is the rest of the one in
+              progress, so it too is shorter when a plan is made later.
+            </p>
+            <p class="leading-relaxed">
+              <b class="text-slate-700">These are searches, not surveys.</b> Most runs explored a band somebody typed,
+              so this shows where good chains were found, which is not always where the good chains are. A band that
+              stops dead at a round number is usually the edge of a search box.
+            </p>
+          </div>
+        </details>
+
         <!-- ------------------------------------------------------------------------- filtering -->
         <section class="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
           <div class="flex flex-wrap items-center gap-3">
@@ -196,6 +227,34 @@
               space rather than the best thing a search happened to find.
             </template>
           </p>
+        </section>
+
+        <!-- Which count wins, near the top: it answers the question most people come with (review, 30 Sept). -->
+        <section class="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
+          <h2 class="text-lg font-black text-slate-900">Which ascension count finishes first, account by account</h2>
+          <p class="text-[12px] text-slate-700 leading-relaxed max-w-3xl">
+            <b>How to read it:</b> each row is one account. "best" is the number of ascensions that finished first for
+            it; every other cell says how many days later that count finished. Darker is closer to the best.
+          </p>
+          <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
+            One row per account, one column per ascension count tried at this target. Each cell is that account's best
+            plan at that count whose finish still stands, as days after the account's own earliest finish (the one the
+            runs table names): "best" at 0, darker is closer. A row only compares with itself; nothing compares down a
+            column, because gear decides totals. The rows are ordered by starting TE (or Clothed TE, or delivery score),
+            so you can see whether the winning count moves with where an account is or with its gear. The border says
+            how the run behind the cell searched: solid for a finished box at every TE, dashed for every 2nd-3rd TE,
+            dotted for every 4th or coarser, striped for a Smart search or a box it did not finish. A dark cell with a
+            dotted or striped edge is a best count found by a search that could have missed a better plan, so it is
+            weaker than it looks. Hover or tap a cell for the chain, its finish date, how it searched and whether the
+            step from the next count down is bigger than the search could explain.
+          </p>
+          <BestCountMatrix
+            :rows="filtered"
+            :tried="atTarget"
+            :judged="judged"
+            :account-colors="accountColors"
+            :account-labels="accountLabels"
+          />
         </section>
 
         <!-- ---------------------------------------------------------------- the count selector -->
@@ -306,369 +365,381 @@
             time.
           </p>
 
-          <div id="the-runs" class="space-y-2 scroll-mt-4">
-            <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">The runs</h3>
-            <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
-              Grouped by account, earliest finish first unless you pick another order below; click an account's name to
-              fold its runs away. <b>Finishes</b> is the date the plan reaches {{ finalTE }} TE, in your timezone (the
-              player's own is on hover): it is the same whenever the same plan is run, so it is what compares between an
-              account's runs. <b>Plan length</b> counts from each run's own start, so a run made a day later shows a day
-              fewer; it only compares between runs from the same save. <b>vs best</b> is days after that account's
-              earliest finish, the run named at the top of its block. That run is picked from all of the account's runs
-              to this target, so Proofs only or picking one count can leave it out of the list; the block then says so.
-              Runs whose finish no longer stands (a what-if, a plan re-measured by a newer run, one the player has
-              fallen behind, one made from an old save) are greyed, with the reason on hover (on a phone, under the
-              name), and listed last when sorted by finish. <b>What was checked</b> is how each run searched and, for a
-              box it tried in full, the TEs at each ascension as they are typed into the planner (<span
-                class="font-mono-premium"
-                >181-250:5</span
-              >
-              is every 5th TE from 181 to 250, <span class="font-mono-premium">:1</span> every TE); the full box is on
-              hover. <b>What's left</b> is how much of that same box at every TE the run did not price (the TEs between
-              its steps, or the rest of a box it stopped early) and how long pricing the rest would take on a 16-20 core
-              machine. Runs that improved a seed chain instead of trying a fixed box have nothing to measure against.
-              <b>can't check</b> marks a run the delivery-set check could not look at (no delivery set or per-leg detail
-              recorded, a last checkpoint under 190 TE, or a target other than 490): not flagged, and not cleared
-              either.
-            </p>
-            <div class="flex flex-wrap items-center gap-1.5">
-              <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest mr-1"
-                >Sort each account by</span
-              >
-              <button
-                v-for="opt in runSortOptions"
-                :key="opt.by"
-                type="button"
-                class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border transition-colors"
-                :class="
-                  activeSort.by === opt.by
-                    ? 'bg-slate-900 text-white border-slate-900'
-                    : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
-                "
-                :aria-pressed="activeSort.by === opt.by"
-                @click="sortRunsBy(opt.by)"
-              >
-                {{ opt.label }}
-              </button>
-              <button
-                type="button"
-                class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border border-slate-200 bg-white text-slate-600 hover:border-slate-300"
-                title="Flip the order"
-                @click="flipRunSort"
-              >
-                {{ activeSort.dir === 'asc' ? '↑' : '↓' }} {{ sortDirText(activeSort) }}
-              </button>
-              <span class="grow" />
-              <button
-                type="button"
-                class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border border-slate-200 bg-white text-slate-500 hover:border-slate-300 disabled:opacity-40"
-                :disabled="runBlocks.every(b => collapsed.has(b.key))"
-                @click="
-                  setCollapsed(
-                    runBlocks.map(b => b.key),
-                    true
-                  )
-                "
-              >
-                Collapse all
-              </button>
-              <button
-                type="button"
-                class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border border-slate-200 bg-white text-slate-500 hover:border-slate-300 disabled:opacity-40"
-                :disabled="!runBlocks.some(b => collapsed.has(b.key))"
-                @click="
-                  setCollapsed(
-                    runBlocks.map(b => b.key),
-                    false
-                  )
-                "
-              >
-                Expand all
-              </button>
-            </div>
-            <p v-if="activeSort.by === 'length'" class="text-[10px] text-amber-800 leading-relaxed max-w-3xl">
-              Plan length counts from each run's own start, so a plan made a day later shows a day fewer even when it is
-              the same plan. In this order, only runs from the same save compare; to see which plan is better, sort by
-              finish.
-            </p>
-            <!-- A size container, so each account's header line can be exactly as wide as what is on
+          <!-- Every run, folded: twelve columns and a long explainer, for the few who want them (review,
+               30 Sept). -->
+          <details id="the-runs" class="scroll-mt-4">
+            <summary class="cursor-pointer text-[10px] font-black text-slate-500 uppercase tracking-widest">
+              Show every run
+            </summary>
+            <div class="mt-2 space-y-2">
+              <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">The runs</h3>
+              <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
+                Grouped by account, earliest finish first unless you pick another order below; click an account's name
+                to fold its runs away. <b>Finishes</b> is the date the plan reaches {{ finalTE }} TE, in your timezone
+                (the player's own is on hover): it is the same whenever the same plan is run, so it is what compares
+                between an account's runs. <b>Plan length</b> counts from each run's own start, so a run made a day
+                later shows a day fewer; it only compares between runs from the same save. <b>vs best</b> is days after
+                that account's earliest finish, the run named at the top of its block. That run is picked from all of
+                the account's runs to this target, so Proofs only or picking one count can leave it out of the list; the
+                block then says so. Runs whose finish no longer stands (a what-if, a plan re-measured by a newer run,
+                one the player has fallen behind, one made from an old save) are greyed, with the reason on hover (on a
+                phone, under the name), and listed last when sorted by finish. <b>What was checked</b> is how each run
+                searched and, for a box it tried in full, the TEs at each ascension as they are typed into the planner
+                (<span class="font-mono-premium">181-250:5</span> is every 5th TE from 181 to 250,
+                <span class="font-mono-premium">:1</span> every TE); the full box is on hover. <b>What's left</b> is how
+                much of that same box at every TE the run did not price (the TEs between its steps, or the rest of a box
+                it stopped early) and how long pricing the rest would take on a 16-20 core machine. Runs that improved a
+                seed chain instead of trying a fixed box have nothing to measure against. <b>can't check</b> marks a run
+                the delivery-set check could not look at (no delivery set or per-leg detail recorded, a last checkpoint
+                under 190 TE, or a target other than 490): not flagged, and not cleared either.
+              </p>
+              <div class="flex flex-wrap items-center gap-1.5">
+                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest mr-1"
+                  >Sort each account by</span
+                >
+                <button
+                  v-for="opt in runSortOptions"
+                  :key="opt.by"
+                  type="button"
+                  class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border transition-colors"
+                  :class="
+                    activeSort.by === opt.by
+                      ? 'bg-slate-900 text-white border-slate-900'
+                      : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+                  "
+                  :aria-pressed="activeSort.by === opt.by"
+                  @click="sortRunsBy(opt.by)"
+                >
+                  {{ opt.label }}
+                </button>
+                <button
+                  type="button"
+                  class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                  title="Flip the order"
+                  @click="flipRunSort"
+                >
+                  {{ activeSort.dir === 'asc' ? '↑' : '↓' }} {{ sortDirText(activeSort) }}
+                </button>
+                <span class="grow" />
+                <button
+                  type="button"
+                  class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border border-slate-200 bg-white text-slate-500 hover:border-slate-300 disabled:opacity-40"
+                  :disabled="runBlocks.every(b => collapsed.has(b.key))"
+                  @click="
+                    setCollapsed(
+                      runBlocks.map(b => b.key),
+                      true
+                    )
+                  "
+                >
+                  Collapse all
+                </button>
+                <button
+                  type="button"
+                  class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border border-slate-200 bg-white text-slate-500 hover:border-slate-300 disabled:opacity-40"
+                  :disabled="!runBlocks.some(b => collapsed.has(b.key))"
+                  @click="
+                    setCollapsed(
+                      runBlocks.map(b => b.key),
+                      false
+                    )
+                  "
+                >
+                  Expand all
+                </button>
+              </div>
+              <p v-if="activeSort.by === 'length'" class="text-[10px] text-amber-800 leading-relaxed max-w-3xl">
+                Plan length counts from each run's own start, so a plan made a day later shows a day fewer even when it
+                is the same plan. In this order, only runs from the same save compare; to see which plan is better, sort
+                by finish.
+              </p>
+              <!-- A size container, so each account's header line can be exactly as wide as what is on
                  screen (100cqw) however wide the table itself is: the Leaderboard's pattern. -->
-            <div class="overflow-x-auto [container-type:inline-size]">
-              <table class="w-full text-[11px]">
-                <thead>
-                  <tr class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                    <th class="text-left py-1 pr-3">Who</th>
-                    <th v-if="selectedCount === 'all'" class="text-right py-1 pr-3" :aria-sort="ariaSort('ascensions')">
-                      <button type="button" :class="sortHeadClass('ascensions')" @click="sortRunsBy('ascensions')">
-                        Asc.<span aria-hidden="true">{{ sortArrow('ascensions') }}</span>
-                      </button>
-                    </th>
-                    <th class="text-left py-1 pr-3" :aria-sort="ariaSort('te')">
-                      <button
-                        type="button"
-                        :class="sortHeadClass('te')"
-                        title="Sort by starting TE"
-                        @click="sortRunsBy('te')"
+              <div class="overflow-x-auto [container-type:inline-size]">
+                <table class="w-full text-[11px]">
+                  <thead>
+                    <tr class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                      <th class="text-left py-1 pr-3">Who</th>
+                      <th
+                        v-if="selectedCount === 'all'"
+                        class="text-right py-1 pr-3"
+                        :aria-sort="ariaSort('ascensions')"
                       >
-                        Journey<span aria-hidden="true">{{ sortArrow('te') }}</span>
-                      </button>
-                    </th>
-                    <th class="text-left py-1 pr-3">Chain</th>
-                    <th class="text-left py-1 pr-3" :aria-sort="ariaSort('planned')">
-                      <button type="button" :class="sortHeadClass('planned')" @click="sortRunsBy('planned')">
-                        Planned<span aria-hidden="true">{{ sortArrow('planned') }}</span>
-                      </button>
-                    </th>
-                    <th class="text-left py-1 pr-3" :aria-sort="ariaSort('finish')">
-                      <button type="button" :class="sortHeadClass('finish')" @click="sortRunsBy('finish')">
-                        Finishes<span aria-hidden="true">{{ sortArrow('finish') }}</span>
-                      </button>
-                    </th>
-                    <th class="text-right py-1 pr-3">
-                      <!-- Inside one account, days after its earliest finish IS the finish order. -->
-                      <button type="button" :class="sortHeadClass('finish')" @click="sortRunsBy('finish')">
-                        vs best<span aria-hidden="true">{{ sortArrow('finish') }}</span>
-                      </button>
-                    </th>
-                    <th
-                      class="text-right py-1 pr-3"
-                      title="Days from this run's own plan start to the target"
-                      :aria-sort="ariaSort('length')"
-                    >
-                      <button type="button" :class="sortHeadClass('length')" @click="sortRunsBy('length')">
-                        Plan length<span aria-hidden="true">{{ sortArrow('length') }}</span
-                        ><br /><span class="normal-case tracking-normal font-bold">(from its start)</span>
-                      </button>
-                    </th>
-                    <th
-                      class="text-left py-1 pr-3"
-                      title="How each run searched and, for a box it tried in full, which TEs at each ascension (the notation typed into the planner)"
-                    >
-                      What was checked
-                    </th>
-                    <th class="text-right py-1 pr-3" :aria-sort="ariaSort('priced')">
-                      <button type="button" :class="sortHeadClass('priced')" @click="sortRunsBy('priced')">
-                        Priced<span aria-hidden="true">{{ sortArrow('priced') }}</span>
-                      </button>
-                    </th>
-                    <th
-                      class="text-right py-1 pr-3"
-                      :aria-sort="ariaSort('left')"
-                      title="Plans in the same box at every TE that the run did not price, and how long they would take"
-                    >
-                      <button type="button" :class="sortHeadClass('left')" @click="sortRunsBy('left')">
-                        What's left<span aria-hidden="true">{{ sortArrow('left') }}</span>
-                      </button>
-                    </th>
-                    <th class="text-right py-1 pr-3" :aria-sort="ariaSort('compute')">
-                      <button type="button" :class="sortHeadClass('compute')" @click="sortRunsBy('compute')">
-                        Compute<span aria-hidden="true">{{ sortArrow('compute') }}</span>
-                      </button>
-                    </th>
-                    <th class="text-left py-1">Full table</th>
-                  </tr>
-                </thead>
-                <tbody v-for="block in runBlocks" :key="block.key" class="divide-y divide-slate-100">
-                  <tr class="bg-slate-50">
-                    <td :colspan="selectedCount === 'all' ? 13 : 12" class="p-0 text-[10px] text-slate-500">
-                      <!-- Pinned to the left edge and as wide as the visible part of the table: on a phone
-                           the table is wider than the screen, and a line spanning all of it put the
-                           route and the "not listed here" note off-screen. It wraps on screen instead. -->
-                      <div class="sticky left-0 w-[100cqw] py-1.5 px-2">
+                        <button type="button" :class="sortHeadClass('ascensions')" @click="sortRunsBy('ascensions')">
+                          Asc.<span aria-hidden="true">{{ sortArrow('ascensions') }}</span>
+                        </button>
+                      </th>
+                      <th class="text-left py-1 pr-3" :aria-sort="ariaSort('te')">
                         <button
                           type="button"
-                          class="mr-0.5 -ml-1 px-1 rounded align-middle hover:bg-slate-200/60"
-                          :aria-expanded="!collapsed.has(block.key)"
-                          :title="
-                            collapsed.has(block.key) ? 'Show this account\'s runs' : 'Fold this account\'s runs away'
-                          "
-                          @click="setCollapsed([block.key], !collapsed.has(block.key))"
+                          :class="sortHeadClass('te')"
+                          title="Sort by starting TE"
+                          @click="sortRunsBy('te')"
                         >
-                          <span
-                            aria-hidden="true"
-                            class="inline-block w-3.5 text-[13px] leading-none align-middle text-slate-500"
-                            >{{ collapsed.has(block.key) ? '▸' : '▾' }}</span
-                          >
-                          <AccountDot :index="accountColors.get(block.key) ?? 0" class="mr-1.5" />
-                          <b class="text-slate-700">{{ block.label }}</b>
+                          Journey<span aria-hidden="true">{{ sortArrow('te') }}</span>
                         </button>
-                        · {{ block.rows.length }} run{{ block.rows.length === 1 ? '' : 's'
-                        }}<template v-if="collapsed.has(block.key)"> folded</template>
-                        <template v-if="block.best">
-                          · earliest finish
-                          <b class="text-slate-700" :title="finishTitle(block.best.finish, block.best.row.timezone)">{{
-                            finishDateText(block.best.finish, viewZone)
-                          }}</b>
-                          ({{ block.best.row.ascensions }} ascensions,
-                          <span class="font-mono-premium">{{ block.best.row.chain.join(' ') }}</span
-                          >)
-                          <span v-if="!bestListed.has(block.key)" class="text-slate-400"
-                            >(not listed here: {{ unlistedWhy(block.best.row) }})</span
+                      </th>
+                      <th class="text-left py-1 pr-3">Chain</th>
+                      <th class="text-left py-1 pr-3" :aria-sort="ariaSort('planned')">
+                        <button type="button" :class="sortHeadClass('planned')" @click="sortRunsBy('planned')">
+                          Planned<span aria-hidden="true">{{ sortArrow('planned') }}</span>
+                        </button>
+                      </th>
+                      <th class="text-left py-1 pr-3" :aria-sort="ariaSort('finish')">
+                        <button type="button" :class="sortHeadClass('finish')" @click="sortRunsBy('finish')">
+                          Finishes<span aria-hidden="true">{{ sortArrow('finish') }}</span>
+                        </button>
+                      </th>
+                      <th class="text-right py-1 pr-3">
+                        <!-- Inside one account, days after its earliest finish IS the finish order. -->
+                        <button type="button" :class="sortHeadClass('finish')" @click="sortRunsBy('finish')">
+                          vs best<span aria-hidden="true">{{ sortArrow('finish') }}</span>
+                        </button>
+                      </th>
+                      <th
+                        class="text-right py-1 pr-3"
+                        title="Days from this run's own plan start to the target"
+                        :aria-sort="ariaSort('length')"
+                      >
+                        <button type="button" :class="sortHeadClass('length')" @click="sortRunsBy('length')">
+                          Plan length<span aria-hidden="true">{{ sortArrow('length') }}</span
+                          ><br /><span class="normal-case tracking-normal font-bold">(from its start)</span>
+                        </button>
+                      </th>
+                      <th
+                        class="text-left py-1 pr-3"
+                        title="How each run searched and, for a box it tried in full, which TEs at each ascension (the notation typed into the planner)"
+                      >
+                        What was checked
+                      </th>
+                      <th class="text-right py-1 pr-3" :aria-sort="ariaSort('priced')">
+                        <button type="button" :class="sortHeadClass('priced')" @click="sortRunsBy('priced')">
+                          Priced<span aria-hidden="true">{{ sortArrow('priced') }}</span>
+                        </button>
+                      </th>
+                      <th
+                        class="text-right py-1 pr-3"
+                        :aria-sort="ariaSort('left')"
+                        title="Plans in the same box at every TE that the run did not price, and how long they would take"
+                      >
+                        <button type="button" :class="sortHeadClass('left')" @click="sortRunsBy('left')">
+                          What's left<span aria-hidden="true">{{ sortArrow('left') }}</span>
+                        </button>
+                      </th>
+                      <th class="text-right py-1 pr-3" :aria-sort="ariaSort('compute')">
+                        <button type="button" :class="sortHeadClass('compute')" @click="sortRunsBy('compute')">
+                          Compute<span aria-hidden="true">{{ sortArrow('compute') }}</span>
+                        </button>
+                      </th>
+                      <th class="text-left py-1">Full table</th>
+                    </tr>
+                  </thead>
+                  <tbody v-for="block in runBlocks" :key="block.key" class="divide-y divide-slate-100">
+                    <tr class="bg-slate-50">
+                      <td :colspan="selectedCount === 'all' ? 13 : 12" class="p-0 text-[10px] text-slate-500">
+                        <!-- Pinned to the left edge and as wide as the visible part of the table: on a phone
+                           the table is wider than the screen, and a line spanning all of it put the
+                           route and the "not listed here" note off-screen. It wraps on screen instead. -->
+                        <div class="sticky left-0 w-[100cqw] py-1.5 px-2">
+                          <button
+                            type="button"
+                            class="mr-0.5 -ml-1 px-1 rounded align-middle hover:bg-slate-200/60"
+                            :aria-expanded="!collapsed.has(block.key)"
+                            :title="
+                              collapsed.has(block.key) ? 'Show this account\'s runs' : 'Fold this account\'s runs away'
+                            "
+                            @click="setCollapsed([block.key], !collapsed.has(block.key))"
+                          >
+                            <span
+                              aria-hidden="true"
+                              class="inline-block w-3.5 text-[13px] leading-none align-middle text-slate-500"
+                              >{{ collapsed.has(block.key) ? '▸' : '▾' }}</span
+                            >
+                            <AccountDot :index="accountColors.get(block.key) ?? 0" class="mr-1.5" />
+                            <b class="text-slate-700">{{ block.label }}</b>
+                          </button>
+                          · {{ block.rows.length }} run{{ block.rows.length === 1 ? '' : 's'
+                          }}<template v-if="collapsed.has(block.key)"> folded</template>
+                          <template v-if="block.best">
+                            · earliest finish
+                            <b
+                              class="text-slate-700"
+                              :title="finishTitle(block.best.finish, block.best.row.timezone)"
+                              >{{ finishDateText(block.best.finish, viewZone) }}</b
+                            >
+                            ({{ block.best.row.ascensions }} ascensions,
+                            <span class="font-mono-premium">{{ block.best.row.chain.join(' ') }}</span
+                            >)
+                            <span v-if="!bestListed.has(block.key)" class="text-slate-400"
+                              >(not listed here: {{ unlistedWhy(block.best.row) }})</span
+                            >
+                          </template>
+                          <template v-else> · no run whose finish still stands</template>
+                        </div>
+                      </td>
+                    </tr>
+                    <tr
+                      v-for="row in collapsed.has(block.key) ? [] : block.rows"
+                      :key="row.id"
+                      class="hover:bg-slate-50"
+                      :class="judged.byId.get(row.id)?.standing ? '' : 'text-slate-400'"
+                    >
+                      <td class="py-1.5 pr-3">
+                        {{ whoText(row) || 'anonymous' }}
+                        <span
+                          v-if="judged.byId.get(row.id)?.best"
+                          class="ml-1 rounded bg-emerald-100 px-1 text-[9px] font-black text-emerald-800"
+                          title="This account's earliest finish at this target"
+                        >
+                          best
+                        </span>
+                        <span
+                          v-if="stateOf(row)"
+                          class="ml-1 whitespace-nowrap rounded bg-slate-100 px-1 text-[9px] font-black text-slate-500"
+                          :title="judged.byId.get(row.id)?.reason"
+                        >
+                          {{ stateOf(row) }}
+                        </span>
+                        <span
+                          v-if="folded.sends.get(row.id)"
+                          class="ml-1 whitespace-nowrap text-[9px] font-bold text-slate-400"
+                          title="The same result was sent more than once; it is listed once"
+                        >
+                          sent ×{{ folded.sends.get(row.id) }}
+                        </span>
+                        <span
+                          v-if="flagged.has(row.id)"
+                          class="ml-1 rounded bg-amber-100 px-1 text-[9px] font-black text-amber-800"
+                          :title="flagged.get(row.id)"
+                        >
+                          flagged
+                        </span>
+                        <span
+                          v-else-if="unchecked.has(row.id)"
+                          class="ml-1 whitespace-nowrap rounded border border-dashed border-slate-300 px-1 text-[9px] font-bold text-slate-400"
+                          :title="unchecked.get(row.id)"
+                        >
+                          can't check
+                        </span>
+                        <!-- Why a run is greyed, on screen where there is no hover to show it: a phone. -->
+                        <div
+                          v-if="stateOf(row) && judged.byId.get(row.id)?.reason"
+                          class="sm:hidden mt-0.5 max-w-[14rem] text-[10px] leading-snug text-slate-400"
+                        >
+                          {{ judged.byId.get(row.id)?.reason }}
+                        </div>
+                      </td>
+                      <td v-if="selectedCount === 'all'" class="py-1.5 pr-3 text-right font-bold">
+                        {{ row.ascensions }}
+                      </td>
+                      <td class="py-1.5 pr-3 font-mono-premium text-slate-500 whitespace-nowrap">
+                        {{ row.currentTE }} → {{ row.finalTE }}
+                      </td>
+                      <td
+                        class="py-1.5 pr-3 font-mono-premium whitespace-nowrap"
+                        :class="judged.byId.get(row.id)?.standing ? 'text-slate-700' : ''"
+                      >
+                        {{ row.chain.join(' ') }}
+                        <span
+                          v-for="t in tags.get(row) ?? []"
+                          :key="t"
+                          class="ml-1 rounded bg-sky-100 px-1 font-sans text-[9px] font-black text-sky-800"
+                          >{{ t }}</span
+                        >
+                      </td>
+                      <td class="py-1.5 pr-3 whitespace-nowrap" :title="`${row.startLocal}, ${row.timezone} time`">
+                        {{ plannedText(row) }}
+                      </td>
+                      <td
+                        class="py-1.5 pr-3 whitespace-nowrap font-black"
+                        :title="finishTitle(judged.byId.get(row.id)?.finish ?? null, row.timezone)"
+                      >
+                        {{ finishDateText(judged.byId.get(row.id)?.finish ?? null, viewZone) }}
+                      </td>
+                      <td class="py-1.5 pr-3 text-right whitespace-nowrap" :title="vsBestTitle(row)">
+                        <span v-if="judged.byId.get(row.id)?.best" class="font-black text-emerald-700">best</span>
+                        <template v-else-if="judged.byId.get(row.id)?.behind != null">
+                          {{ vsBestText(judged.byId.get(row.id)!.behind!) }}
+                          <span v-if="judged.byId.get(row.id)?.sameSaveAsBest" class="text-[9px] text-slate-400"
+                            >same save</span
                           >
                         </template>
-                        <template v-else> · no run whose finish still stands</template>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr
-                    v-for="row in collapsed.has(block.key) ? [] : block.rows"
-                    :key="row.id"
-                    class="hover:bg-slate-50"
-                    :class="judged.byId.get(row.id)?.standing ? '' : 'text-slate-400'"
-                  >
-                    <td class="py-1.5 pr-3">
-                      {{ whoText(row) || 'anonymous' }}
-                      <span
-                        v-if="judged.byId.get(row.id)?.best"
-                        class="ml-1 rounded bg-emerald-100 px-1 text-[9px] font-black text-emerald-800"
-                        title="This account's earliest finish at this target"
-                      >
-                        best
-                      </span>
-                      <span
-                        v-if="stateOf(row)"
-                        class="ml-1 whitespace-nowrap rounded bg-slate-100 px-1 text-[9px] font-black text-slate-500"
-                        :title="judged.byId.get(row.id)?.reason"
-                      >
-                        {{ stateOf(row) }}
-                      </span>
-                      <span
-                        v-if="folded.sends.get(row.id)"
-                        class="ml-1 whitespace-nowrap text-[9px] font-bold text-slate-400"
-                        title="The same result was sent more than once; it is listed once"
-                      >
-                        sent ×{{ folded.sends.get(row.id) }}
-                      </span>
-                      <span
-                        v-if="flagged.has(row.id)"
-                        class="ml-1 rounded bg-amber-100 px-1 text-[9px] font-black text-amber-800"
-                        :title="flagged.get(row.id)"
-                      >
-                        flagged
-                      </span>
-                      <span
-                        v-else-if="unchecked.has(row.id)"
-                        class="ml-1 whitespace-nowrap rounded border border-dashed border-slate-300 px-1 text-[9px] font-bold text-slate-400"
-                        :title="unchecked.get(row.id)"
-                      >
-                        can't check
-                      </span>
-                      <!-- Why a run is greyed, on screen where there is no hover to show it: a phone. -->
-                      <div
-                        v-if="stateOf(row) && judged.byId.get(row.id)?.reason"
-                        class="sm:hidden mt-0.5 max-w-[14rem] text-[10px] leading-snug text-slate-400"
-                      >
-                        {{ judged.byId.get(row.id)?.reason }}
-                      </div>
-                    </td>
-                    <td v-if="selectedCount === 'all'" class="py-1.5 pr-3 text-right font-bold">
-                      {{ row.ascensions }}
-                    </td>
-                    <td class="py-1.5 pr-3 font-mono-premium text-slate-500 whitespace-nowrap">
-                      {{ row.currentTE }} → {{ row.finalTE }}
-                    </td>
-                    <td
-                      class="py-1.5 pr-3 font-mono-premium whitespace-nowrap"
-                      :class="judged.byId.get(row.id)?.standing ? 'text-slate-700' : ''"
-                    >
-                      {{ row.chain.join(' ') }}
-                      <span
-                        v-for="t in tags.get(row) ?? []"
-                        :key="t"
-                        class="ml-1 rounded bg-sky-100 px-1 font-sans text-[9px] font-black text-sky-800"
-                        >{{ t }}</span
-                      >
-                    </td>
-                    <td class="py-1.5 pr-3 whitespace-nowrap" :title="`${row.startLocal}, ${row.timezone} time`">
-                      {{ plannedText(row) }}
-                    </td>
-                    <td
-                      class="py-1.5 pr-3 whitespace-nowrap font-black"
-                      :title="finishTitle(judged.byId.get(row.id)?.finish ?? null, row.timezone)"
-                    >
-                      {{ finishDateText(judged.byId.get(row.id)?.finish ?? null, viewZone) }}
-                    </td>
-                    <td class="py-1.5 pr-3 text-right whitespace-nowrap" :title="vsBestTitle(row)">
-                      <span v-if="judged.byId.get(row.id)?.best" class="font-black text-emerald-700">best</span>
-                      <template v-else-if="judged.byId.get(row.id)?.behind != null">
-                        {{ vsBestText(judged.byId.get(row.id)!.behind!) }}
-                        <span v-if="judged.byId.get(row.id)?.sameSaveAsBest" class="text-[9px] text-slate-400"
-                          >same save</span
+                        <span v-else class="text-slate-300">—</span>
+                      </td>
+                      <td class="py-1.5 pr-3 text-right text-slate-500 whitespace-nowrap">
+                        {{ row.durationDays.toFixed(2) }} d
+                      </td>
+                      <td class="py-1.5 pr-3" :title="searched.get(row.id)?.title">
+                        <span
+                          :class="
+                            row.space
+                              ? searched.get(row.id)?.finished
+                                ? 'font-black text-emerald-700'
+                                : 'font-bold text-amber-700'
+                              : 'text-slate-500'
+                          "
+                          >{{ searched.get(row.id)?.how }}</span
                         >
-                      </template>
-                      <span v-else class="text-slate-300">—</span>
-                    </td>
-                    <td class="py-1.5 pr-3 text-right text-slate-500 whitespace-nowrap">
-                      {{ row.durationDays.toFixed(2) }} d
-                    </td>
-                    <td class="py-1.5 pr-3" :title="searched.get(row.id)?.title">
-                      <span
-                        :class="
-                          row.space
-                            ? searched.get(row.id)?.finished
-                              ? 'font-black text-emerald-700'
-                              : 'font-bold text-amber-700'
-                            : 'text-slate-500'
-                        "
-                        >{{ searched.get(row.id)?.how }}</span
-                      >
-                      <!-- Wraps only between checkpoints (after each ";"), never inside a band at its hyphen, and
+                        <!-- Wraps only between checkpoints (after each ";"), never inside a band at its hyphen, and
                            copies as the text a player would type into the planner. -->
-                      <div
-                        v-if="searched.get(row.id)?.pieces.length"
-                        class="font-mono-premium text-[10px] text-slate-500 max-w-[17rem]"
-                      >
-                        <template v-for="(piece, k) in searched.get(row.id)?.pieces" :key="k"
-                          >{{ k ? ' ' : '' }}<span class="whitespace-nowrap">{{ piece }}</span></template
+                        <div
+                          v-if="searched.get(row.id)?.pieces.length"
+                          class="font-mono-premium text-[10px] text-slate-500 max-w-[17rem]"
                         >
-                      </div>
-                    </td>
-                    <td class="py-1.5 pr-3 text-right text-slate-500">{{ row.chainsPriced.toLocaleString() }}</td>
-                    <td
-                      class="py-1.5 pr-3 text-right whitespace-nowrap"
-                      :title="
-                        leftById.get(row.id)
-                          ? leftTitle(leftById.get(row.id)!)
-                          : row.space
-                            ? 'Its box could not be counted again from this row (the recount does not match what the run stored), so what is left is not shown.'
-                            : 'A staged search improved a seed chain rather than trying a fixed box of TEs, so there is nothing to measure what is left against.'
-                      "
-                    >
-                      <template v-if="leftById.get(row.id)">
-                        <span v-if="leftById.get(row.id)!.left === 0" class="font-bold text-emerald-700">nothing</span>
-                        <template v-else>
-                          <span class="font-bold text-slate-600">{{ plansText(leftById.get(row.id)!.left) }}</span>
-                          <span class="text-[9px] text-slate-400"> {{ leftShareText(leftById.get(row.id)!) }}</span>
-                          <div class="text-[10px] text-slate-400">
-                            ~{{ longEstimate(leftById.get(row.id)!.seconds) }}
-                          </div>
-                        </template>
-                      </template>
-                      <span v-else class="text-slate-300">—</span>
-                    </td>
-                    <td
-                      class="py-1.5 pr-3 text-right text-slate-500 whitespace-nowrap"
-                      :title="row.run ? describeCompute(row.run.minutes, row.run.workers) : 'not recorded'"
-                    >
-                      {{ row.run ? `${formatMinutes(row.run.minutes)} × ${row.run.workers ?? 1}` : '—' }}
-                    </td>
-                    <td class="py-1.5">
-                      <button
-                        v-if="row.hasCsv"
-                        type="button"
-                        class="px-2 py-0.5 rounded-md border border-slate-200 text-[9px] font-black uppercase tracking-widest text-slate-500 hover:border-slate-300 disabled:opacity-40"
-                        :disabled="csvLoadingId === row.id"
-                        @click="openTable(row, $event)"
+                          <template v-for="(piece, k) in searched.get(row.id)?.pieces" :key="k"
+                            >{{ k ? ' ' : '' }}<span class="whitespace-nowrap">{{ piece }}</span></template
+                          >
+                        </div>
+                      </td>
+                      <td class="py-1.5 pr-3 text-right text-slate-500">{{ row.chainsPriced.toLocaleString() }}</td>
+                      <td
+                        class="py-1.5 pr-3 text-right whitespace-nowrap"
+                        :title="
+                          leftById.get(row.id)
+                            ? leftTitle(leftById.get(row.id)!)
+                            : row.space
+                              ? 'Its box could not be counted again from this row (the recount does not match what the run stored), so what is left is not shown.'
+                              : 'A staged search improved a seed chain rather than trying a fixed box of TEs, so there is nothing to measure what is left against.'
+                        "
                       >
-                        {{ csvLoadingId === row.id ? 'Loading…' : loadedRun?.id === row.id ? 'Loaded' : 'Open' }}
-                      </button>
-                      <span v-else class="text-slate-300">—</span>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+                        <template v-if="leftById.get(row.id)">
+                          <span v-if="leftById.get(row.id)!.left === 0" class="font-bold text-emerald-700"
+                            >nothing</span
+                          >
+                          <template v-else>
+                            <span class="font-bold text-slate-600">{{ plansText(leftById.get(row.id)!.left) }}</span>
+                            <span class="text-[9px] text-slate-400"> {{ leftShareText(leftById.get(row.id)!) }}</span>
+                            <div class="text-[10px] text-slate-400">
+                              ~{{ longEstimate(leftById.get(row.id)!.seconds) }}
+                            </div>
+                          </template>
+                        </template>
+                        <span v-else class="text-slate-300">—</span>
+                      </td>
+                      <td
+                        class="py-1.5 pr-3 text-right text-slate-500 whitespace-nowrap"
+                        :title="row.run ? describeCompute(row.run.minutes, row.run.workers) : 'not recorded'"
+                      >
+                        {{ row.run ? `${formatMinutes(row.run.minutes)} × ${row.run.workers ?? 1}` : '—' }}
+                      </td>
+                      <td class="py-1.5">
+                        <button
+                          v-if="row.hasCsv"
+                          type="button"
+                          class="px-2 py-0.5 rounded-md border border-slate-200 text-[9px] font-black uppercase tracking-widest text-slate-500 hover:border-slate-300 disabled:opacity-40"
+                          :disabled="csvLoadingId === row.id"
+                          @click="openTable(row, $event)"
+                        >
+                          {{ csvLoadingId === row.id ? 'Loading…' : loadedRun?.id === row.id ? 'Loaded' : 'Open' }}
+                        </button>
+                        <span v-else class="text-slate-300">—</span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
+          </details>
         </section>
 
         <!-- ------------------------------------------------------------------ across the counts -->
@@ -694,44 +765,6 @@
         </section>
 
         <section class="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
-          <h2 class="text-lg font-black text-slate-900">Which ascension count finishes first, account by account</h2>
-          <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
-            One row per account, one column per ascension count tried at this target. Each cell is that account's best
-            plan at that count whose finish still stands, as days after the account's own earliest finish (the one the
-            runs table names): "best" at 0, darker is closer. A row only compares with itself; nothing compares down a
-            column, because gear decides totals. The rows are ordered by starting TE (or Clothed TE, or delivery score),
-            so you can see whether the winning count moves with where an account is or with its gear. The border says
-            how the run behind the cell searched: solid for a finished box at every TE, dashed for every 2nd-3rd TE,
-            dotted for every 4th or coarser, striped for a staged search or a box it did not finish. A dark cell with a
-            dotted or striped edge is a best count found by a search that could have missed a better plan, so it is
-            weaker than it looks. Hover or tap a cell for the chain, its finish date, how it searched and whether the
-            step from the next count down is bigger than the search could explain.
-          </p>
-          <BestCountMatrix
-            :rows="filtered"
-            :tried="atTarget"
-            :judged="judged"
-            :account-colors="accountColors"
-            :account-labels="accountLabels"
-          />
-        </section>
-
-        <section class="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
-          <h2 class="text-lg font-black text-slate-900">Which sale plan wins each leg?</h2>
-          <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
-            One mark per leg, from leg 2 on, of every plan whose finish still stands. Across is the TE the leg starts
-            at, up is how much TE it climbs, and the colour and shape are the sale plan the planner picked for that leg
-            (1, 2 or 3 sales); here the colours mean the sale plan, not an account. Leg 1 is left out: it is the rest of
-            the ascension in progress, so where it starts depends on when the plan was made. A sale plan is a choice for
-            one leg against a sale calendar everyone shares, so unlike a total it lines up across accounts by TE. A leg
-            one account sent in several runs is one mark. Larger, ringed marks are legs that unlock research tier 13.
-            The table under the chart names the commonest plan for each 20-TE start band and leg length. It shows which
-            plan won each leg of the winning chains, not by how much it won.
-          </p>
-          <SaleChoiceMap :rows="filtered" :judged="judged" :account-labels="accountLabels" />
-        </section>
-
-        <section class="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
           <h2 class="text-lg font-black text-slate-900">Each sweep, every account (to 490)</h2>
           <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
             Runs to 490 only, whatever target is picked above. For each TE at the picked checkpoint (the last by
@@ -749,45 +782,6 @@
             :account-colors="accountColors"
             :account-labels="accountLabels"
           />
-        </section>
-
-        <section v-if="base" class="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
-          <h2 class="text-lg font-black text-slate-900">An account's best plans, from all its stored tables</h2>
-          <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
-            A stored table is every plan one run priced, so besides each run's winner an account's tables hold its
-            runners-up, its other ascension counts and the plans one TE over. Pick an account and load its tables: the
-            list merges them and ranks every plan by finish date, the run's plan start plus the plan's days. That is how
-            plans from different saves of one account compare, since a table made a day later counts every plan a day
-            shorter. Only runs whose finish still stands are used; the line under the picker says which were left out
-            and why (tap one to see). A plan is a route under its run's settings, so a plan priced with a schedule, or
-            with "prestige now", is its own row, tagged. A plan two tables priced shows its newest measurement. A plan
-            with a checkpoint the account has since passed (most likely because it followed that plan) is matched on
-            what is left of it: a newer table's measurement of the rest stands, and with none the older one stays, the
-            passed checkpoint struck through. The tables are big, so they load one at a time and only when you press the
-            button; Cancel keeps what has arrived.
-          </p>
-          <AccountTopPlans
-            :base="base"
-            :rows="usable"
-            :judged="judged"
-            :final-t-e="finalTE"
-            :account-colors="accountColors"
-            :account-labels="accountLabels"
-          />
-        </section>
-
-        <section class="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
-          <h2 class="text-lg font-black text-slate-900">Does the best plan move from one day to the next?</h2>
-          <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
-            One account at a time. Each mark is a plan at the date it was made, measured by its finish date as days
-            after the account's earliest finish that still stands; totals never compare across starts. A line joins the
-            same plan each time it was priced: by a newer run of it, by a newer run with the checkpoints since passed
-            dropped, by a re-check sent with a newer run, or because it turned up among a newer run's runners-up. A line
-            that rises is a plan whose finish slipped when priced again; a flat one is a plan that holds. A plan that
-            won its search was the fastest of many priced that day, so a small rise when it is priced again is expected.
-            The colour is the ascension count, not an account: one account is shown at a time.
-          </p>
-          <PlanDriftChart :rows="usable" :judged="judged" :final-t-e="finalTE" :account-labels="accountLabels" />
         </section>
 
         <section class="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
@@ -960,32 +954,110 @@
 
         <p v-if="csvError" class="text-[11px] font-bold text-rose-700 px-1">{{ csvError }}</p>
 
-        <!-- ---------------------------------------------------------------------- the caveats -->
-        <section class="rounded-xl border border-slate-200 bg-white p-4 space-y-2 text-[11px] text-slate-500">
-          <h2 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">How to read all of this</h2>
-          <p class="leading-relaxed">
-            <b class="text-slate-700">Accounts are a guess.</b> Submissions carry no player id by design, so an
-            "account" here is one timezone plus one set of virtue artifacts. People who retype their nickname every run
-            still group correctly; two people in the same timezone with identical artifact sets would be merged into
-            one.
-          </p>
-          <p class="leading-relaxed">
-            <b class="text-slate-700">Shapes travel, durations do not.</b> Where the checkpoints sit is a fact about the
-            game's sale calendar and research curve. How long the plan takes is a fact about somebody's artifacts.
-          </p>
-          <p class="leading-relaxed">
-            <b class="text-slate-700">Compare finish dates, not totals.</b> A plan's length counts from its own start,
-            so a run made a day later shows a day fewer even when it is the same plan. The date it reaches the target
-            does not move, and a better plan finishes earlier, so an account's runs are compared by finish date. Totals
-            only compare between runs from the same save. The first ascension is the rest of the one in progress, so it
-            too is shorter when a plan is made later.
-          </p>
-          <p class="leading-relaxed">
-            <b class="text-slate-700">These are searches, not surveys.</b> Most runs explored a band somebody typed, so
-            this shows where good chains were found, which is not always where the good chains are. A band that stops
-            dead at a round number is usually the edge of a search box.
-          </p>
-        </section>
+        <!-- The specialist sections, one click away (review, 30 Sept): the sale plans the planner picks
+             for you, one account's stored plans, day-to-day drift, and the checks on the runs themselves. -->
+        <details class="rounded-xl border border-slate-200 bg-white p-4">
+          <summary class="cursor-pointer text-[11px] font-black text-slate-600 uppercase tracking-widest">
+            More charts and checks
+          </summary>
+          <div class="mt-3 space-y-4">
+            <section class="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
+              <h2 class="text-lg font-black text-slate-900">Which sale plan wins each leg?</h2>
+              <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
+                One mark per leg, from leg 2 on, of every plan whose finish still stands. Across is the TE the leg
+                starts at, up is how much TE it climbs, and the colour and shape are the sale plan the planner picked
+                for that leg (1, 2 or 3 sales); here the colours mean the sale plan, not an account. Leg 1 is left out:
+                it is the rest of the ascension in progress, so where it starts depends on when the plan was made. A
+                sale plan is a choice for one leg against a sale calendar everyone shares, so unlike a total it lines up
+                across accounts by TE. A leg one account sent in several runs is one mark. Larger, ringed marks are legs
+                that unlock research tier 13. The table under the chart names the commonest plan for each 20-TE start
+                band and leg length. It shows which plan won each leg of the winning chains, not by how much it won.
+              </p>
+              <SaleChoiceMap :rows="filtered" :judged="judged" :account-labels="accountLabels" />
+            </section>
+            <section v-if="base" class="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
+              <h2 class="text-lg font-black text-slate-900">An account's best plans, from all its stored tables</h2>
+              <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
+                A stored table is every plan one run priced, so besides each run's winner an account's tables hold its
+                runners-up, its other ascension counts and the plans one TE over. Pick an account and load its tables:
+                the list merges them and ranks every plan by finish date, the run's plan start plus the plan's days.
+                That is how plans from different saves of one account compare, since a table made a day later counts
+                every plan a day shorter. Only runs whose finish still stands are used; the line under the picker says
+                which were left out and why (tap one to see). A plan is a route under its run's settings, so a plan
+                priced with a schedule, or with "prestige now", is its own row, tagged. A plan two tables priced shows
+                its newest measurement. A plan with a checkpoint the account has since passed (most likely because it
+                followed that plan) is matched on what is left of it: a newer table's measurement of the rest stands,
+                and with none the older one stays, the passed checkpoint struck through. The tables are big, so they
+                load one at a time and only when you press the button; Cancel keeps what has arrived.
+              </p>
+              <AccountTopPlans
+                :base="base"
+                :rows="usable"
+                :judged="judged"
+                :final-t-e="finalTE"
+                :account-colors="accountColors"
+                :account-labels="accountLabels"
+              />
+            </section>
+            <section class="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
+              <h2 class="text-lg font-black text-slate-900">Does the best plan move from one day to the next?</h2>
+              <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
+                One account at a time. Each mark is a plan at the date it was made, measured by its finish date as days
+                after the account's earliest finish that still stands; totals never compare across starts. A line joins
+                the same plan each time it was priced: by a newer run of it, by a newer run with the checkpoints since
+                passed dropped, by a re-check sent with a newer run, or because it turned up among a newer run's
+                runners-up. A line that rises is a plan whose finish slipped when priced again; a flat one is a plan
+                that holds. A plan that won its search was the fastest of many priced that day, so a small rise when it
+                is priced again is expected. The colour is the ascension count, not an account: one account is shown at
+                a time.
+              </p>
+              <PlanDriftChart :rows="usable" :judged="judged" :final-t-e="finalTE" :account-labels="accountLabels" />
+            </section>
+            <!-- ------------------------------------------------------------------------------ checks -->
+            <!-- Beside the runs the planner cannot help yet because it is the same kind of thing: a check on
+                 the runs, not a finding about the game. -->
+            <section
+              v-if="part === 'insights' && rows.length"
+              class="rounded-xl border border-slate-200 bg-white p-4 space-y-2"
+            >
+              <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Checks</div>
+              <h2 class="text-lg font-black text-slate-900">Did each final leg reach its gear's rate? (to 490)</h2>
+              <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
+                One point per run to 490, whatever target is picked above. Across is the run's last checkpoint; up is
+                the peak delivery its final leg reached, as a percent of what its delivery set should reach from that
+                checkpoint. Below the 80% line the run is flagged for the old delivery-set bug (earnings researched with
+                the wrong set, so the farm never reached its real rate) and kept out of everything else on the page.
+                Runs the check cannot judge (a last checkpoint under 190 TE, no per-leg detail, or no delivery set
+                recorded) are counted in the note under the chart but not drawn. What each set "should reach" was fitted
+                on these same runs, so clean runs sit near 100% by construction: this checks the runs, it does not
+                measure the game.
+              </p>
+              <FinalLegChart :rows="checkRows" :account-colors="accountColors" :account-labels="accountLabels" />
+            </section>
+            <!-- -------------------------------------------------- runs the planner cannot help yet -->
+            <!-- Not "flagged": that word is the delivery-set check's, in the status line and the runs table,
+                 and it is a different set of runs. The collector's own name for this list is the flagged
+                 board (the id stays, for links already shared). Its own fetch, but it waits with the rest,
+                 so nothing below the loading placeholder moves when the runs arrive. -->
+            <section
+              v-if="part === 'insights' && base && (rows.length || !loading)"
+              id="flagged-board"
+              class="rounded-xl border border-slate-200 bg-white p-4 space-y-3 scroll-mt-4"
+            >
+              <div class="space-y-1">
+                <h2 class="text-lg font-black text-slate-900">Runs the planner can't help yet</h2>
+                <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
+                  Runs from accounts where the planner stops working: a first ascension that sits on the Integrity shift
+                  for over an hour, a plan past ten years, or a result that contradicts itself. They are kept apart from
+                  everything above, because they are not routes to copy, and shown anonymously, except runs sent from
+                  this browser, which show as yours. These are not the runs flagged for the delivery-set bug: those are
+                  counted at the top of the page and drawn in the final-leg check.
+                </p>
+              </div>
+              <FlaggedBoard :base="base" />
+            </section>
+          </div>
+        </details>
       </template>
 
       <!-- ------------------------------------------------------------------------- data needs -->
@@ -1010,50 +1082,6 @@
           The asks are worked out from the runs on the board, so they need the board, and it
           {{ error ? 'could not be read (see above)' : 'holds no runs yet' }}. Any run you submit below still helps.
         </p>
-      </section>
-
-      <!-- ------------------------------------------------------------------------------ checks -->
-      <!-- Beside the runs the planner cannot help yet because it is the same kind of thing: a check on
-           the runs, not a finding about the game. -->
-      <section
-        v-if="part === 'insights' && rows.length"
-        class="rounded-xl border border-slate-200 bg-white p-4 space-y-2"
-      >
-        <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Checks</div>
-        <h2 class="text-lg font-black text-slate-900">Did each final leg reach its gear's rate? (to 490)</h2>
-        <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
-          One point per run to 490, whatever target is picked above. Across is the run's last checkpoint; up is the peak
-          delivery its final leg reached, as a percent of what its delivery set should reach from that checkpoint. Below
-          the 80% line the run is flagged for the old delivery-set bug (earnings researched with the wrong set, so the
-          farm never reached its real rate) and kept out of everything else on the page. Runs the check cannot judge (a
-          last checkpoint under 190 TE, no per-leg detail, or no delivery set recorded) are counted in the note under
-          the chart but not drawn. What each set "should reach" was fitted on these same runs, so clean runs sit near
-          100% by construction: this checks the runs, it does not measure the game.
-        </p>
-        <FinalLegChart :rows="checkRows" :account-colors="accountColors" :account-labels="accountLabels" />
-      </section>
-
-      <!-- -------------------------------------------------- runs the planner cannot help yet -->
-      <!-- Not "flagged": that word is the delivery-set check's, in the status line and the runs table,
-           and it is a different set of runs. The collector's own name for this list is the flagged
-           board (the id stays, for links already shared). Its own fetch, but it waits with the rest,
-           so nothing below the loading placeholder moves when the runs arrive. -->
-      <section
-        v-if="part === 'insights' && base && (rows.length || !loading)"
-        id="flagged-board"
-        class="rounded-xl border border-slate-200 bg-white p-4 space-y-3 scroll-mt-4"
-      >
-        <div class="space-y-1">
-          <h2 class="text-lg font-black text-slate-900">Runs the planner can't help yet</h2>
-          <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
-            Runs from accounts where the planner stops working: a first ascension that sits on the Integrity shift for
-            over an hour, a plan past ten years, or a result that contradicts itself. They are kept apart from
-            everything above, because they are not routes to copy, and shown anonymously, except runs sent from this
-            browser, which show as yours. These are not the runs flagged for the delivery-set bug: those are counted at
-            the top of the page and drawn in the final-leg check.
-          </p>
-        </div>
-        <FlaggedBoard :base="base" />
       </section>
 
       <!-- ---------------------------------------------------------------------------- upload -->
@@ -1365,6 +1393,8 @@ const folded = computed(() => foldRuns(visible.value));
 const usable = computed(() => folded.value.rows);
 
 const targets = computed(() => targetsPresent(usable.value));
+/** Runs to 490 now (what the Target TE button shows), for the What we know card's freshness line. */
+const runsTo490 = computed(() => targets.value.find(t => t.finalTE === 490)?.runs ?? 0);
 
 // Default to the target most runs used, then leave it alone: re-picking it on every refresh would
 // yank the page out from under someone who had chosen another.
