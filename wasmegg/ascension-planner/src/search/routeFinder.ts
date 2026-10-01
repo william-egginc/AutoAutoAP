@@ -24,7 +24,14 @@
  * (`rebase`, exact): the times of a route found here are the simulator's. The first ascension is the
  * player's own (finishing the one in progress, from the real save), so callers can supply it.
  */
-import { bestTailTo, canonicalDelivered, pacificHourOfWeek, rebase, tailTo, type BuildParams } from './precomputedLeg';
+import {
+  canonicalDelivered,
+  pacificHourOfWeek,
+  rebase,
+  sweepTails,
+  type BuildParams,
+  type TailSweep,
+} from './precomputedLeg';
 
 /** The table as the finder reads it: the builds for a start TE at a Pacific hour of the week. */
 export type BuildLookup = (te: number, hour: number) => BuildParams[] | null;
@@ -107,6 +114,24 @@ function scaled(builds: BuildParams[], scale: number): BuildParams[] {
   return scale === 1 ? builds : builds.map(b => ({ ...b, peakELR: b.peakELR * scale }));
 }
 
+/** The build that reaches `target` soonest, as `bestTailTo` picks (least time, the first of equals). */
+function fastest(
+  sweeps: TailSweep[],
+  builds: BuildParams[],
+  target: number
+): { sweep: TailSweep; build: BuildParams; i: number } | null {
+  let best: { sweep: TailSweep; build: BuildParams; i: number } | null = null;
+  for (let j = 0; j < sweeps.length; j++) {
+    const sw = sweeps[j];
+    const i = target - sw.from;
+    if (i < 0 || i >= sw.seconds.length) continue;
+    const sec = sw.seconds[i];
+    if (Number.isNaN(sec)) continue;
+    if (!best || sec < best.sweep.seconds[best.i]) best = { sweep: sw, build: builds[j], i };
+  }
+  return best;
+}
+
 /** No later, and at least as many eggs on every egg: then `a` can do anything `b` can, as soon or
  *  sooner (an ascension started later never ends sooner, and more eggs never make a wait longer). */
 function dominates(a: Label, b: Label): boolean {
@@ -186,25 +211,29 @@ export function findRoutes(o: FindOptions): { best: Route | null; byAscensions: 
         const row = o.rowFor ? o.rowFor(te) : te;
         const raw = o.table(row, hour);
         if (!raw?.length) continue;
-        // The table's builds, moved onto the eggs this route really arrived with.
+        // The table's builds, moved onto the eggs this route really arrived with, each priced to
+        // every checkpoint at once (sweepTails, the same numbers as tailTo).
         const builds = scaled(raw, scale).map(b => rebase(b, row, label.delivered));
+        const sweeps = builds.map(b => sweepTails(b, top, lateBy, te + 1));
         for (let target = te + 1; target <= top; target++) {
-          const t = bestTailTo(builds, target, lateBy);
-          if (!t) continue;
-          const end = startAt + t.seconds;
-          relax(k + 1, Math.min(t.endTE, top), {
+          const pick = fastest(sweeps, builds, target);
+          if (!pick) continue;
+          const { sweep, build, i } = pick;
+          const end = startAt + sweep.seconds[i];
+          const endTE = sweep.endTE[i];
+          relax(k + 1, Math.min(endTE, top), {
             time: end,
-            delivered: t.delivered,
+            delivered: Array.from(sweep.delivered.subarray(i * 5, i * 5 + 5)),
             prev: label,
             leg: {
               from: te,
               to: target,
-              endTE: t.endTE,
+              endTE,
               start: startAt,
               end,
-              sales: t.build.sales,
-              tier13: t.build.tier13,
-              label: `${t.build.sales}-sale${t.build.tier13 ? '-tier13' : ''}`,
+              sales: build.sales,
+              tier13: build.tier13,
+              label: `${build.sales}-sale${build.tier13 ? '-tier13' : ''}`,
             },
           });
         }
@@ -257,12 +286,30 @@ export function firstLegOptions(o: FirstLegOptions): FirstLeg[] {
   const row = o.rowFor ? o.rowFor(o.startTE) : o.startTE;
   const raw = o.table(row, hour) ?? [];
   const fresh = scaled(raw, o.deliveryScale ?? 1).map(b => rebase(b, row, o.delivered));
+  const freshSweeps = fresh.map(b => sweepTails(b, o.final, 0, Math.floor(o.startTE) + 1));
+  const contSweep = o.cont ? sweepTails(o.cont, o.final, 0, Math.floor(o.startTE) + 1) : null;
   const out: FirstLeg[] = [];
   for (let target = Math.floor(o.startTE) + 1; target <= o.final; target++) {
-    const f0 = fresh.length ? bestTailTo(fresh, target) : null;
+    const fp = fastest(freshSweeps, fresh, target);
+    const f0 = fp
+      ? {
+          seconds: fp.sweep.seconds[fp.i],
+          endTE: fp.sweep.endTE[fp.i],
+          delivered: Array.from(fp.sweep.delivered.subarray(fp.i * 5, fp.i * 5 + 5)),
+          build: fp.build,
+        }
+      : null;
     // Measured from the plan start, so it compares with continue on the same clock.
     const f = f0 ? { ...f0, seconds: f0.seconds + (freshAt - o.start) } : null;
-    let c = o.cont ? tailTo(o.cont, target) : null;
+    const ci = contSweep ? target - contSweep.from : -1;
+    let c =
+      contSweep && ci >= 0 && ci < contSweep.seconds.length && !Number.isNaN(contSweep.seconds[ci])
+        ? {
+            seconds: contSweep.seconds[ci],
+            endTE: contSweep.endTE[ci],
+            delivered: Array.from(contSweep.delivered.subarray(ci * 5, ci * 5 + 5)),
+          }
+        : null;
     if (c && !(c.seconds <= o.maxContinueSeconds)) c = null;
     let pick: { seconds: number; endTE: number; delivered: number[]; label: string } | null = null;
     if (c && o.forceContinue && c.seconds <= o.pinSeconds) pick = { ...c, label: 'continue' };

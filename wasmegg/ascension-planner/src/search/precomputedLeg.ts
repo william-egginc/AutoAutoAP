@@ -125,6 +125,170 @@ export function bestTailTo(builds: BuildParams[], target: number, lateBy = 0): (
   return best;
 }
 
+/** `distributeTargetTE`'s own egg order (auto/shifts/te-wait.ts ALL_VIRTUE_EGGS): it breaks ties. */
+const GREEDY_ORDER: VirtueEgg[] = ['curiosity', 'integrity', 'resilience', 'humility', 'kindness'];
+const MAX_TE = TE_BREAKPOINTS.length;
+const OTHERS: VirtueEgg[] = ['curiosity', 'integrity', 'resilience', 'humility'];
+
+/** `countTEThresholdsPassed` by halving: the thresholds rise, so it is the same count. */
+function countTE(d: number): number {
+  let lo = 0;
+  let hi = MAX_TE;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (d >= TE_BREAKPOINTS[mid]) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
+}
+
+/** `timeToEarnTE`, the same arithmetic. */
+function teWait(d: number, rate: number, n: number): number {
+  if (n <= 0) return 0;
+  if (rate <= 0) return Infinity;
+  const target = countTE(d) + n;
+  if (target > MAX_TE) return Infinity;
+  return Math.max(0, (TE_BREAKPOINTS[target - 1] - d) / rate + 0.001);
+}
+
+/**
+ * The order `distributeTargetTE` hands out TEs one at a time from these counts (the cheapest next
+ * threshold first, ties to GREEDY_ORDER), among `eggs` only, up to `max` of them. Its result for a
+ * goal m TEs above where the counts stand is exactly the first m of these.
+ */
+function greedyOrder(delivered: Record<VirtueEgg, number>, eggs: VirtueEgg[], max: number): VirtueEgg[] {
+  const targets = Object.fromEntries(GREEDY_ORDER.map(e => [e, countTE(delivered[e] || 0)])) as Record<
+    VirtueEgg,
+    number
+  >;
+  const at = { ...delivered };
+  const out: VirtueEgg[] = [];
+  const order = GREEDY_ORDER.filter(e => eggs.includes(e));
+  while (out.length < max) {
+    let best: VirtueEgg | null = null;
+    let bestCost = Infinity;
+    for (const e of order) {
+      const t = targets[e];
+      if (t >= MAX_TE) continue;
+      const cost = Math.max(0, TE_BREAKPOINTS[t] - (at[e] || 0));
+      if (cost < bestCost) {
+        bestCost = cost;
+        best = e;
+      }
+    }
+    if (!best) break;
+    targets[best]++;
+    at[best] = TE_BREAKPOINTS[targets[best] - 1];
+    out.push(best);
+  }
+  return out;
+}
+
+/** Every checkpoint's tail from one build at once (`sweepTails`); index = checkpoint - `from`. */
+export interface TailSweep {
+  /** The first checkpoint (one above the TE the counts start at) and the last. */
+  from: number;
+  to: number;
+  /** Seconds to each checkpoint; NaN where it cannot be reached. */
+  seconds: Float64Array;
+  endTE: Int16Array;
+  /** End egg counts, five per checkpoint (EGG_ORDER). */
+  delivered: Float64Array;
+}
+
+/**
+ * `tailTo` for every checkpoint from `lowest` (default: one above where the counts stand) up to `top`
+ * in one pass, the same numbers to the last bit (checked
+ * against it, search/precomputedLeg.spec.ts). The goal-sharing `tailTo` redoes for each checkpoint
+ * hands out TEs one at a time, cheapest first, so it is worked out once: kindness's share of a goal
+ * m TEs up is how many of the first m go to kindness, and after kindness's wait the other four take
+ * the first TEs of the same order with kindness left out. A route search prices hundreds of
+ * checkpoints from each build, so this is what makes it quick.
+ */
+export function sweepTails(p: BuildParams, top: number, lateBy = 0, lowest?: number): TailSweep {
+  const d = Object.fromEntries(EGG_ORDER.map((e, i) => [e, p.delivered[i]])) as Record<VirtueEgg, number>;
+  const c = Object.fromEntries(EGG_ORDER.map(e => [e, countTE(d[e] || 0)])) as Record<VirtueEgg, number>;
+  const now = EGG_ORDER.reduce((n, e) => n + c[e], 0);
+  // A build can earn TEs itself, so checkpoints at or below where it leaves the counts are asked for
+  // too (`lowest`): each is reached as soon as K3's wait for the sale is over.
+  const from = Math.min(now + 1, lowest ?? now + 1);
+  const to = Math.max(from - 1, top);
+  const n = to - from + 1;
+  const seconds = new Float64Array(n).fill(NaN);
+  const endTE = new Int16Array(n);
+  const delivered = new Float64Array(n * 5);
+  if (n <= 0) return { from, to, seconds, endTE, delivered };
+
+  const all = greedyOrder(d, GREEDY_ORDER, n);
+  const others = greedyOrder(d, OTHERS, n);
+  // kind[m]: kindness's TEs among the first m; per[e][m]: each other egg's among the first m of theirs.
+  const kind = new Int16Array(all.length + 1);
+  for (let i = 0; i < all.length; i++) kind[i + 1] = kind[i] + (all[i] === 'kindness' ? 1 : 0);
+  const per = Object.fromEntries(OTHERS.map(e => [e, new Int16Array(others.length + 1)])) as Record<
+    VirtueEgg,
+    Int16Array
+  >;
+  for (let i = 0; i < others.length; i++) {
+    for (const e of OTHERS) per[e][i + 1] = per[e][i] + (others[i] === e ? 1 : 0);
+  }
+  const othersNow = OTHERS.reduce((s, e) => s + c[e], 0);
+  const saleEnd = p.saleEnd - lateBy;
+  const kIdx = EGG_ORDER.indexOf('kindness');
+
+  for (let target = from; target <= to; target++) {
+    const m = Math.max(0, target - now);
+    if (m > all.length) break;
+    // K3: the later of the sale ending and kindness's share.
+    let t = p.waitStart;
+    let wait = Math.max(0, saleEnd - t);
+    const needK = kind[m];
+    if (needK > 0) {
+      const tw = teWait(d.kindness || 0, p.peakELR, needK);
+      if (!Number.isFinite(tw)) continue;
+      wait = Math.max(wait, tw);
+    }
+    let dk = d.kindness || 0;
+    if (wait > 0) {
+      dk = dk + p.peakELR * wait;
+      t += wait;
+    }
+    // C4, I2, R2, H2: the rest of the goal, with kindness where it ended.
+    const left = target - countTE(dk) - othersNow;
+    if (left > others.length) continue;
+    const at = d;
+    let ok = true;
+    const ends: Partial<Record<VirtueEgg, number>> = {};
+    for (const e of WAIT_ORDER) {
+      if (e === 'kindness') continue;
+      const need = left > 0 ? per[e][left] : 0;
+      let de = at[e] || 0;
+      if (need > 0) {
+        const tw = teWait(de, p.peakELR, need);
+        if (!Number.isFinite(tw)) {
+          ok = false;
+          break;
+        }
+        if (tw > 0) {
+          de = de + p.peakELR * tw;
+          t += tw;
+        }
+      }
+      ends[e] = de;
+    }
+    if (!ok) continue;
+    let total = countTE(dk);
+    for (const e of OTHERS) total += countTE(ends[e]!);
+    if (total < target) continue;
+    const i = target - from;
+    seconds[i] = t;
+    endTE[i] = total;
+    for (let k = 0; k < EGG_ORDER.length; k++) {
+      delivered[i * 5 + k] = k === kIdx ? dk : ends[EGG_ORDER[k]]!;
+    }
+  }
+  return { from, to, seconds, endTE, delivered };
+}
+
 /** Hours in a week: the table's second key. */
 export const WEEK_HOURS = 168;
 
