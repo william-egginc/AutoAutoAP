@@ -29,7 +29,7 @@ import { CONTINUE_PIN_MAX_SECONDS, CONTINUE_MAX_SECONDS } from './rules';
 /** Mirrors useAscensionGenerator's own constant: below this starting TE a Tier 13 unlock cannot
  *  realistically land inside one build phase, so those variants are skipped rather than simulated
  *  and thrown away. */
-const TIER_13_MIN_STARTING_TE = 190;
+export const TIER_13_MIN_STARTING_TE = 190;
 
 /**
  * THE CONTINUE RULE for leg 1 (thresholds in search/rules.ts). Continue holds the farm exactly as it

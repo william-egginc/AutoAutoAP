@@ -4704,6 +4704,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     retryTable,
     submitUrl,
     leaderboardUrl,
+    // The search's inputs as they stand: the precompute tool (scripts/precompute.ts) builds its
+    // table from exactly what a search here would be given.
+    collectInputs,
     submissionFilename,
     readInventory,
     csvFilename,

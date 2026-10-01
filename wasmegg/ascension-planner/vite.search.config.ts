@@ -38,6 +38,8 @@ export default defineConfig({
       input: {
         fastsearch: 'scripts/fastsearch.ts',
         'chain-worker': 'scripts/node-worker.ts',
+        // The precomputed-ascension table (scripts/precompute.ts).
+        precompute: 'scripts/precompute.ts',
       },
       output: { entryFileNames: '[name].js' },
     },
