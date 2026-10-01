@@ -34,6 +34,8 @@ export const useUIStore = defineStore('ui', () => {
   const runSaveLoaded = ref<{ te: number; backupAt: number } | null>(null);
   /** Bumped to ask App.vue to open Classic with the chain a search just applied, in place (no reload). */
   const openPlannerRequested = ref(0);
+  /** Your setup's floating panel (SetupDock.vue) is open: the gear, or a screen's Edit setup. */
+  const setupOpen = ref(false);
   /** Bumped to open Your setup at its time off (YourSetup.vue), e.g. from a sweep's "add time off". */
   const openSetupRequested = ref(0);
   /** Bumped to ask App.vue to fetch the backup again (it owns the fetch). */
@@ -70,6 +72,7 @@ export const useUIStore = defineStore('ui', () => {
     openPlannerRequested,
     backupRetryRequested,
     openSetupRequested,
+    setupOpen,
     setActiveTab,
     setHeaderCollapsed,
     setLoading,

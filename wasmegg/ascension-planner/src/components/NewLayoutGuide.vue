@@ -48,7 +48,7 @@ const MOVES: { where: string; href?: string; what: string }[] = [
   {
     where: `${NAMES.auto} › Your setup`,
     href: '#/auto/classic',
-    what: 'Plan start, awake hours, time off and how much of your computer to use: set once, at the top of every Auto Planner screen.',
+    what: 'Plan start, awake hours, time off and how much of your computer to use: set once, from the ⚙ Setup button at the bottom right of every Auto Planner screen.',
   },
   {
     where: `${NAMES.fastest} › ${NAMES.smart}`,

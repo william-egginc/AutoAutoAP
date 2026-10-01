@@ -14,13 +14,15 @@
 -->
 <template>
   <!-- Strong colour and a real button: folded into a thin line it was easy to miss (the user, 30 Sept). -->
-  <section class="rounded-2xl border-2 border-indigo-200 bg-indigo-50/50 shadow-sm text-left">
-    <!-- Folded: one line, every value visible. -->
+  <section class="text-left" :class="docked ? '' : 'rounded-2xl border-2 border-indigo-200 bg-indigo-50/50 shadow-sm'">
+    <!-- On a screen: one line, every value visible; Edit setup opens the floating panel
+         (SetupDock.vue), the one place the setup is edited. -->
     <button
+      v-if="!docked"
       type="button"
       class="w-full flex flex-wrap items-center gap-x-5 gap-y-2 px-4 py-3.5 text-left"
-      :aria-expanded="open"
-      @click="setOpen(!open)"
+      :aria-expanded="ui.setupOpen"
+      @click="ui.setupOpen = !ui.setupOpen"
     >
       <span class="flex items-center gap-2 text-sm font-black text-indigo-900">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -48,13 +50,13 @@
       >
       <span
         class="ml-auto px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest"
-        :class="open ? 'border border-indigo-300 text-indigo-700 bg-white' : 'bg-indigo-600 text-white'"
-        >{{ open ? 'Done' : 'Edit setup' }}</span
+        :class="ui.setupOpen ? 'border border-indigo-300 text-indigo-700 bg-white' : 'bg-indigo-600 text-white'"
+        >{{ ui.setupOpen ? 'Close setup' : 'Edit setup' }}</span
       >
     </button>
 
     <!-- Problems with the save show folded too: nobody opens a card to look for them. -->
-    <div v-if="!open && store.setupIssues.length" class="border-t border-indigo-50 px-4 py-2 space-y-1">
+    <div v-if="!docked && store.setupIssues.length" class="border-t border-indigo-50 px-4 py-2 space-y-1">
       <p
         v-for="(issue, k) in store.setupIssues"
         :key="k"
@@ -65,7 +67,7 @@
       </p>
     </div>
 
-    <div v-if="open" class="border-t border-indigo-100 bg-white rounded-b-2xl p-4 space-y-4">
+    <div v-if="docked" class="p-4 space-y-4">
       <p class="text-[11px] text-slate-500">
         One setup for all three Auto Planner screens: change it here and Classic, {{ NAMES.fastest }} and
         {{ NAMES.byDate }} all use it.
@@ -361,7 +363,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onUnmounted, ref, watch } from 'vue';
+import { computed, onUnmounted, ref } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useInitialStateStore } from '@/stores/initialState';
@@ -376,41 +378,16 @@ import BackgroundSpeed from './BackgroundSpeed.vue';
 import DateStyleToggle from './DateStyleToggle.vue';
 import SimulationSetup from './SimulationSetup.vue';
 
-defineProps<{ screen: AutoView }>();
+defineProps<{
+  screen: AutoView;
+  /** The full setup, in the floating panel (SetupDock.vue); without it, the one-line bar. */
+  docked?: boolean;
+}>();
 
 const store = useChainSearchStore();
 const planner = useAutoPlannerStore();
 const initialState = useInitialStateStore();
 const ui = useUIStore();
-
-/** Open or folded, remembered in this browser. */
-const OPEN_KEY = 'aap-your-setup-open';
-function readOpen(): boolean {
-  try {
-    return localStorage.getItem(OPEN_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
-const open = ref(readOpen());
-function setOpen(v: boolean): void {
-  open.value = v;
-  try {
-    localStorage.setItem(OPEN_KEY, v ? '1' : '0');
-  } catch {
-    /* private window: it just won't be remembered */
-  }
-}
-/** Asked from a panel (a sweep's "add time off"): open, and scroll to the time off. */
-watch(
-  () => ui.openSetupRequested,
-  () => {
-    setOpen(true);
-    void nextTick(() =>
-      document.getElementById('your-setup-time-off')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    );
-  }
-);
 
 const locked = computed(() => store.busy);
 const zone = computed(() => planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
@@ -519,13 +496,6 @@ function onAdvanced(e: Event): void {
   }
 }
 onUnmounted(() => heapTimer && clearInterval(heapTimer));
-// Folding the setup removes an open Advanced without a toggle event: stop its timer then too.
-watch(open, isOpen => {
-  if (!isOpen && heapTimer) {
-    clearInterval(heapTimer);
-    heapTimer = null;
-  }
-});
 const mb = (bytes: number): string => `${(bytes / 1024 / 1024).toFixed(0)} MB`;
 const heldMb = computed(() => mb(store.legDetailBytes));
 const heapUsedMb = computed(() => (heap.value ? mb(heap.value.used) : ''));

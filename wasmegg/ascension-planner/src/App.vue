@@ -510,6 +510,9 @@
         <ChainExplorer part="science" embedded :science-view="scienceView" :te-now="saveTE" />
       </div>
 
+      <!-- Your setup, floating, on every Auto Planner screen: the gear opens it; workers adjust folded. -->
+      <SetupDock v-if="plannerTab === 'automatic' && playerId && !loading" :screen="autoView" />
+
       <!-- Undo Confirmation Dialog -->
       <UndoConfirmationDialog
         v-if="undoAction"
@@ -651,6 +654,7 @@ import RunProgressBar from '@/components/auto/RunProgressBar.vue';
 import { usePlanStartForm } from '@/composables/usePlanStartForm';
 import NewLayoutGuide from '@/components/NewLayoutGuide.vue';
 import SiteTabs from '@/components/SiteTabs.vue';
+import SetupDock from '@/components/auto/SetupDock.vue';
 import RunningElsewhere from '@/components/auto/RunningElsewhere.vue';
 import { useSalesStore } from '@/stores/sales';
 import { hashID, saveMetadata, loadMetadata } from '@/lib/storage/db';
