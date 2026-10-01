@@ -15,5 +15,5 @@
  */
 export default {
   reloadIfBuiltBefore: '2026-09-30T20:12:00Z',
-  note: 'Science sweeps run on the Science tab, By a date gets a size slider for Suggest a space, One range is gone from the Full sweep, and boxes you type in are kept when you switch screens',
+  note: 'A Smart search you stop now keeps the fastest route it had already priced, and the Full sweep progress bar no longer counts a finished batch twice',
 };
