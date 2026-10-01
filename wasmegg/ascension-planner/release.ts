@@ -15,5 +15,5 @@
  */
 export default {
   reloadIfBuiltBefore: '2026-09-30T20:12:00Z',
-  note: 'The Smart search explanation corrected and in plain words, a tidier Insights header, and the ⚙ Setup pill can be dragged anywhere (double-click puts it back)',
+  note: 'Science sweeps now run right on the Science tab: press Run this sweep to see the chains and time on this computer, then Start. Progress shows there, and the result is sent when it finishes',
 };

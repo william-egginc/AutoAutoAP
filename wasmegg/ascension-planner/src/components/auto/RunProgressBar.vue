@@ -66,6 +66,7 @@
 import { computed, onUnmounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
+import { useUIStore } from '@/stores/ui';
 import { NAMES } from '@/lib/siteNav';
 import { showDateTime } from '@/lib/displayTime';
 
@@ -75,7 +76,13 @@ const planner = useAutoPlannerStore();
 
 const p = computed(() => store.runProgress);
 
+const ui = useUIStore();
+
 const kindLabel = computed(() => {
+  // A sweep started from Science is named as it was there (SweepRunner.vue), not as a Full sweep.
+  const science = ui.scienceRun;
+  if (science && science.phase !== 'done' && p.value?.kind === 'full')
+    return `${NAMES.science} · ${science.request.label}`;
   switch (p.value?.kind) {
     case 'smart':
       return `${NAMES.fastest} · ${NAMES.smart}`;

@@ -131,7 +131,7 @@
           </div>
           <div class="rounded-lg bg-indigo-50 px-3 py-2">
             <div class="text-[9px] font-black uppercase tracking-widest text-indigo-400">About how long</div>
-            <div class="font-black text-indigo-900">{{ chainCount ? formatHours(hours) : '—' }}</div>
+            <div class="font-black text-indigo-900">{{ chainCount ? roughly(hours) : '—' }}</div>
           </div>
         </div>
         <p class="text-[10px] text-slate-400 -mt-2">
@@ -184,7 +184,7 @@
           <label class="flex items-start gap-2 text-[11px] text-slate-700">
             <input v-model="consent" type="checkbox" class="mt-0.5 rounded border-indigo-300 text-indigo-600" />
             <span>
-              I understand it takes about <b>{{ formatHours(hours) }}</b
+              I understand it takes about <b>{{ roughly(hours) }}</b
               >, that this tab has to stay open (and the computer awake) until it finishes, and that the result is then
               <b>sent to the board automatically</b>, tagged {{ request.preset }}.
               <button type="button" class="font-bold text-indigo-700 underline" @click="showWhat = !showWhat">
@@ -452,6 +452,11 @@ const tooBig = computed(() => chainCount.value > 0 && hours.value > 24 * 14);
 
 const timeOffText = computed(() => (usableTimeOff(store.timeOff).length ? describeTimeOff(store.timeOff) : ''));
 
+/** `formatHours`, but a sweep of a few chains reads "under a minute", not "0 min". */
+function roughly(h: number): string {
+  return h * 60 < 1 ? 'under a minute' : formatHours(h);
+}
+
 function setWorkers(raw: string): void {
   const n = Number(raw);
   store.workerBudget = Number.isFinite(n) ? Math.max(1, Math.min(store.machineThreads, Math.floor(n))) : 1;
@@ -584,6 +589,7 @@ const finishDate = computed(() =>
     ? new Intl.DateTimeFormat(undefined, {
         timeZone: zone.value,
         weekday: 'short',
+        year: 'numeric',
         month: 'short',
         day: 'numeric',
         hour: 'numeric',
