@@ -16,8 +16,12 @@ let tableUrl = '';
 function load(url: string): Promise<Table> {
   if (!table || tableUrl !== url) {
     tableUrl = url;
-    table = fetch(url).then(async res => {
-      if (!res.ok) throw new Error(`the precomputed table could not be loaded (${res.status})`);
+    // Revalidated, not taken from cache: the table grows while it is being built.
+    table = fetch(url, { cache: 'no-cache' }).then(async res => {
+      // The preview server answers a missing file with the app's own page, status 200.
+      if (!res.ok || /text\/html/.test(res.headers.get('content-type') ?? '')) {
+        throw new Error(`the precomputed table could not be loaded (${res.ok ? 404 : res.status})`);
+      }
       return readTable(await res.arrayBuffer());
     });
     // A failed load is retried on the next request rather than remembered.
@@ -32,6 +36,11 @@ ctx.onmessage = async (event: MessageEvent<RouteWorkerRequest>) => {
     const t = await load(m.url);
     const t0 = performance.now();
     const h = t.header;
+    // Every TE from the player's up is needed; a table still being built covers only the top.
+    if (Math.round(m.startTE + m.cteBonus - h.cteBonus) < h.from) {
+      ctx.postMessage({ kind: 'not-yet', id: m.id, header: h } satisfies RouteWorkerResponse);
+      return;
+    }
     // The row with the player's earning power: their start TE moved by their bonus against the
     // table's, held inside the table.
     const rowFor = (te: number) => Math.min(h.to, Math.max(h.from, Math.round(te + m.cteBonus - h.cteBonus)));

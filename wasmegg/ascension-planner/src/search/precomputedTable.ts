@@ -62,8 +62,14 @@ export function packTable(
 /** Read the file's bytes back; builds are made on first lookup of each cell and kept. */
 export function readTable(buffer: ArrayBuffer): Table {
   const view = new DataView(buffer);
-  const len = view.getUint32(0, true);
-  const header = JSON.parse(new TextDecoder().decode(new Uint8Array(buffer, 4, len))) as TableHeader;
+  const len = buffer.byteLength >= 4 ? view.getUint32(0, true) : 0;
+  let header: TableHeader;
+  try {
+    if (!len || 4 + len > buffer.byteLength) throw new Error('bad length');
+    header = JSON.parse(new TextDecoder().decode(new Uint8Array(buffer, 4, len))) as TableHeader;
+  } catch {
+    throw new Error('that file is not a precomputed table');
+  }
   if (header.version !== 1) throw new Error(`precomputed table version ${header.version} is not supported`);
   const start = Math.ceil((4 + len) / 8) * 8;
   const body = new Float64Array(buffer, start);

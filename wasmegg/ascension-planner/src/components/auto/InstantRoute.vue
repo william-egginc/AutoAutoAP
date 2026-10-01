@@ -187,6 +187,13 @@ function getWorker(): Worker {
     worker.onmessage = (e: MessageEvent<RouteWorkerResponse>) => {
       const m = e.data;
       if (m.id !== nextId) return; // an older request, superseded
+      if (m.kind === 'not-yet') {
+        header.value = m.header;
+        result.value = null;
+        status.value = 'error';
+        errorText.value = `The table is still being built, from the top down: it starts at TE ${m.header.from} so far, and your route starts at ${Math.floor(store.currentTE)}. It fills in over the next day; the searches below work as always.`;
+        return;
+      }
       if (m.kind === 'error') {
         status.value = 'error';
         errorText.value = /404/.test(m.message)

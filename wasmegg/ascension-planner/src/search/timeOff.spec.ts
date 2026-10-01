@@ -18,7 +18,12 @@ describe('time off dates', () => {
   });
 
   it('ignores half-typed or backwards rows, and merges overlaps', () => {
-    expect(usableTimeOff([{ from: '2027-07-14', to: '' }, { from: '2027-07-20', to: '2027-07-18' }])).toEqual([]);
+    expect(
+      usableTimeOff([
+        { from: '2027-07-14', to: '' },
+        { from: '2027-07-20', to: '2027-07-18' },
+      ])
+    ).toEqual([]);
     const ws = timeOffWindows(
       [
         { from: '2027-07-16', to: '2027-07-20' },
@@ -32,8 +37,11 @@ describe('time off dates', () => {
 
   it('reads back plainly', () => {
     expect(describeTimeOff([])).toBe('none');
-    expect(describeTimeOff([{ from: '2027-07-14', to: '2027-07-14' }, { from: '2027-08-01', to: '2027-08-07' }])).toBe(
-      '2027-07-14; 2027-08-01 to 2027-08-07'
-    );
+    expect(
+      describeTimeOff([
+        { from: '2027-07-14', to: '2027-07-14' },
+        { from: '2027-08-01', to: '2027-08-07' },
+      ])
+    ).toBe('2027-07-14; 2027-08-01 to 2027-08-07');
   });
 });

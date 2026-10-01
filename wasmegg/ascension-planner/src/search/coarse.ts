@@ -146,8 +146,7 @@ export function planCoarseGrid(opts: {
   }
   if (n > budget) {
     throw new Error(
-      `Cannot get the coarse scan under ${budget} chains (${n} at step ${step}). ` +
-        `Narrow the prestige range.`
+      `Cannot get the coarse scan under ${budget} chains (${n} at step ${step}). ` + `Narrow the prestige range.`
     );
   }
   return { lo, hi, step, values: vals, chains: n, log };

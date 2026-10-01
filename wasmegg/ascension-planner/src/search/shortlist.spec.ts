@@ -30,9 +30,9 @@ describe('pickShortlist', () => {
     // Exactly what a descent sweep leaves in the cache. All four are one plan.
     const rows = pickShortlist([
       e('195 219 248 286 327 490', 741.965),
-      e('195 219 248 286 328 490', 741.970),
-      e('195 219 248 287 327 490', 741.980),
-      e('195 219 249 286 327 490', 741.990),
+      e('195 219 248 286 328 490', 741.97),
+      e('195 219 248 287 327 490', 741.98),
+      e('195 219 249 286 327 490', 741.99),
     ]);
     expect(rows).toHaveLength(1);
     expect(rows[0].chain).toEqual([195, 219, 248, 286, 327, 490]);
@@ -42,7 +42,7 @@ describe('pickShortlist', () => {
   it('keeps a chain that moved far enough to be a different plan', () => {
     const rows = pickShortlist([
       e('195 219 248 286 327 490', 741.965),
-      e('195 219 260 286 327 490', 742.400), // X3 moved 12
+      e('195 219 260 286 327 490', 742.4), // X3 moved 12
     ]);
     expect(rows).toHaveLength(2);
     expect(rows[1].reason).toBe('different-shape');
@@ -54,12 +54,12 @@ describe('pickShortlist', () => {
     const rows = pickShortlist(
       [
         e('195 219 240 262 286 323 490', 738.968),
-        e('195 219 241 262 286 323 490', 738.970),
-        e('195 219 242 262 286 323 490', 738.980),
-        e('195 219 243 262 286 323 490', 738.990),
-        e('195 219 244 262 286 323 490', 739.000),
-        e('195 219 245 262 286 323 490', 739.010),
-        e('195 219 246 262 286 323 490', 739.020),
+        e('195 219 241 262 286 323 490', 738.97),
+        e('195 219 242 262 286 323 490', 738.98),
+        e('195 219 243 262 286 323 490', 738.99),
+        e('195 219 244 262 286 323 490', 739.0),
+        e('195 219 245 262 286 323 490', 739.01),
+        e('195 219 246 262 286 323 490', 739.02),
         e('195 219 248 286 327 490', 741.965), // the only 6-prestige chain, and slowest
       ],
       { maxRows: 3 }
@@ -69,19 +69,15 @@ describe('pickShortlist', () => {
   });
 
   it('reports the gap against the leader, not against zero', () => {
-    const rows = pickShortlist([
-      e('195 219 248 286 327 490', 741.965),
-      e('195 219 260 286 327 490', 744.965),
-    ]);
+    const rows = pickShortlist([e('195 219 248 286 327 490', 741.965), e('195 219 260 286 327 490', 744.965)]);
     expect(rows[0].gapSeconds).toBe(0);
     expect(rows[1].gapSeconds / 86400).toBeCloseTo(3, 6);
   });
 
   it('drops anything past the gap window', () => {
-    const rows = pickShortlist(
-      [e('195 219 248 286 327 490', 741.965), e('300 350 400 490', 800)],
-      { maxGapSeconds: 5 * 86400 }
-    );
+    const rows = pickShortlist([e('195 219 248 286 327 490', 741.965), e('300 350 400 490', 800)], {
+      maxGapSeconds: 5 * 86400,
+    });
     expect(rows).toHaveLength(1);
   });
 
@@ -114,11 +110,7 @@ describe('pickShortlist', () => {
 
   it('honours maxRows and returns fastest-first', () => {
     const rows = pickShortlist(
-      [
-        e('195 219 248 286 327 490', 743),
-        e('195 219 300 286 327 490', 742),
-        e('195 219 270 340 327 490', 741),
-      ],
+      [e('195 219 248 286 327 490', 743), e('195 219 300 286 327 490', 742), e('195 219 270 340 327 490', 741)],
       { maxRows: 2 }
     );
     expect(rows).toHaveLength(2);

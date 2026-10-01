@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { fallbackWorkerSeconds, measuredWorkerSeconds, sweepSeconds, workerSecondsOf, workerSecondsPerChain, timeWeightedWorkers } from './speed';
+import {
+  fallbackWorkerSeconds,
+  measuredWorkerSeconds,
+  sweepSeconds,
+  workerSecondsOf,
+  workerSecondsPerChain,
+  timeWeightedWorkers,
+} from './speed';
 
 describe('sweep speed', () => {
   it('reads worker-seconds per chain off a run: minutes x 60 x workers / chains', () => {

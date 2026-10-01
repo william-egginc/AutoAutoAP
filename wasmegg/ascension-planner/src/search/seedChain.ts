@@ -80,7 +80,8 @@ export function defaultSeedChain({ currentTE, finalTE, minPrestiges, maxPrestige
   const intermediate = ascensions - 1;
   if (intermediate < 1) return [Math.floor(finalTE)];
   // One checkpoint: on a measured target it IS the last checkpoint; otherwise halfway, as before.
-  if (intermediate === 1) return [measured !== undefined && hi > lo ? hi : Math.round((lo + hi) / 2), Math.floor(finalTE)];
+  if (intermediate === 1)
+    return [measured !== undefined && hi > lo ? hi : Math.round((lo + hi) / 2), Math.floor(finalTE)];
 
   const ratio = Math.pow(hi / lo, 1 / (intermediate - 1));
   const chain: number[] = [];

@@ -46,6 +46,8 @@ export interface Tail {
   seconds: number;
   /** TE when it ends. Usually the checkpoint; more when K3's wait for the sale overshoots it. */
   endTE: number;
+  /** Eggs delivered on each egg when it ends (EGG_ORDER): where the next ascension starts from. */
+  delivered: number[];
 }
 
 /**
@@ -53,14 +55,25 @@ export interface Tail {
  * (cheapest next TE first, from nothing) with each egg exactly on its threshold. The table's every
  * build starts from this; `rebase` moves a build onto a player's real counts.
  */
+const canonicalCache = new Map<number, number[]>();
 export function canonicalDelivered(te: number): number[] {
+  const hit = canonicalCache.get(te);
+  if (hit) return hit;
   const zero = Object.fromEntries(EGG_ORDER.map(e => [e, 0])) as Record<VirtueEgg, number>;
   const perEgg = distributeTargetTE(zero, te);
-  return EGG_ORDER.map(e => (perEgg[e] > 0 ? TE_BREAKPOINTS[perEgg[e] - 1] : 0));
+  const out = EGG_ORDER.map(e => (perEgg[e] > 0 ? TE_BREAKPOINTS[perEgg[e] - 1] : 0));
+  canonicalCache.set(te, out);
+  return out;
 }
 
-/** A table build (made from `canonicalDelivered(te)`) moved onto a player's own egg counts at the
- *  same TE: the eggs the build itself delivers, added to theirs. */
+/**
+ * A table build (made from `canonicalDelivered(te)`) moved onto a player's own egg counts at the same
+ * TE: the eggs the build itself delivers, added to theirs. The build's own eggs do not depend on where
+ * the counts stood (it is driven by earnings, not by TE thresholds), so this is exact: down a 7-leg
+ * route the moved builds matched the simulator leg for leg, where the canonical ones were up to two
+ * days out (scripts/precompute.ts --debug-chain). Which eggs hold the odd TEs, and the eggs K3's wait
+ * for the sale leaves on kindness, change the next ascension by about one TE's wait.
+ */
 export function rebase(b: BuildParams, te: number, delivered: number[]): BuildParams {
   const canon = canonicalDelivered(te);
   return { ...b, delivered: b.delivered.map((d, i) => delivered[i] + (d - canon[i])) };
@@ -98,7 +111,7 @@ export function tailTo(p: BuildParams, target: number, lateBy = 0): Tail | null 
     locked.push(egg);
   }
   const endTE = EGG_ORDER.reduce((n, e) => n + countTEThresholdsPassed(delivered[e] || 0), 0);
-  return endTE >= target ? { seconds: t, endTE } : null;
+  return endTE >= target ? { seconds: t, endTE, delivered: EGG_ORDER.map(e => delivered[e] || 0) } : null;
 }
 
 /** The fastest of a start's builds to `target`, as the app picks (`pickVariant`: least time, the

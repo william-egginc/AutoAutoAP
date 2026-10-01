@@ -146,9 +146,9 @@ describe('reviewContext', () => {
 
   it('catches a run starting before the farm state has loaded', () => {
     expect(reviewContext({ ...loaded, hasFarmState: false }).map(i => i.kind)).toEqual(['no-farm-state']);
-    expect(
-      reviewContext({ ...loaded, hasFarmState: false, backupHasVirtueFarm: true }).map(i => i.kind)
-    ).toEqual(['no-farm-state']);
+    expect(reviewContext({ ...loaded, hasFarmState: false, backupHasVirtueFarm: true }).map(i => i.kind)).toEqual([
+      'no-farm-state',
+    ]);
   });
 
   // Not a race, and not a fault either: with no virtue ascension in progress, leg 1 is simply a fresh one. It used

@@ -48,7 +48,9 @@ export interface Milestone {
 /** Only milestones that could ever be met: a positive TE at or below `final`, and a real date. */
 export function usableMilestones(milestones: Milestone[] | null | undefined, final: number): Milestone[] {
   if (!milestones?.length) return [];
-  return milestones.filter(m => Number.isFinite(m.te) && Number.isFinite(m.by) && m.te > 0 && m.te <= final && m.by > 0);
+  return milestones.filter(
+    m => Number.isFinite(m.te) && Number.isFinite(m.by) && m.te > 0 && m.te <= final && m.by > 0
+  );
 }
 
 /** When this plan first reaches `te`, or undefined if it never does. Legs are in chain order and
@@ -78,5 +80,11 @@ export function meetsAll(legs: readonly LegArrival[], milestones: Milestone[]): 
  *  none, so an unconstrained run keeps the fingerprint it has always had. */
 export function milestonesKey(milestones: Milestone[] | null | undefined): string {
   if (!milestones?.length) return '';
-  return 'ms' + [...milestones].map(m => `${m.te}@${m.by}`).sort().join(',');
+  return (
+    'ms' +
+    [...milestones]
+      .map(m => `${m.te}@${m.by}`)
+      .sort()
+      .join(',')
+  );
 }

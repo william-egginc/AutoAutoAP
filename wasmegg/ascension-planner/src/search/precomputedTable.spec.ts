@@ -30,4 +30,9 @@ describe('precomputed table file', () => {
     expect(t.lookup(199, 0)).toBeNull();
     expect(t.lookup(201, 168)).toBeNull();
   });
+
+  it('refuses a file that is not a table (the server answering with a web page)', () => {
+    const html = new TextEncoder().encode('<!doctype html><html></html>');
+    expect(() => readTable(html.buffer as ArrayBuffer)).toThrow('not a precomputed table');
+  });
 });

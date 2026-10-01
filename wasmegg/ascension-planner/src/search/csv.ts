@@ -380,7 +380,10 @@ export function* chainsCsvChunks(entries: CacheEntry[], meta: CsvMeta): Generato
   note(`current TE ${meta.currentTE} -> final target ${meta.final}`);
   note(`effort ${meta.effort}; force-continue ${meta.forceContinue ? 'on' : 'off'}`);
   note(`available ${describeAvailability(meta.availability)}`);
-  if (meta.timeOff?.length) note(`time off from virtue: ${describeTimeOff(meta.timeOff)} (each ends the ascension in progress; a rebuild follows)`);
+  if (meta.timeOff?.length)
+    note(
+      `time off from virtue: ${describeTimeOff(meta.timeOff)} (each ends the ascension in progress; a rebuild follows)`
+    );
   note(`seed chain ${meta.seedChain.join(' ')}`);
   note(`chains priced ${entries.length}`);
   note('');

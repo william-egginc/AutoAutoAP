@@ -29,6 +29,9 @@
  *                    number of ascensions. --check re-prices each with the simulator, ascension by
  *                    ascension from the real end state; --brute enumerates every route of up to 3
  *                    ascensions from the table and confirms none beats the finder.
+ *   --grid-error --table DIR
+ *                    How well an hour's builds are predicted from an earlier hour's with `lateBy`
+ *                    (the case for a coarser grid of start hours), and which hours break it.
  *   --pack --table DIR --out FILE
  *                    Pack a generated table into the one file the site loads
  *                    (search/precomputedTable.ts), covering the start TEs finished so far.
@@ -67,12 +70,15 @@ import { computeRealisticELR } from '@/calculations/realisticELR';
 import {
   bestTailTo,
   canonicalDelivered,
+  rebase,
   EGG_ORDER,
   pacificHourOfWeek,
   tailTo,
   WEEK_HOURS,
   type BuildParams,
 } from '@/search/precomputedLeg';
+import { findRoutes, nextHour, type Route } from '@/search/routeFinder';
+import { packTable } from '@/search/precomputedTable';
 import { deliveryScore } from '@/search/virtueScore';
 import { describeLoadoutSlots } from '@/search/csv';
 import { cteFromArtifacts } from 'lib/virtue';
@@ -375,7 +381,9 @@ async function generate(file: string): Promise<void> {
   void inputs;
 
   const todo: number[] = [];
-  for (let te = from; te <= to; te++) {
+  // From the top down: a route climbs through every TE from the player's to the target, so the
+  // table is usable from the top first, and grows downward toward where players are.
+  for (let te = to; te >= from; te--) {
     if (!existsSync(`${out}/te-${String(te).padStart(3, '0')}.jsonl`)) todo.push(te);
   }
   console.log(`${todo.length} start TEs to build (${to - from + 1 - todo.length} already done), ${jobs} processes`);
@@ -404,7 +412,6 @@ async function generate(file: string): Promise<void> {
               // Processes run side by side, so the rate is start TEs finished per minute across all of them.
               const perMinute = finished / ((Date.now() - t0) / 60000);
               const left = todo.length / perMinute;
-              (((todo.length + jobs - 1) / jobs) * perTE * jobs) / Math.min(jobs, finished + todo.length) / 60000;
               console.log(
                 `  TE ${m.done} done in ${((m.ms ?? 0) / 60000).toFixed(1)} min; ${finished} finished, ${todo.length} queued, about ${left.toFixed(0)} min left`
               );
@@ -470,17 +477,20 @@ async function verifyTable(file: string): Promise<void> {
     const te = table.tes[Math.floor(random() * table.tes.length)];
     const start = REFERENCE_WEEK + Math.floor(random() * 52 * 7 * 86400);
     const target = Math.min(490, te + 1 + Math.floor(random() * Math.min(200, 490 - te)));
+    // The table's way: ascend at the next whole hour. Against the simulator starting at once (what a
+    // search does), measured from the same moment.
+    const at = nextHour(start);
+    const builds = table.lookup(te, pacificHourOfWeek(at));
     const leg = runLeg(inputs, startStateAt(inputs, te), start, target, false, te, 2);
-    const builds = table.lookup(te, pacificHourOfWeek(start));
     if (!leg || !builds) continue;
-    const lateBy = ((start % 3600) + 3600) % 3600;
-    const mine = bestTailTo(builds, target, lateBy);
+    const mine = bestTailTo(builds, target);
     if (!mine) continue;
+    const tableSeconds = at - start + mine.seconds;
     const real = leg.summary.totalDurationSeconds;
-    errs.push((mine.seconds - real) / real);
-    hourErrs.push((mine.seconds - real) / 3600);
+    errs.push((tableSeconds - real) / real);
+    hourErrs.push((tableSeconds - real) / 3600);
   }
-  console.log('real starts at random times vs the table: ' + stats(errs));
+  console.log('table (ascend on the next hour) vs simulator starting at once, random times: ' + stats(errs));
   const h = hourErrs.map(Math.abs).sort((a, b) => a - b);
   if (h.length)
     console.log(`  in hours: median ${h[Math.floor(h.length / 2)].toFixed(2)} h, max ${h[h.length - 1].toFixed(2)} h`);
@@ -512,19 +522,60 @@ async function verifyTable(file: string): Promise<void> {
       const key = `${r.start}|${r.te}|${r.target}`;
       if (seen.has(key)) continue;
       seen.add(key);
-      const hour = pacificHourOfWeek(r.start);
-      const lateBy = ((r.start % 3600) + 3600) % 3600;
+      const at = nextHour(r.start);
+      const hour = pacificHourOfWeek(at);
+      const wait = at - r.start;
       const real = r.days * 86400;
-      const p = bestTailTo(table.lookup(r.te, hour) ?? [], r.target, lateBy);
-      if (p) plain.push((p.seconds - real) / real);
+      const p = bestTailTo(table.lookup(r.te, hour) ?? [], r.target);
+      if (p) plain.push((p.seconds + wait - real) / real);
       // Corrected: the build from the row with the player's earning power, the waits at their rate.
       const row = Math.round(r.te + acct.bonus - tableBonus);
       const builds = (table.lookup(row, hour) ?? []).map(b => ({ ...b, peakELR: b.peakELR * acct.score }));
-      const c = builds.length ? bestTailTo(builds, r.target, lateBy) : null;
-      if (c) corrected.push((c.seconds - real) / real);
+      const c = builds.length ? bestTailTo(builds, r.target) : null;
+      if (c) corrected.push((c.seconds + wait - real) / real);
     }
     console.log(`${who}: as the table's account ${stats(plain)}`);
     console.log(`${' '.repeat(who.length)}  corrected for gear  ${stats(corrected)}`);
+  }
+}
+
+function gridError(): void {
+  const dir = arg('table');
+  if (!dir) throw new Error('--grid-error needs --table DIR');
+  const table = loadTable(dir);
+  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  for (const k of [1, 2, 3, 4, 6, 8, 12]) {
+    const errs: number[] = [];
+    const hours: number[] = [];
+    const badAt = new Map<number, number>();
+    for (const te of table.tes) {
+      for (let h = 0; h < WEEK_HOURS; h++) {
+        const real = table.lookup(te, h);
+        const from = table.lookup(te, (h - k + WEEK_HOURS) % WEEK_HOURS);
+        if (!real || !from) continue;
+        for (const target of [te + 5, te + 25, te + 60, te + 120]) {
+          if (target > 490) continue;
+          const a = bestTailTo(real, target, 0);
+          const p = bestTailTo(from, target, k * 3600);
+          if (!a || !p) continue;
+          const e = (p.seconds - a.seconds) / a.seconds;
+          errs.push(e);
+          hours.push((p.seconds - a.seconds) / 3600);
+          if (Math.abs(p.seconds - a.seconds) > 3600) badAt.set(h, (badAt.get(h) ?? 0) + 1);
+        }
+      }
+    }
+    const abs = hours.map(Math.abs).sort((x, y) => x - y);
+    const q = (x: number) => abs[Math.min(abs.length - 1, Math.floor(x * abs.length))];
+    const worstHours = [...badAt.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6)
+      .map(([h, n]) => `${days[Math.floor(h / 24)]} ${String(h % 24).padStart(2, '0')}:00 (${n})`);
+    console.log(
+      `every ${k} h: ${stats(errs)} | in hours: median ${q(0.5).toFixed(2)}, 99th ${q(0.99).toFixed(2)}, max ${abs[abs.length - 1].toFixed(1)}` +
+        ` | off by over an hour in ${((100 * abs.filter(x => x > 1).length) / abs.length).toFixed(1)}%` +
+        (worstHours.length ? `, mostly from ${worstHours.join(', ')}` : '')
+    );
   }
 }
 
@@ -590,30 +641,67 @@ async function route(file: string): Promise<void> {
   if (best) console.log(`  fastest: ${days(best)}  ${best.chain.join(' ')}`);
 
   if (has('check')) {
-    // Each route again through the simulator itself: every ascension from the state the last one
-    // really ended in (not the table's canonical one), at the second it really starts.
+    // Each route again through the simulator itself, ascension by ascension from the state the last
+    // one really ended in (not the table's canonical one): starting on the hour, as the route does
+    // (the table's own times, so only the canonical start differs), and starting the moment the last
+    // one ends, as a search would (which can only match or beat it).
     const inputs = await loadInputs(file);
-    for (const r of byAscensions) {
-      if (!r) continue;
+    const simulate = (chain: number[], onTheHour: boolean): number | null => {
       let state = startStateAt(inputs, te);
       let t = start;
       let startTE = te;
-      let ok = true;
-      for (const [i, target] of r.chain.entries()) {
+      for (const [i, target] of chain.entries()) {
+        if (onTheHour) t = nextHour(t);
         const leg = runLeg(inputs, state, t, target, false, startTE, i + 2);
-        if (!leg) {
-          ok = false;
-          break;
-        }
+        if (!leg) return null;
         t += leg.summary.totalDurationSeconds;
         startTE = Object.values(leg.summary.finalTE).reduce((a, b) => a + b, 0);
         state = leg.nextState;
       }
-      const real = t - start;
+      return t - start;
+    };
+    for (const r of byAscensions) {
+      if (!r) continue;
+      const hourly = simulate(r.chain, true);
+      const immediate = simulate(r.chain, false);
+      const pct = (x: number | null) =>
+        x === null ? 'failed' : `${(x / 86400).toFixed(3)} d (${(((r.seconds - x) / x) * 100).toFixed(3)}%)`;
       console.log(
-        `  check ${r.legs.length} ascensions: table ${days(r)}, simulator ${ok ? (real / 86400).toFixed(3) + ' d' : 'failed'}` +
-          (ok ? ` (${(((r.seconds - real) / real) * 100).toFixed(3)}%)` : '')
+        `  check ${r.legs.length} ascensions: table ${days(r)} | simulator on the hour ${pct(hourly)} | starting at once ${pct(immediate)}`
       );
+    }
+  }
+
+  if (arg('debug-chain')) {
+    // One route, ascension by ascension: the table's cell against the simulator from the real state.
+    const inputs = await loadInputs(file);
+    const chain = arg('debug-chain')!.trim().split(/\s+/).map(Number);
+    let state = startStateAt(inputs, te);
+    let t = start;
+    let cur = te;
+    for (const [i, target] of chain.entries()) {
+      t = nextHour(t);
+      const hour = pacificHourOfWeek(t);
+      const tab = bestTailTo(table.lookup(cur, hour) ?? [], target);
+      const realNow = EGG_ORDER.map(e => state.eggsDelivered[e] || 0);
+      const moved = bestTailTo(
+        (table.lookup(cur, hour) ?? []).map(b => rebase(b, cur, realNow)),
+        target
+      );
+      const leg = runLeg(inputs, state, t, target, false, cur, i + 2);
+      const simEnd = leg ? Object.values(leg.summary.finalTE).reduce((a, b) => a + b, 0) : NaN;
+      const realDelivered = EGG_ORDER.map(e => state.eggsDelivered[e] || 0);
+      const canon = canonicalDelivered(cur);
+      console.log(
+        `  leg ${i + 1} ${cur}->${target} at hour ${hour}: table ${tab ? (tab.seconds / 86400).toFixed(4) + ' d, ends ' + tab.endTE + ', ' + tab.build.sales + '-sale' + (tab.build.tier13 ? '-t13' : '') : 'none'}` +
+          ` | on real eggs ${moved ? (moved.seconds / 86400).toFixed(4) + ' d, ends ' + moved.endTE : 'none'}` +
+          ` | simulator ${leg ? (leg.summary.totalDurationSeconds / 86400).toFixed(4) + ' d, ends ' + simEnd + ', ' + leg.key : 'none'}` +
+          `\n      start eggs real ${realDelivered.map(x => x.toExponential(4)).join(' ')}\n      start eggs table ${canon.map(x => x.toExponential(4)).join(' ')}`
+      );
+      if (!leg) break;
+      t += leg.summary.totalDurationSeconds;
+      cur = simEnd;
+      state = leg.nextState;
     }
   }
 
@@ -623,17 +711,26 @@ async function route(file: string): Promise<void> {
     const price = (chain: number[]): number | null => {
       let t = start;
       let cur = te;
+      let eggs = canonicalDelivered(te);
       for (const target of chain) {
         if (target <= cur) return null;
+        t = nextHour(t);
         const builds = table.lookup(cur, pacificHourOfWeek(t));
-        const tail = builds ? bestTailTo(builds, target, ((t % 3600) + 3600) % 3600) : null;
+        const here = eggs;
+        const tail = builds
+          ? bestTailTo(
+              builds.map(b => rebase(b, cur, here)),
+              target
+            )
+          : null;
         if (!tail) return null;
         t += tail.seconds;
         cur = tail.endTE;
+        eggs = tail.delivered;
       }
       return cur >= final ? t - start : null;
     };
-    for (let k = 1; k <= 3; k++) {
+    for (let k = 1; k <= Number(arg('brute-max', '3')); k++) {
       let bestBrute = Infinity;
       let bestChain: number[] = [];
       const walk = (prefix: number[], from: number) => {
@@ -691,6 +788,7 @@ async function profile(file: string): Promise<void> {
 
 async function main(): Promise<void> {
   if (has('pack')) return pack();
+  if (has('grid-error')) return gridError();
   const backup = arg('backup');
   if (!backup) throw new Error('--backup FILE.json is required');
   if (has('generate-worker')) return generateWorker(backup, arg('out')!);

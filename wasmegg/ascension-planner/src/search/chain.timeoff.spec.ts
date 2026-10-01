@@ -37,9 +37,19 @@ vi.mock('./leg', () => ({
     });
     if (endOverride !== undefined) {
       if (endOverride - start < BUILD) return null; // the build cannot finish before the deadline
-      return { summary: summary(endOverride, te + Math.floor((endOverride - start) / DAY)), key: '1-sale', nextState: {}, shifts: [] };
+      return {
+        summary: summary(endOverride, te + Math.floor((endOverride - start) / DAY)),
+        key: '1-sale',
+        nextState: {},
+        shifts: [],
+      };
     }
-    return { summary: summary(start + (target - te) * DAY, target), key: allowContinue ? 'continue' : '1-sale', nextState: {}, shifts: [] };
+    return {
+      summary: summary(start + (target - te) * DAY, target),
+      key: allowContinue ? 'continue' : '1-sale',
+      nextState: {},
+      shifts: [],
+    };
   },
 }));
 
@@ -100,10 +110,13 @@ describe('time off', () => {
 
   it('marks the ascension between two stretches of time off as starting after the first', () => {
     // 90 -> 130: off days 10-13, and again days 20-22 while the rebuild is still going.
-    const r = evaluate([130], [
-      { from: at(10), to: at(13) },
-      { from: at(20), to: at(22) },
-    ])!;
+    const r = evaluate(
+      [130],
+      [
+        { from: at(10), to: at(13) },
+        { from: at(20), to: at(22) },
+      ]
+    )!;
     expect(r.legs.map(l => [l.timeOff, l.afterTimeOff ?? false, l.endTE])).toEqual([
       ['stopped', false, 100],
       ['stopped', true, 107], // started day 13, cut day 20: the plan needs BOTH instants

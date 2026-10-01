@@ -82,9 +82,9 @@ describe('findStartingChain', () => {
     // At currentTE 485 with final 490 the naive bounds give lo 493 > hi 390. The old CLI
     // sailed past its budget check with 0 chains and handed fastsearch an empty grid.
     const s = stub(() => ({ days: 900, finalELR: 11.585 }));
-    await expect(
-      findStartingChain({ ...BASE, currentTE: 485, evaluateBatch: s.fn })
-    ).rejects.toThrow(/No room for intermediate checkpoints/);
+    await expect(findStartingChain({ ...BASE, currentTE: 485, evaluateBatch: s.fn })).rejects.toThrow(
+      /No room for intermediate checkpoints/
+    );
   });
 
   it('never proposes a checkpoint at or below the current TE', async () => {

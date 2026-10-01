@@ -48,7 +48,10 @@ export function workerSecondsOf(row: SpeedSample): number | null {
  * estimates are for; a staged search prices a different mix of chains) and only where at least
  * `minRuns` runs agree to be counted.
  */
-export function measuredWorkerSeconds(rows: SpeedSample[], minRuns = 2): Map<number, { seconds: number; runs: number }> {
+export function measuredWorkerSeconds(
+  rows: SpeedSample[],
+  minRuns = 2
+): Map<number, { seconds: number; runs: number }> {
   const by = new Map<number, number[]>();
   for (const r of rows) {
     if (!r.space) continue;
@@ -101,7 +104,13 @@ export function workerSecondsFromRate(secondsPerChain: number, workers: number):
  * to `end` it ran on `current`. One decimal, which is what gets reported: 4 hours on 4 workers then
  * 10 minutes on 16 is 4.5, not the 16 the slider ended on.
  */
-export function timeWeightedWorkers(bankedMs: number, changedAt: number, current: number, start: number, end: number): number {
+export function timeWeightedWorkers(
+  bankedMs: number,
+  changedAt: number,
+  current: number,
+  start: number,
+  end: number
+): number {
   const span = end - start;
   if (!(start > 0) || !(changedAt > 0) || !(span > 0)) return current;
   const total = bankedMs + Math.max(0, end - changedAt) * current;

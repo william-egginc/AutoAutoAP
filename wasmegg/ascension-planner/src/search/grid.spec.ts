@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { gridIsComplete, gridStepLabel } from './grid';
 
-const band = (lo: number, hi: number, step: number) => Array.from({ length: Math.floor((hi - lo) / step) + 1 }, (_, i) => lo + i * step);
+const band = (lo: number, hi: number, step: number) =>
+  Array.from({ length: Math.floor((hi - lo) / step) + 1 }, (_, i) => lo + i * step);
 
 describe('the grid a sweep covered', () => {
   it('knows a step-1 sweep already tried every TE', () => {

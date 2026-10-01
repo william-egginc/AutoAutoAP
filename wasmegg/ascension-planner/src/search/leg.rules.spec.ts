@@ -24,7 +24,12 @@ vi.mock('@/auto/ascension', () => ({
 vi.mock('@/auto/shifts/c3', () => ({
   runC3Variants: () => {
     calls.c3++;
-    return fresh.map(f => ({ saleCount: f.sale, attemptTier13Unlock: false, impossible: false, buildPhaseEnd: f.buildPhaseEnd ?? 0 }));
+    return fresh.map(f => ({
+      saleCount: f.sale,
+      attemptTier13Unlock: false,
+      impossible: false,
+      buildPhaseEnd: f.buildPhaseEnd ?? 0,
+    }));
   },
 }));
 vi.mock('@/engine/compute', () => ({ computeSnapshot: () => ({ elr: 1 }) }));
@@ -34,9 +39,19 @@ vi.mock('@/lib/artifacts', () => ({
   getOptimalELRSet: () => [],
 }));
 vi.mock('@/stores/autoPlanner', () => ({
-  pickVariant: (variants: Record<string, { summary: { totalDurationSeconds: number; endTE: number } }>, _o: unknown, byEnd: boolean) =>
+  pickVariant: (
+    variants: Record<string, { summary: { totalDurationSeconds: number; endTE: number } }>,
+    _o: unknown,
+    byEnd: boolean
+  ) =>
     Object.values(variants).reduce((a, b) =>
-      byEnd ? (a.summary.endTE >= b.summary.endTE ? a : b) : a.summary.totalDurationSeconds <= b.summary.totalDurationSeconds ? a : b
+      byEnd
+        ? a.summary.endTE >= b.summary.endTE
+          ? a
+          : b
+        : a.summary.totalDurationSeconds <= b.summary.totalDurationSeconds
+          ? a
+          : b
     ),
 }));
 

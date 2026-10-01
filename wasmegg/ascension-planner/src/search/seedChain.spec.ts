@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { defaultSeedChain, seedChainIssue, usableCheckpoints, fitSeedToLimits, MAX_LAST_GAP, MEASURED_LAST_CHECKPOINT_490 } from './seedChain';
+import {
+  defaultSeedChain,
+  seedChainIssue,
+  usableCheckpoints,
+  fitSeedToLimits,
+  MAX_LAST_GAP,
+  MEASURED_LAST_CHECKPOINT_490,
+} from './seedChain';
 
 describe('defaultSeedChain', () => {
   it('produces a chain inside the configured prestige range, not a 2-ascension one', () => {
