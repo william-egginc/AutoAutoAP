@@ -236,18 +236,23 @@
             <b>How to read it:</b> each row is one account. "best" is the number of ascensions that finished first for
             it; every other cell says how many days later that count finished. Darker is closer to the best.
           </p>
-          <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
-            One row per account, one column per ascension count tried at this target. Each cell is that account's best
-            plan at that count whose finish still stands, as days after the account's own earliest finish (the one the
-            runs table names): "best" at 0, darker is closer. A row only compares with itself; nothing compares down a
-            column, because gear decides totals. The rows are ordered by starting TE (or Clothed TE, or delivery score),
-            so you can see whether the winning count moves with where an account is or with its gear. The border says
-            how the run behind the cell searched: solid for a finished box at every TE, dashed for every 2nd-3rd TE,
-            dotted for every 4th or coarser, striped for a Smart search or a box it did not finish. A dark cell with a
-            dotted or striped edge is a best count found by a search that could have missed a better plan, so it is
-            weaker than it looks. Hover or tap a cell for the chain, its finish date, how it searched and whether the
-            step from the next count down is bigger than the search could explain.
-          </p>
+          <details>
+            <summary class="cursor-pointer text-[10px] font-bold text-slate-400 hover:text-slate-600">
+              How this is worked out
+            </summary>
+            <p class="mt-1 text-[11px] text-slate-500 leading-relaxed max-w-3xl">
+              One row per account, one column per ascension count tried at this target. Each cell is that account's best
+              plan at that count whose finish still stands, as days after the account's own earliest finish (the one the
+              runs table names): "best" at 0, darker is closer. A row only compares with itself; nothing compares down a
+              column, because gear decides totals. The rows are ordered by starting TE (or Clothed TE, or delivery
+              score), so you can see whether the winning count moves with where an account is or with its gear. The
+              border says how the run behind the cell searched: solid for a finished box at every TE, dashed for every
+              2nd-3rd TE, dotted for every 4th or coarser, striped for a Smart search or a box it did not finish. A dark
+              cell with a dotted or striped edge is a best count found by a search that could have missed a better plan,
+              so it is weaker than it looks. Hover or tap a cell for the chain, its finish date, how it searched and
+              whether the step from the next count down is bigger than the search could explain.
+            </p>
+          </details>
           <BestCountMatrix
             :rows="filtered"
             :tried="atTarget"
@@ -354,10 +359,19 @@
               />
             </div>
 
-            <div class="space-y-2">
-              <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">How each ascension goes</h3>
-              <LegProfileChart :rows="selected.rows" :account-colors="accountColors" :account-labels="accountLabels" />
-            </div>
+            <!-- Interesting, but no decision depends on it: folded (review, 30 Sept). -->
+            <details>
+              <summary class="cursor-pointer text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                How each ascension goes
+              </summary>
+              <div class="mt-2">
+                <LegProfileChart
+                  :rows="selected.rows"
+                  :account-colors="accountColors"
+                  :account-labels="accountLabels"
+                />
+              </div>
+            </details>
           </template>
           <p v-else class="text-[11px] text-slate-500 leading-relaxed">
             Pick one count to see where its checkpoints land and how each ascension goes: the third ascension of a
@@ -745,37 +759,56 @@
         <!-- ------------------------------------------------------------------ across the counts -->
         <section class="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
           <h2 class="text-lg font-black text-slate-900">Does one more ascension help?</h2>
-          <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
-            One line per account, never one line across accounts: a duration depends on artifacts, colleggtibles,
-            research and starting TE at least as much as on the chain, so the fair way to ask this is to hold one
-            account still and vary the count. Each point is how many days after that account's earliest finish the best
-            plan at that count finishes, so a line only touches 0 at the count that holds it. That earliest finish is
-            taken from all of the account's runs that still stand, the same one the runs table names. A solid line is
-            one exhaustive run that timed several counts from one save; if that run no longer stands (a what-if, an old
-            save), it is measured from its own best count instead, and its tooltip says so. A dashed line is the
-            account's runs that still stand, the earliest finish at each count. Runs made on different days are compared
-            by finish date, never by their totals: the same plan run a day later shows a day fewer. The chart opens on
-            the first 20 days, where the counts that are close actually differ; a point further behind is an arrow at
-            the top edge, its real value on hover or tap. Each marker also says how the run behind it searched, because
-            a point is only the best plan that search found and the higher counts have mostly been searched more
-            coarsely: the table under the chart says, for each step between two counts, whether the gap is bigger than
-            that could explain.
+          <p class="text-[12px] text-slate-700 leading-relaxed max-w-3xl">
+            <b>How to read it:</b> Each line is one account. Lower means it finishes sooner, and 0 is that account's
+            best count; where a line flattens out, more ascensions stopped helping.
           </p>
+          <details>
+            <summary class="cursor-pointer text-[10px] font-bold text-slate-400 hover:text-slate-600">
+              How this is worked out
+            </summary>
+            <p class="mt-1 text-[11px] text-slate-500 leading-relaxed max-w-3xl">
+              One line per account, never one line across accounts: a duration depends on artifacts, colleggtibles,
+              research and starting TE at least as much as on the chain, so the fair way to ask this is to hold one
+              account still and vary the count. Each point is how many days after that account's earliest finish the
+              best plan at that count finishes, so a line only touches 0 at the count that holds it. That earliest
+              finish is taken from all of the account's runs that still stand, the same one the runs table names. A
+              solid line is one exhaustive run that timed several counts from one save; if that run no longer stands (a
+              what-if, an old save), it is measured from its own best count instead, and its tooltip says so. A dashed
+              line is the account's runs that still stand, the earliest finish at each count. Runs made on different
+              days are compared by finish date, never by their totals: the same plan run a day later shows a day fewer.
+              The chart opens on the first 20 days, where the counts that are close actually differ; a point further
+              behind is an arrow at the top edge, its real value on hover or tap. Each marker also says how the run
+              behind it searched, because a point is only the best plan that search found and the higher counts have
+              mostly been searched more coarsely: the table under the chart says, for each step between two counts,
+              whether the gap is bigger than that could explain.
+            </p>
+          </details>
           <CountCompareChart :comparisons="comparisons" :account-colors="accountColors" />
         </section>
 
         <section class="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
           <h2 class="text-lg font-black text-slate-900">Each sweep, every account (to 490)</h2>
-          <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
-            Runs to 490 only, whatever target is picked above. For each TE at the picked checkpoint (the last by
-            default), how far the best plan through it is behind that run's own best, as a percent of it, one line per
-            run. Each line is one table priced from one save, so its shape is exact, and as a percent of its own best it
-            compares between accounts whose plans differ in length; "TE above start" lines accounts up by where they
-            started. It opens on 0 to 5% with a guide at 1%, which on a plan to 490 is about a week or more; "Whole
-            range" shows the rest. The table under the chart is in days, each run against its own best: the best TE at
-            that checkpoint, every TE within 1 and 3 days of it, and, for a run whose box tried every TE there, how many
-            days a search at every 2nd, 5th or 10th TE would have lost.
+          <p class="text-[12px] text-slate-700 leading-relaxed max-w-3xl">
+            <b>How to read it:</b> Each line is one run's full table: how much slower every TE at a checkpoint is than
+            that run's best one. A narrow dip means the exact TE matters; the table under it says how many days a
+            coarser search would have lost.
           </p>
+          <details>
+            <summary class="cursor-pointer text-[10px] font-bold text-slate-400 hover:text-slate-600">
+              How this is worked out
+            </summary>
+            <p class="mt-1 text-[11px] text-slate-500 leading-relaxed max-w-3xl">
+              Runs to 490 only, whatever target is picked above. For each TE at the picked checkpoint (the last by
+              default), how far the best plan through it is behind that run's own best, as a percent of it, one line per
+              run. Each line is one table priced from one save, so its shape is exact, and as a percent of its own best
+              it compares between accounts whose plans differ in length; "TE above start" lines accounts up by where
+              they started. It opens on 0 to 5% with a guide at 1%, which on a plan to 490 is about a week or more;
+              "Whole range" shows the rest. The table under the chart is in days, each run against its own best: the
+              best TE at that checkpoint, every TE within 1 and 3 days of it, and, for a run whose box tried every TE
+              there, how many days a search at every 2nd, 5th or 10th TE would have lost.
+            </p>
+          </details>
           <SweepCurvesChart
             :base="base!"
             :rows="usable"
@@ -806,17 +839,26 @@
             </div>
           </div>
           <template v-if="gearView === 'map'">
-            <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
-              Where the board's accounts sit, and where it has no data. One mark per account, from its newest run that
-              recorded its gear: across is the TE that run started from, up is its Clothed TE, darker is a stronger
-              delivery set. Clothed TE is TE plus what the earnings set adds, and every account so far adds between +115
-              and +129, so the marks sit on one narrow diagonal between the dashed guides. More TE has always come with
-              more Clothed TE, so these runs cannot yet say whether a plan follows the gear or the TE. The pink band is
-              where the planner estimates a first ascension stalls on Integrity, and no account is near it. The grey
-              areas are open asks from What we need to check (the Science tab): places the board still wants more
-              accounts from. One can already hold an account or two ("1 of 2"); it stays grey until enough have covered
-              it.
+            <p class="text-[12px] text-slate-700 leading-relaxed max-w-3xl">
+              <b>How to read it:</b> each mark is one account: across is the TE it started from, up is its Clothed TE,
+              darker is a stronger delivery set. Grey areas are where the board still wants accounts.
             </p>
+            <details>
+              <summary class="cursor-pointer text-[10px] font-bold text-slate-400 hover:text-slate-600">
+                How this is worked out
+              </summary>
+              <p class="mt-1 text-[11px] text-slate-500 leading-relaxed max-w-3xl">
+                Where the board's accounts sit, and where it has no data. One mark per account, from its newest run that
+                recorded its gear: across is the TE that run started from, up is its Clothed TE, darker is a stronger
+                delivery set. Clothed TE is TE plus what the earnings set adds, and every account so far adds between
+                +115 and +129, so the marks sit on one narrow diagonal between the dashed guides. More TE has always
+                come with more Clothed TE, so these runs cannot yet say whether a plan follows the gear or the TE. The
+                pink band is where the planner estimates a first ascension stalls on Integrity, and no account is near
+                it. The grey areas are open asks from What we need to check (the Science tab): places the board still
+                wants more accounts from. One can already hold an account or two ("1 of 2"); it stays grey until enough
+                have covered it.
+              </p>
+            </details>
             <GearMap :accounts="accounts" :what-ifs="whatIfs" />
           </template>
           <template v-else>
@@ -963,33 +1005,52 @@
           <div class="mt-3 space-y-4">
             <section class="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
               <h2 class="text-lg font-black text-slate-900">Which sale plan wins each leg?</h2>
-              <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
-                One mark per leg, from leg 2 on, of every plan whose finish still stands. Across is the TE the leg
-                starts at, up is how much TE it climbs, and the colour and shape are the sale plan the planner picked
-                for that leg (1, 2 or 3 sales); here the colours mean the sale plan, not an account. Leg 1 is left out:
-                it is the rest of the ascension in progress, so where it starts depends on when the plan was made. A
-                sale plan is a choice for one leg against a sale calendar everyone shares, so unlike a total it lines up
-                across accounts by TE. A leg one account sent in several runs is one mark. Larger, ringed marks are legs
-                that unlock research tier 13. The table under the chart names the commonest plan for each 20-TE start
-                band and leg length. It shows which plan won each leg of the winning chains, not by how much it won.
+              <p class="text-[12px] text-slate-700 leading-relaxed max-w-3xl">
+                <b>How to read it:</b> Each mark is one leg of a winning plan: where it starts (across), how far it
+                climbs (up), and how many Research Sales the planner built through (colour).
               </p>
+              <details>
+                <summary class="cursor-pointer text-[10px] font-bold text-slate-400 hover:text-slate-600">
+                  How this is worked out
+                </summary>
+                <p class="mt-1 text-[11px] text-slate-500 leading-relaxed max-w-3xl">
+                  One mark per leg, from leg 2 on, of every plan whose finish still stands. Across is the TE the leg
+                  starts at, up is how much TE it climbs, and the colour and shape are the sale plan the planner picked
+                  for that leg (1, 2 or 3 sales); here the colours mean the sale plan, not an account. Leg 1 is left
+                  out: it is the rest of the ascension in progress, so where it starts depends on when the plan was
+                  made. A sale plan is a choice for one leg against a sale calendar everyone shares, so unlike a total
+                  it lines up across accounts by TE. A leg one account sent in several runs is one mark. Larger, ringed
+                  marks are legs that unlock research tier 13. The table under the chart names the commonest plan for
+                  each 20-TE start band and leg length. It shows which plan won each leg of the winning chains, not by
+                  how much it won.
+                </p>
+              </details>
               <SaleChoiceMap :rows="filtered" :judged="judged" :account-labels="accountLabels" />
             </section>
             <section v-if="base" class="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
               <h2 class="text-lg font-black text-slate-900">An account's best plans, from all its stored tables</h2>
-              <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
-                A stored table is every plan one run priced, so besides each run's winner an account's tables hold its
-                runners-up, its other ascension counts and the plans one TE over. Pick an account and load its tables:
-                the list merges them and ranks every plan by finish date, the run's plan start plus the plan's days.
-                That is how plans from different saves of one account compare, since a table made a day later counts
-                every plan a day shorter. Only runs whose finish still stands are used; the line under the picker says
-                which were left out and why (tap one to see). A plan is a route under its run's settings, so a plan
-                priced with a schedule, or with "prestige now", is its own row, tagged. A plan two tables priced shows
-                its newest measurement. A plan with a checkpoint the account has since passed (most likely because it
-                followed that plan) is matched on what is left of it: a newer table's measurement of the rest stands,
-                and with none the older one stays, the passed checkpoint struck through. The tables are big, so they
-                load one at a time and only when you press the button; Cancel keeps what has arrived.
+              <p class="text-[12px] text-slate-700 leading-relaxed max-w-3xl">
+                <b>How to read it:</b> Pick an account and load its tables to see every plan its runs priced, best
+                first, ranked by the date each reaches the target.
               </p>
+              <details>
+                <summary class="cursor-pointer text-[10px] font-bold text-slate-400 hover:text-slate-600">
+                  How this is worked out
+                </summary>
+                <p class="mt-1 text-[11px] text-slate-500 leading-relaxed max-w-3xl">
+                  A stored table is every plan one run priced, so besides each run's winner an account's tables hold its
+                  runners-up, its other ascension counts and the plans one TE over. Pick an account and load its tables:
+                  the list merges them and ranks every plan by finish date, the run's plan start plus the plan's days.
+                  That is how plans from different saves of one account compare, since a table made a day later counts
+                  every plan a day shorter. Only runs whose finish still stands are used; the line under the picker says
+                  which were left out and why (tap one to see). A plan is a route under its run's settings, so a plan
+                  priced with a schedule, or with "prestige now", is its own row, tagged. A plan two tables priced shows
+                  its newest measurement. A plan with a checkpoint the account has since passed (most likely because it
+                  followed that plan) is matched on what is left of it: a newer table's measurement of the rest stands,
+                  and with none the older one stays, the passed checkpoint struck through. The tables are big, so they
+                  load one at a time and only when you press the button; Cancel keeps what has arrived.
+                </p>
+              </details>
               <AccountTopPlans
                 :base="base"
                 :rows="usable"
@@ -1001,16 +1062,25 @@
             </section>
             <section class="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
               <h2 class="text-lg font-black text-slate-900">Does the best plan move from one day to the next?</h2>
-              <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
-                One account at a time. Each mark is a plan at the date it was made, measured by its finish date as days
-                after the account's earliest finish that still stands; totals never compare across starts. A line joins
-                the same plan each time it was priced: by a newer run of it, by a newer run with the checkpoints since
-                passed dropped, by a re-check sent with a newer run, or because it turned up among a newer run's
-                runners-up. A line that rises is a plan whose finish slipped when priced again; a flat one is a plan
-                that holds. A plan that won its search was the fastest of many priced that day, so a small rise when it
-                is priced again is expected. The colour is the ascension count, not an account: one account is shown at
-                a time.
+              <p class="text-[12px] text-slate-700 leading-relaxed max-w-3xl">
+                <b>How to read it:</b> Each line is one plan priced on different days. A line that rises is a plan whose
+                finish slipped when priced again; a flat one held.
               </p>
+              <details>
+                <summary class="cursor-pointer text-[10px] font-bold text-slate-400 hover:text-slate-600">
+                  How this is worked out
+                </summary>
+                <p class="mt-1 text-[11px] text-slate-500 leading-relaxed max-w-3xl">
+                  One account at a time. Each mark is a plan at the date it was made, measured by its finish date as
+                  days after the account's earliest finish that still stands; totals never compare across starts. A line
+                  joins the same plan each time it was priced: by a newer run of it, by a newer run with the checkpoints
+                  since passed dropped, by a re-check sent with a newer run, or because it turned up among a newer run's
+                  runners-up. A line that rises is a plan whose finish slipped when priced again; a flat one is a plan
+                  that holds. A plan that won its search was the fastest of many priced that day, so a small rise when
+                  it is priced again is expected. The colour is the ascension count, not an account: one account is
+                  shown at a time.
+                </p>
+              </details>
               <PlanDriftChart :rows="usable" :judged="judged" :final-t-e="finalTE" :account-labels="accountLabels" />
             </section>
             <!-- ------------------------------------------------------------------------------ checks -->
@@ -1022,16 +1092,25 @@
             >
               <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Checks</div>
               <h2 class="text-lg font-black text-slate-900">Did each final leg reach its gear's rate? (to 490)</h2>
-              <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
-                One point per run to 490, whatever target is picked above. Across is the run's last checkpoint; up is
-                the peak delivery its final leg reached, as a percent of what its delivery set should reach from that
-                checkpoint. Below the 80% line the run is flagged for the old delivery-set bug (earnings researched with
-                the wrong set, so the farm never reached its real rate) and kept out of everything else on the page.
-                Runs the check cannot judge (a last checkpoint under 190 TE, no per-leg detail, or no delivery set
-                recorded) are counted in the note under the chart but not drawn. What each set "should reach" was fitted
-                on these same runs, so clean runs sit near 100% by construction: this checks the runs, it does not
-                measure the game.
+              <p class="text-[12px] text-slate-700 leading-relaxed max-w-3xl">
+                <b>How to read it:</b> Each point is one run. Near 100% means its last leg reached the delivery rate its
+                gear should; below the 80% line the run is flagged and left out of the rest of the page.
               </p>
+              <details>
+                <summary class="cursor-pointer text-[10px] font-bold text-slate-400 hover:text-slate-600">
+                  How this is worked out
+                </summary>
+                <p class="mt-1 text-[11px] text-slate-500 leading-relaxed max-w-3xl">
+                  One point per run to 490, whatever target is picked above. Across is the run's last checkpoint; up is
+                  the peak delivery its final leg reached, as a percent of what its delivery set should reach from that
+                  checkpoint. Below the 80% line the run is flagged for the old delivery-set bug (earnings researched
+                  with the wrong set, so the farm never reached its real rate) and kept out of everything else on the
+                  page. Runs the check cannot judge (a last checkpoint under 190 TE, no per-leg detail, or no delivery
+                  set recorded) are counted in the note under the chart but not drawn. What each set "should reach" was
+                  fitted on these same runs, so clean runs sit near 100% by construction: this checks the runs, it does
+                  not measure the game.
+                </p>
+              </details>
               <FinalLegChart :rows="checkRows" :account-colors="accountColors" :account-labels="accountLabels" />
             </section>
             <!-- -------------------------------------------------- runs the planner cannot help yet -->
