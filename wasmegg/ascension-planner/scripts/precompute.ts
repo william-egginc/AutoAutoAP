@@ -24,11 +24,18 @@
  *                    Measure the table against the simulator: real starts at random times (any
  *                    minute, any week of a year) priced by `runLeg` and by the table; and, with
  *                    --corpus, the board's own legs (scratch tails.json rows) predicted from it.
- *   --route --table DIR --te TE [--final TE] [--start ISO] [--check] [--brute]
+ *   --verify-cells --table DIR [--tes TE,TE,..] [--hours H,H,..]
+ *                    Rebuild a few of the table's cells with the code as it is now and compare them
+ *                    with the generated files, to the bit: a cell made by an older build, or by a
+ *                    simulator that has changed since, shows up as a difference.
+ *   --route --table DIR --te TE [--final TE] [--start ISO] [--check] [--brute] [--scaled | --player]
  *                    The fastest route from the table (search/routeFinder.ts), overall and for each
  *                    number of ascensions. --check re-prices each with the simulator, ascension by
  *                    ascension from the real end state; --brute enumerates every route of up to 3
- *                    ascensions from the table and confirms none beats the finder.
+ *                    ascensions from the table and confirms none beats the finder. --player finds
+ *                    them as the site's instant answer does for the save (its TE, eggs, farm and
+ *                    delivery rate; no --te); --scaled starts at --te with the save's delivery rate.
+ *                    Without --reference, --check then prices them for the account the save is.
  *   --grid-error --table DIR
  *                    How well an hour's builds are predicted from an earlier hour's with `lateBy`
  *                    (the case for a coarser grid of start hours), and which hours break it.
@@ -69,11 +76,19 @@ import { deriveNextStartState, runAscensionFromC3Variant, runUntilShift } from '
 import { runC3Variants } from '@/auto/shifts/c3';
 import { countTEThresholdsPassed } from '@/lib/truthEggs';
 import { pickVariant, type VariantKey, type VariantResult } from '@/stores/autoPlanner';
-import { continueTailParams, continueVariantForCheck, runLeg, TIER_13_MIN_STARTING_TE } from '@/search/leg';
+import {
+  continueTailParams,
+  continueVariantForCheck,
+  CONTINUE_MAX_SECONDS,
+  CONTINUE_PIN_MAX_SECONDS,
+  instantDeliveryScale,
+  runLeg,
+  TIER_13_MIN_STARTING_TE,
+} from '@/search/leg';
 import { runH1 } from '@/auto/shifts/h1';
 import { applyShiftAction } from '@/auto/shifts/helpers/actionHelpers';
 import { runMaxVehiclesPlan } from '@/auto/shifts/helpers/vehicles';
-import { calculateArtifactModifiers, getOptimalELRSet } from '@/lib/artifacts';
+import { calculateArtifactModifiers } from '@/lib/artifacts';
 import { computeRealisticELR } from '@/calculations/realisticELR';
 import {
   bestTailTo,
@@ -86,9 +101,9 @@ import {
   WEEK_HOURS,
   type BuildParams,
 } from '@/search/precomputedLeg';
-import { expandArrivals, findRoutes, nextHour, type Route } from '@/search/routeFinder';
+import { expandArrivals, findRoutes, firstLegOptions, nextHour, type Route } from '@/search/routeFinder';
 import { splitByWork } from '@/search/routePool';
-import { packTable, readTable } from '@/search/precomputedTable';
+import { packTable, readTable, type TableHeader } from '@/search/precomputedTable';
 import { deliveryScore, slotsFromLabels } from '@/search/virtueScore';
 import { describeLoadoutSlots } from '@/search/csv';
 import { cteFromArtifacts } from 'lib/virtue';
@@ -587,16 +602,8 @@ async function verifyTable(file: string): Promise<void> {
   // correction then comes from its own inventory: the best set it can wear at the waiting research,
   // as the site will work it out for a player.
   const asWho = arg('as');
-  const ownScale = (): number | null => {
-    if (!k3 || !inputs.context.rawBackup) return null;
-    const set = getOptimalELRSet(inputs.context.rawBackup, {
-      commonResearch: k3.research,
-      epicResearchLevels: inputs.context.epicResearchLevels,
-      colleggtibleModifiers: inputs.context.colleggtibleModifiers,
-      assumeMaxHabsVehicles: true,
-    });
-    return set ? rate(set as EngineState['artifactLoadout']) / rate(k3.delivery) : null;
-  };
+  const ownScale = (): number | null =>
+    k3 && inputs.context.rawBackup ? instantDeliveryScale(inputs, k3 as NonNullable<TableHeader['k3']>) : null;
   for (const [who, acct] of Object.entries(ACCOUNTS)) {
     if (asWho && who !== asWho) continue;
     const plain: number[] = [];
@@ -635,6 +642,43 @@ async function verifyTable(file: string): Promise<void> {
     if (scale !== null) console.log(`${' '.repeat(who.length)}  exact rate (x${scale.toFixed(4)}) ${stats(exact)}`);
     if (scale !== null) console.log(`${' '.repeat(who.length)}  exact rate, own TE row ${stats(exactSameRow)}`);
   }
+}
+
+async function verifyCells(file: string): Promise<void> {
+  const dir = arg('table');
+  if (!dir) throw new Error('--verify-cells needs --table DIR');
+  const table = loadTable(dir);
+  const meta = table.meta as TableMeta & { reference?: boolean };
+  if (!table.tes.length) throw new Error('the table has no start TEs yet');
+  if (meta.referenceWeek !== REFERENCE_WEEK) throw new Error('the table was built on another reference week');
+  if (!!meta.reference !== has('reference'))
+    throw new Error('pass --reference exactly when the table was built with it');
+  const list = (s: string) => s.split(',').map(Number);
+  // By default the lowest and highest start TEs and three between them, at three hours of the week.
+  const spread = [0, 0.25, 0.5, 0.75, 1].map(f => table.tes[Math.round(f * (table.tes.length - 1))]);
+  const tes = arg('tes') ? list(arg('tes')!) : [...new Set(spread)];
+  const hours = list(arg('hours', '0,83,167')!);
+  const inputs = await loadInputs(file);
+  let same = 0;
+  const differ: string[] = [];
+  for (const te of tes) {
+    for (const h of hours) {
+      const stored = table.lookup(te, h);
+      if (!stored) {
+        differ.push(`TE ${te} hour ${h}: not in the table`);
+        continue;
+      }
+      const start = REFERENCE_WEEK + h * 3600;
+      const build = buildAt(inputs, startStateAt(inputs, te), start, te);
+      // The files hold JSON.stringify of these, so equal strings mean equal to the bit.
+      if (JSON.stringify(build.variants.map(v => paramsOf(build, v, start))) === JSON.stringify(stored)) same++;
+      else differ.push(`TE ${te} hour ${h}`);
+    }
+  }
+  console.log(
+    `${same} of ${same + differ.length} cells rebuilt identically` +
+      (differ.length ? `; different: ${differ.join(', ')}` : '')
+  );
 }
 
 function gridError(): void {
@@ -790,10 +834,40 @@ async function route(file: string): Promise<void> {
   const dir = arg('table');
   if (!dir) throw new Error('--route needs --table DIR');
   const table = loadTable(dir);
-  const te = Number(arg('te'));
   const final = Number(arg('final', '490'));
   const startArg = arg('start');
-  const start = startArg ? Math.floor(Date.parse(startArg) / 1000) : Math.floor(Date.now() / 1000);
+  // --player: the instant answer as the page works it out for the loaded save (InstantRoute.vue): from
+  // the save's own TE, eggs and farm (continue current ascension by the rule), at its own delivery
+  // rate. --scaled: a canonical start at --te, at the save's delivery rate (a real account's gear,
+  // tried above its own TE). Without --reference, --check then prices the routes for the account the
+  // save really is, so the difference is what the instant answer gets wrong for that player.
+  const player = has('player');
+  const inputs = player || has('scaled') || has('check') || arg('debug-chain') ? await loadInputs(file) : null;
+  const te = player ? Math.floor(inputs!.currentTE) : Number(arg('te'));
+  const start = startArg
+    ? Math.floor(Date.parse(startArg) / 1000)
+    : player
+      ? inputs!.planStart
+      : Math.floor(Date.now() / 1000);
+  let deliveryScale = 1;
+  if (player || has('scaled')) {
+    if (!existsSync(`${dir}/k3.json`)) throw new Error('--player and --scaled need DIR/k3.json (--k3)');
+    deliveryScale = instantDeliveryScale(inputs!, JSON.parse(readFileSync(`${dir}/k3.json`, 'utf8')));
+  }
+  const firstLegs = player
+    ? firstLegOptions({
+        table: table.lookup,
+        startTE: te,
+        start,
+        final,
+        deliveryScale,
+        delivered: EGG_ORDER.map(e => inputs!.baseState.eggsDelivered?.[e] || 0),
+        cont: continueTailParams(inputs!, start),
+        forceContinue: inputs!.forceContinue,
+        pinSeconds: inputs!.continuePinSeconds ?? CONTINUE_PIN_MAX_SECONDS,
+        maxContinueSeconds: inputs!.continueMaxSeconds ?? CONTINUE_MAX_SECONDS,
+      })
+    : undefined;
   const t0 = performance.now();
   const { best, byAscensions } = await findRoutes({
     table: table.lookup,
@@ -801,28 +875,37 @@ async function route(file: string): Promise<void> {
     start,
     final,
     maxAscensions: Number(arg('max-asc', '10')),
+    deliveryScale,
+    ...(firstLegs ? { firstLegs } : {}),
   });
   const ms = performance.now() - t0;
   const days = (r: Route) => (r.seconds / 86400).toFixed(3) + ' d';
   console.log(
-    `routes from TE ${te} to ${final}, starting ${new Date(start * 1000).toISOString()}: ${ms.toFixed(0)} ms`
+    `routes from TE ${te} to ${final}, starting ${new Date(start * 1000).toISOString()}` +
+      (deliveryScale !== 1 ? `, delivery x${deliveryScale.toFixed(4)}` : '') +
+      `: ${ms.toFixed(0)} ms`
   );
-  byAscensions.forEach((r, k) => r && console.log(`  ${k} ascensions: ${days(r)}  ${r.chain.join(' ')}`));
+  byAscensions.forEach(
+    (r, k) => r && console.log(`  ${k} ascensions: ${days(r)}  ${r.chain.join(' ')}  (first: ${r.legs[0].label})`)
+  );
   if (best) console.log(`  fastest: ${days(best)}  ${best.chain.join(' ')}`);
 
   if (has('check')) {
     // Each route again through the simulator itself, ascension by ascension from the state the last
     // one really ended in (not the table's canonical one): starting on the hour, as the route does
     // (the table's own times, so only the canonical start differs), and starting the moment the last
-    // one ends, as a search would (which can only match or beat it).
-    const inputs = await loadInputs(file);
-    const simulate = (chain: number[], onTheHour: boolean): number | null => {
-      let state = startStateAt(inputs, te);
+    // one ends, as a search would (which can only match or beat it). With --player the first
+    // ascension is the save's own: continuing the farm starts at once, as the route has it; the
+    // search's way lets the continue rule choose (runLeg with continue allowed).
+    const simulate = (r: Route, onTheHour: boolean): number | null => {
+      let state = player ? (JSON.parse(JSON.stringify(inputs!.baseState)) as EngineState) : startStateAt(inputs!, te);
       let t = start;
       let startTE = te;
-      for (const [i, target] of chain.entries()) {
-        if (onTheHour) t = nextHour(t);
-        const leg = runLeg(inputs, state, t, target, false, startTE, i + 2);
+      for (const [i, target] of r.chain.entries()) {
+        const first = player && i === 0;
+        const continues = first && r.legs[0].label === 'continue';
+        if (onTheHour && !continues) t = nextHour(t);
+        const leg = runLeg(inputs!, state, t, target, first && (continues || !onTheHour), startTE, i + 2);
         if (!leg) return null;
         t += leg.summary.totalDurationSeconds;
         startTE = Object.values(leg.summary.finalTE).reduce((a, b) => a + b, 0);
@@ -830,21 +913,38 @@ async function route(file: string): Promise<void> {
       }
       return t - start;
     };
+    const simulated: { k: number; table: number; hourly: number | null; immediate: number | null }[] = [];
     for (const r of byAscensions) {
       if (!r) continue;
-      const hourly = simulate(r.chain, true);
-      const immediate = simulate(r.chain, false);
+      const hourly = simulate(r, true);
+      const immediate = simulate(r, false);
+      simulated.push({ k: r.legs.length, table: r.seconds, hourly, immediate });
       const pct = (x: number | null) =>
         x === null ? 'failed' : `${(x / 86400).toFixed(3)} d (${(((r.seconds - x) / x) * 100).toFixed(3)}%)`;
       console.log(
         `  check ${r.legs.length} ascensions: table ${days(r)} | simulator on the hour ${pct(hourly)} | starting at once ${pct(immediate)}`
       );
     }
+    // Whether the table's ranking survives: the number of ascensions it calls fastest, against the
+    // one the simulator finds fastest among the same routes.
+    const fastestBy = (f: (s: (typeof simulated)[number]) => number | null) =>
+      simulated.reduce<(typeof simulated)[number] | null>((a, s) => {
+        const v = f(s);
+        return v !== null && (!a || v < f(a)!) ? s : a;
+      }, null);
+    const byTable = fastestBy(s => s.table);
+    const bySim = fastestBy(s => s.immediate);
+    if (byTable && bySim)
+      console.log(
+        `  fastest by the table: ${byTable.k} ascensions; by the simulator: ${bySim.k}` +
+          (byTable.k === bySim.k
+            ? ' (same)'
+            : `; the table's pick is ${(((byTable.immediate! - bySim.immediate!) / bySim.immediate!) * 100).toFixed(3)}% slower in the simulator`)
+      );
   }
 
-  if (arg('debug-chain')) {
+  if (arg('debug-chain') && inputs) {
     // One route, ascension by ascension: the table's cell against the simulator from the real state.
-    const inputs = await loadInputs(file);
     const chain = arg('debug-chain')!.trim().split(/\s+/).map(Number);
     let state = startStateAt(inputs, te);
     let t = start;
@@ -965,6 +1065,7 @@ async function main(): Promise<void> {
   if (has('generate-worker')) return generateWorker(backup, arg('out')!);
   if (has('generate')) return generate(backup);
   if (has('verify-table')) return verifyTable(backup);
+  if (has('verify-cells')) return verifyCells(backup);
   if (has('route')) return route(backup);
   if (has('profile')) return profile(backup);
   if (has('verify')) return verify(backup);

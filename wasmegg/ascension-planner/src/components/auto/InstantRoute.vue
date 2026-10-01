@@ -11,7 +11,8 @@
     - the first ascension is the player's own: continue current ascension from their save when the
       continue rule takes it, otherwise a fresh build moved onto their real egg counts;
     - other gear: the table's account is maxed (perfect delivery, Clothed TE bonus 128.71); a player's
-      waits run at their delivery score, and their builds come from the row with their earning power.
+      waits run at their own peak delivery rate, and their builds are the table's for their own TE (a
+      weaker earnings set is not taken off; the page says so when it is).
   What it leaves out: playing hours, time off and dated milestones (said beside the result), and the
   history of how a player reached each TE (shown to barely matter on the board). "Check exactly" hands
   any route to the Full sweep, which prices it with the full simulator.
@@ -187,14 +188,11 @@ import { computed, onUnmounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { showDateTime } from '@/lib/displayTime';
-import { continueTailParams } from '@/search/leg';
+import { continueTailParams, instantDeliveryScale } from '@/search/leg';
 import { CONTINUE_MAX_SECONDS, CONTINUE_PIN_MAX_SECONDS } from '@/search/rules';
 import { EGG_ORDER } from '@/search/precomputedLeg';
 import { cteFromArtifacts } from 'lib/virtue';
-import { calculateArtifactModifiers, getOptimalELRSet } from '@/lib/artifacts';
 import { equippedArtifactsToLibArtifacts } from '@/lib/artifacts/utils';
-import { computeRealisticELR } from '@/calculations/realisticELR';
-import type { EquippedArtifact } from '@/lib/artifacts/types';
 import { findRoutes, type Route } from '@/search/routeFinder';
 import { poolSize, RoutePool } from '@/search/routePool';
 import type { TableHeader } from '@/search/precomputedTable';
@@ -222,30 +220,12 @@ const bonus = computed(() => {
   return inv.earnings ? cteFromArtifacts(equippedArtifactsToLibArtifacts(inv.earnings)) : 0;
 });
 
-/**
- * The player's peak delivery rate against the table's, at the research a build waits with (the
- * table's `k3`): the best set the player's own inventory can wear there, through the simulator's own
- * rate function. Their whole inventory rather than a score, because at that research nearly every
- * stone goes to lay rate, and the set a save shows (chosen at today's research) would understate
- * everyone (scripts/precompute.ts --verify-table --as). Null until the table's header is in.
- */
+/** The player's peak delivery rate against the table's (search/leg.ts `instantDeliveryScale`). Null
+ *  until the table's header is in. */
 const deliveryScale = computed<number | null>(() => {
   const k3 = header.value?.k3;
   if (!k3) return header.value ? 1 : null;
-  const ctx = store.collectInputs().context;
-  const raw = ctx.rawBackup;
-  if (!raw) return 1;
-  const rate = (set: EquippedArtifact[]) =>
-    computeRealisticELR(k3.research, calculateArtifactModifiers(set), ctx.epicResearchLevels, ctx.colleggtibleModifiers)
-      .effectiveRate;
-  const mine = getOptimalELRSet(raw, {
-    commonResearch: k3.research,
-    epicResearchLevels: ctx.epicResearchLevels,
-    colleggtibleModifiers: ctx.colleggtibleModifiers,
-    assumeMaxHabsVehicles: true,
-  });
-  const theirs = rate(k3.delivery as EquippedArtifact[]);
-  return mine && theirs > 0 ? rate(mine as EquippedArtifact[]) / theirs : 1;
+  return instantDeliveryScale(store.collectInputs(), k3);
 });
 
 /** The TE routes are found to: the planner's target, or for a date every TE up to the last. */

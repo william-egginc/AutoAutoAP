@@ -18,7 +18,14 @@ import { computeSnapshot } from '@/engine/compute';
 import { runUntilShift, deriveNextStartState, runContinueCurrent, runAscensionFromC3Variant } from '@/auto/ascension';
 import { runC3Variants } from '@/auto/shifts/c3';
 import { pickVariant, type VariantKey, type VariantResult } from '@/stores/autoPlanner';
-import { getArtifactLoadoutFromBackup, getOptimalEarningsSet, getOptimalELRSet } from '@/lib/artifacts';
+import {
+  calculateArtifactModifiers,
+  getArtifactLoadoutFromBackup,
+  getOptimalEarningsSet,
+  getOptimalELRSet,
+} from '@/lib/artifacts';
+import { computeRealisticELR } from '@/calculations/realisticELR';
+import type { EquippedArtifact } from '@/lib/artifacts/types';
 import type { EngineState, SimulationContext } from '@/engine/types';
 import type { Action } from '@/types/actions/meta';
 import type { AscensionSummary } from '@/auto/types';
@@ -27,6 +34,7 @@ import type { SearchInputs, ShiftMoment } from './types';
 import { CONTINUE_PIN_MAX_SECONDS, CONTINUE_MAX_SECONDS } from './rules';
 import { catchUpSeconds, siloSeconds } from '@/lib/saveAge';
 import { EGG_ORDER, type BuildParams } from './precomputedLeg';
+import type { TableHeader } from './precomputedTable';
 
 /** Mirrors useAscensionGenerator's own constant: below this starting TE a Tier 13 unlock cannot
  *  realistically land inside one build phase, so those variants are skipped rather than simulated
@@ -293,6 +301,31 @@ export function continueTailParams(inputs: SearchInputs, startTime: number): Bui
     peakELR: elr,
     delivered: EGG_ORDER.map(e => delivered[e] || 0),
   };
+}
+
+/**
+ * The instant answer's delivery adjustment (components/auto/InstantRoute.vue): the player's peak
+ * delivery rate against the precomputed table's, at the research a build waits with (the table's
+ * `k3`). The best set the player's whole inventory can wear there, through the simulator's own rate
+ * function: at that research nearly every stone goes to lay rate, so the set a save shows (chosen at
+ * today's research) would understate everyone (scripts/precompute.ts --verify-table --as). 1 without
+ * a save to read.
+ */
+export function instantDeliveryScale(inputs: SearchInputs, k3: NonNullable<TableHeader['k3']>): number {
+  const ctx = inputs.context;
+  const raw = ctx.rawBackup;
+  if (!raw) return 1;
+  const rate = (set: EquippedArtifact[]) =>
+    computeRealisticELR(k3.research, calculateArtifactModifiers(set), ctx.epicResearchLevels, ctx.colleggtibleModifiers)
+      .effectiveRate;
+  const mine = getOptimalELRSet(raw, {
+    commonResearch: k3.research,
+    epicResearchLevels: ctx.epicResearchLevels,
+    colleggtibleModifiers: ctx.colleggtibleModifiers,
+    assumeMaxHabsVehicles: true,
+  });
+  const theirs = rate(k3.delivery as EquippedArtifact[]);
+  return mine && theirs > 0 ? rate(mine as EquippedArtifact[]) / theirs : 1;
 }
 
 /** `buildContinueVariant` for checks (scripts/precompute.ts); the search calls it through `runLeg`. */
