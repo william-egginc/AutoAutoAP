@@ -977,41 +977,61 @@ async function route(file: string): Promise<void> {
   }
 
   if (arg('debug-chain') && inputs) {
-    // One route, ascension by ascension: the table's cell against the simulator from the real state
-    // (at the save's delivery rate with --scaled or --player, as the route was found).
+    // One route, ascension by ascension, three ways: the table's own pricing of the whole route (its
+    // times and egg counts carried forward, as the finder sees it); the simulator from the real state
+    // (with --player the save itself, its first ascension free to continue, later ones on the hour);
+    // and the table's price of each leg from the simulator's own start and eggs, so the drift of each
+    // leg shows apart from what the legs before it did.
     const chain = arg('debug-chain')!.trim().split(/\s+/).map(Number);
-    const atRate = (bs: BuildParams[]) =>
-      deliveryScale === 1 ? bs : bs.map(b => ({ ...b, peakELR: b.peakELR * deliveryScale }));
-    let state = startStateAt(inputs, te);
+    const realEggs = (st: EngineState) => EGG_ORDER.map(e => st.eggsDelivered[e] || 0);
+    let state = player ? (JSON.parse(JSON.stringify(inputs.baseState)) as EngineState) : startStateAt(inputs, te);
     let t = start;
     let cur = te;
+    // The table's own route.
+    let tt = start;
+    let tcur = te;
+    let teggs = player ? realEggs(state) : canonicalDelivered(te);
+    const d = (sec: number) => (sec / 86400).toFixed(3) + ' d';
+    const when = (u: number) => new Date(u * 1000).toISOString().slice(0, 16).replace('T', ' ');
     for (const [i, target] of chain.entries()) {
-      t = nextHour(t);
-      const hour = pacificHourOfWeek(t);
-      const tab = bestTailTo(atRate(table.lookup(cur, hour) ?? []), target);
-      const realNow = EGG_ORDER.map(e => state.eggsDelivered[e] || 0);
-      const moved = bestTailTo(
-        atRate(table.lookup(cur, hour) ?? []).map(b => rebase(b, cur, realNow)),
-        target
-      );
-      const leg = runLeg(inputs, state, t, target, false, cur, i + 2);
+      const first = player && i === 0;
+      // The table, its own way.
+      let tLeg: { start: number; end: number; endTE: number; delivered: number[]; label: string } | null = null;
+      if (first) {
+        const f = firstLegs?.find(x => x.to === target);
+        if (f) tLeg = { start: tt, end: f.end, endTE: f.endTE, delivered: f.delivered, label: f.label ?? 'first' };
+      } else {
+        const p = priceLeg(table.lookup, tcur, tt, teggs, target, deliveryScale);
+        if (p) tLeg = { ...p, label: `${p.build.sales}-sale${p.build.tier13 ? '-t13' : ''}` };
+      }
+      // The simulator.
+      const simStart = first ? t : nextHour(t);
+      const leg = runLeg(inputs, state, simStart, target, first, cur, i + 2);
       const simEnd = leg ? Object.values(leg.summary.finalTE).reduce((a, b) => a + b, 0) : NaN;
-      const realDelivered = EGG_ORDER.map(e => state.eggsDelivered[e] || 0);
-      const canon = canonicalDelivered(cur);
+      // The table's price of this leg from where the simulator really is.
+      const here = first ? null : priceLeg(table.lookup, cur, t, realEggs(state), target, deliveryScale);
+      const legDrift = leg && here ? (simStart + leg.summary.totalDurationSeconds - here.end) / 3600 : null;
       console.log(
-        `  leg ${i + 1} ${cur}->${target} at hour ${hour}: table ${tab ? (tab.seconds / 86400).toFixed(4) + ' d, ends ' + tab.endTE + ', ' + tab.build.sales + '-sale' + (tab.build.tier13 ? '-t13' : '') : 'none'}` +
-          ` | on real eggs ${moved ? (moved.seconds / 86400).toFixed(4) + ' d, ends ' + moved.endTE : 'none'}` +
-          ` | simulator ${leg ? (leg.summary.totalDurationSeconds / 86400).toFixed(4) + ' d, ends ' + simEnd + ', ' + leg.key : 'none'}` +
-          (leg && moved
-            ? ` | sim - table ${((leg.summary.totalDurationSeconds - moved.seconds) / 3600).toFixed(2)} h, sim ends ${new Date((t + leg.summary.totalDurationSeconds) * 1000).toISOString().slice(0, 16)} (${(((t + leg.summary.totalDurationSeconds) % 3600) / 60).toFixed(0)} min past the hour)`
+        `  leg ${i + 1} ->${target}: table ${tLeg ? `${tcur}->${tLeg.endTE} ${when(tLeg.start)} +${d(tLeg.end - tLeg.start)} (${tLeg.label})` : 'none'}` +
+          ` | simulator ${leg ? `${cur}->${simEnd} ${when(simStart)} +${d(leg.summary.totalDurationSeconds)} (${leg.key})` : 'none'}` +
+          (legDrift !== null
+            ? ` | this leg alone: simulator ${legDrift >= 0 ? '+' : ''}${legDrift.toFixed(2)} h vs the table from the same start`
             : '') +
-          `\n      start eggs real ${realDelivered.map(x => x.toExponential(4)).join(' ')}\n      start eggs table ${canon.map(x => x.toExponential(4)).join(' ')}`
+          (leg && tLeg
+            ? ` | so far: simulator ${((simStart + leg.summary.totalDurationSeconds - tLeg.end) / 3600).toFixed(1)} h behind the table`
+            : '')
       );
+      if (tLeg) {
+        tt = tLeg.end;
+        tcur = tLeg.endTE;
+        teggs = tLeg.delivered;
+      }
       if (!leg) break;
-      t += leg.summary.totalDurationSeconds;
+      t = simStart + leg.summary.totalDurationSeconds;
       cur = simEnd;
       state = leg.nextState;
     }
+    console.log(`  total: table ${d(tt - start)}, simulator (on the hour) ${d(t - start)}`);
   }
 
   if (has('brute')) {

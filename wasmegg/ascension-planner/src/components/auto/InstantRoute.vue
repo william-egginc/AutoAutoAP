@@ -192,7 +192,7 @@
             <tr class="text-left text-[9px] font-black uppercase tracking-widest text-slate-400">
               <th class="py-1 pr-3">Ascensions</th>
               <th class="py-1 pr-3">Reaches {{ store.finalTE }}</th>
-              <th class="py-1 pr-3">Behind (table)</th>
+              <th class="py-1 pr-3">Behind</th>
               <th class="py-1 pr-3">Exact, your account</th>
               <th class="py-1 pr-3">Route</th>
               <th class="py-1"></th>
@@ -208,7 +208,7 @@
               <td class="py-1.5 pr-3 font-bold text-slate-800">{{ r.legs.length }}</td>
               <td class="py-1.5 pr-3 text-slate-700 whitespace-nowrap">{{ show(r.end) }}</td>
               <td class="py-1.5 pr-3 text-slate-500 whitespace-nowrap">
-                {{ r === result.best ? 'fastest' : '+' + days(r.seconds - result.best!.seconds) }}
+                {{ behind(r) }}
               </td>
               <td
                 class="py-1.5 pr-3 whitespace-nowrap"
@@ -579,6 +579,18 @@ const missedBy = computed<number | null>(() => {
   const e = r ? exact.value[key(r.chain)] : undefined;
   return props.deadline && e && e.end > props.deadline ? e.end - props.deadline : null;
 });
+/** How far a row is behind the fastest: by the simulator once every row is priced, by the table until then. */
+function behind(r: Route): string {
+  const best = exactBest.value;
+  if (best) {
+    const e = exactOf(r);
+    if (!e) return '';
+    return r === best ? 'fastest' : '+' + days(e.end - exactOf(best)!.end);
+  }
+  const t = result.value?.best;
+  if (!t) return '';
+  return r === t ? 'fastest' : '+' + days(r.seconds - t.seconds);
+}
 /** The route the box leads with: the simulator's fastest once known, else the table's. */
 const lead = computed(() => exactBest.value ?? result.value?.best ?? null);
 const reranked = computed(() => !!exactBest.value && exactBest.value !== result.value?.best);
