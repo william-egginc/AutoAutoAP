@@ -26,7 +26,13 @@ export interface TableHeader {
   builtAt: string;
   /** The research a build waits with and the table's delivery set there (scripts/precompute.ts
    *  --k3): a player's peak delivery rate is compared with the table's at that research. */
-  k3?: { research: Record<string, number>; delivery: { artifactId: string | null; stones: (string | null)[] }[] };
+  k3?: {
+    research: Record<string, number>;
+    delivery: { artifactId: string | null; stones: (string | null)[] }[];
+    /** The table's own peak delivery rate (eggs/s) at search/tableBuild.ts PEAK_TE and the reference
+     *  week's first hour: a player's own build there, against this, is their delivery scale. */
+    peak?: number;
+  };
   /** Rows below what was generated filled from the nearest real ones (--pack --fake-below), for
    *  trying the page while the table is built. Never a real answer; the page says so. */
   fake?: boolean;

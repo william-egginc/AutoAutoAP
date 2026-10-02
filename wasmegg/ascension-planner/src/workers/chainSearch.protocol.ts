@@ -59,7 +59,14 @@ export interface StartsRequest {
   fresh: boolean;
 }
 
-export type WorkerRequest = InitRequest | EvaluateRequest | IntegrityRequest | StartsRequest;
+/** The account's own peak delivery rate from one table build (search/tableBuild.ts buildPeak): what
+ *  the instant answer scales the maxed table by. */
+export interface PeakRequest {
+  kind: 'peak';
+  requestId: number;
+}
+
+export type WorkerRequest = InitRequest | EvaluateRequest | IntegrityRequest | StartsRequest | PeakRequest;
 
 export interface InitDoneMessage {
   type: 'init-done';
@@ -114,7 +121,15 @@ export interface StartsResultMessage {
   seconds: (number | null)[];
 }
 
+export interface PeakResultMessage {
+  type: 'peak';
+  requestId: number;
+  /** Eggs per second, or null when the build could not be simulated. */
+  peak: number | null;
+}
+
 export type WorkerResponse =
+  | PeakResultMessage
   | StartsResultMessage
   | InitDoneMessage
   | ProgressMessage

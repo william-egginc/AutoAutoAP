@@ -73,13 +73,11 @@ setActivePinia(createPinia());
 
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { fork } from 'node:child_process';
-import { getLocalTimestampInTimezone, getNextSaleEnd, PACIFIC_TIMEZONE } from '@/lib/events';
+import { getNextSaleEnd } from '@/lib/events';
 import { resolveColleggtibleContracts } from 'lib';
 import { initPlanFuture } from '@/lib/modes/planFuture';
 import { useChainSearchStore } from '@/stores/chainSearch';
-import { deriveNextStartState, runAscensionFromC3Variant, runUntilShift } from '@/auto/ascension';
-import { runC3Variants } from '@/auto/shifts/c3';
-import { countTEThresholdsPassed } from '@/lib/truthEggs';
+import { runAscensionFromC3Variant } from '@/auto/ascension';
 import { pickVariant, type VariantKey, type VariantResult } from '@/stores/autoPlanner';
 import {
   continueTailParams,
@@ -88,11 +86,7 @@ import {
   CONTINUE_PIN_MAX_SECONDS,
   instantDeliveryScale,
   runLeg,
-  TIER_13_MIN_STARTING_TE,
 } from '@/search/leg';
-import { runH1 } from '@/auto/shifts/h1';
-import { applyShiftAction } from '@/auto/shifts/helpers/actionHelpers';
-import { runMaxVehiclesPlan } from '@/auto/shifts/helpers/vehicles';
 import { calculateArtifactModifiers } from '@/lib/artifacts';
 import { computeRealisticELR } from '@/calculations/realisticELR';
 import {
@@ -110,6 +104,7 @@ import { expandArrivals, findRoutes, firstLegOptions, nextHour, priceLeg, type R
 import { splitByWork } from '@/search/routePool';
 import { packTable, readTable, type TableHeader } from '@/search/precomputedTable';
 import { gearChanges, gearStamp, gearTableName, tableName } from '@/search/tableGear';
+import { buildAt, buildPeak, k3StateOf, paramsOf, PEAK_TE, REFERENCE_WEEK, startStateAt } from '@/search/tableBuild';
 import { deliveryScore, slotsFromLabels } from '@/search/virtueScore';
 import { describeLoadoutSlots } from '@/search/csv';
 import { cteFromArtifacts } from 'lib/virtue';
@@ -238,38 +233,10 @@ async function loadInputs(file: string): Promise<SearchInputs> {
   const combo = comboFromArgs();
   if (combo) putCombo(backup, combo);
   resolveColleggtibleContracts(backup);
+  // --write-save FILE: the save as loaded (with --reference or --combo applied), for loading in the page.
+  if (arg('write-save')) writeFileSync(arg('write-save')!, JSON.stringify(backup));
   await initPlanFuture('file', markRaw(backup));
   return useChainSearchStore().collectInputs();
-}
-
-/**
- * The state a fresh ascension starts from at TE `te`, as if the last one had just ended there: the
- * account's permanent progress from the save, a reset farm, and `te` shared across the five eggs
- * the way the simulator shares a goal (cheapest next TE first, from nothing), each egg's delivered
- * count exactly on its threshold. Canonical on purpose: the table is keyed by TE, and the history
- * that got a player there is shown (by the board's legs) to barely matter.
- */
-export function startStateAt(inputs: SearchInputs, te: number): EngineState {
-  const delivered = canonicalDelivered(te);
-  const base = JSON.parse(JSON.stringify(inputs.baseState)) as EngineState;
-  return deriveNextStartState(
-    {
-      finalTE: Object.fromEntries(EGG_ORDER.map((e, i) => [e, countTEThresholdsPassed(delivered[i])])),
-      endSoulEggs: base.soulEggs,
-      endShiftCount: base.shiftCount,
-      eggsDelivered: Object.fromEntries(EGG_ORDER.map((e, i) => [e, delivered[i]])),
-    } as never,
-    base
-  );
-}
-
-/** One start's build: the shared C1..R1 run and every C3 variant still possible. */
-export function buildAt(inputs: SearchInputs, state: EngineState, start: number, te: number) {
-  const ctx = { ...inputs.context, ascensionStartTime: start, planStartOffset: 0 };
-  const pre = runUntilShift(state, ctx, 'C3');
-  const preC3 = { actions: pre.actions, state: pre.state, elapsedSeconds: pre.elapsedSeconds };
-  const variants = runC3Variants(pre.state, ctx, 3, te < TIER_13_MIN_STARTING_TE).filter(v => !v.impossible);
-  return { ctx, preC3, variants };
 }
 
 /** Every variant's tail to `target`, and the one the app picks (seconds, key). */
@@ -289,51 +256,6 @@ export function legTo(
   const best = pickVariant(fresh);
   const key = keys.find(k => fresh[k] === best)!;
   return { seconds: best.summary.totalDurationSeconds, key };
-}
-
-/**
- * A variant's build as `BuildParams`: H1 and K3's purchases replayed exactly as `runAscension` runs
- * them when it resumes a C3 variant at H1, stopping where K3's wait would begin.
- */
-/** H1 and K3's purchases replayed (see `paramsOf`): the state K3's wait begins in, and when. */
-function k3StateOf(
-  build: ReturnType<typeof buildAt>,
-  v: ReturnType<typeof buildAt>['variants'][number]
-): { k3: EngineState; waitStart: number } {
-  const ctx = build.ctx;
-  let state = JSON.parse(JSON.stringify(v.result.endState)) as EngineState;
-  let elapsed = build.preC3.elapsedSeconds + v.result.elapsedSeconds;
-  state.lastStepTime = elapsed;
-  const h1 = runH1(state, ctx);
-  state = h1.endState;
-  elapsed += h1.elapsedSeconds;
-  state.lastStepTime = elapsed;
-  const shifted = applyShiftAction(state, ctx, 'kindness');
-  const vehicles = runMaxVehiclesPlan(shifted.state, ctx, Infinity);
-  return { k3: vehicles.endState, waitStart: elapsed + vehicles.elapsedSeconds };
-}
-
-export function paramsOf(
-  build: ReturnType<typeof buildAt>,
-  v: ReturnType<typeof buildAt>['variants'][number],
-  start: number
-): BuildParams {
-  const ctx = build.ctx;
-  const { k3, waitStart } = k3StateOf(build, v);
-  const peakELR = computeRealisticELR(
-    k3.researchLevels,
-    calculateArtifactModifiers(k3.artifactLoadout),
-    ctx.epicResearchLevels,
-    ctx.colleggtibleModifiers
-  ).effectiveRate;
-  return {
-    sales: v.saleCount,
-    tier13: !!v.attemptTier13Unlock,
-    waitStart,
-    saleEnd: v.buildPhaseEnd - start,
-    peakELR,
-    delivered: EGG_ORDER.map(e => k3.eggsDelivered[e] || 0),
-  };
 }
 
 async function verify(file: string): Promise<void> {
@@ -427,13 +349,6 @@ async function check(file: string): Promise<void> {
       (inv.earnings ? cteFromArtifacts(equippedArtifactsToLibArtifacts(inv.earnings)).toFixed(2) : 'none')
   );
 }
-
-/**
- * The week every table entry is simulated in: Monday 11 January 2027, 00:00 Pacific. Weeks are
- * alike for the build (the sale and the boost are weekly), so one week stands for all; this one is
- * clear of daylight saving changes for the three weeks a 3-sale build can take from its last hour.
- */
-const REFERENCE_WEEK = getLocalTimestampInTimezone('2027-01-11', '00:00', PACIFIC_TIMEZONE);
 
 /** The table's start TEs by default: from below where the board's players are, to the last one. */
 const TABLE_FROM = 100;
@@ -905,6 +820,7 @@ function pack(): void {
     }
     from = fakeBelow;
   }
+  const peakCell = cells.find(c => c.te === PEAK_TE && c.h === 0);
   const bytes = packTable(
     {
       version: 1,
@@ -916,7 +832,15 @@ function pack(): void {
       builtAt: meta.builtAt,
       ...(fakeBelow !== null ? { fake: true } : {}),
       ...(meta.gear ? { gear: meta.gear } : {}),
-      ...(existsSync(`${dir}/k3.json`) ? { k3: JSON.parse(readFileSync(`${dir}/k3.json`, 'utf8')) } : {}),
+      ...(existsSync(`${dir}/k3.json`)
+        ? {
+            k3: {
+              ...JSON.parse(readFileSync(`${dir}/k3.json`, 'utf8')),
+              // The table's own peak where the page measures a player's (search/tableBuild.ts).
+              ...(peakCell?.builds.length ? { peak: Math.max(...peakCell.builds.map(b => b.peakELR)) } : {}),
+            },
+          }
+        : {}),
     },
     cells
   );
@@ -950,6 +874,17 @@ async function route(file: string): Promise<void> {
   if (player || has('scaled')) {
     if (!existsSync(`${dir}/k3.json`)) throw new Error('--player and --scaled need DIR/k3.json (--k3)');
     deliveryScale = instantDeliveryScale(inputs!, JSON.parse(readFileSync(`${dir}/k3.json`, 'utf8')));
+    // --measured-k: the player's own build's peak against the table's cell at the same start (search/
+    // tableBuild.ts buildPeak), as the page measures it, instead of the best set at the table's research.
+    if (has('measured-k')) {
+      const cell = table.lookup(PEAK_TE, 0);
+      if (!cell?.length) throw new Error(`--measured-k needs the table's TE ${PEAK_TE} row`);
+      const before = deliveryScale;
+      deliveryScale = buildPeak(inputs!) / Math.max(...cell.map(b => b.peakELR));
+      console.log(
+        `delivery scale: measured ${deliveryScale.toFixed(4)} (the best set at the table's research gives ${before.toFixed(4)})`
+      );
+    }
   }
   const firstLegs = player
     ? firstLegOptions({

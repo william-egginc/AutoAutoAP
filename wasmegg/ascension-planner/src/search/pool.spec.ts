@@ -67,6 +67,10 @@ class FakeWorker {
       this.emit({ type: 'starts', requestId: msg.requestId, seconds: msg.starts.map(s => 1000 + (s % 97)) });
       return;
     }
+    if (msg.kind === 'peak') {
+      this.emit({ type: 'peak', requestId: msg.requestId, peak: 1 });
+      return;
+    }
     for (let i = 0; i < msg.chains.length; i++) {
       this.emit({ type: 'progress', requestId: msg.requestId, done: i + 1, total: msg.chains.length });
     }

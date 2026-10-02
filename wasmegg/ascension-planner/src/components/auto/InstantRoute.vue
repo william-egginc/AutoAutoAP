@@ -268,10 +268,14 @@
           epic research and colleggtibles. Each of its ascensions is the simulator's own build, and the waiting after it
           is the simulator's own arithmetic, so on that account a route here matches the full simulator to the second.
           For you: your first ascension is your own (continuing the one in progress when the continue rule would, from
-          your save), the waits run at your own peak delivery rate (the best set your inventory can wear at full
-          research: {{ ((deliveryScale ?? 1) * 100).toFixed(1) }}% of the table's), and each ascension is read from the
-          row for its own TE. Each fresh ascension starts on the hour, where the table was simulated; the weekly sale is
-          at a fixed Pacific time, so the hour of the week is what matters.
+          your save), the waits run at your own peak delivery rate ({{ ((deliveryScale ?? 1) * 100).toFixed(1) }}% of
+          the table's,
+          {{
+            measuredK !== null
+              ? 'measured from one simulated build of your account'
+              : 'estimated from the best set your inventory can wear at full research'
+          }}), and each ascension is read from the row for its own TE. Each fresh ascension starts on the hour, where
+          the table was simulated; the weekly sale is at a fixed Pacific time, so the hour of the week is what matters.
         </p>
       </details>
     </template>
@@ -347,10 +351,43 @@ const bonus = computed(() => {
 const deliveryScale = computed<number | null>(() => {
   // The player's own table is their own rate already.
   if (own.value) return 1;
+  if (measuredK.value !== null) return measuredK.value;
   const k3 = header.value?.k3;
   if (!k3) return header.value ? 1 : null;
   return instantDeliveryScale(store.collectInputs(), k3);
 });
+
+/**
+ * The player's delivery scale for the maxed table, measured: one build of their own account at the
+ * table's peak cell (search/tableBuild.ts buildPeak, on a worker, about five seconds), against the
+ * table's own peak there (header.k3.peak). The best set the inventory can wear at the maxed account's
+ * research (instantDeliveryScale, the estimate it replaces) misses up to 2.2% for weaker earnings sets,
+ * whose builds reach the wait with other research (scripts/precompute.ts --compare-high). Once per
+ * save; null until measured or when it cannot be, and then the estimate stands.
+ */
+const measuredK = ref<number | null>(null);
+let measured: { key: string; k: Promise<number | null> } | null = null;
+function measureScale(h: TableHeader): Promise<number | null> {
+  const peak = h.k3?.peak;
+  if (!peak) return Promise.resolve(null);
+  const inputs = store.collectInputs();
+  const raw = inputs.context.rawBackup as { eiUserId?: string; approxTime?: number } | undefined;
+  const key = `${raw?.eiUserId}|${raw?.approxTime}|${peak}`;
+  if (measured?.key !== key)
+    measured = {
+      key,
+      k: (async () => {
+        const one = await createChainSearchPool(inputs, { size: 1 });
+        try {
+          const mine = await one.peak();
+          return mine && mine > 0 ? mine / peak : null;
+        } finally {
+          one.terminate();
+        }
+      })().catch(() => null),
+    };
+  return measured.k;
+}
 
 /** The TE routes are found to: the planner's target, or for a date every TE up to the last. */
 const target = computed(() => (props.deadline ? 490 : store.finalTE));
@@ -473,6 +510,13 @@ async function run(): Promise<void> {
     header.value = h;
     tableUrl.value = url;
     ownChanged.value = mismatch;
+    // On the maxed table, the player's own delivery rate from one simulated build (once per save).
+    if (url === TABLE_URL) {
+      loadingText.value = 'Measuring your delivery rate with one simulated build of your account…';
+      const k = await measureScale(h);
+      if (id !== runs) return;
+      measuredK.value = k;
+    } else measuredK.value = null;
     // Every TE from the player's up is needed, and the table starts where virtue players are.
     if (te < h.from) {
       result.value = null;

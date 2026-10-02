@@ -158,6 +158,9 @@ export interface ChainSearchPool {
   /** The integrity check (search/rules.ts), run on the first worker against the pool's own inputs:
    *  how long a fresh ascension from the plan start sits on its first Integrity shift. */
   integrityWait(): Promise<number | null>;
+  /** The account's own peak delivery rate from one table build (search/tableBuild.ts), on the first
+   *  worker: eggs per second, or null when it could not be simulated. */
+  peak(): Promise<number | null>;
   /**
    * One route priced from each of `starts` (unix seconds), shared out across the workers. Resolves
    * with the seconds from each start to the route's end, in the order given (null where it failed).
@@ -534,6 +537,14 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
         seconds: number | null;
       };
       return reply.seconds;
+    },
+
+    async peak(): Promise<number | null> {
+      const pw = await workerAt(0);
+      const reply = (await send(pw, { kind: 'peak', requestId: ++nextRequestId }, 'worker 0 (delivery peak)')) as {
+        peak: number | null;
+      };
+      return reply.peak;
     },
 
     resize(n: number): number {
