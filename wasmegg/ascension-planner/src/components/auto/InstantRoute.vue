@@ -249,11 +249,11 @@
       <details class="text-[11px] text-slate-500">
         <summary class="cursor-pointer font-bold text-slate-600">How this is worked out</summary>
         <p v-if="gearTable" class="mt-1 leading-relaxed">
-          Below TE {{ GEAR_TABLE_TO }} this table was built on gear exactly like yours (the same earnings and delivery
-          sets from the same artifacts and stones, epic research and colleggtibles maxed), so those ascensions match the
-          full simulator for you. From TE {{ GEAR_TABLE_TO }} up it uses the maxed table at your own delivery rate,
-          which is exact there for any gear on the board. Each fresh ascension starts on the hour, where the table was
-          simulated.
+          This table was built on gear exactly like yours (the same artifacts and stones, so the same earnings and
+          delivery sets, with epic research and colleggtibles maxed), so its ascensions match the full simulator for
+          you<template v-if="(header?.gearTo ?? 489) < 489">
+            up to TE {{ header?.gearTo }}; above that it uses the maxed table at your own delivery rate</template
+          >. Each fresh ascension starts on the hour, where the table was simulated.
         </p>
         <p v-else-if="own" class="mt-1 leading-relaxed">
           This table was built on your own account: your earnings and delivery sets, epic research and colleggtibles as

@@ -33,6 +33,8 @@ export interface TableHeader {
   /** An account's own table: the gear it was built on (search/tableGear.ts). The page uses it only
    *  for a save whose stamp matches. Absent on the maxed reference table. */
   gear?: TableGear;
+  /** A gear table joined to the maxed one (compositeTable): the last start TE from the gear table. */
+  gearTo?: number;
 }
 
 export interface Table {
@@ -127,14 +129,16 @@ export function parseCompositeUrl(url: string): { low: string; high: string; spl
   return { low: parts[0], high: parts[1], split: Number(parts[2]), scale: Number(parts[3]) };
 }
 
-/** The two as one: the low table's rows below `split`, the high table's from it with their peak
- *  delivery rate scaled to the player's (so the route search runs at a scale of 1). */
+/** The two as one: the low table's rows below `split` (and all it has, when it reaches higher), the
+ *  high table's above that with their peak delivery rate scaled to the player's (so the route search
+ *  runs at a scale of 1). `gearTo` in the header says where the gear table's own rows end. */
 export function compositeTable(low: Table, high: Table, split: number, scale: number): Table {
   const scaled = new Map<number, BuildParams[]>();
+  const top = Math.max(split - 1, low.header.to);
   return {
-    header: { ...low.header, to: high.header.to, k3: high.header.k3 },
+    header: { ...low.header, to: Math.max(high.header.to, low.header.to), k3: high.header.k3, gearTo: top },
     lookup(te, hour) {
-      if (te < split) return low.lookup(te, hour);
+      if (te <= top) return low.lookup(te, hour);
       const raw = high.lookup(te, hour);
       if (!raw || scale === 1) return raw;
       const key = te * WEEK_HOURS + hour;
