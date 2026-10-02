@@ -109,7 +109,7 @@ import {
 import { expandArrivals, findRoutes, firstLegOptions, nextHour, priceLeg, type Route } from '@/search/routeFinder';
 import { splitByWork } from '@/search/routePool';
 import { packTable, readTable, type TableHeader } from '@/search/precomputedTable';
-import { gearStamp, tableName } from '@/search/tableGear';
+import { gearChanges, gearStamp, tableName } from '@/search/tableGear';
 import { deliveryScore } from '@/search/virtueScore';
 import { describeLoadoutSlots } from '@/search/csv';
 import { cteFromArtifacts } from 'lib/virtue';
@@ -1124,6 +1124,30 @@ async function profile(file: string): Promise<void> {
 
 async function main(): Promise<void> {
   if (has('pack')) return pack();
+  if (has('restamp')) {
+    // Work an existing own-gear table's gear stamp out again from its save (search/tableGear.ts), at
+    // the table's own waiting research (DIR/k3.json), and write it into DIR/meta.json. The cells are
+    // untouched; --pack again afterwards. Also prints whether a second save (--compare FILE) matches.
+    const dir = arg('table');
+    if (!dir) throw new Error('--restamp needs --table DIR');
+    const k3 = JSON.parse(readFileSync(`${dir}/k3.json`, 'utf8')) as { research: Record<string, number> };
+    const stampOf = async (file: string) => {
+      const inputs = await loadInputs(file);
+      return gearStamp(inputs, useChainSearchStore().readInventory().earnings, k3.research);
+    };
+    const stamp = await stampOf(arg('backup')!);
+    const meta = JSON.parse(readFileSync(`${dir}/meta.json`, 'utf8'));
+    const before = meta.gear ? gearChanges(meta.gear, stamp!) : ['(none)'];
+    meta.gear = stamp;
+    writeFileSync(`${dir}/meta.json`, JSON.stringify(meta, null, 1));
+    console.log(`restamped ${dir}: changed from the old stamp: ${before.join(', ') || 'nothing'}`);
+    if (arg('compare')) {
+      const other = await stampOf(arg('compare')!);
+      const diff = gearChanges(stamp!, other!);
+      console.log(`--compare save: ${diff.length ? 'differs in ' + diff.join(', ') : 'matches'}`);
+    }
+    return;
+  }
   if (has('table-name')) {
     // The file name an account's own table is served under (search/tableGear.ts); the id stays here.
     const id = (JSON.parse(readFileSync(arg('backup')!, 'utf8')) as { eiUserId?: string }).eiUserId;

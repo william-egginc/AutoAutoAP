@@ -16,6 +16,7 @@
  * current research (which moves mid-ascension) is not part of it.
  */
 import { getOptimalELRSet } from '@/lib/artifacts';
+import { sanitizeLongs } from '@/lib/artifacts/utils';
 import { describeLoadoutSlots, type LoadoutSlot } from './csv';
 import { getColleggtibleTiers } from 'lib/collegtibles';
 import type { EquippedArtifact } from '@/lib/artifacts/types';
@@ -57,9 +58,13 @@ export function gearStamp(
   const ctx = inputs.context;
   const raw = ctx.rawBackup;
   if (!raw) return null;
+  // Each on a fresh copy of the save: getOptimalELRSet caches the first set structure it finds per
+  // backup OBJECT (lib/artifacts/virtue.ts), so on the page's own save the answer would depend on
+  // whatever ran first, and a stamp computed first would leave its structure in that cache for the
+  // page's own searches. A copy is a cache miss, a full search, and leaves the page's cache alone.
   const delivery = (commonResearch: Record<string, number>) =>
     describeLoadoutSlots(
-      getOptimalELRSet(raw, {
+      getOptimalELRSet(sanitizeLongs(raw) as typeof raw, {
         commonResearch,
         epicResearchLevels: ctx.epicResearchLevels,
         colleggtibleModifiers: ctx.colleggtibleModifiers,
