@@ -65,18 +65,46 @@
           Highest TE by {{ show(deadline) }}
         </div>
         <template v-if="result.byDate">
-          <div class="text-2xl font-black text-slate-900">
-            {{ result.byDate.legs[result.byDate.legs.length - 1].endTE }} TE
+          <!-- The simulator's answer leads once it is in; the table's stays beside it. -->
+          <template v-if="dateExact">
+            <div class="text-2xl font-black text-slate-900">
+              {{ dateExact.endTE }} TE <span class="text-[11px] font-bold text-emerald-700">exact, your account</span>
+            </div>
+            <div class="font-mono-premium text-sm font-bold text-slate-800">{{ dateExact.chain.join(' → ') }}</div>
+            <div class="text-[12px] text-slate-700">
+              Reached {{ show(dateExact.end) }} · {{ dateExact.chain.length }} ascensions ·
+              {{ days(deadline - dateExact.end) }} to spare
+            </div>
+          </template>
+          <div :class="dateExact ? 'text-[11px] text-slate-500' : ''">
+            <div v-if="!dateExact" class="text-2xl font-black text-slate-900">
+              {{ result.byDate.legs[result.byDate.legs.length - 1].endTE }} TE
+            </div>
+            <div v-if="!dateExact" class="font-mono-premium text-sm font-bold text-slate-800">
+              {{ result.byDate.chain.join(' → ') }}
+            </div>
+            <div :class="dateExact ? '' : 'text-[12px] text-slate-700'">
+              {{
+                dateExact ? 'The table said ' + result.byDate.legs[result.byDate.legs.length - 1].endTE + ' TE: ' : ''
+              }}Reached {{ show(result.byDate.end) }} · {{ result.byDate.legs.length }} ascensions ·
+              {{ days(deadline - result.byDate.end) }} to spare<template v-if="dateExact && missedBy !== null"
+                >; on your account that route arrives {{ days(missedBy) }} after the date</template
+              >
+            </div>
           </div>
-          <div class="font-mono-premium text-sm font-bold text-slate-800">{{ result.byDate.chain.join(' → ') }}</div>
-          <div class="text-[12px] text-slate-700">
-            Reached {{ show(result.byDate.end) }} · {{ result.byDate.legs.length }} ascensions ·
-            {{ days(deadline - result.byDate.end) }} to spare
-          </div>
+          <p v-if="exactStatus === 'running'" class="text-[11px] text-emerald-800 flex items-center gap-2">
+            <span
+              class="inline-block w-2.5 h-2.5 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin"
+            />
+            {{ exactText }}
+          </p>
+          <p v-else-if="exactStatus === 'done' && !dateExact" class="text-[11px] text-amber-800">
+            On your account this route's earlier stops already run past the date. Check exactly searches for yours.
+          </p>
           <button
             type="button"
             class="mt-1 px-3 py-1.5 rounded-lg bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-emerald-800"
-            @click="emit('check', result.byDate.chain)"
+            @click="emit('check', (dateExact ?? result.byDate).chain)"
           >
             Check exactly
           </button>
@@ -86,24 +114,50 @@
     </template>
 
     <template v-if="result && !deadline">
-      <div v-if="result.best" class="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 space-y-1">
+      <div v-if="lead" class="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 space-y-1">
         <div class="text-[10px] font-black uppercase tracking-widest text-emerald-700">Fastest route</div>
-        <div class="font-mono-premium text-base font-black text-slate-900">{{ result.best.chain.join(' → ') }}</div>
-        <div class="text-[12px] text-slate-700">
-          Reaches {{ store.finalTE }} on <b>{{ show(result.best.end) }}</b> · {{ days(result.best.seconds) }} ·
-          {{ result.best.legs.length }} ascensions
+        <div class="font-mono-premium text-base font-black text-slate-900">{{ lead.chain.join(' → ') }}</div>
+        <div v-if="exactOf(lead)" class="text-[12px] text-slate-800">
+          Reaches {{ store.finalTE }} on <b>{{ show(exactOf(lead)!.end) }}</b> · {{ days(exactOf(lead)!.seconds) }} ·
+          {{ lead.legs.length }} ascensions
+          <span class="text-[11px] font-bold text-emerald-700">exact, your account</span>
         </div>
+        <div :class="exactOf(lead) ? 'text-[11px] text-slate-500' : 'text-[12px] text-slate-700'">
+          {{ exactOf(lead) ? 'The table said ' : 'Reaches ' + store.finalTE + ' on '
+          }}<b v-if="!exactOf(lead)">{{ show(lead.end) }}</b
+          ><template v-else>{{ show(lead.end) }}</template> · {{ days(lead.seconds)
+          }}<template v-if="!exactOf(lead)"> · {{ lead.legs.length }} ascensions</template>
+        </div>
+        <p v-if="reranked && result.best" class="text-[11px] text-amber-800">
+          The table ranked the {{ result.best.legs.length }}-ascension route first ({{ result.best.chain.join(' ') }});
+          on your account the full simulator has this one
+          {{ days(exactOf(result.best)!.end - exactOf(lead)!.end) }} sooner.
+        </p>
+        <p v-if="exactStatus === 'running'" class="text-[11px] text-emerald-800 flex items-center gap-2">
+          <span
+            class="inline-block w-2.5 h-2.5 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin"
+          />
+          {{ exactText }}
+        </p>
         <button
           type="button"
           class="mt-1 px-3 py-1.5 rounded-lg bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-emerald-800"
-          :disabled="result.best.chain.length < 2"
-          @click="emit('check', result.best.chain)"
+          :disabled="lead.chain.length < 2"
+          @click="emit('check', lead.chain)"
         >
           Check exactly
         </button>
       </div>
       <p v-else class="text-[12px] text-amber-800">No route reaches {{ store.finalTE }} from here in the table.</p>
     </template>
+
+    <p v-if="result && exactStatus === 'error'" class="text-[11px] text-amber-800">{{ exactText }}</p>
+    <p v-if="result && exactStatus === 'waiting'" class="text-[11px] text-slate-500">
+      The exact check on your account waits while a search is running.
+    </p>
+    <p v-if="result && exactStatus === 'done' && exactMs !== null" class="text-[10px] text-slate-400">
+      Checked on your account with the full simulator in {{ (exactMs / 1000).toFixed(0) }} s.
+    </p>
 
     <!-- What the answer above does not account for, on both screens. -->
     <template v-if="result">
@@ -126,8 +180,8 @@
         v-if="leftOut.length"
         class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"
       >
-        Not in the instant answer: your {{ leftOut.join(', ') }}.
-        {{ deadline ? '' : "It's the fastest route without them; " }}Check exactly prices a route with them.
+        Not in the table's routes: your {{ leftOut.join(', ') }}.
+        {{ deadline ? '' : 'They are the fastest without them; ' }}the exact times on your account include them.
       </p>
     </template>
 
@@ -138,7 +192,8 @@
             <tr class="text-left text-[9px] font-black uppercase tracking-widest text-slate-400">
               <th class="py-1 pr-3">Ascensions</th>
               <th class="py-1 pr-3">Reaches {{ store.finalTE }}</th>
-              <th class="py-1 pr-3">Behind</th>
+              <th class="py-1 pr-3">Behind (table)</th>
+              <th class="py-1 pr-3">Exact, your account</th>
               <th class="py-1 pr-3">Route</th>
               <th class="py-1"></th>
             </tr>
@@ -148,12 +203,20 @@
               v-for="r in rows"
               :key="r.legs.length"
               class="border-t border-slate-100"
-              :class="r === result.best ? 'bg-emerald-50/60' : ''"
+              :class="r === lead ? 'bg-emerald-50/60' : ''"
             >
               <td class="py-1.5 pr-3 font-bold text-slate-800">{{ r.legs.length }}</td>
               <td class="py-1.5 pr-3 text-slate-700 whitespace-nowrap">{{ show(r.end) }}</td>
               <td class="py-1.5 pr-3 text-slate-500 whitespace-nowrap">
                 {{ r === result.best ? 'fastest' : '+' + days(r.seconds - result.best!.seconds) }}
+              </td>
+              <td
+                class="py-1.5 pr-3 whitespace-nowrap"
+                :class="r === exactBest ? 'font-bold text-emerald-800' : 'text-slate-700'"
+              >
+                <template v-if="exactOf(r)">{{ show(exactOf(r)!.end) }} · {{ days(exactOf(r)!.seconds) }}</template>
+                <template v-else-if="exactOf(r) === null">couldn’t price</template>
+                <span v-else-if="exactStatus === 'running'" class="text-slate-400">…</span>
               </td>
               <td class="py-1.5 pr-3 font-mono-premium text-slate-800">{{ r.chain.join(' ') }}</td>
               <td class="py-1.5 text-right">
@@ -202,6 +265,7 @@ import { equippedArtifactsToLibArtifacts } from '@/lib/artifacts/utils';
 import { findRoutes, type Route } from '@/search/routeFinder';
 import { describeColleggtibles } from '@/search/progression';
 import { poolSize, RoutePool } from '@/search/routePool';
+import { createChainSearchPool, type ChainSearchPool, type EvaluateOptions } from '@/search/pool';
 import type { TableHeader } from '@/search/precomputedTable';
 
 const props = defineProps<{
@@ -304,6 +368,8 @@ async function run(): Promise<void> {
   const te = Math.floor(store.currentTE);
   if (!(te > 0) || !(target.value > te)) return;
   const id = ++runs;
+  stopExact();
+  exactStatus.value = 'idle';
   status.value = 'loading';
   loadingText.value = header.value
     ? 'Working out every route…'
@@ -355,6 +421,7 @@ async function run(): Promise<void> {
     result.value = found;
     ms.value = performance.now() - t0;
     status.value = 'done';
+    void runExact(id, found);
   } catch (err) {
     if (id !== runs) return;
     const message = err instanceof Error ? err.message : String(err);
@@ -364,6 +431,157 @@ async function run(): Promise<void> {
       : `The instant answer couldn’t run: ${message}`;
   }
 }
+
+/**
+ * THE EXACT CHECK. The table is exact for its own maxed account; for anyone else it is a few percent
+ * off below TE 340, and over a whole route that can move the ranking or a date answer by a TE or two
+ * (the alt from TE 138: the table's 9-ascension pick is 1.4% fast and the simulator prefers an
+ * 8-ascension route; its Egg Day 248 arrives 5 d late). So once the instant answer is shown, the
+ * routes it shows are priced again by the full simulator on the player's own account and setup
+ * (search/pool.ts, the same evaluation the searches use), and the page says what that gives.
+ *
+ * Fastest route: the table's fastest first, alone, so its exact date comes soonest; then the other
+ * rows a round at a time, one route per worker, filling the Exact column as each round returns (a
+ * worker only answers when its whole share is done, and the pool deals each call by position, so
+ * rounds are the way to see rows arrive). By a date: the date's route; if it misses the date, the
+ * same checkpoints with the last one lower, on one worker so the shared legs are simulated once.
+ */
+interface Exact {
+  /** Seconds from the plan start, and the unix second it ends. */
+  seconds: number;
+  end: number;
+  /** TE when the route ends (above its last checkpoint when a sale wait overshoots). */
+  endTE: number;
+}
+/** Exact prices by `chain.join(',')`; null where the simulator could not price the route. */
+const exact = ref<Record<string, Exact | null>>({});
+const exactStatus = ref<'idle' | 'running' | 'done' | 'error' | 'waiting'>('idle');
+const exactText = ref('');
+const exactMs = ref<number | null>(null);
+/** By a date: the highest TE the date's route really reaches in time, from the simulator. */
+const dateExact = ref<{ chain: number[]; endTE: number; end: number } | null>(null);
+
+let exactPool: ChainSearchPool | null = null;
+function stopExact(): void {
+  exactPool?.terminate();
+  exactPool = null;
+}
+onUnmounted(stopExact);
+
+const key = (chain: number[]) => chain.join(',');
+const exactOf = (r: Route) => exact.value[key(r.chain)];
+
+async function runExact(id: number, found: NonNullable<typeof result.value>): Promise<void> {
+  stopExact();
+  exact.value = {};
+  dateExact.value = null;
+  exactMs.value = null;
+  // A search the player started has the cores; this waits rather than slowing it down.
+  if (store.isRunning) {
+    exactStatus.value = 'waiting';
+    return;
+  }
+  const routes = props.deadline
+    ? found.byDate
+      ? [found.byDate]
+      : []
+    : [found.best, ...found.byAscensions.filter(r => r && r !== found.best)].filter((r): r is Route => !!r);
+  if (!routes.length) return;
+  exactStatus.value = 'running';
+  const t0 = performance.now();
+  try {
+    const inputs = store.collectInputs();
+    const size = Math.max(1, Math.min(store.workerBudget, routes.length, 4));
+    exactPool = await createChainSearchPool(inputs, { size });
+    if (id !== runs) return;
+    const price = async (chains: number[][], opts?: EvaluateOptions) => {
+      const { results } = await exactPool!.evaluate(chains, undefined, opts);
+      if (id !== runs) return false;
+      const next = { ...exact.value };
+      for (const c of chains) {
+        const r = results.find(x => key(x.chain) === key(c));
+        next[key(c)] =
+          r && r.seconds > 0
+            ? { seconds: r.seconds, end: inputs.planStart + r.seconds, endTE: r.legs[r.legs.length - 1]?.endTE ?? 0 }
+            : null;
+      }
+      exact.value = next;
+      return true;
+    };
+
+    if (props.deadline) {
+      const route = routes[0];
+      const deadline = props.deadline;
+      // The shared legs stay on one worker (sticky on all but the last stop), so each lower last stop
+      // costs one ascension.
+      const sticky = { stickyDepth: -1 };
+      exactText.value = 'Checking this route on your account with the full simulator…';
+      if (!(await price([route.chain], sticky))) return;
+      const first = exact.value[key(route.chain)];
+      if (first && first.end <= deadline) {
+        dateExact.value = { chain: route.chain, endTE: first.endTE, end: first.end };
+      } else {
+        const prefix = route.chain.slice(0, -1);
+        const floor = prefix.length ? prefix[prefix.length - 1] : Math.floor(store.currentTE);
+        for (let hi = route.chain[route.chain.length - 1] - 1; hi > floor && !dateExact.value; hi -= 3) {
+          const tries = [hi, hi - 1, hi - 2].filter(t => t > floor).map(t => [...prefix, t]);
+          exactText.value = `It misses the date on your account; trying lower last stops (${tries.map(c => c[c.length - 1]).join(', ')})…`;
+          if (!(await price(tries, sticky))) return;
+          for (const c of tries) {
+            const e = exact.value[key(c)];
+            if (e && e.end <= deadline) {
+              dateExact.value = { chain: c, endTE: e.endTE, end: e.end };
+              break;
+            }
+          }
+        }
+      }
+    } else {
+      exactText.value = 'Checking the fastest route on your account with the full simulator…';
+      if (!(await price([routes[0].chain]))) return;
+      const rest = routes.slice(1);
+      for (let i = 0; i < rest.length; i += size) {
+        exactText.value = `Checking the other routes: ${i} of ${rest.length} done…`;
+        if (
+          !(await price(
+            rest.slice(i, i + size).map(r => r.chain),
+            { spreadOut: true }
+          ))
+        )
+          return;
+      }
+    }
+    exactMs.value = performance.now() - t0;
+    exactStatus.value = 'done';
+  } catch (err) {
+    if (id !== runs) return;
+    exactStatus.value = 'error';
+    exactText.value = `The exact check couldn’t run: ${err instanceof Error ? err.message : String(err)}`;
+  } finally {
+    if (id === runs) stopExact();
+  }
+}
+
+/** The fastest route by the simulator among the rows priced so far, once every row is priced. */
+const exactBest = computed<Route | null>(() => {
+  if (props.deadline || exactStatus.value !== 'done') return null;
+  let best: Route | null = null;
+  for (const r of rows.value) {
+    const e = exactOf(r);
+    if (e && (!best || e.end < exactOf(best)!.end)) best = r;
+  }
+  return best;
+});
+/** By a date: how many seconds after the date the table's own date route really arrives, when it
+ *  misses on the player's account. */
+const missedBy = computed<number | null>(() => {
+  const r = result.value?.byDate;
+  const e = r ? exact.value[key(r.chain)] : undefined;
+  return props.deadline && e && e.end > props.deadline ? e.end - props.deadline : null;
+});
+/** The route the box leads with: the simulator's fastest once known, else the table's. */
+const lead = computed(() => exactBest.value ?? result.value?.best ?? null);
+const reranked = computed(() => !!exactBest.value && exactBest.value !== result.value?.best);
 
 // Again whenever what it depends on changes (a new save, a new plan start, another target).
 let timer: ReturnType<typeof setTimeout> | null = null;
