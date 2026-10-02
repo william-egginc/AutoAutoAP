@@ -357,13 +357,9 @@
           is the simulator's own arithmetic, so on that account a route here matches the full simulator to the second.
           For you: your first ascension is your own (continuing the one in progress when the continue rule would, from
           your save), the waits run at your own peak delivery rate ({{ ((deliveryScale ?? 1) * 100).toFixed(1) }}% of
-          the table's,
-          {{
-            measuredK !== null
-              ? 'measured from one simulated build of your account'
-              : 'estimated from the best set your inventory can wear at full research'
-          }}), and each ascension is read from the row for its own TE. Each fresh ascension starts on the hour, where
-          the table was simulated; the weekly sale is at a fixed Pacific time, so the hour of the week is what matters.
+          the table's: the best set your inventory can wear at full research), and each ascension is read from the row
+          for its own TE. Each fresh ascension starts on the hour, where the table was simulated; the weekly sale is at
+          a fixed Pacific time, so the hour of the week is what matters.
         </p>
       </details>
     </template>
@@ -444,48 +440,26 @@ const bonus = computed(() => {
 const deliveryScale = computed<number | null>(() => {
   // The player's own table is their own rate already.
   if (own.value) return 1;
-  if (measuredK.value !== null) return measuredK.value;
   const k3 = header.value?.k3;
   if (!k3) return header.value ? 1 : null;
   return instantDeliveryScale(store.collectInputs(), k3);
 });
 
-/**
- * The player's delivery scale for the maxed table, measured: one build of their own account at the
- * table's peak cell (search/tableBuild.ts buildPeak, on a worker, about five seconds), against the
- * table's own peak there (header.k3.peak). The best set the inventory can wear at the maxed account's
- * research (instantDeliveryScale, the estimate it replaces) misses up to 2.2% for weaker earnings sets,
- * whose builds reach the wait with other research (scripts/precompute.ts --compare-high). Once per
- * save; null until measured or when it cannot be, and then the estimate stands.
- */
-const measuredK = ref<number | null>(null);
-let measured: { key: string; k: Promise<number | null> } | null = null;
-function measureScale(h: TableHeader): Promise<number | null> {
-  const peak = h.k3?.peak;
-  if (!peak) return Promise.resolve(null);
-  const inputs = store.collectInputs();
-  const raw = inputs.context.rawBackup as { eiUserId?: string; approxTime?: number } | undefined;
-  const key = `${raw?.eiUserId}|${raw?.approxTime}|${peak}`;
-  if (measured?.key !== key)
-    measured = {
-      key,
-      k: (async () => {
-        const one = await createChainSearchPool(inputs, { size: 1 });
-        try {
-          const mine = await one.peak();
-          return mine && mine > 0 ? mine / peak : null;
-        } finally {
-          one.terminate();
-        }
-      })().catch(() => null),
-    };
-  return measured.k;
-}
-
 /** The TE routes are found to: the planner's target, or for a date every TE up to the last. */
 const target = computed(() => (props.deadline ? 490 : store.finalTE));
 
-const rows = computed(() => (result.value?.byAscensions ?? []).filter((r): r is Route => !!r));
+/**
+ * The rows shown (the user, 2 Oct). Fastest route: 1-10 ascensions, and up to the best plus two when
+ * the best is 9 or 10. By a date: from 1 up to the best plus two, the low counts kept even when far
+ * behind. "The best" is the exact-checked lead once it is in, the table's until then; the finder looks
+ * as far as MAX_ASCENSIONS so those rows exist.
+ */
+const MAX_ASCENSIONS = 12;
+function fastestRowsOf(found: NonNullable<typeof result.value>, bestK?: number): Route[] {
+  const top = Math.max(10, (bestK ?? found.best?.legs.length ?? 0) + 2);
+  return found.byAscensions.filter((r, k): r is Route => !!r && k <= top);
+}
+const rows = computed(() => (result.value ? fastestRowsOf(result.value, exactBestAll.value?.legs.length) : []));
 
 /** Setup the instant answer does not model, named so nobody reads it as accounted for. */
 const leftOut = computed(() => {
@@ -605,13 +579,6 @@ async function run(): Promise<void> {
     header.value = h;
     tableUrl.value = url;
     ownChanged.value = mismatch;
-    // On the maxed table, the player's own delivery rate from one simulated build (once per save).
-    if (url === TABLE_URL) {
-      loadingText.value = 'Measuring your delivery rate with one simulated build of your account…';
-      const k = await measureScale(h);
-      if (id !== runs) return;
-      measuredK.value = k;
-    } else measuredK.value = null;
     // Every TE from the player's up is needed, and the table starts where virtue players are.
     if (te < h.from) {
       result.value = null;
@@ -641,7 +608,7 @@ async function run(): Promise<void> {
       startTE: te,
       start: inputs.planStart,
       final: target.value,
-      maxAscensions: 10,
+      maxAscensions: MAX_ASCENSIONS,
       firstLegs,
       deliveryScale: scale,
       ...(props.deadline ? { deadline: props.deadline } : {}),
@@ -701,23 +668,27 @@ interface DateExact {
  *  overall and for each row's number of ascensions (null: that row misses it). */
 const dateExact = ref<DateExact | null>(null);
 const dateExactByK = ref<Record<number, DateExact | null>>({});
+/** dateExact read through a call, so TypeScript does not keep it narrowed to the null it was reset to
+ *  at the start of the exact check while awaits in between set it. */
+const readDateLead = (): DateExact | null => dateExact.value;
 /** Under a day to spare is tight: a slower ascension than planned, or a late start, misses the date. */
 const TIGHT_SECONDS = 86400;
 const tableDate = (r: Route): DateExact => ({ chain: r.chain, endTE: r.legs[r.legs.length - 1].endTE, end: r.end });
 const spareOf = (d: DateExact) => (props.deadline ?? 0) - d.end;
 /** The rows By a date shows: the table's best number of ascensions and up to two either side. */
-function dateRowsOf(found: NonNullable<typeof result.value>): Route[] {
+function dateRowsOf(found: NonNullable<typeof result.value>, bestK?: number): Route[] {
   const best = found.byDate;
   if (!best) return [];
-  const kb = best.legs.length;
-  const around = found.byDateByAscensions
-    .map((r, k) => (r && Math.abs(k - kb) <= 2 ? r : null))
-    .filter((r): r is Route => !!r);
+  const top = (bestK ?? best.legs.length) + 2;
+  const shown = found.byDateByAscensions.filter((r, k): r is Route => !!r && k <= top);
   // The best first, so its exact answer comes first.
-  return [best, ...around.filter(r => r.legs.length !== kb)];
+  // (The overall route and its count's row are separate objects for the same route.)
+  return [best, ...shown.filter(r => r.legs.length !== best.legs.length)];
 }
 const dateRows = computed(() =>
-  result.value ? [...dateRowsOf(result.value)].sort((a, b) => a.legs.length - b.legs.length) : []
+  result.value
+    ? [...dateRowsOf(result.value, dateExact.value?.chain.length)].sort((a, b) => a.legs.length - b.legs.length)
+    : []
 );
 
 let exactPool: ChainSearchPool | null = null;
@@ -741,9 +712,10 @@ async function runExact(id: number, found: NonNullable<typeof result.value>): Pr
     exactStatus.value = 'waiting';
     return;
   }
+  const tableRows = fastestRowsOf(found);
   const routes = props.deadline
     ? dateRowsOf(found)
-    : [found.best, ...found.byAscensions.filter(r => r && r !== found.best)].filter((r): r is Route => !!r);
+    : [found.best, ...tableRows.filter(r => r !== found.best)].filter((r): r is Route => !!r);
   if (!routes.length) return;
   // The last checked answer's route, priced again with the rest (not shown as a row of its own).
   const again =
@@ -775,43 +747,52 @@ async function runExact(id: number, found: NonNullable<typeof result.value>): Pr
       // Every row's route at once, one per worker; then, for each that misses the date, the same stops
       // with the last one lower, on one worker (sticky on all but the last stop) so the shared legs
       // are simulated once and each lower last stop costs one ascension.
-      exactText.value = 'Checking these routes on your account with the full simulator…';
-      if (
-        !(await price(
-          routes.map(r => r.chain),
-          { spreadOut: true }
-        ))
-      )
-        return;
       const sticky = { stickyDepth: -1 };
       const byK: Record<number, DateExact | null> = {};
-      for (const route of routes) {
-        const k = route.legs.length;
-        const first = exact.value[key(route.chain)];
-        let made: DateExact | null =
-          first && first.end <= deadline ? { chain: route.chain, endTE: first.endTE, end: first.end } : null;
-        const prefix = route.chain.slice(0, -1);
-        const floor = prefix.length ? prefix[prefix.length - 1] : Math.floor(store.currentTE);
-        for (let hi = route.chain[route.chain.length - 1] - 1; hi > floor && !made; hi -= 3) {
-          const tries = [hi, hi - 1, hi - 2].filter(t => t > floor).map(t => [...prefix, t]);
-          exactText.value = `${k} ascensions misses the date on your account; trying lower last stops (${tries.map(c => c[c.length - 1]).join(', ')})…`;
-          if (!(await price(tries, sticky))) return;
-          for (const c of tries) {
-            const e = exact.value[key(c)];
-            if (e && e.end <= deadline) {
-              made = { chain: c, endTE: e.endTE, end: e.end };
-              break;
+      const done = new Set<number>();
+      const checkRows = async (list: Route[]): Promise<boolean> => {
+        exactText.value = 'Checking these routes on your account with the full simulator…';
+        if (
+          !(await price(
+            list.map(r => r.chain),
+            { spreadOut: true }
+          ))
+        )
+          return false;
+        for (const route of list) {
+          const k = route.legs.length;
+          done.add(k);
+          const first = exact.value[key(route.chain)];
+          let made: DateExact | null =
+            first && first.end <= deadline ? { chain: route.chain, endTE: first.endTE, end: first.end } : null;
+          const prefix = route.chain.slice(0, -1);
+          const floor = prefix.length ? prefix[prefix.length - 1] : Math.floor(store.currentTE);
+          for (let hi = route.chain[route.chain.length - 1] - 1; hi > floor && !made; hi -= 3) {
+            const tries = [hi, hi - 1, hi - 2].filter(t => t > floor).map(t => [...prefix, t]);
+            exactText.value = `${k} ascensions misses the date on your account; trying lower last stops (${tries.map(c => c[c.length - 1]).join(', ')})…`;
+            if (!(await price(tries, sticky))) return false;
+            for (const c of tries) {
+              const e = exact.value[key(c)];
+              if (e && e.end <= deadline) {
+                made = { chain: c, endTE: e.endTE, end: e.end };
+                break;
+              }
             }
           }
+          byK[k] = made;
+          dateExactByK.value = { ...byK };
+          // The answer: the highest TE that makes the date on the player's account, then the most spare.
+          dateExact.value = Object.values(byK).reduce<DateExact | null>(
+            (a, d) => (d && (!a || d.endTE > a.endTE || (d.endTE === a.endTE && d.end < a.end)) ? d : a),
+            null
+          );
         }
-        byK[k] = made;
-        dateExactByK.value = { ...byK };
-      }
-      // The answer: the highest TE that makes the date on the player's account, then the most spare.
-      dateExact.value = Object.values(byK).reduce<DateExact | null>(
-        (a, d) => (d && (!a || d.endTE > a.endTE || (d.endTE === a.endTE && d.end < a.end)) ? d : a),
-        null
-      );
+        return true;
+      };
+      if (!(await checkRows(routes))) return;
+      // A lead at a higher count than the table's shows rows up to its count plus two.
+      const more = dateRowsOf(found, readDateLead()?.chain.length).filter(r => !done.has(r.legs.length));
+      if (more.length && !(await checkRows(more))) return;
     } else {
       exactText.value = 'Checking the fastest route on your account with the full simulator…';
       if (!(await price([routes[0].chain]))) return;
@@ -827,19 +808,29 @@ async function runExact(id: number, found: NonNullable<typeof result.value>): Pr
           return;
       }
     }
+    if (!props.deadline) {
+      // A best at 9 or 10 ascensions shows rows up to its count plus two.
+      const priced = new Set(routes.map(r => key(r.chain)));
+      const bestNow = bestExactOf(found);
+      const more = bestNow ? fastestRowsOf(found, bestNow.legs.length).filter(r => !priced.has(key(r.chain))) : [];
+      if (
+        more.length &&
+        !(await price(
+          more.map(r => r.chain),
+          { spreadOut: true }
+        ))
+      )
+        return;
+    }
     if (again && !(await price([again]))) return;
     exactMs.value = performance.now() - t0;
     exactStatus.value = 'done';
     // Remembered for the next visit: the answer the page now leads with, exact.
-    const lead = props.deadline ? dateExact.value : exactBest.value;
+    const dateLead = readDateLead();
+    const lead = props.deadline ? dateLead : exactBest.value;
     const le = lead && !props.deadline ? exactOf(lead as Route) : null;
-    if (props.deadline && dateExact.value)
-      writeCache(cachedKey, {
-        at: Date.now(),
-        chain: dateExact.value.chain,
-        end: dateExact.value.end,
-        endTE: dateExact.value.endTE,
-      });
+    if (props.deadline && dateLead)
+      writeCache(cachedKey, { at: Date.now(), chain: dateLead.chain, end: dateLead.end, endTE: dateLead.endTE });
     else if (lead && le)
       writeCache(cachedKey, { at: Date.now(), chain: (lead as Route).chain, end: le.end, endTE: le.endTE });
   } catch (err) {
@@ -851,16 +842,21 @@ async function runExact(id: number, found: NonNullable<typeof result.value>): Pr
   }
 }
 
-/** The fastest route by the simulator among the rows priced so far, once every row is priced. */
-const exactBest = computed<Route | null>(() => {
-  if (props.deadline || exactStatus.value !== 'done') return null;
+/** The fastest route by the simulator among every route priced so far. */
+function bestExactOf(found: NonNullable<typeof result.value>): Route | null {
   let best: Route | null = null;
-  for (const r of rows.value) {
+  for (const r of found.byAscensions) {
+    if (!r) continue;
     const e = exactOf(r);
     if (e && (!best || e.end < exactOf(best)!.end)) best = r;
   }
   return best;
-});
+}
+const exactBestAll = computed<Route | null>(() =>
+  !props.deadline && exactStatus.value === 'done' && result.value ? bestExactOf(result.value) : null
+);
+/** The same, once every row is priced (what the box leads with). */
+const exactBest = exactBestAll;
 /** By a date: how many seconds after the date the table's own date route really arrives, when it
  *  misses on the player's account. */
 const missedBy = computed<number | null>(() => {
