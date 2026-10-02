@@ -26,19 +26,30 @@
           class="ml-1 px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[9px] font-black uppercase tracking-widest"
           >precomputed</span
         >
+        <span
+          v-if="own"
+          class="ml-1 px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-800 text-[9px] font-black uppercase tracking-widest"
+          >your gear</span
+        >
       </h3>
       <span v-if="ms !== null" class="text-[10px] text-slate-400"
         >every route checked in {{ (ms / 1000).toFixed(1) }} s</span
       >
     </div>
     <p class="text-[12px] text-slate-600 leading-relaxed">
-      Every ascension a maxed account can make was simulated ahead of time, from every TE at every hour of the week, so
+      Every ascension {{ own ? 'your account can make, with the gear your save has now,' : 'a maxed account can make' }}
+      was simulated ahead of time, from every TE at every hour of the week, so
       {{
         deadline
           ? 'finding the highest TE you can reach by the date is arithmetic'
           : 'finding your fastest route is arithmetic'
-      }}: it tries every checkpoint at every TE, with any number of ascensions. It's adjusted for your gear.
+      }}: it tries every checkpoint at every TE, with any number of ascensions.{{
+        own ? ' The table was built on your own gear.' : " It's adjusted for your gear."
+      }}
       <b>Check exactly</b> prices a route with the full simulator.
+    </p>
+    <p v-if="ownChanged" class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-[11px] text-amber-900">
+      Your gear changed since your table was made ({{ ownChanged }}), so this answer uses the maxed table instead.
     </p>
 
     <p v-if="status === 'loading'" class="text-[12px] text-slate-500 flex items-center gap-2">
@@ -237,7 +248,15 @@
 
       <details class="text-[11px] text-slate-500">
         <summary class="cursor-pointer font-bold text-slate-600">How this is worked out</summary>
-        <p class="mt-1 leading-relaxed">
+        <p v-if="own" class="mt-1 leading-relaxed">
+          This table was built on your own account: your earnings and delivery sets, epic research and colleggtibles as
+          your save has them now (Clothed TE bonus {{ header?.cteBonus }}). Each of its ascensions is the simulator's
+          own build, and the waiting after it is the simulator's own arithmetic, so a route here matches the full
+          simulator on your account. Your first ascension is your own (continuing the one in progress when the continue
+          rule would, from your save). Each fresh ascension starts on the hour, where the table was simulated. If your
+          gear changes, the page goes back to the maxed table until yours is made again.
+        </p>
+        <p v-else class="mt-1 leading-relaxed">
           The table was built on a maxed account: perfect delivery set, Clothed TE bonus {{ header?.cteBonus }}, all
           epic research and colleggtibles. Each of its ascensions is the simulator's own build, and the waiting after it
           is the simulator's own arithmetic, so on that account a route here matches the full simulator to the second.
@@ -266,6 +285,7 @@ import { findRoutes, type Route } from '@/search/routeFinder';
 import { describeColleggtibles } from '@/search/progression';
 import { poolSize, RoutePool } from '@/search/routePool';
 import { createChainSearchPool, type ChainSearchPool, type EvaluateOptions } from '@/search/pool';
+import { gearChanges, gearStamp, tableName } from '@/search/tableGear';
 import type { TableHeader } from '@/search/precomputedTable';
 
 const props = defineProps<{
@@ -277,6 +297,23 @@ const store = useChainSearchStore();
 const planner = useAutoPlannerStore();
 
 const TABLE_URL = `${import.meta.env.BASE_URL}precompute/table.bin`;
+
+/** The table the answer came from: the player's own (search/tableGear.ts) or the maxed one. */
+const tableUrl = ref(TABLE_URL);
+/** Built on this player's gear: no adjustment, and none of the maxed table's caveats. */
+const own = computed(() => tableUrl.value !== TABLE_URL);
+/** What changed since the player's own table was made, when it no longer fits their save. */
+const ownChanged = ref('');
+
+/** Where the player's own table would be: a slow hash of their id (search/tableGear.ts), worked
+ *  out once per id; the id never leaves the page. Null without a save. */
+let ownName: { id: string; name: Promise<string> } | null = null;
+async function ownTableUrl(): Promise<string | null> {
+  const id = (store.collectInputs().context.rawBackup as { eiUserId?: string } | undefined)?.eiUserId;
+  if (!id) return null;
+  if (ownName?.id !== id) ownName = { id, name: tableName(id) };
+  return `${import.meta.env.BASE_URL}precompute/${await ownName.name}`;
+}
 
 const status = ref<'idle' | 'loading' | 'error' | 'done'>('idle');
 const loadingText = ref('');
@@ -294,6 +331,8 @@ const bonus = computed(() => {
 /** The player's peak delivery rate against the table's (search/leg.ts `instantDeliveryScale`). Null
  *  until the table's header is in. */
 const deliveryScale = computed<number | null>(() => {
+  // The player's own table is their own rate already.
+  if (own.value) return 1;
   const k3 = header.value?.k3;
   if (!k3) return header.value ? 1 : null;
   return instantDeliveryScale(store.collectInputs(), k3);
@@ -331,6 +370,7 @@ const FULL_RESEARCH_TE = 340;
 /** The player's gear is not the table's account's, and the route starts where that shows. */
 const gearDiffers = computed(
   () =>
+    !own.value &&
     Math.floor(store.currentTE) < FULL_RESEARCH_TE &&
     (bonusShort.value > 0.05 || Math.abs((deliveryScale.value ?? 1) - 1) > 0.005)
 );
@@ -339,6 +379,7 @@ const gearDiffers = computed(
  *  plainly; empty when nothing is, or nothing could be read. Both speed every build and every wait,
  *  and the instant answer takes neither off. */
 const progressionShort = computed(() => {
+  if (own.value) return '';
   const { epicResearch, colleggtibles } = store.progression();
   const out: string[] = [];
   if (epicResearch && !epicResearch.maxed)
@@ -376,9 +417,31 @@ async function run(): Promise<void> {
     : 'Loading the table (about 12 MB, once) and working out every route…';
   try {
     const p = getPool();
-    const h = await p.header(TABLE_URL);
+    // The player's own table when there is one built on the gear their save has now; else the maxed one.
+    let url = TABLE_URL;
+    let h: TableHeader | null = null;
+    let mismatch = '';
+    const mine = await ownTableUrl().catch(() => null);
+    if (mine) {
+      try {
+        const oh = await p.header(mine);
+        if (oh.gear) {
+          const stamp = gearStamp(store.collectInputs(), store.readInventory().earnings, oh.gear.research);
+          const changes = stamp ? gearChanges(oh.gear, stamp) : ['gear'];
+          if (!changes.length) {
+            url = mine;
+            h = oh;
+          } else mismatch = changes.join(', ');
+        }
+      } catch {
+        // No table of their own (the usual case): the maxed one.
+      }
+    }
+    h ??= await p.header(TABLE_URL);
     if (id !== runs) return;
     header.value = h;
+    tableUrl.value = url;
+    ownChanged.value = mismatch;
     // Every TE from the player's up is needed, and the table starts where virtue players are.
     if (te < h.from) {
       result.value = null;
@@ -390,7 +453,7 @@ async function run(): Promise<void> {
     const scale = deliveryScale.value ?? 1;
     const t0 = performance.now();
     const firstLegs = await p.firstLegs({
-      url: TABLE_URL,
+      url,
       startTE: te,
       start: inputs.planStart,
       final: target.value,
@@ -415,7 +478,7 @@ async function run(): Promise<void> {
       onProgress: (done, of) => {
         if (id === runs) loadingText.value = `Working out every route: ${done} of ${of} ascension counts done…`;
       },
-      expand: (items, settings) => p.expand(TABLE_URL, items, settings),
+      expand: (items, settings) => p.expand(url, items, settings),
     });
     if (id !== runs) return;
     result.value = found;
