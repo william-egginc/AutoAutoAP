@@ -70,6 +70,27 @@
       Test table: rows below what has been simulated are filled in from the nearest real ones, to try the page. These
       routes and dates are not real answers.
     </p>
+    <!-- The last checked answer for this save and setup, at once; then whether the new check beat it. -->
+    <p
+      v-if="cached && exactStatus !== 'done'"
+      class="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-[12px] text-slate-700"
+    >
+      <b>Last checked {{ show(cached.at / 1000) }}</b> (exact, your account):
+      <span class="font-mono-premium">{{ cached.chain.join(' → ') }}</span>
+      <template v-if="deadline"> · {{ cached.endTE }} TE · {{ days(deadline - cached.end) }} to spare</template>
+      <template v-else> · reaches {{ store.finalTE }} on {{ show(cached.end) }}</template
+      >. Checking again…
+    </p>
+    <p
+      v-if="sinceCache"
+      class="rounded-lg px-3 py-2 text-[12px] font-bold"
+      :class="
+        sinceCache.better ? 'bg-emerald-100 text-emerald-900' : 'bg-slate-50 border border-slate-200 text-slate-700'
+      "
+    >
+      {{ sinceCache.text }}
+    </p>
+
     <template v-if="result && deadline">
       <div class="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 space-y-1">
         <div class="text-[10px] font-black uppercase tracking-widest text-emerald-700">
@@ -77,31 +98,37 @@
         </div>
         <template v-if="result.byDate">
           <!-- The simulator's answer leads once it is in; the table's stays beside it. -->
-          <template v-if="dateExact">
-            <div class="text-2xl font-black text-slate-900">
-              {{ dateExact.endTE }} TE <span class="text-[11px] font-bold text-emerald-700">exact, your account</span>
-            </div>
-            <div class="font-mono-premium text-sm font-bold text-slate-800">{{ dateExact.chain.join(' → ') }}</div>
-            <div class="text-[12px] text-slate-700">
-              Reached {{ show(dateExact.end) }} · {{ dateExact.chain.length }} ascensions ·
-              {{ days(deadline - dateExact.end) }} to spare
-            </div>
-          </template>
-          <div :class="dateExact ? 'text-[11px] text-slate-500' : ''">
-            <div v-if="!dateExact" class="text-2xl font-black text-slate-900">
-              {{ result.byDate.legs[result.byDate.legs.length - 1].endTE }} TE
-            </div>
-            <div v-if="!dateExact" class="font-mono-premium text-sm font-bold text-slate-800">
-              {{ result.byDate.chain.join(' → ') }}
-            </div>
-            <div :class="dateExact ? '' : 'text-[12px] text-slate-700'">
-              {{
-                dateExact ? 'The table said ' + result.byDate.legs[result.byDate.legs.length - 1].endTE + ' TE: ' : ''
-              }}Reached {{ show(result.byDate.end) }} · {{ result.byDate.legs.length }} ascensions ·
-              {{ days(deadline - result.byDate.end) }} to spare<template v-if="dateExact && missedBy !== null"
-                >; on your account that route arrives {{ days(missedBy) }} after the date</template
-              >
-            </div>
+          <div class="flex flex-wrap items-baseline gap-x-3">
+            <span class="text-2xl font-black text-slate-900"
+              >{{ (dateExact ?? tableDate(result.byDate)).endTE }} TE</span
+            >
+            <span
+              class="text-lg font-black"
+              :class="
+                spareOf(dateExact ?? tableDate(result.byDate)) < TIGHT_SECONDS ? 'text-amber-700' : 'text-emerald-800'
+              "
+              >{{ days(spareOf(dateExact ?? tableDate(result.byDate))) }} to spare</span
+            >
+            <span
+              v-if="spareOf(dateExact ?? tableDate(result.byDate)) < TIGHT_SECONDS"
+              class="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[9px] font-black uppercase tracking-widest"
+              >tight</span
+            >
+            <span v-if="dateExact" class="text-[11px] font-bold text-emerald-700">exact, your account</span>
+          </div>
+          <div class="font-mono-premium text-sm font-bold text-slate-800">
+            {{ (dateExact ?? tableDate(result.byDate)).chain.join(' → ') }}
+          </div>
+          <div class="text-[12px] text-slate-700">
+            Reached {{ show((dateExact ?? tableDate(result.byDate)).end) }} ·
+            {{ (dateExact ?? tableDate(result.byDate)).chain.length }} ascensions
+          </div>
+          <div v-if="dateExact" class="text-[11px] text-slate-500">
+            The table said {{ result.byDate.legs[result.byDate.legs.length - 1].endTE }} TE via
+            {{ result.byDate.chain.join(' ') }} with {{ days(deadline - result.byDate.end) }} to spare<template
+              v-if="missedBy !== null"
+              >; on your account that route arrives {{ days(missedBy) }} after the date</template
+            >.
           </div>
           <p v-if="exactStatus === 'running'" class="text-[11px] text-emerald-800 flex items-center gap-2">
             <span
@@ -110,17 +137,78 @@
             {{ exactText }}
           </p>
           <p v-else-if="exactStatus === 'done' && !dateExact" class="text-[11px] text-amber-800">
-            On your account this route's earlier stops already run past the date. Check exactly searches for yours.
+            On your account none of these routes reaches above your TE by the date. Check exactly searches for yours.
           </p>
           <button
             type="button"
             class="mt-1 px-3 py-1.5 rounded-lg bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-emerald-800"
-            @click="emit('check', (dateExact ?? result.byDate).chain)"
+            @click="emit('check', (dateExact ?? tableDate(result.byDate)).chain)"
           >
             Check exactly
           </button>
         </template>
         <p v-else class="text-[12px] text-amber-800">No route gets above your TE by then.</p>
+      </div>
+      <div v-if="dateRows.length > 1" class="overflow-x-auto">
+        <table class="w-full text-[12px]">
+          <thead>
+            <tr class="text-left text-[9px] font-black uppercase tracking-widest text-slate-400">
+              <th class="py-1 pr-3">Ascensions</th>
+              <th class="py-1 pr-3">Table</th>
+              <th class="py-1 pr-3">Exact, your account</th>
+              <th class="py-1 pr-3">Spare</th>
+              <th class="py-1 pr-3">Route</th>
+              <th class="py-1"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="r in dateRows"
+              :key="r.legs.length"
+              class="border-t border-slate-100"
+              :class="dateExact && dateExactByK[r.legs.length]?.chain === dateExact.chain ? 'bg-emerald-50/60' : ''"
+            >
+              <td class="py-1.5 pr-3 font-bold text-slate-800">{{ r.legs.length }}</td>
+              <td class="py-1.5 pr-3 text-slate-600 whitespace-nowrap">
+                {{ r.legs[r.legs.length - 1].endTE }} TE · {{ days(deadline - r.end) }}
+              </td>
+              <td class="py-1.5 pr-3 whitespace-nowrap font-bold text-slate-800">
+                <template v-if="dateExactByK[r.legs.length]">{{ dateExactByK[r.legs.length]!.endTE }} TE</template>
+                <template v-else-if="dateExactByK[r.legs.length] === null">misses</template>
+                <span v-else-if="exactStatus === 'running'" class="text-slate-400 font-normal">…</span>
+              </td>
+              <td class="py-1.5 pr-3 whitespace-nowrap">
+                <template v-if="dateExactByK[r.legs.length]">
+                  <span
+                    :class="
+                      spareOf(dateExactByK[r.legs.length]!) < TIGHT_SECONDS
+                        ? 'text-amber-700 font-black'
+                        : 'text-emerald-800 font-bold'
+                    "
+                    >{{ days(spareOf(dateExactByK[r.legs.length]!)) }}</span
+                  >
+                  <span
+                    v-if="spareOf(dateExactByK[r.legs.length]!) < TIGHT_SECONDS"
+                    class="ml-1 px-1 py-0.5 rounded bg-amber-100 text-amber-800 text-[8px] font-black uppercase"
+                    >tight</span
+                  >
+                </template>
+              </td>
+              <td class="py-1.5 pr-3 font-mono-premium text-slate-800">
+                {{ (dateExactByK[r.legs.length] ?? tableDate(r)).chain.join(' ') }}
+              </td>
+              <td class="py-1.5 text-right">
+                <button
+                  type="button"
+                  class="px-2 py-1 rounded-md border border-slate-300 text-[9px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-800"
+                  @click="emit('check', (dateExactByK[r.legs.length] ?? tableDate(r)).chain)"
+                >
+                  Check exactly
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </template>
 
@@ -336,7 +424,12 @@ async function ownTableUrl(): Promise<string | null> {
 const status = ref<'idle' | 'loading' | 'error' | 'done'>('idle');
 const loadingText = ref('');
 const errorText = ref('');
-const result = ref<{ best: Route | null; byAscensions: (Route | null)[]; byDate: Route | null } | null>(null);
+const result = ref<{
+  best: Route | null;
+  byAscensions: (Route | null)[];
+  byDate: Route | null;
+  byDateByAscensions: (Route | null)[];
+} | null>(null);
 const header = ref<TableHeader | null>(null);
 const ms = ref<number | null>(null);
 
@@ -460,6 +553,8 @@ async function run(): Promise<void> {
   const te = Math.floor(store.currentTE);
   if (!(te > 0) || !(target.value > te)) return;
   const id = ++runs;
+  cachedKey = cacheKey();
+  cached.value = readCache(cachedKey);
   stopExact();
   exactStatus.value = 'idle';
   status.value = 'loading';
@@ -596,8 +691,34 @@ const exact = ref<Record<string, Exact | null>>({});
 const exactStatus = ref<'idle' | 'running' | 'done' | 'error' | 'waiting'>('idle');
 const exactText = ref('');
 const exactMs = ref<number | null>(null);
-/** By a date: the highest TE the date's route really reaches in time, from the simulator. */
-const dateExact = ref<{ chain: number[]; endTE: number; end: number } | null>(null);
+/** A date answer: a route, the TE it ends at and the unix second it gets there. */
+interface DateExact {
+  chain: number[];
+  endTE: number;
+  end: number;
+}
+/** By a date: the highest TE that really makes the date on the player's account (the simulator's),
+ *  overall and for each row's number of ascensions (null: that row misses it). */
+const dateExact = ref<DateExact | null>(null);
+const dateExactByK = ref<Record<number, DateExact | null>>({});
+/** Under a day to spare is tight: a slower ascension than planned, or a late start, misses the date. */
+const TIGHT_SECONDS = 86400;
+const tableDate = (r: Route): DateExact => ({ chain: r.chain, endTE: r.legs[r.legs.length - 1].endTE, end: r.end });
+const spareOf = (d: DateExact) => (props.deadline ?? 0) - d.end;
+/** The rows By a date shows: the table's best number of ascensions and up to two either side. */
+function dateRowsOf(found: NonNullable<typeof result.value>): Route[] {
+  const best = found.byDate;
+  if (!best) return [];
+  const kb = best.legs.length;
+  const around = found.byDateByAscensions
+    .map((r, k) => (r && Math.abs(k - kb) <= 2 ? r : null))
+    .filter((r): r is Route => !!r);
+  // The best first, so its exact answer comes first.
+  return [best, ...around.filter(r => r.legs.length !== kb)];
+}
+const dateRows = computed(() =>
+  result.value ? [...dateRowsOf(result.value)].sort((a, b) => a.legs.length - b.legs.length) : []
+);
 
 let exactPool: ChainSearchPool | null = null;
 function stopExact(): void {
@@ -613,6 +734,7 @@ async function runExact(id: number, found: NonNullable<typeof result.value>): Pr
   stopExact();
   exact.value = {};
   dateExact.value = null;
+  dateExactByK.value = {};
   exactMs.value = null;
   // A search the player started has the cores; this waits rather than slowing it down.
   if (store.isRunning) {
@@ -620,11 +742,12 @@ async function runExact(id: number, found: NonNullable<typeof result.value>): Pr
     return;
   }
   const routes = props.deadline
-    ? found.byDate
-      ? [found.byDate]
-      : []
+    ? dateRowsOf(found)
     : [found.best, ...found.byAscensions.filter(r => r && r !== found.best)].filter((r): r is Route => !!r);
   if (!routes.length) return;
+  // The last checked answer's route, priced again with the rest (not shown as a row of its own).
+  const again =
+    cached.value && !routes.some(r => key(r.chain) === key(cached.value!.chain)) ? cached.value.chain : null;
   exactStatus.value = 'running';
   const t0 = performance.now();
   try {
@@ -648,32 +771,47 @@ async function runExact(id: number, found: NonNullable<typeof result.value>): Pr
     };
 
     if (props.deadline) {
-      const route = routes[0];
       const deadline = props.deadline;
-      // The shared legs stay on one worker (sticky on all but the last stop), so each lower last stop
-      // costs one ascension.
+      // Every row's route at once, one per worker; then, for each that misses the date, the same stops
+      // with the last one lower, on one worker (sticky on all but the last stop) so the shared legs
+      // are simulated once and each lower last stop costs one ascension.
+      exactText.value = 'Checking these routes on your account with the full simulator…';
+      if (
+        !(await price(
+          routes.map(r => r.chain),
+          { spreadOut: true }
+        ))
+      )
+        return;
       const sticky = { stickyDepth: -1 };
-      exactText.value = 'Checking this route on your account with the full simulator…';
-      if (!(await price([route.chain], sticky))) return;
-      const first = exact.value[key(route.chain)];
-      if (first && first.end <= deadline) {
-        dateExact.value = { chain: route.chain, endTE: first.endTE, end: first.end };
-      } else {
+      const byK: Record<number, DateExact | null> = {};
+      for (const route of routes) {
+        const k = route.legs.length;
+        const first = exact.value[key(route.chain)];
+        let made: DateExact | null =
+          first && first.end <= deadline ? { chain: route.chain, endTE: first.endTE, end: first.end } : null;
         const prefix = route.chain.slice(0, -1);
         const floor = prefix.length ? prefix[prefix.length - 1] : Math.floor(store.currentTE);
-        for (let hi = route.chain[route.chain.length - 1] - 1; hi > floor && !dateExact.value; hi -= 3) {
+        for (let hi = route.chain[route.chain.length - 1] - 1; hi > floor && !made; hi -= 3) {
           const tries = [hi, hi - 1, hi - 2].filter(t => t > floor).map(t => [...prefix, t]);
-          exactText.value = `It misses the date on your account; trying lower last stops (${tries.map(c => c[c.length - 1]).join(', ')})…`;
+          exactText.value = `${k} ascensions misses the date on your account; trying lower last stops (${tries.map(c => c[c.length - 1]).join(', ')})…`;
           if (!(await price(tries, sticky))) return;
           for (const c of tries) {
             const e = exact.value[key(c)];
             if (e && e.end <= deadline) {
-              dateExact.value = { chain: c, endTE: e.endTE, end: e.end };
+              made = { chain: c, endTE: e.endTE, end: e.end };
               break;
             }
           }
         }
+        byK[k] = made;
+        dateExactByK.value = { ...byK };
       }
+      // The answer: the highest TE that makes the date on the player's account, then the most spare.
+      dateExact.value = Object.values(byK).reduce<DateExact | null>(
+        (a, d) => (d && (!a || d.endTE > a.endTE || (d.endTE === a.endTE && d.end < a.end)) ? d : a),
+        null
+      );
     } else {
       exactText.value = 'Checking the fastest route on your account with the full simulator…';
       if (!(await price([routes[0].chain]))) return;
@@ -689,8 +827,21 @@ async function runExact(id: number, found: NonNullable<typeof result.value>): Pr
           return;
       }
     }
+    if (again && !(await price([again]))) return;
     exactMs.value = performance.now() - t0;
     exactStatus.value = 'done';
+    // Remembered for the next visit: the answer the page now leads with, exact.
+    const lead = props.deadline ? dateExact.value : exactBest.value;
+    const le = lead && !props.deadline ? exactOf(lead as Route) : null;
+    if (props.deadline && dateExact.value)
+      writeCache(cachedKey, {
+        at: Date.now(),
+        chain: dateExact.value.chain,
+        end: dateExact.value.end,
+        endTE: dateExact.value.endTE,
+      });
+    else if (lead && le)
+      writeCache(cachedKey, { at: Date.now(), chain: (lead as Route).chain, end: le.end, endTE: le.endTE });
   } catch (err) {
     if (id !== runs) return;
     exactStatus.value = 'error';
@@ -732,6 +883,98 @@ function behind(r: Route): string {
 /** The route the box leads with: the simulator's fastest once known, else the table's. */
 const lead = computed(() => exactBest.value ?? result.value?.best ?? null);
 const reranked = computed(() => !!exactBest.value && exactBest.value !== result.value?.best);
+
+/**
+ * THE LAST CHECKED ANSWER, remembered in this browser per save and setup: shown at once on the next
+ * visit, labelled with when it was checked, then checked again. Its route is priced with the new rows,
+ * so the page can say whether something better turned up or it is still the best.
+ *
+ * Valid only for the same thing asked of the same account: the player, the mode (target, or the date),
+ * the TE and every egg's count (a new save moves them), the inventory and epic research (the gear
+ * stamp's inputs, cheaper to compare raw), and the setup the exact check uses (playing hours, time off,
+ * dates to hit, the continue rule). Not the plan start: an answer from this morning is still worth
+ * showing beside the new one, with its time.
+ */
+interface CachedAnswer {
+  /** Unix ms it was checked. */
+  at: number;
+  chain: number[];
+  /** Unix second it reaches the target (fastest) or the TE it makes (date) and when. */
+  end: number;
+  endTE: number;
+}
+const CACHE_PREFIX = 'aap-instant-answer:';
+function cacheKey(): string | null {
+  const inputs = store.collectInputs();
+  const raw = inputs.context.rawBackup as { eiUserId?: string } | undefined;
+  if (!raw?.eiUserId) return null;
+  const inv = store.readInventory();
+  const sig = (x: number) => Number(x.toPrecision(6));
+  const parts = {
+    id: raw.eiUserId,
+    mode: props.deadline ? `date ${props.deadline}` : `target ${store.finalTE}`,
+    te: Math.floor(store.currentTE),
+    eggs: EGG_ORDER.map(e => sig(inputs.baseState.eggsDelivered?.[e] || 0)),
+    artifacts: inv.artifacts,
+    stones: inv.stones,
+    epic: inputs.context.epicResearchLevels,
+    setup: [store.availability, store.timeOff, store.milestones, store.forceContinue],
+  };
+  // FNV-1a: the key only has to tell setups apart; the id never leaves this browser.
+  const text = JSON.stringify(parts);
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193) >>> 0;
+  return CACHE_PREFIX + h.toString(16);
+}
+function readCache(k: string | null): CachedAnswer | null {
+  if (!k) return null;
+  try {
+    const v = JSON.parse(localStorage.getItem(k) ?? 'null') as CachedAnswer | null;
+    return v && Array.isArray(v.chain) && v.chain.length ? v : null;
+  } catch {
+    return null;
+  }
+}
+function writeCache(k: string | null, v: CachedAnswer): void {
+  if (!k) return;
+  try {
+    localStorage.setItem(k, JSON.stringify(v));
+  } catch {
+    // Storage full or blocked: the next visit simply has nothing to show first.
+  }
+}
+const cached = ref<CachedAnswer | null>(null);
+let cachedKey: string | null = null;
+
+/** After the exact check: is the new answer better than the last checked one, priced again now? */
+const sinceCache = computed<{ better: boolean; text: string } | null>(() => {
+  const c = cached.value;
+  if (!c || exactStatus.value !== 'done') return null;
+  const when = show(c.at / 1000);
+  if (props.deadline) {
+    const now = dateExact.value;
+    if (!now) return null;
+    if (key(now.chain) === key(c.chain))
+      return { better: false, text: `Still the best since the last check (${when}).` };
+    const again = exact.value[key(c.chain)];
+    const old = again && again.end <= props.deadline ? again.endTE : null;
+    if (old === null || now.endTE > old || (now.endTE === old && now.end < (again?.end ?? Infinity) - 60))
+      return { better: true, text: `Better than the last check (${when}, ${c.endTE} TE via ${c.chain.join(' ')}).` };
+    return { better: false, text: `Still the best since the last check (${when}).` };
+  }
+  const best = exactBest.value;
+  const e = best ? exactOf(best) : null;
+  if (!best || !e) return null;
+  if (key(best.chain) === key(c.chain))
+    return { better: false, text: `Still the best since the last check (${when}).` };
+  const again = exact.value[key(c.chain)];
+  if (!again || e.end < again.end - 60)
+    return {
+      better: true,
+      text: `Better than the last check (${when}, ${c.chain.join(' ')})${again ? `: ${days(again.end - e.end)} sooner` : ''}.`,
+    };
+  return { better: false, text: `Still the best since the last check (${when}).` };
+});
 
 // Again whenever what it depends on changes (a new save, a new plan start, another target).
 let timer: ReturnType<typeof setTimeout> | null = null;

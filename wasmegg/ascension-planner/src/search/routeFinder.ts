@@ -405,6 +405,8 @@ export async function findRoutes(
   byAscensions: (Route | null)[];
   /** With `deadline`: the route to the highest TE reached by then, or null when none is. */
   byDate: Route | null;
+  /** With `deadline`: the same for each number of ascensions (index = ascensions). */
+  byDateByAscensions: (Route | null)[];
 }> {
   const K = o.maxAscensions ?? 10;
   const keep = o.keep ?? DEFAULT_KEEP;
@@ -483,24 +485,27 @@ export async function findRoutes(
   const byAscensions = Array.from({ length: K + 1 }, (_, k) => (k ? readBack(k) : null));
   const best = byAscensions.reduce<Route | null>((a, r) => (r && (!a || r.end < a.end) ? r : a), null);
 
-  // Highest TE by the date: the highest TE any route reaches in time, and of those the earliest.
+  // Highest TE by the date: the highest TE any route reaches in time, and of those the earliest; for
+  // each number of ascensions and over all of them.
   let byDate: Route | null = null;
+  const byDateByAscensions: (Route | null)[] = Array.from({ length: K + 1 }, () => null);
   if (o.deadline !== undefined) {
-    let bestTE = -1;
-    let bestLabel: Label | null = null;
+    let overall: { te: number; label: Label } | null = null;
     for (let k = 1; k <= K; k++) {
+      let mine: { te: number; label: Label } | null = null;
       for (const [te, list] of arrivals[k]) {
         const l = list[0];
         if (l.time > o.deadline) continue;
-        if (te > bestTE || (te === bestTE && bestLabel && l.time < bestLabel.time)) {
-          bestTE = te;
-          bestLabel = l;
-        }
+        if (!mine || te > mine.te || (te === mine.te && l.time < mine.label.time)) mine = { te, label: l };
       }
+      if (!mine) continue;
+      byDateByAscensions[k] = routeTo(mine.label);
+      if (!overall || mine.te > overall.te || (mine.te === overall.te && mine.label.time < overall.label.time))
+        overall = mine;
     }
-    byDate = bestLabel ? routeTo(bestLabel) : null;
+    byDate = overall ? routeTo(overall.label) : null;
   }
-  return { best, byAscensions, byDate };
+  return { best, byAscensions, byDate, byDateByAscensions };
 }
 
 export interface FirstLegOptions {
