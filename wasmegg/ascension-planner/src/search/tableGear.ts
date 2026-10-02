@@ -83,6 +83,25 @@ export function gearStamp(
   };
 }
 
+/**
+ * A gear table's file name (tables built on a board account's gear, not an account): SHA-256 of the
+ * stamp, worked out at the maxed table's own waiting research so the page can work it out before it
+ * loads anything else. Gear is not private (the board shows it), so a plain hash will do.
+ */
+export async function gearTableName(stamp: TableGear): Promise<string> {
+  const { research: _research, ...gear } = stamp;
+  void _research;
+  const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(gear)));
+  return (
+    'gear-' +
+    [...new Uint8Array(bytes)]
+      .slice(0, 12)
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('') +
+    '.bin'
+  );
+}
+
 /** What differs between a table's stamp and the player's, in words; empty when they match. */
 export function gearChanges(table: TableGear, mine: TableGear): string[] {
   const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);

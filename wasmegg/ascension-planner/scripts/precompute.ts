@@ -109,10 +109,12 @@ import {
 import { expandArrivals, findRoutes, firstLegOptions, nextHour, priceLeg, type Route } from '@/search/routeFinder';
 import { splitByWork } from '@/search/routePool';
 import { packTable, readTable, type TableHeader } from '@/search/precomputedTable';
-import { gearChanges, gearStamp, tableName } from '@/search/tableGear';
-import { deliveryScore } from '@/search/virtueScore';
+import { gearChanges, gearStamp, gearTableName, tableName } from '@/search/tableGear';
+import { deliveryScore, slotsFromLabels } from '@/search/virtueScore';
 import { describeLoadoutSlots } from '@/search/csv';
 import { cteFromArtifacts } from 'lib/virtue';
+import { allPossibleTiers } from 'lib/artifacts/data';
+import { ei } from 'lib/proto';
 import { equippedArtifactsToLibArtifacts } from '@/lib/artifacts/utils';
 import type { EngineState } from '@/engine/types';
 import type { SearchInputs } from '@/search/types';
@@ -156,9 +158,85 @@ function addReferenceGear(backup: VirtueAfxBackup): void {
   );
 }
 
+/**
+ * --combos FILE --combo NAME: a gear combination from the board (the collector analyst's
+ * analysis/gear_combos.json: the artifacts an account owns, by label, and its stone counts), put in
+ * place of the save's own virtue artifacts. Only the inventory: the simulator's optimizer picks the
+ * earnings set and the delivery set at every research level from it, as it does for a real account,
+ * so a table built this way is that gear's table, whoever owns it.
+ */
+interface GearCombo {
+  accounts: Record<string, { latest_gear?: boolean }>;
+  earnings: string[];
+  delivery: string[];
+  inventory: { artifacts: string[]; stones: string };
+  delivery_k_full_research?: number | null;
+}
+
+function comboFromArgs(): GearCombo | null {
+  const file = arg('combos');
+  const name = arg('combo');
+  if (!file || !name) return null;
+  const all = JSON.parse(readFileSync(file, 'utf8')) as GearCombo[];
+  const found = all.filter(c => c.accounts[name]);
+  const combo = found.find(c => c.accounts[name].latest_gear) ?? found[0];
+  if (!combo) throw new Error(`--combo ${name}: not in ${file}`);
+  return combo;
+}
+
+/** Labels ("T4L Gusset", "T4 Quantum stone") to the game's own item specs. */
+const RARITY_LETTERS = ['C', 'R', 'E', 'L'];
+function specOf(label: string): { name: number; level: number; rarity: number } {
+  for (const tier of allPossibleTiers) {
+    const t = tier as unknown as {
+      afx_id: number;
+      afx_level: number;
+      afx_type: number;
+      tier_number: number;
+      family: { name: string };
+      effects?: { afx_rarity: number }[];
+    };
+    if (t.afx_type === ei.ArtifactSpec.Type.STONE && `T${t.tier_number} ${t.family.name}` === label)
+      return { name: t.afx_id, level: t.afx_level, rarity: 0 };
+    for (const e of t.effects ?? [])
+      if (`T${t.tier_number}${RARITY_LETTERS[e.afx_rarity]} ${t.family.name}` === label)
+        return { name: t.afx_id, level: t.afx_level, rarity: e.afx_rarity };
+  }
+  throw new Error(`unknown artifact or stone: ${label}`);
+}
+
+function putCombo(backup: VirtueAfxBackup, combo: GearCombo): void {
+  const db = backup?.artifactsDb?.virtueAfxDb;
+  if (!db) throw new Error('--combo: the save has no virtue artifacts to replace');
+  const items: unknown[] = [];
+  let id = 920000000;
+  // The CSV's inventory line leaves out some lower-tier artifacts the account was wearing (a T3L
+  // Tungsten ankh on four accounts); anything worn in a recorded set is owned, so it is added.
+  const owned = new Set(combo.inventory.artifacts);
+  for (const worn of [...combo.earnings, ...combo.delivery]) owned.add(worn.replace(/ \[.*$/, ''));
+  for (const label of owned)
+    items.push({ itemId: id++, artifact: { spec: { ...specOf(label), egg: 1000 } }, quantity: 1, serverId: '' });
+  for (const part of combo.inventory.stones
+    .split(',')
+    .map(x => x.trim())
+    .filter(Boolean)) {
+    const m = /^(\d+)x (.+)$/.exec(part);
+    if (!m) throw new Error(`stone count not understood: ${part}`);
+    items.push({
+      itemId: id++,
+      artifact: { spec: { ...specOf(m[2]), egg: 1000 } },
+      quantity: Number(m[1]),
+      serverId: '',
+    });
+  }
+  db.inventoryItems = items;
+}
+
 async function loadInputs(file: string): Promise<SearchInputs> {
   const backup = JSON.parse(readFileSync(file, 'utf8'));
   if (has('reference')) addReferenceGear(backup);
+  const combo = comboFromArgs();
+  if (combo) putCombo(backup, combo);
   resolveColleggtibleContracts(backup);
   await initPlanFuture('file', markRaw(backup));
   return useChainSearchStore().collectInputs();
@@ -1146,6 +1224,73 @@ async function main(): Promise<void> {
       const diff = gearChanges(stamp!, other!);
       console.log(`--compare save: ${diff.length ? 'differs in ' + diff.join(', ') : 'matches'}`);
     }
+    return;
+  }
+  if (has('gear-check') || has('gear-name')) {
+    // A board gear combination (--combos FILE --combo NAME) put on the maxed base: what the optimizer
+    // picks from it, against what the board recorded; and the file name its table goes under. Needs
+    // the maxed table's directory (--table) for the waiting research the name is worked out at.
+    const combo = comboFromArgs();
+    const dir = arg('table');
+    if (!combo || !dir) throw new Error('--gear-check/--gear-name need --combos FILE --combo NAME --table MAXED_DIR');
+    const refK3 = JSON.parse(readFileSync(`${dir}/k3.json`, 'utf8')) as NonNullable<TableHeader['k3']>;
+    const inputs = await loadInputs(arg('backup')!);
+    // Before anything else touches the save (getOptimalELRSet's per-save structure cache).
+    const k = instantDeliveryScale(inputs, refK3);
+    const inv = useChainSearchStore().readInventory();
+    const stamp = gearStamp(inputs, inv.earnings, refK3.research)!;
+    if (has('gear-name')) return console.log(await gearTableName(stamp));
+    if (has('debug'))
+      console.log('inventory as read:', JSON.stringify({ artifacts: inv.artifacts, stones: inv.stones }));
+    const label = (sl: { artifact: string; stones: string[] }) =>
+      `${sl.artifact} [${sl.stones.map(x => x.replace(/ stone$/, '')).join(', ')}]`;
+    const mineE = stamp.earnings.map(label).sort();
+    const boardE = [...combo.earnings].sort();
+    const same = JSON.stringify(mineE) === JSON.stringify(boardE);
+    console.log(
+      `earnings set: ${same ? 'MATCHES the board' : 'DIFFERS'}\n  picked ${mineE.join(' | ')}\n  board  ${boardE.join(' | ')}`
+    );
+    const art = (xs: string[]) => xs.map(x => x.replace(/ \[.*$/, '')).sort();
+    const mineD = art(stamp.deliveryFull.map(label));
+    const boardD = art(combo.delivery);
+    console.log(
+      `delivery artifacts at full research: ${JSON.stringify(mineD) === JSON.stringify(boardD) ? 'MATCH the board' : 'DIFFER'}\n  picked ${stamp.deliveryFull.map(label).join(' | ')}\n  board  ${combo.delivery.join(' | ')} (at that run's research)`
+    );
+    // The rate the simulator's own build waits at (its K3 set), against the maxed table's: what the
+    // table's peaks will be, and what the analyst's k was measured from.
+    const own = k3Of(inputs);
+    const rateAt = (set: EngineState['artifactLoadout']) =>
+      computeRealisticELR(
+        refK3.research,
+        calculateArtifactModifiers(set),
+        inputs.context.epicResearchLevels,
+        inputs.context.colleggtibleModifiers
+      ).effectiveRate;
+    const kSim = rateAt(own.delivery) / rateAt(refK3.delivery as EngineState['artifactLoadout']);
+    console.log(`build's own waiting set: ${describeLoadoutSlots(own.delivery).map(label).join(' | ')}`);
+    console.log(`  simulator k ${kSim.toFixed(4)}`);
+    const cte = inv.earnings ? cteFromArtifacts(equippedArtifactsToLibArtifacts(inv.earnings)) : 0;
+    console.log(`earnings set's Clothed TE bonus: ${cte.toFixed(2)}`);
+    const boardSet = slotsFromLabels(
+      combo.delivery.map(l => {
+        const [artifact, rest] = l.split(' [');
+        return {
+          artifact,
+          stones: rest
+            .replace(/\]$/, '')
+            .split(', ')
+            .filter(Boolean)
+            .map(x => x + ' stone'),
+        };
+      })
+    ) as EngineState['artifactLoadout'];
+    console.log(
+      `  the board's recorded set at full research: k ${(rateAt(boardSet) / rateAt(refK3.delivery as EngineState['artifactLoadout'])).toFixed(4)}`
+    );
+    const kb = combo.delivery_k_full_research;
+    console.log(
+      `full-research delivery k: picked ${k.toFixed(4)}, board ${kb ?? 'unknown'}${kb ? ` (diff ${(k - kb).toFixed(4)})` : ''}`
+    );
     return;
   }
   if (has('table-name')) {
