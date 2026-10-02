@@ -313,11 +313,11 @@ async function run(): Promise<void> {
     const h = await p.header(TABLE_URL);
     if (id !== runs) return;
     header.value = h;
-    // Every TE from the player's up is needed; a table still being built covers only the top.
+    // Every TE from the player's up is needed, and the table starts where virtue players are.
     if (te < h.from) {
       result.value = null;
       status.value = 'error';
-      errorText.value = `The table is still being built, from the top down: it starts at TE ${h.from} so far, and your route starts at ${te}. It fills in over the next day; the searches below work as always.`;
+      errorText.value = `The table starts at TE ${h.from} and your route starts at ${te}, so there is no instant answer yet. The searches below work as always.`;
       return;
     }
     const inputs = store.collectInputs();

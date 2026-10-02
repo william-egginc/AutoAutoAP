@@ -14,6 +14,6 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 export default {
-  reloadIfBuiltBefore: '2026-09-30T20:12:00Z',
-  note: 'Instant answers on Fastest route and on Highest TE by a date, Egg Day included, from a table of ascensions simulated ahead of time. The table is still being built from the top down',
+  reloadIfBuiltBefore: '2026-10-02T01:32:00Z',
+  note: 'Instant answers now cover every TE from 120. Below TE 340 they can run a few percent fast for weaker gear, so Check exactly gives your own times. A start late in the sale no longer waits a week',
 };
