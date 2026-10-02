@@ -110,3 +110,40 @@ export function readTable(buffer: ArrayBuffer): Table {
     },
   };
 }
+
+/**
+ * A gear table below a start TE and the maxed table from it, as one table (a board gear
+ * combination's table covers the TEs where gear shows, below 340; from there the maxed table at the
+ * player's delivery rate is exact). Named by one url string so the worker protocol carries it as any
+ * table: `LOW_URL|HIGH_URL|SPLIT|SCALE`.
+ */
+export function compositeUrl(low: string, high: string, split: number, scale: number): string {
+  return [low, high, split, scale].join('|');
+}
+
+export function parseCompositeUrl(url: string): { low: string; high: string; split: number; scale: number } | null {
+  const parts = url.split('|');
+  if (parts.length !== 4) return null;
+  return { low: parts[0], high: parts[1], split: Number(parts[2]), scale: Number(parts[3]) };
+}
+
+/** The two as one: the low table's rows below `split`, the high table's from it with their peak
+ *  delivery rate scaled to the player's (so the route search runs at a scale of 1). */
+export function compositeTable(low: Table, high: Table, split: number, scale: number): Table {
+  const scaled = new Map<number, BuildParams[]>();
+  return {
+    header: { ...low.header, to: high.header.to, k3: high.header.k3 },
+    lookup(te, hour) {
+      if (te < split) return low.lookup(te, hour);
+      const raw = high.lookup(te, hour);
+      if (!raw || scale === 1) return raw;
+      const key = te * WEEK_HOURS + hour;
+      let hit = scaled.get(key);
+      if (!hit) {
+        hit = raw.map(b => ({ ...b, peakELR: b.peakELR * scale }));
+        scaled.set(key, hit);
+      }
+      return hit;
+    },
+  };
+}

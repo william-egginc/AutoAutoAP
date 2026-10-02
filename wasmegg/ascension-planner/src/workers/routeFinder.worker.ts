@@ -6,7 +6,7 @@
  * The table (search/precomputedTable.ts) is fetched here on the first request and kept for the
  * worker's life, so a second search (another start time, another target) costs no download.
  */
-import { readTable, type Table } from '@/search/precomputedTable';
+import { compositeTable, parseCompositeUrl, readTable, type Table } from '@/search/precomputedTable';
 import { expandArrivals, firstLegOptions } from '@/search/routeFinder';
 import type { TailSweep } from '@/search/precomputedLeg';
 import type { RouteWorkerRequest, RouteWorkerResponse } from './routeFinder.protocol';
@@ -19,17 +19,27 @@ let cacheKey = '';
 let table: Promise<Table> | null = null;
 let tableUrl = '';
 
+function fetchTable(url: string): Promise<Table> {
+  // Revalidated, not taken from cache: the table grows while it is being built.
+  return fetch(url, { cache: 'no-cache' }).then(async res => {
+    // The preview server answers a missing file with the app's own page, status 200.
+    if (!res.ok || /text\/html/.test(res.headers.get('content-type') ?? '')) {
+      throw new Error(`the precomputed table could not be loaded (${res.ok ? 404 : res.status})`);
+    }
+    return readTable(await res.arrayBuffer());
+  });
+}
+
 function load(url: string): Promise<Table> {
   if (!table || tableUrl !== url) {
     tableUrl = url;
-    // Revalidated, not taken from cache: the table grows while it is being built.
-    table = fetch(url, { cache: 'no-cache' }).then(async res => {
-      // The preview server answers a missing file with the app's own page, status 200.
-      if (!res.ok || /text\/html/.test(res.headers.get('content-type') ?? '')) {
-        throw new Error(`the precomputed table could not be loaded (${res.ok ? 404 : res.status})`);
-      }
-      return readTable(await res.arrayBuffer());
-    });
+    // A gear table below a TE and the maxed one from it (precomputedTable.ts compositeUrl).
+    const c = parseCompositeUrl(url);
+    table = c
+      ? Promise.all([fetchTable(c.low), fetchTable(c.high)]).then(([low, high]) =>
+          compositeTable(low, high, c.split, c.scale)
+        )
+      : fetchTable(url);
     // A failed load is retried on the next request rather than remembered.
     table.catch(() => (table = null));
   }

@@ -1293,6 +1293,50 @@ async function main(): Promise<void> {
     );
     return;
   }
+  if (has('compare-high')) {
+    // Is "the maxed table at the player's delivery rate" exact for a gear above the gear tables' top?
+    // Real cells built with this gear (--combos/--combo on --backup) against the maxed table's same
+    // cells scaled by the page's own k (search/leg.ts instantDeliveryScale): the peak's ratio, and per
+    // cell the worst difference in the time to any checkpoint and whether the fastest build changes.
+    const dir = arg('table');
+    if (!dir) throw new Error('--compare-high needs --table MAXED_DIR');
+    const maxed = loadTable(dir);
+    const refK3 = JSON.parse(readFileSync(`${dir}/k3.json`, 'utf8')) as NonNullable<TableHeader['k3']>;
+    const inputs = await loadInputs(arg('backup')!);
+    const k = instantDeliveryScale(inputs, refK3);
+    const tes = (arg('tes') ?? '340,380,440,489').split(',').map(Number);
+    const hours = (arg('hours') ?? '0,83,128').split(',').map(Number);
+    let worst = 0;
+    let variantChanges = 0;
+    let compared = 0;
+    const ratios: number[] = [];
+    for (const te of tes) {
+      for (const h of hours) {
+        const start = REFERENCE_WEEK + h * 3600;
+        const build = buildAt(inputs, startStateAt(inputs, te), start, te);
+        const mine = build.variants.map(v => paramsOf(build, v, start));
+        const ref = (maxed.lookup(te, h) ?? []).map(b => ({ ...b, peakELR: b.peakELR * k }));
+        if (!ref.length) continue;
+        ratios.push(Math.max(...mine.map(b => b.peakELR)) / Math.max(...ref.map(b => b.peakELR / k)));
+        let cellWorst = 0;
+        for (let target = te + 1; target <= 490; target++) {
+          const a = bestTailTo(mine, target);
+          const b = bestTailTo(ref, target);
+          if (!a || !b) continue;
+          compared++;
+          cellWorst = Math.max(cellWorst, Math.abs(a.seconds - b.seconds) / a.seconds);
+          if (a.build.sales !== b.build.sales || a.build.tier13 !== b.build.tier13) variantChanges++;
+        }
+        worst = Math.max(worst, cellWorst);
+        console.log(`  TE ${te} hour ${h}: worst ${(cellWorst * 100).toFixed(3)}%`);
+      }
+    }
+    console.log(
+      `k ${k.toFixed(4)}; own peak / maxed peak ${Math.min(...ratios).toFixed(4)}-${Math.max(...ratios).toFixed(4)}; ` +
+        `${compared} checkpoints: worst ${(worst * 100).toFixed(3)}%, fastest build changed on ${variantChanges}`
+    );
+    return;
+  }
   if (has('table-name')) {
     // The file name an account's own table is served under (search/tableGear.ts); the id stays here.
     const id = (JSON.parse(readFileSync(arg('backup')!, 'utf8')) as { eiUserId?: string }).eiUserId;

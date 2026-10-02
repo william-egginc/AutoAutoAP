@@ -248,7 +248,14 @@
 
       <details class="text-[11px] text-slate-500">
         <summary class="cursor-pointer font-bold text-slate-600">How this is worked out</summary>
-        <p v-if="own" class="mt-1 leading-relaxed">
+        <p v-if="gearTable" class="mt-1 leading-relaxed">
+          Below TE {{ GEAR_TABLE_TO }} this table was built on gear exactly like yours (the same earnings and delivery
+          sets from the same artifacts and stones, epic research and colleggtibles maxed), so those ascensions match the
+          full simulator for you. From TE {{ GEAR_TABLE_TO }} up it uses the maxed table at your own delivery rate,
+          which is exact there for any gear on the board. Each fresh ascension starts on the hour, where the table was
+          simulated.
+        </p>
+        <p v-else-if="own" class="mt-1 leading-relaxed">
           This table was built on your own account: your earnings and delivery sets, epic research and colleggtibles as
           your save has them now (Clothed TE bonus {{ header?.cteBonus }}). Each of its ascensions is the simulator's
           own build, and the waiting after it is the simulator's own arithmetic, so a route here matches the full
@@ -285,7 +292,8 @@ import { findRoutes, type Route } from '@/search/routeFinder';
 import { describeColleggtibles } from '@/search/progression';
 import { poolSize, RoutePool } from '@/search/routePool';
 import { createChainSearchPool, type ChainSearchPool, type EvaluateOptions } from '@/search/pool';
-import { gearChanges, gearStamp, tableName } from '@/search/tableGear';
+import { gearChanges, gearStamp, gearTableName, tableName } from '@/search/tableGear';
+import { compositeUrl, parseCompositeUrl } from '@/search/precomputedTable';
 import type { TableHeader } from '@/search/precomputedTable';
 
 const props = defineProps<{
@@ -300,8 +308,14 @@ const TABLE_URL = `${import.meta.env.BASE_URL}precompute/table.bin`;
 
 /** The table the answer came from: the player's own (search/tableGear.ts) or the maxed one. */
 const tableUrl = ref(TABLE_URL);
-/** Built on this player's gear: no adjustment, and none of the maxed table's caveats. */
+/** Built on this player's gear (their own table, or a board gear combination's exactly like theirs):
+ *  no adjustment, and none of the maxed table's caveats. */
 const own = computed(() => tableUrl.value !== TABLE_URL);
+/** A gear combination's table below GEAR_TABLE_TO, the maxed one from it. */
+const gearTable = computed(() => !!parseCompositeUrl(tableUrl.value));
+/** Where gear tables end and the maxed table takes over: from there it is exact for any gear on the
+ *  board (the collector analyst, 1 Oct, B2). */
+const GEAR_TABLE_TO = 340;
 /** What changed since the player's own table was made, when it no longer fits their save. */
 const ownChanged = ref('');
 
@@ -438,6 +452,23 @@ async function run(): Promise<void> {
       }
     }
     h ??= await p.header(TABLE_URL);
+    // No table of their own: one built on a board gear combination exactly like theirs, if there is
+    // one (search/tableGear.ts gearTableName), below GEAR_TABLE_TO; the maxed one from there.
+    if (url === TABLE_URL && h.k3) {
+      const stamp = gearStamp(store.collectInputs(), store.readInventory().earnings, h.k3.research);
+      if (stamp) {
+        const gearUrl = `${import.meta.env.BASE_URL}precompute/${await gearTableName(stamp)}`;
+        const scale = instantDeliveryScale(store.collectInputs(), h.k3);
+        const both = compositeUrl(gearUrl, TABLE_URL, GEAR_TABLE_TO, scale);
+        try {
+          h = await p.header(both);
+          url = both;
+        } catch {
+          // No table for this gear (the usual case): the maxed one.
+          h = await p.header(TABLE_URL);
+        }
+      }
+    }
     if (id !== runs) return;
     header.value = h;
     tableUrl.value = url;
