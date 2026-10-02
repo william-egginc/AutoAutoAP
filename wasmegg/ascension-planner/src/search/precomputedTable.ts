@@ -9,6 +9,7 @@
  * a count rounded to just under its threshold would lose a whole TE.
  */
 import { EGG_ORDER, WEEK_HOURS, type BuildParams } from './precomputedLeg';
+import type { TableGear } from './tableGear';
 
 const FIELDS = 9;
 
@@ -29,6 +30,9 @@ export interface TableHeader {
   /** Rows below what was generated filled from the nearest real ones (--pack --fake-below), for
    *  trying the page while the table is built. Never a real answer; the page says so. */
   fake?: boolean;
+  /** An account's own table: the gear it was built on (search/tableGear.ts). The page uses it only
+   *  for a save whose stamp matches. Absent on the maxed reference table. */
+  gear?: TableGear;
 }
 
 export interface Table {

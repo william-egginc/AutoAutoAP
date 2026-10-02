@@ -45,6 +45,9 @@
  *                    Record, beside the table, the research levels and delivery set a build waits
  *                    with (DIR/k3.json): the site compares a player's peak delivery rate with the
  *                    table's at that research, with the simulator's own rate function.
+ *   --table-name --backup FILE
+ *                    The file name the save's own table is served under (public/precompute/NAME): a slow
+ *                    hash of the player id (search/tableGear.ts), never the id.
  *   --pack --table DIR --out FILE [--fake-below TE]
  *                    Pack a generated table into the one file the site loads
  *                    (search/precomputedTable.ts), covering the start TEs finished so far.
@@ -106,6 +109,7 @@ import {
 import { expandArrivals, findRoutes, firstLegOptions, nextHour, priceLeg, type Route } from '@/search/routeFinder';
 import { splitByWork } from '@/search/routePool';
 import { packTable, readTable, type TableHeader } from '@/search/precomputedTable';
+import { gearStamp, tableName } from '@/search/tableGear';
 import { deliveryScore } from '@/search/virtueScore';
 import { describeLoadoutSlots } from '@/search/csv';
 import { cteFromArtifacts } from 'lib/virtue';
@@ -393,9 +397,13 @@ async function generate(file: string): Promise<void> {
   const to = Number(arg('to', String(TABLE_TO)));
   const jobs = Math.max(1, Number(arg('jobs', '4')));
 
-  // What the table was built on, written first so a half-built table still says what it is.
+  // What the table was built on, written first so a half-built table still says what it is: for an
+  // account's own table (no --reference) also its gear stamp (search/tableGear.ts), which the page
+  // checks a save against before it uses the table, and the waiting research (k3.json).
   const inputs = await loadInputs(file);
   const inv = useChainSearchStore().readInventory();
+  const k3 = k3Of(inputs);
+  writeFileSync(`${out}/k3.json`, JSON.stringify(k3, null, 1));
   writeFileSync(
     `${out}/meta.json`,
     JSON.stringify(
@@ -410,6 +418,7 @@ async function generate(file: string): Promise<void> {
         delivery: describeLoadoutSlots(inv.elr),
         earnings: describeLoadoutSlots(inv.earnings),
         eggOrder: EGG_ORDER,
+        gear: has('reference') ? null : gearStamp(inputs, inv.earnings, k3.research),
         from,
         to,
         builtAt: new Date().toISOString(),
@@ -726,18 +735,22 @@ function gridError(): void {
   }
 }
 
+/** The research a build waits with, and the delivery set it waits in, for this account: from a start
+ *  in the upper middle at the reference week's first hour, where research is the build's full
+ *  complement, which is what every later ascension waits with. */
+function k3Of(inputs: SearchInputs): { research: Record<string, number>; delivery: EngineState['artifactLoadout'] } {
+  const te = 400;
+  const start = REFERENCE_WEEK;
+  const build = buildAt(inputs, startStateAt(inputs, te), start, te);
+  const { k3 } = k3StateOf(build, build.variants[0]);
+  return { research: k3.researchLevels as Record<string, number>, delivery: k3.artifactLoadout };
+}
+
 async function recordK3(file: string): Promise<void> {
   const dir = arg('table');
   if (!dir) throw new Error('--k3 needs --table DIR');
   const inputs = await loadInputs(file);
-  // A start in the upper middle, at the reference week's first hour: research there is the build's
-  // full complement, which is what every later ascension waits with.
-  const te = 400;
-  const start = REFERENCE_WEEK;
-  const state = startStateAt(inputs, te);
-  const build = buildAt(inputs, state, start, te);
-  const { k3 } = k3StateOf(build, build.variants[0]);
-  const out = { research: k3.researchLevels, delivery: k3.artifactLoadout };
+  const out = k3Of(inputs);
   writeFileSync(`${dir}/k3.json`, JSON.stringify(out, null, 1));
   const peak = computeRealisticELR(
     out.research,
@@ -824,6 +837,7 @@ function pack(): void {
       to: tes[tes.length - 1],
       builtAt: meta.builtAt,
       ...(fakeBelow !== null ? { fake: true } : {}),
+      ...(meta.gear ? { gear: meta.gear } : {}),
       ...(existsSync(`${dir}/k3.json`) ? { k3: JSON.parse(readFileSync(`${dir}/k3.json`, 'utf8')) } : {}),
     },
     cells
@@ -1110,6 +1124,12 @@ async function profile(file: string): Promise<void> {
 
 async function main(): Promise<void> {
   if (has('pack')) return pack();
+  if (has('table-name')) {
+    // The file name an account's own table is served under (search/tableGear.ts); the id stays here.
+    const id = (JSON.parse(readFileSync(arg('backup')!, 'utf8')) as { eiUserId?: string }).eiUserId;
+    if (!id) throw new Error('--table-name: the save has no player id');
+    return console.log(await tableName(id));
+  }
   if (has('grid-error')) return gridError();
   if (arg('route-bin')) return routeBin();
   const backup = arg('backup');
