@@ -14,6 +14,6 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 export default {
-  reloadIfBuiltBefore: '2026-10-02T01:32:00Z',
-  note: 'Instant answers now cover every TE from 120. Below TE 340 they can run a few percent fast for weaker gear, so Check exactly gives your own times. A start late in the sale no longer waits a week',
+  reloadIfBuiltBefore: '2026-10-02T15:05:00Z',
+  note: 'Instant answers now check their routes on your own account with the full simulator and lead with what that finds, and use a table built on your own gear when there is one',
 };
