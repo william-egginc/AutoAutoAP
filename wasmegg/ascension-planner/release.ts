@@ -14,6 +14,6 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 export default {
-  reloadIfBuiltBefore: '2026-10-02T15:05:00Z',
-  note: 'Instant answers now check their routes on your own account with the full simulator and lead with what that finds, and use a table built on your own gear when there is one',
+  reloadIfBuiltBefore: '2026-10-02T20:31:00Z',
+  note: 'Highest TE by a date now shows a row per number of ascensions with your exact spare time, tight ones marked. Your last checked answer shows at once next visit, then is checked again',
 };
