@@ -15,5 +15,5 @@
  */
 export default {
   reloadIfBuiltBefore: '2026-09-30T20:12:00Z',
-  note: 'A Smart search you stop now keeps the fastest route it had already priced, and the Full sweep progress bar no longer counts a finished batch twice',
+  note: 'An optional note on each run (what you were trying or testing), kept with the run and its CSV and shown on the board',
 };
