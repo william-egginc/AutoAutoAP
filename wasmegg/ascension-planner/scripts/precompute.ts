@@ -1170,7 +1170,7 @@ async function delayScan(file: string): Promise<void> {
     maxContinueSeconds: inputs.continueMaxSeconds ?? CONTINUE_MAX_SECONDS,
   });
   // Each leg's end: time, TE, eggs and the rate the farm lays at afterwards.
-  type End = { end: number; te: number; eggs: number[]; peak: number };
+  type End = { start?: number; end: number; te: number; eggs: number[]; peak: number; first?: string };
   const priceRest = (from: End, targets: number[]): number | null => {
     let t = from.end;
     let cur = from.te;
@@ -1192,11 +1192,18 @@ async function delayScan(file: string): Promise<void> {
       f.label === 'continue'
         ? cont!.peakELR
         : (priceLeg(table.lookup, te, start, firstLegs.length ? f.delivered : [], chain[0], 1)?.build.peakELR ?? 0);
-    ends.push({ end: f.end, te: f.endTE, eggs: f.delivered, peak });
+    ends.push({
+      start: f.label === 'continue' ? start : nextHour(start),
+      end: f.end,
+      te: f.endTE,
+      eggs: f.delivered,
+      peak,
+      first: f.label,
+    });
     for (const target of chain.slice(1)) {
       const prev = ends[ends.length - 1];
       const p = priceLeg(table.lookup, prev.te, prev.end, prev.eggs, target, 1)!;
-      ends.push({ end: p.end, te: p.endTE, eggs: p.delivered, peak: p.build.peakELR });
+      ends.push({ start: p.start, end: p.end, te: p.endTE, eggs: p.delivered, peak: p.build.peakELR });
     }
   }
   const base = ends[ends.length - 1].end;
@@ -1255,11 +1262,21 @@ async function delayScan(file: string): Promise<void> {
     let state = JSON.parse(JSON.stringify(inputs.baseState)) as EngineState;
     let t = start;
     let cur = te;
+    // --as-check: the start rules of --route --check (a fresh first leg on the hour, continue only
+    // when the route continues, a leg the table starts off the hour at once).
+    const asCheck = has('as-check');
     for (const [i, target] of chain.entries()) {
-      if (i > 0) t = nextHour(t);
+      const continues = i === 0 && ends[0].first === 'continue';
+      const offHour = (ends[i].start ?? 0) % 3600 !== 0;
+      if (asCheck ? !continues && !offHour : i > 0) t = nextHour(t);
       const endAt = i === vi ? ends[i].end + vh * 3600 : undefined;
-      const leg = runLeg(inputs, state, t, target, i === 0, cur, i + 2, endAt);
+      const leg = runLeg(inputs, state, t, target, asCheck ? continues : i === 0, cur, i + 2, endAt);
       if (!leg) return console.log('  simulator: failed at ' + target);
+      if (has('legs'))
+        console.log(
+          `    leg ${i + 1} to ${target} [${leg.key}]: sim ${when(t)} -> ${when(t + leg.summary.totalDurationSeconds)}` +
+            ` | table ${when(ends[i].start ?? 0)} -> ${when(ends[i].end)}`
+        );
       t += leg.summary.totalDurationSeconds;
       cur = Object.values(leg.summary.finalTE).reduce((a, b) => a + b, 0);
       state = leg.nextState;
