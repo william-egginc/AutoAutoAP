@@ -1147,6 +1147,18 @@ async function profile(file: string): Promise<void> {
  * route finder for each checkpoint's N best delays. --verify I,D prices the route with the simulator,
  * the I-th ascension ending D hours after its checkpoint (runLeg's end override).
  */
+const zoned = (u: number, zone: string): string =>
+  new Intl.DateTimeFormat('en-US', {
+    timeZone: zone,
+    weekday: 'short',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(new Date(u * 1000));
+
 async function delayScan(file: string): Promise<void> {
   const dir = arg('table');
   if (!dir) throw new Error("--delay-scan needs --table DIR (the player's own table) and --chain");
@@ -1278,7 +1290,9 @@ async function delayScan(file: string): Promise<void> {
       if (has('legs'))
         console.log(
           `    leg ${i + 1} to ${target} [${leg.key}]: sim ${when(t)} -> ${when(t + leg.summary.totalDurationSeconds)}` +
-            ` | table ${when(ends[i].start ?? 0)} -> ${when(ends[i].end)}`
+            ` | table ${when(ends[i].start ?? 0)} -> ${when(ends[i].end)}` +
+            ` | TE ${cur} -> ${Object.values(leg.summary.finalTE).reduce((a, b) => a + b, 0)}` +
+            ` | ends ${zoned(t + leg.summary.totalDurationSeconds, 'America/Denver')} MT, ${zoned(t + leg.summary.totalDurationSeconds, 'America/Los_Angeles')} PT`
         );
       t += leg.summary.totalDurationSeconds;
       cur = Object.values(leg.summary.finalTE).reduce((a, b) => a + b, 0);
@@ -1287,6 +1301,242 @@ async function delayScan(file: string): Promise<void> {
     console.log(
       `  simulator, ascension ${vi + 1} ending ${vh} h after its checkpoint: ${d(t - start)} d, finish ${when(t)} UTC`
     );
+  }
+}
+
+/**
+ * --wait-policy: Allan's "wait to Thu/Fri before prestiging", as a policy at every ascension. Each
+ * ascension, once it has passed its checkpoint, keeps laying (the build's peak rate on its last
+ * egg) until an hour of a later Thursday or Friday (Pacific) and ascends then, with the eggs and TE
+ * gained meanwhile. A table search over route and prestige hour (--weeks N windows ahead, --reach R
+ * checkpoints ahead), then the simulator for the best --top chains: each ascension ended by an end
+ * override at its prestige hour (AAP's end date), the last one to 490 by goal.
+ */
+async function waitPolicy(file: string): Promise<void> {
+  const dir = arg('table');
+  if (!dir) throw new Error('--wait-policy needs --table DIR');
+  const table = loadTable(dir);
+  const inputs = await loadInputs(file);
+  const te0 = Math.floor(inputs.currentTE);
+  const start = arg('start') ? Math.floor(Date.parse(arg('start')!) / 1000) : inputs.planStart;
+  const weeks = Number(arg('weeks') ?? 1);
+  const reach = Number(arg('reach') ?? 120);
+  const keep = Number(arg('keep') ?? 3);
+  const maxK = Number(arg('max-ascensions') ?? 12);
+  const H = EGG_ORDER.indexOf('humility' as never);
+  const cont = continueTailParams(inputs, start);
+  // An arrival: TE `te` reached at `t`, the farm still laying at `peak`; `slot` = the prestige hour
+  // that started the ascension (the save's own: the plan start), `atTE` the TE it started at.
+  type Arr = {
+    k: number;
+    t: number;
+    te: number;
+    eggs: number[];
+    peak: number;
+    prev: Arr | null;
+    slot: number;
+    atTE: number;
+    to: number;
+    label: string;
+  };
+  const eggs0 = EGG_ORDER.map(e => inputs.baseState.eggsDelivered?.[e] || 0);
+  const save: Arr = {
+    k: 0,
+    t: start,
+    te: te0,
+    eggs: eggs0,
+    peak: cont?.peakELR ?? 0,
+    prev: null,
+    slot: start,
+    atTE: te0,
+    to: te0,
+    label: 'save',
+  };
+  const level: Arr[][] = [[save]];
+  // The save's ascension carried on to a checkpoint (continue), then waiting like any other.
+  for (const f of firstLegOptions({
+    table: table.lookup,
+    startTE: te0,
+    start,
+    final: 490,
+    deliveryScale: 1,
+    delivered: eggs0,
+    cont,
+    forceContinue: inputs.forceContinue,
+    pinSeconds: inputs.continuePinSeconds ?? CONTINUE_PIN_MAX_SECONDS,
+    maxContinueSeconds: inputs.continueMaxSeconds ?? CONTINUE_MAX_SECONDS,
+  }))
+    if (f.label === 'continue' && f.to < 490)
+      level[0].push({
+        k: 0,
+        t: f.end,
+        te: f.endTE,
+        eggs: f.delivered,
+        peak: cont!.peakELR,
+        prev: save,
+        slot: start,
+        atTE: te0,
+        to: f.to,
+        label: 'continue',
+      });
+  // Thursday 00:00 to Saturday 00:00 Pacific: hours 72..119 of the week (Monday 0).
+  const slotsAfter = (t: number): number[] => {
+    const out: number[] = [];
+    let windows = 0;
+    let inside = false;
+    for (let h = nextHour(t), n = 0; n < 168 * (weeks + 1); n++, h += 3600) {
+      const w = pacificHourOfWeek(h);
+      const isIn = w >= 72 && w < 120;
+      if (isIn && !inside) windows++;
+      inside = isIn;
+      if (windows > weeks) break;
+      if (isIn) out.push(h);
+    }
+    return out;
+  };
+  const finals: Arr[] = [];
+  const t0 = Date.now();
+  for (let k = 0; k < maxK; k++) {
+    const next = new Map<number, Arr[]>();
+    for (const a of level[k] ?? []) {
+      for (const s of slotsAfter(a.t)) {
+        const accrued = [...a.eggs];
+        accrued[H] = computeTEEarned(accrued[H], a.peak, s - a.t).finalEggsDelivered;
+        const te = accrued.reduce((n, x) => n + countTEThresholdsPassed(x), 0);
+        if (te >= 490) continue;
+        // One sweep per build covers every checkpoint (the prestige hour is on the hour: no late start).
+        const builds = (table.lookup(te, pacificHourOfWeek(s)) ?? []).map(b => rebase(b, te, accrued));
+        const sweeps = builds.map(b => sweepTails(b, 490, 0, te + 1));
+        for (let T = te + 1; T <= 490; T = T < Math.min(489, te + reach) ? T + 1 : 490) {
+          let pick: { j: number; i: number } | null = null;
+          for (let j = 0; j < sweeps.length; j++) {
+            const i = T - sweeps[j].from;
+            if (i < 0 || i >= sweeps[j].seconds.length || Number.isNaN(sweeps[j].seconds[i])) continue;
+            if (!pick || sweeps[j].seconds[i] < sweeps[pick.j].seconds[pick.i]) pick = { j, i };
+          }
+          const delivered = [0, 0, 0, 0, 0];
+          if (pick) sweeps[pick.j].deliveredInto(pick.i, delivered);
+          const p = pick
+            ? {
+                end: s + sweeps[pick.j].seconds[pick.i],
+                endTE: sweeps[pick.j].endTE[pick.i],
+                delivered,
+                build: builds[pick.j],
+              }
+            : null;
+          if (p) {
+            const b: Arr = {
+              k: k + 1,
+              t: p.end,
+              te: p.endTE,
+              eggs: p.delivered,
+              peak: p.build.peakELR,
+              prev: a,
+              slot: s,
+              atTE: te,
+              to: T,
+              label: `${p.build.sales}-sale${p.build.tier13 ? '-tier13' : ''}`,
+            };
+            if (T === 490) finals.push(b);
+            else {
+              // Only the earliest few per TE survive the level, so keep the list that short as it fills.
+              const list = next.get(b.te) ?? [];
+              if (list.length < keep || b.t < list[list.length - 1].t) {
+                list.push(b);
+                list.sort((x, y) => x.t - y.t);
+                if (list.length > keep) list.pop();
+                next.set(b.te, list);
+              }
+            }
+          }
+          if (T === 490) break;
+        }
+      }
+    }
+    // Per TE reached, the earliest few (an earlier arrival has the same prestige hours and more).
+    const kept: Arr[] = [];
+    for (const list of next.values()) kept.push(...list.sort((x, y) => x.t - y.t).slice(0, keep));
+    level[k + 1] = kept;
+    console.error(
+      `level ${k + 1}: ${kept.length} arrivals, ${finals.length} finishes, ${((Date.now() - t0) / 1000).toFixed(0)} s`
+    );
+  }
+  finals.sort((x, y) => x.t - y.t);
+  const tz = (u: number, zone: string) =>
+    new Intl.DateTimeFormat('en-US', {
+      timeZone: zone,
+      weekday: 'short',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(new Date(u * 1000));
+  const both = (u: number) => `${tz(u, 'America/Denver')} MT (${tz(u, 'America/Los_Angeles')} PT)`;
+  const d = (sec: number) => (sec / 86400).toFixed(3);
+  // The legs after the save: a 'continue' leg first when the save's ascension carries on.
+  const chainOf = (f: Arr): Arr[] => {
+    const out: Arr[] = [];
+    for (let x: Arr | null = f; x && x.label !== 'save'; x = x.prev) out.unshift(x);
+    return out;
+  };
+  const picks: Arr[][] = [];
+  const seen = new Set<string>();
+  for (const f of finals) {
+    const c = chainOf(f);
+    const key = c.map(x => `${x.to}@${x.slot}`).join(' ');
+    if (seen.has(key)) continue;
+    seen.add(key);
+    picks.push(c);
+    if (picks.length >= Number(arg('top') ?? 3)) break;
+  }
+  for (const [n, c] of picks.entries()) {
+    console.log(`table #${n + 1}: ${d(c[c.length - 1].t - start)} d via ${c.map(x => x.to).join(' ')}`);
+    for (const x of c)
+      console.log(`   ${x.label} to ${x.to}: from ${both(x.slot)} at TE ${x.atTE}, reaches TE ${x.te} ${both(x.t)}`);
+  }
+  if (has('no-sim')) return;
+  for (const [n, c] of picks.entries()) {
+    let state = JSON.parse(JSON.stringify(inputs.baseState)) as EngineState;
+    let t = start;
+    let cur = te0;
+    let ok = true;
+    const teOf = (leg: NonNullable<ReturnType<typeof runLeg>>) =>
+      Object.values(leg.summary.finalTE).reduce((a, b) => a + b, 0);
+    // A route that ascends straight away from the save first carries the save's farm to that hour.
+    const fresh = c[0].label !== 'continue';
+    if (fresh && c[0].slot > nextHour(start)) {
+      const leg = runLeg(inputs, state, t, 490, true, cur, 2, c[0].slot);
+      if (!leg) {
+        console.log(`  simulator #${n + 1}: failed carrying on the save`);
+        continue;
+      }
+      console.log(`   sim 0: [${leg.key}] the save until ${both(c[0].slot)}: TE ${teOf(leg)}`);
+      t = c[0].slot;
+      cur = teOf(leg);
+      state = leg.nextState;
+    }
+    for (const [i, x] of c.entries()) {
+      // Each ascension ends at the next one's prestige hour (AAP's end date); the last by goal.
+      const endAt = i + 1 < c.length ? c[i + 1].slot : undefined;
+      const allow = i === 0 && !fresh;
+      if (!allow) t = Math.max(t, x.slot);
+      const leg = runLeg(inputs, state, t, x.to, allow, cur, i + 2, endAt);
+      if (!leg) {
+        console.log(`  simulator #${n + 1}: failed at ${x.to}`);
+        ok = false;
+        break;
+      }
+      const end = t + leg.summary.totalDurationSeconds;
+      console.log(
+        `   sim ${i + 1}: [${leg.key}] checkpoint ${x.to}: start ${both(t)} TE ${cur} -> end ${both(end)} TE ${teOf(leg)}`
+      );
+      t = end;
+      cur = teOf(leg);
+      state = leg.nextState;
+    }
+    if (ok) console.log(`  simulator #${n + 1}: ${d(t - start)} d, finish ${both(t)}`);
   }
 }
 
@@ -1441,6 +1691,7 @@ async function main(): Promise<void> {
   if (has('generate')) return generate(backup);
   if (has('verify-table')) return verifyTable(backup);
   if (has('delay-scan')) return delayScan(backup);
+  if (has('wait-policy')) return waitPolicy(backup);
   if (has('verify-cells')) return verifyCells(backup);
   if (has('route')) return route(backup);
   if (has('profile')) return profile(backup);
