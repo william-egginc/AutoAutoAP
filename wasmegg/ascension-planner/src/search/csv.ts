@@ -49,6 +49,9 @@ export interface CsvMeta {
   /** Time off from the virtue farm the plan was built around (search/timeOff.ts). */
   timeOff?: TimeOffDates[];
   seedChain: number[];
+  /** The player's note on the run. Printed on one line whatever it holds (line breaks would end the
+   *  comment and start a data row). */
+  runNote?: string;
   /** Named artifact/stone sets, in the order they should appear. */
   loadouts: { label: string; loadout: EquippedArtifact[] | null }[];
   /** Everything in the VIRTUE inventory, already summarised. This is the honest answer to "what
@@ -382,6 +385,9 @@ export function* chainsCsvChunks(entries: CacheEntry[], meta: CsvMeta): Generato
   note(`available ${describeAvailability(meta.availability)}`);
   if (meta.timeOff?.length) note(`time off from virtue: ${describeTimeOff(meta.timeOff)} (each ends the ascension in progress; a rebuild follows)`);
   note(`seed chain ${meta.seedChain.join(' ')}`);
+  // eslint-disable-next-line no-control-regex
+  const runNote = meta.runNote?.replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, ' ').trim();
+  if (runNote) note(`note: ${runNote}`);
   note(`chains priced ${entries.length}`);
   note('');
   note('artifacts and stones — fixed for the whole run, never varied by the search.');

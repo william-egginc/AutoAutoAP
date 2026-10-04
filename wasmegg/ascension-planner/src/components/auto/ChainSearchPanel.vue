@@ -749,6 +749,7 @@
         >), or tick "Find a starting chain for me".
       </div>
 
+      <RunNoteBox v-model="store.runNote" :disabled="store.isRunning" class="text-[11px] text-slate-700" />
       <!-- Submit on finish. Consent given BEFORE the run, where the player is, instead of after it at
            the bottom of a page they may have walked away from. A run that is stopped early, fails,
            or finds nothing sends nothing. -->
@@ -1685,6 +1686,7 @@
 </template>
 
 <script setup lang="ts">
+import RunNoteBox from './RunNoteBox.vue';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useEidsStore } from 'lib';
 import { useChainSearchStore } from '@/stores/chainSearch';

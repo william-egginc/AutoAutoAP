@@ -157,6 +157,7 @@
             @input="nicknameTouched = true"
           />
         </div>
+        <RunNoteBox v-model="store.runNote" :disabled="store.isRunning" class="pl-6 text-[11px] text-slate-700" />
 
         <IntegrityNotice />
         <p
@@ -1332,6 +1333,7 @@
             back for you.
           </span>
         </div>
+        <RunNoteBox v-model="store.runNote" :disabled="store.isRunning" class="text-[11px] text-slate-700" />
         <div class="flex flex-wrap gap-3">
           <button
             class="btn-premium btn-primary flex-1 py-4 text-sm shadow-xl shadow-rose-500/20 active:scale-[0.98]"
@@ -1826,6 +1828,7 @@
 </template>
 
 <script setup lang="ts">
+import RunNoteBox from './RunNoteBox.vue';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { sentence } from '@/utils/errors';

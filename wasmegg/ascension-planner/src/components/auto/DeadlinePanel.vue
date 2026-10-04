@@ -319,6 +319,7 @@
       >
     </div>
 
+    <RunNoteBox v-model="store.runNote" :disabled="store.deadlineRunning" class="text-[11px] text-slate-700" />
     <!-- Find and submit: the share opt-in and name, before the run, so it can send itself at the end.
          The same settings as the Share this answer box under the result. -->
     <div
@@ -624,6 +625,7 @@
 </template>
 
 <script setup lang="ts">
+import RunNoteBox from './RunNoteBox.vue';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { sentence } from '@/utils/errors';

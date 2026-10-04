@@ -15,5 +15,5 @@
  */
 export default {
   reloadIfBuiltBefore: '2026-09-30T20:12:00Z',
-  note: 'a "When should I start?" finder under Chain Search and Insane results, pending Truth Eggs counted, and a fix so another account\'s unfinished run is never offered',
+  note: 'an optional note on each run (what you were trying or testing), kept with the run and its CSV and shown on the board',
 };

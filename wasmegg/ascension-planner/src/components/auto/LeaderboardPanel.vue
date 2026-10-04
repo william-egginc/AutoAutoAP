@@ -654,6 +654,14 @@
                         <span class="block max-w-[8rem] truncate whitespace-nowrap">{{
                           line.nickname || 'anonymous'
                         }}</span>
+                        <!-- The run's note, if it has one: one capped line, the whole note in its tooltip and in
+                             the run's detail. Text interpolation, so it is always escaped. -->
+                        <span
+                          v-if="line.row.note"
+                          class="block max-w-[12rem] truncate whitespace-nowrap text-[10px] font-normal text-slate-500"
+                          :title="line.row.note"
+                          >{{ line.row.note }}</span
+                        >
                         <div v-if="narrow" class="mt-0.5 max-w-[10rem] font-normal leading-snug">
                           <span class="font-mono text-slate-600">{{ line.row.chain.join(' ') }}</span>
                           <span

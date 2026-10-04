@@ -43,6 +43,8 @@ export interface DeadlineRunSpec {
   estimate?: number;
   /** The last stop may go past its box (deadline.ts `extend`). Absent on runs saved before it. */
   extend?: boolean;
+  /** The player's note on the run (submission.ts `cleanNote`). */
+  note?: string;
 }
 
 /** The leg detail the results panel reads. The full LegSummary carries shifts and CSV detail
@@ -77,6 +79,8 @@ export interface SavedDeadlineResult {
   lastHi: number;
   /** The highest last stop the search could reach: `lastHi`, or 490 for an extended search. */
   ceiling?: number;
+  /** The run's note, from its spec. */
+  note?: string;
   at: number;
 }
 

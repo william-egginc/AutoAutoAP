@@ -196,6 +196,8 @@ export interface Submission {
   schema: number;
   /** Free text, optional, supplied by the player. Never derived from the account. */
   nickname?: string;
+  /** Free text, optional: what the player was trying or testing with this run (`cleanNote`). */
+  note?: string;
 
   chain: number[];
   ascensions: number;
@@ -549,6 +551,21 @@ export function scrubIdentifiers(text: string): string {
   return text.replace(/EI\d{16}/g, 'EI[redacted]');
 }
 
+/** Longest run note the collector stores. */
+export const MAX_NOTE = 500;
+
+/**
+ * A run note as it is kept and sent: plain text on one line (control characters, line breaks
+ * included, become spaces, so it can never end a CSV comment line), no player ids, at most
+ * `MAX_NOTE` characters. Undefined when nothing is left.
+ */
+export function cleanNote(text: string | undefined): string | undefined {
+  // eslint-disable-next-line no-control-regex
+  const one = (text ?? '').replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, ' ').trim();
+  const clean = scrubIdentifiers(one).slice(0, MAX_NOTE).trim();
+  return clean || undefined;
+}
+
 /**
  * What to tell someone the collector turned away for submitting too often (HTTP 429).
  *
@@ -670,6 +687,7 @@ export function weekdayIn(unixSeconds: number, timezone: string): string {
 
 export interface SubmissionInputs {
   nickname?: string;
+  note?: string;
   chain: number[];
   seconds: number;
   legs: LegSummary[];
@@ -813,6 +831,7 @@ export function buildSubmission(i: SubmissionInputs): Submission {
     : null;
 
   const nickname = i.nickname?.trim() ? scrubIdentifiers(i.nickname.trim()).slice(0, 40) : undefined;
+  const note = cleanNote(i.note);
 
   const startUtc = utcStamp(i.planStart);
   const endUtc = utcStamp(i.planStart + i.seconds);
@@ -828,6 +847,7 @@ export function buildSubmission(i: SubmissionInputs): Submission {
   return {
     schema: i.deadline ? DEADLINE_SUBMISSION_SCHEMA : SUBMISSION_SCHEMA,
     ...(nickname ? { nickname } : {}),
+    ...(note ? { note } : {}),
     chain: [...i.chain],
     ascensions: i.chain.length,
     durationDays: Number((i.seconds / 86400).toFixed(4)),
@@ -929,6 +949,9 @@ export function validateSubmission(value: unknown): string[] {
     problems.push('the chain must end at finalTE');
   if (s.nickname !== undefined && (typeof s.nickname !== 'string' || s.nickname.length > 40)) {
     problems.push('nickname must be a string of at most 40 characters');
+  }
+  if (s.note !== undefined && (typeof s.note !== 'string' || s.note.length > MAX_NOTE)) {
+    problems.push(`note must be a string of at most ${MAX_NOTE} characters`);
   }
   // Schema 7. Optional, so absent is fine; present and malformed is a client bug worth saying.
   if (s.rechecks !== undefined) {

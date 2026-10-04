@@ -79,6 +79,10 @@ export interface SearchCheckpoint {
    * written before this existed resumes the old way, onto a matching current save only.
    */
   inputsKey?: string;
+
+  /** The player's note on the run (submission.ts `cleanNote`), put back on carry-on. Optional and
+   *  unversioned, as `space` is. */
+  runNote?: string;
 }
 
 /**
@@ -293,6 +297,9 @@ export async function saveCheckpoint(
         // Not across searches, though: a staged record (no space) took an exhaustive one's.
         ...((record.space ?? (otherSearch ? undefined : prior.space)) ? { space: record.space ?? prior.space } : {}),
         ...((record.inputsKey ?? prior.inputsKey) ? { inputsKey: record.inputsKey ?? prior.inputsKey } : {}),
+        ...((record.runNote ?? (otherSearch ? undefined : prior.runNote))
+          ? { runNote: record.runNote ?? prior.runNote }
+          : {}),
         bestChain: priorWins ? [...prior.bestChain] : record.bestChain,
         bestSeconds: priorWins ? prior.bestSeconds : record.bestSeconds,
         bestLegs: priorWins ? prior.bestLegs : record.bestLegs,
@@ -412,6 +419,7 @@ export function buildCheckpoint(args: {
   complete?: boolean;
   space?: SearchSpace | null;
   inputsKey?: string | null;
+  runNote?: string;
 }): SearchCheckpoint {
   const bestKey = args.bestChain.join(',');
   return {
@@ -430,6 +438,7 @@ export function buildCheckpoint(args: {
     updatedAt: Date.now(),
     ...(args.space ? { space: args.space } : {}),
     ...(args.inputsKey ? { inputsKey: args.inputsKey } : {}),
+    ...(args.runNote ? { runNote: args.runNote } : {}),
   };
 }
 

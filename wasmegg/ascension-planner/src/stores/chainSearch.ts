@@ -63,6 +63,7 @@ import {
   appBuildId,
   bestPerFamily,
   buildSubmission,
+  cleanNote,
   duplicateMessage,
   keepVirtueArtifacts,
   scrubIdentifiers,
@@ -213,6 +214,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   const forceContinue = ref(true);
   /** Set when Insane mode was opened from a Chain Explorer "Run this sweep" link; see InsanePanel. */
   const sweepTag = ref<SweepTag | null>(null);
+  /** The run note box: what the player is trying or testing (optional, submission.ts `cleanNote`). */
+  const runNote = ref('');
   /** Time off from the virtue farm, as whole local dates (search/timeOff.ts). Each stretch ends the
    *  ascension in progress, and the player comes back to a complete rebuild. */
   const timeOff = ref<TimeOffDates[]>([]);
@@ -223,6 +226,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * staged result arrived on the board filed under the 2-ascension M1 preset.
    */
   let runSweepTag: SweepTag | null = null;
+  /** The note the CURRENT RESULT was run under, captured when a run starts, as `runSweepTag` is:
+   *  the box may be edited while it runs, and the CSV, the save and the send describe this run. */
+  let runNoteUsed: string | undefined;
   /** Hold the first N checkpoints fixed. Moving X1 re-simulates every downstream leg, and X1 is
    *  usually the best-validated value, so pinning it is often the right trade. */
   const pin = ref(0);
@@ -1034,6 +1040,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       // not picked back up -- which is how an interrupted overnight run became an afternoon of
       // re-pricing chains that were already sitting in the file.
       ...(searchSpace.value ? { space: searchSpace.value } : {}),
+      ...(runNoteUsed ? { runNote: runNoteUsed } : {}),
       // An opened saved run keeps ITS identity; anything else is the run that just ran.
       fingerprint: openedRun.value?.fingerprint ?? (runFingerprint || fingerprint(playerId)),
       ...((openedRun.value ? openedRun.value.inputsKey : runInputsKey)
@@ -1068,6 +1075,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // to `startExhaustive`. Absent on a staged run and on anything saved before library version 2.
     searchSpace.value = summary.space ? { ...summary.space } : null;
     runSweepTag = null;
+    runNoteUsed = summary.runNote;
+    runNote.value = summary.runNote ?? '';
     integrityWait.value = null;
     openedRun.value = summary;
     // Its own start, for "Build this plan": that pins the planner to `planStartUsed`, which still
@@ -1166,8 +1175,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    */
   async function prepareToCarryOn(
     playerId: string,
-    record: { fingerprint?: string; inputsKey?: string }
+    record: { fingerprint?: string; inputsKey?: string; runNote?: string }
   ): Promise<SearchInputs | 'current' | null> {
+    // The run's own note comes back with it (the box is what the carried-on run captures).
+    if (record.runNote !== undefined) runNote.value = record.runNote;
     partitionHash = partitionHash || (await hashID(playerId));
     // Never another account's run, whatever the player id says (see `accountOf`).
     if (await fromOtherAccount(partitionHash, record.inputsKey)) {
@@ -1949,6 +1960,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     if (!bestChain.value.length || bestDays.value <= 0) return null;
     const sub = buildSubmission({
       nickname,
+      note: runNoteUsed,
       chain: [...bestChain.value],
       seconds: bestDays.value * 86400,
       legs: bestLegs.value,
@@ -2007,6 +2019,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     if (!r || !route.chain.length || !(route.reachAt > r.planStart)) return null;
     return buildSubmission({
       nickname,
+      note: r.note,
       chain: [...route.chain],
       seconds: route.reachAt - r.planStart,
       legs: route.legs ?? [],
@@ -2729,6 +2742,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       availability: availability.value,
       timeOff: usableTimeOff(timeOff.value),
       seedChain: seedChain.value,
+      runNote: runNoteUsed,
       // The ELR set is deliberately NOT listed. `getOptimalELRSet` re-solves the structure per leg
       // against that leg's research state (up to 495 combos, and the reason it is the hotspot in
       // leg.ts), so there is no single "ELR set for the run" to report — and running the search
@@ -2764,6 +2778,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       availability: availability.value,
       timeOff: usableTimeOff(timeOff.value),
       seedChain: seedChain.value,
+      runNote: runNoteUsed,
       // The ELR set is deliberately NOT listed. `getOptimalELRSet` re-solves the structure per leg
       // against that leg's research state (up to 495 combos, and the reason it is the hotspot in
       // leg.ts), so there is no single "ELR set for the run" to report — and running the search
@@ -2828,6 +2843,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           chainsDone: chainsDone.value,
           complete,
           inputsKey: runInputsKey || null,
+          runNote: runNoteUsed,
         })
       );
     } catch (e) {
@@ -2948,6 +2964,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const chains = built.chains;
 
     runSweepTag = sweepTag.value ? { ...sweepTag.value } : null;
+    runNoteUsed = cleanNote(runNote.value);
     // Stated before a single chain is priced, so the submission says what was ASKED for even when
     // the run is stopped halfway. chainsPriced and stoppedEarly are filled in at the end.
     searchSpace.value = {
@@ -3367,6 +3384,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   }
 
   let deadlineReady: [DeadlineRunSpec, SearchInputs, string] | null = null;
+  /** The running deadline search's note, for the black box. */
+  let deadlineNote: string | undefined;
 
   async function prepareDeadline(playerId: string, spec: DeadlineRunSpec): Promise<void> {
     deadlineReady = null;
@@ -3403,7 +3422,12 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     }
     // The worker count goes in with the run, so a carry-on on a different budget still makes the
     // same guesses in the same order and replays them all.
-    deadlineReady = [{ ...spec, seedShapes: seeds, parallel: clampPoolSize(workerBudget.value) }, inputs, key];
+    const note = cleanNote(runNote.value);
+    deadlineReady = [
+      { ...spec, seedShapes: seeds, parallel: clampPoolSize(workerBudget.value), ...(note ? { note } : {}) },
+      inputs,
+      key,
+    ];
   }
 
   /** Carry on the unfinished deadline run, on the save it started with. */
@@ -3417,6 +3441,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       partitionHash = partitionHash || (await hashID(playerId));
       const cp = await loadDeadlineCheckpoint(partitionHash);
       if (!cp) return;
+      runNote.value = cp.spec.note ?? '';
       if (await fromOtherAccount(partitionHash, cp.inputsKey)) {
         error.value = `This search can't carry on: ${OTHER_ACCOUNT}.`;
         return;
@@ -3448,6 +3473,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   ): Promise<void> {
     const schedule = isConstrained(inputs.availability) ? inputs.availability : null;
     deadlineRunning.value = true;
+    deadlineNote = spec.note;
     deadlineStop = false;
     deadlineResult.value = null;
     deadlineUnfinished.value = null;
@@ -3555,6 +3581,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         ascendNeeded: spec.ascendNeeded && !!schedule,
         lastHi: spec.lastHi,
         ceiling: spec.extend ? Math.max(spec.lastHi, MAX_LAST_STOP) : spec.lastHi,
+        ...(spec.note ? { note: spec.note } : {}),
         at: Date.now(),
       };
       try {
@@ -3649,6 +3676,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const lines = [
       `# highest TE by ${formatInZone(r.deadline, tz)} (${tz}); plan start ${formatInZone(r.planStart, tz)} at ${r.te} TE`,
       `# ${r.priced} routes priced${r.stoppedEarly ? ', stopped early' : ''}${r.ascendNeeded ? '; must ascend at the last stop in awake hours' : ''}`,
+      ...(r.note ? [`# note: ${r.note}`] : []),
       'rank,route,stops,last_stop,reached_local,ascend_from_local,spare_hours',
       ...routes.map((x, i) =>
         [
@@ -3692,6 +3720,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         detail: p?.stage,
         done: (p?.priced ?? 0) + deadlineInBatch.value,
         workers: workersInPool.value,
+        ...(deadlineNote ? { runNote: deadlineNote } : {}),
       });
     } else if (isRunning.value) {
       blackBox.beat({
@@ -3701,6 +3730,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         total: chainsEstimated.value,
         workers: workersInPool.value,
         entries: liveCache.length,
+        ...(runNoteUsed ? { runNote: runNoteUsed } : {}),
       });
     }
   }
@@ -3740,6 +3770,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       {
         note: 'ascension-planner black box: what the page was doing when it stopped',
         unfinished: lastCrash.value,
+        ...(runNoteUsed ? { runNote: runNoteUsed } : {}),
         userAgent: navigator.userAgent,
         cores: machineThreads,
         workers: workerBudget.value,
@@ -3964,6 +3995,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // A staged run proves nothing over a stated space, and must not inherit the last one's.
     searchSpace.value = null;
     runSweepTag = null;
+    runNoteUsed = cleanNote(runNote.value);
     secondsPerChain.value = 0;
     rateSource.value = null;
     // A fresh run's export must not carry the previous run's rows: the settings that give every
@@ -4393,6 +4425,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     finalTE,
     forceContinue,
     sweepTag,
+    runNote,
     timeOff,
     errorBeforeStart,
     runNotes,

@@ -101,6 +101,8 @@ export interface BoardRow {
   id?: string;
   hasCsv?: boolean;
   nickname?: string;
+  /** The player's note on the run (plain text, at most 500 characters; render escaped, never as HTML). */
+  note?: string;
   chain: number[];
   ascensions?: number;
   durationDays: number;

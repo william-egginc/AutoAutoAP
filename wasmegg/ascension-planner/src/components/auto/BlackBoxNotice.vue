@@ -18,6 +18,7 @@
       <template v-if="crash.last.pageClosed"
         >The page was reloaded or closed while it was going, which ends a run.</template
       >
+      <template v-if="crash.last.runNote">Its note: {{ crash.last.runNote }}</template>
       <template v-else>The browser closed the page itself, most likely because of memory.</template>
       If a run was going, its progress is saved and it can carry on.
     </p>
