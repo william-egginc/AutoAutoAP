@@ -1307,7 +1307,7 @@ async function delayScan(file: string): Promise<void> {
 /**
  * --wait-policy: Allan's "wait to Thu/Fri before prestiging", as a policy at every ascension. Each
  * ascension, once it has passed its checkpoint, keeps laying (the build's peak rate on its last
- * egg) until an hour of a later Thursday or Friday (Pacific) and ascends then, with the eggs and TE
+ * egg) until an hour of a later Thursday or Friday (Pacific; --days for others) and ascends then, with the eggs and TE
  * gained meanwhile. A table search over route and prestige hour (--weeks N windows ahead, --reach R
  * checkpoints ahead), then the simulator for the best --top chains: each ascension ended by an end
  * override at its prestige hour (AAP's end date), the last one to 490 by goal.
@@ -1379,14 +1379,16 @@ async function waitPolicy(file: string): Promise<void> {
         to: f.to,
         label: 'continue',
       });
-  // Thursday 00:00 to Saturday 00:00 Pacific: hours 72..119 of the week (Monday 0).
+  // The prestige days, Pacific (--days Mon,Tue,...; default Thursday and Friday).
+  const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const days = new Set((arg('days') ?? 'Thu,Fri').split(',').map(x => dayNames.indexOf(x.trim())));
   const slotsAfter = (t: number): number[] => {
     const out: number[] = [];
     let windows = 0;
     let inside = false;
     for (let h = nextHour(t), n = 0; n < 168 * (weeks + 1); n++, h += 3600) {
       const w = pacificHourOfWeek(h);
-      const isIn = w >= 72 && w < 120;
+      const isIn = days.has(Math.floor(w / 24));
       if (isIn && !inside) windows++;
       inside = isIn;
       if (windows > weeks) break;
