@@ -144,6 +144,7 @@
             @input="nicknameTouched = true"
           />
         </div>
+        <RunNoteBox v-model="store.runNote" :disabled="store.isRunning" class="pl-6 text-[11px] text-slate-700" />
 
         <IntegrityNotice />
         <p
@@ -813,6 +814,7 @@
           v-model:opt-in="optIn"
           v-model:anonymous="anonymous"
           v-model:nickname="nickname"
+          v-model:note="store.runNote"
           :find-disabled="
             store.busy ||
             store.integrityBlocked ||
@@ -1197,6 +1199,7 @@ import { sentence } from '@/utils/errors';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useUIStore } from '@/stores/ui';
 import { useEidsStore } from 'lib';
+import RunNoteBox from './RunNoteBox.vue';
 import FindBar from './FindBar.vue';
 import SavedRuns from './SavedRuns.vue';
 import YourSetup from './YourSetup.vue';

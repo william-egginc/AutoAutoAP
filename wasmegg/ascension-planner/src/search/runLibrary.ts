@@ -93,6 +93,9 @@ export interface RunSummary {
   /** The stored save it was priced under (search/runSaves.ts), kept while the run is unfinished so
    *  Resume can carry on with that exact save. Optional and additive, like `space`. */
   inputsKey?: string;
+
+  /** The player's note on the run (submission.ts `cleanNote`). Optional and additive. */
+  runNote?: string;
 }
 
 /** The body, loaded only when a run is opened. */
@@ -119,6 +122,7 @@ export interface SaveRunInput {
   space?: SearchSpace;
   fingerprint?: string;
   inputsKey?: string;
+  runNote?: string;
   /** Injectable so tests are not clock-dependent. */
   now?: number;
   /** Injectable for the same reason; ids are otherwise random. */
@@ -172,6 +176,7 @@ export async function saveRun(partitionHash: string, input: SaveRunInput): Promi
     ...(input.space ? { space: input.space } : {}),
     ...(input.fingerprint ? { fingerprint: input.fingerprint } : {}),
     ...(input.inputsKey ? { inputsKey: input.inputsKey } : {}),
+    ...(input.runNote ? { runNote: input.runNote } : {}),
   };
 
   const existing = await listRuns(partitionHash);

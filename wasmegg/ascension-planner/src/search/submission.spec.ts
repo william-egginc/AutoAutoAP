@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest';
 import {
   bestPerFamily,
   buildSubmission,
+  cleanNote,
   keepVirtueStones,
   keepVirtueArtifacts,
   MAX_RECHECKS,
@@ -108,6 +109,22 @@ describe('buildSubmission', () => {
         'window',
       ].sort()
     );
+  });
+
+  it('carries a note as one line of at most 500 characters, without player ids, and omits an empty one', () => {
+    expect(buildSubmission(inputs({ note: '  trying 3 sales\non 195  ' })).note).toBe('trying 3 sales on 195');
+    expect(buildSubmission(inputs({ note: 'my alt EI1234567890123456 run' })).note).toBe('my alt EI[redacted] run');
+    expect(buildSubmission(inputs({ note: 'x'.repeat(600) })).note).toHaveLength(500);
+    expect('note' in buildSubmission(inputs({ note: ' \n ' }))).toBe(false);
+    expect('note' in buildSubmission(inputs())).toBe(false);
+    expect(cleanNote(undefined)).toBeUndefined();
+  });
+
+  it('refuses a note that is not a string or is longer than 500 characters', () => {
+    const ok = buildSubmission(inputs({ note: 'fine' }));
+    expect(validateSubmission(ok)).toEqual([]);
+    expect(validateSubmission({ ...ok, note: 'x'.repeat(501) }).join()).toMatch(/note/);
+    expect(validateSubmission({ ...ok, note: 5 as unknown as string }).join()).toMatch(/note/);
   });
 
   it('records force-continue when told it, and leaves it off for callers that do not know', () => {

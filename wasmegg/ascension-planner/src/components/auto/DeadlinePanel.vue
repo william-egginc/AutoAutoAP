@@ -394,6 +394,7 @@
       v-model:opt-in="shareOptIn"
       v-model:anonymous="shareAnonymous"
       v-model:nickname="shareName"
+      v-model:note="store.runNote"
       :find-disabled="store.busy || store.integrityBlocked || store.staleBackupBlocked || !canStart"
       :running="store.deadlineRunning"
       :stopping="stopAsked"
