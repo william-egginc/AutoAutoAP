@@ -15,5 +15,5 @@
  */
 export default {
   reloadIfBuiltBefore: '2026-10-02T20:31:00Z',
-  note: 'Instant answers are now exact for six more board gear setups (LA-166, Wolfcry1993, Zen_Ferret, iDaHooBone, wood_420, BobSkiMajoo778). Other gear uses the maxed table as before',
+  note: 'You can now add a note to a run (what you were trying or testing): it is kept with the run and its CSV and shown on the board. Six more board gear setups get exact instant answers',
 };
