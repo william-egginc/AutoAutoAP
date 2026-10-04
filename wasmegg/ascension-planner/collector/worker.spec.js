@@ -124,6 +124,7 @@ const MINIMAL = { schema: 3, chain: [195, 490], durationDays: 700, finalTE: 490 
 const FULL = {
   schema: 3,
   nickname: 'Jordan',
+  note: 'checking the 6-ascension route',
   chain: [195, 219, 248, 286, 327, 490],
   ascensions: 6,
   durationDays: 741.965,
@@ -149,11 +150,23 @@ const FULL = {
 
 describe('ingest is a whitelist, not a scrub', () => {
   it('drops fields nobody asked for rather than storing them', async () => {
-    const res = await post('/submit', { ...MINIMAL, evilPayload: 'X'.repeat(5000), note: 'arbitrary text' });
+    const res = await post('/submit', { ...MINIMAL, evilPayload: 'X'.repeat(5000), comment: 'arbitrary text' });
     expect(res.status).toBe(200);
     const [, record] = stored()[0];
     expect(record).not.toHaveProperty('evilPayload');
-    expect(record).not.toHaveProperty('note');
+    expect(record).not.toHaveProperty('comment');
+  });
+
+  it('keeps a run note as plain text, swept for player ids and control characters', async () => {
+    const res = await post('/submit', { ...MINIMAL, note: 'Friday start test\nfor EI1234567890123456\u0007' });
+    expect(res.status).toBe(200);
+    const [, record] = stored()[0];
+    expect(record.note).toBe('Friday start test\nfor EI[redacted]');
+  });
+
+  it('refuses a note that is too long or not text', async () => {
+    expect((await post('/submit', { ...MINIMAL, note: 'x'.repeat(501) })).status).toBe(400);
+    expect((await post('/submit', { ...MINIMAL, note: { a: 1 } }, '9.9.9.9')).status).toBe(400);
   });
 
   it('keeps every field of a genuine submission byte for byte', async () => {
