@@ -1269,8 +1269,11 @@ async function delayScan(file: string): Promise<void> {
       const continues = i === 0 && ends[0].first === 'continue';
       const offHour = (ends[i].start ?? 0) % 3600 !== 0;
       if (asCheck ? !continues && !offHour : i > 0) t = nextHour(t);
-      const endAt = i === vi ? ends[i].end + vh * 3600 : undefined;
-      const leg = runLeg(inputs, state, t, target, asCheck ? continues : i === 0, cur, i + 2, endAt);
+      const allow = asCheck ? continues : i === 0;
+      // With --as-check the delay counts from the simulator's own end of the leg, not the table's.
+      const own = asCheck && i === vi ? runLeg(inputs, state, t, target, allow, cur, i + 2) : null;
+      const endAt = i === vi ? (own ? t + own.summary.totalDurationSeconds : ends[i].end) + vh * 3600 : undefined;
+      const leg = runLeg(inputs, state, t, target, allow, cur, i + 2, endAt);
       if (!leg) return console.log('  simulator: failed at ' + target);
       if (has('legs'))
         console.log(
