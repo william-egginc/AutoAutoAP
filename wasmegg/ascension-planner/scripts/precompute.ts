@@ -909,6 +909,7 @@ async function route(file: string): Promise<void> {
     start,
     final,
     maxAscensions: Number(arg('max-asc', '10')),
+    ...(arg('wait-hours') ? { waitHours: Number(arg('wait-hours')) } : {}),
     deliveryScale,
     ...(firstLegs ? { firstLegs } : {}),
     ...(deadline !== undefined ? { deadline } : {}),

@@ -83,6 +83,8 @@ export interface FindOptions {
   final: number;
   /** Most ascensions to consider. */
   maxAscensions?: number;
+  /** ExpandSettings.waitHours. */
+  waitHours?: number;
   /** Instead of a fresh build at `startTE`, these first ascensions (one per checkpoint). */
   firstLegs?: FirstLeg[];
   /** Eggs delivered per egg at the start (EGG_ORDER); the table's canonical share of `startTE` if
@@ -259,6 +261,9 @@ export interface ExpandSettings {
   deliveryScale: number;
   onTheHour: boolean;
   keep: number;
+  /** Also let each fresh ascension wait 1..waitHours whole hours before it starts (a test of whether
+   *  a later start hour ever pays; scripts/precompute.ts --wait-hours). Default 0. */
+  waitHours?: number;
 }
 
 type Kept<T> = T & { time: number; delivered: number[] };
@@ -322,6 +327,13 @@ export function expandArrivals(
   // Reused for each checkpoint's end counts; copied only when the arrival is kept.
   const scratch = [0, 0, 0, 0, 0];
 
+  // Waiting: the same arrival again, ready at each of the next waitHours whole hours.
+  if (s.waitHours) {
+    const more: ArrivalItem[] = [];
+    for (const item of items)
+      for (let w = 1; w <= s.waitHours; w++) more.push({ ...item, time: nextHour(item.time) + w * 3600 });
+    items = [...items, ...more];
+  }
   for (const item of items) {
     const te = item.te;
     const startAt = s.onTheHour ? nextHour(item.time) : item.time;
@@ -416,6 +428,7 @@ export async function findRoutes(
     deliveryScale: o.deliveryScale ?? 1,
     onTheHour: o.onTheHour ?? true,
     keep,
+    ...(o.waitHours ? { waitHours: o.waitHours } : {}),
   };
   const cache = new Map<string, TailSweep>();
   const expand =
