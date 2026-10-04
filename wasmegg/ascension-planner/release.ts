@@ -15,5 +15,5 @@
  */
 export default {
   reloadIfBuiltBefore: '2026-10-02T20:31:00Z',
-  note: 'Highest TE by a date now shows a row per number of ascensions with your exact spare time, tight ones marked. Your last checked answer shows at once next visit, then is checked again',
+  note: 'Instant answers are now exact for six more board gear setups (LA-166, Wolfcry1993, Zen_Ferret, iDaHooBone, wood_420, BobSkiMajoo778). Other gear uses the maxed table as before',
 };
