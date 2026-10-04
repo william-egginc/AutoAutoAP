@@ -154,3 +154,48 @@ export function suggestStops(
   const text = bands.map(b => (b.lo === b.hi ? `${b.lo}` : `${b.lo}-${b.hi}:${b.step}`)).join('; ');
   return { bands: bands.map(values), text, sets: count(bands) };
 }
+
+/** "How far around each stop" (TE either side), the first of Suggest a space's two sliders (the
+ *  user, 4 Oct: one slider for the width checked, one for the step). */
+export const SPACE_WIDTHS = [3, 5, 8, 10, 15, 20, 30];
+/** "Step between the TEs tried" for every stop after the first, the second slider. The first stop
+ *  is always tried at every TE, since that is where the board's answers spread most. */
+export const SPACE_STEPS = [1, 2, 3, 5, 10];
+export const DEFAULT_WIDTH_IX = 3;
+export const DEFAULT_STEP_IX = 1;
+
+/**
+ * Bands for a chain from the two sliders: each early stop tried `halfWidth` TE either side of its
+ * centre, the first at every TE (from just above your TE when its centre is near it), the rest every
+ * `step` TE, lined up so the centre itself is always tried. Null when the stops don't fit between
+ * your TE and the last stop.
+ */
+export function stopsByWidth(
+  currentTE: number,
+  early: number[],
+  lastHi: number,
+  halfWidth: number,
+  step: number
+): StopSuggestion | null {
+  const te = Math.floor(currentTE);
+  const top = Math.floor(lastHi) - 1;
+  if (!early.length || top <= te) return null;
+  const w = Math.max(0, Math.floor(halfWidth));
+  const s = Math.max(1, Math.floor(step));
+  const c0 = early[0];
+  const firstCap = Math.min(top, (early[1] ?? top + 1) - 1, c0 + w);
+  const bands: Band[] = [{ lo: Math.max(te + 1, c0 - w), hi: Math.max(Math.max(te + 1, c0 - w), firstCap), step: 1 }];
+  for (const c of early.slice(1)) {
+    let lo = Math.max(te + 1, c - w);
+    lo = c - Math.floor((c - lo) / s) * s;
+    const hi = Math.min(top, c + Math.floor(w / s) * s);
+    bands.push({ lo, hi: Math.max(lo, hi), step: s });
+  }
+  if (bands.some(b => b.hi < b.lo)) return null;
+  const text = bands.map(b => (b.lo === b.hi ? `${b.lo}` : `${b.lo}-${b.hi}:${b.step}`)).join('; ');
+  return {
+    bands: bands.map(values),
+    text,
+    sets: countBandShapes(bands.map(values), te, Math.floor(lastHi)),
+  };
+}

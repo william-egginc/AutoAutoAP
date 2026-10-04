@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_STOP_SETS, STOP_SET_SIZES, suggestStops } from './deadlineSuggest';
+import { DEFAULT_STOP_SETS, STOP_SET_SIZES, stopsByWidth, suggestStops } from './deadlineSuggest';
 
 describe('suggestStops', () => {
   it('stays within the size picked, and grows with it', () => {
@@ -41,5 +41,26 @@ describe('suggestStops', () => {
 
   it('has no suggestion when there is no room below the last stop', () => {
     expect(suggestStops(300, [301], 300, 1000)).toBeNull();
+  });
+});
+
+describe('stopsByWidth', () => {
+  it('tries the first stop at every TE and the rest at the step, centres included', () => {
+    const s = stopsByWidth(137, [145, 177, 216], 267, 5, 2)!;
+    expect(s.text).toBe('140-150:1; 173-181:2; 212-220:2');
+    expect(s.bands[1]).toContain(177);
+    expect(s.bands[2]).toContain(216);
+  });
+  it('starts the first stop just above your TE when its centre is close', () => {
+    const s = stopsByWidth(140, [142, 170], 230, 10, 5)!;
+    expect(s.bands[0][0]).toBe(141);
+    expect(s.bands[0].at(-1)).toBe(152);
+  });
+  it('gets bigger as the width grows and smaller as the step grows', () => {
+    const a = stopsByWidth(137, [150, 180, 215], 267, 5, 5)!.sets;
+    const b = stopsByWidth(137, [150, 180, 215], 267, 15, 5)!.sets;
+    const c = stopsByWidth(137, [150, 180, 215], 267, 15, 1)!.sets;
+    expect(b).toBeGreaterThan(a);
+    expect(c).toBeGreaterThan(b);
   });
 });

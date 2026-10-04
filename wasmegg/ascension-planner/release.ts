@@ -15,5 +15,5 @@
  */
 export default {
   reloadIfBuiltBefore: '2026-10-02T20:31:00Z',
-  note: 'You can now add a note to a run (what you were trying or testing): it is kept with the run and its CSV and shown on the board. Six more board gear setups get exact instant answers',
+  note: 'Highest TE by a date: Suggest a space now has two sliders, how far around each stop and the step between TEs tried. Your setup shows when you can play as a 24-hour strip',
 };
