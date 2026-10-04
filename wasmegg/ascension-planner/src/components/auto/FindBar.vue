@@ -79,11 +79,14 @@
           @input="onNickname"
         />
       </div>
+      <RunNoteBox v-if="note !== undefined" v-model="note" />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import RunNoteBox from './RunNoteBox.vue';
+
 withDefaults(
   defineProps<{
     /** Find can't start (each search's own checks). Find and submit also needs the opt-in. */
@@ -112,6 +115,8 @@ const emit = defineEmits<{ find: [andSubmit: boolean]; stop: []; nicknameTyped: 
 const optIn = defineModel<boolean>('optIn', { required: true });
 const anonymous = defineModel<boolean>('anonymous', { required: true });
 const nickname = defineModel<string>('nickname', { required: true });
+/** The run note (store `runNote`). Left unbound, the box isn't shown. */
+const note = defineModel<string>('note');
 
 function onNickname(e: Event): void {
   nickname.value = (e.target as HTMLInputElement).value;

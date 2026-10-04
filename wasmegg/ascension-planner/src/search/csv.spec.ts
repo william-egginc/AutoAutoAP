@@ -165,6 +165,13 @@ describe('buildChainsCsv', () => {
     expect(csv).toContain('a, b');
   });
 
+  it("prints the player's note on one header line, line breaks and all", () => {
+    const csv = buildChainsCsv([], { ...META, runNote: 'testing 3 sales\n195,490,1\r\nfast' });
+    expect(csv).toContain('# note: testing 3 sales 195,490,1 fast\n');
+    expect(dataRows(csv)).toHaveLength(0);
+    expect(buildChainsCsv([], META)).not.toContain('# note:');
+  });
+
   it('survives an empty cache', () => {
     const csv = buildChainsCsv([], META);
     expect(dataRows(csv)).toHaveLength(0);

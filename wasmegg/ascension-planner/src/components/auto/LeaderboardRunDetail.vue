@@ -66,6 +66,10 @@
           <span v-else-if="row.seed?.length" class="font-mono font-bold">{{ row.seed.join(' ') }}</span>
           <span v-else class="text-slate-400">none (exhaustive)</span>
         </div>
+        <div v-if="row.note" class="flex justify-between gap-3">
+          <span>Note</span>
+          <span class="text-right whitespace-pre-wrap break-words min-w-0">{{ row.note }}</span>
+        </div>
         <div class="flex justify-between gap-3">
           <span>{{ isRecheck ? 'Re-checked' : several ? 'First sent' : 'Submitted' }}</span>
           <span class="font-bold text-right" :title="utcTitle(firstSent)">{{ sentWhen(firstSent) }}</span>

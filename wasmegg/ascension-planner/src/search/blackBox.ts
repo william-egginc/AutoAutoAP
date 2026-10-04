@@ -29,6 +29,8 @@ export interface Beat {
   /** The page was reloaded, closed or navigated away from (`pagehide` fired): the player ended
    *  it, not the browser. A crash gives no such event, so this is never set by one. */
   pageClosed?: boolean;
+  /** The player's note on the run (the open beat only; left out of the history to keep it small). */
+  runNote?: string;
 }
 
 interface Box {
@@ -76,7 +78,9 @@ export function beat(b: Omit<Beat, 'at' | 'hidden' | 'heapMB'>): void {
     heapMB: heapMB(),
   };
   box.open = full;
-  box.history = [...box.history, full].slice(-HISTORY);
+  const kept = { ...full };
+  delete kept.runNote;
+  box.history = [...box.history, kept].slice(-HISTORY);
   write(box);
 }
 

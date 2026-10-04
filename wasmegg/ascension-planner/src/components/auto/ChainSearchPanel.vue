@@ -447,6 +447,7 @@
         v-model:opt-in="optIn"
         v-model:anonymous="anonymous"
         v-model:nickname="nickname"
+        v-model:note="store.runNote"
         :find-disabled="
           store.busy ||
           store.integrityBlocked ||

@@ -220,6 +220,7 @@
             />
           </div>
         </div>
+        <RunNoteBox v-model="store.runNote" :disabled="store.isRunning" class="text-[11px] text-slate-700" />
 
         <IntegrityNotice />
         <div class="flex flex-wrap items-center gap-3">
@@ -346,6 +347,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useEidsStore } from 'lib';
 import { useChainSearchStore } from '@/stores/chainSearch';
+import RunNoteBox from '@/components/auto/RunNoteBox.vue';
 import { useActionsStore } from '@/stores/actions';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useUIStore } from '@/stores/ui';
