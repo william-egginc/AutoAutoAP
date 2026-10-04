@@ -680,8 +680,17 @@ async function verifyCells(file: string): Promise<void> {
       const start = REFERENCE_WEEK + h * 3600;
       const build = buildAt(inputs, startStateAt(inputs, te), start, te);
       // The files hold JSON.stringify of these, so equal strings mean equal to the bit.
-      if (JSON.stringify(build.variants.map(v => paramsOf(build, v, start))) === JSON.stringify(stored)) same++;
-      else differ.push(`TE ${te} hour ${h}`);
+      const mine = build.variants.map(v => paramsOf(build, v, start));
+      if (JSON.stringify(mine) === JSON.stringify(stored)) same++;
+      else {
+        differ.push(`TE ${te} hour ${h}`);
+        // --show-diff: both versions of the cell, build by build.
+        if (has('show-diff'))
+          for (let i = 0; i < Math.max(mine.length, stored.length); i++)
+            console.log(
+              `TE ${te} hour ${h} build ${i}\n  table: ${JSON.stringify(stored[i])}\n  here:  ${JSON.stringify(mine[i])}`
+            );
+      }
     }
   }
   console.log(
