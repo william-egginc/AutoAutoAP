@@ -137,44 +137,6 @@
 
     <!-- The player's own space, Insane-style: one box per chain, and as many chains as you like. -->
     <template v-if="mode === 'space'">
-      <!-- Two sliders, how wide and how fine (the user, 4 Oct). Moving one re-fills every chain that
-           Suggest a space filled in; a box you typed yourself is left alone. -->
-      <div class="grid gap-3 sm:grid-cols-2">
-        <label class="block space-y-1">
-          <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">How far around each stop</span>
-          <input
-            v-model.number="widthIx"
-            type="range"
-            min="0"
-            :max="SPACE_WIDTHS.length - 1"
-            step="1"
-            :disabled="store.busy"
-            class="w-full accent-slate-800"
-            aria-label="How far around each stop to look"
-          />
-          <span class="block text-[11px] font-bold text-slate-700">±{{ spaceWidth }} TE either side</span>
-        </label>
-        <label class="block space-y-1">
-          <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Step between TEs tried</span>
-          <input
-            v-model.number="stepIx"
-            type="range"
-            min="0"
-            :max="SPACE_STEPS.length - 1"
-            step="1"
-            :disabled="store.busy"
-            class="w-full accent-slate-800"
-            aria-label="Step between the TEs tried"
-          />
-          <span class="block text-[11px] font-bold text-slate-700"
-            >every {{ spaceStep === 1 ? 'TE' : spaceStep + ' TE' }} (the first stop is always every TE)</span
-          >
-        </label>
-      </div>
-      <p class="text-[10px] text-slate-500 leading-relaxed -mt-1">
-        Suggest a space centres each stop on your last answer or your route, then tries it ±{{ spaceWidth }} TE either
-        side. Wider or finer finds more but takes longer: the sets and the time update below as you move a slider.
-      </p>
       <div v-for="(row, k) in chains" :key="k" class="rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-2">
         <div class="flex flex-wrap items-center gap-2">
           <span class="text-[10px] font-black text-slate-600 uppercase tracking-widest">Chain {{ k + 1 }}</span>
@@ -219,6 +181,42 @@
         <span class="block text-[10px]" :class="rowProblem(k) ? 'text-rose-600' : 'text-slate-500'">
           {{ rowProblem(k) || rowSummary(k) }}
         </span>
+        <!-- Suggest a space's two settings, small and under the box they fill (the user, 4 Oct). Shared by
+             every chain; moving one re-fills the boxes Suggest filled, not ones typed by hand. -->
+        <div v-if="row.asc >= 2" class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-slate-500">
+          <span class="font-bold text-slate-600">Suggest a space tries</span>
+          <label class="flex items-center gap-1.5">
+            <input
+              v-model.number="widthIx"
+              type="range"
+              min="0"
+              :max="SPACE_WIDTHS.length - 1"
+              step="1"
+              :disabled="store.busy"
+              class="w-20 accent-slate-700"
+              aria-label="How far around each stop"
+            />
+            <span
+              ><b class="text-slate-700">±{{ spaceWidth }}</b> TE around each stop</span
+            >
+          </label>
+          <label class="flex items-center gap-1.5">
+            <input
+              v-model.number="stepIx"
+              type="range"
+              min="0"
+              :max="SPACE_STEPS.length - 1"
+              step="1"
+              :disabled="store.busy"
+              class="w-16 accent-slate-700"
+              aria-label="Step between the TEs tried"
+            />
+            <span
+              >every <b class="text-slate-700">{{ spaceStep === 1 ? 'TE' : spaceStep + ' TE' }}</b> (the first stop:
+              every TE)</span
+            >
+          </label>
+        </div>
       </div>
       <div class="flex flex-wrap items-end gap-4">
         <button
