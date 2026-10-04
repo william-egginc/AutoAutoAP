@@ -1848,7 +1848,11 @@ export default {
         const yours = !!mine12 && snap.own[row.id] === mine12;
         delete row.acct;
         if (yours) row.yours = true;
-        else delete row.nickname;
+        else {
+          // A flagged row's words are its sender's: hidden from everyone else, like the name.
+          delete row.nickname;
+          delete row.note;
+        }
         return row;
       });
       return json({ count: rows.length, rows }, 200, mine ? PRIVATE : {});
