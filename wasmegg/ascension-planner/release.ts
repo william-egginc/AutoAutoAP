@@ -15,5 +15,5 @@
  */
 export default {
   reloadIfBuiltBefore: '2026-09-30T20:12:00Z',
-  note: 'An optional note on each run (what you were trying or testing), kept with the run and its CSV and shown on the board',
+  note: 'Suggest a space on Highest TE by a date now has two sliders (how wide, and the step), and the awake-hours setting is clearer, with a day strip',
 };

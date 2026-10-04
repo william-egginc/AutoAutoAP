@@ -137,27 +137,43 @@
 
     <!-- The player's own space, Insane-style: one box per chain, and as many chains as you like. -->
     <template v-if="mode === 'space'">
-      <!-- How big a space Suggest a space fills in, as on the Full sweep (the user, 1 Oct). -->
-      <label class="flex flex-wrap items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest">
-        Suggest a space: size
-        <input
-          v-model.number="suggestSizeIx"
-          type="range"
-          min="0"
-          :max="STOP_SET_SIZES.length - 1"
-          step="1"
-          :disabled="store.busy"
-          class="w-32 accent-slate-800"
-          aria-label="How big a space Suggest a space fills in"
-        />
-        <span class="normal-case tracking-normal font-bold text-slate-700"
-          >up to {{ suggestSets.toLocaleString() }} sets of early stops, about {{ suggestTimeLabel }}</span
-        >
-      </label>
+      <!-- Two sliders, how wide and how fine (the user, 4 Oct). Moving one re-fills every chain that
+           Suggest a space filled in; a box you typed yourself is left alone. -->
+      <div class="grid gap-3 sm:grid-cols-2">
+        <label class="block space-y-1">
+          <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">How far around each stop</span>
+          <input
+            v-model.number="widthIx"
+            type="range"
+            min="0"
+            :max="SPACE_WIDTHS.length - 1"
+            step="1"
+            :disabled="store.busy"
+            class="w-full accent-slate-800"
+            aria-label="How far around each stop to look"
+          />
+          <span class="block text-[11px] font-bold text-slate-700">±{{ spaceWidth }} TE either side</span>
+        </label>
+        <label class="block space-y-1">
+          <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Step between TEs tried</span>
+          <input
+            v-model.number="stepIx"
+            type="range"
+            min="0"
+            :max="SPACE_STEPS.length - 1"
+            step="1"
+            :disabled="store.busy"
+            class="w-full accent-slate-800"
+            aria-label="Step between the TEs tried"
+          />
+          <span class="block text-[11px] font-bold text-slate-700"
+            >every {{ spaceStep === 1 ? 'TE' : spaceStep + ' TE' }} (the first stop is always every TE)</span
+          >
+        </label>
+      </div>
       <p class="text-[10px] text-slate-500 leading-relaxed -mt-1">
-        Suggest a space tries your first stop at every TE from just above your TE, since that is where the answers on
-        the board differ most (anywhere from 1 to 38 TE up), then makes the later stops finer and wider as the size
-        allows. Move the slider, then press Suggest a space again.
+        Suggest a space centres each stop on your last answer or your route, then tries it ±{{ spaceWidth }} TE either
+        side. Wider or finer finds more but takes longer: the sets and the time update below as you move a slider.
       </p>
       <div v-for="(row, k) in chains" :key="k" class="rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-2">
         <div class="flex flex-wrap items-center gap-2">
@@ -198,6 +214,7 @@
           :disabled="store.busy"
           placeholder="138-142:1; 160-200:10; 200-240:10"
           class="w-full rounded-lg border-slate-300 text-sm font-mono-premium font-bold text-slate-800 disabled:opacity-50"
+          @input="row.auto = false"
         />
         <span class="block text-[10px]" :class="rowProblem(k) ? 'text-rose-600' : 'text-slate-500'">
           {{ rowProblem(k) || rowSummary(k) }}
@@ -661,7 +678,7 @@
 <script lang="ts">
 import { ref as keptRef } from 'vue';
 import { nextEggDayYear as keptEggDayYear } from '@/lib/eggDay';
-import { DEFAULT_STOP_SETS as KEPT_DEFAULT_SETS, STOP_SET_SIZES as KEPT_SIZES } from '@/search/deadlineSuggest';
+import { DEFAULT_STEP_IX as KEPT_STEP_IX, DEFAULT_WIDTH_IX as KEPT_WIDTH_IX } from '@/search/deadlineSuggest';
 
 /**
  * What the player set on this screen, kept for the page load rather than per mount. Since the
@@ -682,10 +699,11 @@ const kept = {
   ascendNeeded: keptRef(false),
   thoroughIx: keptRef(2),
   mode: keptRef<'space' | 'auto'>('space'),
-  chains: keptRef<{ asc: number; text: string }[]>([{ asc: 4, text: '' }]),
+  chains: keptRef<{ asc: number; text: string; auto?: boolean }[]>([{ asc: 4, text: '' }]),
   lastBox: keptRef(''),
   suggestFrom: keptRef(''),
-  suggestSizeIx: keptRef(KEPT_SIZES.indexOf(KEPT_DEFAULT_SETS)),
+  widthIx: keptRef(KEPT_WIDTH_IX),
+  stepIx: keptRef(KEPT_STEP_IX),
 };
 </script>
 
@@ -710,7 +728,7 @@ import {
 import { formatBand, formatHours } from '@/search/exhaustive';
 import { sweepSeconds, workerSecondsPerChain } from '@/search/speed';
 import type { DeadlineRunSpec } from '@/search/deadlineStore';
-import { DEFAULT_STOP_SETS, STOP_SET_SIZES, suggestStops } from '@/search/deadlineSuggest';
+import { SPACE_STEPS, SPACE_WIDTHS, stopsByWidth } from '@/search/deadlineSuggest';
 import { firstTime } from '@/lib/linkOnce';
 import { downloadCsv } from '@/utils/export';
 import { useEidsStore } from 'lib';
@@ -875,20 +893,22 @@ function suggestRow(k: number): void {
   // Sized to the slider (search/deadlineSuggest.ts): the first stop at every TE from just above
   // yours, the later ones as fine and as wide as the size allows.
   const lastHi = lastRange.value?.[1] ?? Math.min(490, lastGuess + 20);
-  const sug = suggestStops(te, early, lastHi, suggestSets.value);
-  if (sug) row.text = sug.text;
+  const sug = stopsByWidth(te, early, lastHi, spaceWidth.value, spaceStep.value);
+  if (sug) {
+    row.text = sug.text;
+    row.auto = true;
+  }
 }
 
-/** How big a space Suggest a space fills in, in sets of early stops (the Full sweep has the same). */
-const { suggestSizeIx } = kept;
-const suggestSets = computed(() => STOP_SET_SIZES[suggestSizeIx.value] ?? DEFAULT_STOP_SETS);
-/** About how long that many sets takes here, charged the way the estimate below charges them. */
-const suggestTimeLabel = computed(() => {
-  const k = Math.max(1, Math.min(16, Math.floor(store.workerBudget / suggestSets.value)));
-  const perShape = k === 1 ? PROBES.value : k * (Math.ceil(Math.log(lastWidth.value) / Math.log(k + 1)) + 1);
-  return formatHours(
-    sweepSeconds(suggestSets.value * perShape, store.workerBudget, workerSecondsPerRoute.value) / 3600
-  );
+/** Suggest a space's two sliders: how far either side of each stop, and the step after the first. */
+const { widthIx, stepIx } = kept;
+const spaceWidth = computed(() => SPACE_WIDTHS[widthIx.value] ?? SPACE_WIDTHS[3]);
+const spaceStep = computed(() => SPACE_STEPS[stepIx.value] ?? SPACE_STEPS[1]);
+// Moving a slider re-fills the chains Suggest a space filled; boxes typed by hand are left alone.
+watch([spaceWidth, spaceStep], () => {
+  chains.value.forEach((row, k) => {
+    if (row.auto) suggestRow(k);
+  });
 });
 
 /** A new chain one ascension shorter than the shortest, since the short ones are what get added. */

@@ -165,18 +165,30 @@
           <p v-if="screen === 'classic'" class="text-[11px] font-semibold text-amber-700">
             Classic doesn't plan around awake hours yet. The two searches do.
           </p>
-          <label class="flex items-start gap-3 cursor-pointer">
-            <input
-              v-model="store.scheduleEnabled"
-              type="checkbox"
-              class="mt-0.5 rounded border-slate-300 text-indigo-600 disabled:opacity-40"
-            />
-            <span class="text-[11px] text-slate-600 leading-relaxed">
-              <span class="font-bold text-slate-800">Only count on me during these hours.</span> A prestige that would
-              land while you're away waits for your next hour, and the wait counts. Off, the plan assumes you can
-              prestige at any hour: faster on paper, rarely real.
-            </span>
-          </label>
+          <!-- Two plain choices instead of one checkbox (the user, 4 Oct: "the hours don't seem that clear"). -->
+          <div class="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="When you can prestige">
+            <label
+              class="flex items-start gap-2 rounded-lg border p-3 cursor-pointer"
+              :class="!store.scheduleEnabled ? 'border-indigo-400 bg-indigo-50/60' : 'border-slate-200'"
+            >
+              <input v-model="store.scheduleEnabled" type="radio" :value="false" class="mt-0.5 text-indigo-600" />
+              <span class="text-[11px] text-slate-600 leading-relaxed">
+                <span class="block font-bold text-slate-800">Any hour</span>
+                The plan prestiges the moment each checkpoint is reached, day or night. Fastest on paper.
+              </span>
+            </label>
+            <label
+              class="flex items-start gap-2 rounded-lg border p-3 cursor-pointer"
+              :class="store.scheduleEnabled ? 'border-indigo-400 bg-indigo-50/60' : 'border-slate-200'"
+            >
+              <input v-model="store.scheduleEnabled" type="radio" :value="true" class="mt-0.5 text-indigo-600" />
+              <span class="text-[11px] text-slate-600 leading-relaxed">
+                <span class="block font-bold text-slate-800">Only when I'm awake</span>
+                Pick your hours below. A prestige due while you're away waits until your next hour, and the wait is
+                counted.
+              </span>
+            </label>
+          </div>
           <div v-if="store.scheduleEnabled" class="pl-8 space-y-3">
             <div class="flex flex-wrap items-center gap-3">
               <label class="flex items-center gap-2 text-[11px] font-bold text-slate-600">
@@ -199,6 +211,28 @@
                   </option>
                 </select>
               </label>
+            </div>
+            <!-- The day at a glance: filled hours are when the plan may prestige. -->
+            <div>
+              <div class="flex gap-px" aria-hidden="true">
+                <span
+                  v-for="h in 24"
+                  :key="h - 1"
+                  class="h-3 flex-1 rounded-sm"
+                  :class="hourAwake(h - 1) ? 'bg-indigo-500' : 'bg-slate-200'"
+                  :title="showHour(h - 1) + (hourAwake(h - 1) ? ': can prestige' : ': away')"
+                ></span>
+              </div>
+              <div class="flex justify-between text-[9px] text-slate-400 mt-0.5">
+                <span>{{ showHour(0) }}</span
+                ><span>{{ showHour(6) }}</span
+                ><span>{{ showHour(12) }}</span
+                ><span>{{ showHour(18) }}</span
+                ><span>{{ showHour(23) }}</span>
+              </div>
+              <p class="text-[10px] text-slate-500 mt-1">
+                Hours are in the plan's timezone ({{ zone }}). Blue is when the plan may prestige. Days you can play:
+              </p>
             </div>
             <div class="flex flex-wrap gap-1">
               <button
@@ -391,6 +425,14 @@ const ui = useUIStore();
 
 const locked = computed(() => store.busy);
 const zone = computed(() => planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
+/** Whether the plan may prestige in this hour of the day: from-hour inclusive, to-hour exclusive,
+ *  wrapping past midnight, and equal ends meaning all day (search/availability.ts). */
+function hourAwake(h: number): boolean {
+  const from = store.availableFrom;
+  const to = store.availableTo;
+  if (from === to) return true;
+  return from > to ? h >= from || h < to : h >= from && h < to;
+}
 
 const startLabel = computed(() => (store.planStartIsNow ? 'now (not set)' : showDateTime(store.planStart, zone.value)));
 const awakeLabel = computed(() =>
