@@ -1322,7 +1322,9 @@ async function waitPolicy(file: string): Promise<void> {
   const weeks = Number(arg('weeks') ?? 1);
   const reach = Number(arg('reach') ?? 120);
   const keep = Number(arg('keep') ?? 3);
-  const maxK = Number(arg('max-ascensions') ?? 12);
+  // --deadline ISO --asc N: the highest TE by the date in N ascensions instead (the last one by goal).
+  const byDate = arg('deadline') ? Math.floor(Date.parse(arg('deadline')!) / 1000) : undefined;
+  const maxK = byDate !== undefined ? Number(arg('asc') ?? 4) : Number(arg('max-ascensions') ?? 12);
   const H = EGG_ORDER.indexOf('humility' as never);
   const cont = continueTailParams(inputs, start);
   // An arrival: TE `te` reached at `t`, the farm still laying at `peak`; `slot` = the prestige hour
@@ -1439,8 +1441,11 @@ async function waitPolicy(file: string): Promise<void> {
               to: T,
               label: `${p.build.sales}-sale${p.build.tier13 ? '-tier13' : ''}`,
             };
-            if (T === 490) finals.push(b);
-            else {
+            if (byDate !== undefined) {
+              if (b.t <= byDate && k + 1 === maxK) finals.push(b);
+            }
+            if (T === 490 && byDate === undefined) finals.push(b);
+            else if (k + 1 < maxK) {
               // Only the earliest few per TE survive the level, so keep the list that short as it fills.
               const list = next.get(b.te) ?? [];
               if (list.length < keep || b.t < list[list.length - 1].t) {
@@ -1463,7 +1468,8 @@ async function waitPolicy(file: string): Promise<void> {
       `level ${k + 1}: ${kept.length} arrivals, ${finals.length} finishes, ${((Date.now() - t0) / 1000).toFixed(0)} s`
     );
   }
-  finals.sort((x, y) => x.t - y.t);
+  if (byDate !== undefined) finals.sort((x, y) => y.te - x.te || x.t - y.t);
+  else finals.sort((x, y) => x.t - y.t);
   const tz = (u: number, zone: string) =>
     new Intl.DateTimeFormat('en-US', {
       timeZone: zone,
@@ -1494,7 +1500,11 @@ async function waitPolicy(file: string): Promise<void> {
     if (picks.length >= Number(arg('top') ?? 3)) break;
   }
   for (const [n, c] of picks.entries()) {
-    console.log(`table #${n + 1}: ${d(c[c.length - 1].t - start)} d via ${c.map(x => x.to).join(' ')}`);
+    const last = c[c.length - 1];
+    console.log(
+      `table #${n + 1}: ${d(last.t - start)} d via ${c.map(x => x.to).join(' ')}` +
+        (byDate !== undefined ? `, TE ${last.te} by the date with ${d(byDate - last.t)} d spare` : '')
+    );
     for (const x of c)
       console.log(`   ${x.label} to ${x.to}: from ${both(x.slot)} at TE ${x.atTE}, reaches TE ${x.te} ${both(x.t)}`);
   }
@@ -1538,8 +1548,199 @@ async function waitPolicy(file: string): Promise<void> {
       cur = teOf(leg);
       state = leg.nextState;
     }
-    if (ok) console.log(`  simulator #${n + 1}: ${d(t - start)} d, finish ${both(t)}`);
+    if (ok)
+      console.log(
+        `  simulator #${n + 1}: ${d(t - start)} d, finish ${both(t)}` +
+          (byDate !== undefined ? `, TE ${cur} with ${d(byDate - t)} d spare` : '')
+      );
   }
+}
+
+/** Pacific hours of the week (Monday 0) the weekly research sale covers: Friday 09:00 to Saturday 09:00. */
+const inSale = (u: number): boolean => {
+  const w = pacificHourOfWeek(u);
+  return w >= 4 * 24 + 9 && w < 5 * 24 + 9;
+};
+
+/**
+ * --eggday-scan: highest TE by a date (--deadline) on the best route of --asc N ascensions, with each
+ * of its prestiges moved to every hour of a window (--from-hour/--to-hour, Pacific hours of the week;
+ * default Thursday 09:00 to Saturday 05:00 PT = Thursday 10:00 to Saturday 06:00 MT): the ascension
+ * before keeps laying until then (the eggs and TE it gains count), and the rest of the route is
+ * re-planned from there with the same number of ascensions in all. --sim K prices the best K moved
+ * plans and the unmoved route with the simulator and shows where each ascension's egg switches
+ * (C1, I1, ... C2 ...) fall against the sale.
+ */
+async function eggdayScan(file: string): Promise<void> {
+  const dir = arg('table');
+  if (!dir || !arg('deadline')) throw new Error('--eggday-scan needs --table DIR and --deadline ISO');
+  const table = loadTable(dir);
+  const inputs = await loadInputs(file);
+  const te0 = Math.floor(inputs.currentTE);
+  const start = arg('start') ? Math.floor(Date.parse(arg('start')!) / 1000) : inputs.planStart;
+  const deadline = Math.floor(Date.parse(arg('deadline')!) / 1000);
+  const N = Number(arg('asc') ?? 4);
+  const fromHour = Number(arg('from-hour') ?? 3 * 24 + 9);
+  const toHour = Number(arg('to-hour') ?? 5 * 24 + 5);
+  const H = EGG_ORDER.indexOf('humility' as never);
+  const eggs0 = EGG_ORDER.map(e => inputs.baseState.eggsDelivered?.[e] || 0);
+  const cont = continueTailParams(inputs, start);
+  const firstLegs = firstLegOptions({
+    table: table.lookup,
+    startTE: te0,
+    start,
+    final: 490,
+    deliveryScale: 1,
+    delivered: eggs0,
+    cont,
+    forceContinue: inputs.forceContinue,
+    pinSeconds: inputs.continuePinSeconds ?? CONTINUE_PIN_MAX_SECONDS,
+    maxContinueSeconds: inputs.continueMaxSeconds ?? CONTINUE_MAX_SECONDS,
+  });
+  const found = await findRoutes({
+    table: table.lookup,
+    startTE: te0,
+    start,
+    final: 490,
+    maxAscensions: N + 2,
+    firstLegs,
+    deadline,
+  });
+  const base = found.byDateByAscensions[N];
+  if (!base) throw new Error(`no ${N}-ascension route reaches anything by the date`);
+  const both = (u: number) => `${zoned(u, 'America/Denver')} MT (${zoned(u, 'America/Los_Angeles')} PT)`;
+  const d = (sec: number) => (sec / 86400).toFixed(3);
+  const topTE = (r: Route) => r.legs[r.legs.length - 1].endTE;
+  for (const [k, r] of found.byDateByAscensions.entries())
+    if (r)
+      console.log(
+        `  ${k} ascensions by the date: TE ${topTE(r)} via ${r.chain.join(' ')} (first: ${r.legs[0].label}), ${d(deadline - r.end)} d spare`
+      );
+  console.log(`base (${N}): TE ${topTE(base)} via ${base.chain.join(' ')}, ${d(deadline - base.end)} d spare`);
+  for (const l of base.legs)
+    console.log(`   ${l.label} to ${l.to}: ${both(l.start)} -> ${both(l.end)}, TE ${l.from} -> ${l.endTE}`);
+  // Each leg's end on the base route, with eggs and the rate laid at afterwards.
+  type End = { end: number; te: number; eggs: number[]; peak: number };
+  const ends: End[] = [];
+  {
+    const f = firstLegs.find(x => x.to === base.chain[0])!;
+    const peak =
+      f.label === 'continue'
+        ? cont!.peakELR
+        : (priceLeg(table.lookup, te0, start, eggs0, base.chain[0], 1)?.build.peakELR ?? 0);
+    ends.push({ end: f.end, te: f.endTE, eggs: f.delivered, peak });
+    for (const target of base.chain.slice(1, -1)) {
+      const prev = ends[ends.length - 1];
+      const p = priceLeg(table.lookup, prev.te, prev.end, prev.eggs, target, 1)!;
+      ends.push({ end: p.end, te: p.endTE, eggs: p.delivered, peak: p.build.peakELR });
+    }
+  }
+  // A prestige starts leg j: the save (j = 0, unless it continues) or leg j-1's end.
+  type Moved = { j: number; slot: number; te: number; route: Route; topTE: number; spare: number };
+  const all: Moved[] = [];
+  for (let j = 0; j < N; j++) {
+    if (j === 0 && base.legs[0].label === 'continue') continue;
+    const from: End = j === 0 ? { end: start, te: te0, eggs: eggs0, peak: cont?.peakELR ?? 0 } : ends[j - 1];
+    // The first window that has an hour at or after the leg's end.
+    const slots: number[] = [];
+    for (let h = nextHour(from.end), n = 0; n < 336; n++, h += 3600) {
+      const w = pacificHourOfWeek(h);
+      if (w >= fromHour && w <= toHour) slots.push(h);
+      else if (slots.length) break;
+    }
+    const rows: Moved[] = [];
+    for (const s of slots) {
+      const eggs = [...from.eggs];
+      eggs[H] = computeTEEarned(eggs[H], from.peak, s - from.end).finalEggsDelivered;
+      const te = eggs.reduce((n, x) => n + countTEThresholdsPassed(x), 0);
+      const r = (
+        await findRoutes({
+          table: table.lookup,
+          startTE: te,
+          start: s,
+          final: 490,
+          maxAscensions: N - j,
+          startDelivered: eggs,
+          deadline,
+        })
+      ).byDateByAscensions[N - j];
+      if (r) rows.push({ j, slot: s, te, route: r, topTE: topTE(r), spare: deadline - r.end });
+    }
+    rows.sort((a, b) => b.topTE - a.topTE || b.spare - a.spare);
+    const best = rows[0];
+    console.log(
+      `prestige ${j + 1} (starts ascension ${j + 1}; the base has it ${both(base.legs[j].start)}), ${slots.length} hours from ${both(slots[0])}:` +
+        (best
+          ? ` best ${both(best.slot)}: TE ${best.topTE}, ${d(best.spare)} d spare, via ${best.route.chain.join(' ')} (TE ${best.te} at the prestige)`
+          : ' none')
+    );
+    for (const r of rows.sort((a, b) => a.slot - b.slot))
+      if (has('rows'))
+        console.log(
+          `     ${both(r.slot)}  TE then ${r.te}  ->  TE ${r.topTE}, ${d(r.spare)} d spare, via ${r.route.chain.join(' ')}`
+        );
+    all.push(...rows);
+  }
+  const simK = Number(arg('sim') ?? 0);
+  if (!simK) return;
+  // The simulator: legs before the moved prestige as the base route (the check's start rules), the
+  // leg before it carried on to the prestige hour (end override), then the re-planned legs.
+  const teOf = (leg: NonNullable<ReturnType<typeof runLeg>>) =>
+    Object.values(leg.summary.finalTE).reduce((a, b) => a + b, 0);
+  const shiftsText = (leg: NonNullable<ReturnType<typeof runLeg>>) => {
+    const seen: Record<string, number> = {};
+    return leg.shifts
+      .map(s => {
+        const e = s.egg.charAt(0).toUpperCase();
+        seen[e] = (seen[e] ?? 0) + 1;
+        return `${e}${seen[e]} ${zoned(s.at, 'America/Los_Angeles')
+          .replace(/^\w+, /, '')
+          .replace(/, \d{4},/, '')}${inSale(s.at) ? '*' : ''}`;
+      })
+      .join(' · ');
+  };
+  const simulate = (label: string, j: number, slot: number | undefined, rest: Route | null) => {
+    let state = JSON.parse(JSON.stringify(inputs.baseState)) as EngineState;
+    let t = start;
+    let cur = te0;
+    const plan: { to: number; start?: number; endAt?: number; allow: boolean }[] = [];
+    if (slot === undefined || !rest)
+      base.legs.forEach((l, i) => plan.push({ to: l.to, start: l.start, allow: i === 0 && l.label === 'continue' }));
+    else {
+      base.legs
+        .slice(0, j)
+        .forEach((l, i) => plan.push({ to: l.to, start: l.start, allow: i === 0 && l.label === 'continue' }));
+      if (j > 0) plan[j - 1].endAt = slot;
+      rest.legs.forEach(l => plan.push({ to: l.to, start: l.start, allow: false }));
+    }
+    console.log(`sim ${label}:`);
+    if (slot !== undefined && j === 0 && slot > start) {
+      const leg = runLeg(inputs, state, t, 490, true, cur, 2, slot);
+      if (!leg) return console.log('   failed carrying on the save');
+      console.log(`   the save [${leg.key}] carried on to ${both(slot)}: TE ${teOf(leg)}`);
+      t = slot;
+      cur = teOf(leg);
+      state = leg.nextState;
+    }
+    for (const [i, p] of plan.entries()) {
+      if (!p.allow)
+        t = p.start !== undefined && p.start % 3600 !== 0 ? Math.max(t, Math.min(p.start, nextHour(t))) : nextHour(t);
+      const leg = runLeg(inputs, state, t, p.to, p.allow, cur, i + 2, p.endAt);
+      if (!leg) return console.log(`   failed at ${p.to}`);
+      const end = t + leg.summary.totalDurationSeconds;
+      console.log(
+        `   ${i + 1}: [${leg.key}] to ${p.to}${p.endAt ? ' (carried on)' : ''}: ${both(t)} -> ${both(end)}, TE ${cur} -> ${teOf(leg)}`
+      );
+      console.log(`      switches (PT, * = in the sale): ${shiftsText(leg)}`);
+      t = end;
+      cur = teOf(leg);
+      state = leg.nextState;
+    }
+    console.log(`   => TE ${cur} by the date with ${d(deadline - t)} d spare (ends ${both(t)})`);
+  };
+  simulate('base', 0, undefined, null);
+  const picks = [...all].sort((a, b) => b.topTE - a.topTE || b.spare - a.spare).slice(0, simK);
+  for (const m of picks) simulate(`prestige ${m.j + 1} at ${both(m.slot)}`, m.j, m.slot, m.route);
 }
 
 async function main(): Promise<void> {
@@ -1694,6 +1895,7 @@ async function main(): Promise<void> {
   if (has('verify-table')) return verifyTable(backup);
   if (has('delay-scan')) return delayScan(backup);
   if (has('wait-policy')) return waitPolicy(backup);
+  if (has('eggday-scan')) return eggdayScan(backup);
   if (has('verify-cells')) return verifyCells(backup);
   if (has('route')) return route(backup);
   if (has('profile')) return profile(backup);
