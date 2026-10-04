@@ -78,6 +78,8 @@ import { resolveColleggtibleContracts } from 'lib';
 import { initPlanFuture } from '@/lib/modes/planFuture';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { runAscensionFromC3Variant } from '@/auto/ascension';
+import { computeTEEarned } from '@/auto/te-thresholds';
+import { countTEThresholdsPassed } from '@/lib/truthEggs';
 import { pickVariant, type VariantKey, type VariantResult } from '@/stores/autoPlanner';
 import {
   continueTailParams,
@@ -1136,6 +1138,138 @@ async function profile(file: string): Promise<void> {
   }
 }
 
+/**
+ * --delay-scan (Allan's "wait to Thu/Fri before prestiging", 4 Oct): along a route found from the
+ * player's own table, delay the prestige at each checkpoint by 1..168 hours. During the delay the farm
+ * keeps laying at the ending build's peak rate on its last egg (humility, after H2), so eggs and any TE
+ * thresholds passed carry into the next ascension; then the rest of the route (the same checkpoints
+ * above the new TE) is priced again from the later start. --replan N also re-plans the rest with the
+ * route finder for each checkpoint's N best delays. --verify I,D prices the route with the simulator,
+ * the I-th ascension ending D hours after its checkpoint (runLeg's end override).
+ */
+async function delayScan(file: string): Promise<void> {
+  const dir = arg('table');
+  if (!dir) throw new Error("--delay-scan needs --table DIR (the player's own table) and --chain");
+  const table = loadTable(dir);
+  const inputs = await loadInputs(file);
+  const te = Math.floor(inputs.currentTE);
+  const start = arg('start') ? Math.floor(Date.parse(arg('start')!) / 1000) : inputs.planStart;
+  const chain = arg('chain')!.trim().split(/\s+/).map(Number);
+  const H = EGG_ORDER.indexOf('humility' as never);
+  const cont = continueTailParams(inputs, start);
+  const firstLegs = firstLegOptions({
+    table: table.lookup,
+    startTE: te,
+    start,
+    final: 490,
+    deliveryScale: 1,
+    delivered: EGG_ORDER.map(e => inputs.baseState.eggsDelivered?.[e] || 0),
+    cont,
+    forceContinue: inputs.forceContinue,
+    pinSeconds: inputs.continuePinSeconds ?? CONTINUE_PIN_MAX_SECONDS,
+    maxContinueSeconds: inputs.continueMaxSeconds ?? CONTINUE_MAX_SECONDS,
+  });
+  // Each leg's end: time, TE, eggs and the rate the farm lays at afterwards.
+  type End = { end: number; te: number; eggs: number[]; peak: number };
+  const priceRest = (from: End, targets: number[]): number | null => {
+    let t = from.end;
+    let cur = from.te;
+    let eggs = from.eggs;
+    for (const target of targets) {
+      if (target <= cur) continue;
+      const p = priceLeg(table.lookup, cur, t, eggs, target, 1);
+      if (!p) return null;
+      t = p.end;
+      cur = p.endTE;
+      eggs = p.delivered;
+    }
+    return t;
+  };
+  const ends: End[] = [];
+  {
+    const f = firstLegs.find(x => x.to === chain[0])!;
+    const peak =
+      f.label === 'continue'
+        ? cont!.peakELR
+        : (priceLeg(table.lookup, te, start, firstLegs.length ? f.delivered : [], chain[0], 1)?.build.peakELR ?? 0);
+    ends.push({ end: f.end, te: f.endTE, eggs: f.delivered, peak });
+    for (const target of chain.slice(1)) {
+      const prev = ends[ends.length - 1];
+      const p = priceLeg(table.lookup, prev.te, prev.end, prev.eggs, target, 1)!;
+      ends.push({ end: p.end, te: p.endTE, eggs: p.delivered, peak: p.build.peakELR });
+    }
+  }
+  const base = ends[ends.length - 1].end;
+  const d = (sec: number) => (sec / 86400).toFixed(3);
+  const when = (u: number) => new Date(u * 1000).toISOString().slice(0, 16).replace('T', ' ');
+  const day = (u: number) => ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][Math.floor(pacificHourOfWeek(u) / 24)];
+  console.log(`route ${chain.join(' ')}: ${d(base - start)} d, finish ${when(base)} UTC`);
+  const delayed = (i: number, h: number): End => {
+    const e = ends[i];
+    const eggs = [...e.eggs];
+    eggs[H] = computeTEEarned(eggs[H], e.peak, h * 3600).finalEggsDelivered;
+    return { end: e.end + h * 3600, te: eggs.reduce((n, x) => n + countTEThresholdsPassed(x), 0), eggs, peak: e.peak };
+  };
+  const show = arg('shape') ? arg('shape')!.split(',').map(Number) : [];
+  for (let i = 0; i < chain.length - 1; i++) {
+    const rows: { h: number; finish: number; te: number }[] = [];
+    for (let h = 1; h <= 168; h++) {
+      const de = delayed(i, h);
+      const fin = priceRest(de, chain.slice(i + 1));
+      if (fin !== null) rows.push({ h, finish: fin, te: de.te });
+    }
+    rows.sort((a, b) => a.finish - b.finish);
+    const b = rows[0];
+    const gain = b ? (base - b.finish) / 86400 : 0;
+    console.log(
+      `  after ${chain[i]} (ends ${day(ends[i].end)} ${when(ends[i].end)}): best delay ${b?.h ?? '-'} h (start ${b ? day(ends[i].end + b.h * 3600) : ''}), ` +
+        `TE then ${b?.te}, finish ${b ? when(b.finish) : '-'}, ${gain >= 0 ? 'saves' : 'costs'} ${Math.abs(gain).toFixed(3)} d`
+    );
+    if (show.includes(chain[i])) {
+      const byH = new Map(rows.map(r => [r.h, r]));
+      for (let h = 0; h <= 168; h += 6) {
+        const r = h ? byH.get(h) : { h: 0, finish: base, te: ends[i].te };
+        if (r)
+          console.log(
+            `      +${String(h).padStart(3)} h (${day(ends[i].end + h * 3600)}): finish ${d(r.finish - start)} d`
+          );
+      }
+    }
+    const n = Number(arg('replan') ?? 0);
+    for (const r of rows.slice(0, n)) {
+      const de = delayed(i, r.h);
+      const found = await findRoutes({
+        table: table.lookup,
+        startTE: de.te,
+        start: de.end,
+        final: 490,
+        maxAscensions: 10,
+        startDelivered: de.eggs,
+      });
+      if (found.best)
+        console.log(`      re-planned at +${r.h} h: ${d(found.best.end - start)} d via ${found.best.chain.join(' ')}`);
+    }
+  }
+  if (arg('verify')) {
+    const [vi, vh] = arg('verify')!.split(',').map(Number);
+    let state = JSON.parse(JSON.stringify(inputs.baseState)) as EngineState;
+    let t = start;
+    let cur = te;
+    for (const [i, target] of chain.entries()) {
+      if (i > 0) t = nextHour(t);
+      const endAt = i === vi ? ends[i].end + vh * 3600 : undefined;
+      const leg = runLeg(inputs, state, t, target, i === 0, cur, i + 2, endAt);
+      if (!leg) return console.log('  simulator: failed at ' + target);
+      t += leg.summary.totalDurationSeconds;
+      cur = Object.values(leg.summary.finalTE).reduce((a, b) => a + b, 0);
+      state = leg.nextState;
+    }
+    console.log(
+      `  simulator, ascension ${vi + 1} ending ${vh} h after its checkpoint: ${d(t - start)} d, finish ${when(t)} UTC`
+    );
+  }
+}
+
 async function main(): Promise<void> {
   if (has('pack')) return pack();
   if (has('restamp')) {
@@ -1286,6 +1420,7 @@ async function main(): Promise<void> {
   if (has('generate-worker')) return generateWorker(backup, arg('out')!);
   if (has('generate')) return generate(backup);
   if (has('verify-table')) return verifyTable(backup);
+  if (has('delay-scan')) return delayScan(backup);
   if (has('verify-cells')) return verifyCells(backup);
   if (has('route')) return route(backup);
   if (has('profile')) return profile(backup);
