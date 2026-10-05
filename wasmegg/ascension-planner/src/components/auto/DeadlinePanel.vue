@@ -338,7 +338,7 @@
       <div v-if="shareOptIn" class="flex flex-wrap items-center gap-4">
         <label class="flex items-center gap-2 cursor-pointer font-bold">
           <input v-model="shareAnonymous" type="radio" :value="true" class="text-indigo-600" />
-          Anonymously
+          Submit anonymously
         </label>
         <label class="flex items-center gap-2 cursor-pointer font-bold">
           <input v-model="shareAnonymous" type="radio" :value="false" class="text-indigo-600" />
