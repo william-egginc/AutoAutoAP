@@ -121,7 +121,7 @@
         <div class="flex flex-wrap items-center gap-4 pl-6 text-[11px] font-bold text-slate-700">
           <label class="flex items-center gap-2 cursor-pointer">
             <input v-model="anonymous" type="radio" :value="true" :disabled="store.isRunning" class="text-indigo-600" />
-            Share anonymously
+            Submit anonymously
           </label>
           <label class="flex items-center gap-2 cursor-pointer">
             <input
@@ -808,7 +808,7 @@
             back for you.
           </span>
         </div>
-        <!-- Find / Find and share: the same bar as Smart search (FindBar.vue). A sweep link already
+        <!-- Find / Find and submit: the same bar as Smart search (FindBar.vue). A sweep link already
              sends itself, so it gets Find alone, labelled as the card at the top labels it. -->
         <FindBar
           v-model:opt-in="optIn"
@@ -842,7 +842,7 @@
           @stop="stopRun"
           @nickname-typed="nicknameTouched = true"
         />
-        <!-- A Find and share that finished (and sent) while this panel was closed for another tab. -->
+        <!-- A Find and submit that finished (and sent) while this panel was closed for another tab. -->
         <AutoSendReport v-if="!autoSubmitted" kind="full" />
 
         <!-- Which chain of a multi-chain click is running, and what the finished ones found. -->
@@ -1037,7 +1037,7 @@
         </div>
 
         <!-- Submission. Same payload, same opt-in, same disclosure as the main panel. -->
-        <!-- Not while a Find and share run is going: it sends itself with the choice made at Find,
+        <!-- Not while a Find and submit run is going: it sends itself with the choice made at Find,
              and a box here saying "anonymously" would not be what goes. -->
         <div
           v-if="store.bestDays > 0 && !(store.isRunning && store.submitsWhenDone)"
@@ -1072,7 +1072,7 @@
             <div class="flex flex-wrap items-center gap-4">
               <label class="flex items-center gap-2 cursor-pointer text-[11px] font-bold text-indigo-900">
                 <input v-model="anonymous" type="radio" :value="true" class="text-indigo-600" />
-                Share anonymously
+                Submit anonymously
               </label>
               <label class="flex items-center gap-2 cursor-pointer text-[11px] font-bold text-indigo-900">
                 <input v-model="anonymous" type="radio" :value="false" class="text-indigo-600" />
@@ -1760,7 +1760,7 @@ function currentSpec(): {
 const autoSubmitArmed = ref(false);
 const autoSubmitted = ref(false);
 
-/** Set for the length of a Find and share click (one run or a whole queue). */
+/** Set for the length of a Find and submit click (one run or a whole queue). */
 const findAndSubmit = ref(false);
 
 /** Find; with `andSubmit`, each finished result is sent as Share this result would send it. */
@@ -1861,7 +1861,7 @@ async function startQueue(): Promise<void> {
           stopped,
           finish: store.planStartUsed + store.bestDays * 86400,
         });
-        // Find and share: each chain's result goes as it finishes, before the next takes the panel.
+        // Find and submit: each chain's result goes as it finishes, before the next takes the panel.
         if (findAndSubmit.value && !stopped) await sendFinished();
         try {
           await store.saveCurrentRun(player, specs[k].label);

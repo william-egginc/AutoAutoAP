@@ -440,7 +440,7 @@
         >), or tick "Find a starting chain for me".
       </div>
 
-      <!-- Find / Find and share: the same bar as the Full sweep (FindBar.vue). The share opt-in is
+      <!-- Find / Find and submit: the same bar as the Full sweep (FindBar.vue). The share opt-in is
            given BEFORE the run, where the player is, instead of at the bottom of a page they may
            have walked away from. A run that is stopped early, fails, or finds nothing sends nothing. -->
       <FindBar
@@ -1079,7 +1079,7 @@
           <div class="flex flex-wrap items-center gap-4">
             <label class="flex items-center gap-2 cursor-pointer text-[11px] font-bold text-indigo-900">
               <input v-model="anonymous" type="radio" :value="true" class="text-indigo-600 focus:ring-indigo-500" />
-              Share anonymously
+              Submit anonymously
             </label>
             <label class="flex items-center gap-2 cursor-pointer text-[11px] font-bold text-indigo-900">
               <input v-model="anonymous" type="radio" :value="false" class="text-indigo-600 focus:ring-indigo-500" />
@@ -1722,7 +1722,7 @@ async function save(): Promise<void> {
   }
 }
 
-/** This run sends itself when it finishes (Find and share), so the result says it did. */
+/** This run sends itself when it finishes (Find and submit), so the result says it did. */
 const autoSubmitted = ref(false);
 
 /** Find (or carry on a run, `resume`); with `andSubmit`, the result is sent as Share this result

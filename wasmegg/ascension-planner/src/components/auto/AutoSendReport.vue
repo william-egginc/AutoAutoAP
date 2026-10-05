@@ -1,5 +1,5 @@
 <!--
-  How the last automatic send went (Find and share), for a panel that didn't do the sending itself.
+  How the last automatic send went (Find and submit), for a panel that didn't do the sending itself.
 
   Runs outlive their panel now: the planner's tabs close it whenever the player looks elsewhere, and
   the run finishes and sends from the panel that started it. The panel opened afterwards is a new

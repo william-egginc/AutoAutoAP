@@ -379,7 +379,7 @@
     <!-- Keep awake is in Your setup at the top, with the other computer settings. -->
     <SafariNotice />
     <IntegrityNotice />
-    <!-- A Find and share that finished (and shared) while this panel was closed for another tab. -->
+    <!-- A Find and submit that finished (and shared) while this panel was closed for another tab. -->
     <AutoSendReport v-if="!shareMessage" kind="by-date" />
     <!-- The unfinished run's carry-on again, next to Start where people look for it. -->
     <div
@@ -398,7 +398,7 @@
       >
     </div>
 
-    <!-- Find / Find and share: the same bar as Fastest route (FindBar.vue), with this screen's own
+    <!-- Find / Find and submit: the same bar as Fastest route (FindBar.vue), with this screen's own
          consent wording. The same share settings as the Share this result box under the result. -->
     <FindBar
       v-model:opt-in="shareOptIn"
@@ -416,7 +416,7 @@
     >
       <template #consent>
         <span
-          >For <span class="font-bold">Find and share</span>: share the best answer on the leaderboard when the search
+          >For <span class="font-bold">Find and submit</span>: share the best answer on the leaderboard when the search
           finishes. It sends the route, its dates and the deadline, with your artifact inventory, timezone, local plan
           start and the random code this browser keeps for the account (not your player ID, and never shown), plus the
           CSV if ticked under Share this result. Stop it early and it shares the best it found so far.</span
@@ -662,7 +662,7 @@
           <div class="flex flex-wrap items-center gap-4">
             <label class="flex items-center gap-2 cursor-pointer text-[11px] font-bold text-indigo-900">
               <input v-model="shareAnonymous" type="radio" :value="true" class="text-indigo-600" />
-              Share anonymously
+              Submit anonymously
             </label>
             <label class="flex items-center gap-2 cursor-pointer text-[11px] font-bold text-indigo-900">
               <input v-model="shareAnonymous" type="radio" :value="false" class="text-indigo-600" />
@@ -1186,7 +1186,7 @@ async function resume(): Promise<void> {
   await store.resumeDeadline(props.playerId);
 }
 
-/** Set while a Find and share run is going: it shares its best answer when it finishes. */
+/** Set while a Find and submit run is going: it shares its best answer when it finishes. */
 const autoShare = ref(false);
 
 /** Find, and with `andSubmit` share the best answer at the end (not when stopped early or failed). */
