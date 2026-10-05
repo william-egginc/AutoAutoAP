@@ -15,5 +15,5 @@
  */
 export default {
   reloadIfBuiltBefore: '2026-10-05T06:22:00Z',
-  note: 'Your setup: Let me pick my hours now also makes egg shifts wait for your hours. A newer save moves the plan start up. One more account has its own gear table',
+  note: 'Instant answers are now exact for two more board gear setups: Halceyx before and after his 2 Oct change. Let me pick my hours also makes egg shifts wait for your hours',
 };
