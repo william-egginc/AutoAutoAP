@@ -15,5 +15,5 @@
  */
 export default {
   reloadIfBuiltBefore: '2026-10-05T06:22:00Z',
-  note: 'The share choice now reads Submit anonymously on every screen. Highest TE by a date always lets you set the stops yourself, and Science asks for any gear that has no table yet',
+  note: 'Instant answers are now exact for one more account, built on its own gear. The share choice reads Submit anonymously on every screen',
 };
