@@ -23,6 +23,7 @@ import { countUnavailable, isConstrained, nextAvailable } from './availability';
 import { meetsAll, usableMilestones } from './milestones';
 import { computeTEEarned } from '@/auto/te-thresholds';
 import { countTEThresholdsPassed } from '@/lib/truthEggs';
+import { isResearchSaleActive } from '@/lib/events';
 import type { EngineState } from '@/engine/types';
 import type { ChainResult, SearchInputs } from './types';
 
@@ -31,9 +32,22 @@ import type { ChainResult, SearchInputs } from './types';
  *  practice and only bite on very long runs. */
 const MEMO_CAPACITY = 3000;
 
+/**
+ * When a fresh ascension starts after the one before ends (or after the player's hours let them
+ * prestige):
+ * - 'now': at once. Every search, By a date and the board's rechecks.
+ * - 'hour': on the next whole hour, as the precomputed table was simulated, except inside the
+ *   weekly research sale, where both are tried and the sooner end kept (the table's own rule,
+ *   routeFinder.ts `startInSale`). The instant answer's exact check, so it prices the times it shows.
+ * - 'sooner': both, at every handoff, keeping whichever ends that ascension sooner.
+ * Continuing the ascension already in progress always starts at once (there is nothing to start).
+ * The few minutes waited for the hour are not credited: the table does not credit them either.
+ */
+export type HandoffChoice = 'now' | 'hour' | 'sooner';
+
 export interface ChainEvaluator {
   /** Simulate `chain` (last entry must be the final target). Null when some leg was unevaluable. */
-  evaluate(chain: number[]): ChainResult | null;
+  evaluate(chain: number[], opts?: { handoff?: HandoffChoice }): ChainResult | null;
   /** Distinct legs actually simulated so far — the honest cost counter, cache hits excluded. */
   readonly legSims: number;
 }
@@ -148,14 +162,27 @@ export function createChainEvaluator(inputs: SearchInputs): ChainEvaluator {
       return legSims;
     },
 
-    evaluate(chain: number[]): ChainResult | null {
+    evaluate(chain: number[], opts?: { handoff?: HandoffChoice }): ChainResult | null {
       let state: EngineState | null = null;
       let time = inputs.planStart;
       let te = inputs.currentTE;
       const legs: ChainResult['legs'] = [];
+      const handoff = opts?.handoff ?? 'now';
+      // The next whole hour, still inside the player's hours.
+      const onTheHour = (t: number) => {
+        const h = Math.ceil(t / 3600) * 3600;
+        return schedule ? nextAvailable(h, schedule) : h;
+      };
+      // Of two ways to price this step, the one whose last segment ends sooner (null loses).
+      const sooner = (a: Segment[] | null, b: Segment[] | null) => {
+        if (!a) return b;
+        if (!b) return a;
+        return b[b.length - 1].summary.endTime < a[a.length - 1].summary.endTime ? b : a;
+      };
 
       for (let i = 0; i < chain.length; i++) {
-        const key = chain.slice(0, i + 1).join(',');
+        // 'now' keeps the plain prefix as its key, so it shares the memo exactly as before.
+        const key = (handoff === 'now' ? '' : `${handoff}|`) + chain.slice(0, i + 1).join(',');
         let segs = memo.get(key);
 
         if (segs === undefined) {
@@ -170,7 +197,21 @@ export function createChainEvaluator(inputs: SearchInputs): ChainEvaluator {
             b.researchLevels = {};
             state = b;
           }
-          segs = priceStep(state as EngineState, time, chain[i], i === 0, te, i);
+          if (handoff === 'now') {
+            segs = priceStep(state as EngineState, time, chain[i], i === 0, te, i);
+          } else {
+            const hour = onTheHour(time);
+            // The first step may continue the ascension in progress, which starts at once; only a
+            // fresh start moves to the hour.
+            const atOnce = priceStep(state as EngineState, time, chain[i], i === 0, te, i);
+            const continues = i === 0 && atOnce?.[0]?.key === 'continue';
+            if (continues || hour === time) segs = atOnce;
+            else {
+              const atHour = priceStep(state as EngineState, hour, chain[i], false, te, i);
+              const both = handoff === 'sooner' || isResearchSaleActive(time);
+              segs = both ? sooner(atHour, atOnce) : atHour;
+            }
+          }
           remember(key, segs);
         }
 

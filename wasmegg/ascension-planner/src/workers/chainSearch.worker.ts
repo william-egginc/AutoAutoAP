@@ -100,7 +100,7 @@ ctx.onmessage = (event: MessageEvent<WorkerRequest>) => {
           // A chain that cannot be simulated is dropped, not reported as an error: the search space
           // legitimately contains unreachable chains (a checkpoint below the player's current TE, a
           // build phase that cannot fit) and the driver's job is to ignore them.
-          const r = evaluator.evaluate(msg.chains[i]);
+          const r = evaluator.evaluate(msg.chains[i], msg.handoff ? { handoff: msg.handoff } : undefined);
           if (r) results.push(r);
           // Heartbeat. Posted per chain rather than per batch because a batch can be ~2200 chains
           // (stage 6's widest sweep) and the pool has no other way to tell a worker that is

@@ -37,6 +37,8 @@ export interface EvaluateRequest {
   requestId: number;
   /** Pre-sorted depth-first by the caller so the worker's prefix memo actually hits. */
   chains: number[][];
+  /** When each fresh ascension starts (search/chain.ts `HandoffChoice`); absent = 'now'. */
+  handoff?: import('@/search/chain').HandoffChoice;
 }
 
 /** How long a fresh ascension from the plan start sits on its first Integrity shift. See

@@ -123,6 +123,10 @@
             Reached {{ show((dateExact ?? tableDate(result.byDate)).end) }} ·
             {{ (dateExact ?? tableDate(result.byDate)).chain.length }} ascensions
           </div>
+          <p class="text-[11px] text-slate-600">
+            Ascend at the times shown: each fresh ascension starts on the hour (inside the weekly research sale, at once
+            when that ends sooner), and Check exactly prices it the same way.
+          </p>
           <div v-if="dateExact" class="text-[11px] text-slate-500">
             The table said {{ result.byDate.legs[result.byDate.legs.length - 1].endTE }} TE via
             {{ result.byDate.chain.join(' ') }} with {{ days(deadline - result.byDate.end) }} to spare<template
@@ -227,6 +231,10 @@
           ><template v-else>{{ show(lead.end) }}</template> · {{ days(lead.seconds)
           }}<template v-if="!exactOf(lead)"> · {{ lead.legs.length }} ascensions</template>
         </div>
+        <p class="text-[11px] text-slate-600">
+          Ascend at the times shown: each fresh ascension starts on the hour (inside the weekly research sale, at once
+          when that ends sooner), and Check exactly prices it the same way.
+        </p>
         <p v-if="reranked && result.best" class="text-[11px] text-amber-800">
           The table ranked the {{ result.best.legs.length }}-ascension route first ({{ result.best.chain.join(' ') }});
           on your account the full simulator has this one
@@ -728,7 +736,8 @@ async function runExact(id: number, found: NonNullable<typeof result.value>): Pr
     exactPool = await createChainSearchPool(inputs, { size });
     if (id !== runs) return;
     const price = async (chains: number[][], opts?: EvaluateOptions) => {
-      const { results } = await exactPool!.evaluate(chains, undefined, opts);
+      // On the hour, as the table was simulated and as the times shown assume (chain.ts `HandoffChoice`).
+      const { results } = await exactPool!.evaluate(chains, undefined, { handoff: 'hour', ...opts });
       if (id !== runs) return false;
       const next = { ...exact.value };
       for (const c of chains) {

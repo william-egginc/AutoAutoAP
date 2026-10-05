@@ -122,6 +122,9 @@ export interface EvaluateOptions {
    * shape's last stop), an idle worker is the bigger waste.
    */
   spreadOut?: boolean;
+  /** When each fresh ascension starts (search/chain.ts `HandoffChoice`). Absent = 'now', the
+   *  searches' rule; the instant answer's exact check asks for 'hour' (and 'sooner' when ticked). */
+  handoff?: import('./chain').HandoffChoice;
 }
 
 /** Split into per-worker buckets by a stable hash of each chain's first `depth` entries. */
@@ -462,7 +465,12 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
         const sends = buckets.map((bucket, i) =>
           send(
             pws[i],
-            { kind: 'evaluate', requestId: ++nextRequestId, chains: bucket },
+            {
+              kind: 'evaluate',
+              requestId: ++nextRequestId,
+              chains: bucket,
+              ...(opts.handoff && opts.handoff !== 'now' ? { handoff: opts.handoff } : {}),
+            },
             `worker ${workerOf[i]}`,
             bucket.length
           )
