@@ -127,6 +127,11 @@
             Ascend at the times shown: each fresh ascension starts on the hour (inside the weekly research sale, at once
             when that ends sooner), and Check exactly prices it the same way.
           </p>
+          <label class="flex items-center gap-2 text-[11px] text-slate-600 cursor-pointer">
+            <input v-model="tryAtOnce" type="checkbox" class="rounded border-slate-300" />
+            Also try ascending the moment each ascension ends, not only on the hour (slower check)
+          </label>
+          <p v-if="atOnceNote(dateExact)" class="text-[11px] font-bold text-emerald-800">{{ atOnceNote(dateExact) }}</p>
           <div v-if="dateExact" class="text-[11px] text-slate-500">
             The table said {{ result.byDate.legs[result.byDate.legs.length - 1].endTE }} TE via
             {{ result.byDate.chain.join(' ') }} with {{ days(deadline - result.byDate.end) }} to spare<template
@@ -234,6 +239,13 @@
         <p class="text-[11px] text-slate-600">
           Ascend at the times shown: each fresh ascension starts on the hour (inside the weekly research sale, at once
           when that ends sooner), and Check exactly prices it the same way.
+        </p>
+        <label class="flex items-center gap-2 text-[11px] text-slate-600 cursor-pointer">
+          <input v-model="tryAtOnce" type="checkbox" class="rounded border-slate-300" />
+          Also try ascending the moment each ascension ends, not only on the hour (slower check)
+        </label>
+        <p v-if="atOnceNote(exactOf(lead))" class="text-[11px] font-bold text-emerald-800">
+          {{ atOnceNote(exactOf(lead)) }}
         </p>
         <p v-if="reranked && result.best" class="text-[11px] text-amber-800">
           The table ranked the {{ result.best.legs.length }}-ascension route first ({{ result.best.chain.join(' ') }});
@@ -388,6 +400,8 @@ import { findRoutes, type Route } from '@/search/routeFinder';
 import { describeColleggtibles } from '@/search/progression';
 import { poolSize, RoutePool } from '@/search/routePool';
 import { createChainSearchPool, type ChainSearchPool, type EvaluateOptions } from '@/search/pool';
+import type { HandoffChoice } from '@/search/chain';
+import type { ChainResult } from '@/search/types';
 import { gearChanges, gearStamp, gearTableName, tableName } from '@/search/tableGear';
 import { compositeUrl, parseCompositeUrl } from '@/search/precomputedTable';
 import type { TableHeader } from '@/search/precomputedTable';
@@ -660,9 +674,20 @@ interface Exact {
   end: number;
   /** TE when the route ends (above its last checkpoint when a sale wait overshoots). */
   endTE: number;
+  /** How its fresh ascensions start in the price kept (chain.ts `HandoffChoice`): 'hour' unless
+   *  the player ticked "also try ascending at once" and another way was sooner. */
+  handoff: HandoffChoice;
+  /** The fresh ascensions (1-based) that start at once rather than on the hour in that price. */
+  atOnce: number[];
+  /** How many of its ascensions are fresh (not the one in progress, continued). */
+  fresh: number;
 }
 /** Exact prices by `chain.join(',')`; null where the simulator could not price the route. */
 const exact = ref<Record<string, Exact | null>>({});
+/** "Also try ascending at once" (off by default): the exact check also prices every route with each
+ *  fresh ascension at once, and with the sooner of the two at each one, and keeps the best. Up to
+ *  three times the work, so it is the player's choice. */
+const tryAtOnce = ref(false);
 const exactStatus = ref<'idle' | 'running' | 'done' | 'error' | 'waiting'>('idle');
 const exactText = ref('');
 const exactMs = ref<number | null>(null);
@@ -671,6 +696,9 @@ interface DateExact {
   chain: number[];
   endTE: number;
   end: number;
+  handoff: HandoffChoice;
+  atOnce: number[];
+  fresh: number;
 }
 /** By a date: the highest TE that really makes the date on the player's account (the simulator's),
  *  overall and for each row's number of ascensions (null: that row misses it). */
@@ -681,7 +709,22 @@ const dateExactByK = ref<Record<number, DateExact | null>>({});
 const readDateLead = (): DateExact | null => dateExact.value;
 /** Under a day to spare is tight: a slower ascension than planned, or a late start, misses the date. */
 const TIGHT_SECONDS = 86400;
-const tableDate = (r: Route): DateExact => ({ chain: r.chain, endTE: r.legs[r.legs.length - 1].endTE, end: r.end });
+const tableDate = (r: Route): DateExact => ({
+  chain: r.chain,
+  endTE: r.legs[r.legs.length - 1].endTE,
+  end: r.end,
+  handoff: 'hour',
+  atOnce: [],
+  fresh: r.legs.filter(l => l.label !== 'continue').length,
+});
+/** "Ascend at once for …", when the exact check kept a price that starts some ascensions at once. */
+function atOnceNote(e: { atOnce: number[]; fresh: number } | null | undefined): string {
+  if (!e || !e.atOnce.length) return '';
+  if (e.atOnce.length >= e.fresh)
+    return 'Fastest on your account starting each fresh ascension the moment the one before ends, not on the hour.';
+  const which = e.atOnce.length === 1 ? `ascension ${e.atOnce[0]}` : `ascensions ${e.atOnce.join(', ')}`;
+  return `Fastest on your account starting ${which} the moment the one before ends, not on the hour (the others on the hour).`;
+}
 const spareOf = (d: DateExact) => (props.deadline ?? 0) - d.end;
 /** The rows By a date shows: the table's best number of ascensions and up to two either side. */
 function dateRowsOf(found: NonNullable<typeof result.value>, bestK?: number): Route[] {
@@ -736,16 +779,35 @@ async function runExact(id: number, found: NonNullable<typeof result.value>): Pr
     exactPool = await createChainSearchPool(inputs, { size });
     if (id !== runs) return;
     const price = async (chains: number[][], opts?: EvaluateOptions) => {
-      // On the hour, as the table was simulated and as the times shown assume (chain.ts `HandoffChoice`).
-      const { results } = await exactPool!.evaluate(chains, undefined, { handoff: 'hour', ...opts });
-      if (id !== runs) return false;
+      // On the hour, as the table was simulated and as the times shown assume (chain.ts
+      // `HandoffChoice`); with "also try ascending at once", all at once and the sooner of the two
+      // at each ascension too, keeping whichever reaches the end soonest.
+      const ways: HandoffChoice[] = tryAtOnce.value ? ['hour', 'now', 'sooner'] : ['hour'];
+      const best = new Map<string, { r: ChainResult; handoff: HandoffChoice }>();
+      for (const handoff of ways) {
+        const { results } = await exactPool!.evaluate(chains, undefined, { ...opts, handoff });
+        if (id !== runs) return false;
+        for (const r of results) {
+          const k = key(r.chain);
+          const b = best.get(k);
+          if (r.seconds > 0 && (!b || r.seconds < b.r.seconds)) best.set(k, { r, handoff });
+        }
+      }
       const next = { ...exact.value };
       for (const c of chains) {
-        const r = results.find(x => key(x.chain) === key(c));
-        next[key(c)] =
-          r && r.seconds > 0
-            ? { seconds: r.seconds, end: inputs.planStart + r.seconds, endTE: r.legs[r.legs.length - 1]?.endTE ?? 0 }
-            : null;
+        const b = best.get(key(c));
+        next[key(c)] = b
+          ? {
+              seconds: b.r.seconds,
+              end: inputs.planStart + b.r.seconds,
+              endTE: b.r.legs[b.r.legs.length - 1]?.endTE ?? 0,
+              handoff: b.handoff,
+              atOnce: b.r.legs
+                .map((l, i) => (l.key !== 'continue' && (l.startTime ?? 0) % 3600 !== 0 ? i + 1 : 0))
+                .filter(n => n > 0),
+              fresh: b.r.legs.filter(l => l.key !== 'continue').length,
+            }
+          : null;
       }
       exact.value = next;
       return true;
@@ -773,7 +835,16 @@ async function runExact(id: number, found: NonNullable<typeof result.value>): Pr
           done.add(k);
           const first = exact.value[key(route.chain)];
           let made: DateExact | null =
-            first && first.end <= deadline ? { chain: route.chain, endTE: first.endTE, end: first.end } : null;
+            first && first.end <= deadline
+              ? {
+                  chain: route.chain,
+                  endTE: first.endTE,
+                  end: first.end,
+                  handoff: first.handoff,
+                  atOnce: first.atOnce,
+                  fresh: first.fresh,
+                }
+              : null;
           const prefix = route.chain.slice(0, -1);
           const floor = prefix.length ? prefix[prefix.length - 1] : Math.floor(store.currentTE);
           for (let hi = route.chain[route.chain.length - 1] - 1; hi > floor && !made; hi -= 3) {
@@ -783,7 +854,7 @@ async function runExact(id: number, found: NonNullable<typeof result.value>): Pr
             for (const c of tries) {
               const e = exact.value[key(c)];
               if (e && e.end <= deadline) {
-                made = { chain: c, endTE: e.endTE, end: e.end };
+                made = { chain: c, endTE: e.endTE, end: e.end, handoff: e.handoff, atOnce: e.atOnce, fresh: e.fresh };
                 break;
               }
             }
@@ -984,7 +1055,15 @@ const sinceCache = computed<{ better: boolean; text: string } | null>(() => {
 // Again whenever what it depends on changes (a new save, a new plan start, another target).
 let timer: ReturnType<typeof setTimeout> | null = null;
 watch(
-  () => [Math.floor(store.currentTE), store.planStart, target.value, props.deadline, store.forceContinue, bonus.value],
+  () => [
+    Math.floor(store.currentTE),
+    store.planStart,
+    target.value,
+    props.deadline,
+    store.forceContinue,
+    bonus.value,
+    tryAtOnce.value,
+  ],
   () => {
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => void run(), 300);
