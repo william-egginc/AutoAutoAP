@@ -33,11 +33,13 @@ describe('what the player is told', () => {
     expect(note.text).toMatch(/caught up/);
   });
 
-  it('warns when the save is older than the silos hold: the sync is old or something was missed', () => {
+  it('warns in red when the save is older than the silos hold: the answers are off, so force a sync', () => {
     const note = describeSaveAge(SYNC, SYNC + 40 * H, 12 * H)!;
     expect(note.level).toBe('warning');
+    expect(note.severe).toBe(true);
     expect(note.text).toMatch(/40h old, longer than your silos hold/);
-    expect(note.text).toMatch(/something was missed/);
+    expect(note.text).toMatch(/won't be accurate/);
+    expect(note.text).toMatch(/Force a sync/);
   });
 
   it('does not talk about silos for a save with no virtue farm, since nothing is caught up', () => {

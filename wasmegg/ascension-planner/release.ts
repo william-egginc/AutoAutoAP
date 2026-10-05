@@ -15,5 +15,5 @@
  */
 export default {
   reloadIfBuiltBefore: '2026-10-05T19:54:00Z',
-  note: 'Smart search explains itself more plainly, Find and submit says what to tick, "Let me pick my hours" now holds egg shifts too, and refreshing your save moves the plan start up to it',
+  note: 'the plan start note says when a newer sync would change it, and a save older than your silos now shows in red and asks you to force a sync',
 };

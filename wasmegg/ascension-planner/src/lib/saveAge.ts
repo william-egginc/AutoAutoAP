@@ -12,7 +12,10 @@
 import { formatSiloTime, totalAwayTime } from '@/stores/silos';
 
 /** Seconds of time away the silos hold: silo count x the per-silo time Silo Capacity research sets. */
-export function siloSeconds(siloCount: number | null | undefined, siloCapacityLevel: number | null | undefined): number {
+export function siloSeconds(
+  siloCount: number | null | undefined,
+  siloCapacityLevel: number | null | undefined
+): number {
   return totalAwayTime(Math.max(1, siloCount || 1), siloCapacityLevel || 0) * 60;
 }
 
@@ -25,7 +28,11 @@ export function catchUpSeconds(syncSeconds: number, startSeconds: number, silo: 
 export interface SaveAgeNote {
   level: 'ok' | 'warning';
   text: string;
+  /** Older than the silos hold: the answers are wrong, not just uncertain. Shown in red. */
+  severe?: boolean;
 }
+
+const NEWER_SYNC = " If you've opened the game since then and have a newer sync, this might not be accurate.";
 
 /** `45m`, `6h`, `3d`. */
 function short(seconds: number): string {
@@ -56,7 +63,10 @@ export function describeSaveAge(
   }
   const silos = formatSiloTime(Math.round(silo / 60));
   if (Math.abs(gap) < 15 * 60) {
-    return { level: 'ok', text: 'Starts at your last sync, so the farm being simulated and the clock agree.' };
+    return {
+      level: 'ok',
+      text: 'Starts at your last sync, so the farm being simulated and the clock agree.' + NEWER_SYNC,
+    };
   }
   if (gap < 0) {
     return {
@@ -67,11 +77,12 @@ export function describeSaveAge(
   if (gap <= silo) {
     return {
       level: 'ok',
-      text: `Your save is ${short(gap)} old. The farm is caught up to the plan start at its current rate, the way the game credits time away (your silos hold ${silos}). Anything you bought since is not in it; sync and reload if you have played.`,
+      text: `Your save is ${short(gap)} old. The farm is caught up to the plan start at its current rate, the way the game credits time away (your silos hold ${silos}).${NEWER_SYNC} Anything you bought since is not in it; sync and reload if you have played.`,
     };
   }
   return {
     level: 'warning',
-    text: `Your save is ${short(gap)} old, longer than your silos hold (${silos}), so only ${silos} of it is caught up: the farm stops filling once the silos are full. Either this sync is old or something was missed. Sync in the game and reload for a true start.`,
+    severe: true,
+    text: `Your save is ${short(gap)} old, longer than your silos hold (${silos}), so the answers here won't be accurate. Force a sync: open Egg, Inc., let it sync, then reload this page (or press Load latest save).`,
   };
 }
