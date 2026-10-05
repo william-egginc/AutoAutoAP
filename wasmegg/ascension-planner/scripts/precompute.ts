@@ -1798,6 +1798,22 @@ async function holdCredit(file: string): Promise<void> {
   console.log(
     `  today (shifts held, uncredited): ${d(today.r.seconds)} d; held ${H(today.r.legs.reduce((n, l) => n + (l.shiftDelaySeconds ?? 0), 0))} h in all`
   );
+  // --quick: the chain evaluator's own answers only: no hours at all, hours with prestiges waiting,
+  // hours with shifts held too (whatever model the build has), and none of the loop below.
+  if (has('quick')) {
+    store.scheduleEnabled = false;
+    const off = createChainEvaluator(store.collectInputs()).evaluate(chain);
+    store.scheduleEnabled = true;
+    const legEnds = (r: typeof off) =>
+      r ? r.legs.map(l => `${l.endTE}@${new Date(l.endTime * 1000).toISOString().slice(0, 16)}`).join(' ') : 'failed';
+    console.log(`  no hours: ${off ? d(off.seconds) : 'failed'} d, ${off?.seconds} s`);
+    console.log(
+      `  hours, shifts held: ${d(today.r.seconds)} d, ${today.r.seconds} s, finish ${new Date((inputs.planStart + today.r.seconds) * 1000).toISOString().slice(0, 16)} UTC`
+    );
+    console.log(`  legs (no hours): ${legEnds(off)}`);
+    console.log(`  legs (hours):    ${legEnds(today.r)}`);
+    return;
+  }
 
   // Credited: the same loop as chain.ts (no time off), legs simulated again from each new start.
   let state = JSON.parse(JSON.stringify(inputs.baseState)) as EngineState;
