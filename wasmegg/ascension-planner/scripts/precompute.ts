@@ -81,6 +81,7 @@ import { runAscensionFromC3Variant } from '@/auto/ascension';
 import { computeTEEarned } from '@/auto/te-thresholds';
 import { countTEThresholdsPassed, getThresholdForTE } from '@/lib/truthEggs';
 import { createChainEvaluator } from '@/search/chain';
+import { sanitizeLongs } from '@/lib/artifacts/utils';
 import { nextAvailable } from '@/search/availability';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { pickVariant, type VariantKey, type VariantResult } from '@/stores/autoPlanner';
@@ -1887,6 +1888,79 @@ async function holdCredit(file: string): Promise<void> {
   );
 }
 
+/**
+ * --cache-check (5 Oct): does getOptimalELRSet's structure cache (lib/artifacts/virtue.ts: the first
+ * artifact structure per backup object, kept for the rest of the process) change what players get?
+ * Six chains (3-8 ascensions, checkpoints evenly spaced from the save's TE to 490) are priced leg by
+ * leg the way a search worker does, every leg on the same save object (cache ON), and every leg is
+ * priced again from the identical start state and time on a fresh copy of the save (cache OFF, so
+ * each leg finds its own structure). One JSON line per leg, then a summary.
+ */
+async function cacheCheck(file: string): Promise<void> {
+  const inputs = await loadInputs(file);
+  const te0 = Math.floor(inputs.currentTE);
+  const start = arg('start') ? Math.floor(Date.parse(arg('start')!) / 1000) : inputs.planStart;
+  const raw = inputs.context.rawBackup;
+  const fresh = (): SearchInputs => ({
+    ...inputs,
+    context: { ...inputs.context, rawBackup: sanitizeLongs(raw) as typeof raw },
+  });
+  const label = arg('label') ?? arg('combo') ?? 'save';
+  const diffs: number[] = [];
+  let legs = 0;
+  let differ = 0;
+  for (let n = 3; n <= 8; n++) {
+    const chain = Array.from({ length: n }, (_, i) =>
+      i === n - 1 ? 490 : Math.round(te0 + ((490 - te0) * (i + 1)) / n)
+    );
+    let state = JSON.parse(JSON.stringify(inputs.baseState)) as EngineState;
+    state.currentEgg = 'curiosity';
+    state.population = 1;
+    state.bankValue = 0;
+    state.researchLevels = {};
+    let t = start;
+    let cur = te0;
+    for (const [i, target] of chain.entries()) {
+      if (target <= cur) continue;
+      const on = runLeg(inputs, state, t, target, false, cur, i + 2);
+      const off = runLeg(fresh(), JSON.parse(JSON.stringify(state)) as EngineState, t, target, false, cur, i + 2);
+      if (!on || !off) {
+        console.log(JSON.stringify({ label, chain: chain.join(' '), leg: i + 1, target, failed: !on ? 'on' : 'off' }));
+        break;
+      }
+      legs++;
+      const a = on.summary.totalDurationSeconds;
+      const b = off.summary.totalDurationSeconds;
+      const pct = (100 * (a - b)) / b;
+      const same = a === b && on.summary.endTE === off.summary.endTE;
+      if (!same) differ++;
+      diffs.push(Math.abs(pct));
+      console.log(
+        JSON.stringify({
+          label,
+          chain: chain.join(' '),
+          leg: i + 1,
+          from: cur,
+          target,
+          on: a,
+          off: b,
+          pct: Number(pct.toFixed(4)),
+          endTE: [on.summary.endTE, off.summary.endTE],
+          keys: [on.key, off.key],
+        })
+      );
+      t = nextHour(t + a);
+      cur = on.summary.endTE;
+      state = on.nextState;
+    }
+  }
+  diffs.sort((x, y) => x - y);
+  const med = diffs.length ? diffs[Math.floor(diffs.length / 2)] : 0;
+  console.log(
+    `SUMMARY ${label}: ${legs} legs, ${differ} differ; |diff| median ${med.toFixed(4)}%, worst ${(diffs[diffs.length - 1] ?? 0).toFixed(4)}%`
+  );
+}
+
 async function main(): Promise<void> {
   if (has('pack')) return pack();
   if (has('restamp')) {
@@ -2041,6 +2115,7 @@ async function main(): Promise<void> {
   if (has('wait-policy')) return waitPolicy(backup);
   if (has('eggday-scan')) return eggdayScan(backup);
   if (has('hold-credit')) return holdCredit(backup);
+  if (has('cache-check')) return cacheCheck(backup);
   if (has('verify-cells')) return verifyCells(backup);
   if (has('route')) return route(backup);
   if (has('profile')) return profile(backup);
