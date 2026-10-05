@@ -995,6 +995,33 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    */
   const planStartUsed = ref(0);
 
+  /**
+   * The settings a run STARTED with, for its record (BobSki's ee34f753, found 5 Oct): the search
+   * prices with the inputs snapshotted at its start, but the submission, the recheck and the CSV used
+   * to read these live, so switching playing hours off before sending labelled a scheduled run "any
+   * time" while its legs carried the waits. Null until a run starts here (a run opened from the
+   * library falls back to the live values, which opening it has just set from the run).
+   */
+  interface RunSettings {
+    effort: EffortTier;
+    forceContinue: boolean;
+    availability: Availability | null;
+    deferShifts: boolean;
+    timeOff: TimeOffDates[];
+  }
+  const runSettingsUsed = ref<RunSettings | null>(null);
+  function snapshotSettings(): RunSettings {
+    return {
+      effort: effort.value,
+      forceContinue: forceContinue.value,
+      availability: availability.value ? (JSON.parse(JSON.stringify(availability.value)) as Availability) : null,
+      deferShifts: deferShifts.value,
+      timeOff: JSON.parse(JSON.stringify(timeOff.value)) as TimeOffDates[],
+    };
+  }
+  /** The finished or running search's own settings, else the live ones. */
+  const usedSettings = (): RunSettings => runSettingsUsed.value ?? snapshotSettings();
+
   const planStartIsNow = computed(() => !planStartPin.value && plannerStart.value === null);
 
   /** The chain the search starts from: whatever the user has typed in the Auto Planner's Target TE
@@ -2028,10 +2055,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       // The run's own target -- its chain ends there -- not the box as it reads now: a run finished
       // at 309 and sent after the box was changed to 308 was filed under 308 (b7c361cc).
       finalTE: bestChain.value[bestChain.value.length - 1] ?? finalTE.value,
-      effort: effort.value,
-      availability: isConstrained(availability.value) ? availability.value : null,
-      holdShifts: deferShifts.value,
-      forceContinue: forceContinue.value,
+      effort: usedSettings().effort,
+      availability: isConstrained(usedSettings().availability) ? usedSettings().availability : null,
+      holdShifts: usedSettings().deferShifts,
+      forceContinue: usedSettings().forceContinue,
       chainsPriced: csvRows.value,
       // Null for a checkpoint replay, and left off entirely in that case, so the board never reads
       // "0 minutes for 400 chains" as a very fast machine.
@@ -2060,7 +2087,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       rechecks: rechecksFor(safeResultKey(), !!nickname?.trim()),
       flags: submissionFlags(),
       integrityWaitSeconds: integrityWait.value,
-      timeOff: usableTimeOff(timeOff.value),
+      timeOff: usableTimeOff(usedSettings().timeOff),
     });
     // A run started from one of the Chain Explorer's "Run this sweep" links carries its preset, so it
     // counts toward that sweep's coverage there without anyone having to tag it by hand.
@@ -2086,12 +2113,14 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       currentTE: r.te,
       finalTE: route.chain[route.chain.length - 1],
       effort: 'deadline',
-      availability: isConstrained(availability.value) ? availability.value : null,
-      holdShifts: deferShifts.value,
-      forceContinue: forceContinue.value,
+      availability: isConstrained((r.settings ?? usedSettings()).availability)
+        ? (r.settings ?? usedSettings()).availability
+        : null,
+      holdShifts: (r.settings ?? usedSettings()).deferShifts,
+      forceContinue: (r.settings ?? usedSettings()).forceContinue,
       chainsPriced: r.priced,
       ...accountFields(r.te),
-      timeOff: usableTimeOff(timeOff.value),
+      timeOff: usableTimeOff((r.settings ?? usedSettings()).timeOff),
       deadline: { at: r.deadline, ascendAt: route.ascendAt },
     });
   }
@@ -2352,10 +2381,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       currentTE: currentTE.value,
       finalTE: finalTE.value,
       winner: [...bestChain.value],
-      window: isConstrained(availability.value) ? describeAvailability(availability.value) : null,
-      holdShifts: deferShifts.value,
-      forceContinue: forceContinue.value,
-      timeOff: usableTimeOff(timeOff.value),
+      window: isConstrained(usedSettings().availability) ? describeAvailability(usedSettings().availability) : null,
+      holdShifts: usedSettings().deferShifts,
+      forceContinue: usedSettings().forceContinue,
+      timeOff: usableTimeOff(usedSettings().timeOff),
     };
   }
 
@@ -2797,14 +2826,14 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const raw = getSimulationContext().rawBackup ?? null;
     const equipped = raw ? getArtifactLoadoutFromBackup(raw) : null;
     return buildChainsCsv(entries, {
-      planStart: planStart.value,
+      planStart: planStartUsed.value || planStart.value,
       timezone: useAutoPlannerStore().timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
       currentTE: currentTE.value,
       final: finalTE.value,
-      effort: effort.value,
-      forceContinue: forceContinue.value,
-      availability: availability.value,
-      timeOff: usableTimeOff(timeOff.value),
+      effort: usedSettings().effort,
+      forceContinue: usedSettings().forceContinue,
+      availability: usedSettings().availability,
+      timeOff: usableTimeOff(usedSettings().timeOff),
       seedChain: seedChain.value,
       runNote: runNoteUsed,
       // The ELR set is deliberately NOT listed. `getOptimalELRSet` re-solves the structure per leg
@@ -2833,14 +2862,14 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const raw = getSimulationContext().rawBackup ?? null;
     const equipped = raw ? getArtifactLoadoutFromBackup(raw) : null;
     yield* chainsCsvChunks(entries, {
-      planStart: planStart.value,
+      planStart: planStartUsed.value || planStart.value,
       timezone: useAutoPlannerStore().timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
       currentTE: currentTE.value,
       final: finalTE.value,
-      effort: effort.value,
-      forceContinue: forceContinue.value,
-      availability: availability.value,
-      timeOff: usableTimeOff(timeOff.value),
+      effort: usedSettings().effort,
+      forceContinue: usedSettings().forceContinue,
+      availability: usedSettings().availability,
+      timeOff: usableTimeOff(usedSettings().timeOff),
       seedChain: seedChain.value,
       runNote: runNoteUsed,
       // The ELR set is deliberately NOT listed. `getOptimalELRSet` re-solves the structure per leg
@@ -3115,6 +3144,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     lastRateChains = 0;
 
     planStartUsed.value = planStart.value;
+    runSettingsUsed.value = snapshotSettings();
     chainsEstimated.value = chains.length;
     bestChain.value = [];
     bestDays.value = 0;
@@ -3481,6 +3511,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   let deadlineReady: [DeadlineRunSpec, SearchInputs, string] | null = null;
   /** The running deadline search's note, for the black box. */
   let deadlineNote: string | undefined;
+  /** The deadline run's own settings from its start, kept in its result for the record. */
+  let deadlineSettings: RunSettings | null = null;
 
   async function prepareDeadline(playerId: string, spec: DeadlineRunSpec): Promise<void> {
     deadlineReady = null;
@@ -3568,6 +3600,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   ): Promise<void> {
     const schedule = isConstrained(inputs.availability) ? inputs.availability : null;
     deadlineRunning.value = true;
+    deadlineSettings = snapshotSettings();
     deadlineNote = spec.note;
     deadlineEstimate.value = Math.max(0, Math.floor(spec.estimate ?? 0));
     deadlineStop = false;
@@ -3679,6 +3712,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         lastHi: spec.lastHi,
         ceiling: spec.extend ? Math.max(spec.lastHi, MAX_LAST_STOP) : spec.lastHi,
         ...(spec.note ? { note: spec.note } : {}),
+        ...(deadlineSettings ? { settings: deadlineSettings } : {}),
         at: Date.now(),
       };
       try {
@@ -4116,6 +4150,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     lastRateChains = 0;
 
     planStartUsed.value = planStart.value;
+    runSettingsUsed.value = snapshotSettings();
     const chain = seedChain.value;
     chainsEstimated.value = estimateChains(Math.max(1, chain.length - 1), EFFORT[effort.value]);
     bestChain.value = [...chain];

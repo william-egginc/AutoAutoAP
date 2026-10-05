@@ -14,6 +14,6 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 export default {
-  reloadIfBuiltBefore: '2026-10-02T20:31:00Z',
-  note: 'Highest TE by a date: save an answer under a name and open it again later from Saved answers. Each chain has its own Suggest a space settings, with an option to move them together',
+  reloadIfBuiltBefore: '2026-10-05T06:19:00Z',
+  note: 'A run now keeps the settings it started with: changing your setup before you send or download it no longer mislabels the run. Highest TE by a date can save answers under a name',
 };
