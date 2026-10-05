@@ -420,7 +420,7 @@
           No answers yet. Run {{ NAMES.byDate }} in the Auto Planner<template v-if="tab === 'eggday'">
             with the Egg Day preset</template
           >
-          and use <span class="font-semibold">Share this answer</span>.
+          and use <span class="font-semibold">Share this result</span>.
         </p>
         <div
           v-for="g in shownDates"

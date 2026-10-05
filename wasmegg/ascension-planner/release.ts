@@ -15,5 +15,5 @@
  */
 export default {
   reloadIfBuiltBefore: '2026-10-05T06:22:00Z',
-  note: 'A run now keeps the settings it started with, saved runs included: changing your setup before you send or download a run no longer mislabels it. By a date can save answers by name',
+  note: 'Highest TE by a date now always lets you set the stops yourself, and sharing reads the same everywhere: Find and share, Share this result. Science asks for any gear that has no table yet',
 };

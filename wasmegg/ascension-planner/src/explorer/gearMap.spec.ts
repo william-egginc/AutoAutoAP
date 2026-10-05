@@ -17,7 +17,6 @@ import {
   mapDomain,
   needRegions,
   placeLabels,
-  textRightEdge,
   type GearPoint,
   type LabelPlacement,
   type MapDomain,
@@ -267,12 +266,12 @@ describe('gearNeeds', () => {
   it('keeps the gear and position asks, in a fixed order, each saying where it sits', () => {
     const list = gearNeeds([
       need('sweep-F2'),
-      need('weak-gear'),
-      need('te-high'),
+      need('new-gear'),
+      need('te-low'),
       need('cte-edge'),
       need('force-continue'),
     ]);
-    expect(list.map(g => g.id)).toEqual(['cte-edge', 'te-high', 'weak-gear']);
+    expect(list.map(g => g.id)).toEqual(['cte-edge', 'te-low', 'new-gear']);
     expect(list.map(g => g.region)).toEqual([true, true, false]);
     for (const g of list) expect(g.where.length).toBeGreaterThan(10);
   });
@@ -298,16 +297,16 @@ describe('needRegions', () => {
       needRegions(all, d)
         .map(r => r.id)
         .sort()
-    ).toEqual(['cte-edge', 'te-high', 'te-low']);
+    ).toEqual(['cte-edge', 'te-low']);
   });
 
   it('drops a region once its ask is covered', () => {
     expect(
       needRegions(
-        all.filter(x => x.id !== 'te-high'),
+        all.filter(x => x.id !== 'te-low'),
         d
       ).map(r => r.id)
-    ).not.toContain('te-high');
+    ).not.toContain('te-low');
   });
 
   it("matches needs.ts's own tests: a run inside a box counts toward that ask, one outside does not", () => {
@@ -332,16 +331,9 @@ describe('needRegions', () => {
     }
   });
 
-  it('keeps right-aligned text out of the TE 200 column while that ask is open', () => {
-    expect(textRightEdge(all, d)).toBe(200);
-    expect(
-      textRightEdge(
-        all.filter(x => x.id !== 'te-high'),
-        d
-      )
-    ).toBe(220);
+  it('runs the CTE 200-240 label to the right edge', () => {
     const band = needRegions(all, d).find(r => r.id === 'cte-edge')!;
-    expect(band.anchor[0]).toBe(200);
+    expect(band.anchor[0]).toBe(220);
     expect(band.align).toBe('right');
   });
 });

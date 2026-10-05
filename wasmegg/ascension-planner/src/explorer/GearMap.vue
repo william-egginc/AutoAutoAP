@@ -158,7 +158,6 @@ import {
   mapDomain,
   needRegions,
   placeLabels,
-  textRightEdge,
   type GearPoint,
   type LabelPlacement,
 } from './gearMap';
@@ -231,10 +230,9 @@ const placements = computed<LabelPlacement[]>(() =>
 /** The plot's width in px, as drawn. */
 const plotWidth = computed(() => Math.max(200, boxWidth.value - GRID.left - GRID.right));
 
-/** The stall band's label, shortened to fit the width it has (it ends at `textRightEdge`). */
+/** The stall band's label, shortened to fit the width it has (it runs the full width). */
 const stallText = computed(() => {
-  const d = domain.value;
-  const room = ((textRightEdge(needs.value, d) - d.x[0]) / (d.x[1] - d.x[0])) * plotWidth.value - 10;
+  const room = plotWidth.value - 10;
   return (
     [
       "first ascension stalls below here (the planner's estimate)",
@@ -312,7 +310,7 @@ const option = computed<ChartOption>(() => {
 
   series.push(wash([d.x[0], d.x[1]], [STALL_BAND.lo, STALL_BAND.hi], STALL_FILL));
   texts.push({
-    at: [textRightEdge(needs.value, d), (STALL_BAND.lo + STALL_BAND.hi) / 2],
+    at: [d.x[1], (STALL_BAND.lo + STALL_BAND.hi) / 2],
     text: stallText.value,
     offset: [-5, 0],
     align: 'right',
