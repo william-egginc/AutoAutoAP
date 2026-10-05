@@ -553,30 +553,213 @@
             the gap comes from the plans alone. For a plan from an older save, press Use to price it again from today's
             save.
           </p>
-          <LeaderboardPlanList
-            v-if="mine.best"
-            :plans="[mine.best, ...mine.listed]"
-            :all-plans="shownPlans(mine)"
-            :best="mine.best"
-            :resends="mine.resends"
-            :now="now"
-            :view-zone="viewZone"
-            :csv-root="csvRoot"
-            gap-label="vs your best"
-            @use="c => emit('use', c)"
-          />
-          <div v-if="mine.dropped.length">
-            <h4 class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Not counted</h4>
+          <!-- Filters (lib/planFilters.ts): "what is best if I play these hours, start that day, take
+               this many ascensions". Each row only appears when your runs differ on it, and with
+               nothing chosen the list below is exactly the unfiltered one. Chips wrap on a phone. -->
+          <div
+            v-if="filterBar.length || groupChoices.length"
+            class="space-y-1.5 rounded-lg border border-indigo-100 bg-white/60 p-2"
+            role="group"
+            aria-label="Filter your plans"
+          >
+            <div v-for="r in filterBar" :key="r.key" class="flex flex-wrap items-center gap-1">
+              <span
+                class="w-full sm:w-24 shrink-0 text-[9px] font-black uppercase tracking-widest text-indigo-700/70"
+                :title="r.title"
+                >{{ r.label }}</span
+              >
+              <button
+                type="button"
+                :class="chipClass(mineApplied[r.key] === null)"
+                :aria-pressed="mineApplied[r.key] === null"
+                @click="pick(r.key, null)"
+              >
+                All
+              </button>
+              <button
+                v-for="o in r.options"
+                :key="String(o.value)"
+                type="button"
+                :class="chipClass(mineApplied[r.key] === o.value)"
+                :aria-pressed="mineApplied[r.key] === o.value"
+                :title="o.title"
+                @click="pick(r.key, o.value)"
+              >
+                {{ o.label }}
+              </button>
+            </div>
+            <div v-if="groupChoices.length" class="flex flex-wrap items-center gap-1">
+              <span
+                class="w-full sm:w-24 shrink-0 text-[9px] font-black uppercase tracking-widest text-indigo-700/70"
+                title="Show only the best plan for each value, so the values can be compared side by side"
+                >Best for each</span
+              >
+              <button
+                type="button"
+                :class="chipClass(mineApplied.groupBy === null)"
+                :aria-pressed="mineApplied.groupBy === null"
+                @click="setFilter('groupBy', null)"
+              >
+                Off
+              </button>
+              <button
+                v-for="g in groupChoices"
+                :key="g"
+                type="button"
+                :class="chipClass(mineApplied.groupBy === g)"
+                :aria-pressed="mineApplied.groupBy === g"
+                @click="setFilter('groupBy', g)"
+              >
+                {{ GROUP_LABELS[g] }}
+              </button>
+              <button
+                v-if="mineFiltered"
+                type="button"
+                class="ml-auto text-[10px] font-black uppercase tracking-widest text-indigo-700/70 hover:text-indigo-900"
+                @click="mineFilters = { ...NO_FILTERS }"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+
+          <template v-if="!mineFiltered">
             <LeaderboardPlanList
-              :plans="mine.dropped"
+              v-if="mine.best"
+              :plans="[mine.best, ...mine.listed]"
               :all-plans="shownPlans(mine)"
+              :best="mine.best"
+              :resends="mine.resends"
               :now="now"
               :view-zone="viewZone"
               :csv-root="csvRoot"
-              show-reason
+              gap-label="vs your best"
               @use="c => emit('use', c)"
             />
-          </div>
+            <div v-if="mine.dropped.length">
+              <h4 class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Not counted</h4>
+              <LeaderboardPlanList
+                :plans="mine.dropped"
+                :all-plans="shownPlans(mine)"
+                :now="now"
+                :view-zone="viewZone"
+                :csv-root="csvRoot"
+                show-reason
+                @use="c => emit('use', c)"
+              />
+            </div>
+          </template>
+
+          <!-- Filtered: the same lists, sliced. The gap column is measured against the best plan shown,
+               so with "best for each" it compares the groups' best plans with each other. -->
+          <template v-else-if="mineApplied.goal !== 'deadline'">
+            <div v-if="mineGroups.length" class="rounded-lg border border-emerald-200 bg-emerald-50/60 px-3 py-2">
+              <p class="text-[9px] font-black uppercase tracking-widest text-emerald-800 mb-1">
+                Best plan to {{ target }} for each {{ GROUP_LABELS[mineApplied.groupBy!] }}
+              </p>
+              <ul class="space-y-0.5 text-[11px] text-emerald-950">
+                <li v-for="(g, i) in mineGroups" :key="g.label" class="flex flex-wrap gap-x-2">
+                  <span class="font-bold">{{ g.label }}</span>
+                  <span class="font-mono text-slate-600">{{ g.plan.row.chain.join(' ') }}</span>
+                  <span :title="finishTitle(g.plan.finish, g.plan.row.timezone)"
+                    >finishes {{ finishDateText(g.plan.finish, viewZone)
+                    }}<template v-if="i === 0"> (soonest)</template></span
+                  >
+                </li>
+              </ul>
+            </div>
+            <LeaderboardPlanList
+              v-if="mineShown.length"
+              :plans="mineShown"
+              :all-plans="shownPlans(mine)"
+              :best="mineShown[0]"
+              :resends="mine.resends"
+              :now="now"
+              :view-zone="viewZone"
+              :csv-root="csvRoot"
+              gap-label="vs best shown"
+              @use="c => emit('use', c)"
+            />
+            <p v-else class="text-[11px] text-indigo-900/60 py-4 text-center">
+              None of your current plans to {{ target }} are in these categories.
+            </p>
+            <div v-if="mineDroppedShown.length">
+              <h4 class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Not counted</h4>
+              <LeaderboardPlanList
+                :plans="mineDroppedShown"
+                :all-plans="shownPlans(mine)"
+                :now="now"
+                :view-zone="viewZone"
+                :csv-root="csvRoot"
+                show-reason
+                @use="c => emit('use', c)"
+              />
+            </div>
+          </template>
+
+          <!-- Your "highest TE by a date" answers, which the list above never held. Folded away until
+               the goal filter asks for them, so the default view is the list it always was. -->
+          <details
+            v-if="mineApplied.goal !== 'target' && (mineDeadlines.length || mineApplied.goal === 'deadline')"
+            :open="mineApplied.goal === 'deadline'"
+            class="text-[11px] text-indigo-900/80"
+          >
+            <summary class="cursor-pointer font-semibold">
+              Your answers to {{ NAMES.byDate }} ({{ mineDeadlines.reduce((n, g) => n + g.rows.length, 0) }})
+            </summary>
+            <p v-if="!mineDeadlines.length" class="py-4 text-center text-indigo-900/60">
+              None of your answers by a date are in these categories.
+            </p>
+            <div
+              v-for="g in mineDeadlines"
+              :key="g.deadline"
+              class="mt-2 rounded-lg border border-indigo-100 bg-white p-2"
+            >
+              <p class="text-[10px] font-black uppercase tracking-widest text-indigo-800 mb-1">
+                By {{ deadlineText(g.deadline) }}
+              </p>
+              <div class="overflow-x-auto">
+                <table class="w-full text-[11px] tabular-nums">
+                  <thead>
+                    <tr
+                      class="text-left text-[9px] font-black uppercase tracking-widest text-indigo-700/60 whitespace-nowrap"
+                    >
+                      <th v-if="mineApplied.groupBy" class="pr-3 py-1">Best for</th>
+                      <th class="pr-3 py-1">TE by then</th>
+                      <th class="pr-3 py-1">Route</th>
+                      <th class="pr-3 py-1">Spare</th>
+                      <th class="pr-3 py-1">Starts</th>
+                      <th class="pr-3 py-1">Hours</th>
+                      <th class="py-1"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="r in g.rows" :key="r.id ?? contentFingerprint(r)" class="border-t border-indigo-50">
+                      <td v-if="mineApplied.groupBy" class="pr-3 py-1 font-bold whitespace-nowrap">
+                        {{ groupLabel(r, mineApplied.groupBy, viewZone) }}
+                      </td>
+                      <td class="pr-3 py-1 font-black text-indigo-900">{{ r.finalTE }}</td>
+                      <td class="pr-3 py-1 font-mono">{{ r.chain.join(' ') }}</td>
+                      <td class="pr-3 py-1 whitespace-nowrap">{{ spareText(deadlineSpare(r)) }}</td>
+                      <td class="pr-3 py-1 whitespace-nowrap" :title="r.timezone">{{ startText(r) }}</td>
+                      <td class="pr-3 py-1 whitespace-nowrap text-slate-500" :title="hoursTitle(r.window)">
+                        {{ hoursLabel(r.window) }}
+                      </td>
+                      <td class="py-1 text-right">
+                        <button
+                          type="button"
+                          class="px-2 py-0.5 rounded-md border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-700"
+                          @click="emit('use', r.chain)"
+                        >
+                          Use
+                        </button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </details>
         </template>
       </template>
 
@@ -814,20 +997,41 @@ import {
   foldCopies,
   formatDate,
   foundByText,
+  deadlineOrder,
+  deadlineSpare,
   isDeadlineRow,
   isNoCodeLine,
   localZone,
+  madeDeadline,
   placeFor,
   plannedText,
   scheduleText,
   settingTagTitle,
   settingTags,
+  startMs,
   whoText,
   type BoardRow,
   type Plan,
   type PlayerPlans,
   type RaceEntry,
 } from '@/lib/leaderboardRank';
+import {
+  bestPerGroup,
+  effectiveFilters,
+  filterOptions,
+  groupLabel,
+  hoursLabel,
+  hoursTitle,
+  inFilters,
+  isFiltered,
+  loadPlanFilters,
+  offered,
+  savePlanFilters,
+  NO_FILTERS,
+  type FilterOption,
+  type GroupBy,
+  type PlanFilters,
+} from '@/lib/planFilters';
 import { virtueInventory } from '@/search/csv';
 import { bestPerFamily, keepVirtueArtifacts } from '@/search/submission';
 import { existingOwnerToken } from '@/search/owner';
@@ -1086,6 +1290,125 @@ const mine = computed(() =>
     ? buildMyPlans(mergedRows.value, myKey.value, { target: target.value, now: now.value, zone: viewZone })
     : null
 );
+
+/**
+ * The viewer's "highest TE by a date" answers, which `buildMyPlans` leaves out (they are not plans to
+ * the target): theirs by /mine or by timezone and artifacts, one per copy, answers that make their
+ * date only, best first by the By a date board's own order.
+ */
+const myDeadlineRows = computed<Row[]>(() => {
+  if (!myKey.value && !mineRows.value?.length) return [];
+  const rows = mergedRows.value.filter(
+    r =>
+      isDeadlineRow(r) &&
+      !r.flags?.length &&
+      madeDeadline(r) &&
+      !(typeof r.backupAgeHours === 'number' && r.backupAgeHours < -1) &&
+      (r.yours || (myKey.value != null && accountKeyOf(r) === myKey.value))
+  );
+  return foldCopies(rows)
+    .map(f => f.row)
+    .sort((a, b) => (a.deadline as number) - (b.deadline as number) || deadlineOrder(a, b));
+});
+
+/** The My plans filters, remembered in this browser (lib/planFilters.ts). */
+const mineFilters = ref<PlanFilters>(loadPlanFilters());
+watch(mineFilters, savePlanFilters, { deep: true });
+
+/** My plans' current plans, best first: what the filters slice and "the best for each" picks from. */
+const mineCurrent = computed<Plan[]>(() => (mine.value?.best ? [mine.value.best, ...mine.value.listed] : []));
+
+/** Options from every row My plans could show, so a filter only appears when it would choose. */
+const mineOptions = computed(() =>
+  filterOptions(
+    [...mineCurrent.value, ...(mine.value?.dropped ?? [])].map(p => p.row).concat(myDeadlineRows.value),
+    viewZone,
+    target.value
+  )
+);
+const mineApplied = computed(() => effectiveFilters(mineFilters.value, mineOptions.value));
+const mineFiltered = computed(() => isFiltered(mineApplied.value));
+
+const GROUP_LABELS: Record<GroupBy, string> = { hours: 'hours', day: 'start day', ascensions: 'ascensions' };
+/** The "best for each" choices, for dimensions the bar shows. */
+const groupChoices = computed(() =>
+  (Object.keys(GROUP_LABELS) as GroupBy[]).filter(g => offered(mineOptions.value, g))
+);
+
+type FilterKey = Exclude<keyof PlanFilters, 'groupBy'>;
+
+/** The bar's rows, each only when the viewer's runs take two or more values on it. */
+const filterBar = computed(() => {
+  const o = mineOptions.value;
+  const rows: { key: FilterKey; label: string; title?: string; options: FilterOption<string | number>[] }[] = [
+    { key: 'goal', label: 'Goal', options: o.goal },
+    { key: 'hours', label: 'Playing hours', title: 'The awake hours the plan was made for', options: o.hours },
+    { key: 'day', label: 'Plan starts', title: "The plan's start, on its own clock", options: o.day },
+    { key: 'part', label: 'Start time', title: "The plan's start, on its own clock", options: o.part },
+    { key: 'ascensions', label: 'Ascensions', options: o.ascensions },
+    { key: 'timeOff', label: 'Time off', options: o.timeOff },
+  ];
+  return rows.filter(r => r.options.length >= 2);
+});
+
+function setFilter<K extends keyof PlanFilters>(key: K, value: PlanFilters[K]): void {
+  mineFilters.value = { ...mineFilters.value, [key]: value };
+}
+
+/** A chip's value comes from that row's own options, so it is always of the key's type. */
+function pick(key: FilterKey, value: string | number | null): void {
+  setFilter(key, value as never);
+}
+
+function chipClass(on: boolean): string {
+  return `px-2 py-0.5 rounded-full border text-[10px] font-bold whitespace-nowrap ${
+    on
+      ? 'bg-indigo-600 border-indigo-600 text-white'
+      : 'bg-white border-indigo-200 text-indigo-800 hover:border-indigo-400'
+  }`;
+}
+
+/** When an answer by a date starts, on its own clock and a 12-hour one: `Sat 4 Oct, 8 am`. */
+function startText(r: Row): string {
+  return formatDate(startMs(r), r.timezone || viewZone, {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    hour: 'numeric',
+    hour12: true,
+  });
+}
+
+function slice<T>(items: readonly T[], rowOf: (t: T) => Row): T[] {
+  const f = mineApplied.value;
+  const kept = items.filter(t => inFilters(rowOf(t), f, viewZone));
+  return f.groupBy ? bestPerGroup(kept, rowOf, f.groupBy, viewZone) : kept;
+}
+
+/** The current plans in the chosen categories (only the best of each group when grouping). */
+const mineShown = computed(() => slice(mineCurrent.value, p => p.row));
+/** Dropped plans in the chosen categories; none when grouping, which compares only plans that count. */
+const mineDroppedShown = computed(() =>
+  mineApplied.value.groupBy
+    ? []
+    : (mine.value?.dropped ?? []).filter(p => inFilters(p.row, mineApplied.value, viewZone))
+);
+/** "The best for each": one line per group, its label and finish. */
+const mineGroups = computed(() => {
+  const by = mineApplied.value.groupBy;
+  return by ? mineShown.value.map(p => ({ label: groupLabel(p.row, by, viewZone), plan: p })) : [];
+});
+
+/** The viewer's answers by a date in the chosen categories, one list per date, best first. */
+const mineDeadlines = computed(() => {
+  const byDate = new Map<number, Row[]>();
+  for (const r of myDeadlineRows.value) {
+    const list = byDate.get(r.deadline as number);
+    if (list) list.push(r);
+    else byDate.set(r.deadline as number, [r]);
+  }
+  return [...byDate].map(([deadline, rows]) => ({ deadline, rows: slice(rows, r => r) })).filter(g => g.rows.length);
+});
 
 /**
  * For a viewer with no line in the race: where their best plan would sit if it carried a name. Shown
