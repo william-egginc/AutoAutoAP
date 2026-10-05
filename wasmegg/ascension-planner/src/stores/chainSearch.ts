@@ -87,6 +87,10 @@ import {
   replayingEvaluator,
   saveDeadlineCheckpoint,
   saveDeadlineResult,
+  listSavedAnswers,
+  saveAnswer,
+  deleteSavedAnswer,
+  type SavedAnswer,
   type DeadlineCheckpoint,
   type DeadlineRunSpec,
   type PricedEntry,
@@ -3399,6 +3403,33 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   let deadlineStop = false;
   let deadlineSavedAt = 0;
 
+  /** Saved By a date answers for this account (search/deadlineStore.ts `saveAnswer`). */
+  const savedAnswers = ref<SavedAnswer[]>([]);
+  async function refreshSavedAnswers(playerId: string): Promise<void> {
+    if (!playerId) return;
+    savedAnswers.value = await listSavedAnswers(await hashID(playerId));
+  }
+  /** Keep the answer on screen under a name. */
+  async function saveCurrentAnswer(playerId: string, label: string): Promise<void> {
+    if (!playerId || !deadlineResult.value) return;
+    const hash = await hashID(playerId);
+    await saveAnswer(hash, JSON.parse(JSON.stringify(deadlineResult.value)) as SavedDeadlineResult, label);
+    savedAnswers.value = await listSavedAnswers(hash);
+  }
+  /** Show a saved answer as the current one (it doesn't re-run anything). */
+  function openSavedAnswer(id: string): void {
+    const a = savedAnswers.value.find(x => x.id === id);
+    if (a && !deadlineRunning.value) {
+      deadlineAll = [];
+      deadlineResult.value = JSON.parse(JSON.stringify(a.result)) as SavedDeadlineResult;
+    }
+  }
+  async function removeSavedAnswer(playerId: string, id: string): Promise<void> {
+    const hash = await hashID(playerId);
+    await deleteSavedAnswer(hash, id);
+    savedAnswers.value = await listSavedAnswers(hash);
+  }
+
   /** The saved result and any unfinished run, for the panel to show on opening. */
   async function loadDeadlineState(playerId: string): Promise<void> {
     if (!playerId || deadlineRunning.value) return;
@@ -4661,6 +4692,11 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     deadlineRunning,
     deadlineProgress,
     deadlineResult,
+    savedAnswers,
+    refreshSavedAnswers,
+    saveCurrentAnswer,
+    openSavedAnswer,
+    removeSavedAnswer,
     deadlineUnfinished,
     deadlineStartedAt,
     deadlineInBatch,

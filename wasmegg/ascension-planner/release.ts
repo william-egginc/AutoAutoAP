@@ -15,5 +15,5 @@
  */
 export default {
   reloadIfBuiltBefore: '2026-10-02T20:31:00Z',
-  note: 'Highest TE by a date: each chain now has its own Suggest a space settings, with an option to move every chain together. Your setup shows when you can play as a 24-hour strip',
+  note: 'Highest TE by a date: save an answer under a name and open it again later from Saved answers. Each chain has its own Suggest a space settings, with an option to move them together',
 };

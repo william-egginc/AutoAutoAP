@@ -596,18 +596,66 @@
           </tbody>
         </table>
       </div>
-      <button
-        type="button"
-        class="px-3 py-1.5 rounded-lg border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50"
-        @click="downloadResultCsv"
-      >
-        Download CSV
-      </button>
+      <div class="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          class="px-3 py-1.5 rounded-lg border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50"
+          @click="downloadResultCsv"
+        >
+          Download CSV
+        </button>
+        <!-- Save this answer under a name (the user, 5 Oct): a new search no longer loses it. -->
+        <input
+          v-model="saveLabel"
+          type="text"
+          maxlength="80"
+          :placeholder="defaultAnswerLabel"
+          aria-label="Name for this answer"
+          class="w-64 max-w-full rounded-lg border-slate-300 text-xs text-slate-800"
+        />
+        <button
+          type="button"
+          class="px-3 py-1.5 rounded-lg bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-700 disabled:opacity-40"
+          :disabled="savingAnswer"
+          @click="saveThisAnswer"
+        >
+          {{ savedFlash ? 'Saved' : 'Save this answer' }}
+        </button>
+      </div>
       <p class="text-[11px] text-slate-500 leading-relaxed">
         Priced from {{ inPlannerZone(result.planStart) }} at {{ result.te }} TE, with the hours and time off in Your
         setup. A route that reaches one more TE usually has much less time to spare: the table shows both so you can
         choose.
       </p>
+      <div v-if="store.savedAnswers.length" class="space-y-1">
+        <h4 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Saved answers</h4>
+        <div
+          v-for="a in store.savedAnswers"
+          :key="a.id"
+          class="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-slate-200 px-3 py-2 text-[11px]"
+        >
+          <span class="font-bold text-slate-800">{{ a.label }}</span>
+          <span class="text-slate-500"
+            >{{ a.result.routes[0] ? a.result.routes[0].chain.join(' ') : 'no route' }} · saved
+            {{ inPlannerZone(a.savedAt / 1000) }}</span
+          >
+          <button
+            type="button"
+            class="ml-auto text-[10px] font-black uppercase tracking-widest text-indigo-600 hover:text-indigo-800 disabled:opacity-40"
+            :disabled="store.deadlineRunning"
+            @click="store.openSavedAnswer(a.id)"
+          >
+            Open
+          </button>
+          <button
+            type="button"
+            class="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-rose-600"
+            @click="store.removeSavedAnswer(playerId, a.id)"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
 
       <!-- Share: Compare's Egg Day tab for an Egg Day answer, else "By a date". Same opt-in as Insane. -->
       <div v-if="best && collectorConfigured" class="rounded-xl border border-indigo-200 bg-indigo-50/60 p-4 space-y-3">
@@ -1290,7 +1338,33 @@ const result = computed(() => store.deadlineResult);
 /** A result loaded from this browser rather than produced since the panel opened. */
 const openedAt = Date.now();
 const fromEarlier = computed(() => !!result.value && result.value.at < openedAt);
+/** Save this answer (store `saveCurrentAnswer`), under the typed name or a default from the result. */
+const saveLabel = ref('');
+const savingAnswer = ref(false);
+const savedFlash = ref(false);
+const defaultAnswerLabel = computed(() => {
+  const r = store.deadlineResult;
+  const best = r?.routes[0];
+  return best ? `${best.chain[best.chain.length - 1]} TE by ${inPlannerZone(r.deadline)}` : 'Name this answer';
+});
+async function saveThisAnswer(): Promise<void> {
+  savingAnswer.value = true;
+  try {
+    await store.saveCurrentAnswer(props.playerId, saveLabel.value || defaultAnswerLabel.value);
+    saveLabel.value = '';
+    savedFlash.value = true;
+    setTimeout(() => (savedFlash.value = false), 2000);
+  } finally {
+    savingAnswer.value = false;
+  }
+}
+
 onMounted(() => void store.loadDeadlineState(props.playerId));
+onMounted(() => void store.refreshSavedAnswers(props.playerId));
+watch(
+  () => props.playerId,
+  id => void store.refreshSavedAnswers(id)
+);
 watch(
   () => props.playerId,
   id => void store.loadDeadlineState(id)
