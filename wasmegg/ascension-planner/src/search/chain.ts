@@ -21,6 +21,8 @@
 import { runLeg, LAST_DATEABLE_SECONDS, type LegResult } from './leg';
 import { countUnavailable, isConstrained, nextAvailable } from './availability';
 import { meetsAll, usableMilestones } from './milestones';
+import { computeTEEarned } from '@/auto/te-thresholds';
+import { countTEThresholdsPassed } from '@/lib/truthEggs';
 import type { EngineState } from '@/engine/types';
 import type { ChainResult, SearchInputs } from './types';
 
@@ -182,35 +184,23 @@ export function createChainEvaluator(inputs: SearchInputs): ChainEvaluator {
           // next leg cannot start until they are back. Only INTER-leg handoffs are pushed: reaching
           // the final target is not an action, so being away for it costs nothing. See
           // search/availability.ts for what this does and does not model.
-          // Shifts, when the player asked for them to be held too.
+          // Shifts, when the player asked for them to be held too: inside the simulation (auto/hold.ts),
+          // which waits for the player before each egg shift and credits the eggs the farm lays
+          // meanwhile, because they are still on the farm. The leg comes back with its real shift
+          // instants and its real end, so nothing is pushed here; `heldSeconds` says how long it
+          // waited. (Before 5 Oct this was a delay model added afterwards, which pushed everything
+          // after a held shift by the wait and credited nothing.)
           //
-          // A DELAY MODEL, NOT A RE-SIMULATION, and the distinction is worth being precise about.
-          // Each shift is pushed to the next available instant, carrying the accumulated delay
-          // forward, and the leg's end moves by the total — because everything after a held shift
-          // happens that much later, including reaching the target TE. That is right to first order:
-          // delaying a shift delays the next TE threshold by the same amount, since the threshold is
-          // on the egg you have not switched to yet.
-          //
-          // It errs in ONE direction, the safe one. While you wait, the farm keeps laying the egg you
-          // have not switched away from, so in real life you arrive at the next threshold slightly
-          // ahead of this model. Uncredited, exactly as the prestige delay is. An exact answer would
-          // need `auto/shifts/te-wait.ts` to schedule around availability itself, which would change
-          // the manual planner too.
-          let shiftDelay = 0;
-          let shifts = leg.shifts;
-          if (schedule && deferShifts && shifts.length) {
-            shifts = shifts.map(sh => {
-              const at = sh.at + shiftDelay;
-              const moved = nextAvailable(at, schedule);
-              shiftDelay += moved - at;
-              return { at: moved, egg: sh.egg, fromEgg: sh.fromEgg };
-            });
-          }
+          // A run saved with hours but without held shifts still counts its shifts in the night
+          // (`nightShifts`) and holds nothing.
+          const holdsInside = !!(schedule && deferShifts);
+          let shiftDelay = holdsInside ? leg.heldSeconds : 0;
+          const shifts = leg.shifts;
           // A leg stopped by time off ends when the time off starts, whatever was held: the player
           // is leaving, and the rebuild after it was already timed from the end of the time off.
           if (stopped) shiftDelay = 0;
 
-          const rawEnd = leg.summary.endTime + shiftDelay;
+          const rawEnd = leg.summary.endTime;
           const isFinalLeg = i === chain.length - 1 && s === segs.length - 1;
           const handoff = schedule && !isFinalLeg && !stopped ? nextAvailable(rawEnd, schedule) : rawEnd;
 
@@ -238,8 +228,24 @@ export function createChainEvaluator(inputs: SearchInputs): ChainEvaluator {
           });
 
           state = leg.nextState;
-          time = handoff;
           te = leg.summary.endTE;
+          // Waiting to prestige until the player is back: they are still on the farm, so it keeps
+          // laying the egg the leg ended on, at the leg's peak rate, and those eggs and any TE they
+          // pass carry into the next ascension. Not after time off (they left the farm) and not
+          // after the final leg (nothing follows it).
+          if (handoff > rawEnd && !stopped && !isFinalLeg) {
+            const egg = leg.lastEgg as keyof EngineState['eggsDelivered'];
+            const before = state.eggsDelivered[egg] || 0;
+            const laid = computeTEEarned(before, leg.summary.maxELR, handoff - rawEnd);
+            if (laid.finalEggsDelivered > before) {
+              const eggsDelivered = { ...state.eggsDelivered, [egg]: laid.finalEggsDelivered };
+              const teEarned = { ...state.teEarned, [egg]: countTEThresholdsPassed(laid.finalEggsDelivered) };
+              const total = Object.values(teEarned).reduce((n, x) => n + (x || 0), 0);
+              state = { ...state, eggsDelivered, teEarned, te: total };
+              te = total;
+            }
+          }
+          time = handoff;
         }
       }
 
