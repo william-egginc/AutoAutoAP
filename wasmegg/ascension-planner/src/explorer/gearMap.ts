@@ -250,23 +250,13 @@ export function guideSegment(worth: number, d: MapDomain): [[number, number], [n
 
 /**
  * The open gear needs this map can place, in the order the list shows them. `region` is true only
- * where needs.ts's test is a box on TE and Clothed TE; the others are a diagonal, the fill colour, or
- * nothing the map shows, and say where to look instead.
+ * where needs.ts's test is a box on TE and Clothed TE; the others are nothing the map shows, and say
+ * where to look instead.
  */
 export const GEAR_NEED_WHERE: Record<string, { where: string; region: boolean }> = {
   'cte-edge': { where: 'The band from CTE 200 to 240, shaded, around the stall line.', region: true },
   'te-low': { where: 'Top left, shaded: under 125 TE with CTE 225 or more.', region: true },
-  'te-high': { where: 'The right edge, shaded: TE 200 or more.', region: true },
-  'earnings-mix': {
-    where: 'Under a line at CTE = TE + 112, just below the +115 guide. A diagonal, so not shaded.',
-    region: false,
-  },
-  'weak-gear': { where: 'The palest marks: delivery under 85%.', region: false },
-  'delivery-mid': { where: 'Marks shaded between 85% and 95% delivery.', region: false },
-  'earnings-strong-delivery-weak': {
-    where: 'CTE 280 or more with a pale mark (delivery under 90%).',
-    region: false,
-  },
+  'new-gear': { where: 'Any gear not yet on the tables list.', region: false },
   'not-maxed': {
     where: 'Anywhere: CTE already takes off what is missing, so the map cannot tell these accounts apart.',
     region: false,
@@ -305,14 +295,13 @@ export interface NeedRegion {
 
 /**
  * The shaded boxes, one per open need whose test is a TE/CTE box, clipped to the domain, each with
- * its label pinned where no guide crosses it. The bounds are needs.ts's own (HIGH_TE 200, LOW_TE 125
- * with CTE 225, CTE 200 to 240); gearMap.spec.ts checks them against `dataNeeds` so the two cannot
+ * its label pinned where no guide crosses it. The bounds are needs.ts's own (LOW_TE 125 with CTE
+ * 225, CTE 200 to 240); gearMap.spec.ts checks them against `dataNeeds` so the two cannot
  * drift apart.
  */
 export function needRegions(needs: readonly DataNeed[], d: MapDomain): NeedRegion[] {
   const open = new Map(needs.map(n => [n.id, n]));
   const tally = (id: string) => `${open.get(id)!.have} of ${open.get(id)!.want}`;
-  const right = textRightEdge(needs, d);
   const out: NeedRegion[] = [];
   if (open.has('cte-edge')) {
     // Along the bottom of the band at the right: the guides cross it at the left.
@@ -321,7 +310,7 @@ export function needRegions(needs: readonly DataNeed[], d: MapDomain): NeedRegio
       x: [d.x[0], d.x[1]],
       y: [200, 240],
       text: `wanted: CTE 200–240 (${tally('cte-edge')})`,
-      anchor: [right, 200],
+      anchor: [d.x[1], 200],
       align: 'right',
       verticalAlign: 'bottom',
     });
@@ -337,18 +326,6 @@ export function needRegions(needs: readonly DataNeed[], d: MapDomain): NeedRegio
       verticalAlign: 'top',
     });
   }
-  if (open.has('te-high')) {
-    // A narrow column: the words stacked at its foot, under the CTE 200-240 band.
-    out.push({
-      id: 'te-high',
-      x: [200, d.x[1]],
-      y: [d.y[0], d.y[1]],
-      text: `wanted:\nTE 200+\n(${tally('te-high')})`,
-      anchor: [200, d.y[0]],
-      align: 'left',
-      verticalAlign: 'bottom',
-    });
-  }
   return out
     .map(r => ({
       ...r,
@@ -356,15 +333,6 @@ export function needRegions(needs: readonly DataNeed[], d: MapDomain): NeedRegio
       y: [Math.max(d.y[0], r.y[0]), Math.min(d.y[1], r.y[1])] as [number, number],
     }))
     .filter(r => r.x[0] < r.x[1] && r.y[0] < r.y[1]);
-}
-
-/**
- * Where right-aligned text across the map ends (the stall band's label, the CTE 200-240 one): the
- * right edge, or the start of the TE 200 column while that ask is open, so the column's own label
- * has it to itself.
- */
-export function textRightEdge(needs: readonly DataNeed[], d: MapDomain): number {
-  return needs.some(n => n.id === 'te-high') ? Math.min(200, d.x[1]) : d.x[1];
 }
 
 export type LabelSide = 'right' | 'left' | 'bottom-right' | 'top-left' | 'top' | 'bottom' | 'top-right' | 'bottom-left';

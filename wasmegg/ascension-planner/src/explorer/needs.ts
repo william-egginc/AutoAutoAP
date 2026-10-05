@@ -76,6 +76,20 @@ export interface DataNeed {
   group?: 'main' | 'big' | 'end' | 'gear';
 }
 
+/** Gear with a precomputed table (5 Oct 2026), named by what sets it apart from the maxed set (all
+ *  T4L, every stone T4). Keep in step with the tables deployed on egg-precompute. */
+const COVERED_GEAR = [
+  'the maxed set',
+  'T4E compass (rest T4L)',
+  'T4E metronome with a T3L ankh and earnings 2.3 CTE short',
+  'all T4L with a Demeters necklace as the 4th',
+  'T4E gusset, metronome with 2 T4 stones, earnings 8.7 short',
+  'T4E metronome and compass, earnings 2.3 short',
+  'T4E compass, earnings 7.1 short',
+  'T4E gusset, T4R compass, T3E metronome, earnings 10.2 short',
+  'T2E gusset, T3E metronome, earnings 13.4 short',
+];
+
 /** Accounts wanted per preset before that sweep stops being listed. */
 const PRESET_WANT: Record<string, number> = { M1: 6, M2: 6, M3: 4, M4: 3, F2: 6, F4: 3, F5: 3, E7: 2, E8: 2, E9: 2 };
 
@@ -200,13 +214,8 @@ function daysApart(a: CollectorRow, b: CollectorRow): number {
   return x == null || y == null ? NaN : Math.abs(x - y) / DAY_MS;
 }
 
-/** Every run so far started between TE 124 and 199. Outside that, the shape is a guess. */
-const HIGH_TE = 200;
+/** Every run so far started at TE 124 or more. Below this, the shape is a guess. */
 const LOW_TE = 125;
-
-/** A delivery set under this share of the best counts as weak. One epic piece still leaves a set at
- *  about 96%, so 80% was never reached by the examples it used to give; 85% is two weak pieces. */
-const WEAK_GEAR = 0.85;
 
 export function dataNeeds(rows: CollectorRow[]): DataNeed[] {
   const accounts = groupByAccount(rows);
@@ -242,21 +251,6 @@ export function dataNeeds(rows: CollectorRow[]): DataNeed[] {
       runs: 1,
       ...(text.note ? { note: text.note } : {}),
       group: preset.group ?? 'main',
-    });
-  }
-
-  // M1, not F2: F2's first range stops at 250, so it has nothing to try from TE 250 up.
-  const highAccounts = count(r => finished490(r) && r.currentTE >= HIGH_TE);
-  if (highAccounts < 2) {
-    needs.push({
-      id: 'te-high',
-      title: `Accounts already past ${HIGH_TE} TE`,
-      why: 'Every run so far started below 200 TE (the highest is 199), so nobody knows whether ascending last at about 280 TE is still best for an account that starts closer to it. A 2-ascension run at every TE from yours up answers that directly.',
-      who: `players at ${HIGH_TE} TE or more`,
-      have: highAccounts,
-      want: 2,
-      preset: 'M1',
-      runs: 1,
     });
   }
 
@@ -312,22 +306,6 @@ export function dataNeeds(rows: CollectorRow[]): DataNeed[] {
     });
   }
 
-  const weak = count(r => finished490(r) && r.schema >= 6 && (gearOf(r).delivery ?? 1) < WEAK_GEAR);
-  if (weak < 2) {
-    needs.push({
-      id: 'weak-gear',
-      title: 'Accounts with a weak delivery set',
-      why: "Wolfcry1993's and Zen_Ferret's delivery sets are about 80% of the best possible set, but each tried only one ascension count (7 and 8), so nothing yet shows whether weaker delivery wants more ascensions. Zen_Ferret's run came from an older planner, and Wolfcry1993's newest (from today's planner) is a staged search for a later start, so neither counts yet: we need a finished F2 on today's planner.",
-      who: `players whose delivery set is under ${Math.round(WEAK_GEAR * 100)}% of the best (all T4L with T4 stones), usually two or more weaker pieces`,
-      have: weak,
-      want: 2,
-      preset: 'F2',
-      runs: 1,
-      note: 'For example a T3E Quantum metronome, T4R Interstellar compass and T4E Gusset with a T4L Lunar totem and T3 stones (about 80%), or a T4R metronome and compass with a T4C Gusset (about 78%). One weaker piece on its own is not enough: a single epic piece still leaves the set at about 96%.',
-      group: 'gear',
-    });
-  }
-
   // GEAR THE BOARD HAS NEVER SEEN (audited 27 Sept 2026). Every account so far has a T4L Lunar totem
   // and a T4L Demeters necklace, and every one whose CTE we know is at CTE 241 or more (11 of the 12:
   // the Gear view cannot place Wolfcry1993, whose only run that is not a what-if records no CTE), so
@@ -349,57 +327,22 @@ export function dataNeeds(rows: CollectorRow[]): DataNeed[] {
     });
   }
 
-  const setTE = (r: CollectorRow) => {
-    const cte = gearOf(r).clothedTE;
-    return cte === null ? null : cte - r.currentTE;
-  };
-  const mix = count(r => finished490(r) && (setTE(r) ?? 999) < 112);
-  if (mix < 2) {
-    needs.push({
-      id: 'earnings-mix',
-      title: 'A weaker earnings set at a higher TE',
-      why: 'Every account so far has earnings sets adding +115 to +129 TE, so CTE and TE always rise together and we cannot tell whether the best plan depends on CTE alone. An account that reaches the same CTE with more TE and less gear would settle it.',
-      who: 'players at TE 150 to 200 whose CTE is less than about 112 above their TE',
-      have: mix,
-      want: 2,
-      preset: 'F2',
-      runs: 1,
-      note: 'For example a T4C or T3 Lunar totem (the set then adds about 104), an epic set (about 110), or rare pieces holding one T4 Lunar stone each (about 87). A T4E or T4R totem with everything else T4L is not enough: that still adds 114 to 122.',
-      group: 'gear',
-    });
-  }
-
-  const mid = count(r => finished490(r) && (gearOf(r).delivery ?? 1) >= 0.85 && (gearOf(r).delivery ?? 1) < 0.95);
-  if (mid < 2) {
-    needs.push({
-      id: 'delivery-mid',
-      title: 'Accounts whose delivery set is a little short of the best',
-      why: 'Ten accounts have delivery sets at about 96 to 100% of the best possible set and two at about 80%; only one sits in between. More in the middle would show whether a slightly weaker delivery set changes your best plan a little at a time, or not at all until it is quite weak.',
-      who: 'players whose delivery set is a step or two short of all T4L pieces with T4 stones',
-      have: mid,
-      want: 2,
-      preset: 'F2',
-      runs: 1,
-      note: 'For example an epic Quantum metronome and epic Interstellar compass with the rest T4L (about 92.5%), a single T3 Quantum metronome (about 92%) or T2 Gusset (about 90%), or T3 Tachyon and Quantum stones instead of T4 (about 95%).',
-      group: 'gear',
-    });
-  }
-
-  const split = count(r => finished490(r) && (gearOf(r).clothedTE ?? 0) >= 280 && (gearOf(r).delivery ?? 1) < 0.9);
-  if (split < 2) {
-    needs.push({
-      id: 'earnings-strong-delivery-weak',
-      title: 'A strong earnings set with a weak delivery set',
-      why: 'The only weak delivery sets on the board belong to accounts with lowish CTE, so we cannot tell whether it is the delivery set or the lower CTE that pushes them toward more ascensions. An account at CTE 280 or more with a weak delivery set would separate the two.',
-      who: 'players at CTE 280 or more with two or more epic or rare delivery pieces',
-      have: split,
-      want: 2,
-      preset: 'F2',
-      runs: 1,
-      note: 'For example all-epic delivery pieces with a T4L Lunar totem as the fourth (about 89% of the best possible set), or a rare Quantum metronome and rare Interstellar compass with a T4L Gusset (about 85.5%).',
-      group: 'gear',
-    });
-  }
+  // GEAR WITHOUT A TABLE (the user, 5 Oct). The instant answer is exact for any gear that has its own
+  // precomputed table, and one finished run from a new gear is enough to build and check one (its
+  // inventory and its legs). So instead of asking for patterns (weak delivery, mixed earnings...),
+  // ask for any gear not on this list, from an account whose plans work at all (CTE 225 or more).
+  needs.push({
+    id: 'new-gear',
+    title: "Your gear, if it isn't one we have a table for yet",
+    why: "Instant answers are exact for gear that has its own precomputed table, and one run from a new gear is enough to build it: we take its artifacts and stones from the run, simulate every ascension once, and check the table against the run's own legs.",
+    who: 'players at CTE 225 or more whose artifacts and stones are not one of the sets listed below',
+    have: 0,
+    want: 1,
+    preset: 'F2',
+    runs: 1,
+    note: `Tables so far: ${COVERED_GEAR.join('; ')}. Spare stones and junk artifacts don't matter, only what your best sets use.`,
+    group: 'gear',
+  });
 
   const notMaxed = count(
     r => finished490(r) && r.clothedTE != null && (r.colleggtibles?.maxed === false || r.epicResearch?.maxed === false)
