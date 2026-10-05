@@ -425,7 +425,7 @@
           No answers yet. Run Insane mode's Highest TE by a date<template v-if="tab === 'eggday'">
             with the Egg Day preset</template
           >
-          and use <span class="font-semibold">Share this answer</span>.
+          and use <span class="font-semibold">Share this result</span>.
         </p>
         <div
           v-for="g in shownDates"

@@ -15,5 +15,5 @@
  */
 export default {
   reloadIfBuiltBefore: '2026-10-05T06:22:00Z',
-  note: 'a fix so a run sent, saved or downloaded keeps the playing hours, time off and settings it actually ran with, even after reopening it',
+  note: 'the same Share this result wording everywhere, and the board asks now request runs from gear we have no table for yet',
 };

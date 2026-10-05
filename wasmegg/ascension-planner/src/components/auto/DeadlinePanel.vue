@@ -320,8 +320,8 @@
     </div>
 
     <RunNoteBox v-model="store.runNote" :disabled="store.deadlineRunning" class="text-[11px] text-slate-700" />
-    <!-- Find and submit: the share opt-in and name, before the run, so it can send itself at the end.
-         The same settings as the Share this answer box under the result. -->
+    <!-- Find and share: the share opt-in and name, before the run, so it can send itself at the end.
+         The same settings as the Share this result box under the result. -->
     <div
       v-if="collectorConfigured && !store.deadlineRunning"
       class="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3 space-y-2 text-[11px] text-indigo-900"
@@ -329,10 +329,10 @@
       <label class="flex items-start gap-3">
         <input v-model="shareOptIn" type="checkbox" class="mt-0.5 rounded border-indigo-300 text-indigo-600" />
         <span
-          >For <span class="font-bold">Find and submit</span>: share the best answer on the leaderboard when the search
+          >For <span class="font-bold">Find and share</span>: share the best answer on the leaderboard when the search
           finishes. It sends the route, its dates and the deadline, with your artifact inventory, timezone, local plan
           start and the random code this browser keeps for the account (not your player ID, and never shown), plus the
-          CSV if ticked under Share this answer.</span
+          CSV if ticked under Share this result.</span
         >
       </label>
       <div v-if="shareOptIn" class="flex flex-wrap items-center gap-4">
@@ -372,7 +372,7 @@
         :title="shareOptIn ? '' : 'Tick the share box above first'"
         @click="start(true)"
       >
-        Find and submit
+        Find and share
       </button>
       <button
         v-if="store.deadlineRunning"
@@ -552,7 +552,7 @@
 
       <!-- Share: the leaderboard's Egg Day tab for an Egg Day answer, else "By a date". Same opt-in as Insane. -->
       <div v-if="best && collectorConfigured" class="rounded-xl border border-indigo-200 bg-indigo-50/60 p-4 space-y-3">
-        <h3 class="text-[10px] font-black text-indigo-800 uppercase tracking-widest">Share this answer</h3>
+        <h3 class="text-[10px] font-black text-indigo-800 uppercase tracking-widest">Share this result</h3>
         <p class="text-[11px] text-indigo-900/80 leading-relaxed">
           Sends the best route above to the leaderboard's <span class="font-bold">{{ shareTab }}</span> tab, where
           answers for the same deadline are ranked by the highest TE reached, then the time to spare. It stays out of
@@ -561,7 +561,7 @@
         <label class="flex items-start gap-3 text-xs text-indigo-900">
           <input v-model="shareOptIn" type="checkbox" class="mt-0.5 rounded border-indigo-300 text-indigo-600" />
           <span
-            >Yes, contribute this answer. This sends the route, its dates and the deadline, along with your artifact
+            >Yes, share this result. This sends the route, its dates and the deadline, along with your artifact
             inventory, timezone, local plan start and the random code this browser keeps for the account (not your
             player ID, and never shown), exactly as for any run you share.</span
           >
@@ -570,7 +570,7 @@
           <div class="flex flex-wrap items-center gap-4">
             <label class="flex items-center gap-2 cursor-pointer text-[11px] font-bold text-indigo-900">
               <input v-model="shareAnonymous" type="radio" :value="true" class="text-indigo-600" />
-              Submit anonymously
+              Share anonymously
             </label>
             <label class="flex items-center gap-2 cursor-pointer text-[11px] font-bold text-indigo-900">
               <input v-model="shareAnonymous" type="radio" :value="false" class="text-indigo-600" />
@@ -999,7 +999,7 @@ async function resume(): Promise<void> {
   await store.resumeDeadline(props.playerId);
 }
 
-/** Set while a Find and submit run is going: it shares its best answer when it finishes. */
+/** Set while a Find and share run is going: it shares its best answer when it finishes. */
 const autoShare = ref(false);
 
 /** Find, and with `andSubmit` share the best answer at the end (not when stopped early or failed). */
