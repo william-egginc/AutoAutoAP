@@ -79,7 +79,10 @@ import { initPlanFuture } from '@/lib/modes/planFuture';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { runAscensionFromC3Variant } from '@/auto/ascension';
 import { computeTEEarned } from '@/auto/te-thresholds';
-import { countTEThresholdsPassed } from '@/lib/truthEggs';
+import { countTEThresholdsPassed, getThresholdForTE } from '@/lib/truthEggs';
+import { createChainEvaluator } from '@/search/chain';
+import { nextAvailable } from '@/search/availability';
+import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { pickVariant, type VariantKey, type VariantResult } from '@/stores/autoPlanner';
 import {
   continueTailParams,
@@ -1752,6 +1755,122 @@ async function eggdayScan(file: string): Promise<void> {
   for (const m of picks) simulate(`prestige ${m.j + 1} at ${both(m.slot)}`, m.j, m.slot, m.route);
 }
 
+/**
+ * --hold-credit (design measurement, 5 Oct): what crediting the eggs laid while a shift is HELD for
+ * the player's hours would change. A route (--chain) priced three ways on the save, with playing hours
+ * --from/--to (local hours in --tz, every day) and shifts held:
+ *   no holds   hours on for prestiges only;
+ *   today      search/chain.ts as it is (each held shift pushes everything after it, uncredited);
+ *   credited   the same leg loop, but each held shift credits the egg being laid during the hold
+ *              (at the leg's peak rate; an upper bound for holds inside the build phase, whose rate
+ *              is still rising), the TE gained shortens the leg's last egg, the extra eggs go on to
+ *              the next leg, and every later leg is simulated again from its new start.
+ * --no-credit runs that loop without the credit (it reproduces "today" exactly); --legs prints
+ * today's leg ends beside it.
+ */
+async function holdCredit(file: string): Promise<void> {
+  await loadInputs(file);
+  const store = useChainSearchStore();
+  const tz = arg('tz') ?? 'America/Denver';
+  useAutoPlannerStore().timezone = tz;
+  store.scheduleEnabled = true;
+  store.availableFrom = Number(arg('from') ?? 7);
+  store.availableTo = Number(arg('to') ?? 23);
+  store.availableDays = [0, 1, 2, 3, 4, 5, 6];
+  if (arg('start')) store.pinPlanStart(Math.floor(Date.parse(arg('start')!) / 1000));
+  const chain = arg('chain')!.trim().split(/\s+/).map(Number);
+  const d = (s: number) => (s / 86400).toFixed(3);
+  const H = (s: number) => (s / 3600).toFixed(1);
+  const price = (defer: boolean) => {
+    store.deferShifts = defer;
+    const inputs = store.collectInputs();
+    return { inputs, r: createChainEvaluator(inputs).evaluate(chain) };
+  };
+  const none = price(false);
+  const today = price(true);
+  if (!none.r || !today.r) return console.log('could not price the route');
+  const inputs = today.inputs;
+  const schedule = inputs.availability!;
+  console.log(
+    `route ${chain.join(' ')} from ${new Date(inputs.planStart * 1000).toISOString()}, hours ${store.availableFrom}-${store.availableTo} ${tz}`
+  );
+  console.log(`  no holds (prestiges wait only): ${d(none.r.seconds)} d`);
+  console.log(
+    `  today (shifts held, uncredited): ${d(today.r.seconds)} d; held ${H(today.r.legs.reduce((n, l) => n + (l.shiftDelaySeconds ?? 0), 0))} h in all`
+  );
+
+  // Credited: the same loop as chain.ts (no time off), legs simulated again from each new start.
+  let state = JSON.parse(JSON.stringify(inputs.baseState)) as EngineState;
+  state.currentEgg = 'curiosity';
+  state.population = 1;
+  state.bankValue = 0;
+  state.researchLevels = {};
+  let time = inputs.planStart;
+  let te = inputs.currentTE;
+  let buildHold = 0;
+  let waitHold = 0;
+  for (const [i, target] of chain.entries()) {
+    const leg = runLeg(inputs, state, time, target, i === 0, te, i + 2);
+    if (!leg) return console.log(`  credited: failed at ${target}`);
+    const peak = leg.summary.maxELR;
+    const buildEnd = leg.summary.buildPhaseEndTime ?? leg.summary.startTime;
+    const eggs = { ...(leg.nextState.eggsDelivered as Record<string, number>) };
+    let delay = 0;
+    let gained = 0;
+    const lines: string[] = [];
+    for (const sh of leg.shifts) {
+      const at = sh.at + delay;
+      const moved = nextAvailable(at, schedule);
+      const hold = moved - at;
+      if (hold > 0 && sh.fromEgg) {
+        // The egg being laid keeps going until the player is back.
+        const from = sh.fromEgg;
+        const res = computeTEEarned(eggs[from] || 0, has('no-credit') ? 0 : peak, hold);
+        eggs[from] = res.finalEggsDelivered;
+        gained += res.teEarned;
+        if (sh.at < buildEnd) buildHold += hold;
+        else waitHold += hold;
+        lines.push(
+          `${from}->${sh.egg} held ${H(hold)} h${sh.at < buildEnd ? ' (build)' : ''}${res.teEarned ? `, +${res.teEarned} TE` : ''}`
+        );
+      }
+      delay += hold;
+    }
+    // TE gained while held: the last egg needs that many fewer thresholds.
+    const last = leg.nextState.currentEgg as string;
+    let saved = 0;
+    if (gained > 0 && last) {
+      const lastEggs = leg.nextState.eggsDelivered[last as never] as number;
+      const lastTE = countTEThresholdsPassed(lastEggs);
+      const keep = Math.max(0, lastTE - gained);
+      const from = keep > 0 ? getThresholdForTE(keep) : 0;
+      saved = Math.min((lastEggs - from) / peak, Math.max(0, leg.summary.endTime - buildEnd));
+      eggs[last] = Math.max(from, lastEggs - saved * peak);
+    }
+    const rawEnd = leg.summary.endTime + delay - saved;
+    const t = today.r.legs[i];
+    if (t && has('legs'))
+      console.log(
+        `    today's leg ${i + 1}: ends ${new Date(t.endTime * 1000).toISOString().slice(0, 16)} [${t.key}], this loop [${leg.key}] starts ${new Date(time * 1000).toISOString().slice(0, 16)}`
+      );
+    const final = i === chain.length - 1;
+    const handoff = final ? rawEnd : nextAvailable(rawEnd, schedule);
+    console.log(
+      `  leg ${i + 1} to ${target}: held ${H(delay)} h, +${gained} TE while held, last egg ${H(saved)} h shorter; ends ${new Date(rawEnd * 1000).toISOString().slice(0, 16)}` +
+        (lines.length ? `\n      ${lines.join(' · ')}` : '')
+    );
+    state = { ...leg.nextState, eggsDelivered: eggs as EngineState['eggsDelivered'] };
+    te = Math.floor(Object.values(eggs).reduce((n, x) => n + countTEThresholdsPassed(x), 0));
+    time = handoff;
+  }
+  console.log(
+    `  credited: ${d(time - inputs.planStart)} d (held ${H(buildHold)} h in build phases, ${H(waitHold)} h in TE waits)`
+  );
+  console.log(
+    `  => crediting saves ${d(today.r.seconds - (time - inputs.planStart))} d against today; holding costs ${d(time - inputs.planStart - none.r.seconds)} d against no holds`
+  );
+}
+
 async function main(): Promise<void> {
   if (has('pack')) return pack();
   if (has('restamp')) {
@@ -1905,6 +2024,7 @@ async function main(): Promise<void> {
   if (has('delay-scan')) return delayScan(backup);
   if (has('wait-policy')) return waitPolicy(backup);
   if (has('eggday-scan')) return eggdayScan(backup);
+  if (has('hold-credit')) return holdCredit(backup);
   if (has('verify-cells')) return verifyCells(backup);
   if (has('route')) return route(backup);
   if (has('profile')) return profile(backup);
