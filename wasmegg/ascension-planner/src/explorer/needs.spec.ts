@@ -22,16 +22,7 @@ describe('dataNeeds', () => {
   it('asks for everything when nothing has been submitted', () => {
     const ids = dataNeeds([]).map(d => d.id);
     expect(ids).toEqual(
-      expect.arrayContaining([
-        'sweep-M1',
-        'sweep-M2',
-        'sweep-M3',
-        'sweep-M4',
-        'te-high',
-        'te-low',
-        'force-continue',
-        'weak-gear',
-      ])
+      expect.arrayContaining(['sweep-M1', 'sweep-M2', 'sweep-M3', 'sweep-M4', 'te-low', 'force-continue', 'new-gear'])
     );
   });
 
@@ -80,14 +71,13 @@ describe('dataNeeds', () => {
       chainsPriced: 1,
       stoppedEarly: false,
     } as unknown as CollectorRow['space'];
-    const unfinished = [row({ nickname: 'hi1', currentTE: 230 }), row({ nickname: 'hi2', currentTE: 210 })];
-    expect(dataNeeds(unfinished).map(d => d.id)).toContain('te-high');
+    const unfinished = [
+      row({ nickname: 'lo1', currentTE: 110, clothedTE: 240 }),
+      row({ nickname: 'lo2', currentTE: 115, clothedTE: 230 }),
+    ];
+    expect(dataNeeds(unfinished).map(d => d.id)).toContain('te-low');
     const finished = unfinished.map(r => ({ ...r, space: done }));
-    expect(dataNeeds(finished).map(d => d.id)).not.toContain('te-high');
-  });
-
-  it('asks a high account for M1, which still has TEs to try from 250 up', () => {
-    expect(dataNeeds([]).find(d => d.id === 'te-high')?.preset).toBe('M1');
+    expect(dataNeeds(finished).map(d => d.id)).not.toContain('te-low');
   });
 
   it('does not count a tagged run of the wrong length toward a preset', () => {
@@ -101,7 +91,18 @@ describe('dataNeeds', () => {
     const gear = dataNeeds([])
       .filter(d => d.group === 'gear')
       .map(d => d.id);
-    expect(gear).toEqual(expect.arrayContaining(['cte-edge', 'earnings-mix', 'delivery-mid', 'weak-gear']));
+    expect(gear).toEqual(expect.arrayContaining(['cte-edge', 'new-gear']));
+  });
+
+  it('always asks for gear without a table, listing the gear that has one', () => {
+    const ask = dataNeeds([]).find(d => d.id === 'new-gear');
+    expect(ask).toMatchObject({ group: 'gear', have: 0, want: 1, preset: 'F2' });
+    expect(ask?.note).toContain('the maxed set');
+    expect(ask?.note).toContain('T4E compass (rest T4L)');
+    const many = Array.from({ length: 6 }, (_, i) =>
+      row({ nickname: `g${i}`, source: 'upload' } as Partial<CollectorRow>)
+    );
+    expect(dataNeeds(many).map(d => d.id)).toContain('new-gear');
   });
 });
 
@@ -271,8 +272,8 @@ describe('review fixes (25 Sep 2026)', () => {
   });
 
   it('counts an uploaded sweep, which carries no space, as finished', () => {
-    const upload = row({ nickname: 'u', currentTE: 210, source: 'upload' } as Partial<CollectorRow>);
-    expect(dataNeeds([upload]).find(d => d.id === 'te-high')?.have).toBe(1);
+    const upload = row({ nickname: 'u', currentTE: 110, clothedTE: 240, source: 'upload' } as Partial<CollectorRow>);
+    expect(dataNeeds([upload]).find(d => d.id === 'te-low')?.have).toBe(1);
   });
 
   it('treats a single-value range as fine enough (F2 fitted at TE 249)', () => {
@@ -322,7 +323,7 @@ describe('one proof test, shared with the page (26 Sep 2026)', () => {
       ascensions: 2,
       ...unrecorded(259, 40, 2, [band(231, 489, 1)]),
     });
-    expect(dataNeeds([partial]).find(d => d.id === 'te-high')?.have).toBe(0);
+    expect(dataNeeds([partial]).find(d => d.id === 'sweep-M1')?.have).toBe(0);
   });
 
   it('counts it once the row itself shows every plan in the box priced', () => {
@@ -332,7 +333,7 @@ describe('one proof test, shared with the page (26 Sep 2026)', () => {
       ascensions: 2,
       ...unrecorded(259, 259, 2, [band(231, 489, 1)]),
     });
-    expect(dataNeeds([whole]).find(d => d.id === 'te-high')?.have).toBe(1);
+    expect(dataNeeds([whole]).find(d => d.id === 'sweep-M1')?.have).toBe(1);
   });
 
   it('does not let a tagged run that priced only part of its box cover its preset', () => {
