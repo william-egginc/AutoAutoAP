@@ -17,6 +17,8 @@
 import { computeSnapshot } from '@/engine/compute';
 import { runUntilShift, deriveNextStartState, runContinueCurrent, runAscensionFromC3Variant } from '@/auto/ascension';
 import { runC3Variants } from '@/auto/shifts/c3';
+import { heldSecondsOf, holdForPlayer } from '@/auto/hold';
+import { isConstrained, nextAvailable } from './availability';
 import { pickVariant, type VariantKey, type VariantResult } from '@/stores/autoPlanner';
 import { getArtifactLoadoutFromBackup, getOptimalEarningsSet, getOptimalELRSet } from '@/lib/artifacts';
 import type { EngineState, SimulationContext } from '@/engine/types';
@@ -71,6 +73,12 @@ export interface LegResult {
    *  many fall in a sleep window means something. See `shiftInstants` for why `timestamp` is not
    *  the field to read. */
   shifts: ShiftMoment[];
+  /** Seconds the leg's shifts waited for the player's hours inside the simulation (auto/hold.ts):
+   *  0 without hours. With hours the shift instants above already include these waits. */
+  heldSeconds: number;
+  /** The egg the farm is on when the leg ends: the one it keeps laying while the player waits to
+   *  prestige (search/chain.ts). */
+  lastEgg: string;
 }
 
 /**
@@ -99,7 +107,17 @@ function shiftInstants(actions: Action[], legStart: number): ShiftMoment[] {
 /** A fresh `SimulationContext` pinned to this leg's start. The stored context is never mutated —
  *  legs are evaluated out of order and share one `SearchInputs`. */
 function legContext(inputs: SearchInputs, startTime: number): SimulationContext {
-  return { ...inputs.context, ascensionStartTime: startTime, planStartOffset: 0 };
+  // With the player's hours picked, every egg shift waits for them inside the simulation, the farm
+  // laying the egg it is on meanwhile (auto/hold.ts). Built here from the inputs' plain data, so a
+  // worker that received the inputs by message gets the same hook.
+  const a = inputs.availability;
+  const hours = a && inputs.deferShifts && isConstrained(a) ? a : null;
+  return {
+    ...inputs.context,
+    ascensionStartTime: startTime,
+    planStartOffset: 0,
+    ...(hours ? { holdUntil: (t: number) => nextAvailable(t, hours) } : {}),
+  };
 }
 
 /** A deep, proxy-free copy of the base state. `runUntilShift` clones its own input too, but
@@ -141,6 +159,10 @@ export function runLeg(
     key,
     nextState: deriveNextStartState(v.summary, cloneBaseState(inputs)),
     shifts: shiftInstants(v.actions, startTime),
+    heldSeconds: heldSecondsOf(v.actions),
+    lastEgg:
+      (v.actions.filter(a => a.type === 'shift').pop()?.payload as { toEgg?: string } | undefined)?.toEgg ??
+      baseState.currentEgg,
   });
 
   // Continue first (A1 only): see CONTINUE_PIN_MAX_SECONDS for the whole rule. Past six months it
@@ -159,6 +181,13 @@ export function runLeg(
   // Single C1->R1 precompute shared by every build variant, exactly as the app does it — K3..H2 is
   // the expensive part and must not be repeated per variant.
   const pre = runUntilShift(baseState, ctx, 'C3');
+  // C3's own shift waits for the player too (the C3 variants start with it, outside the main loop).
+  const held = holdForPlayer(pre.state, ctx, startTime, pre.elapsedSeconds, 'curiosity');
+  if (held.heldSeconds) {
+    pre.actions = [...pre.actions, ...held.actions];
+    pre.state = held.state;
+    pre.elapsedSeconds = held.elapsedSeconds;
+  }
   const preC3 = { actions: pre.actions, state: pre.state, elapsedSeconds: pre.elapsedSeconds };
 
   const c3 = runC3Variants(pre.state, ctx, 3, startTE < TIER_13_MIN_STARTING_TE);
