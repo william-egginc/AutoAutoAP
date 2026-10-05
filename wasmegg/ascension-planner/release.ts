@@ -15,5 +15,5 @@
  */
 export default {
   reloadIfBuiltBefore: '2026-10-05T06:22:00Z',
-  note: 'Simpler By a date (only I will set the stops), the same Share this result wording everywhere, and the Science page now asks for runs from gear we have no table for yet',
+  note: 'the share choice now reads "Submit anonymously" or "Credit me as" everywhere',
 };

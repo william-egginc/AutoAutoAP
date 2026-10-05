@@ -202,7 +202,7 @@
           <div class="flex flex-wrap items-center gap-x-4 gap-y-2 pl-6 text-[11px] font-bold text-slate-700">
             <label class="flex items-center gap-2 cursor-pointer">
               <input v-model="anonymous" type="radio" :value="true" class="text-indigo-600" />
-              Anonymously
+              Submit anonymously
             </label>
             <label class="flex items-center gap-2 cursor-pointer">
               <input v-model="anonymous" type="radio" :value="false" class="text-indigo-600" />
