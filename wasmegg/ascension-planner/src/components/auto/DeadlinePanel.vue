@@ -187,7 +187,7 @@
           <span class="font-bold text-slate-600">Suggest a space tries</span>
           <label class="flex items-center gap-1.5">
             <input
-              v-model.number="widthIx"
+              :value="rowWidthIx(row)"
               type="range"
               min="0"
               :max="SPACE_WIDTHS.length - 1"
@@ -195,14 +195,15 @@
               :disabled="store.busy"
               class="w-20 accent-slate-700"
               aria-label="How far around each stop"
+              @input="setSlider(k, 'widthIx', +($event.target as HTMLInputElement).value)"
             />
             <span
-              ><b class="text-slate-700">±{{ spaceWidth }}</b> TE around each stop</span
+              ><b class="text-slate-700">±{{ widthOf(row) }}</b> TE around each stop</span
             >
           </label>
           <label class="flex items-center gap-1.5">
             <input
-              v-model.number="stepIx"
+              :value="rowStepIx(row)"
               type="range"
               min="0"
               :max="SPACE_STEPS.length - 1"
@@ -210,11 +211,16 @@
               :disabled="store.busy"
               class="w-16 accent-slate-700"
               aria-label="Step between the TEs tried"
+              @input="setSlider(k, 'stepIx', +($event.target as HTMLInputElement).value)"
             />
             <span
-              >every <b class="text-slate-700">{{ spaceStep === 1 ? 'TE' : spaceStep + ' TE' }}</b> (the first stop:
+              >every <b class="text-slate-700">{{ stepOf(row) === 1 ? 'TE' : stepOf(row) + ' TE' }}</b> (the first stop:
               every TE)</span
             >
+          </label>
+          <label v-if="chains.length > 1" class="flex items-center gap-1.5 cursor-pointer">
+            <input v-model="linkSliders" type="checkbox" class="rounded border-slate-300 text-slate-700" />
+            move every chain's sliders together
           </label>
         </div>
       </div>
@@ -697,11 +703,14 @@ const kept = {
   ascendNeeded: keptRef(false),
   thoroughIx: keptRef(2),
   mode: keptRef<'space' | 'auto'>('space'),
-  chains: keptRef<{ asc: number; text: string; auto?: boolean }[]>([{ asc: 4, text: '' }]),
+  chains: keptRef<{ asc: number; text: string; auto?: boolean; widthIx?: number; stepIx?: number }[]>([
+    { asc: 4, text: '' },
+  ]),
   lastBox: keptRef(''),
   suggestFrom: keptRef(''),
   widthIx: keptRef(KEPT_WIDTH_IX),
   stepIx: keptRef(KEPT_STEP_IX),
+  linkSliders: keptRef(false),
 };
 </script>
 
@@ -891,23 +900,32 @@ function suggestRow(k: number): void {
   // Sized to the slider (search/deadlineSuggest.ts): the first stop at every TE from just above
   // yours, the later ones as fine and as wide as the size allows.
   const lastHi = lastRange.value?.[1] ?? Math.min(490, lastGuess + 20);
-  const sug = stopsByWidth(te, early, lastHi, spaceWidth.value, spaceStep.value);
+  const sug = stopsByWidth(te, early, lastHi, widthOf(row), stepOf(row));
   if (sug) {
     row.text = sug.text;
     row.auto = true;
   }
 }
 
-/** Suggest a space's two sliders: how far either side of each stop, and the step after the first. */
-const { widthIx, stepIx } = kept;
-const spaceWidth = computed(() => SPACE_WIDTHS[widthIx.value] ?? SPACE_WIDTHS[3]);
-const spaceStep = computed(() => SPACE_STEPS[stepIx.value] ?? SPACE_STEPS[1]);
-// Moving a slider re-fills the chains Suggest a space filled; boxes typed by hand are left alone.
-watch([spaceWidth, spaceStep], () => {
-  chains.value.forEach((row, k) => {
-    if (row.auto) suggestRow(k);
+/** Suggest a space's two sliders, per chain (the user, 4 Oct: separate by default, with an option to
+ *  move them together). A chain without its own setting uses the last one set (`widthIx`/`stepIx`). */
+const { widthIx, stepIx, linkSliders } = kept;
+type Row = (typeof chains.value)[number];
+const rowWidthIx = (row: Row) => row.widthIx ?? widthIx.value;
+const rowStepIx = (row: Row) => row.stepIx ?? stepIx.value;
+const widthOf = (row: Row) => SPACE_WIDTHS[rowWidthIx(row)] ?? SPACE_WIDTHS[3];
+const stepOf = (row: Row) => SPACE_STEPS[rowStepIx(row)] ?? SPACE_STEPS[1];
+/** Move one chain's slider, or every chain's when they're linked, and re-fill the boxes Suggest a
+ *  space filled (a box typed by hand is left alone). */
+function setSlider(k: number, key: 'widthIx' | 'stepIx', value: number): void {
+  if (key === 'widthIx') widthIx.value = value;
+  else stepIx.value = value;
+  chains.value.forEach((row, i) => {
+    if (i !== k && !linkSliders.value) return;
+    row[key] = value;
+    if (row.auto) suggestRow(i);
   });
-});
+}
 
 /** A new chain one ascension shorter than the shortest, since the short ones are what get added. */
 function addChain(): void {
