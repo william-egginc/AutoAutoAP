@@ -14,6 +14,6 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 export default {
-  reloadIfBuiltBefore: '2026-10-05T06:22:00Z',
-  note: 'the share choice now reads "Submit anonymously" or "Credit me as" everywhere',
+  reloadIfBuiltBefore: '2026-10-05T19:54:00Z',
+  note: 'a new layout: four tabs (Auto Planner, Compare, Insights, Science), one Your setup on every screen, Fastest route on one screen, and By a date can save answers',
 };
