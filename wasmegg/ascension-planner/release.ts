@@ -14,6 +14,6 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 export default {
-  reloadIfBuiltBefore: '2026-09-30T20:12:00Z',
-  note: 'a fix so a run sent or saved as CSV keeps the playing hours, time off and settings it actually ran with, even if Your setup changed since',
+  reloadIfBuiltBefore: '2026-10-05T06:22:00Z',
+  note: 'a fix so a run sent, saved or downloaded keeps the playing hours, time off and settings it actually ran with, even after reopening it',
 };
