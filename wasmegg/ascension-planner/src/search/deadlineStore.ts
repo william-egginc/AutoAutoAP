@@ -175,3 +175,48 @@ export function replayingEvaluator(
     replayed: () => replayed,
   };
 }
+
+/**
+ * Saved By a date answers (the user, 5 Oct: "Egg Day doesn't have a save button"). The result slot
+ * above holds only the LAST answer, so a new search replaced it; these are kept under names until
+ * deleted. Each holds the compact result the panel shows (top 50 routes and the best per count), not
+ * the priced cache, so twenty of them are small.
+ */
+const SAVED_KEY = 'chainSearchDeadlineSaved';
+export const MAX_SAVED_ANSWERS = 20;
+
+export interface SavedAnswer {
+  id: string;
+  label: string;
+  savedAt: number;
+  result: SavedDeadlineResult;
+}
+
+export async function listSavedAnswers(partitionHash: string): Promise<SavedAnswer[]> {
+  const raw = (await loadMetadata(partitionHash, SAVED_KEY)) as SavedAnswer[] | null;
+  if (!Array.isArray(raw)) return [];
+  return raw.filter(a => a && a.result && Array.isArray(a.result.routes)).sort((a, b) => b.savedAt - a.savedAt);
+}
+
+/** Save an answer under a name (newest first, the oldest past the cap dropped). */
+export async function saveAnswer(
+  partitionHash: string,
+  result: SavedDeadlineResult,
+  label: string,
+  now = Date.now()
+): Promise<SavedAnswer> {
+  const answer: SavedAnswer = {
+    id: `${now.toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+    label: label.trim().slice(0, 80) || 'Untitled answer',
+    savedAt: now,
+    result,
+  };
+  const kept = [answer, ...(await listSavedAnswers(partitionHash))].slice(0, MAX_SAVED_ANSWERS);
+  await saveMetadata(partitionHash, SAVED_KEY, kept);
+  return answer;
+}
+
+export async function deleteSavedAnswer(partitionHash: string, id: string): Promise<void> {
+  const kept = (await listSavedAnswers(partitionHash)).filter(a => a.id !== id);
+  await saveMetadata(partitionHash, SAVED_KEY, kept);
+}
