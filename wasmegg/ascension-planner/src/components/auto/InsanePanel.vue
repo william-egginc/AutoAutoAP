@@ -134,7 +134,7 @@
         <div class="flex flex-wrap items-center gap-4 pl-6 text-[11px] font-bold text-slate-700">
           <label class="flex items-center gap-2 cursor-pointer">
             <input v-model="anonymous" type="radio" :value="true" :disabled="store.isRunning" class="text-indigo-600" />
-            Share anonymously
+            Submit anonymously
           </label>
           <label class="flex items-center gap-2 cursor-pointer">
             <input
@@ -1380,7 +1380,7 @@
             :title="optIn ? '' : 'Tick the share box below first'"
             @click="start(true)"
           >
-            Find and share
+            Find and submit
           </button>
           <button
             v-if="store.isRunning || queueAt >= 0"
@@ -1392,7 +1392,7 @@
           </button>
         </div>
 
-        <!-- Find and share: the share opt-in and name before the run, the same settings as Share this
+        <!-- Find and submit: the share opt-in and name before the run, the same settings as Share this
              result below, so the run can send itself when it finishes. -->
         <div
           v-if="!sweepRequest && !store.isRunning && queueAt < 0"
@@ -1401,7 +1401,7 @@
           <label class="flex items-start gap-3">
             <input v-model="optIn" type="checkbox" class="mt-0.5 rounded border-indigo-300 text-indigo-600" />
             <span
-              >For <span class="font-bold">Find and share</span>: share the result on the leaderboard when the search
+              >For <span class="font-bold">Find and submit</span>: share the result on the leaderboard when the search
               finishes (each chain's, when you queued several). It sends what Share this result sends: the chain, its
               timings and the full CSV, with your artifact inventory, timezone and local plan start, the random code
               this browser keeps for the account (not your player ID, and never shown), and your best three plans
@@ -1730,7 +1730,7 @@
             <div class="flex flex-wrap items-center gap-4">
               <label class="flex items-center gap-2 cursor-pointer text-[11px] font-bold text-indigo-900">
                 <input v-model="anonymous" type="radio" :value="true" class="text-indigo-600" />
-                Share anonymously
+                Submit anonymously
               </label>
               <label class="flex items-center gap-2 cursor-pointer text-[11px] font-bold text-indigo-900">
                 <input v-model="anonymous" type="radio" :value="false" class="text-indigo-600" />
@@ -2561,7 +2561,7 @@ function currentSpec(): {
 const autoSubmitArmed = ref(false);
 const autoSubmitted = ref(false);
 
-/** Set for the length of a Find and share click (one run or a whole queue). */
+/** Set for the length of a Find and submit click (one run or a whole queue). */
 const findAndSubmit = ref(false);
 
 /** Find; with `andSubmit`, each finished result is sent as Share this result would send it. */
@@ -2652,7 +2652,7 @@ async function startQueue(): Promise<void> {
           stopped,
           finish: store.planStartUsed + store.bestDays * 86400,
         });
-        // Find and share: each chain's result goes as it finishes, before the next takes the panel.
+        // Find and submit: each chain's result goes as it finishes, before the next takes the panel.
         if (findAndSubmit.value && !stopped) await sendFinished();
         try {
           await store.saveCurrentRun(player, specs[k].label);

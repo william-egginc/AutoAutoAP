@@ -320,7 +320,7 @@
     </div>
 
     <RunNoteBox v-model="store.runNote" :disabled="store.deadlineRunning" class="text-[11px] text-slate-700" />
-    <!-- Find and share: the share opt-in and name, before the run, so it can send itself at the end.
+    <!-- Find and submit: the share opt-in and name, before the run, so it can send itself at the end.
          The same settings as the Share this result box under the result. -->
     <div
       v-if="collectorConfigured && !store.deadlineRunning"
@@ -329,7 +329,7 @@
       <label class="flex items-start gap-3">
         <input v-model="shareOptIn" type="checkbox" class="mt-0.5 rounded border-indigo-300 text-indigo-600" />
         <span
-          >For <span class="font-bold">Find and share</span>: share the best answer on the leaderboard when the search
+          >For <span class="font-bold">Find and submit</span>: share the best answer on the leaderboard when the search
           finishes. It sends the route, its dates and the deadline, with your artifact inventory, timezone, local plan
           start and the random code this browser keeps for the account (not your player ID, and never shown), plus the
           CSV if ticked under Share this result.</span
@@ -372,7 +372,7 @@
         :title="shareOptIn ? '' : 'Tick the share box above first'"
         @click="start(true)"
       >
-        Find and share
+        Find and submit
       </button>
       <button
         v-if="store.deadlineRunning"
@@ -570,7 +570,7 @@
           <div class="flex flex-wrap items-center gap-4">
             <label class="flex items-center gap-2 cursor-pointer text-[11px] font-bold text-indigo-900">
               <input v-model="shareAnonymous" type="radio" :value="true" class="text-indigo-600" />
-              Share anonymously
+              Submit anonymously
             </label>
             <label class="flex items-center gap-2 cursor-pointer text-[11px] font-bold text-indigo-900">
               <input v-model="shareAnonymous" type="radio" :value="false" class="text-indigo-600" />
@@ -999,7 +999,7 @@ async function resume(): Promise<void> {
   await store.resumeDeadline(props.playerId);
 }
 
-/** Set while a Find and share run is going: it shares its best answer when it finishes. */
+/** Set while a Find and submit run is going: it shares its best answer when it finishes. */
 const autoShare = ref(false);
 
 /** Find, and with `andSubmit` share the best answer at the end (not when stopped early or failed). */

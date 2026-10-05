@@ -774,7 +774,7 @@
         <div v-if="autoSubmit" class="flex flex-wrap items-center gap-4 pl-7 text-[11px] font-bold text-slate-700">
           <label class="flex items-center gap-2 cursor-pointer">
             <input v-model="anonymous" type="radio" :value="true" :disabled="store.isRunning" class="text-indigo-600" />
-            Share anonymously
+            Submit anonymously
           </label>
           <label class="flex items-center gap-2 cursor-pointer">
             <input
@@ -1455,7 +1455,7 @@
           <div class="flex flex-wrap items-center gap-4">
             <label class="flex items-center gap-2 cursor-pointer text-[11px] font-bold text-indigo-900">
               <input v-model="anonymous" type="radio" :value="true" class="text-indigo-600 focus:ring-indigo-500" />
-              Share anonymously
+              Submit anonymously
             </label>
             <label class="flex items-center gap-2 cursor-pointer text-[11px] font-bold text-indigo-900">
               <input v-model="anonymous" type="radio" :value="false" class="text-indigo-600 focus:ring-indigo-500" />
