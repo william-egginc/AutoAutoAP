@@ -115,7 +115,10 @@ const backupHint = computed<{ text: string; class: string } | null>(() => {
       : null;
   const note = describeSaveAge(saveSyncSeconds(), chosen, saveSiloSeconds(), !!initialStateStore.currentFarmState);
   if (!note) return null;
-  return { text: note.text, class: note.level === 'ok' ? 'text-emerald-600' : 'text-amber-600' };
+  return {
+    text: note.text,
+    class: note.severe ? 'text-red-600' : note.level === 'ok' ? 'text-emerald-600' : 'text-amber-600',
+  };
 });
 
 /** The farm's own last sync when there is a virtue farm (what the catch-up runs from), else the backup's. */
