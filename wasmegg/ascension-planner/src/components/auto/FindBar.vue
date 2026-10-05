@@ -1,11 +1,11 @@
 <!--
-  Find / Find and submit / Stop, and the share opt-in that Find and submit needs: the same bar on
+  Find / Find and share / Stop, and the share opt-in that Find and share needs: the same bar on
   both depths of Fastest route (the unified layout, phase 3). Smart search used to have "Start
   search" and a remembered "submit when it finishes" box; the Full sweep had these two buttons. Two
   ways to do one thing, on two tabs of one screen, and players asked which one sent what.
 
   The parent owns what the buttons do and when they're allowed (each search has its own checks), and
-  the opt-in: it is the same consent as Share this result's "Yes, contribute", so it starts unticked
+  the opt-in: it is the same consent as Share this result's "Yes, share", so it starts unticked
   on every visit like that one. (It was remembered for a while; that pre-ticked the Share consent
   too, and let the board lookup that waits for consent run on arrival. Review, 30 Sept.)
 -->
@@ -28,7 +28,7 @@
         :title="optIn ? '' : 'Tick the share box below first'"
         @click="emit('find', true)"
       >
-        Find and submit
+        Find and share
       </button>
       <button
         v-if="running"
@@ -51,7 +51,7 @@
              and its deadline, not a chain's CSV). -->
         <slot v-if="$slots.consent" name="consent" />
         <span v-else
-          >For <span class="font-bold">Find and submit</span>: share the result on the leaderboard when the search
+          >For <span class="font-bold">Find and share</span>: share the result on the leaderboard when the search
           finishes<template v-if="consentNote"> ({{ consentNote }})</template>. It sends what Share this result sends:
           the chain, its timings and the full CSV, with your artifact inventory, timezone and local plan start, the
           random code this browser keeps for the account (not your player ID, and never shown), and your best three
@@ -89,7 +89,7 @@ import RunNoteBox from './RunNoteBox.vue';
 
 withDefaults(
   defineProps<{
-    /** Find can't start (each search's own checks). Find and submit also needs the opt-in. */
+    /** Find can't start (each search's own checks). Find and share also needs the opt-in. */
     findDisabled: boolean;
     running: boolean;
     stopping?: boolean;

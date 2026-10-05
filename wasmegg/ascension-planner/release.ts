@@ -15,5 +15,5 @@
  */
 export default {
   reloadIfBuiltBefore: '2026-10-05T06:22:00Z',
-  note: 'Saved By a date answers, and a fix so a run sent, saved or downloaded keeps the playing hours, time off and settings it actually ran with',
+  note: 'Simpler By a date (only I will set the stops), the same Share this result wording everywhere, and the Science page now asks for runs from gear we have no table for yet',
 };

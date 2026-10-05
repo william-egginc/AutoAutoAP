@@ -440,7 +440,7 @@
         >), or tick "Find a starting chain for me".
       </div>
 
-      <!-- Find / Find and submit: the same bar as the Full sweep (FindBar.vue). The share opt-in is
+      <!-- Find / Find and share: the same bar as the Full sweep (FindBar.vue). The share opt-in is
            given BEFORE the run, where the player is, instead of at the bottom of a page they may
            have walked away from. A run that is stopped early, fails, or finds nothing sends nothing. -->
       <FindBar
@@ -1054,7 +1054,7 @@
         <h3 class="text-[10px] font-black text-indigo-700 uppercase tracking-widest">Share this result</h3>
 
         <p class="text-[11px] text-indigo-900/80 leading-relaxed">
-          <span class="font-bold">Contribute to the virtue track and the leaderboards.</span>
+          <span class="font-bold">Share your result with the virtue track and the leaderboards.</span>
           Pooling results across accounts is the only way to answer questions one account cannot: whether the effort
           tiers behave the same everywhere, whether
           <span class="font-mono">maxLast</span> is right, whether a chain shape that wins here wins anywhere else.
@@ -1070,7 +1070,7 @@
             class="mt-0.5 rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500"
           />
           <span class="text-[11px] text-indigo-900 leading-relaxed">
-            <span class="font-bold">Yes, contribute this result.</span>
+            <span class="font-bold">Yes, share this result.</span>
             I have read what is included below.
           </span>
         </label>
@@ -1079,7 +1079,7 @@
           <div class="flex flex-wrap items-center gap-4">
             <label class="flex items-center gap-2 cursor-pointer text-[11px] font-bold text-indigo-900">
               <input v-model="anonymous" type="radio" :value="true" class="text-indigo-600 focus:ring-indigo-500" />
-              Submit anonymously
+              Share anonymously
             </label>
             <label class="flex items-center gap-2 cursor-pointer text-[11px] font-bold text-indigo-900">
               <input v-model="anonymous" type="radio" :value="false" class="text-indigo-600 focus:ring-indigo-500" />
@@ -1722,7 +1722,7 @@ async function save(): Promise<void> {
   }
 }
 
-/** This run sends itself when it finishes (Find and submit), so the result says it did. */
+/** This run sends itself when it finishes (Find and share), so the result says it did. */
 const autoSubmitted = ref(false);
 
 /** Find (or carry on a run, `resume`); with `andSubmit`, the result is sent as Share this result

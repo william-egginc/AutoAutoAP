@@ -117,24 +117,9 @@
     </p>
 
     <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest pt-1">The routes to try</h3>
-    <div class="flex flex-wrap items-center gap-2">
-      <button
-        v-for="m in MODES"
-        :key="m.id"
-        type="button"
-        :disabled="store.busy"
-        class="px-3 py-1.5 rounded-lg border text-[10px] font-black uppercase tracking-widest disabled:opacity-40"
-        :class="
-          mode === m.id
-            ? 'border-slate-800 bg-slate-800 text-white'
-            : 'border-slate-200 text-slate-500 hover:text-slate-700'
-        "
-        @click="mode = m.id"
-      >
-        {{ m.label }}
-      </button>
-    </div>
-
+    <!-- One way only (the user, 5 Oct: "just have I'll set the stops, make it simpler"). "Pick them for
+         me" is gone from the page; an unfinished run started in it can still be carried on, which is
+         the only way `mode` becomes 'auto' now. -->
     <!-- The player's own space, Insane-style: one box per chain, and as many chains as you like. -->
     <template v-if="mode === 'space'">
       <div v-for="(row, k) in chains" :key="k" class="rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-2">
@@ -390,7 +375,7 @@
     <!-- Keep awake is in Your setup at the top, with the other computer settings. -->
     <SafariNotice />
     <IntegrityNotice />
-    <!-- A Find and submit that finished (and shared) while this panel was closed for another tab. -->
+    <!-- A Find and share that finished (and shared) while this panel was closed for another tab. -->
     <AutoSendReport v-if="!shareMessage" kind="by-date" />
     <!-- The unfinished run's carry-on again, next to Start where people look for it. -->
     <div
@@ -409,8 +394,8 @@
       >
     </div>
 
-    <!-- Find / Find and submit: the same bar as Fastest route (FindBar.vue), with this screen's own
-         consent wording. The same share settings as the Share this answer box under the result. -->
+    <!-- Find / Find and share: the same bar as Fastest route (FindBar.vue), with this screen's own
+         consent wording. The same share settings as the Share this result box under the result. -->
     <FindBar
       v-model:opt-in="shareOptIn"
       v-model:anonymous="shareAnonymous"
@@ -427,10 +412,10 @@
     >
       <template #consent>
         <span
-          >For <span class="font-bold">Find and submit</span>: share the best answer on the leaderboard when the search
+          >For <span class="font-bold">Find and share</span>: share the best answer on the leaderboard when the search
           finishes. It sends the route, its dates and the deadline, with your artifact inventory, timezone, local plan
           start and the random code this browser keeps for the account (not your player ID, and never shown), plus the
-          CSV if ticked under Share this answer. Stop it early and it shares the best it found so far.</span
+          CSV if ticked under Share this result. Stop it early and it shares the best it found so far.</span
         >
       </template>
     </FindBar>
@@ -655,7 +640,7 @@
 
       <!-- Share: Compare's Egg Day tab for an Egg Day answer, else "By a date". Same opt-in as Insane. -->
       <div v-if="best && collectorConfigured" class="rounded-xl border border-indigo-200 bg-indigo-50/60 p-4 space-y-3">
-        <h3 class="text-[10px] font-black text-indigo-800 uppercase tracking-widest">Share this answer</h3>
+        <h3 class="text-[10px] font-black text-indigo-800 uppercase tracking-widest">Share this result</h3>
         <p class="text-[11px] text-indigo-900/80 leading-relaxed">
           Sends the best route above to {{ NAMES.compare }}'s <span class="font-bold">{{ shareTab }}</span> tab, where
           answers for the same deadline are ranked by the highest TE reached, then the time to spare. It stays out of
@@ -664,7 +649,7 @@
         <label class="flex items-start gap-3 text-xs text-indigo-900">
           <input v-model="shareOptIn" type="checkbox" class="mt-0.5 rounded border-indigo-300 text-indigo-600" />
           <span
-            >Yes, contribute this answer. This sends the route, its dates and the deadline, along with your artifact
+            >Yes, share this result. This sends the route, its dates and the deadline, along with your artifact
             inventory, timezone, local plan start and the random code this browser keeps for the account (not your
             player ID, and never shown), exactly as for any run you share.</span
           >
@@ -673,7 +658,7 @@
           <div class="flex flex-wrap items-center gap-4">
             <label class="flex items-center gap-2 cursor-pointer text-[11px] font-bold text-indigo-900">
               <input v-model="shareAnonymous" type="radio" :value="true" class="text-indigo-600" />
-              Submit anonymously
+              Share anonymously
             </label>
             <label class="flex items-center gap-2 cursor-pointer text-[11px] font-bold text-indigo-900">
               <input v-model="shareAnonymous" type="radio" :value="false" class="text-indigo-600" />
@@ -872,11 +857,9 @@ const resolutionsText = computed(() => {
 
 // ------------------------------------------------------------------ your own space (Insane-style)
 
-const MODES = [
-  { id: 'space', label: "I'll set the stops" },
-  { id: 'auto', label: 'Pick them for me' },
-] as const;
 const { mode } = kept;
+// A setting left on "Pick them for me" from before it was removed comes back as the one way left.
+if (mode.value === 'auto' && !store.deadlineRunning) mode.value = 'space';
 
 /** The chains to run from one click: each an ascension count and one box of bands. */
 const { chains, lastBox, suggestFrom } = kept;
@@ -1185,7 +1168,7 @@ async function resume(): Promise<void> {
   await store.resumeDeadline(props.playerId);
 }
 
-/** Set while a Find and submit run is going: it shares its best answer when it finishes. */
+/** Set while a Find and share run is going: it shares its best answer when it finishes. */
 const autoShare = ref(false);
 
 /** Find, and with `andSubmit` share the best answer at the end (not when stopped early or failed). */
