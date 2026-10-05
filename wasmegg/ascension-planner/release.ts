@@ -15,5 +15,5 @@
  */
 export default {
   reloadIfBuiltBefore: '2026-10-05T19:54:00Z',
-  note: 'a new layout: four tabs (Auto Planner, Compare, Insights, Science), one Your setup on every screen, Fastest route on one screen, and By a date can save answers',
+  note: 'Smart search explains itself more plainly, Find and submit says what to tick, "Let me pick my hours" now holds egg shifts too, and refreshing your save moves the plan start up to it',
 };

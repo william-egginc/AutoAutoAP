@@ -25,7 +25,7 @@
         type="button"
         class="px-6 py-4 rounded-xl bg-indigo-700 text-white text-[11px] font-black uppercase tracking-widest hover:bg-indigo-800 disabled:opacity-40"
         :disabled="findDisabled || !optIn"
-        :title="optIn ? '' : 'Tick the share box below first'"
+        :title="optIn ? '' : 'Please read and tick the box below first'"
         @click="emit('find', true)"
       >
         Find and submit
@@ -45,6 +45,9 @@
       v-if="showSubmit && !running"
       class="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3 space-y-2 text-[11px] text-indigo-900"
     >
+      <p v-if="!optIn" class="font-black text-indigo-800">
+        To use Find and submit, please read this and tick the box to agree:
+      </p>
       <label class="flex items-start gap-3">
         <input v-model="optIn" type="checkbox" class="mt-0.5 rounded border-indigo-300 text-indigo-600" />
         <!-- The screen's own wording where it sends something else (Highest TE by a date sends a route

@@ -183,9 +183,8 @@
             >
               <input v-model="store.scheduleEnabled" type="radio" :value="true" class="mt-0.5 text-indigo-600" />
               <span class="text-[11px] text-slate-600 leading-relaxed">
-                <span class="block font-bold text-slate-800">Only when I'm awake</span>
-                Pick your hours below. A prestige due while you're away waits until your next hour, and the wait is
-                counted.
+                <span class="block font-bold text-slate-800">Let me pick my hours</span>
+                Prestiges and egg shifts wait for your next hour. While a prestige waits, TE does not keep collecting.
               </span>
             </label>
           </div>
@@ -258,17 +257,15 @@
               No days picked. Pick at least one, or nothing can be scheduled.
             </p>
             <p v-else class="text-[11px] text-slate-500">{{ scheduleText(store.availability) }}.</p>
-            <label class="flex items-start gap-3 cursor-pointer">
-              <input
-                v-model="store.deferShifts"
-                type="checkbox"
-                class="mt-0.5 rounded border-slate-300 text-indigo-600 disabled:opacity-40"
-              />
-              <span class="text-[11px] text-slate-600 leading-relaxed">
-                <span class="font-bold text-slate-800">Hold egg shifts for my hours too.</span> Each of the twelve
-                shifts in an ascension waits for you as well. It costs time, but it's what most people actually do.
-              </span>
-            </label>
+            <!-- Picking hours means the shifts wait for them too (the user, 5 Oct: the hours should be obvious), so
+                 the old "Hold egg shifts for my hours too" box is gone. Only a run or link saved with it off can
+                 still be in that state; say so, with a way back. -->
+            <p v-if="!store.deferShifts" class="text-[11px] font-semibold text-amber-700">
+              This plan was saved with egg shifts not waiting for your hours.
+              <button type="button" class="underline font-bold" @click="store.deferShifts = true">
+                Make them wait too
+              </button>
+            </p>
           </div>
         </fieldset>
 
@@ -397,7 +394,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onUnmounted, ref } from 'vue';
+import { computed, onUnmounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useInitialStateStore } from '@/stores/initialState';
@@ -419,6 +416,13 @@ defineProps<{
 }>();
 
 const store = useChainSearchStore();
+// Choosing "Let me pick my hours" holds the egg shifts for those hours as well.
+watch(
+  () => store.scheduleEnabled,
+  on => {
+    if (on) store.deferShifts = true;
+  }
+);
 const planner = useAutoPlannerStore();
 const initialState = useInitialStateStore();
 const ui = useUIStore();
