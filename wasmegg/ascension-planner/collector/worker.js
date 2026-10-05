@@ -121,6 +121,9 @@ const MAX = {
   /** Timezone, effort, window, the two local stamps. */
   TEXT: 64,
   NICKNAME: 40,
+  /** What the sender says the run was for ("testing a Friday start", ...). Plain text, shown as
+   *  text. Long enough for a sentence or two, short enough that it can't carry a CSV. */
+  NOTE: 500,
   /** Schema 7: the simulator build that priced a run. A short commit id is seven characters; this
    *  leaves room for a tag without letting the field become a second free-text box. */
   BUILD: 40,
@@ -192,6 +195,9 @@ function validateSubmission(s) {
   }
   if (s.nickname !== undefined && (typeof s.nickname !== 'string' || s.nickname.length > MAX.NICKNAME)) {
     problems.push(`nickname must be a string of at most ${MAX.NICKNAME} characters`);
+  }
+  if (s.note !== undefined && (typeof s.note !== 'string' || s.note.length > MAX.NOTE)) {
+    problems.push(`note must be a string of at most ${MAX.NOTE} characters`);
   }
   for (const [field, cap] of [
     ['legs', MAX.LEGS],
@@ -553,6 +559,8 @@ function pickSubmission(s) {
     // never had.
     schema: num(s.schema) ?? SCHEMA,
     nickname: s.nickname ? text(s.nickname, MAX.NICKNAME) : undefined,
+    // Control characters other than line breaks are dropped: a note is read, never interpreted.
+    note: s.note ? text(s.note.replace(/[\u0000-\u0009\u000B-\u001F\u007F]/g, ''), MAX.NOTE) || undefined : undefined,
 
     chain: s.chain.slice(0, MAX.CHAIN),
     ascensions: num(s.ascensions),
@@ -1840,7 +1848,11 @@ export default {
         const yours = !!mine12 && snap.own[row.id] === mine12;
         delete row.acct;
         if (yours) row.yours = true;
-        else delete row.nickname;
+        else {
+          // A flagged row's words are its sender's: hidden from everyone else, like the name.
+          delete row.nickname;
+          delete row.note;
+        }
         return row;
       });
       return json({ count: rows.length, rows }, 200, mine ? PRIVATE : {});

@@ -15,5 +15,5 @@
  */
 export default {
   reloadIfBuiltBefore: '2026-09-30T20:12:00Z',
-  note: 'Highest TE by a date and Egg Day answers can now be saved under a name, then opened again or deleted, so a new search no longer loses the last one',
+  note: 'Saved By a date answers, and a fix so a run sent or saved as CSV keeps the playing hours, time off and settings it actually ran with',
 };
