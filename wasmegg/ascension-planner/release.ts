@@ -14,6 +14,6 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 export default {
-  reloadIfBuiltBefore: '2026-10-05T06:19:00Z',
-  note: 'A run now keeps the settings it started with: changing your setup before you send or download it no longer mislabels the run. Highest TE by a date can save answers under a name',
+  reloadIfBuiltBefore: '2026-10-05T06:22:00Z',
+  note: 'A run now keeps the settings it started with, saved runs included: changing your setup before you send or download a run no longer mislabels it. By a date can save answers by name',
 };

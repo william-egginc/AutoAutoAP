@@ -96,6 +96,15 @@ export interface RunSummary {
 
   /** The player's note on the run (submission.ts `cleanNote`). Optional and additive. */
   runNote?: string;
+  /** The settings the run started with (stores/chainSearch.ts `RunSettings`), so sending or
+   *  downloading it after opening labels it with ITS hours and options. Optional and additive. */
+  settings?: {
+    effort: string;
+    forceContinue: boolean;
+    availability: import('./availabilitySchedule').Availability | null;
+    deferShifts: boolean;
+    timeOff: import('./timeOff').TimeOffDates[];
+  };
 }
 
 /** The body, loaded only when a run is opened. */
@@ -123,6 +132,7 @@ export interface SaveRunInput {
   fingerprint?: string;
   inputsKey?: string;
   runNote?: string;
+  settings?: RunSummary['settings'];
   /** Injectable so tests are not clock-dependent. */
   now?: number;
   /** Injectable for the same reason; ids are otherwise random. */
@@ -177,6 +187,7 @@ export async function saveRun(partitionHash: string, input: SaveRunInput): Promi
     ...(input.fingerprint ? { fingerprint: input.fingerprint } : {}),
     ...(input.inputsKey ? { inputsKey: input.inputsKey } : {}),
     ...(input.runNote ? { runNote: input.runNote } : {}),
+    ...(input.settings ? { settings: input.settings } : {}),
   };
 
   const existing = await listRuns(partitionHash);
