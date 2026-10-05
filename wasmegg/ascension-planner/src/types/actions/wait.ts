@@ -11,6 +11,8 @@ export interface WaitForTEPayload {
   timeSeconds: number; // Time required
   startEggsDelivered: number; // Eggs delivered before this action
   startTE: number; // TE thresholds passed before this action
+  /** A wait for the player's hours before a shift (auto/hold.ts), not a planned TE wait. */
+  heldForPlayer?: boolean;
 }
 
 /**

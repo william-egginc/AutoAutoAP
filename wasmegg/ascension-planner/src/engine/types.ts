@@ -56,6 +56,12 @@ export interface SimulationContext {
   assumeDoubleEarnings: boolean;
   rawBackup?: any; // ei.IBackup
   deferForEarningsMode: boolean;
+  /**
+   * The player's hours (auto/hold.ts): given a unix second, the first instant at or after it when
+   * they can make an egg shift. Set only by the search when hours are picked; absent everywhere
+   * else, which leaves every other path exactly as it was.
+   */
+  holdUntil?: (unixSeconds: number) => number;
   // TODO: Add any other global context needed (e.g. events?)
 }
 
