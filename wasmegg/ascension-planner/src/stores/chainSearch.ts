@@ -1114,6 +1114,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       // re-pricing chains that were already sitting in the file.
       ...(searchSpace.value ? { space: searchSpace.value } : {}),
       ...(runNoteUsed ? { runNote: runNoteUsed } : {}),
+      settings: usedSettings() as RunSummary['settings'],
       // An opened saved run keeps ITS identity; anything else is the run that just ran.
       fingerprint: openedRun.value?.fingerprint ?? (runFingerprint || fingerprint(playerId)),
       ...((openedRun.value ? openedRun.value.inputsKey : runInputsKey)
@@ -1148,6 +1149,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // to `startExhaustive`. Absent on a staged run and on anything saved before library version 2.
     searchSpace.value = summary.space ? { ...summary.space } : null;
     runSweepTag = null;
+    // Its own settings, so sending or downloading it after opening labels it with them (older saved
+    // runs carry none and fall back to Your setup as it is now), never the last search's.
+    runSettingsUsed.value = (summary.settings as RunSettings | undefined) ?? null;
     runNoteUsed = summary.runNote;
     runNote.value = summary.runNote ?? '';
     integrityWait.value = null;
