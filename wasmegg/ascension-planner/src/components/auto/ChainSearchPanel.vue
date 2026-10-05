@@ -14,16 +14,21 @@
             class="p-4 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600 leading-relaxed space-y-2"
           >
             <p>
-              This takes a starting chain (the Target TE on the Classic tab, or one you type below) and tries to improve
-              it, scoring every candidate with the same simulator the Auto Planner uses. It runs in
-              <span class="font-bold text-slate-800">up to {{ store.workersInPool }} background workers</span> on your
-              own machine. One chain costs at least 15 seconds of CPU, so a run takes
-              <span class="font-bold">hours</span>, not seconds. Leave the tab open. It can be in the background, but
-              closing the tab stops the workers.
+              You give it a starting chain and it hunts for a faster one nearby. The start is whatever you type in
+              Starting chain below, or Target TE(s) on {{ NAMES.auto }} › {{ NAMES.classic }}, or a suggested chain if
+              both are empty. Tick "Find a starting chain for me" and it scans for one first. Every candidate is run
+              through the same simulator {{ NAMES.classic }} uses.
             </p>
             <p>
-              It matters because good chains are rare: {{ NEAR_OPTIMAL_SHARE }} on the one account where every chain was
-              measured. You are not going to land there by trying a few by hand.
+              It all happens on your own computer, in
+              <span class="font-bold text-slate-800">{{ store.workerBudget }} background workers</span> (one per core,
+              less one, unless you change it in Your setup). Each chain takes several seconds of one core, more for
+              longer chains, so a run takes <span class="font-bold">hours</span>. Keep the tab open. Closing it stops
+              the workers, but what they priced is saved and you can carry on later.
+            </p>
+            <p>
+              Why bother? Good chains are rare. In one fully priced box on one account,
+              {{ NEAR_OPTIMAL_SHARE }}. You won't find one of those by trying a few by hand.
             </p>
           </div>
 
@@ -256,7 +261,13 @@
             class="w-full mt-1 bg-transparent text-sm font-black text-slate-800 border-0 border-b border-slate-300 focus:border-indigo-500 focus:ring-0 p-0 disabled:opacity-50"
           />
           <div class="text-[9px] text-slate-400 mt-1">
-            {{ store.seedOverride.trim() ? 'using ' + store.seedChain.join(' ') : 'from Target TE on the Classic tab' }}
+            {{
+              store.seedOverride.trim()
+                ? 'using ' + store.seedChain.join(' ')
+                : autoPlannerStore.targetTE.trim()
+                  ? `from Target TE(s) on ${NAMES.classic}`
+                  : 'a suggested chain'
+            }}
           </div>
         </div>
         <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl">
@@ -434,9 +445,9 @@
       >
         <span class="font-black uppercase tracking-wide">That's a single ascension.</span>
         {{ store.finalTE }} on its own goes straight to the target, so there are no checkpoints for {{ NAMES.smart }} to
-        look for. To plan that one ascension, use the Classic tab: type {{ store.finalTE }} in Target TE(s) and press
-        Generate plan. To search for a faster chain instead, give Starting chain some checkpoints (like
-        <span class="font-mono">200 250 300 {{ store.finalTE }}</span
+        look for. To plan that one ascension, go to {{ NAMES.auto }} › {{ NAMES.classic }}, type {{ store.finalTE }} in
+        Target TE(s) and press Generate plan. To search for a faster chain instead, give Starting chain some checkpoints
+        (like <span class="font-mono">200 250 300 {{ store.finalTE }}</span
         >), or tick "Find a starting chain for me".
       </div>
 
@@ -1297,9 +1308,8 @@
           <li>Accuracy figures come from 3 accounts. Only one of them has a proven optimum to check against.</li>
           <li>A refresh is safe: progress is checkpointed and resumes without re-simulating anything.</li>
           <li>
-            "Only count on me during these hours" (in Your setup) moves the prestige between ascensions. Shifts inside
-            an ascension can still land outside your hours unless "Hold egg shifts for my hours too" is ticked; the CSV
-            counts them per leg.
+            "Let me pick my hours" (in Your setup) makes each prestige and each egg shift wait for your hours. The CSV
+            counts the waits per leg.
           </li>
         </ul>
       </div>

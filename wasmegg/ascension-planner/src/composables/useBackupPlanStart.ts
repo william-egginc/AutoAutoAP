@@ -65,9 +65,20 @@ export function useBackupPlanStart(): void {
   watch(
     () => initialStateStore.rawBackup?.approxTime,
     approxTime => {
-      if (startDefaulted) return;
       const backupSeconds = typeof approxTime === 'number' ? approxTime : null;
       const usableBackup = backupSeconds !== null && Number.isFinite(backupSeconds) && backupSeconds > 0;
+      if (startDefaulted) {
+        // A newer save loaded in the same session (the header's refresh): a start before it would
+        // ask the simulator to begin before its state existed, so move up to it, the same rule as a
+        // stale cached form. A start at or after the new save is the player's and stays.
+        if (!usableBackup) return;
+        const current =
+          startDate.value && startTime.value
+            ? getLocalTimestampInTimezone(startDate.value, startTime.value, timezone.value)
+            : null;
+        if (current !== null && current < backupSeconds) write(Math.max(Date.now() / 1000, backupSeconds), false);
+        return;
+      }
 
       // A backup arriving over an untouched placeholder replaces it outright, bypassing
       // `resolvePlanStart`'s "a later start is the player's choice" rule -- it was not a choice.
