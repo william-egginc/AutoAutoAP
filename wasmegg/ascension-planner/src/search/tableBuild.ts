@@ -3,6 +3,7 @@
  * the page simulates one build of the player's own account to measure their real peak delivery rate
  * against the table's (components/auto/InstantRoute.vue), the way the table's own cells are made.
  */
+import { sanitizeLongs } from '@/lib/artifacts/utils';
 import { getLocalTimestampInTimezone, PACIFIC_TIMEZONE } from '@/lib/events';
 import { deriveNextStartState, runUntilShift } from '@/auto/ascension';
 import { runC3Variants } from '@/auto/shifts/c3';
@@ -47,7 +48,19 @@ export function startStateAt(inputs: SearchInputs, te: number): EngineState {
 
 /** One start's build: the shared C1..R1 run and every C3 variant still possible. */
 export function buildAt(inputs: SearchInputs, state: EngineState, start: number, te: number) {
-  const ctx = { ...inputs.context, ascensionStartTime: start, planStartOffset: 0 };
+  // Each cell on its own copy of the save. getOptimalELRSet caches the first artifact structure it
+  // finds per backup object for the rest of the process (lib/artifacts/virtue.ts), so in a
+  // long-running generator worker a cell's delivery set depended on which cells that worker built
+  // before it: all-common's TE 400 hours 120-128 came out differently on the PC (5 Oct, a fresh
+  // process on the same machine and build disagreed with the stored table). A fresh copy is a cache
+  // miss by construction, so every cell is built as if it were the first.
+  const raw = inputs.context.rawBackup;
+  const ctx = {
+    ...inputs.context,
+    ...(raw ? { rawBackup: sanitizeLongs(raw) as typeof raw } : {}),
+    ascensionStartTime: start,
+    planStartOffset: 0,
+  };
   const pre = runUntilShift(state, ctx, 'C3');
   const preC3 = { actions: pre.actions, state: pre.state, elapsedSeconds: pre.elapsedSeconds };
   const variants = runC3Variants(pre.state, ctx, 3, te < TIER_13_MIN_STARTING_TE).filter(v => !v.impossible);
