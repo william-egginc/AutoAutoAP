@@ -81,6 +81,15 @@ export interface SavedDeadlineResult {
   ceiling?: number;
   /** The run's note, from its spec. */
   note?: string;
+  /** The settings the run started with (stores/chainSearch.ts `RunSettings`), so its record says what
+   *  it priced under even if Your setup changed since. Absent on results saved before 5 Oct. */
+  settings?: {
+    effort: string;
+    forceContinue: boolean;
+    availability: import('./availabilitySchedule').Availability | null;
+    deferShifts: boolean;
+    timeOff: import('./timeOff').TimeOffDates[];
+  };
   at: number;
 }
 

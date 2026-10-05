@@ -15,5 +15,5 @@
  */
 export default {
   reloadIfBuiltBefore: '2026-09-30T20:12:00Z',
-  note: 'an optional note on each run (what you were trying or testing), kept with the run and its CSV and shown on the board',
+  note: 'a fix so a run sent or saved as CSV keeps the playing hours, time off and settings it actually ran with, even if Your setup changed since',
 };
