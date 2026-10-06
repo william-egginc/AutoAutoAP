@@ -2093,6 +2093,139 @@ async function polish(file: string): Promise<void> {
   console.log(`finder ${ms0.toFixed(0)} ms; ${priced} routes priced by the polish`);
 }
 
+/**
+ * A route moved one stop at a time by up to `reach` TE, then neighbouring pairs by one each, keeping
+ * any that `price` says reaches the end sooner, until nothing improves (scripts' --polish; the instant
+ * answer's own polish is routeFinder.ts `polishRoute`).
+ */
+function polishChainBy(chain: number[], price: (c: number[]) => number | null, reach = 2, pairs = true) {
+  let best = [...chain];
+  let bestEnd = price(best) ?? Infinity;
+  const tryChain = (c: number[]) => {
+    const e = price(c);
+    if (e !== null && e < bestEnd - 60) {
+      best = c;
+      bestEnd = e;
+      return true;
+    }
+    return false;
+  };
+  for (let round = 0; round < 20; round++) {
+    let improved = false;
+    for (let i = 0; i < best.length - 1; i++)
+      for (let dlt = -reach; dlt <= reach; dlt++) {
+        if (!dlt) continue;
+        const c = [...best];
+        c[i] += dlt;
+        if (tryChain(c)) improved = true;
+      }
+    if (pairs)
+      for (let i = 0; i + 1 < best.length - 1; i++)
+        for (const [a, b] of [
+          [1, 1],
+          [-1, -1],
+          [1, -1],
+          [-1, 1],
+        ]) {
+          const c = [...best];
+          c[i] += a;
+          c[i + 1] += b;
+          if (tryChain(c)) improved = true;
+        }
+    if (!improved) break;
+  }
+  return { chain: best, end: bestEnd };
+}
+
+/**
+ * --prune-bench (6 Oct, the user's go): how often the route finder misses the best route, and how much
+ * the polish recovers. --starts N random starts (seed --seed): a start TE between the table's first
+ * TE and 430, a final 40-100 TE above it, a start hour anywhere in the year from 6 Oct 2026; from the
+ * table's canonical egg counts and a fresh first ascension. For 1-4 ascensions: the finder's route, the
+ * polished one, and every route by brute force (each prefix priced once, then extended), all priced by
+ * the table the same way (priceLeg: on the hour, or late inside the sale). One JSON line per start and
+ * count.
+ */
+async function pruneBench(file: string): Promise<void> {
+  const dir = arg('table');
+  if (!dir) throw new Error('--prune-bench needs --table DIR');
+  const table = loadTable(dir);
+  await loadInputs(file); // the combo (--combos/--combo) and the stores, as the table was built
+  const meta = JSON.parse(readFileSync(`${dir}/meta.json`, 'utf8')) as { from: number; to: number };
+  const label = arg('label') ?? dir.split(/[\\/]/).pop();
+  let seed = Number(arg('seed') ?? 1) >>> 0;
+  const rand = () => {
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    return seed / 2 ** 32;
+  };
+  const YEAR = 365 * 86400;
+  const T0 = Date.parse('2026-10-06T00:00:00Z') / 1000;
+  const n = Number(arg('starts') ?? 35);
+  for (let s = 0; s < n; s++) {
+    const te = Math.floor(meta.from + 1 + rand() * (Math.min(430, meta.to) - meta.from - 1));
+    const final = Math.min(489, te + 40 + Math.floor(rand() * 61));
+    const start = T0 + Math.floor(rand() * (YEAR / 3600)) * 3600;
+    const eggs0 = canonicalDelivered(te);
+    const price = (chain: number[]): number | null => {
+      let t = start;
+      let cur = te;
+      let eggs = eggs0;
+      for (const target of chain) {
+        if (target <= cur) return null;
+        const p = priceLeg(table.lookup, cur, t, eggs, target, 1);
+        if (!p) return null;
+        t = p.end;
+        cur = p.endTE;
+        eggs = p.delivered;
+      }
+      return cur >= final ? t : null;
+    };
+    const t0 = performance.now();
+    const found = await findRoutes({ table: table.lookup, startTE: te, start, final, maxAscensions: 4 });
+    const msFinder = performance.now() - t0;
+    // Brute force: every chain of up to 4 ascensions ending at `final`, prefixes priced once.
+    const brute: { end: number; chain: number[] }[] = [];
+    const t1 = performance.now();
+    const walk = (prefix: number[], t: number, cur: number, eggs: number[]) => {
+      const k = prefix.length + 1;
+      const last = priceLeg(table.lookup, cur, t, eggs, final, 1);
+      if (last && last.endTE >= final && (!brute[k] || last.end < brute[k].end))
+        brute[k] = { end: last.end, chain: [...prefix, final] };
+      if (prefix.length >= 3) return;
+      for (let c = cur + 1; c < final; c++) {
+        const p = priceLeg(table.lookup, cur, t, eggs, c, 1);
+        if (!p || p.endTE >= final) continue;
+        walk([...prefix, c], p.end, p.endTE, p.delivered);
+      }
+    };
+    walk([], start, te, eggs0);
+    const msBrute = performance.now() - t1;
+    for (let k = 1; k <= 4; k++) {
+      const f = found.byAscensions[k];
+      const b = brute[k];
+      if (!f || !b) continue;
+      const fEnd = price(f.chain) ?? f.end;
+      const p = polishChainBy(f.chain, price);
+      console.log(
+        JSON.stringify({
+          table: label,
+          te,
+          final,
+          start,
+          k,
+          finder: { chain: f.chain, end: fEnd },
+          polished: p,
+          brute: b,
+          missH: Number(((fEnd - b.end) / 3600).toFixed(2)),
+          polishedMissH: Number(((p.end - b.end) / 3600).toFixed(2)),
+          msFinder: Math.round(msFinder),
+          msBrute: Math.round(msBrute),
+        })
+      );
+    }
+  }
+}
+
 async function main(): Promise<void> {
   if (has('pack')) return pack();
   if (has('restamp')) {
@@ -2249,6 +2382,7 @@ async function main(): Promise<void> {
   if (has('hold-credit')) return holdCredit(backup);
   if (has('cache-check')) return cacheCheck(backup);
   if (has('polish')) return polish(backup);
+  if (has('prune-bench')) return pruneBench(backup);
   if (has('verify-cells')) return verifyCells(backup);
   if (has('route')) return route(backup);
   if (has('profile')) return profile(backup);

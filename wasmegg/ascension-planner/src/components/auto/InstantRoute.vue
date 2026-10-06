@@ -657,11 +657,26 @@ async function run(): Promise<void> {
       expand: (items, settings) => p.expand(url, items, settings),
     });
     if (id !== runs) return;
-    result.value = found;
+    // Each answer moved a stop or two on the table where that ends sooner: the search can prune a
+    // route whose later, better-aligned start makes it faster (routeFinder.ts `polishFound`).
+    const polished = await p.polish(
+      url,
+      {
+        startTE: te,
+        start: inputs.planStart,
+        firstLegs,
+        deliveryScale: scale,
+        ...(props.deadline ? { deadline: props.deadline } : {}),
+      },
+      JSON.parse(JSON.stringify(found))
+    );
+    if (id !== runs) return;
+    const answer = { ...found, ...polished };
+    result.value = answer;
     ms.value = performance.now() - t0;
     status.value = 'done';
-    if (props.deadline) emitRoutes(found);
-    void runExact(id, found);
+    if (props.deadline) emitRoutes(answer);
+    void runExact(id, answer);
   } catch (err) {
     if (id !== runs) return;
     const message = err instanceof Error ? err.message : String(err);

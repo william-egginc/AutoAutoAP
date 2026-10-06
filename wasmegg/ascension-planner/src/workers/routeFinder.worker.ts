@@ -7,7 +7,7 @@
  * worker's life, so a second search (another start time, another target) costs no download.
  */
 import { compositeTable, parseCompositeUrl, readTable, type Table } from '@/search/precomputedTable';
-import { expandArrivals, firstLegOptions } from '@/search/routeFinder';
+import { expandArrivals, firstLegOptions, polishFound } from '@/search/routeFinder';
 import type { TailSweep } from '@/search/precomputedLeg';
 import type { RouteWorkerRequest, RouteWorkerResponse } from './routeFinder.protocol';
 
@@ -91,6 +91,9 @@ ctx.onmessage = async (event: MessageEvent<RouteWorkerRequest>) => {
         });
         return;
       }
+      case 'polish':
+        reply({ kind: 'polish', id: m.id, found: polishFound(t.lookup, m.options, m.found) });
+        return;
     }
   } catch (err) {
     reply({ kind: 'error', id: m.id, message: err instanceof Error ? err.message : String(err) });

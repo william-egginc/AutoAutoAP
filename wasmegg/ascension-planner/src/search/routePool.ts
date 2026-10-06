@@ -5,7 +5,7 @@
  * what comes back, which is light; the workers do the arithmetic.
  */
 import type { TableHeader } from './precomputedTable';
-import type { ArrivalItem, Candidate, ExpandSettings, FirstLeg } from './routeFinder';
+import type { ArrivalItem, Candidate, ExpandSettings, FirstLeg, FoundRoutes, PolishOptions } from './routeFinder';
 import type { FirstLegsRequest, RouteWorkerRequest, RouteWorkerResponse } from '@/workers/routeFinder.protocol';
 
 type Pending = { resolve: (m: RouteWorkerResponse) => void; reject: (e: Error) => void };
@@ -77,6 +77,13 @@ export class RoutePool {
     const m = await this.ask(0, { kind: 'header', url });
     if (m.kind !== 'header') throw new Error('unexpected reply');
     return m.header;
+  }
+
+  /** The search's answer polished on the table, in a worker (routeFinder.ts `polishFound`). */
+  async polish(url: string, options: PolishOptions, found: FoundRoutes): Promise<FoundRoutes> {
+    const m = await this.ask(0, { kind: 'polish', url, options, found });
+    if (m.kind !== 'polish') throw new Error('unexpected reply');
+    return m.found;
   }
 
   async firstLegs(request: Omit<FirstLegsRequest, 'id' | 'kind'>): Promise<FirstLeg[]> {

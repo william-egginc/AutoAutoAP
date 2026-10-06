@@ -5,7 +5,14 @@
  */
 import type { BuildParams } from '@/search/precomputedLeg';
 import type { TableHeader } from '@/search/precomputedTable';
-import type { ArrivalItem, Candidate, ExpandSettings, FirstLeg } from '@/search/routeFinder';
+import type {
+  ArrivalItem,
+  Candidate,
+  ExpandSettings,
+  FirstLeg,
+  FoundRoutes,
+  PolishOptions,
+} from '@/search/routeFinder';
 
 /** Load the table (once) and say what it is. */
 export interface HeaderRequest {
@@ -42,10 +49,20 @@ export interface ExpandRequest {
   settings: ExpandSettings;
 }
 
-export type RouteWorkerRequest = HeaderRequest | FirstLegsRequest | ExpandRequest;
+/** The search's answer polished on the table (routeFinder.ts `polishFound`). */
+export interface PolishRequest {
+  kind: 'polish';
+  id: number;
+  url: string;
+  options: PolishOptions;
+  found: FoundRoutes;
+}
+
+export type RouteWorkerRequest = HeaderRequest | FirstLegsRequest | ExpandRequest | PolishRequest;
 
 export type RouteWorkerResponse =
   | { kind: 'header'; id: number; header: TableHeader }
   | { kind: 'first-legs'; id: number; firstLegs: FirstLeg[] }
   | { kind: 'expand'; id: number; candidates: Candidate[] }
+  | { kind: 'polish'; id: number; found: FoundRoutes }
   | { kind: 'error'; id: number; message: string };

@@ -610,3 +610,140 @@ export function firstLegOptions(o: FirstLegOptions): FirstLeg[] {
   }
   return out;
 }
+
+/** What `polishFound` needs to price a route as `findRoutes` did (plain data, so it can go to a worker). */
+export interface PolishOptions {
+  startTE: number;
+  start: number;
+  /** As FindOptions: the player's own first ascensions, else a fresh one from `startDelivered`. */
+  firstLegs?: FirstLeg[];
+  startDelivered?: number[];
+  deliveryScale?: number;
+  deadline?: number;
+  /** How far one stop moves (default 2); neighbouring pairs move by one each unless `pairs` is false. */
+  reach?: number;
+  pairs?: boolean;
+}
+
+export interface FoundRoutes {
+  best: Route | null;
+  byAscensions: (Route | null)[];
+  byDate: Route | null;
+  byDateByAscensions: (Route | null)[];
+}
+
+/** `chain` priced the way `findRoutes` prices a route: its first leg from `firstLegs` (or a fresh one),
+ *  then each checkpoint on the hour (or late inside the sale). Null when a stop is not above the TE
+ *  reached by then. */
+export function priceChain(table: BuildLookup, o: PolishOptions, chain: number[]): Route | null {
+  const scale = o.deliveryScale ?? 1;
+  const legs: RouteLeg[] = [];
+  let t = o.start;
+  let te = o.startTE;
+  let eggs = o.startDelivered ?? canonicalDelivered(o.startTE);
+  for (const [i, target] of chain.entries()) {
+    if (target <= te) return null;
+    if (i === 0 && o.firstLegs) {
+      const f = o.firstLegs.find(x => x.to === target);
+      if (!f) return null;
+      legs.push({
+        from: o.startTE,
+        to: target,
+        endTE: f.endTE,
+        start: o.start,
+        end: f.end,
+        sales: 0,
+        tier13: false,
+        label: f.label ?? 'first',
+      });
+      t = f.end;
+      te = f.endTE;
+      eggs = f.delivered;
+      continue;
+    }
+    const p = priceLeg(table, te, t, eggs, target, scale);
+    if (!p) return null;
+    legs.push({
+      from: te,
+      to: target,
+      endTE: p.endTE,
+      start: p.start,
+      end: p.end,
+      sales: p.build.sales,
+      tier13: p.build.tier13,
+      label: `${p.build.sales}-sale${p.build.tier13 ? '-tier13' : ''}`,
+    });
+    t = p.end;
+    te = p.endTE;
+    eggs = p.delivered;
+  }
+  return { chain: [...chain], legs, end: t, seconds: t - o.start };
+}
+
+/**
+ * A local search around one route: each stop before the last moved by up to `reach` TE, then each
+ * pair of neighbouring stops by one together, keeping any route that `ok` accepts and ends sooner,
+ * until nothing improves. The finder can prune a route that a later, better-aligned start makes
+ * faster (Fliris, 6 Oct: 164 199 223 256 lost to 165 199 223 256 mid-search and ends 12 h sooner);
+ * this finds such a neighbour on the table in milliseconds, and never returns anything slower.
+ */
+function polishRoute(table: BuildLookup, o: PolishOptions, route: Route, ok: (r: Route) => boolean): Route {
+  const reach = o.reach ?? 2;
+  let best = route;
+  const tryChain = (c: number[]): boolean => {
+    const r = priceChain(table, o, c);
+    if (!r || !ok(r) || !(r.end < best.end - 60)) return false;
+    best = r;
+    return true;
+  };
+  for (let round = 0; round < 20; round++) {
+    let improved = false;
+    for (let i = 0; i < best.chain.length - 1; i++) {
+      for (let d = -reach; d <= reach; d++) {
+        if (!d) continue;
+        const c = [...best.chain];
+        c[i] += d;
+        if (tryChain(c)) improved = true;
+      }
+    }
+    if (o.pairs !== false) {
+      for (let i = 0; i + 1 < best.chain.length - 1; i++) {
+        for (const [a, b] of [
+          [1, 1],
+          [-1, -1],
+          [1, -1],
+          [-1, 1],
+        ]) {
+          const c = [...best.chain];
+          c[i] += a;
+          c[i + 1] += b;
+          if (tryChain(c)) improved = true;
+        }
+      }
+    }
+    if (!improved) break;
+  }
+  return best;
+}
+
+/**
+ * `findRoutes`' answer, each route polished (`polishRoute`): the fastest for each number of
+ * ascensions, and with a deadline each count's highest-TE route (the same TE or higher, still in time,
+ * more to spare). The overall best and By a date answer are picked again from the polished ones.
+ */
+export function polishFound(table: BuildLookup, o: PolishOptions, found: FoundRoutes): FoundRoutes {
+  const lastTE = (r: Route) => r.legs[r.legs.length - 1]?.endTE ?? 0;
+  const byAscensions = found.byAscensions.map(r => (r ? polishRoute(table, o, r, () => true) : r));
+  const best = byAscensions.reduce<Route | null>((a, r) => (r && (!a || r.end < a.end) ? r : a), null);
+  const byDateByAscensions = found.byDateByAscensions.map(r =>
+    r && o.deadline !== undefined ? polishRoute(table, o, r, c => c.end <= o.deadline! && lastTE(c) >= lastTE(r)) : r
+  );
+  const byDate =
+    o.deadline === undefined
+      ? found.byDate
+      : byDateByAscensions.reduce<Route | null>(
+          (a, r) => (r && (!a || lastTE(r) > lastTE(a) || (lastTE(r) === lastTE(a) && r.end < a.end)) ? r : a),
+          null
+        );
+  return { best, byAscensions, byDate, byDateByAscensions };
+}
