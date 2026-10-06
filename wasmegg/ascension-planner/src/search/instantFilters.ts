@@ -56,3 +56,38 @@ export function writeFilters(f: InstantFilters): void {
     // Storage blocked: the filters simply start off next time.
   }
 }
+
+/** One count's route improved by the background polish: hours sooner (Fastest) or, By a date, the TE
+ *  gained and the hours more to spare. */
+export interface PolishGain {
+  k: number;
+  hours: number;
+  te: number;
+}
+
+/** The counts whose route `after` improves on `before`: Fastest strictly sooner (by more than a
+ *  minute); By a date (`dated`) a higher TE, or the same TE sooner. */
+export function polishGains(before: FoundRoutes, after: FoundRoutes, dated: boolean): PolishGain[] {
+  const out: PolishGain[] = [];
+  const was = dated ? before.byDateByAscensions : before.byAscensions;
+  const now = dated ? after.byDateByAscensions : after.byAscensions;
+  now.forEach((r, k) => {
+    const b = was[k];
+    if (!r || !b) return;
+    const te = dated ? lastTE(r) - lastTE(b) : 0;
+    const hours = (b.end - r.end) / 3600;
+    if (te > 0 || (te === 0 && hours > 1 / 60)) out.push({ k, hours, te });
+  });
+  return out;
+}
+
+/** "4 ascensions 4.1 h sooner; 7 ascensions +1 TE". */
+export function describeGains(gains: PolishGain[], dated: boolean): string {
+  return gains
+    .map(g => {
+      const h = `${g.hours >= 10 ? g.hours.toFixed(0) : g.hours.toFixed(1)} h`;
+      const what = g.te > 0 ? `+${g.te} TE` : dated ? `${h} more to spare` : `${h} sooner`;
+      return `${g.k} ascension${g.k === 1 ? '' : 's'} ${what}`;
+    })
+    .join('; ');
+}

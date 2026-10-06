@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { atMostAscensions, readFilters, writeFilters } from './instantFilters';
+import { atMostAscensions, describeGains, polishGains, readFilters, writeFilters } from './instantFilters';
 import type { FoundRoutes, Route } from './routeFinder';
 
 const route = (k: number, end: number, endTE = 130): Route => ({
@@ -75,5 +75,34 @@ describe('the remembered filters', () => {
     expect(readFilters()).toEqual({ inHours: true, maxAscensions: 4 });
     store.set('aap-instant-filters', '{"inHours":"yes","maxAscensions":2.5}');
     expect(readFilters()).toEqual({ inHours: false, maxAscensions: null });
+  });
+});
+
+describe('the background polish’s gains', () => {
+  const r = (k: number, end: number, endTE = 130) => route(k, end, endTE);
+  const base = (rs: (Route | null)[]): FoundRoutes => ({
+    best: null,
+    byAscensions: rs,
+    byDate: null,
+    byDateByAscensions: rs,
+  });
+
+  it('lists the counts that got sooner, not the same or later ones', () => {
+    const before = base([null, r(1, 10_000), r(2, 20_000), r(3, 30_000)]);
+    const after = base([null, r(1, 10_000), r(2, 20_000 - 4.1 * 3600), r(3, 30_030)]);
+    const g = polishGains(before, after, false);
+    expect(g).toEqual([{ k: 2, hours: expect.closeTo(4.1, 5) as number, te: 0 }]);
+    expect(describeGains(g, false)).toBe('2 ascensions 4.1 h sooner');
+  });
+
+  it('By a date: a higher TE, or the same TE with more to spare', () => {
+    const before = base([null, r(1, 10_000, 200), r(2, 20_000, 210)]);
+    const after = base([null, r(1, 12_000, 201), r(2, 20_000 - 36_000, 210)]);
+    const g = polishGains(before, after, true);
+    expect(g.map(x => [x.k, x.te])).toEqual([
+      [1, 1],
+      [2, 0],
+    ]);
+    expect(describeGains(g, true)).toBe('1 ascension +1 TE; 2 ascensions 10 h more to spare');
   });
 });

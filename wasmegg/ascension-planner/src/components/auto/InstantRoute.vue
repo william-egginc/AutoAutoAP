@@ -114,6 +114,12 @@
       <p v-if="outOfHoursShown.length" class="text-[11px] text-amber-800">
         No route with {{ countList(outOfHoursShown) }} ascensions keeps every prestige inside your hours.
       </p>
+      <p v-if="backgroundStatus === 'running'" class="text-[11px] text-slate-400">
+        Polishing the routes in the background…
+      </p>
+      <p v-else-if="gainsText" class="text-[11px] text-emerald-800">
+        Improved by the background polish: {{ gainsText }}.
+      </p>
     </div>
 
     <template v-if="result && deadline">
@@ -432,8 +438,15 @@ import { CONTINUE_MAX_SECONDS, CONTINUE_PIN_MAX_SECONDS } from '@/search/rules';
 import { EGG_ORDER } from '@/search/precomputedLeg';
 import { cteFromArtifacts } from 'lib/virtue';
 import { equippedArtifactsToLibArtifacts } from '@/lib/artifacts/utils';
-import { findRoutes, type FoundRoutes, type Route } from '@/search/routeFinder';
-import { atMostAscensions, readFilters, writeFilters } from '@/search/instantFilters';
+import { findRoutes, type FoundRoutes, type PolishOptions, type Route } from '@/search/routeFinder';
+import {
+  atMostAscensions,
+  describeGains,
+  polishGains,
+  readFilters,
+  writeFilters,
+  type PolishGain,
+} from '@/search/instantFilters';
 import { availabilityKey, type Availability } from '@/search/availabilitySchedule';
 import { describeColleggtibles } from '@/search/progression';
 import { poolSize, RoutePool } from '@/search/routePool';
@@ -493,8 +506,10 @@ const errorText = ref('');
 const result = ref<FoundRoutes | null>(null);
 const header = ref<TableHeader | null>(null);
 const ms = ref<number | null>(null);
-/** How long the polish took (part of `ms`), for measuring. */
-const polishMs = ref<number | null>(null);
+/** The background polish (the user, 6 Oct): running, and what it improved. */
+const backgroundStatus = ref<'idle' | 'running' | 'done'>('idle');
+const gains = ref<PolishGain[]>([]);
+const gainsText = computed(() => describeGains(gains.value, !!props.deadline));
 
 /** The player's earnings set's Clothed TE bonus (read from the save the planner loaded). */
 const bonus = computed(() => {
@@ -522,9 +537,49 @@ const target = computed(() => (props.deadline ? 490 : store.finalTE));
  * as far as MAX_ASCENSIONS so those rows exist.
  */
 const MAX_ASCENSIONS = 12;
-/** The stronger polish's settings (routeFinder.ts `PolishOptions`; the bench is scripts/precompute.ts
- *  --prune-bench --wide 8 --candidates 3 --wide-all). */
-const STRONG_POLISH = {};
+/** The stronger polish (routeFinder.ts `PolishOptions`): three of the finder's routes per count, the
+ *  first two stops searched eight TE either way together, then the local search. On the bench
+ *  (scripts/precompute.ts --prune-bench --wide 8 --candidates 3) it cut the finder's misses of over an
+ *  hour from 7 to 5 of 1,408 and was never worse; ~0.5 s a count in the browser, so it runs after
+ *  the answer is shown. */
+const STRONG_POLISH = { wide: 8, candidates: 3 };
+
+/**
+ * After the answer is shown: the stronger polish on one worker, a row's route swapped in only where
+ * it is better (`polishGains`: sooner, or By a date a higher TE or more to spare), then the exact
+ * check on the routes as they now stand.
+ */
+async function polishInBackground(
+  id: number,
+  p: RoutePool,
+  url: string,
+  options: PolishOptions,
+  raw: FoundRoutes,
+  shown: FoundRoutes
+): Promise<void> {
+  backgroundStatus.value = 'running';
+  gains.value = [];
+  let final = shown;
+  try {
+    const t = performance.now();
+    const strong = await p.polish(url, { ...options, ...STRONG_POLISH }, JSON.parse(JSON.stringify(raw)));
+    if (id !== runs) return;
+    if (import.meta.env.DEV) console.info(`instant answer: background polish ${Math.round(performance.now() - t)} ms`);
+    const better = atMostAscensions({ ...raw, ...strong }, filters.value.maxAscensions);
+    const g = polishGains(shown, better, !!props.deadline);
+    if (g.length) {
+      final = better;
+      result.value = better;
+      if (props.deadline) emitRoutes(better);
+    }
+    gains.value = g;
+  } catch {
+    // The first answer stands.
+    if (id !== runs) return;
+  }
+  backgroundStatus.value = 'done';
+  void runExact(id, final);
+}
 
 /** "Works inside my hours" (only with "Let me pick my hours") and "At most N ascensions". */
 const filters = ref(readFilters());
@@ -620,6 +675,8 @@ async function run(): Promise<void> {
   stopExact();
   exactStatus.value = 'idle';
   status.value = 'loading';
+  backgroundStatus.value = 'idle';
+  gains.value = [];
   loadingText.value = header.value
     ? 'Working out every route…'
     : 'Loading the table (about 12 MB, once) and working out every route…';
@@ -712,31 +769,23 @@ async function run(): Promise<void> {
     if (id !== runs) return;
     // Each answer moved a stop or two on the table where that ends sooner: the search can prune a
     // route whose later, better-aligned start makes it faster (routeFinder.ts `polishFound`).
-    const tp = performance.now();
-    const polished = await p.polish(
-      url,
-      {
-        startTE: te,
-        start: inputs.planStart,
-        firstLegs,
-        deliveryScale: scale,
-        ...(props.deadline ? { deadline: props.deadline } : {}),
-        ...(hours ? { hours } : {}),
-        // The stronger polish (the user, 6 Oct): three of the finder's routes per count, each pair
-        // of neighbouring stops searched eight TE either way, then the local search.
-        ...STRONG_POLISH,
-      },
-      JSON.parse(JSON.stringify(found))
-    );
+    const polishOptions: PolishOptions = {
+      startTE: te,
+      start: inputs.planStart,
+      firstLegs,
+      deliveryScale: scale,
+      ...(props.deadline ? { deadline: props.deadline } : {}),
+      ...(hours ? { hours } : {}),
+    };
+    const polished = await p.polish(url, polishOptions, JSON.parse(JSON.stringify(found)));
     if (id !== runs) return;
-    polishMs.value = performance.now() - tp;
-    if (import.meta.env.DEV) console.info(`instant answer: polish ${Math.round(polishMs.value)} ms`);
-    const answer = atMostAscensions({ ...found, ...polished }, filters.value.maxAscensions);
+    const raw = { ...found, ...polished };
+    const answer = atMostAscensions(raw, filters.value.maxAscensions);
     result.value = answer;
     ms.value = performance.now() - t0;
     status.value = 'done';
     if (props.deadline) emitRoutes(answer);
-    void runExact(id, answer);
+    void polishInBackground(id, p, url, polishOptions, raw, answer);
   } catch (err) {
     if (id !== runs) return;
     const message = err instanceof Error ? err.message : String(err);
