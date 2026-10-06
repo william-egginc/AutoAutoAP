@@ -15,5 +15,5 @@
  */
 export default {
   reloadIfBuiltBefore: '2026-10-05T06:22:00Z',
-  note: 'Instant answer: Open this plan builds a row in Classic, and the exact column fills itself. Routes to try fills around the instant answer. Stepping away? has clearer watcher help',
+  note: 'Instant answer: routes polished, filters for your hours and at most N ascensions, Open this plan builds a row in Classic. Big runs stay light: past 20,000 chains the charts wait for a button and a heat map shows instead',
 };
