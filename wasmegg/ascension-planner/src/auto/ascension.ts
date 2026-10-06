@@ -4,6 +4,7 @@ import { catchUpSeconds, siloSeconds } from '@/lib/saveAge';
 import { countTEThresholdsPassed, getThresholdForTE } from '@/lib/truthEggs';
 import { timeToEarnTE } from './te-thresholds';
 import { computeShiftCosts } from './se-tracker';
+import { eggOfShift, holdForPlayer } from './hold';
 import { calculateEggsLaidDuringActions } from './engine/eggs';
 import type { EngineState, SimulationContext, AscensionSummary, ShiftResult } from './types';
 import { runC1 } from './shifts/c1';
@@ -150,10 +151,21 @@ function runC1K1I1Segment(
     const t0 = performance.now();
     pushShiftResult(name, fn(), performance.now() - t0);
   };
+  // The player's hours (auto/hold.ts): a shift waits for them, the farm laying the egg it is on.
+  const hold = (name: string) => {
+    const h = holdForPlayer(currentState, context, context.ascensionStartTime, elapsedSeconds, eggOfShift(name));
+    if (!h.heldSeconds) return;
+    actions.push(...h.actions);
+    currentState = h.state;
+    elapsedSeconds = h.elapsedSeconds;
+  };
 
+  hold('C1');
   currentState.lastStepTime = elapsedSeconds;
   timed('C1', () => runC1(currentState, context));
 
+  // K1 and I1 both start here, from the same egg at the same instant, so one wait covers either.
+  hold('I1');
   currentState.lastStepTime = elapsedSeconds;
   const t0I1 = performance.now();
   const speculativeI1 = runI1(currentState, context);
@@ -162,10 +174,12 @@ function runC1K1I1Segment(
   const I1_ORDER_SWAP_THRESHOLD_SECONDS = 3600;
   if (speculativeI1.elapsedSeconds < I1_ORDER_SWAP_THRESHOLD_SECONDS) {
     pushShiftResult('I1', speculativeI1, speculativeI1Ms);
+    hold('K1');
     currentState.lastStepTime = elapsedSeconds;
     timed('K1', () => runK1(currentState, context));
   } else {
     timed('K1', () => runK1(currentState, context));
+    hold('I1');
     currentState.lastStepTime = elapsedSeconds;
     timed('I1', () => runI1(currentState, context));
   }
@@ -210,6 +224,14 @@ export function runUntilShift(
 
   for (const shift of allShifts) {
     if (shift.name === stopBeforeShift) break;
+    {
+      const h = holdForPlayer(currentState, context, context.ascensionStartTime, totalElapsedSeconds, eggOfShift(shift.name));
+      if (h.heldSeconds) {
+        currentActions.push(...h.actions);
+        currentState = h.state;
+        totalElapsedSeconds = h.elapsedSeconds;
+      }
+    }
     currentState.lastStepTime = totalElapsedSeconds;
     const t0 = performance.now();
     const result = shift.run(currentState, context);
@@ -379,6 +401,16 @@ export function runAscension(
       else continue;
     }
 
+    // The player's hours (auto/hold.ts): before the shift, before any TE target is worked out, so
+    // what the farm lays while waiting is in the egg counts the targets are recomputed from.
+    {
+      const h = holdForPlayer(currentState, context, startTime, totalElapsedSeconds, eggOfShift(shift.name));
+      if (h.heldSeconds) {
+        currentActions.push(...h.actions);
+        currentState = h.state;
+        totalElapsedSeconds = h.elapsedSeconds;
+      }
+    }
     currentState.lastStepTime = totalElapsedSeconds;
 
     const t0 = performance.now();
@@ -710,6 +742,14 @@ export function runContinueCurrent(
   // overrun the deadline itself (unlike `runAscension`'s K3, there's no extra mandatory wait baked
   // in here that could throw that off).
   for (const egg of eggsToVisit) {
+    {
+      const h = holdForPlayer(currentState, context, startTime, totalElapsedSeconds, egg);
+      if (h.heldSeconds) {
+        currentActions.push(...h.actions);
+        currentState = h.state;
+        totalElapsedSeconds = h.elapsedSeconds;
+      }
+    }
     currentState.lastStepTime = totalElapsedSeconds;
     const result = runTEWaitShift(currentState, context, egg, targets[egg], currentELR);
 
