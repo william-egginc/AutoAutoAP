@@ -199,6 +199,7 @@
               @input="setSlider(k, 'stepIx', +($event.target as HTMLInputElement).value)"
             />
             <span
+              title="The first stop is tried at every TE: it sits nearest your farm as it is now, where one TE either way can move the whole route by days."
               >every <b class="text-slate-700">{{ stepOf(row) === 1 ? 'TE' : stepOf(row) + ' TE' }}</b> (the first stop:
               every TE)</span
             >
@@ -208,6 +209,15 @@
             move every chain's sliders together
           </label>
         </div>
+        <!-- A step wider than the ± leaves only the centre of every stop after the first (the user, 5 Oct:
+             ±3 every 10 gave "231; 277"). Say so rather than let it look like a bug. -->
+        <p
+          v-if="row.asc >= 3 && stepOf(row) > widthOf(row)"
+          class="text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1"
+        >
+          Every {{ stepOf(row) }} TE is wider than ±{{ widthOf(row) }}, so after the first stop only the suggested TE
+          itself is tried. Widen the ± slider or pick a smaller step to try more around it.
+        </p>
       </div>
       <div class="flex flex-wrap items-end gap-4">
         <button
