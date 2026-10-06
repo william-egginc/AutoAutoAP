@@ -104,6 +104,35 @@ describe('heartbeat staleness', () => {
     // A run that starts after the watcher opened is watched as usual.
     expect(watchVerdict(mark({ beatAt: opened + 5000 }), opened + 6000, STALE_MS, opened)).toBe('watching');
   });
+
+  it('waits, rather than reporting an old run as closed or finished, when the box is ticked before a run', () => {
+    // The last run here was closed (or finished, stopped, stuck) before this watcher opened.
+    const opened = T0 + 10 * MIN;
+    for (const status of ['closed', 'finished', 'stopped', 'stuck'] as const) {
+      const old = mark({ status, endedAt: T0 });
+      expect(watchVerdict(old, opened + 1000, STALE_MS, opened)).toBe('waiting');
+      // Even if its end was written after this tab opened: this tab never saw it run.
+      expect(watchVerdict(mark({ status, endedAt: opened + 500 }), opened + 1000, STALE_MS, opened)).toBe('waiting');
+    }
+    // A new run starts: watching.
+    const fresh = mark({ startedAt: opened + 60_000, beatAt: opened + 65_000 });
+    expect(watchVerdict(fresh, opened + 70_000, STALE_MS, opened)).toBe('watching');
+  });
+
+  it('reports the end of a run this watcher watched', () => {
+    const opened = T0 + 10 * MIN;
+    // Started after the watcher opened.
+    const after = mark({ startedAt: opened + 60_000, beatAt: opened + 5 * MIN, status: 'finished' });
+    expect(watchVerdict(after, opened + 6 * MIN, STALE_MS, opened)).toBe('finished');
+    // Already going when it opened, and seen running.
+    const before = mark({ startedAt: T0 - HOUR_MS, beatAt: opened + 5 * MIN, status: 'closed' });
+    expect(watchVerdict(before, opened + 6 * MIN, STALE_MS, opened, before.startedAt)).toBe('closed');
+    expect(watchVerdict({ ...before, status: 'stopped' }, opened + 6 * MIN, STALE_MS, opened, before.startedAt)).toBe(
+      'stopped'
+    );
+    // Seen running was a different run.
+    expect(watchVerdict(before, opened + 6 * MIN, STALE_MS, opened, before.startedAt + 1)).toBe('waiting');
+  });
 });
 
 describe('reopen guard', () => {

@@ -36,10 +36,61 @@ import {
   watchVerdict,
   writeRunMark,
 } from '@/search/stepAway';
+import { browserHelp, detectBrowser, type HelpLine } from '@/lib/browserHelp';
 
 const statusEl = document.getElementById('status')!;
 const detailEl = document.getElementById('detail')!;
 const reopensEl = document.getElementById('reopens')!;
+const backEl = document.getElementById('back')!;
+const helpEl = document.getElementById('help')!;
+
+// ------------------------------------------------------------------ this browser's help
+
+/** One line of help: text, and settings addresses (which a page can't link to) with a Copy button. */
+function helpLine(line: HelpLine): HTMLParagraphElement {
+  const p = document.createElement('p');
+  for (const part of line) {
+    if (typeof part === 'string') {
+      p.append(part);
+      continue;
+    }
+    const code = document.createElement('code');
+    code.textContent = part.code;
+    const copy = document.createElement('button');
+    copy.type = 'button';
+    copy.className = 'copy';
+    copy.textContent = 'Copy';
+    copy.addEventListener('click', () => {
+      void navigator.clipboard?.writeText(part.code).then(
+        () => {
+          copy.textContent = 'Copied';
+          setTimeout(() => (copy.textContent = 'Copy'), 1500);
+        },
+        () => undefined
+      );
+    });
+    p.append(code, copy);
+  }
+  return p;
+}
+
+{
+  const h = browserHelp(detectBrowser().browser, location.host);
+  const title = document.createElement('p');
+  const strong = document.createElement('strong');
+  strong.textContent = h.name ? `In ${h.name}:` : 'In your browser:';
+  title.append(strong);
+  helpEl.replaceChildren(title, ...[h.popups, h.keepAwake, ...(h.note ? [h.note] : [])].map(helpLine));
+  const tail = document.createElement('p');
+  tail.textContent = "Without pop-ups allowed, this tab turns into the run's page itself instead of reopening it.";
+  helpEl.append(tail);
+}
+
+// Opened in front (ticking the box can't open a tab behind): say it needn't stay in front.
+if (document.visibilityState === 'visible') backEl.hidden = false;
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') backEl.hidden = true;
+});
 
 function show(text: string, tone: 'ok' | 'warn' | 'done', detail = ''): void {
   statusEl.textContent = text;
@@ -85,11 +136,16 @@ function reopen(url: string): void {
   }, REOPEN_CONFIRM_MS);
 }
 
-/** A run that ended before this tab opened is history, not news: this tab is waiting for the next. */
+/** A run that ended before this tab watched it is history, not news: this tab waits for the next. */
 const openedAt = Date.now();
 
 /** Another watcher tab was already open: this one stands down (and closes, where it may). */
 let standDown = false;
+/** `startedAt` of the last run this tab saw running: only its end is news (`watchVerdict`). */
+let seenRunning: number | undefined;
+
+const WAITING = 'Waiting for a run to start.';
+const WAITING_DETAIL = "Keep this tab open; press Find on the run's page.";
 
 function check(): void {
   if (standDown) return;
@@ -100,22 +156,26 @@ function check(): void {
     // the run tab just can't tell a watcher is open
   }
   const m = readRunMark();
-  const ended = !!m && m.status !== 'running' && (m.endedAt ?? 0) < openedAt;
-  const v = ended ? 'idle' : watchVerdict(m, now, STALE_MS, openedAt);
+  const v = watchVerdict(m, now, STALE_MS, openedAt, seenRunning);
+  if (m && (v === 'watching' || v === 'reopen' || v === 'guarded')) seenRunning = m.startedAt;
   const age = m ? agoShort(heartbeatAge(m, now)) : '';
   switch (v) {
     case 'idle':
-      show(
-        'Not watching anything yet.',
-        'done',
-        'Start a run with "Watch this run from a second tab" ticked, and this tab will watch it.'
-      );
+      if (m && m.status === 'running' && heartbeatAge(m, now) <= STALE_MS) {
+        show(
+          'A run is going, but not with this tab watching it.',
+          'done',
+          `Tick "Watch this run from a second tab" on the run's page, and this tab will watch it.`
+        );
+      } else show(WAITING, 'done', WAITING_DETAIL);
       return;
     case 'waiting':
       show(
-        'Waiting for a run to start.',
+        WAITING,
         'done',
-        `The last run here went quiet ${age} ago, before this tab opened, so this tab won't reopen it. Carry it on in the planner, and this tab will watch it.`
+        m?.status === 'running'
+          ? `${WAITING_DETAIL} The last run here went quiet ${age} ago, before this tab opened, so this tab won't reopen it; carry it on in the planner and this tab will watch it.`
+          : WAITING_DETAIL
       );
       return;
     case 'watching':
@@ -183,6 +243,7 @@ try {
         detailEl.textContent = '';
         reopensEl.replaceChildren();
         document.title = 'Already watching - Run watcher';
+        backEl.hidden = true;
         window.close();
       }
       return;

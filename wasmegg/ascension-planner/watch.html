@@ -58,12 +58,31 @@
         background: #f1f5f9;
         padding: 0 0.25rem;
         border-radius: 0.25rem;
+        user-select: all;
+      }
+      .copy {
+        margin: 0 0.25rem;
+        padding: 0 0.4rem;
+        font: inherit;
+        font-size: 11px;
+        border: 1px solid #cbd5e1;
+        border-radius: 0.25rem;
+        background: #fff;
+        cursor: pointer;
+      }
+      #back {
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: #3730a3;
+        background: #eef2ff;
+        border-color: #c7d2fe;
       }
     </style>
   </head>
   <body>
     <main>
       <h1>Run watcher</h1>
+      <div id="back" class="card" hidden>You can go back to your run's tab now: this one works in the background.</div>
       <div class="card">
         <div id="status">Starting...</div>
         <div id="detail" class="small"></div>
@@ -75,13 +94,8 @@
           run's tab goes quiet for 2 minutes it opens the run's page again, which carries on by itself. It stops after 3
           reopens in an hour, and when the run finishes or you press Stop.
         </p>
-        <p>
-          <strong>In Edge:</strong> add this site to <em>Never put these sites to sleep</em> (Settings, System and
-          performance, <code>edge://settings/system</code>), and allow pop-ups for it
-          (<code>edge://settings/content/popups</code>, Allow, Add). Without pop-ups allowed, this tab turns into the
-          run's page itself instead.
-        </p>
       </div>
+      <div id="help" class="card small"></div>
     </main>
     <script type="module" src="/src/watch/main.ts"></script>
   </body>

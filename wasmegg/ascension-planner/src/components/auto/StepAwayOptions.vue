@@ -32,7 +32,8 @@
       <input v-model="options.autoCarryOn" type="checkbox" class="mt-0.5 rounded border-slate-300 text-indigo-600" />
       <span
         ><span class="font-bold">Carry on by itself after a crash.</span> If the browser closes this page mid-run, the
-        next time it opens it carries on after a {{ COUNTDOWN_SECONDS }}-second countdown, with fewer workers.</span
+        next time it opens it carries on after a {{ COUNTDOWN_SECONDS }}-second countdown, with fewer workers.
+        <span class="block text-slate-500">Doesn't slow the run.</span></span
       >
     </label>
     <label class="flex items-start gap-2">
@@ -45,26 +46,71 @@
       <span
         ><span class="font-bold">Watch this run from a second tab and reopen it if it crashes.</span> Opens a small tab
         that reopens this page if the run goes quiet for 2 minutes (at most {{ MAX_REOPENS_PER_HOUR }} times an hour).
-        Keep both tabs open.</span
+        Keep both tabs open.
+        <span class="block text-slate-500"
+          >Doesn't slow the run: the watcher is a tiny page that checks in about once a minute.</span
+        ></span
       >
     </label>
-    <p v-if="options.watch" class="pl-6 flex flex-wrap items-center gap-x-3 gap-y-1">
-      <span v-if="popupBlocked" class="font-semibold text-rose-700"
-        >The watcher tab didn't open: your browser may have blocked it. Allow pop-ups for this site, then open it
-        here.</span
+    <div v-if="options.watch" class="pl-6 space-y-1.5">
+      <p v-if="watcherOk" class="font-bold text-emerald-700" role="status">
+        ✓ Watcher tab open and watching <span class="font-normal">(checked in {{ agoShort(watcherAge!) }} ago)</span>
+      </p>
+      <div
+        v-else-if="popupBlocked"
+        class="rounded-lg border border-amber-300 bg-amber-50 p-2 space-y-1 text-amber-900"
+        role="status"
       >
-      <span v-else-if="watcherAge !== null && watcherAge < 3 * 60_000"
-        >The watcher tab checked in {{ agoShort(watcherAge) }} ago.</span
-      >
-      <span v-else>The watcher tab isn't open.</span>
-      <button
-        type="button"
-        class="text-[10px] font-black uppercase tracking-widest text-indigo-700 hover:text-indigo-900"
-        @click="openWatcherTab"
-      >
-        Open the watcher tab
-      </button>
-    </p>
+        <p class="font-bold">
+          The watcher tab didn't open: {{ help.name || 'your browser' }} may have blocked it as a pop-up.
+        </p>
+        <p>
+          <template v-for="(part, i) in help.popups" :key="i"
+            ><template v-if="typeof part === 'string'">{{ part }}</template
+            ><template v-else
+              ><code class="rounded bg-white px-1 select-all">{{ part.code }}</code
+              ><button
+                type="button"
+                class="mx-1 rounded border border-amber-300 bg-white px-1 text-[10px] font-bold hover:bg-amber-100"
+                @click="copy(part.code)"
+              >
+                {{ copied === part.code ? 'Copied' : 'Copy' }}
+              </button></template
+            ></template
+          >
+        </p>
+        <p>Then open it with the button below.</p>
+      </div>
+      <p v-else-if="confirmTimer">Opening the watcher tab...</p>
+      <p v-else>The watcher tab isn't open.</p>
+      <p class="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <a
+          :href="watcherHref"
+          target="_blank"
+          rel="noopener"
+          class="inline-block rounded-md border border-indigo-300 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-widest text-indigo-700 hover:bg-indigo-50 hover:text-indigo-900"
+          @click="onWatcherLink"
+          @auxclick="onWatcherAux"
+          >Open the watcher tab</a
+        >
+        <span v-if="tip" class="text-[10px] text-slate-500">{{ tip }}</span>
+      </p>
+      <p class="text-slate-500">
+        <template v-for="(part, i) in [...help.keepAwake, ...(help.note ? [' ', ...help.note] : [])]" :key="i"
+          ><template v-if="typeof part === 'string'">{{ part }}</template
+          ><template v-else
+            ><code class="rounded bg-white px-1 select-all">{{ part.code }}</code
+            ><button
+              type="button"
+              class="mx-1 rounded border border-slate-300 bg-white px-1 text-[10px] font-bold hover:bg-slate-100"
+              @click="copy(part.code)"
+            >
+              {{ copied === part.code ? 'Copied' : 'Copy' }}
+            </button></template
+          ></template
+        >
+      </p>
+    </div>
     <label class="flex items-start gap-2">
       <input v-model="options.fewerWorkers" type="checkbox" class="mt-0.5 rounded border-slate-300 text-indigo-600" />
       <span
@@ -73,7 +119,11 @@
         }}
         of {{ store.machineThreads }}), and drops a few more during the run if it slows right down, or if the memory the
         browser reports for this page gets high. That figure is the page's main memory only: browsers don't report the
-        workers' memory, or other programs'.</span
+        workers' memory, or other programs'.
+        <span class="block text-slate-500"
+          >Slower: about half the workers, so expect roughly 1.5–2× the time (less than 2× on machines with
+          hyperthreading), in exchange for room for other programs.</span
+        ></span
       >
     </label>
     <p v-if="options.fewerWorkers && stepAwayNote" class="pl-6 font-semibold text-slate-800">{{ stepAwayNote }}</p>
@@ -100,14 +150,18 @@ import {
   MAX_REOPENS_PER_HOUR,
   readRunMark,
   WATCHER_CONFIRM_MS,
+  WATCHER_SEEN_KEY,
 } from '@/search/stepAway';
+import { backgroundOpenTip, browserHelp, detectBrowser } from '@/lib/browserHelp';
 import {
   openWatcher,
+  pingWatcher,
   stepAwayBeginCarryOn,
   stepAwayGiveUp,
   stepAwayNote,
   stepAwayOptions,
   watcherSeenAt,
+  watcherUrl,
 } from '@/composables/useStepAway';
 
 const props = defineProps<{
@@ -126,25 +180,60 @@ const cap = computed(() => fewerWorkersCap(store.machineThreads));
 
 const popupBlocked = ref(false);
 const watcherAge = ref<number | null>(null);
-let confirmTimer: ReturnType<typeof setTimeout> | null = null;
+/** Waiting for a watcher just opened to check in (WATCHER_CONFIRM_MS). */
+const confirmTimer = ref<ReturnType<typeof setTimeout> | null>(null);
+const watcherOk = computed(() => watcherAge.value !== null && watcherAge.value < 3 * 60_000);
+const browser = detectBrowser();
+const help = browserHelp(browser.browser, typeof location === 'undefined' ? '' : location.host);
+const tip = backgroundOpenTip(browser.os);
+const watcherHref = watcherUrl();
+const copied = ref('');
+function copy(text: string): void {
+  void navigator.clipboard?.writeText(text).then(
+    () => {
+      copied.value = text;
+      setTimeout(() => copied.value === text && (copied.value = ''), 1500);
+    },
+    () => undefined
+  );
+}
 function readWatcher(): void {
   const at = watcherSeenAt();
   watcherAge.value = at ? Math.max(0, Date.now() - at) : null;
 }
-function openWatcherTab(): void {
-  // Opened with `noopener` (its own process), so there's no window handle to tell a block by: the
-  // watcher checks in as it loads (and one already open answers the ping), or it never came.
+/** A watcher tab was just asked for: it checks in as it loads (one already open answers the ping),
+ *  or the browser blocked it. Opened with `noopener` (its own process), so there's no window handle
+ *  to tell a block by. */
+function awaitCheckIn(): void {
   const clickedAt = Date.now();
   popupBlocked.value = false;
-  openWatcher();
   setTimeout(readWatcher, 1500);
-  if (confirmTimer) clearTimeout(confirmTimer);
-  confirmTimer = setTimeout(() => {
-    confirmTimer = null;
+  if (confirmTimer.value) clearTimeout(confirmTimer.value);
+  confirmTimer.value = setTimeout(() => {
+    confirmTimer.value = null;
     readWatcher();
     popupBlocked.value = watcherSeenAt() < clickedAt;
   }, WATCHER_CONFIRM_MS);
 }
+function openWatcherTab(): void {
+  openWatcher();
+  awaitCheckIn();
+}
+/** The link opens the tab itself (so ⌘/Ctrl-click or middle-click can put it in the background). */
+function onWatcherLink(): void {
+  pingWatcher();
+  awaitCheckIn();
+}
+function onWatcherAux(e: MouseEvent): void {
+  if (e.button === 1) onWatcherLink();
+}
+function onStorage(e: StorageEvent): void {
+  if (e.key === WATCHER_SEEN_KEY) {
+    readWatcher();
+    if (watcherOk.value) popupBlocked.value = false;
+  }
+}
+if (typeof window !== 'undefined') window.addEventListener('storage', onStorage);
 function onWatch(on: boolean): void {
   options.value.watch = on;
   // Ticking is a click, so the browser lets the page open a tab now (and only now).
@@ -307,7 +396,8 @@ onMounted(async () => {
 
 onUnmounted(() => {
   clearInterval(watcherTimer);
-  if (confirmTimer) clearTimeout(confirmTimer);
+  if (confirmTimer.value) clearTimeout(confirmTimer.value);
+  window.removeEventListener('storage', onStorage);
   stopWatch?.();
   if (giveUpTimer) clearTimeout(giveUpTimer);
   if (stuckTimer) clearTimeout(stuckTimer);
