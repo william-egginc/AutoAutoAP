@@ -121,8 +121,8 @@
     >
       <span>{{ shown.points.length.toLocaleString() }} chains priced</span>
       <span v-if="thinned" class="normal-case tracking-normal font-semibold"
-        >showing the fastest {{ BEST_SHOWN.toLocaleString() }} and a sample, {{ plotted.length.toLocaleString() }} in
-        all</span
+        >showing the fastest {{ Math.min(BEST_SHOWN, plotted.length).toLocaleString() }} and a sample,
+        {{ plotted.length.toLocaleString() }} in all</span
       >
       <span v-if="live" class="normal-case tracking-normal font-semibold">redraws every 30 s while it runs</span>
       <span v-for="group in groups" :key="group.prestiges" class="flex items-center gap-1.5">
@@ -178,7 +178,11 @@ const props = defineProps<{
    * into view (that is when a hidden tab's backlog used to land all at once).
    */
   live?: boolean;
+  /** Most dots to draw (default MAX_DRAWN_POINTS); Infinity draws every chain. */
+  maxPoints?: number;
 }>();
+
+const budget = computed(() => props.maxPoints ?? MAX_DRAWN_POINTS);
 
 /* ------------------------------------------------------------------ what is drawn, and when */
 
@@ -355,12 +359,12 @@ const plotted = computed<Plotted[]>(() => {
   const order = rankOrder.value;
   if (order) {
     // Sorted by rank already, so thin by position and the x is the position.
-    return thinPositions(order.length).map(pos => {
+    return thinPositions(order.length, budget.value).map(pos => {
       const p = shown.value.points[order[pos]];
       return { x: pos + 1, y: p.days, chain: p.chain, prestiges: p.prestiges };
     });
   }
-  return thinIndices(daysOf.value).map(i => toPlotted(i, null));
+  return thinIndices(daysOf.value, budget.value).map(i => toPlotted(i, null));
 });
 
 /** Is the drawing a sample? Said under the chart, so a thinned cloud is never taken for all of it. */
@@ -402,7 +406,7 @@ const highlightGroups = computed<HighlightGroup[]>(() => {
     rankOfIndex = new Uint32Array(order.length);
     for (let r = 0; r < order.length; r++) rankOfIndex[order[r]] = r;
   }
-  const perGroup = Math.max(500, Math.floor(MAX_DRAWN_POINTS / filled.length));
+  const perGroup = Math.max(500, Math.floor(budget.value / filled.length));
 
   return filled.map(([value, idx], i) => {
     const best = all[bests[i]];
