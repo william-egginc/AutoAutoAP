@@ -234,7 +234,6 @@ export function offered(options: FilterOptions, key: keyof FilterOptions): boole
 export function effectiveFilters(f: PlanFilters, options: FilterOptions): PlanFilters {
   const keep = <K extends keyof FilterOptions>(key: K, v: PlanFilters[K]): PlanFilters[K] =>
     v !== null && offered(options, key) && options[key].some(o => o.value === v) ? v : (null as PlanFilters[K]);
-  const groupDim: Record<GroupBy, keyof FilterOptions> = { hours: 'hours', day: 'day', ascensions: 'ascensions' };
   return {
     hours: keep('hours', f.hours),
     day: keep('day', f.day),
@@ -242,7 +241,69 @@ export function effectiveFilters(f: PlanFilters, options: FilterOptions): PlanFi
     ascensions: keep('ascensions', f.ascensions),
     goal: keep('goal', f.goal),
     timeOff: keep('timeOff', f.timeOff),
-    groupBy: f.groupBy && offered(options, groupDim[f.groupBy]) ? f.groupBy : null,
+    groupBy: f.groupBy && offered(options, GROUP_DIM[f.groupBy]) ? f.groupBy : null,
+  };
+}
+
+type FilterKey = Exclude<keyof PlanFilters, 'groupBy' | 'goal'>;
+const FILTER_KEYS: readonly FilterKey[] = ['hours', 'day', 'part', 'ascensions', 'timeOff'];
+const GROUP_DIM: Record<GroupBy, keyof FilterOptions> = { hours: 'hours', day: 'day', ascensions: 'ascensions' };
+
+/** What the My plans bar shows, and the filters as they apply. */
+export interface PlanBar {
+  applied: PlanFilters;
+  /** Each dimension's chips; empty when it is not a choice. A chosen value is always kept, so it can
+   *  be seen and undone. */
+  options: FilterOptions;
+  /** Which list the chips were built from: the fastest-route plans or the answers by a date. */
+  list: Goal;
+  /** "Best for each" choices that make two or more groups. */
+  groupChoices: GroupBy[];
+}
+
+/**
+ * The bar for My plans. The Goal chips come from both lists and switch between them; every other
+ * dimension is built from the list on show (the fastest-route plans, or the answers by a date when
+ * that goal is chosen or there are no plans to the target), and a chip is only offered when choosing
+ * it, with the other choices kept, leaves at least one row. A "best for each" that would make a
+ * single group is not offered.
+ */
+export function planFilterBar(a: {
+  fastest: readonly BoardRow[];
+  dated: readonly BoardRow[];
+  filters: PlanFilters;
+  zone: string;
+  target?: number | null;
+}): PlanBar {
+  const { fastest, dated, filters, zone, target } = a;
+  const goals = filterOptions([...fastest, ...dated], zone, target).goal;
+  const goal = goals.length >= 2 && goals.some(g => g.value === filters.goal) ? filters.goal : null;
+  const list: Goal = goal === 'deadline' || (!fastest.length && dated.length) ? 'deadline' : 'target';
+  const rows = list === 'deadline' ? dated : fastest;
+  const base = { ...filterOptions(rows, zone, target), goal: goals };
+  const applied = effectiveFilters({ ...filters, goal, groupBy: null }, base);
+  // The rows are already one goal's: the goal itself never narrows them further.
+  const leaves = (f: PlanFilters) => rows.some(r => inFilters(r, { ...f, goal: null }, zone));
+  const options: FilterOptions = { ...base, goal: goals.length >= 2 ? goals : [] };
+  for (const key of FILTER_KEYS) {
+    const chosen = applied[key];
+    const reachable = (base[key] as FilterOption<unknown>[]).filter(
+      o => o.value === chosen || leaves({ ...applied, [key]: o.value })
+    );
+    (options[key] as FilterOption<unknown>[]) = chosen !== null || reachable.length >= 2 ? reachable : [];
+  }
+  const kept = rows.filter(r => inFilters(r, { ...applied, goal: null }, zone));
+  const groupChoices = (Object.keys(GROUP_DIM) as GroupBy[]).filter(
+    g => offered(base, GROUP_DIM[g]) && new Set(kept.map(r => groupKey(r, g, zone))).size >= 2
+  );
+  return {
+    applied: {
+      ...applied,
+      groupBy: filters.groupBy && groupChoices.includes(filters.groupBy) ? filters.groupBy : null,
+    },
+    options,
+    list,
+    groupChoices,
   };
 }
 

@@ -94,6 +94,16 @@ describe('heartbeat staleness', () => {
     expect(watchVerdict(mark({ watch: false }), late)).toBe('idle');
     expect(watchVerdict(null, late)).toBe('idle');
   });
+  it('leaves alone a run that was already quiet when the watcher started', () => {
+    // Last beat at T0; a watcher opened 10 minutes later finds it stale: an old crash, not news.
+    const opened = T0 + 10 * 60_000;
+    expect(watchVerdict(mark(), opened + 1000, STALE_MS, opened)).toBe('waiting');
+    // Opened while the run still beat: it was fresh while watched, so a stall is reopened.
+    const early = T0 + 60_000;
+    expect(watchVerdict(mark(), T0 + STALE_MS + 1000, STALE_MS, early)).toBe('reopen');
+    // A run that starts after the watcher opened is watched as usual.
+    expect(watchVerdict(mark({ beatAt: opened + 5000 }), opened + 6000, STALE_MS, opened)).toBe('watching');
+  });
 });
 
 describe('reopen guard', () => {

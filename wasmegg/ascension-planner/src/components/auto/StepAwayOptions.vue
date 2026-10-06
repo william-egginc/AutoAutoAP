@@ -50,7 +50,8 @@
     </label>
     <p v-if="options.watch" class="pl-6 flex flex-wrap items-center gap-x-3 gap-y-1">
       <span v-if="popupBlocked" class="font-semibold text-rose-700"
-        >Your browser blocked the new tab. Allow pop-ups for this site, then open it here.</span
+        >The watcher tab didn't open: your browser may have blocked it. Allow pop-ups for this site, then open it
+        here.</span
       >
       <span v-else-if="watcherAge !== null && watcherAge < 3 * 60_000"
         >The watcher tab checked in {{ agoShort(watcherAge) }} ago.</span
@@ -70,8 +71,9 @@
         ><span class="font-bold">Use fewer workers so the computer has room.</span> Uses about half the cores ({{
           cap
         }}
-        of {{ store.machineThreads }}), and drops a few more during the run if this page's own memory gets high or it
-        slows right down. It can't see how much memory other programs are using.</span
+        of {{ store.machineThreads }}), and drops a few more during the run if it slows right down, or if the memory the
+        browser reports for this page gets high. That figure is the page's main memory only: browsers don't report the
+        workers' memory, or other programs'.</span
       >
     </label>
     <p v-if="options.fewerWorkers && stepAwayNote" class="pl-6 font-semibold text-slate-800">{{ stepAwayNote }}</p>
@@ -82,6 +84,8 @@
 import type { RunKind } from '@/search/stepAway';
 /** One automatic carry-on decision per page load and kind, however often the panel remounts. */
 const decided = new Set<RunKind>();
+/** A run whose last heartbeat came this soon after it started crashed before its first save point. */
+const EARLY_CRASH_MS = 90_000;
 </script>
 
 <script setup lang="ts">
@@ -95,6 +99,7 @@ import {
   fewerWorkersCap,
   MAX_REOPENS_PER_HOUR,
   readRunMark,
+  WATCHER_CONFIRM_MS,
 } from '@/search/stepAway';
 import {
   openWatcher,
@@ -121,13 +126,24 @@ const cap = computed(() => fewerWorkersCap(store.machineThreads));
 
 const popupBlocked = ref(false);
 const watcherAge = ref<number | null>(null);
+let confirmTimer: ReturnType<typeof setTimeout> | null = null;
 function readWatcher(): void {
   const at = watcherSeenAt();
   watcherAge.value = at ? Math.max(0, Date.now() - at) : null;
 }
 function openWatcherTab(): void {
-  popupBlocked.value = !openWatcher();
+  // Opened with `noopener` (its own process), so there's no window handle to tell a block by: the
+  // watcher checks in as it loads (and one already open answers the ping), or it never came.
+  const clickedAt = Date.now();
+  popupBlocked.value = false;
+  openWatcher();
   setTimeout(readWatcher, 1500);
+  if (confirmTimer) clearTimeout(confirmTimer);
+  confirmTimer = setTimeout(() => {
+    confirmTimer = null;
+    readWatcher();
+    popupBlocked.value = watcherSeenAt() < clickedAt;
+  }, WATCHER_CONFIRM_MS);
 }
 function onWatch(on: boolean): void {
   options.value.watch = on;
@@ -199,14 +215,31 @@ function evaluate(final = false): void {
   settle();
   if (v.why === 'cannot') {
     stepAwayGiveUp('stuck');
-    autoNote.value = "The last run can't carry on by itself, so it's waiting for you. See the notice above.";
+    // Nothing to carry on from: a run first saves after its first batch, about a minute in.
+    const early = !!mark && mark.beatAt - mark.startedAt < EARLY_CRASH_MS;
+    autoNote.value = early
+      ? "The last run can't carry on by itself: it crashed before its first save point, about a minute in. Start it again."
+      : "The last run can't carry on by itself, so it's waiting for you. See the notice above.";
   } else if (v.why === 'guard') {
     stepAwayGiveUp('stuck');
     autoNote.value = `It stopped ${MAX_REOPENS_PER_HOUR} times in the last hour, so it won't carry on by itself again for now. Carry on by hand when you're ready.`;
   }
 }
 
+/** Stop the countdown without a word: the player started something here by hand. */
+function quietCancel(): void {
+  if (tickTimer) clearInterval(tickTimer);
+  tickTimer = null;
+  countdown.value = 0;
+}
+
 function tick(): void {
+  // Find pressed (or anything else started) during the countdown: that run is the player's choice,
+  // and go() would otherwise find its run lock and call it "another tab".
+  if (store.busy) {
+    quietCancel();
+    return;
+  }
   const left = Math.ceil((goAt - Date.now()) / 1000);
   if (left > 0) {
     countdown.value = left;
@@ -219,12 +252,11 @@ function tick(): void {
 }
 
 async function go(): Promise<void> {
+  // Started here by hand at the last moment: the player's own run, nothing to say.
+  if (store.busy) return;
   if (await runLockHeld()) {
+    if (store.busy) return;
     autoNote.value = "The run is still going in another tab, so this tab won't start it again. You can close this tab.";
-    return;
-  }
-  if (store.busy) {
-    autoNote.value = 'Something else started here, so the last run is waiting for you to carry it on.';
     return;
   }
   const startedBefore = Date.now();
@@ -275,6 +307,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   clearInterval(watcherTimer);
+  if (confirmTimer) clearTimeout(confirmTimer);
   stopWatch?.();
   if (giveUpTimer) clearTimeout(giveUpTimer);
   if (stuckTimer) clearTimeout(stuckTimer);

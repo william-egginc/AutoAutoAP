@@ -3846,9 +3846,16 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     lastCrash.value = null;
   }
   /** The running pool's worker memory for a beat; nothing when no pool is up. Never throws. */
-  function workerMemory(p: ChainSearchPool | null): Partial<ReturnType<typeof blackBox.summarizeWorkerHeaps>> {
+  function workerMemory(
+    p: ChainSearchPool | null
+  ): Partial<ReturnType<typeof blackBox.summarizeWorkerHeaps> & { workersMemoEntries: number | null }> {
     try {
-      return p ? blackBox.summarizeWorkerHeaps(p.workerHeaps()) : {};
+      return p
+        ? {
+            ...blackBox.summarizeWorkerHeaps(p.workerHeaps()),
+            workersMemoEntries: blackBox.sumMemoEntries(p.workerMemoEntries()),
+          }
+        : {};
     } catch {
       return {};
     }
@@ -3916,11 +3923,15 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       }
     }
   );
-  if (typeof window !== 'undefined')
+  if (typeof window !== 'undefined') {
     window.addEventListener('pagehide', () => {
       blackBox.pageClosing();
       stepAwayPageClosing();
     });
+    window.addEventListener('pageshow', e => {
+      if (e.persisted) blackBox.pageShown();
+    });
+  }
   if (typeof document !== 'undefined') {
     document.addEventListener('visibilitychange', () => {
       if (!isRunning.value && !deadlineRunning.value) return;

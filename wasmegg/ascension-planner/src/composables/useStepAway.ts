@@ -44,9 +44,16 @@ function post(msg: unknown): void {
   }
 }
 
-/** Called once by the chain-search store. */
+/** Called once by the chain-search store, as the page starts. */
 export function installStepAway(d: Deps): void {
   deps = d;
+  // "A planner page just loaded": how the watcher tells its reopen got through (it opens with
+  // `noopener`, so it gets no window back to look at). src/watch/main.ts.
+  try {
+    if (typeof localStorage !== 'undefined') localStorage.setItem(sa.RUN_PAGE_KEY, String(Date.now()));
+  } catch {
+    // the watcher then takes a reopen as blocked and goes to the run itself
+  }
 }
 
 function setBudget(n: number): void {
@@ -222,13 +229,22 @@ export function watcherUrl(): string {
   return `${import.meta.env.BASE_URL || '/'}watch.html`;
 }
 
-/** Open (or bring back) the watcher tab. From a click only: browsers block it otherwise. */
-export function openWatcher(): boolean {
+/**
+ * Open the watcher tab. From a click only: browsers block it otherwise.
+ *
+ * `noopener`, so the watcher gets a renderer process of its own: a tab opened with its opener shares
+ * the opener's process in Chromium, and the crash the watcher is there for would kill it too. That
+ * also means `window.open` returns null whether or not it was blocked, so whether it opened is told
+ * by the watcher checking in (`watcherCheckedInSince`), not by the return value.
+ */
+export function openWatcher(): void {
   try {
-    return !!window.open(watcherUrl(), 'aap-run-watcher');
+    window.open(watcherUrl(), '_blank', 'noopener');
   } catch {
-    return false;
+    // blocked outright: the watcher never checks in, and the box says so
   }
+  // A watcher already open answers this by checking in at once.
+  post({ type: 'ping', at: Date.now() });
 }
 
 /** When the watcher tab last checked in, ms; 0 when never. */

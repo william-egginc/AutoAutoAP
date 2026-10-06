@@ -39,6 +39,11 @@ export interface Beat {
   workerHeapMaxMB?: number | null;
   /** How many workers' heaps went into `workersHeapMB`. */
   workersReporting?: number;
+  /** Prefixes held in the workers' chain memos, summed (search/chain.ts, at most 3000 a worker), as
+   *  each last reported. Chrome gives a worker no `performance.memory`, so `workersHeapMB` is null
+   *  there; this count is the stand-in: how full the workers' main cache was. Null when none has
+   *  reported; absent when no pool is running. */
+  workersMemoEntries?: number | null;
   /** `performance.measureUserAgentSpecificMemory()` in MB: the whole page, workers included. Only
    *  where the API exists AND the page is cross-origin isolated (normally not on this site). It is
    *  async, so each beat carries the measurement the PREVIOUS beat started. */
@@ -183,21 +188,49 @@ export function summarizeWorkerHeaps(heaps: readonly (number | null | undefined)
     : { workersHeapMB: null, workerHeapMaxMB: null, workersReporting: 0 };
 }
 
+/** The workers' memo sizes added up; null when none has reported. */
+export function sumMemoEntries(counts: readonly (number | null | undefined)[]): number | null {
+  let sum = 0;
+  let n = 0;
+  for (const c of counts) {
+    if (typeof c !== 'number' || !Number.isFinite(c)) continue;
+    sum += c;
+    n++;
+  }
+  return n ? sum : null;
+}
+
 /** "850 MB", "2.1 GB". */
 export function formatMB(mb: number): string {
   return mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${Math.round(mb)} MB`;
 }
 
-/** The crash notice's memory clause, e.g. "73 MB on the page, 2.1 GB in 19 workers", or '' when
- *  nothing is known. */
+/** The crash notice's memory clause, e.g. "73 MB on the page's main thread, 2.1 GB in 19 workers",
+ *  or '' when nothing is known. */
 export function memoryPhrase(b: Pick<Beat, 'heapMB' | 'workersHeapMB' | 'workersReporting' | 'uaMemoryMB'>): string {
   const parts: string[] = [];
-  if (b.heapMB !== undefined) parts.push(`${formatMB(b.heapMB)} on the page`);
+  if (b.heapMB !== undefined) parts.push(`${formatMB(b.heapMB)} on the page's main thread`);
   if (typeof b.workersHeapMB === 'number' && b.workersReporting) {
     parts.push(`${formatMB(b.workersHeapMB)} in ${b.workersReporting} worker${b.workersReporting === 1 ? '' : 's'}`);
   }
   if (b.uaMemoryMB !== undefined) parts.push(`${formatMB(b.uaMemoryMB)} for the whole page by the browser's count`);
   return parts.join(', ');
+}
+
+/**
+ * What the crash notice says about the workers when the browser gave no figure for their memory
+ * (Chrome never does from a worker): that it doesn't, and how full their caches were instead.
+ * '' when the workers' memory is known, or there were no workers.
+ */
+export function workersNote(b: Pick<Beat, 'workers' | 'workersHeapMB' | 'workersMemoEntries'>): string {
+  if (typeof b.workersHeapMB === 'number' || !b.workers) return '';
+  const n = b.workers;
+  const workers = `${n} worker${n === 1 ? '' : 's'}`;
+  const memo =
+    typeof b.workersMemoEntries === 'number'
+      ? `; their caches held ${b.workersMemoEntries.toLocaleString('en-US')} partial routes (${(3000 * n).toLocaleString('en-US')} when full)`
+      : '';
+  return `The browser doesn't report how much memory the ${workers} used${memo}.`;
 }
 
 /** The memory fields every beat carries, read on the main thread. Browsers do not expose the
@@ -214,6 +247,10 @@ function pageMemory(): Pick<Beat, 'heapMB' | 'heapLimitMB' | 'uaMemoryMB'> {
 /** Whether THIS page wrote the open beat. The box is one key shared by every tab, and a second
  *  tab closing must not mark the first tab's run as closed by the player. */
 let mine = false;
+/** `pagehide` has fired: the page is going away on purpose. Beats written after it (the
+ *  visibilitychange that follows a reload, a last timer tick) keep `pageClosed`, or a plain reload
+ *  would read as a crash. Cleared by `pageShown` if the page comes back from the back/forward cache. */
+let closing = false;
 
 /** Record that `phase` is going on right now, with whatever progress is known. Returns the beat as
  *  written (the "Stepping away?" worker rule reads its memory figures, composables/useStepAway.ts). */
@@ -225,6 +262,7 @@ export function beat(b: Omit<Beat, 'at' | 'hidden' | 'heapMB' | 'heapLimitMB' | 
     at: Date.now(),
     hidden: typeof document !== 'undefined' && document.visibilityState === 'hidden',
     ...pageMemory(),
+    ...(closing ? { pageClosed: true } : {}),
   };
   box.env ??= environment();
   box.open = full;
@@ -272,11 +310,17 @@ export function end(phase: string): void {
 /** The page is going away on purpose (reload, close, another URL). Called from `pagehide`, which
  *  a crash never fires -- so an unfinished beat without this is the browser's doing. */
 export function pageClosing(): void {
+  closing = true;
   if (!mine) return;
   const box = read();
   if (!box.open) return;
   box.open = { ...box.open, pageClosed: true };
   write(box);
+}
+
+/** `pageshow` from the back/forward cache: the page is back, and its beats are live again. */
+export function pageShown(): void {
+  closing = false;
 }
 
 /** What the previous page was in the middle of when it stopped, or null. Read once, at load. */

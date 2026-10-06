@@ -122,6 +122,9 @@ export interface StartsResultMessage extends WithHeap {
  */
 export interface WithHeap {
   heapMB?: number | null;
+  /** Prefixes in this worker's chain memo (search/chain.ts, at most 3000), sent beside `heapMB`:
+   *  a rough stand-in for the worker's memory, which Chrome does not report inside a worker. */
+  memoEntries?: number;
 }
 
 export type WorkerResponse =

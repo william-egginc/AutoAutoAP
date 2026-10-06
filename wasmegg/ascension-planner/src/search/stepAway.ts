@@ -31,6 +31,14 @@ export const RUN_KEY = 'aap.stepAway.run';
 export const CHANNEL = 'aap-step-away';
 /** Where the watcher page writes when it last checked, ms (src/watch/main.ts). */
 export const WATCHER_SEEN_KEY = 'aap.stepAway.watcherAt';
+/** Where a planner page writes when it loads, ms: how the watcher knows its reopen got through.
+ *  It opens the run with `noopener` (so the two tabs don't share a renderer and die together), and
+ *  then `window.open` returns null whether or not the browser blocked it. */
+export const RUN_PAGE_KEY = 'aap.stepAway.runPageAt';
+/** How long the watcher waits for the reopened page to say it loaded before calling it blocked. */
+export const REOPEN_CONFIRM_MS = 20_000;
+/** How long the run page waits for a watcher it just opened to check in before calling it blocked. */
+export const WATCHER_CONFIRM_MS = 5_000;
 
 /** No heartbeat for this long, while the run is marked running, means the page is gone. */
 export const STALE_MS = 2 * 60_000;
@@ -162,6 +170,9 @@ export function heartbeatAge(m: Pick<RunMark, 'beatAt' | 'reopens'>, now: number
 export type WatchState =
   /** No run with the watcher on. */
   | 'idle'
+  /** Marked running, but already quiet when this watcher began: an old crashed run, not this one's
+   *  to reopen. Waiting for a run to start. */
+  | 'waiting'
   | 'watching'
   /** Stale, and the guard allows a reopen: reopen it now. */
   | 'reopen'
@@ -172,11 +183,21 @@ export type WatchState =
   | 'closed'
   | 'stuck';
 
-/** What the watcher should do about the run mark right now. */
-export function watchVerdict(m: RunMark | null, now: number, staleMs = STALE_MS): WatchState {
+/**
+ * What the watcher should do about the run mark right now. `watchingSince` is when this watcher
+ * started: a run whose heartbeat was already stale then (never fresh while this tab watched) is an
+ * old crash, and reopening it on sight would surprise the player.
+ */
+export function watchVerdict(
+  m: RunMark | null,
+  now: number,
+  staleMs = STALE_MS,
+  watchingSince = -Infinity
+): WatchState {
   if (!m || !m.watch) return 'idle';
   if (m.status !== 'running') return m.status;
   if (heartbeatAge(m, now) <= staleMs) return 'watching';
+  if (m.beatAt < watchingSince - staleMs) return 'waiting';
   return canReopen(m.reopens, now) ? 'reopen' : 'guarded';
 }
 

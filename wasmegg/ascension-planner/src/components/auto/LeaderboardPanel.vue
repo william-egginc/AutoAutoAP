@@ -1017,15 +1017,13 @@ import {
 } from '@/lib/leaderboardRank';
 import {
   bestPerGroup,
-  effectiveFilters,
-  filterOptions,
+  planFilterBar,
   groupLabel,
   hoursLabel,
   hoursTitle,
   inFilters,
   isFiltered,
   loadPlanFilters,
-  offered,
   savePlanFilters,
   NO_FILTERS,
   type FilterOption,
@@ -1318,28 +1316,32 @@ watch(mineFilters, savePlanFilters, { deep: true });
 /** My plans' current plans, best first: what the filters slice and "the best for each" picks from. */
 const mineCurrent = computed<Plan[]>(() => (mine.value?.best ? [mine.value.best, ...mine.value.listed] : []));
 
-/** Options from every row My plans could show, so a filter only appears when it would choose. */
-const mineOptions = computed(() =>
-  filterOptions(
-    [...mineCurrent.value, ...(mine.value?.dropped ?? [])].map(p => p.row).concat(myDeadlineRows.value),
-    viewZone,
-    target.value
-  )
+/**
+ * The bar and the filters as they apply (lib/planFilters.ts `planFilterBar`). The Goal chips switch
+ * between the fastest-route plans and the answers by a date; every other chip is built from the list
+ * on show and offered only when it leaves at least one row there.
+ */
+const mineBar = computed(() =>
+  planFilterBar({
+    fastest: mineCurrent.value.length ? mineCurrent.value.map(p => p.row) : (mine.value?.dropped ?? []).map(p => p.row),
+    dated: myDeadlineRows.value,
+    filters: mineFilters.value,
+    zone: viewZone,
+    target: target.value,
+  })
 );
-const mineApplied = computed(() => effectiveFilters(mineFilters.value, mineOptions.value));
+const mineApplied = computed(() => mineBar.value.applied);
 const mineFiltered = computed(() => isFiltered(mineApplied.value));
 
 const GROUP_LABELS: Record<GroupBy, string> = { hours: 'hours', day: 'start day', ascensions: 'ascensions' };
-/** The "best for each" choices, for dimensions the bar shows. */
-const groupChoices = computed(() =>
-  (Object.keys(GROUP_LABELS) as GroupBy[]).filter(g => offered(mineOptions.value, g))
-);
+/** The "best for each" choices that make two or more groups. */
+const groupChoices = computed(() => mineBar.value.groupChoices);
 
 type FilterKey = Exclude<keyof PlanFilters, 'groupBy'>;
 
-/** The bar's rows, each only when the viewer's runs take two or more values on it. */
+/** The bar's rows, each only when it is a choice on the list on show. */
 const filterBar = computed(() => {
-  const o = mineOptions.value;
+  const o = mineBar.value.options;
   const rows: { key: FilterKey; label: string; title?: string; options: FilterOption<string | number>[] }[] = [
     { key: 'goal', label: 'Goal', options: o.goal },
     { key: 'hours', label: 'Playing hours', title: 'The awake hours the plan was made for', options: o.hours },
@@ -1348,7 +1350,7 @@ const filterBar = computed(() => {
     { key: 'ascensions', label: 'Ascensions', options: o.ascensions },
     { key: 'timeOff', label: 'Time off', options: o.timeOff },
   ];
-  return rows.filter(r => r.options.length >= 2);
+  return rows.filter(r => r.options.length > 0);
 });
 
 function setFilter<K extends keyof PlanFilters>(key: K, value: PlanFilters[K]): void {

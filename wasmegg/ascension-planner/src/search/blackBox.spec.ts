@@ -6,8 +6,11 @@ import {
   formatMB,
   memoryPhrase,
   pageClosing,
+  pageShown,
   readUnfinished,
   summarizeWorkerHeaps,
+  sumMemoEntries,
+  workersNote,
 } from './blackBox';
 
 describe('black box', () => {
@@ -17,6 +20,7 @@ describe('black box', () => {
       getItem: (k: string) => backing.get(k) ?? null,
       setItem: (k: string, v: string) => void backing.set(k, v),
     });
+    pageShown();
   });
 
   it('reports a phase that never finished, with its last beat', () => {
@@ -41,6 +45,18 @@ describe('black box', () => {
     expect(readUnfinished()?.last.pageClosed).toBeUndefined();
     pageClosing();
     expect(readUnfinished()?.last.pageClosed).toBe(true);
+  });
+
+  it('keeps a reload a reload when a beat lands after pagehide', () => {
+    // A reload mid-run: pagehide, then the tab-hidden beat (visibilitychange) rewrites the open beat.
+    beat({ phase: 'search', done: 10 });
+    pageClosing();
+    beat({ phase: 'search', done: 11 });
+    expect(readUnfinished()?.last).toMatchObject({ done: 11, pageClosed: true });
+    // Back from the back/forward cache: live again, so a later crash is still a crash.
+    pageShown();
+    beat({ phase: 'search', done: 12 });
+    expect(readUnfinished()?.last.pageClosed).toBeUndefined();
   });
 
   it("keeps the workers' memory and the machine facts with the beat", () => {
@@ -78,10 +94,27 @@ describe('black box memory helpers', () => {
 
   it('phrases what is known for the crash notice', () => {
     expect(memoryPhrase({ heapMB: 73, workersHeapMB: 2150, workersReporting: 19 })).toBe(
-      '73 MB on the page, 2.1 GB in 19 workers'
+      "73 MB on the page's main thread, 2.1 GB in 19 workers"
     );
-    expect(memoryPhrase({ heapMB: 73, workersHeapMB: null, workersReporting: 0 })).toBe('73 MB on the page');
+    expect(memoryPhrase({ heapMB: 73, workersHeapMB: null, workersReporting: 0 })).toBe(
+      "73 MB on the page's main thread"
+    );
     expect(memoryPhrase({ workersHeapMB: 90, workersReporting: 1 })).toBe('90 MB in 1 worker');
     expect(memoryPhrase({})).toBe('');
+  });
+
+  it("says the workers' memory is not reported, and how full their caches were", () => {
+    expect(sumMemoEntries([1200, null, 3000])).toBe(4200);
+    expect(sumMemoEntries([null, undefined])).toBeNull();
+    expect(workersNote({ workers: 2, workersHeapMB: null, workersMemoEntries: 4200 })).toBe(
+      "The browser doesn't report how much memory the 2 workers used; their caches held 4,200 partial routes (6,000 when full)."
+    );
+    expect(workersNote({ workers: 1, workersHeapMB: null })).toBe(
+      "The browser doesn't report how much memory the 1 worker used."
+    );
+    expect(workersNote({ workers: 3, workersHeapMB: 400 })).toBe('');
+    expect(workersNote({ workersHeapMB: null })).toBe('');
+    beat({ phase: 'search', workers: 2, workersMemoEntries: 4200 });
+    expect(readUnfinished()?.last.workersMemoEntries).toBe(4200);
   });
 });

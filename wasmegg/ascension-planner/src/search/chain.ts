@@ -34,6 +34,9 @@ export interface ChainEvaluator {
   evaluate(chain: number[]): ChainResult | null;
   /** Distinct legs actually simulated so far — the honest cost counter, cache hits excluded. */
   readonly legSims: number;
+  /** Prefixes held in the memo right now (at most MEMO_CAPACITY): the black box's stand-in for the
+   *  worker's memory, which browsers do not report from a worker. */
+  readonly memoSize: number;
 }
 
 /** One simulated ascension inside a chain step. A step is usually one; time off splits it in two. */
@@ -144,6 +147,9 @@ export function createChainEvaluator(inputs: SearchInputs): ChainEvaluator {
   return {
     get legSims() {
       return legSims;
+    },
+    get memoSize() {
+      return memo.size;
     },
 
     evaluate(chain: number[]): ChainResult | null {

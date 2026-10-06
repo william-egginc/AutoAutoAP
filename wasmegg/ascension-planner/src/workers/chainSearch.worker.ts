@@ -58,6 +58,11 @@ function heap(): number | null {
   }
 }
 
+/** Prefixes in the run's own memo; 0 before init. */
+function memo(): number {
+  return evaluator?.memoSize ?? 0;
+}
+
 ctx.onmessage = (event: MessageEvent<WorkerRequest>) => {
   const msg = event.data;
 
@@ -66,7 +71,7 @@ ctx.onmessage = (event: MessageEvent<WorkerRequest>) => {
       case 'init': {
         evaluator = createChainEvaluator(msg.inputs);
         loaded = msg.inputs;
-        post({ type: 'init-done', requestId: msg.requestId, heapMB: heap() });
+        post({ type: 'init-done', requestId: msg.requestId, heapMB: heap(), memoEntries: memo() });
         break;
       }
 
@@ -83,9 +88,9 @@ ctx.onmessage = (event: MessageEvent<WorkerRequest>) => {
           };
           const r = createChainEvaluator(inputs).evaluate(msg.chain);
           seconds.push(r ? r.seconds : null);
-          post({ type: 'progress', requestId: msg.requestId, done: i + 1, total, heapMB: heap() });
+          post({ type: 'progress', requestId: msg.requestId, done: i + 1, total, heapMB: heap(), memoEntries: memo() });
         }
-        post({ type: 'starts', requestId: msg.requestId, seconds, heapMB: heap() });
+        post({ type: 'starts', requestId: msg.requestId, seconds, heapMB: heap(), memoEntries: memo() });
         break;
       }
 
@@ -109,7 +114,7 @@ ctx.onmessage = (event: MessageEvent<WorkerRequest>) => {
           // (stage 6's widest sweep) and the pool has no other way to tell a worker that is
           // thinking from one that has died — see the protocol's own comment for the hang this
           // was added after. Sent AFTER the chain, so a worker that dies mid-chain simply stops.
-          post({ type: 'progress', requestId: msg.requestId, done: i + 1, total, heapMB: heap() });
+          post({ type: 'progress', requestId: msg.requestId, done: i + 1, total, heapMB: heap(), memoEntries: memo() });
         }
         post({
           type: 'result',
@@ -117,6 +122,7 @@ ctx.onmessage = (event: MessageEvent<WorkerRequest>) => {
           results,
           legSims: evaluator.legSims - before,
           heapMB: heap(),
+          memoEntries: memo(),
         });
         break;
       }
