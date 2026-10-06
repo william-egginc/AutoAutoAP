@@ -199,3 +199,45 @@ export function stopsByWidth(
     sets: countBandShapes(bands.map(values), te, Math.floor(lastHi)),
   };
 }
+
+/** Where a chain's suggested space is centred, and how to say so. */
+export interface SuggestBase {
+  /** The early stops (one per ascension before the last) and the last stop guessed. */
+  early: number[];
+  last: number;
+  from: 'instant' | 'answer' | 'route' | 'even';
+  /** The route the space is around, for the "suggested around …" line (empty when spaced evenly). */
+  around: number[];
+}
+
+/**
+ * What Suggest a space centres an `n`-ascension chain on, best first: the instant answer's route for
+ * that many ascensions (worked out for this save and plan start just now), then the last By a date
+ * answer (which can be from an older save or start), then the player's own route, then even spacing
+ * up to a last stop guessed from the TE.
+ */
+export function suggestBase(
+  n: number,
+  te: number,
+  sources: { instant?: number[] | null; answer?: number[] | null; anyAnswer?: number[] | null; route: number[] }
+): SuggestBase {
+  const fits = (c: number[] | null | undefined): c is number[] => !!c && c.length === n && c[0] > te;
+  if (fits(sources.instant)) {
+    return {
+      early: sources.instant.slice(0, -1),
+      last: sources.instant[n - 1],
+      from: 'instant',
+      around: sources.instant,
+    };
+  }
+  if (fits(sources.answer)) {
+    return { early: sources.answer.slice(0, -1), last: sources.answer[n - 1], from: 'answer', around: sources.answer };
+  }
+  const anyLast = sources.anyAnswer?.length ? sources.anyAnswer[sources.anyAnswer.length - 1] : 0;
+  const last = anyLast > te ? anyLast : Math.min(490, te + 110);
+  const route = sources.route.filter(v => v > te && v < last);
+  if (route.length >= n - 1)
+    return { early: route.slice(0, n - 1), last, from: 'route', around: route.slice(0, n - 1) };
+  const early = Array.from({ length: n - 1 }, (_, i) => Math.round(te + ((i + 1) * (last - te)) / n));
+  return { early, last, from: 'even', around: [] };
+}

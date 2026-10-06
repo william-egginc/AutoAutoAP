@@ -118,7 +118,7 @@
 
     <!-- The instant answer from the precomputed table (the precompute fork): the highest TE by this
          date, from every route at once. Check exactly sets its stops in the boxes below. -->
-    <InstantRoute v-if="deadline" :deadline="deadline" @check="checkByDate" />
+    <InstantRoute v-if="deadline" :deadline="deadline" @check="checkByDate" @routes="onInstantRoutes" />
 
     <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest pt-1">The routes to try</h3>
     <!-- One way only (the user, 5 Oct: "just have I'll set the stops, make it simpler"). "Pick them for
@@ -726,7 +726,11 @@
 <script lang="ts">
 import { ref as keptRef } from 'vue';
 import { nextEggDayYear as keptEggDayYear } from '@/lib/eggDay';
-import { DEFAULT_STEP_IX as KEPT_STEP_IX, DEFAULT_WIDTH_IX as KEPT_WIDTH_IX } from '@/search/deadlineSuggest';
+import {
+  DEFAULT_STEP_IX as KEPT_STEP_IX,
+  DEFAULT_WIDTH_IX as KEPT_WIDTH_IX,
+  suggestBase,
+} from '@/search/deadlineSuggest';
 
 /**
  * What the player set on this screen, kept for the page load rather than per mount. Since the
@@ -917,33 +921,49 @@ function rowSummary(k: number): string {
     : `${sets.toLocaleString()} sets of early stops · ${sizes.join(' x ')} values`;
 }
 
+/** The instant answer's route for each number of ascensions (InstantRoute's `routes` event), for this
+ *  save and plan start: what Suggest a space centres on first. */
+const instantByCount = ref<Record<number, number[]>>({});
 /**
- * Fill one chain's box: around your last deadline answer at that many ascensions if there is one,
- * else around your own route (the chain in the planner), else evenly spaced. The first stop is
- * tried at every TE near your current one, where the first ascension usually belongs; the rest
- * every 5 TE either side. Also sets the last-stop range around the answer when it is empty.
+ * The instant answer arrived (or its exact check refined it): fill every chain box that is empty or
+ * was filled by Suggest a space around it. A box typed by hand, or restored from an unfinished run or
+ * a link, is left alone; nothing changes while a run is going or being restored.
+ */
+function onInstantRoutes(byCount: Record<number, number[]>): void {
+  instantByCount.value = byCount;
+  if (linkAsc.length || store.deadlineRunning || store.preparing) return;
+  chains.value.forEach((row, k) => {
+    if (row.asc >= 2 && (!row.text || row.auto)) suggestRow(k);
+  });
+}
+
+/**
+ * Fill one chain's box (search/deadlineSuggest.ts `suggestBase`): around the instant answer's route
+ * for that many ascensions, else your last deadline answer, else your own route (the chain in the
+ * planner), else evenly spaced. Also sets the last-stop range around it when that is empty.
  */
 function suggestRow(k: number): void {
   const row = chains.value[k];
   if (!row) return;
   const n = Math.max(1, Math.min(8, Math.floor(row.asc || 1)));
   const te = Math.floor(store.currentTE);
-  const prior = store.deadlineResult?.byStops.find(r => r.chain.length === n) ?? store.deadlineResult?.routes[0];
-  const lastGuess = prior ? prior.chain[prior.chain.length - 1] : Math.min(490, te + 110);
-  let early: number[];
-  if (prior && prior.chain.length === n) {
-    early = prior.chain.slice(0, -1);
-    suggestFrom.value = `Chain ${k + 1} was suggested around your last answer, ${prior.chain.join(' ')}.`;
-  } else {
-    const route = store.seedChain.filter(v => v > te && v < lastGuess);
-    if (route.length >= n - 1) {
-      early = route.slice(0, n - 1);
-      suggestFrom.value = `Chain ${k + 1} was suggested around your route, ${route.slice(0, n - 1).join(' ')}.`;
-    } else {
-      early = Array.from({ length: n - 1 }, (_, i) => Math.round(te + ((i + 1) * (lastGuess - te)) / n));
-      suggestFrom.value = `Chain ${k + 1} was spaced evenly: no answer or route to start from yet.`;
-    }
-  }
+  const last = store.deadlineResult?.byStops.find(r => r.chain.length === n) ?? null;
+  const base = suggestBase(n, te, {
+    instant: instantByCount.value[n] ?? null,
+    answer: last?.chain ?? null,
+    anyAnswer: store.deadlineResult?.routes[0]?.chain ?? null,
+    route: store.seedChain,
+  });
+  const early = base.early;
+  const lastGuess = base.last;
+  suggestFrom.value =
+    base.from === 'instant'
+      ? `Chain ${k + 1} was suggested around the instant answer, ${base.around.join(' ')}.`
+      : base.from === 'answer'
+        ? `Chain ${k + 1} was suggested around your last answer, ${base.around.join(' ')}.`
+        : base.from === 'route'
+          ? `Chain ${k + 1} was suggested around your route, ${base.around.join(' ')}.`
+          : `Chain ${k + 1} was spaced evenly: no answer or route to start from yet.`;
   if (!lastRange.value) lastBox.value = `${Math.max(te + 2, lastGuess - 20)}-${Math.min(490, lastGuess + 20)}`;
   // Sized to the slider (search/deadlineSuggest.ts): the first stop at every TE from just above
   // yours, the later ones as fine and as wide as the size allows.

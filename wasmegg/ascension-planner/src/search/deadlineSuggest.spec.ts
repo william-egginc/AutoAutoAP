@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_STOP_SETS, STOP_SET_SIZES, stopsByWidth, suggestStops } from './deadlineSuggest';
+import { DEFAULT_STOP_SETS, STOP_SET_SIZES, stopsByWidth, suggestBase, suggestStops } from './deadlineSuggest';
 
 describe('suggestStops', () => {
   it('stays within the size picked, and grows with it', () => {
@@ -62,5 +62,27 @@ describe('stopsByWidth', () => {
     const c = stopsByWidth(137, [150, 180, 215], 267, 15, 1)!.sets;
     expect(b).toBeGreaterThan(a);
     expect(c).toBeGreaterThan(b);
+  });
+});
+
+describe('suggestBase: what a chain is suggested around', () => {
+  const route = [160, 190, 230, 270, 330];
+  it('prefers the instant answer for that many ascensions', () => {
+    const b = suggestBase(4, 146, { instant: [164, 199, 223, 256], answer: [170, 200, 225, 250], route });
+    expect(b).toEqual({ early: [164, 199, 223], last: 256, from: 'instant', around: [164, 199, 223, 256] });
+  });
+  it('then the last answer, then the route, then even spacing', () => {
+    expect(suggestBase(4, 146, { instant: null, answer: [170, 200, 225, 250], route }).from).toBe('answer');
+    expect(
+      suggestBase(3, 146, { instant: [164, 199, 223, 256], answer: null, anyAnswer: [170, 250], route })
+    ).toMatchObject({
+      from: 'route',
+      early: [160, 190],
+      last: 250,
+    });
+    expect(suggestBase(3, 146, { route: [] })).toMatchObject({ from: 'even', last: 256, early: [183, 219] });
+  });
+  it('skips a route that starts at or below the TE (an older save or another account)', () => {
+    expect(suggestBase(4, 187, { instant: [164, 199, 223, 256], route: [] }).from).toBe('even');
   });
 });

@@ -410,7 +410,17 @@ const props = defineProps<{
   /** Highest TE by a date: the unix second. Without it, the fastest route to the target. */
   deadline?: number;
 }>();
-const emit = defineEmits<{ check: [chain: number[]] }>();
+const emit = defineEmits<{ check: [chain: number[]]; routes: [byCount: Record<number, number[]>] }>();
+/** By a date: hand the panel this answer's route for each number of ascensions (the exact check's
+ *  where it has one), so its chain boxes can be suggested around them. */
+function emitRoutes(found: { byDateByAscensions: (Route | null)[] }): void {
+  const byCount: Record<number, number[]> = {};
+  found.byDateByAscensions.forEach((r, k) => {
+    if (r) byCount[k] = [...r.chain];
+  });
+  for (const [k, d] of Object.entries(dateExactByK.value)) if (d) byCount[Number(k)] = [...d.chain];
+  emit('routes', byCount);
+}
 const store = useChainSearchStore();
 const planner = useAutoPlannerStore();
 
@@ -643,6 +653,7 @@ async function run(): Promise<void> {
     result.value = found;
     ms.value = performance.now() - t0;
     status.value = 'done';
+    if (props.deadline) emitRoutes(found);
     void runExact(id, found);
   } catch (err) {
     if (id !== runs) return;
@@ -861,6 +872,7 @@ async function runExact(id: number, found: NonNullable<typeof result.value>): Pr
           }
           byK[k] = made;
           dateExactByK.value = { ...byK };
+          emitRoutes(found);
           // The answer: the highest TE that makes the date on the player's account, then the most spare.
           dateExact.value = Object.values(byK).reduce<DateExact | null>(
             (a, d) => (d && (!a || d.endTE > a.endTE || (d.endTE === a.endTE && d.end < a.end)) ? d : a),
