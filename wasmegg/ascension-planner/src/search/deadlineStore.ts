@@ -48,6 +48,33 @@ export interface DeadlineRunSpec {
   extend?: boolean;
   /** The player's note on the run (submission.ts `cleanNote`). */
   note?: string;
+  /** When the run first started (ms). A carry-on keeps it, so the offer says when the run began, not
+   *  when it was last saved. Absent on runs saved before 6 Oct. */
+  startedAt?: number;
+  /** Sets of early stops the run was started with, for the offer to say how big it is. */
+  sets?: number;
+  /** Each chain row's Suggest-a-space sliders and whether its box was filled by Suggest, in the order
+   *  of `bandSets`, so a carry-on puts the sliders back with the boxes. Absent on older checkpoints
+   *  (see `rowSettingsFor`). */
+  rows?: DeadlineRowSettings[];
+}
+
+/** One chain row's Suggest-a-space state (DeadlinePanel's `widthIx`, `stepIx`, `auto`). */
+export interface DeadlineRowSettings {
+  widthIx: number;
+  stepIx: number;
+  auto: boolean;
+}
+
+/**
+ * The saved slider state of chain row `i`, or null when the checkpoint has none for it (a run saved
+ * before the rows were kept, or a malformed entry). The caller then leaves the sliders alone and
+ * treats the restored box as typed by hand, not Suggest's.
+ */
+export function rowSettingsFor(spec: DeadlineRunSpec, i: number): DeadlineRowSettings | null {
+  const r = spec.rows?.[i];
+  if (!r || !Number.isInteger(r.widthIx) || !Number.isInteger(r.stepIx) || r.widthIx < 0 || r.stepIx < 0) return null;
+  return { widthIx: r.widthIx, stepIx: r.stepIx, auto: r.auto === true };
 }
 
 /** The leg detail the results panel reads. The full LegSummary carries shifts and CSV detail

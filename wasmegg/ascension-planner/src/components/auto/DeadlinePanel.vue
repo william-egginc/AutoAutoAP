@@ -6,24 +6,30 @@
 -->
 <template>
   <div class="rounded-xl border border-slate-200 bg-white p-4 space-y-4">
-    <!-- A run that stopped before finishing: a reload, a crash, or Stop. -->
+    <!-- THE one offer to carry on a run that stopped before finishing (a reload, a crash, or Stop).
+         Everything else on the page (the black box notice, Stepping away?) points here. -->
     <div
       v-if="store.deadlineUnfinished && !store.busy"
+      id="by-date-unfinished"
       class="rounded-xl border border-amber-300 bg-amber-50 p-4 space-y-2 text-[11px] text-amber-900 leading-relaxed"
     >
-      <h3 class="text-[10px] font-black text-amber-800 uppercase tracking-widest">Unfinished deadline search</h3>
+      <h3 class="text-[10px] font-black text-amber-800 uppercase tracking-widest">Unfinished By a date search</h3>
       <p>
-        <span class="font-bold">{{ store.deadlineUnfinished.priced.toLocaleString() }}</span> routes are already priced
-        for {{ inPlannerZone(store.deadlineUnfinished.spec.deadline) }}, {{ store.deadlineUnfinished.spec.minStops }} to
-        {{ store.deadlineUnfinished.spec.maxStops }} stops, from {{ store.deadlineUnfinished.te }} TE ({{
-          ago(store.deadlineUnfinished.updatedAt)
-        }}).
+        <template v-if="store.deadlineUnfinished.spec.sets">
+          <span class="font-bold">{{ store.deadlineUnfinished.spec.sets.toLocaleString() }}</span> sets of early stops,
+        </template>
+        <span class="font-bold">{{ store.deadlineUnfinished.priced.toLocaleString() }}</span> routes priced so far.
+        Started {{ startedLabel(store.deadlineUnfinished) }}. Deadline
+        {{ inPlannerZone(store.deadlineUnfinished.spec.deadline) }}, from {{ store.deadlineUnfinished.te }} TE.
         <template v-if="store.deadlineUnfinished.saveKept">
-          Carrying on replays them instantly, continues on the save it started with, and puts its deadline and stops
-          back in the boxes below.</template
+          Carrying on replays the priced routes instantly, continues on the save it started with, and puts its deadline,
+          chains and sliders back in the boxes below.</template
         >
         <template v-else> Its save wasn't kept on this device, so it can't carry on.</template>
         Starting a new search replaces it.
+      </p>
+      <p v-if="autoCountdown > 0" class="font-bold" role="status">
+        The last run stopped without finishing. Carrying on by itself in {{ autoCountdown }} s, with fewer workers.
       </p>
       <div class="flex flex-wrap gap-3">
         <button
@@ -33,6 +39,14 @@
           @click="resume"
         >
           Carry on from where it stopped
+        </button>
+        <button
+          v-if="autoCountdown > 0"
+          type="button"
+          class="px-3 py-1.5 rounded-lg border border-amber-400 text-[10px] font-black uppercase tracking-widest hover:bg-white"
+          @click="stepAway?.cancel()"
+        >
+          Cancel the automatic carry on
         </button>
         <button
           type="button"
@@ -165,11 +179,17 @@
           :disabled="store.busy"
           placeholder="138-142:1; 160-200:10; 200-240:10"
           class="w-full rounded-lg border-slate-300 text-sm font-mono-premium font-bold text-slate-800 disabled:opacity-50"
-          @input="row.auto = false"
+          @input="
+            row.auto = false;
+            row.restored = false;
+          "
         />
         <span class="block text-[10px]" :class="rowProblem(k) ? 'text-rose-600' : 'text-slate-500'">
           {{ rowProblem(k) || rowSummary(k) }}
         </span>
+        <p v-if="row.restored && row.asc >= 2" class="text-[10px] text-slate-400">
+          Restored from the unfinished run (the sliders apply when you press Suggest a space).
+        </p>
         <!-- Suggest a space's two settings, small and under the box they fill (the user, 4 Oct). Shared by
              every chain; moving one re-fills the boxes Suggest filled, not ones typed by hand. -->
         <div v-if="row.asc >= 2" class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-slate-500">
@@ -388,26 +408,9 @@
 
     <!-- Keep awake is in Your setup at the top, with the other computer settings. -->
     <SafariNotice />
-    <IntegrityNotice />
+    <IntegrityNotice :deadline-offer="!!store.deadlineUnfinished" />
     <!-- A Find and submit that finished (and shared) while this panel was closed for another tab. -->
     <AutoSendReport v-if="!shareMessage" kind="by-date" />
-    <!-- The unfinished run's carry-on again, next to Start where people look for it. -->
-    <div
-      v-if="store.deadlineUnfinished?.saveKept && !store.busy"
-      class="flex flex-wrap items-center gap-3 rounded-xl border border-amber-300 bg-amber-50 p-3"
-    >
-      <button
-        type="button"
-        class="px-4 py-2 rounded-lg bg-amber-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-800"
-        @click="resume"
-      >
-        Carry on the unfinished search
-      </button>
-      <span class="text-[11px] text-amber-900"
-        >{{ store.deadlineUnfinished.priced.toLocaleString() }} routes already priced.</span
-      >
-    </div>
-
     <!-- Find / Find and submit: the same bar as Fastest route (FindBar.vue), with this screen's own
          consent wording. The same share settings as the Share this result box under the result. -->
     <FindBar
@@ -435,7 +438,10 @@
     </FindBar>
     <!-- Stepping away? Carry on by itself, a watcher tab, fewer workers (StepAwayOptions.vue). -->
     <StepAwayOptions
+      ref="stepAway"
       kind="deadline"
+      countdown-elsewhere
+      @countdown="n => (autoCountdown = n)"
       :player-id="playerId"
       :can-carry-on="!!store.deadlineUnfinished?.saveKept"
       @carry-on="resume"
@@ -761,9 +767,9 @@ const kept = {
   ascendNeeded: keptRef(false),
   thoroughIx: keptRef(2),
   mode: keptRef<'space' | 'auto'>('space'),
-  chains: keptRef<{ asc: number; text: string; auto?: boolean; widthIx?: number; stepIx?: number }[]>([
-    { asc: 4, text: '' },
-  ]),
+  chains: keptRef<
+    { asc: number; text: string; auto?: boolean; widthIx?: number; stepIx?: number; restored?: boolean }[]
+  >([{ asc: 4, text: '' }]),
   lastBox: keptRef(''),
   suggestFrom: keptRef(''),
   widthIx: keptRef(KEPT_WIDTH_IX),
@@ -796,7 +802,7 @@ import {
 } from '@/search/deadline';
 import { formatBand, formatHours } from '@/search/exhaustive';
 import { sweepSeconds, workerSecondsPerChain } from '@/search/speed';
-import type { DeadlineRunSpec } from '@/search/deadlineStore';
+import { rowSettingsFor, type DeadlineRunSpec } from '@/search/deadlineStore';
 import { SPACE_STEPS, SPACE_WIDTHS, stopsByWidth } from '@/search/deadlineSuggest';
 import { firstTime } from '@/lib/linkOnce';
 import { downloadCsv } from '@/utils/export';
@@ -943,7 +949,8 @@ function onInstantRoutes(byCount: Record<number, number[]>): void {
   instantByCount.value = byCount;
   if (linkAsc.length || store.deadlineRunning || store.preparing) return;
   chains.value.forEach((row, k) => {
-    if (row.asc >= 2 && (!row.text || row.auto)) suggestRow(k);
+    // A row carried on from an unfinished run keeps its boxes.
+    if (row.asc >= 2 && (!row.text || row.auto) && !row.restored) suggestRow(k);
   });
 }
 
@@ -952,9 +959,10 @@ function onInstantRoutes(byCount: Record<number, number[]>): void {
  * for that many ascensions, else your last deadline answer, else your own route (the chain in the
  * planner), else evenly spaced. Also sets the last-stop range around it when that is empty.
  */
-function suggestRow(k: number): void {
+/** What Suggest a space would put in chain `k`'s box right now, without changing anything. */
+function suggestion(k: number): { text: string; from: string; lastGuess: number } | null {
   const row = chains.value[k];
-  if (!row) return;
+  if (!row) return null;
   const n = Math.max(1, Math.min(8, Math.floor(row.asc || 1)));
   const te = Math.floor(store.currentTE);
   const last = store.deadlineResult?.byStops.find(r => r.chain.length === n) ?? null;
@@ -966,7 +974,7 @@ function suggestRow(k: number): void {
   });
   const early = base.early;
   const lastGuess = base.last;
-  suggestFrom.value =
+  const from =
     base.from === 'instant'
       ? `Chain ${k + 1} was suggested around the instant answer, ${base.around.join(' ')}.`
       : base.from === 'answer'
@@ -974,15 +982,23 @@ function suggestRow(k: number): void {
         : base.from === 'route'
           ? `Chain ${k + 1} was suggested around your route, ${base.around.join(' ')}.`
           : `Chain ${k + 1} was spaced evenly: no answer or route to start from yet.`;
-  if (!lastRange.value) lastBox.value = `${Math.max(te + 2, lastGuess - 20)}-${Math.min(490, lastGuess + 20)}`;
   // Sized to the slider (search/deadlineSuggest.ts): the first stop at every TE from just above
   // yours, the later ones as fine and as wide as the size allows.
   const lastHi = lastRange.value?.[1] ?? Math.min(490, lastGuess + 20);
   const sug = stopsByWidth(te, early, lastHi, widthOf(row), stepOf(row));
-  if (sug) {
-    row.text = sug.text;
-    row.auto = true;
-  }
+  return sug ? { text: sug.text, from, lastGuess } : null;
+}
+
+function suggestRow(k: number): void {
+  const row = chains.value[k];
+  const sug = row && suggestion(k);
+  if (!row || !sug) return;
+  const te = Math.floor(store.currentTE);
+  suggestFrom.value = sug.from;
+  if (!lastRange.value) lastBox.value = `${Math.max(te + 2, sug.lastGuess - 20)}-${Math.min(490, sug.lastGuess + 20)}`;
+  row.text = sug.text;
+  row.auto = true;
+  row.restored = false;
 }
 
 /** Suggest a space's two sliders, per chain (the user, 4 Oct: separate by default, with an option to
@@ -1230,8 +1246,24 @@ function fillFromSpec(spec: DeadlineRunSpec): void {
   const sets = spec.bandSets?.length ? spec.bandSets : spec.bands?.length ? [spec.bands] : null;
   if (sets) {
     mode.value = 'space';
-    chains.value = sets.map(set => ({ asc: set.length + 1, text: set.map(b => formatBand(b)).join('; ') }));
+    // The sliders and "filled by Suggest" go back with the boxes. A run saved before they were kept
+    // has none: its sliders stay as they are and its boxes count as typed by hand.
+    chains.value = sets.map((set, i) => {
+      const saved = rowSettingsFor(spec, i);
+      return {
+        asc: set.length + 1,
+        text: set.map(b => formatBand(b)).join('; '),
+        auto: saved?.auto ?? false,
+        ...(saved ? { widthIx: saved.widthIx, stepIx: saved.stepIx } : {}),
+      };
+    });
     lastBox.value = `${spec.lastLo ?? Math.floor(store.currentTE) + 1}-${spec.lastHi}`;
+    // A box the sliders would not suggest now says so (decided here, while the last answer that
+    // Suggest reads is still on screen: a carried-on run clears it).
+    chains.value.forEach((row, k) => {
+      const sug = row.asc >= 2 ? suggestion(k) : null;
+      row.restored = !!sug && sug.text !== row.text;
+    });
   } else {
     mode.value = 'auto';
     minStops.value = spec.minStops;
@@ -1243,6 +1275,17 @@ function fillFromSpec(spec: DeadlineRunSpec): void {
     const ix = THOROUGH.findIndex(t => t.shapes === (spec.maxShapes ?? 3000));
     thoroughIx.value = ix >= 0 ? ix : 2;
   }
+}
+
+const stepAway = ref<InstanceType<typeof StepAwayOptions> | null>(null);
+/** Seconds left of Stepping away?'s automatic carry-on, shown in the unfinished run's offer. */
+const autoCountdown = ref(0);
+
+/** "Started Oct 6, 2026, 2:02 PM (12 min ago)", in the planner's zone and date style; a run saved before the start was kept says when it last saved. */
+function startedLabel(u: { spec: DeadlineRunSpec; updatedAt: number }): string {
+  return u.spec.startedAt
+    ? `${showDateTime(Math.floor(u.spec.startedAt / 1000), plannerZone.value)} (${ago(u.spec.startedAt)})`
+    : `at an unknown time, last saved ${ago(u.updatedAt)}`;
 }
 
 async function resume(): Promise<void> {
@@ -1304,6 +1347,8 @@ async function find(): Promise<void> {
       estimate: plannedRoutes.value,
       extend: true,
       bandSets: chains.value.map((r, k) => (r.asc <= 1 ? [] : rowBands(k).map(b => [...b]))),
+      sets: spaceShapes.value,
+      rows: chains.value.map(r => ({ widthIx: rowWidthIx(r), stepIx: rowStepIx(r), auto: !!r.auto })),
     });
     return;
   }

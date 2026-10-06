@@ -19,6 +19,7 @@
  */
 const history: { at: string; note: string }[] = [
   { at: '2026-10-06T19:02:00Z', note: 'Instant answer: routes polished, and polished harder in the background; "Works inside my hours" keeps every prestige inside your hours; "At most N ascensions"; Open this plan builds a row in Classic' },
+  { at: '2026-10-06T19:00:55Z', note: 'By a date: one clear offer to carry on an unfinished search, and it brings back each chain\'s sliders too' },
   { at: '2026-10-06T18:01:03Z', note: 'Charts start on a heat map, with a choice of how many dots to draw; update notes now list what you missed since your last visit' },
   { at: '2026-10-06T15:51:18Z', note: 'Big runs stay light: past 20,000 chains the charts wait for a button and a heat map shows instead; TE keeps collecting while you wait; My plans filters; a Stepping away? box' },
   { at: '2026-10-06T04:05:49Z', note: 'TE keeps collecting while you wait for your hours; My plans can filter and show the best per group; a Stepping away? box can carry a crashed run on by itself; By a date boxes reset for a new account' },

@@ -14,8 +14,14 @@ vi.mock('@/lib/storage/db', () => ({
 }));
 
 const { runDeadlineSearch } = await import('./deadline');
-const { replayingEvaluator, saveDeadlineCheckpoint, loadDeadlineCheckpoint, saveDeadlineResult, loadDeadlineResult } =
-  await import('./deadlineStore');
+const {
+  replayingEvaluator,
+  saveDeadlineCheckpoint,
+  loadDeadlineCheckpoint,
+  saveDeadlineResult,
+  loadDeadlineResult,
+  rowSettingsFor,
+} = await import('./deadlineStore');
 
 const DAY = 86400;
 const START = 1_790_000_000;
@@ -115,5 +121,45 @@ describe('carrying on a deadline search', () => {
     };
     await saveDeadlineResult('P', result);
     expect(await loadDeadlineResult('P')).toEqual(result);
+  });
+});
+
+describe('the chain rows kept in a deadline checkpoint', () => {
+  beforeEach(() => db.clear());
+  const base = { deadline: 1, minStops: 2, maxStops: 3, lastHi: 300, step: 1, ascendNeeded: false };
+  const cp = (spec: object) => ({
+    spec: spec as never,
+    inputsKey: 'k',
+    planStart: 1,
+    te: 100,
+    entries: [],
+    updatedAt: 5,
+  });
+
+  it("round-trips each row's sliders, auto flag, start time and set count", async () => {
+    const rows = [
+      { widthIx: 2, stepIx: 0, auto: true },
+      { widthIx: 5, stepIx: 3, auto: false },
+    ];
+    await saveDeadlineCheckpoint('h', cp({ ...base, bandSets: [[[1]], [[2]]], rows, startedAt: 111, sets: 8632 }));
+    const back = await loadDeadlineCheckpoint('h');
+    expect(back?.spec.rows).toEqual(rows);
+    expect(back?.spec.startedAt).toBe(111);
+    expect(back?.spec.sets).toBe(8632);
+    expect(rowSettingsFor(back!.spec, 0)).toEqual(rows[0]);
+    expect(rowSettingsFor(back!.spec, 1)).toEqual(rows[1]);
+  });
+
+  it('still loads a checkpoint saved before the rows were kept, with no settings for any row', async () => {
+    await saveDeadlineCheckpoint('h', cp({ ...base, bandSets: [[[1]]] }));
+    const back = await loadDeadlineCheckpoint('h');
+    expect(back).not.toBeNull();
+    expect(rowSettingsFor(back!.spec, 0)).toBeNull();
+  });
+
+  it('ignores a malformed or missing row', () => {
+    const spec = { ...base, rows: [{ widthIx: 'x', stepIx: 1, auto: true }] } as never;
+    expect(rowSettingsFor(spec, 0)).toBeNull();
+    expect(rowSettingsFor(spec, 3)).toBeNull();
   });
 });

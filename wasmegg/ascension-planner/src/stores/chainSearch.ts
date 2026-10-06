@@ -3653,7 +3653,13 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // same guesses in the same order and replays them all.
     const note = cleanNote(runNote.value);
     deadlineReady = [
-      { ...spec, seedShapes: seeds, parallel: clampPoolSize(workerBudget.value), ...(note ? { note } : {}) },
+      {
+        ...spec,
+        seedShapes: seeds,
+        parallel: clampPoolSize(workerBudget.value),
+        startedAt: Date.now(),
+        ...(note ? { note } : {}),
+      },
       inputs,
       key,
     ];
