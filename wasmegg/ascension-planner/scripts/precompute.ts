@@ -1966,18 +1966,23 @@ async function cacheCheck(file: string): Promise<void> {
  * have made faster (the analyst: Fliris 164 199 223 256). Starting from the finder's route for each
  * number of ascensions, move one stop at a time by up to --reach TE (default 2), price with the table
  * (the save's own first leg, then priceLeg), keep any route that reaches the end sooner, and repeat
- * until nothing improves. Table arithmetic only: milliseconds a route.
+ * until nothing improves; then neighbouring pairs by one each (--no-pairs to skip). --json prints one
+ * line per number of ascensions: {asc, finder: {chain, end, days}, polished: {...}} (end in unix s).
+ * Table arithmetic only: milliseconds a route.
  */
 async function polish(file: string): Promise<void> {
   const dir = arg('table');
   if (!dir) throw new Error('--polish needs --table DIR');
   const table = loadTable(dir);
   const inputs = await loadInputs(file);
-  const te0 = Math.floor(inputs.currentTE);
+  // --start-te N: from that TE with the table's own egg counts and a fresh first ascension (a board
+  // run's start on a gear table, which has no save of its own); else the save's TE, eggs and farm.
+  const fromTE = arg('start-te') ? Number(arg('start-te')) : null;
+  const te0 = fromTE ?? Math.floor(inputs.currentTE);
   const start = arg('start') ? Math.floor(Date.parse(arg('start')!) / 1000) : inputs.planStart;
   const final = Number(arg('final') ?? 490);
   const reach = Number(arg('reach') ?? 2);
-  const eggs0 = EGG_ORDER.map(e => inputs.baseState.eggsDelivered?.[e] || 0);
+  const eggs0 = fromTE ? canonicalDelivered(fromTE) : EGG_ORDER.map(e => inputs.baseState.eggsDelivered?.[e] || 0);
   const firstLegs = firstLegOptions({
     table: table.lookup,
     startTE: te0,
@@ -1985,7 +1990,7 @@ async function polish(file: string): Promise<void> {
     final,
     deliveryScale: 1,
     delivered: eggs0,
-    cont: continueTailParams(inputs, start),
+    cont: fromTE ? null : continueTailParams(inputs, start),
     forceContinue: inputs.forceContinue,
     pinSeconds: inputs.continuePinSeconds ?? CONTINUE_PIN_MAX_SECONDS,
     maxContinueSeconds: inputs.continueMaxSeconds ?? CONTINUE_MAX_SECONDS,
@@ -2027,6 +2032,18 @@ async function polish(file: string): Promise<void> {
     let best = [...r.chain];
     let bestEnd = price(best) ?? r.end;
     const t1 = performance.now();
+    // One stop at a time by up to `reach`; then (unless --no-pairs) two neighbouring stops together by
+    // one each, for gains that need both to move (the analyst: board tails shift jointly, 252 282 318
+    // -> 251 282 310). Repeated until neither finds anything.
+    const tryChain = (c: number[]) => {
+      const e = price(c);
+      if (e !== null && e < bestEnd - 60) {
+        best = c;
+        bestEnd = e;
+        return true;
+      }
+      return false;
+    };
     for (let round = 0; round < 20; round++) {
       let improved = false;
       for (let i = 0; i < best.length - 1; i++) {
@@ -2034,17 +2051,37 @@ async function polish(file: string): Promise<void> {
           if (!dlt) continue;
           const c = [...best];
           c[i] += dlt;
-          const e = price(c);
-          if (e !== null && e < bestEnd - 60) {
-            best = c;
-            bestEnd = e;
-            improved = true;
+          if (tryChain(c)) improved = true;
+        }
+      }
+      if (!has('no-pairs')) {
+        for (let i = 0; i + 1 < best.length - 1; i++) {
+          for (const [a, b] of [
+            [1, 1],
+            [-1, -1],
+            [1, -1],
+            [-1, 1],
+          ]) {
+            const c = [...best];
+            c[i] += a;
+            c[i + 1] += b;
+            if (tryChain(c)) improved = true;
           }
         }
       }
       if (!improved) break;
     }
     const gained = (r.end - bestEnd) / 3600;
+    if (has('json')) {
+      console.log(
+        JSON.stringify({
+          asc: k,
+          finder: { chain: r.chain, end: r.end, days: Number(d(r.end)) },
+          polished: { chain: best, end: bestEnd, days: Number(d(bestEnd)) },
+        })
+      );
+      continue;
+    }
     console.log(
       `  ${k} ascensions: finder ${d(r.end)} d ${r.chain.join(' ')}` +
         (gained > 0.01
