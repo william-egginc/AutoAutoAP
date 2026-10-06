@@ -184,7 +184,8 @@
               <input v-model="store.scheduleEnabled" type="radio" :value="true" class="mt-0.5 text-indigo-600" />
               <span class="text-[11px] text-slate-600 leading-relaxed">
                 <span class="block font-bold text-slate-800">Let me pick my hours</span>
-                Prestiges and egg shifts wait for your next hour.
+                Prestiges and egg shifts wait for your next hour. You are still on the virtue farm while you wait, so TE
+                keeps collecting.
               </span>
             </label>
           </div>

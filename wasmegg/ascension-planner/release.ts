@@ -15,5 +15,5 @@
  */
 export default {
   reloadIfBuiltBefore: '2026-10-05T19:54:00Z',
-  note: 'the plan start note says when a newer sync would change it, and a save older than your silos now shows in red and asks you to force a sync',
+  note: 'with Let me pick my hours, TE now keeps collecting while a prestige or an egg shift waits for your hours, so plans with hours come out sooner (often by days)',
 };
