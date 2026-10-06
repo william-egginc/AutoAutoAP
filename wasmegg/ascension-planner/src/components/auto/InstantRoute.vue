@@ -91,6 +91,31 @@
       {{ sinceCache.text }}
     </p>
 
+    <!-- The filters (remembered in this browser): the routes and the headline come from what is left. -->
+    <div v-if="result" class="space-y-1">
+      <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-600">
+        <label v-if="hoursOn" class="flex items-center gap-2 cursor-pointer">
+          <input v-model="filters.inHours" type="checkbox" class="rounded border-slate-300" />
+          Works inside my hours
+        </label>
+        <label class="flex items-center gap-2">
+          At most
+          <select v-model="filters.maxAscensions" class="rounded-lg border-slate-200 text-[11px] py-0.5 pl-2 pr-7">
+            <option :value="null">any number of</option>
+            <option v-for="n in MAX_ASCENSIONS" :key="n" :value="n">{{ n }}</option>
+          </select>
+          ascensions
+        </label>
+      </div>
+      <p v-if="useHours" class="text-[11px] text-slate-500">
+        Only routes where you ascend inside your hours each time. The exact check prices it with your hours, so TE keeps
+        collecting while you wait.
+      </p>
+      <p v-if="outOfHoursShown.length" class="text-[11px] text-amber-800">
+        No route with {{ countList(outOfHoursShown) }} ascensions keeps every prestige inside your hours.
+      </p>
+    </div>
+
     <template v-if="result && deadline">
       <div class="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 space-y-1">
         <div class="text-[10px] font-black uppercase tracking-widest text-emerald-700">
@@ -158,7 +183,9 @@
             {{ exactStatus === 'done' ? 'Check all again' : 'Check exactly' }}
           </button>
         </template>
-        <p v-else class="text-[12px] text-amber-800">No route gets above your TE by then.</p>
+        <p v-else class="text-[12px] text-amber-800">
+          No route gets above your TE by then{{ filtering ? ' with these filters' : '' }}.
+        </p>
       </div>
       <div v-if="dateRows.length > 1" class="overflow-x-auto">
         <p class="text-[11px] text-slate-500">Exact = the full simulator on your account; filled in automatically.</p>
@@ -272,7 +299,9 @@
           {{ exactStatus === 'done' ? 'Check all again' : 'Check exactly' }}
         </button>
       </div>
-      <p v-else class="text-[12px] text-amber-800">No route reaches {{ store.finalTE }} from here in the table.</p>
+      <p v-else class="text-[12px] text-amber-800">
+        No route reaches {{ store.finalTE }} from here in the table{{ filtering ? ' with these filters' : '' }}.
+      </p>
     </template>
 
     <p v-if="result && exactStatus === 'error'" class="text-[11px] text-amber-800">{{ exactText }}</p>
@@ -403,7 +432,9 @@ import { CONTINUE_MAX_SECONDS, CONTINUE_PIN_MAX_SECONDS } from '@/search/rules';
 import { EGG_ORDER } from '@/search/precomputedLeg';
 import { cteFromArtifacts } from 'lib/virtue';
 import { equippedArtifactsToLibArtifacts } from '@/lib/artifacts/utils';
-import { findRoutes, type Route } from '@/search/routeFinder';
+import { findRoutes, type FoundRoutes, type Route } from '@/search/routeFinder';
+import { atMostAscensions, readFilters, writeFilters } from '@/search/instantFilters';
+import { availabilityKey, type Availability } from '@/search/availabilitySchedule';
 import { describeColleggtibles } from '@/search/progression';
 import { poolSize, RoutePool } from '@/search/routePool';
 import { createChainSearchPool, type ChainSearchPool, type EvaluateOptions } from '@/search/pool';
@@ -459,12 +490,7 @@ async function ownTableUrl(): Promise<string | null> {
 const status = ref<'idle' | 'loading' | 'error' | 'done'>('idle');
 const loadingText = ref('');
 const errorText = ref('');
-const result = ref<{
-  best: Route | null;
-  byAscensions: (Route | null)[];
-  byDate: Route | null;
-  byDateByAscensions: (Route | null)[];
-} | null>(null);
+const result = ref<FoundRoutes | null>(null);
 const header = ref<TableHeader | null>(null);
 const ms = ref<number | null>(null);
 
@@ -494,6 +520,24 @@ const target = computed(() => (props.deadline ? 490 : store.finalTE));
  * as far as MAX_ASCENSIONS so those rows exist.
  */
 const MAX_ASCENSIONS = 12;
+
+/** "Works inside my hours" (only with "Let me pick my hours") and "At most N ascensions". */
+const filters = ref(readFilters());
+watch(filters, f => writeFilters(f), { deep: true });
+const hoursOn = computed(() => store.scheduleEnabled && !!store.availability);
+const useHours = computed(() => hoursOn.value && filters.value.inHours);
+const filtering = computed(() => useHours.value || filters.value.maxAscensions !== null);
+/** The counts a row could show that have no route inside the hours. */
+const outOfHoursShown = computed(() => {
+  const r = result.value;
+  if (!r?.outOfHours || !useHours.value) return [];
+  const top = props.deadline ? (r.byDate?.legs.length ?? 8) + 2 : Math.max(10, (r.best?.legs.length ?? 0) + 2);
+  return r.outOfHours.filter(k => k <= top);
+});
+/** 3 -> "3"; [2, 3, 5] -> "2, 3 or 5". */
+function countList(ks: number[]): string {
+  return ks.length < 2 ? ks.join('') : `${ks.slice(0, -1).join(', ')} or ${ks[ks.length - 1]}`;
+}
 function fastestRowsOf(found: NonNullable<typeof result.value>, bestK?: number): Route[] {
   const top = Math.max(10, (bestK ?? found.best?.legs.length ?? 0) + 2);
   return found.byAscensions.filter((r, k): r is Route => !!r && k <= top);
@@ -642,6 +686,9 @@ async function run(): Promise<void> {
       maxContinueSeconds: CONTINUE_MAX_SECONDS,
     });
     if (id !== runs) return;
+    // A plain copy: it goes to the workers.
+    const hours =
+      useHours.value && store.availability ? (JSON.parse(JSON.stringify(store.availability)) as Availability) : null;
     const found = await findRoutes({
       table: () => null,
       startTE: te,
@@ -651,6 +698,7 @@ async function run(): Promise<void> {
       firstLegs,
       deliveryScale: scale,
       ...(props.deadline ? { deadline: props.deadline } : {}),
+      ...(hours ? { hours } : {}),
       onProgress: (done, of) => {
         if (id === runs) loadingText.value = `Working out every route: ${done} of ${of} ascension counts done…`;
       },
@@ -667,11 +715,12 @@ async function run(): Promise<void> {
         firstLegs,
         deliveryScale: scale,
         ...(props.deadline ? { deadline: props.deadline } : {}),
+        ...(hours ? { hours } : {}),
       },
       JSON.parse(JSON.stringify(found))
     );
     if (id !== runs) return;
-    const answer = { ...found, ...polished };
+    const answer = atMostAscensions({ ...found, ...polished }, filters.value.maxAscensions);
     result.value = answer;
     ms.value = performance.now() - t0;
     status.value = 'done';
@@ -1054,6 +1103,7 @@ function cacheKey(): string | null {
     stones: inv.stones,
     epic: inputs.context.epicResearchLevels,
     setup: [store.availability, store.timeOff, store.milestones, store.forceContinue],
+    filters: [useHours.value, filters.value.maxAscensions],
   };
   // FNV-1a: the key only has to tell setups apart; the id never leaves this browser.
   const text = JSON.stringify(parts);
@@ -1122,6 +1172,8 @@ watch(
     store.forceContinue,
     bonus.value,
     tryAtOnce.value,
+    useHours.value ? availabilityKey(store.availability) : '',
+    filters.value.maxAscensions,
   ],
   () => {
     if (timer) clearTimeout(timer);

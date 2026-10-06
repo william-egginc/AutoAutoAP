@@ -36,6 +36,7 @@ import {
   type TailSweep,
 } from './precomputedLeg';
 import { getNextSaleEnd, isResearchSaleActive } from '@/lib/events';
+import { isAvailable, type Availability } from './availability';
 
 /** The table as the finder reads it: the builds for a start TE at a Pacific hour of the week. */
 export type BuildLookup = (te: number, hour: number) => BuildParams[] | null;
@@ -104,6 +105,17 @@ export interface FindOptions {
   /** False: start the moment the last one ends and shift the sale by the minutes past the hour
    *  (`lateBy`), the approximation, kept for comparing. Default: on the next whole hour. */
   onTheHour?: boolean;
+  /** "Works inside my hours": each answer is the best kept route whose every prestige (each fresh
+   *  ascension after the first, at the time the table starts it) falls inside these hours and days
+   *  (`prestigesInHours`). Counts that had a route but none inside are listed in `outOfHours`. */
+  hours?: Availability;
+}
+
+/** Whether every prestige of `route` falls inside `hours`: the start of each ascension after the
+ *  first, as the table prices it (on the hour, or at once inside the sale). The first starts now,
+ *  and reaching the final target needs no prestige (search/availability.ts). */
+export function prestigesInHours(route: { legs: { start: number }[] }, hours: Availability): boolean {
+  return route.legs.every((l, i) => i === 0 || isAvailable(l.start, hours));
 }
 
 /** The next whole hour at or after `t` (unix seconds). Pacific hours begin on UTC hour boundaries. */
@@ -419,6 +431,9 @@ export async function findRoutes(
   byDate: Route | null;
   /** With `deadline`: the same for each number of ascensions (index = ascensions). */
   byDateByAscensions: (Route | null)[];
+  /** With `hours`: the numbers of ascensions that have a route (in time, with a deadline) but none
+   *  whose prestiges all fall inside the hours. */
+  outOfHours?: number[];
 }> {
   const K = o.maxAscensions ?? 10;
   const keep = o.keep ?? DEFAULT_KEEP;
@@ -490,8 +505,24 @@ export async function findRoutes(
     for (let l: Label | null = last; l?.leg; l = l.prev) legs.unshift(l.leg);
     return { chain: legs.map(l => l.to), legs, end: last.time, seconds: last.time - o.start };
   };
+  // With hours, an arrival counts only when every prestige on its way falls inside them (memoised
+  // along each route: a label is in hours when the one it came from is and its own start is).
+  const hours = o.hours;
+  const inHours = new Map<number, boolean>();
+  const ok = (l: Label): boolean => {
+    if (!hours || !l.prev?.leg) return true;
+    let v = inHours.get(l.id);
+    if (v === undefined) {
+      v = ok(l.prev) && isAvailable(l.leg!.start, hours);
+      inHours.set(l.id, v);
+    }
+    return v;
+  };
+  const outOfHours = new Set<number>();
   const readBack = (k: number): Route | null => {
-    const last = arrivals[k].get(top)?.[0];
+    const list = arrivals[k].get(top);
+    const last = list?.find(ok);
+    if (o.deadline === undefined && list?.length && !last) outOfHours.add(k);
     return last ? routeTo(last) : null;
   };
 
@@ -506,11 +537,15 @@ export async function findRoutes(
     let overall: { te: number; label: Label } | null = null;
     for (let k = 1; k <= K; k++) {
       let mine: { te: number; label: Label } | null = null;
+      let inTime = false;
       for (const [te, list] of arrivals[k]) {
-        const l = list[0];
-        if (l.time > o.deadline) continue;
+        if (mine && te < mine.te) continue;
+        const l = list.find(x => x.time <= o.deadline! && ok(x));
+        inTime ||= list[0].time <= o.deadline;
+        if (!l) continue;
         if (!mine || te > mine.te || (te === mine.te && l.time < mine.label.time)) mine = { te, label: l };
       }
+      if (inTime && !mine) outOfHours.add(k);
       if (!mine) continue;
       byDateByAscensions[k] = routeTo(mine.label);
       if (!overall || mine.te > overall.te || (mine.te === overall.te && mine.label.time < overall.label.time))
@@ -518,7 +553,13 @@ export async function findRoutes(
     }
     byDate = overall ? routeTo(overall.label) : null;
   }
-  return { best, byAscensions, byDate, byDateByAscensions };
+  return {
+    best,
+    byAscensions,
+    byDate,
+    byDateByAscensions,
+    ...(hours ? { outOfHours: [...outOfHours].sort((a, b) => a - b) } : {}),
+  };
 }
 
 export interface FirstLegOptions {
@@ -623,6 +664,8 @@ export interface PolishOptions {
   /** How far one stop moves (default 2); neighbouring pairs move by one each unless `pairs` is false. */
   reach?: number;
   pairs?: boolean;
+  /** As FindOptions: only moves that keep every prestige inside these hours. */
+  hours?: Availability;
 }
 
 export interface FoundRoutes {
@@ -630,6 +673,7 @@ export interface FoundRoutes {
   byAscensions: (Route | null)[];
   byDate: Route | null;
   byDateByAscensions: (Route | null)[];
+  outOfHours?: number[];
 }
 
 /** `chain` priced the way `findRoutes` prices a route: its first leg from `firstLegs` (or a fresh one),
@@ -733,10 +777,13 @@ function polishRoute(table: BuildLookup, o: PolishOptions, route: Route, ok: (r:
  */
 export function polishFound(table: BuildLookup, o: PolishOptions, found: FoundRoutes): FoundRoutes {
   const lastTE = (r: Route) => r.legs[r.legs.length - 1]?.endTE ?? 0;
-  const byAscensions = found.byAscensions.map(r => (r ? polishRoute(table, o, r, () => true) : r));
+  const inHours = (c: Route) => !o.hours || prestigesInHours(c, o.hours);
+  const byAscensions = found.byAscensions.map(r => (r ? polishRoute(table, o, r, inHours) : r));
   const best = byAscensions.reduce<Route | null>((a, r) => (r && (!a || r.end < a.end) ? r : a), null);
   const byDateByAscensions = found.byDateByAscensions.map(r =>
-    r && o.deadline !== undefined ? polishRoute(table, o, r, c => c.end <= o.deadline! && lastTE(c) >= lastTE(r)) : r
+    r && o.deadline !== undefined
+      ? polishRoute(table, o, r, c => c.end <= o.deadline! && lastTE(c) >= lastTE(r) && inHours(c))
+      : r
   );
   const byDate =
     o.deadline === undefined
@@ -745,5 +792,11 @@ export function polishFound(table: BuildLookup, o: PolishOptions, found: FoundRo
           (a, r) => (r && (!a || lastTE(r) > lastTE(a) || (lastTE(r) === lastTE(a) && r.end < a.end)) ? r : a),
           null
         );
-  return { best, byAscensions, byDate, byDateByAscensions };
+  return {
+    best,
+    byAscensions,
+    byDate,
+    byDateByAscensions,
+    ...(found.outOfHours ? { outOfHours: found.outOfHours } : {}),
+  };
 }
