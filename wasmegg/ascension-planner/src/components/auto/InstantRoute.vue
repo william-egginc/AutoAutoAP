@@ -151,14 +151,17 @@
           <button
             type="button"
             class="mt-1 px-3 py-1.5 rounded-lg bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-emerald-800"
-            @click="emit('check', (dateExact ?? tableDate(result.byDate)).chain)"
+            :disabled="exactStatus === 'running'"
+            title="Prices every route below with the full simulator on your account"
+            @click="checkAgain()"
           >
-            Check exactly
+            {{ exactStatus === 'done' ? 'Check all again' : 'Check exactly' }}
           </button>
         </template>
         <p v-else class="text-[12px] text-amber-800">No route gets above your TE by then.</p>
       </div>
       <div v-if="dateRows.length > 1" class="overflow-x-auto">
+        <p class="text-[11px] text-slate-500">Exact = the full simulator on your account; filled in automatically.</p>
         <table class="w-full text-[12px]">
           <thead>
             <tr class="text-left text-[9px] font-black uppercase tracking-widest text-slate-400">
@@ -210,9 +213,10 @@
                 <button
                   type="button"
                   class="px-2 py-1 rounded-md border border-slate-300 text-[9px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-800"
-                  @click="emit('check', (dateExactByK[r.legs.length] ?? tableDate(r)).chain)"
+                  title="Builds this exact route in Classic, step by step"
+                  @click="openPlan((dateExactByK[r.legs.length] ?? tableDate(r)).chain)"
                 >
-                  Check exactly
+                  Open this plan
                 </button>
               </td>
             </tr>
@@ -261,10 +265,11 @@
         <button
           type="button"
           class="mt-1 px-3 py-1.5 rounded-lg bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-emerald-800"
-          :disabled="lead.chain.length < 2"
-          @click="emit('check', lead.chain)"
+          :disabled="exactStatus === 'running'"
+          title="Prices every route below with the full simulator on your account"
+          @click="checkAgain()"
         >
-          Check exactly
+          {{ exactStatus === 'done' ? 'Check all again' : 'Check exactly' }}
         </button>
       </div>
       <p v-else class="text-[12px] text-amber-800">No route reaches {{ store.finalTE }} from here in the table.</p>
@@ -306,6 +311,7 @@
 
     <template v-if="result && !deadline">
       <div class="overflow-x-auto">
+        <p class="text-[11px] text-slate-500">Exact = the full simulator on your account; filled in automatically.</p>
         <table class="w-full text-[12px]">
           <thead>
             <tr class="text-left text-[9px] font-black uppercase tracking-widest text-slate-400">
@@ -343,10 +349,10 @@
                   type="button"
                   class="px-2 py-1 rounded-md border border-slate-300 text-[9px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-800"
                   :disabled="r.chain.length < 2"
-                  :title="r.chain.length < 2 ? 'One ascension has no checkpoints to sweep' : ''"
-                  @click="emit('check', r.chain)"
+                  title="Builds this exact route in Classic, step by step"
+                  @click="openPlan(r.chain)"
                 >
-                  Check exactly
+                  Open this plan
                 </button>
               </td>
             </tr>
@@ -389,6 +395,7 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
+import { useUIStore } from '@/stores/ui';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { showDateTime } from '@/lib/displayTime';
 import { continueTailParams, instantDeliveryScale } from '@/search/leg';
@@ -692,6 +699,8 @@ interface Exact {
   atOnce: number[];
   /** How many of its ascensions are fresh (not the one in progress, continued). */
   fresh: number;
+  /** Its simulated ascensions, for "Open this plan" (time off is worked in from these). */
+  legs: ChainResult['legs'];
 }
 /** Exact prices by `chain.join(',')`; null where the simulator could not price the route. */
 const exact = ref<Record<string, Exact | null>>({});
@@ -763,6 +772,27 @@ onUnmounted(stopExact);
 const key = (chain: number[]) => chain.join(',');
 const exactOf = (r: Route) => exact.value[key(r.chain)];
 
+/** The plan start the exact check priced from, for "Open this plan". */
+const answerStart = ref(0);
+/**
+ * A row's "Open this plan": this exact route as a plan in Classic, built step by step, from the start
+ * it was priced from and with its time off (the searches' "Build this plan" does the same).
+ */
+function openPlan(chain: number[]): void {
+  store.applyChain(chain, true, {
+    ...(answerStart.value ? { start: answerStart.value } : {}),
+    ...(exact.value[key(chain)]?.legs ? { legs: exact.value[key(chain)]!.legs } : {}),
+  });
+  store.generateWhenPlannerOpens = true;
+  useUIStore().openPlannerRequested++;
+}
+/** The top button: price every shown route with the full simulator again. */
+function checkAgain(): void {
+  if (!result.value || exactStatus.value === 'running') return;
+  const id = ++runs;
+  void runExact(id, result.value);
+}
+
 async function runExact(id: number, found: NonNullable<typeof result.value>): Promise<void> {
   stopExact();
   exact.value = {};
@@ -786,6 +816,7 @@ async function runExact(id: number, found: NonNullable<typeof result.value>): Pr
   const t0 = performance.now();
   try {
     const inputs = store.collectInputs();
+    answerStart.value = inputs.planStart;
     const size = Math.max(1, Math.min(store.workerBudget, routes.length, 4));
     exactPool = await createChainSearchPool(inputs, { size });
     if (id !== runs) return;
@@ -817,6 +848,7 @@ async function runExact(id: number, found: NonNullable<typeof result.value>): Pr
                 .map((l, i) => (l.key !== 'continue' && (l.startTime ?? 0) % 3600 !== 0 ? i + 1 : 0))
                 .filter(n => n > 0),
               fresh: b.r.legs.filter(l => l.key !== 'continue').length,
+              legs: b.r.legs,
             }
           : null;
       }

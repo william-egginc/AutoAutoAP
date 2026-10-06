@@ -4461,18 +4461,24 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    */
   const generateRequested = ref(0);
 
-  function applyChain(chain: number[], alsoGenerate = false): void {
+  /**
+   * `opts`, for a route that did not come from this store's last run (the instant answer's "Open this
+   * plan"): `start`, the plan start it was priced from (instead of `planStartUsed`, the last run's),
+   * and `legs`, its simulated ascensions (for time off), since it is in none of this run's caches.
+   */
+  function applyChain(chain: number[], alsoGenerate = false, opts?: { start?: number; legs?: LegSummary[] }): void {
     const planner = useAutoPlannerStore();
     // Results priced on a run's own older save, with the latest save loaded since ("Load my latest
     // save"): the old run's start is from before this save existed, and its time-off instants belong
     // to that start. The plan is built on the save that is loaded, from its own start, and says so.
-    const olderResults = !!resultsFromOlderSave.value && !useUIStore().runSaveLoaded;
+    const olderResults = !opts?.start && !!resultsFromOlderSave.value && !useUIStore().runSaveLoaded;
     // Pin the planner to the start this answer was computed against. Without it the plan can be
     // built from a different instant entirely (see `planStartUsed`), and every date in it would be
     // answering a question the search never asked.
-    if (planStartUsed.value && !olderResults) {
+    const pinTo = opts?.start || planStartUsed.value;
+    if (pinTo && !olderResults) {
       const tz = planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
-      const [d, t] = formatInZone(planStartUsed.value, tz).split(' ');
+      const [d, t] = formatInZone(pinTo, tz).split(' ');
       if (d && t) {
         planner.startDate = d;
         planner.startTime = t;
@@ -4485,9 +4491,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // actually simulated: the cut one ending when the time off starts, the next starting after it.
     const key = chain.join(',');
     const legs =
-      bestChain.value.join(',') === key && bestLegs.value.length
+      opts?.legs ??
+      (bestChain.value.join(',') === key && bestLegs.value.length
         ? bestLegs.value
-        : ([...liveCache, ...coarseCache].find(e => e.key === key)?.legs ?? []);
+        : ([...liveCache, ...coarseCache].find(e => e.key === key)?.legs ?? []));
     applyNote.value = '';
     olderSaveNote.value = null;
     if (olderResults) {
@@ -4528,7 +4535,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     patchAutoPlannerSchedule({
       targetTE: planner.targetTE,
       timeOffCuts: planner.timeOffCuts ? JSON.parse(JSON.stringify(planner.timeOffCuts)) : null,
-      ...(planStartUsed.value ? { startDate: planner.startDate, startTime: planner.startTime } : {}),
+      ...(pinTo ? { startDate: planner.startDate, startTime: planner.startTime } : {}),
     });
     if (alsoGenerate) generateRequested.value++;
   }
