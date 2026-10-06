@@ -106,7 +106,15 @@ import {
   WEEK_HOURS,
   type BuildParams,
 } from '@/search/precomputedLeg';
-import { expandArrivals, findRoutes, firstLegOptions, nextHour, priceLeg, type Route } from '@/search/routeFinder';
+import {
+  expandArrivals,
+  findRoutes,
+  firstLegOptions,
+  nextHour,
+  polishFound,
+  priceLeg,
+  type Route,
+} from '@/search/routeFinder';
 import { splitByWork } from '@/search/routePool';
 import { packTable, readTable, type TableHeader } from '@/search/precomputedTable';
 import { gearChanges, gearStamp, gearTableName, tableName } from '@/search/tableGear';
@@ -2161,6 +2169,23 @@ async function pruneBench(file: string): Promise<void> {
   const YEAR = 365 * 86400;
   const T0 = Date.parse('2026-10-06T00:00:00Z') / 1000;
   const n = Number(arg('starts') ?? 35);
+  // --brute-from FILE: an earlier run's JSON lines for the same starts; its brute force is reused.
+  // --wide W --candidates C: also the stronger polish (routeFinder.ts polishFound), timed per count.
+  const known = new Map<string, { end: number; chain: number[] }>();
+  if (arg('brute-from'))
+    for (const line of readFileSync(arg('brute-from')!, 'utf8').split('\n').filter(Boolean)) {
+      const j = JSON.parse(line) as {
+        te: number;
+        final: number;
+        start: number;
+        k: number;
+        brute: { end: number; chain: number[] };
+      };
+      known.set(`${j.te} ${j.final} ${j.start} ${j.k}`, j.brute);
+    }
+  const wide = Number(arg('wide') ?? 0);
+  const candidates = Number(arg('candidates') ?? 1);
+  const wideAll = has('wide-all');
   for (let s = 0; s < n; s++) {
     const te = Math.floor(meta.from + 1 + rand() * (Math.min(430, meta.to) - meta.from - 1));
     const final = Math.min(489, te + 40 + Math.floor(rand() * 61));
@@ -2185,6 +2210,10 @@ async function pruneBench(file: string): Promise<void> {
     const msFinder = performance.now() - t0;
     // Brute force: every chain of up to 4 ascensions ending at `final`, prefixes priced once.
     const brute: { end: number; chain: number[] }[] = [];
+    for (let k = 1; k <= 4; k++) {
+      const b = known.get(`${te} ${final} ${start} ${k}`);
+      if (b) brute[k] = b;
+    }
     const t1 = performance.now();
     const walk = (prefix: number[], t: number, cur: number, eggs: number[]) => {
       const k = prefix.length + 1;
@@ -2198,8 +2227,23 @@ async function pruneBench(file: string): Promise<void> {
         walk([...prefix, c], p.end, p.endTE, p.delivered);
       }
     };
-    walk([], start, te, eggs0);
+    if (!known.size) walk([], start, te, eggs0);
     const msBrute = performance.now() - t1;
+    // The stronger polish, one count at a time (as the page's worker does it), timed.
+    const strong: (Route | null)[] = [];
+    const msStrong: number[] = [];
+    if (wide || candidates > 1)
+      for (let k = 1; k <= 4; k++) {
+        const t2 = performance.now();
+        const only = (rs: (Route | null)[]) => rs.map((r, i) => (i === k ? r : null));
+        const one = polishFound(
+          table.lookup,
+          { startTE: te, start, wide, candidates, wideAll },
+          { ...found, byAscensions: only(found.byAscensions), byDateByAscensions: [] }
+        );
+        strong[k] = one.byAscensions[k];
+        msStrong[k] = performance.now() - t2;
+      }
     for (let k = 1; k <= 4; k++) {
       const f = found.byAscensions[k];
       const b = brute[k];
@@ -2218,6 +2262,13 @@ async function pruneBench(file: string): Promise<void> {
           brute: b,
           missH: Number(((fEnd - b.end) / 3600).toFixed(2)),
           polishedMissH: Number(((p.end - b.end) / 3600).toFixed(2)),
+          ...(strong[k]
+            ? {
+                strong: { chain: strong[k]!.chain, end: price(strong[k]!.chain) ?? strong[k]!.end },
+                strongMissH: Number((((price(strong[k]!.chain) ?? strong[k]!.end) - b.end) / 3600).toFixed(2)),
+                msStrong: Math.round(msStrong[k]),
+              }
+            : {}),
           msFinder: Math.round(msFinder),
           msBrute: Math.round(msBrute),
         })

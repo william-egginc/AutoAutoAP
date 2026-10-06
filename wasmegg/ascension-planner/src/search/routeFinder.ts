@@ -436,6 +436,9 @@ export async function findRoutes(
   /** With `hours`: the numbers of ascensions left without a route (in time, with a deadline) once
    *  the hours have dropped an arrival at that count or before. */
   outOfHours?: number[];
+  /** Each count's other kept routes (FoundRoutes). */
+  alternatives: Route[][];
+  dateAlternatives: Route[][];
 }> {
   const K = o.maxAscensions ?? 10;
   const keep = o.keep ?? DEFAULT_KEEP;
@@ -517,8 +520,11 @@ export async function findRoutes(
   };
   // A count with no answer once hours have dropped an arrival at it or before.
   const outOfHours = new Set<number>();
+  const alternatives: Route[][] = Array.from({ length: K + 1 }, () => []);
+  const dateAlternatives: Route[][] = Array.from({ length: K + 1 }, () => []);
   const readBack = (k: number): Route | null => {
     const last = arrivals[k].get(top)?.[0];
+    alternatives[k] = (arrivals[k].get(top) ?? []).slice(1).map(routeTo);
     if (o.deadline === undefined && !last && k >= firstDrop) outOfHours.add(k);
     return last ? routeTo(last) : null;
   };
@@ -542,6 +548,10 @@ export async function findRoutes(
       if (!mine && k >= firstDrop) outOfHours.add(k);
       if (!mine) continue;
       byDateByAscensions[k] = routeTo(mine.label);
+      dateAlternatives[k] = arrivals[k]
+        .get(mine.te)!
+        .filter(l => l !== mine!.label && l.time <= o.deadline!)
+        .map(routeTo);
       if (!overall || mine.te > overall.te || (mine.te === overall.te && mine.label.time < overall.label.time))
         overall = mine;
     }
@@ -553,6 +563,8 @@ export async function findRoutes(
     byDate,
     byDateByAscensions,
     ...(hours ? { outOfHours: [...outOfHours].sort((a, b) => a - b) } : {}),
+    alternatives,
+    dateAlternatives,
   };
 }
 
@@ -660,6 +672,13 @@ export interface PolishOptions {
   pairs?: boolean;
   /** As FindOptions: only moves that keep every prestige inside these hours. */
   hours?: Availability;
+  /** The stronger polish (the user, 6 Oct): the first two stops searched together, each moved by up
+   *  to this many TE, before the local search (default 0: off). */
+  wide?: number;
+  /** With `wide`: every pair of neighbouring stops searched that way in turn, not only the first two. */
+  wideAll?: boolean;
+  /** Polish this many of the finder's kept routes for each count, not only its best (default 1). */
+  candidates?: number;
 }
 
 export interface FoundRoutes {
@@ -668,22 +687,47 @@ export interface FoundRoutes {
   byDate: Route | null;
   byDateByAscensions: (Route | null)[];
   outOfHours?: number[];
+  /** The finder's other kept routes for each count, earliest first: to the target, and with a
+   *  deadline at the TE of that count's date route, in time. For the stronger polish. */
+  alternatives?: Route[][];
+  dateAlternatives?: Route[][];
 }
 
 /** `chain` priced the way `findRoutes` prices a route: its first leg from `firstLegs` (or a fresh one),
  *  then each checkpoint on the hour (or late inside the sale). Null when a stop is not above the TE
  *  reached by then. */
-export function priceChain(table: BuildLookup, o: PolishOptions, chain: number[]): Route | null {
+export function priceChain(
+  table: BuildLookup,
+  o: PolishOptions,
+  chain: number[],
+  /** Prefixes already priced, by `chain.slice(0, i).join(',')` (each is priced once per memo). */
+  memo?: Map<string, PricedPrefix | null>
+): Route | null {
   const scale = o.deliveryScale ?? 1;
-  const legs: RouteLeg[] = [];
+  let legs: RouteLeg[] = [];
   let t = o.start;
   let te = o.startTE;
   let eggs = o.startDelivered ?? canonicalDelivered(o.startTE);
-  for (const [i, target] of chain.entries()) {
-    if (target <= te) return null;
+  let from = 0;
+  if (memo)
+    for (let i = chain.length; i > 0; i--) {
+      const m = memo.get(chain.slice(0, i).join(','));
+      if (m === null) return null;
+      if (m) {
+        ({ t, te, eggs } = m);
+        legs = [...m.legs];
+        from = i;
+        break;
+      }
+    }
+  const remember = (i: number, ok: boolean) =>
+    memo?.set(chain.slice(0, i + 1).join(','), ok ? { t, te, eggs, legs: [...legs] } : null);
+  for (let i = from; i < chain.length; i++) {
+    const target = chain[i];
+    if (target <= te) return (remember(i, false), null);
     if (i === 0 && o.firstLegs) {
       const f = o.firstLegs.find(x => x.to === target);
-      if (!f) return null;
+      if (!f) return (remember(i, false), null);
       legs.push({
         from: o.startTE,
         to: target,
@@ -697,10 +741,11 @@ export function priceChain(table: BuildLookup, o: PolishOptions, chain: number[]
       t = f.end;
       te = f.endTE;
       eggs = f.delivered;
+      remember(i, true);
       continue;
     }
     const p = priceLeg(table, te, t, eggs, target, scale);
-    if (!p) return null;
+    if (!p) return (remember(i, false), null);
     legs.push({
       from: te,
       to: target,
@@ -714,8 +759,53 @@ export function priceChain(table: BuildLookup, o: PolishOptions, chain: number[]
     t = p.end;
     te = p.endTE;
     eggs = p.delivered;
+    remember(i, true);
   }
   return { chain: [...chain], legs, end: t, seconds: t - o.start };
+}
+
+/** Where a priced prefix of a route leaves off (`priceChain`'s memo). */
+export interface PricedPrefix {
+  t: number;
+  te: number;
+  eggs: number[];
+  legs: RouteLeg[];
+}
+
+/**
+ * The stronger polish's first step: the first two stops (the first alone on a two-stop route) moved
+ * together by up to `o.wide` TE each, every combination priced, keeping the soonest that `ok`
+ * accepts. The finder's misses on the bench were mostly early stops several TE off (LA-166 178->267:
+ * 199 218 237 against 191 196 231), out of the local search's reach.
+ */
+function widenRoute(
+  table: BuildLookup,
+  o: PolishOptions,
+  route: Route,
+  ok: (r: Route) => boolean,
+  memo: Map<string, PricedPrefix | null>
+): Route {
+  const w = o.wide ?? 0;
+  const movable = route.chain.length - 1;
+  if (!w || movable < 1) return route;
+  let best = route;
+  // The pairs searched: the first two stops (the first alone on a two-stop route), or with `wideAll`
+  // each neighbouring pair in turn, from the best so far.
+  const firsts = o.wideAll ? Array.from({ length: Math.max(1, movable - 1) }, (_, i) => i) : [0];
+  for (const i of firsts) {
+    const two = i + 1 < movable;
+    const base = best.chain;
+    for (let a = -w; a <= w; a++)
+      for (let b = two ? -w : 0; b <= (two ? w : 0); b++) {
+        if (!a && !b) continue;
+        const c = [...base];
+        c[i] += a;
+        if (two) c[i + 1] += b;
+        const r = priceChain(table, o, c, memo);
+        if (r && ok(r) && r.end < best.end - 60) best = r;
+      }
+  }
+  return best;
 }
 
 /**
@@ -725,11 +815,17 @@ export function priceChain(table: BuildLookup, o: PolishOptions, chain: number[]
  * faster (Fliris, 6 Oct: 164 199 223 256 lost to 165 199 223 256 mid-search and ends 12 h sooner);
  * this finds such a neighbour on the table in milliseconds, and never returns anything slower.
  */
-function polishRoute(table: BuildLookup, o: PolishOptions, route: Route, ok: (r: Route) => boolean): Route {
+function polishRoute(
+  table: BuildLookup,
+  o: PolishOptions,
+  route: Route,
+  ok: (r: Route) => boolean,
+  memo?: Map<string, PricedPrefix | null>
+): Route {
   const reach = o.reach ?? 2;
   let best = route;
   const tryChain = (c: number[]): boolean => {
-    const r = priceChain(table, o, c);
+    const r = priceChain(table, o, c, memo);
     if (!r || !ok(r) || !(r.end < best.end - 60)) return false;
     best = r;
     return true;
@@ -772,11 +868,26 @@ function polishRoute(table: BuildLookup, o: PolishOptions, route: Route, ok: (r:
 export function polishFound(table: BuildLookup, o: PolishOptions, found: FoundRoutes): FoundRoutes {
   const lastTE = (r: Route) => r.legs[r.legs.length - 1]?.endTE ?? 0;
   const inHours = (c: Route) => !o.hours || prestigesInHours(c, o.hours);
-  const byAscensions = found.byAscensions.map(r => (r ? polishRoute(table, o, r, inHours) : r));
+  // Each count: its route and up to `candidates` - 1 of the finder's other kept ones, each widened
+  // (`widenRoute`, with `wide`) and then polished; the soonest wins. One memo per count.
+  const polishFrom = (r: Route, others: Route[] | undefined, ok: (c: Route) => boolean): Route => {
+    const memo = new Map<string, PricedPrefix | null>();
+    const starts = [r, ...(others ?? []).filter(c => c.chain.join() !== r.chain.join() && ok(c))].slice(
+      0,
+      Math.max(1, o.candidates ?? 1)
+    );
+    let best: Route = r;
+    for (const c of starts) {
+      const p = polishRoute(table, o, widenRoute(table, o, c, ok, memo), ok, memo);
+      if (p.end < best.end - 60) best = p;
+    }
+    return best;
+  };
+  const byAscensions = found.byAscensions.map((r, k) => (r ? polishFrom(r, found.alternatives?.[k], inHours) : r));
   const best = byAscensions.reduce<Route | null>((a, r) => (r && (!a || r.end < a.end) ? r : a), null);
-  const byDateByAscensions = found.byDateByAscensions.map(r =>
+  const byDateByAscensions = found.byDateByAscensions.map((r, k) =>
     r && o.deadline !== undefined
-      ? polishRoute(table, o, r, c => c.end <= o.deadline! && lastTE(c) >= lastTE(r) && inHours(c))
+      ? polishFrom(r, found.dateAlternatives?.[k], c => c.end <= o.deadline! && lastTE(c) >= lastTE(r) && inHours(c))
       : r
   );
   const byDate =

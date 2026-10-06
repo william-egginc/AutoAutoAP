@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { canonicalDelivered, pacificHourOfWeek, type BuildParams } from './precomputedLeg';
-import { findRoutes, polishFound, priceChain, type BuildLookup, type PolishOptions } from './routeFinder';
+import {
+  findRoutes,
+  polishFound,
+  priceChain,
+  type BuildLookup,
+  type PolishOptions,
+  type PricedPrefix,
+} from './routeFinder';
 import { getNextSaleEnd } from '@/lib/events';
 
 // Monday 4 Jan 2027, 9:00 am PST.
@@ -78,5 +85,38 @@ describe('priceChain and polishFound (the instant answer’s polish)', () => {
       expect(q.end).toBeLessThanOrEqual(deadline);
       expect(lastTE(q)).toBeGreaterThanOrEqual(lastTE(r));
     });
+  });
+
+  it('prices the same with a memo of prefixes as without', () => {
+    const memo = new Map<string, PricedPrefix | null>();
+    for (const c of [
+      [110, 120, FINAL],
+      [110, 121, FINAL],
+      [111, 121, FINAL],
+      [110, 120, FINAL],
+      [125, 120, FINAL],
+    ])
+      expect(priceChain(table, o, c, memo)).toEqual(priceChain(table, o, c));
+  });
+
+  it('the stronger polish (wide, candidates, every pair) is never slower than the plain one', async () => {
+    const found = await findRoutes({ table, startTE: FROM, start: START, final: FINAL, maxAscensions: 4 });
+    const plain = polishFound(table, o, JSON.parse(JSON.stringify(found)));
+    for (const extra of [{ wide: 8 }, { wide: 8, candidates: 3 }, { wide: 6, candidates: 6, wideAll: true }]) {
+      const strong = polishFound(table, { ...o, ...extra }, JSON.parse(JSON.stringify(found)));
+      strong.byAscensions.forEach((r, k) => {
+        if (!r) return expect(plain.byAscensions[k]).toBeNull();
+        expect(r.end).toBeLessThanOrEqual(plain.byAscensions[k]!.end);
+        expect(priceChain(table, o, r.chain)!.end).toBe(r.end);
+      });
+    }
+  });
+
+  it('the wide step reaches a stop eight TE off in one move', () => {
+    // From 123 the plain polish has nowhere better within two (121-125 all wait for a later sale).
+    const far = priceChain(table, o, [123, FINAL])!;
+    const found = { best: far, byAscensions: [null, null, far], byDate: null, byDateByAscensions: [] };
+    expect(polishFound(table, o, found).byAscensions[2]!.chain).toEqual([123, FINAL]);
+    expect(polishFound(table, { ...o, wide: 8 }, found).byAscensions[2]!.chain).toEqual([115, FINAL]);
   });
 });

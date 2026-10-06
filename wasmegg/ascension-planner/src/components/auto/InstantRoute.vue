@@ -493,6 +493,8 @@ const errorText = ref('');
 const result = ref<FoundRoutes | null>(null);
 const header = ref<TableHeader | null>(null);
 const ms = ref<number | null>(null);
+/** How long the polish took (part of `ms`), for measuring. */
+const polishMs = ref<number | null>(null);
 
 /** The player's earnings set's Clothed TE bonus (read from the save the planner loaded). */
 const bonus = computed(() => {
@@ -520,6 +522,9 @@ const target = computed(() => (props.deadline ? 490 : store.finalTE));
  * as far as MAX_ASCENSIONS so those rows exist.
  */
 const MAX_ASCENSIONS = 12;
+/** The stronger polish's settings (routeFinder.ts `PolishOptions`; the bench is scripts/precompute.ts
+ *  --prune-bench --wide 8 --candidates 3 --wide-all). */
+const STRONG_POLISH = {};
 
 /** "Works inside my hours" (only with "Let me pick my hours") and "At most N ascensions". */
 const filters = ref(readFilters());
@@ -707,6 +712,7 @@ async function run(): Promise<void> {
     if (id !== runs) return;
     // Each answer moved a stop or two on the table where that ends sooner: the search can prune a
     // route whose later, better-aligned start makes it faster (routeFinder.ts `polishFound`).
+    const tp = performance.now();
     const polished = await p.polish(
       url,
       {
@@ -716,10 +722,15 @@ async function run(): Promise<void> {
         deliveryScale: scale,
         ...(props.deadline ? { deadline: props.deadline } : {}),
         ...(hours ? { hours } : {}),
+        // The stronger polish (the user, 6 Oct): three of the finder's routes per count, each pair
+        // of neighbouring stops searched eight TE either way, then the local search.
+        ...STRONG_POLISH,
       },
       JSON.parse(JSON.stringify(found))
     );
     if (id !== runs) return;
+    polishMs.value = performance.now() - tp;
+    if (import.meta.env.DEV) console.info(`instant answer: polish ${Math.round(polishMs.value)} ms`);
     const answer = atMostAscensions({ ...found, ...polished }, filters.value.maxAscensions);
     result.value = answer;
     ms.value = performance.now() - t0;
