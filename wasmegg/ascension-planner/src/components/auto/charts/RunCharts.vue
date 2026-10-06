@@ -104,7 +104,7 @@ const effective = computed<Detail>(() => {
 });
 const maxPoints = computed(() => (effective.value === 'all' ? Infinity : effective.value));
 const drawn = computed(() => Math.min(total.value, maxPoints.value));
-const warn = computed(() => drawn.value > CHART_AUTO_LIMIT);
+const warn = computed(() => drawn.value >= CHART_AUTO_LIMIT);
 
 function openDots(): void {
   showDots.value = true;
@@ -124,7 +124,7 @@ const DetailPicker = defineComponent({
         h(
           'select',
           {
-            class: 'rounded border border-slate-300 bg-white px-1.5 py-1 text-[11px] text-slate-700',
+            class: 'rounded border border-slate-300 bg-white pl-1.5 pr-7 py-1 text-[11px] text-slate-700',
             value: String(selectedValue.value),
             onChange: (e: Event) => {
               const v = (e.target as HTMLSelectElement).value;
