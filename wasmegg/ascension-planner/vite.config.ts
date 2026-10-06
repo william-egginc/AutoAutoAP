@@ -355,6 +355,8 @@ export default defineConfig(({ mode }) => {
         input: {
           index: fileURLToPath(new URL('./index.html', import.meta.url)),
           explorer: fileURLToPath(new URL('./explorer.html', import.meta.url)),
+          // The run watcher ("Stepping away?"): a few KB, no Vue, never the simulator (src/watch/main.ts).
+          watch: fileURLToPath(new URL('./watch.html', import.meta.url)),
         },
       },
     },

@@ -419,6 +419,13 @@
         >
       </template>
     </FindBar>
+    <!-- Stepping away? Carry on by itself, a watcher tab, fewer workers (StepAwayOptions.vue). -->
+    <StepAwayOptions
+      kind="deadline"
+      :player-id="playerId"
+      :can-carry-on="!!store.deadlineUnfinished?.saveKept"
+      @carry-on="resume"
+    />
     <!-- Everything above greys out while anything else in this tab is busy; say what, and offer a way out. -->
     <div
       v-if="store.busy && !store.deadlineRunning"
@@ -749,6 +756,7 @@ const kept = {
 
 <script setup lang="ts">
 import FindBar from './FindBar.vue';
+import StepAwayOptions from './StepAwayOptions.vue';
 import AutoSendReport from './AutoSendReport.vue';
 import { NAMES } from '@/lib/siteNav';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';

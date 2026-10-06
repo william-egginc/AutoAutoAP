@@ -215,8 +215,9 @@ function pageMemory(): Pick<Beat, 'heapMB' | 'heapLimitMB' | 'uaMemoryMB'> {
  *  tab closing must not mark the first tab's run as closed by the player. */
 let mine = false;
 
-/** Record that `phase` is going on right now, with whatever progress is known. */
-export function beat(b: Omit<Beat, 'at' | 'hidden' | 'heapMB' | 'heapLimitMB' | 'uaMemoryMB'>): void {
+/** Record that `phase` is going on right now, with whatever progress is known. Returns the beat as
+ *  written (the "Stepping away?" worker rule reads its memory figures, composables/useStepAway.ts). */
+export function beat(b: Omit<Beat, 'at' | 'hidden' | 'heapMB' | 'heapLimitMB' | 'uaMemoryMB'>): Beat {
   mine = true;
   const box = read();
   const full: Beat = {
@@ -231,6 +232,7 @@ export function beat(b: Omit<Beat, 'at' | 'hidden' | 'heapMB' | 'heapLimitMB' | 
   delete kept.runNote;
   box.history = [...box.history, kept].slice(-HISTORY);
   write(box);
+  return full;
 }
 
 /** A tab hide/show, noted in the history without opening a phase. */

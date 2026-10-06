@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Run watcher</title>
+    <meta
+      name="description"
+      content="Watches a long Ascension Planner run in another tab and reopens it if it stops."
+    />
+    <!-- A page of its own, not a route: it must stay tiny and never load the simulator. Its script
+         (src/watch/main.ts) reads the run tab's heartbeat from this site's localStorage. -->
+    <style>
+      body {
+        margin: 0;
+        background: #f1f5f9;
+        color: #1e293b;
+        font:
+          15px/1.5 system-ui,
+          -apple-system,
+          'Segoe UI',
+          sans-serif;
+      }
+      main {
+        max-width: 36rem;
+        margin: 2rem auto;
+        padding: 0 1rem;
+      }
+      h1 {
+        font-size: 1.25rem;
+        margin: 0 0 1rem;
+      }
+      .card {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.75rem;
+        padding: 1rem;
+        margin-bottom: 1rem;
+      }
+      #status {
+        font-size: 1.1rem;
+        font-weight: 700;
+      }
+      #status.ok {
+        color: #047857;
+      }
+      #status.warn {
+        color: #b45309;
+      }
+      #status.done {
+        color: #334155;
+      }
+      .small {
+        font-size: 13px;
+        color: #475569;
+      }
+      code {
+        background: #f1f5f9;
+        padding: 0 0.25rem;
+        border-radius: 0.25rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Run watcher</h1>
+      <div class="card">
+        <div id="status">Starting...</div>
+        <div id="detail" class="small"></div>
+        <ul id="reopens" class="small"></ul>
+      </div>
+      <div class="card small">
+        <p>
+          Keep this tab open while the run goes; it can sit in the background. It checks about once a minute, and if the
+          run's tab goes quiet for 2 minutes it opens the run's page again, which carries on by itself. It stops after 3
+          reopens in an hour, and when the run finishes or you press Stop.
+        </p>
+        <p>
+          <strong>In Edge:</strong> add this site to <em>Never put these sites to sleep</em> (Settings, System and
+          performance, <code>edge://settings/system</code>), and allow pop-ups for it
+          (<code>edge://settings/content/popups</code>, Allow, Add). Without pop-ups allowed, this tab turns into the
+          run's page itself instead.
+        </p>
+      </div>
+    </main>
+    <script type="module" src="/src/watch/main.ts"></script>
+  </body>
+</html>
