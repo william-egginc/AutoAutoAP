@@ -1961,6 +1961,101 @@ async function cacheCheck(file: string): Promise<void> {
   );
 }
 
+/**
+ * --polish (6 Oct, experiment): the finder can prune a route that a later, better-aligned start would
+ * have made faster (the analyst: Fliris 164 199 223 256). Starting from the finder's route for each
+ * number of ascensions, move one stop at a time by up to --reach TE (default 2), price with the table
+ * (the save's own first leg, then priceLeg), keep any route that reaches the end sooner, and repeat
+ * until nothing improves. Table arithmetic only: milliseconds a route.
+ */
+async function polish(file: string): Promise<void> {
+  const dir = arg('table');
+  if (!dir) throw new Error('--polish needs --table DIR');
+  const table = loadTable(dir);
+  const inputs = await loadInputs(file);
+  const te0 = Math.floor(inputs.currentTE);
+  const start = arg('start') ? Math.floor(Date.parse(arg('start')!) / 1000) : inputs.planStart;
+  const final = Number(arg('final') ?? 490);
+  const reach = Number(arg('reach') ?? 2);
+  const eggs0 = EGG_ORDER.map(e => inputs.baseState.eggsDelivered?.[e] || 0);
+  const firstLegs = firstLegOptions({
+    table: table.lookup,
+    startTE: te0,
+    start,
+    final,
+    deliveryScale: 1,
+    delivered: eggs0,
+    cont: continueTailParams(inputs, start),
+    forceContinue: inputs.forceContinue,
+    pinSeconds: inputs.continuePinSeconds ?? CONTINUE_PIN_MAX_SECONDS,
+    maxContinueSeconds: inputs.continueMaxSeconds ?? CONTINUE_MAX_SECONDS,
+  });
+  let priced = 0;
+  const price = (chain: number[]): number | null => {
+    priced++;
+    for (let i = 1; i < chain.length; i++) if (chain[i] <= chain[i - 1]) return null;
+    const f = firstLegs.find(x => x.to === chain[0]);
+    if (!f) return null;
+    let t = f.end;
+    let te = f.endTE;
+    let eggs = f.delivered;
+    for (const target of chain.slice(1)) {
+      if (target <= te) continue;
+      const p = priceLeg(table.lookup, te, t, eggs, target, 1);
+      if (!p) return null;
+      t = p.end;
+      te = p.endTE;
+      eggs = p.delivered;
+    }
+    return t;
+  };
+  const deadline = arg('deadline') ? Math.floor(Date.parse(arg('deadline')!) / 1000) : undefined;
+  const t0 = performance.now();
+  const found = await findRoutes({
+    table: table.lookup,
+    startTE: te0,
+    start,
+    final,
+    maxAscensions: Number(arg('max-asc') ?? 10),
+    firstLegs,
+    ...(deadline ? { deadline } : {}),
+  });
+  const ms0 = performance.now() - t0;
+  const d = (end: number) => ((end - start) / 86400).toFixed(3);
+  for (const [k, r] of found.byAscensions.entries()) {
+    if (!r || k < 2) continue;
+    let best = [...r.chain];
+    let bestEnd = price(best) ?? r.end;
+    const t1 = performance.now();
+    for (let round = 0; round < 20; round++) {
+      let improved = false;
+      for (let i = 0; i < best.length - 1; i++) {
+        for (let dlt = -reach; dlt <= reach; dlt++) {
+          if (!dlt) continue;
+          const c = [...best];
+          c[i] += dlt;
+          const e = price(c);
+          if (e !== null && e < bestEnd - 60) {
+            best = c;
+            bestEnd = e;
+            improved = true;
+          }
+        }
+      }
+      if (!improved) break;
+    }
+    const gained = (r.end - bestEnd) / 3600;
+    console.log(
+      `  ${k} ascensions: finder ${d(r.end)} d ${r.chain.join(' ')}` +
+        (gained > 0.01
+          ? ` -> polished ${d(bestEnd)} d ${best.join(' ')} (${gained.toFixed(1)} h sooner)`
+          : ' (no better neighbour)') +
+        ` [${(performance.now() - t1).toFixed(0)} ms]`
+    );
+  }
+  console.log(`finder ${ms0.toFixed(0)} ms; ${priced} routes priced by the polish`);
+}
+
 async function main(): Promise<void> {
   if (has('pack')) return pack();
   if (has('restamp')) {
@@ -2116,6 +2211,7 @@ async function main(): Promise<void> {
   if (has('eggday-scan')) return eggdayScan(backup);
   if (has('hold-credit')) return holdCredit(backup);
   if (has('cache-check')) return cacheCheck(backup);
+  if (has('polish')) return polish(backup);
   if (has('verify-cells')) return verifyCells(backup);
   if (has('route')) return route(backup);
   if (has('profile')) return profile(backup);
