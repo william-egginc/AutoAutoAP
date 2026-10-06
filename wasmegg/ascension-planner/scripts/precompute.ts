@@ -121,7 +121,7 @@ import { gearChanges, gearStamp, gearTableName, tableName } from '@/search/table
 import { buildAt, buildPeak, k3StateOf, paramsOf, PEAK_TE, REFERENCE_WEEK, startStateAt } from '@/search/tableBuild';
 import { deliveryScore, slotsFromLabels } from '@/search/virtueScore';
 import { describeLoadoutSlots } from '@/search/csv';
-import { cteFromArtifacts } from 'lib/virtue';
+import { cteFromArtifacts, cteFromColleggtibles, cteFromLabUpgrade, multiplierToTE } from 'lib/virtue';
 import { allPossibleTiers } from 'lib/artifacts/data';
 import { ei } from 'lib/proto';
 import { equippedArtifactsToLibArtifacts } from '@/lib/artifacts/utils';
@@ -349,7 +349,7 @@ async function verifyContinue(file: string): Promise<void> {
 }
 
 async function check(file: string): Promise<void> {
-  await loadInputs(file);
+  const inputs = await loadInputs(file);
   const inv = useChainSearchStore().readInventory();
   const fmt = (slots: ReturnType<typeof describeLoadoutSlots>) =>
     (slots ?? [])
@@ -361,6 +361,22 @@ async function check(file: string): Promise<void> {
   console.log(
     'Clothed TE bonus from the earnings set: ' +
       (inv.earnings ? cteFromArtifacts(equippedArtifactsToLibArtifacts(inv.earnings)).toFixed(2) : 'none')
+  );
+  // Clothed TE = TE + all of these (lib/artifacts/virtue.ts calculateClothedTEForSet, the page's
+  // low-CTE warning): so the TE where it crosses a line is the line minus their sum.
+  const ctx = inputs.context;
+  const permit = (ctx.rawBackup as { game?: { permitLevel?: number } } | undefined)?.game?.permitLevel;
+  const parts = {
+    artifacts: inv.earnings ? cteFromArtifacts(equippedArtifactsToLibArtifacts(inv.earnings)) : 0,
+    colleggtibles: cteFromColleggtibles(ctx.colleggtibleModifiers),
+    lab: cteFromLabUpgrade(ctx.epicResearchLevels['cheaper_research'] ?? 0),
+    permit: permit === 1 ? 0 : multiplierToTE(0.5),
+  };
+  const sum = Object.values(parts).reduce((a, b) => a + b, 0);
+  console.log(
+    `Clothed TE = TE + ${sum.toFixed(2)} (${Object.entries(parts)
+      .map(([k, v]) => `${k} ${v.toFixed(2)}`)
+      .join(', ')}): 200 at TE ${(200 - sum).toFixed(1)}, 225 at TE ${(225 - sum).toFixed(1)}`
   );
 }
 
