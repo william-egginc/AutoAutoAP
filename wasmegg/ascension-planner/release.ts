@@ -15,5 +15,5 @@
  */
 export default {
   reloadIfBuiltBefore: '2026-10-05T06:22:00Z',
-  note: 'Highest TE by a date fills Routes to try around the instant answer. My plans can be filtered by hours, start and ascensions, and Stepping away? keeps long runs going',
+  note: 'Instant answer: Open this plan builds a row in Classic, and the exact column fills itself. Routes to try fills around the instant answer. Stepping away? has clearer watcher help',
 };
