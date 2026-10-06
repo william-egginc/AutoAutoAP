@@ -243,7 +243,11 @@ export function openWatcher(): void {
   } catch {
     // blocked outright: the watcher never checks in, and the box says so
   }
-  // A watcher already open answers this by checking in at once.
+  pingWatcher();
+}
+
+/** A watcher already open answers this by checking in at once. */
+export function pingWatcher(): void {
   post({ type: 'ping', at: Date.now() });
 }
 

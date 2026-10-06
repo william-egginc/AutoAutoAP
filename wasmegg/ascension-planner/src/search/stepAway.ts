@@ -170,8 +170,9 @@ export function heartbeatAge(m: Pick<RunMark, 'beatAt' | 'reopens'>, now: number
 export type WatchState =
   /** No run with the watcher on. */
   | 'idle'
-  /** Marked running, but already quiet when this watcher began: an old crashed run, not this one's
-   *  to reopen. Waiting for a run to start. */
+  /** An old run, not this watcher's: marked running but already quiet when this watcher began (an
+   *  old crash, not its to reopen), or ended (finished, stopped, closed, stuck) without this watcher
+   *  ever seeing it run. Waiting for a run to start. */
   | 'waiting'
   | 'watching'
   /** Stale, and the guard allows a reopen: reopen it now. */
@@ -187,15 +188,23 @@ export type WatchState =
  * What the watcher should do about the run mark right now. `watchingSince` is when this watcher
  * started: a run whose heartbeat was already stale then (never fresh while this tab watched) is an
  * old crash, and reopening it on sight would surprise the player.
+ *
+ * Likewise "the run finished / was stopped / was closed" is only news about a run this watcher
+ * watched: one it saw running (`seenRunning`, that run's `startedAt`), or one that started after it
+ * opened. Any other ended run is history (the last run before the box was ticked), so it waits.
  */
 export function watchVerdict(
   m: RunMark | null,
   now: number,
   staleMs = STALE_MS,
-  watchingSince = -Infinity
+  watchingSince = -Infinity,
+  seenRunning?: number
 ): WatchState {
   if (!m || !m.watch) return 'idle';
-  if (m.status !== 'running') return m.status;
+  if (m.status !== 'running') {
+    const watched = m.startedAt === seenRunning || m.startedAt >= watchingSince;
+    return watched ? m.status : 'waiting';
+  }
   if (heartbeatAge(m, now) <= staleMs) return 'watching';
   if (m.beatAt < watchingSince - staleMs) return 'waiting';
   return canReopen(m.reopens, now) ? 'reopen' : 'guarded';
