@@ -50,6 +50,34 @@ export interface ReleaseInfo {
   /** "reload": fixes something an open tab could trip over. "minor": wording or looks. */
   level: 'minor' | 'reload';
   note: string;
+  /** Notes of the deploys this tab also missed, newest first; absent when it missed only one. */
+  earlier?: string[];
+}
+
+/** One deploy in release.ts `history`. */
+export interface HistoryEntry {
+  at: string;
+  note: string;
+}
+
+/** The history entries newer than this tab's build (newest first, as written), notes cut at 200.
+ *  Nothing when the tab does not know its own build time or the history is malformed. */
+export function missedEntries(history: unknown, ownBuildTime: string): HistoryEntry[] {
+  if (!Array.isArray(history) || !ownBuildTime) return [];
+  const out: HistoryEntry[] = [];
+  for (const h of history) {
+    if (!h || typeof h !== 'object') continue;
+    const { at, note } = h as { at?: unknown; note?: unknown };
+    if (typeof at === 'string' && typeof note === 'string' && note.trim() && at > ownBuildTime) {
+      out.push({ at, note: note.slice(0, 200) });
+    }
+  }
+  return out.sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
+}
+
+/** "and 1 earlier update" / "and 3 earlier updates"; '' for none. */
+export function earlierText(n: number): string {
+  return n <= 0 ? '' : `and ${n} earlier update${n === 1 ? '' : 's'}`;
 }
 
 /** This bundle's build time, or '' where the define is absent (tests, dev). */
@@ -68,13 +96,18 @@ export function releaseFrom(versionJson: unknown, ownBuildTime: string = OWN_BUI
   const noteRaw = (r as { note?: unknown }).note;
   const note = typeof noteRaw === 'string' ? noteRaw.slice(0, 200) : '';
   const since = (r as { reloadIfBuiltBefore?: unknown }).reloadIfBuiltBefore;
-  if (typeof since !== 'string' || !since || !ownBuildTime) return { level: 'reload', note };
-  return { level: ownBuildTime < since ? 'reload' : 'minor', note };
+  const earlier = missedEntries((r as { history?: unknown }).history, ownBuildTime)
+    .slice(1)
+    .map(h => h.note);
+  const extra = earlier.length ? { earlier } : {};
+  if (typeof since !== 'string' || !since || !ownBuildTime) return { level: 'reload', note, ...extra };
+  return { level: ownBuildTime < since ? 'reload' : 'minor', note, ...extra };
 }
 
 /** Levels only go up: a tab already asking for a reload never drops back to the quiet note. */
 export function raiseLevel(current: ReleaseInfo | null, next: ReleaseInfo): ReleaseInfo {
-  if (current?.level === 'reload' && next.level === 'minor') return { ...current, note: next.note || current.note };
+  if (current?.level === 'reload' && next.level === 'minor')
+    return { ...current, note: next.note || current.note, earlier: next.earlier };
   return next;
 }
 
@@ -106,7 +139,9 @@ export interface DeviceHints {
  * (`userAgentData.mobile`, Chromium) wins when there is one; otherwise the user agent, plus the one
  * case it hides: an iPad reports itself as a Mac, and gives itself away with touch points.
  */
-export function isMobileLike(nav: DeviceHints | undefined = typeof navigator === 'undefined' ? undefined : (navigator as DeviceHints)): boolean {
+export function isMobileLike(
+  nav: DeviceHints | undefined = typeof navigator === 'undefined' ? undefined : (navigator as DeviceHints)
+): boolean {
   if (!nav) return false;
   if (nav.connection?.saveData) return true;
   if (typeof nav.userAgentData?.mobile === 'boolean' && nav.userAgentData.mobile) return true;

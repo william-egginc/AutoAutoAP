@@ -19,10 +19,18 @@
     <p class="text-[11px] leading-relaxed">
       <span class="font-bold text-slate-900">Small update available</span
       ><template v-if="whatsNew">. New: {{ whatsNew }}</template
+      ><template v-if="earlierLabel"
+        >,
+        <button type="button" class="underline" @click="showEarlier = !showEarlier">
+          {{ earlierLabel }}
+        </button></template
       >. No need to reload now; you will get it next time you open the page.<template v-if="note">
         If you reload anyway, {{ note }}.</template
       >
     </p>
+    <ul v-if="showEarlier && earlierList.length" class="mt-1 list-disc pl-4 text-[11px] leading-relaxed">
+      <li v-for="(n, i) in earlierList" :key="i">{{ n }}</li>
+    </ul>
     <div class="mt-1 flex justify-end gap-2">
       <button
         type="button"
@@ -52,8 +60,17 @@
          first" said "first" twice. -->
     <span class="text-[12px] font-semibold flex-1 min-w-[14rem]">
       Please reload: this tab is missing a fix from a newer version.<template v-if="whatsNew">
-        Also new: {{ whatsNew }}.</template
+        Also new: {{ whatsNew
+        }}<template v-if="earlierLabel"
+          >,
+          <button type="button" class="underline" @click="showEarlier = !showEarlier">
+            {{ earlierLabel }}
+          </button></template
+        >.</template
       >{{ advice }}
+      <ul v-if="showEarlier && earlierList.length" class="mt-1 list-disc pl-4 font-normal">
+        <li v-for="(n, i) in earlierList" :key="i">{{ n }}</li>
+      </ul>
     </span>
     <div class="flex items-center gap-2">
       <button
@@ -76,7 +93,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { useNewVersion } from '@/composables/useNewVersion';
+import { earlierText, useNewVersion } from '@/composables/useNewVersion';
 
 const props = defineProps<{
   /** The page's own HTML, relative to it: `./` for the planner, `./explorer.html` for the Explorer. */
@@ -97,6 +114,11 @@ const whatsNew = computed(() =>
     .replace(/^new\s+/i, '')
     .replace(/[.\s]+$/, '')
 );
+
+/** "and 2 earlier updates": what else this tab missed (release.ts history), expandable. */
+const earlierList = computed(() => release.value.earlier ?? []);
+const earlierLabel = computed(() => earlierText(earlierList.value.length));
+const showEarlier = ref(false);
 
 /** The advice as a sentence of its own, capitalised, after the ones before it. In the text itself, not
  *  a template: a leading space alone in a `<template>` is dropped when the page is compiled. */

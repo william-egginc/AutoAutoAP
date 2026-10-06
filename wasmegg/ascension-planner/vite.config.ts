@@ -40,7 +40,11 @@ function versionFile(): Plugin {
         fileName: 'version.json',
         source: JSON.stringify({
           ...entries,
-          release: { reloadIfBuiltBefore: release.reloadIfBuiltBefore, note: release.note.slice(0, 200) },
+          release: {
+            reloadIfBuiltBefore: release.reloadIfBuiltBefore,
+            note: release.note.slice(0, 200),
+            history: release.history.slice(0, 8).map(h => ({ at: h.at, note: h.note.slice(0, 200) })),
+          },
         }),
       });
     },
