@@ -37,8 +37,13 @@ class FakeWorker {
   mode: 'ok' | 'silent' | 'heartbeat' | 'hold' = 'ok';
   /** In 'hold' mode, the evaluate it is sitting on until `release()`. */
   held: Extract<WorkerRequest, { kind: 'evaluate' }> | null = null;
+  /** The heap each new worker reports on its heartbeats (the real one reads `performance.memory`);
+   *  undefined sends none, as a browser without that API does. */
+  static heapOf: ((index: number) => number | null) | undefined;
+  heap: number | null | undefined;
 
   constructor() {
+    this.heap = FakeWorker.heapOf?.(FakeWorker.instances.length);
     FakeWorker.instances.push(this);
   }
 
@@ -68,7 +73,13 @@ class FakeWorker {
       return;
     }
     for (let i = 0; i < msg.chains.length; i++) {
-      this.emit({ type: 'progress', requestId: msg.requestId, done: i + 1, total: msg.chains.length });
+      this.emit({
+        type: 'progress',
+        requestId: msg.requestId,
+        done: i + 1,
+        total: msg.chains.length,
+        ...(this.heap !== undefined ? { heapMB: this.heap } : {}),
+      });
     }
     if (this.mode === 'heartbeat') return;
     if (this.mode === 'hold') {
@@ -152,6 +163,7 @@ function makePool(stallMs = 1000) {
 
 beforeEach(() => {
   FakeWorker.instances = [];
+  FakeWorker.heapOf = undefined;
   clock = 0;
   vi.useFakeTimers();
 });
@@ -460,6 +472,24 @@ describe('evaluateStarts', () => {
     const out = await pool.evaluateStarts([150, 490], starts, { fresh: true }, done => ticks.push(done));
     expect(out).toEqual(starts.map(s => 1000 + (s % 97)));
     expect(Math.max(...ticks)).toBe(starts.length);
+    pool.terminate();
+  });
+});
+
+describe('workerHeaps', () => {
+  it("keeps each worker's last reported heap, from the heartbeats it already sends", async () => {
+    FakeWorker.heapOf = i => [120, null, 300][i] ?? null;
+    const pool = await createChainSearchPool(INPUTS, { size: 3, spawn: () => new FakeWorker() as never });
+    expect(pool.workerHeaps()).toEqual([null]);
+    await pool.evaluate([[1], [2], [3]], undefined, { spreadOut: true });
+    expect(pool.workerHeaps()).toEqual([120, null, 300]);
+    pool.terminate();
+  });
+
+  it('is all null where workers cannot report', async () => {
+    const pool = await createChainSearchPool(INPUTS, { size: 2, spawn: () => new FakeWorker() as never });
+    await pool.evaluate([[1], [2]], undefined, { spreadOut: true });
+    expect(pool.workerHeaps()).toEqual([null, null]);
     pool.terminate();
   });
 });

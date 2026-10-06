@@ -3837,6 +3837,14 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     blackBox.clearUnfinished();
     lastCrash.value = null;
   }
+  /** The running pool's worker memory for a beat; nothing when no pool is up. Never throws. */
+  function workerMemory(p: ChainSearchPool | null): Partial<ReturnType<typeof blackBox.summarizeWorkerHeaps>> {
+    try {
+      return p ? blackBox.summarizeWorkerHeaps(p.workerHeaps()) : {};
+    } catch {
+      return {};
+    }
+  }
   function blackBoxBeat(): void {
     if (deadlineRunning.value) {
       const p = deadlineProgress.value;
@@ -3845,6 +3853,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         detail: p?.stage,
         done: (p?.priced ?? 0) + deadlineInBatch.value,
         workers: workersInPool.value,
+        ...workerMemory(deadlinePool),
         ...(deadlineNote ? { runNote: deadlineNote } : {}),
       });
     } else if (isRunning.value) {
@@ -3855,6 +3864,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         total: chainsEstimated.value,
         workers: workersInPool.value,
         entries: liveCache.length,
+        ...workerMemory(pool),
         ...(runNoteUsed ? { runNote: runNoteUsed } : {}),
       });
     }
@@ -3884,7 +3894,13 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   }
   /** For the panels' own risky steps (building and sending a submission). */
   function blackBoxMark(phase: string, detail?: string): void {
-    blackBox.beat({ phase, detail, entries: liveCache.length, workers: workersInPool.value });
+    blackBox.beat({
+      phase,
+      detail,
+      entries: liveCache.length,
+      workers: workersInPool.value,
+      ...workerMemory(pool ?? deadlinePool),
+    });
   }
   function blackBoxEnd(phase: string): void {
     blackBox.end(phase);

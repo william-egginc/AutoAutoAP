@@ -14,7 +14,7 @@
         >, {{ crash.last.done.toLocaleString()
         }}<template v-if="crash.last.total"> of {{ crash.last.total.toLocaleString() }}</template> done</template
       >, with the tab {{ crash.last.hidden ? 'hidden' : 'on screen'
-      }}<template v-if="crash.last.heapMB !== undefined"> and {{ crash.last.heapMB }} MB in use</template>.
+      }}<template v-if="memory"> and {{ memory }} in use</template>.
       <template v-if="crash.last.pageClosed"
         >The page was reloaded or closed while it was going, which ends a run.</template
       >
@@ -45,6 +45,7 @@
 import { computed } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { downloadFile } from '@/utils/export';
+import { memoryPhrase } from '@/search/blackBox';
 
 const store = useChainSearchStore();
 const crash = computed(() => store.lastCrash);
@@ -53,6 +54,8 @@ const doing = computed(() => {
   if (!l) return '';
   return l.detail ? `${l.phase}: ${l.detail}` : l.phase;
 });
+/** "73 MB on the page, 2.1 GB in 19 workers", or '' when the browser reported nothing. */
+const memory = computed(() => (crash.value ? memoryPhrase(crash.value.last) : ''));
 function when(ms: number): string {
   return new Date(ms).toLocaleString();
 }

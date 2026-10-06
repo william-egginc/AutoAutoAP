@@ -61,7 +61,7 @@ export interface StartsRequest {
 
 export type WorkerRequest = InitRequest | EvaluateRequest | IntegrityRequest | StartsRequest;
 
-export interface InitDoneMessage {
+export interface InitDoneMessage extends WithHeap {
   type: 'init-done';
   requestId: number;
 }
@@ -73,7 +73,7 @@ export interface InitDoneMessage {
  * pending entry in place. Cheap enough to send per chain: one small object every fifteen-odd
  * seconds of solid CPU.
  */
-export interface ProgressMessage {
+export interface ProgressMessage extends WithHeap {
   type: 'progress';
   requestId: number;
   /** Chains completed in this request so far. */
@@ -82,7 +82,7 @@ export interface ProgressMessage {
   total: number;
 }
 
-export interface EvaluateResultMessage {
+export interface EvaluateResultMessage extends WithHeap {
   type: 'result';
   requestId: number;
   /** One entry per chain that evaluated successfully. Chains whose simulation failed are simply
@@ -106,12 +106,22 @@ export interface IntegrityResultMessage {
   seconds: number | null;
 }
 
-export interface StartsResultMessage {
+export interface StartsResultMessage extends WithHeap {
   type: 'starts';
   requestId: number;
   /** Seconds from each start to the end of the route, in the order the starts were sent; null
    *  where it could not be simulated. */
   seconds: (number | null)[];
+}
+
+/**
+ * The worker's own JS heap in MB at the time it sent a message, or null where the browser does not
+ * expose `performance.memory` inside a worker. Piggybacked on messages the worker sends anyway
+ * (`init-done`, `progress`, `result`, `starts`) so the black box (search/blackBox.ts) can see the
+ * workers' memory without an extra round trip. Optional: older replies and Node threads omit it.
+ */
+export interface WithHeap {
+  heapMB?: number | null;
 }
 
 export type WorkerResponse =

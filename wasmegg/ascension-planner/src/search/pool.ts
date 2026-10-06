@@ -75,6 +75,9 @@ interface PoolWorker {
   worker: Worker;
   pending: Map<number, PendingEntry>;
   index: number;
+  /** This worker's JS heap as it last reported it (piggybacked on its replies), MB. Null until it
+   *  reports, or forever where the browser does not expose `performance.memory` in workers. */
+  heapMB: number | null;
 }
 
 export interface BatchOutcome {
@@ -145,6 +148,9 @@ export interface ChainSearchPool {
   readonly size: number;
   /** How many workers actually exist right now. */
   readonly spawned: number;
+  /** Each live worker's JS heap in MB as it last reported it (null where it has not or cannot).
+   *  Read by the black box every beat; costs no messages of its own. */
+  workerHeaps(): (number | null)[];
   /** Seconds the page was suspended during this run — time in which nothing at all progressed. */
   readonly suspendedSeconds: number;
   /** Evaluate a set of chains, split across as many workers as the batch is worth. Resolves with
@@ -223,10 +229,11 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
     const worker = spawn
       ? spawn()
       : new Worker(new URL('../workers/chainSearch.worker.ts', import.meta.url), { type: 'module' });
-    const pw: PoolWorker = { worker, pending: new Map(), index };
+    const pw: PoolWorker = { worker, pending: new Map(), index, heapMB: null };
 
     worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
       const msg = event.data;
+      if ('heapMB' in msg && typeof msg.heapMB === 'number') pw.heapMB = msg.heapMB;
       const entry = pw.pending.get(msg.requestId);
       // A stray or duplicate response is expected to be harmless, not merely tolerated: a batch
       // abandoned by `terminate()` can still land here.
@@ -412,6 +419,11 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
     },
     get suspendedSeconds(): number {
       return suspendedSeconds;
+    },
+    workerHeaps(): (number | null)[] {
+      const out: (number | null)[] = [];
+      for (const pw of live) if (pw) out.push(pw.heapMB);
+      return out;
     },
 
     async evaluate(
