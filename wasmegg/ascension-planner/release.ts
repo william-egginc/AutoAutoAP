@@ -15,5 +15,5 @@
  */
 export default {
   reloadIfBuiltBefore: '2026-10-05T19:54:00Z',
-  note: 'with Let me pick my hours, TE now keeps collecting while a prestige or an egg shift waits for your hours, so plans with hours come out sooner (often by days)',
+  note: 'TE keeps collecting while you wait for your hours; My plans can filter and show the best per group; a Stepping away? box can carry a crashed run on by itself; By a date boxes reset for a new account',
 };
