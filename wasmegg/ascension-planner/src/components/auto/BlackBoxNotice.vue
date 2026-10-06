@@ -21,7 +21,12 @@
         >The page was reloaded or closed while it was going, which ends a run.</template
       >
       <template v-else>The browser closed the page itself, most likely because it ran short of memory.</template>
-      If a run was going, its progress is saved and it can carry on.
+      <template v-if="deadlineOffer"
+        >A By a date search was going: its progress is saved, see
+        <a href="#by-date-unfinished" class="underline font-bold" @click.prevent="toOffer">the unfinished run above</a>
+        to carry it on.</template
+      >
+      <template v-else>If a run was going, its progress is saved and it can carry on.</template>
     </p>
     <div class="flex flex-wrap gap-3">
       <button
@@ -48,7 +53,14 @@ import { useChainSearchStore } from '@/stores/chainSearch';
 import { downloadFile } from '@/utils/export';
 import { memoryPhrase, workersNote } from '@/search/blackBox';
 
+defineProps<{
+  /** The By a date panel has its own unfinished run on offer (DeadlinePanel's single carry-on box). */
+  deadlineOffer?: boolean;
+}>();
 const store = useChainSearchStore();
+function toOffer(): void {
+  document.getElementById('by-date-unfinished')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
 const crash = computed(() => store.lastCrash);
 const doing = computed(() => {
   const l = crash.value?.last;

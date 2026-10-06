@@ -10,7 +10,7 @@
   its result is flagged); red past a week (Start is disabled).
 -->
 <template>
-  <BlackBoxNotice />
+  <BlackBoxNotice :deadline-offer="deadlineOffer" />
   <div
     v-if="ui.staleBackup"
     class="p-3 rounded-xl border text-[11px] leading-relaxed space-y-2"
@@ -76,6 +76,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import BlackBoxNotice from './BlackBoxNotice.vue';
+
+defineProps<{ deadlineOffer?: boolean }>();
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useInitialStateStore } from '@/stores/initialState';
 import { useUIStore } from '@/stores/ui';

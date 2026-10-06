@@ -10,7 +10,7 @@
 <template>
   <div class="rounded-xl border border-slate-200 bg-slate-50/70 p-3 space-y-2 text-[11px] text-slate-700">
     <div
-      v-if="countdown > 0"
+      v-if="countdown > 0 && !countdownElsewhere"
       class="flex flex-wrap items-center gap-3 rounded-lg border border-amber-300 bg-amber-50 p-2 text-amber-900"
       role="status"
     >
@@ -169,8 +169,11 @@ const props = defineProps<{
   playerId: string;
   /** The panel has an unfinished run it can carry on right now (its save kept, nothing blocking). */
   canCarryOn: boolean;
+  /** The panel shows the countdown (and its Cancel) in its own single offer to carry on, so this box
+   *  doesn't draw a second one. It gets the seconds left through `countdown`. */
+  countdownElsewhere?: boolean;
 }>();
-const emit = defineEmits<{ 'carry-on': [] }>();
+const emit = defineEmits<{ 'carry-on': []; countdown: [seconds: number] }>();
 
 const store = useChainSearchStore();
 const options = stepAwayOptions;
@@ -246,6 +249,7 @@ readWatcher();
 // ------------------------------------------------------------------ carry on by itself
 
 const countdown = ref(0);
+watch(countdown, n => emit('countdown', n));
 const autoNote = ref('');
 let account = '';
 let lockHeld = false;
@@ -308,7 +312,7 @@ function evaluate(final = false): void {
     const early = !!mark && mark.beatAt - mark.startedAt < EARLY_CRASH_MS;
     autoNote.value = early
       ? "The last run can't carry on by itself: it crashed before its first save point, about a minute in. Start it again."
-      : "The last run can't carry on by itself, so it's waiting for you. See the notice above.";
+      : "The last run can't carry on by itself, so it's waiting for you. See the unfinished run above.";
   } else if (v.why === 'guard') {
     stepAwayGiveUp('stuck');
     autoNote.value = `It stopped ${MAX_REOPENS_PER_HOUR} times in the last hour, so it won't carry on by itself again for now. Carry on by hand when you're ready.`;
@@ -358,7 +362,7 @@ async function go(): Promise<void> {
     const m = readRunMark();
     if (!store.busy && (!m || m.startedAt < startedBefore)) {
       stepAwayGiveUp('stuck');
-      autoNote.value = "It couldn't carry on by itself. Use the Carry on button when you're ready.";
+      autoNote.value = "It couldn't carry on by itself. Use Carry on from where it stopped when you're ready.";
     }
   }, 120_000);
 }
@@ -370,6 +374,8 @@ function cancel(): void {
   stepAwayGiveUp('stopped');
   autoNote.value = "Cancelled. It won't carry on by itself; carry on by hand whenever you like.";
 }
+
+defineExpose({ cancel });
 
 onMounted(async () => {
   if (decided.has(props.kind)) return;
