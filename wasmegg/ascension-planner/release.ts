@@ -6,14 +6,27 @@
  *   it to (roughly) now whenever such a change ships, and leave it alone for wording or looks. A tab
  *   whose own build is older is asked to reload, even if it skipped the deploy that set it; any
  *   newer tab just gets a quiet "small update available" note.
- * - note: one short line players will read in either notice.
+ * - history: one entry per deploy players will notice, NEWEST FIRST, one entry per line (so merges
+ *   from other branches stay easy), at most ~8. `at` is the deploy time in ISO UTC. A tab that was
+ *   built before several of them shows the newest note plus "and N earlier updates" with the rest.
+ * - note: the newest note, derived from history[0] (old open tabs read this field).
  *
- * Update both with every deploy that players will notice: `pnpm build` warns when src/ has commits
+ * With every deploy that players will notice, add an entry at the TOP of history (and bump
+ * reloadIfBuiltBefore if a fix ships), dropping the oldest past ~8. Notes are cut at 200 chars: `pnpm build` warns when src/ has commits
  * newer than this file's last one (vite.config.ts `warnIfReleaseStale`).
  *
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
+const history: { at: string; note: string }[] = [
+  { at: '2026-10-06T15:51:18Z', note: 'Big runs stay light: past 20,000 chains the charts wait for a button and a heat map shows instead; TE keeps collecting while you wait; My plans filters; a Stepping away? box' },
+  { at: '2026-10-06T04:05:49Z', note: 'TE keeps collecting while you wait for your hours; My plans can filter and show the best per group; a Stepping away? box can carry a crashed run on by itself; By a date boxes reset for a new account' },
+  { at: '2026-10-06T01:33:42Z', note: 'with Let me pick my hours, TE now keeps collecting while a prestige or an egg shift waits for your hours, so plans with hours come out sooner (often by days)' },
+  { at: '2026-10-05T20:20:42Z', note: 'the plan start note says when a newer sync would change it, and a save older than your silos now shows in red and asks you to force a sync' },
+  { at: '2026-10-05T20:13:37Z', note: 'Smart search explains itself more plainly, Find and submit says what to tick, "Let me pick my hours" now holds egg shifts too, and refreshing your save moves the plan start up to it' },
+];
+
 export default {
   reloadIfBuiltBefore: '2026-10-05T19:54:00Z',
-  note: 'Big runs stay light: past 20,000 chains the charts wait for a button and a heat map shows instead; TE keeps collecting while you wait; My plans filters; a Stepping away? box',
+  note: history[0].note,
+  history,
 };
