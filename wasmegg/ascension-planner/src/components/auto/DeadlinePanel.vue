@@ -1243,10 +1243,10 @@ const stepAway = ref<InstanceType<typeof StepAwayOptions> | null>(null);
 /** Seconds left of Stepping away?'s automatic carry-on, shown in the unfinished run's offer. */
 const autoCountdown = ref(0);
 
-/** "Started 6 Oct, 14:02 (12 min ago)"; a run saved before the start was kept says when it last saved. */
+/** "Started Oct 6, 2026, 2:02 PM (12 min ago)", in the planner's zone and date style; a run saved before the start was kept says when it last saved. */
 function startedLabel(u: { spec: DeadlineRunSpec; updatedAt: number }): string {
   return u.spec.startedAt
-    ? `${new Date(u.spec.startedAt).toLocaleString()} (${ago(u.spec.startedAt)})`
+    ? `${showDateTime(Math.floor(u.spec.startedAt / 1000), plannerZone.value)} (${ago(u.spec.startedAt)})`
     : `at an unknown time, last saved ${ago(u.updatedAt)}`;
 }
 
