@@ -71,7 +71,7 @@ import { markRaw } from 'vue';
 import { createPinia, setActivePinia } from 'pinia';
 setActivePinia(createPinia());
 
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { fork } from 'node:child_process';
 import { getNextSaleEnd } from '@/lib/events';
 import { resolveColleggtibleContracts } from 'lib';
@@ -812,6 +812,44 @@ async function routeBin(): Promise<void> {
     `${(performance.now() - t0).toFixed(0)} ms; fastest ${best ? (best.seconds / 86400).toFixed(3) + ' d ' + best.chain.join(' ') : 'none'}`
   );
   byAscensions.forEach((r, k) => r && console.log(`  ${k}: ${(r.seconds / 86400).toFixed(3)} d ${r.chain.join(' ')}`));
+}
+
+/**
+ * --manifest --backup FILE [--dir public/precompute]: DIR/tables.json, every table there by file with
+ * its gear: the earnings bonus, and the delivery k, its delivery set's rate against the maxed
+ * table.bin's at the maxed table's waiting research (as leg.ts `instantDeliveryScale` measures a
+ * player; epic research and colleggtibles from FILE, the same for every table). For the instant
+ * answer's nearest tables above and below (search/tableBracket.ts). File names and numbers only.
+ */
+async function manifest(file: string): Promise<void> {
+  const dir = arg('dir') ?? 'public/precompute';
+  const ctx = (await loadInputs(file)).context;
+  const headerOf = (f: string) => readTable(new Uint8Array(readFileSync(`${dir}/${f}`)).buffer).header;
+  const maxed = headerOf('table.bin').k3;
+  if (!maxed) throw new Error('--manifest: table.bin has no k3');
+  const rate = (set: unknown) =>
+    computeRealisticELR(
+      maxed.research,
+      calculateArtifactModifiers(set as Parameters<typeof calculateArtifactModifiers>[0]),
+      ctx.epicResearchLevels,
+      ctx.colleggtibleModifiers
+    ).effectiveRate;
+  const top = rate(maxed.delivery);
+  const out = readdirSync(dir)
+    .filter(f => f.endsWith('.bin'))
+    .sort()
+    .map(f => {
+      const h = headerOf(f);
+      if (!h.k3) throw new Error(`--manifest: ${f} has no k3`);
+      return {
+        file: f,
+        bonus: Number(h.cteBonus.toFixed(2)),
+        k: Number((rate(h.k3.delivery) / top).toFixed(4)),
+        from: h.from,
+      };
+    });
+  writeFileSync(`${dir}/tables.json`, JSON.stringify(out, null, 1) + '\n');
+  for (const t of out) console.log(`${t.file}  bonus ${t.bonus}  k ${t.k}`);
 }
 
 function pack(): void {
@@ -2424,6 +2462,7 @@ async function main(): Promise<void> {
   if (arg('route-bin')) return routeBin();
   const backup = arg('backup');
   if (!backup) throw new Error('--backup FILE.json is required');
+  if (has('manifest')) return manifest(backup);
   if (has('generate-worker')) return generateWorker(backup, arg('out')!);
   if (has('generate')) return generate(backup);
   if (has('verify-table')) return verifyTable(backup);

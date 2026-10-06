@@ -120,6 +120,10 @@
       <p v-else-if="gainsText" class="text-[11px] text-emerald-800">
         Improved by the background polish: {{ gainsText }}.
       </p>
+      <p v-if="bracketStatus === 'running'" class="text-[11px] text-slate-400">
+        Pricing your route on the nearest tables for stronger and weaker gear…
+      </p>
+      <p v-else-if="bracketText" class="text-[11px] text-slate-700">{{ bracketText }}</p>
     </div>
 
     <template v-if="result && deadline">
@@ -450,6 +454,8 @@ import {
 import { availabilityKey, type Availability } from '@/search/availabilitySchedule';
 import { describeColleggtibles } from '@/search/progression';
 import { poolSize, RoutePool } from '@/search/routePool';
+import { describeGear, isMaxed, pickBracket, type TableEntry } from '@/search/tableBracket';
+import type { FirstLegsRequest } from '@/workers/routeFinder.protocol';
 import { createChainSearchPool, type ChainSearchPool, type EvaluateOptions } from '@/search/pool';
 import type { HandoffChoice } from '@/search/chain';
 import type { ChainResult } from '@/search/types';
@@ -581,6 +587,96 @@ async function polishInBackground(
   void runExact(id, final);
 }
 
+/**
+ * NEAREST TABLES ABOVE AND BELOW (search/tableBracket.ts): for a player with no table of their own
+ * gear, the route found again on the nearest deployed table for stronger gear and the nearest for
+ * weaker, each at its own gear, on two workers of their own (so the player's table stays loaded),
+ * after everything else has started. Their date likely falls between the two.
+ */
+interface BracketSide {
+  entry: TableEntry;
+  /** Fastest: when the target is reached. By a date: the highest TE by then (0: none). */
+  end: number | null;
+  te: number;
+}
+const bracket = ref<{ above: BracketSide | null; below: BracketSide | null } | null>(null);
+const bracketStatus = ref<'idle' | 'running' | 'done'>('idle');
+type FirstLegsBase = Omit<FirstLegsRequest, 'id' | 'kind' | 'url' | 'deliveryScale'>;
+async function runBracket(id: number, legs: FirstLegsBase, hours: Availability | null): Promise<void> {
+  if (id !== runs || own.value || gearTable.value || deliveryScale.value === null) return;
+  const player = { bonus: bonus.value, k: deliveryScale.value };
+  if (isMaxed(player)) return;
+  let entries: TableEntry[];
+  try {
+    const res = await fetch(`${import.meta.env.BASE_URL}precompute/tables.json`, { cache: 'no-cache' });
+    if (!res.ok || /text\/html/.test(res.headers.get('content-type') ?? '')) return;
+    entries = ((await res.json()) as TableEntry[]).filter(e => e.from <= legs.startTE);
+  } catch {
+    return;
+  }
+  const { above, below } = pickBracket(entries, player);
+  if (!above && !below) return;
+  bracketStatus.value = 'running';
+  const t0 = performance.now();
+  const pool = new RoutePool(
+    2,
+    () => new Worker(new URL('../../workers/routeFinder.worker.ts', import.meta.url), { type: 'module' })
+  );
+  const side = async (entry: TableEntry | null): Promise<BracketSide | null> => {
+    if (!entry) return null;
+    const url =
+      entry.file === 'table.bin'
+        ? TABLE_URL
+        : compositeUrl(`${import.meta.env.BASE_URL}precompute/${entry.file}`, TABLE_URL, GEAR_TABLE_TO, entry.k);
+    const firstLegs = await pool.firstLegs({ url, deliveryScale: 1, ...legs });
+    const found = await findRoutes({
+      table: () => null,
+      startTE: legs.startTE,
+      start: legs.start,
+      final: target.value,
+      maxAscensions: MAX_ASCENSIONS,
+      firstLegs,
+      ...(props.deadline ? { deadline: props.deadline } : {}),
+      ...(hours ? { hours } : {}),
+      expand: (items, settings) => pool.expand(url, items, settings),
+    });
+    const f = atMostAscensions(found, filters.value.maxAscensions);
+    const r = props.deadline ? f.byDate : f.best;
+    return { entry, end: r?.end ?? null, te: r ? r.legs[r.legs.length - 1].endTE : 0 };
+  };
+  try {
+    const a = await side(above);
+    if (id !== runs) return;
+    const b = await side(below);
+    if (id !== runs) return;
+    bracket.value = { above: a, below: b };
+    if (import.meta.env.DEV)
+      console.info(
+        `instant answer: nearest tables ${Math.round(performance.now() - t0)} ms (${[above?.file, below?.file].join(', ')})`
+      );
+  } catch {
+    // No bracket: the answer stands on its own.
+  } finally {
+    pool.terminate();
+    if (id === runs) bracketStatus.value = 'done';
+  }
+}
+/** The bracket's two ends, or null: the stronger gear's (sooner, or more TE) and the weaker's. */
+const bracketText = computed(() => {
+  const b = bracket.value;
+  if (!b?.above?.end) return '';
+  const name = (s: BracketSide) => (s.entry.file === 'table.bin' ? 'the maxed table' : describeGear(s.entry));
+  const hi = b.above;
+  const lo = b.below?.end ? b.below : null;
+  if (props.deadline)
+    return lo
+      ? `With your gear you'd likely reach between ${lo.te} TE (on ${name(lo)}) and ${hi.te} TE (on ${name(hi)}) by the date; Check exactly gives your real TE.`
+      : `With your gear you'd likely reach at most ${hi.te} TE by the date (on ${name(hi)}); Check exactly gives your real TE.`;
+  return lo
+    ? `With your gear you'd likely finish between ${show(hi.end!)} (on ${name(hi)}) and ${show(lo.end!)} (on ${name(lo)}); Check exactly gives your real date.`
+    : `With your gear you'd likely finish no sooner than ${show(hi.end!)} (on ${name(hi)}); Check exactly gives your real date.`;
+});
+
 /** "Works inside my hours" (only with "Let me pick my hours") and "At most N ascensions". */
 const filters = ref(readFilters());
 watch(filters, f => writeFilters(f), { deep: true });
@@ -677,6 +773,8 @@ async function run(): Promise<void> {
   status.value = 'loading';
   backgroundStatus.value = 'idle';
   gains.value = [];
+  bracket.value = null;
+  bracketStatus.value = 'idle';
   loadingText.value = header.value
     ? 'Working out every route…'
     : 'Loading the table (about 12 MB, once) and working out every route…';
@@ -734,19 +832,18 @@ async function run(): Promise<void> {
     const inputs = store.collectInputs();
     const scale = deliveryScale.value ?? 1;
     const t0 = performance.now();
-    const firstLegs = await p.firstLegs({
-      url,
+    const legsRequest: FirstLegsBase = {
       startTE: te,
       start: inputs.planStart,
       final: target.value,
-      deliveryScale: scale,
       delivered: EGG_ORDER.map(e => inputs.baseState.eggsDelivered?.[e] || 0),
       // A plain copy: workers get structured-cloned data, never a reactive proxy.
       cont: JSON.parse(JSON.stringify(continueTailParams(inputs, inputs.planStart))),
       forceContinue: store.forceContinue,
       pinSeconds: CONTINUE_PIN_MAX_SECONDS,
       maxContinueSeconds: CONTINUE_MAX_SECONDS,
-    });
+    };
+    const firstLegs = await p.firstLegs({ url, deliveryScale: scale, ...legsRequest });
     if (id !== runs) return;
     // A plain copy: it goes to the workers.
     const hours =
@@ -785,7 +882,7 @@ async function run(): Promise<void> {
     ms.value = performance.now() - t0;
     status.value = 'done';
     if (props.deadline) emitRoutes(answer);
-    void polishInBackground(id, p, url, polishOptions, raw, answer);
+    void polishInBackground(id, p, url, polishOptions, raw, answer).then(() => runBracket(id, legsRequest, hours));
   } catch (err) {
     if (id !== runs) return;
     const message = err instanceof Error ? err.message : String(err);
