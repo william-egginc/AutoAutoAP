@@ -15,5 +15,5 @@
  */
 export default {
   reloadIfBuiltBefore: '2026-10-05T06:22:00Z',
-  note: 'With your hours picked, TE keeps collecting while you wait to shift or prestige. Check exactly prices each ascension on the hour, and can also try ascending at once',
+  note: 'My plans can be filtered by hours, start and ascensions. Stepping away? keeps long runs going. With your hours picked, TE keeps collecting while you wait',
 };

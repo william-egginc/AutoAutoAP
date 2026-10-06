@@ -423,6 +423,13 @@
         >
       </template>
     </FindBar>
+    <!-- Stepping away? Carry on by itself, a watcher tab, fewer workers (StepAwayOptions.vue). -->
+    <StepAwayOptions
+      kind="deadline"
+      :player-id="playerId"
+      :can-carry-on="!!store.deadlineUnfinished?.saveKept"
+      @carry-on="resume"
+    />
     <!-- Everything above greys out while anything else in this tab is busy; say what, and offer a way out. -->
     <div
       v-if="store.busy && !store.deadlineRunning"
@@ -748,17 +755,21 @@ const kept = {
   widthIx: keptRef(KEPT_WIDTH_IX),
   stepIx: keptRef(KEPT_STEP_IX),
   linkSliders: keptRef(false),
+  /** Whose save the boxes were filled for: another player's stops are meaningless on this one. */
+  forPlayer: keptRef(''),
 };
 </script>
 
 <script setup lang="ts">
 import FindBar from './FindBar.vue';
+import StepAwayOptions from './StepAwayOptions.vue';
 import AutoSendReport from './AutoSendReport.vue';
 import { NAMES } from '@/lib/siteNav';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { sentence } from '@/utils/errors';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
+import { useInitialStateStore } from '@/stores/initialState';
 import { getLocalTimestampInTimezone } from '@/lib/events';
 import { formatInZone } from '@/search/csv';
 import {
@@ -785,6 +796,7 @@ import SafariNotice from './SafariNotice.vue';
 const props = defineProps<{ playerId: string }>();
 const emit = defineEmits<{ (e: 'show-fastest'): void }>();
 const store = useChainSearchStore();
+const initialState = useInitialStateStore();
 const planner = useAutoPlannerStore();
 
 const plannerZone = computed(() => planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
@@ -1024,6 +1036,30 @@ watch(
       return;
     }
     if (!chains.value[0]?.text && !lastBox.value) suggestRow(0);
+  },
+  { immediate: true }
+);
+
+// The boxes outlive the screen and the save (kept refs), so a box filled for another account -- or
+// for this one before its TE moved past the first stops -- can describe no playable route at all
+// (the user, 5 Oct: Chain 1 read 158-178 on an account at TE 187). Another player: suggest every
+// chain afresh around this save. The same player: re-suggest the chains that can no longer reach
+// the last stop. Never while a run is going or being restored, which sets its own boxes.
+const { forPlayer } = kept;
+watch(
+  () => [store.currentTE, initialState.playerId] as const,
+  ([te, player]) => {
+    if (!(te > 0) || linkAsc.length || store.deadlineRunning || store.preparing) return;
+    const otherPlayer = !!player && player !== forPlayer.value;
+    if (player) forPlayer.value = player;
+    if (otherPlayer) {
+      lastBox.value = '';
+      chains.value.forEach((row, k) => row.asc >= 2 && suggestRow(k));
+      return;
+    }
+    chains.value.forEach((row, k) => {
+      if (row.asc >= 2 && row.text && rowProblem(k)) suggestRow(k);
+    });
   },
   { immediate: true }
 );

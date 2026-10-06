@@ -81,6 +81,14 @@ import { describeAvailability, isConstrained, nextAvailable, type Availability }
 import { MAX_LAST_STOP, runDeadlineSearch, type DeadlineProgress, type DeadlineRoute } from '@/search/deadline';
 import * as blackBox from '@/search/blackBox';
 import {
+  installStepAway,
+  stepAwayBeat,
+  stepAwayPageClosing,
+  stepAwayRunEnded,
+  stepAwayRunStarted,
+  stepAwayStopPressed,
+} from '@/composables/useStepAway';
+import {
   clearDeadlineCheckpoint,
   loadDeadlineCheckpoint,
   loadDeadlineResult,
@@ -3849,28 +3857,65 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     blackBox.clearUnfinished();
     lastCrash.value = null;
   }
+  /** The running pool's worker memory for a beat; nothing when no pool is up. Never throws. */
+  function workerMemory(
+    p: ChainSearchPool | null
+  ): Partial<ReturnType<typeof blackBox.summarizeWorkerHeaps> & { workersMemoEntries: number | null }> {
+    try {
+      return p
+        ? {
+            ...blackBox.summarizeWorkerHeaps(p.workerHeaps()),
+            workersMemoEntries: blackBox.sumMemoEntries(p.workerMemoEntries()),
+          }
+        : {};
+    } catch {
+      return {};
+    }
+  }
   function blackBoxBeat(): void {
+    let b: blackBox.Beat | null = null;
+    let workers = workersInPool.value;
     if (deadlineRunning.value) {
       const p = deadlineProgress.value;
-      blackBox.beat({
+      workers = deadlinePool?.size ?? workers;
+      b = blackBox.beat({
         phase: 'deadline search',
         detail: p?.stage,
         done: (p?.priced ?? 0) + deadlineInBatch.value,
-        workers: workersInPool.value,
+        workers,
+        ...workerMemory(deadlinePool),
         ...(deadlineNote ? { runNote: deadlineNote } : {}),
       });
     } else if (isRunning.value) {
-      blackBox.beat({
+      b = blackBox.beat({
         phase: 'search',
         detail: stage.value,
         done: chainsDone.value,
         total: chainsEstimated.value,
-        workers: workersInPool.value,
+        workers,
         entries: liveCache.length,
+        ...workerMemory(pool),
         ...(runNoteUsed ? { runNote: runNoteUsed } : {}),
       });
     }
+    // The "Stepping away?" heartbeat and fewer-workers rule (composables/useStepAway.ts).
+    if (b)
+      stepAwayBeat({
+        done: b.done ?? 0,
+        workers,
+        heapMB: b.heapMB,
+        heapLimitMB: b.heapLimitMB,
+        workersHeapMB: b.workersHeapMB,
+      });
   }
+  installStepAway({
+    workerBudget,
+    machineThreads,
+    account: async () => (currentPlayerId ? hashID(currentPlayerId) : ''),
+    log: line => {
+      if (isRunning.value) runLog.value.push(line);
+    },
+  });
   let blackBoxTimer: ReturnType<typeof setInterval> | null = null;
   watch(
     () => isRunning.value || deadlineRunning.value,
@@ -3878,15 +3923,27 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       if (blackBoxTimer) clearInterval(blackBoxTimer);
       blackBoxTimer = null;
       if (running) {
+        void stepAwayRunStarted(deadlineRunning.value ? 'deadline' : searchSpace.value ? 'sweep' : 'smart').then(
+          blackBoxBeat
+        );
         blackBoxBeat();
         blackBoxTimer = setInterval(blackBoxBeat, 15_000);
       } else {
+        stepAwayRunEnded(stoppedEarly.value || deadlineStop);
         blackBox.end('search');
         blackBox.end('deadline search');
       }
     }
   );
-  if (typeof window !== 'undefined') window.addEventListener('pagehide', () => blackBox.pageClosing());
+  if (typeof window !== 'undefined') {
+    window.addEventListener('pagehide', () => {
+      blackBox.pageClosing();
+      stepAwayPageClosing();
+    });
+    window.addEventListener('pageshow', e => {
+      if (e.persisted) blackBox.pageShown();
+    });
+  }
   if (typeof document !== 'undefined') {
     document.addEventListener('visibilitychange', () => {
       if (!isRunning.value && !deadlineRunning.value) return;
@@ -3896,7 +3953,13 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   }
   /** For the panels' own risky steps (building and sending a submission). */
   function blackBoxMark(phase: string, detail?: string): void {
-    blackBox.beat({ phase, detail, entries: liveCache.length, workers: workersInPool.value });
+    blackBox.beat({
+      phase,
+      detail,
+      entries: liveCache.length,
+      workers: workersInPool.value,
+      ...workerMemory(pool ?? deadlinePool),
+    });
   }
   function blackBoxEnd(phase: string): void {
     blackBox.end(phase);
@@ -3920,6 +3983,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
 
   function stopDeadline(): void {
     deadlineStop = true;
+    stepAwayStopPressed();
   }
 
   async function benchmarkMachine(playerId: string, spec: ExhaustiveSpec): Promise<void> {
@@ -4365,6 +4429,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    *  screen at that moment is already a usable answer — that is the property the UI advertises. */
   function stop(): void {
     stopRequested.value = true;
+    stepAwayStopPressed();
     stage.value = 'stopping after the current batch...';
     // A queued Full sweep stops after this chain whichever Stop was pressed (the panel's, or the
     // progress bar's on another tab, where the panel isn't there to hear it).

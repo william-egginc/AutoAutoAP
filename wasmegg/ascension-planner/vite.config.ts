@@ -109,6 +109,31 @@ function warnIfReleaseStale(): Plugin {
  *
  * Takes effect when `pnpm serve` restarts; it has nothing to do with `vite build`.
  */
+/**
+ * `Cross-Origin-Opener-Policy: same-origin` on the run watcher (watch.html). The watcher must not
+ * share a renderer process with the run tab it watches, or the crash it is there to catch kills it
+ * too. The planner opens it with `noopener`, which is the main fix (composables/useStepAway.ts); the
+ * header severs the link from the watcher's own side as well, however it was opened. COOP is a
+ * response header only (a <meta> does nothing), so it is set here, in dev and in preview (the live
+ * site). Takes effect when `pnpm serve` restarts.
+ */
+function watcherIsolation(): Plugin {
+  const set = (req: { url?: string }, res: ServerResponse, next: () => void) => {
+    if (/(^|\/)watch\.html$/.test((req.url ?? '').split('?')[0]))
+      res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+    next();
+  };
+  return {
+    name: 'aap-watcher-isolation',
+    configureServer(server) {
+      server.middlewares.use(set);
+    },
+    configurePreviewServer(server) {
+      server.middlewares.use(set);
+    },
+  };
+}
+
 const IMMUTABLE = 'public, max-age=31536000, immutable';
 
 function immutableAssets(): Plugin {
@@ -341,6 +366,7 @@ export default defineConfig(({ mode }) => {
       warnIfReleaseStale(),
       brotliAssets(),
       immutableAssets(),
+      watcherIsolation(),
       collectorEarlyStart(env.VITE_SUBMIT_URL),
     ],
     define: { __BUILD_TIME__: JSON.stringify(BUILD_TIME) },
@@ -355,6 +381,8 @@ export default defineConfig(({ mode }) => {
         input: {
           index: fileURLToPath(new URL('./index.html', import.meta.url)),
           explorer: fileURLToPath(new URL('./explorer.html', import.meta.url)),
+          // The run watcher ("Stepping away?"): a few KB, no Vue, never the simulator (src/watch/main.ts).
+          watch: fileURLToPath(new URL('./watch.html', import.meta.url)),
         },
       },
     },

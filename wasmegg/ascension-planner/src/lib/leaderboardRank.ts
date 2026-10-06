@@ -1324,6 +1324,22 @@ export function deadlineAscendMs(r: BoardRow): number | null {
   return finishMs(r);
 }
 
+/** Whether a deadline row's last ascension can be made by its deadline; one that misses it is not an answer. */
+export function madeDeadline(r: BoardRow): boolean {
+  const at = deadlineAscendMs(r);
+  return at !== null && at <= (r.deadline as number) * 1000;
+}
+
+/** Seconds between a deadline row's last ascension and its deadline (`madeDeadline` rows only). */
+export function deadlineSpare(r: BoardRow): number {
+  return (r.deadline as number) - (deadlineAscendMs(r) as number) / 1000;
+}
+
+/** Best answer first: the highest last stop, then the most time to spare, then the newest send. */
+export function deadlineOrder(a: BoardRow, b: BoardRow): number {
+  return b.finalTE - a.finalTE || deadlineSpare(b) - deadlineSpare(a) || (sentMs(b) ?? 0) - (sentMs(a) ?? 0);
+}
+
 /**
  * "The highest TE by this date", grouped by date, soonest first (a date that has passed goes after
  * the ones still ahead).
@@ -1375,16 +1391,13 @@ export function buildDeadlineBoard<T extends BoardRow>(
   const filing = fileRows(usable);
   const byDate = new Map<number, T[]>();
   for (const r of usable) {
-    if (!inDeadlineFilter(r, opts.filter)) continue;
-    const at = deadlineAscendMs(r);
-    if (at === null || at > (r.deadline as number) * 1000) continue;
+    if (!inDeadlineFilter(r, opts.filter) || !madeDeadline(r)) continue;
     const list = byDate.get(r.deadline as number);
     if (list) list.push(r);
     else byDate.set(r.deadline as number, [r]);
   }
-  const spareOf = (r: T) => (r.deadline as number) - (deadlineAscendMs(r) as number) / 1000;
-  const better = (a: T, b: T) =>
-    b.finalTE - a.finalTE || spareOf(b) - spareOf(a) || (sentMs(b) ?? 0) - (sentMs(a) ?? 0);
+  const spareOf = deadlineSpare;
+  const better = deadlineOrder;
   const groups: DeadlineGroup<T>[] = [];
   for (const [deadline, list] of byDate) {
     const players = new Map<string, T[]>();

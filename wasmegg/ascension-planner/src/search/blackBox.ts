@@ -24,8 +24,30 @@ export interface Beat {
   /** Priced chains held in memory. */
   entries?: number;
   hidden: boolean;
-  /** JS heap in use, MB -- Chrome only; Safari and Firefox do not report it. */
+  /** JS heap in use, MB -- Chrome only; Safari and Firefox do not report it. This is the MAIN
+   *  thread's heap only: every worker is a separate isolate with its own heap, not counted here.
+   *  Chromium also quantises this value and refreshes it only now and then unless the browser runs
+   *  with --enable-precise-memory-info, so a flat line is weak evidence. */
   heapMB?: number;
+  /** The main thread's JS heap ceiling (`performance.memory.jsHeapSizeLimit`), MB. Chromium only. */
+  heapLimitMB?: number;
+  /** Sum of the search workers' own JS heaps, MB, as each last reported it (search/pool.ts). Null
+   *  when workers exist but none could report (no `performance.memory` in the worker: everywhere
+   *  but Chromium, and possibly Chromium too). Absent when no pool is running. */
+  workersHeapMB?: number | null;
+  /** The largest single worker heap, MB. Null/absent as `workersHeapMB`. */
+  workerHeapMaxMB?: number | null;
+  /** How many workers' heaps went into `workersHeapMB`. */
+  workersReporting?: number;
+  /** Prefixes held in the workers' chain memos, summed (search/chain.ts, at most 3000 a worker), as
+   *  each last reported. Chrome gives a worker no `performance.memory`, so `workersHeapMB` is null
+   *  there; this count is the stand-in: how full the workers' main cache was. Null when none has
+   *  reported; absent when no pool is running. */
+  workersMemoEntries?: number | null;
+  /** `performance.measureUserAgentSpecificMemory()` in MB: the whole page, workers included. Only
+   *  where the API exists AND the page is cross-origin isolated (normally not on this site). It is
+   *  async, so each beat carries the measurement the PREVIOUS beat started. */
+  uaMemoryMB?: number;
   /** The page was reloaded, closed or navigated away from (`pagehide` fired): the player ended
    *  it, not the browser. A crash gives no such event, so this is never set by one. */
   pageClosed?: boolean;
@@ -33,8 +55,19 @@ export interface Beat {
   runNote?: string;
 }
 
+/** Facts about the machine and page, recorded once per box rather than per beat. */
+export interface BoxEnv {
+  /** `navigator.deviceMemory`: RAM in GB, rounded down to a power of two and capped by the browser
+   *  (Chromium caps it at 8, so a 64 GB machine also reads 8). A bucket, not a measurement; Chromium
+   *  only. Null where the browser does not say. */
+  deviceMemoryGB: number | null;
+  /** Whether the page is cross-origin isolated, which `measureUserAgentSpecificMemory` requires. */
+  crossOriginIsolated: boolean | null;
+}
+
 interface Box {
   version: 1;
+  env?: BoxEnv;
   /** The last beat of a phase that has not finished. Still set at the next load = it died there. */
   open: Beat | null;
   history: Beat[];
@@ -58,30 +91,186 @@ function write(box: Box): void {
   }
 }
 
+type MemoryInfo = { usedJSHeapSize?: number; jsHeapSizeLimit?: number };
+
+function memoryInfo(): MemoryInfo | undefined {
+  try {
+    return typeof performance !== 'undefined'
+      ? (performance as Performance & { memory?: MemoryInfo }).memory
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function toMB(bytes: unknown): number | undefined {
+  return typeof bytes === 'number' && Number.isFinite(bytes) ? Math.round(bytes / 1048576) : undefined;
+}
+
 function heapMB(): number | undefined {
-  const m = (performance as Performance & { memory?: { usedJSHeapSize: number } }).memory;
-  return m ? Math.round(m.usedJSHeapSize / 1048576) : undefined;
+  return toMB(memoryInfo()?.usedJSHeapSize);
+}
+
+function heapLimitMB(): number | undefined {
+  return toMB(memoryInfo()?.jsHeapSizeLimit);
+}
+
+/** This thread's JS heap in MB, or null where the browser does not expose it. For the workers to
+ *  report their own (workers/chainSearch.worker.ts): same `performance.memory`, feature-detected. */
+export function ownHeapMB(): number | null {
+  return heapMB() ?? null;
+}
+
+export function environment(): BoxEnv {
+  let deviceMemoryGB: number | null = null;
+  let isolated: boolean | null = null;
+  try {
+    const dm =
+      typeof navigator !== 'undefined' ? (navigator as Navigator & { deviceMemory?: number }).deviceMemory : undefined;
+    if (typeof dm === 'number' && Number.isFinite(dm)) deviceMemoryGB = dm;
+  } catch {
+    // not exposed
+  }
+  try {
+    const coi = (globalThis as { crossOriginIsolated?: unknown }).crossOriginIsolated;
+    if (typeof coi === 'boolean') isolated = coi;
+  } catch {
+    // not exposed
+  }
+  return { deviceMemoryGB, crossOriginIsolated: isolated };
+}
+
+/** The last `measureUserAgentSpecificMemory` result, MB, and whether one is in flight. */
+let uaMemory: number | undefined;
+let uaMeasuring = false;
+
+/** Start one whole-page measurement if the browser allows it (needs cross-origin isolation, which
+ *  this site normally lacks; then this is a no-op). The result lands in the NEXT beat. */
+function measureUaMemory(): void {
+  if (uaMeasuring) return;
+  try {
+    if ((globalThis as { crossOriginIsolated?: unknown }).crossOriginIsolated !== true) return;
+    const measure = (performance as Performance & { measureUserAgentSpecificMemory?: () => Promise<{ bytes: number }> })
+      .measureUserAgentSpecificMemory;
+    if (typeof measure !== 'function') return;
+    uaMeasuring = true;
+    measure
+      .call(performance)
+      .then(r => {
+        uaMemory = toMB(r?.bytes);
+      })
+      .catch(() => {})
+      .finally(() => {
+        uaMeasuring = false;
+      });
+  } catch {
+    uaMeasuring = false;
+  }
+}
+
+/** Add up worker heaps as reported (null = that worker could not say). Null sums when none could. */
+export function summarizeWorkerHeaps(heaps: readonly (number | null | undefined)[]): {
+  workersHeapMB: number | null;
+  workerHeapMaxMB: number | null;
+  workersReporting: number;
+} {
+  let sum = 0;
+  let max = 0;
+  let n = 0;
+  for (const h of heaps) {
+    if (typeof h !== 'number' || !Number.isFinite(h)) continue;
+    sum += h;
+    max = Math.max(max, h);
+    n++;
+  }
+  return n
+    ? { workersHeapMB: sum, workerHeapMaxMB: max, workersReporting: n }
+    : { workersHeapMB: null, workerHeapMaxMB: null, workersReporting: 0 };
+}
+
+/** The workers' memo sizes added up; null when none has reported. */
+export function sumMemoEntries(counts: readonly (number | null | undefined)[]): number | null {
+  let sum = 0;
+  let n = 0;
+  for (const c of counts) {
+    if (typeof c !== 'number' || !Number.isFinite(c)) continue;
+    sum += c;
+    n++;
+  }
+  return n ? sum : null;
+}
+
+/** "850 MB", "2.1 GB". */
+export function formatMB(mb: number): string {
+  return mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${Math.round(mb)} MB`;
+}
+
+/** The crash notice's memory clause, e.g. "73 MB on the page's main thread, 2.1 GB in 19 workers",
+ *  or '' when nothing is known. */
+export function memoryPhrase(b: Pick<Beat, 'heapMB' | 'workersHeapMB' | 'workersReporting' | 'uaMemoryMB'>): string {
+  const parts: string[] = [];
+  if (b.heapMB !== undefined) parts.push(`${formatMB(b.heapMB)} on the page's main thread`);
+  if (typeof b.workersHeapMB === 'number' && b.workersReporting) {
+    parts.push(`${formatMB(b.workersHeapMB)} in ${b.workersReporting} worker${b.workersReporting === 1 ? '' : 's'}`);
+  }
+  if (b.uaMemoryMB !== undefined) parts.push(`${formatMB(b.uaMemoryMB)} for the whole page by the browser's count`);
+  return parts.join(', ');
+}
+
+/**
+ * What the crash notice says about the workers when the browser gave no figure for their memory
+ * (Chrome never does from a worker): that it doesn't, and how full their caches were instead.
+ * '' when the workers' memory is known, or there were no workers.
+ */
+export function workersNote(b: Pick<Beat, 'workers' | 'workersHeapMB' | 'workersMemoEntries'>): string {
+  if (typeof b.workersHeapMB === 'number' || !b.workers) return '';
+  const n = b.workers;
+  const workers = `${n} worker${n === 1 ? '' : 's'}`;
+  const memo =
+    typeof b.workersMemoEntries === 'number'
+      ? `; their caches held ${b.workersMemoEntries.toLocaleString('en-US')} partial routes (${(3000 * n).toLocaleString('en-US')} when full)`
+      : '';
+  return `The browser doesn't report how much memory the ${workers} used${memo}.`;
+}
+
+/** The memory fields every beat carries, read on the main thread. Browsers do not expose the
+ *  machine's free system memory at all, so there is no field for it. */
+function pageMemory(): Pick<Beat, 'heapMB' | 'heapLimitMB' | 'uaMemoryMB'> {
+  measureUaMemory();
+  const out: Pick<Beat, 'heapMB' | 'heapLimitMB' | 'uaMemoryMB'> = { heapMB: heapMB() };
+  const limit = heapLimitMB();
+  if (limit !== undefined) out.heapLimitMB = limit;
+  if (uaMemory !== undefined) out.uaMemoryMB = uaMemory;
+  return out;
 }
 
 /** Whether THIS page wrote the open beat. The box is one key shared by every tab, and a second
  *  tab closing must not mark the first tab's run as closed by the player. */
 let mine = false;
+/** `pagehide` has fired: the page is going away on purpose. Beats written after it (the
+ *  visibilitychange that follows a reload, a last timer tick) keep `pageClosed`, or a plain reload
+ *  would read as a crash. Cleared by `pageShown` if the page comes back from the back/forward cache. */
+let closing = false;
 
-/** Record that `phase` is going on right now, with whatever progress is known. */
-export function beat(b: Omit<Beat, 'at' | 'hidden' | 'heapMB'>): void {
+/** Record that `phase` is going on right now, with whatever progress is known. Returns the beat as
+ *  written (the "Stepping away?" worker rule reads its memory figures, composables/useStepAway.ts). */
+export function beat(b: Omit<Beat, 'at' | 'hidden' | 'heapMB' | 'heapLimitMB' | 'uaMemoryMB'>): Beat {
   mine = true;
   const box = read();
   const full: Beat = {
     ...b,
     at: Date.now(),
     hidden: typeof document !== 'undefined' && document.visibilityState === 'hidden',
-    heapMB: heapMB(),
+    ...pageMemory(),
+    ...(closing ? { pageClosed: true } : {}),
   };
+  box.env ??= environment();
   box.open = full;
   const kept = { ...full };
   delete kept.runNote;
   box.history = [...box.history, kept].slice(-HISTORY);
   write(box);
+  return full;
 }
 
 /** A tab hide/show, noted in the history without opening a phase. */
@@ -121,6 +310,7 @@ export function end(phase: string): void {
 /** The page is going away on purpose (reload, close, another URL). Called from `pagehide`, which
  *  a crash never fires -- so an unfinished beat without this is the browser's doing. */
 export function pageClosing(): void {
+  closing = true;
   if (!mine) return;
   const box = read();
   if (!box.open) return;
@@ -128,15 +318,22 @@ export function pageClosing(): void {
   write(box);
 }
 
+/** `pageshow` from the back/forward cache: the page is back, and its beats are live again. */
+export function pageShown(): void {
+  closing = false;
+}
+
 /** What the previous page was in the middle of when it stopped, or null. Read once, at load. */
-export function readUnfinished(): { last: Beat; history: Beat[] } | null {
+export function readUnfinished(): { last: Beat; history: Beat[]; env?: BoxEnv } | null {
   const box = read();
-  return box.open ? { last: box.open, history: box.history } : null;
+  return box.open ? { last: box.open, history: box.history, ...(box.env ? { env: box.env } : {}) } : null;
 }
 
 /** Forget the previous page's unfinished phase (dismissed, or a new run started). */
 export function clearUnfinished(): void {
   const box = read();
   box.open = null;
+  // The next run records its own machine facts afresh.
+  delete box.env;
   write(box);
 }

@@ -472,6 +472,13 @@
         @stop="store.stop()"
         @nickname-typed="nicknameTouched = true"
       />
+      <!-- Stepping away? Carry on by itself, a watcher tab, fewer workers (StepAwayOptions.vue). -->
+      <StepAwayOptions
+        kind="smart"
+        :player-id="playerId"
+        :can-carry-on="!!store.resumable && !store.resumable.complete && !store.resumable.space"
+        @carry-on="run(true)"
+      />
       <p
         v-if="autoSubmitted && submitMessage && !store.isRunning"
         class="rounded-lg border px-3 py-2 text-[11px]"
@@ -1333,6 +1340,7 @@ import ChainSearchExplainer from './ChainSearchExplainer.vue';
 import HelpTip from './HelpTip.vue';
 import StartTimeFinder from './StartTimeFinder.vue';
 import FindBar from './FindBar.vue';
+import StepAwayOptions from './StepAwayOptions.vue';
 import SavedRuns from './SavedRuns.vue';
 import YourSetup from './YourSetup.vue';
 import AutoSendReport from './AutoSendReport.vue';

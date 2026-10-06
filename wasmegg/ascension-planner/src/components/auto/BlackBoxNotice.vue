@@ -14,12 +14,13 @@
         >, {{ crash.last.done.toLocaleString()
         }}<template v-if="crash.last.total"> of {{ crash.last.total.toLocaleString() }}</template> done</template
       >, with the tab {{ crash.last.hidden ? 'hidden' : 'on screen'
-      }}<template v-if="crash.last.heapMB !== undefined"> and {{ crash.last.heapMB }} MB in use</template>.
+      }}<template v-if="memory"> and {{ memory }} in use</template>.
+      {{ workers }}
+      <template v-if="crash.last.runNote">Its note: {{ crash.last.runNote }}</template>
       <template v-if="crash.last.pageClosed"
         >The page was reloaded or closed while it was going, which ends a run.</template
       >
-      <template v-if="crash.last.runNote">Its note: {{ crash.last.runNote }}</template>
-      <template v-else>The browser closed the page itself, most likely because of memory.</template>
+      <template v-else>The browser closed the page itself, most likely because it ran short of memory.</template>
       If a run was going, its progress is saved and it can carry on.
     </p>
     <div class="flex flex-wrap gap-3">
@@ -45,6 +46,7 @@
 import { computed } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { downloadFile } from '@/utils/export';
+import { memoryPhrase, workersNote } from '@/search/blackBox';
 
 const store = useChainSearchStore();
 const crash = computed(() => store.lastCrash);
@@ -53,6 +55,10 @@ const doing = computed(() => {
   if (!l) return '';
   return l.detail ? `${l.phase}: ${l.detail}` : l.phase;
 });
+/** "73 MB on the page's main thread, 2.1 GB in 19 workers", or '' when the browser reported nothing. */
+const memory = computed(() => (crash.value ? memoryPhrase(crash.value.last) : ''));
+/** Chrome reports no worker memory: say so, with how full the workers' caches were instead. */
+const workers = computed(() => (crash.value ? workersNote(crash.value.last) : ''));
 function when(ms: number): string {
   return new Date(ms).toLocaleString();
 }

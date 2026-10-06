@@ -842,6 +842,13 @@
           @stop="stopRun"
           @nickname-typed="nicknameTouched = true"
         />
+        <!-- Stepping away? Carry on by itself, a watcher tab, fewer workers (StepAwayOptions.vue). -->
+        <StepAwayOptions
+          kind="sweep"
+          :player-id="playerId"
+          :can-carry-on="!!store.crashedRun"
+          @carry-on="resumeCrashed"
+        />
         <!-- A Find and submit that finished (and sent) while this panel was closed for another tab. -->
         <AutoSendReport v-if="!autoSubmitted" kind="full" />
 
@@ -1201,6 +1208,7 @@ import { useUIStore } from '@/stores/ui';
 import { useEidsStore } from 'lib';
 import RunNoteBox from './RunNoteBox.vue';
 import FindBar from './FindBar.vue';
+import StepAwayOptions from './StepAwayOptions.vue';
 import SavedRuns from './SavedRuns.vue';
 import YourSetup from './YourSetup.vue';
 import AutoSendReport from './AutoSendReport.vue';
