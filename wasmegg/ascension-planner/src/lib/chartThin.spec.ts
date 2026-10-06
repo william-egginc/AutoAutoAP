@@ -22,6 +22,25 @@ describe('thinPositions', () => {
   });
 });
 
+describe('thinning by point budget', () => {
+  const n = 120_000;
+  it.each([2_000, 20_000])('draws %i points: the best 1,000 then an even sample', max => {
+    const p = thinPositions(n, max);
+    expect(p.length).toBeLessThanOrEqual(max);
+    expect(p.length).toBeGreaterThan(max - 100);
+    expect(p.slice(0, 1_000)).toEqual(Array.from({ length: 1_000 }, (_, i) => i));
+    expect(p[p.length - 1]).toBe(n - 1);
+    expect(new Set(p).size).toBe(p.length);
+  });
+
+  it('draws every chain when the budget is Infinity', () => {
+    expect(thinPositions(n, Infinity)).toHaveLength(n);
+    const values = Array.from({ length: 30_000 }, (_, i) => (i * 7919) % 30_000);
+    expect(thinIndices(values, Infinity)).toHaveLength(30_000);
+    expect(thinIndices(values, 2_000)).toHaveLength(2_000);
+  });
+});
+
 describe('thinIndices', () => {
   it('keeps the lowest values and returns indices in order', () => {
     const values = Array.from({ length: 1000 }, (_, i) => 1000 - i); // best is the last index

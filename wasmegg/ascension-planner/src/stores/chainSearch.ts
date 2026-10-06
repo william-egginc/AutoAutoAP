@@ -1855,6 +1855,12 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     pricedChains.value = buildPricedChains(allEntries());
   }
 
+  /** "Back to the heat map": stop keeping the dots' data. Past the limit this frees the point list. */
+  function releaseCharts(): void {
+    chartsWanted.value = false;
+    if (pricedCount.value > CHART_AUTO_LIMIT) pricedChains.value = markRaw([]);
+  }
+
   /**
    * How many chains keep their PER-LEG DETAIL in memory. 0 means all of them.
    *
@@ -4909,6 +4915,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     pricedCount,
     chartsWanted,
     drawCharts,
+    releaseCharts,
     heat,
     shortlistView,
     setShortlistView,
