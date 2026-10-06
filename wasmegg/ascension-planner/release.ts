@@ -15,5 +15,5 @@
  */
 export default {
   reloadIfBuiltBefore: '2026-10-05T06:22:00Z',
-  note: 'Instant answers are now exact for two more board gear setups: Halceyx before and after his 2 Oct change. Let me pick my hours also makes egg shifts wait for your hours',
+  note: 'With your hours picked, TE keeps collecting while you wait to shift or prestige. Check exactly prices each ascension on the hour, and can also try ascending at once',
 };
