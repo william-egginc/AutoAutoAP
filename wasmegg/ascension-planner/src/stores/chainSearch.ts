@@ -1162,6 +1162,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // Its own settings, so sending or downloading it after opening labels it with them (older saved
     // runs carry none and fall back to Your setup as it is now), never the last search's.
     runSettingsUsed.value = (summary.settings as RunSettings | undefined) ?? null;
+    accountUsed = null;
     runNoteUsed = summary.runNote;
     runNote.value = summary.runNote ?? '';
     integrityWait.value = null;
@@ -2138,6 +2139,16 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     };
   }
 
+  /**
+   * The account as it was when the run (or its carry-on) started: the save, inventory and research
+   * the run priced. A run carried on over days keeps its own save while the tab may load a newer
+   * one (the watcher's reopen, Load latest save), and the submission read the newer one -- so the
+   * board saw a plan starting 18 h "before the save it was made from" and filed it as a what-if
+   * (Halceyx, 6 Oct). Same live-vs-run bug as runSettingsUsed; same fix.
+   */
+  let accountUsed: ReturnType<typeof accountFields> | null = null;
+  let deadlineAccount: ReturnType<typeof accountFields> | null = null;
+
   function buildRunSubmission(nickname?: string): Submission | null {
     if (!bestChain.value.length || bestDays.value <= 0) return null;
     const sub = buildSubmission({
@@ -2176,7 +2187,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
             ),
           }
         : {}),
-      ...accountFields(currentTE.value),
+      ...(accountUsed ?? accountFields(currentTE.value)),
       // The player's earlier plans priced again, once `prepareRechecks` (or the end of the run) has
       // worked them out for THIS result. Until then the preview simply has none, and the send adds
       // them if they arrive in time (see `sendSubmission`). Named plans for a named send, anonymous
@@ -2216,7 +2227,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       holdShifts: (r.settings ?? usedSettings()).deferShifts,
       forceContinue: (r.settings ?? usedSettings()).forceContinue,
       chainsPriced: r.priced,
-      ...accountFields(r.te),
+      ...(deadlineAccount ?? accountFields(r.te)),
       timeOff: usableTimeOff((r.settings ?? usedSettings()).timeOff),
       deadline: { at: r.deadline, ascendAt: route.ascendAt },
     });
@@ -3247,6 +3258,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
 
     planStartUsed.value = planStart.value;
     runSettingsUsed.value = snapshotSettings();
+    accountUsed = accountFields(currentTE.value);
     chainsEstimated.value = chains.length;
     bestChain.value = [];
     bestDays.value = 0;
@@ -3550,6 +3562,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   }
   /** Show a saved answer as the current one (it doesn't re-run anything). */
   function openSavedAnswer(id: string): void {
+    deadlineAccount = null;
     const a = savedAnswers.value.find(x => x.id === id);
     if (a && !deadlineRunning.value) {
       deadlineAll = [];
@@ -3565,6 +3578,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   /** The saved result and any unfinished run, for the panel to show on opening. */
   async function loadDeadlineState(playerId: string): Promise<void> {
     if (!playerId || deadlineRunning.value) return;
+    deadlineAccount = null;
     try {
       partitionHash = await hashID(playerId);
       runSaves.value = await listRunSaves(partitionHash);
@@ -3709,6 +3723,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const schedule = isConstrained(inputs.availability) ? inputs.availability : null;
     deadlineRunning.value = true;
     deadlineSettings = snapshotSettings();
+    deadlineAccount = accountFields(inputs.currentTE);
     deadlineNote = spec.note;
     deadlineEstimate.value = Math.max(0, Math.floor(spec.estimate ?? 0));
     deadlineStop = false;
@@ -4316,6 +4331,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
 
     planStartUsed.value = planStart.value;
     runSettingsUsed.value = snapshotSettings();
+    accountUsed = accountFields(currentTE.value);
     const chain = seedChain.value;
     chainsEstimated.value = estimateChains(Math.max(1, chain.length - 1), EFFORT[effort.value]);
     bestChain.value = [...chain];
