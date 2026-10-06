@@ -14,7 +14,8 @@
  * itself calls is already Pinia-free.
  */
 import { defineStore } from 'pinia';
-import { computed, ref, shallowRef, toRaw, watch } from 'vue';
+import { computed, markRaw, ref, shallowRef, toRaw, watch } from 'vue';
+import { CHART_AUTO_LIMIT, addToHeat, createHeat, heatSnapshot, type HeatSnapshot } from '@/lib/chartThin';
 import { getSimulationContext, createBaseEngineState } from '@/engine/adapter';
 import { getLocalTimestampInTimezone } from '@/lib/events';
 import { hashID } from '@/lib/storage/db';
@@ -1151,6 +1152,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const body = await loadRun(await hashID(playerId), id);
     if (!summary || !body) return false;
 
+    resetChartData();
     liveCache = body.entries;
     coarseCache = [];
     // Restored so the panel can say what this run covered, and so Resume has a space to hand back
@@ -1769,7 +1771,89 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * fires with the whole cache after every batch, and a reactive write of thousands of points on
    * that path would cost more than the chart is worth.
    */
-  const pricedChains = ref<PricedChain[]>([]);
+  //
+  // A shallowRef holding a markRaw array: on a full sweep this is 100,000+ objects, and a plain ref
+  // made every one of them (and its chain array) a reactive proxy the moment the chart read it.
+  // Above CHART_AUTO_LIMIT it is left EMPTY until someone presses "Draw the charts" (`drawCharts`),
+  // so a big run holds no second copy of its results for a chart nobody asked for.
+  const pricedChains = shallowRef<PricedChain[]>(markRaw([]));
+  /** How many chains have a duration. The panels test this, not `pricedChains.length`. */
+  const pricedCount = ref(0);
+  /** Set by "Draw the charts" on a big run; cleared when a new run starts. */
+  const chartsWanted = ref(false);
+
+  /**
+   * The heat map's running counts (lib/chartThin.ts): a fixed grid fed only the chains priced since
+   * the last feed, so it costs the same on a 100-chain run and a 120,000-chain one. `heat` is the
+   * copy the chart draws, taken on the same 30-second beat as everything else here.
+   */
+  let heatGrid = createHeat();
+  let heatFedLive = 0;
+  let heatFedCoarse = 0;
+  const heat = shallowRef<HeatSnapshot | null>(null);
+
+  /** Forget the chart data: a new run, or a saved one opened. */
+  function resetChartData(): void {
+    heatGrid = createHeat();
+    heatFedLive = 0;
+    heatFedCoarse = 0;
+    heat.value = null;
+    pricedChains.value = markRaw([]);
+    pricedCount.value = 0;
+    chartsWanted.value = false;
+  }
+
+  function feedHeatFrom(list: CacheEntry[], from: number): number {
+    for (let i = from; i < list.length; i++) {
+      const e = list[i];
+      if (!(e.seconds > 0)) continue;
+      // The last checkpoint is the key's second-to-last number (or the only one).
+      const end = e.key.lastIndexOf(',');
+      const start = end > 0 ? e.key.lastIndexOf(',', end - 1) + 1 : 0;
+      const last = end > 0 ? Number(e.key.slice(start, end)) : Number(e.key);
+      addToHeat(heatGrid, last, e.seconds / 86400);
+    }
+    return list.length;
+  }
+
+  /**
+   * Only what arrived since the last call. Both caches only ever grow at the end during a run (the
+   * smart search hands over a fresh array each batch, but in the same order), so a length is enough
+   * to know where to carry on. A cache that got SHORTER was replaced, and starts the map again.
+   * (A smart search's coarse scan and driver can price the same chain; those few are counted twice.)
+   */
+  function feedHeat(): void {
+    if (liveCache.length < heatFedLive || coarseCache.length < heatFedCoarse) {
+      heatGrid = createHeat();
+      heatFedLive = 0;
+      heatFedCoarse = 0;
+    }
+    heatFedCoarse = feedHeatFrom(coarseCache, heatFedCoarse);
+    heatFedLive = feedHeatFrom(liveCache, heatFedLive);
+  }
+
+  function buildPricedChains(entries: CacheEntry[]): PricedChain[] {
+    const out: PricedChain[] = [];
+    for (const e of entries) {
+      if (!(e.seconds > 0)) continue;
+      const chain = e.key.split(',').map(Number);
+      out.push({
+        chain,
+        days: e.seconds / 86400,
+        prestiges: chain.length,
+        // The last checkpoint before the target: the axis every measured sawtooth is drawn
+        // against, so the user's own run can be read the same way as the explainer's figures.
+        lastCheckpoint: chain.length > 1 ? chain[chain.length - 2] : chain[0],
+      });
+    }
+    return markRaw(out);
+  }
+
+  /** "Draw the charts" on a big run: build the point list now, and keep it on the usual beat. */
+  function drawCharts(): void {
+    chartsWanted.value = true;
+    pricedChains.value = buildPricedChains(allEntries());
+  }
 
   /**
    * How many chains keep their PER-LEG DETAIL in memory. 0 means all of them.
@@ -1818,6 +1902,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   }
 
   function refreshShortlist(force = false): void {
+    // Every call, not only on the beat: it reads just the chains that arrived since the last one.
+    feedHeat();
     const now = Date.now();
     if (!force && now - lastShortlistAt < SHORTLIST_INTERVAL_MS) return;
     lastShortlistAt = now;
@@ -1829,19 +1915,12 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       planStart: planStartUsed.value || planStart.value,
       timezone: useAutoPlannerStore().timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
     });
-    pricedChains.value = entries
-      .filter(e => e.seconds > 0)
-      .map(e => {
-        const chain = e.key.split(',').map(Number);
-        return {
-          chain,
-          days: e.seconds / 86400,
-          prestiges: chain.length,
-          // The last checkpoint before the target: the axis every measured sawtooth is drawn
-          // against, so the user's own run can be read the same way as the explainer's figures.
-          lastCheckpoint: chain.length > 1 ? chain[chain.length - 2] : chain[0],
-        };
-      });
+    let priced = 0;
+    for (const e of entries) if (e.seconds > 0) priced++;
+    pricedCount.value = priced;
+    heat.value = heatSnapshot(heatGrid);
+    // Past the limit, no point list unless asked for: dropping it frees the old copy too.
+    pricedChains.value = priced <= CHART_AUTO_LIMIT || chartsWanted.value ? buildPricedChains(entries) : markRaw([]);
   }
 
   /** Coarse-scan results plus driver cache, de-duplicated by chain, driver winning. */
@@ -2977,7 +3056,11 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       }
     }
     if (!bestEntry) return;
-    bestChain.value = bestEntry.key.split(',').map(Number);
+    // Only when it changed: a new array every chunk re-ran everything that reads the best chain,
+    // the run's chart included, every few seconds for the whole run.
+    if (bestEntry.key !== bestChain.value.join(',') || bestDays.value !== bestEntry.seconds / 86400) {
+      bestChain.value = bestEntry.key.split(',').map(Number);
+    }
     bestDays.value = bestEntry.seconds / 86400;
     bestLegs.value = bestEntry.legs;
   }
@@ -3127,6 +3210,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     }
     liveCache = [];
     coarseCache = [];
+    resetChartData();
     // Cleared once the carry-forward above has been taken: from here this is a LIVE run, not a
     // saved one sitting in the panel, and leaving it set would go on offering to resume something
     // that is already running.
@@ -4191,6 +4275,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // duration its meaning (plan start, excluded hours, final target) may all have changed.
     liveCache = [];
     coarseCache = [];
+    resetChartData();
     openedRun.value = null;
     csvRows.value = 0;
     shortlist.value = [];
@@ -4821,6 +4906,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     csvRows,
     shortlist,
     pricedChains,
+    pricedCount,
+    chartsWanted,
+    drawCharts,
+    heat,
     shortlistView,
     setShortlistView,
     // actions

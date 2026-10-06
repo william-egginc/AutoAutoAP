@@ -773,7 +773,7 @@
 
       <!-- Runners-up. Picked for SPREAD, not the raw top N: a descent sweep leaves the same plan
            nudged by one TE all over the cache, and ten of those is a useless menu. -->
-      <div v-if="store.pricedChains.length > 1" class="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+      <div v-if="store.pricedCount > 1" class="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
         <div class="flex items-center justify-between gap-3">
           <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">
             Other options worth considering
@@ -825,8 +825,8 @@
         >
           Nothing else here is a genuinely different plan: every other chain this run priced is the same shape moved by
           a few TE, or more than five days behind. That is normal for a run that only swept one checkpoint, and for one
-          stopped early. Switch to <span class="font-semibold">Fastest</span> to see all
-          {{ store.pricedChains.length }} of them in raw order.
+          stopped early. Switch to <span class="font-semibold">Fastest</span> to see all {{ store.pricedCount }} of them
+          in raw order.
         </p>
         <div v-else class="overflow-x-auto">
           <table class="w-full text-xs">
@@ -1249,7 +1249,7 @@
 
       <!-- The run's own shape, and why it ended. The CSV had all of this already, but reading it
            meant finishing a three-hour run and opening a spreadsheet. -->
-      <div v-if="store.pricedChains.length" class="p-4 rounded-xl border border-slate-200 bg-white space-y-4">
+      <div v-if="store.pricedCount" class="p-4 rounded-xl border border-slate-200 bg-white space-y-4">
         <div class="flex items-center justify-between gap-3">
           <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">The shape of this search</h3>
           <button
@@ -1276,7 +1276,7 @@
             {{ runOutcome.detail }}
           </div>
 
-          <SearchShapeChart :points="store.pricedChains" :best-chain="store.bestChain" />
+          <RunCharts />
         </div>
       </div>
 
@@ -1351,7 +1351,7 @@ import IntegrityNotice from './IntegrityNotice.vue';
 import SafariNotice from './SafariNotice.vue';
 import RunSaveNotice from './RunSaveNotice.vue';
 import UnfinishedRuns from './UnfinishedRuns.vue';
-import SearchShapeChart from './charts/SearchShapeChart.vue';
+import RunCharts from './charts/RunCharts.vue';
 import type { EffortTier, LegSummary } from '@/search/types';
 import type { ShortlistRow } from '@/search/shortlist';
 import { VIEWS } from '@/search/views';

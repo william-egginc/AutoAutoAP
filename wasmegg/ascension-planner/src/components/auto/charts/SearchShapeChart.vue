@@ -93,7 +93,7 @@
       </span>
     </div>
 
-    <EChart v-if="points.length" :option="option" height="360px" />
+    <EChart v-if="shown.points.length" :option="option" height="360px" />
     <p v-else class="px-4 py-10 text-center text-[10px] font-bold text-slate-400">
       Nothing priced yet. The chart fills in as the search reports batches.
     </p>
@@ -119,7 +119,12 @@
     <div
       class="flex flex-wrap items-center gap-x-4 gap-y-1 px-1 text-[10px] font-bold text-slate-400 uppercase tracking-wide"
     >
-      <span>{{ points.length.toLocaleString() }} chains priced</span>
+      <span>{{ shown.points.length.toLocaleString() }} chains priced</span>
+      <span v-if="thinned" class="normal-case tracking-normal font-semibold"
+        >showing the fastest {{ BEST_SHOWN.toLocaleString() }} and a sample, {{ plotted.length.toLocaleString() }} in
+        all</span
+      >
+      <span v-if="live" class="normal-case tracking-normal font-semibold">redraws every 30 s while it runs</span>
       <span v-for="group in groups" :key="group.prestiges" class="flex items-center gap-1.5">
         <span :style="{ color: highlightGroups.length ? DIM : group.color }">●</span> {{ group.prestiges }} ascensions
         ({{ group.count }})
@@ -129,12 +134,20 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import EChart from '@/components/charts/EChart.vue';
 import type { ChartOption, ChartSeriesOption } from '@/lib/charts/echarts';
 import { esc } from '@/lib/charts/tooltip';
 import type { PricedChain } from '@/search/types';
 import { parseHighlightValues } from '@/search/highlight';
+import {
+  BEST_KEPT as BEST_SHOWN,
+  MAX_DRAWN_POINTS,
+  REDRAW_MS,
+  sortedOrder,
+  thinIndices,
+  thinPositions,
+} from '@/lib/chartThin';
 
 /**
  * Reference marks for the last-checkpoint view, all optional: a horizontal line at `y` days (say,
@@ -160,7 +173,52 @@ const props = defineProps<{
    * exactly what the planner page has always drawn.
    */
   explorerLook?: boolean;
+  /**
+   * A run is still going: redraw at most every REDRAW_MS, and never the moment the tab comes back
+   * into view (that is when a hidden tab's backlog used to land all at once).
+   */
+  live?: boolean;
 }>();
+
+/* ------------------------------------------------------------------ what is drawn, and when */
+
+/**
+ * The data the chart is drawn from: a copy of the props taken on a schedule, not the props
+ * themselves. While a run goes the best chain changes every few seconds, and each change used to
+ * rebuild the whole chart.
+ */
+const shown = shallowRef({ points: props.points, bestChain: props.bestChain });
+let pending = false;
+let ticker: ReturnType<typeof setInterval> | null = null;
+
+function apply(): void {
+  pending = false;
+  shown.value = { points: props.points, bestChain: [...props.bestChain] };
+}
+
+function isHidden(): boolean {
+  return typeof document !== 'undefined' && document.hidden;
+}
+
+watch([() => props.points, () => props.bestChain.join(',')], () => {
+  if (!props.live && !isHidden()) apply();
+  else pending = true;
+});
+// The run just ended: show where it finished, unless the tab is hidden (the ticker does it then).
+watch(
+  () => props.live,
+  live => {
+    if (!live && pending && !isHidden()) apply();
+  }
+);
+onMounted(() => {
+  ticker = setInterval(() => {
+    if (pending && !isHidden()) apply();
+  }, REDRAW_MS);
+});
+onBeforeUnmount(() => {
+  if (ticker) clearInterval(ticker);
+});
 
 type AxisMode = 'last' | 'rank' | 'order';
 const axis = ref<AxisMode>('last');
@@ -214,7 +272,7 @@ const LABEL_BACK = { backgroundColor: 'rgba(255,255,255,0.85)', padding: [1, 3],
 
 const groups = computed(() => {
   const counts = new Map<number, number>();
-  for (const p of props.points) counts.set(p.prestiges, (counts.get(p.prestiges) ?? 0) + 1);
+  for (const p of shown.value.points) counts.set(p.prestiges, (counts.get(p.prestiges) ?? 0) + 1);
   return [...counts.entries()]
     .sort((a, b) => a[0] - b[0])
     .map(([prestiges, count], i) => ({ prestiges, count, color: PALETTE[i % PALETTE.length] }));
@@ -229,7 +287,7 @@ const highlightPosition = ref<Position>(0);
 const highlightText = ref('');
 
 /** Longest chain in the run, which decides how many positions can be offered. */
-const maxChainLength = computed(() => props.points.reduce((m, p) => Math.max(m, p.chain.length), 0));
+const maxChainLength = computed(() => shown.value.points.reduce((m, p) => Math.max(m, p.chain.length), 0));
 
 const ORDINALS = ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th', '10th'];
 
@@ -272,18 +330,41 @@ interface Plotted {
   prestiges: number;
 }
 
+/** Every point's duration, for thinning and ranking. */
+const daysOf = computed(() => Float64Array.from(shown.value.points, p => p.days));
+
+/** Rank (0 = fastest) of each point, built only for the "Sorted best first" axis. */
+const rankOrder = computed(() => (axis.value === 'rank' ? sortedOrder(daysOf.value) : null));
+
+function xOf(i: number, rankOfIndex: Uint32Array | null): number {
+  if (axis.value === 'rank') return (rankOfIndex?.[i] ?? 0) + 1;
+  if (axis.value === 'order') return i + 1;
+  return shown.value.points[i].lastCheckpoint;
+}
+
+function toPlotted(i: number, rankOfIndex: Uint32Array | null): Plotted {
+  const p = shown.value.points[i];
+  return { x: xOf(i, rankOfIndex), y: p.days, chain: p.chain, prestiges: p.prestiges };
+}
+
+/**
+ * What is drawn: at most MAX_DRAWN_POINTS, the fastest plus an even sample of the rest. Every
+ * count and best-of on the page still comes from all of them.
+ */
 const plotted = computed<Plotted[]>(() => {
-  const source = props.points;
-  if (axis.value === 'rank') {
-    return [...source]
-      .sort((a, b) => a.days - b.days)
-      .map((p, i) => ({ x: i + 1, y: p.days, chain: p.chain, prestiges: p.prestiges }));
+  const order = rankOrder.value;
+  if (order) {
+    // Sorted by rank already, so thin by position and the x is the position.
+    return thinPositions(order.length).map(pos => {
+      const p = shown.value.points[order[pos]];
+      return { x: pos + 1, y: p.days, chain: p.chain, prestiges: p.prestiges };
+    });
   }
-  if (axis.value === 'order') {
-    return source.map((p, i) => ({ x: i + 1, y: p.days, chain: p.chain, prestiges: p.prestiges }));
-  }
-  return source.map(p => ({ x: p.lastCheckpoint, y: p.days, chain: p.chain, prestiges: p.prestiges }));
+  return thinIndices(daysOf.value).map(i => toPlotted(i, null));
 });
+
+/** Is the drawing a sample? Said under the chart, so a thinned cloud is never taken for all of it. */
+const thinned = computed(() => plotted.value.length < shown.value.points.length);
 
 interface HighlightGroup {
   value: number;
@@ -298,41 +379,64 @@ interface HighlightGroup {
 
 const highlightGroups = computed<HighlightGroup[]>(() => {
   if (!highlightValues.value.length) return [];
-  const buckets = new Map<number, Plotted[]>();
+  const all = shown.value.points;
+  const buckets = new Map<number, number[]>();
   for (const value of highlightValues.value) buckets.set(value, []);
-  for (const p of plotted.value) {
-    const v = valueAt(p.chain);
+  for (let i = 0; i < all.length; i++) {
+    const v = valueAt(all[i].chain);
     if (v === null) continue;
-    buckets.get(v)?.push(p);
+    buckets.get(v)?.push(i);
   }
 
-  const filled = [...buckets.entries()].filter(([, pts]) => pts.length);
+  const filled = [...buckets.entries()].filter(([, idx]) => idx.length);
   if (!filled.length) return [];
-  // `reduce`, not `Math.min(...pts.map(…))`: one bucket can hold tens of thousands of points on a
-  // big run, and a spread passes one argument per element, which is a RangeError past ~125k on V8
-  // and lower on Safari. It also finds the winning POINT rather than just its y, which is what the
-  // footer needs anyway -- the old code computed the minimum twice, once each way.
-  const bestOf = (pts: Plotted[]): Plotted => pts.reduce((a, b) => (b.y < a.y ? b : a));
-  const bests = filled.map(([, pts]) => bestOf(pts));
-  const leader = bests.reduce((a, b) => (b.y < a.y ? b : a)).y;
+  // A loop, not `Math.min(...)`: a spread passes one argument per element, a RangeError past ~125k.
+  const bestOf = (idx: number[]): number => idx.reduce((a, b) => (all[b].days < all[a].days ? b : a));
+  const bests = filled.map(([, idx]) => bestOf(idx));
+  const leader = bests.reduce((a, b) => (all[b].days < all[a].days ? b : a));
 
-  return filled.map(([value, pts], i) => {
-    const best = bests[i];
+  // Ranks only when the axis needs them.
+  let rankOfIndex: Uint32Array | null = null;
+  const order = rankOrder.value;
+  if (order) {
+    rankOfIndex = new Uint32Array(order.length);
+    for (let r = 0; r < order.length; r++) rankOfIndex[order[r]] = r;
+  }
+  const perGroup = Math.max(500, Math.floor(MAX_DRAWN_POINTS / filled.length));
+
+  return filled.map(([value, idx], i) => {
+    const best = all[bests[i]];
+    const kept = thinIndices(
+      idx.map(k => all[k].days),
+      perGroup
+    ).map(k => toPlotted(idx[k], rankOfIndex));
     return {
       value,
       color: HIGHLIGHT_PALETTE[i % HIGHLIGHT_PALETTE.length],
-      points: pts,
-      count: pts.length,
-      bestDays: best.y,
+      points: kept,
+      count: idx.length,
+      bestDays: best.days,
       bestChain: best.chain,
-      gapDays: best.y - leader,
+      gapDays: best.days - all[leader].days,
     };
   });
 });
 
 const matchedCount = computed(() => highlightGroups.value.reduce((n, g) => n + g.count, 0));
 
-const bestKey = computed(() => props.bestChain.join(','));
+/** The best-found ring, looked up in ALL the points (the sample may not hold it). */
+const bestPoint = computed<Plotted | null>(() => {
+  const want = shown.value.bestChain;
+  if (!want.length) return null;
+  const all = shown.value.points;
+  const i = all.findIndex(p => p.chain.length === want.length && p.chain.every((v, k) => v === want[k]));
+  if (i < 0) return null;
+  if (axis.value !== 'rank') return toPlotted(i, null);
+  // Its rank: how many are strictly faster.
+  let faster = 0;
+  for (const p of all) if (p.days < all[i].days) faster++;
+  return { x: faster + 1, y: all[i].days, chain: all[i].chain, prestiges: all[i].prestiges };
+});
 
 const option = computed<ChartOption>(() => {
   const dimmed = highlightGroups.value.length > 0;
@@ -379,7 +483,7 @@ const option = computed<ChartOption>(() => {
     });
   }
 
-  const best = plotted.value.find(p => p.chain.join(',') === bestKey.value);
+  const best = bestPoint.value;
   if (best) {
     const ring = props.explorerLook ? INK : BEST_RING;
     series.push({

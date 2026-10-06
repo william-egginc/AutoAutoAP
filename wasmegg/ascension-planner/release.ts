@@ -14,6 +14,6 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 export default {
-  reloadIfBuiltBefore: '2026-10-05T19:54:00Z',
-  note: 'TE keeps collecting while you wait for your hours; My plans can filter and show the best per group; a Stepping away? box can carry a crashed run on by itself; By a date boxes reset for a new account',
+  reloadIfBuiltBefore: '2026-10-06T15:51:00Z',
+  note: 'Big runs stay light: past 20,000 chains the charts wait for a button and a heat map shows instead; TE keeps collecting while you wait; My plans filters; a Stepping away? box',
 };

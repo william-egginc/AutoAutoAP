@@ -1010,11 +1010,11 @@
         <!-- Saved runs: the same list on both depths (SavedRuns.vue); carrying a sweep on is this one's. -->
         <SavedRuns :player-id="playerId" can-resume />
 
-        <SearchShapeChart v-if="store.pricedChains.length" :points="store.pricedChains" :best-chain="store.bestChain" />
+        <RunCharts v-if="store.pricedCount" />
 
         <!-- Diagnostics are offered on a run with no answer too: that is exactly when someone wants to
            report what went in. -->
-        <div v-if="store.pricedChains.length || store.noFeasibleChain" class="flex flex-wrap items-center gap-3">
+        <div v-if="store.pricedCount || store.noFeasibleChain" class="flex flex-wrap items-center gap-3">
           <template v-if="store.csvRows > 0">
             <button
               type="button"
@@ -1223,7 +1223,7 @@ import {
   SUGGESTABLE_ASCENSIONS,
   formatHours,
 } from '@/search/exhaustive';
-import SearchShapeChart from './charts/SearchShapeChart.vue';
+import RunCharts from './charts/RunCharts.vue';
 import HelpTip from './HelpTip.vue';
 import StartTimeFinder from './StartTimeFinder.vue';
 import { showDateTime } from '@/lib/displayTime';
