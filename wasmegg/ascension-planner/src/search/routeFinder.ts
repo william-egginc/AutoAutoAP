@@ -105,9 +105,11 @@ export interface FindOptions {
   /** False: start the moment the last one ends and shift the sale by the minutes past the hour
    *  (`lateBy`), the approximation, kept for comparing. Default: on the next whole hour. */
   onTheHour?: boolean;
-  /** "Works inside my hours": each answer is the best kept route whose every prestige (each fresh
-   *  ascension after the first, at the time the table starts it) falls inside these hours and days
-   *  (`prestigesInHours`). Counts that had a route but none inside are listed in `outOfHours`. */
+  /** "Works inside my hours": only routes whose every prestige (each fresh ascension after the
+   *  first, at the time the table starts it) falls inside these hours and days (`prestigesInHours`).
+   *  An arrival whose prestige falls outside is dropped as it is made, so the arrivals kept are all
+   *  inside and every count has its best chance of an answer. Counts left without one, once hours
+   *  have dropped something, are listed in `outOfHours`. */
   hours?: Availability;
 }
 
@@ -431,8 +433,8 @@ export async function findRoutes(
   byDate: Route | null;
   /** With `deadline`: the same for each number of ascensions (index = ascensions). */
   byDateByAscensions: (Route | null)[];
-  /** With `hours`: the numbers of ascensions that have a route (in time, with a deadline) but none
-   *  whose prestiges all fall inside the hours. */
+  /** With `hours`: the numbers of ascensions left without a route (in time, with a deadline) once
+   *  the hours have dropped an arrival at that count or before. */
   outOfHours?: number[];
 }> {
   const K = o.maxAscensions ?? 10;
@@ -460,7 +462,15 @@ export async function findRoutes(
   arrivals[0].set(o.startTE, [
     label({ time: o.start, delivered: o.startDelivered ?? canonicalDelivered(o.startTE), prev: null, leg: null }),
   ]);
+  // With hours: the step at which hours first dropped an arrival (none: Infinity).
+  const hours = o.hours;
+  let firstDrop = Infinity;
   const relax = (k: number, te: number, l: Omit<Label, 'id'>) => {
+    // An ascension after the first starts with a prestige: outside the hours, this route is out.
+    if (hours && l.prev?.leg && l.leg && !isAvailable(l.leg.start, hours)) {
+      firstDrop = Math.min(firstDrop, k);
+      return;
+    }
     const list = arrivals[k].get(te);
     if (list?.some(x => dominates(x, l))) return;
     arrivals[k].set(te, keepUnbeaten(list, label(l), keep));
@@ -505,24 +515,11 @@ export async function findRoutes(
     for (let l: Label | null = last; l?.leg; l = l.prev) legs.unshift(l.leg);
     return { chain: legs.map(l => l.to), legs, end: last.time, seconds: last.time - o.start };
   };
-  // With hours, an arrival counts only when every prestige on its way falls inside them (memoised
-  // along each route: a label is in hours when the one it came from is and its own start is).
-  const hours = o.hours;
-  const inHours = new Map<number, boolean>();
-  const ok = (l: Label): boolean => {
-    if (!hours || !l.prev?.leg) return true;
-    let v = inHours.get(l.id);
-    if (v === undefined) {
-      v = ok(l.prev) && isAvailable(l.leg!.start, hours);
-      inHours.set(l.id, v);
-    }
-    return v;
-  };
+  // A count with no answer once hours have dropped an arrival at it or before.
   const outOfHours = new Set<number>();
   const readBack = (k: number): Route | null => {
-    const list = arrivals[k].get(top);
-    const last = list?.find(ok);
-    if (o.deadline === undefined && list?.length && !last) outOfHours.add(k);
+    const last = arrivals[k].get(top)?.[0];
+    if (o.deadline === undefined && !last && k >= firstDrop) outOfHours.add(k);
     return last ? routeTo(last) : null;
   };
 
@@ -537,15 +534,12 @@ export async function findRoutes(
     let overall: { te: number; label: Label } | null = null;
     for (let k = 1; k <= K; k++) {
       let mine: { te: number; label: Label } | null = null;
-      let inTime = false;
       for (const [te, list] of arrivals[k]) {
-        if (mine && te < mine.te) continue;
-        const l = list.find(x => x.time <= o.deadline! && ok(x));
-        inTime ||= list[0].time <= o.deadline;
-        if (!l) continue;
+        const l = list[0];
+        if (l.time > o.deadline) continue;
         if (!mine || te > mine.te || (te === mine.te && l.time < mine.label.time)) mine = { te, label: l };
       }
-      if (inTime && !mine) outOfHours.add(k);
+      if (!mine && k >= firstDrop) outOfHours.add(k);
       if (!mine) continue;
       byDateByAscensions[k] = routeTo(mine.label);
       if (!overall || mine.te > overall.te || (mine.te === overall.te && mine.label.time < overall.label.time))

@@ -4,8 +4,9 @@ import { findRoutes, polishFound, prestigesInHours, type BuildLookup, type Polis
 import { isAvailable, type Availability } from './availability';
 import { getNextSaleEnd } from '@/lib/events';
 
-// "Works inside my hours" (the user, 6 Oct): each count's best kept route whose prestiges all fall
-// inside the player's hours. The same synthetic table as routeFinder.polish.spec.ts.
+// "Works inside my hours" (the user, 6 Oct): arrivals whose prestige falls outside the player's hours
+// are dropped as the search makes them, so every route it keeps is inside. The same synthetic table
+// as routeFinder.polish.spec.ts.
 const START = Date.parse('2027-01-04T17:00:00Z') / 1000; // Monday 4 Jan 2027, 9:00 am PST
 const FROM = 100;
 const FINAL = 130;
@@ -50,19 +51,34 @@ describe('findRoutes with hours', () => {
     expect(kept.best).toBe(kept.byAscensions.reduce((a, r) => (r && (!a || r.end < a!.end) ? r : a), null as never));
   });
 
-  it('names the counts that had a route but none inside the hours', async () => {
+  it('names the counts left without a route, and finds more than filtering the free answer would', async () => {
     // One hour on Wednesdays: most routes have a prestige outside it.
     const narrow: Availability = { days: [3], fromHour: 9, toHour: 10, timezone: 'America/Los_Angeles' };
     const free = await find();
     const kept = await find({ hours: narrow });
     expect(kept.outOfHours!.length).toBeGreaterThan(0);
-    free.byAscensions.forEach((r, k) => {
-      if (!r) return expect(kept.outOfHours).not.toContain(k);
-      if (kept.byAscensions[k]) expect(kept.outOfHours).not.toContain(k);
-      else expect(kept.outOfHours).toContain(k);
+    kept.byAscensions.forEach((r, k) => {
+      if (k === 0) return;
+      if (r) {
+        expect(prestigesInHours(r, narrow)).toBe(true);
+        expect(kept.outOfHours).not.toContain(k);
+      } else if (free.byAscensions[k]) expect(kept.outOfHours).toContain(k);
     });
+    // 9 am-5 pm every day: more counts answered than the free answer's routes that happen to fit.
+    const day = await find({ hours: days9to5 });
+    const answered = day.byAscensions.filter(r => r).length;
+    const freeInside = free.byAscensions.filter(r => r && prestigesInHours(r, days9to5)).length;
+    expect(answered).toBeGreaterThan(freeInside); // 3 against 1 on this table
     // One ascension needs no prestige on the way.
     expect(kept.byAscensions[1]?.end).toBe(free.byAscensions[1]?.end);
+  });
+
+  it('drops nothing when every hour of every day is available', async () => {
+    const always: Availability = { days: [], fromHour: 0, toHour: 0, timezone: 'America/Los_Angeles' };
+    const free = await find();
+    const kept = await find({ hours: always });
+    expect(kept.byAscensions).toEqual(free.byAscensions);
+    expect(kept.outOfHours).toEqual([]);
   });
 
   it('By a date: each count the highest TE in time with its prestiges inside the hours', async () => {
