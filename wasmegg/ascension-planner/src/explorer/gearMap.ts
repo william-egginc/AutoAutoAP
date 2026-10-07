@@ -254,8 +254,15 @@ export function guideSegment(worth: number, d: MapDomain): [[number, number], [n
  * where to look instead.
  */
 export const GEAR_NEED_WHERE: Record<string, { where: string; region: boolean }> = {
-  'cte-edge': { where: 'The band from CTE 200 to 240, shaded, around the stall line.', region: true },
   'te-low': { where: 'Top left, shaded: under 125 TE with CTE 225 or more.', region: true },
+  // The gear cards (needs.ts GEAR_ASKS) are sets of artifacts, not a box on TE and CTE: the map can
+  // only point at where their CTE falls. The rare earnings set straddles the ~225 stall line.
+  'gear-epic-earnings': { where: 'CTE 229 to 304 at TE 125 to 200.', region: false },
+  'gear-rare-earnings': { where: 'CTE 212 to 287 at TE 125 to 200, across the stall line.', region: false },
+  'gear-rare-common-delivery': { where: 'Strong earnings, so high on the map; the delivery is what differs.', region: false },
+  'gear-epic-everything': { where: 'The epic earnings set: CTE 229 to 304 at TE 125 to 200.', region: false },
+  'gear-rare-everything': { where: 'The rare earnings set: CTE 212 to 287 at TE 125 to 200.', region: false },
+  'gear-legendary-t3-stones': { where: 'A little below the maxed set: the stones are what differ.', region: false },
   'new-gear': { where: 'Any gear not yet on the tables list.', region: false },
   'not-maxed': {
     where: 'Anywhere: CTE already takes off what is missing, so the map cannot tell these accounts apart.',
@@ -296,25 +303,13 @@ export interface NeedRegion {
 /**
  * The shaded boxes, one per open need whose test is a TE/CTE box, clipped to the domain, each with
  * its label pinned where no guide crosses it. The bounds are needs.ts's own (LOW_TE 125 with CTE
- * 225, CTE 200 to 240); gearMap.spec.ts checks them against `dataNeeds` so the two cannot
+ * 225); gearMap.spec.ts checks them against `dataNeeds` so the two cannot
  * drift apart.
  */
 export function needRegions(needs: readonly DataNeed[], d: MapDomain): NeedRegion[] {
   const open = new Map(needs.map(n => [n.id, n]));
   const tally = (id: string) => `${open.get(id)!.have} of ${open.get(id)!.want}`;
   const out: NeedRegion[] = [];
-  if (open.has('cte-edge')) {
-    // Along the bottom of the band at the right: the guides cross it at the left.
-    out.push({
-      id: 'cte-edge',
-      x: [d.x[0], d.x[1]],
-      y: [200, 240],
-      text: `wanted: CTE 200–240 (${tally('cte-edge')})`,
-      anchor: [d.x[1], 200],
-      align: 'right',
-      verticalAlign: 'bottom',
-    });
-  }
   if (open.has('te-low')) {
     out.push({
       id: 'te-low',

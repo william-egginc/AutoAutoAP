@@ -518,7 +518,7 @@
             gap.
           </p>
         </div>
-        <ChainExplorer part="science" embedded :science-view="scienceView" :te-now="saveTE" @run-sweep="openSweep" />
+        <ChainExplorer part="science" embedded :science-view="scienceView" :te-now="saveTE" :inventory="saveArtifacts" @run-sweep="openSweep" @run-by-date="openByDate" />
       </div>
 
       <!-- Your setup, floating, on every Auto Planner screen: the gear opens it; workers adjust folded. -->
@@ -668,6 +668,8 @@ import SiteTabs from '@/components/SiteTabs.vue';
 import SetupDock from '@/components/auto/SetupDock.vue';
 import SweepRunner from '@/components/science/SweepRunner.vue';
 import type { SweepRequest } from '@/search/sweepRequest';
+import { virtueInventory } from '@/search/csv';
+import type { ByDateRequest } from '@/search/byDateRequest';
 import RunningElsewhere from '@/components/auto/RunningElsewhere.vue';
 import { useSalesStore } from '@/stores/sales';
 import { hashID, saveMetadata, loadMetadata } from '@/lib/storage/db';
@@ -989,6 +991,8 @@ const autoTabs: { id: AutoView; label: string; screen: SearchScreen | null }[] =
  * passed, whichever is more, capped at 98). Science isn't a screen that sets the save up, and its
  * sweep ranges start from this.
  */
+/** The save's artifacts, for the Science tab's gear cards to say which ones you have. */
+const saveArtifacts = computed(() => virtueInventory(initialStateStore.rawBackup).artifacts);
 const saveTE = computed(() => {
   const virtue = initialStateStore.rawBackup?.virtue;
   const earned = virtue?.eovEarned ?? [];
@@ -1415,6 +1419,12 @@ async function prepareAutoPlanner(): Promise<string> {
 /** What we need to check's Run this sweep, on the Science tab: open its window. */
 function openSweep(request: SweepRequest): void {
   uiStore.scienceSweep = request;
+}
+/** A By a date ask's button, on the Science tab: open that screen with the ask filled in (DeadlinePanel
+ *  applies it). Under a running search the screen opens as it is: that search owns the boxes. */
+function openByDate(request: ByDateRequest): void {
+  if (!searchActive.value) uiStore.byDateRequest = request;
+  goAuto('by-date');
 }
 function sweepKey(r: SweepRequest): string {
   return `${r.preset}|${r.bands}|${r.minGap}|${r.forceContinue}`;

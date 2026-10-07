@@ -1168,8 +1168,10 @@
           v-if="rows.length"
           :rows="usable"
           :te-from-save="teNow"
+          :inventory="inventory"
           :run-in-place="embedded"
           @run="r => emit('run-sweep', r)"
+          @run-by-date="r => emit('run-by-date', r)"
         />
         <p v-else class="rounded-lg bg-slate-50 px-3 py-2 text-[11px] text-slate-500">
           The asks are worked out from the runs on the board, so they need the board, and it
@@ -1229,6 +1231,8 @@ import LegProfileChart from './LegProfileChart.vue';
 import CountCompareChart from './CountCompareChart.vue';
 import FinalLegChart from './FinalLegChart.vue';
 import DataNeeds from './DataNeeds.vue';
+import type { InventoryCount } from '@/search/csv';
+import type { ByDateRequest } from '@/search/byDateRequest';
 import type { SweepRequest } from '@/search/sweepRequest';
 import FlaggedBoard from './FlaggedBoard.vue';
 import NewVersionBanner from '@/components/NewVersionBanner.vue';
@@ -1308,12 +1312,14 @@ const props = withDefaults(
     scienceView?: 'check' | 'submit';
     /** The planner's loaded TE, for What we need to check's ranges. */
     teNow?: number;
+    /** The loaded save's artifacts, to mark the gear cards it matches. */
+    inventory?: InventoryCount[];
   }>(),
   { part: 'insights', embedded: false, scienceView: 'check', teNow: 0 }
 );
 /** A sweep from What we need to check, to run in the planner (embedded only; the planner owns the
  *  stores a run needs, which this page never touches). */
-const emit = defineEmits<{ 'run-sweep': [request: SweepRequest] }>();
+const emit = defineEmits<{ 'run-sweep': [request: SweepRequest]; 'run-by-date': [request: ByDateRequest] }>();
 
 /** Where a pasted collector URL is remembered. Per-browser, not per-build. */
 const BASE_STORAGE_KEY = 'chainExplorerCollector';
