@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { defaultSeedChain, seedChainIssue, usableCheckpoints, fitSeedToLimits, MAX_LAST_GAP, MEASURED_LAST_CHECKPOINT_490 } from './seedChain';
+import {
+  defaultSeedChain,
+  seedChainIssue,
+  seedTidied,
+  usableCheckpoints,
+  fitSeedToLimits,
+  MAX_LAST_GAP,
+  MEASURED_LAST_CHECKPOINT_490,
+} from './seedChain';
 
 describe('defaultSeedChain', () => {
   it('produces a chain inside the configured prestige range, not a 2-ascension one', () => {
@@ -175,5 +183,13 @@ describe('measured last checkpoint on a 490 target', () => {
   it('leaves other targets alone', () => {
     const chain = defaultSeedChain({ currentTE: 150, finalTE: 400, minPrestiges: 4, maxPrestiges: 4 });
     expect(chain[chain.length - 2]).toBe(250);
+  });
+
+  it('puts a typed chain in ascending order and drops repeats, and says it did', () => {
+    expect(usableCheckpoints([300, 250, 250, 200], 159, 490)).toEqual([200, 250, 300]);
+    expect(seedTidied([300, 250, 250, 200], 159, 490)).toBe(true);
+    expect(seedTidied([200, 250, 300], 159, 490)).toBe(false);
+    // Dropping values outside the range is its own rule, not a tidy.
+    expect(seedTidied([135, 250, 340], 159, 490)).toBe(false);
   });
 });

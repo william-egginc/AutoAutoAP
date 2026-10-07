@@ -24,7 +24,7 @@ export const EFFORT: Record<EffortTier, EffortConfig> = {
   // Descent radius is 8 in every tier: a replay of the search found the knee at radius 4 and
   // exactness at 7, so 8 is one step of margin rather than a round number.
   quick: { slices2: false, slices3: false, radius: 8, radius3: 0, countProbe: false },
-  balanced: { slices2: true, slices3: false, radius: 8, radius3: 0, countProbe: false },
+  balanced: { slices2: true, slices3: false, radius: 8, radius3: 0, countProbe: true },
   normal: { slices2: true, slices3: false, radius: 8, radius3: 0, countProbe: true },
   thorough: { slices2: true, slices3: true, radius: 8, radius3: 6, countProbe: true },
 };
@@ -59,14 +59,21 @@ export const EFFORT_NOTES: Record<EffortTier, EffortNote> = {
   balanced: {
     label: 'Balanced',
     cliDuration: '~2 h 55 m',
-    adds: '+ every combination of each neighbouring pair of checkpoints, which moving one at a time can miss.',
-    accuracy: 'Measured 1.3 h and 0 h behind the best answer found, on 2 accounts. Within a day on both.',
+    adds:
+      '+ every combination of each neighbouring pair of checkpoints, which moving one at a time can miss. ' +
+      '+ tries one ascension fewer or one more, and again from there while the count keeps changing (within your limits), then fine-tunes again. ' +
+      'The count check adds roughly 10 to 15% more chains.',
+    accuracy:
+      'Measured 1.3 h and 0 h behind the best answer found, on 2 accounts. Within a day on both. ' +
+      'Those runs were made before this level checked other ascension counts, so they say nothing about that step.',
     warning: null,
   },
   normal: {
     label: 'Exact',
     cliDuration: '~3 h 30 m',
-    adds: '+ tries one ascension fewer or one more, then fine-tunes again.',
+    adds:
+      'The same steps as Balanced now: the one-more-or-fewer check moved down to Balanced. ' +
+      'Kept as its own level so saved runs and links keep their label.',
     accuracy:
       'Matched the best of all 4,913 plans tested in full around it, on 1 account. ' +
       'The other accounts have no proven answer to check against.',

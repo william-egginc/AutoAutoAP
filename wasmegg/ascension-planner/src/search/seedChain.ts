@@ -80,7 +80,8 @@ export function defaultSeedChain({ currentTE, finalTE, minPrestiges, maxPrestige
   const intermediate = ascensions - 1;
   if (intermediate < 1) return [Math.floor(finalTE)];
   // One checkpoint: on a measured target it IS the last checkpoint; otherwise halfway, as before.
-  if (intermediate === 1) return [measured !== undefined && hi > lo ? hi : Math.round((lo + hi) / 2), Math.floor(finalTE)];
+  if (intermediate === 1)
+    return [measured !== undefined && hi > lo ? hi : Math.round((lo + hi) / 2), Math.floor(finalTE)];
 
   const ratio = Math.pow(hi / lo, 1 / (intermediate - 1));
   const chain: number[] = [];
@@ -195,9 +196,18 @@ export function fitSeedToLimits(chain: number[], minPrestiges: number, maxPresti
  *
  * Drops anything at or below current TE, because "ascend to 135" is not something a 159 TE account
  * can do and the simulator does not survive being asked, and anything at or above the final
- * target, which is appended separately. Order and duplicates are the caller's problem; this only
- * decides membership.
+ * target, which is appended separately. The rest are put in ascending order with repeats removed:
+ * a typed "300 250 250 200" is the chain 200 250 300, and the search assumes checkpoints go up.
+ * `seedTidied` says when that changed what was typed, so the panel can say so.
  */
 export function usableCheckpoints(raw: number[], currentTE: number, finalTE: number): number[] {
-  return raw.filter(v => Number.isFinite(v) && v > currentTE && v < finalTE);
+  const inRange = raw.filter(v => Number.isFinite(v) && v > currentTE && v < finalTE);
+  return [...new Set(inRange)].sort((a, b) => a - b);
+}
+
+/** True when the usable checkpoints are not the typed ones in the typed order (out of order, or a repeat). */
+export function seedTidied(raw: number[], currentTE: number, finalTE: number): boolean {
+  const inRange = raw.filter(v => Number.isFinite(v) && v > currentTE && v < finalTE);
+  const tidy = usableCheckpoints(raw, currentTE, finalTE);
+  return inRange.length !== tidy.length || inRange.some((v, i) => v !== tidy[i]);
 }

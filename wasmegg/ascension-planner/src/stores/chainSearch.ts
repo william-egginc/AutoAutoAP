@@ -106,7 +106,7 @@ import {
   type SavedDeadlineResult,
 } from '@/search/deadlineStore';
 import { missedMilestones, usableMilestones, type Milestone } from '@/search/milestones';
-import { defaultSeedChain, seedChainIssue, usableCheckpoints, fitSeedToLimits } from '@/search/seedChain';
+import { defaultSeedChain, seedChainIssue, seedTidied, usableCheckpoints, fitSeedToLimits } from '@/search/seedChain';
 import { buildPool, exhaustiveChainsWithGap, bandedChains, sortByPrefix } from '@/search/exhaustive';
 import { applyLegBudget, estimateLegBytes } from '@/search/legBudget';
 import { summariseEpicResearch, summariseColleggtibles } from '@/search/progression';
@@ -1089,6 +1089,20 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       .filter(n => Number.isFinite(n) && n > 0);
     // "Find a starting chain for me" ignores what was typed, so there is nothing to refuse then.
     return !findSeedFirst.value && raw.length > 0 && raw.every(n => n >= finalTE.value);
+  });
+
+  /** Said when the typed starting chain was not in ascending order or repeated a value: the search
+   *  sorts it and drops the repeats, and a seed it quietly rearranged is not the one typed. */
+  const seedTidyNote = computed(() => {
+    if (findSeedFirst.value) return '';
+    const raw = (seedOverride.value.trim() || useAutoPlannerStore().targetTE || '')
+      .trim()
+      .split(/\s+/)
+      .map(Number)
+      .filter(n => Number.isFinite(n) && n > 0);
+    if (!seedTidied(raw, currentTE.value, finalTE.value)) return '';
+    const chain = usableCheckpoints(raw, currentTE.value, finalTE.value);
+    return `Your starting chain wasn't in order, or repeated a value, so it was sorted and the repeats dropped. It starts from ${[...chain, finalTE.value].join(' ')}.`;
   });
 
   /** Why the current seed cannot produce an answer inside the Limits box, or null when it can.
@@ -4939,6 +4953,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     finishedCleanly,
     seedChain,
     seedIssue,
+    seedTidyNote,
     fitSeedToLimitsNow,
     savedRuns,
     refreshSavedRuns,

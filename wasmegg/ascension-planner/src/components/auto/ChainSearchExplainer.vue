@@ -246,7 +246,7 @@
             It moves checkpoints one at a time, then tries neighbouring pairs (and on Very high, triples) in every
             combination. Each effort level adds a step to the one below. You can stop whenever you like and keep the
             best chain priced so far. One catch: Very high does triples before the one-more-or-fewer step, so stopping
-            it early gets you Balanced's answer plus whatever the triples found, not Exact's.
+            it early gets you the pairs' answer plus whatever the triples found, without the count check.
           </p>
           <ol class="space-y-2 list-decimal list-outside pl-4">
             <li v-for="stage in STAGES" :key="stage.name">
@@ -357,8 +357,8 @@ const STAGES = [
     what: 'the same for each group of three neighbours (13 × 13 × 13).',
   },
   {
-    name: 'One more or one fewer (Exact and Very high)',
-    what: 'try dropping a checkpoint or adding one, within your limits, then fine-tune and nudge again.',
+    name: 'One more or one fewer (Balanced and up)',
+    what: 'try dropping a checkpoint or adding one, within your limits, then fine-tune and nudge again. If the count changed, do it again from the new count, until it stops changing or reaches your limits. Fast skips this step and keeps the count you start with.',
   },
 ];
 </script>
