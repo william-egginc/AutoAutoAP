@@ -33,6 +33,7 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
+  { at: '2026-10-07T09:43:00Z', level: 'small', note: 'Instant answer: a table for gear of only common artifacts, so weaker gear gets a closer answer and a lower bound' },
   { at: '2026-10-07T04:19:05Z', note: 'By a date CSVs now record every step of every route, the same as Smart search and Full sweep, so each run helps check the tables' },
   { at: '2026-10-07T04:04:31Z', note: 'By a date re-estimates its total from what the run actually needs and says when every route is done; a run that carried on after a crash keeps its fewer workers' },
   { at: '2026-10-07T03:15:35Z', note: 'Smart search effort is now Fast, Exact or Very high (Exact is the default; Balanced was the same as Exact). Science sweeps fit your TE and say when one does not fit' },
@@ -40,7 +41,6 @@ const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
   { at: '2026-10-07T01:09:05Z', note: 'Searches say what they cover: a band checker suggests fixes, Full sweep tries one ascension more and fewer and warns when the best is on a band edge, and Balanced Smart search can change the ascension count', level: 'big' },
   { at: '2026-10-06T23:41:57Z', note: 'A long run carried on after a crash now reports the save it actually used, so it is no longer filed as a what-if' },
   { at: '2026-10-06T19:13:00Z', level: 'big', note: "Instant answer: without a table of your own gear, it also prices your route on the nearest tables for stronger and weaker gear and says where your date likely falls" },
-  { at: '2026-10-06T19:02:00Z', level: 'big', note: 'Instant answer: routes polished, and polished harder in the background; "Works inside my hours" keeps every prestige inside your hours; "At most N ascensions"; Open this plan builds a row in Classic' },
 ];
 
 export default {
