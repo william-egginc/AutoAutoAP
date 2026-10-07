@@ -41,7 +41,11 @@
               {{
                 sweepRequest.forceContinue ? 'finishing your current run first' : 'prestiging straight away'
               }}</template
-            >. These are already filled in below, so you don't need to change anything else.
+            >. These are already filled in below.
+          </p>
+          <p class="text-[11px] text-slate-600">
+            This sweep fills a gap in the shared data for science. It isn't tuned to find your best route; use
+            {{ NAMES.smart }} or the instant answer for that.
           </p>
           <p class="text-[11px] text-slate-600">
             <template v-if="timeOffText">

@@ -370,35 +370,68 @@ export function dataNeeds(rows: CollectorRow[]): DataNeed[] {
  * The presets were written for a ~180 TE account, so their first band starts at 189-190. A 133 TE
  * player running them as written would skip 134-189 -- exactly where a low account's first
  * checkpoint may belong (a 133 TE account's best 4-ascension chain starts at 150). So the first band
- * is pulled down to start just above the player's TE, keeping its step; every band then drops the
- * values the player has already passed. Returned as text, ready to paste into the planner.
+ * is pulled down to start just above the player's TE, keeping its step.
+ *
+ * EVERY band is then fitted, not only the first. A band a player has already passed used to come
+ * out as a single value at its own top (a 230 TE account got `215-215:5` for M4's second band) or
+ * lost all its values later, so the run priced nothing: M4, F4, F5, E8 and E9 all came to 0 chains
+ * from 230 TE. Now a band that falls behind the player is moved up by exactly the distance it needs
+ * (its width and step kept) so it starts above the checkpoint before it, and the last of them is
+ * kept under the target. A band that is already ahead of the player stays where it is.
+ *
+ * Not a blanket shift of every band by the player's offset from 180. Where the later checkpoints
+ * land is a property of the delivery curve, not of the account: the last checkpoint of a
+ * 3-ascension chain is 283-291 TE on every run from 126 to 198 TE (see exhaustive.ts, "WHY
+ * ABSOLUTE TE"). Sliding them down 47 TE for a 133 TE account would aim the sweep away from where
+ * the answer is. Returned as text, ready to paste into the planner.
  */
 export function presetBandsFor(presetId: string, currentTE: number, final = 490): string {
   const preset = SWEEP_PRESETS.find(p => p.id === presetId);
   if (!preset || !preset.bands) return '';
   const start = Math.floor(currentTE) + 1;
-  return preset.bands
+  const parts = preset.bands
     .split(';')
     .map(s => s.trim())
-    .filter(Boolean)
+    .filter(Boolean);
+  const last = parts.length;
+  /** The previous band's first value: a band never starts below the one before it. */
+  let prevLo = start - 1;
+  return parts
     .map((part, i) => {
       // `+a-+b:step`, first band only: the player's TE plus a to plus b.
       const rel = i === 0 ? part.match(/^\+(\d+)\s*-\s*\+(\d+)(?::(\d+))?$/) : null;
-      if (rel) {
-        const step = rel[3] ? Number(rel[3]) : 5;
-        const lo = Math.floor(currentTE) + Number(rel[1]);
-        const hi = Math.min(Math.floor(currentTE) + Number(rel[2]), final - 1);
-        return `${Math.min(lo, hi)}-${hi}:${step}`;
-      }
-      const m = part.match(/^(\d+)\s*-\s*(\d+)(?::(\d+))?$/);
+      const m = rel ?? part.match(/^(\d+)\s*-\s*(\d+)(?::(\d+))?$/);
       if (!m) return part;
       const step = m[3] ? Number(m[3]) : 5;
-      const hi = Math.min(Number(m[2]), final - 1);
+      // Room left for the bands after this one: each needs a TE of its own below the target.
+      const ceiling = final - 1 - (last - 1 - i);
+      let lo: number;
+      let hi: number;
+      if (rel) {
+        lo = Math.floor(currentTE) + Number(rel[1]);
+        hi = Math.floor(currentTE) + Number(rel[2]);
+      } else {
+        lo = Number(m[1]);
+        hi = Number(m[2]);
+      }
+      const width = hi - lo;
       // The first range starts just above the player's TE whichever side of it the preset's own
       // start is: pulled down for a low account, raised for a high one (a 240-TE player used to be
       // shown a range starting at 195, all of it behind them).
-      const lo = i === 0 ? start : Math.max(Number(m[1]), start);
-      return `${Math.min(lo, hi)}-${hi}:${step}`;
+      const floor = i === 0 ? start : Math.max(start, prevLo);
+      if (i === 0 && !rel) {
+        lo = start;
+        if (hi < start) hi = start + width;
+      } else if (lo < floor) {
+        // Behind the player or the band before: move it up, keeping its width, or just trim it
+        // when most of it is still ahead.
+        if (hi < floor) hi = floor + width;
+        lo = floor;
+      }
+      hi = Math.min(hi, ceiling);
+      lo = Math.min(lo, hi);
+      prevLo = lo;
+      return `${lo}-${hi}:${step}`;
     })
     .join('; ');
 }

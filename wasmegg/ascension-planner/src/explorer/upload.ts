@@ -86,6 +86,14 @@ export const SWEEP_PRESETS: SweepPreset[] = [
   // recount. The first range is TE-relative: from 5 ascensions up the best first ascension sits just
   // above wherever the player is. Chains at TE 182 / TE 124-133: F4 29,904 / 120,118; F5 29,952 /
   // 151,625 -- low accounts get far more, and each card shows the viewer's own count and time.
+  //
+  // WHY THE MINIMUM GAPS STAY ABOVE 15 here (the Full sweep's help text warns that anything above 15
+  // would have skipped the best chain on one account, a 7-ascension one). For these two the gap is
+  // what keeps the run a size a machine can finish: at TE 182, a gap of 15 would be 146,860 chains
+  // for F4 (not 29,904) and 92,913 for F5 (not 29,952), five and three times the work, and the
+  // bands overlap so much that a small gap mostly adds chains with two checkpoints stacked inside
+  // a few TE. They are "a close look" by design and they do not claim to cover chains with
+  // checkpoints closer than that; E7 and up, which do claim the wide view, use 15 or less.
   {
     id: 'F4',
     label: 'F4: 5 ascensions, a close look',
@@ -105,14 +113,15 @@ export const SWEEP_PRESETS: SweepPreset[] = [
     group: 'big',
   },
   // THE END OF THE LINE: coarse on purpose, sized so the observed best 7-9-ascension chains sit
-  // inside the ranges (E7: all 16). At TE 182: E7 6,855 chains, E8 11,262, E9 11,988. E9 has no
+  // inside the ranges (E7: all 16). At TE 182: E7 9,421 chains (6,855 before its gap went from 16 to
+  // 15, to match the 15 TE gaps the best 7-ascension chains use), E8 11,262, E9 11,988. E9 has no
   // chains from TE 221 up: its second range ends at 231.
   {
     id: 'E7',
     label: 'E7: 7 ascensions, a rough look',
     ascensions: 7,
     bands: '+1-+37:6; 190-251:4; 211-271:10; 229-306:11; 260-359:11; 280-370:10',
-    minGap: 16,
+    minGap: 15,
     group: 'end',
   },
   {
