@@ -241,3 +241,31 @@ export function suggestBase(
   const early = Array.from({ length: n - 1 }, (_, i) => Math.round(te + ((i + 1) * (last - te)) / n));
   return { early, last, from: 'even', around: [] };
 }
+
+/**
+ * The Full sweep's Suggest a space around a route (precompute: the instant answer's, for that many
+ * ascensions): bands centred on its early stops, as wide as fit `maxChains` playable sets. Resolution
+ * first: every TE (step 1) if that still leaves at least 5 TE either side, else the finest step that
+ * does, else the widest found. Null when the route has no early stops or nothing fits.
+ */
+export function routeSpace(
+  currentTE: number,
+  route: number[],
+  maxChains: number
+): (StopSuggestion & { halfWidth: number; step: number }) | null {
+  const early = route.slice(0, -1);
+  const last = route[route.length - 1];
+  if (!early.length || !(last > currentTE)) return null;
+  let fallback: (StopSuggestion & { halfWidth: number; step: number }) | null = null;
+  for (const step of [1, 2, 3, 5]) {
+    for (let w = 30; w >= step; w--) {
+      const s = stopsByWidth(currentTE, early, last, w, step);
+      if (!s || s.sets > maxChains) continue;
+      const found = { ...s, halfWidth: w, step };
+      if (w >= 5) return found;
+      if (!fallback || w > fallback.halfWidth) fallback = found;
+      break;
+    }
+  }
+  return fallback;
+}

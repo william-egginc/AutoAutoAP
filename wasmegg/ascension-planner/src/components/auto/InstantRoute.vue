@@ -1221,6 +1221,22 @@ function behind(r: Route): string {
   if (!t) return '';
   return r === t ? 'fastest' : '+' + days(r.seconds - t.seconds);
 }
+/**
+ * Fastest route only: hand the searches this answer (chainSearch.ts `suggestedCount`/`suggestedRoute`
+ * for their "the instant answer suggests N ascensions" notes, and `instantRoutes`, fastest first, for
+ * Smart search's starting chain and the Full sweep's Suggest a space), in the exact check's order once
+ * it is done.
+ */
+watch([result, exactStatus], () => {
+  if (props.deadline || !result.value) return;
+  const exactDone = exactStatus.value === 'done';
+  const endOf = (r: Route) => (exactDone ? (exactOf(r)?.end ?? Infinity) : r.end);
+  const ordered = result.value.byAscensions.filter((r): r is Route => !!r).sort((a, b) => endOf(a) - endOf(b));
+  store.instantRoutes = ordered.map(r => [...r.chain]);
+  store.suggestedRoute = ordered[0] ? [...ordered[0].chain] : null;
+  store.suggestedCount = ordered[0] ? ordered[0].chain.length : null;
+});
+
 /** The route the box leads with: the simulator's fastest once known, else the table's. */
 const lead = computed(() => exactBest.value ?? result.value?.best ?? null);
 const reranked = computed(() => !!exactBest.value && exactBest.value !== result.value?.best);

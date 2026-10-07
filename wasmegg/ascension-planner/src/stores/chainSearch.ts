@@ -498,6 +498,11 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    */
   const suggestedCount = ref<number | null>(null);
   const suggestedRoute = ref<number[] | null>(null);
+  /** The instant answer's route for each number of ascensions, fastest first (precompute: set by
+   *  InstantRoute.vue on Fastest route; by the exact check's order once it is in). Smart search starts
+   *  from the fastest of them inside the Limits box, and the Full sweep's Suggest a space centres on
+   *  them. */
+  const instantRoutes = ref<number[][] | null>(null);
 
   /** Set by the panel that started the run when it will send the result itself at the end (Find and
    *  submit), so the progress bar on other tabs can say so. */
@@ -1052,8 +1057,16 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    *  answer, because descent only MOVES checkpoints and the probe adds at most one. */
   const seedOverride = ref('');
 
+  /** The instant answer's fastest route inside the Limits box, as typed checkpoints, or ''. */
+  const instantSeed = computed(() => {
+    const fit = (instantRoutes.value ?? []).find(
+      r => r.length >= minPrestiges.value && r.length <= maxPrestiges.value && r[r.length - 1] === finalTE.value
+    );
+    return fit ? fit.slice(0, -1).join(' ') : '';
+  });
+
   const seedChain = computed(() => {
-    const raw = (seedOverride.value.trim() || useAutoPlannerStore().targetTE || '')
+    const raw = (seedOverride.value.trim() || instantSeed.value || useAutoPlannerStore().targetTE || '')
       .trim()
       .split(/\s+/)
       .map(Number)
@@ -4860,6 +4873,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     sweepQueue,
     suggestedCount,
     suggestedRoute,
+    instantRoutes,
+    instantSeed,
     submitsWhenDone,
     deadlineEstimate,
     // settings

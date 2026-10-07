@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_STOP_SETS, STOP_SET_SIZES, stopsByWidth, suggestBase, suggestStops } from './deadlineSuggest';
+import {
+  DEFAULT_STOP_SETS,
+  STOP_SET_SIZES,
+  routeSpace,
+  stopsByWidth,
+  suggestBase,
+  suggestStops,
+} from './deadlineSuggest';
 
 describe('suggestStops', () => {
   it('stays within the size picked, and grows with it', () => {
@@ -84,5 +91,27 @@ describe('suggestBase: what a chain is suggested around', () => {
   });
   it('skips a route that starts at or below the TE (an older save or another account)', () => {
     expect(suggestBase(4, 187, { instant: [164, 199, 223, 256], route: [] }).from).toBe('even');
+  });
+});
+
+describe('routeSpace (the Full sweep around the instant route)', () => {
+  const route = [169, 198, 225, 253, 287, 323, 490];
+  it('centres every band on the route and stays inside the budget', () => {
+    const s = routeSpace(141, route, 200_000)!;
+    expect(s.sets).toBeLessThanOrEqual(200_000);
+    expect(s.bands).toHaveLength(6);
+    s.bands.forEach((b, i) => expect(b).toContain(route[i]));
+    expect(s.halfWidth).toBeGreaterThanOrEqual(5);
+  });
+
+  it('goes coarser before going narrower than 5 either side', () => {
+    const fine = routeSpace(141, route, 200_000)!;
+    const small = routeSpace(141, route, 3_000)!;
+    expect(small.sets).toBeLessThanOrEqual(3_000);
+    expect(small.step > fine.step || small.halfWidth < fine.halfWidth).toBe(true);
+  });
+
+  it('is null for a one-ascension route', () => {
+    expect(routeSpace(141, [490], 1000)).toBeNull();
   });
 });

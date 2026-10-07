@@ -528,6 +528,10 @@
                         : 'of the whole reachable range on a 2 TE grid'
                     }}
                   </template>
+                  <template v-else-if="suggestion.kind === 'instant'">
+                    around the instant answer's route ({{ suggestion.around.join(' ') }}), {{ suggestion.halfWidth }} TE
+                    either side{{ suggestion.step > 1 ? `, every ${suggestion.step} TE` : '' }}
+                  </template>
                   <template v-else>
                     measured shape, from {{ suggestion.runs }} runs across {{ suggestion.accounts }} accounts
                   </template>
@@ -651,8 +655,8 @@
                   + Add another chain
                 </button>
                 <span v-if="extraChains.length" class="text-[11px] text-slate-500">
-                  One click runs {{ extraChains.length === 1 ? 'both' : 'all ' + (extraChains.length + 1) }} chains, one after another. Each finished one is saved
-                  under Saved runs.
+                  One click runs {{ extraChains.length === 1 ? 'both' : 'all ' + (extraChains.length + 1) }} chains, one
+                  after another. Each finished one is saved under Saved runs.
                 </span>
               </div>
             </div>
@@ -1285,6 +1289,7 @@ import {
   SUGGESTABLE_ASCENSIONS,
   formatHours,
 } from '@/search/exhaustive';
+import { routeSpace } from '@/search/deadlineSuggest';
 import RunCharts from './charts/RunCharts.vue';
 import HelpTip from './HelpTip.vue';
 import BandCheckNotice from './BandCheckNotice.vue';
@@ -1435,9 +1440,31 @@ const suggestBudget = computed(() => SUGGEST_SIZES[suggestSizeIx.value] ?? SUGGE
 const suggestTimeLabel = computed(() =>
   formatHours(sweepSeconds(suggestBudget.value, store.workerBudget, workerSeconds.value) / 3600)
 );
-const suggestion = computed(() =>
-  suggestBands(store.currentTE, store.finalTE, suggestAsc.value, { maxChains: suggestBudget.value })
-);
+/**
+ * Precompute: Suggest a space for `n` ascensions within `maxChains`. A complete sweep still wins (it
+ * proves the optimum); otherwise the space is centred on the instant answer's route for that count
+ * (`store.instantRoutes`, deadlineSuggest.ts `routeSpace`), and only without one the measured shape.
+ */
+type SpaceSuggestion =
+  | (ReturnType<typeof suggestBands> & object)
+  | { kind: 'instant'; text: string; chains: number; around: number[]; halfWidth: number; step: number };
+function spaceFor(n: number, maxChains: number): SpaceSuggestion | null {
+  const plain = suggestBands(store.currentTE, store.finalTE, n, { maxChains });
+  if (plain?.kind === 'complete') return plain;
+  const route = store.instantRoutes?.find(r => r.length === n && r[r.length - 1] === store.finalTE);
+  const around = route ? routeSpace(store.currentTE, route, maxChains) : null;
+  if (around)
+    return {
+      kind: 'instant',
+      text: around.text,
+      chains: around.sets,
+      around: route!,
+      halfWidth: around.halfWidth,
+      step: around.step,
+    };
+  return plain;
+}
+const suggestion = computed(() => spaceFor(suggestAsc.value, suggestBudget.value));
 
 function applySuggestion(): void {
   const s = suggestion.value;
@@ -1464,7 +1491,7 @@ function queueNeighbours(asc: number): void {
       added.push({ asc: 1, text: '', auto: true });
       continue;
     }
-    const sug = suggestBands(store.currentTE, store.finalTE, n, { maxChains: Math.floor(suggestBudget.value / 2) });
+    const sug = spaceFor(n, Math.floor(suggestBudget.value / 2));
     if (sug) added.push({ asc: n, text: sug.text, auto: true });
   }
   kept.extraChains.value = [...rows, ...added].sort((a, b) => a.asc - b.asc);
@@ -1479,8 +1506,10 @@ function fillDefault(): void {
   if (sweepRequest || store.isRunning || !(store.currentTE > 0) || !(store.finalTE > store.currentTE)) return;
   const typed = bandsText.value.trim();
   if (typed && typed !== kept.autoFilled.value) return;
-  for (const n of [6, 5, 4, 3, 2]) {
-    const sug = suggestBands(store.currentTE, store.finalTE, n, { maxChains: suggestBudget.value });
+  // Precompute: the instant answer's count first (`store.suggestedCount`), then the usual six and down.
+  const counts = [...new Set([store.suggestedCount ?? 6, 6, 5, 4, 3, 2])];
+  for (const n of counts) {
+    const sug = spaceFor(n, suggestBudget.value);
     if (!sug) continue;
     bandsText.value = sug.text;
     kept.autoFilled.value = sug.text;
@@ -1489,7 +1518,9 @@ function fillDefault(): void {
     return;
   }
 }
-watch(() => [store.currentTE, store.finalTE], fillDefault, { immediate: true });
+watch(() => [store.currentTE, store.finalTE, store.suggestedCount, store.instantRoutes], fillDefault, {
+  immediate: true,
+});
 
 /**
  * Both budget cards start collapsed.
@@ -1775,9 +1806,7 @@ function extraSummary(k: number): string {
 function suggestExtra(k: number): void {
   const row = extraChains.value[k];
   if (!row) return;
-  const sug = suggestBands(store.currentTE, store.finalTE, row.asc, {
-    maxChains: row.auto ? Math.floor(suggestBudget.value / 2) : suggestBudget.value,
-  });
+  const sug = spaceFor(row.asc, row.auto ? Math.floor(suggestBudget.value / 2) : suggestBudget.value);
   if (sug) row.text = sug.text;
 }
 /** A new chain one ascension shorter than the last, since the short ones are what get queued. */

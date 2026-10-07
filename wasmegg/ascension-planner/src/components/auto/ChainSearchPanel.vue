@@ -264,9 +264,11 @@
             {{
               store.seedOverride.trim()
                 ? 'using ' + store.seedChain.join(' ')
-                : autoPlannerStore.targetTE.trim()
-                  ? `from Target TE(s) on ${NAMES.classic}`
-                  : 'a suggested chain'
+                : store.instantSeed
+                  ? 'from the instant answer'
+                  : autoPlannerStore.targetTE.trim()
+                    ? `from Target TE(s) on ${NAMES.classic}`
+                    : 'a suggested chain'
             }}
           </div>
         </div>
