@@ -117,7 +117,7 @@ describe('dataNeeds', () => {
 
   it('has five By a date asks sized for a day, with boxes fitted to the player TE', () => {
     const asks = dataNeeds([]).filter(d => d.group === 'bydate');
-    expect(asks.map(d => d.id)).toEqual(['bydate-1-4', 'bydate-5', 'bydate-6', 'bydate-7', 'bydate-8']);
+    expect(asks.map(d => d.id)).toEqual(['bydate-1-4', 'bydate-5', 'bydate-6']);
     const req = byDateRequestFor(asks[0].byDate!, 180);
     expect(req.asc).toEqual([1, 2, 3, 4]);
     expect(req.chains[2]).toBe('181-220:1');
@@ -137,25 +137,21 @@ describe('dataNeeds', () => {
   it('sizes each By a date card for a day on a desktop at TE 180', () => {
     const desktop = COMPUTE_TIERS.find(t => t.id === 'desktop')!;
     const by = Object.fromEntries(dataNeeds([]).filter(d => d.group === 'bydate').map(d => [d.id, d.byDate!]));
-    expect(Object.keys(by)).toEqual(['bydate-1-4', 'bydate-5', 'bydate-6', 'bydate-7', 'bydate-8']);
+    expect(Object.keys(by)).toEqual(['bydate-1-4', 'bydate-5', 'bydate-6']);
     expect(byDateSets(by['bydate-1-4'], 180).map(c => c.sets)).toEqual([1, 40, 938, 2433]);
     // Every stop at every TE: (2*pm+1)^(n-1) sets.
     expect(byDateSets(by['bydate-5'], 180)[0].sets).toBe(7 ** 4);
     expect(byDateSets(by['bydate-6'], 180)[0].sets).toBe(5 ** 5);
-    expect(byDateSets(by['bydate-7'], 180)[0].sets).toBe(3 ** 6);
-    expect(byDateSets(by['bydate-8'], 180)[0].sets).toBe(3 ** 7);
     const hours = (id: string) => byDateSeconds(by[id], 180, desktop.workers) / 3600;
     for (const id of ['bydate-1-4', 'bydate-5']) {
       expect(hours(id)).toBeGreaterThan(8);
       expect(hours(id)).toBeLessThan(12);
     }
-    // Whole-TE widths cannot hit 8 to 12 h for the longer chains; these are the nearest.
-    for (const id of ['bydate-6', 'bydate-8']) {
+    // Whole-TE widths cannot hit 8 to 12 h for 6 ascensions; this is the nearest.
+    for (const id of ['bydate-6']) {
       expect(hours(id)).toBeGreaterThan(12);
       expect(hours(id)).toBeLessThan(16);
     }
-    expect(hours('bydate-7')).toBeGreaterThan(3);
-    expect(hours('bydate-7')).toBeLessThan(5);
     expect(byDateWiderText(by['bydate-6'], 180, desktop.workers)).toMatch(/^±3 would take about \d+(\.\d)? days\.$/);
   });
 
