@@ -33,6 +33,7 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
+  { at: '2026-10-07T01:17:00Z', level: 'big', note: 'Smart search and the Full sweep now start from the instant answer: its route is the starting chain, and Suggest a space centres on it' },
   { at: '2026-10-07T01:09:05Z', note: 'Searches say what they cover: a band checker suggests fixes, Full sweep tries one ascension more and fewer and warns when the best is on a band edge, and Balanced Smart search can change the ascension count', level: 'big' },
   { at: '2026-10-06T23:41:57Z', note: 'A long run carried on after a crash now reports the save it actually used, so it is no longer filed as a what-if' },
   { at: '2026-10-06T19:13:00Z', level: 'big', note: "Instant answer: without a table of your own gear, it also prices your route on the nearest tables for stronger and weaker gear and says where your date likely falls" },
@@ -40,8 +41,6 @@ const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
   { at: '2026-10-06T19:00:55Z', note: 'By a date: one clear offer to carry on an unfinished search, and it brings back each chain\'s sliders too' },
   { at: '2026-10-06T18:01:03Z', level: 'big', note: 'Charts start on a heat map, with a choice of how many dots to draw; update notes now list what you missed since your last visit' },
   { at: '2026-10-06T15:51:18Z', level: 'big', note: 'Big runs stay light: past 20,000 chains the charts wait for a button and a heat map shows instead; TE keeps collecting while you wait; My plans filters; a Stepping away? box' },
-  { at: '2026-10-06T04:05:49Z', level: 'big', note: 'TE keeps collecting while you wait for your hours; My plans can filter and show the best per group; a Stepping away? box can carry a crashed run on by itself; By a date boxes reset for a new account' },
-  { at: '2026-10-06T01:33:42Z', level: 'big', note: 'with Let me pick my hours, TE now keeps collecting while a prestige or an egg shift waits for your hours, so plans with hours come out sooner (often by days)' },
 ];
 
 export default {
