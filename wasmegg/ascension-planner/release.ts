@@ -33,6 +33,7 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
+  { at: '2026-10-07T21:32:00Z', level: 'small', note: 'Instant answer: Simulate this plan opens the route in Classic already simulated, scrolled to its ascensions, with a way back to the answer' },
   { at: '2026-10-07T20:11:01Z', level: 'big', note: 'New: an instant answer on Fastest route and By a date. Every ascension was simulated ahead of time, so your best route shows in seconds; then the full simulator checks it on your account.' },
   { at: '2026-10-07T19:48:22Z', note: 'Science now asks for Egg Day By a date runs that check the instant answer tables, and for specific gear sets, with icons and a You have this badge', level: 'big' },
   { at: '2026-10-07T13:36:44Z', note: 'Big CSV downloads use the save the run priced; Science counts a later-start pair a day apart' },
@@ -40,7 +41,6 @@ const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
   { at: '2026-10-07T04:04:31Z', note: 'By a date re-estimates its total from what the run actually needs and says when every route is done; a run that carried on after a crash keeps its fewer workers' },
   { at: '2026-10-07T03:15:35Z', note: 'Smart search effort is now Fast, Exact or Very high (Exact is the default; Balanced was the same as Exact). Science sweeps fit your TE and say when one does not fit' },
   { at: '2026-10-07T01:09:05Z', note: 'Searches say what they cover: a band checker suggests fixes, Full sweep tries one ascension more and fewer and warns when the best is on a band edge, and Balanced Smart search can change the ascension count', level: 'big' },
-  { at: '2026-10-06T23:41:57Z', note: 'A long run carried on after a crash now reports the save it actually used, so it is no longer filed as a what-if' },
 ];
 
 export default {
