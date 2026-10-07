@@ -33,8 +33,8 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
+  { at: '2026-10-07T20:11:01Z', level: 'big', note: 'New: an instant answer on Fastest route and By a date. Every ascension was simulated ahead of time, so your best route shows in seconds; then the full simulator checks it on your account.' },
   { at: '2026-10-07T19:48:22Z', note: 'Science now asks for Egg Day By a date runs that check the instant answer tables, and for specific gear sets, with icons and a You have this badge', level: 'big' },
-  { at: '2026-10-07T19:36:00Z', level: 'big', note: 'New: an instant answer on Fastest route and By a date. Every ascension was simulated ahead of time, so your best route shows in seconds; then the full simulator checks it on your account.' },
   { at: '2026-10-07T13:36:44Z', note: 'Big CSV downloads use the save the run priced; Science counts a later-start pair a day apart' },
   { at: '2026-10-07T04:19:05Z', note: 'By a date CSVs now record every step of every route, the same as Smart search and Full sweep, so each run helps check the tables' },
   { at: '2026-10-07T04:04:31Z', note: 'By a date re-estimates its total from what the run actually needs and says when every route is done; a run that carried on after a crash keeps its fewer workers' },
