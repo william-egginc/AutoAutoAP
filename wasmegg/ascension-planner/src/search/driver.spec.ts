@@ -209,6 +209,110 @@ describe('runChainSearch', () => {
   });
 });
 
+/** A landscape that also prices how many ascensions there are: each checkpoint has to sit near one
+ *  of the optimum's, and each of the optimum's needs a checkpoint near it. */
+function makeCountEvaluator(optimum: number[]): { evaluate: EvaluateBatch; priced: () => number } {
+  let priced = 0;
+  const evaluate: EvaluateBatch = async chains => {
+    priced += chains.length;
+    return {
+      results: chains.map(chain => {
+        const pts = chain.slice(0, -1);
+        let cost = 700 * 86400;
+        for (const p of pts) cost += Math.min(...optimum.map(o => (p - o) ** 2)) * 600;
+        for (const o of optimum) cost += Math.min(...pts.map(p => (p - o) ** 2)) * 600;
+        return { chain: [...chain], seconds: cost, legs: [] };
+      }),
+      legSims: chains.length,
+      workersUsed: 1,
+    };
+  };
+  return { evaluate, priced: () => priced };
+}
+
+describe('the ascension-count probe', () => {
+  const optimum = [195, 219, 248, 286, 327];
+
+  it('runs on Balanced, and keeps going while the count keeps changing', async () => {
+    // Seed has two checkpoints too many: one round moves it to 6, the next to 5.
+    const { evaluate } = makeCountEvaluator(optimum);
+    const out = await runChainSearch({
+      seedChain: [185, 200, 220, 245, 265, 290, 320, FINAL],
+      final: FINAL,
+      currentTE: CURRENT_TE,
+      effort: 'balanced',
+      minCheckpoints: 4,
+      maxCheckpoints: 9,
+      evaluateBatch: evaluate,
+    });
+    expect(out.chain.length - 1).toBe(5);
+    expect(out.chain).toEqual([...optimum, FINAL]);
+  });
+
+  it('stays inside the limits however far the best count is', async () => {
+    const { evaluate } = makeCountEvaluator(optimum);
+    const out = await runChainSearch({
+      seedChain: [185, 200, 220, 245, 265, 290, 320, FINAL],
+      final: FINAL,
+      currentTE: CURRENT_TE,
+      effort: 'balanced',
+      minCheckpoints: 7,
+      maxCheckpoints: 9,
+      evaluateBatch: evaluate,
+    });
+    expect(out.chain.length - 1).toBeGreaterThanOrEqual(7 - 1);
+  });
+
+  it('costs only a little when the count is already right', async () => {
+    const seed = [190, 225, 255, 280, 320, FINAL];
+    const run = async (effort: 'quick' | 'balanced') => {
+      const { evaluate, priced } = makeCountEvaluator(optimum);
+      await runChainSearch({ seedChain: seed, final: FINAL, currentTE: CURRENT_TE, effort, evaluateBatch: evaluate });
+      return priced();
+    };
+    // Quick has no pairs step, so compare Balanced to itself with the check removed by a tight limit.
+    const { evaluate: e1, priced: p1 } = makeCountEvaluator(optimum);
+    await runChainSearch({
+      seedChain: seed,
+      final: FINAL,
+      currentTE: CURRENT_TE,
+      effort: 'balanced',
+      minCheckpoints: 6,
+      maxCheckpoints: 6,
+      evaluateBatch: e1,
+    });
+    expect(await run('balanced')).toBeLessThan(p1() * 1.3);
+  });
+});
+
+describe('the last checkpoint and the 3-D slices', () => {
+  it('lets the last checkpoint sit one above the one before it', async () => {
+    // Optimum 300 then 301: the old floor (previous + 2) could never price 301 for the last one.
+    const { evaluate } = makeEvaluator([200, 300, 301]);
+    const out = await runChainSearch({
+      seedChain: [200, 300, 310, FINAL],
+      final: FINAL,
+      currentTE: CURRENT_TE,
+      effort: 'quick',
+      evaluateBatch: evaluate,
+    });
+    expect(out.chain.slice(0, -1)).toEqual([200, 300, 301]);
+  });
+
+  it('never prices a 3-D move above maxLast', async () => {
+    const { evaluate, calls } = makeEvaluator([195, 219, 248, 286, 400]);
+    await runChainSearch({
+      seedChain: [195, 219, 248, 286, 330, FINAL],
+      final: FINAL,
+      currentTE: CURRENT_TE,
+      effort: 'thorough',
+      evaluateBatch: evaluate,
+    });
+    const last = calls.flat().map(c => c[c.length - 2]);
+    expect(Math.max(...last)).toBeLessThanOrEqual(FINAL - 150);
+  });
+});
+
 describe('batch splitting', () => {
   it('sizes the pool to the batch, not the CPU', () => {
     // The measured failure: a 13-chain batch spread over 12 workers is mostly overhead. Two chains

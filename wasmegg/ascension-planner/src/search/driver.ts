@@ -272,8 +272,10 @@ export async function runChainSearch(opts: DriverOptions): Promise<SearchOutcome
     if (ch.length < 2) return ch;
     // autoplan.py indexes `ch[-3]` here and so requires at least three entries. The floor it wants
     // is "whatever the previous checkpoint is"; for a two-entry chain there is no previous
-    // checkpoint and the player's current TE is the real floor.
-    const floor = ch.length >= 3 ? ch[ch.length - 3] + 2 : opts.currentTE + 1;
+    // checkpoint and the player's current TE is the real floor. One above either: that is what
+    // descent allows (`cur[j - 1] + 1`) and what a two-entry chain already used here. This was +2,
+    // which left the value one above the previous checkpoint unreachable for the last one only.
+    const floor = ch.length >= 3 ? ch[ch.length - 3] + 1 : opts.currentTE + 1;
     const top = Math.min(maxLast, final - 2);
     if (top < floor) return ch;
 
@@ -412,12 +414,20 @@ export async function runChainSearch(opts: DriverOptions): Promise<SearchOutcome
   async function slices3(): Promise<void> {
     stage = 'stage 6: exhaustive 3-D slices';
     for (let j = cur.length - 4; j >= pin; j--) {
+      // The triple's last member is the final checkpoint when `j + 3` is `final`'s index. Then its
+      // ceiling is `maxLast` (as in `slices`), not `final - 1`, and the last checkpoint is re-solved
+      // afterwards like every other stage that moves it.
+      const lastInTriple = j + 3 === cur.length - 1;
+      const hi = lastInTriple ? Math.min(maxLast, final - 2) : cur[j + 3] - 1;
       const rng: number[][] = [];
       for (let k = 0; k < 3; k++) {
-        const lo = (j + k ? cur[j + k - 1] : 0) + 1;
-        const hi = j + 3 < cur.length ? cur[j + 3] - 1 : final - 1;
+        // The floor is the checkpoint BEFORE the triple for its first member. A later member only
+        // has to beat the one before it, which is itself being varied, so the floor is that range's
+        // lowest value (the loop below rejects anything not increasing). It used to be the OLD value
+        // of the previous checkpoint, which ruled out the very moves this stage exists to find.
+        const lo = k === 0 ? (j ? cur[j - 1] : opts.currentTE) + 1 : rng[k - 1].length ? rng[k - 1][0] + 1 : Infinity;
         const vals: number[] = [];
-        for (let v = cur[j + k] - cfg.radius3; v <= cur[j + k] + cfg.radius3; v++) if (v > lo && v < hi) vals.push(v);
+        for (let v = cur[j + k] - cfg.radius3; v <= cur[j + k] + cfg.radius3; v++) if (v >= lo && v <= hi) vals.push(v);
         rng.push(vals);
       }
       if (rng.some(r => !r.length)) continue;
@@ -440,13 +450,17 @@ export async function runChainSearch(opts: DriverOptions): Promise<SearchOutcome
           }
         }
       }
+      cur = await resolveLast(cur);
+      if (stopRequested()) return;
+      best = (await cache.need(cur)) ?? best;
+      note(cur, best);
       report(`triple ${j + 1}-${j + 2}-${j + 3}: ${days(best)} d  ${cur.join(' ')}`);
     }
   }
 
   /** Stage 7: prestige-count probe — drop one checkpoint, or insert one, then re-polish. */
-  async function countProbe(): Promise<void> {
-    stage = 'stage 7: prestige-count probe';
+  async function countProbe(round: number): Promise<void> {
+    stage = round ? `stage 7: prestige-count probe (round ${round + 1})` : 'stage 7: prestige-count probe';
     const cands: number[][] = [];
 
     for (let i = pin; i < cur.length - 1; i++) {
@@ -528,7 +542,14 @@ export async function runChainSearch(opts: DriverOptions): Promise<SearchOutcome
     if (!stopped) lastCompletedStage = '3-D slices';
   }
   if (!stopped && cfg.countProbe) {
-    await countProbe();
+    // Again while the count keeps changing: one round only moves it by one, and a seed two off the
+    // best count would otherwise stop short. Bounded by the Limits range, so it cannot run on.
+    const rounds = Math.max(1, maxLen - minLen);
+    for (let round = 0; round < rounds && !stopped; round++) {
+      const before = cur.length;
+      await countProbe(round);
+      if (cur.length === before) break;
+    }
     if (!stopped) lastCompletedStage = 'prestige-count probe';
   }
 

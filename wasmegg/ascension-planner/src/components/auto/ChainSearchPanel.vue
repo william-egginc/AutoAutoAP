@@ -77,8 +77,8 @@
                 </label>
                 <HelpTip
                   >How many search steps to run. Each level adds steps to the one below, and stopping keeps what the
-                  finished steps found. (Very high's extra step comes before the check Exact ends with, so stopping Very
-                  high early gives Balanced's answer, not Exact's.)</HelpTip
+                  finished steps found. (Very high's extra step comes before the one-more-or-fewer check, so stopping
+                  Very high early gives the pairs' answer plus the triples found so far, without that check.)</HelpTip
                 >
               </span>
               <span class="text-[10px] font-black text-emerald-600 uppercase tracking-widest">{{ note.label }}</span>
@@ -404,8 +404,8 @@
         </p>
 
         <p v-if="store.seedIssue.probeCanFix">
-          The prestige-count probe runs on this effort tier and can move the count by one, so it may land inside your
-          limits. It is allowed to decline, so this is not a guarantee.
+          The prestige-count probe runs on this effort tier and can change the count, so it may land inside your limits.
+          It is allowed to decline, so this is not a guarantee.
         </p>
         <p v-else>
           The limits only bound the coarse scan and the prestige-count probe, and
@@ -432,6 +432,17 @@
           </span>
         </div>
       </div>
+
+      <p
+        v-if="store.seedTidyNote"
+        class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11px] text-amber-900"
+      >
+        {{ store.seedTidyNote }}
+      </p>
+      <p v-if="coverageNote" class="text-[11px] text-slate-600 leading-relaxed">
+        {{ coverageNote }}
+        <span v-if="suggestedCountNote" class="font-semibold text-amber-800">{{ suggestedCountNote }}</span>
+      </p>
 
       <!-- Workers, background speed, keep awake and date format: in Your setup at the top. -->
 
@@ -1332,7 +1343,7 @@ import { useEidsStore } from 'lib';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { sentence } from '@/utils/errors';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
-import { EFFORT_NOTES, EFFORT_ORDER, NEAR_OPTIMAL_SHARE } from '@/search/effort';
+import { EFFORT, EFFORT_NOTES, EFFORT_ORDER, NEAR_OPTIMAL_SHARE } from '@/search/effort';
 import { formatDuration } from '@/lib/format';
 import { isAvailable } from '@/search/availability';
 import { afterPaint } from '@/search/submission';
@@ -1419,6 +1430,25 @@ const effortIndex = computed({
 });
 
 const note = computed(() => EFFORT_NOTES[store.effort]);
+
+/** What this search will and won't try, in ascension counts. Empty when the count is picked first. */
+const coverageNote = computed(() => {
+  if (store.findSeedFirst) return '';
+  const n = store.seedChain.length;
+  const word = n === 1 ? '1 ascension' : `${n} ascensions`;
+  const label = note.value.label;
+  if (!EFFORT[store.effort].countProbe) {
+    return `${label} keeps your starting chain's ${word}; Balanced, Exact and Very high also try one more and one fewer.`;
+  }
+  return `${label} starts from your chain's ${word} and also tries one more and one fewer, then again while that keeps helping, within your limits of ${store.minPrestiges} to ${store.maxPrestiges}.`;
+});
+/** The instant answer's count (set by the branch that has one), when it isn't the one searched from. */
+const suggestedCountNote = computed(() => {
+  const k = store.suggestedCount;
+  const n = store.seedChain.length;
+  if (!k || k === n || store.findSeedFirst) return '';
+  return `The instant answer suggests ${k === 1 ? '1 ascension' : `${k} ascensions`}; this search starts from ${n}.`;
+});
 
 /**
  * Hand the run's CSV to the browser as a file.

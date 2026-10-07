@@ -300,27 +300,89 @@ export function countBanded(bands: number[][], final: number, currentTE: number,
   return total;
 }
 
-/** `185-200:5` -> [185, 190, 195, 200]. The band form of a pool spec, for the UI's text entry. */
 /** Above any TE the game has. */
 const MAX_BAND_TE = 1000;
 
-export function parseBand(text: string, defaultStep = 5): number[] {
-  const trimmed = text.trim();
-  if (!trimmed) return [];
-  const [rangePart, stepPart] = trimmed.split(':');
-  const bounds = rangePart.split(/[-–]/).map(x => Number(x.trim()));
-  // Whole steps of at least 1: `:0.5` floored to 0 and looped forever, freezing the tab mid-typing.
-  const step = Math.floor(Number(stepPart)) >= 1 ? Math.floor(Number(stepPart)) : defaultStep;
-  if (bounds.length === 1 && Number.isFinite(bounds[0])) return [Math.floor(bounds[0])];
-  if (bounds.length !== 2 || !bounds.every(Number.isFinite) || bounds[1] < bounds[0]) return [];
-  // No TE goes past MAX_BAND_TE, so neither does a band: `185-200000000` is not 40 million values.
-  const hi = Math.min(Math.floor(bounds[1]), MAX_BAND_TE);
-  const out: number[] = [];
-  for (let v = Math.floor(bounds[0]); v <= hi; v += step) out.push(v);
-  return out;
+/** What was wrong with one comma-separated piece of a band, if anything. */
+export type BandPieceProblem =
+  /** Nothing between the separators. */
+  | 'empty'
+  /** Not a number, a `lo-hi` range or a `lo-hi:step`. */
+  | 'unreadable'
+  /** `250-240`: the low end is above the high end. */
+  | 'reversed'
+  /** A step of 0, negative, or under 1. Values still come out, on the default step. */
+  | 'badStep'
+  /** A step wider than the whole range, so only the first value is ever tried. */
+  | 'stepTooWide';
+
+export interface BandPiece {
+  values: number[];
+  problem?: BandPieceProblem;
+  /** The low and high ends as typed, when the piece was a readable range. */
+  lo?: number;
+  hi?: number;
+  /** The step as typed, when there was one. */
+  step?: number;
 }
 
-/** `185-200:5; 210-240; 250-290` -> one band per segment. Blank segments are dropped. */
+/** A bare number; a leading `+` is allowed because a science preset writes its TE-relative band `+1-+38`. */
+const NUMBER = /^\+?\d+(\.\d+)?$/;
+
+/**
+ * One piece of a band (`185-200:5`, `210`) with what was wrong with it, if anything. The values are
+ * what `parseBand` has always produced: a bad step falls back to the default step and a reversed or
+ * unreadable piece gives none. The `problem` is what the band checker explains.
+ */
+export function parseBandPiece(text: string, defaultStep = 5): BandPiece {
+  const trimmed = text.trim();
+  if (!trimmed) return { values: [], problem: 'empty' };
+  const parts = trimmed.split(':');
+  if (parts.length > 2) return { values: [], problem: 'unreadable' };
+  const bounds = parts[0].split(/[-–]/).map(x => x.trim());
+  if (bounds.length > 2 || !bounds.every(x => NUMBER.test(x))) return { values: [], problem: 'unreadable' };
+  const nums = bounds.map(Number);
+
+  let step = defaultStep;
+  let typedStep: number | undefined;
+  let stepProblem = false;
+  if (parts.length === 2) {
+    const raw = parts[1].trim();
+    if (!/^-?\d+(\.\d+)?$/.test(raw)) return { values: [], problem: 'unreadable' };
+    typedStep = Number(raw);
+    // Whole steps of at least 1: `:0.5` floored to 0 and looped forever, freezing the tab mid-typing.
+    if (Math.floor(typedStep) >= 1) step = Math.floor(typedStep);
+    else stepProblem = true;
+  }
+
+  if (nums.length === 1) return { values: [Math.floor(nums[0])], lo: nums[0], hi: nums[0], step: typedStep };
+  if (nums[1] < nums[0]) return { values: [], problem: 'reversed', lo: nums[0], hi: nums[1], step: typedStep };
+  // No TE goes past MAX_BAND_TE, so neither does a band: `185-200000000` is not 40 million values.
+  const hi = Math.min(Math.floor(nums[1]), MAX_BAND_TE);
+  const values: number[] = [];
+  for (let v = Math.floor(nums[0]); v <= hi; v += step) values.push(v);
+  const problem: BandPieceProblem | undefined = stepProblem
+    ? 'badStep'
+    : typedStep !== undefined && nums[1] > nums[0] && step > Math.floor(nums[1]) - Math.floor(nums[0])
+      ? 'stepTooWide'
+      : undefined;
+  return { values, problem, lo: nums[0], hi: nums[1], step: typedStep };
+}
+
+/**
+ * `185-200:5` -> [185, 190, 195, 200]. Commas join pieces into one band, which is what `formatBand`
+ * writes for values that are not evenly spaced (`185-200:5, 210`), so what it writes reads back.
+ */
+export function parseBand(text: string, defaultStep = 5): number[] {
+  const set = new Set<number>();
+  for (const piece of text.split(',')) for (const v of parseBandPiece(piece, defaultStep).values) set.add(v);
+  return [...set].sort((a, b) => a - b);
+}
+
+/**
+ * `185-200:5; 210-240; 250-290` -> one band per segment. Blank segments are dropped, and so is a
+ * segment that cannot be read, which lowers the ascension count: `bandCheck.ts` says so out loud.
+ */
 export function parseBands(text: string, defaultStep = 5): number[][] {
   return text
     .split(';')

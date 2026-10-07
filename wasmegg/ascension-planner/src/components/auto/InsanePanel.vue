@@ -41,7 +41,11 @@
               {{
                 sweepRequest.forceContinue ? 'finishing your current run first' : 'prestiging straight away'
               }}</template
-            >. These are already filled in below, so you don't need to change anything else.
+            >. These are already filled in below.
+          </p>
+          <p class="text-[11px] text-slate-600">
+            This sweep fills a gap in the shared data for science. It isn't tuned to find your best route; use
+            {{ NAMES.smart }} or the instant answer for that.
           </p>
           <p class="text-[11px] text-slate-600">
             <template v-if="timeOffText">
@@ -509,7 +513,9 @@
                   ascensions, and three on most accounts), it suggests that at step 1, so the run proves the optimum and
                   no measurement is involved. Above that, it uses where near-best chains have actually landed across
                   this project's runs, refined as close to 5 TE as the budget allows before any of it goes to widening
-                  the bands. Either way it's a starting point you can edit.
+                  the bands. It also adds a chain for one ascension fewer and one more, at half the size, so a sweep
+                  covers three counts; remove them under Chain 2 and 3 if you only want one. Either way it's a starting
+                  point you can edit.
                 </HelpTip>
                 <span v-if="suggestion" class="text-[10px] text-slate-500">
                   Suggest would fill in {{ suggestAsc }} ascensions, {{ suggestion.chains.toLocaleString() }} chains
@@ -540,11 +546,18 @@
               </span>
               <!-- Plain words for the step, right under the bands it describes: "181-250:5" means 181,
                    186, 191... and never 227, so a faster Balanced result between grid points is no surprise. -->
-              <p v-if="!plannedGridComplete" class="text-[11px] text-slate-600 leading-relaxed">
+              <p v-if="!plannedGridComplete && gridExample" class="text-[11px] text-slate-600 leading-relaxed">
                 <span class="font-bold text-slate-800">This space tries {{ plannedGridLabel }}</span> (for example
                 {{ gridExample }}), not every TE in between, which would take weeks. The winner is the best on this
                 grid, and a chain between grid points can be faster.
               </p>
+              <BandCheckNotice
+                :text="bandsText"
+                :current-t-e="store.currentTE"
+                :final-t-e="store.finalTE"
+                :disabled="store.isRunning"
+                @use="t => (bandsText = t)"
+              />
               <!-- The box only chooses what Suggest a space fills in; the bands decide what runs. A
                  player set it to 2 and then 8 on a 3-ascension sweep and it ran as 3 without a word,
                  so a mismatch is now an error that blocks Start until one of the two is changed. -->
@@ -607,7 +620,22 @@
                   type="text"
                   :disabled="store.isRunning"
                   placeholder="185-200:5; 210-240:10"
+                  @input="row.auto = false"
                   class="w-full rounded-lg border-slate-300 text-sm font-mono-premium font-bold text-slate-800 disabled:opacity-50"
+                />
+                <BandCheckNotice
+                  v-if="row.asc >= 2"
+                  :text="row.text"
+                  :current-t-e="store.currentTE"
+                  :final-t-e="store.finalTE"
+                  :ascensions="row.asc"
+                  :disabled="store.isRunning"
+                  @use="
+                    t => {
+                      row.text = t;
+                      row.auto = false;
+                    }
+                  "
                 />
                 <span class="block text-[10px]" :class="extraProblem(k) ? 'text-rose-600' : 'text-slate-500'">
                   {{ extraProblem(k) || extraSummary(k) }}
@@ -623,7 +651,7 @@
                   + Add another chain
                 </button>
                 <span v-if="extraChains.length" class="text-[11px] text-slate-500">
-                  One click runs all {{ extraChains.length + 1 }} chains, one after another. Each finished one is saved
+                  One click runs {{ extraChains.length === 1 ? 'both' : 'all ' + (extraChains.length + 1) }} chains, one after another. Each finished one is saved
                   under Saved runs.
                 </span>
               </div>
@@ -761,6 +789,10 @@
           </div>
           <p v-if="store.benchmarkError" class="text-[11px] font-semibold text-red-700">{{ store.benchmarkError }}</p>
 
+          <p v-if="coverageBefore" class="text-[11px] font-semibold text-slate-700 leading-relaxed">
+            {{ coverageBefore }}
+            <template v-if="suggestedCountNote">{{ suggestedCountNote }}</template>
+          </p>
           <p class="text-[11px] leading-relaxed" :class="tooBig ? 'text-red-800' : 'text-slate-500'">
             <template v-if="!poolSize">
               The bands are empty once values outside ({{ store.currentTE }}, {{ store.finalTE }}) are dropped.
@@ -965,6 +997,30 @@
           <p v-if="!store.isRunning && resultExplain" class="text-[11px] text-emerald-900/80 leading-relaxed">
             {{ resultExplain }}
           </p>
+          <p v-if="coverageAfter" class="text-[11px] text-emerald-900/80 leading-relaxed">
+            {{ coverageAfter }}
+            <template v-if="suggestedCountNote">{{ suggestedCountNote }}</template>
+          </p>
+          <div
+            v-if="edges.length"
+            class="mt-2 space-y-1.5 rounded-lg border border-amber-200 bg-amber-50 p-3 text-[11px] text-amber-900 leading-relaxed"
+          >
+            <p v-for="e in edges" :key="e.band" class="font-semibold">{{ edgeWords(e) }}</p>
+            <div v-if="edgeWiden" class="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                :disabled="store.busy || queueAt >= 0"
+                class="rounded-md border border-amber-300 bg-white px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-amber-800 hover:bg-amber-100 disabled:opacity-40"
+                @click="widenAndRun"
+              >
+                Widen and run again
+              </button>
+              <span class="text-amber-900/80">
+                The wider space is {{ edgeWiden.chains.toLocaleString() }} chains. Chains already priced are reused when
+                your setup hasn't changed.
+              </span>
+            </div>
+          </div>
           <p class="text-[10px] text-emerald-900/60">
             Compare runs by finish date. Two runs started hours apart have different plan starts, so their day counts
             don't measure the same thing, but the dates they land on do.
@@ -1190,17 +1246,22 @@ const SUGGEST_SIZES = [10_000, 25_000, 50_000, 75_000, 150_000, 300_000];
  * fills them in when it opens the screen, until its sweep starts.
  */
 const kept = {
-  bandsText: keptRef('185-200:5; 215-245:10; 260-300:10; 320-360:20'),
+  // Empty until the player's TE is known: the default is Suggest a space for THIS player (it used to
+  // be a fixed 185-360 that suited one account and was nonsense for a 130 or a 250).
+  bandsText: keptRef(''),
+  /** The text the panel filled in by itself (the default space). A box that still holds it is the
+   *  panel's to refill when the save changes; a box that doesn't is the player's own. */
+  autoFilled: keptRef(''),
   minGap: keptRef(0),
   suggestAsc: keptRef(6),
   suggestSizeIx: keptRef(SUGGEST_SIZES.indexOf(KEPT_BUDGET)),
-  extraChains: keptRef<{ asc: number; text: string }[]>([]),
+  extraChains: keptRef<{ asc: number; text: string; auto?: boolean }[]>([]),
 };
 </script>
 
 <script setup lang="ts">
 import { NAMES } from '@/lib/siteNav';
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { sentence } from '@/utils/errors';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
@@ -1218,6 +1279,7 @@ import { parseSweepRequest, withoutSweepParams } from '@/search/sweepRequest';
 import {
   countBanded,
   parseBands,
+  formatBands,
   suggestBands,
   SUGGESTION_CHAIN_BUDGET,
   SUGGESTABLE_ASCENSIONS,
@@ -1225,6 +1287,8 @@ import {
 } from '@/search/exhaustive';
 import RunCharts from './charts/RunCharts.vue';
 import HelpTip from './HelpTip.vue';
+import BandCheckNotice from './BandCheckNotice.vue';
+import { findBandEdges, widenEdges } from '@/search/bandCheck';
 import StartTimeFinder from './StartTimeFinder.vue';
 import { showDateTime } from '@/lib/displayTime';
 import { sweepSeconds, workerSecondsFromRate, workerSecondsPerChain } from '@/search/speed';
@@ -1379,7 +1443,53 @@ function applySuggestion(): void {
   const s = suggestion.value;
   if (!s) return;
   bandsText.value = s.text;
+  kept.autoFilled.value = '';
+  queueNeighbours(suggestAsc.value);
 }
+
+/**
+ * A suggested space only covers its own ascension count, and the best count is often one off. So
+ * Suggest a space also queues the count one lower and one higher as added chains (the three run
+ * one after another from one click), each at half the size so three chains cost about twice one,
+ * not three times. They are the player's to remove, and any they typed themselves stay.
+ */
+function queueNeighbours(asc: number): void {
+  if (sweepRequest) return;
+  const rows = kept.extraChains.value.filter(r => !r.auto);
+  const used = new Set([asc, ...rows.map(r => r.asc)]);
+  const added: { asc: number; text: string; auto: boolean }[] = [];
+  for (const n of [asc - 1, asc + 1]) {
+    if (n < 1 || n > 12 || used.has(n)) continue;
+    if (n === 1) {
+      added.push({ asc: 1, text: '', auto: true });
+      continue;
+    }
+    const sug = suggestBands(store.currentTE, store.finalTE, n, { maxChains: Math.floor(suggestBudget.value / 2) });
+    if (sug) added.push({ asc: n, text: sug.text, auto: true });
+  }
+  kept.extraChains.value = [...rows, ...added].sort((a, b) => a.asc - b.asc);
+}
+
+/**
+ * The default space, for a player who has not typed one: Suggest a space for their TE, with the
+ * counts either side queued. Tries the usual six ascensions and works down to the nearest count
+ * the suggester can speak to. Leaves alone a box the player has touched.
+ */
+function fillDefault(): void {
+  if (sweepRequest || store.isRunning || !(store.currentTE > 0) || !(store.finalTE > store.currentTE)) return;
+  const typed = bandsText.value.trim();
+  if (typed && typed !== kept.autoFilled.value) return;
+  for (const n of [6, 5, 4, 3, 2]) {
+    const sug = suggestBands(store.currentTE, store.finalTE, n, { maxChains: suggestBudget.value });
+    if (!sug) continue;
+    bandsText.value = sug.text;
+    kept.autoFilled.value = sug.text;
+    suggestAsc.value = n;
+    queueNeighbours(n);
+    return;
+  }
+}
+watch(() => [store.currentTE, store.finalTE], fillDefault, { immediate: true });
 
 /**
  * Both budget cards start collapsed.
@@ -1521,6 +1631,98 @@ const resultExplain = computed(() => {
   return `Every chain on the grid (${step}) was priced, and this is the fastest. Values between grid points were not tried, so a Balanced search can land on something faster in between.`;
 });
 
+/** The ascension counts this click will try: chain 1 and each added chain that can run. */
+const coveredCounts = computed(() => {
+  const set = new Set<number>();
+  if (bands.value.length) set.add(bands.value.length + 1);
+  if (!sweepRequest) {
+    extraChains.value.forEach((row, k) => {
+      if (row.asc <= 1 || extraCount(k) > 0) set.add(row.asc);
+    });
+  }
+  return [...set].sort((a, b) => a - b);
+});
+const ascWord = (n: number) => (n === 1 ? '1 ascension' : `${n} ascensions`);
+/** `4`, `4 and 5`, `4, 5 and 6`. */
+function countList(counts: number[]): string {
+  const c = counts.map(String);
+  return c.length < 2 ? c.join('') : `${c.slice(0, -1).join(', ')} and ${c[c.length - 1]}`;
+}
+const coverageBefore = computed(() => {
+  const c = coveredCounts.value;
+  if (!c.length) return '';
+  return c.length === 1
+    ? `This sweep only tries ${ascWord(c[0])}. A route with more or fewer isn't looked at; add a chain below to try another count.`
+    : `This sweep tries ${countList(c)} ascensions, and no other count.`;
+});
+/** What the finished (or running) sweep covered. A queue of several chains shows its own table. */
+const coverageAfter = computed(() => {
+  const sp = store.searchSpace;
+  if (!sp || queueResults.value.length > 1) return '';
+  return sp.minAscensions === sp.maxAscensions
+    ? `This sweep only tried ${ascWord(sp.minAscensions)}.`
+    : `This sweep tried ${sp.minAscensions} to ${sp.maxAscensions} ascensions.`;
+});
+/** The instant answer's count (set by the branch that has one), when this sweep doesn't cover it. */
+const suggestedCountNote = computed(() => {
+  const n = store.suggestedCount;
+  if (!n || coveredCounts.value.includes(n)) return '';
+  return `The instant answer suggests ${ascWord(n)}; this sweep only searches ${countList(coveredCounts.value)}.`;
+});
+
+/** Where the winner sits on the first or last value of its band, with room to go further. */
+const edges = computed(() => {
+  const sp = store.searchSpace;
+  if (store.isRunning || store.bestDays <= 0 || !sp?.bands?.length) return [];
+  return findBandEdges(sp.bands, store.bestChain, {
+    currentTE: store.currentTE,
+    finalTE: store.finalTE,
+    minGap: sp.minGap,
+  });
+});
+/** The bands widened on those edges, and what the wider space would cost. */
+const edgeWiden = computed(() => {
+  const sp = store.searchSpace;
+  if (!edges.value.length || !sp?.bands) return null;
+  const text = widenEdges(sp.bands, edges.value, { currentTE: store.currentTE, finalTE: store.finalTE });
+  if (!text) return null;
+  const wider = parseBands(text);
+  return { text, bands: wider, chains: countBanded(wider, store.finalTE, store.currentTE, sp.minGap) };
+});
+const edgeWords = (e: { band: number; side: 'low' | 'high'; value: number }) =>
+  `The best route sits on the edge of band ${e.band} (${e.value} is the ${e.side === 'low' ? 'lowest' : 'highest'} you allowed). There may be a better one just outside.`;
+
+/** Widen those bands and run the wider space. Chains already priced are carried over by the store
+ *  when nothing about the setup changed, so only the new ones are priced. */
+async function widenAndRun(): Promise<void> {
+  const w = edgeWiden.value;
+  const sp = store.searchSpace;
+  if (!w || !sp?.bands || store.busy) return;
+  const was = formatBands(sp.bands);
+  const k = extraChains.value.findIndex((_, i) => formatBands(extraBands(i)) === was);
+  if (formatBands(bands.value) !== was && k >= 0) {
+    extraChains.value[k].text = w.text;
+    extraChains.value[k].auto = false;
+  } else bandsText.value = w.text;
+  // The sweep link's tag follows the box on the next tick; the run reads it as it starts.
+  await nextTick();
+  autoSubmitArmed.value = false;
+  autoSubmitted.value = false;
+  await store.startExhaustive(
+    props.playerId,
+    {
+      lo: 0,
+      hi: 0,
+      step: 1,
+      minAsc: w.bands.length + 1,
+      maxAsc: w.bands.length + 1,
+      minGap: sp.minGap,
+      bands: w.bands,
+    },
+    { recheck: false }
+  );
+}
+
 const chainCount = computed(() =>
   bands.value.length ? countBanded(bands.value, store.finalTE, store.currentTE, minGap.value) : 0
 );
@@ -1573,7 +1775,9 @@ function extraSummary(k: number): string {
 function suggestExtra(k: number): void {
   const row = extraChains.value[k];
   if (!row) return;
-  const sug = suggestBands(store.currentTE, store.finalTE, row.asc, { maxChains: suggestBudget.value });
+  const sug = suggestBands(store.currentTE, store.finalTE, row.asc, {
+    maxChains: row.auto ? Math.floor(suggestBudget.value / 2) : suggestBudget.value,
+  });
   if (sug) row.text = sug.text;
 }
 /** A new chain one ascension shorter than the last, since the short ones are what get queued. */

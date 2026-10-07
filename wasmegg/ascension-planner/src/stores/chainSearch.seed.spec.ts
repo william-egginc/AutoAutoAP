@@ -83,13 +83,13 @@ describe('chainSearch: seedChain', () => {
   });
 
   it('flags a chain longer than the maximum on a tier with no prestige-count probe', () => {
-    // The reported case: `199 222 252 291 490` under a maximum of 4, on Balanced. The limits only
-    // reach the coarse scan and the probe, and Balanced runs neither, so every stage would have
+    // The reported case: `199 222 252 291 490` under a maximum of 4, on Fast. The limits only
+    // reach the coarse scan and the probe, and Fast runs neither, so every stage would have
     // worked on a 5-ascension chain and returned one.
     const store = setup({ targetTE: '199 222 252 291' });
     store.minPrestiges = 2;
     store.maxPrestiges = 4;
-    store.effort = 'balanced';
+    store.effort = 'quick';
 
     expect(store.seedChain).toEqual([199, 222, 252, 291, 490]);
     expect(store.seedIssue).toEqual({ kind: 'too-long', ascensions: 5, maxPrestiges: 4, probeCanFix: false });

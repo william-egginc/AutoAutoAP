@@ -184,6 +184,20 @@
             row.restored = false;
           "
         />
+        <BandCheckNotice
+          v-if="row.asc >= 2"
+          :text="row.text"
+          :current-t-e="store.currentTE"
+          :final-t-e="490"
+          :disabled="store.busy"
+          @use="
+            t => {
+              row.text = t;
+              row.auto = false;
+              row.restored = false;
+            }
+          "
+        />
         <span class="block text-[10px]" :class="rowProblem(k) ? 'text-rose-600' : 'text-slate-500'">
           {{ rowProblem(k) || rowSummary(k) }}
         </span>
@@ -782,6 +796,7 @@ const kept = {
 
 <script setup lang="ts">
 import FindBar from './FindBar.vue';
+import BandCheckNotice from './BandCheckNotice.vue';
 import StepAwayOptions from './StepAwayOptions.vue';
 import AutoSendReport from './AutoSendReport.vue';
 import { NAMES } from '@/lib/siteNav';

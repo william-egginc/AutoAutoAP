@@ -116,6 +116,25 @@ describe('presetBandsFor', () => {
     // The first range starts just above the player, not at the preset's 190 they passed long ago.
     expect(presetBandsFor('M2', 275)).toBe('276-280:2; 276-372:2');
   });
+
+  it('moves a band the player has already passed up to just above them, keeping its width', () => {
+    // M4's first band is 190-215: wholly behind a 230 TE account. It used to come out as 215-215.
+    expect(presetBandsFor('M4', 230)).toBe('231-256:5; 231-250:5; 240-300:5; 285-350:5');
+    // M4 used to price 0 chains from 230 TE; the bigger presets still do, because their minimum gaps
+    // cannot fit that many ascensions into what is left, which is the honest answer.
+    expect(presetChains('M4', 230).chains).toBeGreaterThan(0);
+  });
+
+  it('leaves bands that are ahead of the player where the measured data puts them', () => {
+    expect(presetBandsFor('M2', 133)).toBe('134-280:2; 270-372:2');
+    expect(presetBandsFor('F2', 133)).toBe('134-250:1; 276-300:1');
+  });
+
+  it('keeps every band under the target', () => {
+    const bands = presetBandsFor('E9', 300, 400).split('; ');
+    expect(bands).toHaveLength(8);
+    for (const b of bands) expect(Number(b.split(/[-:]/)[1])).toBeLessThan(400);
+  });
 });
 
 describe('presetChains', () => {
@@ -209,7 +228,7 @@ describe('bigger and end-of-the-line presets', () => {
     expect(presetChains('F4', 182).chains).toBe(29904);
     expect(presetChains('F4', 133).chains).toBe(120118);
     expect(presetChains('F5', 182).chains).toBe(29952);
-    expect(presetChains('E7', 182).chains).toBe(6855);
+    expect(presetChains('E7', 182).chains).toBe(9421);
     expect(presetChains('E8', 182).chains).toBe(11262);
     expect(presetChains('E9', 182).chains).toBe(11988);
   });
