@@ -2636,19 +2636,26 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
 
   async function sendSubmission(
     payload: Submission,
-    csv?: string
+    csv?: string,
+    /**
+     * For a result sent later from a file (the command line's `submit --from`): no run is loaded, so
+     * the account's partition hash and the result's own key come from the file instead of this
+     * store. Without it, exactly the site's send.
+     */
+    saved?: { partition: string; resultKey: string | null }
   ): Promise<{ ok: boolean; message: string; duplicate?: 'exact' | 'result' }> {
     if (!submitUrl) return { ok: false, message: 'no collector configured' };
     // A deadline route (schema 8) is its own result: it must not mark the fastest run on screen as
     // sent, nor drop that run's pending table, nor pick up its rechecks.
     const deadlineSend = payload.deadline !== undefined;
     // The key of the result being SENT, taken now: the awaits below give the page time to change it.
-    const sentKey = safeResultKey();
+    const sentKey = saved ? saved.resultKey : safeResultKey();
     if (!deadlineSend) pendingTable.value = null;
     // Schema 7's rechecks, when the payload is this run's result and has none yet. Bounded, and a
     // failure only means the send goes without them.
     // By the chain alone (it ends at the run's target): the target box may have changed since.
     const thisRun =
+      !saved &&
       !deadlineSend &&
       payload.chain?.length === bestChain.value.length &&
       payload.chain.every((v, k) => v === bestChain.value[k]);
@@ -2662,7 +2669,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // The owner code (search/owner.ts): what lets this browser find the run again if it lands on
     // the flagged board, fold a repeated send, put a name on it later, and let this account's later
     // runs replace its older plans. Random, per account, never derived from the player id.
-    const partition = await accountPartition();
+    const partition = saved ? saved.partition : await accountPartition();
     const owner = partition ? ownerToken(partition) : null;
     try {
       const res = await fetch(submitUrl, {
@@ -2994,8 +3001,12 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   function* exportCsvChunks(): Generator<string> {
     const own = allEntries();
     const entries = own.length ? own : resumable.value ? restoreEntries(resumable.value) : [];
-    // Read off the backup here, on the main thread: `getSimulationContext()` is Pinia-bound.
-    const raw = getSimulationContext().rawBackup ?? null;
+    // Read off the backup here, on the main thread: `getSimulationContext()` is Pinia-bound. The run's
+    // own save when it has one, as `exportCsv` does: the download read whatever save was loaded at
+    // click time, so a carried-on run's file could list another save's inventory.
+    const raw = (runBackupUsed ?? getSimulationContext().rawBackup ?? null) as
+      | ReturnType<typeof getSimulationContext>['rawBackup']
+      | null;
     const equipped = raw ? getArtifactLoadoutFromBackup(raw) : null;
     yield* chainsCsvChunks(entries, {
       planStart: planStartUsed.value || planStart.value,
@@ -5085,6 +5096,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     otherAccountKeys,
     deadlineWorkerSeconds,
     sendSubmission,
+    safeResultKey,
     claimName,
     prepareRechecks,
     pendingTable,

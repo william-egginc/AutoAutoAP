@@ -92,3 +92,33 @@ export function usableRatio(n: unknown): number {
   const v = Number(n);
   return Number.isFinite(v) && v >= 1 && v <= 200 ? v : 0;
 }
+
+/**
+ * The up-front figure: sets of early stops x routes a set costs. The last stop is found by halving
+ * its range down to one TE, plus a couple to step out and confirm (log2(span) + 2), and the span is
+ * the whole reach (your TE up to 490) because a run goes past its last-stop box when the answer is
+ * outside it. With fewer sets than workers each set gets several guesses a round (deadline.ts
+ * `parallel`), which is more routes in fewer rounds.
+ *
+ * `rememberedPerSet` is what the last finished run over a big space measured here (about 4 a set on
+ * an 8,632-set run); it replaces the typical figure while a set gets one guess a round. `picked` is
+ * the retired "pick the stops for me" mode, which adds its seed pass on top (a fifth more).
+ *
+ * One function for the panel's estimate and the command line's, so the two cannot drift.
+ */
+export function plannedRoutes(o: {
+  sets: number;
+  workers: number;
+  currentTE: number;
+  rememberedPerSet?: number;
+  picked?: boolean;
+}): number {
+  const n = Math.max(0, Math.floor(o.sets));
+  if (!n) return 0;
+  const width = Math.max(2, 490 - Math.floor(o.currentTE));
+  const probes = Math.ceil(Math.log2(width)) + 2;
+  const k = Math.max(1, Math.min(16, Math.floor(o.workers / n)));
+  const perSet =
+    k === 1 ? o.rememberedPerSet || probes : k * (Math.ceil(Math.log(width) / Math.log(k + 1)) + 1);
+  return Math.round(n * perSet * (o.picked ? 1.2 : 1));
+}

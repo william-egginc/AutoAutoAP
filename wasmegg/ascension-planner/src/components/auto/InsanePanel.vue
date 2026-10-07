@@ -1288,7 +1288,7 @@ import {
 import RunCharts from './charts/RunCharts.vue';
 import HelpTip from './HelpTip.vue';
 import BandCheckNotice from './BandCheckNotice.vue';
-import { findBandEdges, widenEdges } from '@/search/bandCheck';
+import { coverageAfterText, coverageBeforeText, describeEdge, findBandEdges, widenEdges } from '@/search/bandCheck';
 import StartTimeFinder from './StartTimeFinder.vue';
 import { showDateTime } from '@/lib/displayTime';
 import { sweepSeconds, workerSecondsFromRate, workerSecondsPerChain } from '@/search/speed';
@@ -1634,20 +1634,12 @@ function countList(counts: number[]): string {
   const c = counts.map(String);
   return c.length < 2 ? c.join('') : `${c.slice(0, -1).join(', ')} and ${c[c.length - 1]}`;
 }
-const coverageBefore = computed(() => {
-  const c = coveredCounts.value;
-  if (!c.length) return '';
-  return c.length === 1
-    ? `This sweep only tries ${ascWord(c[0])}. A route with more or fewer isn't looked at; add a chain below to try another count.`
-    : `This sweep tries ${countList(c)} ascensions, and no other count.`;
-});
+const coverageBefore = computed(() => coverageBeforeText(coveredCounts.value));
 /** What the finished (or running) sweep covered. A queue of several chains shows its own table. */
 const coverageAfter = computed(() => {
   const sp = store.searchSpace;
   if (!sp || queueResults.value.length > 1) return '';
-  return sp.minAscensions === sp.maxAscensions
-    ? `This sweep only tried ${ascWord(sp.minAscensions)}.`
-    : `This sweep tried ${sp.minAscensions} to ${sp.maxAscensions} ascensions.`;
+  return coverageAfterText(sp.minAscensions, sp.maxAscensions);
 });
 /** The instant answer's count (set by the branch that has one), when this sweep doesn't cover it. */
 const suggestedCountNote = computed(() => {
@@ -1675,8 +1667,7 @@ const edgeWiden = computed(() => {
   const wider = parseBands(text);
   return { text, bands: wider, chains: countBanded(wider, store.finalTE, store.currentTE, sp.minGap) };
 });
-const edgeWords = (e: { band: number; side: 'low' | 'high'; value: number }) =>
-  `The best route sits on the edge of band ${e.band} (${e.value} is the ${e.side === 'low' ? 'lowest' : 'highest'} you allowed). There may be a better one just outside.`;
+const edgeWords = describeEdge;
 
 /** Widen those bands and run the wider space. Chains already priced are carried over by the store
  *  when nothing about the setup changed, so only the new ones are priced. */
