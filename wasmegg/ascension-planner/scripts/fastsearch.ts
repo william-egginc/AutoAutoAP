@@ -84,7 +84,7 @@ import { countBanded, formatBands, parseBands, suggestBands, SUGGESTION_CHAIN_BU
 import { installFileIndexedDb } from './node-idb';
 import { CHECKPOINT_DIR, planOutDir, readRunRecord, writeRunRecord, type RunStatus } from './outDir';
 import {
-  bandCheckLines, chooseEffort, cleanNickname, fitPreset, readOfflineSubmission, runSignature,
+  bandCheckLines, checkSendAllowed, chooseEffort, cleanNickname, fitPreset, readOfflineSubmission, runSignature,
   suggestDeadlineChain, SUBMISSION_FILE, type SuggestedChain,
 } from '@/search/offline';
 import { eggDayYearOf } from '@/lib/eggDay';
@@ -539,11 +539,14 @@ OFFLINE: FILES, CHECKPOINTS, SENDING LATER
                             process too: watch the 'rss' in the progress lines, and lift Node's heap
                             limit for a very big space with NODE_OPTIONS=--max-old-space-size=8192.
 
-  fastsearch submit --from DIR [--collector URL] [--nickname NAME | --anonymous] [--dry-run]
+  fastsearch submit --from DIR [--collector URL] [--nickname NAME | --anonymous] [--dry-run] [--yes]
                             Send what --out left (DIR, or every chain-K-Nasc/ inside it): the same
                             summary POST and CSV upload the site does, with the run's own save time
                             and TE, so it is not filed as a what-if. --dry-run posts nothing and
                             says what would go. A result sent once is not sent again without --again.
+                            It prints where it is sending and what first; to any collector that is
+                            not on this machine (the build's own included) it stops, "Not sent. Add
+                            --yes to send this to <url>.", unless you add --yes.
 
   Sending the result  (the site's Share / Find and submit)
   --submit                  Send it to the board when the search finishes (stopped early with
@@ -551,6 +554,9 @@ OFFLINE: FILES, CHECKPOINTS, SENDING LATER
                             the re-checks of your earlier plans, which need the network.
   --nickname NAME           Credit a name (up to 40 characters). Anonymous without it. Also with --out.
   --collector URL           Where to send (default: the collector this build was made with).
+  --yes                     Needed to send to any collector that is not localhost/127.0.0.1, with
+                            --submit or \`submit\`. Without it the send is refused (non-zero exit,
+                            before a search starts) and nothing leaves this machine.
   --state FILE              Where the account's owner code is kept between runs, so your sends
                             fold together and can be renamed later, as a browser keeps it.
                             (default ~/.config/autoautoap/cli-state.json). Send from one machine, or
@@ -633,13 +639,13 @@ EXAMPLES
   node dist-search/fastsearch.js --backup me.json --preset F4 --out f4        # fitted to your TE
   node dist-search/fastsearch.js --backup me.json --suggest 5 --widen --out sweep
   node dist-search/fastsearch.js --backup me.json --egg-day --chain "138-176:1; 167-187:3" --last 200-240 --out eggday
-  node dist-search/fastsearch.js submit --from run1 --nickname Me             # online, later
+  node dist-search/fastsearch.js submit --from run1 --nickname Me --yes       # online, later
   node dist-search/fastsearch.js --backup me.json --exhaustive --range 185:390:15 --prestiges 6-7 --jobs 12
 
 OFFLINE BRUTE FORCE, IN SHORT
   1. Get the save's JSON onto the offline PC (once per save).
   2. Run with --out DIR, the same command again after any interruption.
-  3. Copy DIR back to an online machine and run: fastsearch submit --from DIR
+  3. Copy DIR back to an online machine and run: fastsearch submit --from DIR --yes
 `);
 }
 
@@ -1887,7 +1893,7 @@ function siteOptions(o: {
     step: +(arg('step', '5')!),
     maxShapes: THOROUGH[thorough],
     ascendNeeded: has('ascend-needed'),
-    submit: has('submit') ? { nickname, csv: withCsv } : null,
+    submit: has('submit') ? { nickname, csv: withCsv, yes: has('yes') } : null,
     out: has('out') && !has('dry-run') ? { dir: arg('out')!, nickname, csv: withCsv, plainCsv: has('plain-csv') } : null,
     csvPath: has('out') ? (has('csv') ? arg('csv')! : null) : resolveCsvPath(),
     top: +(arg('top', '10')!),
@@ -1935,7 +1941,25 @@ async function submitCommand(): Promise<number> {
   if (!store.submitUrl) {
     throw new Error('no collector configured in this build: pass --collector URL (the board\'s /submit address)');
   }
-  console.log(`${dry ? 'dry run: nothing is sent. Would send' : 'sending'} ${dirs.length} result${dirs.length === 1 ? '' : 's'} to ${store.leaderboardUrl}`);
+  // The one place a stray run could post to the real board: a destination that is not this machine
+  // is only used when the person said --yes. (What goes is listed per result just below.)
+  const allowed = checkSendAllowed(store.submitUrl, has('yes'));
+  console.log(`${dry ? 'dry run: nothing is sent. Would send' : allowed.ok ? 'sending' : 'would send'} ${dirs.length} result${dirs.length === 1 ? '' : 's'} to ${store.submitUrl}`);
+  if (!dry && !allowed.ok) {
+    for (const dir of dirs) {
+      try {
+        const f = readOfflineSubmission(readFileSync(join(dir, SUBMISSION_FILE), 'utf8'));
+        if (f.ok) {
+          const p = f.value.payload;
+          console.log(`  ${dirs.length > 1 ? dir : from}: ${f.value.kind} result ${p.chain.join(' ')}, ${p.nickname ? `as "${p.nickname}"` : 'anonymously'}`);
+        }
+      } catch {
+        /* the listing is a courtesy; the refusal below is the point */
+      }
+    }
+    console.error(allowed.message);
+    return 1;
+  }
 
   let failed = 0;
   for (const dir of dirs) {

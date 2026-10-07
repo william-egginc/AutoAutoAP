@@ -4,6 +4,8 @@ import {
   chooseEffort,
   cleanNickname,
   bandCheckLines,
+  checkSendAllowed,
+  isLocalCollector,
   edgeLines,
   fitPreset,
   readOfflineSubmission,
@@ -251,5 +253,21 @@ describe('coverage words', () => {
     expect(coverageBeforeText([])).toBe('');
     expect(coverageAfterText(5, 5)).toBe('This sweep only tried 5 ascensions.');
     expect(coverageAfterText(1, 3)).toBe('This sweep tried 1 to 3 ascensions.');
+  });
+});
+
+describe('the send guard', () => {
+  it('lets a local collector through without --yes', () => {
+    for (const u of ['http://127.0.0.1:5999/submit', 'http://localhost:8788/submit', 'http://[::1]:9/submit', 'http://127.1.2.3/submit']) {
+      expect(isLocalCollector(u)).toBe(true);
+      expect(checkSendAllowed(u, false)).toEqual({ ok: true });
+    }
+  });
+  it('refuses any other collector without --yes, and says how to send', () => {
+    for (const u of ['https://board.example.workers.dev/submit', 'http://127.0.0.1.evil.example/submit', 'http://localhost.example.com/submit', 'not a url', '']) {
+      expect(isLocalCollector(u)).toBe(false);
+      expect(checkSendAllowed(u, false)).toEqual({ ok: false, message: `Not sent. Add --yes to send this to ${u}.` });
+      expect(checkSendAllowed(u, true)).toEqual({ ok: true });
+    }
   });
 });

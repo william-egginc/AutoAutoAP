@@ -180,6 +180,7 @@ export const NON_RUN_FLAGS = new Set([
   'nickname',
   'no-submit-csv',
   'collector',
+  'yes',
   'state',
   'fresh',
   'help',
@@ -318,4 +319,27 @@ export function edgeLines(o: {
       ` (${o.hint ?? 'or add --widen to run it straight away'}; chains already priced are reused).`
   );
   return { lines, widened };
+}
+
+/**
+ * Is this collector one the person's own machine runs (a test server)? Anything else is somebody's
+ * real board, and the command line will not post to it without `--yes`.
+ */
+export function isLocalCollector(url: string): boolean {
+  try {
+    const host = new URL(url).hostname.replace(/^\[|\]$/g, '');
+    return host === 'localhost' || host === '::1' || /^127\.\d+\.\d+\.\d+$/.test(host);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * May the command line send to `url`? A localhost collector, yes. Any other (including the one this
+ * build was made with) only when the person typed `--yes`. `message` is the refusal, worded to be
+ * printed as it is.
+ */
+export function checkSendAllowed(url: string, yes: boolean): { ok: true } | { ok: false; message: string } {
+  if (yes || isLocalCollector(url)) return { ok: true };
+  return { ok: false, message: `Not sent. Add --yes to send this to ${url}.` };
 }

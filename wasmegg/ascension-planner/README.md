@@ -161,7 +161,7 @@ simulation and the farm keeps laying while it waits, as "Let me pick my hours" d
 `--no-hold-shifts` (the old "hold shifts" box, gone from the site) is only for reproducing an old
 result and cannot be sent.
 
-**`--submit` sends the result to the board** exactly as the site's Share does (the same
+**`--submit` sends the result to the board** (with `--yes`; without it the run refuses to start, and a localhost `--collector` needs none) exactly as the site's Share does (the same
 payload, the CSV, the re-checks), anonymously unless you pass `--nickname`. Stopped early, it
 sends what it has, marked partial. `--tag PRESET` files a Full sweep under a Science sweep's
 name (`--preset` does it for you). The account's owner code (what folds your sends together and
@@ -195,8 +195,11 @@ over a big space). Nothing in a search needs the network; only sending does.
    (`--fresh` clears it). A finished run says so and exits.
 4. **Copy `run1/` back to a machine that is online** and send it:
    ```bash
-   node dist-search/fastsearch.js submit --from run1 --nickname Me
+   node dist-search/fastsearch.js submit --from run1 --nickname Me --yes
    ```
+   `submit` prints where it is sending and what, and refuses any collector that is not on this
+   machine unless you add `--yes` ("Not sent. Add --yes to send this to <url>."); `--submit` on a
+   search does the same, before the search starts.
    (`--anonymous`, `--dry-run` to see what would go without sending it, `--collector URL` for a
    different board, `--again` to send a result a second time.) Send from one machine, or take
    `~/.config/autoautoap/cli-state.json` with you: it holds the account's owner code, and a new

@@ -28,6 +28,7 @@ import { createGzip } from 'node:zlib';
 import { Worker as NodeWorker } from 'node:worker_threads';
 import { watch } from 'vue';
 import { setDefaultWorkerSpawn } from '@/search/pool';
+import { checkSendAllowed } from '@/search/offline';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { sendRunResult } from '@/search/sendRun';
@@ -99,7 +100,7 @@ export interface SiteRunOptions {
   maxShapes: number;
   ascendNeeded: boolean;
   /** Send the result when it finishes (stopped early, it still sends: the board marks it partial). */
-  submit: { nickname: string; csv: boolean } | null;
+  submit: { nickname: string; csv: boolean; yes: boolean } | null;
   /** `--out DIR`: leave the table and a submission file here for `submit --from`. */
   out: { dir: string; nickname: string; csv: boolean; plainCsv: boolean } | null;
   /** A plain CSV at this path (`--csv`). */
@@ -223,6 +224,13 @@ export async function runSiteSearch(o: SiteRunOptions): Promise<number> {
         `, ${o.submit.nickname ? `as "${o.submit.nickname}"` : 'anonymously'}`
     );
     if (!store.submitUrl) return 1;
+    // Before anything runs: a destination that is not this machine needs --yes (src/search/offline.ts).
+    const allowed = checkSendAllowed(store.submitUrl, o.submit.yes);
+    if (!allowed.ok && !o.dryRun) {
+      console.error(allowed.message);
+      return 1;
+    }
+    if (!allowed.ok) console.log(`    (dry run; a real run would stop here: ${allowed.message})`);
   }
   if (o.out) console.log(`    files for \`submit --from\` go to ${o.out.dir}`);
   if (o.dryRun) return dryRun(o, store);
@@ -444,6 +452,7 @@ async function runChains(
 
     if (o.submit && !store.error) {
       // The site's own send (search/sendRun.ts): summary, then the table, with its re-checks.
+      console.log(`\n  sending to ${store.submitUrl}: ${store.bestChain.join(' ')}, ${o.submit.nickname ? `as "${o.submit.nickname}"` : 'anonymously'}`);
       const res = await sendRunResult(store, o.submit.nickname, o.submit.csv, stage => console.log(`  ${stage}`));
       console.log(`\n  ${res.text}`);
       if (!res.ok) worst = 1;
@@ -582,6 +591,7 @@ async function runByDate(
       console.error('\n  not sent: nothing to send');
       return 1;
     }
+    console.log(`\n  sending to ${store.submitUrl}: ${payload.chain.join(' ')}, ${o.submit.nickname ? `as "${o.submit.nickname}"` : 'anonymously'}`);
     const res = await store.sendSubmission(payload, o.submit.csv ? store.deadlineCsv() : undefined);
     const year = eggDayYearOf(r.deadline);
     // Worded as the site's Share says it (DeadlinePanel.vue `share`).
