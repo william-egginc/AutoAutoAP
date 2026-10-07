@@ -4039,10 +4039,13 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   }
   function blackBoxBeat(): void {
     let b: blackBox.Beat | null = null;
-    let workers = workersInPool.value;
+    // What the run is really using: the live pool's size, or before the pool exists the count it is about
+    // to be built at (`workersInPool` still holds the last run's, or the machine's default, until then,
+    // which made a carried-on run's first beat read the full count it was about to be started without).
+    let workers = pool?.size ?? workerBudget.value;
     if (deadlineRunning.value) {
       const p = deadlineProgress.value;
-      workers = deadlinePool?.size ?? workers;
+      workers = deadlinePool?.size ?? workerBudget.value;
       b = blackBox.beat({
         phase: 'deadline search',
         detail: p?.stage,
@@ -4122,7 +4125,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       phase,
       detail,
       entries: liveCache.length,
-      workers: workersInPool.value,
+      workers: pool?.size ?? workerBudget.value,
       ...workerMemory(pool ?? deadlinePool),
     });
   }
