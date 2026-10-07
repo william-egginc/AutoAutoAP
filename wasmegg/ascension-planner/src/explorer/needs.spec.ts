@@ -218,14 +218,20 @@ describe('fine sweeps (F2) and the later-start pair', () => {
     expect(dataNeeds([row({ nickname: 'a', space: fine })]).find(d => d.id === 'sweep-F2')?.have).toBe(1);
   });
 
-  it('counts a later-start pair only for two fine runs days apart on one account', () => {
-    const rows = [
-      row({ nickname: 'a', space: fine, startLocal: '2026-09-24 08:49' }),
-      row({ nickname: 'a', space: fine, startLocal: '2026-09-28 09:10' }),
+  it('counts a later-start pair only for two fine runs a day or more apart on one account', () => {
+    // b's two runs are 23 h apart: not a pair, so the need stays open with nothing counted.
+    const close = [
       row({ nickname: 'b', space: fine, startLocal: '2026-09-24 08:49' }),
       row({ nickname: 'b', space: fine, startLocal: '2026-09-25 08:00' }),
     ];
-    expect(dataNeeds(rows).find(d => d.id === 'later-start')?.have).toBe(1);
+    expect(dataNeeds(close).find(d => d.id === 'later-start')?.have).toBe(0);
+    // One pair a day or more apart meets it (want 1), so it is no longer listed.
+    const apart = [
+      ...close,
+      row({ nickname: 'a', space: fine, startLocal: '2026-09-24 08:49' }),
+      row({ nickname: 'a', space: fine, startLocal: '2026-09-25 10:00' }),
+    ];
+    expect(dataNeeds(apart).find(d => d.id === 'later-start')).toBeUndefined();
   });
 });
 

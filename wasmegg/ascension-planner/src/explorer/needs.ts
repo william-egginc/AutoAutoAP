@@ -290,19 +290,21 @@ export function dataNeeds(rows: CollectorRow[]): DataNeed[] {
   // it -- and decide whether a plan can be reused or has to be searched again before each ascension.
   const later = accounts.filter(a => {
     const fine = a.rows.filter(r => r.ascensions === 3 && finished490(r) && everyTE(r));
-    return fine.some(x => fine.some(y => daysApart(x, y) >= 3));
+    return fine.some(x => fine.some(y => daysApart(x, y) >= 1));
   }).length;
-  if (later < 3) {
+  // One pair a day or more apart is enough (7 Oct): the tables already show a later start costs about
+  // a day per day, so this only needs confirming once, not three times.
+  if (later < 1) {
     needs.push({
       id: 'later-start',
-      title: 'The same account again, a few days later',
+      title: 'The same account again, a day or more later',
       why: "Halceyx's best 3-ascension plan changed overnight: it was 201 282 on 24 Sept and 206 279 the next day, and priced again from that day's save the old plan finished about 14 days later. Runs a few days apart show how often that happens, and so whether you need a fresh search before each ascension.",
       who: 'anyone who has run F2 (3 ascensions at every TE)',
       have: later,
-      want: 3,
+      want: 1,
       preset: 'F2',
       runs: 2,
-      note: 'Run F2 now, then again at least three days later after syncing the game, with the same artifacts. A new or better artifact in between means the two runs cannot be paired.',
+      note: 'Run F2 now, then again at least a day later after syncing the game, with the same artifacts. A new or better artifact in between means the two runs cannot be paired.',
     });
   }
 
