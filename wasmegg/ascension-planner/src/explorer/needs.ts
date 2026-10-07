@@ -16,10 +16,13 @@
  */
 import { countBanded, parseBands } from '@/search/exhaustive';
 import { sweepSeconds, workerSecondsPerChain } from '@/search/speed';
-import { DAY_MS, localToUtcMs, startMs } from '@/lib/leaderboardRank';
+import { plannedRoutes } from '@/search/deadlineEstimate';
+import { countBandShapes as countStopShapes } from '@/search/deadline';
 import { groupByAccount, gearOf, isProof } from './analysis';
 import type { CollectorRow } from './collector';
 import { SWEEP_PRESETS } from './upload';
+import type { InventoryCount } from '@/search/csv';
+import type { ByDateRequest } from '@/search/byDateRequest';
 
 export interface ComputeTier {
   id: string;
@@ -73,7 +76,70 @@ export interface DataNeed {
   note?: string;
   /** Which list it belongs in (see SweepPreset.group), or 'gear' for accounts and gear the board has
    *  not seen. Unset is the main list. */
-  group?: 'main' | 'big' | 'end' | 'gear';
+  group?: 'main' | 'big' | 'end' | 'gear' | 'bydate';
+  /** A specific set of gear this ask is for (the gear group's cards). Unset for asks about the account. */
+  gear?: GearSet;
+  /** Set for Highest TE by a date asks: they open that screen, not a sweep (`preset` is '' then). */
+  byDate?: ByDateAsk;
+}
+
+export type GearFamily =
+  | 'demeters_necklace'
+  | 'tungsten_ankh'
+  | 'lunar_totem'
+  | 'puzzle_cube'
+  | 'ornate_gusset'
+  | 'interstellar_compass'
+  | 'quantum_metronome';
+export type StoneFamily = 'lunar' | 'tachyon' | 'quantum';
+/** Legendary, Epic, Rare, Common: the icon does not show it, so the card writes it beside the icon. */
+export type GearRarity = 'L' | 'E' | 'R' | 'C';
+
+export interface GearSlot {
+  family: GearFamily;
+  tier: number;
+  rarity: GearRarity;
+  /** Which half of the set it belongs to. */
+  role: 'earnings' | 'delivery';
+}
+export interface GearStone {
+  family: StoneFamily;
+  tier: number;
+  /** In words: "every slot", "one per artifact". */
+  where: string;
+}
+export interface GearSet {
+  slots: GearSlot[];
+  stones: GearStone[];
+  /** The delivery half, when it is "any" set rather than named pieces. */
+  deliveryNote?: string;
+  /** The CTE line, as the collector analyst gave it. */
+  cte: string;
+}
+
+/**
+ * A Highest TE by a date ask: one run over several ascension counts (one chain each). A chain with n
+ * ascensions has n-1 early-stop boxes and a last stop the panel finds itself, starting inside `last`
+ * (and going outside it if the answer is there). So the n-th stop's own box is never a band for the
+ * n-ascension chain.
+ */
+export interface ByDateAsk {
+  /** Ascension counts, one chain each. */
+  asc: number[];
+  /** Egg Day (the only date these asks use). */
+  eggDay: true;
+  /** Boxes by count, `lo-hi:step; ...`, the first TE-relative (`+1-+40:1`). Counts without one are
+   *  suggested from the save (see `around`). */
+  chainBoxes?: Record<number, string>;
+  /** The last stop's starting box, fitted to the player's TE. */
+  last?: string;
+  /** Around the panel's own suggestion, per count: TE either side of each stop, and the step between
+   *  them (later stops; the first is always every TE). Both must be on the By a date sliders. */
+  around?: Record<number, { pm: number; step: number }>;
+  /** A wider width to quote the cost of, "+-N would take about X days" (a slider value). */
+  altPm?: number;
+  /** Plain words about what the run covers, for the card. */
+  summary: string;
 }
 
 /** Gear with a precomputed table (5 Oct 2026), named by what sets it apart from the maxed set (all
@@ -90,169 +156,299 @@ const COVERED_GEAR = [
   'T2E gusset, T3E metronome, earnings 13.4 short',
 ];
 
-/** Accounts wanted per preset before that sweep stops being listed. */
-const PRESET_WANT: Record<string, number> = { M1: 6, M2: 6, M3: 4, M4: 3, F2: 6, F4: 3, F5: 3, E7: 2, E8: 2, E9: 2 };
-
-/**
- * What each sweep ask says, in player language. Audited against the board on 25 Sept 2026 (every
- * number below was recomputed from the rows and CSVs) and again on 26 Sept 2026, when the count
- * claims were restated from each account's earliest standing finish at each count (`bestPerCount`)
- * with the page's own verdict on each gap (`countSteps`). Re-checked the same way on 27 Sept 2026,
- * after Williamthe5thc's E7, E8 and E9 and Willsalt · T4L cube's E8 and close look at 7 arrived;
- * update the numbers when the board moves on. Dates are written as the tables write them ("24 Sept").
- * Say how many accounts a claim rests on, and never that one more ascension "helps" where the two
- * counts were searched too differently to tell.
- */
-const PRESET_TEXT: Record<string, { title: string; why: string; who?: string; note?: string }> = {
-  M1: {
-    title: '2 ascensions at every TE (M1)',
-    why: 'The simplest plan: one ascension target, then on to 490. It shows how fast your delivery set covers the last stretch, and every longer plan on your account is measured against it.',
-  },
-  M2: {
-    title: '3 ascensions at every 2nd TE (M2)',
-    why: "Shows where a 3-ascension plan puts its two ascension targets on your account, over a wider range of TEs than F2. It only tries every 2nd TE: in Halceyx's F2 table, where every plan was priced from one save, the best plan on M2's grid finishes about 5 days after F2's best.",
-    note: 'If you are under 240 TE, F2 answers the same question more exactly, in fewer plans.',
-  },
-  M3: {
-    title: '4 ascensions at every 5th TE (M3)',
-    why: 'Shows roughly where a 4-ascension plan puts its targets on your account, and how much a 4th ascension saves you: 4.5 to 28 days on four of the five accounts that have tried 3 and 4, while on the fifth (a small staged search) the 4 finished 1.5 days later. It only tries every 5th TE, so its best plan can be 2 to 12 days behind the true best.',
-  },
-  M4: {
-    title: '5 ascensions at every 5th TE (M4)',
-    why: 'Shows whether a 5th ascension pays on your account: on the five accounts that have tried 4 and 5 it brought the finish date forward by 1.5 to 28 days. It only tries every 5th TE, so its best plan shows the right area but not the exact TEs. F4 below looks closer.',
-  },
-  F2: {
-    title: '3 ascensions at every TE (F2)',
-    why: "Ascending even one TE off the best can cost up to 31 days. In Halceyx's F2 table, where every plan was priced from one save, the best plan on M2's grid (every 2nd TE) finishes about 5 days after F2's best. F2 tries every TE where the best 3-ascension plans have ascended so far, using fewer plans than M2.",
-    who: 'anyone under 240 TE',
-  },
-  F4: {
-    title: '5 ascensions, a close look (F4)',
-    why: 'Eight accounts have tried 5 ascensions, but most 5-ascension runs so far were staged searches or tried every 5th TE or coarser, and on shorter plans every 5th TE has landed 2 to 12 days behind the best. F4 tries far more of the TEs in between.',
-    who: 'anyone who can leave a desktop or bigger running overnight',
-  },
-  F5: {
-    title: '6 ascensions, a close look (F5)',
-    why: "The plan that finishes first has 6 ascensions on 6 of the 13 accounts (on Allan's it ties with 7), though on 4 of them 6 is also the most they tried. Only two 6-ascension runs have looked this closely, Williamthe5thc's and Willsalt · T4L cube's; the rest tried every 5th TE or coarser, or were staged searches. F5 tries far more of the TEs in between.",
-    who: 'anyone who can leave a desktop or bigger running overnight',
-  },
-  E7: {
-    title: '7 ascensions, a rough look (E7)',
-    why: "Four accounts have tried both 6 and 7 ascensions. A 7th brought the finish forward 4.9 days on Willsalt · T4L cube and 1.0 day on BobSkiMajoo778; on Allan's it finished the same minute as his 6, and on Williamthe5thc's 0.9 days after it. All four are too close to call given how they were searched. Runs from more accounts show where adding ascensions stops saving time, so nobody plans more ascensions than they need.",
-    who: 'anyone who can leave a desktop or bigger running overnight',
-  },
-  E8: {
-    title: '8 ascensions, a rough look (E8)',
-    why: "On the three accounts that have tried 8 next to 7, 8 finished 3.0 days after the best on Allan's and 2.3 on Williamthe5thc's, and on Willsalt · T4L cube it now finishes 2.1 days before that account's 7 (every-TE close looks, 28 Sept). All three are within search noise. More runs show whether it ever clearly wins, and for which accounts.",
-    who: 'anyone who can leave a desktop or bigger running overnight',
-  },
-  E9: {
-    title: '9 ascensions, a rough look (E9)',
-    why: "Two accounts have tried 9 ascensions. On Williamthe5thc's, E9 finishes 4.1 days after his best plan (6 ascensions) and 1.8 days after his 8, within search noise; his one quick 15-ascension search finishes 20 days after his best. On Willsalt · T4L cube, 9 finishes 3.3 days after its best plan (8 ascensions), also within search noise. More accounts show whether 9 ever wins and, with 7 and 8, fill in the picture from 2 to 9 ascensions, so players can stop considering plans this long.",
-    who: 'anyone who can leave a desktop or bigger running overnight',
-  },
-};
-
-/** A band's step, or null for a band with a single value. */
-function stepOf(band: number[]): number | null {
-  let worst = 0;
-  for (let i = 1; i < band.length; i++) worst = Math.max(worst, band[i] - band[i - 1]);
-  return band.length > 1 ? worst : null;
-}
-
-/** The bands a run actually priced: its own record, or the text an upload was tagged with. */
-function runBands(r: CollectorRow): number[][] | undefined {
-  if (r.space?.bands?.length) return r.space.bands;
-  return r.sweep?.bands ? parseBands(r.sweep.bands) : undefined;
-}
-
-/** The preset's own bands with a TE-relative first band read as plain numbers: only the steps
- *  matter here, and `+1-+36:1` has the same step as `1-36:1`. */
-function presetSteps(preset: { bands: string }): (number | null)[] {
-  return parseBands(preset.bands.replace(/\+(\d+)\s*-\s*\+(\d+)/, '$1-$2')).map(stepOf);
-}
-
-/**
- * A run at least as fine as a preset, range by range: the same number of ascensions, and each
- * range's step no coarser than the preset's matching range. Comparing only the widest step let a
- * run at every 3rd TE throughout count toward a preset whose first range is every TE.
- */
-function atLeastAsFineAs(r: CollectorRow, steps: (number | null)[]): boolean {
-  const bands = runBands(r);
-  if (!bands?.length || bands.length !== steps.length) return false;
-  return bands.every((b, i) => {
-    const want = steps[i];
-    const have = stepOf(b);
-    // A single-value range (a player whose TE leaves one value in it) is as fine as anything.
-    return want === null || have === null || have <= want;
-  });
-}
-
-/** A finished exhaustive run that checked EVERY TE in every band (step 1 throughout). */
-function everyTE(r: CollectorRow): boolean {
-  const bands = r.space?.bands;
-  return !!bands?.length && bands.every(b => (stepOf(b) ?? 1) <= 1);
-}
-
-/** A finished exhaustive run to the main 490 target: the only kind the asks below count. Finished is
- *  the page's one proof test (`isProof`: every plan in its box priced), so a run whose end never
- *  recorded its count -- Halceyx's 6-ascension run priced 4,192 of 61,749 -- is not finished here
- *  while the runs table calls it partial. An uploaded sweep carries no `space`; its CSV's own chain
- *  count already guards against a partial file, so it counts as finished. */
+/** A finished exhaustive run to the main 490 target. Finished is the page's one proof test (`isProof`:
+ *  every plan in its box priced). An uploaded sweep carries no `space`; its CSV's own chain count
+ *  already guards against a partial file, so it counts as finished. */
 function finished490(r: CollectorRow): boolean {
   const finished = r.space ? isProof(r) : r.source === 'upload';
   return finished && r.finalTE === 490;
 }
 
-/** Days between two runs' plan starts, as instants (the Leaderboard's `startMs`). A row whose zone
- *  cannot be read is taken at its local clock as if it were UTC, which is hours out at worst and fine
- *  for a days-apart test. NaN when a start cannot be read at all, which fails every such test. */
-function daysApart(a: CollectorRow, b: CollectorRow): number {
-  const t = (r: CollectorRow) => startMs(r) ?? localToUtcMs(r.startLocal, 'UTC');
-  const x = t(a);
-  const y = t(b);
-  return x == null || y == null ? NaN : Math.abs(x - y) / DAY_MS;
-}
-
 /** Every run so far started at TE 124 or more. Below this, the shape is a guess. */
 const LOW_TE = 125;
+
+const slot = (
+  role: GearSlot['role'],
+  family: GearFamily,
+  tier: number,
+  rarity: GearRarity
+): GearSlot => ({ family, tier, rarity, role });
+const earn = (r: [GearRarity, GearRarity, GearRarity, GearRarity]): GearSlot[] => [
+  slot('earnings', 'demeters_necklace', 4, r[0]),
+  slot('earnings', 'tungsten_ankh', 4, r[1]),
+  slot('earnings', 'lunar_totem', 4, r[2]),
+  slot('earnings', 'puzzle_cube', 4, r[3]),
+];
+const deliver = (g: GearRarity, c: GearRarity, m: GearRarity): GearSlot[] => [
+  slot('delivery', 'ornate_gusset', 4, g),
+  slot('delivery', 'interstellar_compass', 4, c),
+  slot('delivery', 'quantum_metronome', 4, m),
+];
+/** Necklace, ankh (no T4 epic ankh exists, so the epic set has a rare one), totem, cube. */
+const EPIC_EARN = earn(['E', 'R', 'E', 'E']);
+const RARE_EARN = earn(['R', 'R', 'R', 'R']);
+const MAXED_EARN = earn(['L', 'L', 'L', 'L']);
+const EVERY = (tier: number): GearStone[] => [
+  { family: 'lunar', tier, where: 'every slot' },
+  { family: 'tachyon', tier, where: 'every slot' },
+  { family: 'quantum', tier, where: 'every slot' },
+];
+
+/**
+ * The gear cards, in the collector analyst's rank order (7 Oct 2026). Every one runs M3 (4
+ * ascensions at every 5th TE). Counts are not detected yet: `have` is 0 on all of them.
+ * The CTE ranges are the analyst's; the two cards the analyst gave none for say so in words.
+ */
+const GEAR_ASKS: Omit<DataNeed, 'preset' | 'runs' | 'have' | 'group'>[] = [
+  {
+    id: 'gear-epic-earnings',
+    title: 'Epic earnings set',
+    why: 'The first point inside the empty gap between the all-common floor and every account on the board. It shows how earnings below the board change the plans.',
+    who: 'players with this earnings set and any legendary delivery set',
+    want: 2,
+    gear: {
+      slots: EPIC_EARN,
+      stones: [{ family: 'lunar', tier: 4, where: 'every slot' }],
+      deliveryNote: 'any legendary set',
+      cte: 'About +104 earnings bonus. CTE 229 to 304 at TE 125 to 200.',
+    },
+  },
+  {
+    id: 'gear-rare-earnings',
+    title: 'Rare earnings set',
+    why: 'Its CTE straddles the line (about 225) where first ascensions start stalling on Integrity, so it measures where plans start stalling.',
+    who: 'players with this earnings set and any legendary delivery set; one account under 140 TE and one over 170 is ideal',
+    want: 2,
+    note: 'If the planner warns the first ascension will wait on Integrity, run it anyway if it lets you start: that wait is part of what we are measuring.',
+    gear: {
+      slots: RARE_EARN,
+      stones: [{ family: 'lunar', tier: 4, where: 'one per artifact' }],
+      deliveryNote: 'any legendary set',
+      cte: 'CTE 212 to 287 at TE 125 to 200.',
+    },
+  },
+  {
+    id: 'gear-rare-common-delivery',
+    title: 'Rare or common delivery set',
+    why: 'Strong earnings with weak delivery separates what delivery does from what earnings do.',
+    who: 'players with maxed earnings gear and this weaker delivery set',
+    want: 2,
+    gear: {
+      slots: [...MAXED_EARN, ...deliver('C', 'R', 'R')],
+      stones: [
+        { family: 'lunar', tier: 4, where: 'every earnings slot' },
+        { family: 'tachyon', tier: 4, where: 'every delivery slot' },
+        { family: 'quantum', tier: 4, where: 'every delivery slot' },
+      ],
+      cte: 'The maxed earnings set: CTE 241 or more, like the accounts already on the board.',
+    },
+  },
+  {
+    id: 'gear-epic-everything',
+    title: 'Epic everything',
+    why: 'The middle ground between the weakest and strongest gear, so tables can be estimated between them.',
+    who: 'players with this epic set, earnings and delivery',
+    want: 1,
+    gear: {
+      slots: [...EPIC_EARN, ...deliver('E', 'E', 'E')],
+      stones: EVERY(4),
+      cte: 'The epic earnings set: about +104 earnings bonus, CTE 229 to 304 at TE 125 to 200.',
+    },
+  },
+  {
+    id: 'gear-rare-everything',
+    title: 'Rare everything',
+    why: 'Checks the lowest table (all common gear) against a real account between it and the weakest player.',
+    who: 'players with this rare set, earnings and delivery',
+    want: 1,
+    gear: {
+      slots: [...RARE_EARN, ...deliver('C', 'R', 'R')],
+      stones: [
+        { family: 'lunar', tier: 4, where: 'one per artifact' },
+        { family: 'tachyon', tier: 4, where: 'one per artifact' },
+        { family: 'quantum', tier: 4, where: 'one per artifact' },
+      ],
+      cte: 'The rare earnings set: CTE 212 to 287 at TE 125 to 200.',
+    },
+  },
+  {
+    id: 'gear-legendary-t3-stones',
+    title: 'Legendary set on T3 stones',
+    why: 'Shows how much of the gap the stones alone make up. Lowest priority.',
+    who: 'players with legendary artifacts and T3 stones',
+    want: 1,
+    gear: {
+      slots: [...MAXED_EARN, ...deliver('L', 'L', 'L')],
+      stones: EVERY(3),
+      cte: 'Below the maxed set by what T4 stones add; the drop is what this measures.',
+    },
+  },
+];
+
+/**
+ * The Highest TE by a date asks, sized as "start it in the morning, come back at night": about 8 to 12
+ * hours on a desktop (8 cores) at TE 180, by the same speed model as the other cards (`byDateSets`,
+ * `byDateSeconds`). Nothing here is detected from the rows: they stay listed.
+ *
+ * Why these widths. 1 to 4 ascensions is one card (4 ascensions on the 195-250 / 230-295 boxes at every
+ * 2nd / 3rd TE would be 19,036 sets, 66 h, so it is thinned to every 5th / 10th: 2,433). 5 to 8 are one
+ * card each, every stop at every TE around the panel's suggestion, so the sets are (2*pm+1)^(n-1) and
+ * the width is the widest that stays near a day: 5 at +-3 is 2,401 sets, 6 at +-2 is 3,125, 7 at +-1 is
+ * 729, 8 at +-1 is 2,187. The model's hours are in needs.spec.ts; they do not all land in 8 to 12 because
+ * a width is a whole number of TE (6 at +-2 and 8 at +-1 come to about 14 h, 7 at +-1 to about 4 h).
+ */
+function byDateNeeds(): DataNeed[] {
+  const base = { who: 'anyone', have: 0, want: 1, runs: 1, preset: '', group: 'bydate' as const };
+  return [
+    {
+      ...base,
+      id: 'bydate-1-4',
+      title: 'Egg Day, 1 to 4 ascensions',
+      why: "By a date runs now save every leg, so each leg checks the tables, and the best plan for each count checks the instant answer's route finder.",
+      byDate: {
+        asc: [1, 2, 3, 4],
+        eggDay: true,
+        chainBoxes: {
+          2: '+1-+40:1',
+          3: '+1-+40:1; 195-250:2',
+          4: '+1-+40:1; 195-250:5; 230-295:10',
+        },
+        last: '195-330',
+        summary:
+          'Your first stop at every TE from 1 to 40 above yours, then 195 to 250 and 230 to 295 (every 2nd TE for 3 ascensions, every 5th and 10th for 4, which would be 66 hours at every 2nd and 3rd).',
+      },
+    },
+    {
+      ...base,
+      id: 'bydate-5',
+      title: 'Egg Day, 5 ascensions, a close look around the suggested route',
+      why: 'Every stop tried a few TE either side of the suggested route, at every TE. It measures how much a pruned search misses.',
+      who: 'anyone who can leave a fast PC running',
+      byDate: {
+        asc: [5],
+        eggDay: true,
+        around: { 5: { pm: 3, step: 1 } },
+        altPm: 5,
+        summary: 'Every stop within ±3 TE of the suggested route, every TE.',
+      },
+    },
+    {
+      ...base,
+      id: 'bydate-6',
+      title: 'Egg Day, 6 ascensions, a close look around the suggested route',
+      why: 'Every stop tried a few TE either side of the suggested route, at every TE. It measures how much a pruned search misses.',
+      who: 'anyone who can leave a fast PC running',
+      byDate: {
+        asc: [6],
+        eggDay: true,
+        around: { 6: { pm: 2, step: 1 } },
+        altPm: 3,
+        summary: 'Every stop within ±2 TE of the suggested route, every TE.',
+      },
+    },
+    {
+      ...base,
+      id: 'bydate-7',
+      title: 'Egg Day, 7 ascensions, a close look around the suggested route',
+      why: 'Every stop tried a few TE either side of the suggested route, at every TE. It measures how much a pruned search misses.',
+      who: 'anyone who can leave a fast PC running',
+      byDate: {
+        asc: [7],
+        eggDay: true,
+        around: { 7: { pm: 1, step: 1 } },
+        altPm: 3,
+        summary: 'Every stop within ±1 TE of the suggested route, every TE.',
+      },
+    },
+    {
+      ...base,
+      id: 'bydate-8',
+      title: 'Egg Day, 8 ascensions, a close look around the suggested route',
+      why: 'Every stop tried a few TE either side of the suggested route, at every TE. It measures how much a pruned search misses.',
+      who: 'anyone who can leave a fast PC running',
+      byDate: {
+        asc: [8],
+        eggDay: true,
+        around: { 8: { pm: 1, step: 1 } },
+        altPm: 3,
+        summary: 'Every stop within ±1 TE of the suggested route, every TE.',
+      },
+    },
+  ];
+}
+
+/** Sets of early stops each count of a By a date ask tries from this TE: counted from the boxes where
+ *  there are some, else the most there can be around the suggestion (the first stop at every TE, each
+ *  later one 2*floor(pm/step)+1 values; overlapping routes make it fewer). */
+export function byDateSets(ask: ByDateAsk, currentTE: number): { asc: number; sets: number }[] {
+  const req = byDateRequestFor(ask, currentTE);
+  return ask.asc.map(asc => {
+    if (asc <= 1) return { asc, sets: 1 };
+    const text = req.chains[asc];
+    if (text) {
+      const bands = parseBands(text.split(';').map(b => b.trim()).join(';'));
+      return { asc, sets: countStopShapes(bands, currentTE, 490) };
+    }
+    const a = ask.around?.[asc];
+    if (!a) return { asc, sets: 0 };
+    return { asc, sets: (2 * a.pm + 1) * (2 * Math.floor(a.pm / a.step) + 1) ** Math.max(0, asc - 2) };
+  });
+}
+
+/** "±3 would take about 3.1 days" for the wider look at the same counts, on `workers` workers. */
+export function byDateWiderText(
+  ask: ByDateAsk,
+  currentTE: number,
+  workers: number,
+  measured?: Map<number, { seconds: number }>
+): string {
+  if (!ask.altPm || !ask.around) return '';
+  const wider: ByDateAsk = {
+    ...ask,
+    around: Object.fromEntries(Object.entries(ask.around).map(([n, a]) => [n, { ...a, pm: ask.altPm! }])),
+  };
+  const hours = byDateSeconds(wider, currentTE, workers, measured) / 3600;
+  const days = hours / 24;
+  return `±${ask.altPm} would take about ${days < 1.5 ? `${Math.round(hours)} hours` : `${days.toFixed(days < 10 ? 1 : 0)} days`}.`;
+}
+
+/** Seconds a By a date ask takes on a machine with `workers` workers: the panel's own route estimate
+ *  (`plannedRoutes`) for each count, at the board's worker-seconds per route for that length. */
+export function byDateSeconds(
+  ask: ByDateAsk,
+  currentTE: number,
+  workers: number,
+  measured?: Map<number, { seconds: number }>
+): number {
+  let total = 0;
+  for (const { asc, sets } of byDateSets(ask, currentTE)) {
+    const routes = plannedRoutes({ sets, workers, currentTE });
+    total += sweepSeconds(routes, workers, workerSecondsPerChain(asc, measured));
+  }
+  return total;
+}
 
 export function dataNeeds(rows: CollectorRow[]): DataNeed[] {
   const accounts = groupByAccount(rows);
   const needs: DataNeed[] = [];
   const count = (test: (r: CollectorRow) => boolean) => accounts.filter(a => a.rows.some(test)).length;
 
-  for (const preset of SWEEP_PRESETS) {
-    const want = PRESET_WANT[preset.id];
-    const text = PRESET_TEXT[preset.id];
-    if (!want || !text) continue;
-    // A tagged run counts only at the preset's own length (an upload can be tagged with anything),
-    // and so does any finished exhaustive run of that length: the planner's own Insane runs carry
-    // `space` but often no tag. A FINE preset also needs the run to be at least as fine, range by
-    // range: an every-2nd-TE M2 answers a coarser question than F2.
-    const steps = presetSteps(preset);
-    const covers = (r: CollectorRow) =>
-      r.ascensions === preset.ascensions &&
-      (!preset.fine || atLeastAsFineAs(r, steps)) &&
-      // A tagged run that did not price its whole box does not cover the preset (`isProof`): these
-      // are the longest runs on the list, and one abandoned overnight F4 would otherwise fill a third
-      // of the ask. A tagged upload has no box to check; its CSV is the whole sweep.
-      ((r.sweep?.preset === preset.id && (!r.space || isProof(r))) || finished490(r));
-    const have = count(covers);
-    if (have >= want) continue;
-    needs.push({
-      id: `sweep-${preset.id}`,
-      title: text.title,
-      why: text.why,
-      who: text.who ?? 'anyone',
-      have,
-      want,
-      preset: preset.id,
-      runs: 1,
-      ...(text.note ? { note: text.note } : {}),
-      group: preset.group ?? 'main',
-    });
-  }
+  // The Full sweep preset asks (M1-M4, F2, F4, F5, E7-E9) and the force-continue pair were removed at the
+  // user's call on 7 Oct 2026: the precomputed tables answer those questions, and By a date runs, which
+  // now save every leg, check the tables. SWEEP_PRESETS and the runner stay: the gear cards, te-low and
+  // uploads still use them.
+
+  // No 'later-start' ask (the same account run again a day or more later, to see whether the best plan
+  // moves with the date): the precomputed tables price every start TE at every hour of the week, so
+  // how the best plan moves with the start date is already answered without paired runs (the user,
+  // 7 Oct 2026).
+
+  // GEAR THE BOARD HAS NEVER SEEN (the collector analyst, 7 Oct 2026, in rank order). Every account
+  // so far has strong earnings gear: between the all-common floor and the weakest player there is
+  // nothing, so each card is a set we would build a table for. `have` is NOT detected yet (0 on
+  // every card): nothing here matches an account's gear against these sets, so they stay listed
+  // until the counts are wired up and this list is edited by hand.
+  for (const g of GEAR_ASKS) needs.push({ ...g, preset: 'M3', runs: 1, have: 0, group: 'gear' });
 
   const lowAccounts = count(r => finished490(r) && r.currentTE < LOW_TE && (gearOf(r).clothedTE ?? 0) >= 225);
   if (lowAccounts < 2) {
@@ -265,86 +461,10 @@ export function dataNeeds(rows: CollectorRow[]): DataNeed[] {
       want: 2,
       preset: 'F2',
       runs: 1,
+      group: 'gear',
       note: 'For example a T4L Lunar totem plus two of T4L Demeters necklace, T4L Tungsten ankh and T4L Puzzle cube, all with 3 T4 Lunar stones: that adds about +108 TE to your CTE.',
     });
   }
-
-  const pairs = accounts.filter(
-    a => a.rows.some(r => r.forceContinue === true) && a.rows.some(r => r.forceContinue === false)
-  ).length;
-  if (pairs < 3) {
-    needs.push({
-      id: 'force-continue',
-      title: 'The same save both ways: finishing your current ascension first, and ascending straight away',
-      why: 'On the two accounts that have run it both ways, the best plan came out the same, and the choice only moved some slower plans (by up to 64 days). A third account well into an ascension will show whether you ever gain by ascending straight away.',
-      who: 'anyone partway through an ascension',
-      have: pairs,
-      want: 3,
-      preset: 'M1',
-      runs: 2,
-      note: 'Do both from the same save, without playing or syncing the game in between.',
-    });
-  }
-
-  // Does the best plan move with the date? Two every-TE runs from one account, days apart, answer
-  // it -- and decide whether a plan can be reused or has to be searched again before each ascension.
-  const later = accounts.filter(a => {
-    const fine = a.rows.filter(r => r.ascensions === 3 && finished490(r) && everyTE(r));
-    return fine.some(x => fine.some(y => daysApart(x, y) >= 1));
-  }).length;
-  // One pair a day or more apart is enough (7 Oct): the tables already show a later start costs about
-  // a day per day, so this only needs confirming once, not three times.
-  if (later < 1) {
-    needs.push({
-      id: 'later-start',
-      title: 'The same account again, a day or more later',
-      why: "Halceyx's best 3-ascension plan changed overnight: it was 201 282 on 24 Sept and 206 279 the next day, and priced again from that day's save the old plan finished about 14 days later. Runs a few days apart show how often that happens, and so whether you need a fresh search before each ascension.",
-      who: 'anyone who has run F2 (3 ascensions at every TE)',
-      have: later,
-      want: 1,
-      preset: 'F2',
-      runs: 2,
-      note: 'Run F2 now, then again at least a day later after syncing the game, with the same artifacts. A new or better artifact in between means the two runs cannot be paired.',
-    });
-  }
-
-  // GEAR THE BOARD HAS NEVER SEEN (audited 27 Sept 2026). Every account so far has a T4L Lunar totem
-  // and a T4L Demeters necklace, and every one whose CTE we know is at CTE 241 or more (11 of the 12:
-  // the Gear view cannot place Wolfcry1993, whose only run that is not a what-if records no CTE), so
-  // TE and CTE always rise together and nothing separates what the gear decides from what the TE
-  // decides.
-  const cteEdge = count(r => finished490(r) && (gearOf(r).clothedTE ?? 0) >= 200 && (gearOf(r).clothedTE ?? 999) < 240);
-  if (cteEdge < 3) {
-    needs.push({
-      id: 'cte-edge',
-      title: 'Accounts at CTE 200 to 240, around where plans start working',
-      why: "Below about 218 to 225 CTE (the planner's estimate) a first ascension gets stuck on Integrity saving up for habs. The runs only bracket that line: the two accounts measured below it (CTE 172 and 202) stalled, and the lowest account whose CTE we know is at CTE 241. Runs from CTE 200 to 240 would show exactly where the line is and whether the usual targets still hold there.",
-      who: 'players at CTE 200 to 240',
-      have: cteEdge,
-      want: 3,
-      preset: 'F2',
-      runs: 1,
-      note: 'For example TE 72 to 111 with a full T4L earnings set, TE 91 to 130 with an epic one, or TE 113 to 153 with rare pieces holding one T4 Lunar stone each. If the planner warns that your first ascension will wait on Integrity, run it anyway if it lets you start: that wait is part of what we are measuring.',
-      group: 'gear',
-    });
-  }
-
-  // GEAR WITHOUT A TABLE (the user, 5 Oct). The instant answer is exact for any gear that has its own
-  // precomputed table, and one finished run from a new gear is enough to build and check one (its
-  // inventory and its legs). So instead of asking for patterns (weak delivery, mixed earnings...),
-  // ask for any gear not on this list, from an account whose plans work at all (CTE 225 or more).
-  needs.push({
-    id: 'new-gear',
-    title: "Your gear, if it isn't one we have a table for yet",
-    why: "Instant answers are exact for gear that has its own precomputed table, and one run from a new gear is enough to build it: we take its artifacts and stones from the run, simulate every ascension once, and check the table against the run's own legs.",
-    who: 'players at CTE 225 or more whose artifacts and stones are not one of the sets listed below',
-    have: 0,
-    want: 1,
-    preset: 'F2',
-    runs: 1,
-    note: `Tables so far: ${COVERED_GEAR.join('; ')}. Spare stones and junk artifacts don't matter, only what your best sets use.`,
-    group: 'gear',
-  });
 
   const notMaxed = count(
     r => finished490(r) && r.clothedTE != null && (r.colleggtibles?.maxed === false || r.epicResearch?.maxed === false)
@@ -357,11 +477,30 @@ export function dataNeeds(rows: CollectorRow[]): DataNeed[] {
       who: 'players with some colleggtibles below their top tier, or epic research not finished (Lab Upgrade in particular)',
       have: notMaxed,
       want: 2,
-      preset: 'F2',
+      preset: 'M3',
       runs: 1,
       group: 'gear',
     });
   }
+
+  // GEAR WITHOUT A TABLE (the user, 5 Oct). The instant answer is exact for any gear that has its own
+  // precomputed table, and one finished run from a new gear is enough to build and check one (its
+  // inventory and its legs). So instead of asking for patterns (weak delivery, mixed earnings...),
+  // ask for any gear not on this list, from an account whose plans work at all (CTE 225 or more).
+  needs.push({
+    id: 'new-gear',
+    title: "Any other gear we don't have a table for yet",
+    why: "Instant answers are exact for gear that has its own precomputed table, and one run from a new gear is enough to build it: we take its artifacts and stones from the run, simulate every ascension once, and check the table against the run's own legs.",
+    who: 'players at CTE 225 or more whose artifacts and stones are not one of the sets listed below',
+    have: 0,
+    want: 1,
+    preset: 'F2',
+    runs: 1,
+    note: `Tables so far: ${COVERED_GEAR.join('; ')}. Spare stones and junk artifacts don't matter, only what your best sets use.`,
+    group: 'gear',
+  });
+
+  needs.push(...byDateNeeds());
 
   return needs;
 }
@@ -390,8 +529,13 @@ export function dataNeeds(rows: CollectorRow[]): DataNeed[] {
 export function presetBandsFor(presetId: string, currentTE: number, final = 490): string {
   const preset = SWEEP_PRESETS.find(p => p.id === presetId);
   if (!preset || !preset.bands) return '';
+  return fitBands(preset.bands, currentTE, final);
+}
+
+/** Any `lo-hi:step; ...` text (first band optionally `+a-+b:step`) fitted to a TE: see presetBandsFor. */
+export function fitBands(bandsText: string, currentTE: number, final = 490): string {
   const start = Math.floor(currentTE) + 1;
-  const parts = preset.bands
+  const parts = bandsText
     .split(';')
     .map(s => s.trim())
     .filter(Boolean);
@@ -457,4 +601,37 @@ export function presetChains(presetId: string, currentTE: number, final = 490): 
   if (!preset || !text) return { chains: 0, ascensions: 0 };
   const bands = parseBands(text).map(band => band.filter(v => v > currentTE && v < final));
   return { chains: countBanded(bands, final, currentTE, preset.minGap), ascensions: preset.ascensions };
+}
+
+/**
+ * A By a date ask as the request its screen reads (search/byDateRequest.ts), fitted to this TE: each
+ * count's boxes with the first relative to the TE and nothing at or below it, and the last stop's box
+ * starting above the TE.
+ */
+export function byDateRequestFor(ask: ByDateAsk, currentTE: number): ByDateRequest {
+  const req: ByDateRequest = { asc: [...ask.asc], eggDay: true, chains: {} };
+  for (const [n, text] of Object.entries(ask.chainBoxes ?? {})) req.chains[Number(n)] = fitBands(text, currentTE);
+  if (ask.last) {
+    const [lo, hi] = ask.last.split('-').map(Number);
+    const top = Math.min(489, Math.max(hi, Math.floor(currentTE) + 3));
+    req.last = `${Math.min(top, Math.max(lo, Math.floor(currentTE) + 2))}-${top}`;
+  }
+  if (ask.around) req.around = { ...ask.around };
+  return req;
+}
+
+const RARITY_NUMBER: Record<GearRarity, number> = { C: 0, R: 1, E: 2, L: 3 };
+
+/**
+ * Whether the save's virtue inventory (`virtueInventory(rawBackup).artifacts`, the same list the
+ * simulator picks sets from) holds every artifact on this gear card at exactly that tier and rarity.
+ * Stones and the "any legendary set" delivery half are not checked: only the named artifacts.
+ */
+export function ownsGear(gear: GearSet, artifacts: InventoryCount[]): boolean {
+  return gear.slots.every(s => {
+    const family = s.family.replace(/_/g, '-');
+    return artifacts.some(
+      a => a.familyId === family && a.tier === s.tier && a.rarity === RARITY_NUMBER[s.rarity] && a.count > 0
+    );
+  });
 }

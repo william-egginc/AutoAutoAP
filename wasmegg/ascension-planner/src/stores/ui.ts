@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import type { AutoView, CompareView, Depth, ScienceView } from '@/lib/siteNav';
 import type { SweepRequest } from '@/search/sweepRequest';
+import type { ByDateRequest } from '@/search/byDateRequest';
 
 export type PlannerTab = 'manual' | 'automatic' | 'leaderboard' | 'science';
 
@@ -43,6 +44,8 @@ export const useUIStore = defineStore('ui', () => {
   const backupRetryRequested = ref(0);
   /** The sweep the Science tab's runner (SweepRunner.vue) is showing; null when it is closed. */
   const scienceSweep = ref<SweepRequest | null>(null);
+  /** A By a date set-up from the Science tab, for DeadlinePanel to apply once it opens; it clears it. */
+  const byDateRequest = ref<ByDateRequest | null>(null);
   /**
    * A sweep started from the Science tab, kept here rather than in the runner so closing the runner
    * (or leaving the tab) loses nothing: the run goes on, sends itself, and opening the runner again
@@ -88,6 +91,7 @@ export const useUIStore = defineStore('ui', () => {
     openSetupRequested,
     setupOpen,
     scienceSweep,
+    byDateRequest,
     scienceRun,
     setActiveTab,
     setHeaderCollapsed,

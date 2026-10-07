@@ -206,7 +206,7 @@
           <span class="font-bold text-slate-600">Suggest a space tries</span>
           <label class="flex items-center gap-1.5">
             <input
-              :value="rowWidthIx(row)"
+              :value="row.pm ? 0 : rowWidthIx(row)"
               type="range"
               min="0"
               :max="SPACE_WIDTHS.length - 1"
@@ -217,7 +217,9 @@
               @input="setSlider(k, 'widthIx', +($event.target as HTMLInputElement).value)"
             />
             <span
-              ><b class="text-slate-700">±{{ widthOf(row) }}</b> TE around each stop</span
+              ><b class="text-slate-700">±{{ widthOf(row) }}</b> TE around each stop<template v-if="row.pm">
+                (from a Science card)</template
+              ></span
             >
           </label>
           <label class="flex items-center gap-1.5">
@@ -786,7 +788,16 @@ const kept = {
   thoroughIx: keptRef(2),
   mode: keptRef<'space' | 'auto'>('space'),
   chains: keptRef<
-    { asc: number; text: string; auto?: boolean; widthIx?: number; stepIx?: number; restored?: boolean }[]
+    {
+      asc: number;
+      text: string;
+      auto?: boolean;
+      widthIx?: number;
+      stepIx?: number;
+      /** A width only a Science card's request can ask for (+-1, +-2): overrides the slider. */
+      pm?: number;
+      restored?: boolean;
+    }[]
   >([{ asc: 4, text: '' }]),
   lastBox: keptRef(''),
   suggestFrom: keptRef(''),
@@ -825,6 +836,8 @@ import { sweepSeconds, workerSecondsPerChain } from '@/search/speed';
 import { rowSettingsFor, type DeadlineRunSpec } from '@/search/deadlineStore';
 import { SPACE_STEPS, SPACE_WIDTHS, stopsByWidth } from '@/search/deadlineSuggest';
 import { firstTime } from '@/lib/linkOnce';
+import { parseByDateRequest, SCIENCE_WIDTHS, type ByDateRequest } from '@/search/byDateRequest';
+import { useUIStore } from '@/stores/ui';
 import { downloadCsv } from '@/utils/export';
 import { useEidsStore } from 'lib';
 import { eggDayYearOf } from '@/lib/eggDay';
@@ -1010,7 +1023,7 @@ const { widthIx, stepIx, linkSliders } = kept;
 type Row = (typeof chains.value)[number];
 const rowWidthIx = (row: Row) => row.widthIx ?? widthIx.value;
 const rowStepIx = (row: Row) => row.stepIx ?? stepIx.value;
-const widthOf = (row: Row) => SPACE_WIDTHS[rowWidthIx(row)] ?? SPACE_WIDTHS[3];
+const widthOf = (row: Row) => row.pm ?? SPACE_WIDTHS[rowWidthIx(row)] ?? SPACE_WIDTHS[3];
 const stepOf = (row: Row) => SPACE_STEPS[rowStepIx(row)] ?? SPACE_STEPS[1];
 /** Move one chain's slider, or every chain's when they're linked, and re-fill the boxes Suggest a
  *  space filled (a box typed by hand is left alone). */
@@ -1020,6 +1033,8 @@ function setSlider(k: number, key: 'widthIx' | 'stepIx', value: number): void {
   chains.value.forEach((row, i) => {
     if (i !== k && !linkSliders.value) return;
     row[key] = value;
+    // Moving the width slider ends a Science card's own width.
+    if (key === 'widthIx') delete row.pm;
     if (row.auto) suggestRow(i);
   });
 }
@@ -1037,38 +1052,81 @@ function addChain(): void {
  * A link can set the search up: `?insane=1&goal=deadline&eggday=1&asc=1,2,3` opens this panel on
  * Egg Day with one chain per ascension count, each suggested from the opener's own save (like
  * Suggest; no account is in the link). `chain2=150-160:2` (the chain with that many ascensions) and
- * `last=220-300` set a box exactly instead.
+ * `last=220-300` set a box exactly instead. `pm5=3&step5=1` set Suggest a space's two sliders for the chain with that many
+ * ascensions (`pm`/`step` alone: every chain), so the suggestion is wide or narrow as asked.
+ * The request's own format and bounds are in search/byDateRequest.ts.
+ *
+ * The same request arrives in place from the Science tab (the ui store's `byDateRequest`), when the
+ * planner is already open and no link is followed.
+ *
+ * THE SEEDING HOOK: a chain with no box of its own is filled by `suggestRow`, whose centre is
+ * `suggestion(k)`'s `early` list (the last answer, else the route in the planner, else evenly
+ * spaced). To centre on another source, change the `early` that function picks; nothing else here
+ * knows where a centre comes from.
  */
 // Once per page load (lib/linkOnce.ts): coming back to this screen keeps what the player typed.
-const linkParams =
-  typeof window !== 'undefined' && firstTime('by-date-link') ? new URLSearchParams(window.location.search) : null;
-const linkAsc = [
-  ...new Set(
-    (linkParams?.get('asc') ?? '')
-      .split(',')
-      .map(x => Math.floor(Number(x)))
-      .filter(n => n >= 1 && n <= 8)
-  ),
-];
-if (linkParams?.get('eggday') === '1') useEggDay();
-if (linkAsc.length) {
+const linkRequest =
+  typeof window !== 'undefined' && firstTime('by-date-link')
+    ? parseByDateRequest(window.location.search)
+    : null;
+/** A request was applied on this mount: the boxes it left empty are filled when the save loads, and
+ *  they are not reset for "another player" the way the kept boxes are. */
+const linked = ref(false);
+function applyRequest(req: ByDateRequest): void {
+  if (req.eggDay) {
+    useEggDay();
+    customDate.value = false;
+  }
   mode.value = 'space';
-  chains.value = linkAsc.map(asc => ({ asc, text: (linkParams?.get(`chain${asc}`) ?? '').slice(0, 300) }));
-  const last = (linkParams?.get('last') ?? '').slice(0, 100);
-  if (last) lastBox.value = last;
+  // The sliders a request names go on that chain's own row, so the panel's shared sliders (and a normal
+  // By a date run) stay as they were.
+  chains.value = req.asc.map(asc => {
+    const a = req.around?.[asc];
+    const own = a && SCIENCE_WIDTHS.includes(a.pm);
+    const wi = a ? (own ? 0 : SPACE_WIDTHS.indexOf(a.pm)) : -1;
+    const si = a ? SPACE_STEPS.indexOf(a.step) : -1;
+    return {
+      asc,
+      text: req.chains[asc] ?? '',
+      ...(wi >= 0 && si >= 0 ? { widthIx: wi, stepIx: si, ...(own ? { pm: a.pm } : {}) } : {}),
+    };
+  });
+  lastBox.value = req.last ?? '';
+  suggestFrom.value = '';
+  linked.value = true;
+  fillLinked();
 }
+/** Suggest the chains the request left without a box, once the save has said where you are. */
+function fillLinked(): void {
+  const te = store.currentTE;
+  if (!linked.value || !(te > 0)) return;
+  chains.value.forEach((row, k) => {
+    if (row.asc >= 2 && !row.text) suggestRow(k);
+  });
+  if (!lastBox.value) lastBox.value = `${Math.floor(te) + 2}-${Math.min(490, Math.floor(te) + 130)}`;
+}
+if (linkRequest) applyRequest(linkRequest);
+// A request from the Science tab (App.vue sends the player here with it): applied once, never while a
+// run is going or being restored, which has its own boxes.
+const ui = useUIStore();
+watch(
+  () => ui.byDateRequest,
+  req => {
+    if (!req) return;
+    ui.byDateRequest = null;
+    if (!store.deadlineRunning && !store.preparing) applyRequest(req);
+  },
+  { immediate: true }
+);
 
-// First fill once the save has loaded, so the box starts from something real. A link's chains are
-// each filled the same way, where the link didn't give them.
+// First fill once the save has loaded, so the box starts from something real. A request's chains are
+// each filled the same way, where it didn't give them.
 watch(
   () => store.currentTE,
   te => {
     if (!(te > 0)) return;
-    if (linkAsc.length) {
-      chains.value.forEach((row, k) => {
-        if (row.asc >= 2 && !row.text) suggestRow(k);
-      });
-      if (!lastBox.value) lastBox.value = `${Math.floor(te) + 2}-${Math.min(490, Math.floor(te) + 130)}`;
+    if (linked.value) {
+      fillLinked();
       return;
     }
     if (!chains.value[0]?.text && !lastBox.value) suggestRow(0);
@@ -1085,7 +1143,7 @@ const { forPlayer } = kept;
 watch(
   () => [store.currentTE, initialState.playerId] as const,
   ([te, player]) => {
-    if (!(te > 0) || linkAsc.length || store.deadlineRunning || store.preparing) return;
+    if (!(te > 0) || linked.value || store.deadlineRunning || store.preparing) return;
     const otherPlayer = !!player && player !== forPlayer.value;
     if (player) forPlayer.value = player;
     if (otherPlayer) {

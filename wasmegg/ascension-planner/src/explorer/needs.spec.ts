@@ -5,6 +5,11 @@ import {
   dataNeeds,
   estimateSeconds,
   formatEstimate,
+  byDateRequestFor,
+  byDateSeconds,
+  byDateSets,
+  byDateWiderText,
+  ownsGear,
   presetBandsFor,
   presetChains,
   presetFits,
@@ -30,47 +35,21 @@ const row = (over: Partial<CollectorRow>): CollectorRow =>
   }) as CollectorRow;
 
 describe('dataNeeds', () => {
-  it('asks for everything when nothing has been submitted', () => {
+  it('asks for the By a date runs, the gear cards and te-low when nothing has been submitted', () => {
     const ids = dataNeeds([]).map(d => d.id);
-    expect(ids).toEqual(
-      expect.arrayContaining(['sweep-M1', 'sweep-M2', 'sweep-M3', 'sweep-M4', 'te-low', 'force-continue', 'new-gear'])
-    );
+    expect(ids).toEqual(expect.arrayContaining(['bydate-1-4', 'gear-epic-earnings', 'te-low', 'not-maxed', 'new-gear']));
   });
 
-  it('drops a sweep once enough distinct accounts have run it', () => {
-    const rows = Array.from({ length: 6 }, (_, i) => row({ nickname: `player${i}`, sweep: { preset: 'M2' } }));
-    const ids = dataNeeds(rows).map(d => d.id);
-    expect(ids).not.toContain('sweep-M2');
-    expect(ids).toContain('sweep-M1');
+  it('no longer lists the Full sweep preset asks or the force-continue pair', () => {
+    const ids = dataNeeds([]).map(d => d.id);
+    expect(ids.filter(id => id.startsWith('sweep-'))).toEqual([]);
+    expect(ids).not.toContain('force-continue');
+    expect(dataNeeds([]).every(d => ['gear', 'bydate'].includes(d.group ?? 'main'))).toBe(true);
   });
 
-  it("counts the planner's own exhaustive runs, which carry a space but no preset tag", () => {
-    const space = {
-      mode: 'bands',
-      minGap: 0,
-      minAscensions: 2,
-      maxAscensions: 2,
-      chains: 308,
-      chainsPriced: 308,
-      stoppedEarly: false,
-    } as unknown as CollectorRow['space'];
-    const rows = [row({ nickname: 'ex', ascensions: 2, chain: [280, 490], space })];
-    expect(dataNeeds(rows).find(d => d.id === 'sweep-M1')?.have).toBe(1);
-  });
 
-  it('counts one account once, however many times it submitted', () => {
-    const rows = Array.from({ length: 6 }, () => row({ nickname: 'sameperson', sweep: { preset: 'M2' } }));
-    expect(dataNeeds(rows).find(d => d.id === 'sweep-M2')?.have).toBe(1);
-  });
 
-  it('counts a force-continue pair only when one account has both settings', () => {
-    const rows = [
-      row({ nickname: 'a', forceContinue: true }),
-      row({ nickname: 'a', forceContinue: false }),
-      row({ nickname: 'b', forceContinue: true }),
-    ];
-    expect(dataNeeds(rows).find(d => d.id === 'force-continue')?.have).toBe(1);
-  });
+
 
   it('notices accounts outside the measured TE range, once they have finished a run', () => {
     const done = {
@@ -91,18 +70,93 @@ describe('dataNeeds', () => {
     expect(dataNeeds(finished).map(d => d.id)).not.toContain('te-low');
   });
 
-  it('does not count a tagged run of the wrong length toward a preset', () => {
-    const rows = Array.from({ length: 6 }, (_, i) =>
-      row({ nickname: `p${i}`, ascensions: 6, sweep: { preset: 'M1' } })
-    );
-    expect(dataNeeds(rows).find(d => d.id === 'sweep-M1')?.have).toBe(0);
-  });
 
   it('lists gear the board has not seen in its own group', () => {
     const gear = dataNeeds([])
       .filter(d => d.group === 'gear')
       .map(d => d.id);
-    expect(gear).toEqual(expect.arrayContaining(['cte-edge', 'new-gear']));
+    expect(gear).toEqual([
+      'gear-epic-earnings',
+      'gear-rare-earnings',
+      'gear-rare-common-delivery',
+      'gear-epic-everything',
+      'gear-rare-everything',
+      'gear-legendary-t3-stones',
+      'te-low',
+      'not-maxed',
+      'new-gear',
+    ]);
+    expect(gear).not.toContain('cte-edge');
+  });
+
+  it('gives each gear card M3, its set and its wanted count', () => {
+    const cards = dataNeeds([]).filter(d => d.id.startsWith('gear-'));
+    expect(cards.map(d => d.want)).toEqual([2, 2, 2, 1, 1, 1]);
+    for (const c of cards) expect(c).toMatchObject({ preset: 'M3', have: 0, group: 'gear' });
+    const epic = cards[0].gear!;
+    expect(epic.slots.map(s => `T${s.tier}${s.rarity} ${s.family}`)).toEqual([
+      'T4E demeters_necklace',
+      'T4R tungsten_ankh',
+      'T4E lunar_totem',
+      'T4E puzzle_cube',
+    ]);
+    expect(cards[3].gear!.slots).toHaveLength(7);
+    expect(cards[5].gear!.stones.every(st => st.tier === 3)).toBe(true);
+    expect(dataNeeds([]).find(d => d.id === 'not-maxed')?.preset).toBe('M3');
+  });
+
+  it('matches a gear card when every artifact is owned at that tier and rarity', () => {
+    const epic = dataNeeds([]).find(d => d.id === 'gear-epic-earnings')!.gear!;
+    const own = (familyId: string, tier: number, rarity: number) => ({ label: familyId, count: 1, familyId, tier, rarity });
+    const all = [own('demeters-necklace', 4, 2), own('tungsten-ankh', 4, 1), own('lunar-totem', 4, 2), own('puzzle-cube', 4, 2)];
+    expect(ownsGear(epic, all)).toBe(true);
+    expect(ownsGear(epic, all.slice(1))).toBe(false);
+    expect(ownsGear(epic, [own('demeters-necklace', 4, 3), ...all.slice(1)])).toBe(false);
+    expect(ownsGear(epic, [{ ...all[0], count: 0 }, ...all.slice(1)])).toBe(false);
+  });
+
+  it('has five By a date asks sized for a day, with boxes fitted to the player TE', () => {
+    const asks = dataNeeds([]).filter(d => d.group === 'bydate');
+    expect(asks.map(d => d.id)).toEqual(['bydate-1-4', 'bydate-5', 'bydate-6', 'bydate-7', 'bydate-8']);
+    const req = byDateRequestFor(asks[0].byDate!, 180);
+    expect(req.asc).toEqual([1, 2, 3, 4]);
+    expect(req.chains[2]).toBe('181-220:1');
+    expect(req.chains[3]).toBe('181-220:1; 195-250:2');
+    expect(req.last).toBe('195-330');
+    // A TE past the second box: nothing at or below it.
+    const high = byDateRequestFor(asks[0].byDate!, 240);
+    for (const text of Object.values(high.chains))
+      for (const band of text.split(';')) expect(Number(band.trim().split(/[-:]/)[0])).toBeGreaterThan(240);
+    expect(byDateRequestFor(asks[1].byDate!, 180)).toMatchObject({
+      asc: [5],
+      chains: {},
+      around: { 5: { pm: 3, step: 1 } },
+    });
+  });
+
+  it('sizes each By a date card for a day on a desktop at TE 180', () => {
+    const desktop = COMPUTE_TIERS.find(t => t.id === 'desktop')!;
+    const by = Object.fromEntries(dataNeeds([]).filter(d => d.group === 'bydate').map(d => [d.id, d.byDate!]));
+    expect(Object.keys(by)).toEqual(['bydate-1-4', 'bydate-5', 'bydate-6', 'bydate-7', 'bydate-8']);
+    expect(byDateSets(by['bydate-1-4'], 180).map(c => c.sets)).toEqual([1, 40, 938, 2433]);
+    // Every stop at every TE: (2*pm+1)^(n-1) sets.
+    expect(byDateSets(by['bydate-5'], 180)[0].sets).toBe(7 ** 4);
+    expect(byDateSets(by['bydate-6'], 180)[0].sets).toBe(5 ** 5);
+    expect(byDateSets(by['bydate-7'], 180)[0].sets).toBe(3 ** 6);
+    expect(byDateSets(by['bydate-8'], 180)[0].sets).toBe(3 ** 7);
+    const hours = (id: string) => byDateSeconds(by[id], 180, desktop.workers) / 3600;
+    for (const id of ['bydate-1-4', 'bydate-5']) {
+      expect(hours(id)).toBeGreaterThan(8);
+      expect(hours(id)).toBeLessThan(12);
+    }
+    // Whole-TE widths cannot hit 8 to 12 h for the longer chains; these are the nearest.
+    for (const id of ['bydate-6', 'bydate-8']) {
+      expect(hours(id)).toBeGreaterThan(12);
+      expect(hours(id)).toBeLessThan(16);
+    }
+    expect(hours('bydate-7')).toBeGreaterThan(3);
+    expect(hours('bydate-7')).toBeLessThan(5);
+    expect(byDateWiderText(by['bydate-6'], 180, desktop.workers)).toMatch(/^±3 would take about \d+(\.\d)? days\.$/);
   });
 
   it('always asks for gear without a table, listing the gear that has one', () => {
@@ -190,51 +244,6 @@ describe('estimates', () => {
   });
 });
 
-describe('fine sweeps (F2) and the later-start pair', () => {
-  const space = (bands: number[][]) =>
-    ({
-      mode: 'bands',
-      bands,
-      minGap: 10,
-      minAscensions: 3,
-      maxAscensions: 3,
-      chains: 1,
-      chainsPriced: 1,
-      stoppedEarly: false,
-    }) as CollectorRow['space'];
-  const range = (lo: number, hi: number, step: number) =>
-    Array.from({ length: Math.floor((hi - lo) / step) + 1 }, (_, i) => lo + i * step);
-  const fine = space([range(195, 250, 1), range(276, 300, 1)]);
-  const coarse = space([range(190, 280, 2), range(270, 372, 2)]);
-
-  it('does not count an every-2-TE M2 toward F2, but counts it toward M2', () => {
-    const rows = [row({ nickname: 'a', space: coarse })];
-    const needs = dataNeeds(rows);
-    expect(needs.find(d => d.id === 'sweep-F2')?.have).toBe(0);
-    expect(needs.find(d => d.id === 'sweep-M2')?.have).toBe(1);
-  });
-
-  it('counts a 3-ascension run that checked every TE toward F2', () => {
-    expect(dataNeeds([row({ nickname: 'a', space: fine })]).find(d => d.id === 'sweep-F2')?.have).toBe(1);
-  });
-
-  it('counts a later-start pair only for two fine runs a day or more apart on one account', () => {
-    // b's two runs are 23 h apart: not a pair, so the need stays open with nothing counted.
-    const close = [
-      row({ nickname: 'b', space: fine, startLocal: '2026-09-24 08:49' }),
-      row({ nickname: 'b', space: fine, startLocal: '2026-09-25 08:00' }),
-    ];
-    expect(dataNeeds(close).find(d => d.id === 'later-start')?.have).toBe(0);
-    // One pair a day or more apart meets it (want 1), so it is no longer listed.
-    const apart = [
-      ...close,
-      row({ nickname: 'a', space: fine, startLocal: '2026-09-24 08:49' }),
-      row({ nickname: 'a', space: fine, startLocal: '2026-09-25 10:00' }),
-    ];
-    expect(dataNeeds(apart).find(d => d.id === 'later-start')).toBeUndefined();
-  });
-});
-
 describe('bigger and end-of-the-line presets', () => {
   it('fits a TE-relative first range to the player', () => {
     expect(presetBandsFor('F4', 182)).toBe('183-220:1; 201-257:2; 242-290:3; 281-329:3');
@@ -250,39 +259,7 @@ describe('bigger and end-of-the-line presets', () => {
     expect(presetChains('E9', 182).chains).toBe(11988);
   });
 
-  it('lists them in their own groups', () => {
-    const needs = dataNeeds([]);
-    expect(needs.find(d => d.id === 'sweep-F4')?.group).toBe('big');
-    expect(needs.find(d => d.id === 'sweep-E9')?.group).toBe('end');
-  });
 
-  it('counts only a run at least as fine, range by range, toward a fine preset', () => {
-    const band = (lo: number, hi: number, step: number) =>
-      Array.from({ length: Math.floor((hi - lo) / step) + 1 }, (_, i) => lo + i * step);
-    const space = (bands: number[][]) =>
-      ({
-        mode: 'bands',
-        bands,
-        minGap: 29,
-        minAscensions: 5,
-        maxAscensions: 5,
-        chains: 1,
-        chainsPriced: 1,
-        stoppedEarly: false,
-      }) as CollectorRow['space'];
-    const every3 = row({
-      nickname: 'a',
-      ascensions: 5,
-      space: space([band(183, 220, 3), band(201, 257, 3), band(242, 290, 3), band(281, 329, 3)]),
-    });
-    const fineRun = row({
-      nickname: 'b',
-      ascensions: 5,
-      space: space([band(183, 220, 1), band(201, 257, 2), band(242, 290, 3), band(281, 329, 3)]),
-    });
-    const have = dataNeeds([every3, fineRun]).find(d => d.id === 'sweep-F4')?.have;
-    expect(have).toBe(1); // every 3rd TE throughout is coarser than F4's every-TE first range
-  });
 });
 
 describe('review fixes (25 Sep 2026)', () => {
@@ -300,93 +277,12 @@ describe('review fixes (25 Sep 2026)', () => {
       stoppedEarly,
     }) as CollectorRow['space'];
 
-  it('does not count a tagged run that was stopped partway', () => {
-    const partial = row({ nickname: 'a', ascensions: 5, sweep: { preset: 'F4' }, space: f4space(true) });
-    expect(dataNeeds([partial]).find(d => d.id === 'sweep-F4')?.have).toBe(0);
-    const whole = row({ nickname: 'b', ascensions: 5, sweep: { preset: 'F4' }, space: f4space(false) });
-    expect(dataNeeds([whole]).find(d => d.id === 'sweep-F4')?.have).toBe(1);
-  });
 
   it('counts an uploaded sweep, which carries no space, as finished', () => {
     const upload = row({ nickname: 'u', currentTE: 110, clothedTE: 240, source: 'upload' } as Partial<CollectorRow>);
     expect(dataNeeds([upload]).find(d => d.id === 'te-low')?.have).toBe(1);
   });
 
-  it('treats a single-value range as fine enough (F2 fitted at TE 249)', () => {
-    const at249 = row({
-      nickname: 'h',
-      ascensions: 3,
-      currentTE: 249,
-      space: {
-        mode: 'bands',
-        bands: [[250], band(276, 300, 1)],
-        minGap: 10,
-        minAscensions: 3,
-        maxAscensions: 3,
-        chains: 25,
-        chainsPriced: 25,
-        stoppedEarly: false,
-      } as CollectorRow['space'],
-    });
-    expect(dataNeeds([at249]).find(d => d.id === 'sweep-F2')?.have).toBe(1);
-  });
-});
-
-describe('one proof test, shared with the page (26 Sep 2026)', () => {
-  const band = (lo: number, hi: number, step: number) =>
-    Array.from({ length: Math.floor((hi - lo) / step) + 1 }, (_, i) => lo + i * step);
-  // A box whose end never filled in its count: the planner writes chainsPriced 0 and stoppedEarly
-  // false when a run starts. Halceyx's 6-ascension run priced 4,192 of 61,749 and looked like this.
-  const unrecorded = (chains: number, priced: number, ascensions: number, bands: number[][]) =>
-    ({
-      space: {
-        mode: 'bands',
-        bands,
-        minGap: 10,
-        minAscensions: ascensions,
-        maxAscensions: ascensions,
-        chains,
-        chainsPriced: 0,
-        stoppedEarly: false,
-      } as CollectorRow['space'],
-      chainsPriced: priced,
-    }) as Partial<CollectorRow>;
-
-  it('does not count a run that priced only part of its box as finished', () => {
-    const partial = row({
-      nickname: 'hi',
-      currentTE: 230,
-      ascensions: 2,
-      ...unrecorded(259, 40, 2, [band(231, 489, 1)]),
-    });
-    expect(dataNeeds([partial]).find(d => d.id === 'sweep-M1')?.have).toBe(0);
-  });
-
-  it('counts it once the row itself shows every plan in the box priced', () => {
-    const whole = row({
-      nickname: 'hi',
-      currentTE: 230,
-      ascensions: 2,
-      ...unrecorded(259, 259, 2, [band(231, 489, 1)]),
-    });
-    expect(dataNeeds([whole]).find(d => d.id === 'sweep-M1')?.have).toBe(1);
-  });
-
-  it('does not let a tagged run that priced only part of its box cover its preset', () => {
-    const f4 = [band(183, 220, 1), band(201, 257, 2), band(242, 290, 3), band(281, 329, 3)];
-    const tagged = row({ nickname: 'a', ascensions: 5, sweep: { preset: 'F4' }, ...unrecorded(29904, 500, 5, f4) });
-    expect(dataNeeds([tagged]).find(d => d.id === 'sweep-F4')?.have).toBe(0);
-  });
-
-  it('still lets a tagged upload, which has no box, cover its preset', () => {
-    const upload = row({
-      nickname: 'u',
-      ascensions: 3,
-      sweep: { preset: 'M2' },
-      source: 'upload',
-    } as Partial<CollectorRow>);
-    expect(dataNeeds([upload]).find(d => d.id === 'sweep-M2')?.have).toBe(1);
-  });
 });
 
 describe('Science sweeps across TEs', () => {

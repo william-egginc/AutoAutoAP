@@ -268,11 +268,11 @@ describe('gearNeeds', () => {
       need('sweep-F2'),
       need('new-gear'),
       need('te-low'),
-      need('cte-edge'),
+      need('gear-rare-earnings'),
       need('force-continue'),
     ]);
-    expect(list.map(g => g.id)).toEqual(['cte-edge', 'te-low', 'new-gear']);
-    expect(list.map(g => g.region)).toEqual([true, true, false]);
+    expect(list.map(g => g.id)).toEqual(['te-low', 'gear-rare-earnings', 'new-gear']);
+    expect(list.map(g => g.region)).toEqual([true, false, false]);
     for (const g of list) expect(g.where.length).toBeGreaterThan(10);
   });
 
@@ -297,7 +297,7 @@ describe('needRegions', () => {
       needRegions(all, d)
         .map(r => r.id)
         .sort()
-    ).toEqual(['cte-edge', 'te-low']);
+    ).toEqual(['te-low']);
   });
 
   it('drops a region once its ask is covered', () => {
@@ -329,12 +329,6 @@ describe('needRegions', () => {
         }
       }
     }
-  });
-
-  it('runs the CTE 200-240 label to the right edge', () => {
-    const band = needRegions(all, d).find(r => r.id === 'cte-edge')!;
-    expect(band.anchor[0]).toBe(220);
-    expect(band.align).toBe('right');
   });
 });
 
