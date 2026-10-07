@@ -1192,6 +1192,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // fields still come from the loaded save; the gear rarely changes between the two).
     {
       const own = runSaveFor(summary.inputsKey);
+      runBackupUsed = null;
       accountUsed = own?.backupAt
         ? { ...accountFields(summary.currentTE), backupTime: own.backupAt, backupTE: own.te }
         : null;
@@ -2169,6 +2170,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    */
   let accountUsed: ReturnType<typeof accountFields> | null = null;
   let deadlineAccount: ReturnType<typeof accountFields> | null = null;
+  /** The save each run priced, for its CSV header (inventory, loadouts): the same snapshot rule. */
+  let runBackupUsed: unknown = null;
+  let deadlineBackup: unknown = null;
 
   function buildRunSubmission(nickname?: string): Submission | null {
     if (!bestChain.value.length || bestDays.value <= 0) return null;
@@ -2951,8 +2955,11 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   function exportCsv(): string {
     const own = allEntries();
     const entries = own.length ? own : resumable.value ? restoreEntries(resumable.value) : [];
-    // Read off the backup here, on the main thread: `getSimulationContext()` is Pinia-bound.
-    const raw = getSimulationContext().rawBackup ?? null;
+    // Read off the backup here, on the main thread: `getSimulationContext()` is Pinia-bound. The
+    // run's own save when it has one (a carried-on run keeps its save while the tab may load a newer).
+    const raw = (runBackupUsed ?? getSimulationContext().rawBackup ?? null) as
+      | ReturnType<typeof getSimulationContext>['rawBackup']
+      | null;
     const equipped = raw ? getArtifactLoadoutFromBackup(raw) : null;
     return buildChainsCsv(entries, {
       planStart: planStartUsed.value || planStart.value,
@@ -3280,6 +3287,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     planStartUsed.value = planStart.value;
     runSettingsUsed.value = snapshotSettings();
     accountUsed = accountFields(currentTE.value);
+    runBackupUsed = getSimulationContext().rawBackup ?? null;
     chainsEstimated.value = chains.length;
     bestChain.value = [];
     bestDays.value = 0;
@@ -3584,6 +3592,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   /** Show a saved answer as the current one (it doesn't re-run anything). */
   function openSavedAnswer(id: string): void {
     deadlineAccount = null;
+    deadlineBackup = null;
     const a = savedAnswers.value.find(x => x.id === id);
     if (a && !deadlineRunning.value) {
       deadlineAll = [];
@@ -3600,6 +3609,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   async function loadDeadlineState(playerId: string): Promise<void> {
     if (!playerId || deadlineRunning.value) return;
     deadlineAccount = null;
+    deadlineBackup = null;
     try {
       partitionHash = await hashID(playerId);
       runSaves.value = await listRunSaves(partitionHash);
@@ -3745,6 +3755,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     deadlineRunning.value = true;
     deadlineSettings = snapshotSettings();
     deadlineAccount = accountFields(inputs.currentTE);
+    deadlineBackup = inputs.context?.rawBackup ?? getSimulationContext().rawBackup ?? null;
     deadlineNote = spec.note;
     deadlineEstimate.value = Math.max(0, Math.floor(spec.estimate ?? 0));
     deadlineStop = false;
@@ -3985,7 +3996,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const routes = deadlineAll.length ? deadlineAll : r.routes;
     // The same metadata as the chain-search CSV, read off the settings the run started with (the
     // saved result carries them), falling back to the current ones for results saved before they were.
-    const raw = getSimulationContext().rawBackup ?? null;
+    const raw = (deadlineBackup ?? getSimulationContext().rawBackup ?? null) as
+      | ReturnType<typeof getSimulationContext>['rawBackup']
+      | null;
     const equipped = raw ? getArtifactLoadoutFromBackup(raw) : null;
     const st = r.settings;
     return buildDeadlineCsv(
@@ -4397,6 +4410,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     planStartUsed.value = planStart.value;
     runSettingsUsed.value = snapshotSettings();
     accountUsed = accountFields(currentTE.value);
+    runBackupUsed = getSimulationContext().rawBackup ?? null;
     const chain = seedChain.value;
     chainsEstimated.value = estimateChains(Math.max(1, chain.length - 1), EFFORT[effort.value]);
     bestChain.value = [...chain];
