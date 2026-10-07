@@ -875,6 +875,9 @@ async function manifest(file: string): Promise<void> {
         bonus: Number(h.cteBonus.toFixed(2)),
         k: Number((rate(h.k3.delivery) / top).toFixed(4)),
         from: h.from,
+        // The maxed table's waiting research and delivery set: with them the page can work out a
+        // player's gear stamp and delivery k before any table is downloaded (search/tablePrefetch.ts).
+        ...(f === 'table.bin' ? { k3: { research: maxed.research, delivery: maxed.delivery } } : {}),
       };
     });
   writeFileSync(`${dir}/tables.json`, JSON.stringify(out, null, 1) + '\n');

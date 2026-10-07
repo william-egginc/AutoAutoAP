@@ -663,6 +663,7 @@ import { useChainSearchStore } from '@/stores/chainSearch';
 import { safeAsyncComponent } from '@/lib/import';
 import RunProgressBar from '@/components/auto/RunProgressBar.vue';
 import { usePlanStartForm } from '@/composables/usePlanStartForm';
+import { useTablePrefetch } from '@/composables/useTablePrefetch';
 import NewLayoutGuide from '@/components/NewLayoutGuide.vue';
 import SiteTabs from '@/components/SiteTabs.vue';
 import SetupDock from '@/components/auto/SetupDock.vue';
@@ -734,6 +735,8 @@ function useLeaderboardChain(chain: number[]): void {
 const initialStateStore = useInitialStateStore();
 // The Auto Planner's start and timezone, restored and defaulted before any screen or chunk loads.
 usePlanStartForm();
+// Precompute: the instant answer's tables fetched in the background once a save is loaded.
+useTablePrefetch();
 const actionsStore = useActionsStore();
 const uiStore = useUIStore();
 const { plannerTab, isHeaderCollapsed, isFooterCollapsed, loading, error } = storeToRefs(uiStore);

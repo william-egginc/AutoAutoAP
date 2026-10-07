@@ -17,6 +17,8 @@ export interface TableEntry {
   k: number;
   /** The lowest start TE it has. */
   from: number;
+  /** On the maxed table's entry only: its waiting research and delivery set (TableHeader.k3). */
+  k3?: { research: Record<string, number>; delivery: unknown[] };
 }
 
 export interface Gear {
