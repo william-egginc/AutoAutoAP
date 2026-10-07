@@ -93,9 +93,9 @@ For a 7-ascension chain:
 | tier | chains priced | fraction of the space |
 |---|---|---|
 | Fast | 606 | 8.3 × 10⁻¹⁵ |
-| Balanced | 2,051 | 2.8 × 10⁻¹⁴ |
+| Balanced (retired on the site) | 2,051 | 2.8 × 10⁻¹⁴ |
 | Exact | 2,274 | 3.1 × 10⁻¹⁴ |
-| Thorough | 11,062 | 1.5 × 10⁻¹³ |
+| Thorough (Very high on the site) | 11,062 | 1.5 × 10⁻¹³ |
 
 Thorough looks at roughly **one chain in ten trillion** and lands within hours of the best
 answer found. That is not because the search is clever; it is because of the next section.

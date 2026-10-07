@@ -208,8 +208,8 @@ no button.
 | `POST /claim` | `{ id, nickname }` with `x-owner-token`: puts a name on a row sent with that owner code. `403` if the row has no code or another one, `404` for an unknown id, `400` for a bad name (same rule as `/submit`, and not empty). Shares `/submit`'s rate limit |
 | `POST /csv?id=<id>` | that run's gzipped CSV, once. Needs the `x-upload-token` header `/submit` returned. Must be gzip, capped at 8 MB compressed |
 | `GET /csv?id=<id>` | it back, as a `.csv.gz` file (`application/gzip`) |
-| `GET /leaderboard?final=490&limit=50` | one line per distinct result, already in duration order, copies folded (`copies: n` when more than one) |
-| `GET /all` | every row, for your own analysis. `?final=490` narrows it |
+| `GET /leaderboard?final=490&limit=50` | one line per distinct result, already in duration order, copies folded (`copies: n` when more than one). `limit` is at most 200. By a date answers (rows with a `deadline`) are left out: plan lengths do not rank them |
+| `GET /all` | every row, By a date answers included, for your own analysis. `?final=490` narrows it |
 | `GET /mine` | the caller's own rows from both boards, anonymous ones included, each with `yours: true`. `x-owner-token` may be a comma list (up to 20 codes). Never cached |
 | `GET /flagged` | the flagged board (below): anonymous, except rows whose owner code the caller sends as `x-owner-token` |
 | `GET /` | the leaderboard page |
@@ -294,14 +294,14 @@ schedule window, whether shifts were held, whether leg 1 finished the current ru
 (`forceContinue`), waiting hours, per-leg strategy and peak delivery, chains priced, the seed chain
 the search descended from, an optional 40-character nickname, and the inventory as described next.
 
-Schema 6 adds the variables the Chain Explorer compares accounts on, each a single bounded number
+Schema 6 adds the variables the Insights view (the Chain Explorer) compares accounts on, each a single bounded number
 or short label: the delivery score (`deliveryScore`: lay, hab and shipping multipliers and the
 percent-of-perfect score), Clothed TE, TE per virtue egg (`teByEgg`), how old the backup was
 (`backupAgeHours`), the plan start's weekday, and -- on runs from a sweep preset or the Explorer's
 upload -- `sweep` (which preset, the bands as typed, the minimum gap), `machine` (cores, RAM as
 typed, workers) and `source: 'upload'`.
 
-**Exhaustive runs carry two extra blocks, and nothing else does.** Insane mode proves an optimum
+**Exhaustive runs carry two extra blocks, and nothing else does.** The Full sweep (and the offline sweeps) prove an optimum
 over a stated space rather than finding a good answer in one, and the board is worth more if it
 can tell the difference:
 
@@ -326,9 +326,18 @@ checkpoint or more, ending at this row's target) — and `backupAgeHours` become
 is not a short string, refuses the submission; a single recheck or value that does not parse is
 dropped.
 
+Schema 8 is the answer to a By a date search ("the highest TE by this date"): `deadline` (unix
+seconds, between 2020 and 2100, required and checked) and `deadlineAscendAt` (when the route's last
+ascension can be made with the player's hours counted; it cannot be after the deadline). Only a
+By a date run sends 8, and its `chain` may be a single checkpoint; every other run still sends 7.
+
+Two free-text fields are plain text, shown as text: `nickname` (at most 40 characters) and `note`
+(at most 500; what the sender says the run was for; control characters other than line breaks are
+dropped). Both have `EI` followed by sixteen digits swept out.
+
 Schema history: 2 narrowed the inventory, 3 added run cost and progression summaries, 4 added
 `space`, 5 added `proof` and `seed`, 6 added the comparison variables above; `forceContinue` is an
-optional field on 6; 7 added the fields just listed. The Worker accepts 2–7 and stores the schema as
+optional field on 6; 7 added the fields just listed; 8 added the By a date fields. The Worker accepts 2–8 and stores the schema as
 sent, because the app and the Worker deploy separately and insisting on an exact match guarantees a
 window where every submission is refused.
 
@@ -419,9 +428,9 @@ checkpoint keeps none. That is **unknown**, not zero, and it sorts accordingly.
 
 ---
 
-## 3. The Chain Explorer page
+## 3. The Chain Explorer page (Compare > Insights)
 
-`explorer.html` is a second page in the planner's build, and it is a READER of the two endpoints
+The planner's Compare tab shows these charts as **Insights**. `explorer.html` is the same view as a second page in the planner's build, and it is a READER of the two endpoints
 above — `GET /all` for every submitted run and `GET /csv?id=` for one run's full chain table.
 Nothing about it needs a save file, a player ID or the simulator, so it is a static bundle that
 works wherever it is served from.
