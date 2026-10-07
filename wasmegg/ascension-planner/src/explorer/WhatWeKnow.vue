@@ -150,10 +150,10 @@
           <p class="mt-1 text-slate-700">
             <b>So trying only some TEs misses the best plan.</b> Trying only every 5th TE ends up 2 to 12 days slower,
             on average, than trying every TE. Trying every 2nd TE ends up 0.4 to 6 days slower. Allan's example: trying
-            every TE around his Balanced result found 230 260 297. It reaches 490 on 21 Jul 2028, 1.6 days before M3's
-            best (every 5th TE) and 0.7 days before Balanced's, all three planned from one save. His 6- and 7-ascension
-            plans, found by Smart searches rather than at every TE, still finish on 19 Jul 2028, 1.9 days before it, and
-            his best 5-ascension plan (made a day later, at TE 199) about 9 hours after those.
+            every TE around his Smart search result found 230 260 297. It reaches 490 on 21 Jul 2028, 1.6 days before
+            M3's best (every 5th TE) and 0.7 days before that Smart search's, all three planned from one save. His 6-
+            and 7-ascension plans, found by Smart searches rather than at every TE, still finish on 19 Jul 2028, 1.9
+            days before it, and his best 5-ascension plan (made a day later, at TE 199) about 9 hours after those.
           </p>
         </details>
       </li>
