@@ -33,6 +33,7 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
+  { at: '2026-10-07T03:15:35Z', note: 'Smart search effort is now Fast, Exact or Very high (Exact is the default; Balanced was the same as Exact). Science sweeps fit your TE and say when one does not fit' },
   { at: '2026-10-07T01:17:00Z', level: 'big', note: 'Smart search and the Full sweep now start from the instant answer: its route is the starting chain, and Suggest a space centres on it' },
   { at: '2026-10-07T01:09:05Z', note: 'Searches say what they cover: a band checker suggests fixes, Full sweep tries one ascension more and fewer and warns when the best is on a band edge, and Balanced Smart search can change the ascension count', level: 'big' },
   { at: '2026-10-06T23:41:57Z', note: 'A long run carried on after a crash now reports the save it actually used, so it is no longer filed as a what-if' },
@@ -40,7 +41,6 @@ const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
   { at: '2026-10-06T19:02:00Z', level: 'big', note: 'Instant answer: routes polished, and polished harder in the background; "Works inside my hours" keeps every prestige inside your hours; "At most N ascensions"; Open this plan builds a row in Classic' },
   { at: '2026-10-06T19:00:55Z', note: 'By a date: one clear offer to carry on an unfinished search, and it brings back each chain\'s sliders too' },
   { at: '2026-10-06T18:01:03Z', level: 'big', note: 'Charts start on a heat map, with a choice of how many dots to draw; update notes now list what you missed since your last visit' },
-  { at: '2026-10-06T15:51:18Z', level: 'big', note: 'Big runs stay light: past 20,000 chains the charts wait for a button and a heat map shows instead; TE keeps collecting while you wait; My plans filters; a Stepping away? box' },
 ];
 
 export default {

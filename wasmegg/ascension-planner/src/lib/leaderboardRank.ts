@@ -2171,7 +2171,13 @@ export function settingTagTitle(tag: string): string {
 export function foundByText(row: Pick<BoardRow, 'space' | 'effort' | 'recheckOf'>): string {
   if (row.recheckOf != null) return 're-check';
   if (row.space) return row.space.stoppedEarly ? 'partial' : 'exhaustive';
-  return row.effort || 'unknown';
+  return effortText(row.effort);
+}
+
+/** A sent effort tier for display. Rows sent before Balanced was retired still say 'balanced'. */
+export function effortText(effort: string | undefined): string {
+  if (effort === 'balanced') return 'Balanced (retired)';
+  return effort || 'unknown';
 }
 
 /** Who sent a run, as All runs shows it: the name as typed minus invisible characters. */

@@ -76,7 +76,7 @@ describe('chainSearch: seedChain', () => {
     const store = setup({ targetTE: '250' });
     store.minPrestiges = 5;
     store.maxPrestiges = 8;
-    store.effort = 'balanced';
+    store.effort = 'normal';
 
     expect(store.seedChain).toEqual([250, 490]);
     expect(store.seedIssue).toEqual({ kind: 'too-short', ascensions: 2, minPrestiges: 5, probeCanFix: false });
@@ -108,7 +108,7 @@ describe('chainSearch: seedChain', () => {
     const store = setup({ targetTE: '199 222 252 291' });
     store.minPrestiges = 2;
     store.maxPrestiges = 4;
-    store.effort = 'balanced';
+    store.effort = 'normal';
 
     store.fitSeedToLimitsNow();
     expect(store.seedChain).toHaveLength(4);

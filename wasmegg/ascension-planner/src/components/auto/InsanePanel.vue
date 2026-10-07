@@ -549,7 +549,7 @@
                 <template v-else>Nothing readable yet.</template>
               </span>
               <!-- Plain words for the step, right under the bands it describes: "181-250:5" means 181,
-                   186, 191... and never 227, so a faster Balanced result between grid points is no surprise. -->
+                   186, 191... and never 227, so a faster Smart search result between grid points is no surprise. -->
               <p v-if="!plannedGridComplete && gridExample" class="text-[11px] text-slate-600 leading-relaxed">
                 <span class="font-bold text-slate-800">This space tries {{ plannedGridLabel }}</span> (for example
                 {{ gridExample }}), not every TE in between, which would take weeks. The winner is the best on this
@@ -1659,7 +1659,7 @@ const resultExplain = computed(() => {
   const sp = store.searchSpace;
   if (!sp || gridIsComplete(sp.bands, sp.range?.step)) return '';
   const step = gridStepLabel(sp.bands, sp.range?.step);
-  return `Every chain on the grid (${step}) was priced, and this is the fastest. Values between grid points were not tried, so a Balanced search can land on something faster in between.`;
+  return `Every chain on the grid (${step}) was priced, and this is the fastest. Values between grid points were not tried, so a Smart search can land on something faster in between.`;
 });
 
 /** The ascension counts this click will try: chain 1 and each added chain that can run. */

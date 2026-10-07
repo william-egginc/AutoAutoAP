@@ -371,8 +371,8 @@
         </div>
       </div>
 
-      <!-- The Limits box only reaches the coarse scan and the prestige-count probe, so on Quick and
-           Balanced a seed of the wrong length is simply the length the answer comes back as. Say so
+      <!-- The Limits box only reaches the coarse scan and the prestige-count probe, so on Fast a
+           seed of the wrong length is simply the length the answer comes back as. Say so
            here, with the one-click fix, rather than at the end of a three-hour run. -->
       <div
         v-if="store.seedIssue"
@@ -1440,7 +1440,7 @@ const coverageNote = computed(() => {
   const word = n === 1 ? '1 ascension' : `${n} ascensions`;
   const label = note.value.label;
   if (!EFFORT[store.effort].countProbe) {
-    return `${label} keeps your starting chain's ${word}; Balanced, Exact and Very high also try one more and one fewer.`;
+    return `${label} keeps your starting chain's ${word}; Exact and Very high also try one more and one fewer.`;
   }
   return `${label} starts from your chain's ${word} and also tries one more and one fewer, then again while that keeps helping, within your limits of ${store.minPrestiges} to ${store.maxPrestiges}.`;
 });

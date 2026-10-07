@@ -6,7 +6,7 @@
  *
  *   1. The stages run resolve_last -> descent -> 2-D -> 3-D -> count probe; each tier enables more of
  *      them. Not strictly nested: thorough runs 3-D BEFORE the probe that `normal` ends with, so a
- *      stopped thorough run holds balanced's answer, not normal's (fact-check, 30 Sept 2026). A user who picks a higher tier and loses
+ *      stopped thorough run holds the pairs-and-count answer, not normal's (fact-check, 30 Sept 2026). A user who picks a higher tier and loses
  *      patience already holds the lower tier's answer at zero extra cost. The UI says so out loud,
  *      because it is the thing that makes "Stop" a safe button.
  *   2. Accuracy is stated as HOURS BEHIND THE BEST ANSWER FOUND, with the sample size attached, and
@@ -24,7 +24,6 @@ export const EFFORT: Record<EffortTier, EffortConfig> = {
   // Descent radius is 8 in every tier: a replay of the search found the knee at radius 4 and
   // exactness at 7, so 8 is one step of margin rather than a round number.
   quick: { slices2: false, slices3: false, radius: 8, radius3: 0, countProbe: false },
-  balanced: { slices2: true, slices3: false, radius: 8, radius3: 0, countProbe: true },
   normal: { slices2: true, slices3: false, radius: 8, radius3: 0, countProbe: true },
   thorough: { slices2: true, slices3: true, radius: 8, radius3: 6, countProbe: true },
 };
@@ -56,24 +55,13 @@ export const EFFORT_NOTES: Record<EffortTier, EffortNote> = {
       '"usually close, occasionally days off", not as a tight bound.',
     warning: 'Widest spread of the four tiers. Two repeat runs on one account landed ~6 days behind.',
   },
-  balanced: {
-    label: 'Balanced',
-    cliDuration: '~2 h 55 m',
-    adds:
-      '+ every combination of each neighbouring pair of checkpoints, which moving one at a time can miss. ' +
-      '+ tries one ascension fewer or one more, and again from there while the count keeps changing (within your limits), then fine-tunes again. ' +
-      'The count check adds roughly 10 to 15% more chains.',
-    accuracy:
-      'Measured 1.3 h and 0 h behind the best answer found, on 2 accounts. Within a day on both. ' +
-      'Those runs were made before this level checked other ascension counts, so they say nothing about that step.',
-    warning: null,
-  },
   normal: {
     label: 'Exact',
     cliDuration: '~3 h 30 m',
     adds:
-      'The same steps as Balanced now: the one-more-or-fewer check moved down to Balanced. ' +
-      'Kept as its own level so saved runs and links keep their label.',
+      '+ every combination of each neighbouring pair of checkpoints, which moving one at a time can miss. ' +
+      '+ tries one ascension fewer or one more, and again from there while the count keeps changing (within your limits), then fine-tunes again. ' +
+      'The count check adds roughly 10 to 15% more chains.',
     accuracy:
       'Matched the best of all 4,913 plans tested in full around it, on 1 account. ' +
       'The other accounts have no proven answer to check against.',
@@ -93,7 +81,20 @@ export const EFFORT_NOTES: Record<EffortTier, EffortNote> = {
 };
 
 /** The order the slider walks, cheapest first. */
-export const EFFORT_ORDER: EffortTier[] = ['quick', 'balanced', 'normal', 'thorough'];
+/** The default tier. */
+export const DEFAULT_EFFORT: EffortTier = 'normal';
+
+/**
+ * Read a stored or linked tier name. The Balanced tier was retired (it ran the same steps as Exact),
+ * so 'balanced' reads as Exact; anything unknown reads as the default. Rows already sent with
+ * effort 'balanced' are left alone and still display.
+ */
+export function normalizeEffort(raw: unknown): EffortTier {
+  if (raw === 'balanced') return 'normal';
+  return raw === 'quick' || raw === 'normal' || raw === 'thorough' ? raw : DEFAULT_EFFORT;
+}
+
+export const EFFORT_ORDER: EffortTier[] = ['quick', 'normal', 'thorough'];
 
 /** How rare a genuinely good chain is — the reason "just try a few by hand" does not work.
  *  From the 4913-chain exhaustive on the main account. */

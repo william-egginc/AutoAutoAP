@@ -75,8 +75,8 @@ describe('seedChainIssue', () => {
   });
 
   it('flags a 5-ascension seed under a maximum of 4 when no probe will run', () => {
-    // The reported case, on Balanced: `199 222 252 291 490` with "most ascensions" set to 4.
-    // Stages 4-6 all run on the seed at its own length, and Balanced has no prestige-count probe,
+    // The reported case, on Fast: `199 222 252 291 490` with "most ascensions" set to 4.
+    // Stages 4-6 all run on the seed at its own length, and Fast has no prestige-count probe,
     // so nothing in the whole run would have brought it back to 4.
     expect(seedChainIssue([199, 222, 252, 291, 490], 2, 4, NO_PROBE)).toEqual({
       kind: 'too-long',

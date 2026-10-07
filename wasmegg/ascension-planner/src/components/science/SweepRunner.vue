@@ -59,6 +59,8 @@
         </button>
       </div>
 
+      <p class="rounded-lg bg-slate-50 px-3 py-2 text-[11px] text-slate-600">{{ SCIENCE_SWEEP_NOTE }}</p>
+
       <!-- Another search has the computer. Nothing here can start, and getting ready would reset
            the planner under it, so this waits. -->
       <div
@@ -143,8 +145,8 @@
           v-if="!chainCount"
           class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-[11px] font-semibold text-amber-800"
         >
-          No plan fits this sweep from TE {{ Math.floor(store.currentTE) }}: its ascension ranges leave no room above
-          where your save is. Change “Your TE now” on the page if it doesn’t match your save, and open it again.
+          {{ NO_FIT_TEXT }} From TE {{ Math.floor(store.currentTE) }} its ascension ranges leave no room above where
+          your save is.
         </p>
         <p
           v-else-if="tooBig"
@@ -353,6 +355,7 @@ import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useUIStore } from '@/stores/ui';
 import { NAMES } from '@/lib/siteNav';
 import { countBanded, formatHours, parseBands } from '@/search/exhaustive';
+import { NO_FIT_TEXT, SCIENCE_SWEEP_NOTE, presetBandsFor } from '@/explorer/needs';
 import { sweepSeconds, workerSecondsFromRate, workerSecondsPerChain } from '@/search/speed';
 import { describeTimeOff, usableTimeOff } from '@/search/timeOff';
 import { sendRunResult } from '@/search/sendRun';
@@ -421,7 +424,14 @@ onMounted(() => {
 
 // ------------------------------------------------------------------ the figures
 
-const bands = computed(() => parseBands(props.request.bands));
+/** The preset's bands fitted to the save's own TE (the card fitted them to the TE typed on the page,
+ *  which can differ). A request that is not a known preset keeps its own bands. */
+const bandsText = computed(() => {
+  if (phase.value === 'preparing' || phase.value === 'confirm' || phase.value === 'not-ready')
+    return props.request.bands;
+  return presetBandsFor(props.request.preset, store.currentTE, store.finalTE) || props.request.bands;
+});
+const bands = computed(() => parseBands(bandsText.value));
 const ascensions = computed(() => bands.value.length + 1);
 const chainCount = computed(() =>
   bands.value.length ? countBanded(bands.value, store.finalTE, store.currentTE, props.request.minGap) : 0
@@ -513,7 +523,7 @@ async function start(): Promise<void> {
   // sent, so it waits until then.
   const tagBefore = store.sweepTag;
   const forceBefore = store.forceContinue;
-  store.sweepTag = { preset: request.preset, bands: request.bands, minGap: request.minGap };
+  store.sweepTag = { preset: request.preset, bands: bandsText.value, minGap: request.minGap };
   if (request.forceContinue !== null) store.forceContinue = request.forceContinue;
   store.submitsWhenDone = true;
 
