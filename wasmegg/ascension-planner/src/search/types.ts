@@ -175,7 +175,7 @@ export type ChainKey = string;
  * is a STOP POINT, not a different algorithm. That is the property the UI leans on: stopping a
  * higher tier early always leaves the lower tier's answer already in hand.
  */
-export type EffortTier = 'quick' | 'balanced' | 'normal' | 'thorough';
+export type EffortTier = 'quick' | 'normal' | 'thorough';
 
 export interface EffortConfig {
   /** Stage 5: exhaustive step-1 2-D slices over adjacent checkpoint pairs. */

@@ -111,7 +111,7 @@ export type SeedIssue =
  * run on the seed at whatever length it arrives, so a 5-ascension seed under a maximum of 4 is
  * explored as a 5 and comes back as a 5.
  *
- * `countProbe` is therefore load-bearing: on Quick and Balanced the probe does not run at all, so
+ * `countProbe` is therefore load-bearing: on Fast the probe does not run at all, so
  * nothing anywhere in the run will change the seed's length and the limits are decorative. On
  * Normal and Thorough the probe can add or drop exactly one checkpoint, so a seed one outside the
  * range can still land inside it, and reporting that as broken would be wrong.

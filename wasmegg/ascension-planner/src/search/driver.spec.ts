@@ -233,14 +233,14 @@ function makeCountEvaluator(optimum: number[]): { evaluate: EvaluateBatch; price
 describe('the ascension-count probe', () => {
   const optimum = [195, 219, 248, 286, 327];
 
-  it('runs on Balanced, and keeps going while the count keeps changing', async () => {
+  it('runs on Exact, and keeps going while the count keeps changing', async () => {
     // Seed has two checkpoints too many: one round moves it to 6, the next to 5.
     const { evaluate } = makeCountEvaluator(optimum);
     const out = await runChainSearch({
       seedChain: [185, 200, 220, 245, 265, 290, 320, FINAL],
       final: FINAL,
       currentTE: CURRENT_TE,
-      effort: 'balanced',
+      effort: 'normal',
       minCheckpoints: 4,
       maxCheckpoints: 9,
       evaluateBatch: evaluate,
@@ -255,7 +255,7 @@ describe('the ascension-count probe', () => {
       seedChain: [185, 200, 220, 245, 265, 290, 320, FINAL],
       final: FINAL,
       currentTE: CURRENT_TE,
-      effort: 'balanced',
+      effort: 'normal',
       minCheckpoints: 7,
       maxCheckpoints: 9,
       evaluateBatch: evaluate,
@@ -265,23 +265,23 @@ describe('the ascension-count probe', () => {
 
   it('costs only a little when the count is already right', async () => {
     const seed = [190, 225, 255, 280, 320, FINAL];
-    const run = async (effort: 'quick' | 'balanced') => {
+    const run = async (effort: 'quick' | 'normal') => {
       const { evaluate, priced } = makeCountEvaluator(optimum);
       await runChainSearch({ seedChain: seed, final: FINAL, currentTE: CURRENT_TE, effort, evaluateBatch: evaluate });
       return priced();
     };
-    // Quick has no pairs step, so compare Balanced to itself with the check removed by a tight limit.
+    // Quick has no pairs step, so compare Exact to itself with the check removed by a tight limit.
     const { evaluate: e1, priced: p1 } = makeCountEvaluator(optimum);
     await runChainSearch({
       seedChain: seed,
       final: FINAL,
       currentTE: CURRENT_TE,
-      effort: 'balanced',
+      effort: 'normal',
       minCheckpoints: 6,
       maxCheckpoints: 6,
       evaluateBatch: e1,
     });
-    expect(await run('balanced')).toBeLessThan(p1() * 1.3);
+    expect(await run('normal')).toBeLessThan(p1() * 1.3);
   });
 });
 

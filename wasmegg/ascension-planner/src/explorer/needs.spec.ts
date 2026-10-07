@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import type { CollectorRow } from './collector';
-import { COMPUTE_TIERS, dataNeeds, estimateSeconds, formatEstimate, presetBandsFor, presetChains } from './needs';
+import {
+  COMPUTE_TIERS,
+  dataNeeds,
+  estimateSeconds,
+  formatEstimate,
+  presetBandsFor,
+  presetChains,
+  presetFits,
+  NO_FIT_TEXT,
+  SCIENCE_SWEEP_NOTE,
+} from './needs';
+import { SWEEP_PRESETS } from './upload';
 
 let n = 0;
 const row = (over: Partial<CollectorRow>): CollectorRow =>
@@ -369,5 +380,44 @@ describe('one proof test, shared with the page (26 Sep 2026)', () => {
       source: 'upload',
     } as Partial<CollectorRow>);
     expect(dataNeeds([upload]).find(d => d.id === 'sweep-M2')?.have).toBe(1);
+  });
+});
+
+describe('Science sweeps across TEs', () => {
+  const presets = SWEEP_PRESETS.filter(p => p.id !== 'custom').map(p => p.id);
+  const TES = [120, 140, 160, 180, 200, 230, 260];
+
+  it('prices at least one chain for every preset up to 200 TE', () => {
+    for (const id of presets)
+      for (const te of TES.filter(t => t <= 200))
+        expect(presetChains(id, te).chains, `${id} at ${te}`).toBeGreaterThan(0);
+  });
+
+  it('keeps the everyday sweeps fitting at every TE', () => {
+    for (const id of ['M1', 'M2', 'M3', 'M4', 'F2'])
+      for (const te of TES) expect(presetFits(id, te), `${id} at ${te}`).toBe(true);
+  });
+
+  it('says which big presets do not fit, rather than offering them', () => {
+    // These price 0 chains: their minimum gaps cannot fit that many ascensions into what is left.
+    for (const id of ['F4', 'F5', 'E8', 'E9']) expect(presetFits(id, 230), id).toBe(false);
+    expect(presetFits('E7', 260)).toBe(false);
+    expect(presetFits('E7', 230)).toBe(true);
+  });
+
+  it('uses the fitted bands, which start above the player', () => {
+    for (const id of presets) {
+      for (const te of TES) {
+        const first = Number(presetBandsFor(id, te).split(/[-:]/)[0]);
+        if (presetBandsFor(id, te)) expect(first, `${id} at ${te}`).toBeGreaterThan(te);
+      }
+    }
+  });
+
+  it('has the plain copy', () => {
+    expect(NO_FIT_TEXT).toBe("This sweep doesn't fit an account at your TE.");
+    expect(SCIENCE_SWEEP_NOTE).toBe(
+      "This sweep fills a gap in the shared data for science. It isn't tuned to find your best route; use Smart search or the instant answer for that."
+    );
   });
 });

@@ -37,7 +37,7 @@ const FP = 'player|1000|175|490|fc';
 function record(chain: number[], days: number, keys: string[]) {
   return buildCheckpoint({
     fingerprint: FP,
-    effort: 'balanced',
+    effort: 'normal',
     seedChain: [195, 490],
     bestChain: chain,
     bestSeconds: days * 86400,
@@ -140,7 +140,7 @@ describe('the space a checkpoint was searching', () => {
   const withSpace = (space: typeof SPACE | null, chainsDone = 1, explicitNull = false) =>
     buildCheckpoint({
       fingerprint: FP,
-      effort: 'balanced',
+      effort: 'normal',
       seedChain: [195, 490],
       bestChain: [195, 490],
       bestSeconds: 700 * 86400,

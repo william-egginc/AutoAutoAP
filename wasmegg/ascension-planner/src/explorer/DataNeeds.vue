@@ -80,9 +80,12 @@
             </div>
           </div>
           <p v-else class="text-[10px] font-semibold text-amber-700">
-            No plan fits this sweep from {{ teNow }} TE: its ascension ranges, with targets at least
-            {{ need.minGap }} TE apart, leave no room above where you already are.
+            {{ NO_FIT_TEXT }}
+            <span class="font-normal">
+              From {{ teNow }} TE its ascension ranges, with targets at least {{ need.minGap }} TE apart, leave no room.
+            </span>
           </p>
+          <p v-if="runInPlace && need.chains > 0" class="text-[10px] text-slate-500">{{ SCIENCE_SWEEP_NOTE }}</p>
           <div v-if="need.chains > 0" class="flex flex-wrap items-center gap-2 pt-1">
             <!-- Inside the planner (the Science tab) it runs right here, in SweepRunner.vue; on the
                  standalone Explorer page there is no save to run it on, so it opens the planner. -->
@@ -126,7 +129,16 @@
 import { NAMES } from '@/lib/siteNav';
 import { computed, ref, watch } from 'vue';
 import type { CollectorRow } from './collector';
-import { COMPUTE_TIERS, dataNeeds, estimateSeconds, formatEstimate, presetBandsFor, presetChains } from './needs';
+import {
+  COMPUTE_TIERS,
+  NO_FIT_TEXT,
+  SCIENCE_SWEEP_NOTE,
+  dataNeeds,
+  estimateSeconds,
+  formatEstimate,
+  presetBandsFor,
+  presetChains,
+} from './needs';
 import { measuredWorkerSeconds } from '@/search/speed';
 import { SWEEP_PRESETS } from './upload';
 import { sweepRequestQuery, type SweepRequest } from '@/search/sweepRequest';

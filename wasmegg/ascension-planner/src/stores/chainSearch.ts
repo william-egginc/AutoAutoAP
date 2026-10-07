@@ -28,7 +28,7 @@ import { describeRunError } from '@/utils/errors';
 import { loadChainBenchmark, saveChainBenchmark } from '@/lib/chainBenchmarkCache';
 import { patchAutoPlannerSchedule } from '@/lib/autoPlannerFormCache';
 import { cteFromColleggtibles, cteFromLabUpgrade, multiplierToTE } from 'lib/virtue';
-import { EFFORT, estimateChains } from '@/search/effort';
+import { DEFAULT_EFFORT, EFFORT, estimateChains } from '@/search/effort';
 import {
   buildCheckpoint,
   clearCheckpoint,
@@ -236,7 +236,7 @@ export interface RunProgress {
 }
 
 export const useChainSearchStore = defineStore('chainSearch', () => {
-  const effort = ref<EffortTier>('balanced');
+  const effort = ref<EffortTier>(DEFAULT_EFFORT);
   const finalTE = ref(490);
   /** Mirrors fastsearch's `--force-continue`: pin A1 to "continue current ascension". On by default
    *  because A1 is the ascension you are already part-way through, and it is also the cheapest
@@ -1106,7 +1106,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   });
 
   /** Why the current seed cannot produce an answer inside the Limits box, or null when it can.
-   *  Probe-aware: on Quick and Balanced nothing in the run changes the seed's length at all. */
+   *  Probe-aware: on Fast nothing in the run changes the seed's length at all. */
   const seedIssue = computed(() =>
     findSeedFirst.value
       ? null

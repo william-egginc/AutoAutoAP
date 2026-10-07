@@ -436,6 +436,18 @@ export function presetBandsFor(presetId: string, currentTE: number, final = 490)
     .join('; ');
 }
 
+/** What the Science tab says when a preset prices no chains from the player's TE. */
+export const NO_FIT_TEXT = "This sweep doesn't fit an account at your TE.";
+
+/** What the Science tab says on every sweep card and in its runner. */
+export const SCIENCE_SWEEP_NOTE =
+  "This sweep fills a gap in the shared data for science. It isn't tuned to find your best route; use Smart search or the instant answer for that.";
+
+/** Whether a preset prices at least one chain from this TE with its bands fitted to it. */
+export function presetFits(presetId: string, currentTE: number, final = 490): boolean {
+  return presetChains(presetId, currentTE, final).chains > 0;
+}
+
 /** Chains one run of a preset prices from this TE toward `final`, with the bands fitted as above. */
 export function presetChains(presetId: string, currentTE: number, final = 490): { chains: number; ascensions: number } {
   const preset = SWEEP_PRESETS.find(p => p.id === presetId);

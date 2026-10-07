@@ -917,7 +917,7 @@
                         >
                           {{ line.row.space.stoppedEarly ? 'partial' : 'exhaustive' }}
                         </span>
-                        <span v-else>{{ line.row.effort || '—' }}</span>
+                        <span v-else>{{ line.row.effort ? effortText(line.row.effort) : '—' }}</span>
                       </td>
                       <td
                         v-else-if="c.key === 'submittedAt'"
@@ -997,6 +997,7 @@ import {
   foldCopies,
   formatDate,
   foundByText,
+  effortText,
   deadlineOrder,
   deadlineSpare,
   isDeadlineRow,

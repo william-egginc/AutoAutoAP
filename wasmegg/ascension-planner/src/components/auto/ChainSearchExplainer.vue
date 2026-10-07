@@ -349,7 +349,7 @@ const STAGES = [
     what: 'move one checkpoint at a time, up to 8 TE either way, and fine-tune the last one again whenever one moves. Repeat until nothing moves.',
   },
   {
-    name: 'Pairs (Balanced and up)',
+    name: 'Pairs (Exact and up)',
     what: 'try every combination of each neighbouring pair (17 × 17), for moves that only pay off together.',
   },
   {
@@ -357,7 +357,7 @@ const STAGES = [
     what: 'the same for each group of three neighbours (13 × 13 × 13).',
   },
   {
-    name: 'One more or one fewer (Balanced and up)',
+    name: 'One more or one fewer (Exact and up)',
     what: 'try dropping a checkpoint or adding one, within your limits, then fine-tune and nudge again. If the count changed, do it again from the new count, until it stops changing or reaches your limits. Fast skips this step and keeps the count you start with.',
   },
 ];
