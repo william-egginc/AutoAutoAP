@@ -291,11 +291,10 @@ const GEAR_ASKS: Omit<DataNeed, 'preset' | 'runs' | 'have' | 'group'>[] = [
  * `byDateSeconds`). Nothing here is detected from the rows: they stay listed.
  *
  * Why these widths. 1 to 4 ascensions is one card (4 ascensions on the 195-250 / 230-295 boxes at every
- * 2nd / 3rd TE would be 19,036 sets, 66 h, so it is thinned to every 5th / 10th: 2,433). 5 to 8 are one
- * card each, every stop at every TE around the panel's suggestion, so the sets are (2*pm+1)^(n-1) and
- * the width is the widest that stays near a day: 5 at +-3 is 2,401 sets, 6 at +-2 is 3,125, 7 at +-1 is
- * 729, 8 at +-1 is 2,187. The model's hours are in needs.spec.ts; they do not all land in 8 to 12 because
- * a width is a whole number of TE (6 at +-2 and 8 at +-1 come to about 14 h, 7 at +-1 to about 4 h).
+ * 2nd / 3rd TE would be 19,036 sets, 66 h, so it is thinned to every 5th / 10th: 2,433). 5 and 6 are one
+ * card each (7 and 8 were cut by the user, 7 Oct: at every TE they only fit at +-1), every stop at every TE around the panel's suggestion, so the sets are (2*pm+1)^(n-1) and
+ * the width is the widest that stays near a day: 5 at +-3 is 2,401 sets, 6 at +-2 is 3,125. The model's hours are in needs.spec.ts; they do not all land in 8 to 12 because
+ * a width is a whole number of TE (6 at +-2 comes to about 14 h).
  */
 function byDateNeeds(): DataNeed[] {
   const base = { who: 'anyone', have: 0, want: 1, runs: 1, preset: '', group: 'bydate' as const };
@@ -344,34 +343,6 @@ function byDateNeeds(): DataNeed[] {
         around: { 6: { pm: 2, step: 1 } },
         altPm: 3,
         summary: 'Every stop within ±2 TE of the suggested route, every TE.',
-      },
-    },
-    {
-      ...base,
-      id: 'bydate-7',
-      title: 'Egg Day, 7 ascensions, a close look around the suggested route',
-      why: 'Every stop tried a few TE either side of the suggested route, at every TE. It measures how much a pruned search misses.',
-      who: 'anyone who can leave a fast PC running',
-      byDate: {
-        asc: [7],
-        eggDay: true,
-        around: { 7: { pm: 1, step: 1 } },
-        altPm: 3,
-        summary: 'Every stop within ±1 TE of the suggested route, every TE.',
-      },
-    },
-    {
-      ...base,
-      id: 'bydate-8',
-      title: 'Egg Day, 8 ascensions, a close look around the suggested route',
-      why: 'Every stop tried a few TE either side of the suggested route, at every TE. It measures how much a pruned search misses.',
-      who: 'anyone who can leave a fast PC running',
-      byDate: {
-        asc: [8],
-        eggDay: true,
-        around: { 8: { pm: 1, step: 1 } },
-        altPm: 3,
-        summary: 'Every stop within ±1 TE of the suggested route, every TE.',
       },
     },
   ];
