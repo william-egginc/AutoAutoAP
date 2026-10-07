@@ -33,6 +33,7 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
+  { at: '2026-10-07T04:19:05Z', note: 'By a date CSVs now record every step of every route, the same as Smart search and Full sweep, so each run helps check the tables' },
   { at: '2026-10-07T04:04:31Z', note: 'By a date re-estimates its total from what the run actually needs and says when every route is done; a run that carried on after a crash keeps its fewer workers' },
   { at: '2026-10-07T03:15:35Z', note: 'Smart search effort is now Fast, Exact or Very high (Exact is the default; Balanced was the same as Exact). Science sweeps fit your TE and say when one does not fit' },
   { at: '2026-10-07T01:17:00Z', level: 'big', note: 'Smart search and the Full sweep now start from the instant answer: its route is the starting chain, and Suggest a space centres on it' },
@@ -40,7 +41,6 @@ const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
   { at: '2026-10-06T23:41:57Z', note: 'A long run carried on after a crash now reports the save it actually used, so it is no longer filed as a what-if' },
   { at: '2026-10-06T19:13:00Z', level: 'big', note: "Instant answer: without a table of your own gear, it also prices your route on the nearest tables for stronger and weaker gear and says where your date likely falls" },
   { at: '2026-10-06T19:02:00Z', level: 'big', note: 'Instant answer: routes polished, and polished harder in the background; "Works inside my hours" keeps every prestige inside your hours; "At most N ascensions"; Open this plan builds a row in Classic' },
-  { at: '2026-10-06T19:00:55Z', note: 'By a date: one clear offer to carry on an unfinished search, and it brings back each chain\'s sliders too' },
 ];
 
 export default {

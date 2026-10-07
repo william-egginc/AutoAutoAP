@@ -302,7 +302,7 @@ const COLUMNS = [
   'time_off',
 ] as const;
 
-function legRow(
+function legCells(
   rank: number,
   chain: string,
   prestiges: number,
@@ -311,7 +311,7 @@ function legRow(
   legIndex: number | '',
   leg: LegSummary | null,
   tz: string
-): string {
+): (string | number | undefined)[] {
   // `sales` is the same number `strategy` already encodes as `2-sale-tier13`, broken out so a
   // spreadsheet can group on it. `continue` has no build phase and so no sale count.
   const salesFromKey = leg ? /^(\d+)-sale/.exec(leg.key)?.[1] : undefined;
@@ -340,9 +340,54 @@ function legRow(
     leg?.shifts?.[0]?.fromEgg,
     leg?.shifts?.length ? leg.shifts.map(x => `${formatInZone(x.at, tz)} ${x.egg}`).join('; ') : undefined,
     leg?.timeOff,
-  ]
-    .map(cell)
-    .join(',');
+  ];
+}
+
+function legRow(
+  rank: number,
+  chain: string,
+  prestiges: number,
+  totalDays: number,
+  gapDays: number,
+  legIndex: number | '',
+  leg: LegSummary | null,
+  tz: string
+): string {
+  return legCells(rank, chain, prestiges, totalDays, gapDays, legIndex, leg, tz).map(cell).join(',');
+}
+
+/** The metadata block both CSVs share: plan start, TE, settings, schedule, time off, note, and the
+ *  artifact/stone sets. `head` goes first (the title, and for By a date the deadline line);
+ *  `count` replaces the "chains priced" line. */
+function metaLines(meta: CsvMeta, head: string[], count: string): string[] {
+  const tz = meta.timezone;
+  const lines: string[] = [];
+  const note = (s: string) => lines.push(`# ${s}`);
+  for (const h of head) note(h);
+  note(`generated ${formatInZone(Math.floor((meta.generatedAt ?? Date.now()) / 1000), tz)} (${tz})`);
+  note(`plan start ${formatInZone(meta.planStart, tz)}`);
+  note(`current TE ${meta.currentTE} -> final target ${meta.final}`);
+  note(`effort ${meta.effort}; force-continue ${meta.forceContinue ? 'on' : 'off'}`);
+  note(`available ${describeAvailability(meta.availability)}`);
+  if (meta.timeOff?.length)
+    note(
+      `time off from virtue: ${describeTimeOff(meta.timeOff)} (each ends the ascension in progress; a rebuild follows)`
+    );
+  if (meta.seedChain.length) note(`seed chain ${meta.seedChain.join(' ')}`);
+  // eslint-disable-next-line no-control-regex
+  const runNote = meta.runNote?.replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, ' ').trim();
+  if (runNote) note(`note: ${runNote}`);
+  note(count);
+  note('');
+  note('artifacts and stones — fixed for the whole run, never varied by the search.');
+  note('The simulator re-optimises the equipped set inside each leg, so what matters is what it');
+  note('had to choose FROM, not what happened to be equipped when the backup was taken.');
+  if (meta.inventory) note(`  virtue inventory: ${meta.inventory}`);
+  for (const { label, loadout } of meta.loadouts) note(`  ${label}: ${describeLoadout(loadout)}`);
+  note('  ("equipped" is empty whenever you are not mid-virtue-ascension. That is normal and');
+  note('   does not mean the plan was simulated bare - the inventory line above is what counts.)');
+  note('');
+  return lines;
 }
 
 /**
@@ -374,33 +419,13 @@ export function* chainsCsvChunks(entries: CacheEntry[], meta: CsvMeta): Generato
   const ranked = [...entries].sort((a, b) => a.seconds - b.seconds);
   const bestSeconds = ranked.length ? ranked[0].seconds : 0;
 
-  const lines: string[] = [];
+  const lines: string[] = metaLines(
+    meta,
+    ['ascension-planner chain search — every chain this run priced'],
+    `chains priced ${entries.length}`
+  );
   const note = (s: string) => lines.push(`# ${s}`);
 
-  note(`ascension-planner chain search — every chain this run priced`);
-  note(`generated ${formatInZone(Math.floor((meta.generatedAt ?? Date.now()) / 1000), tz)} (${tz})`);
-  note(`plan start ${formatInZone(meta.planStart, tz)}`);
-  note(`current TE ${meta.currentTE} -> final target ${meta.final}`);
-  note(`effort ${meta.effort}; force-continue ${meta.forceContinue ? 'on' : 'off'}`);
-  note(`available ${describeAvailability(meta.availability)}`);
-  if (meta.timeOff?.length)
-    note(
-      `time off from virtue: ${describeTimeOff(meta.timeOff)} (each ends the ascension in progress; a rebuild follows)`
-    );
-  note(`seed chain ${meta.seedChain.join(' ')}`);
-  // eslint-disable-next-line no-control-regex
-  const runNote = meta.runNote?.replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, ' ').trim();
-  if (runNote) note(`note: ${runNote}`);
-  note(`chains priced ${entries.length}`);
-  note('');
-  note('artifacts and stones — fixed for the whole run, never varied by the search.');
-  note('The simulator re-optimises the equipped set inside each leg, so what matters is what it');
-  note('had to choose FROM, not what happened to be equipped when the backup was taken.');
-  if (meta.inventory) note(`  virtue inventory: ${meta.inventory}`);
-  for (const { label, loadout } of meta.loadouts) note(`  ${label}: ${describeLoadout(loadout)}`);
-  note('  ("equipped" is empty whenever you are not mid-virtue-ascension. That is normal and');
-  note('   does not mean the plan was simulated bare - the inventory line above is what counts.)');
-  note('');
   note('One row per leg. Blank per-leg cells mean the chain was replayed from a saved checkpoint,');
   note('which keeps per-leg detail for the best chain only — the total is still exact.');
   note(`Local times are ${tz}. gap_days is days behind the best chain in this file.`);
@@ -443,4 +468,112 @@ export function* chainsCsvChunks(entries: CacheEntry[], meta: CsvMeta): Generato
  */
 export function buildChainsCsv(entries: CacheEntry[], meta: CsvMeta): string {
   return [...chainsCsvChunks(entries, meta)].join('');
+}
+
+/** What the By a date CSV adds to the shared metadata. */
+export interface DeadlineCsvInfo {
+  deadline: number;
+  /** Routes the search priced (the header's own count; `routes` is only the kept ones). */
+  priced: number;
+  stoppedEarly?: boolean;
+  ascendNeeded?: boolean;
+}
+
+/** One route the By a date search kept. */
+export interface DeadlineCsvRoute {
+  chain: number[];
+  reachAt: number;
+  ascendAt: number;
+  spare: number;
+  legs: LegSummary[];
+}
+
+/**
+ * Routes whose legs are written. The collector takes 8 MB gzipped (~180 MB of raw text at the ~23x
+ * this data achieves); a leg row is about 200 bytes and a route has a handful of legs, so 20,000
+ * routes is roughly 25 MB raw, about 1 MB gzipped. Routes past the cap keep their arrival row only.
+ */
+export const DEADLINE_LEG_ROUTES = 20000;
+
+/** The By a date columns: its own first (names unchanged), then the chain-search columns minus the
+ *  `rank` they share, in the same order, so the analyst's leg readers find what they look for. */
+export const DEADLINE_COLUMNS = [
+  'rank',
+  'route',
+  'stops',
+  'last_stop',
+  'reached_local',
+  'ascend_from_local',
+  'spare_hours',
+  ...COLUMNS.slice(1),
+] as const;
+
+export function* deadlineCsvChunks(
+  routes: DeadlineCsvRoute[],
+  meta: CsvMeta,
+  info: DeadlineCsvInfo,
+  legRoutes = DEADLINE_LEG_ROUTES
+): Generator<string> {
+  const tz = meta.timezone;
+  const earliest = routes.reduce((m, r) => Math.min(m, r.reachAt), Infinity);
+  const withLegs = Math.min(routes.length, legRoutes);
+  const lines = metaLines(
+    meta,
+    [
+      `highest TE by ${formatInZone(info.deadline, tz)} (${tz}); plan start ${formatInZone(meta.planStart, tz)} at ${meta.currentTE} TE`,
+    ],
+    `${info.priced} routes priced${info.stoppedEarly ? ', stopped early' : ''}${info.ascendNeeded ? '; must ascend at the last stop in awake hours' : ''}`
+  );
+  const note = (s: string) => lines.push(`# ${s}`);
+  note('One row per leg of each kept route (the same leg columns as the chain search), best route first.');
+  note(
+    "rank, route, stops, last_stop, reached_local, ascend_from_local and spare_hours repeat on each of a route's rows."
+  );
+  note(`total_days is plan start to the last stop; gap_days is days behind the earliest arrival in this file.`);
+  if (routes.length > withLegs) {
+    note(
+      `legs are written for the top ${withLegs} of ${routes.length} routes; the rest have one arrival-only row with blank leg cells.`
+    );
+  } else {
+    note(
+      'Blank leg cells mean the route came back from a saved checkpoint without its legs; the arrival is still exact.'
+    );
+  }
+  lines.push(DEADLINE_COLUMNS.join(','));
+
+  for (let i = 0; i < routes.length; i++) {
+    const x = routes[i];
+    const rank = i + 1;
+    const chainText = x.chain.join(' ');
+    const totalDays = (x.reachAt - meta.planStart) / 86400;
+    const gapDays = (x.reachAt - earliest) / 86400;
+    const own = [
+      rank,
+      chainText,
+      x.chain.length,
+      x.chain[x.chain.length - 1],
+      formatInZone(x.reachAt, tz),
+      formatInZone(x.ascendAt, tz),
+      (x.spare / 3600).toFixed(2),
+    ];
+    const legs = i < withLegs && x.legs?.length ? x.legs : [null];
+    legs.forEach((leg, k) => {
+      const cells = legCells(rank, chainText, x.chain.length, totalDays, gapDays, leg ? k : '', leg, tz);
+      lines.push([...own, ...cells.slice(1)].map(cell).join(','));
+    });
+    if (lines.length >= CHUNK_ROWS) {
+      yield lines.join('\n') + '\n';
+      lines.length = 0;
+    }
+  }
+  if (lines.length) yield lines.join('\n') + '\n';
+}
+
+export function buildDeadlineCsv(
+  routes: DeadlineCsvRoute[],
+  meta: CsvMeta,
+  info: DeadlineCsvInfo,
+  legRoutes = DEADLINE_LEG_ROUTES
+): string {
+  return [...deadlineCsvChunks(routes, meta, info, legRoutes)].join('');
 }
