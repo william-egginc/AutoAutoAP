@@ -108,6 +108,7 @@ import {
 import { missedMilestones, usableMilestones, type Milestone } from '@/search/milestones';
 import { defaultSeedChain, seedChainIssue, seedTidied, usableCheckpoints, fitSeedToLimits } from '@/search/seedChain';
 import { buildPool, exhaustiveChainsWithGap, bandedChains, sortByPrefix } from '@/search/exhaustive';
+import { estimateRoutes, usableRatio, type SetsLearned } from '@/search/deadlineEstimate';
 import { applyLegBudget, estimateLegBytes } from '@/search/legBudget';
 import { summariseEpicResearch, summariseColleggtibles } from '@/search/progression';
 import { reviewContext, reviewLegs, reviewSetup, type HealthIssue } from '@/search/health';
@@ -3834,6 +3835,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         }
       );
       deadlineAll = out.routes;
+      if (!out.stoppedEarly) noteDeadlineRatio(deadlineProgress.value?.learn);
       // Its own speed, for the next estimate: only the routes this run priced, not the replayed ones.
       noteDeadlineSpeed(
         replay.entries().length - seed.length,
@@ -3939,6 +3941,39 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   /** The panel's estimate of routes to price (spec.estimate), for progress shown off its screen. */
   const deadlineEstimate = ref(0);
   const deadlineInBatch = ref(0);
+  /**
+   * The estimate now: the first guess until enough sets have finished, then re-worked from what they
+   * actually cost (deadlineEstimate.ts). The panel's progress text and the cross-tab bar both use it.
+   */
+  const deadlineEstimateNow = computed(() =>
+    estimateRoutes(
+      (deadlineProgress.value?.priced ?? 0) + deadlineInBatch.value,
+      deadlineEstimate.value,
+      deadlineProgress.value?.learn
+    )
+  );
+  /** Routes per set the last finished space run needed, remembered here for the next first guess. */
+  const DEADLINE_RATIO_KEY = 'aap.deadlineRoutesPerSet';
+  const deadlineRoutesPerSet = ref(
+    (() => {
+      try {
+        return usableRatio(localStorage.getItem(DEADLINE_RATIO_KEY));
+      } catch {
+        return 0;
+      }
+    })()
+  );
+  function noteDeadlineRatio(learn: SetsLearned | undefined): void {
+    if (!learn || learn.sets < 200 || learn.finishedSets < learn.sets) return;
+    const r = usableRatio(learn.finishedRoutes / learn.sets);
+    if (!r) return;
+    deadlineRoutesPerSet.value = r;
+    try {
+      localStorage.setItem(DEADLINE_RATIO_KEY, String(r));
+    } catch {
+      // a nicety
+    }
+  }
   /** Every route the last run found (each shape's best), for the CSV. Not persisted: large. */
   let deadlineAll: DeadlineRoute[] = [];
 
@@ -4789,7 +4824,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         kind: 'by-date',
         stage: p?.stage ?? '',
         done,
-        total: deadlineEstimate.value ? Math.max(deadlineEstimate.value, done) : null,
+        total: deadlineEstimateNow.value.total ? Math.max(deadlineEstimateNow.value.total, done) : null,
         unit: 'routes',
         secondsLeft: null,
         startedAt: deadlineStartedAt.value,
@@ -4843,6 +4878,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     suggestedRoute,
     submitsWhenDone,
     deadlineEstimate,
+    deadlineEstimateNow,
+    deadlineRoutesPerSet,
     // settings
     effort,
     finalTE,

@@ -31,6 +31,7 @@
  * Pure: the caller supplies `evaluate` (the worker pool, or a stand-in in tests).
  */
 import type { ChainResult, LegSummary } from './types';
+import type { SetsLearned } from './deadlineEstimate';
 
 export interface DeadlineSpec {
   currentTE: number;
@@ -121,6 +122,8 @@ export interface DeadlineProgress {
   shapes: number;
   /** The best routes so far, best first (each shape's best last stop), for a live table. */
   top: DeadlineRoute[];
+  /** Space runs: what the sets finished so far cost, for re-estimating the total (deadlineEstimate.ts). */
+  learn?: SetsLearned;
 }
 
 export interface DeadlineCallbacks {
@@ -296,6 +299,8 @@ interface Bracket {
   miss: number | null;
   jump: number;
   done: boolean;
+  /** Routes tried on this shape so far (learning the cost of a set). */
+  used: number;
 }
 
 /** Up to `n` items spread evenly through `list`. */
@@ -315,6 +320,7 @@ export async function runDeadlineSearch(spec: DeadlineSpec, cb: DeadlineCallback
   // What `bracketAll` is working on, for progress reported from inside a round.
   let openNow = 0;
   let shapesNow = 0;
+  let learnNow: SetsLearned | undefined;
   const report = () =>
     cb.onProgress?.({
       stage,
@@ -323,6 +329,7 @@ export async function runDeadlineSearch(spec: DeadlineSpec, cb: DeadlineCallback
       open: openNow,
       shapes: shapesNow,
       top: rank([...found.values()]).slice(0, 10),
+      ...(learnNow ? { learn: { ...learnNow } } : {}),
     });
 
   const better = (a: DeadlineRoute, b: DeadlineRoute | null): boolean => {
@@ -382,11 +389,18 @@ export async function runDeadlineSearch(spec: DeadlineSpec, cb: DeadlineCallback
   };
 
   /** Bracket the highest last stop for every shape, a round (one batch) at a time. */
-  async function bracketAll(shapes: number[][], startAt: (floor: number) => number): Promise<void> {
+  async function bracketAll(shapes: number[][], startAt: (floor: number) => number, learn = false): Promise<void> {
     // The first step out of a bracket. An extended search may start far from the answer (a box of one
     // value, set well off), so it steps out faster; doubling from 1 TE cost two extra rounds a shape.
     const first = spec.extend ? Math.max(4, spec.step) : Math.max(1, spec.step);
-    const brackets: Bracket[] = shapes.map(shape => ({ shape, ok: null, miss: null, jump: first, done: false }));
+    const brackets: Bracket[] = shapes.map(shape => ({
+      shape,
+      ok: null,
+      miss: null,
+      jump: first,
+      done: false,
+      used: 0,
+    }));
     // The hard bounds: the box itself, or with `extend` everything from just above the last early stop
     // to MAX_LAST_STOP. The box still decides where the first guesses go.
     const hi = spec.extend ? Math.max(spec.lastHi, MAX_LAST_STOP) : spec.lastHi;
@@ -439,6 +453,18 @@ export async function runDeadlineSearch(spec: DeadlineSpec, cb: DeadlineCallback
       const probes = new Map<Bracket, number[]>();
       for (const b of live) probes.set(b, probesOf(b, k));
       const open = probes.size;
+      if (learn) {
+        // Routes tried per set (cached ones too, so a carried-on run learns from its replay), and which
+        // sets are finished: a set is finished once its last stop is narrowed down.
+        for (const [b, ts] of probes) b.used += ts.length;
+        const done = brackets.filter(b => b.done);
+        learnNow = {
+          sets: brackets.length,
+          finishedSets: done.length,
+          finishedRoutes: done.reduce((a, b) => a + b.used, 0),
+          openRoutes: brackets.reduce((a, b) => a + (b.done ? 0 : b.used), 0),
+        };
+      }
       openNow = open;
       shapesNow = brackets.length;
       report();
@@ -476,7 +502,7 @@ export async function runDeadlineSearch(spec: DeadlineSpec, cb: DeadlineCallback
     stage = `every route in your space: ${list.length.toLocaleString()} sets of early stops`;
     // A spread first, so the rest start their brackets next to the answer; same routes either way.
     await bracketAll(spread(list, 24), startAt);
-    if (!stoppedEarly) await bracketAll(list, startAt);
+    if (!stoppedEarly) await bracketAll(list, startAt, true);
     const routes = rank([...found.values()]);
     const byStops = new Map<number, DeadlineRoute>();
     for (const r of routes) if (!byStops.has(r.chain.length)) byStops.set(r.chain.length, r);
