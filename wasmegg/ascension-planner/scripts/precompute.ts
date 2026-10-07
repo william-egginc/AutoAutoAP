@@ -20,10 +20,11 @@
  *                    `continueTailParams`) against the simulator's own continue, every checkpoint.
  *   --check          Print the account the table would be built on: its delivery set and score,
  *                    and its earnings set's Clothed TE bonus.
- *   --verify-table --table DIR [--corpus FILE.json]
+ *   --verify-table --table DIR [--corpus FILE.json --accounts FILE.json]
  *                    Measure the table against the simulator: real starts at random times (any
  *                    minute, any week of a year) priced by `runLeg` and by the table; and, with
- *                    --corpus, the board's own legs (scratch tails.json rows) predicted from it.
+ *                    --corpus, the board's own legs (scratch tails.json rows) predicted from it,
+ *                    for the accounts whose gear --accounts gives (kept private).
  *   --verify-cells --table DIR [--tes TE,TE,..] [--hours H,H,..]
  *                    Rebuild a few of the table's cells with the code as it is now and compare them
  *                    with the generated files, to the bit: a cell made by an older build, or by a
@@ -60,6 +61,18 @@
  *                    168 Pacific hours of the week, one file per start TE (DIR/te-NNN.jsonl), with
  *                    DIR/meta.json describing the account and the reference week. Re-running skips
  *                    the start TEs already finished, so an interrupted run carries on.
+ *
+ *   --manifest --backup FILE [--dir public/precompute]
+ *                    Write DIR/tables.json: every table there by file name with its earnings bonus,
+ *                    delivery k against the maxed table and lowest start TE (the instant answer's
+ *                    nearest tables above and below, search/tableBracket.ts). No names.
+ *   --polish --table DIR ...     The polish (routeFinder.ts polishFound) on one start, from the CLI.
+ *   --prune-bench --table DIR [--starts N] [--seed S] [--brute-from FILE] [--wide W] [--candidates C] [--wide-all]
+ *                    The finder, the polish (and the stronger polish) against brute force over every
+ *                    route of up to 4 ascensions, from random starts; one JSON line per start and count.
+ *   --combos FILE --combo NAME
+ *                    Put a gear combination (owned artifacts and stones) in place of the save's own
+ *                    inventory before anything else: that gear's table, whoever owns it.
  *
  *   --reference      Make the save a perfect maxed account first, by adding what the alt's save is
  *                    missing (a T4L quantum metronome and T4 stones) to its owned artifacts. The
@@ -610,19 +623,19 @@ async function verifyTable(file: string): Promise<void> {
     target: number;
     days: number;
   }[];
-  // Gear from the board (deliveryScore.score, Clothed TE bonus); the table's is 1.00 and its meta's bonus.
-  const ACCOUNTS: Record<string, { score: number; bonus: number }> = {
-    allan: { score: 1.0, bonus: 128.71 },
-    Williamthe5thc: { score: 0.9661, bonus: 128.71 },
-    Halceyx: { score: 0.9952, bonus: 127.93 },
-    Willsalt: { score: 0.9577, bonus: 126.38 },
-  };
+  // Gear from the board (deliveryScore.score, Clothed TE bonus) for each corpus account, from a
+  // private file (--accounts FILE: {"name": {"score": 0.97, "bonus": 128.71}, ...}); the table's is
+  // 1.00 and its meta's bonus. Kept out of the repository: names next to gear numbers can identify
+  // whose own table is whose.
+  const ACCOUNTS: Record<string, { score: number; bonus: number }> = arg('accounts')
+    ? JSON.parse(readFileSync(arg('accounts')!, 'utf8'))
+    : {};
   const tableBonus = table.meta.cteBonus as number;
   // --as NAME: the loaded save is that account's real one (run without --reference). Its exact rate
   // correction comes from its own inventory: the best set it can wear at the research a build waits
   // with (k3.json), as the site works it out for a player. Without --as there is no exact line: the
   // board only has the sets accounts wore at today's research, which lose ~22% to the best set at
-  // the waiting research (allan, the table's own account, came out x0.78), so they would mislead.
+  // the waiting research (the table's own account came out x0.78), so they would mislead.
   const k3 = existsSync(`${dir}/k3.json`)
     ? (JSON.parse(readFileSync(`${dir}/k3.json`, 'utf8')) as NonNullable<TableHeader['k3']>)
     : null;
@@ -2025,7 +2038,7 @@ async function cacheCheck(file: string): Promise<void> {
 
 /**
  * --polish (6 Oct, experiment): the finder can prune a route that a later, better-aligned start would
- * have made faster (the analyst: Fliris 164 199 223 256). Starting from the finder's route for each
+ * have made faster (a board player's 4-ascension route, 6 Oct: 164 199 223 256). Starting from the finder's route for each
  * number of ascensions, move one stop at a time by up to --reach TE (default 2), price with the table
  * (the save's own first leg, then priceLeg), keep any route that reaches the end sooner, and repeat
  * until nothing improves; then neighbouring pairs by one each (--no-pairs to skip). --json prints one

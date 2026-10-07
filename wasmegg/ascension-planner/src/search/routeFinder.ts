@@ -812,7 +812,7 @@ function widenRoute(
  * A local search around one route: each stop before the last moved by up to `reach` TE, then each
  * pair of neighbouring stops by one together, keeping any route that `ok` accepts and ends sooner,
  * until nothing improves. The finder can prune a route that a later, better-aligned start makes
- * faster (Fliris, 6 Oct: 164 199 223 256 lost to 165 199 223 256 mid-search and ends 12 h sooner);
+ * faster (a board player, 6 Oct: 164 199 223 256 lost to 165 199 223 256 mid-search and ends 12 h sooner);
  * this finds such a neighbour on the table in milliseconds, and never returns anything slower.
  */
 function polishRoute(
