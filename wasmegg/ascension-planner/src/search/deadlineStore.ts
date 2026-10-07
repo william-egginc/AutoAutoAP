@@ -93,7 +93,14 @@ export interface DeadlineCheckpoint {
   te: number;
   entries: PricedEntry[];
   updatedAt: number;
+  /** The account half of the run's submission (stores/chainSearch.ts `accountFields`), taken when it
+   *  started, so a carry-on on a tab that has loaded a newer save still sends the run's own save
+   *  time and TE. Absent on checkpoints written before 7 Oct. */
+  account?: DeadlineAccount;
 }
+
+/** `accountFields` as stored: plain JSON. Typed loosely here; the store owns the shape. */
+export type DeadlineAccount = Record<string, unknown> & { backupTime?: number | null; backupTE?: number | null };
 
 export interface SavedDeadlineResult {
   routes: DeadlineRoute[];
@@ -120,6 +127,13 @@ export interface SavedDeadlineResult {
     deferShifts: boolean;
     timeOff: import('./timeOff').TimeOffDates[];
   };
+  /** The run's account snapshot (see `DeadlineCheckpoint.account`), so a saved answer sent later is
+   *  sent with its own save, not whichever save the tab holds then. Absent before 7 Oct. */
+  account?: DeadlineAccount;
+  /** The stored save the run priced (runSaves.ts), and that save's moment and TE. Absent before 7 Oct. */
+  inputsKey?: string;
+  backupAt?: number | null;
+  backupTE?: number | null;
   at: number;
 }
 

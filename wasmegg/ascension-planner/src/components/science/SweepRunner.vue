@@ -235,6 +235,9 @@
             Start and submit when done
           </button>
           <span v-if="!consent && chainCount" class="text-[10px] text-slate-500">Tick “I understand” first.</span>
+          <span v-if="store.saveNotReady" class="text-[10px] font-semibold text-amber-700">{{
+            store.saveNotReady
+          }}</span>
         </div>
       </template>
 
@@ -499,7 +502,8 @@ const canStart = computed(
     !store.busy &&
     store.sweepQueue.at < 0 &&
     !store.integrityBlocked &&
-    !store.staleBackupBlocked
+    !store.staleBackupBlocked &&
+    !store.saveNotReady
 );
 
 // ------------------------------------------------------------------ the run

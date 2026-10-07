@@ -899,8 +899,29 @@ function selfWhatIf(row: BoardRow): string {
   ) {
     return `what-if: planned from TE ${te}, the save it was made from is at TE ${saved}`;
   }
+  // CONTRADICTS ITSELF: a start well below its own save's TE. No player plans from a TE they have
+  // already passed; this is a route priced from the save and labelled with a stale planner TE (row
+  // 07e3dbf0: "from 135", priced from 196). Its legs, durations and history point are all wrong.
+  if (
+    typeof te === 'number' &&
+    typeof saved === 'number' &&
+    Number.isFinite(te) &&
+    Number.isFinite(saved) &&
+    te < saved - SELF_CONTRADICTION_TE
+  ) {
+    return `contradicts itself: planned from TE ${te}, but the save it was made from is at TE ${saved}`;
+  }
+  // The same fault seen from the route: its first stop is not above the TE it says it started from.
+  const first = row.chain?.[0];
+  if (typeof te === 'number' && Number.isFinite(te) && typeof first === 'number' && first <= te) {
+    return `contradicts itself: its first stop (TE ${first}) is not above its start (TE ${te})`;
+  }
   return '';
 }
+
+/** How far below its own save's TE a row may say it started before it contradicts itself: the
+ *  planner's te-mismatch tolerance (search/health.ts). */
+const SELF_CONTRADICTION_TE = 3;
 
 /** A run judged against the player's TE history. */
 interface Evidence<T extends BoardRow> {
@@ -1616,7 +1637,10 @@ function withUnnamedRechecks<T extends BoardRow>(
   target: number
 ): Folded<T>[] {
   const lines = new Set(group);
-  const pool = [...peers].filter(x => !lines.has(x) && !x.row.nickname?.trim() && x.row.finalTE === target);
+  // Never a row that contradicts itself (`selfWhatIf`): it re-measures nothing.
+  const pool = [...peers].filter(
+    x => !lines.has(x) && !x.row.nickname?.trim() && x.row.finalTE === target && !selfWhatIf(x.row)
+  );
   let grew = true;
   while (grew) {
     grew = false;

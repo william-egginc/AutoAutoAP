@@ -102,6 +102,7 @@ import {
   deleteSavedAnswer,
   type SavedAnswer,
   type DeadlineCheckpoint,
+  type DeadlineAccount,
   type DeadlineRunSpec,
   type PricedEntry,
   type SavedDeadlineResult,
@@ -112,7 +113,7 @@ import { buildPool, exhaustiveChainsWithGap, bandedChains, sortByPrefix } from '
 import { estimateRoutes, usableRatio, type SetsLearned } from '@/search/deadlineEstimate';
 import { applyLegBudget, estimateLegBytes } from '@/search/legBudget';
 import { summariseEpicResearch, summariseColleggtibles } from '@/search/progression';
-import { reviewContext, reviewLegs, reviewSetup, type HealthIssue } from '@/search/health';
+import { reviewContext, reviewLegs, reviewSetup, TE_MISMATCH_TOLERANCE, type HealthIssue } from '@/search/health';
 import {
   DECADES_LONG_DAYS,
   INTEGRITY_BLOCK_SECONDS,
@@ -235,6 +236,44 @@ export interface RunProgress {
   stopping: boolean;
   /** The best so far: its route, the TE it reaches, and when (unix seconds). */
   best: { chain: number[]; te: number; at: number } | null;
+}
+
+/** What Find says while the save is still settling (`saveNotReady`). */
+export const SAVE_STILL_LOADING = 'Your save is still loading. Try again in a moment.';
+/** What a send says when the payload contradicts its own save (`startContradictsSave`). */
+export const START_MISMATCH_NOT_SENT = "This run's start doesn't match its save; it wasn't sent.";
+/** How far a submission's start TE may sit from its save's TE: the health check's tolerance. */
+const SEND_TE_TOLERANCE = 3;
+
+/** Sum a per-virtue TE map; 0 for none. */
+function sumTE(earned: Record<string, number> | null | undefined): number {
+  return earned ? (Object.values(earned) as number[]).reduce((a, b) => a + (Number(b) || 0), 0) : 0;
+}
+/** The TE of a state the workers price: what a run's `currentTE` must be. */
+export function pricedTE(state: { teEarned?: Record<string, number> } | null | undefined): number {
+  return sumTE(state?.teEarned);
+}
+
+/**
+ * Why a submission must not be sent because it contradicts itself, or '' when it is fine: a start TE
+ * more than 3 from the save it says it was made from, or a first stop that is not above the start.
+ * A row like that was priced from one save and labelled with another (board row 07e3dbf0). Better a
+ * lost row than a wrong one.
+ */
+export function startContradictsSave(p: {
+  currentTE?: number;
+  backupTE?: number | null;
+  chain?: readonly number[];
+}): string {
+  const te = p.currentTE;
+  // No start at all is the collector's to reject (it validates the shape); this judges a stated one.
+  if (typeof te !== 'number' || !Number.isFinite(te)) return '';
+  if (typeof p.backupTE === 'number' && Number.isFinite(p.backupTE) && Math.abs(te - p.backupTE) > SEND_TE_TOLERANCE) {
+    return START_MISMATCH_NOT_SENT;
+  }
+  const first = p.chain?.[0];
+  if (typeof first === 'number' && first <= te) return START_MISMATCH_NOT_SENT;
+  return '';
 }
 
 export const useChainSearchStore = defineStore('chainSearch', () => {
@@ -916,10 +955,30 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     return Math.max(0, chainsEstimated.value - chainsDone.value) * secondsPerChain.value;
   });
 
-  const currentTE = computed(() => {
-    const snapshot = useActionsStore().effectiveSnapshot;
-    if (!snapshot?.teEarned) return 0;
-    return (Object.values(snapshot.teEarned) as number[]).reduce((a, b) => a + b, 0);
+  /**
+   * The TE every search starts from: the TE of the state the workers PRICE.
+   *
+   * Workers price from `createBaseEngineState(null)` (engine/adapter.ts), whose `teEarned` is the
+   * initial-state store's `initialTeEarned` -- the loaded save, after any pending TE is rolled up.
+   * This used to sum the action snapshot instead, and while the planner was rebuilding after a new
+   * save landed (`clearAll(_, true)` keeps the old start action; the recalculation is async) the
+   * two disagreed: board row 07e3dbf0 said it started from 135 TE and was priced from 196, and got
+   * the tier-13 heuristic for a sub-190 start on top. Same store, same sum as `collectInputs`
+   * (`pricedTE`), so the number on the screen is the number the run uses.
+   */
+  const currentTE = computed(() => sumTE(useInitialStateStore().initialTeEarned));
+
+  /**
+   * The TE the planner treats as NOW: its initial snapshot (what `setInitialSnapshot` and `importPlan`
+   * build from the save), else the start action's end state. Never the last action's: with a plan in
+   * the Manual Planner that is the plan's END TE, which is not a fault and must not block a search.
+   * Not used for pricing; only compared against the save, to catch a planner that has not caught up
+   * with a new save yet (`saveNotReady`): a rebuild in progress, or a reconcile refresh.
+   */
+  const plannerTE = computed(() => {
+    const a = useActionsStore();
+    const now = a._initialSnapshot ?? a.actions.find(x => x.type === 'start_ascension')?.endState ?? null;
+    return sumTE(now?.teEarned);
   });
 
   /**
@@ -931,10 +990,35 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * different account than the one you are looking at -- see the `te-mismatch` check in
    * search/health.ts, which is the fault that prompted all of this.
    */
-  const backupTE = computed(() => {
-    const earned = useInitialStateStore().initialTeEarned;
-    return earned ? (Object.values(earned) as number[]).reduce((a, b) => a + b, 0) : 0;
+  const backupTE = computed(() => sumTE(useInitialStateStore().initialTeEarned));
+
+  /**
+   * Why no search may start right now because the save is not settled, or '' when it is.
+   *
+   * A search reads the save and the planner in one go. While a fresh save is loading (the Auto
+   * Planner tab, a Science card link, a new player id, a reconcile refresh) the stores are part
+   * old, part new, and a run started then is priced on one save and labelled with another. So every
+   * Find waits: while the page is loading, the planner is initialising or recalculating, or the
+   * planner's TE still disagrees with the save's by more than the te-mismatch tolerance.
+   */
+  const saveNotReady = computed(() => {
+    const actions = useActionsStore();
+    if (useUIStore().loading || actions.isPlanInitializing || actions.isRecalculating || actions.pendingRecalculate) {
+      return SAVE_STILL_LOADING;
+    }
+    if (useInitialStateStore().rawBackup && Math.abs(plannerTE.value - backupTE.value) > TE_MISMATCH_TOLERANCE) {
+      return `Your planner (${plannerTE.value} TE) doesn't match your loaded save (${backupTE.value} TE) yet. Wait a moment, or reload your save, then try again.`;
+    }
+    return '';
   });
+  /** Refuse a start while `saveNotReady` says so; true when refused. */
+  function refuseUnsettledSave(): boolean {
+    const why = saveNotReady.value;
+    if (!why) return false;
+    error.value = why;
+    errorBeforeStart.value = true;
+    return true;
+  }
 
   /** Plan start, taken from the Auto Planner tab's own scheduling inputs so the two agree. A plan's
    *  duration depends on (chain, plan start) jointly — comparing chains scored from different
@@ -1144,7 +1228,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     if (!bestChain.value.length || bestDays.value <= 0) return null;
     const summary = await saveRun(await hashID(playerId), {
       label: label?.trim() || defaultRunLabel(finalTE.value, bestChain.value, bestDays.value),
-      currentTE: currentTE.value,
+      currentTE: runTEUsed ?? currentTE.value,
       // The run's own target -- its chain ends there -- not the target box as it reads now, which the
       // player may have changed since the run finished.
       finalTE: bestChain.value[bestChain.value.length - 1] ?? finalTE.value,
@@ -1206,6 +1290,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     {
       const own = runSaveFor(summary.inputsKey);
       runBackupUsed = null;
+      runTEUsed = summary.currentTE;
       accountUsed = own?.backupAt
         ? { ...accountFields(summary.currentTE), backupTime: own.backupAt, backupTE: own.te }
         : null;
@@ -1764,12 +1849,14 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
 
   function collectInputs(): SearchInputs {
     const initialStateStore = useInitialStateStore();
+    const baseState = createBaseEngineState(null);
     return {
       context: getSimulationContext(),
-      baseState: createBaseEngineState(null),
+      baseState,
       currentFarmState: initialStateStore.currentFarmState,
       planStart: planStart.value,
-      currentTE: currentTE.value,
+      // From the state the workers price, never from a second source (see `currentTE`).
+      currentTE: pricedTE(baseState),
       final: finalTE.value,
       forceContinue: forceContinue.value,
       availability: availability.value,
@@ -2074,7 +2161,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         stones: inv.stones,
         delivery: describeLoadoutSlots(inv.elr),
         earnings: describeLoadoutSlots(inv.earnings),
-        currentTE: currentTE.value,
+        // The PLANNER's TE against the save's: every search now starts from the save (`currentTE`),
+        // so the two can only disagree while the planner has not caught up -- which `saveNotReady`
+        // refuses a start over, and this explains.
+        currentTE: plannerTE.value,
         backupTE: backupTE.value,
       }),
     ];
@@ -2193,7 +2283,15 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * board saw a plan starting 18 h "before the save it was made from" and filed it as a what-if
    * (Halceyx, 6 Oct). Same live-vs-run bug as runSettingsUsed; same fix.
    */
+  type AccountSnapshot = ReturnType<typeof accountFields>;
+  /** A plain-JSON copy of an account snapshot: what IndexedDB stores, free of store proxies. */
+  function plainAccount(a: AccountSnapshot): AccountSnapshot {
+    return JSON.parse(JSON.stringify(a)) as AccountSnapshot;
+  }
   let accountUsed: ReturnType<typeof accountFields> | null = null;
+  /** The TE the run (or the opened saved run) started from: its inputs' `currentTE`, not the live
+   *  save's, which may have moved on since. Null before any run. */
+  let runTEUsed: number | null = null;
   let deadlineAccount: ReturnType<typeof accountFields> | null = null;
   /** The save each run priced, for its CSV header (inventory, loadouts): the same snapshot rule. */
   let runBackupUsed: unknown = null;
@@ -2209,7 +2307,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       legs: bestLegs.value,
       planStart: planStartUsed.value || planStart.value,
       timezone: useAutoPlannerStore().timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
-      currentTE: currentTE.value,
+      currentTE: runTEUsed ?? currentTE.value,
       // The run's own target -- its chain ends there -- not the box as it reads now: a run finished
       // at 309 and sent after the box was changed to 308 was filed under 308 (b7c361cc).
       finalTE: bestChain.value[bestChain.value.length - 1] ?? finalTE.value,
@@ -2237,7 +2335,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
             ),
           }
         : {}),
-      ...(accountUsed ?? accountFields(currentTE.value)),
+      ...(accountUsed ?? accountFields(runTEUsed ?? currentTE.value)),
       // The player's earlier plans priced again, once `prepareRechecks` (or the end of the run) has
       // worked them out for THIS result. Until then the preview simply has none, and the send adds
       // them if they arrive in time (see `sendSubmission`). Named plans for a named send, anonymous
@@ -2277,7 +2375,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       holdShifts: (r.settings ?? usedSettings()).deferShifts,
       forceContinue: (r.settings ?? usedSettings()).forceContinue,
       chainsPriced: r.priced,
-      ...(deadlineAccount ?? accountFields(r.te)),
+      // The run's own account, kept in its result; then the live run's; and only for a result saved
+      // before results kept one, the loaded save (`sendSubmission` refuses it if that contradicts).
+      ...((r.account as AccountSnapshot | undefined) ?? deadlineAccount ?? accountFields(r.te)),
       timeOff: usableTimeOff((r.settings ?? usedSettings()).timeOff),
       deadline: { at: r.deadline, ascendAt: route.ascendAt },
     });
@@ -2536,7 +2636,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   /** The settings this run priced under, as `recheckChains` compares them. */
   function recheckRun(): RecheckRun {
     return {
-      currentTE: currentTE.value,
+      currentTE: runTEUsed ?? currentTE.value,
       finalTE: finalTE.value,
       winner: [...bestChain.value],
       window: isConstrained(usedSettings().availability) ? describeAvailability(usedSettings().availability) : null,
@@ -2670,6 +2770,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     saved?: { partition: string; resultKey: string | null }
   ): Promise<{ ok: boolean; message: string; duplicate?: 'exact' | 'result' }> {
     if (!submitUrl) return { ok: false, message: 'no collector configured' };
+    // A payload whose start contradicts its own save is never sent, from any screen or the command
+    // line: the board would file it under a TE the route was not priced from.
+    const contradiction = startContradictsSave(payload);
+    if (contradiction) return { ok: false, message: contradiction };
     // A deadline route (schema 8) is its own result: it must not mark the fastest run on screen as
     // sent, nor drop that run's pending table, nor pick up its rechecks.
     const deadlineSend = payload.deadline !== undefined;
@@ -2996,7 +3100,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     return buildChainsCsv(entries, {
       planStart: planStartUsed.value || planStart.value,
       timezone: useAutoPlannerStore().timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
-      currentTE: currentTE.value,
+      currentTE: runTEUsed ?? currentTE.value,
       final: finalTE.value,
       effort: usedSettings().effort,
       forceContinue: usedSettings().forceContinue,
@@ -3036,7 +3140,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     yield* chainsCsvChunks(entries, {
       planStart: planStartUsed.value || planStart.value,
       timezone: useAutoPlannerStore().timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
-      currentTE: currentTE.value,
+      currentTE: runTEUsed ?? currentTE.value,
       final: finalTE.value,
       effort: usedSettings().effort,
       forceContinue: usedSettings().forceContinue,
@@ -3220,6 +3324,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     options: { recheck?: boolean; own?: SearchInputs } = {}
   ): Promise<void> {
     if (isRunning.value || preparing.value || recheckingLatest.value) return;
+    // A carry-on brings its own stored inputs; anything else reads the live save, which must be settled.
+    if (!options.own && refuseUnsettledSave()) return;
     currentPlayerId = playerId;
     recheckPriced = new Map();
     recheckFetch = null;
@@ -3322,7 +3428,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
 
     planStartUsed.value = planStart.value;
     runSettingsUsed.value = snapshotSettings();
-    accountUsed = accountFields(currentTE.value);
+    runTEUsed = startInputs.currentTE;
+    accountUsed = accountFields(startInputs.currentTE);
     runBackupUsed = getSimulationContext().rawBackup ?? null;
     chainsEstimated.value = chains.length;
     bestChain.value = [];
@@ -3627,13 +3734,18 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   }
   /** Show a saved answer as the current one (it doesn't re-run anything). */
   function openSavedAnswer(id: string): void {
-    deadlineAccount = null;
-    deadlineBackup = null;
     const a = savedAnswers.value.find(x => x.id === id);
-    if (a && !deadlineRunning.value) {
-      deadlineAll = [];
-      deadlineResult.value = JSON.parse(JSON.stringify(a.result)) as SavedDeadlineResult;
-    }
+    // Never during a run: the running search's account and save are what ITS submission sends, and
+    // clearing them here (as this once did, before the guard) sent it with the live save instead.
+    if (!a || deadlineRunning.value) return;
+    deadlineAll = [];
+    deadlineResult.value = JSON.parse(JSON.stringify(a.result)) as SavedDeadlineResult;
+    restoreDeadlineAccount(deadlineResult.value);
+  }
+  /** The account a shown result was priced with: its own, when it kept one (results from 7 Oct). */
+  function restoreDeadlineAccount(r: SavedDeadlineResult | null): void {
+    deadlineAccount = r?.account ? (r.account as AccountSnapshot) : null;
+    deadlineBackup = null;
   }
   async function removeSavedAnswer(playerId: string, id: string): Promise<void> {
     const hash = await hashID(playerId);
@@ -3644,13 +3756,16 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   /** The saved result and any unfinished run, for the panel to show on opening. */
   async function loadDeadlineState(playerId: string): Promise<void> {
     if (!playerId || deadlineRunning.value) return;
-    deadlineAccount = null;
-    deadlineBackup = null;
+    restoreDeadlineAccount(null);
     try {
       partitionHash = await hashID(playerId);
       runSaves.value = await listRunSaves(partitionHash);
       deadlineAll = []; // the last run's full list, which may be another account's
+      // A run may have started during the awaits above: its result and account are its own.
+      if (deadlineRunning.value) return;
       deadlineResult.value = await loadDeadlineResult(partitionHash);
+      if (deadlineRunning.value) return;
+      restoreDeadlineAccount(deadlineResult.value);
       const loaded = await loadDeadlineCheckpoint(partitionHash);
       // Another account's unfinished deadline search is not offered on this one.
       const cp = loaded && (await fromOtherAccount(partitionHash, loaded.inputsKey)) ? null : loaded;
@@ -3675,6 +3790,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    */
   async function startDeadline(playerId: string, spec: DeadlineRunSpec): Promise<void> {
     if (busy.value) return;
+    if (refuseUnsettledSave()) return;
     // Held until `runDeadline` takes over (it sets `deadlineRunning` before its first await): the
     // save below is an IndexedDB write of megabytes, and a second click in that gap started a
     // second run on top of the first.
@@ -3685,13 +3801,13 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       preparing.value = false;
     }
     if (deadlineReady) {
-      const [s, inputs, key] = deadlineReady;
+      const [s, inputs, key, account] = deadlineReady;
       deadlineReady = null;
-      await runDeadline(s, inputs, key, []);
+      await runDeadline(s, inputs, key, [], account);
     }
   }
 
-  let deadlineReady: [DeadlineRunSpec, SearchInputs, string] | null = null;
+  let deadlineReady: [DeadlineRunSpec, SearchInputs, string, AccountSnapshot] | null = null;
   /** The running deadline search's note, for the black box. */
   let deadlineNote: string | undefined;
   /** The deadline run's own settings from its start, kept in its result for the record. */
@@ -3702,6 +3818,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     currentPlayerId = playerId;
     error.value = null;
     const inputs = collectInputs();
+    // The account the run is priced on, taken in the same tick as its inputs: the awaits below give a
+    // newer save time to land.
+    const account = plainAccount(accountFields(inputs.currentTE));
     // Dated milestones are Insane's filter on routes to its target, not this search's: a milestone
     // above the last stops rejected every route ("nothing reaches any stop"), and one inside their
     // range broke the assumption that a lower last stop is always the easier one, so the halving
@@ -3743,6 +3862,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       },
       inputs,
       key,
+      account,
     ];
   }
 
@@ -3751,7 +3871,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     if (busy.value) return;
     currentPlayerId = playerId;
     error.value = null;
-    let ready: [DeadlineCheckpoint, SearchInputs] | undefined;
+    let ready: [DeadlineCheckpoint, SearchInputs, AccountSnapshot] | undefined;
     preparing.value = true; // see startDeadline: two Carry on buttons, two awaits before the run
     try {
       partitionHash = partitionHash || (await hashID(playerId));
@@ -3767,11 +3887,29 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         error.value = "This search's save is no longer stored on this device, so it can't carry on. Start it again.";
         return;
       }
-      ready = [cp, inputs];
+      ready = [cp, inputs, (cp.account as AccountSnapshot | undefined) ?? accountFromStoredSave(inputs)];
     } finally {
       preparing.value = false;
     }
-    if (ready) await runDeadline(ready[0].spec, ready[1], ready[0].inputsKey, ready[0].entries);
+    if (ready) await runDeadline(ready[0].spec, ready[1], ready[0].inputsKey, ready[0].entries, ready[2]);
+  }
+
+  /**
+   * The account half for a carry-on whose checkpoint predates `account`: the save's moment, TE and
+   * per-virtue TE from the run's OWN stored save, the rest (inventory, research) from the loaded one,
+   * as `openSavedRun` does. It used to be all live, so a carry-on after a newer save landed sent the
+   * newer save's time and TE with a route priced on the older one.
+   */
+  function accountFromStoredSave(inputs: SearchInputs): AccountSnapshot {
+    const stored = inputs.context?.rawBackup as { approxTime?: number; virtue?: { eovEarned?: number[] } } | undefined;
+    const live = accountFields(inputs.currentTE);
+    if (!stored) return plainAccount(live);
+    return plainAccount({
+      ...live,
+      backupTime: stored.approxTime ?? null,
+      backupTE: pricedTE(inputs.baseState),
+      teByEgg: (stored.virtue?.eovEarned ?? null) as AccountSnapshot['teByEgg'],
+    });
   }
 
   async function discardDeadlineRun(playerId: string): Promise<void> {
@@ -3785,12 +3923,16 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     spec: DeadlineRunSpec,
     inputs: SearchInputs,
     key: string,
-    seed: PricedEntry[]
+    seed: PricedEntry[],
+    /** The account the run is priced on (see `prepareDeadline`, `resumeDeadline`). */
+    accountIn?: AccountSnapshot
   ): Promise<void> {
     const schedule = isConstrained(inputs.availability) ? inputs.availability : null;
     deadlineRunning.value = true;
     deadlineSettings = snapshotSettings();
-    deadlineAccount = accountFields(inputs.currentTE);
+    // Held locally as well: the result and the checkpoint take THIS, whatever touches the shared one.
+    const account = accountIn ?? plainAccount(accountFields(inputs.currentTE));
+    deadlineAccount = account;
     deadlineBackup = inputs.context?.rawBackup ?? getSimulationContext().rawBackup ?? null;
     deadlineNote = spec.note;
     deadlineEstimate.value = Math.max(0, Math.floor(spec.estimate ?? 0));
@@ -3829,6 +3971,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           te: inputs.currentTE,
           entries: replay.entries(),
           updatedAt: now,
+          account: account as DeadlineAccount,
         });
       } catch (e) {
         console.warn('chain search: could not save the deadline search', e);
@@ -3905,8 +4048,13 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         ceiling: spec.extend ? Math.max(spec.lastHi, MAX_LAST_STOP) : spec.lastHi,
         ...(spec.note ? { note: spec.note } : {}),
         ...(deadlineSettings ? { settings: deadlineSettings } : {}),
+        account: account as DeadlineAccount,
+        inputsKey: key,
+        backupAt: account.backupTime ?? null,
+        backupTE: account.backupTE ?? null,
         at: Date.now(),
       };
+      deadlineAccount = account;
       try {
         await saveDeadlineResult(partitionHash, deadlineResult.value);
         if (out.stoppedEarly) {
@@ -4388,6 +4536,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   async function start(playerId: string, options: { resume?: boolean; recheck?: boolean } = {}): Promise<void> {
     if (isRunning.value || preparing.value || recheckingLatest.value) return;
     if (singleAscensionAsked.value && !options.resume) return;
+    if (refuseUnsettledSave()) return;
     currentPlayerId = playerId;
     // Captured NOW: loading a stored save moves the TE, a panel watcher re-reads the checkpoint, and
     // `resumable` is briefly null while it does -- which made a resume quietly start from scratch.
@@ -4445,7 +4594,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
 
     planStartUsed.value = planStart.value;
     runSettingsUsed.value = snapshotSettings();
-    accountUsed = accountFields(currentTE.value);
+    const startInputs = own ?? collectInputs();
+    runTEUsed = startInputs.currentTE;
+    accountUsed = accountFields(startInputs.currentTE);
     runBackupUsed = getSimulationContext().rawBackup ?? null;
     const chain = seedChain.value;
     chainsEstimated.value = estimateChains(Math.max(1, chain.length - 1), EFFORT[effort.value]);
@@ -4455,7 +4606,6 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     stage.value = 'starting workers';
     detail.value = '';
 
-    const startInputs = own ?? collectInputs();
     if (!own) resultsFromOlderSave.value = null;
     latestRecheck.value = null;
     const startKey = runSaveKey(startInputs);
@@ -4532,7 +4682,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         stage.value = 'coarse scan';
         coarseLog.value = [];
         const coarse = await findStartingChain({
-          currentTE: currentTE.value,
+          currentTE: startInputs.currentTE,
           final: finalTE.value,
           minPrestiges: minPrestiges.value,
           maxPrestiges: maxPrestiges.value,
@@ -4563,7 +4713,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       const outcome = await runChainSearch({
         seedChain: seed,
         final: finalTE.value,
-        currentTE: currentTE.value,
+        currentTE: startInputs.currentTE,
         effort: effort.value,
         pin: pin.value,
         // Normally the driver's own default (`final - 150`). Exposed so the cap can be tested
@@ -5096,6 +5246,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     setupIssues,
     setupFacts,
     backupTE,
+    plannerTE,
+    saveNotReady,
     resultIssues,
     resultContradictions,
     continueWarning,

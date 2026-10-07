@@ -251,7 +251,7 @@ export function reviewSetup(i: SetupInputs): HealthIssue[] {
     issues.push({
       kind: 'te-mismatch',
       level: 'error',
-      message: `This run will start from ${i.currentTE} TE, but your loaded save reports ${i.backupTE} TE. Starting from the wrong TE changes every duration in the plan: a run from ${Math.min(i.currentTE, i.backupTE)} TE is far longer than the same run from ${Math.max(i.currentTE, i.backupTE)}. If you are not deliberately planning from a point part-way through an existing plan, reset to today's defaults or reload your backup before starting.`,
+      message: `Your planner is at ${i.currentTE} TE, but your loaded save reports ${i.backupTE} TE. Searches start from your save, and won't start until the two agree: a run from ${Math.min(i.currentTE, i.backupTE)} TE is far longer than the same run from ${Math.max(i.currentTE, i.backupTE)}. Wait for your save to finish loading, or reset to today's defaults or reload your backup.`,
     });
   }
   return issues;

@@ -15,7 +15,7 @@
       <button
         type="button"
         class="btn-premium btn-primary flex-1 min-w-[12rem] py-4 text-sm shadow-xl shadow-indigo-500/20 active:scale-[0.98]"
-        :disabled="findDisabled || running"
+        :disabled="findDisabled || notReady || running"
         @click="emit('find', false)"
       >
         {{ running ? runningLabel : findLabel }}
@@ -24,7 +24,7 @@
         v-if="showSubmit && !running"
         type="button"
         class="px-6 py-4 rounded-xl bg-indigo-700 text-white text-[11px] font-black uppercase tracking-widest hover:bg-indigo-800 disabled:opacity-40"
-        :disabled="findDisabled || !optIn"
+        :disabled="findDisabled || notReady || !optIn"
         :title="optIn ? '' : 'Please read and tick the box below first'"
         @click="emit('find', true)"
       >
@@ -40,6 +40,9 @@
         {{ stopping ? 'Stopping...' : 'Stop & keep best' }}
       </button>
     </div>
+    <!-- The save is still settling (a Science link, the Auto Planner tab, a new player id): every
+         search reads it, so Find waits rather than pricing one save and labelling it with another. -->
+    <p v-if="notReady" class="text-[11px] font-semibold text-amber-700">{{ store.saveNotReady }}</p>
 
     <div
       v-if="showSubmit && !running"
@@ -88,9 +91,11 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import RunNoteBox from './RunNoteBox.vue';
+import { useChainSearchStore } from '@/stores/chainSearch';
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     /** Find can't start (each search's own checks). Find and submit also needs the opt-in. */
     findDisabled: boolean;
@@ -113,6 +118,9 @@ withDefaults(
     nicknameMax: 40,
   }
 );
+const store = useChainSearchStore();
+/** Find waits for the save to settle; a run already going is left alone. */
+const notReady = computed(() => !props.running && !!store.saveNotReady);
 const emit = defineEmits<{ find: [andSubmit: boolean]; stop: []; nicknameTyped: [] }>();
 
 const optIn = defineModel<boolean>('optIn', { required: true });
