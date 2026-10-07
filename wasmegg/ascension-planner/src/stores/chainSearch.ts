@@ -50,6 +50,7 @@ import {
 } from '@/search/persistence';
 import {
   buildChainsCsv,
+  buildDeadlineCsv,
   chainsCsvChunks,
   describeLoadoutSlots,
   describeVirtueInventory,
@@ -3981,26 +3982,33 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   function deadlineCsv(): string {
     const r = deadlineResult.value;
     if (!r) return '';
-    const tz = planTimezone();
     const routes = deadlineAll.length ? deadlineAll : r.routes;
-    const lines = [
-      `# highest TE by ${formatInZone(r.deadline, tz)} (${tz}); plan start ${formatInZone(r.planStart, tz)} at ${r.te} TE`,
-      `# ${r.priced} routes priced${r.stoppedEarly ? ', stopped early' : ''}${r.ascendNeeded ? '; must ascend at the last stop in awake hours' : ''}`,
-      ...(r.note ? [`# note: ${r.note}`] : []),
-      'rank,route,stops,last_stop,reached_local,ascend_from_local,spare_hours',
-      ...routes.map((x, i) =>
-        [
-          i + 1,
-          x.chain.join(' '),
-          x.chain.length,
-          x.chain[x.chain.length - 1],
-          formatInZone(x.reachAt, tz),
-          formatInZone(x.ascendAt, tz),
-          (x.spare / 3600).toFixed(2),
-        ].join(',')
-      ),
-    ];
-    return lines.join('\n') + '\n';
+    // The same metadata as the chain-search CSV, read off the settings the run started with (the
+    // saved result carries them), falling back to the current ones for results saved before they were.
+    const raw = getSimulationContext().rawBackup ?? null;
+    const equipped = raw ? getArtifactLoadoutFromBackup(raw) : null;
+    const st = r.settings;
+    return buildDeadlineCsv(
+      routes,
+      {
+        planStart: r.planStart,
+        timezone: planTimezone(),
+        currentTE: r.te,
+        final: r.ceiling ?? r.lastHi,
+        effort: st?.effort ?? usedSettings().effort,
+        forceContinue: st?.forceContinue ?? usedSettings().forceContinue,
+        availability: st ? st.availability : usedSettings().availability,
+        timeOff: usableTimeOff(st ? st.timeOff : usedSettings().timeOff),
+        seedChain: [],
+        runNote: r.note,
+        inventory: raw ? describeVirtueInventory(raw) : undefined,
+        loadouts: [
+          { label: 'equipped in the backup', loadout: equipped },
+          { label: 'best earnings set available', loadout: raw ? getOptimalEarningsSet(raw) : null },
+        ],
+      },
+      { deadline: r.deadline, priced: r.priced, stoppedEarly: r.stoppedEarly, ascendNeeded: r.ascendNeeded }
+    );
   }
 
   // ------------------------------------------------------------------ the black box (search/blackBox.ts)

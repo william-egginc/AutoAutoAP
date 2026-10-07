@@ -10,6 +10,8 @@ import { describe, expect, it } from 'vitest';
 import { getLocalTimestampInTimezone } from '@/lib/events';
 import {
   buildChainsCsv,
+  buildDeadlineCsv,
+  DEADLINE_COLUMNS,
   chainsCsvChunks,
   CHUNK_ROWS,
   describeLoadout,
@@ -293,16 +295,82 @@ describe('time off in the CSV', () => {
       {
         key: '200,490',
         seconds: 900 * 86400,
-        legs: [
-          leg({ endTE: 180, timeOff: 'stopped' }),
-          leg({ endTE: 200, timeOff: 'restarted' }),
-          leg({ endTE: 490 }),
-        ],
+        legs: [leg({ endTE: 180, timeOff: 'stopped' }), leg({ endTE: 200, timeOff: 'restarted' }), leg({ endTE: 490 })],
       },
     ];
     const csv = buildChainsCsv(entries, { ...META, timeOff: [{ from: '2026-11-20', to: '2026-11-26' }] });
     const last = (row: number) => dataRows(csv)[row].split(',').pop();
     expect([last(0), last(1), last(2)]).toEqual(['stopped', 'restarted', '']);
     expect(csv).toContain('time off from virtue: 2026-11-20 to 2026-11-26');
+  });
+});
+
+describe('buildDeadlineCsv', () => {
+  const DEADLINE = PLAN_START + 100 * 86400;
+  const INFO = { deadline: DEADLINE, priced: 1234 };
+  const route = (chain: number[], days: number, legs: LegSummary[]) => ({
+    chain,
+    reachAt: PLAN_START + days * 86400,
+    ascendAt: PLAN_START + days * 86400,
+    spare: (100 - days) * 86400,
+    legs,
+  });
+  const colOf = (csv: string, row: number, name: string) => {
+    const header = csv
+      .split('\n')
+      .find(l => l.startsWith('rank,'))!
+      .split(',');
+    return dataRows(csv)[row].split(',')[header.indexOf(name)];
+  };
+
+  it('keeps the old By a date columns by name and adds the chain-search leg columns', () => {
+    const csv = buildDeadlineCsv([route([195, 219], 60, [leg()])], META, INFO);
+    const header = csv.split('\n').find(l => l.startsWith('rank,'))!;
+    expect(
+      header.startsWith('rank,route,stops,last_stop,reached_local,ascend_from_local,spare_hours,chain,prestiges,')
+    ).toBe(true);
+    for (const c of [
+      'leg',
+      'target_te',
+      'strategy',
+      'sales',
+      'tier13',
+      'leg_start_local',
+      'leg_end_local',
+      'leg_days',
+      'peak_delivery_q_per_hr',
+      'time_off',
+    ]) {
+      expect(header.split(',')).toContain(c);
+    }
+    expect(header).toBe(DEADLINE_COLUMNS.join(','));
+    expect(csv).toContain('# highest TE by ');
+    expect(csv).toContain('# 1234 routes priced');
+    expect(csv).toContain('# plan start 2026-09-04 21:30');
+    expect(csv).toContain('# effort balanced; force-continue on');
+  });
+
+  it('writes one row per leg with the route cells repeated', () => {
+    const csv = buildDeadlineCsv(
+      [route([195, 219, 250], 80, [leg(), leg({ endTE: 250, key: '3-sale-tier13' })])],
+      META,
+      INFO
+    );
+    expect(dataRows(csv)).toHaveLength(2);
+    expect(colOf(csv, 1, 'rank')).toBe('1');
+    expect(colOf(csv, 1, 'last_stop')).toBe('250');
+    expect(colOf(csv, 1, 'leg')).toBe('2');
+    expect(colOf(csv, 1, 'strategy')).toBe('3-sale-tier13');
+    expect(colOf(csv, 1, 'target_te')).toBe('250');
+    expect(colOf(csv, 1, 'spare_hours')).toBe('480.00');
+    expect(colOf(csv, 0, 'total_days')).toBe('80.0000');
+  });
+
+  it('writes an arrival-only row past the leg cap and says so', () => {
+    const routes = [route([195, 250], 70, [leg()]), route([195, 240], 75, [leg()])];
+    const csv = buildDeadlineCsv(routes, META, INFO, 1);
+    expect(dataRows(csv)).toHaveLength(2);
+    expect(colOf(csv, 1, 'strategy')).toBe('');
+    expect(csv).toContain('legs are written for the top 1 of 2 routes');
   });
 });
