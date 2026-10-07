@@ -43,7 +43,9 @@ function versionFile(): Plugin {
           release: {
             reloadIfBuiltBefore: release.reloadIfBuiltBefore,
             note: release.note.slice(0, 200),
-            history: release.history.slice(0, 8).map(h => ({ at: h.at, note: h.note.slice(0, 200) })),
+            history: release.history
+              .slice(0, 8)
+              .map(h => ({ at: h.at, note: h.note.slice(0, 200), ...(h.level === 'big' ? { level: 'big' } : {}) })),
           },
         }),
       });

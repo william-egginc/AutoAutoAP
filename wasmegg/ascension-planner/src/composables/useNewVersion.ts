@@ -45,10 +45,11 @@ export function isNewerBuild(liveHtml: string, loadedSrc: string | null, entry: 
 /** `version.json` as the build writes it: entry name -> hashed file, plus `release` (below). */
 export type LiveEntries = Record<string, unknown>;
 
-/** How much a new build matters (vite.config.ts, release.json). */
+/** How much a new build matters (release.ts explains the three levels). */
+export type ReleaseLevel = 'small' | 'big' | 'essential';
+
 export interface ReleaseInfo {
-  /** "reload": fixes something an open tab could trip over. "minor": wording or looks. */
-  level: 'minor' | 'reload';
+  level: ReleaseLevel;
   note: string;
   /** Notes of the deploys this tab also missed, newest first; absent when it missed only one. */
   earlier?: string[];
@@ -58,6 +59,7 @@ export interface ReleaseInfo {
 export interface HistoryEntry {
   at: string;
   note: string;
+  level?: 'small' | 'big';
 }
 
 /** The history entries newer than this tab's build (newest first, as written), notes cut at 200.
@@ -67,9 +69,9 @@ export function missedEntries(history: unknown, ownBuildTime: string): HistoryEn
   const out: HistoryEntry[] = [];
   for (const h of history) {
     if (!h || typeof h !== 'object') continue;
-    const { at, note } = h as { at?: unknown; note?: unknown };
+    const { at, note, level } = h as { at?: unknown; note?: unknown; level?: unknown };
     if (typeof at === 'string' && typeof note === 'string' && note.trim() && at > ownBuildTime) {
-      out.push({ at, note: note.slice(0, 200) });
+      out.push({ at, note: note.slice(0, 200), level: level === 'big' ? 'big' : 'small' });
     }
   }
   return out.sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
@@ -84,29 +86,34 @@ export function earlierText(n: number): string {
 export const OWN_BUILD_TIME: string = typeof __BUILD_TIME__ === 'string' ? __BUILD_TIME__ : '';
 
 /**
- * How much the live build matters to THIS tab. "reload" when the tab was built before the last
+ * How much the live build matters to THIS tab: "essential" when the tab was built before the last
  * change an open tab could trip over (release.ts `reloadIfBuiltBefore`) -- so a tab that slept
- * through a reload-level deploy and then saw a later wording one is still told to reload -- and
- * "minor" otherwise. A version.json without the marker (from before this existed), or a tab that
- * does not know its own build time, counts as "reload": the only kind of notice there used to be.
+ * through an essential deploy and then saw a later small one is still told to reload; else "big"
+ * when ANY update it missed is marked big (the headline is then the newest big one); else "small".
+ * A version.json without the marker (from before this existed), or a tab that does not know its
+ * own build time, counts as "essential": the only kind of notice there used to be.
  */
 export function releaseFrom(versionJson: unknown, ownBuildTime: string = OWN_BUILD_TIME): ReleaseInfo {
   const r = versionJson && typeof versionJson === 'object' ? (versionJson as LiveEntries).release : null;
-  if (!r || typeof r !== 'object') return { level: 'reload', note: '' };
+  if (!r || typeof r !== 'object') return { level: 'essential', note: '' };
   const noteRaw = (r as { note?: unknown }).note;
-  const note = typeof noteRaw === 'string' ? noteRaw.slice(0, 200) : '';
+  let note = typeof noteRaw === 'string' ? noteRaw.slice(0, 200) : '';
   const since = (r as { reloadIfBuiltBefore?: unknown }).reloadIfBuiltBefore;
-  const earlier = missedEntries((r as { history?: unknown }).history, ownBuildTime)
-    .slice(1)
-    .map(h => h.note);
+  const missed = missedEntries((r as { history?: unknown }).history, ownBuildTime);
+  const headline = missed.find(h => h.level === 'big') ?? missed[0];
+  if (headline) note = headline.note;
+  const earlier = missed.filter(h => h !== headline).map(h => h.note);
   const extra = earlier.length ? { earlier } : {};
-  if (typeof since !== 'string' || !since || !ownBuildTime) return { level: 'reload', note, ...extra };
-  return { level: ownBuildTime < since ? 'reload' : 'minor', note, ...extra };
+  if (typeof since !== 'string' || !since || !ownBuildTime) return { level: 'essential', note, ...extra };
+  if (ownBuildTime < since) return { level: 'essential', note, ...extra };
+  return { level: missed.some(h => h.level === 'big') ? 'big' : 'small', note, ...extra };
 }
 
-/** Levels only go up: a tab already asking for a reload never drops back to the quiet note. */
+const RANK: Record<ReleaseLevel, number> = { small: 0, big: 1, essential: 2 };
+
+/** Levels only go up: a tab already asking for more never drops back to a quieter notice. */
 export function raiseLevel(current: ReleaseInfo | null, next: ReleaseInfo): ReleaseInfo {
-  if (current?.level === 'reload' && next.level === 'minor')
+  if (current && RANK[current.level] > RANK[next.level])
     return { ...current, note: next.note || current.note, earlier: next.earlier };
   return next;
 }
@@ -175,7 +182,7 @@ const CHANNEL = 'aap-new-version';
 export function useNewVersion(pageUrl: string, entry: string) {
   const available = ref(false);
   /** What the newer build says about itself; meaningful once `available` is true. */
-  const release = ref<ReleaseInfo>({ level: 'reload', note: '' });
+  const release = ref<ReleaseInfo>({ level: 'essential', note: '' });
   let timer: ReturnType<typeof setInterval> | null = null;
   let channel: BroadcastChannel | null = null;
   let lastChecked = 0;
@@ -202,8 +209,8 @@ export function useNewVersion(pageUrl: string, entry: string) {
   }
 
   async function check(): Promise<void> {
-    // After a MINOR notice keep looking: a later build may be one this tab has to reload for.
-    if ((available.value && release.value.level === 'reload') || !loadedSrc) return;
+    // After a small or big notice keep looking: a later build may be one this tab has to reload for.
+    if ((available.value && release.value.level === 'essential') || !loadedSrc) return;
     if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
     if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
     lastChecked = Date.now();

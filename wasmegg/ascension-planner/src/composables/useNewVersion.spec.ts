@@ -113,35 +113,63 @@ describe('how much an update matters', () => {
 
   it('asks a tab built before the last reload-level change to reload', () => {
     expect(releaseFrom(live('2026-09-25T23:30:00Z', 'fixes'), '2026-09-25T10:00:00Z')).toEqual({
-      level: 'reload',
+      level: 'essential',
       note: 'fixes',
     });
   });
 
-  it('tells a tab built after it that the update is minor', () => {
+  it('tells a tab built after it that the update is small', () => {
     expect(releaseFrom(live('2026-09-25T23:30:00Z', 'wording'), '2026-09-26T09:00:00Z')).toEqual({
-      level: 'minor',
+      level: 'small',
       note: 'wording',
     });
   });
 
-  it('still asks for a reload when the tab skipped the reload deploy and sees a later minor one', () => {
+  it('still asks for a reload when the tab skipped the reload deploy and sees a later small one', () => {
     // Tab built 24 Sep; a reload-level change shipped 25 Sep; the newest build (26 Sep) is wording.
     // The marker still says 25 Sep, so the 24 Sep tab must reload.
-    expect(releaseFrom(live('2026-09-25T23:30:00Z'), '2026-09-24T12:00:00Z').level).toBe('reload');
+    expect(releaseFrom(live('2026-09-25T23:30:00Z'), '2026-09-24T12:00:00Z').level).toBe('essential');
   });
 
   it('treats a file from before the marker existed, or an unknown own build, as a reload', () => {
-    expect(releaseFrom({ index: 'assets/index-a.js' }, '2026-09-26T00:00:00Z').level).toBe('reload');
-    expect(releaseFrom(live('2026-09-25T23:30:00Z'), '').level).toBe('reload');
-    expect(releaseFrom(null, '2026-09-26T00:00:00Z').level).toBe('reload');
+    expect(releaseFrom({ index: 'assets/index-a.js' }, '2026-09-26T00:00:00Z').level).toBe('essential');
+    expect(releaseFrom(live('2026-09-25T23:30:00Z'), '').level).toBe('essential');
+    expect(releaseFrom(null, '2026-09-26T00:00:00Z').level).toBe('essential');
   });
 
-  it('never drops from a reload back to a minor note', () => {
-    const reload = { level: 'reload' as const, note: 'fixes' };
-    expect(raiseLevel(reload, { level: 'minor', note: 'wording' }).level).toBe('reload');
-    expect(raiseLevel({ level: 'minor', note: '' }, reload).level).toBe('reload');
-    expect(raiseLevel(null, { level: 'minor', note: '' }).level).toBe('minor');
+  it('never drops from a reload back to a small note', () => {
+    const reload = { level: 'essential' as const, note: 'fixes' };
+    expect(raiseLevel(reload, { level: 'small', note: 'wording' }).level).toBe('essential');
+    expect(raiseLevel({ level: 'small', note: '' }, reload).level).toBe('essential');
+    expect(raiseLevel(null, { level: 'small', note: '' }).level).toBe('small');
+  });
+
+  it('is big when any missed update is marked big, else small', () => {
+    const history = [
+      { at: '2026-10-06T15:00:00Z', note: 'tweak' },
+      { at: '2026-10-06T04:00:00Z', note: 'heat map', level: 'big' },
+      { at: '2026-10-05T20:00:00Z', note: 'older tweak', level: 'small' },
+    ];
+    const v = { release: { reloadIfBuiltBefore: '2026-10-01T00:00:00Z', note: 'tweak', history } };
+    expect(releaseFrom(v, '2026-10-05T21:00:00Z')).toEqual({ level: 'big', note: 'heat map', earlier: ['tweak'] });
+    expect(releaseFrom(v, '2026-10-06T10:00:00Z')).toEqual({ level: 'small', note: 'tweak' });
+    expect(releaseFrom(v, '2026-10-06T16:00:00Z')).toEqual({ level: 'small', note: 'tweak' });
+  });
+
+  it('essential beats big: a tab older than reloadIfBuiltBefore is asked to reload', () => {
+    const history = [{ at: '2026-10-06T04:00:00Z', note: 'heat map', level: 'big' }];
+    const v = { release: { reloadIfBuiltBefore: '2026-10-06T00:00:00Z', note: 'heat map', history } };
+    expect(releaseFrom(v, '2026-10-05T00:00:00Z').level).toBe('essential');
+  });
+
+  it('levels only go up: small < big < essential', () => {
+    const small = { level: 'small' as const, note: 's' };
+    const big = { level: 'big' as const, note: 'b' };
+    const essential = { level: 'essential' as const, note: 'e' };
+    expect(raiseLevel(big, small).level).toBe('big');
+    expect(raiseLevel(small, big).level).toBe('big');
+    expect(raiseLevel(essential, big).level).toBe('essential');
+    expect(raiseLevel(big, essential).level).toBe('essential');
   });
 
   it('still finds the page entry beside the release block', () => {
@@ -169,8 +197,8 @@ describe('missed updates', () => {
   });
   it('releaseFrom lists earlier notes only when more than one was missed', () => {
     const v = { release: { reloadIfBuiltBefore: '2026-10-01T00:00:00Z', note: 'newest', history } };
-    expect(releaseFrom(v, '2026-10-05T21:00:00Z')).toEqual({ level: 'minor', note: 'newest', earlier: ['middle'] });
-    expect(releaseFrom(v, '2026-10-06T10:00:00Z')).toEqual({ level: 'minor', note: 'newest' });
+    expect(releaseFrom(v, '2026-10-05T21:00:00Z')).toEqual({ level: 'small', note: 'newest', earlier: ['middle'] });
+    expect(releaseFrom(v, '2026-10-06T10:00:00Z')).toEqual({ level: 'small', note: 'newest' });
     expect(releaseFrom(v, '2026-10-01T00:00:00Z').earlier).toEqual(['middle', 'oldest']);
   });
 });
