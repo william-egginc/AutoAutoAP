@@ -18,7 +18,7 @@
   any route to the Full sweep, which prices it with the full simulator.
 -->
 <template>
-  <section class="rounded-2xl border border-emerald-200 bg-white p-4 space-y-3">
+  <section v-if="!noTable" class="rounded-2xl border border-emerald-200 bg-white p-4 space-y-3">
     <div class="flex flex-wrap items-baseline justify-between gap-2">
       <h3 class="text-base font-black text-slate-900">
         Instant answer
@@ -507,6 +507,8 @@ async function ownTableUrl(): Promise<string | null> {
 }
 
 const status = ref<'idle' | 'loading' | 'error' | 'done'>('idle');
+/** This site has no usable table: the panel is not shown at all. */
+const noTable = ref(false);
 const loadingText = ref('');
 const errorText = ref('');
 const result = ref<FoundRoutes | null>(null);
@@ -771,6 +773,7 @@ async function run(): Promise<void> {
   stopExact();
   exactStatus.value = 'idle';
   status.value = 'loading';
+  noTable.value = false;
   backgroundStatus.value = 'idle';
   gains.value = [];
   bracket.value = null;
@@ -887,7 +890,10 @@ async function run(): Promise<void> {
     if (id !== runs) return;
     const message = err instanceof Error ? err.message : String(err);
     status.value = 'error';
-    errorText.value = /404/.test(message)
+    // No usable table on this site (missing, a web page in its place, or cut short): the panel is
+    // hidden and every search works exactly as without it.
+    noTable.value = /404|not a precomputed table|incomplete/.test(message);
+    errorText.value = noTable.value
       ? 'The precomputed table isn’t on this site yet.'
       : `The instant answer couldn’t run: ${message}`;
   }

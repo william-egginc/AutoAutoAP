@@ -61,14 +61,7 @@ export interface StartsRequest {
   fresh: boolean;
 }
 
-/** The account's own peak delivery rate from one table build (search/tableBuild.ts buildPeak): what
- *  the instant answer scales the maxed table by. */
-export interface PeakRequest {
-  kind: 'peak';
-  requestId: number;
-}
-
-export type WorkerRequest = InitRequest | EvaluateRequest | IntegrityRequest | StartsRequest | PeakRequest;
+export type WorkerRequest = InitRequest | EvaluateRequest | IntegrityRequest | StartsRequest;
 
 export interface InitDoneMessage extends WithHeap {
   type: 'init-done';
@@ -123,13 +116,6 @@ export interface StartsResultMessage extends WithHeap {
   seconds: (number | null)[];
 }
 
-export interface PeakResultMessage {
-  type: 'peak';
-  requestId: number;
-  /** Eggs per second, or null when the build could not be simulated. */
-  peak: number | null;
-}
-
 /**
  * The worker's own JS heap in MB at the time it sent a message, or null where the browser does not
  * expose `performance.memory` inside a worker. Piggybacked on messages the worker sends anyway
@@ -144,7 +130,6 @@ export interface WithHeap {
 }
 
 export type WorkerResponse =
-  | PeakResultMessage
   | StartsResultMessage
   | InitDoneMessage
   | ProgressMessage

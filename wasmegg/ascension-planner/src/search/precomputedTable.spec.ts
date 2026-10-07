@@ -35,4 +35,17 @@ describe('precomputed table file', () => {
     const html = new TextEncoder().encode('<!doctype html><html></html>');
     expect(() => readTable(html.buffer as ArrayBuffer)).toThrow('not a precomputed table');
   });
+
+  it('refuses a file cut short, or one with bytes to spare, rather than reading missing cells as empty', () => {
+    const bytes = packTable(
+      { version: 1, referenceWeek: 1, cteBonus: 128.71, deliveryScore: 1, from: 200, to: 201, builtAt: 'x' },
+      [{ te: 201, h: 167, builds: [build(1, false, 0)] }]
+    );
+    expect(() => readTable(bytes.slice(0, bytes.length - 8).buffer as ArrayBuffer)).toThrow('incomplete');
+    expect(() => readTable(bytes.slice(0, Math.floor(bytes.length / 2)).buffer as ArrayBuffer)).toThrow('incomplete');
+    const longer = new Uint8Array(bytes.length + 8);
+    longer.set(bytes);
+    expect(() => readTable(longer.buffer as ArrayBuffer)).toThrow('incomplete');
+    expect(readTable(bytes.buffer as ArrayBuffer).lookup(201, 167)).toHaveLength(1);
+  });
 });

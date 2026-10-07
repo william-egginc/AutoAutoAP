@@ -90,6 +90,12 @@ export function readTable(buffer: ArrayBuffer): Table {
   }
   if (header.version !== 1) throw new Error(`precomputed table version ${header.version} is not supported`);
   const start = Math.ceil((4 + len) / 8) * 8;
+  // Every cell must be there: a file cut short (a half-copied upload, a truncated response) would
+  // otherwise read its missing cells as empty, and the finder would quietly route around them and
+  // show a wrong answer as if it were real.
+  const expected = start + (header.to - header.from + 1) * WEEK_HOURS * header.slots * FIELDS * 8;
+  if (!(header.slots > 0) || buffer.byteLength !== expected)
+    throw new Error(`the precomputed table is incomplete (${buffer.byteLength} of ${expected} bytes)`);
   const body = new Float64Array(buffer, start);
   const cache = new Map<number, BuildParams[]>();
   return {

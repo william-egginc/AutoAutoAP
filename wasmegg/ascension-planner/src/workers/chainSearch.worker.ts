@@ -25,7 +25,6 @@
  *   new Worker(new URL('./chainSearch.worker.ts', import.meta.url), { type: 'module' })
  */
 import { createChainEvaluator, type ChainEvaluator } from '@/search/chain';
-import { buildPeak } from '@/search/tableBuild';
 import { integrityWaitSeconds } from '@/search/leg';
 import type { SearchInputs } from '@/search/types';
 import type { ChainResult } from '@/search/types';
@@ -95,17 +94,6 @@ ctx.onmessage = (event: MessageEvent<WorkerRequest>) => {
         break;
       }
 
-      case 'peak': {
-        if (!loaded) throw new Error('chainSearch worker received peak before init');
-        let peak: number | null = null;
-        try {
-          peak = buildPeak(loaded);
-        } catch {
-          // A save the build cannot run on: the page keeps its estimate.
-        }
-        post({ type: 'peak', requestId: msg.requestId, peak: Number.isFinite(peak) ? peak : null });
-        break;
-      }
       case 'integrity': {
         if (!loaded) throw new Error('chainSearch worker received integrity before init');
         post({ type: 'integrity', requestId: msg.requestId, seconds: integrityWaitSeconds(loaded) });
