@@ -187,5 +187,7 @@ with `--verify-cells` before the table is packed. The generator must build every
 copy of the save: the artifact optimizer caches per save object, and a cell built after another one in
 the same process could otherwise differ.
 
-Generated tables live in `public/precompute/`, which is not committed (see `.gitignore`); they are
-deployed with the site.
+Generated tables live in `public/precompute`, which is not committed (see `.gitignore`); they are
+deployed with the site. On a server that hosts several builds of the site, `public/precompute` can be a
+symlink to one shared folder of tables: every build copies them into `dist/precompute`, and a new
+table copied into a running site's `dist/precompute` is served at once.
