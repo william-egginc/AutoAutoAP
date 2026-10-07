@@ -37,6 +37,14 @@ each ascension starts on the hour (`scripts/precompute.ts --verify`, `--verify-t
   the research and delivery set a build waits with (`k3`, used to compare a player's delivery rate),
   and for gear tables the gear stamp.
 
+- **Gzipped copies.** Each table also has a `NAME.bin.gz` beside it, about a quarter of the size. The
+  route workers fetch the `.gz` first (`src/search/tableFetch.ts`); servers send it with
+  `Content-Encoding: gzip`, so the browser unpacks it, and if it arrives still packed,
+  `DecompressionStream` does. Anything wrong with the `.gz` falls back to the plain file, and
+  `readTable` refuses a file that is not exactly as long as its header says.
+- **No table on the site** (missing, a web page in its place, or cut short): the panel is not shown,
+  and every search works as it does without it.
+
 ### Which table a player gets
 
 `src/components/auto/InstantRoute.vue` picks, in order:
@@ -89,6 +97,12 @@ On a brute-force benchmark (11 tables, 352 random starts, 1–4 ascensions, ever
 finder alone was more than an hour behind the best route in 0.8% of cases (worst 27 h on routes of
 hundreds of days); the polish and the background polish bring that down further, and never make a
 route slower. `scripts/precompute.ts --prune-bench` reproduces it.
+
+### Phones and small machines
+
+On a mobile browser, 4 GB of memory or less, or 4 cores or fewer (`src/search/device.ts`), the instant
+answer keeps to the answer itself: two route workers, no background polish, no nearest tables above
+and below, and the exact check only when _Check exactly_ is pressed.
 
 ## Filters
 
@@ -163,6 +177,7 @@ A typical pipeline:
 node dist-search/precompute.js --backup save.json --combos combos.json --combo NAME --generate --out tables/NAME --from 120 --to 489 --jobs 8
 node dist-search/precompute.js --backup save.json --combos combos.json --combo NAME --verify-cells --table tables/NAME --tes 150,300,450
 node dist-search/precompute.js --pack --table tables/NAME --out public/precompute/gear-XXXXXXXXXXXXXXXXXXXXXXXX.bin
+gzip -k -9 -n public/precompute/gear-XXXXXXXXXXXXXXXXXXXXXXXX.bin
 node dist-search/precompute.js --backup save.json --manifest
 ```
 

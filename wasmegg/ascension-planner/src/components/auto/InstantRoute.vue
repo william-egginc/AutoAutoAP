@@ -183,6 +183,10 @@
           <p v-else-if="exactStatus === 'done' && !dateExact" class="text-[11px] text-amber-800">
             On your account none of these routes reaches above your TE by the date. Check exactly searches for yours.
           </p>
+          <p v-if="small && exactStatus === 'idle'" class="text-[11px] text-slate-500">
+            On this device the full simulator's check runs only when you press Check exactly: it uses every core for a
+            minute or more.
+          </p>
           <button
             type="button"
             class="mt-1 px-3 py-1.5 rounded-lg bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-emerald-800"
@@ -298,6 +302,10 @@
             class="inline-block w-2.5 h-2.5 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin"
           />
           {{ exactText }}
+        </p>
+        <p v-if="small && exactStatus === 'idle'" class="text-[11px] text-slate-500">
+          On this device the full simulator's check runs only when you press Check exactly: it uses every core for a
+          minute or more.
         </p>
         <button
           type="button"
@@ -455,6 +463,7 @@ import { availabilityKey, type Availability } from '@/search/availabilitySchedul
 import { describeColleggtibles } from '@/search/progression';
 import { poolSize, RoutePool } from '@/search/routePool';
 import { describeGear, isMaxed, pickBracket, type TableEntry } from '@/search/tableBracket';
+import { isSmallDevice } from '@/search/device';
 import type { FirstLegsRequest } from '@/workers/routeFinder.protocol';
 import { createChainSearchPool, type ChainSearchPool, type EvaluateOptions } from '@/search/pool';
 import type { HandoffChoice } from '@/search/chain';
@@ -748,9 +757,12 @@ const progressionShort = computed(() => {
 });
 
 let pool: RoutePool | null = null;
+/** A phone or a small machine (search/device.ts): two route workers, no background polish or nearest
+ *  tables, and the exact check only when asked. */
+const small = isSmallDevice();
 function getPool(): RoutePool {
   pool ??= new RoutePool(
-    poolSize(),
+    small ? Math.min(2, poolSize()) : poolSize(),
     () => new Worker(new URL('../../workers/routeFinder.worker.ts', import.meta.url), { type: 'module' })
   );
   return pool;
@@ -885,6 +897,7 @@ async function run(): Promise<void> {
     ms.value = performance.now() - t0;
     status.value = 'done';
     if (props.deadline) emitRoutes(answer);
+    if (small) return;
     void polishInBackground(id, p, url, polishOptions, raw, answer).then(() => runBracket(id, legsRequest, hours));
   } catch (err) {
     if (id !== runs) return;

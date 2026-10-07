@@ -6,7 +6,8 @@
  * The table (search/precomputedTable.ts) is fetched here on the first request and kept for the
  * worker's life, so a second search (another start time, another target) costs no download.
  */
-import { compositeTable, parseCompositeUrl, readTable, type Table } from '@/search/precomputedTable';
+import { compositeTable, parseCompositeUrl, type Table } from '@/search/precomputedTable';
+import { fetchTable } from '@/search/tableFetch';
 import { expandArrivals, firstLegOptions, polishFound } from '@/search/routeFinder';
 import type { TailSweep } from '@/search/precomputedLeg';
 import type { RouteWorkerRequest, RouteWorkerResponse } from './routeFinder.protocol';
@@ -18,17 +19,6 @@ let cache = new Map<string, TailSweep>();
 let cacheKey = '';
 let table: Promise<Table> | null = null;
 let tableUrl = '';
-
-function fetchTable(url: string): Promise<Table> {
-  // Revalidated, not taken from cache: the table grows while it is being built.
-  return fetch(url, { cache: 'no-cache' }).then(async res => {
-    // The preview server answers a missing file with the app's own page, status 200.
-    if (!res.ok || /text\/html/.test(res.headers.get('content-type') ?? '')) {
-      throw new Error(`the precomputed table could not be loaded (${res.ok ? 404 : res.status})`);
-    }
-    return readTable(await res.arrayBuffer());
-  });
-}
 
 function load(url: string): Promise<Table> {
   if (!table || tableUrl !== url) {
