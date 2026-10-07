@@ -264,15 +264,87 @@ export function widenBandText(
 
   const vals = seg.values;
   const step = vals.length > 1 ? Math.max(1, vals[1] - vals[0]) : 1;
+  // At least one step, so a band on a wide grid still grows.
+  const reach = Math.max(amount, step);
   const added: number[] = [];
   if (side === 'low') {
-    for (let v = vals[0] - step; v >= vals[0] - amount && v >= lowest; v -= step) added.push(v);
+    for (let v = vals[0] - step; v >= vals[0] - reach && v >= lowest; v -= step) added.push(v);
   } else {
-    for (let v = vals[vals.length - 1] + step; v <= vals[vals.length - 1] + amount && v <= highest; v += step) {
+    for (let v = vals[vals.length - 1] + step; v <= vals[vals.length - 1] + reach && v <= highest; v += step) {
       added.push(v);
     }
   }
   if (!added.length) return null;
   const merged = [...new Set([...vals, ...added])].sort((a, b) => a - b);
   return withSegment(segs, i, formatBand(merged));
+}
+
+/* ------------------------------------------------------------------------------------------- *
+ * The winner on the edge of what it was allowed
+ * ------------------------------------------------------------------------------------------- */
+
+export interface BandEdge {
+  /** 1-based band the winning checkpoint sits on the edge of. */
+  band: number;
+  side: 'low' | 'high';
+  /** The winning checkpoint, which is also the lowest (or highest) value that band allowed. */
+  value: number;
+}
+
+/**
+ * Where the winning chain's checkpoints sit on the first or last value of their band while the band
+ * could have gone further. "Could have gone further" leaves out an edge that is a hard limit: the
+ * player's own TE, the target, or the neighbouring checkpoint of that same chain (a step or the
+ * minimum gap away). A band of one value is a pinned checkpoint, not an edge.
+ *
+ * `chain` is the winner as the store keeps it: one checkpoint per band, then the target.
+ */
+export function findBandEdges(
+  bands: readonly (readonly number[])[],
+  chain: readonly number[],
+  ctx: { currentTE: number; finalTE: number; minGap?: number }
+): BandEdge[] {
+  const out: BandEdge[] = [];
+  const cur = Math.floor(ctx.currentTE);
+  const final = chain.length ? chain[chain.length - 1] : ctx.finalTE;
+  const gap = Math.max(1, ctx.minGap ?? 0);
+  if (chain.length !== bands.length + 1) return out;
+  bands.forEach((band, i) => {
+    const values = band.filter(v => v > cur && v < final);
+    if (values.length < 2) return;
+    const v = chain[i];
+    const lowestPossible = i === 0 ? cur + 1 : chain[i - 1] + gap;
+    // The next checkpoint is the target for the last band, which has no gap rule.
+    const highestPossible = i === bands.length - 1 ? final - 1 : chain[i + 1] - gap;
+    if (v === values[0] && v > lowestPossible) out.push({ band: i + 1, side: 'low', value: v });
+    else if (v === values[values.length - 1] && v < highestPossible) out.push({ band: i + 1, side: 'high', value: v });
+  });
+  return out;
+}
+
+/** How far to widen a band on its edge: its own width, never under 10 TE or over 30. */
+export function widenAmount(values: readonly number[]): number {
+  const width = values.length ? values[values.length - 1] - values[0] : 0;
+  return Math.min(30, Math.max(10, width));
+}
+
+/**
+ * The bands widened on the edges the winner sat on, as text the bands box reads back, or null when
+ * no edge has room to grow.
+ */
+export function widenEdges(
+  bands: readonly (readonly number[])[],
+  edges: readonly BandEdge[],
+  ctx: BandCheckContext
+): string | null {
+  let text = bands.map(b => formatBand(b)).join('; ');
+  let changed = false;
+  for (const e of edges) {
+    const next = widenBandText(text, e.band, e.side, widenAmount(bands[e.band - 1]), ctx);
+    if (next !== null) {
+      text = next;
+      changed = true;
+    }
+  }
+  return changed ? text : null;
 }

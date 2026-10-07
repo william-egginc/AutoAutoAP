@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { checkBandText, widenBandText, type BandCheckContext } from './bandCheck';
+import {
+  checkBandText,
+  findBandEdges,
+  widenAmount,
+  widenBandText,
+  widenEdges,
+  type BandCheckContext,
+} from './bandCheck';
 import { formatBand, formatBands, parseBand, parseBands } from './exhaustive';
 
 const ctx: BandCheckContext = { currentTE: 181, finalTE: 490 };
@@ -101,5 +108,45 @@ describe('widenBandText', () => {
   });
   it('widens the high side up to the next band', () => {
     expect(widenBandText('195-205:5; 210-250:10', 1, 'high', 10, ctx)).toBe('195-215:5; 210-250:10');
+  });
+});
+
+describe('findBandEdges', () => {
+  const bands = [
+    [195, 200, 205, 210],
+    [230, 240, 250],
+  ];
+  const c = { currentTE: 181, finalTE: 490 };
+  it('finds a winner on either edge', () => {
+    expect(findBandEdges(bands, [195, 240, 490], c)).toEqual([{ band: 1, side: 'low', value: 195 }]);
+    expect(findBandEdges(bands, [200, 250, 490], c)).toEqual([{ band: 2, side: 'high', value: 250 }]);
+    expect(findBandEdges(bands, [200, 240, 490], c)).toEqual([]);
+  });
+  it('ignores an edge that is a hard limit', () => {
+    // 182 is the lowest TE the player can ascend at.
+    expect(findBandEdges([[182, 190, 200]], [182, 490], c)).toEqual([]);
+    // The last band's top is the target.
+    expect(findBandEdges([[480, 485, 489]], [489, 490], c)).toEqual([]);
+    // The next checkpoint is right there.
+    expect(
+      findBandEdges(
+        [
+          [190, 200],
+          [201, 210],
+        ],
+        [200, 201, 490],
+        c
+      )
+    ).toEqual([]);
+    // A band of one value is pinned, not an edge.
+    expect(findBandEdges([[200], [240, 250]], [200, 240, 490], c)).toEqual([{ band: 2, side: 'low', value: 240 }]);
+  });
+  it('widens the edge band by its width, at least 10', () => {
+    expect(widenAmount([195, 210])).toBe(15);
+    expect(widenAmount([200, 205])).toBe(10);
+    expect(widenAmount([100, 300])).toBe(30);
+    const text = widenEdges(bands, [{ band: 2, side: 'high', value: 250 }], c);
+    expect(text).toBe('195-210:5; 230-270:10');
+    expect(parseBands(text!)[1]).toEqual([230, 240, 250, 260, 270]);
   });
 });

@@ -490,6 +490,15 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     results: { label: string; chain: number[]; days: number; stopped: boolean; finish: number }[];
   }>({ at: -1, total: 0, cancelled: false, results: [] });
 
+  /**
+   * HOOK for the instant answer. When something outside a search (the precomputed answer, on the
+   * branch that has one) thinks a different number of ascensions is better than the one a search
+   * covers, it sets these and both search panels say so next to what they cover ("The instant answer
+   * suggests 7 ascensions; this sweep only searches 5."). Left unset on this branch.
+   */
+  const suggestedCount = ref<number | null>(null);
+  const suggestedRoute = ref<number[] | null>(null);
+
   /** Set by the panel that started the run when it will send the result itself at the end (Find and
    *  submit), so the progress bar on other tabs can say so. */
   const submitsWhenDone = ref(false);
@@ -4816,6 +4825,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     runProgress,
     stopRun,
     sweepQueue,
+    suggestedCount,
+    suggestedRoute,
     submitsWhenDone,
     deadlineEstimate,
     // settings
