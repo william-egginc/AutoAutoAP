@@ -33,6 +33,7 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
+  { at: '2026-10-07T13:36:44Z', note: 'Big CSV downloads use the save the run priced; Science counts a later-start pair a day apart' },
   { at: '2026-10-07T04:19:05Z', note: 'By a date CSVs now record every step of every route, the same as Smart search and Full sweep, so each run helps check the tables' },
   { at: '2026-10-07T04:04:31Z', note: 'By a date re-estimates its total from what the run actually needs and says when every route is done; a run that carried on after a crash keeps its fewer workers' },
   { at: '2026-10-07T03:15:35Z', note: 'Smart search effort is now Fast, Exact or Very high (Exact is the default; Balanced was the same as Exact). Science sweeps fit your TE and say when one does not fit' },
