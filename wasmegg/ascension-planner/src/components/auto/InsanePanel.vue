@@ -546,7 +546,7 @@
               </span>
               <!-- Plain words for the step, right under the bands it describes: "181-250:5" means 181,
                    186, 191... and never 227, so a faster Balanced result between grid points is no surprise. -->
-              <p v-if="!plannedGridComplete" class="text-[11px] text-slate-600 leading-relaxed">
+              <p v-if="!plannedGridComplete && gridExample" class="text-[11px] text-slate-600 leading-relaxed">
                 <span class="font-bold text-slate-800">This space tries {{ plannedGridLabel }}</span> (for example
                 {{ gridExample }}), not every TE in between, which would take weeks. The winner is the best on this
                 grid, and a chain between grid points can be faster.
@@ -651,7 +651,7 @@
                   + Add another chain
                 </button>
                 <span v-if="extraChains.length" class="text-[11px] text-slate-500">
-                  One click runs all {{ extraChains.length + 1 }} chains, one after another. Each finished one is saved
+                  One click runs {{ extraChains.length === 1 ? 'both' : 'all ' + (extraChains.length + 1) }} chains, one after another. Each finished one is saved
                   under Saved runs.
                 </span>
               </div>
