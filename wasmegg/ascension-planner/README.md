@@ -91,7 +91,9 @@ honest comparison is against the best set they can actually field. Every plan he
 | file | why |
 |---|---|
 | `scripts/fastsearch.ts` | the command line: flags, and its own tools (`--stages`, `--grid`, `--exhaustive --range`) |
-| `scripts/siteRun.ts` | runs the site's own searches (Smart search, Full sweep, By a date) and `--submit` |
+| `scripts/siteRun.ts` | runs the site's own searches (Smart search, Full sweep, By a date), writes `--out`, and `--submit` |
+| `scripts/node-idb.ts`, `scripts/outDir.ts` | the file-backed IndexedDB that gives `--out` the site's own checkpoints, and the `--out` directory's `run.json` |
+| `src/search/offline.ts` | the pure half of the offline workflow (effort names, the submission file, presets, By a date suggestions), with a spec |
 | `scripts/node-worker.ts`, `scripts/node-worker-shim.ts` | the browser's search worker, run on a Node worker thread |
 | `scripts/node-shims.ts` | **required**; the browser globals the app's code expects, imported first |
 | `vite.search.config.ts` | bundles the above into `dist-search/` (`fastsearch.js` and `chain-worker.js`) |
@@ -131,27 +133,85 @@ from the browser, from the same save and settings, are the same result.
 
 ```bash
 pnpm search:build
-# Smart search (Fastest route)
-node dist-search/fastsearch.js --backup me.json --effort thorough --find-seed --jobs 12
+# Smart search (Fastest route): fast | exact (default) | thorough, the slider's Fast / Exact / Very high
+node dist-search/fastsearch.js --backup me.json --effort thorough --find-seed
 # Full sweep: one band per checkpoint, as the Full sweep's box
-node dist-search/fastsearch.js --backup me.json --bands "185-200:5; 215-245:10; 260-300:10" --jobs 12
+node dist-search/fastsearch.js --backup me.json --bands "185-200:5; 215-245:10; 260-300:10"
+# Full sweep over the space Suggest a space picks for your TE (and the counts either side)
+node dist-search/fastsearch.js --backup me.json --suggest 5 --widen
+# A Science preset, fitted to the save's TE (it says so when the preset does not fit)
+node dist-search/fastsearch.js --backup me.json --preset F4
 # Highest TE by a date (or --by-date "2027-03-01 18:00"); --chain/--last to set the stops yourself
-node dist-search/fastsearch.js --backup me.json --egg-day --jobs 8
+node dist-search/fastsearch.js --backup me.json --egg-day
 ```
 
 `node dist-search/fastsearch.js --help` lists every flag. The defaults are the site's:
-balanced effort, 5 to 8 ascensions, and leg 1 finishing the ascension in progress
-(`--no-force-continue` turns that off). Ctrl+C stops a search and keeps its best so far.
+Exact effort, 5 to 8 ascensions, leg 1 finishing the ascension in progress
+(`--no-force-continue` turns that off), and every core but one for workers (`--jobs N`).
+Ctrl+C stops a search and keeps its best so far.
 
-**`--submit` sends the result to the board** exactly as the site's Share does (the same
+What the command line says is what the site's panels say: the band checker's "did you mean"
+text for a `--bands` that reads wrong, which ascension counts a sweep tries, the **edge warning**
+(the best route sits on the first or last value of a band, with the wider bands and what they
+cost; `--widen` runs the wider space straight away, reusing the chains already priced),
+and By a date's estimate re-worked from the sets it has finished. `--effort balanced` still
+works: that tier was retired on the site (it ran the same steps as Exact), so it runs Exact and
+says so. With `--available-from/--available-to` the egg shifts wait for your hours inside the
+simulation and the farm keeps laying while it waits, as "Let me pick my hours" does;
+`--no-hold-shifts` (the old "hold shifts" box, gone from the site) is only for reproducing an old
+result and cannot be sent.
+
+**`--submit` sends the result to the board** (with `--yes`; without it the run refuses to start, and a localhost `--collector` needs none) exactly as the site's Share does (the same
 payload, the CSV, the re-checks), anonymously unless you pass `--nickname`. Stopped early, it
 sends what it has, marked partial. `--tag PRESET` files a Full sweep under a Science sweep's
-name. The account's owner code (what folds your sends together and lets you rename them) is
-kept in `--state`, by default `~/.config/autoautoap/cli-state.json`. A what-if
-(`--add-artifact`, `--mod`) is never sent.
+name (`--preset` does it for you). The account's owner code (what folds your sends together and
+lets you rename them) is kept in `--state`, by default `~/.config/autoautoap/cli-state.json`.
+A what-if (`--add-artifact`, `--mod`) is never sent.
 
 **`--backup file.json` runs offline** -- nothing is fetched, unless you `--submit`.
 `--player-id` fetches the save, and `--save-backup` writes it so you only need it once.
+
+### Offline brute force
+
+For a long search on a PC with no internet (a Full sweep, an exhaustive space, a By a date run
+over a big space). Nothing in a search needs the network; only sending does.
+
+1. **Get the save onto the offline PC, once.** On a machine that is online:
+   `node dist-search/fastsearch.js --player-id EI... --save-backup me.json`, or export the game's
+   backup JSON some other way. Copy `me.json` across, along with `dist-search/` (or build it there:
+   `pnpm install` and `pnpm search:build` need the network once; the built `dist-search/` is
+   self-contained and needs only Node 22 or newer).
+2. **Run, writing to a directory.** Give `--start-date/--start-time` if you want to choose the plan
+   start; otherwise the first run's start is pinned in the directory.
+   ```bash
+   node dist-search/fastsearch.js --backup me.json --bands "185-200:5; 215-245:10; 260-300:10" --out run1
+   ```
+   `run1/` gets `run.csv.gz` (the table the site uploads), `submission.json` (what Share would POST,
+   with the run's own save time and TE, so the board does not file it as a what-if) and `checkpoint/`.
+   A queue of chains (`--suggest`, `--neighbours`) gets one `chain-K-Nasc/` folder each.
+3. **If it is killed, restarts or you press Ctrl+C, run the same command again.** It carries on:
+   Smart search from its checkpoint, the Full sweep replaying every chain it already priced,
+   By a date from its saved routes. A different command in the same directory is refused
+   (`--fresh` clears it). A finished run says so and exits.
+4. **Copy `run1/` back to a machine that is online** and send it:
+   ```bash
+   node dist-search/fastsearch.js submit --from run1 --nickname Me --yes
+   ```
+   `submit` prints where it is sending and what, and refuses any collector that is not on this
+   machine unless you add `--yes` ("Not sent. Add --yes to send this to <url>."); `--submit` on a
+   search does the same, before the search starts.
+   (`--anonymous`, `--dry-run` to see what would go without sending it, `--collector URL` for a
+   different board, `--again` to send a result a second time.) Send from one machine, or take
+   `~/.config/autoautoap/cli-state.json` with you: it holds the account's owner code, and a new
+   machine is a new player to the board.
+
+Workers default to your cores minus one, as the site's pool does; `--jobs N` changes it. Each worker
+holds roughly 0.1-0.25 GB of simulator memory, and a sweep keeps every priced chain in the main
+process as well: the progress lines show the process's `rss`, and a very large space needs Node's
+heap limit lifted (`NODE_OPTIONS=--max-old-space-size=8192`). The checkpoint is written about every
+20 seconds and after every batch of `2 x workers` chains (at least 32), so a kill loses a few minutes
+at most. The collector stops taking a table past a size (about 100,000 chains of 8 ascensions);
+the summary still goes, and the CLI says when a table is too big.
 
 The script's own tools are still here for the work the site doesn't do: `--stages` and
 `--grid` price chains you name, `--exhaustive --range` prices every route over one pool, and
@@ -282,7 +342,7 @@ count rather than whatever the slider ended on.
 TE for four ascensions from TE 198 would be about four million chains, a month of computing. So an
 Insane result is the best ON ITS GRID, and the panel, result card and Explorer sweep cards say so
 in words. Durations are jagged -- a leg that misses its Saturday sale jumps by about three days --
-so a Balanced search can land between grid points on something faster: a player's once beat an M3
+so a Smart search can land between grid points on something faster: a player's once beat an M3
 sweep by 0.9 d with 227 259 297, none of which is on that grid.
 
 **Background tabs.** The search never pauses itself. "When this tab is in the background" (next to
@@ -391,8 +451,8 @@ losing patience still leaves you the lower tier's answer.
 | tier | stages | time | measured accuracy |
 |---|---|---|---|
 | `quick` | descent | ~1h05m | 0 / 5 / 5 / 61 / **150** h behind the best found (5 obs) |
-| `balanced` | + 2-D slices | ~2h55m | 1.3 h and 0 h (2 accounts) |
-| `normal` | + count probe | ~3h30m | **exact** — matched the 4913-chain exhaustive (n=1) |
+| `balanced` | (retired on the site and in `fastsearch`: it ran the same steps as `normal`; `--effort balanced` runs `normal`; `autoplan.py` keeps its own) | ~2h55m | 1.3 h and 0 h (2 accounts) |
+| `normal` | + 2-D slices + count probe | ~3h30m | **exact** — matched the 4913-chain exhaustive (n=1) |
 | `thorough` | + 3-D slices | 7–13 h | one 1.665 d win on the alt; nothing to add on the main |
 
 > **Every figure in that table was measured before the last-checkpoint sweep was fixed**, and

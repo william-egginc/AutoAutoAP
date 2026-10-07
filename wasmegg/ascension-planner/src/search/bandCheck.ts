@@ -348,3 +348,35 @@ export function widenEdges(
   }
   return changed ? text : null;
 }
+
+/** What to tell the player when the winner sits on a band's edge. One wording for the Full sweep's
+ *  panel and the command line. */
+export function describeEdge(e: BandEdge): string {
+  return `The best route sits on the edge of band ${e.band} (${e.value} is the ${e.side === 'low' ? 'lowest' : 'highest'} you allowed). There may be a better one just outside.`;
+}
+
+const ascWord = (n: number) => (n === 1 ? '1 ascension' : `${n} ascensions`);
+/** `4`, `4 and 5`, `4, 5 and 6`. */
+function countList(counts: readonly number[]): string {
+  const c = counts.map(String);
+  return c.length < 2 ? c.join('') : `${c.slice(0, -1).join(', ')} and ${c[c.length - 1]}`;
+}
+
+/** Before a Full sweep: which ascension counts it will try, and that no other is looked at. */
+export function coverageBeforeText(
+  counts: readonly number[],
+  /** What to do to try another count: the panel says "add a chain below", the command line names its flag. */
+  hint = 'add a chain below to try another count'
+): string {
+  if (!counts.length) return '';
+  return counts.length === 1
+    ? `This sweep only tries ${ascWord(counts[0])}. A route with more or fewer isn't looked at; ${hint}.`
+    : `This sweep tries ${countList(counts)} ascensions, and no other count.`;
+}
+
+/** After (or during) a Full sweep: what it covered. */
+export function coverageAfterText(minAscensions: number, maxAscensions: number): string {
+  return minAscensions === maxAscensions
+    ? `This sweep only tried ${ascWord(minAscensions)}.`
+    : `This sweep tried ${minAscensions} to ${maxAscensions} ascensions.`;
+}

@@ -25,23 +25,37 @@
  *     the "X4 = 0 mod 4" rule and the "X2 225-231 all tie" rule. Here the start
  *     is pinned once and shared by every chain in the run.
  *
- * THE SITE'S SEARCHES (scripts/siteRun.ts). Smart search (--effort), the Full sweep (--bands) and
- * Highest TE by a date (--by-date / --egg-day) are the planner's own chain-search store, run in
- * Node with the browser's own worker module on worker threads: one implementation, two front ends,
- * so the command line cannot drift from the site. --submit sends a result the way the site does.
+ * THE SITE'S SEARCHES (scripts/siteRun.ts). Smart search (--effort), the Full sweep (--bands,
+ * --suggest or a named Science --preset) and Highest TE by a date (--by-date / --egg-day) are the
+ * planner's own chain-search store, run in Node with the browser's own worker module on worker
+ * threads: one implementation, two front ends, so the command line cannot drift from the site.
+ * --submit sends a result the way the site does.
  *
  * THIS SCRIPT'S OWN TOOLS. --stages/--grid name the chains and price all of them (what autoplan.py
  * drives), --exhaustive --range prices every route over one pool, and --direct runs --effort on
  * this script's evaluator. These are what the what-ifs and diagnostics work with; none of them is
  * something the site does.
  *
- * Fully offline with --backup: nothing is fetched, so an air-gapped machine with a saved
- * backup JSON runs the whole thing. --player-id is the only flag that touches the network.
+ * OFFLINE BRUTE FORCE. Nothing here needs the network except sending. A save as a JSON file
+ * (--backup), a search with --out DIR, and a later `submit --from DIR` on a machine that is online:
+ *
+ *   1. offline PC, once: get the save's JSON onto it (the game's backup, or `--player-id EI...
+ *      --save-backup me.json` on a machine that is online, then copy me.json across).
+ *   2. offline PC: run the search with --out. It writes DIR/run.csv.gz (the table the site uploads)
+ *      and DIR/submission.json (exactly what the site would POST, with the run's own save time and
+ *      TE), and keeps a checkpoint in DIR so a killed run carries on when the same command is run
+ *      again (pin the plan start with --start-date/--start-time, or let the directory pin it).
+ *   3. copy DIR to a machine that is online and run `fastsearch submit --from DIR`.
+ *
+ * Fully offline with --backup: nothing is fetched. --player-id is the only flag that touches the
+ * network for a search; `submit` and --submit are the only things that send.
  *
  * Usage (after `pnpm search:build`; --help has every flag):
  *   node dist-search/fastsearch.js --backup backup.json --effort thorough --find-seed --jobs 12
- *   node dist-search/fastsearch.js --backup backup.json --bands "185-200:5; 215-245:10" --jobs 12 --submit
- *   node dist-search/fastsearch.js --backup backup.json --egg-day --jobs 8
+ *   node dist-search/fastsearch.js --backup backup.json --bands "185-200:5; 215-245:10" --out run1
+ *   node dist-search/fastsearch.js --backup backup.json --preset F4 --out f4
+ *   node dist-search/fastsearch.js submit --from run1
+ *   node dist-search/fastsearch.js --backup backup.json --egg-day --out eggday
  *   node dist-search/fastsearch.js --backup backup.json --exhaustive --range 185:390:5 --prestiges 6-8
  *   node dist-search/fastsearch.js --player-id EI... --stages "195;225-231;270-290;310-330"
  *   node dist-search/fastsearch.js --backup backup.json --grid 195,226,277,317,362 --prestiges 5-8
@@ -60,11 +74,22 @@ import { markRaw } from 'vue';
 import { createPinia, setActivePinia } from 'pinia';
 setActivePinia(createPinia());
 
-import { readFileSync, writeFileSync, unlinkSync, existsSync } from 'node:fs';
-import { homedir } from 'node:os';
+import { readFileSync, writeFileSync, unlinkSync, existsSync, readdirSync, statSync } from 'node:fs';
+import { gunzipSync } from 'node:zlib';
+import { availableParallelism, homedir, totalmem } from 'node:os';
 import { join } from 'node:path';
 import { runSiteSearch, type SiteKind, type SiteRunOptions } from './siteRun';
-import { parseBands } from '@/search/exhaustive';
+import { useChainSearchStore } from '@/stores/chainSearch';
+import { countBanded, formatBands, parseBands, suggestBands, SUGGESTION_CHAIN_BUDGET } from '@/search/exhaustive';
+import { installFileIndexedDb } from './node-idb';
+import { CHECKPOINT_DIR, planOutDir, readRunRecord, writeRunRecord, type RunStatus } from './outDir';
+import {
+  bandCheckLines, checkSendAllowed, chooseEffort, cleanNickname, fitPreset, readOfflineSubmission, runSignature,
+  suggestDeadlineChain, SUBMISSION_FILE, type SuggestedChain,
+} from '@/search/offline';
+import { eggDayYearOf } from '@/lib/eggDay';
+import { sentence } from '@/utils/errors';
+import type { FullSweep } from './siteRun';
 import { parseChainText, parseStopBox } from '@/search/deadline';
 import { nextEggDayYear } from '@/lib/eggDay';
 
@@ -439,8 +464,8 @@ fastsearch - the Ascension Planner's searches, headless.
   Finds the fastest route of ascension checkpoints to a Truth Egg target, or the highest TE you can
   reach by a date, scoring every candidate with the planner's own simulator. Runs offline with
   --backup. The site's three searches run through the site's own code, so a result here and one in
-  the browser, from the same save and settings, are the same result, and --submit sends it the
-  same way.
+  the browser, from the same save and settings, are the same result, and sending it (--submit, or
+  later with \`submit --from\`) is the same send.
 
 ACCOUNT  (one is required)
   --backup FILE.json        A saved backup. Nothing is fetched.
@@ -448,11 +473,20 @@ ACCOUNT  (one is required)
   --save-backup FILE        With --player-id, write the fetched backup for offline reuse.
 
 THE SITE'S SEARCHES  (Auto Planner > Fastest route and Highest TE by a date)
-  --effort TIER             Smart search: homes in from a starting route.
-                            fast|balanced|exact|thorough (the slider's labels; quick|normal also
-                            work). Default balanced. Needs --seed or --find-seed.
+  --effort TIER             Smart search: homes in from a starting route. fast, exact or thorough
+                            (the slider's Fast / Exact / Very high; quick|normal work too). Default
+                            exact. 'balanced' was retired on the site (it ran the same steps as
+                            Exact) and runs Exact here, with a note. Needs --seed or --find-seed.
   --bands "a-b:s; c-d:s"    Full sweep: prices every route with one checkpoint in each band, as
-                            the Full sweep's box (4 bands = 5 ascensions).
+                            the Full sweep's box (4 bands = 5 ascensions). A band that reads wrong
+                            (reversed, below your TE, out of order...) is explained with fixed text.
+  --suggest [N]             Full sweep over the space Suggest a space picks for your TE: N
+                            ascensions (default the usual 6, working down), with the count one lower
+                            and one higher queued at half the size, as the site does.
+  --preset ID               Full sweep of a Science preset (M1-M4, F2, F4, F5, E7-E9), its bands
+                            fitted to your save's TE as the Science tab fits them, filed under the
+                            preset's name. Says so and stops when the preset does not fit your TE.
+                            These fill gaps in the shared data; they are not tuned to find your route.
   --by-date "YYYY-MM-DD HH:MM"
                             Highest TE by a date, in --timezone.
   --egg-day [YEAR]          The same, by Egg Day: 14 July, 9:00 AM Pacific, the next one by default.
@@ -467,32 +501,69 @@ THE SITE'S SEARCHES  (Auto Planner > Fastest route and Highest TE by a date)
 
   Full sweep
   --min-gap N               Checkpoints at least N TE apart.          (default 0)
-  --tag PRESET              File the result under a Science sweep's name (e.g. M2), as the site
-                            does for a sweep run from Science. Only for that sweep's own bands.
+  --neighbours              With --bands: also queue the count one lower and one higher (suggested,
+                            half size). --suggest does this itself; --no-neighbours turns it off.
+  --budget CHAINS           --suggest's size ceiling.                 (default 75,000)
+  --widen [N]               When the best sits on a band's edge, widen that band and run again, up to
+                            N times (default 3). Without it the warning prints the wider bands.
+  --tag NAME                File the result under a Science sweep's name (e.g. M2), as the site does
+                            for a sweep run from Science. Only for that sweep's own bands.
 
-  Highest TE by a date
-  --chain "a-b:s; c-d:s"    "I'll set the stops": one box per chain, one band per stop before the
-                            last; repeat for several chains ("1" for no early stop). Needs --last.
+  Highest TE by a date  ("I'll set the stops", the site's only mode)
+  --chain "a-b:s; c-d:s"    One box per chain, one band per stop before the last; repeat for several
+                            chains ("1" for no early stop). Needs --last.
   --last lo-hi              Where to start looking for the last stop; it looks beyond if it must.
-  Without --chain it picks the stops for you:
-  --min-stops N --max-stops N   Ascensions to try.                    (default 3-5)
-  --thoroughness T          quick|light|standard|thorough|very.       (default standard)
-  --last-hi TE              Highest last stop to look at.             (default your TE + 200)
-  --step N                  Finest first-look grid.                   (default 5)
+  --asc 3,4,5               Without --chain: suggest a chain for each count the way the panel's
+                            Suggest a space does (default 4), with --last picked around your TE.
+  --width TE --step N       How far either side of each suggested stop (default 10), and the step for
+                            every stop after the first (default 2).
   --ascend-needed           Reach the last stop in time to ascend at it in your hours.
+  (The retired "Pick them for me" still runs if you give --min-stops/--max-stops/--thoroughness/
+  --last-hi/--step, to reproduce an old run.)
+
+OFFLINE: FILES, CHECKPOINTS, SENDING LATER
+  --out DIR                 Write DIR/run.csv.gz (the table the site uploads) and DIR/submission.json
+                            (exactly what Share would send) and keep a checkpoint in DIR. A queue of
+                            chains gets DIR/chain-K-Nasc/. Run the SAME command again after a kill,
+                            a restart or Ctrl+C and it carries on: Smart search from its checkpoint,
+                            the Full sweep replaying every chain it priced, By a date from its saved
+                            routes. The first run pins its plan start in DIR, so the run is the same
+                            one; a different command in the same DIR is refused.
+  --fresh                   With --out: throw away DIR's checkpoint and start again.
+  --dry-run                 Say what would run (spaces, chain counts, about how long) and stop.
+  --plain-csv               With --out: also write run.csv, uncompressed.
+  --no-submit-csv           With --out/--submit: leave the table out of the send.
+  --jobs N                  Worker threads. Default: your cores minus one (this machine: see the
+                            line printed at the start). Each worker holds roughly 0.1-0.25 GB of
+                            simulator memory, and a long sweep keeps every priced chain in the main
+                            process too: watch the 'rss' in the progress lines, and lift Node's heap
+                            limit for a very big space with NODE_OPTIONS=--max-old-space-size=8192.
+
+  fastsearch submit --from DIR [--collector URL] [--nickname NAME | --anonymous] [--dry-run] [--yes]
+                            Send what --out left (DIR, or every chain-K-Nasc/ inside it): the same
+                            summary POST and CSV upload the site does, with the run's own save time
+                            and TE, so it is not filed as a what-if. --dry-run posts nothing and
+                            says what would go. A result sent once is not sent again without --again.
+                            It prints where it is sending and what first; to any collector that is
+                            not on this machine (the build's own included) it stops, "Not sent. Add
+                            --yes to send this to <url>.", unless you add --yes.
 
   Sending the result  (the site's Share / Find and submit)
   --submit                  Send it to the board when the search finishes (stopped early with
-                            Ctrl+C, it still sends what it has, marked partial). Includes the CSV.
-  --nickname NAME           Credit a name (up to 40 characters). Anonymous without it.
-  --no-submit-csv           Send the summary only.
+                            Ctrl+C, it still sends what it has, marked partial). Includes the CSV and
+                            the re-checks of your earlier plans, which need the network.
+  --nickname NAME           Credit a name (up to 40 characters). Anonymous without it. Also with --out.
   --collector URL           Where to send (default: the collector this build was made with).
+  --yes                     Needed to send to any collector that is not localhost/127.0.0.1, with
+                            --submit or \`submit\`. Without it the send is refused (non-zero exit,
+                            before a search starts) and nothing leaves this machine.
   --state FILE              Where the account's owner code is kept between runs, so your sends
                             fold together and can be renamed later, as a browser keeps it.
-                            (default ~/.config/autoautoap/cli-state.json)
+                            (default ~/.config/autoautoap/cli-state.json). Send from one machine, or
+                            copy this file with you, or each machine files as a new player.
 
-  Ctrl+C stops a site search and keeps its best so far; Ctrl+C again quits at once. There are no
-  checkpoints here: a stopped run starts again from the top.
+  Ctrl+C stops a site search and keeps its best so far; Ctrl+C again quits at once. Without --out
+  there are no checkpoints: a stopped run starts again from the top.
 
 THIS SCRIPT'S OWN TOOLS  (not on the site; their own evaluator)
   --exhaustive --range lo:hi[:step] --prestiges lo-hi
@@ -505,13 +576,15 @@ THIS SCRIPT'S OWN TOOLS  (not on the site; their own evaluator)
                             what-ifs and diagnostics below.
 
 WHEN YOU CAN PLAY  (changes which route wins, not just the display)
+  Picking hours is the site's "Let me pick my hours": the egg shifts wait for them inside the
+  simulation, and the farm keeps laying (TE keeps collecting) while it waits.
   --available-from H --available-to H
                             Hours you are around, in --timezone (the panel's "Plan around my schedule").
   --sleep-from H --sleep-until H
                             The same thing inverted.
   --available-days sat,sun  Only those days.                          (default every day)
-  --no-hold-shifts          Do not hold the twelve in-ascension shifts for your hours (held by
-                            default, as on the site).
+  --no-hold-shifts          Legacy: the site no longer offers it. Shifts are not held, for reproducing
+                            an old result only; refused with --submit and --out.
   --milestone "248@2027-06-01"
                             Be at that TE by the end of that day; repeatable.
   --time-off DATE[:DATE]    Days off the virtue farm, repeatable (2027-07-14, or 2027-08-01:2027-08-07).
@@ -529,9 +602,11 @@ WHEN THE PLAN STARTS
                             and is the default.)
 
 OUTPUT
-  --jobs N                  Worker threads (site searches) or processes (this script's tools).
-  --csv FILE                Where the CSV of every route priced goes. Defaults to
-                            fastsearch-<timestamp>.csv; --no-csv writes none.
+  --jobs N                  Worker threads (site searches; default cores-1) or processes (this
+                            script's tools; default 1).
+  --csv FILE                Where the plain CSV of every route priced goes. Defaults to
+                            fastsearch-<timestamp>.csv (without --out); --no-csv writes none. For the
+                            tools, --out FILE is the same thing.
   --top N                   Runners-up to print.                      (default 10)
 
 WHAT-IF  (neither edits the save; never with --submit)
@@ -560,10 +635,17 @@ DIAGNOSTICS  (for working on the search itself; --direct, --stages or --grid)
 
 EXAMPLES
   node dist-search/fastsearch.js --backup me.json --effort thorough --find-seed --jobs 12
-  node dist-search/fastsearch.js --backup me.json --bands "185-200:5; 215-245:10; 260-300:10" --jobs 12 \\
-      --submit --nickname Me
-  node dist-search/fastsearch.js --backup me.json --egg-day --chain "138-176:1; 167-187:3" --last 200-240 --jobs 8
+  node dist-search/fastsearch.js --backup me.json --bands "185-200:5; 215-245:10; 260-300:10" --out run1
+  node dist-search/fastsearch.js --backup me.json --preset F4 --out f4        # fitted to your TE
+  node dist-search/fastsearch.js --backup me.json --suggest 5 --widen --out sweep
+  node dist-search/fastsearch.js --backup me.json --egg-day --chain "138-176:1; 167-187:3" --last 200-240 --out eggday
+  node dist-search/fastsearch.js submit --from run1 --nickname Me --yes       # online, later
   node dist-search/fastsearch.js --backup me.json --exhaustive --range 185:390:15 --prestiges 6-7 --jobs 12
+
+OFFLINE BRUTE FORCE, IN SHORT
+  1. Get the save's JSON onto the offline PC (once per save).
+  2. Run with --out DIR, the same command again after any interruption.
+  3. Copy DIR back to an online machine and run: fastsearch submit --from DIR --yes
 `);
 }
 
@@ -1541,18 +1623,14 @@ async function runSharded(jobs: number): Promise<void> {
 }
 
 /**
- * `--effort` as a tier. The panel labels the tiers Fast / Balanced / Exact / Very high while the keys
- * are quick / balanced / normal / thorough. Accept BOTH spellings: someone reaching for the CLI after
- * using the slider will type what the slider said. Balanced by default, as on the site.
+ * `--effort` as a tier (src/search/offline.ts `chooseEffort`): Fast / Exact / Very high as the slider
+ * says them, or the keys quick / normal / thorough. Balanced was retired on the site and runs Exact,
+ * with a note. Exact by default, as on the site.
  */
 function effortTier(): EffortTier {
-  const TIER_ALIASES: Record<string, EffortTier> = { fast: 'quick', exact: 'normal' };
-  const raw = (arg('effort', 'balanced') || '').toLowerCase();
-  const effort = (TIER_ALIASES[raw] ?? raw) as EffortTier;
-  if (!(EFFORT_ORDER as readonly string[]).includes(effort)) {
-    throw new Error('--effort must be one of fast|quick, balanced, exact|normal, thorough (got "' + raw + '")');
-  }
-  return effort;
+  const choice = chooseEffort(arg('effort'));
+  if (choice.note) console.log('effort: ' + choice.note);
+  return choice.tier;
 }
 
 /**
@@ -1561,7 +1639,7 @@ function effortTier(): EffortTier {
  * on this script's own evaluator, which is what the what-ifs and diagnostics need.
  */
 function isSiteMode(): boolean {
-  if (has('bands') || has('by-date') || has('egg-day')) return true;
+  if (has('bands') || has('suggest') || has('preset') || has('by-date') || has('egg-day')) return true;
   return has('effort') && !has('direct');
 }
 
@@ -1572,13 +1650,22 @@ const DIRECT_ONLY = [
   'debug', 'allow-stall',
 ];
 
+/** The value after a flag that may also stand alone (`--suggest`, `--suggest 5`): '' for the bare flag. */
+function optValue(name: string): string {
+  const i = process.argv.indexOf('--' + name);
+  const next = i >= 0 ? process.argv[i + 1] : undefined;
+  return next !== undefined && !next.startsWith('--') ? next : '';
+}
+
 /** Checks that need nothing but argv, run before the save is loaded (see main). */
 function checkSiteFlags(siteMode: boolean): void {
   if (has('submit') && !siteMode) {
-    throw new Error('--submit sends a Smart search (--effort), Full sweep (--bands) or By a date (--by-date) result');
+    throw new Error('--submit sends a Smart search (--effort), Full sweep (--bands, --suggest, --preset) or By a date (--by-date) result');
   }
-  if (has('submit') && (has('mod') || has('add-artifact'))) {
-    throw new Error('--submit with a what-if (--mod, --add-artifact) would put gear you do not own on the board');
+  if ((has('submit') || (siteMode && has('out'))) && (has('mod') || has('add-artifact'))) {
+    throw new Error(
+      `${has('submit') ? '--submit' : '--out'} with a what-if (--mod, --add-artifact) would leave something for the board that is not your gear`
+    );
   }
   if (!siteMode) return;
   const direct = DIRECT_ONLY.filter(f => has(f));
@@ -1589,8 +1676,27 @@ function checkSiteFlags(siteMode: boolean): void {
         'or use --stages / --grid / --exhaustive --range'
     );
   }
-  if (has('bands') && (has('by-date') || has('egg-day'))) throw new Error('--bands is the Full sweep; By a date takes --chain');
-  if (has('nickname') && !has('submit')) throw new Error('--nickname is the name a --submit is sent under: add --submit');
+  const full = ['bands', 'suggest', 'preset'].filter(f => has(f));
+  if (full.length > 1) throw new Error('--' + full.join(' and --') + ' each pick the Full sweep\'s space: use one');
+  if (full.length && (has('by-date') || has('egg-day'))) throw new Error('--' + full[0] + ' is the Full sweep; By a date takes --chain');
+  if (has('preset') && has('min-gap')) throw new Error('--preset has its own minimum gap (it is part of what the preset is): drop --min-gap');
+  if (has('preset') && has('tag')) throw new Error('--preset files the run under its own name: drop --tag');
+  if (has('nickname') && !has('submit') && !has('out')) {
+    throw new Error('--nickname is the name a result is sent under: add --submit, or --out to send it later with `submit --from`');
+  }
+  if (has('no-hold-shifts') && (has('submit') || has('out'))) {
+    throw new Error(
+      '--no-hold-shifts is not something the site offers any more (picking hours holds the shifts): ' +
+        'its results would not be comparable with the board, so it cannot go with --submit or --out'
+    );
+  }
+  if (has('fresh') && !has('out')) throw new Error('--fresh clears an --out directory: add --out DIR');
+  if (has('plain-csv') && !has('out')) throw new Error('--plain-csv adds run.csv to an --out directory: add --out DIR');
+  if (has('widen') && !(has('bands') || has('suggest'))) throw new Error('--widen reruns a Full sweep whose best sits on a band edge: use it with --bands or --suggest');
+  if (has('neighbours') && !has('bands')) throw new Error('--neighbours adds the counts either side to --bands (--suggest does it itself)');
+  if (has('asc') && (has('chain') || !(has('by-date') || has('egg-day')))) {
+    throw new Error('--asc suggests By a date chains: use it with --by-date or --egg-day, without --chain');
+  }
 }
 
 /** The next Egg Day (14 July, 09:00 Pacific) that has not passed, or `--egg-day YEAR`'s. */
@@ -1599,6 +1705,122 @@ function eggDayDeadline(): number {
   const next = process.argv[i + 1];
   const year = next && /^\d{4}$/.test(next) ? +next : nextEggDayYear();
   return getLocalTimestampInTimezone(`${year}-07-14`, '09:00', 'America/Los_Angeles');
+}
+
+/** The spaces a Full sweep will run: a named preset fitted to the save, the space Suggest a space picks,
+ *  or the bands typed, then (for the last two, as the site queues them) the counts either side. */
+function fullSweeps(o: { currentTE: number; final: number }): FullSweep[] {
+  const minGap = Math.max(0, Math.floor(+(arg('min-gap', '0')!)));
+  const budget = has('budget') ? Math.max(100, Math.floor(+arg('budget')!)) : SUGGESTION_CHAIN_BUDGET;
+  const one = (asc: number, text: string, gap: number, tag: string | null, auto: boolean): FullSweep => ({
+    asc, bandsText: text, bands: asc > 1 ? parseBands(text) : [], minGap: gap, tag, auto,
+  });
+  /** The count one lower and one higher, suggested at half the size (the panel's `queueNeighbours`). */
+  const neighbours = (asc: number, taken: number[]): FullSweep[] => {
+    const out: FullSweep[] = [];
+    for (const n of [asc - 1, asc + 1]) {
+      if (n < 1 || n > 12 || taken.includes(n)) continue;
+      if (n === 1) { out.push(one(1, '', 0, null, true)); continue; }
+      const sug = suggestBands(o.currentTE, o.final, n, { maxChains: Math.floor(budget / 2) });
+      if (sug) out.push(one(n, sug.text, minGap, null, true));
+    }
+    return out;
+  };
+
+  if (has('preset')) {
+    const fit = fitPreset(arg('preset') ?? '', o.currentTE, o.final);
+    if (!fit.ok) throw new Error('--preset: ' + fit.reason);
+    console.log(`preset ${fit.id}: ${fit.label}`);
+    console.log(`  fitted to your TE (${Math.floor(o.currentTE)}): ${fit.bands}   minimum gap ${fit.minGap}`);
+    console.log(`  ${fit.chains.toLocaleString()} chains, ${fit.ascensions} ascensions. ${fit.note}`);
+    return [one(fit.ascensions, fit.bands, fit.minGap, fit.id, false)];
+  }
+
+  if (has('suggest')) {
+    const asked = optValue('suggest');
+    const tries = asked ? [Math.floor(+asked)] : [6, 5, 4, 3, 2];
+    if (asked && !(tries[0] >= 2 && tries[0] <= 12)) throw new Error('--suggest: a count of ascensions from 2 to 12');
+    for (const n of tries) {
+      const sug = suggestBands(o.currentTE, o.final, n, { maxChains: budget });
+      if (!sug) continue;
+      console.log(
+        `suggested for ${n} ascensions (${sug.kind === 'complete' ? (sug.exact ? 'every reachable TE, a complete sweep' : 'every 2nd TE') : 'the measured shape'}, ` +
+          `${sug.chains.toLocaleString()} chains): ${sug.text}`
+      );
+      const list = [one(n, sug.text, minGap, null, false)];
+      if (!has('no-neighbours')) list.push(...neighbours(n, [n]));
+      return list.sort((x, y) => x.asc - y.asc);
+    }
+    throw new Error(`--suggest: no space to suggest ${asked ? `for ${asked} ascensions` : 'at this TE'} (try --bands, or --budget with a larger size)`);
+  }
+
+  const text = (arg('bands') ?? '').trim();
+  const bands = text ? parseBands(text) : [];
+  if (!bands.length) throw new Error('--bands: nothing readable, e.g. "185-200:5; 215-245:10"');
+  // What the band checker would say in the site's box: said, never acted on.
+  for (const line of bandCheckLines(text, { currentTE: o.currentTE, finalTE: o.final })) console.log(line);
+  const tag = arg('tag') ?? null;
+  // The site's own rule for a sweep tag (search/sweepRequest.ts): it is shown on the board.
+  if (tag !== null && !/^[A-Za-z0-9-]{1,16}$/.test(tag)) throw new Error('--tag: up to 16 letters, digits or dashes');
+  const list = [one(bands.length + 1, text, minGap, tag, false)];
+  if (has('neighbours')) list.push(...neighbours(bands.length + 1, [bands.length + 1]));
+  return list.sort((x, y) => x.asc - y.asc);
+}
+
+/** By a date's chains: the ones typed with --chain, else suggested the way the panel's Suggest a space
+ *  does (--asc, default 4). The last-stop range comes with them. */
+function dateChains(o: { currentTE: number }): {
+  chains: { asc: number; bands: number[][] }[] | null;
+  lastRange: [number, number] | null;
+} {
+  const chainTexts = argAll('chain');
+  const picked = ['min-stops', 'max-stops', 'thoroughness', 'last-hi', 'step'].some(f => has(f));
+  if (!chainTexts.length && picked && !has('asc')) {
+    console.log('by a date: "Pick them for me" was retired on the site; running it as asked (to reproduce an old run)');
+    return { chains: null, lastRange: null };
+  }
+  let chains: { asc: number; bands: number[][] }[];
+  let lastRange: [number, number] | null = null;
+  if (chainTexts.length) {
+    chains = chainTexts.map(text => {
+      const t = text.trim();
+      if (t === '1' || t === 'none') return { asc: 1, bands: [] };
+      const b = parseChainText(t);
+      if (!b.length) throw new Error('--chain: nothing readable in "' + t + '" (one band per early stop, ; between)');
+      return { asc: b.length + 1, bands: b };
+    });
+    const v = parseStopBox(arg('last') ?? '', 1);
+    if (!v.length) throw new Error('--chain needs --last lo-hi: where to start looking for the last stop');
+    lastRange = [Math.max(v[0], Math.floor(o.currentTE) + 1), Math.min(490, v[v.length - 1])];
+    // The same check the panel's box gets: said, never acted on.
+    chainTexts.forEach((text, k) => {
+      if (chains[k].asc > 1) {
+        for (const line of bandCheckLines(text, { currentTE: o.currentTE, finalTE: 490 }, '--chain')) {
+          console.log(`  chain ${k + 1}: ${line.trim()}`);
+        }
+      }
+    });
+  } else {
+    const counts = [...new Set((arg('asc', '4') ?? '4').split(',').map(t => Math.floor(+t.trim())))].filter(n => n >= 1 && n <= 8);
+    if (!counts.length) throw new Error('--asc: ascension counts from 1 to 8, e.g. 3,4,5');
+    const halfWidth = +(arg('width', '10')!);
+    const step = +(arg('step', '2')!);
+    chains = [];
+    for (const n of counts.sort((a, b) => a - b)) {
+      const sug = suggestDeadlineChain(o.currentTE, n, { halfWidth, step });
+      if (!sug) throw new Error(`--asc ${n}: the stops do not fit between your TE and the last stop; try fewer ascensions`);
+      const parsed: SuggestedChain = sug.chain;
+      chains.push({ asc: parsed.asc, bands: parsed.asc > 1 ? parseChainText(parsed.text) : [] });
+      console.log(`suggested chain for ${n} ascension${n === 1 ? '' : 's'}: ${parsed.text || '(no early stop: keep going on this farm)'}`);
+      lastRange = lastRange ?? sug.lastRange;
+    }
+    if (has('last')) {
+      const v = parseStopBox(arg('last')!, 1);
+      if (!v.length) throw new Error('--last: lo-hi, e.g. 200-240');
+      lastRange = [Math.max(v[0], Math.floor(o.currentTE) + 1), Math.min(490, v[v.length - 1])];
+    }
+  }
+  return { chains, lastRange };
 }
 
 /** Everything scripts/siteRun.ts needs, from the flags and the loaded save. */
@@ -1613,7 +1835,7 @@ function siteOptions(o: {
   milestones: Milestone[];
   currentTE: number;
 }): SiteRunOptions {
-  const kind: SiteKind = has('by-date') || has('egg-day') ? 'by-date' : has('bands') ? 'full' : 'smart';
+  const kind: SiteKind = has('by-date') || has('egg-day') ? 'by-date' : has('bands') || has('suggest') || has('preset') ? 'full' : 'smart';
 
   const seedArg = arg('seed');
   const seed = seedArg
@@ -1623,13 +1845,9 @@ function siteOptions(o: {
     throw new Error('--effort needs a starting point: pass --seed "195 219 248" or --find-seed');
   }
 
-  const bandsText = (arg('bands') ?? '').trim();
-  const bands = bandsText ? parseBands(bandsText) : [];
-  if (kind === 'full' && !bands.length) throw new Error('--bands: nothing readable, e.g. "185-200:5; 215-245:10"');
-  const minGap = Math.max(0, Math.floor(+(arg('min-gap', '0')!)));
-  const tag = arg('tag') ?? null;
-  // The site's own rule for a sweep tag (search/sweepRequest.ts): it is shown on the board.
-  if (tag !== null && !/^[A-Za-z0-9-]{1,16}$/.test(tag)) throw new Error('--tag: up to 16 letters, digits or dashes');
+  const sweeps = kind === 'full' ? fullSweeps({ currentTE: o.currentTE, final: o.final }) : [];
+  const widenArg = optValue('widen');
+  const widen = has('widen') ? (widenArg ? Math.max(0, Math.floor(+widenArg)) : 3) : 0;
 
   let deadline = 0;
   if (has('egg-day')) deadline = eggDayDeadline();
@@ -1638,26 +1856,13 @@ function siteOptions(o: {
     if (!m) throw new Error('--by-date must look like "2027-03-01 18:00" (in --timezone), or use --egg-day');
     deadline = getLocalTimestampInTimezone(m[1], m[2], o.tz);
   }
-  const chainTexts = argAll('chain');
-  const chains = chainTexts.length
-    ? chainTexts.map(text => {
-        const t = text.trim();
-        if (t === '1' || t === 'none') return { asc: 1, bands: [] };
-        const b = parseChainText(t);
-        if (!b.length) throw new Error('--chain: nothing readable in "' + t + '" (one band per early stop, ; between)');
-        return { asc: b.length + 1, bands: b };
-      })
-    : null;
-  let lastRange: [number, number] | null = null;
-  if (kind === 'by-date' && chains) {
-    const v = parseStopBox(arg('last') ?? '', 1);
-    if (!v.length) throw new Error('--chain needs --last lo-hi: where to start looking for the last stop');
-    lastRange = [Math.max(v[0], Math.floor(o.currentTE) + 1), Math.min(490, v[v.length - 1])];
-  }
+  const { chains, lastRange } = kind === 'by-date' ? dateChains({ currentTE: o.currentTE }) : { chains: null, lastRange: null };
   const THOROUGH: Record<string, number> = { quick: 500, light: 1500, standard: 3000, thorough: 6000, very: 12000 };
   const thorough = (arg('thoroughness', 'standard') ?? 'standard').toLowerCase();
   if (!(thorough in THOROUGH)) throw new Error('--thoroughness: quick, light, standard, thorough or very');
 
+  const nickname = cleanNickname(arg('nickname') ?? '');
+  const withCsv = !has('no-submit-csv');
   return {
     kind,
     account: arg('player-id') ?? (useInitialStateStore() as any).rawBackup?.eiUserId ?? 'file',
@@ -1677,10 +1882,8 @@ function siteOptions(o: {
     minPrestiges: +(arg('min-prestiges', '5')!),
     maxPrestiges: +(arg('max-prestiges', '8')!),
     pin: +(arg('pin', '0')!),
-    bandsText,
-    bands,
-    minGap,
-    tag,
+    sweeps,
+    widen,
     deadline,
     chains,
     lastRange,
@@ -1690,39 +1893,200 @@ function siteOptions(o: {
     step: +(arg('step', '5')!),
     maxShapes: THOROUGH[thorough],
     ascendNeeded: has('ascend-needed'),
-    submit: has('submit') ? { nickname: (arg('nickname') ?? '').trim().slice(0, 40), csv: !has('no-submit-csv') } : null,
-    csvPath: resolveCsvPath(),
+    submit: has('submit') ? { nickname, csv: withCsv, yes: has('yes') } : null,
+    out: has('out') && !has('dry-run') ? { dir: arg('out')!, nickname, csv: withCsv, plainCsv: has('plain-csv') } : null,
+    csvPath: has('out') ? (has('csv') ? arg('csv')! : null) : resolveCsvPath(),
     top: +(arg('top', '10')!),
+    resume: has('out') && !has('dry-run'),
+    dryRun: has('dry-run'),
+    onStatus: has('dry-run') ? undefined : outStatus,
   };
+}
+
+/** Set by main when --out is given: records how the run is going in DIR/run.json. */
+let outStatus: ((status: RunStatus) => void) | undefined;
+
+// ------------------------------------------------------------------ submit --from
+
+/** The folders under `dir` (or `dir` itself) that hold a submission file, in name order. */
+function submissionDirs(dir: string): string[] {
+  if (existsSync(join(dir, SUBMISSION_FILE))) return [dir];
+  if (!existsSync(dir) || !statSync(dir).isDirectory()) return [];
+  return readdirSync(dir)
+    .sort()
+    .map(name => join(dir, name))
+    .filter(d => statSync(d).isDirectory() && existsSync(join(d, SUBMISSION_FILE)));
+}
+
+/**
+ * `fastsearch submit --from DIR`: send what `--out` left, the way the site's Share sends it. The
+ * summary is the file's payload as it was built when the run finished (so it carries the run's own
+ * save time, TE and plan start, and is not filed as a what-if); the table is run.csv.gz, uncompressed
+ * and sent through the same upload the site uses. Returns the exit code.
+ */
+async function submitCommand(): Promise<number> {
+  const from = arg('from');
+  if (!from) throw new Error('submit needs --from DIR (the --out directory of a run)');
+  const dirs = submissionDirs(from);
+  if (!dirs.length) throw new Error(`no ${SUBMISSION_FILE} in ${from} (or in its chain-K folders): run with --out first`);
+
+  // Before the store is first used: it reads the collector once, and the owner code from storage.
+  const collector = arg('collector');
+  if (collector) (globalThis as any).__AAP_SUBMIT_URL__ = collector.replace(/\/?$/, '').replace(/(\/submit)?$/, '/submit');
+  const dry = has('dry-run');
+  if (has('anonymous') && has('nickname')) throw new Error('--anonymous and --nickname together: pick one');
+  persistLocalStorage(arg('state') ?? join(homedir(), '.config', 'autoautoap', 'cli-state.json'));
+
+  const store = useChainSearchStore();
+  if (!store.submitUrl) {
+    throw new Error('no collector configured in this build: pass --collector URL (the board\'s /submit address)');
+  }
+  // The one place a stray run could post to the real board: a destination that is not this machine
+  // is only used when the person said --yes. (What goes is listed per result just below.)
+  const allowed = checkSendAllowed(store.submitUrl, has('yes'));
+  console.log(`${dry ? 'dry run: nothing is sent. Would send' : allowed.ok ? 'sending' : 'would send'} ${dirs.length} result${dirs.length === 1 ? '' : 's'} to ${store.submitUrl}`);
+  if (!dry && !allowed.ok) {
+    for (const dir of dirs) {
+      try {
+        const f = readOfflineSubmission(readFileSync(join(dir, SUBMISSION_FILE), 'utf8'));
+        if (f.ok) {
+          const p = f.value.payload;
+          console.log(`  ${dirs.length > 1 ? dir : from}: ${f.value.kind} result ${p.chain.join(' ')}, ${p.nickname ? `as "${p.nickname}"` : 'anonymously'}`);
+        }
+      } catch {
+        /* the listing is a courtesy; the refusal below is the point */
+      }
+    }
+    console.error(allowed.message);
+    return 1;
+  }
+
+  let failed = 0;
+  for (const dir of dirs) {
+    const name = dirs.length > 1 ? dir : from;
+    const sent = join(dir, 'submitted.json');
+    if (existsSync(sent) && !has('again')) {
+      console.log(`${name}: already sent (${JSON.parse(readFileSync(sent, 'utf8')).at ?? 'earlier'}); --again sends it once more`);
+      continue;
+    }
+    const read = readOfflineSubmission(readFileSync(join(dir, SUBMISSION_FILE), 'utf8'));
+    if (!read.ok) {
+      console.error(`${name}: ${SUBMISSION_FILE} is not usable: ${read.error}`);
+      failed++;
+      continue;
+    }
+    const file = read.value;
+    let payload = file.payload;
+    if (has('anonymous')) {
+      const { nickname: _drop, ...rest } = payload;
+      payload = rest as typeof payload;
+    } else if (has('nickname')) {
+      payload = { ...payload, nickname: cleanNickname(arg('nickname') ?? '') || undefined };
+    }
+
+    let csv: string | undefined;
+    if (file.csv && !has('no-submit-csv')) {
+      const csvFile = join(dir, file.csv);
+      if (!existsSync(csvFile)) {
+        console.error(`${name}: ${file.csv} is missing next to ${SUBMISSION_FILE}. Copy it too, or add --no-submit-csv to send the summary alone.`);
+        failed++;
+        continue;
+      }
+      const raw = readFileSync(csvFile);
+      try {
+        csv = (/\.gz$/.test(file.csv) ? gunzipSync(raw) : raw).toString('utf8');
+      } catch {
+        console.error(`${name}: ${file.csv} could not be read (damaged in the copy?)`);
+        failed++;
+        continue;
+      }
+    }
+    const what = `${payload.chain.join(' ')}, ${payload.durationDays} d, ${payload.nickname ? `as "${payload.nickname}"` : 'anonymously'}${file.stoppedEarly ? ', partial' : ''}${csv ? `, table ${csv.length < 102400 ? `${Math.max(1, Math.round(csv.length / 1024))} KB` : `${(csv.length / 1048576).toFixed(1)} MB`}` : ', no table'}`;
+    if (dry) {
+      console.log(`${name}: would send ${file.kind} result ${what}`);
+      continue;
+    }
+    console.log(`${name}: sending ${what}`);
+    const res = await store.sendSubmission(payload, csv, { partition: file.partition, resultKey: file.resultKey });
+    const year = payload.deadline !== undefined ? eggDayYearOf(payload.deadline) : null;
+    const tail = file.kind === 'by-date' ? ` It's on Compare > ${year ? `Egg Day ${year}` : 'By a date'}.` : '';
+    console.log(`  ${res.ok ? (res.duplicate === 'exact' ? res.message : `Thanks! ${sentence(res.message)}`) + tail : `Not sent: ${res.message}`}`);
+    if (res.ok) writeFileSync(sent, JSON.stringify({ at: new Date().toISOString(), message: res.message }, null, 2));
+    else failed++;
+  }
+  return failed ? 1 : 0;
 }
 
 async function main() {
   if (has('help') || process.argv.length <= 2) return printHelp();
+  // `submit` is a command, not a search: it sends what an earlier --out left, and needs no save.
+  if (process.argv[2] === 'submit') {
+    process.exitCode = await submitCommand();
+    return;
+  }
 
   const t0 = Date.now();
-  const jobs = +(arg('jobs', '1')!);
   // `runSharded` forks one child per shard of a FIXED candidate list and merges their CSVs. The
   // staged search has no fixed list -- it decides the next batch from the last one's answer -- so
   // it does its own parallelism with a persistent pool instead. A worker must never re-shard.
   // The site's searches (scripts/siteRun.ts) run on worker threads of their own, sized by --jobs.
   const siteMode = isSiteMode();
+  // Worker threads for the site's searches: every core but one by default, as the site's own pool
+  // does (search/batch.ts `maxPoolSize`). The script's own tools fork processes and stay at 1.
+  const jobs = has('jobs') ? +arg('jobs')! : siteMode ? Math.max(1, availableParallelism() - 1) : 1;
+  if (!Number.isFinite(jobs) || jobs < 1) throw new Error('--jobs must be a whole number of at least 1');
   const planMode = has('effort') || has('exhaustive') || siteMode;
   checkSiteFlags(siteMode);
+  let pinned: ReturnType<typeof readRunRecord> = null;
+  let outRecord: (() => void) | undefined;
   if (siteMode) {
     // Before the store is first used: it reads the collector once, and the owner code from storage.
     const collector = arg('collector');
     if (collector) (globalThis as any).__AAP_SUBMIT_URL__ = collector.replace(/\/?$/, '').replace(/(\/submit)?$/, '/submit');
-    if (has('submit') || has('state')) {
+    if (has('submit') || has('state') || (has('out') && !has('dry-run'))) {
       persistLocalStorage(arg('state') ?? join(homedir(), '.config', 'autoautoap', 'cli-state.json'));
+    }
+    if (has('out') && !has('dry-run')) {
+      const dir = arg('out');
+      if (!dir || dir.startsWith('--')) throw new Error('--out needs a directory');
+      const signature = runSignature(process.argv.slice(2));
+      const plan = planOutDir(dir, signature, has('fresh'));
+      if (plan.action === 'finished') {
+        console.log(`${dir} already holds a finished run of this command (${plan.record.updatedAt}).`);
+        console.log(`  send it: fastsearch submit --from ${dir}      run it again: add --fresh`);
+        return;
+      }
+      pinned = plan.record;
+      // The store's own checkpoints and saved runs, as files in the directory.
+      installFileIndexedDb(join(dir, CHECKPOINT_DIR));
+      console.log(
+        plan.action === 'resume'
+          ? `--out ${dir}: carrying on a run that was ${plan.record.status === 'running' ? 'interrupted' : plan.record.status} (plan start ${plan.record.startDate} ${plan.record.startTime} ${plan.record.timezone}, from the directory)`
+          : `--out ${dir}: a new run; its checkpoint is kept in ${join(dir, CHECKPOINT_DIR)}`
+      );
+      outRecord = () => {};
     }
   }
   if (jobs > 1 && !arg('shard') && !planMode && !has('worker')) return runSharded(jobs);
+  if (siteMode) {
+    const cores = availableParallelism();
+    const mb = Math.round(totalmem() / 1048576);
+    console.log(
+      `workers: ${jobs} of ${cores} cores${has('jobs') ? '' : ' (the default is cores minus one; --jobs N changes it)'}. ` +
+        `Each holds roughly 0.1-0.25 GB of simulator memory, so about ${(jobs * 0.25).toFixed(1)} GB at most, of this machine's ${(mb / 1024).toFixed(0)} GB, ` +
+        `plus the priced chains in the main process.`
+    );
+    if (jobs > cores) console.warn(`  warning: --jobs ${jobs} is more than the ${cores} cores here; it is held to ${cores}.`);
+    if (jobs * 0.25 * 1024 > mb * 0.8) {
+      console.warn('  warning: that may be more memory than this machine has free. Use fewer workers if it starts swapping or is killed.');
+    }
+  }
 
   // Argument parsing and validation runs BEFORE the backup is touched. Every check in here is
   // pure -- it reads argv and nothing else -- and leaving it below `loadPlayer()` meant a typo'd
   // hour was reported only after a file read, or after a --player-id round trip to the API. Fail
   // on the flags first; the account is the expensive part.
-  const tz = arg('timezone', Intl.DateTimeFormat().resolvedOptions().timeZone)!;
+  const tz = arg('timezone') ?? pinned?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   // When the player can act, in `tz`. Two spellings of the same thing:
   //   --available-from 7 --available-to 23 [--available-days sat,sun]
@@ -1751,11 +2115,10 @@ async function main() {
     throw new Error('use --sleep-from/--sleep-until OR --available-from/--available-to, not both');
   }
 
-  // Hold each SHIFT for the schedule too, not just the prestige between ascensions. ON by
-  // default whenever a schedule is set, matching the browser panel's own default: it is what
-  // "plan around my schedule" plainly means, and without it the search reports night shifts and
-  // plans around none of them. `--no-hold-shifts` restores the reported-but-free behaviour every
-  // accuracy figure before this feature was measured with.
+  // Hold each SHIFT for the schedule too, not just the prestige between ascensions. Always, with hours,
+  // on the site: picking hours means the shifts wait for them inside the simulation and the farm keeps
+  // laying while it waits (the old "hold shifts" checkbox is gone). `--no-hold-shifts` is kept only to
+  // reproduce a result from before that, and the flag checks refuse it with --submit and --out.
   const deferShifts = !has('no-hold-shifts');
 
   let availability: Availability | null = null;
@@ -1794,8 +2157,8 @@ async function main() {
     console.log(
       'available: ' + describeAvailability(availability) +
         (deferShifts
-          ? '  (prestiges AND the twelve per-ascension shifts are pushed into it and charged)'
-          : '  (prestiges are pushed into it and charged; shifts are reported only, as --no-hold-shifts asks)')
+          ? '  (prestiges AND the twelve per-ascension shifts wait for it inside the simulation, and the farm keeps laying while it waits)'
+          : '  (prestiges wait for it; shifts do not, as the legacy --no-hold-shifts asks: the site no longer offers this)')
     );
   }
 
@@ -1810,8 +2173,25 @@ async function main() {
       .formatToParts(new Date())
       .map(p => [p.type, p.value])
   );
-  const startDate = arg('start-date', `${nowParts.year}-${nowParts.month}-${nowParts.day}`)!;
-  const startTime = arg('start-time', nowParts.hour + ':00')!;
+  // With --out, the first run's start is kept in the directory, so running the same command again
+  // prices against the same clock and finds its checkpoint.
+  const startDate = arg('start-date') ?? pinned?.startDate ?? `${nowParts.year}-${nowParts.month}-${nowParts.day}`;
+  const startTime = arg('start-time') ?? pinned?.startTime ?? nowParts.hour + ':00';
+  if (outRecord) {
+    const dir = arg('out')!;
+    const first = pinned?.createdAt ?? new Date().toISOString();
+    outStatus = status =>
+      writeRunRecord(dir, {
+        format: 1,
+        signature: runSignature(process.argv.slice(2)),
+        status,
+        startDate,
+        startTime,
+        timezone: tz,
+        createdAt: first,
+        updatedAt: new Date().toISOString(),
+      });
+  }
   const planStart = getLocalTimestampInTimezone(startDate, startTime, tz);
 
   // --milestone "248@2027-06-01", repeatable. A chain that misses one is not a candidate at all -

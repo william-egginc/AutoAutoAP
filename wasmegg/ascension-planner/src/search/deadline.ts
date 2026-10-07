@@ -233,6 +233,33 @@ export function countBandShapes(bands: number[][], currentTE: number, lastHi: nu
 }
 
 /**
+ * Sets of early stops across several chains, each one tried once however many chains list it: two
+ * chains with the same number of ascensions can share some. Counted by listing them when that is
+ * cheap; past that (or when no two chains share a length) the plain sum is close enough for an
+ * estimate. A chain whose bands do not make `asc - 1` stops counts nothing. Shared by the panel and
+ * the command line, so the two estimates agree.
+ */
+export function countSpaceShapes(
+  rows: { asc: number; bands: number[][] }[],
+  currentTE: number,
+  lastHi: number
+): number {
+  const counts = rows.map(row =>
+    row.asc <= 1 ? 1 : row.bands.length === row.asc - 1 ? countBandShapes(row.bands, currentTE, lastHi) : 0
+  );
+  const total = counts.reduce((a, b) => a + b, 0);
+  const asc = rows.filter((_, k) => counts[k] > 0).map(r => Math.max(1, Math.floor(r.asc)));
+  if (new Set(asc).size === asc.length || total > 50_000) return total;
+  const seen = new Set<string>();
+  rows.forEach((row, k) => {
+    if (!counts[k]) return;
+    const list = row.asc <= 1 ? [[]] : bandShapes(row.bands, currentTE, lastHi);
+    for (const s of list) seen.add(s.join(','));
+  });
+  return seen.size;
+}
+
+/**
  * One box's text as values: `160-200:10`, `175`, or several of either joined by commas
  * (`138-142:1, 150, 160-180:5`). Sorted, duplicates dropped. Same notation as Insane's bands.
  */

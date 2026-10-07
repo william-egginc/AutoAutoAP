@@ -10,6 +10,7 @@
  * persist a player list or a plan library - it just needs the reads to not throw.
  */
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 
 /**
@@ -55,6 +56,11 @@ function memoryStorage(): MemoryStorage {
  * the command line would read as a new player. Loads what the file holds, then writes on every
  * change. Mode 0600: the owner code is a claim on the rows.
  */
+const KEPT_PREFIXES = [
+  'aap-owner:', // the owner code (search/owner.ts)
+  'aap-submitted:', // results already sent (chainSearch.ts `rememberSent`)
+  'aap.deadline', // By a date's measured speed and routes per set
+];
 export function persistLocalStorage(file: string): void {
   const store = g.localStorage as MemoryStorage;
   try {
@@ -67,6 +73,9 @@ export function persistLocalStorage(file: string): void {
     const out: Record<string, string> = {};
     for (let i = 0; i < store.length; i++) {
       const k = store.key(i)!;
+      // Only what a later run wants back. The page's run marks, black box and step-away options are
+      // rewritten every few seconds while a search goes and mean nothing to the next process.
+      if (!kept(k)) continue;
       out[k] = store.getItem(k)!;
     }
     fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -74,13 +83,14 @@ export function persistLocalStorage(file: string): void {
   };
   const set = store.setItem.bind(store);
   const remove = store.removeItem.bind(store);
+  const kept = (k: string) => KEPT_PREFIXES.some(p => k.startsWith(p));
   store.setItem = (k: string, v: string) => {
     set(k, v);
-    write();
+    if (kept(k)) write();
   };
   store.removeItem = (k: string) => {
     remove(k);
-    write();
+    if (kept(k)) write();
   };
 }
 
@@ -90,6 +100,12 @@ if (!g.localStorage) g.localStorage = memoryStorage();
 if (!g.sessionStorage) g.sessionStorage = memoryStorage();
 if (!g.window) g.window = g;
 // The store listens for page events (visibility, unload) that a command line never has.
+// The step-away watcher records the page's address in its run mark (composables/useStepAway.ts).
+if (!g.location) {
+  g.location = { href: 'cli://fastsearch/', origin: 'cli://fastsearch', pathname: '/', search: '', hash: '', host: 'fastsearch', hostname: 'fastsearch', protocol: 'cli:' };
+}
+// A BroadcastChannel keeps a Node process alive after its work is done; there is no other tab to talk to.
+if (typeof g.BroadcastChannel !== 'undefined') g.BroadcastChannel = undefined;
 if (typeof g.addEventListener !== 'function') g.addEventListener = () => {};
 if (typeof g.removeEventListener !== 'function') g.removeEventListener = () => {};
 // The send waits a frame before its heavy work so the page can paint (search/submission.ts `afterPaint`).
@@ -104,7 +120,15 @@ if (!g.document) {
     body: { appendChild() {}, removeChild() {} },
   };
 }
-if (!g.navigator) g.navigator = { userAgent: 'node', language: 'en-US' };
+// Node before 21 has no `navigator`; the worker pool sizes itself from navigator.hardwareConcurrency
+// (search/batch.ts), and without it a 12-worker request would be held to 4.
+if (!g.navigator) {
+  g.navigator = {
+    userAgent: 'node',
+    language: 'en-US',
+    hardwareConcurrency: typeof os.availableParallelism === 'function' ? os.availableParallelism() : os.cpus().length,
+  };
+}
 // The plan-library code path (lib/storage/db) is never called by the search, but
 // its module-level feature checks look for indexedDB; leaving it undefined is
 // fine as long as it exists as a property.

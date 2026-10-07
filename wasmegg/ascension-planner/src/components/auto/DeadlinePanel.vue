@@ -807,7 +807,7 @@ const kept = {
 </script>
 
 <script setup lang="ts">
-import { estimateNote, roundedRoutes } from '@/search/deadlineEstimate';
+import { estimateNote, plannedRoutes as plannedRoutesFor, roundedRoutes } from '@/search/deadlineEstimate';
 import FindBar from './FindBar.vue';
 import BandCheckNotice from './BandCheckNotice.vue';
 import StepAwayOptions from './StepAwayOptions.vue';
@@ -821,9 +821,9 @@ import { useInitialStateStore } from '@/stores/initialState';
 import { getLocalTimestampInTimezone } from '@/lib/events';
 import { formatInZone } from '@/search/csv';
 import {
-  bandShapes,
   countBandShapes,
   countShapes,
+  countSpaceShapes,
   parseChainText,
   parseStopBox,
   stepForBudget,
@@ -1143,19 +1143,15 @@ watch(
  * some, and the run tries each once -- so they are counted once, by listing them, when that is
  * cheap; past that the plain sum is close enough for an estimate.
  */
-const spaceShapes = computed(() => {
-  const counts = chains.value.map((_, k) => rowShapes(k));
-  const total = counts.reduce((a, b) => a + b, 0);
-  const asc = chains.value.filter((r, k) => counts[k] > 0).map(r => Math.max(1, Math.floor(r.asc)));
-  if (new Set(asc).size === asc.length || total > 50_000 || !lastRange.value) return total;
-  const seen = new Set<string>();
-  chains.value.forEach((row, k) => {
-    if (!counts[k]) return;
-    const list = row.asc <= 1 ? [[]] : bandShapes(rowBands(k), store.currentTE, lastRange.value![1]);
-    for (const s of list) seen.add(s.join(','));
-  });
-  return seen.size;
-});
+const spaceShapes = computed(() =>
+  lastRange.value
+    ? countSpaceShapes(
+        chains.value.map((row, k) => ({ asc: row.asc, bands: rowBands(k) })),
+        store.currentTE,
+        lastRange.value[1]
+      )
+    : 0
+);
 
 // ------------------------------------------------------------------ estimate and live progress
 
@@ -1181,14 +1177,15 @@ const plannedShapes = computed(() => (mode.value === 'space' ? spaceShapes.value
  * round), else the typical figure. A real 8,632-set run took ~4 a set, not ~11.
  */
 const rememberedPerSet = computed(() => (mode.value === 'space' ? store.deadlineRoutesPerSet : 0));
-const plannedRoutes = computed(() => {
-  const n = plannedShapes.value;
-  if (!n) return 0;
-  const k = Math.max(1, Math.min(16, Math.floor(store.workerBudget / n)));
-  const perShape =
-    k === 1 ? rememberedPerSet.value || PROBES.value : k * (Math.ceil(Math.log(lastWidth.value) / Math.log(k + 1)) + 1);
-  return Math.round(n * perShape * (mode.value === 'auto' ? 1.2 : 1));
-});
+const plannedRoutes = computed(() =>
+  plannedRoutesFor({
+    sets: plannedShapes.value,
+    workers: store.workerBudget,
+    currentTE: store.currentTE,
+    rememberedPerSet: rememberedPerSet.value,
+    picked: mode.value === 'auto',
+  })
+);
 /**
  * Seconds of one worker per route: this machine's own measure from its last deadline run, else the
  * typical figure for routes this long in players' runs. Charged through `sweepSeconds`, which counts
