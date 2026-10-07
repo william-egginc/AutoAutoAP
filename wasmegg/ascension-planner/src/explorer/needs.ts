@@ -246,7 +246,7 @@ const GEAR_ASKS: Omit<DataNeed, 'preset' | 'runs' | 'have' | 'group'>[] = [
   {
     id: 'gear-epic-everything',
     title: 'Epic everything',
-    why: 'The middle ground between the weakest and strongest gear, so tables can be estimated between them.',
+    why: 'The middle ground between the weakest and strongest gear, so the instant answer can be estimated for gear in between.',
     who: 'players with this epic set, earnings and delivery',
     want: 1,
     gear: {
@@ -258,7 +258,7 @@ const GEAR_ASKS: Omit<DataNeed, 'preset' | 'runs' | 'have' | 'group'>[] = [
   {
     id: 'gear-rare-everything',
     title: 'Rare everything',
-    why: 'Checks the lowest table (all common gear) against a real account between it and the weakest player.',
+    why: 'Checks the instant answer for all-common gear against a real account between it and the weakest player.',
     who: 'players with this rare set, earnings and delivery',
     want: 1,
     gear: {
@@ -286,15 +286,15 @@ const GEAR_ASKS: Omit<DataNeed, 'preset' | 'runs' | 'have' | 'group'>[] = [
 ];
 
 /**
- * The Highest TE by a date asks, sized as "start it in the morning, come back at night": about 8 to 12
- * hours on a desktop (8 cores) at TE 180, by the same speed model as the other cards (`byDateSets`,
+ * The Highest TE by a date asks, sized as "start it in the morning, come back at night": about 7 to 10
+ * hours on a desktop (8 cores) at TE 180 (8.4, 6.8 and 9.6 h at the 7 Oct 2026 speeds), by the same speed model as the other cards (`byDateSets`,
  * `byDateSeconds`). Nothing here is detected from the rows: they stay listed.
  *
  * Why these widths. 1 to 4 ascensions is one card (4 ascensions on the 195-250 / 230-295 boxes at every
  * 2nd / 3rd TE would be 19,036 sets, 66 h, so it is thinned to every 5th / 10th: 2,433). 5 and 6 are one
  * card each (7 and 8 were cut by the user, 7 Oct: at every TE they only fit at +-1), every stop at every TE around the panel's suggestion, so the sets are (2*pm+1)^(n-1) and
- * the width is the widest that stays near a day: 5 at +-3 is 2,401 sets, 6 at +-2 is 3,125. The model's hours are in needs.spec.ts; they do not all land in 8 to 12 because
- * a width is a whole number of TE (6 at +-2 comes to about 14 h).
+ * the width is the widest that stays near a day: 5 at +-3 is 2,401 sets, 6 at +-2 is 3,125. The model's hours are in needs.spec.ts; they do not all land in one band because
+ * a width is a whole number of TE.
  */
 function byDateNeeds(): DataNeed[] {
   const base = { who: 'anyone', have: 0, want: 1, runs: 1, preset: '', group: 'bydate' as const };
@@ -303,7 +303,7 @@ function byDateNeeds(): DataNeed[] {
       ...base,
       id: 'bydate-1-4',
       title: 'Egg Day, 1 to 4 ascensions',
-      why: "By a date runs now save every leg, so each leg checks the tables, and the best plan for each count checks the instant answer's route finder.",
+      why: "By a date runs now save every leg, so each leg checks the instant answer, and the best plan for each count checks the instant answer's route finder.",
       byDate: {
         asc: [1, 2, 3, 4],
         eggDay: true,
@@ -460,14 +460,14 @@ export function dataNeeds(rows: CollectorRow[]): DataNeed[] {
   // ask for any gear not on this list, from an account whose plans work at all (CTE 225 or more).
   needs.push({
     id: 'new-gear',
-    title: "Any other gear we don't have a table for yet",
-    why: "Instant answers are exact for gear that has its own precomputed table, and one run from a new gear is enough to build it: we take its artifacts and stones from the run, simulate every ascension once, and check the table against the run's own legs.",
+    title: "Any other gear the instant answer isn't built for yet",
+    why: "The instant answer is exact for gear that has its own precomputed simulations, and one run from a new gear is enough to build them: we take its artifacts and stones from the run, simulate every ascension once, and check the result against the run's own legs.",
     who: 'players at CTE 225 or more whose artifacts and stones are not one of the sets listed below',
     have: 0,
     want: 1,
     preset: 'F2',
     runs: 1,
-    note: `Tables so far: ${COVERED_GEAR.join('; ')}. Spare stones and junk artifacts don't matter, only what your best sets use.`,
+    note: `Instant answer built so far for: ${COVERED_GEAR.join('; ')}. Spare stones and junk artifacts don't matter, only what your best sets use.`,
     group: 'gear',
   });
 

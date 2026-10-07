@@ -151,8 +151,8 @@
       </p>
 
       <!-- ------------------------------------------------------------------ what we know so far -->
-      <!-- Written, not computed from the runs, so it shows at once, before the collector answers. -->
-      <WhatWeKnow v-if="part === 'insights'" :live-runs="runsTo490" />
+      <!-- The findings are written, so the card shows at once; its header counts fill in when the runs arrive. -->
+      <WhatWeKnow v-if="part === 'insights'" :stats="knowSummary" :science-href="scienceHref('check')" />
 
       <!-- Holds the place of everything below while the collector loads, at a fixed height. The
            sections that are worked out from the runs wait for them: drawn from no runs, "Help fill
@@ -1237,6 +1237,7 @@ import type { SweepRequest } from '@/search/sweepRequest';
 import FlaggedBoard from './FlaggedBoard.vue';
 import NewVersionBanner from '@/components/NewVersionBanner.vue';
 import WhatWeKnow from './WhatWeKnow.vue';
+import { knowStats } from './knowStats';
 import { describeFetchError, errorKind } from '@/utils/errors';
 import SweepCurvesChart from './SweepCurvesChart.vue';
 import GearScoreChart from './GearScoreChart.vue';
@@ -1249,7 +1250,7 @@ import GearMap from './GearMap.vue';
 import PlanDriftChart from './PlanDriftChart.vue';
 import SweepUpload from './SweepUpload.vue';
 import {
-  fetchAll,
+  fetchAllRows,
   fetchRunCsv,
   normaliseCollectorBase,
   parseRunCsv,
@@ -1327,6 +1328,8 @@ const BASE_STORAGE_KEY = 'chainExplorerCollector';
 const base = ref<string | null>(null);
 const typedBase = ref('');
 const rows = ref<CollectorRow[]>([]);
+/** By a date answers, kept apart: no chart reads them, the What we know card does. */
+const byDateRows = ref<CollectorRow[]>([]);
 const loading = ref(false);
 const error = ref('');
 
@@ -1400,16 +1403,18 @@ async function load(): Promise<void> {
   loading.value = true;
   error.value = '';
   try {
-    const fetched = await fetchAll(base.value, controller.signal);
+    const fetched = await fetchAllRows(base.value, controller.signal);
     if (allController !== controller) return;
     now.value = Date.now();
-    rows.value = fetched;
+    rows.value = fetched.rows;
+    byDateRows.value = fetched.byDate;
     if (!rows.value.length) error.value = 'The collector answered, but it is holding no runs yet.';
   } catch (e) {
     if (isAbort(e) || allController !== controller) return;
     // A failed fetch here is almost always CORS or a typo'd host, and the browser's own message
     // for both is "Failed to fetch". Say which two things to check rather than repeating it.
     rows.value = [];
+    byDateRows.value = [];
     error.value =
       errorKind(e) === 'network'
         ? describeFetchError(e, 'the collector')
@@ -1448,6 +1453,7 @@ function forgetBase(): void {
   typedBase.value = base.value ?? '';
   base.value = null;
   rows.value = [];
+  byDateRows.value = [];
   closeTable();
 }
 
@@ -1496,8 +1502,6 @@ const folded = computed(() => foldRuns(visible.value));
 const usable = computed(() => folded.value.rows);
 
 const targets = computed(() => targetsPresent(usable.value));
-/** Runs to 490 now (what the Target TE button shows), for the What we know card's freshness line. */
-const runsTo490 = computed(() => targets.value.find(t => t.finalTE === 490)?.runs ?? 0);
 
 // Default to the target most runs used, then leave it alone: re-picking it on every refresh would
 // yank the page out from under someone who had chosen another.
@@ -1613,6 +1617,19 @@ const assessAt = computed(() => (showFlagged.value ? assessWithFlagged.value : a
 /** Each run's finish date and whether it still stands, by the Leaderboard's rules. Only a run the
  *  checkboxes above let through can be an account's best. */
 const judged = computed(() => finishJudgement(assessAt.value(finalTE.value), new Set(visible.value.map(r => r.id))));
+
+/** The What we know card's counted numbers: always the runs to 490, whatever target is picked below. */
+const knowSummary = computed(() =>
+  rows.value.length
+    ? knowStats(
+        usable.value,
+        finishJudgement(assessAt.value(490), new Set(visible.value.map(r => r.id))),
+        whatIfs.value,
+        byDateRows.value,
+        now.value
+      )
+    : null
+);
 
 /** Runs the Leaderboard's rules call what-ifs, at every target: the gear views never place an account
  *  by one, since its TE was typed in rather than the account's. The same set gearMap.ts `whatIfRuns`

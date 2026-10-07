@@ -44,12 +44,12 @@
           ? 'finding the highest TE you can reach by the date is arithmetic'
           : 'finding your fastest route is arithmetic'
       }}: it tries every checkpoint at every TE, with any number of ascensions.{{
-        own ? ' The table was built on your own gear.' : " It's adjusted for your gear."
+        own ? ' The instant answer was built on your own gear.' : " It's adjusted for your gear."
       }}
       <b>Check exactly</b> prices a route with the full simulator.
     </p>
     <p v-if="ownChanged" class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-[11px] text-amber-900">
-      Your gear changed since your table was made ({{ ownChanged }}), so this answer uses the maxed table instead.
+      Your gear changed since your instant answer was made ({{ ownChanged }}), so this answer uses the instant answer for fully maxed gear instead.
     </p>
 
     <p v-if="status === 'loading'" class="text-[12px] text-slate-500 flex items-center gap-2">
@@ -67,7 +67,7 @@
       v-if="header?.fake"
       class="rounded-lg bg-rose-50 border border-rose-200 px-3 py-2 text-[12px] font-bold text-rose-800"
     >
-      Test table: rows below what has been simulated are filled in from the nearest real ones, to try the page. These
+      Test instant answer: rows below what has been simulated are filled in from the nearest real ones, to try the page. These
       routes and dates are not real answers.
     </p>
     <!-- The last checked answer for this save and setup, at once; then whether the new check beat it. -->
@@ -121,7 +121,7 @@
         Improved by the background polish: {{ gainsText }}.
       </p>
       <p v-if="bracketStatus === 'running'" class="text-[11px] text-slate-400">
-        Pricing your route on the nearest tables for stronger and weaker gear…
+        Pricing your route on the instant answers for the closest stronger and weaker gear we have…
       </p>
       <p v-else-if="bracketText" class="text-[11px] text-slate-700">{{ bracketText }}</p>
     </div>
@@ -168,7 +168,7 @@
           </label>
           <p v-if="atOnceNote(dateExact)" class="text-[11px] font-bold text-emerald-800">{{ atOnceNote(dateExact) }}</p>
           <div v-if="dateExact" class="text-[11px] text-slate-500">
-            The table said {{ result.byDate.legs[result.byDate.legs.length - 1].endTE }} TE via
+            The instant answer said {{ result.byDate.legs[result.byDate.legs.length - 1].endTE }} TE via
             {{ result.byDate.chain.join(' ') }} with {{ days(deadline - result.byDate.end) }} to spare<template
               v-if="missedBy !== null"
               >; on your account that route arrives {{ days(missedBy) }} after the date</template
@@ -218,7 +218,7 @@
           <thead>
             <tr class="text-left text-[9px] font-black uppercase tracking-widest text-slate-400">
               <th class="py-1 pr-3">Ascensions</th>
-              <th class="py-1 pr-3">Table</th>
+              <th class="py-1 pr-3">Instant answer</th>
               <th class="py-1 pr-3">Exact, your account</th>
               <th class="py-1 pr-3">Spare</th>
               <th class="py-1 pr-3">Route</th>
@@ -287,7 +287,7 @@
           <span class="text-[11px] font-bold text-emerald-700">exact, your account</span>
         </div>
         <div :class="exactOf(lead) ? 'text-[11px] text-slate-500' : 'text-[12px] text-slate-700'">
-          {{ exactOf(lead) ? 'The table said ' : 'Reaches ' + store.finalTE + ' on '
+          {{ exactOf(lead) ? 'The instant answer said ' : 'Reaches ' + store.finalTE + ' on '
           }}<b v-if="!exactOf(lead)">{{ show(lead.end) }}</b
           ><template v-else>{{ show(lead.end) }}</template> · {{ days(lead.seconds)
           }}<template v-if="!exactOf(lead)"> · {{ lead.legs.length }} ascensions</template>
@@ -304,7 +304,7 @@
           {{ atOnceNote(exactOf(lead)) }}
         </p>
         <p v-if="reranked && result.best" class="text-[11px] text-amber-800">
-          The table ranked the {{ result.best.legs.length }}-ascension route first ({{ result.best.chain.join(' ') }});
+          The instant answer ranked the {{ result.best.legs.length }}-ascension route first ({{ result.best.chain.join(' ') }});
           on your account the full simulator has this one
           {{ days(exactOf(result.best)!.end - exactOf(lead)!.end) }} sooner.
         </p>
@@ -337,7 +337,7 @@
         </button>
       </div>
       <p v-else class="text-[12px] text-amber-800">
-        No route reaches {{ store.finalTE }} from here in the table{{ filtering ? ' with these filters' : '' }}.
+        No route reaches {{ store.finalTE }} from here in the instant answer{{ filtering ? ' with these filters' : '' }}.
       </p>
     </template>
 
@@ -352,7 +352,7 @@
     <!-- What the answer above does not account for, on both screens. -->
     <template v-if="result">
       <p v-if="gearDiffers" class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-        Your gear isn't the table's account's (<template v-if="bonusShort > 0.05"
+        Your gear isn't the gear the instant answer was built on (<template v-if="bonusShort > 0.05"
           >earnings set {{ bonusShort.toFixed(2) }} Clothed TE short, </template
         >delivery {{ ((deliveryScale ?? 1) * 100).toFixed(1) }}% of its at full research). Ascensions that start below
         about TE {{ FULL_RESEARCH_TE }} can take a few percent more or less than these, and may need a longer build (one
@@ -363,14 +363,14 @@
         v-if="progressionShort"
         class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"
       >
-        The table's account has every epic research and colleggtible maxed; yours has {{ progressionShort }}. Your real
+        The account the instant answer was built on has every epic research and colleggtible maxed; yours has {{ progressionShort }}. Your real
         ascensions run slower than these, more so the further short you are. Check exactly gives your own times.
       </p>
       <p
         v-if="leftOut.length"
         class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"
       >
-        Not in the table's routes: your {{ leftOut.join(', ') }}.
+        Not in the instant answer's routes: your {{ leftOut.join(', ') }}.
         {{ deadline ? '' : 'They are the fastest without them; ' }}the exact times on your account include them.
       </p>
     </template>
@@ -432,28 +432,28 @@
       <details class="text-[11px] text-slate-500">
         <summary class="cursor-pointer font-bold text-slate-600">How this is worked out</summary>
         <p v-if="gearTable" class="mt-1 leading-relaxed">
-          This table was built on gear exactly like yours (the same artifacts and stones, so the same earnings and
+          This instant answer was built on gear exactly like yours (the same artifacts and stones, so the same earnings and
           delivery sets, with epic research and colleggtibles maxed), so its ascensions match the full simulator for
           you<template v-if="(header?.gearTo ?? 489) < 489">
-            up to TE {{ header?.gearTo }}; above that it uses the maxed table at your own delivery rate</template
-          >. Each fresh ascension starts on the hour, where the table was simulated.
+            up to TE {{ header?.gearTo }}; above that it uses the instant answer for fully maxed gear at your own delivery rate</template
+          >. Each fresh ascension starts on the hour, where the instant answer was simulated.
         </p>
         <p v-else-if="own" class="mt-1 leading-relaxed">
-          This table was built on your own account: your earnings and delivery sets, epic research and colleggtibles as
+          This instant answer was built on your own account: your earnings and delivery sets, epic research and colleggtibles as
           your save has them now (Clothed TE bonus {{ header?.cteBonus }}). Each of its ascensions is the simulator's
           own build, and the waiting after it is the simulator's own arithmetic, so a route here matches the full
           simulator on your account. Your first ascension is your own (continuing the one in progress when the continue
-          rule would, from your save). Each fresh ascension starts on the hour, where the table was simulated. If your
-          gear changes, the page goes back to the maxed table until yours is made again.
+          rule would, from your save). Each fresh ascension starts on the hour, where the instant answer was simulated. If your
+          gear changes, the page goes back to the instant answer for fully maxed gear until yours is made again.
         </p>
         <p v-else class="mt-1 leading-relaxed">
-          The table was built on a maxed account: perfect delivery set, Clothed TE bonus {{ header?.cteBonus }}, all
+          The instant answer was built on a maxed account: perfect delivery set, Clothed TE bonus {{ header?.cteBonus }}, all
           epic research and colleggtibles. Each of its ascensions is the simulator's own build, and the waiting after it
           is the simulator's own arithmetic, so on that account a route here matches the full simulator to the second.
           For you: your first ascension is your own (continuing the one in progress when the continue rule would, from
           your save), the waits run at your own peak delivery rate ({{ ((deliveryScale ?? 1) * 100).toFixed(1) }}% of
-          the table's: the best set your inventory can wear at full research), and each ascension is read from the row
-          for its own TE. Each fresh ascension starts on the hour, where the table was simulated; the weekly sale is at
+          the instant answer's: the best set your inventory can wear at full research), and each ascension is read from the row
+          for its own TE. Each fresh ascension starts on the hour, where the instant answer was simulated; the weekly sale is at
           a fixed Pacific time, so the hour of the week is what matters.
         </p>
       </details>
@@ -698,7 +698,7 @@ async function runBracket(id: number, legs: FirstLegsBase, hours: Availability |
 const bracketText = computed(() => {
   const b = bracket.value;
   if (!b?.above?.end) return '';
-  const name = (s: BracketSide) => (s.entry.file === 'table.bin' ? 'the maxed table' : describeGear(s.entry));
+  const name = (s: BracketSide) => (s.entry.file === 'table.bin' ? 'the instant answer for fully maxed gear' : describeGear(s.entry));
   const hi = b.above;
   const lo = b.below?.end ? b.below : null;
   if (props.deadline)
@@ -814,7 +814,7 @@ async function run(): Promise<void> {
   bracketStatus.value = 'idle';
   loadingText.value = header.value
     ? 'Working out every route…'
-    : 'Loading the table (about 12 MB, once) and working out every route…';
+    : 'Loading the instant answer (a few MB, once) and working out every route…';
   try {
     const p = getPool();
     // The player's own table when there is one built on the gear their save has now; else the maxed one.
@@ -863,7 +863,7 @@ async function run(): Promise<void> {
     if (te < h.from) {
       result.value = null;
       status.value = 'error';
-      errorText.value = `The table starts at TE ${h.from} and your route starts at ${te}, so there is no instant answer yet. The searches below work as always.`;
+      errorText.value = `The instant answer starts at TE ${h.from} and your route starts at ${te}, so there is no instant answer yet. The searches below work as always.`;
       return;
     }
     const inputs = store.collectInputs();
@@ -929,7 +929,7 @@ async function run(): Promise<void> {
     // hidden and every search works exactly as without it.
     noTable.value = /404|not a precomputed table|incomplete/.test(message);
     errorText.value = noTable.value
-      ? 'The precomputed table isn’t on this site yet.'
+      ? 'The instant answer isn’t on this site yet.'
       : `The instant answer couldn’t run: ${message}`;
   }
 }

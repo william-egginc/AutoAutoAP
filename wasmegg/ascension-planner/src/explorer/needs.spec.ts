@@ -143,15 +143,13 @@ describe('dataNeeds', () => {
     expect(byDateSets(by['bydate-5'], 180)[0].sets).toBe(7 ** 4);
     expect(byDateSets(by['bydate-6'], 180)[0].sets).toBe(5 ** 5);
     const hours = (id: string) => byDateSeconds(by[id], 180, desktop.workers) / 3600;
-    for (const id of ['bydate-1-4', 'bydate-5']) {
-      expect(hours(id)).toBeGreaterThan(8);
-      expect(hours(id)).toBeLessThan(12);
-    }
-    // Whole-TE widths cannot hit 8 to 12 h for 6 ascensions; this is the nearest.
-    for (const id of ['bydate-6']) {
-      expect(hours(id)).toBeGreaterThan(12);
-      expect(hours(id)).toBeLessThan(16);
-    }
+    // Hours on a desktop at TE 180 with the 7 Oct 2026 worker-seconds (1-4: 8.4 h, 5: 6.8 h, 6: 9.6 h).
+    expect(hours('bydate-1-4')).toBeGreaterThan(8);
+    expect(hours('bydate-1-4')).toBeLessThan(9);
+    expect(hours('bydate-5')).toBeGreaterThan(6.5);
+    expect(hours('bydate-5')).toBeLessThan(7.5);
+    expect(hours('bydate-6')).toBeGreaterThan(9);
+    expect(hours('bydate-6')).toBeLessThan(10);
     expect(byDateWiderText(by['bydate-6'], 180, desktop.workers)).toMatch(/^±3 would take about \d+(\.\d)? days\.$/);
   });
 
@@ -222,10 +220,11 @@ describe('estimates', () => {
   });
 
   // Measured, and the case that showed the old flat figure was wrong: an 8-core desktop's M1 sweep
-  // (307 chains, 2 ascensions) took 7 minutes where the estimate said 2.
-  it('puts an 8-core desktop M1 at about the 7 minutes it really took', () => {
-    expect(estimateSeconds(307, 2, COMPUTE_TIERS[1]) / 60).toBeGreaterThan(6);
-    expect(estimateSeconds(307, 2, COMPUTE_TIERS[1]) / 60).toBeLessThan(8);
+  // (307 chains, 2 ascensions) took 7 minutes where the estimate said 2. The 7 Oct 2026 fallback (6 s
+  // for 2 ascensions) is what the board measured on today's planner: 1.2-1.8x lower, so about 4.4 min.
+  it("puts an 8-core desktop's M1 at the fallback's 4.4 minutes", () => {
+    expect(estimateSeconds(307, 2, COMPUTE_TIERS[1]) / 60).toBeGreaterThan(4);
+    expect(estimateSeconds(307, 2, COMPUTE_TIERS[1]) / 60).toBeLessThan(5);
   });
 
   it('charges longer chains more per chain', () => {

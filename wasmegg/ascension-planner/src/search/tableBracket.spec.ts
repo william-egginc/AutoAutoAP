@@ -36,6 +36,6 @@ describe('isMaxed and describeGear', () => {
   });
 
   it('names a table by its gear only', () => {
-    expect(describeGear(mid)).toBe('a table built for gear like 126.0 bonus / 0.94 delivery');
+    expect(describeGear(mid)).toBe('an instant answer built for gear like 126.0 bonus / 0.94 delivery');
   });
 });

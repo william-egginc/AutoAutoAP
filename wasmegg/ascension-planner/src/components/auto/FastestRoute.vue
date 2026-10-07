@@ -104,13 +104,13 @@ const DEPTHS: { id: Depth; label: string; blurb: string; time: string }[] = [
     id: 'smart',
     label: NAMES.smart,
     blurb: 'Starts from your chain and homes in on faster checkpoints. You pick how hard it looks.',
-    time: 'Minutes to a few hours',
+    time: 'Fast: minutes. Exact: under an hour on 8+ cores. Very high: 1-3 h on 8-16 cores, longer on 4.',
   },
   {
     id: 'full',
     label: NAMES.full,
     blurb:
-      'Prices every route in a range you set, so the answer is the best in that range. Queue several chains in one click.',
+      'Prices every route in a range you set, so the answer is the best in that range. Queue several chains in one click. About 1-3 h per 10,000 chains on an 8-16 core PC; overnight for 50,000+.',
     time: 'Hours, sometimes overnight',
   },
 ];

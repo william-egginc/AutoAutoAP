@@ -1,208 +1,165 @@
 <!--
-  What the board has taught us so far, in players' words, dated. Written rather than computed on
-  purpose: each point took an analysis across the runs' CSVs that the page does not load, and a
-  number that silently changed under a sentence written about it would be worse than a dated one.
-  Every number here was re-checked against the board by an independent audit on 25 Sept 2026
-  (several earlier claims were corrected then), and the count, checkpoint and gear claims again on
-  26 and 27 Sept 2026 by replaying the page's own pipeline over /all (27 Sept: after eleven new runs,
-  among them Williamthe5thc's E7, E8 and E9 and Willsalt · T4L cube's E8 and close look at 7). On 29
-  Sept 2026 the count, checkpoint and gear claims were checked again against the 144-row board
-  (BobSkiMajoo778's 4-7 ascension run, Willsalt · T4L cube's every-TE 8 and its 9) with the page's
-  own functions, and the one-TE move, first-ascension, grid-loss and Halceyx figures against the
-  CSVs of the runs that tried every TE (`missTable`, and every grid offset of each coarse step). Not
-  re-checked: the CTE 172 and 202 stalls, the artifact TE values, item 4's later-leg jumps and
-  final-stretch steadiness, and item 6's prediction widths. On 30 Sept 2026, with 111 runs to 490 from 14
-  accounts (Thugaletta's first two runs), the count claims that moved were updated (10 of 14, 8 of 14, the
-  5-ascension range to 380, 13 of 14 CTEs), and the card got its short answer and folded detail.
-  The header says it is a dated snapshot and that the tables below are the live counts. Update the
-  date and the numbers when the board moves.
+  What the board has taught us so far. The header counts and two numbers in the text (the 5-to-7
+  count, the lowest Clothed TE) are COUNTED from the loaded runs (knowStats.ts); the findings
+  themselves are the collector analyst's, checked on the date under the header (FINDINGS_CHECKED).
+  Update that date, and the text, when the analyst re-checks them. A number in a finding that is not
+  one of those two is as of that date and does not move with the board.
 
-  COMPARE FINISH DATES, NOT TOTALS, between runs made at different times. A run's total counts from
-  its own plan start, so the same plan run a day later shows a day fewer; the date it reaches 490 is
-  what stays put. On 26 Sept 2026 items 1, 2, 5 and 7 were restated that way from /all (each account's
-  earliest finish at each count, among runs whose finish still stands -- analysis.ts
-  `judgeFinishes`). Totals are only quoted where both runs came from one save, where total and
-  finish date agree. Any new number here has to follow the same rule.
+  PRIVACY: never list which accounts have their own tables (finding 1), or which accounts' tables
+  were built from older runs (What we need next).
 
-  SAY WHAT EACH CLAIM RESTS ON: how many accounts, one plan per account (`bestPerCount`, never every
-  run, or the account that sent the most decides), and for a gap between two counts whether the
-  searches behind it could tell them apart -- settled, direction holds, or within search noise, the
-  same words and the same test (`countSteps`) as the table under the count chart. Most higher counts
-  were searched more coarsely than the lower ones, so "one more ascension helps" is only as good as
-  that verdict.
-
-  DATES ARE THE PLAYER'S OWN. No instant falls on the same calendar day in every timezone, so each
-  date here is the one in the player's own zone (the header says so, once, and that the tables use
-  the viewer's), written the way the tables write them ("21 Jul 2028", "24 Sept"), and a gap between two
-  finishes is given as a gap ("about 9 hours after") rather than as a second date that would read
-  differently elsewhere.
+  Each finding is its own <details> in a plain <div> list, with the number drawn by hand. It used to
+  be <li><details> under list-decimal, where the browser's number sat against the disclosure
+  triangle ("1▶").
 -->
 <template>
   <section class="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 space-y-3">
-    <div class="flex flex-wrap items-baseline justify-between gap-2">
-      <h2 class="text-lg font-black text-slate-900">What we know so far</h2>
-      <span class="text-[10px] font-bold text-slate-500"
-        >30 Sept 2026 · 111 runs to 490 TE · 14 accounts (13 players) from TE 124 to 199 · 615,000 plans timed</span
-      >
+    <div class="space-y-0.5">
+      <div class="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 class="text-lg font-black text-slate-900">What we know so far</h2>
+        <span v-if="stats" class="text-[10px] font-bold text-slate-500" data-testid="know-header">
+          {{ stats.runsTo490 }} runs to 490 TE · {{ stats.accounts }} accounts<template
+            v-if="stats.te"
+          >
+            · TE {{ stats.te.min }}-{{ stats.te.max }}</template
+          >
+          · {{ stats.plans.toLocaleString('en-US') }} plans timed<template v-if="stats.byDate > 0">
+            · {{ stats.byDate }} by a date<template v-if="stats.byDateAccounts > 0"> from {{ stats.byDateAccounts }} {{ stats.byDateAccounts === 1 ? 'account' : 'accounts' }}</template></template
+          >
+        </span>
+        <span v-else class="text-[10px] font-bold text-slate-400">Counting the board…</span>
+      </div>
+      <p class="text-[10px] text-slate-500">Findings checked {{ FINDINGS_CHECKED }}</p>
     </div>
-    <!-- The answer first: the card's eight points are long, and what a player can act on was in the
-         middle of them (review, 30 Sept). -->
+
     <div class="rounded-lg border border-emerald-200 bg-white p-3 space-y-1 text-[12px] text-slate-800 leading-relaxed">
       <p class="text-[10px] font-black text-emerald-700 uppercase tracking-widest">The short answer</p>
-      <p><b>Plan for 5 to 7 ascensions:</b> that's what finishes first on 10 of the 14 accounts.</p>
       <p>
-        <b>Search for the exact TEs.</b> With up to 4 ascensions your last one lands around 280, but one TE off the best
-        can cost weeks, and the good TEs are different on every account.
+        <b>Use the instant answer, then Check exactly.</b> It finds your fastest route (or the highest TE by a date) for
+        your gear in seconds, and Check exactly prices it with the full simulator.
       </p>
-      <p><b>Below about 220 Clothed TE,</b> the first ascension stalls: gear up first.</p>
+      <p>
+        <b>Plan for 5 to 7 ascensions.</b>
+        <template v-if="stats && stats.sweet.total">
+          On {{ stats.sweet.of }} of {{ stats.sweet.total }} accounts the earliest-finishing plan has 5 to 7
+          ascensions.
+        </template>
+        A 3rd is worth weeks to months at low TE; past 6 or 7 they add hours, not days.
+      </p>
+      <p><b>Ascend at the time the plan shows,</b> and run the instant answer again after each ascension.</p>
+      <p><b>Below about 220 Clothed TE,</b> upgrade your earnings set first: your first ascension stalls.</p>
     </div>
-    <p v-if="liveRuns && liveRuns !== 111" class="text-[11px] font-semibold text-emerald-800">
-      The board has {{ liveRuns }} runs to 490 TE now; this card counted 111, so a few numbers may have moved.
-    </p>
+
     <p class="text-[11px] text-slate-500 leading-relaxed">
-      Tap a point for the detail. This card is a dated snapshot. Every number on it is as of the date above, and every
-      date on it is in the player's own timezone. The charts and tables further down are live: they recount the board
-      each time the page loads and show dates in your timezone.
+      Tap a point for the detail. The header counts are worked out from the board each time the page loads; the points
+      were checked on the date above. The charts and tables further down are live too and show dates in your timezone.
     </p>
 
-    <ol class="list-decimal pl-5 space-y-2 text-[12px] text-slate-700 leading-relaxed">
-      <li>
-        <details class="group">
-          <summary class="cursor-pointer font-bold text-slate-800">
-            More ascensions help, then level off: a 3rd brought the finish forward 34 to 245 days on the six accounts
-            that tried 2 and 3.
-          </summary>
-          <p class="mt-1 text-slate-700">
-            <b>More ascensions help, then level off.</b> By finish date (not total days), from each account's
-            earliest-finishing plan at each count: going from 2 ascensions to 3 brought the finish forward by 34 to 245
-            days on the six accounts that tried both, more on lower accounts (191 days at TE 124, 245 and 184 at TE 132
-            and 133, 116 at TE 167, 99 at TE 182, 34 at TE 198). On these six, lower TE has also meant lower Clothed TE
-            (CTE), so we can't yet tell which of the two makes the difference. A 4th brought it forward another 4.5 to
-            28 days on four of the five accounts that tried 3 and 4; on 👽 · Los Angeles the 4 finishes 1.5 days after
-            the 3, from a small Smart search (635 plans). A 5th brought it forward 1.5 to 28 days on all five accounts
-            that tried 4 and 5. Each of those gaps is bigger than the searches could explain except BobSkiMajoo778's
-            (5.2 days), which is within search noise because he tried only every 15th TE.
+    <div class="space-y-1.5 text-[12px] text-slate-700 leading-relaxed">
+      <details v-for="(f, i) in findings" :key="f.id" class="finding rounded-lg border border-emerald-100 bg-white">
+        <summary class="finding-summary flex cursor-pointer items-start gap-2 px-3 py-2 font-bold text-slate-800">
+          <span
+            class="mt-px flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-[10px] font-black text-emerald-800"
+            aria-hidden="true"
+            >{{ i + 1 }}</span
+          >
+          <span class="flex-1">{{ f.headline }}</span>
+          <span class="finding-chevron mt-0.5 text-[10px] text-slate-400" aria-hidden="true">&#9662;</span>
+        </summary>
+        <div class="px-3 pb-3 pl-10 text-slate-700 space-y-2">
+          <p v-if="f.id === 'match'">
+            The instant answer prices each ascension from precomputed simulations of the game's own build, so a route it
+            shows lands within about an hour of the same route run in the full simulator, whatever the start hour.
+            Checked on Fliris (32 of 34 ascensions within 30 minutes), Halceyx (median within 0.3 hours on ~2,400
+            ascensions), Allan (4 routes within an hour) and every new run this week. For the accounts it has
+            precomputed on their own gear (10 so far) it reproduces their submitted runs to a median of 0.15% or
+            better.
           </p>
-        </details>
-      </li>
-      <li>
-        <details class="group">
-          <summary class="cursor-pointer font-bold text-slate-800">
-            Past 5, it's close: the plan that finishes first has 5 to 7 ascensions on 10 of the 14 accounts.
-          </summary>
-          <p class="mt-1 text-slate-700">
-            <b>Past 5 ascensions, the search matters as much as the count.</b> A 6th brought the finish forward on six
-            of the seven accounts that tried 5 and 6, by 0.4 to 8.8 days: settled on rontimes (8.8 days) and Halceyx
-            (1.0); the direction holds on William (2.8), whose 6 was searched at least as coarsely as his 5 at every
-            checkpoint and still won; within search noise on Allan (0.4) and Willsalt · T4E cube (8.7), where one side
-            was a Smart search, and on Willsalt · T4L cube (5.6), whose 6 was searched more closely than its 5 at one
-            checkpoint and more coarsely at others. On BobSkiMajoo778 the 6 finishes 17 minutes after the 5. Of the four
-            accounts that tried 6 and 7, a 7th brought the finish forward 4.9 days on Willsalt · T4L cube and 1.0 day on
-            BobSkiMajoo778; on Allan it finishes the same minute as the 6 and on William 0.9 days after it. All four are
-            within search noise. The plan that finishes first has 5 to 7 ascensions on 10 of the 14 accounts, but only
-            four accounts tried counts both above and below their best: Allan (tried 2 to 8, best 6, tied with 7),
-            William (tried 2 to 9 and 15, best 6), Willsalt · T4L cube (tried 2 to 9, best 8: 2.1 days before its 7 and
-            3.3 days before its 9, both within search noise) and 👽 · Los Angeles (tried 2 to 4, best 3). For Halceyx,
-            Willsalt · T4E cube, rontimes, iDaHooBone, Kenzie and BobSkiMajoo778 the best is simply the most ascensions
-            they tried; Wolfcry1993, wood_420, Zen_Ferret and Thugaletta tried one count each.
+          <p v-else-if="f.id === 'wider'">
+            Halceyx's 120,000-plan sweep allowed only 5 ascensions, and its second checkpoint couldn't go below 201.
+            From the same moment, his earlier small search's 198 231 291 was 0.73 days faster, and the instant answer's
+            7-ascension route (198 220 249 281 315) is about 7.7 days faster still. Allan's Egg Day search allowed up
+            to 4 stops; a 5-stop route (209 234 261 291 334) has about 17-19 hours more spare.
           </p>
-        </details>
-      </li>
-      <li>
-        <details class="group">
-          <summary class="cursor-pointer font-bold text-slate-800">
-            With up to 4 ascensions, your last one lands at about 280, wherever you start.
-          </summary>
-          <p class="mt-1 text-slate-700">
-            <b>With up to 4 ascensions, the last TE you ascend at is about the same on every account.</b> Taking each
-            account's best plan at each count, the last TE it ascends at before playing on to 490 is about 280 with 2
-            ascensions (274 to 287 on six of the seven accounts that tried it; 235 on the seventh), 279 to 288 with 3 (7
-            accounts) and 283 to 297 with 4 (7 accounts), whether the account starts at TE 124 or 198. With more
-            ascensions it spreads out: 285 to 380 with 5 (9 accounts) and 294 to 337 with 6 (8 accounts). More
-            ascensions push that last TE up, but most of the extra ascensions go in below 290: a 6-ascension plan still
-            ascends 3 or 4 times below 290. The planner's suggested starting plan uses these numbers.
+          <p v-else-if="f.id === 'misses'">
+            On 36 submitted runs it found a route at least as fast as the run's own best every time, and faster on 33.
+            One miss is known: Fliris at 4 ascensions, where a full brute-force check found a route 12 hours better.
+            Brute-force runs from more accounts would show how often that happens.
           </p>
-        </details>
-      </li>
-      <li>
-        <details class="group">
-          <summary class="cursor-pointer font-bold text-slate-800">
-            Ascending one TE off the best can cost weeks (up to 31 days), and the good TEs differ on every account.
-          </summary>
-          <p class="mt-1 text-slate-700">
-            <b>Ascending one TE off the best can cost weeks.</b> Moving one ascension target by a single TE, with the
-            others left where they are, costs up to 31 days. A typical one-TE move costs about 19 days on 2- and
-            3-ascension plans, and under 5 on Allan's 4-ascension plan. Being one TE off typically costs about as much
-            as being 8 TE off. The first ascension changes smoothly: each extra TE you wait before ascending adds about
-            2 to 6 days to it (about 2.5 at TE 198, about 5.5 at TE 124 to 150). Every later ascension jumps around,
-            because moving an earlier target changes when it starts. Its length often shifts by 10 days or more, and
-            sometimes by 50 or more. The final stretch to 490 is steady if it starts above about 285 TE and jumpy below
-            that. The good and bad TEs are different on every account, so there is no table to look them up in. Each
-            account's exact plan has to be searched.
+          <template v-else-if="f.id === 'count'">
+            <p>Finish brought forward by one more ascension (the instant answer's best routes):</p>
+            <div class="overflow-x-auto">
+              <table class="text-[11px] tabular-nums border-collapse">
+                <thead>
+                  <tr class="text-left text-slate-500">
+                    <th class="py-1 pr-4 font-bold">from TE</th>
+                    <th v-for="h in COUNT_HEADS" :key="h" class="py-1 pr-4 font-bold">{{ h }}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="r in COUNT_TABLE" :key="r.te" class="border-t border-slate-100">
+                    <td class="py-1 pr-4 font-bold text-slate-800">{{ r.te }}</td>
+                    <td v-for="(cell, j) in r.cells" :key="j" class="py-1 pr-4">{{ cell }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p>
+              The board's runs agree. The last checkpoint before 490 sits around 280 with 2-3 ascensions and 285-335
+              with 5-7.
+            </p>
+          </template>
+          <template v-else-if="f.id === 'eggday'">
+            <template v-if="stats && stats.eggDay.length">
+              <p>Each account's best TE by Egg Day, so far:</p>
+              <ul class="space-y-0.5 tabular-nums" data-testid="know-eggday">
+                <li v-for="(e, k) in stats.eggDay" :key="k">
+                  <b class="text-slate-800">{{ e.label }}</b
+                  >: from TE {{ e.from }} reaches {{ e.reaches }}, in {{ e.ascensions }}
+                  {{ e.ascensions === 1 ? 'ascension' : 'ascensions' }}
+                </li>
+              </ul>
+            </template>
+            <p>
+              Where an account tried several counts, more ascensions reached higher, by 1-3 TE: Allan 333 with 3, 334
+              with 4, 336 with 5. The instant answer finds Allan a 5-ascension route that reaches 335 with 6 hours to
+              spare where his 4-ascension search reached 334. The highest TE usually leaves little slack: Allan's 336
+              has 54 minutes to spare, while one TE lower (334) leaves 35 hours.
+            </p>
+          </template>
+          <p v-else-if="f.id === 'bydate'">
+            Checked on Fliris (6 Egg Day routes: 32 of 34 ascensions within 30 minutes of the real run), Allan (4
+            routes, each within an hour once started from his real first stop) and this week's first By a date run with
+            per-ascension times (within 0.4 hours per ascension, median). Where it differs from a by-date search, it's
+            because the search's range left out better routes (Allan's 5-ascension route above), not because it priced
+            them wrongly.
           </p>
-        </details>
-      </li>
-      <li>
-        <details class="group">
-          <summary class="cursor-pointer font-bold text-slate-800">
-            Trying only some TEs misses the best plan: every 5th TE ends up 2 to 12 days slower than every TE.
-          </summary>
-          <p class="mt-1 text-slate-700">
-            <b>So trying only some TEs misses the best plan.</b> Trying only every 5th TE ends up 2 to 12 days slower,
-            on average, than trying every TE. Trying every 2nd TE ends up 0.4 to 6 days slower. Allan's example: trying
-            every TE around his Smart search result found 230 260 297. It reaches 490 on 21 Jul 2028, 1.6 days before
-            M3's best (every 5th TE) and 0.7 days before that Smart search's, all three planned from one save. His 6-
-            and 7-ascension plans, found by Smart searches rather than at every TE, still finish on 19 Jul 2028, 1.9
-            days before it, and his best 5-ascension plan (made a day later, at TE 199) about 9 hours after those.
+          <p v-else-if="f.id === 'stall'">
+            Under roughly 218-225 CTE it sits on Integrity saving up for habs; the planner won't run a plan that stalls
+            more than a week. Every account on the board is above it<template v-if="stats && stats.lowestCte !== null">
+              (lowest {{ cteText(stats.lowestCte) }})</template
+            >. A full T4L earnings set with T4 Lunar stones adds +128.7 to CTE.
           </p>
-        </details>
-      </li>
-      <li>
-        <details class="group">
-          <summary class="cursor-pointer font-bold text-slate-800">
-            We can predict roughly where your best plan is, not the exact TEs: those still take a search.
-          </summary>
-          <p class="mt-1 text-slate-700">
-            <b>We can predict roughly where your best plan is, but not the exact TEs.</b> We can predict how many
-            ascensions it has, and each target to within about 10 TE for 3 or 4 ascensions (20 or more for 5 or 6). The
-            exact TEs still take a search. For 3 ascensions the search is small: trying every TE around the likely
-            targets is only about 1,300 to 3,150 plans, and that is what F2 does. For 4 ascensions it is about 9,000
-            plans, and for 5 it runs to tens of thousands.
+          <p v-else-if="f.id === 'gear'">
+            Waiting time scales with your delivery rate: a set at 94% of the best waits about 6% longer. The earnings
+            set matters only while research is still being bought: nothing from about TE 340 up, most around TE
+            190-216, where tier 13 opens. The site uses an instant answer built for your exact gear when there is one, or the
+            closest, and tells you which.
           </p>
-        </details>
-      </li>
-      <li>
-        <details class="group">
-          <summary class="cursor-pointer font-bold text-slate-800">
-            The best plan can move from one day to the next.
-          </summary>
-          <p class="mt-1 text-slate-700">
-            <b>The best plan can move from one day to the next.</b> On 24 Sept, Halceyx's best 3-ascension plan was 201
-            282, finishing on 14 Apr 2029. Priced again from his save a day later, that same plan finished about 14 days
-            later (around 28 Apr), and the new best, 206 279, finishes on 11 Apr. Some slip is expected: it had been
-            picked as the fastest of the 4,001 plans M2 tried that day, and a plan picked that way tends to come out
-            slower when priced again. William ran the same 2-ascension search twice from one save, the second time
-            starting the plan about 2 hours later. The best TE stayed at 279, but the later start changed his first
-            ascension's plan, and the finish moved from 21 Jan to 28 Jan 2029.
+          <p v-else-if="f.id === 'sale'">
+            Every build ends at the Saturday 9:00 am (Pacific) sale. A third sale week pays on long jumps below about TE
+            300 (up to 33 days on the final leg from 225-270, up to 194 days from 120-150), but never on short jumps or
+            from about TE 300 up. Tier 13 is offered from TE 190. Starting a leg a few hours either side of the sale can
+            move it by days, which is why the best checkpoints are so sharp.
           </p>
-        </details>
-      </li>
-      <li>
-        <details class="group">
-          <summary class="cursor-pointer font-bold text-slate-800">
-            Below about 220 Clothed TE (CTE), the first ascension stalls on Integrity.
-          </summary>
-          <p class="mt-1 text-slate-700">
-            <b>Below about 220 CTE, the first ascension stalls.</b> Unless your Clothed TE is about 218 to 225 or more
-            (the planner's estimate), your first ascension sits on Integrity saving up for habs. The planner won't run a
-            plan that stalls for more than a week. The runs only bracket that line: the two accounts we measured below
-            it (CTE 172 and 202) both stalled, and every account whose CTE we know (13 of the 14) is at CTE 241 or more.
-            A full T4L earnings set (Demeters necklace, Tungsten ankh, Lunar totem and Puzzle cube, each with 3 T4 Lunar
-            stones) adds +128.7 TE to your CTE. The T4L Lunar totem with its stones is +66.2 of that on its own.
+          <p v-else-if="f.id === 'one-te'">
+            Moving a single checkpoint by one TE costs up to about a month (typically 2-3 weeks on 2-3 ascension plans),
+            and the best TEs differ for every account and start time. That's why the instant answer prices every TE
+            instead of guessing, and why it's worth re-running.
           </p>
-        </details>
-      </li>
-    </ol>
+        </div>
+      </details>
+    </div>
 
     <details class="rounded-lg border border-emerald-200 bg-white p-3 text-[12px] text-slate-700 leading-relaxed">
       <summary class="cursor-pointer text-[10px] font-black text-emerald-700 uppercase tracking-widest">
@@ -210,34 +167,26 @@
       </summary>
       <div class="mt-2 space-y-1.5">
         <p class="text-[11px] text-slate-500">
-          M2, M4, F2, F4 and F5 are the shared sweeps on the Science tab: the M ones try a grid of TEs (M2 every 2nd TE,
-          M4 every 5th), the F ones every TE where it matters most.
+          These are the asks on the
+          <a v-if="scienceHref" :href="scienceHref" class="font-bold text-indigo-700 underline">Science tab</a
+          ><template v-else>Science tab</template>.
         </p>
         <p>
-          <b>Finer, not wider:</b> F2 from more accounts. It tries every TE you might ascend at in a 3-ascension plan,
-          using fewer plans than M2. In Halceyx's F2 table, where every plan was priced from one save, the best plan on
-          M2's grid (every 2nd TE) finishes about 5 days after F2's best.
+          <b>Egg Day "By a date" runs:</b> 1-4 ascensions at every TE, 5 at ±3 TE around the instant answer's route, 6
+          at ±2. They check the instant answer leg by leg and measure how often it misses.
         </p>
         <p>
-          <b>Longer:</b> the same account again over several days, to see how often the best plan moves. That tells you
-          whether you need a fresh search before each ascension.
+          <b>The six gear sets on the Science tab</b> (epic earnings set, rare earnings set, rare/common delivery set,
+          epic everything, rare everything, legendary set on T3 stones). Nothing on the board covers earnings bonuses
+          between 63 and 115, or weak delivery with a full earnings set. Every account so far has a T4L Lunar totem and a
+          T4L Demeters necklace.
         </p>
         <p>
-          <b>Bigger:</b> 5 and 6 ascensions with far more plans than M4, which tries every 5th TE: F4 and F5 try every
-          TE at the first checkpoint or two and every 2nd to 7th TE after that. On 8 of the 14 accounts the plan that
-          finishes first has 5 or 6 ascensions. Six runs so far have looked closer than M4 at some or all of the
-          checkpoints: 5-ascension runs from William (F4), Halceyx (every TE, in a narrow box) and rontimes (every 2nd
-          TE), and 6-ascension runs from William (F5), Willsalt · T4L cube (F5-alt) and Willsalt · T4E cube (every 2nd
-          TE at one checkpoint). F4 and F5 on the Science tab do this, and more accounts running them would show whether
-          the best 5- and 6-ascension plans sit in the same places for everyone. Each one is tens of thousands of plans,
-          a night or more on a 16-core machine. Trying every single TE around the targets at 5 ascensions would take a
-          day and a half to two days.
+          <b>A run from an account missing epic research or colleggtibles;</b> every instant answer assumes both maxed.
         </p>
         <p>
-          <b>Wider gear:</b> every account so far has a T4L Lunar totem and a T4L Demeters necklace, and on the 13 whose
-          CTE we know the earnings set adds 115 to 129 TE, so CTE and TE always rise together. We need accounts at CTE
-          200 to 240, weaker earnings sets at a higher TE, and weaker delivery sets. They would show whether TE, CTE or
-          the delivery set decides the best plan.
+          <b>One more run from accounts whose instant answers were built from older runs,</b> on today's planner, to recheck
+          them.
         </p>
       </div>
     </details>
@@ -245,6 +194,51 @@
 </template>
 
 <script setup lang="ts">
-/** Runs to 490 on the board now (the Explorer's own count), to say when the card has fallen behind. */
-defineProps<{ liveRuns?: number }>();
+import type { KnowStats } from './knowStats';
+
+/** The date the analyst last checked the findings against the board. */
+const FINDINGS_CHECKED = '7 Oct 2026';
+
+defineProps<{
+  /** Counted from the loaded runs; absent until the board has answered. */
+  stats?: KnowStats | null;
+  /** The Science tab's address, when the page can link to it. */
+  scienceHref?: string;
+}>();
+
+const findings = [
+  { id: 'match', headline: 'The instant answer matches real runs to about an hour.' },
+  { id: 'wider', headline: 'Wider searches would have found faster routes.' },
+  { id: 'misses', headline: 'The instant answer rarely misses, but it can.' },
+  { id: 'count', headline: 'More ascensions help, then level off.' },
+  { id: 'eggday', headline: 'By Egg Day 2027, a well-geared account gains about 100-135 TE, with 3-5 ascensions.' },
+  { id: 'bydate', headline: 'The instant answer matches By a date runs ascension by ascension.' },
+  { id: 'stall', headline: 'Below about 220 Clothed TE, the first ascension stalls.' },
+  { id: 'gear', headline: 'Your delivery set sets the pace; your earnings set matters early.' },
+  { id: 'sale', headline: 'The research sale shapes every route.' },
+  { id: 'one-te', headline: 'One TE off the best can still cost weeks.' },
+];
+
+const COUNT_HEADS = ['2→3', '3→4', '4→5', '5→6'];
+const COUNT_TABLE = [
+  { te: 135, cells: ['173 d', '22 d', '11 d', '5.5 d'] },
+  { te: 165, cells: ['118 d', '20 d', '4 d', '2.4 d'] },
+  { te: 195, cells: ['38 d', '6 d', '1.5 d', 'about 0'] },
+];
+
+function cteText(n: number): string {
+  return String(Math.round(n * 10) / 10);
+}
 </script>
+
+<style scoped>
+.finding-summary {
+  list-style: none;
+}
+.finding-summary::-webkit-details-marker {
+  display: none;
+}
+.finding[open] .finding-chevron {
+  transform: rotate(180deg);
+}
+</style>

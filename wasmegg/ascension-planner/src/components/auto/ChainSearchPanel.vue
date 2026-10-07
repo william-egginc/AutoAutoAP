@@ -117,8 +117,8 @@
               </p>
               <p class="text-[11px] text-slate-500">
                 <span class="font-black uppercase tracking-widest text-slate-400">Reference time:</span>
-                {{ note.cliDuration }} measured on a 20-core PC. Your machine has {{ store.workersInPool + 1 }} logical
-                cores, so expect a different number. The live estimate below is measured on your machine.
+                {{ note.typicalTime }} Your machine has {{ store.workersInPool + 1 }} logical cores, so expect a
+                different number. The live estimate below is measured on your machine.
               </p>
               <p
                 v-if="note.warning"

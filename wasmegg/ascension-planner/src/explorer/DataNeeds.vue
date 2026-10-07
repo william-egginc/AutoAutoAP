@@ -357,15 +357,15 @@ function gearParts(g: GearSet) {
 const GROUPS: { id: 'gear' | 'bydate'; title: string; intro: string }[] = [
   {
     id: 'bydate',
-    title: "Checking the instant answer's tables: By a date runs",
+    title: "Checking the instant answer: Egg Day runs",
     intro:
-      "Highest TE by a date runs now save every leg, so each leg checks the instant answer's tables, and the best plan for each ascension count checks its route finder. These open By a date on Egg Day with the stops filled in; nothing starts until you press Find. Each is sized to start in the morning and finish by night on a desktop.",
+      "Highest TE by a date runs now save every leg, so each leg checks the instant answer, and the best plan for each ascension count checks its route finder. These open By a date on Egg Day with the stops filled in; nothing starts until you press Find. Each is sized to start in the morning and finish by night on a desktop.",
   },
   {
     id: 'gear',
     title: "Accounts and gear we haven't seen yet",
     intro:
-      "Every account on the board has strong earnings gear: between the all-common floor and the weakest player there is nothing. Each card below is a set we would build a table for, in the order we want them. Counts aren't detected yet, so every card shows 0.",
+      "Every account on the board has strong earnings gear: between the all-common floor and the weakest player there is nothing. Each card below is a set we would build the instant answer for, in the order we want them. Counts aren't detected yet, so every card shows 0.",
   },
 ];
 

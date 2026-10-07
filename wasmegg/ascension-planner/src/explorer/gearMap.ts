@@ -263,7 +263,7 @@ export const GEAR_NEED_WHERE: Record<string, { where: string; region: boolean }>
   'gear-epic-everything': { where: 'The epic earnings set: CTE 229 to 304 at TE 125 to 200.', region: false },
   'gear-rare-everything': { where: 'The rare earnings set: CTE 212 to 287 at TE 125 to 200.', region: false },
   'gear-legendary-t3-stones': { where: 'A little below the maxed set: the stones are what differ.', region: false },
-  'new-gear': { where: 'Any gear not yet on the tables list.', region: false },
+  'new-gear': { where: "Any gear the instant answer isn't built for yet.", region: false },
   'not-maxed': {
     where: 'Anywhere: CTE already takes off what is missing, so the map cannot tell these accounts apart.',
     region: false,

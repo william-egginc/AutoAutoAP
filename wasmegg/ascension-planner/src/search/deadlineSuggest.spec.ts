@@ -2,7 +2,14 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_STOP_SETS,
   STOP_SET_SIZES,
+  NOMINAL_STEP_IX,
+  NOMINAL_WIDTH_IX,
+  SPACE_STEPS,
+  SPACE_WIDTHS,
+  nearestIx,
+  routeFromBands,
   routeSpace,
+  spaceBySliders,
   stopsByWidth,
   suggestBase,
   suggestStops,
@@ -113,5 +120,55 @@ describe('routeSpace (the Full sweep around the instant route)', () => {
 
   it('is null for a one-ascension route', () => {
     expect(routeSpace(141, [490], 1000)).toBeNull();
+  });
+});
+
+describe('spaceBySliders (the Full sweep sliders)', () => {
+  const route = [195, 219, 248, 286, 327, 490];
+  const none = { widthIx: null, stepIx: null };
+
+  it('unmoved sliders give exactly what routeSpace gives at the budget', () => {
+    const auto = routeSpace(141, route, 75_000)!;
+    const s = spaceBySliders(141, route, none, 75_000)!;
+    expect(s.text).toBe(auto.text);
+    expect(s.sets).toBe(auto.sets);
+    expect(s.moved).toBe(false);
+  });
+
+  it('nominal positions are 5 TE either side, every 2 TE', () => {
+    expect(SPACE_WIDTHS[NOMINAL_WIDTH_IX]).toBe(5);
+    expect(SPACE_STEPS[NOMINAL_STEP_IX]).toBe(2);
+  });
+
+  it('moved sliders match By a date: stopsByWidth around the route, first stop at step 1', () => {
+    const wi = SPACE_WIDTHS.indexOf(8);
+    const si = SPACE_STEPS.indexOf(3);
+    const s = spaceBySliders(141, route, { widthIx: wi, stepIx: si }, 75_000)!;
+    const by = stopsByWidth(141, route.slice(0, -1), 490, 8, 3)!;
+    expect(s.text).toBe(by.text);
+    expect(s.sets).toBe(by.sets);
+    expect(s).toMatchObject({ halfWidth: 8, step: 3, moved: true });
+    expect(s.text.split('; ')[0]).toMatch(/:1$/);
+    expect(s.bands[0][0]).toBe(187);
+  });
+
+  it('is not capped by the budget once moved', () => {
+    const s = spaceBySliders(141, route, { widthIx: SPACE_WIDTHS.length - 1, stepIx: 0 }, 1_000)!;
+    expect(s.sets).toBeGreaterThan(1_000);
+  });
+
+  it('moving one slider pins the other where the default put it', () => {
+    const auto = routeSpace(141, route, 75_000)!;
+    const s = spaceBySliders(141, route, { widthIx: SPACE_WIDTHS.indexOf(15), stepIx: null }, 75_000)!;
+    expect(s.step).toBe(SPACE_STEPS[nearestIx(SPACE_STEPS, auto.step)]);
+    expect(s.halfWidth).toBe(15);
+  });
+
+  it('is null for a route with no early stop', () => {
+    expect(spaceBySliders(141, [490], { widthIx: 1, stepIx: 1 }, 1000)).toBeNull();
+  });
+
+  it('routeFromBands takes the middle of each band and ends at the target', () => {
+    expect(routeFromBands([[10, 11, 12], [20, 25, 30, 35]], 99)).toEqual([11, 25, 99]);
   });
 });

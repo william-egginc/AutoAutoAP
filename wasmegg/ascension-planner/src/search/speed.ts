@@ -21,12 +21,16 @@
  * where the old flat figure said 2.
  */
 
-/** Worker-seconds per chain by ascension count, for lengths the board has too few runs of. */
-const FALLBACK: Record<number, number> = { 2: 9.5, 3: 6, 4: 8, 5: 8.5, 6: 10.5, 7: 12.5, 8: 15 };
+/**
+ * Worker-seconds per chain by ascension count, for lengths the board has too few runs of. Re-measured
+ * 7 Oct 2026 on today's planner: 1.2-1.8x lower than the 24 Sept table above (which is kept as the
+ * record of how the first fit was made).
+ */
+const FALLBACK: Record<number, number> = { 2: 6, 3: 6, 4: 5.5, 5: 6.5, 6: 7, 7: 10, 8: 9.5 };
 
 export function fallbackWorkerSeconds(ascensions: number): number {
   const a = Math.max(2, Math.round(ascensions || 2));
-  return FALLBACK[a] ?? 15 + (a - 8) * 2;
+  return FALLBACK[a] ?? 9.5 + (a - 8) * 2;
 }
 
 /** The fields of a board row this reads. */
@@ -44,6 +48,14 @@ export function workerSecondsOf(row: SpeedSample): number | null {
 }
 
 /**
+ * Under this a run's figure is not believed. The row carries no "resumed" flag, and `run.minutes`
+ * only counts the LAST session of a resumed run: one 120,118-chain run reads as 101 minutes but took
+ * about 2 days, which comes out well under a second per chain. Nothing priced on today's board costs
+ * less than 2 worker-seconds a chain, so anything under it is a resumed run and is left out.
+ */
+export const MIN_PLAUSIBLE_WORKER_SECONDS = 2;
+
+/**
  * Median worker-seconds per chain per ascension count, from EXHAUSTIVE runs only (the sweeps these
  * estimates are for; a staged search prices a different mix of chains) and only where at least
  * `minRuns` runs agree to be counted.
@@ -56,7 +68,7 @@ export function measuredWorkerSeconds(
   for (const r of rows) {
     if (!r.space) continue;
     const w = workerSecondsOf(r);
-    if (w === null) continue;
+    if (w === null || w < MIN_PLAUSIBLE_WORKER_SECONDS) continue;
     const list = by.get(r.ascensions) ?? [];
     list.push(w);
     by.set(r.ascensions, list);

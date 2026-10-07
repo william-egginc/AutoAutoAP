@@ -26,7 +26,7 @@ const defaults = (): FetchDeps => ({
 async function fetchBytes(url: string, deps: FetchDeps): Promise<ArrayBuffer> {
   const res = await deps.fetch(url, { cache: 'no-cache' });
   if (!res.ok || /text\/html/.test(res.headers.get('content-type') ?? '')) {
-    throw new Error(`the precomputed table could not be loaded (${res.ok ? 404 : res.status})`);
+    throw new Error(`the instant answer could not be loaded (${res.ok ? 404 : res.status})`);
   }
   return res.arrayBuffer();
 }

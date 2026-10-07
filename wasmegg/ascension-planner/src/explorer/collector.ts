@@ -155,8 +155,20 @@ function takeEarly(base: string, signal?: AbortSignal): Promise<Response> | null
   });
 }
 
+/** What `GET /all` holds, split: the runs to a target TE (every chart's rows) and the By a date answers. */
+export interface AllRows {
+  rows: CollectorRow[];
+  /** Deadline answers (schema 8): "the highest TE by this date". Kept apart from `rows`. */
+  byDate: CollectorRow[];
+}
+
 /** Every submission the collector holds, newest KV page first. Throws with a readable message. */
 export async function fetchAll(base: string, signal?: AbortSignal): Promise<CollectorRow[]> {
+  return (await fetchAllRows(base, signal)).rows;
+}
+
+/** `fetchAll`, and the By a date answers it leaves out, handed back separately. */
+export async function fetchAllRows(base: string, signal?: AbortSignal): Promise<AllRows> {
   const res = await (takeEarly(base, signal) ?? fetch(`${base}/all`, { signal }));
   if (!res.ok) throw new Error(`The collector answered ${res.status} for /all.`);
   const body = (await res.json()) as AllResponse;
@@ -165,13 +177,14 @@ export async function fetchAll(base: string, signal?: AbortSignal): Promise<Coll
   // the page. Same posture the Worker takes when a stored value will not parse.
   // Deadline answers (schema 8) too: they are ranked on the leaderboard's By a date tab, and a
   // route cut short at whatever TE a date allowed says nothing about chain shapes to a target.
-  return body.rows.filter(
-    r =>
-      Array.isArray(r.chain) &&
-      r.chain.length >= 2 &&
-      Number.isFinite(r.durationDays) &&
-      typeof (r as { deadline?: unknown }).deadline !== 'number'
-  );
+  const isByDate = (r: CollectorRow) => typeof (r as { deadline?: unknown }).deadline === 'number';
+  return {
+    rows: body.rows.filter(
+      r => Array.isArray(r.chain) && r.chain.length >= 2 && Number.isFinite(r.durationDays) && !isByDate(r)
+    ),
+    // A By a date answer can be one ascension straight to its last stop, so a one-stop chain stays.
+    byDate: body.rows.filter(r => r && Array.isArray(r.chain) && r.chain.length >= 1 && isByDate(r)),
+  };
 }
 
 /**

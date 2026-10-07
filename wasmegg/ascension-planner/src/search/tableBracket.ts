@@ -64,7 +64,7 @@ export function pickBracket(
   };
 }
 
-/** "a table built for gear like 126.0 bonus / 0.94 delivery". */
+/** "an instant answer built for gear like 126.0 bonus / 0.94 delivery". */
 export function describeGear(t: Gear): string {
-  return `a table built for gear like ${t.bonus.toFixed(1)} bonus / ${t.k.toFixed(2)} delivery`;
+  return `an instant answer built for gear like ${t.bonus.toFixed(1)} bonus / ${t.k.toFixed(2)} delivery`;
 }

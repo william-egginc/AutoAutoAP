@@ -269,3 +269,54 @@ export function routeSpace(
   }
   return fallback;
 }
+
+/** A chain's two Suggest a space sliders as positions in SPACE_WIDTHS / SPACE_STEPS. Null on both is
+ *  "not moved": the space is sized to a chain budget (`routeSpace`). Moving either pins both. */
+export interface SpaceSliderPos {
+  widthIx: number | null;
+  stepIx: number | null;
+}
+export type SlidSpace = StopSuggestion & { halfWidth: number; step: number; moved: boolean };
+
+/** What the sliders show before they are moved: 5 TE either side, every 2 TE (what `routeSpace` finds
+ *  at the Full sweep's default size). */
+export const NOMINAL_WIDTH_IX = SPACE_WIDTHS.indexOf(5);
+export const NOMINAL_STEP_IX = SPACE_STEPS.indexOf(2);
+
+/** The position in `list` nearest `v`. */
+export function nearestIx(list: number[], v: number): number {
+  let best = 0;
+  list.forEach((x, i) => {
+    if (Math.abs(x - v) < Math.abs(list[best] - v)) best = i;
+  });
+  return best;
+}
+
+/** A route to centre on when there is no instant answer: the middle value of each band, then the target. */
+export function routeFromBands(bands: number[][], finalTE: number): number[] {
+  return [...bands.map(b => b[Math.floor((b.length - 1) / 2)]), finalTE];
+}
+
+/**
+ * The Full sweep's Suggest a space around `route`, sized by the two sliders (the same `stopsByWidth` as
+ * By a date, so the first stop is tried at every TE from just above your TE). Unmoved sliders give
+ * `routeSpace(maxChains)`, which is what Suggest filled in before the sliders existed.
+ */
+export function spaceBySliders(
+  currentTE: number,
+  route: number[],
+  sliders: SpaceSliderPos,
+  maxChains: number
+): SlidSpace | null {
+  const auto = routeSpace(currentTE, route, maxChains);
+  if (sliders.widthIx == null && sliders.stepIx == null) return auto && { ...auto, moved: false };
+  const wi = sliders.widthIx ?? (auto ? nearestIx(SPACE_WIDTHS, auto.halfWidth) : NOMINAL_WIDTH_IX);
+  const si = sliders.stepIx ?? (auto ? nearestIx(SPACE_STEPS, auto.step) : NOMINAL_STEP_IX);
+  const halfWidth = SPACE_WIDTHS[wi] ?? SPACE_WIDTHS[NOMINAL_WIDTH_IX];
+  const step = SPACE_STEPS[si] ?? SPACE_STEPS[NOMINAL_STEP_IX];
+  const early = route.slice(0, -1);
+  const last = route[route.length - 1];
+  if (!early.length || !(last > currentTE)) return null;
+  const s = stopsByWidth(currentTE, early, last, halfWidth, step);
+  return s && { ...s, halfWidth, step, moved: true };
+}

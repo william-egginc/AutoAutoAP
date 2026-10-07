@@ -484,22 +484,15 @@
                     class="w-16 rounded-md border-slate-300 text-xs font-bold text-slate-800 disabled:opacity-50"
                   />
                 </label>
-                <label class="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                  Size
-                  <input
-                    v-model.number="suggestSizeIx"
-                    type="range"
-                    min="0"
-                    :max="SUGGEST_SIZES.length - 1"
-                    step="1"
-                    :disabled="store.isRunning"
-                    class="w-28 accent-slate-800"
-                    aria-label="How big a space to suggest"
-                  />
-                  <span class="normal-case tracking-normal font-bold text-slate-700"
-                    >~{{ suggestBudget.toLocaleString() }} chains, about {{ suggestTimeLabel }}</span
-                  >
-                </label>
+                <SpaceSliders
+                  :width-ix="chain1View.wi"
+                  :step-ix="chain1View.si"
+                  :half-width="chain1View.w"
+                  :step="chain1View.s"
+                  :disabled="store.isRunning"
+                  @width="v => moveChain1('widthIx', v)"
+                  @step="v => moveChain1('stepIx', v)"
+                />
                 <button
                   type="button"
                   :disabled="store.isRunning || !suggestion"
@@ -518,8 +511,8 @@
                   point you can edit.
                 </HelpTip>
                 <span v-if="suggestion" class="text-[10px] text-slate-500">
-                  Suggest would fill in {{ suggestAsc }} ascensions, {{ suggestion.chains.toLocaleString() }} chains
-                  &middot;
+                  Suggest would fill in {{ suggestAsc }} ascensions, {{ suggestion.chains.toLocaleString() }} chains,
+                  about {{ chainsTimeLabel(suggestion.chains) }} &middot;
                   <template v-if="suggestion.kind === 'complete'">
                     <span class="font-black text-emerald-700">complete sweep</span>
                     {{
@@ -529,7 +522,7 @@
                     }}
                   </template>
                   <template v-else-if="suggestion.kind === 'instant'">
-                    around the instant answer's route ({{ suggestion.around.join(' ') }}), {{ suggestion.halfWidth }} TE
+                    around {{ suggestion.fromInstant ? "the instant answer's route" : "the measured shape's middles" }} ({{ suggestion.around.join(' ') }}), {{ suggestion.halfWidth }} TE
                     either side{{ suggestion.step > 1 ? `, every ${suggestion.step} TE` : '' }}
                   </template>
                   <template v-else>
@@ -538,6 +531,9 @@
                 </span>
                 <span v-else class="text-[10px] text-amber-700">
                   No suggestion for this target or ascension count.
+                </span>
+                <span v-if="suggestion && chain1Typed" class="basis-full text-[10px] text-slate-500">
+                  Your own bands stay as typed; press Suggest a space to replace them with this.
                 </span>
               </div>
 
@@ -618,6 +614,22 @@
                     Remove
                   </button>
                 </div>
+                <SpaceSliders
+                  v-if="row.asc >= 2"
+                  :width-ix="extraViews[k].wi"
+                  :step-ix="extraViews[k].si"
+                  :half-width="extraViews[k].w"
+                  :step="extraViews[k].s"
+                  :disabled="store.isRunning"
+                  @width="v => moveExtra(k, 'widthIx', v)"
+                  @step="v => moveExtra(k, 'stepIx', v)"
+                />
+                <span v-if="row.asc >= 2 && extraSugs[k]" class="block text-[10px] text-slate-500">
+                  Suggest would fill in {{ extraSugs[k]!.chains.toLocaleString() }} chains, about
+                  {{ chainsTimeLabel(extraSugs[k]!.chains) }}<template v-if="extraTyped(k)"
+                    >. Your own bands stay as typed; press Suggest a space to replace them with this.</template
+                  >
+                </span>
                 <input
                   v-if="row.asc >= 2"
                   v-model="row.text"
@@ -1238,11 +1250,6 @@
 
 <script lang="ts">
 import { ref as keptRef } from 'vue';
-import { SUGGESTION_CHAIN_BUDGET as KEPT_BUDGET } from '@/search/exhaustive';
-
-/** How big a space Suggest a space fills in, in chains (the user, 30 Sept: "how full do they want
- *  it?"). The middle step is the long-standing default. */
-const SUGGEST_SIZES = [10_000, 25_000, 50_000, 75_000, 150_000, 300_000];
 
 /**
  * The space the player set up, kept for the page load rather than per mount: leaving the screen
@@ -1258,8 +1265,15 @@ const kept = {
   autoFilled: keptRef(''),
   minGap: keptRef(0),
   suggestAsc: keptRef(6),
-  suggestSizeIx: keptRef(SUGGEST_SIZES.indexOf(KEPT_BUDGET)),
-  extraChains: keptRef<{ asc: number; text: string; auto?: boolean }[]>([]),
+  /** Chain 1's two Suggest a space sliders; null until moved (then the space is sized to the default chain budget). */
+  suggestWidthIx: keptRef<number | null>(null),
+  suggestStepIx: keptRef<number | null>(null),
+  /** The bands text the panel last wrote into Chain 1's box (default, Suggest, or a slider). A box that
+   *  still holds it is the panel's to rewrite when a slider moves; anything else is the player's. */
+  suggested: keptRef(''),
+  extraChains: keptRef<
+    { asc: number; text: string; auto?: boolean; widthIx?: number; stepIx?: number; sug?: string }[]
+  >([]),
 };
 </script>
 
@@ -1289,7 +1303,17 @@ import {
   SUGGESTABLE_ASCENSIONS,
   formatHours,
 } from '@/search/exhaustive';
-import { routeSpace } from '@/search/deadlineSuggest';
+import {
+  NOMINAL_STEP_IX,
+  NOMINAL_WIDTH_IX,
+  SPACE_STEPS,
+  SPACE_WIDTHS,
+  nearestIx,
+  routeFromBands,
+  spaceBySliders,
+  type SpaceSliderPos,
+} from '@/search/deadlineSuggest';
+import SpaceSliders from './SpaceSliders.vue';
 import RunCharts from './charts/RunCharts.vue';
 import HelpTip from './HelpTip.vue';
 import BandCheckNotice from './BandCheckNotice.vue';
@@ -1434,42 +1458,88 @@ const { suggestAsc } = kept;
  * value of this mode is that an unconstrained run proves something; taking that away should be a
  * decision, not a default.
  */
-const { suggestSizeIx } = kept;
-const suggestBudget = computed(() => SUGGEST_SIZES[suggestSizeIx.value] ?? SUGGESTION_CHAIN_BUDGET);
-/** About how long a space that size takes here, at this chain length and worker count. */
-const suggestTimeLabel = computed(() =>
-  formatHours(sweepSeconds(suggestBudget.value, store.workerBudget, workerSeconds.value) / 3600)
-);
+const suggestBudget = SUGGESTION_CHAIN_BUDGET;
+/** About how long a space of `chains` takes here, at this chain length and worker count. */
+const chainsTimeLabel = (chains: number) =>
+  formatHours(sweepSeconds(chains, store.workerBudget, workerSeconds.value) / 3600);
 /**
- * Precompute: Suggest a space for `n` ascensions within `maxChains`. A complete sweep still wins (it
- * proves the optimum); otherwise the space is centred on the instant answer's route for that count
- * (`store.instantRoutes`, deadlineSuggest.ts `routeSpace`), and only without one the measured shape.
+ * Precompute: Suggest a space for `n` ascensions. A complete sweep still wins (it proves the optimum)
+ * unless the sliders were moved; otherwise the space is centred on the instant answer's route for that
+ * count (`store.instantRoutes`) and sized by `deadlineSuggest.ts spaceBySliders`: to `maxChains` while
+ * the sliders are unmoved (`routeSpace`), to the sliders once they are. With no instant route, unmoved
+ * sliders give the measured shape, and moved ones centre on that shape's middles.
  */
 type SpaceSuggestion =
   | (ReturnType<typeof suggestBands> & object)
-  | { kind: 'instant'; text: string; chains: number; around: number[]; halfWidth: number; step: number };
-function spaceFor(n: number, maxChains: number): SpaceSuggestion | null {
+  | {
+      kind: 'instant';
+      text: string;
+      chains: number;
+      around: number[];
+      halfWidth: number;
+      step: number;
+      fromInstant: boolean;
+    };
+const NO_SLIDERS: SpaceSliderPos = { widthIx: null, stepIx: null };
+function spaceFor(n: number, maxChains: number, sl: SpaceSliderPos = NO_SLIDERS): SpaceSuggestion | null {
+  const moved = sl.widthIx != null || sl.stepIx != null;
   const plain = suggestBands(store.currentTE, store.finalTE, n, { maxChains });
-  if (plain?.kind === 'complete') return plain;
+  if (plain?.kind === 'complete' && !moved) return plain;
   const route = store.instantRoutes?.find(r => r.length === n && r[r.length - 1] === store.finalTE);
-  const around = route ? routeSpace(store.currentTE, route, maxChains) : null;
+  const base = route ?? (moved && plain && plain.kind !== 'complete' ? routeFromBands(plain.bands, store.finalTE) : null);
+  const around = base ? spaceBySliders(store.currentTE, base, sl, maxChains) : null;
   if (around)
     return {
       kind: 'instant',
       text: around.text,
       chains: around.sets,
-      around: route!,
+      around: base!,
       halfWidth: around.halfWidth,
       step: around.step,
+      fromInstant: !!route,
     };
   return plain;
 }
-const suggestion = computed(() => spaceFor(suggestAsc.value, suggestBudget.value));
+/** Where a chain's two sliders sit and what they say: the pinned positions once moved, else where the
+ *  default suggestion landed (nearest stop on each slider, its own ± and step in the words). */
+function viewOf(sug: SpaceSuggestion | null, sl: SpaceSliderPos) {
+  const auto = sug?.kind === 'instant' ? sug : null;
+  const wi = sl.widthIx ?? (auto ? nearestIx(SPACE_WIDTHS, auto.halfWidth) : NOMINAL_WIDTH_IX);
+  const si = sl.stepIx ?? (auto ? nearestIx(SPACE_STEPS, auto.step) : NOMINAL_STEP_IX);
+  return { wi, si, w: auto ? auto.halfWidth : SPACE_WIDTHS[wi], s: auto ? auto.step : SPACE_STEPS[si] };
+}
+const chain1Sliders = computed<SpaceSliderPos>(() => ({
+  widthIx: kept.suggestWidthIx.value,
+  stepIx: kept.suggestStepIx.value,
+}));
+const suggestion = computed(() => spaceFor(suggestAsc.value, suggestBudget, chain1Sliders.value));
+const chain1View = computed(() => viewOf(suggestion.value, chain1Sliders.value));
+/** The box holds bands the player typed (or a sweep link filled), not ones the panel wrote. */
+const chain1Typed = computed(() => {
+  const cur = bandsText.value.trim();
+  const s = suggestion.value;
+  return !!cur && !!s && cur !== s.text && cur !== kept.suggested.value.trim() && cur !== kept.autoFilled.value.trim();
+});
+/** Move one of Chain 1's sliders. Rewrites the box only when the panel wrote what is in it (the default,
+ *  Suggest, or an earlier slider move): bands the player typed, or a sweep link filled, are left alone. */
+function moveChain1(key: 'widthIx' | 'stepIx', value: number): void {
+  const view = chain1View.value;
+  kept.suggestWidthIx.value = key === 'widthIx' ? value : view.wi;
+  kept.suggestStepIx.value = key === 'stepIx' ? value : view.si;
+  const s = suggestion.value;
+  if (!s || store.isRunning) return;
+  const cur = bandsText.value.trim();
+  if (cur && cur !== kept.suggested.value.trim() && cur !== kept.autoFilled.value.trim()) return;
+  if (cur === kept.autoFilled.value.trim()) kept.autoFilled.value = s.text;
+  bandsText.value = s.text;
+  kept.suggested.value = s.text;
+}
 
 function applySuggestion(): void {
   const s = suggestion.value;
   if (!s) return;
   bandsText.value = s.text;
+  kept.suggested.value = s.text;
   kept.autoFilled.value = '';
   queueNeighbours(suggestAsc.value);
 }
@@ -1484,15 +1554,15 @@ function queueNeighbours(asc: number): void {
   if (sweepRequest) return;
   const rows = kept.extraChains.value.filter(r => !r.auto);
   const used = new Set([asc, ...rows.map(r => r.asc)]);
-  const added: { asc: number; text: string; auto: boolean }[] = [];
+  const added: { asc: number; text: string; auto: boolean; sug?: string }[] = [];
   for (const n of [asc - 1, asc + 1]) {
     if (n < 1 || n > 12 || used.has(n)) continue;
     if (n === 1) {
       added.push({ asc: 1, text: '', auto: true });
       continue;
     }
-    const sug = spaceFor(n, Math.floor(suggestBudget.value / 2));
-    if (sug) added.push({ asc: n, text: sug.text, auto: true });
+    const sug = spaceFor(n, Math.floor(suggestBudget / 2));
+    if (sug) added.push({ asc: n, text: sug.text, auto: true, sug: sug.text });
   }
   kept.extraChains.value = [...rows, ...added].sort((a, b) => a.asc - b.asc);
 }
@@ -1509,9 +1579,10 @@ function fillDefault(): void {
   // Precompute: the instant answer's count first (`store.suggestedCount`), then the usual six and down.
   const counts = [...new Set([store.suggestedCount ?? 6, 6, 5, 4, 3, 2])];
   for (const n of counts) {
-    const sug = spaceFor(n, suggestBudget.value);
+    const sug = spaceFor(n, suggestBudget, chain1Sliders.value);
     if (!sug) continue;
     bandsText.value = sug.text;
+    kept.suggested.value = sug.text;
     kept.autoFilled.value = sug.text;
     suggestAsc.value = n;
     queueNeighbours(n);
@@ -1797,8 +1868,39 @@ function extraSummary(k: number): string {
 function suggestExtra(k: number): void {
   const row = extraChains.value[k];
   if (!row) return;
-  const sug = spaceFor(row.asc, row.auto ? Math.floor(suggestBudget.value / 2) : suggestBudget.value);
-  if (sug) row.text = sug.text;
+  const sug = spaceFor(row.asc, extraBudget(row), rowSliders(row));
+  if (sug) {
+    row.text = sug.text;
+    row.sug = sug.text;
+  }
+}
+type ExtraRow = (typeof extraChains.value)[number];
+/** An added chain Suggest queued is half the size; one the player added is full size (sliders unmoved). */
+const extraBudget = (row: ExtraRow) => (row.auto ? Math.floor(suggestBudget / 2) : suggestBudget);
+const rowSliders = (row: ExtraRow): SpaceSliderPos => ({ widthIx: row.widthIx ?? null, stepIx: row.stepIx ?? null });
+const extraSugs = computed(() =>
+  extraChains.value.map(row => (row.asc >= 2 ? spaceFor(row.asc, extraBudget(row), rowSliders(row)) : null))
+);
+const extraViews = computed(() => extraChains.value.map((row, k) => viewOf(extraSugs.value[k], rowSliders(row))));
+/** The box holds bands the player typed, not ones the panel wrote. */
+function extraTyped(k: number): boolean {
+  const row = extraChains.value[k];
+  const s = extraSugs.value[k];
+  const cur = row?.text.trim();
+  return !!cur && !!s && cur !== s.text && cur !== (row.sug ?? '').trim();
+}
+/** Move one of an added chain's sliders; its box is rewritten only if the panel wrote what is in it. */
+function moveExtra(k: number, key: 'widthIx' | 'stepIx', value: number): void {
+  const row = extraChains.value[k];
+  if (!row) return;
+  const view = extraViews.value[k];
+  row.widthIx = key === 'widthIx' ? value : view.wi;
+  row.stepIx = key === 'stepIx' ? value : view.si;
+  const s = extraSugs.value[k];
+  const cur = row.text.trim();
+  if (!s || store.isRunning || (cur && cur !== (row.sug ?? '').trim())) return;
+  row.text = s.text;
+  row.sug = s.text;
 }
 /** A new chain one ascension shorter than the last, since the short ones are what get queued. */
 function addChain(): void {

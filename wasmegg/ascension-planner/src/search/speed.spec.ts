@@ -14,9 +14,11 @@ describe('sweep speed', () => {
     expect(workerSecondsOf({ ascensions: 2, chainsPriced: 307 })).toBeNull();
   });
 
-  // The two real runs that showed the old estimates were wrong.
-  it("estimates an 8-core desktop's M1 at about the 7 minutes it took, not the 2 the old figure said", () => {
-    expect(sweepSeconds(307, 7, fallbackWorkerSeconds(2)) / 60).toBeCloseTo(6.9, 0);
+  // The two real runs that showed the old flat estimates were wrong (7 minutes, not 2). The fallback
+  // was then lowered on 7 Oct 2026 to what today's planner measures (1.2-1.8x faster): 6 s at 2 ascensions.
+  it("estimates an 8-core desktop's M1 at the board's current speed, about 4.4 minutes", () => {
+    expect(fallbackWorkerSeconds(2)).toBe(6);
+    expect(sweepSeconds(307, 7, fallbackWorkerSeconds(2)) / 60).toBeCloseTo(4.4, 1);
   });
 
   it('uses the board median where enough exhaustive runs agree, and ignores staged runs', () => {
@@ -33,8 +35,19 @@ describe('sweep speed', () => {
     expect(workerSecondsPerChain(4, m)).toBe(fallbackWorkerSeconds(4));
   });
 
+  it('ignores a resumed run, whose minutes only cover its last session', () => {
+    const rows = [
+      { ascensions: 7, chainsPriced: 120118, run: { minutes: 101, workers: 16 }, space: {} }, // 0.8 s: resumed
+      { ascensions: 7, chainsPriced: 2000, run: { minutes: 20, workers: 10 }, space: {} },
+      { ascensions: 7, chainsPriced: 2000, run: { minutes: 30, workers: 10 }, space: {} },
+    ];
+    const m = measuredWorkerSeconds(rows);
+    expect(m.get(7)?.runs).toBe(2);
+    expect(m.get(7)?.seconds).toBeCloseTo(7.5, 1);
+  });
+
   it('grows past the table for very long chains', () => {
-    expect(fallbackWorkerSeconds(10)).toBe(19);
+    expect(fallbackWorkerSeconds(10)).toBe(13.5);
     expect(fallbackWorkerSeconds(1)).toBe(fallbackWorkerSeconds(2));
   });
 });

@@ -51,11 +51,11 @@
 -->
 <template>
   <div class="space-y-3">
-    <!-- The names are the shared sweeps' (the Science tab runs them); players read them as codes. -->
+    <!-- The names are the older shared sweeps' (the Science tab no longer asks for them); players read them as codes. -->
     <p v-if="groups.length" class="text-[11px] text-slate-500 leading-relaxed">
-      Each button is a group of runs, with how many there are. Named ones are sweeps: the M sweeps try a grid of TEs (M2
-      every 2nd TE, M4 every 5th), the F sweeps every TE where it matters most, and the rest are sweeps players designed
-      themselves. "2 ascensions" and the like are the other runs, grouped by ascension count.
+      Each button is a group of runs, with how many there are. Named ones are sweeps from the older shared presets (the
+      Science tab no longer asks for them): the M sweeps try a grid of TEs (M2 every 2nd TE, M4 every 5th), the F
+      sweeps every TE where it matters most, and the rest are sweeps players designed themselves. "2 ascensions" and the like are the other runs, grouped by ascension count.
     </p>
     <div v-if="groups.length" class="flex flex-wrap items-center gap-2">
       <button

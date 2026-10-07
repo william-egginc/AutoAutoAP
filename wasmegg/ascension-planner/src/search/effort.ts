@@ -34,6 +34,8 @@ export interface EffortNote {
   /** Measured CLI wall time on a 20-core Windows box at --jobs 12. The browser will differ; see
    *  the store's own `secondsPerChain`, which is measured on this machine instead. */
   cliDuration: string;
+  /** How long the tier takes in plain words, by machine size (7 Oct 2026, from the board's runs). */
+  typicalTime: string;
   /** What the tier adds over the one below it. */
   adds: string;
   /** The measured accuracy record, verbatim. Rendered as-is in the UI — do not paraphrase it into
@@ -47,6 +49,7 @@ export const EFFORT_NOTES: Record<EffortTier, EffortNote> = {
   quick: {
     label: 'Fast',
     cliDuration: '~1 h 05 m',
+    typicalTime: 'Minutes.',
     adds: 'Coordinate descent only (radius 8), re-solving the last checkpoint after every accepted move.',
     accuracy:
       'Measured 5 h, 0 h and 61 h behind the best answer found, on 3 accounts. ' +
@@ -58,6 +61,7 @@ export const EFFORT_NOTES: Record<EffortTier, EffortNote> = {
   normal: {
     label: 'Exact',
     cliDuration: '~3 h 30 m',
+    typicalTime: 'Under an hour on 8+ cores.',
     adds:
       '+ every combination of each neighbouring pair of checkpoints, which moving one at a time can miss. ' +
       '+ tries one ascension fewer or one more, and again from there while the count keeps changing (within your limits), then fine-tunes again. ' +
@@ -70,6 +74,7 @@ export const EFFORT_NOTES: Record<EffortTier, EffortNote> = {
   thorough: {
     label: 'Very high',
     cliDuration: '7–13 h',
+    typicalTime: '1-3 h on 8-16 cores, longer on 4.',
     adds: '+ every combination of each group of three neighbouring checkpoints.',
     accuracy:
       'On one account this step found a plan 1.7 days (40 h) faster than the pairs alone; on another it added ' +
