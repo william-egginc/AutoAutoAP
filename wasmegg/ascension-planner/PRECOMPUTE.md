@@ -100,7 +100,7 @@ route slower. `scripts/precompute.ts --prune-bench` reproduces it.
 
 ### Phones and small machines
 
-On a mobile browser, 4 GB of memory or less, or 4 cores or fewer (`src/search/device.ts`), the instant
+On a mobile browser (an iPad included), 4 GB of memory or less, or 2 cores or fewer (`src/search/device.ts`), the instant
 answer keeps to the answer itself: two route workers, no background polish, no nearest tables above
 and below, and the exact check only when _Check exactly_ is pressed.
 
