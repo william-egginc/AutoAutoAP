@@ -983,12 +983,13 @@ function rowSummary(k: number): string {
 const instantByCount = ref<Record<number, number[]>>({});
 /**
  * The instant answer arrived (or its exact check refined it): fill every chain box that is empty or
- * was filled by Suggest a space around it. A box typed by hand, or restored from an unfinished run or
- * a link, is left alone; nothing changes while a run is going or being restored.
+ * was filled by Suggest a space around it, at that chain's own sliders (a Science request's included).
+ * A box typed by hand, set by a link or request, or restored from an unfinished run is left alone;
+ * nothing changes while a run is going or being restored.
  */
 function onInstantRoutes(byCount: Record<number, number[]>): void {
   instantByCount.value = byCount;
-  if (linkAsc.length || store.deadlineRunning || store.preparing) return;
+  if (store.deadlineRunning || store.preparing) return;
   chains.value.forEach((row, k) => {
     // A row carried on from an unfinished run keeps its boxes.
     if (row.asc >= 2 && (!row.text || row.auto) && !row.restored) suggestRow(k);
