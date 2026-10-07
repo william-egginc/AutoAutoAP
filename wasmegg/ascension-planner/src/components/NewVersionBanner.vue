@@ -8,11 +8,11 @@
        a dark drop shadow, because the page is full of pale amber notices and a floating banner in
        the same colours disappears into whichever one it is passing over. "Later" hides it for ten
        minutes, never for good -- the tab is still running old code. -->
-  <!-- A MINOR update (wording, looks): a small note in the corner, dismissible for good. Players
+  <!-- A SMALL update (wording, looks): a small note in the corner, dismissible for good. Players
        asked for the difference: the same loud banner on every deploy taught them to ignore it, and
        they could not tell a real fix from a wording change (2026-09-25). -->
   <div
-    v-if="available && release.level === 'minor' && !dismissed"
+    v-if="available && release.level === 'small' && !dismissed"
     class="fixed top-3 right-3 z-[1100] w-[min(92vw,22rem)] rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-700 shadow-lg"
     role="status"
   >
@@ -49,8 +49,43 @@
     </div>
   </div>
 
+  <!-- A BIG update (something players should hear about): a full-width banner across the top. No
+       reload needed. Dismissed per update: the next different note shows again. -->
   <div
-    v-else-if="available && release.level === 'reload' && !hidden"
+    v-else-if="available && release.level === 'big' && dismissedBig !== release.note"
+    class="fixed top-0 inset-x-0 z-[1100] flex flex-wrap items-center justify-between gap-2 border-b-2 border-sky-600 bg-sky-50 px-4 py-2.5 text-sky-950 shadow-[0_8px_24px_rgba(0,0,0,0.3)]"
+    role="status"
+  >
+    <div class="text-[12px] flex-1 min-w-[14rem]">
+      <span class="font-bold">New on the planner:</span> {{ whatsNew
+      }}<template v-if="earlierLabel">
+        (<button type="button" class="underline" @click="showEarlier = !showEarlier">{{ earlierLabel }}</button
+        >)</template
+      >. You'll get it next time you open the page, or reload when convenient.
+      <ul v-if="showEarlier && earlierList.length" class="mt-1 list-disc pl-4">
+        <li v-for="(n, i) in earlierList" :key="i">{{ n }}</li>
+      </ul>
+    </div>
+    <div class="flex items-center gap-2">
+      <button
+        type="button"
+        class="px-3 py-1.5 rounded-lg text-sky-800 text-[10px] font-black uppercase tracking-widest hover:bg-sky-100"
+        @click="dismissedBig = release.note"
+      >
+        Dismiss
+      </button>
+      <button
+        type="button"
+        class="px-3 py-1.5 rounded-lg bg-sky-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-sky-600"
+        @click="reload"
+      >
+        Reload
+      </button>
+    </div>
+  </div>
+
+  <div
+    v-else-if="available && release.level === 'essential' && !hidden"
     class="fixed top-3 left-1/2 -translate-x-1/2 z-[1100] w-[min(94vw,52rem)] flex flex-wrap items-center justify-between gap-2 rounded-xl border-2 border-amber-500 bg-amber-50 px-4 py-3 text-amber-900 shadow-[0_12px_32px_rgba(0,0,0,0.35)] ring-4 ring-black/5"
     role="status"
   >
@@ -126,8 +161,10 @@ const advice = computed(() => {
   const t = (props.note ?? '').trim().replace(/[.\s]+$/, '');
   return t ? ` ${t.charAt(0).toUpperCase()}${t.slice(1)}.` : '';
 });
-/** The minor note, closed for the rest of this tab's life: it asks for nothing. */
+/** The small note, closed for the rest of this tab's life: it asks for nothing. */
 const dismissed = ref(false);
+/** The big banner's note that was dismissed; a different (newer) note shows it again. */
+const dismissedBig = ref('');
 
 function reload(): void {
   window.location.reload();
