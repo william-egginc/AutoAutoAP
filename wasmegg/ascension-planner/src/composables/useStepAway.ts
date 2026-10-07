@@ -6,6 +6,7 @@
  * `stepAway*` calls from its black-box hooks) without importing any component.
  */
 import { ref, watch, type Ref } from 'vue';
+import * as blackBox from '@/search/blackBox';
 import { environment } from '@/search/blackBox';
 import * as sa from '@/search/stepAway';
 
@@ -29,8 +30,13 @@ let channel: BroadcastChannel | null = null;
 let ownStartedAt = 0;
 let stopPressed = false;
 /** The player's own worker count before these options changed it, and what they set it to. */
-let budgetBefore: number | null = null;
-let budgetSetTo: number | null = null;
+let ledger: sa.WorkerLedger = sa.EMPTY_LEDGER;
+/** The worker ceiling an automatic carry-on set for this run; null when this run is not one. Held for
+ *  the whole run: ticking another box, or option 3 going off, never lifts it. Cleared (with the
+ *  player's own count put back) only when the run ends or is stopped. */
+let carryOnCap: number | null = null;
+/** Option 3 as the watcher last saw it, so only its going off undoes its own reduction. */
+let fewerSeen = stepAwayOptions.value.fewerWorkers;
 let samples: sa.RateSample[] = [];
 let memory: sa.MemorySample[] = [];
 let lastStepAt = 0;
@@ -58,16 +64,22 @@ export function installStepAway(d: Deps): void {
 
 function setBudget(n: number): void {
   if (!deps) return;
-  if (budgetBefore === null) budgetBefore = deps.workerBudget.value;
-  deps.workerBudget.value = n;
-  budgetSetTo = n;
+  const r = sa.reduceWorkers(ledger, deps.workerBudget.value, n);
+  ledger = r.ledger;
+  deps.workerBudget.value = r.workers;
 }
 
-/** Put the player's own worker count back, unless they moved it themselves since. */
+/** Put the player's own worker count back, unless they moved it themselves since. Only for the end of
+ *  the run (or a carry-on that will not happen): never while this page's run is going. */
 function restoreBudget(): void {
-  if (deps && budgetBefore !== null && deps.workerBudget.value === budgetSetTo) deps.workerBudget.value = budgetBefore;
-  budgetBefore = null;
-  budgetSetTo = null;
+  carryOnCap = null;
+  if (!deps) {
+    ledger = sa.EMPTY_LEDGER;
+    return;
+  }
+  const r = sa.restoreWorkers(ledger, deps.workerBudget.value);
+  ledger = r.ledger;
+  deps.workerBudget.value = r.workers;
 }
 
 function applyCap(): void {
@@ -88,12 +100,19 @@ watch(
   stepAwayOptions,
   o => {
     sa.writeOptions(o);
+    const fewerChanged = o.fewerWorkers !== fewerSeen;
+    fewerSeen = o.fewerWorkers;
     const m = ownMark();
     if (m && m.status === 'running') {
       sa.writeRunMark({ ...m, autoCarryOn: o.autoCarryOn || o.watch, watch: o.watch, fewerWorkers: o.fewerWorkers });
+      // Only option 3 itself touches the count. Any other tick (the watcher, the carry-on box) used to
+      // run the "off" branch too and put the player's own count back in the middle of a carried-on run.
+      if (!fewerChanged) return;
       if (o.fewerWorkers) applyCap();
-      else {
-        restoreBudget();
+      else if (deps) {
+        const r = sa.workersWhenFewerOff(ledger, deps.workerBudget.value, carryOnCap);
+        ledger = r.ledger;
+        deps.workerBudget.value = r.workers;
         stepAwayNote.value = '';
       }
     }
@@ -212,7 +231,11 @@ export function stepAwayBeginCarryOn(): number | null {
   const now = Date.now();
   sa.writeRunMark({ ...m, autoCarries: [...sa.lastHour(m.autoCarries, now), now] });
   const n = sa.carryOnWorkers(m.workers || deps.workerBudget.value, deps.machineThreads, m.fewerWorkers);
-  setBudget(Math.min(n, deps.workerBudget.value));
+  const from = deps.workerBudget.value;
+  carryOnCap = Math.min(n, from);
+  setBudget(carryOnCap);
+  // Into the black box too, so the run's first beats say why the count is not the player's own.
+  blackBox.note(`carry-on workers: ${from} -> ${deps.workerBudget.value} (the crashed run had ${m.workers || from})`);
   return deps.workerBudget.value;
 }
 
@@ -221,7 +244,8 @@ export function stepAwayBeginCarryOn(): number | null {
 export function stepAwayGiveUp(status: 'stopped' | 'stuck'): void {
   const m = sa.readRunMark();
   if (m && m.status === 'running' && !ownMark()) sa.writeRunMark({ ...m, status, endedAt: Date.now() });
-  restoreBudget();
+  // A run going on this page keeps its count; only a carry-on that is not going to happen gives it back.
+  if (!ownStartedAt) restoreBudget();
 }
 
 /** The watcher page's address. */

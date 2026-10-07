@@ -403,7 +403,11 @@
         </div>
       </div>
       <p class="pt-2 text-[10px] text-slate-500 leading-relaxed">
-        About {{ PROBES }} routes per set: the last stop is narrowed down, not tried at every TE. The estimate uses
+        About
+        <template v-if="rememberedPerSet"
+          >{{ rememberedPerSet.toFixed(1) }} routes per set (what this machine's last full run needed)</template
+        ><template v-else>{{ PROBES }} routes per set</template>: the last stop is narrowed down, not tried at every TE.
+        Once a run has finished enough sets it re-works the total from what they actually cost. The estimate uses
         <template v-if="store.deadlineWorkerSeconds">this machine's speed from its last deadline search</template
         ><template v-else
           >the typical speed for routes this long in players' runs, until this machine has done a deadline search of its
@@ -504,11 +508,13 @@
       </div>
       <p class="text-[11px] text-slate-600">
         <span class="font-bold">{{ liveDone.toLocaleString() }}</span
-        ><template v-if="runEstimate && liveDone < runEstimate"> of ~{{ runEstimate.toLocaleString() }}</template>
-        routes priced<template v-if="runEstimate && liveDone >= runEstimate">
-          (more than the ~{{ runEstimate.toLocaleString() }} estimated)</template
+        ><template v-if="estNow.total && liveDone < estNow.total">
+          of ~{{ roundedRoutes(estNow.total).toLocaleString() }}</template
         >
-        · {{ elapsedLabel }} so far<template v-if="remainingLabel"> · about {{ remainingLabel }} left</template>
+        routes priced<template v-if="estNow.total && liveDone >= estNow.total">
+          (more than the ~{{ roundedRoutes(estNow.total).toLocaleString() }} estimated)</template
+        ><template v-if="estNow.learned && liveDone < estNow.total"> ({{ estimateNote(estNow) }})</template> ·
+        {{ elapsedLabel }} so far<template v-if="remainingLabel"> · about {{ remainingLabel }} left</template>
       </p>
       <p class="text-[11px] text-slate-500">{{ store.deadlineProgress.stage }}</p>
       <div v-if="store.deadlineProgress.top.length" class="overflow-x-auto">
@@ -598,8 +604,14 @@
 
       <div class="overflow-x-auto">
         <p class="text-[10px] font-black uppercase tracking-widest text-slate-500 pb-1">
-          Top routes ({{ result.priced.toLocaleString() }} priced,
-          {{ result.step ? `early stops every ${result.step} TE, then refined` : 'every combination in your space' }})
+          <template v-if="!result.step && !result.stoppedEarly"
+            >Every route in your space: {{ result.priced.toLocaleString() }} priced, run complete. Top routes</template
+          ><template v-else
+            >Top routes ({{ result.priced.toLocaleString() }} priced,
+            {{
+              result.step ? `early stops every ${result.step} TE, then refined` : 'every combination in your space'
+            }})</template
+          >
         </p>
         <table class="w-full text-[11px] tabular-nums">
           <thead>
@@ -795,6 +807,7 @@ const kept = {
 </script>
 
 <script setup lang="ts">
+import { estimateNote, roundedRoutes } from '@/search/deadlineEstimate';
 import FindBar from './FindBar.vue';
 import BandCheckNotice from './BandCheckNotice.vue';
 import StepAwayOptions from './StepAwayOptions.vue';
@@ -1163,11 +1176,17 @@ const plannedShapes = computed(() => (mode.value === 'space' ? spaceShapes.value
  * Fewer sets than workers: each gets several guesses a round (deadline.ts `parallel`) -- more routes
  * in fewer rounds, so the time comes out as rounds rather than routes.
  */
+/**
+ * Routes a set cost in this machine's last finished run over a big space (many sets, so one guess a
+ * round), else the typical figure. A real 8,632-set run took ~4 a set, not ~11.
+ */
+const rememberedPerSet = computed(() => (mode.value === 'space' ? store.deadlineRoutesPerSet : 0));
 const plannedRoutes = computed(() => {
   const n = plannedShapes.value;
   if (!n) return 0;
   const k = Math.max(1, Math.min(16, Math.floor(store.workerBudget / n)));
-  const perShape = k === 1 ? PROBES.value : k * (Math.ceil(Math.log(lastWidth.value) / Math.log(k + 1)) + 1);
+  const perShape =
+    k === 1 ? rememberedPerSet.value || PROBES.value : k * (Math.ceil(Math.log(lastWidth.value) / Math.log(k + 1)) + 1);
   return Math.round(n * perShape * (mode.value === 'auto' ? 1.2 : 1));
 });
 /**
@@ -1203,9 +1222,10 @@ onUnmounted(() => ticker && clearInterval(ticker));
 
 const liveDone = computed(() => (store.deadlineProgress?.priced ?? 0) + store.deadlineInBatch);
 /** The estimate, never below what is already done: an estimate is a guess, a count is a fact. */
-const liveTotal = computed(() => Math.max(runEstimate.value, liveDone.value));
+const estNow = computed(() => store.deadlineEstimateNow);
+const liveTotal = computed(() => Math.max(estNow.value.total, liveDone.value));
 const progressPct = computed(() =>
-  runEstimate.value && liveTotal.value ? Math.min(99, Math.round((100 * liveDone.value) / liveTotal.value)) : 0
+  estNow.value.total && liveTotal.value ? Math.min(99, Math.round((100 * liveDone.value) / liveTotal.value)) : 0
 );
 const elapsedSeconds = computed(() => (store.deadlineStartedAt ? (now.value - store.deadlineStartedAt) / 1000 : 0));
 function durationLabel(sec: number): string {
@@ -1215,8 +1235,8 @@ function durationLabel(sec: number): string {
 }
 const elapsedLabel = computed(() => durationLabel(elapsedSeconds.value));
 const remainingLabel = computed(() => {
-  if (liveDone.value < 5 || !runEstimate.value || liveDone.value >= runEstimate.value) return '';
-  const left = Math.max(0, runEstimate.value - liveDone.value) * (elapsedSeconds.value / liveDone.value);
+  if (liveDone.value < 5 || !estNow.value.total || liveDone.value >= estNow.value.total) return '';
+  const left = Math.max(0, estNow.value.total - liveDone.value) * (elapsedSeconds.value / liveDone.value);
   return durationLabel(left);
 });
 

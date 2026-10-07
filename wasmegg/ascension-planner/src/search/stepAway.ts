@@ -229,6 +229,52 @@ export function carryOnWorkers(crashedWith: number, threads: number, fewerOn: bo
   return fewerOn ? Math.min(n, fewerWorkersCap(threads)) : n;
 }
 
+/**
+ * The player's own worker count and what the step-away rules set it to, so the count can be put back
+ * when the run ends. `before` is null while nothing has been changed.
+ */
+export interface WorkerLedger {
+  before: number | null;
+  setTo: number | null;
+}
+
+export const EMPTY_LEDGER: WorkerLedger = { before: null, setTo: null };
+
+/** The rules take the count down to `to`. The player's own count is remembered the first time; when the
+ *  player has moved the slider since the last change (the count is no longer what the rules set), their
+ *  new count is the one to remember. */
+export function reduceWorkers(
+  ledger: WorkerLedger,
+  current: number,
+  to: number
+): { ledger: WorkerLedger; workers: number } {
+  const moved = ledger.setTo !== null && current !== ledger.setTo;
+  const before = ledger.before === null || moved ? current : ledger.before;
+  return { ledger: { before, setTo: to }, workers: to };
+}
+
+/** The run is over: the player's own count goes back, unless they moved the slider themselves. */
+export function restoreWorkers(ledger: WorkerLedger, current: number): { ledger: WorkerLedger; workers: number } {
+  const workers = ledger.before !== null && current === ledger.setTo ? ledger.before : current;
+  return { ledger: EMPTY_LEDGER, workers };
+}
+
+/**
+ * Option 3 was switched off mid-run. Only its own reduction is undone: a carried-on run keeps the
+ * ceiling the carry-on set (`carryOnCap`, null when this run is not a carry-on) for the whole run. Any
+ * other tick in the box (the watcher, the carry-on option) never touches the count at all.
+ */
+export function workersWhenFewerOff(
+  ledger: WorkerLedger,
+  current: number,
+  carryOnCap: number | null
+): { ledger: WorkerLedger; workers: number } {
+  if (carryOnCap === null) return restoreWorkers(ledger, current);
+  if (ledger.before === null || current !== ledger.setTo) return { ledger, workers: current };
+  const to = Math.min(ledger.before, carryOnCap);
+  return { ledger: { before: ledger.before, setTo: to }, workers: to };
+}
+
 /** What the page can see of its own memory at one beat. Not other programs': no browser says. */
 export interface MemorySample {
   heapMB?: number;

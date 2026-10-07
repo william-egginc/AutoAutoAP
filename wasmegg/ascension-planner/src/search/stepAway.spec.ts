@@ -6,6 +6,7 @@ import {
   autoCarryOnVerdict,
   canReopen,
   carryOnWorkers,
+  EMPTY_LEDGER,
   clock12,
   fewerWorkersCap,
   heartbeatAge,
@@ -14,9 +15,12 @@ import {
   rateSlow,
   readOptions,
   readRunMark,
+  reduceWorkers,
+  restoreWorkers,
   stepDown,
   stepDownDecision,
   watchVerdict,
+  workersWhenFewerOff,
   writeOptions,
   writeRunMark,
   type RateSample,
@@ -290,5 +294,42 @@ describe('clock12', () => {
     expect(clock12(d.getTime())).toBe('12:07 am');
     expect(clock12(new Date(2026, 9, 5, 15, 30).getTime())).toBe('3:30 pm');
     expect(clock12(new Date(2026, 9, 5, 12, 0).getTime())).toBe('12:00 pm');
+  });
+});
+
+describe('the worker ledger', () => {
+  it("remembers the player's own count the first time and puts it back at the end", () => {
+    const a = reduceWorkers(EMPTY_LEDGER, 15, 10);
+    expect(a.workers).toBe(10);
+    expect(a.ledger).toEqual({ before: 15, setTo: 10 });
+    // A further step-down keeps the player's own count, not the reduced one.
+    const b = reduceWorkers(a.ledger, 10, 7);
+    expect(b.ledger).toEqual({ before: 15, setTo: 7 });
+    const c = restoreWorkers(b.ledger, 7);
+    expect(c.workers).toBe(15);
+    expect(c.ledger).toEqual(EMPTY_LEDGER);
+  });
+  it('leaves a count the player moved themselves, and takes it as their own for the next step-down', () => {
+    const a = reduceWorkers(EMPTY_LEDGER, 15, 10);
+    expect(restoreWorkers(a.ledger, 12).workers).toBe(12);
+    const b = reduceWorkers(a.ledger, 12, 9);
+    expect(b.ledger).toEqual({ before: 12, setTo: 9 });
+    expect(restoreWorkers(b.ledger, 9).workers).toBe(12);
+  });
+  it('changes nothing when nothing was reduced', () => {
+    expect(restoreWorkers(EMPTY_LEDGER, 6).workers).toBe(6);
+  });
+  it('option 3 going off undoes only its own reduction, and never lifts a carry-on ceiling', () => {
+    // Not a carry-on: everything goes back.
+    const a = reduceWorkers(EMPTY_LEDGER, 15, 8);
+    expect(workersWhenFewerOff(a.ledger, 8, null).workers).toBe(15);
+    // A carry-on at 10, then option 3 stepped further down to 6: off puts it back to the carry-on's 10.
+    const c = reduceWorkers(reduceWorkers(EMPTY_LEDGER, 15, 10).ledger, 10, 6);
+    const off = workersWhenFewerOff(c.ledger, 6, 10);
+    expect(off.workers).toBe(10);
+    // ...and the player's own 15 still comes back at the end of the run.
+    expect(restoreWorkers(off.ledger, 10).workers).toBe(15);
+    // Moved by hand: left alone.
+    expect(workersWhenFewerOff(c.ledger, 12, 10).workers).toBe(12);
   });
 });
