@@ -545,6 +545,13 @@
                 {{ gridExample }}), not every TE in between, which would take weeks. The winner is the best on this
                 grid, and a chain between grid points can be faster.
               </p>
+              <BandCheckNotice
+                :text="bandsText"
+                :current-t-e="store.currentTE"
+                :final-t-e="store.finalTE"
+                :disabled="store.isRunning"
+                @use="t => (bandsText = t)"
+              />
               <!-- The box only chooses what Suggest a space fills in; the bands decide what runs. A
                  player set it to 2 and then 8 on a 3-ascension sweep and it ran as 3 without a word,
                  so a mismatch is now an error that blocks Start until one of the two is changed. -->
@@ -608,6 +615,15 @@
                   :disabled="store.isRunning"
                   placeholder="185-200:5; 210-240:10"
                   class="w-full rounded-lg border-slate-300 text-sm font-mono-premium font-bold text-slate-800 disabled:opacity-50"
+                />
+                <BandCheckNotice
+                  v-if="row.asc >= 2"
+                  :text="row.text"
+                  :current-t-e="store.currentTE"
+                  :final-t-e="store.finalTE"
+                  :ascensions="row.asc"
+                  :disabled="store.isRunning"
+                  @use="t => (row.text = t)"
                 />
                 <span class="block text-[10px]" :class="extraProblem(k) ? 'text-rose-600' : 'text-slate-500'">
                   {{ extraProblem(k) || extraSummary(k) }}
@@ -1225,6 +1241,7 @@ import {
 } from '@/search/exhaustive';
 import RunCharts from './charts/RunCharts.vue';
 import HelpTip from './HelpTip.vue';
+import BandCheckNotice from './BandCheckNotice.vue';
 import StartTimeFinder from './StartTimeFinder.vue';
 import { showDateTime } from '@/lib/displayTime';
 import { sweepSeconds, workerSecondsFromRate, workerSecondsPerChain } from '@/search/speed';
