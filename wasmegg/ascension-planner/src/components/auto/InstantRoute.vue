@@ -196,13 +196,24 @@
           >
             {{ exactStatus === 'done' ? 'Check all again' : 'Check exactly' }}
           </button>
+          <button
+            type="button"
+            class="mt-1 ml-2 px-3 py-1.5 rounded-lg border border-emerald-700 text-emerald-800 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-50"
+            title="Opens this route in Classic, simulated step by step on your save"
+            @click="openPlan((dateExact ?? tableDate(result.byDate)).chain)"
+          >
+            Simulate this plan
+          </button>
         </template>
         <p v-else class="text-[12px] text-amber-800">
           No route gets above your TE by then{{ filtering ? ' with these filters' : '' }}.
         </p>
       </div>
       <div v-if="dateRows.length > 1" class="overflow-x-auto">
-        <p class="text-[11px] text-slate-500">Exact = the full simulator on your account; filled in automatically.</p>
+        <p class="text-[11px] text-slate-500">
+          Exact = the full simulator on your account; filled in automatically. Simulate this plan opens that route in
+          Classic, simulated step by step on your save: each ascension, its dates and purchases.
+        </p>
         <table class="w-full text-[12px]">
           <thead>
             <tr class="text-left text-[9px] font-black uppercase tracking-widest text-slate-400">
@@ -254,10 +265,10 @@
                 <button
                   type="button"
                   class="px-2 py-1 rounded-md border border-slate-300 text-[9px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-800"
-                  title="Builds this exact route in Classic, step by step"
+                  title="Opens this route in Classic, simulated step by step on your save"
                   @click="openPlan((dateExactByK[r.legs.length] ?? tableDate(r)).chain)"
                 >
-                  Open this plan
+                  Simulate this plan
                 </button>
               </td>
             </tr>
@@ -316,6 +327,14 @@
         >
           {{ exactStatus === 'done' ? 'Check all again' : 'Check exactly' }}
         </button>
+        <button
+          type="button"
+          class="mt-1 ml-2 px-3 py-1.5 rounded-lg border border-emerald-700 text-emerald-800 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-50"
+          title="Opens this route in Classic, simulated step by step on your save"
+          @click="openPlan(lead.chain)"
+        >
+          Simulate this plan
+        </button>
       </div>
       <p v-else class="text-[12px] text-amber-800">
         No route reaches {{ store.finalTE }} from here in the table{{ filtering ? ' with these filters' : '' }}.
@@ -358,7 +377,10 @@
 
     <template v-if="result && !deadline">
       <div class="overflow-x-auto">
-        <p class="text-[11px] text-slate-500">Exact = the full simulator on your account; filled in automatically.</p>
+        <p class="text-[11px] text-slate-500">
+          Exact = the full simulator on your account; filled in automatically. Simulate this plan opens that route in
+          Classic, simulated step by step on your save: each ascension, its dates and purchases.
+        </p>
         <table class="w-full text-[12px]">
           <thead>
             <tr class="text-left text-[9px] font-black uppercase tracking-widest text-slate-400">
@@ -396,10 +418,10 @@
                   type="button"
                   class="px-2 py-1 rounded-md border border-slate-300 text-[9px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-800"
                   :disabled="r.chain.length < 2"
-                  title="Builds this exact route in Classic, step by step"
+                  title="Opens this route in Classic, simulated step by step on your save"
                   @click="openPlan(r.chain)"
                 >
-                  Open this plan
+                  Simulate this plan
                 </button>
               </td>
             </tr>
@@ -442,7 +464,6 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
-import { useUIStore } from '@/stores/ui';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { showDateTime } from '@/lib/displayTime';
 import { continueTailParams, instantDeliveryScale } from '@/search/leg';
@@ -464,6 +485,7 @@ import { describeColleggtibles } from '@/search/progression';
 import { poolSize, RoutePool } from '@/search/routePool';
 import { describeGear, isMaxed, pickBracket, type TableEntry } from '@/search/tableBracket';
 import { isSmallDevice } from '@/search/device';
+import { simulateRoute } from '@/search/simulateRoute';
 import type { FirstLegsRequest } from '@/workers/routeFinder.protocol';
 import { createChainSearchPool, type ChainSearchPool, type EvaluateOptions } from '@/search/pool';
 import type { HandoffChoice } from '@/search/chain';
@@ -939,7 +961,7 @@ interface Exact {
   atOnce: number[];
   /** How many of its ascensions are fresh (not the one in progress, continued). */
   fresh: number;
-  /** Its simulated ascensions, for "Open this plan" (time off is worked in from these). */
+  /** Its simulated ascensions, for "Simulate this plan" (time off is worked in from these). */
   legs: ChainResult['legs'];
 }
 /** Exact prices by `chain.join(',')`; null where the simulator could not price the route. */
@@ -1012,19 +1034,18 @@ onUnmounted(stopExact);
 const key = (chain: number[]) => chain.join(',');
 const exactOf = (r: Route) => exact.value[key(r.chain)];
 
-/** The plan start the exact check priced from, for "Open this plan". */
+/** The plan start the exact check priced from, for "Simulate this plan". */
 const answerStart = ref(0);
 /**
- * A row's "Open this plan": this exact route as a plan in Classic, built step by step, from the start
- * it was priced from and with its time off (the searches' "Build this plan" does the same).
+ * "Simulate this plan" (a row's, or the answer's): this exact route in Classic, simulated on the
+ * player's save from the start it was priced from and with its time off; Classic scrolls to the plan
+ * and says where it came from (search/simulateRoute.ts).
  */
 function openPlan(chain: number[]): void {
-  store.applyChain(chain, true, {
+  simulateRoute(chain, props.deadline ? 'by-date' : 'fastest', {
     ...(answerStart.value ? { start: answerStart.value } : {}),
     ...(exact.value[key(chain)]?.legs ? { legs: exact.value[key(chain)]!.legs } : {}),
   });
-  store.generateWhenPlannerOpens = true;
-  useUIStore().openPlannerRequested++;
 }
 /** The top button: price every shown route with the full simulator again. */
 function checkAgain(): void {

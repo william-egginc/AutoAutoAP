@@ -255,6 +255,31 @@
         </div>
       </div>
 
+      <!-- A route the instant answer's "Simulate this plan" sent here: said where it came from, and the
+           page scrolls here once it is simulated (search/simulateRoute.ts). -->
+      <div
+        v-if="fromInstant"
+        ref="planStart"
+        class="mb-3 scroll-mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-[12px] text-emerald-900 flex flex-wrap items-center gap-x-3 gap-y-1"
+      >
+        <span
+          >Simulated <b class="font-mono-premium">{{ routeText(fromInstant.chain) }}</b> from the instant answer. Each
+          ascension's View details lists its steps and purchases.</span
+        >
+        <a
+          :href="fromInstant.back === 'by-date' ? '#/auto/by-date' : '#/auto/fastest'"
+          class="font-bold text-emerald-800 underline"
+          >Back to the answer</a
+        >
+        <button
+          type="button"
+          class="ml-auto text-emerald-700 hover:text-emerald-900"
+          aria-label="Dismiss"
+          @click="ui.planFromInstant = null"
+        >
+          ×
+        </button>
+      </div>
       <div class="space-y-4">
         <template v-for="(result, idx) in bestResults" :key="idx">
           <ForcedAscensionPreview
@@ -344,6 +369,8 @@ import { useAutoPlannerStore, type VariantKey } from '@/stores/autoPlanner';
 import { useTruthEggsStore } from '@/stores/truthEggs';
 import { useAscensionGenerator } from '@/auto/useAscensionGenerator';
 import { useChainSearchStore } from '@/stores/chainSearch';
+import { useUIStore } from '@/stores/ui';
+import { routeText } from '@/search/simulateRoute';
 import { showDateTime } from '@/lib/displayTime';
 import { useEarningsClothedTE } from '@/composables/useEarningsClothedTE';
 import { loadAutoPlannerSchedule, saveAutoPlannerSchedule } from '@/lib/autoPlannerFormCache';
@@ -483,6 +510,36 @@ watch(
     regeneratePlan();
   }
 );
+/**
+ * "Simulate this plan" from the instant answer (search/simulateRoute.ts): the banner above the plan
+ * while the Target TE is still that route, and one scroll to it once a generation started after the
+ * click has finished (not to whatever plan was on the page before).
+ */
+const ui = useUIStore();
+const planStart = ref<HTMLElement | null>(null);
+const fromInstant = computed(() => {
+  const f = ui.planFromInstant;
+  return f && targetTE.value.trim().split(/\s+/).join(' ') === f.chain.join(' ') ? f : null;
+});
+let scrollState: 'idle' | 'waiting' | 'generating' = ui.planFromInstant ? 'waiting' : 'idle';
+watch(
+  () => ui.planFromInstant,
+  f => {
+    if (f) scrollState = 'waiting';
+  }
+);
+watch(
+  isGenerating,
+  gen => {
+    if (gen && scrollState === 'waiting') scrollState = 'generating';
+    else if (!gen && scrollState === 'generating') {
+      scrollState = 'idle';
+      void nextTick(() => planStart.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    }
+  },
+  { immediate: true }
+);
+
 // Arrived from Insane mode's "Build this plan": the signal above fired before this existed.
 onMounted(() => {
   if (!chainSearchStore.generateWhenPlannerOpens) return;
