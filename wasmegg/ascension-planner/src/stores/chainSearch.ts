@@ -1162,7 +1162,15 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // Its own settings, so sending or downloading it after opening labels it with them (older saved
     // runs carry none and fall back to Your setup as it is now), never the last search's.
     runSettingsUsed.value = (summary.settings as RunSettings | undefined) ?? null;
-    accountUsed = null;
+    // Its own save's moment and TE when that save is still kept, so re-sending an opened run is not
+    // filed as a what-if against whichever newer save the tab holds now (the rest of the account
+    // fields still come from the loaded save; the gear rarely changes between the two).
+    {
+      const own = runSaveFor(summary.inputsKey);
+      accountUsed = own?.backupAt
+        ? { ...accountFields(summary.currentTE), backupTime: own.backupAt, backupTE: own.te }
+        : null;
+    }
     runNoteUsed = summary.runNote;
     runNote.value = summary.runNote ?? '';
     integrityWait.value = null;
