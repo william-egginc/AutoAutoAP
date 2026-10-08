@@ -1329,7 +1329,7 @@ describe('searchedOf', () => {
       },
     });
     const s = searchedOf(r);
-    expect(s.how).toBe('exhaustive · M3');
+    expect(s.how).toBe('Advanced · M3');
     expect(s.where).toBe('181-191:5; 215-218:1 · gap 10');
     // Where a line may wrap: after each band, never inside one at its hyphen.
     expect(s.pieces).toEqual(['181-191:5;', '215-218:1', '· gap 10']);
@@ -1363,7 +1363,7 @@ describe('searchedOf', () => {
       space: { ...box, minGap: 0, bands: [[195], [300]], chainsPriced: 1, chains: 4, stoppedEarly: true },
     });
     const s = searchedOf(r);
-    expect(s.how).toBe('partial');
+    expect(s.how).toBe('Advanced · partial');
     expect(s.where).toBe('195; 300');
     expect(s.title).toContain('Stopped after 1 of the 4 plans');
     expect(s.title).toContain('not a proof');
@@ -1379,10 +1379,10 @@ describe('searchedOf', () => {
     const space = { ...box, minGap: 0, bands, chains: 12, chainsPriced: 0 };
     const done = searchedOf(row({ chain: [200, 300, 490], currentTE: 180, finalTE: 490, chainsPriced: 12, space }));
     expect(done.finished).toBe(true);
-    expect(done.how).toBe('exhaustive');
+    expect(done.how).toBe('Advanced');
     const cut = searchedOf(row({ chain: [200, 300, 490], currentTE: 180, finalTE: 490, chainsPriced: 5, space }));
     expect(cut.finished).toBe(false);
-    expect(cut.how).toBe('partial');
+    expect(cut.how).toBe('Advanced · partial');
     expect(cut.title).toContain('It recorded pricing only 5 of the 12 plans');
   });
 
@@ -1390,7 +1390,7 @@ describe('searchedOf', () => {
     const s = searchedOf(
       row({ chain: [200, 300, 490], currentTE: 180, finalTE: 490, effort: 'thorough', chainsPriced: 5806 })
     );
-    expect(s.how).toBe('thorough');
+    expect(s.how).toBe('Simple · Very high');
     expect(s.where).toBe('');
     expect(s.title).toContain('5,806 plans priced');
   });
@@ -1514,7 +1514,7 @@ describe('searchGrade', () => {
       step: Infinity,
       steps: [],
       penalty: null,
-      text: 'staged (thorough)',
+      text: 'staged (Simple · Very high)',
     });
     const cut = searchGrade(
       row({

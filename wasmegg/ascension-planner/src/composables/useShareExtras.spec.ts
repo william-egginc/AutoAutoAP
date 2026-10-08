@@ -6,7 +6,37 @@ function mem(init: Record<string, string> = {}) {
   return { map, getItem: (k: string) => map.get(k) ?? null, setItem: (k: string, v: string) => void map.set(k, v) };
 }
 
+function fakeLocalStorage() {
+  const m = new Map<string, string>();
+  return {
+    getItem: (k: string) => (m.has(k) ? (m.get(k) as string) : null),
+    setItem: (k: string, v: string) => void m.set(k, String(v)),
+  };
+}
+
 describe('share extras', () => {
+  it('round-trips the diagnostics default through localStorage', () => {
+    const ls = fakeLocalStorage();
+    createShareExtras(ls).diagnosticsByDefault.value = true;
+    const b = createShareExtras(ls);
+    expect(b.diagnosticsByDefault.value).toBe(true);
+    expect(b.sendDiagnostics.value).toBe(true);
+    b.diagnosticsByDefault.value = false;
+    const c = createShareExtras(ls);
+    expect(c.diagnosticsByDefault.value).toBe(false);
+    expect(c.sendDiagnostics.value).toBe(false);
+  });
+
+  it('unticking diagnostics for one run leaves the saved default alone', () => {
+    const ls = fakeLocalStorage();
+    createShareExtras(ls).diagnosticsByDefault.value = true;
+    const b = createShareExtras(ls);
+    b.sendDiagnostics.value = false;
+    expect(createShareExtras(ls).diagnosticsByDefault.value).toBe(true);
+    b.sendDiagnostics.value = true;
+    expect(createShareExtras(ls).diagnosticsByDefault.value).toBe(true);
+  });
+
   it('starts with the CSV ticked and diagnostics unticked', () => {
     const x = createShareExtras(mem());
     expect(x.sendCsv.value).toBe(true);

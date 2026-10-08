@@ -81,6 +81,7 @@
         :half-width="sliders[k].halfWidth"
         :step="sliders[k].step"
         :from-card="sliders[k].fromCard"
+        :from-simple="sliders[k].fromSimple"
         :lead="sliderLead"
         :disabled="disabled"
         @width="v => emit('slider', k, 'widthIx', v)"

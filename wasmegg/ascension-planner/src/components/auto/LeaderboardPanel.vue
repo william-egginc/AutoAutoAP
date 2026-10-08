@@ -915,9 +915,9 @@
                           class="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-widest text-white"
                           :class="line.row.space.stoppedEarly ? 'bg-amber-600' : 'bg-indigo-600'"
                         >
-                          {{ line.row.space.stoppedEarly ? 'partial' : 'exhaustive' }}
+                          {{ foundByText(line.row) }}
                         </span>
-                        <span v-else>{{ line.row.effort ? effortText(line.row.effort) : '—' }}</span>
+                        <span v-else>{{ effortCell(line.row) }}</span>
                       </td>
                       <td
                         v-else-if="c.key === 'submittedAt'"
@@ -997,7 +997,6 @@ import {
   foldCopies,
   formatDate,
   foundByText,
-  effortText,
   deadlineOrder,
   deadlineSpare,
   isDeadlineRow,
@@ -1466,6 +1465,12 @@ interface RunLine extends SortableRow {
   /** The chips after the route: sent more than once, look-alike settings, sent without the code. */
   chips: { text: string; title: string; cls: string }[];
   finish: number | null;
+}
+
+/** The Effort column's text for a row that did not sweep a box (`foundByText` in leaderboardRank.ts). */
+function effortCell(row: Row): string {
+  const t = foundByText(row);
+  return t === 'unknown' ? '—' : t;
 }
 
 const COLUMNS: { key: SortKey; label: string; right?: boolean; title?: string }[] = [

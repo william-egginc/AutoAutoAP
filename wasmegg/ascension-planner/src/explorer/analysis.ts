@@ -1479,7 +1479,7 @@ export function searchedOf(row: CollectorRow): Searched {
   const title = words.join(' ');
   return {
     // A box the run did not finish is partial, whether it was stopped or just never recorded the rest.
-    how: `${finished ? foundByText(row) : 'partial'}${preset}`,
+    how: `${finished ? foundByText(row) : 'Advanced · partial'}${preset}`,
     finished,
     where: pieces.join(' '),
     pieces,

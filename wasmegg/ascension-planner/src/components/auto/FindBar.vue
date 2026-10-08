@@ -35,7 +35,7 @@
           v-if="!optIn"
           class="text-[10px] font-semibold text-slate-500 text-center"
           data-testid="acknowledge-hint"
-          >Please acknowledge below</span
+          >Please tick the box below</span
         >
       </div>
       <button

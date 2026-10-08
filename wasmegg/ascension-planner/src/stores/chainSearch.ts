@@ -3995,7 +3995,15 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     } finally {
       preparing.value = false;
     }
-    if (ready) await runDeadline(ready[0].spec, ready[1], ready[0].inputsKey, ready[0].entries, ready[2]);
+    if (ready)
+      await runDeadline(
+        ready[0].spec,
+        ready[1],
+        ready[0].inputsKey,
+        ready[0].entries,
+        ready[2],
+        ready[0].elapsedSeconds ?? 0
+      );
   }
 
   /**
@@ -4029,7 +4037,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     key: string,
     seed: PricedEntry[],
     /** The account the run is priced on (see `prepareDeadline`, `resumeDeadline`). */
-    accountIn?: AccountSnapshot
+    accountIn?: AccountSnapshot,
+    /** Seconds an earlier session of this run already spent (a carry-on), for its "took". */
+    priorSeconds = 0
   ): Promise<void> {
     const schedule = isConstrained(inputs.availability) ? inputs.availability : null;
     deadlineRunning.value = true;
@@ -4081,6 +4091,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           te: inputs.currentTE,
           entries: replay.entries(),
           updatedAt: now,
+          elapsedSeconds: priorSeconds + Math.max(0, (now - deadlineStartedAt.value) / 1000 - (pool?.suspendedSeconds ?? 0)),
           account: account as DeadlineAccount,
         });
       } catch (e) {
@@ -4166,17 +4177,15 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       // over the time it ran less any time the page was suspended, at its time-weighted worker count.
       const endedAt = Date.now();
       bankWorkerTime(endedAt);
-      noteDeadlineSpeed(
-        deadlineLegSims.value,
-        (endedAt - deadlineStartedAt.value) / 1000 - (pool?.suspendedSeconds ?? 0),
-        timeWeightedWorkers(
-          workerMs.value,
-          workersChangedAt.value,
-          workersInPool.value,
-          deadlineStartedAt.value,
-          endedAt
-        )
+      const sessionSeconds = (endedAt - deadlineStartedAt.value) / 1000 - (pool?.suspendedSeconds ?? 0);
+      const avgWorkers = timeWeightedWorkers(
+        workerMs.value,
+        workersChangedAt.value,
+        workersInPool.value,
+        deadlineStartedAt.value,
+        endedAt
       );
+      noteDeadlineSpeed(deadlineLegSims.value, sessionSeconds, avgWorkers);
       deadlineResult.value = {
         routes: out.routes.slice(0, 50),
         byStops: [...out.byStops.entries()].sort((a, b) => a[0] - b[0]).map(([, r]) => r),
@@ -4200,6 +4209,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         ...(spec.instantSets?.length ? { instantSets: spec.instantSets } : {}),
         ...(spec.simple ? { simple: true } : {}),
         legSims: deadlineLegSims.value,
+        elapsedSeconds: priorSeconds + Math.max(0, sessionSeconds),
+        ...(avgWorkers > 0 ? { workers: Math.max(1, Math.round(avgWorkers)) } : {}),
+        ...(priorSeconds > 0 || seed.length ? { carriedOn: true } : {}),
+        lastLo: Math.max(Math.floor(inputs.currentTE) + 1, spec.lastLo ?? 0),
         at: Date.now(),
       };
       deadlineAccount = account;

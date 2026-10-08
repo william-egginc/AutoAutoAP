@@ -21,8 +21,9 @@
         player ID and no save.
       </span>
     </label>
+    <!-- Always shown: hiding it while "Also send diagnostics" is unticked made a saved default impossible to
+         see or undo, and unticking diagnostics for one run looked like unticking the default. -->
     <label
-      v-if="sendDiagnostics"
       class="flex items-start gap-3 cursor-pointer text-[11px] text-indigo-900/70 ml-6"
       data-testid="diagnostics-default"
     >

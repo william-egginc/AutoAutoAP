@@ -124,6 +124,9 @@ export interface DeadlineCheckpoint {
   te: number;
   entries: PricedEntry[];
   updatedAt: number;
+  /** Seconds the run has been going, this session and earlier ones, less any time the page was
+   *  suspended: a carried-on run's "took" starts from it. Absent on checkpoints written before 8 Oct. */
+  elapsedSeconds?: number;
   /** The account half of the run's submission (stores/chainSearch.ts `accountFields`), taken when it
    *  started, so a carry-on on a tab that has loaded a newer save still sends the run's own save
    *  time and TE. Absent on checkpoints written before 7 Oct. */
@@ -173,6 +176,15 @@ export interface SavedDeadlineResult {
   instantSets?: number[][];
   /** Legs the workers actually simulated this session (pool `legSims`). Absent before 8 Oct. */
   legSims?: number;
+  /** How long the run took, in seconds: its time going, less any time the page was suspended, added
+   *  up over the sessions of a carried-on run. Absent on results saved before 8 Oct. */
+  elapsedSeconds?: number;
+  /** Workers the run used, averaged over its time (the slider can move). Absent before 8 Oct. */
+  workers?: number;
+  /** The run was carried on from an earlier session's checkpoint. */
+  carriedOn?: boolean;
+  /** The last stop's box (`DeadlineRunSpec.lastLo`..`lastHi`). Absent before 8 Oct. */
+  lastLo?: number;
   at: number;
 }
 

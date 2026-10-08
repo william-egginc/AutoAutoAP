@@ -32,6 +32,8 @@ export interface RowSliderView {
   step: number;
   /** The ± came from a Science card's request, not the slider. */
   fromCard?: boolean;
+  /** The ± is the width Simple's boxes were built with (Open in Advanced). */
+  fromSimple?: boolean;
 }
 
 export interface DateRowSliders<R> {
@@ -66,7 +68,8 @@ export function useDateRowSliders<R extends SliderRow & { auto?: boolean }>(opts
       stepIx: rowStepIx(row),
       halfWidth: widthOf(row),
       step: stepOf(row),
-      fromCard: !!row.pm,
+      fromCard: !!row.pm && !row.simple,
+      fromSimple: !!row.pm && !!row.simple,
     }))
   );
   function setSlider(k: number, key: 'widthIx' | 'stepIx', value: number): void {

@@ -2190,18 +2190,32 @@ export function settingTagTitle(tag: string): string {
   return 'Whether shifts are held. A look-alike of this plan from the same save was planned the other way.';
 }
 
-/** What one copy of a result was found with: `exhaustive`, `partial`, the effort tier, or `re-check`
- *  for a line made from a later run's `rechecks` (that run priced the route; it did not search). */
-export function foundByText(row: Pick<BoardRow, 'space' | 'effort' | 'recheckOf'>): string {
+/** What one copy of a result was found with, as the Effort column and the run detail show it:
+ *  `Simple · Fast|Exact|Very high` (Smart search; `Simple · Balanced (retired)` for rows sent before
+ *  that tier went), `Advanced` (Full sweep) or `Advanced · partial` (a sweep cut short), or `re-check`
+ *  for a line made from a later run's `rechecks` (that run priced the route; it did not search).
+ *  A By a date row says `Simple` or `Advanced` when it records which (`mode`/`simple`), and otherwise
+ *  what it always showed. Display only: the stored `effort` and `space` are untouched. */
+export function foundByText(row: Pick<BoardRow, 'space' | 'effort' | 'recheckOf'> & Partial<BoardRow>): string {
   if (row.recheckOf != null) return 're-check';
-  if (row.space) return row.space.stoppedEarly ? 'partial' : 'exhaustive';
+  if (row.space) return row.space.stoppedEarly ? 'Advanced · partial' : 'Advanced';
+  if (row.deadline != null) {
+    const r = row as { mode?: unknown; simple?: unknown };
+    const mode = r.mode === 'simple' || r.simple === true ? 'Simple' : r.mode === 'advanced' || r.simple === false ? 'Advanced' : null;
+    return mode ?? (row.effort || 'unknown');
+  }
   return effortText(row.effort);
 }
 
-/** A sent effort tier for display. Rows sent before Balanced was retired still say 'balanced'. */
+/** A sent effort tier's name on the planner's slider. */
+const TIER_NAMES: Record<string, string> = { quick: 'Fast', normal: 'Exact', thorough: 'Very high', balanced: 'Balanced (retired)' };
+
+/** A sent effort tier for display: Smart search is "Simple". Rows sent before Balanced was retired
+ *  still say 'balanced'. A tier this build does not know is shown as sent. */
 export function effortText(effort: string | undefined): string {
-  if (effort === 'balanced') return 'Balanced (retired)';
-  return effort || 'unknown';
+  if (!effort) return 'unknown';
+  const name = TIER_NAMES[effort];
+  return name ? `Simple · ${name}` : effort;
 }
 
 /** Who sent a run, as All runs shows it: the name as typed minus invisible characters. */

@@ -21,6 +21,7 @@
         simulated.
       </p>
     </div>
+    <YourSetup screen="by-date" />
     <InsanePanel :player-id="playerId" goal="deadline" :hide-routes="mode === 'simple'" @update:goal="onGoal">
       <template #mode>
         <ModeChooser
@@ -42,6 +43,7 @@ import { readSearchMode, writeSearchMode, type SearchMode } from '@/lib/searchMo
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useUIStore } from '@/stores/ui';
 import ModeChooser from './ModeChooser.vue';
+import YourSetup from './YourSetup.vue';
 
 defineProps<{ playerId: string }>();
 const emit = defineEmits<{ goal: [goal: 'fastest' | 'deadline'] }>();

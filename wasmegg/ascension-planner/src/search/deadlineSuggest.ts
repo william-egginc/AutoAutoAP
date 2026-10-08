@@ -326,6 +326,8 @@ export interface SliderRow {
   widthIx?: number;
   stepIx?: number;
   pm?: number;
+  /** `pm` is the width Simple's boxes were built with ("Open in Advanced"), not a Science card's. */
+  simple?: boolean;
 }
 
 /**
@@ -340,8 +342,11 @@ export function moveSlider(rows: SliderRow[], k: number, key: 'widthIx' | 'stepI
   rows.forEach((row, i) => {
     if (i !== k && !linked) return;
     row[key] = value;
-    // Moving the width slider ends a Science card's own width.
-    if (key === 'widthIx') delete row.pm;
+    // Moving the width slider ends a Science card's (or Simple's) own width.
+    if (key === 'widthIx') {
+      delete row.pm;
+      delete row.simple;
+    }
     moved.push(i);
   });
   return moved;

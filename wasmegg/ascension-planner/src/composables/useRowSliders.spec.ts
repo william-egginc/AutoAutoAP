@@ -3,7 +3,7 @@ import { ref } from 'vue';
 import { pinSliders, sweepSliderView, useDateRowSliders } from './useRowSliders';
 import { DEFAULT_STEP_IX, DEFAULT_WIDTH_IX, SPACE_STEPS, SPACE_WIDTHS } from '@/search/deadlineSuggest';
 
-type Row = { asc: number; text: string; auto?: boolean; widthIx?: number; stepIx?: number; pm?: number };
+type Row = { asc: number; text: string; auto?: boolean; widthIx?: number; stepIx?: number; pm?: number; simple?: boolean };
 
 function setup(rows: Row[]) {
   const r = ref<Row[]>(rows);
@@ -44,9 +44,16 @@ describe('By a date row sliders', () => {
 
   it("shows a Science card's own ± at the slider's start, until the width slider moves", () => {
     const t = setup([{ asc: 4, text: 'a', pm: 2, widthIx: 0, stepIx: 0 }]);
-    expect(t.s.views.value[0]).toEqual({ widthIx: 0, stepIx: 0, halfWidth: 2, step: 1, fromCard: true });
+    expect(t.s.views.value[0]).toEqual({ widthIx: 0, stepIx: 0, halfWidth: 2, step: 1, fromCard: true, fromSimple: false });
     t.s.setSlider(0, 'widthIx', 2);
     expect(t.s.views.value[0]).toMatchObject({ widthIx: 2, halfWidth: SPACE_WIDTHS[2], fromCard: false });
+  });
+
+  it("labels a row Simple built as from Simple, with its own width, until the width slider moves", () => {
+    const t = setup([{ asc: 4, text: 'a', pm: 2, simple: true, widthIx: 0, stepIx: 0 }]);
+    expect(t.s.views.value[0]).toMatchObject({ halfWidth: 2, step: 1, fromCard: false, fromSimple: true });
+    t.s.setSlider(0, 'widthIx', 2);
+    expect(t.s.views.value[0]).toMatchObject({ halfWidth: SPACE_WIDTHS[2], fromCard: false, fromSimple: false });
   });
 });
 

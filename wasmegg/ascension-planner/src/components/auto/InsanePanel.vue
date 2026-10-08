@@ -265,18 +265,6 @@
           {{ g.label }}
         </button>
       </div>
-      <details v-if="goal === 'deadline'" class="rounded-xl border border-slate-200 bg-white">
-        <summary class="cursor-pointer px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">
-          How {{ NAMES.byDate }} works
-        </summary>
-        <div class="px-4 pb-4 text-xs text-slate-600 leading-relaxed">
-          Finds the highest TE you can reach by a date. In Simple it picks the early stops for you: the instant answer's
-          route for each number of ascensions and a few TE either side of each stop. In Advanced you set the early stops
-          and it tries every route in them. Either way the last stop is found to the exact TE. Like any run, it uses the
-          plan start, hours, time off and computer settings in Your setup.
-        </div>
-      </details>
-
       <details v-if="goal === 'fastest'" class="rounded-xl border border-slate-200 bg-white">
         <summary class="cursor-pointer px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">
           How {{ NAMES.fullFirst }} works, and what it costs
@@ -403,10 +391,6 @@
           Discard it
         </button>
       </div>
-
-      <!-- Plan start, hours, time off, this computer and what it simulates: one setup shared by every
-           Auto Planner screen (YourSetup.vue), here where this screen's settings used to be. -->
-      <YourSetup :screen="goal === 'deadline' ? 'by-date' : 'fastest'" />
 
       <DeadlinePanel
         v-if="goal === 'deadline'"
@@ -893,7 +877,7 @@
           </p>
         </div>
 
-        <div v-if="store.stage" class="space-y-1">
+        <div v-if="store.stage" class="space-y-1" data-run-progress>
           <div class="flex items-center justify-between text-[10px] font-black uppercase tracking-widest">
             <span class="text-slate-500">{{ store.stage }}</span>
             <span class="text-slate-400 tabular-nums">
@@ -1178,7 +1162,6 @@ import { useShareExtras } from '@/composables/useShareExtras';
 import { useBoardSubmit, useShareIdentity } from '@/composables/useShareResult';
 import StepAwayOptions from './StepAwayOptions.vue';
 import SavedRuns from './SavedRuns.vue';
-import YourSetup from './YourSetup.vue';
 import AutoSendReport from './AutoSendReport.vue';
 import RouteResultCard from './RouteResultCard.vue';
 import { sendRunResult } from '@/search/sendRun';

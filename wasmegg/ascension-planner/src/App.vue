@@ -216,7 +216,7 @@
            folds away on the Auto Planner: the tabs are how you get anywhere, so they never hide. -->
       <!-- The search that's running, on every tab but its own (RunProgressBar.vue), so looking at
            the leaderboard or Classic mid-run doesn't mean losing sight of it or its Stop. -->
-      <RunProgressBar v-if="showRunBar" class="mt-4" @show="showRun" />
+      <RunProgressBar v-if="showRunBar" class="mt-4" :here="runIsHere" @show="showRun" />
       <!-- A Science sweep, run in place (SweepRunner.vue): a window over the page, so the figures and
            Start sit where the sweep was clicked rather than on another screen. -->
       <SweepRunner
@@ -858,9 +858,15 @@ const blockedBy = computed(() => {
 });
 const hereLabel = computed(() => screenName(screenHere.value));
 
-/** On every screen but the run's own, where the panel shows its progress in full. */
-const showRunBar = computed(() => !!runScreen.value && searchScreenOf(currentRoute()) !== runScreen.value);
+/** Whenever any search is running, the run's own screen included (the panel there shows the detail;
+ *  the bar's button then scrolls to it). */
+const showRunBar = computed(() => !!runScreen.value);
+const runIsHere = computed(() => !!runScreen.value && searchScreenOf(currentRoute()) === runScreen.value);
 function showRun(): void {
+  if (runIsHere.value) {
+    document.querySelector('[data-run-progress]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
   // A sweep started from Science: back to its window there, which is where it was started from.
   const science = uiStore.scienceRun;
   if (science && science.phase !== 'done' && !runningScreen.value) {

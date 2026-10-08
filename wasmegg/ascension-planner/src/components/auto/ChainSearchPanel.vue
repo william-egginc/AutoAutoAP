@@ -38,12 +38,6 @@
         </div>
       </details>
 
-      <!-- Plan start, hours, time off, this computer and what it simulates: one setup shared by every
-           Auto Planner screen (YourSetup.vue), here where this screen's settings used to be. -->
-      <YourSetup screen="fastest" />
-      <!-- A screen-level choice above the form (batch 3: Simple or Advanced). -->
-      <slot name="mode" />
-
       <!-- Collapsible so a repeat visitor can skip straight to the button. Open by default; a
            collapsed form looks like an empty panel. -->
       <div class="rounded-xl border border-slate-200 bg-white overflow-hidden">
@@ -64,7 +58,14 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
           </svg>
           <span class="text-[11px] font-black text-slate-700 uppercase tracking-widest">Search settings</span>
-          <span class="text-[10px] font-bold text-slate-400 normal-case tracking-normal ml-auto">
+          <span
+            v-if="!settingsOpen"
+            class="text-[11px] font-bold text-slate-600 normal-case tracking-normal ml-auto"
+            data-testid="effort-summary"
+          >
+            Effort: {{ note.label }} · <span class="text-indigo-700 underline">change</span>
+          </span>
+          <span v-else class="text-[10px] font-bold text-slate-400 normal-case tracking-normal ml-auto">
             effort, limits, and what it simulates with
           </span>
         </button>
@@ -524,7 +525,7 @@
 
       <!-- Live progress -->
       <div v-if="store.isRunning || store.bestDays > 0" class="space-y-4">
-        <div>
+        <div data-run-progress>
           <div class="flex items-center justify-between text-[10px] font-black uppercase tracking-widest mb-1.5">
             <span class="text-slate-500">{{ store.stage }}</span>
             <span class="text-slate-400">
@@ -1238,7 +1239,7 @@
             {{ runOutcome.detail }}
           </div>
 
-          <RunCharts :hide-link="false" />
+          <RunCharts />
         </div>
       </div>
 
@@ -1300,7 +1301,6 @@ import { useShareExtras } from '@/composables/useShareExtras';
 import { useBoardSubmit, useShareIdentity } from '@/composables/useShareResult';
 import StepAwayOptions from './StepAwayOptions.vue';
 import SavedRuns from './SavedRuns.vue';
-import YourSetup from './YourSetup.vue';
 import AutoSendReport from './AutoSendReport.vue';
 import RouteResultCard from './RouteResultCard.vue';
 import { describeCompute } from '@/utils/computeTime';
@@ -1324,7 +1324,24 @@ const store = useChainSearchStore();
 const initialStateStore = useInitialStateStore();
 
 /** Open by default: a collapsed form on first load looks like the panel has nothing in it. */
-const settingsOpen = ref(true);
+// Folded by default so Simple looks simple; the player's choice is remembered in this browser.
+const SETTINGS_OPEN_KEY = 'aap.fastest.searchSettingsOpen';
+const settingsOpen = ref(
+  (() => {
+    try {
+      return localStorage.getItem(SETTINGS_OPEN_KEY) === '1';
+    } catch {
+      return false;
+    }
+  })()
+);
+watch(settingsOpen, v => {
+  try {
+    localStorage.setItem(SETTINGS_OPEN_KEY, v ? '1' : '0');
+  } catch {
+    /* remembered for this visit only */
+  }
+});
 
 /**
  * Why the run ended, in one line. `stage` already carries this, but as an internal string

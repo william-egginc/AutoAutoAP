@@ -20,7 +20,7 @@
       <span
         ><b class="text-slate-700">±{{ halfWidth }}</b> TE around each stop<template v-if="fromCard">
           (from a Science card)</template
-        ></span
+        ><template v-else-if="fromSimple"> (from Simple)</template></span
       >
     </label>
     <label class="flex items-center gap-1.5">
@@ -57,6 +57,8 @@ defineProps<{
   lead?: string;
   /** The ± came from a Science card's request (±1, ±2), not the slider. */
   fromCard?: boolean;
+  /** The ± is the width Simple's boxes were built with (Open in Advanced). */
+  fromSimple?: boolean;
 }>();
 const emit = defineEmits<{ (e: 'width', ix: number): void; (e: 'step', ix: number): void }>();
 </script>

@@ -58,8 +58,6 @@
       </div>
     </div>
 
-    <!-- A screen-level choice above the form (batch 3: Simple or Advanced). -->
-    <slot name="mode" />
     <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">The deadline</h3>
     <!-- Egg Day or a date of your own, as one choice of two: a dark "Egg Day" button beside date
          boxes that already held Egg Day read oddly (the user, 30 Sept). The boxes show for a date
@@ -135,6 +133,21 @@
     <!-- The instant answer from the precomputed table (the precompute fork): the highest TE by this
          date, from every route at once. Check exactly sets its stops in the boxes below. -->
     <InstantRoute v-if="deadline" :deadline="deadline" @check="checkByDate" @routes="onInstantRoutes" />
+
+    <!-- How thorough (Simple or Advanced, batch 3), then how it works, then the mode's content. -->
+    <slot name="mode" />
+    <details class="rounded-xl border border-slate-200 bg-white">
+      <summary class="cursor-pointer px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+        How {{ NAMES.byDate }} works
+      </summary>
+      <div class="px-4 pb-4 text-xs text-slate-600 leading-relaxed">
+        Finds the highest TE you can reach by a date. In Simple it picks the early stops for you: the instant answer's
+        route for each number of ascensions and a few TE either side of each stop. In Advanced you set the early stops
+        and it tries every route in them. Either way the last stop is found to the exact TE. Like any run, it uses the
+        plan start, hours, time off and computer settings in Your setup.
+      </div>
+    </details>
+
 
     <!-- Simple (batch 3): no chain editor. The routes it tries, in one line, and a way to see them as
          boxes in Advanced (to widen them, say). -->
@@ -479,7 +492,7 @@
     </p>
 
     <!-- Live progress, Insane-style. -->
-    <div v-if="store.deadlineRunning && store.deadlineProgress" class="space-y-2">
+    <div v-if="store.deadlineRunning && store.deadlineProgress" class="space-y-2" data-run-progress>
       <ProgressBar :percent="progressPct" />
       <p class="text-[11px] text-slate-600">
         <span class="font-bold">{{ liveDone.toLocaleString() }}</span
@@ -586,6 +599,24 @@
           >.
         </template>
       </EdgeWarning>
+
+      <!-- How long the run took and what it searched (search/deadlineSummary.ts), kept with the result so
+           a saved answer and a carried-on run say it too. -->
+      <div class="text-[11px] text-slate-600 leading-relaxed space-y-0.5" data-testid="by-date-took">
+        <p>{{ summary.line }}</p>
+        <p v-if="summary.chains.length" data-testid="by-date-chains">
+          Chains: {{ shownChains.join(' · ') }}<template v-if="chainsTruncated && !showAllChains">…</template
+          ><template v-if="summary.lastStop"> · {{ summary.lastStop }}</template>
+          <button
+            v-if="chainsTruncated"
+            type="button"
+            class="ml-1 font-black uppercase tracking-widest text-[9px] text-slate-500 hover:text-slate-800 underline"
+            @click="showAllChains = !showAllChains"
+          >
+            {{ showAllChains ? 'Show fewer' : 'Show all' }}
+          </button>
+        </p>
+      </div>
 
       <div v-if="result.byStops.length > 1" class="overflow-x-auto">
         <p class="text-[10px] font-black uppercase tracking-widest text-slate-500 pb-1">Best for each stop count</p>
@@ -725,6 +756,8 @@ const kept = {
       stepIx?: number;
       /** A width only a Science card's request can ask for (+-1, +-2): overrides the slider. */
       pm?: number;
+      /** `pm` is Simple's width (Open in Advanced), not a Science card's. */
+      simple?: boolean;
       restored?: boolean;
       /** A Science card's "centre the later boxes on the instant answer" (byDateRequest.ts `centre`):
        *  each later box's TE either side and step. Dropped once the box is typed in. */
@@ -784,6 +817,7 @@ import {
   stepForBudget,
 } from '@/search/deadline';
 import { formatBand, formatHours } from '@/search/exhaustive';
+import { summariseByDate } from '@/search/deadlineSummary';
 import { rowSettingsFor, type DeadlineRunSpec, type SavedDeadlineResult } from '@/search/deadlineStore';
 import { SPACE_STEPS, SPACE_WIDTHS, stopsByWidth } from '@/search/deadlineSuggest';
 import { simpleByDateSpace, type SimpleSpace } from '@/search/simpleByDate';
@@ -1038,7 +1072,12 @@ const simpleSummary = computed(() => {
 function openInAdvanced(): void {
   const used = simpleBoxes.value;
   if (!used.chains.length) return;
-  chains.value = used.chains.map(r => ({ asc: r.asc, text: r.text }));
+  // Each row keeps the width Simple built it with, so its slider says "±2 TE around each stop (from
+  // Simple)" rather than the default ±10; moving the width slider clears that, as for a Science card.
+  chains.value = used.chains.map(r => {
+    const width = simpleSpace.value?.rows.find(x => x.asc === r.asc)?.width ?? 0;
+    return { asc: r.asc, text: r.text, ...(width > 0 ? { pm: width, simple: true, widthIx: 0, stepIx: 0 } : {}) };
+  });
   lastBox.value = used.lastBox;
   suggestFrom.value = "Set from Simple's routes, around the instant answer.";
   mode.value = 'space';
@@ -1705,6 +1744,24 @@ function ago(ms: number): string {
   return h < 48 ? `${h} h ago` : `${Math.round(h / 24)} days ago`;
 }
 const best = computed(() => result.value?.routes[0] ?? null);
+
+/** What the shown result says about its run: time, workers, the space (and, on Advanced, the boxes). */
+const summary = computed(() =>
+  result.value
+    ? summariseByDate(result.value as SavedDeadlineResult)
+    : { line: '', chains: [] as string[], lastStop: '' }
+);
+const SHOWN_CHAINS = 2;
+const CHAIN_CHARS = 90;
+const showAllChains = ref(false);
+const chainsTruncated = computed(
+  () => summary.value.chains.length > SHOWN_CHAINS || summary.value.chains.some(c => c.length > CHAIN_CHARS)
+);
+const shownChains = computed(() =>
+  showAllChains.value
+    ? summary.value.chains
+    : summary.value.chains.slice(0, SHOWN_CHAINS).map(c => (c.length > CHAIN_CHARS ? c.slice(0, CHAIN_CHARS) : c))
+);
 
 /**
  * Where the best route's stops sit on the lowest or highest value their box allows while the box

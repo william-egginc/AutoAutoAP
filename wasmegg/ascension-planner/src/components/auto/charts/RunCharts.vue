@@ -17,15 +17,6 @@
     <span class="text-[11px] text-slate-500">Draws the heat map of every chain priced so far</span>
   </div>
   <div v-else class="space-y-3">
-    <div v-if="hideLink" class="flex justify-end">
-      <button
-        type="button"
-        class="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600"
-        @click="store.setChartShown(false)"
-      >
-        Hide
-      </button>
-    </div>
     <template v-if="!showDots">
       <RunHeatMap :heat="store.heat" />
       <div
@@ -39,6 +30,14 @@
         >
           Show the dots
         </button>
+        <button
+          type="button"
+          data-testid="hide-chart"
+          class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 text-[10px] font-black uppercase tracking-widest hover:bg-slate-100"
+          @click="store.setChartShown(false)"
+        >
+          Hide the chart
+        </button>
         <DetailPicker />
       </div>
     </template>
@@ -50,6 +49,14 @@
           @click="closeDots"
         >
           Back to the heat map
+        </button>
+        <button
+          type="button"
+          data-testid="hide-chart"
+          class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 text-[10px] font-black uppercase tracking-widest hover:bg-slate-100"
+          @click="store.setChartShown(false)"
+        >
+          Hide the chart
         </button>
         <DetailPicker />
       </div>
@@ -69,8 +76,6 @@ import { useChainSearchStore } from '@/stores/chainSearch';
 import { CHART_AUTO_LIMIT, MAX_DRAWN_POINTS } from '@/lib/chartThin';
 import SearchShapeChart from './SearchShapeChart.vue';
 import RunHeatMap from './RunHeatMap.vue';
-
-withDefaults(defineProps<{ hideLink?: boolean }>(), { hideLink: true });
 
 const SIZES = [2_000, 5_000, 20_000];
 const LIVE_DOT_LIMIT = MAX_DRAWN_POINTS;

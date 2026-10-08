@@ -33,6 +33,7 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
+  { at: '2026-10-08T23:31:50Z', note: 'Both search tabs share one layout; Simple tucks its settings away; the progress bar shows whenever a search runs; results say how long they took and what they searched; leaderboard shows Simple and Advanced' },
   { at: '2026-10-08T21:54:35Z', note: 'Simple and Advanced on both search tabs: Simple Highest TE by a date checks the instant answer route for each ascension count with the full simulator; estimates after a carry-on say measuring until they have real data', level: 'big' },
   { at: '2026-10-08T20:45:00Z', note: 'Smart search, Full sweep and Highest TE by a date now share the same Share this result, routes-to-try, progress and download pieces' },
   { at: '2026-10-08T19:10:52Z', note: 'Highest TE by a date runs keep every worker busy (up to about twice as fast on big machines), always try the instant answer route, warn when the best route is on a box edge, and give one honest time estimate', level: 'big' },
@@ -40,7 +41,6 @@ const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
   { at: '2026-10-08T06:49:42Z', note: 'Searches use less memory: workers get only the parts of your save they need, and the instant answer frees its workers while a search runs' },
   { at: '2026-10-08T02:22:20Z', note: 'The search chart is hidden until you press Show the chart, so big runs use less memory; a single chain no longer fills the chart' },
   { at: '2026-10-07T23:35:19Z', note: 'Searches wait until your save has loaded and always start from it; By a date carry-ons and saved answers keep their own save when sent' },
-  { at: '2026-10-07T23:07:14Z', note: 'Insights rewritten with what we know now, including Egg Day runs; Full sweep chains get the same range and step sliders as By a date; search time estimates match real runs', level: 'big' },
 ];
 
 export default {

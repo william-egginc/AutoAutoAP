@@ -20,6 +20,10 @@
       </p>
     </div>
 
+    <!-- One order on both search tabs: Your setup, the instant answer, How thorough, then the panel
+         (How ... works, and the mode's content). By a date adds The deadline after Your setup. -->
+    <YourSetup screen="fastest" />
+
     <!-- The instant answer from the precomputed table (the precompute fork): every route, at once.
          Check exactly hands a route to the Full sweep, which prices it with the full simulator. -->
     <InstantRoute @check="checkExactly" />
@@ -48,6 +52,7 @@ import { safeAsyncComponent } from '@/lib/import';
 import RunningElsewhere from './RunningElsewhere.vue';
 import ModeChooser from './ModeChooser.vue';
 import InstantRoute from './InstantRoute.vue';
+import YourSetup from './YourSetup.vue';
 import { useUIStore } from '@/stores/ui';
 import { writeSearchMode } from '@/lib/searchMode';
 

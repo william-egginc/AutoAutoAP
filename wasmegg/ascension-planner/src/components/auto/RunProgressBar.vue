@@ -4,8 +4,9 @@
   its progress and its Stop go with the player instead of staying on the screen it started from.
 
   Reads the store's one progress reading (chainSearch `runProgress`), which every kind of search
-  feeds: Smart search, the Full sweep, Highest TE by a date and the start-time sweep. App hides it on
-  the run's own screen, where the panel shows the full detail, and "Show it" goes back there.
+  feeds: Smart search, the Full sweep, Highest TE by a date and the start-time sweep. It shows on the run's own
+  screen too, where the button says "Jump to it" and scrolls to the panel's progress; elsewhere "Show it"
+  goes back to the run's screen.
 -->
 <template>
   <div
@@ -29,9 +30,10 @@
         <button
           type="button"
           class="px-3 py-1.5 rounded-lg bg-white/10 text-[10px] font-black uppercase tracking-widest hover:bg-white/20"
+          data-testid="run-bar-show"
           @click="emit('show')"
         >
-          Show it
+          {{ props.here ? 'Jump to it' : 'Show it' }}
         </button>
         <span
           v-if="store.submitsWhenDone"
@@ -70,6 +72,7 @@ import { useUIStore } from '@/stores/ui';
 import { NAMES } from '@/lib/siteNav';
 import { showDateTime } from '@/lib/displayTime';
 
+const props = defineProps<{ /** The bar sits on the run's own screen. */ here?: boolean }>();
 const emit = defineEmits<{ show: [] }>();
 const store = useChainSearchStore();
 const planner = useAutoPlannerStore();
