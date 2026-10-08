@@ -136,6 +136,15 @@ function cloneBaseState(inputs: SearchInputs): EngineState {
   return JSON.parse(JSON.stringify(inputs.baseState)) as EngineState;
 }
 
+/** A simulated variant once `runLeg` is done with its actions: what `LegResult` and `pickVariant`
+ *  read, with an empty `actions` so it still satisfies `pickVariant`'s `VariantResult`. */
+interface CompactVariant extends VariantResult {
+  shifts: ShiftMoment[];
+  heldSeconds: number;
+  lastEgg: string;
+}
+const NO_ACTIONS: Action[] = Object.freeze([]) as unknown as Action[];
+
 /**
  * Simulate one ascension and return the variant the app itself would pick.
  *
@@ -163,20 +172,34 @@ export function runLeg(
   // absent, so leaving the goal set here would silently ignore it (the trap the generator documents).
   const goalTE = endOverride !== undefined ? undefined : targetTE;
   const byDeadline = endOverride !== undefined;
-  const asLeg = (v: VariantResult, key: VariantKey): LegResult => ({
+  // Each variant is boiled down to what the leg's result and `pickVariant` read the moment it is
+  // simulated, and its action list -- hundreds of actions, each carrying a whole EngineState as its
+  // `endState` -- is let go then, rather than all of them being held until the pick. Nothing past
+  // this function reads a variant's actions (LegResult does not carry them).
+  const compact = (v: VariantResult): CompactVariant => ({
     summary: v.summary,
-    key,
-    nextState: deriveNextStartState(v.summary, cloneBaseState(inputs)),
+    actions: NO_ACTIONS,
     shifts: shiftInstants(v.actions, startTime),
     heldSeconds: heldSecondsOf(v.actions),
     lastEgg:
       (v.actions.filter(a => a.type === 'shift').pop()?.payload as { toEgg?: string } | undefined)?.toEgg ??
       baseState.currentEgg,
   });
+  const compactOrNull = (v: VariantResult | null): CompactVariant | null => (v ? compact(v) : null);
+  const asLeg = (v: CompactVariant, key: VariantKey): LegResult => ({
+    summary: v.summary,
+    key,
+    nextState: deriveNextStartState(v.summary, cloneBaseState(inputs)),
+    shifts: v.shifts,
+    heldSeconds: v.heldSeconds,
+    lastEgg: v.lastEgg,
+  });
 
   // Continue first (A1 only): see CONTINUE_PIN_MAX_SECONDS for the whole rule. Past six months it
   // is dropped rather than compared, so a bare farm's billion-day continue can never win anything.
-  let cont = allowContinue ? buildContinueVariant(inputs, baseState, startTime, goalTE, idx, endOverride) : null;
+  let cont = allowContinue
+    ? compactOrNull(buildContinueVariant(inputs, baseState, startTime, goalTE, idx, endOverride))
+    : null;
   if (cont && !(cont.summary.totalDurationSeconds <= (inputs.continueMaxSeconds ?? CONTINUE_MAX_SECONDS))) cont = null;
   if (
     cont &&
@@ -205,14 +228,17 @@ export function runLeg(
   // build phase ends after it is not slower but unevaluable.
   if (byDeadline) surviving = surviving.filter(v => v.buildPhaseEnd <= endOverride!);
 
-  const fresh: Partial<Record<VariantKey, VariantResult>> = {};
+  const fresh: Partial<Record<VariantKey, CompactVariant>> = {};
   for (const v of surviving) {
     const key = (v.attemptTier13Unlock ? `${v.saleCount}-sale-tier13` : `${v.saleCount}-sale`) as VariantKey;
-    fresh[key] = runAscensionFromC3Variant(baseState, preC3, v, ctx, startTime, `asc_${idx}`, goalTE, endOverride);
+    fresh[key] = compact(
+      runAscensionFromC3Variant(baseState, preC3, v, ctx, startTime, `asc_${idx}`, goalTE, endOverride)
+    );
   }
   const freshKeys = Object.keys(fresh) as VariantKey[];
   // By a deadline every variant ends at the same instant, so "better" is more TE, not less time.
-  const freshBest = freshKeys.length ? pickVariant(fresh, undefined, byDeadline) : null;
+  // `pickVariant` reads only `summary`, and returns one of the records it was given.
+  const freshBest = freshKeys.length ? (pickVariant(fresh, undefined, byDeadline) as CompactVariant) : null;
   const freshKey = freshBest ? freshKeys.find(k => fresh[k] === freshBest)! : null;
 
   if (cont) {

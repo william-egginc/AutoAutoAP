@@ -24,6 +24,7 @@
  * (see chainSearch.protocol.ts) and a request with no traffic for `STALL_MS` is failed loudly.
  */
 import { sanitizeLongs } from '@/lib/artifacts/utils';
+import { inputsForWorkers } from './workerBackup';
 import { sortChainsDepthFirst } from './chain';
 import { clampPoolSize, hardwareThreads, maxPoolSize, splitByPrefix, workersForBatch } from './batch';
 import type { ChainResult, SearchInputs } from './types';
@@ -384,8 +385,11 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
   // Unlike researchCalc's own `prepareForPostMessage`, `context.rawBackup` is NOT dropped here: the
   // simulation path genuinely reads it (`auto/shifts/c3.ts` and `auto/shifts/h1.ts` both call
   // `getOptimalELRSet(context.rawBackup, ...)`), and the "continue current ascension" variant reads
-  // the artifact inventory off it too.
-  const cleanInputs = sanitizeLongs(inputs);
+  // the artifact inventory off it too. It is cut down to just those reads (search/workerBackup.ts):
+  // the rest of the save -- mission and contract archives, the home farm and its inventory -- was a
+  // copy in every worker of something no worker reads. Trimmed before the sanitize, so the deep
+  // rebuild only walks what is sent.
+  const cleanInputs = sanitizeLongs(inputsForWorkers(inputs));
 
   /** Create and initialise worker `i` on first use; every later caller awaits the same promise. */
   function workerAt(i: number): Promise<PoolWorker> {

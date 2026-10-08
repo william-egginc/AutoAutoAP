@@ -43,13 +43,25 @@ export function splitByWork(items: ArrivalItem[], top: number, n: number): Arriv
 }
 
 export class RoutePool {
-  private workers: Worker[];
+  /** Null while asleep (`sleep`): spawned again, all of them, by the next request. */
+  private workers: Worker[] | null = null;
   private pending = new Map<number, Pending>();
   private nextId = 1;
+  private readonly count: number;
+  /** `terminate` is final: no request after it spawns anything. */
+  private closed = false;
 
-  constructor(size: number, make: () => Worker) {
-    this.workers = Array.from({ length: Math.max(1, size) }, () => {
-      const w = make();
+  constructor(
+    size: number,
+    private readonly make: () => Worker
+  ) {
+    this.count = Math.max(1, size);
+    this.workers = this.spawn();
+  }
+
+  private spawn(): Worker[] {
+    return Array.from({ length: this.count }, () => {
+      const w = this.make();
       w.onmessage = (e: MessageEvent<RouteWorkerResponse>) => {
         const p = this.pending.get(e.data.id);
         if (!p) return;
@@ -62,14 +74,39 @@ export class RoutePool {
   }
 
   get size(): number {
-    return this.workers.length;
+    return this.count;
+  }
+
+  /** No request in flight. */
+  get idle(): boolean {
+    return this.pending.size === 0;
+  }
+
+  /**
+   * Give the workers' memory back while nothing is asked of them: each holds a decoded table, and a
+   * chain search wants every MB of the browser's shared heap for its own workers. Only when idle --
+   * a request in flight is never cut off; false then, and nothing is done. The next request spawns
+   * the workers again, and they load the table again (from the HTTP cache, normally).
+   */
+  sleep(): boolean {
+    if (!this.idle || !this.workers) return !this.workers;
+    for (const w of this.workers) w.terminate();
+    this.workers = null;
+    return true;
+  }
+
+  get asleep(): boolean {
+    return !this.workers;
   }
 
   private ask(worker: number, message: Unsent<RouteWorkerRequest>): Promise<RouteWorkerResponse> {
+    if (this.closed) return Promise.reject(new Error('stopped'));
     const id = this.nextId++;
+    this.workers ??= this.spawn();
+    const target = this.workers[worker];
     return new Promise((resolve, reject) => {
       this.pending.set(id, { resolve, reject });
-      this.workers[worker].postMessage({ ...message, id });
+      target.postMessage({ ...message, id });
     });
   }
 
@@ -98,7 +135,7 @@ export class RoutePool {
    * together in the same order.
    */
   async expand(url: string, items: ArrivalItem[], settings: ExpandSettings): Promise<Candidate[]> {
-    const chunks = splitByWork(items, settings.top, this.workers.length);
+    const chunks = splitByWork(items, settings.top, this.count);
     const replies = await Promise.all(
       chunks.map((chunk, w) => this.ask(w, { kind: 'expand', url, items: chunk, settings }))
     );
@@ -106,7 +143,9 @@ export class RoutePool {
   }
 
   terminate(): void {
-    for (const w of this.workers) w.terminate();
+    this.closed = true;
+    for (const w of this.workers ?? []) w.terminate();
+    this.workers = null;
     for (const p of this.pending.values()) p.reject(new Error('stopped'));
     this.pending.clear();
   }

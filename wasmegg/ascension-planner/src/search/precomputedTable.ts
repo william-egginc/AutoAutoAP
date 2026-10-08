@@ -77,8 +77,45 @@ export function packTable(
   return bytes;
 }
 
-/** Read the file's bytes back; builds are made on first lookup of each cell and kept. */
-export function readTable(buffer: ArrayBuffer): Table {
+/**
+ * Decoded cells kept per table (and per composite's scaled half). A cell is ~1.3 KB decoded (three
+ * builds), and a whole table is 62,160 cells: ~78 MB of heap per route worker if every cell were
+ * kept, which an unbounded cache drifts towards over a session (another start time, another target,
+ * the strong polish). Past this the least recently used cells are dropped and decoded again from the
+ * bytes if wanted; the bytes stay in the ArrayBuffer, off the JS heap. Decoding is cheap next to the
+ * route arithmetic: a full answer from TE 138 (73,000 lookups, measured in Node) took the same time
+ * with 2,048 cells kept as with every one, so this is about 5 MB a table.
+ */
+export const DECODED_CELLS = 4096;
+
+/**
+ * A `Map` capped at `max` entries, dropping the least recently used. A hit moves the entry to the
+ * newest end (delete and set again: Map keeps insertion order).
+ */
+export class LruCache<K, V> {
+  private map = new Map<K, V>();
+  constructor(private readonly max: number) {}
+  get(key: K): V | undefined {
+    const v = this.map.get(key);
+    if (v !== undefined) {
+      this.map.delete(key);
+      this.map.set(key, v);
+    }
+    return v;
+  }
+  set(key: K, value: V): void {
+    this.map.delete(key);
+    this.map.set(key, value);
+    if (this.map.size > this.max) this.map.delete(this.map.keys().next().value as K);
+  }
+  get size(): number {
+    return this.map.size;
+  }
+}
+
+/** Read the file's bytes back; builds are made on lookup of a cell and the most recently used
+ *  `maxCells` kept (DECODED_CELLS). */
+export function readTable(buffer: ArrayBuffer, maxCells = DECODED_CELLS): Table {
   const view = new DataView(buffer);
   const len = buffer.byteLength >= 4 ? view.getUint32(0, true) : 0;
   let header: TableHeader;
@@ -97,7 +134,7 @@ export function readTable(buffer: ArrayBuffer): Table {
   if (!(header.slots > 0) || buffer.byteLength !== expected)
     throw new Error(`the precomputed table is incomplete (${buffer.byteLength} of ${expected} bytes)`);
   const body = new Float64Array(buffer, start);
-  const cache = new Map<number, BuildParams[]>();
+  const cache = new LruCache<number, BuildParams[]>(maxCells);
   return {
     header,
     lookup(te, hour) {
@@ -144,8 +181,8 @@ export function parseCompositeUrl(url: string): { low: string; high: string; spl
 /** The two as one: the low table's rows below `split` (and all it has, when it reaches higher), the
  *  high table's above that with their peak delivery rate scaled to the player's (so the route search
  *  runs at a scale of 1). `gearTo` in the header says where the gear table's own rows end. */
-export function compositeTable(low: Table, high: Table, split: number, scale: number): Table {
-  const scaled = new Map<number, BuildParams[]>();
+export function compositeTable(low: Table, high: Table, split: number, scale: number, maxCells = DECODED_CELLS): Table {
+  const scaled = new LruCache<number, BuildParams[]>(maxCells);
   const top = Math.max(split - 1, low.header.to);
   return {
     header: { ...low.header, to: Math.max(high.header.to, low.header.to), k3: high.header.k3, gearTo: top },

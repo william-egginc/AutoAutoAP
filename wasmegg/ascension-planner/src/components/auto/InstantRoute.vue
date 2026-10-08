@@ -790,6 +790,16 @@ function getPool(): RoutePool {
   return pool;
 }
 onUnmounted(() => pool?.terminate());
+// A chain search (Smart search, Full sweep, By a date) gets the route workers' memory: each holds a
+// decoded table, and the browser's heap is shared with every chain worker. The pool sleeps once it
+// is idle and the instant answer is not mid-run (never cutting off a request: until then this
+// waits); the next request wakes it, reloading the table.
+watch(
+  () => (store.isRunning || store.deadlineRunning) && status.value !== 'loading' && backgroundStatus.value !== 'running',
+  free => {
+    if (free) pool?.sleep();
+  }
+);
 
 /** Each run's number: a run that has been superseded (the save or the date changed) is dropped. */
 let runs = 0;
