@@ -92,6 +92,7 @@
           move every chain's sliders together
         </label>
       </SpaceSliders>
+      <KeptBoxNote v-if="row.asc >= 2 && keptNotes?.[k]" :disabled="disabled" @use="emit('use-sliders', k)" />
       <slot name="row-after" :row="row" :k="k" />
     </div>
     <div class="flex flex-wrap" :class="footerClass">
@@ -111,6 +112,7 @@
 <script setup lang="ts">
 import BandCheckNotice from './BandCheckNotice.vue';
 import SpaceSliders from './SpaceSliders.vue';
+import KeptBoxNote from './KeptBoxNote.vue';
 import type { RowSliderView } from '@/composables/useRowSliders';
 
 withDefaults(
@@ -132,6 +134,8 @@ withDefaults(
     minRows?: number;
     /** The band checker also checks each row's ascension count. */
     checkAscensions?: boolean;
+    /** Per row: the sliders moved while the box held typed bands (kept), and it still differs from them. */
+    keptNotes?: readonly boolean[];
     sliderLead?: string;
     /** Offer "move every chain's sliders together" (with more than one row). */
     linkable?: boolean;
@@ -153,6 +157,7 @@ const emit = defineEmits<{
   suggest: [k: number];
   remove: [k: number];
   add: [];
+  'use-sliders': [k: number];
   slider: [k: number, key: 'widthIx' | 'stepIx', ix: number];
 }>();
 

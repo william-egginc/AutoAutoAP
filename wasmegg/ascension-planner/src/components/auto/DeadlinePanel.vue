@@ -199,6 +199,7 @@
           class="space-y-4"
           :rows="chains"
           :sliders="rowSliders"
+          :kept-notes="keptNotes"
           :problems="rowProblems"
           :summaries="rowSummaries"
           :disabled="store.busy"
@@ -216,6 +217,7 @@
           @remove="k => chains.splice(k, 1)"
           @add="addChain"
           @slider="setSlider"
+          @use-sliders="suggestRow"
         >
           <template #row-notes="{ row, k }">
             <span v-if="instantNote(k)" class="block text-[10px] text-indigo-700" data-test="instant-set-note">{{
@@ -764,6 +766,8 @@ const kept = {
       centre?: { pm: number; step: number }[];
       /** The instant answer's route the later boxes were centred on, when they were. */
       centredOn?: number[];
+      /** The typed box a slider move left alone (RoutesToTry's "Your typed box is kept" note). */
+      keptText?: string;
     }[]
   >([{ asc: 4, text: '' }]),
   lastBox: keptRef(''),
@@ -1245,8 +1249,16 @@ const {
   widthOf,
   stepOf,
   views: rowSliders,
+  keptNotes,
   setSlider,
-} = useDateRowSliders({ rows: chains, widthIx, stepIx, linked: linkSliders, refill: suggestRow });
+} = useDateRowSliders({
+  rows: chains,
+  widthIx,
+  stepIx,
+  linked: linkSliders,
+  refill: suggestRow,
+  suggestedText: k => suggestion(k)?.text ?? null,
+});
 
 const rowProblems = computed(() => chains.value.map((_, k) => rowProblem(k)));
 const rowSummaries = computed(() => chains.value.map((_, k) => rowSummary(k)));

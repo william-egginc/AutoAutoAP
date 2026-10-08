@@ -3,7 +3,7 @@ import { ref } from 'vue';
 import { pinSliders, sweepSliderView, useDateRowSliders } from './useRowSliders';
 import { DEFAULT_STEP_IX, DEFAULT_WIDTH_IX, SPACE_STEPS, SPACE_WIDTHS } from '@/search/deadlineSuggest';
 
-type Row = { asc: number; text: string; auto?: boolean; widthIx?: number; stepIx?: number; pm?: number; simple?: boolean };
+type Row = { keptText?: string; asc: number; text: string; auto?: boolean; widthIx?: number; stepIx?: number; pm?: number; simple?: boolean };
 
 function setup(rows: Row[]) {
   const r = ref<Row[]>(rows);
@@ -11,7 +11,14 @@ function setup(rows: Row[]) {
   const stepIx = ref(DEFAULT_STEP_IX);
   const linked = ref(false);
   const refilled: number[] = [];
-  const s = useDateRowSliders({ rows: r, widthIx, stepIx, linked, refill: k => refilled.push(k) });
+  const s = useDateRowSliders({
+    rows: r,
+    widthIx,
+    stepIx,
+    linked,
+    refill: k => refilled.push(k),
+    suggestedText: () => 'suggested',
+  });
   return { r, widthIx, stepIx, linked, refilled, s };
 }
 
@@ -27,6 +34,28 @@ describe('By a date row sliders', () => {
     expect(t.widthIx.value).toBe(DEFAULT_WIDTH_IX);
     expect(t.refilled).toEqual([1]);
     expect(t.s.views.value.map(v => v.halfWidth)).toEqual([SPACE_WIDTHS[DEFAULT_WIDTH_IX], SPACE_WIDTHS[0]]);
+  });
+
+  it('notes a typed box a slider move kept, until it is edited or matches the sliders', () => {
+    const t = setup([{ asc: 4, text: '141-176:1; 188-208:2', auto: false }]);
+    expect(t.s.keptNotes.value).toEqual([false]);
+    t.s.setSlider(0, 'widthIx', 1);
+    expect(t.refilled).toEqual([]);
+    expect(t.r.value[0].text).toBe('141-176:1; 188-208:2');
+    expect(t.s.keptNotes.value).toEqual([true]);
+    // Edited again: gone.
+    t.r.value[0].text = '142-176:1; 188-208:2';
+    expect(t.s.keptNotes.value).toEqual([false]);
+    // Moved again: back, then Use the sliders' box (the row becomes auto) clears it.
+    t.s.setSlider(0, 'stepIx', 0);
+    expect(t.s.keptNotes.value).toEqual([true]);
+    t.r.value[0].auto = true;
+    t.r.value[0].text = 'suggested';
+    expect(t.s.keptNotes.value).toEqual([false]);
+    // A box that matches the sliders' own suggestion needs no note.
+    const m = setup([{ asc: 4, text: 'suggested', auto: false }]);
+    m.s.setSlider(0, 'widthIx', 1);
+    expect(m.s.keptNotes.value).toEqual([false]);
   });
 
   it('moves every chain, and the fallback, when linked', () => {

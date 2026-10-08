@@ -23,6 +23,17 @@ const byDate = {
 };
 
 describe('RoutesToTry', () => {
+  it('shows "Your typed box is kept" under the sliders of a flagged row, with the button', async () => {
+    const html = await renderHtml(RoutesToTry, { ...byDate, keptNotes: [true, false] });
+    expect(html.match(/data-test="kept-box-note"/g)).toHaveLength(1);
+    const t = textOf(html);
+    expect(t).toMatch(/move every chain's sliders together Your typed box is kept\. Use the sliders' box Chain 2/);
+    const none = await renderHtml(RoutesToTry, byDate);
+    expect(none).not.toContain('kept-box-note');
+    // The "(from a Science card)" label is unaffected.
+    expect(textOf(html)).toContain('±2 TE around each stop (from a Science card)');
+  });
+
   it("draws By a date's rows: number, Ascensions, Suggest a space, Remove, box, problem or summary, sliders, link", async () => {
     const html = await renderHtml(RoutesToTry, byDate);
     const t = textOf(html);

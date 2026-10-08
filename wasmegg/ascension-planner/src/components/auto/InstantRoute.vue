@@ -223,12 +223,21 @@
           </p>
           <button
             type="button"
-            class="mt-1 px-3 py-1.5 rounded-lg bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-emerald-800"
+            :class="
+              exactStatus === 'running'
+                ? 'opacity-60 cursor-not-allowed hover:bg-emerald-700'
+                : 'hover:bg-emerald-800'
+            "
+            class="mt-1 px-3 py-1.5 rounded-lg bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-1.5"
             :disabled="exactStatus === 'running'"
             title="Prices every route below with the full simulator on your account"
             @click="checkAgain()"
           >
-            {{ exactStatus === 'done' ? 'Check all again' : 'Check exactly' }}
+            <span
+              v-if="exactStatus === 'running'"
+              class="inline-block w-2.5 h-2.5 rounded-full border-2 border-white border-t-transparent animate-spin"
+            />
+            {{ exactStatus === 'running' ? 'Checking exactly…' : exactStatus === 'done' ? 'Check all again' : 'Check exactly' }}
           </button>
           <button
             type="button"
@@ -354,12 +363,21 @@
         </p>
         <button
           type="button"
-          class="mt-1 px-3 py-1.5 rounded-lg bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-emerald-800"
+          :class="
+              exactStatus === 'running'
+                ? 'opacity-60 cursor-not-allowed hover:bg-emerald-700'
+                : 'hover:bg-emerald-800'
+            "
+            class="mt-1 px-3 py-1.5 rounded-lg bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-1.5"
           :disabled="exactStatus === 'running'"
           title="Prices every route below with the full simulator on your account"
           @click="checkAgain()"
         >
-          {{ exactStatus === 'done' ? 'Check all again' : 'Check exactly' }}
+          <span
+              v-if="exactStatus === 'running'"
+              class="inline-block w-2.5 h-2.5 rounded-full border-2 border-white border-t-transparent animate-spin"
+            />
+            {{ exactStatus === 'running' ? 'Checking exactly…' : exactStatus === 'done' ? 'Check all again' : 'Check exactly' }}
         </button>
         <button
           type="button"

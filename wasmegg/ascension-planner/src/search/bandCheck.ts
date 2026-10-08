@@ -183,7 +183,12 @@ export function checkBandText(text: string, ctx: BandCheckContext): BandIssue[] 
       issues.push({
         code: 'belowCurrent',
         band: n,
-        message: `${band(n)} starts at ${first}, at or below the TE you're at now (${cur}). Those values can't be played. Did you mean ${formatBand(inRange)}?`,
+        message:
+          first === cur
+            ? // A stop is an ascension still to come. The planner has no ascend-now control: it finishes the
+              // current ascension first (the store's forceContinue, on by default), so TE now is no stop.
+              `${band(n)} starts at your TE now (${cur}). A stop is an ascension still to come, so your TE now isn't one. Whether to ascend straight away or finish this ascension first is decided by the planner: it finishes the current ascension first. Did you mean ${formatBand(inRange)}?`
+            : `${band(n)} starts at ${first}, at or below the TE you're at now (${cur}). Those values can't be played. Did you mean ${formatBand(inRange)}?`,
         fix: withSegment(segs, i, formatBand(inRange)),
       });
     }

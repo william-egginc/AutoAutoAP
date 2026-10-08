@@ -531,6 +531,7 @@
                 <span v-else class="text-[10px] text-amber-700">
                   No suggestion for this target or ascension count.
                 </span>
+                <KeptBoxNote v-if="chain1KeptNote" class="basis-full" :disabled="store.isRunning" @use="applySuggestion" />
                 <span v-if="suggestion && chain1Typed" class="basis-full text-[10px] text-slate-500">
                   Your own bands stay as typed; press Suggest a space to replace them with this.
                 </span>
@@ -581,6 +582,7 @@
               class="space-y-2"
               :rows="extraChains"
               :sliders="extraViews"
+              :kept-notes="extraKeptNotes"
               :problems="extraProblems"
               :summaries="extraSummaries"
               :disabled="store.isRunning"
@@ -596,6 +598,7 @@
               @remove="k => extraChains.splice(k, 1)"
               @add="addChain"
               @slider="moveExtra"
+              @use-sliders="suggestExtra"
             >
               <template #row-after="{ row, k }">
                 <span v-if="row.asc >= 2 && extraSugs[k]" class="block text-[10px] text-slate-500">
@@ -1143,7 +1146,7 @@ const kept = {
    *  still holds it is the panel's to rewrite when a slider moves; anything else is the player's. */
   suggested: keptRef(''),
   extraChains: keptRef<
-    { asc: number; text: string; auto?: boolean; widthIx?: number; stepIx?: number; sug?: string }[]
+    { asc: number; text: string; auto?: boolean; widthIx?: number; stepIx?: number; sug?: string; keptText?: string }[]
   >([]),
 };
 </script>
@@ -1178,6 +1181,7 @@ import {
 import { routeFromBands, spaceBySliders, type SpaceSliderPos } from '@/search/deadlineSuggest';
 import SpaceSliders from './SpaceSliders.vue';
 import RoutesToTry from './RoutesToTry.vue';
+import KeptBoxNote from './KeptBoxNote.vue';
 import { pinSliders, sweepSliderView } from '@/composables/useRowSliders';
 import RunCharts from './charts/RunCharts.vue';
 import { chainCount as countLabel } from '@/lib/chartThin';
@@ -1351,6 +1355,11 @@ const chain1Typed = computed(() => {
   const s = suggestion.value;
   return !!cur && !!s && cur !== s.text && cur !== kept.suggested.value.trim() && cur !== kept.autoFilled.value.trim();
 });
+/** The typed box a Chain 1 slider move left alone; the note shows while the box still reads so. */
+const chain1KeptText = ref('');
+const chain1KeptNote = computed(
+  () => !!chain1KeptText.value && chain1KeptText.value === bandsText.value.trim() && chain1Typed.value
+);
 /** Move one of Chain 1's sliders. Rewrites the box only when the panel wrote what is in it (the default,
  *  Suggest, or an earlier slider move): bands the player typed, or a sweep link filled, are left alone. */
 function moveChain1(key: 'widthIx' | 'stepIx', value: number): void {
@@ -1358,9 +1367,12 @@ function moveChain1(key: 'widthIx' | 'stepIx', value: number): void {
   kept.suggestWidthIx.value = pinned.widthIx;
   kept.suggestStepIx.value = pinned.stepIx;
   const s = suggestion.value;
-  if (!s || store.isRunning) return;
   const cur = bandsText.value.trim();
-  if (cur && cur !== kept.suggested.value.trim() && cur !== kept.autoFilled.value.trim()) return;
+  if (cur && cur !== kept.suggested.value.trim() && cur !== kept.autoFilled.value.trim()) {
+    chain1KeptText.value = cur; // typed: kept, and the note says so
+    return;
+  }
+  if (!s || store.isRunning) return;
   if (cur === kept.autoFilled.value.trim()) kept.autoFilled.value = s.text;
   bandsText.value = s.text;
   kept.suggested.value = s.text;
@@ -1711,10 +1723,18 @@ function moveExtra(k: number, key: 'widthIx' | 'stepIx', value: number): void {
   row.stepIx = pinned.stepIx ?? undefined;
   const s = extraSugs.value[k];
   const cur = row.text.trim();
-  if (!s || store.isRunning || (cur && cur !== (row.sug ?? '').trim())) return;
+  if (cur && cur !== (row.sug ?? '').trim()) {
+    row.keptText = cur; // typed: kept, and the note says so
+    return;
+  }
+  if (!s || store.isRunning) return;
   row.text = s.text;
   row.sug = s.text;
 }
+/** Per added chain: a slider moved while its typed box stayed, and the box still differs from the sliders'. */
+const extraKeptNotes = computed(() =>
+  extraChains.value.map((row, k) => !!row.keptText && row.keptText === row.text.trim() && extraTyped(k))
+);
 /** The added chains as RoutesToTry draws them. */
 const extraProblems = computed(() => extraChains.value.map((_, k) => extraProblem(k)));
 const extraSummaries = computed(() => extraChains.value.map((_, k) => extraSummary(k)));

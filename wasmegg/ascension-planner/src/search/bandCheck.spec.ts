@@ -88,6 +88,19 @@ describe('checkBandText', () => {
     expect(codes('150-170:5')).toEqual(['outsideRange']);
   });
 
+  it('words a first band starting exactly at the current TE as an ascension still to come', () => {
+    const cur = Math.floor(ctx.currentTE);
+    const [issue] = checkBandText(`${cur}-${cur + 30}:1; 215-245:10`, ctx);
+    expect(issue.code).toBe('belowCurrent');
+    expect(issue.message).toContain(`starts at your TE now (${cur})`);
+    expect(issue.message).toContain('finishes the current ascension first');
+    expect(issue.message).toContain(`Did you mean ${cur + 1}-${cur + 30}:1`);
+    expect(issue.fix).toBe(`${cur + 1}-${cur + 30}:1; 215-245:10`);
+    // Strictly below keeps the old wording.
+    const below = checkBandText(`${cur - 5}-${cur + 30}:1`, ctx)[0];
+    expect(below.message).toContain("at or below the TE you're at now");
+  });
+
   it('flags a band above the target', () => {
     const [issue] = checkBandText('200-240:10; 480-500:10', ctx);
     expect(issue.code).toBe('aboveTarget');

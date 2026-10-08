@@ -44,11 +44,13 @@ export interface DateRowSliders<R> {
   /** The step between the TEs it tries after the first stop. */
   stepOf: (row: R) => number;
   views: ComputedRef<RowSliderView[]>;
+  /** Per row: a slider moved while its typed box stayed, and the box still differs from the sliders'. */
+  keptNotes: ComputedRef<boolean[]>;
   /** Move one row's slider, or every row's when linked, and re-fill the boxes Suggest filled. */
   setSlider: (k: number, key: 'widthIx' | 'stepIx', value: number) => void;
 }
 
-export function useDateRowSliders<R extends SliderRow & { auto?: boolean }>(opts: {
+export function useDateRowSliders<R extends SliderRow & { auto?: boolean; text?: string; keptText?: string }>(opts: {
   rows: Ref<R[]>;
   /** What a row with no setting of its own reads (the last linked move). */
   widthIx: Ref<number>;
@@ -56,6 +58,8 @@ export function useDateRowSliders<R extends SliderRow & { auto?: boolean }>(opts
   linked: Ref<boolean>;
   /** Fill row `k`'s box again (Suggest a space), for a row whose box Suggest filled. */
   refill: (k: number) => void;
+  /** What Suggest a space would put in row `k`'s box now (null: nothing). */
+  suggestedText?: (k: number) => string | null;
 }): DateRowSliders<R> {
   const rowWidthIx = (row: R) => row.widthIx ?? opts.widthIx.value;
   const rowStepIx = (row: R) => row.stepIx ?? opts.stepIx.value;
@@ -79,9 +83,21 @@ export function useDateRowSliders<R extends SliderRow & { auto?: boolean }>(opts
       if (key === 'widthIx') opts.widthIx.value = value;
       else opts.stepIx.value = value;
     }
-    for (const i of moveSlider(opts.rows.value, k, key, value, linked)) if (opts.rows.value[i].auto) opts.refill(i);
+    for (const i of moveSlider(opts.rows.value, k, key, value, linked)) {
+      const row = opts.rows.value[i];
+      if (row.auto) opts.refill(i);
+      // A typed box stays: remember which one, so the note shows until the box is edited or matches.
+      else if (row.text?.trim()) row.keptText = row.text.trim();
+    }
   }
-  return { rowWidthIx, rowStepIx, widthOf, stepOf, views, setSlider };
+  // Shown while the box still reads as it did when a slider moved, and is not the sliders' box.
+  const keptNotes = computed(() =>
+    opts.rows.value.map((row, k) => {
+      const cur = row.text?.trim();
+      return !!cur && row.keptText === cur && !row.auto && !!opts.suggestedText && opts.suggestedText(k) !== cur;
+    })
+  );
+  return { rowWidthIx, rowStepIx, widthOf, stepOf, views, keptNotes, setSlider };
 }
 
 /**
