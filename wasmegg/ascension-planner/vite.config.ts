@@ -1,5 +1,5 @@
 import { createReadStream, statSync, type Stats } from 'node:fs';
-import { readdir, readFile, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import type { ServerResponse } from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -253,6 +253,58 @@ const BROTLI_TYPES: Record<string, string> = {
 };
 const brotli = promisify(brotliCompress);
 
+/**
+ * KEEP THE PREVIOUS BUILDS' CHUNKS (the user, 7 Oct). A build empties dist/, so a tab opened before a
+ * deploy asked for a lazy chunk that no longer existed the next time it switched screens, and got the
+ * "New version available, please refresh" dialog (lib/import.ts) after even a small update. The old
+ * hashed files are copied aside before the build and the ones the new build did not write are put
+ * back, so an open tab keeps working until it reloads on its own. Hashed names never collide, and
+ * anything older than KEEP_DAYS is dropped so dist/ does not grow forever.
+ */
+const KEEP_DAYS = 7;
+function keepOldAssets(): Plugin {
+  let assetsPath = '';
+  let stash = '';
+  return {
+    name: 'aap-keep-old-assets',
+    apply: 'build',
+    configResolved(config) {
+      assetsPath = path.resolve(config.root, config.build.outDir, config.build.assetsDir);
+      stash = path.resolve(config.root, 'node_modules/.aap-old-assets');
+    },
+    async buildStart() {
+      await rm(stash, { recursive: true, force: true });
+      try {
+        await mkdir(path.dirname(stash), { recursive: true });
+        await cp(assetsPath, stash, { recursive: true, preserveTimestamps: true });
+      } catch {
+        // First build, or no assets yet: nothing to keep.
+      }
+    },
+    async closeBundle() {
+      let names: string[];
+      try {
+        names = await readdir(stash);
+      } catch {
+        return;
+      }
+      const fresh = new Set(await readdir(assetsPath).catch(() => [] as string[]));
+      const cutoff = Date.now() - KEEP_DAYS * 86_400_000;
+      for (const name of names) {
+        if (fresh.has(name)) continue;
+        const from = path.join(stash, name);
+        try {
+          if ((await stat(from)).mtimeMs < cutoff) continue;
+          await cp(from, path.join(assetsPath, name), { preserveTimestamps: true });
+        } catch {
+          // One unreadable file must not fail the build.
+        }
+      }
+      await rm(stash, { recursive: true, force: true });
+    },
+  };
+}
+
 function brotliAssets(): Plugin {
   let assetsPath = '';
   return {
@@ -370,6 +422,7 @@ export default defineConfig(({ mode }) => {
       vueJsx(),
       versionFile(),
       warnIfReleaseStale(),
+      keepOldAssets(),
       brotliAssets(),
       immutableAssets(),
       watcherIsolation(),
