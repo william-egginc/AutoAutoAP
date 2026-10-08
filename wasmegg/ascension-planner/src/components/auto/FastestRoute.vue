@@ -24,34 +24,12 @@
          Check exactly hands a route to the Full sweep, which prices it with the full simulator. -->
     <InstantRoute @check="checkExactly" />
 
-    <div class="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
-      <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">How thorough</h3>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" role="radiogroup" aria-label="How thorough">
-        <button
-          v-for="d in DEPTHS"
-          :key="d.id"
-          type="button"
-          role="radio"
-          :aria-checked="depth === d.id"
-          class="rounded-xl border-2 p-4 text-left transition-colors"
-          :class="
-            depth === d.id ? 'border-indigo-600 bg-indigo-50' : 'border-slate-200 bg-white hover:border-slate-300'
-          "
-          @click="emit('update:depth', d.id)"
-        >
-          <span class="flex items-center gap-2 text-base font-black text-slate-900"
-            >{{ d.label }}
-            <span
-              v-if="lockedTo === d.id"
-              class="px-1.5 py-0.5 rounded bg-indigo-600 text-white text-[9px] font-black uppercase tracking-widest"
-              >Running</span
-            ></span
-          >
-          <span class="block mt-1 text-[12px] text-slate-600 leading-relaxed">{{ d.blurb }}</span>
-          <span class="block mt-2 text-[10px] font-black text-indigo-700 uppercase tracking-widest">{{ d.time }}</span>
-        </button>
-      </div>
-    </div>
+    <ModeChooser
+      :model-value="depth"
+      :options="DEPTHS"
+      :running="lockedTo === 'smart' || lockedTo === 'full' ? lockedTo : null"
+      @update:model-value="pick"
+    />
 
     <!-- A search running elsewhere: this depth greyed out under a line saying so (the cards above
          stay clickable, to switch back). -->
@@ -68,8 +46,10 @@ import { useChainSearchStore } from '@/stores/chainSearch';
 import { NAMES, type Depth } from '@/lib/siteNav';
 import { safeAsyncComponent } from '@/lib/import';
 import RunningElsewhere from './RunningElsewhere.vue';
+import ModeChooser from './ModeChooser.vue';
 import InstantRoute from './InstantRoute.vue';
 import { useUIStore } from '@/stores/ui';
+import { writeSearchMode } from '@/lib/searchMode';
 
 defineProps<{
   playerId: string;
@@ -91,6 +71,12 @@ function checkExactly(chain: number[]): void {
   emit('update:depth', 'full');
 }
 
+/** A card picked: that depth, remembered for the next visit (lib/searchMode.ts). */
+function pick(d: Depth): void {
+  writeSearchMode('fastest', d === 'full' ? 'advanced' : 'simple');
+  emit('update:depth', d);
+}
+
 /** The Full sweep's own goal switch (carrying on a date run from here): App changes screen. */
 function onGoal(g: 'fastest' | 'deadline'): void {
   emit('goal', g);
@@ -99,19 +85,21 @@ function onGoal(g: 'fastest' | 'deadline'): void {
 const ChainSearchPanel = safeAsyncComponent(() => import('./ChainSearchPanel.vue'));
 const InsanePanel = safeAsyncComponent(() => import('./InsanePanel.vue'));
 
-const DEPTHS: { id: Depth; label: string; blurb: string; time: string }[] = [
+/** Simple and Advanced (batch 3), with the old names in brackets for a while so regulars aren't lost. */
+const DEPTHS: { id: Depth; label: string; was: string; blurb: string; time: string }[] = [
   {
     id: 'smart',
     label: NAMES.smart,
-    blurb: 'Starts from your chain and homes in on faster checkpoints. You pick how hard it looks.',
+    was: NAMES.smartWas,
+    blurb: 'Smart search: we pick where to look. Minutes.',
     time: 'Fast: minutes. Exact: under an hour on 8+ cores. Very high: 1-3 h on 8-16 cores, longer on 4.',
   },
   {
     id: 'full',
     label: NAMES.full,
-    blurb:
-      'Prices every route in a range you set, so the answer is the best in that range. Queue several chains in one click. About 1-3 h per 10,000 chains on an 8-16 core PC; overnight for 50,000+.',
-    time: 'Hours, sometimes overnight',
+    was: NAMES.fullWas,
+    blurb: 'Full sweep: you set the ranges and it tries every route in them. Hours, sometimes overnight.',
+    time: 'About 1-3 h per 10,000 chains on 8-16 cores; overnight for 50,000+',
   },
 ];
 </script>

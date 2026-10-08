@@ -301,6 +301,32 @@ export function recentLegRate(samples: readonly (readonly [number, number])[], n
   return (l1 - l0) / span;
 }
 
+/** At most one rate sample this often. */
+export const SAMPLE_EVERY_MS = 5000;
+
+/**
+ * The live rate's samples after one more report: `[now, legs simulated this session]`, at most one
+ * every `SAMPLE_EVERY_MS`, two windows kept. `legsDone` counts every route priced the way the plan
+ * does; `legsReplayed` is what of that came back from a carried-on run's checkpoint, which costs
+ * nothing (Allan, 8 Oct: 4,000 routes replayed in seconds read as a huge speed, "about 22 min left"
+ * on a run with hours to go). Until anything has really been simulated the list is just one sample
+ * at the latest moment, so the rate's clock starts where the replay ends, and `recentLegRate` waits
+ * for `RATE_MIN_SECONDS` of real work.
+ */
+export function addLegSample(
+  list: readonly [number, number][],
+  now: number,
+  legsDone: number,
+  legsReplayed = 0
+): [number, number][] {
+  const fresh = Math.max(0, legsDone - legsReplayed);
+  if (fresh <= 0) return [[now, 0]];
+  const lastAt = list.length ? list[list.length - 1][0] : 0;
+  if (now - lastAt < SAMPLE_EVERY_MS) return list as [number, number][];
+  const keepFrom = now - 2 * RATE_WINDOW_SECONDS * 1000;
+  return [...list.filter(x => x[0] >= keepFrom), [now, fresh]];
+}
+
 /** One key per space shape (ascension counts, and each box's width and step), so a remembered
  *  routes-per-set is used again only on a space like the one it was measured on. */
 export function spaceShapeKey(bandSets: readonly (readonly (readonly number[])[])[]): string {

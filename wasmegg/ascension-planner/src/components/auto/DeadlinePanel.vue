@@ -136,6 +136,40 @@
          date, from every route at once. Check exactly sets its stops in the boxes below. -->
     <InstantRoute v-if="deadline" :deadline="deadline" @check="checkByDate" @routes="onInstantRoutes" />
 
+    <!-- Simple (batch 3): no chain editor. The routes it tries, in one line, and a way to see them as
+         boxes in Advanced (to widen them, say). -->
+    <div
+      v-if="simple"
+      class="rounded-xl border border-indigo-200 bg-indigo-50/50 p-3 space-y-1.5 text-[11px] text-slate-700 leading-relaxed"
+      data-test="simple-summary"
+    >
+      <p v-if="simpleSummary" class="font-bold text-slate-900">{{ simpleSummary }}</p>
+      <p v-else class="font-semibold text-rose-700">Nothing to check yet: the save hasn't loaded.</p>
+      <p v-if="simpleSpace">
+        <template v-if="simpleFrom === 'instant'"
+          >Around the instant answer's route for each number of ascensions<template v-if="instantMax !== null">
+            (at most {{ instantMax }}, as its filter says)</template
+          >: {{ simpleWidthsText }}, and its last stop found to the exact TE.</template
+        >
+        <template v-else
+          ><span class="font-bold">No instant answer yet</span> (none for your account, or it is still working), so
+          this checks suggested routes for 1-5 ascensions instead: {{ simpleWidthsText }}. When the instant answer
+          arrives, the routes follow it.</template
+        >
+      </p>
+      <p v-if="simpleSpace">
+        <button
+          type="button"
+          class="font-bold text-indigo-700 underline hover:text-indigo-900 disabled:opacity-40"
+          :disabled="store.busy"
+          data-test="open-in-advanced"
+          @click="openInAdvanced"
+        >
+          Open in Advanced</button
+        ><span class="text-slate-500"> with these boxes filled in, to widen them or add your own.</span>
+      </p>
+    </div>
+
     <!-- Batch 3's Simple mode can leave the chain editor out (`hideRoutes`); nothing else reads it. -->
     <template v-if="!hideRoutes">
       <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest pt-1">The routes to try</h3>
@@ -216,7 +250,7 @@
           </template>
         </RoutesToTry>
         <p class="text-[11px] text-slate-500 leading-relaxed">
-          Each chain is one box of bands, like the {{ NAMES.full }}'s: one band per ascension before the last, separated
+          Each chain is one box of bands, like {{ NAMES.fastest }} › {{ NAMES.fullFirst }}'s: one band per ascension before the last, separated
           by <span class="font-mono-premium">;</span>. A band is <span class="font-mono-premium">lo-hi:step</span>, a
           single value, or several values with commas. Chains with other ascension counts all run from the same click,
           and a 1- or 2-ascension chain costs next to nothing. Every route in your chains is tried, and nothing outside
@@ -305,7 +339,7 @@
             <span class="font-bold text-slate-800">Why not every TE from the start?</span> Good and bad stops sit a few
             TE apart (each missed Research Sale is a jump), so you can't just walk downhill from one guess, and every TE
             for every stop is tens of thousands of routes. A wide first look finds the right area; the zoom does the
-            fine work only there. It's the same idea as Smart search.
+            fine work only there. It's the same idea as {{ NAMES.fastest }} › {{ NAMES.smartFirst }}.
           </p>
           <p>
             <span class="font-bold text-slate-800">The other way, "I'll set the stops",</span> tries every route in
@@ -336,7 +370,10 @@
             {{ store.deadlineRunning ? 'Time left' : 'Est. wall clock' }}
           </div>
           <div class="text-lg font-black text-slate-900 tabular-nums" data-test="estimate">{{ estimateLabel }}</div>
-          <div v-if="store.deadlineRunning && firstGuessLabel" class="text-[9px] text-slate-400">
+          <div v-if="store.deadlineRunning && timeLeft?.measuring" class="text-[9px] text-slate-400">
+            measuring…
+          </div>
+          <div v-else-if="store.deadlineRunning && firstGuessLabel" class="text-[9px] text-slate-400">
             first guess {{ firstGuessLabel }}
           </div>
         </div>
@@ -453,9 +490,8 @@
           (more than the ~{{ roundedRoutes(estNow.total).toLocaleString() }} estimated)</template
         ><template v-if="estNow.learned && liveDone < estNow.total"> ({{ estimateNote(estNow) }})</template> ·
         {{ elapsedLabel }} so far<template v-if="remainingLabel">
-          · about {{ remainingLabel }} left<template v-if="firstGuessLabel">
-            (first guess {{ firstGuessLabel }})</template
-          ></template
+          · about {{ remainingLabel }} left<template v-if="timeLeft?.measuring"> (measuring…)</template
+          ><template v-else-if="firstGuessLabel"> (first guess {{ firstGuessLabel }})</template></template
         ><template v-if="store.deadlineLegSims">
           · {{ store.deadlineLegSims.toLocaleString() }} legs simulated</template
         >
@@ -541,7 +577,11 @@
         :disabled="store.busy || !canStart"
         @widen="widenAndRun"
       >
-        <template v-if="edgeWiden">
+        <template v-if="edgeWiden && simple">
+          This opens Advanced with the boxes Simple used, that one widened to
+          <span class="font-mono-premium">{{ edgeWiden.text }}</span>, and runs it.
+        </template>
+        <template v-else-if="edgeWiden">
           Chain {{ edgeWiden.row + 1 }} becomes <span class="font-mono-premium">{{ edgeWiden.text }}</span
           >.
         </template>
@@ -613,6 +653,7 @@
         v-model:opt-in="shareOptIn"
         v-model:anonymous="shareAnonymous"
         v-model:nickname="shareName"
+        goal-word="deadline"
         @nickname-typed="shareNameTouched = true"
       >
         <template #intro>
@@ -621,13 +662,6 @@
             answers for the same deadline are ranked by the highest TE reached, then the time to spare. It stays out of
             the race to 490.
           </p>
-        </template>
-        <template #consent>
-          <span
-            >Yes, share this result. This sends the route, its dates and the deadline, along with your artifact
-            inventory, timezone, local plan start and the random code this browser keeps for the account (not your
-            player ID, and never shown), exactly as for any run you share.</span
-          >
         </template>
         <template #opted>
           <p class="text-[11px] text-indigo-900/80">
@@ -706,6 +740,9 @@ const kept = {
   linkSliders: keptRef(false),
   /** Whose save the boxes were filled for: another player's stops are meaningless on this one. */
   forPlayer: keptRef(''),
+  /** The boxes Simple's last run used (its Find, or a carried-on Simple run's spec): what Simple shows
+   *  while that run goes, rather than boxes worked out again from an instant answer that moved. */
+  simpleUsed: keptRef<{ chains: { asc: number; text: string }[]; lastBox: string } | null>(null),
 };
 </script>
 
@@ -749,9 +786,12 @@ import {
 import { formatBand, formatHours } from '@/search/exhaustive';
 import { rowSettingsFor, type DeadlineRunSpec, type SavedDeadlineResult } from '@/search/deadlineStore';
 import { SPACE_STEPS, SPACE_WIDTHS, stopsByWidth } from '@/search/deadlineSuggest';
+import { simpleByDateSpace, type SimpleSpace } from '@/search/simpleByDate';
+import { writeSearchMode } from '@/lib/searchMode';
 import { firstTime } from '@/lib/linkOnce';
 import { parseByDateRequest, SCIENCE_WIDTHS, type ByDateRequest } from '@/search/byDateRequest';
 import { useUIStore } from '@/stores/ui';
+import type { SearchMode } from '@/lib/searchMode';
 import { eggDayYearOf } from '@/lib/eggDay';
 import { showDateTime } from '@/lib/displayTime';
 import IntegrityNotice from './IntegrityNotice.vue';
@@ -765,6 +805,7 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ (e: 'show-fastest'): void }>();
 const store = useChainSearchStore();
+const ui = useUIStore();
 const initialState = useInitialStateStore();
 const planner = useAutoPlannerStore();
 
@@ -848,36 +889,172 @@ const { mode } = kept;
 if (mode.value === 'auto' && !store.deadlineRunning) mode.value = 'space';
 
 /** The chains to run from one click: each an ascension count and one box of bands. */
-const { chains, lastBox, suggestFrom } = kept;
+const { chains, lastBox, suggestFrom, simpleUsed } = kept;
 const rowBands = (k: number) => parseChainText(chains.value[k]?.text ?? '');
-const lastRange = computed<[number, number] | null>(() => {
-  const v = parseStopBox(lastBox.value, 1);
+function rangeOf(box: string): [number, number] | null {
+  const v = parseStopBox(box, 1);
   if (!v.length) return null;
   const lo = Math.max(v[0], Math.floor(store.currentTE) + 1);
   const hi = Math.min(490, v[v.length - 1]);
   return hi >= lo ? [lo, hi] : null;
-});
-function rowShapes(k: number): number {
-  const row = chains.value[k];
-  if (!row || !lastRange.value) return 0;
-  if (row.asc <= 1) return 1;
-  const b = rowBands(k);
-  return b.length === row.asc - 1 ? countBandShapes(b, store.currentTE, lastRange.value[1]) : 0;
 }
-function rowProblem(k: number): string {
-  const row = chains.value[k];
+/** Advanced's last-stop box, as read. */
+const lastRange = computed<[number, number] | null>(() => rangeOf(lastBox.value));
+
+/**
+ * SIMPLE (batch 3): the chain editor is left out (`hideRoutes`) and the boxes are picked here, one
+ * chain per number of ascensions the instant answer has a route for (search/simpleByDate.ts), each
+ * early stop its TE either side at step 1, sized to take about 10-30 minutes on a typical 8-core
+ * machine. Without an instant answer, the routes Suggest a space would centre on, for 1-5 ascensions.
+ */
+const simple = computed(() => !!props.hideRoutes);
+/** The instant answer's "At most N ascensions", null for any. */
+const instantMax = ref<number | null>(null);
+/** What a typical 8-core machine costs, for sizing Simple's boxes the same on every computer. */
+const TYPICAL_WORKERS = 8;
+const SIMPLE_MAX_SECONDS = 25 * 60;
+const simpleCentres = computed<{ from: 'instant' | 'suggested'; routes: Record<number, number[]> }>(() => {
+  const te = Math.floor(store.currentTE);
+  const max = instantMax.value;
+  const fits = (k: number, r: number[] | undefined): r is number[] =>
+    !!r && r.length === k && (max === null || k <= max) && r[0] > te;
+  const routes: Record<number, number[]> = {};
+  for (const [k, r] of Object.entries(instantByCount.value)) if (fits(Number(k), r)) routes[Number(k)] = [...r];
+  if (Object.keys(routes).length) return { from: 'instant', routes };
+  for (let n = 1; n <= Math.min(5, max ?? 5); n++) {
+    const base = suggestBase(n, te, {
+      instant: null,
+      answer: store.deadlineResult?.byStops.find(r => r.chain.length === n)?.chain ?? null,
+      anyAnswer: store.deadlineResult?.routes[0]?.chain ?? null,
+      route: store.seedChain,
+    });
+    routes[n] = [...base.early, base.last];
+  }
+  return { from: 'suggested', routes };
+});
+const simpleFrom = computed(() => simpleCentres.value.from);
+/** The leg-based estimate of a Simple space (deadlineEstimate.ts `byDatePlan`) at these workers and speed. */
+function simplePlanOf(sp: SimpleSpace, workers: number, workerSecondsPerLeg: number) {
+  return byDatePlan({
+    rows: sp.rows.map(r => ({ asc: r.asc, bands: r.bands })),
+    currentTE: store.currentTE,
+    lastHi: sp.lastHi,
+    instantSets: simpleCentres.value.from === 'instant' ? sp.rows.filter(r => r.asc >= 2).map(r => r.centre.slice(0, -1)) : [],
+    workers,
+    workerSecondsPerLeg,
+  });
+}
+/**
+ * The typical worker-seconds a leg for a Simple space, until this machine has measured its own: each
+ * chain at the board's speed for its own length, weighted by its rough legs (sets x stops). Simple
+ * tries a route for every count the instant answer has, up to 12 ascensions, and pricing every leg at
+ * the 12-ascension speed (Advanced's rule, the longest chain's) read about 3x long.
+ */
+function weightedSecondsPerLeg(sp: SimpleSpace): number {
+  let w = 0;
+  let legs = 0;
+  for (const r of sp.rows) {
+    const l = Math.max(1, r.asc <= 1 ? 1 : countBandShapes(r.bands, store.currentTE, sp.lastHi)) * r.asc;
+    w += l * fallbackWorkerSecondsPerLeg(r.asc);
+    legs += l;
+  }
+  return legs ? w / legs : fallbackWorkerSecondsPerLeg(1);
+}
+const simpleSpace = computed<SimpleSpace | null>(() => {
+  if (!(store.currentTE > 0)) return null;
+  return simpleByDateSpace({
+    currentTE: store.currentTE,
+    routes: simpleCentres.value.routes,
+    secondsOf: sp => simplePlanOf(sp, TYPICAL_WORKERS, weightedSecondsPerLeg(sp)).seconds,
+    maxSeconds: SIMPLE_MAX_SECONDS,
+  });
+});
+/** Simple's boxes as chain rows: the last run's while it goes, else the ones worked out now. */
+const simpleLive = computed(() =>
+  simpleSpace.value
+    ? {
+        chains: simpleSpace.value.rows.map(r => ({ asc: r.asc, text: r.text })),
+        lastBox: `${simpleSpace.value.lastLo}-${simpleSpace.value.lastHi}`,
+      }
+    : { chains: [] as { asc: number; text: string }[], lastBox: '' }
+);
+const simpleBoxes = computed(() =>
+  (store.deadlineRunning || store.preparing) && simpleUsed.value ? simpleUsed.value : simpleLive.value
+);
+/** "±3 TE for 1-3 ascensions, ±2 for 4-5, ±1 for 6" */
+const simpleWidthsText = computed(() => {
+  const rows = simpleSpace.value?.rows ?? [];
+  const groups: { w: number; ks: number[] }[] = [];
+  for (const r of rows) {
+    const g = groups[groups.length - 1];
+    if (g && g.w === r.width) g.ks.push(r.asc);
+    else groups.push({ w: r.width, ks: [r.asc] });
+  }
+  const ks = (a: number[]) => (a.length > 1 ? `${a[0]}-${a[a.length - 1]}` : `${a[0]}`);
+  return groups
+    .map((g, i) =>
+      g.w
+        ? `${i ? '' : 'each early stop '}±${g.w} TE for ${ks(g.ks)} ascension${g.ks.length > 1 || g.ks[0] > 1 ? 's' : ''}`
+        : `just the route itself for ${ks(g.ks)}`
+    )
+    .join(', ');
+});
+
+/** The rows a run reads: Advanced's chains, or Simple's. */
+const activeChains = computed<{ asc: number; text: string }[]>(() =>
+  simple.value ? simpleBoxes.value.chains : chains.value
+);
+const runLastRange = computed<[number, number] | null>(() =>
+  simple.value ? rangeOf(simpleBoxes.value.lastBox) : lastRange.value
+);
+const bandsOf = (row: { text: string } | undefined) => parseChainText(row?.text ?? '');
+function shapesOf(row: { asc: number; text: string } | undefined, range: [number, number] | null): number {
+  if (!row || !range) return 0;
+  if (row.asc <= 1) return 1;
+  const b = bandsOf(row);
+  return b.length === row.asc - 1 ? countBandShapes(b, store.currentTE, range[1]) : 0;
+}
+function problemOf(row: { asc: number; text: string } | undefined, range: [number, number] | null): string {
   if (!row || row.asc <= 1) return '';
-  const b = rowBands(k);
+  const b = bandsOf(row);
   if (!b.length) return 'Nothing readable yet: press Suggest a space or type bands.';
   if (b.length !== row.asc - 1) return `These bands make ${b.length + 1} ascensions, not ${row.asc}.`;
-  return lastRange.value && !rowShapes(k) ? 'No route in these bands goes up to the last stop.' : '';
+  return range && !shapesOf(row, range) ? 'No route in these bands goes up to the last stop.' : '';
+}
+/** Advanced's chain `k`, as the editor shows it. */
+const rowShapes = (k: number) => shapesOf(chains.value[k], lastRange.value);
+const rowProblem = (k: number) => problemOf(chains.value[k], lastRange.value);
+
+/** "Checks 5 ascension counts, 1,240 routes, about 18 min on this computer" */
+const simpleSummary = computed(() => {
+  const rows = activeChains.value;
+  if (!simple.value || !rows.length) return '';
+  const counts = new Set(rows.map(r => r.asc)).size;
+  const time = plan.value.legs ? formatHours(plan.value.seconds / 3600) : '';
+  return `Checks ${counts} ascension count${counts === 1 ? '' : 's'}, ~${roundedRoutes(plan.value.routes).toLocaleString()} routes${time ? `, about ${time} on this computer` : ''}.`;
+});
+
+/** Simple's boxes into Advanced's chain editor, and Advanced shown: to widen them, or add chains. */
+function openInAdvanced(): void {
+  const used = simpleBoxes.value;
+  if (!used.chains.length) return;
+  chains.value = used.chains.map(r => ({ asc: r.asc, text: r.text }));
+  lastBox.value = used.lastBox;
+  suggestFrom.value = "Set from Simple's routes, around the instant answer.";
+  mode.value = 'space';
+  writeSearchMode('by-date', 'advanced');
+  setMode('advanced');
+}
+/** Show Simple or Advanced (ByDateScreen.vue reads it). Not remembered as the player's choice. */
+function setMode(m: SearchMode): void {
+  ui.byDateMode = m;
 }
 /** The instant answer's early stops for each ascension count in the chains: tried as sets of their own
  *  on top of the boxes (the run drops any already in one), so its route is always in the space. */
 const instantSets = computed<number[][]>(() => {
   const te = Math.floor(store.currentTE);
   const out: number[][] = [];
-  for (const asc of [...new Set(chains.value.map(r => Math.floor(r.asc)))].sort((a, b) => a - b)) {
+  for (const asc of [...new Set(activeChains.value.map(r => Math.floor(r.asc)))].sort((a, b) => a - b)) {
     const route = instantByCount.value[asc];
     if (asc < 2 || !route || route.length !== asc) continue;
     const early = route.slice(0, -1);
@@ -928,8 +1105,9 @@ const instantByCount = ref<Record<number, number[]>>({});
  * A box typed by hand, set by a link or request, or restored from an unfinished run is left alone;
  * nothing changes while a run is going or being restored.
  */
-function onInstantRoutes(byCount: Record<number, number[]>): void {
+function onInstantRoutes(byCount: Record<number, number[]>, max: number | null = null): void {
   instantByCount.value = byCount;
+  instantMax.value = max;
   if (store.deadlineRunning || store.preparing) return;
   chains.value.forEach((row, k) => {
     // A row carried on from an unfinished run keeps its boxes.
@@ -1053,6 +1231,8 @@ function checkByDate(chain: number[]): void {
   const last = chain[chain.length - 1];
   const te = Math.floor(store.currentTE);
   mode.value = 'space';
+  // Single-value boxes are Advanced's: show them there.
+  setMode('advanced');
   chains.value = [{ asc: chain.length, text: chain.slice(0, -1).join('; ') }];
   lastBox.value = `${Math.max(te + 1, last - 5)}-${Math.min(490, last + 5)}`;
   suggestFrom.value = `Set from the instant answer's route, ${chain.join(' ')}.`;
@@ -1090,6 +1270,8 @@ const linkRequest =
  *  they are not reset for "another player" the way the kept boxes are. */
 const linked = ref(false);
 function applyRequest(req: ByDateRequest): void {
+  // A Science card fills boxes: always Advanced, where they show.
+  setMode('advanced');
   if (req.eggDay) {
     useEggDay();
     customDate.value = false;
@@ -1128,7 +1310,6 @@ function fillLinked(): void {
 if (linkRequest) applyRequest(linkRequest);
 // A request from the Science tab (App.vue sends the player here with it): applied once, never while a
 // run is going or being restored, which has its own boxes.
-const ui = useUIStore();
 watch(
   () => ui.byDateRequest,
   req => {
@@ -1184,11 +1365,11 @@ watch(
  * cheap; past that the plain sum is close enough for an estimate.
  */
 const spaceShapes = computed(() =>
-  lastRange.value
+  runLastRange.value
     ? countSpaceShapes(
-        chains.value.map((row, k) => ({ asc: row.asc, bands: rowBands(k) })),
+        activeChains.value.map(row => ({ asc: row.asc, bands: bandsOf(row) })),
         store.currentTE,
-        lastRange.value[1]
+        runLastRange.value[1]
       )
     : 0
 );
@@ -1203,13 +1384,17 @@ const plannedShapes = computed(() => (mode.value === 'space' ? spacePlan.value.s
  * (with their contention).
  */
 const longestChain = computed(() =>
-  mode.value === 'space' ? Math.max(1, ...chains.value.map(r => Math.floor(r.asc) || 1)) : Math.max(1, maxStops.value)
+  mode.value === 'space' ? Math.max(1, ...activeChains.value.map(r => Math.floor(r.asc) || 1)) : Math.max(1, maxStops.value)
 );
 const workerSecondsPerLeg = computed(
-  () => store.deadlineWorkerSeconds || fallbackWorkerSecondsPerLeg(longestChain.value)
+  () =>
+    store.deadlineWorkerSeconds ||
+    (simple.value && simpleSpace.value
+      ? weightedSecondsPerLeg(simpleSpace.value)
+      : fallbackWorkerSecondsPerLeg(longestChain.value))
 );
 /** The rows as the run reads them. */
-const spaceRows = computed(() => chains.value.map((row, k) => ({ asc: row.asc, bands: rowBands(k) })));
+const spaceRows = computed(() => activeChains.value.map(row => ({ asc: row.asc, bands: bandsOf(row) })));
 /** Routes a set needed in this machine's last finished run over a space of this shape, or 0. */
 const rememberedPerSet = computed(() =>
   store.deadlineRoutesPerSet(spaceRows.value.map(r => (r.asc <= 1 ? [] : r.bands.map(b => [...b]))))
@@ -1223,7 +1408,7 @@ const spacePlan = computed(() =>
   byDatePlan({
     rows: spaceRows.value,
     currentTE: store.currentTE,
-    lastHi: lastRange.value?.[1] ?? 0,
+    lastHi: runLastRange.value?.[1] ?? 0,
     instantSets: instantSets.value,
     workers: store.workerBudget,
     rememberedPerSet: rememberedPerSet.value,
@@ -1283,10 +1468,11 @@ const remainingLabel = computed(() => (timeLeft.value ? durationLabel(timeLeft.v
 const startIssue = computed(() => {
   if (!deadline.value) return '';
   if (deadline.value <= store.planStart) return 'The deadline is before the plan starts.';
+  if (simple.value && !activeChains.value.length) return 'Nothing to check yet: the save has to load first.';
   if (mode.value === 'space') {
-    if (!lastRange.value) return 'Give the last stop a range above your TE now.';
-    const bad = chains.value.findIndex((_, k) => !!rowProblem(k));
-    if (bad >= 0) return `Chain ${bad + 1}: ${rowProblem(bad)}`;
+    if (!runLastRange.value) return 'Give the last stop a range above your TE now.';
+    const bad = activeChains.value.findIndex(row => !!problemOf(row, runLastRange.value));
+    if (bad >= 0) return `Chain ${bad + 1}: ${problemOf(activeChains.value[bad], runLastRange.value)}`;
     if (!spaceShapes.value && !instantSets.value.length)
       return 'No route in these chains goes up from your TE to the last stop.';
     return '';
@@ -1306,7 +1492,7 @@ const canStart = computed(() => !!deadline.value && !startIssue.value && store.c
  * whatever the boxes say -- so the boxes used to show whatever was typed since, and the result read
  * as the answer to a question nobody could see.
  */
-function fillFromSpec(spec: DeadlineRunSpec): void {
+function fillDateFromSpec(spec: DeadlineRunSpec): void {
   if (eggDayYearOf(spec.deadline)) {
     date.value = `${eggDayYearOf(spec.deadline)}-07-14`;
     time.value = '09:00';
@@ -1319,6 +1505,9 @@ function fillFromSpec(spec: DeadlineRunSpec): void {
     }
   }
   ascendNeeded.value = spec.ascendNeeded;
+}
+function fillFromSpec(spec: DeadlineRunSpec): void {
+  fillDateFromSpec(spec);
   const sets = spec.bandSets?.length ? spec.bandSets : spec.bands?.length ? [spec.bands] : null;
   if (sets) {
     mode.value = 'space';
@@ -1366,7 +1555,19 @@ function startedLabel(u: { spec: DeadlineRunSpec; updatedAt: number }): string {
 
 async function resume(): Promise<void> {
   const spec = store.deadlineUnfinished?.spec;
-  if (spec) fillFromSpec(spec);
+  // Back in the mode it was started in: a Simple run's boxes are Simple's (its spec), not the editor's.
+  if (spec?.simple && spec.bandSets?.length) {
+    fillDateFromSpec(spec);
+    simpleUsed.value = {
+      chains: spec.bandSets.map(set => ({ asc: set.length + 1, text: set.map(b => formatBand(b)).join('; ') })),
+      lastBox: `${spec.lastLo ?? Math.floor(store.currentTE) + 1}-${spec.lastHi}`,
+    };
+    mode.value = 'space';
+    setMode('simple');
+  } else if (spec) {
+    fillFromSpec(spec);
+    setMode('advanced');
+  }
   runEstimate.value = spec?.estimate ?? 0;
   await store.resumeDeadline(props.playerId);
 }
@@ -1410,25 +1611,38 @@ async function start(andSubmit: boolean): Promise<void> {
 
 async function find(): Promise<void> {
   runEstimate.value = plannedRoutes.value;
-  if (mode.value === 'space' && lastRange.value) {
-    const counts = chains.value.map(r => Math.max(1, Math.floor(r.asc)));
+  // Simple runs in its own boxes (always a space), frozen for the run.
+  if (simple.value) {
+    mode.value = 'space';
+    simpleUsed.value = {
+      chains: simpleLive.value.chains.map(r => ({ ...r })),
+      lastBox: simpleLive.value.lastBox,
+    };
+  }
+  const range = runLastRange.value;
+  if (mode.value === 'space' && range) {
+    const rows = activeChains.value;
+    const counts = rows.map(r => Math.max(1, Math.floor(r.asc)));
     // Kept with the run (not worked out again on a carry-on), so a saved run replays the same way.
     const extra = instantSets.value.map(s => [...s]);
     await store.startDeadline(props.playerId, {
       deadline: deadline.value,
       minStops: Math.min(...counts),
       maxStops: Math.max(...counts),
-      lastLo: lastRange.value[0],
-      lastHi: lastRange.value[1],
+      lastLo: range[0],
+      lastHi: range[1],
       step: 1,
       ascendNeeded: ascendNeeded.value,
       estimate: plannedRoutes.value,
       extend: true,
-      bandSets: chains.value.map((r, k) => (r.asc <= 1 ? [] : rowBands(k).map(b => [...b]))),
+      bandSets: rows.map(r => (r.asc <= 1 ? [] : bandsOf(r).map(b => [...b]))),
       ...(extra.length ? { instantSets: extra } : {}),
       legPlan: { ...spacePlan.value },
       sets: spacePlan.value.sets,
-      rows: chains.value.map(r => ({ widthIx: rowWidthIx(r), stepIx: rowStepIx(r), auto: !!r.auto })),
+      rows: simple.value
+        ? rows.map(() => ({ widthIx: widthIx.value, stepIx: stepIx.value, auto: false }))
+        : chains.value.map(r => ({ widthIx: rowWidthIx(r), stepIx: rowStepIx(r), auto: !!r.auto })),
+      ...(simple.value ? { simple: true } : {}),
     });
     return;
   }
@@ -1525,9 +1739,10 @@ const edgeWiden = computed<{ row: number; text: string } | null>(() => {
   const text = widenEdges(box.bands, edges.value, { currentTE: result.value.te, finalTE: 490 });
   if (!text) return null;
   const asc = box.bands.length + 1;
-  const same = (k: number) => formatBands(rowBands(k)) === formatBands(box.bands);
-  let row = chains.value.findIndex((r, k) => r.asc === asc && same(k));
-  if (row < 0) row = chains.value.findIndex(r => r.asc === asc);
+  const rows = activeChains.value;
+  const same = (k: number) => formatBands(bandsOf(rows[k])) === formatBands(box.bands);
+  let row = rows.findIndex((r, k) => r.asc === asc && same(k));
+  if (row < 0) row = rows.findIndex(r => r.asc === asc);
   return row >= 0 ? { row, text } : null;
 });
 const formatBands = (bands: number[][]) => bands.map(b => formatBand(b)).join('; ');
@@ -1536,6 +1751,13 @@ const formatBands = (bands: number[][]) => bands.map(b => formatBand(b)).join(';
 async function widenAndRun(): Promise<void> {
   const w = edgeWiden.value;
   if (!w || store.busy) return;
+  // From Simple: its boxes into Advanced first (the same rows, in the same order), widened there.
+  if (simple.value) {
+    openInAdvanced();
+    // The screen shows Advanced through two components above this one.
+    for (let i = 0; i < 5 && simple.value; i++) await nextTick();
+    if (simple.value) return;
+  }
   typedRow(w.row, w.text);
   await nextTick();
   if (canStart.value) await start(false);

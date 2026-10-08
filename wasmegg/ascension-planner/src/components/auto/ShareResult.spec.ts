@@ -50,7 +50,23 @@ describe('ShareResult', () => {
   it('has a default consent line and takes a heading', async () => {
     const t = textOf(await renderHtml(ShareResult, { ...base, heading: 'Share this answer' }));
     expect(t).toContain('Share this answer');
-    expect(t).toContain('Yes, share this result.');
+    expect(t).toContain('I acknowledge the following: I want to share this result on the leaderboard.');
+  });
+
+  it("words the acknowledgement as Find and submit's, varying only the target or deadline", async () => {
+    const target = textOf(await renderHtml(ShareResult, base));
+    const deadline = textOf(await renderHtml(ShareResult, { ...base, goalWord: 'deadline' }));
+    for (const t of [target, deadline]) {
+      expect(t).toContain('I acknowledge the following');
+      expect(t).toContain('not my player ID, and never shown');
+      expect(t).toContain('plus my CSV if ticked below');
+      expect(t).toContain('private diagnostics (never shown)');
+    }
+    expect(target).toContain('its dates and the target,');
+    expect(target).toContain('my best three plans already on the board');
+    expect(deadline).toContain('its dates and the deadline,');
+    expect(deadline).not.toContain('best three');
+    expect(deadline).not.toContain('Yes, share');
   });
 });
 

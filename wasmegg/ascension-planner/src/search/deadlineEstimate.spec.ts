@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  addLegSample,
   byDatePlan,
   enoughSets,
   estimateNote,
@@ -113,6 +114,29 @@ describe('the estimate in legs', () => {
         now
       )
     ).toBeNull();
+  });
+
+  it('a carried-on run does not count its replayed routes as speed', () => {
+    // A resumed run replays 4,000 routes from its checkpoint in 10 s, then simulates 2 legs a second.
+    const t0 = 50_000_000;
+    let samples: [number, number][] = [];
+    for (let s = 0; s <= 10; s++) samples = addLegSample(samples, t0 + s * 1000, s * 400, s * 400);
+    // Replay alone: one sample, no rate at all.
+    expect(samples).toEqual([[t0 + 10_000, 0]]);
+    expect(recentLegRate(samples, t0 + 10_000)).toBeNull();
+    // Real work after it: no rate-based figure before 2 minutes of it...
+    const at = (s: number) => t0 + 10_000 + s * 1000;
+    for (let s = 1; s <= 90; s++) samples = addLegSample(samples, at(s), 4000 + 2 * s, 4000);
+    expect(recentLegRate(samples, at(90))).toBeNull();
+    // ...and then the real 2 legs a second, not 4,000 routes in 10 s.
+    for (let s = 91; s <= 200; s++) samples = addLegSample(samples, at(s), 4000 + 2 * s, 4000);
+    expect(recentLegRate(samples, at(200))).toBeCloseTo(2, 1);
+    // The same counts without telling replayed from real would have read a huge rate.
+    const naive: [number, number][] = [
+      [t0, 0],
+      [at(200), 4000 + 400],
+    ];
+    expect(recentLegRate(naive, at(200))!).toBeGreaterThan(20);
   });
 
   it('remembers routes per set by the shape of the space, not one figure for all', () => {

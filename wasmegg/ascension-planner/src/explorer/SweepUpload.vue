@@ -11,7 +11,7 @@
   <div class="space-y-4">
     <div class="space-y-1.5">
       <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">
-        The two files from the {{ NAMES.full }} (Download CSV and Download diagnostics)
+        The two files from {{ NAMES.fullFirst }} (Download CSV and Download diagnostics)
       </label>
       <input
         type="file"

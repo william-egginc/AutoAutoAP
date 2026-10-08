@@ -114,6 +114,7 @@ import { missedMilestones, usableMilestones, type Milestone } from '@/search/mil
 import { defaultSeedChain, seedChainIssue, seedTidied, usableCheckpoints, fitSeedToLimits } from '@/search/seedChain';
 import { buildPool, exhaustiveChainsWithGap, bandedChains, sortByPrefix } from '@/search/exhaustive';
 import {
+  addLegSample,
   estimateRoutes,
   legsLeft,
   recentLegRate,
@@ -260,6 +261,8 @@ export interface RunProgress {
   unit: string;
   /** Seconds, from a measured rate; null when this kind has none (the bar estimates from pace). */
   secondsLeft: number | null;
+  /** `secondsLeft` is still the planned figure: too little real work yet to measure the speed. */
+  measuring?: boolean;
   /** Date.now() when it started. */
   startedAt: number;
   stopping: boolean;
@@ -4053,6 +4056,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     deadlineInBatch.value = 0;
     deadlineLegSims.value = 0;
     deadlineLegSamples.value = [];
+    deadlineReplayed.value = 0;
+    deadlineRunSimple.value = !!spec.simple;
     deadlineLegPlan.value = spec.legPlan ?? null;
     deadlineSets.value = spec.legPlan?.sets ?? spec.sets ?? 0;
     deadlineAll = [];
@@ -4142,6 +4147,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         {
           evaluate: async (chains, onResult) => {
             const r = await replay.evaluate(chains, onResult);
+            // Counted once the batch is back, with the routes priced it reports next.
+            deadlineReplayed.value = replay.replayed();
             void checkpoint(replay);
             return r;
           },
@@ -4191,6 +4198,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         backupTE: account.backupTE ?? null,
         ...(spec.bandSets?.length ? { bandSets: spec.bandSets } : {}),
         ...(spec.instantSets?.length ? { instantSets: spec.instantSets } : {}),
+        ...(spec.simple ? { simple: true } : {}),
         legSims: deadlineLegSims.value,
         at: Date.now(),
       };
@@ -4286,9 +4294,14 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   const deadlineLegPlan = ref<import('@/search/deadlineStore').DeadlineLegPlan | null>(null);
   /** Sets of early stops in the run, for counting its legs when it has no plan. */
   const deadlineSets = ref(0);
-  /** `[unix ms, legs done]`, at most one every 5 s, for the live rate (deadlineEstimate.ts
-   *  `recentLegRate`). Legs done is counted the way the plan counts them, from the routes priced. */
+  /** `[unix ms, legs done this session]`, at most one every 5 s, for the live rate (deadlineEstimate.ts
+   *  `recentLegRate`, `addLegSample`). Legs done is counted the way the plan counts them, from the
+   *  routes priced, less what a carried-on run replayed from its checkpoint. */
   const deadlineLegSamples = ref<[number, number][]>([]);
+  /** Routes this run replayed from a checkpoint (a carry-on): priced, but at no cost. */
+  const deadlineReplayed = ref(0);
+  /** The running (or last) date search came from By a date's Simple mode (`DeadlineRunSpec.simple`). */
+  const deadlineRunSimple = ref(false);
   /**
    * The estimate now: the first guess until enough sets have finished, then re-worked from what they
    * actually cost (deadlineEstimate.ts). The panel's progress text and the cross-tab bar both use it.
@@ -4314,21 +4327,24 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     return priced < sets ? (priced * firstLegs) / sets : firstLegs + (priced - sets);
   }
   function noteLegSample(): void {
-    const now = Date.now();
     const done = legsDoneFor((deadlineProgress.value?.priced ?? 0) + deadlineInBatch.value);
-    const list = deadlineLegSamples.value;
-    const lastAt = list.length ? list[list.length - 1][0] : 0;
-    if (now - lastAt < 5000) return;
-    // Two windows' worth kept, which is all the rate looks at.
-    const keepFrom = now - 2 * 12 * 60 * 1000;
-    deadlineLegSamples.value = [...list.filter(x => x[0] >= keepFrom), [now, done]];
+    // The replayed routes as the earliest ones priced (a carry-on replays its first rounds first).
+    const replayed = legsDoneFor(deadlineReplayed.value);
+    const next = addLegSample(deadlineLegSamples.value, Date.now(), done, replayed);
+    if (next !== deadlineLegSamples.value) deadlineLegSamples.value = next;
   }
   /**
    * ONE estimate of time, for the panel's box, its progress line, the cross-tab bar and the command
    * line: legs left, over the legs a second the run has managed in the last 12 minutes (the planned
-   * rate until it has 2 minutes of its own). `firstGuess` is the run's own estimate at its start.
+   * rate until it has 2 minutes of its own, `measuring` meanwhile). `firstGuess` is the run's own
+   * estimate at its start.
    */
-  const deadlineTimeLeft = computed<{ seconds: number; legsLeft: number; firstGuess: number | null } | null>(() => {
+  const deadlineTimeLeft = computed<{
+    seconds: number;
+    legsLeft: number;
+    firstGuess: number | null;
+    measuring: boolean;
+  } | null>(() => {
     if (!deadlineRunning.value) return null;
     const p = deadlineProgress.value;
     const priced = (p?.priced ?? 0) + deadlineInBatch.value;
@@ -4343,9 +4359,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const plan = deadlineLegPlan.value;
     const w = Math.max(1, workersInPool.value);
     const planned = plan && plan.workerSecondsPerLeg > 0 ? w / (plan.workerSecondsPerLeg * contention(w)) : null;
-    const rate = recentLegRate(samples, at) ?? planned;
+    const measured = recentLegRate(samples, at);
+    const rate = measured ?? planned;
     if (!rate) return null;
-    return { seconds: left / rate, legsLeft: left, firstGuess: plan ? plan.seconds : null };
+    return { seconds: left / rate, legsLeft: left, firstGuess: plan ? plan.seconds : null, measuring: measured === null };
   });
   /**
    * Routes per set the last finished space run needed, remembered per SPACE SHAPE (ascension counts,
@@ -5263,6 +5280,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         unit: 'routes',
         // The panel's own figure (legs left over the recent rate), not the bar's routes-so-far guess.
         secondsLeft: deadlineTimeLeft.value?.seconds ?? null,
+        measuring: !!deadlineTimeLeft.value?.measuring,
         startedAt: deadlineStartedAt.value,
         stopping: false,
         best: best ? { chain: [...best.chain], te: best.chain[best.chain.length - 1], at: best.reachAt } : null,
@@ -5319,6 +5337,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     deadlineEstimateNow,
     deadlineRoutesPerSet,
     deadlineTimeLeft,
+    deadlineRunSimple,
     deadlineLegSims,
     // settings
     effort,

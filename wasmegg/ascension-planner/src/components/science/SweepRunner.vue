@@ -328,7 +328,7 @@
               class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500"
               @click="emit('show-result')"
             >
-              See it in the {{ NAMES.full }}
+              See it in {{ NAMES.full }}
             </button>
             <button
               type="button"
@@ -339,7 +339,7 @@
             </button>
           </div>
           <p class="text-[10px] text-slate-400">
-            The {{ NAMES.full }} has the whole result: the table, the CSV, building the plan, and sending it again by
+            {{ NAMES.fastest }} › {{ NAMES.fullFirst }} has the whole result: the table, the CSV, building the plan, and sending it again by
             hand if this send didn’t go through.
           </p>
         </div>

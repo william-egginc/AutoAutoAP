@@ -51,19 +51,19 @@ const MOVES: { where: string; href?: string; what: string }[] = [
     what: 'Plan start, awake hours, time off and how much of your computer to use: set once, from the ⚙ Setup button at the bottom right of every Auto Planner screen.',
   },
   {
-    where: `${NAMES.fastest} › ${NAMES.smart}`,
+    where: `${NAMES.fastest} › ${NAMES.smartFirst}`,
     href: '#/auto/fastest',
-    what: 'Was Chain Search. Starts from your chain and homes in on faster checkpoints.',
+    what: 'Was Chain Search, then Smart search. Starts from your chain and homes in on faster checkpoints.',
   },
   {
-    where: `${NAMES.fastest} › ${NAMES.full}`,
+    where: `${NAMES.fastest} › ${NAMES.fullFirst}`,
     href: '#/auto/fastest/full',
-    what: 'Was Insane mode. Prices every route in a range you set.',
+    what: 'Was Insane mode, then Full sweep. Prices every route in a range you set.',
   },
   {
     where: `${NAMES.auto} › ${NAMES.byDate}`,
     href: '#/auto/by-date',
-    what: "Was Insane mode's date goal: the highest TE you can reach by a date, Egg Day included.",
+    what: "Was Insane mode's date goal: the highest TE you can reach by a date, Egg Day included. Simple picks the routes for you; Advanced lets you set the chains.",
   },
   {
     where: NAMES.compare,

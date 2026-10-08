@@ -19,7 +19,7 @@
       <p class="flex-1 min-w-[14rem] text-[12px] font-bold leading-snug">
         {{ kindLabel }} · {{ p.done.toLocaleString()
         }}<template v-if="p.total"> of {{ approx }}{{ p.total.toLocaleString() }}</template> {{ p.unit
-        }}<template v-if="leftLabel"> · about {{ leftLabel }} left</template
+        }}<template v-if="leftLabel"> · about {{ leftLabel }} left<template v-if="p.measuring"> (measuring…)</template></template
         ><template v-if="p.best">
           · best so far {{ p.kind === 'by-date' ? 'gets to' : 'reaches' }} {{ p.best.te }} on
           {{ show(p.best.at) }}</template

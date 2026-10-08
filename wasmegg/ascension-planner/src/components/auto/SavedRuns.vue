@@ -15,7 +15,7 @@
       <span class="text-[10px] font-bold text-slate-400">{{ store.savedRuns.length }} / {{ MAX_RUNS }}</span>
     </div>
     <p class="text-[11px] text-slate-500 leading-relaxed">
-      Kept in this browser, per player, for both {{ NAMES.smart }} and the {{ NAMES.full }}. A saved run carries on with
+      Kept in this browser, per player, for both {{ NAMES.smartFirst }} and {{ NAMES.fullFirst }}. A saved run carries on with
       the save it started with while that save is kept here, and puts its target, schedule, time off and plan start
       back; without that save, your TE has to be the same. Past {{ MAX_RUNS }}, the oldest is dropped.
     </p>

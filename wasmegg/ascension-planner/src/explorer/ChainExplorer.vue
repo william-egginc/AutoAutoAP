@@ -255,7 +255,7 @@
               column, because gear decides totals. The rows are ordered by starting TE (or Clothed TE, or delivery
               score), so you can see whether the winning count moves with where an account is or with its gear. The
               border says how the run behind the cell searched: solid for a finished box at every TE, dashed for every
-              2nd-3rd TE, dotted for every 4th or coarser, striped for a Smart search or a box it did not finish. A dark
+              2nd-3rd TE, dotted for every 4th or coarser, striped for a Simple (Smart search) run or a box it did not finish. A dark
               cell with a dotted or striped edge is a best count found by a search that could have missed a better plan,
               so it is weaker than it looks. Hover or tap a cell for the chain, its finish date, how it searched and
               whether the step from the next count down is bigger than the search could explain.

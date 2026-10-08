@@ -7,7 +7,7 @@
            heading and the "How thorough" card already say what it does (FastestRoute.vue). -->
       <details class="rounded-xl border border-slate-200 bg-white">
         <summary class="cursor-pointer px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">
-          How {{ NAMES.smart }} works, and what it costs
+          How {{ NAMES.smartFirst }} works, and what it costs
         </summary>
         <div class="px-4 pb-4 space-y-4">
           <div
@@ -575,7 +575,7 @@
           :end-label="endDate"
           :running="store.isRunning"
           :claim="store.stoppedEarly ? 'the best of what was priced' : ''"
-          :source="store.searchSpace ? `From the ${NAMES.full} you ran` : ''"
+          :source="store.searchSpace ? `From the ${NAMES.fullFirst} search you ran` : ''"
           :busy="store.busy"
           can-fill
           can-save
@@ -1093,13 +1093,7 @@
         </template>
         <!-- OPT IN, UNCHECKED. Nothing leaves the machine until this is deliberately ticked;
              the submit and save buttons stay disabled until it is. Defaulting this on would make
-             the consent text below decorative. -->
-        <template #consent>
-          <span class="text-[11px] text-indigo-900 leading-relaxed">
-            <span class="font-bold">Yes, share this result.</span>
-            I have read what is included below.
-          </span>
-        </template>
+             the consent text decorative. The wording is ShareResult's own acknowledgement. -->
 
         <div class="flex flex-wrap items-end gap-3">
           <button

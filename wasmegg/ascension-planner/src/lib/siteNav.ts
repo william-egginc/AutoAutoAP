@@ -48,8 +48,15 @@ export const NAMES = {
   classic: 'Your plan',
   fastest: 'Fastest to 490 TE',
   byDate: 'Highest TE by a date',
-  smart: 'Smart search',
-  full: 'Full sweep',
+  /** Fastest's two depths, as the "How thorough" cards name them (batch 3): Simple is Smart search,
+   *  Advanced the Full sweep. Highest TE by a date has a Simple and an Advanced of its own. */
+  smart: 'Simple',
+  full: 'Advanced',
+  /** The old names, kept in brackets on first mention for a while so regulars aren't lost. */
+  smartWas: 'Smart search',
+  fullWas: 'Full sweep',
+  smartFirst: 'Simple (Smart search)',
+  fullFirst: 'Advanced (Full sweep)',
 } as const;
 
 export const DEFAULT_ROUTE: Required<SiteRoute> = {

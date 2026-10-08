@@ -45,7 +45,7 @@
           </p>
           <p class="text-[11px] text-slate-600">
             This sweep fills a gap in the shared data for science. It isn't tuned to find your best route; use
-            {{ NAMES.smart }} or the instant answer for that.
+            {{ NAMES.smartFirst }} or the instant answer for that.
           </p>
           <p class="text-[11px] text-slate-600">
             <template v-if="timeOffText">
@@ -270,15 +270,16 @@
           How {{ NAMES.byDate }} works
         </summary>
         <div class="px-4 pb-4 text-xs text-slate-600 leading-relaxed">
-          Finds the highest TE you can reach by a date. You set the early stops and it tries every route in them, or it
-          picks them for you on a grid and looks more closely around the best. Either way the last stop is found to the
-          exact TE. Like any run, it uses the plan start, hours, time off and computer settings in Your setup.
+          Finds the highest TE you can reach by a date. In Simple it picks the early stops for you: the instant answer's
+          route for each number of ascensions and a few TE either side of each stop. In Advanced you set the early stops
+          and it tries every route in them. Either way the last stop is found to the exact TE. Like any run, it uses the
+          plan start, hours, time off and computer settings in Your setup.
         </div>
       </details>
 
       <details v-if="goal === 'fastest'" class="rounded-xl border border-slate-200 bg-white">
         <summary class="cursor-pointer px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">
-          How the {{ NAMES.full }} works, and what it costs
+          How {{ NAMES.fullFirst }} works, and what it costs
         </summary>
         <div class="px-4 pb-4 text-xs text-slate-600 leading-relaxed space-y-2">
           <p>
@@ -659,7 +660,7 @@
 
             <p class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2.5 leading-relaxed">
               The winner will be the best <span class="font-semibold">of the bands you set</span>, not of everything
-              reachable. That's still a stronger claim than {{ NAMES.smart }} makes, which homes in rather than trying
+              reachable. That's still a stronger claim than {{ NAMES.smartFirst }} makes, which homes in rather than trying
               everything.
             </p>
           </div>
@@ -956,7 +957,7 @@
           :end-label="endDate"
           :running="store.isRunning"
           :claim="store.stoppedEarly ? '' : resultClaim"
-          :source="store.searchSpace ? '' : `From the ${NAMES.smart} you ran`"
+          :source="store.searchSpace ? '' : `From the ${NAMES.smartFirst} search you ran`"
           :busy="store.busy"
           can-save
           :saving="saving"
@@ -1062,18 +1063,14 @@
               without downloading the CSV. A run opened from the library above is sent without a run cost, because the
               time it took wasn't this machine's.
             </p>
-          </template>
-          <template #consent>
-            <span
-              >Yes, share this result. It includes your artifact inventory, timezone and local plan start, plus a random
-              code this browser keeps for the account (not your player ID, and never shown). The board uses the code so
-              that a run landing on the flagged board shows to you as yours and to everyone else anonymously, the same
-              result sent twice is stored once, you can put your name on a run you sent anonymously, and your own later
-              runs can replace your older plans in the race (nobody else's can). A named run shows a short tag made from
-              the code. An anonymous run shows nothing that links it to you. If you already have plans on the board,
-              your best three, re-priced from this save, are sent too: named ones with a named send and anonymous ones
-              with an anonymous send, so a re-check never ties the two together.</span
-            >
+            <p class="text-[11px] text-indigo-900/80 leading-relaxed">
+              The board uses the random code so that a run landing on the flagged board shows to you as yours and to
+              everyone else anonymously, the same result sent twice is stored once, you can put your name on a run you
+              sent anonymously, and your own later runs can replace your older plans in the race (nobody else's can). A
+              named run shows a short tag made from the code. An anonymous run shows nothing that links it to you. Your
+              best three plans already on the board go named with a named send and anonymous with an anonymous one, so a
+              re-check never ties the two together.
+            </p>
           </template>
           <template #opted>
             <label class="flex items-start gap-3 cursor-pointer text-[11px] text-indigo-900/80">
@@ -1564,7 +1561,7 @@ const resultExplain = computed(() => {
   const sp = store.searchSpace;
   if (!sp || gridIsComplete(sp.bands, sp.range?.step)) return '';
   const step = gridStepLabel(sp.bands, sp.range?.step);
-  return `Every chain on the grid (${step}) was priced, and this is the fastest. Values between grid points were not tried, so a Smart search can land on something faster in between.`;
+  return `Every chain on the grid (${step}) was priced, and this is the fastest. Values between grid points were not tried, so Simple (Smart search) can land on something faster in between.`;
 });
 
 /** The ascension counts this click will try: chain 1 and each added chain that can run. */

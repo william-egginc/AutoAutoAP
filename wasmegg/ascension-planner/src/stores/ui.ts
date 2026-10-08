@@ -3,6 +3,7 @@ import { ref } from 'vue';
 import type { AutoView, CompareView, Depth, ScienceView } from '@/lib/siteNav';
 import type { SweepRequest } from '@/search/sweepRequest';
 import type { ByDateRequest } from '@/search/byDateRequest';
+import { readSearchMode, type SearchMode } from '@/lib/searchMode';
 
 export type PlannerTab = 'manual' | 'automatic' | 'leaderboard' | 'science';
 
@@ -11,7 +12,12 @@ export const useUIStore = defineStore('ui', () => {
   const plannerTab = ref<PlannerTab>('manual');
   /** Which Auto Planner screen, and how thorough the fastest-route one is. */
   const autoView = ref<AutoView>('classic');
-  const fastestDepth = ref<Depth>('smart');
+  /** Simple (Smart search) unless the player last picked Advanced (lib/searchMode.ts); an address
+   *  naming the depth (#/auto/fastest/full) wins over both. */
+  const fastestDepth = ref<Depth>(readSearchMode('fastest') === 'advanced' ? 'full' : 'smart');
+  /** Highest TE by a date's Simple or Advanced (ByDateScreen.vue decides it when the screen opens:
+   *  null until then). */
+  const byDateMode = ref<SearchMode | null>(null);
   /** Compare's view (a leaderboard tab, or Insights) and Science's. */
   const compareView = ref<CompareView>('eggday');
   const scienceView = ref<ScienceView>('check');
@@ -84,6 +90,7 @@ export const useUIStore = defineStore('ui', () => {
     plannerTab,
     autoView,
     fastestDepth,
+    byDateMode,
     compareView,
     scienceView,
     isHeaderCollapsed,

@@ -280,7 +280,7 @@
             So the starting chain matters a lot. "Find a starting chain for me" helps, but it is rough: on the two
             accounts tested, its pick was <span class="font-bold text-slate-800">8.6 and 12.0 days</span> slower than
             where the search finished. If the start is on the wrong hill, every later step does a careful job on the
-            wrong hill. To catch that, run twice from different starting chains and compare, or use {{ NAMES.full }},
+            wrong hill. To catch that, run twice from different starting chains and compare, or use {{ NAMES.fullFirst }},
             which prices every chain in a space you choose.
           </p>
           <p class="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-[11px] leading-relaxed text-amber-800">

@@ -125,7 +125,7 @@
               need.links.length > 1 ? 'Press both buttons below, one after the other.' : 'Press Run this sweep below.'
             }}
             It {{ runInPlace ? 'runs' : 'opens' }} <b>“{{ need.presetLabel }}”</b
-            ><template v-if="!runInPlace"> in the {{ NAMES.full }}</template
+            ><template v-if="!runInPlace"> in {{ NAMES.fastest }} › {{ NAMES.fullFirst }}</template
             >, trying {{ bandsInWords(need.bands) }}.
             <template v-if="need.minGap > 0">Ascension targets stay at least {{ need.minGap }} TE apart.</template>
             {{ need.note ? need.note : '' }}
@@ -185,7 +185,7 @@
                 {{ link.label }} &rarr;
               </a>
               <span class="text-[10px] text-slate-400">
-                Opens the {{ need.byDate ? NAMES.byDate : NAMES.full }} in a new tab with all of this filled in, on the save
+                Opens {{ need.byDate ? `${NAMES.byDate} › Advanced` : `${NAMES.fastest} › ${NAMES.fullFirst}` }} in a new tab with all of this filled in, on the save
                 you have loaded.
               </span>
             </template>

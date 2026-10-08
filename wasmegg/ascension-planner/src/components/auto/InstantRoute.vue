@@ -534,7 +534,12 @@ const props = defineProps<{
   /** Highest TE by a date: the unix second. Without it, the fastest route to the target. */
   deadline?: number;
 }>();
-const emit = defineEmits<{ check: [chain: number[]]; routes: [byCount: Record<number, number[]>] }>();
+const emit = defineEmits<{
+  check: [chain: number[]];
+  /** By a date: the route for each number of ascensions, and the "At most N ascensions" filter (null
+   *  for any), which the exact check's routes don't go through. */
+  routes: [byCount: Record<number, number[]>, maxAscensions: number | null];
+}>();
 /** By a date: hand the panel this answer's route for each number of ascensions (the exact check's
  *  where it has one), so its chain boxes can be suggested around them. */
 function emitRoutes(found: { byDateByAscensions: (Route | null)[] }): void {
@@ -543,7 +548,7 @@ function emitRoutes(found: { byDateByAscensions: (Route | null)[] }): void {
     if (r) byCount[k] = [...r.chain];
   });
   for (const [k, d] of Object.entries(dateExactByK.value)) if (d) byCount[Number(k)] = [...d.chain];
-  emit('routes', byCount);
+  emit('routes', byCount, filters.value.maxAscensions);
 }
 const store = useChainSearchStore();
 const planner = useAutoPlannerStore();

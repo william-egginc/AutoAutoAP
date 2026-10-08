@@ -21,7 +21,18 @@
         class="mt-0.5 rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500"
         data-testid="share-consent"
       />
-      <slot name="consent"><span>Yes, share this result.</span></slot>
+      <!-- The same acknowledgement as Find and submit's (FindBar.vue), first person, on every screen:
+           only the target/deadline word differs. A screen can still replace it (`consent`). -->
+      <slot name="consent"
+        ><span data-testid="share-consent-text"
+          >I acknowledge the following: I want to share this result on the leaderboard. I understand it sends the
+          route, its dates and the {{ goalWord }}, with my artifact inventory, timezone, local plan start and the random
+          code this browser keeps for the account (not my player ID, and never shown), plus my CSV if ticked below and,
+          if ticked, private diagnostics (never shown).<template v-if="goalWord === 'target'">
+            It also sends my best three plans already on the board, re-priced from this save.</template
+          ></span
+        ></slot
+      >
     </label>
     <!-- Credit, behind the opt-in like everything else that leaves the machine. -->
     <div v-if="optIn" class="space-y-2">
@@ -61,8 +72,10 @@ withDefaults(
     /** After "(the same file as Download CSV)" in the CSV box: what this screen's CSV holds. */
     csvDetail?: string;
     nicknameMax?: number;
+    /** What the route is measured against, in the acknowledgement: 'target' (Fastest) or 'deadline'. */
+    goalWord?: 'target' | 'deadline';
   }>(),
-  { heading: 'Share this result', csvDetail: '', nicknameMax: 40 }
+  { heading: 'Share this result', csvDetail: '', nicknameMax: 40, goalWord: 'target' }
 );
 const emit = defineEmits<{ nicknameTyped: [] }>();
 const optIn = defineModel<boolean>('optIn', { required: true });

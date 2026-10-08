@@ -64,6 +64,9 @@ export interface DeadlineRunSpec {
    * puts back only the player's boxes. Absent on runs started before 8 Oct.
    */
   instantSets?: number[][];
+  /** Started from By a date's Simple mode (batch 3): its boxes were picked around the instant answer,
+   *  so a carry-on goes back to Simple. Absent on Advanced runs and runs from before 8 Oct. */
+  simple?: boolean;
   /** The estimate the run started with, counted in legs (deadlineEstimate.ts `planLegs`): the first
    *  guess the progress line quotes, and what the live estimate counts down from. */
   legPlan?: DeadlineLegPlan;
@@ -131,6 +134,8 @@ export interface DeadlineCheckpoint {
 export type DeadlineAccount = Record<string, unknown> & { backupTime?: number | null; backupTE?: number | null };
 
 export interface SavedDeadlineResult {
+  /** From By a date's Simple mode (`DeadlineRunSpec.simple`). */
+  simple?: boolean;
   routes: DeadlineRoute[];
   byStops: DeadlineRoute[];
   deadline: number;

@@ -32,13 +32,15 @@ press a send button.
 Load your save (by player ID or a backup file), then pick a screen:
 
 - **Classic** is the original automatic planner: give it target TEs and it builds the plan.
-- **Fastest route** looks for the quickest route to your target. It has two depths:
-  - **Smart search** starts from a route (yours, or one it finds for you) and homes in on a
-    faster one. Fast, but it can miss a narrow winner.
-  - **Full sweep** prices every route in boxes you give it, so the answer is proven for
-    those boxes. The cost is that it is only as good as the boxes.
+- **Fastest route** looks for the quickest route to your target. It has two modes:
+  - **Simple** (was Smart search) starts from a route (yours, or one it finds for you) and
+    homes in on a faster one. Minutes, but it can miss a narrow winner.
+  - **Advanced** (was Full sweep) prices every route in boxes you give it, so the answer is
+    proven for those boxes. The cost is that it is only as good as the boxes.
 - **Highest TE by a date** asks the opposite question: how much TE can you have by a date
-  (Egg Day by default)?
+  (Egg Day by default)? It has two modes too: **Simple** checks the instant answer's best route
+  for each number of ascensions and a few TE either side with the full simulator; **Advanced**
+  lets you set the chains, boxes and sliders yourself.
 
 All three searches share a **Your setup** panel, so a setting you change on one is there on
 the others:
@@ -58,13 +60,13 @@ the others:
 
 #### Effort, bands and warnings
 
-**Smart search effort** has three tiers: **Fast**, **Exact** (the default) and **Very high**.
+**Simple (Smart search) effort** has three tiers: **Fast**, **Exact** (the default) and **Very high**.
 Each tier adds steps on top of the one below, so stopping a higher tier early still leaves
 you the lower tier's answer. (A fourth tier, Balanced, used to exist; it ran the same steps as
 Exact and was retired. Old links to it open as Exact.) See [Effort tiers](#effort-tiers) for
 what each one costs.
 
-**Bands** are how you describe a Full sweep. One band per checkpoint, written
+**Bands** are how you describe an Advanced (Full sweep) search. One band per checkpoint, written
 `low-high:step`, separated by semicolons: `185-200:5; 215-245:10; 260-300:10` means "one
 checkpoint somewhere in 185 to 200 in steps of 5, then one in 215 to 245 in steps of 10, then
 one in 260 to 300". Each band is one ascension, and the last one ends at your final target, so

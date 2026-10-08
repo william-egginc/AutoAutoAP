@@ -648,7 +648,7 @@ export const NO_FIT_TEXT = "This sweep doesn't fit an account at your TE.";
 
 /** What the Science tab says on every sweep card and in its runner. */
 export const SCIENCE_SWEEP_NOTE =
-  "This sweep fills a gap in the shared data for science. It isn't tuned to find your best route; use Smart search or the instant answer for that.";
+  "This sweep fills a gap in the shared data for science. It isn't tuned to find your best route; use Simple (Smart search) on Fastest to 490 TE, or the instant answer, for that.";
 
 /** Whether a preset prices at least one chain from this TE with its bands fitted to it. */
 export function presetFits(presetId: string, currentTE: number, final = 490): boolean {

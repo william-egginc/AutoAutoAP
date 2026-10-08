@@ -846,7 +846,9 @@ const screenHere = computed<SearchScreen | 'classic'>(() =>
   autoView.value === 'classic' ? 'classic' : autoView.value === 'by-date' ? 'by-date' : fastestDepth.value
 );
 function screenName(s: SearchScreen | 'classic'): string {
-  return s === 'classic' ? NAMES.classic : s === 'by-date' ? NAMES.byDate : s === 'full' ? NAMES.full : NAMES.smart;
+  if (s === 'classic' || s === 'by-date') return s === 'classic' ? NAMES.classic : NAMES.byDate;
+  // "Fastest to 490 TE (Simple)": By a date has a Simple and an Advanced too.
+  return `${NAMES.fastest} (${s === 'full' ? NAMES.full : NAMES.smart})`;
 }
 /** The running search's name when this Auto Planner screen isn't where it runs, else ''. */
 const blockedBy = computed(() => {
