@@ -239,6 +239,57 @@ function scrubText(s) {
   return String(s).replace(/EI\d{16}/g, 'EI[redacted]');
 }
 
+// ---------------------------------------------------------------- private extras
+// Fields the whitelist does not recognise (today: `diagnostics`, the opt-in black box summary) are
+// kept apart from the public row, under `extra:<row id>` with a TTL. NOTHING here ever serves that
+// prefix: the board, /all, /flagged, /csv and the snapshots are built from `sub:`, `flag:`, `csv:`
+// and `snap:` only, and no route reads a key from a request. The owner reads one with:
+//   wrangler kv key get --binding SUBMISSIONS "extra:<id>"
+const EXTRA_MAX_BYTES = 16 * 1024;
+const DIAGNOSTICS_MAX_BYTES = 4 * 1024;
+const EXTRA_TTL_SECONDS = 180 * 24 * 60 * 60;
+const EXTRA_MAX_DEPTH = 6;
+
+/** A key that names a player id, in any casing or separator: eiUserId, player_id, user-id, EIID. */
+function idLikeKey(k) {
+  const n = String(k).toLowerCase().replace(/[^a-z0-9]/g, '');
+  return n === 'id' || n === 'eiid' || n.includes('playerid') || n.includes('userid');
+}
+
+/** JSON-only copy of `v`: id-like keys dropped, EI ids inside strings redacted, depth bounded. */
+function cleanExtra(v, depth = 0) {
+  if (v === null || typeof v === 'boolean') return v;
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+  if (typeof v === 'string') return scrubText(v);
+  if (depth >= EXTRA_MAX_DEPTH) return undefined;
+  if (Array.isArray(v)) return v.map(x => cleanExtra(x, depth + 1) ?? null);
+  if (typeof v === 'object') {
+    const out = {};
+    for (const [k, x] of Object.entries(v)) {
+      if (idLikeKey(k)) continue;
+      const c = cleanExtra(x, depth + 1);
+      if (c !== undefined) out[k] = c;
+    }
+    return out;
+  }
+  return undefined;
+}
+
+/** What to keep privately from a request body: its top-level fields that did not become public. */
+function pickExtras(body, record) {
+  const out = {};
+  for (const [k, v] of Object.entries(body)) {
+    if (k in record || idLikeKey(k)) continue;
+    const c = cleanExtra(v);
+    if (c === undefined) continue;
+    if (k === 'diagnostics' && JSON.stringify(c).length > DIAGNOSTICS_MAX_BYTES) continue;
+    out[k] = c;
+  }
+  if (!Object.keys(out).length) return null;
+  const text = JSON.stringify(out);
+  return text.length > EXTRA_MAX_BYTES ? null : text;
+}
+
 const text = (v, max) => (typeof v === 'string' ? scrubText(v).slice(0, max) : undefined);
 const num = v => (Number.isFinite(v) ? v : undefined);
 const flag = v => (typeof v === 'boolean' ? v : undefined);
@@ -1600,6 +1651,15 @@ export default {
       // On the board before the answer goes back, so the CSV and a "Put my name on it" that follow
       // find the row (see "snapshots" above).
       await commitSnapshot(env, ctx, board, { row: { key, record } }, url.origin);
+      // Private extras (see above): never part of the row, never served. A failure costs nothing.
+      const extras = pickExtras(body, record);
+      if (extras) {
+        try {
+          await env.SUBMISSIONS.put(`extra:${id}`, extras, { expirationTtl: EXTRA_TTL_SECONDS });
+        } catch {
+          /* the headline result is on the board; the extras are a courtesy */
+        }
+      }
       await gate.commit();
 
       // No key configured means no token: the client then skips the CSV instead of being refused.

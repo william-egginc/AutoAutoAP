@@ -370,6 +370,24 @@ days on commons.
 If you change what is stored, **change the consent text in the panel to match**. People agreed
 to a specific list.
 
+### Private extras
+
+A request body may carry fields the public record has no place for. Today that is `diagnostics`,
+the opt-in black box summary ("Also send diagnostics" in the app: memory readings, worker count,
+browser family, any crash). After `pickSubmission` builds the public row, the remaining top-level
+fields go to a **separate KV key**, `extra:<row id>`, with a 180-day TTL.
+
+- JSON only. Anything over about 16 KB in total is dropped, and `diagnostics` alone is capped at
+  about 4 KB. Keys named like a player id (`eiUserId`, `playerId`, `user_id`, ...) are removed and
+  `EI` + 16 digits inside any value is redacted.
+- **Never served.** `/all`, `/flagged`, `/leaderboard`, `/csv`, `/mine` and the `snap:*` snapshots
+  are built from `sub:`, `flag:`, `csv:` and `snap:` keys only, and no route takes a key from a
+  request. The tests check that a diagnostics string appears in none of them.
+- A failed write of the extras never fails the submission. A resend of a result already on the
+  board stores nothing new, so its extras are not kept either.
+- The owner reads one with `wrangler kv key get --binding SUBMISSIONS "extra:<id>"`
+  (add `--remote` for production); `wrangler kv key list --prefix extra:` lists them.
+
 ### Reading the leaderboard honestly
 
 Durations are not comparable between accounts. A chain's length depends on artifacts,

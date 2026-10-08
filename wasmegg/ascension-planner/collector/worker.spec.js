@@ -220,6 +220,58 @@ describe('what never gets stored', () => {
   });
 });
 
+describe('private extras', () => {
+  const extraKeys = () => [...env.SUBMISSIONS._m.keys()].filter(k => k.startsWith('extra:'));
+  const DIAG = { browser: 'chrome on mac', cores: 8, workers: 4, peakMB: 900 };
+
+  it('keeps diagnostics under extra:<id>, and nowhere public', async () => {
+    const res = await (await post('/submit', { ...MINIMAL, diagnostics: DIAG })).json();
+    expect(extraKeys()).toEqual([`extra:${res.id}`]);
+    expect(JSON.parse(env.SUBMISSIONS._m.get(`extra:${res.id}`))).toEqual({ diagnostics: DIAG });
+    for (const path of ['/all', '/flagged', '/leaderboard', '/csv?id=' + res.id, '/', '/mine']) {
+      const body = await (await get(path)).text();
+      expect(body).not.toContain('chrome on mac');
+    }
+    for (const [k, v] of env.SUBMISSIONS._m) if (k.startsWith('snap:')) expect(v).not.toContain('chrome on mac');
+    expect(JSON.stringify(stored())).not.toContain('chrome on mac');
+  });
+
+  it('stores nothing when there are no extra fields', async () => {
+    await post('/submit', MINIMAL);
+    expect(extraKeys()).toEqual([]);
+  });
+
+  it('strips id-like keys and redacts EI ids in values', async () => {
+    const res = await (
+      await post('/submit', {
+        ...MINIMAL,
+        eiUserId: 'EI1234567890123456',
+        diagnostics: { playerId: 'x', note: 'EI1234567890123456 crashed', nested: { user_id: 'y', ok: 1 } },
+      })
+    ).json();
+    const raw = env.SUBMISSIONS._m.get(`extra:${res.id}`);
+    expect(raw).not.toContain('EI1234567890123456');
+    expect(JSON.parse(raw)).toEqual({ diagnostics: { note: 'EI[redacted] crashed', nested: { ok: 1 } } });
+  });
+
+  it('drops diagnostics over 4 KB and extras over 16 KB, and still takes the submission', async () => {
+    const big = await post('/submit', { ...MINIMAL, diagnostics: { blob: 'x'.repeat(5000) } });
+    expect(big.status).toBe(200);
+    expect(extraKeys()).toEqual([]);
+    const huge = await post('/submit', { ...MINIMAL, durationDays: 701, a: 'x'.repeat(9000), b: 'y'.repeat(9000) }, '2.2.2.2');
+    expect(huge.status).toBe(200);
+    expect(extraKeys()).toEqual([]);
+  });
+
+  it('writes with a 180-day TTL', async () => {
+    const puts = [];
+    const put = env.SUBMISSIONS.put;
+    env.SUBMISSIONS.put = async (k, v, o) => (puts.push([k, o]), put(k, v, o));
+    await post('/submit', { ...MINIMAL, diagnostics: DIAG });
+    expect(puts.find(([k]) => k.startsWith('extra:'))[1].expirationTtl).toBe(180 * 86400);
+  });
+});
+
 describe('rate limit', () => {
   // A burst, not one-per-minute: comparing effort tiers means posting several results back to
   // back, and the old gate failed the second one with a message that read like a broken server.
