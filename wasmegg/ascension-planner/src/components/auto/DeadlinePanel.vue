@@ -58,6 +58,8 @@
       </div>
     </div>
 
+    <!-- A screen-level choice above the form (batch 3: Simple or Advanced). -->
+    <slot name="mode" />
     <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">The deadline</h3>
     <!-- Egg Day or a date of your own, as one choice of two: a dark "Egg Day" button beside date
          boxes that already held Egg Day read oddly (the user, 30 Sept). The boxes show for a date
@@ -134,270 +136,185 @@
          date, from every route at once. Check exactly sets its stops in the boxes below. -->
     <InstantRoute v-if="deadline" :deadline="deadline" @check="checkByDate" @routes="onInstantRoutes" />
 
-    <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest pt-1">The routes to try</h3>
-    <!-- One way only (the user, 5 Oct: "just have I'll set the stops, make it simpler"). "Pick them for
+    <!-- Batch 3's Simple mode can leave the chain editor out (`hideRoutes`); nothing else reads it. -->
+    <template v-if="!hideRoutes">
+      <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest pt-1">The routes to try</h3>
+      <!-- One way only (the user, 5 Oct: "just have I'll set the stops, make it simpler"). "Pick them for
          me" is gone from the page; an unfinished run started in it can still be carried on, which is
          the only way `mode` becomes 'auto' now. -->
-    <!-- The player's own space, Insane-style: one box per chain, and as many chains as you like. -->
-    <template v-if="mode === 'space'">
-      <div v-for="(row, k) in chains" :key="k" class="rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-2">
-        <div class="flex flex-wrap items-center gap-2">
-          <span class="text-[10px] font-black text-slate-600 uppercase tracking-widest">Chain {{ k + 1 }}</span>
-          <label class="flex items-center gap-1.5 text-[10px] font-black text-slate-500 uppercase tracking-widest">
-            Ascensions
-            <input
-              v-model.number="row.asc"
-              type="number"
-              min="1"
-              max="8"
-              :disabled="store.busy"
-              class="w-16 rounded-md border-slate-300 text-xs font-bold text-slate-800 disabled:opacity-50"
-            />
-          </label>
-          <button
-            type="button"
-            :disabled="store.busy || row.asc < 2"
-            class="px-2.5 py-1 rounded-md border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-white disabled:opacity-40"
-            @click="suggestRow(k)"
-          >
-            Suggest a space
-          </button>
-          <button
-            v-if="chains.length > 1"
-            type="button"
-            :disabled="store.busy"
-            class="ml-auto text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-rose-600 disabled:opacity-40"
-            @click="chains.splice(k, 1)"
-          >
-            Remove
-          </button>
-        </div>
-        <input
-          v-if="row.asc >= 2"
-          v-model="row.text"
-          type="text"
+      <!-- The player's own space, Insane-style: one box per chain, and as many chains as you like. -->
+      <template v-if="mode === 'space'">
+        <!-- The chain rows (RoutesToTry.vue, shared with the Full sweep). Suggest a space's two sliders sit
+           small and under the box they fill (the user, 4 Oct), per chain; moving one re-fills the boxes
+           Suggest filled, not ones typed by hand. -->
+        <RoutesToTry
+          v-model:linked="linkSliders"
+          class="space-y-4"
+          :rows="chains"
+          :sliders="rowSliders"
+          :problems="rowProblems"
+          :summaries="rowSummaries"
           :disabled="store.busy"
-          placeholder="138-142:1; 160-200:10; 200-240:10"
-          class="w-full rounded-lg border-slate-300 text-sm font-mono-premium font-bold text-slate-800 disabled:opacity-50"
-          @input="
-            row.auto = false;
-            row.restored = false;
-            row.centre = undefined;
-            row.centredOn = undefined;
-          "
-        />
-        <BandCheckNotice
-          v-if="row.asc >= 2"
-          :text="row.text"
           :current-t-e="store.currentTE"
           :final-t-e="490"
-          :disabled="store.busy"
-          @use="
-            t => {
-              row.text = t;
-              row.auto = false;
-              row.restored = false;
-              row.centre = undefined;
-              row.centredOn = undefined;
-            }
-          "
-        />
-        <span class="block text-[10px]" :class="rowProblem(k) ? 'text-rose-600' : 'text-slate-500'">
-          {{ rowProblem(k) || rowSummary(k) }}
-        </span>
-        <span v-if="instantNote(k)" class="block text-[10px] text-indigo-700" data-test="instant-set-note">{{
-          instantNote(k)
-        }}</span>
-        <span v-else-if="row.centre && !row.centredOn" class="block text-[10px] text-slate-500"
-          >No instant answer for {{ row.asc }} ascensions yet, so the boxes after the first are the card's wider
-          ones.</span
+          :max-asc="8"
+          :min-rows="1"
+          placeholder="138-142:1; 160-200:10; 200-240:10"
+          slider-lead="Suggest a space tries"
+          linkable
+          footer-class="items-end gap-4"
+          @asc="(k, n) => (chains[k].asc = n)"
+          @text="typedRow"
+          @suggest="suggestRow"
+          @remove="k => chains.splice(k, 1)"
+          @add="addChain"
+          @slider="setSlider"
         >
-        <p v-if="row.restored && row.asc >= 2" class="text-[10px] text-slate-400">
-          Restored from the unfinished run (the sliders apply when you press Suggest a space).
+          <template #row-notes="{ row, k }">
+            <span v-if="instantNote(k)" class="block text-[10px] text-indigo-700" data-test="instant-set-note">{{
+              instantNote(k)
+            }}</span>
+            <span v-else-if="chains[k].centre && !chains[k].centredOn" class="block text-[10px] text-slate-500"
+              >No instant answer for {{ row.asc }} ascensions yet, so the boxes after the first are the card's wider
+              ones.</span
+            >
+            <p v-if="chains[k].restored && row.asc >= 2" class="text-[10px] text-slate-400">
+              Restored from the unfinished run (the sliders apply when you press Suggest a space).
+            </p>
+          </template>
+          <!-- A step wider than the ± leaves only the centre of every stop after the first (the user, 5 Oct:
+             ±3 every 10 gave "231; 277"). Say so rather than let it look like a bug. -->
+          <template #row-after="{ row, k }">
+            <p
+              v-if="row.asc >= 3 && stepOf(chains[k]) > widthOf(chains[k])"
+              class="text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1"
+            >
+              Every {{ stepOf(chains[k]) }} TE is wider than ±{{ widthOf(chains[k]) }}, so after the first stop only the
+              suggested TE itself is tried. Widen the ± slider or pick a smaller step to try more around it.
+            </p>
+          </template>
+          <template #footer>
+            <label class="space-y-1">
+              <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest"
+                >Last stop: where to start looking</span
+              >
+              <input
+                v-model="lastBox"
+                type="text"
+                :disabled="store.busy"
+                placeholder="e.g. 220-320"
+                class="w-40 rounded-lg border-slate-300 text-sm font-mono-premium font-bold text-slate-800 disabled:opacity-50"
+              />
+            </label>
+            <span class="text-[10px] pb-2" :class="lastRange ? 'text-slate-500' : 'text-rose-600'">
+              {{
+                lastRange
+                  ? `starts at ${lastRange[0]}-${lastRange[1]} and looks higher or lower if the answer is outside it; found to the exact TE`
+                  : 'give it a rough range, e.g. 300-340'
+              }}
+            </span>
+          </template>
+        </RoutesToTry>
+        <p class="text-[11px] text-slate-500 leading-relaxed">
+          Each chain is one box of bands, like the {{ NAMES.full }}'s: one band per ascension before the last, separated
+          by <span class="font-mono-premium">;</span>. A band is <span class="font-mono-premium">lo-hi:step</span>, a
+          single value, or several values with commas. Chains with other ascension counts all run from the same click,
+          and a 1- or 2-ascension chain costs next to nothing. Every route in your chains is tried, and nothing outside
+          them, so the answer is proven for that space. The last stop is found to the exact TE.
+          <template v-if="suggestFrom">{{ suggestFrom }}</template>
         </p>
-        <!-- Suggest a space's two settings, small and under the box they fill (the user, 4 Oct). Shared by
-             every chain; moving one re-fills the boxes Suggest filled, not ones typed by hand. -->
-        <div v-if="row.asc >= 2" class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-slate-500">
-          <span class="font-bold text-slate-600">Suggest a space tries</span>
-          <label class="flex items-center gap-1.5">
-            <input
-              :value="row.pm ? 0 : rowWidthIx(row)"
-              type="range"
-              min="0"
-              :max="SPACE_WIDTHS.length - 1"
-              step="1"
-              :disabled="store.busy"
-              class="w-20 accent-slate-700"
-              aria-label="How far around each stop"
-              @input="setSlider(k, 'widthIx', +($event.target as HTMLInputElement).value)"
-            />
-            <span
-              ><b class="text-slate-700">±{{ widthOf(row) }}</b> TE around each stop<template v-if="row.pm">
-                (from a Science card)</template
-              ></span
+        <p v-if="instantSets.length" class="text-[10px] text-slate-500 leading-relaxed" data-test="handoff-note">
+          This search starts each fresh ascension the moment the last one ends; the instant answer's exact check starts
+          it on the next whole hour, so the same route's times here and there can differ by up to about an hour per
+          fresh ascension.
+        </p>
+      </template>
+
+      <!-- Let it pick: the guided search (seed, grid, homing in). -->
+      <template v-else>
+        <div class="flex flex-wrap items-end gap-4">
+          <label class="space-y-1">
+            <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest"
+              >Stops, including the last</span
             >
+            <div class="flex items-center gap-2">
+              <input
+                v-model.number="minStops"
+                type="number"
+                min="1"
+                max="8"
+                :disabled="store.busy"
+                class="w-16 rounded-lg border-slate-200 text-sm font-bold"
+              />
+              <span class="text-slate-400">to</span>
+              <input
+                v-model.number="maxStops"
+                type="number"
+                min="1"
+                max="8"
+                :disabled="store.busy"
+                class="w-16 rounded-lg border-slate-200 text-sm font-bold"
+              />
+            </div>
           </label>
-          <label class="flex items-center gap-1.5">
-            <input
-              :value="rowStepIx(row)"
-              type="range"
-              min="0"
-              :max="SPACE_STEPS.length - 1"
-              step="1"
-              :disabled="store.busy"
-              class="w-16 accent-slate-700"
-              aria-label="Step between the TEs tried"
-              @input="setSlider(k, 'stepIx', +($event.target as HTMLInputElement).value)"
-            />
-            <span
-              title="The first stop is tried at every TE: it sits nearest your farm as it is now, where one TE either way can move the whole route by days."
-              >every <b class="text-slate-700">{{ stepOf(row) === 1 ? 'TE' : stepOf(row) + ' TE' }}</b> (the first stop:
-              every TE)</span
+          <label class="space-y-1">
+            <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest"
+              >Rough guess for the last stop</span
             >
+            <input
+              v-model.number="lastHi"
+              type="number"
+              :min="store.currentTE + 2"
+              max="490"
+              :disabled="store.busy"
+              class="w-24 rounded-lg border-slate-200 text-sm font-bold"
+              @input="lastHiTouched = true"
+            />
           </label>
-          <label v-if="chains.length > 1" class="flex items-center gap-1.5 cursor-pointer">
-            <input v-model="linkSliders" type="checkbox" class="rounded border-slate-300 text-slate-700" />
-            move every chain's sliders together
+          <!-- How thorough, as one slider (the user, 30 Sept): how many sets of early stops the first
+             look tries; the grid it uses follows, and so do the routes and the time below. -->
+          <label class="space-y-1">
+            <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest">How thorough</span>
+            <span class="flex items-center gap-2">
+              <input
+                v-model.number="thoroughIx"
+                type="range"
+                min="0"
+                :max="THOROUGH.length - 1"
+                step="1"
+                :disabled="store.busy"
+                class="w-36 accent-slate-800"
+                aria-label="How thorough the first look is"
+              />
+              <span class="text-[11px] font-bold text-slate-700"
+                >{{ THOROUGH[thoroughIx].label }} · first look every {{ usedStep }} TE</span
+              >
+            </span>
           </label>
         </div>
-        <!-- A step wider than the ± leaves only the centre of every stop after the first (the user, 5 Oct:
-             ±3 every 10 gave "231; 277"). Say so rather than let it look like a bug. -->
-        <p
-          v-if="row.asc >= 3 && stepOf(row) > widthOf(row)"
-          class="text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1"
-        >
-          Every {{ stepOf(row) }} TE is wider than ±{{ widthOf(row) }}, so after the first stop only the suggested TE
-          itself is tried. Widen the ± slider or pick a smaller step to try more around it.
-        </p>
-      </div>
-      <div class="flex flex-wrap items-end gap-4">
-        <button
-          type="button"
-          :disabled="store.busy"
-          class="px-3 py-1.5 rounded-lg border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 disabled:opacity-40"
-          @click="addChain"
-        >
-          + Add another chain
-        </button>
-        <label class="space-y-1">
-          <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest"
-            >Last stop: where to start looking</span
-          >
-          <input
-            v-model="lastBox"
-            type="text"
-            :disabled="store.busy"
-            placeholder="e.g. 220-320"
-            class="w-40 rounded-lg border-slate-300 text-sm font-mono-premium font-bold text-slate-800 disabled:opacity-50"
-          />
-        </label>
-        <span class="text-[10px] pb-2" :class="lastRange ? 'text-slate-500' : 'text-rose-600'">
-          {{
-            lastRange
-              ? `starts at ${lastRange[0]}-${lastRange[1]} and looks higher or lower if the answer is outside it; found to the exact TE`
-              : 'give it a rough range, e.g. 300-340'
-          }}
-        </span>
-      </div>
-      <p class="text-[11px] text-slate-500 leading-relaxed">
-        Each chain is one box of bands, like the {{ NAMES.full }}'s: one band per ascension before the last, separated
-        by <span class="font-mono-premium">;</span>. A band is <span class="font-mono-premium">lo-hi:step</span>, a
-        single value, or several values with commas. Chains with other ascension counts all run from the same click, and
-        a 1- or 2-ascension chain costs next to nothing. Every route in your chains is tried, and nothing outside them,
-        so the answer is proven for that space. The last stop is found to the exact TE.
-        <template v-if="suggestFrom">{{ suggestFrom }}</template>
-      </p>
-      <p v-if="instantSets.length" class="text-[10px] text-slate-500 leading-relaxed" data-test="handoff-note">
-        This search starts each fresh ascension the moment the last one ends; the instant answer's exact check starts it
-        on the next whole hour, so the same route's times here and there can differ by up to about an hour per fresh
-        ascension.
-      </p>
-    </template>
-
-    <!-- Let it pick: the guided search (seed, grid, homing in). -->
-    <template v-else>
-      <div class="flex flex-wrap items-end gap-4">
-        <label class="space-y-1">
-          <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest"
-            >Stops, including the last</span
-          >
-          <div class="flex items-center gap-2">
-            <input
-              v-model.number="minStops"
-              type="number"
-              min="1"
-              max="8"
-              :disabled="store.busy"
-              class="w-16 rounded-lg border-slate-200 text-sm font-bold"
-            />
-            <span class="text-slate-400">to</span>
-            <input
-              v-model.number="maxStops"
-              type="number"
-              min="1"
-              max="8"
-              :disabled="store.busy"
-              class="w-16 rounded-lg border-slate-200 text-sm font-bold"
-            />
-          </div>
-        </label>
-        <label class="space-y-1">
-          <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest"
-            >Rough guess for the last stop</span
-          >
-          <input
-            v-model.number="lastHi"
-            type="number"
-            :min="store.currentTE + 2"
-            max="490"
-            :disabled="store.busy"
-            class="w-24 rounded-lg border-slate-200 text-sm font-bold"
-            @input="lastHiTouched = true"
-          />
-        </label>
-        <!-- How thorough, as one slider (the user, 30 Sept): how many sets of early stops the first
-             look tries; the grid it uses follows, and so do the routes and the time below. -->
-        <label class="space-y-1">
-          <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest">How thorough</span>
-          <span class="flex items-center gap-2">
-            <input
-              v-model.number="thoroughIx"
-              type="range"
-              min="0"
-              :max="THOROUGH.length - 1"
-              step="1"
-              :disabled="store.busy"
-              class="w-36 accent-slate-800"
-              aria-label="How thorough the first look is"
-            />
-            <span class="text-[11px] font-bold text-slate-700"
-              >{{ THOROUGH[thoroughIx].label }} · first look every {{ usedStep }} TE</span
-            >
-          </span>
-        </label>
-      </div>
-      <div class="text-[11px] text-slate-600 leading-relaxed space-y-1.5">
-        <p>
-          <span class="font-bold text-slate-800">It looks wide, then zooms in.</span> The first look tries early stops
-          every {{ usedStep }} TE ({{ shapes.toLocaleString() }} sets, plus every TE for the first 5 above yours, and
-          the chain in your planner and your last best): rough, but across everything, so it can't miss a whole region.
-          Then it zooms in on the best few, moving one stop at a time by {{ resolutionsText }} TE and keeping anything
-          that helps, so the answer ends up placed to the exact TE, not on the grid. The last stop is always found to
-          the exact TE.
-        </p>
-        <p>
-          <span class="font-bold text-slate-800">Why not every TE from the start?</span> Good and bad stops sit a few TE
-          apart (each missed Research Sale is a jump), so you can't just walk downhill from one guess, and every TE for
-          every stop is tens of thousands of routes. A wide first look finds the right area; the zoom does the fine work
-          only there. It's the same idea as Smart search.
-        </p>
-        <p>
-          <span class="font-bold text-slate-800">The other way, "I'll set the stops",</span> tries every route in boxes
-          you give, so its answer is proven for those boxes, but only as good as the boxes. This way covers far more
-          ground for the time, but isn't proven: a narrow winner between first-look points could be missed if the zoom
-          doesn't start near it.
-        </p>
-      </div>
+        <div class="text-[11px] text-slate-600 leading-relaxed space-y-1.5">
+          <p>
+            <span class="font-bold text-slate-800">It looks wide, then zooms in.</span> The first look tries early stops
+            every {{ usedStep }} TE ({{ shapes.toLocaleString() }} sets, plus every TE for the first 5 above yours, and
+            the chain in your planner and your last best): rough, but across everything, so it can't miss a whole
+            region. Then it zooms in on the best few, moving one stop at a time by {{ resolutionsText }} TE and keeping
+            anything that helps, so the answer ends up placed to the exact TE, not on the grid. The last stop is always
+            found to the exact TE.
+          </p>
+          <p>
+            <span class="font-bold text-slate-800">Why not every TE from the start?</span> Good and bad stops sit a few
+            TE apart (each missed Research Sale is a jump), so you can't just walk downhill from one guess, and every TE
+            for every stop is tens of thousands of routes. A wide first look finds the right area; the zoom does the
+            fine work only there. It's the same idea as Smart search.
+          </p>
+          <p>
+            <span class="font-bold text-slate-800">The other way, "I'll set the stops",</span> tries every route in
+            boxes you give, so its answer is proven for those boxes, but only as good as the boxes. This way covers far
+            more ground for the time, but isn't proven: a narrow winner between first-look points could be missed if the
+            zoom doesn't start near it.
+          </p>
+        </div>
+      </template>
     </template>
 
     <!-- The numbers that should decide whether you press the button. -->
@@ -526,9 +443,7 @@
 
     <!-- Live progress, Insane-style. -->
     <div v-if="store.deadlineRunning && store.deadlineProgress" class="space-y-2">
-      <div class="h-2 rounded-full bg-slate-100 overflow-hidden">
-        <div class="h-full bg-rose-500 transition-all" :style="{ width: `${progressPct}%` }"></div>
-      </div>
+      <ProgressBar :percent="progressPct" />
       <p class="text-[11px] text-slate-600">
         <span class="font-bold">{{ liveDone.toLocaleString() }}</span
         ><template v-if="estNow.total && liveDone < estNow.total">
@@ -619,26 +534,18 @@
       </p>
       <!-- The best route on the edge of its box (the Full sweep's check, bandCheck.ts): a wider box may
            find better. -->
-      <div
+      <EdgeWarning
         v-if="edges.length && !store.deadlineRunning"
-        class="rounded-xl border border-amber-300 bg-amber-50 p-3 space-y-2 text-[11px] text-amber-900"
-        data-test="edge-warning"
+        :lines="edges.map(edgeText)"
+        :can-widen="!!edgeWiden"
+        :disabled="store.busy || !canStart"
+        @widen="widenAndRun"
       >
-        <p v-for="e in edges" :key="e.band + e.side">{{ edgeText(e) }}</p>
-        <button
-          v-if="edgeWiden"
-          type="button"
-          :disabled="store.busy || !canStart"
-          class="px-3 py-1.5 rounded-lg bg-amber-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-800 disabled:opacity-40"
-          @click="widenAndRun"
-        >
-          Widen and run again
-        </button>
-        <p v-if="edgeWiden" class="text-[10px] text-amber-800/80">
+        <template v-if="edgeWiden">
           Chain {{ edgeWiden.row + 1 }} becomes <span class="font-mono-premium">{{ edgeWiden.text }}</span
           >.
-        </p>
-      </div>
+        </template>
+      </EdgeWarning>
 
       <div v-if="result.byStops.length > 1" class="overflow-x-auto">
         <p class="text-[10px] font-black uppercase tracking-widest text-slate-500 pb-1">Best for each stop count</p>
@@ -681,105 +588,48 @@
           </tbody>
         </table>
       </div>
-      <div class="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          class="px-3 py-1.5 rounded-lg border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50"
-          @click="downloadResultCsv"
-        >
-          Download CSV
-        </button>
-        <!-- Save this answer under a name (the user, 5 Oct): a new search no longer loses it. -->
-        <input
-          v-model="saveLabel"
-          type="text"
-          maxlength="80"
-          :placeholder="defaultAnswerLabel"
-          aria-label="Name for this answer"
-          class="w-64 max-w-full rounded-lg border-slate-300 text-xs text-slate-800"
-        />
-        <button
-          type="button"
-          class="px-3 py-1.5 rounded-lg bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-700 disabled:opacity-40"
-          :disabled="savingAnswer"
-          @click="saveThisAnswer"
-        >
-          {{ savedFlash ? 'Saved' : 'Save this answer' }}
-        </button>
-      </div>
-      <p class="text-[11px] text-slate-500 leading-relaxed">
-        Priced from {{ inPlannerZone(result.planStart) }} at {{ result.te }} TE, with the hours and time off in Your
-        setup. A route that reaches one more TE usually has much less time to spare: the table shows both so you can
-        choose.
-      </p>
-      <div v-if="store.savedAnswers.length" class="space-y-1">
-        <h4 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Saved answers</h4>
-        <div
-          v-for="a in store.savedAnswers"
-          :key="a.id"
-          class="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-slate-200 px-3 py-2 text-[11px]"
-        >
-          <span class="font-bold text-slate-800">{{ a.label }}</span>
-          <span class="text-slate-500"
-            >{{ a.result.routes[0] ? a.result.routes[0].chain.join(' ') : 'no route' }} · saved
-            {{ inPlannerZone(a.savedAt / 1000) }}</span
-          >
+      <!-- Save this answer and Saved answers (SavedAnswers.vue), with Download CSV beside Save. -->
+      <SavedAnswers :player-id="playerId" :default-label="defaultAnswerLabel" :zone="plannerZone">
+        <template #actions>
           <button
             type="button"
-            class="ml-auto text-[10px] font-black uppercase tracking-widest text-indigo-600 hover:text-indigo-800 disabled:opacity-40"
-            :disabled="store.deadlineRunning"
-            @click="store.openSavedAnswer(a.id)"
+            class="px-3 py-1.5 rounded-lg border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50"
+            @click="downloadByDateCsv"
           >
-            Open
+            Download CSV
           </button>
-          <button
-            type="button"
-            class="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-rose-600"
-            @click="store.removeSavedAnswer(playerId, a.id)"
-          >
-            Delete
-          </button>
-        </div>
-      </div>
+        </template>
+        <p v-if="downloadError" class="text-[11px] font-semibold text-red-700">{{ downloadError }}</p>
+        <p class="text-[11px] text-slate-500 leading-relaxed">
+          Priced from {{ inPlannerZone(result.planStart) }} at {{ result.te }} TE, with the hours and time off in Your
+          setup. A route that reaches one more TE usually has much less time to spare: the table shows both so you can
+          choose.
+        </p>
+      </SavedAnswers>
 
       <!-- Share: Compare's Egg Day tab for an Egg Day answer, else "By a date". Same opt-in as Insane. -->
-      <div v-if="best && collectorConfigured" class="rounded-xl border border-indigo-200 bg-indigo-50/60 p-4 space-y-3">
-        <h3 class="text-[10px] font-black text-indigo-800 uppercase tracking-widest">Share this result</h3>
-        <p class="text-[11px] text-indigo-900/80 leading-relaxed">
-          Sends the best route above to {{ NAMES.compare }}'s <span class="font-bold">{{ shareTab }}</span> tab, where
-          answers for the same deadline are ranked by the highest TE reached, then the time to spare. It stays out of
-          the race to 490.
-        </p>
-        <label class="flex items-start gap-3 text-xs text-indigo-900">
-          <input v-model="shareOptIn" type="checkbox" class="mt-0.5 rounded border-indigo-300 text-indigo-600" />
+      <ShareResult
+        v-if="best && collectorConfigured"
+        v-model:opt-in="shareOptIn"
+        v-model:anonymous="shareAnonymous"
+        v-model:nickname="shareName"
+        @nickname-typed="shareNameTouched = true"
+      >
+        <template #intro>
+          <p class="text-[11px] text-indigo-900/80 leading-relaxed">
+            Sends the best route above to {{ NAMES.compare }}'s <span class="font-bold">{{ shareTab }}</span> tab, where
+            answers for the same deadline are ranked by the highest TE reached, then the time to spare. It stays out of
+            the race to 490.
+          </p>
+        </template>
+        <template #consent>
           <span
             >Yes, share this result. This sends the route, its dates and the deadline, along with your artifact
             inventory, timezone, local plan start and the random code this browser keeps for the account (not your
             player ID, and never shown), exactly as for any run you share.</span
           >
-        </label>
-        <div v-if="shareOptIn" class="space-y-2">
-          <div class="flex flex-wrap items-center gap-4">
-            <label class="flex items-center gap-2 cursor-pointer text-[11px] font-bold text-indigo-900">
-              <input v-model="shareAnonymous" type="radio" :value="true" class="text-indigo-600" />
-              Submit anonymously
-            </label>
-            <label class="flex items-center gap-2 cursor-pointer text-[11px] font-bold text-indigo-900">
-              <input v-model="shareAnonymous" type="radio" :value="false" class="text-indigo-600" />
-              Credit me as
-            </label>
-            <input
-              v-model="shareName"
-              type="text"
-              maxlength="40"
-              :disabled="shareAnonymous"
-              placeholder="nickname"
-              aria-label="Nickname"
-              class="rounded-lg border-indigo-200 text-sm font-bold text-slate-800 w-48 disabled:opacity-40"
-              @input="shareNameTouched = true"
-            />
-          </div>
-          <ShareExtras />
+        </template>
+        <template #opted>
           <p class="text-[11px] text-indigo-900/80">
             Only named answers are ranked. Anonymous ones are listed below the ranking.
           </p>
@@ -797,15 +647,9 @@
                   : `Send ${best.chain[best.chain.length - 1]} TE by this date`
             }}
           </button>
-          <p
-            v-if="shareMessage"
-            class="text-[11px] font-semibold"
-            :class="shareOk ? 'text-emerald-800' : 'text-rose-700'"
-          >
-            {{ shareMessage }}
-          </p>
-        </div>
-      </div>
+          <ShareStatus :message="shareMessage" :ok="shareOk" />
+        </template>
+      </ShareResult>
     </div>
   </div>
 </template>
@@ -817,7 +661,6 @@ import {
   DEFAULT_STEP_IX as KEPT_STEP_IX,
   DEFAULT_WIDTH_IX as KEPT_WIDTH_IX,
   suggestBase,
-  moveSlider,
 } from '@/search/deadlineSuggest';
 
 /**
@@ -876,15 +719,21 @@ import {
 } from '@/search/deadlineEstimate';
 import { findBandEdges, widenEdges, type BandEdge } from '@/search/bandCheck';
 import FindBar from './FindBar.vue';
-import ShareExtras from './ShareExtras.vue';
-import { useShareExtras } from '@/composables/useShareExtras';
-import BandCheckNotice from './BandCheckNotice.vue';
+import ShareResult from './ShareResult.vue';
+import ShareStatus from './ShareStatus.vue';
+import { useByDateShare, useShareIdentity } from '@/composables/useShareResult';
+import RoutesToTry from './RoutesToTry.vue';
+import SavedAnswers from './SavedAnswers.vue';
+import ProgressBar from './ProgressBar.vue';
+import EdgeWarning from './EdgeWarning.vue';
+import { durationLabel, useRunClock } from '@/composables/useRunClock';
+import { useRunDownloads } from '@/composables/useRunDownloads';
+import { useDateRowSliders } from '@/composables/useRowSliders';
 import StepAwayOptions from './StepAwayOptions.vue';
 import AutoSendReport from './AutoSendReport.vue';
 import { NAMES } from '@/lib/siteNav';
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
-import { sentence } from '@/utils/errors';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useInitialStateStore } from '@/stores/initialState';
 import { getLocalTimestampInTimezone } from '@/lib/events';
@@ -903,16 +752,17 @@ import { SPACE_STEPS, SPACE_WIDTHS, stopsByWidth } from '@/search/deadlineSugges
 import { firstTime } from '@/lib/linkOnce';
 import { parseByDateRequest, SCIENCE_WIDTHS, type ByDateRequest } from '@/search/byDateRequest';
 import { useUIStore } from '@/stores/ui';
-import { downloadCsv } from '@/utils/export';
-import { useEidsStore } from 'lib';
 import { eggDayYearOf } from '@/lib/eggDay';
 import { showDateTime } from '@/lib/displayTime';
 import IntegrityNotice from './IntegrityNotice.vue';
 import InstantRoute from './InstantRoute.vue';
 import SafariNotice from './SafariNotice.vue';
-import { withPrivateDiagnostics } from '@/search/sendRun';
 
-const props = defineProps<{ playerId: string }>();
+const props = defineProps<{
+  playerId: string;
+  /** Leave out The routes to try (a Simple mode that picks the routes itself). */
+  hideRoutes?: boolean;
+}>();
 const emit = defineEmits<{ (e: 'show-fastest'): void }>();
 const store = useChainSearchStore();
 const initialState = useInitialStateStore();
@@ -1171,21 +1021,28 @@ function suggestRow(k: number): void {
 /** Suggest a space's two sliders, per chain (the user, 4 Oct: separate by default, with an option to
  *  move them together). A chain without its own setting uses the last one set (`widthIx`/`stepIx`). */
 const { widthIx, stepIx, linkSliders } = kept;
-type Row = (typeof chains.value)[number];
-const rowWidthIx = (row: Row) => row.widthIx ?? widthIx.value;
-const rowStepIx = (row: Row) => row.stepIx ?? stepIx.value;
-const widthOf = (row: Row) => row.pm ?? SPACE_WIDTHS[rowWidthIx(row)] ?? SPACE_WIDTHS[3];
-const stepOf = (row: Row) => SPACE_STEPS[rowStepIx(row)] ?? SPACE_STEPS[1];
-/** Move one chain's slider, or every chain's when they're linked, and re-fill the boxes Suggest a
- *  space filled (a box typed by hand is left alone). */
-function setSlider(k: number, key: 'widthIx' | 'stepIx', value: number): void {
-  const linked = linkSliders.value;
-  // The shared fallback (what a chain with no setting of its own reads) moves only when linked.
-  if (linked) {
-    if (key === 'widthIx') widthIx.value = value;
-    else stepIx.value = value;
-  }
-  for (const i of moveSlider(chains.value, k, key, value, linked)) if (chains.value[i].auto) suggestRow(i);
+/** Each chain's sliders and what moving one does (composables/useRowSliders.ts, batch 1's rules). */
+const {
+  rowWidthIx,
+  rowStepIx,
+  widthOf,
+  stepOf,
+  views: rowSliders,
+  setSlider,
+} = useDateRowSliders({ rows: chains, widthIx, stepIx, linked: linkSliders, refill: suggestRow });
+
+const rowProblems = computed(() => chains.value.map((_, k) => rowProblem(k)));
+const rowSummaries = computed(() => chains.value.map((_, k) => rowSummary(k)));
+/** A box typed in (or a band checker's "did you mean" taken): the player's own now, so Suggest a space
+ *  and the sliders leave it alone, and a Science card's centring no longer applies. */
+function typedRow(k: number, text: string): void {
+  const row = chains.value[k];
+  if (!row) return;
+  row.text = text;
+  row.auto = false;
+  row.restored = false;
+  row.centre = undefined;
+  row.centredOn = undefined;
 }
 
 /**
@@ -1409,17 +1266,7 @@ const firstGuessLabel = computed(() =>
 const costLabel = computed(() => `${secondsPerLeg.value.toFixed(secondsPerLeg.value < 10 ? 2 : 1)} s`);
 
 const runEstimate = ref(0);
-const now = ref(Date.now());
-let ticker: ReturnType<typeof setInterval> | null = null;
-watch(
-  () => store.deadlineRunning,
-  running => {
-    if (ticker) clearInterval(ticker);
-    ticker = running ? setInterval(() => (now.value = Date.now()), 1000) : null;
-  },
-  { immediate: true }
-);
-onUnmounted(() => ticker && clearInterval(ticker));
+const now = useRunClock(() => store.deadlineRunning);
 
 const liveDone = computed(() => (store.deadlineProgress?.priced ?? 0) + store.deadlineInBatch);
 /** The estimate, never below what is already done: an estimate is a guess, a count is a fact. */
@@ -1429,11 +1276,6 @@ const progressPct = computed(() =>
   estNow.value.total && liveTotal.value ? Math.min(99, Math.round((100 * liveDone.value) / liveTotal.value)) : 0
 );
 const elapsedSeconds = computed(() => (store.deadlineStartedAt ? (now.value - store.deadlineStartedAt) / 1000 : 0));
-function durationLabel(sec: number): string {
-  if (sec < 90) return `${Math.round(sec)} s`;
-  if (sec < 5400) return `${Math.round(sec / 60)} min`;
-  return `${(sec / 3600).toFixed(1)} h`;
-}
 const elapsedLabel = computed(() => durationLabel(elapsedSeconds.value));
 /** The same figure as the box's (`estimateLabel` during a run). */
 const remainingLabel = computed(() => (timeLeft.value ? durationLabel(timeLeft.value.seconds) : ''));
@@ -1606,101 +1448,37 @@ async function find(): Promise<void> {
 
 // ------------------------------------------------------------------ share to the board
 
-const collectorConfigured = computed(() => store.leaderboardUrl.replace(/\/$/, '') !== '');
-const shareOptIn = ref(false);
-/** On, like Insane's: the table is what lets someone check an answer, not just read it. */
-const { sendCsv: shareCsv, diagnosticsGo } = useShareExtras();
-const shareAnonymous = ref(true);
-const shareNameTouched = ref(false);
-/** The name in the header's ID box, never the raw EID (see InsanePanel's `accountName`). */
-const eidsStore = useEidsStore();
-const accountName = computed(() => {
-  const entry = eidsStore.eids.get(props.playerId.trim());
-  return entry?.nickname || entry?.username || '';
-});
-const shareName = ref(accountName.value);
-watch(accountName, name => {
-  if (!shareNameTouched.value) shareName.value = name;
-});
-const sharing = ref(false);
-const shareMessage = ref('');
-const shareOk = ref(true);
-/** Which answer was sent, so the button says so and a second click can't send it twice. */
-const resultKey = computed(() =>
-  result.value && best.value ? `${result.value.deadline}|${result.value.at}|${best.value.chain.join(',')}` : ''
+/** Consent, anonymous-or-named and the name box: the same choices as Find and submit's bar
+ *  (composables/useShareResult.ts). */
+const shareIdentity = useShareIdentity(() => props.playerId);
+const {
+  optIn: shareOptIn,
+  anonymous: shareAnonymous,
+  nickname: shareName,
+  nicknameTouched: shareNameTouched,
+} = shareIdentity;
+/** The send to Compare's Egg Day or By a date tab (useShareResult.ts `useByDateShare`). */
+const { collectorConfigured, sharing, shareMessage, shareOk, resultKey, sentKey, shareTab, share } = useByDateShare(
+  store,
+  shareIdentity,
+  computed(() => store.deadlineResult),
+  computed(() => store.deadlineResult?.routes[0] ?? null)
 );
-const sentKey = ref('');
-/** The leaderboard tab this answer goes on: Egg Day has its own. */
-const shareTab = computed(() => {
-  const y = result.value ? eggDayYearOf(result.value.deadline) : null;
-  return y ? `Egg Day ${y}` : 'By a date';
-});
 
-async function share(): Promise<void> {
-  if (!best.value || sharing.value) return;
-  sharing.value = true;
-  shareOk.value = true;
-  shareMessage.value = '';
-  try {
-    const name = shareAnonymous.value ? '' : shareName.value.trim().slice(0, 40);
-    const payload = store.buildDeadlineSubmission(best.value, name);
-    if (!payload) {
-      shareOk.value = false;
-      shareMessage.value = 'Nothing to send yet.';
-      return;
-    }
-    const res = await store.sendSubmission(
-      withPrivateDiagnostics(store, payload, diagnosticsGo.value),
-      shareCsv.value ? store.deadlineCsv() : undefined
-    );
-    shareOk.value = res.ok;
-    if (res.ok) sentKey.value = resultKey.value;
-    shareMessage.value = res.ok
-      ? res.duplicate === 'exact'
-        ? res.message
-        : `Thanks! ${sentence(res.message)} It's on ${NAMES.compare}'s ${shareTab.value} tab.`
-      : `Not sent: ${res.message}`;
-  } finally {
-    sharing.value = false;
-  }
-}
-
-function downloadResultCsv(): void {
-  const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
-  downloadCsv(`deadline-search-${stamp}.csv`, [store.deadlineCsv()]);
-}
+/** Download CSV: every leg of every route priced (composables/useRunDownloads.ts). */
+const { downloadByDateCsv, downloadError } = useRunDownloads(store);
 
 const result = computed(() => store.deadlineResult);
 /** A result loaded from this browser rather than produced since the panel opened. */
 const openedAt = Date.now();
 const fromEarlier = computed(() => !!result.value && result.value.at < openedAt);
-/** Save this answer (store `saveCurrentAnswer`), under the typed name or a default from the result. */
-const saveLabel = ref('');
-const savingAnswer = ref(false);
-const savedFlash = ref(false);
+/** What Save this answer names an answer saved with an empty box (SavedAnswers.vue). */
 const defaultAnswerLabel = computed(() => {
   const r = store.deadlineResult;
   const best = r?.routes[0];
   return best ? `${best.chain[best.chain.length - 1]} TE by ${inPlannerZone(r.deadline)}` : 'Name this answer';
 });
-async function saveThisAnswer(): Promise<void> {
-  savingAnswer.value = true;
-  try {
-    await store.saveCurrentAnswer(props.playerId, saveLabel.value || defaultAnswerLabel.value);
-    saveLabel.value = '';
-    savedFlash.value = true;
-    setTimeout(() => (savedFlash.value = false), 2000);
-  } finally {
-    savingAnswer.value = false;
-  }
-}
-
 onMounted(() => void store.loadDeadlineState(props.playerId));
-onMounted(() => void store.refreshSavedAnswers(props.playerId));
-watch(
-  () => props.playerId,
-  id => void store.refreshSavedAnswers(id)
-);
 watch(
   () => props.playerId,
   id => void store.loadDeadlineState(id)
@@ -1758,12 +1536,7 @@ const formatBands = (bands: number[][]) => bands.map(b => formatBand(b)).join(';
 async function widenAndRun(): Promise<void> {
   const w = edgeWiden.value;
   if (!w || store.busy) return;
-  const row = chains.value[w.row];
-  row.text = w.text;
-  row.auto = false;
-  row.restored = false;
-  row.centre = undefined;
-  row.centredOn = undefined;
+  typedRow(w.row, w.text);
   await nextTick();
   if (canStart.value) await start(false);
 }

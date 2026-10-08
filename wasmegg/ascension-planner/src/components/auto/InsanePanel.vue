@@ -407,10 +407,20 @@
            Auto Planner screen (YourSetup.vue), here where this screen's settings used to be. -->
       <YourSetup :screen="goal === 'deadline' ? 'by-date' : 'fastest'" />
 
-      <DeadlinePanel v-if="goal === 'deadline'" :player-id="playerId" @show-fastest="goal = 'fastest'" />
+      <DeadlinePanel
+        v-if="goal === 'deadline'"
+        :player-id="playerId"
+        :hide-routes="hideRoutes"
+        @show-fastest="goal = 'fastest'"
+      >
+        <template #mode><slot name="mode" /></template>
+      </DeadlinePanel>
       <template v-else>
-        <!-- The space. These numbers are the whole definition of the search. -->
-        <div class="rounded-xl border border-slate-200 bg-white p-4 space-y-5">
+        <!-- A screen-level choice above the form (batch 3: Simple or Advanced). -->
+        <slot name="mode" />
+        <!-- The space. These numbers are the whole definition of the search. Batch 3's Simple mode can
+             leave it out (`hideRoutes`). -->
+        <div v-if="!hideRoutes" class="rounded-xl border border-slate-200 bg-white p-4 space-y-5">
           <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">The space to search</h3>
 
           <!-- Workers are in Your setup (This computer), with the other machine settings. -->
@@ -485,10 +495,10 @@
                   />
                 </label>
                 <SpaceSliders
-                  :width-ix="chain1View.wi"
-                  :step-ix="chain1View.si"
-                  :half-width="chain1View.w"
-                  :step="chain1View.s"
+                  :width-ix="chain1View.widthIx"
+                  :step-ix="chain1View.stepIx"
+                  :half-width="chain1View.halfWidth"
+                  :step="chain1View.step"
                   :disabled="store.isRunning"
                   @width="v => moveChain1('widthIx', v)"
                   @step="v => moveChain1('stepIx', v)"
@@ -522,8 +532,12 @@
                     }}
                   </template>
                   <template v-else-if="suggestion.kind === 'instant'">
-                    around {{ suggestion.fromInstant ? "the instant answer's route" : "the measured shape's middles" }} ({{ suggestion.around.join(' ') }}), {{ suggestion.halfWidth }} TE
-                    either side{{ suggestion.step > 1 ? `, every ${suggestion.step} TE` : '' }}
+                    around
+                    {{ suggestion.fromInstant ? "the instant answer's route" : "the measured shape's middles" }} ({{
+                      suggestion.around.join(' ')
+                    }}), {{ suggestion.halfWidth }} TE either side{{
+                      suggestion.step > 1 ? `, every ${suggestion.step} TE` : ''
+                    }}
                   </template>
                   <template v-else>
                     measured shape, from {{ suggestion.runs }} runs across {{ suggestion.accounts }} accounts
@@ -576,102 +590,44 @@
               another. Short ones (1 or 2 ascensions) cost little alone; queued behind the main run
               they need no second visit.
             -->
-            <div v-if="!sweepRequest" class="space-y-2">
-              <div
-                v-for="(row, k) in extraChains"
-                :key="k"
-                class="rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-2"
-              >
-                <div class="flex flex-wrap items-center gap-2">
-                  <span class="text-[10px] font-black text-slate-600 uppercase tracking-widest">Chain {{ k + 2 }}</span>
-                  <label
-                    class="flex items-center gap-1.5 text-[10px] font-black text-slate-500 uppercase tracking-widest"
-                  >
-                    Ascensions
-                    <input
-                      v-model.number="row.asc"
-                      type="number"
-                      min="1"
-                      max="12"
-                      :disabled="store.isRunning"
-                      class="w-16 rounded-md border-slate-300 text-xs font-bold text-slate-800 disabled:opacity-50"
-                    />
-                  </label>
-                  <button
-                    type="button"
-                    :disabled="store.isRunning || row.asc < 2"
-                    class="px-2.5 py-1 rounded-md border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-white disabled:opacity-40"
-                    @click="suggestExtra(k)"
-                  >
-                    Suggest a space
-                  </button>
-                  <button
-                    type="button"
-                    :disabled="store.isRunning"
-                    class="ml-auto text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-rose-600 disabled:opacity-40"
-                    @click="extraChains.splice(k, 1)"
-                  >
-                    Remove
-                  </button>
-                </div>
-                <SpaceSliders
-                  v-if="row.asc >= 2"
-                  :width-ix="extraViews[k].wi"
-                  :step-ix="extraViews[k].si"
-                  :half-width="extraViews[k].w"
-                  :step="extraViews[k].s"
-                  :disabled="store.isRunning"
-                  @width="v => moveExtra(k, 'widthIx', v)"
-                  @step="v => moveExtra(k, 'stepIx', v)"
-                />
+            <!-- The added chains (RoutesToTry.vue, shared with By a date). -->
+            <RoutesToTry
+              v-if="!sweepRequest"
+              class="space-y-2"
+              :rows="extraChains"
+              :sliders="extraViews"
+              :problems="extraProblems"
+              :summaries="extraSummaries"
+              :disabled="store.isRunning"
+              :current-t-e="store.currentTE"
+              :final-t-e="store.finalTE"
+              :max-asc="12"
+              :first-number="2"
+              placeholder="185-200:5; 210-240:10"
+              check-ascensions
+              @asc="(k, n) => (extraChains[k].asc = n)"
+              @text="typedExtra"
+              @suggest="suggestExtra"
+              @remove="k => extraChains.splice(k, 1)"
+              @add="addChain"
+              @slider="moveExtra"
+            >
+              <template #row-after="{ row, k }">
                 <span v-if="row.asc >= 2 && extraSugs[k]" class="block text-[10px] text-slate-500">
                   Suggest would fill in {{ extraSugs[k]!.chains.toLocaleString() }} chains, about
-                  {{ chainsTimeLabel(extraSugs[k]!.chains) }}<template v-if="extraTyped(k)"
+                  {{ chainsTimeLabel(extraSugs[k]!.chains)
+                  }}<template v-if="extraTyped(k)"
                     >. Your own bands stay as typed; press Suggest a space to replace them with this.</template
                   >
                 </span>
-                <input
-                  v-if="row.asc >= 2"
-                  v-model="row.text"
-                  type="text"
-                  :disabled="store.isRunning"
-                  placeholder="185-200:5; 210-240:10"
-                  @input="row.auto = false"
-                  class="w-full rounded-lg border-slate-300 text-sm font-mono-premium font-bold text-slate-800 disabled:opacity-50"
-                />
-                <BandCheckNotice
-                  v-if="row.asc >= 2"
-                  :text="row.text"
-                  :current-t-e="store.currentTE"
-                  :final-t-e="store.finalTE"
-                  :ascensions="row.asc"
-                  :disabled="store.isRunning"
-                  @use="
-                    t => {
-                      row.text = t;
-                      row.auto = false;
-                    }
-                  "
-                />
-                <span class="block text-[10px]" :class="extraProblem(k) ? 'text-rose-600' : 'text-slate-500'">
-                  {{ extraProblem(k) || extraSummary(k) }}
-                </span>
-              </div>
-              <div class="flex flex-wrap items-center gap-3">
-                <button
-                  type="button"
-                  :disabled="store.isRunning"
-                  class="px-3 py-1.5 rounded-lg border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 disabled:opacity-40"
-                  @click="addChain"
-                >
-                  + Add another chain
-                </button>
+              </template>
+              <template #footer>
                 <span v-if="extraChains.length" class="text-[11px] text-slate-500">
                   One click runs {{ extraChains.length === 1 ? 'both' : 'all ' + (extraChains.length + 1) }} chains, one
                   after another. Each finished one is saved under Saved runs.
                 </span>
-              </div>
-            </div>
+              </template>
+            </RoutesToTry>
 
             <label class="space-y-1 block max-w-xs">
               <span class="flex items-center gap-1.5">
@@ -943,9 +899,7 @@
               {{ pricedSoFar.toLocaleString() }} / {{ store.chainsEstimated.toLocaleString() }}
             </span>
           </div>
-          <div class="h-1.5 rounded-full bg-slate-100 overflow-hidden">
-            <div class="h-full bg-rose-500 transition-all" :style="{ width: `${Math.round(livePercent)}%` }"></div>
-          </div>
+          <ProgressBar thin :percent="livePercent" />
           <div v-if="store.secondsPerChain > 0 || store.runCost" class="text-[10px] text-slate-400 tabular-nums">
             <template v-if="store.secondsPerChain > 0"
               >{{ store.secondsPerChain.toFixed(2) }} s/chain measured here</template
@@ -1017,26 +971,19 @@
             {{ coverageAfter }}
             <template v-if="suggestedCountNote">{{ suggestedCountNote }}</template>
           </p>
-          <div
+          <EdgeWarning
             v-if="edges.length"
-            class="mt-2 space-y-1.5 rounded-lg border border-amber-200 bg-amber-50 p-3 text-[11px] text-amber-900 leading-relaxed"
+            class="mt-2"
+            :lines="edges.map(edgeWords)"
+            :can-widen="!!edgeWiden"
+            :disabled="store.busy || queueAt >= 0"
+            @widen="widenAndRun"
           >
-            <p v-for="e in edges" :key="e.band" class="font-semibold">{{ edgeWords(e) }}</p>
-            <div v-if="edgeWiden" class="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                :disabled="store.busy || queueAt >= 0"
-                class="rounded-md border border-amber-300 bg-white px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-amber-800 hover:bg-amber-100 disabled:opacity-40"
-                @click="widenAndRun"
-              >
-                Widen and run again
-              </button>
-              <span class="text-amber-900/80">
-                The wider space is {{ edgeWiden.chains.toLocaleString() }} chains. Chains already priced are reused when
-                your setup hasn't changed.
-              </span>
-            </div>
-          </div>
+            <template v-if="edgeWiden">
+              The wider space is {{ edgeWiden.chains.toLocaleString() }} chains. Chains already priced are reused when
+              your setup hasn't changed.
+            </template>
+          </EdgeWarning>
           <p class="text-[10px] text-emerald-900/60">
             Compare runs by finish date. Two runs started hours apart have different plan starts, so their day counts
             don't measure the same thing, but the dates they land on do.
@@ -1086,53 +1033,37 @@
 
         <!-- Diagnostics are offered on a run with no answer too: that is exactly when someone wants to
            report what went in. -->
-        <div v-if="store.pricedCount || store.noFeasibleChain" class="flex flex-wrap items-center gap-3">
-          <template v-if="store.csvRows > 0">
-            <button
-              type="button"
-              class="px-4 py-2 rounded-lg bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-700"
-              @click="downloadCsv"
-            >
-              Download CSV
-            </button>
+        <CsvCard v-if="store.pricedCount || store.noFeasibleChain" :csv="store.csvRows > 0" diagnostics>
+          <template #csv>
             <span class="text-[11px] text-slate-500">
               {{ countLabel(store.csvRows) }}, one row per leg. Safe to download mid-run.
             </span>
           </template>
-          <!-- The input side. The CSV records what came OUT; when a result looks wrong the question
-             is always what went IN, and until now nothing wrote that down. -->
-          <button
-            type="button"
-            class="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-[10px] font-black uppercase tracking-widest hover:bg-slate-50"
-            @click="downloadDiagnostics"
-          >
-            Download diagnostics
-          </button>
-          <span class="text-[11px] text-slate-500">
-            A small JSON file of what this run was <em>given</em>: backup age, TE, research and loadout. No save data
-            and no player ID. Attach it when you report a result that looks wrong.
-          </span>
-          <p v-if="downloadError" class="w-full text-[11px] font-semibold text-red-700">{{ downloadError }}</p>
-        </div>
+        </CsvCard>
 
         <!-- Submission. Same payload, same opt-in, same disclosure as the main panel. -->
         <!-- Not while a Find and submit run is going: it sends itself with the choice made at Find,
              and a box here saying "anonymously" would not be what goes. -->
-        <div
+        <ShareResult
           v-if="store.bestDays > 0 && !(store.isRunning && store.submitsWhenDone)"
           id="share-this-result"
-          class="rounded-xl border border-indigo-200 bg-indigo-50/60 p-4 space-y-3 scroll-mt-4"
+          v-model:opt-in="optIn"
+          v-model:anonymous="anonymous"
+          v-model:nickname="nickname"
+          :nickname-max="NICKNAME_MAX"
+          :csv-detail="`(${store.csvRows.toLocaleString()} chains, one row per leg; chains past the memory budget export with their per-leg cells blank)`"
+          @nickname-typed="nicknameTouched = true"
         >
-          <h3 class="text-[10px] font-black text-indigo-800 uppercase tracking-widest">Share this result</h3>
-          <p class="text-[11px] text-indigo-900/80 leading-relaxed">
-            An exhaustive result is the most useful thing the board can get: the best of a stated grid rather than a
-            search result. It is sent with the space it covered and what it found there (the runners-up, the best chain
-            at each ascension count, and the spread), so a reader can tell a real find from a flat neighbourhood without
-            downloading the CSV. A run opened from the library above is sent without a run cost, because the time it
-            took wasn't this machine's.
-          </p>
-          <label class="flex items-start gap-3 text-xs text-indigo-900">
-            <input v-model="optIn" type="checkbox" class="mt-0.5 rounded border-indigo-300 text-indigo-600" />
+          <template #intro>
+            <p class="text-[11px] text-indigo-900/80 leading-relaxed">
+              An exhaustive result is the most useful thing the board can get: the best of a stated grid rather than a
+              search result. It is sent with the space it covered and what it found there (the runners-up, the best
+              chain at each ascension count, and the spread), so a reader can tell a real find from a flat neighbourhood
+              without downloading the CSV. A run opened from the library above is sent without a run cost, because the
+              time it took wasn't this machine's.
+            </p>
+          </template>
+          <template #consent>
             <span
               >Yes, share this result. It includes your artifact inventory, timezone and local plan start, plus a random
               code this browser keeps for the account (not your player ID, and never shown). The board uses the code so
@@ -1143,34 +1074,8 @@
               your best three, re-priced from this save, are sent too: named ones with a named send and anonymous ones
               with an anonymous send, so a re-check never ties the two together.</span
             >
-          </label>
-
-          <!-- Credit, behind the opt-in like everything else that leaves the machine. Anonymous is
-             the default: crediting yourself should be a choice, not the fallback. -->
-          <div v-if="optIn" class="space-y-2">
-            <div class="flex flex-wrap items-center gap-4">
-              <label class="flex items-center gap-2 cursor-pointer text-[11px] font-bold text-indigo-900">
-                <input v-model="anonymous" type="radio" :value="true" class="text-indigo-600" />
-                Submit anonymously
-              </label>
-              <label class="flex items-center gap-2 cursor-pointer text-[11px] font-bold text-indigo-900">
-                <input v-model="anonymous" type="radio" :value="false" class="text-indigo-600" />
-                Credit me as
-              </label>
-              <input
-                v-model="nickname"
-                type="text"
-                :maxlength="NICKNAME_MAX"
-                :disabled="anonymous"
-                placeholder="nickname"
-                aria-label="Nickname"
-                class="rounded-lg border-indigo-200 text-sm font-bold text-slate-800 w-48 disabled:opacity-40"
-                @input="nicknameTouched = true"
-              />
-            </div>
-            <ShareExtras
-              :csv-detail="`(${store.csvRows.toLocaleString()} chains, one row per leg; chains past the memory budget export with their per-leg cells blank)`"
-            />
+          </template>
+          <template #opted>
             <label class="flex items-start gap-3 cursor-pointer text-[11px] text-indigo-900/80">
               <input
                 v-model="stampName"
@@ -1188,7 +1093,7 @@
               Submitting as
               <span class="font-mono-premium font-bold">{{ effectiveNickname || '(blank, so anonymous)' }}</span>
             </p>
-          </div>
+          </template>
 
           <div class="flex flex-wrap gap-2">
             <!-- Already on the board and the name box now differs from what went (typically: sent
@@ -1217,25 +1122,17 @@
               No collector configured in this build (<code class="font-mono-premium">VITE_SUBMIT_URL</code>).
             </span>
           </div>
-          <p
-            v-if="submitMessage"
-            class="text-[11px] font-semibold"
-            :class="!submitOk ? 'text-rose-700' : submitPartial ? 'text-amber-700' : 'text-emerald-700'"
-          >
-            {{ submitMessage }}
-          </p>
-          <!-- The summary landed but the table did not: send just the table, with the same one-time token,
-             rather than a second submission. -->
-          <button
-            v-if="store.pendingTable"
-            type="button"
-            :disabled="retryingTable"
-            class="px-3 py-1.5 rounded-lg border border-amber-300 text-amber-800 text-[10px] font-black uppercase tracking-widest hover:bg-amber-50 disabled:opacity-40"
-            @click="retryTable"
-          >
-            {{ retryingTable ? 'Sending the table...' : 'Retry the table' }}
-          </button>
-        </div>
+          <!-- The summary landed but the table did not: Retry the table sends just the table, with the
+               same one-time token, rather than a second submission. -->
+          <ShareStatus
+            :message="submitMessage"
+            :ok="submitOk"
+            :partial="submitPartial"
+            :pending-table="!!store.pendingTable"
+            :retrying="retryingTable"
+            @retry="retryTable"
+          />
+        </ShareResult>
       </template>
     </div>
   </div>
@@ -1274,14 +1171,14 @@ const kept = {
 import { NAMES } from '@/lib/siteNav';
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
-import { sentence } from '@/utils/errors';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useUIStore } from '@/stores/ui';
-import { useEidsStore } from 'lib';
 import RunNoteBox from './RunNoteBox.vue';
 import FindBar from './FindBar.vue';
-import ShareExtras from './ShareExtras.vue';
+import ShareResult from './ShareResult.vue';
+import ShareStatus from './ShareStatus.vue';
 import { useShareExtras } from '@/composables/useShareExtras';
+import { useBoardSubmit, useShareIdentity } from '@/composables/useShareResult';
 import StepAwayOptions from './StepAwayOptions.vue';
 import SavedRuns from './SavedRuns.vue';
 import YourSetup from './YourSetup.vue';
@@ -1298,17 +1195,10 @@ import {
   SUGGESTABLE_ASCENSIONS,
   formatHours,
 } from '@/search/exhaustive';
-import {
-  NOMINAL_STEP_IX,
-  NOMINAL_WIDTH_IX,
-  SPACE_STEPS,
-  SPACE_WIDTHS,
-  nearestIx,
-  routeFromBands,
-  spaceBySliders,
-  type SpaceSliderPos,
-} from '@/search/deadlineSuggest';
+import { routeFromBands, spaceBySliders, type SpaceSliderPos } from '@/search/deadlineSuggest';
 import SpaceSliders from './SpaceSliders.vue';
+import RoutesToTry from './RoutesToTry.vue';
+import { pinSliders, sweepSliderView } from '@/composables/useRowSliders';
 import RunCharts from './charts/RunCharts.vue';
 import { chainCount as countLabel } from '@/lib/chartThin';
 import HelpTip from './HelpTip.vue';
@@ -1326,50 +1216,18 @@ import DeadlinePanel from './DeadlinePanel.vue';
 import { useInitialStateStore } from '@/stores/initialState';
 import { describeTimeOff, usableTimeOff } from '@/search/timeOff';
 import { gridIsComplete, gridStepLabel } from '@/search/grid';
-import { downloadCsv as saveCsvFile, downloadParts } from '@/utils/export';
-
-/**
- * `exportCsvChunks()` yields the text and hands it back; it does not save anything. This panel used
- * to call the string version straight from the click handler, which built the whole CSV and
- * dropped it on the floor.
- *
- * Chunked, because this is the panel whose runs get big enough for it to matter -- a large export
- * was crashing the tab outright rather than failing. See `chainsCsvChunks`.
- */
-/**
- * Said on the page, not just in the console. A throw inside a click handler is otherwise invisible:
- * the button "does nothing", which is how a date the CSV could not format was reported.
- */
-const downloadError = ref('');
-
-function tryDownload(what: string, fn: () => void): void {
-  downloadError.value = '';
-  try {
-    fn();
-  } catch (e) {
-    console.error(`${what} download failed`, e);
-    downloadError.value = `The ${what} download failed: ${e instanceof Error ? e.message : String(e)}. Please send a screenshot of this message with your report.`;
-  }
-}
-
-function downloadDiagnostics(): void {
-  tryDownload('diagnostics', () =>
-    downloadParts(
-      `chain-search-diagnostics-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-')}.json`,
-      [store.buildRunDiagnostics()],
-      'application/json'
-    )
-  );
-}
-
-function downloadCsv(): void {
-  tryDownload('CSV', () => saveCsvFile(store.csvFilename(), store.exportCsvChunks()));
-}
+import { useRunDownloads } from '@/composables/useRunDownloads';
+import CsvCard from './CsvCard.vue';
+import ProgressBar from './ProgressBar.vue';
+import EdgeWarning from './EdgeWarning.vue';
+import { useRunClock } from '@/composables/useRunClock';
 
 const props = defineProps<{
   playerId: string;
   /** Set by the site's tabs, which then own the choice: a change here asks them (update:goal). */
   goal?: 'fastest' | 'deadline';
+  /** Leave out the space to search / The routes to try (a Simple mode that picks the routes itself). */
+  hideRoutes?: boolean;
 }>();
 const emit = defineEmits<{ 'update:goal': [goal: 'fastest' | 'deadline'] }>();
 
@@ -1384,6 +1242,8 @@ watch(
 );
 const autoPlannerStore = useAutoPlannerStore();
 const ui = useUIStore();
+/** The result card's Download CSV (composables/useRunDownloads.ts): the same handler as the CSV row. */
+const { downloadCsv } = useRunDownloads(store);
 
 /** Past this the estimate is longer than anyone will wait, and the form says so rather than
  *  refusing: the point of this page is that the decision is the operator's. */
@@ -1482,7 +1342,8 @@ function spaceFor(n: number, maxChains: number, sl: SpaceSliderPos = NO_SLIDERS)
   const plain = suggestBands(store.currentTE, store.finalTE, n, { maxChains });
   if (plain?.kind === 'complete' && !moved) return plain;
   const route = store.instantRoutes?.find(r => r.length === n && r[r.length - 1] === store.finalTE);
-  const base = route ?? (moved && plain && plain.kind !== 'complete' ? routeFromBands(plain.bands, store.finalTE) : null);
+  const base =
+    route ?? (moved && plain && plain.kind !== 'complete' ? routeFromBands(plain.bands, store.finalTE) : null);
   const around = base ? spaceBySliders(store.currentTE, base, sl, maxChains) : null;
   if (around)
     return {
@@ -1496,14 +1357,8 @@ function spaceFor(n: number, maxChains: number, sl: SpaceSliderPos = NO_SLIDERS)
     };
   return plain;
 }
-/** Where a chain's two sliders sit and what they say: the pinned positions once moved, else where the
- *  default suggestion landed (nearest stop on each slider, its own ± and step in the words). */
-function viewOf(sug: SpaceSuggestion | null, sl: SpaceSliderPos) {
-  const auto = sug?.kind === 'instant' ? sug : null;
-  const wi = sl.widthIx ?? (auto ? nearestIx(SPACE_WIDTHS, auto.halfWidth) : NOMINAL_WIDTH_IX);
-  const si = sl.stepIx ?? (auto ? nearestIx(SPACE_STEPS, auto.step) : NOMINAL_STEP_IX);
-  return { wi, si, w: auto ? auto.halfWidth : SPACE_WIDTHS[wi], s: auto ? auto.step : SPACE_STEPS[si] };
-}
+/** Where a chain's two sliders sit and what they say (composables/useRowSliders.ts). */
+const viewOf = sweepSliderView;
 const chain1Sliders = computed<SpaceSliderPos>(() => ({
   widthIx: kept.suggestWidthIx.value,
   stepIx: kept.suggestStepIx.value,
@@ -1519,9 +1374,9 @@ const chain1Typed = computed(() => {
 /** Move one of Chain 1's sliders. Rewrites the box only when the panel wrote what is in it (the default,
  *  Suggest, or an earlier slider move): bands the player typed, or a sweep link filled, are left alone. */
 function moveChain1(key: 'widthIx' | 'stepIx', value: number): void {
-  const view = chain1View.value;
-  kept.suggestWidthIx.value = key === 'widthIx' ? value : view.wi;
-  kept.suggestStepIx.value = key === 'stepIx' ? value : view.si;
+  const pinned = pinSliders(chain1View.value, key, value);
+  kept.suggestWidthIx.value = pinned.widthIx;
+  kept.suggestStepIx.value = pinned.stepIx;
   const s = suggestion.value;
   if (!s || store.isRunning) return;
   const cur = bandsText.value.trim();
@@ -1609,7 +1464,6 @@ function setWorkers(raw: string): void {
 }
 
 const saving = ref(false);
-const optIn = ref(false);
 
 /**
  * Credit. Same shape as the main panel's, deliberately -- this panel had no nickname field at all,
@@ -1627,7 +1481,6 @@ const STAMP_LEN = 17;
 /** On, like the main panel's: the per-leg rows are what make a pooled dataset worth more than a
  *  ranking, and the whole block already sits behind an unticked opt-in. */
 const { sendCsv: includeCsv, diagnosticsGo } = useShareExtras();
-const anonymous = ref(true);
 /** Off by default, because it is now a convenience rather than a fix.
  *
  *  It was introduced as a workaround: the board collapsed re-runs on
@@ -1637,22 +1490,9 @@ const anonymous = ref(true);
  *  space in that key, so both rows stand on their own and a dated name buys nothing but
  *  legibility. Defaulting it on would be decorating every name to solve a problem that is fixed. */
 const stampName = ref(false);
-const nicknameTouched = ref(false);
-
-/** The name already in the header's ID box. Deliberately not `displayName()`, which falls back to
- *  the raw EID for an account with no username -- that would put a player ID into a payload whose
- *  consent text promises it is not there. Blank is the right default in that case. */
-const eidsStore = useEidsStore();
-const accountName = computed(() => {
-  const entry = eidsStore.eids.get(props.playerId.trim());
-  return entry?.nickname || entry?.username || '';
-});
-const nickname = ref(accountName.value);
-// The username arrives when a backup finishes loading, which can be after this panel mounts.
-// Follow it until the player edits the box themselves.
-watch(accountName, name => {
-  if (!nicknameTouched.value) nickname.value = name;
-});
+/** Consent, anonymous-or-named and the name box (composables/useShareResult.ts): the same choices
+ *  as Find and submit's bar. */
+const { optIn, anonymous, nickname, nicknameTouched } = useShareIdentity(() => props.playerId);
 
 /** Local time, not UTC: it sits next to `startLocal` and `endLocal` on the row, which are local
  *  too, and a stamp in a timezone the submitter never saw would read as somebody else's clock. */
@@ -1672,22 +1512,20 @@ const effectiveNickname = computed(() => {
 });
 
 const submitting = ref(false);
-const submitMessage = ref('');
-/** "Sent, but ..." -- the summary is in and something about the table is not. Amber, not green. */
-const submitPartial = computed(() => /\bbut\b/.test(submitMessage.value));
-const retryingTable = ref(false);
-async function retryTable(): Promise<void> {
-  if (retryingTable.value) return;
-  retryingTable.value = true;
-  try {
-    const res = await store.retryTable();
-    submitOk.value = res.ok;
-    submitMessage.value = res.ok ? `Thanks! ${sentence(res.message)}` : `Not sent: ${res.message}`;
-  } finally {
-    retryingTable.value = false;
-  }
-}
-const submitOk = ref(false);
+/** The status line, Put my name on it (with "Add the time to the name" ticked the stamp is part of
+ *  the name, as it would be on a send), Retry the table and the rechecks worked out once consent is
+ *  given (composables/useShareResult.ts). */
+const {
+  submitMessage,
+  submitOk,
+  submitPartial,
+  retryingTable,
+  retryTable,
+  nameToClaim,
+  claiming,
+  claim,
+  refuseDuplicate,
+} = useBoardSubmit(store, effectiveNickname, optIn);
 
 /** Values across all the bands (the "Values tried" figure). */
 const poolSize = computed(() => bands.value.reduce((n, b) => n + b.length, 0));
@@ -1790,8 +1628,7 @@ async function widenAndRun(): Promise<void> {
   const was = formatBands(sp.bands);
   const k = extraChains.value.findIndex((_, i) => formatBands(extraBands(i)) === was);
   if (formatBands(bands.value) !== was && k >= 0) {
-    extraChains.value[k].text = w.text;
-    extraChains.value[k].auto = false;
+    typedExtra(k, w.text);
   } else bandsText.value = w.text;
   // The sweep link's tag follows the box on the next tick; the run reads it as it starts.
   await nextTick();
@@ -1889,14 +1726,24 @@ function extraTyped(k: number): boolean {
 function moveExtra(k: number, key: 'widthIx' | 'stepIx', value: number): void {
   const row = extraChains.value[k];
   if (!row) return;
-  const view = extraViews.value[k];
-  row.widthIx = key === 'widthIx' ? value : view.wi;
-  row.stepIx = key === 'stepIx' ? value : view.si;
+  const pinned = pinSliders(extraViews.value[k], key, value);
+  row.widthIx = pinned.widthIx ?? undefined;
+  row.stepIx = pinned.stepIx ?? undefined;
   const s = extraSugs.value[k];
   const cur = row.text.trim();
   if (!s || store.isRunning || (cur && cur !== (row.sug ?? '').trim())) return;
   row.text = s.text;
   row.sug = s.text;
+}
+/** The added chains as RoutesToTry draws them. */
+const extraProblems = computed(() => extraChains.value.map((_, k) => extraProblem(k)));
+const extraSummaries = computed(() => extraChains.value.map((_, k) => extraSummary(k)));
+/** A box typed in, or a band checker's "did you mean" taken: the player's own now. */
+function typedExtra(k: number, text: string): void {
+  const row = extraChains.value[k];
+  if (!row) return;
+  row.text = text;
+  row.auto = false;
 }
 /** A new chain one ascension shorter than the last, since the short ones are what get queued. */
 function addChain(): void {
@@ -2010,18 +1857,7 @@ const hours = computed(() => sweepSeconds(totalChains.value, store.workerBudget,
  * chain across the whole pool already, so feeding it to estimateHours divides by the workers a
  * second time and the answer comes out wrong by roughly the worker count.
  */
-const tick = ref(Date.now());
-let ticker: ReturnType<typeof setInterval> | null = null;
-watch(
-  () => store.isRunning,
-  running => {
-    if (ticker) clearInterval(ticker);
-    ticker = running ? setInterval(() => (tick.value = Date.now()), 1000) : null;
-  },
-  // Immediate: coming back to a run that's going (the planner's tabs) is the normal case now.
-  { immediate: true }
-);
-onUnmounted(() => ticker && clearInterval(ticker));
+const tick = useRunClock(() => store.isRunning);
 
 const remainingHours = computed(() => {
   const done = pricedSoFar.value;
@@ -2314,11 +2150,7 @@ async function submit(): Promise<void> {
   // Clicks made while the page was frozen building the table arrive afterwards; each one used to
   // send another copy.
   // Already sent (automatically or by hand): a second send is only a duplicate row.
-  if (store.alreadySubmitted) {
-    submitOk.value = true;
-    submitMessage.value = 'Already on the board: this result was sent from this browser.';
-    return;
-  }
+  if (refuseDuplicate()) return;
   if (submitting.value) return;
   submitting.value = true;
   submitOk.value = true;
@@ -2341,31 +2173,4 @@ async function submit(): Promise<void> {
     submitting.value = false;
   }
 }
-
-/** The name "Put my name on it" would put on the stored row, or '' when there is nothing to rename.
- *  With "Add the time to the name" ticked the stamp is part of it, as it would be on a send. */
-const nameToClaim = computed(() => store.nameToClaim(effectiveNickname.value));
-const claiming = ref(false);
-async function claim(): Promise<void> {
-  const id = store.sentRecord?.id;
-  if (!id || claiming.value) return;
-  claiming.value = true;
-  try {
-    const res = await store.claimName(id, effectiveNickname.value);
-    submitOk.value = res.ok;
-    submitMessage.value = res.ok ? `Done: ${res.message}` : `Not renamed: ${res.message}`;
-  } finally {
-    claiming.value = false;
-  }
-}
-
-// Once the player has said yes to sharing, work out the rechecks (their best earlier plans priced
-// again from this save), so the payload shows them before Submit is pressed.
-watch(
-  () => optIn.value && store.bestDays > 0 && !store.isRunning,
-  ready => {
-    if (ready) void store.prepareRechecks();
-  },
-  { immediate: true }
-);
 </script>

@@ -1,7 +1,10 @@
 <template>
-  <!-- Suggest a space's two sliders, as By a date has them (search/deadlineSuggest.ts SPACE_WIDTHS and
-       SPACE_STEPS). The parent owns the positions; the first stop is always tried at every TE. -->
+  <!-- Suggest a space's two sliders (search/deadlineSuggest.ts SPACE_WIDTHS and SPACE_STEPS): one
+       implementation for every chain row on the Full sweep and By a date (RoutesToTry.vue). The parent
+       owns the positions; the first stop is always tried at every TE. Anything after the sliders (By a
+       date's "move every chain's sliders together") goes in the default slot, on the same line. -->
   <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-slate-500">
+    <span v-if="lead" class="font-bold text-slate-600">{{ lead }}</span>
     <label class="flex items-center gap-1.5">
       <input
         :value="widthIx"
@@ -15,7 +18,9 @@
         @input="emit('width', +($event.target as HTMLInputElement).value)"
       />
       <span
-        ><b class="text-slate-700">±{{ halfWidth }}</b> TE around each stop</span
+        ><b class="text-slate-700">±{{ halfWidth }}</b> TE around each stop<template v-if="fromCard">
+          (from a Science card)</template
+        ></span
       >
     </label>
     <label class="flex items-center gap-1.5">
@@ -35,12 +40,23 @@
         >every <b class="text-slate-700">{{ step === 1 ? 'TE' : step + ' TE' }}</b> (the first stop: every TE)</span
       >
     </label>
+    <slot />
   </div>
 </template>
 
 <script setup lang="ts">
 import { SPACE_STEPS, SPACE_WIDTHS } from '@/search/deadlineSuggest';
 
-defineProps<{ widthIx: number; stepIx: number; halfWidth: number; step: number; disabled?: boolean }>();
+defineProps<{
+  widthIx: number;
+  stepIx: number;
+  halfWidth: number;
+  step: number;
+  disabled?: boolean;
+  /** Words before the sliders (By a date: "Suggest a space tries"). */
+  lead?: string;
+  /** The ± came from a Science card's request (±1, ±2), not the slider. */
+  fromCard?: boolean;
+}>();
 const emit = defineEmits<{ (e: 'width', ix: number): void; (e: 'step', ix: number): void }>();
 </script>

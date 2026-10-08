@@ -41,6 +41,8 @@
       <!-- Plan start, hours, time off, this computer and what it simulates: one setup shared by every
            Auto Planner screen (YourSetup.vue), here where this screen's settings used to be. -->
       <YourSetup screen="fastest" />
+      <!-- A screen-level choice above the form (batch 3: Simple or Advanced). -->
+      <slot name="mode" />
 
       <!-- Collapsible so a repeat visitor can skip straight to the button. Open by default; a
            collapsed form looks like an empty panel. -->
@@ -531,12 +533,7 @@
               >
             </span>
           </div>
-          <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
-            <div
-              class="h-full bg-emerald-500 rounded-full transition-all duration-500"
-              :style="{ width: `${Math.round(store.progressFraction * 100)}%` }"
-            ></div>
-          </div>
+          <ProgressBar tone="smart" :percent="store.progressFraction * 100" />
           <!-- Movement WITHIN the current batch. `chainsDone` only advances when a whole batch
                returns, and stage 6's widest sweep is one ~2200-chain request — so this line is the
                difference between "thinking" and "dead", which a run once got wrong for 8.5 hours. -->
@@ -1077,61 +1074,32 @@
            panel can do, so it is built to be refused easily: nothing happens without a click,
            the exact payload is inspectable BEFORE the click, and with no collector configured
            the only option is a file the player hands over themselves. -->
-      <div
+      <ShareResult
         v-if="store.bestDays > 0 && !store.isRunning"
         id="share-this-result"
-        class="p-4 rounded-xl border border-indigo-200 bg-indigo-50/40 space-y-3 scroll-mt-4"
+        v-model:opt-in="optIn"
+        v-model:anonymous="anonymous"
+        v-model:nickname="nickname"
+        :csv-detail="`(${(store.csvRows || 0).toLocaleString()} chains, one row per leg; the JSON above is the headline and this is the working)`"
+        @nickname-typed="nicknameTouched = true"
       >
-        <h3 class="text-[10px] font-black text-indigo-700 uppercase tracking-widest">Share this result</h3>
-
-        <p class="text-[11px] text-indigo-900/80 leading-relaxed">
-          <span class="font-bold">Share your result with the virtue track and the leaderboards.</span>
-          Pooling results across accounts is the only way to answer questions one account cannot: whether the effort
-          tiers behave the same everywhere, whether
-          <span class="font-mono">maxLast</span> is right, whether a chain shape that wins here wins anywhere else.
-        </p>
-
+        <template #intro>
+          <p class="text-[11px] text-indigo-900/80 leading-relaxed">
+            <span class="font-bold">Share your result with the virtue track and the leaderboards.</span>
+            Pooling results across accounts is the only way to answer questions one account cannot: whether the effort
+            tiers behave the same everywhere, whether
+            <span class="font-mono">maxLast</span> is right, whether a chain shape that wins here wins anywhere else.
+          </p>
+        </template>
         <!-- OPT IN, UNCHECKED. Nothing leaves the machine until this is deliberately ticked;
              the submit and save buttons stay disabled until it is. Defaulting this on would make
              the consent text below decorative. -->
-        <label class="flex items-start gap-3 cursor-pointer">
-          <input
-            v-model="optIn"
-            type="checkbox"
-            class="mt-0.5 rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500"
-          />
+        <template #consent>
           <span class="text-[11px] text-indigo-900 leading-relaxed">
             <span class="font-bold">Yes, share this result.</span>
             I have read what is included below.
           </span>
-        </label>
-
-        <div v-if="optIn" class="space-y-3">
-          <div class="flex flex-wrap items-center gap-4">
-            <label class="flex items-center gap-2 cursor-pointer text-[11px] font-bold text-indigo-900">
-              <input v-model="anonymous" type="radio" :value="true" class="text-indigo-600 focus:ring-indigo-500" />
-              Submit anonymously
-            </label>
-            <label class="flex items-center gap-2 cursor-pointer text-[11px] font-bold text-indigo-900">
-              <input v-model="anonymous" type="radio" :value="false" class="text-indigo-600 focus:ring-indigo-500" />
-              Credit me as
-            </label>
-            <input
-              v-model="nickname"
-              type="text"
-              maxlength="40"
-              :disabled="anonymous"
-              placeholder="nickname"
-              aria-label="Nickname"
-              class="rounded-lg border-indigo-200 text-sm font-bold text-slate-800 w-48 disabled:opacity-40"
-              @input="nicknameTouched = true"
-            />
-          </div>
-
-          <ShareExtras
-            :csv-detail="`(${(store.csvRows || 0).toLocaleString()} chains, one row per leg; the JSON above is the headline and this is the working)`"
-          />
-        </div>
+        </template>
 
         <div class="flex flex-wrap items-end gap-3">
           <button
@@ -1175,24 +1143,17 @@
             Save the file instead
           </button>
 
-          <span
-            v-if="submitMessage"
-            class="text-[11px] font-semibold"
-            :class="!submitOk ? 'text-rose-700' : submitPartial ? 'text-amber-700' : 'text-emerald-700'"
-          >
-            {{ submitMessage }}
-          </span>
-          <!-- The summary landed but the table did not: send just the table, with the same one-time token,
-               rather than a second submission. -->
-          <button
-            v-if="store.pendingTable"
-            type="button"
-            :disabled="retryingTable"
-            class="px-3 py-1.5 rounded-lg border border-amber-300 text-amber-800 text-[10px] font-black uppercase tracking-widest hover:bg-amber-50 disabled:opacity-40"
-            @click="retryTable"
-          >
-            {{ retryingTable ? 'Sending the table...' : 'Retry the table' }}
-          </button>
+          <!-- The summary landed but the table did not: Retry the table sends just the table, with the
+               same one-time token, rather than a second submission. -->
+          <ShareStatus
+            tag="span"
+            :message="submitMessage"
+            :ok="submitOk"
+            :partial="submitPartial"
+            :pending-table="!!store.pendingTable"
+            :retrying="retryingTable"
+            @retry="retryTable"
+          />
         </div>
 
         <pre
@@ -1227,8 +1188,8 @@
             it to send the headline alone.</span
           >
           <span v-if="diagnosticsGo"
-            >Your <span class="font-semibold">diagnostics go too</span> ("Also send diagnostics"): sent privately
-            to the planner's maintainer, never shown on the board. It holds memory readings, the worker count, any crash or
+            >Your <span class="font-semibold">diagnostics go too</span> ("Also send diagnostics"): sent privately to the
+            planner's maintainer, never shown on the board. It holds memory readings, the worker count, any crash or
             carry-on, and your browser and system. No player ID and no save.</span
           >
           If that trade is not worth it to you, do not send it.
@@ -1252,7 +1213,7 @@
           <span class="font-semibold">Save the file</span> and share it however you like. Self-hosting: set
           <span class="font-mono">VITE_SUBMIT_URL</span> at build time.
         </p>
-      </div>
+      </ShareResult>
 
       <!-- The run's own shape, and why it ended. The CSV had all of this already, but reading it
            meant finishing a three-hour run and opening a spreadsheet. -->
@@ -1288,24 +1249,16 @@
       </div>
 
       <!-- Every chain the run priced, one row per leg. Safe to take mid-run. -->
-      <div
-        v-if="store.csvRows || store.resumable"
-        class="flex flex-wrap items-center gap-3 p-4 rounded-xl border border-slate-200 bg-white"
-      >
-        <button
-          type="button"
-          class="px-4 py-2 rounded-lg bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-700"
-          @click="downloadCsv"
-        >
-          Download CSV
-        </button>
-        <p class="text-[11px] text-slate-500 leading-relaxed flex-1 min-w-[16rem]">
-          {{ chainCount(store.csvRows || store.resumable?.durations.length || 0) }}, one row per leg: strategy, sale count,
-          start and end times in your plan's timezone, peak delivery, and how many shifts fall in your schedule.
-          Artifacts and stones are in the header block: the search never varies them.
-          <span v-if="store.isRunning" class="font-semibold text-slate-600">Safe to download mid-run.</span>
-        </p>
-      </div>
+      <CsvCard v-if="store.csvRows || store.resumable" class="p-4 rounded-xl border border-slate-200 bg-white">
+        <template #csv>
+          <p class="text-[11px] text-slate-500 leading-relaxed flex-1 min-w-[16rem]">
+            {{ chainCount(store.csvRows || store.resumable?.durations.length || 0) }}, one row per leg: strategy, sale
+            count, start and end times in your plan's timezone, peak delivery, and how many shifts fall in your
+            schedule. Artifacts and stones are in the header block: the search never varies them.
+            <span v-if="store.isRunning" class="font-semibold text-slate-600">Safe to download mid-run.</span>
+          </p>
+        </template>
+      </CsvCard>
 
       <!-- Honesty block. Do not soften this. -->
       <div
@@ -1335,7 +1288,6 @@
 import { NAMES } from '@/lib/siteNav';
 import { useUIStore } from '@/stores/ui';
 import { computed, onMounted, ref, watch } from 'vue';
-import { useEidsStore } from 'lib';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { sentence } from '@/utils/errors';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
@@ -1348,8 +1300,10 @@ import ChainSearchExplainer from './ChainSearchExplainer.vue';
 import HelpTip from './HelpTip.vue';
 import StartTimeFinder from './StartTimeFinder.vue';
 import FindBar from './FindBar.vue';
-import ShareExtras from './ShareExtras.vue';
+import ShareResult from './ShareResult.vue';
+import ShareStatus from './ShareStatus.vue';
 import { useShareExtras } from '@/composables/useShareExtras';
+import { useBoardSubmit, useShareIdentity } from '@/composables/useShareResult';
 import StepAwayOptions from './StepAwayOptions.vue';
 import SavedRuns from './SavedRuns.vue';
 import YourSetup from './YourSetup.vue';
@@ -1366,7 +1320,9 @@ import { chainCount } from '@/lib/chartThin';
 import type { EffortTier, LegSummary } from '@/search/types';
 import type { ShortlistRow } from '@/search/shortlist';
 import { VIEWS } from '@/search/views';
-import { downloadCsv as saveCsvFile } from '@/utils/export';
+import { useRunDownloads } from '@/composables/useRunDownloads';
+import CsvCard from './CsvCard.vue';
+import ProgressBar from './ProgressBar.vue';
 
 const props = defineProps<{ playerId: string }>();
 
@@ -1454,67 +1410,36 @@ const suggestedCountNote = computed(() => {
  * of text, and `data:` URLs are length-capped in some browsers, which would truncate exactly the
  * big runs worth exporting.
  */
-/** Consent. Unchecked by default and gates every path that moves data off the machine --
- *  including the local save, because a file on disk is the first step to sharing one. */
-const optIn = ref(false);
-/** Anonymous by default: crediting yourself should be a choice, not the fallback. */
-const anonymous = ref(true);
-/** The name already shown in the header's ID box, for prefilling the credit field.
- *
- *  Deliberately NOT `eidsStore.displayName()`, which falls back to the raw EID when an account has
- *  neither a manual nickname nor a username captured from a backup. Prefilling that would put the
- *  player ID into a payload whose own consent text promises it is not there. Blank is the correct
- *  default in that case -- the player can type whatever they want. */
-const eidsStore = useEidsStore();
-const accountName = computed(() => {
-  const entry = eidsStore.eids.get(props.playerId.trim());
-  return entry?.nickname || entry?.username || '';
-});
+/** Consent, anonymous-or-named and the name box (composables/useShareResult.ts). The consent is
+ *  unchecked by default and gates every path that moves data off the machine -- including the local
+ *  save, because a file on disk is the first step to sharing one. */
+const { optIn, anonymous, nickname, nicknameTouched } = useShareIdentity(() => props.playerId);
 
-/** Free text the player may attach, ignored when anonymous. Seeded from the account's display
- *  name so crediting yourself is one radio click rather than retyping a name the app already
- *  shows, and still free text: anything typed here wins and is never overwritten afterwards. */
-const nickname = ref(accountName.value);
-const nicknameTouched = ref(false);
-// The username is captured when a backup finishes loading, which can land after this panel has
-// mounted. Keep following it until the player edits the box themselves.
-watch(accountName, name => {
-  if (!nicknameTouched.value) nickname.value = name;
-});
-
-/** Send the run's full CSV alongside the JSON. On by default: the per-leg rows are what make a
- *  pooled dataset worth anything beyond a ranking, and the whole block already sits behind an
- *  unticked opt-in, so this is not the checkbox standing between anyone and an accidental upload.
- *
- *  It costs the submitter almost nothing now that it is gzipped in the browser first -- 15.3 MB
- *  of chain table compresses to 0.66 MB, measured -- which is also what let the collector keep it
- *  in KV instead of needing an R2 bucket. */
+/** Send the run's full CSV alongside the JSON (ShareExtras.vue; on by default). It costs the
+ *  submitter almost nothing now that it is gzipped in the browser first -- 15.3 MB of chain table
+ *  compresses to 0.66 MB, measured. */
 const { sendCsv: includeCsv, diagnosticsGo } = useShareExtras();
 const showPayload = ref(false);
 const submitState = ref<'idle' | 'sending' | 'done'>('idle');
-const submitMessage = ref('');
-/** "Sent, but ..." -- the summary is in and something about the table is not. Amber, not green. */
-const submitPartial = computed(() => /\bbut\b/.test(submitMessage.value));
-const retryingTable = ref(false);
-async function retryTable(): Promise<void> {
-  if (retryingTable.value) return;
-  retryingTable.value = true;
-  try {
-    const res = await store.retryTable();
-    submitOk.value = res.ok;
-    submitMessage.value = res.ok ? `Thanks! ${sentence(res.message)}` : `Not sent: ${res.message}`;
-  } finally {
-    retryingTable.value = false;
-  }
-}
-const submitOk = ref(false);
 
-/** The payload, pretty-printed, so "show exactly what is sent" is the literal bytes and not a
- *  summary someone has to trust. */
 /** What a nickname actually resolves to. Anonymous wins over whatever is typed in the box, so
  *  a half-typed name cannot be sent by someone who then picked anonymous. */
 const effectiveNickname = computed(() => (anonymous.value ? '' : nickname.value));
+/** The status line, Put my name on it, Retry the table and the rechecks (useShareResult.ts). */
+const {
+  submitMessage,
+  submitOk,
+  submitPartial,
+  retryingTable,
+  retryTable,
+  nameToClaim,
+  claiming,
+  claim,
+  refuseDuplicate,
+} = useBoardSubmit(store, effectiveNickname, optIn);
 
+/** The payload, pretty-printed, so "show exactly what is sent" is the literal bytes and not a
+ *  summary someone has to trust. */
 const payloadPreview = computed(() => {
   const p = store.buildRunSubmission(effectiveNickname.value);
   return p ? JSON.stringify(p, null, 2) : 'Nothing to share yet. Run a search first.';
@@ -1523,12 +1448,7 @@ const payloadPreview = computed(() => {
 async function submit(): Promise<void> {
   // The guard matters as much as the flag: clicks made while the page was frozen building the
   // table are delivered afterwards, and each one used to send another copy.
-  // Already sent (automatically or by hand): a second send is only a duplicate row.
-  if (store.alreadySubmitted) {
-    submitOk.value = true;
-    submitMessage.value = 'Already on the board: this result was sent from this browser.';
-    return;
-  }
+  if (refuseDuplicate()) return;
   if (!optIn.value || submitState.value === 'sending') return;
   submitState.value = 'sending';
   submitOk.value = true;
@@ -1561,32 +1481,6 @@ async function submit(): Promise<void> {
   }
 }
 
-/** The name "Put my name on it" would put on the stored row, or '' when there is nothing to rename. */
-const nameToClaim = computed(() => store.nameToClaim(effectiveNickname.value));
-const claiming = ref(false);
-async function claim(): Promise<void> {
-  const id = store.sentRecord?.id;
-  if (!id || claiming.value) return;
-  claiming.value = true;
-  try {
-    const res = await store.claimName(id, effectiveNickname.value);
-    submitOk.value = res.ok;
-    submitMessage.value = res.ok ? `Done: ${res.message}` : `Not renamed: ${res.message}`;
-  } finally {
-    claiming.value = false;
-  }
-}
-
-// Once the player has said yes to sharing, work out the rechecks (their best earlier plans priced
-// again from this save), so "Show exactly what is sent" shows them before Submit is pressed.
-watch(
-  () => optIn.value && store.bestDays > 0 && !store.isRunning,
-  ready => {
-    if (ready) void store.prepareRechecks();
-  },
-  { immediate: true }
-);
-
 /** The offline path, and the only one available with no collector configured. Same Blob dance as
  *  the CSV: a `data:` URI is length-capped in some browsers. */
 function downloadSubmission(): void {
@@ -1604,11 +1498,8 @@ function downloadSubmission(): void {
   submitMessage.value = 'Saved. Share it wherever you like.';
 }
 
-/** Chunked for the same reason the Insane panel's is: a long run's table is tens of megabytes, and
- *  the one-string version needs three copies of it alive at once. See `chainsCsvChunks`. */
-function downloadCsv(): void {
-  saveCsvFile(store.csvFilename(), store.exportCsvChunks());
-}
+/** The result card's Download CSV (composables/useRunDownloads.ts): the same handler as the CSV card. */
+const { downloadCsv } = useRunDownloads(store);
 
 /** The finish INSTANT, not the duration: durations from different plan starts are not comparable,
  *  and the end date is the invariant a player actually plans around. */
