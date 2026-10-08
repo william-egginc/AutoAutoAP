@@ -18,6 +18,25 @@ describe('byDateRequest', () => {
     const r = { asc: [5, 7], eggDay: true, chains: {}, around: { 5: { pm: 3, step: 1 }, 7: { pm: 3, step: 3 } } };
     expect(parseByDateRequest(byDateRequestQuery(r))!.around).toEqual(r.around);
   });
+  it('carries "centre the later boxes on the instant answer", bounded, one entry a later box', () => {
+    const r = {
+      asc: [3, 4],
+      eggDay: true,
+      chains: { 3: '181-220:1; 181-250:2', 4: '181-220:1; 181-250:5; 205-295:10' },
+      centre: {
+        3: [{ pm: 28, step: 2 }],
+        4: [
+          { pm: 25, step: 5 },
+          { pm: 30, step: 10 },
+        ],
+      },
+    };
+    expect(parseByDateRequest(byDateRequestQuery(r))).toEqual(r);
+    // Wrong number of boxes for the count, or out of bounds: dropped.
+    expect(parseByDateRequest('?asc=4&centre4=25:5')).not.toHaveProperty('centre');
+    expect(parseByDateRequest('?asc=3&centre3=999:2')).not.toHaveProperty('centre');
+    expect(parseByDateRequest('?asc=3&centre3=10:0')).not.toHaveProperty('centre');
+  });
   it('is null with no usable count, and bounds counts and boxes', () => {
     expect(parseByDateRequest('?eggday=1')).toBeNull();
     expect(parseByDateRequest('?asc=0,9,x')).toBeNull();

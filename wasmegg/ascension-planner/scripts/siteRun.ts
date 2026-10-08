@@ -39,8 +39,7 @@ import { scrubIdentifiers } from '@/search/submission';
 import { countBanded, formatBands, formatHours } from '@/search/exhaustive';
 import { sweepSeconds, workerSecondsPerChain } from '@/search/speed';
 import { coverageAfterText, coverageBeforeText } from '@/search/bandCheck';
-import { countSpaceShapes } from '@/search/deadline';
-import { estimateNote, plannedRoutes } from '@/search/deadlineEstimate';
+import { byDatePlan, estimateNote, fallbackWorkerSecondsPerLeg, roundedRoutes } from '@/search/deadlineEstimate';
 import { buildOfflineSubmission, CSV_FILE, edgeLines, SUBMISSION_FILE, type OfflineKind } from '@/search/offline';
 import type { Availability } from '@/search/availability';
 import type { Milestone } from '@/search/milestones';
@@ -318,6 +317,21 @@ export async function runSiteSearch(o: SiteRunOptions): Promise<number> {
 
 type Store = ReturnType<typeof useChainSearchStore>;
 
+/** A By a date space's estimate, as the panel works it out (deadlineEstimate.ts `byDatePlan`). */
+function byDatePlanFor(o: SiteRunOptions, store: Store) {
+  const chains = o.chains ?? [];
+  const bandSets = chains.map(c => (c.asc <= 1 ? [] : c.bands.map(b => [...b])));
+  return byDatePlan({
+    rows: chains.map(c => ({ asc: c.asc, bands: c.bands })),
+    currentTE: store.currentTE,
+    lastHi: o.lastRange?.[1] ?? 0,
+    workers: store.workerBudget,
+    rememberedPerSet: store.deadlineRoutesPerSet(bandSets),
+    workerSecondsPerLeg:
+      store.deadlineWorkerSeconds || fallbackWorkerSecondsPerLeg(Math.max(1, ...chains.map(c => c.asc))),
+  });
+}
+
 /** `--dry-run`: the size of what would run, as the panels show it before Start. Nothing is simulated. */
 function dryRun(o: SiteRunOptions, store: Store): number {
   const workers = store.workerBudget;
@@ -330,9 +344,10 @@ function dryRun(o: SiteRunOptions, store: Store): number {
       console.log(`  ${sp.asc} ascension${sp.asc === 1 ? '' : 's'}${sp.tag ? ` (${sp.tag})` : ''}: ${chains.toLocaleString()} chains, ${eta(chains, sp.asc)}${sp.asc > 1 ? `\n    ${formatBands(sp.bands)}   minimum gap ${sp.minGap}` : ''}`);
     }
   } else if (o.kind === 'by-date' && o.chains && o.lastRange) {
-    const sets = countSpaceShapes(o.chains, store.currentTE, o.lastRange[1]);
-    const routes = plannedRoutes({ sets, workers, currentTE: store.currentTE, rememberedPerSet: store.deadlineRoutesPerSet });
-    console.log(`  ${sets.toLocaleString()} sets of early stops, about ${routes.toLocaleString()} routes (re-worked from what the sets cost as it runs), ${eta(routes, Math.max(...o.chains.map(c => c.asc)))}`);
+    const plan = byDatePlanFor(o, store);
+    console.log(
+      `  ${plan.sets.toLocaleString()} sets of early stops, about ${roundedRoutes(plan.routes).toLocaleString()} routes and ${roundedRoutes(plan.legs).toLocaleString()} legs (each set's first route simulates its early legs, every later one only its last), about ${formatHours(plan.seconds / 3600)} at ${plan.workerSecondsPerLeg.toFixed(2)} worker-seconds a leg (${store.deadlineWorkerSeconds ? "this machine's last deadline search" : "the board's typical speed"}) on ${workers} workers`
+    );
   } else if (o.kind === 'smart') {
     const n = store.estimateForCurrentSettings;
     console.log(`  up to about ${n.toLocaleString()} chains (an upper bound: it stops when no axis moves), ${eta(n, 5)}`);
@@ -528,8 +543,7 @@ async function runByDate(
   if (!store.deadlineRunning && !(store.deadlineResult && store.deadlineResult.at >= startedAt)) {
     if (o.chains && o.lastRange) {
       const counts = o.chains.map(c => c.asc);
-      const rows = o.chains.map(c => ({ asc: c.asc, bands: c.bands }));
-      const sets = countSpaceShapes(rows, store.currentTE, o.lastRange[1]);
+      const plan = byDatePlanFor(o, store);
       await store.startDeadline(o.account, {
         deadline: o.deadline,
         minStops: Math.min(...counts),
@@ -538,15 +552,11 @@ async function runByDate(
         lastHi: o.lastRange[1],
         step: 1,
         ascendNeeded: o.ascendNeeded,
-        estimate: plannedRoutes({
-          sets,
-          workers: store.workerBudget,
-          currentTE: store.currentTE,
-          rememberedPerSet: store.deadlineRoutesPerSet,
-        }),
+        estimate: plan.routes,
         extend: true,
         bandSets: o.chains.map(c => (c.asc <= 1 ? [] : c.bands.map(b => [...b]))),
-        sets,
+        legPlan: plan,
+        sets: plan.sets,
       });
     } else {
       await store.startDeadline(o.account, {
@@ -571,7 +581,7 @@ async function runByDate(
     return 1;
   }
   console.log(
-    `\n=== done (${minutes} min, ${r.priced.toLocaleString()} routes${r.stoppedEarly ? ', stopped early' : ''})`
+    `\n=== done (${minutes} min, ${r.priced.toLocaleString()} routes, ${(r.legSims ?? 0).toLocaleString()} legs simulated${r.stoppedEarly ? ', stopped early' : ''})`
   );
   // As the panel's table head says it: a complete walk of the player's own space is a finished run.
   if (!r.step && !r.stoppedEarly) console.log(`  Every route in your space: ${r.priced.toLocaleString()} priced, run complete.`);

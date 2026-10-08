@@ -58,9 +58,9 @@ export interface CsvMeta {
    *  artifacts and stones were used": the sim re-optimises the equipped set inside every leg, so
    *  what matters is what it had to choose FROM. */
   inventory?: string;
-  /** The one-line black box summary (search/blackBox.ts `diagnosticsSummary`), only in a CSV the
-   *  player sends with "Also send diagnostics" ticked. The collector keeps no field for it, so it
-   *  travels as a comment line here. Never in a downloaded file. */
+  /** @deprecated Ignored. Diagnostics used to ride in the CSV header, which made them public (an
+   *  uploaded CSV can be downloaded from the board). They now go as a private field of the
+   *  submission body (search/sendRun.ts `withPrivateDiagnostics`). Kept only so old callers compile. */
   diagnostics?: string;
   /** Defaults to now. Injectable so the tests are not clock-dependent. */
   generatedAt?: number;
@@ -381,9 +381,6 @@ function metaLines(meta: CsvMeta, head: string[], count: string): string[] {
   // eslint-disable-next-line no-control-regex
   const runNote = meta.runNote?.replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, ' ').trim();
   if (runNote) note(`note: ${runNote}`);
-  // eslint-disable-next-line no-control-regex
-  const diagnostics = meta.diagnostics?.replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, ' ').trim();
-  if (diagnostics) note(`diagnostics (shared by the player): ${diagnostics}`);
   note(count);
   note('');
   note('artifacts and stones — fixed for the whole run, never varied by the search.');

@@ -31,12 +31,12 @@ describe('share extras', () => {
     expect(createShareExtras(st).sendDiagnostics.value).toBe(true);
   });
 
-  it('diagnostics only go with the CSV', () => {
+  it('diagnostics do not depend on the CSV box', () => {
     const x = createShareExtras(mem());
     x.sendDiagnostics.value = true;
     expect(x.diagnosticsGo.value).toBe(true);
     x.sendCsv.value = false;
-    expect(x.diagnosticsGo.value).toBe(false);
+    expect(x.diagnosticsGo.value).toBe(true);
   });
 
   it('survives storage that throws', () => {

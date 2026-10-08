@@ -2,7 +2,7 @@
  * The "open Highest TE by a date, set up like this" hand-off from the Science tab and the Chain
  * Explorer, for the two ends to share (like sweepRequest.ts does for the Full sweep):
  *
- *   ./?insane=1&goal=deadline&eggday=1&asc=1,2,3&chain3=150-160:2&last=220-300[&pm5=3&step5=1]
+ *   ./?insane=1&goal=deadline&eggday=1&asc=1,2,3&chain3=150-160:2&last=220-300[&pm5=3&step5=1][&centre3=28:2]
  *
  * A chain with n ascensions has n-1 early-stop boxes (`chainN`) and a last stop the panel finds
  * itself, starting inside `last`. A chain without a box is suggested from the opener's own save
@@ -29,7 +29,17 @@ export interface ByDateRequest {
    *  TE either side of each stop, and the step. A chain not named here keeps the panel's own setting,
    *  which is how a normal By a date run stays as it is. */
   around?: Record<number, { pm: number; step: number }>;
+  /**
+   * Centre a chain's later boxes on the instant answer's route for that count, when the panel has one
+   * (`centre4=25:5,30:10`): each box after the first, its TE either side and step. The chain's own box
+   * (`chainN`) is kept as the first box, and as every box when there is no instant answer for it.
+   */
+  centre?: Record<number, { pm: number; step: number }[]>;
 }
+
+/** Bounds on a `centre` entry: whole TE either side and steps the boxes could sensibly use. */
+const CENTRE_PM_MAX = 80;
+const CENTRE_STEP_MAX = 20;
 
 /** The query string (with a leading `?`) that opens By a date on this request. */
 export function byDateRequestQuery(r: ByDateRequest): string {
@@ -44,6 +54,8 @@ export function byDateRequestQuery(r: ByDateRequest): string {
       q.set(`pm${n}`, String(a.pm));
       q.set(`step${n}`, String(a.step));
     }
+    const c = r.centre?.[n];
+    if (c?.length) q.set(`centre${n}`, c.map(x => `${x.pm}:${x.step}`).join(','));
   }
   return `?${q.toString()}`;
 }
@@ -73,11 +85,36 @@ export function parseByDateRequest(search: string): ByDateRequest | null {
     const step = Number(params.get(`step${n}`) ?? params.get('step'));
     if (REQUEST_WIDTHS.includes(pm) && SPACE_STEPS.includes(step)) around[n] = { pm, step };
   }
+  // `centreN=25:5,30:10`: up to 7 boxes, each whole TE either side and a step, both bounded.
+  const centre: Record<number, { pm: number; step: number }[]> = {};
+  for (const n of asc) {
+    const raw = (params.get(`centre${n}`) ?? '').slice(0, 100);
+    if (!raw) continue;
+    const list = raw
+      .split(',')
+      .slice(0, 7)
+      .map(x => x.split(':').map(Number))
+      .map(([pm, step]) => ({ pm, step }));
+    if (
+      list.length === n - 2 &&
+      list.every(
+        x =>
+          Number.isInteger(x.pm) &&
+          Number.isInteger(x.step) &&
+          x.pm >= 1 &&
+          x.pm <= CENTRE_PM_MAX &&
+          x.step >= 1 &&
+          x.step <= CENTRE_STEP_MAX
+      )
+    )
+      centre[n] = list;
+  }
   return {
     asc,
     eggDay: params.get('eggday') === '1',
     chains,
     ...(last ? { last } : {}),
     ...(Object.keys(around).length ? { around } : {}),
+    ...(Object.keys(centre).length ? { centre } : {}),
   };
 }

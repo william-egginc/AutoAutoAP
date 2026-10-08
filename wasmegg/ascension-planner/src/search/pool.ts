@@ -89,6 +89,9 @@ export interface BatchOutcome {
   legSims: number;
   /** How many workers this batch actually used, for the UI's "12 workers" readout. */
   workersUsed: number;
+  /** Chains never sent because `shouldStop` said stop (dealt runs only). Empty otherwise: every
+   *  chain was priced, and one missing from `results` could not be evaluated. */
+  unpriced?: number[][];
 }
 
 export interface PoolOptions {
@@ -131,6 +134,27 @@ export interface EvaluateOptions {
   /** When each fresh ascension starts (search/chain.ts `HandoffChoice`). Absent = 'now', the
    *  searches' rule; the instant answer's exact check asks for 'hour' (and 'sooner' when ticked). */
   handoff?: import('./chain').HandoffChoice;
+  /**
+   * Deal the chains yourself: the worker (0 to `workers - 1`) for each chain, given in depth-first
+   * order (the By a date run's search/stickyDealer.ts). Takes precedence over `stickyDepth` and
+   * `spreadOut`. Each worker then gets its share a few chains at a time (`piece`) and asks for the
+   * next piece as soon as it answers, so a worker is never left waiting for a whole batch to come
+   * back; one that runs out takes the last pieces of the busiest (`steal`). Results stream as each
+   * piece returns (`onResult`, `onLegs`), and `shouldStop` is honoured between pieces.
+   */
+  workerOf?: (chains: number[][], workers: number) => number[];
+  /** Chains per request when dealt (default 4): small enough to stop, stream and share out the
+   *  tail of a batch promptly, large enough that messages cost nothing next to a leg. */
+  piece?: number;
+  /** When dealt: a worker with nothing left takes queued pieces from the busiest. Default on. */
+  steal?: boolean;
+  /** When dealt: each chain as it is priced (null: it could not be evaluated). */
+  onResult?: (chain: number[], result: ChainResult | null) => void;
+  /** When dealt: legs simulated, as each piece returns. */
+  onLegs?: (legSims: number) => void;
+  /** When dealt: checked before each piece is sent. Once true no more are sent, the batch returns
+   *  what was priced, and the rest is listed in `unpriced`. */
+  shouldStop?: () => boolean;
 }
 
 /** Split into per-worker buckets by a stable hash of each chain's first `depth` entries. */
@@ -418,6 +442,124 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
     }
   }
 
+  /**
+   * A dealt batch (`EvaluateOptions.workerOf`): every worker works through its own queue of pieces,
+   * each sent the moment the last one comes back, so no worker waits on another until its queue is
+   * empty -- and then it takes the busiest worker's last queued piece rather than wait at all.
+   */
+  async function evaluateDealt(
+    sorted: number[][],
+    onChainDone: ((done: number, total: number) => void) | undefined,
+    opts: EvaluateOptions
+  ): Promise<BatchOutcome> {
+    const workers = size;
+    const per = Math.max(1, Math.floor(opts.piece ?? 4));
+    const dealt = (opts.workerOf as NonNullable<EvaluateOptions['workerOf']>)(sorted, workers);
+    const mine: number[][][] = Array.from({ length: workers }, () => []);
+    sorted.forEach((c, i) => {
+      const w = Math.floor(dealt[i] ?? 0);
+      mine[w >= 0 && w < workers ? w : 0].push(c);
+    });
+    const queues: number[][][][] = mine.map(list => {
+      const pieces: number[][][] = [];
+      for (let i = 0; i < list.length; i += per) pieces.push(list.slice(i, i + per));
+      return pieces;
+    });
+    const results: ChainResult[] = [];
+    let legSims = 0;
+    let done = 0;
+    const inFlight = new Map<number, number>();
+    const used = new Set<number>();
+    let failed = false;
+    const tell = () => {
+      if (!onChainDone) return;
+      let n = done;
+      for (const v of inFlight.values()) n += v;
+      onChainDone(Math.min(n, sorted.length), sorted.length);
+    };
+    /** The last queued piece of the worker with the most left, when it has at least two queued (one
+     *  more is in flight): taking its only one could well finish later than it would have. */
+    const steal = (thief: number): number[][] | undefined => {
+      let from = -1;
+      for (let w = 0; w < workers; w++) {
+        if (w === thief) continue;
+        if (queues[w].length >= 2 && (from < 0 || queues[w].length > queues[from].length)) from = w;
+      }
+      return from >= 0 ? queues[from].pop() : undefined;
+    };
+    const run = async (w: number): Promise<void> => {
+      for (;;) {
+        if (failed || terminated) return;
+        if (opts.shouldStop?.()) return;
+        // A worker above a smaller size (the slider moved) hands its queue to the others and goes.
+        if (w >= size) {
+          const left = queues[w].splice(0);
+          left.forEach((p, i) => queues[i % Math.max(1, Math.min(size, workers))].push(p));
+          return;
+        }
+        let piece = queues[w].shift();
+        if (!piece && opts.steal !== false) piece = steal(w);
+        if (!piece) return;
+        used.add(w);
+        const pw = await workerAt(w);
+        const requestId = ++nextRequestId;
+        progressHooks.set(requestId, d => {
+          inFlight.set(w, d);
+          tell();
+        });
+        let reply: EvaluateResultMessage;
+        try {
+          reply = (await send(
+            pw,
+            {
+              kind: 'evaluate',
+              requestId,
+              chains: piece,
+              ...(opts.handoff && opts.handoff !== 'now' ? { handoff: opts.handoff } : {}),
+            },
+            `worker ${w}`,
+            piece.length
+          )) as EvaluateResultMessage;
+        } finally {
+          progressHooks.delete(requestId);
+          inFlight.delete(w);
+        }
+        legSims += reply.legSims;
+        opts.onLegs?.(reply.legSims);
+        const got = new Map(reply.results.map(r => [r.chain.join(','), r]));
+        for (const c of piece) {
+          const r = got.get(c.join(',')) ?? null;
+          if (r) results.push(r);
+          opts.onResult?.(c, r);
+        }
+        done += piece.length;
+        tell();
+      }
+    };
+    const left = () => queues.some(q => q.length);
+    try {
+      // Again while pieces are left and nobody asked to stop: a worker let go mid-batch (the pool was
+      // made smaller) hands its queue to workers whose own loops may have finished already.
+      for (let pass = 0; pass === 0 || (left() && !opts.shouldStop?.() && !terminated); pass++) {
+        const live = Math.max(1, Math.min(workers, size));
+        for (let w = live; w < workers; w++) queues[w].splice(0).forEach((p, i) => queues[i % live].push(p));
+        const loops = Array.from({ length: live }, (_, w) =>
+          run(w).catch(e => {
+            failed = true;
+            throw e;
+          })
+        );
+        // As in `evaluate`: a handler on each before awaiting them together, so a sibling's later
+        // rejection is not reported as unhandled.
+        for (const p of loops) void p.catch(() => {});
+        await Promise.all(loops);
+      }
+      return { results, legSims, workersUsed: used.size, unpriced: queues.flat(2) as number[][] };
+    } finally {
+      if (!terminated) retireAboveSize();
+    }
+  }
+
   // One worker eagerly, so a broken worker bundle or a structured-clone failure on the inputs
   // throws HERE, when the user presses Start, instead of surfacing mid-run an hour later.
   await workerAt(0);
@@ -455,6 +597,7 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
       // cannot clone a proxy and throws "[object Object] could not be cloned" -- after the whole
       // batch was dealt, so the run fails at the end instead of at the call. Cheap next to a chain.
       const sorted = sortChainsDepthFirst(chains.map(c => Array.from(c)));
+      if (opts.workerOf) return evaluateDealt(sorted, onChainDone, opts);
       // Worker index per bucket: positional normally, the hash's choice when sticky.
       let buckets: number[][][];
       let workerOf: number[];

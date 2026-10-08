@@ -17,7 +17,8 @@
       <input v-model="sendDiagnostics" type="checkbox" class="mt-0.5 rounded border-indigo-300 text-indigo-600" />
       <span>
         <span class="font-bold">Also send diagnostics</span>: memory readings, how many workers ran, any crash or
-        carry-on, and your browser and system. One line of numbers in the CSV's header; no player ID and no save.
+        carry-on, and your browser and system. Sent privately to the planner's maintainer, never shown on the board; no
+        player ID and no save.
       </span>
     </label>
     <label
@@ -28,9 +29,6 @@
       <input v-model="diagnosticsByDefault" type="checkbox" class="mt-0.5 rounded border-indigo-300 text-indigo-600" />
       <span>Tick this by default from now on</span>
     </label>
-    <p v-if="sendDiagnostics && !sendCsv" class="text-[11px] font-semibold text-amber-700 ml-6">
-      Diagnostics travel inside the CSV, so they can't be sent while "Send my CSV too" is unticked.
-    </p>
   </div>
 </template>
 

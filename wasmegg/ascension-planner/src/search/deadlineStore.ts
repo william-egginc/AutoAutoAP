@@ -57,6 +57,34 @@ export interface DeadlineRunSpec {
    *  of `bandSets`, so a carry-on puts the sliders back with the boxes. Absent on older checkpoints
    *  (see `rowSettingsFor`). */
   rows?: DeadlineRowSettings[];
+  /**
+   * The instant answer's own early stops, one list per ascension count it had a route for: tried as
+   * extra sets on top of `bandSets` (deadline.ts drops any already in a box), so the instant answer's
+   * route is always in the space whatever the boxes say. Kept apart from `bandSets` so a carry-on
+   * puts back only the player's boxes. Absent on runs started before 8 Oct.
+   */
+  instantSets?: number[][];
+  /** The estimate the run started with, counted in legs (deadlineEstimate.ts `planLegs`): the first
+   *  guess the progress line quotes, and what the live estimate counts down from. */
+  legPlan?: DeadlineLegPlan;
+}
+
+/** `LegPlan` plus the speed and time it was priced at. */
+export interface DeadlineLegPlan {
+  sets: number;
+  firstLegs: number;
+  routes: number;
+  legs: number;
+  workerSecondsPerLeg: number;
+  /** Wall-clock seconds at the run's start: the first guess. */
+  seconds: number;
+}
+
+/** The sets a run tries: the player's boxes, then the instant answer's own early stops as one set
+ *  each (one value a band). */
+export function runBandSets(spec: Pick<DeadlineRunSpec, 'bandSets' | 'instantSets'>): number[][][] | undefined {
+  if (!spec.bandSets?.length) return undefined;
+  return [...spec.bandSets, ...(spec.instantSets ?? []).filter(s => s.length).map(s => s.map(v => [v]))];
 }
 
 /** One chain row's Suggest-a-space state (DeadlinePanel's `widthIx`, `stepIx`, `auto`). */
@@ -134,6 +162,12 @@ export interface SavedDeadlineResult {
   inputsKey?: string;
   backupAt?: number | null;
   backupTE?: number | null;
+  /** The player's boxes and the instant answer's extra sets the run tried, for the box-edge warning.
+   *  Absent before 8 Oct. */
+  bandSets?: number[][][];
+  instantSets?: number[][];
+  /** Legs the workers actually simulated this session (pool `legSims`). Absent before 8 Oct. */
+  legSims?: number;
   at: number;
 }
 
@@ -162,15 +196,24 @@ export async function loadDeadlineResult(partitionHash: string): Promise<SavedDe
   return raw && Array.isArray(raw.routes) ? raw : null;
 }
 
+/** Streams each chain as it is priced (null: it could not be evaluated). */
+export type OnResult = (chain: number[], result: ChainResult | null) => void;
+
 /**
  * Wrap the pool's `evaluate` so routes already priced are answered from memory, and everything
- * newly priced is recorded for the next checkpoint.
+ * newly priced is recorded for the next checkpoint -- as it streams in, when the pool streams, so a
+ * checkpoint taken in the middle of a long batch keeps what that batch has priced so far.
+ *
+ * `stopped`, when given and true as a batch returns, means the batch may have been cut short: a chain
+ * that was neither returned nor streamed was never priced, so it is NOT recorded as unreachable (a
+ * carry-on prices it). Without a stop, a chain missing from the reply could not be evaluated.
  */
 export function replayingEvaluator(
-  evaluate: (chains: number[][]) => Promise<ChainResult[]>,
-  seed: PricedEntry[] = []
+  evaluate: (chains: number[][], onResult?: OnResult) => Promise<ChainResult[]>,
+  seed: PricedEntry[] = [],
+  stopped?: () => boolean
 ): {
-  evaluate: (chains: number[][]) => Promise<ChainResult[]>;
+  evaluate: (chains: number[][], onResult?: OnResult) => Promise<ChainResult[]>;
   entries: () => PricedEntry[];
   replayed: () => number;
 } {
@@ -184,8 +227,21 @@ export function replayingEvaluator(
           seconds: e[1],
           legs: e[2].map(l => ({ ...l, maxELR: 0, tier13Unlocked: false }) as LegSummary),
         };
+  const record = (key: string, r: ChainResult | null) =>
+    known.set(key, [
+      key,
+      r ? r.seconds : -1,
+      r
+        ? r.legs.map(l => ({
+            endTE: l.endTE,
+            endTime: l.endTime,
+            durationSeconds: l.durationSeconds,
+            key: l.key,
+          }))
+        : [],
+    ]);
   return {
-    async evaluate(chains) {
+    async evaluate(chains, onResult) {
       const out: ChainResult[] = [];
       const fresh: number[][] = [];
       for (const c of chains) {
@@ -197,25 +253,23 @@ export function replayingEvaluator(
         replayed++;
         const r = toResult(e);
         if (r) out.push(r);
+        onResult?.(c, r);
       }
       if (fresh.length) {
-        const priced = await evaluate(fresh);
+        const reached = new Set<string>();
+        const priced = await evaluate(fresh, (c, r) => {
+          const key = c.join(',');
+          reached.add(key);
+          record(key, r);
+          onResult?.(c, r);
+        });
         const byKey = new Map(priced.map(r => [r.chain.join(','), r]));
+        const cut = !!stopped?.();
         for (const c of fresh) {
           const key = c.join(',');
           const r = byKey.get(key);
-          known.set(key, [
-            key,
-            r ? r.seconds : -1,
-            r
-              ? r.legs.map(l => ({
-                  endTE: l.endTE,
-                  endTime: l.endTime,
-                  durationSeconds: l.durationSeconds,
-                  key: l.key,
-                }))
-              : [],
-          ]);
+          if (!r && cut && !reached.has(key)) continue;
+          record(key, r ?? null);
           if (r) out.push(r);
         }
       }

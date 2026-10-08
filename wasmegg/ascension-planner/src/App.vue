@@ -983,10 +983,10 @@ const topTabs = computed(() => [
       ]
     : []),
 ]);
-/** "Fastest to 490", following the Final target TE when it isn't 490. */
+/** "Fastest to 490 TE", following the Final target TE when it isn't 490. */
 const autoTabs = computed<{ id: AutoView; label: string; screen: SearchScreen | null }[]>(() => [
   { id: 'classic', label: NAMES.classic, screen: null },
-  { id: 'fastest', label: `Fastest to ${chainSearchStore.finalTE}`, screen: null },
+  { id: 'fastest', label: `Fastest to ${chainSearchStore.finalTE} TE`, screen: null },
   { id: 'by-date', label: NAMES.byDate, screen: 'by-date' },
 ]);
 /**

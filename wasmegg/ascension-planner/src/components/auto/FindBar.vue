@@ -25,15 +25,15 @@
           type="button"
           class="px-6 py-4 rounded-xl bg-indigo-700 text-white text-[11px] font-black uppercase tracking-widest hover:bg-indigo-800 disabled:opacity-40"
           :disabled="findDisabled || notReady || !optIn"
-          :title="optIn ? '' : 'Please read and tick the box below first'"
           @click="emit('find', true)"
         >
           Find and submit
         </button>
-        <!-- Only while consent is what's missing: with Find itself blocked, ticking would not help. -->
+        <!-- Whenever consent is unticked, even with Find itself blocked (no save yet): the full wording is
+             in the box below, this only says where to look. -->
         <span
-          v-if="!optIn && !findDisabled && !notReady"
-          class="text-[10px] font-semibold text-slate-500"
+          v-if="!optIn"
+          class="text-[10px] font-semibold text-slate-500 text-center"
           data-testid="acknowledge-hint"
           >Please acknowledge below</span
         >
@@ -71,7 +71,7 @@
             ({{ consentNote }})</template
           >. I understand it sends the route, its dates and the {{ goalWord }}, with my artifact inventory, timezone,
           local plan start and the random code this browser keeps for the account (not my player ID, and never shown),
-          plus my CSV if ticked under Share this result, and diagnostics if ticked. Stop it early and it shares the best
+          plus my CSV if ticked under Share this result and, if ticked, private diagnostics (never shown). Stop it early and it shares the best
           it found so far.</span
         >
       </label>

@@ -182,6 +182,8 @@
           @input="
             row.auto = false;
             row.restored = false;
+            row.centre = undefined;
+            row.centredOn = undefined;
           "
         />
         <BandCheckNotice
@@ -195,12 +197,21 @@
               row.text = t;
               row.auto = false;
               row.restored = false;
+              row.centre = undefined;
+              row.centredOn = undefined;
             }
           "
         />
         <span class="block text-[10px]" :class="rowProblem(k) ? 'text-rose-600' : 'text-slate-500'">
           {{ rowProblem(k) || rowSummary(k) }}
         </span>
+        <span v-if="instantNote(k)" class="block text-[10px] text-indigo-700" data-test="instant-set-note">{{
+          instantNote(k)
+        }}</span>
+        <span v-else-if="row.centre && !row.centredOn" class="block text-[10px] text-slate-500"
+          >No instant answer for {{ row.asc }} ascensions yet, so the boxes after the first are the card's wider
+          ones.</span
+        >
         <p v-if="row.restored && row.asc >= 2" class="text-[10px] text-slate-400">
           Restored from the unfinished run (the sliders apply when you press Suggest a space).
         </p>
@@ -295,6 +306,11 @@
         a 1- or 2-ascension chain costs next to nothing. Every route in your chains is tried, and nothing outside them,
         so the answer is proven for that space. The last stop is found to the exact TE.
         <template v-if="suggestFrom">{{ suggestFrom }}</template>
+      </p>
+      <p v-if="instantSets.length" class="text-[10px] text-slate-500 leading-relaxed" data-test="handoff-note">
+        This search starts each fresh ascension the moment the last one ends; the instant answer's exact check starts it
+        on the next whole hour, so the same route's times here and there can differ by up to about an hour per fresh
+        ascension.
       </p>
     </template>
 
@@ -392,27 +408,39 @@
           <div class="text-lg font-black text-slate-900 tabular-nums">{{ plannedShapes.toLocaleString() }}</div>
         </div>
         <div>
-          <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Routes to price</div>
-          <div class="text-lg font-black text-slate-900 tabular-nums">~{{ plannedRoutes.toLocaleString() }}</div>
+          <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Legs to simulate</div>
+          <div class="text-lg font-black text-slate-900 tabular-nums">
+            ~{{ roundedRoutes(plannedLegs).toLocaleString() }}
+          </div>
+          <div class="text-[9px] text-slate-400">~{{ roundedRoutes(plannedRoutes).toLocaleString() }} routes</div>
         </div>
         <div>
-          <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Est. wall clock</div>
-          <div class="text-lg font-black text-slate-900 tabular-nums">{{ estimateLabel }}</div>
+          <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+            {{ store.deadlineRunning ? 'Time left' : 'Est. wall clock' }}
+          </div>
+          <div class="text-lg font-black text-slate-900 tabular-nums" data-test="estimate">{{ estimateLabel }}</div>
+          <div v-if="store.deadlineRunning && firstGuessLabel" class="text-[9px] text-slate-400">
+            first guess {{ firstGuessLabel }}
+          </div>
         </div>
         <div>
           <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Assumed cost</div>
           <div class="text-lg font-black text-slate-900 tabular-nums">{{ costLabel }}</div>
+          <div class="text-[9px] text-slate-400">a leg</div>
         </div>
       </div>
       <p class="pt-2 text-[10px] text-slate-500 leading-relaxed">
-        About
-        <template v-if="rememberedPerSet"
-          >{{ rememberedPerSet.toFixed(1) }} routes per set (what this machine's last full run needed)</template
-        ><template v-else>{{ PROBES }} routes per set</template>: the last stop is narrowed down, not tried at every TE.
-        Once a run has finished enough sets it re-works the total from what they actually cost. The estimate uses
+        Counted in legs (one ascension each), not routes: a set's first route simulates its early legs, shared with the
+        sets that start the same way, and every later try at its last stop only the last leg. About
+        {{ plan.sets ? (plan.routes / plan.sets).toFixed(1) : 4 }} routes per set<template
+          v-if="mode === 'space' && rememberedPerSet"
+        >
+          (what this machine's last run over a space this shape needed)</template
+        >: the last stop is narrowed down, not tried at every TE. During a run the time left is the legs left at the
+        rate of the last 12 minutes. The estimate uses
         <template v-if="store.deadlineWorkerSeconds">this machine's speed from its last deadline search</template
         ><template v-else
-          >the typical speed for routes this long in players' runs, until this machine has done a deadline search of its
+          >the typical speed for chains this long in players' runs, until this machine has done a deadline search of its
           own</template
         >, on {{ store.workerBudget }} workers.
       </p>
@@ -509,7 +537,13 @@
         routes priced<template v-if="estNow.total && liveDone >= estNow.total">
           (more than the ~{{ roundedRoutes(estNow.total).toLocaleString() }} estimated)</template
         ><template v-if="estNow.learned && liveDone < estNow.total"> ({{ estimateNote(estNow) }})</template> ·
-        {{ elapsedLabel }} so far<template v-if="remainingLabel"> · about {{ remainingLabel }} left</template>
+        {{ elapsedLabel }} so far<template v-if="remainingLabel">
+          · about {{ remainingLabel }} left<template v-if="firstGuessLabel">
+            (first guess {{ firstGuessLabel }})</template
+          ></template
+        ><template v-if="store.deadlineLegSims">
+          · {{ store.deadlineLegSims.toLocaleString() }} legs simulated</template
+        >
       </p>
       <p class="text-[11px] text-slate-500">{{ store.deadlineProgress.stage }}</p>
       <div v-if="store.deadlineProgress.top.length" class="overflow-x-auto">
@@ -583,6 +617,28 @@
       <p v-else class="text-[11px] font-semibold text-rose-700">
         No route tried reaches any stop by then. Try a later date, a lower last stop, or more stops.
       </p>
+      <!-- The best route on the edge of its box (the Full sweep's check, bandCheck.ts): a wider box may
+           find better. -->
+      <div
+        v-if="edges.length && !store.deadlineRunning"
+        class="rounded-xl border border-amber-300 bg-amber-50 p-3 space-y-2 text-[11px] text-amber-900"
+        data-test="edge-warning"
+      >
+        <p v-for="e in edges" :key="e.band + e.side">{{ edgeText(e) }}</p>
+        <button
+          v-if="edgeWiden"
+          type="button"
+          :disabled="store.busy || !canStart"
+          class="px-3 py-1.5 rounded-lg bg-amber-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-800 disabled:opacity-40"
+          @click="widenAndRun"
+        >
+          Widen and run again
+        </button>
+        <p v-if="edgeWiden" class="text-[10px] text-amber-800/80">
+          Chain {{ edgeWiden.row + 1 }} becomes <span class="font-mono-premium">{{ edgeWiden.text }}</span
+          >.
+        </p>
+      </div>
 
       <div v-if="result.byStops.length > 1" class="overflow-x-auto">
         <p class="text-[10px] font-black uppercase tracking-widest text-slate-500 pb-1">Best for each stop count</p>
@@ -793,6 +849,11 @@ const kept = {
       /** A width only a Science card's request can ask for (+-1, +-2): overrides the slider. */
       pm?: number;
       restored?: boolean;
+      /** A Science card's "centre the later boxes on the instant answer" (byDateRequest.ts `centre`):
+       *  each later box's TE either side and step. Dropped once the box is typed in. */
+      centre?: { pm: number; step: number }[];
+      /** The instant answer's route the later boxes were centred on, when they were. */
+      centredOn?: number[];
     }[]
   >([{ asc: 4, text: '' }]),
   lastBox: keptRef(''),
@@ -806,7 +867,14 @@ const kept = {
 </script>
 
 <script setup lang="ts">
-import { estimateNote, plannedRoutes as plannedRoutesFor, roundedRoutes } from '@/search/deadlineEstimate';
+import {
+  byDatePlan,
+  estimateNote,
+  fallbackWorkerSecondsPerLeg,
+  plannedRoutes as plannedRoutesFor,
+  roundedRoutes,
+} from '@/search/deadlineEstimate';
+import { findBandEdges, widenEdges, type BandEdge } from '@/search/bandCheck';
 import FindBar from './FindBar.vue';
 import ShareExtras from './ShareExtras.vue';
 import { useShareExtras } from '@/composables/useShareExtras';
@@ -814,7 +882,7 @@ import BandCheckNotice from './BandCheckNotice.vue';
 import StepAwayOptions from './StepAwayOptions.vue';
 import AutoSendReport from './AutoSendReport.vue';
 import { NAMES } from '@/lib/siteNav';
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { sentence } from '@/utils/errors';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
@@ -830,8 +898,7 @@ import {
   stepForBudget,
 } from '@/search/deadline';
 import { formatBand, formatHours } from '@/search/exhaustive';
-import { sweepSeconds, workerSecondsPerChain } from '@/search/speed';
-import { rowSettingsFor, type DeadlineRunSpec } from '@/search/deadlineStore';
+import { rowSettingsFor, type DeadlineRunSpec, type SavedDeadlineResult } from '@/search/deadlineStore';
 import { SPACE_STEPS, SPACE_WIDTHS, stopsByWidth } from '@/search/deadlineSuggest';
 import { firstTime } from '@/lib/linkOnce';
 import { parseByDateRequest, SCIENCE_WIDTHS, type ByDateRequest } from '@/search/byDateRequest';
@@ -843,6 +910,7 @@ import { showDateTime } from '@/lib/displayTime';
 import IntegrityNotice from './IntegrityNotice.vue';
 import InstantRoute from './InstantRoute.vue';
 import SafariNotice from './SafariNotice.vue';
+import { withPrivateDiagnostics } from '@/search/sendRun';
 
 const props = defineProps<{ playerId: string }>();
 const emit = defineEmits<{ (e: 'show-fastest'): void }>();
@@ -954,6 +1022,39 @@ function rowProblem(k: number): string {
   if (b.length !== row.asc - 1) return `These bands make ${b.length + 1} ascensions, not ${row.asc}.`;
   return lastRange.value && !rowShapes(k) ? 'No route in these bands goes up to the last stop.' : '';
 }
+/** The instant answer's early stops for each ascension count in the chains: tried as sets of their own
+ *  on top of the boxes (the run drops any already in one), so its route is always in the space. */
+const instantSets = computed<number[][]>(() => {
+  const te = Math.floor(store.currentTE);
+  const out: number[][] = [];
+  for (const asc of [...new Set(chains.value.map(r => Math.floor(r.asc)))].sort((a, b) => a - b)) {
+    const route = instantByCount.value[asc];
+    if (asc < 2 || !route || route.length !== asc) continue;
+    const early = route.slice(0, -1);
+    if (early.every((v, i) => v > (i ? early[i - 1] : te))) out.push(early);
+  }
+  return out;
+});
+/** Whether chain `k`'s own box already holds the instant answer's early stops. */
+function instantInBox(k: number, early: number[]): boolean {
+  const b = rowBands(k);
+  return b.length === early.length && early.every((v, i) => b[i].includes(v));
+}
+/** "Also tries the instant answer's route 159 195 217" under a chain, for its ascension count. */
+function instantNote(k: number): string {
+  const row = chains.value[k];
+  const early = row && instantSets.value.find(s => s.length === row.asc - 1);
+  if (!row || !early) return '';
+  const route = instantByCount.value[row.asc] ?? [];
+  const lead = row.centredOn
+    ? `The boxes after the first are centred on the instant answer's route ${route.join(' ')}`
+    : '';
+  const also = instantInBox(k, early)
+    ? `the instant answer's route ${early.join(' ')} is in this box`
+    : `also tries the instant answer's route ${early.join(' ')}, which is outside this box`;
+  return lead ? `${lead}; ${also}.` : `${also.charAt(0).toUpperCase()}${also.slice(1)}.`;
+}
+
 function rowSummary(k: number): string {
   const row = chains.value[k];
   if (!row) return '';
@@ -982,8 +1083,40 @@ function onInstantRoutes(byCount: Record<number, number[]>): void {
   if (store.deadlineRunning || store.preparing) return;
   chains.value.forEach((row, k) => {
     // A row carried on from an unfinished run keeps its boxes.
-    if (row.asc >= 2 && (!row.text || row.auto) && !row.restored) suggestRow(k);
+    if (row.restored || row.asc < 2) return;
+    if (row.centre) centreRow(k);
+    else if (!row.text || row.auto) suggestRow(k);
   });
+}
+
+/**
+ * A Science card's chain (`centre`): keep its first box, and put each later box around the instant
+ * answer's stop for that many ascensions -- its TE either side, at its step, the stop itself on the
+ * grid. Without an instant answer for that count the card's own (wider) boxes stay. The instant
+ * answer's own route is tried as well either way (`instantSets`).
+ */
+function centreRow(k: number): void {
+  const row = chains.value[k];
+  const route = row && instantByCount.value[row.asc];
+  if (!row?.centre || !route || route.length !== row.asc) return;
+  const te = Math.floor(store.currentTE);
+  const first = row.text.split(';')[0]?.trim();
+  if (!first) return;
+  const later = row.centre.slice(0, row.asc - 2).map((c, i) => {
+    const stop = route[i + 1];
+    const reach = Math.floor(c.pm / c.step) * c.step;
+    let lo = stop - reach;
+    while (lo <= te + 1) lo += c.step;
+    return `${lo}-${Math.min(489, stop + reach)}:${c.step}`;
+  });
+  if (later.length !== row.asc - 2) return;
+  row.text = [first, ...later].join('; ');
+  row.centredOn = [...route];
+  // The last stop's box must reach above the centred stops, or no route in them counts: start
+  // looking around the instant answer's own last stop when the box sits below it.
+  const last = route[route.length - 1];
+  const r = lastRange.value;
+  if (r && last > r[1]) lastBox.value = `${r[0]}-${Math.min(490, last + 20)}`;
 }
 
 /**
@@ -1031,6 +1164,8 @@ function suggestRow(k: number): void {
   row.text = sug.text;
   row.auto = true;
   row.restored = false;
+  row.centre = undefined;
+  row.centredOn = undefined;
 }
 
 /** Suggest a space's two sliders, per chain (the user, 4 Oct: separate by default, with an option to
@@ -1093,9 +1228,7 @@ function addChain(): void {
  */
 // Once per page load (lib/linkOnce.ts): coming back to this screen keeps what the player typed.
 const linkRequest =
-  typeof window !== 'undefined' && firstTime('by-date-link')
-    ? parseByDateRequest(window.location.search)
-    : null;
+  typeof window !== 'undefined' && firstTime('by-date-link') ? parseByDateRequest(window.location.search) : null;
 /** A request was applied on this mount: the boxes it left empty are filled when the save loads, and
  *  they are not reset for "another player" the way the kept boxes are. */
 const linked = ref(false);
@@ -1112,16 +1245,19 @@ function applyRequest(req: ByDateRequest): void {
     const own = a && SCIENCE_WIDTHS.includes(a.pm);
     const wi = a ? (own ? 0 : SPACE_WIDTHS.indexOf(a.pm)) : -1;
     const si = a ? SPACE_STEPS.indexOf(a.step) : -1;
+    const centre = req.centre?.[asc];
     return {
       asc,
       text: req.chains[asc] ?? '',
       ...(wi >= 0 && si >= 0 ? { widthIx: wi, stepIx: si, ...(own ? { pm: a.pm } : {}) } : {}),
+      ...(centre?.length && req.chains[asc] ? { centre: centre.map(c => ({ ...c })) } : {}),
     };
   });
   lastBox.value = req.last ?? '';
   suggestFrom.value = '';
   linked.value = true;
   fillLinked();
+  chains.value.forEach((row, k) => row.centre && centreRow(k));
 }
 /** Suggest the chains the request left without a box, once the save has said where you are. */
 function fillLinked(): void {
@@ -1202,54 +1338,75 @@ const spaceShapes = computed(() =>
 
 // ------------------------------------------------------------------ estimate and live progress
 
+/** Sets of early stops the run tries: the boxes plus the instant answer's sets outside them. */
+const plannedShapes = computed(() => (mode.value === 'space' ? spacePlan.value.sets : shapes.value));
 /**
- * Routes per set of early stops: the last stop is found by halving its range down to one TE, plus
- * a couple to step out and confirm -- log2(range) + 2. Measured: 8 a set over a 30-TE range.
- */
-/**
- * The span the last stop may be looked for in. Runs now go past the box when the answer is outside it
- * (deadline.ts `extend`), up to 490 and down to just above your TE, so that whole span is charged: a
- * box of one value used to be priced at 3 routes a set when the run took 10 or more.
- */
-const lastWidth = computed(() => Math.max(2, 490 - Math.floor(store.currentTE)));
-const PROBES = computed(() => Math.ceil(Math.log2(lastWidth.value)) + 2);
-const plannedShapes = computed(() => (mode.value === 'space' ? spaceShapes.value : shapes.value));
-/**
- * Picking the stops adds its seed pass and the homing in on top of the grid: about a fifth more.
- * Fewer sets than workers: each gets several guesses a round (deadline.ts `parallel`) -- more routes
- * in fewer rounds, so the time comes out as rounds rather than routes.
- */
-/**
- * Routes a set cost in this machine's last finished run over a big space (many sets, so one guess a
- * round), else the typical figure. A real 8,632-set run took ~4 a set, not ~11.
- */
-const rememberedPerSet = computed(() => (mode.value === 'space' ? store.deadlineRoutesPerSet : 0));
-const plannedRoutes = computed(() =>
-  plannedRoutesFor({
-    sets: plannedShapes.value,
-    workers: store.workerBudget,
-    currentTE: store.currentTE,
-    rememberedPerSet: rememberedPerSet.value,
-    picked: mode.value === 'auto',
-  })
-);
-/**
- * Seconds of one worker per route: this machine's own measure from its last deadline run, else the
- * typical figure for routes this long in players' runs. Charged through `sweepSeconds`, which counts
- * the workers ONCE (with their contention). It used to take Insane's `secondsPerChain`, which is
- * already wall-clock across the pool, and divide by the workers again: about 7x too short on 7.
+ * Seconds of one worker per LEG: this machine's own measure from its last deadline run, else the
+ * board's speed for chains this long. Charged through `legSeconds`, which counts the workers once
+ * (with their contention).
  */
 const longestChain = computed(() =>
   mode.value === 'space' ? Math.max(1, ...chains.value.map(r => Math.floor(r.asc) || 1)) : Math.max(1, maxStops.value)
 );
-const workerSecondsPerRoute = computed(() => store.deadlineWorkerSeconds || workerSecondsPerChain(longestChain.value));
-const secondsPerRoute = computed(() => sweepSeconds(1, store.workerBudget, workerSecondsPerRoute.value));
-const estimateLabel = computed(() =>
-  plannedRoutes.value
-    ? formatHours(sweepSeconds(plannedRoutes.value, store.workerBudget, workerSecondsPerRoute.value) / 3600)
-    : '—'
+const workerSecondsPerLeg = computed(
+  () => store.deadlineWorkerSeconds || fallbackWorkerSecondsPerLeg(longestChain.value)
 );
-const costLabel = computed(() => `${secondsPerRoute.value.toFixed(secondsPerRoute.value < 10 ? 2 : 1)} s`);
+/** The rows as the run reads them. */
+const spaceRows = computed(() => chains.value.map((row, k) => ({ asc: row.asc, bands: rowBands(k) })));
+/** Routes a set needed in this machine's last finished run over a space of this shape, or 0. */
+const rememberedPerSet = computed(() =>
+  store.deadlineRoutesPerSet(spaceRows.value.map(r => (r.asc <= 1 ? [] : r.bands.map(b => [...b]))))
+);
+/**
+ * The estimate, counted in legs (deadlineEstimate.ts `byDatePlan`): each set's first route simulates
+ * its early legs (shared with the sets that start the same way), every later route one leg. Routes per
+ * set from this machine's last run over a space of the same shape, else about 4.
+ */
+const spacePlan = computed(() =>
+  byDatePlan({
+    rows: spaceRows.value,
+    currentTE: store.currentTE,
+    lastHi: lastRange.value?.[1] ?? 0,
+    instantSets: instantSets.value,
+    workers: store.workerBudget,
+    rememberedPerSet: rememberedPerSet.value,
+    workerSecondsPerLeg: workerSecondsPerLeg.value,
+  })
+);
+/** The retired "pick them for me" mode's estimate (a run of it can still be carried on): routes, one
+ *  leg and a bit each. */
+const autoPlan = computed(() => {
+  const routes = plannedRoutesFor({
+    sets: shapes.value,
+    workers: store.workerBudget,
+    currentTE: store.currentTE,
+    picked: true,
+  });
+  const legs = Math.round(routes * 1.5);
+  return {
+    sets: shapes.value,
+    firstLegs: shapes.value * 2,
+    routes,
+    legs,
+    workerSecondsPerLeg: workerSecondsPerLeg.value,
+    seconds: (legs * workerSecondsPerLeg.value) / Math.max(1, store.workerBudget),
+  };
+});
+const plan = computed(() => (mode.value === 'space' ? spacePlan.value : autoPlan.value));
+const plannedRoutes = computed(() => plan.value.routes);
+const plannedLegs = computed(() => plan.value.legs);
+const secondsPerLeg = computed(() => (plan.value.legs ? plan.value.seconds / plan.value.legs : 0));
+/** ONE figure: before a run the plan's time, during it the store's legs left over the recent rate. */
+const timeLeft = computed(() => store.deadlineTimeLeft);
+const estimateLabel = computed(() => {
+  if (store.deadlineRunning) return timeLeft.value ? durationLabel(timeLeft.value.seconds) : '—';
+  return plannedLegs.value ? formatHours(plan.value.seconds / 3600) : '—';
+});
+/** The run's own first guess, quoted beside the live figure. */
+const firstGuessLabel = computed(() =>
+  timeLeft.value?.firstGuess ? formatHours(timeLeft.value.firstGuess / 3600) : ''
+);
+const costLabel = computed(() => `${secondsPerLeg.value.toFixed(secondsPerLeg.value < 10 ? 2 : 1)} s`);
 
 const runEstimate = ref(0);
 const now = ref(Date.now());
@@ -1278,11 +1435,8 @@ function durationLabel(sec: number): string {
   return `${(sec / 3600).toFixed(1)} h`;
 }
 const elapsedLabel = computed(() => durationLabel(elapsedSeconds.value));
-const remainingLabel = computed(() => {
-  if (liveDone.value < 5 || !estNow.value.total || liveDone.value >= estNow.value.total) return '';
-  const left = Math.max(0, estNow.value.total - liveDone.value) * (elapsedSeconds.value / liveDone.value);
-  return durationLabel(left);
-});
+/** The same figure as the box's (`estimateLabel` during a run). */
+const remainingLabel = computed(() => (timeLeft.value ? durationLabel(timeLeft.value.seconds) : ''));
 
 const startIssue = computed(() => {
   if (!deadline.value) return '';
@@ -1291,7 +1445,8 @@ const startIssue = computed(() => {
     if (!lastRange.value) return 'Give the last stop a range above your TE now.';
     const bad = chains.value.findIndex((_, k) => !!rowProblem(k));
     if (bad >= 0) return `Chain ${bad + 1}: ${rowProblem(bad)}`;
-    if (!spaceShapes.value) return 'No route in these chains goes up from your TE to the last stop.';
+    if (!spaceShapes.value && !instantSets.value.length)
+      return 'No route in these chains goes up from your TE to the last stop.';
     return '';
   }
   if (minStops.value > maxStops.value) return 'The fewest stops is more than the most.';
@@ -1415,6 +1570,8 @@ async function find(): Promise<void> {
   runEstimate.value = plannedRoutes.value;
   if (mode.value === 'space' && lastRange.value) {
     const counts = chains.value.map(r => Math.max(1, Math.floor(r.asc)));
+    // Kept with the run (not worked out again on a carry-on), so a saved run replays the same way.
+    const extra = instantSets.value.map(s => [...s]);
     await store.startDeadline(props.playerId, {
       deadline: deadline.value,
       minStops: Math.min(...counts),
@@ -1426,7 +1583,9 @@ async function find(): Promise<void> {
       estimate: plannedRoutes.value,
       extend: true,
       bandSets: chains.value.map((r, k) => (r.asc <= 1 ? [] : rowBands(k).map(b => [...b]))),
-      sets: spaceShapes.value,
+      ...(extra.length ? { instantSets: extra } : {}),
+      legPlan: { ...spacePlan.value },
+      sets: spacePlan.value.sets,
       rows: chains.value.map(r => ({ widthIx: rowWidthIx(r), stepIx: rowStepIx(r), auto: !!r.auto })),
     });
     return;
@@ -1441,6 +1600,7 @@ async function find(): Promise<void> {
     ascendNeeded: ascendNeeded.value,
     estimate: plannedRoutes.value,
     extend: true,
+    legPlan: { ...autoPlan.value },
   });
 }
 
@@ -1489,7 +1649,10 @@ async function share(): Promise<void> {
       shareMessage.value = 'Nothing to send yet.';
       return;
     }
-    const res = await store.sendSubmission(payload, shareCsv.value ? store.deadlineCsv({ diagnostics: diagnosticsGo.value }) : undefined);
+    const res = await store.sendSubmission(
+      withPrivateDiagnostics(store, payload, diagnosticsGo.value),
+      shareCsv.value ? store.deadlineCsv() : undefined
+    );
     shareOk.value = res.ok;
     if (res.ok) sentKey.value = resultKey.value;
     shareMessage.value = res.ok
@@ -1550,6 +1713,60 @@ function ago(ms: number): string {
   return h < 48 ? `${h} h ago` : `${Math.round(h / 24)} days ago`;
 }
 const best = computed(() => result.value?.routes[0] ?? null);
+
+/**
+ * Where the best route's stops sit on the lowest or highest value their box allows while the box
+ * could go further that way (search/bandCheck.ts `findBandEdges`, the Full sweep's check): a wider
+ * box may find a better route. The box is the chain of the run whose boxes hold every early stop of
+ * the best route; the instant answer's own route, outside every box, has none.
+ */
+const edgeBox = computed<{ row: number; bands: number[][] } | null>(() => {
+  const r = result.value as SavedDeadlineResult | null;
+  const b = best.value;
+  if (!r?.bandSets?.length || !b) return null;
+  const early = b.chain.slice(0, -1);
+  const row = r.bandSets.findIndex(set => set.length === early.length && early.every((v, i) => set[i].includes(v)));
+  return row >= 0 && early.length ? { row, bands: r.bandSets[row] } : null;
+});
+const edges = computed<BandEdge[]>(() => {
+  const box = edgeBox.value;
+  const b = best.value;
+  if (!box || !b || !result.value) return [];
+  return findBandEdges(box.bands, b.chain, { currentTE: result.value.te, finalTE: b.chain[b.chain.length - 1] });
+});
+const ORDINAL = ['1st', '2nd', '3rd'];
+function edgeText(e: BandEdge): string {
+  const nth = ORDINAL[e.band - 1] ?? `${e.band}th`;
+  return `Your best route's ${nth} stop (${e.value}) is the ${e.side === 'low' ? 'lowest' : 'highest'} value its box allows; a wider box may find better.`;
+}
+/** The box widened on those edges, and which chain row it goes in: the same row when its box is still
+ *  the run's, else the first row with that many ascensions. */
+const edgeWiden = computed<{ row: number; text: string } | null>(() => {
+  const box = edgeBox.value;
+  if (!box || !edges.value.length || !result.value) return null;
+  const text = widenEdges(box.bands, edges.value, { currentTE: result.value.te, finalTE: 490 });
+  if (!text) return null;
+  const asc = box.bands.length + 1;
+  const same = (k: number) => formatBands(rowBands(k)) === formatBands(box.bands);
+  let row = chains.value.findIndex((r, k) => r.asc === asc && same(k));
+  if (row < 0) row = chains.value.findIndex(r => r.asc === asc);
+  return row >= 0 ? { row, text } : null;
+});
+const formatBands = (bands: number[][]) => bands.map(b => formatBand(b)).join('; ');
+/** Widen the box on its edge and run again. Routes in both spaces are priced again: a By a date run
+ *  does not carry another run's routes over. */
+async function widenAndRun(): Promise<void> {
+  const w = edgeWiden.value;
+  if (!w || store.busy) return;
+  const row = chains.value[w.row];
+  row.text = w.text;
+  row.auto = false;
+  row.restored = false;
+  row.centre = undefined;
+  row.centredOn = undefined;
+  await nextTick();
+  if (canStart.value) await start(false);
+}
 const atCeiling = computed(
   () => !!best.value && best.value.chain[best.value.chain.length - 1] >= (result.value!.ceiling ?? result.value!.lastHi)
 );

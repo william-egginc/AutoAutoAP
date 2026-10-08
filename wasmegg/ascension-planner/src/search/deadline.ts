@@ -100,6 +100,13 @@ export interface DeadlineSpec {
    * awake moment under their schedule. Absent: reaching it is enough.
    */
   ascendAt?: (reachUnix: number) => number;
+  /**
+   * Routes per call to `evaluate` (default `max(1024, 64 x parallel)`). Only how the work is handed
+   * to the workers: the routes tried, their order and the answer are the same at any size (a spec
+   * checks that against the old 64). It used to be 64, and every batch waited for its slowest worker
+   * before the next was sent, so the workers sat idle a third of the time and more.
+   */
+  chunk?: number;
 }
 
 export interface DeadlineRoute {
@@ -127,8 +134,19 @@ export interface DeadlineProgress {
 }
 
 export interface DeadlineCallbacks {
-  /** Price a batch. Chains that cannot be evaluated are simply absent from the result. */
-  evaluate(chains: number[][]): Promise<ChainResult[]>;
+  /**
+   * Price a batch. Chains that cannot be evaluated are simply absent from the result.
+   *
+   * `onResult`, when the evaluator calls it, streams each chain as it is priced (null: it could not
+   * be evaluated). It only feeds the live table; the answer is still worked out from the batch, in
+   * the batch's own order. It also says which chains were reached when a stop cut the batch short:
+   * if `shouldStop` is true when the batch returns, a chain neither returned nor streamed was never
+   * priced, and is left for a carry-on rather than counted as unreachable.
+   */
+  evaluate(
+    chains: number[][],
+    onResult?: (chain: number[], result: ChainResult | null) => void
+  ): Promise<ChainResult[]>;
   onProgress?(p: DeadlineProgress): void;
   shouldStop?(): boolean;
 }
@@ -355,7 +373,7 @@ export async function runDeadlineSearch(spec: DeadlineSpec, cb: DeadlineCallback
       best,
       open: openNow,
       shapes: shapesNow,
-      top: rank([...found.values()]).slice(0, 10),
+      top: rank(streamed.size ? [...found.values(), ...streamed.values()] : [...found.values()]).slice(0, 10),
       ...(learnNow ? { learn: { ...learnNow } } : {}),
     });
 
@@ -373,6 +391,11 @@ export async function runDeadlineSearch(spec: DeadlineSpec, cb: DeadlineCallback
     return { chain: [...res.chain], reachAt, ascendAt: at, spare: spec.deadline - at, legs: res.legs };
   }
 
+  /** Routes streamed in from the batch in flight, for the live table only (see `evaluate`). */
+  const streamed = new Map<string, DeadlineRoute>();
+  let streamedAt = 0;
+  const CHUNK = Math.max(1, Math.floor(spec.chunk ?? Math.max(1024, 64 * Math.max(1, Math.floor(spec.parallel ?? 1)))));
+
   async function price(chains: number[][]): Promise<void> {
     const todo = chains.filter(c => !cache.has(c.join(',')));
     // Depth-first, so siblings sharing early stops sit together and the prefix memo hits.
@@ -383,25 +406,48 @@ export async function runDeadlineSearch(spec: DeadlineSpec, cb: DeadlineCallback
       }
       return 0;
     });
-    const CHUNK = 64;
     for (let i = 0; i < todo.length; i += CHUNK) {
       if (cb.shouldStop?.()) {
         stoppedEarly = true;
         return;
       }
       const slice = todo.slice(i, i + CHUNK);
-      const results = await cb.evaluate(slice);
+      const reached = new Map<string, ChainResult | null>();
+      streamed.clear();
+      const results = await cb.evaluate(slice, (c, r) => {
+        const key = c.join(',');
+        reached.set(key, r);
+        const route = r && routeOf(r);
+        if (route) streamed.set(key, route);
+        // The live table, at most once a second: ranking every route found is not free.
+        const t = Date.now();
+        if (t - streamedAt >= 1000) {
+          streamedAt = t;
+          report();
+        }
+      });
+      streamed.clear();
+      // Cut short by a stop: what was not reached is left unpriced (see `evaluate`).
+      const cut = !!cb.shouldStop?.();
       const got = new Map(results.map(r => [r.chain.join(','), r]));
+      // In the batch's own order, whatever order the routes came back in: `best` keeps the first of
+      // two equal routes, so the order is part of the answer.
       for (const c of slice) {
         const key = c.join(',');
-        const r = got.get(key) ?? null;
-        cache.set(key, r);
+        const r = got.get(key) ?? reached.get(key);
+        if (r === undefined && cut) continue;
+        cache.set(key, r ?? null);
         priced++;
         const route = r && routeOf(r);
         if (route) {
           found.set(key, route);
           if (better(route, best)) best = route;
         }
+      }
+      if (cut) {
+        stoppedEarly = true;
+        report();
+        return;
       }
       // After every batch, not just every round: a round over thousands of shapes is many batches,
       // and a counter stuck at 0 for ten minutes reads as a hang.

@@ -121,7 +121,11 @@ describe('dataNeeds', () => {
     const req = byDateRequestFor(asks[0].byDate!, 180);
     expect(req.asc).toEqual([1, 2, 3, 4]);
     expect(req.chains[2]).toBe('181-220:1');
-    expect(req.chains[3]).toBe('181-220:1; 195-250:2');
+    // Reaching down to 180 now (fitted above the first box's start): without an instant answer the
+    // later boxes are this wide; with one they are centred on its route (`centre`).
+    expect(req.chains[3]).toBe('181-220:1; 181-250:2');
+    expect(req.chains[4]).toBe('181-220:1; 181-250:5; 205-295:10');
+    expect(req.centre).toEqual({ 3: [{ pm: 28, step: 2 }], 4: [{ pm: 25, step: 5 }, { pm: 30, step: 10 }] });
     expect(req.last).toBe('195-330');
     // A TE past the second box: nothing at or below it.
     const high = byDateRequestFor(asks[0].byDate!, 240);
@@ -138,19 +142,21 @@ describe('dataNeeds', () => {
     const desktop = COMPUTE_TIERS.find(t => t.id === 'desktop')!;
     const by = Object.fromEntries(dataNeeds([]).filter(d => d.group === 'bydate').map(d => [d.id, d.byDate!]));
     expect(Object.keys(by)).toEqual(['bydate-1-4', 'bydate-5', 'bydate-6']);
-    expect(byDateSets(by['bydate-1-4'], 180).map(c => c.sets)).toEqual([1, 40, 938, 2433]);
+    // 3 and 4 ascensions: the larger of the wide boxes and the centred ones (40 x 29, 40 x 11 x 7).
+    expect(byDateSets(by['bydate-1-4'], 180).map(c => c.sets)).toEqual([1, 40, 1160, 3080]);
     // Every stop at every TE: (2*pm+1)^(n-1) sets.
     expect(byDateSets(by['bydate-5'], 180)[0].sets).toBe(7 ** 4);
     expect(byDateSets(by['bydate-6'], 180)[0].sets).toBe(5 ** 5);
     const hours = (id: string) => byDateSeconds(by[id], 180, desktop.workers) / 3600;
-    // Hours on a desktop at TE 180 with the 7 Oct 2026 worker-seconds (1-4: 8.4 h, 5: 6.8 h, 6: 9.6 h).
-    expect(hours('bydate-1-4')).toBeGreaterThan(8);
-    expect(hours('bydate-1-4')).toBeLessThan(9);
-    expect(hours('bydate-5')).toBeGreaterThan(6.5);
-    expect(hours('bydate-5')).toBeLessThan(7.5);
-    expect(hours('bydate-6')).toBeGreaterThan(9);
-    expect(hours('bydate-6')).toBeLessThan(10);
-    expect(byDateWiderText(by['bydate-6'], 180, desktop.workers)).toMatch(/^±3 would take about \d+(\.\d)? days\.$/);
+    // Hours on a desktop at TE 180, counted in legs as the panel counts them (8 Oct 2026: 1-4 4.1 h,
+    // 5 2.6 h, 6 3.8 h; by routes they read 8.4, 6.8 and 9.6, 2-3x long).
+    expect(hours('bydate-1-4')).toBeGreaterThan(3.6);
+    expect(hours('bydate-1-4')).toBeLessThan(4.6);
+    expect(hours('bydate-5')).toBeGreaterThan(2.2);
+    expect(hours('bydate-5')).toBeLessThan(3);
+    expect(hours('bydate-6')).toBeGreaterThan(3.3);
+    expect(hours('bydate-6')).toBeLessThan(4.2);
+    expect(byDateWiderText(by['bydate-6'], 180, desktop.workers)).toMatch(/^±3 would take about \d+(\.\d)? (hours|days)\.$/);
   });
 
   it('always asks for gear without a table, listing the gear that has one', () => {

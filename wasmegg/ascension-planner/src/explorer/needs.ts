@@ -16,7 +16,7 @@
  */
 import { countBanded, parseBands } from '@/search/exhaustive';
 import { sweepSeconds, workerSecondsPerChain } from '@/search/speed';
-import { plannedRoutes } from '@/search/deadlineEstimate';
+import { byDatePlan, fallbackWorkerSecondsPerLeg } from '@/search/deadlineEstimate';
 import { countBandShapes as countStopShapes } from '@/search/deadline';
 import { groupByAccount, gearOf, isProof } from './analysis';
 import type { CollectorRow } from './collector';
@@ -136,6 +136,10 @@ export interface ByDateAsk {
   /** Around the panel's own suggestion, per count: TE either side of each stop, and the step between
    *  them (later stops; the first is always every TE). Both must be on the By a date sliders. */
   around?: Record<number, { pm: number; step: number }>;
+  /** Centre the boxes after the first on the instant answer's route for that count, when the panel
+   *  has one (byDateRequest.ts `centre`): each later box's TE either side and step. `chainBoxes` is
+   *  then the first box, and every box when there is no instant answer. */
+  centre?: Record<number, { pm: number; step: number }[]>;
   /** A wider width to quote the cost of, "+-N would take about X days" (a slider value). */
   altPm?: number;
   /** Plain words about what the run covers, for the card. */
@@ -167,12 +171,12 @@ function finished490(r: CollectorRow): boolean {
 /** Every run so far started at TE 124 or more. Below this, the shape is a guess. */
 const LOW_TE = 125;
 
-const slot = (
-  role: GearSlot['role'],
-  family: GearFamily,
-  tier: number,
-  rarity: GearRarity
-): GearSlot => ({ family, tier, rarity, role });
+const slot = (role: GearSlot['role'], family: GearFamily, tier: number, rarity: GearRarity): GearSlot => ({
+  family,
+  tier,
+  rarity,
+  role,
+});
 const earn = (r: [GearRarity, GearRarity, GearRarity, GearRarity]): GearSlot[] => [
   slot('earnings', 'demeters_necklace', 4, r[0]),
   slot('earnings', 'tungsten_ankh', 4, r[1]),
@@ -286,15 +290,20 @@ const GEAR_ASKS: Omit<DataNeed, 'preset' | 'runs' | 'have' | 'group'>[] = [
 ];
 
 /**
- * The Highest TE by a date asks, sized as "start it in the morning, come back at night": about 7 to 10
- * hours on a desktop (8 cores) at TE 180 (8.4, 6.8 and 9.6 h at the 7 Oct 2026 speeds), by the same speed model as the other cards (`byDateSets`,
- * `byDateSeconds`). Nothing here is detected from the rows: they stay listed.
+ * The Highest TE by a date asks, sized as "start it in the morning, come back by evening" on a desktop
+ * (8 cores) at TE 180: about 4.1, 2.6 and 3.8 hours by the panel's own estimate (`byDateSets`,
+ * `byDateSeconds`), which counts legs, not routes, since 8 Oct 2026 (by routes they read 8.4, 6.8
+ * and 9.6 h, 2-3x long). Nothing here is detected from the rows: they stay listed.
  *
- * Why these widths. 1 to 4 ascensions is one card (4 ascensions on the 195-250 / 230-295 boxes at every
- * 2nd / 3rd TE would be 19,036 sets, 66 h, so it is thinned to every 5th / 10th: 2,433). 5 and 6 are one
- * card each (7 and 8 were cut by the user, 7 Oct: at every TE they only fit at +-1), every stop at every TE around the panel's suggestion, so the sets are (2*pm+1)^(n-1) and
- * the width is the widest that stays near a day: 5 at +-3 is 2,401 sets, 6 at +-2 is 3,125. The model's hours are in needs.spec.ts; they do not all land in one band because
- * a width is a whole number of TE.
+ * Why these widths. 1 to 4 ascensions is one card: the first stop at every TE 1 to 40 above yours,
+ * and the stops after it centred on the instant answer's route for that count (about as wide as the
+ * old 195-250 / 230-295 boxes), or, with no instant answer, 180-250 and 205-295 every 2nd TE for 3
+ * and every 5th / 10th for 4. The old boxes started at 195 and 230, and a player at TE ~150 had his
+ * best 3rd stop at 230, their bottom edge, with the instant answer's 217 not in them at all
+ * (Halceyx, 8 Oct). 5 and 6 are one card each (7 and 8 were cut by the user, 7 Oct), every stop at
+ * every TE around the panel's suggestion (the instant answer's route when it has one), so the sets
+ * are (2*pm+1)^(n-1): 5 at +-3 is 2,401 sets, 6 at +-2 is 3,125. The model's hours are in
+ * needs.spec.ts.
  */
 function byDateNeeds(): DataNeed[] {
   const base = { who: 'anyone', have: 0, want: 1, runs: 1, preset: '', group: 'bydate' as const };
@@ -307,14 +316,26 @@ function byDateNeeds(): DataNeed[] {
       byDate: {
         asc: [1, 2, 3, 4],
         eggDay: true,
+        // Without an instant answer for the count, the later boxes reach further down than they did
+        // (180 and 205, not 195 and 230): a player at TE ~150 had his best 3rd stop at 230, the bottom
+        // of the old box, and the instant answer's 217 was not in it at all (Halceyx, 8 Oct).
         chainBoxes: {
           2: '+1-+40:1',
-          3: '+1-+40:1; 195-250:2',
-          4: '+1-+40:1; 195-250:5; 230-295:10',
+          3: '+1-+40:1; 180-250:2',
+          4: '+1-+40:1; 180-250:5; 205-295:10',
+        },
+        // With one, the boxes after the first are centred on its route instead, about as wide as the
+        // old boxes, so the run looks around the answer it is checking.
+        centre: {
+          3: [{ pm: 28, step: 2 }],
+          4: [
+            { pm: 25, step: 5 },
+            { pm: 30, step: 10 },
+          ],
         },
         last: '195-330',
         summary:
-          'Your first stop at every TE from 1 to 40 above yours, then 195 to 250 and 230 to 295 (every 2nd TE for 3 ascensions, every 5th and 10th for 4, which would be 66 hours at every 2nd and 3rd).',
+          "Your first stop at every TE from 1 to 40 above yours. The stops after it are centred on the instant answer's route for that count (±28 TE every 2nd TE for 3 ascensions; ±25 every 5th and ±30 every 10th for 4), or, where there is no instant answer, 180 to 250 and 205 to 295. The instant answer's own route is always tried too.",
       },
     },
     {
@@ -348,21 +369,77 @@ function byDateNeeds(): DataNeed[] {
   ];
 }
 
-/** Sets of early stops each count of a By a date ask tries from this TE: counted from the boxes where
- *  there are some, else the most there can be around the suggestion (the first stop at every TE, each
- *  later one 2*floor(pm/step)+1 values; overlapping routes make it fewer). */
+/** Values a box `lo-hi:step` (or `+a-+b:step`) holds. */
+function boxValues(text: string): number {
+  const m = text.trim().match(/^\+?(\d+)\s*-\s*\+?(\d+)(?::(\d+))?$/);
+  if (!m) return 1;
+  return Math.floor((Number(m[2]) - Number(m[1])) / (m[3] ? Number(m[3]) : 5)) + 1;
+}
+
+/**
+ * Sets of early stops each count of a By a date ask tries from this TE: counted from the boxes where
+ * there are some, else the most there can be around the suggestion (the first stop at every TE, each
+ * later one 2*floor(pm/step)+1 values; overlapping routes make it fewer). A count whose later boxes
+ * are centred on the instant answer (`centre`) is charged the larger of the two spaces it may run,
+ * centred or not, so the card's time is never the smaller guess.
+ */
 export function byDateSets(ask: ByDateAsk, currentTE: number): { asc: number; sets: number }[] {
   const req = byDateRequestFor(ask, currentTE);
   return ask.asc.map(asc => {
     if (asc <= 1) return { asc, sets: 1 };
     const text = req.chains[asc];
     if (text) {
-      const bands = parseBands(text.split(';').map(b => b.trim()).join(';'));
-      return { asc, sets: countStopShapes(bands, currentTE, 490) };
+      const bands = parseBands(
+        text
+          .split(';')
+          .map(b => b.trim())
+          .join(';')
+      );
+      const boxed = countStopShapes(bands, currentTE, 490);
+      const c = ask.centre?.[asc];
+      const centred = c?.length
+        ? boxValues(text.split(';')[0]) * c.reduce((n, x) => n * (2 * Math.floor(x.pm / x.step) + 1), 1)
+        : 0;
+      return { asc, sets: Math.max(boxed, centred) };
     }
     const a = ask.around?.[asc];
     if (!a) return { asc, sets: 0 };
     return { asc, sets: (2 * a.pm + 1) * (2 * Math.floor(a.pm / a.step) + 1) ** Math.max(0, asc - 2) };
+  });
+}
+
+/**
+ * The boxes a count of an ask runs on, for counting its legs: the card's own where it has them, else
+ * the suggestion's shape around an evenly spaced route (the first stop at every TE within `pm`, each
+ * later one `pm` either side at its step). Where the shared legs fall is what matters, not the TEs.
+ */
+function byDateRows(ask: ByDateAsk, currentTE: number): { asc: number; bands: number[][] }[] {
+  const req = byDateRequestFor(ask, currentTE);
+  const te = Math.floor(currentTE);
+  return ask.asc.map(asc => {
+    if (asc <= 1) return { asc, bands: [] };
+    const text = req.chains[asc];
+    if (text)
+      return {
+        asc,
+        bands: parseBands(
+          text
+            .split(';')
+            .map(b => b.trim())
+            .join(';')
+        ),
+      };
+    const a = ask.around?.[asc] ?? { pm: 3, step: 1 };
+    const top = Math.min(470, te + 160);
+    const bands = Array.from({ length: asc - 1 }, (_, i) => {
+      const stop = i === 0 ? te + 1 + a.pm : Math.round(te + ((top - te) * (i + 1)) / asc);
+      const step = i === 0 ? 1 : a.step;
+      const reach = i === 0 ? a.pm : Math.floor(a.pm / a.step) * a.step;
+      const out: number[] = [];
+      for (let v = stop - reach; v <= stop + reach; v += step) if (v > te) out.push(v);
+      return out;
+    });
+    return { asc, bands };
   });
 }
 
@@ -383,19 +460,32 @@ export function byDateWiderText(
   return `±${ask.altPm} would take about ${days < 1.5 ? `${Math.round(hours)} hours` : `${days.toFixed(days < 10 ? 1 : 0)} days`}.`;
 }
 
-/** Seconds a By a date ask takes on a machine with `workers` workers: the panel's own route estimate
- *  (`plannedRoutes`) for each count, at the board's worker-seconds per route for that length. */
+/**
+ * Seconds a By a date ask takes on a machine with `workers` workers, by the panel's own estimate
+ * (deadlineEstimate.ts `byDatePlan`, counted in legs) for each count, at the board's worker-seconds
+ * for that length. A count charged for more sets than its boxes hold (`byDateSets`, a centred space
+ * that may be the bigger one) has its legs scaled up to match.
+ */
 export function byDateSeconds(
   ask: ByDateAsk,
   currentTE: number,
   workers: number,
   measured?: Map<number, { seconds: number }>
 ): number {
+  const sets = byDateSets(ask, currentTE);
+  const rows = byDateRows(ask, currentTE);
   let total = 0;
-  for (const { asc, sets } of byDateSets(ask, currentTE)) {
-    const routes = plannedRoutes({ sets, workers, currentTE });
-    total += sweepSeconds(routes, workers, workerSecondsPerChain(asc, measured));
-  }
+  rows.forEach((row, i) => {
+    const plan = byDatePlan({
+      rows: [row],
+      currentTE,
+      lastHi: 490,
+      workers,
+      workerSecondsPerLeg: fallbackWorkerSecondsPerLeg(row.asc, measured),
+    });
+    const scale = plan.sets ? Math.max(1, (sets[i]?.sets ?? 0) / plan.sets) : 1;
+    total += plan.seconds * scale;
+  });
   return total;
 }
 
@@ -588,6 +678,8 @@ export function byDateRequestFor(ask: ByDateAsk, currentTE: number): ByDateReque
     req.last = `${Math.min(top, Math.max(lo, Math.floor(currentTE) + 2))}-${top}`;
   }
   if (ask.around) req.around = { ...ask.around };
+  if (ask.centre)
+    req.centre = Object.fromEntries(Object.entries(ask.centre).map(([n, c]) => [n, c.map(x => ({ ...x }))]));
   return req;
 }
 

@@ -192,10 +192,13 @@ describe('By a date suggestions', () => {
       { asc: 1, bands: [] },
     ];
     expect(countSpaceShapes(rows, 137, 300)).toBe(4 + 1);
-    // The panel's figure for a big space: one guess a round, log2(span) + 2 routes a set.
-    expect(plannedRoutes({ sets: 100, workers: 7, currentTE: 137 })).toBe(100 * (Math.ceil(Math.log2(353)) + 2));
-    // A remembered routes-per-set replaces it while a set gets one guess a round.
-    expect(plannedRoutes({ sets: 8632, workers: 7, currentTE: 137, rememberedPerSet: 4 })).toBe(8632 * 4);
+    // The panel's figure for a big space: the first look brackets 24 sets from scratch (log2(span) + 2
+    // each), and every other set starts next to the answer, about 4 (measured; the old log2(span) + 2
+    // for every set was about 2.5x too many).
+    const full = Math.ceil(Math.log2(353)) + 2;
+    expect(plannedRoutes({ sets: 100, workers: 7, currentTE: 137 })).toBe(24 * full + 76 * 4);
+    // A remembered routes-per-set replaces the 4 while a set gets one guess a round.
+    expect(plannedRoutes({ sets: 8632, workers: 7, currentTE: 137, rememberedPerSet: 4.5 })).toBe(Math.round(24 * full + 8608 * 4.5));
     // Fewer sets than workers: several guesses a round.
     expect(plannedRoutes({ sets: 2, workers: 8, currentTE: 137 })).toBe(2 * 4 * (Math.ceil(Math.log(353) / Math.log(5)) + 1));
     expect(plannedRoutes({ sets: 0, workers: 8, currentTE: 137 })).toBe(0);

@@ -493,3 +493,54 @@ describe('workerHeaps', () => {
     pool.terminate();
   });
 });
+
+describe('a dealt batch (workerOf)', () => {
+  const chains = Array.from({ length: 12 }, (_, i) => [150 + i, 300]);
+
+  it("sends each worker its own chains a piece at a time and streams every chain's result", async () => {
+    const pool = await createChainSearchPool(INPUTS, { size: 3, spawn: () => new FakeWorker() as never });
+    const streamed: string[] = [];
+    let legs = 0;
+    const out = await pool.evaluate(chains, undefined, {
+      workerOf: cs => cs.map((_, i) => i % 3),
+      piece: 2,
+      onResult: (c, r) => streamed.push(`${c.join(',')}:${r ? r.seconds : 'x'}`),
+      onLegs: n => (legs += n),
+    });
+    expect(out.results).toHaveLength(12);
+    expect(out.unpriced).toEqual([]);
+    expect(out.workersUsed).toBe(3);
+    expect(streamed).toHaveLength(12);
+    expect(legs).toBe(out.legSims);
+    pool.terminate();
+  });
+
+  it('sends no more pieces once told to stop, and lists what it never sent', async () => {
+    const pool = await createChainSearchPool(INPUTS, { size: 1, spawn: () => new FakeWorker() as never });
+    let sent = 0;
+    const out = await pool.evaluate(chains, undefined, {
+      workerOf: cs => cs.map(() => 0),
+      piece: 4,
+      onResult: () => sent++,
+      shouldStop: () => sent >= 4,
+    });
+    expect(out.results).toHaveLength(4);
+    expect(out.unpriced).toHaveLength(8);
+    pool.terminate();
+  });
+
+  it('lets a worker with nothing left take the last pieces of a busy one', async () => {
+    const pool = await createChainSearchPool(INPUTS, { size: 2, spawn: () => new FakeWorker() as never });
+    // Worker 0 gets everything and sits on its first piece; worker 1 is dealt nothing.
+    await pool.evaluate([[1, 2]], undefined, { spreadOut: true });
+    FakeWorker.instances[0].mode = 'hold';
+    const done = pool.evaluate(chains, undefined, { workerOf: cs => cs.map(() => 0), piece: 3 });
+    await vi.advanceTimersByTimeAsync(0);
+    FakeWorker.instances[0].release();
+    const out = await done;
+    expect(out.results).toHaveLength(12);
+    // Worker 1 took pieces: the batch used both.
+    expect(out.workersUsed).toBe(2);
+    pool.terminate();
+  });
+});

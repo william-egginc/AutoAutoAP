@@ -46,7 +46,7 @@ export const NAMES = {
   check: 'What we need to check',
   submit: 'Submit a sweep',
   classic: 'Your plan',
-  fastest: 'Fastest to 490',
+  fastest: 'Fastest to 490 TE',
   byDate: 'Highest TE by a date',
   smart: 'Smart search',
   full: 'Full sweep',

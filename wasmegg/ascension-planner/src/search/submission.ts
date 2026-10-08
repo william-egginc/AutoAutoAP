@@ -373,6 +373,10 @@ export interface Submission {
   sweep?: SweepTag;
   /** The machine the run was on. The browser cannot report RAM honestly, so the player types it. */
   machine?: MachineInfo;
+  /** "Also send diagnostics": the black box summary (search/blackBox.ts), added to the POST body by
+   *  search/sendRun.ts `withPrivateDiagnostics`. The collector does NOT put it on the row: it keeps it
+   *  privately under `extra:<id>` and never serves it. Absent unless the player ticked the box. */
+  diagnostics?: Record<string, unknown>;
   /** `upload` when the Chain Explorer built this from a CSV plus diagnostics; absent from the planner. */
   source?: 'upload';
   /** Why this run belongs on the flagged board (search/rules.ts). Absent means the main board. */

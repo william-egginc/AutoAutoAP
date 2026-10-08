@@ -6,8 +6,8 @@
  *  - `sendCsv` is remembered per browser (localStorage). Unticking it is a choice worth keeping.
  *  - `sendDiagnostics` starts unticked on every visit, unless the player ticked "Tick this by default
  *    from now on" (`diagnosticsByDefault`, remembered per browser): then it starts ticked.
- *  - Diagnostics travel in the CSV's header comments (the collector keeps no field for them), so they
- *    can only go with the CSV: `diagnosticsGo` is false while the CSV box is unticked.
+ *  - Diagnostics go as a private field of the submission body, not in the CSV (which is public), so
+ *    they do not depend on the CSV box. `diagnosticsGo` is just `sendDiagnostics`.
  *
  * Storage is wrapped in try/catch everywhere: private windows and blocked site data throw.
  */
@@ -53,7 +53,7 @@ export interface ShareExtras {
   sendDiagnostics: Ref<boolean>;
   /** "Tick this by default from now on". */
   diagnosticsByDefault: Ref<boolean>;
-  /** Diagnostics will really be sent: ticked, and the CSV they ride in is going. */
+  /** Diagnostics will really be sent (same as `sendDiagnostics`; kept for the screens that read it). */
   diagnosticsGo: Ref<boolean>;
 }
 
@@ -67,7 +67,7 @@ export function createShareExtras(storage: StorageLike | null = defaultStorage()
     sendCsv,
     sendDiagnostics,
     diagnosticsByDefault,
-    diagnosticsGo: computed(() => sendCsv.value && sendDiagnostics.value),
+    diagnosticsGo: computed(() => sendDiagnostics.value),
   };
 }
 

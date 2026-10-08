@@ -22,7 +22,8 @@ import { hashID } from '@/lib/storage/db';
 import { runChainSearch, type CacheEntry } from '@/search/driver';
 import { findStartingChain, planCoarseGrid } from '@/search/coarse';
 import { createChainSearchPool, type ChainSearchPool } from '@/search/pool';
-import { timeWeightedWorkers, workerSecondsFromRate } from '@/search/speed';
+import { contention, timeWeightedWorkers, workerSecondsFromRate } from '@/search/speed';
+import { createStickyDealer } from '@/search/stickyDealer';
 import { hardwareThreads, maxPoolSize, clampPoolSize, targetWorkerCount } from '@/search/batch';
 import { describeRunError } from '@/utils/errors';
 import { loadChainBenchmark, saveChainBenchmark } from '@/lib/chainBenchmarkCache';
@@ -96,6 +97,7 @@ import {
   loadDeadlineCheckpoint,
   loadDeadlineResult,
   replayingEvaluator,
+  runBandSets,
   saveDeadlineCheckpoint,
   saveDeadlineResult,
   listSavedAnswers,
@@ -111,7 +113,14 @@ import {
 import { missedMilestones, usableMilestones, type Milestone } from '@/search/milestones';
 import { defaultSeedChain, seedChainIssue, seedTidied, usableCheckpoints, fitSeedToLimits } from '@/search/seedChain';
 import { buildPool, exhaustiveChainsWithGap, bandedChains, sortByPrefix } from '@/search/exhaustive';
-import { estimateRoutes, usableRatio, type SetsLearned } from '@/search/deadlineEstimate';
+import {
+  estimateRoutes,
+  legsLeft,
+  recentLegRate,
+  spaceShapeKey,
+  usableRatio,
+  type SetsLearned,
+} from '@/search/deadlineEstimate';
 import { applyLegBudget, estimateLegBytes } from '@/search/legBudget';
 import { summariseEpicResearch, summariseColleggtibles } from '@/search/progression';
 import { reviewContext, reviewLegs, reviewSetup, TE_MISMATCH_TOLERANCE, type HealthIssue } from '@/search/health';
@@ -743,7 +752,13 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       if (deadlineResizeTimer) clearTimeout(deadlineResizeTimer);
       deadlineResizeTimer = setTimeout(() => {
         deadlineResizeTimer = null;
-        deadlinePool?.resize(targetWorkers.value);
+        if (!deadlinePool) return;
+        // The worker clock, as for the other runs: what a run cost is its time-weighted worker count.
+        const after = deadlinePool.resize(targetWorkers.value);
+        if (after !== workersInPool.value) {
+          bankWorkerTime();
+          workersInPool.value = after;
+        }
       }, 400);
     }
     if (!pool || !isRunning.value) return;
@@ -4036,6 +4051,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     };
     deadlineStartedAt.value = Date.now();
     deadlineInBatch.value = 0;
+    deadlineLegSims.value = 0;
+    deadlineLegSamples.value = [];
+    deadlineLegPlan.value = spec.legPlan ?? null;
+    deadlineSets.value = spec.legPlan?.sets ?? spec.sets ?? 0;
     deadlineAll = [];
     holdRunLock();
     void holdScreenLock();
@@ -4067,21 +4086,40 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       pool = await createChainSearchPool(inputs, { size: workerBudget.value });
       deadlinePool = pool;
       if (targetWorkers.value < workerBudget.value) pool.resize(targetWorkers.value);
+      // The worker clock (the other runs have had it all along): seconds per leg is recorded at the
+      // run's time-weighted worker count, not whatever the slider said at the end.
+      workersInPool.value = pool.size;
+      startWorkerClock();
       const workers = pool;
-      // Sticky on the route's shape: each round re-probes the same shapes with new last stops, and
-      // only the worker that priced a shape before still has its early legs in memory.
-      const replay = replayingEvaluator(async chains => {
-        // Counted as each route finishes, not per batch: a batch of 64 on a slow machine is minutes,
-        // and a counter stuck at 0 that long reads as a hang.
-        // Many shapes: each back to the worker that knows it. A handful, each with several guesses at
-        // its last stop (deadline.ts `parallel`): every guess on its own worker, or one worker gets
-        // them all and the rest wait.
-        const shapes = new Set(chains.map(c => c.slice(0, -1).join(','))).size;
-        const opts = shapes >= workers.size ? { stickyDepth: -1 } : { spreadOut: true };
-        const r = await workers.evaluate(chains, done => (deadlineInBatch.value = done), opts);
-        deadlineInBatch.value = 0;
-        return r.results;
-      }, seed);
+      // Who prices which route (search/stickyDealer.ts): evenly, and each set back to the worker that
+      // has its early legs in memory. One dealer for the run, so it remembers across rounds.
+      const dealer = createStickyDealer();
+      const replay = replayingEvaluator(
+        async (chains, onResult) => {
+          // Many sets: dealt evenly and stickily, a few routes at a time per worker, streamed back.
+          // A handful, each with several guesses at its last stop (deadline.ts `parallel`): every
+          // guess on its own worker, or one worker gets them all and the rest wait.
+          const shapes = new Set(chains.map(c => c.slice(0, -1).join(','))).size;
+          const dealt = shapes >= workers.size;
+          const r = dealt
+            ? await workers.evaluate(chains, done => (deadlineInBatch.value = done), {
+                workerOf: (cs, n) => dealer.deal(cs, n),
+                onResult: (c, res) => {
+                  onResult?.(c, res);
+                  // A checkpoint inside a long batch too (at most every 30 s, as before).
+                  void checkpoint(replay);
+                },
+                onLegs: n => (deadlineLegSims.value += n),
+                shouldStop: () => deadlineStop,
+              })
+            : await workers.evaluate(chains, done => (deadlineInBatch.value = done), { spreadOut: true });
+          if (!dealt) deadlineLegSims.value += r.legSims;
+          deadlineInBatch.value = 0;
+          return r.results;
+        },
+        seed,
+        () => deadlineStop
+      );
       replayed = replay;
       const out = await runDeadlineSearch(
         {
@@ -4098,26 +4136,39 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           parallel: spec.parallel ?? 1,
           ...(spec.extend ? { extend: true } : {}),
           ...(spec.bands?.length ? { bands: spec.bands } : {}),
-          ...(spec.bandSets?.length ? { bandSets: spec.bandSets } : {}),
+          ...(spec.bandSets?.length ? { bandSets: runBandSets(spec) } : {}),
           ...(spec.ascendNeeded && schedule ? { ascendAt: (t: number) => nextAvailable(t, schedule) } : {}),
         },
         {
-          evaluate: async chains => {
-            const r = await replay.evaluate(chains);
+          evaluate: async (chains, onResult) => {
+            const r = await replay.evaluate(chains, onResult);
             void checkpoint(replay);
             return r;
           },
-          onProgress: p => (deadlineProgress.value = p),
+          onProgress: p => {
+            deadlineProgress.value = p;
+            noteLegSample();
+          },
           shouldStop: () => deadlineStop,
         }
       );
       deadlineAll = out.routes;
-      if (!out.stoppedEarly) noteDeadlineRatio(deadlineProgress.value?.learn);
-      // Its own speed, for the next estimate: only the routes this run priced, not the replayed ones.
+      if (!out.stoppedEarly && spec.bandSets?.length)
+        noteDeadlineRatio(deadlineProgress.value?.learn, spaceShapeKey(spec.bandSets));
+      // Its own speed, for the next estimate: the legs this run simulated (replayed routes cost none),
+      // over the time it ran less any time the page was suspended, at its time-weighted worker count.
+      const endedAt = Date.now();
+      bankWorkerTime(endedAt);
       noteDeadlineSpeed(
-        replay.entries().length - seed.length,
-        (Date.now() - deadlineStartedAt.value) / 1000,
-        pool ? Math.max(1, Math.min(workerBudget.value, targetWorkers.value)) : workerBudget.value
+        deadlineLegSims.value,
+        (endedAt - deadlineStartedAt.value) / 1000 - (pool?.suspendedSeconds ?? 0),
+        timeWeightedWorkers(
+          workerMs.value,
+          workersChangedAt.value,
+          workersInPool.value,
+          deadlineStartedAt.value,
+          endedAt
+        )
       );
       deadlineResult.value = {
         routes: out.routes.slice(0, 50),
@@ -4138,6 +4189,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         inputsKey: key,
         backupAt: account.backupTime ?? null,
         backupTE: account.backupTE ?? null,
+        ...(spec.bandSets?.length ? { bandSets: spec.bandSets } : {}),
+        ...(spec.instantSets?.length ? { instantSets: spec.instantSets } : {}),
+        legSims: deadlineLegSims.value,
         at: Date.now(),
       };
       deadlineAccount = account;
@@ -4190,12 +4244,15 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   }
 
   /**
-   * What one deadline route costs a worker, in seconds, measured on this machine by the last deadline
-   * run that priced enough routes to tell (remembered in this browser). The panel's estimate starts
-   * from it. Not Insane's `secondsPerChain`: that is a wall-clock rate across the whole pool, and
-   * Insane's chains share early stops far more than deadline routes do.
+   * What one LEG of a deadline run costs a worker, in seconds, measured on this machine by the last
+   * deadline run that simulated enough legs to tell (remembered in this browser). The panel's
+   * estimate starts from it. Counted in legs, not routes: a set's first route simulates its early
+   * legs and every later one only its last, so a cost per route measured early in a run was the wrong
+   * cost for the rest of it (deadlineEstimate.ts, "Counted in legs"). Recorded at the run's
+   * time-weighted worker count (the slider stays live), from the time it ran less any suspension.
+   * The old per-route figure (`aap.deadlineWorkerSeconds`) is not read: it is a different unit.
    */
-  const DEADLINE_SPEED_KEY = 'aap.deadlineWorkerSeconds';
+  const DEADLINE_SPEED_KEY = 'aap.deadlineWorkerSecondsPerLeg';
   const deadlineWorkerSeconds = ref(
     (() => {
       try {
@@ -4206,9 +4263,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       }
     })()
   );
-  function noteDeadlineSpeed(freshRoutes: number, seconds: number, workers: number): void {
-    if (freshRoutes < 20 || !(seconds > 0)) return;
-    const ws = workerSecondsFromRate(seconds / freshRoutes, workers);
+  function noteDeadlineSpeed(legs: number, seconds: number, workers: number): void {
+    if (legs < 50 || !(seconds > 0) || !(workers > 0)) return;
+    const ws = (seconds * workers) / contention(workers) / legs;
     if (!Number.isFinite(ws) || ws <= 0) return;
     deadlineWorkerSeconds.value = ws;
     try {
@@ -4223,6 +4280,15 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   /** The panel's estimate of routes to price (spec.estimate), for progress shown off its screen. */
   const deadlineEstimate = ref(0);
   const deadlineInBatch = ref(0);
+  /** Legs the workers have simulated this session (pool `legSims`; replayed routes cost none). */
+  const deadlineLegSims = ref(0);
+  /** The run's own plan in legs (spec.legPlan), null for a run started without one. */
+  const deadlineLegPlan = ref<import('@/search/deadlineStore').DeadlineLegPlan | null>(null);
+  /** Sets of early stops in the run, for counting its legs when it has no plan. */
+  const deadlineSets = ref(0);
+  /** `[unix ms, legs done]`, at most one every 5 s, for the live rate (deadlineEstimate.ts
+   *  `recentLegRate`). Legs done is counted the way the plan counts them, from the routes priced. */
+  const deadlineLegSamples = ref<[number, number][]>([]);
   /**
    * The estimate now: the first guess until enough sets have finished, then re-worked from what they
    * actually cost (deadlineEstimate.ts). The panel's progress text and the cross-tab bar both use it.
@@ -4234,24 +4300,88 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       deadlineProgress.value?.learn
     )
   );
-  /** Routes per set the last finished space run needed, remembered here for the next first guess. */
-  const DEADLINE_RATIO_KEY = 'aap.deadlineRoutesPerSet';
-  const deadlineRoutesPerSet = ref(
+  /** The run's sets and first-round legs: its plan's, else one leg a route (a run with no plan). */
+  function legShape(): { sets: number; firstLegs: number } {
+    const plan = deadlineLegPlan.value;
+    if (plan && plan.sets > 0) return { sets: plan.sets, firstLegs: plan.firstLegs };
+    const sets = deadlineProgress.value?.learn?.sets || deadlineSets.value || 1;
+    return { sets, firstLegs: sets };
+  }
+  /** Legs done, as the plan counts them: each set's first route at its share of the first round's
+   *  legs, every route after that one leg. */
+  function legsDoneFor(priced: number): number {
+    const { sets, firstLegs } = legShape();
+    return priced < sets ? (priced * firstLegs) / sets : firstLegs + (priced - sets);
+  }
+  function noteLegSample(): void {
+    const now = Date.now();
+    const done = legsDoneFor((deadlineProgress.value?.priced ?? 0) + deadlineInBatch.value);
+    const list = deadlineLegSamples.value;
+    const lastAt = list.length ? list[list.length - 1][0] : 0;
+    if (now - lastAt < 5000) return;
+    // Two windows' worth kept, which is all the rate looks at.
+    const keepFrom = now - 2 * 12 * 60 * 1000;
+    deadlineLegSamples.value = [...list.filter(x => x[0] >= keepFrom), [now, done]];
+  }
+  /**
+   * ONE estimate of time, for the panel's box, its progress line, the cross-tab bar and the command
+   * line: legs left, over the legs a second the run has managed in the last 12 minutes (the planned
+   * rate until it has 2 minutes of its own). `firstGuess` is the run's own estimate at its start.
+   */
+  const deadlineTimeLeft = computed<{ seconds: number; legsLeft: number; firstGuess: number | null } | null>(() => {
+    if (!deadlineRunning.value) return null;
+    const p = deadlineProgress.value;
+    const priced = (p?.priced ?? 0) + deadlineInBatch.value;
+    // Past the estimate and still going (a small run, or an answer far outside the last-stop box):
+    // every set still open needs a couple more tries at least, rather than "0 s left" for minutes.
+    const routesTotal = Math.max(deadlineEstimateNow.value.total, priced + 2 * Math.max(1, p?.open ?? 0));
+    if (!deadlineEstimateNow.value.total) return null;
+    const { sets, firstLegs } = legShape();
+    const left = legsLeft({ priced, routesTotal, sets, firstLegs });
+    const samples = deadlineLegSamples.value;
+    const at = samples.length ? samples[samples.length - 1][0] : Date.now();
+    const plan = deadlineLegPlan.value;
+    const w = Math.max(1, workersInPool.value);
+    const planned = plan && plan.workerSecondsPerLeg > 0 ? w / (plan.workerSecondsPerLeg * contention(w)) : null;
+    const rate = recentLegRate(samples, at) ?? planned;
+    if (!rate) return null;
+    return { seconds: left / rate, legsLeft: left, firstGuess: plan ? plan.seconds : null };
+  });
+  /**
+   * Routes per set the last finished space run needed, remembered per SPACE SHAPE (ascension counts,
+   * each box's width and step: deadlineEstimate.ts `spaceShapeKey`) for the next run on a space like
+   * it. It used to be one figure for every space, so a run on wide boxes set the guess for narrow ones.
+   */
+  const DEADLINE_RATIO_KEY = 'aap.deadlineRoutesPerSetByShape';
+  const deadlineRoutesPerSetByShape = ref<Record<string, number>>(
     (() => {
       try {
-        return usableRatio(localStorage.getItem(DEADLINE_RATIO_KEY));
+        const raw = JSON.parse(localStorage.getItem(DEADLINE_RATIO_KEY) ?? '{}') as Record<string, unknown>;
+        const out: Record<string, number> = {};
+        for (const [k, v] of Object.entries(raw ?? {})) if (usableRatio(v)) out[k] = usableRatio(v);
+        return out;
       } catch {
-        return 0;
+        return {};
       }
     })()
   );
-  function noteDeadlineRatio(learn: SetsLearned | undefined): void {
+  /** The remembered routes per set for a space of this shape, or 0. */
+  function deadlineRoutesPerSet(bandSets: number[][][]): number {
+    return deadlineRoutesPerSetByShape.value[spaceShapeKey(bandSets)] ?? 0;
+  }
+  function noteDeadlineRatio(learn: SetsLearned | undefined, shapeKey: string): void {
     if (!learn || learn.sets < 200 || learn.finishedSets < learn.sets) return;
     const r = usableRatio(learn.finishedRoutes / learn.sets);
     if (!r) return;
-    deadlineRoutesPerSet.value = r;
+    // The latest 20 shapes.
+    const next = { ...deadlineRoutesPerSetByShape.value };
+    delete next[shapeKey];
+    next[shapeKey] = r;
+    const keys = Object.keys(next);
+    for (const k of keys.slice(0, Math.max(0, keys.length - 20))) delete next[k];
+    deadlineRoutesPerSetByShape.value = next;
     try {
-      localStorage.setItem(DEADLINE_RATIO_KEY, String(r));
+      localStorage.setItem(DEADLINE_RATIO_KEY, JSON.stringify(next));
     } catch {
       // a nicety
     }
@@ -5131,7 +5261,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         done,
         total: deadlineEstimateNow.value.total ? Math.max(deadlineEstimateNow.value.total, done) : null,
         unit: 'routes',
-        secondsLeft: null,
+        // The panel's own figure (legs left over the recent rate), not the bar's routes-so-far guess.
+        secondsLeft: deadlineTimeLeft.value?.seconds ?? null,
         startedAt: deadlineStartedAt.value,
         stopping: false,
         best: best ? { chain: [...best.chain], te: best.chain[best.chain.length - 1], at: best.reachAt } : null,
@@ -5187,6 +5318,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     deadlineEstimate,
     deadlineEstimateNow,
     deadlineRoutesPerSet,
+    deadlineTimeLeft,
+    deadlineLegSims,
     // settings
     effort,
     finalTE,

@@ -1227,9 +1227,9 @@
             it to send the headline alone.</span
           >
           <span v-if="diagnosticsGo"
-            >Your <span class="font-semibold">diagnostics go too</span> ("Also send diagnostics"): one line in the
-            CSV's header with memory readings, the worker count, any crash or carry-on, and your browser and system.
-            No player ID and no save.</span
+            >Your <span class="font-semibold">diagnostics go too</span> ("Also send diagnostics"): sent privately
+            to the planner's maintainer, never shown on the board. It holds memory readings, the worker count, any crash or
+            carry-on, and your browser and system. No player ID and no save.</span
           >
           If that trade is not worth it to you, do not send it.
         </p>
@@ -1343,6 +1343,7 @@ import { EFFORT, EFFORT_NOTES, EFFORT_ORDER, NEAR_OPTIMAL_SHARE } from '@/search
 import { formatDuration } from '@/lib/format';
 import { isAvailable } from '@/search/availability';
 import { afterPaint } from '@/search/submission';
+import { withPrivateDiagnostics } from '@/search/sendRun';
 import ChainSearchExplainer from './ChainSearchExplainer.vue';
 import HelpTip from './HelpTip.vue';
 import StartTimeFinder from './StartTimeFinder.vue';
@@ -1543,10 +1544,10 @@ async function submit(): Promise<void> {
     }
     // Black box: a page that dies while building or sending the table says so on the next visit.
     store.blackBoxMark('submit', includeCsv.value ? 'building the CSV' : 'building the result');
-    const csv = includeCsv.value ? store.exportCsv({ diagnostics: diagnosticsGo.value }) : undefined;
+    const csv = includeCsv.value ? store.exportCsv() : undefined;
     store.blackBoxMark('submit', `sending${csv ? ` (${Math.round(csv.length / 1048576)} MB of CSV)` : ''}`);
     submitMessage.value = 'Sending...';
-    const res = await store.sendSubmission(payload, csv);
+    const res = await store.sendSubmission(withPrivateDiagnostics(store, payload, diagnosticsGo.value), csv);
     submitOk.value = res.ok;
     // A copy the collector already had stored nothing, so there is nothing to thank anyone for.
     submitMessage.value = !res.ok

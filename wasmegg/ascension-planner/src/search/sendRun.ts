@@ -8,9 +8,24 @@
  */
 import type { useChainSearchStore } from '@/stores/chainSearch';
 import { sentence } from '@/utils/errors';
-import { afterPaint } from './submission';
+import { afterPaint, type Submission } from './submission';
 
 type ChainSearchStore = ReturnType<typeof useChainSearchStore>;
+
+/**
+ * The payload with the black box summary as its `diagnostics` field when the player ticked "Also send
+ * diagnostics" (and exactly as it was otherwise). The collector keeps that field privately and never
+ * serves it. Reads `store.diagnosticsLine()`, a JSON string, so the store needs no change.
+ */
+export function withPrivateDiagnostics(store: ChainSearchStore, payload: Submission, go: boolean): Submission {
+  if (!go) return payload;
+  try {
+    const parsed = JSON.parse(store.diagnosticsLine());
+    return parsed && typeof parsed === 'object' ? { ...payload, diagnostics: parsed } : payload;
+  } catch {
+    return payload;
+  }
+}
 
 /**
  * Build the result (and, with `includeCsv`, the full table) and send it. `onStage` hears each step
@@ -21,7 +36,7 @@ export async function sendRunResult(
   nickname: string,
   includeCsv: boolean,
   onStage: (text: string) => void = () => {},
-  /** "Also send diagnostics": one line in the CSV's header (it rides with the CSV, so needs `includeCsv`). */
+  /** "Also send diagnostics": a private field of the submission body (never in the CSV, which is public). */
   withDiagnostics = false
 ): Promise<{ ok: boolean; text: string }> {
   // Already sent (automatically or by hand): a second send is only a duplicate row.
@@ -34,10 +49,10 @@ export async function sendRunResult(
     if (!payload) return { ok: false, text: 'Nothing to submit yet.' };
     // Black box: a page that dies while building or sending the table says so on the next visit.
     store.blackBoxMark('submit', includeCsv ? 'building the CSV' : 'building the result');
-    const csv = includeCsv ? store.exportCsv({ diagnostics: withDiagnostics }) : undefined;
+    const csv = includeCsv ? store.exportCsv() : undefined;
     store.blackBoxMark('submit', `sending${csv ? ` (${Math.round(csv.length / 1048576)} MB of CSV)` : ''}`);
     onStage('Sending...');
-    const res = await store.sendSubmission(payload, csv);
+    const res = await store.sendSubmission(withPrivateDiagnostics(store, payload, withDiagnostics), csv);
     // A copy the collector already had stored nothing, so there is nothing to thank anyone for.
     const text = !res.ok
       ? `Not sent: ${res.message}`

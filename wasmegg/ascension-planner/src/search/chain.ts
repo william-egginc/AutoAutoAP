@@ -12,8 +12,8 @@
  * reason, and so is this search's batch splitting (see search/batch.ts).
  *
  * A memo entry is one leg's `AscensionSummary` plus the `EngineState` the next leg starts from — a
- * few kilobytes each — so the map is capped and evicted oldest-first rather than left to grow for
- * the whole multi-hour run.
+ * few kilobytes each — so the map is capped and evicted least-recently-used first rather than left
+ * to grow for the whole multi-hour run.
  *
  * An availability schedule does not break any of that: a leg's start time is a deterministic
  * function of its prefix with or without one, so the prefix is still the whole cache key.
@@ -190,6 +190,15 @@ export function createChainEvaluator(inputs: SearchInputs): ChainEvaluator {
         // 'now' keeps the plain prefix as its key, so it shares the memo exactly as before.
         const key = (handoff === 'now' ? '' : `${handoff}|`) + chain.slice(0, i + 1).join(',');
         let segs = memo.get(key);
+        // Least recently USED goes first, not least recently added: a By a date run comes back to a
+        // set's early legs round after round while every route's own last leg is used once, and with
+        // eviction by age alone those early legs were the first thrown out (and simulated again).
+        // Moving a hit to the back keeps them. The answer is the same either way: the memo only
+        // caches a deterministic simulation.
+        if (segs !== undefined) {
+          memo.delete(key);
+          memo.set(key, segs);
+        }
 
         if (segs === undefined) {
           if (i === 0) {
