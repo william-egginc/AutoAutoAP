@@ -12,7 +12,7 @@
       :viewBox="`0 0 ${W} ${H}`"
       class="w-full h-auto select-none"
       role="img"
-      :aria-label="`Heat map of ${heat.total.toLocaleString()} chains: last checkpoint against days`"
+      :aria-label="`Heat map of ${chainCount(heat.total)}: last checkpoint against days`"
       @mouseleave="hover = null"
     >
       <!-- cells -->
@@ -86,11 +86,11 @@
     </p>
     <p class="text-[11px] text-slate-500 px-1 min-h-[1.25rem]">
       <template v-if="hover">
-        Last checkpoint {{ hover.xLo }}–{{ hover.xHi }} TE, {{ hover.yLo.toFixed(1) }}–{{ hover.yHi.toFixed(1) }} days:
-        <span class="font-bold text-slate-700">{{ hover.count.toLocaleString() }} chains</span>
+        Last checkpoint {{ hover.xLo === hover.xHi ? hover.xLo : `${hover.xLo}–${hover.xHi}` }} TE, {{ hover.yLo.toFixed(1) }}–{{ hover.yHi.toFixed(1) }} days:
+        <span class="font-bold text-slate-700">{{ chainCount(hover.count) }}</span>
       </template>
       <template v-else-if="heat">
-        {{ heat.total.toLocaleString() }} chains. Darker means more chains; the dots are the fastest in each column.
+        {{ chainCount(heat.total) }}. Darker means more chains; the dots are the fastest in each column.
       </template>
     </p>
   </div>
@@ -98,7 +98,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import type { HeatSnapshot } from '@/lib/chartThin';
+import { chainCount, heatView, integerTicks, type HeatSnapshot } from '@/lib/chartThin';
 
 const props = defineProps<{ heat: HeatSnapshot | null }>();
 
@@ -111,8 +111,15 @@ const B = 34;
 const plotW = W - L - R;
 const plotH = H - T - B;
 
-const cellW = computed(() => (props.heat ? plotW / props.heat.cols : 0));
-const cellH = computed(() => (props.heat ? plotH / props.heat.rows : 0));
+// The axes span the data plus any padding for a range too narrow to draw (heatView); a cell is one
+// bin of that range, so a single column or a single chain is a small box, not the whole plot.
+const view = computed(() => (props.heat ? heatView(props.heat) : null));
+const cellW = computed(() => (props.heat && view.value ? (plotW * props.heat.xw) / (view.value.xMax - view.value.xMin) : 0));
+const cellH = computed(() => (props.heat && view.value ? (plotH * props.heat.yw) / (view.value.yMax - view.value.yMin) : 0));
+function xPos(x: number): number {
+  const v = view.value!;
+  return L + ((x - v.xMin) / (v.xMax - v.xMin)) * plotW;
+}
 
 /** Indigo, light to dark. */
 const RAMP = ['#e0e7ff', '#c7d2fe', '#a5b4fc', '#818cf8', '#6366f1', '#4f46e5', '#4338ca', '#3730a3'];
@@ -146,9 +153,9 @@ const cells = computed<Cell[]>(() => {
       const yLo = h.y0 + r * h.yw;
       out.push({
         k: r * h.cols + c,
-        x: L + c * cellW.value,
+        x: xPos(xLo),
         // Row 0 is the fast end, drawn at the bottom.
-        y: T + (h.rows - 1 - r) * cellH.value,
+        y: yPos(yLo + h.yw),
         fill: RAMP[step],
         count,
         xLo: Math.ceil(xLo),
@@ -162,8 +169,8 @@ const cells = computed<Cell[]>(() => {
 });
 
 function yPos(days: number): number {
-  const h = props.heat!;
-  return T + plotH - ((days - h.y0) / (h.rows * h.yw)) * plotH;
+  const v = view.value!;
+  return T + plotH - ((days - v.yMin) / (v.yMax - v.yMin)) * plotH;
 }
 
 const bestDots = computed(() => {
@@ -172,7 +179,7 @@ const bestDots = computed(() => {
   const out: { k: number; x: number; y: number }[] = [];
   for (let c = 0; c < h.cols; c++) {
     const v = h.colBest[c];
-    if (Number.isFinite(v)) out.push({ k: c, x: L + (c + 0.5) * cellW.value, y: yPos(v) });
+    if (Number.isFinite(v)) out.push({ k: c, x: xPos(h.x0 + (c + 0.5) * h.xw), y: yPos(v) });
   }
   return out;
 });
@@ -184,16 +191,12 @@ function ticks(lo: number, hi: number, n: number, digits: number): number[] {
 }
 
 const xTicks = computed(() => {
-  const h = props.heat;
-  if (!h) return [];
-  const span = h.cols * h.xw;
-  return ticks(h.x0, h.x0 + span, 4, 0).map(v => ({ v, p: L + ((v - h.x0) / span) * plotW }));
+  const v = view.value;
+  return v ? integerTicks(v.xMin, v.xMax).map(t => ({ v: t, p: xPos(t) })) : [];
 });
 
 const yTicks = computed(() => {
-  const h = props.heat;
-  if (!h) return [];
-  const hi = h.y0 + h.rows * h.yw;
-  return ticks(h.y0, hi, 4, 1).map(v => ({ v, p: yPos(v) }));
+  const v = view.value;
+  return v ? ticks(v.yMin, v.yMax, 4, 1).map(t => ({ v: t, p: yPos(t) })) : [];
 });
 </script>

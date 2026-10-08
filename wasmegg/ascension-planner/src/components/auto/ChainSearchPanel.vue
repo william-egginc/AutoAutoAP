@@ -1268,13 +1268,13 @@
           <button
             type="button"
             class="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600"
-            @click="shapeOpen = !shapeOpen"
+            @click="store.setChartShown(!store.chartShown)"
           >
-            {{ shapeOpen ? 'Hide' : 'Show' }}
+            {{ store.chartShown ? 'Hide' : 'Show' }}
           </button>
         </div>
 
-        <div v-if="shapeOpen" class="space-y-4">
+        <div class="space-y-4">
           <!-- Why it ended, stated before the chart, because it changes how the chart reads: a run
                that stopped early has a right-hand edge that means nothing. -->
           <div
@@ -1289,7 +1289,7 @@
             {{ runOutcome.detail }}
           </div>
 
-          <RunCharts />
+          <RunCharts :hide-link="false" />
         </div>
       </div>
 
@@ -1306,7 +1306,7 @@
           Download CSV
         </button>
         <p class="text-[11px] text-slate-500 leading-relaxed flex-1 min-w-[16rem]">
-          {{ store.csvRows || store.resumable?.durations.length || 0 }} chains, one row per leg: strategy, sale count,
+          {{ chainCount(store.csvRows || store.resumable?.durations.length || 0) }}, one row per leg: strategy, sale count,
           start and end times in your plan's timezone, peak delivery, and how many shifts fall in your schedule.
           Artifacts and stones are in the header block: the search never varies them.
           <span v-if="store.isRunning" class="font-semibold text-slate-600">Safe to download mid-run.</span>
@@ -1365,6 +1365,7 @@ import SafariNotice from './SafariNotice.vue';
 import RunSaveNotice from './RunSaveNotice.vue';
 import UnfinishedRuns from './UnfinishedRuns.vue';
 import RunCharts from './charts/RunCharts.vue';
+import { chainCount } from '@/lib/chartThin';
 import type { EffortTier, LegSummary } from '@/search/types';
 import type { ShortlistRow } from '@/search/shortlist';
 import { VIEWS } from '@/search/views';
@@ -1377,9 +1378,6 @@ const initialStateStore = useInitialStateStore();
 
 /** Open by default: a collapsed form on first load looks like the panel has nothing in it. */
 const settingsOpen = ref(true);
-
-/** Collapsed by default: it is a post-run read, and the chart is the heaviest thing on the page. */
-const shapeOpen = ref(true);
 
 /**
  * Why the run ended, in one line. `stage` already carries this, but as an internal string

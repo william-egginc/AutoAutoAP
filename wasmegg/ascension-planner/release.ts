@@ -33,6 +33,7 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
+  { at: '2026-10-08T02:22:20Z', note: 'The search chart is hidden until you press Show the chart, so big runs use less memory; a single chain no longer fills the chart' },
   { at: '2026-10-07T23:35:19Z', note: 'Searches wait until your save has loaded and always start from it; By a date carry-ons and saved answers keep their own save when sent' },
   { at: '2026-10-07T23:07:14Z', note: 'Insights rewritten with what we know now, including Egg Day runs; Full sweep chains get the same range and step sliders as By a date; search time estimates match real runs', level: 'big' },
   { at: '2026-10-07T21:32:00Z', level: 'small', note: 'Instant answer: Simulate this plan opens the route in Classic already simulated, scrolled to its ascensions, with a way back to the answer' },
@@ -40,7 +41,6 @@ const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
   { at: '2026-10-07T19:48:22Z', note: 'Science now asks for Egg Day By a date runs that check the instant answer tables, and for specific gear sets, with icons and a You have this badge', level: 'big' },
   { at: '2026-10-07T13:36:44Z', note: 'Big CSV downloads use the save the run priced; Science counts a later-start pair a day apart' },
   { at: '2026-10-07T04:19:05Z', note: 'By a date CSVs now record every step of every route, the same as Smart search and Full sweep, so each run helps check the tables' },
-  { at: '2026-10-07T04:04:31Z', note: 'By a date re-estimates its total from what the run actually needs and says when every route is done; a run that carried on after a crash keeps its fewer workers' },
 ];
 
 export default {

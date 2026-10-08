@@ -1096,7 +1096,7 @@
               Download CSV
             </button>
             <span class="text-[11px] text-slate-500">
-              {{ store.csvRows.toLocaleString() }} chains, one row per leg. Safe to download mid-run.
+              {{ countLabel(store.csvRows) }}, one row per leg. Safe to download mid-run.
             </span>
           </template>
           <!-- The input side. The CSV records what came OUT; when a result looks wrong the question
@@ -1315,6 +1315,7 @@ import {
 } from '@/search/deadlineSuggest';
 import SpaceSliders from './SpaceSliders.vue';
 import RunCharts from './charts/RunCharts.vue';
+import { chainCount as countLabel } from '@/lib/chartThin';
 import HelpTip from './HelpTip.vue';
 import BandCheckNotice from './BandCheckNotice.vue';
 import { coverageAfterText, coverageBeforeText, describeEdge, findBandEdges, widenEdges } from '@/search/bandCheck';

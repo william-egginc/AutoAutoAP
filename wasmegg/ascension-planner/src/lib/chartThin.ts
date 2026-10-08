@@ -206,3 +206,53 @@ export function heatSnapshot(h: HeatGrid): HeatSnapshot | null {
     max,
   };
 }
+
+/* ------------------------------------------------------------------ axis range */
+
+/** What the heat map's axes span, after padding a range too narrow to draw. */
+export interface HeatView {
+  xMin: number;
+  xMax: number;
+  yMin: number;
+  yMax: number;
+}
+
+/** A y range narrower than this many days is padded out to it, centred. */
+export const MIN_Y_SPAN_DAYS = 1;
+
+/**
+ * The axis ranges the heat map draws. A snapshot of one column (every chain ending at the same
+ * checkpoint, or a single chain) spans one cell, which used to fill the whole plot: pad it by one
+ * cell each side. Likewise a y range under `MIN_Y_SPAN_DAYS` is centred and widened to it. Cells
+ * are then sized as one bin of this range (`xw / (xMax - xMin)`), never as the whole range.
+ */
+export function heatView(h: Pick<HeatSnapshot, 'cols' | 'rows' | 'x0' | 'xw' | 'y0' | 'yw'>): HeatView {
+  let xMin = h.x0;
+  let xMax = h.x0 + h.cols * h.xw;
+  if (h.cols < 3) {
+    xMin -= h.xw;
+    xMax += h.xw;
+  }
+  let yMin = h.y0;
+  let yMax = h.y0 + h.rows * h.yw;
+  const span = yMax - yMin;
+  if (span < MIN_Y_SPAN_DAYS) {
+    const pad = (MIN_Y_SPAN_DAYS - span) / 2;
+    yMin -= pad;
+    yMax += pad;
+  }
+  return { xMin, xMax, yMin, yMax };
+}
+
+/** Whole-number ticks across [lo, hi], at most about `n + 1` of them. */
+export function integerTicks(lo: number, hi: number, n = 4): number[] {
+  const step = Math.max(1, Math.ceil((hi - lo) / n));
+  const out: number[] = [];
+  for (let v = Math.ceil(lo); v <= hi + 1e-9; v += step) out.push(v);
+  return out;
+}
+
+/** "1 chain", "90 chains". */
+export function chainCount(n: number): string {
+  return `${n.toLocaleString()} ${n === 1 ? 'chain' : 'chains'}`;
+}

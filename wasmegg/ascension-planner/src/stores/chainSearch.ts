@@ -205,6 +205,25 @@ function readStoredCount(key: string): number {
   }
 }
 
+/** Whether the run chart is open (per browser). Hidden unless the player opened it. */
+const CHART_SHOWN_KEY = 'autoap.chartShown';
+
+function loadChartShown(): boolean {
+  try {
+    return localStorage.getItem(CHART_SHOWN_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function saveChartShown(on: boolean): void {
+  try {
+    localStorage.setItem(CHART_SHOWN_KEY, on ? '1' : '0');
+  } catch {
+    // Not remembered this time.
+  }
+}
+
 function writeStoredCount(key: string, n: number): void {
   try {
     if (n > 0) localStorage.setItem(key, String(n));
@@ -1918,6 +1937,13 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   const chartsWanted = ref(false);
 
   /**
+   * Whether the player has the chart open. Hidden by default and remembered per browser. While it
+   * is hidden NOTHING for the chart is built: no heat-map counts, no snapshot, no point list.
+   * `pricedCount` (which the panels test) and the shortlist do not depend on any of it.
+   */
+  const chartShown = ref(loadChartShown());
+
+  /**
    * The heat map's running counts (lib/chartThin.ts): a fixed grid fed only the chains priced since
    * the last feed, so it costs the same on a 100-chain run and a 120,000-chain one. `heat` is the
    * copy the chart draws, taken on the same 30-second beat as everything else here.
@@ -1936,6 +1962,33 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     pricedChains.value = markRaw([]);
     pricedCount.value = 0;
     chartsWanted.value = false;
+  }
+
+  /** Open or close the chart. Opening builds it from everything priced so far; closing frees it. */
+  function setChartShown(on: boolean): void {
+    if (chartShown.value === on) return;
+    chartShown.value = on;
+    saveChartShown(on);
+    if (on) {
+      refreshChartData();
+    } else {
+      heatGrid = createHeat();
+      heatFedLive = 0;
+      heatFedCoarse = 0;
+      heat.value = null;
+      pricedChains.value = markRaw([]);
+      chartsWanted.value = false;
+    }
+  }
+
+  /** Build the chart's data from the caches as they are. A no-op while the chart is hidden. */
+  function refreshChartData(): void {
+    if (!chartShown.value) return;
+    feedHeat();
+    heat.value = heatSnapshot(heatGrid);
+    // Past the limit, no point list unless asked for: dropping it frees the old copy too.
+    pricedChains.value =
+      pricedCount.value <= CHART_AUTO_LIMIT || chartsWanted.value ? buildPricedChains(allEntries()) : markRaw([]);
   }
 
   function feedHeatFrom(list: CacheEntry[], from: number): number {
@@ -1986,6 +2039,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
 
   /** "Draw the charts" on a big run: build the point list now, and keep it on the usual beat. */
   function drawCharts(): void {
+    if (!chartShown.value) return;
     chartsWanted.value = true;
     pricedChains.value = buildPricedChains(allEntries());
   }
@@ -2044,7 +2098,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
 
   function refreshShortlist(force = false): void {
     // Every call, not only on the beat: it reads just the chains that arrived since the last one.
-    feedHeat();
+    // (Nothing at all while the chart is hidden.)
+    if (chartShown.value) feedHeat();
     const now = Date.now();
     if (!force && now - lastShortlistAt < SHORTLIST_INTERVAL_MS) return;
     lastShortlistAt = now;
@@ -2059,9 +2114,11 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     let priced = 0;
     for (const e of entries) if (e.seconds > 0) priced++;
     pricedCount.value = priced;
-    heat.value = heatSnapshot(heatGrid);
-    // Past the limit, no point list unless asked for: dropping it frees the old copy too.
-    pricedChains.value = priced <= CHART_AUTO_LIMIT || chartsWanted.value ? buildPricedChains(entries) : markRaw([]);
+    if (chartShown.value) {
+      heat.value = heatSnapshot(heatGrid);
+      // Past the limit, no point list unless asked for: dropping it frees the old copy too.
+      pricedChains.value = priced <= CHART_AUTO_LIMIT || chartsWanted.value ? buildPricedChains(entries) : markRaw([]);
+    }
   }
 
   /** Coarse-scan results plus driver cache, de-duplicated by chain, driver winning. */
@@ -5227,6 +5284,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     pricedChains,
     pricedCount,
     chartsWanted,
+    chartShown,
+    setChartShown,
+    refreshChartData,
     drawCharts,
     releaseCharts,
     heat,

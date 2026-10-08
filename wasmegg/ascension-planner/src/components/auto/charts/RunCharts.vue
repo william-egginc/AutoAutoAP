@@ -5,7 +5,27 @@
   While a run goes, dots are capped at LIVE_DOT_LIMIT; the bigger choices appear once it ends.
 -->
 <template>
-  <div class="space-y-3">
+  <!-- Hidden by default and unmounted while hidden: the store builds no chart data until it is shown. -->
+  <div v-if="!store.chartShown" class="flex flex-wrap items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
+    <button
+      type="button"
+      class="px-3 py-1.5 rounded-lg bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-700"
+      @click="store.setChartShown(true)"
+    >
+      Show the chart
+    </button>
+    <span class="text-[11px] text-slate-500">Draws the heat map of every chain priced so far</span>
+  </div>
+  <div v-else class="space-y-3">
+    <div v-if="hideLink" class="flex justify-end">
+      <button
+        type="button"
+        class="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600"
+        @click="store.setChartShown(false)"
+      >
+        Hide
+      </button>
+    </div>
     <template v-if="!showDots">
       <RunHeatMap :heat="store.heat" />
       <div
@@ -49,6 +69,8 @@ import { useChainSearchStore } from '@/stores/chainSearch';
 import { CHART_AUTO_LIMIT, MAX_DRAWN_POINTS } from '@/lib/chartThin';
 import SearchShapeChart from './SearchShapeChart.vue';
 import RunHeatMap from './RunHeatMap.vue';
+
+withDefaults(defineProps<{ hideLink?: boolean }>(), { hideLink: true });
 
 const SIZES = [2_000, 5_000, 20_000];
 const LIVE_DOT_LIMIT = MAX_DRAWN_POINTS;

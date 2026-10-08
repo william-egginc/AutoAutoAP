@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addToHeat, createHeat, heatSnapshot, sortedOrder, thinIndices, thinPositions } from './chartThin';
+import { addToHeat, chainCount, createHeat, heatSnapshot, heatView, integerTicks, sortedOrder, thinIndices, thinPositions } from './chartThin';
 
 describe('thinPositions', () => {
   it('keeps everything when there are few enough', () => {
@@ -105,5 +105,58 @@ describe('heat grid', () => {
     addToHeat(h, 1, Infinity);
     expect(h.total).toBe(0);
     expect(heatSnapshot(h)).toBeNull();
+  });
+});
+
+describe('heat map ranges', () => {
+  it('pads a single chain: one TE column, one bin, not the whole plot', () => {
+    const h = createHeat();
+    addToHeat(h, 327, 709.02);
+    const snap = heatSnapshot(h)!;
+    expect(snap.cols).toBe(1);
+    expect(snap.rows).toBe(1);
+    const v = heatView(snap);
+    expect(v.xMax - v.xMin).toBe(3); // 326 to 329: +-1 TE around the 327 column
+    expect(v.xMin).toBe(snap.x0 - snap.xw);
+    expect(v.yMax - v.yMin).toBeCloseTo(1, 9); // widened to a day, centred on the one bin
+    expect((v.yMin + v.yMax) / 2).toBeCloseTo(snap.y0 + snap.yw / 2, 9);
+    // One cell is a third of the width and a twentieth of the height, never the whole range.
+    expect(snap.xw / (v.xMax - v.xMin)).toBeCloseTo(1 / 3, 9);
+    expect(snap.yw / (v.yMax - v.yMin)).toBeLessThan(0.1);
+    expect(integerTicks(v.xMin, v.xMax)).toEqual([326, 327, 328, 329]);
+  });
+
+  it('pads when every chain is in one column but the days differ', () => {
+    const h = createHeat();
+    for (const d of [708.1, 708.4, 709.3]) addToHeat(h, 327, d);
+    const snap = heatSnapshot(h)!;
+    expect(snap.cols).toBe(1);
+    expect(snap.rows).toBeGreaterThan(1);
+    const v = heatView(snap);
+    expect(v.xMax - v.xMin).toBe(3);
+    expect(v.yMax - v.yMin).toBeGreaterThanOrEqual(1);
+    expect(v.yMin).toBeLessThanOrEqual(snap.y0);
+    expect(v.yMax).toBeGreaterThanOrEqual(snap.y0 + snap.rows * snap.yw);
+  });
+
+  it('leaves a wide spread alone', () => {
+    const h = createHeat();
+    for (let te = 315; te <= 340; te++) addToHeat(h, te, 708 + (te - 315) * 0.6);
+    const snap = heatSnapshot(h)!;
+    const v = heatView(snap);
+    expect(v.xMin).toBe(snap.x0);
+    expect(v.xMax).toBe(snap.x0 + snap.cols * snap.xw);
+    expect(v.yMin).toBe(snap.y0);
+    expect(v.yMax).toBe(snap.y0 + snap.rows * snap.yw);
+    expect(integerTicks(v.xMin, v.xMax).length).toBeLessThanOrEqual(6);
+  });
+});
+
+describe('chainCount', () => {
+  it('pluralises', () => {
+    expect(chainCount(0)).toBe('0 chains');
+    expect(chainCount(1)).toBe('1 chain');
+    expect(chainCount(2)).toBe('2 chains');
+    expect(chainCount(1234)).toBe('1,234 chains');
   });
 });
