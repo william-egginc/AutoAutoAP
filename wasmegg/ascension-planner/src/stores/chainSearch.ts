@@ -82,6 +82,7 @@ import { accountKeyOf, type BoardRow, type Plan } from '@/lib/leaderboardRank';
 import { describeAvailability, isConstrained, nextAvailable, type Availability } from '@/search/availability';
 import { MAX_LAST_STOP, runDeadlineSearch, type DeadlineProgress, type DeadlineRoute } from '@/search/deadline';
 import * as blackBox from '@/search/blackBox';
+import { detectBrowser } from '@/lib/browserHelp';
 import {
   installStepAway,
   stepAwayBeat,
@@ -474,6 +475,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   const targetWorkers = computed(() => targetWorkerCount(workerBudget.value, backgroundWorkers.value, tabHidden.value));
   /** Logical cores, for the panel to show alongside the knob. */
   const machineThreads = hardwareThreads();
+  /** Runs carried on this visit, for "Also send diagnostics". */
+  let carryOnCount = 0;
   const workersInPool = ref(maxPoolSize());
   /** Measured on THIS machine, from this run's own batches. Not an assumption carried over from the
    *  CLI's 20-core box. */
@@ -1489,6 +1492,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const cp = crashedRun.value;
     const sp = cp?.space;
     if (!cp || !sp || busy.value) return false;
+    carryOnCount++;
     preparing.value = true;
     let own: SearchInputs | 'current' | null;
     try {
@@ -1561,6 +1565,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     if (!run?.space || !canResumeOpenedRun.value) return false;
     const sp = run.space;
     if (busy.value) return false;
+    carryOnCount++;
     preparing.value = true;
     let own: SearchInputs | 'current' | null;
     try {
@@ -3145,7 +3150,29 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     return await new Response(stream.readable).arrayBuffer();
   }
 
-  function exportCsv(): string {
+  /**
+   * "Also send diagnostics": the black box summary as one line (search/blackBox.ts), for a CSV that is
+   * being SENT. Only called when the player ticked the box; the collector keeps no field for it, so it
+   * rides in the CSV's header comments (search/csv.ts `diagnostics`).
+   */
+  function diagnosticsLine(): string {
+    try {
+      const b = detectBrowser();
+      return JSON.stringify(
+        blackBox.diagnosticsSummary({
+          browser: `${b.browser} on ${b.os}`,
+          cores: machineThreads,
+          workers: workerBudget.value,
+          carryOns: carryOnCount,
+          crashed: lastCrash.value?.last ?? null,
+        })
+      );
+    } catch {
+      return '';
+    }
+  }
+
+  function exportCsv(opts: { diagnostics?: boolean } = {}): string {
     const own = allEntries();
     const entries = own.length ? own : resumable.value ? restoreEntries(resumable.value) : [];
     // Read off the backup here, on the main thread: `getSimulationContext()` is Pinia-bound. The
@@ -3165,6 +3192,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       timeOff: usableTimeOff(usedSettings().timeOff),
       seedChain: seedChain.value,
       runNote: runNoteUsed,
+      ...(opts.diagnostics ? { diagnostics: diagnosticsLine() } : {}),
       // The ELR set is deliberately NOT listed. `getOptimalELRSet` re-solves the structure per leg
       // against that leg's research state (up to 495 combos, and the reason it is the hotspot in
       // leg.ts), so there is no single "ELR set for the run" to report — and running the search
@@ -3926,6 +3954,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   /** Carry on the unfinished deadline run, on the save it started with. */
   async function resumeDeadline(playerId: string): Promise<void> {
     if (busy.value) return;
+    carryOnCount++;
     currentPlayerId = playerId;
     error.value = null;
     let ready: [DeadlineCheckpoint, SearchInputs, AccountSnapshot] | undefined;
@@ -4231,7 +4260,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   let deadlineAll: DeadlineRoute[] = [];
 
   /** The last deadline run as CSV: every route found, best first. */
-  function deadlineCsv(): string {
+  function deadlineCsv(opts: { diagnostics?: boolean } = {}): string {
     const r = deadlineResult.value;
     if (!r) return '';
     const routes = deadlineAll.length ? deadlineAll : r.routes;
@@ -4255,6 +4284,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         timeOff: usableTimeOff(st ? st.timeOff : usedSettings().timeOff),
         seedChain: [],
         runNote: r.note,
+        ...(opts.diagnostics ? { diagnostics: diagnosticsLine() } : {}),
         inventory: raw ? describeVirtueInventory(raw) : undefined,
         loadouts: [
           { label: 'equipped in the backup', loadout: equipped },
@@ -5253,6 +5283,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     deadlineStartedAt,
     deadlineInBatch,
     deadlineCsv,
+    diagnosticsLine,
     loadDeadlineState,
     startDeadline,
     resumeDeadline,

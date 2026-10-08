@@ -1168,16 +1168,9 @@
                 @input="nicknameTouched = true"
               />
             </div>
-            <label class="flex items-start gap-3 cursor-pointer text-[11px] text-indigo-900/80">
-              <input v-model="includeCsv" type="checkbox" class="mt-0.5 rounded border-indigo-300 text-indigo-600" />
-              <span>
-                <span class="font-bold">Include the full CSV</span>: every chain this run priced, one row per leg ({{
-                  store.csvRows.toLocaleString()
-                }}
-                chains). The submission above is the headline and this is the working behind it. It's compressed before
-                it leaves your machine. Chains past the memory budget export with their per-leg cells blank.
-              </span>
-            </label>
+            <ShareExtras
+              :csv-detail="`(${store.csvRows.toLocaleString()} chains, one row per leg; chains past the memory budget export with their per-leg cells blank)`"
+            />
             <label class="flex items-start gap-3 cursor-pointer text-[11px] text-indigo-900/80">
               <input
                 v-model="stampName"
@@ -1287,6 +1280,8 @@ import { useUIStore } from '@/stores/ui';
 import { useEidsStore } from 'lib';
 import RunNoteBox from './RunNoteBox.vue';
 import FindBar from './FindBar.vue';
+import ShareExtras from './ShareExtras.vue';
+import { useShareExtras } from '@/composables/useShareExtras';
 import StepAwayOptions from './StepAwayOptions.vue';
 import SavedRuns from './SavedRuns.vue';
 import YourSetup from './YourSetup.vue';
@@ -1631,7 +1626,7 @@ const STAMP_LEN = 17;
 
 /** On, like the main panel's: the per-leg rows are what make a pooled dataset worth more than a
  *  ranking, and the whole block already sits behind an unticked opt-in. */
-const includeCsv = ref(true);
+const { sendCsv: includeCsv, diagnosticsGo } = useShareExtras();
 const anonymous = ref(true);
 /** Off by default, because it is now a convenience rather than a fix.
  *
@@ -2120,7 +2115,6 @@ async function sendFinished(): Promise<void> {
   // Stopped early it still sends: the board labels it partial rather than exhaustive (leaderboardRank).
   if (store.error || store.bestDays <= 0) return;
   stampName.value = false;
-  includeCsv.value = true;
   optIn.value = true;
   autoSubmitted.value = true;
   await submit();
@@ -2332,9 +2326,15 @@ async function submit(): Promise<void> {
     // The steps themselves are shared with the Science tab's runner (search/sendRun.ts). The CSV
     // goes as the second argument there: this panel once sent without it, so every exhaustive row
     // on the board read "No CSV was attached".
-    const res = await sendRunResult(store, effectiveNickname.value, includeCsv.value, text => {
-      submitMessage.value = text;
-    });
+    const res = await sendRunResult(
+      store,
+      effectiveNickname.value,
+      includeCsv.value,
+      text => {
+        submitMessage.value = text;
+      },
+      diagnosticsGo.value
+    );
     submitOk.value = res.ok;
     submitMessage.value = res.text;
   } finally {

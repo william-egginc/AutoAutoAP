@@ -20,16 +20,24 @@
       >
         {{ running ? runningLabel : findLabel }}
       </button>
-      <button
-        v-if="showSubmit && !running"
-        type="button"
-        class="px-6 py-4 rounded-xl bg-indigo-700 text-white text-[11px] font-black uppercase tracking-widest hover:bg-indigo-800 disabled:opacity-40"
-        :disabled="findDisabled || notReady || !optIn"
-        :title="optIn ? '' : 'Please read and tick the box below first'"
-        @click="emit('find', true)"
-      >
-        Find and submit
-      </button>
+      <div v-if="showSubmit && !running" class="flex flex-col items-center gap-1">
+        <button
+          type="button"
+          class="px-6 py-4 rounded-xl bg-indigo-700 text-white text-[11px] font-black uppercase tracking-widest hover:bg-indigo-800 disabled:opacity-40"
+          :disabled="findDisabled || notReady || !optIn"
+          :title="optIn ? '' : 'Please read and tick the box below first'"
+          @click="emit('find', true)"
+        >
+          Find and submit
+        </button>
+        <!-- Only while consent is what's missing: with Find itself blocked, ticking would not help. -->
+        <span
+          v-if="!optIn && !findDisabled && !notReady"
+          class="text-[10px] font-semibold text-slate-500"
+          data-testid="acknowledge-hint"
+          >Please acknowledge below</span
+        >
+      </div>
       <button
         v-if="running"
         type="button"
@@ -57,14 +65,21 @@
              and its deadline, not a chain's CSV). -->
         <slot v-if="$slots.consent" name="consent" />
         <span v-else
-          >For <span class="font-bold">Find and submit</span>: share the result on the leaderboard when the search
-          finishes<template v-if="consentNote"> ({{ consentNote }})</template>. It sends what Share this result sends:
-          the chain, its timings and the full CSV, with your artifact inventory, timezone and local plan start, the
-          random code this browser keeps for the account (not your player ID, and never shown), and your best three
-          plans already on the board re-priced from this save. Stop it early and it sends the best it found so
-          far.</span
+          >I acknowledge the following: I want to share my run on the leaderboard when the search finishes<template
+            v-if="consentNote"
+          >
+            ({{ consentNote }})</template
+          >. I understand it sends the route, its dates and the {{ goalWord }}, with my artifact inventory, timezone,
+          local plan start and the random code this browser keeps for the account (not my player ID, and never shown),
+          plus my CSV if ticked under Share this result, and diagnostics if ticked. Stop it early and it shares the best
+          it found so far.</span
         >
       </label>
+      <p v-if="goalWord === 'target'" class="ml-7 text-[10px] text-indigo-900/70">
+        It also sends your best three plans already on the board, re-priced from this save.
+      </p>
+      <!-- The same two boxes as Share this result, on the same choices. -->
+      <div class="ml-7"><ShareExtras :csv-detail="csvDetail" /></div>
       <div v-if="optIn" class="flex flex-wrap items-center gap-4">
         <label class="flex items-center gap-2 cursor-pointer font-bold">
           <input v-model="anonymous" type="radio" :value="true" class="text-indigo-600" />
@@ -93,6 +108,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import RunNoteBox from './RunNoteBox.vue';
+import ShareExtras from './ShareExtras.vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 
 const props = withDefaults(
@@ -107,6 +123,9 @@ const props = withDefaults(
     showSubmit?: boolean;
     /** Added after "when the search finishes", e.g. what a multi-chain click sends. */
     consentNote?: string;
+    /** What this screen's send is about: Fastest has a target, By a date a deadline. */
+    goalWord?: 'target' | 'deadline';
+    csvDetail?: string;
     nicknameMax?: number;
   }>(),
   {
@@ -115,6 +134,8 @@ const props = withDefaults(
     runningLabel: 'Searching...',
     showSubmit: true,
     consentNote: '',
+    goalWord: 'target',
+    csvDetail: '',
     nicknameMax: 40,
   }
 );

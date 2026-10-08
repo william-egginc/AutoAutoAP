@@ -10,7 +10,7 @@
       <h2 class="text-2xl font-black text-slate-900">{{ NAMES.byDate }}</h2>
       <p class="text-sm text-slate-600">
         Finds the highest TE you can reach by a date (Egg Day by default), from your save and your setup. Plans include
-        the weekly Research Sale and the Monday 2× earnings boost, the same as Classic; other game events aren't
+        the weekly Research Sale and the Monday 2× earnings boost, the same as Your plan; other game events aren't
         simulated.
       </p>
     </div>

@@ -20,7 +20,9 @@ export async function sendRunResult(
   store: ChainSearchStore,
   nickname: string,
   includeCsv: boolean,
-  onStage: (text: string) => void = () => {}
+  onStage: (text: string) => void = () => {},
+  /** "Also send diagnostics": one line in the CSV's header (it rides with the CSV, so needs `includeCsv`). */
+  withDiagnostics = false
 ): Promise<{ ok: boolean; text: string }> {
   // Already sent (automatically or by hand): a second send is only a duplicate row.
   if (store.alreadySubmitted) return { ok: true, text: 'Already on the board: this result was sent from here before.' };
@@ -32,7 +34,7 @@ export async function sendRunResult(
     if (!payload) return { ok: false, text: 'Nothing to submit yet.' };
     // Black box: a page that dies while building or sending the table says so on the next visit.
     store.blackBoxMark('submit', includeCsv ? 'building the CSV' : 'building the result');
-    const csv = includeCsv ? store.exportCsv() : undefined;
+    const csv = includeCsv ? store.exportCsv({ diagnostics: withDiagnostics }) : undefined;
     store.blackBoxMark('submit', `sending${csv ? ` (${Math.round(csv.length / 1048576)} MB of CSV)` : ''}`);
     onStage('Sending...');
     const res = await store.sendSubmission(payload, csv);

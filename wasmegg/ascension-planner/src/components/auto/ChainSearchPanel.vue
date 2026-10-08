@@ -583,7 +583,7 @@
           can-fill
           can-save
           :saving="saving"
-          :note="applied ? `Sent ${applied} to Classic${generated ? ' and started building the plan.' : '.'}` : ''"
+          :note="applied ? `Sent ${applied} to Your plan${generated ? ' and started building the plan.' : '.'}` : ''"
           @build="use(store.bestChain, true)"
           @fill="use(store.bestChain)"
           @csv="downloadCsv"
@@ -1128,20 +1128,9 @@
             />
           </div>
 
-          <label class="flex items-start gap-3 cursor-pointer">
-            <input
-              v-model="includeCsv"
-              type="checkbox"
-              class="mt-0.5 rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500"
-            />
-            <span class="text-[11px] text-indigo-900/80 leading-relaxed">
-              <span class="font-bold">Include the full CSV:</span> every chain this run priced, one row per leg ({{
-                (store.csvRows || 0).toLocaleString()
-              }}
-              chains). The JSON above is the headline; this is the working. It is compressed before it leaves your
-              machine, which takes a large run from about fifteen megabytes to well under one.
-            </span>
-          </label>
+          <ShareExtras
+            :csv-detail="`(${(store.csvRows || 0).toLocaleString()} chains, one row per leg; the JSON above is the headline and this is the working)`"
+          />
         </div>
 
         <div class="flex flex-wrap items-end gap-3">
@@ -1233,9 +1222,14 @@
           whether they still hold: your named plans when this goes with your name, your anonymous ones when it goes
           without, so a re-check never ties the two together.
           <span v-if="includeCsv"
-            >The <span class="font-semibold">CSV goes too</span>, ticked by default above. It is the whole run: every
-            chain it priced, one row per leg, with start and end times in your plan's timezone. Untick it to send the
-            headline alone.</span
+            >The <span class="font-semibold">CSV goes too</span> ("Send my CSV too", ticked by default above). It is the
+            whole run: every chain it priced, one row per leg, with start and end times in your plan's timezone. Untick
+            it to send the headline alone.</span
+          >
+          <span v-if="diagnosticsGo"
+            >Your <span class="font-semibold">diagnostics go too</span> ("Also send diagnostics"): one line in the
+            CSV's header with memory readings, the worker count, any crash or carry-on, and your browser and system.
+            No player ID and no save.</span
           >
           If that trade is not worth it to you, do not send it.
         </p>
@@ -1353,6 +1347,8 @@ import ChainSearchExplainer from './ChainSearchExplainer.vue';
 import HelpTip from './HelpTip.vue';
 import StartTimeFinder from './StartTimeFinder.vue';
 import FindBar from './FindBar.vue';
+import ShareExtras from './ShareExtras.vue';
+import { useShareExtras } from '@/composables/useShareExtras';
 import StepAwayOptions from './StepAwayOptions.vue';
 import SavedRuns from './SavedRuns.vue';
 import YourSetup from './YourSetup.vue';
@@ -1492,7 +1488,7 @@ watch(accountName, name => {
  *  It costs the submitter almost nothing now that it is gzipped in the browser first -- 15.3 MB
  *  of chain table compresses to 0.66 MB, measured -- which is also what let the collector keep it
  *  in KV instead of needing an R2 bucket. */
-const includeCsv = ref(true);
+const { sendCsv: includeCsv, diagnosticsGo } = useShareExtras();
 const showPayload = ref(false);
 const submitState = ref<'idle' | 'sending' | 'done'>('idle');
 const submitMessage = ref('');
@@ -1547,7 +1543,7 @@ async function submit(): Promise<void> {
     }
     // Black box: a page that dies while building or sending the table says so on the next visit.
     store.blackBoxMark('submit', includeCsv.value ? 'building the CSV' : 'building the result');
-    const csv = includeCsv.value ? store.exportCsv() : undefined;
+    const csv = includeCsv.value ? store.exportCsv({ diagnostics: diagnosticsGo.value }) : undefined;
     store.blackBoxMark('submit', `sending${csv ? ` (${Math.round(csv.length / 1048576)} MB of CSV)` : ''}`);
     submitMessage.value = 'Sending...';
     const res = await store.sendSubmission(payload, csv);
@@ -1791,7 +1787,6 @@ async function run(resume: boolean, andSubmit = false): Promise<void> {
   // Stopped early it still sends: the best of what was priced is a real result, and the player asked
   // for it to be shared (the user, 30 Sept: "why does stopping early mean nothing is sent?").
   if (!armed || store.error || store.bestDays <= 0) return;
-  includeCsv.value = true;
   optIn.value = true;
   autoSubmitted.value = true;
   await submit();

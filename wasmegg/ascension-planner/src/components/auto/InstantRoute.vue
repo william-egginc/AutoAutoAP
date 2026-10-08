@@ -70,6 +70,40 @@
       Test instant answer: rows below what has been simulated are filled in from the nearest real ones, to try the page. These
       routes and dates are not real answers.
     </p>
+    <p
+      v-if="savedAt"
+      class="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-[11px] text-slate-600 flex flex-wrap items-center gap-x-3"
+      data-testid="saved-answer"
+    >
+      <span
+        >Saved from {{ show(savedAt / 1000) }}: same save, setup and filters, so nothing was worked out again<template
+          v-if="answerStart"
+        >
+          (its dates are for a plan start of {{ show(answerStart) }})</template
+        >.</span
+      >
+      <button
+        type="button"
+        class="font-black uppercase tracking-widest text-[10px] text-emerald-800 underline hover:text-emerald-900"
+        @click="run(true)"
+      >
+        Work it out again
+      </button>
+    </p>
+    <p
+      v-if="waiting && !result"
+      class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-[12px] text-amber-900 flex flex-wrap items-center gap-x-3"
+      data-testid="instant-waits"
+    >
+      <span>A search is running, so the instant answer waits to save memory.</span>
+      <button
+        type="button"
+        class="font-black uppercase tracking-widest text-[10px] text-amber-900 underline"
+        @click="run(false, true)"
+      >
+        Work it out anyway
+      </button>
+    </p>
     <!-- The last checked answer for this save and setup, at once; then whether the new check beat it. -->
     <p
       v-if="cached && exactStatus !== 'done'"
@@ -199,7 +233,7 @@
           <button
             type="button"
             class="mt-1 ml-2 px-3 py-1.5 rounded-lg border border-emerald-700 text-emerald-800 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-50"
-            title="Opens this route in Classic, simulated step by step on your save"
+            title="Opens this route in Your plan, simulated step by step on your save"
             @click="openPlan((dateExact ?? tableDate(result.byDate)).chain)"
           >
             Simulate this plan
@@ -212,7 +246,7 @@
       <div v-if="dateRows.length > 1" class="overflow-x-auto">
         <p class="text-[11px] text-slate-500">
           Exact = the full simulator on your account; filled in automatically. Simulate this plan opens that route in
-          Classic, simulated step by step on your save: each ascension, its dates and purchases.
+          Your plan, simulated step by step on your save: each ascension, its dates and purchases.
         </p>
         <table class="w-full text-[12px]">
           <thead>
@@ -265,7 +299,7 @@
                 <button
                   type="button"
                   class="px-2 py-1 rounded-md border border-slate-300 text-[9px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-800"
-                  title="Opens this route in Classic, simulated step by step on your save"
+                  title="Opens this route in Your plan, simulated step by step on your save"
                   @click="openPlan((dateExactByK[r.legs.length] ?? tableDate(r)).chain)"
                 >
                   Simulate this plan
@@ -330,7 +364,7 @@
         <button
           type="button"
           class="mt-1 ml-2 px-3 py-1.5 rounded-lg border border-emerald-700 text-emerald-800 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-50"
-          title="Opens this route in Classic, simulated step by step on your save"
+          title="Opens this route in Your plan, simulated step by step on your save"
           @click="openPlan(lead.chain)"
         >
           Simulate this plan
@@ -379,7 +413,7 @@
       <div class="overflow-x-auto">
         <p class="text-[11px] text-slate-500">
           Exact = the full simulator on your account; filled in automatically. Simulate this plan opens that route in
-          Classic, simulated step by step on your save: each ascension, its dates and purchases.
+          Your plan, simulated step by step on your save: each ascension, its dates and purchases.
         </p>
         <table class="w-full text-[12px]">
           <thead>
@@ -418,7 +452,7 @@
                   type="button"
                   class="px-2 py-1 rounded-md border border-slate-300 text-[9px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-800"
                   :disabled="r.chain.length < 2"
-                  title="Opens this route in Classic, simulated step by step on your save"
+                  title="Opens this route in Your plan, simulated step by step on your save"
                   @click="openPlan(r.chain)"
                 >
                   Simulate this plan
@@ -485,6 +519,8 @@ import { describeColleggtibles } from '@/search/progression';
 import { poolSize, RoutePool } from '@/search/routePool';
 import { describeGear, isMaxed, pickBracket, type TableEntry } from '@/search/tableBracket';
 import { isSmallDevice } from '@/search/device';
+import { onArrival, resumeAfterRun } from '@/search/instantDeferral';
+import { readSnapshot, removeSnapshot, writeSnapshot } from '@/search/instantSnapshot';
 import { simulateRoute } from '@/search/simulateRoute';
 import type { FirstLegsRequest } from '@/workers/routeFinder.protocol';
 import { createChainSearchPool, type ChainSearchPool, type EvaluateOptions } from '@/search/pool';
@@ -691,7 +727,10 @@ async function runBracket(id: number, legs: FirstLegsBase, hours: Availability |
     // No bracket: the answer stands on its own.
   } finally {
     pool.terminate();
-    if (id === runs) bracketStatus.value = 'done';
+    if (id === runs) {
+      bracketStatus.value = 'done';
+      saveSnapshot(id);
+    }
   }
 }
 /** The bracket's two ends, or null: the stronger gear's (sooner, or more TE) and the weaker's. */
@@ -801,6 +840,26 @@ watch(
   }
 );
 
+/** A chain search or By a date run has the cores and the memory. */
+const runBusy = computed(() => store.isRunning || store.deadlineRunning);
+/** The panel is holding off working routes out because of a run (shows the line and its button). */
+const waiting = ref(false);
+/** The polish and exact check, held back to when the run ends. */
+let afterRun: (() => void) | null = null;
+watch(runBusy, (busy, wasBusy) => {
+  if (resumeAfterRun({ wasBusy, busy, waiting: waiting.value, hasAnswer: !!result.value })) {
+    void run();
+    return;
+  }
+  if (!busy && wasBusy && afterRun) {
+    const go = afterRun;
+    afterRun = null;
+    go();
+  } else if (!busy && wasBusy && result.value && exactStatus.value === 'waiting') {
+    checkAgain();
+  }
+});
+
 /** Each run's number: a run that has been superseded (the save or the date changed) is dropped. */
 let runs = 0;
 
@@ -808,13 +867,32 @@ let runs = 0;
  * The table's header, the player's first ascension and then the search itself, here on the page,
  * with each step's arithmetic split across the workers (search/routePool.ts).
  */
-async function run(): Promise<void> {
+async function run(force = false, goAhead = false): Promise<void> {
   const te = Math.floor(store.currentTE);
   if (!(te > 0) || !(target.value > te)) return;
   const id = ++runs;
   cachedKey = cacheKey();
   cached.value = readCache(cachedKey);
+  // The same save, setup and filters as when it was last worked out: show that answer, in full, and
+  // skip the work. (The at-once box is in this key; the plan start is not, as it is a new minute on every visit: the note says which start the saved dates are for.)
+  snapKey = cachedKey ? `${cachedKey}|${tryAtOnce.value ? 1 : 0}` : null;
+  savedAt.value = null;
+  waiting.value = false;
+  afterRun = null;
   stopExact();
+  if (force) removeSnapshot(snapKey);
+  const saved = !force && !!readSnapshot(snapKey);
+  const what = onArrival({ runBusy: runBusy.value, hasSaved: saved, goAhead });
+  if (what === 'restore' && restoreSnapshot()) return;
+  if (what === 'wait' || (what === 'restore' && runBusy.value && !goAhead)) {
+    // A search has the memory: no route workers until it ends or the player says go ahead.
+    waiting.value = true;
+    status.value = 'idle';
+    exactStatus.value = 'idle';
+    backgroundStatus.value = 'idle';
+    result.value = null;
+    return;
+  }
   exactStatus.value = 'idle';
   status.value = 'loading';
   noTable.value = false;
@@ -930,7 +1008,17 @@ async function run(): Promise<void> {
     status.value = 'done';
     if (props.deadline) emitRoutes(answer);
     if (small) return;
-    void polishInBackground(id, p, url, polishOptions, raw, answer).then(() => runBracket(id, legsRequest, hours));
+    const polish = () =>
+      void polishInBackground(id, p, url, polishOptions, raw, answer).then(() => runBracket(id, legsRequest, hours));
+    // A search started meanwhile (or this was worked out anyway during one): the polish and the exact
+    // check wait for it to end, or for the player to press Check exactly.
+    if (runBusy.value) {
+      afterRun = () => {
+        if (id === runs) polish();
+      };
+      return;
+    }
+    polish();
   } catch (err) {
     if (id !== runs) return;
     const message = err instanceof Error ? err.message : String(err);
@@ -1060,18 +1148,19 @@ function openPlan(chain: number[]): void {
 /** The top button: price every shown route with the full simulator again. */
 function checkAgain(): void {
   if (!result.value || exactStatus.value === 'running') return;
+  savedAt.value = null;
   const id = ++runs;
-  void runExact(id, result.value);
+  void runExact(id, result.value, true);
 }
 
-async function runExact(id: number, found: NonNullable<typeof result.value>): Promise<void> {
+async function runExact(id: number, found: NonNullable<typeof result.value>, manual = false): Promise<void> {
   stopExact();
   exact.value = {};
   dateExact.value = null;
   dateExactByK.value = {};
   exactMs.value = null;
   // A search the player started has the cores; this waits rather than slowing it down.
-  if (store.isRunning) {
+  if (runBusy.value && !manual) {
     exactStatus.value = 'waiting';
     return;
   }
@@ -1228,6 +1317,7 @@ async function runExact(id: number, found: NonNullable<typeof result.value>): Pr
       writeCache(cachedKey, { at: Date.now(), chain: dateLead.chain, end: dateLead.end, endTE: dateLead.endTE });
     else if (lead && le)
       writeCache(cachedKey, { at: Date.now(), chain: (lead as Route).chain, end: le.end, endTE: le.endTE });
+    saveSnapshot(id);
   } catch (err) {
     if (id !== runs) return;
     exactStatus.value = 'error';
@@ -1353,6 +1443,93 @@ function writeCache(k: string | null, v: CachedAnswer): void {
 }
 const cached = ref<CachedAnswer | null>(null);
 let cachedKey: string | null = null;
+
+/**
+ * THE WHOLE ANSWER, saved when everything has finished (the exact check, the background polish and
+ * the nearest-tables line) and put back as it was on the next visit with the same key
+ * (search/instantSnapshot.ts). It restores the same fields the computation sets, so everything that
+ * reads them works unchanged: the searches' seeds (`instantRoutes`, `suggestedRoute`,
+ * `suggestedCount`, by the watch below), By a date's box fill (`routes` emit), Simulate this plan,
+ * Check exactly and "Check all again" (which start their own workers when pressed).
+ */
+interface InstantSnapshot {
+  v: 1;
+  at: number;
+  result: FoundRoutes;
+  header: TableHeader | null;
+  tableUrl: string;
+  ownChanged: string;
+  ms: number | null;
+  exact: Record<string, Exact | null>;
+  dateExact: DateExact | null;
+  dateExactByK: Record<number, DateExact | null>;
+  answerStart: number;
+  exactMs: number | null;
+  gains: PolishGain[];
+  bracket: { above: BracketSide | null; below: BracketSide | null } | null;
+}
+let snapKey: string | null = null;
+/** When the answer on screen was saved, while it is a saved one (not worked out in this visit). */
+const savedAt = ref<number | null>(null);
+function saveSnapshot(id: number): void {
+  if (id !== runs || !snapKey || !result.value || status.value !== 'done' || exactStatus.value !== 'done') return;
+  if (backgroundStatus.value === 'running' || bracketStatus.value === 'running') return;
+  // Plain copies. The finder's spare routes are only for the polish, which is done.
+  const slim: FoundRoutes = { ...JSON.parse(JSON.stringify(result.value)) };
+  delete slim.alternatives;
+  delete slim.dateAlternatives;
+  const snap: InstantSnapshot = JSON.parse(
+    JSON.stringify({
+      v: 1,
+      at: Date.now(),
+      result: slim,
+      header: header.value,
+      tableUrl: tableUrl.value,
+      ownChanged: ownChanged.value,
+      ms: ms.value,
+      exact: exact.value,
+      dateExact: dateExact.value,
+      dateExactByK: dateExactByK.value,
+      answerStart: answerStart.value,
+      exactMs: exactMs.value,
+      gains: gains.value,
+      bracket: bracket.value,
+    })
+  );
+  // Too big: keep the answer without each route's step-by-step legs ("Simulate this plan" then
+  // simulates them itself).
+  if (!writeSnapshot(snapKey, snap)) {
+    for (const e of Object.values(snap.exact)) if (e) delete (e as Partial<Exact>).legs;
+    writeSnapshot(snapKey, snap);
+  }
+}
+function restoreSnapshot(): boolean {
+  const s = readSnapshot<InstantSnapshot>(snapKey);
+  if (!s || s.v !== 1 || !s.result || !s.header) return false;
+  header.value = s.header;
+  tableUrl.value = s.tableUrl;
+  ownChanged.value = s.ownChanged;
+  result.value = s.result;
+  ms.value = s.ms;
+  exact.value = s.exact;
+  dateExactByK.value = s.dateExactByK;
+  dateExact.value = s.dateExact;
+  answerStart.value = s.answerStart;
+  exactMs.value = s.exactMs;
+  gains.value = s.gains;
+  bracket.value = s.bracket;
+  bracketStatus.value = 'done';
+  backgroundStatus.value = 'done';
+  exactStatus.value = 'done';
+  exactText.value = '';
+  status.value = 'done';
+  noTable.value = false;
+  // The last-checked line is for a recompute to compare against; this answer is that check.
+  cached.value = null;
+  savedAt.value = s.at;
+  if (props.deadline) emitRoutes(s.result);
+  return true;
+}
 
 /** After the exact check: is the new answer better than the last checked one, priced again now? */
 const sinceCache = computed<{ better: boolean; text: string } | null>(() => {

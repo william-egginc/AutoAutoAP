@@ -33,6 +33,7 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
+  { at: '2026-10-08T17:55:07Z', note: 'Tabs renamed Your plan, Fastest to 490 and Highest TE by a date; the instant answer shows straight away on a repeat visit; Find and submit can send your CSV and, if you like, diagnostics', level: 'big' },
   { at: '2026-10-08T06:49:42Z', note: 'Searches use less memory: workers get only the parts of your save they need, and the instant answer frees its workers while a search runs' },
   { at: '2026-10-08T02:22:20Z', note: 'The search chart is hidden until you press Show the chart, so big runs use less memory; a single chain no longer fills the chart' },
   { at: '2026-10-07T23:35:19Z', note: 'Searches wait until your save has loaded and always start from it; By a date carry-ons and saved answers keep their own save when sent' },
@@ -40,7 +41,6 @@ const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
   { at: '2026-10-07T21:32:00Z', level: 'small', note: 'Instant answer: Simulate this plan opens the route in Classic already simulated, scrolled to its ascensions, with a way back to the answer' },
   { at: '2026-10-07T20:11:01Z', level: 'big', note: 'New: an instant answer on Fastest route and By a date. Every ascension was simulated ahead of time, so your best route shows in seconds; then the full simulator checks it on your account.' },
   { at: '2026-10-07T19:48:22Z', note: 'Science now asks for Egg Day By a date runs that check the instant answer tables, and for specific gear sets, with icons and a You have this badge', level: 'big' },
-  { at: '2026-10-07T13:36:44Z', note: 'Big CSV downloads use the save the run priced; Science counts a later-start pair a day apart' },
 ];
 
 export default {

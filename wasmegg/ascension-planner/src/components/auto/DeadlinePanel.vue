@@ -443,18 +443,11 @@
       :stopping="stopAsked"
       :running-label="autoShare ? 'Searching, then submitting...' : 'Searching...'"
       :show-submit="collectorConfigured"
+      goal-word="deadline"
       @find="andSubmit => void start(andSubmit)"
       @stop="stopDeadline"
       @nickname-typed="shareNameTouched = true"
     >
-      <template #consent>
-        <span
-          >For <span class="font-bold">Find and submit</span>: share the best answer on the leaderboard when the search
-          finishes. It sends the route, its dates and the deadline, with your artifact inventory, timezone, local plan
-          start and the random code this browser keeps for the account (not your player ID, and never shown), plus the
-          CSV if ticked under Share this result. Stop it early and it shares the best it found so far.</span
-        >
-      </template>
     </FindBar>
     <!-- Stepping away? Carry on by itself, a watcher tab, fewer workers (StepAwayOptions.vue). -->
     <StepAwayOptions
@@ -730,13 +723,7 @@
               @input="shareNameTouched = true"
             />
           </div>
-          <label class="flex items-start gap-3 cursor-pointer text-[11px] text-indigo-900/80">
-            <input v-model="shareCsv" type="checkbox" class="mt-0.5 rounded border-indigo-300 text-indigo-600" />
-            <span>
-              <span class="font-bold">Include the CSV</span>: every route this search found, best first (the same file
-              as Download CSV). It is compressed before it leaves your machine.
-            </span>
-          </label>
+          <ShareExtras />
           <p class="text-[11px] text-indigo-900/80">
             Only named answers are ranked. Anonymous ones are listed below the ranking.
           </p>
@@ -774,6 +761,7 @@ import {
   DEFAULT_STEP_IX as KEPT_STEP_IX,
   DEFAULT_WIDTH_IX as KEPT_WIDTH_IX,
   suggestBase,
+  moveSlider,
 } from '@/search/deadlineSuggest';
 
 /**
@@ -820,6 +808,8 @@ const kept = {
 <script setup lang="ts">
 import { estimateNote, plannedRoutes as plannedRoutesFor, roundedRoutes } from '@/search/deadlineEstimate';
 import FindBar from './FindBar.vue';
+import ShareExtras from './ShareExtras.vue';
+import { useShareExtras } from '@/composables/useShareExtras';
 import BandCheckNotice from './BandCheckNotice.vue';
 import StepAwayOptions from './StepAwayOptions.vue';
 import AutoSendReport from './AutoSendReport.vue';
@@ -1054,15 +1044,13 @@ const stepOf = (row: Row) => SPACE_STEPS[rowStepIx(row)] ?? SPACE_STEPS[1];
 /** Move one chain's slider, or every chain's when they're linked, and re-fill the boxes Suggest a
  *  space filled (a box typed by hand is left alone). */
 function setSlider(k: number, key: 'widthIx' | 'stepIx', value: number): void {
-  if (key === 'widthIx') widthIx.value = value;
-  else stepIx.value = value;
-  chains.value.forEach((row, i) => {
-    if (i !== k && !linkSliders.value) return;
-    row[key] = value;
-    // Moving the width slider ends a Science card's own width.
-    if (key === 'widthIx') delete row.pm;
-    if (row.auto) suggestRow(i);
-  });
+  const linked = linkSliders.value;
+  // The shared fallback (what a chain with no setting of its own reads) moves only when linked.
+  if (linked) {
+    if (key === 'widthIx') widthIx.value = value;
+    else stepIx.value = value;
+  }
+  for (const i of moveSlider(chains.value, k, key, value, linked)) if (chains.value[i].auto) suggestRow(i);
 }
 
 /**
@@ -1461,7 +1449,7 @@ async function find(): Promise<void> {
 const collectorConfigured = computed(() => store.leaderboardUrl.replace(/\/$/, '') !== '');
 const shareOptIn = ref(false);
 /** On, like Insane's: the table is what lets someone check an answer, not just read it. */
-const shareCsv = ref(true);
+const { sendCsv: shareCsv, diagnosticsGo } = useShareExtras();
 const shareAnonymous = ref(true);
 const shareNameTouched = ref(false);
 /** The name in the header's ID box, never the raw EID (see InsanePanel's `accountName`). */
@@ -1501,7 +1489,7 @@ async function share(): Promise<void> {
       shareMessage.value = 'Nothing to send yet.';
       return;
     }
-    const res = await store.sendSubmission(payload, shareCsv.value ? store.deadlineCsv() : undefined);
+    const res = await store.sendSubmission(payload, shareCsv.value ? store.deadlineCsv({ diagnostics: diagnosticsGo.value }) : undefined);
     shareOk.value = res.ok;
     if (res.ok) sentKey.value = resultKey.value;
     shareMessage.value = res.ok

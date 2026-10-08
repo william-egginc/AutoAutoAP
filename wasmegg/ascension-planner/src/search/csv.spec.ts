@@ -373,4 +373,15 @@ describe('buildDeadlineCsv', () => {
     expect(colOf(csv, 1, 'strategy')).toBe('');
     expect(csv).toContain('legs are written for the top 1 of 2 routes');
   });
+
+  it('puts the diagnostics on one comment line only when given, never injecting a data row', () => {
+    const without = buildChainsCsv([], META);
+    expect(without).not.toContain('diagnostics');
+    const csv = buildChainsCsv([], { ...META, diagnostics: '{"browser":"chrome on mac"}\nrank,chain' });
+    const line = csv.split('\n').filter(l => l.includes('diagnostics'));
+    expect(line).toHaveLength(1);
+    expect(line[0].startsWith('# diagnostics (shared by the player): {"browser":"chrome on mac"}')).toBe(true);
+    // The newline in the text became a space: nothing reads as a data row.
+    expect(csv.split('\n').filter(l => l.startsWith('rank,chain')).length).toBe(1);
+  });
 });

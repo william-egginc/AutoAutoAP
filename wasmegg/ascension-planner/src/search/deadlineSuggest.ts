@@ -320,3 +320,29 @@ export function spaceBySliders(
   const s = stopsByWidth(currentTE, early, last, halfWidth, step);
   return s && { ...s, halfWidth, step, moved: true };
 }
+
+/** One chain's own Suggest-a-space slider positions (By a date's rows). */
+export interface SliderRow {
+  widthIx?: number;
+  stepIx?: number;
+  pm?: number;
+}
+
+/**
+ * Move a Suggest-a-space slider on chain `k`. Chains are independent unless `linked` (the "move every
+ * chain's sliders together" box): then every chain takes the value, from whichever row was moved.
+ * Unlinked, ONLY chain k changes -- the shared fallback that chains without a setting of their own
+ * read is left alone, or moving one slider would drag every untouched chain with it.
+ * Returns the indexes of the rows that changed, so the caller can re-fill their boxes.
+ */
+export function moveSlider(rows: SliderRow[], k: number, key: 'widthIx' | 'stepIx', value: number, linked: boolean): number[] {
+  const moved: number[] = [];
+  rows.forEach((row, i) => {
+    if (i !== k && !linked) return;
+    row[key] = value;
+    // Moving the width slider ends a Science card's own width.
+    if (key === 'widthIx') delete row.pm;
+    moved.push(i);
+  });
+  return moved;
+}

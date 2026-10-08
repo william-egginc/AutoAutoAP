@@ -983,11 +983,12 @@ const topTabs = computed(() => [
       ]
     : []),
 ]);
-const autoTabs: { id: AutoView; label: string; screen: SearchScreen | null }[] = [
+/** "Fastest to 490", following the Final target TE when it isn't 490. */
+const autoTabs = computed<{ id: AutoView; label: string; screen: SearchScreen | null }[]>(() => [
   { id: 'classic', label: NAMES.classic, screen: null },
-  { id: 'fastest', label: NAMES.fastest, screen: null },
+  { id: 'fastest', label: `Fastest to ${chainSearchStore.finalTE}`, screen: null },
   { id: 'by-date', label: NAMES.byDate, screen: 'by-date' },
-];
+]);
 /**
  * TE straight from the loaded save, pending Truth Eggs included, the way the planner counts it when
  * it sets the save up (initialState + rollUpPendingTE: per egg, the claimed TE or the thresholds

@@ -337,3 +337,68 @@ export function clearUnfinished(): void {
   delete box.env;
   write(box);
 }
+
+/** What a player who ticks "Also send diagnostics" shares: see `diagnosticsSummary`. */
+export interface DiagnosticsExtra {
+  /** "chrome on windows" (lib/browserHelp.ts detectBrowser): a family and an OS, never the user agent. */
+  browser: string;
+  /** `navigator.hardwareConcurrency` and the worker budget now. */
+  cores: number;
+  workers: number;
+  /** Carried-on runs this visit (a crashed or unfinished run picked up again). */
+  carryOns: number;
+  /** The previous page's unfinished phase (`readUnfinished().last`), or null. */
+  crashed: Beat | null;
+}
+
+/**
+ * A compact, non-identifying summary of the black box, for the player who ticks "Also send
+ * diagnostics": the memory readings (peaks over the recorded beats), how many workers, whether the
+ * last visit died mid-run and in what phase, carry-ons, and the browser family and OS.
+ *
+ * NEVER in it: the player id, the save, the run note (free text), the user agent string, the beats'
+ * timestamps. Numbers and a few short labels only, so it is one line of JSON that fits a CSV comment.
+ */
+export function diagnosticsSummary(x: DiagnosticsExtra): Record<string, string | number | boolean | null | object> {
+  const box = read();
+  const beats = [...box.history, ...(box.open ? [box.open] : [])];
+  const peak = (pick: (b: Beat) => number | null | undefined): number | undefined => {
+    let m: number | undefined;
+    for (const b of beats) {
+      const v = pick(b);
+      if (typeof v === 'number' && Number.isFinite(v)) m = m === undefined ? v : Math.max(m, v);
+    }
+    return m;
+  };
+  const env = box.env ?? environment();
+  const out: Record<string, string | number | boolean | null | object> = {
+    browser: x.browser,
+    cores: x.cores,
+    workers: x.workers,
+    carryOns: x.carryOns,
+    lastVisitCrashed: !!x.crashed,
+  };
+  const set = (k: string, v: number | null | undefined) => {
+    if (v !== undefined && v !== null) out[k] = v;
+  };
+  set('peakWorkers', peak(b => b.workers));
+  set('deviceMemoryGB', env.deviceMemoryGB);
+  set('peakHeapMB', peak(b => b.heapMB));
+  set('heapLimitMB', peak(b => b.heapLimitMB));
+  set('peakWorkersHeapMB', peak(b => b.workersHeapMB));
+  set('peakWorkerHeapMaxMB', peak(b => b.workerHeapMaxMB));
+  set('peakMemoEntries', peak(b => b.workersMemoEntries));
+  set('peakPageMemoryMB', peak(b => b.uaMemoryMB));
+  if (x.crashed) {
+    const c = x.crashed;
+    out.crash = {
+      phase: c.phase.slice(0, 40),
+      ...(c.detail ? { detail: c.detail.slice(0, 60) } : {}),
+      hidden: c.hidden,
+      ...(c.pageClosed ? { pageClosed: true } : {}),
+      ...(c.heapMB !== undefined ? { heapMB: c.heapMB } : {}),
+      ...(c.workers !== undefined ? { workers: c.workers } : {}),
+    };
+  }
+  return out;
+}

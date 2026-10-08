@@ -69,7 +69,7 @@
 
     <div v-if="docked" class="p-4 space-y-4">
       <p class="text-[11px] text-slate-500">
-        One setup for all three Auto Planner screens: change it here and Classic, {{ NAMES.fastest }} and
+        One setup for all three Auto Planner screens: change it here and Your plan, {{ NAMES.fastest }} and
         {{ NAMES.byDate }} all use it.
       </p>
 
@@ -163,7 +163,7 @@
         >
           <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">When you can play</h3>
           <p v-if="screen === 'classic'" class="text-[11px] font-semibold text-amber-700">
-            Classic doesn't plan around awake hours yet. The two searches do.
+            Your plan doesn't plan around awake hours yet. The two searches do.
           </p>
           <!-- Two plain choices instead of one checkbox (the user, 4 Oct: "the hours don't seem that clear"). -->
           <div class="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="When you can prestige">
@@ -275,7 +275,7 @@
           <div id="your-setup-time-off" class="scroll-mt-4"></div>
           <TimeOffEditor />
           <p v-if="screen === 'classic'" class="text-[11px] font-semibold text-amber-700 leading-relaxed">
-            Classic only plans around time off in a plan built from a search (Build this plan on {{ NAMES.fastest }} or
+            Your plan only plans around time off in a plan built from a search (Build this plan on {{ NAMES.fastest }} or
             {{ NAMES.byDate }}). A chain typed in here goes straight through it for now.
           </p>
           <p v-else class="text-[11px] text-slate-500 leading-relaxed">
@@ -311,7 +311,7 @@
             </div>
           </div>
           <p v-if="screen === 'classic'" class="text-[11px] font-semibold text-amber-700">
-            Not used by Classic: it builds one plan, no search.
+            Not used by Your plan: it builds one plan, no search.
           </p>
           <WorkerSlider />
           <BackgroundSpeed />

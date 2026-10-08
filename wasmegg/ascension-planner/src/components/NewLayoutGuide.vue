@@ -33,7 +33,7 @@
     </ul>
 
     <p class="text-[11px] text-slate-500 leading-relaxed">
-      Old links, sweep links and the Egg Day link still work, and open the right screen. The Manual Planner and Classic
+      Old links, sweep links and the Egg Day link still work, and open the right screen. The Manual Planner and Your plan
       are Joo's planners, unchanged; the searches, the leaderboard and the Explorer are built on top of them.
     </p>
   </section>

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   beat,
   clearUnfinished,
+  diagnosticsSummary,
   end,
   formatMB,
   memoryPhrase,
@@ -116,5 +117,44 @@ describe('black box memory helpers', () => {
     expect(workersNote({ workersHeapMB: null })).toBe('');
     beat({ phase: 'search', workers: 2, workersMemoEntries: 4200 });
     expect(readUnfinished()?.last.workersMemoEntries).toBe(4200);
+  });
+
+  describe('diagnosticsSummary', () => {
+    beforeEach(() => {
+      const backing = new Map<string, string>();
+      vi.stubGlobal('localStorage', {
+        getItem: (k: string) => backing.get(k) ?? null,
+        setItem: (k: string, v: string) => void backing.set(k, v),
+      });
+      pageShown();
+    });
+    it('is a compact line of numbers and short labels, with the peaks over the beats', () => {
+      beat({ phase: 'search', workers: 8, workersHeapMB: 900, workerHeapMaxMB: 150, workersMemoEntries: 12000, runNote: 'my secret note' });
+      beat({ phase: 'search', workers: 6, workersHeapMB: 1200, workerHeapMaxMB: 200, workersMemoEntries: 9000 });
+      const got = diagnosticsSummary({ browser: 'chrome on mac', cores: 10, workers: 6, carryOns: 1, crashed: null });
+      expect(got).toMatchObject({
+        browser: 'chrome on mac',
+        cores: 10,
+        workers: 6,
+        carryOns: 1,
+        lastVisitCrashed: false,
+        peakWorkers: 8,
+        peakWorkersHeapMB: 1200,
+        peakWorkerHeapMaxMB: 200,
+        peakMemoEntries: 12000,
+      });
+      const text = JSON.stringify(got);
+      expect(text).not.toContain('secret');
+      expect(text).not.toMatch(/EI\d{16}/);
+      expect(text.length).toBeLessThan(800);
+    });
+
+    it('names the phase the last visit died in', () => {
+      beat({ phase: 'submit', detail: 'building the CSV', workers: 4 });
+      const crashed = readUnfinished()!.last;
+      const got = diagnosticsSummary({ browser: 'safari on mac', cores: 8, workers: 4, carryOns: 0, crashed });
+      expect(got.lastVisitCrashed).toBe(true);
+      expect(got.crash).toMatchObject({ phase: 'submit', detail: 'building the CSV', workers: 4 });
+    });
   });
 });
