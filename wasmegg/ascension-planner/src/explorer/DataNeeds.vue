@@ -222,6 +222,7 @@ import {
 import { measuredWorkerSeconds } from '@/search/speed';
 import { SWEEP_PRESETS } from './upload';
 import { sweepRequestQuery, type SweepRequest } from '@/search/sweepRequest';
+import type { FirstAscension } from '@/search/firstAscension';
 import { byDateRequestQuery, type ByDateRequest } from '@/search/byDateRequest';
 import { iconURL } from 'lib';
 import type { InventoryCount } from '@/search/csv';
@@ -301,13 +302,13 @@ function sweepLinks(
   bands: string,
   minGap: number
 ): { label: string; href: string; request: SweepRequest; byDate?: ByDateRequest }[] {
-  const link = (text: string, forceContinue?: boolean) => ({
+  const link = (text: string, firstAscension?: FirstAscension) => ({
     label: text,
-    href: `./${sweepRequestQuery({ preset, label, bands, minGap, forceContinue })}`,
-    request: { preset, label, bands, minGap, forceContinue: forceContinue ?? null },
+    href: `./${sweepRequestQuery({ preset, label, bands, minGap, firstAscension })}`,
+    request: { preset, label, bands, minGap, firstAscension: firstAscension ?? null },
   });
   if (needId === 'force-continue') {
-    return [link('Finish my current ascension first', true), link('Ascend straight away', false)];
+    return [link('Finish my current ascension first', 'continue'), link('Ascend straight away', 'fresh')];
   }
   return [link('Run this sweep')];
 }
@@ -318,7 +319,7 @@ function byDateLinks(request: ByDateRequest): { label: string; href: string; req
     {
       label: `Open ${NAMES.byDate}`,
       href: `./${byDateRequestQuery(request)}`,
-      request: { preset: '', label: '', bands: '', minGap: 0, forceContinue: null },
+      request: { preset: '', label: '', bands: '', minGap: 0, firstAscension: null },
       byDate: request,
     },
   ];

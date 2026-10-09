@@ -5,6 +5,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SearchInputs } from './types';
+import type { FirstAscension } from './firstAscension';
 
 const DAY = 86400;
 let contDays = 0;
@@ -57,12 +58,13 @@ vi.mock('@/stores/autoPlanner', () => ({
 
 const { runLeg } = await import('./leg');
 
-const inputs = (forceContinue = true) =>
+/** Inputs under one first-ascension setting, or (a boolean) as inputs stored before it existed. */
+const inputs = (first: FirstAscension | boolean = 'continue') =>
   ({
     baseState: { fuelTankAmounts: {}, eggsDelivered: {}, teEarned: {} },
     currentFarmState: { commonResearches: {}, eggType: 52 },
     context: { rawBackup: {} },
-    forceContinue,
+    ...(typeof first === 'boolean' ? { forceContinue: first } : { firstAscension: first }),
     planStart: 0,
   }) as unknown as SearchInputs;
 
@@ -101,13 +103,38 @@ describe('leg 1 continue rule', () => {
     expect(leg1()?.key).toBe('1-sale');
   });
 
-  it('without force-continue, continue is just one more candidate and never pinned', () => {
+  it('under Fastest (auto), continue is just one more candidate and never pinned', () => {
     contDays = 5;
     fresh = [{ sale: 1, days: 3 }];
-    expect(leg1(inputs(false))?.key).toBe('1-sale');
+    expect(leg1(inputs('auto'))?.key).toBe('1-sale');
     contDays = 30;
     fresh = [{ sale: 1, days: 31 }];
-    expect(leg1(inputs(false))?.key).toBe('continue');
+    expect(leg1(inputs('auto'))?.key).toBe('continue');
+    // A tie goes to the fresh start, as in Classic with nothing picked.
+    fresh = [{ sale: 1, days: 30 }];
+    expect(leg1(inputs('auto'))?.key).toBe('1-sale');
+  });
+
+  it('under Prestige now (fresh), never continues, even when continuing is far faster', () => {
+    contDays = 1;
+    fresh = [{ sale: 1, days: 90 }];
+    expect(leg1(inputs('fresh'))?.key).toBe('1-sale');
+    expect(calls.c3).toBe(1);
+    contDays = 20;
+    fresh = [{ sale: 1, days: 20, endTE: 205, buildPhaseEnd: 5 * DAY }];
+    contEndTE = 230;
+    expect(leg1(inputs('fresh'), 20 * DAY)?.key).toBe('1-sale');
+  });
+
+  it('reads inputs stored before the setting existed: forceContinue true is Continue Asc., false is Fastest', () => {
+    contDays = 5;
+    fresh = [{ sale: 1, days: 3 }];
+    expect(leg1(inputs(true))?.key).toBe('continue');
+    expect(leg1(inputs(false))?.key).toBe('1-sale');
+    // Neither field (never written by any build) reads as the default, Fastest.
+    const bare = { ...inputs('auto') } as unknown as Record<string, unknown>;
+    delete bare.firstAscension;
+    expect(leg1(bare as unknown as SearchInputs)?.key).toBe('1-sale');
   });
 
   it('by a deadline, compares TE reached, and drops variants whose build ends after it', () => {

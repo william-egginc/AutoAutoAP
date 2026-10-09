@@ -216,7 +216,7 @@ describe("resuming under the run's own plan start", () => {
     });
     expect(fingerprintChanges(fingerprintRun(base), changed)).toEqual([
       'the final target was 490, now 500',
-      'the "keep going past the target" setting changed',
+      'the first ascension was Continue Asc., now Fastest of the two',
       'the availability schedule changed',
       'the TE milestones changed',
       'the time off changed',
@@ -360,6 +360,28 @@ describe('a different search on the same save', () => {
   });
 });
 
+describe('the first ascension in a fingerprint', () => {
+  const base = { playerId: 'P', planStart: 1_790_000_000, currentTE: 150, final: 490 };
+  it('keeps the tags a run fingerprinted with the old boolean had', () => {
+    expect(fingerprintRun({ ...base, firstAscension: 'continue' })).toBe(
+      fingerprintRun({ ...base, forceContinue: true })
+    );
+    expect(fingerprintRun({ ...base, firstAscension: 'auto' })).toBe(fingerprintRun({ ...base, forceContinue: false }));
+    expect(fingerprintRun({ ...base, firstAscension: 'continue' }).split('|')[4]).toBe('fc');
+    expect(fingerprintRun({ ...base, firstAscension: 'auto' }).split('|')[4]).toBe('auto');
+  });
+
+  it('tags Prestige Now as fresh, reads it back, and names the change', async () => {
+    const { fingerprintSettings } = await import('./persistence');
+    const fresh = fingerprintRun({ ...base, firstAscension: 'fresh' });
+    expect(fresh.split('|')[4]).toBe('fresh');
+    expect(fingerprintSettings(fresh)?.firstAscension).toBe('fresh');
+    expect(fingerprintChanges(fingerprintRun({ ...base, firstAscension: 'continue' }), fresh)).toEqual([
+      'the first ascension was Continue Asc., now Prestige Now',
+    ]);
+  });
+});
+
 describe('putting a run’s settings back from its fingerprint', () => {
   it('reads back target, keep-going, schedule, milestones and time off', async () => {
     const { fingerprintSettings, lockedChanges } = await import('./persistence');
@@ -376,7 +398,7 @@ describe('putting a run’s settings back from its fingerprint', () => {
     });
     expect(fingerprintSettings(fp)).toEqual({
       final: 480,
-      forceContinue: false,
+      firstAscension: 'auto',
       availability: { days: [1, 2, 3], fromHour: 9, toHour: 1, timezone: 'America/Port-au-Prince' },
       deferShifts: true,
       milestones: [{ te: 250, by: 1_800_000_000 }],
@@ -385,7 +407,7 @@ describe('putting a run’s settings back from its fingerprint', () => {
     const plain = fingerprintRun({ playerId: 'EI1', planStart: 1, currentTE: 137, final: 490, forceContinue: true });
     expect(fingerprintSettings(plain)).toMatchObject({
       final: 490,
-      forceContinue: true,
+      firstAscension: 'continue',
       availability: null,
       timeOff: [],
     });

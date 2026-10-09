@@ -45,6 +45,7 @@ import type { Availability } from '@/search/availability';
 import type { Milestone } from '@/search/milestones';
 import type { TimeOffDates } from '@/search/timeOff';
 import type { EffortTier } from '@/search/types';
+import type { FirstAscension } from '@/search/firstAscension';
 
 export type SiteKind = 'smart' | 'full' | 'by-date';
 
@@ -75,7 +76,8 @@ export interface SiteRunOptions {
   deferShifts: boolean;
   milestones: Milestone[];
   timeOff: TimeOffDates[];
-  forceContinue: boolean;
+  /** What leg 1 does with the ascension in progress (search/firstAscension.ts). */
+  firstAscension: FirstAscension;
   /** Smart search. */
   effort: EffortTier;
   seed: number[];
@@ -193,7 +195,10 @@ export async function runSiteSearch(o: SiteRunOptions): Promise<number> {
   planner.startDate = o.startDate;
   planner.startTime = o.startTime;
   store.finalTE = o.final;
-  store.forceContinue = o.forceContinue;
+  store.setFirstAscension(o.firstAscension);
+  // The command line takes the setting as given: Classic's one-hour rule would make the same command
+  // answer differently depending on when it runs (a plan start set days ahead).
+  store.continueStartRule = false;
   store.workerBudget = Math.max(1, Math.min(store.machineThreads, o.jobs));
   store.scheduleEnabled = !!o.availability;
   if (o.availability) {

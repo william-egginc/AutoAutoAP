@@ -32,6 +32,7 @@ import type { EquippedArtifact } from '@/lib/artifacts/types';
 import type { CacheEntry } from './driver';
 import { describeAvailability, type Availability } from './availability';
 import type { LegSummary } from './types';
+import { forceContinueOf, type FirstAscension } from './firstAscension';
 // Runtime import in this direction only: submission.ts takes `InventoryCount` from here as a
 // type-only import, which is erased, so there is no cycle at runtime.
 import { bestPerFamily, keepVirtueArtifacts, keepVirtueStones } from './submission';
@@ -44,7 +45,8 @@ export interface CsvMeta {
   currentTE: number;
   final: number;
   effort: string;
-  forceContinue: boolean;
+  /** A1's setting (search/firstAscension.ts). */
+  firstAscension: FirstAscension;
   availability?: Availability | null;
   /** Time off from the virtue farm the plan was built around (search/timeOff.ts). */
   timeOff?: TimeOffDates[];
@@ -371,7 +373,11 @@ function metaLines(meta: CsvMeta, head: string[], count: string): string[] {
   note(`generated ${formatInZone(Math.floor((meta.generatedAt ?? Date.now()) / 1000), tz)} (${tz})`);
   note(`plan start ${formatInZone(meta.planStart, tz)}`);
   note(`current TE ${meta.currentTE} -> final target ${meta.final}`);
-  note(`effort ${meta.effort}; force-continue ${meta.forceContinue ? 'on' : 'off'}`);
+  // `force-continue on|off` stays first, as it always read, for the readers that parse it (the Chain
+  // Explorer's upload); `first-ascension` after it says which of the three it was.
+  note(
+    `effort ${meta.effort}; force-continue ${forceContinueOf(meta.firstAscension) ? 'on' : 'off'}; first-ascension ${meta.firstAscension}`
+  );
   note(`available ${describeAvailability(meta.availability)}`);
   if (meta.timeOff?.length)
     note(

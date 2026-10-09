@@ -100,7 +100,10 @@ export interface RunSummary {
    *  downloading it after opening labels it with ITS hours and options. Optional and additive. */
   settings?: {
     effort: string;
-    forceContinue: boolean;
+    /** A1's setting (firstAscension.ts). Absent before 9 Oct 2026, which recorded `forceContinue`. */
+    firstAscension?: import('./firstAscension').FirstAscension;
+    /** @deprecated Before 9 Oct 2026: true = 'continue', false = 'auto'. Read with `readFirstAscension`. */
+    forceContinue?: boolean;
     availability: import('./availabilitySchedule').Availability | null;
     deferShifts: boolean;
     timeOff: import('./timeOff').TimeOffDates[];

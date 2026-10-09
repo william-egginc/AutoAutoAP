@@ -23,6 +23,13 @@ import type { CacheEntry } from './driver';
 import type { SearchSpace } from './submission';
 import { availabilityKey, type Availability } from './availability';
 import { milestonesKey, type Milestone } from './milestones';
+import {
+  FIRST_ASCENSION_WORDS,
+  firstAscensionFromTag,
+  firstAscensionTag,
+  readFirstAscension,
+  type FirstAscension,
+} from './firstAscension';
 import type { EffortTier, LegSummary } from './types';
 
 const METADATA_KEY = 'chainSearchRun';
@@ -99,13 +106,23 @@ export function fingerprintRun(args: {
   planStart: number;
   currentTE: number;
   final: number;
-  forceContinue: boolean;
+  /** A1's setting (search/firstAscension.ts). Tagged 'fc' / 'auto' / 'fresh': the first two are the
+   *  old boolean's tags, so a fingerprint written before keeps matching. */
+  firstAscension?: FirstAscension;
+  /** @deprecated The old boolean, for callers that still pass it (true = 'continue', false = 'auto'). */
+  forceContinue?: boolean;
   availability?: Availability | null;
   milestones?: Milestone[] | null;
   deferShifts?: boolean;
   timeOff?: TimeOffWindow[] | null;
 }): string {
-  const parts = [args.playerId, args.planStart, args.currentTE, args.final, args.forceContinue ? 'fc' : 'auto'];
+  const parts = [
+    args.playerId,
+    args.planStart,
+    args.currentTE,
+    args.final,
+    firstAscensionTag(readFirstAscension(args)),
+  ];
   const key = availabilityKey(args.availability);
   // `+shifts` only when a schedule is actually in force, so toggling it with no schedule set
   // cannot invalidate a checkpoint it could not have affected.
@@ -154,7 +171,10 @@ export function fingerprintChanges(saved: string, current: string): string[] {
   if (a[0] !== b[0]) return ['it belongs to a different player'];
   if (a[2] !== b[2]) out.push(`TE was ${a[2]}, now ${b[2]}`);
   if (a[3] !== b[3]) out.push(`the final target was ${a[3]}, now ${b[3]}`);
-  if (a[4] !== b[4]) out.push('the "keep going past the target" setting changed');
+  if (a[4] !== b[4])
+    out.push(
+      `the first ascension was ${FIRST_ASCENSION_WORDS[firstAscensionFromTag(a[4])]}, now ${FIRST_ASCENSION_WORDS[firstAscensionFromTag(b[4])]}`
+    );
   return [...out, ...tailChanges(a, b)];
 }
 
@@ -162,7 +182,7 @@ export function fingerprintChanges(saved: string, current: string): string[] {
  *  player, the plan start and the TE. */
 export interface FingerprintSettings {
   final: number;
-  forceContinue: boolean;
+  firstAscension: FirstAscension;
   availability: { days: number[]; fromHour: number; toHour: number; timezone: string } | null;
   deferShifts: boolean | null;
   milestones: { te: number; by: number }[];
@@ -181,7 +201,7 @@ export function fingerprintSettings(fp: string): FingerprintSettings | null {
   if (!Number.isFinite(final)) return null;
   const out: FingerprintSettings = {
     final,
-    forceContinue: parts[4] === 'fc',
+    firstAscension: firstAscensionFromTag(parts[4]),
     availability: null,
     deferShifts: null,
     milestones: [],

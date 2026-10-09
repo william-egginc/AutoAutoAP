@@ -374,6 +374,9 @@ describe('rechecks', () => {
           bestDays: 760.5,
           chainsPriced: 2,
           complete: true,
+          // Saved before 9 Oct 2026: the boolean, which reads as Continue Asc. and so matches the
+          // earlier plans below (sent with forceContinue true), whatever today's default is.
+          settings: { effort: 'balanced', forceContinue: true, availability: null, deferShifts: true, timeOff: [] },
         },
       ],
       loadRun: async () => ({

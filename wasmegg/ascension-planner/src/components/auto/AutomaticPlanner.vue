@@ -451,6 +451,7 @@ const {
   validationErrorMessage,
   copySuccess,
   bestResults,
+  generate,
   regeneratePlan,
   copySummary,
   exportCurrentPlan,
@@ -468,7 +469,7 @@ const {
 // regenerate surgically via their own handlers, which call `generate()` directly.
 const runGenerate = () => {
   console.clear();
-  regeneratePlan(() => nextTick(() => targetInput.value?.focus()));
+  regeneratePlan(() => nextTick(() => targetInput.value?.focus()), chainSearchStore.classicFirstPick());
 };
 
 // The chain search's "Use this chain and generate" lands here. It signals rather than calling
@@ -507,8 +508,19 @@ const timeOffInPlan = computed(() => {
 watch(
   () => chainSearchStore.generateRequested,
   () => {
-    regeneratePlan();
+    regeneratePlan(undefined, chainSearchStore.classicFirstPick());
   }
+);
+// Your setup's First ascension moved A1's pick: rebuild a plan already here from A2 on, as picking it
+// in A1's own dropdown would. Immediate, for a change made on another screen while this was closed.
+watch(
+  () => [chainSearchStore.classicFirstPickChanged, isGenerating.value] as const,
+  ([pending, busy]) => {
+    if (!pending || busy) return;
+    chainSearchStore.classicFirstPickChanged = false;
+    if (autoPlannerStore.ascensionChain.length) void generate(undefined, { dirtyFrom: 1 });
+  },
+  { immediate: true }
 );
 /**
  * "Simulate this plan" from the instant answer (search/simulateRoute.ts): the banner above the plan
@@ -544,7 +556,7 @@ watch(
 onMounted(() => {
   if (!chainSearchStore.generateWhenPlannerOpens) return;
   chainSearchStore.generateWhenPlannerOpens = false;
-  regeneratePlan();
+  regeneratePlan(undefined, chainSearchStore.classicFirstPick());
 });
 
 const handleTargetTEInput = (e: Event) => {

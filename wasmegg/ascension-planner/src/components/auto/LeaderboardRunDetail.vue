@@ -43,11 +43,9 @@
             }}<span v-if="finishText.own" class="block font-normal text-slate-400">{{ finishText.own }}</span></span
           >
         </div>
-        <div v-if="row.forceContinue != null" class="flex justify-between gap-3">
+        <div v-if="firstAscension" class="flex justify-between gap-3">
           <span class="shrink-0">First ascension</span>
-          <span class="font-bold text-right">{{
-            row.forceContinue ? 'finishes the current run first' : 'prestiges straight away'
-          }}</span>
+          <span class="font-bold text-right">{{ FIRST_ASCENSION_WORDS[firstAscension] }}</span>
         </div>
         <!-- A line made from a later run's `rechecks` (lib/leaderboardRank.ts `recheckLines`) was
              never searched for: that run priced this one route again, from its own save and start,
@@ -271,7 +269,8 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { finishMs, formatDate, foundByText, startMs, type BoardRow } from '@/lib/leaderboardRank';
+import { finishMs, formatDate, foundByText, rowFirstAscension, startMs, type BoardRow } from '@/lib/leaderboardRank';
+import { FIRST_ASCENSION_WORDS } from '@/search/firstAscension';
 import { formatBand } from '@/search/exhaustive';
 
 const props = defineProps<{
@@ -285,6 +284,9 @@ const props = defineProps<{
 
 /** More than one copy: list them all. */
 const several = computed(() => (props.copies?.length ?? 0) > 1);
+
+/** What its first ascension did, in Classic's words; null for a row sent before that was recorded. */
+const firstAscension = computed(() => rowFirstAscension(props.row));
 
 /** A line made from a later run's re-check of this route, not a send of its own. */
 const isRecheck = computed(() => props.row.recheckOf != null);

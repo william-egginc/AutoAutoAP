@@ -235,7 +235,7 @@ variant against `getOptimalELRSet` instead of whatever is equipped right now. A 
 parked in an earnings set had continuing scored at roughly half their real delivery rate,
 which hid it as an option entirely. Artifact swaps are free and instant in game, so the
 honest comparison is against the best set they can actually field. Every plan here uses
-`--force-continue`, so leg A1 is a `continue` leg and this changes its result.
+`--force-continue` (now `--first-ascension continue`), so leg A1 is a `continue` leg and this changes its result.
 
 ### 3. The files you need
 
@@ -297,8 +297,9 @@ node dist-search/fastsearch.js --backup me.json --egg-day --chain "190-200:2; 21
 ```
 
 `node dist-search/fastsearch.js --help` lists every flag. The defaults are the site's:
-Exact effort, 5 to 8 ascensions, leg 1 finishing the ascension in progress
-(`--no-force-continue` turns that off), and every core but one for workers (`--jobs N`).
+Exact effort, 5 to 8 ascensions, leg 1 taking the faster of finishing the ascension in progress
+and prestiging now (`--first-ascension auto`; `continue` and `fresh` are the other two), and every
+core but one for workers (`--jobs N`).
 Ctrl+C stops a search and keeps its best so far.
 
 What the command line says is what the site's panels say: the band checker's "did you mean"
@@ -593,7 +594,7 @@ priced, so a 4000-route run is about 24,000 rows. It opens in any spreadsheet.
 
 The file starts with `#` comment lines, the header metadata: when it was generated, the plan
 start (in the plan's own timezone), your current TE and the final target, the effort tier and
-the force-continue setting, your hours, any time off, the starting route, your note on the run
+the first-ascension setting (`force-continue on|off; first-ascension auto|continue|fresh`), your hours, any time off, the starting route, your note on the run
 (on one line), the number of routes priced (and, for By a date, the deadline), and the virtue
 artifacts and stones the run had to choose from. The artifacts are fixed for the whole run; the
 simulator picks the best set inside each leg.
@@ -702,7 +703,8 @@ answer in under an hour, not to get *the* answer.
 | `--jobs N` | worker cap. The pool is sized **per batch** — see below |
 | `--csv FILE` | where the per-leg CSV goes. Honoured with `--jobs` > 1 too (it used to be ignored there, and every sharded run overwrote `fastsearch.csv`) |
 | `--start-date` / `--start-time` | plan start. Defaults to the current date and hour **in `--timezone`** (the date used to be UTC's, so an evening run in the Americas was dated a day ahead) |
-| `--force-continue` | finish the current ascension first **when that takes under a week**; longer than that, leg 1 compares continue with the 1/2/3-sale fresh starts and takes the fastest (measured: continue always won under a week, and lost to a fresh 2-sale start on longer first legs, e.g. 120.9 vs 99.6 days). **On by default, in the browser and on the command line** (`--no-force-continue` turns it off on `fastsearch`). It changes the answer: one account's best 2-ascension plan moved 135 days |
+| `--first-ascension auto\|continue\|fresh` | what leg 1 does with the ascension in progress, as Your setup's First ascension and Classic's A1 dropdown do. `auto` (the default since 9 Oct 2026, in the browser and on the command line): continuing is one more candidate and wins only by being faster. `continue` (Continue Asc.): finish the current ascension first **when that takes under a week**; longer than that, leg 1 compares continue with the 1/2/3-sale fresh starts and continue wins unless one is strictly faster (measured: continue always won under a week, and lost to a fresh 2-sale start on longer first legs, e.g. 120.9 vs 99.6 days). `fresh` (Prestige Now): never continue. Past six months continuing is never a candidate. It changes the answer: one account's best 2-ascension plan moved 135 days. The browser also follows Classic's one-hour rule (a plan starting over an hour from now starts fresh); the command line does not, so a command gives the same answer whenever it runs |
+| `--force-continue` / `--no-force-continue` | the old names for `--first-ascension continue` / `auto` (`--force-continue` used to be the default) |
 | `--jobs-fixed` | honour `--jobs` literally instead of sizing per batch |
 | `--mod elr=1.05` | colleggtible what-if: scales one modifier dimension |
 | `--add-artifact metronome:legendary` | artifact what-if: injects into the **virtue** inventory |

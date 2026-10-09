@@ -158,7 +158,10 @@ export interface SavedDeadlineResult {
    *  it priced under even if Your setup changed since. Absent on results saved before 5 Oct. */
   settings?: {
     effort: string;
-    forceContinue: boolean;
+    /** A1's setting (firstAscension.ts). Absent before 9 Oct 2026, which recorded `forceContinue`. */
+    firstAscension?: import('./firstAscension').FirstAscension;
+    /** @deprecated Before 9 Oct 2026: true = 'continue', false = 'auto'. Read with `readFirstAscension`. */
+    forceContinue?: boolean;
     availability: import('./availabilitySchedule').Availability | null;
     deferShifts: boolean;
     timeOff: import('./timeOff').TimeOffDates[];

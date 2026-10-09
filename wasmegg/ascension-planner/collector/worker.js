@@ -293,6 +293,8 @@ function pickExtras(body, record) {
 const text = (v, max) => (typeof v === 'string' ? scrubText(v).slice(0, max) : undefined);
 const num = v => (Number.isFinite(v) ? v : undefined);
 const flag = v => (typeof v === 'boolean' ? v : undefined);
+/** The first-ascension setting's three values (src/search/firstAscension.ts). */
+const FIRST_ASCENSIONS = new Set(['auto', 'continue', 'fresh']);
 /** `label`/`count` pairs, the shape both artifacts and stones use. */
 const counts = (v, cap) =>
   Array.isArray(v)
@@ -629,6 +631,10 @@ function pickSubmission(s) {
     // Whether leg 1 finished the current run first. Changes which chain wins, so the analysis must
     // never pool runs that differ on it. Absent on submissions made before it was recorded.
     forceContinue: flag(s.forceContinue),
+    // What leg 1 did with the ascension in progress, as one of three words (9 Oct 2026): 'auto' the
+    // faster of continuing and a fresh start, 'continue', 'fresh'. Sent beside `forceContinue`, which
+    // is true exactly when this is 'continue'. Anything else is dropped. No schema bump: optional.
+    firstAscension: FIRST_ASCENSIONS.has(s.firstAscension) ? s.firstAscension : undefined,
     // By a date only: which mode found the row (the board's Effort column). Absent before 9 Oct 2026.
     mode: s.mode === 'simple' || s.mode === 'advanced' ? s.mode : undefined,
     waitingHours: s.waitingHours === null ? null : num(s.waitingHours),
@@ -820,6 +826,22 @@ const ACCT_HEX = 12;
 const artifactLabels = r =>
   (Array.isArray(r.artifacts) ? r.artifacts : []).map(a => (typeof a === 'string' ? a : (a?.label ?? '')));
 
+/**
+ * The fingerprint's first-ascension part, as `firstAscensionPart` in src/lib/leaderboardRank.ts: the
+ * old boolean for Fastest and Continue Asc., so every stored digest still matches, and 'fresh' for
+ * Prestige Now, which the boolean could not say. A row without `firstAscension` reads its boolean.
+ */
+function firstAscensionPart(r) {
+  const first = FIRST_ASCENSIONS.has(r.firstAscension)
+    ? r.firstAscension
+    : r.forceContinue === true
+      ? 'continue'
+      : r.forceContinue === false
+        ? 'auto'
+        : null;
+  return first === 'fresh' ? 'fresh' : first === 'continue';
+}
+
 /** Same result, as a string. Keep identical to `contentFingerprint` in src/lib/leaderboardRank.ts. */
 function fingerprint(r) {
   return JSON.stringify([
@@ -832,7 +854,7 @@ function fingerprint(r) {
     r.currentTE ?? null,
     r.window || '',
     !!r.holdShifts,
-    !!r.forceContinue,
+    firstAscensionPart(r),
     (Array.isArray(r.timeOff) ? r.timeOff : []).map(t => `${t.from}~${t.to}`),
   ]);
 }

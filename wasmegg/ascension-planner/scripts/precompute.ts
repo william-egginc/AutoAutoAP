@@ -106,6 +106,7 @@ import {
   instantDeliveryScale,
   runLeg,
 } from '@/search/leg';
+import { firstAscensionFromFlags, readFirstAscension } from '@/search/firstAscension';
 import { calculateArtifactModifiers } from '@/lib/artifacts';
 import { computeRealisticELR } from '@/calculations/realisticELR';
 import {
@@ -263,7 +264,12 @@ async function loadInputs(file: string): Promise<SearchInputs> {
   // --write-save FILE: the save as loaded (with --reference or --combo applied), for loading in the page.
   if (arg('write-save')) writeFileSync(arg('write-save')!, JSON.stringify(backup));
   await initPlanFuture('file', markRaw(backup));
-  return useChainSearchStore().collectInputs();
+  // Leg 1's setting, as on the site (default auto; --force-continue / --no-force-continue still read).
+  // Taken as given: Classic's one-hour rule would tie a run's answer to the clock it ran on.
+  const store = useChainSearchStore();
+  store.setFirstAscension(firstAscensionFromFlags(arg('first-ascension'), has));
+  store.continueStartRule = false;
+  return store.collectInputs();
 }
 
 /** Every variant's tail to `target`, and the one the app picks (seconds, key). */
@@ -988,7 +994,7 @@ async function route(file: string): Promise<void> {
         deliveryScale,
         delivered: EGG_ORDER.map(e => inputs!.baseState.eggsDelivered?.[e] || 0),
         cont: continueTailParams(inputs!, start),
-        forceContinue: inputs!.forceContinue,
+        firstAscension: readFirstAscension(inputs!),
         pinSeconds: inputs!.continuePinSeconds ?? CONTINUE_PIN_MAX_SECONDS,
         maxContinueSeconds: inputs!.continueMaxSeconds ?? CONTINUE_MAX_SECONDS,
       })
@@ -1268,7 +1274,7 @@ async function delayScan(file: string): Promise<void> {
     deliveryScale: 1,
     delivered: EGG_ORDER.map(e => inputs.baseState.eggsDelivered?.[e] || 0),
     cont,
-    forceContinue: inputs.forceContinue,
+    firstAscension: readFirstAscension(inputs),
     pinSeconds: inputs.continuePinSeconds ?? CONTINUE_PIN_MAX_SECONDS,
     maxContinueSeconds: inputs.continueMaxSeconds ?? CONTINUE_MAX_SECONDS,
   });
@@ -1455,7 +1461,7 @@ async function waitPolicy(file: string): Promise<void> {
     deliveryScale: 1,
     delivered: eggs0,
     cont,
-    forceContinue: inputs.forceContinue,
+    firstAscension: readFirstAscension(inputs),
     pinSeconds: inputs.continuePinSeconds ?? CONTINUE_PIN_MAX_SECONDS,
     maxContinueSeconds: inputs.continueMaxSeconds ?? CONTINUE_MAX_SECONDS,
   }))
@@ -1684,7 +1690,7 @@ async function eggdayScan(file: string): Promise<void> {
     deliveryScale: 1,
     delivered: eggs0,
     cont,
-    forceContinue: inputs.forceContinue,
+    firstAscension: readFirstAscension(inputs),
     pinSeconds: inputs.continuePinSeconds ?? CONTINUE_PIN_MAX_SECONDS,
     maxContinueSeconds: inputs.continueMaxSeconds ?? CONTINUE_MAX_SECONDS,
   });
@@ -2069,7 +2075,7 @@ async function polish(file: string): Promise<void> {
     deliveryScale: 1,
     delivered: eggs0,
     cont: fromTE ? null : continueTailParams(inputs, start),
-    forceContinue: inputs.forceContinue,
+    firstAscension: readFirstAscension(inputs),
     pinSeconds: inputs.continuePinSeconds ?? CONTINUE_PIN_MAX_SECONDS,
     maxContinueSeconds: inputs.continueMaxSeconds ?? CONTINUE_MAX_SECONDS,
   });

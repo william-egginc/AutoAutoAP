@@ -1440,7 +1440,7 @@ function openByDate(request: ByDateRequest): void {
   goAuto('by-date');
 }
 function sweepKey(r: SweepRequest): string {
-  return `${r.preset}|${r.bands}|${r.minGap}|${r.forceContinue}`;
+  return `${r.preset}|${r.bands}|${r.minGap}|${r.firstAscension}`;
 }
 /** The window's "See it in the Full sweep": the result is the store's, so that screen has it all. */
 function showSweepResult(): void {

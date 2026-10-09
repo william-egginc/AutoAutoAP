@@ -12,15 +12,18 @@
 
 // ------------------------------------------------------------------------------ continue (leg 1)
 
-/** Continue is taken outright, with no comparison. Continue was the fastest variant every time it
- *  finished within a week, across four accounts, so comparing only costs a C3 fan-out. */
+/** Under Continue Asc. (firstAscension 'continue', search/firstAscension.ts) continue is taken
+ *  outright, with no comparison, when it finishes within this. Continue was the fastest variant every
+ *  time it finished within a week, across four accounts, so comparing only costs a C3 fan-out. Under
+ *  'auto' there is no pin: continue competes on time with the fresh starts, as in Classic. */
 export const CONTINUE_PIN_MAX_SECONDS = 7 * 86400;
 
 /** A continue leg 1 longer than this is shown with a warning. */
 export const CONTINUE_WARN_SECONDS = 90 * 86400;
 
-/** Continue is not a candidate past this. Between the pin and here it is compared with the fresh
- *  1/2/3-sale starts and wins unless one is strictly faster. A year on one farm is not a plan. */
+/** Continue is not a candidate past this, under 'continue' or 'auto'. Between the pin and here,
+ *  under 'continue', it is compared with the fresh 1/2/3-sale starts and wins unless one is strictly
+ *  faster. A year on one farm is not a plan. */
 export const CONTINUE_MAX_SECONDS = 183 * 86400;
 
 // ------------------------------------------------------------------------ integrity (the stall)

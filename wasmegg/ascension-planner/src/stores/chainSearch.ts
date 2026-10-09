@@ -136,6 +136,13 @@ import {
 import { existingOwnerToken, ownerToken } from '@/search/owner';
 import { describeSaveAge, siloSeconds } from '@/lib/saveAge';
 import { timeOffWindows, usableTimeOff, type TimeOffDates } from '@/search/timeOff';
+import {
+  DEFAULT_FIRST_ASCENSION,
+  firstAscensionAt,
+  fromClassicOverride,
+  readFirstAscension,
+  type FirstAscension,
+} from '@/search/firstAscension';
 import { listRuns, saveRun, loadRun, deleteRun, defaultRunLabel, type RunSummary } from '@/search/runLibrary';
 import {
   listRunSaves,
@@ -158,7 +165,7 @@ import {
 } from '@/lib/artifacts';
 import type { EffortTier, LegSummary, PricedChain, SearchInputs } from '@/search/types';
 import { useActionsStore } from './actions';
-import { useAutoPlannerStore } from './autoPlanner';
+import { useAutoPlannerStore, type VariantKey } from './autoPlanner';
 import { useInitialStateStore } from './initialState';
 import { useUIStore } from './ui';
 
@@ -311,10 +318,84 @@ export function startContradictsSave(p: {
 export const useChainSearchStore = defineStore('chainSearch', () => {
   const effort = ref<EffortTier>(DEFAULT_EFFORT);
   const finalTE = ref(490);
-  /** Mirrors fastsearch's `--force-continue`: pin A1 to "continue current ascension". On by default
-   *  because A1 is the ascension you are already part-way through, and it is also the cheapest
-   *  speedup available (it skips A1's whole build-variant fan-out). */
-  const forceContinue = ref(true);
+  /**
+   * What A1 does with the ascension in progress, following Classic's rule (search/firstAscension.ts):
+   * 'auto' (Fastest, the default) takes the faster of continuing and a fresh start, 'continue' pins
+   * continue, 'fresh' prestiges now. `firstAscensionChoice` is Your setup's own choice; Classic's A1
+   * dropdown, when something is picked there, outranks it (`firstAscension`). Replaced the boolean
+   * `forceContinue` (on by default) on 9 Oct 2026.
+   */
+  const firstAscensionChoice = ref<FirstAscension>(DEFAULT_FIRST_ASCENSION);
+  /** Classic's A1 dropdown read as the setting ('continue', or any build for a fresh start), or null
+   *  when nothing is picked there. */
+  const firstAscensionFromClassic = computed(() => fromClassicOverride(useAutoPlannerStore().planVariantOverrides[0]));
+  /** A1's setting: Classic's dropdown when it names one, else Your setup's choice. Writing it is
+   *  `setFirstAscension`, which keeps Classic's dropdown in step. */
+  const firstAscension = computed<FirstAscension>({
+    get: () => firstAscensionFromClassic.value ?? firstAscensionChoice.value,
+    set: v => setFirstAscension(v),
+  });
+  /** Set when Your setup changes Classic's A1 pick, so a plan already built there is rebuilt around
+   *  it; AutomaticPlanner does that (now, or when it next opens) and clears it. */
+  const classicFirstPickChanged = ref(false);
+  /**
+   * Set A1's setting, and Classic's A1 dropdown with it: Continue sets `{0: 'continue'}`, Fastest
+   * clears pick 0, Prestige now clears a 'continue' pick. Classic's dropdown can only name a specific
+   * build, and which build is fastest depends on the chain, so Prestige now never pins one here; a
+   * build already picked there stays, since it means Prestige now too. `rebuildClassic`: Your setup's
+   * own control, which also has a plan already built in Classic rebuilt to match.
+   */
+  function setFirstAscension(v: FirstAscension, opts: { rebuildClassic?: boolean } = {}): void {
+    firstAscensionChoice.value = v;
+    const planner = useAutoPlannerStore();
+    const current = planner.planVariantOverrides[0];
+    const next = v === 'continue' ? 'continue' : v === 'auto' || current === 'continue' ? undefined : current;
+    if (next === current) return;
+    const rest = { ...planner.planVariantOverrides };
+    delete rest[0];
+    planner.planVariantOverrides = next ? { ...rest, 0: next } : rest;
+    if (opts.rebuildClassic) classicFirstPickChanged.value = true;
+  }
+  /**
+   * What Classic's A1 pick should be after Generate (which clears every pick), so the plan it builds
+   * starts as the search priced it. For the chain Apply just put there, priced under the setting in
+   * force now, the search's own A1: under Prestige now, the build it took (a build pick means Prestige
+   * Now, so the setting stays); under Continue, no pick when it took a build (a fresh start strictly
+   * faster than a continue of over a week: Classic's own fastest is that build too, and a build pick
+   * would read back as Prestige Now). Otherwise Continue when that is Your setup's choice, else none.
+   */
+  function classicFirstPick(): Record<number, VariantKey> {
+    const applied = appliedFirstLeg;
+    const mode = firstAscension.value;
+    const forThis =
+      !!applied &&
+      applied.mode === mode &&
+      applied.targets === (useAutoPlannerStore().targetTE || '').trim().split(/\s+/).join(' ');
+    if (forThis && mode === 'fresh' && applied!.key !== 'continue') return { 0: applied!.key };
+    if (forThis && mode === 'continue' && applied!.key !== 'continue') return {};
+    return firstAscensionChoice.value === 'continue' ? { 0: 'continue' } : {};
+  }
+  /** The chain Apply last put in Classic, the variant the search took for its A1, and the setting it
+   *  was priced under (`classicFirstPick`). */
+  let appliedFirstLeg: { targets: string; key: VariantKey; mode: FirstAscension } | null = null;
+  /** @deprecated The old boolean, kept so older callers still work: true is 'continue', false 'auto'. */
+  const forceContinue = computed<boolean>({
+    get: () => firstAscension.value === 'continue',
+    set: v => setFirstAscension(v ? 'continue' : 'auto'),
+  });
+  /** Your setup's choice and Classic's A1 pick, to put back exactly (`restoreFirstAscension`): a sweep
+   *  sets its own for one run. */
+  function firstAscensionState(): { choice: FirstAscension; pick: VariantKey | undefined } {
+    return { choice: firstAscensionChoice.value, pick: useAutoPlannerStore().planVariantOverrides[0] };
+  }
+  function restoreFirstAscension(s: { choice: FirstAscension; pick: VariantKey | undefined }): void {
+    firstAscensionChoice.value = s.choice;
+    const planner = useAutoPlannerStore();
+    if (planner.planVariantOverrides[0] === s.pick) return;
+    const rest = { ...planner.planVariantOverrides };
+    delete rest[0];
+    planner.planVariantOverrides = s.pick ? { ...rest, 0: s.pick } : rest;
+  }
   /** Set when Insane mode was opened from a Chain Explorer "Run this sweep" link; see InsanePanel. */
   const sweepTag = ref<SweepTag | null>(null);
   /** The run note box: what the player is trying or testing (optional, submission.ts `cleanNote`). */
@@ -1117,6 +1198,20 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     }
   );
 
+  /**
+   * The first-ascension setting a run from `start` prices under (search/firstAscension.ts): the
+   * setting, except that a plan starting more than an hour from now has no ascension of the save's to
+   * continue and starts fresh, as Classic offers continue only then. Not for a pinned start: that is
+   * a run being carried on, which keeps the setting it was priced under (its stored inputs carry it).
+   */
+  function firstAscensionFor(start = planStart.value, mode = firstAscension.value): FirstAscension {
+    if (planStartPin.value || !continueStartRule.value) return mode;
+    return firstAscensionAt(mode, start, Math.floor(Date.now() / 1000));
+  }
+  /** Whether `firstAscensionFor` applies the one-hour rule. Off only on the command line
+   *  (scripts/siteRun.ts), where the same command has to give the same answer whenever it runs. */
+  const continueStartRule = ref(true);
+
   /** Put a run's own plan start back, in the store and in the Auto Planner's boxes. */
   function pinPlanStart(ts: number): void {
     if (!ts || ts === planStart.value) return;
@@ -1171,7 +1266,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    */
   interface RunSettings {
     effort: EffortTier;
-    forceContinue: boolean;
+    /** As priced: Classic's one-hour rule already applied (`firstAscensionFor`). Saved runs and
+     *  answers from before 9 Oct carry `forceContinue` instead; `settingsOf` reads either. */
+    firstAscension: FirstAscension;
     availability: Availability | null;
     deferShifts: boolean;
     timeOff: TimeOffDates[];
@@ -1180,7 +1277,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   function snapshotSettings(): RunSettings {
     return {
       effort: effort.value,
-      forceContinue: forceContinue.value,
+      firstAscension: firstAscensionFor(),
       availability: availability.value ? (JSON.parse(JSON.stringify(availability.value)) as Availability) : null,
       deferShifts: deferShifts.value,
       timeOff: JSON.parse(JSON.stringify(timeOff.value)) as TimeOffDates[],
@@ -1188,6 +1285,14 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   }
   /** The finished or running search's own settings, else the live ones. */
   const usedSettings = (): RunSettings => runSettingsUsed.value ?? snapshotSettings();
+  /** Stored settings (a saved run's, a saved answer's) as RunSettings: ones from before 9 Oct carry
+   *  `forceContinue`, true for Continue Asc. and false for Fastest. */
+  function settingsOf(st: unknown): RunSettings | null {
+    if (!st || typeof st !== 'object') return null;
+    const rest = { ...(st as RunSettings & { forceContinue?: boolean }) };
+    delete rest.forceContinue;
+    return { ...rest, firstAscension: readFirstAscension(st as { forceContinue?: boolean }) };
+  }
 
   const planStartIsNow = computed(() => !planStartPin.value && plannerStart.value === null);
 
@@ -1341,7 +1446,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     runSweepTag = null;
     // Its own settings, so sending or downloading it after opening labels it with them (older saved
     // runs carry none and fall back to Your setup as it is now), never the last search's.
-    runSettingsUsed.value = (summary.settings as RunSettings | undefined) ?? null;
+    runSettingsUsed.value = settingsOf(summary.settings);
     // Its own save's moment and TE when that save is still kept, so re-sending an opened run is not
     // filed as a what-if against whichever newer save the tab holds now (the rest of the account
     // fields still come from the loaded save; the gear rarely changes between the two).
@@ -1404,7 +1509,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const set = fingerprintSettings(fp);
     if (!set) return;
     finalTE.value = set.final;
-    forceContinue.value = set.forceContinue;
+    setFirstAscension(set.firstAscension);
     const planner = useAutoPlannerStore();
     if (set.availability) {
       scheduleEnabled.value = true;
@@ -1499,7 +1604,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       }
     }
     finalTE.value = inputs.final;
-    forceContinue.value = inputs.forceContinue;
+    // The run's own setting, from the inputs it was priced with: one started as forceContinue true
+    // (before 9 Oct) carries on as Continue Asc., never as today's default.
+    setFirstAscension(readFirstAscension(inputs));
     if (typeof inputs.deferShifts === 'boolean') deferShifts.value = inputs.deferShifts;
     pinPlanStart(inputs.planStart);
     const left = record.fingerprint ? settingsChanges(record.fingerprint, fingerprint(playerId)) : [];
@@ -1671,7 +1778,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       planStart: planStart.value,
       currentTE: currentTE.value,
       final: finalTE.value,
-      forceContinue: forceContinue.value,
+      firstAscension: firstAscensionFor(),
       availability: availability.value,
       milestones: activeMilestones.value,
       deferShifts: deferShifts.value,
@@ -1883,7 +1990,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
             planStartISO: new Date(inputs.planStart * 1000).toISOString(),
             availability: inputs.availability,
             deferShifts: inputs.deferShifts,
-            forceContinue: inputs.forceContinue,
+            firstAscension: readFirstAscension(inputs),
           },
           health: { setup: setupIssues.value, context: reviewRunInputs(inputs), result: resultIssues.value },
           result: bestChain.value.length
@@ -1918,7 +2025,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       // From the state the workers price, never from a second source (see `currentTE`).
       currentTE: pricedTE(baseState),
       final: finalTE.value,
-      forceContinue: forceContinue.value,
+      firstAscension: firstAscensionFor(),
       availability: availability.value,
       milestones: activeMilestones.value,
       deferShifts: deferShifts.value,
@@ -2412,7 +2519,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       effort: usedSettings().effort,
       availability: isConstrained(usedSettings().availability) ? usedSettings().availability : null,
       holdShifts: usedSettings().deferShifts,
-      forceContinue: usedSettings().forceContinue,
+      firstAscension: usedSettings().firstAscension,
       chainsPriced: csvRows.value,
       // Null for a checkpoint replay, and left off entirely in that case, so the board never reads
       // "0 minutes for 400 chains" as a very fast machine.
@@ -2471,7 +2578,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         ? (r.settings ?? usedSettings()).availability
         : null,
       holdShifts: (r.settings ?? usedSettings()).deferShifts,
-      forceContinue: (r.settings ?? usedSettings()).forceContinue,
+      firstAscension: readFirstAscension(r.settings ?? usedSettings()),
       mode: r.simple ? 'simple' : 'advanced',
       chainsPriced: r.priced,
       // The run's own account, kept in its result; then the live run's; and only for a result saved
@@ -2527,7 +2634,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       // has no planStartUsed.
       planStartUsed.value || planStart.value,
       currentTE.value,
-      forceContinue.value ? 'fc' : 'fresh',
+      // 'fresh' was this key's tag for Fastest (the boolean off) before 9 Oct, so Fastest keeps it and
+      // Prestige Now gets one of its own: results already sent still read as sent.
+      { continue: 'fc', auto: 'fresh', fresh: 'now' }[usedSettings().firstAscension],
       deferShifts.value ? 'hold' : 'free',
       // What makes it a different ROW on the board even with the same answer: a different space or
       // sweep, or a partial run versus the finished one.
@@ -2740,7 +2849,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       winner: [...bestChain.value],
       window: isConstrained(usedSettings().availability) ? describeAvailability(usedSettings().availability) : null,
       holdShifts: usedSettings().deferShifts,
-      forceContinue: usedSettings().forceContinue,
+      firstAscension: usedSettings().firstAscension,
       timeOff: usableTimeOff(usedSettings().timeOff),
     };
   }
@@ -3233,7 +3342,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       currentTE: runTEUsed ?? currentTE.value,
       final: finalTE.value,
       effort: usedSettings().effort,
-      forceContinue: usedSettings().forceContinue,
+      firstAscension: usedSettings().firstAscension,
       availability: usedSettings().availability,
       timeOff: usableTimeOff(usedSettings().timeOff),
       seedChain: seedChain.value,
@@ -3274,7 +3383,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       currentTE: runTEUsed ?? currentTE.value,
       final: finalTE.value,
       effort: usedSettings().effort,
-      forceContinue: usedSettings().forceContinue,
+      firstAscension: usedSettings().firstAscension,
       availability: usedSettings().availability,
       timeOff: usableTimeOff(usedSettings().timeOff),
       seedChain: seedChain.value,
@@ -3558,7 +3667,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     lastRateChains = 0;
 
     planStartUsed.value = planStart.value;
-    runSettingsUsed.value = snapshotSettings();
+    // The first ascension as the workers' inputs price it (a carry-on's stored ones keep their own).
+    runSettingsUsed.value = { ...snapshotSettings(), firstAscension: readFirstAscension(startInputs) };
     runTEUsed = startInputs.currentTE;
     accountUsed = accountFields(startInputs.currentTE);
     runBackupUsed = getSimulationContext().rawBackup ?? null;
@@ -4071,7 +4181,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   ): Promise<void> {
     const schedule = isConstrained(inputs.availability) ? inputs.availability : null;
     deadlineRunning.value = true;
-    deadlineSettings = snapshotSettings();
+    // The first ascension as these inputs price it: a carry-on's stored inputs keep their own.
+    deadlineSettings = { ...snapshotSettings(), firstAscension: readFirstAscension(inputs) };
     // Held locally as well: the result and the checkpoint take THIS, whatever touches the shared one.
     const account = accountIn ?? plainAccount(accountFields(inputs.currentTE));
     deadlineAccount = account;
@@ -4467,7 +4578,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         currentTE: r.te,
         final: r.ceiling ?? r.lastHi,
         effort: st?.effort ?? usedSettings().effort,
-        forceContinue: st?.forceContinue ?? usedSettings().forceContinue,
+        firstAscension: readFirstAscension(st ?? usedSettings()),
         availability: st ? st.availability : usedSettings().availability,
         timeOff: usableTimeOff(st ? st.timeOff : usedSettings().timeOff),
         seedChain: [],
@@ -4868,8 +4979,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     lastRateChains = 0;
 
     planStartUsed.value = planStart.value;
-    runSettingsUsed.value = snapshotSettings();
     const startInputs = own ?? collectInputs();
+    // The first ascension as the workers' inputs price it (a carry-on's stored ones keep their own).
+    runSettingsUsed.value = { ...snapshotSettings(), firstAscension: readFirstAscension(startInputs) };
     runTEUsed = startInputs.currentTE;
     accountUsed = accountFields(startInputs.currentTE);
     runBackupUsed = getSimulationContext().rawBackup ?? null;
@@ -5185,6 +5297,14 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // The seed box keeps the checkpoints WITHOUT the final target: `seedChain` appends `finalTE`
     // itself, so leaving it in would ask for it twice.
     seedOverride.value = chain.filter(v => v !== finalTE.value).join(' ');
+    // The build the search took for A1, for Classic's pick under Prestige now (`classicFirstPick`).
+    appliedFirstLeg = legs[0]?.key
+      ? {
+          targets: (planner.targetTE || '').trim().split(/\s+/).join(' '),
+          key: legs[0].key,
+          mode: usedSettings().firstAscension,
+        }
+      : null;
     patchAutoPlannerSchedule({
       targetTE: planner.targetTE,
       timeOffCuts: planner.timeOffCuts ? JSON.parse(JSON.stringify(planner.timeOffCuts)) : null,
@@ -5383,6 +5503,16 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // settings
     effort,
     finalTE,
+    firstAscension,
+    firstAscensionChoice,
+    firstAscensionFromClassic,
+    setFirstAscension,
+    firstAscensionFor,
+    continueStartRule,
+    firstAscensionState,
+    restoreFirstAscension,
+    classicFirstPick,
+    classicFirstPickChanged,
     forceContinue,
     sweepTag,
     runNote,

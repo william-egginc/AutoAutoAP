@@ -520,6 +520,7 @@ import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { showDateTime } from '@/lib/displayTime';
 import { continueTailParams, instantDeliveryScale } from '@/search/leg';
 import { CONTINUE_MAX_SECONDS, CONTINUE_PIN_MAX_SECONDS } from '@/search/rules';
+import type { FirstAscension } from '@/search/firstAscension';
 import { EGG_ORDER } from '@/search/precomputedLeg';
 import { cteFromArtifacts } from 'lib/virtue';
 import { equippedArtifactsToLibArtifacts } from '@/lib/artifacts/utils';
@@ -1000,7 +1001,8 @@ async function run(force = false, goAhead = false): Promise<void> {
       delivered: EGG_ORDER.map(e => inputs.baseState.eggsDelivered?.[e] || 0),
       // A plain copy: workers get structured-cloned data, never a reactive proxy.
       cont: JSON.parse(JSON.stringify(continueTailParams(inputs, inputs.planStart))),
-      forceContinue: store.forceContinue,
+      // As the search prices it, Classic's one-hour rule included (store `collectInputs`).
+      firstAscension: inputs.firstAscension ?? 'auto',
       pinSeconds: CONTINUE_PIN_MAX_SECONDS,
       maxContinueSeconds: CONTINUE_MAX_SECONDS,
     };
@@ -1437,6 +1439,7 @@ interface CachedAnswer {
   endTE: number;
 }
 const CACHE_PREFIX = 'aap-instant-answer:';
+const cacheFirst = (m: FirstAscension): boolean | 'fresh' => (m === 'fresh' ? 'fresh' : m === 'continue');
 function cacheKey(): string | null {
   const inputs = store.collectInputs();
   const raw = inputs.context.rawBackup as { eiUserId?: string } | undefined;
@@ -1451,7 +1454,9 @@ function cacheKey(): string | null {
     artifacts: inv.artifacts,
     stones: inv.stones,
     epic: inputs.context.epicResearchLevels,
-    setup: [store.availability, store.timeOff, store.milestones, store.forceContinue],
+    // The first ascension as the boolean it was (true Continue Asc., false Fastest), so answers saved
+    // under those still match; Prestige Now is new.
+    setup: [store.availability, store.timeOff, store.milestones, cacheFirst(inputs.firstAscension ?? 'auto')],
     filters: [useHours.value, filters.value.maxAscensions],
   };
   // FNV-1a: the key only has to tell setups apart; the id never leaves this browser.
@@ -1605,7 +1610,7 @@ watch(
     store.planStart,
     target.value,
     props.deadline,
-    store.forceContinue,
+    store.firstAscension,
     bonus.value,
     tryAtOnce.value,
     useHours.value ? availabilityKey(store.availability) : '',

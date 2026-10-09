@@ -10,6 +10,7 @@
  * Pure: no store, no DOM. The caller passes the player's TE and the target.
  */
 import { formatBand, parseBandPiece, type BandPieceProblem } from './exhaustive';
+import type { FirstAscension } from './firstAscension';
 
 export interface BandCheckContext {
   /** Where the player is now. A checkpoint at or below it is not an ascension they can perform. */
@@ -19,6 +20,9 @@ export interface BandCheckContext {
   /** The ascension count this chain is meant to have, when the caller knows it. */
   ascensions?: number;
   defaultStep?: number;
+  /** What the first ascension does (search/firstAscension.ts), for the "your TE now" message. Unset
+   *  reads as the default, Fastest. */
+  firstAscension?: FirstAscension;
 }
 
 export type BandIssueCode =
@@ -94,6 +98,15 @@ const band = (n: number) => `Band ${n}`;
  * Everything worth saying about the bands in this text, in the order the player would meet it.
  * An empty list means nothing looked wrong; it does not mean the space is a good one.
  */
+/** The First ascension setting, as the band message says it. */
+function firstAscensionNow(mode: FirstAscension | undefined): string {
+  return mode === 'continue'
+    ? 'Continue current ascension: it finishes this ascension first'
+    : mode === 'fresh'
+      ? 'Prestige now: it ascends straight away'
+      : 'Fastest: it takes whichever of the two is faster';
+}
+
 export function checkBandText(text: string, ctx: BandCheckContext): BandIssue[] {
   const defaultStep = ctx.defaultStep ?? 5;
   const cur = Math.floor(ctx.currentTE);
@@ -185,9 +198,9 @@ export function checkBandText(text: string, ctx: BandCheckContext): BandIssue[] 
         band: n,
         message:
           first === cur
-            ? // A stop is an ascension still to come. The planner has no ascend-now control: it finishes the
-              // current ascension first (the store's forceContinue, on by default), so TE now is no stop.
-              `${band(n)} starts at your TE now (${cur}). A stop is an ascension still to come, so your TE now isn't one. Whether to ascend straight away or finish this ascension first is decided by the planner: it finishes the current ascension first. Did you mean ${formatBand(inRange)}?`
+            ? // A stop is an ascension still to come. Ascending straight away is the First ascension
+              // setting (Your setup, or Classic's A1 dropdown), not a stop at TE now.
+              `${band(n)} starts at your TE now (${cur}). A stop is an ascension still to come, so your TE now isn't one. Whether to ascend straight away or finish this ascension first is the First ascension setting in Your setup, which is ${firstAscensionNow(ctx.firstAscension)}. Did you mean ${formatBand(inRange)}?`
             : `${band(n)} starts at ${first}, at or below the TE you're at now (${cur}). Those values can't be played. Did you mean ${formatBand(inRange)}?`,
         fix: withSegment(segs, i, formatBand(inRange)),
       });

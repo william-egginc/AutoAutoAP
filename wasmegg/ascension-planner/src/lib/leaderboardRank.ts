@@ -18,7 +18,7 @@
  *     one out -- a bad sync or an old backup: its recorded save is older than a run before it, or
  *     higher runs sit on both sides of it (`judgeHistory`);
  *   - it has not been re-measured: a later run of the same player that prices the SAME plan (same
- *     target, schedule, held shifts, finish-the-current-ascension switch and time off, and the same
+ *     target, schedule, held shifts, first-ascension setting and time off, and the same
  *     route or what is left of it once passed checkpoints drop off) replaces it. The newest
  *     measurement stands whether it finishes earlier OR later, so re-running cannot fish for a lucky
  *     number. A re-run sent without a name from the same account still counts: it joins the named
@@ -75,6 +75,8 @@
  * Pure: no Vue, no stores, no fetch. `now` is always passed in so tests are deterministic.
  */
 
+import { FIRST_ASCENSION_WORDS, readFirstAscensionOrNull, type FirstAscension } from '@/search/firstAscension';
+
 export const DAY_MS = 86_400_000;
 const HOUR_MS = 3_600_000;
 /** A start this far after the send is a what-if ("if I started on 23 Nov"). */
@@ -114,7 +116,10 @@ export interface BoardRow {
   window?: string | null;
   effort?: string;
   holdShifts?: boolean;
+  /** Before 9 Oct 2026 the only record of A1's setting: true for Continue Asc. Read both with `rowFirstAscension`. */
   forceContinue?: boolean;
+  /** A1's setting (search/firstAscension.ts). Absent on rows sent before 9 Oct 2026. */
+  firstAscension?: FirstAscension;
   timeOff?: { from: string; to: string }[];
   waitingHours?: number | null;
   chainsPriced?: number;
@@ -569,7 +574,10 @@ export function mayJudge(filing: Filing, evidence: BoardRow, plan: BoardRow): bo
  * Two rows with the same fingerprint are the same result sent twice. The name, the effort tier,
  * the searched space, the chains priced and the send time are deliberately left out: an anonymous
  * send and a named one of the same result fold, and so does a thorough search that agreed with a
- * balanced one. The finish-the-current-ascension switch IS in: it changes the answer.
+ * balanced one. The first-ascension setting IS in: it changes the answer. It is written so every row
+ * keeps the fingerprint it had when the setting was a boolean (and the collector's stored digests
+ * still match): Fastest and Continue Asc. are the boolean as before, and only Prestige Now, which
+ * did not exist then, reads 'fresh'.
  */
 export function contentFingerprint(row: BoardRow): string {
   return JSON.stringify([
@@ -582,9 +590,22 @@ export function contentFingerprint(row: BoardRow): string {
     row.currentTE ?? null,
     row.window || '',
     !!row.holdShifts,
-    !!row.forceContinue,
+    firstAscensionPart(row),
     (row.timeOff ?? []).map(t => `${t.from}~${t.to}`),
   ]);
+}
+
+/** The fingerprint's first-ascension part: the old boolean, or 'fresh' for Prestige Now. Keep identical
+ *  to the collector's (collector/worker.js `fingerprint`). */
+function firstAscensionPart(row: Pick<BoardRow, 'firstAscension' | 'forceContinue'>): boolean | 'fresh' {
+  const first = rowFirstAscension(row);
+  return first === 'fresh' ? 'fresh' : first === 'continue';
+}
+
+/** A row's first-ascension setting: its own field, else the boolean rows before 9 Oct 2026 carry
+ *  (true is Continue Asc., false is Fastest), else null for a row that recorded neither. */
+export function rowFirstAscension(row: Pick<BoardRow, 'firstAscension' | 'forceContinue'>): FirstAscension | null {
+  return readFirstAscensionOrNull(row);
 }
 
 /** One line for the same result sent one or more times. */
@@ -726,26 +747,28 @@ export function remainingChain(chain: readonly number[], te: number): number[] {
   return [...chain.slice(0, -1).filter(c => c > te), chain[chain.length - 1]];
 }
 
-/** Same target, schedule, held shifts, finish-the-current-ascension switch and time off: the
- *  settings under which two routes are the same plan. */
+/** Same target, schedule, held shifts, first-ascension setting and time off: the settings under
+ *  which two routes are the same plan. */
 export function samePlanSettings(
-  a: Pick<BoardRow, 'finalTE' | 'window' | 'holdShifts' | 'forceContinue' | 'timeOff'>,
-  b: Pick<BoardRow, 'finalTE' | 'window' | 'holdShifts' | 'forceContinue' | 'timeOff'>
+  a: Pick<BoardRow, 'finalTE' | 'window' | 'holdShifts' | 'forceContinue' | 'firstAscension' | 'timeOff'>,
+  b: Pick<BoardRow, 'finalTE' | 'window' | 'holdShifts' | 'forceContinue' | 'firstAscension' | 'timeOff'>
 ): boolean {
   return sameSettings(a, b);
 }
 
 function sameSettings(
-  a: Pick<BoardRow, 'finalTE' | 'window' | 'holdShifts' | 'forceContinue' | 'timeOff'>,
-  b: Pick<BoardRow, 'finalTE' | 'window' | 'holdShifts' | 'forceContinue' | 'timeOff'>
+  a: Pick<BoardRow, 'finalTE' | 'window' | 'holdShifts' | 'forceContinue' | 'firstAscension' | 'timeOff'>,
+  b: Pick<BoardRow, 'finalTE' | 'window' | 'holdShifts' | 'forceContinue' | 'firstAscension' | 'timeOff'>
 ): boolean {
   const off = (r: Pick<BoardRow, 'timeOff'>) => (r.timeOff ?? []).map(t => `${t.from}~${t.to}`).join(',');
+  const fa = rowFirstAscension(a);
+  const fb = rowFirstAscension(b);
   return (
     a.finalTE === b.finalTE &&
     (a.window || '') === (b.window || '') &&
     !!a.holdShifts === !!b.holdShifts &&
-    // Rows sent before the switch existed did not record it: unknown matches either answer.
-    (a.forceContinue == null || b.forceContinue == null || a.forceContinue === b.forceContinue) &&
+    // Rows sent before the switch existed did not record it: unknown matches any answer.
+    (fa === null || fb === null || fa === fb) &&
     off(a) === off(b)
   );
 }
@@ -2144,12 +2167,13 @@ export function settingTags<T extends BoardRow>(rows: readonly T[], zone?: strin
 /** `settingTags` for one group of look-alikes (same target, route and save). */
 function tagLookAlikes<T extends BoardRow>(g: readonly T[], out: Map<T, string[]>, zone: string | undefined): void {
   const differs = (f: (r: T) => unknown) => new Set(g.map(f)).size > 1;
-  const first = differs(r => r.forceContinue ?? null);
+  const first = differs(r => rowFirstAscension(r));
   const held = differs(r => !!r.holdShifts);
   const tags = new Map<T, string[]>();
   for (const r of g) {
     const t: string[] = [];
-    if (first && r.forceContinue != null) t.push(r.forceContinue ? 'finishes current run first' : 'prestiges now');
+    const fa = rowFirstAscension(r);
+    if (first && fa) t.push(FIRST_ASCENSION_WORDS[fa]);
     if (held) t.push(r.holdShifts ? 'shifts held' : 'shifts not held');
     tags.set(r, t);
   }

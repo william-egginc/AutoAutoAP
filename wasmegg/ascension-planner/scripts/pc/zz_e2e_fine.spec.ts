@@ -259,7 +259,8 @@ it(
         ap.startTime,
         '--timezone',
         tz,
-        ...(store.forceContinue ? ['--force-continue'] : []),
+        '--first-ascension',
+        store.firstAscensionFor(),
         ...(process.env.E2E_PIN_DAYS ? ['--continue-pin-days', process.env.E2E_PIN_DAYS] : []),
         ...(store.scheduleEnabled
           ? ['--available-from', String(store.availableFrom), '--available-to', String(store.availableTo)]
@@ -298,7 +299,7 @@ it(
     const payload = store.buildRunSubmission(undefined);
     if (!payload) throw new Error('nothing to submit');
     log(
-      `payload: flags ${JSON.stringify(payload.flags ?? [])}, schema ${payload.schema}, sweep ${JSON.stringify(payload.sweep)}, legs ${payload.legs.length}, chainsPriced ${payload.chainsPriced}, clothedTE ${payload.clothedTE}, fc ${payload.forceContinue}`
+      `payload: flags ${JSON.stringify(payload.flags ?? [])}, schema ${payload.schema}, sweep ${JSON.stringify(payload.sweep)}, legs ${payload.legs.length}, chainsPriced ${payload.chainsPriced}, clothedTE ${payload.clothedTE}, fc ${payload.forceContinue}, first ${payload.firstAscension}`
     );
     const csv = store.exportCsv();
     if (payload.run && process.env.E2E_WORKERS) payload.run.workers = Number(process.env.E2E_WORKERS);

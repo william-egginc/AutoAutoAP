@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { canonicalDelivered, pacificHourOfWeek, type BuildParams } from './precomputedLeg';
-import { findRoutes, nextHour, priceLeg, startInSale, type BuildLookup } from './routeFinder';
+import { findRoutes, firstLegOptions, nextHour, priceLeg, startInSale, type BuildLookup } from './routeFinder';
+import type { FirstAscension } from './firstAscension';
 import { getNextSaleEnd, isResearchSaleActive } from '@/lib/events';
 
 const TE = 300;
@@ -53,5 +54,40 @@ describe('the sale’s last hour (startInSale)', () => {
     const { best } = await findRoutes({ table, startTE: TE, start: LAST_HOUR + 180, final: TE + 1, maxAscensions: 1 });
     expect(best?.legs[0].start).toBe(LAST_HOUR + 180);
     expect(best!.end).toBeLessThan(SALE_END + 3600);
+  });
+});
+
+describe('the first ascension setting (firstLegOptions)', () => {
+  const start = SALE_END + 2 * 86400;
+  // Continuing: no build to make, the same delivery, so it only has the eggs to lay.
+  const quick: BuildParams = { ...build(0, 0) };
+  // Continuing a farm that has a month of purchases left: slower than a fresh start's week.
+  const slow: BuildParams = { ...build(30 * 86400, 0) };
+  const legs = (cont: BuildParams, firstAscension: FirstAscension) =>
+    firstLegOptions({
+      table,
+      startTE: TE,
+      start,
+      final: TE + 1,
+      delivered: canonicalDelivered(TE),
+      cont,
+      firstAscension,
+      pinSeconds: 1e12,
+      maxContinueSeconds: 1e12,
+    }).map(l => l.label);
+
+  it('Fastest takes whichever is faster, continuing or a fresh start', () => {
+    expect(legs(quick, 'auto')).toEqual(['continue']);
+    expect(legs(slow, 'auto')).toEqual(['1-sale']);
+  });
+
+  it('Continue Asc. takes continuing inside the pin even when a fresh start is faster', () => {
+    expect(legs(quick, 'continue')).toEqual(['continue']);
+    expect(legs(slow, 'continue')).toEqual(['continue']);
+  });
+
+  it('Prestige Now never continues', () => {
+    expect(legs(quick, 'fresh')).toEqual(['1-sale']);
+    expect(legs(slow, 'fresh')).toEqual(['1-sale']);
   });
 });

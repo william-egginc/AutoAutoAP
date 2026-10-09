@@ -27,6 +27,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { checkBandText } from '@/search/bandCheck';
+import { getActivePinia } from 'pinia';
+import { useChainSearchStore } from '@/stores/chainSearch';
 
 const props = defineProps<{
   text: string;
@@ -38,7 +40,15 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ (e: 'use', text: string): void }>();
 
+// The First ascension setting, for the "your TE now" message. Without a store (a component test
+// rendering this alone) the message speaks of the default.
+const store = getActivePinia() ? useChainSearchStore() : null;
 const issues = computed(() =>
-  checkBandText(props.text, { currentTE: props.currentTE, finalTE: props.finalTE, ascensions: props.ascensions })
+  checkBandText(props.text, {
+    currentTE: props.currentTE,
+    finalTE: props.finalTE,
+    ascensions: props.ascensions,
+    firstAscension: store?.firstAscension,
+  })
 );
 </script>

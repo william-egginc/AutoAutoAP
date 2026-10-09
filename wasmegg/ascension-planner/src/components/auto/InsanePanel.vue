@@ -36,11 +36,8 @@
           <p class="text-[11px] text-slate-600">
             Bands <code class="rounded bg-white px-1 text-[10px]">{{ bandsText }}</code
             >, minimum gap {{ minGap
-            }}<template v-if="sweepRequest.forceContinue !== null"
-              >,
-              {{
-                sweepRequest.forceContinue ? 'finishing your current run first' : 'prestiging straight away'
-              }}</template
+            }}<template v-if="sweepRequest.firstAscension !== null"
+              >, {{ describeFirstAscension(sweepRequest.firstAscension) }}</template
             >. These are already filled in below.
           </p>
           <p class="text-[11px] text-slate-600">
@@ -1163,6 +1160,7 @@ import AutoSendReport from './AutoSendReport.vue';
 import RouteResultCard from './RouteResultCard.vue';
 import { sendRunResult } from '@/search/sendRun';
 import { parseSweepRequest, withoutSweepParams } from '@/search/sweepRequest';
+import { describeFirstAscension } from '@/search/firstAscension';
 import {
   countBanded,
   parseBands,
@@ -1250,7 +1248,7 @@ if (sweepRequest) {
   bandsText.value = sweepRequest.bands;
   minGap.value = sweepRequest.minGap;
   store.sweepTag = { preset: sweepRequest.preset, bands: sweepRequest.bands, minGap: sweepRequest.minGap };
-  if (sweepRequest.forceContinue !== null) store.forceContinue = sweepRequest.forceContinue;
+  if (sweepRequest.firstAscension !== null) store.setFirstAscension(sweepRequest.firstAscension);
 }
 // A route handed over by the instant answer's "Check exactly" (InstantRoute.vue): its checkpoints as
 // single-value bands, so the sweep prices exactly that route. Taken once and cleared.

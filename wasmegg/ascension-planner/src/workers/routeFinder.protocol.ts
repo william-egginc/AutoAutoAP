@@ -5,6 +5,7 @@
  */
 import type { BuildParams } from '@/search/precomputedLeg';
 import type { TableHeader } from '@/search/precomputedTable';
+import type { FirstAscension } from '@/search/firstAscension';
 import type {
   ArrivalItem,
   Candidate,
@@ -35,7 +36,7 @@ export interface FirstLegsRequest {
   /** The player's eggs delivered per egg at the plan start (EGG_ORDER). */
   delivered: number[];
   cont: BuildParams | null;
-  forceContinue: boolean;
+  firstAscension: FirstAscension;
   pinSeconds: number;
   maxContinueSeconds: number;
 }
