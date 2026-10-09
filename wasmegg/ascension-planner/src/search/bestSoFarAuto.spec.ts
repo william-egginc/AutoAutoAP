@@ -4,6 +4,7 @@ import {
   autoStatusLine,
   aboutIn,
   bestKey,
+  bestLabel,
   nextDueAt,
   readAutoEveryMin,
   type AutoInput,
@@ -25,6 +26,7 @@ function input(over: Partial<AutoInput> = {}): AutoInput {
     lastSentKey: null,
     lastFailAt: null,
     retryAt: null,
+    lastSkipAt: null,
     key: '248:1,2,3',
     sending: false,
     ...over,
@@ -107,7 +109,7 @@ describe('bestKey', () => {
 });
 
 describe('autoStatusLine', () => {
-  const base = { lastTe: 248 as number | null, failed: false };
+  const base = { lastBest: 'best 248' as string | null, failed: false };
   it('says when it last sent and when the next is due', () => {
     const sent = T0;
     const line = autoStatusLine({ ...input({ lastSentAt: sent, now: sent + 20 * MIN }), ...base });
@@ -119,7 +121,7 @@ describe('autoStatusLine', () => {
     );
   });
   it('leaves the best out when a carry-on no longer knows it', () => {
-    const line = autoStatusLine({ ...input({ lastSentAt: T0, now: T0 + 30 * MIN }), lastTe: null, failed: false });
+    const line = autoStatusLine({ ...input({ lastSentAt: T0, now: T0 + 30 * MIN }), lastBest: null, failed: false });
     expect(line).toBe('Last sent 12:00 pm. Next in about 30 min.');
   });
   it('mentions a failed try, and the next one', () => {
@@ -130,6 +132,38 @@ describe('autoStatusLine', () => {
       failed: true,
     });
     expect(line).toBe("Last sent 12:00 pm (best 248). Couldn't send at 1:00 pm. Next in about 55 min.");
+  });
+  it('says a due time passed with the best unchanged, and when it looks again (review, 9 Oct)', () => {
+    // Sent 3:50 pm; due 4:20 pm (every 30 min) with the same best: not sent, and said.
+    const sent = new Date(2026, 9, 9, 15, 50).getTime();
+    const skip = sent + 30 * MIN;
+    const i = {
+      ...input({ everyMs: 30 * MIN, startedAt: T0, lastSentAt: sent, lastSkipAt: skip, now: skip }),
+      ...base,
+    };
+    expect(autoStatusLine(i)).toBe('Not sent at 4:20 pm: best unchanged since 3:50 pm. Next check in about 30 min.');
+    // The next check is one interval on from the skip.
+    expect(nextDueAt(i)).toBe(skip + 30 * MIN);
+    expect(autoDecision({ ...i, key: 'better', now: skip + 10 * MIN })).toEqual({ do: 'wait', at: skip + 30 * MIN });
+    expect(autoDecision({ ...i, key: 'better', now: skip + 30 * MIN })).toEqual({ do: 'send' });
+    // Nothing found yet at the first due time.
+    expect(autoStatusLine({ ...input({ key: null, lastSkipAt: T0 + HOUR, now: T0 + HOUR }), ...base })).toBe(
+      'Not sent at 1:00 pm: nothing found yet. Next check in about 1 h.'
+    );
+    // A later send wins the line back.
+    expect(
+      autoStatusLine({ ...input({ lastSentAt: skip + 30 * MIN, lastSkipAt: skip, now: skip + 31 * MIN }), ...base })
+    ).toBe('Last sent 4:50 pm (best 248). Next in about 59 min.');
+  });
+  it('names a Fastest best by its finish date, a By a date best by its TE', () => {
+    expect(bestLabel('fastest', 490, 'Feb 24, 2029')).toBe('best reaches 490 on Feb 24, 2029');
+    expect(bestLabel('deadline', 248, 'Feb 24, 2029')).toBe('best 248');
+    const line = autoStatusLine({
+      ...input({ lastSentAt: T0, now: T0 + 20 * MIN }),
+      lastBest: bestLabel('fastest', 490, 'Feb 24, 2029'),
+      failed: false,
+    });
+    expect(line).toBe('Last sent 12:00 pm (best reaches 490 on Feb 24, 2029). Next in about 40 min.');
   });
   it('says it goes as soon as the best changes once the time has come', () => {
     const line = autoStatusLine({ ...input({ lastSentAt: T0, now: T0 + 2 * HOUR }), ...base });

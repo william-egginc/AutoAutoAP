@@ -8,7 +8,8 @@
  *  - Only while a run is going, the option is on and the player has agreed (`active`).
  *  - Not before one interval after the run began, or after the last send (an automatic one or the
  *    button's), and never closer than BEST_SO_FAR_GAP_MS to the last send.
- *  - Only if the best has changed since the last send; otherwise nothing, and no message.
+ *  - Only if the best has changed since the last send; otherwise it is not sent, the status line says
+ *    so ("Not sent at 4:20 pm: best unchanged since 3:50 pm"), and the next check is one interval on.
  *  - After the collector's "too soon", wait for the time it named.
  *  - After any other failure, the next try is one interval on.
  *  - The run ending ends all of it (the store stops asking), and the run's final send replaces the row.
@@ -46,6 +47,9 @@ export interface AutoInput {
   lastFailAt: number | null;
   /** The collector said "too soon": not before this, ms. Null for none. */
   retryAt: number | null;
+  /** When a due time last passed with the best unchanged (nothing sent), ms; moves the next check
+   *  one interval on. Null for none. */
+  lastSkipAt: number | null;
   /** The best now (`bestKey`); null when nothing has been found. */
   key: string | null;
   /** A send is already in flight. */
@@ -57,16 +61,18 @@ export type AutoDecision =
   | { do: 'send' }
   /** Not yet: look again at or after `at` (ms). */
   | { do: 'wait'; at: number }
-  /** It is time and nothing is different since the last send: say nothing, look again next tick. */
+  /** It is time and nothing is different since the last send: not sent; the caller records the skip
+   *  (`lastSkipAt`), which says so on the status line and moves the next check one interval on. */
   | { do: 'skip' }
   | { do: 'idle' };
 
 /** The earliest the next send may go: the interval from the last send, failure or the start, but
  *  never inside the gap from the last send, and not before a "too soon" says. */
 export function nextDueAt(
-  i: Pick<AutoInput, 'everyMs' | 'startedAt' | 'lastSentAt' | 'lastFailAt' | 'retryAt'>
+  i: Pick<AutoInput, 'everyMs' | 'startedAt' | 'lastSentAt' | 'lastFailAt' | 'retryAt'> &
+    Partial<Pick<AutoInput, 'lastSkipAt'>>
 ): number {
-  const anchor = Math.max(i.startedAt, i.lastSentAt ?? 0, i.lastFailAt ?? 0);
+  const anchor = Math.max(i.startedAt, i.lastSentAt ?? 0, i.lastFailAt ?? 0, i.lastSkipAt ?? 0);
   return Math.max(
     anchor + Math.max(i.everyMs, BEST_SO_FAR_GAP_MS),
     i.lastSentAt !== null ? i.lastSentAt + BEST_SO_FAR_GAP_MS : 0,
@@ -95,19 +101,37 @@ export function aboutIn(ms: number): string {
 }
 
 /**
- * The quiet line under the tick: "Last sent 2:14 pm (best 248). Next in about 40 min."
- * `lastTe` is null for a send from before a carry-on, whose best the page no longer knows.
+ * What a sent best carried, for the status line: the TE for By a date ("best 248"), where the TE is
+ * the answer; the finish date for Fastest ("best reaches 490 on Feb 24, 2029"), whose target is fixed,
+ * so "best 490" said nothing (review, 9 Oct). `date` is the finish day as the player reads it.
  */
-export function autoStatusLine(i: AutoInput & { lastTe: number | null; failed: boolean }): string {
+export function bestLabel(kind: 'fastest' | 'deadline', te: number, date: string): string {
+  return kind === 'deadline' || !date ? `best ${te}` : `best reaches ${te} on ${date}`;
+}
+
+/**
+ * The quiet line under the tick: "Last sent 2:14 pm (best 248). Next in about 40 min.", or after a due
+ * time passed with nothing new, "Not sent at 4:20 pm: best unchanged since 3:50 pm. Next check in
+ * about 30 min." `lastBest` (`bestLabel`) is null for a send from before a carry-on, whose best the
+ * page no longer knows.
+ */
+export function autoStatusLine(i: AutoInput & { lastBest: string | null; failed: boolean }): string {
   const due = nextDueAt(i);
-  const next = i.now >= due ? 'Next as soon as the best changes.' : `Next in ${aboutIn(due - i.now)}.`;
-  const lead =
-    i.lastSentAt === null
-      ? 'Nothing sent yet.'
-      : `Last sent ${clock12(i.lastSentAt)}${i.lastTe !== null ? ` (best ${i.lastTe})` : ''}.`;
   const fail =
     i.failed && i.lastFailAt !== null && i.lastFailAt >= (i.lastSentAt ?? 0)
       ? ` Couldn't send at ${clock12(i.lastFailAt)}.`
       : '';
+  const skipped =
+    i.lastSkipAt !== null && i.lastSkipAt >= (i.lastSentAt ?? 0) && (!fail || i.lastSkipAt >= (i.lastFailAt ?? 0));
+  if (skipped) {
+    const why = i.lastSentAt === null ? 'nothing found yet' : `best unchanged since ${clock12(i.lastSentAt)}`;
+    const next = i.now >= due ? 'Next check as soon as the best changes.' : `Next check in ${aboutIn(due - i.now)}.`;
+    return `Not sent at ${clock12(i.lastSkipAt!)}: ${why}. ${next}`;
+  }
+  const next = i.now >= due ? 'Next as soon as the best changes.' : `Next in ${aboutIn(due - i.now)}.`;
+  const lead =
+    i.lastSentAt === null
+      ? 'Nothing sent yet.'
+      : `Last sent ${clock12(i.lastSentAt)}${i.lastBest ? ` (${i.lastBest})` : ''}.`;
   return `${lead}${fail} ${next}`;
 }

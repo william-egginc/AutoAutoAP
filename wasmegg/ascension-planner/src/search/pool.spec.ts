@@ -381,6 +381,19 @@ describe('resizing while a run is going', () => {
     pool.terminate();
   });
 
+  it('warms workers ahead of the first batch, never past its size', async () => {
+    const pool = await makePool();
+    expect(pool.spawned).toBe(1);
+    pool.warm(8);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(pool.spawned).toBe(2); // the pool's size (2), not the 8 asked
+    const before = FakeWorker.instances.length;
+    const out = await pool.evaluate(batch(4));
+    expect(out.results).toHaveLength(4);
+    expect(FakeWorker.instances.length).toBe(before); // the batch used the warm ones, spawned none
+    pool.terminate();
+  });
+
   it('holds a request to the machine, like the starting size', async () => {
     const pool = await makePool();
     expect(pool.resize(64)).toBe(4);

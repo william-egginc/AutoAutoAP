@@ -233,16 +233,26 @@ describe('Send best so far', () => {
         await flush();
         expect(bodies).toHaveLength(1);
         expect(bodies[0]).toMatchObject({ provisional: true });
-        expect(s.bestSoFarAutoLine).toMatch(/^Last sent \d+:\d\d [ap]m \(best 490\)\. Next in about 1 h\.$/);
-        // An hour on, the same best: nothing, and no message.
+        // Fastest: the finish date, not "best 490" (its target is always 490).
+        expect(s.bestSoFarAutoLine).toMatch(
+          /^Last sent \d+:\d\d [ap]m \(best reaches 490 on [A-Z][a-z]{2} \d+, \d{4}\)\. Next in about 1 h\.$/
+        );
+        // An hour on, the same best: not sent, and the line says so (no send status, no error).
         at('14:00');
         s.bestSoFarStatus = null;
         s.autoTick();
         await flush();
         expect(bodies).toHaveLength(1);
         expect(s.bestSoFarStatus).toBeNull();
-        // A better one: sent, replacing the first row.
+        expect(s.bestSoFarAutoLine).toMatch(
+          /^Not sent at \d+:\d\d [ap]m: best unchanged since \d+:\d\d [ap]m\. Next check in about 1 h\.$/
+        );
+        // A better one: the next check (one interval on) sends it, replacing the first row.
         s.bestChain = [212, 280, 495];
+        s.autoTick();
+        await flush();
+        expect(bodies).toHaveLength(1);
+        at('15:00');
         s.autoTick();
         await flush();
         expect(bodies).toHaveLength(2);
@@ -413,6 +423,91 @@ describe('Send best so far', () => {
       expect(s.bestSoFarStatus).toEqual({ ok: false, pending: true, text: 'You can send again in 2 min.' });
       s.endBestSoFar();
     });
+  });
+
+  /**
+   * Stop & keep best, or the run finishing, while a best so far is still on its way: the final send
+   * waits for it, so it replaces the row that send made (it used to go without `replaces`, leaving the
+   * best so far on the board beside the result). Every screen's final send goes through
+   * `sendSubmission`: Fastest Simple (ChainSearchPanel `run`), the Full sweep (InsanePanel
+   * `sendFinished`) and By a date (DeadlinePanel `shareFinished`).
+   */
+  it('a final send waits for a best so far in flight, and replaces the row it made', async () => {
+    // The wait is in `sendSubmission`, before either kind picks its row, so one kind shows it.
+    for (const kind of ['fastest'] as const) {
+      const s = await running();
+      await s.checkResumable('test-account');
+      s.beginBestSoFar(kind, { nickname: '' });
+      const bodies = collector({ ok: true, id: 'aaaa0001' }, { ok: true, id: 'bbbb0002', replaced: 'aaaa0001' });
+      const inFlight = s.sendBestSoFar();
+      // Stop pressed now: the run ends and its final send starts before the best so far's reply.
+      s.isRunning = false;
+      const final = await s.sendSubmission(PAYLOAD);
+      expect((await inFlight).ok).toBe(true);
+      expect(bodies).toHaveLength(2);
+      expect(bodies[0]).toMatchObject({ provisional: true });
+      expect(bodies[1].provisional).toBeUndefined();
+      expect(bodies[1].replaces).toBe('aaaa0001');
+      expect(final.message).toMatch(/replaced the best so far you sent during the run/);
+      expect(s.provisionalRows[kind]).toBeNull();
+      s.endBestSoFar();
+    }
+  });
+
+  /**
+   * The player sent a best so far anonymously, then picked "Credit me as <name>" before the end (the
+   * Find bar calls `agreeBestSoFar` with the new choice): later best-so-far sends carry the name, the
+   * final replaces the anonymous row (the collector matches the owner code, which is the same on every
+   * send, not the name), and going back to anonymous works the same way.
+   */
+  it('a name chosen (or dropped) mid-run goes on the later sends, and the final still replaces', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      vi.setSystemTime(Date.parse('2026-10-09T12:00:00Z'));
+      const s = await running();
+      await s.checkResumable('test-account');
+      s.beginBestSoFar('fastest', { nickname: '' });
+      const sent: { body: Record<string, unknown>; owner: string | null }[] = [];
+      const replies = [
+        { ok: true, id: 'aaaa0001' },
+        { ok: true, id: 'bbbb0002', replaced: 'aaaa0001' },
+        { ok: true, id: 'cccc0003', replaced: 'bbbb0002' },
+        { ok: true, id: 'dddd0004', replaced: 'cccc0003' },
+      ];
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (_url: string, init?: RequestInit) => {
+          const headers = (init?.headers ?? {}) as Record<string, string>;
+          sent.push({ body: JSON.parse(String(init?.body)), owner: headers['x-owner-token'] ?? null });
+          return json(replies.shift());
+        })
+      );
+      await s.sendBestSoFar();
+      expect(sent[0].body).not.toHaveProperty('nickname');
+      // "Credit me as Jordan".
+      s.agreeBestSoFar('Jordan');
+      vi.setSystemTime(Date.parse('2026-10-09T12:30:00Z'));
+      await s.sendBestSoFar();
+      expect(sent[1].body).toMatchObject({ provisional: true, nickname: 'Jordan', replaces: 'aaaa0001' });
+      expect(s.provisionalRows.fastest).toMatchObject({ id: 'bbbb0002', nickname: 'Jordan' });
+      // And back to anonymous.
+      s.agreeBestSoFar('');
+      vi.setSystemTime(Date.parse('2026-10-09T13:00:00Z'));
+      await s.sendBestSoFar();
+      expect(sent[2].body).toMatchObject({ provisional: true, replaces: 'bbbb0002' });
+      expect(sent[2].body).not.toHaveProperty('nickname');
+      // The final goes under whatever the bar says at the end (here the name again) and replaces the
+      // anonymous row: same owner code throughout.
+      const res = await s.sendSubmission({ ...PAYLOAD, nickname: 'Jordan' });
+      expect(res.ok).toBe(true);
+      expect(sent[3].body).toMatchObject({ nickname: 'Jordan', replaces: 'cccc0003' });
+      expect(new Set(sent.map(x => x.owner)).size).toBe(1);
+      expect(sent[0].owner).toMatch(/^[a-f0-9]{32}$/);
+      expect(s.provisionalRows.fastest).toBeNull();
+      s.endBestSoFar();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('is the bar’s to offer only for the kind of run its screen began', async () => {

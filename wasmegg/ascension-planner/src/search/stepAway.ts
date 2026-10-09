@@ -440,3 +440,30 @@ export function autoCarryOnVerdict(a: {
   if (!canReopen(mark.autoCarries, now)) return { go: false, why: 'guard' };
   return { go: true };
 }
+
+/**
+ * The run a panel would offer to carry on is still going in another tab or window of this browser
+ * (review, 9 Oct: a second tab showed "Carry on the unfinished run — 2,186 chains already priced"
+ * while the run was live in the first; pressing it would have run the same search twice, both writing
+ * the checkpoint, and two final sends racing to replace one best-so-far row).
+ *
+ * Alive when the run mark says a run of this kind, on this account, is going and either the run lock
+ * is held (a page holds it for the whole run, and the browser drops it when that page dies) or its
+ * heartbeat is fresher than STALE_MS. Carry on comes back once neither holds: the other page was
+ * closed, crashed, or has not beaten for two minutes. Never this page's own run (`runningHere`).
+ */
+export function runAliveElsewhere(a: {
+  mark: RunMark | null;
+  kind: RunKind;
+  /** This page's hashed account; '' when not known yet (then any account's run counts). */
+  account: string;
+  now: number;
+  lockHeld: boolean;
+  /** This page is running a search itself: the mark and the lock are its own. */
+  runningHere: boolean;
+}): boolean {
+  const { mark, kind, account, now, lockHeld, runningHere } = a;
+  if (runningHere || !mark || mark.status !== 'running' || mark.kind !== kind) return false;
+  if (account && mark.account && mark.account !== account) return false;
+  return lockHeld || heartbeatAge(mark, now) < STALE_MS;
+}

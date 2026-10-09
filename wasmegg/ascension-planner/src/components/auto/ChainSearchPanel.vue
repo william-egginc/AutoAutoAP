@@ -361,7 +361,10 @@
             >, the time it was priced from.</template
           >
         </p>
-        <div class="flex gap-2">
+        <RunGoingElsewhere
+          v-if="!store.resumable.complete && store.runElsewhere[store.resumable.space ? 'sweep' : 'smart']"
+        />
+        <div v-else class="flex gap-2">
           <button class="btn-premium btn-primary px-4 py-1.5 text-[10px]" :disabled="store.busy" @click="run(true)">
             Resume
           </button>
@@ -493,7 +496,9 @@
       <StepAwayOptions
         kind="smart"
         :player-id="playerId"
-        :can-carry-on="!!store.resumable && !store.resumable.complete && !store.resumable.space"
+        :can-carry-on="
+          !!store.resumable && !store.resumable.complete && !store.resumable.space && !store.runElsewhere.smart
+        "
         @carry-on="run(true)"
       />
       <p
@@ -526,7 +531,7 @@
 
       <!-- Live progress -->
       <div v-if="store.isRunning || store.bestDays > 0" class="space-y-4">
-        <div data-run-progress>
+        <div data-run-progress="smart">
           <div class="flex items-center justify-between text-[10px] font-black uppercase tracking-widest mb-1.5">
             <span class="text-slate-500">{{ store.stage }}</span>
             <span class="text-slate-400">
@@ -1305,6 +1310,7 @@ import ChainSearchExplainer from './ChainSearchExplainer.vue';
 import HelpTip from './HelpTip.vue';
 import StartTimeFinder from './StartTimeFinder.vue';
 import FindBar from './FindBar.vue';
+import RunGoingElsewhere from './RunGoingElsewhere.vue';
 import ShareResult from './ShareResult.vue';
 import ShareStatus from './ShareStatus.vue';
 import { useShareExtras } from '@/composables/useShareExtras';

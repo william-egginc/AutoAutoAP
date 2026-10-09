@@ -236,6 +236,14 @@ export interface ChainSearchPool {
    * which is what hands their memory and cores back.
    */
   resize(n: number): number;
+  /**
+   * Start the first `n` workers (held to the pool's size) now, in the background, instead of when a
+   * batch first asks for them. A batch waits for ALL its workers to start before it sends any chain,
+   * so a run whose first batch is also the first to want several workers paid their start-up (each
+   * imports the simulator) with every core idle. Warming them while worker 0 does the integrity
+   * check overlaps the two. Failures are not reported here: the batch that uses the worker gets them.
+   */
+  warm(n: number): void;
   terminate(): void;
 }
 
@@ -610,6 +618,11 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
       const out: (number | null)[] = [];
       for (const pw of live) if (pw) out.push(pw.memoCapacity);
       return out;
+    },
+
+    warm(n: number): void {
+      if (terminated) return;
+      for (let i = 0; i < Math.min(n, size); i++) void workerAt(i).catch(() => {});
     },
 
     async evaluate(

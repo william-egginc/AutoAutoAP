@@ -31,7 +31,8 @@
       <p v-if="autoCountdown > 0" class="font-bold" role="status">
         The last run stopped without finishing. Carrying on by itself in {{ autoCountdown }} s, with fewer workers.
       </p>
-      <div class="flex flex-wrap gap-3">
+      <RunGoingElsewhere v-if="store.runElsewhere.deadline" />
+      <div v-else class="flex flex-wrap gap-3">
         <button
           v-if="store.deadlineUnfinished.saveKept"
           type="button"
@@ -454,7 +455,7 @@
       countdown-elsewhere
       @countdown="n => (autoCountdown = n)"
       :player-id="playerId"
-      :can-carry-on="!!store.deadlineUnfinished?.saveKept"
+      :can-carry-on="!!store.deadlineUnfinished?.saveKept && !store.runElsewhere.deadline"
       @carry-on="resume"
     />
     <!-- Everything above greys out while anything else in this tab is busy; say what, and offer a way out. -->
@@ -495,7 +496,7 @@
     </p>
 
     <!-- Live progress, Insane-style. -->
-    <div v-if="store.deadlineRunning && store.deadlineProgress" class="space-y-2" data-run-progress>
+    <div v-if="store.deadlineRunning && store.deadlineProgress" class="space-y-2" data-run-progress="by-date">
       <ProgressBar :percent="progressPct" />
       <p class="text-[11px] text-slate-600">
         <span class="font-bold">{{ liveDone.toLocaleString() }}</span
@@ -802,6 +803,7 @@ import {
 } from '@/search/deadlineEstimate';
 import { findBandEdges, widenEdges, type BandEdge } from '@/search/bandCheck';
 import FindBar from './FindBar.vue';
+import RunGoingElsewhere from './RunGoingElsewhere.vue';
 import ShareResult from './ShareResult.vue';
 import ShareStatus from './ShareStatus.vue';
 import { useByDateShare, useShareIdentity } from '@/composables/useShareResult';

@@ -24,7 +24,7 @@ import { findStartingChain, planCoarseGrid } from '@/search/coarse';
 import { createChainSearchPool, type ChainSearchPool } from '@/search/pool';
 import { contention, timeWeightedWorkers, workerSecondsFromRate } from '@/search/speed';
 import { createStickyDealer } from '@/search/stickyDealer';
-import { hardwareThreads, maxPoolSize, clampPoolSize, targetWorkerCount } from '@/search/batch';
+import { hardwareThreads, maxPoolSize, clampPoolSize, targetWorkerCount, workersForBatch } from '@/search/batch';
 import { describeRunError } from '@/utils/errors';
 import { loadChainBenchmark, saveChainBenchmark } from '@/lib/chainBenchmarkCache';
 import { patchAutoPlannerSchedule } from '@/lib/autoPlannerFormCache';
@@ -59,7 +59,7 @@ import {
   virtueInventory,
   type InventoryCount,
 } from '@/search/csv';
-import { showDateTime } from '@/lib/displayTime';
+import { showDateTime, showDay } from '@/lib/displayTime';
 import { type ShortlistRow } from '@/search/shortlist';
 import { buildView, type ViewId } from '@/search/views';
 import {
@@ -89,7 +89,7 @@ import { describeAvailability, isConstrained, nextAvailable, type Availability }
 import { MAX_LAST_STOP, runDeadlineSearch, type DeadlineProgress, type DeadlineRoute } from '@/search/deadline';
 import * as blackBox from '@/search/blackBox';
 import { detectBrowser } from '@/lib/browserHelp';
-import { autoDecision, autoStatusLine, bestKey, type AutoInput } from '@/search/bestSoFarAuto';
+import { autoDecision, autoStatusLine, bestKey, bestLabel, type AutoInput } from '@/search/bestSoFarAuto';
 import {
   installStepAway,
   stepAwayBeat,
@@ -99,6 +99,7 @@ import {
   stepAwayRunStarted,
   stepAwayStopPressed,
 } from '@/composables/useStepAway';
+import { readRunMark, runAliveElsewhere, RUN_KEY, type RunKind } from '@/search/stepAway';
 import {
   clearDeadlineCheckpoint,
   loadDeadlineCheckpoint,
@@ -188,6 +189,10 @@ const CHECKPOINT_INTERVAL_MS = 20_000;
 /** Weight on the newest batch in the s/chain estimate. High enough to follow a stage change
  *  within a couple of batches, low enough that one slow batch does not dominate. */
 const RATE_ALPHA = 0.3;
+
+/** Chains in a Smart search's first batch: the last checkpoint's first sweep (search/driver.ts
+ *  `resolveLast`, span 12 = 25 values) plus the seed, which rides in it. Sizes the warm-up. */
+const FIRST_SWEEP_CHAINS = 26;
 
 /** How often to recompute the runners-up table. Slower than the batch rate on purpose — see
  *  `refreshShortlist`. */
@@ -745,7 +750,14 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     bestSoFarStatus.value = null;
     bestSoFarNow.value = Date.now();
     bestSoFarStartedAt = bestSoFarNow.value;
-    bestSoFarAuto.value = { lastKey: null, lastTe: null, lastFailAt: null, retryAt: null, failed: false };
+    bestSoFarAuto.value = {
+      lastKey: null,
+      lastBest: null,
+      lastFailAt: null,
+      retryAt: null,
+      lastSkipAt: null,
+      failed: false,
+    };
     autoAsked = false;
     if (!bestSoFarTicker)
       bestSoFarTicker = setInterval(() => {
@@ -790,19 +802,22 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   // Automatic best so far ("Stepping away?", search/bestSoFarAuto.ts): the rules are the pure
   // `autoDecision`; this holds the little state it needs and does the sending, on the ticker above.
   const bestSoFarAuto = ref<{
-    /** The best (`bestKey`) and its TE that the row on the board carries, from any send this run made. */
+    /** The best (`bestKey`) the row on the board carries, from any send this run made, and how the
+     *  status line names it (`bestLabel`: the finish date for Fastest, the TE for By a date). */
     lastKey: string | null;
-    lastTe: number | null;
+    lastBest: string | null;
     lastFailAt: number | null;
     retryAt: number | null;
+    /** A due time passed with the best unchanged: not sent, said, next check one interval on. */
+    lastSkipAt: number | null;
     failed: boolean;
-  }>({ lastKey: null, lastTe: null, lastFailAt: null, retryAt: null, failed: false });
+  }>({ lastKey: null, lastBest: null, lastFailAt: null, retryAt: null, lastSkipAt: null, failed: false });
   let bestSoFarStartedAt = Date.now();
   /** The box was opened by the automatic option (so unticking it can close the box again). */
   let autoAsked = false;
 
   /** The scheduling inputs now; null when no run here may send. */
-  function autoInput(): (AutoInput & { lastTe: number | null; failed: boolean }) | null {
+  function autoInput(): (AutoInput & { lastBest: string | null; failed: boolean }) | null {
     const run = bestSoFar.value;
     if (!run) return null;
     const p = runProgress.value;
@@ -817,9 +832,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       lastSentKey: a.lastKey,
       lastFailAt: a.lastFailAt,
       retryAt: a.retryAt,
+      lastSkipAt: a.lastSkipAt,
       key: here ? bestKey(p!.best) : null,
       sending: bestSoFarSending.value,
-      lastTe: a.lastTe,
+      lastBest: a.lastBest,
       failed: a.failed,
     };
   }
@@ -854,7 +870,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       }
     }
     const i = autoInput();
-    if (i && autoDecision(i).do === 'send') void autoSend();
+    const decision = i && autoDecision(i);
+    if (decision?.do === 'send') void autoSend();
+    // Due, and nothing new to send: say so on the status line, and look again one interval on.
+    else if (decision?.do === 'skip') bestSoFarAuto.value = { ...bestSoFarAuto.value, lastSkipAt: i!.now };
   }
   watch(
     () => stepAwayOptions.value.autoSendBest,
@@ -2068,6 +2087,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   async function checkResumable(playerId: string): Promise<void> {
     // Recorded here too: the panels' "puts your settings back" note compares against this player.
     if (playerId) currentPlayerId = playerId;
+    void refreshRunElsewhere();
     resumable.value = null;
     blockedCheckpoint.value = null;
     if (!playerId) return;
@@ -3234,6 +3254,11 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // The run's final send takes the place of its best so far on the board (collector "Provisional
     // rows"): the result on screen, from this screen's run, never one sent from a file.
     const kind = deadlineSend ? 'deadline' : 'fastest';
+    // A best so far still on its way (Stop pressed while one was sending, or the automatic one just
+    // went) must land first: its row is the one this final send replaces. Without the wait, a final
+    // sent before its reply had no `replaces` (or the older row's), and the best so far stayed on the
+    // board beside the result. Every final send, whichever screen sends it, comes through here.
+    if (!saved && !provisional) await bestSoFarSettled();
     const held = provisionalRows.value[kind];
     if (!saved && !provisional && held && payload.replaces === undefined && (deadlineSend || thisRun)) {
       payload = { ...payload, replaces: held.id };
@@ -3419,7 +3444,11 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           res.tooSoon ? { tooSoon: true, retryAfter: res.retryAfter } : {}
         );
       // What the row on the board now carries, for the automatic option's "changed since".
-      bestSoFarAuto.value = { ...bestSoFarAuto.value, lastKey: bestKey(p.best), lastTe: p.best?.te ?? null };
+      bestSoFarAuto.value = {
+        ...bestSoFarAuto.value,
+        lastKey: bestKey(p.best),
+        lastBest: p.best ? bestLabel(kind, p.best.te, finishDay(p.best.at)) : null,
+      };
       if (res.id) {
         setProvisional(kind, { id: res.id, nickname: payload.nickname ?? '', at: Date.now() });
         // The clock too, so the wait reads 30 min rather than 31 until the ticker's next beat.
@@ -3442,6 +3471,12 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       bestSoFarSending.value = false;
       if (bestSoFarInFlight === go) bestSoFarInFlight = null;
     }
+  }
+
+  /** A finish moment (unix seconds) as the day the player reads, in the plan's zone: "Feb 24, 2029". */
+  function finishDay(at: number): string {
+    if (!at || !Number.isFinite(at)) return '';
+    return showDay(formatInZone(at, planTimezone()).slice(0, 10));
   }
 
   /** A claim this soon after its send that finds no row is the board catching up, not a lost run. */
@@ -5132,6 +5167,52 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         workersHeapMB: b.workersHeapMB,
       });
   }
+  /**
+   * Each kind of run that is going in ANOTHER tab or window of this browser right now
+   * (search/stepAway.ts `runAliveElsewhere`): its panel then says so instead of offering to carry it
+   * on, which would run the same search twice. Read from the run mark and the run lock: again every
+   * 15 s, whenever another tab writes the mark (the `storage` event, so a beat or an end there shows
+   * here at once), and when a panel looks for an unfinished run.
+   */
+  const runElsewhere = ref<Record<RunKind, boolean>>({ smart: false, sweep: false, deadline: false });
+  let elsewhereAccount = '';
+  async function refreshRunElsewhere(): Promise<void> {
+    if (typeof window === 'undefined') return;
+    let lockHeld = false;
+    try {
+      const locks = (navigator as Navigator & { locks?: LockManager }).locks;
+      const state = await locks?.query();
+      lockHeld = !!state?.held?.some(l => l.name === 'ascension-planner:chain-search');
+    } catch {
+      // no Web Locks here: the heartbeat alone decides
+    }
+    try {
+      elsewhereAccount = currentPlayerId ? await hashID(currentPlayerId) : '';
+    } catch {
+      elsewhereAccount = '';
+    }
+    const mark = readRunMark();
+    const now = Date.now();
+    const runningHere = isRunning.value || deadlineRunning.value || preparing.value;
+    const at = (kind: RunKind) =>
+      runAliveElsewhere({ mark, kind, account: elsewhereAccount, now, lockHeld, runningHere });
+    const next = { smart: at('smart'), sweep: at('sweep'), deadline: at('deadline') };
+    const was = runElsewhere.value;
+    if (next.smart !== was.smart || next.sweep !== was.sweep || next.deadline !== was.deadline)
+      runElsewhere.value = next;
+  }
+  if (typeof window !== 'undefined') {
+    setInterval(() => void refreshRunElsewhere(), 15_000);
+    window.addEventListener('storage', e => {
+      if (e.key === RUN_KEY) void refreshRunElsewhere();
+    });
+    void refreshRunElsewhere();
+  }
+  watch(
+    () => isRunning.value || deadlineRunning.value,
+    () => void refreshRunElsewhere()
+  );
+
   installStepAway({
     workerBudget,
     machineThreads,
@@ -5526,6 +5607,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         },
       });
       workersInPool.value = pool.size;
+      // The workers the first sweep (the last checkpoint's 25 values and the seed) will use start
+      // while worker 0 checks the account, rather than all at once when that sweep is dealt.
+      pool.warm(workersForBatch(FIRST_SWEEP_CHAINS, pool.size));
       startWorkerClock();
       if (!(await checkIntegrity(pool))) return;
       stage.value = 'running';
@@ -5564,6 +5648,27 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       }
 
       stage.value = 'running';
+      // The rate is measured from here: start-up (workers, the integrity check) is behind us and is
+      // not what the rest of the run costs per chain. The first sample used to include it.
+      noteRate(chainsBase, true);
+      // Chains the driver has had priced, batch by batch, so the count moves WITHIN a batch (the
+      // workers' heartbeats) instead of only when the driver next reports: the bar sat on "1 of
+      // ~606" through the whole first sweep (9 Oct). Driver-relative, like `p.chainsDone`.
+      let pricedBefore = 0;
+      const evaluateLive = async (chains: number[][]) => {
+        noteBatch(0, chains.length);
+        try {
+          return await pool!.evaluate(chains, (done, total) => {
+            noteBatch(done, total);
+            chainsDone.value = Math.max(chainsDone.value, pricedBefore + done);
+          });
+        } finally {
+          pricedBefore += chains.length;
+          // A rate sample per batch, so the first time estimate is the first real batch's pace
+          // (every worker going) rather than whatever the driver's first report happened to cover.
+          noteRate(chainsBase + pricedBefore);
+        }
+      };
       const outcome = await runChainSearch({
         seedChain: seed,
         final: finalTE.value,
@@ -5579,7 +5684,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         // overrode whatever the user asked for in the range above.
         minCheckpoints: minPrestiges.value,
         maxCheckpoints: maxPrestiges.value,
-        evaluateBatch: chains => pool!.evaluate(chains, noteBatch),
+        evaluateBatch: evaluateLive,
         restoredCache,
         shouldStop: () => stopRequested.value,
         onProgress: p => {
@@ -5920,11 +6025,17 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       const done = chainsDone.value + (full ? batchDone.value : 0);
       return {
         kind: full ? 'full' : 'smart',
-        stage: stage.value,
+        // Smart search: how far into this step's batch, so a long step (the first sweep, a wide
+        // slice) visibly moves: "stage 4a: solving the last checkpoint · 12 of 26".
+        stage:
+          !full && batchTotal.value > 1 ? `${stage.value} · ${batchDone.value} of ${batchTotal.value}` : stage.value,
         done,
         total: chainsEstimated.value ? Math.max(chainsEstimated.value, done) : null,
         unit: 'chains',
         secondsLeft: secondsRemaining.value || null,
+        // No rate until the first batch is back: say so rather than guess from the first chains,
+        // which carry each worker's start (its shared early legs) and read hours too long.
+        measuring: !full && !secondsPerChain.value,
         startedAt: startedAt.value,
         stopping: stopRequested.value,
         best:
@@ -5957,6 +6068,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     runProgress,
     stopRun,
     provisionalRows,
+    runElsewhere,
+    refreshRunElsewhere,
     bestSoFar,
     bestSoFarSending,
     bestSoFarStatus,

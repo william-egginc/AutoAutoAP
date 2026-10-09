@@ -85,50 +85,21 @@
       <button
         type="button"
         class="font-black uppercase tracking-widest text-[10px] text-emerald-800 underline hover:text-emerald-900"
-        @click="pressRun(true)"
+        @click="pressRun(true, 'again')"
       >
         Work it out again
       </button>
     </p>
-    <div
-      v-if="confirming"
-      class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-[12px] text-amber-900 space-y-2"
-      role="alert"
-      data-testid="instant-warning"
-    >
-      <p>
-        A search is running. {{ confirming.check ? 'Checking exactly' : 'Working out the instant answer' }} now runs
-        extra workers alongside it, which uses more memory and could crash the search on a big run.
-      </p>
-      <div class="flex flex-wrap items-center gap-x-4 gap-y-1">
-        <button
-          type="button"
-          class="font-black uppercase tracking-widest text-[10px] text-amber-900 underline"
-          data-testid="instant-warning-once"
-          @click="confirmRun(false)"
-        >
-          Run it anyway
-        </button>
-        <button
-          type="button"
-          class="font-black uppercase tracking-widest text-[10px] text-amber-900 underline"
-          data-testid="instant-warning-remember"
-          @click="confirmRun(true)"
-        >
-          Don't ask again, just warn me
-        </button>
-        <button
-          type="button"
-          class="font-black uppercase tracking-widest text-[10px] text-slate-500 underline"
-          data-testid="instant-warning-cancel"
-          @click="confirming = null"
-        >
-          Cancel
-        </button>
-      </div>
-    </div>
+    <InstantRunWarning
+      v-if="warnHere(confirming, 'again')"
+      at="again"
+      :check="confirming?.check"
+      @go="confirmRun(false)"
+      @remember="confirmRun(true)"
+      @cancel="confirming = null"
+    />
     <p
-      v-else-if="runBusy && alongside"
+      v-if="!confirming && runBusy && alongside"
       class="text-[11px] text-slate-500"
       data-testid="instant-alongside"
     >
@@ -143,11 +114,19 @@
       <button
         type="button"
         class="font-black uppercase tracking-widest text-[10px] text-amber-900 underline"
-        @click="pressRun(false)"
+        @click="pressRun(false, 'anyway')"
       >
         Work it out anyway
       </button>
     </p>
+    <InstantRunWarning
+      v-if="warnHere(confirming, 'anyway')"
+      at="anyway"
+      :check="confirming?.check"
+      @go="confirmRun(false)"
+      @remember="confirmRun(true)"
+      @cancel="confirming = null"
+    />
     <!-- The last checked answer for this save and setup, at once; then whether the new check beat it. -->
     <p
       v-if="cached && exactStatus !== 'done'"
@@ -275,7 +254,7 @@
             class="mt-1 px-3 py-1.5 rounded-lg bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-1.5"
             :disabled="exactStatus === 'running'"
             title="Prices every route below with the full simulator on your account"
-            @click="pressCheck()"
+            @click="pressCheck('check-date')"
           >
             <span
               v-if="exactStatus === 'running'"
@@ -291,6 +270,15 @@
           >
             Simulate this plan
           </button>
+          <InstantRunWarning
+            v-if="warnHere(confirming, 'check-date')"
+            class="mt-2"
+            at="check-date"
+            check
+            @go="confirmRun(false)"
+            @remember="confirmRun(true)"
+            @cancel="confirming = null"
+          />
         </template>
         <p v-else class="text-[12px] text-amber-800">
           No route gets above your TE by then{{ filtering ? ' with these filters' : '' }}.
@@ -415,7 +403,7 @@
             class="mt-1 px-3 py-1.5 rounded-lg bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-1.5"
           :disabled="exactStatus === 'running'"
           title="Prices every route below with the full simulator on your account"
-          @click="pressCheck()"
+          @click="pressCheck('check-fastest')"
         >
           <span
               v-if="exactStatus === 'running'"
@@ -431,6 +419,15 @@
         >
           Simulate this plan
         </button>
+        <InstantRunWarning
+          v-if="warnHere(confirming, 'check-fastest')"
+          class="mt-2"
+          at="check-fastest"
+          check
+          @go="confirmRun(false)"
+          @remember="confirmRun(true)"
+          @cancel="confirming = null"
+        />
       </div>
       <p v-else class="text-[12px] text-amber-800">
         No route reaches {{ store.finalTE }} from here in the instant answer{{ filtering ? ' with these filters' : '' }}.
@@ -583,7 +580,16 @@ import { describeColleggtibles } from '@/search/progression';
 import { poolSize, RoutePool } from '@/search/routePool';
 import { describeGear, isMaxed, pickBracket, type TableEntry } from '@/search/tableBracket';
 import { isSmallDevice } from '@/search/device';
-import { backgroundMayStart, onArrival, pauseForRun, resumeAfterRun } from '@/search/instantDeferral';
+import {
+  backgroundMayStart,
+  onArrival,
+  pauseForRun,
+  resumeAfterRun,
+  warnHere,
+  type WarnAsk,
+  type WarnAt,
+} from '@/search/instantDeferral';
+import InstantRunWarning from './InstantRunWarning.vue';
 import { useInstantDuringSearch } from '@/composables/useInstantDuringSearch';
 import { readSnapshot, writeSnapshot } from '@/search/instantSnapshot';
 import { simulateRoute } from '@/search/simulateRoute';
@@ -968,7 +974,7 @@ watch(runBusy, (busy, wasBusy) => {
 const instantDuringSearch = useInstantDuringSearch();
 /** The warning is open for this press: which button asked ("again" forces, the waits line goes ahead;
  *  `check`: Check exactly). */
-const confirming = ref<{ force: boolean; check?: boolean } | null>(null);
+const confirming = ref<WarnAsk | null>(null);
 /** The last run (or exact check) started alongside a search, so the short memory note shows while it
  *  is still going. */
 const alongside = ref(false);
@@ -1019,25 +1025,25 @@ function pauseWorkForRun(): void {
  * The buttons' press. With no search running it runs at once, as before. During a search it asks
  * first (memory), unless the player chose not to be asked.
  */
-function pressRun(force: boolean): void {
+function pressRun(force: boolean, at: WarnAt): void {
   if (!runBusy.value || instantDuringSearch.value) {
     confirming.value = null;
     goRun(force);
     return;
   }
-  confirming.value = { force };
+  confirming.value = { force, at };
 }
 /**
  * Check exactly / Check all again: the full simulator on up to four workers. During a search it asks
  * first, as Work it out again does, unless the player chose not to be asked.
  */
-function pressCheck(): void {
+function pressCheck(at: WarnAt): void {
   if (!runBusy.value || instantDuringSearch.value) {
     confirming.value = null;
     goCheck();
     return;
   }
-  confirming.value = { force: false, check: true };
+  confirming.value = { force: false, check: true, at };
 }
 function goCheck(): void {
   alongside.value = runBusy.value;

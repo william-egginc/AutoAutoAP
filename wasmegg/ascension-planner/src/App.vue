@@ -663,6 +663,7 @@ import PlanSelectionDialog from '@/components/PlanSelectionDialog.vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { safeAsyncComponent } from '@/lib/import';
 import RunProgressBar from '@/components/auto/RunProgressBar.vue';
+import { scrollToRun } from '@/lib/runAnchor';
 import { usePlanStartForm } from '@/composables/usePlanStartForm';
 import { useTablePrefetch } from '@/composables/useTablePrefetch';
 import NewLayoutGuide from '@/components/NewLayoutGuide.vue';
@@ -863,21 +864,27 @@ const hereLabel = computed(() => screenName(screenHere.value));
  *  the bar's button then scrolls to it). */
 const showRunBar = computed(() => !!runScreen.value);
 const runIsHere = computed(() => !!runScreen.value && searchScreenOf(currentRoute()) === runScreen.value);
+/**
+ * The bar's Jump to it / Show it: one click goes to the run's screen if it is not the one shown, then
+ * waits for that screen's panels to mount and scrolls to the run's own progress block, found by its
+ * kind (lib/runAnchor.ts). It used to switch tabs only, and land at the top of the page.
+ */
 function showRun(): void {
-  if (runIsHere.value) {
-    document.querySelector('[data-run-progress]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    return;
+  const kind = chainSearchStore.runProgress?.kind;
+  const anchor = kind === 'smart' || kind === 'full' || kind === 'by-date' ? kind : null;
+  if (!runIsHere.value) {
+    // A sweep started from Science: back to its window there, which is where it was started from.
+    const science = uiStore.scienceRun;
+    if (science && science.phase !== 'done' && !runningScreen.value) {
+      goTo({ ...currentRoute(), section: 'science', science: 'check' });
+      uiStore.scienceSweep = science.request;
+      return;
+    }
+    const s = runScreen.value;
+    if (s === 'by-date') goAuto('by-date');
+    else if (s) goAuto('fastest', s);
   }
-  // A sweep started from Science: back to its window there, which is where it was started from.
-  const science = uiStore.scienceRun;
-  if (science && science.phase !== 'done' && !runningScreen.value) {
-    goTo({ ...currentRoute(), section: 'science', science: 'check' });
-    uiStore.scienceSweep = science.request;
-    return;
-  }
-  const s = runScreen.value;
-  if (s === 'by-date') goAuto('by-date');
-  else if (s) goAuto('fastest', s);
+  if (anchor) void scrollToRun(anchor);
 }
 
 /** Open a tab: a deliberate choice, so a backup finishing loading no longer pulls the page back. */

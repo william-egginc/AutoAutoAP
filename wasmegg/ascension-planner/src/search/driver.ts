@@ -133,8 +133,9 @@ class ChainCache {
     return this.legs.get(chain.join(',')) ?? [];
   }
 
-  /** `groups`: one value-list per checkpoint BEFORE the final target. */
-  async run(groups: number[][]): Promise<void> {
+  /** `groups`: one value-list per checkpoint BEFORE the final target. `extra`: whole chains to
+   *  price in the same batch (the seed, on the first sweep: see `runChainSearch`). */
+  async run(groups: number[][], extra: number[][] = []): Promise<void> {
     const want: number[][] = [];
     const walk = (i: number, acc: number[]): void => {
       if (i === groups.length) {
@@ -149,6 +150,8 @@ class ChainCache {
       }
     };
     walk(0, []);
+    const keys = new Set(want.map(c => c.join(',')));
+    for (const c of extra) if (!keys.has(c.join(','))) want.push([...c]);
 
     const todo = want.filter(c => !this.seconds.has(c.join(',')));
     if (!todo.length) return;
@@ -212,7 +215,16 @@ export async function runChainSearch(opts: DriverOptions): Promise<SearchOutcome
   let stage = 'starting';
   let lastCompletedStage = 'none';
   let stopped = false;
-  let best = (await cache.need(cur)) ?? Infinity;
+  /**
+   * The seed is NOT priced on its own first. It used to be (`cache.need(cur)` here): one chain, on
+   * one worker, while every other worker sat idle, and the first time estimate was that one serial
+   * chain (worker start-up included) taken as the rate for the whole run. On the 9 Oct report (a
+   * 7-ascension instant route, 7 workers) the bar sat at "1 of ~606 chains · about 57 min left" for
+   * the seed plus the whole first sweep, and the run took 4 min. The seed rides in the last
+   * checkpoint's first sweep instead (`resolveLast`'s `extra`), which it is nearly always part of
+   * anyway, so it costs nothing extra and the sweep starts at once on every worker.
+   */
+  let best = cache.get(cur) ?? Infinity;
   /** Best seen anywhere, which is what the UI shows and what a stop returns. A stage can regress;
    *  this cannot. */
   let ever = { chain: [...cur], seconds: best };
@@ -237,7 +249,9 @@ export async function runChainSearch(opts: DriverOptions): Promise<SearchOutcome
       chainsDone: cache.chainsEvaluated,
       chainsEstimated,
       bestChain: [...ever.chain],
-      bestDays: ever.seconds / 86400,
+      // 0 while nothing is priced yet (the seed is priced in the first sweep): the store's "not
+      // priced" value, never Infinity on the screen.
+      bestDays: Number.isFinite(ever.seconds) ? ever.seconds / 86400 : 0,
       bestLegs: cache.legsOf(ever.chain),
     });
     opts.onCache?.(cache.entries());
@@ -267,7 +281,7 @@ export async function runChainSearch(opts: DriverOptions): Promise<SearchOutcome
    * rather than only run-ends — the prune is safe but the saving is small next to the risk of
    * mis-detecting a run boundary from a sparse window.
    */
-  async function resolveLast(chain: number[]): Promise<number[]> {
+  async function resolveLast(chain: number[], extra: number[][] = []): Promise<number[]> {
     const ch = [...chain];
     if (ch.length < 2) return ch;
     // autoplan.py indexes `ch[-3]` here and so requires at least three entries. The floor it wants
@@ -293,6 +307,7 @@ export async function runChainSearch(opts: DriverOptions): Promise<SearchOutcome
     // range, from which the widening rule can walk down to it.
     const centre = Math.min(Math.max(ch[ch.length - 2], floor), top);
     let span = 12;
+    let tried = 0;
 
     for (;;) {
       const lo = Math.max(floor, centre - span);
@@ -301,7 +316,9 @@ export async function runChainSearch(opts: DriverOptions): Promise<SearchOutcome
 
       const window: number[] = [];
       for (let v = lo; v <= hi; v++) window.push(v);
-      await cache.run([...ch.slice(0, -2).map(v => [v]), window]);
+      // `extra` (the unpriced seed) goes with the first sweep only.
+      await cache.run([...ch.slice(0, -2).map(v => [v]), window], tried ? [] : extra);
+      tried = window.length;
       if (stopRequested()) return ch;
 
       let bestSeconds = Infinity;
@@ -322,6 +339,9 @@ export async function runChainSearch(opts: DriverOptions): Promise<SearchOutcome
       // which is the whole fix for the runaway window described at the top of this file.
       const pinned = (bestValue === lo && lo > floor) || (bestValue === hi && hi < top);
       if (!pinned || span >= 36) return [...ch.slice(0, -2), bestValue, final];
+      // Widening: say so, so the count and the log move between the sweeps (the bar used to sit on
+      // one number through all three).
+      report(`last checkpoint ${lo}-${hi} tried, best at ${bestValue}: widening`);
       span += 12;
     }
   }
@@ -329,6 +349,9 @@ export async function runChainSearch(opts: DriverOptions): Promise<SearchOutcome
   /** Stage 4: coordinate descent, step 1, one checkpoint at a time. */
   async function descent(passes: number, label: string): Promise<void> {
     stage = label;
+    // Before the first axis's sweep, so the stage line changes when the work does (it said "solving
+    // the last checkpoint" through the first axis and its re-solve).
+    report(`from ${days(best)} d  ${cur.join(' ')}`);
     for (let p = 0; p < passes; p++) {
       let moved = false;
       // The LAST checkpoint is excluded here on purpose — `resolveLast` owns it.
@@ -522,7 +545,11 @@ export async function runChainSearch(opts: DriverOptions): Promise<SearchOutcome
   // ------------------------------------------------------------------ the run
   stage = 'stage 4a: solving the last checkpoint';
   report('sweeping the last checkpoint');
-  cur = await resolveLast(cur);
+  const seed = [...cur];
+  cur = await resolveLast(cur, best === Infinity ? [seed] : []);
+  // The seed's own time, when the sweep priced it (or `need` below prices it: a seed the sweep
+  // could not take, e.g. a one-checkpoint chain).
+  note(seed, cache.get(seed));
   if (!stopped) {
     best = (await cache.need(cur)) ?? best;
     note(cur, best);

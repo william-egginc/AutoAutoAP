@@ -25,6 +25,7 @@ import {
   writeRunMark,
   type RateSample,
   type RunMark,
+  runAliveElsewhere,
 } from './stepAway';
 
 const T0 = Date.UTC(2026, 9, 5, 7, 0, 0);
@@ -344,5 +345,32 @@ describe('the worker ledger', () => {
     expect(restoreWorkers(off.ledger, 10).workers).toBe(15);
     // Moved by hand: left alone.
     expect(workersWhenFewerOff(c.ledger, 12, 10).workers).toBe(12);
+  });
+});
+
+describe('a run still going in another tab (review, 9 Oct)', () => {
+  const base = { kind: 'deadline' as const, account: 'acct', now: T0 + 30_000, lockHeld: false, runningHere: false };
+  it('is alive while its heartbeat is fresh, and Carry on waits', () => {
+    expect(runAliveElsewhere({ ...base, mark: mark() })).toBe(true);
+    expect(runAliveElsewhere({ ...base, mark: mark(), now: T0 + 2 * 60_000 - 1 })).toBe(true);
+  });
+  it('is gone once it has been quiet for 2 minutes (crashed or closed without a word)', () => {
+    expect(runAliveElsewhere({ ...base, mark: mark(), now: T0 + 2 * 60_000 })).toBe(false);
+  });
+  it('is alive however quiet while the run lock is held (a hidden tab beats about once a minute)', () => {
+    expect(runAliveElsewhere({ ...base, mark: mark(), now: T0 + 10 * 60_000, lockHeld: true })).toBe(true);
+  });
+  it('is not alive once ended, closed or stopped, whatever the clock', () => {
+    for (const status of ['finished', 'stopped', 'closed', 'stuck'] as const)
+      expect(runAliveElsewhere({ ...base, mark: mark({ status }), lockHeld: true })).toBe(false);
+    expect(runAliveElsewhere({ ...base, mark: null, lockHeld: true })).toBe(false);
+  });
+  it('only for its own kind and account, and never for this page’s own run', () => {
+    expect(runAliveElsewhere({ ...base, kind: 'smart', mark: mark() })).toBe(false);
+    expect(runAliveElsewhere({ ...base, kind: 'sweep', mark: mark({ kind: 'sweep' }) })).toBe(true);
+    expect(runAliveElsewhere({ ...base, account: 'other', mark: mark() })).toBe(false);
+    // Account not known yet here: any account's run counts (safer than offering it twice).
+    expect(runAliveElsewhere({ ...base, account: '', mark: mark() })).toBe(true);
+    expect(runAliveElsewhere({ ...base, mark: mark(), runningHere: true, lockHeld: true })).toBe(false);
   });
 });

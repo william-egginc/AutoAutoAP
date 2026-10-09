@@ -26,6 +26,7 @@
         {{ kindLabel }} · {{ p.done.toLocaleString()
         }}<template v-if="p.total"> of {{ approx }}{{ p.total.toLocaleString() }}</template> {{ p.unit
         }}<template v-if="leftLabel"> · about {{ leftLabel }} left<template v-if="p.measuring"> (measuring…)</template></template
+        ><template v-else-if="p.kind === 'smart' && p.measuring"> · measuring time left…</template
         ><template v-if="p.best">
           · best so far {{ p.kind === 'by-date' ? 'gets to' : 'reaches' }} {{ p.best.te }} on
           {{ show(p.best.at) }}</template
@@ -164,7 +165,9 @@ const leftLabel = computed(() => {
   const r = p.value;
   if (!r) return '';
   let secs = r.secondsLeft;
-  if (secs == null && r.total && r.done >= 5 && r.startedAt) {
+  // A Smart search that is still measuring has no pace worth extrapolating yet (its first chains
+  // carry every worker's shared early legs): "measuring time left" instead.
+  if (secs == null && r.total && r.done >= 5 && r.startedAt && !(r.kind === 'smart' && r.measuring)) {
     secs = Math.max(0, r.total - r.done) * ((now.value - r.startedAt) / 1000 / r.done);
   }
   if (!secs || secs <= 0) return '';

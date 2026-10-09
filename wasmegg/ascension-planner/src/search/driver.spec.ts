@@ -166,6 +166,53 @@ describe('runChainSearch', () => {
     expect(outcome.seconds).toBe(fastest);
   });
 
+  /**
+   * 9 Oct (Fastest › Simple, 7 workers): the bar sat on "1 of ~606 chains · about 57 min left" for a
+   * while at the start. The seed was priced alone (one chain, one worker, the rest idle) and that
+   * chain, start-up included, was the first rate sample. The seed now rides in the last
+   * checkpoint's first sweep: the first batch is the whole sweep, seed included.
+   */
+  it('prices the seed in the first sweep, not alone first', async () => {
+    const { evaluate, calls } = makeEvaluator([195, 219, 248, 286, 327]);
+    const seed = [195, 219, 248, 286, 320, FINAL];
+    const stages: string[] = [];
+    const out = await runChainSearch({
+      seedChain: seed,
+      final: FINAL,
+      currentTE: CURRENT_TE,
+      effort: 'quick',
+      evaluateBatch: evaluate,
+      onProgress: p => stages.push(`${p.stage}|${p.chainsDone}|${p.bestDays}`),
+    });
+    expect(calls[0].length).toBeGreaterThan(1);
+    expect(calls[0].map(c => c.join(','))).toContain(seed.join(','));
+    // Nothing priced twice.
+    const all = calls.flat().map(c => c.join(','));
+    expect(new Set(all).size).toBe(all.length);
+    // The first report says nothing is priced yet (0, never Infinity), and descent says so itself
+    // before its first axis rather than after it.
+    expect(stages[0]).toBe('stage 4a: solving the last checkpoint|0|0');
+    expect(stages.some(s => s.startsWith('stage 4: coordinate descent|'))).toBe(true);
+    const firstDescent = stages.findIndex(s => s.startsWith('stage 4: coordinate descent|'));
+    expect(Number(stages[firstDescent].split('|')[1])).toBe(calls[0].length);
+    expect(out.chain).toEqual([195, 219, 248, 286, 327, FINAL]);
+  });
+
+  it('prices a seed whose last checkpoint is out of range in the same first batch', async () => {
+    const { evaluate, calls } = makeEvaluator([195, 219, 248, 286, 328]);
+    const seed = [195, 219, 248, 286, 360, FINAL]; // 360 > maxLast 340: not in the sweep's window
+    const out = await runChainSearch({
+      seedChain: seed,
+      final: FINAL,
+      currentTE: CURRENT_TE,
+      effort: 'quick',
+      evaluateBatch: evaluate,
+    });
+    expect(calls[0].map(c => c.join(','))).toContain(seed.join(','));
+    expect(calls[0].length).toBeGreaterThan(1);
+    expect(out.chain).toEqual([195, 219, 248, 286, 328, FINAL]);
+  });
+
   it('replays a restored cache without re-evaluating anything', async () => {
     const optimum = [195, 219, 248, 286, 327];
     const first = makeEvaluator(optimum);

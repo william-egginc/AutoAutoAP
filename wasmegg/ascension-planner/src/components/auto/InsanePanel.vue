@@ -344,7 +344,9 @@
             >, the time it was priced from.
           </template>
         </p>
+        <RunGoingElsewhere v-if="store.runElsewhere.sweep" class="text-amber-900" />
         <button
+          v-else
           type="button"
           :disabled="store.busy || resuming !== ''"
           class="px-4 py-2 rounded-lg bg-amber-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-800 disabled:opacity-40"
@@ -776,7 +778,7 @@
         <IntegrityNotice v-if="!sweepRequest" />
         <!-- The same carry-on as the box at the top, next to Start where people look for it. -->
         <div
-          v-if="store.crashedRun && !store.busy"
+          v-if="store.crashedRun && !store.busy && !store.runElsewhere.sweep"
           class="flex flex-wrap items-center gap-3 rounded-xl border border-amber-300 bg-amber-50 p-3"
         >
           <button
@@ -830,7 +832,7 @@
         <StepAwayOptions
           kind="sweep"
           :player-id="playerId"
-          :can-carry-on="!!store.crashedRun"
+          :can-carry-on="!!store.crashedRun && !store.runElsewhere.sweep"
           @carry-on="resumeCrashed"
         />
         <!-- A Find and submit that finished (and sent) while this panel was closed for another tab. -->
@@ -872,7 +874,7 @@
           </p>
         </div>
 
-        <div v-if="store.stage" class="space-y-1" data-run-progress>
+        <div v-if="store.stage" class="space-y-1" data-run-progress="full">
           <div class="flex items-center justify-between text-[10px] font-black uppercase tracking-widest">
             <span class="text-slate-500">{{ store.stage }}</span>
             <span class="text-slate-400 tabular-nums">
@@ -1201,6 +1203,7 @@ import IntegrityNotice from './IntegrityNotice.vue';
 import SafariNotice from './SafariNotice.vue';
 import RunSaveNotice from './RunSaveNotice.vue';
 import UnfinishedRuns from './UnfinishedRuns.vue';
+import RunGoingElsewhere from './RunGoingElsewhere.vue';
 import DeadlinePanel from './DeadlinePanel.vue';
 import { useInitialStateStore } from '@/stores/initialState';
 import { describeTimeOff, usableTimeOff } from '@/search/timeOff';
