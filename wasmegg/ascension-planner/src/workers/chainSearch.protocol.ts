@@ -39,6 +39,12 @@ export interface EvaluateRequest {
   chains: number[][];
   /** When each fresh ascension starts (search/chain.ts `HandoffChoice`); absent = 'now'. */
   handoff?: import('@/search/chain').HandoffChoice;
+  /**
+   * The prefix memo for this request (search/chain.ts `MemoSettings`): a capacity the worker keeps
+   * from now on, and whether each chain's own last step is kept. Absent: the memo as it is, last
+   * steps kept -- what Smart search and the Full sweep always had. By a date sends both.
+   */
+  memo?: import('@/search/chain').MemoSettings;
 }
 
 /** How long a fresh ascension from the plan start sits on its first Integrity shift. See
@@ -124,9 +130,11 @@ export interface StartsResultMessage extends WithHeap {
  */
 export interface WithHeap {
   heapMB?: number | null;
-  /** Prefixes in this worker's chain memo (search/chain.ts, at most 3000), sent beside `heapMB`:
+  /** Prefixes in this worker's chain memo (search/chain.ts; at most 3000 unless By a date sized it), sent beside `heapMB`:
    *  a rough stand-in for the worker's memory, which Chrome does not report inside a worker. */
   memoEntries?: number;
+  /** The memo's capacity now (search/chain.ts `MemoSettings`): 3000 unless By a date sized it. */
+  memoCapacity?: number;
 }
 
 export type WorkerResponse =

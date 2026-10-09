@@ -110,6 +110,10 @@ describe('black box memory helpers', () => {
     expect(workersNote({ workers: 2, workersHeapMB: null, workersMemoEntries: 4200 })).toBe(
       "The browser doesn't report how much memory the 2 workers used; their caches held 4,200 partial routes (6,000 when full)."
     );
+    // A By a date run sizes its memos for the run: the workers say how big, and that is "full".
+    expect(workersNote({ workers: 2, workersHeapMB: null, workersMemoEntries: 4200, workersMemoCapacity: 5172 })).toBe(
+      "The browser doesn't report how much memory the 2 workers used; their caches held 4,200 partial routes (5,172 when full)."
+    );
     expect(workersNote({ workers: 1, workersHeapMB: null })).toBe(
       "The browser doesn't report how much memory the 1 worker used."
     );

@@ -344,8 +344,10 @@ interface Bracket {
   miss: number | null;
   jump: number;
   done: boolean;
-  /** Routes tried on this shape so far (learning the cost of a set). */
+  /** Routes priced on this shape in earlier rounds (learning the cost of a set). */
   used: number;
+  /** This round's guesses, handed out; priced or not yet (see `learnNow` in `bracketAll`). */
+  pending: number[];
 }
 
 /** Up to `n` items spread evenly through `list`. */
@@ -396,7 +398,8 @@ export async function runDeadlineSearch(spec: DeadlineSpec, cb: DeadlineCallback
   let streamedAt = 0;
   const CHUNK = Math.max(1, Math.floor(spec.chunk ?? Math.max(1024, 64 * Math.max(1, Math.floor(spec.parallel ?? 1)))));
 
-  async function price(chains: number[][]): Promise<void> {
+  /** `afterBatch` runs once each batch's prices are in, before the progress report. */
+  async function price(chains: number[][], afterBatch?: () => void): Promise<void> {
     const todo = chains.filter(c => !cache.has(c.join(',')));
     // Depth-first, so siblings sharing early stops sit together and the prefix memo hits.
     todo.sort((a, b) => {
@@ -444,6 +447,7 @@ export async function runDeadlineSearch(spec: DeadlineSpec, cb: DeadlineCallback
           if (better(route, best)) best = route;
         }
       }
+      afterBatch?.();
       if (cut) {
         stoppedEarly = true;
         report();
@@ -473,6 +477,7 @@ export async function runDeadlineSearch(spec: DeadlineSpec, cb: DeadlineCallback
       jump: first,
       done: false,
       used: 0,
+      pending: [],
     }));
     // The hard bounds: the box itself, or with `extend` everything from just above the last early stop
     // to MAX_LAST_STOP. The box still decides where the first guesses go.
@@ -519,30 +524,94 @@ export async function runDeadlineSearch(spec: DeadlineSpec, cb: DeadlineCallback
       return [...new Set(pts)];
     };
 
-    for (let round = 0; round < 64; round++) {
+    /** Routes a bracket still needs from where it stands (`ok`, `miss`), counting the next guess, at
+     *  `k` guesses a round; 0 when it is narrowed down (exactly when `probesOf` would give none).
+     *  `inFlight`: its gallop's guess is out, so that step was the jump before the last doubling. */
+    const stillNeeded = (b: Bracket, ok: number | null, miss: number | null, k: number, inFlight: boolean): number => {
+      // Halving a gap of g (k at a time): log2(g) guesses, or k a round for log_(k+1)(g) rounds.
+      const narrow = (g: number) =>
+        g <= 1 ? 0 : k === 1 ? Math.ceil(Math.log2(g)) : k * Math.ceil(Math.log(g) / Math.log(k + 1));
+      const jump = inFlight ? Math.max(1, b.jump / (k + 1)) : b.jump;
+      if (ok !== null && miss !== null) return narrow(miss - ok);
+      // One side known: at least one more step out (the gallop), then the gap that step opens.
+      if (ok !== null) return ok >= hi ? 0 : k + narrow(Math.min(jump, hi - ok));
+      if (miss !== null) return miss <= floorOf(b) ? 0 : k + narrow(Math.min(jump, miss - floorOf(b)));
+      return 1;
+    };
+    let round = 0;
+    let k = 1;
+    /**
+     * What the sets have cost and still need, refreshed after every batch rather than once a round (a
+     * round over 30,000 sets is hours). A guess counts once it is priced (or was already, e.g. on a
+     * carry-on's replay), and until then as in flight, not as a route used. Each open set's remaining
+     * need comes from its own bracket (`stillNeeded`): what the estimate is made of (deadlineEstimate.ts).
+     */
+    const refreshLearn = () => {
+      let finishedSets = 0;
+      let finishedRoutes = 0;
+      let openRoutes = 0;
+      let inFlight = 0;
+      let untouched = 0;
+      let bracketNeed = 0;
+      for (const b of brackets) {
+        let ok = b.ok;
+        let miss = b.miss;
+        let priced = 0;
+        for (const t of b.pending) {
+          const m = makes([...b.shape, t]);
+          if (m === null) continue;
+          priced++;
+          if (m) ok = Math.max(ok ?? -Infinity, t);
+          else miss = Math.min(miss ?? Infinity, t);
+        }
+        const unpriced = b.pending.length - priced;
+        const used = b.used + priced;
+        const need = b.done ? 0 : stillNeeded(b, ok, miss, k, unpriced > 0);
+        if (b.done || (!need && !unpriced)) {
+          finishedSets++;
+          finishedRoutes += used;
+          continue;
+        }
+        openRoutes += used;
+        inFlight += unpriced;
+        if (ok === null && miss === null) untouched++;
+        else bracketNeed += Math.max(1, unpriced, need);
+      }
+      const open = brackets.length - finishedSets;
+      learnNow = {
+        sets: brackets.length,
+        finishedSets,
+        finishedRoutes,
+        openRoutes,
+        inFlight,
+        untouched,
+        bracketNeed,
+        round,
+      };
+      stage = `Round ${round + 1} · ${finishedSets.toLocaleString()} of ${brackets.length.toLocaleString()} sets of early stops finished · ${open.toLocaleString()} still open`;
+    };
+
+    for (; round < 64; round++) {
       const live = brackets.filter(b => !b.done && probesOf({ ...b }, 1).length);
-      for (const b of brackets) if (!b.done && !live.includes(b)) b.done = true;
-      const k = Math.max(1, Math.min(16, Math.floor(width / Math.max(1, live.length))));
+      // A Set, not `live.includes`: that was a scan of every live set for every set, ~10^9 steps a
+      // round on a 30,000-set run. Same sets either way.
+      const liveSet = new Set(live);
+      for (const b of brackets) if (!b.done && !liveSet.has(b)) b.done = true;
+      k = Math.max(1, Math.min(16, Math.floor(width / Math.max(1, live.length))));
       const probes = new Map<Bracket, number[]>();
       for (const b of live) probes.set(b, probesOf(b, k));
       const open = probes.size;
-      if (learn) {
-        // Routes tried per set (cached ones too, so a carried-on run learns from its replay), and which
-        // sets are finished: a set is finished once its last stop is narrowed down.
-        for (const [b, ts] of probes) b.used += ts.length;
-        const done = brackets.filter(b => b.done);
-        learnNow = {
-          sets: brackets.length,
-          finishedSets: done.length,
-          finishedRoutes: done.reduce((a, b) => a + b.used, 0),
-          openRoutes: brackets.reduce((a, b) => a + (b.done ? 0 : b.used), 0),
-        };
-      }
+      // Only the bookkeeping: which guesses are out. The guesses themselves are made above, as before.
+      for (const [b, ts] of probes) b.pending = ts;
+      if (learn) refreshLearn();
       openNow = open;
       shapesNow = brackets.length;
       report();
       if (!open) return;
-      await price([...probes.entries()].flatMap(([b, ts]) => ts.map(t => [...b.shape, t])));
+      await price(
+        [...probes.entries()].flatMap(([b, ts]) => ts.map(t => [...b.shape, t])),
+        learn ? refreshLearn : undefined
+      );
       if (stoppedEarly) return;
       for (const [b, ts] of probes) {
         for (const t of ts) {
@@ -550,6 +619,8 @@ export async function runDeadlineSearch(spec: DeadlineSpec, cb: DeadlineCallback
           if (m) b.ok = Math.max(b.ok ?? -Infinity, t);
           else b.miss = Math.min(b.miss ?? Infinity, t);
         }
+        b.used += ts.length;
+        b.pending = [];
       }
     }
   }

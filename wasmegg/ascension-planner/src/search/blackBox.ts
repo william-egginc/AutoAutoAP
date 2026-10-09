@@ -39,11 +39,14 @@ export interface Beat {
   workerHeapMaxMB?: number | null;
   /** How many workers' heaps went into `workersHeapMB`. */
   workersReporting?: number;
-  /** Prefixes held in the workers' chain memos, summed (search/chain.ts, at most 3000 a worker), as
-   *  each last reported. Chrome gives a worker no `performance.memory`, so `workersHeapMB` is null
+  /** Prefixes held in the workers' chain memos, summed (search/chain.ts, at most `workersMemoCapacity`),
+   *  as each last reported. Chrome gives a worker no `performance.memory`, so `workersHeapMB` is null
    *  there; this count is the stand-in: how full the workers' main cache was. Null when none has
    *  reported; absent when no pool is running. */
   workersMemoEntries?: number | null;
+  /** Those memos' capacities, summed: 3000 a worker, or what a By a date run sized them to. Null or
+   *  absent where the workers did not say (older builds). */
+  workersMemoCapacity?: number | null;
   /** `performance.measureUserAgentSpecificMemory()` in MB: the whole page, workers included. Only
    *  where the API exists AND the page is cross-origin isolated (normally not on this site). It is
    *  async, so each beat carries the measurement the PREVIOUS beat started. */
@@ -222,13 +225,17 @@ export function memoryPhrase(b: Pick<Beat, 'heapMB' | 'workersHeapMB' | 'workers
  * (Chrome never does from a worker): that it doesn't, and how full their caches were instead.
  * '' when the workers' memory is known, or there were no workers.
  */
-export function workersNote(b: Pick<Beat, 'workers' | 'workersHeapMB' | 'workersMemoEntries'>): string {
+export function workersNote(
+  b: Pick<Beat, 'workers' | 'workersHeapMB' | 'workersMemoEntries' | 'workersMemoCapacity'>
+): string {
   if (typeof b.workersHeapMB === 'number' || !b.workers) return '';
   const n = b.workers;
   const workers = `${n} worker${n === 1 ? '' : 's'}`;
   const memo =
     typeof b.workersMemoEntries === 'number'
-      ? `; their caches held ${b.workersMemoEntries.toLocaleString('en-US')} partial routes (${(3000 * n).toLocaleString('en-US')} when full)`
+      ? `; their caches held ${b.workersMemoEntries.toLocaleString('en-US')} partial routes (${(
+          b.workersMemoCapacity ?? 3000 * n
+        ).toLocaleString('en-US')} when full)`
       : '';
   return `The browser doesn't report how much memory the ${workers} used${memo}.`;
 }

@@ -13,7 +13,9 @@
  *
  * A memo entry is one leg's `AscensionSummary` plus the `EngineState` the next leg starts from — a
  * few kilobytes each — so the map is capped and evicted least-recently-used first rather than left
- * to grow for the whole multi-hour run.
+ * to grow for the whole multi-hour run. The cap is the caller's to set (`MemoSettings`): a By a date
+ * run sizes it to the sets each worker comes back to (deadlineEstimate.ts `deadlineMemoCapacity`),
+ * and leaves out each route's own last leg, which nothing comes back to (`keepLast`).
  *
  * An availability schedule does not break any of that: a leg's start time is a deterministic
  * function of its prefix with or without one, so the prefix is still the whole cache key.
@@ -27,10 +29,27 @@ import { isResearchSaleActive } from '@/lib/events';
 import type { EngineState } from '@/engine/types';
 import type { ChainResult, SearchInputs } from './types';
 
-/** Entries to hold before evicting the oldest. Roughly a few tens of MB at the high end; a full
- *  descent pass over a 6-checkpoint chain touches well under this, so evictions are rare in
- *  practice and only bite on very long runs. */
-const MEMO_CAPACITY = 3000;
+/** Entries to hold before evicting the oldest, unless the caller sets its own (`MemoSettings`). A
+ *  full descent pass over a 6-checkpoint chain touches well under this, so for Smart search and the
+ *  Full sweep evictions are rare in practice and only bite on very long runs. */
+export const DEFAULT_MEMO_CAPACITY = 3000;
+
+/**
+ * How the prefix memo is kept. Unset fields keep the defaults, which are what every search except
+ * By a date has always had.
+ */
+export interface MemoSettings {
+  /** Entries held before the least recently used are dropped. Default `DEFAULT_MEMO_CAPACITY`. */
+  capacity?: number;
+  /**
+   * Keep the chain's own LAST step too (default true). A By a date run never prices the same route
+   * twice and every route's last stop is its own, so that entry is never read again -- and on a big
+   * run (~1,700 sets a worker) a round wrote as many of them as it read early legs, which pushed each
+   * set's early legs out of the memo just before the next round came back for them: about 2.07 legs
+   * a route instead of 1. Leaving them out keeps the memo for the legs that are shared.
+   */
+  keepLast?: boolean;
+}
 
 /**
  * When a fresh ascension starts after the one before ends (or after the player's hours let them
@@ -46,23 +65,36 @@ const MEMO_CAPACITY = 3000;
 export type HandoffChoice = 'now' | 'hour' | 'sooner';
 
 export interface ChainEvaluator {
-  /** Simulate `chain` (last entry must be the final target). Null when some leg was unevaluable. */
-  evaluate(chain: number[], opts?: { handoff?: HandoffChoice }): ChainResult | null;
+  /** Simulate `chain` (last entry must be the final target). Null when some leg was unevaluable.
+   *  `keepLast` overrides the memo setting of the same name for this chain. */
+  evaluate(chain: number[], opts?: { handoff?: HandoffChoice; keepLast?: boolean }): ChainResult | null;
+  /** Change how the memo is kept from now on. A smaller capacity drops the least recently used at
+   *  once; nothing else is lost. */
+  setMemo(settings: MemoSettings): void;
   /** Distinct legs actually simulated so far — the honest cost counter, cache hits excluded. */
   readonly legSims: number;
-  /** Prefixes held in the memo right now (at most MEMO_CAPACITY): the black box's stand-in for the
+  /** Prefixes held in the memo right now (at most its capacity): the black box's stand-in for the
    *  worker's memory, which browsers do not report from a worker. */
   readonly memoSize: number;
+  /** The memo's capacity now. */
+  readonly memoCapacity: number;
 }
 
 /** One simulated ascension inside a chain step. A step is usually one; time off splits it in two. */
 type Segment = LegResult & { timeOff?: 'stopped' | 'restarted'; afterTimeOff?: true };
 
-export function createChainEvaluator(inputs: SearchInputs): ChainEvaluator {
+/** A capacity as a whole number of at least 1; anything unusable is the default. */
+function usableCapacity(n: number | undefined): number {
+  return n !== undefined && Number.isFinite(n) && n >= 1 ? Math.floor(n) : DEFAULT_MEMO_CAPACITY;
+}
+
+export function createChainEvaluator(inputs: SearchInputs, memoSettings: MemoSettings = {}): ChainEvaluator {
   // Insertion-ordered by construction (Map iterates in insertion order), which is all the eviction
   // below needs. `null` is a real memoised value: "this prefix is unevaluable", worth remembering.
   // A value is the step's SEGMENTS: one leg normally, more when time off cut it (see `priceStep`).
   const memo = new Map<string, Segment[] | null>();
+  let capacity = usableCapacity(memoSettings.capacity);
+  let keepLastDefault = memoSettings.keepLast !== false;
   let legSims = 0;
   // Validated once, not per leg. A schedule that excludes nothing becomes null so the hot path is
   // a single null check — and so a run with no schedule is byte-for-byte the same computation it
@@ -74,16 +106,19 @@ export function createChainEvaluator(inputs: SearchInputs): ChainEvaluator {
   // Sorted once; empty costs nothing per leg, like the schedule.
   const timeOff = [...(inputs.timeOff ?? [])].filter(w => w.to > w.from).sort((x, y) => x.from - y.from);
 
-  function remember(key: string, segs: Segment[] | null): void {
-    if (memo.size >= MEMO_CAPACITY) {
-      // Drop the oldest quarter in one pass rather than one entry per insert — evicting singly
-      // turns a full map into a churn machine where every new prefix costs a delete.
-      let toDrop = Math.floor(MEMO_CAPACITY / 4);
-      for (const k of memo.keys()) {
-        if (toDrop-- <= 0) break;
-        memo.delete(k);
-      }
+  /** Drop the least recently used until at most `keep` are left. */
+  function shrinkTo(keep: number): void {
+    let toDrop = memo.size - keep;
+    for (const k of memo.keys()) {
+      if (toDrop-- <= 0) break;
+      memo.delete(k);
     }
+  }
+
+  function remember(key: string, segs: Segment[] | null): void {
+    // Drop the oldest quarter in one pass rather than one entry per insert — evicting singly
+    // turns a full map into a churn machine where every new prefix costs a delete.
+    if (memo.size >= capacity) shrinkTo(capacity - Math.max(1, Math.floor(capacity / 4)));
     memo.set(key, segs);
   }
 
@@ -167,13 +202,25 @@ export function createChainEvaluator(inputs: SearchInputs): ChainEvaluator {
     get memoSize() {
       return memo.size;
     },
+    get memoCapacity() {
+      return capacity;
+    },
 
-    evaluate(chain: number[], opts?: { handoff?: HandoffChoice }): ChainResult | null {
+    setMemo(settings: MemoSettings): void {
+      if (settings.capacity !== undefined) {
+        capacity = usableCapacity(settings.capacity);
+        if (memo.size > capacity) shrinkTo(capacity);
+      }
+      if (settings.keepLast !== undefined) keepLastDefault = settings.keepLast;
+    },
+
+    evaluate(chain: number[], opts?: { handoff?: HandoffChoice; keepLast?: boolean }): ChainResult | null {
       let state: EngineState | null = null;
       let time = inputs.planStart;
       let te = inputs.currentTE;
       const legs: ChainResult['legs'] = [];
       const handoff = opts?.handoff ?? 'now';
+      const keepLast = opts?.keepLast ?? keepLastDefault;
       // The next whole hour, still inside the player's hours.
       const onTheHour = (t: number) => {
         const h = Math.ceil(t / 3600) * 3600;
@@ -227,7 +274,9 @@ export function createChainEvaluator(inputs: SearchInputs): ChainEvaluator {
               segs = both ? sooner(atHour, atOnce) : atHour;
             }
           }
-          remember(key, segs);
+          // The last step is still READ from the memo above (another route's early stops may be this
+          // whole route), only not written when the caller says nothing comes back to it.
+          if (keepLast || i < chain.length - 1) remember(key, segs);
         }
 
         if (!segs) return null;

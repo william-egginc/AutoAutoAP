@@ -115,9 +115,14 @@ import { defaultSeedChain, seedChainIssue, seedTidied, usableCheckpoints, fitSee
 import { buildPool, exhaustiveChainsWithGap, bandedChains, sortByPrefix } from '@/search/exhaustive';
 import {
   addLegSample,
+  deadlineMemoCapacity,
+  deadlinePercent,
   estimateRoutes,
+  firstRouteLegs,
+  laterRouteLegs,
   legsLeft,
   recentLegRate,
+  spaceSets,
   spaceShapeKey,
   usableRatio,
   type SetsLearned,
@@ -263,6 +268,9 @@ export interface RunProgress {
   secondsLeft: number | null;
   /** `secondsLeft` is still the planned figure: too little real work yet to measure the speed. */
   measuring?: boolean;
+  /** The bar's fill, 0-100, when the kind works out its own (By a date: never full while time is
+   *  left); absent or null: done over total, as before. */
+  percent?: number | null;
   /** Date.now() when it started. */
   startedAt: number;
   stopping: boolean;
@@ -4095,6 +4103,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     deadlineLegSims.value = 0;
     deadlineLegSamples.value = [];
     deadlineReplayed.value = 0;
+    deadlineLaterLegs = { legs: 0, routes: 0, lastLegs: 0, lastRoutes: 0 };
+    deadlineLaterPerRoute.value = 0;
     deadlineRunSimple.value = !!spec.simple;
     deadlineLegPlan.value = spec.legPlan ?? null;
     deadlineSets.value = spec.legPlan?.sets ?? spec.sets ?? 0;
@@ -4138,6 +4148,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       // Who prices which route (search/stickyDealer.ts): evenly, and each set back to the worker that
       // has its early legs in memory. One dealer for the run, so it remembers across rounds.
       const dealer = createStickyDealer();
+      // ...and a memo big enough to keep them there from one round to the next, without each route's
+      // own last leg, which nothing reads again (deadlineEstimate.ts `deadlineMemoCapacity`). Only how
+      // much the workers remember, never what a route comes to.
+      const memo = { keepLast: false, capacity: deadlineMemoFor(spec, inputs.currentTE) };
       const replay = replayingEvaluator(
         async (chains, onResult) => {
           // Many sets: dealt evenly and stickily, a few routes at a time per worker, streamed back.
@@ -4155,8 +4169,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
                 },
                 onLegs: n => (deadlineLegSims.value += n),
                 shouldStop: () => deadlineStop,
+                memo,
               })
-            : await workers.evaluate(chains, done => (deadlineInBatch.value = done), { spreadOut: true });
+            : await workers.evaluate(chains, done => (deadlineInBatch.value = done), { spreadOut: true, memo });
           if (!dealt) deadlineLegSims.value += r.legSims;
           deadlineInBatch.value = 0;
           return r.results;
@@ -4194,6 +4209,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           onProgress: p => {
             deadlineProgress.value = p;
             noteLegSample();
+            noteLaterLegs();
           },
           shouldStop: () => deadlineStop,
         }
@@ -4335,25 +4351,69 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   const deadlineLegPlan = ref<import('@/search/deadlineStore').DeadlineLegPlan | null>(null);
   /** Sets of early stops in the run, for counting its legs when it has no plan. */
   const deadlineSets = ref(0);
-  /** `[unix ms, legs done this session]`, at most one every 5 s, for the live rate (deadlineEstimate.ts
-   *  `recentLegRate`, `addLegSample`). Legs done is counted the way the plan counts them, from the
-   *  routes priced, less what a carried-on run replayed from its checkpoint. */
+  /** `[unix ms, real legs simulated this session]`, at most one every 5 s, for the live rate
+   *  (deadlineEstimate.ts `recentLegRate`, `addLegSample`). Real legs, from the workers: what a route
+   *  really costs (the memo, the first round's early legs) is in them, and a carried-on run's replayed
+   *  routes are not, so its rate is "measuring…" until the workers have done real work. */
   const deadlineLegSamples = ref<[number, number][]>([]);
   /** Routes this run replayed from a checkpoint (a carry-on): priced, but at no cost. */
   const deadlineReplayed = ref(0);
+  /** Real legs and fresh routes since the first round ended, for the legs a later route really costs
+   *  (`deadlineLaterPerRoute`). Halved as they grow, so the figure follows the run as sets finish. */
+  let deadlineLaterLegs = { legs: 0, routes: 0, lastLegs: 0, lastRoutes: 0 };
+  /** Measured real legs per route after the first round; 0 until enough of them. */
+  const deadlineLaterPerRoute = ref(0);
   /** The running (or last) date search came from By a date's Simple mode (`DeadlineRunSpec.simple`). */
   const deadlineRunSimple = ref(false);
+
   /**
-   * The estimate now: the first guess until enough sets have finished, then re-worked from what they
-   * actually cost (deadlineEstimate.ts). The panel's progress text and the cross-tab bar both use it.
+   * The memo capacity each worker keeps in a By a date run, for a pool of `workers`: the run's sets
+   * and the first round's legs with sharing (deadlineEstimate.ts `deadlineMemoCapacity`). Worked out
+   * once per worker count (the slider stays live).
+   */
+  function deadlineMemoFor(spec: DeadlineRunSpec, currentTE: number): (workers: number) => number {
+    const bandSets = runBandSets(spec);
+    const sets = bandSets?.length
+      ? spaceSets(
+          bandSets.map(b => ({ asc: b.length + 1, bands: b })),
+          currentTE,
+          spec.lastHi
+        )
+      : null;
+    const count = sets ? sets.length : (spec.legPlan?.sets ?? spec.sets ?? 0);
+    const byWorkers = new Map<number, number>();
+    return workers => {
+      let n = byWorkers.get(workers);
+      if (n === undefined) {
+        const firstLegs = sets ? firstRouteLegs(sets, workers) : (spec.legPlan?.firstLegs ?? 2 * count);
+        n = deadlineMemoCapacity({ sets: count, firstLegs, workers });
+        byWorkers.set(workers, n);
+      }
+      return n;
+    };
+  }
+
+  /**
+   * The estimate now: the first guess until enough sets have been tried, then worked out from where
+   * each set's search stands (deadlineEstimate.ts). Counted on the routes priced as of the search's
+   * last report, which is when its sets were counted; never below priced + in flight + a route for
+   * every set still open.
    */
   const deadlineEstimateNow = computed(() =>
-    estimateRoutes(
-      (deadlineProgress.value?.priced ?? 0) + deadlineInBatch.value,
-      deadlineEstimate.value,
-      deadlineProgress.value?.learn
-    )
+    estimateRoutes(deadlineProgress.value?.priced ?? 0, deadlineEstimate.value, deadlineProgress.value?.learn)
   );
+  /**
+   * ONE route total for the run, for the panel's count and bar, the cross-tab bar and the time left,
+   * so the three cannot disagree. 0 when there is no estimate. Never below the routes already done,
+   * and, before the search reports its sets, a route for every set still open on top.
+   */
+  const deadlineRoutesTotal = computed(() => {
+    const p = deadlineProgress.value;
+    const est = deadlineEstimateNow.value.total;
+    if (!est) return 0;
+    const done = (p?.priced ?? 0) + deadlineInBatch.value;
+    return Math.max(est, done + (p?.learn ? 0 : Math.max(0, p?.open ?? 0)));
+  });
   /** The run's sets and first-round legs: its plan's, else one leg a route (a run with no plan). */
   function legShape(): { sets: number; firstLegs: number } {
     const plan = deadlineLegPlan.value;
@@ -4361,24 +4421,40 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const sets = deadlineProgress.value?.learn?.sets || deadlineSets.value || 1;
     return { sets, firstLegs: sets };
   }
-  /** Legs done, as the plan counts them: each set's first route at its share of the first round's
-   *  legs, every route after that one leg. */
-  function legsDoneFor(priced: number): number {
-    const { sets, firstLegs } = legShape();
-    return priced < sets ? (priced * firstLegs) / sets : firstLegs + (priced - sets);
-  }
   function noteLegSample(): void {
-    const done = legsDoneFor((deadlineProgress.value?.priced ?? 0) + deadlineInBatch.value);
-    // The replayed routes as the earliest ones priced (a carry-on replays its first rounds first).
-    const replayed = legsDoneFor(deadlineReplayed.value);
-    const next = addLegSample(deadlineLegSamples.value, Date.now(), done, replayed);
+    const next = addLegSample(deadlineLegSamples.value, Date.now(), deadlineLegSims.value);
     if (next !== deadlineLegSamples.value) deadlineLegSamples.value = next;
+  }
+  /** Fresh routes (not replayed) priced so far this session. */
+  function freshRoutes(): number {
+    return Math.max(0, (deadlineProgress.value?.priced ?? 0) + deadlineInBatch.value - deadlineReplayed.value);
+  }
+  /** Count real legs against fresh routes once every set has had its first route (after round 1). */
+  function noteLaterLegs(): void {
+    const c = deadlineLaterLegs;
+    const legs = deadlineLegSims.value;
+    const routes = freshRoutes();
+    const dl = legs - c.lastLegs;
+    const dr = routes - c.lastRoutes;
+    c.lastLegs = legs;
+    c.lastRoutes = routes;
+    const l = deadlineProgress.value?.learn;
+    if (!l || !((l.round ?? 0) >= 1) || (l.untouched ?? 1) > 0 || dl < 0 || dr <= 0) return;
+    c.legs += dl;
+    c.routes += dr;
+    if (c.routes > 8000) {
+      c.legs /= 2;
+      c.routes /= 2;
+    }
+    if (c.routes >= 200) deadlineLaterPerRoute.value = Math.max(1, c.legs / c.routes);
   }
   /**
    * ONE estimate of time, for the panel's box, its progress line, the cross-tab bar and the command
-   * line: legs left, over the legs a second the run has managed in the last 12 minutes (the planned
-   * rate until it has 2 minutes of its own, `measuring` meanwhile). `firstGuess` is the run's own
-   * estimate at its start.
+   * line, in REAL legs (what the workers simulate, the steady unit): the routes left of the shared
+   * total (`deadlineRoutesTotal`), a set's first route at the first round's legs and every later one
+   * at the legs a later route has really cost this run (the plan's figure until it has measured it),
+   * over the real legs a second of the last 12 minutes (the planned rate until it has 2 minutes of
+   * its own, `measuring` meanwhile). `firstGuess` is the run's own estimate at its start.
    */
   const deadlineTimeLeft = computed<{
     seconds: number;
@@ -4387,23 +4463,44 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     measuring: boolean;
   } | null>(() => {
     if (!deadlineRunning.value) return null;
+    const total = deadlineRoutesTotal.value;
+    if (!total) return null;
     const p = deadlineProgress.value;
-    const priced = (p?.priced ?? 0) + deadlineInBatch.value;
-    // Past the estimate and still going (a small run, or an answer far outside the last-stop box):
-    // every set still open needs a couple more tries at least, rather than "0 s left" for minutes.
-    const routesTotal = Math.max(deadlineEstimateNow.value.total, priced + 2 * Math.max(1, p?.open ?? 0));
-    if (!deadlineEstimateNow.value.total) return null;
+    const done = (p?.priced ?? 0) + deadlineInBatch.value;
     const { sets, firstLegs } = legShape();
-    const left = legsLeft({ priced, routesTotal, sets, firstLegs });
+    const plan = deadlineLegPlan.value;
+    // Sets with no route priced yet: from the search once it reports them (less the routes of the batch
+    // in flight, which in the first round are those sets' first ones), else every set past those done.
+    const untouched =
+      p?.learn?.untouched !== undefined
+        ? Math.max(0, p.learn.untouched - deadlineInBatch.value)
+        : Math.max(0, sets - done);
+    const laterLegs =
+      deadlineLaterPerRoute.value ||
+      plan?.laterLegs ||
+      laterRouteLegs({ sets, firstLegs, workers: Math.max(1, deadlineWorkersInPool.value) });
+    const left = legsLeft({ routesLeft: total - done, untouched, sets, firstLegs, laterLegs });
     const samples = deadlineLegSamples.value;
     const at = samples.length ? samples[samples.length - 1][0] : Date.now();
-    const plan = deadlineLegPlan.value;
     const w = Math.max(1, deadlineWorkersInPool.value);
     const planned = plan && plan.workerSecondsPerLeg > 0 ? w / (plan.workerSecondsPerLeg * contention(w)) : null;
     const measured = recentLegRate(samples, at);
     const rate = measured ?? planned;
     if (!rate) return null;
-    return { seconds: left / rate, legsLeft: left, firstGuess: plan ? plan.seconds : null, measuring: measured === null };
+    return {
+      seconds: left / rate,
+      legsLeft: left,
+      firstGuess: plan ? plan.seconds : null,
+      measuring: measured === null,
+    };
+  });
+  /** The run's progress, 0-100, for the panel's bar and the cross-tab bar (deadlineEstimate.ts
+   *  `deadlinePercent`): never full while there is real time left. Null without a total. */
+  const deadlineProgressPercent = computed<number | null>(() => {
+    const total = deadlineRoutesTotal.value;
+    if (!total) return null;
+    const p = deadlineProgress.value;
+    return deadlinePercent((p?.priced ?? 0) + deadlineInBatch.value, total, deadlineTimeLeft.value?.seconds ?? null);
   });
   /**
    * Routes per set the last finished space run needed, remembered per SPACE SHAPE (ascension counts,
@@ -4505,12 +4602,18 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   /** The running pool's worker memory for a beat; nothing when no pool is up. Never throws. */
   function workerMemory(
     p: ChainSearchPool | null
-  ): Partial<ReturnType<typeof blackBox.summarizeWorkerHeaps> & { workersMemoEntries: number | null }> {
+  ): Partial<
+    ReturnType<typeof blackBox.summarizeWorkerHeaps> & {
+      workersMemoEntries: number | null;
+      workersMemoCapacity: number | null;
+    }
+  > {
     try {
       return p
         ? {
             ...blackBox.summarizeWorkerHeaps(p.workerHeaps()),
             workersMemoEntries: blackBox.sumMemoEntries(p.workerMemoEntries()),
+            workersMemoCapacity: blackBox.sumMemoEntries(p.workerMemoCapacities?.() ?? []),
           }
         : {};
     } catch {
@@ -5317,7 +5420,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         kind: 'by-date',
         stage: p?.stage ?? '',
         done,
-        total: deadlineEstimateNow.value.total ? Math.max(deadlineEstimateNow.value.total, done) : null,
+        total: deadlineRoutesTotal.value || null,
+        percent: deadlineProgressPercent.value,
         unit: 'routes',
         // The panel's own figure (legs left over the recent rate), not the bar's routes-so-far guess.
         secondsLeft: deadlineTimeLeft.value?.seconds ?? null,
@@ -5376,6 +5480,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     submitsWhenDone,
     deadlineEstimate,
     deadlineEstimateNow,
+    deadlineRoutesTotal,
+    deadlineProgressPercent,
     deadlineRoutesPerSet,
     deadlineTimeLeft,
     deadlineRunSimple,

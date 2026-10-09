@@ -101,10 +101,12 @@ const kindLabel = computed(() => {
 /** Chain searches estimate their total; a start-time sweep knows its exactly. */
 const approx = computed(() => (p.value?.kind === 'start-times' ? '' : '~'));
 
-/** Held under 100 while running: an estimate reached is not a run finished. */
+/** Held under 100 while running: an estimate reached is not a run finished. A kind that works out its
+ *  own fill (By a date, never full while real time is left) says so in `percent`. */
 const pct = computed(() => {
   const r = p.value;
   if (!r?.total) return null;
+  if (typeof r.percent === 'number') return r.percent;
   return Math.min(99, Math.round((100 * r.done) / r.total));
 });
 

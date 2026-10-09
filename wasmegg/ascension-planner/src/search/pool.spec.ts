@@ -41,6 +41,8 @@ class FakeWorker {
    *  undefined sends none, as a browser without that API does. */
   static heapOf: ((index: number) => number | null) | undefined;
   heap: number | null | undefined;
+  /** Every evaluate request any fake worker received, as it received it. */
+  static evaluates: Extract<WorkerRequest, { kind: 'evaluate' }>[] = [];
 
   constructor() {
     this.heap = FakeWorker.heapOf?.(FakeWorker.instances.length);
@@ -59,6 +61,7 @@ class FakeWorker {
       this.emit({ type: 'init-done', requestId: msg.requestId });
       return;
     }
+    if (msg.kind === 'evaluate') FakeWorker.evaluates.push(msg);
     if (this.mode === 'silent') return;
     if (msg.kind === 'integrity') {
       this.emit({ type: 'integrity', requestId: msg.requestId, seconds: 120 });
@@ -163,6 +166,7 @@ function makePool(stallMs = 1000) {
 
 beforeEach(() => {
   FakeWorker.instances = [];
+  FakeWorker.evaluates = [];
   FakeWorker.heapOf = undefined;
   clock = 0;
   vi.useFakeTimers();
@@ -496,6 +500,27 @@ describe('workerHeaps', () => {
 
 describe('a dealt batch (workerOf)', () => {
   const chains = Array.from({ length: 12 }, (_, i) => [150 + i, 300]);
+
+  it("tells each worker how to keep its memo, sized for the pool's workers", async () => {
+    const pool = await createChainSearchPool(INPUTS, { size: 3, spawn: () => new FakeWorker() as never });
+    const asked: number[] = [];
+    await pool.evaluate(chains, undefined, {
+      workerOf: cs => cs.map((_, i) => i % 3),
+      memo: { keepLast: false, capacity: w => (asked.push(w), 1000 * w) },
+    });
+    expect(asked).toEqual([3]);
+    expect(FakeWorker.evaluates.length).toBeGreaterThan(0);
+    for (const m of FakeWorker.evaluates) expect(m.memo).toEqual({ keepLast: false, capacity: 3000 });
+    // An undealt batch too.
+    FakeWorker.evaluates = [];
+    await pool.evaluate(chains.slice(0, 2), undefined, { spreadOut: true, memo: { keepLast: false } });
+    for (const m of FakeWorker.evaluates) expect(m.memo).toEqual({ keepLast: false });
+    // Without it nothing is said, so Smart search and the Full sweep keep their memo as it was.
+    FakeWorker.evaluates = [];
+    await pool.evaluate(chains, undefined, { workerOf: cs => cs.map(() => 0) });
+    for (const m of FakeWorker.evaluates) expect(m.memo).toBeUndefined();
+    pool.terminate();
+  });
 
   it("sends each worker its own chains a piece at a time and streams every chain's result", async () => {
     const pool = await createChainSearchPool(INPUTS, { size: 3, spawn: () => new FakeWorker() as never });

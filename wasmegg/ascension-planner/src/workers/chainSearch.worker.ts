@@ -63,6 +63,11 @@ function memo(): number {
   return evaluator?.memoSize ?? 0;
 }
 
+/** The memo's fields for a message: how full it is and how big it may get. */
+function memoFields(): { memoEntries: number; memoCapacity?: number } {
+  return { memoEntries: memo(), ...(evaluator ? { memoCapacity: evaluator.memoCapacity } : {}) };
+}
+
 ctx.onmessage = (event: MessageEvent<WorkerRequest>) => {
   const msg = event.data;
 
@@ -71,7 +76,7 @@ ctx.onmessage = (event: MessageEvent<WorkerRequest>) => {
       case 'init': {
         evaluator = createChainEvaluator(msg.inputs);
         loaded = msg.inputs;
-        post({ type: 'init-done', requestId: msg.requestId, heapMB: heap(), memoEntries: memo() });
+        post({ type: 'init-done', requestId: msg.requestId, heapMB: heap(), ...memoFields() });
         break;
       }
 
@@ -88,9 +93,9 @@ ctx.onmessage = (event: MessageEvent<WorkerRequest>) => {
           };
           const r = createChainEvaluator(inputs).evaluate(msg.chain);
           seconds.push(r ? r.seconds : null);
-          post({ type: 'progress', requestId: msg.requestId, done: i + 1, total, heapMB: heap(), memoEntries: memo() });
+          post({ type: 'progress', requestId: msg.requestId, done: i + 1, total, heapMB: heap(), ...memoFields() });
         }
-        post({ type: 'starts', requestId: msg.requestId, seconds, heapMB: heap(), memoEntries: memo() });
+        post({ type: 'starts', requestId: msg.requestId, seconds, heapMB: heap(), ...memoFields() });
         break;
       }
 
@@ -102,19 +107,24 @@ ctx.onmessage = (event: MessageEvent<WorkerRequest>) => {
       case 'evaluate': {
         if (!evaluator) throw new Error('chainSearch worker received evaluate before init');
         const before = evaluator.legSims;
+        if (msg.memo?.capacity !== undefined) evaluator.setMemo({ capacity: msg.memo.capacity });
+        const keepLast = msg.memo?.keepLast !== false;
         const results: ChainResult[] = [];
         const total = msg.chains.length;
         for (let i = 0; i < total; i++) {
           // A chain that cannot be simulated is dropped, not reported as an error: the search space
           // legitimately contains unreachable chains (a checkpoint below the player's current TE, a
           // build phase that cannot fit) and the driver's job is to ignore them.
-          const r = evaluator.evaluate(msg.chains[i], msg.handoff ? { handoff: msg.handoff } : undefined);
+          const r = evaluator.evaluate(msg.chains[i], {
+            ...(msg.handoff ? { handoff: msg.handoff } : {}),
+            ...(keepLast ? {} : { keepLast: false }),
+          });
           if (r) results.push(r);
           // Heartbeat. Posted per chain rather than per batch because a batch can be ~2200 chains
           // (stage 6's widest sweep) and the pool has no other way to tell a worker that is
           // thinking from one that has died — see the protocol's own comment for the hang this
           // was added after. Sent AFTER the chain, so a worker that dies mid-chain simply stops.
-          post({ type: 'progress', requestId: msg.requestId, done: i + 1, total, heapMB: heap(), memoEntries: memo() });
+          post({ type: 'progress', requestId: msg.requestId, done: i + 1, total, heapMB: heap(), ...memoFields() });
         }
         post({
           type: 'result',
@@ -122,7 +132,7 @@ ctx.onmessage = (event: MessageEvent<WorkerRequest>) => {
           results,
           legSims: evaluator.legSims - before,
           heapMB: heap(),
-          memoEntries: memo(),
+          ...memoFields(),
         });
         break;
       }

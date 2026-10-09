@@ -25,7 +25,7 @@
  */
 import { sanitizeLongs } from '@/lib/artifacts/utils';
 import { inputsForWorkers } from './workerBackup';
-import { sortChainsDepthFirst } from './chain';
+import { sortChainsDepthFirst, type MemoSettings } from './chain';
 import { clampPoolSize, hardwareThreads, maxPoolSize, splitByPrefix, workersForBatch } from './batch';
 import type { ChainResult, SearchInputs } from './types';
 import type { EvaluateResultMessage, WorkerRequest, WorkerResponse } from '@/workers/chainSearch.protocol';
@@ -81,6 +81,8 @@ interface PoolWorker {
   heapMB: number | null;
   /** Prefixes in this worker's chain memo as it last reported, or null before it does. */
   memoEntries: number | null;
+  /** That memo's capacity as it last reported, or null before it does. */
+  memoCapacity: number | null;
 }
 
 export interface BatchOutcome {
@@ -155,6 +157,21 @@ export interface EvaluateOptions {
   /** When dealt: checked before each piece is sent. Once true no more are sent, the batch returns
    *  what was priced, and the rest is listed in `unpriced`. */
   shouldStop?: () => boolean;
+  /**
+   * How each worker keeps its prefix memo for this batch (search/chain.ts `MemoSettings`): whether
+   * each chain's own last step is kept, and a capacity worked out from the pool's size when the batch
+   * starts (more workers, less each: they share the tab's memory). Absent: the memo as it is.
+   */
+  memo?: { keepLast?: boolean; capacity?: (workers: number) => number };
+}
+
+/** The `memo` field of an evaluate request, for a pool of `workers`: absent when there is nothing to say. */
+function memoRequest(opts: EvaluateOptions, workers: number): { memo?: MemoSettings } {
+  if (!opts.memo) return {};
+  const memo: MemoSettings = {};
+  if (opts.memo.keepLast === false) memo.keepLast = false;
+  if (opts.memo.capacity) memo.capacity = opts.memo.capacity(Math.max(1, workers));
+  return Object.keys(memo).length ? { memo } : {};
 }
 
 /** Split into per-worker buckets by a stable hash of each chain's first `depth` entries. */
@@ -183,6 +200,8 @@ export interface ChainSearchPool {
   workerHeaps(): (number | null)[];
   /** Each live worker's memo size (prefixes held) as it last reported it; null where it has not. */
   workerMemoEntries(): (number | null)[];
+  /** Each live worker's memo capacity as it last reported it; null where it has not. */
+  workerMemoCapacities(): (number | null)[];
   /** Seconds the page was suspended during this run — time in which nothing at all progressed. */
   readonly suspendedSeconds: number;
   /** Evaluate a set of chains, split across as many workers as the batch is worth. Resolves with
@@ -261,12 +280,13 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
     const worker = spawn
       ? spawn()
       : new Worker(new URL('../workers/chainSearch.worker.ts', import.meta.url), { type: 'module' });
-    const pw: PoolWorker = { worker, pending: new Map(), index, heapMB: null, memoEntries: null };
+    const pw: PoolWorker = { worker, pending: new Map(), index, heapMB: null, memoEntries: null, memoCapacity: null };
 
     worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
       const msg = event.data;
       if ('heapMB' in msg && typeof msg.heapMB === 'number') pw.heapMB = msg.heapMB;
       if ('memoEntries' in msg && typeof msg.memoEntries === 'number') pw.memoEntries = msg.memoEntries;
+      if ('memoCapacity' in msg && typeof msg.memoCapacity === 'number') pw.memoCapacity = msg.memoCapacity;
       const entry = pw.pending.get(msg.requestId);
       // A stray or duplicate response is expected to be harmless, not merely tolerated: a batch
       // abandoned by `terminate()` can still land here.
@@ -454,6 +474,7 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
   ): Promise<BatchOutcome> {
     const workers = size;
     const per = Math.max(1, Math.floor(opts.piece ?? 4));
+    const memo = memoRequest(opts, workers);
     const dealt = (opts.workerOf as NonNullable<EvaluateOptions['workerOf']>)(sorted, workers);
     const mine: number[][][] = Array.from({ length: workers }, () => []);
     sorted.forEach((c, i) => {
@@ -516,6 +537,7 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
               requestId,
               chains: piece,
               ...(opts.handoff && opts.handoff !== 'now' ? { handoff: opts.handoff } : {}),
+              ...memo,
             },
             `worker ${w}`,
             piece.length
@@ -584,6 +606,11 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
       for (const pw of live) if (pw) out.push(pw.memoEntries);
       return out;
     },
+    workerMemoCapacities(): (number | null)[] {
+      const out: (number | null)[] = [];
+      for (const pw of live) if (pw) out.push(pw.memoCapacity);
+      return out;
+    },
 
     async evaluate(
       chains: number[][],
@@ -626,6 +653,7 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
         };
       }
 
+      const memo = memoRequest(opts, size);
       try {
         const pws = await Promise.all(workerOf.map(w => workerAt(w)));
         const sends = buckets.map((bucket, i) =>
@@ -636,6 +664,7 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
               requestId: ++nextRequestId,
               chains: bucket,
               ...(opts.handoff && opts.handoff !== 'now' ? { handoff: opts.handoff } : {}),
+              ...memo,
             },
             `worker ${workerOf[i]}`,
             bucket.length

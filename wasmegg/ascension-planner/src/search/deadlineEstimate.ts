@@ -7,8 +7,15 @@
  * actually cost. The TIME is counted in legs, not routes (see "Counted in legs" below).
  *
  * A set is finished when its last stop is fully narrowed. Sets finish at different rounds, and the
- * cheap ones finish first, so the early average runs low; the prior pulls it back, and the routes
- * the still-open sets have already used count as a floor.
+ * cheap ones finish first, so the early average runs low. So the run is not re-estimated from that
+ * average: every set that has been tried says itself how many more routes it needs, from where its
+ * bracket stands (deadline.ts `stillNeeded`: a gap of g needs log2 g more, one side known needs a step
+ * out and then the gap it opens). Only the sets not tried yet are counted at a per-set average, and
+ * that average leans on the finished sets only as they become a fair share of the run (`TRUST_SHARE`).
+ *
+ * On a real 32,645-set run the old figure (open sets x the early finishers' average, less what the
+ * open sets had used) fell to nothing once the open sets had used more than that cheap average: the
+ * total equalled the routes priced, the bar read full and the time left rose for hours.
  */
 import { bandShapes, countBandShapes } from './deadline';
 import { contention, workerSecondsPerChain } from './speed';
@@ -19,8 +26,17 @@ export interface SetsLearned {
   sets: number;
   finishedSets: number;
   finishedRoutes: number;
-  /** Routes already tried on sets that are not finished yet. */
+  /** Routes already priced on sets that are not finished yet. */
   openRoutes: number;
+  /** Routes handed out and not priced yet: work still to do, not work done. Absent on old reports. */
+  inFlight?: number;
+  /** Open sets with no route priced yet (each still needs a whole set's routes). */
+  untouched?: number;
+  /** Routes the open sets that HAVE been tried still need, from their brackets, in-flight ones
+   *  included (deadline.ts `stillNeeded`). Absent on old reports, which are estimated the old way. */
+  bracketNeed?: number;
+  /** The round the search is in, from 0. */
+  round?: number;
 }
 
 export interface RouteEstimate {
@@ -34,44 +50,97 @@ export interface RouteEstimate {
   perSet: number;
   /** The up-front figure, for saying how far off it was. */
   firstGuess: number;
+  /** 'brackets': worked out from where every tried set's search stands; 'finished': from the
+   *  finished sets' average (a report without brackets). Absent before it is learned. */
+  basis?: 'brackets' | 'finished';
 }
 
-/** How many sets' worth of weight the up-front figure keeps in the average. */
-export const PRIOR_WEIGHT = 25;
-/** Enough finished sets to trust: at least this many, or this share of all sets. */
-export const MIN_SETS = 200;
-export const MIN_SHARE = 0.05;
+/** The finished sets' average counts fully once this share of all sets is finished, and in proportion
+ *  before that: the early finishers are the cheap ones. */
+export const TRUST_SHARE = 0.25;
+/** Fewer finished (or tried) sets than this say nothing yet. */
+export const MIN_SETS = 20;
 
+/** How far the finished sets' own average is trusted, 0 to 1 (`TRUST_SHARE`). */
+export function finishedWeight(l: SetsLearned): number {
+  if (!l.sets || l.finishedSets < MIN_SETS) return 0;
+  return Math.min(1, l.finishedSets / l.sets / TRUST_SHARE);
+}
+
+/** Enough sets finished to estimate from their average alone. */
 export function enoughSets(l: SetsLearned): boolean {
-  return l.finishedSets >= Math.min(MIN_SETS, Math.max(1, Math.ceil(l.sets * MIN_SHARE))) && l.finishedSets >= 20;
+  return finishedWeight(l) >= 1;
 }
 
 /**
- * Re-estimate the run. `priced` is routes priced so far, `firstGuess` the up-front total, `learn` the
- * search's report (undefined for a run with no sets to learn from, e.g. the auto-picked mode).
+ * Re-estimate the run. `priced` is routes priced so far (as of the report `learn` came with),
+ * `firstGuess` the up-front total, `learn` the search's report (undefined for a run with no sets to
+ * learn from, e.g. the auto-picked mode or the first look).
+ *
+ * Whatever the guess, the total is never below what is priced, plus what is in flight, plus a route
+ * for every set still open: a set that is not finished needs at least one more.
  */
 export function estimateRoutes(priced: number, firstGuess: number, learn: SetsLearned | undefined): RouteEstimate {
   const first = Math.max(0, Math.round(firstGuess));
+  if (!learn || !learn.sets)
+    return { total: Math.max(first, priced), learned: false, basedOnSets: 0, perSet: 0, firstGuess: first };
+  const open = Math.max(0, learn.sets - learn.finishedSets);
+  const floor = priced + Math.max(learn.inFlight ?? 0, open);
+  // Routes a set not tried yet will cost: the up-front figure, moved toward the finished sets' own
+  // average as they become a fair share of the run.
+  const prior = first ? first / learn.sets : DEFAULT_PER_SET;
+  const w = finishedWeight(learn);
+  const perSet = learn.finishedSets ? prior + w * (learn.finishedRoutes / learn.finishedSets - prior) : prior;
   const keep = (): RouteEstimate => ({
-    total: Math.max(first, priced),
+    // No first guess (a run saved before runs kept one): no total until there is something to go on.
+    total: first ? Math.max(first, floor) : 0,
     learned: false,
     basedOnSets: 0,
-    perSet: learn && learn.sets ? first / learn.sets : 0,
+    perSet,
     firstGuess: first,
   });
-  if (!learn || !learn.sets || !first || !enoughSets(learn)) return keep();
-  const prior = first / learn.sets;
-  const perSet = (learn.finishedRoutes + PRIOR_WEIGHT * prior) / (learn.finishedSets + PRIOR_WEIGHT);
-  const open = learn.sets - learn.finishedSets;
-  // Still to try: each open set's expected cost less what it has already used, never negative.
+  if (learn.bracketNeed !== undefined) {
+    const untouched = Math.max(0, Math.min(open, learn.untouched ?? 0));
+    const tried = learn.sets - untouched;
+    // Once a fair share has been tried (or every set has: after the first round), the brackets say it.
+    if (untouched > 0 && (tried < MIN_SETS || tried / learn.sets < TRUST_SHARE)) return keep();
+    return {
+      total: Math.max(floor, Math.round(priced + learn.bracketNeed + untouched * perSet)),
+      learned: true,
+      basedOnSets: tried,
+      perSet,
+      firstGuess: first,
+      basis: 'brackets',
+    };
+  }
+  // An old report, without brackets: only once a fair share of sets is finished (the early finishers
+  // are the cheap ones), each open set's expected cost less what it has already used.
+  if (w < 1) return keep();
   const toGo = Math.max(0, open * perSet - learn.openRoutes);
   return {
-    total: Math.max(priced, Math.round(priced + toGo)),
+    total: Math.max(floor, Math.round(priced + toGo)),
     learned: true,
     basedOnSets: learn.finishedSets,
     perSet,
     firstGuess: first,
+    basis: 'finished',
   };
+}
+
+/** The bar may read past `BAR_CAP` only once the time left is under this. */
+export const BAR_CAP_SECONDS = 5 * 60;
+/** Where the bar waits while more than `BAR_CAP_SECONDS` are left (or the time left is not known). */
+export const BAR_CAP = 95;
+
+/**
+ * A date search's progress, 0-100: done over the route total, held under 100 while running (an
+ * estimate reached is not a run finished) and at `BAR_CAP` while more than a few minutes are left. A
+ * full bar with 8.3 h to go was what the old route total did once it fell to the routes priced.
+ */
+export function deadlinePercent(done: number, total: number, secondsLeft: number | null): number {
+  if (!(total > 0)) return 0;
+  const pct = Math.min(99, Math.round((100 * Math.max(0, done)) / Math.max(total, done)));
+  return secondsLeft !== null && secondsLeft <= BAR_CAP_SECONDS ? pct : Math.min(BAR_CAP, pct);
 }
 
 /** Round an estimate for display: "~35,000", not "~34,913". Three significant figures above 1,000. */
@@ -85,9 +154,9 @@ export function roundedRoutes(n: number): number {
 /** The short honest wording shown beside the count. */
 export function estimateNote(e: RouteEstimate): string {
   if (!e.learned) return '';
-  return `estimated from the first ${e.basedOnSets.toLocaleString()} sets; first guess was ~${roundedRoutes(
-    e.firstGuess
-  ).toLocaleString()}`;
+  const guess = e.firstGuess ? `; first guess was ~${roundedRoutes(e.firstGuess).toLocaleString()}` : '';
+  if (e.basis === 'brackets') return `estimated from the ${e.basedOnSets.toLocaleString()} sets tried so far${guess}`;
+  return `estimated from the first ${e.basedOnSets.toLocaleString()} sets${guess}`;
 }
 
 /** Remembering the routes-per-set of a finished run, for the next one's first guess. */
@@ -149,11 +218,87 @@ export function plannedRoutes(o: {
  *
  * A route is not one unit of work. The first route of a set simulates its early legs, unless a set
  * that shares them was priced on the same worker (the prefix memo); every later route of that set
- * re-prices only its last leg. So the work is front-loaded: the first round, which prices every
- * set's first route, costs several legs a route, and every round after it one. Routes x a flat cost
- * read 2-5x long, and a rate of routes per second measured in the first hour was the wrong rate for
- * the rest. Legs are the unit that stays put.
+ * re-prices only its last leg -- while the worker's memo still holds the set's early legs. So the
+ * work is front-loaded: the first round, which prices every set's first route, costs several legs a
+ * route, and every round after it one. Routes x a flat cost read 2-5x long, and a rate of routes per
+ * second measured in the first hour was the wrong rate for the rest. Legs are the unit that stays put.
+ *
+ * "While the memo still holds them" is the catch. Each worker comes back to the early legs of every
+ * set it was dealt, once a round, in the same order, so a memo smaller than that loses each one just
+ * before it is needed (least recently used is exactly the wrong one to drop then) and every round
+ * costs like the first: measured at about 2.07 legs a route on a 32,645-set run with 19 workers, when
+ * the memo held 3,000 entries and half of them were last legs nobody reads again. So a By a date run
+ * sizes the memo for its sets (`deadlineMemoCapacity`), and the plan charges more than a leg a later
+ * route when even that cannot hold them (`laterRouteLegs`).
  * ------------------------------------------------------------------------------------------------ */
+
+/**
+ * Heap one memo entry takes in a worker: one step's `AscensionSummary`, the `EngineState` the next
+ * step starts from (a copy of the save's farm-independent state: artifact sets, soul eggs, TE) and
+ * its twelve shift moments. Measured on 9 Oct in Node by the heap freed when a filled memo was
+ * emptied: about 9.6 KB an entry on a small synthetic save; counted as 16 KB for a real save's bigger
+ * artifact sets. (The heap grows ~3x that per new leg simulated, but that is the simulator's own
+ * garbage and caches, not the memo, and it is collected.)
+ */
+export const MEMO_ENTRY_BYTES = 16 * 1024;
+/**
+ * Heap all the workers' memos may take together. Chrome gives the page and every worker of a tab one
+ * shared ~4 GB heap (the pointer-compression cage); past it the tab is killed. A search worker already
+ * churns ~100-240 MB of simulator garbage of its own, and 31 workers on a 32-thread PC ran out with
+ * the old 3,000-entry memos (3,000 x ~10 KB, ~30 MB a worker, ~0.9 GB for 31). So the memos get a
+ * fixed share, 768 MB, split between however many workers there are: at 16 KB an entry that is ~6,100
+ * entries each for 8 workers, ~3,000 for 16, ~2,600 for 19 and ~1,600 for 31 -- the same memory as the
+ * old memos at about 25 workers and less above that, all of it now early legs that are read again.
+ * With 19 workers on the 32,645-set run each worker comes back to ~1,700 sets, ~2,000-2,500 early
+ * legs when siblings share as they usually do: that fits. A space whose sets share less can need more
+ * than the ceiling, and then the plan says so (`laterRouteLegs`) rather than promising a leg a route.
+ */
+export const MEMO_POOL_BYTES = 768 * 1024 * 1024;
+/** The memo every other search keeps (search/chain.ts `DEFAULT_MEMO_CAPACITY`; a spec holds the two
+ *  equal). Not imported: chain.ts brings the whole simulator, and the explorer reads this file. */
+export const DEFAULT_MEMO_CAPACITY = 3000;
+/** Never more than this a worker, however few workers: past it the memo is not what limits the run. */
+export const MEMO_MAX_ENTRIES = 40_000;
+/** Never less than this a worker: a memo that cannot hold one set's legs and a little more is no memo. */
+export const MEMO_MIN_ENTRIES = 500;
+/** Room over the working set: the work-stealing tail of a batch lands sets on workers that do not own
+ *  them, and their legs need room too. */
+export const MEMO_HEADROOM = 1.5;
+
+/**
+ * Early-leg entries one worker comes back to every round: `firstLegs` (`firstRouteLegs`, the first
+ * round's legs with sharing) less each set's own last leg, over the workers.
+ */
+export function memoWorkingSet(o: { sets: number; firstLegs: number; workers: number }): number {
+  return Math.max(0, o.firstLegs - o.sets) / Math.max(1, Math.floor(o.workers));
+}
+
+/** The most memo entries a worker may hold with `workers` of them sharing the tab (`MEMO_POOL_BYTES`). */
+export function memoCeiling(workers: number): number {
+  const each = Math.floor(MEMO_POOL_BYTES / Math.max(1, Math.floor(workers)) / MEMO_ENTRY_BYTES);
+  return Math.max(MEMO_MIN_ENTRIES, Math.min(MEMO_MAX_ENTRIES, each));
+}
+
+/**
+ * The prefix memo a By a date worker keeps (search/chain.ts `MemoSettings.capacity`): its working set
+ * with `MEMO_HEADROOM`, at least the old 3,000 where that fits, and never past `memoCeiling`.
+ */
+export function deadlineMemoCapacity(o: { sets: number; firstLegs: number; workers: number }): number {
+  const ceiling = memoCeiling(o.workers);
+  const want = Math.max(DEFAULT_MEMO_CAPACITY, Math.ceil(MEMO_HEADROOM * memoWorkingSet(o)) + 64);
+  return Math.min(want, ceiling);
+}
+
+/**
+ * Real legs a route after a set's first costs: 1 while the memo holds the working set; otherwise
+ * about what a first route costs (`firstLegs / sets`), since least-recently-used eviction under a
+ * repeating order keeps nothing that is about to be read.
+ */
+export function laterRouteLegs(o: { sets: number; firstLegs: number; workers: number; capacity?: number }): number {
+  const capacity = o.capacity ?? deadlineMemoCapacity(o);
+  if (capacity >= memoWorkingSet(o)) return 1;
+  return Math.max(1, o.firstLegs / Math.max(1, o.sets));
+}
 
 /** Worker-seconds per leg until this machine has measured its own: a Full sweep chain (the board's
  *  `workerSecondsPerChain`) is its last leg plus a share of the ones before, about 1.25 legs. */
@@ -168,7 +313,9 @@ export interface LegPlan {
   perSet: number;
   /** Routes in all. */
   routes: number;
-  /** Legs in all: `firstLegs` plus one for every route after a set's first. */
+  /** Real legs each route after a set's first costs (`laterRouteLegs`): 1 when the memo holds. */
+  laterLegs: number;
+  /** Legs in all: `firstLegs` plus `laterLegs` for every route after a set's first. */
   legs: number;
 }
 
@@ -246,7 +393,7 @@ export function planLegs(o: {
   rememberedPerSet?: number;
 }): LegPlan {
   const n = o.sets ? o.sets.length : Math.max(0, Math.floor(o.count ?? 0));
-  if (!n) return { sets: 0, firstLegs: 0, perSet: 0, routes: 0, legs: 0 };
+  if (!n) return { sets: 0, firstLegs: 0, perSet: 0, routes: 0, laterLegs: 1, legs: 0 };
   const firstLegs = o.sets
     ? firstRouteLegs(o.sets, o.workers)
     : n * (2 + Math.min(1, Math.max(0, (o.stops ?? 1) - 1) * 0.2));
@@ -256,7 +403,15 @@ export function planLegs(o: {
     currentTE: o.currentTE,
     rememberedPerSet: o.rememberedPerSet,
   });
-  return { sets: n, firstLegs, perSet: routes / n, routes, legs: firstLegs + Math.max(0, routes - n) };
+  const laterLegs = laterRouteLegs({ sets: n, firstLegs, workers: o.workers });
+  return {
+    sets: n,
+    firstLegs,
+    perSet: routes / n,
+    routes,
+    laterLegs,
+    legs: firstLegs + Math.max(0, routes - n) * laterLegs,
+  };
 }
 
 /** Wall-clock seconds for `legs` on `workers` workers at `workerSecondsPerLeg` (contention included). */
@@ -266,17 +421,23 @@ export function legSeconds(legs: number, workers: number, workerSecondsPerLeg: n
 }
 
 /**
- * Legs still to go, from routes priced so far and the (learned) route total: the first `sets`
- * routes are each set's first, at `firstLegs / sets` legs each, and every one after that is one leg.
- * Never under one leg a route left: a new route always prices at least its own last leg.
+ * Real legs still to go: `routesLeft` routes, of which one for each set not tried yet (`untouched`)
+ * is that set's first, at `firstLegs / sets` legs, and every other one `laterLegs` (measured on the
+ * run once it has priced enough later routes, `laterRouteLegs` until then). Never under one leg a
+ * route left: a new route always prices at least its own last leg.
  */
-export function legsLeft(o: { priced: number; routesTotal: number; sets: number; firstLegs: number }): number {
-  const sets = Math.max(1, o.sets);
-  const perFirst = o.firstLegs / sets;
-  const routesLeft = Math.max(0, o.routesTotal - o.priced);
-  const later = Math.max(0, o.routesTotal - sets);
-  const left = o.priced < sets ? (sets - o.priced) * perFirst + later : routesLeft;
-  return Math.max(routesLeft, left);
+export function legsLeft(o: {
+  routesLeft: number;
+  untouched: number;
+  sets: number;
+  firstLegs: number;
+  laterLegs: number;
+}): number {
+  const routesLeft = Math.max(0, o.routesLeft);
+  const later = Math.max(1, o.laterLegs);
+  const perFirst = Math.max(later, o.firstLegs / Math.max(1, o.sets));
+  const firsts = Math.max(0, Math.min(routesLeft, o.untouched));
+  return firsts * perFirst + (routesLeft - firsts) * later;
 }
 
 /** The window the live rate is measured over: long enough to smooth a round's ups and downs, short
@@ -386,6 +547,7 @@ export function byDatePlan(o: {
     sets: plan.sets,
     firstLegs: Math.round(plan.firstLegs),
     routes: plan.routes,
+    laterLegs: plan.laterLegs,
     legs: Math.round(plan.legs),
     workerSecondsPerLeg: o.workerSecondsPerLeg,
     seconds: legSeconds(plan.legs, o.workers, o.workerSecondsPerLeg),

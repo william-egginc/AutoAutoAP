@@ -498,12 +498,12 @@
       <ProgressBar :percent="progressPct" />
       <p class="text-[11px] text-slate-600">
         <span class="font-bold">{{ liveDone.toLocaleString() }}</span
-        ><template v-if="estNow.total && liveDone < estNow.total">
-          of ~{{ roundedRoutes(estNow.total).toLocaleString() }}</template
+        ><template v-if="liveTotal && liveDone < liveTotal">
+          of ~{{ roundedRoutes(liveTotal).toLocaleString() }}</template
         >
-        routes priced<template v-if="estNow.total && liveDone >= estNow.total">
-          (more than the ~{{ roundedRoutes(estNow.total).toLocaleString() }} estimated)</template
-        ><template v-if="estNow.learned && liveDone < estNow.total"> ({{ estimateNote(estNow) }})</template> ·
+        routes priced<template v-if="liveTotal && liveDone >= liveTotal">
+          (more than the ~{{ roundedRoutes(liveTotal).toLocaleString() }} estimated)</template
+        ><template v-if="estNow.learned"> ({{ estimateNote(estNow) }})</template> ·
         {{ elapsedLabel }} so far<template v-if="remainingLabel">
           · about {{ remainingLabel }} left<template v-if="timeLeft?.measuring"> (measuring…)</template
           ><template v-else-if="firstGuessLabel"> (first guess {{ firstGuessLabel }})</template></template
@@ -1538,12 +1538,11 @@ const runEstimate = ref(0);
 const now = useRunClock(() => store.deadlineRunning);
 
 const liveDone = computed(() => (store.deadlineProgress?.priced ?? 0) + store.deadlineInBatch);
-/** The estimate, never below what is already done: an estimate is a guess, a count is a fact. */
+/** The store's one route total (never below what is done: an estimate is a guess, a count is a fact),
+ *  and its one fill for the bar, so this, the bar on every tab and the time left agree. */
 const estNow = computed(() => store.deadlineEstimateNow);
-const liveTotal = computed(() => Math.max(estNow.value.total, liveDone.value));
-const progressPct = computed(() =>
-  estNow.value.total && liveTotal.value ? Math.min(99, Math.round((100 * liveDone.value) / liveTotal.value)) : 0
-);
+const liveTotal = computed(() => store.deadlineRoutesTotal);
+const progressPct = computed(() => store.deadlineProgressPercent ?? 0);
 const elapsedSeconds = computed(() => (store.deadlineStartedAt ? (now.value - store.deadlineStartedAt) / 1000 : 0));
 const elapsedLabel = computed(() => durationLabel(elapsedSeconds.value));
 /** The same figure as the box's (`estimateLabel` during a run). */

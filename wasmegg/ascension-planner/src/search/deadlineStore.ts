@@ -77,6 +77,9 @@ export interface DeadlineLegPlan {
   sets: number;
   firstLegs: number;
   routes: number;
+  /** Real legs a route after a set's first was planned at (deadlineEstimate.ts `laterRouteLegs`).
+   *  Absent on runs started before it: 1. */
+  laterLegs?: number;
   legs: number;
   workerSecondsPerLeg: number;
   /** Wall-clock seconds at the run's start: the first guess. */
