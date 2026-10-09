@@ -33,6 +33,7 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
+  { at: '2026-10-09T22:49:50Z', note: 'Searches show honest progress from the start; Jump to it lands on your run in one click; a second tab no longer offers to carry on a run that is still going' },
   { at: '2026-10-09T19:00:00Z', note: 'Stepping away? can now send your best so far by itself, every 30 minutes or an hour, only when it has changed' },
   { at: '2026-10-09T18:03:00Z', note: 'Long runs can send their best so far to the leaderboard while they keep going; the finished result replaces it', level: 'big' },
   { at: '2026-10-09T17:29:18Z', note: 'First ascension now works like Classic: by default it picks whichever is faster, continuing your current ascension or prestiging now; choose Continue or Prestige now in Your setup or Classic', level: 'big' },
@@ -40,7 +41,6 @@ const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
   { at: '2026-10-09T06:52:10Z', note: 'Fixes: sweep links always send their CSV, By a date offers Retry if the CSV upload fails, Work it out again keeps your saved instant answer, and clearer Insights on how close the instant answer is' },
   { at: '2026-10-08T23:56:02Z', note: 'Check exactly shows when it is busy; moving the sliders on a box you typed offers to use the sliders instead; clearer note when a stop is your TE now' },
   { at: '2026-10-08T23:31:50Z', note: 'Both search tabs share one layout; Simple tucks its settings away; the progress bar shows whenever a search runs; results say how long they took and what they searched; leaderboard shows Simple and Advanced' },
-  { at: '2026-10-08T21:54:35Z', note: 'Simple and Advanced on both search tabs: Simple Highest TE by a date checks the instant answer route for each ascension count with the full simulator; estimates after a carry-on say measuring until they have real data', level: 'big' },
 ];
 
 export default {
