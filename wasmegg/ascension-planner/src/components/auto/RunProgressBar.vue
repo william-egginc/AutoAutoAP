@@ -69,7 +69,7 @@ import { computed, onUnmounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useUIStore } from '@/stores/ui';
-import { NAMES } from '@/lib/siteNav';
+import { NAMES, fastestName } from '@/lib/siteNav';
 import { showDateTime } from '@/lib/displayTime';
 
 const props = defineProps<{ /** The bar sits on the run's own screen. */ here?: boolean }>();
@@ -88,9 +88,9 @@ const kindLabel = computed(() => {
     return `${NAMES.science} · ${science.request.label}`;
   switch (p.value?.kind) {
     case 'smart':
-      return `${NAMES.fastest} · ${NAMES.smart}`;
+      return `${fastestName(store.finalTE)} · ${NAMES.smart}`;
     case 'full':
-      return `${NAMES.fastest} · ${NAMES.full}`;
+      return `${fastestName(store.finalTE)} · ${NAMES.full}`;
     case 'by-date':
       return NAMES.byDate;
     default:

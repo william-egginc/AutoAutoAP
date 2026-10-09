@@ -71,7 +71,7 @@
             ({{ consentNote }})</template
           >. I understand it sends the route, its dates and the {{ goalWord }}, with my artifact inventory, timezone,
           local plan start and the random code this browser keeps for the account (not my player ID, and never shown),
-          plus my CSV if ticked under Share this result and, if ticked, private diagnostics (never shown). Stop it early and it shares the best
+          plus my CSV if ticked below and, if ticked, private diagnostics (never shown). Stop it early and it shares the best
           it found so far.</span
         >
       </label>

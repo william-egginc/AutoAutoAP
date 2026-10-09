@@ -339,7 +339,7 @@
             </button>
           </div>
           <p class="text-[10px] text-slate-400">
-            {{ NAMES.fastest }} › {{ NAMES.fullFirst }} has the whole result: the table, the CSV, building the plan, and sending it again by
+            {{ fastestName(store.finalTE) }} › {{ NAMES.fullFirst }} has the whole result: the table, the CSV, building the plan, and sending it again by
             hand if this send didn’t go through.
           </p>
         </div>
@@ -356,7 +356,7 @@ import RunNoteBox from '@/components/auto/RunNoteBox.vue';
 import { useActionsStore } from '@/stores/actions';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useUIStore } from '@/stores/ui';
-import { NAMES } from '@/lib/siteNav';
+import { NAMES, fastestName } from '@/lib/siteNav';
 import { countBanded, formatHours, parseBands } from '@/search/exhaustive';
 import { NO_FIT_TEXT, SCIENCE_SWEEP_NOTE, presetBandsFor } from '@/explorer/needs';
 import { sweepSeconds, workerSecondsFromRate, workerSecondsPerChain } from '@/search/speed';

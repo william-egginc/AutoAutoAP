@@ -125,7 +125,7 @@
               need.links.length > 1 ? 'Press both buttons below, one after the other.' : 'Press Run this sweep below.'
             }}
             It {{ runInPlace ? 'runs' : 'opens' }} <b>“{{ need.presetLabel }}”</b
-            ><template v-if="!runInPlace"> in {{ NAMES.fastest }} › {{ NAMES.fullFirst }}</template
+            ><template v-if="!runInPlace"> in {{ fastestName(finalTe) }} › {{ NAMES.fullFirst }}</template
             >, trying {{ bandsInWords(need.bands) }}.
             <template v-if="need.minGap > 0">Ascension targets stay at least {{ need.minGap }} TE apart.</template>
             {{ need.note ? need.note : '' }}
@@ -185,7 +185,7 @@
                 {{ link.label }} &rarr;
               </a>
               <span class="text-[10px] text-slate-400">
-                Opens {{ need.byDate ? `${NAMES.byDate} › Advanced` : `${NAMES.fastest} › ${NAMES.fullFirst}` }} in a new tab with all of this filled in, on the save
+                Opens {{ need.byDate ? `${NAMES.byDate} › Advanced` : `${fastestName(finalTe)} › ${NAMES.fullFirst}` }} in a new tab with all of this filled in, on the save
                 you have loaded.
               </span>
             </template>
@@ -197,7 +197,7 @@
 </template>
 
 <script setup lang="ts">
-import { NAMES } from '@/lib/siteNav';
+import { NAMES, fastestName } from '@/lib/siteNav';
 import { computed, ref, watch } from 'vue';
 import type { CollectorRow } from './collector';
 import {
@@ -249,6 +249,8 @@ const props = defineProps<{
   rows: CollectorRow[];
   /** The loaded save's TE, inside the planner (the Science tab): the ranges start from it. */
   teFromSave?: number;
+  /** The planner's Final target TE, for the Fastest screen's name. */
+  finalTe?: number;
   /** The loaded save's artifacts (virtueInventory): a gear card it matches is marked and sorted first. */
   inventory?: InventoryCount[];
   /** Run a sweep here (emit `run`) rather than link to the planner: true inside the planner. */

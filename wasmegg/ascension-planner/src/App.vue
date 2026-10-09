@@ -480,7 +480,7 @@
             <p class="max-w-4xl mx-auto text-sm text-slate-600 leading-relaxed">
               <span class="font-bold text-slate-900">{{ NAMES.classic }}</span> is Joo's Auto AP: type the TE you want
               to ascend at and it lays out every ascension from your start, with the weekly Research Sale and the Monday
-              2× earnings boost in it. To have the checkpoints found for you, use {{ NAMES.fastest }} or
+              2× earnings boost in it. To have the checkpoints found for you, use {{ fastestName(chainSearchStore.finalTE) }} or
               {{ NAMES.byDate }}.
             </p>
             <AutomaticPlanner />
@@ -518,7 +518,7 @@
             gap.
           </p>
         </div>
-        <ChainExplorer part="science" embedded :science-view="scienceView" :te-now="saveTE" :inventory="saveArtifacts" @run-sweep="openSweep" @run-by-date="openByDate" />
+        <ChainExplorer part="science" embedded :science-view="scienceView" :te-now="saveTE" :final-te="chainSearchStore.finalTE" :inventory="saveArtifacts" @run-sweep="openSweep" @run-by-date="openByDate" />
       </div>
 
       <!-- Your setup, floating, on every Auto Planner screen: the gear opens it; workers adjust folded. -->
@@ -624,6 +624,7 @@ import { ref, computed, onMounted, onUnmounted, watch, h, type FunctionalCompone
 import {
   NAMES,
   canonicalUrl,
+  fastestName,
   hashFor,
   routeFromLocation,
   type AutoView,
@@ -848,7 +849,7 @@ const screenHere = computed<SearchScreen | 'classic'>(() =>
 function screenName(s: SearchScreen | 'classic'): string {
   if (s === 'classic' || s === 'by-date') return s === 'classic' ? NAMES.classic : NAMES.byDate;
   // "Fastest to 490 TE (Simple)": By a date has a Simple and an Advanced too.
-  return `${NAMES.fastest} (${s === 'full' ? NAMES.full : NAMES.smart})`;
+  return `${fastestName(chainSearchStore.finalTE)} (${s === 'full' ? NAMES.full : NAMES.smart})`;
 }
 /** The running search's name when this Auto Planner screen isn't where it runs, else ''. */
 const blockedBy = computed(() => {
@@ -994,7 +995,7 @@ const topTabs = computed(() => [
 /** "Fastest to 490 TE", following the Final target TE when it isn't 490. */
 const autoTabs = computed<{ id: AutoView; label: string; screen: SearchScreen | null }[]>(() => [
   { id: 'classic', label: NAMES.classic, screen: null },
-  { id: 'fastest', label: `Fastest to ${chainSearchStore.finalTE} TE`, screen: null },
+  { id: 'fastest', label: fastestName(chainSearchStore.finalTE), screen: null },
   { id: 'by-date', label: NAMES.byDate, screen: 'by-date' },
 ]);
 /**

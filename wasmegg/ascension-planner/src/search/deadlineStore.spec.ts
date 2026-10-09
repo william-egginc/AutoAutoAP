@@ -104,6 +104,27 @@ describe('carrying on a deadline search', () => {
     expect(out.map(x => x.chain.join(' '))).toEqual(['130 150']);
   });
 
+  it('reads a replayed leg tier13 flag from its strategy, since the checkpoint keeps only that', async () => {
+    const tier = (key: string) => (c: number[][]) =>
+      c.map(x => {
+        const r = price(x);
+        return { ...r, legs: r.legs.map(l => ({ ...l, key })) } as ChainResult;
+      });
+    for (const [key, want] of [
+      ['2-sale-tier13', true],
+      ['2-sale', false],
+      ['continue', false],
+    ] as const) {
+      const first = replayingEvaluator(async c => tier(key)(c));
+      await first.evaluate([[120, 150]]);
+      const again = replayingEvaluator(async () => {
+        throw new Error('should not be asked');
+      }, first.entries());
+      const [out] = await again.evaluate([[120, 150]]);
+      expect(out.legs.map(l => l.tier13Unlocked)).toEqual([want, want]);
+    }
+  });
+
   it('saves and brings back a finished result', async () => {
     const result = {
       routes: [],

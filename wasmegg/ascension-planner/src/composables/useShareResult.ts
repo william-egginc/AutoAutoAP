@@ -92,7 +92,7 @@ export function useBoardSubmit(store: BoardStore, effectiveNickname: Ref<string>
     if (retryingTable.value) return;
     retryingTable.value = true;
     try {
-      const res = await store.retryTable();
+      const res = await store.retryTable('fastest');
       submitOk.value = res.ok;
       submitMessage.value = res.ok ? `Thanks! ${sentence(res.message)}` : `Not sent: ${res.message}`;
     } finally {
@@ -171,6 +171,20 @@ export function useByDateShare(
     result.value && best.value ? `${result.value.deadline}|${result.value.at}|${best.value.chain.join(',')}` : ''
   );
   const sentKey = ref('');
+  /** "Sent, but ..." -- the answer is in and its CSV is not. Amber, with Retry the table. */
+  const sharePartial = computed(() => /\bbut\b/.test(shareMessage.value));
+  const retryingTable = ref(false);
+  async function retryTable(): Promise<void> {
+    if (retryingTable.value) return;
+    retryingTable.value = true;
+    try {
+      const res = await store.retryTable('deadline');
+      shareOk.value = res.ok;
+      shareMessage.value = res.ok ? `Thanks! ${sentence(res.message)}` : `Not sent: ${res.message}`;
+    } finally {
+      retryingTable.value = false;
+    }
+  }
   /** The leaderboard tab this answer goes on: Egg Day has its own. */
   const shareTab = computed(() => {
     const y = result.value ? eggDayYearOf(result.value.deadline) : null;
@@ -206,5 +220,17 @@ export function useByDateShare(
     }
   }
 
-  return { collectorConfigured, sharing, shareMessage, shareOk, resultKey, sentKey, shareTab, share };
+  return {
+    collectorConfigured,
+    sharing,
+    shareMessage,
+    shareOk,
+    sharePartial,
+    retryingTable,
+    retryTable,
+    resultKey,
+    sentKey,
+    shareTab,
+    share,
+  };
 }

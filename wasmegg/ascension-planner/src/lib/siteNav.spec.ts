@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canonicalUrl, hashFor, routeFromLocation, type SiteRoute } from './siteNav';
+import { NAMES, canonicalUrl, fastestName, hashFor, routeFromLocation, type SiteRoute } from './siteNav';
 
 const R = (
   section: SiteRoute['section'],
@@ -53,5 +53,12 @@ describe('siteNav', () => {
   it('drops only the old flags when it rewrites the address', () => {
     const url = canonicalUrl('https://x.test/?insane=1&goal=deadline&eggday=1&asc=1,2', R('auto', 'by-date'));
     expect(url).toBe('https://x.test/?eggday=1&asc=1%2C2#/auto/by-date');
+  });
+
+  it("names Fastest after the final target, and keeps today's name at 490", () => {
+    expect(fastestName(490)).toBe(NAMES.fastest);
+    expect(fastestName(300)).toBe('Fastest to 300 TE');
+    expect(fastestName(undefined)).toBe(NAMES.fastest);
+    expect(fastestName(0)).toBe(NAMES.fastest);
   });
 });

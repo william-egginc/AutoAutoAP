@@ -68,8 +68,10 @@
         </summary>
         <div class="px-3 pb-3 pl-10 text-slate-700 space-y-2">
           <p v-if="f.id === 'match'">
-            The instant answer prices each ascension from precomputed simulations of the game's own build, so a route it
-            shows lands within about an hour of the same route run in the full simulator, whatever the start hour.
+            The instant answer prices each ascension from precomputed simulations of the game's own build, so each
+            ascension of a route it shows lands within about an hour of the same route run in the full simulator,
+            whatever the start hour. Over a whole route the instant answer can be up to about a day out, because it
+            ascends on the hour and the delays add up, so use Check exactly for the final word.
             Checked on Fliris (32 of 34 ascensions within 30 minutes), Halceyx (median within 0.3 hours on ~2,400
             ascensions), Allan (4 routes within an hour) and every new run this week. For the accounts it has
             precomputed on their own gear (10 so far) it reproduces their submitted runs to a median of 0.15% or
@@ -207,7 +209,7 @@ defineProps<{
 }>();
 
 const findings = [
-  { id: 'match', headline: 'The instant answer matches real runs to about an hour.' },
+  { id: 'match', headline: 'The instant answer lands within about an hour of a real run on each ascension.' },
   { id: 'wider', headline: 'Wider searches would have found faster routes.' },
   { id: 'misses', headline: 'The instant answer rarely misses, but it can.' },
   { id: 'count', headline: 'More ascensions help, then level off.' },

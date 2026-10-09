@@ -242,7 +242,9 @@ export function replayingEvaluator(
       : {
           chain: e[0].split(',').map(Number),
           seconds: e[1],
-          legs: e[2].map(l => ({ ...l, maxELR: 0, tier13Unlocked: false }) as LegSummary),
+          // The checkpoint keeps no tier-13 flag, only the strategy (`2-sale-tier13`), so that is what the
+          // CSV's tier13 column is read from; peak delivery and the start time stay unknown.
+          legs: e[2].map(l => ({ ...l, maxELR: 0, tier13Unlocked: /-tier13$/.test(l.key) }) as LegSummary),
         };
   const record = (key: string, r: ChainResult | null) =>
     known.set(key, [

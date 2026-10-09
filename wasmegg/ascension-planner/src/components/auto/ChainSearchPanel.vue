@@ -1145,7 +1145,7 @@
             :message="submitMessage"
             :ok="submitOk"
             :partial="submitPartial"
-            :pending-table="!!store.pendingTable"
+            :pending-table="store.pendingTable?.source === 'fastest'"
             :retrying="retryingTable"
             @retry="retryTable"
           />

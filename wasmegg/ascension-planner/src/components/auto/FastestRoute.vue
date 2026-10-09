@@ -12,7 +12,7 @@
 <template>
   <div class="max-w-4xl mx-auto space-y-4">
     <div>
-      <h2 class="text-2xl font-black text-slate-900">Fastest to {{ store.finalTE }} TE</h2>
+      <h2 class="text-2xl font-black text-slate-900">{{ fastestName(store.finalTE) }}</h2>
       <p class="text-sm text-slate-600">
         Finds the checkpoints that get you to {{ store.finalTE }} TE soonest, from your save and your setup. Plans
         include the weekly Research Sale and the Monday 2× earnings boost, the same as Your plan; other game events aren't
@@ -47,7 +47,7 @@
 
 <script setup lang="ts">
 import { useChainSearchStore } from '@/stores/chainSearch';
-import { NAMES, type Depth } from '@/lib/siteNav';
+import { NAMES, fastestName, type Depth } from '@/lib/siteNav';
 import { safeAsyncComponent } from '@/lib/import';
 import RunningElsewhere from './RunningElsewhere.vue';
 import ModeChooser from './ModeChooser.vue';

@@ -205,7 +205,7 @@
             {{ claiming ? 'Renaming...' : 'Put my name on it' }}
           </button>
           <button
-            v-if="store.pendingTable"
+            v-if="store.pendingTable?.source === 'fastest'"
             type="button"
             :disabled="retryingTable"
             class="px-3 py-1.5 rounded-lg border border-amber-300 text-amber-800 text-[10px] font-black uppercase tracking-widest hover:bg-amber-50 disabled:opacity-40"
@@ -532,9 +532,6 @@
                   No suggestion for this target or ascension count.
                 </span>
                 <KeptBoxNote v-if="chain1KeptNote" class="basis-full" :disabled="store.isRunning" @use="applySuggestion" />
-                <span v-if="suggestion && chain1Typed" class="basis-full text-[10px] text-slate-500">
-                  Your own bands stay as typed; press Suggest a space to replace them with this.
-                </span>
               </div>
 
               <span class="block text-[10px] text-slate-400">
@@ -603,10 +600,7 @@
               <template #row-after="{ row, k }">
                 <span v-if="row.asc >= 2 && extraSugs[k]" class="block text-[10px] text-slate-500">
                   Suggest would fill in {{ extraSugs[k]!.chains.toLocaleString() }} chains, about
-                  {{ chainsTimeLabel(extraSugs[k]!.chains)
-                  }}<template v-if="extraTyped(k)"
-                    >. Your own bands stay as typed; press Suggest a space to replace them with this.</template
-                  >
+                  {{ chainsTimeLabel(extraSugs[k]!.chains) }}
                 </span>
               </template>
               <template #footer>
@@ -1098,7 +1092,7 @@
               type="button"
               :disabled="!optIn || submitting || store.alreadySubmitted"
               class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 disabled:opacity-40"
-              @click="submit"
+              @click="submit()"
             >
               {{ submitting ? 'Sending...' : store.alreadySubmitted ? 'On the board' : 'Submit result' }}
             </button>
@@ -1112,7 +1106,7 @@
             :message="submitMessage"
             :ok="submitOk"
             :partial="submitPartial"
-            :pending-table="!!store.pendingTable"
+            :pending-table="store.pendingTable?.source === 'fastest'"
             :retrying="retryingTable"
             @retry="retryTable"
           />
@@ -1953,7 +1947,7 @@ async function sendFinished(): Promise<void> {
   stampName.value = false;
   optIn.value = true;
   autoSubmitted.value = true;
-  await submit();
+  await submit(!!sweepRequest);
   store.lastAutoSend = { kind: 'full', ok: submitOk.value, text: submitMessage.value };
 }
 
@@ -2146,7 +2140,7 @@ async function resumeCrashed(): Promise<void> {
 /** Which run is mid-resume, for the button's own label. Empty when none is. */
 const resuming = ref('');
 
-async function submit(): Promise<void> {
+async function submit(sweepSend = false): Promise<void> {
   // Clicks made while the page was frozen building the table arrive afterwards; each one used to
   // send another copy.
   // Already sent (automatically or by hand): a second send is only a duplicate row.
@@ -2161,11 +2155,13 @@ async function submit(): Promise<void> {
     const res = await sendRunResult(
       store,
       effectiveNickname.value,
-      includeCsv.value,
+      // A sweep link hides the share boxes: its card promises the full CSV and does not mention
+      // diagnostics, so it always sends the one and never the other, whatever the remembered boxes say.
+      sweepSend || includeCsv.value,
       text => {
         submitMessage.value = text;
       },
-      diagnosticsGo.value
+      !sweepSend && diagnosticsGo.value
     );
     submitOk.value = res.ok;
     submitMessage.value = res.text;

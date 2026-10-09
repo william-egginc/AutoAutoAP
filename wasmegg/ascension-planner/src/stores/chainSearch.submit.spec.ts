@@ -82,6 +82,24 @@ describe('submitting a result', () => {
     expect(calls.filter(u => u.includes('/submit'))).toHaveLength(1);
   });
 
+  it('tags the pending table with the screen that sent it, and retries it only from there', async () => {
+    const s = await store();
+    const byDate = { schema: 8, chain: [212, 280, 400], deadline: 1_800_000_000 } as unknown as Submission;
+    collector(json({ ok: true, id: 'abcd1234', uploadToken: 't' }), new TypeError('Failed to fetch'));
+    await s.sendSubmission(byDate, 'rank,chain\n');
+    expect(s.pendingTable?.source).toBe('deadline');
+
+    // Fastest's Retry the table must not upload By a date's CSV.
+    const calls = collector();
+    expect((await s.retryTable('fastest')).ok).toBe(false);
+    expect(calls).toHaveLength(0);
+    expect(s.pendingTable).not.toBeNull();
+
+    collector(json({ ok: true, bytes: 10 }));
+    expect((await s.retryTable('deadline')).message).toMatch(/with the full CSV/);
+    expect(s.pendingTable).toBeNull();
+  });
+
   it('treats "already stored" on a retry as done', async () => {
     const s = await store();
     collector(json({ ok: true, id: 'abcd1234', uploadToken: 't' }), json({ error: 'x' }, 502));

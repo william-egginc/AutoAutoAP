@@ -538,7 +538,7 @@ import { poolSize, RoutePool } from '@/search/routePool';
 import { describeGear, isMaxed, pickBracket, type TableEntry } from '@/search/tableBracket';
 import { isSmallDevice } from '@/search/device';
 import { onArrival, resumeAfterRun } from '@/search/instantDeferral';
-import { readSnapshot, removeSnapshot, writeSnapshot } from '@/search/instantSnapshot';
+import { readSnapshot, writeSnapshot } from '@/search/instantSnapshot';
 import { simulateRoute } from '@/search/simulateRoute';
 import type { FirstLegsRequest } from '@/workers/routeFinder.protocol';
 import { createChainSearchPool, type ChainSearchPool, type EvaluateOptions } from '@/search/pool';
@@ -693,9 +693,11 @@ interface BracketSide {
 }
 const bracket = ref<{ above: BracketSide | null; below: BracketSide | null } | null>(null);
 const bracketStatus = ref<'idle' | 'running' | 'done'>('idle');
+/** The bracket's own run number, bumped by each `run` (not by "Check again", which leaves it running). */
+let bracketRuns = 0;
 type FirstLegsBase = Omit<FirstLegsRequest, 'id' | 'kind' | 'url' | 'deliveryScale'>;
-async function runBracket(id: number, legs: FirstLegsBase, hours: Availability | null): Promise<void> {
-  if (id !== runs || own.value || gearTable.value || deliveryScale.value === null) return;
+async function runBracket(bid: number, legs: FirstLegsBase, hours: Availability | null): Promise<void> {
+  if (bid !== bracketRuns || own.value || gearTable.value || deliveryScale.value === null) return;
   const player = { bonus: bonus.value, k: deliveryScale.value };
   if (isMaxed(player)) return;
   let entries: TableEntry[];
@@ -738,9 +740,9 @@ async function runBracket(id: number, legs: FirstLegsBase, hours: Availability |
   };
   try {
     const a = await side(above);
-    if (id !== runs) return;
+    if (bid !== bracketRuns) return;
     const b = await side(below);
-    if (id !== runs) return;
+    if (bid !== bracketRuns) return;
     bracket.value = { above: a, below: b };
     if (import.meta.env.DEV)
       console.info(
@@ -750,9 +752,11 @@ async function runBracket(id: number, legs: FirstLegsBase, hours: Availability |
     // No bracket: the answer stands on its own.
   } finally {
     pool.terminate();
-    if (id === runs) {
+    if (bid === bracketRuns) {
       bracketStatus.value = 'done';
-      saveSnapshot(id);
+      // The current run's number, not the one this started under: "Check again" bumps `runs` without
+      // superseding the bracket, and the snapshot is waiting on it.
+      saveSnapshot(runs);
     }
   }
 }
@@ -883,6 +887,11 @@ watch(runBusy, (busy, wasBusy) => {
   }
 });
 
+/** A thrown message as a player may see it: the loader's own wording says "table", which players never see. */
+function playerFacing(message: string): string {
+  return /table/i.test(message) ? 'the instant answer could not be read' : message;
+}
+
 /** Each run's number: a run that has been superseded (the save or the date changed) is dropped. */
 let runs = 0;
 
@@ -894,6 +903,7 @@ async function run(force = false, goAhead = false): Promise<void> {
   const te = Math.floor(store.currentTE);
   if (!(te > 0) || !(target.value > te)) return;
   const id = ++runs;
+  const bid = ++bracketRuns;
   cachedKey = cacheKey();
   cached.value = readCache(cachedKey);
   // The same save, setup and filters as when it was last worked out: show that answer, in full, and
@@ -903,9 +913,11 @@ async function run(force = false, goAhead = false): Promise<void> {
   waiting.value = false;
   afterRun = null;
   stopExact();
-  if (force) removeSnapshot(snapKey);
+  // The old saved answer stays until a new one is saved over it (saveSnapshot): a forced run that is
+  // stopped, superseded or fails must not leave the player with nothing.
   const saved = !force && !!readSnapshot(snapKey);
-  const what = onArrival({ runBusy: runBusy.value, hasSaved: saved, goAhead });
+  // Pressing "Work it out again" is the go-ahead: it must not drop to "waits" while a search runs.
+  const what = onArrival({ runBusy: runBusy.value, hasSaved: saved, goAhead: goAhead || force });
   if (what === 'restore' && restoreSnapshot()) return;
   if (what === 'wait' || (what === 'restore' && runBusy.value && !goAhead)) {
     // A search has the memory: no route workers until it ends or the player says go ahead.
@@ -913,6 +925,7 @@ async function run(force = false, goAhead = false): Promise<void> {
     status.value = 'idle';
     exactStatus.value = 'idle';
     backgroundStatus.value = 'idle';
+    bracketStatus.value = 'idle';
     result.value = null;
     return;
   }
@@ -1032,7 +1045,7 @@ async function run(force = false, goAhead = false): Promise<void> {
     if (props.deadline) emitRoutes(answer);
     if (small) return;
     const polish = () =>
-      void polishInBackground(id, p, url, polishOptions, raw, answer).then(() => runBracket(id, legsRequest, hours));
+      void polishInBackground(id, p, url, polishOptions, raw, answer).then(() => runBracket(bid, legsRequest, hours));
     // A search started meanwhile (or this was worked out anyway during one): the polish and the exact
     // check wait for it to end, or for the player to press Check exactly.
     if (runBusy.value) {
@@ -1048,10 +1061,10 @@ async function run(force = false, goAhead = false): Promise<void> {
     status.value = 'error';
     // No usable table on this site (missing, a web page in its place, or cut short): the panel is
     // hidden and every search works exactly as without it.
-    noTable.value = /404|not a precomputed table|incomplete/.test(message);
+    noTable.value = /404|not a precomputed table|incomplete|precomputed table version/.test(message);
     errorText.value = noTable.value
       ? 'The instant answer isn’t on this site yet.'
-      : `The instant answer couldn’t run: ${message}`;
+      : `The instant answer couldn’t run: ${playerFacing(message)}`;
   }
 }
 
@@ -1344,7 +1357,7 @@ async function runExact(id: number, found: NonNullable<typeof result.value>, man
   } catch (err) {
     if (id !== runs) return;
     exactStatus.value = 'error';
-    exactText.value = `The exact check couldn’t run: ${err instanceof Error ? err.message : String(err)}`;
+    exactText.value = `The exact check couldn’t run: ${playerFacing(err instanceof Error ? err.message : String(err))}`;
   } finally {
     if (id === runs) stopExact();
   }

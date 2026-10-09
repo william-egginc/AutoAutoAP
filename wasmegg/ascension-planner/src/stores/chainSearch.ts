@@ -710,6 +710,24 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     workersChangedAt.value = at;
   }
 
+  /**
+   * The By a date run's own worker clock and count. It used to share the three above with the
+   * fastest run, so a By a date run after an unsent fastest result overwrote that result's worker
+   * count, which goes to the board in `runCost`.
+   */
+  const deadlineWorkersInPool = ref(maxPoolSize());
+  const deadlineWorkerMs = ref(0);
+  const deadlineWorkersChangedAt = ref(0);
+  function startDeadlineWorkerClock(): void {
+    deadlineWorkerMs.value = 0;
+    deadlineWorkersChangedAt.value = Date.now();
+  }
+  function bankDeadlineWorkerTime(at = Date.now()): void {
+    if (!deadlineWorkersChangedAt.value) return;
+    deadlineWorkerMs.value += Math.max(0, at - deadlineWorkersChangedAt.value) * deadlineWorkersInPool.value;
+    deadlineWorkersChangedAt.value = at;
+  }
+
   /** The run's time-weighted worker count, to one decimal. */
   const averageWorkers = computed(() =>
     timeWeightedWorkers(
@@ -758,9 +776,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         if (!deadlinePool) return;
         // The worker clock, as for the other runs: what a run cost is its time-weighted worker count.
         const after = deadlinePool.resize(targetWorkers.value);
-        if (after !== workersInPool.value) {
-          bankWorkerTime();
-          workersInPool.value = after;
+        if (after !== deadlineWorkersInPool.value) {
+          bankDeadlineWorkerTime();
+          deadlineWorkersInPool.value = after;
         }
       }, 400);
     }
@@ -2962,6 +2980,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     };
     try {
       pendingTable.value = {
+        source: deadlineSend ? 'deadline' : 'fastest',
         url: `${submitUrl.replace(/\/submit\/?$/, '/csv')}?id=${encodeURIComponent(id)}`,
         token: uploadToken,
         body: await gzip(scrubIdentifiers(csv)),
@@ -3060,8 +3079,13 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * A table the summary landed without: kept, with its one-time token, so "Retry the table" can send
    * just the table. Pressing Submit again instead would add a second row to the leaderboard to get
    * one CSV in. Cleared once the table is stored, or once retrying cannot help.
+   *
+   * `source` is the screen whose send left it: Fastest and By a date share this one slot, and each
+   * screen offers (and runs) a retry only for its own table, never the other's.
    */
-  const pendingTable = ref<{ url: string; token: string; body: ArrayBuffer } | null>(null);
+  const pendingTable = ref<{ source: 'fastest' | 'deadline'; url: string; token: string; body: ArrayBuffer } | null>(
+    null
+  );
 
   /** Send `pendingTable`, and word the outcome as what to do next rather than a status code. */
   /**
@@ -3136,8 +3160,11 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     };
   }
 
-  /** The "Retry the table" button. */
-  async function retryTable(): Promise<{ ok: boolean; message: string }> {
+  /** The "Retry the table" button; `source` is the screen pressing it. */
+  async function retryTable(source?: 'fastest' | 'deadline'): Promise<{ ok: boolean; message: string }> {
+    if (source && pendingTable.value && pendingTable.value.source !== source) {
+      return { ok: false, message: 'there is no table waiting to be sent' };
+    }
     const { ok, message } = await postTable();
     return { ok, message };
   }
@@ -4104,8 +4131,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       if (targetWorkers.value < workerBudget.value) pool.resize(targetWorkers.value);
       // The worker clock (the other runs have had it all along): seconds per leg is recorded at the
       // run's time-weighted worker count, not whatever the slider said at the end.
-      workersInPool.value = pool.size;
-      startWorkerClock();
+      deadlineWorkersInPool.value = pool.size;
+      startDeadlineWorkerClock();
       const workers = pool;
       // Who prices which route (search/stickyDealer.ts): evenly, and each set back to the worker that
       // has its early legs in memory. One dealer for the run, so it remembers across rounds.
@@ -4176,12 +4203,12 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       // Its own speed, for the next estimate: the legs this run simulated (replayed routes cost none),
       // over the time it ran less any time the page was suspended, at its time-weighted worker count.
       const endedAt = Date.now();
-      bankWorkerTime(endedAt);
+      bankDeadlineWorkerTime(endedAt);
       const sessionSeconds = (endedAt - deadlineStartedAt.value) / 1000 - (pool?.suspendedSeconds ?? 0);
       const avgWorkers = timeWeightedWorkers(
-        workerMs.value,
-        workersChangedAt.value,
-        workersInPool.value,
+        deadlineWorkerMs.value,
+        deadlineWorkersChangedAt.value,
+        deadlineWorkersInPool.value,
         deadlineStartedAt.value,
         endedAt
       );
@@ -4370,7 +4397,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const samples = deadlineLegSamples.value;
     const at = samples.length ? samples[samples.length - 1][0] : Date.now();
     const plan = deadlineLegPlan.value;
-    const w = Math.max(1, workersInPool.value);
+    const w = Math.max(1, deadlineWorkersInPool.value);
     const planned = plan && plan.workerSecondsPerLeg > 0 ? w / (plan.workerSecondsPerLeg * contention(w)) : null;
     const measured = recentLegRate(samples, at);
     const rate = measured ?? planned;

@@ -59,6 +59,11 @@ export const NAMES = {
   fullFirst: 'Advanced (Full sweep)',
 } as const;
 
+/** Fastest's name at the Final target TE ("Fastest to 490 TE" by default; `NAMES.fastest` is that default). */
+export function fastestName(finalTE?: number): string {
+  return finalTE !== undefined && finalTE > 0 ? `Fastest to ${finalTE} TE` : NAMES.fastest;
+}
+
 export const DEFAULT_ROUTE: Required<SiteRoute> = {
   section: 'manual',
   auto: 'classic',

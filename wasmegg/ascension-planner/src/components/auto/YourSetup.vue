@@ -69,7 +69,7 @@
 
     <div v-if="docked" class="p-4 space-y-4">
       <p class="text-[11px] text-slate-500">
-        One setup for all three Auto Planner screens: change it here and Your plan, {{ NAMES.fastest }} and
+        One setup for all three Auto Planner screens: change it here and Your plan, {{ fastestName(store.finalTE) }} and
         {{ NAMES.byDate }} all use it.
       </p>
 
@@ -275,7 +275,7 @@
           <div id="your-setup-time-off" class="scroll-mt-4"></div>
           <TimeOffEditor />
           <p v-if="screen === 'classic'" class="text-[11px] font-semibold text-amber-700 leading-relaxed">
-            Your plan only plans around time off in a plan built from a search (Build this plan on {{ NAMES.fastest }} or
+            Your plan only plans around time off in a plan built from a search (Build this plan on {{ fastestName(store.finalTE) }} or
             {{ NAMES.byDate }}). A chain typed in here goes straight through it for now.
           </p>
           <p v-else class="text-[11px] text-slate-500 leading-relaxed">
@@ -400,7 +400,7 @@ import { useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useInitialStateStore } from '@/stores/initialState';
 import { useUIStore } from '@/stores/ui';
-import { NAMES, type AutoView } from '@/lib/siteNav';
+import { NAMES, type AutoView, fastestName } from '@/lib/siteNav';
 import { showDateTime, showHour, showSchedule as scheduleText } from '@/lib/displayTime';
 import { usableTimeOff } from '@/search/timeOff';
 import SchedulingInputs from './SchedulingInputs.vue';

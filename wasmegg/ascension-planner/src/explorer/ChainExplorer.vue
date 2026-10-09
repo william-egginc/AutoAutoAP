@@ -1168,6 +1168,7 @@
           v-if="rows.length"
           :rows="usable"
           :te-from-save="teNow"
+          :final-te="finalTe"
           :inventory="inventory"
           :run-in-place="embedded"
           @run="r => emit('run-sweep', r)"
@@ -1313,6 +1314,8 @@ const props = withDefaults(
     scienceView?: 'check' | 'submit';
     /** The planner's loaded TE, for What we need to check's ranges. */
     teNow?: number;
+    /** The planner's Final target TE, for the name of the Fastest screen (490 when left out). */
+    finalTe?: number;
     /** The loaded save's artifacts, to mark the gear cards it matches. */
     inventory?: InventoryCount[];
   }>(),

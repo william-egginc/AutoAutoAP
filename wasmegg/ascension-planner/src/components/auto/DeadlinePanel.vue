@@ -265,7 +265,7 @@
           </template>
         </RoutesToTry>
         <p class="text-[11px] text-slate-500 leading-relaxed">
-          Each chain is one box of bands, like {{ NAMES.fastest }} › {{ NAMES.fullFirst }}'s: one band per ascension before the last, separated
+          Each chain is one box of bands, like {{ fastestName(store.finalTE) }} › {{ NAMES.fullFirst }}'s: one band per ascension before the last, separated
           by <span class="font-mono-premium">;</span>. A band is <span class="font-mono-premium">lo-hi:step</span>, a
           single value, or several values with commas. Chains with other ascension counts all run from the same click,
           and a 1- or 2-ascension chain costs next to nothing. Every route in your chains is tried, and nothing outside
@@ -354,7 +354,7 @@
             <span class="font-bold text-slate-800">Why not every TE from the start?</span> Good and bad stops sit a few
             TE apart (each missed Research Sale is a jump), so you can't just walk downhill from one guess, and every TE
             for every stop is tens of thousands of routes. A wide first look finds the right area; the zoom does the
-            fine work only there. It's the same idea as {{ NAMES.fastest }} › {{ NAMES.smartFirst }}.
+            fine work only there. It's the same idea as {{ fastestName(store.finalTE) }} › {{ NAMES.smartFirst }}.
           </p>
           <p>
             <span class="font-bold text-slate-800">The other way, "I'll set the stops",</span> tries every route in
@@ -714,7 +714,14 @@
                   : `Send ${best.chain[best.chain.length - 1]} TE by this date`
             }}
           </button>
-          <ShareStatus :message="shareMessage" :ok="shareOk" />
+          <ShareStatus
+            :message="shareMessage"
+            :ok="shareOk"
+            :partial="sharePartial"
+            :pending-table="store.pendingTable?.source === 'deadline'"
+            :retrying="retryingTable"
+            @retry="retryTable"
+          />
         </template>
       </ShareResult>
     </div>
@@ -805,7 +812,7 @@ import { useRunDownloads } from '@/composables/useRunDownloads';
 import { useDateRowSliders } from '@/composables/useRowSliders';
 import StepAwayOptions from './StepAwayOptions.vue';
 import AutoSendReport from './AutoSendReport.vue';
-import { NAMES } from '@/lib/siteNav';
+import { NAMES, fastestName } from '@/lib/siteNav';
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
@@ -1019,6 +1026,19 @@ const simpleLive = computed(() =>
 const simpleBoxes = computed(() =>
   (store.deadlineRunning || store.preparing) && simpleUsed.value ? simpleUsed.value : simpleLive.value
 );
+/** The boxes the Simple run on screen searched (its own record, or the frozen ones while it goes), not
+ *  the ones the instant answer would give now: that answer can change mid-run. Before any Simple run,
+ *  the live ones. Planning the NEXT run (`simpleBoxes`) still follows the live ones. */
+const simpleRunBoxes = computed(() => {
+  if ((store.deadlineRunning || store.preparing) && simpleUsed.value) return simpleUsed.value;
+  const r = result.value;
+  if (r?.simple && r.bandSets?.length)
+    return {
+      chains: r.bandSets.map(set => ({ asc: set.length + 1, text: set.map(b => formatBand(b)).join('; ') })),
+      lastBox: `${r.lastLo ?? Math.floor(r.te) + 1}-${r.lastHi}`,
+    };
+  return simpleLive.value;
+});
 /** "±3 TE for 1-3 ascensions, ±2 for 4-5, ±1 for 6" */
 const simpleWidthsText = computed(() => {
   const rows = simpleSpace.value?.rows ?? [];
@@ -1065,16 +1085,29 @@ const rowProblem = (k: number) => problemOf(chains.value[k], lastRange.value);
 
 /** "Checks 5 ascension counts, 1,240 routes, about 18 min on this computer" */
 const simpleSummary = computed(() => {
-  const rows = activeChains.value;
+  const rows = simpleRunBoxes.value.chains;
   if (!simple.value || !rows.length) return '';
   const counts = new Set(rows.map(r => r.asc)).size;
-  const time = plan.value.legs ? formatHours(plan.value.seconds / 3600) : '';
-  return `Checks ${counts} ascension count${counts === 1 ? '' : 's'}, ~${roundedRoutes(plan.value.routes).toLocaleString()} routes${time ? `, about ${time} on this computer` : ''}.`;
+  // Planned for the run's own boxes once a Simple run is on screen; else the plan Find would run.
+  const shown = simpleRunBoxes.value === simpleLive.value ? plan.value : summaryPlan.value;
+  const time = shown.legs ? formatHours(shown.seconds / 3600) : '';
+  return `Checks ${counts} ascension count${counts === 1 ? '' : 's'}, ~${roundedRoutes(shown.routes).toLocaleString()} routes${time ? `, about ${time} on this computer` : ''}.`;
 });
+const summaryPlan = computed(() =>
+  byDatePlan({
+    rows: simpleRunBoxes.value.chains.map(row => ({ asc: row.asc, bands: bandsOf(row) })),
+    currentTE: store.currentTE,
+    lastHi: rangeOf(simpleRunBoxes.value.lastBox)?.[1] ?? 0,
+    instantSets: result.value?.instantSets ?? [],
+    workers: store.workerBudget,
+    rememberedPerSet: rememberedPerSet.value,
+    workerSecondsPerLeg: workerSecondsPerLeg.value,
+  })
+);
 
 /** Simple's boxes into Advanced's chain editor, and Advanced shown: to widen them, or add chains. */
 function openInAdvanced(): void {
-  const used = simpleBoxes.value;
+  const used = simpleRunBoxes.value;
   if (!used.chains.length) return;
   // Each row keeps the width Simple built it with, so its slider says "±2 TE around each stop (from
   // Simple)" rather than the default ±10; moving the width slider clears that, as for a Science card.
@@ -1723,7 +1756,19 @@ const {
   nicknameTouched: shareNameTouched,
 } = shareIdentity;
 /** The send to Compare's Egg Day or By a date tab (useShareResult.ts `useByDateShare`). */
-const { collectorConfigured, sharing, shareMessage, shareOk, resultKey, sentKey, shareTab, share } = useByDateShare(
+const {
+  collectorConfigured,
+  sharing,
+  shareMessage,
+  shareOk,
+  sharePartial,
+  retryingTable,
+  retryTable,
+  resultKey,
+  sentKey,
+  shareTab,
+  share,
+} = useByDateShare(
   store,
   shareIdentity,
   computed(() => store.deadlineResult),
@@ -1808,7 +1853,8 @@ const edgeWiden = computed<{ row: number; text: string } | null>(() => {
   const text = widenEdges(box.bands, edges.value, { currentTE: result.value.te, finalTE: 490 });
   if (!text) return null;
   const asc = box.bands.length + 1;
-  const rows = activeChains.value;
+  // From Simple the rows are the run's boxes (widenAndRun opens them in Advanced in this order).
+  const rows = simple.value ? simpleRunBoxes.value.chains : activeChains.value;
   const same = (k: number) => formatBands(bandsOf(rows[k])) === formatBands(box.bands);
   let row = rows.findIndex((r, k) => r.asc === asc && same(k));
   if (row < 0) row = rows.findIndex(r => r.asc === asc);
