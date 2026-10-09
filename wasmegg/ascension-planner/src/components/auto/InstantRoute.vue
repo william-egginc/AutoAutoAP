@@ -560,6 +560,7 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
+import { useInstantSummaryStore } from '@/stores/instantSummary';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { showDateTime } from '@/lib/displayTime';
 import { continueTailParams, instantDeliveryScale } from '@/search/leg';
@@ -1500,6 +1501,28 @@ watch([result, exactStatus], () => {
 /** The route the box leads with: the simulator's fastest once known, else the table's. */
 const lead = computed(() => exactBest.value ?? result.value?.best ?? null);
 const reranked = computed(() => !!exactBest.value && exactBest.value !== result.value?.best);
+
+/**
+ * Fastest route only: a read-only summary of the route the box leads with, for the result cards
+ * beside it ("The instant answer has a route with 7 ascensions that may finish sooner",
+ * lib/longerRouteHint.ts). The simulator's time once the exact check is in, the table's until then.
+ */
+const instantSummary = useInstantSummaryStore();
+watch(
+  () => {
+    const r = lead.value;
+    if (props.deadline || !r || status.value === 'loading') return null;
+    const e = exactOf(r);
+    return { chain: [...r.chain], seconds: e ? e.seconds : r.seconds, exact: !!e };
+  },
+  s => {
+    instantSummary.fastest = s;
+  },
+  { immediate: true }
+);
+onUnmounted(() => {
+  if (!props.deadline) instantSummary.fastest = null;
+});
 
 /**
  * THE LAST CHECKED ANSWER, remembered in this browser per save and setup: shown at once on the next

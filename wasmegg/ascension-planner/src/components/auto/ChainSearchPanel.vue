@@ -592,6 +592,14 @@
             keep this chain, and it is exactly what the stages that already finished ({{ store.lastCompletedStage }})
             guarantee.
           </p>
+          <!-- Fastest is fast, not best: when a longer route might win, say so (never runs anything). -->
+          <LongerRouteHint
+            mode="start"
+            :running="store.isRunning"
+            :disabled="store.busy"
+            :on-add="startFromCount"
+            @check="chain => emit('checkExactly', chain)"
+          />
         </RouteResultCard>
 
         <p
@@ -1303,6 +1311,8 @@ import StepAwayOptions from './StepAwayOptions.vue';
 import SavedRuns from './SavedRuns.vue';
 import AutoSendReport from './AutoSendReport.vue';
 import RouteResultCard from './RouteResultCard.vue';
+import LongerRouteHint from './LongerRouteHint.vue';
+import { defaultSeedChain } from '@/search/seedChain';
 import { describeCompute } from '@/utils/computeTime';
 import { useInitialStateStore } from '@/stores/initialState';
 import IntegrityNotice from './IntegrityNotice.vue';
@@ -1319,6 +1329,8 @@ import CsvCard from './CsvCard.vue';
 import ProgressBar from './ProgressBar.vue';
 
 const props = defineProps<{ playerId: string }>();
+/** The instant answer's route from "A longer route might win", to price exactly: the screen above moves to the Full sweep. */
+const emit = defineEmits<{ checkExactly: [chain: number[]] }>();
 
 const store = useChainSearchStore();
 const initialStateStore = useInitialStateStore();
@@ -1406,6 +1418,23 @@ const coverageNote = computed(() => {
   }
   return `${label} starts from your chain's ${word} and also tries one more and one fewer, then again while that keeps helping, within your limits of ${store.minPrestiges} to ${store.maxPrestiges}.`;
 });
+/**
+ * "A longer route might win" (LongerRouteHint.vue): start the next search from a route with `n`
+ * ascensions: the instant answer's route for that count when it has one, else an even spread. The
+ * limits widen to include `n` and "find a starting chain" is switched off, so the search starts there.
+ * The player presses Find.
+ */
+function startFromCount(n: number): string {
+  const route = store.instantRoutes?.find(r => r.length === n && r[r.length - 1] === store.finalTE);
+  const chain =
+    route ?? defaultSeedChain({ currentTE: store.currentTE, finalTE: store.finalTE, minPrestiges: n, maxPrestiges: n });
+  if (chain.length !== n) return `A starting chain with ${n} ascensions doesn't fit between your TE and the target.`;
+  store.minPrestiges = Math.min(store.minPrestiges, n);
+  store.maxPrestiges = Math.max(store.maxPrestiges, n);
+  store.findSeedFirst = false;
+  store.seedOverride = chain.slice(0, -1).join(' ');
+  return `Starting chain set to ${chain.join(' ')}. Press Find to search from it.`;
+}
 /** The instant answer's count (set by the branch that has one), when it isn't the one searched from. */
 const suggestedCountNote = computed(() => {
   const k = store.suggestedCount;
