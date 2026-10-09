@@ -23,6 +23,7 @@ import { runChainSearch, type CacheEntry } from '@/search/driver';
 import { findStartingChain, planCoarseGrid } from '@/search/coarse';
 import { createChainSearchPool, type ChainSearchPool } from '@/search/pool';
 import { contention, timeWeightedWorkers, workerSecondsFromRate } from '@/search/speed';
+import { addChainSample, sweepTimeLeft, type SweepTimeLeft } from '@/search/sweepEstimate';
 import { createStickyDealer } from '@/search/stickyDealer';
 import { hardwareThreads, maxPoolSize, clampPoolSize, targetWorkerCount, workersForBatch } from '@/search/batch';
 import { describeRunError } from '@/utils/errors';
@@ -313,6 +314,8 @@ export interface RunProgress {
   /** Date.now() when it started. */
   startedAt: number;
   stopping: boolean;
+  /** A Full sweep queue's chain running ("chain 1 of 3"); absent for a single run. */
+  chain?: { at: number; of: number } | null;
   /** The best so far: its route, the TE it reaches, and when (unix seconds). */
   best: { chain: number[]; te: number; at: number } | null;
 }
@@ -684,6 +687,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     total: number;
     cancelled: boolean;
     results: { label: string; chain: number[]; days: number; stopped: boolean; finish: number }[];
+    /** Each chain's count and length, for the time left of the whole queue (`sweepLeft`). */
+    counts?: number[];
+    ascensions?: number[];
   }>({ at: -1, total: 0, cancelled: false, results: [] });
 
   /**
@@ -1028,13 +1034,17 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   const runCost = computed(() => {
     const minutes = runMinutes.value;
     if (minutes === null || chainsDone.value <= 0) return null;
+    // A carried-on Full sweep's replayed chains took no time here: per chain is over the fresh ones,
+    // and a carry-on that priced none has no cost of its own to report.
+    const fresh = chainsDone.value - (searchSpace.value ? chainsReplayed.value : 0);
+    if (fresh <= 0) return null;
     return {
       workers: averageWorkers.value,
       cores: typeof navigator !== 'undefined' && navigator.hardwareConcurrency ? navigator.hardwareConcurrency : null,
       minutes,
       suspendedMinutes: suspendedSeconds.value / 60,
       longestStallMinutes: longestStallSeconds.value / 60,
-      secondsPerChain: (minutes * 60) / chainsDone.value,
+      secondsPerChain: (minutes * 60) / fresh,
     };
   });
 
@@ -1303,16 +1313,18 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // The first real measurement for this run beats whatever a pre-run benchmark guessed — record
     // where it came from, and persist it the same way `benchmarkMachine` does, so a live-measured
     // rate also survives a reload rather than only the button's own probe.
+    // The chains it was measured on are this batch's (`d`), not `done`: a carried-on run's `done`
+    // starts at its replayed chains, and "Measured on this machine · 4,394 chains" counted those.
     if (wasUnset) {
       rateSource.value = 'live';
       benchmarkedAt.value = now;
-      benchmarkChainCount.value = done;
+      benchmarkChainCount.value = d;
       if (currentPlayerId) {
         saveChainBenchmark(currentPlayerId, {
           secondsPerChain: secondsPerChain.value,
           source: 'live',
           at: now,
-          chainCount: done,
+          chainCount: d,
           workers: workersInPool.value,
           currentTE: currentTE.value,
           finalTE: finalTE.value,
@@ -1339,7 +1351,40 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   function noteBatch(done: number, total: number): void {
     batchDone.value = done;
     batchTotal.value = total;
+    noteSweepSample();
   }
+
+  /** `[unix ms, fresh chains priced]` for a Full sweep's time left (search/sweepEstimate.ts): fresh is
+   *  priced this session, not replayed from a checkpoint, so a carry-on's rate starts from nothing. */
+  const sweepChainSamples = ref<[number, number][]>([]);
+  function noteSweepSample(): void {
+    if (!isRunning.value || !searchSpace.value) return;
+    const next = addChainSample(
+      sweepChainSamples.value,
+      Date.now(),
+      chainsDone.value + batchDone.value,
+      chainsReplayed.value
+    );
+    if (next !== sweepChainSamples.value) sweepChainSamples.value = next;
+  }
+  /**
+   * ONE time left for a Full sweep, for its panel's Est. wall clock and the progress bar on every
+   * tab: the whole queue's (the chain running and the ones queued after it), over the rate of the
+   * chains really priced this session. Null when no Full sweep is running.
+   */
+  const sweepLeft = computed<SweepTimeLeft | null>(() => {
+    const space = searchSpace.value;
+    if (!isRunning.value || !space) return null;
+    const q = sweepQueue.value;
+    const queued = q.at >= 0 && q.counts?.length === q.total && q.ascensions?.length === q.total;
+    return sweepTimeLeft({
+      samples: sweepChainSamples.value,
+      done: chainsDone.value + batchDone.value,
+      total: chainsEstimated.value,
+      ascensions: space.maxAscensions,
+      queue: queued ? { at: q.at, counts: q.counts!, ascensions: q.ascensions! } : null,
+    });
+  });
 
   /**
    * Bar fill, 0..1.
@@ -4265,6 +4310,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // Start the clock AFTER the replay. Measured from zero, the first batch looked like it had
     // priced every replayed chain as well, and a resumed run promised to finish absurdly soon.
     noteRate(chainsDone.value, true);
+    sweepChainSamples.value = [];
     if (chainsReplayed.value) {
       runLog.value.push(`replayed ${chainsReplayed.value.toLocaleString()} chains from a previous run`);
       noteBest();
@@ -4310,6 +4356,11 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       startWorkerClock();
       if (!(await checkIntegrity(pool))) return;
       stage.value = 'pricing every chain';
+      // And again once the workers are up: starting them and the integrity check are not a chain's
+      // cost, and the first batch's rate (the benchmark this machine keeps) was charged them.
+      noteRate(chainsDone.value, true);
+      sweepChainSamples.value = [];
+      noteSweepSample();
 
       // Chunked so progress is visible and so the pool re-deals by prefix each time. Sorted above,
       // which is what makes the evaluator's prefix memo pay: siblings land in the same chunk.
@@ -4337,6 +4388,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         batchDone.value = 0;
         csvRows.value = liveCache.length;
         noteRate(chainsDone.value);
+        noteSweepSample();
         noteBest();
         detail.value = `${chainsDone.value.toLocaleString()} / ${chains.length.toLocaleString()}`;
         refreshShortlist();
@@ -6219,10 +6271,13 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         done,
         total: chainsEstimated.value ? Math.max(chainsEstimated.value, done) : null,
         unit: 'chains',
-        secondsLeft: secondsRemaining.value || null,
+        // A Full sweep: the one time left its panel shows too, the whole queue's, over fresh chains
+        // only (`sweepLeft`); the count stays the chain running's, with "chain 1 of 3" beside it.
+        secondsLeft: full ? (sweepLeft.value?.seconds ?? null) : secondsRemaining.value || null,
         // No rate until the first batch is back: say so rather than guess from the first chains,
         // which carry each worker's start (its shared early legs) and read hours too long.
-        measuring: !full && !secondsPerChain.value,
+        measuring: full ? !!sweepLeft.value?.measuring : !secondsPerChain.value,
+        chain: full ? (sweepLeft.value?.chain ?? null) : null,
         startedAt: startedAt.value,
         stopping: stopRequested.value,
         best:
@@ -6360,6 +6415,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // derived
     progressFraction,
     secondsRemaining,
+    sweepLeft,
     currentTE,
     planStart,
     planStartIsNow,

@@ -682,7 +682,11 @@
               </div>
               <!-- Only the playable ones (the user, 1 Oct: "we are running the feasible total chains... however
                    the lay user may not know that"). -->
-              <div v-if="unplayable > 0 && totalChains === chainCount" class="text-[10px] text-slate-500 leading-snug">
+              <div v-if="runChainsNote" class="text-[10px] text-slate-500 leading-snug">{{ runChainsNote }}</div>
+              <div
+                v-else-if="!runLeft && unplayable > 0 && totalChains === chainCount"
+                class="text-[10px] text-slate-500 leading-snug"
+              >
                 playable, of {{ combinations.toLocaleString() }} the bands could make
               </div>
             </div>
@@ -1206,6 +1210,7 @@ import UnfinishedRuns from './UnfinishedRuns.vue';
 import RunGoingElsewhere from './RunGoingElsewhere.vue';
 import DeadlinePanel from './DeadlinePanel.vue';
 import { useInitialStateStore } from '@/stores/initialState';
+import { formatTimeLeft } from '@/search/sweepEstimate';
 import { describeTimeOff, usableTimeOff } from '@/search/timeOff';
 import { gridIsComplete, gridStepLabel } from '@/search/grid';
 import { useRunDownloads } from '@/composables/useRunDownloads';
@@ -1213,7 +1218,6 @@ import CsvCard from './CsvCard.vue';
 import ProgressBar from './ProgressBar.vue';
 import EdgeWarning from './EdgeWarning.vue';
 import LongerRouteHint from './LongerRouteHint.vue';
-import { useRunClock } from '@/composables/useRunClock';
 
 const props = defineProps<{
   playerId: string;
@@ -1659,9 +1663,19 @@ const chainCount = computed(() =>
 const combinations = computed(() => (bands.value.length ? bands.value.reduce((n, b) => n * b.length, 1) : 0));
 const unplayable = computed(() => Math.max(0, combinations.value - chainCount.value));
 
-const chainCountLabel = computed(() =>
-  Number.isFinite(totalChains.value) ? Math.round(totalChains.value).toLocaleString() : '∞'
-);
+// While a run goes, the chains IT prices (the queue's, or the one chain a carry-on runs), the count
+// the time left beside it is for; the form's figure counted the added chains on a carry-on too.
+const chainCountLabel = computed(() => {
+  const n = runLeft.value ? runLeft.value.chainsTotal : totalChains.value;
+  return Number.isFinite(n) ? Math.round(n).toLocaleString() : '∞';
+});
+/** Under the count while a run goes: which chain of a queue, or that a carry-on runs its own only. */
+const runChainsNote = computed(() => {
+  const left = runLeft.value;
+  if (!left) return '';
+  if (left.chain) return `chain ${left.chain.at} of ${left.chain.of}`;
+  return !sweepRequest && extraChains.value.length ? 'the chain running; the added chains are not part of it' : '';
+});
 
 // ------------------------------------------------------------------ more chains for one click
 
@@ -1879,25 +1893,19 @@ const assumedCostLabel = computed(() => `${wallPerChain.value.toFixed(2)} s`);
 const hours = computed(() => sweepSeconds(totalChains.value, store.workerBudget, workerSeconds.value) / 3600);
 
 /**
- * Once a run is going, project from what it has ACTUALLY done: elapsed x remaining / done. That
- * needs no view on how many workers are busy or what a chain "should" cost, and it self-corrects
- * as prefix sharing warms up. The s/chain figure cannot be used for this -- it is wall-clock per
- * chain across the whole pool already, so feeding it to estimateHours divides by the workers a
- * second time and the answer comes out wrong by roughly the worker count.
+ * Once a run is going, the store's ONE time left (search/sweepEstimate.ts `sweepTimeLeft`), the same
+ * figure the progress bar shows on every tab: the whole queue's, over the chains this session really
+ * priced. It used to be elapsed x remaining / done here, with the chains REPLAYED by a carry-on in
+ * `done` ("8 min left" on a queue hours long, the user, 9 Oct) and only the chain running in
+ * "remaining", while the bar said something else again.
  */
-const tick = useRunClock(() => store.isRunning);
-
-const remainingHours = computed(() => {
-  const done = pricedSoFar.value;
-  const left = Math.max(0, store.chainsEstimated - done);
-  if (!store.runStartedAt || done <= 0) return Infinity;
-  const elapsedHours = (tick.value - store.runStartedAt) / 3600000;
-  if (!(elapsedHours > 0)) return Infinity;
-  return (elapsedHours / done) * left;
-});
+const runLeft = computed(() => (store.isRunning ? store.sweepLeft : null));
 const estimateLabel = computed(() => {
-  if (store.isRunning && Number.isFinite(remainingHours.value)) {
-    return formatHours(remainingHours.value) + ' left';
+  const left = runLeft.value;
+  if (left) {
+    if (left.seconds === null) return 'measuring…';
+    const words = formatTimeLeft(left.seconds);
+    return words ? `${words} left${left.measuring ? ' (measuring…)' : ''}` : 'almost done';
   }
   return chainCount.value ? formatHours(hours.value) : '—';
 });
@@ -2044,6 +2052,9 @@ async function startQueue(): Promise<void> {
     })),
   ];
   store.sweepQueue.total = specs.length;
+  // Each chain's count and length, for the one time left of the whole queue (stores `sweepLeft`).
+  store.sweepQueue.counts = [chainCount.value, ...extraChains.value.map((_, k) => extraCount(k))];
+  store.sweepQueue.ascensions = [bands.value.length + 1, ...extraChains.value.map(row => Math.max(1, row.asc))];
   const fail = (label: string, why: string) =>
     queueResults.value.push({ label: `${label}: ${why}`, chain: [], days: 0, stopped: true, finish: 0 });
   try {

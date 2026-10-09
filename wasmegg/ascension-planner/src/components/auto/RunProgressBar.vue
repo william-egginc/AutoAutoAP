@@ -16,6 +16,7 @@
 <template>
   <div
     v-if="p"
+    data-run-bar
     class="sticky z-40 rounded-2xl bg-slate-900 text-white shadow-[0_12px_32px_rgba(0,0,0,0.35)] px-4 py-3 space-y-2"
     style="top: calc(env(safe-area-inset-top, 0px) + 0.5rem)"
     role="status"
@@ -25,8 +26,9 @@
       <p class="flex-1 min-w-[14rem] text-[12px] font-bold leading-snug">
         {{ kindLabel }} · {{ p.done.toLocaleString()
         }}<template v-if="p.total"> of {{ approx }}{{ p.total.toLocaleString() }}</template> {{ p.unit
-        }}<template v-if="leftLabel"> · about {{ leftLabel }} left<template v-if="p.measuring"> (measuring…)</template></template
-        ><template v-else-if="p.kind === 'smart' && p.measuring"> · measuring time left…</template
+        }}<template v-if="p.chain"> · chain {{ p.chain.at }} of {{ p.chain.of }}</template
+        ><template v-if="leftLabel"> · about {{ leftLabel }} left<template v-if="p.measuring"> (measuring…)</template></template
+        ><template v-else-if="p.measuring"> · measuring time left…</template
         ><template v-if="p.best">
           · best so far {{ p.kind === 'by-date' ? 'gets to' : 'reaches' }} {{ p.best.te }} on
           {{ show(p.best.at) }}</template
@@ -109,6 +111,7 @@ import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useUIStore } from '@/stores/ui';
 import { NAMES, fastestName } from '@/lib/siteNav';
 import { showDateTime } from '@/lib/displayTime';
+import { formatTimeLeft } from '@/search/sweepEstimate';
 
 const props = defineProps<{ /** The bar sits on the run's own screen. */ here?: boolean }>();
 const emit = defineEmits<{ show: [] }>();
@@ -165,15 +168,13 @@ const leftLabel = computed(() => {
   const r = p.value;
   if (!r) return '';
   let secs = r.secondsLeft;
-  // A Smart search that is still measuring has no pace worth extrapolating yet (its first chains
-  // carry every worker's shared early legs): "measuring time left" instead.
-  if (secs == null && r.total && r.done >= 5 && r.startedAt && !(r.kind === 'smart' && r.measuring)) {
+  // A run that is still measuring has no pace worth extrapolating yet: a Smart search's first chains
+  // carry every worker's shared early legs, and a carried-on run's count starts at the chains it
+  // replayed for free ("about 2 min left" on hours of Full sweep). "measuring time left" instead.
+  if (secs == null && r.total && r.done >= 5 && r.startedAt && !r.measuring) {
     secs = Math.max(0, r.total - r.done) * ((now.value - r.startedAt) / 1000 / r.done);
   }
-  if (!secs || secs <= 0) return '';
-  if (secs < 90) return `${Math.round(secs)} s`;
-  if (secs < 5400) return `${Math.round(secs / 60)} min`;
-  return `${(secs / 3600).toFixed(1)} h`;
+  return secs ? formatTimeLeft(secs) : '';
 });
 
 const zone = computed(() => planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
