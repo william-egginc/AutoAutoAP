@@ -34,6 +34,7 @@ import type { AscensionSummary } from '@/auto/types';
 import type { VirtueEgg } from '@/types';
 import type { SearchInputs, ShiftMoment } from './types';
 import { CONTINUE_PIN_MAX_SECONDS, CONTINUE_MAX_SECONDS } from './rules';
+import { readFirstAscension } from './firstAscension';
 import { catchUpSeconds, siloSeconds } from '@/lib/saveAge';
 import { EGG_ORDER, type BuildParams } from './precomputedLeg';
 import type { TableHeader } from './precomputedTable';
@@ -197,13 +198,16 @@ export function runLeg(
 
   // Continue first (A1 only): see CONTINUE_PIN_MAX_SECONDS for the whole rule. Past six months it
   // is dropped rather than compared, so a bare farm's billion-day continue can never win anything.
-  let cont = allowContinue
-    ? compactOrNull(buildContinueVariant(inputs, baseState, startTime, goalTE, idx, endOverride))
-    : null;
+  // 'fresh' (Prestige Now) never continues; 'continue' pins it; 'auto' lets it compete on time.
+  const mode = readFirstAscension(inputs);
+  let cont =
+    allowContinue && mode !== 'fresh'
+      ? compactOrNull(buildContinueVariant(inputs, baseState, startTime, goalTE, idx, endOverride))
+      : null;
   if (cont && !(cont.summary.totalDurationSeconds <= (inputs.continueMaxSeconds ?? CONTINUE_MAX_SECONDS))) cont = null;
   if (
     cont &&
-    inputs.forceContinue &&
+    mode === 'continue' &&
     !byDeadline &&
     cont.summary.totalDurationSeconds <= (inputs.continuePinSeconds ?? CONTINUE_PIN_MAX_SECONDS)
   ) {
@@ -244,12 +248,12 @@ export function runLeg(
   if (cont) {
     const contWins = !freshBest
       ? true
-      : inputs.forceContinue
-        ? // Continue is the default: it holds unless a fresh start is strictly better.
+      : mode === 'continue'
+        ? // Continue Asc.: it holds unless a fresh start is strictly better.
           byDeadline
           ? cont.summary.endTE >= freshBest.summary.endTE
           : cont.summary.totalDurationSeconds <= freshBest.summary.totalDurationSeconds
-        : // Without --force-continue it is simply one more candidate, as the Auto Planner treats it.
+        : // 'auto': simply one more candidate, as Classic treats it with nothing picked.
           pickVariant({ ...fresh, continue: cont }, undefined, byDeadline) === cont;
     if (contWins) return asLeg(cont, 'continue');
   }

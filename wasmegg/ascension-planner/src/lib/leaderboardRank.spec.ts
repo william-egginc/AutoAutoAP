@@ -7,6 +7,7 @@ import {
   buildRace,
   buildDeadlineBoard,
   calendarDaysLeft,
+  contentFingerprint,
   daysLeft,
   daysLeftPhrase,
   daysLeftText,
@@ -24,8 +25,10 @@ import {
   playerKey,
   projectedTE,
   remainingChain,
+  rowFirstAscension,
   sameBuild,
   samePlan,
+  samePlanSettings,
   sameSave,
   scheduleText,
   settingTags,
@@ -332,9 +335,56 @@ describe('copies', () => {
     // The two lines would read the same, so each says which one it is.
     const lone = row({ ...base, id: 'lone', chain: [300, 490], forceContinue: true });
     const tags = settingTags([off, on, lone]);
-    expect(tags.get(off)).toEqual(['prestiges now']);
-    expect(tags.get(on)).toEqual(['finishes current run first']);
+    expect(tags.get(off)).toEqual(['Fastest of the two']);
+    expect(tags.get(on)).toEqual(['Continue Asc.']);
     expect(tags.has(lone)).toBe(false);
+  });
+
+  it('tells the three first-ascension settings apart, reading old rows by their boolean', () => {
+    const base = {
+      nickname: 'Halceyx',
+      chain: [277, 490],
+      startLocal: '2026-09-24 18:26',
+      timezone: 'America/Los_Angeles',
+      durationDays: 1120.7104,
+      currentTE: 124,
+      window: null,
+      artifacts: ['T4R Gusset'],
+      legs: [],
+    };
+    const oldOn = row({ ...base, id: 'oldOn', forceContinue: true, submittedAt: '2026-09-25T01:29:55.393Z' });
+    const oldOff = row({ ...base, id: 'oldOff', forceContinue: false, submittedAt: '2026-09-25T01:30:55.393Z' });
+    const sent = (id: string, first: 'auto' | 'continue' | 'fresh', at: string) =>
+      row({ ...base, id, forceContinue: first === 'continue', firstAscension: first, submittedAt: at });
+    const cont = sent('cont', 'continue', '2026-09-25T01:31:55.393Z');
+    const auto = sent('auto', 'auto', '2026-09-25T01:32:55.393Z');
+    const fresh = sent('fresh', 'fresh', '2026-09-25T01:33:55.393Z');
+    const unknown = row({ ...base, id: 'unknown', forceContinue: undefined, submittedAt: '2026-09-25T01:34:55.393Z' });
+
+    expect([oldOn, oldOff, cont, auto, fresh, unknown].map(rowFirstAscension)).toEqual([
+      'continue',
+      'auto',
+      'continue',
+      'auto',
+      'fresh',
+      null,
+    ]);
+    // A row keeps the fingerprint it had as a boolean; only Prestige Now is new.
+    expect(contentFingerprint(cont)).toBe(contentFingerprint(oldOn));
+    expect(contentFingerprint(auto)).toBe(contentFingerprint(oldOff));
+    expect(contentFingerprint(fresh)).not.toBe(contentFingerprint(auto));
+    expect(foldCopies([oldOn, cont])).toHaveLength(1);
+    expect(foldCopies([auto, fresh])).toHaveLength(2);
+    // Same plan only under the same setting; a row that recorded none matches any.
+    expect(samePlanSettings(auto, fresh)).toBe(false);
+    expect(samePlanSettings(oldOff, auto)).toBe(true);
+    expect(samePlanSettings(unknown, fresh)).toBe(true);
+    const tags = settingTags([cont, auto, fresh]);
+    expect([tags.get(cont), tags.get(auto), tags.get(fresh)]).toEqual([
+      ['Continue Asc.'],
+      ['Fastest of the two'],
+      ['Prestige Now'],
+    ]);
   });
 
   it('folds copies sent under a name and the same name with a note bolted on', () => {
@@ -1530,15 +1580,15 @@ describe('look-alike tags', () => {
 
   it('groups plans of one route by save, not by the exact start minute', () => {
     const tags = settingTags([a, c]);
-    expect([tags.get(a), tags.get(c)]).toEqual([['finishes current run first'], ['prestiges now']]);
+    expect([tags.get(a), tags.get(c)]).toEqual([['Continue Asc.'], ['Fastest of the two']]);
   });
 
   it('says when each starts where the settings alone do not tell them apart, on the calendar asked for', () => {
     const tags = settingTags([a, b, c], 'America/Denver');
     expect([tags.get(a), tags.get(b), tags.get(c)]).toEqual([
-      ['finishes current run first'],
-      ['prestiges now', 'starts 17:14'],
-      ['prestiges now', 'starts 17:18'],
+      ['Continue Asc.'],
+      ['Fastest of the two', 'starts 17:14'],
+      ['Fastest of the two', 'starts 17:18'],
     ]);
     expect(settingTags([b, c]).get(b)).toEqual(['starts 16:14']);
   });

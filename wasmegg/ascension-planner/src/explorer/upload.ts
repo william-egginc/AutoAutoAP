@@ -32,6 +32,7 @@ import { buildSubmission, type MachineInfo, type Submission, type SweepTag } fro
 import type { LegSummary } from '@/search/types';
 import { checkFinalLegRate, deliveryScore, slotsFromLabels, type RateCheck } from '@/search/virtueScore';
 import type { CollectorRow } from './collector';
+import { readFirstAscension, type FirstAscension } from '@/search/firstAscension';
 
 /** The sweeps players are asked to run, in per-checkpoint bands mode. See collector/README.md. */
 export interface SweepPreset {
@@ -160,7 +161,9 @@ export interface UploadCsv {
   currentTE: number;
   finalTE: number;
   effort: string;
-  forceContinue: boolean;
+  /** A1's setting: the header's `first-ascension`, else its `force-continue on|off` (files written
+   *  before 9 Oct 2026), on for 'continue' and off for 'auto'. */
+  firstAscension: FirstAscension;
   chainsStated: number;
   chainsFound: number;
   /** Rank 1. */
@@ -193,7 +196,7 @@ export function readUploadCsv(text: string): UploadCsv {
     currentTE: 0,
     finalTE: 0,
     effort: '',
-    forceContinue: false,
+    firstAscension: 'auto',
     chainsStated: 0,
     chainsFound: 0,
     best: null,
@@ -223,9 +226,9 @@ export function readUploadCsv(text: string): UploadCsv {
       else if ((m = /current TE (\d+)\s*->\s*final target (\d+)/.exec(line))) {
         out.currentTE = Number(m[1]);
         out.finalTE = Number(m[2]);
-      } else if ((m = /^# effort (\w+); force-continue (on|off)/.exec(line))) {
+      } else if ((m = /^# effort (\w+); force-continue (on|off)(?:; first-ascension (\w+))?/.exec(line))) {
         out.effort = m[1];
-        out.forceContinue = m[2] === 'on';
+        out.firstAscension = readFirstAscension({ firstAscension: m[3], forceContinue: m[2] === 'on' });
       } else if ((m = /^# chains priced (\d+)/.exec(line))) out.chainsStated = Number(m[1]);
       else if ((m = /^# Local times are ([^.\s]+)\./.exec(line))) out.timezone = m[1];
       else if ((m = /^#\s+virtue inventory: (.*)$/.exec(line))) readInventory(m[1], out);
@@ -482,7 +485,7 @@ export function buildUploadSubmission(csv: UploadCsv, diag: Diagnostics, form: U
     effort: csv.effort,
     availability: isConstrained(availability) ? availability : null,
     holdShifts: !!diag.schedule?.deferShifts,
-    forceContinue: csv.forceContinue,
+    firstAscension: csv.firstAscension,
     artifacts: inventoryFromLabels(csv.artifacts),
     stones: stonesFromLabels(csv.stones),
     delivery: diag.loadout?.delivery,

@@ -105,6 +105,7 @@ import { countUnavailable, describeAvailability, isConstrained, nextAvailable,
 import { meetsAll, usableMilestones, type LegArrival, type Milestone } from '@/search/milestones';
 import { createChainEvaluator } from '@/search/chain';
 import { CONTINUE_MAX_SECONDS, CONTINUE_PIN_MAX_SECONDS, CONTINUE_WARN_SECONDS, LAST_DATEABLE_SECONDS, integrityWaitSeconds } from '@/search/leg';
+import { firstAscensionFromFlags, type FirstAscension } from '@/search/firstAscension';
 import { INTEGRITY_BLOCK_SECONDS, INTEGRITY_WARN_SECONDS, describeDuration, integrityMessage, longContinueMessage } from '@/search/rules';
 import { describeTimeOff, timeOffWindows, usableTimeOff, type TimeOffDates } from '@/search/timeOff';
 import { describeSaveAge, siloSeconds } from '@/lib/saveAge';
@@ -595,11 +596,15 @@ WHEN THE PLAN STARTS
   --start-date YYYY-MM-DD   (default today)
   --start-time HH:MM        (default the current hour)
   --timezone IANA           (default this machine's)
-  --no-force-continue       Leg 1 does NOT default to finishing the ascension in progress. By
-                            default it does, as on the site: taken outright when it finishes
-                            within a week, kept up to six months unless a 1/2/3-sale fresh start is
-                            strictly faster, dropped past six months. (--force-continue is accepted
-                            and is the default.)
+  --first-ascension auto|continue|fresh
+                            What leg 1 does with the ascension in progress, as on the site (Your
+                            setup's First ascension, Classic's rule). auto (the default): continuing
+                            is one more candidate, taken when it is the fastest. continue: taken
+                            outright when it finishes within a week, kept up to six months unless a
+                            1/2/3-sale fresh start is strictly faster. fresh: never continues.
+                            Continuing is never a candidate past six months.
+  --force-continue          The old name for --first-ascension continue.
+  --no-force-continue       The old name for --first-ascension auto.
 
 OUTPUT
   --jobs N                  Worker threads (site searches; default cores-1) or processes (this
@@ -628,7 +633,8 @@ DIAGNOSTICS  (for working on the search itself; --direct, --stages or --grid)
                             a week (refused by default, as on the site).
   --leg-variants / --leg1-variants
                             Print every candidate for each leg / the first leg as JSON lines. Use
-                            --no-force-continue, or continue is the only first-leg candidate.
+                            --first-ascension auto (the default); under continue, a continue that
+                            finishes within a week is the only first-leg candidate.
   --override-ascension N --override-days D --override-hours H
                             Force one leg's length instead of simulating it.
   --reactive-backup         Hand the backup to Pinia reactively (much slower).
@@ -781,10 +787,12 @@ if (!Number.isFinite(PIN_SECONDS) || PIN_SECONDS < 0) throw new Error('--continu
 const MAX_CONTINUE_SECONDS = arg('continue-max-days') !== undefined ? Number(arg('continue-max-days')) * 86400 : CONTINUE_MAX_SECONDS;
 if (!Number.isFinite(MAX_CONTINUE_SECONDS) || MAX_CONTINUE_SECONDS < 0) throw new Error('--continue-max-days must be a number of days');
 
-/** Leg 1 continues the ascension in progress (the continue rule above). ON by default, as on the
- *  site (chainSearch.ts `forceContinue`); `--no-force-continue` turns it off. `--force-continue` is
- *  still accepted, and is now what happens anyway. */
-const FORCE_CONTINUE = !has('no-force-continue');
+/** What leg 1 does with the ascension in progress (search/firstAscension.ts), as on the site:
+ *  `--first-ascension auto|continue|fresh`, default auto; the old `--force-continue` is continue and
+ *  `--no-force-continue` is auto. Classic's one-hour rule (no continue for a plan starting over an
+ *  hour from now) is NOT applied here: the same command must give the same answer whenever it runs. */
+const FIRST_ASCENSION: FirstAscension = firstAscensionFromFlags(arg('first-ascension'), has);
+const FORCE_CONTINUE = FIRST_ASCENSION === 'continue';
 
 /** Set once in main() from --time-off; read by planInputs and the CSV header. */
 let TIME_OFF_DATES: TimeOffDates[] = [];
@@ -811,7 +819,7 @@ function runLeg(
   ctx.ascensionStartTime = startTime;
   ctx.planStartOffset = 0;
 
-  // --force-continue: A1 is the ascension you are already part-way through, so
+  // --first-ascension continue: A1 is the ascension you are already part-way through, so
   // "prestige now" means throwing that progress away. The planner will sometimes
   // pick it anyway when the maths narrowly favours it; this pins A1 to Continue
   // Current Ascension instead.
@@ -830,7 +838,10 @@ function runLeg(
     nextState: deriveNextStartState(v.summary, createBaseEngineState(null)),
     shiftTimes: shiftInstants(v.actions, startTime),
   });
-  let cont: any = allowContinue ? buildContinueVariant(baseState, startTime, goalTE as number, idx, endOverride) : null;
+  let cont: any =
+    allowContinue && FIRST_ASCENSION !== 'fresh'
+      ? buildContinueVariant(baseState, startTime, goalTE as number, idx, endOverride)
+      : null;
   if (cont && !(cont.summary.totalDurationSeconds <= MAX_CONTINUE_SECONDS)) cont = null;
   if (allowContinue && FORCE_CONTINUE) {
     if (cont && !byDeadline && cont.summary.totalDurationSeconds <= PIN_SECONDS) return asLeg(cont, 'continue' as VariantKey);
@@ -1078,7 +1089,7 @@ function planInputs(o: {
     planStart: o.planStart,
     currentTE: o.currentTE,
     final: o.final,
-    forceContinue: FORCE_CONTINUE,
+    firstAscension: FIRST_ASCENSION,
     continuePinSeconds: PIN_SECONDS,
     continueMaxSeconds: MAX_CONTINUE_SECONDS,
     availability: o.availability,
@@ -1508,7 +1519,7 @@ function writeCsv(
       currentTE: o.currentTE,
       final: o.final,
       effort: o.effort,
-      forceContinue: FORCE_CONTINUE,
+      firstAscension: FIRST_ASCENSION,
     continuePinSeconds: PIN_SECONDS,
     continueMaxSeconds: MAX_CONTINUE_SECONDS,
       availability: o.availability,
@@ -1758,7 +1769,8 @@ function fullSweeps(o: { currentTE: number; final: number }): FullSweep[] {
   const bands = text ? parseBands(text) : [];
   if (!bands.length) throw new Error('--bands: nothing readable, e.g. "185-200:5; 215-245:10"');
   // What the band checker would say in the site's box: said, never acted on.
-  for (const line of bandCheckLines(text, { currentTE: o.currentTE, finalTE: o.final })) console.log(line);
+  for (const line of bandCheckLines(text, { currentTE: o.currentTE, finalTE: o.final, firstAscension: FIRST_ASCENSION }))
+    console.log(line);
   const tag = arg('tag') ?? null;
   // The site's own rule for a sweep tag (search/sweepRequest.ts): it is shown on the board.
   if (tag !== null && !/^[A-Za-z0-9-]{1,16}$/.test(tag)) throw new Error('--tag: up to 16 letters, digits or dashes');
@@ -1795,7 +1807,7 @@ function dateChains(o: { currentTE: number }): {
     // The same check the panel's box gets: said, never acted on.
     chainTexts.forEach((text, k) => {
       if (chains[k].asc > 1) {
-        for (const line of bandCheckLines(text, { currentTE: o.currentTE, finalTE: 490 }, '--chain')) {
+        for (const line of bandCheckLines(text, { currentTE: o.currentTE, finalTE: 490, firstAscension: FIRST_ASCENSION }, '--chain')) {
           console.log(`  chain ${k + 1}: ${line.trim()}`);
         }
       }
@@ -1875,7 +1887,7 @@ function siteOptions(o: {
     deferShifts: o.deferShifts,
     milestones: o.milestones,
     timeOff: TIME_OFF_DATES,
-    forceContinue: FORCE_CONTINUE,
+    firstAscension: FIRST_ASCENSION,
     effort: effortTier(),
     seed,
     findSeed: has('find-seed'),

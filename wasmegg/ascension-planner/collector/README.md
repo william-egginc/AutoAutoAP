@@ -290,8 +290,9 @@ metadata and never printed one. The Worker still sweeps `EI\d{16}` out of every 
 writing, for the case where someone posts a hand-made payload.
 
 Stored: chain, ascension count, duration, local start/end, timezone, TE range, effort tier,
-schedule window, whether shifts were held, whether leg 1 finished the current run first
-(`forceContinue`), waiting hours, per-leg strategy and peak delivery, chains priced, the seed chain
+schedule window, whether shifts were held, what leg 1 did with the ascension in progress
+(`firstAscension`: `auto`, `continue` or `fresh`, plus the older boolean `forceContinue`, true
+exactly when it is `continue`), waiting hours, per-leg strategy and peak delivery, chains priced, the seed chain
 the search descended from, an optional 40-character nickname, and the inventory as described next.
 
 Schema 6 adds the variables the Insights view (the Chain Explorer) compares accounts on, each a single bounded number
@@ -337,7 +338,9 @@ dropped). Both have `EI` followed by sixteen digits swept out.
 
 Schema history: 2 narrowed the inventory, 3 added run cost and progression summaries, 4 added
 `space`, 5 added `proof` and `seed`, 6 added the comparison variables above; `forceContinue` is an
-optional field on 6; 7 added the fields just listed; 8 added the By a date fields. The Worker accepts 2–8 and stores the schema as
+optional field on 6; `firstAscension` (9 Oct 2026) is an optional field on any schema, kept only
+when it is one of `auto`, `continue`, `fresh` (a row without it reads as `continue` when
+`forceContinue` is true and `auto` when it is false); 7 added the fields just listed; 8 added the By a date fields. The Worker accepts 2–8 and stores the schema as
 sent, because the app and the Worker deploy separately and insisting on an exact match guarantees a
 window where every submission is refused.
 
@@ -399,8 +402,9 @@ not "who is best". The page says so under the table.
 auto-send and then a press of Send; five sends in four minutes; a run sent anonymously and then
 again with a name. A result's *fingerprint* is everything that decides its finish and nothing about
 who sent it or how it was found: target, chain, the plan's start to the minute, the duration to
-1e-4 day, timezone, artifacts, starting TE, schedule, held shifts, `forceContinue`, time off. It is
-the same string as `contentFingerprint` in `src/lib/leaderboardRank.ts`. Between rows from the
+1e-4 day, timezone, artifacts, starting TE, schedule, held shifts, the first-ascension setting
+(the `forceContinue` boolean as before, or `'fresh'` for `firstAscension: 'fresh'`, so rows stored
+before keep their digests), time off. It is the same string as `contentFingerprint` in `src/lib/leaderboardRank.ts`. Between rows from the
 **same sender** — the same owner code, or no code on either side and the same nickname — `/submit`
 decides:
 

@@ -21,6 +21,7 @@
  * Pure: the store fetches the rows and prices the chains.
  */
 import { buildMyPlans, remainingChain, samePlanSettings, type BoardRow, type Plan } from '@/lib/leaderboardRank';
+import type { FirstAscension } from './firstAscension';
 import { isRecheckChain, MAX_RECHECKS } from './submission';
 
 /** The run doing the re-checking: where it starts, what it found, and the settings it priced under. */
@@ -31,7 +32,8 @@ export interface RecheckRun {
   winner: readonly number[];
   window: string | null;
   holdShifts: boolean;
-  forceContinue?: boolean;
+  /** A1's setting (search/firstAscension.ts); unset matches a row of any. */
+  firstAscension?: FirstAscension;
   timeOff?: { from: string; to: string }[];
 }
 
@@ -54,7 +56,7 @@ export function recheckChains(plans: readonly Plan[], run: RecheckRun, max = MAX
     finalTE: run.finalTE,
     window: run.window,
     holdShifts: run.holdShifts,
-    forceContinue: run.forceContinue,
+    firstAscension: run.firstAscension,
     timeOff: run.timeOff,
   };
   const seen = new Set([run.winner.join(',')]);

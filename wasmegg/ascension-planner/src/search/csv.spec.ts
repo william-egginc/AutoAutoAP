@@ -30,7 +30,7 @@ const META = {
   currentTE: 176,
   final: 490,
   effort: 'balanced',
-  forceContinue: true,
+  firstAscension: 'continue' as const,
   availability: null,
   seedChain: [195, 490],
   loadouts: [{ label: 'equipped in the backup', loadout: null }],
@@ -347,7 +347,7 @@ describe('buildDeadlineCsv', () => {
     expect(csv).toContain('# highest TE by ');
     expect(csv).toContain('# 1234 routes priced');
     expect(csv).toContain('# plan start 2026-09-04 21:30');
-    expect(csv).toContain('# effort balanced; force-continue on');
+    expect(csv).toContain('# effort balanced; force-continue on; first-ascension continue');
   });
 
   it('writes one row per leg with the route cells repeated', () => {

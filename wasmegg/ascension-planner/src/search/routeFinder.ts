@@ -37,6 +37,7 @@ import {
 } from './precomputedLeg';
 import { getNextSaleEnd, isResearchSaleActive } from '@/lib/events';
 import { isAvailable, type Availability } from './availability';
+import type { FirstAscension } from './firstAscension';
 
 /** The table as the finder reads it: the builds for a start TE at a Pacific hour of the week. */
 export type BuildLookup = (te: number, hour: number) => BuildParams[] | null;
@@ -580,7 +581,8 @@ export interface FirstLegOptions {
   delivered: number[];
   /** Continue current ascension through the tail (search/leg.ts `continueTailParams`), or null. */
   cont: BuildParams | null;
-  forceContinue: boolean;
+  /** search/firstAscension.ts: 'continue' pins continue, 'auto' lets it compete, 'fresh' drops it. */
+  firstAscension: FirstAscension;
   /** The continue rule's two lines (search/rules.ts): taken outright under the first, never past the second. */
   pinSeconds: number;
   maxContinueSeconds: number;
@@ -604,7 +606,9 @@ export function firstLegOptions(o: FirstLegOptions): FirstLeg[] {
   const late = freshAt !== o.start ? startInSale(o.table, row, o.start) : null;
   const lateFresh = late ? scaled(late.builds, o.deliveryScale ?? 1).map(b => rebase(b, row, o.delivered)) : [];
   const lateSweeps = lateFresh.map(b => sweepTails(b, o.final, late!.lateBy, Math.floor(o.startTE) + 1));
-  const contSweep = o.cont ? sweepTails(o.cont, o.final, 0, Math.floor(o.startTE) + 1) : null;
+  const forced = o.firstAscension === 'continue';
+  const contSweep =
+    o.cont && o.firstAscension !== 'fresh' ? sweepTails(o.cont, o.final, 0, Math.floor(o.startTE) + 1) : null;
   const out: FirstLeg[] = [];
   for (let target = Math.floor(o.startTE) + 1; target <= o.final; target++) {
     const fp = fastest(freshSweeps, fresh, target);
@@ -638,11 +642,11 @@ export function firstLegOptions(o: FirstLegOptions): FirstLeg[] {
         : null;
     if (c && !(c.seconds <= o.maxContinueSeconds)) c = null;
     let pick: { seconds: number; endTE: number; delivered: number[]; label: string } | null = null;
-    if (c && o.forceContinue && c.seconds <= o.pinSeconds) pick = { ...c, label: 'continue' };
+    if (c && forced && c.seconds <= o.pinSeconds) pick = { ...c, label: 'continue' };
     else if (c && f) {
-      // Forced: continue holds unless a fresh start is strictly faster. Not forced: the faster, ties
-      // to the fresh start (pickVariant meets the fresh variants first).
-      const contWins = o.forceContinue ? c.seconds <= f.seconds : c.seconds < f.seconds;
+      // Continue Asc.: continue holds unless a fresh start is strictly faster. Fastest: the faster,
+      // ties to the fresh start (pickVariant meets the fresh variants first).
+      const contWins = forced ? c.seconds <= f.seconds : c.seconds < f.seconds;
       pick = contWins ? { ...c, label: 'continue' } : { ...f, label: `${f.build.sales}-sale` };
     } else if (c) pick = { ...c, label: 'continue' };
     else if (f) pick = { ...f, label: `${f.build.sales}-sale` };

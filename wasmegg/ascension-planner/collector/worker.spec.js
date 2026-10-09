@@ -137,6 +137,7 @@ const FULL = {
   window: '08:00-23:00 daily',
   holdShifts: true,
   forceContinue: true,
+  firstAscension: 'continue',
   waitingHours: 412.5,
   artifacts: ['T4L Quantum metronome', 'T4L Lunar totem'],
   stones: [{ label: 'T4 Tachyon stone', count: 40 }],
@@ -155,6 +156,19 @@ describe('ingest is a whitelist, not a scrub', () => {
     const [, record] = stored()[0];
     expect(record).not.toHaveProperty('evilPayload');
     expect(record).not.toHaveProperty('comment');
+  });
+
+  it('keeps the first ascension only as one of its three words', async () => {
+    for (const first of ['auto', 'continue', 'fresh']) {
+      env = { SUBMISSIONS: makeKV(), CSV_UPLOAD_KEY: 'test-key' };
+      expect((await post('/submit', { ...MINIMAL, firstAscension: first })).status).toBe(200);
+      expect(stored()[0][1].firstAscension).toBe(first);
+    }
+    for (const junk of ['later', 'CONTINUE', 5, { a: 1 }, true]) {
+      env = { SUBMISSIONS: makeKV(), CSV_UPLOAD_KEY: 'test-key' };
+      expect((await post('/submit', { ...MINIMAL, firstAscension: junk })).status).toBe(200);
+      expect(stored()[0][1]).not.toHaveProperty('firstAscension');
+    }
   });
 
   it('keeps a run note as plain text, swept for player ids and control characters', async () => {
@@ -368,6 +382,25 @@ describe('the board keeps different experiments, and folds copies of one result'
     expect(board.rows[0].copies).toBe(2);
     // /all still has both, the second pointing at the first.
     expect((await (await get('/all')).json()).rows).toHaveLength(2);
+  });
+
+  // The first ascension's three settings (9 Oct 2026). Fastest and Continue Asc. fingerprint as the
+  // old boolean did, so a row stored before still folds with its copy sent now.
+  it('keeps Prestige Now apart from Fastest, the same result otherwise', async () => {
+    await run({ effort: 'balanced', durationDays: 700, forceContinue: false, firstAscension: 'auto' }, '1.1.1.1');
+    await run({ effort: 'thorough', durationDays: 700, forceContinue: false, firstAscension: 'fresh' }, '1.1.1.1');
+    const board = await (await get('/leaderboard?final=490')).json();
+    expect(board.rows.map(r => r.firstAscension).sort()).toEqual(['auto', 'fresh']);
+  });
+
+  it('folds a row that has only the old boolean with its copy that names the setting', async () => {
+    await run({ effort: 'balanced', durationDays: 700, forceContinue: true }, '1.1.1.1');
+    await run({ effort: 'thorough', durationDays: 700, forceContinue: true, firstAscension: 'continue' }, '1.1.1.1');
+    await run({ effort: 'balanced', durationDays: 710, forceContinue: false }, '1.1.1.1');
+    await run({ effort: 'thorough', durationDays: 710, forceContinue: false, firstAscension: 'auto' }, '1.1.1.1');
+    const board = await (await get('/leaderboard?final=490')).json();
+    expect(board.rows).toHaveLength(2);
+    expect(board.rows.map(r => r.copies)).toEqual([2, 2]);
   });
 
   it('still keeps two anonymous runs that differ in content', async () => {

@@ -224,7 +224,9 @@ export function useAscensionGenerator() {
     });
   });
 
-  const generate = async (onComplete?: () => void) => {
+  /** `opts.dirtyFrom`: rebuild from this ascension on even if nothing the generator compares changed
+   *  (the chain search's First ascension setting moved A1's pick, which may have been a clear). */
+  const generate = async (onComplete?: () => void, opts: { dirtyFrom?: number } = {}) => {
     if (isGenerating.value) return;
     isGenerating.value = true;
     simulationError.value = null;
@@ -301,10 +303,13 @@ export function useAscensionGenerator() {
 
       const firstDiffIdx = initialParamsDirty
         ? 0
-        : computeFirstDiffIdx(effectiveTargets, ascensionChain.value, autoPlannerStore.planVariantOverrides, {
-            ...endTimes(),
-            ...(timeOffCuts()?.starts ?? {}),
-          });
+        : Math.min(
+            computeFirstDiffIdx(effectiveTargets, ascensionChain.value, autoPlannerStore.planVariantOverrides, {
+              ...endTimes(),
+              ...(timeOffCuts()?.starts ?? {}),
+            }),
+            opts.dirtyFrom ?? Infinity
+          );
 
       let currentBaseState: any;
       let currentStartTime: number;
@@ -760,8 +765,10 @@ export function useAscensionGenerator() {
   // thing as a plain target; see git history around 2026-08-17 for the bug that came from it),
   // and always a full fresh start: clearing both override maps first means every ascension's target
   // is read straight from the Target TE field with nothing left over to reinterpret it.
-  const regeneratePlan = (onComplete?: () => void) => {
-    autoPlannerStore.planVariantOverrides = {};
+  // `keep`: picks to start from instead of none -- the chain search's First ascension setting, so
+  // Generate does not quietly drop Continue current ascension (or the build an applied answer took).
+  const regeneratePlan = (onComplete?: () => void, keep: Record<number, VariantKey> = {}) => {
+    autoPlannerStore.planVariantOverrides = { ...keep };
     autoPlannerStore.endTimeOverrides = {};
     generate(onComplete);
   };

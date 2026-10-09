@@ -39,6 +39,9 @@
         >Plan starts <span class="font-bold text-slate-900">{{ startLabel }}</span></span
       >
       <span class="text-[12px] text-slate-600"
+        >First ascension <span class="font-bold text-slate-900">{{ firstLabel }}</span></span
+      >
+      <span class="text-[12px] text-slate-600"
         >Awake <span class="font-bold text-slate-900">{{ awakeLabel }}</span></span
       >
       <span class="text-[12px] text-slate-600"
@@ -153,6 +156,31 @@
             No start set, so the plan is timed from right now, and that moves every time you reload. Set a date and time
             before a long run.
           </p>
+          <!-- First ascension: what happens to the ascension you're on. Your plan's A1 dropdown is the same setting
+               ("Continue Asc." / a build for "Prestige Now"), so each changes the other. -->
+          <div class="border-t border-slate-100 pt-3 space-y-2" role="radiogroup" aria-label="First ascension">
+            <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">First ascension</h3>
+            <label
+              v-for="c in FIRST_ASCENSION_CHOICES"
+              :key="c.value"
+              class="flex items-start gap-2 rounded-lg border p-2.5 cursor-pointer"
+              :class="firstChoice === c.value ? 'border-indigo-400 bg-indigo-50/60' : 'border-slate-200'"
+            >
+              <input v-model="firstChoice" type="radio" :value="c.value" class="mt-0.5 text-indigo-600" />
+              <span class="text-[11px] text-slate-600 leading-relaxed">
+                <span class="block font-bold text-slate-800">{{ c.label }}</span>
+                {{ c.blurb }}
+              </span>
+            </label>
+            <p v-if="store.firstAscensionFromClassic" class="text-[11px] text-slate-500 leading-relaxed">
+              Set from A1's dropdown in Your plan ({{ FIRST_ASCENSION_WORDS[store.firstAscensionFromClassic] }}).
+              Choosing here changes it there too.
+            </p>
+            <p v-if="startTooFar" class="text-[11px] font-semibold text-amber-700 leading-relaxed">
+              The plan starts more than an hour from now, so there's no current ascension to continue then: the first
+              ascension starts fresh, as in Your plan.
+            </p>
+          </div>
         </fieldset>
 
         <!-- When you can play -->
@@ -415,6 +443,7 @@ import { NAMES, type AutoView, fastestName } from '@/lib/siteNav';
 import { showDateTime, showHour, showSchedule as scheduleText } from '@/lib/displayTime';
 import { usableTimeOff } from '@/search/timeOff';
 import { useInstantDuringSearch } from '@/composables/useInstantDuringSearch';
+import { FIRST_ASCENSION_CHOICES, FIRST_ASCENSION_WORDS, type FirstAscension } from '@/search/firstAscension';
 import SchedulingInputs from './SchedulingInputs.vue';
 import TimeOffEditor from './TimeOffEditor.vue';
 import WorkerSlider from './WorkerSlider.vue';
@@ -457,6 +486,19 @@ const awakeLabel = computed(() =>
   store.scheduleEnabled && !store.scheduleIsEmpty ? scheduleText(store.availability) : 'any hour'
 );
 const timeOffCount = computed(() => usableTimeOff(store.timeOff).length);
+
+/** Your setup's First ascension, which also sets A1's pick in Your plan (store `setFirstAscension`). */
+const firstChoice = computed<FirstAscension>({
+  get: () => store.firstAscension,
+  set: v => store.setFirstAscension(v, { rebuildClassic: true }),
+});
+const firstLabel = computed(
+  () => FIRST_ASCENSION_CHOICES.find(c => c.value === store.firstAscension)?.label.replace(' (default)', '') ?? ''
+);
+/** Classic offers continue only for a plan starting within an hour of now; the search follows it. */
+const startTooFar = computed(
+  () => store.firstAscension !== 'fresh' && store.firstAscensionFor(store.planStart) === 'fresh'
+);
 
 const saveAgeLabel = computed(() => {
   const at = initialState.rawBackup?.approxTime;

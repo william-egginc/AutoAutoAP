@@ -35,7 +35,7 @@ const run = (over: Partial<RecheckRun> = {}): RecheckRun => ({
   winner: [225, 255, 290, 328, 490],
   window: WINDOW,
   holdShifts: true,
-  forceContinue: true,
+  firstAscension: 'continue',
   ...over,
 });
 

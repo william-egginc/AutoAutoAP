@@ -41,11 +41,8 @@
           <p class="text-[11px] text-slate-500">
             {{ bandsInWords
             }}<template v-if="request.minGap > 0"> · targets at least {{ request.minGap }} TE apart</template
-            ><template v-if="request.forceContinue !== null">
-              ·
-              {{
-                request.forceContinue ? 'finishing your current ascension first' : 'ascending straight away'
-              }}</template
+            ><template v-if="request.firstAscension !== null">
+              · {{ describeFirstAscension(request.firstAscension) }}</template
             >
           </p>
         </div>
@@ -363,6 +360,7 @@ import { sweepSeconds, workerSecondsFromRate, workerSecondsPerChain } from '@/se
 import { describeTimeOff, usableTimeOff } from '@/search/timeOff';
 import { sendRunResult } from '@/search/sendRun';
 import type { SweepRequest } from '@/search/sweepRequest';
+import { describeFirstAscension } from '@/search/firstAscension';
 import IntegrityNotice from '@/components/auto/IntegrityNotice.vue';
 
 const props = defineProps<{
@@ -376,7 +374,7 @@ const emit = defineEmits<{ 'show-result': [] }>();
 
 /** One sweep: the force-continue pair shares a preset and differs only in how the plan starts. */
 function sameSweep(a: SweepRequest, b: SweepRequest): boolean {
-  return a.preset === b.preset && a.bands === b.bands && a.minGap === b.minGap && a.forceContinue === b.forceContinue;
+  return a.preset === b.preset && a.bands === b.bands && a.minGap === b.minGap && a.firstAscension === b.firstAscension;
 }
 
 const store = useChainSearchStore();
@@ -526,9 +524,9 @@ async function start(): Promise<void> {
   // their own isn't counted toward this preset. The start choice is read again when the result is
   // sent, so it waits until then.
   const tagBefore = store.sweepTag;
-  const forceBefore = store.forceContinue;
+  const firstBefore = store.firstAscensionState();
   store.sweepTag = { preset: request.preset, bands: bandsText.value, minGap: request.minGap };
-  if (request.forceContinue !== null) store.forceContinue = request.forceContinue;
+  if (request.firstAscension !== null) store.setFirstAscension(request.firstAscension);
   store.submitsWhenDone = true;
 
   const startedAt = Date.now();
@@ -575,7 +573,7 @@ async function start(): Promise<void> {
       text: store.error ? `The run stopped: ${store.error}` : 'Nothing was priced, so there was nothing to send.',
     };
   }
-  store.forceContinue = forceBefore;
+  store.restoreFirstAscension(firstBefore);
   if (ui.scienceRun) {
     ui.scienceRun.report = report;
     ui.scienceRun.phase = 'done';

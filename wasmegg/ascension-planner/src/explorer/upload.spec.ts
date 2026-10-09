@@ -62,6 +62,15 @@ describe('readUploadCsv', () => {
     ]);
   });
 
+  it('reads the first ascension: the old force-continue line, or the word written after it', () => {
+    expect(readUploadCsv(CSV).firstAscension).toBe('continue');
+    const off = CSV.replace('force-continue on', 'force-continue off');
+    expect(readUploadCsv(off).firstAscension).toBe('auto');
+    const fresh = CSV.replace('force-continue on', 'force-continue off; first-ascension fresh');
+    expect(readUploadCsv(fresh).firstAscension).toBe('fresh');
+    expect(readUploadCsv(fresh).effort).toBe('thorough');
+  });
+
   it('refuses a file that is not a chain CSV', () => {
     expect(() => readUploadCsv('a,b,c\n1,2,3\n')).toThrow(/not a chain-search CSV/);
   });

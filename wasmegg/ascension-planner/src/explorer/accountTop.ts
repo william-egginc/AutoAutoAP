@@ -37,12 +37,21 @@
  * happened, and a replaced run's plans were measured again by the run that replaced it.
  */
 import type { PricedChain } from '@/search/types';
-import { DAY_MS, remainingChain, samePlanSettings, scheduleText, stateTag, type BoardRow } from '@/lib/leaderboardRank';
+import {
+  DAY_MS,
+  remainingChain,
+  rowFirstAscension,
+  samePlanSettings,
+  scheduleText,
+  stateTag,
+  type BoardRow,
+} from '@/lib/leaderboardRank';
+import { FIRST_ASCENSION_WORDS } from '@/search/firstAscension';
 import type { CollectorRow } from './collector';
 import { accountKey, timeOffKey, type FinishJudgement } from './analysis';
 
 /** The settings every plan in one table was priced under: the run's own. */
-export type PlanSettings = Pick<BoardRow, 'window' | 'holdShifts' | 'forceContinue' | 'timeOff'>;
+export type PlanSettings = Pick<BoardRow, 'window' | 'holdShifts' | 'forceContinue' | 'firstAscension' | 'timeOff'>;
 
 /** One stored table, read and ready to merge. */
 export interface AccountTable {
@@ -131,7 +140,9 @@ interface Slot {
 }
 
 const baseKey = (s: PlanSettings) => JSON.stringify([s.window || '', !!s.holdShifts, timeOffKey(s)]);
-const firstKey = (s: PlanSettings) => (s.forceContinue == null ? '?' : s.forceContinue ? 'fc' : 'now');
+// The boolean's old keys for Continue Asc. and Fastest ('fc', 'now'), so the order rows sort in holds.
+const FIRST_KEYS: Record<string, string> = { continue: 'fc', auto: 'now', fresh: 'fresh' };
+const firstKey = (s: PlanSettings) => FIRST_KEYS[rowFirstAscension(s) ?? ''] ?? '?';
 const slotKey = (s: PlanSettings, route: readonly number[]) => `${baseKey(s)}|${firstKey(s)}|${route.join(' ')}`;
 
 /** The Leaderboard's test for "the same plan's settings", at one target (the page's). */
@@ -153,8 +164,8 @@ function replacesBefore(o: Slot, b: Slot, m: Slot): boolean {
 /** The words the runs table uses (`settingTags`, `runTags`, `scheduleText`), for one setting. */
 function settingWords(s: PlanSettings, differs: { first: boolean; held: boolean; window: boolean; off: boolean }) {
   const tags: string[] = [];
-  if (differs.first && s.forceContinue != null)
-    tags.push(s.forceContinue ? 'finishes current run first' : 'prestiges now');
+  const first = rowFirstAscension(s);
+  if (differs.first && first) tags.push(FIRST_ASCENSION_WORDS[first]);
   if (differs.held) tags.push(s.holdShifts ? 'shifts held' : 'shifts not held');
   if (differs.window) tags.push(scheduleText(s.window));
   if (differs.off) tags.push(s.timeOff?.length ? 'time off' : 'no time off');
@@ -268,7 +279,7 @@ export function createPlanMerger() {
       if (group.length < 2) return [];
       const differ = (f: (s: PlanSettings) => unknown) => new Set(group.map(f)).size > 1;
       return settingWords(s, {
-        first: new Set(group.map(g => g.forceContinue).filter(v => v != null)).size > 1,
+        first: new Set(group.map(g => rowFirstAscension(g)).filter(v => v != null)).size > 1,
         held: differ(g => !!g.holdShifts),
         window: differ(g => g.window || ''),
         off: differ(g => timeOffKey(g)),

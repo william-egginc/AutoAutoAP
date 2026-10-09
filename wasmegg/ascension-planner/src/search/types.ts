@@ -19,6 +19,7 @@ import type { CurrentFarmState, VirtueEgg } from '@/types';
 import type { VariantKey } from '@/stores/autoPlanner';
 import type { Availability } from './availability';
 import type { Milestone } from './milestones';
+import type { FirstAscension } from './firstAscension';
 
 /**
  * Everything one leg simulation needs, resolved off the stores.
@@ -46,10 +47,15 @@ export interface SearchInputs {
   currentTE: number;
   /** Final target TE, the last entry of every chain. */
   final: number;
-  /** Mirrors fastsearch's `--force-continue`: pin A1 to "continue current ascension" rather than
-   *  letting the variant search decide. Also the cheapest speedup available — it skips the whole
-   *  `runC3Variants` fan-out for A1 (up to six full C3 simulations). */
-  forceContinue: boolean;
+  /** What A1 does with the ascension in progress (search/firstAscension.ts): 'auto' takes the faster
+   *  of continuing and a fresh start, 'continue' pins continue (and skips A1's whole `runC3Variants`
+   *  fan-out when it finishes within a week), 'fresh' never continues. Already the setting the run
+   *  prices under: the app resolves Classic's one-hour rule before it gets here. Read it with
+   *  `readFirstAscension` (firstAscension.ts), never directly: inputs stored before it existed carry only `forceContinue`. */
+  firstAscension?: FirstAscension;
+  /** @deprecated The boolean `firstAscension` replaced (true = 'continue', false = 'auto'). Only on
+   *  inputs stored before 9 Oct 2026 (checkpoints, run saves), which carry on as they were priced. */
+  forceContinue?: boolean;
   /** How long a pinned continue may take before leg 1 compares it with the fresh starts instead.
    *  Unset means `CONTINUE_PIN_MAX_SECONDS` (search/leg.ts). Set only by the CLI's
    *  `--continue-pin-days`, to measure one rule against another. */

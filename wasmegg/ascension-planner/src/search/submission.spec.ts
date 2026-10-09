@@ -132,6 +132,21 @@ describe('buildSubmission', () => {
     expect(buildSubmission(inputs({ forceContinue: true })).forceContinue).toBe(true);
     expect(buildSubmission(inputs({ forceContinue: false })).forceContinue).toBe(false);
     expect('forceContinue' in buildSubmission(inputs())).toBe(false);
+    expect('firstAscension' in buildSubmission(inputs({ forceContinue: true }))).toBe(false);
+  });
+
+  it('sends the first ascension as its word, with the old boolean beside it for old readers', () => {
+    for (const [first, fc] of [
+      ['auto', false],
+      ['continue', true],
+      ['fresh', false],
+    ] as const) {
+      const s = buildSubmission(inputs({ firstAscension: first }));
+      expect(s.firstAscension).toBe(first);
+      expect(s.forceContinue).toBe(fc);
+      expect(validateSubmission(s)).toEqual([]);
+    }
+    expect('firstAscension' in buildSubmission(inputs())).toBe(false);
   });
 
   it('carries the schema-6 variables when given them, and leaves each off when not', () => {

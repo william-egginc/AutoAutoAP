@@ -4,25 +4,30 @@
  * One module for both ends, so the link the Explorer writes and the link Insane mode reads cannot
  * drift apart:
  *
- *   ./?insane=1&sweep=M2&label=M2,+3+ascensions&bands=181-280:2;+270-372:2&gap=10[&fc=1|0]
+ *   ./?insane=1&sweep=M2&label=M2,+3+ascensions&bands=181-280:2;+270-372:2&gap=10[&fc=1|0][&first=fresh]
+ *
+ * The first ascension (search/firstAscension.ts): `fc=1` is Continue Asc. and `fc=0` Fastest, as
+ * links have said since before the setting had three values; `first=` names any of the three, and
+ * is how Prestige Now is written. Neither leaves the player's own setting alone.
  *
  * NO PLAYER ID IN IT, deliberately. The Explorer never sees one; the player enters it in the planner,
  * which already knows how to remember it. A link someone shares therefore hands over a sweep, never
  * an account.
  */
 import { parseBands } from './exhaustive';
+import { isFirstAscension, readFirstAscensionOrNull, type FirstAscension } from './firstAscension';
 
 export interface SweepRequest {
   preset: string;
   label: string;
   bands: string;
   minGap: number;
-  /** true = finish the current run first, false = prestige straight away, null = leave the default. */
-  forceContinue: boolean | null;
+  /** What the first ascension does (search/firstAscension.ts), or null to leave the player's own. */
+  firstAscension: FirstAscension | null;
 }
 
 /** The sweep link's own parameters, which `parseSweepRequest` reads. */
-const SWEEP_PARAMS = ['sweep', 'label', 'bands', 'gap', 'fc'];
+const SWEEP_PARAMS = ['sweep', 'label', 'bands', 'gap', 'fc', 'first'];
 
 /**
  * `href` without the sweep link's parameters (everything else kept). Used once the sweep has
@@ -36,7 +41,13 @@ export function withoutSweepParams(href: string): string {
 }
 
 /** The query string (with a leading `?`) that opens the Full sweep on this sweep. */
-export function sweepRequestQuery(r: Omit<SweepRequest, 'forceContinue'> & { forceContinue?: boolean | null }): string {
+export function sweepRequestQuery(
+  r: Omit<SweepRequest, 'firstAscension'> & {
+    firstAscension?: FirstAscension | null;
+    /** @deprecated The old boolean: true is 'continue', false is 'auto'. */
+    forceContinue?: boolean | null;
+  }
+): string {
   const q = new URLSearchParams({
     insane: '1',
     sweep: r.preset,
@@ -44,8 +55,10 @@ export function sweepRequestQuery(r: Omit<SweepRequest, 'forceContinue'> & { for
     bands: r.bands,
     gap: String(r.minGap),
   });
-  if (r.forceContinue === true) q.set('fc', '1');
-  if (r.forceContinue === false) q.set('fc', '0');
+  const first = readFirstAscensionOrNull({ firstAscension: r.firstAscension, forceContinue: r.forceContinue });
+  if (first === 'continue') q.set('fc', '1');
+  else if (first === 'auto') q.set('fc', '0');
+  else if (first === 'fresh') q.set('first', 'fresh');
   return `?${q.toString()}`;
 }
 
@@ -62,11 +75,12 @@ export function parseSweepRequest(search: string): SweepRequest | null {
   if (!/^[A-Za-z0-9-]{1,16}$/.test(preset) || !parseBands(bands).length) return null;
   const gap = Number(params.get('gap') ?? 10);
   const fc = params.get('fc');
+  const first = params.get('first');
   return {
     preset,
     label: (params.get('label') ?? preset).slice(0, 80),
     bands,
     minGap: Number.isFinite(gap) ? Math.max(0, Math.floor(gap)) : 10,
-    forceContinue: fc === '1' ? true : fc === '0' ? false : null,
+    firstAscension: isFirstAscension(first) ? first : fc === '1' ? 'continue' : fc === '0' ? 'auto' : null,
   };
 }

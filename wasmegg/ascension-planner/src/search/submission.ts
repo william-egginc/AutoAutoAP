@@ -31,6 +31,7 @@ import type { Availability } from './availabilitySchedule';
 import { describeAvailability } from './availabilitySchedule';
 import type { LegSummary } from './types';
 import type { DeliveryScore } from './virtueScore';
+import { forceContinueOf, type FirstAscension } from './firstAscension';
 
 /** Bumped when the shape changes, so a collector can reject or migrate old submissions rather
  *  than mis-reading them. Receivers should refuse anything they do not recognise.
@@ -228,9 +229,18 @@ export interface Submission {
   /**
    * Whether leg 1 was pinned to finishing the current ascension rather than prestiging now. It
    * changes the answer, not just the display: measured on one account it moved the best 2-ascension
-   * plan by 135 days. Optional because submissions before this field did not record it.
+   * plan by 135 days. Optional because submissions before this field did not record it. Since
+   * `firstAscension` it is exactly `firstAscension === 'continue'`, still sent for readers that only
+   * know the boolean.
    */
   forceContinue?: boolean;
+  /**
+   * What leg 1 did with the ascension in progress (search/firstAscension.ts): 'auto' (the faster of
+   * continuing and a fresh start), 'continue' or 'fresh'. Added 9 Oct 2026 with no schema bump: it is
+   * optional, and a collector that does not know it drops it. A row without it reads as 'continue'
+   * when `forceContinue` is true and 'auto' when false.
+   */
+  firstAscension?: FirstAscension;
   /** By a date only: which mode found it (Simple tries the instant answer's routes, Advanced the player's boxes). */
   mode?: 'simple' | 'advanced';
   /** Total time the plan spends waiting for the player: prestiges held plus shifts held. */
@@ -704,6 +714,10 @@ export interface SubmissionInputs {
   effort: string;
   availability: Availability | null;
   holdShifts: boolean;
+  /** A1's setting; sent as both `firstAscension` and the old `forceContinue`. Left off by callers
+   *  that do not know it (the submission then carries neither). */
+  firstAscension?: FirstAscension;
+  /** @deprecated For callers that still have only the boolean: sent as `forceContinue` alone. */
   forceContinue?: boolean;
   mode?: 'simple' | 'advanced';
   artifacts: InventoryCount[];
@@ -868,7 +882,11 @@ export function buildSubmission(i: SubmissionInputs): Submission {
     effort: i.effort,
     window: i.availability ? describeAvailability(i.availability) : null,
     holdShifts: i.holdShifts,
-    ...(i.forceContinue === undefined ? {} : { forceContinue: i.forceContinue }),
+    ...(i.firstAscension !== undefined
+      ? { forceContinue: forceContinueOf(i.firstAscension), firstAscension: i.firstAscension }
+      : i.forceContinue === undefined
+        ? {}
+        : { forceContinue: i.forceContinue }),
     ...(i.mode ? { mode: i.mode } : {}),
     waitingHours: waiting === null ? null : Number(waiting.toFixed(2)),
     // Stones are kept wholesale -- they slot into every family above -- while artifacts are
