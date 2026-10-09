@@ -38,6 +38,10 @@ function makeKV() {
       if (opts && opts.metadata) meta.set(k, opts.metadata);
       else meta.delete(k);
     },
+    async delete(k) {
+      m.delete(k);
+      meta.delete(k);
+    },
     async list({ prefix, limit }) {
       const keys = [...m.keys()]
         .filter(k => k.startsWith(prefix))
@@ -1185,8 +1189,8 @@ describe('board reads come from a snapshot (KV free tier: 1,000 lists a day)', (
 
 /** Counts KV calls, the way the free tier bills them. */
 function countKV(kv) {
-  const counts = { list: 0, get: 0, put: 0 };
-  for (const op of ['list', 'get', 'put']) {
+  const counts = { list: 0, get: 0, put: 0, delete: 0 };
+  for (const op of ['list', 'get', 'put', 'delete']) {
     const orig = kv[op].bind(kv);
     kv[op] = async (...a) => {
       counts[op]++;
@@ -1817,11 +1821,11 @@ describe('a write patches the snapshot, so a list that lags cannot take a row of
     const counts = countKV(env.SUBMISSIONS);
     const { id, uploadToken } = await (await postOwned('/submit', SEND, TOKEN_A, '2.2.2.2')).json();
     // Gate read, copy check (the one list), snapshot read; row, snapshot and gate writes.
-    expect(counts).toEqual({ list: 1, get: 2, put: 3 });
+    expect(counts).toMatchObject({ list: 1, get: 2, put: 3, delete: 0 });
     const csv = countKV(env.SUBMISSIONS);
     await postCsvFor(id, uploadToken);
     // Write-once check, snapshot read; the table and the snapshot. No list at all.
-    expect(csv).toEqual({ list: 0, get: 2, put: 2 });
+    expect(csv).toMatchObject({ list: 0, get: 2, put: 2, delete: 0 });
   });
 
   it('marks a CSV that beat its row into the snapshot once the board settles', async () => {
@@ -2069,5 +2073,308 @@ describe('schema 8 on the read side', () => {
     expect(all.rows.map(r => r.finalTE).sort()).toEqual([307, 490]);
     const board = await (await get('/leaderboard')).json();
     expect(board.rows.map(r => r.finalTE)).toEqual([490]);
+  });
+});
+
+describe('provisional rows: a best so far, replaced by its run', () => {
+  /** A best so far from a long run: provisional, with how far it got. */
+  const BEST = {
+    ...SEND,
+    durationDays: 700,
+    chainsPriced: 1200,
+    provisional: true,
+    progress: { done: 1200, total: 4000 },
+  };
+  /** The same run's final answer, a little faster. */
+  const FINAL = { ...SEND, durationDays: 690, chainsPriced: 4000 };
+  const sendOwned = (body, token = TOKEN_A, ip = '1.1.1.1') => postOwned('/submit', body, token, ip);
+  const rowIds = () => stored().map(([k]) => k.split(':').pop());
+  const allRows = async () => (await (await get('/all')).json()).rows;
+
+  it('stores a provisional row with its progress, and hands it no CSV token', async () => {
+    const reply = await (await sendOwned(BEST)).json();
+    expect(reply.ok).toBe(true);
+    expect(reply.uploadToken).toBeUndefined();
+    const [row] = await allRows();
+    expect(row).toMatchObject({ id: reply.id, provisional: true, progress: { done: 1200, total: 4000 } });
+    // An ordinary send still gets its token.
+    expect((await (await sendOwned(FINAL)).json()).uploadToken).toMatch(/^[a-f0-9]{64}$/);
+  });
+
+  it('keeps the new fields strict: a boolean, an id, two whole numbers', async () => {
+    expect((await sendOwned({ ...BEST, provisional: 'yes' })).status).toBe(400);
+    expect((await sendOwned({ ...FINAL, replaces: 'not an id!' })).status).toBe(400);
+    expect((await sendOwned({ ...FINAL, replaces: 42 })).status).toBe(400);
+    for (const progress of [{ done: 5, total: 2 }, { done: 1.5, total: 4 }, { done: 1, total: 0 }, 'half', [1, 2]]) {
+      env = { SUBMISSIONS: makeKV(), CSV_UPLOAD_KEY: 'test-key' };
+      expect((await sendOwned({ ...BEST, progress })).status).toBe(200);
+      expect(stored()[0][1]).not.toHaveProperty('progress');
+    }
+    // `provisional: false` is an ordinary row, and progress never rides on one.
+    env = { SUBMISSIONS: makeKV(), CSV_UPLOAD_KEY: 'test-key' };
+    await sendOwned({ ...FINAL, provisional: false, progress: { done: 1, total: 2 } });
+    expect(stored()[0][1]).not.toHaveProperty('provisional');
+    expect(stored()[0][1]).not.toHaveProperty('progress');
+    // `replaces` is an instruction, never data: not on the row, not in the private extras.
+    env = { SUBMISSIONS: makeKV(), CSV_UPLOAD_KEY: 'test-key' };
+    await sendOwned({ ...FINAL, replaces: 'deadbeef' });
+    expect(stored()[0][1]).not.toHaveProperty('replaces');
+    expect([...env.SUBMISSIONS._m.keys()].some(k => k.startsWith('extra:'))).toBe(false);
+  });
+
+  it('replaces the row when the same sender sends the final with replaces', async () => {
+    const first = await (await sendOwned(BEST)).json();
+    const res = await sendOwned({ ...FINAL, replaces: first.id });
+    expect(res.status).toBe(200);
+    const reply = await res.json();
+    expect(reply).toMatchObject({ ok: true, replaced: first.id });
+    expect(reply.id).not.toBe(first.id);
+    expect(reply.uploadToken).toMatch(/^[a-f0-9]{64}$/);
+    // The old key is gone from KV and from the board; the final is there, as an ordinary row.
+    expect(rowIds()).toEqual([reply.id]);
+    const rows = await allRows();
+    expect(rows.map(r => r.id)).toEqual([reply.id]);
+    expect(rows[0]).not.toHaveProperty('provisional');
+    expect(rows[0]).not.toHaveProperty('dupOf');
+    // ...and from the private owner index, so /mine stops listing it.
+    expect(Object.keys(snapOf('sub').priv.own)).toEqual([reply.id]);
+    expect((await (await getOwned('/mine', TOKEN_A)).json()).rows.map(r => r.id)).toEqual([reply.id]);
+  });
+
+  it('lets a second best so far replace the first, and the final replace the second', async () => {
+    await secondsApart(async () => {
+      const one = await (await sendOwned(BEST)).json();
+      vi.setSystemTime(Date.now() + 26 * 60 * 1000);
+      const two = await (
+        await sendOwned({ ...BEST, durationDays: 695, progress: { done: 3000, total: 4000 }, replaces: one.id })
+      ).json();
+      expect(two.replaced).toBe(one.id);
+      expect(rowIds()).toEqual([two.id]);
+      // The final is never held back by the gap: a run can end a minute after its best so far.
+      vi.setSystemTime(Date.now() + 60 * 1000);
+      const done = await (await sendOwned({ ...FINAL, replaces: two.id })).json();
+      expect(done.replaced).toBe(two.id);
+      expect(rowIds()).toEqual([done.id]);
+    });
+  });
+
+  it('allows one best so far per sender every 25 minutes, and writes nothing for one too soon', async () => {
+    await secondsApart(async () => {
+      const one = await (await sendOwned(BEST)).json();
+      vi.setSystemTime(Date.now() + 10 * 60 * 1000);
+      await getOwned('/mine', TOKEN_A); // the settle the send asked for, done by any read
+      const counts = countKV(env.SUBMISSIONS);
+      // With replaces or without: the gap is the sender's, read from their rows' receivedAt.
+      for (const body of [
+        { ...BEST, durationDays: 695, replaces: one.id },
+        { ...BEST, durationDays: 695 },
+      ]) {
+        const res = await sendOwned(body);
+        expect(res.status).toBe(429);
+        const reply = await res.json();
+        expect(reply).toMatchObject({ tooSoon: true, retryAfter: 15 * 60 });
+        expect(reply.error).toMatch(/send again in 15 min/);
+      }
+      expect(counts).toMatchObject({ put: 0, delete: 0, list: 0 });
+      expect(rowIds()).toEqual([one.id]);
+      // Another sender is not held back by it.
+      expect((await sendOwned(BEST, TOKEN_B, '2.2.2.2')).status).toBe(200);
+      vi.setSystemTime(Date.now() + 16 * 60 * 1000);
+      expect((await sendOwned({ ...BEST, durationDays: 695, replaces: one.id })).status).toBe(200);
+    });
+  });
+
+  it('costs what the README says: a best so far, a replace, and a final', async () => {
+    await secondsApart(async () => {
+      // Settled boards, as a live collector's are between sends: a read after a write's settleAt
+      // settles the board once (2 lists, 1 write), whoever reads it.
+      const settle = async () => {
+        vi.setSystemTime(Date.now() + 2 * 60 * 1000);
+        await getOwned('/mine', TOKEN_A);
+      };
+      await settle();
+      let counts = countKV(env.SUBMISSIONS);
+      const one = await (await sendOwned(BEST)).json();
+      // gate read, both snapshots, the patch's read | row, snapshot, gate | no list, no delete
+      expect(counts).toEqual({ get: 4, put: 3, list: 0, delete: 0 });
+      vi.setSystemTime(Date.now() + 26 * 60 * 1000);
+      await settle();
+      counts = countKV(env.SUBMISSIONS);
+      const two = await (await sendOwned({ ...BEST, durationDays: 695, replaces: one.id })).json();
+      // ... plus the old row, read to check its owner, and deleted
+      expect(counts).toEqual({ get: 5, put: 3, list: 0, delete: 1 });
+      await settle();
+      counts = countKV(env.SUBMISSIONS);
+      await sendOwned({ ...FINAL, replaces: two.id });
+      // gate, the snapshot that holds the old row, the old row, the patch's read | one copy-check list
+      expect(counts).toEqual({ get: 4, put: 3, list: 1, delete: 1 });
+      await settle();
+      counts = countKV(env.SUBMISSIONS);
+      await sendOwned({ ...FINAL, durationDays: 680 });
+      // an ordinary send, unchanged: gate, the patch's read | row, snapshot, gate | the copy check
+      expect(counts).toEqual({ get: 2, put: 3, list: 1, delete: 0 });
+    });
+  });
+
+  it('never folds the final into the row it replaces, even when the answer did not move', async () => {
+    const best = await (await sendOwned({ ...BEST, durationDays: 690 })).json();
+    const reply = await (await sendOwned({ ...FINAL, replaces: best.id })).json();
+    expect(reply.duplicate).toBeUndefined();
+    expect(reply.replaced).toBe(best.id);
+    expect(rowIds()).toEqual([reply.id]);
+    // Without replaces, the same answer as a provisional row is still a different search: stored.
+    env = { SUBMISSIONS: makeKV(), CSV_UPLOAD_KEY: 'test-key' };
+    await sendOwned({ ...BEST, durationDays: 690 });
+    expect((await (await sendOwned(FINAL)).json()).duplicate).not.toBe('exact');
+    expect(stored()).toHaveLength(2);
+  });
+
+  it("refuses to replace another sender's row: the new row is stored and the old one stays", async () => {
+    const theirs = await (await sendOwned(BEST, TOKEN_A)).json();
+    const reply = await (await sendOwned({ ...FINAL, replaces: theirs.id }, TOKEN_B, '2.2.2.2')).json();
+    expect(reply.ok).toBe(true);
+    expect(reply.replaced).toBeUndefined();
+    expect(reply.replaceRefused).toMatch(/owner code/);
+    expect(rowIds().sort()).toEqual([theirs.id, reply.id].sort());
+    expect((await allRows()).find(r => r.id === theirs.id)).toMatchObject({ provisional: true });
+    // Nor with no code at all, nor by a code-less sender under the same (or no) name.
+    const bare = await (await post('/submit', { ...FINAL, durationDays: 680, replaces: theirs.id }, '3.3.3.3')).json();
+    expect(bare.replaceRefused).toMatch(/owner code/);
+    expect(rowIds()).toContain(theirs.id);
+  });
+
+  it('refuses a best so far sent without a code: no run could ever replace it', async () => {
+    const res = await post('/submit', BEST);
+    expect(res.status).toBe(400);
+    expect((await res.json()).problems[0]).toMatch(/owner code/);
+    expect(stored()).toHaveLength(0);
+  });
+
+  it('refuses to replace a final row, even your own', async () => {
+    const fin = await (await sendOwned({ ...FINAL, durationDays: 720 })).json();
+    const reply = await (await sendOwned({ ...FINAL, replaces: fin.id })).json();
+    expect(reply.replaceRefused).toMatch(/final result/);
+    expect(rowIds().sort()).toEqual([fin.id, reply.id].sort());
+  });
+
+  it('says so when the row to replace is not on the board, and stores the new one', async () => {
+    const reply = await (await sendOwned({ ...FINAL, replaces: 'deadbeef' })).json();
+    expect(reply.replaceRefused).toMatch(/not on the board/);
+    expect(rowIds()).toEqual([reply.id]);
+  });
+
+  it("deletes the replaced row's CSV, if it has one, and spends no delete when it has none", async () => {
+    // A provisional row is never handed a token. One forged from the secret stands for "some other way".
+    const forged = async id => {
+      const key = await crypto.subtle.importKey(
+        'raw',
+        new TextEncoder().encode('test-key'),
+        { name: 'HMAC', hash: 'SHA-256' },
+        false,
+        ['sign']
+      );
+      const sig = new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode('csv:' + id)));
+      return [...sig].map(b => b.toString(16).padStart(2, '0')).join('');
+    };
+    const gz = new Uint8Array([0x1f, 0x8b, 8, 0, 0, 0, 0, 0, 0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    const best = await (await sendOwned(BEST)).json();
+    const up = await worker.fetch(
+      new Request(`https://collector.test/csv?id=${best.id}`, {
+        method: 'POST',
+        headers: { 'x-upload-token': await forged(best.id) },
+        body: gz,
+      }),
+      env
+    );
+    expect(up.status).toBe(200);
+    expect((await allRows())[0].hasCsv).toBe(true);
+    const counts = countKV(env.SUBMISSIONS);
+    await sendOwned({ ...FINAL, replaces: best.id });
+    expect(env.SUBMISSIONS._m.has(`csv:${best.id}`)).toBe(false);
+    expect(counts.delete).toBe(2);
+
+    // The usual case: no table, so one delete (the row).
+    env = { SUBMISSIONS: makeKV(), CSV_UPLOAD_KEY: 'test-key' };
+    const plain = await (await sendOwned(BEST)).json();
+    const again = countKV(env.SUBMISSIONS);
+    await sendOwned({ ...FINAL, replaces: plain.id });
+    expect(again.delete).toBe(1);
+  });
+
+  it('updates the snapshot in one write when both rows are on one board', async () => {
+    const best = await (await sendOwned(BEST)).json();
+    const counts = countKV(env.SUBMISSIONS);
+    const puts = [];
+    const put = env.SUBMISSIONS.put;
+    env.SUBMISSIONS.put = async (k, v, o) => {
+      puts.push(k);
+      return put(k, v, o);
+    };
+    const reply = await (await sendOwned({ ...FINAL, replaces: best.id })).json();
+    expect(puts.filter(k => k === 'snap:sub')).toHaveLength(1);
+    expect(counts.list).toBe(1); // the copy check, as for any send
+    const { pub } = snapOf('sub');
+    expect(pub.count).toBe(1);
+    expect(pub.rows.map(r => r.id)).toEqual([reply.id]);
+  });
+
+  it('takes the old row off the flagged board when the final lands on the main one', async () => {
+    const best = await (await sendOwned({ ...BEST, flags: ['integrity-stall'] })).json();
+    expect(snapOf('flag').pub.rows.map(r => r.id)).toEqual([best.id]);
+    const reply = await (await sendOwned({ ...FINAL, replaces: best.id })).json();
+    expect(reply.replaced).toBe(best.id);
+    expect(snapOf('flag').pub.rows).toEqual([]);
+    expect(snapOf('sub').pub.rows.map(r => r.id)).toEqual([reply.id]);
+    expect([...env.SUBMISSIONS._m.keys()].some(k => k.startsWith('flag:'))).toBe(false);
+  });
+
+  it('a settle drops a replaced row a racing write put back, once it is older than a list can lag', async () => {
+    await secondsApart(async tick => {
+      const best = await (await sendOwned(BEST)).json();
+      const keep = snapOf('sub').raw;
+      tick();
+      const reply = await (await sendOwned({ ...FINAL, replaces: best.id })).json();
+      // A patch that read the board before the replace wins the race: the old row is back.
+      const { raw } = snapOf('sub');
+      const oldSpan = JSON.stringify(JSON.parse(keep.slice(0, keep.indexOf('\n'))).rows[0]);
+      const back = raw.replace('"rows":[', `"rows":[${oldSpan},`).replace(/"count":1/, '"count":2');
+      const due = back.replace(/"settleAt":\d+/, '"settleAt":1');
+      env.SUBMISSIONS._m.set('snap:sub', due);
+      // A settle within a few minutes of the send leaves it: the list may not show a new row yet.
+      vi.setSystemTime(Date.now() + 2 * 60 * 1000);
+      await get('/all');
+      expect((await allRows()).map(r => r.id).sort()).toEqual([best.id, reply.id].sort());
+      // Past the grace, the next settle drops it.
+      env.SUBMISSIONS._m.set('snap:sub', snapOf('sub').raw.replace(/"settleAt":\d+/, '"settleAt":1'));
+      vi.setSystemTime(Date.now() + 15 * 60 * 1000);
+      await get('/all');
+      expect((await allRows()).map(r => r.id)).toEqual([reply.id]);
+    });
+  });
+
+  it('never points dupOf at a provisional row', async () => {
+    await sendOwned({ ...BEST, durationDays: 690, nickname: 'Jordan' });
+    const reply = await (await sendOwned({ ...FINAL, nickname: 'Jordan', effort: 'thorough' })).json();
+    expect(reply.duplicate).toBe('result');
+    expect(reply.dupOf).toBeUndefined();
+    expect(stored().find(([k]) => k.endsWith(reply.id))[1]).not.toHaveProperty('dupOf');
+  });
+
+  it('lets a final copy stand for a folded line on /leaderboard over a provisional one', async () => {
+    await secondsApart(async tick => {
+      await sendOwned({ ...BEST, durationDays: 690, nickname: 'Jordan', chainsPriced: 99000 });
+      tick();
+      await sendOwned({ ...FINAL, nickname: 'Jordan' });
+    });
+    const board = await (await get('/leaderboard')).json();
+    expect(board.rows).toHaveLength(1);
+    expect(board.rows[0].copies).toBe(2);
+    expect(board.rows[0]).not.toHaveProperty('provisional');
+  });
+
+  it('tags a provisional row on the board page', async () => {
+    const html = await (await get('/')).text();
+    expect(html).toContain('function provisionalTag(r)');
+    expect(html).toContain('% searched)');
   });
 });

@@ -7,6 +7,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
+  asProvisional,
   bestPerFamily,
   buildSubmission,
   cleanNote,
@@ -18,8 +19,11 @@ import {
   SUBMISSION_SCHEMA,
   summariseProof,
   PROOF_RUNNERS_UP,
+  provisionalProgress,
+  readProvisionalRow,
   tooManySubmissionsMessage,
   validateSubmission,
+  type Submission,
   type SubmissionInputs,
 } from './submission';
 
@@ -713,5 +717,64 @@ describe('buildSubmission: schema 7', () => {
     expect(validateSubmission({ ...ok(), backupAgeHours: -12 })).toEqual([]);
     expect(validateSubmission({ ...ok(), build: 'x'.repeat(41) })[0]).toMatch(/build/);
     expect(validateSubmission({ ...ok(), startUtc: 'soon' })[0]).toMatch(/startUtc/);
+  });
+});
+
+describe('a best so far (Send best so far)', () => {
+  const base = {
+    schema: 7,
+    chain: [195, 490],
+    finalTE: 490,
+    durationDays: 700,
+    rechecks: [{ chain: [490], days: 650 }],
+    space: {
+      mode: 'range',
+      range: { lo: 190, hi: 260, step: 1 },
+      minGap: 0,
+      minAscensions: 2,
+      maxAscensions: 2,
+      chains: 70,
+      chainsPriced: 0,
+      stoppedEarly: false,
+    },
+    proof: { runnersUp: [], byAscensions: [], spread: { best: 700, median: 720, worst: 800 } },
+  } as unknown as Submission;
+
+  it('is marked provisional, with its progress, and never reads as a proof', () => {
+    const p = asProvisional(base, provisionalProgress(30.7, 69.2), 'aaaa0001');
+    expect(p).toMatchObject({ provisional: true, progress: { done: 30, total: 70 }, replaces: 'aaaa0001' });
+    expect(p.space).toMatchObject({ chainsPriced: 30, stoppedEarly: true, chains: 70 });
+    expect(p).not.toHaveProperty('proof');
+    expect(p).not.toHaveProperty('rechecks');
+    expect(validateSubmission(p)).toEqual([]);
+    // The original is untouched: the final row still carries its own.
+    expect(base.space?.stoppedEarly).toBe(false);
+  });
+
+  it('sends no progress without an estimate, and no replaces that is not a row id', () => {
+    expect(provisionalProgress(5, null)).toBeNull();
+    expect(provisionalProgress(5, 0)).toBeNull();
+    expect(provisionalProgress(9, 4)).toEqual({ done: 9, total: 9 });
+    const p = asProvisional({ ...base, space: undefined }, null, 'not an id!');
+    expect(p).not.toHaveProperty('progress');
+    expect(p).not.toHaveProperty('replaces');
+  });
+
+  it('is checked the way the collector checks it', () => {
+    expect(validateSubmission({ ...base, provisional: 'yes' })).toContain('provisional must be true or false');
+    expect(validateSubmission({ ...base, replaces: 'not an id!' })).toContain('replaces must be a row id');
+    expect(validateSubmission({ ...base, replaces: 'abcd1234' })).toEqual([]);
+  });
+
+  it('reads a stored row back only when it is one', () => {
+    expect(readProvisionalRow({ id: 'abcd1234', nickname: 'Jo', at: 7 })).toEqual({
+      id: 'abcd1234',
+      nickname: 'Jo',
+      at: 7,
+    });
+    expect(readProvisionalRow({ id: 'abcd1234' })).toEqual({ id: 'abcd1234', nickname: '' });
+    for (const junk of [null, undefined, 'abcd1234', { id: 'NOT AN ID' }, { nickname: 'Jo' }]) {
+      expect(readProvisionalRow(junk)).toBeNull();
+    }
   });
 });

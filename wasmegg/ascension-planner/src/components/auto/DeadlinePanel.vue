@@ -441,6 +441,7 @@
       :running-label="autoShare ? 'Searching, then submitting...' : 'Searching...'"
       :show-submit="collectorConfigured"
       goal-word="deadline"
+      best-so-far-kind="deadline"
       @find="andSubmit => void start(andSubmit)"
       @stop="stopDeadline"
       @nickname-typed="shareNameTouched = true"
@@ -683,6 +684,7 @@
       <!-- Share: Compare's Egg Day tab for an Egg Day answer, else "By a date". Same opt-in as Insane. -->
       <ShareResult
         v-if="best && collectorConfigured"
+        :replaces-best-so-far="!!store.provisionalRows.deadline"
         v-model:opt-in="shareOptIn"
         v-model:anonymous="shareAnonymous"
         v-model:nickname="shareName"
@@ -1652,7 +1654,45 @@ async function resume(): Promise<void> {
     setMode('advanced');
   }
   runEstimate.value = spec?.estimate ?? 0;
-  await store.resumeDeadline(props.playerId);
+  store.beginBestSoFar('deadline', null);
+  let go = false;
+  try {
+    await store.resumeDeadline(props.playerId);
+    go = await owesAnswer();
+  } finally {
+    store.endBestSoFar();
+  }
+  // Its best so far (sent before the interruption, or since) is replaced by its answer.
+  if (go) await shareFinished();
+}
+
+/** The name a best so far goes under, as `share` would send it. */
+function bestSoFarName(): string {
+  return shareAnonymous.value ? '' : shareName.value.trim().slice(0, 40);
+}
+
+/**
+ * Whether the run that just ended owes the board its answer: the player agreed to share during the run
+ * (Send best so far's box), or it sent a best so far, which its answer replaces. A carried-on run's
+ * best so far went under a name from before the reload: the answer goes under it too.
+ */
+async function owesAnswer(): Promise<boolean> {
+  const agreed = !!store.bestSoFar?.consent;
+  await store.bestSoFarSettled();
+  const owed = store.provisionalRows.deadline;
+  if (!agreed && owed) {
+    shareAnonymous.value = !owed.nickname;
+    if (owed.nickname) shareName.value = owed.nickname;
+  }
+  return agreed || !!owed;
+}
+
+/** Send the answer on screen, as Find and submit does at the end. */
+async function shareFinished(): Promise<void> {
+  if (!result.value || !best.value || store.error) return;
+  shareOptIn.value = true;
+  await share();
+  store.lastAutoSend = { kind: 'by-date', ok: shareOk.value, text: shareMessage.value };
 }
 
 /** Set while a Find and submit run is going: it shares its best answer when it finishes. */
@@ -1677,18 +1717,18 @@ async function start(andSubmit: boolean): Promise<void> {
   store.lastAutoSend = null;
   // For the progress bar on other tabs: this run shares its answer when it finishes.
   store.submitsWhenDone = autoShare.value;
+  // Send best so far, with the consent Find and submit already has (or asked for during the run).
+  store.beginBestSoFar('deadline', autoShare.value ? { nickname: bestSoFarName() } : null);
   try {
     await find();
   } finally {
     store.submitsWhenDone = false;
-    const go = autoShare.value;
+    const go = autoShare.value || (await owesAnswer());
     autoShare.value = false;
+    store.endBestSoFar();
     // Stopped early it still shares: its best is a real route to that TE by the date, just maybe not
     // the highest, and on a board ranked by TE that only ever ranks it lower.
-    if (go && result.value && best.value && !store.error) {
-      await share();
-      store.lastAutoSend = { kind: 'by-date', ok: shareOk.value, text: shareMessage.value };
-    }
+    if (go) await shareFinished();
   }
 }
 

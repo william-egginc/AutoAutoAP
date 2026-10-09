@@ -20,7 +20,7 @@
 import type { TimeOffWindow } from './types';
 import { loadMetadata, saveMetadata } from '@/lib/storage/db';
 import type { CacheEntry } from './driver';
-import type { SearchSpace } from './submission';
+import type { ProvisionalRow, SearchSpace } from './submission';
 import { availabilityKey, type Availability } from './availability';
 import { milestonesKey, type Milestone } from './milestones';
 import {
@@ -90,6 +90,11 @@ export interface SearchCheckpoint {
   /** The player's note on the run (submission.ts `cleanNote`), put back on carry-on. Optional and
    *  unversioned, as `space` is. */
   runNote?: string;
+
+  /** The best so far this run has on the board ("Send best so far"), so a carry-on's final send still
+   *  replaces it. Optional and unversioned, as `space` is. Never merged in from an earlier record:
+   *  the run's own write says whether it still has one. */
+  provisional?: ProvisionalRow;
 }
 
 /**
@@ -440,6 +445,7 @@ export function buildCheckpoint(args: {
   space?: SearchSpace | null;
   inputsKey?: string | null;
   runNote?: string;
+  provisional?: ProvisionalRow | null;
 }): SearchCheckpoint {
   const bestKey = args.bestChain.join(',');
   return {
@@ -459,6 +465,7 @@ export function buildCheckpoint(args: {
     ...(args.space ? { space: args.space } : {}),
     ...(args.inputsKey ? { inputsKey: args.inputsKey } : {}),
     ...(args.runNote ? { runNote: args.runNote } : {}),
+    ...(args.provisional ? { provisional: { ...args.provisional } } : {}),
   };
 }
 

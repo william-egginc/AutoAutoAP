@@ -190,6 +190,12 @@
                         <div v-if="narrow" class="mt-0.5 max-w-[10rem] leading-snug">
                           <span class="font-mono text-slate-600">{{ e.best.row.chain.join(' ') }}</span>
                           <span
+                            v-if="provisionalTag(e.best.row)"
+                            class="ml-1 inline-block whitespace-nowrap px-1 rounded bg-amber-50 border border-amber-300 text-[9px] font-black text-amber-800"
+                            :title="PROVISIONAL_TITLE"
+                            >{{ provisionalTag(e.best.row) }}</span
+                          >
+                          <span
                             v-for="t in raceTags.get(e.key) ?? []"
                             :key="t"
                             class="ml-1 inline-block px-1 rounded bg-sky-100 text-[9px] font-black text-sky-800"
@@ -202,6 +208,12 @@
                         <span class="font-mono font-bold text-slate-700 whitespace-nowrap">{{
                           e.best.row.chain.join(' ')
                         }}</span>
+                        <span
+                          v-if="provisionalTag(e.best.row)"
+                          class="ml-1 inline-block whitespace-nowrap px-1 rounded bg-amber-50 border border-amber-300 text-[9px] font-black text-amber-800"
+                          :title="PROVISIONAL_TITLE"
+                          >{{ provisionalTag(e.best.row) }}</span
+                        >
                         <span
                           v-for="t in raceTags.get(e.key) ?? []"
                           :key="t"
@@ -467,7 +479,15 @@
                       >
                     </td>
                     <td class="pr-3 py-1 font-black text-indigo-900">{{ e.te }}</td>
-                    <td class="pr-3 py-1">{{ e.best.chain.join(' ') }}</td>
+                    <td class="pr-3 py-1">
+                      {{ e.best.chain.join(' ')
+                      }}<span
+                        v-if="provisionalTag(e.best)"
+                        class="ml-1 inline-block whitespace-nowrap px-1 rounded bg-amber-50 border border-amber-300 text-[9px] font-black text-amber-800"
+                        :title="PROVISIONAL_TITLE"
+                        >{{ provisionalTag(e.best) }}</span
+                      >
+                    </td>
                     <td class="pr-3 py-1">{{ spareText(e.spare) }}</td>
                     <td class="pr-3 py-1" :title="e.best.startLocal ? `plan start ${e.best.startLocal}` : undefined">
                       {{ e.best.currentTE ?? '—' }} TE
@@ -1005,6 +1025,8 @@ import {
   madeDeadline,
   placeFor,
   plannedText,
+  provisionalTag,
+  PROVISIONAL_TITLE,
   scheduleText,
   settingTagTitle,
   settingTags,
@@ -1597,6 +1619,9 @@ const runLines = computed<RunLine[]>(() => {
           ]
         : []),
       ...(tags.get(f.row) ?? []).map(t => ({ text: t, title: settingTagTitle(t), cls: 'bg-sky-100 text-sky-800' })),
+      ...(provisionalTag(f.row)
+        ? [{ text: provisionalTag(f.row), title: PROVISIONAL_TITLE, cls: 'bg-amber-50 text-amber-800' }]
+        : []),
       ...(isNoCodeLine(filing, f.player)
         ? [{ text: 'no code', title: NO_CODE_TITLE, cls: 'bg-indigo-100 text-indigo-800' }]
         : []),

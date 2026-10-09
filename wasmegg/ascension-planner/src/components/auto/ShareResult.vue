@@ -13,6 +13,10 @@
   <div class="rounded-xl border border-indigo-200 bg-indigo-50/60 p-4 space-y-3 scroll-mt-4">
     <h3 class="text-[10px] font-black text-indigo-800 uppercase tracking-widest">{{ heading }}</h3>
     <slot name="intro" />
+    <!-- The run sent a best so far (Send best so far): this send takes its place on the board. -->
+    <p v-if="replacesBestSoFar" class="text-[11px] font-semibold text-indigo-900" data-testid="share-replaces">
+      Your best so far from this run is on the board as "in progress". Sending this result replaces it.
+    </p>
     <!-- OPT IN, UNCHECKED. Nothing leaves the machine until this is deliberately ticked. -->
     <label class="flex items-start gap-3 cursor-pointer text-xs text-indigo-900">
       <input
@@ -74,8 +78,10 @@ withDefaults(
     nicknameMax?: number;
     /** What the route is measured against, in the acknowledgement: 'target' (Fastest) or 'deadline'. */
     goalWord?: 'target' | 'deadline';
+    /** The run sent a best so far that this send replaces (store `provisionalRows`). */
+    replacesBestSoFar?: boolean;
   }>(),
-  { heading: 'Share this result', csvDetail: '', nicknameMax: 40, goalWord: 'target' }
+  { heading: 'Share this result', csvDetail: '', nicknameMax: 40, goalWord: 'target', replacesBestSoFar: false }
 );
 const emit = defineEmits<{ nicknameTyped: [] }>();
 const optIn = defineModel<boolean>('optIn', { required: true });

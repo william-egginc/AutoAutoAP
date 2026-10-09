@@ -398,6 +398,21 @@ export interface Submission {
   /** Time away from the virtue farm the plan was built around, as whole local dates. */
   timeOff?: { from: string; to: string }[];
 
+  /**
+   * "Send best so far" (9 Oct 2026): the best of a run that is still going. The run's final send
+   * replaces it on the board (`replaces`). Optional and unversioned: a collector that does not know it
+   * drops it. See collector/README.md, "Provisional rows", and `asProvisional`.
+   */
+  provisional?: boolean;
+  /** How far that run had got: work done of its estimate, as whole numbers. Only on a provisional row. */
+  progress?: { done: number; total: number };
+  /**
+   * The provisional row this send takes over: the run's final row, or a newer best so far from the
+   * same run. Only the sender (the same owner code) can replace a row, and only a provisional one.
+   * An instruction to the collector, never stored.
+   */
+  replaces?: string;
+
   submittedAt: string;
 }
 
@@ -937,6 +952,71 @@ export function buildSubmission(i: SubmissionInputs): Submission {
   };
 }
 
+/**
+ * A provisional row a run has on the board ("Send best so far"): its id, and the name it went with
+ * ('' for anonymous), so the run's final send replaces it under the same name even after a carry-on.
+ * Kept in the run's checkpoint (persistence.ts, deadlineStore.ts).
+ */
+export interface ProvisionalRow {
+  id: string;
+  nickname: string;
+  /** When it was sent (ms), for the 30 minutes between best-so-far sends (`BEST_SO_FAR_GAP_MS`). */
+  at?: number;
+}
+
+/**
+ * The least time between two best-so-far sends from one run. The collector refuses one less than 25
+ * minutes after the sender's last (collector/worker.js PROVISIONAL_GAP_MS): KV's free plan allows
+ * 1,000 writes and 1,000 deletes a day, and every send costs several.
+ */
+export const BEST_SO_FAR_GAP_MS = 30 * 60 * 1000;
+
+/** A stored `ProvisionalRow`, checked: a checkpoint is data from an older build, or a hand edit. */
+export function readProvisionalRow(v: unknown): ProvisionalRow | null {
+  const r = v as Partial<ProvisionalRow> | null;
+  if (!r || typeof r !== 'object' || typeof r.id !== 'string' || !ROW_ID.test(r.id)) return null;
+  return {
+    id: r.id,
+    nickname: typeof r.nickname === 'string' ? r.nickname : '',
+    ...(typeof r.at === 'number' && Number.isFinite(r.at) ? { at: r.at } : {}),
+  };
+}
+
+/** A row id as the collector hands them back (8 hex), with the slack its /claim allows. */
+export const ROW_ID = /^[a-f0-9-]{4,40}$/;
+
+/** `progress` as the collector keeps it: whole numbers, done <= total; null without an estimate. */
+export function provisionalProgress(done: number, total: number | null | undefined): Submission['progress'] | null {
+  if (!Number.isFinite(done) || !total || !Number.isFinite(total) || total < 1) return null;
+  const d = Math.max(0, Math.floor(done));
+  return { done: d, total: Math.max(d, Math.ceil(total), 1) };
+}
+
+/**
+ * A run's best so far, as a provisional row: `provisional`, how far the run got, and the earlier
+ * provisional row it replaces, if any. A Full sweep's space is marked `stoppedEarly` with what was
+ * priced so far -- the board's own rule for "the best of what it reached, not a proof" -- and its
+ * `proof` block is left off, as are `rechecks`: both are the final row's to carry.
+ */
+export function asProvisional(
+  payload: Submission,
+  progress: Submission['progress'] | null,
+  replaces?: string | null
+): Submission {
+  const out: Submission = { ...payload, provisional: true };
+  if (progress) out.progress = progress;
+  else delete out.progress;
+  if (replaces && ROW_ID.test(replaces)) out.replaces = replaces;
+  else delete out.replaces;
+  if (out.space) {
+    const priced = Math.min(out.space.chains, Math.max(0, Math.floor(progress?.done ?? out.space.chainsPriced)));
+    out.space = { ...out.space, chainsPriced: priced, stoppedEarly: true };
+  }
+  delete out.proof;
+  delete out.rechecks;
+  return out;
+}
+
 /** Suggested filename for the offline path. Dated so two submissions do not collide. */
 export function submissionFilename(s: Submission): string {
   const stamp = s.submittedAt.slice(0, 16).replace(/[:T]/g, '-');
@@ -1012,6 +1092,12 @@ export function validateSubmission(value: unknown): string[] {
     if (v !== undefined && (typeof v !== 'string' || !Number.isFinite(Date.parse(v)))) {
       problems.push(`${field} must be an ISO date`);
     }
+  }
+  // Provisional rows: the collector refuses a wrong shape here too (collector/worker.js).
+  if (s.provisional !== undefined && typeof s.provisional !== 'boolean')
+    problems.push('provisional must be true or false');
+  if (s.replaces !== undefined && !(typeof s.replaces === 'string' && ROW_ID.test(s.replaces))) {
+    problems.push('replaces must be a row id');
   }
   if (typeof JSON.stringify(s) === 'string' && JSON.stringify(s).length > 200_000) {
     problems.push('submission is implausibly large');

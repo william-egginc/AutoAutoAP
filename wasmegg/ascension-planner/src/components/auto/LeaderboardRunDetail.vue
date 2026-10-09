@@ -15,6 +15,10 @@
   <div class="grid gap-4 grid-cols-[repeat(auto-fit,minmax(14rem,1fr))] text-[11px]">
     <div>
       <h4 class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1.5">Run</h4>
+      <!-- Sent while its run was going ("Send best so far"); the run's final row replaces it. -->
+      <p v-if="provisionalTag(row)" class="mb-1.5 font-semibold text-amber-700" :title="PROVISIONAL_TITLE">
+        {{ provisionalTag(row) }}: the best its run had found so far. It is replaced when the run finishes.
+      </p>
       <div class="space-y-0.5 text-slate-600">
         <div class="flex justify-between gap-3">
           <span>Starting TE</span><span class="font-bold">{{ row.currentTE ?? '—' }}</span>
@@ -269,7 +273,16 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { finishMs, formatDate, foundByText, rowFirstAscension, startMs, type BoardRow } from '@/lib/leaderboardRank';
+import {
+  finishMs,
+  formatDate,
+  foundByText,
+  provisionalTag,
+  PROVISIONAL_TITLE,
+  rowFirstAscension,
+  startMs,
+  type BoardRow,
+} from '@/lib/leaderboardRank';
 import { FIRST_ASCENSION_WORDS } from '@/search/firstAscension';
 import { formatBand } from '@/search/exhaustive';
 

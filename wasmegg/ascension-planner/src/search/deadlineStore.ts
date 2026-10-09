@@ -16,6 +16,7 @@
 import { loadMetadata, saveMetadata } from '@/lib/storage/db';
 import type { ChainResult, LegSummary } from './types';
 import type { DeadlineRoute } from './deadline';
+import type { ProvisionalRow } from './submission';
 
 const RUN_KEY = 'chainSearchDeadlineRun';
 const RESULT_KEY = 'chainSearchDeadlineResult';
@@ -134,6 +135,9 @@ export interface DeadlineCheckpoint {
    *  started, so a carry-on on a tab that has loaded a newer save still sends the run's own save
    *  time and TE. Absent on checkpoints written before 7 Oct. */
   account?: DeadlineAccount;
+  /** The best so far this run has on the board ("Send best so far"), so a carry-on's final send
+   *  still replaces it. Absent when it has none. */
+  provisional?: ProvisionalRow;
 }
 
 /** `accountFields` as stored: plain JSON. Typed loosely here; the store owns the shape. */

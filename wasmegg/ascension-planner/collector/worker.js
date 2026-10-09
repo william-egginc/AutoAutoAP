@@ -230,7 +230,26 @@ function validateSubmission(s) {
       problems.push('deadlineAscendAt must be a time on or before the deadline');
     }
   }
+  // Provisional rows (see "provisional rows" below). Refused on a wrong shape rather than dropped: a
+  // final send whose `replaces` was quietly ignored would leave the in-progress row up forever.
+  if (s.provisional !== undefined && typeof s.provisional !== 'boolean') {
+    problems.push('provisional must be true or false');
+  }
+  if (s.replaces !== undefined && !rowId(s.replaces)) problems.push('replaces must be a row id');
   return problems;
+}
+
+/** A row id as /submit makes them (8 hex), with the same slack /claim and /csv allow. */
+const ROW_ID = /^[a-f0-9-]{4,40}$/;
+const rowId = v => (typeof v === 'string' && ROW_ID.test(v) ? v : undefined);
+
+/** How far a provisional row's run had got: two whole numbers, done <= total. Anything else is dropped. */
+function progressOf(p) {
+  if (!p || typeof p !== 'object') return undefined;
+  const { done, total } = p;
+  if (!Number.isInteger(done) || !Number.isInteger(total)) return undefined;
+  if (done < 0 || total < 1 || done > total || total > 1e12) return undefined;
+  return { done, total };
 }
 
 /** A player id is a bearer token for the whole save. One must never be stored here even if
@@ -279,7 +298,7 @@ function cleanExtra(v, depth = 0) {
 function pickExtras(body, record) {
   const out = {};
   for (const [k, v] of Object.entries(body)) {
-    if (k in record || idLikeKey(k)) continue;
+    if (k in record || idLikeKey(k) || k === 'replaces') continue;
     const c = cleanExtra(v);
     if (c === undefined) continue;
     if (k === 'diagnostics' && JSON.stringify(c).length > DIAGNOSTICS_MAX_BYTES) continue;
@@ -715,9 +734,15 @@ function pickSubmission(s) {
     deadline: s.schema === 8 ? within(s.deadline, MAX.DEADLINE_FROM, MAX.DEADLINE_TO) : undefined,
     deadlineAscendAt: s.schema === 8 ? within(s.deadlineAscendAt, MAX.DEADLINE_FROM, MAX.DEADLINE_TO) : undefined,
 
+    // Provisional rows (2026-10-09): the best so far of a run still going, sent with "Send best so
+    // far". `true` or absent, nothing else; `progress` only rides on one. No schema bump: optional.
+    provisional: s.provisional === true ? true : undefined,
+    progress: s.provisional === true ? progressOf(s.progress) : undefined,
+
     submittedAt: text(s.submittedAt, MAX.TEXT),
     // NOT here, on purpose: `receivedAt`, `dupOf`, `owner`. The collector sets those itself after
     // this returns, and a client that sends them is sending exactly the fields it must not choose.
+    // Nor `replaces`: it is an instruction to /submit (which row this one takes over), not data.
   });
 }
 
@@ -869,6 +894,10 @@ function searchSig(r) {
     r.chainsPriced ?? null,
     sp ? (sp.chainsPriced ?? null) : null,
     sp ? !!sp.stoppedEarly : null,
+    // A provisional row is never the same search as a final one, so the final is never folded into
+    // it as an exact copy (and stored as nothing). Appended only when set: every other row keeps the
+    // digest it was stored with.
+    ...(r.provisional === true ? ['provisional'] : []),
   ]);
 }
 
@@ -884,6 +913,8 @@ async function metaOf(r) {
     o: typeof r.owner === 'string' ? r.owner.slice(0, OWNER_HEX) : undefined,
     n: r.nickname || undefined,
     at: r.receivedAt || r.submittedAt || undefined,
+    // A provisional row: never a `dupOf` anchor, since its run will replace it and delete it.
+    p: r.provisional === true ? 1 : undefined,
   });
 }
 
@@ -1057,8 +1088,11 @@ async function floodGate(env, request) {
 // either board, and why /mine needs no list: the index is already here.
 //
 // Rows stay in key order (target, then duration, then id): a patch inserts a new row where its key
-// sorts, and a settle re-sorts. Nothing is ever deleted by the Worker; after editing rows in KV by
-// hand, delete `snap:<board>` and the next read rebuilds it.
+// sorts, and a settle re-sorts. The Worker deletes exactly one kind of row: a provisional row its own
+// sender's run has replaced (see "provisional rows"). That patch takes the row out; and since a patch
+// can lose a race and put it back, a settle drops any row KV no longer lists once it is older than
+// UNLISTED_GRACE_MS (a row that new may just not be listed yet). The same settle now also clears a
+// row deleted by hand, so `snap:<board>` no longer has to be deleted after hand edits.
 /** Bumped when the snapshot's shape changes, so the first read after a deploy rebuilds it. */
 const SNAP_VERSION = 3;
 /** How long after a write the board is settled (see above): KV's list shows a write within ~60 s. */
@@ -1080,6 +1114,9 @@ const SETTLE_MAX_GETS = 300;
 const PUT_RETRY_MS = 1100;
 /** Edge cache for the public board reads, in seconds. KV itself takes up to 60 s to show a write. */
 const EDGE_CACHE_S = 60;
+/** A snapshot row KV no longer lists is dropped by a settle only once it is this old: KV's list shows
+ *  a write within ~60 s, so a row younger than this may simply not be listed yet. */
+const UNLISTED_GRACE_MS = 10 * 60 * 1000;
 
 /** Run after the response when the platform allows it; otherwise (tests) just wait for it. */
 function later(ctx, promise) {
@@ -1089,17 +1126,22 @@ function later(ctx, promise) {
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-/** Every key under a prefix, following the cursor: a board past 1,000 rows must not silently end. */
+/** Every key under a prefix, following the cursor: a board past 1,000 rows must not silently end.
+ *  `complete` is false when LIST_MAX_PAGES ran out first. */
 async function listAll(env, prefix) {
   const out = [];
   let cursor;
+  let complete = false;
   for (let page = 0; page < LIST_MAX_PAGES; page++) {
     const r = await env.SUBMISSIONS.list({ prefix, limit: 1000, ...(cursor ? { cursor } : {}) });
     out.push(...r.keys);
-    if (r.list_complete !== false || !r.cursor) break;
+    if (r.list_complete !== false || !r.cursor) {
+      complete = true;
+      break;
+    }
     cursor = r.cursor;
   }
-  return out;
+  return Object.assign(out, { complete });
 }
 
 /** The header fields of a stored snapshot, read without parsing it; null if it is not one. */
@@ -1155,6 +1197,12 @@ function spanNickname(span) {
     return '';
   }
 }
+const RECEIVED_RE = /"receivedAt":"([^"]*)"/;
+/** A row's `receivedAt` from its text ('' when it has none: a row from before the collector stamped). */
+const spanReceivedAt = span => {
+  const m = RECEIVED_RE.exec(span);
+  return m ? m[1] : '';
+};
 const spanFinal = span => {
   const t = spanField(span, FINAL_RE);
   return t === null ? NaN : Number(t);
@@ -1278,9 +1326,10 @@ async function putSnapshot(env, board, text) {
 }
 
 /**
- * Apply one write's change to `snap:<board>`: `{row: {key, record}}` (a new or renamed row) or
- * `{csvId}`. One read, one write, no list. Resolves to the new text, to null when `csvId` is not a
- * row of this board (nothing written), or to false when the write did not land.
+ * Apply one write's change to `snap:<board>`: `{row: {key, record}}` (a new or renamed row),
+ * `{remove: id}` (a replaced provisional row, alone or beside `row`) or `{csvId}`. One read, one
+ * write, no list. Resolves to the new text, to null when `csvId` (or a lone `remove`) is not a row of
+ * this board (nothing written), or to false when the write did not land.
  *
  * With no snapshot of this version to patch (the first write after a deploy), it settles the board
  * from scratch instead, with the change folded in.
@@ -1293,6 +1342,12 @@ async function patchSnapshot(env, board, change) {
     return settled.stored ? settled.text : false;
   }
   const { spans, own } = snap;
+  if (change.remove) {
+    const at = spans.findIndex(s => s.startsWith(rowPrefix(change.remove)));
+    if (at < 0 && !change.row && !change.csvId) return null;
+    if (at >= 0) spans.splice(at, 1);
+    delete own[change.remove];
+  }
   if (change.row) {
     const { key, record } = change.row;
     const id = idOf(key);
@@ -1321,6 +1376,24 @@ async function settleSnapshot(env, board, raw, change = null) {
   const own = snap.own;
   const [listed, csvListed] = await Promise.all([listAll(env, `${board}:`), listAll(env, 'csv:')]);
   const csvIds = new Set(csvListed.map(k => k.name.slice(4)));
+
+  // Rows KV no longer has: a replaced provisional row a racing patch put back, or one deleted by hand.
+  // Only past UNLISTED_GRACE_MS, and only from a list that ran to the end (see "snapshots").
+  if (listed.complete) {
+    const listedIds = new Set(listed.map(k => idOf(k.name)));
+    const cutoff = Date.now() - UNLISTED_GRACE_MS;
+    for (const [id, s] of byId) {
+      if (listedIds.has(id)) continue;
+      const at = Date.parse(spanReceivedAt(s));
+      if (Number.isFinite(at) && at > cutoff) continue;
+      byId.delete(id);
+      delete own[id];
+    }
+  }
+  if (change?.remove) {
+    byId.delete(change.remove);
+    delete own[change.remove];
+  }
 
   const need = [];
   for (const k of listed) {
@@ -1457,7 +1530,7 @@ function parseSnapshot(raw) {
  *     predate the rule, and nobody can add one now), or that carry exactly the earliest copy's
  *     nickname. A code-less re-post of a legacy row under some other name -- or under no name, of a
  *     named one -- is a different sender, and only counts as a copy.
- * Among the eligible, the biggest search stands (the space it enumerated, else the chains it priced;
+ * Among the eligible, a final copy stands over a provisional one; then the biggest search (the space it enumerated, else the chains it priced;
  * then how much of that it priced, so a finished proof beats the same proof stopped halfway), then
  * the one with a CSV, then the earliest. The name is the earliest named eligible copy's.
  */
@@ -1481,7 +1554,12 @@ function foldCopies(rows, own) {
       : byTime.filter(r => !own[r.id] && (!r.receivedAt || (r.nickname || '') === (first.nickname || '')));
     let rep = eligible[0];
     for (const r of eligible.slice(1)) {
-      const d = size(r) - size(rep) || priced(r) - priced(rep) || Number(!!r.hasCsv) - Number(!!rep.hasCsv);
+      // A final copy always stands over a provisional one, whatever either searched.
+      const d =
+        Number(!r.provisional) - Number(!rep.provisional) ||
+        size(r) - size(rep) ||
+        priced(r) - priced(rep) ||
+        Number(!!r.hasCsv) - Number(!!rep.hasCsv);
       if (d > 0) rep = r;
     }
     const named = eligible.find(r => r.nickname);
@@ -1576,6 +1654,105 @@ async function markCsv(env, id, origin) {
   await dropEdgeCache(origin);
 }
 
+/**
+ * Which board holds row `id`, its KV key and whether it has a CSV, from the snapshots (a read each, no
+ * list). `boards` is snapshot text already read for this request, by board, to read nothing again.
+ */
+async function findRow(env, ctx, id, boards = {}) {
+  for (const b of ['sub', 'flag']) {
+    const raw = boards[b] ?? (await readSnapshotText(env, ctx, b));
+    if (!raw.includes(rowPrefix(id))) continue;
+    const span = openSnapshot(raw)?.spans.find(sp => sp.startsWith(rowPrefix(id)));
+    if (span) return { board: b, key: spanKey(b, span), hasCsv: spanHasCsv(span, id) };
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------- provisional rows
+//
+// A long run (Highest TE by a date, a Full sweep) can take a day, and used to send only at the end.
+// "Send best so far" sends its best mid-run as a PROVISIONAL row (`provisional: true`, with
+// `progress: {done, total}`), and the run carries on. When it finishes, its final row comes with
+// `replaces: <the provisional row's id>`, and so does a second best-so-far from the same run.
+//
+// WHO MAY REPLACE: the sender, proven exactly as /claim proves it -- the owner code in x-owner-token,
+// whose full SHA-256 must equal the `owner` stored on the old row. Never the name (anyone can type
+// one), never the 12-hex prefix in the index. So a provisional row sent without a code can never be
+// replaced, by anybody; the app always sends one.
+//
+// WHAT MAY BE REPLACED: only a row that is itself provisional. A final row stands; a `replaces`
+// pointing at one (or at someone else's row, or a row that is not there) is REFUSED: the new row is
+// stored as an ordinary submission, the old row stays, and the reply says why (`replaceRefused`).
+//
+// A VALID REPLACE stores the new row first, then deletes the old row's key and its `csv:` (a
+// provisional row is never given an upload token, so normally there is none) and takes it off the
+// snapshot. The private `extra:` copy is left to its TTL. Ids are never reused, so a `dupOf` that
+// pointed at the old row points at nothing; the app and /leaderboard fold by content anyway.
+//
+// RATIONED, because KV's free plan allows 1,000 writes and 1,000 deletes a day. A provisional send
+// needs an owner code (without one the row could never be replaced, so it would only ever pile up),
+// and a sender may send one every PROVISIONAL_GAP_MS: the check reads the sender's newest provisional
+// row's `receivedAt` from the snapshots, through the owner index they already carry -- no new KV key.
+// Too soon is a 429 with `tooSoon: true` and `retryAfter`, and nothing is written. A FINAL row is
+// never held back: a run may finish a minute after its best so far went. A provisional send also
+// skips the copy check (its one list): it is never an exact copy worth folding, and never an anchor.
+//
+// A replace costs one delete beyond an ordinary send (the old row; its `csv:` only when the snapshot
+// says it has one, which a provisional row never does, since it gets no upload token) and no extra
+// snapshot write when both rows are on one board: the new row and the removal are one patch.
+//
+// NO EXPIRY. A run that is abandoned leaves its provisional row up, tagged as in progress.
+
+/** The least time between two provisional sends from one sender. The app waits 30 minutes. */
+const PROVISIONAL_GAP_MS = 25 * 60 * 1000;
+
+/** When `owner` last sent a provisional row still on a board (ms), from the snapshots; null for never. */
+function lastProvisionalAt(boards, owner) {
+  const mine = owner.slice(0, OWNER_HEX);
+  let last = null;
+  for (const raw of Object.values(boards)) {
+    const snap = openSnapshot(raw);
+    if (!snap) continue;
+    for (const span of snap.spans) {
+      if (snap.own[spanId(span)] !== mine || !span.includes('"provisional":true')) continue;
+      const at = Date.parse(spanReceivedAt(span));
+      if (Number.isFinite(at) && (last === null || at > last)) last = at;
+    }
+  }
+  return last;
+}
+
+/**
+ * The row a submission asks to replace, checked: `{ok: true, id, board, key}` when this sender may
+ * replace it, `{ok: false, id, why}` when not, or null when nothing was asked.
+ */
+async function replaceTarget(env, ctx, id, owner, boards) {
+  if (id === undefined) return null;
+  const found = await findRow(env, ctx, id, boards);
+  let stored = null;
+  if (found) {
+    try {
+      stored = JSON.parse(await env.SUBMISSIONS.get(found.key));
+    } catch {
+      stored = null;
+    }
+  }
+  if (!found || !stored || typeof stored !== 'object') return { ok: false, id, why: 'that row is not on the board' };
+  // The record's own full hash decides, as in /claim.
+  if (!owner || typeof stored.owner !== 'string' || stored.owner !== owner) {
+    return { ok: false, id, why: 'that row was not sent with your owner code' };
+  }
+  if (stored.provisional !== true) return { ok: false, id, why: 'that row is a final result, not a best so far' };
+  return { ok: true, id, board: found.board, key: found.key, hasCsv: found.hasCsv };
+}
+
+/** Delete a replaced provisional row, and its CSV when it has one. The snapshot is the caller's (it
+ *  shares the new row's patch when both are on one board). */
+async function deleteRow(env, target) {
+  await env.SUBMISSIONS.delete(target.key);
+  if (target.hasCsv) await env.SUBMISSIONS.delete(`csv:${target.id}`);
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -1611,9 +1788,58 @@ export default {
       const board = record.flags?.length ? 'flag' : 'sub';
       const flagged = board === 'flag' ? { flagged: record.flags } : {};
 
+      // A best so far being taken over by its run's final row, or by a newer best so far (see
+      // "provisional rows"). Checked before the copy test, and the old row is left out of it: a final
+      // must never be folded into the very row it replaces.
+      // A best so far is rationed (see "provisional rows"): it needs a code, and one per gap.
+      let boards = {};
+      if (record.provisional) {
+        if (!owner) {
+          return json(
+            { error: 'rejected', problems: ['a best so far needs the owner code, so its run can replace it'] },
+            400
+          );
+        }
+        boards = { sub: await readSnapshotText(env, ctx, 'sub'), flag: await readSnapshotText(env, ctx, 'flag') };
+        const last = lastProvisionalAt(boards, owner);
+        const wait = last === null ? 0 : last + PROVISIONAL_GAP_MS - Date.now();
+        if (wait > 0) {
+          const minutes = Math.ceil(wait / 60000);
+          return json(
+            {
+              error: `you sent a best so far less than ${PROVISIONAL_GAP_MS / 60000} minutes ago; send again in ${minutes} min`,
+              retryAfter: Math.ceil(wait / 1000),
+              tooSoon: true,
+            },
+            429
+          );
+        }
+      }
+      const replace = await replaceTarget(env, ctx, rowId(body.replaces), owner, boards);
+      const replaced = replace?.ok ? replace : null;
+      const replaceReply = replace
+        ? replace.ok
+          ? { replaced: replace.id }
+          : { replaceRefused: `the earlier row (${replace.id}) was kept: ${replace.why}` }
+        : {};
+      /** The snapshot change that takes the old row off `onBoard`, when it is there. */
+      const removal = onBoard => (replaced && replaced.board === onBoard ? { remove: replaced.id } : {});
+      /** Delete the old row, and take it off its board when no patch of `patched` already did. */
+      const retire = async patched => {
+        if (!replaced) return;
+        await deleteRow(env, replaced);
+        if (replaced.board !== patched)
+          await commitSnapshot(env, ctx, replaced.board, { remove: replaced.id }, url.origin);
+      };
+
       // Has this sender already put this result on this board? One list (see "duplicates").
       const meta = await metaOf(record);
-      const copies = await findCopies(env, `${board}:${record.finalTE}:${durKey(record.durationDays)}:`, meta);
+      // Not for a best so far: never an exact copy worth folding, never an anchor, and it saves a list.
+      const copies = record.provisional
+        ? []
+        : (await findCopies(env, `${board}:${record.finalTE}:${durKey(record.durationDays)}:`, meta)).filter(
+            c => c.id !== replaced?.id
+          );
       const exact = copies.find(c => c.meta.s === meta.s);
       if (exact) {
         // Nothing new to store. The reply names the row that is there, so the app can point at it,
@@ -1627,14 +1853,17 @@ export default {
           firstAt: exact.meta.at ?? null,
           nickname: exact.meta.n || '',
           ...flagged,
+          ...replaceReply,
         };
         // Owners must be PRESENT and equal. Two anonymous code-less sends are the same sender for
         // folding, but a token for them would let anyone who replays a public row attach a CSV to it.
+        // Never for a provisional send: its run sends the CSV with its final row.
         const ownersMatch = !!meta.o && exact.meta.o === meta.o;
-        if (ownersMatch && env.CSV_UPLOAD_KEY && !(await hasCsv(env, exact.id))) {
+        if (ownersMatch && !record.provisional && env.CSV_UPLOAD_KEY && !(await hasCsv(env, exact.id))) {
           // The retry-until-it-sticks case: a CSV that failed after the first send can follow this one.
           reply.uploadToken = await uploadToken(env, exact.id);
         }
+        let patched = null;
         if (ownersMatch && !exact.meta.n && record.nickname) {
           // "That anonymous row was me": proven by the owner code, not by the name. One write.
           let stored = exact.stored;
@@ -1649,11 +1878,20 @@ export default {
           if (stored && !stored.nickname && stored.owner === owner) {
             stored.nickname = record.nickname;
             await env.SUBMISSIONS.put(exact.key, JSON.stringify(stored), { metadata: await metaOf(stored) });
-            await commitSnapshot(env, ctx, board, { row: { key: exact.key, record: stored } }, url.origin);
+            await commitSnapshot(
+              env,
+              ctx,
+              board,
+              { row: { key: exact.key, record: stored }, ...removal(board) },
+              url.origin
+            );
+            patched = board;
             reply.renamed = true;
             reply.nickname = stored.nickname;
           }
         }
+        // The result the old row stood in for is on the board already: the old row goes.
+        await retire(patched);
         await gate.commit();
         return json(reply);
       }
@@ -1668,13 +1906,17 @@ export default {
       // public and only ever joins rows of ONE sender, so a link from a named row to an anonymous one
       // would tell every reader that the anonymous run (its CSV, its run cost, its machine) is that
       // player's -- exactly what the app promises an anonymous send never shows. The reply still says
-      // it is the same result: that goes to the sender alone.
-      const anchor = copies.find(c => !!c.meta.n === !!record.nickname);
+      // it is the same result: that goes to the sender alone. Never at a provisional row: its run
+      // will replace it, and the row will be gone.
+      const anchor = copies.find(c => !c.meta.p && !!c.meta.n === !!record.nickname);
       if (anchor) record.dupOf = anchor.id;
       await env.SUBMISSIONS.put(key, JSON.stringify(record), { metadata: meta });
       // On the board before the answer goes back, so the CSV and a "Put my name on it" that follow
-      // find the row (see "snapshots" above).
-      await commitSnapshot(env, ctx, board, { row: { key, record } }, url.origin);
+      // find the row (see "snapshots" above). A replaced row on the same board leaves in the same
+      // patch: two snapshot writes in one second would have KV refuse the second.
+      await commitSnapshot(env, ctx, board, { row: { key, record }, ...removal(board) }, url.origin);
+      // Only now, with the new row stored: a failure in between never loses both.
+      await retire(board);
       // Private extras (see above): never part of the row, never served. A failure costs nothing.
       const extras = pickExtras(body, record);
       if (extras) {
@@ -1687,12 +1929,14 @@ export default {
       await gate.commit();
 
       // No key configured means no token: the client then skips the CSV instead of being refused.
+      // None for a provisional row either: the CSV goes with the run's final row, not with this one.
       return json({
         ok: true,
         id,
-        ...(env.CSV_UPLOAD_KEY ? { uploadToken: await uploadToken(env, id) } : {}),
+        ...(env.CSV_UPLOAD_KEY && !record.provisional ? { uploadToken: await uploadToken(env, id) } : {}),
         ...flagged,
         ...(copies.length ? { duplicate: 'result', ...(record.dupOf ? { dupOf: record.dupOf } : {}) } : {}),
+        ...replaceReply,
       });
     }
 
@@ -1722,16 +1966,7 @@ export default {
       }
 
       // Which board, from the snapshots (a read each, no list); the key follows from the row's text.
-      let found = null;
-      for (const b of ['sub', 'flag']) {
-        const raw = await readSnapshotText(env, ctx, b);
-        if (!raw.includes(rowPrefix(id))) continue;
-        const span = openSnapshot(raw)?.spans.find(sp => sp.startsWith(rowPrefix(id)));
-        if (span) {
-          found = { board: b, key: spanKey(b, span) };
-          break;
-        }
-      }
+      const found = await findRow(env, ctx, id);
       let stored = null;
       if (found) {
         try {
@@ -2104,7 +2339,7 @@ async function load() {
       <tr class="row" data-i="\${i}">
         <td class="caret">›</td>
         <td class="muted">\${i + 1}</td>
-        <td>\${esc(r.nickname || 'anonymous')}\${r.copies > 1 ? ' <span class="muted">&middot; sent &times;' + esc(r.copies) + '</span>' : ''}</td>
+        <td>\${esc(r.nickname || 'anonymous')}\${r.copies > 1 ? ' <span class="muted">&middot; sent &times;' + esc(r.copies) + '</span>' : ''}\${provisionalTag(r)}</td>
         <td class="chain">\${esc((r.chain || []).join(' '))}</td>
         <td class="num">\${esc(r.ascensions)}</td>
         <td class="num">\${Number(r.durationDays).toFixed(3)}</td>
@@ -2157,6 +2392,14 @@ function sets(slots, fallback) {
           (s.stones || []).length ? esc((s.stones || []).join(', ')) : 'no stones'
         }</div>
       </div>\`).join('');
+}
+
+// A best so far, sent while its run was still going: replaced by the run's final row when it ends.
+function provisionalTag(r) {
+  if (!r.provisional) return '';
+  const p = r.progress;
+  const pct = p && p.total > 0 ? Math.min(99, Math.floor((100 * p.done) / p.total)) : null;
+  return ' <span class="exh partial">in progress' + (pct === null ? '' : ' (' + pct + '% searched)') + '</span>';
 }
 
 // What goes in the Effort column.

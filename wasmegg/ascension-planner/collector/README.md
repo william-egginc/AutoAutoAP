@@ -204,7 +204,7 @@ no button.
 
 | | |
 |---|---|
-| `POST /submit` | one submission; validated against a whitelist, rate-limited to 10 per IP per minute. Answers `{ ok, id, uploadToken }`; for a copy of a result already on the board, see *Copies* below (`duplicate: 'exact'` with the stored row's `id` and `firstAt`, or `duplicate: 'result'` with `dupOf`). `429` with `{ error, retryAfter }` (seconds left in the minute, in the body because a cross-origin page cannot read `Retry-After`) |
+| `POST /submit` | one submission; validated against a whitelist, rate-limited to 10 per IP per minute. Answers `{ ok, id, uploadToken }`; for a copy of a result already on the board, see *Copies* below (`duplicate: 'exact'` with the stored row's `id` and `firstAt`, or `duplicate: 'result'` with `dupOf`). A body with `replaces: <id>` also answers `replaced: <id>` or `replaceRefused: <why>` (see *Provisional rows*); a provisional row gets no `uploadToken`. `429` with `{ error, retryAfter }` (seconds left in the minute, in the body because a cross-origin page cannot read `Retry-After`) |
 | `POST /claim` | `{ id, nickname }` with `x-owner-token`: puts a name on a row sent with that owner code. `403` if the row has no code or another one, `404` for an unknown id, `400` for a bad name (same rule as `/submit`, and not empty). Shares `/submit`'s rate limit |
 | `POST /csv?id=<id>` | that run's gzipped CSV, once. Needs the `x-upload-token` header `/submit` returned. Must be gzip, capped at 8 MB compressed |
 | `GET /csv?id=<id>` | it back, as a `.csv.gz` file (`application/gzip`) |
@@ -224,7 +224,8 @@ Nothing in it is derived from the player id.
 
 **What the owner code is used for** (phase 2 of the finish-date leaderboard, 2026-09-25): finding
 your own flagged rows; `GET /mine`; putting a name on a row you sent (`/claim`, or sending the same
-result again with a name); and folding a repeated send of one result into the row already stored.
+result again with a name); folding a repeated send of one result into the row already stored; and
+replacing your own provisional row ("Send best so far") with your run's later row.
 Only ever for rows sent with that same code — a copy of someone else's public row can never rename,
 replace or merge into theirs. The app's consent text lists these uses.
 
@@ -264,8 +265,11 @@ first read after that settles the board once: it lists the rows and the CSV ids,
 snapshot lacks or whose name the key metadata says changed, flips `hasCsv` where a table arrived,
 and clears `settleAt`. With no writes there are no rebuilds (a snapshot untouched for a day is
 settled once as a backstop). Building from nothing — the first read after deploying this version —
-reads at most 300 rows per request and carries on at the next read. After editing rows in KV by
-hand, delete `snap:sub` / `snap:flag` and the next read rebuilds it.
+reads at most 300 rows per request and carries on at the next read. A settle also drops a row that
+KV no longer lists, once it is more than 10 minutes old (a newer row may just not be listed yet): a
+replaced provisional row that a racing patch put back, or a row deleted by hand. So after deleting
+rows by hand there is nothing else to do; after *changing* one, still delete `snap:sub` /
+`snap:flag` and the next read rebuilds it.
 
 **Caching.** `/all` and `/leaderboard` go through the Cache API for 60 s and are dropped after each
 write's snapshot lands; the browser is told `no-cache`, so Refresh always shows the board as it is.
@@ -276,8 +280,62 @@ What a day costs on KV's free tier (100,000 reads, 1,000 writes, 1,000 lists): a
 1 read for `/all` plus 2 for `/mine` (both boards) when the viewer has a code, and no list; a new
 submission with its CSV is 4 reads, 1 list (the copy check) and 5 writes (row, snapshot, rate-limit
 counter, table, snapshot); an exact copy is 1 read, 1 list and 1 write; `/claim` is 4 reads and 3
-writes; each settle after a burst of writes adds 2 lists, a write and a read per row it was missing.
+writes; a replace adds a read or two and one delete (see *Provisional rows*); each settle after a burst of writes adds 2 lists, a write and a read per row it was missing.
 Writes are the tightest budget: about 200 submissions a day.
+
+### Provisional rows ("Send best so far")
+
+A long run (Highest TE by a date, a Full sweep) can take 10-20 hours and used to send only at the
+end. While it runs, the app can send its best so far as a **provisional** row and keep going:
+
+- `provisional: true` (a boolean; anything else is refused with 400), and `progress: {done, total}`
+  (two whole numbers, `done <= total`; dropped if malformed, and only kept on a provisional row). A
+  Full sweep's row also carries its `space` with `stoppedEarly: true` and the chains priced so far,
+  so it never reads as a proof. No CSV goes with it: `/submit` hands a provisional row no
+  `uploadToken`.
+- The run's final row (sent automatically, or by the player's later Send) comes with
+  `replaces: <provisional id>`, and so does a second best so far from the same run. `replaces` must
+  be id-shaped (else 400). It is an instruction, never stored.
+- **Who may replace:** the same sender, proven exactly as `/claim` proves it: the owner code in
+  `x-owner-token`, whose full SHA-256 must equal the `owner` stored on the old row. A row sent with
+  no code can never be replaced.
+- **What may be replaced:** only a row that is itself provisional.
+- **A valid replace** stores the new row, then deletes the old row's key and its `csv:` (if any) and
+  takes it off its board's snapshot (in the same patch when both rows are on one board). The reply
+  says `replaced: <old id>`. The private `extra:` copy expires on its own TTL.
+- **A refused replace** (another sender's row, no code, a final row, a row not on the board) stores
+  the new row as an ordinary submission, keeps the old one, and says why in `replaceRefused`.
+- A final row is never folded into the row it replaces as an exact copy (a provisional row is a
+  different search for the copy check), and `dupOf` never points at a provisional row.
+- On `/leaderboard`, a final copy always stands for a folded line over a provisional one. The page
+  tags a provisional row "in progress (N% searched)".
+- **Rationed**, because KV's free plan allows 1,000 writes and 1,000 deletes a day. A provisional
+  send needs an owner code (400 without one: no run could ever replace it), and a sender may send one
+  every 25 minutes. The check reads the sender's newest provisional row's `receivedAt` from the two
+  snapshots through their owner index, so it needs no new KV key. Too soon is a `429` with
+  `tooSoon: true` and `retryAfter`, and nothing is written. The app waits 30 minutes between sends
+  and says "You can send again in N min". A final row is never held back.
+- A provisional send skips the copy check (its one `list`): it is never an exact copy worth folding,
+  and never a `dupOf` anchor.
+- **No expiry.** A run that is abandoned leaves its provisional row on the board, tagged.
+
+What each costs in KV operations, on settled boards (checked by `worker.spec.js`, "costs what the
+README says"). A read of a board after a write's `settleAt` settles it once (2 lists, 1 write)
+whoever reads it, as before.
+
+| | reads | writes | deletes | lists |
+|---|---|---|---|---|
+| ordinary final submit | 2 (rate gate, snapshot patch) | 3 (row, snapshot, rate gate) | 0 | 1 (copy check) |
+| ... plus its CSV | +2 (write-once check, snapshot patch) | +2 (table, snapshot) | 0 | 0 |
+| provisional send | 4 (rate gate, both snapshots, snapshot patch) | 3 | 0 | 0 |
+| provisional replacing a provisional | 5 (as above, plus the old row, to check its owner) | 3 | 1 (old row) | 0 |
+| final replacing a provisional | 4 (rate gate, the snapshot holding the old row, the old row, snapshot patch); 5 when the old row is on the flagged board | 3 | 1 (old row) | 1 |
+| refused for the gap | 3 (rate gate, both snapshots) | 0 | 0 | 0 |
+
+The old row's `csv:` is deleted only when its snapshot row says `hasCsv` (+1 delete), which a
+provisional row never does. When the old row is on the other board from the new one (one flagged,
+one not), taking it off is a second snapshot patch (+1 read, +1 write); otherwise the new row and
+the removal are one patch. Private extras, when sent, are +1 write as for any send.
 
 ### What is stored, and what is not
 

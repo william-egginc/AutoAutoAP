@@ -72,6 +72,16 @@
  * are copies when everything that decides the plan's finish matches (see `contentFingerprint`); the
  * name is deliberately NOT part of it, so an anonymous copy folds into the named one.
  *
+ * PROVISIONAL ROWS (9 Oct 2026). A long run can send its best so far before it ends; its final row
+ * replaces that row on the collector. Such a row is a real plan, priced like any other -- only the
+ * SEARCH is unfinished, and a search only ever improves its best, so the final can only match or beat
+ * it. So it is shown and sorted by its finish like any row, with an "in progress" tag
+ * (`provisionalTag`). What it may not do is stand in for a final row: it never represents a group of
+ * copies over a final copy (`foldCopies`), never re-measures, shows "behind" or makes a what-if of any
+ * other row (`assessPlans`, `judgeHistory`), loses every tie to a final row (`byFinish`,
+ * `deadlineOrder`), and a Full sweep's provisional row carries `space.stoppedEarly`, so it is never
+ * read as a proof (`foundByText` says "partial").
+ *
  * Pure: no Vue, no stores, no fetch. `now` is always passed in so tests are deterministic.
  */
 
@@ -180,6 +190,15 @@ export interface BoardRow {
     range?: { lo: number; hi: number; step: number };
     bands?: number[][];
   };
+  /**
+   * A best so far, sent while its run was still going ("Send best so far"); the run's final row
+   * replaces it on the collector (collector/README.md, "Provisional rows"). Shown and ranked by its
+   * finish like any row, tagged (`provisionalTag`), and never allowed to beat a final row in the ways
+   * a board can: see `PROVISIONAL ROWS` above.
+   */
+  provisional?: boolean;
+  /** How far that run had got when it sent: work done of the run's estimate. Only on a provisional row. */
+  progress?: { done: number; total: number };
   /** What that space turned out to contain. Rides with `space` and never without it. */
   proof?: {
     runnersUp: { chain: number[]; days: number }[];
@@ -687,7 +706,11 @@ export function foldCopies<T extends BoardRow>(rows: readonly T[], filing: Filin
     let rep = copies.find(c => own.has(c)) ?? copies[0];
     for (const c of copies) {
       if (!own.has(c)) continue;
-      const d = searchSize(c) - searchSize(rep) || Number(!!c.hasCsv) - Number(!!rep.hasCsv);
+      // A final copy stands over a provisional one, however much the provisional one had priced.
+      const d =
+        Number(!c.provisional) - Number(!rep.provisional) ||
+        searchSize(c) - searchSize(rep) ||
+        Number(!!c.hasCsv) - Number(!!rep.hasCsv);
       if (d > 0) rep = c;
     }
     const named = copies.find(c => c.nickname?.trim() && (!key || who(c) === key));
@@ -999,11 +1022,13 @@ function judgeHistory<T extends BoardRow>(
   evidence: readonly Evidence<T>[]
 ): { oldSave: Map<Evidence<T>, Evidence<T>>; whatIf: Map<Evidence<T>, Evidence<T>> } {
   const withTE = evidence.filter(e => e.te != null);
+  // A provisional row is judged like any other, but judges nothing: its run has not finished.
+  const witnesses = withTE.filter(e => !e.row.provisional);
   const oldSave = new Map<Evidence<T>, Evidence<T>>();
   for (const x of withTE) {
     const te = x.te!;
     // A newer save, used by a run that started no later, with a higher TE.
-    const fresher = withTE.filter(
+    const fresher = witnesses.filter(
       e => e !== x && e.te! > te + 1 && e.start <= x.start && e.save > x.save + SAME_SAVE_MS
     );
     if (fresher.length) {
@@ -1013,8 +1038,8 @@ function judgeHistory<T extends BoardRow>(
       );
       continue;
     }
-    const before = withTE.filter(e => e.te! > te + 1 && earlierRun(e, x));
-    const after = withTE.filter(e => e.te! > te + 1 && earlierRun(x, e));
+    const before = witnesses.filter(e => e.te! > te + 1 && earlierRun(e, x));
+    const after = witnesses.filter(e => e.te! > te + 1 && earlierRun(x, e));
     if (!before.length || !after.length) continue;
     const topAfter = Math.max(...after.map(e => e.te!));
     const agreeing = before.filter(b => b.te! <= topAfter + 1);
@@ -1027,7 +1052,7 @@ function judgeHistory<T extends BoardRow>(
   const whatIf = new Map<Evidence<T>, Evidence<T>>();
   const trusted = withTE.filter(e => !oldSave.has(e));
   for (const x of trusted) {
-    const lower = trusted.filter(e => e.te! < x.te! - 1 && newerRun(e, x));
+    const lower = trusted.filter(e => !e.row.provisional && e.te! < x.te! - 1 && newerRun(e, x));
     if (lower.length)
       whatIf.set(
         x,
@@ -1123,7 +1148,8 @@ export function assessPlans<T extends BoardRow>(
       p.reason = off.reason;
       continue;
     }
-    const later = real.filter(e => e.start > p.start! + LATER_MS && e.f !== p.folded);
+    // A provisional row never judges another (see PROVISIONAL ROWS): its run will replace it.
+    const later = real.filter(e => e.start > p.start! + LATER_MS && e.f !== p.folded && !e.row.provisional);
     // A newer measurement of this plan, among the lines judged here, that has a finish of its own.
     const remeasure = later.find(e => {
       const line = byFolded.get(e.f);
@@ -1192,9 +1218,13 @@ export function assessPlans<T extends BoardRow>(
   return plans;
 }
 
-/** Earliest finish first; a tie goes to the more recent start. */
+/** Earliest finish first; a tie goes to a final row over a provisional one, then to the more recent start. */
 function byFinish<T extends BoardRow>(a: Plan<T>, b: Plan<T>): number {
-  return (a.finish ?? Infinity) - (b.finish ?? Infinity) || (b.start ?? 0) - (a.start ?? 0);
+  return (
+    (a.finish ?? Infinity) - (b.finish ?? Infinity) ||
+    Number(!!a.row.provisional) - Number(!!b.row.provisional) ||
+    (b.start ?? 0) - (a.start ?? 0)
+  );
 }
 
 export interface PlayerPlans<T extends BoardRow = BoardRow> {
@@ -1379,9 +1409,15 @@ export function deadlineSpare(r: BoardRow): number {
   return (r.deadline as number) - (deadlineAscendMs(r) as number) / 1000;
 }
 
-/** Best answer first: the highest last stop, then the most time to spare, then the newest send. */
+/** Best answer first: the highest last stop, then the most time to spare, then a final answer over a
+ *  provisional one, then the newest send. */
 export function deadlineOrder(a: BoardRow, b: BoardRow): number {
-  return b.finalTE - a.finalTE || deadlineSpare(b) - deadlineSpare(a) || (sentMs(b) ?? 0) - (sentMs(a) ?? 0);
+  return (
+    b.finalTE - a.finalTE ||
+    deadlineSpare(b) - deadlineSpare(a) ||
+    Number(!!a.provisional) - Number(!!b.provisional) ||
+    (sentMs(b) ?? 0) - (sentMs(a) ?? 0)
+  );
 }
 
 /**
@@ -2102,6 +2138,23 @@ export function scheduleText(window: string | null | undefined, none = 'any time
   if (!window) return none;
   return window.replace(/\s+[A-Za-z]+(?:\/[A-Za-z0-9_+-]+)+\s*$/, '').trim() || window;
 }
+
+/**
+ * The tag a provisional row carries: `in progress (42% searched)`, or `in progress` when its run sent
+ * no estimate. '' for every final row. Held under 100%: an estimate reached is not a run finished.
+ */
+export function provisionalTag(row: Pick<BoardRow, 'provisional' | 'progress'>): string {
+  if (!row.provisional) return '';
+  const p = row.progress;
+  const ok = !!p && Number.isFinite(p.done) && Number.isFinite(p.total) && p.total > 0;
+  if (!ok) return 'in progress';
+  return `in progress (${Math.max(0, Math.min(99, Math.floor((100 * p!.done) / p!.total)))}% searched)`;
+}
+
+/** The tooltip for `provisionalTag`. */
+export const PROVISIONAL_TITLE =
+  "The best this player's run had found when they sent it, while the run was still going. Its route and finish are " +
+  'real; the search was not finished, so it may find better. The run replaces this row with its final one when it ends.';
 
 /** The short tag a dropped plan carries next to its route. */
 export function stateTag(state: PlanState): string {

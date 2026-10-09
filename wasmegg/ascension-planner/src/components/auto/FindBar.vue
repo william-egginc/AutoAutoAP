@@ -8,6 +8,11 @@
   the opt-in: it is the same consent as Share this result's "Yes, share", so it starts unticked
   on every visit like that one. (It was remembered for a while; that pre-ticked the Share consent
   too, and let the board lookup that waits for consent run on arrival. Review, 30 Sept.)
+
+  Send best so far (9 Oct): while a run is going, its best so far can go to the board as an "in
+  progress" row that the run's final send replaces (stores/chainSearch.ts `sendBestSoFar`). Same
+  consent: given already by Find and submit; otherwise the first press opens the box below, and
+  agreeing there also has the run send its result when it finishes, which replaces that row.
 -->
 <template>
   <div class="space-y-3">
@@ -38,6 +43,24 @@
           >Please tick the box below</span
         >
       </div>
+      <div v-if="bestSoFarHere" class="flex flex-col items-center gap-1">
+        <button
+          type="button"
+          class="px-6 py-4 rounded-xl bg-indigo-700 text-white text-[11px] font-black uppercase tracking-widest hover:bg-indigo-800 disabled:opacity-40"
+          :disabled="!hasBest || store.bestSoFarSending || store.bestSoFarWait > 0 || (asking && !optIn)"
+          data-testid="send-best-so-far"
+          @click="sendBestSoFar"
+        >
+          {{ store.bestSoFarSending ? 'Sending...' : 'Send best so far' }}
+        </button>
+        <span class="text-[10px] font-semibold text-slate-500 text-center">{{
+          asking && !optIn
+            ? 'Please tick the box below'
+            : store.bestSoFarWait > 0
+              ? `You can send again in ${store.bestSoFarWait} min`
+              : '(it will be replaced when the run finishes)'
+        }}</span>
+      </div>
       <button
         v-if="running"
         type="button"
@@ -48,16 +71,24 @@
         {{ stopping ? 'Stopping...' : 'Stop & keep best' }}
       </button>
     </div>
+    <p
+      v-if="bestSoFarHere && store.bestSoFarStatus"
+      class="text-[11px] font-semibold"
+      :class="store.bestSoFarStatus.ok ? 'text-emerald-700' : 'text-red-700'"
+      data-testid="best-so-far-status"
+    >
+      {{ store.bestSoFarStatus.text }}
+    </p>
     <!-- The save is still settling (a Science link, the Auto Planner tab, a new player id): every
          search reads it, so Find waits rather than pricing one save and labelling it with another. -->
     <p v-if="notReady" class="text-[11px] font-semibold text-amber-700">{{ store.saveNotReady }}</p>
 
     <div
-      v-if="showSubmit && !running"
+      v-if="showSubmit && (!running || asking)"
       class="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3 space-y-2 text-[11px] text-indigo-900"
     >
       <p v-if="!optIn" class="font-black text-indigo-800">
-        To use Find and submit, please read this and tick the box to agree:
+        To use {{ running ? 'Send best so far' : 'Find and submit' }}, please read this and tick the box to agree:
       </p>
       <label class="flex items-start gap-3">
         <input v-model="optIn" type="checkbox" class="mt-0.5 rounded border-indigo-300 text-indigo-600" />
@@ -71,8 +102,9 @@
             ({{ consentNote }})</template
           >. I understand it sends the route, its dates and the {{ goalWord }}, with my artifact inventory, timezone,
           local plan start and the random code this browser keeps for the account (not my player ID, and never shown),
-          plus my CSV if ticked below and, if ticked, private diagnostics (never shown). Stop it early and it shares the best
-          it found so far.</span
+          plus my CSV if ticked below and, if ticked, private diagnostics (never shown). Stop it early and it shares the
+          best it found so far. Send best so far shares it while the run goes on, without the CSV; that row is replaced
+          when the run finishes.</span
         >
       </label>
       <p v-if="goalWord === 'target'" class="ml-7 text-[10px] text-indigo-900/70">
@@ -100,7 +132,8 @@
           @input="onNickname"
         />
       </div>
-      <RunNoteBox v-if="note !== undefined" v-model="note" />
+      <!-- The note goes with the run as it starts; a run already going keeps the one it started with. -->
+      <RunNoteBox v-if="note !== undefined && !running" v-model="note" />
     </div>
   </div>
 </template>
@@ -127,6 +160,8 @@ const props = withDefaults(
     goalWord?: 'target' | 'deadline';
     csvDetail?: string;
     nicknameMax?: number;
+    /** Which run this screen starts, for Send best so far (store `bestSoFar.kind`). Unset: none. */
+    bestSoFarKind?: 'fastest' | 'deadline';
   }>(),
   {
     stopping: false,
@@ -142,6 +177,30 @@ const props = withDefaults(
 const store = useChainSearchStore();
 /** Find waits for the save to settle; a run already going is left alone. */
 const notReady = computed(() => !props.running && !!store.saveNotReady);
+
+/** This screen's run is going and may Send best so far. */
+const bestSoFarHere = computed(
+  () => props.running && !!props.bestSoFarKind && store.bestSoFar?.kind === props.bestSoFarKind
+);
+/** It has found something to send. */
+const hasBest = computed(() => !!store.runProgress?.best);
+/** The button was pressed (here or on the progress bar) before the player agreed: the box is open. */
+const asking = computed(() => bestSoFarHere.value && !store.bestSoFar?.consent && !!store.bestSoFar?.asked);
+
+/** First press without consent opens the box; with the box ticked, it agrees and sends. */
+function sendBestSoFar(): void {
+  const run = store.bestSoFar;
+  if (!run) return;
+  if (!run.consent) {
+    if (!run.asked) {
+      store.askBestSoFar();
+      return;
+    }
+    if (!optIn.value) return;
+    store.agreeBestSoFar(anonymous.value ? '' : nickname.value.trim().slice(0, props.nicknameMax));
+  }
+  void store.sendBestSoFar();
+}
 const emit = defineEmits<{ find: [andSubmit: boolean]; stop: []; nicknameTyped: [] }>();
 
 const optIn = defineModel<boolean>('optIn', { required: true });

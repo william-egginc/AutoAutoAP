@@ -65,6 +65,8 @@ import { buildView, type ViewId } from '@/search/views';
 import {
   appBuildId,
   bestPerFamily,
+  asProvisional,
+  BEST_SO_FAR_GAP_MS,
   buildSubmission,
   cleanNote,
   duplicateMessage,
@@ -72,7 +74,10 @@ import {
   scrubIdentifiers,
   submissionFilename,
   summariseProof,
+  provisionalProgress,
+  readProvisionalRow,
   tooManySubmissionsMessage,
+  type ProvisionalRow,
   type Recheck,
   type SearchSpace,
   type Submission,
@@ -674,6 +679,82 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   /** How the last automatic send went (Find and submit), for a panel opened after it: the run and
    *  its send outlive the panel that started them (AutoSendReport.vue). Cleared by the next Find. */
   const lastAutoSend = ref<{ kind: 'smart' | 'full' | 'by-date'; ok: boolean; text: string } | null>(null);
+
+  // ------------------------------------------------------------------------- Send best so far
+  //
+  // A long run (By a date, a Full sweep: 10-20 h) used to send only when it ended. "Send best so far"
+  // sends its best mid-run as a PROVISIONAL row and lets it carry on; the run's final send carries
+  // `replaces` and takes that row's place (collector/README.md, "Provisional rows"). So does a second
+  // best so far from the same run. Fastest and By a date each keep their own.
+
+  /** The provisional row each screen's run has on the board, and the name it went under. Kept in the
+   *  run's checkpoint, so a crash and a carry-on still replace it. */
+  const provisionalRows = ref<{ fastest: ProvisionalRow | null; deadline: ProvisionalRow | null }>({
+    fastest: null,
+    deadline: null,
+  });
+  /** A carried-on run's provisional row, read from its checkpoint, until the run takes it at its start
+   *  (`takeCarriedProvisional`). A fresh run takes nothing, so it never replaces another run's row. */
+  let carriedProvisional: ProvisionalRow | null = null;
+  function takeCarriedProvisional(): ProvisionalRow | null {
+    const held = carriedProvisional;
+    carriedProvisional = null;
+    return held;
+  }
+  function setProvisional(kind: 'fastest' | 'deadline', row: ProvisionalRow | null): void {
+    provisionalRows.value = { ...provisionalRows.value, [kind]: row };
+  }
+  /**
+   * The run that may Send best so far: set by the screen that started it for the length of the run
+   * (`beginBestSoFar`), so a run started anywhere else (a sweep from Science) offers nothing. `consent`
+   * is the name to send under once the player has agreed -- at Find and submit, or in the screen's box
+   * during the run -- and null until then. `asked`: the progress bar's button was pressed without
+   * consent, so the screen opens its consent box.
+   */
+  const bestSoFar = ref<{
+    kind: 'fastest' | 'deadline';
+    consent: { nickname: string } | null;
+    asked: boolean;
+  } | null>(null);
+  const bestSoFarSending = ref(false);
+  /** How the last Send best so far went, for the bar and the screen. Cleared when a run begins. */
+  const bestSoFarStatus = ref<{ ok: boolean; text: string } | null>(null);
+  let bestSoFarInFlight: Promise<unknown> | null = null;
+  /** A clock for "You can send again in N min", ticking only while a run can send. */
+  const bestSoFarNow = ref(Date.now());
+  let bestSoFarTicker: ReturnType<typeof setInterval> | null = null;
+  /** Whole minutes until this run may send its best so far again (one every 30 min); 0 when it may. */
+  const bestSoFarWait = computed(() => {
+    const run = bestSoFar.value;
+    const at = run ? provisionalRows.value[run.kind]?.at : undefined;
+    if (!at) return 0;
+    const left = at + BEST_SO_FAR_GAP_MS - bestSoFarNow.value;
+    return left > 0 ? Math.ceil(left / 60_000) : 0;
+  });
+  function beginBestSoFar(kind: 'fastest' | 'deadline', consent: { nickname: string } | null): void {
+    bestSoFar.value = { kind, consent, asked: false };
+    bestSoFarStatus.value = null;
+    bestSoFarNow.value = Date.now();
+    if (!bestSoFarTicker) bestSoFarTicker = setInterval(() => (bestSoFarNow.value = Date.now()), 15_000);
+  }
+  function endBestSoFar(): void {
+    bestSoFar.value = null;
+    if (bestSoFarTicker) clearInterval(bestSoFarTicker);
+    bestSoFarTicker = null;
+  }
+  /** The player agreed, in the screen's box, during the run. */
+  function agreeBestSoFar(nickname: string): void {
+    if (bestSoFar.value) bestSoFar.value = { ...bestSoFar.value, consent: { nickname }, asked: false };
+  }
+  /** The bar's button, pressed before consent: the screen shows its consent box. */
+  function askBestSoFar(): void {
+    if (bestSoFar.value) bestSoFar.value = { ...bestSoFar.value, asked: true };
+  }
+  /** Resolves once any best-so-far send in flight has its answer, so a final send that follows
+   *  knows which row to replace. */
+  async function bestSoFarSettled(): Promise<void> {
+    if (bestSoFarInFlight) await bestSoFarInFlight.catch(() => {});
+  }
   // Any other load replacing the carried-on run's save (the header's refresh, Plan Next, a plan
   // from the library...) ends "on the run's own save": drop the notice and the run's pinned start.
   watch(
@@ -1444,6 +1525,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const summary = savedRuns.value.find(r => r.id === id);
     const body = await loadRun(await hashID(playerId), id);
     if (!summary || !body) return false;
+    // Another run on screen: sending it must not replace the last run's best so far.
+    setProvisional('fastest', null);
 
     resetChartData();
     liveCache = body.entries;
@@ -1566,10 +1649,12 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    */
   async function prepareToCarryOn(
     playerId: string,
-    record: { fingerprint?: string; inputsKey?: string; runNote?: string }
+    record: { fingerprint?: string; inputsKey?: string; runNote?: string; provisional?: unknown }
   ): Promise<SearchInputs | 'current' | null> {
     // The run's own note comes back with it (the box is what the carried-on run captures).
     if (record.runNote !== undefined) runNote.value = record.runNote;
+    // And its best so far on the board, which its final send must still replace (taken at its start).
+    carriedProvisional = readProvisionalRow(record.provisional);
     partitionHash = partitionHash || (await hashID(playerId));
     // Never another account's run, whatever the player id says (see `accountOf`).
     if (await fromOtherAccount(partitionHash, record.inputsKey)) {
@@ -2563,13 +2648,30 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     return runSweepTag ? { ...sub, sweep: { ...runSweepTag } } : sub;
   }
 
+  /** What a deadline send reads from its run: a finished result has all of it, a running one too. */
+  type DeadlineSendBase = Pick<
+    SavedDeadlineResult,
+    'deadline' | 'planStart' | 'te' | 'note' | 'settings' | 'account' | 'simple' | 'priced'
+  >;
+
+  /** The running date search's best route as a submission, for Send best so far. */
+  function deadlineBestSoFarSubmission(nickname: string): Submission | null {
+    const best = deadlineProgress.value?.best;
+    if (!deadlineRunning.value || !deadlineRun || !best) return null;
+    return buildDeadlineSubmission(best, nickname, { ...deadlineRun, priced: deadlineProgress.value?.priced ?? 0 });
+  }
+
   /**
    * A deadline route as a submission (schema 8): its chain ends at the highest last stop found
    * reachable by the date, so `finalTE` is that stop and the board ranks on it. Priced from the
    * run's own plan start and TE; the account half is the loaded save's, as for any send.
    */
-  function buildDeadlineSubmission(route: DeadlineRoute, nickname?: string): Submission | null {
-    const r = deadlineResult.value;
+  function buildDeadlineSubmission(
+    route: DeadlineRoute,
+    nickname?: string,
+    /** The run the route came from: the result on screen, or (a best so far) the run still going. */
+    r: DeadlineSendBase | null = deadlineResult.value
+  ): Submission | null {
     if (!r || !route.chain.length || !(route.reachAt > r.planStart)) return null;
     return buildSubmission({
       nickname,
@@ -2973,6 +3075,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     renamed?: boolean;
     /** On an exact copy: the name the stored row is on the board under ('' for none). */
     nickname?: string;
+    /** A send with `replaces`: the provisional row it took the place of, or why it could not. */
+    replaced?: string;
+    replaceRefused?: string;
   }
 
   async function sendSubmission(
@@ -2984,7 +3089,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
      * store. Without it, exactly the site's send.
      */
     saved?: { partition: string; resultKey: string | null }
-  ): Promise<{ ok: boolean; message: string; duplicate?: 'exact' | 'result' }> {
+  ): Promise<{ ok: boolean; message: string; duplicate?: 'exact' | 'result'; id?: string; tooSoon?: boolean }> {
     if (!submitUrl) return { ok: false, message: 'no collector configured' };
     // A payload whose start contradicts its own save is never sent, from any screen or the command
     // line: the board would file it under a TE the route was not priced from.
@@ -2995,7 +3100,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const deadlineSend = payload.deadline !== undefined;
     // The key of the result being SENT, taken now: the awaits below give the page time to change it.
     const sentKey = saved ? saved.resultKey : safeResultKey();
-    if (!deadlineSend) pendingTable.value = null;
+    // A best so far (Send best so far): no table, no rechecks, and the result is not "sent" -- the
+    // run's final send is still to come, and must not be turned away as a copy.
+    const provisional = payload.provisional === true;
+    if (!deadlineSend && !provisional) pendingTable.value = null;
     // Schema 7's rechecks, when the payload is this run's result and has none yet. Bounded, and a
     // failure only means the send goes without them.
     // By the chain alone (it ends at the run's target): the target box may have changed since.
@@ -3004,7 +3112,14 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       !deadlineSend &&
       payload.chain?.length === bestChain.value.length &&
       payload.chain.every((v, k) => v === bestChain.value[k]);
-    if (thisRun && !payload.rechecks?.length) {
+    // The run's final send takes the place of its best so far on the board (collector "Provisional
+    // rows"): the result on screen, from this screen's run, never one sent from a file.
+    const kind = deadlineSend ? 'deadline' : 'fastest';
+    const held = provisionalRows.value[kind];
+    if (!saved && !provisional && held && payload.replaces === undefined && (deadlineSend || thisRun)) {
+      payload = { ...payload, replaces: held.id };
+    }
+    if (thisRun && !provisional && !payload.rechecks?.length) {
       // Only the set that matches this send's name, or lack of one (see `RecheckSets`).
       const set = payload.nickname?.trim() ? 'named' : 'anonymous';
       const rechecks = rechecksFor(sentKey, set === 'named') ?? (await computeRechecks(RECHECK_BUDGET_MS))[set];
@@ -3027,7 +3142,16 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         // schema 1", "chain must strictly increase" -- and reporting only the status code turned
         // an answerable message into a wall. A stale build submitting an old schema looked
         // exactly like a broken collector.
-        const detail = (await res.json().catch(() => ({}))) as { problems?: string[]; retryAfter?: number };
+        const detail = (await res.json().catch(() => ({}))) as {
+          problems?: string[];
+          retryAfter?: number;
+          tooSoon?: boolean;
+        };
+        // A best so far sent too soon after the last one (the collector's own gap, collector "Provisional rows").
+        if (res.status === 429 && detail.tooSoon) {
+          const minutes = Math.max(1, Math.ceil((detail.retryAfter ?? 60) / 60));
+          return { ok: false, message: `You can send again in ${minutes} min.`, tooSoon: true };
+        }
         if (res.status === 429) return { ok: false, message: tooManySubmissionsMessage(detail.retryAfter) };
         const why = detail.problems?.length ? `: ${detail.problems.join('; ')}` : '';
         return { ok: false, message: `collector said ${res.status}${why}` };
@@ -3060,16 +3184,28 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
             ? reply.nickname
             : undefined
         : (payload.nickname ?? '');
-    if (!deadlineSend)
+    if (!deadlineSend && !provisional)
       rememberSent(sentKey, { ...(id ? { id } : {}), ...(storedName !== undefined ? { nickname: storedName } : {}) });
+    // The final went: the best so far it carried `replaces` for is done with, replaced or not (a
+    // refusal leaves that row up, and sending again cannot change that).
+    if (!provisional && payload.replaces && provisionalRows.value[kind]?.id === payload.replaces)
+      setProvisional(kind, null);
     // The board has a new row of this account's: the next run's rechecks should see it.
     recheckFetch = null;
 
     // Said with every success message, because a run that went to the flagged board will not appear
     // on the main one, and without this it looks lost.
-    const note = flagged?.length
-      ? ` It went to the flagged board (${flagged.join(', ')}), shown anonymously; the Chain Explorer shows it to you as yours in this browser.`
-      : '';
+    const replacedNote = reply.replaced
+      ? provisional
+        ? ' It replaced the best so far you sent before.'
+        : ' It replaced the best so far you sent during the run.'
+      : reply.replaceRefused
+        ? ` The best so far you sent earlier is still on the board (${reply.replaceRefused}).`
+        : '';
+    const note =
+      (flagged?.length
+        ? ` It went to the flagged board (${flagged.join(', ')}), shown anonymously; the Chain Explorer shows it to you as yours in this browser.`
+        : '') + replacedNote;
     // A copy the collector caught is said as a plain note, not an error and not a thank-you for
     // something that stored nothing (see `duplicateMessage`).
     const exactNote = {
@@ -3079,7 +3215,12 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       stored: typeof reply.nickname === 'string' ? reply.nickname : undefined,
     };
     const lead = duplicate ? duplicateMessage(duplicate, exactNote) : 'sent';
-    const done = (message: string) => ({ ok: true, message, ...(duplicate ? { duplicate } : {}) });
+    const done = (message: string) => ({
+      ok: true,
+      message,
+      ...(duplicate ? { duplicate } : {}),
+      ...(id ? { id } : {}),
+    });
     if (!csv) return done(lead + note);
     // An exact copy stores nothing; the collector hands back a CSV token only when the stored row is
     // this browser's and has no table yet, so a table-less first send gets its table now.
@@ -3109,7 +3250,56 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       );
     }
     const table = await postTable();
-    return { ok: table.ok, message: withTable(table) + note, ...(duplicate ? { duplicate } : {}) };
+    return { ok: table.ok, message: withTable(table) + note, ...(duplicate ? { duplicate } : {}), id };
+  }
+
+  /**
+   * Send best so far: the running search's best, as a provisional row its final send will replace.
+   * Needs the player's yes for this run (`bestSoFar.consent`). Sends no table (the final carries it),
+   * no rechecks and no diagnostics. A second press replaces the first row. Never throws.
+   */
+  async function sendBestSoFar(): Promise<{ ok: boolean; text: string }> {
+    const say = (ok: boolean, text: string) => {
+      bestSoFarStatus.value = { ok, text };
+      return { ok, text };
+    };
+    const run = bestSoFar.value;
+    const p = runProgress.value;
+    if (bestSoFarSending.value) return { ok: false, text: 'Already sending.' };
+    if (!run) return say(false, 'This run cannot send its best so far.');
+    if (!run.consent) return say(false, 'Tick the box to agree first.');
+    if (!p?.best || (p.kind === 'by-date') !== (run.kind === 'deadline'))
+      return say(false, 'Nothing found yet to send.');
+    // One every 30 minutes (BEST_SO_FAR_GAP_MS): each send costs the collector several KV writes.
+    bestSoFarNow.value = Date.now();
+    if (bestSoFarWait.value > 0) return say(false, `You can send again in ${bestSoFarWait.value} min.`);
+    const kind = run.kind;
+    bestSoFarSending.value = true;
+    const go = (async () => {
+      const base =
+        kind === 'deadline'
+          ? deadlineBestSoFarSubmission(run.consent!.nickname)
+          : buildRunSubmission(run.consent!.nickname);
+      if (!base) return say(false, 'Nothing found yet to send.');
+      const payload = asProvisional(base, provisionalProgress(p.done, p.total), provisionalRows.value[kind]?.id);
+      const res = await sendSubmission(payload);
+      if (!res.ok) return say(false, res.tooSoon ? res.message : `Not sent: ${res.message}`);
+      if (res.id) {
+        setProvisional(kind, { id: res.id, nickname: payload.nickname ?? '', at: Date.now() });
+        // Into the run's checkpoint at its next write, which is now rather than in a minute or two.
+        if (kind === 'fastest') lastCheckpointAt = 0;
+        else deadlineSavedAt = 0;
+      }
+      const flaggedNote = /flagged board/.test(res.message) ? ' It went to the flagged board.' : '';
+      return say(true, `Sent. It will be replaced when the run finishes.${flaggedNote}`);
+    })();
+    bestSoFarInFlight = go;
+    try {
+      return await go;
+    } finally {
+      bestSoFarSending.value = false;
+      if (bestSoFarInFlight === go) bestSoFarInFlight = null;
+    }
   }
 
   /** A claim this soon after its send that finds no row is the board catching up, not a lost run. */
@@ -3461,6 +3651,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           complete,
           inputsKey: runInputsKey || null,
           runNote: runNoteUsed,
+          provisional: provisionalRows.value.fastest,
         })
       );
     } catch (e) {
@@ -3595,6 +3786,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       return;
     }
     const chains = built.chains;
+    // A carry-on keeps its run's best so far on the board to replace; a fresh run has none.
+    setProvisional('fastest', takeCarriedProvisional());
 
     runSweepTag = sweepTag.value ? { ...sweepTag.value } : null;
     runNoteUsed = cleanNote(runNote.value);
@@ -3977,6 +4170,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   } | null>(null);
   let deadlineStop = false;
   let deadlineSavedAt = 0;
+  /** The running date search's own start, for a best so far sent before it has a result. */
+  let deadlineRun: DeadlineSendBase | null = null;
 
   /** Saved By a date answers for this account (search/deadlineStore.ts `saveAnswer`). */
   const savedAnswers = ref<SavedAnswer[]>([]);
@@ -3998,6 +4193,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // clearing them here (as this once did, before the guard) sent it with the live save instead.
     if (!a || deadlineRunning.value) return;
     deadlineAll = [];
+    // Another answer on screen: sending it must not replace the last run's best so far.
+    setProvisional('deadline', null);
     deadlineResult.value = JSON.parse(JSON.stringify(a.result)) as SavedDeadlineResult;
     restoreDeadlineAccount(deadlineResult.value);
   }
@@ -4138,6 +4335,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       const cp = await loadDeadlineCheckpoint(partitionHash);
       if (!cp) return;
       runNote.value = cp.spec.note ?? '';
+      carriedProvisional = readProvisionalRow(cp.provisional);
       if (await fromOtherAccount(partitionHash, cp.inputsKey)) {
         error.value = `This search can't carry on: ${OTHER_ACCOUNT}.`;
         return;
@@ -4206,6 +4404,18 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     deadlineAccount = account;
     deadlineBackup = inputs.context?.rawBackup ?? getSimulationContext().rawBackup ?? null;
     deadlineNote = spec.note;
+    // A carry-on keeps its run's best so far on the board to replace; a fresh run has none.
+    setProvisional('deadline', takeCarriedProvisional());
+    deadlineRun = {
+      deadline: spec.deadline,
+      planStart: inputs.planStart,
+      te: inputs.currentTE,
+      ...(spec.note ? { note: spec.note } : {}),
+      ...(deadlineSettings ? { settings: deadlineSettings } : {}),
+      account: account as DeadlineAccount,
+      ...(spec.simple ? { simple: true } : {}),
+      priced: 0,
+    };
     deadlineEstimate.value = Math.max(0, Math.floor(spec.estimate ?? 0));
     deadlineStop = false;
     deadlineResult.value = null;
@@ -4252,6 +4462,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           updatedAt: now,
           elapsedSeconds: priorSeconds + Math.max(0, (now - deadlineStartedAt.value) / 1000 - (pool?.suspendedSeconds ?? 0)),
           account: account as DeadlineAccount,
+          ...(provisionalRows.value.deadline ? { provisional: { ...provisionalRows.value.deadline } } : {}),
         });
       } catch (e) {
         console.warn('chain search: could not save the deadline search', e);
@@ -5056,6 +5267,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     }
     recheckPriced = new Map();
     recheckFetch = null;
+    // A carry-on keeps its run's best so far on the board to replace; a fresh run has none.
+    setProvisional('fastest', takeCarriedProvisional());
 
     error.value = null;
     errorBeforeStart.value = false;
@@ -5602,6 +5815,17 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     errorIsIntegrityNotice,
     runProgress,
     stopRun,
+    provisionalRows,
+    bestSoFar,
+    bestSoFarSending,
+    bestSoFarStatus,
+    bestSoFarWait,
+    beginBestSoFar,
+    endBestSoFar,
+    agreeBestSoFar,
+    askBestSoFar,
+    bestSoFarSettled,
+    sendBestSoFar,
     sweepQueue,
     suggestedCount,
     suggestedRoute,

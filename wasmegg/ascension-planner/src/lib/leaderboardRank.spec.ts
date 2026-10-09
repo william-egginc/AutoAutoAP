@@ -6,6 +6,7 @@ import {
   buildMyPlans,
   buildRace,
   buildDeadlineBoard,
+  deadlineOrder,
   calendarDaysLeft,
   contentFingerprint,
   daysLeft,
@@ -24,6 +25,7 @@ import {
   plannedText,
   playerKey,
   projectedTE,
+  provisionalTag,
   remainingChain,
   rowFirstAscension,
   sameBuild,
@@ -1843,5 +1845,76 @@ describe('filtering the By a date boards', () => {
     expect(names({ hours: 'awake' })).toEqual(['Three']);
     expect(names({ hours: 'any', timeOff: 'without' })).toEqual(['Two']);
     expect(names({ ascensions: 3, timeOff: 'with' })).toEqual([]);
+  });
+});
+
+describe('provisional rows (Send best so far)', () => {
+  it('are tagged with how far their run had searched, held under 100%', () => {
+    expect(provisionalTag(row())).toBe('');
+    expect(provisionalTag(row({ provisional: true }))).toBe('in progress');
+    expect(provisionalTag(row({ provisional: true, progress: { done: 1200, total: 4000 } }))).toBe(
+      'in progress (30% searched)'
+    );
+    expect(provisionalTag(row({ provisional: true, progress: { done: 4000, total: 4000 } }))).toBe(
+      'in progress (99% searched)'
+    );
+    expect(provisionalTag(row({ provisional: true, progress: { done: 3, total: 0 } }))).toBe('in progress');
+  });
+
+  it('never stand for a group of copies over a final copy, however much they priced', () => {
+    const best = row({ id: 'best', provisional: true, chainsPriced: 90000, submittedAt: '2026-09-25T20:00:00Z' });
+    const fin = row({ id: 'final', chainsPriced: 4000, submittedAt: '2026-09-25T21:00:00Z' });
+    const [line] = foldCopies([best, fin]);
+    expect(line.copies).toHaveLength(2);
+    expect(line.row.id).toBe('final');
+  });
+
+  it('never replace a final plan as a newer run of it, and lose a tie to it', () => {
+    const fin = row({ id: 'final', startLocal: '2026-09-20 10:00', submittedAt: '2026-09-20T15:05:00Z' });
+    // The same plan a day later, finishing at the same moment: a final row would replace it.
+    const best = row({
+      id: 'best',
+      provisional: true,
+      startLocal: '2026-09-21 10:00',
+      submittedAt: '2026-09-21T15:05:00Z',
+      durationDays: fin.durationDays - 1,
+    });
+    const plans = groupPlayers([fin, best], { target: 490, now: NOW })[0].plans;
+    expect(Object.fromEntries(plans.map(p => [p.row.id, p.state]))).toEqual({ final: 'current', best: 'current' });
+    expect(buildRace([fin, best], { target: 490, now: NOW }).entries[0].best.row.id).toBe('final');
+    // A final row the day after replaces the best so far, as any newer run of the plan does.
+    const after = row({
+      id: 'after',
+      startLocal: '2026-09-22 10:00',
+      submittedAt: '2026-09-22T15:05:00Z',
+      durationDays: fin.durationDays - 2,
+    });
+    const judged = groupPlayers([best, after], { target: 490, now: NOW })[0].plans;
+    expect(Object.fromEntries(judged.map(p => [p.row.id, p.state]))).toEqual({ best: 'replaced', after: 'current' });
+  });
+
+  it('never make another row a what-if', () => {
+    const high = row({
+      id: 'high',
+      currentTE: 201,
+      startLocal: '2026-09-20 10:00',
+      submittedAt: '2026-09-20T15:05:00Z',
+    });
+    const later = row({
+      id: 'later',
+      provisional: true,
+      currentTE: 161,
+      chain: [200, 490],
+      startLocal: '2026-09-22 10:00',
+      submittedAt: '2026-09-22T15:05:00Z',
+    });
+    const plans = groupPlayers([high, later], { target: 490, now: NOW })[0].plans;
+    expect(Object.fromEntries(plans.map(p => [p.row.id, p.state]))).toEqual({ high: 'current', later: 'current' });
+  });
+
+  it('lose a tie on the By a date board to a final answer', () => {
+    const a = row({ id: 'a', deadline: 1815926400, provisional: true, submittedAt: '2026-09-25T22:00:00Z' });
+    const b = row({ id: 'b', deadline: 1815926400, submittedAt: '2026-09-25T21:00:00Z' });
+    expect([a, b].sort(deadlineOrder).map(r => r.id)).toEqual(['b', 'a']);
   });
 });

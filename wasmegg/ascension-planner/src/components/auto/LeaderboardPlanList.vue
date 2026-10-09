@@ -90,6 +90,12 @@
                   class="ml-1.5 inline-block whitespace-nowrap px-1 rounded bg-amber-100 text-[9px] font-black uppercase tracking-widest text-amber-800"
                   >{{ stateTag(p.state) }}</span
                 >
+                <span
+                  v-if="provisionalTag(p.row)"
+                  class="ml-1.5 inline-block whitespace-nowrap px-1 rounded bg-amber-50 border border-amber-300 text-[9px] font-black text-amber-800"
+                  :title="PROVISIONAL_TITLE"
+                  >{{ provisionalTag(p.row) }}</span
+                >
               </td>
               <td class="py-1.5 pr-3 whitespace-nowrap text-slate-700" :title="finishTitle(p.finish, p.row.timezone)">
                 {{ finishDateText(p.finish, viewZone) }}
@@ -193,6 +199,8 @@ import {
   settingTags,
   signedDays,
   stateTag,
+  provisionalTag,
+  PROVISIONAL_TITLE,
   type Plan,
 } from '@/lib/leaderboardRank';
 

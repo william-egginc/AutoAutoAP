@@ -821,6 +821,7 @@
           :show-submit="!sweepRequest"
           consent-note="each chain's, when you queued several"
           :nickname-max="NICKNAME_MAX"
+          best-so-far-kind="fastest"
           @find="andSubmit => void start(andSubmit)"
           @stop="stopRun"
           @nickname-typed="nicknameTouched = true"
@@ -1037,6 +1038,7 @@
         <ShareResult
           v-if="store.bestDays > 0 && !(store.isRunning && store.submitsWhenDone)"
           id="share-this-result"
+          :replaces-best-so-far="!!store.provisionalRows.fastest"
           v-model:opt-in="optIn"
           v-model:anonymous="anonymous"
           v-model:nickname="nickname"
@@ -1961,12 +1963,36 @@ async function start(andSubmit = false): Promise<void> {
   if (sweepRequest && sweepConsent.value) history.replaceState(null, '', withoutSweepParams(location.href));
   // For the progress bar on other tabs: this run sends itself when it finishes.
   store.submitsWhenDone = findAndSubmit.value || (!!sweepRequest && sweepConsent.value);
+  // Send best so far, with the consent this click already has (or that the box asks for mid-run).
+  store.beginBestSoFar('fastest', store.submitsWhenDone ? { nickname: bestSoFarName() } : null);
   try {
     await startOne();
   } finally {
     findAndSubmit.value = false;
     store.submitsWhenDone = false;
+    store.endBestSoFar();
   }
+}
+
+/** The name a best so far goes under: the box's, without the time stamp (that is for the final row). */
+function bestSoFarName(): string {
+  return anonymous.value ? '' : nickname.value.trim().slice(0, NICKNAME_MAX);
+}
+
+/**
+ * Whether the run that just ended owes the board its result: the player agreed to share during the
+ * run (Send best so far's box), or the run sent a best so far, which its result replaces. For a
+ * carried-on run, its best so far went under a name from before the reload: the result goes under it.
+ */
+async function owesResult(): Promise<boolean> {
+  const agreed = !!store.bestSoFar?.consent;
+  await store.bestSoFarSettled();
+  const owed = store.provisionalRows.fastest;
+  if (!agreed && owed) {
+    anonymous.value = !owed.nickname;
+    if (owed.nickname) nickname.value = owed.nickname;
+  }
+  return agreed || !!owed;
 }
 
 /** The result on screen, sent the way the sweep card sends one (CSV included, no time stamp on the name). */
@@ -1990,7 +2016,7 @@ async function startOne(): Promise<void> {
   // Armed: the sweep sends itself at the end, so its last seconds may re-price the player's best
   // earlier plans on the workers before they are shut down (the store's "re-checks").
   await store.startExhaustive(props.playerId, currentSpec(), { recheck: autoSubmitArmed.value });
-  if (!autoSubmitArmed.value) return;
+  if (!autoSubmitArmed.value && !(await owesResult())) return;
   autoSubmitArmed.value = false;
   // The card's own choice (anonymous by default, or the nickname box) is what goes; blank name with
   // "credit me" picked still goes anonymously, as `effectiveNickname` already decides.
@@ -2050,7 +2076,11 @@ async function startQueue(): Promise<void> {
           finish: store.planStartUsed + store.bestDays * 86400,
         });
         // Find and submit: each chain's result goes as it finishes, before the next takes the panel.
-        if (findAndSubmit.value && !stopped) await sendFinished();
+        // So does one whose best so far is on the board (its result replaces it, stopped or not), and
+        // every one once the player agreed during the queue (Send best so far's box).
+        await store.bestSoFarSettled();
+        const owes = !!store.provisionalRows.fastest || (!findAndSubmit.value && !!store.bestSoFar?.consent);
+        if ((findAndSubmit.value && !stopped) || owes) await sendFinished();
         try {
           await store.saveCurrentRun(player, specs[k].label);
         } catch (e) {
@@ -2159,11 +2189,17 @@ async function resumeCrashed(): Promise<void> {
   // the deadline panel just says it is waiting (a player clicked this from the deadline view).
   goal.value = 'fastest';
   resuming.value = 'checkpoint';
+  store.beginBestSoFar('fastest', null);
+  let owes = false;
   try {
     await store.resumeCrashedRun(props.playerId);
+    owes = await owesResult();
   } finally {
     resuming.value = '';
+    store.endBestSoFar();
   }
+  // Its best so far (sent before the interruption, or since) is replaced by its result.
+  if (owes) await sendFinished();
 }
 
 /** Which run is mid-resume, for the button's own label. Empty when none is. */

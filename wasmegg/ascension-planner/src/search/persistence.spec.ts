@@ -421,3 +421,33 @@ describe('putting a run’s settings back from its fingerprint', () => {
     ).toEqual(['TE was 137, now 170']);
   });
 });
+
+describe("a run's best so far on the board (Send best so far)", () => {
+  beforeEach(() => store.clear());
+  const withRow = (provisional: { id: string; nickname: string; at?: number } | null, keys: string[]) =>
+    buildCheckpoint({
+      fingerprint: FP,
+      effort: 'normal',
+      seedChain: [195, 490],
+      bestChain: [196, 490],
+      bestSeconds: 744 * 86400,
+      entries: keys.map(k => ({ key: k, seconds: 1, legs: [] })),
+      stage: 'running',
+      detail: '',
+      chainsDone: keys.length,
+      provisional,
+    });
+
+  it('is kept with the checkpoint, so a carry-on can still replace it', async () => {
+    await saveCheckpoint(HASH, withRow({ id: 'aaaa0001', nickname: 'Jo', at: 5 }, ['a']));
+    expect((await loadCheckpoint(HASH, FP))?.provisional).toEqual({ id: 'aaaa0001', nickname: 'Jo', at: 5 });
+  });
+
+  it("is the run's own latest word: a write without one is a run that has none now", async () => {
+    await saveCheckpoint(HASH, withRow({ id: 'aaaa0001', nickname: '' }, ['a']));
+    await saveCheckpoint(HASH, withRow(null, ['b']));
+    const got = await loadCheckpoint(HASH, FP);
+    expect(got?.provisional).toBeUndefined();
+    expect(got?.durations.map(([k]) => k).sort()).toEqual(['a', 'b']);
+  });
+});

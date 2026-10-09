@@ -484,6 +484,7 @@
         "
         :running="store.isRunning"
         :stopping="store.stopRequested"
+        best-so-far-kind="fastest"
         @find="andSubmit => void run(false, andSubmit)"
         @stop="store.stop()"
         @nickname-typed="nicknameTouched = true"
@@ -1086,6 +1087,7 @@
       <ShareResult
         v-if="store.bestDays > 0 && !store.isRunning"
         id="share-this-result"
+        :replaces-best-so-far="!!store.provisionalRows.fastest"
         v-model:opt-in="optIn"
         v-model:anonymous="anonymous"
         v-model:nickname="nickname"
@@ -1709,16 +1711,30 @@ async function run(resume: boolean, andSubmit = false): Promise<void> {
   store.lastAutoSend = null;
   // For the progress bar on other tabs: this run sends itself when it finishes.
   store.submitsWhenDone = armed;
+  // Send best so far, with the consent Find and submit already has (or asked for during the run).
+  store.beginBestSoFar('fastest', armed ? { nickname: effectiveNickname.value } : null);
+  let agreed: boolean;
   // Armed: the run sends itself at the end, so its last seconds may re-price the player's best
   // earlier plans on the workers before they are shut down (the store's "re-checks").
   try {
     await store.start(props.playerId, { resume, recheck: armed });
   } finally {
     store.submitsWhenDone = false;
+    agreed = armed || !!store.bestSoFar?.consent;
+    store.endBestSoFar();
+  }
+  // A best so far on the board is replaced by the run's result, so the run sends one when it ends:
+  // after a yes in the box during the run, or for a carried-on run that sent one before (under the
+  // name that went with it).
+  await store.bestSoFarSettled();
+  const owed = store.provisionalRows.fastest;
+  if (!agreed && owed) {
+    anonymous.value = !owed.nickname;
+    if (owed.nickname) nickname.value = owed.nickname;
   }
   // Stopped early it still sends: the best of what was priced is a real result, and the player asked
   // for it to be shared (the user, 30 Sept: "why does stopping early mean nothing is sent?").
-  if (!armed || store.error || store.bestDays <= 0) return;
+  if (!(agreed || owed) || store.error || store.bestDays <= 0) return;
   optIn.value = true;
   autoSubmitted.value = true;
   await submit();

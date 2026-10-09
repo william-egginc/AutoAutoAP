@@ -7,6 +7,10 @@
   feeds: Smart search, the Full sweep, Highest TE by a date and the start-time sweep. It shows on the run's own
   screen too, where the button says "Jump to it" and scrolls to the panel's progress; elsewhere "Show it"
   goes back to the run's screen.
+
+  Send best so far (stores/chainSearch.ts `sendBestSoFar`) sits beside Stop for a run its screen lets
+  send one. With the player's yes already given (Find and submit, or the screen's box) it sends from
+  here; without it, it goes to the run's screen, where the box asks first.
 -->
 <template>
   <div
@@ -43,6 +47,21 @@
           Submits when done
         </span>
         <button
+          v-if="bestSoFarHere"
+          type="button"
+          :disabled="!p.best || store.bestSoFarSending || store.bestSoFarWait > 0"
+          class="px-3 py-1.5 rounded-lg bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-400 disabled:opacity-50"
+          :title="
+            store.bestSoFarWait > 0
+              ? `You can send again in ${store.bestSoFarWait} min`
+              : 'Send best so far (it will be replaced when the run finishes)'
+          "
+          data-testid="run-bar-best-so-far"
+          @click="sendBestSoFar"
+        >
+          {{ store.bestSoFarSending ? 'Sending...' : 'Send best so far' }}
+        </button>
+        <button
           type="button"
           :disabled="stopping"
           class="px-3 py-1.5 rounded-lg bg-white text-slate-900 text-[10px] font-black uppercase tracking-widest hover:bg-slate-100 disabled:opacity-60"
@@ -61,6 +80,14 @@
       <div v-else class="h-full w-1/3 rounded-full bg-indigo-400/70 animate-pulse"></div>
     </div>
     <p v-if="p.stage" class="text-[10px] text-white/60 truncate">{{ p.stage }}</p>
+    <p
+      v-if="bestSoFarHere && (store.bestSoFarStatus || store.bestSoFarWait > 0)"
+      class="text-[10px] font-semibold"
+      :class="!store.bestSoFarStatus || store.bestSoFarStatus.ok ? 'text-emerald-300' : 'text-red-300'"
+    >
+      {{ store.bestSoFarStatus?.text ?? '' }}
+      <template v-if="store.bestSoFarWait > 0">You can send again in {{ store.bestSoFarWait }} min.</template>
+    </p>
   </div>
 </template>
 
@@ -148,6 +175,23 @@ watch(
   () => (stopClicked.value = false)
 );
 const stopping = computed(() => !!p.value?.stopping || stopClicked.value);
+
+/** The run going is one its screen lets Send best so far (a chain search or a date search). */
+const bestSoFarHere = computed(() => {
+  const run = store.bestSoFar;
+  const kind = p.value?.kind;
+  if (!run || !kind || kind === 'start-times') return false;
+  return (kind === 'by-date') === (run.kind === 'deadline');
+});
+/** With consent, send now; without, ask on the run's own screen, where the consent box is. */
+function sendBestSoFar(): void {
+  if (store.bestSoFar?.consent) {
+    void store.sendBestSoFar();
+    return;
+  }
+  store.askBestSoFar();
+  emit('show');
+}
 function stop(): void {
   stopClicked.value = true;
   store.stopRun();
