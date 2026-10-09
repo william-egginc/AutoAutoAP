@@ -966,6 +966,17 @@
               your setup hasn't changed.
             </template>
           </EdgeWarning>
+          <!-- Fastest is fast, not best: when a longer route might win, say so (never runs anything). -->
+          <LongerRouteHint
+            v-if="goal === 'fastest'"
+            class="mt-2"
+            mode="chain"
+            :running="store.isRunning || queueAt >= 0"
+            :disabled="store.busy || queueAt >= 0"
+            :can-add="!sweepRequest"
+            :on-add="addChainOfCount"
+            @check="checkRouteExactly"
+          />
           <p class="text-[10px] text-emerald-900/60">
             Compare runs by finish date. Two runs started hours apart have different plan starts, so their day counts
             don't measure the same thing, but the dates they land on do.
@@ -1198,6 +1209,7 @@ import { useRunDownloads } from '@/composables/useRunDownloads';
 import CsvCard from './CsvCard.vue';
 import ProgressBar from './ProgressBar.vue';
 import EdgeWarning from './EdgeWarning.vue';
+import LongerRouteHint from './LongerRouteHint.vue';
 import { useRunClock } from '@/composables/useRunClock';
 
 const props = defineProps<{
@@ -1746,6 +1758,25 @@ function addChain(): void {
   while (used.includes(asc) && asc < 12) asc++;
   extraChains.value.push({ asc, text: '' });
   if (asc >= 2) suggestExtra(extraChains.value.length - 1);
+}
+/**
+ * "A longer route might win" (LongerRouteHint.vue): add a chain with `n` ascensions, its box filled in
+ * by Suggest a space (centred on the instant answer's route for that count when there is one). Adds
+ * nothing when a row for that count is already queued with the suggested box; the player presses Find.
+ */
+function addChainOfCount(n: number): string {
+  const suggested = spaceFor(n, suggestBudget)?.text ?? '';
+  const queued = extraChains.value.findIndex(r => r.asc === n && r.text.trim() === suggested);
+  if (queued >= 0) return `Chain ${queued + 2} already has ${n} ascensions. Press Find to run it.`;
+  extraChains.value.push({ asc: n, text: '' });
+  const k = extraChains.value.length - 1;
+  suggestExtra(k);
+  return `Added Chain ${k + 2} with ${n} ascensions under The routes to try. Press Find to run it.`;
+}
+/** The instant answer's route, handed to the Full sweep as one-value bands (taken by the watch on `ui.fullSweepBands`). */
+function checkRouteExactly(chain: number[]): void {
+  if (sweepRequest) return;
+  ui.fullSweepBands = chain.slice(0, -1).join('; ');
 }
 const extraTotal = computed(() => extraChains.value.reduce((n, _, k) => n + extraCount(k), 0));
 const extrasReady = computed(() => extraChains.value.every((_, k) => !extraProblem(k)));

@@ -3373,6 +3373,16 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * Progress, cache, best-so-far and the stop button are the same state the staged search writes,
    * so every results panel works unchanged.
    */
+  /** The ascension counts (chain lengths) of every chain priced so far, coarse scan included, for
+   *  "a longer route might win" (lib/longerRouteHint.ts). A function, not a ref: the caches are plain
+   *  arrays; call it where the run ending already re-renders (isRunning, bestChain). */
+  function pricedCounts(): number[] {
+    const counts = new Set<number>();
+    for (const cache of [coarseCache, liveCache])
+      for (const e of cache) if (e.seconds > 0) counts.add(e.key.split(',').length);
+    return [...counts].sort((x, y) => x - y);
+  }
+
   /** Best priced chain in `liveCache`, pushed into the fields the panels read. */
   function noteBest(): void {
     let bestSeconds = Infinity;
@@ -5372,6 +5382,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     suggestedCount,
     suggestedRoute,
     instantRoutes,
+    pricedCounts,
     instantSeed,
     submitsWhenDone,
     deadlineEstimate,

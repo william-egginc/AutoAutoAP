@@ -39,7 +39,7 @@
          stay clickable, to switch back). -->
     <RunningElsewhere v-if="blockedBy" :running="blockedBy" :here="depth === 'smart' ? NAMES.smart : NAMES.full" />
     <div :class="blockedBy ? 'opacity-40 pointer-events-none select-none' : ''" :inert="blockedBy ? true : undefined">
-      <ChainSearchPanel v-if="depth === 'smart'" :player-id="playerId" />
+      <ChainSearchPanel v-if="depth === 'smart'" :player-id="playerId" @check-exactly="checkExactly" />
       <InsanePanel v-else :player-id="playerId" goal="fastest" @update:goal="onGoal" />
     </div>
   </div>
