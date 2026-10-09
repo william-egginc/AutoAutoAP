@@ -89,9 +89,11 @@ import { describeAvailability, isConstrained, nextAvailable, type Availability }
 import { MAX_LAST_STOP, runDeadlineSearch, type DeadlineProgress, type DeadlineRoute } from '@/search/deadline';
 import * as blackBox from '@/search/blackBox';
 import { detectBrowser } from '@/lib/browserHelp';
+import { autoDecision, autoStatusLine, bestKey, type AutoInput } from '@/search/bestSoFarAuto';
 import {
   installStepAway,
   stepAwayBeat,
+  stepAwayOptions,
   stepAwayPageClosing,
   stepAwayRunEnded,
   stepAwayRunStarted,
@@ -735,7 +737,15 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     bestSoFar.value = { kind, consent, asked: false };
     bestSoFarStatus.value = null;
     bestSoFarNow.value = Date.now();
-    if (!bestSoFarTicker) bestSoFarTicker = setInterval(() => (bestSoFarNow.value = Date.now()), 15_000);
+    bestSoFarStartedAt = bestSoFarNow.value;
+    bestSoFarAuto.value = { lastKey: null, lastTe: null, lastFailAt: null, retryAt: null, failed: false };
+    autoAsked = false;
+    if (!bestSoFarTicker)
+      bestSoFarTicker = setInterval(() => {
+        bestSoFarNow.value = Date.now();
+        // A hidden tab runs this about once a minute, which is plenty for sends 30 minutes apart.
+        autoTick();
+      }, 15_000);
   }
   function endBestSoFar(): void {
     bestSoFar.value = null;
@@ -755,6 +765,86 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   async function bestSoFarSettled(): Promise<void> {
     if (bestSoFarInFlight) await bestSoFarInFlight.catch(() => {});
   }
+
+  // Automatic best so far ("Stepping away?", search/bestSoFarAuto.ts): the rules are the pure
+  // `autoDecision`; this holds the little state it needs and does the sending, on the ticker above.
+  const bestSoFarAuto = ref<{
+    /** The best (`bestKey`) and its TE that the row on the board carries, from any send this run made. */
+    lastKey: string | null;
+    lastTe: number | null;
+    lastFailAt: number | null;
+    retryAt: number | null;
+    failed: boolean;
+  }>({ lastKey: null, lastTe: null, lastFailAt: null, retryAt: null, failed: false });
+  let bestSoFarStartedAt = Date.now();
+  /** The box was opened by the automatic option (so unticking it can close the box again). */
+  let autoAsked = false;
+
+  /** The scheduling inputs now; null when no run here may send. */
+  function autoInput(): (AutoInput & { lastTe: number | null; failed: boolean }) | null {
+    const run = bestSoFar.value;
+    if (!run) return null;
+    const p = runProgress.value;
+    const here = !!p && (p.kind === 'by-date') === (run.kind === 'deadline');
+    const a = bestSoFarAuto.value;
+    return {
+      now: bestSoFarNow.value,
+      active: stepAwayOptions.value.autoSendBest && !!run.consent && here,
+      everyMs: stepAwayOptions.value.autoSendEveryMin * 60_000,
+      startedAt: bestSoFarStartedAt,
+      lastSentAt: provisionalRows.value[run.kind]?.at ?? null,
+      lastSentKey: a.lastKey,
+      lastFailAt: a.lastFailAt,
+      retryAt: a.retryAt,
+      key: here ? bestKey(p!.best) : null,
+      sending: bestSoFarSending.value,
+      lastTe: a.lastTe,
+      failed: a.failed,
+    };
+  }
+  /** The quiet line under the tick: "Last sent 2:14 pm (best 248). Next in about 40 min." */
+  const bestSoFarAutoLine = computed(() => {
+    const run = bestSoFar.value;
+    if (!run || !stepAwayOptions.value.autoSendBest) return '';
+    if (!run.consent) return 'Waiting for your OK in the box under Find.';
+    const i = autoInput();
+    return i ? autoStatusLine(i) : '';
+  });
+  async function autoSend(): Promise<void> {
+    const r = await sendBestSoFar();
+    const a = bestSoFarAuto.value;
+    if (r.ok) bestSoFarAuto.value = { ...a, lastFailAt: null, retryAt: null, failed: false };
+    else if (r.tooSoon) bestSoFarAuto.value = { ...a, retryAt: Date.now() + (r.retryAfter ?? 60) * 1000 };
+    // Any other failure: the next try is one interval on.
+    else bestSoFarAuto.value = { ...a, lastFailAt: Date.now(), failed: true };
+  }
+  /** One look at the schedule: gets the player's yes if it is missing, and sends when it is time. */
+  function autoTick(): void {
+    const run = bestSoFar.value;
+    if (!run || !stepAwayOptions.value.autoSendBest) return;
+    bestSoFarNow.value = Date.now();
+    if (!run.consent) {
+      // A carried-on run that already sent a row under a name has the player's yes for that name.
+      const row = provisionalRows.value[run.kind];
+      if (row) agreeBestSoFar(row.nickname);
+      else if (!run.asked) {
+        askBestSoFar();
+        autoAsked = true;
+      }
+    }
+    const i = autoInput();
+    if (i && autoDecision(i).do === 'send') void autoSend();
+  }
+  watch(
+    () => stepAwayOptions.value.autoSendBest,
+    on => {
+      const run = bestSoFar.value;
+      if (!run) return;
+      if (on) autoTick();
+      else if (autoAsked && !run.consent) bestSoFar.value = { ...run, asked: false };
+      if (!on) autoAsked = false;
+    }
+  );
   // Any other load replacing the carried-on run's save (the header's refresh, Plan Next, a plan
   // from the library...) ends "on the run's own save": drop the notice and the run's pinned start.
   watch(
@@ -3089,7 +3179,15 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
      * store. Without it, exactly the site's send.
      */
     saved?: { partition: string; resultKey: string | null }
-  ): Promise<{ ok: boolean; message: string; duplicate?: 'exact' | 'result'; id?: string; tooSoon?: boolean }> {
+  ): Promise<{
+    ok: boolean;
+    message: string;
+    duplicate?: 'exact' | 'result';
+    id?: string;
+    tooSoon?: boolean;
+    /** With `tooSoon`: seconds until the collector will take another best so far. */
+    retryAfter?: number;
+  }> {
     if (!submitUrl) return { ok: false, message: 'no collector configured' };
     // A payload whose start contradicts its own save is never sent, from any screen or the command
     // line: the board would file it under a TE the route was not priced from.
@@ -3150,7 +3248,12 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         // A best so far sent too soon after the last one (the collector's own gap, collector "Provisional rows").
         if (res.status === 429 && detail.tooSoon) {
           const minutes = Math.max(1, Math.ceil((detail.retryAfter ?? 60) / 60));
-          return { ok: false, message: `You can send again in ${minutes} min.`, tooSoon: true };
+          return {
+            ok: false,
+            message: `You can send again in ${minutes} min.`,
+            tooSoon: true,
+            retryAfter: Math.max(1, detail.retryAfter ?? 60),
+          };
         }
         if (res.status === 429) return { ok: false, message: tooManySubmissionsMessage(detail.retryAfter) };
         const why = detail.problems?.length ? `: ${detail.problems.join('; ')}` : '';
@@ -3258,10 +3361,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * Needs the player's yes for this run (`bestSoFar.consent`). Sends no table (the final carries it),
    * no rechecks and no diagnostics. A second press replaces the first row. Never throws.
    */
-  async function sendBestSoFar(): Promise<{ ok: boolean; text: string }> {
-    const say = (ok: boolean, text: string) => {
+  async function sendBestSoFar(): Promise<{ ok: boolean; text: string; tooSoon?: boolean; retryAfter?: number }> {
+    const say = (ok: boolean, text: string, more: { tooSoon?: boolean; retryAfter?: number } = {}) => {
       bestSoFarStatus.value = { ok, text };
-      return { ok, text };
+      return { ok, text, ...more };
     };
     const run = bestSoFar.value;
     const p = runProgress.value;
@@ -3272,7 +3375,11 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       return say(false, 'Nothing found yet to send.');
     // One every 30 minutes (BEST_SO_FAR_GAP_MS): each send costs the collector several KV writes.
     bestSoFarNow.value = Date.now();
-    if (bestSoFarWait.value > 0) return say(false, `You can send again in ${bestSoFarWait.value} min.`);
+    if (bestSoFarWait.value > 0)
+      return say(false, `You can send again in ${bestSoFarWait.value} min.`, {
+        tooSoon: true,
+        retryAfter: bestSoFarWait.value * 60,
+      });
     const kind = run.kind;
     bestSoFarSending.value = true;
     const go = (async () => {
@@ -3283,7 +3390,14 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       if (!base) return say(false, 'Nothing found yet to send.');
       const payload = asProvisional(base, provisionalProgress(p.done, p.total), provisionalRows.value[kind]?.id);
       const res = await sendSubmission(payload);
-      if (!res.ok) return say(false, res.tooSoon ? res.message : `Not sent: ${res.message}`);
+      if (!res.ok)
+        return say(
+          false,
+          res.tooSoon ? res.message : `Not sent: ${res.message}`,
+          res.tooSoon ? { tooSoon: true, retryAfter: res.retryAfter } : {}
+        );
+      // What the row on the board now carries, for the automatic option's "changed since".
+      bestSoFarAuto.value = { ...bestSoFarAuto.value, lastKey: bestKey(p.best), lastTe: p.best?.te ?? null };
       if (res.id) {
         setProvisional(kind, { id: res.id, nickname: payload.nickname ?? '', at: Date.now() });
         // Into the run's checkpoint at its next write, which is now rather than in a minute or two.
@@ -4460,7 +4574,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           te: inputs.currentTE,
           entries: replay.entries(),
           updatedAt: now,
-          elapsedSeconds: priorSeconds + Math.max(0, (now - deadlineStartedAt.value) / 1000 - (pool?.suspendedSeconds ?? 0)),
+          elapsedSeconds:
+            priorSeconds + Math.max(0, (now - deadlineStartedAt.value) / 1000 - (pool?.suspendedSeconds ?? 0)),
           account: account as DeadlineAccount,
           ...(provisionalRows.value.deadline ? { provisional: { ...provisionalRows.value.deadline } } : {}),
         });
@@ -4932,9 +5047,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     lastCrash.value = null;
   }
   /** The running pool's worker memory for a beat; nothing when no pool is up. Never throws. */
-  function workerMemory(
-    p: ChainSearchPool | null
-  ): Partial<
+  function workerMemory(p: ChainSearchPool | null): Partial<
     ReturnType<typeof blackBox.summarizeWorkerHeaps> & {
       workersMemoEntries: number | null;
       workersMemoCapacity: number | null;
@@ -5820,6 +5933,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     bestSoFarSending,
     bestSoFarStatus,
     bestSoFarWait,
+    bestSoFarAutoLine,
+    autoTick,
     beginBestSoFar,
     endBestSoFar,
     agreeBestSoFar,

@@ -10,7 +10,7 @@ import * as blackBox from '@/search/blackBox';
 import { environment } from '@/search/blackBox';
 import * as sa from '@/search/stepAway';
 
-/** The three options, remembered per browser. All off unless the player ticks them. */
+/** The options, remembered per browser. All off unless the player ticks them. */
 export const stepAwayOptions = ref<sa.StepAwayOptions>(sa.readOptions());
 /** The last thing the worker rules did, for the box to show ("Down to 6 workers at 3:07 am: ..."). */
 export const stepAwayNote = ref('');

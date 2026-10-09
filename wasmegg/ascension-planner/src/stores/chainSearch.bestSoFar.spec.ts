@@ -175,7 +175,7 @@ describe('Send best so far', () => {
       s.chainsDone = 300;
       // Too soon: said, and nothing is sent.
       vi.setSystemTime(Date.parse('2026-10-09T12:20:00Z'));
-      expect(await s.sendBestSoFar()).toEqual({ ok: false, text: 'You can send again in 10 min.' });
+      expect(await s.sendBestSoFar()).toMatchObject({ ok: false, text: 'You can send again in 10 min.' });
       expect(s.bestSoFarWait).toBe(10);
       expect(bodies).toHaveLength(1);
       vi.setSystemTime(Date.parse('2026-10-09T12:30:00Z'));
@@ -201,9 +201,126 @@ describe('Send best so far', () => {
         json({ error: 'you sent a best so far less than 25 minutes ago', retryAfter: 400, tooSoon: true }, 429)
       )
     );
-    expect(await s.sendBestSoFar()).toEqual({ ok: false, text: 'You can send again in 7 min.' });
+    expect(await s.sendBestSoFar()).toMatchObject({ ok: false, text: 'You can send again in 7 min.' });
     expect(s.provisionalRows.fastest).toBeNull();
     s.endBestSoFar();
+  });
+
+  describe('on its own ("Send my best so far every...")', () => {
+    const at = (hhmm: string) => vi.setSystemTime(Date.parse(`2026-10-09T${hhmm}:00Z`));
+    async function auto(every: 30 | 60 = 60) {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      at('12:00');
+      const s = await running();
+      const { stepAwayOptions } = await import('@/composables/useStepAway');
+      stepAwayOptions.value = { ...stepAwayOptions.value, autoSendBest: true, autoSendEveryMin: every };
+      return { s, options: stepAwayOptions };
+    }
+    const flush = () => new Promise(r => setTimeout(r, 0));
+
+    it('sends after an interval, skips when nothing changed, and sends again when it has', async () => {
+      try {
+        const { s } = await auto();
+        s.beginBestSoFar('fastest', { nickname: '' });
+        const bodies = collector({ ok: true, id: 'aaaa0001' }, { ok: true, id: 'bbbb0002', replaced: 'aaaa0001' });
+        at('12:59');
+        s.autoTick();
+        await flush();
+        expect(bodies).toHaveLength(0);
+        at('13:00');
+        s.autoTick();
+        await flush();
+        expect(bodies).toHaveLength(1);
+        expect(bodies[0]).toMatchObject({ provisional: true });
+        expect(s.bestSoFarAutoLine).toMatch(/^Last sent \d+:\d\d [ap]m \(best 490\)\. Next in about 1 h\.$/);
+        // An hour on, the same best: nothing, and no message.
+        at('14:00');
+        s.bestSoFarStatus = null;
+        s.autoTick();
+        await flush();
+        expect(bodies).toHaveLength(1);
+        expect(s.bestSoFarStatus).toBeNull();
+        // A better one: sent, replacing the first row.
+        s.bestChain = [212, 280, 495];
+        s.autoTick();
+        await flush();
+        expect(bodies).toHaveLength(2);
+        expect(bodies[1]).toMatchObject({ replaces: 'aaaa0001' });
+        s.endBestSoFar();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('waits out "too soon" for as long as the collector says, and after another error tries next interval', async () => {
+      try {
+        const { s } = await auto(30);
+        s.beginBestSoFar('fastest', { nickname: '' });
+        let n = 0;
+        const replies = [
+          () => json({ retryAfter: 600, tooSoon: true }, 429),
+          () => json({ problems: ['nope'] }, 400),
+          () => json({ ok: true, id: 'aaaa0001' }),
+        ];
+        vi.stubGlobal(
+          'fetch',
+          vi.fn(async () => replies[n++]())
+        );
+        at('12:30');
+        s.autoTick();
+        await flush();
+        expect(n).toBe(1);
+        at('12:39');
+        s.autoTick();
+        await flush();
+        expect(n).toBe(1);
+        at('12:40');
+        s.autoTick();
+        await flush();
+        expect(n).toBe(2);
+        expect(s.bestSoFarStatus).toMatchObject({ ok: false });
+        expect(s.bestSoFarAutoLine).toMatch(/Couldn't send at \d+:\d\d [ap]m\. Next in about 30 min\./);
+        at('13:09');
+        s.autoTick();
+        await flush();
+        expect(n).toBe(2);
+        at('13:10');
+        s.autoTick();
+        await flush();
+        expect(n).toBe(3);
+        expect(s.provisionalRows.fastest).toMatchObject({ id: 'aaaa0001' });
+        s.endBestSoFar();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('does nothing when unticked, without the yes, or after the run ends; asks for the yes once', async () => {
+      try {
+        const { s, options } = await auto();
+        const bodies = collector({ ok: true, id: 'aaaa0001' });
+        s.beginBestSoFar('fastest', null);
+        at('15:00');
+        s.autoTick();
+        expect(s.bestSoFar?.asked).toBe(true);
+        expect(s.bestSoFarAutoLine).toMatch(/OK/);
+        await flush();
+        expect(bodies).toHaveLength(0);
+        // Unticked again: the box it opened closes.
+        options.value = { ...options.value, autoSendBest: false };
+        await flush();
+        expect(s.bestSoFar?.asked).toBe(false);
+        options.value = { ...options.value, autoSendBest: true };
+        s.agreeBestSoFar('');
+        s.endBestSoFar();
+        at('18:00');
+        s.autoTick();
+        await flush();
+        expect(bodies).toHaveLength(0);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 
   it('is the bar’s to offer only for the kind of run its screen began', async () => {

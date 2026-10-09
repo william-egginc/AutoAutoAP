@@ -1,5 +1,5 @@
 <!--
-  "Stepping away?": three opt-in helpers for long runs, beside the Find bar of all three searches
+  "Stepping away?": four opt-in helpers for long runs, beside the Find bar of all three searches
   (Smart search, Full sweep, By a date). All off until ticked, remembered per browser. The rules are in
   search/stepAway.ts; the run side is composables/useStepAway.ts; the watcher is watch.html.
 
@@ -127,6 +127,38 @@
       >
     </label>
     <p v-if="options.fewerWorkers && stepAwayNote" class="pl-6 font-semibold text-slate-800">{{ stepAwayNote }}</p>
+    <div class="flex items-start gap-2">
+      <input
+        id="auto-send-best"
+        v-model="options.autoSendBest"
+        type="checkbox"
+        class="mt-0.5 rounded border-slate-300 text-indigo-600"
+        data-testid="auto-send-best"
+      />
+      <span
+        ><label for="auto-send-best" class="font-bold">Send my best so far every</label>
+        <select
+          v-model.number="options.autoSendEveryMin"
+          aria-label="How often to send my best so far"
+          class="mx-1 rounded border-slate-300 py-0 pl-1 pr-6 text-[11px] font-bold"
+          data-testid="auto-send-every"
+        >
+          <option :value="30">30 min</option>
+          <option :value="60">1 hour</option>
+        </select>
+        <label for="auto-send-best" class="font-bold">while this runs</label>
+        <span class="block text-slate-500"
+          >Shares it on the leaderboard as an in-progress row, only when it has changed. The finished run replaces
+          it.</span
+        >
+        <span v-if="options.autoSendBest && !autoHere" class="block text-slate-500"
+          >It asks for your OK when a run starts, unless you start it with Find and submit.</span
+        >
+        <span v-if="autoLine" class="block font-semibold text-slate-800" role="status" data-testid="auto-send-line">{{
+          autoLine
+        }}</span></span
+      >
+    </div>
   </div>
 </template>
 
@@ -178,6 +210,12 @@ const emit = defineEmits<{ 'carry-on': []; countdown: [seconds: number] }>();
 const store = useChainSearchStore();
 const options = stepAwayOptions;
 const cap = computed(() => fewerWorkersCap(store.machineThreads));
+
+// ------------------------------------------------------------------ send my best so far
+
+/** A run of this screen's kind is going and may send its best so far. */
+const autoHere = computed(() => store.bestSoFar?.kind === (props.kind === 'deadline' ? 'deadline' : 'fastest'));
+const autoLine = computed(() => (autoHere.value ? store.bestSoFarAutoLine : ''));
 
 // ------------------------------------------------------------------ the watcher tab
 

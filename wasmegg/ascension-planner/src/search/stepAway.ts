@@ -1,11 +1,13 @@
 /**
- * "Stepping away?": three opt-in helpers for runs left going for hours (StepAwayOptions.vue).
+ * "Stepping away?": opt-in helpers for runs left going for hours (StepAwayOptions.vue).
  *
  *  1. Carry on by itself after a crash: the next load of the page carries the run on without a click.
  *  2. Watch from a second tab (watch.html, src/watch/main.ts): a tiny page that reopens the run's page
  *     when its heartbeat stops.
  *  3. Use fewer workers: about half the cores, and one notch fewer when the page's own memory climbs
  *     or its speed falls well below its own recent pace.
+ *  4. Send my best so far every 30 min or hour (search/bestSoFarAuto.ts). Kept per browser like the
+ *     rest, so it survives a carry-on after a crash.
  *
  * Everything here is pure or a plain localStorage read/write, so the watcher page can use it without
  * the planner's stores, and the rules can be tested. The run page writes a small "run mark" when a run
@@ -23,6 +25,9 @@ export interface StepAwayOptions {
   watch: boolean;
   /** 3: about half the cores, and fewer still if the page struggles. */
   fewerWorkers: boolean;
+  /** 4: send the best so far on its own, every `autoSendEveryMin` minutes (search/bestSoFarAuto.ts). */
+  autoSendBest: boolean;
+  autoSendEveryMin: 30 | 60;
 }
 
 export const OPTIONS_KEY = 'aap.stepAway.options';
@@ -87,7 +92,13 @@ export interface RunMark {
   autoCarries: number[];
 }
 
-export const DEFAULT_OPTIONS: StepAwayOptions = { autoCarryOn: false, watch: false, fewerWorkers: false };
+export const DEFAULT_OPTIONS: StepAwayOptions = {
+  autoCarryOn: false,
+  watch: false,
+  fewerWorkers: false,
+  autoSendBest: false,
+  autoSendEveryMin: 60,
+};
 
 type KV = Pick<Storage, 'getItem' | 'setItem'>;
 
@@ -107,6 +118,8 @@ export function readOptions(s: KV | null = store()): StepAwayOptions {
         autoCarryOn: raw.autoCarryOn === true,
         watch: raw.watch === true,
         fewerWorkers: raw.fewerWorkers === true,
+        autoSendBest: raw.autoSendBest === true,
+        autoSendEveryMin: raw.autoSendEveryMin === 30 ? 30 : 60,
       };
     }
   } catch {

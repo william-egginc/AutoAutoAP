@@ -57,9 +57,22 @@ function memStore(): Pick<Storage, 'getItem' | 'setItem'> {
 describe('options and run mark storage', () => {
   it('defaults every option off, and remembers what is ticked', () => {
     const s = memStore();
-    expect(readOptions(s)).toEqual({ autoCarryOn: false, watch: false, fewerWorkers: false });
-    writeOptions({ autoCarryOn: true, watch: false, fewerWorkers: true }, s);
-    expect(readOptions(s)).toEqual({ autoCarryOn: true, watch: false, fewerWorkers: true });
+    expect(readOptions(s)).toEqual({
+      autoCarryOn: false,
+      watch: false,
+      fewerWorkers: false,
+      autoSendBest: false,
+      autoSendEveryMin: 60,
+    });
+    const ticked = {
+      autoCarryOn: true,
+      watch: false,
+      fewerWorkers: true,
+      autoSendBest: true,
+      autoSendEveryMin: 30,
+    } as const;
+    writeOptions({ ...ticked }, s);
+    expect(readOptions(s)).toEqual(ticked);
   });
 
   it('survives unreadable or missing storage', () => {

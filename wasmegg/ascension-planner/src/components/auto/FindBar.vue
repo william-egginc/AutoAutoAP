@@ -36,10 +36,7 @@
         </button>
         <!-- Whenever consent is unticked, even with Find itself blocked (no save yet): the full wording is
              in the box below, this only says where to look. -->
-        <span
-          v-if="!optIn"
-          class="text-[10px] font-semibold text-slate-500 text-center"
-          data-testid="acknowledge-hint"
+        <span v-if="!optIn" class="text-[10px] font-semibold text-slate-500 text-center" data-testid="acknowledge-hint"
           >Please tick the box below</span
         >
       </div>
@@ -110,6 +107,17 @@
       <p v-if="goalWord === 'target'" class="ml-7 text-[10px] text-indigo-900/70">
         It also sends your best three plans already on the board, re-priced from this save.
       </p>
+      <!-- Asked for by "Send my best so far every..." (Stepping away?): the yes, then it sends by itself. -->
+      <div v-if="asking && optIn && autoSendOn" class="ml-7">
+        <button
+          type="button"
+          class="px-3 py-1.5 rounded-lg bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-800"
+          data-testid="agree-auto-best-so-far"
+          @click="agreeAutoSend"
+        >
+          Agree, and send my best so far by itself
+        </button>
+      </div>
       <!-- The same two boxes as Share this result, on the same choices. -->
       <div class="ml-7"><ShareExtras :csv-detail="csvDetail" /></div>
       <div v-if="optIn" class="flex flex-wrap items-center gap-4">
@@ -143,6 +151,7 @@ import { computed } from 'vue';
 import RunNoteBox from './RunNoteBox.vue';
 import ShareExtras from './ShareExtras.vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
+import { stepAwayOptions } from '@/composables/useStepAway';
 
 const props = withDefaults(
   defineProps<{
@@ -200,6 +209,14 @@ function sendBestSoFar(): void {
     store.agreeBestSoFar(anonymous.value ? '' : nickname.value.trim().slice(0, props.nicknameMax));
   }
   void store.sendBestSoFar();
+}
+/** Automatic best so far is ticked (Stepping away?). */
+const autoSendOn = computed(() => stepAwayOptions.value.autoSendBest);
+/** The yes for the automatic sends: agree under the name chosen here, then look at the schedule. */
+function agreeAutoSend(): void {
+  if (!optIn.value) return;
+  store.agreeBestSoFar(anonymous.value ? '' : nickname.value.trim().slice(0, props.nicknameMax));
+  store.autoTick();
 }
 const emit = defineEmits<{ find: [andSubmit: boolean]; stop: []; nicknameTyped: [] }>();
 
