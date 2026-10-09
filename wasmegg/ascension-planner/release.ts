@@ -33,6 +33,7 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
+  { at: '2026-10-09T06:52:10Z', note: 'Fixes: sweep links always send their CSV, By a date offers Retry if the CSV upload fails, Work it out again keeps your saved instant answer, and clearer Insights on how close the instant answer is' },
   { at: '2026-10-08T23:56:02Z', note: 'Check exactly shows when it is busy; moving the sliders on a box you typed offers to use the sliders instead; clearer note when a stop is your TE now' },
   { at: '2026-10-08T23:31:50Z', note: 'Both search tabs share one layout; Simple tucks its settings away; the progress bar shows whenever a search runs; results say how long they took and what they searched; leaderboard shows Simple and Advanced' },
   { at: '2026-10-08T21:54:35Z', note: 'Simple and Advanced on both search tabs: Simple Highest TE by a date checks the instant answer route for each ascension count with the full simulator; estimates after a carry-on say measuring until they have real data', level: 'big' },
@@ -40,7 +41,6 @@ const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
   { at: '2026-10-08T19:10:52Z', note: 'Highest TE by a date runs keep every worker busy (up to about twice as fast on big machines), always try the instant answer route, warn when the best route is on a box edge, and give one honest time estimate', level: 'big' },
   { at: '2026-10-08T17:55:07Z', note: 'Tabs renamed Your plan, Fastest to 490 and Highest TE by a date; the instant answer shows straight away on a repeat visit; Find and submit can send your CSV and, if you like, diagnostics', level: 'big' },
   { at: '2026-10-08T06:49:42Z', note: 'Searches use less memory: workers get only the parts of your save they need, and the instant answer frees its workers while a search runs' },
-  { at: '2026-10-08T02:22:20Z', note: 'The search chart is hidden until you press Show the chart, so big runs use less memory; a single chain no longer fills the chart' },
 ];
 
 export default {
