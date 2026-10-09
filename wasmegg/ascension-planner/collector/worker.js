@@ -629,6 +629,8 @@ function pickSubmission(s) {
     // Whether leg 1 finished the current run first. Changes which chain wins, so the analysis must
     // never pool runs that differ on it. Absent on submissions made before it was recorded.
     forceContinue: flag(s.forceContinue),
+    // By a date only: which mode found the row (the board's Effort column). Absent before 9 Oct 2026.
+    mode: s.mode === 'simple' || s.mode === 'advanced' ? s.mode : undefined,
     waitingHours: s.waitingHours === null ? null : num(s.waitingHours),
 
     // Labels, not counts: an artifact slot takes one artifact, so how many are owned never

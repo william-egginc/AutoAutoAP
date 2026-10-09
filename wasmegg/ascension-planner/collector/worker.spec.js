@@ -236,6 +236,17 @@ describe('private extras', () => {
     expect(JSON.stringify(stored())).not.toContain('chrome on mac');
   });
 
+  it('keeps mode on the public row', async () => {
+    await post('/submit', { ...MINIMAL, mode: 'simple' });
+    expect(stored().map(([, row]) => row.mode)).toEqual(['simple']);
+    expect(extraKeys()).toEqual([]);
+  });
+
+  it('keeps an unknown mode off the public row', async () => {
+    await post('/submit', { ...MINIMAL, mode: 'sideways' });
+    expect(stored().map(([, row]) => row.mode)).toEqual([undefined]);
+  });
+
   it('stores nothing when there are no extra fields', async () => {
     await post('/submit', MINIMAL);
     expect(extraKeys()).toEqual([]);

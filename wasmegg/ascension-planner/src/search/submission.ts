@@ -231,6 +231,8 @@ export interface Submission {
    * plan by 135 days. Optional because submissions before this field did not record it.
    */
   forceContinue?: boolean;
+  /** By a date only: which mode found it (Simple tries the instant answer's routes, Advanced the player's boxes). */
+  mode?: 'simple' | 'advanced';
   /** Total time the plan spends waiting for the player: prestiges held plus shifts held. */
   waitingHours: number | null;
 
@@ -703,6 +705,7 @@ export interface SubmissionInputs {
   availability: Availability | null;
   holdShifts: boolean;
   forceContinue?: boolean;
+  mode?: 'simple' | 'advanced';
   artifacts: InventoryCount[];
   stones: InventoryCount[];
   /** Solved sets, already reduced to words by `describeLoadoutSlots`. */
@@ -866,6 +869,7 @@ export function buildSubmission(i: SubmissionInputs): Submission {
     window: i.availability ? describeAvailability(i.availability) : null,
     holdShifts: i.holdShifts,
     ...(i.forceContinue === undefined ? {} : { forceContinue: i.forceContinue }),
+    ...(i.mode ? { mode: i.mode } : {}),
     waitingHours: waiting === null ? null : Number(waiting.toFixed(2)),
     // Stones are kept wholesale -- they slot into every family above -- while artifacts are
     // narrowed to what a virtue ascension can equip. See VIRTUE_ARTIFACT_FAMILIES.

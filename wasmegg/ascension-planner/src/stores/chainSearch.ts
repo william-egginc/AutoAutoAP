@@ -2472,6 +2472,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         : null,
       holdShifts: (r.settings ?? usedSettings()).deferShifts,
       forceContinue: (r.settings ?? usedSettings()).forceContinue,
+      mode: r.simple ? 'simple' : 'advanced',
       chainsPriced: r.priced,
       // The run's own account, kept in its result; then the live run's; and only for a result saved
       // before results kept one, the loaded save (`sendSubmission` refuses it if that contradicts).
