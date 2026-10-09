@@ -85,10 +85,54 @@
       <button
         type="button"
         class="font-black uppercase tracking-widest text-[10px] text-emerald-800 underline hover:text-emerald-900"
-        @click="run(true)"
+        @click="pressRun(true)"
       >
         Work it out again
       </button>
+    </p>
+    <div
+      v-if="confirming"
+      class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-[12px] text-amber-900 space-y-2"
+      role="alert"
+      data-testid="instant-warning"
+    >
+      <p>
+        A search is running. Working out the instant answer now runs extra workers alongside it, which uses more
+        memory and could crash the search on a big run.
+      </p>
+      <div class="flex flex-wrap items-center gap-x-4 gap-y-1">
+        <button
+          type="button"
+          class="font-black uppercase tracking-widest text-[10px] text-amber-900 underline"
+          data-testid="instant-warning-once"
+          @click="confirmRun(false)"
+        >
+          Run it anyway
+        </button>
+        <button
+          type="button"
+          class="font-black uppercase tracking-widest text-[10px] text-amber-900 underline"
+          data-testid="instant-warning-remember"
+          @click="confirmRun(true)"
+        >
+          Don't ask again, just warn me
+        </button>
+        <button
+          type="button"
+          class="font-black uppercase tracking-widest text-[10px] text-slate-500 underline"
+          data-testid="instant-warning-cancel"
+          @click="confirming = null"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+    <p
+      v-else-if="runBusy && alongside"
+      class="text-[11px] text-slate-500"
+      data-testid="instant-alongside"
+    >
+      Running alongside your search: this uses more memory.
     </p>
     <p
       v-if="waiting && !result"
@@ -99,7 +143,7 @@
       <button
         type="button"
         class="font-black uppercase tracking-widest text-[10px] text-amber-900 underline"
-        @click="run(false, true)"
+        @click="pressRun(false)"
       >
         Work it out anyway
       </button>
@@ -538,6 +582,7 @@ import { poolSize, RoutePool } from '@/search/routePool';
 import { describeGear, isMaxed, pickBracket, type TableEntry } from '@/search/tableBracket';
 import { isSmallDevice } from '@/search/device';
 import { onArrival, resumeAfterRun } from '@/search/instantDeferral';
+import { useInstantDuringSearch } from '@/composables/useInstantDuringSearch';
 import { readSnapshot, writeSnapshot } from '@/search/instantSnapshot';
 import { simulateRoute } from '@/search/simulateRoute';
 import type { FirstLegsRequest } from '@/workers/routeFinder.protocol';
@@ -884,6 +929,45 @@ watch(runBusy, (busy, wasBusy) => {
     go();
   } else if (!busy && wasBusy && result.value && exactStatus.value === 'waiting') {
     checkAgain();
+  }
+});
+
+/** Remembered "let the instant answer run during a search" (also a box in Your setup). */
+const instantDuringSearch = useInstantDuringSearch();
+/** The warning is open for this press: which button asked ("again" forces, the waits line goes ahead). */
+const confirming = ref<{ force: boolean } | null>(null);
+/** The last run started alongside a search, so the short memory note shows while it is still going. */
+const alongside = ref(false);
+
+/**
+ * The buttons' press. With no search running it runs at once, as before. During a search it asks
+ * first (memory), unless the player chose not to be asked.
+ */
+function pressRun(force: boolean): void {
+  if (!runBusy.value || instantDuringSearch.value) {
+    confirming.value = null;
+    goRun(force);
+    return;
+  }
+  confirming.value = { force };
+}
+/** "Run it anyway" (once) or "Don't ask again, just warn me" (and remember). */
+function confirmRun(remember: boolean): void {
+  const ask = confirming.value;
+  confirming.value = null;
+  if (!ask) return;
+  if (remember) instantDuringSearch.value = true;
+  goRun(ask.force);
+}
+function goRun(force: boolean): void {
+  alongside.value = runBusy.value;
+  void run(force, true);
+}
+// The warning is about a search that is running: when it ends there is nothing left to warn about.
+watch(runBusy, busy => {
+  if (!busy) {
+    confirming.value = null;
+    alongside.value = false;
   }
 });
 

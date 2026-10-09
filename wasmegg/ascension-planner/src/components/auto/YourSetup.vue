@@ -322,6 +322,17 @@
               every worker freezes until you wake it. It can't stop a laptop sleeping when the lid is closed.
             </span>
           </label>
+          <label class="flex items-start gap-3 cursor-pointer" data-testid="instant-during-search">
+            <input
+              v-model="instantDuringSearch"
+              type="checkbox"
+              class="mt-0.5 rounded border-slate-300 text-indigo-600"
+            />
+            <span class="text-[11px] text-slate-600 leading-relaxed">
+              <span class="font-bold text-slate-800">Let the instant answer run during a search.</span> It uses more
+              memory, so a big run could crash. Unticked, it warns you first.
+            </span>
+          </label>
 
           <details class="rounded-lg border border-dashed border-slate-200 px-3 py-2" @toggle="onAdvanced">
             <summary class="cursor-pointer text-[10px] font-black text-slate-500 uppercase tracking-widest">
@@ -403,6 +414,7 @@ import { useUIStore } from '@/stores/ui';
 import { NAMES, type AutoView, fastestName } from '@/lib/siteNav';
 import { showDateTime, showHour, showSchedule as scheduleText } from '@/lib/displayTime';
 import { usableTimeOff } from '@/search/timeOff';
+import { useInstantDuringSearch } from '@/composables/useInstantDuringSearch';
 import SchedulingInputs from './SchedulingInputs.vue';
 import TimeOffEditor from './TimeOffEditor.vue';
 import WorkerSlider from './WorkerSlider.vue';
@@ -417,6 +429,7 @@ defineProps<{
 }>();
 
 const store = useChainSearchStore();
+const instantDuringSearch = useInstantDuringSearch();
 // Choosing "Let me pick my hours" holds the egg shifts for those hours as well.
 watch(
   () => store.scheduleEnabled,
