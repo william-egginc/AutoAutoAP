@@ -62,4 +62,18 @@ describe('RoutePool sleep (the route workers give their memory to a chain search
     await expect(p.header('t.bin')).rejects.toThrow('stopped');
     expect(made).toHaveLength(2);
   });
+
+  it('interrupt cuts a request off with "paused" and frees the workers, and the pool works again after', async () => {
+    const { p, made } = pool();
+    const header = p.header('t.bin');
+    expect(p.interrupt()).toBe(true);
+    await expect(header).rejects.toThrow('paused');
+    expect(made.every(w => w.terminated)).toBe(true);
+    expect(p.asleep).toBe(true);
+    const again = p.header('t.bin');
+    expect(made).toHaveLength(4);
+    made[2].answer();
+    await expect(again).resolves.toEqual({ from: 1 });
+    expect(p.interrupt()).toBe(false);
+  });
 });

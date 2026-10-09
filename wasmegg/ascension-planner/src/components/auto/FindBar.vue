@@ -11,8 +11,14 @@
 
   Send best so far (9 Oct): while a run is going, its best so far can go to the board as an "in
   progress" row that the run's final send replaces (stores/chainSearch.ts `sendBestSoFar`). Same
-  consent: given already by Find and submit; otherwise the first press opens the box below, and
-  agreeing there also has the run send its result when it finishes, which replaces that row.
+  consent: given already by Find and submit, or by the box ticked before the run; otherwise the
+  first press opens the box below, and ticking it sends straight away (a second press nobody knew
+  was needed left a best so far unsent, review 9 Oct). Agreeing there also has the run send its
+  result when it finishes, which replaces that row.
+
+  During a run the box stays open for what applies to the send at the end -- the CSV and diagnostics
+  boxes, and the name once agreed -- and the consent wording comes back only when Send best so far
+  asks for it.
 -->
 <template>
   <div class="space-y-3">
@@ -37,7 +43,7 @@
         <!-- Whenever consent is unticked, even with Find itself blocked (no save yet): the full wording is
              in the box below, this only says where to look. -->
         <span v-if="!optIn" class="text-[10px] font-semibold text-slate-500 text-center" data-testid="acknowledge-hint"
-          >Please tick the box below</span
+          >To use Find and submit, please tick the box below.</span
         >
       </div>
       <div v-if="bestSoFarHere" class="flex flex-col items-center gap-1">
@@ -50,9 +56,11 @@
         >
           {{ store.bestSoFarSending ? 'Sending...' : 'Send best so far' }}
         </button>
-        <span class="text-[10px] font-semibold text-slate-500 text-center">{{
+        <span class="text-[10px] font-semibold text-slate-500 text-center" data-testid="best-so-far-hint">{{
           asking && !optIn
-            ? 'Please tick the box below'
+            ? sendsOnTick
+              ? 'Tick the box below and it sends straight away'
+              : 'Tick the box below to agree'
             : store.bestSoFarWait > 0
               ? `You can send again in ${store.bestSoFarWait} min`
               : '(it will be replaced when the run finishes)'
@@ -71,7 +79,13 @@
     <p
       v-if="bestSoFarHere && store.bestSoFarStatus"
       class="text-[11px] font-semibold"
-      :class="store.bestSoFarStatus.ok ? 'text-emerald-700' : 'text-red-700'"
+      :class="
+        store.bestSoFarStatus.pending
+          ? 'text-amber-700'
+          : store.bestSoFarStatus.ok
+            ? 'text-emerald-700'
+            : 'text-red-700'
+      "
       data-testid="best-so-far-status"
     >
       {{ store.bestSoFarStatus.text }}
@@ -81,46 +95,61 @@
     <p v-if="notReady" class="text-[11px] font-semibold text-amber-700">{{ store.saveNotReady }}</p>
 
     <div
-      v-if="showSubmit && (!running || asking)"
+      v-if="showSubmit"
       class="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3 space-y-2 text-[11px] text-indigo-900"
+      data-testid="share-box"
     >
-      <p v-if="!optIn" class="font-black text-indigo-800">
-        To use {{ running ? 'Send best so far' : 'Find and submit' }}, please read this and tick the box to agree:
-      </p>
-      <label class="flex items-start gap-3">
-        <input v-model="optIn" type="checkbox" class="mt-0.5 rounded border-indigo-300 text-indigo-600" />
-        <!-- The screen's own wording where it sends something else (Highest TE by a date sends a route
+      <template v-if="!running || asking">
+        <p v-if="!optIn" class="font-black text-indigo-800">
+          To use {{ running ? 'Send best so far' : 'Find and submit' }}, please read this and tick the box to
+          agree<template v-if="sendsOnTick"
+            >. Your best so far is sent as soon as you tick it, anonymously or under the name you choose below</template
+          >:
+        </p>
+        <label class="flex items-start gap-3">
+          <input v-model="optIn" type="checkbox" class="mt-0.5 rounded border-indigo-300 text-indigo-600" />
+          <!-- The screen's own wording where it sends something else (Highest TE by a date sends a route
              and its deadline, not a chain's CSV). -->
-        <slot v-if="$slots.consent" name="consent" />
-        <span v-else
-          >I acknowledge the following: I want to share my run on the leaderboard when the search finishes<template
-            v-if="consentNote"
+          <slot v-if="$slots.consent" name="consent" />
+          <span v-else
+            >I acknowledge the following: I want to share my run on the leaderboard when the search finishes<template
+              v-if="consentNote"
+            >
+              ({{ consentNote }})</template
+            >. I understand it sends the route, its dates and the {{ goalWord }}, with my artifact inventory, timezone,
+            local plan start and the random code this browser keeps for the account (not my player ID, and never shown),
+            plus my CSV if ticked below and, if ticked, private diagnostics (never shown). Stop it early and it shares
+            the best it found so far. Send best so far shares it while the run goes on, without the CSV; that row is
+            replaced when the run finishes.</span
           >
-            ({{ consentNote }})</template
-          >. I understand it sends the route, its dates and the {{ goalWord }}, with my artifact inventory, timezone,
-          local plan start and the random code this browser keeps for the account (not my player ID, and never shown),
-          plus my CSV if ticked below and, if ticked, private diagnostics (never shown). Stop it early and it shares the
-          best it found so far. Send best so far shares it while the run goes on, without the CSV; that row is replaced
-          when the run finishes.</span
-        >
-      </label>
-      <p v-if="goalWord === 'target'" class="ml-7 text-[10px] text-indigo-900/70">
-        It also sends your best three plans already on the board, re-priced from this save.
+        </label>
+        <p v-if="goalWord === 'target'" class="ml-7 text-[10px] text-indigo-900/70">
+          It also sends your best three plans already on the board, re-priced from this save.
+        </p>
+        <!-- Asked for by "Send my best so far every..." (Stepping away?): the yes, then it sends by itself. -->
+        <div v-if="asking && optIn && autoSendOn" class="ml-7">
+          <button
+            type="button"
+            class="px-3 py-1.5 rounded-lg bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-800"
+            data-testid="agree-auto-best-so-far"
+            @click="agreeAutoSend"
+          >
+            Agree, and send my best so far by itself
+          </button>
+        </div>
+      </template>
+      <!-- A run going and nothing asked: what still applies to the send at the end. -->
+      <p v-else class="font-black text-indigo-800" data-testid="share-during-run">
+        {{
+          store.submitsWhenDone
+            ? 'Sent with the result when the run finishes (you can still change these):'
+            : 'Sent with the result if you share it (you can still change these):'
+        }}
       </p>
-      <!-- Asked for by "Send my best so far every..." (Stepping away?): the yes, then it sends by itself. -->
-      <div v-if="asking && optIn && autoSendOn" class="ml-7">
-        <button
-          type="button"
-          class="px-3 py-1.5 rounded-lg bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-800"
-          data-testid="agree-auto-best-so-far"
-          @click="agreeAutoSend"
-        >
-          Agree, and send my best so far by itself
-        </button>
-      </div>
       <!-- The same two boxes as Share this result, on the same choices. -->
       <div class="ml-7"><ShareExtras :csv-detail="csvDetail" /></div>
-      <div v-if="optIn" class="flex flex-wrap items-center gap-4">
+      <!-- Before the tick too while Send best so far asks: ticking sends, so the name is chosen first. -->
+      <div v-if="optIn || asking" class="flex flex-wrap items-center gap-4">
         <label class="flex items-center gap-2 cursor-pointer font-bold">
           <input v-model="anonymous" type="radio" :value="true" class="text-indigo-600" />
           Submit anonymously
@@ -147,7 +176,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
 import RunNoteBox from './RunNoteBox.vue';
 import ShareExtras from './ShareExtras.vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
@@ -184,6 +213,13 @@ const props = withDefaults(
   }
 );
 const store = useChainSearchStore();
+const emit = defineEmits<{ find: [andSubmit: boolean]; stop: []; nicknameTyped: [] }>();
+
+const optIn = defineModel<boolean>('optIn', { required: true });
+const anonymous = defineModel<boolean>('anonymous', { required: true });
+const nickname = defineModel<string>('nickname', { required: true });
+/** The run note (store `runNote`). Left unbound, the box isn't shown. */
+const note = defineModel<string>('note');
 /** Find waits for the save to settle; a run already going is left alone. */
 const notReady = computed(() => !props.running && !!store.saveNotReady);
 
@@ -196,35 +232,51 @@ const hasBest = computed(() => !!store.runProgress?.best);
 /** The button was pressed (here or on the progress bar) before the player agreed: the box is open. */
 const asking = computed(() => bestSoFarHere.value && !store.bestSoFar?.consent && !!store.bestSoFar?.asked);
 
-/** First press without consent opens the box; with the box ticked, it agrees and sends. */
+/** Ticking the box sends: the box was opened by a Send best so far press, not the automatic option. */
+const sendsOnTick = computed(() => asking.value && !!store.bestSoFar?.sendOnAgree);
+
+/** The name the best so far goes under, from the choices here. */
+function chosenName(): string {
+  return anonymous.value ? '' : nickname.value.trim().slice(0, props.nicknameMax);
+}
+
+/** Without consent and the box unticked, the press opens the box (ticking it then sends); with the
+ *  box ticked it agrees and sends. */
 function sendBestSoFar(): void {
   const run = store.bestSoFar;
   if (!run) return;
   if (!run.consent) {
-    if (!run.asked) {
-      store.askBestSoFar();
+    if (!optIn.value) {
+      store.askBestSoFar(true);
       return;
     }
-    if (!optIn.value) return;
-    store.agreeBestSoFar(anonymous.value ? '' : nickname.value.trim().slice(0, props.nicknameMax));
+    store.agreeBestSoFar(chosenName());
   }
   void store.sendBestSoFar();
 }
+// The box ticked after a press asked for it (here or on the bar): agree and send, no second press.
+watch(
+  () => sendsOnTick.value && optIn.value,
+  go => {
+    if (!go) return;
+    store.agreeBestSoFar(chosenName());
+    void store.sendBestSoFar();
+  },
+  { immediate: true }
+);
+// A name changed during a run that already has the yes: later best-so-far sends go under it, as the
+// final send will.
+watch([anonymous, nickname], () => {
+  if (bestSoFarHere.value && store.bestSoFar?.consent && optIn.value) store.agreeBestSoFar(chosenName());
+});
 /** Automatic best so far is ticked (Stepping away?). */
 const autoSendOn = computed(() => stepAwayOptions.value.autoSendBest);
 /** The yes for the automatic sends: agree under the name chosen here, then look at the schedule. */
 function agreeAutoSend(): void {
   if (!optIn.value) return;
-  store.agreeBestSoFar(anonymous.value ? '' : nickname.value.trim().slice(0, props.nicknameMax));
+  store.agreeBestSoFar(chosenName());
   store.autoTick();
 }
-const emit = defineEmits<{ find: [andSubmit: boolean]; stop: []; nicknameTyped: [] }>();
-
-const optIn = defineModel<boolean>('optIn', { required: true });
-const anonymous = defineModel<boolean>('anonymous', { required: true });
-const nickname = defineModel<string>('nickname', { required: true });
-/** The run note (store `runNote`). Left unbound, the box isn't shown. */
-const note = defineModel<string>('note');
 
 function onNickname(e: Event): void {
   nickname.value = (e.target as HTMLInputElement).value;

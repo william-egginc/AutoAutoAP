@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { longerRouteHints, MARGIN_SECONDS, soonerWords, type LongerRouteInput } from './longerRouteHint';
+import {
+  longerRouteHints,
+  MARGIN_SECONDS,
+  soonerWords,
+  startFromCountPlan,
+  type LongerRouteInput,
+} from './longerRouteHint';
+import { DEFAULT_EFFORT, EFFORT } from '@/search/effort';
 
 const DAY = 86400;
 const FIVE_STOPS = [163, 197, 232, 262, 295, 490];
@@ -108,5 +115,32 @@ describe('soonerWords', () => {
     expect(soonerWords(DAY)).toBe('about 1 day sooner');
     expect(soonerWords(14 * 3600)).toBe('about 14 hours sooner');
     expect(soonerWords(600)).toBe('sooner');
+  });
+});
+
+describe('startFromCountPlan (Smart search\'s "Start from N ascensions")', () => {
+  const SEVEN = [163, 195, 216, 248, 280, 318, 490];
+  const base = { finalTE: 490, minPrestiges: 5, maxPrestiges: 6, fallback: () => [200, 300, 490] };
+
+  it("starts from the instant answer's route with that count and widens the limits only to hold it", () => {
+    const plan = startFromCountPlan({ ...base, count: 7, instantRoutes: [[163, 230, 300, 490], SEVEN] });
+    expect(plan).toEqual({ chain: SEVEN, minPrestiges: 5, maxPrestiges: 7 });
+    // A count already inside the limits leaves them alone.
+    const inside = startFromCountPlan({ ...base, count: 4, instantRoutes: [[163, 230, 300, 490]] });
+    expect(inside).toEqual({ chain: [163, 230, 300, 490], minPrestiges: 4, maxPrestiges: 6 });
+  });
+
+  it('falls back to an even spread, and refuses a count that does not fit', () => {
+    expect(startFromCountPlan({ ...base, count: 3, instantRoutes: null })?.chain).toEqual([200, 300, 490]);
+    expect(startFromCountPlan({ ...base, count: 7, instantRoutes: [] })).toBeNull();
+    // A route to another target is not this one's.
+    expect(startFromCountPlan({ ...base, count: 3, instantRoutes: [[200, 300, 480]] })?.chain).toEqual([200, 300, 490]);
+  });
+
+  it('says nothing about the effort: on the default (Fast) the run keeps its count, so it stays fast', () => {
+    const plan = startFromCountPlan({ ...base, count: 7, instantRoutes: [SEVEN] });
+    expect(Object.keys(plan!)).toEqual(['chain', 'minPrestiges', 'maxPrestiges']);
+    expect(DEFAULT_EFFORT).toBe('quick');
+    expect(EFFORT[DEFAULT_EFFORT]).toMatchObject({ countProbe: false, slices2: false, slices3: false });
   });
 });

@@ -56,7 +56,7 @@ export const EFFORT_NOTES: Record<EffortTier, EffortNote> = {
       'Two later runs on one of those accounts landed about 6 days worse, ' +
       'so this tier’s spread is much wider than the single 5 h figure suggested. Treat it as ' +
       '"usually close, occasionally days off", not as a tight bound.',
-    warning: 'Widest spread of the four tiers. Two repeat runs on one account landed ~6 days behind.',
+    warning: 'Widest spread of the three tiers. Two repeat runs on one account landed ~6 days behind.',
   },
   normal: {
     label: 'Exact',
@@ -85,9 +85,13 @@ export const EFFORT_NOTES: Record<EffortTier, EffortNote> = {
   },
 };
 
-/** The order the slider walks, cheapest first. */
-/** The default tier. */
-export const DEFAULT_EFFORT: EffortTier = 'normal';
+/**
+ * Simple's default tier: Fast (9 Oct, the user: "I want it to be fast and let them switch to more
+ * exact"). It was Exact, which adds the pairs and the one-more-or-fewer probe: thousands of chains on
+ * a 7-ascension start. Fast starts from the instant answer's route (store `instantSeed`) and keeps its
+ * count, so a run is minutes. Exact and Very high stay one click away on the Effort slider.
+ */
+export const DEFAULT_EFFORT: EffortTier = 'quick';
 
 /**
  * Read a stored or linked tier name. The Balanced tier was retired (it ran the same steps as Exact),
@@ -99,6 +103,7 @@ export function normalizeEffort(raw: unknown): EffortTier {
   return raw === 'quick' || raw === 'normal' || raw === 'thorough' ? raw : DEFAULT_EFFORT;
 }
 
+/** The order the slider walks, cheapest first. */
 export const EFFORT_ORDER: EffortTier[] = ['quick', 'normal', 'thorough'];
 
 /** How rare a genuinely good chain is — the reason "just try a few by hand" does not work.

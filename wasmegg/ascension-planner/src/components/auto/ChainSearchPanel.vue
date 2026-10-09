@@ -1315,6 +1315,7 @@ import AutoSendReport from './AutoSendReport.vue';
 import RouteResultCard from './RouteResultCard.vue';
 import LongerRouteHint from './LongerRouteHint.vue';
 import { defaultSeedChain } from '@/search/seedChain';
+import { startFromCountPlan } from '@/lib/longerRouteHint';
 import { describeCompute } from '@/utils/computeTime';
 import { useInitialStateStore } from '@/stores/initialState';
 import IntegrityNotice from './IntegrityNotice.vue';
@@ -1422,20 +1423,29 @@ const coverageNote = computed(() => {
 });
 /**
  * "A longer route might win" (LongerRouteHint.vue): start the next search from a route with `n`
- * ascensions: the instant answer's route for that count when it has one, else an even spread. The
- * limits widen to include `n` and "find a starting chain" is switched off, so the search starts there.
- * The player presses Find.
+ * ascensions (lib/longerRouteHint.ts `startFromCountPlan`): the starting chain, the limits just wide
+ * enough, "find a starting chain" off. The Effort stays as set, so on Fast (the default) the run stays
+ * fast; the note says how to ask for a more exact one. The player presses Find.
  */
 function startFromCount(n: number): string {
-  const route = store.instantRoutes?.find(r => r.length === n && r[r.length - 1] === store.finalTE);
-  const chain =
-    route ?? defaultSeedChain({ currentTE: store.currentTE, finalTE: store.finalTE, minPrestiges: n, maxPrestiges: n });
-  if (chain.length !== n) return `A starting chain with ${n} ascensions doesn't fit between your TE and the target.`;
-  store.minPrestiges = Math.min(store.minPrestiges, n);
-  store.maxPrestiges = Math.max(store.maxPrestiges, n);
+  const plan = startFromCountPlan({
+    count: n,
+    finalTE: store.finalTE,
+    instantRoutes: store.instantRoutes,
+    minPrestiges: store.minPrestiges,
+    maxPrestiges: store.maxPrestiges,
+    fallback: () =>
+      defaultSeedChain({ currentTE: store.currentTE, finalTE: store.finalTE, minPrestiges: n, maxPrestiges: n }),
+  });
+  if (!plan) return `A starting chain with ${n} ascensions doesn't fit between your TE and the target.`;
+  store.minPrestiges = plan.minPrestiges;
+  store.maxPrestiges = plan.maxPrestiges;
   store.findSeedFirst = false;
-  store.seedOverride = chain.slice(0, -1).join(' ');
-  return `Starting chain set to ${chain.join(' ')}. Press Find to search from it.`;
+  store.seedOverride = plan.chain.slice(0, -1).join(' ');
+  const set = `Starting chain set to ${plan.chain.join(' ')}. Press Find to search from it`;
+  return store.effort === 'quick'
+    ? `${set} on Fast (minutes). For a more exact search, raise Effort in Search settings.`
+    : `${set} on ${note.value.label}, which also tries one more and one fewer ascension; Fast, in Search settings, is quicker.`;
 }
 /** The instant answer's count (set by the branch that has one), when it isn't the one searched from. */
 const suggestedCountNote = computed(() => {

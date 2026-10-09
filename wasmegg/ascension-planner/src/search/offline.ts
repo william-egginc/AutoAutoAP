@@ -43,7 +43,8 @@ export interface EffortChoice {
  * The tier a `--effort` value means. The slider says Fast / Exact / Very high and the keys are
  * quick / normal / thorough; both spellings work. Balanced was retired on 6 Oct (it ran the same
  * steps as Exact), so it runs Exact and says so rather than refusing a command someone has in a
- * script. Nothing given is Exact, the site's default.
+ * script. Nothing given is Exact here: the command line keeps Exact, though the site's Simple now
+ * defaults to Fast (search/effort.ts `DEFAULT_EFFORT`).
  */
 export function chooseEffort(raw: string | undefined): EffortChoice {
   const word = (raw ?? '').trim().toLowerCase().replace(/[\s_-]+/g, '');

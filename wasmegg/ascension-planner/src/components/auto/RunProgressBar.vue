@@ -10,7 +10,8 @@
 
   Send best so far (stores/chainSearch.ts `sendBestSoFar`) sits beside Stop for a run its screen lets
   send one. With the player's yes already given (Find and submit, or the screen's box) it sends from
-  here; without it, it goes to the run's screen, where the box asks first.
+  here; without it, it goes to the run's screen, where the box asks first and ticking it sends. Every
+  outcome -- sent, too soon, refused, an error, or "tick the box" -- is said under the bar.
 -->
 <template>
   <div
@@ -83,10 +84,19 @@
     <p
       v-if="bestSoFarHere && (store.bestSoFarStatus || store.bestSoFarWait > 0)"
       class="text-[10px] font-semibold"
-      :class="!store.bestSoFarStatus || store.bestSoFarStatus.ok ? 'text-emerald-300' : 'text-red-300'"
+      :class="
+        !store.bestSoFarStatus || store.bestSoFarStatus.pending
+          ? 'text-amber-200'
+          : store.bestSoFarStatus.ok
+            ? 'text-emerald-300'
+            : 'text-red-300'
+      "
+      data-testid="run-bar-best-so-far-status"
     >
       {{ store.bestSoFarStatus?.text ?? '' }}
-      <template v-if="store.bestSoFarWait > 0">You can send again in {{ store.bestSoFarWait }} min.</template>
+      <template v-if="store.bestSoFarWait > 0 && !/send again in/.test(store.bestSoFarStatus?.text ?? '')"
+        >You can send again in {{ store.bestSoFarWait }} min.</template
+      >
     </p>
   </div>
 </template>
@@ -183,13 +193,14 @@ const bestSoFarHere = computed(() => {
   if (!run || !kind || kind === 'start-times') return false;
   return (kind === 'by-date') === (run.kind === 'deadline');
 });
-/** With consent, send now; without, ask on the run's own screen, where the consent box is. */
+/** With consent, send now; without, ask on the run's own screen, where the consent box is: ticking
+ *  it there sends, and this bar says so meanwhile (the store's pending status). */
 function sendBestSoFar(): void {
   if (store.bestSoFar?.consent) {
     void store.sendBestSoFar();
     return;
   }
-  store.askBestSoFar();
+  store.askBestSoFar(true);
   emit('show');
 }
 function stop(): void {

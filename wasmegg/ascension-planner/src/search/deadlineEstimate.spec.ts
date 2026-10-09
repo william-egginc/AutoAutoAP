@@ -23,6 +23,8 @@ import {
   plannedRoutes,
   RATE_WINDOW_SECONDS,
   recentLegRate,
+  liveLegRate,
+  RATE_MIN_SECONDS,
   roundedRoutes,
   spaceShapeKey,
   usableRatio,
@@ -318,6 +320,44 @@ describe('the estimate in legs', () => {
       [at(200), 4000 + 400],
     ];
     expect(recentLegRate(naive, at(200))!).toBeGreaterThan(20);
+  });
+
+  // Review, 9 Oct: a small By a date run said "(measuring…)" through round 2 with seconds left, since
+  // the measured rate waited for two minutes of work the run never had.
+  it('stops measuring once the workers have done real work, blending toward the measured rate', () => {
+    const t0 = 70_000_000;
+    // Nothing real yet: the planned rate, measuring.
+    expect(liveLegRate([], t0, 3)).toEqual({ rate: 3, measuring: true });
+    expect(liveLegRate([[t0, 0]], t0, 3)).toEqual({ rate: 3, measuring: true });
+    expect(liveLegRate([[t0, 0]], t0, null)).toEqual({ rate: null, measuring: true });
+    // The first batch of real legs, 6 s in at 10 legs a second: no longer measuring, mostly the plan.
+    const early: [number, number][] = [
+      [t0, 0],
+      [t0 + 6000, 60],
+    ];
+    const r = liveLegRate(early, t0 + 6000, 3);
+    expect(r.measuring).toBe(false);
+    expect(r.rate).toBeCloseTo((6 / RATE_MIN_SECONDS) * 10 + (1 - 6 / RATE_MIN_SECONDS) * 3, 6);
+    // With no plan, what it measured.
+    expect(liveLegRate(early, t0 + 6000, null)).toEqual({ rate: 10, measuring: false });
+    // Two minutes in: the measured rate alone.
+    const full: [number, number][] = [
+      [t0, 0],
+      [t0 + RATE_MIN_SECONDS * 1000, RATE_MIN_SECONDS * 10],
+    ];
+    expect(liveLegRate(full, t0 + RATE_MIN_SECONDS * 1000, 3)).toEqual({ rate: 10, measuring: false });
+  });
+
+  it('a carried-on run still measures from where its replay ends, not from the replay', () => {
+    const t0 = 80_000_000;
+    let samples: [number, number][] = [];
+    for (let s = 0; s <= 10; s++) samples = addLegSample(samples, t0 + s * 1000, s * 400, s * 400);
+    expect(liveLegRate(samples, t0 + 10_000, 2)).toEqual({ rate: 2, measuring: true });
+    // 6 s of real work at 2 legs a second: measured, and nowhere near the replay's 400 a second.
+    for (let s = 1; s <= 6; s++) samples = addLegSample(samples, t0 + 10_000 + s * 1000, 4000 + 2 * s, 4000);
+    const r = liveLegRate(samples, t0 + 16_000, 2);
+    expect(r.measuring).toBe(false);
+    expect(r.rate).toBeCloseTo(2, 5);
   });
 
   it('remembers routes per set by the shape of the space, not one figure for all', () => {

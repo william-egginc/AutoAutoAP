@@ -3,18 +3,18 @@ import { DEFAULT_EFFORT, EFFORT, EFFORT_ORDER, normalizeEffort } from './effort'
 import { effortText, foundByText } from '@/lib/leaderboardRank';
 
 describe('effort tiers', () => {
-  it('has no Balanced tier and defaults to Exact', () => {
+  it('has no Balanced tier and defaults to Fast (Simple is meant to be quick)', () => {
     expect(EFFORT_ORDER).toEqual(['quick', 'normal', 'thorough']);
     expect(Object.keys(EFFORT)).not.toContain('balanced');
-    expect(DEFAULT_EFFORT).toBe('normal');
+    expect(DEFAULT_EFFORT).toBe('quick');
   });
 
   it('reads a stored or linked balanced as exact', () => {
     expect(normalizeEffort('balanced')).toBe('normal');
     expect(normalizeEffort('quick')).toBe('quick');
     expect(normalizeEffort('thorough')).toBe('thorough');
-    expect(normalizeEffort('nonsense')).toBe('normal');
-    expect(normalizeEffort(undefined)).toBe('normal');
+    expect(normalizeEffort('nonsense')).toBe('quick');
+    expect(normalizeEffort(undefined)).toBe('quick');
   });
 
   it('still shows rows already sent as balanced', () => {

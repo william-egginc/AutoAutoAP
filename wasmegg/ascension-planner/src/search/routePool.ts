@@ -95,6 +95,21 @@ export class RoutePool {
     return true;
   }
 
+  /**
+   * Stop what is in flight and give the memory back now: a search started, and the instant answer's
+   * background polish waits for it to end (InstantRoute.vue). Unlike `sleep` it cuts a request off --
+   * it rejects with "paused" -- and unlike `terminate` the pool stays usable: the next request spawns
+   * the workers again. True when anything was cut off.
+   */
+  interrupt(): boolean {
+    const cut = this.pending.size > 0;
+    for (const w of this.workers ?? []) w.terminate();
+    this.workers = null;
+    for (const p of this.pending.values()) p.reject(new Error('paused'));
+    this.pending.clear();
+    return cut;
+  }
+
   get asleep(): boolean {
     return !this.workers;
   }

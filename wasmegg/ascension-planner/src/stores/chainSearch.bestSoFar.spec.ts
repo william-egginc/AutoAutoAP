@@ -143,7 +143,8 @@ describe('Send best so far', () => {
     expect((await s.sendBestSoFar()).ok).toBe(false);
     s.beginBestSoFar('fastest', null);
     const res = await s.sendBestSoFar();
-    expect(res).toEqual({ ok: false, text: 'Tick the box to agree first.' });
+    expect(res).toEqual({ ok: false, text: 'Not sent: tick the box under Find to agree first.' });
+    expect(s.bestSoFarStatus).toMatchObject({ ok: false });
     expect(bodies).toHaveLength(0);
   });
 
@@ -320,6 +321,97 @@ describe('Send best so far', () => {
       } finally {
         vi.useRealTimers();
       }
+    });
+  });
+
+  // Review, 9 Oct: a By a date run, Send best so far pressed, the box ticked with "Submit anonymously",
+  // and nothing went and nothing was said. The press must say what to do, ticking must be enough, an
+  // anonymous send must carry this browser's owner code (the collector refuses a best so far without
+  // one, and it is what lets the final send replace the row), and every outcome must be said.
+  describe('anonymous, and saying every outcome', () => {
+    /** A stub collector that also records the owner header. */
+    function withHeaders(...replies: Response[]) {
+      const sent: { body: Record<string, unknown>; owner: string | null }[] = [];
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (url: string, init?: RequestInit) => {
+          if (!String(url).endsWith('/submit')) throw new Error('unexpected request ' + url);
+          const headers = (init?.headers ?? {}) as Record<string, string>;
+          sent.push({ body: JSON.parse(String(init?.body)), owner: headers['x-owner-token'] ?? null });
+          const next = replies.shift();
+          if (!next) throw new Error('no reply queued');
+          return next;
+        })
+      );
+      return sent;
+    }
+
+    it('a press before the yes says to tick the box, and ticking it (agreeing) clears that', async () => {
+      const s = await running();
+      s.beginBestSoFar('deadline', null);
+      s.askBestSoFar(true);
+      expect(s.bestSoFar).toMatchObject({ asked: true, sendOnAgree: true, consent: null });
+      expect(s.bestSoFarStatus).toMatchObject({
+        pending: true,
+        text: expect.stringMatching(/tick the box under Find/),
+      });
+      s.agreeBestSoFar('');
+      expect(s.bestSoFar).toMatchObject({ asked: false, consent: { nickname: '' } });
+      expect(s.bestSoFarStatus).toBeNull();
+      s.endBestSoFar();
+    });
+
+    it("the automatic option's ask does not send on the tick", async () => {
+      const s = await running();
+      s.beginBestSoFar('fastest', null);
+      s.askBestSoFar();
+      expect(s.bestSoFar).toMatchObject({ asked: true, sendOnAgree: false });
+      expect(s.bestSoFarStatus).toBeNull();
+      s.endBestSoFar();
+    });
+
+    it("sends anonymously with this browser's owner code and no name, and says it went anonymously", async () => {
+      const s = await running();
+      await s.checkResumable('test-account'); // records the account, as the panel does when it opens
+      s.beginBestSoFar('fastest', null);
+      s.agreeBestSoFar('');
+      const sent = withHeaders(json({ ok: true, id: 'aaaa0001' }));
+      const res = await s.sendBestSoFar();
+      expect(res.ok).toBe(true);
+      expect(sent).toHaveLength(1);
+      expect(sent[0].owner).toMatch(/^[a-f0-9]{32}$/);
+      expect(sent[0].body).toMatchObject({ provisional: true });
+      expect(sent[0].body).not.toHaveProperty('nickname');
+      expect(sent[0].body).not.toHaveProperty('acct');
+      expect(s.bestSoFarStatus).toEqual({
+        ok: true,
+        text: 'Sent anonymously. It will be replaced when the run finishes.',
+      });
+      s.endBestSoFar();
+    });
+
+    it('says a refusal, an unreachable collector and too soon, each in its own words', async () => {
+      const s = await running();
+      await s.checkResumable('test-account');
+      s.beginBestSoFar('fastest', { nickname: '' });
+      withHeaders(json({ error: 'rejected', problems: ['a best so far needs the owner code'] }, 400));
+      expect(await s.sendBestSoFar()).toMatchObject({ ok: false });
+      expect(s.bestSoFarStatus).toEqual({
+        ok: false,
+        text: 'Not sent: collector said 400: a best so far needs the owner code',
+      });
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => {
+          throw new TypeError('Failed to fetch');
+        })
+      );
+      await s.sendBestSoFar();
+      expect(s.bestSoFarStatus).toMatchObject({ ok: false, text: expect.stringMatching(/^Not sent: could not reach/) });
+      withHeaders(json({ retryAfter: 120, tooSoon: true }, 429));
+      await s.sendBestSoFar();
+      expect(s.bestSoFarStatus).toEqual({ ok: false, pending: true, text: 'You can send again in 2 min.' });
+      s.endBestSoFar();
     });
   });
 

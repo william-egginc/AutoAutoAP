@@ -128,7 +128,7 @@ import {
   firstRouteLegs,
   laterRouteLegs,
   legsLeft,
-  recentLegRate,
+  liveLegRate,
   spaceSets,
   spaceShapeKey,
   usableRatio,
@@ -711,16 +711,23 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * (`beginBestSoFar`), so a run started anywhere else (a sweep from Science) offers nothing. `consent`
    * is the name to send under once the player has agreed -- at Find and submit, or in the screen's box
    * during the run -- and null until then. `asked`: the progress bar's button was pressed without
-   * consent, so the screen opens its consent box.
+   * consent, so the screen opens its consent box. `sendOnAgree`: that box was opened by a Send best
+   * so far press (not by the automatic option), so ticking it sends at once: the press was the ask,
+   * and a second press nobody knew was needed is how a best so far went unsent (review, 9 Oct).
    */
   const bestSoFar = ref<{
     kind: 'fastest' | 'deadline';
     consent: { nickname: string } | null;
     asked: boolean;
+    sendOnAgree: boolean;
   } | null>(null);
   const bestSoFarSending = ref(false);
-  /** How the last Send best so far went, for the bar and the screen. Cleared when a run begins. */
-  const bestSoFarStatus = ref<{ ok: boolean; text: string } | null>(null);
+  /**
+   * How the last Send best so far went, for the bar and the screen. Cleared when a run begins.
+   * `pending`: not an outcome but what to do next ("tick the box under Find"), shown in neither
+   * green nor red.
+   */
+  const bestSoFarStatus = ref<{ ok: boolean; text: string; pending?: boolean } | null>(null);
   let bestSoFarInFlight: Promise<unknown> | null = null;
   /** A clock for "You can send again in N min", ticking only while a run can send. */
   const bestSoFarNow = ref(Date.now());
@@ -734,7 +741,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     return left > 0 ? Math.ceil(left / 60_000) : 0;
   });
   function beginBestSoFar(kind: 'fastest' | 'deadline', consent: { nickname: string } | null): void {
-    bestSoFar.value = { kind, consent, asked: false };
+    bestSoFar.value = { kind, consent, asked: false, sendOnAgree: false };
     bestSoFarStatus.value = null;
     bestSoFarNow.value = Date.now();
     bestSoFarStartedAt = bestSoFarNow.value;
@@ -752,13 +759,27 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     if (bestSoFarTicker) clearInterval(bestSoFarTicker);
     bestSoFarTicker = null;
   }
-  /** The player agreed, in the screen's box, during the run. */
+  /** The player agreed, in the screen's box, during the run (or changed the name it goes under). */
   function agreeBestSoFar(nickname: string): void {
-    if (bestSoFar.value) bestSoFar.value = { ...bestSoFar.value, consent: { nickname }, asked: false };
+    if (bestSoFar.value)
+      bestSoFar.value = { ...bestSoFar.value, consent: { nickname }, asked: false, sendOnAgree: false };
+    if (bestSoFarStatus.value?.pending) bestSoFarStatus.value = null;
   }
-  /** The bar's button, pressed before consent: the screen shows its consent box. */
-  function askBestSoFar(): void {
-    if (bestSoFar.value) bestSoFar.value = { ...bestSoFar.value, asked: true };
+  /**
+   * Send best so far pressed before consent (`send`), or the automatic option wanting its yes: the
+   * screen shows its consent box. A press also says so on the bar and under the button, so the
+   * press never looks like it did nothing.
+   */
+  function askBestSoFar(send = false): void {
+    const run = bestSoFar.value;
+    if (!run) return;
+    bestSoFar.value = { ...run, asked: true, sendOnAgree: run.sendOnAgree || send };
+    if (send)
+      bestSoFarStatus.value = {
+        ok: false,
+        pending: true,
+        text: 'Not sent yet: tick the box under Find to agree, and it sends straight away.',
+      };
   }
   /** Resolves once any best-so-far send in flight has its answer, so a final send that follows
    *  knows which row to replace. */
@@ -3363,14 +3384,15 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    */
   async function sendBestSoFar(): Promise<{ ok: boolean; text: string; tooSoon?: boolean; retryAfter?: number }> {
     const say = (ok: boolean, text: string, more: { tooSoon?: boolean; retryAfter?: number } = {}) => {
-      bestSoFarStatus.value = { ok, text };
+      // Too soon is a wait, not a failure: said in neither green nor red.
+      bestSoFarStatus.value = { ok, text, ...(more.tooSoon ? { pending: true } : {}) };
       return { ok, text, ...more };
     };
     const run = bestSoFar.value;
     const p = runProgress.value;
     if (bestSoFarSending.value) return { ok: false, text: 'Already sending.' };
     if (!run) return say(false, 'This run cannot send its best so far.');
-    if (!run.consent) return say(false, 'Tick the box to agree first.');
+    if (!run.consent) return say(false, 'Not sent: tick the box under Find to agree first.');
     if (!p?.best || (p.kind === 'by-date') !== (run.kind === 'deadline'))
       return say(false, 'Nothing found yet to send.');
     // One every 30 minutes (BEST_SO_FAR_GAP_MS): each send costs the collector several KV writes.
@@ -3400,16 +3422,22 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       bestSoFarAuto.value = { ...bestSoFarAuto.value, lastKey: bestKey(p.best), lastTe: p.best?.te ?? null };
       if (res.id) {
         setProvisional(kind, { id: res.id, nickname: payload.nickname ?? '', at: Date.now() });
+        // The clock too, so the wait reads 30 min rather than 31 until the ticker's next beat.
+        bestSoFarNow.value = Date.now();
         // Into the run's checkpoint at its next write, which is now rather than in a minute or two.
         if (kind === 'fastest') lastCheckpointAt = 0;
         else deadlineSavedAt = 0;
       }
       const flaggedNote = /flagged board/.test(res.message) ? ' It went to the flagged board.' : '';
-      return say(true, `Sent. It will be replaced when the run finishes.${flaggedNote}`);
+      const as = payload.nickname ? ` as ${payload.nickname}` : ' anonymously';
+      return say(true, `Sent${as}. It will be replaced when the run finishes.${flaggedNote}`);
     })();
     bestSoFarInFlight = go;
     try {
       return await go;
+    } catch (e) {
+      // Never throws (the buttons do not wait on it): whatever went wrong is said where they are.
+      return say(false, `Not sent: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       bestSoFarSending.value = false;
       if (bestSoFarInFlight === go) bestSoFarInFlight = null;
@@ -4799,7 +4827,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   /** Sets of early stops in the run, for counting its legs when it has no plan. */
   const deadlineSets = ref(0);
   /** `[unix ms, real legs simulated this session]`, at most one every 5 s, for the live rate
-   *  (deadlineEstimate.ts `recentLegRate`, `addLegSample`). Real legs, from the workers: what a route
+   *  (deadlineEstimate.ts `liveLegRate`, `addLegSample`). Real legs, from the workers: what a route
    *  really costs (the memo, the first round's early legs) is in them, and a carried-on run's replayed
    *  routes are not, so its rate is "measuring…" until the workers have done real work. */
   const deadlineLegSamples = ref<[number, number][]>([]);
@@ -4900,8 +4928,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * line, in REAL legs (what the workers simulate, the steady unit): the routes left of the shared
    * total (`deadlineRoutesTotal`), a set's first route at the first round's legs and every later one
    * at the legs a later route has really cost this run (the plan's figure until it has measured it),
-   * over the real legs a second of the last 12 minutes (the planned rate until it has 2 minutes of
-   * its own, `measuring` meanwhile). `firstGuess` is the run's own estimate at its start.
+   * over the real legs a second of the last 12 minutes (deadlineEstimate.ts `liveLegRate`: the planned
+   * rate, `measuring`, until the workers have done real work; then blended toward the measured one
+   * over its first 2 minutes). `firstGuess` is the run's own estimate at its start.
    */
   const deadlineTimeLeft = computed<{
     seconds: number;
@@ -4931,14 +4960,13 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const at = samples.length ? samples[samples.length - 1][0] : Date.now();
     const w = Math.max(1, deadlineWorkersInPool.value);
     const planned = plan && plan.workerSecondsPerLeg > 0 ? w / (plan.workerSecondsPerLeg * contention(w)) : null;
-    const measured = recentLegRate(samples, at);
-    const rate = measured ?? planned;
+    const { rate, measuring } = liveLegRate(samples, at, planned);
     if (!rate) return null;
     return {
       seconds: left / rate,
       legsLeft: left,
       firstGuess: plan ? plan.seconds : null,
-      measuring: measured === null,
+      measuring,
     };
   });
   /** The run's progress, 0-100, for the panel's bar and the cross-tab bar (deadlineEstimate.ts

@@ -446,20 +446,59 @@ export const RATE_WINDOW_SECONDS = 12 * 60;
 /** Under this much of the window measured, the planned rate is used. */
 export const RATE_MIN_SECONDS = 120;
 
-/**
- * Legs a second over the last `RATE_WINDOW_SECONDS`, from `[unix ms, legs done]` samples (oldest
- * first), or null while there is too little to go on.
- */
-export function recentLegRate(samples: readonly (readonly [number, number])[], now: number): number | null {
+/** The samples' last `RATE_WINDOW_SECONDS`: its length in seconds and the legs done in it. */
+function rateWindow(
+  samples: readonly (readonly [number, number])[],
+  now: number
+): { span: number; legs: number } | null {
   if (samples.length < 2) return null;
   const from = now - RATE_WINDOW_SECONDS * 1000;
   let i = 0;
   while (i < samples.length - 1 && samples[i + 1][0] <= from) i++;
   const [t0, l0] = samples[i];
   const [t1, l1] = samples[samples.length - 1];
-  const span = (t1 - t0) / 1000;
-  if (span < RATE_MIN_SECONDS || !(l1 > l0)) return null;
-  return (l1 - l0) / span;
+  return { span: (t1 - t0) / 1000, legs: l1 - l0 };
+}
+
+/**
+ * Legs a second over the last `RATE_WINDOW_SECONDS`, from `[unix ms, legs done]` samples (oldest
+ * first), or null while there is too little to go on (under `minSeconds` of real work).
+ */
+export function recentLegRate(
+  samples: readonly (readonly [number, number])[],
+  now: number,
+  minSeconds = RATE_MIN_SECONDS
+): number | null {
+  const w = rateWindow(samples, now);
+  if (!w || w.span < minSeconds || !(w.legs > 0) || !(w.span > 0)) return null;
+  return w.legs / w.span;
+}
+
+/** Real work enough for a first measured rate: two samples (`SAMPLE_EVERY_MS` apart) of real legs. */
+export const FIRST_RATE_SECONDS = 5;
+
+/**
+ * The rate the time left uses, and whether it is still `measuring` (the bar's "(measuring…)").
+ *
+ * The full measured rate once there are `RATE_MIN_SECONDS` of real work. Before that, as soon as the
+ * workers have done any real work (`FIRST_RATE_SECONDS`, the first batches of real legs), the
+ * measured rate blended with the planned one by how much of those two minutes it has, and no longer
+ * "measuring": a small run used to say "(measuring…)" until it was nearly over (review, 9 Oct), since
+ * it never got two minutes in. With nothing real yet, the planned rate, measuring. A carried-on run's
+ * replayed routes are no real work (`addLegSample`), so its clock still starts where the replay ends.
+ */
+export function liveLegRate(
+  samples: readonly (readonly [number, number])[],
+  now: number,
+  planned: number | null
+): { rate: number | null; measuring: boolean } {
+  const full = recentLegRate(samples, now);
+  if (full !== null) return { rate: full, measuring: false };
+  const first = recentLegRate(samples, now, FIRST_RATE_SECONDS);
+  if (first === null) return { rate: planned, measuring: true };
+  if (!planned) return { rate: first, measuring: false };
+  const share = Math.min(1, (rateWindow(samples, now)?.span ?? 0) / RATE_MIN_SECONDS);
+  return { rate: share * first + (1 - share) * planned, measuring: false };
 }
 
 /** At most one rate sample this often. */

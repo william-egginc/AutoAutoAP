@@ -23,3 +23,38 @@ export function onArrival(o: { runBusy: boolean; hasSaved: boolean; goAhead: boo
 export function resumeAfterRun(o: { wasBusy: boolean; busy: boolean; waiting: boolean; hasAnswer: boolean }): boolean {
   return o.wasBusy && !o.busy && o.waiting && !o.hasAnswer;
 }
+
+/**
+ * The instant answer's own background work: the exact check (the full simulator on chain workers),
+ * the nearest gear tables (two route workers of their own) and the background polish.
+ */
+export interface InstantWork {
+  exact: boolean;
+  bracket: boolean;
+  polish: boolean;
+}
+
+/**
+ * While a search runs, that work waits, unless the player chose to run the instant answer alongside
+ * it: Your setup's "Let the instant answer run during a search", or the memory warning's Run it anyway
+ * (`alongside`). Waiting is always allowed; this only says when starting is.
+ */
+export function backgroundMayStart(o: { runBusy: boolean; alongside: boolean }): boolean {
+  return !o.runBusy || o.alongside;
+}
+
+/**
+ * A search just started (review, 9 Oct: "the instant workers are still going when a run is going",
+ * an exact check begun before Find kept checking through the run): which of the work in flight to
+ * pause until it ends. All of it, unless the player chose to run alongside. The route finding itself
+ * (seconds, and what the panel shows) is not in here and is never cut off.
+ */
+export function pauseForRun(o: {
+  wasBusy: boolean;
+  busy: boolean;
+  alongside: boolean;
+  running: InstantWork;
+}): InstantWork {
+  const go = o.busy && !o.wasBusy && !o.alongside;
+  return { exact: go && o.running.exact, bracket: go && o.running.bracket, polish: go && o.running.polish };
+}

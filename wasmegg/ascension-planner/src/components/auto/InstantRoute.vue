@@ -97,8 +97,8 @@
       data-testid="instant-warning"
     >
       <p>
-        A search is running. Working out the instant answer now runs extra workers alongside it, which uses more
-        memory and could crash the search on a big run.
+        A search is running. {{ confirming.check ? 'Checking exactly' : 'Working out the instant answer' }} now runs
+        extra workers alongside it, which uses more memory and could crash the search on a big run.
       </p>
       <div class="flex flex-wrap items-center gap-x-4 gap-y-1">
         <button
@@ -275,7 +275,7 @@
             class="mt-1 px-3 py-1.5 rounded-lg bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-1.5"
             :disabled="exactStatus === 'running'"
             title="Prices every route below with the full simulator on your account"
-            @click="checkAgain()"
+            @click="pressCheck()"
           >
             <span
               v-if="exactStatus === 'running'"
@@ -415,7 +415,7 @@
             class="mt-1 px-3 py-1.5 rounded-lg bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-1.5"
           :disabled="exactStatus === 'running'"
           title="Prices every route below with the full simulator on your account"
-          @click="checkAgain()"
+          @click="pressCheck()"
         >
           <span
               v-if="exactStatus === 'running'"
@@ -583,7 +583,7 @@ import { describeColleggtibles } from '@/search/progression';
 import { poolSize, RoutePool } from '@/search/routePool';
 import { describeGear, isMaxed, pickBracket, type TableEntry } from '@/search/tableBracket';
 import { isSmallDevice } from '@/search/device';
-import { onArrival, resumeAfterRun } from '@/search/instantDeferral';
+import { backgroundMayStart, onArrival, pauseForRun, resumeAfterRun } from '@/search/instantDeferral';
 import { useInstantDuringSearch } from '@/composables/useInstantDuringSearch';
 import { readSnapshot, writeSnapshot } from '@/search/instantSnapshot';
 import { simulateRoute } from '@/search/simulateRoute';
@@ -701,14 +701,15 @@ async function polishInBackground(
   options: PolishOptions,
   raw: FoundRoutes,
   shown: FoundRoutes
-): Promise<void> {
+): Promise<boolean> {
   backgroundStatus.value = 'running';
+  polishCut = false;
   gains.value = [];
   let final = shown;
   try {
     const t = performance.now();
     const strong = await p.polish(url, { ...options, ...STRONG_POLISH }, JSON.parse(JSON.stringify(raw)));
-    if (id !== runs) return;
+    if (id !== runs) return false;
     if (import.meta.env.DEV) console.info(`instant answer: background polish ${Math.round(performance.now() - t)} ms`);
     const better = atMostAscensions({ ...raw, ...strong }, filters.value.maxAscensions);
     const g = polishGains(shown, better, !!props.deadline);
@@ -719,12 +720,21 @@ async function polishInBackground(
     }
     gains.value = g;
   } catch {
-    // The first answer stands.
-    if (id !== runs) return;
+    if (id !== runs) return false;
+    // A search started and cut it off (`pauseWorkForRun`): it starts again when the search ends.
+    if (polishCut) {
+      polishCut = false;
+      backgroundStatus.value = 'idle';
+      return false;
+    }
+    // Otherwise the first answer stands.
   }
   backgroundStatus.value = 'done';
   void runExact(id, final);
+  return true;
 }
+/** The background polish was cut off by a search starting, not by a failure. */
+let polishCut = false;
 
 /**
  * NEAREST TABLES ABOVE AND BELOW (search/tableBracket.ts): for a player with no table of their own
@@ -742,9 +752,21 @@ const bracket = ref<{ above: BracketSide | null; below: BracketSide | null } | n
 const bracketStatus = ref<'idle' | 'running' | 'done'>('idle');
 /** The bracket's own run number, bumped by each `run` (not by "Check again", which leaves it running). */
 let bracketRuns = 0;
+/** The bracket's workers while it runs, so a search starting can stop them (`pauseWorkForRun`). */
+let bracketPool: RoutePool | null = null;
+/** What the running bracket was asked, to start it again after a search. */
+let bracketArgs: { legs: FirstLegsBase; hours: Availability | null } | null = null;
+/** The bracket, held back until the search running now ends. */
+let bracketLater: (() => void) | null = null;
 type FirstLegsBase = Omit<FirstLegsRequest, 'id' | 'kind' | 'url' | 'deliveryScale'>;
 async function runBracket(bid: number, legs: FirstLegsBase, hours: Availability | null): Promise<void> {
   if (bid !== bracketRuns || own.value || gearTable.value || deliveryScale.value === null) return;
+  // Two more route workers, each loading a table: not while a search runs, unless the player chose.
+  if (!backgroundMayStart({ runBusy: runBusy.value, alongside: runsAlongside() })) {
+    bracketLater = () => void runBracket(bid, legs, hours);
+    return;
+  }
+  bracketArgs = { legs, hours };
   const player = { bonus: bonus.value, k: deliveryScale.value };
   if (isMaxed(player)) return;
   let entries: TableEntry[];
@@ -763,6 +785,7 @@ async function runBracket(bid: number, legs: FirstLegsBase, hours: Availability 
     2,
     () => new Worker(new URL('../../workers/routeFinder.worker.ts', import.meta.url), { type: 'module' })
   );
+  bracketPool = pool;
   const side = async (entry: TableEntry | null): Promise<BracketSide | null> => {
     if (!entry) return null;
     const url =
@@ -799,6 +822,7 @@ async function runBracket(bid: number, legs: FirstLegsBase, hours: Availability 
     // No bracket: the answer stands on its own.
   } finally {
     pool.terminate();
+    if (bracketPool === pool) bracketPool = null;
     if (bid === bracketRuns) {
       bracketStatus.value = 'done';
       // The current run's number, not the one this started under: "Check again" bumps `runs` without
@@ -921,9 +945,15 @@ const waiting = ref(false);
 /** The polish and exact check, held back to when the run ends. */
 let afterRun: (() => void) | null = null;
 watch(runBusy, (busy, wasBusy) => {
+  if (busy && !wasBusy) pauseWorkForRun();
   if (resumeAfterRun({ wasBusy, busy, waiting: waiting.value, hasAnswer: !!result.value })) {
     void run();
     return;
+  }
+  if (!busy && wasBusy && bracketLater) {
+    const go = bracketLater;
+    bracketLater = null;
+    go();
   }
   if (!busy && wasBusy && afterRun) {
     const go = afterRun;
@@ -936,10 +966,54 @@ watch(runBusy, (busy, wasBusy) => {
 
 /** Remembered "let the instant answer run during a search" (also a box in Your setup). */
 const instantDuringSearch = useInstantDuringSearch();
-/** The warning is open for this press: which button asked ("again" forces, the waits line goes ahead). */
-const confirming = ref<{ force: boolean } | null>(null);
-/** The last run started alongside a search, so the short memory note shows while it is still going. */
+/** The warning is open for this press: which button asked ("again" forces, the waits line goes ahead;
+ *  `check`: Check exactly). */
+const confirming = ref<{ force: boolean; check?: boolean } | null>(null);
+/** The last run (or exact check) started alongside a search, so the short memory note shows while it
+ *  is still going. */
 const alongside = ref(false);
+/** The player chose to run the instant answer alongside the search (search/instantDeferral.ts). */
+function runsAlongside(): boolean {
+  return instantDuringSearch.value || alongside.value;
+}
+
+/**
+ * A search just started: the instant answer's own work in flight waits for it to end (the exact
+ * check, the nearest gear tables, the background polish), unless the player chose to run alongside.
+ * Each starts again when the search ends: the exact check from its 'waiting' (the run-end watch
+ * above), the bracket and the polish from what is held here.
+ */
+function pauseWorkForRun(): void {
+  const pause = pauseForRun({
+    wasBusy: false,
+    busy: true,
+    alongside: runsAlongside(),
+    running: {
+      exact: exactStatus.value === 'running',
+      bracket: bracketStatus.value === 'running',
+      // The route finding itself (status 'loading') shares the pool and is never cut off.
+      polish: backgroundStatus.value === 'running' && status.value !== 'loading',
+    },
+  });
+  if (pause.exact) {
+    // Its awaits see a newer run number and drop what they were doing.
+    ++runs;
+    stopExact();
+    exactStatus.value = 'waiting';
+  }
+  if (pause.bracket) {
+    const args = bracketArgs;
+    const bid = ++bracketRuns;
+    bracketPool?.terminate();
+    bracketPool = null;
+    bracketStatus.value = 'idle';
+    if (args) bracketLater = () => void runBracket(bid, args.legs, args.hours);
+  }
+  if (pause.polish) {
+    polishCut = true;
+    pool?.interrupt();
+  }
+}
 
 /**
  * The buttons' press. With no search running it runs at once, as before. During a search it asks
@@ -953,13 +1027,30 @@ function pressRun(force: boolean): void {
   }
   confirming.value = { force };
 }
+/**
+ * Check exactly / Check all again: the full simulator on up to four workers. During a search it asks
+ * first, as Work it out again does, unless the player chose not to be asked.
+ */
+function pressCheck(): void {
+  if (!runBusy.value || instantDuringSearch.value) {
+    confirming.value = null;
+    goCheck();
+    return;
+  }
+  confirming.value = { force: false, check: true };
+}
+function goCheck(): void {
+  alongside.value = runBusy.value;
+  checkAgain();
+}
 /** "Run it anyway" (once) or "Don't ask again, just warn me" (and remember). */
 function confirmRun(remember: boolean): void {
   const ask = confirming.value;
   confirming.value = null;
   if (!ask) return;
   if (remember) instantDuringSearch.value = true;
-  goRun(ask.force);
+  if (ask.check) goCheck();
+  else goRun(ask.force);
 }
 function goRun(force: boolean): void {
   alongside.value = runBusy.value;
@@ -1131,8 +1222,15 @@ async function run(force = false, goAhead = false): Promise<void> {
     status.value = 'done';
     if (props.deadline) emitRoutes(answer);
     if (small) return;
-    const polish = () =>
-      void polishInBackground(id, p, url, polishOptions, raw, answer).then(() => runBracket(bid, legsRequest, hours));
+    const polish = (): void =>
+      void polishInBackground(id, p, url, polishOptions, raw, answer).then(done => {
+        if (done) return runBracket(bid, legsRequest, hours);
+        // Cut off by a search starting (`pauseWorkForRun`): again when it ends.
+        if (id === runs && runBusy.value)
+          afterRun = () => {
+            if (id === runs) polish();
+          };
+      });
     // A search started meanwhile (or this was worked out anyway during one): the polish and the exact
     // check wait for it to end, or for the player to press Check exactly.
     if (runBusy.value) {

@@ -102,3 +102,37 @@ export function longerRouteHints(input: LongerRouteInput): LongerRouteHint[] {
   }
   return out;
 }
+
+/**
+ * Smart search's "Start from N ascensions": what the button changes, and only that. The starting
+ * chain becomes the instant answer's route with `count` ascensions when it has one (else `fallback`,
+ * an even spread), the Limits widen just enough to hold `count`, and "find a starting chain" goes
+ * off so the search starts there. The Effort tier is left as the player set it: a 33-minute run from
+ * this button was Exact's pairs and one-more-or-fewer probe on a 7-ascension chain (review, 9 Oct),
+ * and the default is now Fast, which keeps the count and takes minutes.
+ */
+export interface StartFromCountPlan {
+  /** The new starting chain, ending at the target. */
+  chain: number[];
+  minPrestiges: number;
+  maxPrestiges: number;
+}
+export function startFromCountPlan(o: {
+  count: number;
+  finalTE: number;
+  /** The instant answer's routes, fastest first (store `instantRoutes`). */
+  instantRoutes: readonly (readonly number[])[] | null;
+  minPrestiges: number;
+  maxPrestiges: number;
+  /** An even spread with `count` ascensions, when the instant answer has no such route. */
+  fallback: () => number[];
+}): StartFromCountPlan | null {
+  const route = o.instantRoutes?.find(r => r.length === o.count && r[r.length - 1] === o.finalTE);
+  const chain = route ? [...route] : o.fallback();
+  if (chain.length !== o.count) return null;
+  return {
+    chain,
+    minPrestiges: Math.min(o.minPrestiges, o.count),
+    maxPrestiges: Math.max(o.maxPrestiges, o.count),
+  };
+}
