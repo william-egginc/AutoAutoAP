@@ -17,6 +17,7 @@ import {
   describeLoadout,
   describeVirtueInventory,
   formatInZone,
+  partialLine,
 } from './csv';
 import type { CacheEntry } from './driver';
 import type { LegSummary } from './types';
@@ -378,5 +379,37 @@ describe('buildDeadlineCsv', () => {
     const csv = buildChainsCsv([], { ...META, diagnostics: '{"browser":"chrome on mac"}' });
     expect(csv).not.toContain('diagnostics');
     expect(csv).not.toContain('chrome on mac');
+  });
+});
+
+describe('a CSV so far (a progress send, 10 Oct)', () => {
+  const entries: CacheEntry[] = [{ key: '195,490', seconds: 86400, legs: [] }];
+  it('says it is partial, and how far the run had got, right under the title', () => {
+    const csv = buildChainsCsv(entries, { ...META, partial: { done: 3735, total: 12000, unit: 'chains' } });
+    const lines = csv.split('\n');
+    expect(lines[0]).toMatch(/^# ascension-planner chain search/);
+    expect(lines[1]).toBe(
+      '# in progress, 3735 of 12000 chains priced so far: a partial CSV sent while the run was still going; its final CSV replaces it'
+    );
+    expect(partialLine({ done: 5, total: null, unit: 'routes' })).toMatch(/^in progress, 5 of \? routes/);
+  });
+  it('says nothing of the kind on a finished run, and the By a date CSV says it too', () => {
+    expect(buildChainsCsv(entries, META)).not.toContain('in progress');
+    const r = {
+      chain: [195, 219],
+      reachAt: PLAN_START + 60 * 86400,
+      ascendAt: PLAN_START + 60 * 86400,
+      spare: 0,
+      legs: [],
+    };
+    const csv = buildDeadlineCsv(
+      [r],
+      { ...META, partial: { done: 40, total: 90, unit: 'routes' } },
+      {
+        deadline: PLAN_START + 100 * 86400,
+        priced: 40,
+      }
+    );
+    expect(csv.split('\n')[1]).toMatch(/^# in progress, 40 of 90 routes priced so far/);
   });
 });

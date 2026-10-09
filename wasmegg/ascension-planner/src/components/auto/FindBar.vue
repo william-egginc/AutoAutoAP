@@ -14,7 +14,8 @@
   consent: given already by Find and submit, or by the box ticked before the run; otherwise the
   first press opens the box below, and ticking it sends straight away (a second press nobody knew
   was needed left a best so far unsent, review 9 Oct). Agreeing there also has the run send its
-  result when it finishes, which replaces that row.
+  result when it finishes, which replaces that row. Since 10 Oct a send carries the run's data too
+  (the CSV so far and diagnostics, by the two boxes below): a progress send.
 
   During a run the box stays open for what applies to the send at the end -- the CSV and diagnostics
   boxes, and the name once agreed -- and the consent wording comes back only when Send best so far
@@ -119,14 +120,14 @@
             >. I understand it sends the route, its dates and the {{ goalWord }}, with my artifact inventory, timezone,
             local plan start and the random code this browser keeps for the account (not my player ID, and never shown),
             plus my CSV if ticked below and, if ticked, private diagnostics (never shown). Stop it early and it shares
-            the best it found so far. Send best so far shares it while the run goes on, without the CSV; that row is
-            replaced when the run finishes.</span
+            the best it found so far. Send best so far shares it while the run goes on, with the CSV so far and
+            diagnostics if ticked below; that row and its CSV are replaced when the run finishes.</span
           >
         </label>
         <p v-if="goalWord === 'target'" class="ml-7 text-[10px] text-indigo-900/70">
           It also sends your best three plans already on the board, re-priced from this save.
         </p>
-        <!-- Asked for by "Send my best so far every..." (Stepping away?): the yes, then it sends by itself. -->
+        <!-- Asked for by "Send my progress every..." (Stepping away?): the yes, then it sends by itself. -->
         <div v-if="asking && optIn && autoSendOn" class="ml-7">
           <button
             type="button"
@@ -134,7 +135,7 @@
             data-testid="agree-auto-best-so-far"
             @click="agreeAutoSend"
           >
-            Agree, and send my best so far by itself
+            Agree, and send my progress by itself
           </button>
         </div>
       </template>

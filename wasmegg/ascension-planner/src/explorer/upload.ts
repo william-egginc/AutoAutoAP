@@ -175,6 +175,8 @@ export interface UploadCsv {
   endsCleanly: boolean;
   /** Ranks whose total_days is below the rank before them: the file is not the sorted table it claims to be. */
   outOfOrder: number;
+  /** A CSV so far: sent while its run was still going (`# in progress, N of M ...`, search/csv.ts). */
+  partial: boolean;
 }
 
 const COLUMN_HEADER = 'rank,chain,prestiges,total_days,gap_days,leg,target_te,strategy,';
@@ -205,6 +207,7 @@ export function readUploadCsv(text: string): UploadCsv {
     stones: [],
     endsCleanly: text.endsWith('\n'),
     outOfOrder: 0,
+    partial: false,
   };
   let sawColumns = false;
   let lastChain = '';
@@ -232,6 +235,7 @@ export function readUploadCsv(text: string): UploadCsv {
       } else if ((m = /^# chains priced (\d+)/.exec(line))) out.chainsStated = Number(m[1]);
       else if ((m = /^# Local times are ([^.\s]+)\./.exec(line))) out.timezone = m[1];
       else if ((m = /^#\s+virtue inventory: (.*)$/.exec(line))) readInventory(m[1], out);
+      else if (/^# in progress, /.test(line)) out.partial = true;
       continue;
     }
     if (line.startsWith(COLUMN_HEADER)) {
@@ -350,6 +354,10 @@ export function checkUpload(csv: UploadCsv, diag: Diagnostics, existing: Collect
 
   if (!csv.endsCleanly)
     errors.push('The CSV ends in the middle of a row. The download was cut off; save it again from the planner.');
+  if (csv.partial)
+    errors.push(
+      'This is a CSV so far: it was sent while its run was still going, so it holds only part of the run. Upload the CSV from the finished run.'
+    );
   if (csv.chainsStated && csv.chainsFound < csv.chainsStated) {
     errors.push(
       `The CSV says it priced ${csv.chainsStated.toLocaleString()} chains but holds ${csv.chainsFound.toLocaleString()}. It is truncated.`

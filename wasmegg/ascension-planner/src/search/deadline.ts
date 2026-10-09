@@ -149,6 +149,12 @@ export interface DeadlineCallbacks {
   ): Promise<ChainResult[]>;
   onProgress?(p: DeadlineProgress): void;
   shouldStop?(): boolean;
+  /**
+   * Handed once, as the search starts: every route found so far, ranked as the outcome's `routes`
+   * will be. Called only when wanted (a progress send's CSV so far, stores/chainSearch.ts), so the
+   * search itself never ranks more often than it did.
+   */
+  routesSoFar?(get: () => DeadlineRoute[]): void;
 }
 
 export interface DeadlineOutcome {
@@ -362,6 +368,7 @@ export async function runDeadlineSearch(spec: DeadlineSpec, cb: DeadlineCallback
   let stoppedEarly = false;
   const ascendAt = spec.ascendAt ?? ((t: number) => t);
   const found = new Map<string, DeadlineRoute>();
+  cb.routesSoFar?.(() => rank([...found.values()]));
   let best: DeadlineRoute | null = null;
   let stage = '';
   // What `bracketAll` is working on, for progress reported from inside a round.

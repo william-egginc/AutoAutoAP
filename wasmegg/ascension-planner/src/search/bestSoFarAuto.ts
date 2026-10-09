@@ -1,15 +1,17 @@
 /**
- * Automatic "Send best so far" (the "Stepping away?" box's fourth tick). A long run sends its best
- * as a provisional row now and then, so a crash or a closed laptop doesn't leave the board with
- * nothing. The decision is a pure function here; the store (stores/chainSearch.ts `autoTick`) holds
- * the clock and does the sending.
+ * Automatic progress sends ("Send my progress every ...", the "Stepping away?" box's fourth tick). A
+ * long run sends its progress now and then: its best as a provisional row, the CSV so far and, when
+ * ticked, its diagnostics (search/progressSend.ts), so a crash or a closed laptop doesn't lose the
+ * work and the run can be watched from elsewhere. The decision is a pure function here; the store
+ * (stores/chainSearch.ts `autoTick`) holds the clock and does the sending.
  *
  * The rules:
  *  - Only while a run is going, the option is on and the player has agreed (`active`).
  *  - Not before one interval after the run began, or after the last send (an automatic one or the
  *    button's), and never closer than BEST_SO_FAR_GAP_MS to the last send.
- *  - Only if the best has changed since the last send; otherwise it is not sent, the status line says
- *    so ("Not sent at 4:20 pm: best unchanged since 3:50 pm"), and the next check is one interval on.
+ *  - Only if something new was priced since the last send (`progressKey`: how much was priced, and the
+ *    best); otherwise it is not sent, the status line says so ("Not sent at 4:20 pm: nothing new
+ *    priced since 3:50 pm"), and the next check is one interval on.
  *  - After the collector's "too soon", wait for the time it named.
  *  - After any other failure, the next try is one interval on.
  *  - The run ending ends all of it (the store stops asking), and the run's final send replaces the row.
@@ -31,6 +33,16 @@ export function bestKey(best: { chain: number[]; te: number } | null | undefined
   return best ? `${best.te}:${best.chain.join(',')}` : null;
 }
 
+/**
+ * What a progress send carried, for "anything new since": how much the run had priced and its best.
+ * Null until it has a best (nothing worth a row yet). The count moves whenever a chain is priced, so a
+ * run that is working always has something new; one stalled (a frozen tab) does not.
+ */
+export function progressKey(p: { done: number; best: { chain: number[]; te: number } | null } | null): string | null {
+  const best = bestKey(p?.best);
+  return p && best ? `${Math.max(0, Math.floor(p.done))}|${best}` : null;
+}
+
 export interface AutoInput {
   now: number;
   /** The option is on, the player has agreed for this run, and the run is going. */
@@ -41,7 +53,7 @@ export interface AutoInput {
   startedAt: number;
   /** When the row on the board was last sent, by anything (the button counts), ms; null for none. */
   lastSentAt: number | null;
-  /** The best that row carried (`bestKey`); null when unknown (a carried-on run) or none sent. */
+  /** The progress that row carried (`progressKey`); null when unknown (a carried-on run) or none sent. */
   lastSentKey: string | null;
   /** When the schedule last tried and failed, ms; moves the next try one interval on. Null for none. */
   lastFailAt: number | null;
@@ -50,7 +62,7 @@ export interface AutoInput {
   /** When a due time last passed with the best unchanged (nothing sent), ms; moves the next check
    *  one interval on. Null for none. */
   lastSkipAt: number | null;
-  /** The best now (`bestKey`); null when nothing has been found. */
+  /** The progress now (`progressKey`); null when nothing has been found. */
   key: string | null;
   /** A send is already in flight. */
   sending: boolean;
@@ -90,11 +102,11 @@ export function autoDecision(i: AutoInput): AutoDecision {
   return { do: 'send' };
 }
 
-/** "about 40 min", "about 1 h 5 min", "under a minute". */
+/** "about 40 min", "about 60 min", "about 1 h 5 min", "under a minute". */
 export function aboutIn(ms: number): string {
   const min = Math.ceil(Math.max(0, ms) / 60_000);
   if (min <= 1) return 'under a minute';
-  if (min < 60) return `about ${min} min`;
+  if (min <= 60) return `about ${min} min`;
   const h = Math.floor(min / 60);
   const r = min % 60;
   return r ? `about ${h} h ${r} min` : `about ${h} h`;
@@ -109,14 +121,33 @@ export function bestLabel(kind: 'fastest' | 'deadline', te: number, date: string
   return kind === 'deadline' || !date ? `best ${te}` : `best reaches ${te} on ${date}`;
 }
 
+/** Why the collector last turned a send away for longer than a moment (its daily cap), and when. */
+export interface AutoRefusal {
+  at: number;
+  why: string;
+}
+
 /**
- * The quiet line under the tick: "Last sent 2:14 pm (best 248). Next in about 40 min.", or after a due
- * time passed with nothing new, "Not sent at 4:20 pm: best unchanged since 3:50 pm. Next check in
- * about 30 min." `lastBest` (`bestLabel`) is null for a send from before a carry-on, whose best the
- * page no longer knows.
+ * The quiet line under the tick: "Last progress sent 4:20 pm (best reaches 490 on Feb 24, 2029; 3,735
+ * chains, CSV 2.1 MB). Next in about 60 min.", or after a due time passed with nothing new, "Not sent
+ * at 4:20 pm: nothing new priced since 3:50 pm. Next check in about 30 min." `lastBest` (`bestLabel`)
+ * and `lastDetail` (search/progressSend.ts `progressDetail`) are null for a send from before a
+ * carry-on, which the page no longer knows.
  */
-export function autoStatusLine(i: AutoInput & { lastBest: string | null; failed: boolean }): string {
+export function autoStatusLine(
+  i: AutoInput & {
+    lastBest: string | null;
+    failed: boolean;
+    lastDetail?: string | null;
+    refused?: AutoRefusal | null;
+  }
+): string {
   const due = nextDueAt(i);
+  const next = i.now >= due ? 'Next as soon as something new is priced.' : `Next in ${aboutIn(due - i.now)}.`;
+  // The collector's daily cap: said, with when it will take one again.
+  if (i.refused && i.refused.at >= (i.lastSentAt ?? 0) && i.refused.at >= (i.lastFailAt ?? 0)) {
+    return `Not sent at ${clock12(i.refused.at)}: ${i.refused.why}. ${next}`;
+  }
   const fail =
     i.failed && i.lastFailAt !== null && i.lastFailAt >= (i.lastSentAt ?? 0)
       ? ` Couldn't send at ${clock12(i.lastFailAt)}.`
@@ -124,14 +155,15 @@ export function autoStatusLine(i: AutoInput & { lastBest: string | null; failed:
   const skipped =
     i.lastSkipAt !== null && i.lastSkipAt >= (i.lastSentAt ?? 0) && (!fail || i.lastSkipAt >= (i.lastFailAt ?? 0));
   if (skipped) {
-    const why = i.lastSentAt === null ? 'nothing found yet' : `best unchanged since ${clock12(i.lastSentAt)}`;
-    const next = i.now >= due ? 'Next check as soon as the best changes.' : `Next check in ${aboutIn(due - i.now)}.`;
-    return `Not sent at ${clock12(i.lastSkipAt!)}: ${why}. ${next}`;
+    const why = i.lastSentAt === null ? 'nothing found yet' : `nothing new priced since ${clock12(i.lastSentAt)}`;
+    const again =
+      i.now >= due ? 'Next check as soon as something new is priced.' : `Next check in ${aboutIn(due - i.now)}.`;
+    return `Not sent at ${clock12(i.lastSkipAt!)}: ${why}. ${again}`;
   }
-  const next = i.now >= due ? 'Next as soon as the best changes.' : `Next in ${aboutIn(due - i.now)}.`;
+  const what = [i.lastBest, i.lastDetail].filter(Boolean).join('; ');
   const lead =
     i.lastSentAt === null
       ? 'Nothing sent yet.'
-      : `Last sent ${clock12(i.lastSentAt)}${i.lastBest ? ` (${i.lastBest})` : ''}.`;
+      : `Last progress sent ${clock12(i.lastSentAt)}${what ? ` (${what})` : ''}.`;
   return `${lead}${fail} ${next}`;
 }

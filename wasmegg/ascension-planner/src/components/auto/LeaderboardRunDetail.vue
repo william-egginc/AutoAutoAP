@@ -87,7 +87,11 @@
         v-if="row.hasCsv && row.id"
         :href="csvHref(row.id)"
         class="inline-block mt-2 font-bold text-indigo-700 underline hover:text-indigo-900"
-        >Download the full CSV (.csv.gz) ↓</a
+        >{{
+          row.provisional
+            ? 'Download the CSV so far (.csv.gz, the run is still going) ↓'
+            : 'Download the full CSV (.csv.gz) ↓'
+        }}</a
       >
       <!-- A line made from a later run's `rechecks` (lib/leaderboardRank.ts `recheckLines`): that run
            priced this route again from its own save. It was never a send, so it has no table. -->

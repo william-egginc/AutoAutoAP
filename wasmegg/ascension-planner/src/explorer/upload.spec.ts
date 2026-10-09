@@ -83,6 +83,16 @@ describe('checkUpload', () => {
     expect(r.rate?.suspect).toBe(false);
   });
 
+  it('refuses a CSV so far (sent mid-run by a progress send): it is only part of the run', () => {
+    const lines = CSV.split('\n');
+    const partial = [lines[0], '# in progress, 2 of 9 chains priced so far: a partial CSV', ...lines.slice(1)].join(
+      '\n'
+    );
+    expect(readUploadCsv(partial).partial).toBe(true);
+    expect(readUploadCsv(CSV).partial).toBe(false);
+    expect(checkUpload(readUploadCsv(partial), diag(), []).errors.join()).toMatch(/CSV so far/);
+  });
+
   it('refuses a download that was cut off, by either symptom', () => {
     // Mid-row: no trailing newline.
     expect(checkUpload(readUploadCsv(CSV.trimEnd()), diag(), []).errors.join()).toMatch(/cut off/);

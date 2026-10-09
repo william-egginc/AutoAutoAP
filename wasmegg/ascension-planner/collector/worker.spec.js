@@ -2090,11 +2090,35 @@ describe('provisional rows: a best so far, replaced by its run', () => {
   const sendOwned = (body, token = TOKEN_A, ip = '1.1.1.1') => postOwned('/submit', body, token, ip);
   const rowIds = () => stored().map(([k]) => k.split(':').pop());
   const allRows = async () => (await (await get('/all')).json()).rows;
+  /** HMAC(CSV_UPLOAD_KEY, what), as the Worker signs upload tokens. */
+  const signed = async what => {
+    const key = await crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode('test-key'),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign']
+    );
+    const sig = new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(what)));
+    return [...sig].map(b => b.toString(16).padStart(2, '0')).join('');
+  };
+  const postCsvSoFar = (id, body, token) =>
+    worker.fetch(
+      new Request(`https://collector.test/csv?id=${id}`, {
+        method: 'POST',
+        headers: { 'x-upload-token': token },
+        body,
+      }),
+      env
+    );
 
-  it('stores a provisional row with its progress, and hands it no CSV token', async () => {
+  it('stores a provisional row with its progress, and hands it a token for its CSV so far', async () => {
     const reply = await (await sendOwned(BEST)).json();
     expect(reply.ok).toBe(true);
-    expect(reply.uploadToken).toBeUndefined();
+    expect(reply.uploadToken).toMatch(/^[a-f0-9]{64}$/);
+    // Its own kind of token: never the one a final row's table would take.
+    expect(reply.uploadToken).not.toBe(await signed('csv:' + reply.id));
+    expect(reply.uploadToken).toBe(await signed('csvp:' + reply.id));
     const [row] = await allRows();
     expect(row).toMatchObject({ id: reply.id, provisional: true, progress: { done: 1200, total: 4000 } });
     // An ordinary send still gets its token.
@@ -2201,13 +2225,13 @@ describe('provisional rows: a best so far, replaced by its run', () => {
       await settle();
       counts = countKV(env.SUBMISSIONS);
       const two = await (await sendOwned({ ...BEST, durationDays: 695, replaces: one.id })).json();
-      // ... plus the old row, read to check its owner, and deleted
-      expect(counts).toEqual({ get: 5, put: 3, list: 0, delete: 1 });
+      // ... plus the old row, read to check its owner, and deleted with its CSV so far and extras
+      expect(counts).toEqual({ get: 5, put: 3, list: 0, delete: 3 });
       await settle();
       counts = countKV(env.SUBMISSIONS);
       await sendOwned({ ...FINAL, replaces: two.id });
       // gate, the snapshot that holds the old row, the old row, the patch's read | one copy-check list
-      expect(counts).toEqual({ get: 4, put: 3, list: 1, delete: 1 });
+      expect(counts).toEqual({ get: 4, put: 3, list: 1, delete: 3 });
       await settle();
       counts = countKV(env.SUBMISSIONS);
       await sendOwned({ ...FINAL, durationDays: 680 });
@@ -2263,42 +2287,20 @@ describe('provisional rows: a best so far, replaced by its run', () => {
     expect(rowIds()).toEqual([reply.id]);
   });
 
-  it("deletes the replaced row's CSV, if it has one, and spends no delete when it has none", async () => {
-    // A provisional row is never handed a token. One forged from the secret stands for "some other way".
-    const forged = async id => {
-      const key = await crypto.subtle.importKey(
-        'raw',
-        new TextEncoder().encode('test-key'),
-        { name: 'HMAC', hash: 'SHA-256' },
-        false,
-        ['sign']
-      );
-      const sig = new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode('csv:' + id)));
-      return [...sig].map(b => b.toString(16).padStart(2, '0')).join('');
-    };
+  it("deletes the replaced row's CSV so far and its private extras, whether or not the board knew of them", async () => {
     const gz = new Uint8Array([0x1f, 0x8b, 8, 0, 0, 0, 0, 0, 0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
-    const best = await (await sendOwned(BEST)).json();
-    const up = await worker.fetch(
-      new Request(`https://collector.test/csv?id=${best.id}`, {
-        method: 'POST',
-        headers: { 'x-upload-token': await forged(best.id) },
-        body: gz,
-      }),
-      env
-    );
+    const best = await (await sendOwned({ ...BEST, diagnostics: { memoryMB: 900 } })).json();
+    expect(env.SUBMISSIONS._m.has(`extra:${best.id}`)).toBe(true);
+    const up = await postCsvSoFar(best.id, gz, best.uploadToken);
     expect(up.status).toBe(200);
-    expect((await allRows())[0].hasCsv).toBe(true);
+    expect(await up.json()).toMatchObject({ ok: true, partial: true });
+    // Not patched onto the board (a write saved): the snapshot does not know of it yet.
+    expect((await allRows())[0].hasCsv).toBe(false);
     const counts = countKV(env.SUBMISSIONS);
     await sendOwned({ ...FINAL, replaces: best.id });
     expect(env.SUBMISSIONS._m.has(`csv:${best.id}`)).toBe(false);
-    expect(counts.delete).toBe(2);
-
-    // The usual case: no table, so one delete (the row).
-    env = { SUBMISSIONS: makeKV(), CSV_UPLOAD_KEY: 'test-key' };
-    const plain = await (await sendOwned(BEST)).json();
-    const again = countKV(env.SUBMISSIONS);
-    await sendOwned({ ...FINAL, replaces: plain.id });
-    expect(again.delete).toBe(1);
+    expect(env.SUBMISSIONS._m.has(`extra:${best.id}`)).toBe(false);
+    expect(counts.delete).toBe(3);
   });
 
   it('updates the snapshot in one write when both rows are on one board', async () => {
@@ -2376,5 +2378,144 @@ describe('provisional rows: a best so far, replaced by its run', () => {
     const html = await (await get('/')).text();
     expect(html).toContain('function provisionalTag(r)');
     expect(html).toContain('% searched)');
+    expect(html).toContain('Download the CSV so far');
+  });
+
+  describe('progress sends: the CSV so far and diagnostics go with a best so far', () => {
+    const GZ = new Uint8Array([0x1f, 0x8b, 8, 0, 0, 0, 0, 0, 0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    const PROGRESS = { ...BEST, diagnostics: { memoryMB: 1200, workers: 6 } };
+
+    it('takes the CSV so far, serves it back, and flips hasCsv at the settle its send asked for', async () => {
+      await secondsApart(async () => {
+        const one = await (await sendOwned(PROGRESS)).json();
+        expect((await postCsvSoFar(one.id, GZ, one.uploadToken)).status).toBe(200);
+        // Once only, like any table.
+        expect((await postCsvSoFar(one.id, GZ, one.uploadToken)).status).toBe(409);
+        const back = await get(`/csv?id=${one.id}`);
+        expect(back.status).toBe(200);
+        expect(new Uint8Array(await back.arrayBuffer())).toEqual(GZ);
+        // The settle the send's patch asked for lists the CSVs and flips it.
+        vi.setSystemTime(Date.now() + 2 * 60 * 1000);
+        await get('/all');
+        expect((await allRows())[0]).toMatchObject({ id: one.id, provisional: true, hasCsv: true });
+        // A final row's token never opens a provisional row's upload, nor the other way round.
+        const fin = await (await sendOwned({ ...FINAL, durationDays: 680 })).json();
+        expect((await postCsvSoFar(fin.id, GZ, await signed('csvp:' + fin.id))).status).toBe(200);
+        expect((await allRows()).find(r => r.id === fin.id).hasCsv).toBe(false); // a partial upload: no patch
+      });
+    });
+
+    it('keeps the diagnostics privately, replaced with the row, and never serves them', async () => {
+      await secondsApart(async () => {
+        const one = await (await sendOwned(PROGRESS)).json();
+        vi.setSystemTime(Date.now() + 26 * 60 * 1000);
+        const two = await (
+          await sendOwned({ ...PROGRESS, diagnostics: { memoryMB: 1800, workers: 6 }, replaces: one.id })
+        ).json();
+        expect(env.SUBMISSIONS._m.has(`extra:${one.id}`)).toBe(false);
+        expect(JSON.parse(env.SUBMISSIONS._m.get(`extra:${two.id}`)).diagnostics.memoryMB).toBe(1800);
+        for (const path of ['/all', '/leaderboard', '/flagged']) expect(await (await get(path)).text()).not.toContain('1800');
+        expect(await (await getOwned('/mine', TOKEN_A)).text()).not.toContain('memoryMB');
+      });
+    });
+
+    it('costs at most six writes a send: what the README lists for a send with its CSV, and a final', async () => {
+      await secondsApart(async () => {
+        const settle = async () => {
+          vi.setSystemTime(Date.now() + 2 * 60 * 1000);
+          await getOwned('/mine', TOKEN_A);
+        };
+        await settle();
+        let counts = countKV(env.SUBMISSIONS);
+        const one = await (await sendOwned(PROGRESS)).json();
+        await postCsvSoFar(one.id, GZ, one.uploadToken);
+        // gate, both snapshots, the patch's read, the CSV's write-once check | row, snapshot, gate, extras, CSV
+        expect(counts).toEqual({ get: 5, put: 5, list: 0, delete: 0 });
+        vi.setSystemTime(Date.now() + 60 * 60 * 1000);
+        counts = countKV(env.SUBMISSIONS);
+        await getOwned('/mine', TOKEN_A);
+        // The settle it asked for, by whoever reads next: 2 lists and the sixth write.
+        expect(counts).toMatchObject({ put: 1, list: 2, delete: 0 });
+        counts = countKV(env.SUBMISSIONS);
+        const two = await (await sendOwned({ ...PROGRESS, durationDays: 695, replaces: one.id })).json();
+        await postCsvSoFar(two.id, GZ, two.uploadToken);
+        // ... plus the old row read and deleted with its CSV so far and its extras
+        expect(counts).toEqual({ get: 6, put: 5, list: 0, delete: 3 });
+        await settle();
+        counts = countKV(env.SUBMISSIONS);
+        const fin = await (await sendOwned({ ...FINAL, diagnostics: { memoryMB: 1 }, replaces: two.id })).json();
+        await postCsvSoFar(fin.id, GZ, fin.uploadToken);
+        // gate, the old row's snapshot, the old row, the patch's read, the write-once check, markCsv's
+        // patch read | row, snapshot, gate, extras, table, snapshot | the copy check | old row, CSV, extras
+        expect(counts).toEqual({ get: 6, put: 6, list: 1, delete: 3 });
+      });
+    });
+
+    it('caps a sender at 48 provisional sends a UTC day, counted with no KV operation', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      try {
+        vi.setSystemTime(Date.parse('2026-10-09T00:01:00.000Z'));
+        let prev = null;
+        // 30 in one run's chain of replaces, then 18 from a second run (no replaces).
+        for (let i = 0; i < 48; i++) {
+          const body = i < 30 && prev ? { ...BEST, replaces: prev } : { ...BEST };
+          const reply = await (await sendOwned(body)).json();
+          expect(reply.ok).toBe(true);
+          if (i < 30) prev = reply.id;
+          vi.setSystemTime(Date.now() + 26 * 60 * 1000 - 1000);
+          if (i === 29) expect(snapOf('sub').priv.prov[prev]).toMatch(/^2026-10-09\|30\|([a-f0-9]{8},){3}[a-f0-9]{8}$/);
+        }
+        expect(new Date().toISOString().slice(0, 10)).toBe('2026-10-09');
+        await getOwned('/mine', TOKEN_A); // the settle the last send asked for, done by any read
+        const counts = countKV(env.SUBMISSIONS);
+        for (const body of [{ ...BEST, replaces: prev }, { ...BEST }]) {
+          const res = await sendOwned(body);
+          expect(res.status).toBe(429);
+          const reply = await res.json();
+          expect(reply).toMatchObject({ tooSoon: true, dailyCap: true });
+          expect(reply.retryAfter).toBeGreaterThan(0);
+          expect(reply.retryAfter).toBeLessThanOrEqual(24 * 3600);
+        }
+        expect(counts).toMatchObject({ put: 0, delete: 0, list: 0 });
+        // Another account is not held back, and a final never is.
+        expect((await sendOwned(BEST, TOKEN_B, '2.2.2.2')).status).toBe(200);
+        expect((await (await sendOwned({ ...FINAL, replaces: prev })).json()).replaced).toBe(prev);
+        // The count is private: in neither the public line nor any row.
+        expect(snapOf('sub').raw.split('\n')[0]).not.toContain('provSeq');
+        expect(await (await get('/all')).text()).not.toContain('2026-10-09|');
+        // The next UTC day starts again.
+        vi.setSystemTime(Date.parse('2026-10-10T00:00:30.000Z'));
+        expect((await sendOwned({ ...BEST })).status).toBe(200);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('follows a stale replaces forward to the newest row of its chain (a crash before the checkpoint)', async () => {
+      await secondsApart(async () => {
+        const one = await (await sendOwned(PROGRESS)).json();
+        vi.setSystemTime(Date.now() + 26 * 60 * 1000);
+        const two = await (await sendOwned({ ...PROGRESS, replaces: one.id })).json();
+        expect(two.replaced).toBe(one.id);
+        // The page died before its checkpoint learned `two`: the carried-on run still names `one`.
+        vi.setSystemTime(Date.now() + 26 * 60 * 1000);
+        const three = await (await sendOwned({ ...PROGRESS, replaces: one.id })).json();
+        expect(three.replaced).toBe(two.id);
+        expect(rowIds()).toEqual([three.id]);
+        expect(snapOf('sub').priv.prov[three.id]).toMatch(new RegExp(`\\|3\\|${two.id},${one.id}$`));
+        // ...and so does its final.
+        const fin = await (await sendOwned({ ...FINAL, replaces: one.id })).json();
+        expect(fin.replaced).toBe(three.id);
+        expect(rowIds()).toEqual([fin.id]);
+        // Never into someone else's chain.
+        env = { SUBMISSIONS: makeKV(), CSV_UPLOAD_KEY: 'test-key' };
+        const a = await (await sendOwned(PROGRESS)).json();
+        vi.setSystemTime(Date.now() + 26 * 60 * 1000);
+        await sendOwned({ ...PROGRESS, replaces: a.id });
+        const theirs = await (await sendOwned({ ...FINAL, replaces: a.id }, TOKEN_B, '2.2.2.2')).json();
+        expect(theirs.replaced).toBeUndefined();
+        expect(theirs.replaceRefused).toMatch(/not on the board/);
+      });
+    });
   });
 });

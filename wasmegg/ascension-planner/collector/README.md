@@ -204,9 +204,9 @@ no button.
 
 | | |
 |---|---|
-| `POST /submit` | one submission; validated against a whitelist, rate-limited to 10 per IP per minute. Answers `{ ok, id, uploadToken }`; for a copy of a result already on the board, see *Copies* below (`duplicate: 'exact'` with the stored row's `id` and `firstAt`, or `duplicate: 'result'` with `dupOf`). A body with `replaces: <id>` also answers `replaced: <id>` or `replaceRefused: <why>` (see *Provisional rows*); a provisional row gets no `uploadToken`. `429` with `{ error, retryAfter }` (seconds left in the minute, in the body because a cross-origin page cannot read `Retry-After`) |
+| `POST /submit` | one submission; validated against a whitelist, rate-limited to 10 per IP per minute. Answers `{ ok, id, uploadToken }`; for a copy of a result already on the board, see *Copies* below (`duplicate: 'exact'` with the stored row's `id` and `firstAt`, or `duplicate: 'result'` with `dupOf`). A body with `replaces: <id>` also answers `replaced: <id>` or `replaceRefused: <why>` (see *Provisional rows*); a provisional row's `uploadToken` is for its CSV so far. `429` with `{ error, retryAfter }` (seconds left in the minute, in the body because a cross-origin page cannot read `Retry-After`) |
 | `POST /claim` | `{ id, nickname }` with `x-owner-token`: puts a name on a row sent with that owner code. `403` if the row has no code or another one, `404` for an unknown id, `400` for a bad name (same rule as `/submit`, and not empty). Shares `/submit`'s rate limit |
-| `POST /csv?id=<id>` | that run's gzipped CSV, once. Needs the `x-upload-token` header `/submit` returned. Must be gzip, capped at 8 MB compressed |
+| `POST /csv?id=<id>` | that run's gzipped CSV, once. Needs the `x-upload-token` header `/submit` returned. Must be gzip, capped at 8 MB compressed. For a provisional row it is the CSV so far, answered `{ ok, bytes, partial: true }` |
 | `GET /csv?id=<id>` | it back, as a `.csv.gz` file (`application/gzip`) |
 | `GET /leaderboard?final=490&limit=50` | one line per distinct result, already in duration order, copies folded (`copies: n` when more than one). `limit` is at most 200. By a date answers (rows with a `deadline`) are left out: plan lengths do not rank them |
 | `GET /all` | every row, By a date answers included, for your own analysis. `?final=490` narrows it |
@@ -276,11 +276,12 @@ write's snapshot lands; the browser is told `no-cache`, so Refresh always shows 
 **The Cache API only works on a custom domain**: on a `*.workers.dev` host it stores nothing, so there
 every view costs its KV read.
 
-What a day costs on KV's free tier (100,000 reads, 1,000 writes, 1,000 lists): a leaderboard view is
+What a day costs on KV's free tier (100,000 reads, 1,000 writes, 1,000 deletes, 1,000 lists): a leaderboard view is
 1 read for `/all` plus 2 for `/mine` (both boards) when the viewer has a code, and no list; a new
 submission with its CSV is 4 reads, 1 list (the copy check) and 5 writes (row, snapshot, rate-limit
 counter, table, snapshot); an exact copy is 1 read, 1 list and 1 write; `/claim` is 4 reads and 3
-writes; a replace adds a read or two and one delete (see *Provisional rows*); each settle after a burst of writes adds 2 lists, a write and a read per row it was missing.
+writes; a replace adds a read or two and three deletes, and a progress send with its CSV is 5 writes
+(see *Provisional rows*); each settle after a burst of writes adds 2 lists, a write and a read per row it was missing.
 Writes are the tightest budget: about 200 submissions a day.
 
 ### Provisional rows ("Send best so far")
@@ -291,8 +292,17 @@ end. While it runs, the app can send its best so far as a **provisional** row an
 - `provisional: true` (a boolean; anything else is refused with 400), and `progress: {done, total}`
   (two whole numbers, `done <= total`; dropped if malformed, and only kept on a provisional row). A
   Full sweep's row also carries its `space` with `stoppedEarly: true` and the chains priced so far,
-  so it never reads as a proof. No CSV goes with it: `/submit` hands a provisional row no
-  `uploadToken`.
+  so it never reads as a proof.
+- **Progress sends** (10 Oct 2026). The app's "Send my progress every ..." (and its Send best so far
+  button) sends the run's data with the row: the CSV of everything priced so far, and the private
+  diagnostics when ticked. `/submit` hands a provisional row an `uploadToken` signed over `csvp:<id>`
+  (a final row's is over `csv:<id>`, so neither opens the other's upload), and `/csv` stores the CSV so
+  far under `csv:<id>` like any table, answering `partial: true`. It does **not** patch the snapshot:
+  the patch its `/submit` made already asked for a settle, and the settle's CSV list flips `hasCsv` a
+  minute or two later, which saves a write on every send. A partial CSV is identifiable two ways: its
+  row is `provisional`, and its own header says `# in progress, N of M chains priced so far` (routes,
+  for By a date). The board page labels its link "the CSV so far"; the Explorer (Insights) reads only
+  final rows' CSVs. Diagnostics go to `extra:<id>` as for any send.
 - The run's final row (sent automatically, or by the player's later Send) comes with
   `replaces: <provisional id>`, and so does a second best so far from the same run. `replaces` must
   be id-shaped (else 400). It is an instruction, never stored.
@@ -300,9 +310,16 @@ end. While it runs, the app can send its best so far as a **provisional** row an
   `x-owner-token`, whose full SHA-256 must equal the `owner` stored on the old row. A row sent with
   no code can never be replaced.
 - **What may be replaced:** only a row that is itself provisional.
-- **A valid replace** stores the new row, then deletes the old row's key and its `csv:` (if any) and
-  takes it off its board's snapshot (in the same patch when both rows are on one board). The reply
-  says `replaced: <old id>`. The private `extra:` copy expires on its own TTL.
+- **A valid replace** stores the new row, then deletes the old row's key, its `csv:` and its `extra:`
+  (always all three: the snapshot may not know of a CSV so far yet, and deleting nothing costs one
+  delete where checking would cost a read) and takes it off its board's snapshot (in the same patch
+  when both rows are on one board). The reply says `replaced: <old id>`. So the board holds one CSV
+  so far per running run, never a pile of them.
+- **A crashed run keeps its chain.** The app keeps the row to replace in the run's checkpoint, which
+  can lag a send by a minute, so a page that dies right after a send carries on naming the row
+  before. Each provisional row remembers (privately, see below) the last four rows its chain
+  replaced, so a `replaces` naming a row that is gone is followed to the row of that chain still up,
+  the same sender's only, and that one is replaced. The reply names the row actually replaced.
 - **A refused replace** (another sender's row, no code, a final row, a row not on the board) stores
   the new row as an ordinary submission, keeps the old one, and says why in `replaceRefused`.
 - A final row is never folded into the row it replaces as an exact copy (a provisional row is a
@@ -315,27 +332,52 @@ end. While it runs, the app can send its best so far as a **provisional** row an
   snapshots through their owner index, so it needs no new KV key. Too soon is a `429` with
   `tooSoon: true` and `retryAfter`, and nothing is written. The app waits 30 minutes between sends
   and says "You can send again in N min". A final row is never held back.
+- **Capped at 48 a UTC day per owner code** (the gap alone would allow 57). Counted with no KV
+  operation: each provisional row is stored with a private `provSeq` -- `<UTC day>|<sends that day
+  in its chain>|<the ids it replaced, newest first, at most 4>` -- which the snapshot copies into its
+  private second line (`prov`, beside `own`) and never into the row's text; a new send in a chain
+  takes the old row's count plus one. The sender's total is the sum over their provisional rows still
+  up (a row from before the count counts 1 if it arrived today). Over the cap is a `429` with
+  `tooSoon: true`, `dailyCap: true` and `retryAfter` (seconds to the next UTC midnight), and nothing is
+  written. A run that finished took its chain's count with it, which is fine: a final is never
+  rationed anyway.
 - A provisional send skips the copy check (its one `list`): it is never an exact copy worth folding,
   and never a `dupOf` anchor.
 - **No expiry.** A run that is abandoned leaves its provisional row on the board, tagged.
 
 What each costs in KV operations, on settled boards (checked by `worker.spec.js`, "costs what the
-README says"). A read of a board after a write's `settleAt` settles it once (2 lists, 1 write)
-whoever reads it, as before.
+README says" and "costs at most six writes a send"). Every write asks for one settle, which the next
+read of that board does whoever reads it (the next progress send's own snapshot read, at the latest):
+**2 lists and 1 write**, plus a read per row the snapshot lacks. It is listed as its own line, because
+it is paid once per burst of writes, not per request.
 
 | | reads | writes | deletes | lists |
 |---|---|---|---|---|
 | ordinary final submit | 2 (rate gate, snapshot patch) | 3 (row, snapshot, rate gate) | 0 | 1 (copy check) |
 | ... plus its CSV | +2 (write-once check, snapshot patch) | +2 (table, snapshot) | 0 | 0 |
-| provisional send | 4 (rate gate, both snapshots, snapshot patch) | 3 | 0 | 0 |
-| provisional replacing a provisional | 5 (as above, plus the old row, to check its owner) | 3 | 1 (old row) | 0 |
-| final replacing a provisional | 4 (rate gate, the snapshot holding the old row, the old row, snapshot patch); 5 when the old row is on the flagged board | 3 | 1 (old row) | 1 |
-| refused for the gap | 3 (rate gate, both snapshots) | 0 | 0 | 0 |
+| first progress send (provisional, no `replaces`) | 4 (rate gate, both snapshots, snapshot patch) | 3 (row, snapshot, rate gate) | 0 | 0 |
+| progress send replacing the last one | 5 (as above, plus the old row, to check its owner) | 3 | 3 (old row, its `csv:`, its `extra:`) | 0 |
+| ... plus its diagnostics | 0 | +1 (`extra:<id>`) | 0 | 0 |
+| ... plus its CSV so far | +1 (write-once check) | +1 (`csv:<id>`; no snapshot patch) | 0 | 0 |
+| **a whole progress send with CSV and diagnostics** | **6** | **5** | **3** | **0** |
+| the settle it asks for (once per burst) | 1 + a row it lacks | 1 | 0 | 2 |
+| final replacing a provisional | 4 (rate gate, the snapshot holding the old row, the old row, snapshot patch); 5 when the old row is on the flagged board | 3 | 3 (old row, its `csv:`, its `extra:`) | 1 (copy check) |
+| ... plus its diagnostics and its full CSV | +2 (write-once check, snapshot patch) | +3 (`extra:`, table, snapshot) | 0 | 0 |
+| **a whole final with CSV and diagnostics, replacing** | **6** | **6** | **3** | **1** |
+| refused for the gap, or the daily cap | 3 (rate gate, both snapshots) | 0 | 0 | 0 |
 
-The old row's `csv:` is deleted only when its snapshot row says `hasCsv` (+1 delete), which a
-provisional row never does. When the old row is on the other board from the new one (one flagged,
-one not), taking it off is a second snapshot patch (+1 read, +1 write); otherwise the new row and
-the removal are one patch. Private extras, when sent, are +1 write as for any send.
+So a progress send costs **6 writes** counting its settle (5 without diagnostics), 3 deletes and 2
+lists. At the default one an hour a day-long run is about 144 writes, 72 deletes and 48 lists; at the
+cap (48 sends from one account in a UTC day) 288 writes, 144 deletes and 96 lists, about a third of
+the free plan's 1,000 writes. A `replaces` naming a row that is gone costs one more read when the
+other board was not read yet (a final), to look for the row that took its place. When the old row is
+on the other board from the new one (one flagged, one not), taking it off is a second snapshot patch
+(+1 read, +1 write); otherwise the new row and the removal are one patch.
+
+**What a progress send's CSV may cost in size.** The CSV so far is capped like any table: 8 MB
+gzipped (KV's own ceiling is 25 MB a value). The app checks before it posts and, past the cap, sends
+the row and its diagnostics without the CSV and says so. Each send's CSV replaces the last one's, so a
+running run holds one at a time.
 
 ### What is stored, and what is not
 
@@ -446,6 +488,9 @@ fields go to a **separate KV key**, `extra:<row id>`, with a 180-day TTL.
   request. The tests check that a diagnostics string appears in none of them.
 - A failed write of the extras never fails the submission. A resend of a result already on the
   board stores nothing new, so its extras are not kept either.
+- A provisional row's extras go with it: when a newer progress send (or the run's final) replaces
+  the row, its `extra:` is deleted, and the new row's is the one kept. So a long run that sends its
+  diagnostics every hour holds one copy, the latest, under the row on the board.
 - The owner reads one with `wrangler kv key get --binding SUBMISSIONS "extra:<id>"`
   (add `--remote` for production); `wrangler kv key list --prefix extra:` lists them.
 
@@ -514,6 +559,12 @@ The planner's Compare tab shows these charts as **Insights**. `explorer.html` is
 above — `GET /all` for every submitted run and `GET /csv?id=` for one run's full chain table.
 Nothing about it needs a save file, a player ID or the simulator, so it is a static bundle that
 works wherever it is served from.
+
+It reads only **final** rows' CSVs. A provisional row's CSV is a CSV so far (a progress send's, see
+*Provisional rows*), so `src/explorer/collector.ts` hands every row out with `hasCsv` off for a
+provisional one (`partialCsv` keeps the fact), and the account tables, the sweep curves and a run's
+own scatter, which all go by `hasCsv`, never load one. `parseRunCsv` also reports `partial` from the
+file's own `# in progress` line, and the upload page refuses such a file.
 
 It groups every run by ascension count and, for the count you pick, shows where each checkpoint
 lands as a fraction of that account's own journey, how long each leg runs, and which accounts have

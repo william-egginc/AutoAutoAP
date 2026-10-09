@@ -6,7 +6,7 @@
  *     when its heartbeat stops.
  *  3. Use fewer workers: about half the cores, and one notch fewer when the page's own memory climbs
  *     or its speed falls well below its own recent pace.
- *  4. Send my best so far every 30 min or hour (search/bestSoFarAuto.ts). Kept per browser like the
+ *  4. Send my progress every hour or 30 min (search/bestSoFarAuto.ts). Kept per browser like the
  *     rest, so it survives a carry-on after a crash.
  *
  * Everything here is pure or a plain localStorage read/write, so the watcher page can use it without
@@ -25,7 +25,8 @@ export interface StepAwayOptions {
   watch: boolean;
   /** 3: about half the cores, and fewer still if the page struggles. */
   fewerWorkers: boolean;
-  /** 4: send the best so far on its own, every `autoSendEveryMin` minutes (search/bestSoFarAuto.ts). */
+  /** 4: send the run's progress on its own (best so far, CSV so far, diagnostics if ticked), every
+   *  `autoSendEveryMin` minutes (search/bestSoFarAuto.ts). The field keeps its old name: it is stored. */
   autoSendBest: boolean;
   autoSendEveryMin: 30 | 60;
 }

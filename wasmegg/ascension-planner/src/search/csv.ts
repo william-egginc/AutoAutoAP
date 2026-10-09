@@ -66,6 +66,19 @@ export interface CsvMeta {
   diagnostics?: string;
   /** Defaults to now. Injectable so the tests are not clock-dependent. */
   generatedAt?: number;
+  /**
+   * A CSV SO FAR, sent with a progress send while the run is still going (stores/chainSearch.ts
+   * `sendBestSoFar`): how far it had got. Written into the header as `in progress, N of M ...`, the
+   * line the Chain Explorer reads to know the file is partial (explorer/collector.ts `parseRunCsv`).
+   */
+  partial?: { done: number; total: number | null; unit: string };
+}
+
+/** The header line that marks a CSV so far (see `CsvMeta.partial`), without its leading `# `. */
+export function partialLine(p: { done: number; total: number | null; unit: string }): string {
+  const done = Math.max(0, Math.floor(p.done));
+  const of = p.total && Number.isFinite(p.total) ? String(Math.max(done, Math.ceil(p.total))) : '?';
+  return `in progress, ${done} of ${of} ${p.unit} priced so far: a partial CSV sent while the run was still going; its final CSV replaces it`;
 }
 
 /** `2028-09-16 00:22` in `timezone`. Blank for a missing instant, never `1970-01-01`, and blank
@@ -370,6 +383,7 @@ function metaLines(meta: CsvMeta, head: string[], count: string): string[] {
   const lines: string[] = [];
   const note = (s: string) => lines.push(`# ${s}`);
   for (const h of head) note(h);
+  if (meta.partial) note(partialLine(meta.partial));
   note(`generated ${formatInZone(Math.floor((meta.generatedAt ?? Date.now()) / 1000), tz)} (${tz})`);
   note(`plan start ${formatInZone(meta.planStart, tz)}`);
   note(`current TE ${meta.currentTE} -> final target ${meta.final}`);

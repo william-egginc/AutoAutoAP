@@ -344,3 +344,23 @@ describe('the last-stop box is where to start, not a wall (extend)', () => {
     expect(open.routes[0].chain.at(-1)).toBe(truth);
   });
 });
+
+describe('routes so far (a progress send’s CSV so far)', () => {
+  it('hands out a getter that ranks what was found so far, as the outcome will', async () => {
+    const s = spec({ lastHi: 170, maxStops: 3 });
+    let get: (() => ReturnType<typeof rank>) | null = null;
+    const counts: number[] = [];
+    const out = await runDeadlineSearch(s, {
+      routesSoFar: g => (get = g),
+      evaluate: async chains => {
+        counts.push(get!().length);
+        return chains.map(c => priceChain(s.currentTE, c));
+      },
+    });
+    expect(get).not.toBeNull();
+    // Empty before the first batch, growing as batches come back, and the outcome's list at the end.
+    expect(counts[0]).toBe(0);
+    expect(counts.at(-1)!).toBeGreaterThan(0);
+    expect(get!().map(r => r.chain.join(' '))).toEqual(out.routes.map(r => r.chain.join(' ')));
+  });
+});

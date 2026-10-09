@@ -500,9 +500,13 @@
                         v-if="e.best.hasCsv && e.best.id"
                         :href="`${csvRoot}?id=${encodeURIComponent(e.best.id)}`"
                         class="font-bold text-indigo-700 underline hover:text-indigo-900"
-                        title="Every route this search found, as a gzipped CSV"
+                        :title="
+                          e.best.provisional
+                            ? 'Every route this search had found when it sent this, as a gzipped CSV: the run is still going'
+                            : 'Every route this search found, as a gzipped CSV'
+                        "
                         @click.stop
-                        >CSV ↓</a
+                        >{{ e.best.provisional ? 'CSV so far ↓' : 'CSV ↓' }}</a
                       >
                       <span v-else class="text-slate-300" title="Sent without a CSV">—</span>
                     </td>
@@ -526,7 +530,7 @@
                             v-if="o.hasCsv && o.id"
                             :href="`${csvRoot}?id=${encodeURIComponent(o.id)}`"
                             class="ml-1 font-bold text-indigo-700 underline hover:text-indigo-900"
-                            >CSV ↓</a
+                            >{{ o.provisional ? 'CSV so far ↓' : 'CSV ↓' }}</a
                           >
                         </p>
                       </div>

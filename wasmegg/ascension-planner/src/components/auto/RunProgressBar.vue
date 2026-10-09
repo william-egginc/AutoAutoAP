@@ -56,7 +56,7 @@
           :title="
             store.bestSoFarWait > 0
               ? `You can send again in ${store.bestSoFarWait} min`
-              : 'Send best so far (it will be replaced when the run finishes)'
+              : 'Send best so far, with the CSV so far and diagnostics if ticked (replaced when the run finishes)'
           "
           data-testid="run-bar-best-so-far"
           @click="sendBestSoFar"

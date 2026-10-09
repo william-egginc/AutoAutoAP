@@ -136,20 +136,23 @@
         data-testid="auto-send-best"
       />
       <span
-        ><label for="auto-send-best" class="font-bold">Send my best so far every</label>
+        ><label for="auto-send-best" class="font-bold">Send my progress every</label>
         <select
           v-model.number="options.autoSendEveryMin"
-          aria-label="How often to send my best so far"
+          aria-label="How often to send my progress"
           class="mx-1 rounded border-slate-300 py-0 pl-1 pr-6 text-[11px] font-bold"
           data-testid="auto-send-every"
         >
-          <option :value="30">30 min</option>
           <option :value="60">1 hour</option>
+          <option :value="30">30 min</option>
         </select>
         <label for="auto-send-best" class="font-bold">while this runs</label>
+        (best so far, the CSV so far, and diagnostics if ticked)
         <span class="block text-slate-500"
-          >Shares it on the leaderboard as an in-progress row, only when it has changed. The finished run replaces
-          it.</span
+          >Puts your best on the leaderboard as an in-progress row, and saves the CSV of everything priced so far with
+          it, so a crash loses less. Only when something new was priced since the last one. The CSV goes when "Send my
+          CSV too" is ticked under Find, diagnostics when "Also send diagnostics" is. The finished run replaces it
+          all.</span
         >
         <span v-if="options.autoSendBest && !autoHere" class="block text-slate-500"
           >It asks for your OK when a run starts, unless you start it with Find and submit.</span

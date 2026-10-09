@@ -33,8 +33,11 @@ export interface CollectorRow extends Submission {
   yours?: boolean;
   /** Last segment of the KV key. Also the id `GET /csv?id=` wants. */
   id: string;
-  /** Whether this run's full chain table was uploaded alongside the summary. */
+  /** Whether this run's full chain table was uploaded alongside the summary. Never true here for a
+   *  provisional row (see `onlyFinalCsv`): its CSV is a CSV so far, and `partialCsv` says so. */
   hasCsv?: boolean;
+  /** A provisional row with its CSV so far on the collector: partial, and read by nothing on this page. */
+  partialCsv?: boolean;
   /**
    * The player, exactly (collector phase 2): a short HMAC of the sender's owner code, only on named
    * rows sent with one. Read by the Leaderboard's rules (lib/leaderboardRank.ts `BoardRow`), which
@@ -155,6 +158,16 @@ function takeEarly(base: string, signal?: AbortSignal): Promise<Response> | null
   });
 }
 
+/**
+ * A provisional row's CSV is the CSV SO FAR, sent mid-run with its progress (collector/README.md,
+ * "Provisional rows"): part of a run, replaced by the next send. Every reader on this page that loads
+ * a run's CSV goes by `hasCsv` (the account tables, the sweep curves, a run's own scatter), so it is
+ * turned off here, once, for every row this module hands out, and `partialCsv` keeps the fact.
+ */
+export function onlyFinalCsv<T extends CollectorRow>(r: T): T {
+  return r.provisional === true && r.hasCsv ? { ...r, hasCsv: false, partialCsv: true } : r;
+}
+
 /** What `GET /all` holds, split: the runs to a target TE (every chart's rows) and the By a date answers. */
 export interface AllRows {
   rows: CollectorRow[];
@@ -178,12 +191,13 @@ export async function fetchAllRows(base: string, signal?: AbortSignal): Promise<
   // Deadline answers (schema 8) too: they are ranked on the leaderboard's By a date tab, and a
   // route cut short at whatever TE a date allowed says nothing about chain shapes to a target.
   const isByDate = (r: CollectorRow) => typeof (r as { deadline?: unknown }).deadline === 'number';
+  const rows = body.rows.map(r => (r && typeof r === 'object' ? onlyFinalCsv(r) : r));
   return {
-    rows: body.rows.filter(
+    rows: rows.filter(
       r => Array.isArray(r.chain) && r.chain.length >= 2 && Number.isFinite(r.durationDays) && !isByDate(r)
     ),
     // A By a date answer can be one ascension straight to its last stop, so a one-stop chain stays.
-    byDate: body.rows.filter(r => r && Array.isArray(r.chain) && r.chain.length >= 1 && isByDate(r)),
+    byDate: rows.filter(r => r && Array.isArray(r.chain) && r.chain.length >= 1 && isByDate(r)),
   };
 }
 
@@ -211,7 +225,7 @@ export async function fetchFlagged(base: string, tokens: string[] = [], signal?:
   for (const token of tokens) {
     for (const row of await ask(token)) if (row.yours) byId.set(row.id, row);
   }
-  return [...byId.values()].filter(r => Array.isArray(r.chain) && Number.isFinite(r.durationDays));
+  return [...byId.values()].filter(r => Array.isArray(r.chain) && Number.isFinite(r.durationDays)).map(onlyFinalCsv);
 }
 
 /**
@@ -248,6 +262,8 @@ export interface ParsedRunCsv {
   chains: PricedChain[];
   /** Chains dropped because `limit` was reached, so the page can say the table is partial. */
   truncated: number;
+  /** A CSV so far, sent while its run was still going (`# in progress, N of M ...`, search/csv.ts). */
+  partial: boolean;
 }
 
 /**
@@ -278,6 +294,7 @@ export function parseRunCsv(text: string, limit = MAX_PARSED_CHAINS): ParsedRunC
   const chains: PricedChain[] = [];
   const seen = new Set<string>();
   let truncated = 0;
+  let partial = false;
 
   let i = 0;
   const n = text.length;
@@ -293,7 +310,7 @@ export function parseRunCsv(text: string, limit = MAX_PARSED_CHAINS): ParsedRunC
       if (header) {
         currentTE = Number(header[1]);
         finalTE = Number(header[2]);
-      }
+      } else if (line.startsWith('# in progress, ')) partial = true;
       continue;
     }
     // The column header, and anything else that does not start a data row.
@@ -323,5 +340,5 @@ export function parseRunCsv(text: string, limit = MAX_PARSED_CHAINS): ParsedRunC
     chains.push({ chain, days, prestiges: chain.length, lastCheckpoint: chain[chain.length - 2] });
   }
 
-  return { currentTE, finalTE, chains, truncated };
+  return { currentTE, finalTE, chains, truncated, partial };
 }

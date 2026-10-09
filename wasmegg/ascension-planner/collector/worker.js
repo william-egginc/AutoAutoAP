@@ -767,7 +767,7 @@ const CORS = {
  * `wrangler secret put CSV_UPLOAD_KEY`. Without it CSV uploads are refused outright (503) rather
  * than silently falling back to the old open door.
  */
-async function uploadToken(env, id) {
+async function uploadToken(env, id, provisional = false) {
   const key = await crypto.subtle.importKey(
     'raw',
     new TextEncoder().encode(env.CSV_UPLOAD_KEY),
@@ -775,7 +775,10 @@ async function uploadToken(env, id) {
     false,
     ['sign']
   );
-  const sig = new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode('csv:' + id)));
+  // A provisional row's token signs another string, so /csv can tell the CSV so far from a final
+  // table without reading anything (see "provisional rows").
+  const what = (provisional ? 'csvp:' : 'csv:') + id;
+  const sig = new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(what)));
   return [...sig].map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
@@ -1209,7 +1212,7 @@ const spanFinal = span => {
 };
 
 /** Fields a stored record never passes into the snapshot as they are: derived here, or private. */
-const NOT_FROM_RECORD = new Set(['id', 'hasCsv', 'acct', 'owner', 'yours']);
+const NOT_FROM_RECORD = new Set(['id', 'hasCsv', 'acct', 'owner', 'yours', 'provSeq']);
 /** A row as the snapshot writes it: `id` then `hasCsv` first (see "the text"), never the owner. */
 function rowText(record, id, hasCsv, acct) {
   const row = { id, hasCsv: !!hasCsv };
@@ -1267,23 +1270,33 @@ function openSnapshot(raw) {
       return null;
     }
   }
-  let own;
+  let own = {};
+  let prov = {};
   try {
-    own = cut < 0 ? {} : JSON.parse(raw.slice(cut + 1)).own || {};
+    const priv = cut < 0 ? {} : JSON.parse(raw.slice(cut + 1));
+    own = priv.own || {};
+    prov = priv.prov && typeof priv.prov === 'object' ? priv.prov : {};
   } catch {
     own = {};
+    prov = {};
   }
-  return { head, first, spans, own };
+  return { head, first, spans, own, prov };
 }
 
-/** Both lines, as the snapshot stores them. `finals` is worked out here from the rows. */
-function composeSnapshot(spans, own, builtAt, settleAt) {
+/**
+ * Both lines, as the snapshot stores them. `finals` is worked out here from the rows. `prov` (the
+ * provisional rows' send counts, see "provisional rows") keeps only rows still in the owner index:
+ * a row taken off the board takes its entry with it.
+ */
+function composeSnapshot(spans, own, builtAt, settleAt, prov = {}) {
   const finals = [...new Set(spans.map(spanFinal).filter(Number.isFinite))].sort((a, b) => a - b);
+  const kept = {};
+  for (const [id, v] of Object.entries(prov)) if (own[id] !== undefined && typeof v === 'string') kept[id] = v;
   return (
     `{"builtAt":${builtAt},"v":${SNAP_VERSION},"settleAt":${settleAt},` +
     `"finals":${finals.length <= SNAP_MAX_FINALS ? JSON.stringify(finals) : 'null'},` +
     `"count":${spans.length},"rows":[${spans.join(',')}]}\n` +
-    JSON.stringify({ own })
+    JSON.stringify(Object.keys(kept).length ? { own, prov: kept } : { own })
   );
 }
 
@@ -1341,12 +1354,13 @@ async function patchSnapshot(env, board, change) {
     const settled = await settleSnapshot(env, board, raw, change);
     return settled.stored ? settled.text : false;
   }
-  const { spans, own } = snap;
+  const { spans, own, prov } = snap;
   if (change.remove) {
     const at = spans.findIndex(s => s.startsWith(rowPrefix(change.remove)));
     if (at < 0 && !change.row && !change.csvId) return null;
     if (at >= 0) spans.splice(at, 1);
     delete own[change.remove];
+    delete prov[change.remove];
   }
   if (change.row) {
     const { key, record } = change.row;
@@ -1356,10 +1370,11 @@ async function patchSnapshot(env, board, change) {
     // A rename keeps the row's hasCsv; a new row has no CSV yet (its token was not even sent).
     placeRow(board, spans, key, rowText(record, id, !!held && spanHasCsv(held, id), acct));
     if (typeof record.owner === 'string') own[id] = record.owner.slice(0, OWNER_HEX);
+    if (typeof record.provSeq === 'string') prov[id] = record.provSeq;
   }
   if (change.csvId && !flipCsv(spans, change.csvId)) return null;
   const now = Date.now();
-  const text = composeSnapshot(spans, own, now, now + SETTLE_MS);
+  const text = composeSnapshot(spans, own, now, now + SETTLE_MS, prov);
   return (await putSnapshot(env, board, text)) ? text : false;
 }
 
@@ -1371,9 +1386,10 @@ async function patchSnapshot(env, board, change) {
  * read that asked for it already has a correct answer whether or not KV took the write.
  */
 async function settleSnapshot(env, board, raw, change = null) {
-  const snap = openSnapshot(raw) || { spans: [], own: {} };
+  const snap = openSnapshot(raw) || { spans: [], own: {}, prov: {} };
   const byId = new Map(snap.spans.map(s => [spanId(s), s]));
   const own = snap.own;
+  const prov = snap.prov;
   const [listed, csvListed] = await Promise.all([listAll(env, `${board}:`), listAll(env, 'csv:')]);
   const csvIds = new Set(csvListed.map(k => k.name.slice(4)));
 
@@ -1417,6 +1433,7 @@ async function settleSnapshot(env, board, raw, change = null) {
       rowText(record, id, (!!held && spanHasCsv(held, id)) || csvIds.has(id), await acctFor(sign, board, record))
     );
     if (typeof record.owner === 'string') own[id] = record.owner.slice(0, OWNER_HEX);
+    if (typeof record.provSeq === 'string') prov[id] = record.provSeq;
   };
   for (let i = 0; i < take.length; i++) {
     let record;
@@ -1446,7 +1463,8 @@ async function settleSnapshot(env, board, raw, change = null) {
     keyed.map(([, s]) => s),
     own,
     now,
-    settleAt
+    settleAt,
+    prov
   );
   return { text, stored: await putSnapshot(env, board, text) };
 }
@@ -1684,10 +1702,19 @@ async function findRow(env, ctx, id, boards = {}) {
 // pointing at one (or at someone else's row, or a row that is not there) is REFUSED: the new row is
 // stored as an ordinary submission, the old row stays, and the reply says why (`replaceRefused`).
 //
-// A VALID REPLACE stores the new row first, then deletes the old row's key and its `csv:` (a
-// provisional row is never given an upload token, so normally there is none) and takes it off the
-// snapshot. The private `extra:` copy is left to its TTL. Ids are never reused, so a `dupOf` that
-// pointed at the old row points at nothing; the app and /leaderboard fold by content anyway.
+// A VALID REPLACE stores the new row first, then deletes the old row's key, its `csv:` and its
+// `extra:` (three deletes, whether or not the last two exist: a lookup would cost a read, and the
+// CSV may have landed after the snapshot last said) and takes it off the snapshot. Ids are never
+// reused, so a `dupOf` that pointed at the old row points at nothing; the app and /leaderboard fold
+// by content anyway.
+//
+// PROGRESS SENDS (10 Oct 2026). A provisional row now carries the run's DATA too: /submit hands it an
+// upload token (signed over `csvp:<id>`, not `csv:<id>`), so the CSV of everything priced so far can
+// follow it to /csv, and its private extras (diagnostics) go to `extra:<id>` as for any row. Partial
+// CSVs are identifiable: the row is `provisional`, and the app writes "in progress, N of M" into the
+// CSV's own header. /csv stores the CSV so far WITHOUT patching the snapshot (one write saved per
+// send): the patch its /submit made already asked for a settle, and the settle's CSV list flips
+// `hasCsv` a minute or two later. The next send (or the final) deletes it with the row it replaces.
 //
 // RATIONED, because KV's free plan allows 1,000 writes and 1,000 deletes a day. A provisional send
 // needs an owner code (without one the row could never be replaced, so it would only ever pile up),
@@ -1697,21 +1724,120 @@ async function findRow(env, ctx, id, boards = {}) {
 // never held back: a run may finish a minute after its best so far went. A provisional send also
 // skips the copy check (its one list): it is never an exact copy worth folding, and never an anchor.
 //
-// A replace costs one delete beyond an ordinary send (the old row; its `csv:` only when the snapshot
-// says it has one, which a provisional row never does, since it gets no upload token) and no extra
-// snapshot write when both rows are on one board: the new row and the removal are one patch.
+// AND CAPPED: at most PROVISIONAL_PER_DAY provisional sends per owner code per UTC day. Counting costs
+// no KV operation either. Each provisional row is stored with a private `provSeq`
+// ("<UTC day>|<sends that day in its chain>|<the ids it took over, newest first>"), copied into the snapshot's private
+// line (`prov`, beside `own`) and never into the row's public text. A chain of replaces leaves one row
+// on the board whose count is the chain's whole day, so the sender's total is the sum over their
+// provisional rows still up. Over the cap is a 429 with `tooSoon: true`, `dailyCap: true` and
+// `retryAfter` (to the next UTC midnight), and nothing is written. A run that ended (its final
+// replaced the chain) takes its count off with it; that is fine, a final is never rationed anyway.
 //
-// NO EXPIRY. A run that is abandoned leaves its provisional row up, tagged as in progress.
+// A CRASHED RUN KEEPS ITS CHAIN. The app keeps the id to replace in the run's checkpoint, which can lag
+// a send by a minute; a page that dies in between carries on with the id BEFORE the newest. The
+// `provSeq` remembers the last PROVISIONAL_HOPS rows each one took over, so a `replaces` naming a row
+// that is gone is followed forward (same owner) to the row of its chain still up, and that row is
+// replaced instead of being left on the board for ever.
+//
+// A replace costs three deletes beyond an ordinary send (the old row, its `csv:`, its `extra:`) and
+// no extra snapshot write when both rows are on one board: the new row and the removal are one patch.
+//
+// NO EXPIRY. A run that is abandoned leaves its provisional row up, tagged as in progress, with its
+// CSV so far: that is the point of sending it.
 
 /** The least time between two provisional sends from one sender. The app waits 30 minutes. */
 const PROVISIONAL_GAP_MS = 25 * 60 * 1000;
+/** The most provisional sends one owner code may make in a UTC day (the gap alone allows 57). */
+const PROVISIONAL_PER_DAY = 48;
+/** How many rows back a provisional row remembers its chain, for a stale `replaces` (see above). */
+const PROVISIONAL_HOPS = 4;
+
+const utcDay = ms => new Date(ms).toISOString().slice(0, 10);
+
+/**
+ * `openSnapshot`, remembered for the last few snapshot texts, for the helpers below that only READ
+ * it: a provisional send asks four of them about the same two snapshots, and splitting a board of
+ * rows four times over is CPU the free plan's ~10 ms does not have. Never for a patch, which edits.
+ */
+const viewed = new Map();
+function viewSnapshot(raw) {
+  if (typeof raw !== 'string') return null;
+  if (!viewed.has(raw)) {
+    if (viewed.size >= 4) viewed.delete(viewed.keys().next().value);
+    viewed.set(raw, openSnapshot(raw));
+  }
+  return viewed.get(raw);
+}
+
+/** Row `id`'s `provSeq`, from whichever snapshot holds it. */
+function provSeqAcross(boards, id) {
+  for (const raw of Object.values(boards)) {
+    const sn = viewSnapshot(raw);
+    const seq = sn && provSeqOf(sn, id);
+    if (seq) return seq;
+  }
+  return null;
+}
+
+/** A row's `provSeq` from a snapshot's private line: `{day, n, back}` (`back`: the ids it took the
+ *  place of, newest first), or null. */
+function provSeqOf(snap, id) {
+  const v = snap.prov?.[id];
+  if (typeof v !== 'string') return null;
+  const [day, n, from] = v.split('|');
+  const count = Number(n);
+  return /^\d{4}-\d{2}-\d{2}$/.test(day) && Number.isInteger(count) && count > 0
+    ? { day, n: count, back: (from || '').split(',').filter(x => ROW_ID.test(x)) }
+    : null;
+}
+
+/**
+ * The sender's provisional sends today, from the snapshots: each of their provisional rows still up
+ * counts its chain's sends that day (`provSeq`), or 1 when it has none (sent before the count) and
+ * arrived today. `byId` is each row's own count, for the chain a new send continues.
+ */
+function provisionalToday(boards, owner, day) {
+  const mine = owner.slice(0, OWNER_HEX);
+  let sent = 0;
+  const byId = new Map();
+  for (const raw of Object.values(boards)) {
+    const snap = viewSnapshot(raw);
+    if (!snap) continue;
+    for (const span of snap.spans) {
+      const id = spanId(span);
+      if (snap.own[id] !== mine || !span.includes('"provisional":true')) continue;
+      const seq = provSeqOf(snap, id);
+      const n = seq ? (seq.day === day ? seq.n : 0) : spanReceivedAt(span).startsWith(day) ? 1 : 0;
+      sent += n;
+      byId.set(id, n);
+    }
+  }
+  return { sent, byId };
+}
+
+/**
+ * The row that took `id`'s place, when `id` is gone: the one of `owner`'s rows still up that lists
+ * `id` among the rows its chain replaced (`provSeq`). Null when there is none.
+ */
+function successorOf(boards, owner, id) {
+  const mine = owner.slice(0, OWNER_HEX);
+  for (const raw of Object.values(boards)) {
+    const sn = viewSnapshot(raw);
+    if (!sn) continue;
+    for (const x of Object.keys(sn.prov)) {
+      if (sn.own[x] === mine && provSeqOf(sn, x)?.back.includes(id) && sn.spans.some(sp => sp.startsWith(rowPrefix(x))))
+        return x;
+    }
+  }
+  return null;
+}
 
 /** When `owner` last sent a provisional row still on a board (ms), from the snapshots; null for never. */
 function lastProvisionalAt(boards, owner) {
   const mine = owner.slice(0, OWNER_HEX);
   let last = null;
   for (const raw of Object.values(boards)) {
-    const snap = openSnapshot(raw);
+    const snap = viewSnapshot(raw);
     if (!snap) continue;
     for (const span of snap.spans) {
       if (snap.own[spanId(span)] !== mine || !span.includes('"provisional":true')) continue;
@@ -1728,7 +1854,17 @@ function lastProvisionalAt(boards, owner) {
  */
 async function replaceTarget(env, ctx, id, owner, boards) {
   if (id === undefined) return null;
-  const found = await findRow(env, ctx, id, boards);
+  let found = await findRow(env, ctx, id, boards);
+  if (!found && owner) {
+    // Gone: a newer send from the same run may have taken its place (a crash before the app's
+    // checkpoint learned the newer id). Both boards are needed for that; a final has read neither.
+    for (const b of ['sub', 'flag']) boards[b] ??= await readSnapshotText(env, ctx, b);
+    const next = successorOf(boards, owner, id);
+    if (next) {
+      found = await findRow(env, ctx, next, boards);
+      if (found) id = next;
+    }
+  }
   let stored = null;
   if (found) {
     try {
@@ -1746,11 +1882,14 @@ async function replaceTarget(env, ctx, id, owner, boards) {
   return { ok: true, id, board: found.board, key: found.key, hasCsv: found.hasCsv };
 }
 
-/** Delete a replaced provisional row, and its CSV when it has one. The snapshot is the caller's (it
- *  shares the new row's patch when both are on one board). */
+/** Delete a replaced provisional row, its CSV so far and its private extras. The snapshot is the
+ *  caller's (it shares the new row's patch when both are on one board). The CSV and the extras go
+ *  unconditionally: the snapshot's hasCsv may not have caught up with a CSV so far yet, and deleting
+ *  nothing costs one operation where finding out would cost a read. */
 async function deleteRow(env, target) {
   await env.SUBMISSIONS.delete(target.key);
-  if (target.hasCsv) await env.SUBMISSIONS.delete(`csv:${target.id}`);
+  await env.SUBMISSIONS.delete(`csv:${target.id}`);
+  await env.SUBMISSIONS.delete(`extra:${target.id}`);
 }
 
 export default {
@@ -1814,9 +1953,35 @@ export default {
             429
           );
         }
+        // The daily cap, counted from the same snapshots (see "provisional rows"): no KV operation.
+        const now = Date.now();
+        if (provisionalToday(boards, owner, utcDay(now)).sent >= PROVISIONAL_PER_DAY) {
+          const midnight = Date.UTC(
+            new Date(now).getUTCFullYear(),
+            new Date(now).getUTCMonth(),
+            new Date(now).getUTCDate() + 1
+          );
+          return json(
+            {
+              error: `at most ${PROVISIONAL_PER_DAY} progress sends a day from one account; more after midnight UTC`,
+              retryAfter: Math.max(1, Math.ceil((midnight - now) / 1000)),
+              tooSoon: true,
+              dailyCap: true,
+            },
+            429
+          );
+        }
       }
       const replace = await replaceTarget(env, ctx, rowId(body.replaces), owner, boards);
       const replaced = replace?.ok ? replace : null;
+      if (record.provisional) {
+        // This send's place in its chain's day (see "provisional rows"): private, never on the row's text.
+        const day = utcDay(Date.parse(record.receivedAt));
+        const before = replaced ? (provisionalToday(boards, owner, day).byId.get(replaced.id) ?? 0) : 0;
+        // The rows this one takes over, newest first: the one it replaced and that one's own list.
+        const back = replaced ? [replaced.id, ...(provSeqAcross(boards, replaced.id)?.back ?? [])] : [];
+        record.provSeq = `${day}|${before + 1}|${back.slice(0, PROVISIONAL_HOPS).join(',')}`;
+      }
       const replaceReply = replace
         ? replace.ok
           ? { replaced: replace.id }
@@ -1928,12 +2093,12 @@ export default {
       }
       await gate.commit();
 
-      // No key configured means no token: the client then skips the CSV instead of being refused.
-      // None for a provisional row either: the CSV goes with the run's final row, not with this one.
+      // No key configured means no token: the client then skips the CSV instead of being refused. A
+      // provisional row's token is its own kind: its CSV is the CSV so far (see "provisional rows").
       return json({
         ok: true,
         id,
-        ...(env.CSV_UPLOAD_KEY && !record.provisional ? { uploadToken: await uploadToken(env, id) } : {}),
+        ...(env.CSV_UPLOAD_KEY ? { uploadToken: await uploadToken(env, id, !!record.provisional) } : {}),
         ...flagged,
         ...(copies.length ? { duplicate: 'result', ...(record.dupOf ? { dupOf: record.dupOf } : {}) } : {}),
         ...replaceReply,
@@ -2018,7 +2183,11 @@ export default {
 
       // Checked before the body is read, so a refused upload costs no bandwidth or CPU.
       if (!env.CSV_UPLOAD_KEY) return json({ error: 'CSV uploads are not configured on this collector' }, 503);
-      if (!sameToken(request.headers.get('x-upload-token'), await uploadToken(env, id))) {
+      const sent = request.headers.get('x-upload-token');
+      const final = sameToken(sent, await uploadToken(env, id));
+      // A provisional row's CSV so far: signed differently, so this needs no read to tell.
+      const soFar = !final && sameToken(sent, await uploadToken(env, id, true));
+      if (!final && !soFar) {
         return json({ error: 'missing or wrong upload token - a CSV can only follow its own /submit' }, 403);
       }
       // Write-once. The token never expires, so without this it would let the submitter (or anyone
@@ -2041,6 +2210,9 @@ export default {
       }
 
       await env.SUBMISSIONS.put(`csv:${id}`, body);
+      // A CSV so far is left to the settle its row's /submit already asked for (see "provisional
+      // rows"): one snapshot write fewer on every progress send.
+      if (soFar) return json({ ok: true, bytes: body.byteLength, partial: true });
       // Flip this row's hasCsv in whichever snapshot holds it: patched in place, never re-listed. A
       // list here, a moment after the row's own /submit, would not show that row yet, and rebuilding
       // from it took the new row off the board (see "snapshots").
@@ -2489,8 +2661,9 @@ function detail(r) {
         \`<div>A\${k + 1} → \${esc(l.te)}  \${esc(l.strategy || '')}  \${Number(l.days).toFixed(2)} d  \${Number(l.peakDeliveryQph).toFixed(2)} q/hr</div>\`
       ).join('')
     : '<div class="muted">no per-leg detail — this chain was replayed from a saved checkpoint</div>';
+  // A provisional row's CSV is the CSV so far: its run is still going, and its final replaces it.
   const csv = r.hasCsv
-    ? \`<a class="csv" href="/csv?id=\${encodeURIComponent(r.id)}">Download the full CSV (.csv.gz) ↓</a>\`
+    ? \`<a class="csv" href="/csv?id=\${encodeURIComponent(r.id)}">\${r.provisional ? 'Download the CSV so far (.csv.gz, the run is still going) ↓' : 'Download the full CSV (.csv.gz) ↓'}</a>\`
     : '<div class="muted" style="margin-top:.5rem;font-size:.75rem">No CSV was attached to this run.</div>';
   return \`<div class="detail-grid">
       <div><h3>Run</h3><div class="kv">

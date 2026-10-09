@@ -53,6 +53,8 @@ import {
   buildChainsCsv,
   buildDeadlineCsv,
   chainsCsvChunks,
+  deadlineCsvChunks,
+  type CsvMeta,
   describeLoadoutSlots,
   describeVirtueInventory,
   formatInZone,
@@ -89,7 +91,25 @@ import { describeAvailability, isConstrained, nextAvailable, type Availability }
 import { MAX_LAST_STOP, runDeadlineSearch, type DeadlineProgress, type DeadlineRoute } from '@/search/deadline';
 import * as blackBox from '@/search/blackBox';
 import { detectBrowser } from '@/lib/browserHelp';
-import { autoDecision, autoStatusLine, bestKey, bestLabel, type AutoInput } from '@/search/bestSoFarAuto';
+import {
+  aboutIn,
+  autoDecision,
+  autoStatusLine,
+  bestLabel,
+  progressKey,
+  type AutoInput,
+  type AutoRefusal,
+} from '@/search/bestSoFarAuto';
+import {
+  csvNote,
+  csvSettled,
+  gzipChunksCapped,
+  progressDetail,
+  PROGRESS_CSV_LIMIT_BYTES,
+  sizeLabel,
+  type ProgressCsv,
+} from '@/search/progressSend';
+import { useShareExtras } from '@/composables/useShareExtras';
 import {
   installStepAway,
   stepAwayBeat,
@@ -753,10 +773,12 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     bestSoFarAuto.value = {
       lastKey: null,
       lastBest: null,
+      lastDetail: null,
       lastFailAt: null,
       retryAt: null,
       lastSkipAt: null,
       failed: false,
+      refused: null,
     };
     autoAsked = false;
     if (!bestSoFarTicker)
@@ -802,22 +824,42 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   // Automatic best so far ("Stepping away?", search/bestSoFarAuto.ts): the rules are the pure
   // `autoDecision`; this holds the little state it needs and does the sending, on the ticker above.
   const bestSoFarAuto = ref<{
-    /** The best (`bestKey`) the row on the board carries, from any send this run made, and how the
-     *  status line names it (`bestLabel`: the finish date for Fastest, the TE for By a date). */
+    /** The progress (`progressKey`) the row on the board carries, from any send this run made, and how
+     *  the status line names its best (`bestLabel`: the finish date for Fastest, the TE for By a date)
+     *  and the rest (`progressDetail`: "3,735 chains, CSV 2.1 MB"). */
     lastKey: string | null;
     lastBest: string | null;
+    lastDetail: string | null;
     lastFailAt: number | null;
     retryAt: number | null;
-    /** A due time passed with the best unchanged: not sent, said, next check one interval on. */
+    /** A due time passed with nothing new priced: not sent, said, next check one interval on. */
     lastSkipAt: number | null;
     failed: boolean;
-  }>({ lastKey: null, lastBest: null, lastFailAt: null, retryAt: null, lastSkipAt: null, failed: false });
+    /** The collector's daily cap turned a send away: said on the line until the next send. */
+    refused: AutoRefusal | null;
+  }>({
+    lastKey: null,
+    lastBest: null,
+    lastDetail: null,
+    lastFailAt: null,
+    retryAt: null,
+    lastSkipAt: null,
+    failed: false,
+    refused: null,
+  });
   let bestSoFarStartedAt = Date.now();
   /** The box was opened by the automatic option (so unticking it can close the box again). */
   let autoAsked = false;
 
   /** The scheduling inputs now; null when no run here may send. */
-  function autoInput(): (AutoInput & { lastBest: string | null; failed: boolean }) | null {
+  function autoInput():
+    | (AutoInput & {
+        lastBest: string | null;
+        failed: boolean;
+        lastDetail: string | null;
+        refused: AutoRefusal | null;
+      })
+    | null {
     const run = bestSoFar.value;
     if (!run) return null;
     const p = runProgress.value;
@@ -833,13 +875,16 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       lastFailAt: a.lastFailAt,
       retryAt: a.retryAt,
       lastSkipAt: a.lastSkipAt,
-      key: here ? bestKey(p!.best) : null,
+      key: here ? progressKey(p) : null,
       sending: bestSoFarSending.value,
       lastBest: a.lastBest,
       failed: a.failed,
+      lastDetail: a.lastDetail,
+      refused: a.refused,
     };
   }
-  /** The quiet line under the tick: "Last sent 2:14 pm (best 248). Next in about 40 min." */
+  /** The quiet line under the tick: "Last progress sent 4:20 pm (best 248; 3,735 routes, CSV 2.1 MB).
+   *  Next in about 60 min." */
   const bestSoFarAutoLine = computed(() => {
     const run = bestSoFar.value;
     if (!run || !stepAwayOptions.value.autoSendBest) return '';
@@ -850,8 +895,13 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   async function autoSend(): Promise<void> {
     const r = await sendBestSoFar();
     const a = bestSoFarAuto.value;
-    if (r.ok) bestSoFarAuto.value = { ...a, lastFailAt: null, retryAt: null, failed: false };
-    else if (r.tooSoon) bestSoFarAuto.value = { ...a, retryAt: Date.now() + (r.retryAfter ?? 60) * 1000 };
+    if (r.ok) bestSoFarAuto.value = { ...a, lastFailAt: null, retryAt: null, failed: false, refused: null };
+    else if (r.tooSoon)
+      bestSoFarAuto.value = {
+        ...a,
+        retryAt: Date.now() + (r.retryAfter ?? 60) * 1000,
+        ...(r.dailyCap ? { refused: { at: Date.now(), why: r.text.replace(/\.$/, '') } } : {}),
+      };
     // Any other failure: the next try is one interval on.
     else bestSoFarAuto.value = { ...a, lastFailAt: Date.now(), failed: true };
   }
@@ -872,7 +922,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const i = autoInput();
     const decision = i && autoDecision(i);
     if (decision?.do === 'send') void autoSend();
-    // Due, and nothing new to send: say so on the status line, and look again one interval on.
+    // Due, and nothing new priced: say so on the status line, and look again one interval on.
     else if (decision?.do === 'skip') bestSoFarAuto.value = { ...bestSoFarAuto.value, lastSkipAt: i!.now };
   }
   watch(
@@ -3228,6 +3278,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     tooSoon?: boolean;
     /** With `tooSoon`: seconds until the collector will take another best so far. */
     retryAfter?: number;
+    /** With `tooSoon`: it was the collector's daily cap on progress sends, not its 25-minute gap. */
+    dailyCap?: boolean;
+    /** A provisional row's token for its CSV so far (`sendBestSoFar` posts it itself). */
+    uploadToken?: string;
   }> {
     if (!submitUrl) return { ok: false, message: 'no collector configured' };
     // A payload whose start contradicts its own save is never sent, from any screen or the command
@@ -3290,7 +3344,19 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           problems?: string[];
           retryAfter?: number;
           tooSoon?: boolean;
+          dailyCap?: boolean;
         };
+        // The collector's daily cap on progress sends (collector "Provisional rows"): until UTC midnight.
+        if (res.status === 429 && detail.tooSoon && detail.dailyCap) {
+          const wait = Math.max(1, detail.retryAfter ?? 3600);
+          return {
+            ok: false,
+            message: `the board takes at most 48 progress sends a day from one account; more after midnight UTC, in ${aboutIn(wait * 1000)}.`,
+            tooSoon: true,
+            dailyCap: true,
+            retryAfter: wait,
+          };
+        }
         // A best so far sent too soon after the last one (the collector's own gap, collector "Provisional rows").
         if (res.status === 429 && detail.tooSoon) {
           const minutes = Math.max(1, Math.ceil((detail.retryAfter ?? 60) / 60));
@@ -3369,6 +3435,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       message,
       ...(duplicate ? { duplicate } : {}),
       ...(id ? { id } : {}),
+      // A provisional row's CSV so far follows from `sendBestSoFar`, never through `pendingTable`.
+      ...(provisional && uploadToken ? { uploadToken } : {}),
     });
     if (!csv) return done(lead + note);
     // An exact copy stores nothing; the collector hands back a CSV token only when the stored row is
@@ -3403,12 +3471,85 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   }
 
   /**
-   * Send best so far: the running search's best, as a provisional row its final send will replace.
-   * Needs the player's yes for this run (`bestSoFar.consent`). Sends no table (the final carries it),
-   * no rechecks and no diagnostics. A second press replaces the first row. Never throws.
+   * The CSV so far of the run going now, a chunk at a time, its header marked "in progress, N of M"
+   * (search/csv.ts `partial`); null with nothing priced. Fastest: every chain priced, as Download CSV
+   * writes them. By a date: every route found so far, as its finished CSV would list them.
    */
-  async function sendBestSoFar(): Promise<{ ok: boolean; text: string; tooSoon?: boolean; retryAfter?: number }> {
-    const say = (ok: boolean, text: string, more: { tooSoon?: boolean; retryAfter?: number } = {}) => {
+  function progressCsvChunks(kind: 'fastest' | 'deadline', p: RunProgress): Iterable<string> | null {
+    const partial = { done: p.done, total: p.total, unit: p.unit };
+    if (kind === 'fastest') return allEntries().length ? exportCsvChunks({ partial }) : null;
+    const routes = deadlineRunCsv?.routes() ?? [];
+    if (!routes.length || !deadlineRun || !deadlineRunCsv) return null;
+    return deadlineCsvChunks(routes, deadlineCsvMeta(deadlineRun, deadlineRunCsv.ceiling, partial), {
+      deadline: deadlineRun.deadline,
+      priced: deadlineProgress.value?.priced ?? 0,
+      ascendNeeded: deadlineRunCsv.ascendNeeded,
+    });
+  }
+
+  /**
+   * The CSV so far after a progress send's row: compressed a chunk at a time (search/progressSend.ts),
+   * stopped at the collector's 8 MB, and posted with the row's own token. Never throws: what happened
+   * comes back as a `ProgressCsv` for the status line.
+   */
+  async function sendCsvSoFar(
+    kind: 'fastest' | 'deadline',
+    p: RunProgress,
+    id: string | undefined,
+    token: string | undefined
+  ): Promise<ProgressCsv> {
+    if (!useShareExtras().sendCsv.value) return { kind: 'off' };
+    const chunks = progressCsvChunks(kind, p);
+    if (!chunks) return { kind: 'none' };
+    // A collector from before progress sends hands a provisional row no token.
+    if (!id || !token || !submitUrl) return { kind: 'not-taken' };
+    // In the black box's history only: a page that dies building it says so on the next visit,
+    // without taking the run's own open beat away.
+    blackBox.note(`progress send: building the CSV so far (${p.done} ${p.unit})`);
+    let gz: Awaited<ReturnType<typeof gzipChunksCapped>>;
+    try {
+      gz = await gzipChunksCapped(chunks, PROGRESS_CSV_LIMIT_BYTES, scrubIdentifiers);
+    } catch {
+      return { kind: 'failed', why: 'it could not be compressed in this browser' };
+    }
+    if (!gz.ok) return { kind: 'too-big', bytes: gz.atLeast };
+    try {
+      const res = await fetch(`${submitUrl.replace(/\/submit\/?$/, '/csv')}?id=${encodeURIComponent(id)}`, {
+        method: 'POST',
+        // As `postTable`: gzip bytes posted as data, not a transfer encoding.
+        headers: { 'content-type': 'application/gzip', 'x-upload-token': token },
+        body: gz.body,
+      });
+      // 409: an earlier try landed and its answer was lost.
+      if (res.ok || res.status === 409) return { kind: 'sent', bytes: gz.body.byteLength };
+      if (res.status === 413) return { kind: 'too-big', bytes: gz.body.byteLength };
+      return { kind: 'failed', why: `the board answered ${res.status}` };
+    } catch {
+      return { kind: 'failed', why: 'the connection dropped' };
+    }
+  }
+
+  /**
+   * Send best so far, which is now a PROGRESS SEND (10 Oct): the running search's best as a provisional
+   * row its final send will replace, plus the run's data -- the CSV so far when "Send my CSV too" is
+   * ticked, and the private diagnostics when "Also send diagnostics" is. The button and the automatic
+   * option ("Send my progress every ...") both come here: a headline-only press would replace the last
+   * progress send's row, and the collector deletes a replaced row's CSV with it, so the button sends
+   * the data too rather than throw the saved work away. Needs the player's yes for this run
+   * (`bestSoFar.consent`). No rechecks. A second send replaces the first row. Never throws.
+   */
+  async function sendBestSoFar(): Promise<{
+    ok: boolean;
+    text: string;
+    tooSoon?: boolean;
+    retryAfter?: number;
+    dailyCap?: boolean;
+  }> {
+    const say = (
+      ok: boolean,
+      text: string,
+      more: { tooSoon?: boolean; retryAfter?: number; dailyCap?: boolean } = {}
+    ) => {
       // Too soon is a wait, not a failure: said in neither green nor red.
       bestSoFarStatus.value = { ok, text, ...(more.tooSoon ? { pending: true } : {}) };
       return { ok, text, ...more };
@@ -3435,31 +3576,52 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           ? deadlineBestSoFarSubmission(run.consent!.nickname)
           : buildRunSubmission(run.consent!.nickname);
       if (!base) return say(false, 'Nothing found yet to send.');
-      const payload = asProvisional(base, provisionalProgress(p.done, p.total), provisionalRows.value[kind]?.id);
+      let payload = asProvisional(base, provisionalProgress(p.done, p.total), provisionalRows.value[kind]?.id);
+      // "Also send diagnostics": a private field of the body, kept by the collector as `extra:<id>`.
+      if (useShareExtras().sendDiagnostics.value) {
+        try {
+          const parsed = JSON.parse(diagnosticsLine());
+          if (parsed && typeof parsed === 'object') payload = { ...payload, diagnostics: parsed };
+        } catch {
+          // sent without them
+        }
+      }
       const res = await sendSubmission(payload);
       if (!res.ok)
         return say(
           false,
-          res.tooSoon ? res.message : `Not sent: ${res.message}`,
-          res.tooSoon ? { tooSoon: true, retryAfter: res.retryAfter } : {}
+          res.tooSoon && !res.dailyCap ? res.message : `Not sent: ${res.message}`,
+          res.tooSoon ? { tooSoon: true, retryAfter: res.retryAfter, dailyCap: res.dailyCap } : {}
         );
-      // What the row on the board now carries, for the automatic option's "changed since".
-      bestSoFarAuto.value = {
-        ...bestSoFarAuto.value,
-        lastKey: bestKey(p.best),
-        lastBest: p.best ? bestLabel(kind, p.best.te, finishDay(p.best.at)) : null,
-      };
       if (res.id) {
+        // Remembered before the CSV is built: building it is the heaviest moment of the send, and a
+        // page that dies there must still carry on replacing THIS row (into the run's checkpoint at its
+        // next write, which is now rather than in a minute or two).
         setProvisional(kind, { id: res.id, nickname: payload.nickname ?? '', at: Date.now() });
         // The clock too, so the wait reads 30 min rather than 31 until the ticker's next beat.
         bestSoFarNow.value = Date.now();
-        // Into the run's checkpoint at its next write, which is now rather than in a minute or two.
         if (kind === 'fastest') lastCheckpointAt = 0;
         else deadlineSavedAt = 0;
       }
+      // The data, after the row: the row is what must land, and the CSV follows it.
+      const csv = await sendCsvSoFar(kind, p, res.id, res.uploadToken);
+      // What the row on the board now carries, for the automatic option's "anything new since". A CSV
+      // that did not upload leaves the key unset, so the next due time sends again even if nothing new
+      // was priced: the point is the saved work.
+      bestSoFarAuto.value = {
+        ...bestSoFarAuto.value,
+        lastKey: csvSettled(csv) ? progressKey(p) : null,
+        lastBest: p.best ? bestLabel(kind, p.best.te, finishDay(p.best.at)) : null,
+        lastDetail: progressDetail(p.done, p.unit, csv),
+      };
       const flaggedNote = /flagged board/.test(res.message) ? ' It went to the flagged board.' : '';
       const as = payload.nickname ? ` as ${payload.nickname}` : ' anonymously';
-      return say(true, `Sent${as}. It will be replaced when the run finishes.${flaggedNote}`);
+      const carried = [
+        csv.kind === 'sent' ? `the CSV so far (${sizeLabel(csv.bytes)})` : '',
+        payload.diagnostics ? 'your diagnostics' : '',
+      ].filter(Boolean);
+      const withText = carried.length ? `, with ${carried.join(' and ')}` : '';
+      return say(true, `Sent${as}${withText}. It will be replaced when the run finishes.${csvNote(csv)}${flaggedNote}`);
     })();
     bestSoFarInFlight = go;
     try {
@@ -3742,7 +3904,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * file says. Only the delivery differs: see `chainsCsvChunks` for why the download must not go
    * through one giant string.
    */
-  function* exportCsvChunks(): Generator<string> {
+  function* exportCsvChunks(opts: { partial?: CsvMeta['partial'] } = {}): Generator<string> {
     const own = allEntries();
     const entries = own.length ? own : resumable.value ? restoreEntries(resumable.value) : [];
     // Read off the backup here, on the main thread: `getSimulationContext()` is Pinia-bound. The run's
@@ -3753,6 +3915,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       | null;
     const equipped = raw ? getArtifactLoadoutFromBackup(raw) : null;
     yield* chainsCsvChunks(entries, {
+      ...(opts.partial ? { partial: opts.partial } : {}),
       planStart: planStartUsed.value || planStart.value,
       timezone: useAutoPlannerStore().timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
       currentTE: runTEUsed ?? currentTE.value,
@@ -4349,6 +4512,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   let deadlineSavedAt = 0;
   /** The running date search's own start, for a best so far sent before it has a result. */
   let deadlineRun: DeadlineSendBase | null = null;
+  /** What a progress send's CSV so far needs from the date search going now: its routes found so far
+   *  (search/deadline.ts `routesSoFar`), its top target and whether it ascends in awake hours. */
+  let deadlineRunCsv: { routes: () => DeadlineRoute[]; ceiling: number; ascendNeeded: boolean } | null = null;
 
   /** Saved By a date answers for this account (search/deadlineStore.ts `saveAnswer`). */
   const savedAnswers = ref<SavedAnswer[]>([]);
@@ -4593,6 +4759,11 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       ...(spec.simple ? { simple: true } : {}),
       priced: 0,
     };
+    deadlineRunCsv = {
+      routes: () => [],
+      ceiling: spec.extend ? Math.max(spec.lastHi, MAX_LAST_STOP) : spec.lastHi,
+      ascendNeeded: !!spec.ascendNeeded && !!schedule,
+    };
     deadlineEstimate.value = Math.max(0, Math.floor(spec.estimate ?? 0));
     deadlineStop = false;
     deadlineResult.value = null;
@@ -4722,6 +4893,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
             noteLaterLegs();
           },
           shouldStop: () => deadlineStop,
+          // For a progress send's CSV so far: ranked only when one is sent.
+          routesSoFar: get => {
+            if (deadlineRunCsv) deadlineRunCsv.routes = get;
+          },
         }
       );
       deadlineAll = out.routes;
@@ -4814,6 +4989,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       document.removeEventListener('visibilitychange', onVisibilityChange);
       dropRunLock();
       dropScreenLock();
+      deadlineRunCsv = null;
       deadlineRunning.value = false;
     }
   }
@@ -5059,35 +5235,46 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const r = deadlineResult.value;
     if (!r) return '';
     const routes = deadlineAll.length ? deadlineAll : r.routes;
-    // The same metadata as the chain-search CSV, read off the settings the run started with (the
-    // saved result carries them), falling back to the current ones for results saved before they were.
+    return buildDeadlineCsv(
+      routes,
+      { ...deadlineCsvMeta(r, r.ceiling ?? r.lastHi), ...(opts.diagnostics ? { diagnostics: diagnosticsLine() } : {}) },
+      { deadline: r.deadline, priced: r.priced, stoppedEarly: r.stoppedEarly, ascendNeeded: r.ascendNeeded }
+    );
+  }
+
+  /**
+   * The By a date CSV's metadata: the same as the chain-search CSV's, read off the settings the run
+   * started with (a saved result carries them), falling back to the current ones for results saved
+   * before they were. `r` is a finished result, or the run going now (a progress send's CSV so far).
+   */
+  function deadlineCsvMeta(
+    r: Pick<SavedDeadlineResult, 'planStart' | 'te' | 'note' | 'settings'>,
+    final: number,
+    partial?: CsvMeta['partial']
+  ): CsvMeta {
     const raw = (deadlineBackup ?? getSimulationContext().rawBackup ?? null) as
       | ReturnType<typeof getSimulationContext>['rawBackup']
       | null;
     const equipped = raw ? getArtifactLoadoutFromBackup(raw) : null;
     const st = r.settings;
-    return buildDeadlineCsv(
-      routes,
-      {
-        planStart: r.planStart,
-        timezone: planTimezone(),
-        currentTE: r.te,
-        final: r.ceiling ?? r.lastHi,
-        effort: st?.effort ?? usedSettings().effort,
-        firstAscension: readFirstAscension(st ?? usedSettings()),
-        availability: st ? st.availability : usedSettings().availability,
-        timeOff: usableTimeOff(st ? st.timeOff : usedSettings().timeOff),
-        seedChain: [],
-        runNote: r.note,
-        ...(opts.diagnostics ? { diagnostics: diagnosticsLine() } : {}),
-        inventory: raw ? describeVirtueInventory(raw) : undefined,
-        loadouts: [
-          { label: 'equipped in the backup', loadout: equipped },
-          { label: 'best earnings set available', loadout: raw ? getOptimalEarningsSet(raw) : null },
-        ],
-      },
-      { deadline: r.deadline, priced: r.priced, stoppedEarly: r.stoppedEarly, ascendNeeded: r.ascendNeeded }
-    );
+    return {
+      ...(partial ? { partial } : {}),
+      planStart: r.planStart,
+      timezone: planTimezone(),
+      currentTE: r.te,
+      final,
+      effort: st?.effort ?? usedSettings().effort,
+      firstAscension: readFirstAscension(st ?? usedSettings()),
+      availability: st ? st.availability : usedSettings().availability,
+      timeOff: usableTimeOff(st ? st.timeOff : usedSettings().timeOff),
+      seedChain: [],
+      runNote: r.note,
+      inventory: raw ? describeVirtueInventory(raw) : undefined,
+      loadouts: [
+        { label: 'equipped in the backup', loadout: equipped },
+        { label: 'best earnings set available', loadout: raw ? getOptimalEarningsSet(raw) : null },
+      ],
+    };
   }
 
   // ------------------------------------------------------------------ the black box (search/blackBox.ts)
@@ -6075,6 +6262,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     bestSoFarStatus,
     bestSoFarWait,
     bestSoFarAutoLine,
+    /** What the last progress send carried (read by the tests and the status line). */
+    bestSoFarAuto,
     autoTick,
     beginBestSoFar,
     endBestSoFar,

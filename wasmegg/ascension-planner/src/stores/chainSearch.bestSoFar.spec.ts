@@ -148,7 +148,7 @@ describe('Send best so far', () => {
     expect(bodies).toHaveLength(0);
   });
 
-  it('sends the best so far as provisional, with how far the run got, and no table', async () => {
+  it('sends the best so far as provisional, with how far the run got (no CSV: no chains in this store to put in one)', async () => {
     const s = await running();
     s.beginBestSoFar('fastest', null);
     s.agreeBestSoFar('Jordan');
@@ -207,7 +207,7 @@ describe('Send best so far', () => {
     s.endBestSoFar();
   });
 
-  describe('on its own ("Send my best so far every...")', () => {
+  describe('on its own ("Send my progress every...")', () => {
     const at = (hhmm: string) => vi.setSystemTime(Date.parse(`2026-10-09T${hhmm}:00Z`));
     async function auto(every: 30 | 60 = 60) {
       vi.useFakeTimers({ toFake: ['Date'] });
@@ -219,7 +219,7 @@ describe('Send best so far', () => {
     }
     const flush = () => new Promise(r => setTimeout(r, 0));
 
-    it('sends after an interval, skips when nothing changed, and sends again when it has', async () => {
+    it('sends after an interval, skips when nothing new was priced, and sends again when something was', async () => {
       try {
         const { s } = await auto();
         s.beginBestSoFar('fastest', { nickname: '' });
@@ -235,9 +235,9 @@ describe('Send best so far', () => {
         expect(bodies[0]).toMatchObject({ provisional: true });
         // Fastest: the finish date, not "best 490" (its target is always 490).
         expect(s.bestSoFarAutoLine).toMatch(
-          /^Last sent \d+:\d\d [ap]m \(best reaches 490 on [A-Z][a-z]{2} \d+, \d{4}\)\. Next in about 1 h\.$/
+          /^Last progress sent \d+:\d\d [ap]m \(best reaches 490 on [A-Z][a-z]{2} \d+, \d{4}; 100 chains\)\. Next in about 60 min\.$/
         );
-        // An hour on, the same best: not sent, and the line says so (no send status, no error).
+        // An hour on, nothing new priced: not sent, and the line says so (no send status, no error).
         at('14:00');
         s.bestSoFarStatus = null;
         s.autoTick();
@@ -245,10 +245,10 @@ describe('Send best so far', () => {
         expect(bodies).toHaveLength(1);
         expect(s.bestSoFarStatus).toBeNull();
         expect(s.bestSoFarAutoLine).toMatch(
-          /^Not sent at \d+:\d\d [ap]m: best unchanged since \d+:\d\d [ap]m\. Next check in about 1 h\.$/
+          /^Not sent at \d+:\d\d [ap]m: nothing new priced since \d+:\d\d [ap]m\. Next check in about 60 min\.$/
         );
-        // A better one: the next check (one interval on) sends it, replacing the first row.
-        s.bestChain = [212, 280, 495];
+        // More priced, same best: the next check (one interval on) sends it, replacing the first row.
+        s.chainsDone = 180;
         s.autoTick();
         await flush();
         expect(bodies).toHaveLength(1);
@@ -256,7 +256,7 @@ describe('Send best so far', () => {
         s.autoTick();
         await flush();
         expect(bodies).toHaveLength(2);
-        expect(bodies[1]).toMatchObject({ replaces: 'aaaa0001' });
+        expect(bodies[1]).toMatchObject({ replaces: 'aaaa0001', progress: { done: 180, total: 400 } });
         s.endBestSoFar();
       } finally {
         vi.useRealTimers();
