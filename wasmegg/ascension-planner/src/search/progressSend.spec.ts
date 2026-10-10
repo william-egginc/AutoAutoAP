@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
   csvNote,
+  csvParts,
   csvSettled,
+  CSV_MAX_PARTS,
+  CSV_PART_BYTES,
   gzipChunksCapped,
   progressDetail,
   PROGRESS_CSV_LIMIT_BYTES,
   sizeLabel,
+  uploadCsv,
 } from './progressSend';
 
 async function inflate(body: ArrayBuffer): Promise<string> {
@@ -65,7 +69,7 @@ describe('the words for what went', () => {
   it('says the count and the CSV for the status line', () => {
     expect(progressDetail(3735, 'chains', { kind: 'sent', bytes: 2.1 * 1024 * 1024 })).toBe('3,735 chains, CSV 2.1 MB');
     expect(progressDetail(3735, 'chains', { kind: 'too-big', bytes: 9 * 1024 * 1024 })).toBe(
-      '3,735 chains; CSV too big to send (over 8.0 MB compressed)'
+      '3,735 chains; CSV too big to send (over 64.0 MB compressed)'
     );
     expect(progressDetail(12, 'routes', { kind: 'none' })).toBe('12 routes');
     expect(progressDetail(12, 'routes', { kind: 'off' })).toMatch(/unticked/);
@@ -73,8 +77,8 @@ describe('the words for what went', () => {
     expect(progressDetail(12, 'routes', { kind: 'failed', why: 'x' })).toMatch(/didn't upload/);
   });
 
-  it('never promises the final will carry a CSV too big for the board (the same 8 MB cap)', () => {
-    const note = csvNote({ kind: 'too-big', bytes: 9 * 1024 * 1024 });
+  it('never promises the final will carry a CSV too big for the board (the same 64 MB cap)', () => {
+    const note = csvNote({ kind: 'too-big', bytes: 65 * 1024 * 1024 });
     expect(note).toMatch(/too big to send/);
     expect(note).toMatch(/Download CSV/);
     expect(note).not.toMatch(/goes with the final/);
@@ -87,5 +91,101 @@ describe('the words for what went', () => {
     for (const kind of ['off', 'none', 'not-taken'] as const) expect(csvSettled({ kind })).toBe(true);
     expect(csvSettled({ kind: 'sent', bytes: 1 })).toBe(true);
     expect(csvSettled({ kind: 'too-big', bytes: 1 })).toBe(true);
+  });
+});
+
+describe('a CSV over the cap goes in parts (uploadCsv)', () => {
+  const ok = (body: unknown = { ok: true }, status = 200) =>
+    new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+  /** A fake collector: answers each call with the next outcome, keeps the URLs. */
+  function fake(...outcomes: (Response | Error)[]) {
+    const urls: string[] = [];
+    const bodies: number[] = [];
+    const fetch = (async (u: RequestInfo | URL, init?: RequestInit) => {
+      urls.push(String(u));
+      bodies.push((init?.body as ArrayBuffer).byteLength);
+      const next = outcomes.shift();
+      if (!next) throw new Error('unexpected request ' + String(u));
+      if (next instanceof Error) throw next;
+      return next;
+    }) as typeof globalThis.fetch;
+    return { fetch, urls, bodies };
+  }
+  const URL_ = 'https://collector.test/csv?id=abcd1234';
+
+  it('cuts the bytes into slices that join back to the file', () => {
+    const body = new Uint8Array(25).map((_, i) => i).buffer;
+    const parts = csvParts(body, 10);
+    expect(parts.map(p => p.byteLength)).toEqual([10, 10, 5]);
+    expect(new Uint8Array(parts[2])).toEqual(new Uint8Array([20, 21, 22, 23, 24]));
+    expect(csvParts(body, 25)).toHaveLength(1);
+    expect(PROGRESS_CSV_LIMIT_BYTES).toBe(CSV_PART_BYTES * CSV_MAX_PARTS);
+  });
+
+  it('sends one file as it always did: one POST, no part numbers', async () => {
+    const f = fake(ok());
+    expect(await uploadCsv(URL_, 't', new ArrayBuffer(10), { fetch: f.fetch })).toEqual({ kind: 'stored', parts: 1 });
+    expect(f.urls).toEqual([URL_]);
+  });
+
+  it('sends parts 1..m-1 first, then part 0, which seals it', async () => {
+    const f = fake(ok(), ok(), ok());
+    expect(await uploadCsv(URL_, 't', new ArrayBuffer(25), { fetch: f.fetch, partBytes: 10, retryMs: [] })).toEqual({
+      kind: 'stored',
+      parts: 3,
+    });
+    expect(f.urls).toEqual([`${URL_}&part=1&parts=3`, `${URL_}&part=2&parts=3`, `${URL_}&part=0&parts=3`]);
+    expect(f.bodies).toEqual([10, 5, 10]);
+  });
+
+  it('tries a part again after a dropped connection or a 5xx, and gives up after three', async () => {
+    const f = fake(new TypeError('Failed to fetch'), ok({}, 502), ok(), ok());
+    expect(await uploadCsv(URL_, 't', new ArrayBuffer(20), { fetch: f.fetch, partBytes: 10, retryMs: [0, 0] })).toEqual(
+      {
+        kind: 'stored',
+        parts: 2,
+      }
+    );
+    expect(f.urls.filter(u => u.includes('part=1&'))).toHaveLength(3);
+    const g = fake(new TypeError('x'), new TypeError('x'), new TypeError('x'));
+    expect(await uploadCsv(URL_, 't', new ArrayBuffer(20), { fetch: g.fetch, partBytes: 10, retryMs: [0, 0] })).toEqual(
+      {
+        kind: 'failed',
+        why: 'the connection dropped',
+      }
+    );
+  });
+
+  it('sends the parts the seal says are missing, then seals again', async () => {
+    const f = fake(ok(), ok(), ok({ missing: [2] }, 422), ok(), ok());
+    expect(await uploadCsv(URL_, 't', new ArrayBuffer(25), { fetch: f.fetch, partBytes: 10, retryMs: [] })).toEqual({
+      kind: 'stored',
+      parts: 3,
+    });
+    expect(f.urls.slice(3)).toEqual([`${URL_}&part=2&parts=3`, `${URL_}&part=0&parts=3`]);
+  });
+
+  it('says so when the collector does not take parts yet (an old one refuses part 1 as not gzip)', async () => {
+    const f = fake(ok({ error: 'body must be gzip' }, 400));
+    expect(await uploadCsv(URL_, 't', new ArrayBuffer(20), { fetch: f.fetch, partBytes: 10, retryMs: [] })).toEqual({
+      kind: 'no-parts',
+    });
+    expect(f.urls).toHaveLength(1);
+  });
+
+  it('refuses more parts than the collector takes, without sending', async () => {
+    const f = fake();
+    const up = await uploadCsv(URL_, 't', new ArrayBuffer(CSV_MAX_PARTS * 10 + 1), { fetch: f.fetch, partBytes: 10 });
+    expect(up).toEqual({ kind: 'too-big' });
+    expect(f.urls).toHaveLength(0);
+  });
+
+  it('takes 409 as already stored, and stops on 403', async () => {
+    expect(await uploadCsv(URL_, 't', new ArrayBuffer(20), { fetch: fake(ok({}, 409)).fetch, partBytes: 10 })).toEqual({
+      kind: 'already',
+    });
+    expect(await uploadCsv(URL_, 't', new ArrayBuffer(20), { fetch: fake(ok({}, 403)).fetch, partBytes: 10 })).toEqual({
+      kind: 'refused',
+    });
   });
 });

@@ -176,7 +176,7 @@ describe('a progress send', () => {
     res = await s.sendBestSoFar();
     expect(res.ok).toBe(true);
     expect(csvs).toHaveLength(1);
-    expect(res.text).toMatch(/too big to send \(over 8\.0 MB compressed\)/);
+    expect(res.text).toMatch(/too big to send \(over 64\.0 MB compressed\)/);
     expect(s.bestSoFarAuto.lastDetail).toMatch(/CSV too big to send/);
     expect(s.bestSoFarAuto.lastKey).not.toBeNull();
     // A CSV that did not upload leaves the key unset, so the next due time sends again.
