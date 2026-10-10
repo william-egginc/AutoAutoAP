@@ -483,9 +483,10 @@ to a specific list.
 
 ### Instant answer records
 
-Opt-in, from **Your setup > Sharing** ("Share my instant answers and their Check exactly results"),
-off by default, and offered once under the instant answer when a Check exactly finishes. With it on,
-each finished Check exactly (Fastest route and By a date) sends **one** record to `POST /instant`:
+Opt-in, from the boxes under the instant answer: **Share this check** (this one check, sent when
+Check exactly finishes, or at once if it has) and **Keep sharing my checks** (every check; remembered
+per browser, mirrored in Your setup > Sharing). Both off by default. Each shared Check exactly
+(Fastest route and By a date) sends **one** record to `POST /instant`:
 at most one per save, per mode and target (or deadline), per hour, and never the same record twice
 (the app keeps that log in the browser; `src/search/instantRecord.ts`). The record is the instant
 answer and its exact check, for the analyst:

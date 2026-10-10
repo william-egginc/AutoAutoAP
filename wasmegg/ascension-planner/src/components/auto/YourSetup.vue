@@ -425,8 +425,8 @@
           <SimulationSetup />
         </div>
 
-        <!-- Sharing: the opt-in for instant answer records (search/instantRecord.ts). Off by default; also
-             offered once under the instant answer when a Check exactly finishes. Only with a collector. -->
+        <!-- Sharing: a mirror of "Keep sharing my checks" under the instant answer (the same setting,
+             composables/useInstantShare.ts; search/instantRecord.ts). Off by default. Only with a collector. -->
         <div
           v-if="canShareInstant"
           class="rounded-xl border border-slate-200 p-4 space-y-2 min-w-0 md:col-span-2"
@@ -436,12 +436,13 @@
           <label class="flex items-start gap-3 cursor-pointer">
             <input v-model="shareInstantOn" type="checkbox" class="mt-0.5 rounded border-slate-300 text-indigo-600" />
             <span class="text-[11px] text-slate-600 leading-relaxed">
-              <span class="font-bold text-slate-800">Share my instant answers and their Check exactly results</span>
+              <span class="font-bold text-slate-800">Keep sharing my checks</span>
               (anonymous; helps make the instant answer more accurate). After each Check exactly, at most once an hour
               per save, this browser sends the routes, the instant answer's and the exact times, your TE and Clothed TE,
               a summary of your gear, your plan start, timezone, save time and settings, and the app version. It goes
               with this browser's anonymous code for your account, never your player ID or your save. Kept privately by
-              the planner's maintainer for 6 months, never shown on the board.
+              the planner's maintainer for 6 months, never shown on the board. The same box is under the instant answer,
+              with "Share this check" for just one.
             </span>
           </label>
           <p class="text-[11px] text-slate-500 leading-relaxed">
@@ -488,7 +489,7 @@ defineProps<{
 
 const store = useChainSearchStore();
 const instantDuringSearch = useInstantDuringSearch();
-/** "Share my instant answers…": only where a collector is configured to take them. */
+/** "Keep sharing my checks" (mirrors the instant answer box): only where a collector is configured to take them. */
 const { on: shareInstantOn } = useInstantShare();
 const canShareInstant = !!instantUrlOf(store.submitUrl);
 // Choosing "Let me pick my hours" holds the egg shifts for those hours as well.

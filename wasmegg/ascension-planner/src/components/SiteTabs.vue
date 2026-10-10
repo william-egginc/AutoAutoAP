@@ -32,15 +32,6 @@
         </button>
       </div>
     </div>
-    <div v-if="showGuideLink" class="flex justify-center">
-      <button
-        type="button"
-        class="text-[10px] font-bold text-slate-400 hover:text-indigo-700 underline decoration-dotted"
-        @click="emit('guide')"
-      >
-        What moved? The new layout, explained
-      </button>
-    </div>
   </div>
 </template>
 
@@ -51,9 +42,8 @@ defineProps<{
   tabs: { id: Section; tab: string; label: string; on: string }[];
   /** The ui store's plannerTab. */
   current: string;
-  showGuideLink: boolean;
 }>();
-const emit = defineEmits<{ select: [section: Section]; guide: [] }>();
+const emit = defineEmits<{ select: [section: Section] }>();
 
 /** The original tabs' icons (pencil, lightning, bag), and a flask for Science. */
 const ICONS: Record<Section, string> = {

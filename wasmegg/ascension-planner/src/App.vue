@@ -45,9 +45,7 @@
               class="mt-6"
               :tabs="topTabs"
               :current="plannerTab"
-              :show-guide-link="!showGuide"
               @select="selectSection"
-              @guide="showGuide = true"
             />
 
             <!-- Plan Library Section -->
@@ -234,9 +232,7 @@
           v-if="isHeaderCollapsed"
           :tabs="topTabs"
           :current="plannerTab"
-          :show-guide-link="!showGuide"
           @select="selectSection"
-          @guide="showGuide = true"
         />
 
         <template v-if="plannerTab === 'automatic'">
@@ -289,9 +285,6 @@
           </div>
         </div>
       </nav>
-
-      <!-- The new layout explained once, for players who knew the old one (dismissed for good). -->
-      <NewLayoutGuide v-if="playerId && showGuide" class="mt-4" @close="closeGuide" />
 
       <!-- Current Mode Label -->
       <div v-if="plannerTab === 'manual' && plannerModeLabel" class="mt-4 flex justify-center">
@@ -666,7 +659,6 @@ import RunProgressBar from '@/components/auto/RunProgressBar.vue';
 import { scrollToRun } from '@/lib/runAnchor';
 import { usePlanStartForm } from '@/composables/usePlanStartForm';
 import { useTablePrefetch } from '@/composables/useTablePrefetch';
-import NewLayoutGuide from '@/components/NewLayoutGuide.vue';
 import SiteTabs from '@/components/SiteTabs.vue';
 import SetupDock from '@/components/auto/SetupDock.vue';
 import SweepRunner from '@/components/science/SweepRunner.vue';
@@ -1025,26 +1017,6 @@ const saveTE = computed(() => {
   }
   return total;
 });
-/** The new-layout guide (NewLayoutGuide.vue): open until "Got it", remembered in this browser. */
-const GUIDE_KEY = 'aap-new-layout-seen';
-const showGuide = ref(
-  (() => {
-    try {
-      return localStorage.getItem(GUIDE_KEY) !== '1';
-    } catch {
-      return true;
-    }
-  })()
-);
-function closeGuide(): void {
-  showGuide.value = false;
-  try {
-    localStorage.setItem(GUIDE_KEY, '1');
-  } catch {
-    /* private window: it shows again next visit */
-  }
-}
-
 const scienceTabs: { id: ScienceView; label: string }[] = [
   { id: 'check', label: NAMES.check },
   { id: 'submit', label: NAMES.submit },

@@ -1,16 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { createInstantShare, declineInstantShare, INSTANT_SHARE_KEY } from './useInstantShare';
+import { createInstantShare, INSTANT_SHARE_KEY } from './useInstantShare';
 
 function mem(init: Record<string, string> = {}) {
   const map = new Map(Object.entries(init));
   return { map, getItem: (k: string) => map.get(k) ?? null, setItem: (k: string, v: string) => void map.set(k, v) };
 }
 
-describe('sharing instant answers (opt-in)', () => {
-  it('is off and not yet asked by default', () => {
-    const s = createInstantShare(mem());
-    expect(s.on.value).toBe(false);
-    expect(s.asked.value).toBe(false);
+describe('keep sharing my checks (opt-in)', () => {
+  it('is off by default', () => {
+    expect(createInstantShare(mem()).on.value).toBe(false);
     expect(createInstantShare(null).on.value).toBe(false);
   });
 
@@ -19,27 +17,16 @@ describe('sharing instant answers (opt-in)', () => {
     const s = createInstantShare(st);
     s.on.value = true;
     expect(st.map.get(INSTANT_SHARE_KEY)).toBe('1');
-    expect(s.asked.value).toBe(true);
-    const again = createInstantShare(st);
-    expect(again.on.value).toBe(true);
-    expect(again.asked.value).toBe(true);
+    expect(createInstantShare(st).on.value).toBe(true);
   });
 
-  it('remembers a no, so the inline offer is not shown again', () => {
-    const st = mem();
-    const s = createInstantShare(st);
-    declineInstantShare(s, st);
-    expect(st.map.get(INSTANT_SHARE_KEY)).toBe('0');
-    const again = createInstantShare(st);
-    expect(again.on.value).toBe(false);
-    expect(again.asked.value).toBe(true);
-  });
-
-  it('unticking turns it off', () => {
+  it('unticking turns it off, remembered', () => {
     const st = mem({ [INSTANT_SHARE_KEY]: '1' });
     const s = createInstantShare(st);
-    declineInstantShare(s, st);
+    expect(s.on.value).toBe(true);
+    s.on.value = false;
     expect(st.map.get(INSTANT_SHARE_KEY)).toBe('0');
+    expect(createInstantShare(st).on.value).toBe(false);
   });
 
   it('survives storage that throws', () => {

@@ -1,10 +1,10 @@
 /**
- * "Share my instant answers and their Check exactly results": the per-browser opt-in for instant
- * answer records (search/instantRecord.ts). OFF by default.
+ * "Keep sharing my checks": the per-browser opt-in for instant answer records (search/
+ * instantRecord.ts). OFF by default. With it ticked, every finished Check exactly sends one record;
+ * without it, the player can still tick "Share this check" for one check, on the instant answer.
  *
- * Three states, remembered per browser (localStorage): never answered (`asked` false: the instant
- * answer offers it once, inline, when a Check exactly finishes), yes, or no. The box in Your setup and
- * the inline "Share this check?" are the same refs.
+ * The one source of truth for the setting: the box under the instant answer and the mirror in
+ * Your setup › Sharing are the same ref, remembered per browser (localStorage).
  *
  * Storage is wrapped in try/catch everywhere: private windows and blocked site data throw.
  */
@@ -28,8 +28,6 @@ function defaultStorage(): StorageLike | null {
 export interface InstantShare {
   /** Ticked: each finished Check exactly sends one record. */
   on: Ref<boolean>;
-  /** The player has answered (either way), in Your setup or inline. */
-  asked: Ref<boolean>;
 }
 
 export function createInstantShare(storage: StorageLike | null = defaultStorage()): InstantShare {
@@ -40,11 +38,9 @@ export function createInstantShare(storage: StorageLike | null = defaultStorage(
     saved = null;
   }
   const on = ref(saved === '1');
-  const asked = ref(saved === '1' || saved === '0');
   watch(
     on,
     v => {
-      asked.value = true;
       try {
         storage?.setItem(INSTANT_SHARE_KEY, v ? '1' : '0');
       } catch {
@@ -53,19 +49,7 @@ export function createInstantShare(storage: StorageLike | null = defaultStorage(
     },
     { flush: 'sync' }
   );
-  return { on, asked };
-}
-
-/** "No" inline: remembered as unticked, so it is not offered again. */
-export function declineInstantShare(share: InstantShare, storage: StorageLike | null = defaultStorage()): void {
-  share.asked.value = true;
-  if (share.on.value) share.on.value = false;
-  else
-    try {
-      storage?.setItem(INSTANT_SHARE_KEY, '0');
-    } catch {
-      /* remembered for this visit only */
-    }
+  return { on };
 }
 
 let shared: InstantShare | null = null;

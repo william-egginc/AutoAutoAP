@@ -4,8 +4,8 @@
  * collector's private `POST /instant` (collector/worker.js "instant answer records").
  *
  * WHY. Most players only use the instant answer, so the board learns nothing from them. With this
- * ticked (Your setup, "Share my instant answers and their Check exactly results"; composables/
- * useInstantShare.ts) each finished Check exactly sends ONE record: the instant answer's route, the
+ * ticked (the instant answer's "Share this check", or "Keep sharing my checks" for every check;
+ * composables/useInstantShare.ts) a finished Check exactly sends ONE record: the instant answer's route, the
  * full simulator's times for it on the player's account, and what the answer was built on. The
  * analyst uses them for the instant answer's accuracy across gear and TE, which gear to build the
  * next instant answers for, half-built farms, and prestige windows from repeat checks of one save.
@@ -279,11 +279,29 @@ export function holdsPlayerId(rec: InstantRecord): boolean {
 
 export type InstantSendResult = 'sent' | 'skipped' | 'failed';
 
+/** Why a record was not sent, for the line under the share box. */
+export type InstantSendWhy = 'no-collector' | 'too-big' | 'player-id' | 'same' | 'hourly' | 'server' | 'network';
+
+export interface InstantSendOutcome {
+  result: InstantSendResult;
+  why?: InstantSendWhy;
+  /** 'hourly': when the next record for this save, mode and target may go (ms). */
+  nextAt?: number;
+  /** 'server': the collector's HTTP status. */
+  status?: number;
+}
+
+/** When the last record for this slot went, if one did (ms). */
+function lastSentAt(st: StorageLike | null, slot: string): number | null {
+  const last = readLog(st)[slot];
+  return last ? last.at : null;
+}
+
 /**
- * Send one record: checked, trimmed to size, gated (`shouldSend`), then POSTed with the owner code.
- * Never throws: a failed send is just not recorded.
+ * Send one record, saying why when it doesn't go: checked, trimmed to size, gated (`shouldSend`),
+ * then POSTed with the owner code. Never throws: a failed send is just not recorded.
  */
-export async function sendInstantRecord(o: {
+export async function sendInstantRecordWhy(o: {
   url: string;
   owner: string | null;
   partition: string;
@@ -291,26 +309,37 @@ export async function sendInstantRecord(o: {
   storage: StorageLike | null;
   now?: number;
   fetchImpl?: typeof fetch;
-}): Promise<InstantSendResult> {
-  if (!o.url || !o.owner || !o.partition) return 'skipped';
+}): Promise<InstantSendOutcome> {
+  if (!o.url || !o.owner || !o.partition) return { result: 'skipped', why: 'no-collector' };
   const rec = fitRecord(o.record);
-  if (!rec || holdsPlayerId(rec)) return 'skipped';
+  if (!rec) return { result: 'skipped', why: 'too-big' };
+  if (holdsPlayerId(rec)) return { result: 'skipped', why: 'player-id' };
   const now = o.now ?? Date.now();
   const slot = recordSlot(o.partition, rec);
   const sig = recordSig(rec);
-  if (!shouldSend(o.storage, slot, sig, now)) return 'skipped';
+  if (!shouldSend(o.storage, slot, sig, now)) {
+    const last = readLog(o.storage)[slot];
+    if (last && last.sig === sig) return { result: 'skipped', why: 'same' };
+    const at = lastSentAt(o.storage, slot);
+    return { result: 'skipped', why: 'hourly', ...(at !== null ? { nextAt: at + INSTANT_GAP_MS } : {}) };
+  }
   try {
     const res = await (o.fetchImpl ?? fetch)(o.url, {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-owner-token': o.owner },
       body: JSON.stringify(rec),
     });
-    if (!res.ok) return 'failed';
+    if (!res.ok) return { result: 'failed', why: 'server', status: res.status };
     noteSent(o.storage, slot, sig, now);
-    return 'sent';
+    return { result: 'sent' };
   } catch {
-    return 'failed';
+    return { result: 'failed', why: 'network' };
   }
+}
+
+/** `sendInstantRecordWhy`, just the result. */
+export async function sendInstantRecord(o: Parameters<typeof sendInstantRecordWhy>[0]): Promise<InstantSendResult> {
+  return (await sendInstantRecordWhy(o)).result;
 }
 
 /** The collector's /instant endpoint, from the submit URL; '' without a collector. */

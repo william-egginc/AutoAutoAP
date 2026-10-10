@@ -441,37 +441,104 @@
     <p v-if="result && exactStatus === 'done' && exactMs !== null" class="text-[10px] text-slate-400">
       Checked on your account with the full simulator in {{ (exactMs / 1000).toFixed(0) }} s.
     </p>
-    <!-- The opt-in for instant answer records, offered once when a check finishes (also in Your setup). -->
+    <!-- Sharing this check (search/instantRecord.ts), always here: one check, or every check from now on
+         ("Keep sharing my checks", the same setting as Your setup › Sharing). Only with a collector. -->
     <div
-      v-if="offerShare"
-      class="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-[11px] text-indigo-900 flex flex-wrap items-center gap-x-3 gap-y-1"
-      data-testid="share-check-offer"
+      v-if="result && instantUrl"
+      class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-700 space-y-1"
+      data-testid="share-check"
     >
-      <span
-        ><b>Share this check?</b> This answer and its exact times go to the planner's maintainer, anonymously, to make
-        the instant answer more accurate. Never your player ID, never shown on the board.</span
-      >
-      <button
-        type="button"
-        class="px-2 py-1 rounded-md bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700"
-        @click="shareYes"
-      >
-        Yes, from now on
-      </button>
-      <button
-        type="button"
-        class="px-2 py-1 rounded-md border border-indigo-300 text-indigo-800 text-[10px] font-black uppercase tracking-widest hover:bg-white"
-        @click="shareNo"
-      >
-        No
-      </button>
+      <div class="flex flex-wrap items-center gap-x-4 gap-y-1">
+        <label class="inline-flex items-center gap-1.5 cursor-pointer" :title="SHARE_WHAT">
+          <input
+            v-model="shareThis"
+            type="checkbox"
+            class="rounded border-slate-300 text-indigo-600"
+            data-testid="share-this-check"
+          />
+          <span class="font-bold text-slate-800">Share this check</span> (anonymous)
+        </label>
+        <label class="inline-flex items-center gap-1.5 cursor-pointer" :title="SHARE_WHAT">
+          <input
+            v-model="keepSharing"
+            type="checkbox"
+            class="rounded border-slate-300 text-indigo-600"
+            data-testid="keep-sharing"
+          />
+          Keep sharing my checks
+        </label>
+        <span
+          v-if="shareText"
+          class="text-[10px]"
+          :class="shareNote?.result === 'sent' ? 'text-emerald-700' : 'text-slate-500'"
+          data-testid="share-status"
+          >{{ shareText }}</span
+        >
+      </div>
+      <p class="text-[10px] text-slate-500 leading-relaxed">
+        Sends this answer and its exact times to the planner's maintainer when Check exactly finishes, to make the
+        instant answer more accurate. Never your player ID, never shown on the board. At most once an hour per save.
+      </p>
     </div>
-    <p v-if="result && shareNote === 'sent'" class="text-[10px] text-slate-400" data-testid="share-check-sent">
-      Shared this check anonymously. You can turn this off in Your setup.
-    </p>
-    <p v-else-if="result && shareNote === 'failed'" class="text-[10px] text-slate-400">
-      Couldn't share this check. The next one will try again.
-    </p>
+
+    <!-- This account's Check exactly results on this computer (search/checkHistory.ts), shared or not. -->
+    <details v-if="history.length" class="text-[11px] text-slate-600" data-testid="check-history">
+      <summary class="cursor-pointer font-bold text-slate-700">Your check history ({{ history.length }})</summary>
+      <div class="mt-2 overflow-x-auto">
+        <table class="w-full text-[10px] whitespace-nowrap">
+          <thead class="text-left text-slate-400 uppercase tracking-wider">
+            <tr>
+              <th class="pr-3 py-1 font-black">Checked</th>
+              <th class="pr-3 py-1 font-black">Save</th>
+              <th class="pr-3 py-1 font-black">TE</th>
+              <th class="pr-3 py-1 font-black">Goal</th>
+              <th class="pr-3 py-1 font-black">Instant answer</th>
+              <th class="pr-3 py-1 font-black">Exact</th>
+              <th class="pr-3 py-1 font-black">First leg</th>
+              <th class="pr-3 py-1 font-black">Change</th>
+              <th class="py-1 font-black">Shared</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(h, i) in history" :key="h.at + h.sig" class="border-t border-slate-100">
+              <td class="pr-3 py-1">{{ show(h.at / 1000) }}</td>
+              <td class="pr-3 py-1">{{ h.backupTime ? show(h.backupTime) : '–' }}</td>
+              <td class="pr-3 py-1">{{ h.te }}</td>
+              <td class="pr-3 py-1">{{ h.mode === 'date' ? `by ${show(h.deadline ?? 0)}` : `${h.target} TE` }}</td>
+              <td class="pr-3 py-1">{{ historyAnswer(h, h.instant) }}</td>
+              <td class="pr-3 py-1">{{ h.exact ? historyAnswer(h, h.exact) : '–' }}</td>
+              <td class="pr-3 py-1">
+                {{ h.firstLeg === 'continue' ? 'Continue' : h.firstLeg === 'fresh' ? 'Fresh' : '–' }}
+              </td>
+              <td
+                class="pr-3 py-1 font-bold"
+                :class="
+                  historyDeltas[i]?.better === true
+                    ? 'text-emerald-700'
+                    : historyDeltas[i]?.better === false
+                      ? 'text-amber-700'
+                      : 'text-slate-400'
+                "
+              >
+                {{ historyDeltas[i]?.text ?? '' }}
+              </td>
+              <td class="py-1">{{ h.shared ? 'Yes' : '' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="mt-1 flex flex-wrap items-center gap-x-3 text-[10px] text-slate-400">
+        <span>Kept on this computer only, for this account; the last {{ HISTORY_CAP }} checks.</span>
+        <button
+          type="button"
+          class="font-bold text-slate-500 hover:text-rose-700 underline decoration-dotted"
+          data-testid="clear-history"
+          @click="clearHistory"
+        >
+          Clear history
+        </button>
+      </p>
+    </details>
 
     <!-- What the answer above does not account for, on both screens. -->
     <template v-if="result">
@@ -590,7 +657,7 @@ import { computed, onUnmounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useInstantSummaryStore } from '@/stores/instantSummary';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
-import { showDateTime } from '@/lib/displayTime';
+import { dateStyle, showDateTime } from '@/lib/displayTime';
 import { continueTailParams, instantDeliveryScale } from '@/search/leg';
 import { CONTINUE_MAX_SECONDS, CONTINUE_PIN_MAX_SECONDS } from '@/search/rules';
 import type { FirstAscension } from '@/search/firstAscension';
@@ -642,10 +709,23 @@ import {
   firstLegOf,
   instantLegs,
   instantUrlOf,
-  sendInstantRecord,
+  recordSig,
+  sendInstantRecordWhy,
   type InstantRecord,
+  type InstantSendOutcome,
 } from '@/search/instantRecord';
-import { declineInstantShare, useInstantShare } from '@/composables/useInstantShare';
+import { useInstantShare } from '@/composables/useInstantShare';
+import {
+  addCheck,
+  deltaOf,
+  entryFromRecord,
+  HISTORY_CAP,
+  loadHistory,
+  markShared,
+  saveHistory,
+  type CheckEntry,
+  type HistoryAnswer,
+} from '@/search/checkHistory';
 
 const props = defineProps<{
   /** Highest TE by a date: the unix second. Without it, the fastest route to the target. */
@@ -1433,7 +1513,8 @@ function checkAgain(): void {
 
 async function runExact(id: number, found: NonNullable<typeof result.value>, manual = false): Promise<void> {
   stopExact();
-  shareNote.value = '';
+  resetShareForNewCheck();
+  shareNote.value = null;
   exact.value = {};
   dateExact.value = null;
   dateExactByK.value = {};
@@ -1597,8 +1678,8 @@ async function runExact(id: number, found: NonNullable<typeof result.value>, man
     else if (lead && le)
       writeCache(cachedKey, { at: Date.now(), chain: (lead as Route).chain, end: le.end, endTE: le.endTE });
     saveSnapshot(id);
-    // Opted in (Your setup): one record of this answer and its exact check (search/instantRecord.ts).
-    void shareCheck(id);
+    // Kept in this computer's check history, and shared when "Share this check" is ticked.
+    void afterCheck(id);
   } catch (err) {
     if (id !== runs) return;
     exactStatus.value = 'error';
@@ -1898,29 +1979,81 @@ function days(seconds: number): string {
 }
 
 /**
- * INSTANT ANSWER RECORDS (opt-in, Your setup; search/instantRecord.ts). When a Check exactly finishes
- * and the player has ticked "Share my instant answers and their Check exactly results", one record of
- * this answer and its exact check goes to the collector, privately: never the player id, never on the
- * board. At most one per save, mode and target an hour, and never the same one twice.
+ * INSTANT ANSWER RECORDS (opt-in; search/instantRecord.ts). "Share this check" sends this answer and
+ * its exact check to the collector, privately (never the player id, never on the board), when Check
+ * exactly finishes, or at once if it already has. "Keep sharing my checks" (remembered per browser,
+ * mirrored in Your setup › Sharing) ticks it for every check. At most one per save, mode and target an
+ * hour, and never the same one twice.
  */
 const share = useInstantShare();
+/** "Keep sharing my checks": the per-browser setting itself (Your setup › Sharing shows the same). */
+const keepSharing = share.on;
 const initialState = useInitialStateStore();
 const instantUrl = instantUrlOf(store.submitUrl);
+const SHARE_WHAT =
+  "Sends this check's routes, the instant answer's and the exact times, your TE and Clothed TE, a summary of your gear, " +
+  'your plan start, timezone, save time and settings, with an anonymous code for your account. Never your player ID ' +
+  'or your save; never shown on the board.';
 /** The gear stamp's hash (the 24 hex of `gearTableName`), worked out with the instant answer. */
 const stampHash = ref('');
-/** What the last record did, for the one line under the answer. */
-const shareNote = ref<'' | 'sent' | 'failed'>('');
-/** "Share this check?", once, after a check finishes here (not on a saved answer put back). */
-const offerShare = computed(
-  () => !!instantUrl && !share.asked.value && exactStatus.value === 'done' && !!result.value && !savedAt.value
+/** Share the check on screen (or the one running). Starts ticked with "Keep sharing my checks". */
+const shareThis = ref(share.on.value);
+/** The run whose Check exactly finished in this visit (a saved answer put back is not shared). */
+let doneId = -1;
+/** A check finished since "Share this check" was last set for one: the next check starts afresh. */
+let shareUsed = false;
+/** What the last share did, for the line beside the boxes. */
+const shareNote = ref<(InstantSendOutcome & { at: number }) | null>(null);
+watch(
+  () => share.on.value,
+  v => {
+    if (v) shareThis.value = true;
+  }
 );
-function shareYes(): void {
-  share.on.value = true;
-  void shareCheck(runs);
+watch(shareThis, v => {
+  if (v && doneId === runs && exactStatus.value === 'done') void shareCheck(runs);
+});
+/** A new check: "Share this check" goes back to the "keep sharing" choice once the last one finished. */
+function resetShareForNewCheck(): void {
+  if (shareUsed) shareThis.value = share.on.value;
+  else if (share.on.value) shareThis.value = true;
+  shareUsed = false;
 }
-function shareNo(): void {
-  declineInstantShare(share);
+
+/** "11:02 am", in the plan's timezone (or "11:02" with ISO dates). */
+function clock(ms: number): string {
+  try {
+    if (dateStyle.value === 'iso')
+      return new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: zone.value }).format(
+        new Date(ms)
+      );
+    return new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit', timeZone: zone.value })
+      .format(new Date(ms))
+      .replace(/\s?([AP])\.?M\.?$/i, (_m, x: string) => ` ${x.toLowerCase()}m`);
+  } catch {
+    return new Date(ms).toLocaleTimeString();
+  }
 }
+
+const shareText = computed(() => {
+  const n = shareNote.value;
+  if (!n) return '';
+  if (n.result === 'sent') return `Shared ${clock(n.at)}`;
+  switch (n.why) {
+    case 'same':
+      return 'Already shared.';
+    case 'hourly':
+      return `Couldn't share: one check per save and goal an hour${n.nextAt ? `; try after ${clock(n.nextAt)}` : ''}.`;
+    case 'server':
+      return `Couldn't share: the server said no${n.status ? ` (${n.status})` : ''}.`;
+    case 'network':
+      return "Couldn't share: no connection to the server.";
+    case 'too-big':
+      return "Couldn't share: this check is too big to send.";
+    default:
+      return "Couldn't share this check.";
+  }
+});
 
 const round = (x: number, d: number) => Number(x.toFixed(d)) + 0;
 
@@ -2059,11 +2192,12 @@ function shareStorage(): Storage | null {
   }
 }
 
-/** Send this check's record, when opted in. Never throws; a check that has been superseded is skipped. */
-async function shareCheck(id: number): Promise<void> {
-  if (!share.on.value || !instantUrl || id !== runs) return;
+/** This run's record, built once (the history and the share use the same one, and its signature). */
+let checkRec: { id: number; record: InstantRecord; sig: string } | null = null;
+async function recordOf(id: number): Promise<{ record: InstantRecord; sig: string } | null> {
+  if (checkRec && checkRec.id === id) return checkRec;
   const record = buildRecord();
-  if (!record) return;
+  if (!record) return null;
   // A saved answer put back has no stamp worked out: the maxed instant answer's research gives the same one.
   if (!record.gear.stamp && record.gear.answer === 'maxed' && header.value?.k3) {
     try {
@@ -2073,9 +2207,82 @@ async function shareCheck(id: number): Promise<void> {
       /* sent without it */
     }
   }
+  if (id !== runs) return null;
+  checkRec = { id, record, sig: recordSig(record) };
+  return checkRec;
+}
+
+/** A Check exactly finished here: kept in the history, and shared when "Share this check" is ticked. */
+async function afterCheck(id: number): Promise<void> {
+  doneId = id;
+  shareUsed = true;
+  const c = await recordOf(id);
+  if (!c) return;
+  await rememberCheck(c);
+  if (shareThis.value) await shareCheck(id);
+}
+
+/** Send this check's record. Never throws; a check that has been superseded is skipped. */
+async function shareCheck(id: number): Promise<void> {
+  if (!instantUrl || id !== runs || doneId !== id || exactStatus.value !== 'done') return;
+  const c = await recordOf(id);
+  if (!c) return;
   const partition = await store.accountPartition();
   const owner = partition ? ownerToken(partition) : null;
-  const res = await sendInstantRecord({ url: instantUrl, owner, partition, record, storage: shareStorage() });
-  if (res !== 'skipped') shareNote.value = res;
+  const out = await sendInstantRecordWhy({
+    url: instantUrl,
+    owner,
+    partition,
+    record: c.record,
+    storage: shareStorage(),
+  });
+  if (id !== runs) return;
+  shareNote.value = { ...out, at: Date.now() };
+  if (out.result === 'sent' || out.why === 'same') {
+    history.value = markShared(history.value, c.sig);
+    void saveHistory(historyPartition, history.value);
+  }
+}
+
+/**
+ * CHECK HISTORY (search/checkHistory.ts): this account's Check exactly results on this computer,
+ * newest first, shared or not. Nothing in it is sent.
+ */
+const history = ref<CheckEntry[]>([]);
+let historyPartition = '';
+const historyDeltas = computed(() => history.value.map((_, i) => deltaOf(history.value, i)));
+async function loadHistoryNow(): Promise<void> {
+  const partition = await store.accountPartition().catch(() => '');
+  historyPartition = partition;
+  history.value = await loadHistory(partition);
+}
+watch(
+  () => initialState.rawBackup,
+  () => void loadHistoryNow(),
+  { immediate: true }
+);
+async function rememberCheck(c: { record: InstantRecord; sig: string }): Promise<void> {
+  const partition = await store.accountPartition().catch(() => '');
+  if (!partition) return;
+  if (partition !== historyPartition) {
+    historyPartition = partition;
+    history.value = await loadHistory(partition);
+  }
+  history.value = addCheck(history.value, entryFromRecord(c.record, c.sig, Date.now()));
+  await saveHistory(partition, history.value);
+}
+function clearHistory(): void {
+  history.value = [];
+  void saveHistory(historyPartition, []);
+}
+/** "4 6 8 · Mar 18, 2027, 11:15 AM", or by a date "4 6 8 · 52 TE, 1.5 d spare". */
+function historyAnswer(h: CheckEntry, a: HistoryAnswer): string {
+  const route = a.chain.join(' ');
+  if (h.mode !== 'date') return `${route} · ${show(a.end)}`;
+  const te = a.endTE !== undefined ? `${a.endTE} TE` : show(a.end);
+  if (a.spareHours === undefined) return `${route} · ${te}`;
+  const x = Math.abs(a.spareHours);
+  const amount = x >= 48 ? `${(x / 24).toFixed(1)} d` : `${x.toFixed(1)} h`;
+  return `${route} · ${te}, ${amount} ${a.spareHours >= 0 ? 'spare' : 'late'}`;
 }
 </script>

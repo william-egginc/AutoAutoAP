@@ -14,6 +14,7 @@ import {
   recordSlot,
   SENT_KEY,
   sendInstantRecord,
+  sendInstantRecordWhy,
   shouldSend,
   type InstantRecord,
 } from './instantRecord';
@@ -199,6 +200,25 @@ describe('sending', () => {
     expect(await sendInstantRecord({ ...base, fetchImpl: vi.fn(async () => new Response('', { status: 429 })) })).toBe('failed');
     expect(await sendInstantRecord({ ...base, fetchImpl: vi.fn(async () => Promise.reject(new Error('offline'))) })).toBe('failed');
     expect(st.map.has(SENT_KEY)).toBe(false);
+  });
+
+  it('says why a record did not go', async () => {
+    const st = mem();
+    const now = 1_800_000_000_000;
+    const base = { url: 'https://c.test/instant', owner: 'a'.repeat(32), partition: 'p', storage: st, now };
+    expect(await sendInstantRecordWhy({ ...base, url: '', record: record() })).toEqual({ result: 'skipped', why: 'no-collector' });
+    expect(await sendInstantRecordWhy({ ...base, record: record(), fetchImpl: vi.fn(async () => new Response('', { status: 429 })) })).toEqual({
+      result: 'failed',
+      why: 'server',
+      status: 429,
+    });
+    expect((await sendInstantRecordWhy({ ...base, record: record(), fetchImpl: vi.fn(async () => Promise.reject(new Error('x'))) })).why).toBe('network');
+    const fetchImpl = vi.fn(async () => new Response('{}', { status: 200 }));
+    expect(await sendInstantRecordWhy({ ...base, record: record(), fetchImpl })).toEqual({ result: 'sent' });
+    expect(await sendInstantRecordWhy({ ...base, record: record(), fetchImpl })).toEqual({ result: 'skipped', why: 'same' });
+    const other = await sendInstantRecordWhy({ ...base, now: now + 60_000, record: record({ planStart: T0 + 3600 }), fetchImpl });
+    expect(other).toEqual({ result: 'skipped', why: 'hourly', nextAt: now + INSTANT_GAP_MS });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
   it('finds /instant beside /submit, and nothing without one', () => {
