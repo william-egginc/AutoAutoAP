@@ -319,7 +319,66 @@ const COLUMNS = [
   // Last, so the readers that go by position (the Explorer's) are unaffected. `stopped` is a leg
   // cut short when time off began; `restarted` is the rebuild after it. Blank otherwise.
   'time_off',
+  // Leg 1 only (9 Oct 2026), after everything else for the same reason: `continue` or `fresh`, and
+  // when both were simulated, when the option NOT taken would have ended leg 1 and how many hours
+  // later than the one taken (`firstLegCells`).
+  'first_leg',
+  'first_leg_other_end_local',
+  'first_leg_other_later_hours',
 ] as const;
+
+/** Leg 1's choice as words: `continue` or `fresh`. */
+export function firstLegChoice(leg: LegSummary): 'continue' | 'fresh' {
+  return leg.key === 'continue' ? 'continue' : 'fresh';
+}
+
+/** Hours the leg-1 option not taken would have ended after the one taken (negative: before). */
+export function firstLegOtherLaterHours(leg: LegSummary): number | null {
+  const r = leg.firstLegRival;
+  if (!r || !Number.isFinite(r.endTime) || !Number.isFinite(leg.endTime)) return null;
+  return (r.endTime - leg.endTime) / 3600;
+}
+
+/** The three leg-1 cells: blank on every other leg, and the last two blank when only one kind was
+ *  simulated. */
+function firstLegCells(leg: LegSummary | null, legIndex: number | '', tz: string): (string | undefined)[] {
+  if (!leg || legIndex !== 0) return [undefined, undefined, undefined];
+  const later = firstLegOtherLaterHours(leg);
+  return [
+    firstLegChoice(leg),
+    leg.firstLegRival ? formatInZone(leg.firstLegRival.endTime, tz) || 'never' : undefined,
+    later === null ? undefined : later.toFixed(2),
+  ];
+}
+
+/** The header line for the best route's leg 1: which way it went and what the other way gave. Null
+ *  without the leg (a checkpoint replay keeps no legs for anything but the best). */
+export function firstLegLine(leg: LegSummary | null | undefined, tz: string, mode: FirstAscension): string | null {
+  if (!leg) return null;
+  const continued = leg.key === 'continue';
+  const what = continued ? 'continue (finishes the ascension in progress)' : `fresh (${leg.key} build, prestige now)`;
+  const r = leg.firstLegRival;
+  const later = firstLegOtherLaterHours(leg);
+  let other: string;
+  if (r && later !== null) {
+    const otherWhat = r.key === 'continue' ? 'continuing' : `the best fresh build (${r.key})`;
+    const at = formatInZone(r.endTime, tz);
+    other = at
+      ? `${otherWhat} would have ended leg 1 ${at}, ${Math.abs(later).toFixed(1)} h ${later >= 0 ? 'later' : 'earlier'}`
+      : `${otherWhat} would never have ended leg 1`;
+  } else if (continued) {
+    other =
+      mode === 'continue'
+        ? 'no fresh build simulated (Continue Asc. takes it outright inside a week)'
+        : 'no fresh build to compare';
+  } else {
+    other =
+      mode === 'fresh'
+        ? 'continue not simulated (Prestige Now)'
+        : 'continue not simulated (no farm in the save, a plan start over an hour ahead, or time off at the start)';
+  }
+  return `first leg (best route): ${what}; ${other}`;
+}
 
 function legCells(
   rank: number,
@@ -359,6 +418,7 @@ function legCells(
     leg?.shifts?.[0]?.fromEgg,
     leg?.shifts?.length ? leg.shifts.map(x => `${formatInZone(x.at, tz)} ${x.egg}`).join('; ') : undefined,
     leg?.timeOff,
+    ...firstLegCells(leg, legIndex, tz),
   ];
 }
 
@@ -450,6 +510,8 @@ export function* chainsCsvChunks(entries: CacheEntry[], meta: CsvMeta): Generato
   );
   const note = (s: string) => lines.push(`# ${s}`);
 
+  const firstLeg = firstLegLine(ranked[0]?.legs[0], tz, meta.firstAscension);
+  if (firstLeg) note(firstLeg);
   note('One row per leg. Blank per-leg cells mean the chain was replayed from a saved checkpoint,');
   note('which keeps per-leg detail for the best chain only — the total is still exact.');
   note(`Local times are ${tz}. gap_days is days behind the best chain in this file.`);
@@ -549,6 +611,8 @@ export function* deadlineCsvChunks(
     `${info.priced} routes priced${info.stoppedEarly ? ', stopped early' : ''}${info.ascendNeeded ? '; must ascend at the last stop in awake hours' : ''}`
   );
   const note = (s: string) => lines.push(`# ${s}`);
+  const firstLeg = firstLegLine(routes[0]?.legs?.[0], tz, meta.firstAscension);
+  if (firstLeg) note(firstLeg);
   note('One row per leg of each kept route (the same leg columns as the chain search), best route first.');
   note(
     "rank, route, stops, last_stop, reached_local, ascend_from_local and spare_hours repeat on each of a route's rows."

@@ -42,7 +42,8 @@ describe('reading the setting from any record', () => {
 describe("Classic's one-hour rule", () => {
   const now = 1_800_000_000;
   it('keeps the setting for a plan starting now, in the past, or within the hour', () => {
-    for (const start of [now - 86400, now, now + CONTINUE_START_WINDOW_SECONDS]) {
+    // 1.8 h back is the alt run of 9 Oct (plan start 1:47 pm, run at 3:33 pm): it kept "auto".
+    for (const start of [now - 86400, now - 1.8 * 3600, now, now + CONTINUE_START_WINDOW_SECONDS]) {
       expect(firstAscensionAt('continue', start, now)).toBe('continue');
       expect(firstAscensionAt('auto', start, now)).toBe('auto');
     }

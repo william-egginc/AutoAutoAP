@@ -272,6 +272,11 @@ export function createChainEvaluator(inputs: SearchInputs, memoSettings: MemoSet
               const atHour = priceStep(state as EngineState, hour, chain[i], false, te, i);
               const both = handoff === 'sooner' || isResearchSaleActive(time);
               segs = both ? sooner(atHour, atOnce) : atHour;
+              // The fresh start on the hour never simulates continue; the start at once did, and
+              // continue lost there, so its time is still the rival leg 1 is recorded against.
+              const rival = atOnce?.[0]?.rival;
+              if (i === 0 && segs && segs !== atOnce && rival && !segs[0].rival)
+                segs = [{ ...segs[0], rival }, ...segs.slice(1)];
             }
           }
           // The last step is still READ from the memo above (another route's early stops may be this
@@ -334,6 +339,7 @@ export function createChainEvaluator(inputs: SearchInputs, memoSettings: MemoSet
             shiftDelaySeconds: shiftDelay,
             ...(leg.timeOff ? { timeOff: leg.timeOff } : {}),
             ...(leg.afterTimeOff ? { afterTimeOff: true as const } : {}),
+            ...(leg.rival ? { firstLegRival: { ...leg.rival } } : {}),
           });
 
           state = leg.nextState;

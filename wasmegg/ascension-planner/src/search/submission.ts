@@ -241,6 +241,19 @@ export interface Submission {
    * when `forceContinue` is true and 'auto' when false.
    */
   firstAscension?: FirstAscension;
+  /**
+   * Which way leg 1 actually went (9 Oct 2026, optional, no schema bump): 'continue' finished the
+   * ascension in progress, 'fresh' prestiged into a new build. Under 'auto' this is the one the
+   * search picked; `firstAscension` is only the setting.
+   */
+  firstLeg?: 'continue' | 'fresh';
+  /**
+   * When leg 1 simulated both kinds: hours the option NOT taken would have ended leg 1 after the one
+   * taken (negative if sooner: a deadline leg, or a fresh start then moved to the hour, the instant
+   * answer's check). Absent when only one kind was
+   * simulated (Prestige Now, no farm in the save, the one-hour rule, Continue Asc. inside a week).
+   */
+  firstLegOtherHours?: number;
   /** By a date only: which mode found it (Simple tries the instant answer's routes, Advanced the player's boxes). */
   mode?: 'simple' | 'advanced';
   /** Total time the plan spends waiting for the player: prestiges held plus shifts held. */
@@ -444,6 +457,8 @@ export const MAX_RECHECKS = 3;
 /** The collector's ceilings, mirrored: a chain's length, a plan's days, a save's age in hours. */
 const MAX_CHAIN = 64;
 const MAX_DURATION_DAYS = 100000;
+/** `firstLegOtherHours` either way, the collector's bound too (collector/worker.js). */
+export const MAX_FIRST_LEG_OTHER_HOURS = MAX_DURATION_DAYS * 24;
 const MAX_BACKUP_AGE_HOURS = 24 * 365;
 const MAX_BUILD = 40;
 
@@ -879,6 +894,13 @@ export function buildSubmission(i: SubmissionInputs): Submission {
       : null;
   const rechecks = cleanRechecks(i.rechecks, i.chain, i.finalTE);
   const build = i.build?.trim().slice(0, MAX_BUILD);
+  // Leg 1's choice and how far off the other way was (csv.ts `firstLegCells` writes the same).
+  const leg1 = i.legs[0];
+  const rival = leg1?.firstLegRival;
+  const otherHours =
+    leg1 && rival && Number.isFinite(rival.endTime) && Number.isFinite(leg1.endTime)
+      ? Number(((rival.endTime - leg1.endTime) / 3600).toFixed(2))
+      : null;
 
   return {
     schema: i.deadline ? DEADLINE_SUBMISSION_SCHEMA : SUBMISSION_SCHEMA,
@@ -902,6 +924,11 @@ export function buildSubmission(i: SubmissionInputs): Submission {
       : i.forceContinue === undefined
         ? {}
         : { forceContinue: i.forceContinue }),
+    ...(leg1 ? { firstLeg: leg1.key === 'continue' ? ('continue' as const) : ('fresh' as const) } : {}),
+    // Past the collector's bound (a continue that never ends) it is left off, as the collector would.
+    ...(otherHours !== null && Math.abs(otherHours) <= MAX_FIRST_LEG_OTHER_HOURS
+      ? { firstLegOtherHours: otherHours + 0 }
+      : {}),
     ...(i.mode ? { mode: i.mode } : {}),
     waitingHours: waiting === null ? null : Number(waiting.toFixed(2)),
     // Stones are kept wholesale -- they slot into every family above -- while artifacts are
@@ -1081,6 +1108,13 @@ export function validateSubmission(value: unknown): string[] {
   ) {
     problems.push(`backupAgeHours must be within ${MAX_BACKUP_AGE_HOURS} hours either way`);
   }
+  if (s.firstLeg !== undefined && s.firstLeg !== 'continue' && s.firstLeg !== 'fresh')
+    problems.push("firstLeg must be 'continue' or 'fresh'");
+  if (
+    s.firstLegOtherHours !== undefined &&
+    !(Number.isFinite(s.firstLegOtherHours) && Math.abs(s.firstLegOtherHours) <= MAX_FIRST_LEG_OTHER_HOURS)
+  )
+    problems.push('firstLegOtherHours must be a number of hours');
   if (s.backupTE !== undefined && !(Number.isFinite(s.backupTE) && s.backupTE >= 0)) {
     problems.push('backupTE must be a number');
   }

@@ -100,6 +100,7 @@ describe('buildSubmission', () => {
         'endLocal',
         'endUtc',
         'finalTE',
+        'firstLeg',
         'holdShifts',
         'legs',
         'schema',
@@ -776,5 +777,39 @@ describe('a best so far (Send best so far)', () => {
     for (const junk of [null, undefined, 'abcd1234', { id: 'NOT AN ID' }, { nickname: 'Jo' }]) {
       expect(readProvisionalRow(junk)).toBeNull();
     }
+  });
+});
+
+describe('which way leg 1 went (firstLeg, 9 Oct)', () => {
+  const at = PLAN_START + 49 * 86400;
+  const first = (over: Partial<LegSummary>) => ({ ...leg(161, 49), endTime: at, ...over }) as unknown as LegSummary;
+
+  it('says fresh or continue, and how many hours later the other way would have ended leg 1', () => {
+    const s = buildSubmission(
+      inputs({ legs: [first({ key: '2-sale', firstLegRival: { key: 'continue', endTime: at + 19.2 * 3600 } })] })
+    );
+    expect(s.firstLeg).toBe('fresh');
+    expect(s.firstLegOtherHours).toBe(19.2);
+    expect(validateSubmission(s)).toEqual([]);
+    const c = buildSubmission(
+      inputs({ legs: [first({ key: 'continue', firstLegRival: { key: '1-sale', endTime: at + 3600 } })] })
+    );
+    expect([c.firstLeg, c.firstLegOtherHours]).toEqual(['continue', 1]);
+  });
+
+  it('leaves the hours off when only one way was simulated, or the other never ends', () => {
+    expect('firstLegOtherHours' in buildSubmission(inputs({ legs: [first({ key: '2-sale' })] }))).toBe(false);
+    const never = buildSubmission(
+      inputs({ legs: [first({ key: '2-sale', firstLegRival: { key: 'continue', endTime: at + 1e12 } })] })
+    );
+    expect(never.firstLeg).toBe('fresh');
+    expect('firstLegOtherHours' in never).toBe(false);
+    expect('firstLeg' in buildSubmission(inputs({ legs: [] }))).toBe(false);
+  });
+
+  it('refuses a malformed one', () => {
+    const ok = buildSubmission(inputs());
+    expect(validateSubmission({ ...ok, firstLeg: 'auto' } as unknown as Submission).join()).toMatch(/firstLeg/);
+    expect(validateSubmission({ ...ok, firstLegOtherHours: Infinity }).join()).toMatch(/firstLegOtherHours/);
   });
 });

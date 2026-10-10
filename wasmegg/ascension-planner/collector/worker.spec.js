@@ -175,6 +175,25 @@ describe('ingest is a whitelist, not a scrub', () => {
     }
   });
 
+  it('keeps which way leg 1 went as one of two words, and the other way as a bounded number', async () => {
+    for (const first of ['continue', 'fresh']) {
+      env = { SUBMISSIONS: makeKV(), CSV_UPLOAD_KEY: 'test-key' };
+      expect((await post('/submit', { ...MINIMAL, firstLeg: first, firstLegOtherHours: 19.2 })).status).toBe(200);
+      expect(stored()[0][1].firstLeg).toBe(first);
+      expect(stored()[0][1].firstLegOtherHours).toBe(19.2);
+    }
+    for (const [junk, hours] of [
+      ['auto', 'soon'],
+      ['FRESH', 1e12],
+      [true, Infinity],
+    ]) {
+      env = { SUBMISSIONS: makeKV(), CSV_UPLOAD_KEY: 'test-key' };
+      expect((await post('/submit', { ...MINIMAL, firstLeg: junk, firstLegOtherHours: hours })).status).toBe(200);
+      expect(stored()[0][1]).not.toHaveProperty('firstLeg');
+      expect(stored()[0][1]).not.toHaveProperty('firstLegOtherHours');
+    }
+  });
+
   it('keeps a run note as plain text, swept for player ids and control characters', async () => {
     const res = await post('/submit', { ...MINIMAL, note: 'Friday start test\nfor EI1234567890123456\u0007' });
     expect(res.status).toBe(200);

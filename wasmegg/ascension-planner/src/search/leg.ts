@@ -89,6 +89,18 @@ export interface LegResult {
   /** The egg the farm is on when the leg ends: the one it keeps laying while the player waits to
    *  prestige (search/chain.ts). */
   lastEgg: string;
+  /** A1 only, when both kinds were simulated: the best option of the OTHER kind -- the fresh build
+   *  continue beat, or the continue that lost (also when it was dropped for running past six months,
+   *  so a record can say how far off it was). Absent when only one kind was simulated: Prestige Now,
+   *  no farm in the save, the one-hour rule, or Continue Asc. taken outright inside a week. */
+  rival?: FirstLegRival;
+}
+
+/** The leg-1 option that lost (LegResult.rival): its variant and when its leg would have ended. */
+export interface FirstLegRival {
+  key: VariantKey;
+  /** Absolute end instant, unix seconds. */
+  endTime: number;
 }
 
 /**
@@ -187,13 +199,21 @@ export function runLeg(
       baseState.currentEgg,
   });
   const compactOrNull = (v: VariantResult | null): CompactVariant | null => (v ? compact(v) : null);
-  const asLeg = (v: CompactVariant, key: VariantKey): LegResult => ({
+  const asLeg = (
+    v: CompactVariant,
+    key: VariantKey,
+    rival?: CompactVariant | null,
+    rivalKey?: VariantKey
+  ): LegResult => ({
     summary: v.summary,
     key,
     nextState: deriveNextStartState(v.summary, cloneBaseState(inputs)),
     shifts: v.shifts,
     heldSeconds: v.heldSeconds,
     lastEgg: v.lastEgg,
+    ...(rival && rivalKey && Number.isFinite(rival.summary.endTime)
+      ? { rival: { key: rivalKey, endTime: rival.summary.endTime } }
+      : {}),
   });
 
   // Continue first (A1 only): see CONTINUE_PIN_MAX_SECONDS for the whole rule. Past six months it
@@ -204,6 +224,8 @@ export function runLeg(
     allowContinue && mode !== 'fresh'
       ? compactOrNull(buildContinueVariant(inputs, baseState, startTime, goalTE, idx, endOverride))
       : null;
+  // Kept even when dropped below, as the rival a fresh leg 1 is recorded against.
+  const contBuilt = cont;
   if (cont && !(cont.summary.totalDurationSeconds <= (inputs.continueMaxSeconds ?? CONTINUE_MAX_SECONDS))) cont = null;
   if (
     cont &&
@@ -255,10 +277,10 @@ export function runLeg(
           : cont.summary.totalDurationSeconds <= freshBest.summary.totalDurationSeconds
         : // 'auto': simply one more candidate, as Classic treats it with nothing picked.
           pickVariant({ ...fresh, continue: cont }, undefined, byDeadline) === cont;
-    if (contWins) return asLeg(cont, 'continue');
+    if (contWins) return asLeg(cont, 'continue', freshBest, freshKey ?? undefined);
   }
   if (!freshBest || !freshKey) return null;
-  return asLeg(freshBest, freshKey);
+  return asLeg(freshBest, freshKey, contBuilt, 'continue');
 }
 
 /**

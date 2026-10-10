@@ -654,6 +654,11 @@ function pickSubmission(s) {
     // faster of continuing and a fresh start, 'continue', 'fresh'. Sent beside `forceContinue`, which
     // is true exactly when this is 'continue'. Anything else is dropped. No schema bump: optional.
     firstAscension: FIRST_ASCENSIONS.has(s.firstAscension) ? s.firstAscension : undefined,
+    // Which way leg 1 actually went (9 Oct 2026): 'continue' or 'fresh', anything else dropped. And,
+    // when both were simulated, hours the way NOT taken would have ended leg 1 after the one taken
+    // (negative: before), within the duration bound either way. Optional, no schema bump.
+    firstLeg: s.firstLeg === 'continue' || s.firstLeg === 'fresh' ? s.firstLeg : undefined,
+    firstLegOtherHours: within(s.firstLegOtherHours, -MAX.DURATION_DAYS * 24, MAX.DURATION_DAYS * 24),
     // By a date only: which mode found the row (the board's Effort column). Absent before 9 Oct 2026.
     mode: s.mode === 'simple' || s.mode === 'advanced' ? s.mode : undefined,
     waitingHours: s.waitingHours === null ? null : num(s.waitingHours),

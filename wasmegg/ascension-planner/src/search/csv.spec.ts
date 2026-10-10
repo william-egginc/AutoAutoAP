@@ -300,8 +300,8 @@ describe('time off in the CSV', () => {
       },
     ];
     const csv = buildChainsCsv(entries, { ...META, timeOff: [{ from: '2026-11-20', to: '2026-11-26' }] });
-    const last = (row: number) => dataRows(csv)[row].split(',').pop();
-    expect([last(0), last(1), last(2)]).toEqual(['stopped', 'restarted', '']);
+    const off = (row: number) => column(csv, row, 'time_off');
+    expect([off(0), off(1), off(2)]).toEqual(['stopped', 'restarted', '']);
     expect(csv).toContain('time off from virtue: 2026-11-20 to 2026-11-26');
   });
 });
@@ -411,5 +411,61 @@ describe('a CSV so far (a progress send, 10 Oct)', () => {
       }
     );
     expect(csv.split('\n')[1]).toMatch(/^# in progress, 40 of 90 routes priced so far/);
+  });
+});
+
+describe('leg 1: which way it went, and the way not taken (9 Oct)', () => {
+  const CONT_END = PLAN_START + 60 * 86400 + 19.2 * 3600;
+  const fresh = leg({ key: '2-sale', firstLegRival: { key: 'continue', endTime: CONT_END } });
+
+  it('fills the three columns on leg 1 only, and says it in the header', () => {
+    const csv = buildChainsCsv([{ key: '219,490', seconds: 700 * 86400, legs: [fresh, leg({ endTE: 490 })] }], {
+      ...META,
+      firstAscension: 'auto',
+    });
+    expect(column(csv, 0, 'first_leg')).toBe('fresh');
+    expect(column(csv, 0, 'first_leg_other_end_local')).toBe(formatInZone(CONT_END, DENVER));
+    expect(column(csv, 0, 'first_leg_other_later_hours')).toBe('19.20');
+    expect(
+      [1, 2, 3].map(k =>
+        column(csv, 1, ['first_leg', 'first_leg_other_end_local', 'first_leg_other_later_hours'][k - 1])
+      )
+    ).toEqual(['', '', '']);
+    expect(csv).toContain(
+      `# first leg (best route): fresh (2-sale build, prestige now); continuing would have ended leg 1 ${formatInZone(CONT_END, DENVER)}, 19.2 h later`
+    );
+  });
+
+  it('a continue leg 1 names the fresh build it beat; one with nothing to compare says why', () => {
+    const won = leg({ key: 'continue', firstLegRival: { key: '1-sale', endTime: PLAN_START + 61 * 86400 } });
+    const csv = buildChainsCsv([{ key: '219,490', seconds: 700 * 86400, legs: [won] }], {
+      ...META,
+      firstAscension: 'auto',
+    });
+    expect(column(csv, 0, 'first_leg')).toBe('continue');
+    expect(column(csv, 0, 'first_leg_other_later_hours')).toBe('24.00');
+    expect(csv).toContain(
+      '# first leg (best route): continue (finishes the ascension in progress); the best fresh build (1-sale) would have ended leg 1'
+    );
+
+    const alone = buildChainsCsv([{ key: '219,490', seconds: 700 * 86400, legs: [leg()] }], {
+      ...META,
+      firstAscension: 'fresh',
+    });
+    expect(column(alone, 0, 'first_leg')).toBe('fresh');
+    expect(column(alone, 0, 'first_leg_other_end_local')).toBe('');
+    expect(alone).toContain('continue not simulated (Prestige Now)');
+  });
+
+  it('By a date writes the same columns and line', () => {
+    const csv = buildDeadlineCsv(
+      [{ chain: [219], reachAt: PLAN_START + 60 * 86400, ascendAt: PLAN_START + 60 * 86400, spare: 0, legs: [fresh] }],
+      META,
+      { deadline: PLAN_START + 100 * 86400, priced: 1 }
+    );
+    expect(csv).toContain('# first leg (best route): fresh');
+    expect(csv.split('\n').find(l => l.startsWith('rank,'))).toContain(
+      'first_leg,first_leg_other_end_local,first_leg_other_later_hours'
+    );
   });
 });

@@ -16,10 +16,16 @@ const calls = { c3: 0 };
 vi.mock('@/auto/ascension', () => ({
   runUntilShift: () => ({ actions: [], state: {}, elapsedSeconds: 0 }),
   deriveNextStartState: () => ({}),
-  runContinueCurrent: () => ({ actions: [], summary: { totalDurationSeconds: contDays * DAY, endTE: contEndTE } }),
+  runContinueCurrent: () => ({
+    actions: [],
+    summary: { totalDurationSeconds: contDays * DAY, endTime: contDays * DAY, endTE: contEndTE },
+  }),
   runAscensionFromC3Variant: (_b: unknown, _p: unknown, v: { saleCount: number }) => {
     const f = fresh.find(x => x.sale === v.saleCount)!;
-    return { actions: [], summary: { totalDurationSeconds: f.days * DAY, endTE: f.endTE ?? 200 } };
+    return {
+      actions: [],
+      summary: { totalDurationSeconds: f.days * DAY, endTime: f.days * DAY, endTE: f.endTE ?? 200 },
+    };
   },
 }));
 vi.mock('@/auto/shifts/c3', () => ({
@@ -147,5 +153,44 @@ describe('leg 1 continue rule', () => {
     expect(leg1(inputs(), 20 * DAY)?.key).toBe('1-sale'); // 3-sale cannot finish its build in time
     contEndTE = 212;
     expect(leg1(inputs(), 20 * DAY)?.key).toBe('continue'); // a tie in TE goes to continue
+  });
+});
+
+describe('leg 1 records the option it did not take (rival)', () => {
+  it('under Fastest, a fresh win records continue as the rival, and a continue win the best fresh build', () => {
+    contDays = 50;
+    fresh = [
+      { sale: 1, days: 40 },
+      { sale: 2, days: 35 },
+    ];
+    const f = leg1(inputs('auto'))!;
+    expect(f.key).toBe('2-sale');
+    expect(f.rival).toEqual({ key: 'continue', endTime: 50 * DAY });
+    contDays = 30;
+    const c = leg1(inputs('auto'))!;
+    expect(c.key).toBe('continue');
+    expect(c.rival).toEqual({ key: '2-sale', endTime: 35 * DAY });
+  });
+
+  it('keeps a continue dropped past six months as the rival, so the record says how far off it was', () => {
+    contDays = 200;
+    fresh = [{ sale: 1, days: 60 }];
+    const r = leg1(inputs('auto'))!;
+    expect(r.key).toBe('1-sale');
+    expect(r.rival).toEqual({ key: 'continue', endTime: 200 * DAY });
+  });
+
+  it('has no rival when only one kind was simulated', () => {
+    contDays = 5;
+    fresh = [{ sale: 1, days: 3 }];
+    // Continue Asc. inside a week: taken outright, no fresh build simulated.
+    expect(leg1(inputs('continue'))!.rival).toBeUndefined();
+    // Prestige now: continue never simulated.
+    expect(leg1(inputs('fresh'))!.rival).toBeUndefined();
+    // No farm in the save.
+    const noFarm = { ...inputs('auto'), currentFarmState: null } as unknown as SearchInputs;
+    expect(leg1(noFarm)!.rival).toBeUndefined();
+    // Not leg 1.
+    expect(runLeg(inputs('auto'), {} as never, 0, 250, false, 181, 1)!.rival).toBeUndefined();
   });
 });

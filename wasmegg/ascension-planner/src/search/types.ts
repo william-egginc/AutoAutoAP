@@ -164,6 +164,10 @@ export interface LegSummary {
   /** A `stopped` leg that also STARTED after time off: it sits between two stretches of it. Its
    *  start then matters to the plan builder as much as its end. */
   afterTimeOff?: true;
+  /** Leg 1 only, when continue and a fresh build were both simulated: the best option of the kind
+   *  NOT taken and when its leg would have ended (search/leg.ts `LegResult.rival`). Whether leg 1
+   *  continued is `key === 'continue'`. Absent on every other leg and on runs from before 9 Oct. */
+  firstLegRival?: { key: VariantKey; endTime: number };
 }
 
 /** A fully evaluated chain. `seconds` is what every stage of the driver minimises. */
