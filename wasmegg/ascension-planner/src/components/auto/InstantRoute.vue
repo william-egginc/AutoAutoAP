@@ -491,8 +491,17 @@
               <td class="pr-3 py-1">{{ h.backupTime ? show(h.backupTime) : '–' }}</td>
               <td class="pr-3 py-1">{{ h.te }}</td>
               <td class="pr-3 py-1">{{ h.mode === 'date' ? `by ${show(h.deadline ?? 0)}` : `${h.target} TE` }}</td>
-              <td class="pr-3 py-1">{{ historyAnswer(h, h.instant) }}</td>
-              <td class="pr-3 py-1">{{ h.exact ? historyAnswer(h, h.exact) : '–' }}</td>
+              <td class="pr-3 py-1 align-top">
+                <div>{{ historyCell(h, h.instant, show).route }}</div>
+                <div class="text-slate-500">{{ historyCell(h, h.instant, show).result }}</div>
+              </td>
+              <td class="pr-3 py-1 align-top" data-testid="history-exact">
+                <template v-if="h.exact">
+                  <div>{{ historyCell(h, h.exact, show).route }}</div>
+                  <div class="text-slate-500">{{ historyCell(h, h.exact, show).result }}</div>
+                </template>
+                <template v-else>–</template>
+              </td>
               <td class="pr-3 py-1">
                 {{
                   h.firstLeg === 'continue'
@@ -716,12 +725,12 @@ import {
   addCheck,
   deltaOf,
   entryFromRecord,
+  historyCell,
   HISTORY_CAP,
   loadHistory,
   markShared,
   saveHistory,
   type CheckEntry,
-  type HistoryAnswer,
 } from '@/search/checkHistory';
 
 const props = defineProps<{
@@ -2332,15 +2341,5 @@ async function rememberCheck(c: { record: InstantRecord; sig: string }): Promise
 function clearHistory(): void {
   history.value = [];
   void saveHistory(historyPartition, []);
-}
-/** "4 6 8 · Mar 18, 2027, 11:15 AM", or by a date "4 6 8 · 52 TE, 1.5 d spare". */
-function historyAnswer(h: CheckEntry, a: HistoryAnswer): string {
-  const route = a.chain.join(' ');
-  if (h.mode !== 'date') return `${route} · ${show(a.end)}`;
-  const te = a.endTE !== undefined ? `${a.endTE} TE` : show(a.end);
-  if (a.spareHours === undefined) return `${route} · ${te}`;
-  const x = Math.abs(a.spareHours);
-  const amount = x >= 48 ? `${(x / 24).toFixed(1)} d` : `${x.toFixed(1)} h`;
-  return `${route} · ${te}, ${amount} ${a.spareHours >= 0 ? 'spare' : 'late'}`;
 }
 </script>

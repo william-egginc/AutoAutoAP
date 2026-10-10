@@ -19,6 +19,7 @@ import {
   addCheck,
   deltaOf,
   entryFromRecord,
+  historyCell,
   HISTORY_CAP,
   loadHistory,
   markShared,
@@ -155,5 +156,28 @@ describe('check history', () => {
     blocked.on = true;
     expect(await saveHistory('acct1', list)).toBe(false);
     expect(await loadHistory('acct1')).toEqual([]);
+  });
+});
+
+describe('historyCell', () => {
+  const show = (t: number) => `t${t}`;
+  const date = { mode: 'date', deadline: 2_000_000 } as CheckEntry;
+  it('keeps every stop of the route, the last one included (the alt, 10 Oct)', () => {
+    const cell = historyCell(
+      date,
+      { chain: [143, 155, 180, 197, 224, 247], end: 1_900_000, endTE: 247, spareHours: 36 },
+      show
+    );
+    expect(cell.route).toBe('143 155 180 197 224 247');
+    expect(cell.result).toBe('247 TE, 36.0 h spare');
+  });
+  it('says late, days past two, and the finish for the fastest route', () => {
+    expect(historyCell(date, { chain: [150, 200], end: 1, endTE: 200, spareHours: -72 }, show).result).toBe(
+      '200 TE, 3.0 d late'
+    );
+    expect(historyCell({ mode: 'fastest', target: 490 } as CheckEntry, { chain: [200, 490], end: 5 }, show)).toEqual({
+      route: '200 490',
+      result: 't5',
+    });
   });
 });
