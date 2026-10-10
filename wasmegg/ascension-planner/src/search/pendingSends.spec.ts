@@ -7,8 +7,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const db = new Map<string, unknown>();
 vi.mock('@/lib/storage/db', async () => (await import('@/test/memoryDb')).memoryDbModule(db));
 
-const { keepPendingSend, listPendingSends, dropPendingSend, pendingPayload, chosenConsent, MAX_PENDING_SENDS } =
-  await import('./pendingSends');
+const {
+  keepPendingSend,
+  listPendingSends,
+  dropPendingSend,
+  pendingPayload,
+  chosenConsent,
+  keptDiagnostics,
+  diagnosticsToKeep,
+  MAX_PENDING_SENDS,
+} = await import('./pendingSends');
 const { GzipStopped, gzipChunksCapped, csvNote, csvSettled } = await import('./progressSend');
 
 const kept = (n: number, over: object = {}) => ({
@@ -86,6 +94,31 @@ describe("Send it now's choice of name", () => {
       'x'.repeat(40)
     );
     expect(chosenConsent(kept(1, { csvGz: undefined }), choice)?.sendCsv).toBe(false);
+  });
+});
+
+describe('the CSV, diagnostics and name choices on Send it now', () => {
+  const choice = { agreed: true, anonymous: true, nickname: 'Willsalt' };
+  it('sends the CSV by default, and the headline alone when unticked or none was kept', () => {
+    expect(chosenConsent(kept(1), choice)?.sendCsv).toBe(true);
+    expect(chosenConsent(kept(1), { ...choice, sendCsv: false })?.sendCsv).toBe(false);
+    expect(chosenConsent(kept(1, { csvGz: undefined }), { ...choice, sendCsv: true })?.sendCsv).toBe(false);
+  });
+  it('sends diagnostics only when ticked', () => {
+    expect(chosenConsent(kept(1), choice)?.sendDiagnostics).toBe(false);
+    expect(chosenConsent(kept(1), { ...choice, sendDiagnostics: true })?.sendDiagnostics).toBe(true);
+  });
+  it('does not fall back to anonymous when "Credit me as" has no name', () => {
+    expect(chosenConsent(kept(1), { ...choice, anonymous: false, nickname: '   ' })).toBeUndefined();
+    expect(pendingPayload(kept(1), 'Ann').nickname).toBe('Ann');
+  });
+  it('marks the kept diagnostics as from a kept result, and bounds what is kept', () => {
+    const snap = diagnosticsToKeep(JSON.stringify({ run: { kind: 'smart' } }));
+    expect(snap).toEqual({ run: { kind: 'smart' } });
+    expect(keptDiagnostics({ diagnostics: snap })).toEqual({ run: { kind: 'smart' }, sentFrom: 'kept' });
+    expect(keptDiagnostics({})).toBeUndefined();
+    expect(diagnosticsToKeep(JSON.stringify({ x: 'y'.repeat(40_000) }))).toBeUndefined();
+    expect(diagnosticsToKeep('not json')).toBeUndefined();
   });
 });
 

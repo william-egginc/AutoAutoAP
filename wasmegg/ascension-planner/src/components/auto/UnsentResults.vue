@@ -96,6 +96,43 @@
             @input="names[p.id] = ($event.target as HTMLInputElement).value"
           />
         </div>
+        <p
+          v-if="agreed[p.id] && namedButBlank(p.id)"
+          class="ml-6 font-semibold text-rose-700"
+          :data-testid="`unsent-name-warning-${p.id}`"
+        >
+          Type a nickname to be credited, or choose Submit anonymously.
+        </p>
+        <div v-if="agreed[p.id]" class="ml-6 space-y-1">
+          <label v-if="p.csvGz" class="flex items-start gap-2 cursor-pointer">
+            <input
+              :checked="csvOf(p)"
+              type="checkbox"
+              class="mt-0.5 rounded border-amber-400"
+              :data-testid="`unsent-csv-${p.id}`"
+              @change="csvs[p.id] = ($event.target as HTMLInputElement).checked"
+            />
+            <span
+              ><span class="font-bold">Send my CSV too</span>: everything this search priced, best first (the same file
+              as Download CSV). It is compressed before it leaves your machine. Untick it to send the headline
+              alone.</span
+            >
+          </label>
+          <label class="flex items-start gap-2 cursor-pointer">
+            <input
+              :checked="diagOf(p.id)"
+              type="checkbox"
+              class="mt-0.5 rounded border-amber-400"
+              :data-testid="`unsent-diagnostics-${p.id}`"
+              @change="diags[p.id] = ($event.target as HTMLInputElement).checked"
+            />
+            <span
+              ><span class="font-bold">Also send diagnostics</span>: memory readings, how many workers ran, any crash or
+              carry-on, the run's size and time, the app version, and your browser and system. Sent privately to the
+              planner's maintainer, never shown on the board; no player ID and no save.</span
+            >
+          </label>
+        </div>
       </template>
       <p v-if="messages[p.id]" :class="okIds[p.id] ? 'text-emerald-700' : 'text-rose-700'" class="font-semibold">
         {{ messages[p.id] }}
@@ -120,6 +157,7 @@ import {
   type PendingKind,
   type PendingSend,
 } from '@/search/pendingSends';
+import { useShareExtras } from '@/composables/useShareExtras';
 import { useAccountName } from '@/composables/useShareResult';
 import { sentence } from '@/utils/errors';
 import SendingText from './SendingText.vue';
@@ -148,12 +186,27 @@ const sendingId = ref<string | null>(null);
 const anonymous = reactive<Record<string, boolean>>({});
 /** Each one's name box, once typed in; until then it follows the screen's (or the account's) name. */
 const names = reactive<Record<string, string>>({});
+/** Each one's "Send my CSV too" and "Also send diagnostics" ticks, once changed. */
+const csvs = reactive<Record<string, boolean>>({});
+const diags = reactive<Record<string, boolean>>({});
+const extras = useShareExtras();
 const accountName = useAccountName(() => props.playerId);
 
 const anonOf = (id: string): boolean => anonymous[id] ?? true;
 const nameOf = (id: string): string => names[id] ?? (props.nickname?.trim() || accountName.value);
+const csvOf = (p: PendingSend): boolean => csvs[p.id] ?? true;
+/** Starts from the saved "Tick this by default" preference, as the main form does. */
+const diagOf = (id: string): boolean => diags[id] ?? extras.diagnosticsByDefault.value;
+/** "Credit me as" picked with no name typed. */
+const namedButBlank = (id: string): boolean => !anonOf(id) && !nameOf(id).trim();
 const consentFor = (p: PendingSend): PendingConsent | undefined =>
-  chosenConsent(p, { agreed: !!agreed[p.id], anonymous: anonOf(p.id), nickname: nameOf(p.id) });
+  chosenConsent(p, {
+    agreed: !!agreed[p.id],
+    anonymous: anonOf(p.id),
+    nickname: nameOf(p.id),
+    sendCsv: csvOf(p),
+    sendDiagnostics: diagOf(p.id),
+  });
 
 async function send(p: PendingSend): Promise<void> {
   if (sendingId.value) return;

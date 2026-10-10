@@ -54,6 +54,31 @@ export interface PendingSend {
    * would tie the player's anonymous rows to the name (stores/chainSearch.ts `RecheckSets`).
    */
   rechecksNamed?: Recheck[];
+  /**
+   * The run's diagnostics (search/blackBox.ts `diagnosticsSummary`) as they stood when the result was
+   * kept, so a send after a reload reports the run that made it, not the page that sends it. Absent
+   * when none could be built or they were too big (MAX_PENDING_DIAGNOSTICS_CHARS).
+   */
+  diagnostics?: Record<string, unknown>;
+}
+
+/** A diagnostics snapshot bigger than this (as JSON) is not kept with a result. */
+export const MAX_PENDING_DIAGNOSTICS_CHARS = 32_000;
+
+/** `line` (the diagnostics as one JSON line) as an object to keep with a result; undefined if unusable or too big. */
+export function diagnosticsToKeep(line: string): Record<string, unknown> | undefined {
+  if (!line || line.length > MAX_PENDING_DIAGNOSTICS_CHARS) return undefined;
+  try {
+    const parsed = JSON.parse(line);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** The diagnostics to send for a kept result: the snapshot kept with it, marked `sentFrom: 'kept'`. */
+export function keptDiagnostics(p: Pick<PendingSend, 'diagnostics'>): Record<string, unknown> | undefined {
+  return p.diagnostics ? { ...p.diagnostics, sentFrom: 'kept' } : undefined;
 }
 
 const keyOf = (id: string) => `${PREFIX}${id}`;
@@ -116,13 +141,24 @@ export const PENDING_NAME_MAX = 40;
  */
 export function chosenConsent(
   p: Pick<PendingSend, 'consent' | 'csvGz'>,
-  choice: { agreed: boolean; anonymous: boolean; nickname: string }
+  choice: {
+    agreed: boolean;
+    anonymous: boolean;
+    nickname: string;
+    /** "Send my CSV too" (default on); ignored when no CSV was kept. */
+    sendCsv?: boolean;
+    /** "Also send diagnostics" (default off). */
+    sendDiagnostics?: boolean;
+  }
 ): PendingConsent | undefined {
   if (p.consent) return p.consent;
   if (!choice.agreed) return undefined;
+  const nickname = choice.anonymous ? '' : choice.nickname.trim().slice(0, PENDING_NAME_MAX);
+  // "Credit me as" with no name is not a choice: never fall back to anonymous without saying so.
+  if (!choice.anonymous && !nickname) return undefined;
   return {
-    nickname: choice.anonymous ? '' : choice.nickname.trim().slice(0, PENDING_NAME_MAX),
-    sendCsv: !!p.csvGz,
-    sendDiagnostics: false,
+    nickname,
+    sendCsv: !!p.csvGz && (choice.sendCsv ?? true),
+    sendDiagnostics: !!choice.sendDiagnostics,
   };
 }

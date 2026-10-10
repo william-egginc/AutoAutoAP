@@ -132,6 +132,8 @@ import { useShareExtras } from '@/composables/useShareExtras';
 import {
   dropPendingSend,
   keepPendingSend,
+  diagnosticsToKeep,
+  keptDiagnostics,
   listPendingSends,
   newPendingId,
   pendingPayload,
@@ -4118,6 +4120,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         if (out?.ok) gz = out.body;
       }
       if (!payload || !key) return;
+      // The run's own diagnostics, as they are now, for a send after a reload (bounded in size).
+      const diagnostics = diagnosticsToKeep(diagnosticsLine({ kind: kind === 'deadline' ? 'by-date' : undefined }));
       const held = provisionalRows.value[kind];
       const p: PendingSend = {
         id: newPendingId(),
@@ -4130,6 +4134,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         consent,
         ...(inputsKey ? { inputsKey } : {}),
         ...(rechecksNamed ? { rechecksNamed: JSON.parse(JSON.stringify(rechecksNamed)) as Recheck[] } : {}),
+        ...(diagnostics ? { diagnostics } : {}),
       };
       pendingSends.value = await keepPendingSend(hash, p);
     };
@@ -4183,17 +4188,16 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       const hash = await accountPartition();
       let payload = pendingPayload(p, cleanName(yes.nickname));
       if (yes.sendDiagnostics) {
-        try {
-          const parsed = JSON.parse(
+        // The snapshot kept with the result; a result kept before snapshots existed gets the page's own.
+        const kept =
+          keptDiagnostics(p) ??
+          diagnosticsToKeep(
             diagnosticsLine({
               from: 'kept',
               kind: p.kind === 'deadline' ? 'by-date' : p.payload.space ? 'full' : 'smart',
             })
           );
-          if (parsed && typeof parsed === 'object') payload = { ...payload, diagnostics: parsed };
-        } catch {
-          // sent without them
-        }
+        if (kept) payload = { ...payload, diagnostics: { ...kept, sentFrom: 'kept' } };
       }
       await notePendingConsent(p, yes);
       blackBoxMark('submit', 'sending a kept result');
