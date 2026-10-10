@@ -62,7 +62,7 @@
     </p>
     <p v-else-if="status === 'loading'" class="text-[12px] text-slate-500 flex items-center gap-2">
       <span class="inline-block w-3 h-3 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
-      {{ loadingText }}
+      {{ loadingText }}{{ result ? ' The answer below is the previous one until the new one is ready.' : '' }}
     </p>
     <p
       v-else-if="status === 'error'"
@@ -114,11 +114,11 @@
       Running alongside your search: this uses more memory.
     </p>
     <p
-      v-if="waiting && !result"
+      v-if="waiting"
       class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-[12px] text-amber-900 flex flex-wrap items-center gap-x-3"
       data-testid="instant-waits"
     >
-      <span>A search is running, so the instant answer waits to save memory.</span>
+      <span>{{ whileWaiting(!!result).text }}</span>
       <button
         type="button"
         class="font-black uppercase tracking-widest text-[10px] text-amber-900 underline"
@@ -144,7 +144,7 @@
       <span class="font-mono-premium">{{ cached.chain.join(' → ') }}</span>
       <template v-if="deadline"> · {{ cached.endTE }} TE · {{ days(deadline - cached.end) }} to spare</template>
       <template v-else> · reaches {{ store.finalTE }} on {{ show(cached.end) }}</template
-      >. Checking again…
+      >.{{ waiting || exactStatus === 'waiting' ? ' Checked again when the search ends.' : ' Checking again…' }}
     </p>
     <p
       v-if="sinceCache"
@@ -673,18 +673,20 @@ import { poolSize, RoutePool } from '@/search/routePool';
 import { describeGear, isMaxed, pickBracket, type TableEntry } from '@/search/tableBracket';
 import { isSmallDevice } from '@/search/device';
 import {
+  answerInputsKey,
   backgroundMayStart,
   onArrival,
   pauseForRun,
   resumeAfterRun,
   warnHere,
+  whileWaiting,
   type WarnAsk,
   type WarnAt,
 } from '@/search/instantDeferral';
 import InstantRunWarning from './InstantRunWarning.vue';
 import InstantShareCheck from './InstantShareCheck.vue';
 import { useInstantDuringSearch } from '@/composables/useInstantDuringSearch';
-import { readSnapshot, snapshotUsable, writeSnapshot } from '@/search/instantSnapshot';
+import { readSnapshot, recallShown, rememberShown, snapshotUsable, writeSnapshot } from '@/search/instantSnapshot';
 import { simulateRoute } from '@/search/simulateRoute';
 import type { FirstLegsRequest } from '@/workers/routeFinder.protocol';
 import { createChainSearchPool, type ChainSearchPool, type EvaluateOptions } from '@/search/pool';
@@ -1079,7 +1081,7 @@ const waiting = ref(false);
 let afterRun: (() => void) | null = null;
 watch(runBusy, (busy, wasBusy) => {
   if (busy && !wasBusy) pauseWorkForRun();
-  if (resumeAfterRun({ wasBusy, busy, waiting: waiting.value, hasAnswer: !!result.value })) {
+  if (resumeAfterRun({ wasBusy, busy, waiting: waiting.value })) {
     void run();
     return;
   }
@@ -1239,8 +1241,25 @@ async function run(force = false, goAhead = false): Promise<void> {
   const what = onArrival({ runBusy: runBusy.value, hasSaved: saved, goAhead: goAhead || force });
   if (what === 'restore' && restoreSnapshot()) return;
   if (what === 'wait' || (what === 'restore' && runBusy.value && !goAhead)) {
-    // A search has the memory: no route workers until it ends or the player says go ahead.
+    // A search has the memory: no route workers until it ends or the player says go ahead. The
+    // answer on screen stays, as the previous one (search/instantDeferral.ts whileWaiting); a panel
+    // opened again with none shows the one it had when it closed, if it is for the same key.
+    if (!result.value) {
+      const prev = recallShown<InstantSnapshot>(snapKey);
+      if (prev && snapshotUsable(prev, GEAR_RULE)) applySnapshot(prev);
+    }
     waiting.value = true;
+    savedAt.value = null;
+    if (whileWaiting(!!result.value).keepAnswer) {
+      // stopExact() above cut a running exact check off: the whole answer is worked out again when
+      // the search ends (resumeAfterRun).
+      // So is whatever the superseded run had going (its awaits see a newer run number and stop).
+      if (exactStatus.value === 'running') exactStatus.value = 'idle';
+      if (status.value === 'loading') status.value = 'done';
+      if (backgroundStatus.value === 'running') backgroundStatus.value = 'idle';
+      if (bracketStatus.value === 'running') bracketStatus.value = 'idle';
+      return;
+    }
     status.value = 'idle';
     exactStatus.value = 'idle';
     backgroundStatus.value = 'idle';
@@ -1885,11 +1904,23 @@ const savedAt = ref<number | null>(null);
 function saveSnapshot(id: number): void {
   if (id !== runs || !snapKey || !result.value || status.value !== 'done' || exactStatus.value !== 'done') return;
   if (backgroundStatus.value === 'running' || bracketStatus.value === 'running') return;
-  // Plain copies. The finder's spare routes are only for the polish, which is done.
+  const snap = currentSnapshot();
+  if (!snap) return;
+  // Too big: keep the answer without each route's step-by-step legs ("Simulate this plan" then
+  // simulates them itself).
+  if (!writeSnapshot(snapKey, snap)) {
+    for (const e of Object.values(snap.exact)) if (e) delete (e as Partial<Exact>).legs;
+    writeSnapshot(snapKey, snap);
+  }
+}
+/** The answer on screen as a snapshot: plain copies, without the finder's spare routes (only for the
+ *  polish). Null with no answer. */
+function currentSnapshot(): InstantSnapshot | null {
+  if (!result.value) return null;
   const slim: FoundRoutes = { ...JSON.parse(JSON.stringify(result.value)) };
   delete slim.alternatives;
   delete slim.dateAlternatives;
-  const snap: InstantSnapshot = JSON.parse(
+  return JSON.parse(
     JSON.stringify({
       v: 1,
       at: Date.now(),
@@ -1907,17 +1938,19 @@ function saveSnapshot(id: number): void {
       gains: gains.value,
       bracket: bracket.value,
     })
-  );
-  // Too big: keep the answer without each route's step-by-step legs ("Simulate this plan" then
-  // simulates them itself).
-  if (!writeSnapshot(snapKey, snap)) {
-    for (const e of Object.values(snap.exact)) if (e) delete (e as Partial<Exact>).legs;
-    writeSnapshot(snapKey, snap);
-  }
+  ) as InstantSnapshot;
 }
+// The answer on screen when the panel closes, for a panel opened again during a search (run's wait).
+onUnmounted(() => {
+  if (status.value === 'done' && snapKey) rememberShown(snapKey, currentSnapshot());
+});
 function restoreSnapshot(): boolean {
   const s = readSnapshot<InstantSnapshot>(snapKey);
   if (!s || s.v !== 1 || !s.result || !s.header || !snapshotUsable(s, GEAR_RULE)) return false;
+  applySnapshot(s);
+  return true;
+}
+function applySnapshot(s: InstantSnapshot): void {
   header.value = s.header;
   tableUrl.value = s.tableUrl;
   ownChanged.value = s.ownChanged;
@@ -1940,7 +1973,6 @@ function restoreSnapshot(): boolean {
   cached.value = null;
   savedAt.value = s.at;
   if (props.deadline) emitRoutes(s.result);
-  return true;
 }
 
 /** After the exact check: is the new answer better than the last checked one, priced again now? */
@@ -1976,17 +2008,18 @@ const sinceCache = computed<{ better: boolean; text: string } | null>(() => {
 // Again whenever what it depends on changes (a new save, a new plan start, another target).
 let timer: ReturnType<typeof setTimeout> | null = null;
 watch(
-  () => [
-    Math.floor(store.currentTE),
-    store.planStart,
-    target.value,
-    props.deadline,
-    store.firstAscension,
-    bonus.value,
-    tryAtOnce.value,
-    useHours.value ? availabilityKey(store.availability) : '',
-    filters.value.maxAscensions,
-  ],
+  () =>
+    answerInputsKey([
+      Math.floor(store.currentTE),
+      store.planStart,
+      target.value,
+      props.deadline,
+      store.firstAscension,
+      bonus.value,
+      tryAtOnce.value,
+      useHours.value ? availabilityKey(store.availability) : '',
+      filters.value.maxAscensions,
+    ]),
   () => {
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => void run(), 300);

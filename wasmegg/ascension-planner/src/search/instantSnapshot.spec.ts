@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_AGE_MS, MAX_SNAPSHOTS, readSnapshot, removeSnapshot, snapshotUsable, writeSnapshot, type StorageLike } from './instantSnapshot';
+import {
+  MAX_AGE_MS,
+  MAX_SNAPSHOTS,
+  readSnapshot,
+  recallShown,
+  rememberShown,
+  removeSnapshot,
+  snapshotUsable,
+  writeSnapshot,
+  type StorageLike,
+} from './instantSnapshot';
 
 function mem(): StorageLike & { map: Map<string, string> } {
   const map = new Map<string, string>();
@@ -65,5 +75,16 @@ describe('snapshotUsable', () => {
   });
   it('has nothing to show for no snapshot', () => {
     expect(snapshotUsable(null, 3)).toBe(false);
+  });
+});
+
+describe('rememberShown', () => {
+  it('gives back the last answer shown for the same key only', () => {
+    rememberShown('k1', { at: 1 });
+    expect(recallShown<{ at: number }>('k1')).toEqual({ at: 1 });
+    expect(recallShown('k2')).toBeNull();
+    expect(recallShown(null)).toBeNull();
+    rememberShown('k2', { at: 2 });
+    expect(recallShown('k1')).toBeNull();
   });
 });

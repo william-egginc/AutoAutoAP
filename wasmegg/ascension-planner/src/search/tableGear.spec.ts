@@ -39,7 +39,7 @@ describe('gearChanges', () => {
     expect(gearChanges(stamp(), mine)).toEqual([]);
   });
 
-  it('ignores which artifact a stone is in, and the stones\' order (the alt, 10 Oct, mid-ascension)', () => {
+  it("ignores which artifact a stone is in, and the stones' order (the alt, 10 Oct, mid-ascension)", () => {
     // The alt's save with its lunar stones taken out for the delivery set: the optimizer put the same
     // nine T4 and three T3 back three to an artifact in another split, and its own table was dropped.
     const mine = stamp();

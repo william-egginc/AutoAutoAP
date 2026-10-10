@@ -112,3 +112,18 @@ export function snapshotUsable(s: { ownChanged?: string; gearRule?: number } | n
   if (!s) return false;
   return !s.ownChanged || (s.gearRule ?? 1) >= gearRule;
 }
+
+/**
+ * The answer on screen when the panel last closed, in memory for this page load only. A saved answer
+ * (`writeSnapshot`) is kept only once everything has finished, and during a search the exact check
+ * waits for it to end; so a panel opened again mid-search (another tab of the page, the goal switched
+ * and back) had nothing to show and said it waits. This one is shown instead, as the previous answer,
+ * for the same key only.
+ */
+let shown: { key: string; value: unknown } | null = null;
+export function rememberShown(key: string | null, value: unknown): void {
+  if (key) shown = { key, value };
+}
+export function recallShown<T>(key: string | null): T | null {
+  return key && shown?.key === key ? (shown.value as T) : null;
+}
