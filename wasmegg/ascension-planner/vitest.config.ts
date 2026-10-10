@@ -22,6 +22,12 @@ export default defineConfig({
     // it and are plain .js. They run here rather than in a separate command so `pnpm test` is
     // still the one thing that has to pass.
     include: ['src/**/*.{test,spec}.ts', 'collector/**/*.spec.js'],
+    // No collector unless a spec names one (`__AAP_SUBMIT_URL__`). Vitest reads the gitignored
+    // .env.local like the dev server does, so a checkout with VITE_SUBMIT_URL set gave every store
+    // the real collector: each finished run in a spec then kept a result for sending, built after
+    // the spec had ended, and it landed in the next spec's storage (deadlineTE's kept-result spec
+    // found two and timed out). It also left the real collector one missing fetch stub away.
+    env: { VITE_SUBMIT_URL: '' },
     coverage: {
       provider: 'v8',
       include: ['src/**/*.ts'],
