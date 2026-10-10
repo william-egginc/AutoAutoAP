@@ -577,7 +577,7 @@ const activeProfile = computed<ProfileId | ''>(
 function applyProfile(id: ProfileId): void {
   const p = PROFILES.find(x => x.id === id);
   if (!p) return;
-  store.workerBudget = p.workers();
+  store.setWorkersByHand(p.workers());
   store.legDetailBudget = p.legDetail;
 }
 

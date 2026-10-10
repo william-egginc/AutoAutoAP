@@ -1480,7 +1480,7 @@ const timeOffText = computed(() => (usableTimeOff(store.timeOff).length ? descri
  *  8-core box and quietly run 8. The store's value is the one the run uses either way. */
 function setWorkers(raw: string): void {
   const n = Number(raw);
-  store.workerBudget = Number.isFinite(n) ? Math.max(1, Math.min(store.machineThreads, Math.floor(n))) : 1;
+  store.setWorkersByHand(Number.isFinite(n) ? Math.max(1, Math.min(store.machineThreads, Math.floor(n))) : 1);
 }
 
 const saving = ref(false);

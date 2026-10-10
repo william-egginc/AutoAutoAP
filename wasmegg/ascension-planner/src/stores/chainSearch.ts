@@ -667,6 +667,28 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * run of 9 Oct on 19 workers died of it at the end.
    */
   const longRunWorkers = ref<number | null>(null);
+  /** The last estimate `fitWorkersToRun` was given: how long the run would take on the default count. */
+  const longRunSeconds = ref(0);
+  /**
+   * What to tell the player about a long run's worker count, or null. 'default': the cap is in force
+   * (the pool really uses it). 'hand': the player set more than the cap by hand, so say it is safer
+   * at LONG_RUN_WORKERS, with a one-click `useLongRunWorkers`. Derived from the live budget, so it can
+   * never claim a count the run is not using.
+   */
+  const longRunNote = computed<{ kind: 'default'; workers: number } | { kind: 'hand'; have: number } | null>(() => {
+    const cap = Math.min(maxPoolSize(), LONG_RUN_WORKERS);
+    if (longRunWorkers.value !== null && workerBudget.value === longRunWorkers.value) {
+      return { kind: 'default', workers: longRunWorkers.value };
+    }
+    if (workersByHand.value && longRunSeconds.value > LONG_RUN_SECONDS && cap < maxPoolSize() && workerBudget.value > cap) {
+      return { kind: 'hand', have: workerBudget.value };
+    }
+    return null;
+  });
+  /** The "Use 12" button: the player's own choice from here on. */
+  function useLongRunWorkers(): void {
+    setWorkersByHand(Math.min(maxPoolSize(), LONG_RUN_WORKERS));
+  }
   /**
    * By a date's default worker count for a run of this size: every core but one, or for a run that
    * would take over LONG_RUN_SECONDS at that, at most LONG_RUN_WORKERS. Never once the player has set
@@ -674,6 +696,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * `secondsAtDefault`: the run's estimate on the default count.
    */
   function fitWorkersToRun(secondsAtDefault: number): void {
+    if (!isRunning.value && !deadlineRunning.value) longRunSeconds.value = secondsAtDefault;
     if (workersByHand.value || isRunning.value || deadlineRunning.value) return;
     const all = maxPoolSize();
     const cap = Math.min(all, LONG_RUN_WORKERS);
@@ -7465,6 +7488,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     workersByHand,
     setWorkersByHand,
     longRunWorkers,
+    longRunNote,
+    useLongRunWorkers,
     fitWorkersToRun,
     diagnosticsLine,
     loadDeadlineState,

@@ -102,7 +102,7 @@ const ui = useUIStore();
 const errors = computed(() => store.setupIssues.filter(i => i.level === 'error').length);
 
 function setWorkers(n: number): void {
-  store.workerBudget = Math.max(1, Math.min(store.machineThreads, Math.floor(n)));
+  store.setWorkersByHand(Math.max(1, Math.min(store.machineThreads, Math.floor(n))));
 }
 
 /** Asked from a panel (a sweep's "add time off"): open, and scroll to the time off. */

@@ -382,7 +382,11 @@ export const SUMMARY_BEATS = 10;
  */
 export function diagnosticsSummary(x: DiagnosticsExtra): Record<string, string | number | boolean | null | object> {
   const box = read();
-  const beats = [...box.history, ...(box.open ? [box.open] : [])];
+  const allBeats = [...box.history, ...(box.open ? [box.open] : [])];
+  // The peaks are THIS run's: beats from before it began (an earlier run, or an earlier visit's
+  // history) are left out, or a 30 MB run reports the 779 MB of one before it.
+  const runStart = x.runStartedAt;
+  const beats = runStart ? allBeats.filter(b => b.at >= runStart) : allBeats;
   const peak = (pick: (b: Beat) => number | null | undefined): number | undefined => {
     let m: number | undefined;
     for (const b of beats) {
@@ -416,6 +420,12 @@ export function diagnosticsSummary(x: DiagnosticsExtra): Record<string, string |
     'peakWorkers',
     peak(b => b.workers)
   );
+  if (runStart) {
+    // What the whole history holds, kept apart from this run's peak.
+    let life: number | undefined;
+    for (const b of allBeats) if (typeof b.heapMB === 'number') life = Math.max(life ?? 0, b.heapMB);
+    set('lifetimePeakHeapMB', life);
+  }
   set('deviceMemoryGB', env.deviceMemoryGB);
   set(
     'peakHeapMB',

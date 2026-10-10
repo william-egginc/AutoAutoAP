@@ -479,6 +479,23 @@ describe('the end of a By a date run (the 9 Oct crash)', () => {
     expect(store.workerBudget).toBe(17);
     expect(store.longRunWorkers).toBeNull();
   });
+
+  it('says so when the count is set by hand above the default, and the note never claims a count not in use', () => {
+    vi.stubGlobal('navigator', { hardwareConcurrency: 20 });
+    const store = useChainSearchStore();
+    store.workerBudget = 19;
+    store.fitWorkersToRun(3 * 3600);
+    expect(store.longRunNote).toEqual({ kind: 'default', workers: 12 });
+    expect(store.workerBudget).toBe(12);
+    // moved to 19 by hand (Setup's buttons now go through setWorkersByHand)
+    store.setWorkersByHand(19);
+    expect(store.longRunNote).toEqual({ kind: 'hand', have: 19 });
+    store.fitWorkersToRun(3 * 3600);
+    expect(store.workerBudget).toBe(19);
+    store.useLongRunWorkers();
+    expect(store.workerBudget).toBe(12);
+    expect(store.longRunNote).toBeNull();
+  });
 });
 
 describe('a finished result kept until it is sent', () => {

@@ -412,8 +412,12 @@
           own</template
         >, on {{ store.workerBudget }} workers.
       </p>
-      <p v-if="store.longRunWorkers" class="text-[10px] font-semibold text-amber-800" data-testid="long-run-workers">
-        {{ longRunLine(store.longRunWorkers) }}
+      <p v-if="store.longRunNote" class="text-[10px] font-semibold text-amber-800" data-testid="long-run-workers">
+        <template v-if="store.longRunNote.kind === 'default'">{{ longRunLine(store.longRunNote.workers) }}</template>
+        <template v-else>
+          {{ longRunHandLine(LONG_RUN_WORKERS, store.longRunNote.have) }}
+          <button type="button" class="ml-1 underline" data-testid="use-long-run-workers" @click="store.useLongRunWorkers()">Use {{ LONG_RUN_WORKERS }}</button>
+        </template>
       </p>
     </div>
 
@@ -809,6 +813,7 @@ import {
   fallbackWorkerSecondsPerLeg,
   legSeconds,
   longRunLine,
+  longRunHandLine,
   plannedRoutes as plannedRoutesFor,
   roundedRoutes,
 } from '@/search/deadlineEstimate';
@@ -833,7 +838,7 @@ import StepAwayOptions from './StepAwayOptions.vue';
 import AutoSendReport from './AutoSendReport.vue';
 import { NAMES, fastestName } from '@/lib/siteNav';
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
-import { useChainSearchStore } from '@/stores/chainSearch';
+import { LONG_RUN_WORKERS, useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useInitialStateStore } from '@/stores/initialState';
 import { getLocalTimestampInTimezone } from '@/lib/events';

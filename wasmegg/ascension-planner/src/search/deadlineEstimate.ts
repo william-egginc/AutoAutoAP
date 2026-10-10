@@ -598,3 +598,8 @@ export function byDatePlan(o: {
 export function longRunLine(workers: number): string {
   return `Long run: using ${workers} workers to stay within the browser's memory; raise it in Setup if you like.`;
 }
+
+/** The same note for a count the player set by hand above the long-run default. */
+export function longRunHandLine(workers: number, have: number): string {
+  return `Long run: ${workers} workers is safer for the browser's memory; you have ${have} set.`;
+}

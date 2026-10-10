@@ -153,6 +153,24 @@ describe('black box memory helpers', () => {
       expect(text.length).toBeLessThan(800);
     });
 
+    it('peaks cover only this run, not beats from before it started', () => {
+      vi.useFakeTimers();
+      try {
+        vi.setSystemTime(1_000_000);
+        beat({ phase: 'search', workers: 19, workersHeapMB: 3000, workersMemoEntries: 45220 });
+        vi.setSystemTime(2_000_000);
+        beat({ phase: 'search', workers: 4, workersHeapMB: 100, workersMemoEntries: 500 });
+        const got = diagnosticsSummary({
+          browser: 'edge on windows', cores: 20, workers: 4, carryOns: 0, crashed: null, runStartedAt: 1_500_000,
+        });
+        expect(got.peakWorkers).toBe(4);
+        expect(got.peakMemoEntries).toBe(500);
+        expect(got.peakWorkersHeapMB).toBe(100);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it('names the phase the last visit died in', () => {
       beat({ phase: 'submit', detail: 'building the CSV', workers: 4 });
       const crashed = readUnfinished()!.last;

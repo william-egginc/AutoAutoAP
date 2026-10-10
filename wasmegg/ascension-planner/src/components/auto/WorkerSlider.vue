@@ -21,18 +21,23 @@
       change takes effect within about a minute, and no chain in progress is lost.
     </span>
     <span
-      v-if="store.longRunWorkers"
+      v-if="store.longRunNote"
       class="block text-[10px] font-semibold text-amber-800"
       data-testid="long-run-workers"
     >
-      {{ longRunLine(store.longRunWorkers) }}
+      <template v-if="store.longRunNote.kind === 'default'">{{ longRunLine(store.longRunNote.workers) }}</template>
+      <template v-else>
+        {{ longRunHandLine(LONG_RUN_WORKERS, store.longRunNote.have) }}
+        <button type="button" class="ml-1 underline" data-testid="use-long-run-workers" @click="store.useLongRunWorkers()">Use {{ LONG_RUN_WORKERS }}</button>
+      </template>
     </span>
   </label>
 </template>
 
 <script setup lang="ts">
 import { useChainSearchStore } from '@/stores/chainSearch';
-import { longRunLine } from '@/search/deadlineEstimate';
+import { longRunLine, longRunHandLine } from '@/search/deadlineEstimate';
+import { LONG_RUN_WORKERS } from '@/stores/chainSearch';
 
 const store = useChainSearchStore();
 

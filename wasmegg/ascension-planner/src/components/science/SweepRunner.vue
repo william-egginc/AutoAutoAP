@@ -473,7 +473,7 @@ function roughly(h: number): string {
 
 function setWorkers(raw: string): void {
   const n = Number(raw);
-  store.workerBudget = Number.isFinite(n) ? Math.max(1, Math.min(store.machineThreads, Math.floor(n))) : 1;
+  store.setWorkersByHand(Number.isFinite(n) ? Math.max(1, Math.min(store.machineThreads, Math.floor(n))) : 1);
 }
 
 // ------------------------------------------------------------------ credit (as the sweep card's)
