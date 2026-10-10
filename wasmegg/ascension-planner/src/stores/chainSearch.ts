@@ -1907,7 +1907,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       // player may have changed since the run finished.
       finalTE: bestChain.value[bestChain.value.length - 1] ?? finalTE.value,
       effort: effort.value,
-      seedChain: seedChain.value,
+      seedChain: seedUsed(),
       bestChain: bestChain.value,
       bestDays: bestDays.value,
       entries: allEntries(),
@@ -1968,6 +1968,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       const own = runSaveFor(summary.inputsKey);
       runBackupUsed = null;
       runTEUsed = summary.currentTE;
+      runSeedUsed = summary.space ? [] : summary.seedChain?.length ? [...summary.seedChain] : null;
       // Else the save the run keeps for good (keptSaves.ts), whose moment and TE are the same facts.
       const kept = own?.backupAt ? own : summary.save?.backupAt ? summary.save : null;
       accountUsed = kept
@@ -3038,6 +3039,15 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   let deadlineAccount: ReturnType<typeof accountFields> | null = null;
   /** The save each run priced, for its CSV header (inventory, loadouts): the same snapshot rule. */
   let runBackupUsed: unknown = null;
+  /**
+   * The chain the run (or the opened saved run) actually started from; [] for a run over a stated
+   * space, which has none; null before any run. `seedChain` is LIVE: it follows the instant answer,
+   * which re-ranks its routes once its exact check is done, so a Fast run started from the table's
+   * 4-ascension route had its CSV say "seed chain" of the 7-ascension route the instant answer
+   * settled on afterwards, a chain the run never priced (10 Oct). Read with `seedUsed`.
+   */
+  let runSeedUsed: number[] | null = null;
+  const seedUsed = (): number[] => runSeedUsed ?? seedChain.value;
   let deadlineBackup: unknown = null;
 
   function buildRunSubmission(nickname?: string): Submission | null {
@@ -3065,7 +3075,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       // Omitted alongside a space, for the reason `seed` documents: an exhaustive run enumerates
       // rather than descends, so it has no starting guess to report and the typed chain would be
       // a starting point the search never used.
-      ...(searchSpace.value ? {} : { seed: [...seedChain.value] }),
+      ...(searchSpace.value ? {} : { seed: [...seedUsed()] }),
       ...(searchSpace.value ? { space: searchSpace.value } : {}),
       // Only alongside a space. The block describes the distribution over an ENUMERATED set, and
       // the same numbers taken from a staged run would be the distribution over whatever the
@@ -4576,7 +4586,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       firstAscension: usedSettings().firstAscension,
       availability: usedSettings().availability,
       timeOff: usableTimeOff(usedSettings().timeOff),
-      seedChain: seedChain.value,
+      seedChain: seedUsed(),
       runNote: runNoteUsed.value,
       ...(opts.diagnostics ? { diagnostics: diagnosticsLine() } : {}),
       // The ELR set is deliberately NOT listed. `getOptimalELRSet` re-solves the structure per leg
@@ -4618,7 +4628,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       firstAscension: usedSettings().firstAscension,
       availability: usedSettings().availability,
       timeOff: usableTimeOff(usedSettings().timeOff),
-      seedChain: seedChain.value,
+      seedChain: seedUsed(),
       runNote: runNoteUsed.value,
       // The ELR set is deliberately NOT listed. `getOptimalELRSet` re-solves the structure per leg
       // against that leg's research state (up to 495 combos, and the reason it is the hotspot in
@@ -4676,7 +4686,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           space: searchSpace.value,
           fingerprint: runFingerprint,
           effort: effort.value,
-          seedChain: seedChain.value,
+          seedChain: seedUsed(),
           bestChain: bestChain.value,
           bestSeconds: bestDays.value * 86400,
           entries,
@@ -4923,6 +4933,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     runTEUsed = startInputs.currentTE;
     accountUsed = accountFields(startInputs.currentTE);
     runBackupUsed = getSimulationContext().rawBackup ?? null;
+    runSeedUsed = [];
     chainsEstimated.value = chains.length;
     bestChain.value = [];
     bestDays.value = 0;
@@ -6934,7 +6945,12 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     runTEUsed = startInputs.currentTE;
     accountUsed = accountFields(startInputs.currentTE);
     runBackupUsed = getSimulationContext().rawBackup ?? null;
-    const chain = seedChain.value;
+    // A carry-on starts from its own run's seed, not whatever the instant answer suggests by now:
+    // the replayed chains are that seed's search, and another seed is another search.
+    const kept = resumeFrom?.seedChain;
+    const chain =
+      !findSeedFirst.value && kept?.length && kept[kept.length - 1] === finalTE.value ? [...kept] : seedChain.value;
+    runSeedUsed = [...chain];
     chainsEstimated.value = estimateChains(Math.max(1, chain.length - 1), EFFORT[effort.value]);
     bestChain.value = [...chain];
     bestDays.value = 0;
@@ -7040,6 +7056,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         });
         coarseLog.value = coarse.log;
         seed = coarse.seed;
+        runSeedUsed = [...seed];
         bestChain.value = [...seed];
         bestDays.value = (coarse.byCount.find(c => c.chain.length === seed.length)?.seconds ?? 0) / 86400;
         chainsEstimated.value =
