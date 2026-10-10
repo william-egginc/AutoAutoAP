@@ -31,7 +31,7 @@ id = "77c966d5ec964cc2979f59a190737fd4"
 [[d1_databases]]
 binding = "WATCH"
 database_name = "aaap-watch"
-database_id = "TO-BE-CREATED"
+database_id = "a83ae6ba-4a22-4107-b4a6-49c9185032c3"
 migrations_dir = "migrations"
 
 # Every 5 minutes: one ntfy note for a run that stopped reporting 15 min ago, and (once an hour) the
