@@ -1312,6 +1312,7 @@
 </template>
 
 <script setup lang="ts">
+import { useIntegrityProbe } from '@/composables/useIntegrityProbe';
 import { NAMES } from '@/lib/siteNav';
 import { useUIStore } from '@/stores/ui';
 import { computed, onMounted, ref, watch } from 'vue';
@@ -1342,7 +1343,6 @@ import LongerRouteHint from './LongerRouteHint.vue';
 import { defaultSeedChain } from '@/search/seedChain';
 import { startFromCountPlan } from '@/lib/longerRouteHint';
 import { describeCompute } from '@/utils/computeTime';
-import { useInitialStateStore } from '@/stores/initialState';
 import IntegrityNotice from './IntegrityNotice.vue';
 import SafariNotice from './SafariNotice.vue';
 import RunSaveNotice from './RunSaveNotice.vue';
@@ -1361,7 +1361,6 @@ const props = defineProps<{ playerId: string }>();
 const emit = defineEmits<{ checkExactly: [chain: number[]] }>();
 
 const store = useChainSearchStore();
-const initialStateStore = useInitialStateStore();
 
 /** Open by default: a collapsed form on first load looks like the panel has nothing in it. */
 // Folded by default so Simple looks simple; the player's choice is remembered in this browser.
@@ -1779,13 +1778,8 @@ async function run(resume: boolean, andSubmit = false): Promise<void> {
 
 onMounted(() => void store.checkResumable(props.playerId));
 
-// The integrity check up front (search/rules.ts), once a save is loaded and again if the account or
-// start changes, so a stalled account says so before Start rather than after.
-watch(
-  () => [props.playerId, store.currentTE, store.planStart, !!initialStateStore.rawBackup],
-  () => void store.probeIntegrity(props.playerId),
-  { immediate: true }
-);
+// The integrity check up front (search/rules.ts), so a stalled account says so before Start.
+useIntegrityProbe(() => props.playerId);
 
 // A checkpoint resumes only onto the same inputs, plan start aside (resuming restores it; see
 // search/persistence.ts's fingerprint), so re-check whenever anything that changes what a duration

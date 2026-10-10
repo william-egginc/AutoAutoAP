@@ -1279,17 +1279,30 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    */
   async function checkIntegrity(p: ChainSearchPool): Promise<boolean> {
     stage.value = 'checking this account can build';
-    const wait = await p.integrityWait();
-    integrityWait.value = wait;
-    if (wait === null || wait <= INTEGRITY_WARN_SECONDS) return true;
-    if (wait > INTEGRITY_BLOCK_SECONDS) {
-      error.value = integrityMessage(wait, cteParts());
-      errorBeforeStart.value = true;
+    const verdict = await gateIntegrity(p);
+    if (verdict === 'block') {
       stage.value = 'idle';
       return false;
     }
-    runNotes.value = [...runNotes.value, integrityMessage(wait, cteParts())];
+    if (verdict === 'warn') runNotes.value = [...runNotes.value, integrityMessage(integrityWait.value!, cteParts())];
     return true;
+  }
+
+  /**
+   * The measurement and refusal every run shares (Fastest/Insane through `checkIntegrity`, By a date
+   * in `runDeadline`): sets `integrityWait` from the run's own pool, and on a block says why in
+   * `error`. 'warn' runs on (the notice beside Start says it stalls).
+   */
+  async function gateIntegrity(p: ChainSearchPool): Promise<'ok' | 'warn' | 'block'> {
+    const wait = await p.integrityWait();
+    integrityWait.value = wait;
+    if (wait === null || wait <= INTEGRITY_WARN_SECONDS) return 'ok';
+    if (wait > INTEGRITY_BLOCK_SECONDS) {
+      error.value = integrityMessage(wait, cteParts());
+      errorBeforeStart.value = true;
+      return 'block';
+    }
+    return 'warn';
   }
 
   /**
@@ -5786,6 +5799,12 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       // run's time-weighted worker count, not whatever the slider said at the end.
       deadlineWorkersInPool.value = pool.size;
       startDeadlineWorkerClock();
+      // The integrity check, as Fastest's Start has it: By a date relied on Fastest's panel having
+      // measured it, so with Fastest never opened a stalled account ran without a word.
+      const startingStage = deadlineProgress.value!.stage;
+      deadlineProgress.value = { ...deadlineProgress.value!, stage: 'checking this account can build' };
+      if ((await gateIntegrity(pool)) === 'block') return void (runEnd = 'stopped');
+      deadlineProgress.value = { ...deadlineProgress.value!, stage: startingStage };
       const workers = pool;
       // Who prices which route (search/stickyDealer.ts): evenly, and each set back to the worker that
       // has its early legs in memory. One dealer for the run, so it remembers across rounds.

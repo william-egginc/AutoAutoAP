@@ -15,10 +15,18 @@ vi.mock('@/lib/storage/db', async () => (await import('@/test/memoryDb')).memory
 
 /** What the workers were handed, per run. */
 const pooled: SearchInputs[] = [];
+/** What the pool's integrity check measures: seconds on the first Integrity shift (null: none). */
+let integritySeconds: number | null = null;
 vi.mock('@/search/pool', () => ({
   createChainSearchPool: vi.fn(async (inputs: SearchInputs) => {
     pooled.push(inputs);
-    return { size: 1, resize: () => {}, terminate: () => {}, evaluate: async () => ({ results: [] }) };
+    return {
+      size: 1,
+      resize: () => {},
+      terminate: () => {},
+      evaluate: async () => ({ results: [] }),
+      integrityWait: async () => integritySeconds,
+    };
   }),
 }));
 
@@ -140,6 +148,7 @@ beforeEach(() => {
   db.clear();
   pooled.length = 0;
   specs.length = 0;
+  integritySeconds = null;
   gate = null;
   stopEarly = false;
   installStubs();
@@ -525,5 +534,35 @@ describe('a finished result kept until it is sent', () => {
     } finally {
       delete (globalThis as { __AAP_SUBMIT_URL__?: string }).__AAP_SUBMIT_URL__;
     }
+  });
+});
+
+describe('By a date runs the integrity check itself (it relied on Fastest having been opened)', () => {
+  it('refuses a stalled account before pricing a route, with Fastest never opened', async () => {
+    const store = useChainSearchStore();
+    loadSave(196, SAVE_AT);
+    plannerAt(196);
+    integritySeconds = 30 * 86400; // past the week: can't be planned yet
+    expect(store.integrityWait).toBeNull(); // nothing measured it ahead of the run
+    await store.startDeadline('P', spec());
+    expect(pooled).toHaveLength(1);
+    expect(specs).toHaveLength(0);
+    expect(store.integrityWait).toBe(30 * 86400);
+    expect(store.integrityBlocked).toBe(true);
+    expect(store.error).toBe(store.integrityNotice!.text);
+    expect(store.errorIsIntegrityNotice).toBe(true);
+    expect(store.deadlineRunning).toBe(false);
+    expect(store.deadlineResult).toBeNull();
+  });
+
+  it('runs on with a stall under a week, and records it', async () => {
+    const store = useChainSearchStore();
+    loadSave(196, SAVE_AT);
+    plannerAt(196);
+    integritySeconds = 3 * 3600;
+    await finishedRun(store);
+    expect(specs).toHaveLength(1);
+    expect(store.integrityWait).toBe(3 * 3600);
+    expect(store.integrityNotice?.blocked).toBe(false);
   });
 });

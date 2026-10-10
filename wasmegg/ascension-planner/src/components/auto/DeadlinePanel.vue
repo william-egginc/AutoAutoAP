@@ -841,6 +841,7 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { LONG_RUN_WORKERS, useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useInitialStateStore } from '@/stores/initialState';
+import { useIntegrityProbe } from '@/composables/useIntegrityProbe';
 import { getLocalTimestampInTimezone } from '@/lib/events';
 import { formatInZone } from '@/search/csv';
 import {
@@ -1897,6 +1898,9 @@ const defaultAnswerLabel = computed(() => {
   return best ? `${best.chain[best.chain.length - 1]} TE by ${inPlannerZone(r.deadline)}` : 'Name this answer';
 });
 onMounted(() => void store.loadDeadlineState(props.playerId));
+// The integrity check up front, as Fastest's panel has it: By a date must not depend on Fastest
+// having been opened for the notice beside Find (and Find's block) to show.
+useIntegrityProbe(() => props.playerId);
 watch(
   () => props.playerId,
   id => void store.loadDeadlineState(id)

@@ -1146,6 +1146,7 @@
 </template>
 
 <script lang="ts">
+import { useIntegrityProbe } from '@/composables/useIntegrityProbe';
 import { ref as keptRef } from 'vue';
 
 /**
@@ -1224,7 +1225,6 @@ import RunSaveNotice from './RunSaveNotice.vue';
 import UnfinishedRuns from './UnfinishedRuns.vue';
 import RunGoingElsewhere from './RunGoingElsewhere.vue';
 import DeadlinePanel from './DeadlinePanel.vue';
-import { useInitialStateStore } from '@/stores/initialState';
 import { formatTimeLeft } from '@/search/sweepEstimate';
 import { describeTimeOff, usableTimeOff } from '@/search/timeOff';
 import { gridIsComplete, gridStepLabel } from '@/search/grid';
@@ -1244,14 +1244,8 @@ const props = defineProps<{
 const emit = defineEmits<{ 'update:goal': [goal: 'fastest' | 'deadline'] }>();
 
 const store = useChainSearchStore();
-const initialStateStore = useInitialStateStore();
-// The integrity check up front (search/rules.ts), once a save is loaded and again if the account or
-// start changes, so a stalled account says so before Start rather than after.
-watch(
-  () => [props.playerId, store.currentTE, store.planStart, !!initialStateStore.rawBackup],
-  () => void store.probeIntegrity(props.playerId),
-  { immediate: true }
-);
+// The integrity check up front (search/rules.ts), so a stalled account says so before Start.
+useIntegrityProbe(() => props.playerId);
 const autoPlannerStore = useAutoPlannerStore();
 const ui = useUIStore();
 /** The result card's Download CSV (composables/useRunDownloads.ts): the same handler as the CSV row. */
