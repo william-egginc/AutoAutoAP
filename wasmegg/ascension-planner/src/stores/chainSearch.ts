@@ -6405,7 +6405,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * before they were. `r` is a finished result, or the run going now (a progress send's CSV so far).
    */
   function deadlineCsvMeta(
-    r: Pick<SavedDeadlineResult, 'planStart' | 'te' | 'note' | 'settings'>,
+    r: Pick<SavedDeadlineResult, 'planStart' | 'te' | 'note' | 'settings' | 'simple'>,
     final: number,
     partial?: CsvMeta['partial']
   ): CsvMeta {
@@ -6420,7 +6420,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       timezone: planTimezone(),
       currentTE: r.te,
       final,
-      effort: st?.effort ?? usedSettings().effort,
+      // By a date's own mode, as its submission says it (`effort: 'deadline'`, `mode`): Fastest's
+      // effort setting played no part in the run, and the CSV printed it ("effort quick").
+      effort: 'deadline',
+      mode: r.simple ? 'simple' : 'advanced',
       firstAscension: readFirstAscension(st ?? usedSettings()),
       availability: st ? st.availability : usedSettings().availability,
       timeOff: usableTimeOff(st ? st.timeOff : usedSettings().timeOff),

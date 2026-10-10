@@ -71,6 +71,14 @@ describe('readUploadCsv', () => {
     expect(readUploadCsv(fresh).effort).toBe('thorough');
   });
 
+  it("reads the effort line with By a date's mode written after it", () => {
+    const dated = CSV.replace(
+      '# effort thorough; force-continue on',
+      '# effort deadline; force-continue off; first-ascension auto; mode advanced'
+    );
+    expect(readUploadCsv(dated)).toMatchObject({ effort: 'deadline', firstAscension: 'auto' });
+  });
+
   it('refuses a file that is not a chain CSV', () => {
     expect(() => readUploadCsv('a,b,c\n1,2,3\n')).toThrow(/not a chain-search CSV/);
   });

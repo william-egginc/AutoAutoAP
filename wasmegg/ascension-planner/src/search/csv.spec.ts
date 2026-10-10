@@ -348,7 +348,11 @@ describe('buildDeadlineCsv', () => {
     expect(csv).toContain('# highest TE by ');
     expect(csv).toContain('# 1234 routes priced');
     expect(csv).toContain('# plan start 2026-09-04 21:30');
-    expect(csv).toContain('# effort balanced; force-continue on; first-ascension continue');
+    // Fastest's effort played no part in a By a date run: its own mode instead.
+    expect(csv).toContain('# effort deadline; force-continue on; first-ascension continue\n');
+    expect(csv).not.toContain('balanced');
+    const advanced = buildDeadlineCsv([route([195, 219], 60, [leg()])], { ...META, mode: 'advanced' }, INFO);
+    expect(advanced).toContain('# effort deadline; force-continue on; first-ascension continue; mode advanced\n');
   });
 
   it('writes one row per leg with the route cells repeated', () => {

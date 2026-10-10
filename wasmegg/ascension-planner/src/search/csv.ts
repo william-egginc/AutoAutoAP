@@ -44,7 +44,11 @@ export interface CsvMeta {
   timezone: string;
   currentTE: number;
   final: number;
+  /** Fastest's effort setting. A By a date CSV writes `deadline` here whatever it is given: Fastest's
+   *  setting played no part in the run (it printed "effort quick" on 10 Oct). */
   effort: string;
+  /** By a date's own mode (`simple` or `advanced`), written after the first-ascension setting. */
+  mode?: string;
   /** A1's setting (search/firstAscension.ts). */
   firstAscension: FirstAscension;
   availability?: Availability | null;
@@ -476,7 +480,7 @@ function metaLines(meta: CsvMeta, head: string[], count: string): string[] {
   // `force-continue on|off` stays first, as it always read, for the readers that parse it (the Chain
   // Explorer's upload); `first-ascension` after it says which of the three it was.
   note(
-    `effort ${meta.effort}; force-continue ${forceContinueOf(meta.firstAscension) ? 'on' : 'off'}; first-ascension ${meta.firstAscension}`
+    `effort ${meta.effort}; force-continue ${forceContinueOf(meta.firstAscension) ? 'on' : 'off'}; first-ascension ${meta.firstAscension}${meta.mode ? `; mode ${meta.mode}` : ''}`
   );
   note(`available ${describeAvailability(meta.availability)}`);
   if (meta.timeOff?.length)
@@ -705,7 +709,7 @@ export function* deadlineCsvChunks(
   let earliest = Infinity;
   for (let i = 0; i < shown; i++) earliest = Math.min(earliest, routes[i].reachAt);
   const lines = metaLines(
-    meta,
+    { ...meta, effort: 'deadline' },
     [
       `highest TE by ${formatInZone(info.deadline, tz)} (${tz}); plan start ${formatInZone(meta.planStart, tz)} at ${meta.currentTE} TE`,
     ],
