@@ -8,6 +8,9 @@
  *   POST /submit       one submission, validated, stored, rate-limited by IP. A copy of a result
  *                      already on the board is caught here and not stored twice (see "duplicates").
  *   POST /claim        {id, nickname} -> put a name on a row you sent. Needs that row's owner code.
+ *   POST /instant      one opt-in instant-answer record (the instant answer and its Check exactly),
+ *                      stored privately under `inst:` and never served. Needs an owner code; at most
+ *                      30 a day per code. See "instant answer records".
  *   GET  /leaderboard  ?final=490&limit=50  -> one line per distinct result, fastest first
  *   GET  /all          everything, for anyone who wants to do their own analysis
  *   GET  /mine         the caller's own rows from both boards, anonymous ones included. Needs the
@@ -1900,6 +1903,243 @@ async function deleteRow(env, target) {
   await env.SUBMISSIONS.delete(`extra:${target.id}`);
 }
 
+// ------------------------------------------------------------- instant answer records
+//
+// POST /instant: one opt-in record of an instant answer and its Check exactly, sent by the app
+// (src/search/instantRecord.ts) when the player ticked "Share my instant answers and their Check
+// exactly results" in Your setup. What it is FOR: the instant answer against the full simulator on
+// real accounts, across gear and TE, which gear the next instant answers should be built for, how
+// far a half-built farm is from a fresh build, and (from repeat checks of one save) prestige windows.
+//
+// PRIVATE, LIKE `extra:`. Stored under `inst:<UTC day>:<id>` with a 180-day TTL. Nothing serves the
+// prefix: no route reads a key from a request, and the board, /all, /mine, /flagged, /csv and the
+// snapshots never look at it. The maintainer reads them with wrangler:
+//   wrangler kv key list --binding SUBMISSIONS --prefix "inst:2026-10-10" --config "$PWD/wrangler.toml"
+//   wrangler kv key get  --binding SUBMISSIONS "inst:2026-10-10:<id>" --config "$PWD/wrangler.toml"
+//
+// WHO SENT IT. Only the owner code (x-owner-token, required): stored as `owner`, the first 12 hex of
+// its SHA-256 (what the board snapshots' private owner index holds), and `acct`, the same HMAC the
+// public board shows on named rows, so a record lines up with the sender's board rows. Never the
+// player id: text is swept for one, and an id-like key is not on the whitelist.
+//
+// COST, PER RECORD: 1 read + 2 writes, no list, no delete. The read and one write are the per-owner
+// daily counter `instn:<owner 12 hex>:<UTC day>` (TTL 2 days); the other write is the record. A
+// refused record (bad body, over the cap) costs at most that one read.
+//
+// STRICT. The raw body is capped at INSTANT_MAX_BYTES before it is parsed. Every field is on the
+// whitelist below with a type and a bound; a known field that is out of bounds refuses the record
+// (with the path, so a drifting app says what drifted), an unknown field is dropped.
+const INSTANT_MAX_BYTES = 8 * 1024;
+const INSTANT_TTL_SECONDS = 180 * 24 * 60 * 60;
+const INSTANT_PER_DAY = 30;
+const INSTANT_VERSIONS = new Set([1]);
+/** Unix seconds between 2020 and 2100, the same window as a deadline. */
+const UNIX_LO = 1577836800;
+const UNIX_HI = 4102444800;
+
+/** Field checkers: each takes (value, path, problems) and returns the clean value, or undefined after
+ *  noting why. `opt` wraps one so an absent (undefined) value is fine. */
+const IV = {
+  int: (lo, hi) => (v, p, pr) =>
+    Number.isInteger(v) && v >= lo && v <= hi ? v : (pr.push(`${p} must be a whole number ${lo} to ${hi}`), undefined),
+  num: (lo, hi) => (v, p, pr) =>
+    Number.isFinite(v) && v >= lo && v <= hi ? v : (pr.push(`${p} must be a number ${lo} to ${hi}`), undefined),
+  bool: (v, p, pr) => (typeof v === 'boolean' ? v : (pr.push(`${p} must be true or false`), undefined)),
+  str: max => (v, p, pr) =>
+    typeof v === 'string' && v.length <= max
+      ? scrubText(v).replace(/[\u0000-\u001f\u007f]/g, ' ')
+      : (pr.push(`${p} must be text of at most ${max} characters`), undefined),
+  oneOf: values => (v, p, pr) => (values.includes(v) ? v : (pr.push(`${p} must be one of ${values.join(', ')}`), undefined)),
+  hex: n => (v, p, pr) =>
+    typeof v === 'string' && new RegExp(`^[a-f0-9]{${n}}$`).test(v) ? v : (pr.push(`${p} must be ${n} hex digits`), undefined),
+  orNull: f => (v, p, pr) => (v === null ? null : f(v, p, pr)),
+  list: (max, f) => (v, p, pr) => {
+    if (!Array.isArray(v) || v.length > max) return pr.push(`${p} must be a list of at most ${max}`), undefined;
+    const out = v.map((x, i) => f(x, `${p}[${i}]`, pr));
+    return out.every(x => x !== undefined) ? out : undefined;
+  },
+  /** A route's checkpoints: strictly increasing TEs. */
+  chain: (v, p, pr) =>
+    Array.isArray(v) &&
+    v.length >= 1 &&
+    v.length <= MAX.CHAIN &&
+    v.every((x, i) => Number.isInteger(x) && x > 0 && x <= MAX.TE && (i === 0 || x > v[i - 1]))
+      ? v.slice()
+      : (pr.push(`${p} must be increasing whole TEs, at most ${MAX.CHAIN}`), undefined),
+  /** An object of known fields; `need` lists the ones that must be there. Unknown keys are dropped. */
+  obj: (spec, need = []) => (v, p, pr) => {
+    if (!v || typeof v !== 'object' || Array.isArray(v)) return pr.push(`${p} must be an object`), undefined;
+    const out = {};
+    let ok = true;
+    for (const [k, f] of Object.entries(spec)) {
+      if (v[k] === undefined) {
+        if (need.includes(k)) {
+          pr.push(`${p}.${k} is required`);
+          ok = false;
+        }
+        continue;
+      }
+      if (idLikeKey(k)) continue;
+      const c = f(v[k], `${p}.${k}`, pr);
+      if (c === undefined) ok = false;
+      else out[k] = c;
+    }
+    return ok ? out : undefined;
+  },
+};
+
+const IUNIX = IV.int(UNIX_LO, UNIX_HI);
+const IHOURS = IV.num(-MAX.BACKUP_AGE_HOURS, MAX.BACKUP_AGE_HOURS);
+const ITE = IV.num(0, MAX.TE);
+/** One of the instant answer's own legs (src/search/routeFinder.ts `RouteLeg`). */
+const INSTANT_LEG = IV.obj(
+  {
+    to: IV.int(1, MAX.TE),
+    endTE: ITE,
+    start: IUNIX,
+    end: IUNIX,
+    label: IV.str(24),
+    sales: IV.int(0, 20),
+    tier13: IV.bool,
+  },
+  ['to', 'start', 'end']
+);
+/** One of the full simulator's legs (src/search/types.ts `LegSummary`, in days and Q/h). */
+const EXACT_LEG = IV.obj(
+  {
+    te: ITE,
+    start: IUNIX,
+    days: IV.num(0, MAX.DURATION_DAYS),
+    strategy: IV.str(32),
+    sales: IV.int(0, 20),
+    tier13: IV.bool,
+    peakQph: IV.num(0, 1e9),
+    holdHours: IV.num(0, 1e6),
+    delayHours: IV.num(0, 1e6),
+    timeOff: IV.oneOf(['stopped', 'restarted']),
+  },
+  ['te', 'days']
+);
+const BRACKET_SIDE = IV.obj({ gear: IV.str(120), end: IV.orNull(IUNIX), te: ITE }, ['gear']);
+
+const INSTANT_RECORD = IV.obj(
+  {
+    v: IV.int(1, 1),
+    build: IV.str(MAX.BUILD),
+    mode: IV.oneOf(['fastest', 'date']),
+    target: IV.int(1, MAX.TE),
+    deadline: IV.int(MAX.DEADLINE_FROM, MAX.DEADLINE_TO),
+    planStart: IUNIX,
+    timezone: IV.str(MAX.TEXT),
+    backupTime: IUNIX,
+    backupAgeHours: IHOURS,
+    currentTE: ITE,
+    backupTE: ITE,
+    clothedTE: IV.num(-1000, 100000),
+    gear: IV.obj(
+      {
+        stamp: IV.hex(24),
+        answer: IV.oneOf(['own', 'gear', 'maxed']),
+        ownChanged: IV.str(80),
+        earningsShort: IV.num(-1000, 1000),
+        deliveryScale: IV.num(0, 100),
+        adjusted: IV.bool,
+        progressionShort: IV.bool,
+        tableFrom: ITE,
+        gearTo: ITE,
+        bracket: IV.obj({ above: IV.orNull(BRACKET_SIDE), below: IV.orNull(BRACKET_SIDE) }),
+      },
+      ['answer']
+    ),
+    stall: IV.obj({
+      cte: IV.num(-1000, 100000),
+      clears: IV.num(0, 100000),
+      belowLine: IV.bool,
+      integrityHours: IV.orNull(IV.num(0, 1e7)),
+      notice: IV.oneOf(['none', 'stalls', 'blocked', 'unknown']),
+    }),
+    settings: IV.obj({
+      firstAscension: IV.oneOf(['auto', 'continue', 'fresh']),
+      maxAscensions: IV.orNull(IV.int(1, MAX.CHAIN)),
+      inHours: IV.bool,
+      window: IV.orNull(IV.str(MAX.TEXT)),
+      holdShifts: IV.bool,
+      tryAtOnce: IV.bool,
+      timeOff: IV.int(0, 64),
+      milestones: IV.int(0, 64),
+      small: IV.bool,
+    }),
+    instant: IV.obj(
+      {
+        chain: IV.chain,
+        end: IUNIX,
+        endTE: ITE,
+        spareHours: IV.num(-1e6, 1e6),
+        legs: IV.list(MAX.LEGS, INSTANT_LEG),
+      },
+      ['chain', 'end']
+    ),
+    rows: IV.list(
+      24,
+      IV.obj(
+        {
+          n: IV.int(1, MAX.CHAIN),
+          chain: IV.chain,
+          iEnd: IUNIX,
+          iTE: ITE,
+          xEnd: IV.orNull(IUNIX),
+          xTE: IV.orNull(ITE),
+        },
+        ['n', 'chain']
+      )
+    ),
+    exact: IV.orNull(
+      IV.obj(
+        {
+          chain: IV.chain,
+          end: IUNIX,
+          endTE: ITE,
+          spareHours: IV.num(-1e6, 1e6),
+          handoff: IV.oneOf(['hour', 'now', 'sooner']),
+          firstLeg: IV.oneOf(['continue', 'fresh']),
+          firstLegOtherHours: IV.num(-MAX.DURATION_DAYS * 24, MAX.DURATION_DAYS * 24),
+          legs: IV.list(MAX.LEGS, EXACT_LEG),
+        },
+        ['chain', 'end']
+      )
+    ),
+    exactMissedByHours: IV.num(0, 1e6),
+    buildGap: IV.obj({
+      contQph: IV.num(0, 1e9),
+      freshQph: IV.num(0, 1e9),
+      ratio: IV.num(0, 1000),
+      freshLeg: IV.int(1, MAX.CHAIN),
+    }),
+    checkSeconds: IV.num(0, 1e6),
+  },
+  ['v', 'mode', 'planStart', 'currentTE', 'gear', 'instant']
+);
+
+/** A record from a request body: `{record}` or `{problems}`. */
+function pickInstant(body) {
+  const problems = [];
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return { problems: ['body must be a JSON object'] };
+  if (!INSTANT_VERSIONS.has(body.v)) return { problems: [`unknown record version ${body.v}`] };
+  const record = INSTANT_RECORD(body, 'record', problems);
+  if (!record) return { problems: problems.length ? problems.slice(0, 12) : ['rejected'] };
+  if (record.mode === 'fastest' && record.target === undefined) return { problems: ['record.target is required'] };
+  if (record.mode === 'date' && record.deadline === undefined) return { problems: ['record.deadline is required'] };
+  return { record };
+}
+
+/** Read a body as text, refusing past `max` bytes without buffering the rest. Null when too big. */
+async function cappedText(request, max) {
+  const declared = Number(request.headers.get('content-length'));
+  if (Number.isFinite(declared) && declared > max) return null;
+  const text = await request.text();
+  return new TextEncoder().encode(text).length > max ? null : text;
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -2327,6 +2567,54 @@ export default {
         for (const sp of snap.spans) if (mine.has(snap.own[spanId(sp)])) rows.push(`${sp.slice(0, -1)},"yours":true}`);
       }
       return jsonText(`{"count":${rows.length},"rows":[${rows.join(',')}]}`, PRIVATE);
+    }
+
+    // ----------------------------------------------------------------- instant
+    // One opt-in instant-answer record (see "instant answer records"): private, never served.
+    if (url.pathname === '/instant' && request.method === 'POST') {
+      const owner = await ownerHash(request.headers.get('x-owner-token'));
+      if (!owner) return json({ error: 'rejected', problems: ['an instant answer record needs the owner code'] }, 400);
+      const raw = await cappedText(request, INSTANT_MAX_BYTES);
+      if (raw === null) return json({ error: 'rejected', problems: [`a record must be at most ${INSTANT_MAX_BYTES} bytes`] }, 413);
+      let body;
+      try {
+        body = JSON.parse(raw);
+      } catch {
+        return json({ error: 'body must be JSON' }, 400);
+      }
+      const { record, problems } = pickInstant(body);
+      if (!record) return json({ error: 'rejected', problems }, 400);
+      const now = Date.now();
+      const day = utcDay(now);
+      const mine = owner.slice(0, OWNER_HEX);
+      // The per-owner daily cap: one read, and one write below once the record is stored.
+      const countKey = `instn:${mine}:${day}`;
+      const sent = Number(await env.SUBMISSIONS.get(countKey)) || 0;
+      if (sent >= INSTANT_PER_DAY) {
+        const midnight = Date.UTC(new Date(now).getUTCFullYear(), new Date(now).getUTCMonth(), new Date(now).getUTCDate() + 1);
+        return json(
+          {
+            error: `at most ${INSTANT_PER_DAY} instant answer records a day from one account; more after midnight UTC`,
+            retryAfter: Math.max(1, Math.ceil((midnight - now) / 1000)),
+          },
+          429
+        );
+      }
+      const sign = await acctSigner(env);
+      const id = crypto.randomUUID().replace(/-/g, '').slice(0, 12);
+      const stored = {
+        ...record,
+        owner: mine,
+        ...(sign ? { acct: await sign(owner) } : {}),
+        receivedAt: new Date(now).toISOString(),
+      };
+      await env.SUBMISSIONS.put(`inst:${day}:${id}`, JSON.stringify(stored), { expirationTtl: INSTANT_TTL_SECONDS });
+      try {
+        await env.SUBMISSIONS.put(countKey, String(sent + 1), { expirationTtl: 2 * 86400 });
+      } catch {
+        /* KV refuses a second write to one key inside a second: the record is in, the count can lag */
+      }
+      return json({ ok: true, id }, 200, PRIVATE);
     }
 
     // ------------------------------------------------------------ flagged board

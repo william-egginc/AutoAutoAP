@@ -441,6 +441,37 @@
     <p v-if="result && exactStatus === 'done' && exactMs !== null" class="text-[10px] text-slate-400">
       Checked on your account with the full simulator in {{ (exactMs / 1000).toFixed(0) }} s.
     </p>
+    <!-- The opt-in for instant answer records, offered once when a check finishes (also in Your setup). -->
+    <div
+      v-if="offerShare"
+      class="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-[11px] text-indigo-900 flex flex-wrap items-center gap-x-3 gap-y-1"
+      data-testid="share-check-offer"
+    >
+      <span
+        ><b>Share this check?</b> This answer and its exact times go to the planner's maintainer, anonymously, to make
+        the instant answer more accurate. Never your player ID, never shown on the board.</span
+      >
+      <button
+        type="button"
+        class="px-2 py-1 rounded-md bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700"
+        @click="shareYes"
+      >
+        Yes, from now on
+      </button>
+      <button
+        type="button"
+        class="px-2 py-1 rounded-md border border-indigo-300 text-indigo-800 text-[10px] font-black uppercase tracking-widest hover:bg-white"
+        @click="shareNo"
+      >
+        No
+      </button>
+    </div>
+    <p v-if="result && shareNote === 'sent'" class="text-[10px] text-slate-400" data-testid="share-check-sent">
+      Shared this check anonymously. You can turn this off in Your setup.
+    </p>
+    <p v-else-if="result && shareNote === 'failed'" class="text-[10px] text-slate-400">
+      Couldn't share this check. The next one will try again.
+    </p>
 
     <!-- What the answer above does not account for, on both screens. -->
     <template v-if="result">
@@ -600,6 +631,21 @@ import type { ChainResult } from '@/search/types';
 import { gearChanges, gearStamp, gearTableName, tableName } from '@/search/tableGear';
 import { compositeUrl, parseCompositeUrl } from '@/search/precomputedTable';
 import type { TableHeader } from '@/search/precomputedTable';
+import { useInitialStateStore } from '@/stores/initialState';
+import { ownerToken } from '@/search/owner';
+import { appBuildId } from '@/search/submission';
+import { describeAvailability } from '@/search/availabilitySchedule';
+import { CTE_CLEARS, INTEGRITY_BLOCK_SECONDS, INTEGRITY_WARN_SECONDS } from '@/search/rules';
+import {
+  buildGapOf,
+  exactLegs,
+  firstLegOf,
+  instantLegs,
+  instantUrlOf,
+  sendInstantRecord,
+  type InstantRecord,
+} from '@/search/instantRecord';
+import { declineInstantShare, useInstantShare } from '@/composables/useInstantShare';
 
 const props = defineProps<{
   /** Highest TE by a date: the unix second. Without it, the fastest route to the target. */
@@ -1129,6 +1175,7 @@ async function run(force = false, goAhead = false): Promise<void> {
     let url = TABLE_URL;
     let h: TableHeader | null = null;
     let mismatch = '';
+    stampHash.value = '';
     const mine = await ownTableUrl().catch(() => null);
     if (mine) {
       try {
@@ -1151,7 +1198,10 @@ async function run(force = false, goAhead = false): Promise<void> {
     if (url === TABLE_URL && h.k3) {
       const stamp = gearStamp(store.collectInputs(), store.readInventory().earnings, h.k3.research);
       if (stamp) {
-        const gearUrl = `${import.meta.env.BASE_URL}precompute/${await gearTableName(stamp)}`;
+        const gearName = await gearTableName(stamp);
+        // The gear stamp's hash, for an instant answer record: the gear instant answer that would fit.
+        stampHash.value = gearName.replace(/^gear-|\.bin$/g, '');
+        const gearUrl = `${import.meta.env.BASE_URL}precompute/${gearName}`;
         const scale = instantDeliveryScale(store.collectInputs(), h.k3);
         const both = compositeUrl(gearUrl, TABLE_URL, GEAR_TABLE_TO, scale);
         try {
@@ -1383,6 +1433,7 @@ function checkAgain(): void {
 
 async function runExact(id: number, found: NonNullable<typeof result.value>, manual = false): Promise<void> {
   stopExact();
+  shareNote.value = '';
   exact.value = {};
   dateExact.value = null;
   dateExactByK.value = {};
@@ -1546,6 +1597,8 @@ async function runExact(id: number, found: NonNullable<typeof result.value>, man
     else if (lead && le)
       writeCache(cachedKey, { at: Date.now(), chain: (lead as Route).chain, end: le.end, endTE: le.endTE });
     saveSnapshot(id);
+    // Opted in (Your setup): one record of this answer and its exact check (search/instantRecord.ts).
+    void shareCheck(id);
   } catch (err) {
     if (id !== runs) return;
     exactStatus.value = 'error';
@@ -1842,5 +1895,187 @@ function show(unix: number): string {
 }
 function days(seconds: number): string {
   return (seconds / 86400).toFixed(2) + ' days';
+}
+
+/**
+ * INSTANT ANSWER RECORDS (opt-in, Your setup; search/instantRecord.ts). When a Check exactly finishes
+ * and the player has ticked "Share my instant answers and their Check exactly results", one record of
+ * this answer and its exact check goes to the collector, privately: never the player id, never on the
+ * board. At most one per save, mode and target an hour, and never the same one twice.
+ */
+const share = useInstantShare();
+const initialState = useInitialStateStore();
+const instantUrl = instantUrlOf(store.submitUrl);
+/** The gear stamp's hash (the 24 hex of `gearTableName`), worked out with the instant answer. */
+const stampHash = ref('');
+/** What the last record did, for the one line under the answer. */
+const shareNote = ref<'' | 'sent' | 'failed'>('');
+/** "Share this check?", once, after a check finishes here (not on a saved answer put back). */
+const offerShare = computed(
+  () => !!instantUrl && !share.asked.value && exactStatus.value === 'done' && !!result.value && !savedAt.value
+);
+function shareYes(): void {
+  share.on.value = true;
+  void shareCheck(runs);
+}
+function shareNo(): void {
+  declineInstantShare(share);
+}
+
+const round = (x: number, d: number) => Number(x.toFixed(d)) + 0;
+
+/** The record for the answer and exact check on screen now; null when there is no finished check. */
+function buildRecord(): InstantRecord | null {
+  const found = result.value;
+  if (!found || exactStatus.value !== 'done') return null;
+  const deadline = props.deadline;
+  const pick = deadline ? found.byDate : found.best;
+  if (!pick) return null;
+  const inputs = store.collectInputs();
+  const planStart = answerStart.value || inputs.planStart;
+  const backupTime = (initialState.rawBackup as { approxTime?: number } | null)?.approxTime;
+  const endTE = (r: Route) => round(r.legs[r.legs.length - 1].endTE, 2);
+  const leadChain = deadline ? (dateExact.value?.chain ?? null) : (exactBest.value?.chain ?? null);
+  const ex = leadChain ? exact.value[key(leadChain)] : null;
+  const exLegs = ex?.legs ?? [];
+  const parts = store.cteParts();
+  const wait = store.integrityWait;
+  let contPeak: number | null = null;
+  try {
+    contPeak = continueTailParams(inputs, planStart)?.peakELR ?? null;
+  } catch {
+    contPeak = null;
+  }
+  const b = bracket.value;
+  const side = (x: BracketSide | null) =>
+    x
+      ? {
+          gear: `${x.entry.file} ${x.entry.bonus.toFixed(1)}/${x.entry.k.toFixed(3)}`.slice(0, 120),
+          end: x.end ? Math.round(x.end) : null,
+          te: x.te,
+        }
+      : null;
+  const spareH = (end: number) => round(((deadline ?? 0) - end) / 3600, 2);
+  const rowsOut = deadline
+    ? dateRows.value.map(r => {
+        const d = dateExactByK.value[r.legs.length];
+        return {
+          n: r.legs.length,
+          chain: [...r.chain],
+          iEnd: Math.round(r.end),
+          iTE: endTE(r),
+          ...(d !== undefined ? { xEnd: d ? Math.round(d.end) : null, xTE: d ? round(d.endTE, 2) : null } : {}),
+        };
+      })
+    : rows.value.map(r => {
+        const e = exactOf(r);
+        return {
+          n: r.legs.length,
+          chain: [...r.chain],
+          iEnd: Math.round(r.end),
+          ...(e !== undefined ? { xEnd: e ? Math.round(e.end) : null, xTE: e ? round(e.endTE, 2) : null } : {}),
+        };
+      });
+  const gap = buildGapOf(contPeak, exLegs);
+  const build = appBuildId();
+  return {
+    v: 1,
+    ...(build ? { build } : {}),
+    mode: deadline ? 'date' : 'fastest',
+    ...(deadline ? { deadline: Math.round(deadline) } : { target: store.finalTE }),
+    planStart: Math.round(planStart),
+    timezone: zone.value,
+    ...(backupTime ? { backupTime: Math.round(backupTime), backupAgeHours: round((planStart - backupTime) / 3600, 1) } : {}),
+    currentTE: Math.floor(store.currentTE),
+    ...(initialState.rawBackup ? { backupTE: round(store.backupTE, 2) } : {}),
+    ...(parts ? { clothedTE: round(parts.total, 2) } : {}),
+    gear: {
+      answer: gearTable.value ? 'gear' : own.value ? 'own' : 'maxed',
+      ...(stampHash.value ? { stamp: stampHash.value } : {}),
+      ...(ownChanged.value ? { ownChanged: ownChanged.value.slice(0, 80) } : {}),
+      earningsShort: round(bonusShort.value, 2),
+      ...(deliveryScale.value !== null ? { deliveryScale: round(deliveryScale.value, 4) } : {}),
+      adjusted: gearDiffers.value,
+      progressionShort: !!progressionShort.value,
+      ...(header.value ? { tableFrom: header.value.from } : {}),
+      ...(header.value?.gearTo ? { gearTo: header.value.gearTo } : {}),
+      ...(b ? { bracket: { above: side(b.above), below: side(b.below) } } : {}),
+    },
+    stall: {
+      ...(parts ? { cte: round(parts.total, 2), belowLine: parts.total < CTE_CLEARS } : {}),
+      clears: CTE_CLEARS,
+      integrityHours: wait === null ? null : round(wait / 3600, 2),
+      notice:
+        wait === null
+          ? 'unknown'
+          : wait > INTEGRITY_BLOCK_SECONDS
+            ? 'blocked'
+            : wait > INTEGRITY_WARN_SECONDS
+              ? 'stalls'
+              : 'none',
+    },
+    settings: {
+      firstAscension: store.firstAscension,
+      maxAscensions: filters.value.maxAscensions,
+      inHours: useHours.value,
+      window: store.scheduleEnabled && store.availability ? describeAvailability(store.availability) : null,
+      holdShifts: !!store.deferShifts,
+      tryAtOnce: tryAtOnce.value,
+      timeOff: store.timeOff.length,
+      milestones: store.milestones.length,
+      small,
+    },
+    instant: {
+      chain: [...pick.chain],
+      end: Math.round(pick.end),
+      endTE: endTE(pick),
+      ...(deadline ? { spareHours: spareH(pick.end) } : {}),
+      legs: instantLegs(pick),
+    },
+    rows: rowsOut,
+    exact:
+      leadChain && ex
+        ? {
+            chain: [...leadChain],
+            end: Math.round(ex.end),
+            endTE: round(ex.endTE, 2),
+            ...(deadline ? { spareHours: spareH(ex.end) } : {}),
+            handoff: ex.handoff,
+            ...firstLegOf(exLegs),
+            legs: exactLegs(exLegs),
+          }
+        : null,
+    ...(missedBy.value !== null ? { exactMissedByHours: round(missedBy.value / 3600, 2) } : {}),
+    ...(gap ? { buildGap: gap } : {}),
+    ...(exactMs.value !== null ? { checkSeconds: round(exactMs.value / 1000, 1) } : {}),
+  };
+}
+
+function shareStorage(): Storage | null {
+  try {
+    return typeof localStorage === 'undefined' ? null : localStorage;
+  } catch {
+    return null;
+  }
+}
+
+/** Send this check's record, when opted in. Never throws; a check that has been superseded is skipped. */
+async function shareCheck(id: number): Promise<void> {
+  if (!share.on.value || !instantUrl || id !== runs) return;
+  const record = buildRecord();
+  if (!record) return;
+  // A saved answer put back has no stamp worked out: the maxed instant answer's research gives the same one.
+  if (!record.gear.stamp && record.gear.answer === 'maxed' && header.value?.k3) {
+    try {
+      const stamp = gearStamp(store.collectInputs(), store.readInventory().earnings, header.value.k3.research);
+      if (stamp) record.gear.stamp = (await gearTableName(stamp)).replace(/^gear-|\.bin$/g, '');
+    } catch {
+      /* sent without it */
+    }
+  }
+  const partition = await store.accountPartition();
+  const owner = partition ? ownerToken(partition) : null;
+  const res = await sendInstantRecord({ url: instantUrl, owner, partition, record, storage: shareStorage() });
+  if (res !== 'skipped') shareNote.value = res;
 }
 </script>

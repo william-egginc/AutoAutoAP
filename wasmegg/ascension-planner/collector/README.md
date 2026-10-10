@@ -207,6 +207,7 @@ no button.
 | `POST /submit` | one submission; validated against a whitelist, rate-limited to 10 per IP per minute. Answers `{ ok, id, uploadToken }`; for a copy of a result already on the board, see *Copies* below (`duplicate: 'exact'` with the stored row's `id` and `firstAt`, or `duplicate: 'result'` with `dupOf`). A body with `replaces: <id>` also answers `replaced: <id>` or `replaceRefused: <why>` (see *Provisional rows*); a provisional row's `uploadToken` is for its CSV so far. `429` with `{ error, retryAfter }` (seconds left in the minute, in the body because a cross-origin page cannot read `Retry-After`) |
 | `POST /claim` | `{ id, nickname }` with `x-owner-token`: puts a name on a row sent with that owner code. `403` if the row has no code or another one, `404` for an unknown id, `400` for a bad name (same rule as `/submit`, and not empty). Shares `/submit`'s rate limit |
 | `POST /csv?id=<id>` | that run's gzipped CSV, once. Needs the `x-upload-token` header `/submit` returned. Must be gzip, capped at 8 MB compressed. For a provisional row it is the CSV so far, answered `{ ok, bytes, partial: true }` |
+| `POST /instant` | one opt-in instant answer record with `x-owner-token` (required). Stored privately under `inst:<UTC day>:<id>` for 180 days and never served (see *Instant answer records*). `{ ok, id }`; `400` with `problems` (each naming the field), `413` past 8 KB, `429` past 30 a day from one owner code |
 | `GET /csv?id=<id>` | it back, as a `.csv.gz` file (`application/gzip`) |
 | `GET /leaderboard?final=490&limit=50` | one line per distinct result, already in duration order, copies folded (`copies: n` when more than one). `limit` is at most 200. By a date answers (rows with a `deadline`) are left out: plan lengths do not rank them |
 | `GET /all` | every row, By a date answers included, for your own analysis. `?final=490` narrows it |
@@ -479,6 +480,60 @@ days on commons.
 
 If you change what is stored, **change the consent text in the panel to match**. People agreed
 to a specific list.
+
+### Instant answer records
+
+Opt-in, from **Your setup > Sharing** ("Share my instant answers and their Check exactly results"),
+off by default, and offered once under the instant answer when a Check exactly finishes. With it on,
+each finished Check exactly (Fastest route and By a date) sends **one** record to `POST /instant`:
+at most one per save, per mode and target (or deadline), per hour, and never the same record twice
+(the app keeps that log in the browser; `src/search/instantRecord.ts`). The record is the instant
+answer and its exact check, for the analyst:
+
+- plan start, save time and backup age, timezone, current TE, the save's TE, Clothed TE;
+- `gear`: which instant answer was used (`own`, `gear` = built on gear exactly like theirs, or
+  `maxed` = the maxed one adjusted), the gear stamp's hash (the 24 hex of the `gear-<hex>.bin` that
+  would fit this account), `ownChanged` (their own existed but their gear changed), how far the
+  earnings set and delivery are from the answer's, whether the "Your gear isn't the gear the instant
+  answer was built on" note showed (`adjusted`), and the closest stronger and weaker gear's results
+  (`bracket`);
+- `stall`: Clothed TE against the 225 line (`belowLine`) and the Integrity check, if it ran
+  (`integrityHours`, `notice`: none / stalls / blocked / unknown);
+- `settings`: first ascension, the "At most N ascensions" and "Works inside my hours" filters, the
+  awake window, held shifts, "also try ascending at once", time off and dated milestones (counts);
+- `instant`: the instant answer's route, each stop's arrival, build (sales, tier 13) and, By a date,
+  the spare; `rows`: every row shown, instant answer against exact;
+- `exact`: the exact check's route leg by leg (start, days, strategy, sales, tier 13, peak delivery,
+  shift holds and prestige delays) with leg 1's `firstLeg` and `firstLegOtherHours`;
+- `buildGap`: the farm the plan would continue (its peak delivery now) against the first fresh
+  build's peak in the exact route, and the ratio (under ~0.85: a half-built farm);
+- the app build and how long the check took.
+
+Never the player id or the save. The sender is the account's owner code (as for board sends): the
+Worker stores `owner` (12 hex of its SHA-256, what the snapshots' private owner index holds) and
+`acct` (the HMAC a named board row shows), so a record lines up with the sender's board rows.
+**Never served**: no route reads `inst:`. Read them with wrangler:
+
+```bash
+npx wrangler kv key list --binding SUBMISSIONS --remote --prefix "inst:2026-10-10" --config "$PWD/wrangler.toml"
+npx wrangler kv key get  --binding SUBMISSIONS --remote "inst:2026-10-10:<id>" --config "$PWD/wrangler.toml"
+```
+
+Strict: the body is capped at 8 KB before it is parsed (the app trims leg detail to fit); every
+field is on a whitelist with a type and a bound; a known field out of bounds refuses the record with
+its path (`record.gear.answer must be one of ...`), an unknown or id-like field is dropped, and text
+is swept for `EI` + 16 digits.
+
+| per record | reads | writes | deletes | lists |
+|---|---|---|---|---|
+| stored | 1 (the owner's daily count) | 2 (the record, the count `instn:<owner>:<day>`) | 0 | 0 |
+| refused (no code, bad body, too big) | 0 | 0 | 0 | 0 |
+| refused for the daily cap (30) | 1 | 0 | 0 | 0 |
+
+No IP gate (that would be a third write): the cap is per owner code. The analyst's estimate is 50 to
+100 records from 15 to 20 accounts, about 200 writes in all; one account at the cap is 60 writes a
+day, 6% of the free plan's 1,000. A script minting owner codes could still spend writes, as it can on
+`/submit` today.
 
 ### Private extras
 

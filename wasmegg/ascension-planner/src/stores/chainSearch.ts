@@ -3255,7 +3255,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
 
   /** The loaded account's partition hash (lib/storage/db.ts `hashID`), or '' with no account. */
   async function accountPartition(): Promise<string> {
-    return partitionHash || (currentPlayerId ? await hashID(currentPlayerId).catch(() => '') : '');
+    if (partitionHash) return partitionHash;
+    // No panel has recorded the player yet (By a date, or the instant answer on its own): the save's.
+    const id = currentPlayerId || (useInitialStateStore().rawBackup as { eiUserId?: string } | null)?.eiUserId || '';
+    return id ? await hashID(id).catch(() => '') : '';
   }
 
   /** This save's "timezone + best artifact per family", as a row from it carries; null with no save. */
@@ -7578,6 +7581,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     findBestStart,
     stopStartSweep,
     cteParts,
+    accountPartition,
     otherAccountKeys,
     deadlineWorkerSeconds,
     sendSubmission,

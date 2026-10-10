@@ -2553,3 +2553,206 @@ describe('provisional rows: a best so far, replaced by its run', () => {
     });
   });
 });
+
+// ------------------------------------------------------------------- instant answer records
+import { exactLegs as appExactLegs, instantLegs as appInstantLegs, sendInstantRecord } from '../src/search/instantRecord.ts';
+
+describe('POST /instant (opt-in instant answer records)', () => {
+  const T = 1791000000;
+  const RECORD = {
+    v: 1,
+    build: 'abc1234',
+    mode: 'fastest',
+    target: 490,
+    planStart: T,
+    timezone: 'America/Denver',
+    backupTime: T - 7200,
+    backupAgeHours: 2,
+    currentTE: 201,
+    backupTE: 201,
+    clothedTE: 247.3,
+    gear: {
+      stamp: '0123456789abcdef01234567',
+      answer: 'maxed',
+      earningsShort: 24.1,
+      deliveryScale: 0.9712,
+      adjusted: true,
+      progressionShort: false,
+      tableFrom: 120,
+      bracket: { above: { gear: 'table.bin 128.7/1.000', end: T + 9e6, te: 490 }, below: null },
+    },
+    stall: { cte: 247.3, clears: 225, belowLine: false, integrityHours: 0.4, notice: 'none' },
+    settings: {
+      firstAscension: 'auto',
+      maxAscensions: null,
+      inHours: false,
+      window: null,
+      holdShifts: true,
+      tryAtOnce: false,
+      timeOff: 0,
+      milestones: 0,
+      small: false,
+    },
+    instant: {
+      chain: [206, 490],
+      end: T + 9e6,
+      endTE: 490,
+      legs: [
+        { to: 206, endTE: 206.2, start: T, end: T + 1e5, label: 'continue', sales: 0, tier13: false },
+        { to: 490, endTE: 490, start: T + 1e5, end: T + 9e6, label: '2-sale-tier13', sales: 2, tier13: true },
+      ],
+    },
+    rows: [{ n: 2, chain: [206, 490], iEnd: T + 9e6, xEnd: T + 9.1e6, xTE: 490 }],
+    exact: {
+      chain: [206, 490],
+      end: T + 9.1e6,
+      endTE: 490,
+      handoff: 'hour',
+      firstLeg: 'continue',
+      firstLegOtherHours: 31.5,
+      legs: [
+        { te: 206.2, start: T, days: 1.2, strategy: 'continue', tier13: false, peakQph: 4.564, holdHours: 0, delayHours: 0 },
+        { te: 490, start: T + 1e5, days: 104, strategy: '2-sale-tier13', sales: 2, tier13: true, peakQph: 6.06, holdHours: 1.5, delayHours: 0 },
+      ],
+    },
+    buildGap: { contQph: 4.564, freshQph: 6.06, ratio: 0.753, freshLeg: 2 },
+    checkSeconds: 41.2,
+  };
+  const instKeys = () => [...env.SUBMISSIONS._m.keys()].filter(k => k.startsWith('inst:'));
+  const postRaw = (text, token = TOKEN_A) =>
+    worker.fetch(
+      new Request('https://collector.test/instant', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-owner-token': token },
+        body: text,
+      }),
+      env
+    );
+
+  it('stores one record privately under inst:<day>:<id>, with a 180-day TTL', async () => {
+    const puts = [];
+    const put = env.SUBMISSIONS.put;
+    env.SUBMISSIONS.put = async (k, v, o) => (puts.push([k, o]), put(k, v, o));
+    const res = await postOwned('/instant', RECORD, TOKEN_A);
+    expect(res.status).toBe(200);
+    const { id } = await res.json();
+    const day = new Date().toISOString().slice(0, 10);
+    expect(instKeys()).toEqual([`inst:${day}:${id}`]);
+    expect(puts.find(([k]) => k.startsWith('inst:'))[1].expirationTtl).toBe(180 * 86400);
+    const stored = JSON.parse(env.SUBMISSIONS._m.get(`inst:${day}:${id}`));
+    // Everything the app sent, byte for byte, plus who (hashed) and when.
+    const { owner, acct, receivedAt, ...rest } = stored;
+    expect(rest).toEqual(RECORD);
+    expect(owner).toMatch(/^[a-f0-9]{12}$/);
+    expect(acct).toMatch(/^[a-f0-9]{12}$/);
+    expect(receivedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(JSON.stringify(stored)).not.toContain(TOKEN_A);
+  });
+
+  it('costs 1 read and 2 writes, no list and no delete', async () => {
+    const ops = { get: 0, put: 0, list: 0, delete: 0 };
+    const kv = env.SUBMISSIONS;
+    env.SUBMISSIONS = {
+      ...kv,
+      get: (...a) => (ops.get++, kv.get(...a)),
+      put: (...a) => (ops.put++, kv.put(...a)),
+      list: (...a) => (ops.list++, kv.list(...a)),
+      delete: (...a) => (ops.delete++, kv.delete(...a)),
+    };
+    expect((await postOwned('/instant', RECORD, TOKEN_A)).status).toBe(200);
+    expect(ops).toEqual({ get: 1, put: 2, list: 0, delete: 0 });
+  });
+
+  it('is never served: not on the board, /all, /mine or the snapshots', async () => {
+    await postOwned('/instant', RECORD, TOKEN_A);
+    await post('/submit', MINIMAL);
+    const all = await (await get('/all')).text();
+    const mine = await (await getOwned('/mine', TOKEN_A)).text();
+    const board = await (await get('/leaderboard')).text();
+    for (const body of [all, mine, board]) expect(body).not.toContain('0123456789abcdef01234567');
+    expect(env.SUBMISSIONS._m.get('snap:sub')).not.toContain('instant');
+    expect((await get('/instant')).status).toBe(404);
+  });
+
+  it('needs the owner code', async () => {
+    const res = await post('/instant', RECORD);
+    expect(res.status).toBe(400);
+    expect(instKeys()).toEqual([]);
+  });
+
+  it('refuses a known field out of bounds, saying where', async () => {
+    const res = await postOwned('/instant', { ...RECORD, gear: { ...RECORD.gear, answer: 'mine' } }, TOKEN_A);
+    expect(res.status).toBe(400);
+    expect((await res.json()).problems.join(' ')).toContain('record.gear.answer');
+    const bad = await postOwned('/instant', { ...RECORD, instant: { ...RECORD.instant, chain: [490, 206] } }, TOKEN_A);
+    expect(bad.status).toBe(400);
+    expect((await postOwned('/instant', { ...RECORD, v: 2 }, TOKEN_A)).status).toBe(400);
+    expect((await postOwned('/instant', { ...RECORD, target: undefined }, TOKEN_A)).status).toBe(400);
+    expect(instKeys()).toEqual([]);
+  });
+
+  it('drops fields nobody asked for, id-like ones included, and sweeps player ids from text', async () => {
+    const { id } = await (
+      await postOwned(
+        '/instant',
+        {
+          ...RECORD,
+          eiUserId: 'EI1234567890123456',
+          extra: 'x',
+          timezone: 'EI1234567890123456',
+          gear: { ...RECORD.gear, playerId: 'y' },
+        },
+        TOKEN_A
+      )
+    ).json();
+    const raw = env.SUBMISSIONS._m.get(instKeys()[0]);
+    expect(instKeys()[0]).toContain(id);
+    expect(raw).not.toMatch(/EI\d{16}/);
+    const stored = JSON.parse(raw);
+    expect(stored.eiUserId).toBeUndefined();
+    expect(stored.extra).toBeUndefined();
+    expect(stored.gear.playerId).toBeUndefined();
+    expect(stored.timezone).toBe('EI[redacted]');
+  });
+
+  it('refuses a body over 8 KB before parsing it', async () => {
+    const res = await postRaw(JSON.stringify({ ...RECORD, pad: 'x'.repeat(9000) }));
+    expect(res.status).toBe(413);
+    expect(instKeys()).toEqual([]);
+  });
+
+  it('takes at most 30 a day from one owner code, each code counted on its own', async () => {
+    for (let i = 0; i < 30; i++) expect((await postOwned('/instant', RECORD, TOKEN_A)).status).toBe(200);
+    const res = await postOwned('/instant', RECORD, TOKEN_A);
+    expect(res.status).toBe(429);
+    expect((await res.json()).retryAfter).toBeGreaterThan(0);
+    expect((await postOwned('/instant', RECORD, TOKEN_B)).status).toBe(200);
+    expect(instKeys()).toHaveLength(31);
+  });
+
+  it("takes a By a date record, and what the app's own sender builds", async () => {
+    const date = { ...RECORD, mode: 'date', target: undefined, deadline: T + 8e6, exactMissedByHours: 12.5 };
+    expect((await postOwned('/instant', date, TOKEN_A)).status).toBe(200);
+    // The app's sender and leg helpers (src/search/instantRecord.ts), straight into the Worker.
+    const route = {
+      chain: [206, 490],
+      legs: RECORD.instant.legs.map(l => ({ from: 200, ...l })),
+      end: T + 9e6,
+      seconds: 9e6,
+    };
+    const legs = appExactLegs([
+      { key: 'continue', endTE: 206.2, durationSeconds: 1e5, maxELR: 1.2e12, endTime: T + 1e5, tier13Unlocked: false, startTime: T },
+    ]);
+    const record = { ...RECORD, instant: { chain: route.chain, end: route.end, legs: appInstantLegs(route) }, exact: { ...RECORD.exact, legs } };
+    const result = await sendInstantRecord({
+      url: 'https://collector.test/instant',
+      owner: TOKEN_C,
+      partition: 'p',
+      record,
+      storage: null,
+      fetchImpl: (u, init) => worker.fetch(new Request(u, init), env),
+    });
+    expect(result).toBe('sent');
+    expect(instKeys()).toHaveLength(2);
+  });
+});

@@ -425,6 +425,30 @@
           <SimulationSetup />
         </div>
 
+        <!-- Sharing: the opt-in for instant answer records (search/instantRecord.ts). Off by default; also
+             offered once under the instant answer when a Check exactly finishes. Only with a collector. -->
+        <div
+          v-if="canShareInstant"
+          class="rounded-xl border border-slate-200 p-4 space-y-2 min-w-0 md:col-span-2"
+          data-testid="share-instant"
+        >
+          <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Sharing</h3>
+          <label class="flex items-start gap-3 cursor-pointer">
+            <input v-model="shareInstantOn" type="checkbox" class="mt-0.5 rounded border-slate-300 text-indigo-600" />
+            <span class="text-[11px] text-slate-600 leading-relaxed">
+              <span class="font-bold text-slate-800">Share my instant answers and their Check exactly results</span>
+              (anonymous; helps make the instant answer more accurate). After each Check exactly, at most once an hour
+              per save, this browser sends the routes, the instant answer's and the exact times, your TE and Clothed TE,
+              a summary of your gear, your plan start, timezone, save time and settings, and the app version. It goes
+              with this browser's anonymous code for your account, never your player ID or your save. Kept privately by
+              the planner's maintainer for 6 months, never shown on the board.
+            </span>
+          </label>
+          <p class="text-[11px] text-slate-500 leading-relaxed">
+            Sending a result to the board, its CSV and diagnostics are separate choices, under Find and submit.
+          </p>
+        </div>
+
         <!-- How the site shows things -->
         <div class="rounded-xl border border-slate-200 p-4 space-y-3 min-w-0 md:col-span-2">
           <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">How the site shows things</h3>
@@ -446,6 +470,8 @@ import { NAMES, type AutoView, fastestName } from '@/lib/siteNav';
 import { showDateTime, showHour, showSchedule as scheduleText } from '@/lib/displayTime';
 import { usableTimeOff } from '@/search/timeOff';
 import { useInstantDuringSearch } from '@/composables/useInstantDuringSearch';
+import { useInstantShare } from '@/composables/useInstantShare';
+import { instantUrlOf } from '@/search/instantRecord';
 import { FIRST_ASCENSION_CHOICES, FIRST_ASCENSION_WORDS, type FirstAscension } from '@/search/firstAscension';
 import SchedulingInputs from './SchedulingInputs.vue';
 import TimeOffEditor from './TimeOffEditor.vue';
@@ -462,6 +488,9 @@ defineProps<{
 
 const store = useChainSearchStore();
 const instantDuringSearch = useInstantDuringSearch();
+/** "Share my instant answers…": only where a collector is configured to take them. */
+const { on: shareInstantOn } = useInstantShare();
+const canShareInstant = !!instantUrlOf(store.submitUrl);
 // Choosing "Let me pick my hours" holds the egg shifts for those hours as well.
 watch(
   () => store.scheduleEnabled,
