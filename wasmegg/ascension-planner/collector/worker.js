@@ -145,6 +145,9 @@ const MAX = {
    *  achieves -- far past the largest run anyone has produced, and still inside KV's 25 MB
    *  per-value ceiling with margin for data that compresses worse than measured. */
   CSV_BYTES: 8 * 1024 * 1024,
+  /** Parts one CSV may be split into when its gzip is over CSV_BYTES (see "the CSV in parts"): 64 MB
+   *  compressed in all, about 1.5 GB of raw CSV. Each part is one KV write. */
+  CSV_PARTS: 8,
   /** A virtue loadout is four artifacts with at most three stones each; the caps are generous
    *  rather than exact so a future game change does not silently truncate a real set. */
   LOADOUT_SLOTS: 8,
@@ -1399,7 +1402,8 @@ async function settleSnapshot(env, board, raw, change = null) {
   const own = snap.own;
   const prov = snap.prov;
   const [listed, csvListed] = await Promise.all([listAll(env, `${board}:`), listAll(env, 'csv:')]);
-  const csvIds = new Set(csvListed.map(k => k.name.slice(4)));
+  // A CSV's later parts (`csv:<id>:p<n>`) are not CSVs of their own; `csv:<id>` is the whole file.
+  const csvIds = new Set(csvListed.map(k => k.name.slice(4)).filter(n => !n.includes(':')));
 
   // Rows KV no longer has: a replaced provisional row a racing patch put back, or one deleted by hand.
   // Only past UNLISTED_GRACE_MS, and only from a list that ran to the end (see "snapshots").
@@ -1896,11 +1900,61 @@ async function replaceTarget(env, ctx, id, owner, boards) {
 /** Delete a replaced provisional row, its CSV so far and its private extras. The snapshot is the
  *  caller's (it shares the new row's patch when both are on one board). The CSV and the extras go
  *  unconditionally: the snapshot's hasCsv may not have caught up with a CSV so far yet, and deleting
- *  nothing costs one operation where finding out would cost a read. */
+ *  nothing costs one operation where finding out would cost a read. A CSV in parts (see "the CSV in
+ *  parts") says how many in its `csv:<id>` metadata, so that key is read first (one read) and its
+ *  other parts go too. */
 async function deleteRow(env, target) {
   await env.SUBMISSIONS.delete(target.key);
+  const parts = await csvParts(env, target.id);
+  for (let n = 1; n < parts; n++) await env.SUBMISSIONS.delete(csvPartKey(target.id, n));
   await env.SUBMISSIONS.delete(`csv:${target.id}`);
   await env.SUBMISSIONS.delete(`extra:${target.id}`);
+}
+
+// ------------------------------------------------------------------ the CSV in parts
+//
+// A big run's gzipped CSV can pass the 8 MB a request (MAX.CSV_BYTES): an overnight 154k-route run's
+// CSV so far was already 6 MB. Such a file goes in PARTS: the app gzips the whole CSV once and cuts the
+// BYTES into slices of at most 8 MB, so the parts joined in order are the original .csv.gz exactly.
+//
+//   POST /csv?id=<id>&part=<n>&parts=<m>     2 <= m <= MAX.CSV_PARTS, 0 <= n < m, same token as ever
+//
+// - Parts 1..m-1 go first, each to `csv:<id>:p<n>` (one write each). They may be sent again (a retry
+//   whose answer was lost) until the file is sealed.
+// - Part 0 goes LAST and seals the file: it is stored at `csv:<id>` itself, with metadata
+//   `{ parts: m }`, after a read of each other part to see that it is there (missing ones refuse with
+//   422 and `missing: [n...]`, for the app to send again). So `csv:<id>` existing still means "this
+//   row has its whole CSV": hasCsv, the write-once 409, the settle's CSV list and the delete of a
+//   replaced row all keep working off that one key.
+// - Part 0 last also keeps a collector from before parts safe: it would take part 1 for a whole file,
+//   but part 1 does not start with the gzip magic, so it is refused (400) and nothing is stored.
+// - GET /csv?id= joins them: `csv:<id>`, then each part, streamed as one .csv.gz.
+// - A single-part upload (no `part`/`parts`) is exactly as before. A CSV of m parts costs m writes
+//   (plus the snapshot patch, as for one), and m - 1 extra reads to seal and to serve.
+// - Parts of a file never sealed (the tab closed half-way) are orphans: nothing reads them, and they
+//   are not deleted with the row. Rare, and bounded by MAX.CSV_PARTS.
+
+const csvPartKey = (id, n) => `csv:${id}:p${n}`;
+
+/** How many parts the stored CSV of `id` has: 1 for a single file (or none), from `csv:<id>`'s metadata. */
+async function csvParts(env, id) {
+  if (typeof env.SUBMISSIONS.getWithMetadata !== 'function') return 1;
+  const got = await env.SUBMISSIONS.getWithMetadata(`csv:${id}`, 'stream');
+  if (got?.value && typeof got.value.cancel === 'function') await got.value.cancel().catch(() => {});
+  const m = got?.metadata?.parts;
+  return Number.isInteger(m) && m > 1 && m <= MAX.CSV_PARTS ? m : 1;
+}
+
+/** `part` and `parts` from a /csv URL: null for a single upload, 'bad' for nonsense. */
+function partOf(url) {
+  const p = url.searchParams.get('part');
+  const m = url.searchParams.get('parts');
+  if (p === null && m === null) return null;
+  if (!/^\d{1,3}$/.test(p ?? '') || !/^\d{1,3}$/.test(m ?? '')) return 'bad';
+  const part = Number(p);
+  const parts = Number(m);
+  if (parts < 2 || parts > MAX.CSV_PARTS || part >= parts) return 'bad';
+  return { part, parts };
 }
 
 // ------------------------------------------------------------- instant answer records
@@ -2438,9 +2492,14 @@ export default {
       if (!final && !soFar) {
         return json({ error: 'missing or wrong upload token - a CSV can only follow its own /submit' }, 403);
       }
+      // One part of a CSV over the cap (see "the CSV in parts"), or null for a whole file.
+      const split = partOf(url);
+      if (split === 'bad') {
+        return json({ error: `part and parts must be whole numbers, 0 <= part < parts, 2 <= parts <= ${MAX.CSV_PARTS}` }, 400);
+      }
       // Write-once. The token never expires, so without this it would let the submitter (or anyone
-      // who saw the token) replace the table later.
-      if ((await env.SUBMISSIONS.get(`csv:${id}`, 'arrayBuffer')) !== null) {
+      // who saw the token) replace the table later. A part checks without pulling the bytes across.
+      if (split ? await hasCsv(env, id) : (await env.SUBMISSIONS.get(`csv:${id}`, 'arrayBuffer')) !== null) {
         return json({ error: 'this submission already has a CSV' }, 409);
       }
 
@@ -2448,6 +2507,11 @@ export default {
       if (!body.byteLength) return json({ error: 'empty body' }, 400);
       if (body.byteLength > MAX.CSV_BYTES) {
         return json({ error: `CSV too large (${body.byteLength} bytes gzipped, limit ${MAX.CSV_BYTES})` }, 413);
+      }
+      // A later part is a slice from the middle of one gzip stream: stored as it came, and done.
+      if (split && split.part > 0) {
+        await env.SUBMISSIONS.put(csvPartKey(id, split.part), body);
+        return json({ ok: true, bytes: body.byteLength, part: split.part, parts: split.parts });
       }
       // Gzip magic. Rejects a raw CSV posted by an older build, which would otherwise be stored
       // and then served with a Content-Encoding the bytes do not have -- a file that downloads
@@ -2457,21 +2521,73 @@ export default {
         return json({ error: 'body must be gzip (the app compresses before sending)' }, 400);
       }
 
-      await env.SUBMISSIONS.put(`csv:${id}`, body);
+      if (split) {
+        // Part 0 seals the file: every other part must be there first.
+        const missing = [];
+        for (let n = 1; n < split.parts; n++) {
+          const v = await env.SUBMISSIONS.get(csvPartKey(id, n), 'stream');
+          if (v && typeof v.cancel === 'function') await v.cancel().catch(() => {});
+          if (v === null || v === undefined) missing.push(n);
+        }
+        if (missing.length) return json({ error: 'parts missing; send them, then part 0 again', missing }, 422);
+        await env.SUBMISSIONS.put(`csv:${id}`, body, { metadata: { parts: split.parts } });
+      } else await env.SUBMISSIONS.put(`csv:${id}`, body);
       // Flip this row's hasCsv in whichever snapshot holds it: patched in place, never re-listed. A
       // list here, a moment after the row's own /submit, would not show that row yet, and rebuilding
       // from it took the new row off the board (see "snapshots"). A CSV so far too: leaving it to
       // the settle its /submit asked for missed it whenever that settle ran before the CSV landed
       // or was listed, and nothing looked again (live, 10 Oct; see "provisional rows").
       await later(ctx, markCsv(env, id, url.origin));
-      return json({ ok: true, bytes: body.byteLength, ...(soFar ? { partial: true } : {}) });
+      return json({
+        ok: true,
+        bytes: body.byteLength,
+        ...(split ? { part: 0, parts: split.parts } : {}),
+        ...(soFar ? { partial: true } : {}),
+      });
     }
 
     if (url.pathname === '/csv' && request.method === 'GET') {
       const id = url.searchParams.get('id');
       if (!id || !/^[a-f0-9-]{4,40}$/.test(id)) return json({ error: 'bad id' }, 400);
-      const buf = await env.SUBMISSIONS.get(`csv:${id}`, 'arrayBuffer');
-      if (!buf) return json({ error: 'not found' }, 404);
+      // One read for a whole file, as before; a CSV in parts says so in its metadata and is joined
+      // here (see "the CSV in parts"), so the board's link and every script reading /csv get one file.
+      const got =
+        typeof env.SUBMISSIONS.getWithMetadata === 'function'
+          ? await env.SUBMISSIONS.getWithMetadata(`csv:${id}`, 'arrayBuffer')
+          : { value: await env.SUBMISSIONS.get(`csv:${id}`, 'arrayBuffer'), metadata: null };
+      if (!got?.value) return json({ error: 'not found' }, 404);
+      let buf = got.value;
+      const parts = got.metadata?.parts;
+      if (Number.isInteger(parts) && parts > 1 && parts <= MAX.CSV_PARTS) {
+        const rest = [];
+        for (let n = 1; n < parts; n++) {
+          const v = await env.SUBMISSIONS.get(csvPartKey(id, n), 'stream');
+          if (v === null || v === undefined) {
+            for (const r of rest) if (typeof r.cancel === 'function') await r.cancel().catch(() => {});
+            return json({ error: `this CSV is stored in ${parts} parts and part ${n} is missing` }, 500);
+          }
+          rest.push(v);
+        }
+        // Streamed one after another, never all held at once: up to MAX.CSV_PARTS x 8 MB.
+        const { readable, writable } = new TransformStream();
+        const first = got.value;
+        const pump = (async () => {
+          const w = writable.getWriter();
+          await w.write(new Uint8Array(first));
+          w.releaseLock();
+          for (const r of rest) {
+            if (r instanceof ReadableStream) await r.pipeTo(writable, { preventClose: true });
+            else {
+              const w2 = writable.getWriter();
+              await w2.write(new Uint8Array(r));
+              w2.releaseLock();
+            }
+          }
+          await writable.close();
+        })();
+        later(ctx, pump.catch(() => {}));
+        buf = readable;
+      }
       // Served as a GZIP FILE, not as a gzip-encoded CSV. The difference is not pedantry: the
       // obvious version -- `content-type: text/csv` plus `content-encoding: gzip`, letting the
       // browser inflate on arrival -- is broken by the CDN in front of this Worker. Cloudflare

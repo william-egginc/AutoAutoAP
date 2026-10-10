@@ -207,8 +207,9 @@ no button.
 | `POST /submit` | one submission; validated against a whitelist, rate-limited to 10 per IP per minute. Answers `{ ok, id, uploadToken }`; for a copy of a result already on the board, see *Copies* below (`duplicate: 'exact'` with the stored row's `id` and `firstAt`, or `duplicate: 'result'` with `dupOf`). A body with `replaces: <id>` also answers `replaced: <id>` or `replaceRefused: <why>` (see *Provisional rows*); a provisional row's `uploadToken` is for its CSV so far. `429` with `{ error, retryAfter }` (seconds left in the minute, in the body because a cross-origin page cannot read `Retry-After`) |
 | `POST /claim` | `{ id, nickname }` with `x-owner-token`: puts a name on a row sent with that owner code. `403` if the row has no code or another one, `404` for an unknown id, `400` for a bad name (same rule as `/submit`, and not empty). Shares `/submit`'s rate limit |
 | `POST /csv?id=<id>` | that run's gzipped CSV, once. Needs the `x-upload-token` header `/submit` returned. Must be gzip, capped at 8 MB compressed. For a provisional row it is the CSV so far, answered `{ ok, bytes, partial: true }` |
+| `POST /csv?id=<id>&part=<n>&parts=<m>` | one part of a CSV whose gzip is over 8 MB (see *A CSV in parts*). Same token, same 8 MB cap per part; `2 <= m <= 8`. Parts `1..m-1` first, then part 0, which seals the file; `422` with `missing: [n...]` when part 0 comes before the rest |
 | `POST /instant` | one opt-in instant answer record with `x-owner-token` (required). Stored privately under `inst:<UTC day>:<id>` for 180 days and never served (see *Instant answer records*). `{ ok, id }`; `400` with `problems` (each naming the field), `413` past 8 KB, `429` past 30 a day from one owner code |
-| `GET /csv?id=<id>` | it back, as a `.csv.gz` file (`application/gzip`) |
+| `GET /csv?id=<id>` | it back, as a `.csv.gz` file (`application/gzip`); a CSV in parts comes back joined, one file |
 | `GET /leaderboard?final=490&limit=50` | one line per distinct result, already in duration order, copies folded (`copies: n` when more than one). `limit` is at most 200. By a date answers (rows with a `deadline`) are left out: plan lengths do not rank them |
 | `GET /all` | every row, By a date answers included, for your own analysis. `?final=490` narrows it |
 | `GET /mine` | the caller's own rows from both boards, anonymous ones included, each with `yours: true`. `x-owner-token` may be a comma list (up to 20 codes). Never cached |
@@ -281,8 +282,9 @@ What a day costs on KV's free tier (100,000 reads, 1,000 writes, 1,000 deletes, 
 1 read for `/all` plus 2 for `/mine` (both boards) when the viewer has a code, and no list; a new
 submission with its CSV is 4 reads, 1 list (the copy check) and 5 writes (row, snapshot, rate-limit
 counter, table, snapshot); an exact copy is 1 read, 1 list and 1 write; `/claim` is 4 reads and 3
-writes; a replace adds a read or two and three deletes, and a progress send with its CSV is 6 writes
-(see *Provisional rows*); each settle after a burst of writes adds 2 lists, a write and a read per row it was missing.
+writes; a replace adds two or three reads and three deletes, and a progress send with its CSV is 6 writes
+(see *Provisional rows*); a CSV over 8 MB goes in parts, one more write (and on replace one more
+delete) per part past the first (see *A CSV in parts*); each settle after a burst of writes adds 2 lists, a write and a read per row it was missing.
 Writes are the tightest budget: about 200 submissions a day.
 
 ### Provisional rows ("Send best so far")
@@ -360,14 +362,14 @@ it is paid once per burst of writes, not per request.
 | ordinary final submit | 2 (rate gate, snapshot patch) | 3 (row, snapshot, rate gate) | 0 | 1 (copy check) |
 | ... plus its CSV | +2 (write-once check, snapshot patch) | +2 (table, snapshot) | 0 | 0 |
 | first progress send (provisional, no `replaces`) | 4 (rate gate, both snapshots, snapshot patch) | 3 (row, snapshot, rate gate) | 0 | 0 |
-| progress send replacing the last one | 5 (as above, plus the old row, to check its owner) | 3 | 3 (old row, its `csv:`, its `extra:`) | 0 |
+| progress send replacing the last one | 6 (as above, plus the old row, to check its owner, and its `csv:` metadata, for parts) | 3 | 3 (old row, its `csv:`, its `extra:`; +1 per extra part) | 0 |
 | ... plus its diagnostics | 0 | +1 (`extra:<id>`) | 0 | 0 |
 | ... plus its CSV so far | +2 (write-once check, snapshot patch) | +2 (`csv:<id>`, snapshot) | 0 | 0 |
-| **a whole progress send with CSV and diagnostics** | **7** | **6** | **3** | **0** |
+| **a whole progress send with CSV and diagnostics** | **8** | **6** | **3** | **0** |
 | the settle it asks for (once per burst) | 1 + a row it lacks | 1 | 0 | 2 |
-| final replacing a provisional | 4 (rate gate, the snapshot holding the old row, the old row, snapshot patch); 5 when the old row is on the flagged board | 3 | 3 (old row, its `csv:`, its `extra:`) | 1 (copy check) |
+| final replacing a provisional | 5 (rate gate, the snapshot holding the old row, the old row, its `csv:` metadata, snapshot patch); 6 when the old row is on the flagged board | 3 | 3 (old row, its `csv:`, its `extra:`; +1 per extra part) | 1 (copy check) |
 | ... plus its diagnostics and its full CSV | +2 (write-once check, snapshot patch) | +3 (`extra:`, table, snapshot) | 0 | 0 |
-| **a whole final with CSV and diagnostics, replacing** | **6** | **6** | **3** | **1** |
+| **a whole final with CSV and diagnostics, replacing** | **7** | **6** | **3** | **1** |
 | refused for the gap, or the daily cap | 3 (rate gate, both snapshots) | 0 | 0 | 0 |
 
 So a progress send costs **7 writes** counting its settle (6 without diagnostics), 3 deletes and 2
@@ -379,9 +381,42 @@ on the other board from the new one (one flagged, one not), taking it off is a s
 (+1 read, +1 write); otherwise the new row and the removal are one patch.
 
 **What a progress send's CSV may cost in size.** The CSV so far is capped like any table: 8 MB
-gzipped (KV's own ceiling is 25 MB a value). The app checks before it posts and, past the cap, sends
-the row and its diagnostics without the CSV and says so. Each send's CSV replaces the last one's, so a
+gzipped a request (KV's own ceiling is 25 MB a value); past that it goes in parts (see *A CSV in
+parts*, each part one more write), up to 64 MB. Past 64 MB the app sends the row and its diagnostics
+without the CSV and says so. Each send's CSV replaces the last one's, so a
 running run holds one at a time.
+
+### A CSV in parts
+
+A big run's gzipped CSV can pass the 8 MB a request (an overnight 154k-route run's CSV so far was
+6 MB, and growing). The app then gzips the whole CSV once and cuts the gzip BYTES into `m` slices of at
+most 8 MB each (`m` up to 8: 64 MB compressed, about 1.5 GB of raw CSV), so the slices joined in order
+are the original `.csv.gz` exactly.
+
+- **Keys.** Parts `1..m-1` are stored at `csv:<id>:p<n>`. Part 0 is stored at `csv:<id>` itself, with
+  KV metadata `{ parts: m }`. So `csv:<id>` still means "this row has its whole CSV", and everything
+  keyed on it (hasCsv, the write-once `409`, the settle's CSV list, deleting a replaced row's CSV) works
+  unchanged.
+- **Order.** Parts `1..m-1` first (each may be sent again until the file is sealed, for a retry whose
+  answer was lost), then part 0. Part 0 reads each other part first and refuses with `422` and
+  `missing: [n...]` if any is not there; the app sends those again and then part 0. `hasCsv` turns true
+  only when part 0 lands.
+- **Why part 0 last.** A collector from before parts ignores `part`/`parts` and would store the first
+  thing it got as the whole file. Part 1 does not start with the gzip magic, so it is refused (`400`)
+  and nothing is stored: the app reports the CSV did not upload, and no broken file appears.
+- **Reading.** `GET /csv?id=` reads `csv:<id>` with its metadata and, for parts, streams the others
+  after it: one `.csv.gz`, as before. The board's download link and scripts that curl `/csv?id=` need no
+  change. A part that has gone missing answers `500` naming it.
+- **Single files are unchanged.** No `part`/`parts` is exactly the old upload, with no metadata.
+- **Orphans.** Parts of a file never sealed (the tab closed half-way) are not read by anything and are
+  not deleted with the row. Rare, and at most 7 keys.
+
+**What parts cost.** A CSV of `m` parts is `m` writes plus the snapshot patch (a single file: 1 + 1),
+`m` reads for the write-once checks, `m - 1` reads to seal and `m - 1` reads each time it is
+downloaded. Deleting a replaced row's CSV now reads `csv:<id>`'s metadata first (+1 read on every
+replace) and deletes `m` keys instead of 1. On the free plan (1,000 writes and 1,000 deletes a day) a
+3-part CSV so far sent every hour of a day-long run adds about 48 writes and 48 deletes a day over a
+single-file one; a final with an 8-part CSV adds 7 writes once.
 
 ### What is stored, and what is not
 
