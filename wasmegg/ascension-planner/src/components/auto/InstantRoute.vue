@@ -270,6 +270,15 @@
           >
             Simulate this plan
           </button>
+          <InstantShareCheck
+            v-if="instantUrl"
+            v-model:share-this="shareThis"
+            v-model:keep-sharing="keepSharing"
+            class="mt-2"
+            :status="shareText"
+            :sent="shareNote?.result === 'sent'"
+            :title="SHARE_WHAT"
+          />
           <InstantRunWarning
             v-if="warnHere(confirming, 'check-date')"
             class="mt-2"
@@ -419,6 +428,15 @@
         >
           Simulate this plan
         </button>
+        <InstantShareCheck
+          v-if="instantUrl"
+          v-model:share-this="shareThis"
+          v-model:keep-sharing="keepSharing"
+          class="mt-2"
+          :status="shareText"
+          :sent="shareNote?.result === 'sent'"
+          :title="SHARE_WHAT"
+        />
         <InstantRunWarning
           v-if="warnHere(confirming, 'check-fastest')"
           class="mt-2"
@@ -441,46 +459,6 @@
     <p v-if="result && exactStatus === 'done' && exactMs !== null" class="text-[10px] text-slate-400">
       Checked on your account with the full simulator in {{ (exactMs / 1000).toFixed(0) }} s.
     </p>
-    <!-- Sharing this check (search/instantRecord.ts), always here: one check, or every check from now on
-         ("Keep sharing my checks", the same setting as Your setup › Sharing). Only with a collector. -->
-    <div
-      v-if="result && instantUrl"
-      class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-700 space-y-1"
-      data-testid="share-check"
-    >
-      <div class="flex flex-wrap items-center gap-x-4 gap-y-1">
-        <label class="inline-flex items-center gap-1.5 cursor-pointer" :title="SHARE_WHAT">
-          <input
-            v-model="shareThis"
-            type="checkbox"
-            class="rounded border-slate-300 text-indigo-600"
-            data-testid="share-this-check"
-          />
-          <span class="font-bold text-slate-800">Share this check</span> (anonymous)
-        </label>
-        <label class="inline-flex items-center gap-1.5 cursor-pointer" :title="SHARE_WHAT">
-          <input
-            v-model="keepSharing"
-            type="checkbox"
-            class="rounded border-slate-300 text-indigo-600"
-            data-testid="keep-sharing"
-          />
-          Keep sharing my checks
-        </label>
-        <span
-          v-if="shareText"
-          class="text-[10px]"
-          :class="shareNote?.result === 'sent' ? 'text-emerald-700' : 'text-slate-500'"
-          data-testid="share-status"
-          >{{ shareText }}</span
-        >
-      </div>
-      <p class="text-[10px] text-slate-500 leading-relaxed">
-        Sends this answer and its exact times to the planner's maintainer when Check exactly finishes, to make the
-        instant answer more accurate. Never your player ID, never shown on the board. At most once an hour per save.
-      </p>
-    </div>
-
     <!-- This account's Check exactly results on this computer (search/checkHistory.ts), shared or not. -->
     <details v-if="history.length" class="text-[11px] text-slate-600" data-testid="check-history">
       <summary class="cursor-pointer font-bold text-slate-700">Your check history ({{ history.length }})</summary>
@@ -688,6 +666,7 @@ import {
   type WarnAt,
 } from '@/search/instantDeferral';
 import InstantRunWarning from './InstantRunWarning.vue';
+import InstantShareCheck from './InstantShareCheck.vue';
 import { useInstantDuringSearch } from '@/composables/useInstantDuringSearch';
 import { readSnapshot, writeSnapshot } from '@/search/instantSnapshot';
 import { simulateRoute } from '@/search/simulateRoute';
