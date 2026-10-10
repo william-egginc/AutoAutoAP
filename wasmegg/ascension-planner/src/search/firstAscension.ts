@@ -7,9 +7,14 @@
  * It follows the Classic planner (Joo's): for A1 Classic works out the fresh builds and "continue
  * current", then takes the dropdown's choice if there is one, else the fastest. So:
  *
- *   - 'auto'      Fastest of the two. Continue is one more candidate and wins only by being faster:
- *                 Classic with nothing picked in its dropdown. The default.
- *   - 'continue'  Continue Asc. Continue is taken outright when it finishes within a week
+ *   - 'auto'      Fastest. Continue (as the farm is) and continue my build-up are more candidates
+ *                 and win only by being faster: Classic with nothing picked in its dropdown, plus
+ *                 the build-up Classic does not have. The default.
+ *   - 'buildup'   Continue my build-up (10 Oct 2026): finish the ascension in progress by carrying on
+ *                 the standard build from the farm in the save (auto/buildUp.ts), or by just laying
+ *                 when that is sooner (the build is done). Never prestiges first unless neither can
+ *                 be simulated (no farm in the save).
+ *   - 'continue'  Continue Asc., "Finish without buying" on Your setup: the farm frozen as it is. Continue is taken outright when it finishes within a week
  *                 (rules.ts CONTINUE_PIN_MAX_SECONDS), and wins ties after that. The old
  *                 `forceContinue: true`.
  *   - 'fresh'     Prestige Now. Continue is never a candidate.
@@ -24,14 +29,14 @@
  * Deliberately free of imports: the collector-bound submission builder, the board and the CLI read it.
  */
 
-export type FirstAscension = 'auto' | 'continue' | 'fresh';
+export type FirstAscension = 'auto' | 'buildup' | 'continue' | 'fresh';
 
-export const FIRST_ASCENSIONS: readonly FirstAscension[] = ['auto', 'continue', 'fresh'];
+export const FIRST_ASCENSIONS: readonly FirstAscension[] = ['auto', 'buildup', 'continue', 'fresh'];
 
 export const DEFAULT_FIRST_ASCENSION: FirstAscension = 'auto';
 
 export function isFirstAscension(v: unknown): v is FirstAscension {
-  return v === 'auto' || v === 'continue' || v === 'fresh';
+  return v === 'auto' || v === 'buildup' || v === 'continue' || v === 'fresh';
 }
 
 /**
@@ -55,6 +60,16 @@ export function readFirstAscensionOrNull(
   if (r.forceContinue === true) return 'continue';
   if (r.forceContinue === false) return 'auto';
   return null;
+}
+
+/** Which way leg 1 actually went, as records say it (CSV `first_leg`, board `firstLeg`):
+ *  'continue' finished the ascension as the farm is, 'buildup' carried on its build, 'fresh'
+ *  prestiged into a new one. */
+export type FirstLegKind = 'continue' | 'buildup' | 'fresh';
+
+/** A leg-1 variant key ('continue', 'buildup', '2-sale', ...) as its kind. */
+export function firstLegKindOf(key: string): FirstLegKind {
+  return key === 'continue' ? 'continue' : key === 'buildup' ? 'buildup' : 'fresh';
 }
 
 /** The old boolean, still sent beside the new field for readers that only know it. */
@@ -90,18 +105,20 @@ export function fromClassicOverride(key: string | null | undefined): FirstAscens
 
 /** The fingerprint's tag for it. 'fc' and 'auto' are the boolean's old tags, so a run fingerprinted
  *  before keeps its fingerprint. */
-export function firstAscensionTag(mode: FirstAscension): 'fc' | 'auto' | 'fresh' {
-  return mode === 'continue' ? 'fc' : mode === 'fresh' ? 'fresh' : 'auto';
+export function firstAscensionTag(mode: FirstAscension): 'fc' | 'auto' | 'fresh' | 'bu' {
+  return mode === 'continue' ? 'fc' : mode === 'fresh' ? 'fresh' : mode === 'buildup' ? 'bu' : 'auto';
 }
 
 /** A fingerprint tag read back (anything unknown reads as 'auto', as the boolean's non-'fc' did). */
 export function firstAscensionFromTag(tag: string | undefined): FirstAscension {
-  return tag === 'fc' ? 'continue' : tag === 'fresh' ? 'fresh' : 'auto';
+  return tag === 'fc' ? 'continue' : tag === 'fresh' ? 'fresh' : tag === 'bu' ? 'buildup' : 'auto';
 }
 
-/** The words Classic uses, for labels: its dropdown says "Continue Asc." and "Prestige Now". */
+/** The words for labels: Classic's dropdown says "Continue Asc." and "Prestige Now"; the build-up
+ *  is ours. */
 export const FIRST_ASCENSION_WORDS: Record<FirstAscension, string> = {
-  auto: 'Fastest of the two',
+  auto: 'Fastest',
+  buildup: 'Continue my build-up',
   continue: 'Continue Asc.',
   fresh: 'Prestige Now',
 };
@@ -110,24 +127,33 @@ export const FIRST_ASCENSION_WORDS: Record<FirstAscension, string> = {
  *  words: the sweep banners say it this way. */
 export function describeFirstAscension(mode: FirstAscension): string {
   return mode === 'continue'
-    ? 'finishing your current ascension first (Continue Asc.)'
-    : mode === 'fresh'
-      ? 'prestiging straight away (Prestige Now)'
-      : 'finishing your current ascension or prestiging straight away, whichever is faster';
+    ? 'finishing your current ascension without buying anything more (Continue Asc.)'
+    : mode === 'buildup'
+      ? 'finishing your current ascension by carrying on its build (Continue my build-up)'
+      : mode === 'fresh'
+        ? 'prestiging straight away (Prestige Now)'
+        : 'finishing your current ascension (building on or as it is) or prestiging straight away, whichever is faster';
 }
 
-/** Your setup's three choices, in order. */
+/** Your setup's four choices, in order. */
 export const FIRST_ASCENSION_CHOICES: readonly { value: FirstAscension; label: string; blurb: string }[] = [
   {
     value: 'auto',
     label: 'Fastest (default)',
-    blurb: "Finishes the ascension you're on or prestiges straight away, whichever gets there sooner.",
+    blurb:
+      'Works out all three: keep building from where your farm is, stop buying and just lay, or prestige now. Takes whichever finishes first.',
+  },
+  {
+    value: 'buildup',
+    label: 'Continue my build-up',
+    blurb:
+      'Carries on from your farm as it is now, finishing the build (habs, vehicles, research through the coming sales), then lays out the ascension.',
   },
   {
     value: 'continue',
-    label: 'Continue current ascension',
+    label: 'Finish without buying',
     blurb:
-      "Finishes the ascension you're on first. If that takes over a week, a fresh start that is strictly faster still wins.",
+      "No more purchases: your farm lays at today's rate until the ascension ends. Right when your build is already done. If that takes over a week, a fresh start that is strictly faster still wins.",
   },
   {
     value: 'fresh',
@@ -136,12 +162,13 @@ export const FIRST_ASCENSION_CHOICES: readonly { value: FirstAscension; label: s
   },
 ];
 
-/** A CLI's flags, read the same way by every script: `--first-ascension auto|continue|fresh`, else the
+/** A CLI's flags, read the same way by every script: `--first-ascension auto|buildup|continue|fresh`, else the
  *  old pair (`--force-continue` is 'continue', `--no-force-continue` is 'auto'), else 'auto'. Throws on
  *  a value it does not know. */
 export function firstAscensionFromFlags(value: string | undefined, has: (flag: string) => boolean): FirstAscension {
   if (value !== undefined) {
-    if (!isFirstAscension(value)) throw new Error(`--first-ascension must be auto, continue or fresh, not "${value}"`);
+    if (!isFirstAscension(value))
+      throw new Error(`--first-ascension must be auto, buildup, continue or fresh, not "${value}"`);
     return value;
   }
   if (has('force-continue')) return 'continue';

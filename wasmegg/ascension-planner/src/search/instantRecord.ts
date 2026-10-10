@@ -21,7 +21,7 @@
  */
 import type { Route } from './routeFinder';
 import type { LegSummary } from './types';
-import type { FirstAscension } from './firstAscension';
+import { firstLegKindOf, type FirstAscension, type FirstLegKind } from './firstAscension';
 
 export const INSTANT_RECORD_VERSION = 1;
 /** The collector's cap on a record's body (collector/worker.js INSTANT_MAX_BYTES). */
@@ -128,7 +128,7 @@ export interface InstantRecord {
     endTE?: number;
     spareHours?: number;
     handoff?: 'hour' | 'now' | 'sooner';
-    firstLeg?: 'continue' | 'fresh';
+    firstLeg?: FirstLegKind;
     firstLegOtherHours?: number;
     legs?: ExactLegOut[];
   } | null;
@@ -172,7 +172,7 @@ export function exactLegs(legs: LegSummary[]): ExactLegOut[] {
 }
 
 /** Leg 1's choice and how much later the other way would have ended (as submission.ts sends it). */
-export function firstLegOf(legs: LegSummary[]): { firstLeg?: 'continue' | 'fresh'; firstLegOtherHours?: number } {
+export function firstLegOf(legs: LegSummary[]): { firstLeg?: FirstLegKind; firstLegOtherHours?: number } {
   const leg1 = legs[0];
   if (!leg1) return {};
   const rival = leg1.firstLegRival;
@@ -181,7 +181,7 @@ export function firstLegOf(legs: LegSummary[]): { firstLeg?: 'continue' | 'fresh
       ? r2((rival.endTime - leg1.endTime) / 3600)
       : null;
   return {
-    firstLeg: leg1.key === 'continue' ? 'continue' : 'fresh',
+    firstLeg: firstLegKindOf(leg1.key),
     ...(other !== null && Math.abs(other) <= 100000 * 24 ? { firstLegOtherHours: other + 0 } : {}),
   };
 }
@@ -195,7 +195,7 @@ export function buildGapOf(
   contPeakEggsPerSecond: number | null | undefined,
   legs: LegSummary[]
 ): InstantRecord['buildGap'] | undefined {
-  const i = legs.findIndex(l => l.key !== 'continue');
+  const i = legs.findIndex(l => firstLegKindOf(l.key) === 'fresh');
   if (!(contPeakEggsPerSecond && contPeakEggsPerSecond > 0) || i < 0 || !(legs[i].maxELR > 0)) return undefined;
   const contQph = qph(contPeakEggsPerSecond);
   const freshQph = qph(legs[i].maxELR);

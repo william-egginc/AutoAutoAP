@@ -11,7 +11,11 @@ const DAY = 86400;
 let contDays = 0;
 let contEndTE = 200;
 let fresh: { sale: number; days: number; endTE?: number; buildPhaseEnd?: number }[] = [];
-const calls = { c3: 0 };
+/** Continue my build-up's leg in days, or null: no build-up variant survives (the default, so every
+ *  rule above it is tested as it was before the build-up existed). */
+let buildUpDays: number | null = null;
+let buildUpEndTE = 200;
+const calls = { c3: 0, buildUp: 0 };
 
 vi.mock('@/auto/ascension', () => ({
   runUntilShift: () => ({ actions: [], state: {}, elapsedSeconds: 0 }),
@@ -20,7 +24,12 @@ vi.mock('@/auto/ascension', () => ({
     actions: [],
     summary: { totalDurationSeconds: contDays * DAY, endTime: contDays * DAY, endTE: contEndTE },
   }),
-  runAscensionFromC3Variant: (_b: unknown, _p: unknown, v: { saleCount: number }) => {
+  runAscensionFromC3Variant: (_b: unknown, _p: unknown, v: { saleCount: number }, _c: unknown, _s: unknown, id: string) => {
+    if (id.endsWith('_buildup'))
+      return {
+        actions: [],
+        summary: { totalDurationSeconds: buildUpDays! * DAY, endTime: buildUpDays! * DAY, endTE: buildUpEndTE, strategyLabel: '1-sale build' },
+      };
     const f = fresh.find(x => x.sale === v.saleCount)!;
     return {
       actions: [],
@@ -28,8 +37,17 @@ vi.mock('@/auto/ascension', () => ({
     };
   },
 }));
+vi.mock('@/auto/buildUp', () => ({
+  runBuildUpUntilC3: () => ({ actions: [], state: { buildUp: true }, elapsedSeconds: 0, shifted: [], stayOnCuriosity: true }),
+}));
 vi.mock('@/auto/shifts/c3', () => ({
-  runC3Variants: () => {
+  runC3Variants: (state: { buildUp?: boolean }) => {
+    if (state?.buildUp) {
+      calls.buildUp++;
+      return buildUpDays === null
+        ? []
+        : [{ saleCount: 1, attemptTier13Unlock: false, impossible: false, buildPhaseEnd: 0 }];
+    }
     calls.c3++;
     return fresh.map(f => ({
       saleCount: f.sale,
@@ -78,6 +96,9 @@ const leg1 = (i = inputs(), endOverride?: number) => runLeg(i, {} as never, 0, 2
 
 beforeEach(() => {
   calls.c3 = 0;
+  calls.buildUp = 0;
+  buildUpDays = null;
+  buildUpEndTE = 200;
   contEndTE = 200;
   fresh = [
     { sale: 1, days: 40 },
@@ -192,5 +213,82 @@ describe('leg 1 records the option it did not take (rival)', () => {
     expect(leg1(noFarm)!.rival).toBeUndefined();
     // Not leg 1.
     expect(runLeg(inputs('auto'), {} as never, 0, 250, false, 181, 1)!.rival).toBeUndefined();
+  });
+});
+
+describe('leg 1: continue my build-up', () => {
+  it('under Fastest, the build-up is one more candidate: taken only when strictly sooner than a fresh start', () => {
+    contDays = 80;
+    buildUpDays = 30;
+    const b = leg1(inputs('auto'))!;
+    expect(b.key).toBe('buildup');
+    expect(b.rival).toEqual({ key: '2-sale', endTime: 35 * DAY });
+    expect(b.firstLegEnds).toEqual({ continue: 80 * DAY, buildup: 30 * DAY, fresh: 35 * DAY });
+    // A tie with the best fresh start goes to the fresh start.
+    buildUpDays = 35;
+    expect(leg1(inputs('auto'))!.key).toBe('2-sale');
+    // Continue as the farm is still wins when it is sooner than both.
+    contDays = 20;
+    const c = leg1(inputs('auto'))!;
+    expect(c.key).toBe('continue');
+    expect(c.rival).toEqual({ key: '2-sale', endTime: 35 * DAY });
+  });
+
+  it('under Continue my build-up, takes the sooner of building on and continuing as it is, pricing no fresh start', () => {
+    contDays = 80;
+    buildUpDays = 50;
+    fresh = [{ sale: 1, days: 10 }];
+    const b = leg1(inputs('buildup'))!;
+    expect(b.key).toBe('buildup');
+    expect(b.rival).toEqual({ key: 'continue', endTime: 80 * DAY });
+    expect(calls.c3).toBe(0);
+    contDays = 40;
+    expect(leg1(inputs('buildup'))!.key).toBe('continue');
+    // A tie goes to the build-up.
+    contDays = 50;
+    expect(leg1(inputs('buildup'))!.key).toBe('buildup');
+  });
+
+  it('under Continue my build-up with neither possible, falls back to a fresh start', () => {
+    contDays = 200; // past six months: not a candidate
+    buildUpDays = null;
+    expect(leg1(inputs('buildup'))!.key).toBe('2-sale');
+  });
+
+  it('under Finish without buying, is only recorded (for the note), never taken nor the rival', () => {
+    contDays = 30;
+    buildUpDays = 1;
+    const c = leg1(inputs('continue'))!;
+    expect(c.key).toBe('continue');
+    expect(c.rival).toEqual({ key: '2-sale', endTime: 35 * DAY });
+    expect(c.firstLegEnds).toEqual({ continue: 30 * DAY, buildup: 1 * DAY, fresh: 35 * DAY });
+  });
+
+  it('is never simulated under Prestige now, nor past leg 1', () => {
+    contDays = 30;
+    buildUpDays = 1;
+    expect(leg1(inputs('fresh'))!.key).toBe('2-sale');
+    runLeg(inputs('auto'), {} as never, 0, 250, false, 181, 1);
+    expect(calls.buildUp).toBe(0);
+  });
+
+  it('works out the build-up once per run and plan start, whatever the checkpoint', () => {
+    contDays = 80;
+    buildUpDays = 30;
+    const i = inputs('auto');
+    runLeg(i, {} as never, 0, 250, true, 181, 0);
+    runLeg(i, {} as never, 0, 260, true, 181, 0);
+    expect(calls.buildUp).toBe(1);
+    runLeg(i, {} as never, 3600, 250, true, 181, 0);
+    expect(calls.buildUp).toBe(2);
+  });
+
+  it('by a deadline, compares the TE reached', () => {
+    contDays = 20;
+    contEndTE = 205;
+    buildUpDays = 20;
+    buildUpEndTE = 215;
+    fresh = [{ sale: 1, days: 20, endTE: 210, buildPhaseEnd: 5 * DAY }];
+    expect(leg1(inputs('auto'), 20 * DAY)!.key).toBe('buildup');
   });
 });

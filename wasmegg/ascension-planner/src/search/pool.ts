@@ -215,6 +215,9 @@ export interface ChainSearchPool {
   /** The integrity check (search/rules.ts), run on the first worker against the pool's own inputs:
    *  how long a fresh ascension from the plan start sits on its first Integrity shift. */
   integrityWait(): Promise<number | null>;
+  /** "Continue my build-up" as the instant answer's tails (search/leg.ts `buildUpTailParams`), on the
+   *  first worker against the pool's own inputs: empty without a farm in the save. */
+  buildUpTails(): Promise<import('./precomputedLeg').BuildParams[]>;
   /**
    * One route priced from each of `starts` (unix seconds), shared out across the workers. Resolves
    * with the seconds from each start to the route's end, in the order given (null where it failed).
@@ -753,6 +756,16 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
         seconds: number | null;
       };
       return reply.seconds;
+    },
+
+    async buildUpTails(): Promise<import('./precomputedLeg').BuildParams[]> {
+      const pw = await workerAt(0);
+      const reply = (await send(
+        pw,
+        { kind: 'buildup-tails', requestId: ++nextRequestId },
+        'worker 0 (build-up tails)'
+      )) as { tails: import('./precomputedLeg').BuildParams[] };
+      return reply.tails;
     },
 
     resize(n: number): number {

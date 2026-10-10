@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildUpNote,
   reviewContext,
   reviewLegs,
   reviewSetup,
@@ -184,5 +185,32 @@ describe('the long-continue remark', () => {
 
   it('is only about leg 1, and only about continue', () => {
     expect(reviewLegs([leg(195, 3, 120), leg(490, 3)]).map(i => i.kind)).toEqual([]);
+  });
+});
+
+describe('the build-up note', () => {
+  const D = 86400;
+  const first = (key: string, ends: LegSummary['firstLegEnds']): LegSummary => ({ ...leg(169, 3), key: key as never, firstLegEnds: ends });
+
+  it('says how much sooner the build-up ends leg 1 than finishing without buying, whichever way leg 1 went', () => {
+    const taken = buildUpNote(first('buildup', { continue: 86.6 * D, buildup: 70.2 * D, fresh: 72.4 * D }));
+    expect(taken?.kind).toBe('build-up-sooner');
+    expect(taken?.message).toContain('16.4 days sooner');
+    expect(buildUpNote(first('continue', { continue: 30 * D, buildup: 20 * D }))?.message).toContain("build isn't finished");
+    expect(buildUpNote(first('2-sale', { continue: 90 * D, buildup: 80 * D, fresh: 70 * D }))?.message).toContain('prestiging now');
+    // Under Finish without buying the build-up is no candidate, so a fresh start can win while it was sooner.
+    expect(buildUpNote(first('1-sale', { continue: 86.5 * D, buildup: 70.1 * D, fresh: 72.4 * D }))?.message).toContain(
+      '2.3 days sooner than the fresh start'
+    );
+    expect(reviewLegs([first('buildup', { continue: 86.6 * D, buildup: 70.2 * D })]).map(i => i.kind)).toEqual([
+      'build-up-sooner',
+    ]);
+  });
+
+  it('is quiet under a day, without both, and past leg 1', () => {
+    expect(buildUpNote(first('buildup', { continue: 30 * D, buildup: 29.5 * D }))).toBeNull();
+    expect(buildUpNote(first('buildup', { buildup: 29 * D }))).toBeNull();
+    expect(buildUpNote(first('continue', { continue: 29 * D, buildup: 30 * D }))).toBeNull();
+    expect(reviewLegs([leg(150, 3), first('2-sale', { continue: 90 * D, buildup: 10 * D })])).toEqual([]);
   });
 });

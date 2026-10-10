@@ -581,7 +581,11 @@ export interface FirstLegOptions {
   delivered: number[];
   /** Continue current ascension through the tail (search/leg.ts `continueTailParams`), or null. */
   cont: BuildParams | null;
-  /** search/firstAscension.ts: 'continue' pins continue, 'auto' lets it compete, 'fresh' drops it. */
+  /** Continue my build-up (search/leg.ts `buildUpTailParams`): one per sale variant, timed from the
+   *  plan start, on the player's real eggs and delivery already. Empty or absent: not simulated. */
+  buildUp?: BuildParams[] | null;
+  /** search/firstAscension.ts: 'continue' pins continue, 'auto' lets every kind compete, 'buildup'
+   *  takes the sooner of the build-up and continue, 'fresh' drops both. */
   firstAscension: FirstAscension;
   /** The continue rule's two lines (search/rules.ts): taken outright under the first, never past the second. */
   pinSeconds: number;
@@ -609,6 +613,10 @@ export function firstLegOptions(o: FirstLegOptions): FirstLeg[] {
   const forced = o.firstAscension === 'continue';
   const contSweep =
     o.cont && o.firstAscension !== 'fresh' ? sweepTails(o.cont, o.final, 0, Math.floor(o.startTE) + 1) : null;
+  // The build-up starts at once (there is nothing to prestige), on the player's own eggs and rate.
+  const buildUps =
+    o.buildUp && (o.firstAscension === 'auto' || o.firstAscension === 'buildup') ? o.buildUp : [];
+  const buildUpSweeps = buildUps.map(b => sweepTails(b, o.final, 0, Math.floor(o.startTE) + 1));
   const out: FirstLeg[] = [];
   for (let target = Math.floor(o.startTE) + 1; target <= o.final; target++) {
     const fp = fastest(freshSweeps, fresh, target);
@@ -641,8 +649,17 @@ export function firstLegOptions(o: FirstLegOptions): FirstLeg[] {
           }
         : null;
     if (c && !(c.seconds <= o.maxContinueSeconds)) c = null;
+    const bp = buildUps.length ? fastest(buildUpSweeps, buildUps, target) : null;
+    const b = bp ? { seconds: bp.sweep.seconds[bp.i], endTE: bp.sweep.endTE[bp.i], delivered: eggsOf(bp.sweep, bp.i) } : null;
     let pick: { seconds: number; endTE: number; delivered: number[]; label: string } | null = null;
-    if (c && forced && c.seconds <= o.pinSeconds) pick = { ...c, label: 'continue' };
+    if (o.firstAscension === 'buildup' && (b || c)) {
+      // Continue my build-up: the sooner of building on and continuing as the farm is (ties: build-up).
+      pick = b && (!c || b.seconds <= c.seconds) ? { ...b, label: 'buildup' } : { ...c!, label: 'continue' };
+    } else if (o.firstAscension === 'auto' && b && (!f || b.seconds < f.seconds) && (!c || b.seconds <= c.seconds)) {
+      // Fastest: the build-up beats a fresh start only strictly (ties go to the fresh start, as
+      // search/leg.ts runLeg's pickVariant does), and continue only by being sooner.
+      pick = { ...b, label: 'buildup' };
+    } else if (c && forced && c.seconds <= o.pinSeconds) pick = { ...c, label: 'continue' };
     else if (c && f) {
       // Continue Asc.: continue holds unless a fresh start is strictly faster. Fastest: the faster,
       // ties to the fresh start (pickVariant meets the fresh variants first).

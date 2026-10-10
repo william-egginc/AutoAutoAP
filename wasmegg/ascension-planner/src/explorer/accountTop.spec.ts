@@ -130,7 +130,7 @@ describe('mergeAccountTables', () => {
     // Only look-alikes are tagged: 280 490 has no twin under the other setting.
     expect(top.plans.map(p => [p.chain.join(' '), p.id, p.tags])).toEqual([
       ['277 490', '1fed', ['Continue Asc.']],
-      ['277 490', '16f9', ['Fastest of the two']],
+      ['277 490', '16f9', ['Fastest']],
       ['280 490', '1fed', []],
     ]);
     expect(top.merged).toBe(0);

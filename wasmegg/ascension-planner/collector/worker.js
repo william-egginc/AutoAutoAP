@@ -318,8 +318,10 @@ function pickExtras(body, record) {
 const text = (v, max) => (typeof v === 'string' ? scrubText(v).slice(0, max) : undefined);
 const num = v => (Number.isFinite(v) ? v : undefined);
 const flag = v => (typeof v === 'boolean' ? v : undefined);
-/** The first-ascension setting's three values (src/search/firstAscension.ts). */
-const FIRST_ASCENSIONS = new Set(['auto', 'continue', 'fresh']);
+/** The first-ascension setting's four values (src/search/firstAscension.ts; 'buildup' since 10 Oct 2026). */
+const FIRST_ASCENSIONS = new Set(['auto', 'buildup', 'continue', 'fresh']);
+/** Which way leg 1 went (src/search/firstAscension.ts `FirstLegKind`; 'buildup' since 10 Oct 2026). */
+const FIRST_LEG_KINDS = ['continue', 'buildup', 'fresh'];
 /** `label`/`count` pairs, the shape both artifacts and stones use. */
 const counts = (v, cap) =>
   Array.isArray(v)
@@ -663,7 +665,7 @@ function pickSubmission(s) {
     // Which way leg 1 actually went (9 Oct 2026): 'continue' or 'fresh', anything else dropped. And,
     // when both were simulated, hours the way NOT taken would have ended leg 1 after the one taken
     // (negative: before), within the duration bound either way. Optional, no schema bump.
-    firstLeg: s.firstLeg === 'continue' || s.firstLeg === 'fresh' ? s.firstLeg : undefined,
+    firstLeg: FIRST_LEG_KINDS.includes(s.firstLeg) ? s.firstLeg : undefined,
     firstLegOtherHours: within(s.firstLegOtherHours, -MAX.DURATION_DAYS * 24, MAX.DURATION_DAYS * 24),
     // By a date only: which mode found the row (the board's Effort column). Absent before 9 Oct 2026.
     mode: s.mode === 'simple' || s.mode === 'advanced' ? s.mode : undefined,
@@ -878,7 +880,7 @@ function firstAscensionPart(r) {
       : r.forceContinue === false
         ? 'auto'
         : null;
-  return first === 'fresh' ? 'fresh' : first === 'continue';
+  return first === 'fresh' ? 'fresh' : first === 'buildup' ? 'buildup' : first === 'continue';
 }
 
 /** Same result, as a string. Keep identical to `contentFingerprint` in src/lib/leaderboardRank.ts. */
@@ -2113,7 +2115,7 @@ const INSTANT_RECORD = IV.obj(
       notice: IV.oneOf(['none', 'stalls', 'blocked', 'unknown']),
     }),
     settings: IV.obj({
-      firstAscension: IV.oneOf(['auto', 'continue', 'fresh']),
+      firstAscension: IV.oneOf([...FIRST_ASCENSIONS]),
       maxAscensions: IV.orNull(IV.int(1, MAX.CHAIN)),
       inHours: IV.bool,
       window: IV.orNull(IV.str(MAX.TEXT)),
@@ -2155,7 +2157,7 @@ const INSTANT_RECORD = IV.obj(
           endTE: ITE,
           spareHours: IV.num(-1e6, 1e6),
           handoff: IV.oneOf(['hour', 'now', 'sooner']),
-          firstLeg: IV.oneOf(['continue', 'fresh']),
+          firstLeg: IV.oneOf(FIRST_LEG_KINDS),
           firstLegOtherHours: IV.num(-MAX.DURATION_DAYS * 24, MAX.DURATION_DAYS * 24),
           legs: IV.list(MAX.LEGS, EXACT_LEG),
         },

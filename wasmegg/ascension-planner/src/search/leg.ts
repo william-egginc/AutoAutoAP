@@ -16,7 +16,10 @@
  */
 import { computeSnapshot } from '@/engine/compute';
 import { runUntilShift, deriveNextStartState, runContinueCurrent, runAscensionFromC3Variant } from '@/auto/ascension';
-import { runC3Variants } from '@/auto/shifts/c3';
+import { runC3Variants, type C3Variant } from '@/auto/shifts/c3';
+import { runBuildUpUntilC3 } from '@/auto/buildUp';
+import { isResearchSaleActive } from '@/lib/events';
+import { paramsOf } from './tableBuild';
 import { heldSecondsOf, holdForPlayer } from '@/auto/hold';
 import { isConstrained, nextAvailable } from './availability';
 import { pickVariant, type VariantKey, type VariantResult } from '@/stores/autoPlanner';
@@ -94,7 +97,14 @@ export interface LegResult {
    *  so a record can say how far off it was). Absent when only one kind was simulated: Prestige Now,
    *  no farm in the save, the one-hour rule, or Continue Asc. taken outright inside a week. */
   rival?: FirstLegRival;
+  /** A1 only: when each KIND of first ascension simulated would have ended leg 1 (unix seconds):
+   *  'continue' (finish without buying), 'buildup' (continue my build-up), 'fresh' (the best fresh
+   *  build). Only the kinds actually simulated. Read by health.ts (build-up against frozen continue). */
+  firstLegEnds?: FirstLegEnds;
 }
+
+/** search/leg.ts `LegResult.firstLegEnds`. */
+export type FirstLegEnds = Partial<Record<'continue' | 'buildup' | 'fresh', number>>;
 
 /** The leg-1 option that lost (LegResult.rival): its variant and when its leg would have ended. */
 export interface FirstLegRival {
@@ -199,34 +209,58 @@ export function runLeg(
       baseState.currentEgg,
   });
   const compactOrNull = (v: VariantResult | null): CompactVariant | null => (v ? compact(v) : null);
-  const asLeg = (
-    v: CompactVariant,
-    key: VariantKey,
-    rival?: CompactVariant | null,
-    rivalKey?: VariantKey
-  ): LegResult => ({
-    summary: v.summary,
-    key,
-    nextState: deriveNextStartState(v.summary, cloneBaseState(inputs)),
-    shifts: v.shifts,
-    heldSeconds: v.heldSeconds,
-    lastEgg: v.lastEgg,
-    ...(rival && rivalKey && Number.isFinite(rival.summary.endTime)
-      ? { rival: { key: rivalKey, endTime: rival.summary.endTime } }
-      : {}),
-  });
+  // Leg 1's options by kind, filled in as they are simulated: what `rival` and `firstLegEnds` read.
+  const kinds: Partial<Record<'continue' | 'buildup' | 'fresh', { v: CompactVariant; key: VariantKey }>> = {};
+  const kindOf = (key: VariantKey): 'continue' | 'buildup' | 'fresh' =>
+    key === 'continue' ? 'continue' : key === 'buildup' ? 'buildup' : 'fresh';
+  const asLeg = (v: CompactVariant, key: VariantKey): LegResult => {
+    // The rival: the sooner (by a deadline, the more TE) of the best options of the OTHER kinds.
+    // In pick order, so equals go the way a pick would: a fresh start, then the build-up, then continue.
+    // Under Finish without buying the build-up was no candidate, so it is never the rival there.
+    const others = (['fresh', 'buildup', 'continue'] as const)
+      .filter(k => k !== kindOf(key) && !(k === 'buildup' && mode === 'continue'))
+      .map(k => kinds[k])
+      .filter((o): o is NonNullable<typeof o> => !!o && Number.isFinite(o.v.summary.endTime));
+    const rival = others.length
+      ? others.reduce((x, y) =>
+          (byDeadline ? y.v.summary.endTE > x.v.summary.endTE : y.v.summary.endTime < x.v.summary.endTime) ? y : x
+        )
+      : null;
+    const ends: FirstLegEnds = {};
+    for (const [k, o] of Object.entries(kinds)) if (o) ends[k as keyof FirstLegEnds] = o.v.summary.endTime;
+    return {
+      summary: v.summary,
+      key,
+      nextState: deriveNextStartState(v.summary, cloneBaseState(inputs)),
+      shifts: v.shifts,
+      heldSeconds: v.heldSeconds,
+      lastEgg: v.lastEgg,
+      ...(rival ? { rival: { key: rival.key, endTime: rival.v.summary.endTime } } : {}),
+      ...(Object.keys(ends).length ? { firstLegEnds: ends } : {}),
+    };
+  };
 
   // Continue first (A1 only): see CONTINUE_PIN_MAX_SECONDS for the whole rule. Past six months it
   // is dropped rather than compared, so a bare farm's billion-day continue can never win anything.
-  // 'fresh' (Prestige Now) never continues; 'continue' pins it; 'auto' lets it compete on time.
+  // 'fresh' (Prestige Now) never continues; 'continue' pins it; 'auto' and 'buildup' let it compete.
   const mode = readFirstAscension(inputs);
   let cont =
     allowContinue && mode !== 'fresh'
       ? compactOrNull(buildContinueVariant(inputs, baseState, startTime, goalTE, idx, endOverride))
       : null;
   // Kept even when dropped below, as the rival a fresh leg 1 is recorded against.
-  const contBuilt = cont;
+  if (cont) kinds.continue = { v: cont, key: 'continue' };
   if (cont && !(cont.summary.totalDurationSeconds <= (inputs.continueMaxSeconds ?? CONTINUE_MAX_SECONDS))) cont = null;
+  // Continue my build-up (A1 only): the standard build carried on from the farm in the save
+  // (auto/buildUp.ts). A real build, so no six-month rule. A candidate under 'auto' and 'buildup';
+  // under 'continue' (Finish without buying) only recorded, so the plan can say when building on
+  // would have been sooner (health.ts `buildUpNote`). Worked out once per run and plan start.
+  const buildUp =
+    allowContinue && mode !== 'fresh'
+      ? compactOrNull(buildBuildUpVariant(inputs, baseState, startTime, goalTE, idx, startTE, endOverride))
+      : null;
+  if (buildUp) kinds.buildup = { v: buildUp, key: 'buildup' };
+
   if (
     cont &&
     mode === 'continue' &&
@@ -234,6 +268,16 @@ export function runLeg(
     cont.summary.totalDurationSeconds <= (inputs.continuePinSeconds ?? CONTINUE_PIN_MAX_SECONDS)
   ) {
     return asLeg(cont, 'continue');
+  }
+
+  // 'buildup': finish the ascension in progress, building on or (when the build is done) just
+  // laying, whichever is sooner. No fresh start unless neither can be simulated.
+  if (mode === 'buildup' && (buildUp || cont)) {
+    if (buildUp && cont) {
+      const pick = pickVariant({ buildup: buildUp, continue: cont }, undefined, byDeadline);
+      return pick === cont ? asLeg(cont, 'continue') : asLeg(buildUp, 'buildup');
+    }
+    return buildUp ? asLeg(buildUp, 'buildup') : asLeg(cont!, 'continue');
   }
 
   // Single C1->R1 precompute shared by every build variant, exactly as the app does it — K3..H2 is
@@ -266,21 +310,29 @@ export function runLeg(
   // `pickVariant` reads only `summary`, and returns one of the records it was given.
   const freshBest = freshKeys.length ? (pickVariant(fresh, undefined, byDeadline) as CompactVariant) : null;
   const freshKey = freshBest ? freshKeys.find(k => fresh[k] === freshBest)! : null;
+  if (freshBest && freshKey) kinds.fresh = { v: freshBest, key: freshKey };
 
-  if (cont) {
+  if (mode === 'continue' && cont) {
+    // Continue Asc.: it holds unless a fresh start is strictly better.
     const contWins = !freshBest
       ? true
-      : mode === 'continue'
-        ? // Continue Asc.: it holds unless a fresh start is strictly better.
-          byDeadline
-          ? cont.summary.endTE >= freshBest.summary.endTE
-          : cont.summary.totalDurationSeconds <= freshBest.summary.totalDurationSeconds
-        : // 'auto': simply one more candidate, as Classic treats it with nothing picked.
-          pickVariant({ ...fresh, continue: cont }, undefined, byDeadline) === cont;
-    if (contWins) return asLeg(cont, 'continue', freshBest, freshKey ?? undefined);
+      : byDeadline
+        ? cont.summary.endTE >= freshBest.summary.endTE
+        : cont.summary.totalDurationSeconds <= freshBest.summary.totalDurationSeconds;
+    if (contWins) return asLeg(cont, 'continue');
+  }
+  if (mode === 'auto' && (cont || buildUp)) {
+    // Fastest: every kind one more candidate, as Classic treats continue with nothing picked. Ties go
+    // to the fresh start, then to the build-up (pickVariant keeps the first of equals).
+    const all: Partial<Record<VariantKey, CompactVariant>> = { ...fresh };
+    if (buildUp) all.buildup = buildUp;
+    if (cont) all.continue = cont;
+    const pick = pickVariant(all, undefined, byDeadline) as CompactVariant;
+    if (pick === cont) return asLeg(cont!, 'continue');
+    if (pick === buildUp) return asLeg(buildUp!, 'buildup');
   }
   if (!freshBest || !freshKey) return null;
-  return asLeg(freshBest, freshKey, contBuilt, 'continue');
+  return asLeg(freshBest, freshKey);
 }
 
 /**
@@ -352,6 +404,126 @@ function buildContinueVariant(
   const elrNow = computeSnapshot(state, ctx, { skipGrowth: true }).elr;
   if (!(elrNow > 0)) return null;
   return runContinueCurrent(state, ctx, startTime, elrNow, targetTE, `asc_${idx}_continue`, endOverride);
+}
+
+/**
+ * The farm "continue my build-up" starts the standard build from (auto/buildUp.ts): the save's farm
+ * as `continueState` reads it, at the plan start (`lastStepTime` 0), on its earnings set (the build
+ * up to H1 earns; H1 swaps to the delivery set), with what it laid and earned between the last sync
+ * and the plan start credited: eggs at its delivery rate, as continue credits them, and cash at its
+ * away earnings, both capped at the silos. Null without a farm in the save.
+ */
+function buildUpState(inputs: SearchInputs, baseState: EngineState, startTime: number): EngineState | null {
+  const cont = continueState(inputs, baseState);
+  if (!cont) return null;
+  const ctx = legContext(inputs, startTime);
+  const sync = cont.lastStepTime;
+  const away =
+    sync > 1e9 && startTime > sync
+      ? catchUpSeconds(sync, startTime, siloSeconds(cont.siloCount, ctx.epicResearchLevels?.['silo_capacity']))
+      : 0;
+  const earnings = cont.artifactSets.earnings;
+  const state: EngineState = {
+    ...cont,
+    lastStepTime: 0,
+    ...(earnings
+      ? {
+          artifactLoadout: earnings.map(x => ({ artifactId: x.artifactId, stones: [...x.stones] })),
+          activeArtifactSet: 'earnings' as const,
+        }
+      : {}),
+    activeSales: { research: isResearchSaleActive(startTime), hab: false, vehicle: false },
+  };
+  if (away > 0) {
+    const egg = cont.currentEgg as VirtueEgg;
+    const elr = computeSnapshot(cont, ctx, { skipGrowth: true }).elr;
+    const cash = computeSnapshot(state, ctx, { skipGrowth: true }).offlineEarnings;
+    state.eggsDelivered = { ...state.eggsDelivered, [egg]: (state.eggsDelivered[egg] || 0) + elr * away };
+    state.bankValue = (state.bankValue || 0) + (Number.isFinite(cash) ? cash * away : 0);
+  }
+  return state;
+}
+
+/** One plan start's build-up as far as C3's variants: everything a checkpoint does not change. */
+interface BuildUpBuild {
+  start: EngineState;
+  ctx: SimulationContext;
+  preC3: { actions: Action[]; state: EngineState; elapsedSeconds: number };
+  variants: C3Variant[];
+}
+
+/** Per run (its inputs) and plan start: leg 1 is priced to many checkpoints from the same farm, and
+ *  the build-up to C3 is the same for every one of them. A couple of starts at most per run (the
+ *  plan start, and the hour after it for the instant answer's exact check). */
+const buildUpCache = new WeakMap<SearchInputs, Map<number, BuildUpBuild | null>>();
+
+function buildUpBuild(inputs: SearchInputs, baseState: EngineState, startTime: number, startTE: number): BuildUpBuild | null {
+  let byStart = buildUpCache.get(inputs);
+  if (!byStart) buildUpCache.set(inputs, (byStart = new Map()));
+  if (byStart.has(startTime)) return byStart.get(startTime)!;
+  let built: BuildUpBuild | null = null;
+  const start = buildUpState(inputs, baseState, startTime);
+  if (start) {
+    const ctx = legContext(inputs, startTime);
+    const pre = runBuildUpUntilC3(start, ctx);
+    let { actions, state, elapsedSeconds } = pre;
+    if (!pre.stayOnCuriosity) {
+      // C3 shifts to Curiosity: it waits for the player, as a fresh build's does (runLeg).
+      const held = holdForPlayer(state, ctx, startTime, elapsedSeconds, 'curiosity');
+      if (held.heldSeconds) {
+        actions = [...actions, ...held.actions];
+        state = held.state;
+        elapsedSeconds = held.elapsedSeconds;
+      }
+    }
+    const variants = runC3Variants(state, ctx, 3, startTE < TIER_13_MIN_STARTING_TE, {
+      stayOnCuriosity: pre.stayOnCuriosity,
+    }).filter(v => !v.impossible);
+    built = variants.length ? { start, ctx, preC3: { actions, state, elapsedSeconds }, variants } : null;
+  }
+  if (byStart.size >= 4) byStart.delete(byStart.keys().next().value as number);
+  byStart.set(startTime, built);
+  return built;
+}
+
+/** "Continue my build-up" to `targetTE` (or to `endOverride`): the best of its sale variants, the
+ *  way `runLeg` picks a fresh build's. Null without a farm in the save or with no variant left. */
+function buildBuildUpVariant(
+  inputs: SearchInputs,
+  baseState: EngineState,
+  startTime: number,
+  targetTE: number | undefined,
+  idx: number,
+  startTE: number,
+  endOverride?: number
+): VariantResult | null {
+  const b = buildUpBuild(inputs, baseState, startTime, startTE);
+  if (!b) return null;
+  const variants = endOverride !== undefined ? b.variants.filter(v => v.buildPhaseEnd <= endOverride) : b.variants;
+  const res: Partial<Record<VariantKey, VariantResult>> = {};
+  for (const v of variants) {
+    const key = (v.attemptTier13Unlock ? `${v.saleCount}-sale-tier13` : `${v.saleCount}-sale`) as VariantKey;
+    res[key] = runAscensionFromC3Variant(b.start, b.preC3, v, b.ctx, startTime, `asc_${idx}_buildup`, targetTE, endOverride);
+  }
+  if (!Object.keys(res).length) return null;
+  const best = pickVariant(res, undefined, endOverride !== undefined);
+  return { ...best, summary: { ...best.summary, strategyLabel: `Build-up, ${best.summary.strategyLabel}` } };
+}
+
+/** `buildBuildUpVariant` for checks and the CLI; the search calls it through `runLeg`. */
+export const buildUpVariantForCheck = buildBuildUpVariant;
+
+/**
+ * Continue my build-up as the precomputed tail takes it (search/precomputedLeg.ts), one `BuildParams`
+ * per sale variant, timed from `startTime`: the instant answer prices every checkpoint from these the
+ * way it prices a fresh build's (routeFinder.ts `firstLegOptions`). Empty without a farm in the save.
+ * A few seconds of simulation, so it belongs on a worker (chainSearch.worker.ts 'buildup-tails').
+ */
+export function buildUpTailParams(inputs: SearchInputs, startTime: number): BuildParams[] {
+  const base = cloneBaseState(inputs);
+  const b = buildUpBuild(inputs, base, startTime, inputs.currentTE);
+  if (!b) return [];
+  return b.variants.map(v => paramsOf({ ctx: b.ctx, preC3: b.preC3, variants: b.variants }, v, startTime));
 }
 
 /**

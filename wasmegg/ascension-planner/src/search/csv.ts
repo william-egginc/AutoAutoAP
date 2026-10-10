@@ -32,7 +32,7 @@ import type { EquippedArtifact } from '@/lib/artifacts/types';
 import type { CacheEntry } from './driver';
 import { describeAvailability, type Availability } from './availability';
 import type { LegSummary } from './types';
-import { forceContinueOf, type FirstAscension } from './firstAscension';
+import { firstLegKindOf, forceContinueOf, type FirstAscension, type FirstLegKind } from './firstAscension';
 // Runtime import in this direction only: submission.ts takes `InventoryCount` from here as a
 // type-only import, which is erased, so there is no cycle at runtime.
 import { bestPerFamily, keepVirtueArtifacts, keepVirtueStones } from './submission';
@@ -339,9 +339,9 @@ const COLUMNS = [
   'first_leg_other_later_hours',
 ] as const;
 
-/** Leg 1's choice as words: `continue` or `fresh`. */
-export function firstLegChoice(leg: LegSummary): 'continue' | 'fresh' {
-  return leg.key === 'continue' ? 'continue' : 'fresh';
+/** Leg 1's choice as words: `continue`, `buildup` or `fresh`. */
+export function firstLegChoice(leg: LegSummary): FirstLegKind {
+  return firstLegKindOf(leg.key);
 }
 
 /** Hours the leg-1 option not taken would have ended after the one taken (negative: before). */
@@ -367,13 +367,24 @@ function firstLegCells(leg: LegSummary | null, legIndex: number | '', tz: string
  *  without the leg (a checkpoint replay keeps no legs for anything but the best). */
 export function firstLegLine(leg: LegSummary | null | undefined, tz: string, mode: FirstAscension): string | null {
   if (!leg) return null;
-  const continued = leg.key === 'continue';
-  const what = continued ? 'continue (finishes the ascension in progress)' : `fresh (${leg.key} build, prestige now)`;
+  const kind = firstLegKindOf(leg.key);
+  const continued = kind !== 'fresh';
+  const what =
+    kind === 'continue'
+      ? 'continue (finishes the ascension in progress, buying nothing more)'
+      : kind === 'buildup'
+        ? `build-up (carries on the build in progress, ${leg.buildPhaseSaleCount ?? '?'}-sale)`
+        : `fresh (${leg.key} build, prestige now)`;
   const r = leg.firstLegRival;
   const later = firstLegOtherLaterHours(leg);
   let other: string;
   if (r && later !== null) {
-    const otherWhat = r.key === 'continue' ? 'continuing' : `the best fresh build (${r.key})`;
+    const otherWhat =
+      r.key === 'continue'
+        ? 'continuing without buying'
+        : r.key === 'buildup'
+          ? 'continuing the build-up'
+          : `the best fresh build (${r.key})`;
     const at = formatInZone(r.endTime, tz);
     other = at
       ? `${otherWhat} would have ended leg 1 ${at}, ${Math.abs(later).toFixed(1)} h ${later >= 0 ? 'later' : 'earlier'}`

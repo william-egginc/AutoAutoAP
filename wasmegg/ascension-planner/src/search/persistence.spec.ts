@@ -216,7 +216,7 @@ describe("resuming under the run's own plan start", () => {
     });
     expect(fingerprintChanges(fingerprintRun(base), changed)).toEqual([
       'the final target was 490, now 500',
-      'the first ascension was Continue Asc., now Fastest of the two',
+      'the first ascension was Continue Asc., now Fastest',
       'the availability schedule changed',
       'the TE milestones changed',
       'the time off changed',

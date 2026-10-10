@@ -93,6 +93,7 @@ describe('what a record carries', () => {
     const legs = [leg({ key: 'continue', endTime: T0 + 3600 * 10, firstLegRival: { key: '1-sale', endTime: T0 + 3600 * 13.5 } })];
     expect(firstLegOf(legs)).toEqual({ firstLeg: 'continue', firstLegOtherHours: 3.5 });
     expect(firstLegOf([leg({})])).toEqual({ firstLeg: 'fresh' });
+    expect(firstLegOf([leg({ key: 'buildup' })])).toEqual({ firstLeg: 'buildup' });
     expect(firstLegOf([])).toEqual({});
   });
 

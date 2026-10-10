@@ -98,7 +98,7 @@ describe('checkBandText', () => {
     expect(issue.message).toContain(`Did you mean ${cur + 1}-${cur + 30}:1`);
     const text = `${cur}-${cur + 30}:1; 215-245:10`;
     expect(checkBandText(text, { ...ctx, firstAscension: 'continue' })[0].message).toContain(
-      'Continue current ascension: it finishes this ascension first'
+      'Finish without buying: it finishes this ascension first, on the farm as it is'
     );
     expect(checkBandText(text, { ...ctx, firstAscension: 'fresh' })[0].message).toContain(
       'Prestige now: it ascends straight away'

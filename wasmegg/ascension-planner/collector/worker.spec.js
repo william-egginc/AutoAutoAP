@@ -167,8 +167,8 @@ describe('ingest is a whitelist, not a scrub', () => {
     expect(record).not.toHaveProperty('comment');
   });
 
-  it('keeps the first ascension only as one of its three words', async () => {
-    for (const first of ['auto', 'continue', 'fresh']) {
+  it('keeps the first ascension only as one of its four words', async () => {
+    for (const first of ['auto', 'buildup', 'continue', 'fresh']) {
       env = { SUBMISSIONS: makeKV(), CSV_UPLOAD_KEY: 'test-key' };
       expect((await post('/submit', { ...MINIMAL, firstAscension: first })).status).toBe(200);
       expect(stored()[0][1].firstAscension).toBe(first);
@@ -180,8 +180,8 @@ describe('ingest is a whitelist, not a scrub', () => {
     }
   });
 
-  it('keeps which way leg 1 went as one of two words, and the other way as a bounded number', async () => {
-    for (const first of ['continue', 'fresh']) {
+  it('keeps which way leg 1 went as one of three words, and the other way as a bounded number', async () => {
+    for (const first of ['continue', 'buildup', 'fresh']) {
       env = { SUBMISSIONS: makeKV(), CSV_UPLOAD_KEY: 'test-key' };
       expect((await post('/submit', { ...MINIMAL, firstLeg: first, firstLegOtherHours: 19.2 })).status).toBe(200);
       expect(stored()[0][1].firstLeg).toBe(first);
@@ -419,6 +419,13 @@ describe('the board keeps different experiments, and folds copies of one result'
     await run({ effort: 'thorough', durationDays: 700, forceContinue: false, firstAscension: 'fresh' }, '1.1.1.1');
     const board = await (await get('/leaderboard?final=490')).json();
     expect(board.rows.map(r => r.firstAscension).sort()).toEqual(['auto', 'fresh']);
+  });
+
+  it('keeps Continue my build-up apart from Fastest, the same result otherwise', async () => {
+    await run({ effort: 'balanced', durationDays: 700, forceContinue: false, firstAscension: 'auto' }, '1.1.1.1');
+    await run({ effort: 'thorough', durationDays: 700, forceContinue: false, firstAscension: 'buildup' }, '1.1.1.1');
+    const board = await (await get('/leaderboard?final=490')).json();
+    expect(board.rows.map(r => r.firstAscension).sort()).toEqual(['auto', 'buildup']);
   });
 
   it('folds a row that has only the old boolean with its copy that names the setting', async () => {
@@ -2842,6 +2849,22 @@ describe('POST /instant (opt-in instant answer records)', () => {
     const res = await post('/instant', RECORD);
     expect(res.status).toBe(400);
     expect(instKeys()).toEqual([]);
+  });
+
+  it('takes a build-up first leg and setting (10 Oct 2026), and refuses an unknown one', async () => {
+    const ok = await postOwned(
+      '/instant',
+      {
+        ...RECORD,
+        settings: { ...RECORD.settings, firstAscension: 'buildup' },
+        exact: { ...RECORD.exact, firstLeg: 'buildup' },
+      },
+      TOKEN_A
+    );
+    expect(ok.status).toBe(200);
+    const bad = await postOwned('/instant', { ...RECORD, exact: { ...RECORD.exact, firstLeg: 'later' } }, TOKEN_A);
+    expect(bad.status).toBe(400);
+    expect((await bad.json()).problems.join(' ')).toContain('firstLeg');
   });
 
   it('refuses a known field out of bounds, saying where', async () => {

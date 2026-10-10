@@ -90,4 +90,40 @@ describe('the first ascension setting (firstLegOptions)', () => {
     expect(legs(quick, 'fresh')).toEqual(['1-sale']);
     expect(legs(slow, 'fresh')).toEqual(['1-sale']);
   });
+
+  // Continue my build-up: a build carried on from the farm, timed from the plan start (a day of it).
+  const buildUp: BuildParams = { ...build(86400, 0) };
+  const withBuildUp = (cont: BuildParams | null, firstAscension: FirstAscension, bu: BuildParams[] = [buildUp]) =>
+    firstLegOptions({
+      table,
+      startTE: TE,
+      start,
+      final: TE + 1,
+      delivered: canonicalDelivered(TE),
+      cont,
+      buildUp: bu,
+      firstAscension,
+      pinSeconds: 1e12,
+      maxContinueSeconds: 1e12,
+    }).map(l => l.label);
+
+  it('Fastest takes the build-up when it is the soonest of the three', () => {
+    expect(withBuildUp(slow, 'auto')).toEqual(['buildup']);
+    expect(withBuildUp(quick, 'auto')).toEqual(['continue']);
+    // A build-up slower than a fresh start loses to it.
+    expect(withBuildUp(slow, 'auto', [{ ...build(20 * 86400, 0) }])).toEqual(['1-sale']);
+  });
+
+  it('Continue my build-up takes the sooner of building on and continuing as it is, never a fresh start', () => {
+    expect(withBuildUp(slow, 'buildup')).toEqual(['buildup']);
+    expect(withBuildUp(quick, 'buildup')).toEqual(['continue']);
+    expect(withBuildUp(slow, 'buildup', [{ ...build(20 * 86400, 0) }])).toEqual(['buildup']);
+    // Neither: a fresh start.
+    expect(withBuildUp(null, 'buildup', [])).toEqual(['1-sale']);
+  });
+
+  it('Finish without buying and Prestige now ignore the build-up', () => {
+    expect(withBuildUp(slow, 'continue')).toEqual(['continue']);
+    expect(withBuildUp(slow, 'fresh')).toEqual(['1-sale']);
+  });
 });

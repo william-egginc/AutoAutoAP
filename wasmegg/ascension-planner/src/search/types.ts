@@ -168,6 +168,10 @@ export interface LegSummary {
    *  NOT taken and when its leg would have ended (search/leg.ts `LegResult.rival`). Whether leg 1
    *  continued is `key === 'continue'`. Absent on every other leg and on runs from before 9 Oct. */
   firstLegRival?: { key: VariantKey; endTime: number };
+  /** Leg 1 only: when each kind of first ascension simulated would have ended it, unix seconds
+   *  ('continue' = finish without buying, 'buildup' = continue my build-up, 'fresh' = the best fresh
+   *  build; search/leg.ts `LegResult.firstLegEnds`). Absent on runs from before 10 Oct 2026. */
+  firstLegEnds?: Partial<Record<'continue' | 'buildup' | 'fresh', number>>;
 }
 
 /** A fully evaluated chain. `seconds` is what every stage of the driver minimises. */
