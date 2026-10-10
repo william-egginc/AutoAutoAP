@@ -25,7 +25,7 @@
  *   new Worker(new URL('./chainSearch.worker.ts', import.meta.url), { type: 'module' })
  */
 import { createChainEvaluator, type ChainEvaluator } from '@/search/chain';
-import { integrityWaitSeconds } from '@/search/leg';
+import { buildUpTailParams, integrityWaitSeconds } from '@/search/leg';
 import type { SearchInputs } from '@/search/types';
 import type { ChainResult } from '@/search/types';
 import type { WorkerRequest, WorkerResponse } from './chainSearch.protocol';
@@ -102,6 +102,17 @@ ctx.onmessage = (event: MessageEvent<WorkerRequest>) => {
       case 'integrity': {
         if (!loaded) throw new Error('chainSearch worker received integrity before init');
         post({ type: 'integrity', requestId: msg.requestId, seconds: integrityWaitSeconds(loaded) });
+        break;
+      }
+      case 'buildup-tails': {
+        if (!loaded) throw new Error('chainSearch worker received buildup-tails before init');
+        let tails: ReturnType<typeof buildUpTailParams> = [];
+        try {
+          tails = buildUpTailParams(loaded, loaded.planStart);
+        } catch {
+          tails = [];
+        }
+        post({ type: 'buildup-tails', requestId: msg.requestId, tails });
         break;
       }
       case 'evaluate': {

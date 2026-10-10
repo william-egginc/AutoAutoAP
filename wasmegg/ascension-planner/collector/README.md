@@ -395,8 +395,8 @@ writing, for the case where someone posts a hand-made payload.
 
 Stored: chain, ascension count, duration, local start/end, timezone, TE range, effort tier,
 schedule window, whether shifts were held, what leg 1 did with the ascension in progress
-(`firstAscension`: `auto`, `continue` or `fresh`, plus the older boolean `forceContinue`, true
-exactly when it is `continue`), which way leg 1 actually went (`firstLeg`: `continue` or
+(`firstAscension`: `auto`, `buildup`, `continue` or `fresh`, plus the older boolean `forceContinue`, true
+exactly when it is `continue`), which way leg 1 actually went (`firstLeg`: `continue`, `buildup` or
 `fresh`) and, when both were simulated, how many hours later the way not taken would have ended
 leg 1 (`firstLegOtherHours`, negative if earlier), waiting hours, per-leg strategy and peak delivery, chains priced, the seed chain
 the search descended from, an optional 40-character nickname, and the inventory as described next.
@@ -445,9 +445,9 @@ dropped). Both have `EI` followed by sixteen digits swept out.
 Schema history: 2 narrowed the inventory, 3 added run cost and progression summaries, 4 added
 `space`, 5 added `proof` and `seed`, 6 added the comparison variables above; `forceContinue` is an
 optional field on 6; `firstAscension` (9 Oct 2026) is an optional field on any schema, kept only
-when it is one of `auto`, `continue`, `fresh` (a row without it reads as `continue` when
+when it is one of `auto`, `buildup` (10 Oct 2026), `continue`, `fresh` (a row without it reads as `continue` when
 `forceContinue` is true and `auto` when it is false); `firstLeg` and `firstLegOtherHours` (9 Oct
-2026) are optional fields on any schema too, kept only as `continue`/`fresh` and as a number of
+2026) are optional fields on any schema too, kept only as `continue`/`buildup`/`fresh` and as a number of
 hours within ±2,400,000 (the duration bound); 7 added the fields just listed; 8 added the By a date fields. The Worker accepts 2–8 and stores the schema as
 sent, because the app and the Worker deploy separately and insisting on an exact match guarantees a
 window where every submission is refused.
@@ -574,8 +574,8 @@ auto-send and then a press of Send; five sends in four minutes; a run sent anony
 again with a name. A result's *fingerprint* is everything that decides its finish and nothing about
 who sent it or how it was found: target, chain, the plan's start to the minute, the duration to
 1e-4 day, timezone, artifacts, starting TE, schedule, held shifts, the first-ascension setting
-(the `forceContinue` boolean as before, or `'fresh'` for `firstAscension: 'fresh'`, so rows stored
-before keep their digests), time off. It is the same string as `contentFingerprint` in `src/lib/leaderboardRank.ts`. Between rows from the
+(the `forceContinue` boolean as before, or `'fresh'` for `firstAscension: 'fresh'` and `'buildup'`
+for `firstAscension: 'buildup'`, so rows stored before keep their digests), time off. It is the same string as `contentFingerprint` in `src/lib/leaderboardRank.ts`. Between rows from the
 **same sender** — the same owner code, or no code on either side and the same nickname — `/submit`
 decides:
 

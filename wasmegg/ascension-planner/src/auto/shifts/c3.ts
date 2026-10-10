@@ -8,7 +8,7 @@ import {
   runResearchMilestoneIfWorthwhile,
   runSmartBuyForSeconds,
 } from './helpers/milestones';
-import { applyShiftAction } from './helpers/actionHelpers';
+import { applyShiftAction, syncResearchSale } from './helpers/actionHelpers';
 import { advanceTimeWithBoundaries } from './helpers/advanceTime';
 import { runWithEarningsEventDeferral, MULTI_LAYERING_ID } from './helpers/earningsEventDeferral';
 import { computeSnapshot } from '../../engine/compute';
@@ -33,6 +33,11 @@ import { calculateEggsLaidDuringActions } from '../engine/eggs';
 export interface C3Params {
   /** Attempt to unlock Tier 13 before anything else, if it isn't already unlocked. Default false. */
   attemptTier13Unlock?: boolean;
+  /** Start without the shift to Curiosity when the farm is already on it ("continue my build-up",
+   *  auto/buildUp.ts): a shift resets the farm's chickens and cash, and a player already on
+   *  Curiosity has no reason to shift. The research sale is still synced to the calendar. A farm on
+   *  any other egg shifts as usual. Default false: every fresh build shifts. */
+  stayOnCuriosity?: boolean;
 }
 
 // MULTI_LAYERING_ID comes from './helpers/earningsEventDeferral' (shared with its own deferral logic).
@@ -344,11 +349,17 @@ export function runC3(
     );
   };
 
-  // 1. Shift to Curiosity
-  const shifted = applyShiftAction(currentState, context, 'curiosity');
-  currentState = shifted.state;
-  actions.push(shifted.action);
-  if (shifted.saleToggleAction) actions.push(shifted.saleToggleAction);
+  // 1. Shift to Curiosity (or, already on it with `stayOnCuriosity`, just sync the sale).
+  if (params.stayOnCuriosity && currentState.currentEgg === 'curiosity') {
+    const synced = syncResearchSale(currentState, context);
+    currentState = synced.state;
+    if (synced.action) actions.push(synced.action);
+  } else {
+    const shifted = applyShiftAction(currentState, context, 'curiosity');
+    currentState = shifted.state;
+    actions.push(shifted.action);
+    if (shifted.saleToggleAction) actions.push(shifted.saleToggleAction);
+  }
 
   // 1a. Opening smart-buy sweep — see this function's own top-level doc comment (step 1a) for why
   // this exists and why it's placed here, before step 2's Tier-13 attempt. Capped at the shift's
@@ -539,7 +550,9 @@ export function runC3Variants(
   startState: EngineState,
   context: SimulationContext,
   maxSaleCount: number = 3,
-  skipTier13Attempts: boolean = false
+  skipTier13Attempts: boolean = false,
+  /** Passed to every `runC3` call (only `stayOnCuriosity` is meant here). */
+  base: Omit<C3Params, 'attemptTier13Unlock'> = {}
 ): C3Variant[] {
   const maxTier = Math.max(...getTiers());
   const tier13AlreadyUnlocked = isTierUnlocked(startState.researchLevels, maxTier);
@@ -563,7 +576,7 @@ export function runC3Variants(
     let tier13SucceededThisSaleCount = false;
     if (!tier13AlreadyUnlocked && !tier13KnownImpossible) {
       const t0 = performance.now();
-      const result = runC3(startState, context, buildPhaseEnd, undefined, { attemptTier13Unlock: true });
+      const result = runC3(startState, context, buildPhaseEnd, undefined, { ...base, attemptTier13Unlock: true });
       attachEggsLaid(result);
       variantTimings.push({ name: `${saleCount}-sale-tier13`, ms: performance.now() - t0 });
       const impossible = !isTierUnlocked(result.endState.researchLevels, maxTier);
@@ -577,7 +590,7 @@ export function runC3Variants(
 
     if (!tier13SucceededThisSaleCount) {
       const t0 = performance.now();
-      const result = runC3(startState, context, buildPhaseEnd, undefined, { attemptTier13Unlock: false });
+      const result = runC3(startState, context, buildPhaseEnd, undefined, { ...base, attemptTier13Unlock: false });
       attachEggsLaid(result);
       variantTimings.push({ name: `${saleCount}-sale`, ms: performance.now() - t0 });
       variants.push({ saleCount, attemptTier13Unlock: false, buildPhaseEnd, result, impossible: false });

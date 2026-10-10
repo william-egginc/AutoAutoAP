@@ -614,11 +614,11 @@ export function contentFingerprint(row: BoardRow): string {
   ]);
 }
 
-/** The fingerprint's first-ascension part: the old boolean, or 'fresh' for Prestige Now. Keep identical
- *  to the collector's (collector/worker.js `fingerprint`). */
-function firstAscensionPart(row: Pick<BoardRow, 'firstAscension' | 'forceContinue'>): boolean | 'fresh' {
+/** The fingerprint's first-ascension part: the old boolean, or 'fresh' for Prestige Now and 'buildup'
+ *  for Continue my build-up. Keep identical to the collector's (collector/worker.js `fingerprint`). */
+function firstAscensionPart(row: Pick<BoardRow, 'firstAscension' | 'forceContinue'>): boolean | 'fresh' | 'buildup' {
   const first = rowFirstAscension(row);
-  return first === 'fresh' ? 'fresh' : first === 'continue';
+  return first === 'fresh' ? 'fresh' : first === 'buildup' ? 'buildup' : first === 'continue';
 }
 
 /** A row's first-ascension setting: its own field, else the boolean rows before 9 Oct 2026 carry

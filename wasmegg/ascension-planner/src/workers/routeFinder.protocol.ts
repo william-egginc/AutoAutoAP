@@ -36,6 +36,8 @@ export interface FirstLegsRequest {
   /** The player's eggs delivered per egg at the plan start (EGG_ORDER). */
   delivered: number[];
   cont: BuildParams | null;
+  /** Continue my build-up's tails (search/leg.ts `buildUpTailParams`), or null/empty: not simulated. */
+  buildUp?: BuildParams[] | null;
   firstAscension: FirstAscension;
   pinSeconds: number;
   maxContinueSeconds: number;

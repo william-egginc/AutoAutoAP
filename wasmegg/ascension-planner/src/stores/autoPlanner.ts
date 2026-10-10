@@ -6,8 +6,10 @@ import type { Action } from '@/types/actions/meta';
 export type SaleCount = 1 | 2 | 3;
 export type BuildVariantKey = `${SaleCount}-sale` | `${SaleCount}-sale-tier13`;
 /** Every possible variant slot an ascension step can produce. Presence in a `variants` map (not a
- * separate boolean) is what signals a variant was actually computed and survived pruning. */
-export type VariantKey = BuildVariantKey | 'continue';
+ * separate boolean) is what signals a variant was actually computed and survived pruning.
+ * 'buildup' ("continue my build-up", search/leg.ts) is the chain search's leg 1 only; the Classic
+ * planner never produces it. */
+export type VariantKey = BuildVariantKey | 'continue' | 'buildup';
 export interface VariantResult {
   summary: AscensionSummary;
   actions: Action[];

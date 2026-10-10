@@ -70,7 +70,7 @@ describe('fingerprint tags', () => {
     expect(firstAscensionTag('continue')).toBe('fc');
     expect(firstAscensionTag('auto')).toBe('auto');
     expect(firstAscensionTag('fresh')).toBe('fresh');
-    for (const m of ['auto', 'continue', 'fresh'] as const) expect(firstAscensionFromTag(firstAscensionTag(m))).toBe(m);
+    for (const m of ['auto', 'buildup', 'continue', 'fresh'] as const) expect(firstAscensionFromTag(firstAscensionTag(m))).toBe(m);
   });
 });
 
@@ -84,6 +84,6 @@ describe('command-line flags', () => {
     expect(firstAscensionFromFlags(undefined, flags('force-continue'))).toBe('continue');
     expect(firstAscensionFromFlags(undefined, flags('no-force-continue'))).toBe('auto');
     expect(firstAscensionFromFlags('fresh', flags('force-continue'))).toBe('fresh');
-    expect(() => firstAscensionFromFlags('sometimes', flags())).toThrow(/auto, continue or fresh/);
+    expect(() => firstAscensionFromFlags('sometimes', flags())).toThrow(/auto, buildup, continue or fresh/);
   });
 });

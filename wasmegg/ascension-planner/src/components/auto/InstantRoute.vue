@@ -486,7 +486,15 @@
               <td class="pr-3 py-1">{{ historyAnswer(h, h.instant) }}</td>
               <td class="pr-3 py-1">{{ h.exact ? historyAnswer(h, h.exact) : '–' }}</td>
               <td class="pr-3 py-1">
-                {{ h.firstLeg === 'continue' ? 'Continue' : h.firstLeg === 'fresh' ? 'Fresh' : '–' }}
+                {{
+                  h.firstLeg === 'continue'
+                    ? 'Continue'
+                    : h.firstLeg === 'buildup'
+                      ? 'Build-up'
+                      : h.firstLeg === 'fresh'
+                        ? 'Fresh'
+                        : '–'
+                }}
               </td>
               <td
                 class="pr-3 py-1 font-bold"
@@ -639,7 +647,7 @@ import { dateStyle, showDateTime } from '@/lib/displayTime';
 import { continueTailParams, instantDeliveryScale } from '@/search/leg';
 import { CONTINUE_MAX_SECONDS, CONTINUE_PIN_MAX_SECONDS } from '@/search/rules';
 import type { FirstAscension } from '@/search/firstAscension';
-import { EGG_ORDER } from '@/search/precomputedLeg';
+import { EGG_ORDER, type BuildParams } from '@/search/precomputedLeg';
 import { cteFromArtifacts } from 'lib/virtue';
 import { equippedArtifactsToLibArtifacts } from '@/lib/artifacts/utils';
 import { findRoutes, type FoundRoutes, type PolishOptions, type Route } from '@/search/routeFinder';
@@ -1286,6 +1294,15 @@ async function run(force = false, goAhead = false): Promise<void> {
     const inputs = store.collectInputs();
     const scale = deliveryScale.value ?? 1;
     const t0 = performance.now();
+    // Continue my build-up: the standard build carried on from the farm in the save, simulated on a
+    // background worker (a few seconds). Empty when the setting never builds up or there is no farm.
+    let buildUp: BuildParams[] = [];
+    const firstMode = inputs.firstAscension ?? 'auto';
+    if ((firstMode === 'auto' || firstMode === 'buildup') && inputs.currentFarmState) {
+      loadingText.value = 'Working out your build-up from your farm as it is…';
+      buildUp = JSON.parse(JSON.stringify(await store.buildUpTails())) as BuildParams[];
+      if (id !== runs) return;
+    }
     const legsRequest: FirstLegsBase = {
       startTE: te,
       start: inputs.planStart,
@@ -1293,6 +1310,7 @@ async function run(force = false, goAhead = false): Promise<void> {
       delivered: EGG_ORDER.map(e => inputs.baseState.eggsDelivered?.[e] || 0),
       // A plain copy: workers get structured-cloned data, never a reactive proxy.
       cont: JSON.parse(JSON.stringify(continueTailParams(inputs, inputs.planStart))),
+      buildUp,
       // As the search prices it, Classic's one-hour rule included (store `collectInputs`).
       firstAscension: inputs.firstAscension ?? 'auto',
       pinSeconds: CONTINUE_PIN_MAX_SECONDS,
@@ -1432,7 +1450,7 @@ const tableDate = (r: Route): DateExact => ({
   end: r.end,
   handoff: 'hour',
   atOnce: [],
-  fresh: r.legs.filter(l => l.label !== 'continue').length,
+  fresh: r.legs.filter(l => l.label !== 'continue' && l.label !== 'buildup').length,
 });
 /** "Ascend at once for …", when the exact check kept a price that starts some ascensions at once. */
 function atOnceNote(e: { atOnce: number[]; fresh: number } | null | undefined): string {
@@ -1544,9 +1562,11 @@ async function runExact(id: number, found: NonNullable<typeof result.value>, man
               endTE: b.r.legs[b.r.legs.length - 1]?.endTE ?? 0,
               handoff: b.handoff,
               atOnce: b.r.legs
-                .map((l, i) => (l.key !== 'continue' && (l.startTime ?? 0) % 3600 !== 0 ? i + 1 : 0))
+                .map((l, i) =>
+                  l.key !== 'continue' && l.key !== 'buildup' && (l.startTime ?? 0) % 3600 !== 0 ? i + 1 : 0
+                )
                 .filter(n => n > 0),
-              fresh: b.r.legs.filter(l => l.key !== 'continue').length,
+              fresh: b.r.legs.filter(l => l.key !== 'continue' && l.key !== 'buildup').length,
               legs: b.r.legs,
             }
           : null;
@@ -1764,7 +1784,8 @@ interface CachedAnswer {
   endTE: number;
 }
 const CACHE_PREFIX = 'aap-instant-answer:';
-const cacheFirst = (m: FirstAscension): boolean | 'fresh' => (m === 'fresh' ? 'fresh' : m === 'continue');
+const cacheFirst = (m: FirstAscension): boolean | 'fresh' | 'buildup' =>
+  m === 'fresh' ? 'fresh' : m === 'buildup' ? 'buildup' : m === 'continue';
 function cacheKey(): string | null {
   const inputs = store.collectInputs();
   const raw = inputs.context.rawBackup as { eiUserId?: string } | undefined;

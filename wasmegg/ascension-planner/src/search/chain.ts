@@ -266,7 +266,8 @@ export function createChainEvaluator(inputs: SearchInputs, memoSettings: MemoSet
             // The first step may continue the ascension in progress, which starts at once; only a
             // fresh start moves to the hour.
             const atOnce = priceStep(state as EngineState, time, chain[i], i === 0, te, i);
-            const continues = i === 0 && atOnce?.[0]?.key === 'continue';
+            // Continuing the ascension in progress (as it is, or building on) needs no prestige.
+            const continues = i === 0 && (atOnce?.[0]?.key === 'continue' || atOnce?.[0]?.key === 'buildup');
             if (continues || hour === time) segs = atOnce;
             else {
               const atHour = priceStep(state as EngineState, hour, chain[i], false, te, i);
@@ -277,6 +278,10 @@ export function createChainEvaluator(inputs: SearchInputs, memoSettings: MemoSet
               const rival = atOnce?.[0]?.rival;
               if (i === 0 && segs && segs !== atOnce && rival && !segs[0].rival)
                 segs = [{ ...segs[0], rival }, ...segs.slice(1)];
+              // Likewise every kind's end, the fresh one now the start on the hour.
+              const ends = atOnce?.[0]?.firstLegEnds;
+              if (i === 0 && segs && segs !== atOnce && ends && !segs[0].firstLegEnds)
+                segs = [{ ...segs[0], firstLegEnds: { ...ends, fresh: segs[0].summary.endTime } }, ...segs.slice(1)];
             }
           }
           // The last step is still READ from the memo above (another route's early stops may be this
@@ -340,6 +345,7 @@ export function createChainEvaluator(inputs: SearchInputs, memoSettings: MemoSet
             ...(leg.timeOff ? { timeOff: leg.timeOff } : {}),
             ...(leg.afterTimeOff ? { afterTimeOff: true as const } : {}),
             ...(leg.rival ? { firstLegRival: { ...leg.rival } } : {}),
+            ...(leg.firstLegEnds ? { firstLegEnds: { ...leg.firstLegEnds } } : {}),
           });
 
           state = leg.nextState;

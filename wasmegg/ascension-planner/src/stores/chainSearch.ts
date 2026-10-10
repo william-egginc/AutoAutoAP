@@ -22,6 +22,7 @@ import { hashID } from '@/lib/storage/db';
 import { runChainSearch, type CacheEntry } from '@/search/driver';
 import { findStartingChain, planCoarseGrid } from '@/search/coarse';
 import { createChainSearchPool, type ChainSearchPool } from '@/search/pool';
+import type { BuildParams } from '@/search/precomputedLeg';
 import { contention, timeWeightedWorkers, workerSecondsFromRate } from '@/search/speed';
 import { addChainSample, sweepTimeLeft, type SweepTimeLeft } from '@/search/sweepEstimate';
 import { createStickyDealer } from '@/search/stickyDealer';
@@ -451,7 +452,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     firstAscensionChoice.value = v;
     const planner = useAutoPlannerStore();
     const current = planner.planVariantOverrides[0];
-    const next = v === 'continue' ? 'continue' : v === 'auto' || current === 'continue' ? undefined : current;
+    // Classic has no build-up: Continue my build-up clears its pick as Fastest does, so a build picked
+    // there (which reads back as Prestige now) cannot outrank it.
+    const next =
+      v === 'continue' ? 'continue' : v === 'auto' || v === 'buildup' || current === 'continue' ? undefined : current;
     if (next === current) return;
     const rest = { ...planner.planVariantOverrides };
     delete rest[0];
@@ -1331,6 +1335,36 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       probe?.terminate();
       if (integrityKey === key) integrityChecking.value = false;
     }
+  }
+
+  /**
+   * "Continue my build-up" as the instant answer's tails (search/leg.ts `buildUpTailParams`): a few
+   * seconds of simulation, so on one background worker, as the integrity check runs. Kept for the
+   * same account, TE, plan start and setting, so the instant answer asks once. Empty when the setting
+   * never builds up (Finish without buying, Prestige now), without a farm in the save, or on failure.
+   */
+  let buildUpTailsMemo: { key: string; tails: Promise<BuildParams[]> } | null = null;
+  function buildUpTails(): Promise<BuildParams[]> {
+    const inputs = collectInputs();
+    const mode = inputs.firstAscension ?? 'auto';
+    if ((mode !== 'auto' && mode !== 'buildup') || !inputs.currentFarmState || !inputs.context.rawBackup)
+      return Promise.resolve([]);
+    const raw = inputs.context.rawBackup as { approxTime?: number };
+    const key = `${raw.approxTime ?? ''}|${inputs.currentTE}|${inputs.planStart}|${mode}`;
+    if (buildUpTailsMemo?.key === key) return buildUpTailsMemo.tails;
+    const tails = (async () => {
+      let pool: ChainSearchPool | null = null;
+      try {
+        pool = await createChainSearchPool(inputs, { size: 1 });
+        return await pool.buildUpTails();
+      } catch {
+        return [];
+      } finally {
+        pool?.terminate();
+      }
+    })();
+    buildUpTailsMemo = { key, tails };
+    return tails;
   }
 
   /**
@@ -2882,8 +2916,15 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   /** The same review applied to the winning chain's legs, once there is one. */
   const resultIssues = computed<HealthIssue[]>(() => (bestLegs.value.length ? reviewLegs(bestLegs.value) : []));
   /** The issues that say the numbers may be wrong, as opposed to the long-continue remark. */
-  const resultContradictions = computed(() => resultIssues.value.filter(i => i.kind !== 'long-continue'));
-  const continueWarning = computed(() => resultIssues.value.find(i => i.kind === 'long-continue')?.message ?? '');
+  // Leg 1's notes (a long continue, the build-up against frozen continue) are not faults.
+  const LEG1_NOTES: HealthIssue['kind'][] = ['long-continue', 'build-up-sooner'];
+  const resultContradictions = computed(() => resultIssues.value.filter(i => !LEG1_NOTES.includes(i.kind)));
+  const continueWarning = computed(() =>
+    resultIssues.value
+      .filter(i => LEG1_NOTES.includes(i.kind))
+      .map(i => i.message)
+      .join(' ')
+  );
 
   /**
    * Build the shareable summary of this run.
@@ -3126,8 +3167,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       planStartUsed.value || planStart.value,
       currentTE.value,
       // 'fresh' was this key's tag for Fastest (the boolean off) before 9 Oct, so Fastest keeps it and
-      // Prestige Now gets one of its own: results already sent still read as sent.
-      { continue: 'fc', auto: 'fresh', fresh: 'now' }[usedSettings().firstAscension],
+      // Prestige Now gets one of its own: results already sent still read as sent. Continue my
+      // build-up (10 Oct) likewise.
+      { continue: 'fc', auto: 'fresh', fresh: 'now', buildup: 'bu' }[usedSettings().firstAscension],
       deferShifts.value ? 'hold' : 'free',
       // What makes it a different ROW on the board even with the same answer: a different space or
       // sweep, or a partial run versus the finished one.
@@ -7580,6 +7622,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     staleBackupAccepted,
     staleBackupBlocked,
     probeIntegrity,
+    buildUpTails,
     openedRun,
     crashedRun,
     resumeCrashedRun,

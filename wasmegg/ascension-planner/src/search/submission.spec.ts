@@ -795,6 +795,11 @@ describe('which way leg 1 went (firstLeg, 9 Oct)', () => {
       inputs({ legs: [first({ key: 'continue', firstLegRival: { key: '1-sale', endTime: at + 3600 } })] })
     );
     expect([c.firstLeg, c.firstLegOtherHours]).toEqual(['continue', 1]);
+    const b = buildSubmission(
+      inputs({ legs: [first({ key: 'buildup', firstLegRival: { key: '2-sale', endTime: at + 7200 } })] })
+    );
+    expect([b.firstLeg, b.firstLegOtherHours]).toEqual(['buildup', 2]);
+    expect(validateSubmission(b)).toEqual([]);
   });
 
   it('leaves the hours off when only one way was simulated, or the other never ends', () => {

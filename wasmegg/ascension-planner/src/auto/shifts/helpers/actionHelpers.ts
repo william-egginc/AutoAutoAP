@@ -73,23 +73,35 @@ export function applyShiftAction(
 
   let saleToggleAction: Action | undefined;
   if (toEgg === 'curiosity') {
-    // `state.lastStepTime` (BEFORE the shift, but shifting never changes it — see
-    // `applyDecoratedAction`, which only touches `endState`/`totalTimeSeconds`/`bankDelta`) is the
-    // shift's own instant in the plan's timeline; same "subtract `planStartOffset`" conversion used
-    // everywhere else this exact formula appears (e.g. c3.ts's `baseAbsTime`).
-    const absoluteSimTime = context.ascensionStartTime + ((state.lastStepTime || 0) - context.planStartOffset);
-    const isSaleNow = isResearchSaleActive(absoluteSimTime);
-    if (shifted.state.activeSales?.research !== isSaleNow) {
-      const toggleAction = createSimAction('toggle_sale', {
-        saleType: 'research',
-        active: isSaleNow,
-        multiplier: 0.3,
-      });
-      const toggled = applyDecoratedAction(shifted.state, context, toggleAction);
-      shifted.state = toggled.state;
-      saleToggleAction = toggled.action;
-    }
+    const toggled = syncResearchSale(shifted.state, context, state.lastStepTime);
+    shifted.state = toggled.state;
+    saleToggleAction = toggled.action;
   }
 
   return { state: shifted.state, action: shifted.action, saleToggleAction };
+}
+
+/**
+ * Syncs `activeSales.research` to the calendar at the instant `lastStepTime` stands for, as a shift
+ * to Curiosity does (`applyShiftAction`): returns the toggle action when it changed anything. Also
+ * used on its own by "continue my build-up" (auto/buildUp.ts), whose C3 may start on a farm already
+ * on Curiosity and so has no shift to carry the sync.
+ */
+export function syncResearchSale(
+  state: EngineState,
+  context: SimulationContext,
+  lastStepTime: number = state.lastStepTime
+): { state: EngineState; action?: Action } {
+  // `lastStepTime` is the instant in the plan's timeline; same "subtract `planStartOffset`"
+  // conversion used everywhere else this exact formula appears (e.g. c3.ts's `baseAbsTime`).
+  const absoluteSimTime = context.ascensionStartTime + ((lastStepTime || 0) - context.planStartOffset);
+  const isSaleNow = isResearchSaleActive(absoluteSimTime);
+  if (state.activeSales?.research === isSaleNow) return { state };
+  const toggleAction = createSimAction('toggle_sale', {
+    saleType: 'research',
+    active: isSaleNow,
+    multiplier: 0.3,
+  });
+  const toggled = applyDecoratedAction(state, context, toggleAction);
+  return { state: toggled.state, action: toggled.action };
 }

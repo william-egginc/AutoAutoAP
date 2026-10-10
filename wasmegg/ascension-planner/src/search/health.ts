@@ -36,6 +36,7 @@ export interface HealthIssue {
     | 'rate-collapse'
     | 'slow-leg'
     | 'long-continue'
+    | 'build-up-sooner'
     | 'save-past-silos';
   /** `error` means the numbers are probably wrong. `warning` means look before you trust them. */
   level: 'error' | 'warning';
@@ -114,6 +115,38 @@ export function reviewContext(ctx: {
   return issues;
 }
 
+/** The build-up note (`buildUpNote`) needs at least this many days between it and frozen continue. */
+export const BUILD_UP_NOTE_DAYS = 1;
+
+/**
+ * Leg 1's note when continuing the build beats finishing on the farm as it is ("Allan's advice was
+ * about a week worse": continue holds the farm frozen, so a farm part-way through its build is badly
+ * undersold). Null unless both were simulated and the build-up ends leg 1 at least
+ * `BUILD_UP_NOTE_DAYS` sooner. Not a fault, so it is shown with the long-continue note, not as a
+ * contradiction.
+ */
+export function buildUpNote(leg: LegSummary): HealthIssue | null {
+  const ends = leg.firstLegEnds;
+  const frozen = ends?.continue;
+  const build = ends?.buildup;
+  if (frozen === undefined || build === undefined || !Number.isFinite(build)) return null;
+  const days = Number.isFinite(frozen) ? (frozen - build) / 86400 : Infinity;
+  if (!(days >= BUILD_UP_NOTE_DAYS)) return null;
+  const by = Number.isFinite(days) ? `${days.toFixed(1)} days` : 'a long way';
+  const pickIt = 'Pick "Continue my build-up" or "Fastest" in Your setup to use it.';
+  const fresh = ends?.fresh;
+  const beatsFresh = fresh !== undefined && Number.isFinite(fresh) && (fresh - build) / 86400 >= BUILD_UP_NOTE_DAYS;
+  const message =
+    leg.key === 'continue'
+      ? `Your build isn't finished: carrying on your build-up would end leg 1 ${by} sooner than finishing without buying, which is what this plan does. ${pickIt}`
+      : leg.key === 'buildup'
+        ? `Leg 1 carries on your build-up: that ends it ${by} sooner than finishing your farm as it is, without buying anything more.`
+        : beatsFresh
+          ? `Carrying on your build-up would end leg 1 ${by} sooner than finishing without buying, and ${((fresh! - build) / 86400).toFixed(1)} days sooner than the fresh start this plan takes. ${pickIt}`
+          : `Carrying on your build-up would end leg 1 ${by} sooner than finishing without buying; prestiging now was faster still.`;
+  return { kind: 'build-up-sooner', level: 'warning', message };
+}
+
 /** Peak delivery in q/hr, the unit the panel and the CSV both print. */
 export const qph = (leg: LegSummary): number => (leg.maxELR * 3600) / 1e15;
 
@@ -155,6 +188,10 @@ export function reviewLegs(legs: LegSummary[]): HealthIssue[] {
     // anyway past three (search/rules.ts), because that is a long time to leave one farm alone.
     if (i === 0 && leg.key === 'continue' && leg.durationSeconds > CONTINUE_WARN_SECONDS) {
       issues.push({ kind: 'long-continue', level: 'warning', message: longContinueMessage(days) });
+    }
+    if (i === 0) {
+      const note = buildUpNote(leg);
+      if (note) issues.push(note);
     }
     if (!isFinalLeg && days > SLOW_LEG_DAYS) {
       issues.push({

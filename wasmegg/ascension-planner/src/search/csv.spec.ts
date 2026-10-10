@@ -432,7 +432,7 @@ describe('leg 1: which way it went, and the way not taken (9 Oct)', () => {
       )
     ).toEqual(['', '', '']);
     expect(csv).toContain(
-      `# first leg (best route): fresh (2-sale build, prestige now); continuing would have ended leg 1 ${formatInZone(CONT_END, DENVER)}, 19.2 h later`
+      `# first leg (best route): fresh (2-sale build, prestige now); continuing without buying would have ended leg 1 ${formatInZone(CONT_END, DENVER)}, 19.2 h later`
     );
   });
 
@@ -445,7 +445,7 @@ describe('leg 1: which way it went, and the way not taken (9 Oct)', () => {
     expect(column(csv, 0, 'first_leg')).toBe('continue');
     expect(column(csv, 0, 'first_leg_other_later_hours')).toBe('24.00');
     expect(csv).toContain(
-      '# first leg (best route): continue (finishes the ascension in progress); the best fresh build (1-sale) would have ended leg 1'
+      '# first leg (best route): continue (finishes the ascension in progress, buying nothing more); the best fresh build (1-sale) would have ended leg 1'
     );
 
     const alone = buildChainsCsv([{ key: '219,490', seconds: 700 * 86400, legs: [leg()] }], {
@@ -455,6 +455,13 @@ describe('leg 1: which way it went, and the way not taken (9 Oct)', () => {
     expect(column(alone, 0, 'first_leg')).toBe('fresh');
     expect(column(alone, 0, 'first_leg_other_end_local')).toBe('');
     expect(alone).toContain('continue not simulated (Prestige Now)');
+  });
+
+  it('a build-up leg 1 says so, with the way it beat', () => {
+    const bu = leg({ key: 'buildup', buildPhaseSaleCount: 1, firstLegRival: { key: '2-sale', endTime: PLAN_START + 61 * 86400 } });
+    const csv = buildChainsCsv([{ key: '219,490', seconds: 700 * 86400, legs: [bu] }], { ...META, firstAscension: 'auto' });
+    expect(column(csv, 0, 'first_leg')).toBe('buildup');
+    expect(csv).toContain('# first leg (best route): build-up (carries on the build in progress, 1-sale); the best fresh build (2-sale)');
   });
 
   it('By a date writes the same columns and line', () => {

@@ -31,7 +31,7 @@ import type { Availability } from './availabilitySchedule';
 import { describeAvailability } from './availabilitySchedule';
 import type { LegSummary } from './types';
 import type { DeliveryScore } from './virtueScore';
-import { forceContinueOf, type FirstAscension } from './firstAscension';
+import { firstLegKindOf, forceContinueOf, type FirstAscension, type FirstLegKind } from './firstAscension';
 
 /** Bumped when the shape changes, so a collector can reject or migrate old submissions rather
  *  than mis-reading them. Receivers should refuse anything they do not recognise.
@@ -243,10 +243,11 @@ export interface Submission {
   firstAscension?: FirstAscension;
   /**
    * Which way leg 1 actually went (9 Oct 2026, optional, no schema bump): 'continue' finished the
-   * ascension in progress, 'fresh' prestiged into a new build. Under 'auto' this is the one the
-   * search picked; `firstAscension` is only the setting.
+   * ascension in progress as the farm is, 'buildup' (10 Oct 2026) carried on its build, 'fresh'
+   * prestiged into a new build. Under 'auto' this is the one the search picked; `firstAscension` is
+   * only the setting. A collector from before 10 Oct drops 'buildup'.
    */
-  firstLeg?: 'continue' | 'fresh';
+  firstLeg?: FirstLegKind;
   /**
    * When leg 1 simulated both kinds: hours the option NOT taken would have ended leg 1 after the one
    * taken (negative if sooner: a deadline leg, or a fresh start then moved to the hour, the instant
@@ -924,7 +925,7 @@ export function buildSubmission(i: SubmissionInputs): Submission {
       : i.forceContinue === undefined
         ? {}
         : { forceContinue: i.forceContinue }),
-    ...(leg1 ? { firstLeg: leg1.key === 'continue' ? ('continue' as const) : ('fresh' as const) } : {}),
+    ...(leg1 ? { firstLeg: firstLegKindOf(leg1.key) } : {}),
     // Past the collector's bound (a continue that never ends) it is left off, as the collector would.
     ...(otherHours !== null && Math.abs(otherHours) <= MAX_FIRST_LEG_OTHER_HOURS
       ? { firstLegOtherHours: otherHours + 0 }
@@ -1108,8 +1109,8 @@ export function validateSubmission(value: unknown): string[] {
   ) {
     problems.push(`backupAgeHours must be within ${MAX_BACKUP_AGE_HOURS} hours either way`);
   }
-  if (s.firstLeg !== undefined && s.firstLeg !== 'continue' && s.firstLeg !== 'fresh')
-    problems.push("firstLeg must be 'continue' or 'fresh'");
+  if (s.firstLeg !== undefined && s.firstLeg !== 'continue' && s.firstLeg !== 'buildup' && s.firstLeg !== 'fresh')
+    problems.push("firstLeg must be 'continue', 'buildup' or 'fresh'");
   if (
     s.firstLegOtherHours !== undefined &&
     !(Number.isFinite(s.firstLegOtherHours) && Math.abs(s.firstLegOtherHours) <= MAX_FIRST_LEG_OTHER_HOURS)

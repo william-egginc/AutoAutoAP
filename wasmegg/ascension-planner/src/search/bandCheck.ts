@@ -101,10 +101,12 @@ const band = (n: number) => `Band ${n}`;
 /** The First ascension setting, as the band message says it. */
 function firstAscensionNow(mode: FirstAscension | undefined): string {
   return mode === 'continue'
-    ? 'Continue current ascension: it finishes this ascension first'
-    : mode === 'fresh'
-      ? 'Prestige now: it ascends straight away'
-      : 'Fastest: it takes whichever of the two is faster';
+    ? 'Finish without buying: it finishes this ascension first, on the farm as it is'
+    : mode === 'buildup'
+      ? 'Continue my build-up: it finishes this ascension first, carrying on its build'
+      : mode === 'fresh'
+        ? 'Prestige now: it ascends straight away'
+        : 'Fastest: it takes whichever of the three is faster';
 }
 
 export function checkBandText(text: string, ctx: BandCheckContext): BandIssue[] {

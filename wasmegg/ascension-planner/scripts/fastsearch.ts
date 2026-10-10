@@ -104,7 +104,7 @@ import { countUnavailable, describeAvailability, isConstrained, nextAvailable,
          type Availability } from '@/search/availability';
 import { meetsAll, usableMilestones, type LegArrival, type Milestone } from '@/search/milestones';
 import { createChainEvaluator } from '@/search/chain';
-import { CONTINUE_MAX_SECONDS, CONTINUE_PIN_MAX_SECONDS, CONTINUE_WARN_SECONDS, LAST_DATEABLE_SECONDS, integrityWaitSeconds } from '@/search/leg';
+import { CONTINUE_MAX_SECONDS, CONTINUE_PIN_MAX_SECONDS, CONTINUE_WARN_SECONDS, LAST_DATEABLE_SECONDS, buildUpVariantForCheck, integrityWaitSeconds } from '@/search/leg';
 import { firstAscensionFromFlags, type FirstAscension } from '@/search/firstAscension';
 import { INTEGRITY_BLOCK_SECONDS, INTEGRITY_WARN_SECONDS, describeDuration, integrityMessage, longContinueMessage } from '@/search/rules';
 import { describeTimeOff, timeOffWindows, usableTimeOff, type TimeOffDates } from '@/search/timeOff';
@@ -596,10 +596,13 @@ WHEN THE PLAN STARTS
   --start-date YYYY-MM-DD   (default today)
   --start-time HH:MM        (default the current hour)
   --timezone IANA           (default this machine's)
-  --first-ascension auto|continue|fresh
+  --first-ascension auto|buildup|continue|fresh
                             What leg 1 does with the ascension in progress, as on the site (Your
                             setup's First ascension, Classic's rule). auto (the default): continuing
-                            is one more candidate, taken when it is the fastest. continue: taken
+                            (as the farm is, or carrying on its build) is one more candidate, taken
+                            when it is the fastest. buildup: carries on the build from the farm in
+                            the save, or continues as it is when that is sooner; never prestiges
+                            first unless the save has no farm. continue: as the farm is, taken
                             outright when it finishes within a week, kept up to six months unless a
                             1/2/3-sale fresh start is strictly faster. fresh: never continues.
                             Continuing is never a candidate past six months.
@@ -788,7 +791,7 @@ const MAX_CONTINUE_SECONDS = arg('continue-max-days') !== undefined ? Number(arg
 if (!Number.isFinite(MAX_CONTINUE_SECONDS) || MAX_CONTINUE_SECONDS < 0) throw new Error('--continue-max-days must be a number of days');
 
 /** What leg 1 does with the ascension in progress (search/firstAscension.ts), as on the site:
- *  `--first-ascension auto|continue|fresh`, default auto; the old `--force-continue` is continue and
+ *  `--first-ascension auto|buildup|continue|fresh`, default auto; the old `--force-continue` is continue and
  *  `--no-force-continue` is auto. Classic's one-hour rule (no continue for a plan starting over an
  *  hour from now) is NOT applied here: the same command must give the same answer whenever it runs. */
 const FIRST_ASCENSION: FirstAscension = firstAscensionFromFlags(arg('first-ascension'), has);
@@ -843,6 +846,23 @@ function runLeg(
       ? buildContinueVariant(baseState, startTime, goalTE as number, idx, endOverride)
       : null;
   if (cont && !(cont.summary.totalDurationSeconds <= MAX_CONTINUE_SECONDS)) cont = null;
+  // Continue my build-up (src/search/leg.ts): the standard build carried on from the farm in the save.
+  const buildUp: VariantResult | null =
+    allowContinue && (FIRST_ASCENSION === 'auto' || FIRST_ASCENSION === 'buildup')
+      ? buildUpVariantForCheck(
+          planInputs({ planStart: startTime, currentTE: startTE, final: targetTE, availability: null, milestones: [], deferShifts: false }),
+          baseState,
+          startTime,
+          goalTE,
+          idx,
+          startTE,
+          endOverride
+        )
+      : null;
+  if (FIRST_ASCENSION === 'buildup' && (buildUp || cont)) {
+    const pick = buildUp && cont ? pickVariant({ buildup: buildUp, continue: cont } as any, undefined, byDeadline) : (buildUp ?? cont);
+    return asLeg(pick, (pick === cont ? 'continue' : 'buildup') as VariantKey);
+  }
   if (allowContinue && FORCE_CONTINUE) {
     if (cont && !byDeadline && cont.summary.totalDurationSeconds <= PIN_SECONDS) return asLeg(cont, 'continue' as VariantKey);
     // Usually not a fault: a save whose last sync was on the home farm or a contract has no
@@ -878,13 +898,13 @@ function runLeg(
       baseState, preC3, v, ctx, startTime, 'asc_' + idx, goalTE, endOverride
     );
   }
-  if (!Object.keys(variants).length && !cont) return null;
+  if (!Object.keys(variants).length && !cont && !buildUp) return null;
 
   // --leg1-variants: every candidate for the first leg, not just the winner, so "would continuing
   // have been faster than a 1/2/3-sale fresh start?" has an answer. One JSON line per leg-1 target.
   if ((idx === 0 && has('leg1-variants')) || has('leg-variants')) {
     const d = (s: number) => +(s / 86400).toFixed(3);
-    const all: Record<string, any> = cont ? { ...variants, continue: cont } : variants;
+    const all: Record<string, any> = { ...variants, ...(buildUp ? { buildup: buildUp } : {}), ...(cont ? { continue: cont } : {}) };
     console.log((idx === 0 ? 'LEG1_VARIANTS ' : 'LEG_VARIANTS ') + JSON.stringify({
       leg: idx + 1,
       startTE,
@@ -900,7 +920,12 @@ function runLeg(
 
   const freshKeys = Object.keys(variants);
   const freshBest = freshKeys.length ? pickVariant(variants as any, undefined, byDeadline) : null;
-  if (cont) {
+  if (FIRST_ASCENSION === 'auto' && (cont || buildUp)) {
+    const all: Record<string, VariantResult> = { ...variants, ...(buildUp ? { buildup: buildUp } : {}), ...(cont ? { continue: cont } : {}) };
+    const pick = pickVariant(all as any, undefined, byDeadline);
+    if (pick === cont) return asLeg(cont, 'continue' as VariantKey);
+    if (pick === buildUp) return asLeg(buildUp, 'buildup' as VariantKey);
+  } else if (cont) {
     const contWins = !freshBest
       ? true
       : FORCE_CONTINUE

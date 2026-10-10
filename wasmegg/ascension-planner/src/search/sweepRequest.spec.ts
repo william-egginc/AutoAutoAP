@@ -16,7 +16,7 @@ describe('sweep request links', () => {
 
   it('carries the first ascension all three ways, and leaves it alone when unset', () => {
     const base = { preset: 'M1', label: 'M1', bands: '181-489:1', minGap: 0 };
-    for (const first of ['auto', 'continue', 'fresh'] as const)
+    for (const first of ['auto', 'buildup', 'continue', 'fresh'] as const)
       expect(parseSweepRequest(sweepRequestQuery({ ...base, firstAscension: first }))?.firstAscension).toBe(first);
     expect(parseSweepRequest(sweepRequestQuery(base))?.firstAscension).toBeNull();
   });

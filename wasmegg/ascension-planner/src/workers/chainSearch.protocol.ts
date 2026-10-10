@@ -54,6 +54,13 @@ export interface IntegrityRequest {
   requestId: number;
 }
 
+/** "Continue my build-up" as the instant answer's tails, one per sale variant, timed from the plan
+ *  start (`buildUpTailParams` in search/leg.ts): a few seconds of simulation, so it runs here. */
+export interface BuildUpTailsRequest {
+  kind: 'buildup-tails';
+  requestId: number;
+}
+
 /**
  * One route from many start times ("when should I start?"): how long it takes from each. Each start
  * gets its own evaluator, since every leg is timed from the plan start. `fresh`: price the first leg
@@ -67,7 +74,7 @@ export interface StartsRequest {
   fresh: boolean;
 }
 
-export type WorkerRequest = InitRequest | EvaluateRequest | IntegrityRequest | StartsRequest;
+export type WorkerRequest = InitRequest | EvaluateRequest | IntegrityRequest | BuildUpTailsRequest | StartsRequest;
 
 export interface InitDoneMessage extends WithHeap {
   type: 'init-done';
@@ -114,6 +121,13 @@ export interface IntegrityResultMessage {
   seconds: number | null;
 }
 
+export interface BuildUpTailsResultMessage {
+  type: 'buildup-tails';
+  requestId: number;
+  /** Empty without a farm in the save (or when nothing could be simulated). */
+  tails: import('@/search/precomputedLeg').BuildParams[];
+}
+
 export interface StartsResultMessage extends WithHeap {
   type: 'starts';
   requestId: number;
@@ -143,4 +157,5 @@ export type WorkerResponse =
   | ProgressMessage
   | EvaluateResultMessage
   | IntegrityResultMessage
+  | BuildUpTailsResultMessage
   | WorkerErrorMessage;

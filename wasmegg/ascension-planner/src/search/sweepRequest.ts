@@ -4,7 +4,7 @@
  * One module for both ends, so the link the Explorer writes and the link Insane mode reads cannot
  * drift apart:
  *
- *   ./?insane=1&sweep=M2&label=M2,+3+ascensions&bands=181-280:2;+270-372:2&gap=10[&fc=1|0][&first=fresh]
+ *   ./?insane=1&sweep=M2&label=M2,+3+ascensions&bands=181-280:2;+270-372:2&gap=10[&fc=1|0][&first=fresh|buildup]
  *
  * The first ascension (search/firstAscension.ts): `fc=1` is Continue Asc. and `fc=0` Fastest, as
  * links have said since before the setting had three values; `first=` names any of the three, and
@@ -58,7 +58,7 @@ export function sweepRequestQuery(
   const first = readFirstAscensionOrNull({ firstAscension: r.firstAscension, forceContinue: r.forceContinue });
   if (first === 'continue') q.set('fc', '1');
   else if (first === 'auto') q.set('fc', '0');
-  else if (first === 'fresh') q.set('first', 'fresh');
+  else if (first === 'fresh' || first === 'buildup') q.set('first', first);
   return `?${q.toString()}`;
 }
 

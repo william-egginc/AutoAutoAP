@@ -11,6 +11,7 @@
  */
 import { loadMetadata, saveMetadata } from '@/lib/storage/db';
 import type { InstantRecord } from './instantRecord';
+import type { FirstLegKind } from './firstAscension';
 
 export const HISTORY_CAP = 200;
 export const HISTORY_KEY = 'checkHistory';
@@ -35,7 +36,7 @@ export interface CheckEntry {
   deadline?: number;
   instant: HistoryAnswer;
   exact: HistoryAnswer | null;
-  firstLeg?: 'continue' | 'fresh';
+  firstLeg?: FirstLegKind;
   shared: boolean;
   /** The record's signature (instantRecord.ts `recordSig`): two checks with the same one are the same. */
   sig: string;
