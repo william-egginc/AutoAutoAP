@@ -17,11 +17,37 @@ export function onArrival(o: { runBusy: boolean; hasSaved: boolean; goAhead: boo
 }
 
 /**
- * The run just finished: should the panel work its answer out now? Only if it was waiting, is still
- * open (the caller's watch dies with it) and still has no answer.
+ * The run just finished: should the panel work its answer out now? Only if it was waiting (the
+ * caller's watch dies with the panel). An answer still on screen while it waited is the previous one
+ * (`whileWaiting`), so it is worked out again all the same.
  */
-export function resumeAfterRun(o: { wasBusy: boolean; busy: boolean; waiting: boolean; hasAnswer: boolean }): boolean {
-  return o.wasBusy && !o.busy && o.waiting && !o.hasAnswer;
+export function resumeAfterRun(o: { wasBusy: boolean; busy: boolean; waiting: boolean }): boolean {
+  return o.wasBusy && !o.busy && o.waiting;
+}
+
+/**
+ * The panel waits for a search (`wait`): what it shows meanwhile. The answer already on screen stays,
+ * marked as the previous one, until the new one is ready (the user, 10 Oct: pressing Work it out
+ * again or Check all again during a By a date search emptied the panel, best card, rows and share
+ * box, for a line saying it waits). Only a panel with no answer yet is left empty.
+ */
+export function whileWaiting(hasAnswer: boolean): { keepAnswer: boolean; text: string } {
+  return hasAnswer
+    ? {
+        keepAnswer: true,
+        text: 'A search is running, so the new instant answer waits to save memory. The answer below is the previous one until then.',
+      }
+    : { keepAnswer: false, text: 'A search is running, so the instant answer waits to save memory.' };
+}
+
+/**
+ * What the panel's answer depends on, as one string, so it is worked out again only when one of them
+ * really changes. Its watch used to return a new array, which Vue always counts as a change, so any
+ * time the getter ran again (one of its sources replaced, even by an equal value) the panel ran
+ * again; during a search that went to its wait path, which used to drop the answer on screen.
+ */
+export function answerInputsKey(parts: readonly unknown[]): string {
+  return JSON.stringify(parts);
 }
 
 /**

@@ -100,3 +100,30 @@ export function removeSnapshot(key: string | null, st: StorageLike | null = defa
     // nothing to do
   }
 }
+
+/**
+ * A saved answer that can still be shown as it was. One that says the player's gear changed (so it
+ * used the maxed table instead of their own) and was saved under an older gear rule (tableGear.ts
+ * GEAR_RULE) is not: the note may be one the current rule would not give, and the answer under it
+ * would then be the maxed table's when the player's own fits. Such an answer is worked out again.
+ * One with no gear note stands: every newer rule matches whatever an older one matched.
+ */
+export function snapshotUsable(s: { ownChanged?: string; gearRule?: number } | null, gearRule: number): boolean {
+  if (!s) return false;
+  return !s.ownChanged || (s.gearRule ?? 1) >= gearRule;
+}
+
+/**
+ * The answer on screen when the panel last closed, in memory for this page load only. A saved answer
+ * (`writeSnapshot`) is kept only once everything has finished, and during a search the exact check
+ * waits for it to end; so a panel opened again mid-search (another tab of the page, the goal switched
+ * and back) had nothing to show and said it waits. This one is shown instead, as the previous answer,
+ * for the same key only.
+ */
+let shown: { key: string; value: unknown } | null = null;
+export function rememberShown(key: string | null, value: unknown): void {
+  if (key) shown = { key, value };
+}
+export function recallShown<T>(key: string | null): T | null {
+  return key && shown?.key === key ? (shown.value as T) : null;
+}

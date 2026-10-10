@@ -39,15 +39,31 @@ describe('gearChanges', () => {
     expect(gearChanges(stamp(), mine)).toEqual([]);
   });
 
-  it('still sees a real swap: another artifact, or a stone moved to another artifact', () => {
+  it("ignores which artifact a stone is in, and the stones' order (the alt, 10 Oct, mid-ascension)", () => {
+    // The alt's save with its lunar stones taken out for the delivery set: the optimizer put the same
+    // nine T4 and three T3 back three to an artifact in another split, and its own table was dropped.
+    const mine = stamp();
+    mine.earnings = [
+      slot('T4L Demeters necklace', 'T3 Lunar stone', 'T3 Lunar stone', 'T3 Lunar stone'),
+      slot('T4L Puzzle cube', 'T4 Lunar stone', 'T4 Lunar stone', 'T4 Lunar stone'),
+      slot('T4L Lunar totem', 'T4 Lunar stone', 'T4 Lunar stone', 'T4 Lunar stone'),
+      slot('T4L Tungsten ankh', 'T4 Lunar stone', 'T4 Lunar stone', 'T4 Lunar stone'),
+    ];
+    expect(gearChanges(stamp(), mine)).toEqual([]);
+
+    const reordered = stamp();
+    reordered.earnings[1] = slot('T4L Puzzle cube', 'T3 Lunar stone', 'T3 Lunar stone', 'T4 Lunar stone');
+    expect(gearChanges(stamp(), reordered)).toEqual([]);
+  });
+
+  it('still sees a real change: another artifact, another stone, one fewer', () => {
     const swapped = stamp();
     swapped.earnings[3] = slot('T4L Lunar totem', 'T4 Lunar stone', 'T4 Lunar stone', 'T4 Lunar stone');
     expect(gearChanges(stamp(), swapped)).toEqual(['earnings set']);
 
-    const moved = stamp();
-    moved.earnings[0] = slot('T4L Demeters necklace', 'T4 Lunar stone', 'T4 Lunar stone', 'T3 Lunar stone');
-    moved.earnings[1] = slot('T4L Puzzle cube', 'T4 Lunar stone', 'T4 Lunar stone', 'T3 Lunar stone');
-    expect(gearChanges(stamp(), moved)).toEqual(['earnings set']);
+    const otherArtifact = stamp();
+    otherArtifact.earnings[2] = slot('T4E Tungsten ankh', 'T4 Lunar stone', 'T4 Lunar stone', 'T4 Lunar stone');
+    expect(gearChanges(stamp(), otherArtifact)).toEqual(['earnings set']);
 
     const delivery = stamp();
     delivery.deliveryFull[1] = slot('T4L Quantum metronome', 'T4 Tachyon stone', 'T4 Tachyon stone');

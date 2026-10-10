@@ -118,6 +118,27 @@ export function deltaOf(list: CheckEntry[], i: number): HistoryDelta | null {
   return { text: `${d > 0 ? '+' : '−'}${Math.abs(d).toFixed(1)} d`, better: d < 0 };
 }
 
+/**
+ * One answer for the history table, as two lines: the whole route, every stop ("143 155 180 197 224
+ * 247"), and what it gives ("247 TE, 1.5 d spare" by a date, else the finish). Two lines rather than
+ * one long one: on one line (with every other column kept on one line too) the table ran past the
+ * panel, and Safari, which hides the scrollbar, showed the Exact column cut off after the fifth stop
+ * of six (the alt, 10 Oct), which read as a route one stop short. `show` formats a unix time.
+ */
+export function historyCell(
+  e: CheckEntry,
+  a: HistoryAnswer,
+  show: (unix: number) => string
+): { route: string; result: string } {
+  const route = a.chain.join(' ');
+  if (e.mode !== 'date') return { route, result: show(a.end) };
+  const te = a.endTE !== undefined ? `${a.endTE} TE` : show(a.end);
+  if (a.spareHours === undefined) return { route, result: te };
+  const x = Math.abs(a.spareHours);
+  const amount = x >= 48 ? `${(x / 24).toFixed(1)} d` : `${x.toFixed(1)} h`;
+  return { route, result: `${te}, ${amount} ${a.spareHours >= 0 ? 'spare' : 'late'}` };
+}
+
 function isEntry(x: unknown): x is CheckEntry {
   const e = x as CheckEntry;
   return !!e && typeof e === 'object' && typeof e.at === 'number' && typeof e.sig === 'string' && !!e.instant;
