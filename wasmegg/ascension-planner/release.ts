@@ -33,6 +33,7 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
+  { at: '2026-10-10T01:38:15Z', note: 'Long runs use far less memory; the CSV lists every route priced; a finished result is kept until it is sent (Send it now after a reload); carry-on keeps Find and submit; a note box in Share this result', level: 'big' },
   { at: '2026-10-09T23:57:44Z', note: 'Advanced (Full sweep): one time left for the whole queue that ignores replayed chains after a carry-on, and Jump to it stays on your run' },
   { at: '2026-10-09T22:49:50Z', note: 'Searches show honest progress from the start; Jump to it lands on your run in one click; a second tab no longer offers to carry on a run that is still going' },
   { at: '2026-10-09T19:00:00Z', note: 'Stepping away? can now send your best so far by itself, every 30 minutes or an hour, only when it has changed' },
@@ -40,7 +41,6 @@ const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
   { at: '2026-10-09T17:29:18Z', note: 'First ascension now works like Classic: by default it picks whichever is faster, continuing your current ascension or prestiging now; choose Continue or Prestige now in Your setup or Classic', level: 'big' },
   { at: '2026-10-09T17:12:46Z', note: 'Big Highest TE by a date runs go about twice as fast after the first round, with an honest progress bar and time left; Fastest says when a route with more ascensions might be faster', level: 'big' },
   { at: '2026-10-09T06:52:10Z', note: 'Fixes: sweep links always send their CSV, By a date offers Retry if the CSV upload fails, Work it out again keeps your saved instant answer, and clearer Insights on how close the instant answer is' },
-  { at: '2026-10-08T23:56:02Z', note: 'Check exactly shows when it is busy; moving the sliders on a box you typed offers to use the sliders instead; clearer note when a stop is your TE now' },
 ];
 
 export default {
