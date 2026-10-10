@@ -29,6 +29,11 @@ export interface ActiveWatch {
   lastError: string;
   /** The last ntfy progress note, ms. */
   lastNtfyAt: number | null;
+  /** The run's progress as last seen while it ran. The store clears its own the moment the run ends,
+   *  so the last word (finished, stopped, failed) is built from this, not from nothing. */
+  last: wl.ProgressLike | null;
+  /** When the run ended, ms; null while it runs. */
+  endedAt: number | null;
 }
 
 /** The current (or last) run's link, for the box. Null when this page has none. */
@@ -112,7 +117,8 @@ function heartbeat(a: ActiveWatch): wl.WatchHeartbeat {
     link: a.link,
     status: a.status,
     kind: a.kind,
-    progress: deps?.progress() ?? null,
+    progress: deps?.progress() ?? a.last,
+    endedAt: a.endedAt,
     workers: deps?.workers() ?? 0,
     deadline: deps?.deadline() ?? null,
     now: now(),
@@ -209,6 +215,8 @@ function begin(kind: wl.WatchRunKind, carried: wl.WatchLinkState | null, keepCur
     lastTryAt: null,
     lastOkAt: null,
     lastError: '',
+    last: null,
+    endedAt: null,
     lastNtfyAt: carried || (keepCurrent && prev?.link.id === link.id) ? (prev?.lastNtfyAt ?? null) : null,
   };
   activeWatch.value = a;
@@ -234,11 +242,19 @@ export function watchLinkRunStarted(
   begin(kind, carried, keepCurrent);
 }
 
+/** The store's progress whenever it changes (null when the run has ended): kept for the last word. */
+export function watchLinkNoteProgress(p: wl.ProgressLike | null): void {
+  const a = activeWatch.value;
+  if (!p || !a || a.status !== 'running') return;
+  a.last = { ...p, best: p.best ? { ...p.best, chain: [...p.best.chain] } : null };
+}
+
 /** Every black-box beat while the run goes: posts when one is due, and the ntfy progress note. */
 export function watchLinkTick(): void {
   const a = activeWatch.value;
   if (!a || a.status !== 'running' || !deps) return;
   const t = now();
+  watchLinkNoteProgress(deps.progress());
   if (wl.heartbeatDue({ event: 'tick', now: t, lastTryAt: a.lastTryAt })) post(a);
   const o = watchOptions.value;
   if (
@@ -255,7 +271,8 @@ export function watchLinkTick(): void {
 export function watchLinkRunEnded(how: 'finished' | 'stopped' | 'failed'): void {
   const a = activeWatch.value;
   if (!a || a.status !== 'running') return;
-  const ended: ActiveWatch = { ...a, status: how };
+  watchLinkNoteProgress(deps?.progress() ?? null);
+  const ended: ActiveWatch = { ...a, status: how, endedAt: now() };
   activeWatch.value = ended;
   post(ended, true);
   if (how !== 'stopped')
@@ -270,7 +287,7 @@ export function watchLinkRunEnded(how: 'finished' | 'stopped' | 'failed'): void 
 export function watchLinkPageClosing(): void {
   const a = activeWatch.value;
   if (!a || a.status !== 'running') return;
-  const ended: ActiveWatch = { ...a, status: 'stopped' };
+  const ended: ActiveWatch = { ...a, status: 'stopped', endedAt: now() };
   activeWatch.value = ended;
   // Plain status only: sent at once, before the page goes (sealing would have to wait on WebCrypto).
   post(ended, false, true);
@@ -285,7 +302,7 @@ watch(
     const a = activeWatch.value;
     if (on && kind && (!a || a.status !== 'running')) begin(kind, null, false);
     else if (!on && a && a.status === 'running') {
-      const ended: ActiveWatch = { ...a, status: 'stopped' };
+      const ended: ActiveWatch = { ...a, status: 'stopped', endedAt: now() };
       activeWatch.value = ended;
       post(ended, true);
     }

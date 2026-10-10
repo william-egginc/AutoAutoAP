@@ -55,6 +55,7 @@ function draw(): void {
     .join(' · ');
   $('p-left').textContent = v.timeLeft;
   $('p-best-card').hidden = false;
+  $('p-best-heading').textContent = v.bestHeading;
   $('p-best').textContent = v.best;
   $('p-route').textContent = v.route;
   $('p-stale').hidden = !v.stale;

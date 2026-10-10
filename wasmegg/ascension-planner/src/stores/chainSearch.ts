@@ -155,6 +155,7 @@ import {
   currentWatchLink,
   installWatchLink,
   watchLinkPageClosing,
+  watchLinkNoteProgress,
   watchLinkRunEnded,
   watchLinkRunStarted,
   watchLinkTick,
@@ -7487,6 +7488,14 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     }
     return null;
   });
+
+  // Keep the run's latest figures for the phone: they are gone from `runProgress` by the time the
+  // run's last word is built.
+  watch(
+    runProgress,
+    p => watchLinkNoteProgress(p && p.kind !== 'start-times' ? p : null),
+    { flush: 'sync' }
+  );
 
   /** Stop whatever is running, keeping its best so far: one Stop for the bar, whichever kind it is. */
   function stopRun(): void {

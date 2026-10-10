@@ -254,6 +254,21 @@ describe('words', () => {
 });
 
 describe('the watch page', () => {
+  it('a finished run shows its best, how long it took and the Best found heading', () => {
+    const v = watchView(
+      hb({ status: 'finished', mode: 'by-date', startedAt: T0 - 20 * 60_000, endedAt: T0, done: 1232, total: 1232 }),
+      T0,
+      T0 + 60_000
+    );
+    expect(v.title).toBe('Finished');
+    expect(v.bestHeading).toBe('Best found');
+    expect(v.best).not.toBe('Nothing found yet.');
+    expect(v.progress).toBe('1,232 of 1,232 routes');
+    expect(v.meta).toContain('took 20 min');
+    expect(watchView(hb(), T0, T0).bestHeading).toBe('Best so far');
+    expect(watchView(hb({ status: 'stopped', endedAt: T0, startedAt: T0 - 600_000 }), T0, T0).meta).toContain('ran 10 min');
+  });
+
   it('a running run that reported recently is running', () => {
     const v = watchView(hb(), T0, T0 + 2 * 60_000);
     expect(v.title).toBe('Running');

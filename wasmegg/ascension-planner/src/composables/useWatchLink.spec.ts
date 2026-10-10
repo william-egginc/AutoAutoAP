@@ -9,6 +9,7 @@ import {
   currentWatchLink,
   installWatchLink,
   resetWatchLink,
+  watchLinkNoteProgress,
   watchLinkPageClosing,
   watchLinkRunEnded,
   watchLinkRunStarted,
@@ -327,4 +328,43 @@ describe('ticking during a run', () => {
     await settle();
     expect(posts()[1].body.status).toBe('stopped');
   });
+});
+
+describe('the last word keeps what the run knew', () => {
+  beforeEach(async () => {
+    watchOptions.value = { ...watchOptions.value, phone: true };
+    await nextTick();
+  });
+
+  // The store empties its progress the moment the run ends, so the final post used to carry no best,
+  // no count, and (on the phone) "Nothing found yet".
+  for (const how of ['finished', 'stopped', 'failed'] as const) {
+    it(`a ${how} run posts the last best, count and times though the store's progress is gone`, async () => {
+      running = 'deadline';
+      progress = {
+        done: 1200,
+        total: 3000,
+        secondsLeft: 60,
+        best: { chain: [150, 247], te: 247, at: 1783944000 },
+        startedAt: T0,
+      };
+      watchLinkRunStarted('deadline');
+      await settle();
+      await tickAt(T0 + 20 * 60_000);
+      progress = { ...progress!, done: 1232 };
+      watchLinkNoteProgress(progress);
+      // The run ends: the store's progress is null by the time the last word is built.
+      progress = null;
+      clock = T0 + 21 * 60_000;
+      watchLinkRunEnded(how);
+      await settle();
+      const last = (await opened(posts().length - 1))!;
+      expect(last.status).toBe(how);
+      expect(last.bestSoFar).toMatchObject({ te: 247, route: [150, 247], finish: 1783944000 });
+      expect(last.done).toBe(1232);
+      if (how === 'finished') expect(last.total).toBe(1232);
+      expect(last.startedAt).toBe(T0);
+      expect(last.endedAt).toBe(T0 + 21 * 60_000);
+    });
+  }
 });

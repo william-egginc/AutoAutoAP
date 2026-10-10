@@ -71,6 +71,8 @@ export interface WatchHeartbeat {
     spareDays?: number | null;
   } | null;
   startedAt: number;
+  /** When the run ended (finished, stopped or failed), ms; absent while it runs. */
+  endedAt?: number;
   updatedAt: number;
   workers: number;
   label?: string;
@@ -301,6 +303,8 @@ export interface ProgressLike {
   percent?: number | null;
   secondsLeft: number | null;
   best: { chain: number[]; te: number; at: number } | null;
+  /** When the run began, ms (the store's own), if known. */
+  startedAt?: number | null;
 }
 
 const whole = (n: unknown): number => (typeof n === 'number' && Number.isFinite(n) ? Math.max(0, Math.round(n)) : 0);
@@ -313,6 +317,8 @@ export function buildHeartbeat(a: {
   progress: ProgressLike | null;
   workers: number;
   deadline?: number | null;
+  /** When the run ended, ms, once it has. */
+  endedAt?: number | null;
   now: number;
 }): WatchHeartbeat {
   const p = a.progress;
@@ -323,7 +329,8 @@ export function buildHeartbeat(a: {
     status: a.status,
     mode: watchMode(a.kind),
     done: whole(p?.done),
-    total: p?.total ? whole(p.total) : null,
+    // A finished run did all of it: the estimate it went by is no longer a figure worth showing.
+    total: a.status === 'finished' && p?.done ? whole(p.done) : p?.total ? whole(p.total) : null,
     ...(pct !== null ? { pct: Math.round(pct * 10) / 10 } : {}),
     timeLeftSec: p && p.secondsLeft !== null && Number.isFinite(p.secondsLeft) ? whole(p.secondsLeft) : null,
     bestSoFar: best
@@ -336,7 +343,11 @@ export function buildHeartbeat(a: {
             : {}),
         }
       : null,
-    startedAt: a.link.startedAt,
+    startedAt:
+      typeof p?.startedAt === 'number' && Number.isFinite(p.startedAt) && p.startedAt > 0
+        ? Math.min(a.link.startedAt, p.startedAt)
+        : a.link.startedAt,
+    ...(a.status !== 'running' ? { endedAt: a.endedAt ?? a.now } : {}),
     updatedAt: a.now,
     workers: whole(a.workers),
     ...(a.link.label ? { label: a.link.label } : {}),
@@ -479,6 +490,8 @@ export interface WatchView {
   progress: string;
   timeLeft: string;
   best: string;
+  /** The best card's heading: "Best so far" while it runs, "Best found" once it has ended. */
+  bestHeading: string;
   route: string;
   updated: string;
   /** The "hasn't reported" warning, or ''. */
@@ -506,6 +519,7 @@ export function watchView(h: WatchHeartbeat, updatedAt: number, now: number): Wa
             : 'Running';
   const tone: WatchView['tone'] =
     h.status === 'running' ? (stale ? 'warn' : 'ok') : h.status === 'failed' ? 'bad' : 'done';
+  const ran = h.endedAt && h.status !== 'running' ? durationWords(Math.max(0, h.endedAt - h.startedAt) / 1000) : '';
   const unit = h.mode === 'by-date' ? 'routes' : 'chains';
   const progress = h.total
     ? `${h.done.toLocaleString('en-US')} of ${h.total.toLocaleString('en-US')} ${unit}`
@@ -521,6 +535,7 @@ export function watchView(h: WatchHeartbeat, updatedAt: number, now: number): Wa
     progress,
     timeLeft,
     best: b ? bestWords(h) : 'Nothing found yet.',
+    bestHeading: h.status === 'running' ? 'Best so far' : 'Best found',
     route: b && b.route.length ? b.route.join(' → ') : '',
     updated: `Last update ${agoWords(age)}`,
     stale: stale
@@ -531,7 +546,9 @@ export function watchView(h: WatchHeartbeat, updatedAt: number, now: number): Wa
     meta: [
       MODE_LABEL[h.mode],
       h.workers ? `${h.workers} worker${h.workers === 1 ? '' : 's'}` : '',
-      `started ${agoWords(now - h.startedAt)}`,
+      ran
+        ? `${h.status === 'finished' ? 'took' : 'ran'} ${ran}, started ${agoWords(now - h.startedAt)}`
+        : `started ${agoWords(now - h.startedAt)}`,
     ]
       .filter(Boolean)
       .join(' · '),
