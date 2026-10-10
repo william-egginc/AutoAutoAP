@@ -6,6 +6,9 @@
   submit, or a send that began) one click sends it; otherwise they tick to agree first.
 -->
 <template>
+  <p v-if="!shown.length && sentNote" class="text-[11px] font-semibold text-emerald-700" data-testid="unsent-sent">
+    {{ sentNote }}
+  </p>
   <div
     v-if="shown.length"
     class="rounded-xl border border-amber-300 bg-amber-50 p-3 space-y-2 text-[11px] text-amber-900"
@@ -72,10 +75,12 @@ const store = useChainSearchStore();
 
 /** This screen's kept results; none while a run or its own end-of-run send is going. */
 const shown = computed(() =>
-  store.isRunning || store.deadlineRunning || store.resultSending
+  store.isRunning || store.deadlineRunning || (store.resultSending && !sendingId.value)
     ? []
     : store.pendingSends.filter(p => p.kind === props.kind)
 );
+/** What the last Send it now here said once its result left the list (sent). */
+const sentNote = ref('');
 const agreed = reactive<Record<string, boolean>>({});
 const messages = reactive<Record<string, string>>({});
 const okIds = reactive<Record<string, boolean>>({});
@@ -92,6 +97,7 @@ async function send(p: PendingSend): Promise<void> {
     );
     okIds[p.id] = res.ok;
     messages[p.id] = res.ok ? `Thanks! ${sentence(res.message)}` : `Not sent: ${res.message}`;
+    if (res.ok) sentNote.value = `${p.label}: ${messages[p.id]}`;
   } finally {
     sendingId.value = null;
   }

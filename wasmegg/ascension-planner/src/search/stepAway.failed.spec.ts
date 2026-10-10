@@ -9,6 +9,7 @@ import {
   REOPEN_GRACE_MS,
   autoCarryOnVerdict,
   markHeldElsewhere,
+  runAliveElsewhere,
   watchVerdict,
   type RunMark,
 } from './stepAway';
@@ -81,6 +82,18 @@ describe('carrying on by itself after a failed run', () => {
       expect(
         autoCarryOnVerdict({ ...base, mark: mark({ status }), crash: { phase: 'deadline search', at: T0 } }).go
       ).toBe(false);
+  });
+});
+
+describe('a run whose page crashed a moment ago', () => {
+  const fresh = mark({ beatAt: T0 - 10_000 });
+  const a = { mark: fresh, kind: 'deadline' as const, account: 'acct', now: T0, runningHere: false };
+  it('is not "still going elsewhere" when the browser says nobody holds the run lock', () => {
+    expect(runAliveElsewhere({ ...a, lockHeld: false, locksKnown: true })).toBe(false);
+    expect(runAliveElsewhere({ ...a, lockHeld: true, locksKnown: true })).toBe(true);
+  });
+  it('falls back on the heartbeat where Web Locks are not available', () => {
+    expect(runAliveElsewhere({ ...a, lockHeld: false })).toBe(true);
   });
 });
 

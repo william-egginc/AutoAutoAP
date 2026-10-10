@@ -8,7 +8,7 @@
     <label class="flex items-start gap-3 cursor-pointer text-[11px] text-indigo-900/80">
       <input v-model="sendCsv" type="checkbox" class="mt-0.5 rounded border-indigo-300 text-indigo-600" />
       <span>
-        <span class="font-bold">Send my CSV too</span>: every route this search found, best first (the same file as
+        <span class="font-bold">Send my CSV too</span>: everything this search priced, best first (the same file as
         Download CSV)<template v-if="csvDetail"> {{ csvDetail }}</template
         >. It is compressed before it leaves your machine. Untick it to send the headline alone.
       </span>

@@ -7,7 +7,7 @@
 <template>
   <span class="whitespace-nowrap" :aria-label="`${text}...`" role="status"
     >{{ text }}<span class="sending-dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span
-    ><template v-if="elapsed >= SHOW_AFTER_S"> {{ elapsed }} s</template></span
+    ><template v-if="elapsed >= SHOW_AFTER_S">{{ ` ${elapsed} s` }}</template></span
   >
 </template>
 

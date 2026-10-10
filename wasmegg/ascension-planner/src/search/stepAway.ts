@@ -481,10 +481,18 @@ export function runAliveElsewhere(a: {
   lockHeld: boolean;
   /** This page is running a search itself: the mark and the lock are its own. */
   runningHere: boolean;
+  /**
+   * The browser answered the Web Locks query, so `lockHeld` is the whole truth: a page holds the lock
+   * for its whole run and the browser drops it when that page dies. Then a run whose page crashed a
+   * moment ago is not "still going" for two minutes on its last heartbeat (seen 10 Oct: the carry-on
+   * after a crash showed "running in another tab" instead of its button). Unset: the heartbeat decides.
+   */
+  locksKnown?: boolean;
 }): boolean {
-  const { mark, kind, account, now, lockHeld, runningHere } = a;
+  const { mark, kind, account, now, lockHeld, runningHere, locksKnown } = a;
   if (runningHere || !mark || mark.status !== 'running' || mark.kind !== kind) return false;
   if (account && mark.account && mark.account !== account) return false;
+  if (locksKnown) return lockHeld;
   return lockHeld || heartbeatAge(mark, now) < STALE_MS;
 }
 

@@ -3870,7 +3870,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         if (!r || !route) return;
         key = `deadline:${r.at}`;
         payload = buildDeadlineSubmission(route, '', r);
-        label = `${route.chain[route.chain.length - 1]} TE by ${formatInZone(r.deadline, planTimezone())}`;
+        label = `${route.chain[route.chain.length - 1]} TE by ${finishDay(r.deadline)}`;
         inputsKey = r.inputsKey;
         const intent = deadlineSubmitIntent();
         if (intent)
@@ -6046,9 +6046,11 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   async function refreshRunElsewhere(): Promise<void> {
     if (typeof window === 'undefined') return;
     let lockHeld = false;
+    let locksKnown = false;
     try {
       const locks = (navigator as Navigator & { locks?: LockManager }).locks;
       const state = await locks?.query();
+      locksKnown = !!state;
       lockHeld = !!state?.held?.some(l => l.name === 'ascension-planner:chain-search');
     } catch {
       // no Web Locks here: the heartbeat alone decides
@@ -6062,7 +6064,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const now = Date.now();
     const runningHere = isRunning.value || deadlineRunning.value || preparing.value;
     const at = (kind: RunKind) =>
-      runAliveElsewhere({ mark, kind, account: elsewhereAccount, now, lockHeld, runningHere });
+      runAliveElsewhere({ mark, kind, account: elsewhereAccount, now, lockHeld, runningHere, locksKnown });
     const next = { smart: at('smart'), sweep: at('sweep'), deadline: at('deadline') };
     const was = runElsewhere.value;
     if (next.smart !== was.smart || next.sweep !== was.sweep || next.deadline !== was.deadline)
