@@ -105,8 +105,14 @@ describe('a carried-on By a date run', () => {
     const csv = buildDeadlineCsv(out.routes, META, { deadline: SPEC.deadline, priced: out.priced });
     expect(csv).not.toContain('continue not simulated');
     expect(csv).toContain('replayed from a saved checkpoint');
-    const header = csv.split('\n').find(l => l.startsWith('rank,'))!.split(',');
-    const first = csv.split('\n').find(l => l.startsWith('1,'))!.split(',');
+    const header = csv
+      .split('\n')
+      .find(l => l.startsWith('rank,'))!
+      .split(',');
+    const first = csv
+      .split('\n')
+      .find(l => l.startsWith('1,'))!
+      .split(',');
     expect(first[header.indexOf('peak_delivery_q_per_hr')]).toBe('');
 
     // No legs rather than legs that claim a peak of 0.
@@ -137,7 +143,9 @@ describe('a carried-on By a date run', () => {
     expect(sub.firstLegOtherHours).toBe(5);
 
     const csv = buildDeadlineCsv(out.routes, META, { deadline: SPEC.deadline, priced: out.priced });
-    expect(csv).toMatch(/first leg \(best route\): fresh .*continuing without buying would have ended leg 1 .*5\.0 h later/);
+    expect(csv).toMatch(
+      /first leg \(best route\): fresh .*continuing without buying would have ended leg 1 .*5\.0 h later/
+    );
     expect(csv).not.toContain('replayed from a saved checkpoint');
   });
 

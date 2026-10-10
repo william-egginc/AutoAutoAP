@@ -606,8 +606,7 @@ export async function repriceReplayedRoutes(
     const rs = todo.get(res.chain.join(','));
     if (!rs) continue;
     const old = rs[0].legs;
-    const same =
-      res.legs.length === old.length && res.legs.every((l, i) => Math.abs(l.endTime - old[i].endTime) < 1);
+    const same = res.legs.length === old.length && res.legs.every((l, i) => Math.abs(l.endTime - old[i].endTime) < 1);
     if (!same) continue;
     for (const r of rs) r.legs = res.legs;
     todo.delete(res.chain.join(','));
