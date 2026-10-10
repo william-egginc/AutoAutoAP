@@ -122,8 +122,8 @@
       />
       <span
         ><span class="font-bold">Watch this run from your phone.</span> Gives the run a private link that shows how it's
-        going from anywhere. Every 5 minutes this tab sends the collector a few numbers: progress, time left and the
-        best so far. Never your save, player ID or name.
+        going from anywhere. Every 5 minutes this tab sends its progress, time left and best so far, locked with a key
+        that's only in the link: the server stores it but can't read it. Never your save, player ID or name.
         <span class="block text-slate-500">Doesn't slow the run.</span>
         <span v-if="!phoneAvailable" class="block text-slate-500"
           >Needs a collector, and this copy of the planner has none.</span
@@ -161,6 +161,9 @@
           <!-- eslint-enable vue/no-v-html -->
           <p class="max-w-xs">
             Scan with your phone, then bookmark it or Add to Home Screen; you can close the page, it keeps updating.
+            <span class="block font-semibold text-slate-800"
+              >Only someone with this link or QR code can see it; keep it private.</span
+            >
           </p>
         </div>
         <p v-if="phoneLine" class="text-slate-500" role="status">{{ phoneLine }}</p>
@@ -219,6 +222,17 @@
             <option v-for="h in [2, 3, 4, 5, 6]" :key="h" :value="h * 60">{{ h }} hours</option>
           </select>
         </p>
+        <label class="flex items-start gap-2">
+          <input
+            v-model="phoneOptions.ntfyDetails"
+            type="checkbox"
+            class="mt-0.5 rounded border-slate-300 text-indigo-600"
+          />
+          <span
+            ><span class="font-bold">Include results in notifications</span> (TE, finish date, how far it got). Off,
+            they only say what happened. Anyone with the topic can read them.</span
+          >
+        </label>
       </div>
     </div>
     <label class="flex items-start gap-2">

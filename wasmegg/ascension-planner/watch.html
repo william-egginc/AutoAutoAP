@@ -9,14 +9,15 @@
       content="Watches a long Ascension Planner run in another tab and reopens it if it stops."
     />
     <!-- A page of its own, not a route: it must stay tiny and never load the simulator. Two modes:
-         without ?k= it is the second-tab watcher (src/watch/local.ts), reading the run tab's heartbeat
-         from this site's localStorage; with ?k=<watch key> it is the phone page (src/watch/phone.ts),
-         reading the run's heartbeat from the collector. src/watch/main.ts picks. -->
+         without a #fragment it is the second-tab watcher (src/watch/local.ts), reading the run tab's
+         heartbeat from this site's localStorage; with #<id>.<secret> it is the phone page
+         (src/watch/phone.ts), reading the run's sealed heartbeat from the collector and opening it
+         with the secret, which never leaves this browser. src/watch/main.ts picks. -->
     <meta name="theme-color" content="#f1f5f9" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)" />
     <meta name="color-scheme" content="light dark" />
     <!-- Add to Home Screen. The manifest has no start_url on purpose: it then defaults to this
-         page's own address, ?k= included, so the icon opens this run. -->
+         page's own address, so the icon opens this run. -->
     <link rel="manifest" href="/watch.webmanifest" />
     <link rel="apple-touch-icon" href="/static/watch-icon-180.png" />
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
@@ -27,7 +28,7 @@
     <script>
       // Before first paint: show the right half of the page for the mode (no flash of the other).
       try {
-        if (new URLSearchParams(location.search).get('k')) document.documentElement.className = 'phone';
+        if (location.hash.length > 1) document.documentElement.className = 'phone';
       } catch (e) {}
     </script>
     <style>
@@ -251,12 +252,13 @@
           <div id="p-best" class="big"></div>
           <div id="p-route" class="route small"></div>
         </div>
-        <div class="card small">
+        <div id="p-info" class="card small" hidden>
           <div id="p-updated"></div>
           <div id="p-meta"></div>
         </div>
         <p class="small">
-          This page checks again every minute. Bookmark it, or use Add to Home Screen, to come back to it.
+          This page checks again every minute while it's on screen. Bookmark it, or use Add to Home Screen, to
+          come back to it. Keep the link private: anyone with it can see this run.
         </p>
       </main>
     </div>

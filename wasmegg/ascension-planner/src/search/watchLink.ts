@@ -1,23 +1,26 @@
 /**
  * "Watch this run from your phone" ("Stepping away?" box, StepAwayOptions.vue): the rules.
  *
- * A long run (Fastest, By a date, a Full sweep) can be given a WATCH KEY: a random, unguessable id
- * (144 bits, base64url). While the run goes, its tab posts a tiny heartbeat under that key to the
- * collector (`POST /watch`, collector/watch.js) every 5 minutes, and at once when it starts, ends, is
- * stopped or fails. The watch page (watch.html?k=<key>, src/watch/phone.ts) reads it back
- * (`GET /watch?key=`) on a phone. The key lives in the run's checkpoint, so a carry-on after a crash
- * or a reload keeps the same link.
+ * A long run (Fastest, By a date, a Full sweep) can be given a WATCH LINK, watch.html#<id>.<secret>:
  *
- * WHAT A HEARTBEAT HOLDS, AND NOTHING ELSE: status, mode, done/total, time left, the best so far
- * (TE, route, finish date or spare days), when the run started and this beat was made, the worker
- * count, and a label only if the player typed one. No save, no player id, no nickname.
+ *  - `id`: 16 random bytes, base64url. The collector's lookup key (`POST /watch`, `GET /watch?id=`,
+ *    collector/watch.js). It identifies a row and reveals nothing.
+ *  - `secret`: 32 more random bytes, an AES-256-GCM key. It lives only in the link's FRAGMENT (after
+ *    `#`), which browsers never send to any server, so it reaches no log either.
  *
- * Optional phone notifications go through ntfy (https://ntfy.sh): the tab posts to the player's
- * topic when the run finishes or fails, and every 1-6 hours with its progress; the collector's cron
- * posts once when a running run stops reporting for 15 minutes.
+ * END TO END. The run's tab encrypts the whole heartbeat (status, mode, progress, time left, the best
+ * so far, label...) with that secret and a fresh 12-byte IV each time, and posts only
+ * `{ id, iv, ct, status }`. The status stays readable because the collector's cron needs to know a
+ * run is still marked running to warn that it went quiet. The collector (and whoever runs it) stores
+ * ciphertext it cannot read; only someone holding the link or its QR code can (src/watch/phone.ts).
+ * The id and secret live in the run's checkpoint, so a carry-on keeps the same link.
  *
- * Everything here is pure (or a plain localStorage read/write), so the watch page can use it without
- * the planner's stores, and the rules can be tested.
+ * Optional phone notifications go through ntfy (https://ntfy.sh). Anyone who knows a topic can read
+ * it, so the topic is long and random and the notes say only that something happened, unless the
+ * player ticks "include results in notifications".
+ *
+ * Everything here is pure (or a plain localStorage read/write, or WebCrypto), so the watch page can
+ * use it without the planner's stores, and the rules can be tested.
  */
 
 /** A heartbeat this often while the run goes (and at once on start, end, stop, failure). */
@@ -26,7 +29,7 @@ export const WATCH_EVERY_MS = 5 * 60_000;
 export const WATCH_STALE_MS = 15 * 60_000;
 /** The watch page reads again this often. */
 export const WATCH_REFRESH_MS = 60_000;
-/** The collector keeps one write a minute per key (a status change is let through sooner). */
+/** The collector keeps one write a minute per id (a status change is let through sooner). */
 export const WATCH_MIN_GAP_MS = 60_000;
 /** Longest label the player can type. */
 export const WATCH_LABEL_MAX = 40;
@@ -39,7 +42,10 @@ export type WatchRunKind = 'smart' | 'sweep' | 'deadline';
 
 /** What the run's checkpoint keeps, so a carry-on keeps posting under the same link. */
 export interface WatchLinkState {
-  key: string;
+  /** The collector's lookup id: 16 random bytes, base64url (22 characters). */
+  id: string;
+  /** The AES-GCM key: 32 random bytes, base64url (43 characters). Never sent anywhere. */
+  secret: string;
   /** When the run first started, ms (a carry-on keeps it). */
   startedAt: number;
   /** The ntfy topic, when the player opted in to notifications. */
@@ -49,7 +55,6 @@ export interface WatchLinkState {
 
 /** One heartbeat, as posted to the collector and read back by the watch page. */
 export interface WatchHeartbeat {
-  key: string;
   status: WatchStatus;
   mode: WatchMode;
   done: number;
@@ -94,20 +99,90 @@ const cryptoFill: RandomFill = a => {
   return a;
 };
 
-/** A fresh watch key: 18 random bytes (144 bits), 24 characters of base64url. */
-export function newWatchKey(fill: RandomFill = cryptoFill): string {
-  return base64url(fill(new Uint8Array(18)));
+/** base64url (no padding) back to bytes; null when it is not base64url. */
+export function fromBase64url(s: string): Uint8Array | null {
+  if (!/^[A-Za-z0-9_-]*$/.test(s) || s.length % 4 === 1) return null;
+  const out = new Uint8Array(Math.floor((s.length * 3) / 4));
+  let o = 0;
+  for (let i = 0; i < s.length; i += 4) {
+    const c = [0, 1, 2, 3].map(k => (i + k < s.length ? B64URL.indexOf(s[i + k]) : 0));
+    const n = (c[0] << 18) | (c[1] << 12) | (c[2] << 6) | c[3];
+    const left = s.length - i;
+    out[o++] = (n >> 16) & 255;
+    if (left > 2) out[o++] = (n >> 8) & 255;
+    if (left > 3) out[o++] = n & 255;
+  }
+  return out;
 }
 
-/** What the collector accepts as a key: base64url, 22 to 64 characters (at least 128 bits). */
-export function isWatchKey(s: unknown): s is string {
-  return typeof s === 'string' && /^[A-Za-z0-9_-]{22,64}$/.test(s);
+/** A fresh watch id: 16 random bytes (128 bits), 22 characters of base64url. */
+export function newWatchId(fill: RandomFill = cryptoFill): string {
+  return base64url(fill(new Uint8Array(16)));
 }
 
-/** A fresh ntfy topic: `aaap-` and 12 random bytes. Anyone who knows a topic can read it, so it is
- *  as unguessable as it is short. */
+/** A fresh secret: 32 random bytes (an AES-256 key), 43 characters of base64url. */
+export function newWatchSecret(fill: RandomFill = cryptoFill): string {
+  return base64url(fill(new Uint8Array(32)));
+}
+
+/** What the collector accepts as an id: 22 characters of base64url. */
+export function isWatchId(s: unknown): s is string {
+  return typeof s === 'string' && /^[A-Za-z0-9_-]{22}$/.test(s);
+}
+
+export function isWatchSecret(s: unknown): s is string {
+  return typeof s === 'string' && /^[A-Za-z0-9_-]{43}$/.test(s);
+}
+
+/** `#<id>.<secret>` (with or without the `#`) as its two halves; null for anything else. */
+export function parseWatchFragment(hash: string): { id: string; secret: string } | null {
+  const m = /^#?([A-Za-z0-9_-]+)\.([A-Za-z0-9_-]+)$/.exec(hash.trim());
+  return m && isWatchId(m[1]) && isWatchSecret(m[2]) ? { id: m[1], secret: m[2] } : null;
+}
+
+// ------------------------------------------------------------------ encryption
+
+async function aesKey(secret: string, use: 'encrypt' | 'decrypt'): Promise<CryptoKey> {
+  const raw = fromBase64url(secret);
+  if (!raw || raw.length !== 32) throw new Error('not a watch secret');
+  return crypto.subtle.importKey('raw', raw as Uint8Array<ArrayBuffer>, { name: 'AES-GCM' }, false, [use]);
+}
+
+/** The heartbeat, sealed: AES-256-GCM under the link's secret, with a fresh 12-byte IV. */
+export async function sealHeartbeat(
+  secret: string,
+  h: WatchHeartbeat,
+  fill: RandomFill = cryptoFill
+): Promise<{ iv: string; ct: string }> {
+  const iv = fill(new Uint8Array(12)) as Uint8Array<ArrayBuffer>;
+  const key = await aesKey(secret, 'encrypt');
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(JSON.stringify(h)));
+  return { iv: base64url(iv), ct: base64url(new Uint8Array(ct)) };
+}
+
+/** The heartbeat back, or null when the secret is wrong or the data was changed (GCM checks both). */
+export async function openHeartbeat(secret: string, iv: string, ct: string): Promise<WatchHeartbeat | null> {
+  try {
+    const ivBytes = fromBase64url(iv);
+    const ctBytes = fromBase64url(ct);
+    if (!ivBytes || ivBytes.length !== 12 || !ctBytes) return null;
+    const key = await aesKey(secret, 'decrypt');
+    const plain = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: ivBytes as Uint8Array<ArrayBuffer> },
+      key,
+      ctBytes as Uint8Array<ArrayBuffer>
+    );
+    const h = JSON.parse(new TextDecoder().decode(plain)) as WatchHeartbeat;
+    return h && typeof h === 'object' ? h : null;
+  } catch {
+    return null;
+  }
+}
+
+/** A fresh ntfy topic: `aaap-` and 18 random bytes. Anyone who knows a topic can read it, so it is
+ *  long and random. */
 export function newNtfyTopic(fill: RandomFill = cryptoFill): string {
-  return `aaap-${base64url(fill(new Uint8Array(12)))}`;
+  return `aaap-${base64url(fill(new Uint8Array(18)))}`;
 }
 
 /** ntfy's own rule for a topic name. */
@@ -130,10 +205,12 @@ export function cleanLabel(s: unknown): string {
 export function readWatchLinkState(v: unknown): WatchLinkState | null {
   if (!v || typeof v !== 'object') return null;
   const o = v as Partial<WatchLinkState>;
-  if (!isWatchKey(o.key) || typeof o.startedAt !== 'number' || !Number.isFinite(o.startedAt)) return null;
+  if (!isWatchId(o.id) || !isWatchSecret(o.secret) || typeof o.startedAt !== 'number' || !Number.isFinite(o.startedAt))
+    return null;
   const label = cleanLabel(o.label);
   return {
-    key: o.key,
+    id: o.id,
+    secret: o.secret,
     startedAt: o.startedAt,
     ...(isNtfyTopic(o.topic) ? { topic: o.topic } : {}),
     ...(label ? { label } : {}),
@@ -150,6 +227,9 @@ export interface WatchLinkOptions {
   ntfyTopic: string;
   /** Minutes between ntfy progress notes; 0 for none. */
   ntfyEveryMin: number;
+  /** Put the results (TE, finish date, progress) in the notes. Off: they only say something happened,
+   *  since anyone who knows the topic can read them. */
+  ntfyDetails: boolean;
   label: string;
 }
 
@@ -161,6 +241,7 @@ export const DEFAULT_WATCH_OPTIONS: WatchLinkOptions = {
   ntfy: false,
   ntfyTopic: '',
   ntfyEveryMin: 180,
+  ntfyDetails: false,
   label: '',
 };
 
@@ -184,6 +265,7 @@ export function readWatchOptions(s: KV | null = store()): WatchLinkOptions {
         ntfyEveryMin: (NTFY_EVERY_MIN as readonly unknown[]).includes(raw.ntfyEveryMin)
           ? (raw.ntfyEveryMin as number)
           : DEFAULT_WATCH_OPTIONS.ntfyEveryMin,
+        ntfyDetails: raw.ntfyDetails === true,
         label: cleanLabel(raw.label),
       };
   } catch {
@@ -238,7 +320,6 @@ export function buildHeartbeat(a: {
   const pct =
     typeof p?.percent === 'number' && Number.isFinite(p.percent) ? Math.max(0, Math.min(100, p.percent)) : null;
   return {
-    key: a.link.key,
     status: a.status,
     mode: watchMode(a.kind),
     done: whole(p?.done),
@@ -271,12 +352,20 @@ export function heartbeatDue(a: { event: 'start' | 'tick' | 'end'; now: number; 
   return a.lastTryAt === null || a.now - a.lastTryAt >= WATCH_EVERY_MS;
 }
 
-/** The watch page's address for a key. `collector` is added only when it is not the build's own. */
-export function watchPageUrl(a: { origin: string; base: string; key: string; collector?: string | null }): string {
+/**
+ * The watch page's address: `watch.html#<id>.<secret>`. The fragment never leaves the browser.
+ * `collector` (not secret) is added as a query only when it is not the build's own.
+ */
+export function watchPageUrl(a: {
+  origin: string;
+  base: string;
+  id: string;
+  secret: string;
+  collector?: string | null;
+}): string {
   const base = a.base.endsWith('/') ? a.base : `${a.base}/`;
-  const q = new URLSearchParams({ k: a.key });
-  if (a.collector) q.set('collector', a.collector);
-  return `${a.origin}${base}watch.html?${q.toString()}`;
+  const q = a.collector ? `?${new URLSearchParams({ collector: a.collector }).toString()}` : '';
+  return `${a.origin}${base}watch.html${q}#${a.id}.${a.secret}`;
 }
 
 // ------------------------------------------------------------------ words
@@ -330,8 +419,18 @@ export function bestWords(h: Pick<WatchHeartbeat, 'bestSoFar' | 'mode'>): string
   return `${b.te} TE${when ? `, finishes ${when}` : ''}`;
 }
 
-/** The ntfy note for a moment in the run; '' when there is none to send. Plain, no personal data. */
-export function ntfyMessage(h: WatchHeartbeat, event: 'progress' | 'end'): string {
+/**
+ * The ntfy note for a moment in the run; '' when there is none to send. Anyone who knows the topic can
+ * read it, so without `details` it only says what happened and points at the watch link (which is
+ * never put in a note: its secret would then be readable by the topic too).
+ */
+export function ntfyMessage(h: WatchHeartbeat, event: 'progress' | 'end', details = false): string {
+  if (!details) {
+    if (event === 'progress') return 'Your planner run is still going. Open your watch link to see how far.';
+    if (h.status === 'finished') return 'Your planner run finished. Open your watch link to see it.';
+    if (h.status === 'failed') return 'Your planner run stopped with an error. Open your watch link.';
+    return '';
+  }
   const best = bestWords(h);
   const pct = watchPercent(h);
   if (event === 'end') {
@@ -350,12 +449,11 @@ export function ntfyMessage(h: WatchHeartbeat, event: 'progress' | 'end'): strin
 }
 
 /** ntfy's JSON publish body (posted to NTFY_BASE itself, which needs no CORS preflight). */
-export function ntfyBody(a: { topic: string; message: string; click?: string; tags?: string[] }): string {
+export function ntfyBody(a: { topic: string; message: string; tags?: string[] }): string {
   return JSON.stringify({
     topic: a.topic,
     title: 'Ascension Planner',
     message: a.message,
-    ...(a.click ? { click: a.click } : {}),
     ...(a.tags?.length ? { tags: a.tags } : {}),
   });
 }

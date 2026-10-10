@@ -454,7 +454,7 @@ describe("a run's best so far on the board (Send best so far)", () => {
 
 describe("a run's phone link (Watch this run from your phone)", () => {
   beforeEach(() => store.clear());
-  const withWatch = (watch: { key: string; startedAt: number; topic?: string } | null, keys: string[]) =>
+  const withWatch = (watch: { id: string; secret: string; startedAt: number; topic?: string } | null, keys: string[]) =>
     buildCheckpoint({
       fingerprint: FP,
       effort: 'normal',
@@ -468,8 +468,8 @@ describe("a run's phone link (Watch this run from your phone)", () => {
       watch,
     });
 
-  it('is kept with the checkpoint, so a carry-on posts under the same key', async () => {
-    const link = { key: 'AbCdEfGhIjKlMnOpQrStUvWx', startedAt: 1000, topic: 'aaap-t' };
+  it('is kept with the checkpoint (id and secret), so a carry-on posts under the same link', async () => {
+    const link = { id: 'AbCdEfGhIjKlMnOpQrStUv', secret: 'S'.repeat(43), startedAt: 1000, topic: 'aaap-t' };
     await saveCheckpoint(HASH, withWatch(link, ['a']));
     await saveCheckpoint(HASH, withWatch(link, ['b']));
     expect((await loadCheckpoint(HASH, FP))?.watch).toEqual(link);

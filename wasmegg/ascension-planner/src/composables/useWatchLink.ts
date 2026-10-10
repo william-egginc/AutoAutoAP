@@ -82,23 +82,25 @@ export function currentWatchLink(): wl.WatchLinkState | null {
   return a ? { ...a.link } : null;
 }
 
-function pageUrl(key: string): string {
+function pageUrl(link: { id: string; secret: string }): string {
   const base = deps?.collector() ?? null;
   const built = deps?.buildCollector?.() ?? null;
   return wl.watchPageUrl({
     origin: deps?.origin?.() ?? (typeof location !== 'undefined' ? location.origin : ''),
     base: deps?.base?.() ?? (import.meta.env.BASE_URL || '/'),
-    key,
+    id: link.id,
+    secret: link.secret,
     collector: base && base !== built ? base : null,
   });
 }
 
 /** Options as they apply to a link: the topic only when notifications are on. */
-function linkFromOptions(key: string, startedAt: number): wl.WatchLinkState {
+function linkFromOptions(from: { id: string; secret: string }, startedAt: number): wl.WatchLinkState {
   const o = watchOptions.value;
   const label = wl.cleanLabel(o.label);
   return {
-    key,
+    id: from.id,
+    secret: from.secret,
     startedAt,
     ...(o.ntfy && wl.isNtfyTopic(o.ntfyTopic) ? { topic: o.ntfyTopic } : {}),
     ...(label ? { label } : {}),
@@ -117,26 +119,37 @@ function heartbeat(a: ActiveWatch): wl.WatchHeartbeat {
   });
 }
 
-/** One heartbeat to the collector. Never awaited by the run. `retry`: a 429 is tried once more,
- *  when the collector says, so a run's last word (finished, stopped) is not lost to the rate limit. */
-function post(a: ActiveWatch, retry = false): void {
+/**
+ * One heartbeat to the collector, sealed (search/watchLink.ts `sealHeartbeat`): the body is
+ * `{ id, iv, ct, status }`, and only the status can be read by anyone but the link's holder. Never
+ * awaited by the run. `retry`: a 429 is tried once more, when the collector says, so a run's last word
+ * (finished, stopped) is not lost to the rate limit. `statusOnly`: just the plain status, sent at once
+ * with no encryption to wait for (the page is closing, and may be gone before WebCrypto answers).
+ */
+function post(a: ActiveWatch, retry = false, statusOnly = false): void {
   const base = deps?.collector();
   if (!base) return;
   const at = now();
   a.lastTryAt = at;
-  const body = JSON.stringify({ ...heartbeat(a), ...(a.link.topic ? { notify: a.link.topic } : {}) });
-  let p: Promise<Response>;
-  try {
+  const plain = { id: a.link.id, status: a.status, ...(a.link.topic ? { notify: a.link.topic } : {}) };
+  const send = (body: string) =>
     // No content-type header: a text/plain POST needs no CORS preflight. `keepalive` lets the last
     // one out as the page closes.
-    p = doFetch(`${base}/watch`, { method: 'POST', body, keepalive: true });
+    doFetch(`${base}/watch`, { method: 'POST', body, keepalive: true });
+  let p: Promise<Response>;
+  try {
+    p = statusOnly
+      ? send(JSON.stringify(plain))
+      : wl
+          .sealHeartbeat(a.link.secret, heartbeat(a), deps?.random)
+          .then(sealed => send(JSON.stringify({ ...plain, ...sealed })));
   } catch (e) {
     a.lastError = e instanceof Error ? e.message : String(e);
     return;
   }
   void p.then(
     res => {
-      if (activeWatch.value?.link.key !== a.link.key) return;
+      if (activeWatch.value?.link.id !== a.link.id) return;
       if (res.ok) {
         activeWatch.value = { ...activeWatch.value, lastOkAt: at, lastError: '' };
         return;
@@ -148,12 +161,12 @@ function post(a: ActiveWatch, retry = false): void {
         retryTimer = setTimeout(() => {
           retryTimer = null;
           const cur = activeWatch.value;
-          if (cur && cur.link.key === a.link.key) post(cur);
+          if (cur && cur.link.id === a.link.id) post(cur);
         }, wait * 1000);
       }
     },
     e => {
-      if (activeWatch.value?.link.key === a.link.key)
+      if (activeWatch.value?.link.id === a.link.id)
         activeWatch.value = { ...activeWatch.value, lastError: e instanceof Error ? e.message : String(e) };
     }
   );
@@ -165,7 +178,9 @@ function notify(a: ActiveWatch, message: string, tags: string[] = []): void {
   try {
     void doFetch(wl.NTFY_BASE, {
       method: 'POST',
-      body: wl.ntfyBody({ topic: a.link.topic, message, click: a.url, tags }),
+      // No link in the note: the watch link carries its secret, and the topic is readable by anyone
+      // who knows it.
+      body: wl.ntfyBody({ topic: a.link.topic, message, tags }),
       keepalive: true,
     }).catch(() => undefined);
   } catch {
@@ -180,21 +195,21 @@ function begin(kind: wl.WatchRunKind, carried: wl.WatchLinkState | null, keepCur
   let link: wl.WatchLinkState;
   if (carried) {
     // The carried-on run's own link, with today's choices for the topic and label.
-    link = { ...linkFromOptions(carried.key, carried.startedAt) };
+    link = { ...linkFromOptions(carried, carried.startedAt) };
     if (!watchOptions.value.ntfy && carried.topic) delete link.topic;
-  } else if (keepCurrent && prev && prev.kind === kind) link = linkFromOptions(prev.link.key, prev.link.startedAt);
-  else link = linkFromOptions(wl.newWatchKey(deps?.random), t);
+  } else if (keepCurrent && prev && prev.kind === kind) link = linkFromOptions(prev.link, prev.link.startedAt);
+  else link = linkFromOptions({ id: wl.newWatchId(deps?.random), secret: wl.newWatchSecret(deps?.random) }, t);
   if (retryTimer) clearTimeout(retryTimer);
   retryTimer = null;
   const a: ActiveWatch = {
     link,
     kind,
-    url: pageUrl(link.key),
+    url: pageUrl(link),
     status: 'running',
     lastTryAt: null,
     lastOkAt: null,
     lastError: '',
-    lastNtfyAt: carried || (keepCurrent && prev?.link.key === link.key) ? (prev?.lastNtfyAt ?? null) : null,
+    lastNtfyAt: carried || (keepCurrent && prev?.link.id === link.id) ? (prev?.lastNtfyAt ?? null) : null,
   };
   activeWatch.value = a;
   post(a);
@@ -232,7 +247,7 @@ export function watchLinkTick(): void {
     wl.ntfyProgressDue({ now: t, everyMin: o.ntfyEveryMin, lastAt: a.lastNtfyAt, startedAt: a.link.startedAt })
   ) {
     activeWatch.value = { ...a, lastNtfyAt: t };
-    notify(a, wl.ntfyMessage(heartbeat(a), 'progress'));
+    notify(a, wl.ntfyMessage(heartbeat(a), 'progress', o.ntfyDetails));
   }
 }
 
@@ -244,7 +259,11 @@ export function watchLinkRunEnded(how: 'finished' | 'stopped' | 'failed'): void 
   activeWatch.value = ended;
   post(ended, true);
   if (how !== 'stopped')
-    notify(ended, wl.ntfyMessage(heartbeat(ended), 'end'), how === 'failed' ? ['warning'] : ['tada']);
+    notify(
+      ended,
+      wl.ntfyMessage(heartbeat(ended), 'end', watchOptions.value.ntfyDetails),
+      how === 'failed' ? ['warning'] : ['tada']
+    );
 }
 
 /** `pagehide`: closed or reloaded on purpose. The phone says stopped rather than warn of a crash. */
@@ -253,7 +272,8 @@ export function watchLinkPageClosing(): void {
   if (!a || a.status !== 'running') return;
   const ended: ActiveWatch = { ...a, status: 'stopped' };
   activeWatch.value = ended;
-  post(ended);
+  // Plain status only: sent at once, before the page goes (sealing would have to wait on WebCrypto).
+  post(ended, false, true);
 }
 
 // Ticked during a run: a link from now. Unticked: one last post saying it stopped (so the phone and
@@ -278,7 +298,7 @@ watch(
     wl.writeWatchOptions(o);
     const a = activeWatch.value;
     if (a && a.status === 'running') {
-      const link = linkFromOptions(a.link.key, a.link.startedAt);
+      const link = linkFromOptions(a.link, a.link.startedAt);
       if (JSON.stringify(link) !== JSON.stringify(a.link)) activeWatch.value = { ...a, link };
     }
   },

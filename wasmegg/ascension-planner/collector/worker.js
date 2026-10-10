@@ -2784,7 +2784,6 @@ export default {
     const at = typeof event?.scheduledTime === 'number' ? event.scheduledTime : Date.now();
     ctx.waitUntil(
       watchCron(env, at, fetch, {
-        pageUrl: env.WATCH_PAGE_URL || '',
         prune: new Date(at).getUTCMinutes() < 5,
       }).catch(() => undefined)
     );

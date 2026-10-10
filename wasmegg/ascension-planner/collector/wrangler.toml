@@ -39,10 +39,6 @@ migrations_dir = "migrations"
 [triggers]
 crons = ["*/5 * * * *"]
 
-# Where the watch page lives, for the link in the "stopped reporting" note. Optional.
-# [vars]
-# WATCH_PAGE_URL = "https://<your site>/ascension-planner/watch.html"
-
 # OPTIONAL per-IP limit on POST /watch, on top of the per-key one (Workers rate-limit binding, free
 # plan included; needs a recent wrangler). Left off so a deploy never fails on it.
 # [[ratelimits]]

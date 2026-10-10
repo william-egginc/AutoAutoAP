@@ -656,37 +656,52 @@ checkpoint keeps none. That is **unknown**, not zero, and it sorts accordingly.
 
 ### Watching a run from a phone
 
-"Watch this run from your phone" (the Stepping away? box) gives a long run a random watch key, and
-the run's tab posts a tiny heartbeat under it every 5 minutes (and at once on start, finish, stop
-and failure). `watch.html?k=<key>` on the planner's own site reads it back on a phone. Code:
-`watch.js` here; `src/composables/useWatchLink.ts`, `src/search/watchLink.ts` and
-`src/watch/phone.ts` in the planner.
+"Watch this run from your phone" (the Stepping away? box) gives a long run a watch link,
+`watch.html#<id>.<secret>` on the planner's own site. The run's tab posts a sealed heartbeat under
+the id every 5 minutes (and at once on start, finish, stop and failure); the page on the phone
+fetches it by id and opens it with the secret. Code: `watch.js` here; `src/composables/useWatchLink.ts`,
+`src/search/watchLink.ts` and `src/watch/phone.ts` in the planner.
+
+**Privacy: the collector stores only ciphertext, and we can't read it.** The id is 16 random bytes,
+used to look the row up. The secret is 32 more random bytes, an AES-256-GCM key, and it lives only
+in the link's fragment (after `#`), which browsers never send to any server, so it is in no request
+and no log. The tab encrypts the whole heartbeat (progress, time left, TE, route, dates, label) with
+a fresh 12-byte IV each time. The collector keeps the id, the IV, the ciphertext, the plain status
+(`running`, `finished`, `stopped`, `failed`: the cron needs it to warn about a run that went quiet),
+when it stored them, and the ntfy topic if the player turned notifications on. Only someone with the
+link or its QR code can see the run, and that includes whoever runs the collector. No save, player
+ID or nickname is ever sent, sealed or not.
 
 | | |
 |---|---|
-| `POST /watch` | one heartbeat, JSON as a text body (no preflight): `{ key, status, mode, done, total, pct?, timeLeftSec, bestSoFar: { te, route, finish, spareDays? }, startedAt, updatedAt, workers, label?, notify? }`. Whitelisted field by field; at most 2 KB (`413`). One write a minute per key (`429` with `retryAfter`), except a change of status, which gets through after 2 s. `notify` is an ntfy topic, stored in its own column and never served. `503` past 5,000 rows |
-| `GET /watch?key=<key>` | `{ data, updated, now }`: the last heartbeat, when the collector stored it, and its clock now. `404` for an unknown (or expired) key |
+| `POST /watch` | `{ id, iv, ct, status, notify? }` as a text body (no preflight). `{ id, status }` alone changes only the status (the run page closing) and keeps the last ciphertext. At most 2 KB (`413`). One write a minute per id (`429` with `retryAfter`), except a change of status, which gets through after 2 s. `notify` is an ntfy topic, kept in its own column and never served. `503` past 5,000 rows |
+| `GET /watch?id=<id>` | `{ iv, ct, status, updated, now }`: the sealed heartbeat, its status, when the collector stored it, and its clock now. `404` for an unknown (or expired) id |
 
 **D1, not KV.** A run left going posts ~290 times a day, and KV's free plan allows 1,000 writes a
 day for the whole account (the leaderboard needs those). D1's free plan allows 100,000 rows
-written and 5 million read a day. The table is `WITHOUT ROWID` with the key as primary key, so a
-heartbeat is one row written; the rate limit is a condition on the upsert itself, so it costs no
+written and 5 million read a day. The table is `WITHOUT ROWID` with the id as primary key, so a
+heartbeat is one row written; the rate limit is a condition on the write itself, so it costs no
 read.
 
-**Writes per run:** about 12 an hour, so ~290 a day for a run left going (a 10-hour sweep: ~120),
-plus one at the start and one at the end. That is room for ~340 runs going at once all day on the
-free plan. Reads: one per phone per minute while the page is open, and the cron's two queries
-every 5 minutes (each reads the whole table while it is small; there is deliberately no index on
-`updated`, which would double the writes).
+**Per run, per day left going** (Workers free plan: 100,000 requests a day, shared with the board):
+
+- Worker requests from the tab: 12 an hour, ~290 a day (a 10-hour sweep: ~120), plus the start and
+  the end. That is room for a few hundred runs going all day alongside the board.
+- Worker requests from the phone: one a minute only while the page is on screen (it pauses when
+  hidden or the phone is locked), so 60 an hour of actual looking.
+- D1 rows written: the same ~290 a day per run; reads: one per phone request and one per post.
+- The cron: 288 runs a day in total, not per run; its two queries read the whole (small) table.
+  There is deliberately no index on `updated`, which would double the writes.
 
 **The cron** (`[triggers] crons = ["*/5 * * * *"]`): a run still marked running that has not
-reported for 15 minutes, with an ntfy topic, gets ONE note ("Your run stopped reporting 15 min
-ago..."); `alerted` is set first, so it is never repeated, and only a fresh heartbeat clears it.
-Once an hour it also deletes rows not updated in 7 days. Set `WATCH_PAGE_URL` (a `[vars]` entry,
-e.g. `https://<site>/ascension-planner/watch.html`) and the note links straight to the run.
+reported for 15 minutes, with an ntfy topic, gets ONE note ("Your planner run stopped reporting 15
+min ago..."); `alerted` is set first, so it is never repeated, and only a fresh heartbeat clears it.
+Once an hour it also deletes rows not updated in 7 days. The note carries no link (the collector
+does not have the secret) and no run details.
 
-**Nothing personal is stored:** no save, no player ID, no nickname. The label is whatever the
-player typed into the box, and only if they typed one.
+**ntfy notes are readable by anyone who knows the topic**, so the planner makes the topic long and
+random and its notes say only what happened ("Your planner run finished. Open your watch link to
+see it."), unless the player ticks "include results in notifications".
 
 **One-time setup** (the database id goes into `wrangler.toml` in place of `TO-BE-CREATED`; a
 deploy before that fails on the placeholder):

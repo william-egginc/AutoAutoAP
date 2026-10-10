@@ -5,10 +5,16 @@ import {
   buildHeartbeat,
   cleanLabel,
   heartbeatDue,
+  fromBase64url,
   isNtfyTopic,
-  isWatchKey,
+  isWatchId,
+  isWatchSecret,
   newNtfyTopic,
-  newWatchKey,
+  newWatchId,
+  newWatchSecret,
+  openHeartbeat,
+  parseWatchFragment,
+  sealHeartbeat,
   ntfyBody,
   ntfyMessage,
   ntfyProgressDue,
@@ -27,7 +33,6 @@ const JUL13 = Date.UTC(2027, 6, 13, 12) / 1000;
 
 function hb(over: Partial<WatchHeartbeat> = {}): WatchHeartbeat {
   return {
-    key: 'AbCdEfGhIjKlMnOpQrStUvWx',
     status: 'running',
     mode: 'fastest',
     done: 250,
@@ -41,31 +46,45 @@ function hb(over: Partial<WatchHeartbeat> = {}): WatchHeartbeat {
   };
 }
 
-describe('keys and topics', () => {
-  it('a watch key is 144 random bits as base64url', () => {
-    const k = newWatchKey();
-    expect(k).toMatch(/^[A-Za-z0-9_-]{24}$/);
-    expect(isWatchKey(k)).toBe(true);
-    expect(newWatchKey()).not.toBe(k);
-    // From crypto.getRandomValues: the bytes it is given are the key.
-    expect(newWatchKey(a => a.fill(255))).toBe('________________________');
+const ID = 'AbCdEfGhIjKlMnOpQrStUv';
+const SECRET = 'S'.repeat(43);
+
+describe('ids, secrets and topics', () => {
+  it('an id is 128 random bits, a secret 256, both base64url', () => {
+    const id = newWatchId();
+    const secret = newWatchSecret();
+    expect(id).toMatch(/^[A-Za-z0-9_-]{22}$/);
+    expect(secret).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(isWatchId(id)).toBe(true);
+    expect(isWatchSecret(secret)).toBe(true);
+    expect(newWatchId()).not.toBe(id);
+    expect(fromBase64url(secret)).toHaveLength(32);
+    // From crypto.getRandomValues: the bytes it is given are the id.
+    expect(newWatchId(a => a.fill(255))).toBe('_'.repeat(21) + 'w');
   });
 
-  it('base64url matches the standard encoding', () => {
-    const bytes = new Uint8Array([0, 1, 2, 250, 251, 252, 253]);
-    const std = Buffer.from(bytes).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-    expect(base64url(bytes)).toBe(std);
+  it('base64url matches the standard encoding, both ways', () => {
+    for (const n of [0, 1, 2, 3, 7, 12, 16, 32]) {
+      const bytes = new Uint8Array(n).map((_, i) => (i * 37 + 250) & 255);
+      const std = Buffer.from(bytes).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+      expect(base64url(bytes)).toBe(std);
+      expect([...fromBase64url(std)!]).toEqual([...bytes]);
+    }
+    expect(fromBase64url('not!b64')).toBeNull();
   });
 
-  it('refuses short or odd keys', () => {
-    expect(isWatchKey('short')).toBe(false);
-    expect(isWatchKey('AbCdEfGhIjKlMnOpQrStUv!x')).toBe(false);
-    expect(isWatchKey(42)).toBe(false);
+  it('reads #<id>.<secret> and nothing else', () => {
+    expect(parseWatchFragment(`#${ID}.${SECRET}`)).toEqual({ id: ID, secret: SECRET });
+    expect(parseWatchFragment(`${ID}.${SECRET}`)).toEqual({ id: ID, secret: SECRET });
+    expect(parseWatchFragment(`#${ID}`)).toBeNull();
+    expect(parseWatchFragment(`#${ID}.${SECRET.slice(1)}`)).toBeNull();
+    expect(parseWatchFragment('')).toBeNull();
+    expect(parseWatchFragment('#k=whatever')).toBeNull();
   });
 
   it('a topic is aaap- and random, and valid for ntfy', () => {
     const t = newNtfyTopic();
-    expect(t).toMatch(/^aaap-[A-Za-z0-9_-]{16}$/);
+    expect(t).toMatch(/^aaap-[A-Za-z0-9_-]{24}$/);
     expect(isNtfyTopic(t)).toBe(true);
     expect(isNtfyTopic('has space')).toBe(false);
   });
@@ -79,10 +98,16 @@ describe('keys and topics', () => {
 
 describe('the checkpoint field', () => {
   it('reads back a stored link, and nothing else', () => {
-    const link = { key: 'AbCdEfGhIjKlMnOpQrStUvWx', startedAt: 5, topic: 'aaap-x', label: 'run' };
+    const link = { id: ID, secret: SECRET, startedAt: 5, topic: 'aaap-x', label: 'run' };
     expect(readWatchLinkState(JSON.parse(JSON.stringify(link)))).toEqual(link);
-    expect(readWatchLinkState({ key: 'bad', startedAt: 5 })).toBeNull();
-    expect(readWatchLinkState({ ...link, topic: 'not ok!' })).toEqual({ key: link.key, startedAt: 5, label: 'run' });
+    expect(readWatchLinkState({ id: 'bad', secret: SECRET, startedAt: 5 })).toBeNull();
+    expect(readWatchLinkState({ id: ID, startedAt: 5 })).toBeNull();
+    expect(readWatchLinkState({ ...link, topic: 'not ok!' })).toEqual({
+      id: ID,
+      secret: SECRET,
+      startedAt: 5,
+      label: 'run',
+    });
     expect(readWatchLinkState(undefined)).toBeNull();
   });
 });
@@ -94,7 +119,7 @@ describe('options', () => {
     const o = readWatchOptions(
       kv(JSON.stringify({ phone: true, ntfy: true, ntfyTopic: 'bad topic', ntfyEveryMin: 7 }))
     );
-    expect(o).toMatchObject({ phone: true, ntfy: true, ntfyTopic: '', ntfyEveryMin: 180 });
+    expect(o).toMatchObject({ phone: true, ntfy: true, ntfyTopic: '', ntfyEveryMin: 180, ntfyDetails: false });
     expect(WATCH_OPTIONS_KEY).toBe('aap.watchLink.options');
   });
 });
@@ -102,7 +127,7 @@ describe('options', () => {
 describe('the heartbeat', () => {
   it('holds only the run figures, and a label only when typed', () => {
     const h = buildHeartbeat({
-      link: { key: 'AbCdEfGhIjKlMnOpQrStUvWx', startedAt: 1 },
+      link: { id: ID, secret: SECRET, startedAt: 1 },
       status: 'running',
       kind: 'sweep',
       progress: { done: 10.4, total: 40, secondsLeft: 99.6, best: { chain: [150, 247], te: 247, at: JUL13 } },
@@ -110,7 +135,6 @@ describe('the heartbeat', () => {
       now: T0,
     });
     expect(h).toEqual({
-      key: 'AbCdEfGhIjKlMnOpQrStUvWx',
       status: 'running',
       mode: 'full-sweep',
       done: 10,
@@ -126,7 +150,7 @@ describe('the heartbeat', () => {
 
   it('By a date carries its fill and the days to spare', () => {
     const h = buildHeartbeat({
-      link: { key: 'AbCdEfGhIjKlMnOpQrStUvWx', startedAt: 1, label: 'mine' },
+      link: { id: ID, secret: SECRET, startedAt: 1, label: 'mine' },
       status: 'running',
       kind: 'deadline',
       progress: { done: 5, total: null, percent: 42.26, secondsLeft: null, best: { chain: [247], te: 247, at: JUL13 } },
@@ -138,6 +162,26 @@ describe('the heartbeat', () => {
     expect(h.pct).toBe(42.3);
     expect(h.bestSoFar?.spareDays).toBe(3);
     expect(h.label).toBe('mine');
+  });
+});
+
+describe('sealing', () => {
+  it('only the secret opens it, and each seal has a fresh IV', async () => {
+    const secret = newWatchSecret();
+    const a = await sealHeartbeat(secret, hb({ label: 'mine' }));
+    const b = await sealHeartbeat(secret, hb({ label: 'mine' }));
+    expect(a.iv).toMatch(/^[A-Za-z0-9_-]{16}$/);
+    expect(a.iv).not.toBe(b.iv);
+    expect(a.ct).not.toBe(b.ct);
+    // Nothing readable in what the collector gets.
+    const raw = Buffer.from(fromBase64url(a.ct)!).toString('latin1');
+    for (const plain of ['247', 'mine', 'fastest', 'bestSoFar']) expect(raw).not.toContain(plain);
+    expect(await openHeartbeat(secret, a.iv, a.ct)).toEqual(hb({ label: 'mine' }));
+    expect(await openHeartbeat(newWatchSecret(), a.iv, a.ct)).toBeNull();
+    // Changed in transit: GCM refuses it.
+    const flipped = a.ct[5] === 'A' ? 'B' : 'A';
+    expect(await openHeartbeat(secret, a.iv, a.ct.slice(0, 5) + flipped + a.ct.slice(6))).toBeNull();
+    expect(await openHeartbeat(secret, 'short', a.ct)).toBeNull();
   });
 });
 
@@ -161,20 +205,33 @@ describe('the heartbeat scheduler', () => {
 });
 
 describe('words', () => {
-  it('ntfy messages are plain and carry no personal data', () => {
-    expect(ntfyMessage(hb({ status: 'finished' }), 'end')).toBe('Run finished: 247 TE, finishes Jul 13.');
+  it('ntfy notes say only what happened unless results are asked for', () => {
+    expect(ntfyMessage(hb({ status: 'finished' }), 'end')).toBe(
+      'Your planner run finished. Open your watch link to see it.'
+    );
     expect(ntfyMessage(hb({ status: 'failed' }), 'end')).toBe(
+      'Your planner run stopped with an error. Open your watch link.'
+    );
+    expect(ntfyMessage(hb(), 'progress')).toBe('Your planner run is still going. Open your watch link to see how far.');
+    expect(ntfyMessage(hb({ status: 'stopped' }), 'end')).toBe('');
+    for (const e of ['progress', 'end'] as const)
+      expect(ntfyMessage(hb({ status: 'finished' }), e)).not.toMatch(/247|Jul/);
+  });
+
+  it('with results ticked they carry the figures, never the label', () => {
+    expect(ntfyMessage(hb({ status: 'finished' }), 'end', true)).toBe('Run finished: 247 TE, finishes Jul 13.');
+    expect(ntfyMessage(hb({ status: 'failed' }), 'end', true)).toBe(
       'Run stopped with an error at 25%. Best so far: 247 TE, finishes Jul 13.'
     );
-    expect(ntfyMessage(hb({ status: 'stopped' }), 'end')).toBe('');
-    expect(ntfyMessage(hb(), 'progress')).toBe('Run 25% done, about 3 h left. Best so far: 247 TE, finishes Jul 13.');
-    expect(ntfyMessage(hb({ label: 'Jordan secret' }), 'progress')).not.toContain('Jordan');
-    const body = JSON.parse(ntfyBody({ topic: 'aaap-x', message: 'm', click: 'https://x/watch.html?k=1' }));
-    expect(body).toEqual({
+    expect(ntfyMessage(hb({ status: 'stopped' }), 'end', true)).toBe('');
+    expect(ntfyMessage(hb(), 'progress', true)).toBe(
+      'Run 25% done, about 3 h left. Best so far: 247 TE, finishes Jul 13.'
+    );
+    expect(ntfyMessage(hb({ label: 'Jordan secret' }), 'progress', true)).not.toContain('Jordan');
+    expect(JSON.parse(ntfyBody({ topic: 'aaap-x', message: 'm' }))).toEqual({
       topic: 'aaap-x',
       title: 'Ascension Planner',
       message: 'm',
-      click: 'https://x/watch.html?k=1',
     });
   });
 
@@ -184,13 +241,15 @@ describe('words', () => {
     );
   });
 
-  it('the page link names the collector only when asked', () => {
-    expect(watchPageUrl({ origin: 'https://site', base: '/ascension-planner/', key: 'K' })).toBe(
-      'https://site/ascension-planner/watch.html?k=K'
+  it('the page link keeps the secret in the fragment, and names the collector only when asked', () => {
+    expect(watchPageUrl({ origin: 'https://site', base: '/ascension-planner/', id: ID, secret: SECRET })).toBe(
+      `https://site/ascension-planner/watch.html#${ID}.${SECRET}`
     );
-    expect(watchPageUrl({ origin: 'https://site', base: '/', key: 'K', collector: 'https://c.example' })).toBe(
-      'https://site/watch.html?k=K&collector=https%3A%2F%2Fc.example'
-    );
+    expect(
+      watchPageUrl({ origin: 'https://site', base: '/', id: ID, secret: SECRET, collector: 'https://c.example' })
+    ).toBe(`https://site/watch.html?collector=https%3A%2F%2Fc.example#${ID}.${SECRET}`);
+    const u = new URL(watchPageUrl({ origin: 'https://site', base: '/', id: ID, secret: SECRET }));
+    expect(u.pathname + u.search).not.toContain(SECRET);
   });
 });
 

@@ -2,25 +2,30 @@
  * "Watch this run from your phone": the collector's half (the planner's is
  * src/composables/useWatchLink.ts, the page src/watch/phone.ts, the rules src/search/watchLink.ts).
  *
- *   POST /watch          a run's heartbeat, under its random watch key. Text body (no preflight).
- *   GET  /watch?key=     the last heartbeat for that key, for the watch page.
+ *   POST /watch          a run's sealed heartbeat: `{ id, iv, ct, status, notify? }`, text body (no
+ *                        preflight). Or `{ id, status }` alone: a status change with nothing sealed
+ *                        (the run page closing), which keeps the last sealed heartbeat.
+ *   GET  /watch?id=      `{ iv, ct, status, updated, now }` for the watch page.
  *   scheduled()          every 5 min: one ntfy note for a running run that stopped reporting, and
  *                        rows not updated in 7 days are deleted.
  *
+ * END TO END: THE COLLECTOR CANNOT READ A HEARTBEAT. The run's tab encrypts it (AES-256-GCM) with a
+ * secret that exists only in the watch link's fragment (`watch.html#<id>.<secret>`), which browsers
+ * never send to a server. All this stores is the id, the IV, the ciphertext, the plain status (the
+ * cron needs to know a run is still marked running), when it was stored, and the ntfy topic if the
+ * player turned notifications on (its own column, never served back). Progress, TE, route, dates and
+ * the label are inside the ciphertext.
+ *
  * D1, NOT KV. A run posts every 5 minutes: ~290 writes a day for a run left going, and KV's free
  * plan allows 1,000 writes a day for the whole account. D1's free plan allows 100,000 rows written a
- * day. The table is `WITHOUT ROWID` with the key as its primary key, so an update is one row written.
+ * day. The table is `WITHOUT ROWID` with the id as its primary key (column `key`), so an update is
+ * one row written.
  *
- * NOTHING PERSONAL. A heartbeat is whitelisted field by field (`cleanHeartbeat`): status, mode,
- * progress, time left, best so far (TE, route, finish, spare days), start and update times, worker
- * count, and a label only if the player typed one. The ntfy topic, if any, goes in its own column
- * and is never served back.
- *
- * LIMITS. A body over 2 KB is refused. One write a minute per key: the upsert itself refuses an
+ * LIMITS. A body over 2 KB is refused. One write a minute per id: the write itself refuses an
  * earlier one (no separate read), except that a change of status gets through after 2 s, so a run
- * that is stopped straight after starting still says so. At most MAX_ROWS rows: a new key past
- * that is refused. With the optional WATCH_LIMIT rate-limit binding (wrangler.toml), also a few
- * requests a minute per IP address.
+ * that is stopped straight after starting still says so. At most MAX_ROWS rows: a new id past that
+ * is refused. With the optional WATCH_LIMIT rate-limit binding (wrangler.toml), also a few requests a
+ * minute per IP address.
  */
 
 export const WATCH_MAX_BYTES = 2048;
@@ -32,58 +37,29 @@ export const MAX_ROWS = 5000;
 const NTFY = 'https://ntfy.sh';
 
 const STATUSES = new Set(['running', 'finished', 'stopped', 'failed']);
-const MODES = new Set(['fastest', 'full-sweep', 'by-date']);
 
-const isKey = k => typeof k === 'string' && /^[A-Za-z0-9_-]{22,64}$/.test(k);
+const isId = k => typeof k === 'string' && /^[A-Za-z0-9_-]{22}$/.test(k);
 const isTopic = t => typeof t === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(t);
-const num = (v, max = 1e15) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= max ? v : null);
-const int = (v, max) => {
-  const n = num(v, max);
-  return n === null ? null : Math.round(n);
-};
+/** A 12-byte IV is 16 characters of base64url. */
+const isIv = v => typeof v === 'string' && /^[A-Za-z0-9_-]{16}$/.test(v);
+/** Ciphertext: base64url, at least the 16-byte GCM tag (22 characters). The body cap bounds it. */
+const isCt = v => typeof v === 'string' && /^[A-Za-z0-9_-]{22,}$/.test(v);
 
-/** The heartbeat as stored: only the known fields, each checked. Null when it is not one. */
-export function cleanHeartbeat(b) {
+/**
+ * A POST body checked: `{ id, status, notify, sealed }`, where `sealed` is `{ iv, ct }` or null for a
+ * status-only post. Null when it is not one. Nothing else in the body is kept.
+ */
+export function readPost(b) {
   if (!b || typeof b !== 'object' || Array.isArray(b)) return null;
-  if (!isKey(b.key) || !STATUSES.has(b.status) || !MODES.has(b.mode)) return null;
-  const startedAt = int(b.startedAt, 1e14);
-  const updatedAt = int(b.updatedAt, 1e14);
-  if (startedAt === null || updatedAt === null) return null;
-  const out = {
+  if (!isId(b.id) || !STATUSES.has(b.status)) return null;
+  const has = b.iv !== undefined || b.ct !== undefined;
+  if (has && !(isIv(b.iv) && isCt(b.ct))) return null;
+  return {
+    id: b.id,
     status: b.status,
-    mode: b.mode,
-    done: int(b.done, 1e12) ?? 0,
-    total: int(b.total, 1e12),
-    timeLeftSec: int(b.timeLeftSec, 1e9),
-    bestSoFar: null,
-    startedAt,
-    updatedAt,
-    workers: int(b.workers, 4096) ?? 0,
+    notify: isTopic(b.notify) ? b.notify : null,
+    sealed: has ? { iv: b.iv, ct: b.ct } : null,
   };
-  const pct = num(b.pct, 100);
-  if (pct !== null) out.pct = Math.round(pct * 10) / 10;
-  const best = b.bestSoFar;
-  if (best && typeof best === 'object' && !Array.isArray(best)) {
-    const te = int(best.te, 1e6);
-    if (te !== null) {
-      out.bestSoFar = {
-        te,
-        route: Array.isArray(best.route) ? best.route.slice(0, 40).map(x => int(x, 1e6) ?? 0) : [],
-        finish: int(best.finish, 1e11),
-      };
-      if (typeof best.spareDays === 'number' && Number.isFinite(best.spareDays) && Math.abs(best.spareDays) < 1e5)
-        out.bestSoFar.spareDays = Math.round(best.spareDays * 10) / 10;
-    }
-  }
-  if (typeof b.label === 'string') {
-    const label = b.label
-      // eslint-disable-next-line no-control-regex -- control characters are exactly what goes
-      .replace(/[\u0000-\u001f\u007f]+/g, ' ')
-      .trim()
-      .slice(0, 40);
-    if (label) out.label = label;
-  }
-  return out;
 }
 
 const HEADERS = {
@@ -99,15 +75,18 @@ export function isWatchRequest(url) {
   return url.pathname === '/watch';
 }
 
-/** `POST /watch` and `GET /watch?key=`. */
+/** The write may go: a minute since the last, or a new status two seconds after it. (SQL, shared.) */
+const MAY_WRITE = `(watch.updated <= ? OR (watch.updated <= ? AND json_extract(watch.data, '$.status') <> ?))`;
+
+/** `POST /watch` and `GET /watch?id=`. */
 export async function handleWatch(request, env, now = Date.now()) {
   if (!env.WATCH) return reply({ error: 'watching is not set up on this collector' }, 503);
   const url = new URL(request.url);
 
   if (request.method === 'GET') {
-    const key = url.searchParams.get('key');
-    if (!isKey(key)) return reply({ error: 'not a watch key' }, 400);
-    const row = await env.WATCH.prepare('SELECT data, updated FROM watch WHERE key = ?').bind(key).first();
+    const id = url.searchParams.get('id');
+    if (!isId(id)) return reply({ error: 'not a watch id' }, 400);
+    const row = await env.WATCH.prepare('SELECT data, updated FROM watch WHERE key = ?').bind(id).first();
     if (!row) return reply({ error: 'not found' }, 404);
     let data;
     try {
@@ -115,7 +94,7 @@ export async function handleWatch(request, env, now = Date.now()) {
     } catch {
       return reply({ error: 'not found' }, 404);
     }
-    return reply({ data, updated: row.updated, now });
+    return reply({ iv: data.iv, ct: data.ct, status: data.status, updated: row.updated, now });
   }
 
   if (request.method !== 'POST') return reply({ error: 'method not allowed' }, 405);
@@ -130,7 +109,7 @@ export async function handleWatch(request, env, now = Date.now()) {
           'access-control-expose-headers': 'retry-after',
         });
     } catch {
-      // the limiter itself failed: carry on with the per-key limit alone
+      // the limiter itself failed: carry on with the per-id limit alone
     }
   }
 
@@ -144,27 +123,37 @@ export async function handleWatch(request, env, now = Date.now()) {
   } catch {
     return reply({ error: 'body must be JSON' }, 400);
   }
-  const data = cleanHeartbeat(body);
-  if (!data) return reply({ error: 'not a heartbeat' }, 400);
-  const key = body.key;
-  const notify = isTopic(body.notify) ? body.notify : null;
-  const json = JSON.stringify(data);
-  if (!(await roomForNewKey(env, key))) return reply({ error: 'too many runs are being watched right now' }, 503);
+  const p = readPost(body);
+  if (!p) return reply({ error: 'not a heartbeat' }, 400);
+  const gate = [now - WATCH_MIN_GAP_MS, now - WATCH_STATUS_GAP_MS, p.status];
 
-  // One statement: insert a new key, or update an old one only if it is a minute old (or the status
-  // changed and it is 2 s old). `changes` says which happened, so the rate limit costs no read.
-  const res = await env.WATCH.prepare(
-    `INSERT INTO watch (key, data, updated, notify, alerted) VALUES (?, ?, ?, ?, 0)
-     ON CONFLICT(key) DO UPDATE SET data = excluded.data, updated = excluded.updated,
-       notify = excluded.notify, alerted = 0
-     WHERE watch.updated <= ?
-        OR (watch.updated <= ? AND json_extract(watch.data, '$.status') <> json_extract(excluded.data, '$.status'))`
-  )
-    .bind(key, json, now, notify, now - WATCH_MIN_GAP_MS, now - WATCH_STATUS_GAP_MS)
-    .run();
+  let res;
+  if (p.sealed) {
+    if (!(await roomForNewKey(env, p.id))) return reply({ error: 'too many runs are being watched right now' }, 503);
+    const data = JSON.stringify({ iv: p.sealed.iv, ct: p.sealed.ct, status: p.status });
+    // One statement: insert a new id, or update an old one only when MAY_WRITE. `changes` says which
+    // happened, so the rate limit costs no read.
+    res = await env.WATCH.prepare(
+      `INSERT INTO watch (key, data, updated, notify, alerted) VALUES (?, ?, ?, ?, 0)
+       ON CONFLICT(key) DO UPDATE SET data = excluded.data, updated = excluded.updated,
+         notify = excluded.notify, alerted = 0
+       WHERE ${MAY_WRITE}`
+    )
+      .bind(p.id, data, now, p.notify, ...gate)
+      .run();
+  } else {
+    // A status alone: the last sealed heartbeat stays, with its status replaced.
+    res = await env.WATCH.prepare(
+      `UPDATE watch SET data = json_set(data, '$.status', ?), updated = ?, notify = ?, alerted = 0
+       WHERE key = ? AND ${MAY_WRITE}`
+    )
+      .bind(p.status, now, p.notify, p.id, ...gate)
+      .run();
+  }
   if (!res.meta || !res.meta.changes) {
-    const prev = await env.WATCH.prepare('SELECT updated FROM watch WHERE key = ?').bind(key).first();
-    const wait = prev ? Math.max(1, Math.ceil((prev.updated + WATCH_MIN_GAP_MS - now) / 1000)) : 60;
+    const prev = await env.WATCH.prepare('SELECT updated FROM watch WHERE key = ?').bind(p.id).first();
+    if (!prev) return reply({ error: 'not found' }, 404);
+    const wait = Math.max(1, Math.ceil((prev.updated + WATCH_MIN_GAP_MS - now) / 1000));
     return reply({ error: 'too soon', retryAfter: wait }, 429, {
       'retry-after': String(wait),
       'access-control-expose-headers': 'retry-after',
@@ -195,16 +184,17 @@ export async function watchCron(env, now = Date.now(), fetchImpl = fetch, opts =
       .run();
     if (!mark.meta || !mark.meta.changes) continue;
     alerted++;
-    const click = opts.pageUrl ? `${opts.pageUrl}?k=${encodeURIComponent(row.key)}` : undefined;
     try {
       await fetchImpl(NTFY, {
         method: 'POST',
         body: JSON.stringify({
           topic: row.notify,
           title: 'Ascension Planner',
-          message: 'Your run stopped reporting 15 min ago. The tab may have crashed or the computer may be asleep.',
+          // No link and no run details: anyone who knows a topic can read it, and the collector has
+          // neither the watch link's secret nor anything readable to put in.
+          message:
+            'Your planner run stopped reporting 15 min ago. The tab may have crashed or the computer may be asleep.',
           tags: ['warning'],
-          ...(click ? { click } : {}),
         }),
       });
     } catch {
