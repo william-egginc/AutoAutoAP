@@ -94,6 +94,13 @@ export interface RunSummary {
    *  Resume can carry on with that exact save. Optional and additive, like `space`. */
   inputsKey?: string;
 
+  /**
+   * The save the run was priced from, kept in this browser for as long as the run is saved
+   * (search/keptSaves.ts), unlike `inputsKey`'s, which goes when the run finishes. `null`: saved when
+   * that save was no longer here. Absent: saved before saves were kept (10 Oct 2026). Additive.
+   */
+  save?: import('./keptSaves').EntrySave | null;
+
   /** The player's note on the run (submission.ts `cleanNote`). Optional and additive. */
   runNote?: string;
   /** The settings the run started with (stores/chainSearch.ts `RunSettings`), so sending or
@@ -134,6 +141,7 @@ export interface SaveRunInput {
   space?: SearchSpace;
   fingerprint?: string;
   inputsKey?: string;
+  save?: RunSummary['save'];
   runNote?: string;
   settings?: RunSummary['settings'];
   /** Injectable so tests are not clock-dependent. */
@@ -189,6 +197,7 @@ export async function saveRun(partitionHash: string, input: SaveRunInput): Promi
     ...(input.space ? { space: input.space } : {}),
     ...(input.fingerprint ? { fingerprint: input.fingerprint } : {}),
     ...(input.inputsKey ? { inputsKey: input.inputsKey } : {}),
+    ...(input.save !== undefined ? { save: input.save } : {}),
     ...(input.runNote ? { runNote: input.runNote } : {}),
     ...(input.settings ? { settings: input.settings } : {}),
   };

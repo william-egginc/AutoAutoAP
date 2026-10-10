@@ -17,7 +17,8 @@
     <p class="text-[11px] text-slate-500 leading-relaxed">
       Kept in this browser, per player, for both {{ NAMES.smartFirst }} and {{ NAMES.fullFirst }}. A saved run carries on with
       the save it started with while that save is kept here, and puts its target, schedule, time off and plan start
-      back; without that save, your TE has to be the same. Past {{ MAX_RUNS }}, the oldest is dropped.
+      back; without that save, your TE has to be the same. Past {{ MAX_RUNS }}, the oldest is dropped. Each run also
+      keeps the save it was priced from, so you can go back to it after the game has moved on.
     </p>
 
     <div class="flex flex-wrap gap-2">
@@ -86,16 +87,26 @@
         >
           Delete
         </button>
+        <EntrySaveActions
+          :player-id="playerId"
+          :entry="{ label: run.label, save: run.save, fingerprint: run.fingerprint }"
+          :zone="zone"
+          @used="open(run.id)"
+        />
       </div>
     </div>
+    <SaveFileBar :player-id="playerId" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { MAX_RUNS } from '@/search/runLibrary';
 import { NAMES } from '@/lib/siteNav';
+import { useAutoPlannerStore } from '@/stores/autoPlanner';
+import EntrySaveActions from './EntrySaveActions.vue';
+import SaveFileBar from './SaveFileBar.vue';
 
 const props = defineProps<{
   playerId: string;
@@ -103,6 +114,9 @@ const props = defineProps<{
   canResume?: boolean;
 }>();
 const store = useChainSearchStore();
+const planner = useAutoPlannerStore();
+/** The planner's time zone, for the save's date. */
+const zone = computed(() => planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
 
 onMounted(() => void store.refreshSavedRuns(props.playerId));
 

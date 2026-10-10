@@ -427,6 +427,9 @@
 
     <!-- Keep awake is in Your setup at the top, with the other computer settings. -->
     <SafariNotice />
+    <!-- An older save in the planner (a saved entry's, a file's): this search runs on it, and says so.
+         Only that half of the notice: its re-check of older results reads Fastest's routes. -->
+    <RunSaveNotice v-if="ui.runSaveLoaded" />
     <IntegrityNotice :deadline-offer="!!store.deadlineUnfinished" />
     <!-- A Find and submit that finished (and shared) while this panel was closed for another tab. -->
     <!-- Finished results kept until sent (search/pendingSends.ts): "This result wasn't sent: Send it now". -->
@@ -681,8 +684,9 @@
         </template>
         <p v-if="downloadError" class="text-[11px] font-semibold text-red-700">{{ downloadError }}</p>
         <p class="text-[11px] text-slate-500 leading-relaxed">
-          Priced from {{ inPlannerZone(result.planStart) }} at {{ result.te }} TE, with the hours and time off in Your
-          setup. A route that reaches one more TE usually has much less time to spare: the table shows both so you can
+          Priced from {{ inPlannerZone(result.planStart) }} at {{ result.te }} TE<template v-if="result.backupAt"
+            >, on your save from {{ inPlannerZone(result.backupAt) }}</template
+          >, with the hours and time off in Your setup. A route that reaches one more TE usually has much less time to spare: the table shows both so you can
           choose.
         </p>
       </SavedAnswers>
@@ -855,6 +859,7 @@ import { showDateTime } from '@/lib/displayTime';
 import IntegrityNotice from './IntegrityNotice.vue';
 import InstantRoute from './InstantRoute.vue';
 import SafariNotice from './SafariNotice.vue';
+import RunSaveNotice from './RunSaveNotice.vue';
 
 const props = defineProps<{
   playerId: string;

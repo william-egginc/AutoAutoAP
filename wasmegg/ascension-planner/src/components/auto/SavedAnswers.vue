@@ -1,7 +1,8 @@
 <!--
   By a date's answers kept under a name (the user, 5 Oct: a new search no longer loses one): "Save this
   answer" beside the result's other buttons (`actions` slot: Download CSV), whatever the screen says
-  under it (default slot), then the list with Open and Delete. Kept in this browser per player by the
+  under it (default slot), then the list with Open and Delete, and each entry's save (EntrySaveActions:
+  Use the save from…, Download this save). Kept in this browser per player by the
   store (`saveCurrentAnswer`, `savedAnswers`), in By a date's own format.
 
   Not the same list as Saved runs (SavedRuns.vue), which holds Smart search and Full sweep runs in the
@@ -56,7 +57,14 @@
       >
         Delete
       </button>
+      <EntrySaveActions
+        :player-id="playerId"
+        :entry="{ label: a.label, save: a.save, planStart: a.result.planStart, settings: a.result.settings }"
+        :zone="zone"
+        @used="store.openSavedAnswer(a.id)"
+      />
     </div>
+    <SaveFileBar :player-id="playerId" />
   </div>
 </template>
 
@@ -64,6 +72,8 @@
 import { onMounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { showDateTime } from '@/lib/displayTime';
+import EntrySaveActions from './EntrySaveActions.vue';
+import SaveFileBar from './SaveFileBar.vue';
 
 const props = defineProps<{
   playerId: string;

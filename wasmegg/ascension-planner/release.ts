@@ -33,6 +33,7 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
+  { at: '2026-10-10T03:43:13Z', note: 'Saved answers and saved runs keep the save they were priced from: Use the save from… brings it back to plan, check or search from, and Download this save keeps it as a file', level: 'big' },
   { at: '2026-10-10T01:38:15Z', note: 'Long runs use far less memory; the CSV lists every route priced; a finished result is kept until it is sent (Send it now after a reload); carry-on keeps Find and submit; a note box in Share this result', level: 'big' },
   { at: '2026-10-09T23:57:44Z', note: 'Advanced (Full sweep): one time left for the whole queue that ignores replayed chains after a carry-on, and Jump to it stays on your run' },
   { at: '2026-10-09T22:49:50Z', note: 'Searches show honest progress from the start; Jump to it lands on your run in one click; a second tab no longer offers to carry on a run that is still going' },
@@ -40,7 +41,6 @@ const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
   { at: '2026-10-09T18:03:00Z', note: 'Long runs can send their best so far to the leaderboard while they keep going; the finished result replaces it', level: 'big' },
   { at: '2026-10-09T17:29:18Z', note: 'First ascension now works like Classic: by default it picks whichever is faster, continuing your current ascension or prestiging now; choose Continue or Prestige now in Your setup or Classic', level: 'big' },
   { at: '2026-10-09T17:12:46Z', note: 'Big Highest TE by a date runs go about twice as fast after the first round, with an honest progress bar and time left; Fastest says when a route with more ascensions might be faster', level: 'big' },
-  { at: '2026-10-09T06:52:10Z', note: 'Fixes: sweep links always send their CSV, By a date offers Retry if the CSV upload fails, Work it out again keeps your saved instant answer, and clearer Insights on how close the instant answer is' },
 ];
 
 export default {

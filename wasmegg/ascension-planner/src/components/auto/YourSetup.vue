@@ -101,6 +101,8 @@
           >
             Load latest save
           </button>
+          <!-- A save kept as a file ("Download this save" on a saved answer or run) back as the active save. -->
+          <SaveFileBar v-if="initialState.playerId" :player-id="initialState.playerId" />
           <!-- What the plan starts from, besides the artifacts: leg 1 continues an already-built farm,
                and every later leg funds its own research out of earnings. -->
           <dl class="grid grid-cols-2 gap-3 text-[11px] border-t border-slate-100 pt-3">
@@ -434,6 +436,7 @@
 </template>
 
 <script setup lang="ts">
+import SaveFileBar from './SaveFileBar.vue';
 import { computed, onUnmounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';

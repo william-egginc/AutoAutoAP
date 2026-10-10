@@ -896,8 +896,10 @@ function goTo(r: SiteRoute): void {
   applyRoute(r);
   // Entering the Auto Planner fetches a fresh save and resets the planner around it -- never under a
   // search that's running (the progress bar's "Show it" is exactly that way in): it keeps the save
-  // it started with, which is already set up.
-  if (enteringAuto && !searchActive.value) void handleAutoPlannerTabClick();
+  // it started with, which is already set up. Nor over a save the player picked ("Use the save
+  // from…" on a saved entry, "Load a save file"): that stays until they press Load my latest save.
+  const pickedSave = uiStore.runSaveLoaded?.from === 'entry' || uiStore.runSaveLoaded?.from === 'file';
+  if (enteringAuto && !searchActive.value && !pickedSave) void handleAutoPlannerTabClick();
 }
 /** A top tab: that section, as it was last left. */
 function selectSection(section: Section): void {

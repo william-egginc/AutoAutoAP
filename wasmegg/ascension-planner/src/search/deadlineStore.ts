@@ -565,6 +565,11 @@ export interface SavedAnswer {
   label: string;
   savedAt: number;
   result: SavedDeadlineResult;
+  /**
+   * The save the answer was priced from, kept in this browser (search/keptSaves.ts). `null`: saved
+   * when that save was no longer here to keep. Absent: saved before saves were kept (10 Oct 2026).
+   */
+  save?: import('./keptSaves').EntrySave | null;
 }
 
 export async function listSavedAnswers(partitionHash: string): Promise<SavedAnswer[]> {
@@ -578,13 +583,16 @@ export async function saveAnswer(
   partitionHash: string,
   result: SavedDeadlineResult,
   label: string,
-  now = Date.now()
+  now = Date.now(),
+  /** The save it was priced from (`SavedAnswer.save`); left out, the answer records none. */
+  save?: import('./keptSaves').EntrySave | null
 ): Promise<SavedAnswer> {
   const answer: SavedAnswer = {
     id: `${now.toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
     label: label.trim().slice(0, 80) || 'Untitled answer',
     savedAt: now,
     result,
+    ...(save !== undefined ? { save } : {}),
   };
   const kept = [answer, ...(await listSavedAnswers(partitionHash))].slice(0, MAX_SAVED_ANSWERS);
   await saveMetadata(partitionHash, SAVED_KEY, kept);

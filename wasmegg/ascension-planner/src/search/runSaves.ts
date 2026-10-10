@@ -10,7 +10,8 @@
  * construction: a resumed run's workers are handed the very object the first half's were.
  *
  * TEMPORARY BY DESIGN. A stored save only exists to finish a run, so it is dropped as soon as no
- * unfinished run refers to it (`pruneRunSaves`). It never leaves the browser -- not in the CSV,
+ * unfinished run (or the last finished result of each kind) refers to it (`pruneRunSaves`). Saved
+ * answers and saved runs keep their save for good in keptSaves.ts instead. It never leaves the browser -- not in the CSV,
  * not in a submission.
  *
  * Keyed by a hash of the payload, so the many runs of one session on one save share one copy.
@@ -51,10 +52,10 @@ export function accountOf(rawBackup: unknown): string {
  * JSON with the numbers JSON cannot carry. `saveMetadata` stores through a JSON round-trip, which
  * would turn an Infinity anywhere in the context into null -- a different input, silently.
  */
-function encode(value: unknown): string {
+export function encode(value: unknown): string {
   return JSON.stringify(value, (_k, v) => (typeof v === 'number' && !Number.isFinite(v) ? { __num: String(v) } : v));
 }
-function decode<T>(text: string): T {
+export function decode<T>(text: string): T {
   return JSON.parse(text, (_k, v) =>
     v && typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length === 1 && typeof v.__num === 'string'
       ? Number(v.__num)
@@ -77,7 +78,7 @@ export function runSaveKey(inputs: SearchInputs): string {
 
 /** cyrb53: a fast 53-bit string hash. Synchronous on purpose -- the key is compared in the same
  *  tick as the in-memory cache it guards. Not cryptographic, and does not need to be. */
-function hash53(text: string): string {
+export function hash53(text: string): string {
   let h1 = 0xdeadbeef;
   let h2 = 0x41c6ce57;
   for (let i = 0; i < text.length; i++) {

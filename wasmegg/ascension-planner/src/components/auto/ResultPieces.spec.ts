@@ -93,8 +93,25 @@ describe('SavedAnswers', () => {
       )
     );
     expect(t).toMatch(
-      /^Download CSV Save this answer Priced from now\. Saved answers Egg Day try 307 368 · saved .*Open Delete Empty no route · saved .*Open Delete$/
+      /^Download CSV Save this answer Priced from now\. Saved answers Egg Day try 307 368 · saved .*Open Delete The save for this one wasn't kept \(saved before 10 Oct\)\. Empty no route · saved .*Open Delete The save for this one wasn't kept \(saved before 10 Oct\)\. Load a save file This file is your game save; don't share it publicly\.$/
     );
+  });
+
+  it("offers each answer's own save: use it or download it; or says why it isn't there", async () => {
+    const store = useChainSearchStore();
+    const save = { key: 'k1', te: 230, backupAt: Date.UTC(2026, 9, 4, 3, 39) / 1000 };
+    store.keptSaves = [{ ...save, keptAt: 0, bytes: 150_000, rawBytes: 1_400_000 }];
+    store.savedAnswers = [
+      { id: 'a1', label: 'Kept', savedAt: Date.UTC(2026, 9, 10), result: { routes: [] }, save },
+      { id: 'a2', label: 'Dropped', savedAt: Date.UTC(2026, 9, 10), result: { routes: [] }, save: { ...save, key: 'k2' } },
+      { id: 'a3', label: 'Missing', savedAt: Date.UTC(2026, 9, 10), result: { routes: [] }, save: null },
+    ] as never;
+    const t = textOf(
+      await renderHtml(SavedAnswers, { playerId: 'P', defaultLabel: 'x', zone: 'America/Denver' }, {}, [pinia])
+    );
+    expect(t).toMatch(/Kept no route · saved .*Open Delete Use the save from Oct 3, 2026, 9:39\sPM \(TE 230\) Download this save/);
+    expect(t).toMatch(/Dropped .*The save for this one was dropped to make room \(only the 30 newest saves are kept here\)\./);
+    expect(t).toMatch(/Missing .*The save for this one wasn't kept \(it was no longer on this device when this was saved\)\./);
   });
 
   it('shows no list with nothing saved', async () => {

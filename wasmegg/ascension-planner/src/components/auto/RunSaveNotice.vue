@@ -2,7 +2,8 @@
   Which save the results on screen belong to, when it is not the latest.
 
   Carrying on an interrupted run loads the save it started with, so its two halves are priced on one
-  farm. That is right for comparing its plans, but the player has usually moved on since -- so this
+  farm. "Use the save from…" on a saved answer or run, and "Load a save file", load an older save on
+  purpose; the notice says which, and that searches started now run on it. That is right for comparing its plans, but the player has usually moved on since -- so this
   says so, offers the latest save back, and then re-prices the fastest few on it, by finish date.
 -->
 <template>
@@ -10,7 +11,17 @@
     v-if="ui.runSaveLoaded"
     class="p-3 rounded-xl border border-violet-200 bg-violet-50 text-[11px] text-violet-900 leading-relaxed space-y-2"
   >
-    <p>
+    <p v-if="ui.runSaveLoaded.from === 'entry' || ui.runSaveLoaded.from === 'file'">
+      <span class="font-black uppercase tracking-wide">Using your save from {{ when(ui.runSaveLoaded.backupAt) }}.</span>
+      The planner is using
+      <template v-if="ui.runSaveLoaded.from === 'entry'"
+        >the save that "{{ ui.runSaveLoaded.label }}" was priced from (TE {{ ui.runSaveLoaded.te }})</template
+      ><template v-else>the save from your file (TE {{ ui.runSaveLoaded.te }})</template>, not your latest one. Your plan,
+      Simulate this plan, Check exactly and any search you start now use this save<template v-if="store.isRunning || store.deadlineRunning"
+        >, including the search running now</template
+      >. Anything you send to the leaderboard says how old this save is.
+    </p>
+    <p v-else>
       <span class="font-black uppercase tracking-wide">Using the save this run started with.</span>
       The planner is using your save from {{ when(ui.runSaveLoaded.backupAt) }} (TE {{ ui.runSaveLoaded.te }}), so the
       run carries on with the farm it began on. Your latest save may differ; load it again when the run is done.

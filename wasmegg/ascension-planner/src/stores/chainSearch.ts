@@ -212,6 +212,17 @@ import {
   type RunSaveSummary,
   accountOf,
 } from '@/search/runSaves';
+import {
+  keepSave,
+  listKeptSaves,
+  loadKeptSave,
+  parseSaveFile,
+  pruneKeptSaves,
+  backupText,
+  saveFileName,
+  type EntrySave,
+  type KeptSaveSummary,
+} from '@/search/keptSaves';
 import { epicResearchDefs } from '@/lib/epicResearch';
 import { deliveryScore } from '@/search/virtueScore';
 import { getColleggtibleTiers } from 'lib/collegtibles';
@@ -1772,12 +1783,25 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   const savedRuns = ref<RunSummary[]>([]);
 
   async function refreshSavedRuns(playerId: string): Promise<void> {
-    savedRuns.value = await listRuns(await hashID(playerId));
+    const hash = await hashID(playerId);
+    savedRuns.value = await listRuns(hash);
+    await refreshKeptSaves(hash);
   }
 
   async function saveCurrentRun(playerId: string, label?: string): Promise<RunSummary | null> {
     if (!bestChain.value.length || bestDays.value <= 0) return null;
-    const summary = await saveRun(await hashID(playerId), {
+    const hash = await hashID(playerId);
+    // The save it was priced from, kept while the run is saved (search/keptSaves.ts).
+    const save = await entrySaveFor(hash, {
+      inputsKey: openedRun.value ? openedRun.value.inputsKey : runInputsKey,
+      backupAt:
+        accountUsed?.backupTime ??
+        (openedRun.value ? null : ((runBackupUsed as { approxTime?: number } | null)?.approxTime ?? null)),
+      te: runTEUsed ?? currentTE.value,
+      save: openedRun.value?.save,
+    });
+    const summary = await saveRun(hash, {
+      save,
       label: label?.trim() || defaultRunLabel(finalTE.value, bestChain.value, bestDays.value),
       currentTE: runTEUsed ?? currentTE.value,
       // The run's own target -- its chain ends there -- not the target box as it reads now, which the
@@ -1804,6 +1828,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         : {}),
     });
     await refreshSavedRuns(playerId);
+    await pruneKept(hash);
     return summary;
   }
 
@@ -1844,8 +1869,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       const own = runSaveFor(summary.inputsKey);
       runBackupUsed = null;
       runTEUsed = summary.currentTE;
-      accountUsed = own?.backupAt
-        ? { ...accountFields(summary.currentTE), backupTime: own.backupAt, backupTE: own.te }
+      // Else the save the run keeps for good (keptSaves.ts), whose moment and TE are the same facts.
+      const kept = own?.backupAt ? own : summary.save?.backupAt ? summary.save : null;
+      accountUsed = kept
+        ? { ...accountFields(summary.currentTE), backupTime: kept.backupAt, backupTE: kept.te }
         : null;
     }
     runNoteUsed.value = summary.runNote;
@@ -2126,8 +2153,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   }
 
   async function deleteSavedRun(playerId: string, id: string): Promise<void> {
-    await deleteRun(await hashID(playerId), id);
+    const hash = await hashID(playerId);
+    await deleteRun(hash, id);
     await refreshSavedRuns(playerId);
+    await pruneKept(hash);
   }
 
   /** Rewrite the seed box so the chain sits inside the Limits box. Drives the panel's one-click fix. */
@@ -2179,15 +2208,21 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   }
 
   /** Drop stored saves nothing unfinished refers to: the checkpoint slot, the moved-aside runs, the
-   *  saved runs, and the run in progress. They exist only to finish a run. */
+   *  saved runs, and the run in progress; plus the last result of each kind, until it is replaced.
+   *  They exist to finish a run (and to be kept for good when its result is saved: keptSaves.ts). */
   async function pruneSaves(slot: SearchCheckpoint | null, hash = partitionHash): Promise<void> {
     // One player's partition throughout, fixed at the call: `partitionHash` is store-wide, and a
     // player switch during these awaits used to build the keep-list from one player's runs and prune
     // the other's saves with it.
     const keep = new Set<string>();
     if (runInputsKey) keep.add(runInputsKey);
-    if (slot && !slot.complete && slot.inputsKey) keep.add(slot.inputsKey);
+    // Finished too: the last result of each kind keeps its save until a newer one replaces it, so
+    // "Save this answer" / "Save this run" can still keep the exact save it was priced from
+    // (`entrySaveFor`) after a reload, or after the latest save has moved on. One copy each.
+    if (slot?.inputsKey) keep.add(slot.inputsKey);
     try {
+      const last = await loadDeadlineResult(hash);
+      if (last?.inputsKey) keep.add(last.inputsKey);
       for (const r of await listInterrupted(hash)) if (r.inputsKey) keep.add(r.inputsKey);
       // A finished result still waiting to be sent keeps its run's save.
       for (const p of await listPendingSends(hash)) if (p.inputsKey) keep.add(p.inputsKey);
@@ -4723,7 +4758,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // And by the SAVE, when the opened run knows which one it was priced under: two saves at the
     // same TE are two farms, and the fingerprint cannot tell them apart.
     const startInputs = options.own ?? collectInputs();
-    if (!options.own) resultsFromOlderSave.value = null;
+    if (!options.own) resultsFromOlderSave.value = pickedOlderSave(planStart.value);
     latestRecheck.value = null;
     const startKey = runSaveKey(startInputs);
     const carried = new Map<string, CacheEntry>();
@@ -5122,14 +5157,23 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   const savedAnswers = ref<SavedAnswer[]>([]);
   async function refreshSavedAnswers(playerId: string): Promise<void> {
     if (!playerId) return;
-    savedAnswers.value = await listSavedAnswers(await hashID(playerId));
+    const hash = await hashID(playerId);
+    savedAnswers.value = await listSavedAnswers(hash);
+    await refreshKeptSaves(hash);
   }
-  /** Keep the answer on screen under a name. */
+  /** Keep the answer on screen under a name, with the save it was priced from (`entrySaveFor`). */
   async function saveCurrentAnswer(playerId: string, label: string): Promise<void> {
     if (!playerId || !deadlineResult.value) return;
     const hash = await hashID(playerId);
-    await saveAnswer(hash, JSON.parse(JSON.stringify(deadlineResult.value)) as SavedDeadlineResult, label);
+    const result = JSON.parse(JSON.stringify(deadlineResult.value)) as SavedDeadlineResult;
+    const save = await entrySaveFor(hash, {
+      inputsKey: result.inputsKey,
+      backupAt: result.backupAt ?? (result.account?.backupTime as number | null | undefined) ?? null,
+      te: result.te,
+    });
+    await saveAnswer(hash, result, label, Date.now(), save);
     savedAnswers.value = await listSavedAnswers(hash);
+    await pruneKept(hash);
   }
   /** Show a saved answer as the current one (it doesn't re-run anything). */
   function openSavedAnswer(id: string): void {
@@ -5152,6 +5196,245 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const hash = await hashID(playerId);
     await deleteSavedAnswer(hash, id);
     savedAnswers.value = await listSavedAnswers(hash);
+    await pruneKept(hash);
+  }
+
+  // ------------------------------------------------------------------ saves kept for saved entries
+  //
+  // Saved answers and Saved runs keep the save they were priced from (search/keptSaves.ts), so an
+  // entry can bring that save back as the planner's active save after the game has moved on: the
+  // game only ever serves the current one.
+
+  /** The kept saves' index for the player whose entries are listed. */
+  const keptSaves = ref<KeptSaveSummary[]>([]);
+  async function refreshKeptSaves(hash: string): Promise<void> {
+    try {
+      keptSaves.value = await listKeptSaves(hash);
+    } catch (e) {
+      console.warn('chain search: could not read the kept saves', e);
+    }
+  }
+
+  /**
+   * What a saved entry can say about its save: 'kept' (Use it, Download it), 'dropped' (it named one,
+   * since dropped to make room), 'missing' (saved when its save was no longer here to keep) or
+   * 'before' (saved before saves were kept).
+   */
+  function entrySaveState(entry: { save?: EntrySave | null }): 'kept' | 'dropped' | 'missing' | 'before' {
+    if (entry.save === undefined) return 'before';
+    if (entry.save === null) return 'missing';
+    return keptSaves.value.some(s => s.key === entry.save!.key) ? 'kept' : 'dropped';
+  }
+
+  /**
+   * Keep the exact save a result was priced from, for a saved entry, and say which it is; null when
+   * that save is no longer anywhere on this device. In order:
+   *   1. the save its run stored to carry on with (runSaves.ts, by `inputsKey`): exact by construction;
+   *   2. a save already kept from the same moment (an opened entry saved again, a second answer);
+   *   3. the save loaded now, when it is that same save (same moment).
+   * Never fails the save of the entry itself: a storage error only costs its save.
+   */
+  async function entrySaveFor(
+    hash: string,
+    src: { inputsKey?: string | null; backupAt?: number | null; te: number; save?: EntrySave | null }
+  ): Promise<EntrySave | null> {
+    try {
+      const kept = await listKeptSaves(hash);
+      if (src.save && kept.some(k => k.key === src.save!.key)) return src.save;
+      if (src.inputsKey) {
+        const inputs = await loadRunInputs(hash, src.inputsKey);
+        const raw = inputs?.context?.rawBackup;
+        if (inputs && raw) {
+          const k = await keepSave(hash, raw, inputs.currentTE);
+          return { key: k.key, te: inputs.currentTE, backupAt: k.backupAt };
+        }
+      }
+      const at = src.backupAt ?? 0;
+      if (!(at > 0)) return null;
+      const same = kept.find(k => k.backupAt === at);
+      if (same) return { key: same.key, te: src.te, backupAt: same.backupAt };
+      const loaded = toRaw(useInitialStateStore().rawBackup) as { approxTime?: number } | null;
+      if (loaded && loaded.approxTime === at) {
+        const k = await keepSave(hash, loaded, src.te);
+        return { key: k.key, te: src.te, backupAt: k.backupAt };
+      }
+    } catch (e) {
+      console.warn('chain search: could not keep the save for this entry', e);
+    }
+    return null;
+  }
+
+  /** Drop kept saves no saved entry names any more, or past the cap (keptSaves.ts `keptToKeep`). */
+  async function pruneKept(hash: string): Promise<void> {
+    try {
+      const refs: { key: string; at: number }[] = [];
+      for (const a of await listSavedAnswers(hash)) if (a.save) refs.push({ key: a.save.key, at: a.savedAt });
+      for (const r of await listRuns(hash)) if (r.save) refs.push({ key: r.save.key, at: r.savedAt });
+      keptSaves.value = await pruneKeptSaves(hash, refs);
+    } catch (e) {
+      console.warn('chain search: could not tidy the kept saves', e);
+    }
+  }
+
+  /** Why the last "Use the save" / "Load a save file" / download did not happen, for the lists. */
+  const olderSaveError = ref<string | null>(null);
+
+  /** Put stored settings (a saved answer's `settings`) back in Your setup: what it was priced under. */
+  function applyStoredSettings(st: unknown): void {
+    const set = settingsOf(st);
+    if (!set) return;
+    setFirstAscension(set.firstAscension);
+    if (typeof set.deferShifts === 'boolean') deferShifts.value = set.deferShifts;
+    if (set.availability) {
+      scheduleEnabled.value = true;
+      availableFrom.value = set.availability.fromHour;
+      availableTo.value = set.availability.toHour;
+      availableDays.value = [...set.availability.days];
+      const planner = useAutoPlannerStore();
+      if (set.availability.timezone && planner.timezone !== set.availability.timezone) {
+        planner.timezone = set.availability.timezone;
+      }
+    } else {
+      scheduleEnabled.value = false;
+    }
+    if (Array.isArray(set.timeOff)) timeOff.value = JSON.parse(JSON.stringify(set.timeOff)) as TimeOffDates[];
+  }
+
+  /**
+   * Make an older save the planner's active save, the way carrying on a run does
+   * (`prepareToCarryOn`): the planner is rebuilt on it, RunSaveNotice says so with "Load my latest
+   * save", and Your plan, Simulate this plan, Check exactly and every new search use it. Anything sent
+   * from it carries that save's own moment and TE (`accountFields` reads the loaded save), so the
+   * board's backup-age and what-if rules see it as it is.
+   */
+  async function loadOlderSave(
+    playerId: string,
+    raw: unknown,
+    o: {
+      from: 'entry' | 'file';
+      label?: string;
+      te?: number;
+      planStart?: number;
+      fingerprint?: string;
+      settings?: unknown;
+    }
+  ): Promise<boolean> {
+    const ui = useUIStore();
+    const now = accountOf(toRaw(useInitialStateStore().rawBackup));
+    const then = accountOf(raw);
+    if (now && then && now !== then) {
+      olderSaveError.value = "That save is another account's than the one loaded now, so it wasn't loaded.";
+      return false;
+    }
+    try {
+      // Loaded on demand, as for a carry-on: it pulls in the whole save loader.
+      const { initPlanFuture } = await import('@/lib/modes/planFuture');
+      await initPlanFuture(playerId, raw as never);
+    } catch (e) {
+      olderSaveError.value = `That save could not be loaded (${describeRunError(e)}). Load your latest save to carry on.`;
+      return false;
+    }
+    if (o.fingerprint) applyRunSettings(o.fingerprint);
+    else if (o.settings) applyStoredSettings(o.settings);
+    const backupAt = (raw as { approxTime?: number }).approxTime ?? 0;
+    // From that point in time: the entry's own start, else the save's own moment.
+    const start = o.planStart || fingerprintPlanStart(o.fingerprint) || backupAt;
+    if (start) pinPlanStart(start);
+    ui.staleBackup = null;
+    ui.runSaveLoaded = {
+      te: o.te ?? currentTE.value,
+      backupAt,
+      from: o.from,
+      ...(o.label ? { label: o.label } : {}),
+    };
+    ownSaveBackup = toRaw(useInitialStateStore().rawBackup);
+    // Banners about the previous results (a carry-on's older save, its re-check) don't apply.
+    resultsFromOlderSave.value = null;
+    latestRecheck.value = null;
+    return true;
+  }
+
+  /**
+   * "Use the save from <date> (TE N)" on a saved entry: its kept save as the active save, with the
+   * settings and plan start it was priced under put back.
+   */
+  async function useEntrySave(
+    playerId: string,
+    entry: { label: string; save?: EntrySave | null; planStart?: number; fingerprint?: string; settings?: unknown }
+  ): Promise<boolean> {
+    olderSaveError.value = null;
+    if (!playerId || !entry.save) return false;
+    if (busy.value || useUIStore().loading) {
+      olderSaveError.value = 'A search is running or a save is loading. Try again when it is done.';
+      return false;
+    }
+    preparing.value = true;
+    try {
+      const hash = await hashID(playerId);
+      const raw = await loadKeptSave(hash, entry.save.key);
+      if (!raw) {
+        olderSaveError.value = 'That save is no longer kept on this device.';
+        await refreshKeptSaves(hash);
+        return false;
+      }
+      return await loadOlderSave(playerId, raw, {
+        from: 'entry',
+        label: entry.label,
+        te: entry.save.te,
+        planStart: entry.planStart,
+        fingerprint: entry.fingerprint,
+        settings: entry.settings,
+      });
+    } finally {
+      preparing.value = false;
+    }
+  }
+
+  /** A saved entry's kept save as a file: the game's backup as JSON, named by TE and date (no id). */
+  async function entrySaveFile(playerId: string, save: EntrySave): Promise<{ name: string; text: string } | null> {
+    olderSaveError.value = null;
+    const raw = await loadKeptSave(await hashID(playerId), save.key);
+    if (!raw) {
+      olderSaveError.value = 'That save is no longer kept on this device.';
+      return null;
+    }
+    return { name: saveFileName(save, planTimezone()), text: backupText(raw) };
+  }
+
+  /** "Load a save file": a downloaded save (or the game's backup as JSON) as the active save. */
+  async function loadSaveFile(playerId: string, text: string): Promise<boolean> {
+    olderSaveError.value = null;
+    if (!playerId) {
+      olderSaveError.value = 'Enter your player ID at the top of the page first.';
+      return false;
+    }
+    if (busy.value || useUIStore().loading) {
+      olderSaveError.value = 'A search is running or a save is loading. Try again when it is done.';
+      return false;
+    }
+    let raw: ReturnType<typeof parseSaveFile>;
+    try {
+      raw = parseSaveFile(text);
+    } catch (e) {
+      olderSaveError.value = e instanceof Error ? e.message : String(e);
+      return false;
+    }
+    preparing.value = true;
+    try {
+      // What the fetch does to every save it hands over (fetchBackup.ts); a no-op when already done.
+      const { resolveColleggtibleContracts } = await import('lib');
+      resolveColleggtibleContracts(raw);
+      return await loadOlderSave(playerId, raw, { from: 'file' });
+    } finally {
+      preparing.value = false;
+    }
+  }
+
+  /** A search starting on a save the player picked (an entry's, a file's): its results say so after
+   *  the latest save is loaded back (RunSaveNotice), as a carried-on run's do. */
+  function pickedOlderSave(start: number): { te: number; backupAt: number; planStart: number } | null {
+    const l = useUIStore().runSaveLoaded;
+    return l && (l.from === 'entry' || l.from === 'file') ? { te: l.te, backupAt: l.backupAt, planStart: start } : null;
   }
 
   /** The saved result and any unfinished run, for the panel to show on opening. */
@@ -6483,7 +6766,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     stage.value = 'starting workers';
     detail.value = '';
 
-    if (!own) resultsFromOlderSave.value = null;
+    if (!own) resultsFromOlderSave.value = pickedOlderSave(planStart.value);
     latestRecheck.value = null;
     const startKey = runSaveKey(startInputs);
     let restoredCache: CacheEntry[] | undefined;
@@ -7154,6 +7437,12 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     saveCurrentAnswer,
     openSavedAnswer,
     removeSavedAnswer,
+    keptSaves,
+    entrySaveState,
+    useEntrySave,
+    entrySaveFile,
+    loadSaveFile,
+    olderSaveError,
     deadlineUnfinished,
     deadlineStartedAt,
     deadlineInBatch,

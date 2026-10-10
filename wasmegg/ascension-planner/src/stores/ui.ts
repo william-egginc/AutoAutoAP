@@ -36,10 +36,14 @@ export const useUIStore = defineStore('ui', () => {
    */
   const staleBackup = ref<string | null>(null);
   /**
-   * Set while the planner holds a run's OWN stored save rather than the player's latest: carrying
-   * on an interrupted run loads the save it started with. Cleared by the next fresh fetch.
+   * Set while the planner holds an older save rather than the player's latest: carrying on an
+   * interrupted run loads the save it started with (`from` 'run' or absent); "Use the save from…" on a
+   * Saved answers or Saved runs entry loads the save it was priced from ('entry', `label` its name);
+   * "Load a save file" loads a downloaded one ('file'). Cleared by the next fresh fetch.
    */
-  const runSaveLoaded = ref<{ te: number; backupAt: number } | null>(null);
+  const runSaveLoaded = ref<{ te: number; backupAt: number; from?: 'run' | 'entry' | 'file'; label?: string } | null>(
+    null
+  );
   /** Bumped to ask App.vue to open Classic with the chain a search just applied, in place (no reload). */
   const openPlannerRequested = ref(0);
   /** A route the instant answer's "Simulate this plan" sent to Classic (search/simulateRoute.ts): Classic
