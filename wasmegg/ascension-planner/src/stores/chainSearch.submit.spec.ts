@@ -100,6 +100,52 @@ describe('submitting a result', () => {
     expect(s.pendingTable).toBeNull();
   });
 
+  it('sends a table over 8 MB in parts (1..m-1, then 0), not dropped as too large', async () => {
+    const s = await store();
+    const MB = 1024 * 1024;
+    s.pendingTable = {
+      source: 'fastest',
+      url: 'https://collector.test/csv?id=feed1234',
+      token: 't',
+      body: new ArrayBuffer(17 * MB),
+    };
+    const calls = collector(json({ ok: true }), json({ ok: true }), json({ ok: true, part: 0, parts: 3 }));
+    const res = await s.retryTable('fastest');
+    expect(res.message).toMatch(/with the full CSV \(17\.0 MB compressed, in 3 parts\)/);
+    expect(calls).toEqual([
+      'https://collector.test/csv?id=feed1234&part=1&parts=3',
+      'https://collector.test/csv?id=feed1234&part=2&parts=3',
+      'https://collector.test/csv?id=feed1234&part=0&parts=3',
+    ]);
+    expect(s.pendingTable).toBeNull();
+  });
+
+  it('keeps a big table for Retry when the board does not take parts yet', async () => {
+    const s = await store();
+    s.pendingTable = {
+      source: 'fastest',
+      url: 'https://collector.test/csv?id=feed1234',
+      token: 't',
+      body: new ArrayBuffer(9 * 1024 * 1024),
+    };
+    collector(json({ error: 'body must be gzip' }, 400));
+    expect((await s.retryTable('fastest')).message).toMatch(/doesn't take a table over 8\.0 MB yet/);
+    expect(s.pendingTable).not.toBeNull();
+  });
+
+  it('still says too large past 64 MB, without sending', async () => {
+    const s = await store();
+    s.pendingTable = {
+      source: 'fastest',
+      url: 'https://collector.test/csv?id=feed1234',
+      token: 't',
+      body: new ArrayBuffer(65 * 1024 * 1024),
+    };
+    const calls = collector();
+    expect((await s.retryTable('fastest')).message).toMatch(/too large for the board .*limit 64\.0 MB/);
+    expect(calls).toHaveLength(0);
+  });
+
   it('treats "already stored" on a retry as done', async () => {
     const s = await store();
     collector(json({ ok: true, id: 'abcd1234', uploadToken: 't' }), json({ error: 'x' }, 502));

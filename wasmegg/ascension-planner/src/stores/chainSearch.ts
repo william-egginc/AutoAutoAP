@@ -122,7 +122,9 @@ import {
   PROGRESS_CSV_TIMEOUT_MS,
   progressDetail,
   PROGRESS_CSV_LIMIT_BYTES,
+  CSV_PART_BYTES,
   sizeLabel,
+  uploadCsv,
   type ProgressCsv,
 } from '@/search/progressSend';
 import { useShareExtras } from '@/composables/useShareExtras';
@@ -348,11 +350,12 @@ const BUILT_AT: string = typeof __BUILD_TIME__ === 'string' ? __BUILD_TIME__ : '
 /** How long a POST /submit may go unanswered before the send says so instead of waiting for ever. */
 const SUBMIT_TIMEOUT_MS = 90_000;
 
-/** The collector's cap on a gzipped table (collector/worker.js, MAX.CSV_BYTES). */
-const TABLE_LIMIT_BYTES = 8 * 1024 * 1024;
+/** The collector's cap on a gzipped table: 8 MB an upload (MAX.CSV_BYTES), in up to 8 parts past
+ *  that (MAX.CSV_PARTS; search/progressSend.ts `uploadCsv`). */
+const TABLE_LIMIT_BYTES = PROGRESS_CSV_LIMIT_BYTES;
 
 function tableTooLargeMessage(size: string): string {
-  return `sent, but the table is too large for the board (${size} compressed, limit 8 MB). The summary is in. Keep the table with Download CSV and send the file to whoever runs the board; retrying will not help.`;
+  return `sent, but the table is too large for the board (${size} compressed, limit ${sizeLabel(TABLE_LIMIT_BYTES)}). The summary is in. Keep the table with Download CSV and send the file to whoever runs the board; retrying will not help.`;
 }
 
 /** What the progress bar shows for the run going now (see `runProgress`). */
@@ -3763,7 +3766,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
 
   /**
    * The CSV so far after a progress send's row: compressed a chunk at a time (search/progressSend.ts),
-   * stopped at the collector's 8 MB, and posted with the row's own token. Never throws: what happened
+   * stopped at the collector's 64 MB, and posted (in parts past 8 MB) with the row's own token. Never throws: what happened
    * comes back as a `ProgressCsv` for the status line.
    */
   /** How a progress send in flight is told to give up its CSV so far. */
@@ -3808,19 +3811,27 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       return { kind: 'failed', why: 'it could not be compressed in this browser' };
     }
     if (!gz.ok) return { kind: 'too-big', bytes: gz.atLeast };
-    try {
-      const res = await fetch(`${submitUrl.replace(/\/submit\/?$/, '/csv')}?id=${encodeURIComponent(id)}`, {
-        method: 'POST',
-        // As `postTable`: gzip bytes posted as data, not a transfer encoding.
-        headers: { 'content-type': 'application/gzip', 'x-upload-token': token },
-        body: gz.body,
-      });
-      // 409: an earlier try landed and its answer was lost.
-      if (res.ok || res.status === 409) return { kind: 'sent', bytes: gz.body.byteLength };
-      if (res.status === 413) return { kind: 'too-big', bytes: gz.body.byteLength };
-      return { kind: 'failed', why: `the board answered ${res.status}` };
-    } catch {
-      return { kind: 'failed', why: 'the connection dropped' };
+    // Over 8 MB it goes in parts, each retried (search/progressSend.ts `uploadCsv`).
+    const up = await uploadCsv(
+      `${submitUrl.replace(/\/submit\/?$/, '/csv')}?id=${encodeURIComponent(id)}`,
+      token,
+      gz.body
+    );
+    const bytes = gz.body.byteLength;
+    switch (up.kind) {
+      case 'stored':
+      // An earlier try landed and its answer was lost.
+      // falls through
+      case 'already':
+        return { kind: 'sent', bytes };
+      case 'too-big':
+        return { kind: 'too-big', bytes };
+      case 'no-parts':
+        return { kind: 'failed', why: `the board doesn't take a CSV over ${sizeLabel(CSV_PART_BYTES)} yet` };
+      case 'refused':
+        return { kind: 'failed', why: 'the board answered 403' };
+      default:
+        return { kind: 'failed', why: up.why };
     }
   }
 
@@ -3975,7 +3986,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   /**
    * Keep the run that just finished (or was stopped with an answer) for sending: payload, CSV, save.
    * Built after the workers are gone and before any send, the CSV streamed into gzip; over the
-   * board's 8 MB a By a date file tries again with legs for fewer routes. Never throws.
+   * board's 64 MB a By a date file tries again with legs for fewer routes. Never throws.
    */
   function keepFinishedResult(kind: PendingKind): Promise<void> {
     const go = async () => {
@@ -4275,22 +4286,14 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const mb = kb < 100 ? `${Math.max(1, Math.round(kb))} KB` : `${(kb / 1024).toFixed(1)} MB`;
     // Past the collector's cap the upload can only be refused (413), and "Retry the table" would
     // send the same bytes again forever. Say so, without spending the upload. The largest table
-    // so far (41,581 chains, 8 ascensions) is 3.3 MB compressed, so this takes ~100,000 chains of 8.
+    // so far (41,581 chains, 8 ascensions) is 3.3 MB compressed; over 8 MB a table goes in parts
+    // (search/progressSend.ts `uploadCsv`), so this cap is 64 MB.
     if (table.body.byteLength > TABLE_LIMIT_BYTES) {
       pendingTable.value = null;
       return { ok: true, message: tableTooLargeMessage(mb) };
     }
-    let res: Response;
-    try {
-      res = await fetch(table.url, {
-        method: 'POST',
-        // Deliberately not `content-encoding: gzip`, which would invite something in the path to
-        // helpfully inflate the body before the Worker sees it. These are gzip bytes being posted
-        // as data, not a transfer encoding, and the type says so.
-        headers: { 'content-type': 'application/gzip', 'x-upload-token': table.token },
-        body: table.body,
-      });
-    } catch {
+    const up = await uploadCsv(table.url, table.token, table.body);
+    if (up.kind === 'failed' && up.status === undefined) {
       // Offline or dropped mid-upload: the token is still good and no table is stored yet.
       return {
         ok: true,
@@ -4298,20 +4301,28 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           'sent, but the table did not upload (the connection dropped). The summary is in. Press Retry the table to send just the table.',
       };
     }
-    if (res.ok) {
+    if (up.kind === 'stored') {
       pendingTable.value = null;
-      return { ok: true, message: `sent, with the full CSV (${mb} compressed)`, landed: 'new', size: mb };
+      const parts = up.parts > 1 ? `, in ${up.parts} parts` : '';
+      return { ok: true, message: `sent, with the full CSV (${mb} compressed${parts})`, landed: 'new', size: mb };
     }
-    if (res.status === 413) {
+    if (up.kind === 'too-big') {
       pendingTable.value = null;
       return { ok: true, message: tableTooLargeMessage(mb) };
     }
-    if (res.status === 409) {
+    if (up.kind === 'no-parts') {
+      // A collector from before parts: nothing was stored, and the token stays good for when it is updated.
+      return {
+        ok: true,
+        message: `sent, but the board doesn't take a table over ${sizeLabel(CSV_PART_BYTES)} yet (${mb} compressed). The summary is in. Keep the table with Download CSV; Retry the table works once the board is updated.`,
+      };
+    }
+    if (up.kind === 'already') {
       // Stored already -- most likely an earlier attempt that landed but whose answer was lost.
       pendingTable.value = null;
       return { ok: true, message: 'sent, and the table was already stored', landed: 'already', size: mb };
     }
-    if (res.status === 403) {
+    if (up.kind === 'refused') {
       // The token does not match. In practice a tab running a build from before the collector
       // changed its upload rules; retrying from this tab cannot help, a reload can.
       pendingTable.value = null;
@@ -4324,7 +4335,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // Anything else (a 5xx, a restart mid-deploy) is worth another go with the same token.
     return {
       ok: true,
-      message: `sent, but the table did not upload (${res.status}). The summary is in. Press Retry the table to send just the table.`,
+      message: `sent, but the table did not upload (${up.kind === 'failed' ? up.status : 'unknown'}). The summary is in. Press Retry the table to send just the table.`,
     };
   }
 

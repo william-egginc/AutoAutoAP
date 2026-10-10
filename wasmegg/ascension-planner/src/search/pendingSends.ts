@@ -12,7 +12,7 @@
  * same result uses the kept CSV rather than building it again, and removes the record when it lands.
  *
  * Plain data in IndexedDB (lib/storage/db.ts), one record each, with no JSON round-trip (an
- * ArrayBuffer does not survive one). Only the newest MAX_PENDING_SENDS are kept: each holds up to 8 MB.
+ * ArrayBuffer does not survive one). Only the newest MAX_PENDING_SENDS are kept: each holds up to 64 MB (8 MB but for the rare run sent in parts).
  */
 import { loadMetadataPrefix, putMetadataRecords } from '@/lib/storage/db';
 import type { Submission } from './submission';

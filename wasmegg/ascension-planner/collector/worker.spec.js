@@ -33,6 +33,11 @@ function makeKV() {
     async get(k) {
       return m.has(k) ? m.get(k) : null;
     },
+    /** Counted as a get (countKV wraps `get`): it is one KV read. */
+    async getWithMetadata(k, type) {
+      const value = await this.get(k, type);
+      return { value, metadata: value !== null && meta.has(k) ? meta.get(k) : null };
+    },
     async put(k, v, opts) {
       m.set(k, v);
       if (opts && opts.metadata) meta.set(k, opts.metadata);
@@ -653,6 +658,137 @@ describe('the CSV half', () => {
     await postCsv(id, await gz('rank,chain\n1,195 490\n'), uploadToken);
     board = await (await get('/leaderboard?final=490')).json();
     expect(board.rows[0].hasCsv).toBe(true);
+  });
+
+  // A big run's gzip can pass the 8 MB a request: the app cuts the gzip BYTES into parts, sends parts
+  // 1..m-1, then part 0, which seals the file at `csv:<id>`. GET /csv joins them into one .csv.gz.
+  describe('a CSV in parts', () => {
+    const postPart = (id, body, token, part, parts) =>
+      worker.fetch(
+        new Request(`https://collector.test/csv?id=${id}&part=${part}&parts=${parts}`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/gzip', ...(token ? { 'x-upload-token': token } : {}) },
+          body,
+        }),
+        env
+      );
+    /** Non-repeating text, so the gzip is long enough to cut into three real slices. */
+    const bigCsv = () =>
+      'rank,chain,days\n' + Array.from({ length: 3000 }, (_, i) => `${i},195 ${(i * 7919) % 10007},${(i * 0.37).toFixed(3)}`).join('\n');
+    const slices = (buf, m) => {
+      const u = new Uint8Array(buf);
+      const size = Math.ceil(u.byteLength / m);
+      return Array.from({ length: m }, (_, n) => u.slice(n * size, (n + 1) * size));
+    };
+
+    it('stores parts 1..m-1 under csv:<id>:p<n>, seals with part 0, and serves the file joined', async () => {
+      const csv = bigCsv();
+      const [p0, p1, p2] = slices(await gz(csv), 3);
+      const { id, uploadToken } = await submitted();
+      expect((await postPart(id, p1, uploadToken, 1, 3)).status).toBe(200);
+      expect((await postPart(id, p2, uploadToken, 2, 3)).status).toBe(200);
+      // Not a CSV until it is sealed: no hasCsv, nothing to download.
+      expect((await (await get('/leaderboard?final=490')).json()).rows.find(r => r.id === id).hasCsv).toBe(false);
+      expect((await get('/csv?id=' + id)).status).toBe(404);
+      const sealed = await postPart(id, p0, uploadToken, 0, 3);
+      expect(sealed.status).toBe(200);
+      expect(await sealed.json()).toMatchObject({ ok: true, part: 0, parts: 3 });
+      expect(env.SUBMISSIONS._meta.get('csv:' + id)).toEqual({ parts: 3 });
+      expect(env.SUBMISSIONS._m.has(`csv:${id}:p1`)).toBe(true);
+      expect(env.SUBMISSIONS._m.has(`csv:${id}:p2`)).toBe(true);
+      expect((await (await get('/leaderboard?final=490')).json()).rows.find(r => r.id === id).hasCsv).toBe(true);
+      const res = await get('/csv?id=' + id);
+      expect(res.status).toBe(200);
+      expect(res.headers.get('content-type')).toBe('application/gzip');
+      expect(await gunzip(await res.arrayBuffer())).toBe(csv);
+    });
+
+    it('joins real KV streams the same way', async () => {
+      const csv = bigCsv();
+      const parts = slices(await gz(csv), 4);
+      const { id, uploadToken } = await submitted();
+      for (const n of [1, 2, 3, 0]) expect((await postPart(id, parts[n], uploadToken, n, 4)).status).toBe(200);
+      const kv = env.SUBMISSIONS;
+      const plain = kv.get.bind(kv);
+      kv.get = async (k, type) => {
+        const v = await plain(k, type);
+        return type === 'stream' && v !== null ? new Response(v).body : v;
+      };
+      expect(await gunzip(await (await get('/csv?id=' + id)).arrayBuffer())).toBe(csv);
+    });
+
+    it('refuses part 0 while a part is missing, and names it', async () => {
+      const [p0, p1, p2] = slices(await gz(bigCsv()), 3);
+      const { id, uploadToken } = await submitted();
+      await postPart(id, p1, uploadToken, 1, 3);
+      const res = await postPart(id, p0, uploadToken, 0, 3);
+      expect(res.status).toBe(422);
+      expect((await res.json()).missing).toEqual([2]);
+      expect(env.SUBMISSIONS._m.has('csv:' + id)).toBe(false);
+      // A lost answer is retried: a part may come again until the file is sealed.
+      expect((await postPart(id, p1, uploadToken, 1, 3)).status).toBe(200);
+      expect((await postPart(id, p2, uploadToken, 2, 3)).status).toBe(200);
+      expect((await postPart(id, p0, uploadToken, 0, 3)).status).toBe(200);
+      // Sealed: write-once, as a single file.
+      expect((await postPart(id, p1, uploadToken, 1, 3)).status).toBe(409);
+      expect((await postPart(id, p0, uploadToken, 0, 3)).status).toBe(409);
+      expect((await postCsv(id, await gz('x'), uploadToken)).status).toBe(409);
+    });
+
+    it('checks the token, the numbers, the size and the gzip magic as for a single file', async () => {
+      const [p0, p1] = slices(await gz(bigCsv()), 2);
+      const { id, uploadToken } = await submitted();
+      expect((await postPart(id, p1, undefined, 1, 2)).status).toBe(403);
+      expect((await postPart(id, p1, 'f'.repeat(64), 1, 2)).status).toBe(403);
+      for (const [n, m] of [
+        [0, 1],
+        [1, 1],
+        [2, 2],
+        [0, 9],
+        [-1, 2],
+        ['x', 2],
+      ])
+        expect((await postPart(id, p1, uploadToken, n, m)).status).toBe(400);
+      const noParts = await worker.fetch(
+        new Request(`https://collector.test/csv?id=${id}&part=1`, {
+          method: 'POST',
+          headers: { 'x-upload-token': uploadToken },
+          body: p1,
+        }),
+        env
+      );
+      expect(noParts.status).toBe(400);
+      expect((await postPart(id, new Uint8Array(8 * 1024 * 1024 + 1), uploadToken, 1, 2)).status).toBe(413);
+      // Part 0 must start the gzip; a later part never does, and needs not.
+      expect((await postPart(id, p1, uploadToken, 0, 2)).status).toBe(400);
+      expect((await postPart(id, p1, uploadToken, 1, 2)).status).toBe(200);
+      expect((await postPart(id, p0, uploadToken, 0, 2)).status).toBe(200);
+      expect(Object.keys(Object.fromEntries(env.SUBMISSIONS._m)).filter(k => k.startsWith('csv:'))).toEqual([
+        `csv:${id}:p1`,
+        `csv:${id}`,
+      ]);
+    });
+
+    // Why part 0 goes last: a collector from before parts ignores `part`/`parts`, and would store the
+    // first part it saw as the whole file. Part 1 has no gzip magic, so it is refused and nothing lands.
+    it('a middle slice posted as a whole file is refused (an old collector stores nothing)', async () => {
+      const [, p1] = slices(await gz(bigCsv()), 2);
+      const { id, uploadToken } = await submitted();
+      expect((await postCsv(id, p1, uploadToken)).status).toBe(400);
+      expect(env.SUBMISSIONS._m.has('csv:' + id)).toBe(false);
+    });
+
+    it('costs one write per part, and the seal one read per other part', async () => {
+      const parts = slices(await gz(bigCsv()), 3);
+      const { id, uploadToken } = await submitted();
+      const counts = countKV(env.SUBMISSIONS);
+      for (const n of [1, 2]) await postPart(id, parts[n], uploadToken, n, 3);
+      // a write-once check each | a part each
+      expect(counts).toMatchObject({ get: 2, put: 2, list: 0, delete: 0 });
+      await postPart(id, parts[0], uploadToken, 0, 3);
+      // write-once check, parts 1 and 2, markCsv's patch read | the seal, the snapshot
+      expect(counts).toMatchObject({ get: 6, put: 4, list: 0, delete: 0 });
+    });
   });
 });
 
@@ -2244,13 +2380,15 @@ describe('provisional rows: a best so far, replaced by its run', () => {
       await settle();
       counts = countKV(env.SUBMISSIONS);
       const two = await (await sendOwned({ ...BEST, durationDays: 695, replaces: one.id })).json();
-      // ... plus the old row, read to check its owner, and deleted with its CSV so far and extras
-      expect(counts).toEqual({ get: 5, put: 3, list: 0, delete: 3 });
+      // ... plus the old row, read to check its owner, and deleted with its CSV so far (its metadata
+      // read first, for a CSV in parts) and extras
+      expect(counts).toEqual({ get: 6, put: 3, list: 0, delete: 3 });
       await settle();
       counts = countKV(env.SUBMISSIONS);
       await sendOwned({ ...FINAL, replaces: two.id });
-      // gate, the snapshot that holds the old row, the old row, the patch's read | one copy-check list
-      expect(counts).toEqual({ get: 4, put: 3, list: 1, delete: 3 });
+      // gate, the snapshot that holds the old row, the old row, the old CSV's metadata, the patch's
+      // read | one copy-check list
+      expect(counts).toEqual({ get: 5, put: 3, list: 1, delete: 3 });
       await settle();
       counts = countKV(env.SUBMISSIONS);
       await sendOwned({ ...FINAL, durationDays: 680 });
@@ -2402,6 +2540,30 @@ describe('provisional rows: a best so far, replaced by its run', () => {
     const GZ = new Uint8Array([0x1f, 0x8b, 8, 0, 0, 0, 0, 0, 0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
     const PROGRESS = { ...BEST, diagnostics: { memoryMB: 1200, workers: 6 } };
 
+    it("deletes every part of a replaced row's CSV so far", async () => {
+      const one = await (await sendOwned(PROGRESS)).json();
+      const postPart = (body, part, parts) =>
+        worker.fetch(
+          new Request(`https://collector.test/csv?id=${one.id}&part=${part}&parts=${parts}`, {
+            method: 'POST',
+            headers: { 'x-upload-token': one.uploadToken },
+            body,
+          }),
+          env
+        );
+      expect((await postPart(new Uint8Array([1, 2, 3]), 1, 3)).status).toBe(200);
+      expect((await postPart(new Uint8Array([4, 5, 6]), 2, 3)).status).toBe(200);
+      expect((await postPart(GZ, 0, 3)).status).toBe(200);
+      expect((await postPart(GZ, 0, 3)).status).toBe(409);
+      expect((await allRows())[0]).toMatchObject({ id: one.id, hasCsv: true });
+      const counts = countKV(env.SUBMISSIONS);
+      await sendOwned({ ...FINAL, replaces: one.id });
+      for (const k of [`csv:${one.id}`, `csv:${one.id}:p1`, `csv:${one.id}:p2`, `extra:${one.id}`])
+        expect(env.SUBMISSIONS._m.has(k)).toBe(false);
+      // old row, two parts, the CSV, extras
+      expect(counts.delete).toBe(5);
+    });
+
     it('takes the CSV so far, serves it back, and flips hasCsv on the board as it lands', async () => {
       await secondsApart(async () => {
         const one = await (await sendOwned(PROGRESS)).json();
@@ -2473,15 +2635,17 @@ describe('provisional rows: a best so far, replaced by its run', () => {
         counts = countKV(env.SUBMISSIONS);
         const two = await (await sendOwned({ ...PROGRESS, durationDays: 695, replaces: one.id })).json();
         await postCsvSoFar(two.id, GZ, two.uploadToken);
-        // ... plus the old row read and deleted with its CSV so far and its extras
-        expect(counts).toEqual({ get: 7, put: 6, list: 0, delete: 3 });
+        // ... plus the old row read and deleted with its CSV so far (whose metadata is read, for parts)
+        // and its extras
+        expect(counts).toEqual({ get: 8, put: 6, list: 0, delete: 3 });
         await settle();
         counts = countKV(env.SUBMISSIONS);
         const fin = await (await sendOwned({ ...FINAL, diagnostics: { memoryMB: 1 }, replaces: two.id })).json();
         await postCsvSoFar(fin.id, GZ, fin.uploadToken);
         // gate, the old row's snapshot, the old row, the patch's read, the write-once check, markCsv's
-        // patch read | row, snapshot, gate, extras, table, snapshot | the copy check | old row, CSV, extras
-        expect(counts).toEqual({ get: 6, put: 6, list: 1, delete: 3 });
+        // patch read, the old CSV's metadata | row, snapshot, gate, extras, table, snapshot | the copy
+        // check | old row, CSV, extras
+        expect(counts).toEqual({ get: 7, put: 6, list: 1, delete: 3 });
       });
     });
 

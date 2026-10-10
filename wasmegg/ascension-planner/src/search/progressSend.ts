@@ -10,8 +10,15 @@
  * the whole text at once, and the words for what went.
  */
 
-/** The collector's cap on a gzipped CSV (collector/worker.js, MAX.CSV_BYTES), mid-run as at the end. */
-export const PROGRESS_CSV_LIMIT_BYTES = 8 * 1024 * 1024;
+/** The collector's cap on one upload of a gzipped CSV (collector/worker.js, MAX.CSV_BYTES). */
+export const CSV_PART_BYTES = 8 * 1024 * 1024;
+/** The most parts the collector takes for one CSV (collector/worker.js, MAX.CSV_PARTS). */
+export const CSV_MAX_PARTS = 8;
+/**
+ * The biggest gzipped CSV the collector takes, mid-run as at the end: over CSV_PART_BYTES it goes in
+ * parts (`uploadCsv`), up to CSV_MAX_PARTS of them -- 64 MB compressed, about 1.5 GB of raw CSV.
+ */
+export const PROGRESS_CSV_LIMIT_BYTES = CSV_PART_BYTES * CSV_MAX_PARTS;
 
 /** "640 KB", "2.1 MB": KB under a tenth of a megabyte, so a small CSV never reads "0.0 MB". */
 export function sizeLabel(bytes: number): string {
@@ -145,7 +152,7 @@ export function progressDetail(done: number, unit: string, csv: ProgressCsv): st
 
 /**
  * The sentence after "Sent ..." in the button's status for the CSV so far, '' when there is nothing
- * to say. Too big mid-run is too big at the end too (the same 8 MB cap), so it says where the file is
+ * to say. Too big mid-run is too big at the end too (the same 64 MB cap), so it says where the file is
  * kept rather than promising the final will carry it.
  */
 export function csvNote(csv: ProgressCsv): string {
@@ -161,4 +168,129 @@ export function csvNote(csv: ProgressCsv): string {
     default:
       return '';
   }
+}
+
+/**
+ * The gzip BYTES of one CSV cut into slices of at most `partBytes`, in order. Joined they are the
+ * original file exactly, which is what the collector serves from GET /csv. One slice when it fits.
+ */
+export function csvParts(body: ArrayBuffer, partBytes = CSV_PART_BYTES): ArrayBuffer[] {
+  if (body.byteLength <= partBytes) return [body];
+  const out: ArrayBuffer[] = [];
+  for (let at = 0; at < body.byteLength; at += partBytes) out.push(body.slice(at, at + partBytes));
+  return out;
+}
+
+/** How one CSV upload went (`uploadCsv`). */
+export type CsvUpload =
+  /** Stored: `parts` is 1 for a single upload. */
+  | { kind: 'stored'; parts: number }
+  /** A CSV was already stored for that row (409): most likely an earlier try whose answer was lost. */
+  | { kind: 'already' }
+  /** Past the collector's cap (413), or more parts than it takes: sending again cannot help. */
+  | { kind: 'too-big' }
+  /** The token was refused (403): a tab on an old build, or a collector that changed its rules. */
+  | { kind: 'refused' }
+  /** A big CSV's parts were refused as bad requests (400): a collector from before parts. */
+  | { kind: 'no-parts' }
+  /** It did not upload; `why` in words, `status` when the collector answered. Worth another go. */
+  | { kind: 'failed'; why: string; status?: number };
+
+/** Waits between tries of one part: a dropped connection or a 5xx is usually gone in seconds. */
+const PART_RETRY_MS = [2_000, 8_000];
+
+export interface UploadCsvOptions {
+  /** Defaults to the global fetch. */
+  fetch?: typeof fetch;
+  /** Per part; tests pass 0. */
+  retryMs?: number[];
+  partBytes?: number;
+}
+
+/**
+ * Upload one gzipped CSV to `url` (`<collector>/csv?id=<id>`) with its `token`.
+ *
+ * Up to CSV_PART_BYTES it is one POST, exactly as it always was (no retry here: the callers offer
+ * theirs). Over it, the bytes go in parts (collector/README.md, "A CSV in parts"): parts 1..m-1, then
+ * part 0, which seals the file; each part tried up to three times. A seal refused for missing parts
+ * (422, a part KV had not shown yet or that was lost) sends those again, then the seal, once more.
+ * Never throws.
+ */
+export async function uploadCsv(
+  url: string,
+  token: string,
+  body: ArrayBuffer,
+  opts: UploadCsvOptions = {}
+): Promise<CsvUpload> {
+  const doFetch = opts.fetch ?? ((...a: Parameters<typeof fetch>) => fetch(...a));
+  const retryMs = opts.retryMs ?? PART_RETRY_MS;
+  const parts = csvParts(body, opts.partBytes ?? CSV_PART_BYTES);
+  if (parts.length > CSV_MAX_PARTS) return { kind: 'too-big' };
+
+  const once = async (n: number | null): Promise<Response | Error> => {
+    try {
+      return await doFetch(n === null ? url : `${url}&part=${n}&parts=${parts.length}`, {
+        method: 'POST',
+        // Deliberately not `content-encoding: gzip`, which would invite something in the path to
+        // inflate the body before the Worker sees it: these are gzip bytes posted as data.
+        headers: { 'content-type': 'application/gzip', 'x-upload-token': token },
+        body: n === null ? body : parts[n],
+      });
+    } catch (e) {
+      return e instanceof Error ? e : new Error(String(e));
+    }
+  };
+  /** A final answer, or null to try again. */
+  const outcome = (r: Response | Error, multi: boolean): CsvUpload | null => {
+    if (r instanceof Error) return null;
+    if (r.ok) return { kind: 'stored', parts: parts.length };
+    if (r.status === 409) return { kind: 'already' };
+    if (r.status === 413) return { kind: 'too-big' };
+    if (r.status === 403) return { kind: 'refused' };
+    if (multi && r.status === 400) return { kind: 'no-parts' };
+    if (r.status >= 500 || r.status === 429) return null;
+    return { kind: 'failed', why: `the board answered ${r.status}`, status: r.status };
+  };
+  const failedFrom = (r: Response | Error): CsvUpload =>
+    r instanceof Error
+      ? { kind: 'failed', why: 'the connection dropped' }
+      : { kind: 'failed', why: `the board answered ${r.status}`, status: r.status };
+
+  if (parts.length === 1) {
+    const r = await once(null);
+    return outcome(r, false) ?? failedFrom(r);
+  }
+
+  /** One part, with its retries. The 422 of a seal is handed back as is, for the caller to act on. */
+  const sendPart = async (n: number): Promise<CsvUpload | Response> => {
+    let r: Response | Error = new Error('not sent');
+    for (let attempt = 0; attempt <= retryMs.length; attempt++) {
+      if (attempt > 0) await new Promise(res => setTimeout(res, retryMs[attempt - 1]));
+      r = await once(n);
+      if (n === 0 && !(r instanceof Error) && r.status === 422) return r;
+      const done = outcome(r, true);
+      if (done) return done;
+    }
+    return failedFrom(r);
+  };
+  const isUpload = (x: CsvUpload | Response): x is CsvUpload => !(x instanceof Response);
+
+  for (let n = 1; n < parts.length; n++) {
+    const r = await sendPart(n);
+    if (isUpload(r) && r.kind !== 'stored') return r;
+  }
+  for (let round = 0; round < 2; round++) {
+    const sealed = await sendPart(0);
+    if (isUpload(sealed)) return sealed.kind === 'stored' ? { kind: 'stored', parts: parts.length } : sealed;
+    // 422: some parts are not there. Send them again, then the seal.
+    const missing = ((await sealed.json().catch(() => null)) as { missing?: unknown } | null)?.missing;
+    const list = Array.isArray(missing)
+      ? missing.filter((n): n is number => Number.isInteger(n) && n > 0 && n < parts.length)
+      : [];
+    for (const n of list.length ? list : parts.map((_, i) => i).slice(1)) {
+      const r = await sendPart(n);
+      if (isUpload(r) && r.kind !== 'stored') return r;
+    }
+  }
+  return { kind: 'failed', why: 'the board kept saying a part was missing', status: 422 };
 }
