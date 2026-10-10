@@ -21,6 +21,13 @@ export function tookDuration(seconds: number): string {
   return m ? `${h} h ${m} min` : `${h} h`;
 }
 
+/** A route's time to spare before the deadline: `40 min`, `27.3 h`, `3.5 days`. */
+export function spareLabel(seconds: number): string {
+  if (seconds < 3600) return `${Math.max(0, Math.round(seconds / 60))} min`;
+  if (seconds < 2 * 86400) return `${(seconds / 3600).toFixed(1)} h`;
+  return `${(seconds / 86400).toFixed(1)} days`;
+}
+
 export type SearchedSummary = Pick<
   SavedDeadlineResult,
   | 'simple'

@@ -29,6 +29,9 @@
         </div>
       </div>
     </div>
+    <p v-if="running && days > 0" class="text-[11px] text-emerald-800" data-testid="route-card-still-going">
+      The search is still going, so this can still improve.
+    </p>
 
     <slot />
 

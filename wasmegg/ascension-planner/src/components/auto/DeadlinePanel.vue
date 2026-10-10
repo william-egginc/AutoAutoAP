@@ -477,11 +477,20 @@
             >
           </p>
           <p class="text-[11px] text-slate-500">{{ store.deadlineProgress.stage }}</p>
-          <div v-if="store.deadlineProgress.top.length" class="overflow-x-auto">
+          <!-- The best so far in the finished answer's card (ByDateRouteCard.vue), then the next ones. -->
+          <ByDateRouteCard
+            v-if="liveBest"
+            :route="liveBest"
+            :deadline="store.deadlineRunDeadline || deadline"
+            :zone="plannerZone"
+            running
+          />
+          <div v-if="store.deadlineProgress.top.length > 1" class="overflow-x-auto">
+            <p class="text-[10px] font-black uppercase tracking-widest text-slate-500 pb-1">Top routes so far</p>
             <table class="w-full text-[11px] tabular-nums">
               <thead>
                 <tr class="text-left text-[9px] font-black uppercase tracking-widest text-slate-400">
-                  <th class="pr-4 py-1">Best so far</th>
+                  <th class="pr-4 py-1">Route</th>
                   <th class="pr-4 py-1">Last stop reached</th>
                   <th class="pr-4 py-1">Spare</th>
                 </tr>
@@ -552,49 +561,19 @@
     </p>
 
     <div v-if="result" class="space-y-3">
-      <div v-if="best" class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 space-y-2">
-        <p class="text-[10px] font-black uppercase tracking-widest text-emerald-800">
-          Highest by {{ inPlannerZone(result.deadline) }}
+      <ByDateRouteCard v-if="best" :route="best" :deadline="result.deadline" :zone="plannerZone">
+        <template #heading>
           <span v-if="!store.deadlineRunning && fromEarlier" class="font-semibold normal-case tracking-normal">
             · saved result from {{ ago(result.at) }}</span
           >
-        </p>
-        <p class="text-lg font-black text-emerald-900">
-          {{ best.chain[best.chain.length - 1] }} TE
-          <span class="text-sm font-bold">via {{ best.chain.join(' ') }}</span>
-        </p>
-        <p class="text-[11px] text-emerald-900 leading-relaxed">
-          Reached {{ inPlannerZone(best.reachAt)
-          }}<template v-if="best.ascendAt !== best.reachAt">
-            (you can ascend from {{ inPlannerZone(best.ascendAt) }})</template
-          >, with {{ spareLabel(best.spare) }} to spare.
-          <template v-if="result.stoppedEarly"> Stopped early, so a better route may not have been tried.</template>
-          <template v-if="atCeiling">
-            <span class="font-bold">That is the highest last stop it was allowed to try</span>, so more may be
-            reachable: raise
-            {{ result.step ? '"Rough guess for the last stop"' : "the top of the last stop's range" }} and run it
-            again.</template
-          >
-        </p>
-        <div class="overflow-x-auto">
-          <table class="text-[11px] tabular-nums">
-            <thead>
-              <tr class="text-left text-[9px] font-black uppercase tracking-widest text-emerald-700">
-                <th class="pr-4 py-1">Stop</th>
-                <th class="pr-4 py-1">Reached</th>
-                <th class="pr-4 py-1">Leg</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="(leg, i) in best.legs" :key="i" class="border-t border-emerald-100">
-                <td class="pr-4 py-1 font-bold">{{ leg.endTE }}</td>
-                <td class="pr-4 py-1">{{ inPlannerZone(leg.endTime) }}</td>
-                <td class="pr-4 py-1">{{ (leg.durationSeconds / 86400).toFixed(1) }} d</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+        </template>
+        <template v-if="result.stoppedEarly"> Stopped early, so a better route may not have been tried.</template>
+        <template v-if="atCeiling">
+          <span class="font-bold">That is the highest last stop it was allowed to try</span>, so more may be reachable:
+          raise {{ result.step ? '"Rough guess for the last stop"' : "the top of the last stop's range" }} and run it
+          again.</template
+        >
+      </ByDateRouteCard>
       <p v-else class="text-[11px] font-semibold text-rose-700">
         No route tried reaches any stop by then. Try a later date, a lower last stop, or more stops.
       </p>
@@ -853,7 +832,8 @@ import {
   stepForBudget,
 } from '@/search/deadline';
 import { formatBand, formatHours } from '@/search/exhaustive';
-import { summariseByDate } from '@/search/deadlineSummary';
+import { spareLabel, summariseByDate } from '@/search/deadlineSummary';
+import ByDateRouteCard from './ByDateRouteCard.vue';
 import { rowSettingsFor, type DeadlineRunSpec, type SavedDeadlineResult } from '@/search/deadlineStore';
 import { SPACE_STEPS, SPACE_WIDTHS, stopsByWidth } from '@/search/deadlineSuggest';
 import { simpleByDateSpace, type SimpleSpace } from '@/search/simpleByDate';
@@ -1913,6 +1893,11 @@ function ago(ms: number): string {
   return h < 48 ? `${h} h ago` : `${Math.round(h / 24)} days ago`;
 }
 const best = computed(() => result.value?.routes[0] ?? null);
+/** The running search's best so far, for its card: the live top's first, else the progress's own. */
+const liveBest = computed(() => {
+  const p = store.deadlineProgress;
+  return p?.top[0] ?? p?.best ?? null;
+});
 
 /** What the shown result says about its run: time, workers, the space (and, on Advanced, the boxes). */
 const summary = computed(() =>
@@ -1995,10 +1980,5 @@ const atCeiling = computed(
 
 function inPlannerZone(unixSeconds: number): string {
   return showDateTime(unixSeconds, plannerZone.value);
-}
-function spareLabel(seconds: number): string {
-  if (seconds < 3600) return `${Math.max(0, Math.round(seconds / 60))} min`;
-  if (seconds < 2 * 86400) return `${(seconds / 3600).toFixed(1)} h`;
-  return `${(seconds / 86400).toFixed(1)} days`;
 }
 </script>

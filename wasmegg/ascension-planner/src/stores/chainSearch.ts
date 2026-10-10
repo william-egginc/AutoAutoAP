@@ -5245,6 +5245,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   let deadlineSavedAt = 0;
   /** The running date search's own start, for a best so far sent before it has a result. */
   let deadlineRun: DeadlineSendBase | null = null;
+  /** The running date search's deadline (unix seconds), for its live best so far card; 0 when none ran. */
+  const deadlineRunDeadline = ref(0);
   /** What a progress send's CSV so far needs from the date search going now: its routes found so far
    *  (search/deadline.ts `routesSoFar`), its top target and whether it ascends in awake hours. */
   let deadlineRunCsv: {
@@ -5792,6 +5794,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // A carry-on keeps its run's best so far on the board to replace; a fresh run has none.
     setProvisional('deadline', takeCarriedProvisional());
     takeCarriedWatch();
+    deadlineRunDeadline.value = spec.deadline;
     deadlineRun = {
       deadline: spec.deadline,
       planStart: inputs.planStart,
@@ -7630,6 +7633,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     blackBoxReport,
     deadlineRunning,
     deadlineProgress,
+    deadlineRunDeadline,
     deadlineResult,
     savedAnswers,
     refreshSavedAnswers,
