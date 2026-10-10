@@ -6,12 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ChainResult } from './types';
 
 const db = new Map<string, unknown>();
-vi.mock('@/lib/storage/db', () => ({
-  saveMetadata: vi.fn(async (hash: string, key: string, value: unknown) => {
-    db.set(`${hash}/${key}`, JSON.parse(JSON.stringify(value)));
-  }),
-  loadMetadata: vi.fn(async (hash: string, key: string) => db.get(`${hash}/${key}`) ?? null),
-}));
+vi.mock('@/lib/storage/db', async () => (await import('@/test/memoryDb')).memoryDbModule(db));
 
 const { runDeadlineSearch } = await import('./deadline');
 const {
@@ -21,6 +16,7 @@ const {
   saveDeadlineResult,
   loadDeadlineResult,
   rowSettingsFor,
+  checkpointCount,
 } = await import('./deadlineStore');
 
 const DAY = 86400;
@@ -76,16 +72,21 @@ describe('carrying on a deadline search', () => {
     // ...then carried on from what was saved.
     const cp = await loadDeadlineCheckpoint('P');
     let freshAfter = 0;
-    const second = replayingEvaluator(async c => {
-      freshAfter += c.length;
-      return c.map(price);
-    }, cp!.entries);
+    const second = replayingEvaluator(
+      async c => {
+        freshAfter += c.length;
+        return c.map(price);
+      },
+      cp!.entries,
+      undefined,
+      { parts: cp!.parts, seedSaved: true }
+    );
     const carried = await runDeadlineSearch(SPEC, { evaluate: second.evaluate });
 
     expect(carried.routes[0].chain).toEqual(whole.routes[0].chain);
     expect(carried.routes.map(r => r.chain.join(' '))).toEqual(whole.routes.map(r => r.chain.join(' ')));
-    expect(second.replayed()).toBe(cp!.entries.length);
-    expect(cp!.entries.length + freshAfter).toBe(freshWhole);
+    expect(second.replayed()).toBe(checkpointCount(cp!));
+    expect(checkpointCount(cp!) + freshAfter).toBe(freshWhole);
   });
 
   it('keeps routes that could not be priced as such, so they are not tried again', async () => {

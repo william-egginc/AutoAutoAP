@@ -49,8 +49,9 @@ export async function sendRunResult(
     if (!payload) return { ok: false, text: 'Nothing to submit yet.' };
     // Black box: a page that dies while building or sending the table says so on the next visit.
     store.blackBoxMark('submit', includeCsv ? 'building the CSV' : 'building the result');
-    const csv = includeCsv ? store.exportCsv() : undefined;
-    store.blackBoxMark('submit', `sending${csv ? ` (${Math.round(csv.length / 1048576)} MB of CSV)` : ''}`);
+    // Chunks, compressed as they are made (stores/chainSearch.ts `sendSubmission`): never one big string.
+    const csv = includeCsv ? store.exportCsvChunks() : undefined;
+    store.blackBoxMark('submit', csv ? 'sending (the CSV is built as it goes)' : 'sending');
     onStage('Sending...');
     const res = await store.sendSubmission(withPrivateDiagnostics(store, payload, withDiagnostics), csv);
     // A copy the collector already had stored nothing, so there is nothing to thank anyone for.

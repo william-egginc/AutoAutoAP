@@ -1044,6 +1044,8 @@
           v-model:opt-in="optIn"
           v-model:anonymous="anonymous"
           v-model:nickname="nickname"
+          :note="store.runNoteUsed ?? ''"
+          @update:note="(v?: string) => (store.runNoteUsed = v ?? '')"
           :nickname-max="NICKNAME_MAX"
           :csv-detail="`(${store.csvRows.toLocaleString()} chains, one row per leg; chains past the memory budget export with their per-leg cells blank)`"
           @nickname-typed="nicknameTouched = true"

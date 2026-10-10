@@ -149,7 +149,6 @@
       </div>
     </details>
 
-
     <!-- Simple (batch 3): no chain editor. The routes it tries, in one line, and a way to see them as
          boxes in Advanced (to widen them, say). -->
     <div
@@ -166,9 +165,9 @@
           >: {{ simpleWidthsText }}, and its last stop found to the exact TE.</template
         >
         <template v-else
-          ><span class="font-bold">No instant answer yet</span> (none for your account, or it is still working), so
-          this checks suggested routes for 1-5 ascensions instead: {{ simpleWidthsText }}. When the instant answer
-          arrives, the routes follow it.</template
+          ><span class="font-bold">No instant answer yet</span> (none for your account, or it is still working), so this
+          checks suggested routes for 1-5 ascensions instead: {{ simpleWidthsText }}. When the instant answer arrives,
+          the routes follow it.</template
         >
       </p>
       <p v-if="simpleSpace">
@@ -266,11 +265,12 @@
           </template>
         </RoutesToTry>
         <p class="text-[11px] text-slate-500 leading-relaxed">
-          Each chain is one box of bands, like {{ fastestName(store.finalTE) }} › {{ NAMES.fullFirst }}'s: one band per ascension before the last, separated
-          by <span class="font-mono-premium">;</span>. A band is <span class="font-mono-premium">lo-hi:step</span>, a
-          single value, or several values with commas. Chains with other ascension counts all run from the same click,
-          and a 1- or 2-ascension chain costs next to nothing. Every route in your chains is tried, and nothing outside
-          them, so the answer is proven for that space. The last stop is found to the exact TE.
+          Each chain is one box of bands, like {{ fastestName(store.finalTE) }} › {{ NAMES.fullFirst }}'s: one band per
+          ascension before the last, separated by <span class="font-mono-premium">;</span>. A band is
+          <span class="font-mono-premium">lo-hi:step</span>, a single value, or several values with commas. Chains with
+          other ascension counts all run from the same click, and a 1- or 2-ascension chain costs next to nothing. Every
+          route in your chains is tried, and nothing outside them, so the answer is proven for that space. The last stop
+          is found to the exact TE.
           <template v-if="suggestFrom">{{ suggestFrom }}</template>
         </p>
         <p v-if="instantSets.length" class="text-[10px] text-slate-500 leading-relaxed" data-test="handoff-note">
@@ -386,9 +386,7 @@
             {{ store.deadlineRunning ? 'Time left' : 'Est. wall clock' }}
           </div>
           <div class="text-lg font-black text-slate-900 tabular-nums" data-test="estimate">{{ estimateLabel }}</div>
-          <div v-if="store.deadlineRunning && timeLeft?.measuring" class="text-[9px] text-slate-400">
-            measuring…
-          </div>
+          <div v-if="store.deadlineRunning && timeLeft?.measuring" class="text-[9px] text-slate-400">measuring…</div>
           <div v-else-if="store.deadlineRunning && firstGuessLabel" class="text-[9px] text-slate-400">
             first guess {{ firstGuessLabel }}
           </div>
@@ -413,6 +411,9 @@
           >the typical speed for chains this long in players' runs, until this machine has done a deadline search of its
           own</template
         >, on {{ store.workerBudget }} workers.
+      </p>
+      <p v-if="store.longRunWorkers" class="text-[10px] font-semibold text-amber-800" data-testid="long-run-workers">
+        {{ longRunLine(store.longRunWorkers) }}
       </p>
     </div>
 
@@ -505,8 +506,9 @@
         >
         routes priced<template v-if="liveTotal && liveDone >= liveTotal">
           (more than the ~{{ roundedRoutes(liveTotal).toLocaleString() }} estimated)</template
-        ><template v-if="estNow.learned"> ({{ estimateNote(estNow) }})</template> ·
-        {{ elapsedLabel }} so far<template v-if="remainingLabel">
+        ><template v-if="estNow.learned"> ({{ estimateNote(estNow) }})</template> · {{ elapsedLabel }} so far<template
+          v-if="remainingLabel"
+        >
           · about {{ remainingLabel }} left<template v-if="timeLeft?.measuring"> (measuring…)</template
           ><template v-else-if="firstGuessLabel"> (first guess {{ firstGuessLabel }})</template></template
         ><template v-if="store.deadlineLegSims">
@@ -539,6 +541,28 @@
     </div>
 
     <div v-if="result" class="space-y-3">
+      <!-- The page went before this result's send landed (it was on its way: Find and submit, a yes
+           during the run, or Send). One click sends it, under the name, CSV and note it had. -->
+      <div
+        v-if="owedHere && collectorConfigured"
+        class="flex flex-wrap items-center gap-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-[11px] text-amber-900"
+        data-testid="owed-send"
+      >
+        <span class="font-bold">This result wasn't sent to the leaderboard:</span>
+        <button
+          type="button"
+          class="px-3 py-1.5 rounded-lg bg-amber-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-800 disabled:opacity-40"
+          :disabled="sharing || store.busy"
+          @click="sendOwed"
+        >
+          {{ sharing ? 'Sending...' : 'Send it now' }}
+        </button>
+        <span class="text-amber-800/80"
+          >{{ store.deadlineOwed!.nickname ? `As ${store.deadlineOwed!.nickname}` : 'Anonymously'
+          }}{{ store.deadlineOwed!.sendCsv ? ', with its CSV' : '' }}, as it was going to be sent.</span
+        >
+        <ShareStatus v-if="shareMessage" class="w-full" :message="shareMessage" :ok="shareOk" :partial="sharePartial" />
+      </div>
       <div v-if="best" class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 space-y-2">
         <p class="text-[10px] font-black uppercase tracking-widest text-emerald-800">
           Highest by {{ inPlannerZone(result.deadline) }}
@@ -596,7 +620,8 @@
       >
         <template v-if="edgeWiden && simple">
           This opens Advanced with the boxes Simple used, that one widened to
-          <span class="font-mono-premium">{{ edgeWiden.text }}</span>, and runs it.
+          <span class="font-mono-premium">{{ edgeWiden.text }}</span
+          >, and runs it.
         </template>
         <template v-else-if="edgeWiden">
           Chain {{ edgeWiden.row + 1 }} becomes <span class="font-mono-premium">{{ edgeWiden.text }}</span
@@ -689,6 +714,7 @@
         v-model:opt-in="shareOptIn"
         v-model:anonymous="shareAnonymous"
         v-model:nickname="shareName"
+        v-model:note="resultNote"
         goal-word="deadline"
         @nickname-typed="shareNameTouched = true"
       >
@@ -798,15 +824,19 @@ import {
   byDatePlan,
   estimateNote,
   fallbackWorkerSecondsPerLeg,
+  legSeconds,
+  longRunLine,
   plannedRoutes as plannedRoutesFor,
   roundedRoutes,
 } from '@/search/deadlineEstimate';
+import { maxPoolSize } from '@/search/batch';
 import { findBandEdges, widenEdges, type BandEdge } from '@/search/bandCheck';
 import FindBar from './FindBar.vue';
 import RunGoingElsewhere from './RunGoingElsewhere.vue';
 import ShareResult from './ShareResult.vue';
 import ShareStatus from './ShareStatus.vue';
 import { useByDateShare, useShareIdentity } from '@/composables/useShareResult';
+import { useShareExtras } from '@/composables/useShareExtras';
 import RoutesToTry from './RoutesToTry.vue';
 import SavedAnswers from './SavedAnswers.vue';
 import ProgressBar from './ProgressBar.vue';
@@ -988,7 +1018,8 @@ function simplePlanOf(sp: SimpleSpace, workers: number, workerSecondsPerLeg: num
     rows: sp.rows.map(r => ({ asc: r.asc, bands: r.bands })),
     currentTE: store.currentTE,
     lastHi: sp.lastHi,
-    instantSets: simpleCentres.value.from === 'instant' ? sp.rows.filter(r => r.asc >= 2).map(r => r.centre.slice(0, -1)) : [],
+    instantSets:
+      simpleCentres.value.from === 'instant' ? sp.rows.filter(r => r.asc >= 2).map(r => r.centre.slice(0, -1)) : [],
     workers,
     workerSecondsPerLeg,
   });
@@ -1472,7 +1503,9 @@ const plannedShapes = computed(() => (mode.value === 'space' ? spacePlan.value.s
  * (with their contention).
  */
 const longestChain = computed(() =>
-  mode.value === 'space' ? Math.max(1, ...activeChains.value.map(r => Math.floor(r.asc) || 1)) : Math.max(1, maxStops.value)
+  mode.value === 'space'
+    ? Math.max(1, ...activeChains.value.map(r => Math.floor(r.asc) || 1))
+    : Math.max(1, maxStops.value)
 );
 const workerSecondsPerLeg = computed(
   () =>
@@ -1523,6 +1556,12 @@ const autoPlan = computed(() => {
   };
 });
 const plan = computed(() => (mode.value === 'space' ? spacePlan.value : autoPlan.value));
+/** The run's time on every core but one: a long one defaults to fewer workers (store `fitWorkersToRun`),
+ *  unless the count was set by hand. */
+const secondsAtDefault = computed(() =>
+  plan.value.legs ? legSeconds(plan.value.legs, maxPoolSize(), workerSecondsPerLeg.value) : 0
+);
+watch(secondsAtDefault, s => store.fitWorkersToRun(s), { immediate: true });
 const plannedRoutes = computed(() => plan.value.routes);
 const plannedLegs = computed(() => plan.value.legs);
 const secondsPerLeg = computed(() => (plan.value.legs ? plan.value.seconds / plan.value.legs : 0));
@@ -1656,16 +1695,39 @@ async function resume(): Promise<void> {
     setMode('advanced');
   }
   runEstimate.value = spec?.estimate ?? 0;
-  store.beginBestSoFar('deadline', null);
+  // A run started with Find and submit (or agreed to share during it) carries on doing so, on its own
+  // name, CSV and diagnostics choices: on 9 Oct a carried-on Find and submit run ended as a plain
+  // Find and sent nothing.
+  const submit = store.deadlineUnfinished?.submit ?? null;
+  if (submit) {
+    shareOptIn.value = true;
+    shareAnonymous.value = !submit.nickname;
+    if (submit.nickname) {
+      shareName.value = submit.nickname;
+      shareNameTouched.value = true;
+    }
+    shareExtras.sendCsv.value = submit.sendCsv;
+    shareExtras.sendDiagnostics.value = submit.sendDiagnostics;
+  }
+  autoShare.value = !!submit?.whenDone;
+  store.lastAutoSend = null;
+  store.submitsWhenDone = autoShare.value;
+  store.beginBestSoFar('deadline', submit ? { nickname: submit.nickname } : null);
   let go = false;
   try {
     await store.resumeDeadline(props.playerId);
-    go = await owesAnswer();
+    go = autoShare.value || (await owesAnswer());
   } finally {
+    store.submitsWhenDone = false;
+    autoShare.value = false;
     store.endBestSoFar();
   }
   // Its best so far (sent before the interruption, or since) is replaced by its answer.
-  if (go) await shareFinished();
+  try {
+    if (go) await shareFinished();
+  } finally {
+    store.endResultSend();
+  }
 }
 
 /** The name a best so far goes under, as `share` would send it. */
@@ -1730,7 +1792,11 @@ async function start(andSubmit: boolean): Promise<void> {
     store.endBestSoFar();
     // Stopped early it still shares: its best is a real route to that TE by the date, just maybe not
     // the highest, and on a board ranked by TE that only ever ranks it lower.
-    if (go) await shareFinished();
+    try {
+      if (go) await shareFinished();
+    } finally {
+      store.endResultSend();
+    }
   }
 }
 
@@ -1790,6 +1856,8 @@ async function find(): Promise<void> {
 /** Consent, anonymous-or-named and the name box: the same choices as Find and submit's bar
  *  (composables/useShareResult.ts). */
 const shareIdentity = useShareIdentity(() => props.playerId);
+/** The CSV and diagnostics choices (one set for the site), put back by a carry-on that sends. */
+const shareExtras = useShareExtras();
 const {
   optIn: shareOptIn,
   anonymous: shareAnonymous,
@@ -1809,6 +1877,7 @@ const {
   sentKey,
   shareTab,
   share,
+  sendOwed,
 } = useByDateShare(
   store,
   shareIdentity,
@@ -1820,6 +1889,25 @@ const {
 const { downloadByDateCsv, downloadError } = useRunDownloads(store);
 
 const result = computed(() => store.deadlineResult);
+/** Share this result's "Note on this run": the result's own note, edited in place, so the send and
+ *  its CSV carry what the box says. */
+const resultNote = computed({
+  get: () => store.deadlineResult?.note ?? '',
+  set: (v: string) => {
+    if (store.deadlineResult) store.deadlineResult.note = v;
+  },
+});
+/** The saved result's send never landed (the page went first): offer it, on its own choices. */
+const owedHere = computed(
+  () =>
+    !!store.deadlineOwed &&
+    !!result.value &&
+    store.deadlineOwed.resultAt === result.value.at &&
+    !store.deadlineRunning &&
+    // Not while its own end-of-run send is going: only once it has not landed.
+    !store.resultSending &&
+    sentKey.value !== resultKey.value
+);
 /** A result loaded from this browser rather than produced since the panel opened. */
 const openedAt = Date.now();
 const fromEarlier = computed(() => !!result.value && result.value.at < openedAt);

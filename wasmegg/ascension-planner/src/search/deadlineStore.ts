@@ -13,14 +13,25 @@
  *
  * Browser only, per player, like everything else here.
  */
-import { loadMetadata, saveMetadata } from '@/lib/storage/db';
+import { loadMetadata, loadMetadataPrefix, putMetadataRecords, saveMetadata } from '@/lib/storage/db';
 import type { ChainResult, LegSummary } from './types';
 import type { DeadlineRoute } from './deadline';
 import type { ProvisionalRow } from './submission';
 
 const RUN_KEY = 'chainSearchDeadlineRun';
 const RESULT_KEY = 'chainSearchDeadlineResult';
+/** One record holding every priced route, written whole every 30 s. Still read (`loadDeadlineCheckpoint`). */
 const VERSION = 1;
+/**
+ * A small header record plus the priced routes in PARTS, one per checkpoint, each holding only the
+ * routes priced since the last (`appendDeadlineCheckpoint`). Rewriting everything every 30 s copied
+ * the whole run three times over (an entries() copy, a JSON round-trip, IndexedDB's own clone): at
+ * 131,000 routes ~150 MB spikes and ~0.8 s stalls on the main thread (9 Oct).
+ */
+const VERSION_PARTS = 2;
+/** Parts are keyed `${RUN_KEY}:part:${runId}:${n}`, n zero-padded so key order is write order. */
+const PART_PREFIX = `${RUN_KEY}:part:`;
+const partKey = (runId: string, n: number) => `${PART_PREFIX}${runId}:${String(n).padStart(7, '0')}`;
 
 /** What the player asked for, as the panel sends it. */
 export interface DeadlineRunSpec {
@@ -119,6 +130,38 @@ type MiniLeg = Pick<LegSummary, 'endTE' | 'endTime' | 'durationSeconds' | 'key'>
 /** A priced route: chain key, seconds (-1 = could not be evaluated), and its legs. */
 export type PricedEntry = [string, number, MiniLeg[]];
 
+/**
+ * Priced routes as a checkpoint part stores them: columns, with each route's legs packed into one
+ * string (`packLegs`). Plain data, so it goes into IndexedDB without a JSON round-trip, and a few
+ * strings a route instead of an object per leg once it is read back.
+ */
+export interface CheckpointPart {
+  /** Chain keys. */
+  k: string[];
+  /** Seconds to the last stop; -1: could not be evaluated. */
+  s: number[];
+  /** `packLegs` of each route's legs. */
+  l: string[];
+}
+
+/** `endTE:endTime:durationSeconds:key` per leg, `;` between legs. A strategy key never holds `:` or `;`. */
+export function packLegs(legs: readonly MiniLeg[]): string {
+  return legs.map(l => `${l.endTE}:${l.endTime}:${l.durationSeconds}:${l.key}`).join(';');
+}
+
+export function unpackLegs(text: string): MiniLeg[] {
+  if (!text) return [];
+  return text.split(';').map(part => {
+    const [endTE, endTime, durationSeconds, key] = part.split(':');
+    return {
+      endTE: Number(endTE),
+      endTime: Number(endTime),
+      durationSeconds: Number(durationSeconds),
+      key: key as MiniLeg['key'],
+    };
+  });
+}
+
 export interface DeadlineCheckpoint {
   version: number;
   spec: DeadlineRunSpec;
@@ -126,7 +169,19 @@ export interface DeadlineCheckpoint {
   inputsKey: string;
   planStart: number;
   te: number;
+  /**
+   * Every priced route, for a checkpoint written whole (version 1, and `saveDeadlineCheckpoint`'s
+   * argument). Empty when they came back as `parts` instead.
+   */
   entries: PricedEntry[];
+  /** A parted checkpoint's routes as stored (version 2): handed to `replayingEvaluator` as they are. */
+  parts?: CheckpointPart[];
+  /** Routes priced: `entries.length`, or the parts' total. */
+  count?: number;
+  /** A parted checkpoint's id: its parts are keyed by it, so a run never reads another run's. */
+  runId?: string;
+  /** Parts written so far; the next is numbered this. */
+  partsWritten?: number;
   updatedAt: number;
   /** Seconds the run has been going, this session and earlier ones, less any time the page was
    *  suspended: a carried-on run's "took" starts from it. Absent on checkpoints written before 8 Oct. */
@@ -138,6 +193,20 @@ export interface DeadlineCheckpoint {
   /** The best so far this run has on the board ("Send best so far"), so a carry-on's final send
    *  still replaces it. Absent when it has none. */
   provisional?: ProvisionalRow;
+  /** The run sends its result when it finishes (Find and submit, or a yes given during it), and on
+   *  what choices: a carry-on, by hand or by itself, puts these back and sends at its end too. A
+   *  carried-on Find and submit run of 9 Oct finished as a plain Find and sent nothing. Absent: it
+   *  doesn't send. */
+  submit?: DeadlineSubmitIntent;
+}
+
+export interface DeadlineSubmitIntent {
+  /** Started with Find and submit (the button reads "Searching, then submitting..."). */
+  whenDone: boolean;
+  /** '' for anonymous. */
+  nickname: string;
+  sendCsv: boolean;
+  sendDiagnostics: boolean;
 }
 
 /** `accountFields` as stored: plain JSON. Typed loosely here; the store owns the shape. */
@@ -198,20 +267,135 @@ export interface SavedDeadlineResult {
   at: number;
 }
 
+/** Routes priced in a checkpoint, whichever way it holds them. */
+export function checkpointCount(cp: Pick<DeadlineCheckpoint, 'entries' | 'parts' | 'count'>): number {
+  if (typeof cp.count === 'number') return cp.count;
+  return cp.entries.length + (cp.parts ?? []).reduce((n, p) => n + p.k.length, 0);
+}
+
+/** Entries as a part. */
+export function toPart(entries: readonly PricedEntry[]): CheckpointPart {
+  return { k: entries.map(e => e[0]), s: entries.map(e => e[1]), l: entries.map(e => packLegs(e[2])) };
+}
+
+/** A parted checkpoint's header record: everything but the routes. */
+type Header = Omit<DeadlineCheckpoint, 'entries' | 'parts'> & { runId: string; partsWritten: number; count: number };
+
+function newRunId(): string {
+  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+}
+
+/**
+ * The whole checkpoint in one go: a new run id, every route in one part, any older parts deleted.
+ * For a checkpoint built elsewhere (tests, a stored one written back); a running search appends
+ * instead (`appendDeadlineCheckpoint`).
+ */
 export async function saveDeadlineCheckpoint(
   partitionHash: string,
   cp: Omit<DeadlineCheckpoint, 'version'>
 ): Promise<void> {
-  await saveMetadata(partitionHash, RUN_KEY, { ...cp, version: VERSION });
+  const { entries, parts, ...rest } = cp;
+  const all = [...(parts ?? []), ...(entries.length ? [toPart(entries)] : [])];
+  const runId = newRunId();
+  const header: Header & { version: number } = {
+    ...rest,
+    version: VERSION_PARTS,
+    runId,
+    partsWritten: all.length,
+    count: all.reduce((n, p) => n + p.k.length, 0),
+  };
+  await putMetadataRecords(
+    partitionHash,
+    [...all.map((p, n) => ({ key: partKey(runId, n), value: p, raw: true })), { key: RUN_KEY, value: header }],
+    [PART_PREFIX]
+  );
 }
 
+/**
+ * Where a running search's checkpoint goes: the run id its parts are keyed by, and how many it has
+ * written. A carry-on continues its parted checkpoint's; a fresh run, or a carry-on from a version-1
+ * record, starts a new one (`fresh`), whose first write deletes every older part.
+ */
+export interface CheckpointWriter {
+  runId: string;
+  partsWritten: number;
+  fresh: boolean;
+}
+
+export function checkpointWriter(
+  from?: Pick<DeadlineCheckpoint, 'runId' | 'partsWritten' | 'version'> | null
+): CheckpointWriter {
+  if (from && from.version === VERSION_PARTS && from.runId)
+    return { runId: from.runId, partsWritten: from.partsWritten ?? 0, fresh: false };
+  return { runId: newRunId(), partsWritten: 0, fresh: true };
+}
+
+/**
+ * One checkpoint of a running search: the routes priced since the last, as a new part (or none:
+ * then just the header), and the header with the new count, in ONE transaction. The part goes in as
+ * it is, without a JSON round-trip. `w` moves on only once the write has landed.
+ */
+export async function appendDeadlineCheckpoint(
+  partitionHash: string,
+  w: CheckpointWriter,
+  cp: Omit<DeadlineCheckpoint, 'version' | 'entries' | 'parts' | 'runId' | 'partsWritten' | 'count'> & {
+    count: number;
+  },
+  part: CheckpointPart | null
+): Promise<void> {
+  const n = w.partsWritten;
+  const withPart = !!part && part.k.length > 0;
+  const header: Header & { version: number } = {
+    ...cp,
+    version: VERSION_PARTS,
+    runId: w.runId,
+    partsWritten: n + (withPart ? 1 : 0),
+  };
+  await putMetadataRecords(
+    partitionHash,
+    [...(withPart ? [{ key: partKey(w.runId, n), value: part, raw: true }] : []), { key: RUN_KEY, value: header }],
+    w.fresh ? [PART_PREFIX] : []
+  );
+  w.partsWritten = header.partsWritten;
+  w.fresh = false;
+}
+
+/** The checkpoint without its routes, for the offer to carry on: cheap for a parted one. */
+export async function loadDeadlineCheckpointHeader(
+  partitionHash: string
+): Promise<(Omit<DeadlineCheckpoint, 'entries' | 'parts'> & { count: number }) | null> {
+  const raw = (await loadMetadata(partitionHash, RUN_KEY)) as DeadlineCheckpoint | null;
+  if (!raw) return null;
+  if (raw.version === VERSION && Array.isArray(raw.entries)) {
+    const { entries, ...rest } = raw;
+    return { ...rest, count: entries.length };
+  }
+  if (raw.version === VERSION_PARTS && typeof raw.runId === 'string') {
+    const { entries: _entries, parts: _parts, ...rest } = raw;
+    return { ...rest, count: typeof raw.count === 'number' ? raw.count : 0 };
+  }
+  return null;
+}
+
+/**
+ * The checkpoint with its routes. Reads both versions: a version-1 record (one record, every route
+ * in `entries`, as builds before 10 Oct wrote it) comes back as it was, so a run saved by the
+ * previous build still carries on; its first new write migrates it (`checkpointWriter` starts it a
+ * parted checkpoint, and the carry-on's first part holds the routes it replayed).
+ */
 export async function loadDeadlineCheckpoint(partitionHash: string): Promise<DeadlineCheckpoint | null> {
   const raw = (await loadMetadata(partitionHash, RUN_KEY)) as DeadlineCheckpoint | null;
-  return raw && raw.version === VERSION && Array.isArray(raw.entries) ? raw : null;
+  if (!raw) return null;
+  if (raw.version === VERSION) return Array.isArray(raw.entries) ? raw : null;
+  if (raw.version !== VERSION_PARTS || typeof raw.runId !== 'string') return null;
+  const parts = ((await loadMetadataPrefix(partitionHash, `${PART_PREFIX}${raw.runId}:`)) as CheckpointPart[]).filter(
+    p => p && Array.isArray(p.k) && Array.isArray(p.s) && Array.isArray(p.l)
+  );
+  return { ...raw, entries: [], parts, count: parts.reduce((n, p) => n + p.k.length, 0) };
 }
 
 export async function clearDeadlineCheckpoint(partitionHash: string): Promise<void> {
-  await saveMetadata(partitionHash, RUN_KEY, null);
+  await putMetadataRecords(partitionHash, [{ key: RUN_KEY, value: null }], [PART_PREFIX]);
 }
 
 export async function saveDeadlineResult(partitionHash: string, result: SavedDeadlineResult): Promise<void> {
@@ -238,55 +422,82 @@ export type OnResult = (chain: number[], result: ChainResult | null) => void;
 export function replayingEvaluator(
   evaluate: (chains: number[][], onResult?: OnResult) => Promise<ChainResult[]>,
   seed: PricedEntry[] = [],
-  stopped?: () => boolean
+  stopped?: () => boolean,
+  opts: {
+    /** A parted checkpoint's routes, as loaded (`DeadlineCheckpoint.parts`): replayed like `seed`. */
+    parts?: CheckpointPart[];
+    /**
+     * The seed is already in the checkpoint this run appends to (a parted one), so `drain` leaves it
+     * out, and a seed route is forgotten once replayed. Otherwise (a version-1 checkpoint being
+     * migrated, a test) the first `drain` hands the seed over too.
+     */
+    seedSaved?: boolean;
+  } = {}
 ): {
   evaluate: (chains: number[][], onResult?: OnResult) => Promise<ChainResult[]>;
+  /** Routes not yet handed to a checkpoint by `drain` (with no drain: the seed and everything priced). */
   entries: () => PricedEntry[];
+  /** Routes priced since the last drain (and the seed, the first time, unless `seedSaved`), as a part;
+   *  forgotten here. Hand them back with `undrain` if the write fails. */
+  drain: () => CheckpointPart;
+  undrain: (part: CheckpointPart) => void;
+  /** Every distinct route priced: replayed and new. */
+  count: () => number;
   replayed: () => number;
 } {
-  const known = new Map<string, PricedEntry>(seed.map(e => [e[0], e]));
+  // [seconds, packed legs]: a few strings a route, not an object per leg (`packLegs`).
+  type Known = [number, string];
+  const known = new Map<string, Known>();
+  for (const e of seed) known.set(e[0], [e[1], packLegs(e[2])]);
+  for (const p of opts.parts ?? []) for (let i = 0; i < p.k.length; i++) known.set(p.k[i], [p.s[i], p.l[i]]);
+  const seedCount = known.size;
+  /** What the next drain hands over. Fresh routes live only here until then, never in `known`: the
+   *  search asks for each route once, so nothing new is ever looked up again. */
+  let pending = new Map<string, Known>(opts.seedSaved ? [] : known);
+  let fresh = 0;
   let replayed = 0;
-  const toResult = (e: PricedEntry): ChainResult | null =>
-    e[1] < 0
+  const toResult = (key: string, e: Known): ChainResult | null =>
+    e[0] < 0
       ? null
       : {
-          chain: e[0].split(',').map(Number),
-          seconds: e[1],
+          chain: key.split(',').map(Number),
+          seconds: e[0],
           // The checkpoint keeps no tier-13 flag, only the strategy (`2-sale-tier13`), so that is what the
           // CSV's tier13 column is read from; peak delivery and the start time stay unknown.
-          legs: e[2].map(l => ({ ...l, maxELR: 0, tier13Unlocked: /-tier13$/.test(l.key) }) as LegSummary),
+          legs: unpackLegs(e[1]).map(l => ({ ...l, maxELR: 0, tier13Unlocked: /-tier13$/.test(l.key) }) as LegSummary),
         };
-  const record = (key: string, r: ChainResult | null) =>
-    known.set(key, [
-      key,
-      r ? r.seconds : -1,
-      r
-        ? r.legs.map(l => ({
-            endTE: l.endTE,
-            endTime: l.endTime,
-            durationSeconds: l.durationSeconds,
-            key: l.key,
-          }))
-        : [],
-    ]);
   return {
     async evaluate(chains, onResult) {
       const out: ChainResult[] = [];
-      const fresh: number[][] = [];
+      const todo: number[][] = [];
+      const answered: string[] = [];
       for (const c of chains) {
-        const e = known.get(c.join(','));
+        const key = c.join(',');
+        const e = known.get(key);
         if (!e) {
-          fresh.push(c);
+          todo.push(c);
           continue;
         }
         replayed++;
-        const r = toResult(e);
+        answered.push(key);
+        const r = toResult(key, e);
         if (r) out.push(r);
         onResult?.(c, r);
       }
-      if (fresh.length) {
+      // Replayed and already in the checkpoint: nothing will ask for these again.
+      if (opts.seedSaved) for (const key of answered) known.delete(key);
+      if (todo.length) {
+        /** Recorded in this batch: a chain listed twice is counted once. */
+        const seen = new Set<string>();
+        const record = (key: string, r: ChainResult | null) => {
+          if (!seen.has(key)) {
+            seen.add(key);
+            fresh++;
+          }
+          pending.set(key, [r ? r.seconds : -1, r ? packLegs(r.legs) : '']);
+        };
         const reached = new Set<string>();
-        const priced = await evaluate(fresh, (c, r) => {
+        const priced = await evaluate(todo, (c, r) => {
           const key = c.join(',');
           reached.add(key);
           record(key, r);
@@ -294,17 +505,36 @@ export function replayingEvaluator(
         });
         const byKey = new Map(priced.map(r => [r.chain.join(','), r]));
         const cut = !!stopped?.();
-        for (const c of fresh) {
+        for (const c of todo) {
           const key = c.join(',');
           const r = byKey.get(key);
           if (!r && cut && !reached.has(key)) continue;
+          // Streamed already: that is what the search used (deadline.ts reads the reply, then the stream).
+          if (!r && reached.has(key)) continue;
           record(key, r ?? null);
           if (r) out.push(r);
         }
       }
       return out;
     },
-    entries: () => [...known.values()],
+    entries: () => [...pending.entries()].map(([key, e]) => [key, e[0], unpackLegs(e[1])] as PricedEntry),
+    drain: () => {
+      const part: CheckpointPart = { k: [], s: [], l: [] };
+      for (const [key, e] of pending) {
+        part.k.push(key);
+        part.s.push(e[0]);
+        part.l.push(e[1]);
+      }
+      pending = new Map();
+      return part;
+    },
+    undrain: part => {
+      const back = new Map<string, Known>();
+      for (let i = 0; i < part.k.length; i++) back.set(part.k[i], [part.s[i], part.l[i]]);
+      for (const [key, e] of pending) back.set(key, e);
+      pending = back;
+    },
+    count: () => seedCount + fresh,
     replayed: () => replayed,
   };
 }
@@ -352,4 +582,61 @@ export async function saveAnswer(
 export async function deleteSavedAnswer(partitionHash: string, id: string): Promise<void> {
   const kept = (await listSavedAnswers(partitionHash)).filter(a => a.id !== id);
   await saveMetadata(partitionHash, SAVED_KEY, kept);
+}
+
+/**
+ * A By a date result that was on its way to the board when the page stopped ("This result wasn't
+ * sent"). Written as a final send begins (Find and submit, a yes given during the run, or Send),
+ * with the choices it is sent under; the gzipped CSV is added once built, so a page that dies after
+ * that sends exactly the same file next time. Cleared when the send lands. `resultAt` ties it to the
+ * saved result (`SavedDeadlineResult.at`): a newer result makes it stale.
+ */
+const OWED_KEY = 'chainSearchDeadlineOwed';
+
+export interface OwedSend {
+  resultAt: number;
+  /** The route being sent. */
+  chain: number[];
+  /** '' for anonymous. */
+  nickname: string;
+  sendCsv: boolean;
+  sendDiagnostics: boolean;
+  /** The note it is sent with (Share this result's box). */
+  note?: string;
+  /** The CSV, gzipped, once built. */
+  csvGz?: ArrayBuffer;
+  /** When the send began (ms). */
+  at: number;
+}
+
+export async function saveOwedSend(partitionHash: string, owed: OwedSend): Promise<void> {
+  // As it is: an ArrayBuffer does not survive a JSON round-trip, and the rest is plain data.
+  await putMetadataRecords(partitionHash, [{ key: OWED_KEY, value: owed, raw: true }]);
+}
+
+export async function loadOwedSend(partitionHash: string): Promise<OwedSend | null> {
+  const raw = (await loadMetadata(partitionHash, OWED_KEY)) as OwedSend | null;
+  return raw && typeof raw.resultAt === 'number' && Array.isArray(raw.chain) ? raw : null;
+}
+
+export async function clearOwedSend(partitionHash: string): Promise<void> {
+  await putMetadataRecords(partitionHash, [{ key: OWED_KEY, value: null }]);
+}
+
+/**
+ * A checkpoint left behind by a run whose result was saved since: the result is at least as new, for
+ * the same save, start and deadline, and finished (not stopped early). Offering it as "Carry on the
+ * unfinished search" would run a finished search again; after the 9 Oct crash the page showed both.
+ */
+export function checkpointFinished(
+  cp: Pick<DeadlineCheckpoint, 'inputsKey' | 'planStart' | 'updatedAt' | 'spec'>,
+  result: Pick<SavedDeadlineResult, 'inputsKey' | 'planStart' | 'at' | 'stoppedEarly' | 'deadline'> | null
+): boolean {
+  if (!result || result.stoppedEarly) return false;
+  return (
+    result.at >= cp.updatedAt &&
+    result.planStart === cp.planStart &&
+    result.deadline === cp.spec.deadline &&
+    (!result.inputsKey || result.inputsKey === cp.inputsKey)
+  );
 }

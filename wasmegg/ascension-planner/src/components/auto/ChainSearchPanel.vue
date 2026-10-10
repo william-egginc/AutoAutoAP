@@ -1096,6 +1096,8 @@
         v-model:opt-in="optIn"
         v-model:anonymous="anonymous"
         v-model:nickname="nickname"
+        :note="store.runNoteUsed ?? ''"
+        @update:note="(v?: string) => (store.runNoteUsed = v ?? '')"
         :csv-detail="`(${(store.csvRows || 0).toLocaleString()} chains, one row per leg; the JSON above is the headline and this is the working)`"
         @nickname-typed="nicknameTouched = true"
       >
@@ -1522,8 +1524,9 @@ async function submit(): Promise<void> {
     }
     // Black box: a page that dies while building or sending the table says so on the next visit.
     store.blackBoxMark('submit', includeCsv.value ? 'building the CSV' : 'building the result');
-    const csv = includeCsv.value ? store.exportCsv() : undefined;
-    store.blackBoxMark('submit', `sending${csv ? ` (${Math.round(csv.length / 1048576)} MB of CSV)` : ''}`);
+    // Chunks, compressed as they are made (stores/chainSearch.ts `sendSubmission`): never one big string.
+    const csv = includeCsv.value ? store.exportCsvChunks() : undefined;
+    store.blackBoxMark('submit', csv ? 'sending (the CSV is built as it goes)' : 'sending');
     submitMessage.value = 'Sending...';
     const res = await store.sendSubmission(withPrivateDiagnostics(store, payload, diagnosticsGo.value), csv);
     submitOk.value = res.ok;

@@ -11,11 +11,7 @@ import type { SearchInputs } from '@/search/types';
 import type { BoardRow } from '@/lib/leaderboardRank';
 
 const db = new Map<string, unknown>();
-vi.mock('@/lib/storage/db', () => ({
-  saveMetadata: vi.fn(async (hash: string, key: string, value: unknown) => void db.set(`${hash}/${key}`, value)),
-  loadMetadata: vi.fn(async (hash: string, key: string) => db.get(`${hash}/${key}`) ?? null),
-  hashID: vi.fn(async (id: string) => id),
-}));
+vi.mock('@/lib/storage/db', async () => (await import('@/test/memoryDb')).memoryDbModule(db));
 
 /** What the workers were handed, per run. */
 const pooled: SearchInputs[] = [];
@@ -52,6 +48,7 @@ vi.mock('@/search/deadline', async orig => {
         shapes: 1,
         priced: 1,
         stoppedEarly: stopEarly,
+        all: new (real.PricedRoutes as new () => DeadlineOutcome['all'])(),
       };
     }),
   };

@@ -938,14 +938,15 @@ onUnmounted(() => pool?.terminate());
 // is idle and the instant answer is not mid-run (never cutting off a request: until then this
 // waits); the next request wakes it, reloading the table.
 watch(
-  () => (store.isRunning || store.deadlineRunning) && status.value !== 'loading' && backgroundStatus.value !== 'running',
+  () => (store.isRunning || store.deadlineRunning || store.resultSending) && status.value !== 'loading' && backgroundStatus.value !== 'running',
   free => {
     if (free) pool?.sleep();
   }
 );
 
 /** A chain search or By a date run has the cores and the memory. */
-const runBusy = computed(() => store.isRunning || store.deadlineRunning);
+// ...and a finished run sending its result: its CSV is built in the memory the run just freed.
+const runBusy = computed(() => store.isRunning || store.deadlineRunning || store.resultSending);
 /** The panel is holding off working routes out because of a run (shows the line and its button). */
 const waiting = ref(false);
 /** The polish and exact check, held back to when the run ends. */

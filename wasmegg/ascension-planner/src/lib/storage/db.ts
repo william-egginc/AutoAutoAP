@@ -127,6 +127,54 @@ export async function saveMetadata(partitionHash: string, key: string, value: an
 }
 
 /**
+ * Write several metadata records, and delete the records under any prefixes given, in ONE
+ * transaction: all of it lands or none of it does.
+ *
+ * `raw` values skip the JSON round-trip `saveMetadata` does: they must already be plain data
+ * (arrays, numbers, strings, typed arrays, ArrayBuffers -- nothing reactive). A checkpoint part is
+ * that, and for 100,000 routes the round-trip was a ~150 MB copy and most of a second's stall on
+ * the main thread, every 30 s (the 9 Oct crash investigation). `null` deletes the record.
+ */
+export async function putMetadataRecords(
+    partitionHash: string,
+    records: { key: string; value: unknown; raw?: boolean }[],
+    deletePrefixes: string[] = []
+): Promise<void> {
+    const db = await openDB();
+    const tx = db.transaction('metadata', 'readwrite');
+    const store = tx.objectStore('metadata');
+    for (const prefix of deletePrefixes) store.delete(prefixRange(partitionHash, prefix));
+    for (const { key, value, raw } of records) {
+        const storageKey = `${partitionHash}_${key}`;
+        if (value === null) store.delete(storageKey);
+        else store.put({ key: storageKey, partitionHash, value: raw ? value : JSON.parse(JSON.stringify(value)) });
+    }
+    await new Promise<void>((resolve, reject) => {
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error ?? new Error('the write was aborted'));
+    });
+}
+
+/** Every key from `${hash}_${prefix}` up to the end of that prefix. */
+function prefixRange(partitionHash: string, prefix: string): IDBKeyRange {
+    const from = `${partitionHash}_${prefix}`;
+    return IDBKeyRange.bound(from, `${from}￿`);
+}
+
+/** Every metadata value whose key starts with `prefix`, in key order. */
+export async function loadMetadataPrefix(partitionHash: string, prefix: string): Promise<unknown[]> {
+    const db = await openDB();
+    const tx = db.transaction('metadata', 'readonly');
+    const store = tx.objectStore('metadata');
+    return new Promise((resolve, reject) => {
+        const request = store.getAll(prefixRange(partitionHash, prefix));
+        request.onsuccess = () => resolve((request.result ?? []).map((r: { value: unknown }) => r?.value));
+        request.onerror = () => reject(request.error);
+    });
+}
+
+/**
  * Load metadata for a partition.
  */
 export async function loadMetadata(partitionHash: string, key: string): Promise<any> {

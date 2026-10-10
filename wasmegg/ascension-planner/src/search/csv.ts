@@ -81,20 +81,32 @@ export function partialLine(p: { done: number; total: number | null; unit: strin
   return `in progress, ${done} of ${of} ${p.unit} priced so far: a partial CSV sent while the run was still going; its final CSV replaces it`;
 }
 
+/** One formatter per zone: building one is far dearer than using it, and a By a date CSV formats a
+ *  few hundred thousand instants. Throws for an unknown zone, as building one always did. */
+const zoneFormats = new Map<string, Intl.DateTimeFormat>();
+function zoneFormat(timezone: string): Intl.DateTimeFormat {
+  let f = zoneFormats.get(timezone);
+  if (!f) {
+    f = new Intl.DateTimeFormat('en-CA', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+    zoneFormats.set(timezone, f);
+  }
+  return f;
+}
+
 /** `2028-09-16 00:22` in `timezone`. Blank for a missing instant, never `1970-01-01`, and blank
  *  for one past what a `Date` can hold: `formatToParts` throws on an invalid date, and one row
  *  like that used to take the whole download down with it, silently, from a click handler. */
 export function formatInZone(unixSeconds: number | undefined, timezone: string): string {
   if (!unixSeconds || !Number.isFinite(unixSeconds) || Math.abs(unixSeconds) >= 8.64e12) return '';
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: timezone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  }).formatToParts(new Date(unixSeconds * 1000));
+  const parts = zoneFormat(timezone).formatToParts(new Date(unixSeconds * 1000));
   const get = (t: string) => parts.find(p => p.type === t)?.value ?? '';
   // `hour12: false` still yields "24" for midnight in some engines; the planner shows 00.
   const hour = get('hour') === '24' ? '00' : get('hour');
@@ -501,6 +513,15 @@ export interface DeadlineCsvInfo {
   priced: number;
   stoppedEarly?: boolean;
   ascendNeeded?: boolean;
+  /**
+   * Every route priced (search/deadline.ts `PricedRoutes`). With it the file ends with one summary
+   * line per priced route, those that miss the date included, and only the top `legRoutes` routes
+   * are written above with their legs. Without it (a saved result, which keeps no such list), the
+   * kept routes are written as before.
+   */
+  all?: PricedRoutesLike | null;
+  /** How many routes were kept, when `routes` is only the top of them (the store trims to the leg cap). */
+  kept?: number;
 }
 
 /** One route the By a date search kept. */
@@ -515,9 +536,70 @@ export interface DeadlineCsvRoute {
 /**
  * Routes whose legs are written. The collector takes 8 MB gzipped (~180 MB of raw text at the ~23x
  * this data achieves); a leg row is about 200 bytes and a route has a handful of legs, so 20,000
- * routes is roughly 25 MB raw, about 1 MB gzipped. Routes past the cap keep their arrival row only.
+ * routes is roughly 25 MB raw, about 1 MB gzipped. Routes past the cap keep their arrival row only
+ * (or, with every priced route listed, just their summary line).
  */
 export const DEADLINE_LEG_ROUTES = 20000;
+
+/**
+ * Every route a By a date run priced, compactly (search/deadline.ts `PricedRoutes`): what the CSV's
+ * summary section is written from. NaN times: the route could not be priced.
+ */
+export interface PricedRoutesLike {
+  readonly size: number;
+  readonly keys: readonly string[];
+  reachAt(i: number): number;
+  ascendAt(i: number): number;
+}
+
+/** The first cell of a summary line. Not a digit, so every reader that takes a data row by its
+ *  leading rank number (the Explorer's, the analyst's) passes these lines by. */
+export const PRICED_ROW_TAG = 'priced';
+
+/** The summary section's own column header, after the leg rows. */
+export const DEADLINE_PRICED_COLUMNS = [
+  'kind',
+  'route',
+  'stops',
+  'last_stop',
+  'reached_local',
+  'ascend_from_local',
+  'spare_hours',
+  'total_days',
+  'makes_it',
+] as const;
+
+/** The line that starts the summary section (a comment, so position-based readers skip it). */
+export const PRICED_SECTION_LINE = '# every route priced, one summary line each';
+
+/**
+ * The order of the summary lines: the routes that make the date first (highest last stop, then most
+ * time to spare), then those that miss it (highest last stop, then least late), then any that could
+ * not be priced. Index order within ties, so the file is the same every time.
+ */
+export function pricedOrder(all: PricedRoutesLike, deadline: number): Uint32Array {
+  const n = all.size;
+  const last = new Float64Array(n);
+  const group = new Uint8Array(n);
+  for (let i = 0; i < n; i++) {
+    const key = all.keys[i];
+    last[i] = Number(key.slice(key.lastIndexOf(',') + 1));
+    const at = all.ascendAt(i);
+    group[i] = Number.isNaN(at) ? 2 : at <= deadline ? 0 : 1;
+  }
+  const order = new Uint32Array(n);
+  for (let i = 0; i < n; i++) order[i] = i;
+  order.sort((a, b) => {
+    if (group[a] !== group[b]) return group[a] - group[b];
+    if (last[a] !== last[b]) return last[b] - last[a];
+    if (group[a] < 2) {
+      const d = all.ascendAt(a) - all.ascendAt(b);
+      if (d) return d;
+    }
+    return a - b;
+  });
+  return order;
+}
 
 /** The By a date columns: its own first (names unchanged), then the chain-search columns minus the
  *  `rank` they share, in the same order, so the analyst's leg readers find what they look for. */
@@ -539,8 +621,13 @@ export function* deadlineCsvChunks(
   legRoutes = DEADLINE_LEG_ROUTES
 ): Generator<string> {
   const tz = meta.timezone;
-  const earliest = routes.reduce((m, r) => Math.min(m, r.reachAt), Infinity);
+  const all = info.all && info.all.size ? info.all : null;
   const withLegs = Math.min(routes.length, legRoutes);
+  // With every priced route summarised below, a kept route past the leg cap has nothing more to say
+  // than its summary line, so the leg section stops at the cap.
+  const shown = all ? withLegs : routes.length;
+  let earliest = Infinity;
+  for (let i = 0; i < shown; i++) earliest = Math.min(earliest, routes[i].reachAt);
   const lines = metaLines(
     meta,
     [
@@ -554,7 +641,14 @@ export function* deadlineCsvChunks(
     "rank, route, stops, last_stop, reached_local, ascend_from_local and spare_hours repeat on each of a route's rows."
   );
   note(`total_days is plan start to the last stop; gap_days is days behind the earliest arrival in this file.`);
-  if (routes.length > withLegs) {
+  if (all) {
+    note(
+      `Kept routes are each set of early stops' best route that makes the date. Legs are written for the top ${withLegs} of ${Math.max(routes.length, info.kept ?? 0)}.`
+    );
+    note(
+      `After them, every route priced (${all.size}), those that miss the date too, has ONE summary line starting "${PRICED_ROW_TAG}", under its own column header.`
+    );
+  } else if (routes.length > withLegs) {
     note(
       `legs are written for the top ${withLegs} of ${routes.length} routes; the rest have one arrival-only row with blank leg cells.`
     );
@@ -565,7 +659,7 @@ export function* deadlineCsvChunks(
   }
   lines.push(DEADLINE_COLUMNS.join(','));
 
-  for (let i = 0; i < routes.length; i++) {
+  for (let i = 0; i < shown; i++) {
     const x = routes[i];
     const rank = i + 1;
     const chainText = x.chain.join(' ');
@@ -585,6 +679,62 @@ export function* deadlineCsvChunks(
       const cells = legCells(rank, chainText, x.chain.length, totalDays, gapDays, leg ? k : '', leg, tz);
       lines.push([...own, ...cells.slice(1)].map(cell).join(','));
     });
+    if (lines.length >= CHUNK_ROWS) {
+      yield lines.join('\n') + '\n';
+      lines.length = 0;
+    }
+  }
+  if (all) yield* pricedSummaryChunks(all, meta, info.deadline, lines);
+  else if (lines.length) yield lines.join('\n') + '\n';
+}
+
+/**
+ * The summary section: a comment that starts it, what its columns mean, its own column header, then
+ * one line per priced route (`pricedOrder`). Each line is about 90 bytes, so 159,000 routes add some
+ * 14 MB of text, about 1.5 MB gzipped (the 9 Oct run's size; the collector takes 8 MB gzipped).
+ * `lines` is whatever the leg section left unflushed.
+ */
+function* pricedSummaryChunks(
+  all: PricedRoutesLike,
+  meta: CsvMeta,
+  deadline: number,
+  lines: string[]
+): Generator<string> {
+  const tz = meta.timezone;
+  const note = (s: string) => lines.push(`# ${s}`);
+  note('');
+  lines.push(PRICED_SECTION_LINE);
+  note(
+    'reached_local is when the last stop is reached; spare_hours is the time to spare at the deadline (negative: that many hours late).'
+  );
+  note(
+    "makes_it: yes, doesn't make it, or couldn't be priced (then the times are blank). Routes that make it come first, then the rest, highest last stop first."
+  );
+  lines.push(DEADLINE_PRICED_COLUMNS.join(','));
+  const order = pricedOrder(all, deadline);
+  for (let j = 0; j < order.length; j++) {
+    const i = order[j];
+    const key = all.keys[i];
+    const reach = all.reachAt(i);
+    const at = all.ascendAt(i);
+    const route = key.split(',');
+    const priced = !Number.isNaN(at);
+    const makes = priced && at <= deadline;
+    lines.push(
+      [
+        PRICED_ROW_TAG,
+        route.join(' '),
+        route.length,
+        route[route.length - 1],
+        priced ? formatInZone(reach, tz) : '',
+        priced ? formatInZone(at, tz) : '',
+        priced ? ((deadline - at) / 3600).toFixed(2) : '',
+        priced ? ((reach - meta.planStart) / 86400).toFixed(4) : '',
+        makes ? 'yes' : priced ? "doesn't make it" : "couldn't be priced",
+      ]
+        .map(cell)
+        .join(',')
+    );
     if (lines.length >= CHUNK_ROWS) {
       yield lines.join('\n') + '\n';
       lines.length = 0;

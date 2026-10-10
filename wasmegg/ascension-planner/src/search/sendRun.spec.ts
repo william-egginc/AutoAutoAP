@@ -15,9 +15,9 @@ function fakeStore() {
       blackBoxMark: vi.fn(),
       blackBoxEnd: vi.fn(),
       diagnosticsLine: () => JSON.stringify({ browser: 'chrome on mac', cores: 8 }),
-      exportCsv: vi.fn(() => 'csv'),
-      sendSubmission: async (p: Record<string, unknown>, csv?: string) => {
-        sent.push({ payload: p, csv });
+      exportCsvChunks: vi.fn(() => ['c', 'sv']),
+      sendSubmission: async (p: Record<string, unknown>, csv?: Iterable<string>) => {
+        sent.push({ payload: p, csv: csv ? [...csv].join('') : undefined });
         return { ok: true, message: 'ok' };
       },
     } as never,

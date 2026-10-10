@@ -255,10 +255,10 @@
               column, because gear decides totals. The rows are ordered by starting TE (or Clothed TE, or delivery
               score), so you can see whether the winning count moves with where an account is or with its gear. The
               border says how the run behind the cell searched: solid for a finished box at every TE, dashed for every
-              2nd-3rd TE, dotted for every 4th or coarser, striped for a Simple (Smart search) run or a box it did not finish. A dark
-              cell with a dotted or striped edge is a best count found by a search that could have missed a better plan,
-              so it is weaker than it looks. Hover or tap a cell for the chain, its finish date, how it searched and
-              whether the step from the next count down is bigger than the search could explain.
+              2nd-3rd TE, dotted for every 4th or coarser, striped for a Simple (Smart search) run or a box it did not
+              finish. A dark cell with a dotted or striped edge is a best count found by a search that could have missed
+              a better plan, so it is weaker than it looks. Hover or tap a cell for the chain, its finish date, how it
+              searched and whether the step from the next count down is bigger than the search could explain.
             </p>
           </details>
           <BestCountMatrix
@@ -1251,6 +1251,7 @@ import GearMap from './GearMap.vue';
 import PlanDriftChart from './PlanDriftChart.vue';
 import SweepUpload from './SweepUpload.vue';
 import {
+  byDateCsvLine,
   fetchAllRows,
   fetchRunCsv,
   normaliseCollectorBase,
@@ -1908,7 +1909,9 @@ async function openTable(row: CollectorRow, event?: Event): Promise<void> {
     // and the summary row can differ if the account moved between the run and the submission.
     loadedCurrentTE.value = parsed.currentTE || row.currentTE;
     loadedFinalTE.value = parsed.finalTE || row.finalTE;
-    if (!parsed.chains.length) csvError.value = 'That table parsed to no chains, which means the format has moved.';
+    if (parsed.byDate) csvError.value = byDateCsvLine(parsed.byDate);
+    else if (!parsed.chains.length)
+      csvError.value = 'That table parsed to no chains, which means the format has moved.';
     // It opens thousands of px below the button: take the reader there, or "Open" looks dead.
     await nextTick();
     if (csvController === controller) deepDive.value?.scrollIntoView({ behavior: scrollBehaviour(), block: 'start' });
