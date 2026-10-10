@@ -453,7 +453,52 @@
       @stop="stopDeadline"
       @nickname-typed="shareNameTouched = true"
     >
+      <template #progress>
+        <!-- Live progress, Insane-style. -->
+        <div v-if="store.deadlineRunning && store.deadlineProgress" class="space-y-2" data-run-progress="by-date">
+          <ProgressBar :percent="progressPct" />
+          <p class="text-[11px] text-slate-600">
+            <span class="font-bold">{{ liveDone.toLocaleString() }}</span
+            ><template v-if="liveTotal && liveDone < liveTotal">
+              of ~{{ roundedRoutes(liveTotal).toLocaleString() }}</template
+            >
+            routes priced<template v-if="liveTotal && liveDone >= liveTotal">
+              (more than the ~{{ roundedRoutes(liveTotal).toLocaleString() }} estimated)</template
+            ><template v-if="estNow.learned"> ({{ estimateNote(estNow) }})</template> · {{ elapsedLabel }} so
+            far<template v-if="remainingLabel">
+              · about {{ remainingLabel }} left<template v-if="timeLeft?.measuring"> (measuring…)</template
+              ><template v-else-if="firstGuessLabel"> (first guess {{ firstGuessLabel }})</template></template
+            ><template v-if="store.deadlineLegSims">
+              · {{ store.deadlineLegSims.toLocaleString() }} legs simulated</template
+            >
+          </p>
+          <p class="text-[11px] text-slate-500">{{ store.deadlineProgress.stage }}</p>
+          <div v-if="store.deadlineProgress.top.length" class="overflow-x-auto">
+            <table class="w-full text-[11px] tabular-nums">
+              <thead>
+                <tr class="text-left text-[9px] font-black uppercase tracking-widest text-slate-400">
+                  <th class="pr-4 py-1">Best so far</th>
+                  <th class="pr-4 py-1">Last stop reached</th>
+                  <th class="pr-4 py-1">Spare</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="r in store.deadlineProgress.top.slice(0, 5)"
+                  :key="r.chain.join(',')"
+                  class="border-t border-slate-100"
+                >
+                  <td class="pr-4 py-1 font-bold">{{ r.chain.join(' ') }}</td>
+                  <td class="pr-4 py-1">{{ inPlannerZone(r.reachAt) }}</td>
+                  <td class="pr-4 py-1">{{ spareLabel(r.spare) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </template>
     </FindBar>
+
     <!-- Stepping away? Carry on by itself, a watcher tab, fewer workers (StepAwayOptions.vue). -->
     <StepAwayOptions
       ref="stepAway"
@@ -501,50 +546,6 @@
     <p v-if="store.error && !store.errorIsIntegrityNotice" class="text-[11px] font-semibold text-rose-700">
       {{ store.error }}
     </p>
-
-    <!-- Live progress, Insane-style. -->
-    <div v-if="store.deadlineRunning && store.deadlineProgress" class="space-y-2" data-run-progress="by-date">
-      <ProgressBar :percent="progressPct" />
-      <p class="text-[11px] text-slate-600">
-        <span class="font-bold">{{ liveDone.toLocaleString() }}</span
-        ><template v-if="liveTotal && liveDone < liveTotal">
-          of ~{{ roundedRoutes(liveTotal).toLocaleString() }}</template
-        >
-        routes priced<template v-if="liveTotal && liveDone >= liveTotal">
-          (more than the ~{{ roundedRoutes(liveTotal).toLocaleString() }} estimated)</template
-        ><template v-if="estNow.learned"> ({{ estimateNote(estNow) }})</template> · {{ elapsedLabel }} so far<template
-          v-if="remainingLabel"
-        >
-          · about {{ remainingLabel }} left<template v-if="timeLeft?.measuring"> (measuring…)</template
-          ><template v-else-if="firstGuessLabel"> (first guess {{ firstGuessLabel }})</template></template
-        ><template v-if="store.deadlineLegSims">
-          · {{ store.deadlineLegSims.toLocaleString() }} legs simulated</template
-        >
-      </p>
-      <p class="text-[11px] text-slate-500">{{ store.deadlineProgress.stage }}</p>
-      <div v-if="store.deadlineProgress.top.length" class="overflow-x-auto">
-        <table class="w-full text-[11px] tabular-nums">
-          <thead>
-            <tr class="text-left text-[9px] font-black uppercase tracking-widest text-slate-400">
-              <th class="pr-4 py-1">Best so far</th>
-              <th class="pr-4 py-1">Last stop reached</th>
-              <th class="pr-4 py-1">Spare</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="r in store.deadlineProgress.top.slice(0, 5)"
-              :key="r.chain.join(',')"
-              class="border-t border-slate-100"
-            >
-              <td class="pr-4 py-1 font-bold">{{ r.chain.join(' ') }}</td>
-              <td class="pr-4 py-1">{{ inPlannerZone(r.reachAt) }}</td>
-              <td class="pr-4 py-1">{{ spareLabel(r.spare) }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
 
     <div v-if="result" class="space-y-3">
       <div v-if="best" class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 space-y-2">
@@ -687,8 +688,8 @@
         <p class="text-[11px] text-slate-500 leading-relaxed">
           Priced from {{ inPlannerZone(result.planStart) }} at {{ result.te }} TE<template v-if="result.backupAt"
             >, on your save from {{ inPlannerZone(result.backupAt) }}</template
-          >, with the hours and time off in Your setup. A route that reaches one more TE usually has much less time to spare: the table shows both so you can
-          choose.
+          >, with the hours and time off in Your setup. A route that reaches one more TE usually has much less time to
+          spare: the table shows both so you can choose.
         </p>
       </SavedAnswers>
 

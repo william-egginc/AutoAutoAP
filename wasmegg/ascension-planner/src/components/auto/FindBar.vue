@@ -94,6 +94,9 @@
     <!-- The save is still settling (a Science link, the Auto Planner tab, a new player id): every
          search reads it, so Find waits rather than pricing one save and labelling it with another. -->
     <p v-if="notReady" class="text-[11px] font-semibold text-amber-700">{{ store.saveNotReady }}</p>
+    <!-- The run's own progress, put by the screen directly under the buttons (and above the share box and
+         "Stepping away?") so a run's progress is never pushed to the page's end (9 Oct). -->
+    <slot name="progress" />
 
     <div
       v-if="showSubmit"

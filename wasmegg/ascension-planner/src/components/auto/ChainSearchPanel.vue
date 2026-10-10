@@ -491,7 +491,258 @@
         @find="andSubmit => void run(false, andSubmit)"
         @stop="store.stop()"
         @nickname-typed="nicknameTouched = true"
-      />
+      >
+        <template #progress>
+          <!-- Live progress -->
+          <div v-if="store.isRunning || store.bestDays > 0" class="space-y-4">
+            <div data-run-progress="smart">
+              <div class="flex items-center justify-between text-[10px] font-black uppercase tracking-widest mb-1.5">
+                <span class="text-slate-500">{{ store.stage }}</span>
+                <span class="text-slate-400">
+                  {{ store.chainsDone }} / ~{{ store.chainsEstimated }} chains<template v-if="store.chainsReplayed"
+                    >, {{ store.chainsReplayed }} replayed</template
+                  >
+                </span>
+              </div>
+              <ProgressBar tone="smart" :percent="store.progressFraction * 100" />
+              <!-- Movement WITHIN the current batch. `chainsDone` only advances when a whole batch
+                 returns, and stage 6's widest sweep is one ~2200-chain request — so this line is the
+                 difference between "thinking" and "dead", which a run once got wrong for 8.5 hours. -->
+              <div
+                v-if="store.isRunning && store.batchTotal > 1"
+                class="flex items-center justify-between text-[10px] text-slate-400 font-bold mt-1.5"
+              >
+                <span>this batch: {{ store.batchDone }} / {{ store.batchTotal }} chains</span>
+                <span class="text-slate-300">updates as each chain finishes</span>
+              </div>
+              <!-- The count stopping short of the estimate is normal and confusing, so say so. -->
+              <p
+                v-if="store.finishedCleanly && store.chainsDone < store.chainsEstimated * 0.9"
+                class="text-[10px] text-emerald-700 font-bold mt-1.5"
+              >
+                Finished early. The estimate is an upper bound, and descent stops as soon as no checkpoint moves, which
+                is what happens when you start from a chain that is already good.
+              </p>
+              <div class="flex items-center justify-between text-[10px] text-slate-400 font-bold mt-1.5">
+                <span>{{ store.detail }}</span>
+                <span v-if="store.isRunning && store.secondsPerChain > 0"
+                  >~{{ formatDuration(store.secondsRemaining) }} left ({{ store.secondsPerChain.toFixed(1) }} s/chain
+                  here)</span
+                >
+                <span v-else-if="store.isRunning">timing the first batch...</span>
+                <!-- A finished run used to keep saying "timing the first batch..." here. -->
+                <span v-else-if="store.runCost"
+                  >took {{ describeCompute(store.runCost.minutes, store.runCost.workers) }}</span
+                >
+              </div>
+            </div>
+
+            <!-- Best so far, and the answer once it stops: the same card as the Full sweep
+               (RouteResultCard.vue). Always usable: the stages are nested, so stopping is safe. -->
+            <RouteResultCard
+              :chain="store.bestChain"
+              :days="store.bestDays"
+              :final-t-e="store.finalTE"
+              :end-label="endDate"
+              :running="store.isRunning"
+              :claim="store.stoppedEarly ? 'the best of what was priced' : ''"
+              :source="store.searchSpace ? `From the ${NAMES.fullFirst} search you ran` : ''"
+              :busy="store.busy"
+              can-fill
+              can-save
+              :saving="saving"
+              :note="
+                applied ? `Sent ${applied} to Your plan${generated ? ' and started building the plan.' : '.'}` : ''
+              "
+              @build="use(store.bestChain, true)"
+              @fill="use(store.bestChain)"
+              @csv="downloadCsv"
+              @save="save"
+            >
+              <p v-if="!store.searchSpace" class="text-[11px] text-emerald-800 leading-relaxed">
+                The stages are nested (each one starts from the answer the previous one produced), so stopping is safe:
+                you keep this chain, and it is exactly what the stages that already finished ({{
+                  store.lastCompletedStage
+                }}) guarantee.
+              </p>
+              <!-- Fastest is fast, not best: when a longer route might win, say so (never runs anything). -->
+              <LongerRouteHint
+                mode="start"
+                :running="store.isRunning"
+                :disabled="store.busy"
+                :on-add="startFromCount"
+                @check="chain => emit('checkExactly', chain)"
+              />
+            </RouteResultCard>
+
+            <p
+              v-if="store.continueWarning && !store.isRunning"
+              class="p-3 rounded-xl border border-amber-200 bg-amber-50 text-[11px] text-amber-900 leading-relaxed"
+            >
+              {{ store.continueWarning }}
+            </p>
+
+            <!-- Per-leg breakdown of the current best. Each row expands to the twelve shift
+               instants, because "4 night shifts" tells you there is a problem and not when. -->
+            <div v-if="store.bestLegs.length" class="overflow-x-auto">
+              <table class="w-full text-xs">
+                <thead>
+                  <tr class="text-[9px] font-black text-slate-400 uppercase tracking-widest text-left">
+                    <th class="py-2 pr-3">Leg</th>
+                    <th class="py-2 pr-3">
+                      → TE
+                      <HelpTip
+                        >The total Truth Eggs you will have when this ascension ends. That is the checkpoint you
+                        prestige on.</HelpTip
+                      >
+                    </th>
+                    <th class="py-2 pr-3">
+                      Start
+                      <HelpTip>When this ascension begins, in your plan's timezone.</HelpTip>
+                    </th>
+                    <th class="py-2 pr-3">
+                      Finish
+                      <HelpTip
+                        >When its target TE is reached, which is the moment you prestige into the next
+                        ascension.</HelpTip
+                      >
+                    </th>
+                    <th class="py-2 pr-3">
+                      Strategy
+                      <HelpTip
+                        ><span class="font-mono">2-sale-tier13</span> means: spend two weekly Research Sales building
+                        before you start earning, and unlock Tier 13 research on the way.
+                        <span class="font-mono">continue</span> means carry on the ascension you are already in rather
+                        than prestiging now.</HelpTip
+                      >
+                    </th>
+                    <th class="py-2 pr-3">Days</th>
+                    <th class="py-2 pr-3">
+                      Peak delivery
+                      <HelpTip
+                        >The highest egg delivery rate this ascension reaches, after the K3 research purchases. It caps
+                        how fast the last stretch of the leg earns.</HelpTip
+                      >
+                    </th>
+                    <!-- "Night shifts" lived here and has moved into the expander, next to the
+                       individual shifts it counts. A bare number said there was a problem and never
+                       which shift, which is the only part you can act on. -->
+                    <th v-if="store.scheduleEnabled" class="py-2 pr-3 whitespace-nowrap">
+                      Waiting for you
+                      <HelpTip
+                        >Two costs, both charged to the plan and both already inside the days column. <b>P</b> is the
+                        prestige at the end of this leg waiting for you to be available. <b>S</b> is the twelve shifts
+                        inside it being held for the same reason. Between them they are the whole difference your
+                        schedule makes, which is why turning it on changes which chain wins.</HelpTip
+                      >
+                    </th>
+                    <th class="py-2"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template v-for="(leg, i) in store.bestLegs" :key="i">
+                    <tr class="border-t border-slate-100">
+                      <td class="py-1.5 pr-3 font-black text-slate-700 whitespace-nowrap">
+                        <button
+                          v-if="leg.shifts?.length"
+                          type="button"
+                          class="mr-1 text-slate-400 hover:text-emerald-700"
+                          :aria-expanded="expandedLeg === i"
+                          :aria-label="`Show A${i + 1}'s shifts`"
+                          @click="expandedLeg = expandedLeg === i ? -1 : i"
+                        >
+                          {{ expandedLeg === i ? '⌄' : '›' }}
+                        </button>
+                        A{{ i + 1 }}
+                      </td>
+                      <td class="py-1.5 pr-3 font-bold text-slate-600">{{ leg.endTE }}</td>
+                      <td class="py-1.5 pr-3 text-slate-500 whitespace-nowrap">
+                        {{ leg.startTime ? stamp(leg.startTime) : '—' }}
+                      </td>
+                      <td class="py-1.5 pr-3 text-slate-500 whitespace-nowrap">{{ stamp(leg.endTime) }}</td>
+                      <td class="py-1.5 pr-3 text-slate-500">{{ leg.key }}</td>
+                      <td class="py-1.5 pr-3 text-slate-500">{{ (leg.durationSeconds / 86400).toFixed(2) }}</td>
+                      <td class="py-1.5 pr-3 text-slate-500">{{ ((leg.maxELR * 3600) / 1e15).toFixed(3) }} q/hr</td>
+                      <td v-if="store.scheduleEnabled" class="py-1.5 pr-3 whitespace-nowrap">
+                        <span v-if="!leg.sleepDelaySeconds && !leg.shiftDelaySeconds" class="text-slate-400"
+                          >&mdash;</span
+                        >
+                        <template v-else>
+                          <span v-if="leg.sleepDelaySeconds" class="text-slate-500">
+                            <span class="text-slate-400 font-black">P</span>
+                            {{ (leg.sleepDelaySeconds / 3600).toFixed(1) }} h
+                          </span>
+                          <span v-if="leg.shiftDelaySeconds" class="text-amber-700 font-semibold ml-1.5">
+                            <span class="text-amber-500 font-black">S</span>
+                            {{ (leg.shiftDelaySeconds / 3600).toFixed(1) }} h
+                          </span>
+                        </template>
+                      </td>
+                      <td class="py-1.5 text-right">
+                        <button
+                          v-if="leg.shifts?.length"
+                          type="button"
+                          class="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-emerald-700 whitespace-nowrap"
+                          :aria-expanded="expandedLeg === i"
+                          @click="expandedLeg = expandedLeg === i ? -1 : i"
+                        >
+                          {{ eggBlocks(leg).length }} eggs<template v-if="store.scheduleEnabled && leg.nightShifts"
+                            ><span class="text-amber-600"> · {{ leg.nightShifts }} out</span></template
+                          >
+                        </button>
+                      </td>
+                    </tr>
+                    <tr v-if="expandedLeg === i && leg.shifts?.length" class="bg-slate-50">
+                      <td :colspan="store.scheduleEnabled ? 9 : 7" class="px-3 py-3">
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                          A{{ i + 1 }}: {{ eggBlocks(leg).length }} eggs, {{ leg.shifts.length }} switches
+                          <span v-if="store.scheduleEnabled" class="text-amber-600"
+                            >· amber falls outside your hours</span
+                          >
+                        </p>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5">
+                          <div
+                            v-for="(b, k) in eggBlocks(leg)"
+                            :key="k"
+                            class="flex items-baseline justify-between gap-2 px-2 py-1 rounded-md border text-[11px]"
+                            :class="
+                              b.isSwitch && outsideSchedule(b.at)
+                                ? 'border-amber-300 bg-amber-50 text-amber-800'
+                                : b.isSwitch
+                                  ? 'border-slate-200 bg-white text-slate-600'
+                                  : 'border-emerald-200 bg-emerald-50/60 text-emerald-800'
+                            "
+                          >
+                            <span class="font-bold capitalize">
+                              {{ b.egg || 'shift' }}
+                              <span v-if="!b.isSwitch" class="font-normal normal-case text-emerald-600">(start)</span>
+                            </span>
+                            <span class="font-mono">{{ stamp(b.at) }}</span>
+                            <span class="tabular-nums" :class="b.isSwitch ? 'text-slate-400' : 'text-emerald-500'">
+                              {{ b.length }}
+                            </span>
+                          </div>
+                        </div>
+                        <p class="text-[11px] text-slate-500 mt-2 leading-relaxed">
+                          One row per egg, with when you start laying it and how long you stay. The
+                          <span class="font-semibold text-emerald-700">first row is where the ascension begins</span>:
+                          no action needed, you are already on it. Every row after it is one manual switch, which is why
+                          twelve eggs means eleven switches. This matches the Auto Planner's own C1 / I1 / K1 list.
+                        </p>
+                      </td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+
+            <p v-if="applied && store.applyNote" class="text-[11px] font-semibold text-emerald-800 leading-relaxed">
+              {{ store.applyNote }}
+            </p>
+          </div>
+        </template>
+      </FindBar>
+
       <!-- Stepping away? Carry on by itself, a watcher tab, fewer workers (StepAwayOptions.vue). -->
       <StepAwayOptions
         kind="smart"
@@ -529,246 +780,6 @@
       <!-- The same, for a run that finished (and sent) while this panel was closed for another tab. -->
       <UnsentResults kind="fastest" :player-id="playerId" />
       <AutoSendReport v-if="!autoSubmitted" kind="smart" />
-
-      <!-- Live progress -->
-      <div v-if="store.isRunning || store.bestDays > 0" class="space-y-4">
-        <div data-run-progress="smart">
-          <div class="flex items-center justify-between text-[10px] font-black uppercase tracking-widest mb-1.5">
-            <span class="text-slate-500">{{ store.stage }}</span>
-            <span class="text-slate-400">
-              {{ store.chainsDone }} / ~{{ store.chainsEstimated }} chains<template v-if="store.chainsReplayed"
-                >, {{ store.chainsReplayed }} replayed</template
-              >
-            </span>
-          </div>
-          <ProgressBar tone="smart" :percent="store.progressFraction * 100" />
-          <!-- Movement WITHIN the current batch. `chainsDone` only advances when a whole batch
-               returns, and stage 6's widest sweep is one ~2200-chain request — so this line is the
-               difference between "thinking" and "dead", which a run once got wrong for 8.5 hours. -->
-          <div
-            v-if="store.isRunning && store.batchTotal > 1"
-            class="flex items-center justify-between text-[10px] text-slate-400 font-bold mt-1.5"
-          >
-            <span>this batch: {{ store.batchDone }} / {{ store.batchTotal }} chains</span>
-            <span class="text-slate-300">updates as each chain finishes</span>
-          </div>
-          <!-- The count stopping short of the estimate is normal and confusing, so say so. -->
-          <p
-            v-if="store.finishedCleanly && store.chainsDone < store.chainsEstimated * 0.9"
-            class="text-[10px] text-emerald-700 font-bold mt-1.5"
-          >
-            Finished early. The estimate is an upper bound, and descent stops as soon as no checkpoint moves, which is
-            what happens when you start from a chain that is already good.
-          </p>
-          <div class="flex items-center justify-between text-[10px] text-slate-400 font-bold mt-1.5">
-            <span>{{ store.detail }}</span>
-            <span v-if="store.isRunning && store.secondsPerChain > 0"
-              >~{{ formatDuration(store.secondsRemaining) }} left ({{ store.secondsPerChain.toFixed(1) }} s/chain
-              here)</span
-            >
-            <span v-else-if="store.isRunning">timing the first batch...</span>
-            <!-- A finished run used to keep saying "timing the first batch..." here. -->
-            <span v-else-if="store.runCost"
-              >took {{ describeCompute(store.runCost.minutes, store.runCost.workers) }}</span
-            >
-          </div>
-        </div>
-
-        <!-- Best so far, and the answer once it stops: the same card as the Full sweep
-             (RouteResultCard.vue). Always usable: the stages are nested, so stopping is safe. -->
-        <RouteResultCard
-          :chain="store.bestChain"
-          :days="store.bestDays"
-          :final-t-e="store.finalTE"
-          :end-label="endDate"
-          :running="store.isRunning"
-          :claim="store.stoppedEarly ? 'the best of what was priced' : ''"
-          :source="store.searchSpace ? `From the ${NAMES.fullFirst} search you ran` : ''"
-          :busy="store.busy"
-          can-fill
-          can-save
-          :saving="saving"
-          :note="applied ? `Sent ${applied} to Your plan${generated ? ' and started building the plan.' : '.'}` : ''"
-          @build="use(store.bestChain, true)"
-          @fill="use(store.bestChain)"
-          @csv="downloadCsv"
-          @save="save"
-        >
-          <p v-if="!store.searchSpace" class="text-[11px] text-emerald-800 leading-relaxed">
-            The stages are nested (each one starts from the answer the previous one produced), so stopping is safe: you
-            keep this chain, and it is exactly what the stages that already finished ({{ store.lastCompletedStage }})
-            guarantee.
-          </p>
-          <!-- Fastest is fast, not best: when a longer route might win, say so (never runs anything). -->
-          <LongerRouteHint
-            mode="start"
-            :running="store.isRunning"
-            :disabled="store.busy"
-            :on-add="startFromCount"
-            @check="chain => emit('checkExactly', chain)"
-          />
-        </RouteResultCard>
-
-        <p
-          v-if="store.continueWarning && !store.isRunning"
-          class="p-3 rounded-xl border border-amber-200 bg-amber-50 text-[11px] text-amber-900 leading-relaxed"
-        >
-          {{ store.continueWarning }}
-        </p>
-
-        <!-- Per-leg breakdown of the current best. Each row expands to the twelve shift
-             instants, because "4 night shifts" tells you there is a problem and not when. -->
-        <div v-if="store.bestLegs.length" class="overflow-x-auto">
-          <table class="w-full text-xs">
-            <thead>
-              <tr class="text-[9px] font-black text-slate-400 uppercase tracking-widest text-left">
-                <th class="py-2 pr-3">Leg</th>
-                <th class="py-2 pr-3">
-                  → TE
-                  <HelpTip
-                    >The total Truth Eggs you will have when this ascension ends. That is the checkpoint you prestige
-                    on.</HelpTip
-                  >
-                </th>
-                <th class="py-2 pr-3">
-                  Start
-                  <HelpTip>When this ascension begins, in your plan's timezone.</HelpTip>
-                </th>
-                <th class="py-2 pr-3">
-                  Finish
-                  <HelpTip
-                    >When its target TE is reached, which is the moment you prestige into the next ascension.</HelpTip
-                  >
-                </th>
-                <th class="py-2 pr-3">
-                  Strategy
-                  <HelpTip
-                    ><span class="font-mono">2-sale-tier13</span> means: spend two weekly Research Sales building before
-                    you start earning, and unlock Tier 13 research on the way.
-                    <span class="font-mono">continue</span> means carry on the ascension you are already in rather than
-                    prestiging now.</HelpTip
-                  >
-                </th>
-                <th class="py-2 pr-3">Days</th>
-                <th class="py-2 pr-3">
-                  Peak delivery
-                  <HelpTip
-                    >The highest egg delivery rate this ascension reaches, after the K3 research purchases. It caps how
-                    fast the last stretch of the leg earns.</HelpTip
-                  >
-                </th>
-                <!-- "Night shifts" lived here and has moved into the expander, next to the
-                     individual shifts it counts. A bare number said there was a problem and never
-                     which shift, which is the only part you can act on. -->
-                <th v-if="store.scheduleEnabled" class="py-2 pr-3 whitespace-nowrap">
-                  Waiting for you
-                  <HelpTip
-                    >Two costs, both charged to the plan and both already inside the days column. <b>P</b> is the
-                    prestige at the end of this leg waiting for you to be available. <b>S</b> is the twelve shifts
-                    inside it being held for the same reason. Between them they are the whole difference your schedule
-                    makes, which is why turning it on changes which chain wins.</HelpTip
-                  >
-                </th>
-                <th class="py-2"></th>
-              </tr>
-            </thead>
-            <tbody>
-              <template v-for="(leg, i) in store.bestLegs" :key="i">
-                <tr class="border-t border-slate-100">
-                  <td class="py-1.5 pr-3 font-black text-slate-700 whitespace-nowrap">
-                    <button
-                      v-if="leg.shifts?.length"
-                      type="button"
-                      class="mr-1 text-slate-400 hover:text-emerald-700"
-                      :aria-expanded="expandedLeg === i"
-                      :aria-label="`Show A${i + 1}'s shifts`"
-                      @click="expandedLeg = expandedLeg === i ? -1 : i"
-                    >
-                      {{ expandedLeg === i ? '⌄' : '›' }}
-                    </button>
-                    A{{ i + 1 }}
-                  </td>
-                  <td class="py-1.5 pr-3 font-bold text-slate-600">{{ leg.endTE }}</td>
-                  <td class="py-1.5 pr-3 text-slate-500 whitespace-nowrap">
-                    {{ leg.startTime ? stamp(leg.startTime) : '—' }}
-                  </td>
-                  <td class="py-1.5 pr-3 text-slate-500 whitespace-nowrap">{{ stamp(leg.endTime) }}</td>
-                  <td class="py-1.5 pr-3 text-slate-500">{{ leg.key }}</td>
-                  <td class="py-1.5 pr-3 text-slate-500">{{ (leg.durationSeconds / 86400).toFixed(2) }}</td>
-                  <td class="py-1.5 pr-3 text-slate-500">{{ ((leg.maxELR * 3600) / 1e15).toFixed(3) }} q/hr</td>
-                  <td v-if="store.scheduleEnabled" class="py-1.5 pr-3 whitespace-nowrap">
-                    <span v-if="!leg.sleepDelaySeconds && !leg.shiftDelaySeconds" class="text-slate-400">&mdash;</span>
-                    <template v-else>
-                      <span v-if="leg.sleepDelaySeconds" class="text-slate-500">
-                        <span class="text-slate-400 font-black">P</span>
-                        {{ (leg.sleepDelaySeconds / 3600).toFixed(1) }} h
-                      </span>
-                      <span v-if="leg.shiftDelaySeconds" class="text-amber-700 font-semibold ml-1.5">
-                        <span class="text-amber-500 font-black">S</span>
-                        {{ (leg.shiftDelaySeconds / 3600).toFixed(1) }} h
-                      </span>
-                    </template>
-                  </td>
-                  <td class="py-1.5 text-right">
-                    <button
-                      v-if="leg.shifts?.length"
-                      type="button"
-                      class="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-emerald-700 whitespace-nowrap"
-                      :aria-expanded="expandedLeg === i"
-                      @click="expandedLeg = expandedLeg === i ? -1 : i"
-                    >
-                      {{ eggBlocks(leg).length }} eggs<template v-if="store.scheduleEnabled && leg.nightShifts"
-                        ><span class="text-amber-600"> · {{ leg.nightShifts }} out</span></template
-                      >
-                    </button>
-                  </td>
-                </tr>
-                <tr v-if="expandedLeg === i && leg.shifts?.length" class="bg-slate-50">
-                  <td :colspan="store.scheduleEnabled ? 9 : 7" class="px-3 py-3">
-                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
-                      A{{ i + 1 }}: {{ eggBlocks(leg).length }} eggs, {{ leg.shifts.length }} switches
-                      <span v-if="store.scheduleEnabled" class="text-amber-600">· amber falls outside your hours</span>
-                    </p>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5">
-                      <div
-                        v-for="(b, k) in eggBlocks(leg)"
-                        :key="k"
-                        class="flex items-baseline justify-between gap-2 px-2 py-1 rounded-md border text-[11px]"
-                        :class="
-                          b.isSwitch && outsideSchedule(b.at)
-                            ? 'border-amber-300 bg-amber-50 text-amber-800'
-                            : b.isSwitch
-                              ? 'border-slate-200 bg-white text-slate-600'
-                              : 'border-emerald-200 bg-emerald-50/60 text-emerald-800'
-                        "
-                      >
-                        <span class="font-bold capitalize">
-                          {{ b.egg || 'shift' }}
-                          <span v-if="!b.isSwitch" class="font-normal normal-case text-emerald-600">(start)</span>
-                        </span>
-                        <span class="font-mono">{{ stamp(b.at) }}</span>
-                        <span class="tabular-nums" :class="b.isSwitch ? 'text-slate-400' : 'text-emerald-500'">
-                          {{ b.length }}
-                        </span>
-                      </div>
-                    </div>
-                    <p class="text-[11px] text-slate-500 mt-2 leading-relaxed">
-                      One row per egg, with when you start laying it and how long you stay. The
-                      <span class="font-semibold text-emerald-700">first row is where the ascension begins</span>: no
-                      action needed, you are already on it. Every row after it is one manual switch, which is why twelve
-                      eggs means eleven switches. This matches the Auto Planner's own C1 / I1 / K1 list.
-                    </p>
-                  </td>
-                </tr>
-              </template>
-            </tbody>
-          </table>
-        </div>
-
-        <p v-if="applied && store.applyNote" class="text-[11px] font-semibold text-emerald-800 leading-relaxed">
-          {{ store.applyNote }}
-        </p>
-      </div>
 
       <!-- When to start this route: every hour of the next week, as fresh starts. -->
       <StartTimeFinder

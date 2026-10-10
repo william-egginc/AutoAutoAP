@@ -530,7 +530,12 @@
                 <span v-else class="text-[10px] text-amber-700">
                   No suggestion for this target or ascension count.
                 </span>
-                <KeptBoxNote v-if="chain1KeptNote" class="basis-full" :disabled="store.isRunning" @use="applySuggestion" />
+                <KeptBoxNote
+                  v-if="chain1KeptNote"
+                  class="basis-full"
+                  :disabled="store.isRunning"
+                  @use="applySuggestion"
+                />
               </div>
 
               <span class="block text-[10px] text-slate-400">
@@ -640,8 +645,8 @@
 
             <p class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2.5 leading-relaxed">
               The winner will be the best <span class="font-semibold">of the bands you set</span>, not of everything
-              reachable. That's still a stronger claim than {{ NAMES.smartFirst }} makes, which homes in rather than trying
-              everything.
+              reachable. That's still a stronger claim than {{ NAMES.smartFirst }} makes, which homes in rather than
+              trying everything.
             </p>
           </div>
 
@@ -831,7 +836,64 @@
           @find="andSubmit => void start(andSubmit)"
           @stop="stopRun"
           @nickname-typed="nicknameTouched = true"
-        />
+        >
+          <template #progress>
+            <div v-if="store.stage" class="space-y-1" data-run-progress="full">
+              <div class="flex items-center justify-between text-[10px] font-black uppercase tracking-widest">
+                <span class="text-slate-500">{{ store.stage }}</span>
+                <span class="text-slate-400 tabular-nums">
+                  {{ pricedSoFar.toLocaleString() }} / {{ store.chainsEstimated.toLocaleString() }}
+                </span>
+              </div>
+              <ProgressBar thin :percent="livePercent" />
+              <div v-if="store.secondsPerChain > 0 || store.runCost" class="text-[10px] text-slate-400 tabular-nums">
+                <template v-if="store.secondsPerChain > 0"
+                  >{{ store.secondsPerChain.toFixed(2) }} s/chain measured here</template
+                >
+                <template v-if="!store.isRunning && store.runCost">
+                  · took {{ describeCompute(store.runCost.minutes, store.runCost.workers) }}</template
+                >
+              </div>
+            </div>
+
+            <!-- Which chain of a multi-chain click is running, and what the finished ones found. -->
+            <div
+              v-if="queueAt >= 0 || queueResults.length"
+              class="rounded-xl border border-slate-200 bg-white p-4 space-y-2"
+            >
+              <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                <template v-if="queueAt >= 0">Running chain {{ queueAt + 1 }} of {{ store.sweepQueue.total }}</template>
+                <template v-else>All chains from the last click</template>
+              </p>
+              <div v-if="queueResults.length" class="overflow-x-auto">
+                <table class="w-full text-[11px] tabular-nums">
+                  <thead>
+                    <tr class="text-left text-[9px] font-black uppercase tracking-widest text-slate-400">
+                      <th class="pr-4 py-1">Chain</th>
+                      <th class="pr-4 py-1">Best found</th>
+                      <th class="pr-4 py-1">Days</th>
+                      <th class="pr-4 py-1">Finishes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="q in queueResults" :key="q.label" class="border-t border-slate-100">
+                      <td class="pr-4 py-1 text-slate-500">
+                        {{ q.label }}<template v-if="q.stopped"> (stopped)</template>
+                      </td>
+                      <td class="pr-4 py-1 font-bold">{{ q.chain.join(' ') }}</td>
+                      <td class="pr-4 py-1">{{ q.days ? q.days.toFixed(3) : '—' }}</td>
+                      <td class="pr-4 py-1">{{ q.finish ? saveWhen(q.finish) : '—' }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="text-[10px] text-slate-500">
+                Each is saved under Saved runs, so you can open any of them again. Compare them by finish date.
+              </p>
+            </div>
+          </template>
+        </FindBar>
+
         <!-- Stepping away? Carry on by itself, a watcher tab, fewer workers (StepAwayOptions.vue). -->
         <StepAwayOptions
           kind="sweep"
@@ -842,60 +904,6 @@
         <!-- A Find and submit that finished (and sent) while this panel was closed for another tab. -->
         <UnsentResults kind="fastest" :player-id="playerId" />
         <AutoSendReport v-if="!autoSubmitted" kind="full" />
-
-        <!-- Which chain of a multi-chain click is running, and what the finished ones found. -->
-        <div
-          v-if="queueAt >= 0 || queueResults.length"
-          class="rounded-xl border border-slate-200 bg-white p-4 space-y-2"
-        >
-          <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-            <template v-if="queueAt >= 0">Running chain {{ queueAt + 1 }} of {{ store.sweepQueue.total }}</template>
-            <template v-else>All chains from the last click</template>
-          </p>
-          <div v-if="queueResults.length" class="overflow-x-auto">
-            <table class="w-full text-[11px] tabular-nums">
-              <thead>
-                <tr class="text-left text-[9px] font-black uppercase tracking-widest text-slate-400">
-                  <th class="pr-4 py-1">Chain</th>
-                  <th class="pr-4 py-1">Best found</th>
-                  <th class="pr-4 py-1">Days</th>
-                  <th class="pr-4 py-1">Finishes</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="q in queueResults" :key="q.label" class="border-t border-slate-100">
-                  <td class="pr-4 py-1 text-slate-500">
-                    {{ q.label }}<template v-if="q.stopped"> (stopped)</template>
-                  </td>
-                  <td class="pr-4 py-1 font-bold">{{ q.chain.join(' ') }}</td>
-                  <td class="pr-4 py-1">{{ q.days ? q.days.toFixed(3) : '—' }}</td>
-                  <td class="pr-4 py-1">{{ q.finish ? saveWhen(q.finish) : '—' }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <p class="text-[10px] text-slate-500">
-            Each is saved under Saved runs, so you can open any of them again. Compare them by finish date.
-          </p>
-        </div>
-
-        <div v-if="store.stage" class="space-y-1" data-run-progress="full">
-          <div class="flex items-center justify-between text-[10px] font-black uppercase tracking-widest">
-            <span class="text-slate-500">{{ store.stage }}</span>
-            <span class="text-slate-400 tabular-nums">
-              {{ pricedSoFar.toLocaleString() }} / {{ store.chainsEstimated.toLocaleString() }}
-            </span>
-          </div>
-          <ProgressBar thin :percent="livePercent" />
-          <div v-if="store.secondsPerChain > 0 || store.runCost" class="text-[10px] text-slate-400 tabular-nums">
-            <template v-if="store.secondsPerChain > 0"
-              >{{ store.secondsPerChain.toFixed(2) }} s/chain measured here</template
-            >
-            <template v-if="!store.isRunning && store.runCost">
-              · took {{ describeCompute(store.runCost.minutes, store.runCost.workers) }}</template
-            >
-          </div>
-        </div>
 
         <p
           v-if="store.runNotes.length && !store.error"
@@ -1113,7 +1121,9 @@
               class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 disabled:opacity-40"
               @click="submit()"
             >
-              <SendingText v-if="submitting" /><template v-else>{{ store.alreadySubmitted ? 'On the board' : 'Submit result' }}</template>
+              <SendingText v-if="submitting" /><template v-else>{{
+                store.alreadySubmitted ? 'On the board' : 'Submit result'
+              }}</template>
             </button>
             <span v-else class="text-[11px] text-indigo-900/70">
               No collector configured in this build (<code class="font-mono-premium">VITE_SUBMIT_URL</code>).
