@@ -144,7 +144,7 @@
           data-testid="auto-send-every"
         >
           <option :value="60">1 hour</option>
-          <option :value="30">30 min</option>
+          <option v-for="h in [2, 3, 4, 5, 6]" :key="h" :value="h * 60">{{ h }} hours</option>
         </select>
         <label for="auto-send-best" class="font-bold">while this runs</label>
         (best so far, the CSV so far, and diagnostics if ticked)

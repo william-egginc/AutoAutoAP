@@ -6,7 +6,7 @@
  *     when its heartbeat stops.
  *  3. Use fewer workers: about half the cores, and one notch fewer when the page's own memory climbs
  *     or its speed falls well below its own recent pace.
- *  4. Send my progress every hour or 30 min (search/bestSoFarAuto.ts). Kept per browser like the
+ *  4. Send my progress every 1 to 6 hours (search/bestSoFarAuto.ts). Kept per browser like the
  *     rest, so it survives a carry-on after a crash.
  *
  * Everything here is pure or a plain localStorage read/write, so the watcher page can use it without
@@ -15,6 +15,16 @@
  * it. localStorage is shared by every tab of the same origin, and its writes are synchronous, so the
  * last heartbeat before a crash is on disk.
  */
+
+/** Minutes between automatic progress sends: 1 to 6 hours. */
+export const AUTO_EVERY_MIN = [60, 120, 180, 240, 300, 360] as const;
+export type AutoEveryMin = (typeof AUTO_EVERY_MIN)[number];
+export const DEFAULT_AUTO_EVERY_MIN: AutoEveryMin = 60;
+
+/** A stored interval, checked: anything but 1 to 6 whole hours (an older 30) is the default hour. */
+export function readAutoEveryMin(v: unknown): AutoEveryMin {
+  return (AUTO_EVERY_MIN as readonly unknown[]).includes(v) ? (v as AutoEveryMin) : DEFAULT_AUTO_EVERY_MIN;
+}
 
 export type RunKind = 'smart' | 'sweep' | 'deadline';
 
@@ -28,7 +38,7 @@ export interface StepAwayOptions {
   /** 4: send the run's progress on its own (best so far, CSV so far, diagnostics if ticked), every
    *  `autoSendEveryMin` minutes (search/bestSoFarAuto.ts). The field keeps its old name: it is stored. */
   autoSendBest: boolean;
-  autoSendEveryMin: 30 | 60;
+  autoSendEveryMin: AutoEveryMin;
 }
 
 export const OPTIONS_KEY = 'aap.stepAway.options';
@@ -127,7 +137,7 @@ export function readOptions(s: KV | null = store()): StepAwayOptions {
         watch: raw.watch === true,
         fewerWorkers: raw.fewerWorkers === true,
         autoSendBest: raw.autoSendBest === true,
-        autoSendEveryMin: raw.autoSendEveryMin === 30 ? 30 : 60,
+        autoSendEveryMin: readAutoEveryMin(raw.autoSendEveryMin),
       };
     }
   } catch {

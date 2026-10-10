@@ -244,6 +244,8 @@ describe('aboutIn', () => {
     expect(aboutIn(40 * MIN - 1)).toBe('about 40 min');
     expect(aboutIn(60 * MIN)).toBe('about 60 min');
     expect(aboutIn(65 * MIN)).toBe('about 1 h 5 min');
+    expect(aboutIn(130 * MIN)).toBe('about 2 h 10 min');
+    expect(aboutIn(360 * MIN)).toBe('about 6 h');
     expect(aboutIn(2 * HOUR)).toBe('about 2 h');
   });
 });
@@ -254,13 +256,15 @@ describe('the remembered choice', () => {
     expect(DEFAULT_OPTIONS.autoSendEveryMin).toBe(60);
     expect(readAutoEveryMin(undefined)).toBe(60);
     expect(readAutoEveryMin(45)).toBe(60);
-    expect(readAutoEveryMin(30)).toBe(30);
+    expect(readAutoEveryMin(30)).toBe(60); // an older build's 30 min reads as the hour
+    expect(readAutoEveryMin(180)).toBe(180);
+    expect(readAutoEveryMin(361)).toBe(60);
   });
   it('reads back from the browser, and survives one that cannot be read', () => {
     const kv = (v: string | null) => ({ getItem: () => v, setItem: () => undefined });
-    expect(readOptions(kv(JSON.stringify({ autoSendBest: true, autoSendEveryMin: 30 })))).toMatchObject({
+    expect(readOptions(kv(JSON.stringify({ autoSendBest: true, autoSendEveryMin: 240 })))).toMatchObject({
       autoSendBest: true,
-      autoSendEveryMin: 30,
+      autoSendEveryMin: 240,
     });
     // An option set by an older build has neither field.
     expect(readOptions(kv(JSON.stringify({ autoCarryOn: true })))).toMatchObject({

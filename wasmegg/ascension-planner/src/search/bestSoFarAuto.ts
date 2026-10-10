@@ -18,16 +18,9 @@
  *  - The run ending ends all of it (the store stops asking), and the run's final send replaces the row.
  */
 import { BEST_SO_FAR_GAP_MS } from './submission';
-import { clock12 } from './stepAway';
+import { clock12, AUTO_EVERY_MIN, DEFAULT_AUTO_EVERY_MIN, readAutoEveryMin, type AutoEveryMin } from './stepAway';
 
-export const AUTO_EVERY_MIN = [30, 60] as const;
-export type AutoEveryMin = (typeof AUTO_EVERY_MIN)[number];
-export const DEFAULT_AUTO_EVERY_MIN: AutoEveryMin = 60;
-
-/** A stored interval, checked: anything but 30 is the default hour. */
-export function readAutoEveryMin(v: unknown): AutoEveryMin {
-  return v === 30 ? 30 : DEFAULT_AUTO_EVERY_MIN;
-}
+export { AUTO_EVERY_MIN, DEFAULT_AUTO_EVERY_MIN, readAutoEveryMin, type AutoEveryMin };
 
 /** Which best a send carried, for "has it changed": the route and the TE it reaches, not when it was found. */
 export function bestKey(best: { chain: number[]; te: number } | null | undefined): string | null {

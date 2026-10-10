@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   HOUR_MS,
+  OPTIONS_KEY,
   REOPEN_GRACE_MS,
   STALE_MS,
   autoCarryOnVerdict,
@@ -70,10 +71,16 @@ describe('options and run mark storage', () => {
       watch: false,
       fewerWorkers: true,
       autoSendBest: true,
-      autoSendEveryMin: 30,
+      autoSendEveryMin: 180,
     } as const;
     writeOptions({ ...ticked }, s);
     expect(readOptions(s)).toEqual(ticked);
+  });
+
+  it('reads an older stored 30 min as an hour', () => {
+    const s = memStore();
+    s.setItem(OPTIONS_KEY, JSON.stringify({ autoSendBest: true, autoSendEveryMin: 30 }));
+    expect(readOptions(s).autoSendEveryMin).toBe(60);
   });
 
   it('survives unreadable or missing storage', () => {

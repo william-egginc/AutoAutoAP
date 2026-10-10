@@ -6,6 +6,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import type { Submission } from '@/search/submission';
+import type { AutoEveryMin } from '@/search/stepAway';
 
 const CHAIN = [212, 280, 490];
 const PAYLOAD = { schema: 7, chain: CHAIN, finalTE: 490, durationDays: 760.5 } as unknown as Submission;
@@ -209,12 +210,12 @@ describe('Send best so far', () => {
 
   describe('on its own ("Send my progress every...")', () => {
     const at = (hhmm: string) => vi.setSystemTime(Date.parse(`2026-10-09T${hhmm}:00Z`));
-    async function auto(every: 30 | 60 = 60) {
+    async function auto(every: number = 60) {
       vi.useFakeTimers({ toFake: ['Date'] });
       at('12:00');
       const s = await running();
       const { stepAwayOptions } = await import('@/composables/useStepAway');
-      stepAwayOptions.value = { ...stepAwayOptions.value, autoSendBest: true, autoSendEveryMin: every };
+      stepAwayOptions.value = { ...stepAwayOptions.value, autoSendBest: true, autoSendEveryMin: every as AutoEveryMin }; // 30 is not offered any more, but the timing logic takes any
       return { s, options: stepAwayOptions };
     }
     const flush = () => new Promise(r => setTimeout(r, 0));
