@@ -8,7 +8,7 @@
     <label class="flex items-start gap-3 cursor-pointer text-[11px] text-indigo-900/80">
       <input v-model="sendCsv" type="checkbox" class="mt-0.5 rounded border-indigo-300 text-indigo-600" />
       <span>
-        <span class="font-bold">Send my CSV too</span>: every route this search found, best first (the same file as
+        <span class="font-bold">Send my CSV too</span>: everything this search priced, best first (the same file as
         Download CSV)<template v-if="csvDetail"> {{ csvDetail }}</template
         >. It is compressed before it leaves your machine. Untick it to send the headline alone.
       </span>
@@ -17,8 +17,8 @@
       <input v-model="sendDiagnostics" type="checkbox" class="mt-0.5 rounded border-indigo-300 text-indigo-600" />
       <span>
         <span class="font-bold">Also send diagnostics</span>: memory readings, how many workers ran, any crash or
-        carry-on, and your browser and system. Sent privately to the planner's maintainer, never shown on the board; no
-        player ID and no save.
+        carry-on, the run's size and time, the app version, and your browser and system. Sent privately to the planner's
+        maintainer, never shown on the board; no player ID and no save.
       </span>
     </label>
     <!-- Always shown: hiding it while "Also send diagnostics" is unticked made a saved default impossible to

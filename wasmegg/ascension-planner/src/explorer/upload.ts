@@ -189,6 +189,13 @@ const COLUMN_HEADER = 'rank,chain,prestiges,total_days,gap_days,leg,target_te,st
  * data for `checkUpload` to judge. Scans by index for the reason `parseRunCsv` does.
  */
 export function readUploadCsv(text: string): UploadCsv {
+  // A By a date run's CSV (search/csv.ts `deadlineCsvChunks`): its rank rows and summary lines are
+  // not a chain table, and its result goes to Compare's By a date tabs, not this board.
+  if (text.startsWith('# highest TE by ')) {
+    throw new Error(
+      'That is a By a date CSV. Upload takes a Fastest route run’s CSV; By a date results are sent from its own screen.'
+    );
+  }
   if (!text.startsWith('# ascension-planner chain search')) {
     throw new Error('That is not a chain-search CSV: it does not start with the planner’s header line.');
   }

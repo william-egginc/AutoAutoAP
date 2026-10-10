@@ -840,6 +840,7 @@
           @carry-on="resumeCrashed"
         />
         <!-- A Find and submit that finished (and sent) while this panel was closed for another tab. -->
+        <UnsentResults kind="fastest" :player-id="playerId" />
         <AutoSendReport v-if="!autoSubmitted" kind="full" />
 
         <!-- Which chain of a multi-chain click is running, and what the finished ones found. -->
@@ -1048,6 +1049,8 @@
           v-model:opt-in="optIn"
           v-model:anonymous="anonymous"
           v-model:nickname="nickname"
+          :note="store.runNoteUsed ?? ''"
+          @update:note="(v?: string) => (store.runNoteUsed = v ?? '')"
           :nickname-max="NICKNAME_MAX"
           :csv-detail="`(${store.csvRows.toLocaleString()} chains, one row per leg; chains past the memory budget export with their per-leg cells blank)`"
           @nickname-typed="nicknameTouched = true"
@@ -1110,7 +1113,7 @@
               class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 disabled:opacity-40"
               @click="submit()"
             >
-              {{ submitting ? 'Sending...' : store.alreadySubmitted ? 'On the board' : 'Submit result' }}
+              <SendingText v-if="submitting" /><template v-else>{{ store.alreadySubmitted ? 'On the board' : 'Submit result' }}</template>
             </button>
             <span v-else class="text-[11px] text-indigo-900/70">
               No collector configured in this build (<code class="font-mono-premium">VITE_SUBMIT_URL</code>).
@@ -1171,6 +1174,8 @@ import RunNoteBox from './RunNoteBox.vue';
 import FindBar from './FindBar.vue';
 import ShareResult from './ShareResult.vue';
 import ShareStatus from './ShareStatus.vue';
+import SendingText from './SendingText.vue';
+import UnsentResults from './UnsentResults.vue';
 import { useShareExtras } from '@/composables/useShareExtras';
 import { useBoardSubmit, useShareIdentity } from '@/composables/useShareResult';
 import StepAwayOptions from './StepAwayOptions.vue';

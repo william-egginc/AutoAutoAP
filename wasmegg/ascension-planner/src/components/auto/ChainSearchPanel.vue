@@ -527,6 +527,7 @@
       </p>
 
       <!-- The same, for a run that finished (and sent) while this panel was closed for another tab. -->
+      <UnsentResults kind="fastest" :player-id="playerId" />
       <AutoSendReport v-if="!autoSubmitted" kind="smart" />
 
       <!-- Live progress -->
@@ -1096,6 +1097,8 @@
         v-model:opt-in="optIn"
         v-model:anonymous="anonymous"
         v-model:nickname="nickname"
+        :note="store.runNoteUsed ?? ''"
+        @update:note="(v?: string) => (store.runNoteUsed = v ?? '')"
         :csv-detail="`(${(store.csvRows || 0).toLocaleString()} chains, one row per leg; the JSON above is the headline and this is the working)`"
         @nickname-typed="nicknameTouched = true"
       >
@@ -1141,7 +1144,9 @@
             class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500 disabled:opacity-40"
             @click="submit"
           >
-            {{ submitState === 'sending' ? 'Sending...' : store.alreadySubmitted ? 'On the board' : 'Submit result' }}
+            <SendingText v-if="submitState === 'sending'" /><template v-else>{{
+              store.alreadySubmitted ? 'On the board' : 'Submit result'
+            }}</template>
           </button>
 
           <button
@@ -1200,7 +1205,8 @@
           <span v-if="diagnosticsGo"
             >Your <span class="font-semibold">diagnostics go too</span> ("Also send diagnostics"): sent privately to the
             planner's maintainer, never shown on the board. It holds memory readings, the worker count, any crash or
-            carry-on, and your browser and system. No player ID and no save.</span
+            carry-on, the run's size and time, the app version, and your browser and system. No player ID and no
+            save.</span
           >
           If that trade is not worth it to you, do not send it.
         </p>
@@ -1313,6 +1319,8 @@ import FindBar from './FindBar.vue';
 import RunGoingElsewhere from './RunGoingElsewhere.vue';
 import ShareResult from './ShareResult.vue';
 import ShareStatus from './ShareStatus.vue';
+import SendingText from './SendingText.vue';
+import UnsentResults from './UnsentResults.vue';
 import { useShareExtras } from '@/composables/useShareExtras';
 import { useBoardSubmit, useShareIdentity } from '@/composables/useShareResult';
 import StepAwayOptions from './StepAwayOptions.vue';
@@ -1522,8 +1530,9 @@ async function submit(): Promise<void> {
     }
     // Black box: a page that dies while building or sending the table says so on the next visit.
     store.blackBoxMark('submit', includeCsv.value ? 'building the CSV' : 'building the result');
-    const csv = includeCsv.value ? store.exportCsv() : undefined;
-    store.blackBoxMark('submit', `sending${csv ? ` (${Math.round(csv.length / 1048576)} MB of CSV)` : ''}`);
+    // Chunks, compressed as they are made (stores/chainSearch.ts `sendSubmission`): never one big string.
+    const csv = includeCsv.value ? store.exportCsvChunks() : undefined;
+    store.blackBoxMark('submit', csv ? 'sending (the CSV is built as it goes)' : 'sending');
     submitMessage.value = 'Sending...';
     const res = await store.sendSubmission(withPrivateDiagnostics(store, payload, diagnosticsGo.value), csv);
     submitOk.value = res.ok;

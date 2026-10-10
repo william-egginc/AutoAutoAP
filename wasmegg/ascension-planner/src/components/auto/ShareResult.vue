@@ -29,10 +29,10 @@
            only the target/deadline word differs. A screen can still replace it (`consent`). -->
       <slot name="consent"
         ><span data-testid="share-consent-text"
-          >I acknowledge the following: I want to share this result on the leaderboard. I understand it sends the
-          route, its dates and the {{ goalWord }}, with my artifact inventory, timezone, local plan start and the random
-          code this browser keeps for the account (not my player ID, and never shown), plus my CSV if ticked below and,
-          if ticked, private diagnostics (never shown).<template v-if="goalWord === 'target'">
+          >I acknowledge the following: I want to share this result on the leaderboard. I understand it sends the route,
+          its dates and the {{ goalWord }}, with my artifact inventory, timezone, local plan start and the random code
+          this browser keeps for the account (not my player ID, and never shown), plus my CSV if ticked below and, if
+          ticked, private diagnostics (never shown).<template v-if="goalWord === 'target'">
             It also sends my best three plans already on the board, re-priced from this save.</template
           ></span
         ></slot
@@ -61,6 +61,9 @@
         />
       </div>
       <ShareExtras :csv-detail="csvDetail" />
+      <!-- The same note box as Find and submit's (FindBar.vue), holding the run's own note: what it
+           says here is what is sent, and what the CSV's header carries. -->
+      <RunNoteBox v-if="note !== undefined" v-model="note" class="text-[11px] text-indigo-900" />
       <slot name="opted" />
     </div>
     <slot />
@@ -69,6 +72,7 @@
 
 <script setup lang="ts">
 import ShareExtras from './ShareExtras.vue';
+import RunNoteBox from './RunNoteBox.vue';
 
 withDefaults(
   defineProps<{
@@ -87,6 +91,8 @@ const emit = defineEmits<{ nicknameTyped: [] }>();
 const optIn = defineModel<boolean>('optIn', { required: true });
 const anonymous = defineModel<boolean>('anonymous', { required: true });
 const nickname = defineModel<string>('nickname', { required: true });
+/** "Note on this run": the run's note, sent with the result. Left unbound, the box isn't shown. */
+const note = defineModel<string>('note');
 
 function onNickname(e: Event): void {
   nickname.value = (e.target as HTMLInputElement).value;

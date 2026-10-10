@@ -61,7 +61,14 @@ export const COUNTDOWN_SECONDS = 10;
 export type RunStatus =
   /** Going (or the page died while it was going: the heartbeat says which). */
   | 'running'
+  /** Its result was saved. Written only then, never for a run that ended any other way. */
   | 'finished'
+  /**
+   * It ended with an error (a crashed worker, a stall, a result that could not be saved) while the
+   * page lived on. Treated as a crash: the watcher reopens it, and the reopened page carries it on
+   * by itself with one fewer worker, within the same 3-an-hour guard.
+   */
+  | 'failed'
   /** The player pressed Stop, or cancelled an automatic carry-on. */
   | 'stopped'
   /** The page was reloaded or closed on purpose (pagehide). */
@@ -215,6 +222,15 @@ export function watchVerdict(
   seenRunning?: number
 ): WatchState {
   if (!m || !m.watch) return 'idle';
+  if (m.status === 'failed') {
+    const watched = m.startedAt === seenRunning || m.startedAt >= watchingSince;
+    if (!watched) return 'waiting';
+    // Reopened since it failed: give that page its time to load and carry on (a new run mark),
+    // rather than opening another every check.
+    const lastReopen = m.reopens.length ? Math.max(...m.reopens) : 0;
+    if (lastReopen >= (m.endedAt ?? m.beatAt) && now - lastReopen < REOPEN_GRACE_MS) return 'watching';
+    return canReopen(m.reopens, now) ? 'reopen' : 'guarded';
+  }
   if (m.status !== 'running') {
     const watched = m.startedAt === seenRunning || m.startedAt >= watchingSince;
     return watched ? m.status : 'waiting';
@@ -430,10 +446,13 @@ export function autoCarryOnVerdict(a: {
   | { go: true }
   | { go: false; why: 'off' | 'no-crash' | 'other-kind' | 'other-account' | 'too-old' | 'alive' | 'cannot' | 'guard' } {
   const { mark, kind, account, now, crash, lockHeld, canCarryOn } = a;
-  if (!mark || !mark.autoCarryOn || mark.status !== 'running') return { go: false, why: 'off' };
-  if (!crash || crash.pageClosed) return { go: false, why: 'no-crash' };
+  // A run that failed with an error is a crash whatever the black box says: the page that saw it
+  // fail lived on (it may since have been closed or reloaded), and its mark says what happened.
+  const failed = mark?.status === 'failed';
+  if (!mark || !mark.autoCarryOn || (mark.status !== 'running' && !failed)) return { go: false, why: 'off' };
+  if (!failed && (!crash || crash.pageClosed)) return { go: false, why: 'no-crash' };
   const phase = kind === 'deadline' ? 'deadline search' : 'search';
-  if (mark.kind !== kind || crash.phase !== phase) return { go: false, why: 'other-kind' };
+  if (mark.kind !== kind || (!failed && crash?.phase !== phase)) return { go: false, why: 'other-kind' };
   if (!account || mark.account !== account) return { go: false, why: 'other-account' };
   if (now - mark.beatAt > AUTO_CARRY_ON_MAX_AGE_MS) return { go: false, why: 'too-old' };
   if (lockHeld) return { go: false, why: 'alive' };
@@ -462,9 +481,38 @@ export function runAliveElsewhere(a: {
   lockHeld: boolean;
   /** This page is running a search itself: the mark and the lock are its own. */
   runningHere: boolean;
+  /**
+   * The browser answered the Web Locks query, so `lockHeld` is the whole truth: a page holds the lock
+   * for its whole run and the browser drops it when that page dies. Then a run whose page crashed a
+   * moment ago is not "still going" for two minutes on its last heartbeat (seen 10 Oct: the carry-on
+   * after a crash showed "running in another tab" instead of its button). Unset: the heartbeat decides.
+   */
+  locksKnown?: boolean;
 }): boolean {
-  const { mark, kind, account, now, lockHeld, runningHere } = a;
+  const { mark, kind, account, now, lockHeld, runningHere, locksKnown } = a;
   if (runningHere || !mark || mark.status !== 'running' || mark.kind !== kind) return false;
   if (account && mark.account && mark.account !== account) return false;
+  if (locksKnown) return lockHeld;
   return lockHeld || heartbeatAge(mark, now) < STALE_MS;
+}
+
+/**
+ * A run starting on this page must not write over another tab's run mark while that run is alive:
+ * the watcher would lose the run it watches, and that run's next beat would find the mark no longer
+ * its own and stop beating. Any kind and any account, since there is one mark for the browser.
+ *
+ * `lock`: whether this page was granted the run lock ('ours': nobody else holds it, so no other run
+ * is alive), is still waiting for it ('other': another page holds it, and a page holds it for its
+ * whole run), or cannot tell ('unknown': no Web Locks), when a fresh heartbeat decides.
+ */
+export function markHeldElsewhere(a: {
+  mark: RunMark | null;
+  now: number;
+  /** `startedAt` of this page's own run, whose mark it may always rewrite. */
+  ownStartedAt: number;
+  lock: 'ours' | 'other' | 'unknown';
+}): boolean {
+  const { mark, now, ownStartedAt, lock } = a;
+  if (!mark || mark.startedAt === ownStartedAt || lock === 'ours') return false;
+  return runAliveElsewhere({ mark, kind: mark.kind, account: '', now, lockHeld: lock === 'other', runningHere: false });
 }

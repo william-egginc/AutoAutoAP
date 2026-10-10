@@ -16,7 +16,7 @@ import type { useChainSearchStore } from '@/stores/chainSearch';
 
 type Store = Pick<
   ReturnType<typeof useChainSearchStore>,
-  'csvFilename' | 'exportCsvChunks' | 'buildRunDiagnostics' | 'deadlineCsv'
+  'csvFilename' | 'exportCsvChunks' | 'buildRunDiagnostics' | 'deadlineCsvChunksNow'
 >;
 
 const downloadError = ref('');
@@ -45,8 +45,9 @@ export function useRunDownloads(store: Store) {
       tryDownload('diagnostics', () =>
         downloadParts(`chain-search-diagnostics-${stamp()}.json`, [store.buildRunDiagnostics()], 'application/json')
       ),
-    /** By a date's answer: every leg of every route priced. */
+    /** By a date's answer: legs for its top routes, then a summary line for every route priced.
+     *  Streamed a chunk at a time, like the chain CSV. */
     downloadByDateCsv: () =>
-      tryDownload('CSV', () => saveCsvFile(`deadline-search-${stamp()}.csv`, [store.deadlineCsv()])),
+      tryDownload('CSV', () => saveCsvFile(`deadline-search-${stamp()}.csv`, store.deadlineCsvChunksNow())),
   };
 }

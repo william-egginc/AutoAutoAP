@@ -264,6 +264,108 @@ export interface ParsedRunCsv {
   truncated: number;
   /** A CSV so far, sent while its run was still going (`# in progress, N of M ...`, search/csv.ts). */
   partial: boolean;
+  /** A By a date run's CSV (`# highest TE by ...`): its routes, read by `parseByDateCsv`. `chains` is
+   *  then empty: its columns are not a chain search's, and reading them as one gave nonsense. */
+  byDate?: ParsedByDateCsv;
+}
+
+/** One route in a By a date CSV. */
+export interface ByDateCsvRoute {
+  chain: number[];
+  lastStop: number;
+  /** `2027-07-14 08:12` in the file's zone; '' when it could not be priced. */
+  reachedLocal: string;
+  /** Hours to spare at the deadline; negative when late; null when it could not be priced. */
+  spareHours: number | null;
+  /** Plan start to the last stop, days; null when unknown (an old file's kept rows have it too). */
+  totalDays: number | null;
+  /** Whether it makes the date; null when it could not be priced. */
+  makes: boolean | null;
+}
+
+export interface ParsedByDateCsv {
+  /** The kept routes with their legs (rank order, one entry per route). Every file has these. */
+  kept: ByDateCsvRoute[];
+  /** Every route priced, one per summary line (search/csv.ts `PRICED_ROW_TAG`). Empty in files from
+   *  before 10 Oct 2026, which listed the kept routes only. */
+  priced: ByDateCsvRoute[];
+  /** The header's own "N routes priced". */
+  pricedStated: number;
+  partial: boolean;
+}
+
+/** What a By a date run's CSV holds, in a line: the Explorer's charts are for chain searches. */
+export function byDateCsvLine(p: ParsedByDateCsv): string {
+  const best = p.kept[0];
+  const head = best ? `best ${best.lastStop} TE via ${best.chain.join(' ')}` : 'no route made the date';
+  if (!p.priced.length)
+    return `That is a By a date run (${head}; ${p.kept.length.toLocaleString('en-US')} routes kept). The charts here are for Fastest route runs.`;
+  const makes = p.priced.filter(r => r.makes).length;
+  return `That is a By a date run (${head}): ${p.priced.length.toLocaleString('en-US')} routes priced, ${makes.toLocaleString('en-US')} make the date. The charts here are for Fastest route runs.`;
+}
+
+/**
+ * A By a date CSV (search/csv.ts `deadlineCsvChunks`), old or new. The kept routes are the rows
+ * that start with a rank number, one per leg (the first of each route is read); the summary lines
+ * start with `priced,`. Same index scan as `parseRunCsv`, and the same naive comma split: none of
+ * the cells read here can hold a comma.
+ */
+export function parseByDateCsv(text: string): ParsedByDateCsv {
+  const out: ParsedByDateCsv = { kept: [], priced: [], pricedStated: 0, partial: false };
+  const seen = new Set<string>();
+  const num = (s: string | undefined): number | null => {
+    if (s === undefined || s === '') return null;
+    const n = Number(s);
+    return Number.isFinite(n) ? n : null;
+  };
+  let i = 0;
+  const n = text.length;
+  while (i < n) {
+    let end = text.indexOf('\n', i);
+    if (end === -1) end = n;
+    const line = text[end - 1] === '\r' ? text.slice(i, end - 1) : text.slice(i, end);
+    i = end + 1;
+    if (!line) continue;
+    if (line.charCodeAt(0) === 35 /* # */) {
+      const m = /^# (\d+) routes priced/.exec(line);
+      if (m) out.pricedStated = Number(m[1]);
+      else if (line.startsWith('# in progress, ')) out.partial = true;
+      continue;
+    }
+    const cells = line.split(',');
+    if (cells[0] === 'priced') {
+      // kind,route,stops,last_stop,reached_local,ascend_from_local,spare_hours,total_days,makes_it
+      const chain = cells[1].split(' ').map(Number);
+      if (!chain.length || chain.some(v => !Number.isFinite(v))) continue;
+      const makesText = cells[8] ?? '';
+      out.priced.push({
+        chain,
+        lastStop: chain[chain.length - 1],
+        reachedLocal: cells[4] ?? '',
+        spareHours: num(cells[6]),
+        totalDays: num(cells[7]),
+        makes: makesText === 'yes' ? true : makesText.startsWith("couldn't") ? null : false,
+      });
+      continue;
+    }
+    const code = line.charCodeAt(0);
+    if (code < 48 || code > 57) continue;
+    // rank,route,stops,last_stop,reached_local,ascend_from_local,spare_hours,chain,prestiges,total_days,...
+    const routeText = cells[1];
+    if (!routeText || seen.has(routeText)) continue;
+    seen.add(routeText);
+    const chain = routeText.split(' ').map(Number);
+    if (!chain.length || chain.some(v => !Number.isFinite(v))) continue;
+    out.kept.push({
+      chain,
+      lastStop: chain[chain.length - 1],
+      reachedLocal: cells[4] ?? '',
+      spareHours: num(cells[6]),
+      totalDays: num(cells[9]),
+      makes: true,
+    });
+  }
+  return out;
 }
 
 /**
@@ -289,6 +391,18 @@ export const MAX_PARSED_CHAINS = 60_000;
  * on a phone.
  */
 export function parseRunCsv(text: string, limit = MAX_PARSED_CHAINS): ParsedRunCsv {
+  if (text.startsWith('# highest TE by ')) {
+    const header = /current TE (\d+)\s*->\s*final target (\d+)/.exec(text.slice(0, 4000));
+    const byDate = parseByDateCsv(text);
+    return {
+      currentTE: header ? Number(header[1]) : 0,
+      finalTE: header ? Number(header[2]) : 0,
+      chains: [],
+      truncated: 0,
+      partial: byDate.partial,
+      byDate,
+    };
+  }
   let currentTE = 0;
   let finalTE = 0;
   const chains: PricedChain[] = [];

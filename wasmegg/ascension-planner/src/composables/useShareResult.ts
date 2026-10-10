@@ -17,7 +17,6 @@ import { useEidsStore } from 'lib';
 import { sentence } from '@/utils/errors';
 import { NAMES } from '@/lib/siteNav';
 import { eggDayYearOf } from '@/lib/eggDay';
-import { withPrivateDiagnostics } from '@/search/sendRun';
 import { useShareExtras } from './useShareExtras';
 import type { useChainSearchStore } from '@/stores/chainSearch';
 import type { DeadlineRoute } from '@/search/deadline';
@@ -191,23 +190,15 @@ export function useByDateShare(
     return y ? `Egg Day ${y}` : 'By a date';
   });
 
-  async function share(): Promise<void> {
+  /** One send, worded for the status line: the store builds, remembers and sends it
+   *  (stores/chainSearch.ts `sendDeadlineAnswer`), with the CSV streamed, never one big string. */
+  async function sendWith(go: () => Promise<{ ok: boolean; message: string; duplicate?: 'exact' | 'result' }>) {
     if (!best.value || sharing.value) return;
     sharing.value = true;
     shareOk.value = true;
     shareMessage.value = '';
     try {
-      const name = identity.anonymous.value ? '' : identity.nickname.value.trim().slice(0, 40);
-      const payload = store.buildDeadlineSubmission(best.value, name);
-      if (!payload) {
-        shareOk.value = false;
-        shareMessage.value = 'Nothing to send yet.';
-        return;
-      }
-      const res = await store.sendSubmission(
-        withPrivateDiagnostics(store, payload, diagnosticsGo.value),
-        sendCsv.value ? store.deadlineCsv() : undefined
-      );
+      const res = await go();
       shareOk.value = res.ok;
       if (res.ok) sentKey.value = resultKey.value;
       shareMessage.value = res.ok
@@ -218,6 +209,15 @@ export function useByDateShare(
     } finally {
       sharing.value = false;
     }
+  }
+
+  async function share(): Promise<void> {
+    const route = best.value;
+    if (!route) return;
+    const name = identity.anonymous.value ? '' : identity.nickname.value.trim().slice(0, 40);
+    await sendWith(() =>
+      store.sendDeadlineAnswer({ route, nickname: name, sendCsv: sendCsv.value, diagnostics: diagnosticsGo.value })
+    );
   }
 
   return {

@@ -592,3 +592,9 @@ export function byDatePlan(o: {
     seconds: legSeconds(plan.legs, o.workers, o.workerSecondsPerLeg),
   };
 }
+
+/** The line under the worker count when a long By a date run was given fewer workers than every core
+ *  (stores/chainSearch.ts `fitWorkersToRun`). */
+export function longRunLine(workers: number): string {
+  return `Long run: using ${workers} workers to stay within the browser's memory; raise it in Setup if you like.`;
+}

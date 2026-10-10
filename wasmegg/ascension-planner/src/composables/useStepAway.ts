@@ -22,6 +22,8 @@ interface Deps {
   account: () => Promise<string>;
   /** A line in the run's own log. */
   log: (line: string) => void;
+  /** Whether this page holds the run lock (see search/stepAway.ts `markHeldElsewhere`). Absent: unknown. */
+  runLock?: () => Promise<'ours' | 'other' | 'unknown'>;
 }
 
 let deps: Deps | null = null;
@@ -138,7 +140,20 @@ export async function stepAwayRunStarted(kind: sa.RunKind): Promise<void> {
     // no account: a carry-on is then never automatic
   }
   if (ownStartedAt !== startedAt) return; // ended (or another started) while hashing
+  let lock: 'ours' | 'other' | 'unknown' = 'unknown';
+  try {
+    lock = deps.runLock ? await deps.runLock() : 'unknown';
+  } catch {
+    // unknown: the heartbeat decides
+  }
+  if (ownStartedAt !== startedAt) return;
   const prev = sa.readRunMark();
+  // Another tab's run is alive and its mark is its own: this run goes unwatched rather than take it.
+  if (sa.markHeldElsewhere({ mark: prev, now: Date.now(), ownStartedAt: 0, lock })) {
+    ownStartedAt = 0;
+    blackBox.note('run mark: another tab has a run going, so this run is not marked for the watcher');
+    return;
+  }
   const same = prev && prev.kind === kind && prev.account === account;
   sa.writeRunMark({
     version: 1,
@@ -204,11 +219,15 @@ export function stepAwayStopPressed(): void {
   if (m && m.status === 'running') sa.writeRunMark({ ...m, status: 'stopped', endedAt: Date.now() });
 }
 
-/** The run on this page ended (finished, stopped or failed). */
-export function stepAwayRunEnded(stoppedByUser: boolean): void {
+/**
+ * The run on this page ended: `finished` only once its result was saved, `stopped` by the player, or
+ * `failed` with an error (the watcher reopens a failed run, and the reopened page carries it on).
+ * Stop pressed during a run that then failed still reads stopped: the player asked for it to end.
+ */
+export function stepAwayRunEnded(how: 'finished' | 'stopped' | 'failed'): void {
   const m = ownMark();
   if (m) {
-    const status = m.status !== 'running' ? m.status : stoppedByUser || stopPressed ? 'stopped' : 'finished';
+    const status: sa.RunStatus = m.status !== 'running' ? m.status : how === 'stopped' || stopPressed ? 'stopped' : how;
     sa.writeRunMark({ ...m, status, endedAt: m.endedAt ?? Date.now() });
     post({ type: 'ended', status });
   }
@@ -243,7 +262,8 @@ export function stepAwayBeginCarryOn(): number | null {
  *  stands down too. */
 export function stepAwayGiveUp(status: 'stopped' | 'stuck'): void {
   const m = sa.readRunMark();
-  if (m && m.status === 'running' && !ownMark()) sa.writeRunMark({ ...m, status, endedAt: Date.now() });
+  if (m && (m.status === 'running' || m.status === 'failed') && !ownMark())
+    sa.writeRunMark({ ...m, status, endedAt: Date.now() });
   // A run going on this page keeps its count; only a carry-on that is not going to happen gives it back.
   if (!ownStartedAt) restoreBudget();
 }

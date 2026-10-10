@@ -55,7 +55,7 @@ describe('a carried-on run keeps its reduced worker count', () => {
     // Beats come and go (option 3 off: no step-down rule runs); the count stays.
     for (let i = 0; i < 4; i++) m.stepAwayBeat({ done: i * 100, workers: 10 });
     expect(workerBudget.value).toBe(10);
-    m.stepAwayRunEnded(false);
+    m.stepAwayRunEnded('finished');
     expect(workerBudget.value).toBe(15);
   });
 
@@ -80,7 +80,7 @@ describe('a carried-on run keeps its reduced worker count', () => {
     m.stepAwayOptions.value.fewerWorkers = false;
     await nextTick();
     expect(workerBudget.value).toBe(10); // back to the carry-on's count, not the player's 15
-    m.stepAwayRunEnded(true);
+    m.stepAwayRunEnded('stopped');
     expect(workerBudget.value).toBe(15);
   });
 
@@ -105,7 +105,7 @@ describe('a carried-on run keeps its reduced worker count', () => {
     m.stepAwayBeginCarryOn();
     await m.stepAwayRunStarted('sweep');
     workerBudget.value = 12; // the player
-    m.stepAwayRunEnded(false);
+    m.stepAwayRunEnded('finished');
     expect(workerBudget.value).toBe(12);
   });
 

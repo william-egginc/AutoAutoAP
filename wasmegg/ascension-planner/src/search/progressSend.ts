@@ -19,6 +19,16 @@ export function sizeLabel(bytes: number): string {
   return kb < 100 ? `${Math.max(1, Math.round(kb))} KB` : `${(kb / 1024).toFixed(1)} MB`;
 }
 
+/** `gzipChunksCapped` was told to stop part-way (its `stopped`). */
+export class GzipStopped extends Error {
+  constructor() {
+    super('stopped');
+  }
+}
+
+/** How long a progress send may spend on its CSV so far before it gives up and says so. */
+export const PROGRESS_CSV_TIMEOUT_MS = 5 * 60_000;
+
 /** A macrotask, so the page paints and the workers' messages are handled between chunks. */
 const breathe = () => new Promise<void>(resolve => setTimeout(resolve, 0));
 
@@ -34,7 +44,9 @@ const breathe = () => new Promise<void>(resolve => setTimeout(resolve, 0));
 export async function gzipChunksCapped(
   chunks: Iterable<string>,
   cap: number,
-  scrub: (text: string) => string = t => t
+  scrub: (text: string) => string = t => t,
+  /** Checked between chunks: true gives up, rejecting with `GzipStopped` (a timeout, the run's end). */
+  stopped: () => boolean = () => false
 ): Promise<{ ok: true; body: ArrayBuffer } | { ok: false; tooBig: true; atLeast: number }> {
   const stream = new CompressionStream('gzip');
   const writer = stream.writable.getWriter();
@@ -56,19 +68,28 @@ export async function gzipChunksCapped(
     }
   })();
   const encoder = new TextEncoder();
+  let gaveUp = false;
   try {
     for (const chunk of chunks) {
       if (over) break;
+      if (stopped()) {
+        gaveUp = true;
+        break;
+      }
       await writer.write(encoder.encode(scrub(chunk)));
       await breathe();
     }
-    if (!over) await writer.close();
+    if (gaveUp) {
+      await writer.abort().catch(() => {});
+      await reader.cancel().catch(() => {});
+    } else if (!over) await writer.close();
     else await writer.abort().catch(() => {});
   } catch {
     // A write after the reader gave up (over the cap) rejects: that is the cap, not a fault.
-    if (!over) throw new Error('the CSV could not be compressed in this browser');
+    if (!over && !gaveUp) throw new Error('the CSV could not be compressed in this browser');
   }
-  await drain;
+  await drain.catch(() => {});
+  if (gaveUp) throw new GzipStopped();
   if (over) return { ok: false, tooBig: true, atLeast: size };
   const body = new Uint8Array(size);
   let at = 0;
@@ -92,7 +113,9 @@ export type ProgressCsv =
   /** The collector handed back no upload token: one from before progress sends (it needs updating). */
   | { kind: 'not-taken' }
   /** It did not upload; `why` in words. The next send tries again. */
-  | { kind: 'failed'; why: string };
+  | { kind: 'failed'; why: string }
+  /** The run finished while it was being built: the run's final send carries the whole CSV instead. */
+  | { kind: 'superseded' };
 
 /** Whether this outcome is settled (nothing more to gain by sending the same progress again). */
 export function csvSettled(c: ProgressCsv): boolean {
@@ -113,6 +136,8 @@ export function progressDetail(done: number, unit: string, csv: ProgressCsv): st
       return `${count}; no CSV (the board doesn't take one mid-run yet)`;
     case 'failed':
       return `${count}; the CSV didn't upload`;
+    case 'superseded':
+      return `${count}; the CSV so far gave way to the final send`;
     default:
       return count;
   }
@@ -131,6 +156,8 @@ export function csvNote(csv: ProgressCsv): string {
       return " The CSV so far wasn't sent: the board doesn't take one mid-run yet.";
     case 'failed':
       return ` The CSV so far didn't upload (${csv.why}); the next send tries again.`;
+    case 'superseded':
+      return ' The run finished while its CSV so far was being built, so that CSV was dropped: the final send carries the whole CSV.';
     default:
       return '';
   }

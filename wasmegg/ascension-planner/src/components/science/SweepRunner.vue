@@ -243,7 +243,7 @@
         <div v-if="run.phase !== 'done'" class="space-y-2">
           <div class="flex flex-wrap items-baseline justify-between gap-2 text-[12px]">
             <span class="font-bold text-slate-800">
-              <template v-if="run.phase === 'sending'">Sending the result...</template>
+              <SendingText v-if="run.phase === 'sending'" text="Sending the result" />
               <template v-else-if="run.phase === 'starting' || !store.chainsEstimated">Starting...</template>
               <template v-else>
                 {{ pricedSoFar.toLocaleString() }} of {{ store.chainsEstimated.toLocaleString() }} chains
@@ -336,8 +336,8 @@
             </button>
           </div>
           <p class="text-[10px] text-slate-400">
-            {{ fastestName(store.finalTE) }} › {{ NAMES.fullFirst }} has the whole result: the table, the CSV, building the plan, and sending it again by
-            hand if this send didn’t go through.
+            {{ fastestName(store.finalTE) }} › {{ NAMES.fullFirst }} has the whole result: the table, the CSV, building
+            the plan, and sending it again by hand if this send didn’t go through.
           </p>
         </div>
       </template>
@@ -350,6 +350,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useEidsStore } from 'lib';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import RunNoteBox from '@/components/auto/RunNoteBox.vue';
+import SendingText from '@/components/auto/SendingText.vue';
 import { useActionsStore } from '@/stores/actions';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useUIStore } from '@/stores/ui';

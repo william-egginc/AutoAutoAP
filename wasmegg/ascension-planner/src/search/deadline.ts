@@ -155,6 +155,83 @@ export interface DeadlineCallbacks {
    * search itself never ranks more often than it did.
    */
   routesSoFar?(get: () => DeadlineRoute[]): void;
+  /** Handed once, as the search starts: the live log of every route priced (`PricedRoutes`), for a
+   *  progress send's CSV so far. Read-only to the caller. */
+  pricedSoFar?(all: PricedRoutes): void;
+}
+
+/**
+ * Every route the search priced, kept compactly: its key (`chain.join(',')`), when its last stop is
+ * reached and when the player can ascend at it, as plain numbers in typed arrays. NaN for both when
+ * the route could not be priced at all.
+ *
+ * WHY. The search used to keep each priced route's whole ChainResult -- every leg, each with its
+ * twelve shift objects, about 5 KB a route -- only to ask "was it priced, and does it make the
+ * date". At 131,000 routes that was most of a gigabyte of the page's heap, in the browser's ~4 GB
+ * cage it shares with every worker (the 19.5 h run of 9 Oct died at its end). This keeps a route in
+ * about 100 bytes, and is also what the CSV's one-line-per-priced-route section is written from.
+ */
+export class PricedRoutes {
+  readonly keys: string[] = [];
+  private reach = new Float64Array(1024);
+  private ascend = new Float64Array(1024);
+
+  get size(): number {
+    return this.keys.length;
+  }
+
+  /** Adds a route, returning its index. */
+  add(key: string, reachAt: number, ascendAt: number): number {
+    const i = this.keys.length;
+    if (i >= this.reach.length) {
+      const grow = (a: Float64Array) => {
+        const b = new Float64Array(a.length * 2);
+        b.set(a);
+        return b;
+      };
+      this.reach = grow(this.reach);
+      this.ascend = grow(this.ascend);
+    }
+    this.keys.push(key);
+    this.reach[i] = reachAt;
+    this.ascend[i] = ascendAt;
+    return i;
+  }
+
+  /** Unix seconds the last stop is reached; NaN when the route could not be priced. */
+  reachAt(i: number): number {
+    return this.reach[i];
+  }
+
+  /** Unix seconds the player can ascend at it; NaN when the route could not be priced. */
+  ascendAt(i: number): number {
+    return this.ascend[i];
+  }
+}
+
+/** One string per distinct value, so the ~30,000 routes a run keeps share their legs' egg names and
+ *  strategy keys instead of each holding its own copies (every string that comes back from a worker
+ *  is a fresh one). Changes nothing a reader sees. */
+function makeInterner(): (s: string) => string {
+  const seen = new Map<string, string>();
+  return s => {
+    if (typeof s !== 'string') return s;
+    const hit = seen.get(s);
+    if (hit !== undefined) return hit;
+    seen.set(s, s);
+    return s;
+  };
+}
+
+function internLegs(legs: LegSummary[], intern: (s: string) => string): void {
+  for (const leg of legs) {
+    leg.key = intern(leg.key) as LegSummary['key'];
+    if (leg.timeOff) leg.timeOff = intern(leg.timeOff) as LegSummary['timeOff'];
+    for (const s of leg.shifts ?? []) {
+      s.egg = intern(s.egg);
+      if (s.fromEgg !== undefined) s.fromEgg = intern(s.fromEgg);
+    }
+  }
 }
 
 export interface DeadlineOutcome {
@@ -167,6 +244,8 @@ export interface DeadlineOutcome {
   shapes: number;
   priced: number;
   stoppedEarly: boolean;
+  /** Every route priced, compactly (`PricedRoutes`), for the CSV's summary lines. */
+  all: PricedRoutes;
 }
 
 export const DEFAULT_MAX_SHAPES = 3000;
@@ -363,12 +442,22 @@ function spread<T>(list: T[], n: number): T[] {
 }
 
 export async function runDeadlineSearch(spec: DeadlineSpec, cb: DeadlineCallbacks): Promise<DeadlineOutcome> {
-  const cache = new Map<string, ChainResult | null>();
+  /** Every route priced: its index in `all`. Only "priced?" and "makes the date?" are ever read. */
+  const cache = new Map<string, number>();
+  const all = new PricedRoutes();
   let priced = 0;
   let stoppedEarly = false;
   const ascendAt = spec.ascendAt ?? ((t: number) => t);
+  /**
+   * Each SET of early stops' best route that makes the date (highest last stop, then most spare),
+   * keyed by the set. It used to keep every route that made it, but every reader ranks them with
+   * `rank`, which keeps a set's best and nothing else, in the order each set first made it -- and a
+   * Map keyed by set keeps exactly that order, so the answer is the same route for route.
+   */
   const found = new Map<string, DeadlineRoute>();
+  const intern = makeInterner();
   cb.routesSoFar?.(() => rank([...found.values()]));
+  cb.pricedSoFar?.(all);
   let best: DeadlineRoute | null = null;
   let stage = '';
   // What `bracketAll` is working on, for progress reported from inside a round.
@@ -393,12 +482,21 @@ export async function runDeadlineSearch(spec: DeadlineSpec, cb: DeadlineCallback
     return ta !== tb ? ta > tb : a.spare > b.spare;
   };
 
-  function routeOf(res: ChainResult): DeadlineRoute | null {
-    const reachAt = spec.planStart + res.seconds;
-    const at = ascendAt(reachAt);
+  function routeOf(
+    res: ChainResult,
+    reachAt = spec.planStart + res.seconds,
+    at = ascendAt(reachAt)
+  ): DeadlineRoute | null {
     if (!(at <= spec.deadline)) return null;
     return { chain: [...res.chain], reachAt, ascendAt: at, spare: spec.deadline - at, legs: res.legs };
   }
+
+  /** `a` beats `b` as its set's best: a higher last stop, or the same with more to spare (`rank`). */
+  const beats = (a: DeadlineRoute, b: DeadlineRoute): boolean => {
+    const ta = a.chain[a.chain.length - 1];
+    const tb = b.chain[b.chain.length - 1];
+    return ta > tb || (ta === tb && a.spare > b.spare);
+  };
 
   /** Routes streamed in from the batch in flight, for the live table only (see `evaluate`). */
   const streamed = new Map<string, DeadlineRoute>();
@@ -446,11 +544,19 @@ export async function runDeadlineSearch(spec: DeadlineSpec, cb: DeadlineCallback
         const key = c.join(',');
         const r = got.get(key) ?? reached.get(key);
         if (r === undefined && cut) continue;
-        cache.set(key, r ?? null);
         priced++;
-        const route = r && routeOf(r);
+        const reachAt = r ? spec.planStart + r.seconds : NaN;
+        const at = r ? ascendAt(reachAt) : NaN;
+        // A chain twice in one batch (two sets' brackets on the same shape) is logged once.
+        if (!cache.has(key)) cache.set(key, all.add(key, reachAt, at));
+        const route = r && routeOf(r, reachAt, at);
         if (route) {
-          found.set(key, route);
+          const set = c.slice(0, -1).join(',');
+          const prior = found.get(set);
+          if (!prior || beats(route, prior)) {
+            internLegs(route.legs, intern);
+            found.set(set, route);
+          }
           if (better(route, best)) best = route;
         }
       }
@@ -467,9 +573,9 @@ export async function runDeadlineSearch(spec: DeadlineSpec, cb: DeadlineCallback
   }
 
   const makes = (chain: number[]): boolean | null => {
-    const key = chain.join(',');
-    if (!cache.has(key)) return null;
-    return found.has(key);
+    const i = cache.get(chain.join(','));
+    if (i === undefined) return null;
+    return all.ascendAt(i) <= spec.deadline;
   };
 
   /** Bracket the highest last stop for every shape, a round (one batch) at a time. */
@@ -660,7 +766,7 @@ export async function runDeadlineSearch(spec: DeadlineSpec, cb: DeadlineCallback
     stage = stoppedEarly ? 'stopped' : 'done';
     openNow = 0;
     report();
-    return { routes, byStops, step: 0, shapes: list.length, priced, stoppedEarly };
+    return { routes, byStops, step: 0, shapes: list.length, priced, stoppedEarly, all };
   }
 
   const step = stepForBudget(spec);
@@ -744,7 +850,7 @@ export async function runDeadlineSearch(spec: DeadlineSpec, cb: DeadlineCallback
   openNow = 0;
   shapesNow = shapes;
   report();
-  return { routes, byStops, step, shapes, priced, stoppedEarly };
+  return { routes, byStops, step, shapes, priced, stoppedEarly, all };
 }
 
 /**

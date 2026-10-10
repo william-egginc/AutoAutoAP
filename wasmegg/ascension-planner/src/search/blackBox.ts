@@ -356,7 +356,21 @@ export interface DiagnosticsExtra {
   carryOns: number;
   /** The previous page's unfinished phase (`readUnfinished().last`), or null. */
   crashed: Beat | null;
+  /**
+   * The previous visit ended with a run dying under it, or this run's last end failed: true even when
+   * `crashed` is null (the player dismissed the notice, or a carry-on has started since). It read
+   * false for the 9 Oct crash.
+   */
+  lastVisitCrashed?: boolean;
+  /** Facts about the run being sent (stores/chainSearch.ts `diagnosticsLine`): numbers and short
+   *  labels only. Kept small: the collector drops a `diagnostics` over 4 KB whole. */
+  run?: Record<string, string | number | boolean | null>;
+  /** When the run began (ms), for the beats' "minutes into the run"; absent: no beats listed. */
+  runStartedAt?: number;
 }
+
+/** Beats listed in a summary: [minutes into the run, main heap MB, workers], the last this many. */
+export const SUMMARY_BEATS = 10;
 
 /**
  * A compact, non-identifying summary of the black box, for the player who ticks "Also send
@@ -383,19 +397,50 @@ export function diagnosticsSummary(x: DiagnosticsExtra): Record<string, string |
     cores: x.cores,
     workers: x.workers,
     carryOns: x.carryOns,
-    lastVisitCrashed: !!x.crashed,
+    lastVisitCrashed: !!x.crashed || !!x.lastVisitCrashed,
   };
+  if (x.run) out.run = x.run;
+  if (x.runStartedAt) {
+    // The run's own beats (its pages before any crash included: the history outlives a reload), as
+    // [minutes into the run, main heap MB, workers]: how it went, not just its peaks.
+    const start = x.runStartedAt;
+    out.beats = beats
+      .filter(b => (b.phase === 'search' || b.phase === 'deadline search') && b.at >= start)
+      .slice(-SUMMARY_BEATS)
+      .map(b => [Math.round((b.at - start) / 60000), b.heapMB ?? null, b.workers ?? null]);
+  }
   const set = (k: string, v: number | null | undefined) => {
     if (v !== undefined && v !== null) out[k] = v;
   };
-  set('peakWorkers', peak(b => b.workers));
+  set(
+    'peakWorkers',
+    peak(b => b.workers)
+  );
   set('deviceMemoryGB', env.deviceMemoryGB);
-  set('peakHeapMB', peak(b => b.heapMB));
-  set('heapLimitMB', peak(b => b.heapLimitMB));
-  set('peakWorkersHeapMB', peak(b => b.workersHeapMB));
-  set('peakWorkerHeapMaxMB', peak(b => b.workerHeapMaxMB));
-  set('peakMemoEntries', peak(b => b.workersMemoEntries));
-  set('peakPageMemoryMB', peak(b => b.uaMemoryMB));
+  set(
+    'peakHeapMB',
+    peak(b => b.heapMB)
+  );
+  set(
+    'heapLimitMB',
+    peak(b => b.heapLimitMB)
+  );
+  set(
+    'peakWorkersHeapMB',
+    peak(b => b.workersHeapMB)
+  );
+  set(
+    'peakWorkerHeapMaxMB',
+    peak(b => b.workerHeapMaxMB)
+  );
+  set(
+    'peakMemoEntries',
+    peak(b => b.workersMemoEntries)
+  );
+  set(
+    'peakPageMemoryMB',
+    peak(b => b.uaMemoryMB)
+  );
   if (x.crashed) {
     const c = x.crashed;
     out.crash = {

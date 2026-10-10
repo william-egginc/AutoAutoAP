@@ -20,17 +20,26 @@
       Fewer workers keep the computer usable and quieter; more finish sooner. You can move it during a run too: the
       change takes effect within about a minute, and no chain in progress is lost.
     </span>
+    <span
+      v-if="store.longRunWorkers"
+      class="block text-[10px] font-semibold text-amber-800"
+      data-testid="long-run-workers"
+    >
+      {{ longRunLine(store.longRunWorkers) }}
+    </span>
   </label>
 </template>
 
 <script setup lang="ts">
 import { useChainSearchStore } from '@/stores/chainSearch';
+import { longRunLine } from '@/search/deadlineEstimate';
 
 const store = useChainSearchStore();
 
-/** Held to 1..the machine's threads, as the store's pool would clamp it anyway. */
+/** Held to 1..the machine's threads, as the store's pool would clamp it anyway. Set by hand: the store
+ *  no longer picks the count for a long run (`fitWorkersToRun`). */
 function setWorkers(raw: string): void {
   const n = Number(raw);
-  store.workerBudget = Number.isFinite(n) ? Math.max(1, Math.min(store.machineThreads, Math.floor(n))) : 1;
+  store.setWorkersByHand(Number.isFinite(n) ? Math.max(1, Math.min(store.machineThreads, Math.floor(n))) : 1);
 }
 </script>

@@ -11,11 +11,7 @@ import type { SearchInputs } from '@/search/types';
 import type { BoardRow } from '@/lib/leaderboardRank';
 
 const db = new Map<string, unknown>();
-vi.mock('@/lib/storage/db', () => ({
-  saveMetadata: vi.fn(async (hash: string, key: string, value: unknown) => void db.set(`${hash}/${key}`, value)),
-  loadMetadata: vi.fn(async (hash: string, key: string) => db.get(`${hash}/${key}`) ?? null),
-  hashID: vi.fn(async (id: string) => id),
-}));
+vi.mock('@/lib/storage/db', async () => (await import('@/test/memoryDb')).memoryDbModule(db));
 
 /** What the workers were handed, per run. */
 const pooled: SearchInputs[] = [];
@@ -52,6 +48,7 @@ vi.mock('@/search/deadline', async orig => {
         shapes: 1,
         priced: 1,
         stoppedEarly: stopEarly,
+        all: new (real.PricedRoutes as new () => DeadlineOutcome['all'])(),
       };
     }),
   };
@@ -429,5 +426,87 @@ describe('the board', () => {
     ]);
     expect(judged.good[0]).toBe('current');
     expect(judged.bad[0]).toBe('what-if');
+  });
+});
+
+describe('the end of a By a date run (the 9 Oct crash)', () => {
+  it("a finished run's leftover checkpoint is cleared, not offered as unfinished", async () => {
+    const store = useChainSearchStore();
+    loadSave(196, SAVE_AT);
+    plannerAt(196);
+    const r = await finishedRun(store);
+    expect(await loadDeadlineCheckpoint('P')).toBeNull();
+    // A checkpoint write that landed after the clear (or a clear that failed): same run, older.
+    await saveDeadlineCheckpoint('P', {
+      spec: { ...spec(), startedAt: 1 },
+      inputsKey: r.inputsKey!,
+      planStart: r.planStart,
+      te: r.te,
+      entries: [['197,217', 86400, []]],
+      updatedAt: r.at - 1000,
+    });
+    await store.loadDeadlineState('P');
+    expect(store.deadlineUnfinished).toBeNull();
+    expect(await loadDeadlineCheckpoint('P')).toBeNull();
+  });
+
+  it('a stopped Find and submit run keeps its intent to send, for its carry-on', async () => {
+    const store = useChainSearchStore();
+    loadSave(196, SAVE_AT);
+    plannerAt(196);
+    stopEarly = true;
+    store.submitsWhenDone = true;
+    store.beginBestSoFar('deadline', { nickname: 'Allan' });
+    await store.startDeadline('P', spec());
+    store.submitsWhenDone = false;
+    store.endBestSoFar();
+    await store.loadDeadlineState('P');
+    expect(store.deadlineUnfinished?.submit).toMatchObject({ whenDone: true, nickname: 'Allan' });
+  });
+
+  it('a long run defaults to 12 workers, unless the count was set by hand', () => {
+    vi.stubGlobal('navigator', { hardwareConcurrency: 20 });
+    const store = useChainSearchStore();
+    store.workerBudget = 19;
+    store.fitWorkersToRun(3 * 3600);
+    expect(store.workerBudget).toBe(12);
+    expect(store.longRunWorkers).toBe(12);
+    store.fitWorkersToRun(3600);
+    expect(store.workerBudget).toBe(19);
+    expect(store.longRunWorkers).toBeNull();
+    store.setWorkersByHand(17);
+    store.fitWorkersToRun(3 * 3600);
+    expect(store.workerBudget).toBe(17);
+    expect(store.longRunWorkers).toBeNull();
+  });
+});
+
+describe('a finished result kept until it is sent', () => {
+  it('keeps the payload and the gzipped CSV, and survives a reload', async () => {
+    (globalThis as { __AAP_SUBMIT_URL__?: string }).__AAP_SUBMIT_URL__ = 'https://collector.invalid/submit';
+    try {
+      setActivePinia(createPinia());
+      const store = useChainSearchStore();
+      store.pinPlanStart(PLAN_START);
+      loadSave(196, SAVE_AT);
+      plannerAt(196);
+      const r = await finishedRun(store);
+      await vi.waitFor(() => expect(store.pendingSends).toHaveLength(1), { timeout: 5000 });
+      const p = store.pendingSends[0];
+      expect(p.kind).toBe('deadline');
+      expect(p.key).toBe(`deadline:${r.at}`);
+      expect(p.payload.finalTE).toBe(r.routes[0].chain[r.routes[0].chain.length - 1]);
+      expect(p.payload.nickname).toBeUndefined();
+      expect(p.csvGz?.byteLength).toBeGreaterThan(100);
+      expect(p.inputsKey).toBe(r.inputsKey);
+
+      // A reload: a new store reads it back from storage.
+      setActivePinia(createPinia());
+      const again = useChainSearchStore();
+      await again.loadDeadlineState('P');
+      expect(again.pendingSends.map(x => x.key)).toEqual([p.key]);
+    } finally {
+      delete (globalThis as { __AAP_SUBMIT_URL__?: string }).__AAP_SUBMIT_URL__;
+    }
   });
 });

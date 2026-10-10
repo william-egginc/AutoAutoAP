@@ -422,7 +422,13 @@ onMounted(async () => {
   if (decided.has(props.kind)) return;
   const mark = readRunMark();
   // The common case, decided without hashing anything: the last run here wasn't set to carry on.
-  if (!mark || !mark.autoCarryOn || mark.status !== 'running' || mark.kind !== props.kind) {
+  // A run that failed with an error counts as a crash (search/stepAway.ts `autoCarryOnVerdict`).
+  if (
+    !mark ||
+    !mark.autoCarryOn ||
+    (mark.status !== 'running' && mark.status !== 'failed') ||
+    mark.kind !== props.kind
+  ) {
     decided.add(props.kind);
     return;
   }
