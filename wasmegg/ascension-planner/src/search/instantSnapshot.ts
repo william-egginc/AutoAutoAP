@@ -100,3 +100,15 @@ export function removeSnapshot(key: string | null, st: StorageLike | null = defa
     // nothing to do
   }
 }
+
+/**
+ * A saved answer that can still be shown as it was. One that says the player's gear changed (so it
+ * used the maxed table instead of their own) and was saved under an older gear rule (tableGear.ts
+ * GEAR_RULE) is not: the note may be one the current rule would not give, and the answer under it
+ * would then be the maxed table's when the player's own fits. Such an answer is worked out again.
+ * One with no gear note stands: every newer rule matches whatever an older one matched.
+ */
+export function snapshotUsable(s: { ownChanged?: string; gearRule?: number } | null, gearRule: number): boolean {
+  if (!s) return false;
+  return !s.ownChanged || (s.gearRule ?? 1) >= gearRule;
+}

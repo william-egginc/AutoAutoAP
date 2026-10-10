@@ -684,13 +684,13 @@ import {
 import InstantRunWarning from './InstantRunWarning.vue';
 import InstantShareCheck from './InstantShareCheck.vue';
 import { useInstantDuringSearch } from '@/composables/useInstantDuringSearch';
-import { readSnapshot, writeSnapshot } from '@/search/instantSnapshot';
+import { readSnapshot, snapshotUsable, writeSnapshot } from '@/search/instantSnapshot';
 import { simulateRoute } from '@/search/simulateRoute';
 import type { FirstLegsRequest } from '@/workers/routeFinder.protocol';
 import { createChainSearchPool, type ChainSearchPool, type EvaluateOptions } from '@/search/pool';
 import type { HandoffChoice } from '@/search/chain';
 import type { ChainResult } from '@/search/types';
-import { gearChanges, gearStamp, gearTableName, tableName } from '@/search/tableGear';
+import { GEAR_RULE, gearChanges, gearStamp, gearTableName, tableName } from '@/search/tableGear';
 import { compositeUrl, parseCompositeUrl } from '@/search/precomputedTable';
 import type { TableHeader } from '@/search/precomputedTable';
 import { useInitialStateStore } from '@/stores/initialState';
@@ -1233,7 +1233,8 @@ async function run(force = false, goAhead = false): Promise<void> {
   stopExact();
   // The old saved answer stays until a new one is saved over it (saveSnapshot): a forced run that is
   // stopped, superseded or fails must not leave the player with nothing.
-  const saved = !force && !!readSnapshot(snapKey);
+  // One whose gear note an older gear rule gave is not shown again (search/instantSnapshot.ts).
+  const saved = !force && snapshotUsable(readSnapshot<InstantSnapshot>(snapKey), GEAR_RULE);
   // Pressing "Work it out again" is the go-ahead: it must not drop to "waits" while a search runs.
   const what = onArrival({ runBusy: runBusy.value, hasSaved: saved, goAhead: goAhead || force });
   if (what === 'restore' && restoreSnapshot()) return;
@@ -1867,6 +1868,8 @@ interface InstantSnapshot {
   header: TableHeader | null;
   tableUrl: string;
   ownChanged: string;
+  /** The gear rule `ownChanged` was worked out under (tableGear.ts GEAR_RULE); absent before it was kept. */
+  gearRule?: number;
   ms: number | null;
   exact: Record<string, Exact | null>;
   dateExact: DateExact | null;
@@ -1894,6 +1897,7 @@ function saveSnapshot(id: number): void {
       header: header.value,
       tableUrl: tableUrl.value,
       ownChanged: ownChanged.value,
+      gearRule: GEAR_RULE,
       ms: ms.value,
       exact: exact.value,
       dateExact: dateExact.value,
@@ -1913,7 +1917,7 @@ function saveSnapshot(id: number): void {
 }
 function restoreSnapshot(): boolean {
   const s = readSnapshot<InstantSnapshot>(snapKey);
-  if (!s || s.v !== 1 || !s.result || !s.header) return false;
+  if (!s || s.v !== 1 || !s.result || !s.header || !snapshotUsable(s, GEAR_RULE)) return false;
   header.value = s.header;
   tableUrl.value = s.tableUrl;
   ownChanged.value = s.ownChanged;

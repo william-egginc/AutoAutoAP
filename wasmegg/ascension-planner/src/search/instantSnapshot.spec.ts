@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_AGE_MS, MAX_SNAPSHOTS, readSnapshot, removeSnapshot, writeSnapshot, type StorageLike } from './instantSnapshot';
+import { MAX_AGE_MS, MAX_SNAPSHOTS, readSnapshot, removeSnapshot, snapshotUsable, writeSnapshot, type StorageLike } from './instantSnapshot';
 
 function mem(): StorageLike & { map: Map<string, string> } {
   const map = new Map<string, string>();
@@ -49,5 +49,21 @@ describe('instant answer snapshots', () => {
     };
     expect(writeSnapshot('a', { at: 1 }, broken)).toBe(false);
     expect(readSnapshot('a', 2, broken)).toBeNull();
+  });
+});
+
+describe('snapshotUsable', () => {
+  it('shows a saved answer with no gear note, whatever rule it was saved under', () => {
+    expect(snapshotUsable({ ownChanged: '' }, 3)).toBe(true);
+    expect(snapshotUsable({ ownChanged: '', gearRule: 2 }, 3)).toBe(true);
+  });
+  it('works one out again whose gear note came from an older rule (the alt, 10 Oct)', () => {
+    // Saved before the gear rule stopped minding stone placement: "(earnings set)" for the same gear.
+    expect(snapshotUsable({ ownChanged: 'earnings set' }, 3)).toBe(false);
+    expect(snapshotUsable({ ownChanged: 'earnings set', gearRule: 2 }, 3)).toBe(false);
+    expect(snapshotUsable({ ownChanged: 'earnings set', gearRule: 3 }, 3)).toBe(true);
+  });
+  it('has nothing to show for no snapshot', () => {
+    expect(snapshotUsable(null, 3)).toBe(false);
   });
 });
