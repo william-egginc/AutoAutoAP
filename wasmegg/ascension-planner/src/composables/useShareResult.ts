@@ -220,11 +220,6 @@ export function useByDateShare(
     );
   }
 
-  /** "This result wasn't sent: Send it now": the saved send, on the choices it was made with. */
-  async function sendOwed(): Promise<void> {
-    await sendWith(() => store.sendOwedDeadline());
-  }
-
   return {
     collectorConfigured,
     sharing,
@@ -237,6 +232,5 @@ export function useByDateShare(
     sentKey,
     shareTab,
     share,
-    sendOwed,
   };
 }

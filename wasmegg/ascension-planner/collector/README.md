@@ -477,7 +477,12 @@ to a specific list.
 
 A request body may carry fields the public record has no place for. Today that is `diagnostics`,
 the opt-in black box summary ("Also send diagnostics" in the app: memory readings, worker count,
-browser family, any crash). After `pickSubmission` builds the public row, the remaining top-level
+browser family, any crash). Since 10 Oct it also carries `run`: the app build, the run kind
+(smart, full, by-date), where the send came from (live, carry-on, saved, kept), run minutes, routes
+priced this session and replayed, the run's carry-ons, memo capacity a worker and the checkpoint's
+size; and `beats`, the run's last ten black-box beats as [minutes into the run, heap MB, workers].
+`lastVisitCrashed` is true after a crash or a failed end. Numbers and short labels only, well under
+the cap. After `pickSubmission` builds the public row, the remaining top-level
 fields go to a **separate KV key**, `extra:<row id>`, with a 180-day TTL.
 
 - JSON only. Anything over about 16 KB in total is dropped, and `diagnostics` alone is capped at

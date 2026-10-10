@@ -527,6 +527,7 @@
       </p>
 
       <!-- The same, for a run that finished (and sent) while this panel was closed for another tab. -->
+      <UnsentResults kind="fastest" :player-id="playerId" />
       <AutoSendReport v-if="!autoSubmitted" kind="smart" />
 
       <!-- Live progress -->
@@ -1143,7 +1144,9 @@
             class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500 disabled:opacity-40"
             @click="submit"
           >
-            {{ submitState === 'sending' ? 'Sending...' : store.alreadySubmitted ? 'On the board' : 'Submit result' }}
+            <SendingText v-if="submitState === 'sending'" /><template v-else>{{
+              store.alreadySubmitted ? 'On the board' : 'Submit result'
+            }}</template>
           </button>
 
           <button
@@ -1202,7 +1205,8 @@
           <span v-if="diagnosticsGo"
             >Your <span class="font-semibold">diagnostics go too</span> ("Also send diagnostics"): sent privately to the
             planner's maintainer, never shown on the board. It holds memory readings, the worker count, any crash or
-            carry-on, and your browser and system. No player ID and no save.</span
+            carry-on, the run's size and time, the app version, and your browser and system. No player ID and no
+            save.</span
           >
           If that trade is not worth it to you, do not send it.
         </p>
@@ -1315,6 +1319,8 @@ import FindBar from './FindBar.vue';
 import RunGoingElsewhere from './RunGoingElsewhere.vue';
 import ShareResult from './ShareResult.vue';
 import ShareStatus from './ShareStatus.vue';
+import SendingText from './SendingText.vue';
+import UnsentResults from './UnsentResults.vue';
 import { useShareExtras } from '@/composables/useShareExtras';
 import { useBoardSubmit, useShareIdentity } from '@/composables/useShareResult';
 import StepAwayOptions from './StepAwayOptions.vue';

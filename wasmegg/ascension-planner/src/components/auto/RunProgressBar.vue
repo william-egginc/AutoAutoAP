@@ -61,7 +61,7 @@
           data-testid="run-bar-best-so-far"
           @click="sendBestSoFar"
         >
-          {{ store.bestSoFarSending ? 'Sending...' : 'Send best so far' }}
+          <SendingText v-if="store.bestSoFarSending" /><template v-else>Send best so far</template>
         </button>
         <button
           type="button"
@@ -109,6 +109,7 @@ import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useUIStore } from '@/stores/ui';
 import { NAMES, fastestName } from '@/lib/siteNav';
 import { showDateTime } from '@/lib/displayTime';
+import SendingText from './SendingText.vue';
 
 const props = defineProps<{ /** The bar sits on the run's own screen. */ here?: boolean }>();
 const emit = defineEmits<{ show: [] }>();

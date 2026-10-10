@@ -120,6 +120,16 @@ import {
 } from '@/search/progressSend';
 import { useShareExtras } from '@/composables/useShareExtras';
 import {
+  dropPendingSend,
+  keepPendingSend,
+  listPendingSends,
+  newPendingId,
+  pendingPayload,
+  type PendingConsent,
+  type PendingKind,
+  type PendingSend,
+} from '@/search/pendingSends';
+import {
   installStepAway,
   stepAwayBeat,
   stepAwayOptions,
@@ -134,17 +144,14 @@ import {
   checkpointCount,
   checkpointFinished,
   checkpointWriter,
+  partBytes,
   clearDeadlineCheckpoint,
-  clearOwedSend,
   loadDeadlineCheckpoint,
   loadDeadlineCheckpointHeader,
   loadDeadlineResult,
-  loadOwedSend,
   replayingEvaluator,
   runBandSets,
   saveDeadlineResult,
-  saveOwedSend,
-  type OwedSend,
   listSavedAnswers,
   saveAnswer,
   deleteSavedAnswer,
@@ -316,6 +323,9 @@ const RECHECK_WORKERS = 2;
 const WORKER_MB_GUESS = 150;
 /** Page plus workers past this, MB, is tight: Chromium gives a renderer's isolates one ~4 GB cage. */
 const MEMORY_TIGHT_MB = 3 * 1024;
+
+/** This bundle's build time (vite.config.ts), for the diagnostics; '' in tests. */
+const BUILT_AT: string = typeof __BUILD_TIME__ === 'string' ? __BUILD_TIME__ : '';
 
 /** How long a POST /submit may go unanswered before the send says so instead of waiting for ever. */
 const SUBMIT_TIMEOUT_MS = 90_000;
@@ -2134,6 +2144,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     if (slot && !slot.complete && slot.inputsKey) keep.add(slot.inputsKey);
     try {
       for (const r of await listInterrupted(hash)) if (r.inputsKey) keep.add(r.inputsKey);
+      // A finished result still waiting to be sent keeps its run's save.
+      for (const p of await listPendingSends(hash)) if (p.inputsKey) keep.add(p.inputsKey);
       const dl = await loadDeadlineCheckpointHeader(hash);
       if (dl) keep.add(dl.inputsKey);
       // Read here rather than from `savedRuns`, which a panel may not have loaded yet -- pruning
@@ -3416,6 +3428,21 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // sent before its reply had no `replaces` (or the older row's), and the best so far stayed on the
     // board beside the result. Every final send, whichever screen sends it, comes through here.
     if (!saved && !provisional) await bestSoFarSettled();
+    // The result as kept when its run finished (`keepFinishedResult`): its CSV is already built, and
+    // the yes given now is recorded on it, so a page that dies mid-send offers Send it now next time.
+    let kept: PendingSend | null = null;
+    if (!saved && !provisional) {
+      await pendingBuild;
+      kept = pendingFor(payload, sentKey);
+      if (kept) {
+        if (csv && kept.csvGz) csv = { gz: kept.csvGz };
+        await notePendingConsent(kept, {
+          nickname: payload.nickname ?? '',
+          sendCsv: !!csv,
+          sendDiagnostics: !!payload.diagnostics,
+        });
+      }
+    }
     const held = provisionalRows.value[kind];
     if (!saved && !provisional && held && payload.replaces === undefined && (deadlineSend || thisRun)) {
       payload = { ...payload, replaces: held.id };
@@ -3494,6 +3521,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     }
     const { id, uploadToken, flagged } = reply;
     const duplicate = reply.duplicate === 'exact' || reply.duplicate === 'result' ? reply.duplicate : undefined;
+    // On the board: the kept copy has done its job (a table that did not upload has Retry the table).
+    if (kept) void dropPending(kept.id);
 
     // The summary is in: from here on this result is on the board, whatever happens to the table.
     // Remembered with the row it is on, which for a copy the collector already had is THAT row, and
@@ -3790,130 +3819,216 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     }
   }
 
+  // ------------------------------------------------------------------ results not yet sent
+  //
+  // search/pendingSends.ts has the why. A finished run's send material is kept (`keepFinishedResult`)
+  // before anything sends it; `sendSubmission` uses its CSV, records the player's yes on it as a send
+  // begins, and drops it once the send lands.
+
+  /** This account's kept results, newest first (at most MAX_PENDING_SENDS). */
+  const pendingSends = ref<PendingSend[]>([]);
+  /** The kept result being built for the run that just ended: a send waits for it, then uses it. */
+  let pendingBuild: Promise<void> = Promise.resolve();
+
+  async function refreshPendingSends(hash = partitionHash): Promise<void> {
+    if (!hash) return;
+    partitionHash ||= hash;
+    try {
+      const list = await listPendingSends(hash);
+      if (hash === partitionHash) pendingSends.value = list;
+    } catch (e) {
+      console.warn('chain search: could not read the results waiting to be sent', e);
+    }
+  }
+
+  /** The kept result for what is on screen: By a date's result, or the Fastest result (`resultKey`). */
+  function pendingKeyFor(kind: PendingKind): string | null {
+    if (kind === 'deadline') return deadlineResult.value ? `deadline:${deadlineResult.value.at}` : null;
+    return safeResultKey();
+  }
+
   /**
-   * Send By a date's answer to the board (Share this result's button, Find and submit at the end, and
-   * "Send it now" for a send a closed page never finished). Never throws.
-   *
-   * In this order, for the 9 Oct crash (a 19.5 h run that died building its CSV for the send):
-   *  1. Remember the send (search/deadlineStore.ts `OwedSend`), so a page that dies from here on
-   *     offers "This result wasn't sent: Send it now" next time, with these same choices.
-   *  2. Keep the instant answer's workers asleep (`beginResultSend`); the run's own are gone already.
-   *  3. Build the CSV a chunk at a time straight into gzip (never one string), legs for the top routes
-   *     and a summary line for every route priced. Over the board's 8 MB it tries again with legs for
-   *     fewer routes. The gzipped bytes go into the remembered send, so a later "Send it now" sends
-   *     exactly this file.
-   *  4. Send. Forgotten once it lands (or the board already has it).
+   * Keep the run that just finished (or was stopped with an answer) for sending: payload, CSV, save.
+   * Built after the workers are gone and before any send, the CSV streamed into gzip; over the
+   * board's 8 MB a By a date file tries again with legs for fewer routes. Never throws.
    */
-  async function sendDeadlineAnswer(o: {
-    route: DeadlineRoute;
-    nickname: string;
-    sendCsv: boolean;
-    diagnostics: boolean;
-    /** Share this result's note; undefined: the run's own. */
-    note?: string;
-  }): Promise<{ ok: boolean; message: string; duplicate?: 'exact' | 'result' }> {
-    const r = deadlineResult.value;
-    if (!r) return { ok: false, message: 'Nothing to send yet.' };
+  function keepFinishedResult(kind: PendingKind): Promise<void> {
+    const go = async () => {
+      const hash = partitionHash;
+      if (!hash || !submitUrl) return;
+      blackBox.note(`keeping the ${kind === 'deadline' ? 'By a date' : 'Fastest'} result until it is sent`);
+      let payload: Submission | null = null;
+      let label = '';
+      let key: string | null = null;
+      let inputsKey: string | undefined;
+      let gz: ArrayBuffer | undefined;
+      let consent: PendingConsent | null = null;
+      const extras = useShareExtras();
+      if (kind === 'deadline') {
+        const r = deadlineResult.value;
+        const route = r?.routes[0];
+        if (!r || !route) return;
+        key = `deadline:${r.at}`;
+        payload = buildDeadlineSubmission(route, '', r);
+        label = `${route.chain[route.chain.length - 1]} TE by ${formatInZone(r.deadline, planTimezone())}`;
+        inputsKey = r.inputsKey;
+        const intent = deadlineSubmitIntent();
+        if (intent)
+          consent = { nickname: intent.nickname, sendCsv: intent.sendCsv, sendDiagnostics: intent.sendDiagnostics };
+        for (const legRoutes of [DEADLINE_LEG_ROUTES, Math.floor(DEADLINE_LEG_ROUTES / 4), 0]) {
+          const out = await gzipChunksCapped(
+            deadlineCsvChunksNow({ legRoutes }),
+            TABLE_LIMIT_BYTES,
+            scrubIdentifiers
+          ).catch(() => null);
+          if (out?.ok) {
+            gz = out.body;
+            break;
+          }
+        }
+      } else {
+        if (!(bestDays.value > 0)) return;
+        key = safeResultKey();
+        payload = buildRunSubmission('');
+        label = `${finalTE.value} TE in ${bestDays.value.toFixed(2)} days`;
+        inputsKey = runInputsKey || undefined;
+        const c = bestSoFar.value?.kind === 'fastest' ? bestSoFar.value.consent : null;
+        if (submitsWhenDone.value || c)
+          consent = {
+            nickname: c?.nickname ?? '',
+            sendCsv: extras.sendCsv.value,
+            sendDiagnostics: extras.sendDiagnostics.value,
+          };
+        const out = await gzipChunksCapped(exportCsvChunks(), TABLE_LIMIT_BYTES, scrubIdentifiers).catch(() => null);
+        if (out?.ok) gz = out.body;
+      }
+      if (!payload || !key) return;
+      const held = provisionalRows.value[kind];
+      const p: PendingSend = {
+        id: newPendingId(),
+        kind,
+        key,
+        label,
+        createdAt: Date.now(),
+        payload: JSON.parse(JSON.stringify(held ? { ...payload, replaces: held.id } : payload)) as Submission,
+        ...(gz ? { csvGz: gz } : {}),
+        consent,
+        ...(inputsKey ? { inputsKey } : {}),
+      };
+      pendingSends.value = await keepPendingSend(hash, p);
+    };
+    pendingBuild = pendingBuild.then(go).catch(e => console.warn('chain search: could not keep the result', e));
+    return pendingBuild;
+  }
+
+  /** The kept result a send of `payload` is sending, if any (`sendSubmission`). */
+  function pendingFor(payload: Submission, sentKey: string | null): PendingSend | null {
+    const key = payload.deadline !== undefined ? pendingKeyFor('deadline') : sentKey;
+    return key ? (pendingSends.value.find(p => p.key === key) ?? null) : null;
+  }
+
+  /** Forget a kept result: sent, or dismissed by the player. */
+  async function dropPending(id: string): Promise<void> {
+    pendingSends.value = pendingSends.value.filter(p => p.id !== id);
+    try {
+      const hash = await accountPartition();
+      if (hash) await dropPendingSend(hash, id);
+    } catch (e) {
+      console.warn('chain search: could not forget the kept result', e);
+    }
+  }
+
+  /** The player's yes on a kept result, as a send of it begins: Send it now then needs no second yes. */
+  async function notePendingConsent(p: PendingSend, consent: PendingConsent): Promise<void> {
+    const next = { ...p, consent };
+    pendingSends.value = pendingSends.value.map(x => (x.id === p.id ? next : x));
+    try {
+      const hash = await accountPartition();
+      if (hash) await keepPendingSend(hash, next);
+    } catch {
+      // the list in memory has it; a reload asks again
+    }
+  }
+
+  /**
+   * "Send it now" for a kept result: its own payload and CSV, under `consent` (its recorded yes, or
+   * the one given in the list). Works after a reload, on any save: nothing is read from the page.
+   */
+  async function sendPending(
+    id: string,
+    consent?: PendingConsent
+  ): Promise<{ ok: boolean; message: string; duplicate?: 'exact' | 'result' }> {
+    const p = pendingSends.value.find(x => x.id === id);
+    const yes = consent ?? p?.consent ?? null;
+    if (!p) return { ok: false, message: 'There is nothing waiting to be sent.' };
+    if (!yes) return { ok: false, message: 'Tick the box to agree to share it first.' };
     beginResultSend();
     try {
       const hash = await accountPartition();
-      const prior = deadlineOwed.value;
-      const reuse =
-        prior &&
-        prior.resultAt === r.at &&
-        prior.chain.join(',') === o.route.chain.join(',') &&
-        (prior.note ?? '') === (o.note ?? r.note ?? '') &&
-        prior.csvGz
-          ? prior.csvGz
-          : undefined;
-      let owed: OwedSend = {
-        resultAt: r.at,
-        chain: [...o.route.chain],
-        nickname: o.nickname,
-        sendCsv: o.sendCsv,
-        sendDiagnostics: o.diagnostics,
-        ...((o.note ?? r.note) ? { note: o.note ?? r.note } : {}),
-        ...(reuse ? { csvGz: reuse } : {}),
-        at: Date.now(),
-      };
-      const remember = async () => {
-        deadlineOwed.value = owed;
-        if (!hash) return;
+      let payload = pendingPayload(p, cleanName(yes.nickname));
+      if (yes.sendDiagnostics) {
         try {
-          await saveOwedSend(hash, owed);
-        } catch (e) {
-          console.warn('chain search: could not remember the send', e);
-        }
-      };
-      await remember();
-      blackBoxMark('submit', 'building the result');
-      let payload = buildDeadlineSubmission(o.route, o.nickname, r, o.note);
-      if (!payload) return { ok: false, message: 'Nothing to send yet.' };
-      if (o.diagnostics) {
-        try {
-          const parsed = JSON.parse(diagnosticsLine());
+          const parsed = JSON.parse(
+            diagnosticsLine({
+              from: 'kept',
+              kind: p.kind === 'deadline' ? 'by-date' : p.payload.space ? 'full' : 'smart',
+            })
+          );
           if (parsed && typeof parsed === 'object') payload = { ...payload, diagnostics: parsed };
         } catch {
           // sent without them
         }
       }
-      let csv: { gz: ArrayBuffer } | undefined;
-      if (o.sendCsv) {
-        if (!owed.csvGz) {
-          blackBoxMark('submit', 'building the CSV');
-          for (const legRoutes of [DEADLINE_LEG_ROUTES, Math.floor(DEADLINE_LEG_ROUTES / 4), 0]) {
-            const gz = await gzipChunksCapped(
-              deadlineCsvChunksNow({ legRoutes, ...(o.note !== undefined ? { note: o.note } : {}) }),
-              TABLE_LIMIT_BYTES,
-              scrubIdentifiers
-            ).catch(() => null);
-            if (gz?.ok) {
-              owed = { ...owed, csvGz: gz.body };
-              break;
-            }
-          }
-          await remember();
-        }
-        if (owed.csvGz) csv = { gz: owed.csvGz };
-      }
-      blackBoxMark('submit', `sending${csv ? ` (${sizeLabel(csv.gz.byteLength)} of CSV)` : ''}`);
-      const res = await sendSubmission(payload, csv);
-      if (res.ok) {
-        deadlineOwed.value = null;
-        if (hash) await clearOwedSend(hash).catch(() => {});
-      }
-      const tooBig =
-        o.sendCsv && !csv
-          ? ' The CSV was too big for the board even trimmed, so it was left off; Download CSV keeps it.'
-          : '';
-      return {
-        ok: res.ok,
-        message: res.message + (res.ok ? tooBig : ''),
-        ...(res.duplicate ? { duplicate: res.duplicate } : {}),
-      };
-    } catch (e) {
-      return { ok: false, message: e instanceof Error ? e.message : String(e) };
+      await notePendingConsent(p, yes);
+      blackBoxMark('submit', 'sending a kept result');
+      const res = await sendSubmission(payload, yes.sendCsv && p.csvGz ? { gz: p.csvGz } : undefined, {
+        partition: hash,
+        resultKey: p.kind === 'fastest' ? p.key : null,
+      });
+      if (res.ok) await dropPending(p.id);
+      else pendingSends.value = pendingSends.value.map(x => (x.id === p.id ? { ...x, lastError: res.message } : x));
+      return res;
     } finally {
       blackBoxEnd('submit');
       endResultSend();
     }
   }
 
-  /** "Send it now": the saved result's send that never landed, with the choices it was sent under. */
-  async function sendOwedDeadline(): Promise<{ ok: boolean; message: string; duplicate?: 'exact' | 'result' }> {
-    const owed = deadlineOwed.value;
+  /**
+   * Send By a date's answer to the board (Share this result's button, and Find and submit at the end).
+   * The workers are gone by now and the instant answer is kept asleep (`beginResultSend`); the CSV is
+   * the kept one when the run kept it, else streamed into gzip. Never throws.
+   */
+  async function sendDeadlineAnswer(o: {
+    route: DeadlineRoute;
+    nickname: string;
+    sendCsv: boolean;
+    diagnostics: boolean;
+  }): Promise<{ ok: boolean; message: string; duplicate?: 'exact' | 'result' }> {
     const r = deadlineResult.value;
-    if (!owed || !r || owed.resultAt !== r.at) return { ok: false, message: 'There is nothing waiting to be sent.' };
-    const key = owed.chain.join(',');
-    const route = [...r.routes, ...r.byStops].find(x => x.chain.join(',') === key);
-    if (!route) return { ok: false, message: 'That route is not in the saved result any more.' };
-    return sendDeadlineAnswer({
-      route,
-      nickname: owed.nickname,
-      sendCsv: owed.sendCsv,
-      diagnostics: owed.sendDiagnostics,
-      ...(owed.note !== undefined ? { note: owed.note } : {}),
-    });
+    if (!r) return { ok: false, message: 'Nothing to send yet.' };
+    beginResultSend();
+    try {
+      blackBoxMark('submit', 'building the result');
+      let payload = buildDeadlineSubmission(o.route, o.nickname, r);
+      if (!payload) return { ok: false, message: 'Nothing to send yet.' };
+      if (o.diagnostics) {
+        try {
+          const from = r.carriedOn ? 'carry-on' : deadlineAll.length ? 'live' : 'saved';
+          const parsed = JSON.parse(diagnosticsLine({ from, kind: 'by-date' }));
+          if (parsed && typeof parsed === 'object') payload = { ...payload, diagnostics: parsed };
+        } catch {
+          // sent without them
+        }
+      }
+      blackBoxMark('submit', o.sendCsv ? 'sending (the CSV is built as it goes)' : 'sending');
+      return await sendSubmission(payload, o.sendCsv ? deadlineCsvChunksNow() : undefined);
+    } catch (e) {
+      return { ok: false, message: e instanceof Error ? e.message : String(e) };
+    } finally {
+      blackBoxEnd('submit');
+      endResultSend();
+    }
   }
 
   /** A finish moment (unix seconds) as the day the player reads, in the plan's zone: "Feb 24, 2029". */
@@ -4128,9 +4243,22 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * being SENT. Only called when the player ticked the box; the collector keeps no field for it, so it
    * rides in the CSV's header comments (search/csv.ts `diagnostics`).
    */
-  function diagnosticsLine(): string {
+  function diagnosticsLine(
+    o: {
+      /** Where the send came from: a run that just finished here, its carry-on, a saved result opened
+       *  later, or a kept result (search/pendingSends.ts) sent with Send it now. */
+      from?: 'live' | 'carry-on' | 'saved' | 'kept';
+      /** The run being sent; default: the one going, else the last to end. */
+      kind?: 'smart' | 'full' | 'by-date';
+    } = {}
+  ): string {
     try {
       const b = detectBrowser();
+      const kind =
+        o.kind ??
+        (deadlineRunning.value ? 'by-date' : isRunning.value ? (searchSpace.value ? 'full' : 'smart') : lastRunKind);
+      const run = kind === 'by-date' ? deadlineRunFacts() : fastestRunFacts(kind);
+      const from = o.from ?? (run.carryOns ? 'carry-on' : 'live');
       return JSON.stringify(
         blackBox.diagnosticsSummary({
           browser: `${b.browser} on ${b.os}`,
@@ -4138,12 +4266,97 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           workers: workerBudget.value,
           carryOns: carryOnCount,
           crashed: lastCrash.value?.last ?? null,
+          // A crash seen at this page's load (even if dismissed since), a run here that failed, or a
+          // run carried on after one: the summary used to say false for all of these.
+          lastVisitCrashed: !!crashAtLoad || lastRunFailed || Number(run.carryOns) > 0,
+          run: {
+            build: appBuildId() || 'unknown',
+            ...(BUILT_AT && BUILT_AT !== appBuildId() ? { builtAt: BUILT_AT } : {}),
+            kind,
+            from,
+            ...run.facts,
+          },
+          ...(run.startedAt ? { runStartedAt: run.startedAt } : {}),
         })
       );
     } catch {
       return '';
     }
   }
+
+  /** The kind of the last run to start here, for a send after it ended. */
+  let lastRunKind: 'smart' | 'full' | 'by-date' = 'smart';
+  /** The last run here ended failed (search/stepAway.ts `failed`). */
+  let lastRunFailed = false;
+  /** The black box's unfinished beat as this page found it: kept, though the notice may be dismissed. */
+  const crashAtLoad = typeof window !== 'undefined' ? blackBox.readUnfinished() : null;
+
+  /** By a date's run facts for the diagnostics: numbers only. */
+  function deadlineRunFacts(): {
+    facts: Record<string, string | number | boolean | null>;
+    startedAt: number;
+    carryOns: number;
+  } {
+    const r = deadlineResult.value;
+    const p = deadlineProgress.value;
+    const running = deadlineRunning.value;
+    const minutes = running
+      ? deadlineRunPrior / 60 + (Date.now() - deadlineStartedAt.value) / 60000
+      : (r?.elapsedSeconds ?? 0) / 60;
+    const priced = running ? (p?.priced ?? 0) : (r?.priced ?? p?.priced ?? 0);
+    const memo = lastBeatMemoPerWorker();
+    return {
+      facts: {
+        runMinutes: Math.round(minutes),
+        pricedThisSession: Math.max(0, priced - deadlineReplayed.value),
+        replayed: deadlineReplayed.value,
+        runCarryOns: deadlineRunCarryOns,
+        ...(memo !== null ? { memoPerWorker: memo } : {}),
+        checkpointRoutes: deadlineCheckpointSize.routes,
+        checkpointKB: Math.round(deadlineCheckpointSize.bytes / 1024),
+        ...(deadlineKept ? { setsKept: deadlineKept } : {}),
+      },
+      startedAt: deadlineRunStartedAt,
+      carryOns: deadlineRunCarryOns,
+    };
+  }
+
+  /** Smart search's or the Full sweep's run facts for the diagnostics. */
+  function fastestRunFacts(kind: 'smart' | 'full' | 'by-date'): {
+    facts: Record<string, string | number | boolean | null>;
+    startedAt: number;
+    carryOns: number;
+  } {
+    const mark = readRunMark();
+    const marked = mark && mark.kind === (kind === 'full' ? 'sweep' : 'smart') ? mark.autoCarries.length : 0;
+    const carryOns = carryOnCount + marked;
+    const end = runEndedAt.value || Date.now();
+    const memo = lastBeatMemoPerWorker();
+    return {
+      facts: {
+        runMinutes: runStartedAt.value ? Math.round((end - runStartedAt.value) / 60000) : 0,
+        pricedThisSession: Math.max(0, chainsDone.value - chainsReplayed.value),
+        replayed: chainsReplayed.value,
+        runCarryOns: carryOns,
+        ...(memo !== null ? { memoPerWorker: memo } : {}),
+        checkpointRoutes: liveCache.length,
+      },
+      startedAt: runStartedAt.value,
+      carryOns,
+    };
+  }
+
+  /** The workers' memo capacity a worker at the last beat that said (`blackBoxBeat`); null before. */
+  let memoPerWorker: number | null = null;
+  function lastBeatMemoPerWorker(): number | null {
+    return memoPerWorker;
+  }
+  /** By a date's run, for its diagnostics: seconds before this session, when it first began, its
+   *  carry-ons (kept in its checkpoint), and its checkpoint's size so far. */
+  let deadlineRunPrior = 0;
+  let deadlineRunStartedAt = 0;
+  let deadlineRunCarryOns = 0;
+  let deadlineCheckpointSize = { routes: 0, bytes: 0 };
 
   function exportCsv(opts: { diagnostics?: boolean } = {}): string {
     const own = allEntries();
@@ -4686,6 +4899,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       runEndedAt.value = Date.now();
       pool?.terminate();
       pool = null;
+      // The answer (finished, or stopped with one) kept for sending until sent or dismissed, built now
+      // the workers are gone and before any send, which waits for it (search/pendingSends.ts).
+      if (runEnd !== 'failed' && bestDays.value > 0) void keepFinishedResult('fastest');
       isRunning.value = false;
       document.removeEventListener('visibilitychange', onVisibilityChange);
       dropRunLock();
@@ -4812,9 +5028,6 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     ceiling: number;
     ascendNeeded: boolean;
   } | null = null;
-  /** A saved result's send that never landed (search/deadlineStore.ts `OwedSend`), for "This result
-   *  wasn't sent". Null when there is none, or it is for another result. */
-  const deadlineOwed = ref<OwedSend | null>(null);
   /** Whether the date search going now sends its result when it ends, and on what choices (kept in
    *  its checkpoint, so a carry-on sends too). Null: it doesn't. */
   function deadlineSubmitIntent(): DeadlineSubmitIntent | null {
@@ -4922,10 +5135,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
             submit: cp.submit ?? null,
           }
         : null;
-      // A send of the saved result that never landed: the page went before it did.
-      const owed = await loadOwedSend(partitionHash);
-      deadlineOwed.value = owed && deadlineResult.value && owed.resultAt === deadlineResult.value.at ? owed : null;
-      if (owed && !deadlineOwed.value) await clearOwedSend(partitionHash).catch(() => {});
+      // Finished results whose send never landed (the page went first, or nothing sent them).
+      await refreshPendingSends(partitionHash);
     } catch (e) {
       console.warn('chain search: could not read the saved deadline search', e);
     }
@@ -5078,7 +5289,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     inputs: SearchInputs,
     key: string,
     /** A carry-on's checkpoint: its routes are replayed, and its parts appended to. Null: a fresh run. */
-    seed: Pick<DeadlineCheckpoint, 'entries' | 'parts' | 'version' | 'runId' | 'partsWritten'> | null,
+    seed: Pick<
+      DeadlineCheckpoint,
+      'entries' | 'parts' | 'version' | 'runId' | 'partsWritten' | 'carryOns' | 'bytes' | 'count'
+    > | null,
     /** The account the run is priced on (see `prepareDeadline`, `resumeDeadline`). */
     accountIn?: AccountSnapshot,
     /** Seconds an earlier session of this run already spent (a carry-on), for its "took". */
@@ -5086,6 +5300,11 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   ): Promise<void> {
     const schedule = isConstrained(inputs.availability) ? inputs.availability : null;
     const seedCount = seed ? checkpointCount(seed) : 0;
+    // For the diagnostics: when the run began (across carry-ons), how often it was carried on, its checkpoint.
+    deadlineRunPrior = priorSeconds;
+    deadlineRunStartedAt = spec.startedAt ?? Date.now();
+    deadlineRunCarryOns = seed ? (seed.carryOns ?? 0) + 1 : 0;
+    deadlineCheckpointSize = { routes: seedCount, bytes: seed?.bytes ?? 0 };
     // Until its result is saved, a run that ends is a run that failed (search/stepAway.ts `failed`).
     runEnd = 'failed';
     deadlineRunning.value = true;
@@ -5140,7 +5359,6 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     deadlineAll = [];
     deadlineAllPriced = null;
     deadlineKept = 0;
-    deadlineOwed.value = null;
     holdRunLock();
     void holdScreenLock();
     // The same hidden-tab tracking the other runs have: without it "When this tab is in the
@@ -5165,12 +5383,15 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       if (closed || (!force && now - deadlineSavedAt < 30_000)) return written;
       deadlineSavedAt = now;
       const part = replay.drain();
+      const bytes = deadlineCheckpointSize.bytes + partBytes(part);
       const header = {
         spec,
         inputsKey: key,
         planStart: inputs.planStart,
         te: inputs.currentTE,
         count: replay.count(),
+        carryOns: deadlineRunCarryOns,
+        bytes,
         updatedAt: now,
         elapsedSeconds:
           priorSeconds + Math.max(0, (now - deadlineStartedAt.value) / 1000 - (pool?.suspendedSeconds ?? 0)),
@@ -5182,6 +5403,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         if (closed) return;
         try {
           await appendDeadlineCheckpoint(partitionHash, writer, header, part);
+          deadlineCheckpointSize = { routes: header.count, bytes };
         } catch (e) {
           // Kept for the next write rather than lost.
           replay.undrain(part);
@@ -5342,30 +5564,12 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       } catch (e) {
         console.warn('chain search: could not save the deadline result', e);
       }
-      // A run that sends its result when it ends owes the board that send from the moment its
-      // result is saved: remembered now, so a page that dies before the send lands (or a send that
-      // never starts) offers "This result wasn't sent: Send it now" (search/deadlineStore.ts).
-      const intent = deadlineSubmitIntent();
-      const heldRow = provisionalRows.value.deadline;
-      if (saved && (intent || heldRow) && out.routes[0]) {
-        const extras = useShareExtras();
-        const owed: OwedSend = {
-          resultAt: deadlineResult.value.at,
-          chain: [...out.routes[0].chain],
-          nickname: intent ? intent.nickname : (heldRow?.nickname ?? ''),
-          sendCsv: intent?.sendCsv ?? extras.sendCsv.value,
-          sendDiagnostics: intent?.sendDiagnostics ?? extras.sendDiagnostics.value,
-          ...(spec.note ? { note: spec.note } : {}),
-          at: Date.now(),
-        };
-        deadlineOwed.value = owed;
-        await saveOwedSend(partitionHash, owed).catch(e =>
-          console.warn('chain search: could not remember the send', e)
-        );
-      }
       // The workers are done with: their memory back before anything else (the end-of-run send
       // builds its CSV next, and 19 workers' heaps share the browser's cage with this page).
       pool.terminate();
+      // Kept for sending until it is sent or dismissed, payload and CSV and all, so neither a crash
+      // nor a reload can lose it (search/pendingSends.ts). A send waits for this, then uses it.
+      if (saved && out.routes.length) void keepFinishedResult('deadline');
       if (out.stoppedEarly) {
         try {
           await checkpoint(replay, true);
@@ -5818,6 +6022,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         ...(runNoteUsed.value ? { runNote: runNoteUsed.value } : {}),
       });
     }
+    if (b && typeof b.workersMemoCapacity === 'number' && b.workers)
+      memoPerWorker = Math.round(b.workersMemoCapacity / b.workers);
     // The "Stepping away?" heartbeat and fewer-workers rule (composables/useStepAway.ts).
     if (b)
       stepAwayBeat({
@@ -5899,6 +6105,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       if (blackBoxTimer) clearInterval(blackBoxTimer);
       blackBoxTimer = null;
       if (running) {
+        lastRunKind = deadlineRunning.value ? 'by-date' : searchSpace.value ? 'full' : 'smart';
         void stepAwayRunStarted(deadlineRunning.value ? 'deadline' : searchSpace.value ? 'sweep' : 'smart').then(
           blackBoxBeat
         );
@@ -5909,6 +6116,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         supersedeProgressSend();
         // Stop pressed reads stopped whatever came after; otherwise as the run itself said (`runEnd`).
         const how = stoppedEarly.value || deadlineStop ? 'stopped' : runEnd;
+        lastRunFailed = how === 'failed';
         stepAwayRunEnded(how);
         // A failed run keeps its open beat: the black box then reads it as the crash it is, and the
         // next page (the watcher's reopen) carries it on.
@@ -6435,6 +6643,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       runEndedAt.value = Date.now();
       pool?.terminate();
       pool = null;
+      // The answer (finished, or stopped with one) kept for sending until sent or dismissed, built now
+      // the workers are gone and before any send, which waits for it (search/pendingSends.ts).
+      if (runEnd !== 'failed' && bestDays.value > 0) void keepFinishedResult('fastest');
       isRunning.value = false;
       stopRequested.value = false;
       batchDone.value = 0;
@@ -6891,8 +7102,11 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     deadlineCsv,
     deadlineCsvChunksNow,
     sendDeadlineAnswer,
-    sendOwedDeadline,
-    deadlineOwed,
+    pendingSends,
+    sendPending,
+    dropPending,
+    refreshPendingSends,
+    pendingKeyFor,
     resultSending,
     endResultSend,
     runNoteUsed,

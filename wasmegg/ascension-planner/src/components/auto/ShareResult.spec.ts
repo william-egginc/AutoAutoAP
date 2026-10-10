@@ -42,6 +42,18 @@ describe('ShareResult', () => {
     expect(isDisabled(nameBox(html))).toBe(false);
   });
 
+  it("has Find and submit's note box, holding the run's note, once ticked (when the screen binds it)", async () => {
+    const withNote = textOf(await renderHtml(ShareResult, { ...base, optIn: true, note: 'testing 3 sales' }));
+    expect(withNote).toContain('Note on this run');
+    expect(await renderHtml(ShareResult, { ...base, optIn: true, note: 'testing 3 sales' })).toContain(
+      'testing 3 sales'
+    );
+    expect(textOf(await renderHtml(ShareResult, { ...base, optIn: false, note: 'x' }))).not.toContain(
+      'Note on this run'
+    );
+    expect(textOf(await renderHtml(ShareResult, { ...base, optIn: true }))).not.toContain('Note on this run');
+  });
+
   it('greys the name box out when anonymous', async () => {
     const html = await renderHtml(ShareResult, { ...base, optIn: true });
     expect(isDisabled(nameBox(html))).toBe(true);
@@ -84,9 +96,10 @@ describe('ShareStatus', () => {
     expect(textOf(await renderHtml(ShareStatus, { message: '', ok: true, pendingTable: true }))).toBe(
       'Retry the table'
     );
-    expect(textOf(await renderHtml(ShareStatus, { message: '', ok: true, pendingTable: true, retrying: true }))).toBe(
-      'Sending the table...'
-    );
+    // The moving dots (SendingText.vue): the words, then three dots it animates.
+    const sending = await renderHtml(ShareStatus, { message: '', ok: true, pendingTable: true, retrying: true });
+    expect(textOf(sending)).toMatch(/^Sending the table/);
+    expect(sending).toContain('sending-dots');
   });
 
   it('is a span inside a row of buttons when asked', async () => {

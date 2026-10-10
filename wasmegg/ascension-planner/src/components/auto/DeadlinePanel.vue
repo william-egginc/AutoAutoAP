@@ -429,6 +429,8 @@
     <SafariNotice />
     <IntegrityNotice :deadline-offer="!!store.deadlineUnfinished" />
     <!-- A Find and submit that finished (and shared) while this panel was closed for another tab. -->
+    <!-- Finished results kept until sent (search/pendingSends.ts): "This result wasn't sent: Send it now". -->
+    <UnsentResults kind="deadline" :player-id="playerId" />
     <AutoSendReport v-if="!shareMessage" kind="by-date" />
     <!-- Find / Find and submit: the same bar as Fastest route (FindBar.vue), with this screen's own
          consent wording. The same share settings as the Share this result box under the result. -->
@@ -541,28 +543,6 @@
     </div>
 
     <div v-if="result" class="space-y-3">
-      <!-- The page went before this result's send landed (it was on its way: Find and submit, a yes
-           during the run, or Send). One click sends it, under the name, CSV and note it had. -->
-      <div
-        v-if="owedHere && collectorConfigured"
-        class="flex flex-wrap items-center gap-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-[11px] text-amber-900"
-        data-testid="owed-send"
-      >
-        <span class="font-bold">This result wasn't sent to the leaderboard:</span>
-        <button
-          type="button"
-          class="px-3 py-1.5 rounded-lg bg-amber-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-800 disabled:opacity-40"
-          :disabled="sharing || store.busy"
-          @click="sendOwed"
-        >
-          {{ sharing ? 'Sending...' : 'Send it now' }}
-        </button>
-        <span class="text-amber-800/80"
-          >{{ store.deadlineOwed!.nickname ? `As ${store.deadlineOwed!.nickname}` : 'Anonymously'
-          }}{{ store.deadlineOwed!.sendCsv ? ', with its CSV' : '' }}, as it was going to be sent.</span
-        >
-        <ShareStatus v-if="shareMessage" class="w-full" :message="shareMessage" :ok="shareOk" :partial="sharePartial" />
-      </div>
       <div v-if="best" class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 space-y-2">
         <p class="text-[10px] font-black uppercase tracking-widest text-emerald-800">
           Highest by {{ inPlannerZone(result.deadline) }}
@@ -735,13 +715,10 @@
             class="px-4 py-2 rounded-lg bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-800 disabled:opacity-40"
             @click="share"
           >
-            {{
-              sharing
-                ? 'Sending...'
-                : sentKey === resultKey
-                  ? 'Sent'
-                  : `Send ${best.chain[best.chain.length - 1]} TE by this date`
-            }}
+            <SendingText v-if="sharing" />
+            <template v-else>{{
+              sentKey === resultKey ? 'Sent' : `Send ${best.chain[best.chain.length - 1]} TE by this date`
+            }}</template>
           </button>
           <ShareStatus
             :message="shareMessage"
@@ -835,6 +812,8 @@ import FindBar from './FindBar.vue';
 import RunGoingElsewhere from './RunGoingElsewhere.vue';
 import ShareResult from './ShareResult.vue';
 import ShareStatus from './ShareStatus.vue';
+import SendingText from './SendingText.vue';
+import UnsentResults from './UnsentResults.vue';
 import { useByDateShare, useShareIdentity } from '@/composables/useShareResult';
 import { useShareExtras } from '@/composables/useShareExtras';
 import RoutesToTry from './RoutesToTry.vue';
@@ -1877,7 +1856,6 @@ const {
   sentKey,
   shareTab,
   share,
-  sendOwed,
 } = useByDateShare(
   store,
   shareIdentity,
@@ -1897,17 +1875,6 @@ const resultNote = computed({
     if (store.deadlineResult) store.deadlineResult.note = v;
   },
 });
-/** The saved result's send never landed (the page went first): offer it, on its own choices. */
-const owedHere = computed(
-  () =>
-    !!store.deadlineOwed &&
-    !!result.value &&
-    store.deadlineOwed.resultAt === result.value.at &&
-    !store.deadlineRunning &&
-    // Not while its own end-of-run send is going: only once it has not landed.
-    !store.resultSending &&
-    sentKey.value !== resultKey.value
-);
 /** A result loaded from this browser rather than produced since the panel opened. */
 const openedAt = Date.now();
 const fromEarlier = computed(() => !!result.value && result.value.at < openedAt);

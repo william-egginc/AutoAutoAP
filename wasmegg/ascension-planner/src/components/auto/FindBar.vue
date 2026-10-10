@@ -55,7 +55,7 @@
           data-testid="send-best-so-far"
           @click="sendBestSoFar"
         >
-          {{ store.bestSoFarSending ? 'Sending...' : 'Send best so far' }}
+          <SendingText v-if="store.bestSoFarSending" /><template v-else>Send best so far</template>
         </button>
         <span class="text-[10px] font-semibold text-slate-500 text-center" data-testid="best-so-far-hint">{{
           asking && !optIn
@@ -179,6 +179,7 @@
 <script setup lang="ts">
 import { computed, watch } from 'vue';
 import RunNoteBox from './RunNoteBox.vue';
+import SendingText from './SendingText.vue';
 import ShareExtras from './ShareExtras.vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { stepAwayOptions } from '@/composables/useStepAway';

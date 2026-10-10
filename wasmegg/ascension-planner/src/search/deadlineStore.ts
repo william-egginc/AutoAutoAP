@@ -198,6 +198,18 @@ export interface DeadlineCheckpoint {
    *  carried-on Find and submit run of 9 Oct finished as a plain Find and sent nothing. Absent: it
    *  doesn't send. */
   submit?: DeadlineSubmitIntent;
+  /** Times this run was carried on (each after its page died, reloaded or failed), for diagnostics. */
+  carryOns?: number;
+  /** About how many bytes its parts hold, for diagnostics. */
+  bytes?: number;
+}
+
+/** About what a part holds in storage: its strings, and 8 bytes a number. */
+export function partBytes(p: CheckpointPart): number {
+  let n = 0;
+  for (const k of p.k) n += k.length;
+  for (const l of p.l) n += l.length;
+  return n + 8 * p.s.length;
 }
 
 export interface DeadlineSubmitIntent {
@@ -582,45 +594,6 @@ export async function saveAnswer(
 export async function deleteSavedAnswer(partitionHash: string, id: string): Promise<void> {
   const kept = (await listSavedAnswers(partitionHash)).filter(a => a.id !== id);
   await saveMetadata(partitionHash, SAVED_KEY, kept);
-}
-
-/**
- * A By a date result that was on its way to the board when the page stopped ("This result wasn't
- * sent"). Written as a final send begins (Find and submit, a yes given during the run, or Send),
- * with the choices it is sent under; the gzipped CSV is added once built, so a page that dies after
- * that sends exactly the same file next time. Cleared when the send lands. `resultAt` ties it to the
- * saved result (`SavedDeadlineResult.at`): a newer result makes it stale.
- */
-const OWED_KEY = 'chainSearchDeadlineOwed';
-
-export interface OwedSend {
-  resultAt: number;
-  /** The route being sent. */
-  chain: number[];
-  /** '' for anonymous. */
-  nickname: string;
-  sendCsv: boolean;
-  sendDiagnostics: boolean;
-  /** The note it is sent with (Share this result's box). */
-  note?: string;
-  /** The CSV, gzipped, once built. */
-  csvGz?: ArrayBuffer;
-  /** When the send began (ms). */
-  at: number;
-}
-
-export async function saveOwedSend(partitionHash: string, owed: OwedSend): Promise<void> {
-  // As it is: an ArrayBuffer does not survive a JSON round-trip, and the rest is plain data.
-  await putMetadataRecords(partitionHash, [{ key: OWED_KEY, value: owed, raw: true }]);
-}
-
-export async function loadOwedSend(partitionHash: string): Promise<OwedSend | null> {
-  const raw = (await loadMetadata(partitionHash, OWED_KEY)) as OwedSend | null;
-  return raw && typeof raw.resultAt === 'number' && Array.isArray(raw.chain) ? raw : null;
-}
-
-export async function clearOwedSend(partitionHash: string): Promise<void> {
-  await putMetadataRecords(partitionHash, [{ key: OWED_KEY, value: null }]);
 }
 
 /**

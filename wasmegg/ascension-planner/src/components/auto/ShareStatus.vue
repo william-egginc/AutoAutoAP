@@ -10,7 +10,8 @@
     class="text-[11px] font-semibold"
     :class="!ok ? 'text-rose-700' : partial ? 'text-amber-700' : 'text-emerald-700'"
   >
-    {{ message }}
+    <SendingText v-if="inProgress" :text="message.replace(/\.\.\.$/, '')" />
+    <template v-else>{{ message }}</template>
   </component>
   <button
     v-if="pendingTable"
@@ -19,12 +20,15 @@
     class="px-3 py-1.5 rounded-lg border border-amber-300 text-amber-800 text-[10px] font-black uppercase tracking-widest hover:bg-amber-50 disabled:opacity-40"
     @click="emit('retry')"
   >
-    {{ retrying ? 'Sending the table...' : 'Retry the table' }}
+    <SendingText v-if="retrying" text="Sending the table" /><template v-else>Retry the table</template>
   </button>
 </template>
 
 <script setup lang="ts">
-withDefaults(
+import { computed } from 'vue';
+import SendingText from './SendingText.vue';
+
+const props = withDefaults(
   defineProps<{
     message: string;
     ok: boolean;
@@ -39,4 +43,6 @@ withDefaults(
   { partial: false, pendingTable: false, retrying: false, tag: 'p' }
 );
 const emit = defineEmits<{ retry: [] }>();
+/** A step of a send still going ("Preparing your result...", "Sending..."): its dots move. */
+const inProgress = computed(() => /^(Sending|Preparing)[^.]*\.\.\.$/.test(props.message));
 </script>
