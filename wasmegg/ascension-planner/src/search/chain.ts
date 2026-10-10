@@ -312,7 +312,11 @@ export function createChainEvaluator(inputs: SearchInputs, memoSettings: MemoSet
           legs.push({
             key: leg.key,
             endTE: leg.summary.endTE,
-            durationSeconds: leg.summary.totalDurationSeconds + shiftDelay,
+            // The simulation's own duration, which already runs through every hold (auto/hold.ts
+            // moves the leg's clock on by each wait). Adding `shiftDelay` here again, as this did
+            // from 5 Oct to 9 Oct, counted every held hour twice in the leg's days while its end and
+            // the next leg's start were right: leg_days no longer matched end minus start.
+            durationSeconds: leg.summary.totalDurationSeconds,
             maxELR: leg.summary.maxELR,
             endTime: rawEnd,
             tier13Unlocked: leg.summary.tier13Unlocked,

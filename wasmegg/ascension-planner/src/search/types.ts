@@ -109,7 +109,8 @@ export interface LegSummary {
   key: VariantKey;
   /** Total TE at the end of this leg. */
   endTE: number;
-  /** Leg duration, seconds. */
+  /** Leg duration, seconds: `endTime - startTime`. Shift holds (`shiftDelaySeconds`) happen inside
+   *  the leg and are part of this; the prestige wait after it (`sleepDelaySeconds`) is not. */
   durationSeconds: number;
   /** Peak eggs/second after K3 — the number the CLI's pruning bound is stated against. */
   maxELR: number;
@@ -146,8 +147,9 @@ export interface LegSummary {
   /** Total seconds this leg's SHIFTS were held back waiting for the availability window, when
    *  `deferShifts` is on. Zero otherwise. Separate from `sleepDelaySeconds` (the prestige wait)
    *  because they are different costs: one is you not being there to tap prestige, the other is
-   *  you not being there to switch eggs twelve times. Both are already inside `durationSeconds`;
-   *  this records how much of it each was. */
+   *  you not being there to switch eggs twelve times. The shift holds are inside `durationSeconds`
+   *  (the simulation waited for them) and this records how much of it they were; the prestige wait
+   *  sits between this leg's end and the next leg's start. */
   shiftDelaySeconds?: number;
   /** This leg's twelve shifts, in order — when each happens and which egg it switches TO.
    *
