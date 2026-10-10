@@ -52,7 +52,15 @@
       Your gear changed since your instant answer was made ({{ ownChanged }}), so this answer uses the instant answer for fully maxed gear instead.
     </p>
 
-    <p v-if="status === 'loading'" class="text-[12px] text-slate-500 flex items-center gap-2">
+    <p
+      v-if="atTarget && status !== 'loading'"
+      class="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-[12px] text-slate-600"
+      data-testid="instant-at-target"
+    >
+      Your save is already at TE {{ Math.floor(store.currentTE) }}, at or past {{ target }} TE, so there is no route
+      for the instant answer to find.{{ deadline || target >= 490 ? '' : ' Pick a higher target TE to plan further.' }}
+    </p>
+    <p v-else-if="status === 'loading'" class="text-[12px] text-slate-500 flex items-center gap-2">
       <span class="inline-block w-3 h-3 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
       {{ loadingText }}
     </p>
@@ -785,6 +793,11 @@ const deliveryScale = computed<number | null>(() => {
 
 /** The TE routes are found to: the planner's target, or for a date every TE up to the last. */
 const target = computed(() => (props.deadline ? 490 : store.finalTE));
+/** The save is already at or past the target: nothing to find, said plainly instead of nothing. */
+const atTarget = computed(() => {
+  const te = Math.floor(store.currentTE);
+  return te > 0 && te >= target.value;
+});
 
 /**
  * The rows shown (the user, 2 Oct). Fastest route: 1-10 ascensions, and up to the best plus two when
@@ -1190,7 +1203,15 @@ let runs = 0;
  */
 async function run(force = false, goAhead = false): Promise<void> {
   const te = Math.floor(store.currentTE);
-  if (!(te > 0) || !(target.value > te)) return;
+  if (!(te > 0)) return;
+  if (!(target.value > te)) {
+    // Already at or past the target (atTarget says so): drop any answer for an earlier save or target.
+    ++runs;
+    ++bracketRuns;
+    result.value = null;
+    status.value = 'idle';
+    return;
+  }
   const id = ++runs;
   const bid = ++bracketRuns;
   cachedKey = cacheKey();

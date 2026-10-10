@@ -102,12 +102,21 @@ export async function gearTableName(stamp: TableGear): Promise<string> {
   );
 }
 
-/** What differs between a table's stamp and the player's, in words; empty when they match. */
+/** A set's slots in a fixed order: the same artifacts (each with its stones) worn in other slots are
+ *  the same set. The alt's own table was dropped on 10 Oct for its earnings set re-equipped in another
+ *  order; its cells rebuilt from the new save were identical to the bit (38 of 38). */
+function bySlotOrder(slots: LoadoutSlot[]): string[] {
+  return slots.map(s => JSON.stringify(s)).sort();
+}
+
+/** What differs between a table's stamp and the player's, in words; empty when they match. Slot
+ *  order is ignored here only: the stamp itself (and so every gear-<sha> name) is unchanged. */
 export function gearChanges(table: TableGear, mine: TableGear): string[] {
   const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+  const sameSet = (a: LoadoutSlot[], b: LoadoutSlot[]) => same(bySlotOrder(a), bySlotOrder(b));
   const out: string[] = [];
-  if (!same(table.earnings, mine.earnings)) out.push('earnings set');
-  if (!same(table.deliveryBare, mine.deliveryBare) || !same(table.deliveryFull, mine.deliveryFull))
+  if (!sameSet(table.earnings, mine.earnings)) out.push('earnings set');
+  if (!sameSet(table.deliveryBare, mine.deliveryBare) || !sameSet(table.deliveryFull, mine.deliveryFull))
     out.push('delivery set');
   if (!same(table.epicResearch, mine.epicResearch)) out.push('epic research');
   if (!same(table.colleggtibles, mine.colleggtibles)) out.push('colleggtibles');
