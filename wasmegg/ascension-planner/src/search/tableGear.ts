@@ -102,18 +102,40 @@ export async function gearTableName(stamp: TableGear): Promise<string> {
   );
 }
 
-/** A set's slots in a fixed order: the same artifacts (each with its stones) worn in other slots are
- *  the same set. The alt's own table was dropped on 10 Oct for its earnings set re-equipped in another
- *  order; its cells rebuilt from the new save were identical to the bit (38 of 38). */
-function bySlotOrder(slots: LoadoutSlot[]): string[] {
-  return slots.map(s => JSON.stringify(s)).sort();
+/**
+ * A set as what it does: its artifacts and its stones, each as a sorted list. An artifact's effect and
+ * a stone's effect are each a factor of their own, whichever artifact the stone sits in
+ * (src/lib/artifacts/calculator.ts multiplies every effect in), so the same artifacts with the same
+ * stones are the same set however they are worn.
+ *
+ * Why not the slots as they are: the earnings set is read from the save by the optimizer
+ * (lib/artifacts/virtue.ts getOptimalEarningsSet), which puts its stones on the artifacts as the save
+ * has them now. The alt (10 Oct) had its own table dropped twice for the same gear: first for its
+ * earnings set re-equipped in another slot order (38 of 38 rebuilt cells identical to the bit), then,
+ * with its stones moved to its delivery set mid-ascension, for the optimizer putting the same nine T4
+ * and three T3 lunar stones three to an artifact in another split.
+ */
+function asWorn(slots: LoadoutSlot[]): { artifacts: string[]; stones: string[] } {
+  return {
+    artifacts: slots.map(s => s.artifact).sort(),
+    stones: slots.flatMap(s => s.stones).sort(),
+  };
 }
 
-/** What differs between a table's stamp and the player's, in words; empty when they match. Slot
- *  order is ignored here only: the stamp itself (and so every gear-<sha> name) is unchanged. */
+/**
+ * Which rule `gearChanges` compares by. A saved instant answer (InstantRoute.vue's snapshot) keeps
+ * the gear note it was shown with, so one saved under an older rule is worked out again rather than
+ * shown with a note this rule would not give. 1: slots exactly; 2 (0ec1fe28): slot order ignored;
+ * 3: which artifact a stone is in ignored too. Raise it whenever `gearChanges` changes.
+ */
+export const GEAR_RULE = 3;
+
+/** What differs between a table's stamp and the player's, in words; empty when they match. Which
+ *  slot an artifact is in and which artifact a stone is in are ignored here only (`asWorn`): the
+ *  stamp itself (and so every gear-<sha> name) is unchanged. */
 export function gearChanges(table: TableGear, mine: TableGear): string[] {
   const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
-  const sameSet = (a: LoadoutSlot[], b: LoadoutSlot[]) => same(bySlotOrder(a), bySlotOrder(b));
+  const sameSet = (a: LoadoutSlot[], b: LoadoutSlot[]) => same(asWorn(a), asWorn(b));
   const out: string[] = [];
   if (!sameSet(table.earnings, mine.earnings)) out.push('earnings set');
   if (!sameSet(table.deliveryBare, mine.deliveryBare) || !sameSet(table.deliveryFull, mine.deliveryFull))
