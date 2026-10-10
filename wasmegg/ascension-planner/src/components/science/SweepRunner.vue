@@ -289,7 +289,7 @@
               class="px-4 py-2 rounded-lg bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-700 disabled:opacity-50"
               @click="stop"
             >
-              {{ stopping ? 'Stopping...' : 'Stop and send what it has' }}
+              <SendingText v-if="stopping" text="Stopping" /><template v-else>Stop and send what it has</template>
             </button>
             <span class="text-[10px] text-slate-500">
               You can close this window and look around: it keeps going, with its progress at the top of every tab.

@@ -71,7 +71,7 @@
           class="px-3 py-1.5 rounded-lg bg-white text-slate-900 text-[10px] font-black uppercase tracking-widest hover:bg-slate-100 disabled:opacity-60"
           @click="stop"
         >
-          {{ stopping ? 'Stopping...' : 'Stop & keep best' }}
+          <SendingText v-if="stopping" text="Stopping" /><template v-else>Stop &amp; keep best</template>
         </button>
       </div>
     </div>

@@ -74,7 +74,7 @@
         :disabled="stopping"
         @click="emit('stop')"
       >
-        {{ stopping ? 'Stopping...' : 'Stop & keep best' }}
+        <SendingText v-if="stopping" text="Stopping" /><template v-else>Stop &amp; keep best</template>
       </button>
     </div>
     <p

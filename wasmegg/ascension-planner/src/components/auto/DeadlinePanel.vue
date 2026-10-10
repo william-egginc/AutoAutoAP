@@ -490,10 +490,11 @@
       <button
         v-if="store.isRunning"
         type="button"
-        class="px-3 py-1.5 rounded-lg border border-slate-400 text-[10px] font-black uppercase tracking-widest hover:bg-white"
+        class="px-3 py-1.5 rounded-lg border border-slate-400 text-[10px] font-black uppercase tracking-widest hover:bg-white disabled:opacity-60"
+        :disabled="store.stopRequested"
         @click="store.stop()"
       >
-        Stop that run
+        <SendingText v-if="store.stopRequested" text="Stopping" /><template v-else>Stop that run</template>
       </button>
     </div>
     <p v-if="startIssue" class="text-[11px] font-semibold text-rose-700">{{ startIssue }}</p>
