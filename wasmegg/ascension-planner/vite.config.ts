@@ -54,6 +54,49 @@ function versionFile(): Plugin {
 }
 
 /**
+ * FAIL THE BUILD ON A CHUNK IMPORT CYCLE. Two chunks that statically import each other evaluate in
+ * an order that depends on which one the entry reaches first, so a module-level value taken from
+ * the other chunk can still be undefined. 85defedf did exactly that with one `await import('lib')`
+ * (the barrel became a chunk that re-exported shipping_capacity while the shippingCapacity chunk
+ * read `allResearches` from it): the production page hung on "Loading application..." with
+ * "Cannot read properties of undefined (reading 'filter')", while dev and vitest, which do not
+ * chunk, were fine. Caught here, at build time, instead of on the live site.
+ */
+function noChunkCycles(): Plugin {
+  return {
+    name: 'aap-no-chunk-cycles',
+    apply: 'build',
+    generateBundle(_options, bundle) {
+      const imports = new Map<string, string[]>();
+      for (const out of Object.values(bundle)) if (out.type === 'chunk') imports.set(out.fileName, out.imports);
+      const state = new Map<string, 'open' | 'done'>();
+      const stack: string[] = [];
+      const visit = (name: string): string[] | null => {
+        if (state.get(name) === 'done') return null;
+        if (state.get(name) === 'open') return [...stack.slice(stack.indexOf(name)), name];
+        state.set(name, 'open');
+        stack.push(name);
+        for (const dep of imports.get(name) ?? []) {
+          const cycle = visit(dep);
+          if (cycle) return cycle;
+        }
+        stack.pop();
+        state.set(name, 'done');
+        return null;
+      };
+      for (const name of imports.keys()) {
+        const cycle = visit(name);
+        if (cycle)
+          this.error(
+            `Chunk import cycle: ${cycle.join(' -> ')}. A chunk can run before one it reads from; ` +
+              `look for a dynamic import of a barrel (e.g. import('lib')) or a module split across them.`
+          );
+      }
+    },
+  };
+}
+
+/**
  * A loud line in the build output when src/ has commits newer than release.ts's last one. The note
  * is written by hand, and it went four days without a change (26-30 Sep 2026): every deploy in that
  * time told players "New: an Egg Day 2027 leaderboard", and the fixes in them only got the quiet
@@ -421,6 +464,7 @@ export default defineConfig(({ mode }) => {
       vue(),
       vueJsx(),
       versionFile(),
+      noChunkCycles(),
       warnIfReleaseStale(),
       keepOldAssets(),
       brotliAssets(),

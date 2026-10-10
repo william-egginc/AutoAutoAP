@@ -30,6 +30,12 @@ import { describeRunError } from '@/utils/errors';
 import { loadChainBenchmark, saveChainBenchmark } from '@/lib/chainBenchmarkCache';
 import { patchAutoPlannerSchedule } from '@/lib/autoPlannerFormCache';
 import { cteFromColleggtibles, cteFromLabUpgrade, multiplierToTE } from 'lib/virtue';
+// Static, and from its own module. `await import('lib')` here (85defedf) made the whole lib barrel a
+// real runtime module in the production build: rolldown put lib/index.ts in a shared chunk that
+// re-exports lib/farm/shipping_capacity.ts from the shippingCapacity chunk, while that chunk takes
+// `allResearches` from the barrel's chunk. Two chunks importing each other: the page evaluated
+// shippingCapacity first, `allResearches` was still undefined, and it hung on "Loading application".
+import { resolveColleggtibleContracts } from 'lib/contracts';
 import { DEFAULT_EFFORT, EFFORT, estimateChains } from '@/search/effort';
 import {
   buildCheckpoint,
@@ -5422,7 +5428,6 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     preparing.value = true;
     try {
       // What the fetch does to every save it hands over (fetchBackup.ts); a no-op when already done.
-      const { resolveColleggtibleContracts } = await import('lib');
       resolveColleggtibleContracts(raw);
       return await loadOlderSave(playerId, raw, { from: 'file' });
     } finally {
