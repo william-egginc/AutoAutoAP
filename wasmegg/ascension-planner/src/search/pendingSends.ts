@@ -15,7 +15,7 @@
  * ArrayBuffer does not survive one). Only the newest MAX_PENDING_SENDS are kept: each holds up to 64 MB (8 MB but for the rare run sent in parts).
  */
 import { loadMetadataPrefix, putMetadataRecords } from '@/lib/storage/db';
-import type { Submission } from './submission';
+import type { Recheck, Submission } from './submission';
 
 const PREFIX = 'pendingSend:';
 export const MAX_PENDING_SENDS = 3;
@@ -48,6 +48,12 @@ export interface PendingSend {
   inputsKey?: string;
   /** The last try's failure, for the list. */
   lastError?: string;
+  /**
+   * The rechecks for a NAMED send of it (Fastest only). `payload` is built anonymous, so it carries
+   * the anonymous set; a send under a name carries these instead, never the anonymous ones, which
+   * would tie the player's anonymous rows to the name (stores/chainSearch.ts `RecheckSets`).
+   */
+  rechecksNamed?: Recheck[];
 }
 
 const keyOf = (id: string) => `${PREFIX}${id}`;
@@ -83,14 +89,40 @@ export async function dropPendingSend(partitionHash: string, id: string): Promis
   await putMetadataRecords(partitionHash, [{ key: keyOf(id), value: null }]);
 }
 
-/** The payload to send for a kept result under the player's choices: name and note put on it. */
+/**
+ * The payload to send for a kept result under the player's choices: name and note put on it. A named
+ * send swaps the payload's (anonymous) rechecks for the named set kept with it, or goes without.
+ */
 export function pendingPayload(p: PendingSend, nickname: string, note?: string): Submission {
   const out: Submission = { ...p.payload };
-  if (nickname) out.nickname = nickname;
-  else delete out.nickname;
+  if (nickname) {
+    out.nickname = nickname;
+    if (p.rechecksNamed?.length) out.rechecks = p.rechecksNamed;
+    else delete out.rechecks;
+  } else delete out.nickname;
   if (note !== undefined) {
     if (note) out.note = note;
     else delete out.note;
   }
   return out;
+}
+
+/** At most this many characters of a name, as the main share forms take (ShareResult.vue). */
+export const PENDING_NAME_MAX = 40;
+
+/**
+ * Send it now's yes for a kept result: the one recorded on it, else the list's own tick under its
+ * "Submit anonymously" / "Credit me as" choice; undefined until ticked. A blank name is anonymous.
+ */
+export function chosenConsent(
+  p: Pick<PendingSend, 'consent' | 'csvGz'>,
+  choice: { agreed: boolean; anonymous: boolean; nickname: string }
+): PendingConsent | undefined {
+  if (p.consent) return p.consent;
+  if (!choice.agreed) return undefined;
+  return {
+    nickname: choice.anonymous ? '' : choice.nickname.trim().slice(0, PENDING_NAME_MAX),
+    sendCsv: !!p.csvGz,
+    sendDiagnostics: false,
+  };
 }

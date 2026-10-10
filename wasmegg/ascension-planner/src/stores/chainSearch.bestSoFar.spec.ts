@@ -546,3 +546,38 @@ describe('Send best so far', () => {
     expect(s.bestSoFar).toBeNull();
   });
 });
+
+describe("Send it now (a kept result's send)", () => {
+  const kept = (over: object = {}) => ({
+    id: 'k1',
+    kind: 'deadline' as const,
+    key: 'deadline:1',
+    label: '400 TE by Jul 14, 2027',
+    createdAt: 1,
+    payload: { ...BY_DATE },
+    consent: null,
+    ...over,
+  });
+
+  it('puts the name chosen in the list on the row, and none when anonymous', async () => {
+    const s = await store();
+    s.pendingSends = [kept()];
+    const bodies = collector({ ok: true, id: 'ffff0006' }, { ok: true, id: 'ffff0007' });
+    const named = await s.sendPending('k1', { nickname: '  Willsalt ', sendCsv: false, sendDiagnostics: false });
+    expect(named.ok).toBe(true);
+    expect(bodies[0]).toMatchObject({ nickname: 'Willsalt', chain: [212, 280, 400] });
+    expect(s.pendingSends).toEqual([]);
+
+    s.pendingSends = [kept()];
+    await s.sendPending('k1', { nickname: '', sendCsv: false, sendDiagnostics: false });
+    expect('nickname' in bodies[1]).toBe(false);
+  });
+
+  it('never puts a player ID on the row as a name', async () => {
+    const s = await store();
+    s.pendingSends = [kept()];
+    const bodies = collector({ ok: true, id: 'ffff0008' });
+    await s.sendPending('k1', { nickname: 'EI' + '1'.repeat(16), sendCsv: false, sendDiagnostics: false });
+    expect(JSON.stringify(bodies[0])).not.toMatch(/EI\d{16}/);
+  });
+});

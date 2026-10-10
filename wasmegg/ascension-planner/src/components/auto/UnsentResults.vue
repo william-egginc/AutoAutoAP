@@ -3,7 +3,8 @@
   sending (search/pendingSends.ts) that have not reached the board: the page went before the send
   landed, or nothing sent them. Each goes with its own payload and CSV, as the run left them, so it
   works after a reload and whatever save is loaded now. With the player's yes already given (Find and
-  submit, or a send that began) one click sends it; otherwise they tick to agree first.
+  submit, or a send that began) one click sends it; otherwise they tick to agree first, and choose
+  "Submit anonymously" or "Credit me as" as on the main share form.
 -->
 <template>
   <p v-if="!shown.length && sentNote" class="text-[11px] font-semibold text-emerald-700" data-testid="unsent-sent">
@@ -23,7 +24,7 @@
         <button
           type="button"
           class="px-3 py-1.5 rounded-lg bg-amber-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-800 disabled:opacity-40"
-          :disabled="sendingId !== null || store.busy || (!p.consent && !agreed[p.id])"
+          :disabled="sendingId !== null || store.busy || !consentFor(p)"
           :data-testid="`send-unsent-${p.id}`"
           @click="send(p)"
         >
@@ -43,14 +44,59 @@
         }}{{ p.consent.sendCsv && p.csvGz ? ', with its CSV' : ''
         }}{{ p.consent.sendDiagnostics ? ' and diagnostics' : '' }}, as you chose when it was going to be sent.
       </p>
-      <label v-else class="flex items-start gap-2">
-        <input v-model="agreed[p.id]" type="checkbox" class="mt-0.5 rounded border-amber-400" />
-        <span
-          >I agree to share it on the leaderboard anonymously<template v-if="p.csvGz">, with its CSV</template>: the
-          route, its dates and the {{ p.kind === 'deadline' ? 'deadline' : 'target' }}, with my artifact inventory,
-          timezone, local plan start and the random code this browser keeps for the account (not my player ID).</span
-        >
-      </label>
+      <template v-else>
+        <label class="flex items-start gap-2">
+          <input
+            v-model="agreed[p.id]"
+            type="checkbox"
+            class="mt-0.5 rounded border-amber-400"
+            :data-testid="`agree-unsent-${p.id}`"
+          />
+          <!-- Share this result's acknowledgement (ShareResult.vue), for a result already finished:
+               the name, or none, is chosen below once ticked, as there. -->
+          <span data-testid="unsent-consent-text"
+            >I acknowledge the following: I want to share this result on the leaderboard. I understand it sends the
+            route, its dates and the {{ p.kind === 'deadline' ? 'deadline' : 'target' }}, with my artifact inventory,
+            timezone, local plan start and the random code this browser keeps for the account (not my player ID, and
+            never shown)<template v-if="p.csvGz">, plus its CSV</template>.</span
+          >
+        </label>
+        <div v-if="agreed[p.id]" class="ml-6 flex flex-wrap items-center gap-x-4 gap-y-1">
+          <label class="flex items-center gap-2 cursor-pointer font-bold">
+            <input
+              :checked="anonOf(p.id)"
+              type="radio"
+              :name="`unsent-name-${p.id}`"
+              class="text-amber-700"
+              :data-testid="`unsent-anonymous-${p.id}`"
+              @change="anonymous[p.id] = true"
+            />
+            Submit anonymously
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer font-bold">
+            <input
+              :checked="!anonOf(p.id)"
+              type="radio"
+              :name="`unsent-name-${p.id}`"
+              class="text-amber-700"
+              :data-testid="`unsent-named-${p.id}`"
+              @change="anonymous[p.id] = false"
+            />
+            Credit me as
+          </label>
+          <input
+            :value="nameOf(p.id)"
+            type="text"
+            :maxlength="PENDING_NAME_MAX"
+            :disabled="anonOf(p.id)"
+            placeholder="nickname"
+            aria-label="Nickname"
+            class="rounded-lg border-amber-300 text-sm font-bold text-slate-800 w-48 max-w-full disabled:opacity-40"
+            :data-testid="`unsent-nickname-${p.id}`"
+            @input="names[p.id] = ($event.target as HTMLInputElement).value"
+          />
+        </div>
+      </template>
       <p v-if="messages[p.id]" :class="okIds[p.id] ? 'text-emerald-700' : 'text-rose-700'" class="font-semibold">
         {{ messages[p.id] }}
       </p>
@@ -66,11 +112,24 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { hashID } from '@/lib/storage/db';
-import { MAX_PENDING_SENDS, type PendingKind, type PendingSend } from '@/search/pendingSends';
+import {
+  MAX_PENDING_SENDS,
+  PENDING_NAME_MAX,
+  chosenConsent,
+  type PendingConsent,
+  type PendingKind,
+  type PendingSend,
+} from '@/search/pendingSends';
+import { useAccountName } from '@/composables/useShareResult';
 import { sentence } from '@/utils/errors';
 import SendingText from './SendingText.vue';
 
-const props = defineProps<{ kind: PendingKind; playerId: string }>();
+const props = defineProps<{
+  kind: PendingKind;
+  playerId: string;
+  /** The screen's own "Credit me as" box, to start each name from; else the account's name. */
+  nickname?: string;
+}>();
 const store = useChainSearchStore();
 
 /** This screen's kept results; none while a run or its own end-of-run send is going. */
@@ -85,16 +144,23 @@ const agreed = reactive<Record<string, boolean>>({});
 const messages = reactive<Record<string, string>>({});
 const okIds = reactive<Record<string, boolean>>({});
 const sendingId = ref<string | null>(null);
+/** Each kept result's "Submit anonymously" / "Credit me as": anonymous until chosen, as the main form. */
+const anonymous = reactive<Record<string, boolean>>({});
+/** Each one's name box, once typed in; until then it follows the screen's (or the account's) name. */
+const names = reactive<Record<string, string>>({});
+const accountName = useAccountName(() => props.playerId);
+
+const anonOf = (id: string): boolean => anonymous[id] ?? true;
+const nameOf = (id: string): string => names[id] ?? (props.nickname?.trim() || accountName.value);
+const consentFor = (p: PendingSend): PendingConsent | undefined =>
+  chosenConsent(p, { agreed: !!agreed[p.id], anonymous: anonOf(p.id), nickname: nameOf(p.id) });
 
 async function send(p: PendingSend): Promise<void> {
   if (sendingId.value) return;
   sendingId.value = p.id;
   messages[p.id] = '';
   try {
-    const res = await store.sendPending(
-      p.id,
-      p.consent ?? (agreed[p.id] ? { nickname: '', sendCsv: !!p.csvGz, sendDiagnostics: false } : undefined)
-    );
+    const res = await store.sendPending(p.id, consentFor(p));
     okIds[p.id] = res.ok;
     messages[p.id] = res.ok ? `Thanks! ${sentence(res.message)}` : `Not sent: ${res.message}`;
     if (res.ok) sentNote.value = `${p.label}: ${messages[p.id]}`;

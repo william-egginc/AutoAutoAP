@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const db = new Map<string, unknown>();
 vi.mock('@/lib/storage/db', async () => (await import('@/test/memoryDb')).memoryDbModule(db));
 
-const { keepPendingSend, listPendingSends, dropPendingSend, pendingPayload, MAX_PENDING_SENDS } =
+const { keepPendingSend, listPendingSends, dropPendingSend, pendingPayload, chosenConsent, MAX_PENDING_SENDS } =
   await import('./pendingSends');
 const { GzipStopped, gzipChunksCapped, csvNote, csvSettled } = await import('./progressSend');
 
@@ -59,6 +59,33 @@ describe('results kept until sent', () => {
     expect('nickname' in pendingPayload(p, '')).toBe(false);
     expect(pendingPayload(p, '', 'edited').note).toBe('edited');
     expect('note' in pendingPayload(p, '', '')).toBe(false);
+  });
+
+  it('a named send carries the named rechecks, never the anonymous ones the payload was built with', () => {
+    const anon = [{ chain: [1, 2], days: 3 }] as never;
+    const named = [{ chain: [4, 5], days: 6 }] as never;
+    const p = kept(1, { payload: { chain: [1], finalTE: 1, rechecks: anon } });
+    expect(pendingPayload(p, '').rechecks).toBe(anon);
+    expect('rechecks' in pendingPayload(p, 'Willsalt')).toBe(false);
+    expect(pendingPayload({ ...p, rechecksNamed: named }, 'Willsalt').rechecks).toBe(named);
+    expect(pendingPayload({ ...p, rechecksNamed: named }, '').rechecks).toBe(anon);
+  });
+});
+
+describe("Send it now's choice of name", () => {
+  const choice = { agreed: true, anonymous: true, nickname: 'Willsalt' };
+  it('asks for the tick first, unless a yes is recorded on the result', () => {
+    expect(chosenConsent(kept(1), { ...choice, agreed: false })).toBeUndefined();
+    const recorded = { nickname: 'A', sendCsv: false, sendDiagnostics: true };
+    expect(chosenConsent(kept(1, { consent: recorded }), { ...choice, agreed: false })).toBe(recorded);
+  });
+  it('anonymous by default, or under the name chosen (trimmed, at most 40 characters)', () => {
+    expect(chosenConsent(kept(1), choice)).toEqual({ nickname: '', sendCsv: true, sendDiagnostics: false });
+    expect(chosenConsent(kept(1), { ...choice, anonymous: false })?.nickname).toBe('Willsalt');
+    expect(chosenConsent(kept(1), { ...choice, anonymous: false, nickname: `  ${'x'.repeat(50)} ` })?.nickname).toBe(
+      'x'.repeat(40)
+    );
+    expect(chosenConsent(kept(1, { csvGz: undefined }), choice)?.sendCsv).toBe(false);
   });
 });
 

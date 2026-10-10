@@ -437,7 +437,7 @@
     <IntegrityNotice :deadline-offer="!!store.deadlineUnfinished" />
     <!-- A Find and submit that finished (and shared) while this panel was closed for another tab. -->
     <!-- Finished results kept until sent (search/pendingSends.ts): "This result wasn't sent: Send it now". -->
-    <UnsentResults kind="deadline" :player-id="playerId" />
+    <UnsentResults kind="deadline" :player-id="playerId" :nickname="shareName" />
     <AutoSendReport v-if="!shareMessage" kind="by-date" />
     <!-- Find / Find and submit: the same bar as Fastest route (FindBar.vue), with this screen's own
          consent wording. The same share settings as the Share this result box under the result. -->

@@ -778,7 +778,7 @@
       </p>
 
       <!-- The same, for a run that finished (and sent) while this panel was closed for another tab. -->
-      <UnsentResults kind="fastest" :player-id="playerId" />
+      <UnsentResults kind="fastest" :player-id="playerId" :nickname="nickname" />
       <AutoSendReport v-if="!autoSubmitted" kind="smart" />
 
       <!-- When to start this route: every hour of the next week, as fresh starts. -->

@@ -902,7 +902,7 @@
           @carry-on="resumeCrashed"
         />
         <!-- A Find and submit that finished (and sent) while this panel was closed for another tab. -->
-        <UnsentResults kind="fastest" :player-id="playerId" />
+        <UnsentResults kind="fastest" :player-id="playerId" :nickname="nickname" />
         <AutoSendReport v-if="!autoSubmitted" kind="full" />
 
         <p

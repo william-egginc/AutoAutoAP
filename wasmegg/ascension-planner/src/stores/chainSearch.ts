@@ -4073,6 +4073,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       let inputsKey: string | undefined;
       let gz: ArrayBuffer | undefined;
       let consent: PendingConsent | null = null;
+      let rechecksNamed: Recheck[] | undefined;
       const extras = useShareExtras();
       if (kind === 'deadline') {
         const r = deadlineResult.value;
@@ -4100,6 +4101,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         if (!(bestDays.value > 0)) return;
         key = safeResultKey();
         payload = buildRunSubmission('');
+        // The named set too, for a send of it under a name later (Send it now's "Credit me as"), as
+        // `sendSubmission` adds them to a named send of the result on screen.
+        const named = rechecksFor(key, true);
+        if (named?.length) rechecksNamed = named;
         label = `${finalTE.value} TE in ${bestDays.value.toFixed(2)} days`;
         inputsKey = runInputsKey || undefined;
         const c = bestSoFar.value?.kind === 'fastest' ? bestSoFar.value.consent : null;
@@ -4124,6 +4129,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         ...(gz ? { csvGz: gz } : {}),
         consent,
         ...(inputsKey ? { inputsKey } : {}),
+        ...(rechecksNamed ? { rechecksNamed: JSON.parse(JSON.stringify(rechecksNamed)) as Recheck[] } : {}),
       };
       pendingSends.value = await keepPendingSend(hash, p);
     };
