@@ -254,7 +254,8 @@ describe('what the collector says about a send it recognised', () => {
     const s = await store();
     s.bestChain = [212, 280, 490];
     s.bestDays = 760.5;
-    const firstAt = new Date(Date.now() - 5 * 60_000).toISOString();
+    // Five minutes ago, but never before local midnight (then the message says "sent on <date>").
+    const firstAt = new Date(Math.max(Date.now() - 5 * 60_000, new Date().setHours(0, 0, 0, 0))).toISOString();
     const calls = collector(json({ ok: true, id: 'feed1234', duplicate: 'exact', firstAt }));
     const res = await s.sendSubmission(PAYLOAD, 'rank,chain\n');
     expect(res).toMatchObject({ ok: true, duplicate: 'exact' });
