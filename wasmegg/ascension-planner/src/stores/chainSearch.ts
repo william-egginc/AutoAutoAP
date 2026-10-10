@@ -150,6 +150,15 @@ import {
 } from '@/composables/useStepAway';
 import { readRunMark, runAliveElsewhere, RUN_KEY, type RunKind } from '@/search/stepAway';
 import {
+  currentWatchLink,
+  installWatchLink,
+  watchLinkPageClosing,
+  watchLinkRunEnded,
+  watchLinkRunStarted,
+  watchLinkTick,
+} from '@/composables/useWatchLink';
+import { readWatchLinkState, type WatchLinkState } from '@/search/watchLink';
+import {
   appendDeadlineCheckpoint,
   checkpointCount,
   checkpointFinished,
@@ -850,6 +859,15 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   /** A carried-on run's provisional row, read from its checkpoint, until the run takes it at its start
    *  (`takeCarriedProvisional`). A fresh run takes nothing, so it never replaces another run's row. */
   let carriedProvisional: ProvisionalRow | null = null;
+  /** A carried-on run's phone link (composables/useWatchLink.ts), read from its checkpoint like
+   *  `carriedProvisional`, and taken at the same moment: a fresh run gets a fresh link. */
+  let carriedWatch: WatchLinkState | null = null;
+  /** The link the run about to start takes over (set where it takes its provisional row). */
+  let runWatch: WatchLinkState | null = null;
+  function takeCarriedWatch(): void {
+    runWatch = carriedWatch;
+    carriedWatch = null;
+  }
   function takeCarriedProvisional(): ProvisionalRow | null {
     const held = carriedProvisional;
     carriedProvisional = null;
@@ -2054,12 +2072,14 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    */
   async function prepareToCarryOn(
     playerId: string,
-    record: { fingerprint?: string; inputsKey?: string; runNote?: string; provisional?: unknown }
+    record: { fingerprint?: string; inputsKey?: string; runNote?: string; provisional?: unknown; watch?: unknown }
   ): Promise<SearchInputs | 'current' | null> {
     // The run's own note comes back with it (the box is what the carried-on run captures).
     if (record.runNote !== undefined) runNote.value = record.runNote;
     // And its best so far on the board, which its final send must still replace (taken at its start).
     carriedProvisional = readProvisionalRow(record.provisional);
+    // And its phone link, so the phone the player already set up keeps following it.
+    carriedWatch = readWatchLinkState(record.watch);
     partitionHash = partitionHash || (await hashID(playerId));
     // Never another account's run, whatever the player id says (see `accountOf`).
     if (await fromOtherAccount(partitionHash, record.inputsKey)) {
@@ -4665,6 +4685,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           inputsKey: runInputsKey || null,
           runNote: runNoteUsed.value,
           provisional: provisionalRows.value.fastest,
+          watch: currentWatchLink(),
         })
       );
       return true;
@@ -4803,6 +4824,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const chains = built.chains;
     // A carry-on keeps its run's best so far on the board to replace; a fresh run has none.
     setProvisional('fastest', takeCarriedProvisional());
+    takeCarriedWatch();
 
     runSweepTag = sweepTag.value ? { ...sweepTag.value } : null;
     runNoteUsed.value = cleanNote(runNote.value);
@@ -5671,6 +5693,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       if (!cp) return;
       runNote.value = cp.spec.note ?? '';
       carriedProvisional = readProvisionalRow(cp.provisional);
+      carriedWatch = readWatchLinkState(cp.watch);
       if (await fromOtherAccount(partitionHash, cp.inputsKey)) {
         error.value = `This search can't carry on: ${OTHER_ACCOUNT}.`;
         return;
@@ -5749,6 +5772,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     deadlineNote = spec.note;
     // A carry-on keeps its run's best so far on the board to replace; a fresh run has none.
     setProvisional('deadline', takeCarriedProvisional());
+    takeCarriedWatch();
     deadlineRun = {
       deadline: spec.deadline,
       planStart: inputs.planStart,
@@ -5829,6 +5853,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           priorSeconds + Math.max(0, (now - deadlineStartedAt.value) / 1000 - (pool?.suspendedSeconds ?? 0)),
         account: account as DeadlineAccount,
         ...(provisionalRows.value.deadline ? { provisional: { ...provisionalRows.value.deadline } } : {}),
+        ...(currentWatchLink() ? { watch: currentWatchLink()! } : {}),
         ...(deadlineSubmitIntent() ? { submit: deadlineSubmitIntent()! } : {}),
       };
       written = written.then(async () => {
@@ -6471,6 +6496,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         heapLimitMB: b.heapLimitMB,
         workersHeapMB: b.workersHeapMB,
       });
+    // "Watch this run from your phone": a heartbeat when one is due (composables/useWatchLink.ts).
+    watchLinkTick();
   }
   /**
    * Each kind of run that is going in ANOTHER tab or window of this browser right now
@@ -6538,6 +6565,23 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       return state.held?.some(l => l.name === 'ascension-planner:chain-search') ? 'other' : 'unknown';
     },
   });
+  installWatchLink({
+    collector: () => submitUrl.replace(/\/submit\/?$/, '').replace(/\/$/, '') || null,
+    buildCollector: () =>
+      ((import.meta.env.VITE_SUBMIT_URL as string | undefined) ?? '')
+        .trim()
+        .replace(/\/submit\/?$/, '')
+        .replace(/\/$/, '') || null,
+    progress: () => {
+      const p = runProgress.value;
+      return p && p.kind !== 'start-times' ? p : null;
+    },
+    workers: () =>
+      deadlineRunning.value ? (deadlinePool?.size ?? workerBudget.value) : (pool?.size ?? workerBudget.value),
+    deadline: () => (deadlineRunning.value ? (deadlineRun?.deadline ?? null) : null),
+    running: () =>
+      deadlineRunning.value ? 'deadline' : isRunning.value ? (searchSpace.value ? 'sweep' : 'smart') : null,
+  });
   let blackBoxTimer: ReturnType<typeof setInterval> | null = null;
   watch(
     () => isRunning.value || deadlineRunning.value,
@@ -6549,6 +6593,13 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         void stepAwayRunStarted(deadlineRunning.value ? 'deadline' : searchSpace.value ? 'sweep' : 'smart').then(
           blackBoxBeat
         );
+        // The phone link: the carried-on run's own, a Full sweep queue's for its later chains, or new.
+        watchLinkRunStarted(
+          deadlineRunning.value ? 'deadline' : searchSpace.value ? 'sweep' : 'smart',
+          runWatch,
+          !deadlineRunning.value && !!searchSpace.value && sweepQueue.value.at > 0
+        );
+        runWatch = null;
         blackBoxBeat();
         blackBoxTimer = setInterval(blackBoxBeat, 15_000);
       } else {
@@ -6558,6 +6609,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         const how = stoppedEarly.value || deadlineStop ? 'stopped' : runEnd;
         lastRunFailed = how === 'failed';
         stepAwayRunEnded(how);
+        watchLinkRunEnded(how);
         // A failed run keeps its open beat: the black box then reads it as the crash it is, and the
         // next page (the watcher's reopen) carries it on.
         if (how !== 'failed') {
@@ -6571,6 +6623,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     window.addEventListener('pagehide', () => {
       blackBox.pageClosing();
       stepAwayPageClosing();
+      watchLinkPageClosing();
     });
     window.addEventListener('pageshow', e => {
       if (e.persisted) blackBox.pageShown();
@@ -6818,6 +6871,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     recheckFetch = null;
     // A carry-on keeps its run's best so far on the board to replace; a fresh run has none.
     setProvisional('fastest', takeCarriedProvisional());
+    takeCarriedWatch();
 
     error.value = null;
     errorBeforeStart.value = false;

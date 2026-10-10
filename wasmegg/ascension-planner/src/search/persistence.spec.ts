@@ -451,3 +451,32 @@ describe("a run's best so far on the board (Send best so far)", () => {
     expect(got?.durations.map(([k]) => k).sort()).toEqual(['a', 'b']);
   });
 });
+
+describe("a run's phone link (Watch this run from your phone)", () => {
+  beforeEach(() => store.clear());
+  const withWatch = (watch: { key: string; startedAt: number; topic?: string } | null, keys: string[]) =>
+    buildCheckpoint({
+      fingerprint: FP,
+      effort: 'normal',
+      seedChain: [195, 490],
+      bestChain: [196, 490],
+      bestSeconds: 744 * 86400,
+      entries: keys.map(k => ({ key: k, seconds: 1, legs: [] })),
+      stage: 'running',
+      detail: '',
+      chainsDone: keys.length,
+      watch,
+    });
+
+  it('is kept with the checkpoint, so a carry-on posts under the same key', async () => {
+    const link = { key: 'AbCdEfGhIjKlMnOpQrStUvWx', startedAt: 1000, topic: 'aaap-t' };
+    await saveCheckpoint(HASH, withWatch(link, ['a']));
+    await saveCheckpoint(HASH, withWatch(link, ['b']));
+    expect((await loadCheckpoint(HASH, FP))?.watch).toEqual(link);
+  });
+
+  it('is absent when the run has none', async () => {
+    await saveCheckpoint(HASH, withWatch(null, ['a']));
+    expect((await loadCheckpoint(HASH, FP))?.watch).toBeUndefined();
+  });
+});

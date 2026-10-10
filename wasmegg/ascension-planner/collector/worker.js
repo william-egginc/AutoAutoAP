@@ -53,6 +53,8 @@
  *   wrangler deploy
  */
 
+import { handleWatch, isWatchRequest, watchCron } from './watch.js';
+
 // 2: `artifacts` became a list of labels (best piece per family) instead of `{label, count}` for
 // every tier owned; see src/search/submission.ts. Rows already in KV at schema 1 keep their old
 // shape and the page renders both -- a stored row is history, not something to migrate.
@@ -2202,6 +2204,10 @@ export default {
 
     if (request.method === 'OPTIONS') return new Response(null, { headers: CORS });
 
+    // ------------------------------------------------------------------- watch
+    // "Watch this run from your phone" (watch.js): D1, not KV, so none of this touches SUBMISSIONS.
+    if (isWatchRequest(url)) return handleWatch(request, env);
+
     // ------------------------------------------------------------------ submit
     if (url.pathname === '/submit' && request.method === 'POST') {
       // Flood guard first (see floodGate): a refused request costs one read and nothing else.
@@ -2770,6 +2776,18 @@ export default {
     }
 
     return json({ error: 'not found' }, 404);
+  },
+
+  /** The cron trigger (wrangler.toml): the watch rows' 15-minute stale note, and once an hour the
+   *  7-day clean-up. Touches D1 only. */
+  async scheduled(event, env, ctx) {
+    const at = typeof event?.scheduledTime === 'number' ? event.scheduledTime : Date.now();
+    ctx.waitUntil(
+      watchCron(env, at, fetch, {
+        pageUrl: env.WATCH_PAGE_URL || '',
+        prune: new Date(at).getUTCMinutes() < 5,
+      }).catch(() => undefined)
+    );
   },
 };
 

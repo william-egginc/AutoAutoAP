@@ -2,6 +2,8 @@
   "Stepping away?": four opt-in helpers for long runs, beside the Find bar of all three searches
   (Smart search, Full sweep, By a date). All off until ticked, remembered per browser. The rules are in
   search/stepAway.ts; the run side is composables/useStepAway.ts; the watcher is watch.html.
+  "Watch this run from your phone" is search/watchLink.ts and composables/useWatchLink.ts, with its
+  page at watch.html?k=<key> (src/watch/phone.ts) and its server half in collector/watch.js.
 
   This box also does option 1's job on a fresh load: when the last run here was started with it on and
   the page died mid-run (the black box's unfinished beat), it counts down and carries the run on by
@@ -111,6 +113,114 @@
         >
       </p>
     </div>
+    <label class="flex items-start gap-2" data-testid="watch-phone">
+      <input
+        v-model="phoneOptions.phone"
+        type="checkbox"
+        class="mt-0.5 rounded border-slate-300 text-indigo-600"
+        :disabled="!phoneAvailable"
+      />
+      <span
+        ><span class="font-bold">Watch this run from your phone.</span> Gives the run a private link that shows how it's
+        going from anywhere. Every 5 minutes this tab sends the collector a few numbers: progress, time left and the
+        best so far. Never your save, player ID or name.
+        <span class="block text-slate-500">Doesn't slow the run.</span>
+        <span v-if="!phoneAvailable" class="block text-slate-500"
+          >Needs a collector, and this copy of the planner has none.</span
+        ></span
+      >
+    </label>
+    <div v-if="phoneOptions.phone && phoneAvailable" class="pl-6 space-y-2" data-testid="watch-phone-box">
+      <template v-if="phoneLink">
+        <p class="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <a
+            :href="phoneLink.url"
+            target="_blank"
+            rel="noopener"
+            class="break-all font-mono text-[10px] text-indigo-700 underline hover:text-indigo-900"
+            data-testid="watch-phone-link"
+            >{{ phoneLink.url }}</a
+          >
+          <button
+            type="button"
+            class="rounded border border-slate-300 bg-white px-1 text-[10px] font-bold hover:bg-slate-100"
+            @click="copy(phoneLink.url)"
+          >
+            {{ copied === phoneLink.url ? 'Copied' : 'Copy' }}
+          </button>
+        </p>
+        <div class="flex flex-wrap items-start gap-3">
+          <!-- eslint-disable vue/no-v-html -- an SVG the qrcode library drew from our own link -->
+          <div
+            v-if="qrSvg"
+            class="h-32 w-32 shrink-0 rounded border border-slate-200 bg-white p-1"
+            role="img"
+            aria-label="QR code of the link"
+            v-html="qrSvg"
+          ></div>
+          <!-- eslint-enable vue/no-v-html -->
+          <p class="max-w-xs">
+            Scan with your phone, then bookmark it or Add to Home Screen; you can close the page, it keeps updating.
+          </p>
+        </div>
+        <p v-if="phoneLine" class="text-slate-500" role="status">{{ phoneLine }}</p>
+      </template>
+      <p v-else class="text-slate-500">The link appears here when the run starts.</p>
+      <label class="flex flex-wrap items-center gap-2">
+        <span class="font-bold">Label</span>
+        <input
+          v-model="phoneOptions.label"
+          type="text"
+          :maxlength="WATCH_LABEL_MAX"
+          placeholder="optional, e.g. big sweep"
+          class="w-48 rounded border-slate-300 px-1 py-0 text-[11px]"
+        />
+        <span class="text-slate-500">Shown on the phone page. Leave it empty to send none.</span>
+      </label>
+      <label class="flex items-start gap-2">
+        <input v-model="phoneOptions.ntfy" type="checkbox" class="mt-0.5 rounded border-slate-300 text-indigo-600" />
+        <span
+          ><span class="font-bold">Also notify my phone</span> (through ntfy) when the run finishes or fails, and if it
+          stops reporting for 15 minutes.</span
+        >
+      </label>
+      <div v-if="phoneOptions.ntfy" class="pl-6 space-y-1">
+        <p class="flex flex-wrap items-center gap-2">
+          <span class="font-bold">ntfy topic</span>
+          <input
+            v-model.trim="phoneOptions.ntfyTopic"
+            type="text"
+            maxlength="64"
+            class="w-56 rounded border-slate-300 px-1 py-0 font-mono text-[11px]"
+            aria-label="ntfy topic"
+          />
+          <button
+            type="button"
+            class="rounded border border-slate-300 bg-white px-1 text-[10px] font-bold hover:bg-slate-100"
+            @click="copy(phoneOptions.ntfyTopic)"
+          >
+            {{ copied === phoneOptions.ntfyTopic ? 'Copied' : 'Copy' }}
+          </button>
+        </p>
+        <p v-if="!topicOk" class="font-semibold text-amber-800">Letters, numbers, - and _ only.</p>
+        <p class="text-slate-500">
+          Install the free ntfy app and subscribe to this topic. Anyone who knows a topic can read it, so keep it
+          random.
+        </p>
+        <p>
+          Progress note every
+          <select
+            v-model.number="phoneOptions.ntfyEveryMin"
+            aria-label="How often to send a progress note"
+            class="mx-1 rounded border-slate-300 py-0 pl-1 pr-6 text-[11px] font-bold"
+          >
+            <option :value="0">never</option>
+            <option :value="60">1 hour</option>
+            <option v-for="h in [2, 3, 4, 5, 6]" :key="h" :value="h * 60">{{ h }} hours</option>
+          </select>
+        </p>
+      </div>
+    </div>
     <label class="flex items-start gap-2">
       <input v-model="options.fewerWorkers" type="checkbox" class="mt-0.5 rounded border-slate-300 text-indigo-600" />
       <span
@@ -180,6 +290,7 @@ import { hashID } from '@/lib/storage/db';
 import {
   agoShort,
   autoCarryOnVerdict,
+  clock12,
   COUNTDOWN_SECONDS,
   fewerWorkersCap,
   MAX_REOPENS_PER_HOUR,
@@ -188,6 +299,8 @@ import {
   WATCHER_SEEN_KEY,
 } from '@/search/stepAway';
 import { backgroundOpenTip, browserHelp, detectBrowser } from '@/lib/browserHelp';
+import { activeWatch, watchLinkAvailable, watchOptions } from '@/composables/useWatchLink';
+import { isNtfyTopic, newNtfyTopic, WATCH_LABEL_MAX } from '@/search/watchLink';
 import {
   openWatcher,
   pingWatcher,
@@ -219,6 +332,53 @@ const cap = computed(() => fewerWorkersCap(store.machineThreads));
 /** A run of this screen's kind is going and may send its best so far. */
 const autoHere = computed(() => store.bestSoFar?.kind === (props.kind === 'deadline' ? 'deadline' : 'fastest'));
 const autoLine = computed(() => (autoHere.value ? store.bestSoFarAutoLine : ''));
+
+// ------------------------------------------------------------------ watch from your phone
+
+const phoneOptions = watchOptions;
+const phoneAvailable = watchLinkAvailable();
+const phoneLink = computed(() => activeWatch.value);
+const topicOk = computed(() => isNtfyTopic(phoneOptions.value.ntfyTopic));
+// A random topic the first time notifications are ticked (or when the box was emptied).
+watch(
+  () => phoneOptions.value.ntfy,
+  on => {
+    if (on && !phoneOptions.value.ntfyTopic) phoneOptions.value.ntfyTopic = newNtfyTopic();
+  },
+  { immediate: true }
+);
+const phoneLine = computed(() => {
+  const a = phoneLink.value;
+  if (!a) return '';
+  if (a.status !== 'running')
+    return a.status === 'finished'
+      ? 'The run finished; the link says so.'
+      : a.status === 'failed'
+        ? 'The run stopped with an error; the link says so.'
+        : 'The run stopped; the link says so.';
+  if (a.lastError && (!a.lastOkAt || (a.lastTryAt ?? 0) > a.lastOkAt))
+    return `Last update didn't go (${a.lastError}). It tries again in 5 minutes.`;
+  return a.lastOkAt
+    ? `Last update sent at ${clock12(a.lastOkAt)}. Next in about 5 minutes.`
+    : 'Sending the first update...';
+});
+/** The QR code, drawn here from the link (the qrcode library, loaded only when there is one). */
+const qrSvg = ref('');
+watch(
+  () => phoneLink.value?.url,
+  async url => {
+    qrSvg.value = '';
+    if (!url) return;
+    try {
+      const QR = await import('qrcode');
+      const svg = await QR.toString(url, { type: 'svg', margin: 1, errorCorrectionLevel: 'M' });
+      if (phoneLink.value?.url === url) qrSvg.value = svg;
+    } catch {
+      // no picture; the link and Copy still work
+    }
+  },
+  { immediate: true }
+);
 
 // ------------------------------------------------------------------ the watcher tab
 

@@ -654,6 +654,56 @@ decision (`src/lib/leaderboardRank.ts`), with rules a plain read cannot apply. `
 `waiting` blank means the submission carried no per-leg detail — a chain replayed from a saved
 checkpoint keeps none. That is **unknown**, not zero, and it sorts accordingly.
 
+### Watching a run from a phone
+
+"Watch this run from your phone" (the Stepping away? box) gives a long run a random watch key, and
+the run's tab posts a tiny heartbeat under it every 5 minutes (and at once on start, finish, stop
+and failure). `watch.html?k=<key>` on the planner's own site reads it back on a phone. Code:
+`watch.js` here; `src/composables/useWatchLink.ts`, `src/search/watchLink.ts` and
+`src/watch/phone.ts` in the planner.
+
+| | |
+|---|---|
+| `POST /watch` | one heartbeat, JSON as a text body (no preflight): `{ key, status, mode, done, total, pct?, timeLeftSec, bestSoFar: { te, route, finish, spareDays? }, startedAt, updatedAt, workers, label?, notify? }`. Whitelisted field by field; at most 2 KB (`413`). One write a minute per key (`429` with `retryAfter`), except a change of status, which gets through after 2 s. `notify` is an ntfy topic, stored in its own column and never served. `503` past 5,000 rows |
+| `GET /watch?key=<key>` | `{ data, updated, now }`: the last heartbeat, when the collector stored it, and its clock now. `404` for an unknown (or expired) key |
+
+**D1, not KV.** A run left going posts ~290 times a day, and KV's free plan allows 1,000 writes a
+day for the whole account (the leaderboard needs those). D1's free plan allows 100,000 rows
+written and 5 million read a day. The table is `WITHOUT ROWID` with the key as primary key, so a
+heartbeat is one row written; the rate limit is a condition on the upsert itself, so it costs no
+read.
+
+**Writes per run:** about 12 an hour, so ~290 a day for a run left going (a 10-hour sweep: ~120),
+plus one at the start and one at the end. That is room for ~340 runs going at once all day on the
+free plan. Reads: one per phone per minute while the page is open, and the cron's two queries
+every 5 minutes (each reads the whole table while it is small; there is deliberately no index on
+`updated`, which would double the writes).
+
+**The cron** (`[triggers] crons = ["*/5 * * * *"]`): a run still marked running that has not
+reported for 15 minutes, with an ntfy topic, gets ONE note ("Your run stopped reporting 15 min
+ago..."); `alerted` is set first, so it is never repeated, and only a fresh heartbeat clears it.
+Once an hour it also deletes rows not updated in 7 days. Set `WATCH_PAGE_URL` (a `[vars]` entry,
+e.g. `https://<site>/ascension-planner/watch.html`) and the note links straight to the run.
+
+**Nothing personal is stored:** no save, no player ID, no nickname. The label is whatever the
+player typed into the box, and only if they typed one.
+
+**One-time setup** (the database id goes into `wrangler.toml` in place of `TO-BE-CREATED`; a
+deploy before that fails on the placeholder):
+
+```bash
+cd collector
+npx wrangler d1 create aaap-watch --config "$PWD/wrangler.toml"
+#   paste the printed database_id into wrangler.toml ([[d1_databases]], binding WATCH)
+npx wrangler d1 migrations apply aaap-watch --remote --config "$PWD/wrangler.toml"
+npx wrangler deploy --dry-run --config "$PWD/wrangler.toml"   # should list the D1 binding and the cron
+npx wrangler deploy --config "$PWD/wrangler.toml"
+```
+
+Without the `WATCH` binding, `/watch` answers `503` and the rest of the collector is unchanged.
+An optional per-IP limit (the Workers rate-limit binding, `WATCH_LIMIT`) is in `wrangler.toml`,
+commented out.
+
 ---
 
 ## 3. The Chain Explorer page (Compare > Insights)

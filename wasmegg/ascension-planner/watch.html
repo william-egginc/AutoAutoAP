@@ -8,8 +8,28 @@
       name="description"
       content="Watches a long Ascension Planner run in another tab and reopens it if it stops."
     />
-    <!-- A page of its own, not a route: it must stay tiny and never load the simulator. Its script
-         (src/watch/main.ts) reads the run tab's heartbeat from this site's localStorage. -->
+    <!-- A page of its own, not a route: it must stay tiny and never load the simulator. Two modes:
+         without ?k= it is the second-tab watcher (src/watch/local.ts), reading the run tab's heartbeat
+         from this site's localStorage; with ?k=<watch key> it is the phone page (src/watch/phone.ts),
+         reading the run's heartbeat from the collector. src/watch/main.ts picks. -->
+    <meta name="theme-color" content="#f1f5f9" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)" />
+    <meta name="color-scheme" content="light dark" />
+    <!-- Add to Home Screen. The manifest has no start_url on purpose: it then defaults to this
+         page's own address, ?k= included, so the icon opens this run. -->
+    <link rel="manifest" href="/watch.webmanifest" />
+    <link rel="apple-touch-icon" href="/static/watch-icon-180.png" />
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="AAAP run" />
+    <script>
+      // Before first paint: show the right half of the page for the mode (no flash of the other).
+      try {
+        if (new URLSearchParams(location.search).get('k')) document.documentElement.className = 'phone';
+      } catch (e) {}
+    </script>
     <style>
       body {
         margin: 0;
@@ -70,6 +90,123 @@
         background: #fff;
         cursor: pointer;
       }
+      html.phone #local,
+      html:not(.phone) #phone {
+        display: none;
+      }
+      #phone main {
+        margin-top: max(1rem, env(safe-area-inset-top));
+      }
+      #p-title {
+        font-size: 1.5rem;
+        font-weight: 800;
+        margin: 0;
+      }
+      #p-title.ok {
+        color: #047857;
+      }
+      #p-title.warn {
+        color: #b45309;
+      }
+      #p-title.bad {
+        color: #b91c1c;
+      }
+      #p-title.done {
+        color: #334155;
+      }
+      .bar {
+        height: 0.75rem;
+        border-radius: 999px;
+        background: #e2e8f0;
+        overflow: hidden;
+        margin: 0.75rem 0 0.25rem;
+      }
+      .bar > div {
+        height: 100%;
+        width: 0;
+        background: #4f46e5;
+        transition: width 0.4s;
+      }
+      .big {
+        font-size: 1.15rem;
+        font-weight: 700;
+      }
+      .route {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 13px;
+        word-break: break-word;
+      }
+      .alert {
+        border-color: #fcd34d;
+        background: #fffbeb;
+        color: #92400e;
+        font-weight: 600;
+      }
+      .row {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+      }
+      button.refresh {
+        font: inherit;
+        font-size: 13px;
+        padding: 0.25rem 0.75rem;
+        border: 1px solid #cbd5e1;
+        border-radius: 0.5rem;
+        background: #fff;
+        color: inherit;
+      }
+      @media (prefers-color-scheme: dark) {
+        body {
+          background: #0f172a;
+          color: #e2e8f0;
+        }
+        .card,
+        .copy,
+        button.refresh {
+          background: #1e293b;
+          border-color: #334155;
+          color: #e2e8f0;
+        }
+        .small {
+          color: #94a3b8;
+        }
+        code {
+          background: #0f172a;
+        }
+        .bar {
+          background: #334155;
+        }
+        .bar > div {
+          background: #818cf8;
+        }
+        #status.ok,
+        #p-title.ok {
+          color: #34d399;
+        }
+        #status.warn,
+        #p-title.warn {
+          color: #fbbf24;
+        }
+        #p-title.bad {
+          color: #f87171;
+        }
+        #status.done,
+        #p-title.done {
+          color: #cbd5e1;
+        }
+        .alert {
+          background: #422006;
+          border-color: #92400e;
+          color: #fde68a;
+        }
+        #back {
+          background: #1e1b4b;
+          border-color: #3730a3;
+          color: #c7d2fe;
+        }
+      }
       #back {
         font-size: 1.15rem;
         font-weight: 700;
@@ -80,7 +217,7 @@
     </style>
   </head>
   <body>
-    <main>
+    <main id="local">
       <h1>Run watcher</h1>
       <div id="back" class="card" hidden>You can go back to your run's tab now: this one works in the background.</div>
       <div class="card">
@@ -97,6 +234,32 @@
       </div>
       <div id="help" class="card small"></div>
     </main>
+    <div id="phone">
+      <main>
+        <div class="card">
+          <div class="row">
+            <p id="p-title" class="done">Loading...</p>
+            <button id="p-refresh" class="refresh" type="button">Refresh</button>
+          </div>
+          <div id="p-label" class="small"></div>
+          <div class="bar" hidden id="p-bar-wrap"><div id="p-bar"></div></div>
+          <div class="row small"><span id="p-progress"></span><span id="p-left"></span></div>
+        </div>
+        <div id="p-stale" class="card alert" hidden></div>
+        <div class="card" id="p-best-card" hidden>
+          <div class="small">Best so far</div>
+          <div id="p-best" class="big"></div>
+          <div id="p-route" class="route small"></div>
+        </div>
+        <div class="card small">
+          <div id="p-updated"></div>
+          <div id="p-meta"></div>
+        </div>
+        <p class="small">
+          This page checks again every minute. Bookmark it, or use Add to Home Screen, to come back to it.
+        </p>
+      </main>
+    </div>
     <script type="module" src="/src/watch/main.ts"></script>
   </body>
 </html>

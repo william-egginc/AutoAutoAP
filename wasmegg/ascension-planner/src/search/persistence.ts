@@ -21,6 +21,7 @@ import type { TimeOffWindow } from './types';
 import { loadMetadata, saveMetadata } from '@/lib/storage/db';
 import type { CacheEntry } from './driver';
 import type { ProvisionalRow, SearchSpace } from './submission';
+import type { WatchLinkState } from './watchLink';
 import { availabilityKey, type Availability } from './availability';
 import { milestonesKey, type Milestone } from './milestones';
 import {
@@ -95,6 +96,10 @@ export interface SearchCheckpoint {
    *  replaces it. Optional and unversioned, as `space` is. Never merged in from an earlier record:
    *  the run's own write says whether it still has one. */
   provisional?: ProvisionalRow;
+
+  /** The run's phone link (search/watchLink.ts), so a carry-on keeps posting under the same key.
+   *  Optional and unversioned, as `provisional` is, and never merged in from an earlier record. */
+  watch?: WatchLinkState;
 }
 
 /**
@@ -446,6 +451,7 @@ export function buildCheckpoint(args: {
   inputsKey?: string | null;
   runNote?: string;
   provisional?: ProvisionalRow | null;
+  watch?: WatchLinkState | null;
 }): SearchCheckpoint {
   const bestKey = args.bestChain.join(',');
   return {
@@ -466,6 +472,7 @@ export function buildCheckpoint(args: {
     ...(args.inputsKey ? { inputsKey: args.inputsKey } : {}),
     ...(args.runNote ? { runNote: args.runNote } : {}),
     ...(args.provisional ? { provisional: { ...args.provisional } } : {}),
+    ...(args.watch ? { watch: { ...args.watch } } : {}),
   };
 }
 

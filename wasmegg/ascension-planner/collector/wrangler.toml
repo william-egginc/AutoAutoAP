@@ -23,3 +23,31 @@ id = "77c966d5ec964cc2979f59a190737fd4"
 # under `csv:<id>` in the namespace above. R2 would mean a payment method on the account for a
 # payload that does not need it. See collector/README.md for the tradeoff this makes on the
 # player-id sweep.
+
+# "Watch this run from your phone" (watch.js): heartbeats every 5 min per watched run. D1, NOT KV:
+# KV's free plan allows 1,000 writes a day for the whole account, and one run left going writes ~290.
+# Created once with `wrangler d1 create aaap-watch` (paste the printed database_id below), then
+# `wrangler d1 migrations apply aaap-watch --remote`. See README.md, "Watching a run from a phone".
+[[d1_databases]]
+binding = "WATCH"
+database_name = "aaap-watch"
+database_id = "TO-BE-CREATED"
+migrations_dir = "migrations"
+
+# Every 5 minutes: one ntfy note for a run that stopped reporting 15 min ago, and (once an hour) the
+# deletion of watch rows not updated in 7 days. Touches D1 only.
+[triggers]
+crons = ["*/5 * * * *"]
+
+# Where the watch page lives, for the link in the "stopped reporting" note. Optional.
+# [vars]
+# WATCH_PAGE_URL = "https://<your site>/ascension-planner/watch.html"
+
+# OPTIONAL per-IP limit on POST /watch, on top of the per-key one (Workers rate-limit binding, free
+# plan included; needs a recent wrangler). Left off so a deploy never fails on it.
+# [[ratelimits]]
+# name = "WATCH_LIMIT"
+# namespace_id = "1001"
+#   [ratelimits.simple]
+#   limit = 10
+#   period = 60

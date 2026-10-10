@@ -17,6 +17,7 @@ import { loadMetadata, loadMetadataPrefix, putMetadataRecords, saveMetadata } fr
 import type { ChainResult, LegSummary } from './types';
 import type { DeadlineRoute } from './deadline';
 import type { ProvisionalRow } from './submission';
+import type { WatchLinkState } from './watchLink';
 
 const RUN_KEY = 'chainSearchDeadlineRun';
 const RESULT_KEY = 'chainSearchDeadlineResult';
@@ -193,6 +194,8 @@ export interface DeadlineCheckpoint {
   /** The best so far this run has on the board ("Send best so far"), so a carry-on's final send
    *  still replaces it. Absent when it has none. */
   provisional?: ProvisionalRow;
+  /** The run's phone link (search/watchLink.ts), so a carry-on keeps posting under the same key. */
+  watch?: WatchLinkState;
   /** The run sends its result when it finishes (Find and submit, or a yes given during it), and on
    *  what choices: a carry-on, by hand or by itself, puts these back and sends at its end too. A
    *  carried-on Find and submit run of 9 Oct finished as a plain Find and sent nothing. Absent: it
