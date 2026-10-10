@@ -172,6 +172,10 @@ export interface LegSummary {
    *  ('continue' = finish without buying, 'buildup' = continue my build-up, 'fresh' = the best fresh
    *  build; search/leg.ts `LegResult.firstLegEnds`). Absent on runs from before 10 Oct 2026. */
   firstLegEnds?: Partial<Record<'continue' | 'buildup' | 'fresh', number>>;
+  /** Read back from a By a date checkpoint (search/deadlineStore.ts `replayingEvaluator`), which keeps
+   *  only each leg's end TE, end time, duration and strategy: peak delivery, start, shifts and leg 1's
+   *  rival are UNKNOWN here, not zero. Absent on a leg simulated in this session. */
+  replayed?: true;
 }
 
 /** A fully evaluated chain. `seconds` is what every stage of the driver minimises. */

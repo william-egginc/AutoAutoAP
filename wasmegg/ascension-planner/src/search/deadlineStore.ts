@@ -478,8 +478,11 @@ export function replayingEvaluator(
           chain: key.split(',').map(Number),
           seconds: e[0],
           // The checkpoint keeps no tier-13 flag, only the strategy (`2-sale-tier13`), so that is what the
-          // CSV's tier13 column is read from; peak delivery and the start time stay unknown.
-          legs: unpackLegs(e[1]).map(l => ({ ...l, maxELR: 0, tier13Unlocked: /-tier13$/.test(l.key) }) as LegSummary),
+          // CSV's tier13 column is read from; peak delivery and the start time stay unknown, and the
+          // legs say so (`replayed`), so nothing reads that 0 as a measured peak.
+          legs: unpackLegs(e[1]).map(
+            l => ({ ...l, maxELR: 0, tier13Unlocked: /-tier13$/.test(l.key), replayed: true }) as LegSummary
+          ),
         };
   return {
     async evaluate(chains, onResult) {
@@ -552,6 +555,65 @@ export function replayingEvaluator(
     count: () => seedCount + fresh,
     replayed: () => replayed,
   };
+}
+
+/** Whether a route's legs came back from a checkpoint (`replayingEvaluator`) without their detail. */
+export function hasReplayedLegs(legs: readonly LegSummary[] | undefined): boolean {
+  return !!legs?.some(l => l.replayed);
+}
+
+/** The panel's top routes a carried-on run fills in (`repriceReplayedRoutes`), with each stop count's
+ *  best besides. The board row is the first of them; the CSV's routes past them keep replayed legs. */
+export const REPRICE_TOP_ROUTES = 50;
+
+/**
+ * A carried-on run's best routes, priced again for their leg detail. The checkpoint keeps four
+ * numbers a leg (`packLegs`), so a route replayed from it has no peak delivery, start time, shifts
+ * or leg-1 rival, and its board row and CSV said peak 0 and "continue not simulated" (10 Oct).
+ * Keeping all of it for every route would multiply the checkpoint; pricing the few routes anyone
+ * reads again costs a handful of legs each.
+ *
+ * Each of `routes` (deduplicated by chain, in order, at most `limit` of them) whose legs were replayed is
+ * priced with `evaluate`, and its legs are replaced IN PLACE (the run's lists share the objects)
+ * when the fresh legs end where the replayed ones did, to the second. A mismatch, a failure or a
+ * missing answer leaves the replayed legs: the arrival they back is what the run ranked on.
+ * Resolves with how many routes were filled in.
+ */
+export async function repriceReplayedRoutes(
+  routes: readonly Pick<DeadlineRoute, 'chain' | 'legs'>[],
+  evaluate: (chains: number[][]) => Promise<ChainResult[]>,
+  /** At most this many distinct routes priced, the first in `routes` first. */
+  limit = Infinity
+): Promise<number> {
+  const todo = new Map<string, Pick<DeadlineRoute, 'chain' | 'legs'>[]>();
+  for (const r of routes) {
+    if (!hasReplayedLegs(r.legs)) continue;
+    const key = r.chain.join(',');
+    const same = todo.get(key);
+    if (same) same.push(r);
+    else if (todo.size < limit) todo.set(key, [r]);
+  }
+  if (!todo.size) return 0;
+  let results: ChainResult[];
+  try {
+    results = await evaluate([...todo.values()].map(rs => [...rs[0].chain]));
+  } catch (e) {
+    console.warn('chain search: could not price the carried-on routes again for their legs', e);
+    return 0;
+  }
+  let filled = 0;
+  for (const res of results) {
+    const rs = todo.get(res.chain.join(','));
+    if (!rs) continue;
+    const old = rs[0].legs;
+    const same =
+      res.legs.length === old.length && res.legs.every((l, i) => Math.abs(l.endTime - old[i].endTime) < 1);
+    if (!same) continue;
+    for (const r of rs) r.legs = res.legs;
+    todo.delete(res.chain.join(','));
+    filled++;
+  }
+  return filled;
 }
 
 /**

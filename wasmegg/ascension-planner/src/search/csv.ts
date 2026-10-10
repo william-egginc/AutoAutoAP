@@ -378,7 +378,9 @@ export function firstLegLine(leg: LegSummary | null | undefined, tz: string, mod
   const r = leg.firstLegRival;
   const later = firstLegOtherLaterHours(leg);
   let other: string;
-  if (r && later !== null) {
+  if (leg.replayed) {
+    other = 'the other way unknown (this route was replayed from a saved checkpoint, which keeps no leg detail)';
+  } else if (r && later !== null) {
     const otherWhat =
       r.key === 'continue'
         ? 'continuing without buying'
@@ -431,7 +433,8 @@ function legCells(
     formatInZone(leg?.buildPhaseEndTime, tz),
     formatInZone(leg?.endTime, tz),
     leg ? (leg.durationSeconds / 86400).toFixed(4) : undefined,
-    leg ? ((leg.maxELR * 3600) / 1e15).toFixed(3) : undefined,
+    // Replayed from a checkpoint: not measured, so blank rather than a 0 that reads as one.
+    leg && !leg.replayed ? ((leg.maxELR * 3600) / 1e15).toFixed(3) : undefined,
     leg?.nightShifts,
     leg?.sleepDelaySeconds === undefined ? undefined : (leg.sleepDelaySeconds / 3600).toFixed(2),
     leg?.shiftDelaySeconds === undefined ? undefined : (leg.shiftDelaySeconds / 3600).toFixed(2),
@@ -712,6 +715,10 @@ export function* deadlineCsvChunks(
   const firstLeg = firstLegLine(routes[0]?.legs?.[0], tz, meta.firstAscension);
   if (firstLeg) note(firstLeg);
   note('One row per leg of each kept route (the same leg columns as the chain search), best route first.');
+  if (routes.slice(0, withLegs).some(r => r.legs?.some(l => l.replayed)))
+    note(
+      'Some routes were replayed from a saved checkpoint (the run was carried on): their legs keep strategy, end and duration only, with blank start, peak delivery, shifts and first-leg cells.'
+    );
   note(
     "rank, route, stops, last_stop, reached_local, ascend_from_local and spare_hours repeat on each of a route's rows."
   );

@@ -873,7 +873,10 @@ export function summariseProof(priced: ProofChain[], winner: number[]): Exhausti
   };
 }
 
-export function buildSubmission(i: SubmissionInputs): Submission {
+export function buildSubmission(input: SubmissionInputs): Submission {
+  // Legs replayed from a By a date checkpoint (deadlineStore.ts `replayingEvaluator`) have no peak
+  // delivery, waiting or leg-1 rival: sent as no legs, the board's "not known", never as zeros.
+  const i = input.legs.some(l => l.replayed) ? { ...input, legs: [] } : input;
   const tz = i.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   // Null, not zero, when no legs were kept: a chain replayed from a checkpoint has an UNKNOWN

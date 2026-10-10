@@ -169,6 +169,8 @@ import {
   loadDeadlineCheckpointHeader,
   loadDeadlineResult,
   replayingEvaluator,
+  repriceReplayedRoutes,
+  REPRICE_TOP_ROUTES,
   runBandSets,
   saveDeadlineResult,
   listSavedAnswers,
@@ -5969,6 +5971,20 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           },
         }
       );
+      // A carry-on's routes replayed from the checkpoint came back with four numbers a leg: the ones
+      // anyone reads again (the panel's top, each stop count's best, the board row) are priced again
+      // for their peak delivery, starts, shifts and leg-1 rival before anything is saved or sent.
+      // A run stopped by hand wants its answer now: its top ten, not fifty.
+      if (seedCount) {
+        deadlineProgress.value = { ...deadlineProgress.value!, stage: "filling in the best routes' legs" };
+        const top = out.routes.slice(0, out.stoppedEarly ? 10 : REPRICE_TOP_ROUTES);
+        await repriceReplayedRoutes([...top, ...out.byStops.values()], chains =>
+          workers.evaluate(chains, undefined, { spreadOut: true, memo }).then(r => {
+            deadlineLegSims.value += r.legSims;
+            return r.results;
+          })
+        );
+      }
       // What the CSV needs and no more: legs for the routes it writes them for, and the compact list
       // of every route priced. The other sets' best routes (tens of thousands, each with its legs)
       // are let go before the end-of-run send builds anything (the 9 Oct crash).
