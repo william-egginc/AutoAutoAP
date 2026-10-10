@@ -280,7 +280,7 @@ What a day costs on KV's free tier (100,000 reads, 1,000 writes, 1,000 deletes, 
 1 read for `/all` plus 2 for `/mine` (both boards) when the viewer has a code, and no list; a new
 submission with its CSV is 4 reads, 1 list (the copy check) and 5 writes (row, snapshot, rate-limit
 counter, table, snapshot); an exact copy is 1 read, 1 list and 1 write; `/claim` is 4 reads and 3
-writes; a replace adds a read or two and three deletes, and a progress send with its CSV is 5 writes
+writes; a replace adds a read or two and three deletes, and a progress send with its CSV is 6 writes
 (see *Provisional rows*); each settle after a burst of writes adds 2 lists, a write and a read per row it was missing.
 Writes are the tightest budget: about 200 submissions a day.
 
@@ -297,9 +297,12 @@ end. While it runs, the app can send its best so far as a **provisional** row an
   button) sends the run's data with the row: the CSV of everything priced so far, and the private
   diagnostics when ticked. `/submit` hands a provisional row an `uploadToken` signed over `csvp:<id>`
   (a final row's is over `csv:<id>`, so neither opens the other's upload), and `/csv` stores the CSV so
-  far under `csv:<id>` like any table, answering `partial: true`. It does **not** patch the snapshot:
-  the patch its `/submit` made already asked for a settle, and the settle's CSV list flips `hasCsv` a
-  minute or two later, which saves a write on every send. A partial CSV is identifiable two ways: its
+  far under `csv:<id>` like any table, answering `partial: true`, and patches the snapshot to flip the
+  row's `hasCsv` as it does for a final table (1 read, 1 write), so the board shows "the CSV so far" at
+  once. It used to skip that patch to save the write and leave the flip to the settle the `/submit`
+  asked for, but that settle runs at the first read 90 s after the send and lists the CSVs then: a CSV
+  so far that landed or was listed later was missed, and the row showed no CSV until the next write
+  (live, 10 Oct 2026). A partial CSV is identifiable two ways: its
   row is `provisional`, and its own header says `# in progress, N of M chains priced so far` (routes,
   for By a date). The board page labels its link "the CSV so far"; the Explorer (Insights) reads only
   final rows' CSVs. Diagnostics go to `extra:<id>` as for any send.
@@ -346,7 +349,7 @@ end. While it runs, the app can send its best so far as a **provisional** row an
 - **No expiry.** A run that is abandoned leaves its provisional row on the board, tagged.
 
 What each costs in KV operations, on settled boards (checked by `worker.spec.js`, "costs what the
-README says" and "costs at most six writes a send"). Every write asks for one settle, which the next
+README says" and "costs at most seven writes a send"). Every write asks for one settle, which the next
 read of that board does whoever reads it (the next progress send's own snapshot read, at the latest):
 **2 lists and 1 write**, plus a read per row the snapshot lacks. It is listed as its own line, because
 it is paid once per burst of writes, not per request.
@@ -358,17 +361,17 @@ it is paid once per burst of writes, not per request.
 | first progress send (provisional, no `replaces`) | 4 (rate gate, both snapshots, snapshot patch) | 3 (row, snapshot, rate gate) | 0 | 0 |
 | progress send replacing the last one | 5 (as above, plus the old row, to check its owner) | 3 | 3 (old row, its `csv:`, its `extra:`) | 0 |
 | ... plus its diagnostics | 0 | +1 (`extra:<id>`) | 0 | 0 |
-| ... plus its CSV so far | +1 (write-once check) | +1 (`csv:<id>`; no snapshot patch) | 0 | 0 |
-| **a whole progress send with CSV and diagnostics** | **6** | **5** | **3** | **0** |
+| ... plus its CSV so far | +2 (write-once check, snapshot patch) | +2 (`csv:<id>`, snapshot) | 0 | 0 |
+| **a whole progress send with CSV and diagnostics** | **7** | **6** | **3** | **0** |
 | the settle it asks for (once per burst) | 1 + a row it lacks | 1 | 0 | 2 |
 | final replacing a provisional | 4 (rate gate, the snapshot holding the old row, the old row, snapshot patch); 5 when the old row is on the flagged board | 3 | 3 (old row, its `csv:`, its `extra:`) | 1 (copy check) |
 | ... plus its diagnostics and its full CSV | +2 (write-once check, snapshot patch) | +3 (`extra:`, table, snapshot) | 0 | 0 |
 | **a whole final with CSV and diagnostics, replacing** | **6** | **6** | **3** | **1** |
 | refused for the gap, or the daily cap | 3 (rate gate, both snapshots) | 0 | 0 | 0 |
 
-So a progress send costs **6 writes** counting its settle (5 without diagnostics), 3 deletes and 2
-lists. At the default one an hour a day-long run is about 144 writes, 72 deletes and 48 lists; at the
-cap (48 sends from one account in a UTC day) 288 writes, 144 deletes and 96 lists, about a third of
+So a progress send costs **7 writes** counting its settle (6 without diagnostics), 3 deletes and 2
+lists. At the default one an hour a day-long run is about 168 writes, 72 deletes and 48 lists; at the
+cap (48 sends from one account in a UTC day) 336 writes, 144 deletes and 96 lists, about a third of
 the free plan's 1,000 writes. A `replaces` naming a row that is gone costs one more read when the
 other board was not read yet (a final), to look for the row that took its place. When the old row is
 on the other board from the new one (one flagged, one not), taking it off is a second snapshot patch

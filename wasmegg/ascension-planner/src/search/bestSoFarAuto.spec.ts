@@ -93,11 +93,29 @@ describe('autoDecision', () => {
     expect(autoDecision(input({ now: T0 + 9 * HOUR, active: false }))).toEqual({ do: 'idle' });
   });
 
-  it('counts from the start of a carried-on run, not from its old send', () => {
-    // The row went up 5 hours ago; the run came back just now: not due for an interval, then it sends once.
+  it("counts a carried-on run from its row's last send, not from the carry-on (live test, 10 Oct)", () => {
+    // Every 30 min; sent 11:29 pm, page refreshed 22 min later: the next is 8 min away, not 30.
+    const sent = T0;
+    const back = sent + 22 * MIN;
+    const i = input({ everyMs: 30 * MIN, lastSentAt: sent, lastSentKey: null, startedAt: back, now: back });
+    expect(nextDueAt(i)).toBe(sent + 30 * MIN);
+    expect(autoDecision(i)).toEqual({ do: 'wait', at: sent + 30 * MIN });
+    expect(autoDecision({ ...i, now: sent + 30 * MIN })).toEqual({ do: 'send' });
+    expect(autoStatusLine({ ...i, lastBest: null, failed: false })).toBe(
+      'Last progress sent 12:00 pm. Next in about 8 min.'
+    );
+  });
+
+  it('sends a carried-on run whose last send is long past as soon as something is priced', () => {
+    // The row went up 5 hours ago; the run came back just now.
     const i = input({ lastSentAt: T0 - 5 * HOUR, lastSentKey: null, startedAt: T0 });
-    expect(autoDecision({ ...i, now: T0 + MIN })).toEqual({ do: 'wait', at: T0 + HOUR });
-    expect(autoDecision({ ...i, now: T0 + HOUR })).toEqual({ do: 'send' });
+    expect(autoDecision({ ...i, key: null, now: T0 + MIN })).toEqual({ do: 'skip' });
+    expect(autoDecision({ ...i, now: T0 + MIN })).toEqual({ do: 'send' });
+  });
+
+  it('never goes inside the gap from the last send, even at a shorter interval', () => {
+    const i = input({ everyMs: 5 * MIN, lastSentAt: T0, startedAt: T0 + MIN, now: T0 + 10 * MIN });
+    expect(nextDueAt(i)).toBe(T0 + BEST_SO_FAR_GAP_MS);
   });
 });
 

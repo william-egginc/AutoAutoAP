@@ -7,8 +7,9 @@
  *
  * The rules:
  *  - Only while a run is going, the option is on and the player has agreed (`active`).
- *  - Not before one interval after the run began, or after the last send (an automatic one or the
- *    button's), and never closer than BEST_SO_FAR_GAP_MS to the last send.
+ *  - Not before one interval after the last send (an automatic one or the button's, or for a
+ *    carried-on run the one its row went up with), or after the run began when nothing was sent, and
+ *    never closer than BEST_SO_FAR_GAP_MS to the last send.
  *  - Only if something new was priced since the last send (`progressKey`: how much was priced, and the
  *    best); otherwise it is not sent, the status line says so ("Not sent at 4:20 pm: nothing new
  *    priced since 3:50 pm"), and the next check is one interval on.
@@ -78,13 +79,16 @@ export type AutoDecision =
   | { do: 'skip' }
   | { do: 'idle' };
 
-/** The earliest the next send may go: the interval from the last send, failure or the start, but
- *  never inside the gap from the last send, and not before a "too soon" says. */
+/** The earliest the next send may go: the interval from the last send (or, before any, the start),
+ *  or from a later failure or skip, but never inside the gap from the last send, and not before a
+ *  "too soon" says. A carried-on run counts from the send its row went up with, not from when it came
+ *  back: a refresh 22 min after a send leaves the next one 8 min away, not 30 (live test, 10 Oct).
+ *  When that time has already passed, it goes as soon as something new is priced. */
 export function nextDueAt(
   i: Pick<AutoInput, 'everyMs' | 'startedAt' | 'lastSentAt' | 'lastFailAt' | 'retryAt'> &
     Partial<Pick<AutoInput, 'lastSkipAt'>>
 ): number {
-  const anchor = Math.max(i.startedAt, i.lastSentAt ?? 0, i.lastFailAt ?? 0, i.lastSkipAt ?? 0);
+  const anchor = Math.max(i.lastSentAt ?? i.startedAt, i.lastFailAt ?? 0, i.lastSkipAt ?? 0);
   return Math.max(
     anchor + Math.max(i.everyMs, BEST_SO_FAR_GAP_MS),
     i.lastSentAt !== null ? i.lastSentAt + BEST_SO_FAR_GAP_MS : 0,

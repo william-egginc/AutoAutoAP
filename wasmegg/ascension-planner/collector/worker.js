@@ -1717,9 +1717,12 @@ async function findRow(env, ctx, id, boards = {}) {
 // upload token (signed over `csvp:<id>`, not `csv:<id>`), so the CSV of everything priced so far can
 // follow it to /csv, and its private extras (diagnostics) go to `extra:<id>` as for any row. Partial
 // CSVs are identifiable: the row is `provisional`, and the app writes "in progress, N of M" into the
-// CSV's own header. /csv stores the CSV so far WITHOUT patching the snapshot (one write saved per
-// send): the patch its /submit made already asked for a settle, and the settle's CSV list flips
-// `hasCsv` a minute or two later. The next send (or the final) deletes it with the row it replaces.
+// CSV's own header. /csv flips the row's `hasCsv` with a snapshot patch, as for a final table (1 read,
+// 1 write). It used to skip that and leave it to the settle the /submit asked for, to save the write,
+// but that settle runs at the first read after 90 s and lists the CSVs then: a CSV so far that landed
+// later (or was not listed yet) was missed, and the settle clears `settleAt`, so the row showed no
+// CSV until the next write or the day-old backstop (live, 10 Oct). The next send (or the final)
+// deletes it with the row it replaces.
 //
 // RATIONED, because KV's free plan allows 1,000 writes and 1,000 deletes a day. A provisional send
 // needs an owner code (without one the row could never be replaced, so it would only ever pile up),
@@ -2215,14 +2218,13 @@ export default {
       }
 
       await env.SUBMISSIONS.put(`csv:${id}`, body);
-      // A CSV so far is left to the settle its row's /submit already asked for (see "provisional
-      // rows"): one snapshot write fewer on every progress send.
-      if (soFar) return json({ ok: true, bytes: body.byteLength, partial: true });
       // Flip this row's hasCsv in whichever snapshot holds it: patched in place, never re-listed. A
       // list here, a moment after the row's own /submit, would not show that row yet, and rebuilding
-      // from it took the new row off the board (see "snapshots").
+      // from it took the new row off the board (see "snapshots"). A CSV so far too: leaving it to
+      // the settle its /submit asked for missed it whenever that settle ran before the CSV landed
+      // or was listed, and nothing looked again (live, 10 Oct; see "provisional rows").
       await later(ctx, markCsv(env, id, url.origin));
-      return json({ ok: true, bytes: body.byteLength });
+      return json({ ok: true, bytes: body.byteLength, ...(soFar ? { partial: true } : {}) });
     }
 
     if (url.pathname === '/csv' && request.method === 'GET') {

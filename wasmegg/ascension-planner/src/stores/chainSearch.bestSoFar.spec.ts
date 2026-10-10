@@ -263,6 +263,31 @@ describe('Send best so far', () => {
       }
     });
 
+    it("a carried-on run counts from its row's last send, not from the carry-on (live test, 10 Oct)", async () => {
+      try {
+        const { s } = await auto(30);
+        // Sent at 11:29; the page came back (a refresh) at 11:51 with the row from the checkpoint.
+        const sent = Date.parse('2026-10-09T11:29:00Z');
+        at('11:51');
+        s.provisionalRows = { fastest: { id: 'aaaa0001', nickname: '', at: sent }, deadline: null };
+        s.beginBestSoFar('fastest', { nickname: '' });
+        const bodies = collector({ ok: true, id: 'bbbb0002', replaced: 'aaaa0001' });
+        s.autoTick();
+        await flush();
+        expect(bodies).toHaveLength(0);
+        expect(s.bestSoFarAutoLine).toMatch(/^Last progress sent \d+:\d\d [ap]m\. Next in about 8 min\.$/);
+        expect(s.bestSoFarWait).toBe(8);
+        at('11:59');
+        s.autoTick();
+        await flush();
+        expect(bodies).toHaveLength(1);
+        expect(bodies[0]).toMatchObject({ provisional: true, replaces: 'aaaa0001' });
+        s.endBestSoFar();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it('waits out "too soon" for as long as the collector says, and after another error tries next interval', async () => {
       try {
         const { s } = await auto(30);

@@ -2310,10 +2310,8 @@ describe('provisional rows: a best so far, replaced by its run', () => {
     const gz = new Uint8Array([0x1f, 0x8b, 8, 0, 0, 0, 0, 0, 0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
     const best = await (await sendOwned({ ...BEST, diagnostics: { memoryMB: 900 } })).json();
     expect(env.SUBMISSIONS._m.has(`extra:${best.id}`)).toBe(true);
-    const up = await postCsvSoFar(best.id, gz, best.uploadToken);
-    expect(up.status).toBe(200);
-    expect(await up.json()).toMatchObject({ ok: true, partial: true });
-    // Not patched onto the board (a write saved): the snapshot does not know of it yet.
+    // A CSV so far whose snapshot patch was lost (a race): the board does not know of it.
+    await env.SUBMISSIONS.put(`csv:${best.id}`, gz);
     expect((await allRows())[0].hasCsv).toBe(false);
     const counts = countKV(env.SUBMISSIONS);
     await sendOwned({ ...FINAL, replaces: best.id });
@@ -2404,7 +2402,7 @@ describe('provisional rows: a best so far, replaced by its run', () => {
     const GZ = new Uint8Array([0x1f, 0x8b, 8, 0, 0, 0, 0, 0, 0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
     const PROGRESS = { ...BEST, diagnostics: { memoryMB: 1200, workers: 6 } };
 
-    it('takes the CSV so far, serves it back, and flips hasCsv at the settle its send asked for', async () => {
+    it('takes the CSV so far, serves it back, and flips hasCsv on the board as it lands', async () => {
       await secondsApart(async () => {
         const one = await (await sendOwned(PROGRESS)).json();
         expect((await postCsvSoFar(one.id, GZ, one.uploadToken)).status).toBe(200);
@@ -2413,14 +2411,30 @@ describe('provisional rows: a best so far, replaced by its run', () => {
         const back = await get(`/csv?id=${one.id}`);
         expect(back.status).toBe(200);
         expect(new Uint8Array(await back.arrayBuffer())).toEqual(GZ);
-        // The settle the send's patch asked for lists the CSVs and flips it.
-        vi.setSystemTime(Date.now() + 2 * 60 * 1000);
-        await get('/all');
+        // Patched onto the board as it lands, without waiting for a settle.
         expect((await allRows())[0]).toMatchObject({ id: one.id, provisional: true, hasCsv: true });
         // A final row's token never opens a provisional row's upload, nor the other way round.
         const fin = await (await sendOwned({ ...FINAL, durationDays: 680 })).json();
+        expect((await postCsvSoFar(fin.id, GZ, one.uploadToken)).status).toBe(403);
         expect((await postCsvSoFar(fin.id, GZ, await signed('csvp:' + fin.id))).status).toBe(200);
-        expect((await allRows()).find(r => r.id === fin.id).hasCsv).toBe(false); // a partial upload: no patch
+        expect((await allRows()).find(r => r.id === fin.id).hasCsv).toBe(true);
+      });
+    });
+
+    it('shows a CSV so far that lands after its settle ran (live, 10 Oct: hasCsv stuck false)', async () => {
+      await secondsApart(async () => {
+        const one = await (await sendOwned(PROGRESS)).json();
+        // Someone reads the board after the send's settleAt but before its CSV so far has landed (or
+        // been listed): the settle finds no CSV and clears settleAt, so nothing would look again.
+        vi.setSystemTime(Date.now() + 2 * 60 * 1000);
+        await get('/all');
+        expect((await allRows())[0]).toMatchObject({ id: one.id, hasCsv: false });
+        expect(snapOf('sub').pub.settleAt).toBe(0);
+        // The CSV so far arrives: on the board at once, with its link.
+        const up = await postCsvSoFar(one.id, GZ, one.uploadToken);
+        expect(up.status).toBe(200);
+        expect(await up.json()).toMatchObject({ ok: true, partial: true });
+        expect((await allRows())[0]).toMatchObject({ id: one.id, provisional: true, hasCsv: true });
       });
     });
 
@@ -2438,7 +2452,7 @@ describe('provisional rows: a best so far, replaced by its run', () => {
       });
     });
 
-    it('costs at most six writes a send: what the README lists for a send with its CSV, and a final', async () => {
+    it('costs at most seven writes a send: what the README lists for a send with its CSV, and a final', async () => {
       await secondsApart(async () => {
         const settle = async () => {
           vi.setSystemTime(Date.now() + 2 * 60 * 1000);
@@ -2448,18 +2462,19 @@ describe('provisional rows: a best so far, replaced by its run', () => {
         let counts = countKV(env.SUBMISSIONS);
         const one = await (await sendOwned(PROGRESS)).json();
         await postCsvSoFar(one.id, GZ, one.uploadToken);
-        // gate, both snapshots, the patch's read, the CSV's write-once check | row, snapshot, gate, extras, CSV
-        expect(counts).toEqual({ get: 5, put: 5, list: 0, delete: 0 });
+        // gate, both snapshots, the patch's read, the CSV's write-once check, markCsv's patch read | row,
+        // snapshot, gate, extras, CSV, snapshot (hasCsv)
+        expect(counts).toEqual({ get: 6, put: 6, list: 0, delete: 0 });
         vi.setSystemTime(Date.now() + 60 * 60 * 1000);
         counts = countKV(env.SUBMISSIONS);
         await getOwned('/mine', TOKEN_A);
-        // The settle it asked for, by whoever reads next: 2 lists and the sixth write.
+        // The settle it asked for, by whoever reads next: 2 lists and the seventh write.
         expect(counts).toMatchObject({ put: 1, list: 2, delete: 0 });
         counts = countKV(env.SUBMISSIONS);
         const two = await (await sendOwned({ ...PROGRESS, durationDays: 695, replaces: one.id })).json();
         await postCsvSoFar(two.id, GZ, two.uploadToken);
         // ... plus the old row read and deleted with its CSV so far and its extras
-        expect(counts).toEqual({ get: 6, put: 5, list: 0, delete: 3 });
+        expect(counts).toEqual({ get: 7, put: 6, list: 0, delete: 3 });
         await settle();
         counts = countKV(env.SUBMISSIONS);
         const fin = await (await sendOwned({ ...FINAL, diagnostics: { memoryMB: 1 }, replaces: two.id })).json();
