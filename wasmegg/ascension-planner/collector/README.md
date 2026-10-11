@@ -205,6 +205,7 @@ no button.
 | | |
 |---|---|
 | `POST /submit` | one submission; validated against a whitelist, rate-limited to 10 per IP per minute. Answers `{ ok, id, uploadToken }`; for a copy of a result already on the board, see *Copies* below (`duplicate: 'exact'` with the stored row's `id` and `firstAt`, or `duplicate: 'result'` with `dupOf`). A body with `replaces: <id>` also answers `replaced: <id>` or `replaceRefused: <why>` (see *Provisional rows*); a provisional row's `uploadToken` is for its CSV so far. `429` with `{ error, retryAfter }` (seconds left in the minute, in the body because a cross-origin page cannot read `Retry-After`) |
+| `POST /submit?quarantine=1` | the same, from a client that knows *Quarantine* (below): a well-formed send that cannot be true answers `200 { ok, quarantined: true, id, reasons, reasonText, message, uploadToken }`. Without the parameter the same send answers `422 { error, quarantined: true, id, reasons, reasonText, problems: [message] }` |
 | `POST /claim` | `{ id, nickname }` with `x-owner-token`: puts a name on a row sent with that owner code. `403` if the row has no code or another one, `404` for an unknown id, `400` for a bad name (same rule as `/submit`, and not empty). Shares `/submit`'s rate limit |
 | `POST /csv?id=<id>` | that run's gzipped CSV, once. Needs the `x-upload-token` header `/submit` returned. Must be gzip, capped at 8 MB compressed. For a provisional row it is the CSV so far, answered `{ ok, bytes, partial: true }` |
 | `POST /csv?id=<id>&part=<n>&parts=<m>` | one part of a CSV whose gzip is over 8 MB (see *A CSV in parts*). Same token, same 8 MB cap per part; `2 <= m <= 8`. Parts `1..m-1` first, then part 0, which seals the file; `422` with `missing: [n...]` when part 0 comes before the rest |
@@ -217,7 +218,7 @@ no button.
 | `GET /` | the leaderboard page |
 
 **The flagged board.** A submission carrying `flags` (a stall on the Integrity shift, a plan past ten
-years, a result that contradicts itself) is stored under `flag:` instead of `sub:`, so `/leaderboard`,
+years) is stored under `flag:` instead of `sub:`, so `/leaderboard`,
 `/all` and everything built on them never see it. A plan past 3,652.5 days is flagged `decades-long`
 whatever the client sent. `/flagged` strips the nickname from every row except those whose owner code
 matches: the app keeps a random code per account in the submitting browser (`src/search/owner.ts`),
@@ -371,6 +372,9 @@ it is paid once per burst of writes, not per request.
 | ... plus its diagnostics and its full CSV | +2 (write-once check, snapshot patch) | +3 (`extra:`, table, snapshot) | 0 | 0 |
 | **a whole final with CSV and diagnostics, replacing** | **7** | **6** | **3** | **1** |
 | refused for the gap, or the daily cap | 3 (rate gate, both snapshots) | 0 | 0 | 0 |
+| quarantined (see *Quarantine*) | 2 (rate gate, the day's key); +1 snapshot for `too-many-today` | 2 (record, rate gate); 1 for a repeat that day | 0 | 0 |
+| ... plus its CSV | 1 (write-once check) | 1 (`quarcsv:`) | 0 | 0 |
+| the hourly sweep (see *The sweep*) | 1-3, + up to 20 | 0-1 | 0-10 | 1 |
 
 So a progress send costs **7 writes** counting its settle (6 without diagnostics), 3 deletes and 2
 lists. At the default one an hour a day-long run is about 168 writes, 72 deletes and 48 lists; at the
@@ -409,7 +413,7 @@ are the original `.csv.gz` exactly.
   change. A part that has gone missing answers `500` naming it.
 - **Single files are unchanged.** No `part`/`parts` is exactly the old upload, with no metadata.
 - **Orphans.** Parts of a file never sealed (the tab closed half-way) are not read by anything and are
-  not deleted with the row. Rare, and at most 7 keys.
+  not deleted with the row. The hourly sweep deletes them a day later (see *The sweep*).
 
 **What parts cost.** A CSV of `m` parts is `m` writes plus the snapshot patch (a single file: 1 + 1),
 `m` reads for the write-once checks, `m - 1` reads to seal and `m - 1` reads each time it is
@@ -596,6 +600,90 @@ fields go to a **separate KV key**, `extra:<row id>`, with a 180-day TTL.
   diagnostics every hour holds one copy, the latest, under the row on the board.
 - The owner reads one with `wrangler kv key get --binding SUBMISSIONS "extra:<id>"`
   (add `--remote` for production); `wrangler kv key list --prefix extra:` lists them.
+
+### Quarantine ("a garbage collector for the collector")
+
+Since 11 Oct 2026 a submission that passes validation (so it is not a `400`) but says something that
+cannot be true is **quarantined**: stored privately with its reasons, put on no board, and its sender
+told *"Refused for the leaderboard, but stored. Contact Williamthe5thc on Discord with this code:
+&lt;id&gt;"* plus the reason in plain words. A run the app marks `contradicts-itself` is quarantined
+too; it used to go to the flagged board (which keeps `integrity-stall` and `decades-long`).
+
+**The rules** (`quarantineReasons` and `QUAR` in worker.js). Each was set against the live board
+(`GET /all`, 215 rows, 11 Oct 2026; the flagged board was empty). A rule reads only fields the row
+carries; a row without them is never quarantined for that.
+
+| code | quarantined when | live rows it catches (margin) |
+|---|---|---|
+| `contradicts-itself` | the app flagged it (a leg's delivery under half the leg before) | 0 |
+| `target-not-last` | the chain does not end at `finalTE` | **1**: `b7c361cc`, a 28 Sep test run ("target" 308, chain ends 309) |
+| `ascensions-disagree` | `ascensions` is not the chain's length | 0 |
+| `first-checkpoint-reached` | `chain[0] <= currentTE` (the app refuses to send these too) | 0 (closest: 1 TE above) |
+| `legs-disagree` | the legs' TEs are not increasing, skip a checkpoint, or end elsewhere (milestone legs between checkpoints are fine) | 0 |
+| `leg-not-positive` | a leg of 0 days or less | 0 (shortest 0.111 d) |
+| `legs-sum` | legs total vs `durationDays` off by more than max(3 d, 1%), plus the whole days of time off on the long side | 0 (worst 1.05 d, 0.16%; 2.0 d on rows with 2 days off) |
+| `impossible-te-jump` | a leg (other than a first-leg continue) gaining more than 3 TE a day | 0 (fastest 0.53/day) |
+| `too-fast` | `(finalTE - currentTE) / durationDays` over 2 TE a day | 0 (fastest 0.71, then 0.48) |
+| `no-delivery` | every leg peaks at 0 q/hr, except a By a date answer (its replayed legs carry none) | 0 (3 By a date rows exempt) |
+| `delivery-collapse` | a leg's peak under half the leg before | 0 (worst ratio 0.92) |
+| `finish-before-start` | `endUtc <= startUtc` | 0 |
+| `times-disagree` | `endUtc - startUtc` vs `durationDays` off by over 1 day | 0 (worst 0.0007 d) |
+| `start-out-of-range` | `startUtc` more than 365 days AFTER receipt (before is an old file uploaded late) | 0 (+4.8 d at most) |
+| `after-deadline` | a schema-8 answer ending over a day after its `deadline` | 0 (latest 0.04 d before) |
+| `save-age` | `|backupAgeHours|` over 90 days (a value past a year, which the row drops, counts too) | 0 (-168 h to +120 h) |
+| `too-many-today` | an owner code with 60 rows on that board in the last 24 h | 0 (10 at most from any sender) |
+
+Modest what-ifs are untouched: a start a few weeks ahead, a start before the save (negative age), a
+`currentTE` above `backupTE`. They stay on the board, marked what-if by the app's ranking.
+
+**Storage.** `quar:<UTC day>:<id>`, 180-day TTL, value `{ row, reasons: [{code, text}], extras }`
+(`row` as a board row would have been stored, owner hash included; `extras` what `extra:<id>` would
+have held: diagnostics, timing, ...). KV metadata `{ r: "<codes>" }` so a list shows the reasons. The
+id is 8 hex of SHA-256 over sender + fingerprint + search, so the same refused run sent again gets the
+same code and, the same day, costs a read instead of a write. Its CSV (token signed over `csvq:<id>`)
+goes to `quarcsv:<id>` (parts `quarcsv:<id>:p<n>`), same TTL, write-once. **Nothing serves `quar:` or
+`quarcsv:`**: no new endpoint; read them like `extra:` and `inst:`:
+
+```sh
+npx wrangler kv key list --binding SUBMISSIONS --remote --prefix "quar:" --config "$PWD/wrangler.toml"
+npx wrangler kv key get  --binding SUBMISSIONS --remote "quar:2026-10-11:<id>" --config "$PWD/wrangler.toml"
+npx wrangler kv key get  --binding SUBMISSIONS --remote "quarcsv:<id>" --config "$PWD/wrangler.toml" > q.csv.gz
+```
+
+(A player quotes the 8-hex code; `list --prefix "quar:" | grep <code>` finds its day.)
+
+**Older apps.** The app asks with `?quarantine=1` and treats the answer as final: not retried, not left
+in "results not yet sent", the Submit button locks, no "Put my name on it"; a best so far is not kept
+as the row to replace, and the automatic progress option stops for that run. An older app never sends
+the parameter, so it gets the `422`, which it already shows as *"Not sent: collector said 422: Refused
+for the leaderboard, but stored. Contact Williamthe5thc on Discord with this code: ..."*. It keeps the
+result as unsent and sends no CSV; a manual resend lands on the same code.
+
+**Cost.** A quarantined send: 2 reads (rate gate, the day's key), 2 writes (record, rate gate), no
+list or delete; its CSV 1 read + 1 write. The spam count reads the board snapshot that the patch
+storing an accepted row then reuses, so an accepted owned send costs what it did (an owned exact
+copy that renames nothing pays that one read, +1).
+
+### The sweep (cron)
+
+`scheduled()` runs every 5 minutes for the watch rows; once an hour, at :30, it also sweeps one KV
+prefix, in turn by UTC hour (`hour % 3`):
+
+- `0` **`csv:`**: a whole CSV (`csv:<id>`, including a progress send's CSV so far, which is stored
+  there; its token is merely signed `csvp:`) whose row is on neither board snapshot, and a part
+  `csv:<id>:p<n>` whose `csv:<id>` does not exist (never sealed). Deleted only when found orphaned on
+  two sweeps at least 24 h apart (first-seen times live in `gc:state`), so a CSV that beats its row's
+  snapshot patch is never touched. A sealed orphan's parts go with it. Skipped for whole CSVs while
+  either snapshot is missing.
+- `1` **`gate:`**, `2` **`instn:`**: rate-limit and daily counters with no TTL (every current write
+  has one, so these can only be an older Worker's and would never expire). Upload and owner tokens
+  are never stored (HMACs and hashes), so there are no other tokens to sweep.
+
+`gc:state` also holds each prefix's list cursor, so a namespace past one page is walked an hour at a
+time. **Cost per run**: 1 list, 1 read (`gc:state`), for `csv:` 2 snapshot reads plus at most 20
+reads to check a part's file off-page, at most 10 deletes, and 1 write only when the state changed.
+A day: **24 lists** (of 1,000 on the free plan), at most 24 writes and 240 deletes, and on a clean
+namespace no writes or deletes at all.
 
 ### Reading the leaderboard honestly
 

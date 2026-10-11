@@ -637,6 +637,58 @@ export function tooManySubmissionsMessage(retryAfter?: number): string {
   return `too many submissions from your connection in the last minute. Nothing was lost: wait ${wait} and press Submit again.`;
 }
 
+// ------------------------------------------------------------------------- quarantine
+//
+// The collector refuses a well-formed send that cannot be true (legs that do not add up to the
+// total, a target the chain does not end at, ...) for the leaderboard, but STORES it privately with
+// the reasons, so the bug behind it can be found (collector/worker.js "quarantine"). The app asks for
+// that answer as a 200 (`POST /submit?quarantine=1`): `{ok, quarantined: true, id, reasons,
+// reasonText}`. It is not an error to retry and not a result left unsent: it is said, with the code.
+
+/** Who reads the stored evidence. Exactly as the player should type it into Discord. */
+export const QUARANTINE_CONTACT = 'Williamthe5thc';
+
+/** The collector's reason codes, in plain words, for when it sends a code without its own text. */
+export const QUARANTINE_REASONS: Record<string, string> = {
+  'contradicts-itself': 'the planner marked this result as contradicting itself',
+  'target-not-last': "the chain doesn't end at the target",
+  'ascensions-disagree': "the number of ascensions doesn't match the chain",
+  'first-checkpoint-reached': 'the first checkpoint is not above the starting TE',
+  'legs-disagree': "the legs don't match the chain",
+  'leg-not-positive': 'a leg takes no time',
+  'legs-sum': "the legs don't add up to the total",
+  'impossible-te-jump': 'a leg gains TE faster than any farm can',
+  'too-fast': 'the plan gains TE faster than any farm can',
+  'no-delivery': 'every leg shows no delivery at all',
+  'delivery-collapse': 'delivery falls by more than half as TE rises',
+  'finish-before-start': 'the plan finishes before it starts',
+  'times-disagree': "the start and finish don't match the total",
+  'start-out-of-range': 'the plan starts more than a year from now',
+  'after-deadline': 'the answer finishes after its own deadline',
+  'save-age': 'the save is too far from the plan start',
+  'too-many-today': 'too many results from this account in the last 24 hours',
+};
+
+/** The "url?quarantine=1" the app posts a submission to: an older collector ignores the parameter. */
+export function quarantineAwareUrl(submitUrl: string): string {
+  return `${submitUrl}${submitUrl.includes('?') ? '&' : '?'}quarantine=1`;
+}
+
+/** What the player is told when a send was refused for the leaderboard but stored. */
+export function quarantineMessage(id: string, reasons: readonly string[] = [], reasonText = ''): string {
+  const why =
+    reasonText.trim() ||
+    reasons
+      .map(r => QUARANTINE_REASONS[r])
+      .filter(Boolean)
+      .join('; ');
+  const code = id ? `: ${id}` : '';
+  return (
+    `Refused for the leaderboard, but stored. Contact ${QUARANTINE_CONTACT} on Discord with this code${code}.` +
+    (why ? ` Why: ${why}.` : '')
+  );
+}
+
 /** What `duplicateMessage` can say about an exact copy beyond "it is already there". */
 export interface DuplicateNote {
   /** When the stored copy arrived (the collector's clock). */

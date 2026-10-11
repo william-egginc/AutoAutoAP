@@ -611,11 +611,13 @@ async function runByDate(
     const year = eggDayYearOf(r.deadline);
     // Worded as the site's Share says it (DeadlinePanel.vue `share`).
     console.log(
-      res.ok
+      res.quarantined
+        ? `\n  ${res.message}`
+        : res.ok
         ? `\n  ${res.duplicate === 'exact' ? res.message : `Thanks! ${sentence(res.message)}`} It's on Compare > ${year ? `Egg Day ${year}` : 'By a date'}.`
         : `\n  Not sent: ${res.message}`
     );
-    return res.ok ? 0 : 1;
+    return res.ok && !res.quarantined ? 0 : 1;
   }
   return store.error ? 1 : 0;
 }

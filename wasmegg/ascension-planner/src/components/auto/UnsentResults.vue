@@ -214,8 +214,13 @@ async function send(p: PendingSend): Promise<void> {
   messages[p.id] = '';
   try {
     const res = await store.sendPending(p.id, consentFor(p));
-    okIds[p.id] = res.ok;
-    messages[p.id] = res.ok ? `Thanks! ${sentence(res.message)}` : `Not sent: ${res.message}`;
+    // Refused for the leaderboard but stored: off this list (it is stored), said with its code.
+    okIds[p.id] = res.ok && !res.quarantined;
+    messages[p.id] = res.quarantined
+      ? res.message
+      : res.ok
+        ? `Thanks! ${sentence(res.message)}`
+        : `Not sent: ${res.message}`;
     if (res.ok) sentNote.value = `${p.label}: ${messages[p.id]}`;
   } finally {
     sendingId.value = null;

@@ -35,7 +35,8 @@ database_id = "a83ae6ba-4a22-4107-b4a6-49c9185032c3"
 migrations_dir = "migrations"
 
 # Every 5 minutes: one ntfy note for a run that stopped reporting 15 min ago, and (once an hour) the
-# deletion of watch rows not updated in 7 days. Touches D1 only.
+# deletion of watch rows not updated in 7 days (D1). Once an hour at :30 it also sweeps one KV prefix
+# for orphan CSVs and TTL-less counters, 1 list a run (worker.js "the sweep", README "The sweep").
 [triggers]
 crons = ["*/5 * * * *"]
 

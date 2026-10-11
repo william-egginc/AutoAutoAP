@@ -81,12 +81,26 @@ async function secondsApart(fn) {
   }
 }
 
+/**
+ * FULL's (or SEND's) own legs, refitted to the body's total when a test changed `durationDays`: legs
+ * that do not add up to the total are quarantined (see "quarantine" in worker.js), and a test that
+ * moves a duration to tell two rows apart means a different plan, not a self-contradicting one. Only
+ * those exact arrays are touched; a body with legs of its own is sent as written.
+ */
+function fitLegs(body) {
+  if (!body || typeof body !== 'object' || !Number.isFinite(body.durationDays)) return body;
+  if (body.legs !== FULL.legs && body.legs !== SEND.legs) return body;
+  const sum = body.legs.reduce((n, l) => n + l.days, 0);
+  if (Math.abs(sum - body.durationDays) < 0.01) return body;
+  return { ...body, legs: body.legs.map(l => ({ ...l, days: Number(((l.days * body.durationDays) / sum).toFixed(4)) })) };
+}
+
 const post = (path, body, ip = '1.1.1.1') =>
   worker.fetch(
     new Request('https://collector.test' + path, {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'cf-connecting-ip': ip },
-      body: JSON.stringify(body),
+      body: JSON.stringify(fitLegs(body)),
     }),
     env
   );
@@ -113,7 +127,7 @@ const postOwned = (path, body, token, ip = '1.1.1.1') =>
         'cf-connecting-ip': ip,
         ...(token ? { 'x-owner-token': token } : {}),
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify(fitLegs(body)),
     }),
     env
   );
@@ -150,7 +164,16 @@ const FULL = {
   waitingHours: 412.5,
   artifacts: ['T4L Quantum metronome', 'T4L Lunar totem'],
   stones: [{ label: 'T4 Tachyon stone', count: 40 }],
-  legs: [{ te: 195, strategy: '2-sale-tier13', days: 70.2, peakDeliveryQph: 12.5 }],
+  // One leg per checkpoint, adding up to durationDays: a row whose legs disagree with its chain or
+  // its total is quarantined (see "quarantine" in worker.js), and this is the genuine shape.
+  legs: [
+    { te: 195, strategy: '2-sale-tier13', days: 70.2, peakDeliveryQph: 12.5 },
+    { te: 219, strategy: '2-sale-tier13', days: 60.1, peakDeliveryQph: 13.1 },
+    { te: 248, strategy: '2-sale-tier13', days: 62.3, peakDeliveryQph: 13.9 },
+    { te: 286, strategy: '2-sale-tier13', days: 70.0, peakDeliveryQph: 14.6 },
+    { te: 327, strategy: '2-sale-tier13', days: 75.0, peakDeliveryQph: 15.2 },
+    { te: 490, strategy: '1-sale-tier13', days: 404.365, peakDeliveryQph: 15.9 },
+  ],
   run: { workers: 12, cores: 20, minutes: 65.3, secondsPerChain: 2.36 },
   epicResearch: { maxed: true, atMax: 36, total: 36, short: [] },
   colleggtibles: { maxed: false, byTier: [4, 0, 1, 2, 7], total: 14, short: ['carbon T3'] },
@@ -1106,8 +1129,9 @@ describe('schema 6: the virtue variables and the upload page', () => {
       startWeekday: 'Caturday',
       deliveryScore: { lay: 1e9, hab: 1, shipping: 1, score: 1 },
       teByEgg: [1, 2, -3],
-      // Signed since schema 7, so -1 is fine now; a year and more either side is not.
-      backupAgeHours: -9000,
+      // Signed since schema 7, so -1 is fine now. Not a number is dropped; a number past 90 days
+      // either side quarantines the whole send (quarantine.spec.js).
+      backupAgeHours: 'a while',
       sweep: { preset: 'x'.repeat(100) },
       machine: { cores: 0, ramGB: 'lots' },
       source: 'somewhere else',
@@ -1369,7 +1393,9 @@ const SEND = {
   nickname: undefined,
   durationDays: 663.7219,
   startLocal: '2026-09-25 07:12',
-  currentTE: 199,
+  currentTE: 185,
+  // FULL's legs, scaled to this total: legs that disagree with the total are quarantined.
+  legs: FULL.legs.map(l => ({ ...l, days: Number(((l.days * 663.7219) / 741.965).toFixed(4)) })),
 };
 
 describe('every stored row carries the collector-side fields, and only the collector sets them', () => {
@@ -1736,6 +1762,8 @@ describe('acct: the same browser account, without the owner code', () => {
 describe('schema 7', () => {
   const V7 = {
     ...MINIMAL,
+    // endUtc - startUtc: a total that disagrees with its own stamps is quarantined.
+    durationDays: 663.8861,
     schema: 7,
     backupTE: 199,
     build: 'a1b2c3d',
@@ -1792,7 +1820,7 @@ describe('schema 7', () => {
       backupTE: -5,
       startUtc: '2026-09-25 07:12',
       endUtc: 'next Tuesday',
-      backupAgeHours: 9000,
+      backupAgeHours: null, // past 90 days is quarantined instead (quarantine.spec.js)
       rechecks: [
         { chain: [490], days: 700 },
         { chain: [480], days: 700 },

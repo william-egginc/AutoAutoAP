@@ -1545,9 +1545,12 @@ async function submit(): Promise<void> {
     store.blackBoxMark('submit', csv ? 'sending (the CSV is built as it goes)' : 'sending');
     submitMessage.value = 'Sending...';
     const res = await store.sendSubmission(withPrivateDiagnostics(store, payload, diagnosticsGo.value), csv);
-    submitOk.value = res.ok;
-    // A copy the collector already had stored nothing, so there is nothing to thank anyone for.
-    submitMessage.value = !res.ok
+    submitOk.value = res.ok && !res.quarantined;
+    // A copy the collector already had stored nothing, so there is nothing to thank anyone for. One it
+    // refused for the leaderboard but stored is its note as is (the code to quote, and why).
+    submitMessage.value = res.quarantined
+      ? res.message
+      : !res.ok
       ? `Not sent: ${res.message}`
       : res.duplicate === 'exact'
         ? res.message

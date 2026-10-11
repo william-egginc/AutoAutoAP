@@ -8,7 +8,7 @@
  */
 import type { useChainSearchStore } from '@/stores/chainSearch';
 import { sentence } from '@/utils/errors';
-import { afterPaint, type Submission } from './submission';
+import { afterPaint, quarantineMessage, type Submission } from './submission';
 
 type ChainSearchStore = ReturnType<typeof useChainSearchStore>;
 
@@ -39,8 +39,13 @@ export async function sendRunResult(
   /** "Also send diagnostics": a private field of the submission body (never in the CSV, which is public). */
   withDiagnostics = false
 ): Promise<{ ok: boolean; text: string }> {
-  // Already sent (automatically or by hand): a second send is only a duplicate row.
-  if (store.alreadySubmitted) return { ok: true, text: 'Already on the board: this result was sent from here before.' };
+  // Already sent (automatically or by hand): a second send is only a duplicate row. One the collector
+  // refused for the leaderboard but stored is said as that, with its code: sending it again would not help.
+  if (store.alreadySubmitted) {
+    const rec = store.sentRecord;
+    if (rec?.quarantined) return { ok: false, text: quarantineMessage(rec.id ?? '') };
+    return { ok: true, text: 'Already on the board: this result was sent from here before.' };
+  }
   onStage('Preparing your result...');
   try {
     // Let the status reach the screen before the table build blocks the page.
@@ -54,7 +59,9 @@ export async function sendRunResult(
     store.blackBoxMark('submit', csv ? 'sending (the CSV is built as it goes)' : 'sending');
     onStage('Sending...');
     const res = await store.sendSubmission(withPrivateDiagnostics(store, payload, withDiagnostics), csv);
-    // A copy the collector already had stored nothing, so there is nothing to thank anyone for.
+    // A copy the collector already had stored nothing, so there is nothing to thank anyone for. One it
+    // refused for the leaderboard (but stored) is said as the collector's note, with its code.
+    if (res.quarantined) return { ok: false, text: res.message };
     const text = !res.ok
       ? `Not sent: ${res.message}`
       : res.duplicate === 'exact'

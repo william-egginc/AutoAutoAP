@@ -83,7 +83,7 @@ function collector(replies: unknown[], csvStatus = 200) {
     'fetch',
     vi.fn(async (url: string, init?: RequestInit) => {
       const headers = (init?.headers ?? {}) as Record<string, string>;
-      if (String(url).endsWith('/submit')) {
+      if (new URL(String(url)).pathname.endsWith('/submit')) {
         submits.push(JSON.parse(String(init?.body)));
         const next = replies.shift();
         if (next === undefined) throw new Error('no reply queued');
@@ -195,7 +195,7 @@ describe('a progress send', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async (url: string) => {
-        if (String(url).endsWith('/submit')) return json({ ok: true, id: 'aaaa0001', uploadToken: 't' });
+        if (new URL(String(url)).pathname.endsWith('/submit')) return json({ ok: true, id: 'aaaa0001', uploadToken: 't' });
         seenDuringCsv = s.provisionalRows.fastest;
         return json({ ok: true });
       })

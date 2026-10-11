@@ -87,6 +87,8 @@ import {
   buildSubmission,
   cleanNote,
   duplicateMessage,
+  quarantineAwareUrl,
+  quarantineMessage,
   keepVirtueArtifacts,
   scrubIdentifiers,
   submissionFilename,
@@ -1100,6 +1102,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const r = await sendBestSoFar();
     const a = bestSoFarAuto.value;
     if (r.ok) bestSoFarAuto.value = { ...a, lastFailAt: null, retryAt: null, failed: false, refused: null };
+    // Refused for the leaderboard but stored: not tried again this run (the next would be refused the
+    // same way), and the line says why with the code.
+    else if (r.quarantined)
+      bestSoFarAuto.value = { ...a, retryAt: Infinity, refused: { at: Date.now(), why: r.text.replace(/\.$/, '') } };
     else if (r.tooSoon)
       bestSoFarAuto.value = {
         ...a,
@@ -3359,6 +3365,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     at: string;
     id?: string;
     nickname?: string;
+    /** Refused for the leaderboard but stored (collector "quarantine"): `id` is the code to quote, not
+     *  a board row, so there is no name to put on it. */
+    quarantined?: boolean;
   }
   const SENT_PREFIX = 'aap-submitted:';
   function readSentRecord(raw: string | null): SentRecord {
@@ -3369,6 +3378,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           at: typeof v.at === 'string' ? v.at : '',
           ...(typeof v.id === 'string' ? { id: v.id } : {}),
           ...(typeof v.nickname === 'string' ? { nickname: v.nickname } : {}),
+          ...(v.quarantined === true ? { quarantined: true } : {}),
         };
       } catch {
         /* fall through */
@@ -3427,7 +3437,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    */
   function nameToClaim(name: string): string {
     const rec = sentRecord.value;
-    if (!rec?.id) return '';
+    if (!rec?.id || rec.quarantined) return '';
     const clean = cleanName(name);
     return clean && clean !== (rec.nickname ?? '') ? clean : '';
   }
@@ -3698,6 +3708,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     /** A send with `replaces`: the provisional row it took the place of, or why it could not. */
     replaced?: string;
     replaceRefused?: string;
+    /** Refused for the leaderboard but stored privately (collector "quarantine"); `id` is its code. */
+    quarantined?: boolean;
+    reasons?: string[];
+    reasonText?: string;
   }
 
   async function sendSubmission(
@@ -3726,6 +3740,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     dailyCap?: boolean;
     /** A provisional row's token for its CSV so far (`sendBestSoFar` posts it itself). */
     uploadToken?: string;
+    /** Refused for the leaderboard but stored (collector "quarantine"): `ok` (nothing to retry, nothing
+     *  left unsent), `message` says so with the code to quote, and `id` is that code. */
+    quarantined?: boolean;
   }> {
     if (!submitUrl) return { ok: false, message: 'no collector configured' };
     // A payload whose start contradicts its own save is never sent, from any screen or the command
@@ -3782,6 +3799,41 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       const rechecks = rechecksFor(sentKey, set === 'named') ?? (await computeRechecks(RECHECK_BUDGET_MS))[set];
       if (rechecks.length) payload = { ...payload, rechecks };
     }
+    /**
+     * Refused for the leaderboard, but stored (collector "quarantine"). Never retried and never kept as
+     * unsent: the same run would only be refused again, and it is stored already. The result counts as
+     * sent (its Submit locks), with the code to quote in place of a row. Its table goes along as
+     * evidence, privately; a best so far's CSV so far follows from `sendBestSoFar` with the token.
+     */
+    const quarantined = async (r: SubmitReply) => {
+      const code = typeof r.id === 'string' ? r.id : '';
+      if (kept) void dropPending(kept.id);
+      if (!deadlineSend && !provisional) rememberSent(sentKey, { ...(code ? { id: code } : {}), quarantined: true });
+      // The run is over either way: its best so far stays where it was (nothing replaced it).
+      if (!provisional && payload.replaces && provisionalRows.value[kind]?.id === payload.replaces)
+        setProvisional(kind, null);
+      let message = quarantineMessage(code, Array.isArray(r.reasons) ? r.reasons : [], r.reasonText ?? '');
+      const base = { ok: true, quarantined: true, ...(code ? { id: code } : {}) };
+      if (provisional) return { ...base, message, ...(r.uploadToken ? { uploadToken: r.uploadToken } : {}) };
+      if (csv && code && r.uploadToken) {
+        try {
+          let body: ArrayBuffer | null;
+          if (typeof csv === 'string') body = await gzip(scrubIdentifiers(csv));
+          else if ('gz' in csv) body = csv.gz;
+          else {
+            const gz = await gzipChunksCapped(csv, TABLE_LIMIT_BYTES, scrubIdentifiers);
+            body = gz.ok ? gz.body : null;
+          }
+          const up = body
+            ? await uploadCsv(`${submitUrl.replace(/\/submit\/?$/, '/csv')}?id=${encodeURIComponent(code)}`, r.uploadToken, body)
+            : null;
+          if (up && (up.kind === 'stored' || up.kind === 'already')) message += ' Its CSV was stored with it.';
+        } catch {
+          // The row is stored; the table was only evidence.
+        }
+      }
+      return { ...base, message };
+    };
     let reply: SubmitReply;
     // The owner code (search/owner.ts): what lets this browser find the run again if it lands on
     // the flagged board, fold a repeated send, put a name on it later, and let this account's later
@@ -3792,7 +3844,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const ctrl = new AbortController();
     const answerTimer = setTimeout(() => ctrl.abort(), SUBMIT_TIMEOUT_MS);
     try {
-      const res = await fetch(submitUrl, {
+      // ?quarantine=1: a run the collector refuses for the board but stores comes back as an answer
+      // (`quarantined`), not as an error to retry. An older collector ignores it.
+      const res = await fetch(quarantineAwareUrl(submitUrl), {
         method: 'POST',
         headers: { 'content-type': 'application/json', ...(owner ? { 'x-owner-token': owner } : {}) },
         body: JSON.stringify(payload),
@@ -3848,6 +3902,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     } finally {
       clearTimeout(answerTimer);
     }
+    if (reply.quarantined === true) return quarantined(reply);
     const { id, uploadToken, flagged } = reply;
     const duplicate = reply.duplicate === 'exact' || reply.duplicate === 'result' ? reply.duplicate : undefined;
     // On the board: the kept copy has done its job (a table that did not upload has Retry the table).
@@ -4051,11 +4106,13 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     tooSoon?: boolean;
     retryAfter?: number;
     dailyCap?: boolean;
+    /** Refused for the leaderboard but stored (collector "quarantine"): the automatic option stops. */
+    quarantined?: boolean;
   }> {
     const say = (
       ok: boolean,
       text: string,
-      more: { tooSoon?: boolean; retryAfter?: number; dailyCap?: boolean } = {}
+      more: { tooSoon?: boolean; retryAfter?: number; dailyCap?: boolean; quarantined?: boolean } = {}
     ) => {
       // Too soon is a wait, not a failure: said in neither green nor red.
       bestSoFarStatus.value = { ok, text, ...(more.tooSoon ? { pending: true } : {}) };
@@ -4100,7 +4157,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           res.tooSoon && !res.dailyCap ? res.message : `Not sent: ${res.message}`,
           res.tooSoon ? { tooSoon: true, retryAfter: res.retryAfter, dailyCap: res.dailyCap } : {}
         );
-      if (res.id) {
+      // Refused for the leaderboard but stored: no row for the final to replace, so nothing is remembered.
+      if (res.id && !res.quarantined) {
         // Remembered before the CSV is built: building it is the heaviest moment of the send, and a
         // page that dies there must still carry on replacing THIS row (into the run's checkpoint at its
         // next write, which is now rather than in a minute or two).
@@ -4135,6 +4193,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         lastBest: p.best ? bestLabel(kind, p.best.te, finishDay(p.best.at)) : null,
         lastDetail: progressDetail(p.done, p.unit, csv),
       };
+      if (res.quarantined) {
+        const evidence = csv.kind === 'sent' ? ` Its CSV so far (${sizeLabel(csv.bytes)}) was stored with it.` : '';
+        return say(false, `${res.message}${evidence}`, { quarantined: true });
+      }
       const flaggedNote = /flagged board/.test(res.message) ? ' It went to the flagged board.' : '';
       const as = payload.nickname ? ` as ${payload.nickname}` : ' anonymously';
       const carried = [
@@ -4303,7 +4365,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   async function sendPending(
     id: string,
     consent?: PendingConsent
-  ): Promise<{ ok: boolean; message: string; duplicate?: 'exact' | 'result' }> {
+  ): Promise<{ ok: boolean; message: string; duplicate?: 'exact' | 'result'; quarantined?: boolean }> {
     const p = pendingSends.value.find(x => x.id === id);
     const yes = consent ?? p?.consent ?? null;
     if (!p) return { ok: false, message: 'There is nothing waiting to be sent.' };
@@ -4349,7 +4411,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     nickname: string;
     sendCsv: boolean;
     diagnostics: boolean;
-  }): Promise<{ ok: boolean; message: string; duplicate?: 'exact' | 'result' }> {
+  }): Promise<{ ok: boolean; message: string; duplicate?: 'exact' | 'result'; quarantined?: boolean }> {
     const r = deadlineResult.value;
     if (!r) return { ok: false, message: 'Nothing to send yet.' };
     beginResultSend();

@@ -34,7 +34,7 @@ function collector(...replies: unknown[]) {
   vi.stubGlobal(
     'fetch',
     vi.fn(async (url: string, init?: RequestInit) => {
-      if (!String(url).endsWith('/submit')) throw new Error('unexpected request ' + url);
+      if (!new URL(String(url)).pathname.endsWith('/submit')) throw new Error('unexpected request ' + url);
       bodies.push(JSON.parse(String(init?.body)));
       const next = replies.shift();
       if (next === undefined) throw new Error('no reply queued');
@@ -371,7 +371,7 @@ describe('Send best so far', () => {
       vi.stubGlobal(
         'fetch',
         vi.fn(async (url: string, init?: RequestInit) => {
-          if (!String(url).endsWith('/submit')) throw new Error('unexpected request ' + url);
+          if (!new URL(String(url)).pathname.endsWith('/submit')) throw new Error('unexpected request ' + url);
           const headers = (init?.headers ?? {}) as Record<string, string>;
           sent.push({ body: JSON.parse(String(init?.body)), owner: headers['x-owner-token'] ?? null });
           const next = replies.shift();

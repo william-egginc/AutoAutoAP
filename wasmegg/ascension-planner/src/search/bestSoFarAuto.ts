@@ -140,7 +140,13 @@ export function autoStatusLine(
   }
 ): string {
   const due = nextDueAt(i);
-  const next = i.now >= due ? 'Next as soon as something new is priced.' : `Next in ${aboutIn(due - i.now)}.`;
+  // Infinity: the collector refused a send for the leaderboard but stored it (collector "quarantine"),
+  // and no more go this run.
+  const next = !Number.isFinite(due)
+    ? 'No more automatic sends this run.'
+    : i.now >= due
+      ? 'Next as soon as something new is priced.'
+      : `Next in ${aboutIn(due - i.now)}.`;
   // The collector's daily cap: said, with when it will take one again.
   if (i.refused && i.refused.at >= (i.lastSentAt ?? 0) && i.refused.at >= (i.lastFailAt ?? 0)) {
     return `Not sent at ${clock12(i.refused.at)}: ${i.refused.why}. ${next}`;

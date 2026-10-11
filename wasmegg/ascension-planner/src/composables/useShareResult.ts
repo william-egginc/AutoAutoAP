@@ -192,16 +192,21 @@ export function useByDateShare(
 
   /** One send, worded for the status line: the store builds, remembers and sends it
    *  (stores/chainSearch.ts `sendDeadlineAnswer`), with the CSV streamed, never one big string. */
-  async function sendWith(go: () => Promise<{ ok: boolean; message: string; duplicate?: 'exact' | 'result' }>) {
+  async function sendWith(
+    go: () => Promise<{ ok: boolean; message: string; duplicate?: 'exact' | 'result'; quarantined?: boolean }>
+  ) {
     if (!best.value || sharing.value) return;
     sharing.value = true;
     shareOk.value = true;
     shareMessage.value = '';
     try {
       const res = await go();
-      shareOk.value = res.ok;
+      // Refused for the leaderboard but stored: counted as sent (not offered again), said with its code.
+      shareOk.value = res.ok && !res.quarantined;
       if (res.ok) sentKey.value = resultKey.value;
-      shareMessage.value = res.ok
+      shareMessage.value = res.quarantined
+        ? res.message
+        : res.ok
         ? res.duplicate === 'exact'
           ? res.message
           : `Thanks! ${sentence(res.message)} It's on ${NAMES.compare}'s ${shareTab.value} tab.`
