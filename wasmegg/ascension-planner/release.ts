@@ -33,6 +33,7 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
+  { at: '2026-10-11T05:21:25Z', note: 'Watch from your phone: the finished page now shows the best route found, the route count and how long the run took' },
   { at: '2026-10-10T23:17:00Z', note: 'New: Continue my build-up (first ascension keeps buying from your farm as it is now), watch a run from your phone with a private link, big CSVs upload in parts, own tables match again', level: 'big' },
   { at: '2026-10-10T17:34:15Z', note: 'Share your instant answer checks (anonymous, opt-in) right from the instant answer, see your own check history, and send progress every 1-6 hours; the new-layout card is gone' },
   { at: '2026-10-10T03:43:13Z', note: 'Saved answers and saved runs keep the save they were priced from: Use the save from… brings it back to plan, check or search from, and Download this save keeps it as a file', level: 'big' },
@@ -40,7 +41,6 @@ const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
   { at: '2026-10-09T23:57:44Z', note: 'Advanced (Full sweep): one time left for the whole queue that ignores replayed chains after a carry-on, and Jump to it stays on your run' },
   { at: '2026-10-09T22:49:50Z', note: 'Searches show honest progress from the start; Jump to it lands on your run in one click; a second tab no longer offers to carry on a run that is still going' },
   { at: '2026-10-09T19:00:00Z', note: 'Stepping away? can now send your best so far by itself, every 30 minutes or an hour, only when it has changed' },
-  { at: '2026-10-09T18:03:00Z', note: 'Long runs can send their best so far to the leaderboard while they keep going; the finished result replaces it', level: 'big' },
 ];
 
 export default {
