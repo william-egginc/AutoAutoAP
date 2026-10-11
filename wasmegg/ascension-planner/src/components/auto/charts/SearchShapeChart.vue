@@ -108,7 +108,7 @@
       >
         <span :style="{ color: group.color }" class="font-black">●</span>
         <span class="font-mono-premium font-black text-slate-700 w-12">{{ group.value }}</span>
-        <span class="text-slate-400">{{ group.count.toLocaleString() }} chains</span>
+        <span class="text-slate-400">{{ plural(group.count, 'chain') }}</span>
         <span class="font-bold text-slate-700">best {{ group.bestDays.toFixed(3) }} d</span>
         <span v-if="group.gapDays > 0" class="text-slate-400">+{{ group.gapDays.toFixed(3) }} d</span>
         <span v-else class="font-black text-emerald-600">leader</span>
@@ -119,14 +119,14 @@
     <div
       class="flex flex-wrap items-center gap-x-4 gap-y-1 px-1 text-[10px] font-bold text-slate-400 uppercase tracking-wide"
     >
-      <span>{{ shown.points.length.toLocaleString() }} chains priced</span>
+      <span>{{ plural(shown.points.length, 'chain') }} priced</span>
       <span v-if="thinned" class="normal-case tracking-normal font-semibold"
         >showing the fastest {{ Math.min(BEST_SHOWN, plotted.length).toLocaleString() }} and a sample,
         {{ plotted.length.toLocaleString() }} in all</span
       >
       <span v-if="live" class="normal-case tracking-normal font-semibold">redraws every 30 s while it runs</span>
       <span v-for="group in groups" :key="group.prestiges" class="flex items-center gap-1.5">
-        <span :style="{ color: highlightGroups.length ? DIM : group.color }">●</span> {{ group.prestiges }} ascensions
+        <span :style="{ color: highlightGroups.length ? DIM : group.color }">●</span> {{ plural(group.prestiges, 'ascension') }}
         ({{ group.count }})
       </span>
     </div>
@@ -134,6 +134,7 @@
 </template>
 
 <script setup lang="ts">
+import { plural } from '@/lib/format';
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import EChart from '@/components/charts/EChart.vue';
 import type { ChartOption, ChartSeriesOption } from '@/lib/charts/echarts';

@@ -18,7 +18,7 @@
       <div class="flex flex-wrap items-baseline justify-between gap-2">
         <h2 class="text-lg font-black text-slate-900">What we know so far</h2>
         <span v-if="stats" class="text-[10px] font-bold text-slate-500" data-testid="know-header">
-          {{ stats.runsTo490 }} runs to 490 TE · {{ stats.accounts }} accounts<template
+          {{ plural(stats.runsTo490, 'run') }} to 490 TE · {{ stats.accounts }} accounts<template
             v-if="stats.te"
           >
             · TE {{ stats.te.min }}-{{ stats.te.max }}</template
@@ -195,6 +195,7 @@
 </template>
 
 <script setup lang="ts">
+import { plural } from '@/lib/format';
 import type { KnowStats } from './knowStats';
 
 /** The date the analyst last checked the findings against the board. */

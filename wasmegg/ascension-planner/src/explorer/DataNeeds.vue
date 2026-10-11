@@ -135,7 +135,7 @@
               <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">Chains</div>
               <div class="font-bold text-slate-800">
                 {{ (need.chains * need.runs).toLocaleString()
-                }}<template v-if="need.runs > 1"> ({{ need.runs }} runs)</template>
+                }}<template v-if="need.runs > 1"> ({{ plural(need.runs, 'run') }})</template>
               </div>
             </div>
             <div v-for="t in need.times" :key="t.id" class="rounded bg-white px-2 py-1">
@@ -197,6 +197,7 @@
 </template>
 
 <script setup lang="ts">
+import { plural } from '@/lib/format';
 import { NAMES, fastestName } from '@/lib/siteNav';
 import { computed, ref, watch } from 'vue';
 import type { CollectorRow } from './collector';

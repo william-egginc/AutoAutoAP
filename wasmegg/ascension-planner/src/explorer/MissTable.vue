@@ -17,7 +17,7 @@
       Days after this run's best,
       <span class="font-mono-premium text-slate-500">{{ table.best.chain.join(' ') }}</span>
       ({{ table.best.days.toFixed(2) }} d), looked up among {{ truncatedCount ? 'the' : 'its' }}
-      {{ table.priced.toLocaleString() }} plans at {{ table.ascensions }} ascensions{{
+      {{ plural(table.priced, 'plan') }} at {{ plural(table.ascensions, 'ascension') }}{{
         truncatedCount ? ' this page read' : ''
       }}. Every one was priced from the same save, so the days compare directly.
     </p>
@@ -86,7 +86,7 @@
       to a few minutes.
       <template v-if="truncatedCount">
         <i>Not read</i>: not in the part of the table read. This page read the fastest
-        {{ chains.length.toLocaleString() }} plans of this run's table and left out the slowest
+        {{ plural(chains.length, 'plan') }} of this run's table and left out the slowest
         {{ truncatedCount.toLocaleString() }}, so that plan was either never priced or is among those.
       </template>
       <template v-else>
@@ -98,11 +98,12 @@
     <p class="text-[11px] font-bold text-slate-700 leading-relaxed max-w-3xl">{{ advice }}</p>
   </div>
   <p v-else class="text-[11px] text-slate-400">
-    This table holds no plan at {{ ascensions }} ascensions with a checkpoint to miss.
+    This table holds no plan at {{ plural(ascensions, 'ascension') }} with a checkpoint to miss.
   </p>
 </template>
 
 <script setup lang="ts">
+import { plural } from '@/lib/format';
 import { computed } from 'vue';
 import type { PricedChain } from '@/search/types';
 import { signedDays } from '@/lib/leaderboardRank';

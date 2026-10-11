@@ -51,7 +51,7 @@
             }}</span>
           </div>
           <div class="text-[10px] text-slate-400 font-mono-premium">
-            {{ run.bestChain.join(' ') }} · {{ run.bestDays.toFixed(3) }} d · {{ run.chainsPriced }} chains<template
+            {{ run.bestChain.join(' ') }} · {{ run.bestDays.toFixed(3) }} d · {{ plural(run.chainsPriced, 'chain') }}<template
               v-if="!run.complete"
             >
               · stopped early<template v-if="run.space?.chains">
@@ -100,6 +100,7 @@
 </template>
 
 <script setup lang="ts">
+import { plural } from '@/lib/format';
 import { computed, onMounted, ref } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { MAX_RUNS } from '@/search/runLibrary';

@@ -113,7 +113,7 @@
               <div class="text-[10px] text-slate-400" :title="line.sourceTitle">{{ line.source }}</div>
             </td>
             <td class="py-1.5 pr-3 whitespace-nowrap">
-              <b class="text-slate-700">{{ line.best.ascensions }} ascensions</b>
+              <b class="text-slate-700">{{ plural(line.best.ascensions, 'ascension') }}</b>
               <div class="text-[10px] text-slate-500">
                 {{ finishDateText(line.best.finish, viewZone) }} · {{ line.best.search.text }}
               </div>
@@ -159,6 +159,7 @@
 </template>
 
 <script setup lang="ts">
+import { plural } from '@/lib/format';
 import { computed, ref } from 'vue';
 import EChart from '@/components/charts/EChart.vue';
 import type { ChartOption, ChartSeriesOption } from '@/lib/charts/echarts';

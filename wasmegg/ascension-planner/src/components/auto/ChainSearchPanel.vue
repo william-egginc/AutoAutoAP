@@ -147,7 +147,7 @@
               Scans a coarse grid of checkpoints first and picks the prestige count, instead of starting from the chain
               above. Turn this on if you do not already have a chain you trust. It costs one extra wide batch (<span
                 class="font-semibold"
-                >{{ store.coarseChains.toLocaleString() }} chains at your limits</span
+                >{{ plural(store.coarseChains, 'chain') }} at your limits</span
               >) and its answer is only a rough shape: measured 12.0 and 8.6 days off the final result on the two
               accounts tested. The later stages close that gap.
             </span>
@@ -315,7 +315,7 @@
         <p class="leading-relaxed">
           <span class="font-bold">An unfinished run can't continue:</span>
           {{ store.blockedCheckpoint.changes.join('; ') }}, so the
-          {{ store.blockedCheckpoint.record.durations.length.toLocaleString() }} chains it priced describe a different
+          {{ plural(store.blockedCheckpoint.record.durations.length, 'chain') }} it priced {{ store.blockedCheckpoint.record.durations.length === 1 ? 'describes' : 'describe' }} a different
           farm. If a number looks wrong, your backup may not have loaded fresh: reload it and check.
         </p>
         <button
@@ -337,7 +337,7 @@
           {{ store.resumable.complete ? 'A finished run is saved' : 'An unfinished run is saved' }}
         </p>
         <p class="leading-relaxed">
-          {{ store.resumable.durations.length }} chains were already priced ({{
+          {{ plural(store.resumable.durations.length, 'chain') }} {{ store.resumable.durations.length === 1 ? 'was' : 'were' }} already priced ({{
             relativeTime(store.resumable.updatedAt)
           }}), best so far <span class="font-black">{{ store.resumable.bestChain.join(' ') }}</span> at
           {{ (store.resumable.bestSeconds / 86400).toFixed(3) }} days.
@@ -401,12 +401,12 @@
         </p>
 
         <p v-if="store.seedIssue.kind === 'too-long'">
-          The starting chain has <span class="font-semibold">{{ store.seedIssue.ascensions }} ascensions</span> and
+          The starting chain has <span class="font-semibold">{{ plural(store.seedIssue.ascensions, 'ascension') }}</span> and
           "most ascensions" is set to <span class="font-semibold">{{ store.seedIssue.maxPrestiges }}</span
           >.
         </p>
         <p v-else>
-          The starting chain has <span class="font-semibold">{{ store.seedIssue.ascensions }} ascensions</span> and
+          The starting chain has <span class="font-semibold">{{ plural(store.seedIssue.ascensions, 'ascension') }}</span> and
           "fewest ascensions" is set to <span class="font-semibold">{{ store.seedIssue.minPrestiges }}</span
           >.
         </p>
@@ -418,7 +418,7 @@
         <p v-else>
           The limits only bound the coarse scan and the prestige-count probe, and
           <span class="font-semibold">this effort tier does not run the probe</span>. Every stage works on the chain at
-          the length you gave it, so the answer will come back with {{ store.seedIssue.ascensions }} ascensions.
+          the length you gave it, so the answer will come back with {{ plural(store.seedIssue.ascensions, 'ascension') }}.
         </p>
 
         <div class="flex flex-wrap gap-2 pt-1">
@@ -499,7 +499,7 @@
               <div class="flex items-center justify-between text-[10px] font-black uppercase tracking-widest mb-1.5">
                 <span class="text-slate-500">{{ store.stage }}</span>
                 <span class="text-slate-400">
-                  {{ store.chainsDone }} / ~{{ store.chainsEstimated }} chains<template v-if="store.chainsReplayed"
+                  {{ store.chainsDone }} / ~{{ plural(store.chainsEstimated, 'chain') }}<template v-if="store.chainsReplayed"
                     >, {{ store.chainsReplayed }} replayed</template
                   >
                 </span>
@@ -512,7 +512,7 @@
                 v-if="store.isRunning && store.batchTotal > 1"
                 class="flex items-center justify-between text-[10px] text-slate-400 font-bold mt-1.5"
               >
-                <span>this batch: {{ store.batchDone }} / {{ store.batchTotal }} chains</span>
+                <span>this batch: {{ store.batchDone }} / {{ plural(store.batchTotal, 'chain') }}</span>
                 <span class="text-slate-300">updates as each chain finishes</span>
               </div>
               <!-- The count stopping short of the estimate is normal and confusing, so say so. -->
@@ -1066,7 +1066,7 @@
           The search checked your save before starting and stopped, so no time was lost and nothing needs resuming.
         </p>
         <p v-else-if="store.chainsDone > 0" class="text-red-700">
-          {{ store.chainsDone }} chains were priced before it stopped and are saved. Starting the search again replays
+          {{ plural(store.chainsDone, 'chain') }} {{ store.chainsDone === 1 ? 'was' : 'were' }} priced before it stopped and are saved. Starting the search again replays
           them without re-simulating anything, so you are resuming rather than restarting.
         </p>
         <p v-else class="text-red-700">
@@ -1320,7 +1320,7 @@ import { useChainSearchStore } from '@/stores/chainSearch';
 import { sentence } from '@/utils/errors';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { EFFORT, EFFORT_NOTES, EFFORT_ORDER, NEAR_OPTIMAL_SHARE } from '@/search/effort';
-import { formatDuration } from '@/lib/format';
+import { formatDuration, plural } from '@/lib/format';
 import { isAvailable } from '@/search/availability';
 import { afterPaint } from '@/search/submission';
 import { withPrivateDiagnostics } from '@/search/sendRun';

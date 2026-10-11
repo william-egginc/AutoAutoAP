@@ -80,8 +80,8 @@
                  screenshot, 30 Sept: the checkboxes ran into the next sentence, and the collector URL and
                  worker-time note read like developer notes). The page on its own keeps the detail. -->
             <p v-else class="text-sm font-bold text-slate-700">
-              {{ usable.length.toLocaleString() }} runs from {{ accounts.length }} accounts<template v-if="!embedded">
-                · {{ totalChainsPriced.toLocaleString() }} chains priced between them<template v-if="computeTotal.runs">
+              {{ plural(usable.length, 'run') }} from {{ accounts.length }} accounts<template v-if="!embedded">
+                · {{ plural(totalChainsPriced, 'chain') }} priced between them<template v-if="computeTotal.runs">
                   · {{ formatMinutes(computeTotal.minutes) }} of computing</template
                 ></template
               >
@@ -589,7 +589,7 @@
                               :title="finishTitle(block.best.finish, block.best.row.timezone)"
                               >{{ finishDateText(block.best.finish, viewZone) }}</b
                             >
-                            ({{ block.best.row.ascensions }} ascensions,
+                            ({{ plural(block.best.row.ascensions, 'ascension') }},
                             <span class="font-mono-premium">{{ block.best.row.chain.join(' ') }}</span
                             >)
                             <span v-if="!bestListed.has(block.key)" class="text-slate-400"
@@ -892,7 +892,7 @@
             <h2 class="text-lg font-black text-slate-900">
               Every chain {{ whoText(loadedRun) || 'that run' }} priced
               <span class="text-[11px] font-bold text-slate-400">
-                · {{ loadedChains.length.toLocaleString() }} chains
+                · {{ plural(loadedChains.length, 'chain') }}
                 <!-- The file is in rank order, fastest first, and the cap keeps the first N — so
                      what a cap drops is the SLOW tail, not the old one. -->
                 <template v-if="loadedTruncated">(slowest {{ loadedTruncated.toLocaleString() }} dropped)</template>
@@ -938,8 +938,8 @@
               </button>
             </div>
             <p class="text-[11px] text-slate-600 leading-relaxed">
-              <b>{{ plateau.near.toLocaleString() }}</b> of {{ plateau.total.toLocaleString() }} chains at
-              {{ loadedRun.ascensions }} ascensions came within {{ toleranceText }} of this run's best ({{
+              <b>{{ plateau.near.toLocaleString() }}</b> of {{ plural(plateau.total, 'chain') }} at
+              {{ plural(loadedRun.ascensions, 'ascension') }} came within {{ toleranceText }} of this run's best ({{
                 plateau.bestDays.toFixed(2)
               }}
               d, <span class="font-mono-premium">{{ plateau.bestChain.join(' ') }}</span
@@ -1223,6 +1223,7 @@
 </template>
 
 <script setup lang="ts">
+import { plural } from '@/lib/format';
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import SearchShapeChart from '@/components/auto/charts/SearchShapeChart.vue';
 import type { PricedChain } from '@/search/types';
