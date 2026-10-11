@@ -1,7 +1,7 @@
 /**
  * The save a run was priced under, kept so an interrupted run carries on with exactly that farm.
  */
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SearchInputs } from './types';
 
 const db = new Map<string, unknown>();
@@ -14,7 +14,8 @@ vi.mock('@/lib/storage/db', () => ({
   hashID: vi.fn(async (id: string) => id),
 }));
 
-const { listRunSaves, loadRunInputs, pruneRunSaves, runSaveKey, saveRunInputs } = await import('./runSaves');
+const { holdRunSave, listRunSaves, liveRunSaveKeys, loadRunInputs, pruneRunSaves, runSaveKey, saveRunInputs } =
+  await import('./runSaves');
 
 function inputs(over: { te?: number; eggs?: number; clock?: number; far?: number } = {}): SearchInputs {
   return {
@@ -69,6 +70,92 @@ describe('run saves', () => {
     await pruneRunSaves('P', new Set([b.key]), Date.now() + 3600e3);
     expect((await listRunSaves('P')).map(s => s.key)).toEqual([b.key]);
     expect(await loadRunInputs('P', a.key)).toBeNull();
+    expect(await loadRunInputs('P', b.key)).not.toBeNull();
+  });
+});
+
+/**
+ * A browser's Web Locks, shared by every tab of the site: what lets a prune in one tab see a run
+ * in another. Shared locks are granted at once; an exclusive one waits for the one before it.
+ */
+function fakeLocks() {
+  const held: { name: string; mode: string }[] = [];
+  const tails = new Map<string, Promise<unknown>>();
+  return {
+    held,
+    async request(name: string, a: unknown, b?: unknown) {
+      const opts = (typeof a === 'function' ? {} : a) as { mode?: string };
+      const cb = (typeof a === 'function' ? a : b) as () => Promise<unknown>;
+      const mode = opts.mode ?? 'exclusive';
+      const run = async () => {
+        const lock = { name, mode };
+        held.push(lock);
+        try {
+          return await cb();
+        } finally {
+          held.splice(held.indexOf(lock), 1);
+        }
+      };
+      if (mode === 'shared') return run();
+      const result = (tails.get(name) ?? Promise.resolve()).then(run, run);
+      tails.set(
+        name,
+        result.catch(() => {})
+      );
+      return result;
+    },
+    async query() {
+      return { held: [...held], pending: [] };
+    },
+  };
+}
+
+describe('pruning sees runs in other tabs', () => {
+  let locks: ReturnType<typeof fakeLocks>;
+  beforeEach(() => {
+    db.clear();
+    locks = fakeLocks();
+    vi.stubGlobal('navigator', { locks });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("keeps a save another tab's run is using, however old, until that run lets go", async () => {
+    const a = await saveRunInputs('P', inputs({ te: 147 }));
+    const b = await saveRunInputs('P', inputs({ te: 170 }));
+    // The other tab's run: nothing in storage names its save yet (no checkpoint written), and
+    // this tab's keep-list knows only its own run (b). An hour on, past the quarter-hour window.
+    const release = holdRunSave('P', a.key);
+    await Promise.resolve();
+    expect(await liveRunSaveKeys('P')).toEqual(new Set([a.key]));
+    await pruneRunSaves('P', new Set([b.key]), Date.now() + 3600e3);
+    expect((await listRunSaves('P')).map(s => s.key).sort()).toEqual([a.key, b.key].sort());
+    expect(await loadRunInputs('P', a.key)).not.toBeNull();
+
+    // The run ends (or its tab closes): the next prune drops it.
+    release();
+    await new Promise(r => setTimeout(r, 0));
+    expect(await liveRunSaveKeys('P')).toEqual(new Set());
+    await pruneRunSaves('P', new Set([b.key]), Date.now() + 3600e3);
+    expect((await listRunSaves('P')).map(s => s.key)).toEqual([b.key]);
+    expect(await loadRunInputs('P', a.key)).toBeNull();
+  });
+
+  it("does not let one player's held save keep another player's", async () => {
+    const a = await saveRunInputs('P', inputs({ te: 147 }));
+    const release = holdRunSave('Q', a.key);
+    await pruneRunSaves('P', new Set(), Date.now() + 3600e3);
+    expect(await listRunSaves('P')).toEqual([]);
+    release();
+  });
+
+  it('two tabs storing and pruning at once do not undo each other', async () => {
+    const old = await saveRunInputs('P', inputs({ te: 140 }));
+    // Tab 1 prunes (keeping nothing) while tab 2 stores a new save for its run.
+    const later = Date.now() + 3600e3;
+    const [, b] = await Promise.all([pruneRunSaves('P', new Set(), later), saveRunInputs('P', inputs({ te: 171 }))]);
+    const keys = (await listRunSaves('P')).map(s => s.key);
+    expect(keys).toContain(b.key);
+    expect(keys).not.toContain(old.key);
     expect(await loadRunInputs('P', b.key)).not.toBeNull();
   });
 });

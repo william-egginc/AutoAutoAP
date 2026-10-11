@@ -237,6 +237,7 @@ import {
 } from '@/search/firstAscension';
 import { listRuns, saveRun, loadRun, deleteRun, defaultRunLabel, type RunSummary } from '@/search/runLibrary';
 import {
+  holdRunSave,
   listRunSaves,
   loadRunInputs,
   pruneRunSaves,
@@ -4915,6 +4916,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     runInputsKey = key;
     try {
       partitionHash = partitionHash || (await hashID(currentPlayerId));
+      holdSaveLock(partitionHash, key);
       await saveRunInputs(partitionHash, inputs, key);
     } catch (e) {
       console.warn('chain search: could not store the save for this run', e);
@@ -5925,6 +5927,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const key = runSaveKey(inputs);
     try {
       partitionHash = partitionHash || (await hashID(playerId));
+      holdSaveLock(partitionHash, key);
       await saveRunInputs(partitionHash, inputs, key);
     } catch (e) {
       console.warn('chain search: could not store the save for this deadline search', e);
@@ -7127,6 +7130,20 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   function dropRunLock(): void {
     releaseRunLock?.();
     releaseRunLock = null;
+    releaseSaveLock?.();
+    releaseSaveLock = null;
+  }
+
+  /**
+   * Tell every tab which stored save this tab's run is using (runSaves.ts `holdRunSave`), so a prune
+   * in another tab keeps it even before this run's first checkpoint names it. Taken before the save
+   * is stored, held until the run ends (`dropRunLock`); one per tab, the latest run's.
+   */
+  let releaseSaveLock: (() => void) | null = null;
+
+  function holdSaveLock(hash: string, key: string): void {
+    releaseSaveLock?.();
+    releaseSaveLock = holdRunSave(hash, key);
   }
 
   /**
