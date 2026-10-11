@@ -72,3 +72,13 @@ export async function prefetchFiles(
   }
   return fetched;
 }
+
+/** Whether the instant answer has a table of this player's own: 'own' (built from their account),
+ *  'gear' (built on a board account with exactly their gear, under either of `gearTableNames`), or
+ *  'none' (it estimates from the maxed table and its neighbours). The Science tab's gear cards say it. */
+export type GearCoverage = 'own' | 'gear' | 'none';
+export function gearCoverage(entries: TableEntry[], own: string | null, gear: string[]): GearCoverage {
+  if (own && entries.some(e => e.file === own)) return 'own';
+  if (gear.some(f => entries.some(e => e.file === f || e.aliases?.includes(f)))) return 'gear';
+  return 'none';
+}

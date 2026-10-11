@@ -28,7 +28,7 @@
       <slot />
     </p>
     <div v-if="legs.length" class="overflow-x-auto">
-      <table class="text-[11px] tabular-nums">
+      <table class="text-[11px] tabular-nums whitespace-nowrap">
         <thead>
           <tr class="text-left text-[9px] font-black uppercase tracking-widest text-emerald-700">
             <th class="pr-4 py-1">Stop</th>
@@ -54,7 +54,7 @@
          (search/endEggs.ts). Only when the last leg carries its end state: nothing rather than a guess. -->
     <div v-if="eggs" class="space-y-1" data-testid="by-date-te-per-egg">
       <div class="overflow-x-auto">
-        <table class="text-[11px] tabular-nums">
+        <table class="text-[11px] tabular-nums whitespace-nowrap">
           <thead>
             <tr class="text-left text-[9px] font-black uppercase tracking-widest text-emerald-700">
               <th class="pr-4 py-1">TE per egg</th>

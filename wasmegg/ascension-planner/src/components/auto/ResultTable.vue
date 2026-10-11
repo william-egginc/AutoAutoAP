@@ -9,7 +9,7 @@
     <p v-if="title || $slots.title" class="text-[10px] font-black uppercase tracking-widest text-slate-500 pb-1">
       <slot name="title">{{ title }}</slot>
     </p>
-    <table class="w-full text-[11px] tabular-nums">
+    <table class="w-full text-[11px] tabular-nums whitespace-nowrap">
       <thead v-if="columns.length">
         <tr class="text-left text-[9px] font-black uppercase tracking-widest text-slate-400">
           <th v-for="c in columns" :key="c" class="pr-4 py-1">{{ c }}</th>

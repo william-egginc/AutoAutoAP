@@ -462,6 +462,10 @@
       @countdown="n => (autoCountdown = n)"
       @retry="retryTable"
     >
+      <!-- Why Find is greyed out, right above it (it used to sit under Stepping away?, a screen away on a phone). -->
+      <template v-if="startIssue" #above-find>
+        <p class="text-[11px] font-semibold text-rose-700" data-testid="by-date-start-issue">{{ startIssue }}</p>
+      </template>
       <template #progress>
         <!-- Live progress, Insane-style. -->
         <div v-if="store.deadlineRunning && store.deadlineProgress" class="space-y-2">
@@ -545,7 +549,6 @@
             <SendingText v-if="store.stopRequested" text="Stopping" /><template v-else>Stop that run</template>
           </button>
         </div>
-        <p v-if="startIssue" class="text-[11px] font-semibold text-rose-700">{{ startIssue }}</p>
         <RunErrorNotes :error="store.errorIsIntegrityNotice ? null : store.error" :labelled="false" />
       </template>
     </RunControls>

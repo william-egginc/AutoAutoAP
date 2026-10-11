@@ -526,7 +526,7 @@
             >.
           </p>
         </div>
-        <ChainExplorer v-if="scienceView !== 'how'" part="science" embedded :science-view="scienceView" :te-now="saveTE" :final-te="chainSearchStore.finalTE" :inventory="saveArtifacts" @run-sweep="openSweep" @run-by-date="openByDate" />
+        <ChainExplorer v-if="scienceView !== 'how'" part="science" embedded :science-view="scienceView" :te-now="saveTE" :final-te="chainSearchStore.finalTE" :inventory="saveArtifacts" :gear-coverage="gearCoverage" @run-sweep="openSweep" @run-by-date="openByDate" />
       </div>
 
       <!-- Your setup, floating, on every Auto Planner screen: the gear opens it; workers adjust folded. -->
@@ -674,6 +674,7 @@ import RunProgressBar from '@/components/auto/RunProgressBar.vue';
 import { scrollToRun } from '@/lib/runAnchor';
 import { usePlanStartForm } from '@/composables/usePlanStartForm';
 import { useTablePrefetch } from '@/composables/useTablePrefetch';
+import { useGearCoverage } from '@/composables/useGearCoverage';
 import SiteTabs from '@/components/SiteTabs.vue';
 import SetupDock from '@/components/auto/SetupDock.vue';
 import SweepRunner from '@/components/science/SweepRunner.vue';
@@ -1023,6 +1024,9 @@ const autoTabs = computed<{ id: AutoView; label: string; screen: SearchScreen | 
  */
 /** The save's artifacts, for the Science tab's gear cards to say which ones you have. */
 const saveArtifacts = computed(() => virtueInventory(initialStateStore.rawBackup).artifacts);
+/** Whether the save's gear has an instant answer of its own, for the "Any other gear" card (worked out
+ *  only once Science's gap list is open). */
+const gearCoverage = useGearCoverage(() => plannerTab.value === 'science' && scienceView.value === 'check');
 const saveTE = computed(() => {
   const virtue = initialStateStore.rawBackup?.virtue;
   const earned = virtue?.eovEarned ?? [];
