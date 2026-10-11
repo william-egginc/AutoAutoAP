@@ -246,7 +246,7 @@
           <p class="font-bold text-slate-800 mb-2">What the search actually runs</p>
           <p class="mb-3">
             It moves checkpoints one at a time, then tries neighbouring pairs (and on Very high, triples) in every
-            combination. Each effort level adds a step to the one below; Fast, the default, stops after the nudges. You
+            combination. Each effort level adds a step to the one below; Fast, the default, stops after the nudges and then gives the other ascension counts in your limits one quick pass each. You
             can stop whenever you like and keep the best chain priced so far. One catch: Very high does triples before the one-more-or-fewer step, so stopping
             it early gets you the pairs' answer plus whatever the triples found, without the count check.
           </p>
@@ -368,7 +368,7 @@ const STAGES = [
   },
   {
     name: 'One more or one fewer (Exact and up)',
-    what: 'try dropping a checkpoint or adding one, within your limits, then fine-tune and nudge again. If the count changed, do it again from the new count, until it stops changing or reaches your limits. Fast skips this step and keeps the count you start with.',
+    what: 'try dropping a checkpoint or adding one, within your limits, then fine-tune and nudge again. If the count changed, do it again from the new count, until it stops changing or reaches your limits. Fast skips this step; instead it gives every other count inside your limits one quick pass from the instant answer's route for that count.',
   },
 ];
 </script>

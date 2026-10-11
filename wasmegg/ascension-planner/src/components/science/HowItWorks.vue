@@ -85,7 +85,8 @@
           <li>
             <b>{{ NAMES.fastest }}, {{ NAMES.smartFirst }}:</b> starts from a route (the instant answer's fastest, or
             one you type) and improves it step by step. On Fast, the default, it fine-tunes the last stop and nudges
-            each stop up to 8 TE either way until nothing moves, keeping the number of ascensions it started with.
+            each stop up to 8 TE either way until nothing moves, then gives every other number of ascensions inside your
+            limits one quick pass from the instant answer's route for that count, and keeps the fastest.
             Exact also tries each neighbouring pair of stops together, then one ascension more or fewer; Very high also
             tries groups of three. You can stop it at any point and keep the best route so far. The result is a strong
             local best. Nobody has proven it's the best overall.
