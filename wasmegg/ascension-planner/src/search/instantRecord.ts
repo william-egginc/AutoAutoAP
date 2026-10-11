@@ -139,9 +139,10 @@ export interface InstantRecord {
   buildGap?: { contQph: number; freshQph: number; ratio: number; freshLeg: number };
   checkSeconds?: number;
   /** The experimental "Prestige by" prediction (search/prestigeBy.ts), only when the player turned it
-   *  on and chose to keep it in shared checks (composables/usePrestigeBy.ts). The collector keeps it
-   *  only once its whitelist has the field (collector/worker.js INSTANT_RECORD); until then it is
-   *  dropped there like any unknown field, and the record is stored without it. */
+   *  on and chose to keep it in shared checks (composables/usePrestigeBy.ts). The collector checks it
+   *  on its own whitelist (collector/worker.js PRESTIGE_BY, from collector 11 Oct 2026 on): out of
+   *  bounds it is dropped and `prestigeByDropped` says why, and the record is stored without it.
+   *  An older collector drops it like any unknown field. */
   prestigeBy?: PrestigeByRecord;
 }
 
