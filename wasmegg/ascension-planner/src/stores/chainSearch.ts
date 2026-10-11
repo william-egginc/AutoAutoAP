@@ -1699,6 +1699,18 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       }
     }
   );
+  // And when another player's save is loaded: the pin is one run's own start, carried on for the
+  // player whose run it was, and must not go on timing the next player's plans (28-29 Sep edge
+  // cases). The boxes keep what they show; only the pin, and with it the carry-on rules, go.
+  watch(
+    () => accountOf(useInitialStateStore().rawBackup),
+    (now, before) => {
+      if (before && now !== before && planStartPin.value) {
+        planStartPin.value = 0;
+        pinnedBoxes = null;
+      }
+    }
+  );
 
   /**
    * The first-ascension setting a run from `start` prices under (search/firstAscension.ts): the

@@ -5,9 +5,11 @@
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
+import { nextTick } from 'vue';
 import { buildCheckpoint } from '@/search/persistence';
 import { formatInZone } from '@/search/csv';
 import { useAutoPlannerStore } from './autoPlanner';
+import { useInitialStateStore } from './initialState';
 
 const PRICED_FROM = 1_790_000_000;
 
@@ -52,5 +54,27 @@ describe('the plan start results are described by', () => {
     const line = csv.split('\n').find(l => l.startsWith('# plan start'));
     expect(line).toBe(`# plan start ${formatInZone(PRICED_FROM, tz)}`);
     expect(line).not.toContain(formatInZone(s.planStart, tz));
+  });
+});
+
+describe('the plan-start pin', () => {
+  it("goes when another player's save is loaded, not when the same player's is", async () => {
+    const { useChainSearchStore } = await import('./chainSearch');
+    const s = useChainSearchStore();
+    const initial = useInitialStateStore();
+    initial.rawBackup = { eiUserId: 'player-a' } as never;
+    await nextTick();
+    // A carried-on run's own start, two hours ahead: pinned, it keeps the run's continue setting;
+    // unpinned, Classic's one-hour rule would make it a fresh start.
+    s.pinPlanStart(Math.floor(Date.now() / 1000) + 7200);
+    expect(s.firstAscensionFor(undefined, 'continue')).toBe('continue');
+
+    initial.rawBackup = { eiUserId: 'player-a', approxTime: 1 } as never;
+    await nextTick();
+    expect(s.firstAscensionFor(undefined, 'continue')).toBe('continue');
+
+    initial.rawBackup = { eiUserId: 'player-b' } as never;
+    await nextTick();
+    expect(s.firstAscensionFor(undefined, 'continue')).toBe('fresh');
   });
 });
