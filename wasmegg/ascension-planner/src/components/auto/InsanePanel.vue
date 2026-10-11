@@ -851,15 +851,18 @@
           @nickname-typed="nicknameTouched = true"
         >
           <template #progress>
-            <div v-if="store.stage" class="space-y-1" data-run-progress="full">
-              <div class="flex items-center justify-between text-[10px] font-black uppercase tracking-widest">
-                <span class="text-slate-500">{{ store.stage }}</span>
-                <span class="text-slate-400 tabular-nums">
-                  {{ pricedSoFar.toLocaleString() }} / {{ store.chainsEstimated.toLocaleString() }}
-                </span>
-              </div>
-              <ProgressBar thin :percent="livePercent" />
-              <div v-if="store.secondsPerChain > 0 || store.runCost" class="text-[10px] text-slate-400 tabular-nums">
+            <RunProgress
+              v-if="store.stage"
+              data-run-progress="full"
+              :stage="store.stage"
+              :count="`${pricedSoFar.toLocaleString()} / ${plural(store.chainsEstimated, 'chain')}`"
+              thin
+              :percent="livePercent"
+            >
+              <div
+                v-if="store.secondsPerChain > 0 || store.runCost"
+                class="text-[10px] text-slate-400 font-bold tabular-nums"
+              >
                 <template v-if="store.secondsPerChain > 0"
                   >{{ store.secondsPerChain.toFixed(2) }} s/chain measured here</template
                 >
@@ -867,7 +870,7 @@
                   · took {{ describeCompute(store.runCost.minutes, store.runCost.workers) }}</template
                 >
               </div>
-            </div>
+            </RunProgress>
 
             <!-- Which chain of a multi-chain click is running, and what the finished ones found. -->
             <div
@@ -1235,7 +1238,7 @@ import { describeTimeOff, usableTimeOff } from '@/search/timeOff';
 import { gridIsComplete, gridStepLabel } from '@/search/grid';
 import { useRunDownloads } from '@/composables/useRunDownloads';
 import CsvCard from './CsvCard.vue';
-import ProgressBar from './ProgressBar.vue';
+import RunProgress from './RunProgress.vue';
 import EdgeWarning from './EdgeWarning.vue';
 import RunErrorNotes from './RunErrorNotes.vue';
 import LongerRouteHint from './LongerRouteHint.vue';

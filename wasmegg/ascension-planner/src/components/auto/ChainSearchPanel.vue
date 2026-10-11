@@ -502,22 +502,19 @@
         <template #progress>
           <!-- Live progress -->
           <div v-if="store.isRunning || store.bestDays > 0" class="space-y-4">
-            <div data-run-progress="smart">
-              <div class="flex items-center justify-between text-[10px] font-black uppercase tracking-widest mb-1.5">
-                <span class="text-slate-500">{{ store.stage }}</span>
-                <span class="text-slate-400">
-                  {{ store.chainsDone }} / ~{{ plural(store.chainsEstimated, 'chain') }}<template v-if="store.chainsReplayed"
-                    >, {{ store.chainsReplayed }} replayed</template
-                  >
-                </span>
-              </div>
-              <ProgressBar tone="smart" :percent="store.progressFraction * 100" />
+            <RunProgress
+              data-run-progress="smart"
+              :stage="store.stage"
+              :count="`${store.chainsDone} / ~${plural(store.chainsEstimated, 'chain')}${store.chainsReplayed ? `, ${store.chainsReplayed} replayed` : ''}`"
+              tone="smart"
+              :percent="store.progressFraction * 100"
+            >
               <!-- Movement WITHIN the current batch. `chainsDone` only advances when a whole batch
                  returns, and stage 6's widest sweep is one ~2200-chain request — so this line is the
                  difference between "thinking" and "dead", which a run once got wrong for 8.5 hours. -->
               <div
                 v-if="store.isRunning && store.batchTotal > 1"
-                class="flex items-center justify-between text-[10px] text-slate-400 font-bold mt-1.5"
+                class="flex flex-wrap items-center justify-between gap-x-3 text-[10px] text-slate-400 font-bold"
               >
                 <span>this batch: {{ store.batchDone }} / {{ plural(store.batchTotal, 'chain') }}</span>
                 <span class="text-slate-300">updates as each chain finishes</span>
@@ -525,12 +522,12 @@
               <!-- The count stopping short of the estimate is normal and confusing, so say so. -->
               <p
                 v-if="store.finishedCleanly && store.chainsDone < store.chainsEstimated * 0.9"
-                class="text-[10px] text-emerald-700 font-bold mt-1.5"
+                class="text-[10px] text-emerald-700 font-bold"
               >
                 Finished early. The estimate is an upper bound, and descent stops as soon as no checkpoint moves, which
                 is what happens when you start from a chain that is already good.
               </p>
-              <div class="flex items-center justify-between text-[10px] text-slate-400 font-bold mt-1.5">
+              <div class="flex flex-wrap items-center justify-between gap-x-3 text-[10px] text-slate-400 font-bold">
                 <span>{{ store.detail }}</span>
                 <span v-if="store.isRunning && store.secondsPerChain > 0"
                   >~{{ formatDuration(store.secondsRemaining) }} left ({{ store.secondsPerChain.toFixed(1) }} s/chain
@@ -542,7 +539,7 @@
                   >took {{ describeCompute(store.runCost.minutes, store.runCost.workers) }}</span
                 >
               </div>
-            </div>
+            </RunProgress>
 
             <!-- Best so far, and the answer once it stops: the same card as the Full sweep
                (RouteResultCard.vue). Always usable: the stages are nested, so stopping is safe. -->
@@ -1347,7 +1344,7 @@ import { VIEWS } from '@/search/views';
 import { useRunDownloads } from '@/composables/useRunDownloads';
 import CsvCard from './CsvCard.vue';
 import RunErrorNotes from './RunErrorNotes.vue';
-import ProgressBar from './ProgressBar.vue';
+import RunProgress from './RunProgress.vue';
 
 const props = defineProps<{ playerId: string }>();
 /** The instant answer's route from "A longer route might win", to price exactly: the screen above moves to the Full sweep. */

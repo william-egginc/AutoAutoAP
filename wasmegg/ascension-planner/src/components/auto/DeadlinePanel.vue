@@ -462,24 +462,29 @@
     >
       <template #progress>
         <!-- Live progress, Insane-style. -->
-        <div v-if="store.deadlineRunning && store.deadlineProgress" class="space-y-2" data-run-progress="by-date">
-          <ProgressBar :percent="progressPct" />
-          <p class="text-[11px] text-slate-600">
-            <span class="font-bold">{{ liveDone.toLocaleString() }}</span
-            ><template v-if="liveTotal && liveDone < liveTotal">
-              of ~{{ roundedRoutes(liveTotal).toLocaleString() }}</template
-            >
-            routes priced<template v-if="liveTotal && liveDone >= liveTotal">
-              (more than the ~{{ roundedRoutes(liveTotal).toLocaleString() }} estimated)</template
-            ><template v-if="estNow.learned"> ({{ estimateNote(estNow) }})</template> · {{ elapsedLabel }} so
-            far<template v-if="remainingLabel">
-              · about {{ remainingLabel }} left<template v-if="timeLeft?.measuring"> (measuring…)</template
-              ><template v-else-if="firstGuessLabel"> (first guess {{ firstGuessLabel }})</template></template
-            ><template v-if="store.deadlineLegSims">
-              · {{ plural(store.deadlineLegSims, 'leg') }} simulated</template
-            >
-          </p>
-          <p class="text-[11px] text-slate-500">{{ store.deadlineProgress.stage }}</p>
+        <div v-if="store.deadlineRunning && store.deadlineProgress" class="space-y-2">
+          <RunProgress
+            data-run-progress="by-date"
+            :stage="store.deadlineProgress.stage"
+            :count="
+              liveTotal && liveDone < liveTotal
+                ? `${liveDone.toLocaleString()} / ~${plural(roundedRoutes(liveTotal), 'route')}`
+                : plural(liveDone, 'route')
+            "
+            :percent="progressPct"
+          >
+            <p class="text-[10px] text-slate-400 font-bold">
+              {{ elapsedLabel }} so far<template v-if="remainingLabel">
+                · about {{ remainingLabel }} left<template v-if="timeLeft?.measuring"> (measuring…)</template
+                ><template v-else-if="firstGuessLabel"> (first guess {{ firstGuessLabel }})</template></template
+              ><template v-if="liveTotal && liveDone >= liveTotal">
+                · more than the ~{{ roundedRoutes(liveTotal).toLocaleString() }} routes estimated</template
+              ><template v-if="estNow.learned"> · {{ estimateNote(estNow) }}</template
+              ><template v-if="store.deadlineLegSims">
+                · {{ plural(store.deadlineLegSims, 'leg') }} simulated</template
+              >
+            </p>
+          </RunProgress>
           <!-- The best so far in the finished answer's card (ByDateRouteCard.vue), then the next ones. -->
           <ByDateRouteCard
             v-if="liveBest"
@@ -835,7 +840,7 @@ import { useByDateShare, useShareIdentity } from '@/composables/useShareResult';
 import { useShareExtras } from '@/composables/useShareExtras';
 import RoutesToTry from './RoutesToTry.vue';
 import SavedAnswers from './SavedAnswers.vue';
-import ProgressBar from './ProgressBar.vue';
+import RunProgress from './RunProgress.vue';
 import EdgeWarning from './EdgeWarning.vue';
 import RunErrorNotes from './RunErrorNotes.vue';
 import { durationLabel, useRunClock } from '@/composables/useRunClock';
