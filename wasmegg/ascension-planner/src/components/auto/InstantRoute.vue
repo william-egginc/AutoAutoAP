@@ -70,6 +70,7 @@
     >
       {{ errorText }}
     </p>
+    <InstantIntegrity v-if="status !== 'loading' && !atTarget" :state="integrity" />
 
     <p
       v-if="header?.fake"
@@ -135,6 +136,8 @@
       @remember="confirmRun(true)"
       @cancel="confirming = null"
     />
+    <!-- No routes while the integrity check holds them back (search/instantIntegrity.ts). -->
+    <template v-if="!integrityHold">
     <!-- The last checked answer for this save and setup, at once; then whether the new check beat it. -->
     <p
       v-if="cached && exactStatus !== 'done'"
@@ -460,6 +463,20 @@
       </p>
     </template>
 
+    <StrongerCheck
+      v-if="result"
+      :deadline="deadline"
+      :found="result"
+      :exact-status="exactStatus"
+      :exact-done="exactDone"
+      :best="strongBest"
+      :handoff="strongHandoff"
+      :top-missed="missedBy !== null"
+      :priced="Object.keys(exact)"
+      :ctx="findCtx"
+      :run-busy="runBusy"
+      :zone="zone"
+    />
     <p v-if="result && exactStatus === 'error'" class="text-[11px] text-amber-800">{{ exactText }}</p>
     <p v-if="result && exactStatus === 'waiting'" class="text-[11px] text-slate-500">
       The exact check on your account waits while a search is running.
@@ -656,12 +673,13 @@
         </p>
       </details>
     </template>
+    </template>
   </section>
 </template>
 
 <script setup lang="ts">
 import { plural } from '@/lib/format';
-import { computed, onUnmounted, ref, watch } from 'vue';
+import { computed, markRaw, onUnmounted, ref, shallowRef, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useInstantSummaryStore } from '@/stores/instantSummary';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
@@ -699,6 +717,11 @@ import {
 } from '@/search/instantDeferral';
 import InstantRunWarning from './InstantRunWarning.vue';
 import InstantShareCheck from './InstantShareCheck.vue';
+import InstantIntegrity from './InstantIntegrity.vue';
+import StrongerCheck from './StrongerCheck.vue';
+import { holdsRoutes, instantIntegrity } from '@/search/instantIntegrity';
+import type { FindContext } from '@/search/strongerCheck';
+import { useIntegrityProbe } from '@/composables/useIntegrityProbe';
 import { useInstantDuringSearch } from '@/composables/useInstantDuringSearch';
 import { readSnapshot, recallShown, rememberShown, snapshotUsable, writeSnapshot } from '@/search/instantSnapshot';
 import { simulateRoute } from '@/search/simulateRoute';
@@ -1415,6 +1438,16 @@ async function run(force = false, goAhead = false): Promise<void> {
     const raw = { ...found, ...polished };
     const answer = atMostAscensions(raw, filters.value.maxAscensions);
     result.value = answer;
+    findCtx.value = markRaw<FindContext>({
+      startTE: te,
+      start: inputs.planStart,
+      firstLegs,
+      deliveryScale: scale,
+      hours,
+      maxAscensions: filters.value.maxAscensions,
+      expand: (items, settings) => p.expand(url, items, settings),
+      polish: (options, f) => p.polish(url, options, f),
+    });
     ms.value = performance.now() - t0;
     status.value = 'done';
     if (props.deadline) emitRoutes(answer);
@@ -1480,6 +1513,49 @@ interface Exact {
   /** Its simulated ascensions, for "Simulate this plan" (time off is worked in from these). */
   legs: ChainResult['legs'];
 }
+/**
+ * THE INTEGRITY CHECK (search/instantIntegrity.ts): the same probe every Start uses, run here too so
+ * the instant answer never shows routes for an account that stalls for a week or more on its first
+ * Integrity shift. Routes are held back while it runs and for good when it blocks; past an hour they
+ * show with a note that their times include the wait.
+ */
+useIntegrityProbe(() => useInitialStateStore().playerId);
+const integrity = computed(() =>
+  instantIntegrity(
+    store.integrityWait,
+    store.integrityChecking,
+    store.integrityBlocked ? store.cteParts() : null,
+    own.value
+  )
+);
+const integrityHold = computed(() => holdsRoutes(integrity.value));
+watch(
+  () => store.integrityBlocked,
+  blocked => {
+    if (blocked && exactStatus.value === 'running') {
+      stopExact();
+      exactStatus.value = 'idle';
+    }
+  }
+);
+
+/** "Try: stronger check" (StrongerCheck.vue, a prototype): the finder's inputs for this answer, for
+ *  its step-down; how many exact checks finished in this visit; the answer the box leads with, exact. */
+const findCtx = shallowRef<FindContext | null>(null);
+const exactDone = ref(0);
+const strongBest = computed(() => {
+  if (props.deadline) {
+    const d = dateExact.value;
+    return d ? { chain: d.chain, end: d.end, endTE: d.endTE, seconds: d.end - answerStart.value } : null;
+  }
+  const r = exactBest.value;
+  const e = r ? exactOf(r) : null;
+  return r && e ? { chain: r.chain, end: e.end, endTE: e.endTE, seconds: e.seconds } : null;
+});
+const strongHandoff = computed<HandoffChoice>(() =>
+  props.deadline ? (dateExact.value?.handoff ?? 'hour') : ((exactBest.value && exactOf(exactBest.value)?.handoff) || 'hour')
+);
+
 /** Exact prices by `chain.join(',')`; null where the simulator could not price the route. */
 const exact = ref<Record<string, Exact | null>>({});
 /** "Also try ascending at once" (off by default): the exact check also prices every route with each
@@ -1579,6 +1655,11 @@ async function runExact(id: number, found: NonNullable<typeof result.value>, man
   dateExact.value = null;
   dateExactByK.value = {};
   exactMs.value = null;
+  // An account the integrity check blocks has no routes to check (the panel says why).
+  if (store.integrityBlocked) {
+    exactStatus.value = 'idle';
+    return;
+  }
   // A search the player started has the cores; this waits rather than slowing it down.
   if (runBusy.value && !manual) {
     exactStatus.value = 'waiting';
@@ -1731,6 +1812,7 @@ async function runExact(id: number, found: NonNullable<typeof result.value>, man
     if (again && !(await price([again]))) return;
     exactMs.value = performance.now() - t0;
     exactStatus.value = 'done';
+    exactDone.value++;
     // Remembered for the next visit: the answer the page now leads with, exact.
     const dateLead = readDateLead();
     const lead = props.deadline ? dateLead : exactBest.value;
@@ -1988,6 +2070,7 @@ function applySnapshot(s: InstantSnapshot): void {
   bracketStatus.value = 'done';
   backgroundStatus.value = 'done';
   exactStatus.value = 'done';
+  findCtx.value = null;
   exactText.value = '';
   status.value = 'done';
   noTable.value = false;
