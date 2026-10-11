@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { prefetchAllowed, prefetchFiles, prefetchPlan } from './tablePrefetch';
+import { gearCoverage, prefetchAllowed, prefetchFiles, prefetchPlan } from './tablePrefetch';
 import type { TableEntry } from './tableBracket';
 
 const entries: TableEntry[] = [
@@ -81,5 +81,20 @@ describe('prefetchFiles', () => {
     const got = await prefetchFiles('/p/', ['a.bin', 'missing.bin', 'boom.bin', 'b.bin'], fetchFn);
     expect(got).toEqual(['a.bin', 'b.bin']);
     expect(calls).toEqual(['/p/a.bin.gz low', '/p/missing.bin.gz low', '/p/boom.bin.gz low', '/p/b.bin.gz low']);
+  });
+});
+
+describe('gearCoverage', () => {
+  const entries = [
+    { file: 'table.bin', bonus: 128.71, k: 1, from: 100 },
+    { file: 'acct-aaa.bin', bonus: 128.71, k: 1, from: 100 },
+    { file: 'gear-old.bin', bonus: 120, k: 0.9, from: 100, aliases: ['gear-new.bin'] },
+  ];
+  it('own table first, then a gear table by file or alias, else none', () => {
+    expect(gearCoverage(entries, 'acct-aaa.bin', ['gear-x.bin'])).toBe('own');
+    expect(gearCoverage(entries, 'acct-bbb.bin', ['gear-new.bin', 'gear-zzz.bin'])).toBe('gear');
+    expect(gearCoverage(entries, 'acct-bbb.bin', ['gear-zzz.bin', 'gear-old.bin'])).toBe('gear');
+    expect(gearCoverage(entries, null, ['gear-zzz.bin'])).toBe('none');
+    expect(gearCoverage(entries, 'acct-bbb.bin', [])).toBe('none');
   });
 });

@@ -10,6 +10,7 @@ import {
   byDateSets,
   byDateWiderText,
   ownsGear,
+  woreGear,
   presetBandsFor,
   presetChains,
   presetFits,
@@ -113,6 +114,76 @@ describe('dataNeeds', () => {
     expect(ownsGear(epic, all.slice(1))).toBe(false);
     expect(ownsGear(epic, [own('demeters-necklace', 4, 3), ...all.slice(1)])).toBe(false);
     expect(ownsGear(epic, [{ ...all[0], count: 0 }, ...all.slice(1)])).toBe(false);
+  });
+
+  it('finds the gusset under its T2-T4 family id (gusset, not ornate-gusset)', () => {
+    const epicAll = dataNeeds([]).find(d => d.id === 'gear-epic-everything')!.gear!;
+    const own = (familyId: string, tier: number, rarity: number) => ({ label: familyId, count: 1, familyId, tier, rarity });
+    const inv = [
+      own('demeters-necklace', 4, 2),
+      own('tungsten-ankh', 4, 1),
+      own('lunar-totem', 4, 2),
+      own('puzzle-cube', 4, 2),
+      own('gusset', 4, 2),
+      own('interstellar-compass', 4, 2),
+      own('quantum-metronome', 4, 2),
+    ];
+    expect(ownsGear(epicAll, inv)).toBe(true);
+    expect(ownsGear(epicAll, inv.map(a => (a.familyId === 'gusset' ? { ...a, familyId: 'ornate-gusset' } : a)))).toBe(false);
+  });
+
+  describe('woreGear and the gear cards\' counts', () => {
+    const slot = (artifact: string, stones: string[]) => ({ artifact, stones });
+    const L4 = ['T4 Lunar stone', 'T4 Lunar stone', 'T4 Lunar stone'];
+    const epicEarn = [
+      slot('T4E Demeters necklace', L4),
+      slot('T4R Tungsten ankh', ['T4 Lunar stone', 'T4 Lunar stone']),
+      slot('T4E Lunar totem', L4),
+      slot('T4E Puzzle cube', L4),
+    ];
+    const legDelivery = [
+      slot('T4L Quantum metronome', ['T4 Tachyon stone', 'T4 Tachyon stone', 'T4 Tachyon stone']),
+      slot('T4L Interstellar compass', ['T4 Quantum stone', 'T4 Quantum stone']),
+      slot('T4L Gusset', ['T4 Tachyon stone', 'T4 Tachyon stone', 'T4 Tachyon stone']),
+      slot('T3L Tungsten ankh', ['T4 Quantum stone', 'T4 Quantum stone', 'T4 Quantum stone']),
+    ];
+    const card = (id: string) => dataNeeds([]).find(d => d.id === id)!.gear!;
+
+    it('matches the epic earnings set worn with a legendary delivery set', () => {
+      expect(woreGear(card('gear-epic-earnings'), { earnings: epicEarn, delivery: legDelivery })).toBe(true);
+    });
+    it('does not match a set only owned, a better worn piece, a weaker delivery set or T3 stones', () => {
+      const epic = card('gear-epic-earnings');
+      expect(woreGear(epic, {})).toBe(false);
+      const legNecklace = [slot('T4L Demeters necklace', L4), ...epicEarn.slice(1)];
+      expect(woreGear(epic, { earnings: legNecklace, delivery: legDelivery })).toBe(false);
+      const epicGusset = legDelivery.map(s => (s.artifact === 'T4L Gusset' ? { ...s, artifact: 'T4E Gusset' } : s));
+      expect(woreGear(epic, { earnings: epicEarn, delivery: epicGusset })).toBe(false);
+      const t3 = epicEarn.map(s => ({ ...s, stones: s.stones.map(x => x.replace('T4', 'T3')) }));
+      expect(woreGear(epic, { earnings: t3, delivery: legDelivery })).toBe(false);
+    });
+    it('matches the rare or common delivery set by its named delivery pieces, gusset included', () => {
+      const maxedEarn = epicEarn.map(s => ({ ...s, artifact: s.artifact.replace(/T4[ER]/, 'T4L') }));
+      const weak = [
+        slot('T4R Quantum metronome', ['T4 Tachyon stone', 'T4 Tachyon stone']),
+        slot('T4R Interstellar compass', ['T4 Quantum stone']),
+        slot('T4C Gusset', ['T4 Tachyon stone']),
+      ];
+      expect(woreGear(card('gear-rare-common-delivery'), { earnings: maxedEarn, delivery: weak })).toBe(true);
+      expect(woreGear(card('gear-rare-common-delivery'), { earnings: maxedEarn, delivery: legDelivery })).toBe(false);
+    });
+    it('counts accounts, not runs, and leaves the other cards at 0', () => {
+      const wore = { earnings: epicEarn, delivery: legDelivery } as Partial<CollectorRow>;
+      const rows = [
+        row({ nickname: 'a', ...wore }),
+        row({ nickname: 'a', ...wore }),
+        row({ nickname: 'b', ...wore }),
+        row({ nickname: 'c' }),
+      ];
+      const cards = dataNeeds(rows).filter(d => d.id.startsWith('gear-'));
+      expect(cards.find(d => d.id === 'gear-epic-earnings')?.have).toBe(2);
+      expect(cards.filter(d => d.id !== 'gear-epic-earnings').every(d => d.have === 0)).toBe(true);
+    });
   });
 
   it('has five By a date asks sized for a day, with boxes fitted to the player TE', () => {

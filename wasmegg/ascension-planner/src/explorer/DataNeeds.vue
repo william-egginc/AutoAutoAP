@@ -43,6 +43,7 @@
           :key="need.id"
           class="rounded-lg border px-3 py-2 space-y-1.5"
           :class="need.owned ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 bg-slate-50'"
+          :data-testid="`need-${need.id}`"
         >
           <div class="flex flex-wrap items-baseline justify-between gap-2">
             <span class="text-[12px] font-bold text-slate-900">
@@ -50,13 +51,21 @@
               <span
                 v-if="need.owned"
                 class="ml-1 rounded-full bg-emerald-600 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-white"
-                >You have this</span
+                data-testid="need-owned"
+                >{{ need.ownedLabel }}</span
               >
             </span>
             <span class="text-[10px] font-semibold text-slate-500">
-              {{ need.have }} of {{ need.want }} accounts · who: {{ need.who }}
+              <span :class="need.have >= need.want ? 'text-emerald-700' : ''" data-testid="need-have"
+                >{{ need.have }} of {{ need.want }} {{ need.want === 1 ? 'account' : 'accounts'
+                }}{{ need.have >= need.want ? ' (enough)' : '' }}</span
+              >
+              · who: {{ need.who }}
             </span>
           </div>
+          <p v-if="need.coverageText" class="text-[11px] font-semibold text-slate-700" data-testid="need-coverage">
+            {{ need.coverageText }}
+          </p>
           <p class="text-[11px] text-slate-600 leading-relaxed">{{ need.why }}</p>
           <!-- A gear card: the artifacts and stones to have. Rarity is not in an icon, so it is the
                letter beside it (L legendary, E epic, R rare, C common). -->
@@ -216,6 +225,7 @@ import {
   fitBands,
   presetBandsFor,
   presetChains,
+  type DataNeed,
   type GearRarity,
   type GearSet,
   type StoneFamily,
@@ -227,6 +237,7 @@ import type { FirstAscension } from '@/search/firstAscension';
 import { byDateRequestQuery, type ByDateRequest } from '@/search/byDateRequest';
 import { iconURL } from 'lib';
 import type { InventoryCount } from '@/search/csv';
+import type { GearCoverage } from '@/search/tablePrefetch';
 import { parseBands } from '@/search/exhaustive';
 
 const ORDINAL = ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th', '10th', '11th', '12th'];
@@ -255,6 +266,9 @@ const props = defineProps<{
   finalTe?: number;
   /** The loaded save's artifacts (virtueInventory): a gear card it matches is marked and sorted first. */
   inventory?: InventoryCount[];
+  /** Whether that save's gear has an instant answer of its own (useGearCoverage), for the "Any other
+   *  gear" card; null or unset when unknown (and always on the standalone page, which has no save). */
+  gearCoverage?: GearCoverage | null;
   /** Run a sweep here (emit `run`) rather than link to the planner: true inside the planner. */
   runInPlace?: boolean;
 }>();
@@ -369,19 +383,39 @@ const GROUPS: { id: 'gear' | 'bydate'; title: string; intro: string }[] = [
     id: 'gear',
     title: "Accounts and gear we haven't seen yet",
     intro:
-      "Every account on the board has strong earnings gear: between the all-common floor and the weakest player there is nothing. Each card below is a set we would build the instant answer for, in the order we want them. Counts aren't detected yet, so every card shows 0.",
+      "Every account on the board has strong earnings gear: between the all-common floor and the weakest player there is nothing. Each card below is a set we would build the instant answer for, in the order we want them. An account counts towards a card once one of its runs wore that set; a card with enough accounts moves to the end until its instant answer is built.",
   },
 ];
 
 const groups = computed(() =>
   GROUPS.map(g => ({
     ...g,
-    // Gear cards the save matches come first (a stable sort keeps the rank order within each half).
+    // Gear cards the save matches come first, and cards with enough accounts last (a stable sort keeps
+    // the rank order within each part).
     items: rowsWithCost.value
       .filter(n => (n.group ?? 'main') === g.id)
-      .sort((a, b) => Number(b.owned) - Number(a.owned)),
+      .sort((a, b) => Number(b.owned) - Number(a.owned) || Number(a.have >= a.want) - Number(b.have >= b.want)),
   }))
 );
+
+/** What the card says about the loaded save: a gear card it owns gets "You have this"; the "Any other
+ *  gear" card says whether the save's gear has an instant answer of its own, and is marked when it
+ *  hasn't (that player is who the card asks for). */
+function ownership(need: DataNeed): { owned: boolean; ownedLabel: string; coverageText: string } {
+  if (need.gear) {
+    const owned = !!props.inventory && ownsGear(need.gear, props.inventory);
+    return { owned, ownedLabel: 'You have this', coverageText: '' };
+  }
+  if (need.id === 'new-gear' && props.gearCoverage) {
+    const text: Record<GearCoverage, string> = {
+      own: 'Your account already has an instant answer built from its own runs.',
+      gear: 'Your gear already has an instant answer of its own.',
+      none: "Your gear doesn't have an instant answer of its own yet: one finished run from you would let us build it.",
+    };
+    return { owned: props.gearCoverage === 'none', ownedLabel: 'Your gear', coverageText: text[props.gearCoverage] };
+  }
+  return { owned: false, ownedLabel: '', coverageText: '' };
+}
 
 const rowsWithCost = computed(() =>
   needs.value.map(need => {
@@ -395,6 +429,8 @@ const rowsWithCost = computed(() =>
       return {
         ...need,
         owned: false,
+        ownedLabel: '',
+        coverageText: '',
         bd: { wider: byDateWiderText(ask, te, 7, measuredSpeed.value), fitted: fitted.map(f => f.replace(/(\d+-\d+):(\d+)/g, '$1 every $2')), sets: byDateSets(ask, te) },
         presetLabel: '',
         bands: '',
@@ -415,7 +451,7 @@ const rowsWithCost = computed(() =>
     return {
       ...need,
       bd: undefined as { wider: string; fitted: string[]; sets: { asc: number; sets: number }[] } | undefined,
-      owned: !!need.gear && !!props.inventory && ownsGear(need.gear, props.inventory),
+      ...ownership(need),
       presetLabel: preset.label,
       bands,
       links: sweepLinks(need.id, need.preset, preset.label, bands, preset.minGap),

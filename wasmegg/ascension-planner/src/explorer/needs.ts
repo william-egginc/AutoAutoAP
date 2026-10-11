@@ -200,7 +200,7 @@ const EVERY = (tier: number): GearStone[] => [
 
 /**
  * The gear cards, in the collector analyst's rank order (7 Oct 2026). Every one runs M3 (4
- * ascensions at every 5th TE). Counts are not detected yet: `have` is 0 on all of them.
+ * ascensions at every 5th TE). `have` is the accounts with a run that wore the set (`woreGear`).
  * The CTE ranges are the analyst's; the two cards the analyst gave none for say so in words.
  */
 const GEAR_ASKS: Omit<DataNeed, 'preset' | 'runs' | 'have' | 'group'>[] = [
@@ -506,10 +506,13 @@ export function dataNeeds(rows: CollectorRow[]): DataNeed[] {
 
   // GEAR THE BOARD HAS NEVER SEEN (the collector analyst, 7 Oct 2026, in rank order). Every account
   // so far has strong earnings gear: between the all-common floor and the weakest player there is
-  // nothing, so each card is a set we would build a table for. `have` is NOT detected yet (0 on
-  // every card): nothing here matches an account's gear against these sets, so they stay listed
-  // until the counts are wired up and this list is edited by hand.
-  for (const g of GEAR_ASKS) needs.push({ ...g, preset: 'M3', runs: 1, have: 0, group: 'gear' });
+  // nothing, so each card is a set we would build a table for. `have` counts the accounts with a run
+  // that wore the set (`woreGear`, 11 Oct 2026). A card stays listed once it has enough (the page
+  // moves it to the end): its table is built by hand, and this list is edited when it is.
+  for (const g of GEAR_ASKS) {
+    const have = accounts.filter(a => a.rows.some(r => woreGear(g.gear!, r))).length;
+    needs.push({ ...g, preset: 'M3', runs: 1, have, group: 'gear' });
+  }
 
   const lowAccounts = count(r => finished490(r) && r.currentTE < LOW_TE && (gearOf(r).clothedTE ?? 0) >= 225);
   if (lowAccounts < 2) {
@@ -685,6 +688,13 @@ export function byDateRequestFor(ask: ByDateAsk, currentTE: number): ByDateReque
 
 const RARITY_NUMBER: Record<GearRarity, number> = { C: 0, R: 1, E: 2, L: 3 };
 
+/** The game data's family id for a card's artifact. The gusset is the odd one: `ornate-gusset` is only
+ *  the T1 one, and T2-T4 are `gusset` (submission.ts says the same). */
+function familyId(family: GearFamily, tier: number): string {
+  if (family === 'ornate_gusset') return tier >= 2 ? 'gusset' : 'ornate-gusset';
+  return family.replace(/_/g, '-');
+}
+
 /**
  * Whether the save's virtue inventory (`virtueInventory(rawBackup).artifacts`, the same list the
  * simulator picks sets from) holds every artifact on this gear card at exactly that tier and rarity.
@@ -692,9 +702,64 @@ const RARITY_NUMBER: Record<GearRarity, number> = { C: 0, R: 1, E: 2, L: 3 };
  */
 export function ownsGear(gear: GearSet, artifacts: InventoryCount[]): boolean {
   return gear.slots.every(s => {
-    const family = s.family.replace(/_/g, '-');
+    const family = familyId(s.family, s.tier);
     return artifacts.some(
       a => a.familyId === family && a.tier === s.tier && a.rarity === RARITY_NUMBER[s.rarity] && a.count > 0
     );
   });
+}
+
+/** A run's worn artifact label (`T4L Interstellar compass`, `T4E Gusset`) as a card's family, tier and
+ *  rarity; null for anything a card never names. */
+const LABEL_FAMILY: Record<string, GearFamily> = {
+  'demeters necklace': 'demeters_necklace',
+  'tungsten ankh': 'tungsten_ankh',
+  'lunar totem': 'lunar_totem',
+  'puzzle cube': 'puzzle_cube',
+  gusset: 'ornate_gusset',
+  'ornate gusset': 'ornate_gusset',
+  'interstellar compass': 'interstellar_compass',
+  'quantum metronome': 'quantum_metronome',
+};
+function wornArtifact(label: string): { family: GearFamily; tier: number; rarity: GearRarity } | null {
+  const m = label.trim().match(/^T(\d)([CREL])\s+(.+)$/);
+  const family = m ? LABEL_FAMILY[m[3].toLowerCase()] : undefined;
+  return m && family ? { family, tier: Number(m[1]), rarity: m[2] as GearRarity } : null;
+}
+/** A worn stone's label (`T4 Lunar stone`) as its family and tier. */
+function wornStone(label: string): { family: StoneFamily; tier: number } | null {
+  const m = label.trim().match(/^T(\d)\s+(lunar|tachyon|quantum)\s+stone$/i);
+  return m ? { family: m[2].toLowerCase() as StoneFamily, tier: Number(m[1]) } : null;
+}
+const DELIVERY_FAMILIES: GearFamily[] = ['ornate_gusset', 'interstellar_compass', 'quantum_metronome'];
+
+/**
+ * Whether a run wore this gear card's set: the sets the simulator picked for it (`earnings` and
+ * `delivery` on the row, leg 1's delivery set), not what the account owns, so an account with the set
+ * in its inventory but a better one worn does not count. Each named artifact must be worn at exactly
+ * that tier and rarity (the earnings ones in the earnings set, the delivery ones in the delivery set);
+ * an "any legendary set" delivery half needs every gusset, compass and metronome worn to be legendary;
+ * and each stone family on the card must be socketed at that tier and no other (where it sits and how
+ * many are not checked). A row from a build that did not record its sets never matches.
+ */
+export function woreGear(
+  gear: GearSet,
+  row: { earnings?: { artifact: string; stones?: string[] }[]; delivery?: { artifact: string; stones?: string[] }[] }
+): boolean {
+  if (!row.earnings?.length || !row.delivery?.length) return false;
+  const earn = row.earnings.map(s => wornArtifact(s.artifact));
+  const deliv = row.delivery.map(s => wornArtifact(s.artifact));
+  const has = (set: typeof earn, s: GearSlot) =>
+    set.some(w => w && w.family === s.family && w.tier === s.tier && w.rarity === s.rarity);
+  for (const s of gear.slots) if (!has(s.role === 'earnings' ? earn : deliv, s)) return false;
+  if (!gear.slots.some(s => s.role === 'delivery')) {
+    const pieces = deliv.filter(w => w && DELIVERY_FAMILIES.includes(w.family));
+    if (!pieces.length || pieces.some(w => w!.rarity !== 'L')) return false;
+  }
+  const stones = [...row.earnings, ...row.delivery].flatMap(s => (s.stones ?? []).map(wornStone)).filter(x => x);
+  for (const st of gear.stones) {
+    const tiers = stones.filter(x => x!.family === st.family).map(x => x!.tier);
+    if (!tiers.length || tiers.some(t => t !== st.tier)) return false;
+  }
+  return true;
 }

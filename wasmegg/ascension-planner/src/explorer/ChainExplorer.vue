@@ -1175,6 +1175,7 @@
           :te-from-save="teNow"
           :final-te="finalTe"
           :inventory="inventory"
+          :gear-coverage="gearCoverage"
           :run-in-place="embedded"
           @run="r => emit('run-sweep', r)"
           @run-by-date="r => emit('run-by-date', r)"
@@ -1239,6 +1240,7 @@ import LegProfileChart from './LegProfileChart.vue';
 import CountCompareChart from './CountCompareChart.vue';
 import FinalLegChart from './FinalLegChart.vue';
 import DataNeeds from './DataNeeds.vue';
+import type { GearCoverage } from '@/search/tablePrefetch';
 import type { InventoryCount } from '@/search/csv';
 import type { ByDateRequest } from '@/search/byDateRequest';
 import type { SweepRequest } from '@/search/sweepRequest';
@@ -1327,6 +1329,8 @@ const props = withDefaults(
     finalTe?: number;
     /** The loaded save's artifacts, to mark the gear cards it matches. */
     inventory?: InventoryCount[];
+    /** Whether that save's gear has an instant answer of its own (useGearCoverage); null if unknown. */
+    gearCoverage?: GearCoverage | null;
   }>(),
   { part: 'insights', embedded: false, scienceView: 'check', teNow: 0 }
 );
