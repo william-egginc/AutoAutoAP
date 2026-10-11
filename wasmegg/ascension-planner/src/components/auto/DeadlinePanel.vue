@@ -562,9 +562,7 @@
       </button>
     </div>
     <p v-if="startIssue" class="text-[11px] font-semibold text-rose-700">{{ startIssue }}</p>
-    <p v-if="store.error && !store.errorIsIntegrityNotice" class="text-[11px] font-semibold text-rose-700">
-      {{ store.error }}
-    </p>
+    <RunErrorNotes :error="store.errorIsIntegrityNotice ? null : store.error" :labelled="false" />
 
     <div v-if="result" class="space-y-3">
       <ByDateRouteCard
@@ -839,6 +837,7 @@ import RoutesToTry from './RoutesToTry.vue';
 import SavedAnswers from './SavedAnswers.vue';
 import ProgressBar from './ProgressBar.vue';
 import EdgeWarning from './EdgeWarning.vue';
+import RunErrorNotes from './RunErrorNotes.vue';
 import { durationLabel, useRunClock } from '@/composables/useRunClock';
 import { useRunDownloads } from '@/composables/useRunDownloads';
 import { useDateRowSliders } from '@/composables/useRowSliders';

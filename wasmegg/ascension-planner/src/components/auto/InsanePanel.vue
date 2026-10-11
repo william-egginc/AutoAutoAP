@@ -918,22 +918,11 @@
         <UnsentResults kind="fastest" :player-id="playerId" :nickname="nickname" />
         <AutoSendReport v-if="!autoSubmitted" kind="full" />
 
-        <p
-          v-if="store.runNotes.length && !store.error"
-          class="p-3 rounded-xl border border-amber-200 bg-amber-50 text-[11px] text-amber-900 leading-relaxed"
-        >
-          <span v-for="n in store.runNotes" :key="n" class="block">{{ n }}</span>
-        </p>
-
-        <div
-          v-if="store.error && !store.errorIsIntegrityNotice"
-          class="p-4 bg-red-50 border border-red-200 rounded-xl text-xs text-red-800 leading-relaxed"
-        >
-          <span class="font-bold uppercase tracking-wide"
-            >{{ store.errorBeforeStart ? "Didn't start" : 'Search failed' }}:</span
-          >
-          {{ store.error }}
-        </div>
+        <RunErrorNotes
+          :notes="store.runNotes"
+          :error="store.errorIsIntegrityNotice ? null : store.error"
+          :before-start="store.errorBeforeStart"
+        />
 
         <!-- The outcome with no best chain. Without it a finished run simply lacked the result card,
            the Save button stayed grey and Submit never appeared, with nothing saying why -- which
@@ -1248,6 +1237,7 @@ import { useRunDownloads } from '@/composables/useRunDownloads';
 import CsvCard from './CsvCard.vue';
 import ProgressBar from './ProgressBar.vue';
 import EdgeWarning from './EdgeWarning.vue';
+import RunErrorNotes from './RunErrorNotes.vue';
 import LongerRouteHint from './LongerRouteHint.vue';
 
 const props = defineProps<{

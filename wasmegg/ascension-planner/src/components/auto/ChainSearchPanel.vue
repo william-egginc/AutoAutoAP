@@ -1051,37 +1051,21 @@
       <!-- A failure is not necessarily a total loss: anything already priced is on the checkpoint
            and a rerun replays it for free. Saying so is the difference between "start again" and
            "press Start search again and keep your three hours". -->
-      <p
-        v-if="store.runNotes.length && !store.error"
-        class="p-3 rounded-xl border border-amber-200 bg-amber-50 text-[11px] text-amber-900 leading-relaxed"
+      <RunErrorNotes
+        :notes="store.runNotes"
+        :error="store.errorIsIntegrityNotice ? null : store.error"
+        :before-start="store.errorBeforeStart"
       >
-        <span v-for="n in store.runNotes" :key="n" class="block">{{ n }}</span>
-      </p>
-
-      <div
-        v-if="store.error && !store.errorIsIntegrityNotice"
-        class="p-4 bg-red-50 border border-red-200 rounded-xl text-xs text-red-800 leading-relaxed space-y-1.5"
-      >
-        <p>
-          <span class="font-bold uppercase tracking-wide">{{
-            store.errorBeforeStart ? "Didn't start:" : 'Search failed:'
-          }}</span>
-          {{ store.error }}
-        </p>
-        <!-- A pre-flight refusal: nothing ran, so the crash advice below would only send people
-             looking for a problem that is not there. -->
-        <p v-if="store.errorBeforeStart" class="text-red-700">
-          The search checked your save before starting and stopped, so no time was lost and nothing needs resuming.
-        </p>
-        <p v-else-if="store.chainsDone > 0" class="text-red-700">
-          {{ plural(store.chainsDone, 'chain') }} {{ store.chainsDone === 1 ? 'was' : 'were' }} priced before it stopped and are saved. Starting the search again replays
-          them without re-simulating anything, so you are resuming rather than restarting.
-        </p>
-        <p v-else class="text-red-700">
+        <template v-if="store.chainsDone > 0">
+          {{ plural(store.chainsDone, 'chain') }} {{ store.chainsDone === 1 ? 'was' : 'were' }} priced before it
+          stopped and are saved. Starting the search again replays them without re-simulating anything, so you are
+          resuming rather than restarting.
+        </template>
+        <template v-else>
           Nothing was priced, so there is nothing to resume. If this repeats, lower the effort tier to see whether a
           shorter run gets through, and check the browser console for the worker's own error.
-        </p>
-      </div>
+        </template>
+      </RunErrorNotes>
 
       <!-- Verbose view: every stage and every accepted move, in order. The panel shows only the
            newest line while running; this is the running commentary. The CSV below it is the
@@ -1362,6 +1346,7 @@ import type { ShortlistRow } from '@/search/shortlist';
 import { VIEWS } from '@/search/views';
 import { useRunDownloads } from '@/composables/useRunDownloads';
 import CsvCard from './CsvCard.vue';
+import RunErrorNotes from './RunErrorNotes.vue';
 import ProgressBar from './ProgressBar.vue';
 
 const props = defineProps<{ playerId: string }>();
