@@ -368,7 +368,7 @@ const STAGES = [
   },
   {
     name: 'One more or one fewer (Exact and up)',
-    what: 'try dropping a checkpoint or adding one, within your limits, then fine-tune and nudge again. If the count changed, do it again from the new count, until it stops changing or reaches your limits. Fast skips this step; instead it gives every other count inside your limits one quick pass from the instant answer's route for that count.',
+    what: 'try dropping a checkpoint or adding one, within your limits, then fine-tune and nudge again. If the count changed, do it again from the new count, until it stops changing or reaches your limits. Fast skips this step; instead it gives every other count inside your limits one quick pass from the instant answer route for that count.',
   },
 ];
 </script>
