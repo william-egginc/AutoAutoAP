@@ -32,7 +32,8 @@ THE STRUCTURE IT EXPLOITS
   (DST-exact), and an n-sale build rides n of them. Verified 68/68 rows over two
   accounts, 6 and 7 prestiges, PDT and PST.
 * Because of that, sweeping the last checkpoint gives descending runs of 3-5
-  separated by ~+3.15 d jumps, and **the optimum is always a run-end** (933/933).
+  separated by ~+3.15 d jumps, and **the optimum is always a run-end** (462/462 fully swept
+  prefixes of the 490 box; SAWTOOTH_STATS in src/lib/charts/chainSearchMath.ts).
   Only ~27% of values can win, which is a safe prune.
 * Pruning by prefix COST is NOT safe: a prefix that arrives later can arrive with
   a higher delivery rate and win overall. Do not drop candidates on early-leg time.

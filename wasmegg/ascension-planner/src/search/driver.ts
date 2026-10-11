@@ -277,7 +277,8 @@ export async function runChainSearch(opts: DriverOptions): Promise<SearchOutcome
    *
    * The optimum is always a run-end: a leg's build phase ends on a Research Sale END (Saturday 09:00
    * Pacific, DST-exact), so sweeping the last checkpoint gives descending runs of 3-5 separated by
-   * ~+3.15 d jumps. Verified 933/933 on the corpus. This still sweeps every value in the window
+   * ~+3.15 d jumps. Verified 462/462 over the fully swept prefixes of the 490 box (SAWTOOTH_STATS in
+   * lib/charts/chainSearchMath.ts says how). This still sweeps every value in the window
    * rather than only run-ends — the prune is safe but the saving is small next to the risk of
    * mis-detecting a run boundary from a sparse window.
    */

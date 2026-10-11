@@ -109,7 +109,12 @@ answer found. That is not because the search is clever; it is because of the nex
 A leg's build phase ends on a Research Sale END — Saturday 09:00 Pacific, DST-exact. So as
 you sweep a checkpoint one TE at a time, the duration does not vary smoothly: it forms
 **descending runs of 3–5 values separated by jumps of about +3.15 days**, and the optimum
-is always at a run-end. Verified **933/933** on the corpus.
+is always at a run-end. Verified **462/462**: one 21-value sweep of the last checkpoint
+(310-330) for every prefix of the exhaustive box `195 X2 X3 X4 490` (X2 220-235, X3 265-295:
+16 × 31 = 496 prefixes, 10,416 chains), counted over the prefixes priced at all 21 values. The source is
+`SAWTOOTH_STATS` in `src/lib/charts/chainSearchMath.ts`, which the Chain Search explainer shows.
+(Earlier versions of this page said 933/933; that figure had no recorded corpus behind it and
+cannot be a count over this box.)
 
 That is the whole reason a ±8 sweep finds anything. The function is piecewise, the pieces
 are a few TE wide, and a radius-8 window is wide enough to contain a whole run and its
@@ -150,7 +155,7 @@ three hours.
 
 **Well supported.**
 
-- The optimum is always at a sale-boundary run-end. 933/933.
+- The optimum is always at a sale-boundary run-end. 462/462.
 - Radius 8 is enough for single-axis moves. Knee at 4, exact at 7, across 4913 points.
 - Prefix cost is not an admissible bound. Reasoned and confirmed empirically.
 - Duration is not predictable from chain shape without simulating.

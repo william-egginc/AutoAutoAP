@@ -103,7 +103,14 @@ export const SAWTOOTH_STATS = {
   jumpCount: 2598,
   /** Share of descending runs that are 3-5 TE long, which is why a radius-8 window is enough. */
   runLength35Pct: 82.3,
-  /** Sweeps whose minimum sat on a run-end (immediately before a jump), out of those swept in full. */
+  /** Sweeps whose minimum sat on a run-end (immediately before a jump), out of those swept in full.
+   *  Derivation (commit 81851678): one sweep per `195 X2 X3` prefix of the DISTRIBUTION box, the 21
+   *  values X4 310-330 with the prefix pinned. The box has 16 x 31 = 496 prefixes (10,416 chains);
+   *  the count is over the prefixes priced at all 21 values, so it can never exceed 496. This is the
+   *  one figure for the run-end claim: FOR_MATH_NERDS.md, src/search/driver.ts and
+   *  scripts/autoplan.py quote it too (chainSearchMath.spec.ts checks they agree). They used to say
+   *  933/933, a figure from the first commit (0527db42) with no recorded corpus or script behind it;
+   *  it cannot be a count over this box. */
   runEndHits: 462,
   runEndTotal: 462,
 };
