@@ -372,6 +372,20 @@ function sameSpace(a: SearchSpace | undefined, b: SearchSpace | undefined): bool
 const sameEntry = (a: SearchCheckpoint, b: SearchCheckpoint) =>
   sameRun(a, b) && sameSpace(a.space, b.space) && a.updatedAt === b.updatedAt;
 
+/**
+ * A moved-aside run's id, stable while the list changes around it: the panel acts by this, not by
+ * its position. A position went stale whenever the list moved between drawing and the click (a
+ * checkpoint written meanwhile moves a run aside at the front), and Carry on or Discard then took
+ * the run next to the one clicked.
+ */
+export function interruptedId(r: SearchCheckpoint): string {
+  const sp = r.space;
+  const shape = sp
+    ? [sp.mode, sp.range ?? null, sp.bands ?? null, sp.minAscensions, sp.maxAscensions, sp.minGap]
+    : null;
+  return JSON.stringify([r.fingerprint, r.inputsKey ?? '', r.updatedAt, shape]);
+}
+
 async function setAside(partitionHash: string, record: SearchCheckpoint, leaving?: SearchCheckpoint): Promise<void> {
   const list = await listInterrupted(partitionHash);
   const rest = list.filter(r => !(sameRun(r, record) && sameSpace(r.space, record.space)));
@@ -391,9 +405,9 @@ export async function listInterrupted(partitionHash: string): Promise<SearchChec
  * Put a moved-aside run back in the slot so it can carry on. Whatever unfinished run is in the slot
  * now goes into the list in its place (via `saveCheckpoint`), so swapping never loses either.
  */
-export async function restoreInterrupted(partitionHash: string, index: number): Promise<SearchCheckpoint | null> {
+export async function restoreInterrupted(partitionHash: string, id: string): Promise<SearchCheckpoint | null> {
   const list = await listInterrupted(partitionHash);
-  const picked = list[index];
+  const picked = list.find(r => interruptedId(r) === id);
   if (!picked) return null;
   // Slot first, THEN out of the list: a failed write leaves it listed rather than nowhere. The
   // write may itself move the slot's run into the list, so remove by identity, not position.
@@ -407,13 +421,10 @@ export async function restoreInterrupted(partitionHash: string, index: number): 
   return picked;
 }
 
-export async function discardInterrupted(partitionHash: string, index: number): Promise<void> {
+export async function discardInterrupted(partitionHash: string, id: string): Promise<void> {
   const list = await listInterrupted(partitionHash);
-  await saveMetadata(
-    partitionHash,
-    INTERRUPTED_KEY,
-    list.filter((_, i) => i !== index)
-  );
+  const rest = list.filter(r => interruptedId(r) !== id);
+  if (rest.length !== list.length) await saveMetadata(partitionHash, INTERRUPTED_KEY, rest);
 }
 
 export async function loadCheckpoint(partitionHash: string, fingerprint: string): Promise<SearchCheckpoint | null> {

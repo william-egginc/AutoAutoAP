@@ -2349,16 +2349,17 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * Put a moved-aside run back in the checkpoint slot, ready to carry on. The unfinished run in the
    * slot now is moved aside in its place, so nothing is lost either way.
    */
-  async function promoteInterrupted(playerId: string, index: number): Promise<boolean> {
+  /** `id`: persistence.ts `interruptedId` of the listed run, never its position in the list. */
+  async function promoteInterrupted(playerId: string, id: string): Promise<boolean> {
     partitionHash = partitionHash || (await hashID(playerId));
-    const picked = await restoreInterrupted(partitionHash, index);
+    const picked = await restoreInterrupted(partitionHash, id);
     await checkResumable(playerId);
     return !!picked && !!resumable.value;
   }
 
-  async function discardInterruptedRun(playerId: string, index: number): Promise<void> {
+  async function discardInterruptedRun(playerId: string, id: string): Promise<void> {
     partitionHash = partitionHash || (await hashID(playerId));
-    await discardInterrupted(partitionHash, index);
+    await discardInterrupted(partitionHash, id);
     await checkResumable(playerId);
   }
 
