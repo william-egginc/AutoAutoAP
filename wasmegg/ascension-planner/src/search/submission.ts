@@ -689,13 +689,13 @@ export function duplicateMessage(kind: 'exact' | 'result', note: DuplicateNote =
   return text;
 }
 
-/** `at 19:46` today, `on 24 Sep at 19:46` before, in this browser's own zone; '' when unreadable. */
+/** `at 7:46 pm` today, `on 24 Sep at 7:46 pm` before, in this browser's own zone; '' when unreadable. */
 function sentAtText(iso: string | undefined, now: number): string {
   const t = iso ? Date.parse(iso) : NaN;
   if (!Number.isFinite(t)) return '';
   const day = (ms: number) =>
     new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(ms);
-  const time = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }).format(t);
+  const time = new Intl.DateTimeFormat('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true }).format(t);
   if (day(t) === day(now)) return `at ${time}`;
   return `on ${new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' }).format(t)} at ${time}`;
 }

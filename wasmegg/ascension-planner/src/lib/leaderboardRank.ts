@@ -901,6 +901,11 @@ const dateFormatters = new Map<string, Intl.DateTimeFormat>();
 /** A date in the plan's own zone, falling back to UTC for an unknown zone. */
 export function formatDate(ms: number | null, timezone: string | undefined, opts: Intl.DateTimeFormatOptions): string {
   if (ms == null || !Number.isFinite(ms)) return '—';
+  // Players read times as 12-hour with am/pm, whatever the browser's locale.
+  if (opts.hour || opts.timeStyle) {
+    opts = { ...opts, hour12: true };
+    if (opts.hour === '2-digit') opts.hour = 'numeric';
+  }
   const key = `${timezone || 'UTC'}|${JSON.stringify(opts)}`;
   let f = dateFormatters.get(key);
   if (!f) {
@@ -2246,7 +2251,7 @@ function tagLookAlikes<T extends BoardRow>(g: readonly T[], out: Map<T, string[]
     for (const r of same) {
       const s = startMs(r);
       if (s == null) continue;
-      const time = formatDate(s, zone ?? r.timezone, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+      const time = formatDate(s, zone ?? r.timezone, { hour: 'numeric', minute: '2-digit' });
       tags.get(r)!.push(`starts ${withDay ? `${day(r)} ` : ''}${time}`);
     }
   }

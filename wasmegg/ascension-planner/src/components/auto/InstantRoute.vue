@@ -2087,14 +2087,10 @@ function resetShareForNewCheck(): void {
   shareUsed = false;
 }
 
-/** "11:02 am", in the plan's timezone (or "11:02" with ISO dates). */
+/** "11:02 am", in the plan's timezone. */
 function clock(ms: number): string {
   try {
-    if (dateStyle.value === 'iso')
-      return new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: zone.value }).format(
-        new Date(ms)
-      );
-    return new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit', timeZone: zone.value })
+    return new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: zone.value })
       .format(new Date(ms))
       .replace(/\s?([AP])\.?M\.?$/i, (_m, x: string) => ` ${x.toLowerCase()}m`);
   } catch {
