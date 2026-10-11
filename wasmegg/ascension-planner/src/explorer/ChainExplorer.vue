@@ -152,7 +152,12 @@
 
       <!-- ------------------------------------------------------------------ what we know so far -->
       <!-- The findings are written, so the card shows at once; its header counts fill in when the runs arrive. -->
-      <WhatWeKnow v-if="part === 'insights'" :stats="knowSummary" :science-href="scienceHref('check')" />
+      <WhatWeKnow
+        v-if="part === 'insights'"
+        :stats="knowSummary"
+        :science-href="scienceHref('check')"
+        :how-href="scienceHref('how')"
+      />
 
       <!-- Holds the place of everything below while the collector loads, at a fixed height. The
            sections that are worked out from the runs wait for them: drawn from no runs, "Help fill
@@ -1226,6 +1231,7 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import SearchShapeChart from '@/components/auto/charts/SearchShapeChart.vue';
 import type { PricedChain } from '@/search/types';
+import type { ScienceView } from '@/lib/siteNav';
 import { describeCompute, formatMinutes } from '@/utils/computeTime';
 import CountShapeChart from './CountShapeChart.vue';
 import LegProfileChart from './LegProfileChart.vue';
@@ -1312,7 +1318,8 @@ const props = withDefaults(
   defineProps<{
     part?: 'insights' | 'science';
     embedded?: boolean;
-    scienceView?: 'check' | 'submit';
+    /** Science's view; 'how' (How it works) draws nothing here, App shows its own page. */
+    scienceView?: ScienceView;
     /** The planner's loaded TE, for What we need to check's ranges. */
     teNow?: number;
     /** The planner's Final target TE, for the name of the Fastest screen (490 when left out). */
@@ -1384,9 +1391,9 @@ onUnmounted(() => {
 
 /** The planner's Science tab, a page in this same build (lib/siteNav.ts has its addresses). The
  *  query goes along, so a link aimed at another collector (?collector=) still reads that one. */
-function scienceHref(view: 'check' | 'submit'): string {
+function scienceHref(view: ScienceView): string {
   const search = typeof location === 'undefined' ? '' : location.search;
-  return `./${search}${view === 'submit' ? '#/science/submit' : '#/science'}`;
+  return `./${search}${view === 'check' ? '#/science' : `#/science/${view}`}`;
 }
 // Links to the two sections this page used to end with go where they are now.
 if (!props.embedded && typeof location !== 'undefined') {

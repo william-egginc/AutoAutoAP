@@ -503,7 +503,9 @@
       <!-- Science: what the collected runs still can't tell us, and a way to send a sweep in. The
            Chain Explorer's two sections, moved here from its page (it renders just them). -->
       <div v-else-if="plannerTab === 'science'" class="max-w-6xl mx-auto mt-6 space-y-4">
-        <div>
+        <!-- How it works: the searches, the instant answer and how both were checked (a page of its own). -->
+        <HowItWorks v-if="scienceView === 'how'" />
+        <div v-else>
           <h2 class="text-2xl font-black text-slate-900">Help crack the algorithm</h2>
           <p class="text-sm text-slate-600 leading-relaxed max-w-3xl">
             Nobody outside the game knows exactly how it works out a run, and every sweep players send in narrows it
@@ -511,7 +513,7 @@
             gap.
           </p>
         </div>
-        <ChainExplorer part="science" embedded :science-view="scienceView" :te-now="saveTE" :final-te="chainSearchStore.finalTE" :inventory="saveArtifacts" @run-sweep="openSweep" @run-by-date="openByDate" />
+        <ChainExplorer v-if="scienceView !== 'how'" part="science" embedded :science-view="scienceView" :te-now="saveTE" :final-te="chainSearchStore.finalTE" :inventory="saveArtifacts" @run-sweep="openSweep" @run-by-date="openByDate" />
       </div>
 
       <!-- Your setup, floating, on every Auto Planner screen: the gear opens it; workers adjust folded. -->
@@ -662,6 +664,7 @@ import { useTablePrefetch } from '@/composables/useTablePrefetch';
 import SiteTabs from '@/components/SiteTabs.vue';
 import SetupDock from '@/components/auto/SetupDock.vue';
 import SweepRunner from '@/components/science/SweepRunner.vue';
+import HowItWorks from '@/components/science/HowItWorks.vue';
 import type { SweepRequest } from '@/search/sweepRequest';
 import { virtueInventory } from '@/search/csv';
 import type { ByDateRequest } from '@/search/byDateRequest';
@@ -1020,6 +1023,7 @@ const saveTE = computed(() => {
 const scienceTabs: { id: ScienceView; label: string }[] = [
   { id: 'check', label: NAMES.check },
   { id: 'submit', label: NAMES.submit },
+  { id: 'how', label: NAMES.how },
 ];
 
 let autoInitFor = '';

@@ -10,6 +10,7 @@
  *                                            the Chain Explorer's charts
  *   Science          #/science               what we still need to check (the sweeps to run)
  *                    #/science/submit        upload a sweep's files
+ *                    #/science/how           how the planner works, and how its answers were checked
  *
  * In the hash, not the path: the live site is `vite preview` behind a tunnel, and a path it has no
  * file for is a 404 on some hosts. Old links still land where they meant to: `?insane=1` (every
@@ -25,7 +26,7 @@ export type Depth = 'smart' | 'full';
 /** The leaderboard's views, then the Explorer's charts. */
 export type CompareView = 'eggday' | 'race' | 'mine' | 'all' | 'dates' | 'insights';
 export const COMPARE_VIEWS: CompareView[] = ['eggday', 'race', 'mine', 'all', 'dates', 'insights'];
-export type ScienceView = 'check' | 'submit';
+export type ScienceView = 'check' | 'submit' | 'how';
 
 export interface SiteRoute {
   section: Section;
@@ -45,6 +46,8 @@ export const NAMES = {
   insights: 'Insights',
   check: 'What we need to check',
   submit: 'Submit a sweep',
+  /** Science › How it works: what the searches and the instant answer do, and how they were checked. */
+  how: 'How it works',
   classic: 'Your plan',
   fastest: 'Fastest to 490 TE',
   byDate: 'Highest TE by a date',
@@ -75,7 +78,8 @@ export const DEFAULT_ROUTE: Required<SiteRoute> = {
 /** `#/auto/fastest/full` for a route. The sub-parts only where the section has them. */
 export function hashFor(r: SiteRoute): string {
   if (r.section === 'compare') return !r.compare || r.compare === 'eggday' ? '#/compare' : `#/compare/${r.compare}`;
-  if (r.section === 'science') return r.science === 'submit' ? '#/science/submit' : '#/science';
+  if (r.section === 'science')
+    return r.science === 'submit' || r.science === 'how' ? `#/science/${r.science}` : '#/science';
   if (r.section !== 'auto') return `#/${r.section}`;
   if (r.auto === 'fastest') return r.depth === 'full' ? '#/auto/fastest/full' : '#/auto/fastest';
   return `#/auto/${r.auto}`;
@@ -94,7 +98,10 @@ export function routeFromLocation(search: string, hash: string): Required<SiteRo
       const compare = COMPARE_VIEWS.find(v => v === sub) ?? 'eggday';
       return { ...DEFAULT_ROUTE, section, compare };
     }
-    if (section === 'science') return { ...DEFAULT_ROUTE, section, science: sub === 'submit' ? 'submit' : 'check' };
+    if (section === 'science') {
+      const science: ScienceView = sub === 'submit' || sub === 'how' ? sub : 'check';
+      return { ...DEFAULT_ROUTE, section, science };
+    }
     if (section === 'auto') {
       const auto: AutoView = sub === 'fastest' || sub === 'by-date' ? sub : 'classic';
       return {
