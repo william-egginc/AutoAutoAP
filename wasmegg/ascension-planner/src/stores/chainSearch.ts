@@ -21,6 +21,7 @@ import { getLocalTimestampInTimezone } from '@/lib/events';
 import { hashID } from '@/lib/storage/db';
 import { runChainSearch, type CacheEntry } from '@/search/driver';
 import { findStartingChain, planCoarseGrid } from '@/search/coarse';
+import { teByEggFor } from '@/search/teByEgg';
 import { createChainSearchPool, type ChainSearchPool } from '@/search/pool';
 import type { BuildParams } from '@/search/precomputedLeg';
 import { contention, timeWeightedWorkers, workerSecondsFromRate } from '@/search/speed';
@@ -3014,7 +3015,14 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
             permitLevel: initialStateStore.rawBackup?.game?.permitLevel ?? null,
           })
         : null,
-      teByEgg: initialStateStore.rawBackup?.virtue?.eovEarned ?? null,
+      // The planner's per-egg TE when it adds up to the save's TE (search/teByEgg.ts): the save's own
+      // eovEarned leaves out pending TE the planner has taken in.
+      teByEgg: teByEggFor({
+        perEgg: initialStateStore.initialTeEarned,
+        eovEarned: initialStateStore.rawBackup?.virtue?.eovEarned,
+        eggsDelivered: initialStateStore.rawBackup?.virtue?.eggsDelivered,
+        te: initialStateStore.rawBackup ? backupTE.value : te,
+      }),
       backupTime: initialStateStore.rawBackup?.approxTime ?? null,
       // Schema 7. The save's own TE only with a save loaded: `backupTE` reads 0 without one, which
       // would claim every plan was typed in from above it.
@@ -5747,14 +5755,21 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * newer save's time and TE with a route priced on the older one.
    */
   function accountFromStoredSave(inputs: SearchInputs): AccountSnapshot {
-    const stored = inputs.context?.rawBackup as { approxTime?: number; virtue?: { eovEarned?: number[] } } | undefined;
+    const stored = inputs.context?.rawBackup as
+      | { approxTime?: number; virtue?: { eovEarned?: number[]; eggsDelivered?: number[] } }
+      | undefined;
     const live = accountFields(inputs.currentTE);
     if (!stored) return plainAccount(live);
     return plainAccount({
       ...live,
       backupTime: stored.approxTime ?? null,
       backupTE: pricedTE(inputs.baseState),
-      teByEgg: (stored.virtue?.eovEarned ?? null) as AccountSnapshot['teByEgg'],
+      teByEgg: teByEggFor({
+        perEgg: inputs.baseState.teEarned,
+        eovEarned: stored.virtue?.eovEarned,
+        eggsDelivered: stored.virtue?.eggsDelivered,
+        te: pricedTE(inputs.baseState),
+      }),
     });
   }
 
