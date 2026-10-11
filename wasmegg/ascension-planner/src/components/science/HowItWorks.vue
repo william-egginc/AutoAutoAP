@@ -94,7 +94,8 @@
             <b>{{ NAMES.fastest }}, {{ NAMES.fullFirst }}:</b> you give each stop a range, called a box (for example
             every 5th TE from 185 to 200 for the first stop). It simulates <i>every</i> route that fits in the boxes, so
             its winner is the best route in them. If the winner sits on the edge of a box, it says so and offers to
-            widen that box. Routes it has already simulated are reused, so only the new ones take time. The boxes it
+            widen that box. If your setup hasn't changed, routes it has already simulated are reused, so only the new
+            ones take time. The boxes it
             suggests also cover one ascension fewer and one more, at half the size; you can remove those.
           </li>
           <li>
