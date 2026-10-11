@@ -119,10 +119,15 @@ export async function saveMetadata(partitionHash: string, key: string, value: an
     // Sanitize data through JSON round-trip to avoid DataCloneError with complex Vue Proxies
     const sanitizedValue = JSON.parse(JSON.stringify(value));
 
+    // Resolved when the transaction COMMITS, not when the put succeeds: a put can succeed and its
+    // transaction still abort (quota, a crash before commit), and a caller that goes on as if it were
+    // saved would lose it (the 28-29 Sep edge cases).
     await new Promise<void>((resolve, reject) => {
         const request = store.put({ key: storageKey, partitionHash, value: sanitizedValue });
-        request.onsuccess = () => resolve();
         request.onerror = () => reject(request.error);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error ?? request.error);
+        tx.onabort = () => reject(tx.error ?? new Error('the write was aborted'));
     });
 }
 
