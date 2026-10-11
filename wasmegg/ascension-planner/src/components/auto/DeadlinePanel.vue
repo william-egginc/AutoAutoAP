@@ -550,36 +550,42 @@
       </template>
     </RunControls>
 
-    <div v-if="result" class="space-y-3">
-      <ByDateRouteCard
-        v-if="best"
-        :route="best"
-        :deadline="result.deadline"
-        :zone="plannerZone"
-        simulate
-        :simulate-note="resultSim?.note"
-        @simulate="simulateResult"
-      >
-        <template #heading>
-          <span v-if="!store.deadlineRunning && fromEarlier" class="font-semibold normal-case tracking-normal">
-            · saved result from {{ ago(result.at) }}</span
-          >
-        </template>
-        <!-- One more TE (search/oneMoreTE.ts): stopped early, or narrow or edge boxes, with more spare
-             than one more TE costs. Otherwise the plain "stopped early". -->
-        <span v-if="oneMoreTE" class="block mt-1 font-semibold text-amber-800" data-testid="one-more-te-hint">{{
-          oneMoreTE.text
-        }}</span>
-        <template v-else-if="result.stoppedEarly"> Stopped early, so a better route may not have been tried.</template>
-        <template v-if="atCeiling">
-          <span class="font-bold">That is the highest last stop it was allowed to try</span>, so more may be reachable:
-          raise {{ result.step ? '"Rough guess for the last stop"' : "the top of the last stop's range" }} and run it
-          again.</template
+    <!-- The results (RunResults.vue): the same order on every search screen. -->
+    <RunResults v-if="result">
+      <template #card>
+        <ByDateRouteCard
+          v-if="best"
+          :route="best"
+          :deadline="result.deadline"
+          :zone="plannerZone"
+          simulate
+          :simulate-note="resultSim?.note"
+          @simulate="simulateResult"
         >
-      </ByDateRouteCard>
-      <p v-else class="text-[11px] font-semibold text-rose-700">
-        No route tried reaches any stop by then. Try a later date, a lower last stop, or more stops.
-      </p>
+          <template #heading>
+            <span v-if="!store.deadlineRunning && fromEarlier" class="font-semibold normal-case tracking-normal">
+              · saved result from {{ ago(result.at) }}</span
+            >
+          </template>
+          <!-- One more TE (search/oneMoreTE.ts): stopped early, or narrow or edge boxes, with more spare
+               than one more TE costs. Otherwise the plain "stopped early". -->
+          <span v-if="oneMoreTE" class="block mt-1 font-semibold text-amber-800" data-testid="one-more-te-hint">{{
+            oneMoreTE.text
+          }}</span>
+          <template v-else-if="result.stoppedEarly">
+            Stopped early, so a better route may not have been tried.</template
+          >
+          <template v-if="atCeiling">
+            <span class="font-bold">That is the highest last stop it was allowed to try</span>, so more may be
+            reachable: raise
+            {{ result.step ? '"Rough guess for the last stop"' : "the top of the last stop's range" }} and run it
+            again.</template
+          >
+        </ByDateRouteCard>
+        <p v-else class="text-[11px] font-semibold text-rose-700">
+          No route tried reaches any stop by then. Try a later date, a lower last stop, or more stops.
+        </p>
+      </template>
       <!-- Where Advanced's box already says this (above, with the chains) it is not repeated here. -->
       <p
         v-if="best && (simple || mode !== 'space' || !instantSets.length)"
@@ -657,70 +663,73 @@
           <td class="pr-4 py-1">{{ spareLabel(r.spare) }}</td>
         </template>
       </ResultTable>
-      <!-- Save this answer and Saved answers (SavedAnswers.vue), with Download CSV beside Save. -->
-      <SavedAnswers :player-id="playerId" :default-label="defaultAnswerLabel" :zone="plannerZone">
-        <template #actions>
-          <button
-            type="button"
-            class="px-3 py-1.5 rounded-lg border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50"
-            @click="downloadByDateCsv"
-          >
-            Download CSV
-          </button>
-        </template>
-        <p v-if="downloadError" class="text-[11px] font-semibold text-red-700">{{ downloadError }}</p>
-        <p class="text-[11px] text-slate-500 leading-relaxed">
-          Priced from {{ inPlannerZone(result.planStart) }} at {{ result.te }} TE<template v-if="result.backupAt"
-            >, on your save from {{ inPlannerZone(result.backupAt) }}</template
-          >, with the hours and time off in Your setup. A route that reaches one more TE usually has much less time to
-          spare: the table shows both so you can choose.
-        </p>
-      </SavedAnswers>
-
-      <!-- Share: Compare's Egg Day tab for an Egg Day answer, else "By a date". Same opt-in as Insane. -->
-      <ShareResult
-        v-if="best && collectorConfigured"
-        :replaces-best-so-far="!!store.provisionalRows.deadline"
-        v-model:opt-in="shareOptIn"
-        v-model:anonymous="shareAnonymous"
-        v-model:nickname="shareName"
-        v-model:note="resultNote"
-        goal-word="deadline"
-        @nickname-typed="shareNameTouched = true"
-      >
-        <template #intro>
-          <p class="text-[11px] text-indigo-900/80 leading-relaxed">
-            Sends the best route above to {{ NAMES.compare }}'s <span class="font-bold">{{ shareTab }}</span> tab, where
-            answers for the same deadline are ranked by the highest TE reached, then the time to spare. It stays out of
-            the race to 490.
+      <template #keep>
+        <!-- Save this answer and Saved answers (SavedAnswers.vue), with Download CSV beside Save. -->
+        <SavedAnswers :player-id="playerId" :default-label="defaultAnswerLabel" :zone="plannerZone">
+          <template #actions>
+            <button
+              type="button"
+              class="px-3 py-1.5 rounded-lg border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50"
+              @click="downloadByDateCsv"
+            >
+              Download CSV
+            </button>
+          </template>
+          <p v-if="downloadError" class="text-[11px] font-semibold text-red-700">{{ downloadError }}</p>
+          <p class="text-[11px] text-slate-500 leading-relaxed">
+            Priced from {{ inPlannerZone(result.planStart) }} at {{ result.te }} TE<template v-if="result.backupAt"
+              >, on your save from {{ inPlannerZone(result.backupAt) }}</template
+            >, with the hours and time off in Your setup. A route that reaches one more TE usually has much less time to
+            spare: the table shows both so you can choose.
           </p>
-        </template>
-        <template #opted>
-          <p class="text-[11px] text-indigo-900/80">
-            Only named answers are ranked. Anonymous ones are listed below the ranking.
-          </p>
-          <button
-            type="button"
-            :disabled="sharing || store.deadlineRunning || sentKey === resultKey"
-            class="px-4 py-2 rounded-lg bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-800 disabled:opacity-40"
-            @click="share"
-          >
-            <SendingText v-if="sharing" />
-            <template v-else>{{
-              sentKey === resultKey ? 'Sent' : `Send ${best.chain[best.chain.length - 1]} TE by this date`
-            }}</template>
-          </button>
-          <ShareStatus
-            :message="shareMessage"
-            :ok="shareOk"
-            :partial="sharePartial"
-            :pending-table="store.pendingTable?.source === 'deadline'"
-            :retrying="retryingTable"
-            @retry="retryTable"
-          />
-        </template>
-      </ShareResult>
-    </div>
+        </SavedAnswers>
+      </template>
+      <template #share>
+        <!-- Share: Compare's Egg Day tab for an Egg Day answer, else "By a date". Same opt-in as Insane. -->
+        <ShareResult
+          v-if="best && collectorConfigured"
+          :replaces-best-so-far="!!store.provisionalRows.deadline"
+          v-model:opt-in="shareOptIn"
+          v-model:anonymous="shareAnonymous"
+          v-model:nickname="shareName"
+          v-model:note="resultNote"
+          goal-word="deadline"
+          @nickname-typed="shareNameTouched = true"
+        >
+          <template #intro>
+            <p class="text-[11px] text-indigo-900/80 leading-relaxed">
+              Sends the best route above to {{ NAMES.compare }}'s <span class="font-bold">{{ shareTab }}</span> tab,
+              where answers for the same deadline are ranked by the highest TE reached, then the time to spare. It stays
+              out of the race to 490.
+            </p>
+          </template>
+          <template #opted>
+            <p class="text-[11px] text-indigo-900/80">
+              Only named answers are ranked. Anonymous ones are listed below the ranking.
+            </p>
+            <button
+              type="button"
+              :disabled="sharing || store.deadlineRunning || sentKey === resultKey"
+              class="px-4 py-2 rounded-lg bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-800 disabled:opacity-40"
+              @click="share"
+            >
+              <SendingText v-if="sharing" />
+              <template v-else>{{
+                sentKey === resultKey ? 'Sent' : `Send ${best.chain[best.chain.length - 1]} TE by this date`
+              }}</template>
+            </button>
+            <ShareStatus
+              :message="shareMessage"
+              :ok="shareOk"
+              :partial="sharePartial"
+              :pending-table="store.pendingTable?.source === 'deadline'"
+              :retrying="retryingTable"
+              @retry="retryTable"
+            />
+          </template>
+        </ShareResult>
+      </template>
+    </RunResults>
   </div>
 </template>
 
@@ -813,6 +822,7 @@ import EdgeWarning from './EdgeWarning.vue';
 import RunErrorNotes from './RunErrorNotes.vue';
 import RunControls from './RunControls.vue';
 import ResultTable from './ResultTable.vue';
+import RunResults from './RunResults.vue';
 import { durationLabel, useRunClock } from '@/composables/useRunClock';
 import { useRunDownloads } from '@/composables/useRunDownloads';
 import { useDateRowSliders } from '@/composables/useRowSliders';

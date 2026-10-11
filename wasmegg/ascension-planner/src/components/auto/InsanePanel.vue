@@ -871,203 +871,213 @@
           </template>
         </RunControls>
 
-        <!-- The outcome with no best chain. Without it a finished run simply lacked the result card,
-           the Save button stayed grey and Submit never appeared, with nothing saying why -- which
-           read as three separate bugs to the person looking at it. -->
-        <div
-          v-if="store.noFeasibleChain && !store.error"
-          class="rounded-xl border border-rose-300 bg-rose-50 p-4 space-y-2"
-        >
-          <p class="text-[10px] font-black text-rose-800 uppercase tracking-widest">No chain in this space finishes</p>
-          <p class="text-[11px] text-rose-900/90 leading-relaxed">
-            Every chain was simulated, and none of them reaches {{ store.finalTE }} TE in any time the planner can put a
-            date on. That is a result, not a crash, so there is nothing to save or submit.
-          </p>
-          <p class="text-[11px] text-rose-900/90 leading-relaxed">
-            The usual cause is earnings. On a low-TE account the early ascensions cannot earn enough to buy the habs and
-            vehicles the plan is waiting on, so the very first leg stalls and every leg after it inherits the stall. A
-            different space won't fix that. More Truth Eggs or a stronger earnings set (totem, ankh, necklace and their
-            stones) will. If you think the planner has this wrong, download the diagnostics below and send them in.
-          </p>
-        </div>
-
-        <!-- The answer: the same card as Smart search (RouteResultCard.vue). -->
-        <RouteResultCard
-          v-if="store.bestDays > 0"
-          :chain="store.bestChain"
-          :days="store.bestDays"
-          :final-t-e="store.finalTE"
-          :end-label="endDate"
-          :running="store.isRunning"
-          :claim="store.stoppedEarly ? '' : resultClaim"
-          :source="store.searchSpace ? '' : `From the ${NAMES.smartFirst} search you ran`"
-          :busy="store.busy"
-          can-save
-          :saving="saving"
-          @build="buildPlan"
-          @csv="downloadCsv"
-          @save="save"
-        >
-          <p v-if="!store.isRunning && resultExplain" class="text-[11px] text-emerald-900/80 leading-relaxed">
-            {{ resultExplain }}
-          </p>
-          <p v-if="coverageAfter" class="text-[11px] text-emerald-900/80 leading-relaxed">
-            {{ coverageAfter }}
-            <template v-if="suggestedCountNote">{{ suggestedCountNote }}</template>
-          </p>
-          <EdgeWarning
-            v-if="edges.length"
-            class="mt-2"
-            :lines="edges.map(edgeWords)"
-            :can-widen="!!edgeWiden"
-            :disabled="store.busy || queueAt >= 0"
-            @widen="widenAndRun"
-          >
-            <template v-if="edgeWiden">
-              The wider space is {{ plural(edgeWiden.chains, 'chain') }}. Chains already priced are reused when your
-              setup hasn't changed.
-            </template>
-          </EdgeWarning>
-          <!-- Fastest is fast, not best: when a longer route might win, say so (never runs anything). -->
-          <LongerRouteHint
-            v-if="goal === 'fastest'"
-            class="mt-2"
-            mode="chain"
-            :running="store.isRunning || queueAt >= 0"
-            :disabled="store.busy || queueAt >= 0"
-            :can-add="!sweepRequest"
-            :on-add="addChainOfCount"
-            @check="checkRouteExactly"
-          />
-          <p class="text-[10px] text-emerald-900/60">
-            Compare runs by finish date. Two runs started hours apart have different plan starts, so their day counts
-            don't measure the same thing, but the dates they land on do.
-          </p>
-          <p
-            v-if="store.continueWarning"
-            class="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-[11px] text-amber-900 leading-relaxed"
-          >
-            {{ store.continueWarning }}
-          </p>
-          <div
-            v-if="store.resultContradictions.length"
-            class="mt-2 rounded-lg border border-rose-300 bg-rose-50 p-3 space-y-1"
-          >
-            <p class="text-[10px] font-black text-rose-800 uppercase tracking-widest">This result contradicts itself</p>
-            <p
-              v-for="(issue, k) in store.resultContradictions"
-              :key="k"
-              class="text-[11px] text-rose-900/90 leading-relaxed"
+        <!-- The results (RunResults.vue): the same order on every search screen. -->
+        <RunResults>
+          <template #card>
+            <!-- The outcome with no best chain. Without it a finished run simply lacked the result card,
+               the Save button stayed grey and Submit never appeared, with nothing saying why -- which
+               read as three separate bugs to the person looking at it. -->
+            <div
+              v-if="store.noFeasibleChain && !store.error"
+              class="rounded-xl border border-rose-300 bg-rose-50 p-4 space-y-2"
             >
-              {{ issue.message }}
-            </p>
-            <p class="text-[11px] text-rose-900/80 leading-relaxed">
-              Reload your backup and run it again before trusting these dates, and compare leg 1 against the official
-              planner. If leg 1 agrees and a later leg doesn't, the fault is in the state carried between legs.
-            </p>
-          </div>
-          <p v-if="store.stoppedEarly" class="text-[11px] text-emerald-900/70 pt-1">
-            You stopped it early, so this is the best of what was priced, not the optimum of the space.
-          </p>
-          <p v-if="store.timeOff.length && !store.isRunning" class="text-[11px] text-emerald-900/80">
-            Your time off goes into the plan too: the ascension it interrupts ends when the time off starts, and the
-            next one starts after it.
-          </p>
-        </RouteResultCard>
+              <p class="text-[10px] font-black text-rose-800 uppercase tracking-widest">
+                No chain in this space finishes
+              </p>
+              <p class="text-[11px] text-rose-900/90 leading-relaxed">
+                Every chain was simulated, and none of them reaches {{ store.finalTE }} TE in any time the planner can
+                put a date on. That is a result, not a crash, so there is nothing to save or submit.
+              </p>
+              <p class="text-[11px] text-rose-900/90 leading-relaxed">
+                The usual cause is earnings. On a low-TE account the early ascensions cannot earn enough to buy the habs
+                and vehicles the plan is waiting on, so the very first leg stalls and every leg after it inherits the
+                stall. A different space won't fix that. More Truth Eggs or a stronger earnings set (totem, ankh,
+                necklace and their stones) will. If you think the planner has this wrong, download the diagnostics below
+                and send them in.
+              </p>
+            </div>
 
-        <!-- When to start this route: every hour of the next week, as fresh starts. -->
-        <StartTimeFinder
-          v-if="store.bestChain.length && store.bestDays > 0 && !store.isRunning"
-          :chain="store.bestChain"
-        />
-
-        <!-- Saved runs: the same list on both depths (SavedRuns.vue); carrying a sweep on is this one's. -->
-        <SavedRuns :player-id="playerId" can-resume />
-
-        <RunCharts v-if="store.pricedCount" />
-
-        <!-- Diagnostics are offered on a run with no answer too: that is exactly when someone wants to
-           report what went in. -->
-        <CsvCard v-if="store.pricedCount || store.noFeasibleChain" :csv="store.csvRows > 0" diagnostics>
-          <template #csv>
-            <span class="text-[11px] text-slate-500">
-              {{ countLabel(store.csvRows) }}, one row per leg. Safe to download mid-run.
-            </span>
-          </template>
-        </CsvCard>
-
-        <!-- Submission. Same payload, same opt-in, same disclosure as the main panel. -->
-        <!-- Not while a Find and submit run is going: it sends itself with the choice made at Find,
-             and a box here saying "anonymously" would not be what goes. -->
-        <ShareResult
-          v-if="store.bestDays > 0 && !(store.isRunning && store.submitsWhenDone)"
-          id="share-this-result"
-          :replaces-best-so-far="!!store.provisionalRows.fastest"
-          v-model:opt-in="optIn"
-          v-model:anonymous="anonymous"
-          v-model:nickname="nickname"
-          :note="store.runNoteUsed ?? ''"
-          @update:note="(v?: string) => (store.runNoteUsed = v ?? '')"
-          :nickname-max="NICKNAME_MAX"
-          :csv-detail="`(${store.csvRows.toLocaleString()} chains, one row per leg; chains past the memory budget export with their per-leg cells blank)`"
-          @nickname-typed="nicknameTouched = true"
-        >
-          <template #intro>
-            <p class="text-[11px] text-indigo-900/80 leading-relaxed">
-              An exhaustive result is the most useful thing the board can get: the best of a stated grid rather than a
-              search result. It is sent with the space it covered and what it found there (the runners-up, the best
-              chain at each ascension count, and the spread), so a reader can tell a real find from a flat neighbourhood
-              without downloading the CSV. A run opened from the library above is sent without a run cost, because the
-              time it took wasn't this machine's.
-            </p>
-            <p class="text-[11px] text-indigo-900/80 leading-relaxed">
-              The board uses the random code so that a run landing on the flagged board shows to you as yours and to
-              everyone else anonymously, the same result sent twice is stored once, you can put your name on a run you
-              sent anonymously, and your own later runs can replace your older plans in the race (nobody else's can). A
-              named run shows a short tag made from the code. An anonymous run shows nothing that links it to you. Your
-              best three plans already on the board go named with a named send and anonymous with an anonymous one, so a
-              re-check never ties the two together.
-            </p>
-          </template>
-          <template #opted>
-            <label class="flex items-start gap-3 cursor-pointer text-[11px] text-indigo-900/80">
-              <input
-                v-model="stampName"
-                type="checkbox"
-                :disabled="anonymous"
-                class="mt-0.5 rounded border-indigo-300 text-indigo-600 disabled:opacity-40"
+            <!-- The answer: the same card as Smart search (RouteResultCard.vue). -->
+            <RouteResultCard
+              v-if="store.bestDays > 0"
+              :chain="store.bestChain"
+              :days="store.bestDays"
+              :final-t-e="store.finalTE"
+              :end-label="endDate"
+              :running="store.isRunning"
+              :claim="store.stoppedEarly ? '' : resultClaim"
+              :source="store.searchSpace ? '' : `From the ${NAMES.smartFirst} search you ran`"
+              :busy="store.busy"
+              can-save
+              :saving="saving"
+              @build="buildPlan"
+              @csv="downloadCsv"
+              @save="save"
+            >
+              <p v-if="!store.isRunning && resultExplain" class="text-[11px] text-emerald-900/80 leading-relaxed">
+                {{ resultExplain }}
+              </p>
+              <p v-if="coverageAfter" class="text-[11px] text-emerald-900/80 leading-relaxed">
+                {{ coverageAfter }}
+                <template v-if="suggestedCountNote">{{ suggestedCountNote }}</template>
+              </p>
+              <EdgeWarning
+                v-if="edges.length"
+                class="mt-2"
+                :lines="edges.map(edgeWords)"
+                :can-widen="!!edgeWiden"
+                :disabled="store.busy || queueAt >= 0"
+                @widen="widenAndRun"
+              >
+                <template v-if="edgeWiden">
+                  The wider space is {{ plural(edgeWiden.chains, 'chain') }}. Chains already priced are reused when your
+                  setup hasn't changed.
+                </template>
+              </EdgeWarning>
+              <!-- Fastest is fast, not best: when a longer route might win, say so (never runs anything). -->
+              <LongerRouteHint
+                v-if="goal === 'fastest'"
+                class="mt-2"
+                mode="chain"
+                :running="store.isRunning || queueAt >= 0"
+                :disabled="store.busy || queueAt >= 0"
+                :can-add="!sweepRequest"
+                :on-add="addChainOfCount"
+                @check="checkRouteExactly"
               />
-              <span>
-                <span class="font-bold">Add the time to the name.</span> Optional. The board already keeps each space
-                you prove as its own row, so nothing is lost without it. It just makes your own runs easier to tell
-                apart at a glance when several are on the board.
-              </span>
-            </label>
-            <p v-if="!anonymous" class="text-[11px] text-indigo-900/70">
-              Submitting as
-              <span class="font-mono-premium font-bold">{{ effectiveNickname || '(blank, so anonymous)' }}</span>
-            </p>
+              <p class="text-[10px] text-emerald-900/60">
+                Compare runs by finish date. Two runs started hours apart have different plan starts, so their day
+                counts don't measure the same thing, but the dates they land on do.
+              </p>
+              <p
+                v-if="store.continueWarning"
+                class="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-[11px] text-amber-900 leading-relaxed"
+              >
+                {{ store.continueWarning }}
+              </p>
+              <div
+                v-if="store.resultContradictions.length"
+                class="mt-2 rounded-lg border border-rose-300 bg-rose-50 p-3 space-y-1"
+              >
+                <p class="text-[10px] font-black text-rose-800 uppercase tracking-widest">
+                  This result contradicts itself
+                </p>
+                <p
+                  v-for="(issue, k) in store.resultContradictions"
+                  :key="k"
+                  class="text-[11px] text-rose-900/90 leading-relaxed"
+                >
+                  {{ issue.message }}
+                </p>
+                <p class="text-[11px] text-rose-900/80 leading-relaxed">
+                  Reload your backup and run it again before trusting these dates, and compare leg 1 against the
+                  official planner. If leg 1 agrees and a later leg doesn't, the fault is in the state carried between
+                  legs.
+                </p>
+              </div>
+              <p v-if="store.stoppedEarly" class="text-[11px] text-emerald-900/70 pt-1">
+                You stopped it early, so this is the best of what was priced, not the optimum of the space.
+              </p>
+              <p v-if="store.timeOff.length && !store.isRunning" class="text-[11px] text-emerald-900/80">
+                Your time off goes into the plan too: the ascension it interrupts ends when the time off starts, and the
+                next one starts after it.
+              </p>
+            </RouteResultCard>
           </template>
-
-          <BoardSubmitButtons
-            :opt-in="optIn"
-            :submit-url="store.submitUrl"
-            :name-to-claim="nameToClaim"
-            :claiming="claiming"
-            :sending="submitting"
-            :already-submitted="store.alreadySubmitted"
-            :message="submitMessage"
-            :ok="submitOk"
-            :partial="submitPartial"
-            :pending-table="store.pendingTable?.source === 'fastest'"
-            :retrying="retryingTable"
-            :preview="payloadPreview"
-            @claim="claim"
-            @submit="submit()"
-            @save="downloadSubmission"
-            @retry="retryTable"
+          <!-- When to start this route: every hour of the next week, as fresh starts. -->
+          <StartTimeFinder
+            v-if="store.bestChain.length && store.bestDays > 0 && !store.isRunning"
+            :chain="store.bestChain"
           />
-        </ShareResult>
+          <RunCharts v-if="store.pricedCount" />
+          <template #keep>
+            <!-- Saved runs: the same list on both depths (SavedRuns.vue); carrying a sweep on is this one's. -->
+            <SavedRuns :player-id="playerId" can-resume />
+
+            <!-- Diagnostics are offered on a run with no answer too: that is exactly when someone wants to
+               report what went in. -->
+            <CsvCard v-if="store.pricedCount || store.noFeasibleChain" :csv="store.csvRows > 0" diagnostics>
+              <template #csv>
+                <span class="text-[11px] text-slate-500">
+                  {{ countLabel(store.csvRows) }}, one row per leg. Safe to download mid-run.
+                </span>
+              </template>
+            </CsvCard>
+          </template>
+          <template #share>
+            <!-- Submission. Same payload, same opt-in, same disclosure as the main panel. -->
+            <!-- Not while a Find and submit run is going: it sends itself with the choice made at Find,
+                 and a box here saying "anonymously" would not be what goes. -->
+            <ShareResult
+              v-if="store.bestDays > 0 && !(store.isRunning && store.submitsWhenDone)"
+              :replaces-best-so-far="!!store.provisionalRows.fastest"
+              v-model:opt-in="optIn"
+              v-model:anonymous="anonymous"
+              v-model:nickname="nickname"
+              :note="store.runNoteUsed ?? ''"
+              @update:note="(v?: string) => (store.runNoteUsed = v ?? '')"
+              :nickname-max="NICKNAME_MAX"
+              :csv-detail="`(${store.csvRows.toLocaleString()} chains, one row per leg; chains past the memory budget export with their per-leg cells blank)`"
+              @nickname-typed="nicknameTouched = true"
+            >
+              <template #intro>
+                <p class="text-[11px] text-indigo-900/80 leading-relaxed">
+                  An exhaustive result is the most useful thing the board can get: the best of a stated grid rather than
+                  a search result. It is sent with the space it covered and what it found there (the runners-up, the
+                  best chain at each ascension count, and the spread), so a reader can tell a real find from a flat
+                  neighbourhood without downloading the CSV. A run opened from the library above is sent without a run
+                  cost, because the time it took wasn't this machine's.
+                </p>
+                <p class="text-[11px] text-indigo-900/80 leading-relaxed">
+                  The board uses the random code so that a run landing on the flagged board shows to you as yours and to
+                  everyone else anonymously, the same result sent twice is stored once, you can put your name on a run
+                  you sent anonymously, and your own later runs can replace your older plans in the race (nobody else's
+                  can). A named run shows a short tag made from the code. An anonymous run shows nothing that links it
+                  to you. Your best three plans already on the board go named with a named send and anonymous with an
+                  anonymous one, so a re-check never ties the two together.
+                </p>
+              </template>
+              <template #opted>
+                <label class="flex items-start gap-3 cursor-pointer text-[11px] text-indigo-900/80">
+                  <input
+                    v-model="stampName"
+                    type="checkbox"
+                    :disabled="anonymous"
+                    class="mt-0.5 rounded border-indigo-300 text-indigo-600 disabled:opacity-40"
+                  />
+                  <span>
+                    <span class="font-bold">Add the time to the name.</span> Optional. The board already keeps each
+                    space you prove as its own row, so nothing is lost without it. It just makes your own runs easier to
+                    tell apart at a glance when several are on the board.
+                  </span>
+                </label>
+                <p v-if="!anonymous" class="text-[11px] text-indigo-900/70">
+                  Submitting as
+                  <span class="font-mono-premium font-bold">{{ effectiveNickname || '(blank, so anonymous)' }}</span>
+                </p>
+              </template>
+
+              <BoardSubmitButtons
+                :opt-in="optIn"
+                :submit-url="store.submitUrl"
+                :name-to-claim="nameToClaim"
+                :claiming="claiming"
+                :sending="submitting"
+                :already-submitted="store.alreadySubmitted"
+                :message="submitMessage"
+                :ok="submitOk"
+                :partial="submitPartial"
+                :pending-table="store.pendingTable?.source === 'fastest'"
+                :retrying="retryingTable"
+                :preview="payloadPreview"
+                @claim="claim"
+                @submit="submit()"
+                @save="downloadSubmission"
+                @retry="retryTable"
+              />
+            </ShareResult>
+          </template>
+        </RunResults>
       </template>
     </div>
   </div>
@@ -1154,6 +1164,7 @@ import { gridIsComplete, gridStepLabel } from '@/search/grid';
 import { useRunDownloads } from '@/composables/useRunDownloads';
 import CsvCard from './CsvCard.vue';
 import RunSendReport from './RunSendReport.vue';
+import RunResults from './RunResults.vue';
 import RunProgress from './RunProgress.vue';
 import EdgeWarning from './EdgeWarning.vue';
 import RunErrorNotes from './RunErrorNotes.vue';
