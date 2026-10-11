@@ -577,6 +577,15 @@
       <p v-else class="text-[11px] font-semibold text-rose-700">
         No route tried reaches any stop by then. Try a later date, a lower last stop, or more stops.
       </p>
+      <!-- Where Advanced's box already says this (above, with the chains) it is not repeated here. -->
+      <p
+        v-if="best && (simple || mode !== 'space' || !instantSets.length)"
+        class="text-[10px] text-slate-500 leading-relaxed"
+        data-test="start-timing-note"
+      >
+        This search starts each fresh ascension the moment the last one ends; the instant answer starts them on the
+        hour, so times can differ by up to about an hour per ascension.
+      </p>
       <!-- The best route on the edge of its box (the Full sweep's check, bandCheck.ts): a wider box may
            find better. -->
       <EdgeWarning
