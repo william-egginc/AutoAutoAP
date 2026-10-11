@@ -19,7 +19,7 @@ import { CHART_AUTO_LIMIT, addToHeat, createHeat, heatSnapshot, type HeatSnapsho
 import { getSimulationContext, createBaseEngineState } from '@/engine/adapter';
 import { getLocalTimestampInTimezone } from '@/lib/events';
 import { hashID } from '@/lib/storage/db';
-import { runChainSearch, type CacheEntry } from '@/search/driver';
+import { plannedCountChecks, runChainSearch, type CacheEntry } from '@/search/driver';
 import { findStartingChain, planCoarseGrid } from '@/search/coarse';
 import { teByEggFor } from '@/search/teByEgg';
 import { createChainSearchPool, type ChainSearchPool } from '@/search/pool';
@@ -38,7 +38,7 @@ import { cteFromColleggtibles, cteFromLabUpgrade, multiplierToTE } from 'lib/vir
 // `allResearches` from the barrel's chunk. Two chunks importing each other: the page evaluated
 // shippingCapacity first, `allResearches` was still undefined, and it hung on "Loading application".
 import { resolveColleggtibleContracts } from 'lib/contracts';
-import { DEFAULT_EFFORT, EFFORT, estimateChains } from '@/search/effort';
+import { DEFAULT_EFFORT, EFFORT, estimateChains, estimateOtherCountChains } from '@/search/effort';
 import {
   buildCheckpoint,
   clearCheckpoint,
@@ -1918,6 +1918,12 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     return fit ? fit.slice(0, -1).join(' ') : '';
   });
 
+  /** The instant answer's route at each count it lists, fastest first, for Fast's check of the other
+   *  counts (driver.ts stage 4c). Only routes to this target; the driver keeps those inside the limits. */
+  const instantCountSeeds = computed(() =>
+    (instantRoutes.value ?? []).filter(r => r.length > 1 && r[r.length - 1] === finalTE.value).map(r => [...r])
+  );
+
   const seedChain = computed(() => {
     const raw = (seedOverride.value.trim() || instantSeed.value || useAutoPlannerStore().targetTE || '')
       .trim()
@@ -1977,7 +1983,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     findSeedFirst.value
       ? null
       : seedChainIssue(seedChain.value, minPrestiges.value, maxPrestiges.value, {
-          countProbe: EFFORT[effort.value].countProbe,
+          // Fast's check of the other counts reaches one either side of the seed too.
+          countProbe: EFFORT[effort.value].countProbe || EFFORT[effort.value].otherCounts,
         })
   );
 
@@ -2075,6 +2082,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       runBackupUsed = null;
       runTEUsed = summary.currentTE;
       runSeedUsed = summary.space ? [] : summary.seedChain?.length ? [...summary.seedChain] : null;
+      runCounts.value = null;
       // Else the save the run keeps for good (keptSaves.ts), whose moment and TE are the same facts.
       const kept = own?.backupAt ? own : summary.save?.backupAt ? summary.save : null;
       accountUsed = kept ? { ...accountFields(summary.currentTE), backupTime: kept.backupAt, backupTE: kept.te } : null;
@@ -2423,8 +2431,38 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // that is the scan's ladder pick - unknown up front. Its own grid spans 5-8 prestiges,
     // so price stages 4+ against the middle of that rather than the typed chain.
     const n = findSeedFirst.value ? 6 : Math.max(1, seedChain.value.length - 1);
-    return coarseChains.value + estimateChains(n, EFFORT[effort.value]);
+    return coarseChains.value + estimateChains(n, EFFORT[effort.value], otherCountsPlan.value.counts);
   });
+
+  /**
+   * Fast's check of the other ascension counts (driver.ts stage 4c) as the run will plan it: which
+   * counts, and roughly how many chains that adds (already inside `estimateForCurrentSettings`).
+   * Empty on Exact and Very high, which run the count probe instead.
+   */
+  const otherCountsPlan = computed<{ counts: number[]; chains: number }>(() => {
+    const cfg = EFFORT[effort.value];
+    if (!cfg.otherCounts) return { counts: [], chains: 0 };
+    const counts = plannedCountsFor(findSeedFirst.value ? 7 : seedChain.value.length);
+    return { counts, chains: estimateOtherCountChains(counts, cfg) };
+  });
+  function plannedCountsFor(seedLen: number, extraSeeds: readonly (readonly number[])[] = []): number[] {
+    return plannedCountChecks({
+      seedLen,
+      minLen: minPrestiges.value,
+      maxLen: maxPrestiges.value,
+      final: finalTE.value,
+      currentTE: currentTE.value,
+      seeds: [...instantCountSeeds.value, ...extraSeeds],
+    });
+  }
+
+  /**
+   * The ascension counts the last Smart search searched from (driver `countsProbed`, the seed's
+   * first) and the limits it ran under: for the CSV and diagnostics, and so "a longer route might
+   * win" stays quiet about counts the run already checked (LongerRouteHint.vue). Null for a Full
+   * sweep, a saved run, or before any run.
+   */
+  const runCounts = ref<{ counts: number[]; min: number; max: number } | null>(null);
 
   function fingerprint(playerId: string): string {
     return fingerprintRun({
@@ -3845,7 +3883,11 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
             body = gz.ok ? gz.body : null;
           }
           const up = body
-            ? await uploadCsv(`${submitUrl.replace(/\/submit\/?$/, '/csv')}?id=${encodeURIComponent(code)}`, r.uploadToken, body)
+            ? await uploadCsv(
+                `${submitUrl.replace(/\/submit\/?$/, '/csv')}?id=${encodeURIComponent(code)}`,
+                r.uploadToken,
+                body
+              )
             : null;
           if (up && (up.kind === 'stored' || up.kind === 'already')) message += ' Its CSV was stored with it.';
         } catch {
@@ -4804,6 +4846,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         runCarryOns: carryOns,
         ...(memo !== null ? { memoPerWorker: memo } : {}),
         checkpointRoutes: liveCache.length,
+        // Ascension counts searched from (Smart search), the seed's first: "6,5,7,8".
+        ...(kind === 'smart' && runCounts.value ? { countsProbed: runCounts.value.counts.join(',') } : {}),
       },
       startedAt: runStartedAt.value,
       carryOns,
@@ -4843,6 +4887,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       availability: usedSettings().availability,
       timeOff: usableTimeOff(usedSettings().timeOff),
       seedChain: seedUsed(),
+      ...(runCounts.value ? { countsProbed: runCounts.value.counts } : {}),
       runNote: runNoteUsed.value,
       ...(opts.diagnostics ? { diagnostics: diagnosticsLine() } : {}),
       // The ELR set is deliberately NOT listed. `getOptimalELRSet` re-solves the structure per leg
@@ -4887,6 +4932,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       availability: usedSettings().availability,
       timeOff: usableTimeOff(usedSettings().timeOff),
       seedChain: seedUsed(),
+      ...(runCounts.value ? { countsProbed: runCounts.value.counts } : {}),
       runNote: runNoteUsed.value,
       // The ELR set is deliberately NOT listed. `getOptimalELRSet` re-solves the structure per leg
       // against that leg's research state (up to 495 combos, and the reason it is the hotspot in
@@ -5195,6 +5241,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     accountUsed = accountFields(startInputs.currentTE);
     runBackupUsed = getSimulationContext().rawBackup ?? null;
     runSeedUsed = [];
+    runCounts.value = null;
     chainsEstimated.value = chains.length;
     bestChain.value = [];
     bestDays.value = 0;
@@ -7291,7 +7338,12 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const chain =
       !findSeedFirst.value && kept?.length && kept[kept.length - 1] === finalTE.value ? [...kept] : seedChain.value;
     runSeedUsed = [...chain];
-    chainsEstimated.value = estimateChains(Math.max(1, chain.length - 1), EFFORT[effort.value]);
+    runCounts.value = { counts: [chain.length], min: minPrestiges.value, max: maxPrestiges.value };
+    chainsEstimated.value = estimateChains(
+      Math.max(1, chain.length - 1),
+      EFFORT[effort.value],
+      EFFORT[effort.value].otherCounts ? plannedCountsFor(chain.length) : []
+    );
     bestChain.value = [...chain];
     bestDays.value = 0;
     bestLegs.value = [];
@@ -7373,6 +7425,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
 
       // Stages 2-3. One wide batch, so it is also the stage that parallelises best.
       let seed = chain;
+      /** The coarse scan's best route at each count, when it ran: more starts for Fast's stage 4c. */
+      let coarseCountSeeds: number[][] = [];
       if (findSeedFirst.value) {
         stage.value = 'coarse scan';
         coarseLog.value = [];
@@ -7385,7 +7439,13 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           shouldStop: () => stopRequested.value,
           onProgress: (done, total, d) => {
             chainsDone.value = done;
-            chainsEstimated.value = total + estimateChains(Math.max(1, chain.length - 1), EFFORT[effort.value]);
+            chainsEstimated.value =
+              total +
+              estimateChains(
+                Math.max(1, chain.length - 1),
+                EFFORT[effort.value],
+                EFFORT[effort.value].otherCounts ? plannedCountsFor(chain.length) : []
+              );
             detail.value = d;
             noteRate(done);
           },
@@ -7397,10 +7457,17 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         coarseLog.value = coarse.log;
         seed = coarse.seed;
         runSeedUsed = [...seed];
+        coarseCountSeeds = coarse.byCount.map(c => [...c.chain]);
+        runCounts.value = { counts: [seed.length], min: minPrestiges.value, max: maxPrestiges.value };
         bestChain.value = [...seed];
         bestDays.value = (coarse.byCount.find(c => c.chain.length === seed.length)?.seconds ?? 0) / 86400;
         chainsEstimated.value =
-          coarse.chainsEvaluated + estimateChains(Math.max(1, seed.length - 1), EFFORT[effort.value]);
+          coarse.chainsEvaluated +
+          estimateChains(
+            Math.max(1, seed.length - 1),
+            EFFORT[effort.value],
+            EFFORT[effort.value].otherCounts ? plannedCountsFor(seed.length, coarseCountSeeds) : []
+          );
         chainsBase = coarse.chainsEvaluated;
         noteRate(chainsBase, true);
       }
@@ -7442,6 +7509,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         // overrode whatever the user asked for in the range above.
         minCheckpoints: minPrestiges.value,
         maxCheckpoints: maxPrestiges.value,
+        // Fast's check of the other counts starts each from the instant answer's route at that count
+        // (then the coarse scan's, when it ran). A carry-on takes them as they are now: at worst it
+        // prices a few chains its first run did not.
+        countSeeds: [...instantCountSeeds.value, ...coarseCountSeeds],
         evaluateBatch: evaluateLive,
         restoredCache,
         shouldStop: () => stopRequested.value,
@@ -7460,6 +7531,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           // Keep whatever we had if this progress tick has not priced the leader yet,
           // so the table does not flicker empty between stages.
           if (p.bestLegs.length) bestLegs.value = p.bestLegs;
+          if (p.countsProbed && runCounts.value) runCounts.value = { ...runCounts.value, counts: [...p.countsProbed] };
           noteRate(chainsBase + p.chainsDone);
         },
         onCache: entries => {
@@ -7476,6 +7548,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       bestLegs.value = outcome.legs;
       lastCompletedStage.value = outcome.lastCompletedStage;
       stoppedEarly.value = outcome.stoppedEarly;
+      if (runCounts.value) runCounts.value = { ...runCounts.value, counts: [...outcome.countsProbed] };
       chainsDone.value = outcome.chainsEvaluated;
       // A run that evaluated nothing did not fail - it replayed a checkpoint that already
       // covered its whole trajectory, which is exactly what the resume banner promises. Saying
@@ -7864,6 +7937,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     instantRoutes,
     pricedCounts,
     instantSeed,
+    otherCountsPlan,
+    runCounts,
     submitsWhenDone,
     deadlineEstimate,
     deadlineEstimateNow,

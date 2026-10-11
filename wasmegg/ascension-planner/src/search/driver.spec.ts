@@ -12,7 +12,8 @@
  */
 import { describe, expect, it } from 'vitest';
 import { splitByPrefix, workersForBatch } from './batch';
-import { runChainSearch, type EvaluateBatch } from './driver';
+import { plannedCountChecks, runChainSearch, type EvaluateBatch } from './driver';
+import { EFFORT, estimateChains, estimateOtherCountChains } from './effort';
 import type { ChainResult } from './types';
 
 const FINAL = 490;
@@ -83,7 +84,8 @@ describe('runChainSearch', () => {
 
     expect(outcome.chain).toEqual([...optimum, FINAL]);
     expect(outcome.stoppedEarly).toBe(false);
-    expect(outcome.lastCompletedStage).toBe('coordinate descent');
+    // Fast's last stage is now its check of the other ascension counts (stage 4c).
+    expect(outcome.lastCompletedStage).toBe('other ascension counts');
   });
 
   it('never lets the last checkpoint walk past maxLast', async () => {
@@ -329,6 +331,207 @@ describe('the ascension-count probe', () => {
       evaluateBatch: e1,
     });
     expect(await run('normal')).toBeLessThan(p1() * 1.3);
+  });
+});
+
+/**
+ * `makeCountEvaluator`, plus a day for every checkpoint more or fewer than the optimum has (an extra
+ * ascension costs a rebuild in the game; without this, two checkpoints a step apart near one optimum
+ * cost almost nothing), recording every chain length it was asked to price.
+ */
+function makeRecordingCountEvaluator(optimum: number[]) {
+  const inner = makeCountEvaluator(optimum);
+  const lengths = new Set<number>();
+  const evaluate: EvaluateBatch = async chains => {
+    for (const c of chains) lengths.add(c.length);
+    const out = await inner.evaluate(chains);
+    return {
+      ...out,
+      results: out.results.map(r => ({
+        ...r,
+        seconds: r.seconds + Math.abs(r.chain.length - 1 - optimum.length) * 86400,
+      })),
+    };
+  };
+  return { evaluate, priced: inner.priced, lengths };
+}
+
+/**
+ * Fast has no count probe, so it used to keep the seed's count: a Fast run held at 4 ascensions
+ * finished ~4 days behind a 5-7 ascension route (row 57db9894). Stage 4c gives each other count one
+ * descent pass and walks outward while the edge wins, inside the limits.
+ */
+describe("Fast's check of the other ascension counts", () => {
+  // Six checkpoints: the best route has 7 ascensions.
+  const optimum = [190, 212, 236, 262, 292, 326];
+  const SEED4 = [205, 260, 320, FINAL];
+
+  it('finds a better count than the seed by walking outward, with no instant answer', async () => {
+    const { evaluate } = makeRecordingCountEvaluator(optimum);
+    const out = await runChainSearch({
+      seedChain: SEED4,
+      final: FINAL,
+      currentTE: CURRENT_TE,
+      effort: 'quick',
+      minCheckpoints: 2,
+      maxCheckpoints: 9,
+      evaluateBatch: evaluate,
+    });
+    expect(out.chain.length).toBe(7);
+    expect(out.chain).toEqual([...optimum, FINAL]);
+    // The seed's count first, then the walk: 3 and 5 (one either side), 6, 7, and 8 to see 7 is best.
+    expect(out.countsProbed[0]).toBe(4);
+    expect([...out.countsProbed].sort((a, b) => a - b)).toEqual([3, 4, 5, 6, 7, 8]);
+    expect(out.lastCompletedStage).toBe('other ascension counts');
+  });
+
+  it("starts each count from the instant answer's route at that count", async () => {
+    const { evaluate } = makeRecordingCountEvaluator(optimum);
+    const near7 = [188, 214, 233, 265, 290, 330, FINAL];
+    const progress: number[][] = [];
+    const out = await runChainSearch({
+      seedChain: SEED4,
+      final: FINAL,
+      currentTE: CURRENT_TE,
+      effort: 'quick',
+      minCheckpoints: 4,
+      maxCheckpoints: 8,
+      // Fastest first, as the store passes them; a route to another target is ignored.
+      countSeeds: [near7, [200, 250, 300, 480], [200, 240, 280, 320, FINAL]],
+      evaluateBatch: evaluate,
+      onProgress: p => progress.push(p.countsProbed ?? []),
+    });
+    expect(out.chain).toEqual([...optimum, FINAL]);
+    expect(out.countsProbed).toContain(7);
+    expect(progress.at(-1)).toEqual(out.countsProbed);
+  });
+
+  it('stays inside the limits, and ignores instant routes outside them', async () => {
+    const { evaluate, lengths } = makeRecordingCountEvaluator(optimum);
+    const out = await runChainSearch({
+      seedChain: [205, 240, 280, 320, FINAL],
+      final: FINAL,
+      currentTE: CURRENT_TE,
+      effort: 'quick',
+      minCheckpoints: 4,
+      maxCheckpoints: 6,
+      countSeeds: [[...optimum, FINAL]],
+      evaluateBatch: evaluate,
+    });
+    expect(out.chain.length).toBe(6);
+    expect([...lengths].every(n => n >= 4 && n <= 6)).toBe(true);
+    expect([...out.countsProbed].sort((a, b) => a - b)).toEqual([4, 5, 6]);
+  });
+
+  it('checks nothing else when the limits allow only the seed count', async () => {
+    const { evaluate, lengths } = makeRecordingCountEvaluator(optimum);
+    const out = await runChainSearch({
+      seedChain: SEED4,
+      final: FINAL,
+      currentTE: CURRENT_TE,
+      effort: 'quick',
+      minCheckpoints: 4,
+      maxCheckpoints: 4,
+      countSeeds: [[...optimum, FINAL]],
+      evaluateBatch: evaluate,
+    });
+    expect([...lengths]).toEqual([4]);
+    expect(out.countsProbed).toEqual([4]);
+  });
+
+  it('does not run on Exact, which has the count probe instead', async () => {
+    const { evaluate } = makeRecordingCountEvaluator(optimum);
+    const out = await runChainSearch({
+      seedChain: [...optimum, FINAL],
+      final: FINAL,
+      currentTE: CURRENT_TE,
+      effort: 'normal',
+      minCheckpoints: 7,
+      maxCheckpoints: 7,
+      countSeeds: [SEED4],
+      evaluateBatch: evaluate,
+    });
+    expect(out.countsProbed).toEqual([7]);
+    expect(out.lastCompletedStage).toBe('prestige-count probe');
+  });
+
+  it("counts the extra probes in the run's estimate", async () => {
+    const seeds = [
+      [200, 240, 280, 320, FINAL],
+      [...optimum, FINAL],
+    ];
+    const planned = plannedCountChecks({
+      seedLen: 4,
+      minLen: 3,
+      maxLen: 8,
+      final: FINAL,
+      currentTE: CURRENT_TE,
+      seeds,
+    });
+    // One either side of the seed, plus the instant answer's 7.
+    expect(planned).toEqual([3, 5, 7]);
+    const extra = estimateOtherCountChains(planned, EFFORT.quick);
+    expect(extra).toBeGreaterThan(0);
+    expect(estimateChains(3, EFFORT.quick, planned)).toBe(estimateChains(3, EFFORT.quick) + extra);
+    // Exact has no stage 4c, so the counts change nothing there.
+    expect(estimateChains(3, EFFORT.normal, planned)).toBe(estimateChains(3, EFFORT.normal));
+
+    const estimates: number[] = [];
+    const { evaluate } = makeRecordingCountEvaluator(optimum);
+    await runChainSearch({
+      seedChain: SEED4,
+      final: FINAL,
+      currentTE: CURRENT_TE,
+      effort: 'quick',
+      minCheckpoints: 3,
+      maxCheckpoints: 8,
+      countSeeds: seeds,
+      evaluateBatch: evaluate,
+      onProgress: p => estimates.push(p.chainsEstimated),
+    });
+    expect(estimates[0]).toBe(estimateChains(3, EFFORT.quick, planned));
+  });
+
+  it('skips the pass at a count that is days behind once its last checkpoint is solved', async () => {
+    const far8 = [180, 200, 215, 250, 270, 300, 320, FINAL];
+    const priced: number[][] = [];
+    const inner = makeRecordingCountEvaluator(optimum);
+    const out = await runChainSearch({
+      seedChain: [...optimum, FINAL],
+      final: FINAL,
+      currentTE: CURRENT_TE,
+      effort: 'quick',
+      minCheckpoints: 7,
+      maxCheckpoints: 8,
+      countSeeds: [far8],
+      evaluateBatch: async chains => {
+        priced.push(...chains);
+        return inner.evaluate(chains);
+      },
+    });
+    expect(out.countsProbed).toEqual([7, 8]);
+    // Only the last checkpoint moved at 8: every 8-ascension chain priced shares the start's prefix.
+    const eights = priced.filter(c => c.length === 8);
+    expect(eights.length).toBeGreaterThan(0);
+    expect(new Set(eights.map(c => c.slice(0, -2).join(','))).size).toBe(1);
+  });
+
+  it('costs about what the estimate says when the seed count is already right', async () => {
+    const seed = [...optimum, FINAL];
+    const { evaluate, priced } = makeRecordingCountEvaluator(optimum);
+    const out = await runChainSearch({
+      seedChain: seed,
+      final: FINAL,
+      currentTE: CURRENT_TE,
+      effort: 'quick',
+      minCheckpoints: 5,
+      maxCheckpoints: 9,
+      evaluateBatch: evaluate,
+    });
+    expect(out.chain).toEqual(seed);
+    const planned = plannedCountChecks({ seedLen: 7, minLen: 5, maxLen: 9, final: FINAL, currentTE: CURRENT_TE });
+    expect(planned).toEqual([6, 8]);
+    expect(priced()).toBeLessThanOrEqual(estimateChains(6, EFFORT.quick, planned));
   });
 });
 

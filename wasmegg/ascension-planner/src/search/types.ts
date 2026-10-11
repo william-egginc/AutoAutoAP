@@ -209,6 +209,10 @@ export interface EffortConfig {
   radius3: number;
   /** Stage 7: prestige-count probe — drop one checkpoint / insert one, then re-polish. */
   countProbe: boolean;
+  /** Stage 4c (Fast): one descent pass at each other ascension count worth checking (the instant
+   *  answer's route at that count, else a one-off drop/insert of the best route), walking outward
+   *  while the edge keeps winning, inside the limits; the winning count is then polished in full. */
+  otherCounts: boolean;
 }
 
 /** What the driver reports back after every batch, for the progress bar and the live best chain. */
@@ -227,6 +231,9 @@ export interface SearchProgress {
   /** Per-leg breakdown of bestChain, so the panel's leg table updates DURING the run
    *  instead of only when it finishes. Empty until the best chain has been priced. */
   bestLegs: LegSummary[];
+  /** Ascension counts (chain lengths) the run has searched from so far, in the order it started each
+   *  one: the seed's first. Fast's stage 4c adds to it; absent on older drivers. */
+  countsProbed?: number[];
 }
 
 /** Per-egg TE map, as the summaries carry it. */

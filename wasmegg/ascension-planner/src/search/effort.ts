@@ -23,9 +23,12 @@ import type { EffortConfig, EffortTier } from './types';
 export const EFFORT: Record<EffortTier, EffortConfig> = {
   // Descent radius is 8 in every tier: a replay of the search found the knee at radius 4 and
   // exactness at 7, so 8 is one step of margin rather than a round number.
-  quick: { slices2: false, slices3: false, radius: 8, radius3: 0, countProbe: false },
-  normal: { slices2: true, slices3: false, radius: 8, radius3: 0, countProbe: true },
-  thorough: { slices2: true, slices3: true, radius: 8, radius3: 6, countProbe: true },
+  // Fast has no count probe (its product of candidates is the expensive part of Exact's), but it does
+  // check the other ascension counts cheaply (`otherCounts`, driver.ts stage 4c): a Fast run kept at 4
+  // ascensions finished ~4 days behind a 5-7 ascension route (row 57db9894, 10 Oct).
+  quick: { slices2: false, slices3: false, radius: 8, radius3: 0, countProbe: false, otherCounts: true },
+  normal: { slices2: true, slices3: false, radius: 8, radius3: 0, countProbe: true, otherCounts: false },
+  thorough: { slices2: true, slices3: true, radius: 8, radius3: 6, countProbe: true, otherCounts: false },
 };
 
 export interface EffortNote {
@@ -50,7 +53,11 @@ export const EFFORT_NOTES: Record<EffortTier, EffortNote> = {
     label: 'Fast',
     cliDuration: '~1 h 05 m',
     typicalTime: 'Minutes.',
-    adds: 'Coordinate descent only (radius 8), re-solving the last checkpoint after every accepted move.',
+    adds:
+      'Coordinate descent (radius 8), re-solving the last checkpoint after every accepted move. ' +
+      'Then one quick pass at each other ascension count inside your limits that the instant answer has a ' +
+      'route for, and one more and one fewer, carrying on outward while that keeps winning; the best count ' +
+      'is then fine-tuned in full.',
     accuracy:
       'Measured 5 h, 0 h and 61 h behind the best answer found, on 3 accounts. ' +
       'Two later runs on one of those accounts landed about 6 days worse, ' +
@@ -88,8 +95,9 @@ export const EFFORT_NOTES: Record<EffortTier, EffortNote> = {
 /**
  * Simple's default tier: Fast (9 Oct, the user: "I want it to be fast and let them switch to more
  * exact"). It was Exact, which adds the pairs and the one-more-or-fewer probe: thousands of chains on
- * a 7-ascension start. Fast starts from the instant answer's route (store `instantSeed`) and keeps its
- * count, so a run is minutes. Exact and Very high stay one click away on the Effort slider.
+ * a 7-ascension start. Fast starts from the instant answer's route (store `instantSeed`), then gives
+ * each other count in the limits one pass from the instant answer's route at that count (stage 4c),
+ * so a run is still minutes. Exact and Very high stay one click away on the Effort slider.
  */
 export const DEFAULT_EFFORT: EffortTier = 'quick';
 
@@ -124,7 +132,7 @@ export const ACCURACY_SAMPLE = 'n = 3 accounts';
  *
  * `n` is the number of checkpoints before the final target.
  */
-export function estimateChains(n: number, cfg: EffortConfig): number {
+export function estimateChains(n: number, cfg: EffortConfig, otherCounts: readonly number[] = []): number {
   let est = (2 * cfg.radius + 1) * n * 3 + 25 * n * 2;
   if (cfg.slices2) est += (2 * cfg.radius + 1) ** 2 * Math.max(n - 1, 1);
   // n-2 TRIPLES, not n-3. driver.ts sweeps `j` from `len-4` down to `pin`, which is len-3 = n-2
@@ -133,5 +141,21 @@ export function estimateChains(n: number, cfg: EffortConfig): number {
   // go, so the bar approached full while a quarter of the stage remained.
   if (cfg.slices3) est += (2 * cfg.radius3 + 1) ** 3 * Math.max(n - 2, 1);
   if (cfg.countProbe) est += Math.floor(3 ** Math.max(n - 1, 1) / 2) + (2 * cfg.radius + 1) * n;
+  if (cfg.otherCounts) est += estimateOtherCountChains(otherCounts, cfg);
+  return est;
+}
+
+/**
+ * Fast's stage 4c, for the counts it plans to check (chain lengths, final included; driver.ts
+ * `plannedCountChecks`). Per count, with k = length - 2 movable checkpoints: the last-checkpoint
+ * sweep (~25), then ONE descent pass (2r+1 per checkpoint, plus a ~25-chain re-solve of the last after
+ * each accepted move), plus ~2 x length chains to build a start by dropping or inserting a checkpoint
+ * when the instant answer has no route at that count. 7 ascensions: 25 + 5 x 42 + 14 = 249 chains.
+ * Not included: the walk past the planned counts (only while the edge keeps winning) and the full
+ * polish of a count that wins (descent stops when nothing moves, so usually a pass or two).
+ */
+export function estimateOtherCountChains(counts: readonly number[], cfg: EffortConfig): number {
+  let est = 0;
+  for (const len of counts) est += 25 + Math.max(0, len - 2) * (2 * cfg.radius + 1 + 25) + 2 * len;
   return est;
 }

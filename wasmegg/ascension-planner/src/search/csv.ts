@@ -55,6 +55,10 @@ export interface CsvMeta {
   /** Time off from the virtue farm the plan was built around (search/timeOff.ts). */
   timeOff?: TimeOffDates[];
   seedChain: number[];
+  /** Ascension counts (chain lengths) a Smart search searched from, the seed's first (driver
+   *  `countsProbed`). Fast checks the other counts in its limits (driver.ts stage 4c), so the file says
+   *  which. Written after the seed chain; left out when unknown. */
+  countsProbed?: number[];
   /** The player's note on the run. Printed on one line whatever it holds (line breaks would end the
    *  comment and start a data row). */
   runNote?: string;
@@ -488,6 +492,10 @@ function metaLines(meta: CsvMeta, head: string[], count: string): string[] {
       `time off from virtue: ${describeTimeOff(meta.timeOff)} (each ends the ascension in progress; a rebuild follows)`
     );
   if (meta.seedChain.length) note(`seed chain ${meta.seedChain.join(' ')}`);
+  if (meta.countsProbed?.length)
+    note(
+      `ascension counts searched ${[...meta.countsProbed].sort((a, b) => a - b).join(' ')} (seed's ${meta.countsProbed[0]})`
+    );
   // eslint-disable-next-line no-control-regex
   const runNote = meta.runNote?.replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, ' ').trim();
   if (runNote) note(`note: ${runNote}`);

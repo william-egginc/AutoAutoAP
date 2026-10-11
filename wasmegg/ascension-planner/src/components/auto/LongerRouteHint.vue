@@ -1,7 +1,8 @@
 <!--
   "A longer route might win": the note under a finished Fastest result, on Smart search and the Full
-  sweep alike (lib/longerRouteHint.ts decides; this draws). Fastest is meant to be fast, not best, so
-  it never searches more ascensions than were chosen; this says when one more may be faster:
+  sweep alike (lib/longerRouteHint.ts decides; this draws). Fastest never searches outside the chosen
+  limits; Smart search settles the count inside them itself (`run`), so there this is left for a count
+  outside them or one a stopped run never reached. It says when another count may be faster:
     - the instant answer has a faster route (InstantRoute.vue, through stores/instantSummary.ts), or
     - the best route uses the most ascensions that were searched, so it sits at the edge.
   Each note has a button that sets up that ascension count (the screen says how: a chain on the Full
@@ -63,8 +64,10 @@ const props = withDefaults(
     mode: 'chain' | 'start';
     /** Sets up that count and says what it did (shown under the note). */
     onAdd: (count: number) => string;
+    /** Smart search: the counts its run searched and its limits (store `runCounts`); null elsewhere. */
+    run?: { counts: number[]; min: number; max: number } | null;
   }>(),
-  { disabled: false, canAdd: true }
+  { disabled: false, canAdd: true, run: null }
 );
 const emit = defineEmits<{ check: [chain: number[]] }>();
 
@@ -83,6 +86,7 @@ const hints = computed(() => {
     bestSeconds: store.bestDays * 86400,
     searchedCounts: store.pricedCounts(),
     instant: instant.fastest,
+    run: props.run,
   });
 });
 

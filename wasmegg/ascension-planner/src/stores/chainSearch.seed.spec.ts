@@ -82,17 +82,47 @@ describe('chainSearch: seedChain', () => {
     expect(store.seedIssue).toEqual({ kind: 'too-short', ascensions: 2, minPrestiges: 5, probeCanFix: false });
   });
 
-  it('flags a chain longer than the maximum on a tier with no prestige-count probe', () => {
-    // The reported case: `199 222 252 291 490` under a maximum of 4, on Fast. The limits only
-    // reach the coarse scan and the probe, and Fast runs neither, so every stage would have
-    // worked on a 5-ascension chain and returned one.
+  it('marks a chain one longer than the maximum as fixable on Fast, which checks the other counts', () => {
+    // The reported case: `199 222 252 291 490` under a maximum of 4, on Fast. Fast used to keep the
+    // seed's count, so this came back with 5 ascensions; its check of the other counts (driver.ts
+    // stage 4c) now tries 4 and below, like Exact's probe.
     const store = setup({ targetTE: '199 222 252 291' });
     store.minPrestiges = 2;
     store.maxPrestiges = 4;
     store.effort = 'quick';
 
     expect(store.seedChain).toEqual([199, 222, 252, 291, 490]);
-    expect(store.seedIssue).toEqual({ kind: 'too-long', ascensions: 5, maxPrestiges: 4, probeCanFix: false });
+    expect(store.seedIssue).toEqual({ kind: 'too-long', ascensions: 5, maxPrestiges: 4, probeCanFix: true });
+    // Two over is still out of reach.
+    store.maxPrestiges = 3;
+    expect(store.seedIssue).toEqual({ kind: 'too-long', ascensions: 5, maxPrestiges: 3, probeCanFix: false });
+  });
+
+  it("counts Fast's check of the other ascension counts in the estimate", () => {
+    const store = setup({ targetTE: '195 226 277 317' });
+    store.minPrestiges = 4;
+    store.maxPrestiges = 8;
+    store.effort = 'quick';
+    const before = store.estimateForCurrentSettings;
+    // One either side of the seed's 5.
+    expect(store.otherCountsPlan.counts).toEqual([4, 6]);
+    // The instant answer's routes add their counts (a route to another target does not).
+    store.instantRoutes = [
+      [195, 226, 277, 317, 490],
+      [190, 215, 240, 265, 290, 320, 490],
+      [190, 215, 240, 265, 290, 320, 340, 480],
+    ];
+    expect(store.otherCountsPlan.counts).toEqual([4, 6, 7]);
+    expect(store.otherCountsPlan.chains).toBeGreaterThan(0);
+    expect(store.estimateForCurrentSettings).toBeGreaterThan(before);
+    // Exact runs the count probe instead.
+    store.effort = 'normal';
+    expect(store.otherCountsPlan).toEqual({ counts: [], chains: 0 });
+    // And limits that allow only the seed's count leave nothing to check.
+    store.effort = 'quick';
+    store.minPrestiges = 5;
+    store.maxPrestiges = 5;
+    expect(store.otherCountsPlan.counts).toEqual([]);
   });
 
   it('marks the same chain as probe-fixable on a tier that runs the probe', () => {

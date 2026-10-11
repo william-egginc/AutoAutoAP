@@ -175,6 +175,12 @@ describe('buildChainsCsv', () => {
     expect(buildChainsCsv([], META)).not.toContain('# note:');
   });
 
+  it("says which ascension counts a Smart search searched, the seed's first", () => {
+    const csv = buildChainsCsv([], { ...META, countsProbed: [6, 5, 7, 8] });
+    expect(csv).toContain("# ascension counts searched 5 6 7 8 (seed's 6)\n");
+    expect(buildChainsCsv([], META)).not.toContain('ascension counts searched');
+  });
+
   it('survives an empty cache', () => {
     const csv = buildChainsCsv([], META);
     expect(dataRows(csv)).toHaveLength(0);
