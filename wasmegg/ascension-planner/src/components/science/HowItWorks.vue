@@ -361,9 +361,10 @@
             later starts and see when the answer drops) but not enough checked examples yet.
           </li>
           <li>
-            <b>Not built yet: the "one more TE" hint.</b> At the top of a {{ NAMES.byDate }} answer, one more TE costs a
-            flat 45 to 53 hours of the final ascension (measured on two accounts). So if your answer has more than about
-            2 days to spare, try its last stop one TE higher.
+            <b>The "a better route may exist" hint.</b> At the top of a {{ NAMES.byDate }} answer, one more TE costs
+            about 45 to 53 hours of the final ascension (measured on two accounts). A finished search already tries the
+            last stop one TE higher, so the hint only shows when a run stopped early or its boxes were narrow and it
+            has more spare than one TE costs: let it finish, or widen the boxes.
           </li>
           <li>
             <b>Joo's newer simulator changes</b> (earnings lookaheads, a new opening, a tier-12 unlock) aren't in this
