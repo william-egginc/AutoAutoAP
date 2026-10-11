@@ -1760,6 +1760,19 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   const planStartUsed = ref(0);
 
   /**
+   * The plan start the results being described were priced from, for the shortlist, the submission,
+   * the sent-already key and the CSV: the run's own (`planStartUsed`), or -- for a CSV of a stored
+   * checkpoint's entries, with nothing priced in this tab -- the start in that checkpoint's
+   * fingerprint. These all fell back to the Plan start box before, so an opened run with no start
+   * in its fingerprint, or a CSV of the stored checkpoint, was dated from whatever the box said at
+   * click time. The box only when no run has any start at all.
+   */
+  function resultsPlanStart(checkpoint?: SearchCheckpoint | null): number {
+    if (checkpoint) return fingerprintPlanStart(checkpoint.fingerprint) || planStartUsed.value || planStart.value;
+    return planStartUsed.value || fingerprintPlanStart(openedRun.value?.fingerprint) || planStart.value;
+  }
+
+  /**
    * The settings a run STARTED with, for its record (BobSki's ee34f753, found 5 Oct): the search
    * prices with the inputs snapshotted at its start, but the submission, the recheck and the CSV used
    * to read these live, so switching playing hours off before sending labelled a scheduled run "any
@@ -2793,7 +2806,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     pruneLegDetail();
     const entries = allEntries();
     shortlist.value = buildView(entries, shortlistView.value, {
-      planStart: planStartUsed.value || planStart.value,
+      planStart: resultsPlanStart(),
       timezone: useAutoPlannerStore().timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
     });
     let priced = 0;
@@ -3070,7 +3083,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       chain: [...bestChain.value],
       seconds: bestDays.value * 86400,
       legs: bestLegs.value,
-      planStart: planStartUsed.value || planStart.value,
+      planStart: resultsPlanStart(),
       timezone: useAutoPlannerStore().timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
       currentTE: runTEUsed ?? currentTE.value,
       // The run's own target -- its chain ends there -- not the box as it reads now: a run finished
@@ -3209,9 +3222,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       finalTE.value,
       bestChain.value.join(' '),
       Math.round(bestDays.value * 1e4),
-      // The plan start the submission itself carries (see buildRunSubmission): a reopened saved run
-      // has no planStartUsed.
-      planStartUsed.value || planStart.value,
+      // The plan start the submission itself carries (see buildRunSubmission).
+      resultsPlanStart(),
       currentTE.value,
       // 'fresh' was this key's tag for Fastest (the boolean off) before 9 Oct, so Fastest keeps it and
       // Prestige Now gets one of its own: results already sent still read as sent. Continue my
@@ -4591,6 +4603,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   function exportCsv(opts: { diagnostics?: boolean } = {}): string {
     const own = allEntries();
     const entries = own.length ? own : resumable.value ? restoreEntries(resumable.value) : [];
+    // The entries' own start: the stored checkpoint's when they are its.
+    const csvStart = resultsPlanStart(own.length ? null : resumable.value);
     // Read off the backup here, on the main thread: `getSimulationContext()` is Pinia-bound. The
     // run's own save when it has one (a carried-on run keeps its save while the tab may load a newer).
     const raw = (runBackupUsed ?? getSimulationContext().rawBackup ?? null) as
@@ -4598,7 +4612,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       | null;
     const equipped = raw ? getArtifactLoadoutFromBackup(raw) : null;
     return buildChainsCsv(entries, {
-      planStart: planStartUsed.value || planStart.value,
+      planStart: csvStart,
       timezone: useAutoPlannerStore().timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
       currentTE: runTEUsed ?? currentTE.value,
       final: finalTE.value,
@@ -4631,6 +4645,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   function* exportCsvChunks(opts: { partial?: CsvMeta['partial'] } = {}): Generator<string> {
     const own = allEntries();
     const entries = own.length ? own : resumable.value ? restoreEntries(resumable.value) : [];
+    // The entries' own start: the stored checkpoint's when they are its.
+    const csvStart = resultsPlanStart(own.length ? null : resumable.value);
     // Read off the backup here, on the main thread: `getSimulationContext()` is Pinia-bound. The run's
     // own save when it has one, as `exportCsv` does: the download read whatever save was loaded at
     // click time, so a carried-on run's file could list another save's inventory.
@@ -4640,7 +4656,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const equipped = raw ? getArtifactLoadoutFromBackup(raw) : null;
     yield* chainsCsvChunks(entries, {
       ...(opts.partial ? { partial: opts.partial } : {}),
-      planStart: planStartUsed.value || planStart.value,
+      planStart: csvStart,
       timezone: useAutoPlannerStore().timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
       currentTE: runTEUsed ?? currentTE.value,
       final: finalTE.value,
