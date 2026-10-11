@@ -731,34 +731,22 @@
         "
         @carry-on="run(true)"
       />
-      <p
-        v-if="autoSubmitted && submitMessage && !store.isRunning"
-        class="rounded-lg border px-3 py-2 text-[11px]"
-        :class="
-          !submitOk
-            ? 'bg-red-50 border-red-200 text-red-800'
-            : submitPartial
-              ? 'bg-amber-50 border-amber-200 text-amber-900'
-              : 'bg-emerald-50 border-emerald-200 text-emerald-800'
-        "
-      >
-        <b>Submitted automatically.</b> {{ submitMessage }}
-        <!-- Sent anonymously (the default), and the name box now says who to credit: name the
-             stored row rather than sending a second copy. -->
-        <button
-          v-if="nameToClaim"
-          type="button"
-          :disabled="claiming"
-          class="ml-2 px-2.5 py-1 rounded-md border border-current text-[10px] font-black uppercase tracking-widest hover:bg-white/60 disabled:opacity-40"
-          @click="claim"
-        >
-          {{ claiming ? 'Renaming...' : 'Put my name on it' }}
-        </button>
-      </p>
-
-      <!-- The same, for a run that finished (and sent) while this panel was closed for another tab. -->
+      <!-- A run that finished (and sent) while this panel was closed for another tab. -->
       <UnsentResults kind="fastest" :player-id="playerId" :nickname="nickname" />
-      <AutoSendReport v-if="!autoSubmitted" kind="smart" />
+      <RunSendReport
+        kind="smart"
+        :own="autoSubmitted"
+        :running="store.isRunning"
+        :message="submitMessage"
+        :ok="submitOk"
+        :partial="submitPartial"
+        :name-to-claim="nameToClaim"
+        :claiming="claiming"
+        :pending-table="store.pendingTable?.source === 'fastest'"
+        :retrying="retryingTable"
+        @claim="claim"
+        @retry="retryTable"
+      />
 
       <!-- When to start this route: every hour of the next week, as fresh starts. -->
       <StartTimeFinder
@@ -1247,7 +1235,7 @@ import { useFastestShare } from '@/composables/useFastestShare';
 import BoardSubmitButtons from './BoardSubmitButtons.vue';
 import StepAwayOptions from './StepAwayOptions.vue';
 import SavedRuns from './SavedRuns.vue';
-import AutoSendReport from './AutoSendReport.vue';
+import RunSendReport from './RunSendReport.vue';
 import RouteResultCard from './RouteResultCard.vue';
 import LongerRouteHint from './LongerRouteHint.vue';
 import { defaultSeedChain } from '@/search/seedChain';

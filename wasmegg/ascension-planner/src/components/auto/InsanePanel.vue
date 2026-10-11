@@ -178,39 +178,21 @@
           </span>
         </div>
         <!-- The automatic submission, reported where the player pressed Start. -->
-        <div
-          v-if="autoSubmitted && submitMessage"
-          class="rounded-lg border px-3 py-2 text-[11px] space-y-2"
-          :class="
-            !submitOk
-              ? 'bg-red-50 border-red-200 text-red-800'
-              : submitPartial
-                ? 'bg-amber-50 border-amber-200 text-amber-900'
-                : 'bg-emerald-50 border-emerald-200 text-emerald-800'
-          "
-        >
-          <p><b>Submitted automatically.</b> {{ submitMessage }}</p>
-          <!-- Sent anonymously (the default), and the name box above now says who to credit: name the
-               stored row rather than sending a second copy. -->
-          <button
-            v-if="nameToClaim"
-            type="button"
-            :disabled="claiming"
-            class="px-3 py-1.5 rounded-lg border border-current text-[10px] font-black uppercase tracking-widest hover:bg-white/60 disabled:opacity-40"
-            @click="claim"
-          >
-            {{ claiming ? 'Renaming...' : 'Put my name on it' }}
-          </button>
-          <button
-            v-if="store.pendingTable?.source === 'fastest'"
-            type="button"
-            :disabled="retryingTable"
-            class="px-3 py-1.5 rounded-lg border border-amber-300 text-amber-800 text-[10px] font-black uppercase tracking-widest hover:bg-amber-50 disabled:opacity-40"
-            @click="retryTable"
-          >
-            {{ retryingTable ? 'Retrying...' : 'Retry the table' }}
-          </button>
-        </div>
+        <RunSendReport
+          kind="full"
+          :own="autoSubmitted"
+          :running="store.isRunning"
+          :message="submitMessage"
+          :ok="submitOk"
+          :partial="submitPartial"
+          :name-to-claim="nameToClaim"
+          :claiming="claiming"
+          :pending-table="store.pendingTable?.source === 'fastest'"
+          :retrying="retryingTable"
+          quiet
+          @claim="claim"
+          @retry="retryTable"
+        />
         <!-- Said HERE as well as further down: the card's Start is at the top of a long page, and a
              refusal that only appears below the fold reads as "the button does nothing". -->
         <p
@@ -883,7 +865,22 @@
         />
         <!-- A Find and submit that finished (and sent) while this panel was closed for another tab. -->
         <UnsentResults kind="fastest" :player-id="playerId" :nickname="nickname" />
-        <AutoSendReport v-if="!autoSubmitted" kind="full" />
+        <!-- How the automatic send went (with a sweep link, the card at the top says it). -->
+        <RunSendReport
+          kind="full"
+          :own="autoSubmitted && !sweepRequest"
+          :running="store.isRunning"
+          :message="submitMessage"
+          :ok="submitOk"
+          :partial="submitPartial"
+          :name-to-claim="nameToClaim"
+          :claiming="claiming"
+          :pending-table="store.pendingTable?.source === 'fastest'"
+          :retrying="retryingTable"
+          :quiet="autoSubmitted"
+          @claim="claim"
+          @retry="retryTable"
+        />
 
         <RunErrorNotes
           :notes="store.runNotes"
@@ -1138,7 +1135,7 @@ import { NICKNAME_MAX, useFastestShare } from '@/composables/useFastestShare';
 import BoardSubmitButtons from './BoardSubmitButtons.vue';
 import StepAwayOptions from './StepAwayOptions.vue';
 import SavedRuns from './SavedRuns.vue';
-import AutoSendReport from './AutoSendReport.vue';
+import RunSendReport from './RunSendReport.vue';
 import RouteResultCard from './RouteResultCard.vue';
 import { parseSweepRequest, withoutSweepParams } from '@/search/sweepRequest';
 import { describeFirstAscension } from '@/search/firstAscension';

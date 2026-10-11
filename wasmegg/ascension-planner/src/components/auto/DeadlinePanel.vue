@@ -429,7 +429,18 @@
     <!-- A Find and submit that finished (and shared) while this panel was closed for another tab. -->
     <!-- Finished results kept until sent (search/pendingSends.ts): "This result wasn't sent: Send it now". -->
     <UnsentResults kind="deadline" :player-id="playerId" :nickname="shareName" />
-    <AutoSendReport v-if="!shareMessage" kind="by-date" />
+    <RunSendReport
+      kind="by-date"
+      :own="autoShared"
+      :running="store.deadlineRunning"
+      :message="shareMessage"
+      :ok="shareOk"
+      :partial="sharePartial"
+      :pending-table="store.pendingTable?.source === 'deadline'"
+      :retrying="retryingTable"
+      :quiet="!!shareMessage"
+      @retry="retryTable"
+    />
     <!-- Find / Find and submit: the same bar as Fastest route (FindBar.vue), with this screen's own
          consent wording. The same share settings as the Share this result box under the result. -->
     <FindBar
@@ -835,7 +846,7 @@ import { durationLabel, useRunClock } from '@/composables/useRunClock';
 import { useRunDownloads } from '@/composables/useRunDownloads';
 import { useDateRowSliders } from '@/composables/useRowSliders';
 import StepAwayOptions from './StepAwayOptions.vue';
-import AutoSendReport from './AutoSendReport.vue';
+import RunSendReport from './RunSendReport.vue';
 import { NAMES, fastestName } from '@/lib/siteNav';
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { LONG_RUN_WORKERS, useChainSearchStore } from '@/stores/chainSearch';
@@ -1719,6 +1730,7 @@ async function resume(): Promise<void> {
     shareExtras.sendDiagnostics.value = submit.sendDiagnostics;
   }
   autoShare.value = !!submit?.whenDone;
+  autoShared.value = false;
   store.lastAutoSend = null;
   store.submitsWhenDone = autoShare.value;
   store.beginBestSoFar('deadline', submit ? { nickname: submit.nickname } : null);
@@ -1764,12 +1776,16 @@ async function owesAnswer(): Promise<boolean> {
 async function shareFinished(): Promise<void> {
   if (!result.value || !best.value || store.error) return;
   shareOptIn.value = true;
+  autoShared.value = true;
   await share();
   store.lastAutoSend = { kind: 'by-date', ok: shareOk.value, text: shareMessage.value };
 }
 
 /** Set while a Find and submit run is going: it shares its best answer when it finishes. */
 const autoShare = ref(false);
+/** This panel shared the last answer by itself (Find and submit, or a run that owed its answer): the
+ *  report beside Find says how it went. Cleared when a run starts. */
+const autoShared = ref(false);
 
 /** Find, and with `andSubmit` share the best answer at the end (not when stopped early or failed). */
 /** Stop pressed, until the run ends: the store's stop flag for a date search isn't reactive. */
@@ -1787,6 +1803,7 @@ function stopDeadline(): void {
 
 async function start(andSubmit: boolean): Promise<void> {
   autoShare.value = andSubmit && shareOptIn.value;
+  autoShared.value = false;
   store.lastAutoSend = null;
   // For the progress bar on other tabs: this run shares its answer when it finishes.
   store.submitsWhenDone = autoShare.value;
