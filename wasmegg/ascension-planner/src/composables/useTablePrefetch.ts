@@ -10,7 +10,7 @@ import { useInitialStateStore } from '@/stores/initialState';
 import { cteFromArtifacts } from 'lib/virtue';
 import { equippedArtifactsToLibArtifacts } from '@/lib/artifacts/utils';
 import { instantDeliveryScale } from '@/search/leg';
-import { gearStamp, gearTableName, tableName } from '@/search/tableGear';
+import { gearStamp, gearTableNames, tableName } from '@/search/tableGear';
 import { prefetchAllowed, prefetchFiles, prefetchPlan } from '@/search/tablePrefetch';
 import type { TableEntry } from '@/search/tableBracket';
 import type { TableHeader } from '@/search/precomputedTable';
@@ -55,8 +55,8 @@ export function useTablePrefetch(): void {
       if (!k3) return;
       const earnings = store.readInventory().earnings;
       const stamp = gearStamp(inputs, earnings, k3.research);
-      const gear = stamp ? await gearTableName(stamp) : null;
-      const key = `${await tableName(id)}|${gear ?? ''}`;
+      const gear = stamp ? await gearTableNames(stamp) : null;
+      const key = `${await tableName(id)}|${gear?.[0] ?? ''}`;
       if (done().includes(key)) return;
       markDone(key);
       const player = {

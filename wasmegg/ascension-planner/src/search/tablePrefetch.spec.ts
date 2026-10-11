@@ -27,6 +27,18 @@ describe('prefetchPlan', () => {
       'table.bin',
     ]);
   });
+  it('a gear table under the first name tried that is listed, as a file or an alias', () => {
+    const aliased: TableEntry[] = entries.map(e =>
+      e.file === 'gear-mine.bin' ? { ...e, aliases: ['gear-canon.bin'] } : e
+    );
+    expect(
+      prefetchPlan({ entries: aliased, own: null, gear: ['gear-canon.bin', 'gear-mine.bin'], player: null, te: 150 })
+    ).toEqual(['gear-canon.bin', 'table.bin']);
+    // Not aliased yet: the legacy name the page falls back to.
+    expect(
+      prefetchPlan({ entries, own: null, gear: ['gear-canon.bin', 'gear-mine.bin'], player: null, te: 150 })
+    ).toEqual(['gear-mine.bin', 'table.bin']);
+  });
   it('else the maxed table, then the nearest tables above and below (none for maxed gear)', () => {
     expect(
       prefetchPlan({ entries, own: null, gear: 'gear-none.bin', player: { bonus: 125, k: 0.9 }, te: 150 })

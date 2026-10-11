@@ -17,6 +17,9 @@ export interface TableEntry {
   k: number;
   /** The lowest start TE it has. */
   from: number;
+  /** The same file deployed under other names too: a gear table's canonical name beside the legacy
+   *  one it was first deployed under (tableGear.ts gearTableName, scripts/precompute.ts --manifest). */
+  aliases?: string[];
   /** On the maxed table's entry only: its waiting research and delivery set (TableHeader.k3). */
   k3?: { research: Record<string, number>; delivery: unknown[] };
 }
