@@ -172,6 +172,11 @@ export interface LegSummary {
    *  ('continue' = finish without buying, 'buildup' = continue my build-up, 'fresh' = the best fresh
    *  build; search/leg.ts `LegResult.firstLegEnds`). Absent on runs from before 10 Oct 2026. */
   firstLegEnds?: Partial<Record<'continue' | 'buildup' | 'fresh', number>>;
+  /** The route's LAST leg only (search/chain.ts): each virtue egg's lifetime eggs delivered and TE at
+   *  the end of the route, in VIRTUE_EGGS order, and the egg the farm is on then. By a date's card
+   *  reads it for TE per egg and when the next TE would come (search/endEggs.ts). Absent on every
+   *  other leg, on replayed legs and on runs from before 11 Oct 2026. */
+  endEggs?: { delivered: number[]; te: number[]; egg: string };
   /** Read back from a By a date checkpoint (search/deadlineStore.ts `replayingEvaluator`), which keeps
    *  only each leg's end TE, end time, duration and strategy: peak delivery, start, shifts and leg 1's
    *  rival are UNKNOWN here, not zero. Absent on a leg simulated in this session. */

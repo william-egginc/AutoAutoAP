@@ -8,16 +8,23 @@
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useUIStore } from '@/stores/ui';
 import type { LegSummary } from './types';
+import type { FirstAscension } from './firstAscension';
 
+/**
+ * `opts.from`: where the banner says the route came from ("the instant answer" unless given; By a
+ * date's answer card passes its own). `opts.firstAscension`: the setting the route was priced under,
+ * for a result whose run recorded its own (stores/chainSearch.ts `applyChain`).
+ */
 export function simulateRoute(
   chain: number[],
   back: 'fastest' | 'by-date',
-  opts: { start?: number; legs?: LegSummary[] } = {}
+  opts: { start?: number; legs?: LegSummary[]; firstAscension?: FirstAscension; from?: string } = {}
 ): void {
   const store = useChainSearchStore();
   const ui = useUIStore();
-  ui.planFromInstant = { chain: [...chain], back };
-  store.applyChain(chain, true, opts);
+  const { from, ...apply } = opts;
+  ui.planFromInstant = { chain: [...chain], back, ...(from ? { from } : {}) };
+  store.applyChain(chain, true, apply);
   store.generateWhenPlannerOpens = true;
   ui.openPlannerRequested++;
 }

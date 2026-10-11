@@ -265,8 +265,9 @@
         class="mb-3 scroll-mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-[12px] text-emerald-900 flex flex-wrap items-center gap-x-3 gap-y-1"
       >
         <span
-          >Simulated <b class="font-mono-premium">{{ routeText(fromInstant.chain) }}</b> from the instant answer. Each
-          ascension's View details lists its steps and purchases.</span
+          >Simulated <b class="font-mono-premium">{{ routeText(fromInstant.chain) }}</b> from
+          {{ fromInstant.from ?? 'the instant answer' }}. Each ascension's View details lists its steps and
+          purchases.</span
         >
         <a
           :href="fromInstant.back === 'by-date' ? '#/auto/by-date' : '#/auto/fastest'"

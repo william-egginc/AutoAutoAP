@@ -5,14 +5,17 @@
  * click that sent twice) had to be made two or three times.
  *
  *  - `createShareIdentity` / `useShareIdentity`: the consent tick, anonymous-or-named, and the name
- *    box that follows the account's own name until the player types in it. The consent starts
- *    unticked on every visit (FindBar.vue explains why it is not remembered).
+ *    box that follows the account's own name until the player types in it. The name is one per
+ *    account across the site (stores/shareName.ts): typed in one screen, it is in the others. The
+ *    consent and anonymous-or-named stay each screen's own; the consent starts unticked on every
+ *    visit (FindBar.vue explains why it is not remembered).
  *  - `useBoardSubmit`: the race-to-the-target send (Smart search and the Full sweep): the status
  *    message, Put my name on it, Retry the table, the rechecks worked out once consent is given,
  *    and the guard against sending a result twice. Each screen still says HOW it sends (`send`).
  *  - `useByDateShare`: the By a date send, to Compare's Egg Day or By a date tab.
  */
-import { computed, ref, watch, type ComputedRef, type Ref } from 'vue';
+import { computed, ref, watch, type ComputedRef, type Ref, type WritableComputedRef } from 'vue';
+import { useShareNameStore } from '@/stores/shareName';
 import { useEidsStore } from 'lib';
 import { sentence } from '@/utils/errors';
 import { NAMES } from '@/lib/siteNav';
@@ -29,24 +32,61 @@ export interface ShareIdentity {
   /** Anonymous by default: crediting yourself should be a choice, not the fallback. */
   anonymous: Ref<boolean>;
   /** The "Credit me as" box. */
-  nickname: Ref<string>;
-  /** The player typed in the name box: it stops following the account's name. */
-  nicknameTouched: Ref<boolean>;
+  nickname: WritableComputedRef<string>;
+  /** The player typed in the name box: it stops following the account's name. Set it true after
+   *  each keystroke (the boxes' `nicknameTyped`): what is in the box becomes the shared name. */
+  nicknameTouched: WritableComputedRef<boolean>;
+}
+
+/** The account's shared name (stores/shareName.ts): undefined until one is typed. */
+export interface SharedName {
+  get(): string | undefined;
+  set(name: string): void;
 }
 
 /**
  * The name box starts from the account's own name and follows it (the username arrives when a
- * backup finishes loading, which can be after the screen mounts) until the player types in it.
+ * backup finishes loading, which can be after the screen mounts) until a name is typed: in this box,
+ * or in any other screen's, as they share it (`shared`; without one, this box's own).
+ *
+ * Writes before the player types (a carried-on run putting back the name it was started with) stay
+ * this screen's alone; once typed here, what is in the box is the shared name.
  */
-export function createShareIdentity(accountName: Ref<string>): ShareIdentity {
+export function createShareIdentity(accountName: Ref<string>, shared?: SharedName): ShareIdentity {
   const optIn = ref(false);
   const anonymous = ref(true);
-  const nickname = ref(accountName.value);
-  const nicknameTouched = ref(false);
-  watch(accountName, name => {
-    if (!nicknameTouched.value) nickname.value = name;
+  const own = ref<string | undefined>(undefined);
+  const name: SharedName = shared ?? { get: () => own.value, set: v => (own.value = v) };
+  /** This screen's own name, set by code, until the player types. */
+  const local = ref<string | null>(null);
+  const typed = ref(false);
+  const nickname = computed<string>({
+    get: () => local.value ?? name.get() ?? accountName.value,
+    set: v => {
+      if (typed.value) {
+        local.value = null;
+        name.set(v);
+      } else local.value = v;
+    },
+  });
+  const nicknameTouched = computed<boolean>({
+    get: () => typed.value || local.value !== null || name.get() !== undefined,
+    set: v => {
+      typed.value = v;
+      if (v && local.value !== null) {
+        name.set(local.value);
+        local.value = null;
+      }
+    },
   });
   return { optIn, anonymous, nickname, nicknameTouched };
+}
+
+/** The account's shared "Credit me as" name (stores/shareName.ts), loaded from this browser. */
+export function useSharedName(playerId: () => string): SharedName {
+  const names = useShareNameStore();
+  watch(playerId, id => void names.load(id), { immediate: true });
+  return { get: () => names.nameFor(playerId()), set: v => names.setName(playerId(), v) };
 }
 
 /**
@@ -63,7 +103,7 @@ export function useAccountName(playerId: () => string): ComputedRef<string> {
 }
 
 export function useShareIdentity(playerId: () => string): ShareIdentity {
-  return createShareIdentity(useAccountName(playerId));
+  return createShareIdentity(useAccountName(playerId), useSharedName(playerId));
 }
 
 /** The parts of the chain search store the race-to-the-target send reads. */

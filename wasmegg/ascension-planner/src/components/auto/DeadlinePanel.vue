@@ -487,6 +487,9 @@
             :deadline="store.deadlineRunDeadline || deadline"
             :zone="plannerZone"
             running
+            simulate
+            :simulate-note="liveSim?.note"
+            @simulate="simulateLive"
           />
           <div v-if="store.deadlineProgress.top.length > 1" class="overflow-x-auto">
             <p class="text-[10px] font-black uppercase tracking-widest text-slate-500 pb-1">Top routes so far</p>
@@ -564,13 +567,26 @@
     </p>
 
     <div v-if="result" class="space-y-3">
-      <ByDateRouteCard v-if="best" :route="best" :deadline="result.deadline" :zone="plannerZone">
+      <ByDateRouteCard
+        v-if="best"
+        :route="best"
+        :deadline="result.deadline"
+        :zone="plannerZone"
+        simulate
+        :simulate-note="resultSim?.note"
+        @simulate="simulateResult"
+      >
         <template #heading>
           <span v-if="!store.deadlineRunning && fromEarlier" class="font-semibold normal-case tracking-normal">
             · saved result from {{ ago(result.at) }}</span
           >
         </template>
-        <template v-if="result.stoppedEarly"> Stopped early, so a better route may not have been tried.</template>
+        <!-- One more TE (search/oneMoreTE.ts): stopped early, or narrow or edge boxes, with more spare
+             than one more TE costs. Otherwise the plain "stopped early". -->
+        <span v-if="oneMoreTE" class="block mt-1 font-semibold text-amber-800" data-testid="one-more-te-hint">{{
+          oneMoreTE.text
+        }}</span>
+        <template v-else-if="result.stoppedEarly"> Stopped early, so a better route may not have been tried.</template>
         <template v-if="atCeiling">
           <span class="font-bold">That is the highest last stop it was allowed to try</span>, so more may be reachable:
           raise {{ result.step ? '"Rough guess for the last stop"' : "the top of the last stop's range" }} and run it
@@ -847,6 +863,10 @@ import {
 import { formatBand, formatHours } from '@/search/exhaustive';
 import { spareLabel, summariseByDate } from '@/search/deadlineSummary';
 import ByDateRouteCard from './ByDateRouteCard.vue';
+import { oneMoreTEHint } from '@/search/oneMoreTE';
+import { byDateSimulate } from '@/search/byDateSimulate';
+import { readFirstAscension } from '@/search/firstAscension';
+import { simulateRoute } from '@/search/simulateRoute';
 import { rowSettingsFor, type DeadlineRunSpec, type SavedDeadlineResult } from '@/search/deadlineStore';
 import { SPACE_STEPS, SPACE_WIDTHS, stopsByWidth } from '@/search/deadlineSuggest';
 import { simpleByDateSpace, type SimpleSpace } from '@/search/simpleByDate';
@@ -1701,10 +1721,8 @@ async function resume(): Promise<void> {
   if (submit) {
     shareOptIn.value = true;
     shareAnonymous.value = !submit.nickname;
-    if (submit.nickname) {
-      shareName.value = submit.nickname;
-      shareNameTouched.value = true;
-    }
+    // This screen's alone (composables/useShareResult.ts): the run's own name, not typed now.
+    if (submit.nickname) shareName.value = submit.nickname;
     shareExtras.sendCsv.value = submit.sendCsv;
     shareExtras.sendDiagnostics.value = submit.sendDiagnostics;
   }
@@ -1926,6 +1944,34 @@ const liveBest = computed(() => {
   return p?.top[0] ?? p?.best ?? null;
 });
 
+/** Simulate this plan on the answer, or on the best so far (search/byDateSimulate.ts): the run's own
+ *  plan start and first-ascension setting, into Your plan as the instant answer's rows go. */
+const resultSim = computed(() => {
+  const r = result.value as SavedDeadlineResult | null;
+  return r && best.value
+    ? byDateSimulate(best.value, {
+        planStart: r.planStart,
+        firstAscension: r.settings ? readFirstAscension(r.settings) : null,
+      })
+    : null;
+});
+const liveSim = computed(() =>
+  liveBest.value
+    ? byDateSimulate(liveBest.value, {
+        planStart: store.deadlineRunPlan?.planStart,
+        firstAscension: store.deadlineRunPlan?.firstAscension,
+      })
+    : null
+);
+function simulateResult(): void {
+  const s = resultSim.value;
+  if (s) simulateRoute(s.chain, 'by-date', s.opts);
+}
+function simulateLive(): void {
+  const s = liveSim.value;
+  if (s) simulateRoute(s.chain, 'by-date', s.opts);
+}
+
 /** What the shown result says about its run: time, workers, the space (and, on Advanced, the boxes). */
 const summary = computed(() =>
   result.value
@@ -1963,6 +2009,26 @@ const edges = computed<BandEdge[]>(() => {
   const b = best.value;
   if (!box || !b || !result.value) return [];
   return findBandEdges(box.bands, b.chain, { currentTE: result.value.te, finalTE: b.chain[b.chain.length - 1] });
+});
+/** A Simple run's box around the best route is narrow: each early stop ±1 TE or less, or the best
+ *  route is the instant answer's own, outside every box. Unknown (no boxes recorded): not narrow. */
+const narrowBox = computed(() => {
+  const r = result.value as SavedDeadlineResult | null;
+  if (!r?.simple || !r.bandSets?.length || !best.value) return false;
+  const box = edgeBox.value;
+  return !box || box.bands.every(b => b.length <= 3);
+});
+/** "A better route may exist: ..." (search/oneMoreTE.ts), not while a run is going. */
+const oneMoreTE = computed(() => {
+  const r = result.value as SavedDeadlineResult | null;
+  if (!r || !best.value || store.deadlineRunning) return null;
+  return oneMoreTEHint({
+    route: best.value,
+    stoppedEarly: !!r.stoppedEarly,
+    narrow: narrowBox.value,
+    onEdge: edges.value.length > 0,
+    runCost: r.lastTECost ?? null,
+  });
 });
 const ORDINAL = ['1st', '2nd', '3rd'];
 function edgeText(e: BandEdge): string {
