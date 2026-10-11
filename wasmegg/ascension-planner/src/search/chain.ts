@@ -26,6 +26,7 @@ import { meetsAll, usableMilestones } from './milestones';
 import { computeTEEarned } from '@/auto/te-thresholds';
 import { countTEThresholdsPassed } from '@/lib/truthEggs';
 import { isResearchSaleActive } from '@/lib/events';
+import { VIRTUE_EGGS } from '@/types';
 import type { EngineState } from '@/engine/types';
 import type { ChainResult, SearchInputs } from './types';
 
@@ -346,6 +347,8 @@ export function createChainEvaluator(inputs: SearchInputs, memoSettings: MemoSet
             ...(leg.afterTimeOff ? { afterTimeOff: true as const } : {}),
             ...(leg.rival ? { firstLegRival: { ...leg.rival } } : {}),
             ...(leg.firstLegEnds ? { firstLegEnds: { ...leg.firstLegEnds } } : {}),
+            // The route's end state, for By a date's TE per egg and next TE (search/endEggs.ts).
+            ...(isFinalLeg ? { endEggs: endEggsOf(leg) } : {}),
           });
 
           state = leg.nextState;
@@ -377,6 +380,17 @@ export function createChainEvaluator(inputs: SearchInputs, memoSettings: MemoSet
 
       return { chain: [...chain], seconds: time - inputs.planStart, legs };
     },
+  };
+}
+
+/** Each virtue egg's lifetime eggs delivered and TE when a leg ends (VIRTUE_EGGS order), and the egg
+ *  the farm is on: `LegSummary.endEggs`, carried on a route's last leg. */
+function endEggsOf(leg: LegResult): { delivered: number[]; te: number[]; egg: string } {
+  const s = leg.summary;
+  return {
+    delivered: VIRTUE_EGGS.map(e => s.eggsDelivered?.[e] ?? 0),
+    te: VIRTUE_EGGS.map(e => s.finalTE?.[e] ?? 0),
+    egg: leg.lastEgg,
   };
 }
 

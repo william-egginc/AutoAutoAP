@@ -65,6 +65,43 @@ describe('ByDateRouteCard', () => {
   });
 });
 
+describe('ByDateRouteCard: TE per egg and the next TE', () => {
+  // 50 + 50 + 49 + 49 + 49 = 247 (search/endEggs.spec.ts has the arithmetic).
+  const endEggs = { delivered: [7.1e18, 7.2e18, 6.9e18, 6.7e18, 6.8e18], te: [50, 50, 49, 49, 49], egg: 'kindness' };
+  const withEnd = (over: object = {}) => {
+    const r = route();
+    const last = { ...(r.legs[3] as object), maxELR: 1e12, endEggs, ...over } as never;
+    return { ...r, legs: [...r.legs.slice(0, 3), last] };
+  };
+
+  it('lays out each egg at the end, its next TE, and when the soonest would come', async () => {
+    const html = await renderHtml(ByDateRouteCard, props({ route: withEnd() }));
+    const t = textOf(html);
+    expect(html).toContain('data-testid="by-date-te-per-egg"');
+    expect(t).toContain('TE per egg TE Next TE in At final rate');
+    expect(t).toMatch(/Curiosity 50 310\.00q eggs 3\.6 days/);
+    expect(t).toMatch(/Humility 49 130\.00q eggs 36\.1 h/);
+    expect(t).toMatch(/Kindness · laying 49/);
+    expect(t).toMatch(
+      /your next TE would arrive about .*2027.* \(Humility, at the final rate of 3\.60q eggs an hour\)\./
+    );
+  });
+
+  it('without a rate: the TE and eggs needed, no times and no next TE', async () => {
+    const t = textOf(await renderHtml(ByDateRouteCard, props({ route: withEnd({ maxELR: 0 }) })));
+    expect(t).toContain('TE per egg TE Next TE in Curiosity 50 310.00q eggs');
+    expect(t).not.toContain('At final rate');
+    expect(t).not.toContain('next TE would arrive');
+  });
+
+  it('shows nothing when the legs carry no end state, or it does not add up', async () => {
+    const plain = await renderHtml(ByDateRouteCard, props());
+    expect(plain).not.toContain('by-date-te-per-egg');
+    const off = await renderHtml(ByDateRouteCard, props({ route: { ...withEnd(), chain: [166, 197, 223, 248] } }));
+    expect(off).not.toContain('by-date-te-per-egg');
+  });
+});
+
 describe('spareLabel', () => {
   it('minutes, hours under two days, then days', () => {
     expect(spareLabel(40 * 60)).toBe('40 min');
