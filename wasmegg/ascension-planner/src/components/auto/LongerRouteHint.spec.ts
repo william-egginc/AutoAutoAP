@@ -52,6 +52,20 @@ describe('LongerRouteHint', () => {
     expect(noAdd).toContain('Check exactly');
   });
 
+  it('on Smart search, stays quiet about a count the run searched and names the limit past it', async () => {
+    result();
+    useInstantSummaryStore().fastest = { chain: SEVEN, seconds: 28.5 * 86400, exact: false };
+    const start = { ...props, mode: 'start' as const };
+    const searched = { counts: [6, 5, 7], min: 5, max: 8 };
+    expect(await renderHtml(LongerRouteHint, { ...start, run: searched }, {}, [pinia])).not.toContain(
+      'longer-route-hint'
+    );
+    const capped = { counts: [6, 5], min: 5, max: 6 };
+    expect(textOf(await renderHtml(LongerRouteHint, { ...start, run: capped }, {}, [pinia]))).toContain(
+      '(163 195 216 248 280 318 490); your limit is 6.'
+    );
+  });
+
   it('shows nothing while the search is still running', async () => {
     result();
     useInstantSummaryStore().fastest = { chain: SEVEN, seconds: 28.5 * 86400, exact: false };

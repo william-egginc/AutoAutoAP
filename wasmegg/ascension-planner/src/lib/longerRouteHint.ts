@@ -1,9 +1,12 @@
 /**
  * "A longer route might win": the notes under a finished Fastest result.
  *
- * Fastest is meant to be fast, not exhaustive, so it never searches more ascension counts than the
- * player chose. What it does instead is say when a longer route may be better. Two reasons, both
- * worked out here as plain arithmetic so the page only has to show them:
+ * Fastest never searches outside the ascension limits the player chose. Inside them Smart search now
+ * settles the count itself (Fast checks each other count, driver.ts stage 4c; Exact and Very high
+ * run the count probe), so on Smart search (`run` given) a note only stays for a count the run did
+ * not search: one outside the limits ("...; your limit is 6"), or one a stopped run never reached.
+ * The Full sweep searches the chains it was given, so it keeps every note. Two reasons, both worked
+ * out here as plain arithmetic so the page only has to show them:
  *
  *   instant: the instant answer (components/auto/InstantRoute.vue) has a route that beats the
  *     search's best. It ascends on the whole hour and its whole-route time can be off by up to about
@@ -38,6 +41,9 @@ export interface LongerRouteInput {
   searchedCounts: readonly number[];
   /** The instant answer's fastest route for this save, or null when there is none yet. */
   instant: InstantRouteSummary | null;
+  /** Smart search only: the counts the run searched from (store `runCounts`) and its limits. A note
+   *  for a count it searched is dropped, and one outside the limits says so. */
+  run?: { counts: readonly number[]; min: number; max: number } | null;
 }
 
 export interface LongerRouteHint {
@@ -100,7 +106,16 @@ export function longerRouteHints(input: LongerRouteInput): LongerRouteHint[] {
       });
     }
   }
-  return out;
+  const run = input.run;
+  if (!run) return out;
+  // The run settled these counts itself; what is left is outside the limits, or never reached.
+  return out
+    .filter(h => !(h.count >= run.min && h.count <= run.max && run.counts.includes(h.count)))
+    .map(h => {
+      if (h.count > run.max) return { ...h, text: `${h.text.replace(/\.$/, '')}; your limit is ${run.max}.` };
+      if (h.count < run.min) return { ...h, text: `${h.text.replace(/\.$/, '')}; your minimum is ${run.min}.` };
+      return h;
+    });
 }
 
 /**
@@ -109,7 +124,7 @@ export function longerRouteHints(input: LongerRouteInput): LongerRouteHint[] {
  * an even spread), the Limits widen just enough to hold `count`, and "find a starting chain" goes
  * off so the search starts there. The Effort tier is left as the player set it: a 33-minute run from
  * this button was Exact's pairs and one-more-or-fewer probe on a 7-ascension chain (review, 9 Oct),
- * and the default is now Fast, which keeps the count and takes minutes.
+ * and the default is now Fast, which gives each other count in the limits one quick pass and takes minutes.
  */
 export interface StartFromCountPlan {
   /** The new starting chain, ending at the target. */

@@ -304,6 +304,13 @@
             >
           </div>
           <div class="text-sm font-black text-slate-800 mt-1">~{{ store.estimateForCurrentSettings }}</div>
+          <div
+            v-if="store.otherCountsPlan.chains"
+            class="text-[10px] text-slate-500 mt-0.5 leading-snug"
+            data-test="other-counts-estimate"
+          >
+            incl. ~{{ store.otherCountsPlan.chains }} checking {{ countList(store.otherCountsPlan.counts) }} ascensions
+          </div>
         </div>
       </div>
 
@@ -568,6 +575,7 @@
               <!-- Fastest is fast, not best: when a longer route might win, say so (never runs anything). -->
               <LongerRouteHint
                 mode="start"
+                :run="store.runCounts"
                 :running="store.isRunning"
                 :disabled="store.busy"
                 :on-add="startFromCount"
@@ -1440,11 +1448,21 @@ const coverageNote = computed(() => {
   const n = store.seedChain.length;
   const word = n === 1 ? '1 ascension' : `${n} ascensions`;
   const label = note.value.label;
+  if (EFFORT[store.effort].otherCounts) {
+    const other = store.otherCountsPlan.counts;
+    if (!other.length) return `${label} keeps your starting chain's ${word}: your limits allow no other count.`;
+    return `${label} starts from your chain's ${word}, then gives ${countList(other)} ascensions one quick pass each (from the instant answer's route at that count when it has one), carries on outward while that keeps winning, and fine-tunes the best, within your limits of ${store.minPrestiges} to ${store.maxPrestiges}.`;
+  }
   if (!EFFORT[store.effort].countProbe) {
     return `${label} keeps your starting chain's ${word}; Exact and Very high also try one more and one fewer.`;
   }
   return `${label} starts from your chain's ${word} and also tries one more and one fewer, then again while that keeps helping, within your limits of ${store.minPrestiges} to ${store.maxPrestiges}.`;
 });
+/** "5, 7 and 8". */
+function countList(counts: number[]): string {
+  if (counts.length <= 1) return counts.join('');
+  return `${counts.slice(0, -1).join(', ')} and ${counts[counts.length - 1]}`;
+}
 /**
  * "A longer route might win" (LongerRouteHint.vue): start the next search from a route with `n`
  * ascensions (lib/longerRouteHint.ts `startFromCountPlan`): the starting chain, the limits just wide
@@ -1468,7 +1486,7 @@ function startFromCount(n: number): string {
   store.seedOverride = plan.chain.slice(0, -1).join(' ');
   const set = `Starting chain set to ${plan.chain.join(' ')}. Press Find to search from it`;
   return store.effort === 'quick'
-    ? `${set} on Fast (minutes). For a more exact search, raise Effort in Search settings.`
+    ? `${set} on Fast (minutes; it also checks the other counts inside the new limits). For a more exact search, raise Effort in Search settings.`
     : `${set} on ${note.value.label}, which also tries one more and one fewer ascension; Fast, in Search settings, is quicker.`;
 }
 /** The instant answer's count (set by the branch that has one), when it isn't the one searched from. */

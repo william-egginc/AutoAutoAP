@@ -109,6 +109,49 @@ describe('longerRouteHints', () => {
   });
 });
 
+/**
+ * Smart search settles the count inside its limits itself now (Fast's stage 4c, Exact's probe), so
+ * with the run's counts and limits given, a note stays only for a count it did not search.
+ */
+describe('longerRouteHints on Smart search (run counts and limits given)', () => {
+  const instant7 = { chain: SEVEN_STOPS, seconds: 28 * DAY, exact: false };
+
+  it('drops a note for a count the run searched inside its limits', () => {
+    const run = { counts: [6, 5, 7], min: 5, max: 8 };
+    expect(longerRouteHints(base({ instant: instant7, run }))).toEqual([]);
+    // Edge at 6 when 7 was searched: nothing (and the Full sweep, with no run, still gets its note).
+    expect(longerRouteHints(base({ searchedCounts: [4, 5, 6], run: { counts: [6, 7], min: 4, max: 8 } }))).toEqual([]);
+    expect(longerRouteHints(base({ searchedCounts: [4, 5, 6] }))).toHaveLength(1);
+  });
+
+  it('keeps a note for a count past the limit and says what the limit is', () => {
+    const run = { counts: [6, 5], min: 5, max: 6 };
+    const hints = longerRouteHints(base({ searchedCounts: [5, 6], instant: instant7, run }));
+    expect(hints).toHaveLength(1);
+    expect(hints[0]).toMatchObject({ kind: 'instant', count: 7 });
+    expect(hints[0].text).toBe(
+      'The instant answer has a route with 7 ascensions that may finish about 2 days sooner (163 195 216 248 280 318 490); your limit is 6.'
+    );
+    const edge = longerRouteHints(base({ searchedCounts: [5, 6], run }));
+    expect(edge.map(h => h.text)).toEqual([
+      'Your best route uses the most ascensions you searched (6). A route with 7 might be faster; your limit is 6.',
+    ]);
+  });
+
+  it('keeps a note for a count inside the limits that a stopped run never reached', () => {
+    const run = { counts: [6], min: 5, max: 8 };
+    const hints = longerRouteHints(base({ searchedCounts: [6], instant: instant7, run }));
+    expect(hints.map(h => [h.kind, h.count])).toEqual([['instant', 7]]);
+    expect(hints[0].text).not.toContain('limit');
+  });
+
+  it('says so for a count below the minimum', () => {
+    const four = { chain: [163, 230, 300, 490], seconds: 20 * DAY, exact: false };
+    const hints = longerRouteHints(base({ instant: four, run: { counts: [6, 5, 7], min: 5, max: 7 } }));
+    expect(hints[0].text).toMatch(/; your minimum is 5\.$/);
+  });
+});
+
 describe('soonerWords', () => {
   it('speaks in days, hours or neither', () => {
     expect(soonerWords(1.5 * DAY)).toBe('about 1.5 days sooner');
@@ -137,10 +180,16 @@ describe('startFromCountPlan (Smart search\'s "Start from N ascensions")', () =>
     expect(startFromCountPlan({ ...base, count: 3, instantRoutes: [[200, 300, 480]] })?.chain).toEqual([200, 300, 490]);
   });
 
-  it('says nothing about the effort: on the default (Fast) the run keeps its count, so it stays fast', () => {
+  it('says nothing about the effort: the default (Fast) has no pairs or count probe, so it stays fast', () => {
     const plan = startFromCountPlan({ ...base, count: 7, instantRoutes: [SEVEN] });
     expect(Object.keys(plan!)).toEqual(['chain', 'minPrestiges', 'maxPrestiges']);
     expect(DEFAULT_EFFORT).toBe('quick');
-    expect(EFFORT[DEFAULT_EFFORT]).toMatchObject({ countProbe: false, slices2: false, slices3: false });
+    // It does give the other counts in the limits one quick pass each (driver.ts stage 4c).
+    expect(EFFORT[DEFAULT_EFFORT]).toMatchObject({
+      countProbe: false,
+      slices2: false,
+      slices3: false,
+      otherCounts: true,
+    });
   });
 });

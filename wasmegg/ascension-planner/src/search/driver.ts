@@ -25,6 +25,12 @@
  *    confirmed rank 1 of a 4913-chain exhaustive. That one spurious checkpoint was the entire
  *    measured loss of that run.
  *
+ *  - `otherCounts` (Fast only) exists because Fast has no count probe, and a Fast run kept at the
+ *    seed's 4 ascensions finished ~4 days behind a 5-7 ascension route (row 57db9894, 10 Oct). It
+ *    gives each other count one descent pass from the instant answer's route at that count (else a
+ *    drop/insert of the best route), walks outward while the edge count keeps winning, and polishes
+ *    the winner in full. Inside the limits only.
+ *
  * And one thing this file deliberately does NOT do: prune by prefix cost. A prefix that arrives
  * later can arrive with a higher delivery rate and win overall. Dropping candidates on early-leg
  * time is not safe.
@@ -39,6 +45,14 @@ import type { ChainKey, ChainResult, EffortTier, LegSummary, SearchProgress } fr
  *  rounded up. Far below any real difference between two chains (the smallest meaningful gap is
  *  minutes) and far above float noise. */
 const EPS_SECONDS = 1e-4;
+
+/**
+ * Fast's stage 4c skips the descent pass at a count whose start, once its last checkpoint is solved,
+ * is more than this behind the best route so far: two days, twice the instant answer's own error (it
+ * can be off by about a day). One pass moves a route hours, rarely days, so a count that far behind
+ * would not catch up, and the pass is most of the stage's cost (about 42 chains per checkpoint).
+ */
+const OTHER_COUNT_CUTOFF_SECONDS = 2 * 86400;
 
 export interface EvaluateBatch {
   (chains: number[][]): Promise<{ results: ChainResult[]; legSims: number; workersUsed: number }>;
@@ -59,6 +73,10 @@ export interface DriverOptions {
    *  view. Defaults to "one either side of the seed". */
   minCheckpoints?: number;
   maxCheckpoints?: number;
+  /** Starting routes at other ascension counts for Fast's stage 4c (`otherCounts`): the instant
+   *  answer's route for each count it lists, fastest first. Each must end at `final`; the first route
+   *  per count is used, and counts outside the limits are ignored. */
+  countSeeds?: readonly (readonly number[])[];
   evaluateBatch: EvaluateBatch;
   /** Called after every batch and at every stage boundary. */
   onProgress?: (progress: SearchProgress) => void;
@@ -88,6 +106,44 @@ export interface SearchOutcome {
   lastCompletedStage: string;
   chainsEvaluated: number;
   legSims: number;
+  /** Ascension counts (chain lengths) the run searched from, in the order it started each: the seed's
+   *  first. One entry unless stage 4c (Fast) or the count probe (Exact, Very high) moved it. */
+  countsProbed: number[];
+}
+
+/**
+ * A starting route usable at its own count: strictly increasing, above the current TE, ending at
+ * `final`. Null otherwise.
+ */
+function usableRoute(route: readonly number[], final: number, currentTE: number): number[] | null {
+  if (route.length < 2 || route[route.length - 1] !== final || route[0] <= currentTE) return null;
+  for (let i = 1; i < route.length; i++) if (!(route[i] > route[i - 1])) return null;
+  return [...route];
+}
+
+/**
+ * The other ascension counts Fast's stage 4c will check before any walking: every count inside the
+ * limits that `seeds` has a route for, and one either side of the seed's, never the seed's own and
+ * never below 2 (one ascension has no checkpoint to move). Sorted. Shared with the store so the
+ * estimate shown before Find counts the same probes the run makes.
+ */
+export function plannedCountChecks(o: {
+  seedLen: number;
+  minLen: number;
+  maxLen: number;
+  final: number;
+  currentTE: number;
+  seeds?: readonly (readonly number[])[];
+}): number[] {
+  const lo = Math.max(2, o.minLen);
+  const out = new Set<number>();
+  for (const r of o.seeds ?? []) {
+    const c = usableRoute(r, o.final, o.currentTE);
+    if (c) out.add(c.length);
+  }
+  out.add(o.seedLen - 1);
+  out.add(o.seedLen + 1);
+  return [...out].filter(n => n !== o.seedLen && n >= lo && n <= o.maxLen).sort((a, b) => a - b);
 }
 
 /**
@@ -153,6 +209,23 @@ class ChainCache {
     const keys = new Set(want.map(c => c.join(',')));
     for (const c of extra) if (!keys.has(c.join(','))) want.push([...c]);
 
+    await this.price(want);
+  }
+
+  /** Price exactly these chains (any lengths), skipping the known ones: no product is formed. */
+  async runChains(chains: number[][]): Promise<void> {
+    const seen = new Set<string>();
+    await this.price(
+      chains.filter(c => {
+        const k = c.join(',');
+        if (seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      })
+    );
+  }
+
+  private async price(want: number[][]): Promise<void> {
     const todo = want.filter(c => !this.seconds.has(c.join(',')));
     if (!todo.length) return;
 
@@ -210,7 +283,19 @@ export async function runChainSearch(opts: DriverOptions): Promise<SearchOutcome
   const seedLen = cur.length;
   const minLen = opts.minCheckpoints ?? Math.max(2, cur.length - 1);
   const maxLen = opts.maxCheckpoints ?? cur.length + 1;
-  const chainsEstimated = estimateChains(cur.length - 1, cfg);
+  const countSeeds = opts.countSeeds ?? [];
+  const chainsEstimated = estimateChains(
+    cur.length - 1,
+    cfg,
+    cfg.otherCounts
+      ? plannedCountChecks({ seedLen, minLen, maxLen, final, currentTE: opts.currentTE, seeds: countSeeds })
+      : []
+  );
+  /** Counts searched from, in order (SearchOutcome `countsProbed`). */
+  const countsProbed: number[] = [seedLen];
+  const probedCount = (len: number) => {
+    if (!countsProbed.includes(len)) countsProbed.push(len);
+  };
 
   let stage = 'starting';
   let lastCompletedStage = 'none';
@@ -253,6 +338,7 @@ export async function runChainSearch(opts: DriverOptions): Promise<SearchOutcome
       // priced" value, never Infinity on the screen.
       bestDays: Number.isFinite(ever.seconds) ? ever.seconds / 86400 : 0,
       bestLegs: cache.legsOf(ever.chain),
+      countsProbed: [...countsProbed],
     });
     opts.onCache?.(cache.entries());
   }
@@ -531,6 +617,7 @@ export async function runChainSearch(opts: DriverOptions): Promise<SearchOutcome
 
     cur = win.chain;
     best = win.seconds;
+    probedCount(cur.length);
     note(cur, best);
     report(`${days(best)} d  ${cur.join(' ')}`);
 
@@ -541,6 +628,146 @@ export async function runChainSearch(opts: DriverOptions): Promise<SearchOutcome
     best = (await cache.need(cur)) ?? best;
     note(cur, best);
     await descent(3, 'stage 7b: re-polishing the new count');
+  }
+
+  /**
+   * A start at `len` ascensions built from a route already searched one count away: every way of
+   * dropping one checkpoint from the longer neighbour, or inserting one (a gap's midpoint, as the
+   * count probe does) into the shorter, priced as exact chains, and the fastest kept. Respects `pin`.
+   */
+  async function neighbourStart(
+    len: number,
+    results: Map<number, { chain: number[]; seconds: number }>
+  ): Promise<number[] | null> {
+    const cands: number[][] = [];
+    const longer = results.get(len + 1);
+    if (longer) {
+      const c = longer.chain;
+      for (let i = pin; i < c.length - 1; i++) cands.push([...c.slice(0, i), ...c.slice(i + 1)]);
+    }
+    const shorter = results.get(len - 1);
+    if (shorter) {
+      const c = shorter.chain;
+      let prev = opts.currentTE;
+      for (let i = pin; i < c.length; i++) {
+        if (i > 0) prev = c[i - 1];
+        const m = Math.min(Math.floor((prev + c[i]) / 2), maxLast);
+        if (prev < m && m < c[i]) cands.push([...c.slice(0, i), m, ...c.slice(i)]);
+      }
+    }
+    const legal = cands.filter(c => c.length === len && usableRoute(c, final, opts.currentTE));
+    if (!legal.length) return null;
+    await cache.runChains(legal);
+    let pick: number[] | null = null;
+    let pickSeconds = Infinity;
+    for (const c of legal) {
+      const d = cache.get(c);
+      if (d === undefined) continue;
+      note(c, d);
+      if (d < pickSeconds) {
+        pick = c;
+        pickSeconds = d;
+      }
+    }
+    return pick;
+  }
+
+  /** One descent pass from `start` (after its last checkpoint is solved), leaving `cur`/`best` as
+   *  they were. Returns the route it reached and its time, or null when nothing could be priced. The
+   *  pass is skipped when the solved start is more than `OTHER_COUNT_CUTOFF_SECONDS` behind `leader`. */
+  async function onePass(
+    start: number[],
+    label: string,
+    leader: number
+  ): Promise<{ chain: number[]; seconds: number } | null> {
+    const keep = { cur, best };
+    try {
+      cur = await resolveLast(start, cache.get(start) === undefined ? [start] : []);
+      if (stopRequested()) return null;
+      const d = await cache.need(cur);
+      if (d === undefined) return null;
+      best = d;
+      note(cur, best);
+      if (best > leader + OTHER_COUNT_CUTOFF_SECONDS) {
+        report(`${cur.length} ascensions: ${days(best)} d after the last checkpoint, too far behind for a pass`);
+        return { chain: [...cur], seconds: best };
+      }
+      await descent(1, label);
+      return { chain: [...cur], seconds: best };
+    } finally {
+      cur = keep.cur;
+      best = keep.best;
+    }
+  }
+
+  /** Stage 4c (Fast): the other ascension counts. See the note at the top of this file. */
+  async function otherCounts(): Promise<void> {
+    const lo = Math.max(2, minLen);
+    const inRange = (len: number) => len >= lo && len <= maxLen;
+    const results = new Map<number, { chain: number[]; seconds: number }>();
+    const tried = new Set<number>([cur.length]);
+    if (Number.isFinite(best)) results.set(cur.length, { chain: [...cur], seconds: best });
+
+    const seeds = new Map<number, number[]>();
+    for (const r of countSeeds) {
+      const c = usableRoute(r, final, opts.currentTE);
+      if (!c || !inRange(c.length) || seeds.has(c.length)) continue;
+      // Pinned checkpoints stay pinned: a route that moves them is not this search's to start from.
+      if (pin && c.slice(0, pin).join(',') !== cur.slice(0, pin).join(',')) continue;
+      seeds.set(c.length, c);
+    }
+
+    let queue = plannedCountChecks({
+      seedLen: cur.length,
+      minLen,
+      maxLen,
+      final,
+      currentTE: opts.currentTE,
+      seeds: [...seeds.values()],
+    });
+    stage = 'stage 4c: other ascension counts';
+    report(
+      queue.length ? `checking ${queue.join(', ')} ascensions` : `no other count within ${lo}-${maxLen} ascensions`
+    );
+    while (queue.length) {
+      for (const len of queue) {
+        if (tried.has(len)) continue;
+        tried.add(len);
+        const start = seeds.get(len) ?? (await neighbourStart(len, results));
+        if (stopRequested()) return;
+        if (!start) continue;
+        probedCount(len);
+        const leader = Math.min(best, ...[...results.values()].map(r => r.seconds));
+        const got = await onePass(start, `stage 4c: one pass at ${len} ascensions`, leader);
+        if (stopRequested()) return;
+        if (got) results.set(len, got);
+      }
+      // Walk outward from the winner while a neighbouring count inside the limits is unchecked: the
+      // answer at the edge of what was checked is the case "a longer route might win" used to flag.
+      const win = [...results.values()].reduce<{ chain: number[]; seconds: number } | null>(
+        (a, b) => (!a || b.seconds < a.seconds - EPS_SECONDS ? b : a),
+        null
+      );
+      if (!win) break;
+      queue = [win.chain.length - 1, win.chain.length + 1].filter(n => inRange(n) && !tried.has(n));
+    }
+
+    const win = [...results.values()].reduce<{ chain: number[]; seconds: number } | null>(
+      (a, b) => (!a || b.seconds < a.seconds - EPS_SECONDS ? b : a),
+      null
+    );
+    if (!win || win.chain.length === cur.length || !(win.seconds < best - EPS_SECONDS)) {
+      report(
+        `no other count beat ${cur.length} ascensions (searched ${[...countsProbed].sort((a, b) => a - b).join(', ')})`
+      );
+      return;
+    }
+    // One pass is a cheap look, not a polish: the winning count gets the rest of the descent the
+    // seed's count had (six passes in all).
+    cur = win.chain;
+    best = win.seconds;
+    note(cur, best);
+    await descent(5, `stage 4d: fine-tuning ${cur.length} ascensions`);
   }
 
   // ------------------------------------------------------------------ the run
@@ -560,6 +787,10 @@ export async function runChainSearch(opts: DriverOptions): Promise<SearchOutcome
   if (!stopped) {
     await descent(6, 'stage 4: coordinate descent');
     if (!stopped) lastCompletedStage = 'coordinate descent';
+  }
+  if (!stopped && cfg.otherCounts) {
+    await otherCounts();
+    if (!stopped) lastCompletedStage = 'other ascension counts';
   }
   if (!stopped && cfg.slices2) {
     await slices();
@@ -593,5 +824,6 @@ export async function runChainSearch(opts: DriverOptions): Promise<SearchOutcome
     lastCompletedStage,
     chainsEvaluated: cache.chainsEvaluated,
     legSims: cache.legSims,
+    countsProbed: [...countsProbed],
   };
 }
