@@ -204,6 +204,9 @@ export interface ChainSearchPool {
   workerMemoCapacities(): (number | null)[];
   /** Seconds the page was suspended during this run — time in which nothing at all progressed. */
   readonly suspendedSeconds: number;
+  /** Workers made over the pool's life, workers that crashed (`onerror`), and workers the watchdog
+   *  let go for going quiet, for the run timeline (search/runTimeline.ts). Optional for stand-ins. */
+  stats?(): { made: number; crashed: number; stalled: number };
   /** Evaluate a set of chains, split across as many workers as the batch is worth. Resolves with
    *  only the chains that evaluated successfully. `onChainDone` fires as the batch progresses, so a
    *  caller can show movement during a single wide request. */
@@ -274,6 +277,8 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
   let watchdog: ReturnType<typeof setInterval> | null = null;
   /** Total wall time the page spent suspended during this run. Reported, never charged. */
   let suspendedSeconds = 0;
+  /** For `stats`: workers made, crashed and let go by the watchdog over the pool's life. */
+  const counts = { made: 0, crashed: 0, stalled: 0 };
 
   // Workers are spawned ON DEMAND, not up front.
   //
@@ -292,6 +297,7 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
       ? spawn()
       : new Worker(new URL('../workers/chainSearch.worker.ts', import.meta.url), { type: 'module' });
     const pw: PoolWorker = { worker, pending: new Map(), index, heapMB: null, memoEntries: null, memoCapacity: null };
+    counts.made++;
 
     worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
       const msg = event.data;
@@ -324,6 +330,7 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
     // for the rest of the afternoon. A worker that dies WITHOUT firing this is what the watchdog
     // is for.
     worker.onerror = (event: ErrorEvent) => {
+      counts.crashed++;
       // `event.message` is empty for anything the browser treats as cross-origin, which includes
       // most module-load failures, so the bare fallback reached the user as "Chain search worker
       // error" with nothing to act on. Carry whatever the event does have, and say what that
@@ -388,6 +395,7 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
               `Your progress is checkpointed, so resuming re-uses every chain already priced.`
           )
         );
+        counts.stalled++;
         // Do not reuse a worker that has stopped answering: drop it so a later batch spawns a
         // fresh one in its slot rather than sending into a void.
         try {
@@ -606,6 +614,9 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
     },
     get suspendedSeconds(): number {
       return suspendedSeconds;
+    },
+    stats(): { made: number; crashed: number; stalled: number } {
+      return { ...counts };
     },
     workerHeaps(): (number | null)[] {
       const out: (number | null)[] = [];

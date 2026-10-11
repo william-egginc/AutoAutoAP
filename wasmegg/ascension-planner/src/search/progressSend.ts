@@ -205,6 +205,8 @@ export interface UploadCsvOptions {
   /** Per part; tests pass 0. */
   retryMs?: number[];
   partBytes?: number;
+  /** Called before every POST (each part, each retry): the run timeline counts the tries. */
+  onTry?: () => void;
 }
 
 /**
@@ -228,6 +230,7 @@ export async function uploadCsv(
   if (parts.length > CSV_MAX_PARTS) return { kind: 'too-big' };
 
   const once = async (n: number | null): Promise<Response | Error> => {
+    opts.onTry?.();
     try {
       return await doFetch(n === null ? url : `${url}&part=${n}&parts=${parts.length}`, {
         method: 'POST',

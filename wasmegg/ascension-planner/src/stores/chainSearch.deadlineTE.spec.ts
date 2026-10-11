@@ -566,3 +566,63 @@ describe('By a date runs the integrity check itself (it relied on Fastest having
     expect(store.integrityNotice?.blocked).toBe(false);
   });
 });
+
+describe('the run timeline (search/runTimeline.ts) for "Also send diagnostics"', () => {
+  it('records the estimate and the end, rides a By a date send as `timing`, and logs the send', async () => {
+    (globalThis as { __AAP_SUBMIT_URL__?: string }).__AAP_SUBMIT_URL__ = 'https://collector.invalid/submit';
+    const { readTimeline } = await import('@/search/runTimeline');
+    try {
+      setActivePinia(createPinia());
+      const store = useChainSearchStore();
+      store.pinPlanStart(PLAN_START);
+      loadSave(196, SAVE_AT);
+      plannerAt(196);
+      const legPlan = {
+        sets: 10,
+        firstLegs: 20,
+        routes: 40,
+        legs: 50,
+        workerSecondsPerLeg: 3,
+        seconds: 360,
+        workers: 7,
+      };
+      await store.startDeadline('P', { ...spec(), legPlan });
+      const r = store.deadlineResult!;
+      expect(r).not.toBeNull();
+      const t = readTimeline()!;
+      expect(t.estimate).toMatchObject({ seconds: 360, workers: 7, legs: 50, source: 'board' });
+      expect(t.end).toMatchObject({ how: 'done', routes: r.priced });
+      expect(t.deadline).toBe(spec().deadline);
+
+      const bodies: Record<string, unknown>[] = [];
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (_url: string, init: { body: string }) => {
+          bodies.push(JSON.parse(init.body));
+          return new Response(JSON.stringify({ ok: true, id: 'abcd1234' }), { status: 200 });
+        })
+      );
+      const res = await store.sendDeadlineAnswer({
+        route: r.routes[0],
+        nickname: '',
+        sendCsv: false,
+        diagnostics: true,
+      });
+      expect(res.ok).toBe(true);
+      const sent = bodies.find(b => b.deadline !== undefined)!;
+      expect(sent.diagnostics).toBeTruthy();
+      expect(sent.timing).toMatchObject({ v: 1, kind: 'by-date', est: { min: 6, workers: 7 } });
+      expect(JSON.stringify(sent.timing).length).toBeLessThanOrEqual(8000);
+      expect(readTimeline()!.sends.map(s => [s[1], s[2], s[3]])).toEqual([['final', 1, 200]]);
+
+      // Without "Also send diagnostics", no timeline either.
+      bodies.length = 0;
+      await store.sendDeadlineAnswer({ route: r.routes[0], nickname: '', sendCsv: false, diagnostics: false });
+      expect(bodies.find(b => b.deadline !== undefined)?.timing).toBeUndefined();
+    } finally {
+      vi.unstubAllGlobals();
+      installStubs();
+      delete (globalThis as { __AAP_SUBMIT_URL__?: string }).__AAP_SUBMIT_URL__;
+    }
+  });
+});

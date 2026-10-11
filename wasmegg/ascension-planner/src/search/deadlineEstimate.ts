@@ -590,6 +590,7 @@ export function byDatePlan(o: {
     legs: Math.round(plan.legs),
     workerSecondsPerLeg: o.workerSecondsPerLeg,
     seconds: legSeconds(plan.legs, o.workers, o.workerSecondsPerLeg),
+    workers: Math.max(1, Math.floor(o.workers)),
   };
 }
 
@@ -602,4 +603,35 @@ export function longRunLine(workers: number): string {
 /** The same note for a count the player set by hand above the long-run default. */
 export function longRunHandLine(workers: number, have: number): string {
   return `Long run: ${workers} workers is safer for the browser's memory; you have ${have} set.`;
+}
+
+/**
+ * Legs a run must simulate before its own speed fully replaces this machine's remembered one. A
+ * short run's speed is mostly start-up (spawning workers, the integrity check) and the last round's
+ * tail, where most workers wait on a few: the 42-hour run of 10 Oct most likely took its speed from a 7-minute
+ * run. So a run's figure is blended in by how much it simulated: 20,000 legs (about an hour on 19
+ * workers) or more replaces it; 2,000 moves it a tenth of the way.
+ */
+export const CALIBRATE_FULL_LEGS = 20_000;
+/** A run hidden for more than this share of its time is not this machine's speed (Safari and the
+ *  background-tab setting slow a hidden tab), and is not remembered. */
+export const CALIBRATE_MAX_HIDDEN = 0.5;
+
+/**
+ * The worker-seconds a leg to remember after a run: `measured` (this run's) blended into `previous`
+ * (0 when there is none) by legs simulated, or `previous` unchanged when the run was mostly hidden
+ * (`hidden`, 0-1, null when unknown). Returns 0 when there is nothing to remember.
+ */
+export function nextWorkerSecondsPerLeg(o: {
+  previous: number;
+  measured: number;
+  legs: number;
+  hidden?: number | null;
+}): number {
+  const prev = Number.isFinite(o.previous) && o.previous > 0 ? o.previous : 0;
+  if (!(Number.isFinite(o.measured) && o.measured > 0)) return prev;
+  if (typeof o.hidden === 'number' && o.hidden > CALIBRATE_MAX_HIDDEN) return prev;
+  if (!prev) return o.measured;
+  const w = Math.min(1, Math.max(0, o.legs) / CALIBRATE_FULL_LEGS);
+  return prev + w * (o.measured - prev);
 }
