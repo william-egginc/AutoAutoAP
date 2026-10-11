@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { PrestigeByRecord } from './prestigeBy';
 import {
   buildGapOf,
   exactLegs,
@@ -121,7 +122,39 @@ describe('size', () => {
     expect(fit.instant.chain).toEqual(route.chain);
     expect(fitRecord(record({ timezone: 'x'.repeat(INSTANT_MAX_BYTES) }))).toBeNull();
   });
+
+  it('keeps the "Prestige by" prediction while it fits, and drops it last', () => {
+    expect(fitRecord(record({ prestigeBy: PRESTIGE_BY }))!.prestigeBy).toEqual(PRESTIGE_BY);
+    const slim = record({ instant: { ...record().instant, legs: undefined } });
+    const room = INSTANT_MAX_BYTES - new TextEncoder().encode(JSON.stringify(slim)).length;
+    const tight = record({ timezone: 'x'.repeat(room - 40), prestigeBy: PRESTIGE_BY });
+    const fit = fitRecord(tight)!;
+    expect(fit.prestigeBy).toBeUndefined();
+    expect(new TextEncoder().encode(JSON.stringify(fit)).length).toBeLessThanOrEqual(INSTANT_MAX_BYTES);
+  });
 });
+
+const PRESTIGE_BY: PrestigeByRecord = {
+  v: 1,
+  mode: 'date',
+  eggs: 'silo',
+  prestigeAt: T0 + 86400,
+  fresh: false,
+  keepTE: 248,
+  keepEnd: T0 + 9e6,
+  kind: 'drop',
+  latest: T0 + 86400 + 12 * 3600,
+  drop: T0 + 86400 + 13 * 3600,
+  dropTE: 247,
+  dropEnd: T0 + 8.8e6,
+  until: T0 + 86400 + 60 * 3600,
+  thenTE: 246,
+  spareHours: 5.6,
+  tight: true,
+  shown: true,
+  estimateDropHours: 8,
+  lookups: 3,
+};
 
 describe('at most one per save, mode and target an hour, never the same twice', () => {
   const slot = recordSlot('part', record());
@@ -146,6 +179,10 @@ describe('at most one per save, mode and target an hour, never the same twice', 
 
   it('ignores the check time when telling repeats apart', () => {
     expect(recordSig(record({ checkSeconds: 40 }))).toBe(recordSig(record({ checkSeconds: 90 })));
+  });
+
+  it('ignores the experimental "Prestige by" prediction too (worked out beside the check)', () => {
+    expect(recordSig(record({ prestigeBy: PRESTIGE_BY }))).toBe(recordSig(record()));
   });
 
   it('forgets entries after two days', () => {

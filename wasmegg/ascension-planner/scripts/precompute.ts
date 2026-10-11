@@ -73,6 +73,13 @@
  *   --prune-bench --table DIR [--starts N] [--seed S] [--brute-from FILE] [--wide W] [--candidates C] [--wide-all]
  *                    The finder, the polish (and the stronger polish) against brute force over every
  *                    route of up to 4 ascensions, from random starts; one JSON line per start and count.
+ *   --prestige-by --backup FILE --table DIR [--deadline ISO] [--final TE] [--eggs frozen|silo|laying]
+ *                [--plan-start ISO] [--scale N|auto] [--hours N] [--sweep-around H] [--sim]
+ *                    The instant answer's experimental "Prestige by" line (search/prestigeBy.ts), worked
+ *                    out as the page does: the route, the estimate profile, the cutoff and its lookups,
+ *                    and the line. --sweep-around H looks up every hour from H before the cutoff to H
+ *                    after with the route finder (the ground truth); --sim prices the cutoff's route
+ *                    with the full simulator at the hours around it (slow: minutes).
  *   --combos FILE --combo NAME
  *                    Put a gear combination (owned artifacts and stones) in place of the save's own
  *                    inventory before anything else: that gear's table, whoever owns it.
@@ -129,6 +136,7 @@ import {
   firstLegOptions,
   nextHour,
   polishFound,
+  priceChain,
   priceLeg,
   type Route,
 } from '@/search/routeFinder';
@@ -2549,6 +2557,7 @@ async function main(): Promise<void> {
   if (has('polish')) return polish(backup);
   if (has('prune-bench')) return pruneBench(backup);
   if (has('verify-cells')) return verifyCells(backup);
+  if (has('prestige-by')) return prestigeByCheck(backup);
   if (has('route')) return route(backup);
   if (has('profile')) return profile(backup);
   if (has('verify')) return verify(backup);
@@ -2566,3 +2575,212 @@ main().then(
     process.exit(1);
   }
 );
+
+/** --prestige-by: the instant answer's "Prestige by" line from the CLI (see the usage above). */
+async function prestigeByCheck(file: string): Promise<void> {
+  const { farmLaying, saveSiloSeconds } = await import('@/search/leg');
+  const pb = await import('@/search/prestigeBy');
+  const dir = arg('table');
+  if (!dir) throw new Error('--prestige-by needs --table DIR');
+  const table = loadTable(dir);
+  const inputs = await loadInputs(file);
+  if (arg('plan-start')) inputs.planStart = Math.floor(Date.parse(arg('plan-start')!) / 1000);
+  const deadline = arg('deadline') ? Math.floor(Date.parse(arg('deadline')!) / 1000) : undefined;
+  const mode: 'date' | 'fastest' = deadline ? 'date' : 'fastest';
+  const final = deadline ? 490 : Number(arg('final', '490'));
+  const scale =
+    arg('scale') === 'auto'
+      ? instantDeliveryScale(inputs, JSON.parse(readFileSync(`${dir}/k3.json`, 'utf8')))
+      : Number(arg('scale', '1'));
+  const eggsModel = (arg('eggs', 'silo') as 'frozen' | 'silo' | 'laying');
+  const hours = Number(arg('hours', String(pb.HORIZON_HOURS)));
+  const te0 = Math.floor(inputs.currentTE);
+  const start = inputs.planStart;
+  const saveEggs = EGG_ORDER.map(e => inputs.baseState.eggsDelivered?.[e] || 0);
+  const fmt = (u: number) =>
+    new Date(u * 1000)
+      .toLocaleString('en-US', { timeZone: 'America/Denver', weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })
+      .replace(/\s?([AP])M$/, (_m, x: string) => ` ${x.toLowerCase()}m`);
+  const H = (s: number) => (s / 3600).toFixed(1) + ' h';
+  const fa = inputs.firstAscension ?? 'auto';
+  // The first ascension as the page asks for it (search/instantFirstLegs.ts).
+  const firstLegs = firstLegOptions({
+    table: table.lookup,
+    deliveryScale: scale,
+    ...(await instantFirstLegsBase(inputs, { startTE: te0, start, final, ...cliBuildUp(inputs) })),
+  });
+  const solve = async (o: { startTE: number; start: number; firstLegs?: typeof firstLegs; startDelivered?: number[] }) => {
+    const found = await findRoutes({ table: table.lookup, ...o, final, maxAscensions: 12, deliveryScale: scale, ...(deadline ? { deadline } : {}) });
+    const pol = polishFound(table.lookup, { ...o, deliveryScale: scale, ...(deadline ? { deadline } : {}) }, found);
+    return { ...found, ...pol };
+  };
+  const show = (r: Route | null) =>
+    r ? `${r.legs[r.legs.length - 1].endTE} TE ${fmt(r.end)}${deadline ? ` spare ${H(deadline - r.end)}` : ''} via ${r.chain.join(' ')}` : 'none';
+  let t0 = Date.now();
+  const main = await solve({ startTE: te0, start, firstLegs });
+  const route = mode === 'date' ? main.byDate : main.best;
+  console.log(`save TE ${te0}, plan start ${fmt(start)}, first ascension ${fa}, scale ${scale.toFixed(4)}, eggs ${eggsModel}`);
+  console.log(`MAIN (${Date.now() - t0} ms): ${show(route)} [first leg ${route?.legs[0].label} to ${route?.legs[0].to} ends ${route ? fmt(route.legs[0].end) : '-'}]`);
+  if (!route) return;
+  const first = route.legs[0];
+  const fresh = first.label !== 'continue' && first.label !== 'buildup';
+  const prestigeAt = fresh ? start : first.end;
+  const startTE = fresh ? te0 : first.endTE;
+  const delivered = fresh ? saveEggs : firstLegs.find(f => f.to === first.to)!.delivered;
+  let laying =
+    eggsModel === 'frozen'
+      ? null
+      : fresh
+        ? farmLaying(inputs, start)
+        : pb.layingAfterFirstLeg(firstLegs, first.to, saveSiloSeconds(inputs));
+  if (laying && eggsModel === 'laying') laying = { ...laying, capSeconds: Infinity };
+  if (laying) console.log(`laying egg ${EGG_ORDER[laying.egg]} ${laying.rate.toExponential(3)}/s, cap ${H(laying.capSeconds)}`);
+  const keep = pb.outcomeOf(main, mode, te0);
+  const req = {
+    mode,
+    prestigeAt,
+    startTE,
+    delivered,
+    laying,
+    final,
+    ...(deadline ? { deadline } : {}),
+    deliveryScale: scale,
+    candidates: pb.candidatesOf(main, mode, fresh),
+    hours,
+  };
+  const solved = new Map<number, Awaited<ReturnType<typeof solve>>>();
+  const solveAt = async (h: number) => {
+    if (!solved.has(h)) {
+      const s = pb.startStateAt(req, h);
+      solved.set(h, await solve({ startTE: s.startTE, start: s.start, startDelivered: s.delivered }));
+    }
+    return solved.get(h)!;
+  };
+  t0 = Date.now();
+  const prof0 = pb.estimateProfile(table.lookup, req);
+  console.log(`estimate profile: ${req.candidates.length} routes x ${hours + 1} hours in ${Date.now() - t0} ms`);
+  t0 = Date.now();
+  let lookMs = 0;
+  const cut = await pb.findCutoff({
+    mode,
+    keep,
+    hours,
+    profile: (extra, from) => pb.estimateProfile(table.lookup, { ...req, from, candidates: [...req.candidates, ...extra] }),
+    exact: async h => {
+      const t = Date.now();
+      const f = await solveAt(h);
+      lookMs += Date.now() - t;
+      const s = pb.startStateAt(req, h);
+      return { outcome: pb.outcomeOf(f, mode, s.startTE), chains: pb.candidatesOf(f, mode, true, false) };
+    },
+  });
+  const o = (x: { te: number; end: number | null } | null) =>
+    x ? `${mode === 'date' ? x.te + ' TE' : ''}${x.end ? ` ${fmt(x.end)}${deadline ? ` spare ${H(deadline - x.end)}` : ''}` : ' (none)'}` : '-';
+  console.log(`CUTOFF (${Date.now() - t0} ms, ${cut.lookups} lookups ${lookMs} ms): ${cut.kind}; keep ${o(cut.keep)}`);
+  console.log(`  estimate's first drop: ${cut.estimateDrop === null ? 'none' : `+${cut.estimateDrop} h (${fmt(pb.hourOf(prestigeAt, cut.estimateDrop))})`}`);
+  console.log(`  last keep +${cut.lastKeep} h ${fmt(pb.hourOf(prestigeAt, cut.lastKeep))}: ${o(cut.lastKeepOutcome)}`);
+  if (cut.drop !== null) console.log(`  drop +${cut.drop} h ${fmt(pb.hourOf(prestigeAt, cut.drop))}: ${o(cut.dropOutcome)}`);
+  if (cut.next) console.log(`  then until +${cut.next.until} h ${fmt(pb.hourOf(prestigeAt, cut.next.until))}, then ${o(cut.next.then)}`);
+  for (const l of cut.looked) console.log(`  looked up +${l.h} h: ${o(l.outcome)}`);
+  const line = pb.describeCutoff(cut, {
+    mode,
+    prestigeAt,
+    fresh,
+    firstStop: first.to,
+    now: start,
+    ...(deadline ? { deadline } : {}),
+    final,
+    show: fmt,
+  });
+  console.log(`LINE${line.show ? '' : ' (hidden)'}${line.tight ? ' [tight]' : ''}: ${line.text}`);
+  const W = arg('sweep-around');
+  if (W) {
+    const lo = Math.max(0, cut.lastKeep - Number(W));
+    const hi = Math.min(hours, (cut.drop ?? cut.lastKeep) + Number(W));
+    for (let h = lo; h <= hi; h++) {
+      const f = await solveAt(h);
+      const s = pb.startStateAt(req, h);
+      const r = mode === 'date' ? f.byDate : f.best;
+      console.log(`SWEEP +${h} h ${fmt(pb.hourOf(prestigeAt, h))} (TE ${s.startTE}): estimate ${o(prof0[h])} | finder ${show(r)}`);
+    }
+  }
+  if (has('sim') && deadline && cut.drop !== null) {
+    // The full simulator: the route that keeps the TE at the last start, priced from the hours around it.
+    const keepRoute = (await solveAt(cut.lastKeep)).byDate!;
+    const dropRoute = (await solveAt(cut.drop)).byDate;
+    let simFirst: { end: number; state: EngineState; te: number; laying: typeof laying } | null = null;
+    if (!fresh) {
+      const l1 = runLeg(inputs, JSON.parse(JSON.stringify(inputs.baseState)), start, first.to, true, te0, 2);
+      if (!l1) throw new Error('the simulator could not price the first ascension');
+      // The simulator's own farm left laying (chain.ts: the egg the leg ended on, at its peak rate),
+      // capped as the estimate is.
+      const simLaying = laying
+        ? { egg: EGG_ORDER.indexOf(l1.lastEgg as (typeof EGG_ORDER)[number]), rate: l1.summary.maxELR, capSeconds: laying.capSeconds }
+        : null;
+      simFirst = {
+        end: start + l1.summary.totalDurationSeconds,
+        state: l1.nextState,
+        te: Object.values(l1.summary.finalTE).reduce((a, b) => a + b, 0),
+        laying: simLaying,
+      };
+      console.log(
+        `SIM first ascension (${l1.key}) to ${simFirst.te} TE ends ${fmt(simFirst.end)} (instant answer: ${fmt(first.end)})` +
+          (laying ? `; farm left on ${l1.lastEgg} at ${l1.summary.maxELR.toExponential(3)}/s (the estimate: ${EGG_ORDER[laying.egg]} at ${laying.rate.toExponential(3)}/s)` : '')
+      );
+    }
+    const simChain = (h: number, chain: number[]): string => {
+      const S = pb.startStateAt(req, h).start;
+      let st: EngineState;
+      let t: number;
+      if (simFirst) {
+        t = nextHour(Math.max(S, simFirst.end));
+        st = JSON.parse(JSON.stringify(simFirst.state));
+        const eggs = pb.eggsAfter(EGG_ORDER.map(e => st.eggsDelivered?.[e] || 0), simFirst.laying, t - simFirst.end);
+        EGG_ORDER.forEach((e, i) => ((st.eggsDelivered as Record<string, number>)[e] = eggs[i]));
+      } else {
+        t = nextHour(S);
+        st = JSON.parse(JSON.stringify(inputs.baseState));
+        const eggs = pb.startStateAt(req, h).delivered;
+        EGG_ORDER.forEach((e, i) => ((st.eggsDelivered as Record<string, number>)[e] = eggs[i]));
+      }
+      EGG_ORDER.forEach(e => {
+        const te = st.teEarned as Record<string, number>;
+        te[e] = Math.max(te[e] || 0, countTEThresholdsPassed((st.eggsDelivered as Record<string, number>)[e] || 0));
+      });
+      (st as { te: number }).te = Object.values(st.teEarned as Record<string, number>).reduce((a, b) => a + b, 0);
+      let cur = (st as { te: number }).te;
+      const c = chain.filter(x => x > cur);
+      for (const [i, target] of c.entries()) {
+        if (i > 0) t = nextHour(t);
+        const leg = runLeg(inputs, st, t, target, false, cur, i + 3);
+        if (!leg) return `${c.join(' ')}: failed at ${target}`;
+        cur = Object.values(leg.summary.finalTE).reduce((a, b) => a + b, 0);
+        t += leg.summary.totalDurationSeconds;
+        st = leg.nextState;
+      }
+      return `${c.join(' ')}: ${cur} TE ${fmt(t)} ${t <= deadline ? `spare ${H(deadline - t)}` : `MISSES by ${H(t - deadline)}`}`;
+    };
+    // The table's own price of a route from hour h, leg by leg, beside the simulator's.
+    const tablePrice = (h: number, chain: number[]): string => {
+      const s = pb.startStateAt(req, h);
+      const r = priceChain(table.lookup, { startTE: s.startTE, start: s.start, startDelivered: s.delivered, deliveryScale: scale }, chain.filter(x => x > s.startTE));
+      return r
+        ? `${r.legs[r.legs.length - 1].endTE} TE ${fmt(r.end)} ${r.end <= deadline ? `spare ${H(deadline - r.end)}` : `MISSES by ${H(r.end - deadline)}`} [${r.legs.map(l => `${l.to}@${fmt(l.start)}`).join(' | ')}]`
+        : 'none';
+    };
+    // Each hour's own route (the finder's there), and the last keeping start's route from the drop on,
+    // until the simulator has it missing the date too (at most 6 hours past the drop).
+    for (const h of [cut.lastKeep - 1, cut.lastKeep, cut.drop, cut.drop + 1].filter(h => h >= 0)) {
+      const tt = Date.now();
+      const own = (await solveAt(h)).byDate;
+      if (own) console.log(`SIM +${h} h ${fmt(pb.hourOf(prestigeAt, h))} its route ${simChain(h, own.chain)} (${Math.round((Date.now() - tt) / 1000)} s)`);
+    }
+    for (let h = cut.drop; h <= cut.drop + 6; h++) {
+      const sim = simChain(h, keepRoute.chain);
+      console.log(`SIM +${h} h ${fmt(pb.hourOf(prestigeAt, h))} last keeping start's route ${sim}`);
+      console.log(`  table: ${tablePrice(h, keepRoute.chain)}`);
+      if (/MISSES|failed/.test(sim)) break;
+    }
+    void dropRoute;
+  }
+}

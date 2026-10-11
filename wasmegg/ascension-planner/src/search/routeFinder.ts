@@ -29,6 +29,7 @@
 import {
   bestTailTo,
   canonicalDelivered,
+  lastWaitEgg,
   pacificHourOfWeek,
   rebase,
   sweepTails,
@@ -75,6 +76,10 @@ export interface FirstLeg {
   delivered: number[];
   /** Shown in place of the sale count, e.g. 'continue'. */
   label?: string;
+  /** Continue and build-up: the egg the farm is on when it ends (EGG_ORDER index) and its peak
+   *  delivery rate, for a farm left laying after it (search/prestigeBy.ts). */
+  egg?: number;
+  peakELR?: number;
 }
 
 export interface FindOptions {
@@ -652,6 +657,11 @@ export function firstLegOptions(o: FirstLegOptions): FirstLeg[] {
     const bp = buildUps.length ? fastest(buildUpSweeps, buildUps, target) : null;
     const b = bp ? { seconds: bp.sweep.seconds[bp.i], endTE: bp.sweep.endTE[bp.i], delivered: eggsOf(bp.sweep, bp.i) } : null;
     let pick: { seconds: number; endTE: number; delivered: number[]; label: string } | null = null;
+    // The farm left laying after continue or a build-up: the egg it ends on, at its peak rate.
+    const farmEnd = (from: BuildParams, end: number[]) => ({
+      egg: lastWaitEgg(from.delivered, end),
+      peakELR: from.peakELR,
+    });
     if (o.firstAscension === 'buildup' && (b || c)) {
       // Continue my build-up: the sooner of building on and continuing as the farm is (ties: build-up).
       pick = b && (!c || b.seconds <= c.seconds) ? { ...b, label: 'buildup' } : { ...c!, label: 'continue' };
@@ -674,6 +684,8 @@ export function firstLegOptions(o: FirstLegOptions): FirstLeg[] {
         end: o.start + pick.seconds,
         delivered: pick.delivered,
         label: pick.label,
+        ...(pick.label === 'continue' && o.cont ? farmEnd(o.cont, pick.delivered) : {}),
+        ...(pick.label === 'buildup' && bp ? farmEnd(bp.build, pick.delivered) : {}),
       });
   }
   return out;

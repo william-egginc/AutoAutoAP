@@ -223,6 +223,12 @@
               Reached {{ show((dateExact ?? tableDate(result.byDate)).end) }} ·
               {{ (dateExact ?? tableDate(result.byDate)).chain.length }} ascensions
             </div>
+            <PrestigeByLine
+              v-if="prestigeFlag.enabled.value"
+              :line="prestige?.line ?? null"
+              :status="prestigeStatus"
+              :mismatch="prestigeMismatch"
+            />
             <p class="text-[11px] text-slate-600">
               Ascend at the times shown: each fresh ascension starts on the hour (inside the weekly research sale, at
               once when that ends sooner), and Check exactly prices it the same way.
@@ -392,6 +398,12 @@
             ><template v-else>{{ show(lead.end) }}</template> · {{ days(lead.seconds)
             }}<template v-if="!exactOf(lead)"> · {{ plural(lead.legs.length, 'ascension') }}</template>
           </div>
+          <PrestigeByLine
+            v-if="prestigeFlag.enabled.value"
+            :line="prestige?.line ?? null"
+            :status="prestigeStatus"
+            :mismatch="prestigeMismatch"
+          />
           <p class="text-[11px] text-slate-600">
             Ascend at the times shown: each fresh ascension starts on the hour (inside the weekly research sale, at once
             when that ends sooner), and Check exactly prices it the same way.
@@ -707,13 +719,13 @@ import { useChainSearchStore } from '@/stores/chainSearch';
 import { useInstantSummaryStore } from '@/stores/instantSummary';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { dateStyle, showDateTime } from '@/lib/displayTime';
-import { continueTailParams, instantDeliveryScale } from '@/search/leg';
+import { continueTailParams, farmLaying, instantDeliveryScale, saveSiloSeconds } from '@/search/leg';
 import { instantFirstLegsBase } from '@/search/instantFirstLegs';
 import type { FirstAscension } from '@/search/firstAscension';
 import { EGG_ORDER } from '@/search/precomputedLeg';
 import { cteFromArtifacts } from 'lib/virtue';
 import { equippedArtifactsToLibArtifacts } from '@/lib/artifacts/utils';
-import { findRoutes, type FoundRoutes, type PolishOptions, type Route } from '@/search/routeFinder';
+import { findRoutes, type FirstLeg, type FoundRoutes, type PolishOptions, type Route } from '@/search/routeFinder';
 import {
   atMostAscensions,
   describeGains,
@@ -740,6 +752,21 @@ import {
 } from '@/search/instantDeferral';
 import InstantRunWarning from './InstantRunWarning.vue';
 import InstantShareCheck from './InstantShareCheck.vue';
+import PrestigeByLine from './PrestigeByLine.vue';
+import { usePrestigeBy, recordsPrestigeBy } from '@/composables/usePrestigeBy';
+import {
+  candidatesOf,
+  describeCutoff,
+  findCutoff,
+  HORIZON_HOURS,
+  outcomeOf,
+  prestigePlan,
+  recordOfCutoff,
+  startStateAt,
+  type Cutoff,
+  type PrestigeByRecord,
+  type PrestigeLine,
+} from '@/search/prestigeBy';
 import InstantIntegrity from './InstantIntegrity.vue';
 import StrongerCheck from './StrongerCheck.vue';
 import { holdsRoutes, instantIntegrity } from '@/search/instantIntegrity';
@@ -925,11 +952,175 @@ async function polishInBackground(
     // Otherwise the first answer stands.
   }
   backgroundStatus.value = 'done';
+  void runPrestigeBy(id, p, url);
   void runExact(id, final);
   return true;
 }
 /** The background polish was cut off by a search starting, not by a failure. */
 let polishCut = false;
+
+/**
+ * PRESTIGE BY (experimental; search/prestigeBy.ts, composables/usePrestigeBy.ts): once the answer is
+ * in, how long its next prestige can wait before the answer gets worse, worked out on the route
+ * workers (the estimate profile, then 2-4 route finder lookups), and said in one line under it.
+ */
+const prestigeFlag = usePrestigeBy();
+const prestige = ref<{ line: PrestigeLine; cutoff: Cutoff; record: PrestigeByRecord } | null>(null);
+const prestigeStatus = ref<'idle' | 'running' | 'done' | 'error'>('idle');
+/** Bumped by each new answer (and a search starting), so a line for an older one is dropped. */
+let prestigeRuns = 0;
+/** Cut off by a search starting: worked out again when it ends. */
+let prestigeLater = false;
+/** The line's own promise, for a shared record to wait on (`recordOf`). */
+let prestigeDone: Promise<void> | null = null;
+/** What the answer was worked out from, for the line. */
+let prestigeInputs: {
+  id: number;
+  url: string;
+  firstLegs: FirstLeg[];
+  scale: number;
+  planStart: number;
+  te: number;
+  delivered: number[];
+} | null = null;
+/** How the waiting farm is counted: laying, for as long as the save's silos hold. */
+const PRESTIGE_EGGS = 'silo' as const;
+/** Set when the exact check gives a different answer from the instant answer the line was worked out on. */
+const prestigeMismatch = computed(() => {
+  const keep = prestige.value?.cutoff.keep;
+  if (!keep || exactStatus.value !== 'done') return '';
+  if (props.deadline) {
+    const d = dateExact.value;
+    return d && d.endTE !== keep.te
+      ? `On your account the exact check gives ${d.endTE} TE, not the instant answer's ${keep.te}, so these times may be off.`
+      : '';
+  }
+  const best = exactBest.value;
+  const e = best ? exactOf(best) : null;
+  return e && keep.end !== null && Math.abs(e.end - keep.end) > 6 * 3600
+    ? 'On your account the exact check gives a different date from the instant answer this was worked out on, so these times may be off.'
+    : '';
+});
+function runPrestigeBy(id: number, p: RoutePool, url: string): Promise<void> {
+  prestigeDone = prestigeWork(id, p, url);
+  return prestigeDone;
+}
+async function prestigeWork(id: number, p: RoutePool, url: string): Promise<void> {
+  const ctx = prestigeInputs;
+  const found = result.value;
+  // `id`: the answer's run. Check exactly bumps `runs` too, so the line is tied to its own counter.
+  if (!prestigeFlag.enabled.value || !ctx || ctx.id !== id || !found) return;
+  const pid = ++prestigeRuns;
+  const mode = props.deadline ? ('date' as const) : ('fastest' as const);
+  const inputs = store.collectInputs();
+  let farm: ReturnType<typeof farmLaying>;
+  try {
+    farm = farmLaying(inputs, ctx.planStart);
+  } catch {
+    farm = null;
+  }
+  const plan = prestigePlan({
+    mode,
+    found,
+    firstLegs: ctx.firstLegs,
+    planStart: ctx.planStart,
+    startTE: ctx.te,
+    saveDelivered: ctx.delivered,
+    farm,
+    siloSeconds: saveSiloSeconds(inputs),
+    eggs: PRESTIGE_EGGS,
+  });
+  // "At most N ascensions" counts the player's own first ascension too.
+  const maxAfter =
+    filters.value.maxAscensions === null ? null : filters.value.maxAscensions - (plan && !plan.fresh ? 1 : 0);
+  if (!plan || (maxAfter !== null && maxAfter < 1)) {
+    prestige.value = null;
+    prestigeStatus.value = 'idle';
+    return;
+  }
+  prestigeStatus.value = 'running';
+  prestige.value = null;
+  const hours =
+    useHours.value && store.availability ? (JSON.parse(JSON.stringify(store.availability)) as Availability) : null;
+  const deadline = props.deadline;
+  const req = {
+    mode,
+    prestigeAt: plan.prestigeAt,
+    startTE: plan.startTE,
+    delivered: plan.delivered,
+    laying: plan.laying,
+    final: target.value,
+    ...(deadline ? { deadline } : {}),
+    deliveryScale: ctx.scale,
+    candidates: plan.candidates,
+    hours: HORIZON_HOURS,
+  };
+  const stale = () => pid !== prestigeRuns;
+  const t0 = performance.now();
+  try {
+    const cut = await findCutoff({
+      mode,
+      keep: plan.keep,
+      hours: HORIZON_HOURS,
+      profile: async (extra, from) => {
+        if (stale()) throw new Error('superseded');
+        return p.prestigeEstimate(url, { ...req, from, candidates: [...req.candidates, ...extra] });
+      },
+      exact: async h => {
+        if (stale()) throw new Error('superseded');
+        const s = startStateAt(req, h);
+        const base = {
+          startTE: s.startTE,
+          start: s.start,
+          startDelivered: s.delivered,
+          deliveryScale: ctx.scale,
+          ...(deadline ? { deadline } : {}),
+          ...(hours ? { hours } : {}),
+        };
+        const f = await findRoutes({
+          ...base,
+          table: () => null,
+          final: target.value,
+          maxAscensions: MAX_ASCENSIONS,
+          expand: (items, settings) => p.expand(url, items, settings),
+        });
+        if (stale()) throw new Error('superseded');
+        const polished = await p.polish(url, base, JSON.parse(JSON.stringify(f)));
+        const both = atMostAscensions({ ...f, ...polished }, maxAfter);
+        return { outcome: outcomeOf(both, mode, s.startTE), chains: candidatesOf(both, mode, true, false) };
+      },
+    });
+    if (stale()) return;
+    const line = describeCutoff(cut, {
+      mode,
+      prestigeAt: plan.prestigeAt,
+      fresh: plan.fresh,
+      firstStop: plan.firstStop,
+      now: Math.floor(Date.now() / 1000),
+      ...(deadline ? { deadline } : {}),
+      final: target.value,
+      show,
+    });
+    prestige.value = { line, cutoff: cut, record: recordOfCutoff(cut, line, plan, PRESTIGE_EGGS) };
+    prestigeStatus.value = 'done';
+    if (import.meta.env.DEV)
+      console.info(`instant answer: prestige by ${Math.round(performance.now() - t0)} ms, ${cut.lookups} lookups`);
+    saveSnapshot(runs);
+  } catch {
+    // Superseded, cut off by a search, or a failure: no line (the answer stands as it is).
+    if (pid === prestigeRuns) prestigeStatus.value = 'error';
+  }
+}
+// The box ticked in Your setup with an answer on screen: worked out now.
+watch(
+  () => prestigeFlag.enabled.value,
+  on => {
+    if (on && result.value && status.value === 'done' && !prestige.value && prestigeStatus.value !== 'running') {
+      const ctx = prestigeInputs;
+      if (ctx && (!runBusy.value || runsAlongside())) void runPrestigeBy(ctx.id, getPool(), ctx.url);
+    }
+  }
+);
 
 /**
  * NEAREST TABLES ABOVE AND BELOW (search/tableBracket.ts): for a player with no table of their own
@@ -1131,7 +1322,8 @@ watch(
   () =>
     (store.isRunning || store.deadlineRunning || store.resultSending) &&
     status.value !== 'loading' &&
-    backgroundStatus.value !== 'running',
+    backgroundStatus.value !== 'running' &&
+    prestigeStatus.value !== 'running',
   free => {
     if (free) pool?.sleep();
   }
@@ -1149,6 +1341,10 @@ watch(runBusy, (busy, wasBusy) => {
   if (resumeAfterRun({ wasBusy, busy, waiting: waiting.value })) {
     void run();
     return;
+  }
+  if (!busy && wasBusy && prestigeLater) {
+    prestigeLater = false;
+    if (result.value && prestigeInputs) void runPrestigeBy(prestigeInputs.id, getPool(), prestigeInputs.url);
   }
   if (!busy && wasBusy && bracketLater) {
     const go = bracketLater;
@@ -1211,6 +1407,13 @@ function pauseWorkForRun(): void {
   }
   if (pause.polish) {
     polishCut = true;
+    pool?.interrupt();
+  }
+  // The experimental "Prestige by" line stops too, and is worked out again when the search ends.
+  if (prestigeStatus.value === 'running' && status.value !== 'loading' && !runsAlongside()) {
+    ++prestigeRuns;
+    prestigeStatus.value = 'idle';
+    prestigeLater = true;
     pool?.interrupt();
   }
 }
@@ -1298,6 +1501,11 @@ async function run(force = false, goAhead = false): Promise<void> {
   waiting.value = false;
   afterRun = null;
   stopExact();
+  // A "Prestige by" line for the last answer stops asking the route workers.
+  ++prestigeRuns;
+  prestigeLater = false;
+  prestigeInputs = null;
+  if (prestigeStatus.value === 'running') prestigeStatus.value = 'idle';
   // The old saved answer stays until a new one is saved over it (saveSnapshot): a forced run that is
   // stopped, superseded or fails must not leave the player with nothing.
   // One whose gear note an older gear rule gave is not shown again (search/instantSnapshot.ts).
@@ -1420,6 +1628,7 @@ async function run(force = false, goAhead = false): Promise<void> {
     if (id !== runs) return;
     const firstLegs = await p.firstLegs({ url, deliveryScale: scale, ...legsRequest });
     if (id !== runs) return;
+    prestigeInputs = { id, url, firstLegs, scale, planStart: inputs.planStart, te, delivered: legsRequest.delivered };
     // A plain copy: it goes to the workers.
     const hours =
       useHours.value && store.availability ? (JSON.parse(JSON.stringify(store.availability)) as Availability) : null;
@@ -1454,6 +1663,9 @@ async function run(force = false, goAhead = false): Promise<void> {
     const raw = { ...found, ...polished };
     const answer = atMostAscensions(raw, filters.value.maxAscensions);
     result.value = answer;
+    // The last answer's "Prestige by" line goes with it.
+    prestige.value = null;
+    prestigeStatus.value = 'idle';
     findCtx.value = markRaw<FindContext>({
       startTE: te,
       start: inputs.planStart,
@@ -1467,7 +1679,11 @@ async function run(force = false, goAhead = false): Promise<void> {
     ms.value = performance.now() - t0;
     status.value = 'done';
     if (props.deadline) emitRoutes(answer);
-    if (small) return;
+    if (small) {
+      // No background polish on a small device: the line (when it is on) straight after the answer.
+      if (!runBusy.value) void runPrestigeBy(id, p, url);
+      return;
+    }
     const polish = (): void =>
       void polishInBackground(id, p, url, polishOptions, raw, answer).then(done => {
         if (done) return runBracket(bid, legsRequest, hours);
@@ -2019,6 +2235,8 @@ interface InstantSnapshot {
   exactMs: number | null;
   gains: PolishGain[];
   bracket: { above: BracketSide | null; below: BracketSide | null } | null;
+  /** The experimental "Prestige by" line, when it was worked out. */
+  prestige?: { line: PrestigeLine; cutoff: Cutoff; record: PrestigeByRecord } | null;
 }
 let snapKey: string | null = null;
 /** When the answer on screen was saved, while it is a saved one (not worked out in this visit). */
@@ -2026,6 +2244,7 @@ const savedAt = ref<number | null>(null);
 function saveSnapshot(id: number): void {
   if (id !== runs || !snapKey || !result.value || status.value !== 'done' || exactStatus.value !== 'done') return;
   if (backgroundStatus.value === 'running' || bracketStatus.value === 'running') return;
+  if (prestigeStatus.value === 'running') return;
   const snap = currentSnapshot();
   if (!snap) return;
   // Too big: keep the answer without each route's step-by-step legs ("Simulate this plan" then
@@ -2059,6 +2278,7 @@ function currentSnapshot(): InstantSnapshot | null {
       exactMs: exactMs.value,
       gains: gains.value,
       bracket: bracket.value,
+      prestige: prestige.value,
     })
   ) as InstantSnapshot;
 }
@@ -2085,6 +2305,8 @@ function applySnapshot(s: InstantSnapshot): void {
   exactMs.value = s.exactMs;
   gains.value = s.gains;
   bracket.value = s.bracket;
+  prestige.value = s.prestige ?? null;
+  prestigeStatus.value = s.prestige ? 'done' : 'idle';
   bracketStatus.value = 'done';
   backgroundStatus.value = 'done';
   exactStatus.value = 'done';
@@ -2401,6 +2623,19 @@ async function afterCheck(id: number): Promise<void> {
   if (shareThis.value) await shareCheck(id);
 }
 
+/**
+ * The record with the "Prestige by" prediction added, when the player turned the line on and chose to
+ * keep it in shared checks (only shared checks get here). A line still being worked out is waited for,
+ * up to a minute.
+ */
+async function withPrestigeBy(record: InstantRecord): Promise<InstantRecord> {
+  const flag = { enabled: prestigeFlag.enabled.value, record: prestigeFlag.record.value };
+  if (!recordsPrestigeBy(flag, true)) return record;
+  if (prestigeStatus.value === 'running' && prestigeDone)
+    await Promise.race([prestigeDone, new Promise(r => setTimeout(r, 60000))]);
+  return prestige.value ? { ...record, prestigeBy: prestige.value.record } : record;
+}
+
 /** Send this check's record. Never throws; a check that has been superseded is skipped. */
 async function shareCheck(id: number): Promise<void> {
   if (!instantUrl || id !== runs || doneId !== id || exactStatus.value !== 'done') return;
@@ -2412,7 +2647,7 @@ async function shareCheck(id: number): Promise<void> {
     url: instantUrl,
     owner,
     partition,
-    record: c.record,
+    record: await withPrestigeBy(c.record),
     storage: shareStorage(),
   });
   if (id !== runs) return;

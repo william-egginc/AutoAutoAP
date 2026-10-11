@@ -450,6 +450,39 @@
           </p>
         </div>
 
+        <!-- Experimental: off for players until there is data to back it (composables/usePrestigeBy.ts). -->
+        <div class="rounded-xl border border-slate-200 p-4 space-y-2 min-w-0 md:col-span-2" data-testid="experimental">
+          <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Experimental</h3>
+          <label class="flex items-start gap-3 cursor-pointer">
+            <input
+              v-model="prestigeBy.stored.value"
+              type="checkbox"
+              class="mt-0.5 rounded border-slate-300 text-indigo-600"
+              data-testid="prestige-by-box"
+            />
+            <span class="text-[11px] text-slate-600 leading-relaxed">
+              <span class="font-bold text-slate-800">Prestige by…</span> A line under the instant answer saying how long
+              your next prestige can wait before the answer gets worse, and what it gets after that. Still being
+              checked, so it can be wrong.
+              <template v-if="prestigeBy.fromUrl !== null">
+                This visit's address turns it {{ prestigeBy.fromUrl ? 'on' : 'off' }} whatever this box says.</template
+              >
+            </span>
+          </label>
+          <label v-if="canShareInstant && prestigeBy.enabled.value" class="flex items-start gap-3 cursor-pointer ml-6">
+            <input
+              v-model="prestigeBy.record.value"
+              type="checkbox"
+              class="mt-0.5 rounded border-slate-300 text-indigo-600"
+              data-testid="prestige-by-record"
+            />
+            <span class="text-[11px] text-slate-600 leading-relaxed">
+              <span class="font-bold text-slate-800">Include it in checks I share</span>, so it can be checked against
+              what happens. Only with "Share this check" ticked; nothing more is sent than the prediction itself.
+            </span>
+          </label>
+        </div>
+
         <!-- How the site shows things -->
         <div class="rounded-xl border border-slate-200 p-4 space-y-3 min-w-0 md:col-span-2">
           <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">How the site shows things</h3>
@@ -472,6 +505,7 @@ import { showDateTime, showHour, showSchedule as scheduleText } from '@/lib/disp
 import { usableTimeOff } from '@/search/timeOff';
 import { useInstantDuringSearch } from '@/composables/useInstantDuringSearch';
 import { useInstantShare } from '@/composables/useInstantShare';
+import { usePrestigeBy } from '@/composables/usePrestigeBy';
 import { instantUrlOf } from '@/search/instantRecord';
 import { FIRST_ASCENSION_CHOICES, FIRST_ASCENSION_WORDS, type FirstAscension } from '@/search/firstAscension';
 import SchedulingInputs from './SchedulingInputs.vue';
@@ -492,6 +526,8 @@ const instantDuringSearch = useInstantDuringSearch();
 /** "Keep sharing my checks" (mirrors the instant answer box): only where a collector is configured to take them. */
 const { on: shareInstantOn } = useInstantShare();
 const canShareInstant = !!instantUrlOf(store.submitUrl);
+/** Experimental: the "Prestige by" line (?prestigeBy=1 for one visit, or this box). */
+const prestigeBy = usePrestigeBy();
 // Choosing "Let me pick my hours" holds the egg shifts for those hours as well.
 watch(
   () => store.scheduleEnabled,

@@ -557,6 +557,31 @@ export function continueTailParams(inputs: SearchInputs, startTime: number): Bui
 }
 
 /**
+ * The farm in the save laying while a fresh prestige waits (search/prestigeBy.ts `Laying`): its own
+ * delivery rate on the egg it is on, for at most what its silos hold (a player who is away collects no
+ * more). Null without a farm to read.
+ */
+export function farmLaying(
+  inputs: SearchInputs,
+  startTime: number
+): { egg: number; rate: number; capSeconds: number } | null {
+  const farm = inputs.currentFarmState;
+  const cont = continueTailParams(inputs, startTime);
+  if (!farm || !cont) return null;
+  const egg = EGG_ORDER.indexOf(VIRTUE_EGGS_MAP[farm.eggType as number] ?? 'curiosity');
+  return {
+    egg,
+    rate: cont.peakELR,
+    capSeconds: siloSeconds(farm.numSilos || 1, inputs.context.epicResearchLevels?.['silo_capacity']),
+  };
+}
+
+/** What the save's silos hold, in seconds (the cap on a waiting farm's laying). */
+export function saveSiloSeconds(inputs: SearchInputs): number {
+  return siloSeconds(inputs.currentFarmState?.numSilos || 1, inputs.context.epicResearchLevels?.['silo_capacity']);
+}
+
+/**
  * The instant answer's delivery adjustment (components/auto/InstantRoute.vue): the player's peak
  * delivery rate against the precomputed table's, at the research a build waits with (the table's
  * `k3`). The best set the player's whole inventory can wear there, through the simulator's own rate

@@ -14,6 +14,7 @@ import type {
   FoundRoutes,
   PolishOptions,
 } from '@/search/routeFinder';
+import type { EstimateRequest, Outcome } from '@/search/prestigeBy';
 
 /** Load the table (once) and say what it is. */
 export interface HeaderRequest {
@@ -61,11 +62,25 @@ export interface PolishRequest {
   found: FoundRoutes;
 }
 
-export type RouteWorkerRequest = HeaderRequest | FirstLegsRequest | ExpandRequest | PolishRequest;
+/** The experimental "Prestige by" estimate for a run of hours (search/prestigeBy.ts `estimateProfile`). */
+export interface PrestigeEstimateRequest {
+  kind: 'prestige-estimate';
+  id: number;
+  url: string;
+  request: EstimateRequest;
+}
+
+export type RouteWorkerRequest =
+  | HeaderRequest
+  | FirstLegsRequest
+  | ExpandRequest
+  | PolishRequest
+  | PrestigeEstimateRequest;
 
 export type RouteWorkerResponse =
   | { kind: 'header'; id: number; header: TableHeader }
   | { kind: 'first-legs'; id: number; firstLegs: FirstLeg[] }
   | { kind: 'expand'; id: number; candidates: Candidate[] }
   | { kind: 'polish'; id: number; found: FoundRoutes }
+  | { kind: 'prestige-estimate'; id: number; outcomes: Outcome[] }
   | { kind: 'error'; id: number; message: string };

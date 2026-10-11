@@ -19,6 +19,7 @@
  *
  * Everything here is pure or takes its storage and fetch as arguments, so it is tested without a page.
  */
+import type { PrestigeByRecord } from './prestigeBy';
 import type { Route } from './routeFinder';
 import type { LegSummary } from './types';
 import { firstLegKindOf, type FirstAscension, type FirstLegKind } from './firstAscension';
@@ -137,6 +138,11 @@ export interface InstantRecord {
   /** The farm the plan continues against a fresh build's peak delivery (Q/h). */
   buildGap?: { contQph: number; freshQph: number; ratio: number; freshLeg: number };
   checkSeconds?: number;
+  /** The experimental "Prestige by" prediction (search/prestigeBy.ts), only when the player turned it
+   *  on and chose to keep it in shared checks (composables/usePrestigeBy.ts). The collector keeps it
+   *  only once its whitelist has the field (collector/worker.js INSTANT_RECORD); until then it is
+   *  dropped there like any unknown field, and the record is stored without it. */
+  prestigeBy?: PrestigeByRecord;
 }
 
 const r2 = (x: number) => Math.round(x * 100) / 100;
@@ -216,13 +222,17 @@ export function fitRecord(rec: InstantRecord, max = INSTANT_MAX_BYTES): InstantR
   if (r.rows && r.rows.length > 8) r = { ...r, rows: r.rows.slice(0, 8) };
   if (size(r) <= max) return r;
   if (r.exact) r = { ...r, exact: { ...r.exact, legs: undefined } };
+  if (size(r) <= max) return r;
+  if (r.prestigeBy) r = { ...r, prestigeBy: undefined };
   return size(r) <= max ? r : null;
 }
 
-/** FNV-1a of the record without what changes on every check of the same answer (its timing). */
+/** FNV-1a of the record without what changes on every check of the same answer (its timing, and
+ *  the "Prestige by" prediction worked out beside it). */
 export function recordSig(rec: InstantRecord): string {
-  const { checkSeconds: _c, ...rest } = rec;
+  const { checkSeconds: _c, prestigeBy: _p, ...rest } = rec;
   void _c;
+  void _p;
   const text = JSON.stringify(rest);
   let h = 0x811c9dc5;
   for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193) >>> 0;

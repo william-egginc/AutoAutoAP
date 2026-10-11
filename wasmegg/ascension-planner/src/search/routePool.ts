@@ -7,6 +7,7 @@
 import type { TableHeader } from './precomputedTable';
 import type { ArrivalItem, Candidate, ExpandSettings, FirstLeg, FoundRoutes, PolishOptions } from './routeFinder';
 import type { FirstLegsRequest, RouteWorkerRequest, RouteWorkerResponse } from '@/workers/routeFinder.protocol';
+import { splitHours, type EstimateRequest, type Outcome } from './prestigeBy';
 
 type Pending = { resolve: (m: RouteWorkerResponse) => void; reject: (e: Error) => void };
 /** A request without its id, member by member (Omit on the union would collapse it). */
@@ -155,6 +156,20 @@ export class RoutePool {
       chunks.map((chunk, w) => this.ask(w, { kind: 'expand', url, items: chunk, settings }))
     );
     return replies.flatMap(m => (m.kind === 'expand' ? m.candidates : []));
+  }
+
+  /**
+   * The experimental "Prestige by" estimate (search/prestigeBy.ts `estimateProfile`) for hours
+   * `from`..`hours`, the hours split among the workers and put back in order.
+   */
+  async prestigeEstimate(url: string, request: EstimateRequest): Promise<Outcome[]> {
+    const runs = splitHours(request.from ?? 0, request.hours, this.count);
+    const replies = await Promise.all(
+      runs.map(([a, b], w) =>
+        this.ask(w, { kind: 'prestige-estimate', url, request: { ...request, from: a, hours: b } })
+      )
+    );
+    return replies.flatMap(m => (m.kind === 'prestige-estimate' ? m.outcomes : []));
   }
 
   terminate(): void {

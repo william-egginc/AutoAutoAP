@@ -2888,6 +2888,24 @@ describe('POST /instant (opt-in instant answer records)', () => {
     expect((await get('/instant')).status).toBe(404);
   });
 
+  it('takes a record with the experimental prestigeBy prediction, but drops the field (not yet on the whitelist)', async () => {
+    // The app adds `prestigeBy` (src/search/prestigeBy.ts PrestigeByRecord) only when the player turned
+    // the line on and chose to keep it in shared checks. Until INSTANT_RECORD lists it, the record is
+    // stored without it, like any unknown field. When the whitelist gains it, this test changes.
+    const prestigeBy = {
+      v: 1, mode: 'date', eggs: 'silo', prestigeAt: T + 86400, fresh: false, keepTE: 248, keepEnd: T + 9e6,
+      kind: 'drop', latest: T + 86400 + 12 * 3600, drop: T + 86400 + 13 * 3600, dropTE: 247, dropEnd: T + 8.8e6,
+      until: null, thenTE: null, spareHours: 5.6, tight: true, shown: true, estimateDropHours: 8, lookups: 2,
+    };
+    const res = await postOwned('/instant', { ...RECORD, prestigeBy }, TOKEN_A);
+    expect(res.status).toBe(200);
+    const { id } = await res.json();
+    const day = new Date().toISOString().slice(0, 10);
+    const stored = JSON.parse(env.SUBMISSIONS._m.get(`inst:${day}:${id}`));
+    expect(stored.prestigeBy).toBeUndefined();
+    expect(stored.instant).toEqual(RECORD.instant);
+  });
+
   it('needs the owner code', async () => {
     const res = await post('/instant', RECORD);
     expect(res.status).toBe(400);

@@ -25,6 +25,20 @@ export const EGG_ORDER: VirtueEgg[] = ['curiosity', 'kindness', 'integrity', 're
 /** The waits after the build, in the simulator's order (`allShifts`: K3, C4, I2, R2, H2). */
 const WAIT_ORDER: VirtueEgg[] = ['kindness', 'curiosity', 'integrity', 'resilience', 'humility'];
 
+/**
+ * The egg a tail's farm is on when it ends (EGG_ORDER index): the last in the waits' order whose count
+ * the waits raised, from the counts when K3's wait began (`waitStart`) to the end; kindness (K3's own)
+ * when none was.
+ */
+export function lastWaitEgg(waitStart: number[], end: number[]): number {
+  let egg: VirtueEgg = WAIT_ORDER[0];
+  for (const e of WAIT_ORDER) {
+    const i = EGG_ORDER.indexOf(e);
+    if ((end[i] ?? 0) > (waitStart[i] ?? 0)) egg = e;
+  }
+  return EGG_ORDER.indexOf(egg);
+}
+
 /** One C3 variant's build, as the tail needs it. Times are seconds from the ascension's start. */
 export interface BuildParams {
   /** Sales the build waits through (1-3). */
