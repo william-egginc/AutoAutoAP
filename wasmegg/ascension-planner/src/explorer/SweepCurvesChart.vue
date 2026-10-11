@@ -118,7 +118,7 @@
           :aria-pressed="shownCount === c.ascensions"
           @click="pickedCount = c.ascensions"
         >
-          {{ c.ascensions }} ascensions <span class="opacity-60">· {{ c.runs }}</span>
+          {{ plural(c.ascensions, 'ascension') }} <span class="opacity-60">· {{ c.runs }}</span>
         </button>
       </div>
       <!-- A 2-ascension plan has one checkpoint: nothing to pick. -->
@@ -191,12 +191,12 @@
     <p v-else-if="current" class="px-4 py-6 text-center text-[11px] text-slate-400">
       Load the tables to draw this sweep.
       <template v-if="noTable">
-        {{ noTable }} of its {{ shownRows.length }} runs {{ noTable === 1 ? 'has' : 'have' }} no table stored and cannot
+        {{ noTable }} of its {{ plural(shownRows.length, 'run') }} {{ noTable === 1 ? 'has' : 'have' }} no table stored and cannot
         be drawn.
       </template>
     </p>
     <p v-if="curves.length && curves.length < shownRows.length" class="text-[10px] text-slate-500 px-1">
-      {{ curves.length }} of {{ shownRows.length }} runs drawn<template v-if="noTable"
+      {{ curves.length }} of {{ plural(shownRows.length, 'run') }} drawn<template v-if="noTable"
         >; {{ noTable }} {{ noTable === 1 ? 'has' : 'have' }} no table stored</template
       ><template v-if="pending.length">; {{ pending.length }} not loaded yet</template
       ><template v-if="singlePoint"
@@ -303,6 +303,7 @@
 </template>
 
 <script setup lang="ts">
+import { plural } from '@/lib/format';
 import { describeFetchError } from '@/utils/errors';
 import { computed, ref, shallowRef, watch } from 'vue';
 import EChart from '@/components/charts/EChart.vue';

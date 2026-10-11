@@ -1538,7 +1538,7 @@ describe('a code-less line under an owner name', () => {
     expect(w.listed.map(p => p.row.id)).toEqual(expect.arrayContaining(['b279', 'o279']));
     // And the two rows say how they differ.
     const tags = settingTags([before[0], owned], DENVER);
-    expect([tags.get(before[0]), tags.get(owned)]).toEqual([['starts 08:49'], ['starts 11:06']]);
+    expect([tags.get(before[0]), tags.get(owned)]).toEqual([['starts 8:49 am'], ['starts 11:06 am']]);
   });
 
   it('keeps apart a code-less line whose TE, gear or owner does not fit', () => {
@@ -1589,10 +1589,10 @@ describe('look-alike tags', () => {
     const tags = settingTags([a, b, c], 'America/Denver');
     expect([tags.get(a), tags.get(b), tags.get(c)]).toEqual([
       ['Continue Asc.'],
-      ['Fastest', 'starts 17:14'],
-      ['Fastest', 'starts 17:18'],
+      ['Fastest', 'starts 5:14 pm'],
+      ['Fastest', 'starts 5:18 pm'],
     ]);
-    expect(settingTags([b, c]).get(b)).toEqual(['starts 16:14']);
+    expect(settingTags([b, c]).get(b)).toEqual(['starts 4:14 pm']);
   });
 
   it('leaves alone plans from different saves or routes', () => {

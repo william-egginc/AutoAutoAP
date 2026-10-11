@@ -246,7 +246,7 @@
               <SendingText v-if="run.phase === 'sending'" text="Sending the result" />
               <template v-else-if="run.phase === 'starting' || !store.chainsEstimated">Starting...</template>
               <template v-else>
-                {{ pricedSoFar.toLocaleString() }} of {{ store.chainsEstimated.toLocaleString() }} chains
+                {{ pricedSoFar.toLocaleString() }} of {{ plural(store.chainsEstimated, 'chain') }}
               </template>
             </span>
             <span v-if="run.phase === 'running' && leftLabel" class="text-[11px] text-slate-500"
@@ -300,7 +300,7 @@
         <div v-else class="space-y-3">
           <p v-if="store.bestDays > 0" class="text-[12px] text-slate-800">
             <template v-if="store.stoppedEarly"
-              >Stopped early, after {{ store.chainsDone.toLocaleString() }} chains.
+              >Stopped early, after {{ plural(store.chainsDone, 'chain') }}.
             </template>
             <template v-else>Done: every chain in the sweep was priced. </template>
             The fastest was <span class="font-mono-premium font-bold">{{ store.bestChain.join(' → ') }}</span
@@ -346,6 +346,7 @@
 </template>
 
 <script setup lang="ts">
+import { plural } from '@/lib/format';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useEidsStore } from 'lib';
 import { useChainSearchStore } from '@/stores/chainSearch';

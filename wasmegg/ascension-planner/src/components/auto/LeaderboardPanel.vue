@@ -989,13 +989,14 @@
       </template>
 
       <p v-if="capped && tab !== 'insights'" class="text-[10px] text-amber-800">
-        The collector sent its maximum of {{ ALL_CAP }} runs, so the oldest or slowest runs may be missing.
+        The collector sent its maximum of {{ plural(ALL_CAP, 'run') }}, so the oldest or slowest runs may be missing.
       </p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { plural } from '@/lib/format';
 import { COMPARE_VIEWS, NAMES, type CompareView } from '@/lib/siteNav';
 import { useUIStore } from '@/stores/ui';
 import { safeAsyncComponent } from '@/lib/import';

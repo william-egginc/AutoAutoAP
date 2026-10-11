@@ -375,14 +375,14 @@
         <div class="font-mono-premium text-base font-black text-slate-900">{{ lead.chain.join(' → ') }}</div>
         <div v-if="exactOf(lead)" class="text-[12px] text-slate-800">
           Reaches {{ store.finalTE }} on <b>{{ show(exactOf(lead)!.end) }}</b> · {{ days(exactOf(lead)!.seconds) }} ·
-          {{ lead.legs.length }} ascensions
+          {{ plural(lead.legs.length, 'ascension') }}
           <span class="text-[11px] font-bold text-emerald-700">exact, your account</span>
         </div>
         <div :class="exactOf(lead) ? 'text-[11px] text-slate-500' : 'text-[12px] text-slate-700'">
           {{ exactOf(lead) ? 'The instant answer said ' : 'Reaches ' + store.finalTE + ' on '
           }}<b v-if="!exactOf(lead)">{{ show(lead.end) }}</b
           ><template v-else>{{ show(lead.end) }}</template> · {{ days(lead.seconds)
-          }}<template v-if="!exactOf(lead)"> · {{ lead.legs.length }} ascensions</template>
+          }}<template v-if="!exactOf(lead)"> · {{ plural(lead.legs.length, 'ascension') }}</template>
         </div>
         <p class="text-[11px] text-slate-600">
           Ascend at the times shown: each fresh ascension starts on the hour (inside the weekly research sale, at once
@@ -660,6 +660,7 @@
 </template>
 
 <script setup lang="ts">
+import { plural } from '@/lib/format';
 import { computed, onUnmounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useInstantSummaryStore } from '@/stores/instantSummary';
@@ -2092,14 +2093,10 @@ function resetShareForNewCheck(): void {
   shareUsed = false;
 }
 
-/** "11:02 am", in the plan's timezone (or "11:02" with ISO dates). */
+/** "11:02 am", in the plan's timezone. */
 function clock(ms: number): string {
   try {
-    if (dateStyle.value === 'iso')
-      return new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: zone.value }).format(
-        new Date(ms)
-      );
-    return new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit', timeZone: zone.value })
+    return new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: zone.value })
       .format(new Date(ms))
       .replace(/\s?([AP])\.?M\.?$/i, (_m, x: string) => ` ${x.toLowerCase()}m`);
   } catch {

@@ -82,7 +82,7 @@
 
     <p class="text-[11px] text-slate-600 leading-relaxed">
       This table holds <b>{{ plansText(total) }}</b
-      ><template v-if="counts.length === 1"> at {{ counts[0] }} ascensions</template>.
+      ><template v-if="counts.length === 1"> at {{ plural(counts[0], 'ascension') }}</template>.
       <template v-if="truncated"
         >This page read the fastest {{ chains.length.toLocaleString() }}; the slowest
         {{ truncated.toLocaleString() }} are only in the download.
@@ -197,6 +197,7 @@
 </template>
 
 <script setup lang="ts">
+import { plural } from '@/lib/format';
 import { computed, ref, watch } from 'vue';
 import type { PricedChain } from '@/search/types';
 import { DAY_MS, finishDateText, finishTitle, signedDays } from '@/lib/leaderboardRank';

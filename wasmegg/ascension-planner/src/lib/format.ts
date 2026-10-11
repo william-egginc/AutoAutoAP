@@ -452,3 +452,8 @@ export function formatUnixToTimeInput(timestamp: number, tz: string): string {
     hour12: false 
   }).format(d);
 }
+
+/** "1 chain", "2 chains" (counts get thousands separators). Pass `many` for an irregular plural. */
+export function plural(n: number, one: string, many = `${one}s`): string {
+  return `${n.toLocaleString()} ${n === 1 ? one : many}`;
+}

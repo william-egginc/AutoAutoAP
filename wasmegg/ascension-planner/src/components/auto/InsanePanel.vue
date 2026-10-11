@@ -152,7 +152,7 @@
           v-if="ascMismatch"
           class="rounded-lg bg-rose-50 border border-rose-200 px-3 py-2 text-[11px] font-semibold text-rose-800"
         >
-          The Ascensions box ({{ suggestAsc }}) no longer matches this sweep ({{ bands.length + 1 }} ascensions). To
+          The Ascensions box ({{ suggestAsc }}) no longer matches this sweep ({{ plural(bands.length + 1, 'ascension') }}). To
           start, set it back to {{ bands.length + 1 }} under The space to search.
         </p>
         <div class="flex flex-wrap items-center gap-3">
@@ -454,7 +454,7 @@
             <label class="space-y-1 block">
               <!-- Labelled like the chains added below it (Chain 2, 3...), so it reads as one of them. -->
               <span v-if="!sweepRequest" class="block text-[10px] font-black text-slate-600 uppercase tracking-widest">
-                Chain 1<template v-if="bands.length"> · {{ bands.length + 1 }} ascensions</template>
+                Chain 1<template v-if="bands.length"> · {{ plural(bands.length + 1, 'ascension') }}</template>
               </span>
               <span class="flex items-center gap-1.5">
                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
@@ -514,7 +514,7 @@
                   point you can edit.
                 </HelpTip>
                 <span v-if="suggestion" class="text-[10px] text-slate-500">
-                  Suggest would fill in {{ suggestAsc }} ascensions, {{ suggestion.chains.toLocaleString() }} chains,
+                  Suggest would fill in {{ plural(suggestAsc, 'ascension') }}, {{ plural(suggestion.chains, 'chain') }},
                   about {{ chainsTimeLabel(suggestion.chains) }} &middot;
                   <template v-if="suggestion.kind === 'complete'">
                     <span class="font-black text-emerald-700">complete sweep</span>
@@ -533,7 +533,7 @@
                     }}
                   </template>
                   <template v-else>
-                    measured shape, from {{ suggestion.runs }} runs across {{ suggestion.accounts }} accounts
+                    measured shape, from {{ plural(suggestion.runs, 'run') }} across {{ suggestion.accounts }} accounts
                   </template>
                 </span>
                 <span v-else class="text-[10px] text-amber-700">
@@ -549,7 +549,7 @@
 
               <span class="block text-[10px] text-slate-400">
                 <template v-if="bands.length">
-                  {{ bands.length }} bands -> {{ bands.length + 1 }} ascensions ·
+                  {{ plural(bands.length, 'band') }} -> {{ plural(bands.length + 1, 'ascension') }} ·
                   {{ bands.map(b => b.length).join(' x ') }} values
                 </template>
                 <template v-else>Nothing readable yet.</template>
@@ -575,9 +575,9 @@
                 v-if="ascMismatch"
                 class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-semibold text-rose-800 leading-relaxed"
               >
-                Your bands make {{ bands.length + 1 }} ascensions, and that is what would run, but the Ascensions box
+                Your bands make {{ plural(bands.length + 1, 'ascension') }}, and that is what would run, but the Ascensions box
                 says {{ suggestAsc }}. The box only chooses what Suggest a space fills in: press Suggest a space to
-                switch to {{ suggestAsc }} ascensions, or set the box back to {{ bands.length + 1 }}.
+                switch to {{ plural(suggestAsc, 'ascension') }}, or set the box back to {{ bands.length + 1 }}.
               </p>
             </label>
 
@@ -612,7 +612,7 @@
             >
               <template #row-after="{ row, k }">
                 <span v-if="row.asc >= 2 && extraSugs[k]" class="block text-[10px] text-slate-500">
-                  Suggest would fill in {{ extraSugs[k]!.chains.toLocaleString() }} chains, about
+                  Suggest would fill in {{ plural(extraSugs[k]!.chains, 'chain') }}, about
                   {{ chainsTimeLabel(extraSugs[k]!.chains) }}
                 </span>
               </template>
@@ -755,7 +755,7 @@
             </span>
             <span v-else-if="store.benchmarkedAt" class="text-[11px] text-slate-500">
               {{ store.rateSource === 'live' ? 'Measured' : 'Benchmarked' }} on this machine ·
-              {{ store.benchmarkChainCount }} chains · {{ agoLabel(store.benchmarkedAt) }}
+              {{ plural(store.benchmarkChainCount, 'chain') }} · {{ agoLabel(store.benchmarkedAt) }}
             </span>
           </div>
           <p v-if="store.benchmarkError" class="text-[11px] font-semibold text-red-700">{{ store.benchmarkError }}</p>
@@ -988,7 +988,7 @@
             @widen="widenAndRun"
           >
             <template v-if="edgeWiden">
-              The wider space is {{ edgeWiden.chains.toLocaleString() }} chains. Chains already priced are reused when
+              The wider space is {{ plural(edgeWiden.chains, 'chain') }}. Chains already priced are reused when
               your setup hasn't changed.
             </template>
           </EdgeWarning>
@@ -1159,6 +1159,7 @@
 </template>
 
 <script lang="ts">
+import { plural } from '@/lib/format';
 import { useIntegrityProbe } from '@/composables/useIntegrityProbe';
 import { ref as keptRef } from 'vue';
 

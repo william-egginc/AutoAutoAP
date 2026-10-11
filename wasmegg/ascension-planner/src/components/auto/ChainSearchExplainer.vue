@@ -111,7 +111,7 @@
           <ChainMathFigure kind="distribution">
             Best to worst spans {{ (DISTRIBUTION.worst - DISTRIBUTION.best).toFixed(1) }} days. Only
             <span class="font-semibold text-slate-700"
-              >{{ DISTRIBUTION.within1 }} chains ({{
+              >{{ plural(DISTRIBUTION.within1, 'chain') }} ({{
                 ((100 * DISTRIBUTION.within1) / DISTRIBUTION.n).toFixed(2)
               }}%)</span
             >
@@ -311,6 +311,7 @@
 </template>
 
 <script setup lang="ts">
+import { plural } from '@/lib/format';
 import { NAMES } from '@/lib/siteNav';
 import { reactive } from 'vue';
 import ChainMathFigure from './charts/ChainMathFigure.vue';

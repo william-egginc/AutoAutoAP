@@ -224,7 +224,7 @@
               instantNote(k)
             }}</span>
             <span v-else-if="chains[k].centre && !chains[k].centredOn" class="block text-[10px] text-slate-500"
-              >No instant answer for {{ row.asc }} ascensions yet, so the boxes after the first are the card's wider
+              >No instant answer for {{ plural(row.asc, 'ascension') }} yet, so the boxes after the first are the card's wider
               ones.</span
             >
             <p v-if="chains[k].restored && row.asc >= 2" class="text-[10px] text-slate-400">
@@ -379,7 +379,7 @@
           <div class="text-lg font-black text-slate-900 tabular-nums">
             ~{{ roundedRoutes(plannedLegs).toLocaleString() }}
           </div>
-          <div class="text-[9px] text-slate-400">~{{ roundedRoutes(plannedRoutes).toLocaleString() }} routes</div>
+          <div class="text-[9px] text-slate-400">~{{ plural(roundedRoutes(plannedRoutes), 'route') }}</div>
         </div>
         <div>
           <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
@@ -473,7 +473,7 @@
               · about {{ remainingLabel }} left<template v-if="timeLeft?.measuring"> (measuring…)</template
               ><template v-else-if="firstGuessLabel"> (first guess {{ firstGuessLabel }})</template></template
             ><template v-if="store.deadlineLegSims">
-              · {{ store.deadlineLegSims.toLocaleString() }} legs simulated</template
+              · {{ plural(store.deadlineLegSims, 'leg') }} simulated</template
             >
           </p>
           <p class="text-[11px] text-slate-500">{{ store.deadlineProgress.stage }}</p>
@@ -576,6 +576,15 @@
       </ByDateRouteCard>
       <p v-else class="text-[11px] font-semibold text-rose-700">
         No route tried reaches any stop by then. Try a later date, a lower last stop, or more stops.
+      </p>
+      <!-- Where Advanced's box already says this (above, with the chains) it is not repeated here. -->
+      <p
+        v-if="best && (simple || mode !== 'space' || !instantSets.length)"
+        class="text-[10px] text-slate-500 leading-relaxed"
+        data-test="start-timing-note"
+      >
+        This search starts each fresh ascension the moment the last one ends; the instant answer starts them on the
+        hour, so times can differ by up to about an hour per ascension.
       </p>
       <!-- The best route on the edge of its box (the Full sweep's check, bandCheck.ts): a wider box may
            find better. -->
@@ -724,6 +733,7 @@
 </template>
 
 <script lang="ts">
+import { plural } from '@/lib/format';
 import { ref as keptRef } from 'vue';
 import { nextEggDayYear as keptEggDayYear } from '@/lib/eggDay';
 import {
