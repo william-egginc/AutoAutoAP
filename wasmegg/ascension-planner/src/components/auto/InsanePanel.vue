@@ -119,32 +119,13 @@
         </label>
         <!-- The same two choices, and the same values, as the Submit section at the bottom: anonymous
              unless the player picks otherwise, and the name box starts from their own nickname. -->
-        <div class="flex flex-wrap items-center gap-4 pl-6 text-[11px] font-bold text-slate-700">
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input v-model="anonymous" type="radio" :value="true" :disabled="store.isRunning" class="text-indigo-600" />
-            Submit anonymously
-          </label>
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input
-              v-model="anonymous"
-              type="radio"
-              :value="false"
-              :disabled="store.isRunning"
-              class="text-indigo-600"
-            />
-            Credit me as
-          </label>
-          <input
-            v-model="nickname"
-            type="text"
-            maxlength="40"
-            placeholder="nickname"
-            aria-label="Nickname"
-            :disabled="store.isRunning || anonymous"
-            class="w-48 rounded-md border-indigo-200 text-[12px] font-normal text-slate-800 disabled:opacity-40"
-            @input="nicknameTouched = true"
-          />
-        </div>
+        <ShareNameChoice
+          v-model:anonymous="anonymous"
+          v-model:nickname="nickname"
+          :disabled="store.isRunning"
+          class="pl-6 text-[11px] text-slate-700"
+          @nickname-typed="nicknameTouched = true"
+        />
         <RunNoteBox v-model="store.runNote" :disabled="store.isRunning" class="pl-6 text-[11px] text-slate-700" />
 
         <IntegrityNotice />
@@ -1165,6 +1146,7 @@ import { useRunDownloads } from '@/composables/useRunDownloads';
 import CsvCard from './CsvCard.vue';
 import RunSendReport from './RunSendReport.vue';
 import RunResults from './RunResults.vue';
+import ShareNameChoice from './ShareNameChoice.vue';
 import RunProgress from './RunProgress.vue';
 import EdgeWarning from './EdgeWarning.vue';
 import RunErrorNotes from './RunErrorNotes.vue';

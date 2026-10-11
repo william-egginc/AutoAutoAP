@@ -40,26 +40,13 @@
     </label>
     <!-- Credit, behind the opt-in like everything else that leaves the machine. -->
     <div v-if="optIn" class="space-y-2">
-      <div class="flex flex-wrap items-center gap-4">
-        <label class="flex items-center gap-2 cursor-pointer text-[11px] font-bold text-indigo-900">
-          <input v-model="anonymous" type="radio" :value="true" class="text-indigo-600 focus:ring-indigo-500" />
-          Submit anonymously
-        </label>
-        <label class="flex items-center gap-2 cursor-pointer text-[11px] font-bold text-indigo-900">
-          <input v-model="anonymous" type="radio" :value="false" class="text-indigo-600 focus:ring-indigo-500" />
-          Credit me as
-        </label>
-        <input
-          :value="nickname"
-          type="text"
-          :maxlength="nicknameMax"
-          :disabled="anonymous"
-          placeholder="nickname"
-          aria-label="Nickname"
-          class="rounded-lg border-indigo-200 text-sm font-bold text-slate-800 w-48 disabled:opacity-40"
-          @input="onNickname"
-        />
-      </div>
+      <ShareNameChoice
+        v-model:anonymous="anonymous"
+        v-model:nickname="nickname"
+        :nickname-max="nicknameMax"
+        class="text-[11px] text-indigo-900"
+        @nickname-typed="emit('nicknameTyped')"
+      />
       <ShareExtras :csv-detail="csvDetail" />
       <!-- The same note box as Find and submit's (FindBar.vue), holding the run's own note: what it
            says here is what is sent, and what the CSV's header carries. -->
@@ -72,6 +59,7 @@
 
 <script setup lang="ts">
 import ShareExtras from './ShareExtras.vue';
+import ShareNameChoice from './ShareNameChoice.vue';
 import RunNoteBox from './RunNoteBox.vue';
 
 withDefaults(
@@ -93,9 +81,4 @@ const anonymous = defineModel<boolean>('anonymous', { required: true });
 const nickname = defineModel<string>('nickname', { required: true });
 /** "Note on this run": the run's note, sent with the result. Left unbound, the box isn't shown. */
 const note = defineModel<string>('note');
-
-function onNickname(e: Event): void {
-  nickname.value = (e.target as HTMLInputElement).value;
-  emit('nicknameTyped');
-}
 </script>
