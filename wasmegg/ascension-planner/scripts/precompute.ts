@@ -131,7 +131,7 @@ import {
 } from '@/search/routeFinder';
 import { splitByWork } from '@/search/routePool';
 import { packTable, readTable, type TableHeader } from '@/search/precomputedTable';
-import { gearChanges, gearStamp, gearTableName, tableName } from '@/search/tableGear';
+import { gearChanges, gearStamp, gearTableName, legacyGearTableName, tableName } from '@/search/tableGear';
 import { buildAt, buildPeak, k3StateOf, paramsOf, PEAK_TE, REFERENCE_WEEK, startStateAt } from '@/search/tableBuild';
 import { deliveryScore, slotsFromLabels } from '@/search/virtueScore';
 import { describeLoadoutSlots } from '@/search/csv';
@@ -855,6 +855,11 @@ async function routeBin(): Promise<void> {
  * table.bin's at the maxed table's waiting research (as leg.ts `instantDeliveryScale` measures a
  * player; epic research and colleggtibles from FILE, the same for every table). For the instant
  * answer's nearest tables above and below (search/tableBracket.ts). File names and numbers only.
+ *
+ * DIR/aliases.json, when there is one ({ "gear-<canonical>.bin": "gear-<legacy>.bin" }, written by
+ * ~/code/aaap-tools/alias-gear-tables.sh): a gear table deployed under its legacy name and copied under
+ * its canonical one (search/tableGear.ts gearTableName). The copy is listed as an alias on its
+ * table's entry, not as a table of its own, so the nearest-tables pick never sees the same table twice.
  */
 async function manifest(file: string): Promise<void> {
   const dir = arg('dir') ?? 'public/precompute';
@@ -870,8 +875,15 @@ async function manifest(file: string): Promise<void> {
       ctx.colleggtibleModifiers
     ).effectiveRate;
   const top = rate(maxed.delivery);
+  const aliasOf: Record<string, string> = existsSync(`${dir}/aliases.json`)
+    ? JSON.parse(readFileSync(`${dir}/aliases.json`, 'utf8'))
+    : {};
+  const aliasesFor = (f: string) =>
+    Object.keys(aliasOf)
+      .filter(a => aliasOf[a] === f && existsSync(`${dir}/${a}`))
+      .sort();
   const out = readdirSync(dir)
-    .filter(f => f.endsWith('.bin'))
+    .filter(f => f.endsWith('.bin') && !(f in aliasOf && existsSync(`${dir}/${aliasOf[f]}`)))
     .sort()
     .map(f => {
       const h = headerOf(f);
@@ -881,6 +893,7 @@ async function manifest(file: string): Promise<void> {
         bonus: Number(h.cteBonus.toFixed(2)),
         k: Number((rate(h.k3.delivery) / top).toFixed(4)),
         from: h.from,
+        ...(aliasesFor(f).length ? { aliases: aliasesFor(f) } : {}),
         // The maxed table's waiting research and delivery set: with them the page can work out a
         // player's gear stamp and delivery k before any table is downloaded (search/tablePrefetch.ts).
         ...(f === 'table.bin' ? { k3: { research: maxed.research, delivery: maxed.delivery } } : {}),
@@ -2392,7 +2405,10 @@ async function main(): Promise<void> {
     const k = instantDeliveryScale(inputs, refK3);
     const inv = useChainSearchStore().readInventory();
     const stamp = gearStamp(inputs, inv.earnings, refK3.research)!;
-    if (has('gear-name')) return console.log(await gearTableName(stamp));
+    // --legacy: the name it had before canonical names (tableGear.ts legacyGearTableName), to match a
+    // deployed table to its combo; ~/code/aaap-tools/alias-gear-tables.sh takes it from there.
+    if (has('gear-name'))
+      return console.log(await (has('legacy') ? legacyGearTableName(stamp) : gearTableName(stamp)));
     if (has('debug'))
       console.log('inventory as read:', JSON.stringify({ artifacts: inv.artifacts, stones: inv.stones }));
     const label = (sl: { artifact: string; stones: string[] }) =>

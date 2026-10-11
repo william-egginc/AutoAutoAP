@@ -21,6 +21,7 @@ import { getLocalTimestampInTimezone } from '@/lib/events';
 import { hashID } from '@/lib/storage/db';
 import { runChainSearch, type CacheEntry } from '@/search/driver';
 import { findStartingChain, planCoarseGrid } from '@/search/coarse';
+import { teByEggFor } from '@/search/teByEgg';
 import { createChainSearchPool, type ChainSearchPool } from '@/search/pool';
 import type { BuildParams } from '@/search/precomputedLeg';
 import { contention, timeWeightedWorkers, workerSecondsFromRate } from '@/search/speed';
@@ -274,6 +275,10 @@ const CHECKPOINT_INTERVAL_MS = 20_000;
 /** Weight on the newest batch in the s/chain estimate. High enough to follow a stage change
  *  within a couple of batches, low enough that one slow batch does not dominate. */
 const RATE_ALPHA = 0.3;
+/** Live samples after which the s/chain estimate is settled enough to keep for the next visit. The
+ *  first batch alone is the coarse scan's pace (heavy prefix sharing, several times faster than
+ *  descent: see `noteRate`), and a run's first batch carries its warm-up too. */
+const RATE_SETTLE_SAMPLES = 5;
 
 /** Chains in a Smart search's first batch: the last checkpoint's first sweep (search/driver.ts
  *  `resolveLast`, span 12 = 25 values) plus the seed, which rides in it. Sizes the warm-up. */
@@ -1549,18 +1554,27 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // The first real measurement for this run beats whatever a pre-run benchmark guessed — record
     // where it came from, and persist it the same way `benchmarkMachine` does, so a live-measured
     // rate also survives a reload rather than only the button's own probe.
-    // The chains it was measured on are this batch's (`d`), not `done`: a carried-on run's `done`
+    // The chains it was measured on are the batches' (`d`), not `done`: a carried-on run's `done`
     // starts at its replayed chains, and "Measured on this machine · 4,394 chains" counted those.
+    // Kept again once settled (RATE_SETTLE_SAMPLES): it used to be kept from the first sample only,
+    // the coarse scan's pace, so the next visit's estimate started from a rate several times too fast.
+    // The first sample is still kept, so a run too short to settle leaves what it measured.
     if (wasUnset) {
+      liveSamples = 0;
+      liveChains = 0;
       rateSource.value = 'live';
+    }
+    if (rateSource.value === 'live' && liveSamples < RATE_SETTLE_SAMPLES) {
+      liveSamples++;
+      liveChains += d;
       benchmarkedAt.value = now;
-      benchmarkChainCount.value = d;
-      if (currentPlayerId) {
+      benchmarkChainCount.value = liveChains;
+      if (currentPlayerId && (liveSamples === 1 || liveSamples === RATE_SETTLE_SAMPLES)) {
         saveChainBenchmark(currentPlayerId, {
           secondsPerChain: secondsPerChain.value,
           source: 'live',
           at: now,
-          chainCount: d,
+          chainCount: liveChains,
           workers: workersInPool.value,
           currentTE: currentTE.value,
           finalTE: finalTE.value,
@@ -1568,6 +1582,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       }
     }
   }
+  /** Live samples and the chains in them since the s/chain estimate was last unset (`noteRate`);
+   *  RATE_SETTLE_SAMPLES (nothing being measured) until a run's first sample. */
+  let liveSamples = RATE_SETTLE_SAMPLES;
+  let liveChains = 0;
 
   /**
    * True when a run has finished (or stopped) having simulated chains, and none of them finishes.
@@ -1747,6 +1765,18 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       }
     }
   );
+  // And when another player's save is loaded: the pin is one run's own start, carried on for the
+  // player whose run it was, and must not go on timing the next player's plans (28-29 Sep edge
+  // cases). The boxes keep what they show; only the pin, and with it the carry-on rules, go.
+  watch(
+    () => accountOf(useInitialStateStore().rawBackup),
+    (now, before) => {
+      if (before && now !== before && planStartPin.value) {
+        planStartPin.value = 0;
+        pinnedBoxes = null;
+      }
+    }
+  );
 
   /**
    * The first-ascension setting a run from `start` prices under (search/firstAscension.ts): the
@@ -1806,6 +1836,19 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * the planner to this value so the plan is built for the problem the search actually solved.
    */
   const planStartUsed = ref(0);
+
+  /**
+   * The plan start the results being described were priced from, for the shortlist, the submission,
+   * the sent-already key and the CSV: the run's own (`planStartUsed`), or -- for a CSV of a stored
+   * checkpoint's entries, with nothing priced in this tab -- the start in that checkpoint's
+   * fingerprint. These all fell back to the Plan start box before, so an opened run with no start
+   * in its fingerprint, or a CSV of the stored checkpoint, was dated from whatever the box said at
+   * click time. The box only when no run has any start at all.
+   */
+  function resultsPlanStart(checkpoint?: SearchCheckpoint | null): number {
+    if (checkpoint) return fingerprintPlanStart(checkpoint.fingerprint) || planStartUsed.value || planStart.value;
+    return planStartUsed.value || fingerprintPlanStart(openedRun.value?.fingerprint) || planStart.value;
+  }
 
   /**
    * The settings a run STARTED with, for its record (BobSki's ee34f753, found 5 Oct): the search
@@ -2422,16 +2465,17 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * Put a moved-aside run back in the checkpoint slot, ready to carry on. The unfinished run in the
    * slot now is moved aside in its place, so nothing is lost either way.
    */
-  async function promoteInterrupted(playerId: string, index: number): Promise<boolean> {
+  /** `id`: persistence.ts `interruptedId` of the listed run, never its position in the list. */
+  async function promoteInterrupted(playerId: string, id: string): Promise<boolean> {
     partitionHash = partitionHash || (await hashID(playerId));
-    const picked = await restoreInterrupted(partitionHash, index);
+    const picked = await restoreInterrupted(partitionHash, id);
     await checkResumable(playerId);
     return !!picked && !!resumable.value;
   }
 
-  async function discardInterruptedRun(playerId: string, index: number): Promise<void> {
+  async function discardInterruptedRun(playerId: string, id: string): Promise<void> {
     partitionHash = partitionHash || (await hashID(playerId));
-    await discardInterrupted(partitionHash, index);
+    await discardInterrupted(partitionHash, id);
     await checkResumable(playerId);
   }
 
@@ -2865,7 +2909,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     pruneLegDetail();
     const entries = allEntries();
     shortlist.value = buildView(entries, shortlistView.value, {
-      planStart: planStartUsed.value || planStart.value,
+      planStart: resultsPlanStart(),
       timezone: useAutoPlannerStore().timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
     });
     let priced = 0;
@@ -3088,7 +3132,14 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
             permitLevel: initialStateStore.rawBackup?.game?.permitLevel ?? null,
           })
         : null,
-      teByEgg: initialStateStore.rawBackup?.virtue?.eovEarned ?? null,
+      // The planner's per-egg TE when it adds up to the save's TE (search/teByEgg.ts): the save's own
+      // eovEarned leaves out pending TE the planner has taken in.
+      teByEgg: teByEggFor({
+        perEgg: initialStateStore.initialTeEarned,
+        eovEarned: initialStateStore.rawBackup?.virtue?.eovEarned,
+        eggsDelivered: initialStateStore.rawBackup?.virtue?.eggsDelivered,
+        te: initialStateStore.rawBackup ? backupTE.value : te,
+      }),
       backupTime: initialStateStore.rawBackup?.approxTime ?? null,
       // Schema 7. The save's own TE only with a save loaded: `backupTE` reads 0 without one, which
       // would claim every plan was typed in from above it.
@@ -3135,7 +3186,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       chain: [...bestChain.value],
       seconds: bestDays.value * 86400,
       legs: bestLegs.value,
-      planStart: planStartUsed.value || planStart.value,
+      planStart: resultsPlanStart(),
       timezone: useAutoPlannerStore().timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
       currentTE: runTEUsed ?? currentTE.value,
       // The run's own target -- its chain ends there -- not the box as it reads now: a run finished
@@ -3274,9 +3325,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       finalTE.value,
       bestChain.value.join(' '),
       Math.round(bestDays.value * 1e4),
-      // The plan start the submission itself carries (see buildRunSubmission): a reopened saved run
-      // has no planStartUsed.
-      planStartUsed.value || planStart.value,
+      // The plan start the submission itself carries (see buildRunSubmission).
+      resultsPlanStart(),
       currentTE.value,
       // 'fresh' was this key's tag for Fastest (the boolean off) before 9 Oct, so Fastest keeps it and
       // Prestige Now gets one of its own: results already sent still read as sent. Continue my
@@ -4656,6 +4706,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   function exportCsv(opts: { diagnostics?: boolean } = {}): string {
     const own = allEntries();
     const entries = own.length ? own : resumable.value ? restoreEntries(resumable.value) : [];
+    // The entries' own start: the stored checkpoint's when they are its.
+    const csvStart = resultsPlanStart(own.length ? null : resumable.value);
     // Read off the backup here, on the main thread: `getSimulationContext()` is Pinia-bound. The
     // run's own save when it has one (a carried-on run keeps its save while the tab may load a newer).
     const raw = (runBackupUsed ?? getSimulationContext().rawBackup ?? null) as
@@ -4663,7 +4715,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       | null;
     const equipped = raw ? getArtifactLoadoutFromBackup(raw) : null;
     return buildChainsCsv(entries, {
-      planStart: planStartUsed.value || planStart.value,
+      planStart: csvStart,
       timezone: useAutoPlannerStore().timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
       currentTE: runTEUsed ?? currentTE.value,
       final: finalTE.value,
@@ -4696,6 +4748,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   function* exportCsvChunks(opts: { partial?: CsvMeta['partial'] } = {}): Generator<string> {
     const own = allEntries();
     const entries = own.length ? own : resumable.value ? restoreEntries(resumable.value) : [];
+    // The entries' own start: the stored checkpoint's when they are its.
+    const csvStart = resultsPlanStart(own.length ? null : resumable.value);
     // Read off the backup here, on the main thread: `getSimulationContext()` is Pinia-bound. The run's
     // own save when it has one, as `exportCsv` does: the download read whatever save was loaded at
     // click time, so a carried-on run's file could list another save's inventory.
@@ -4705,7 +4759,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const equipped = raw ? getArtifactLoadoutFromBackup(raw) : null;
     yield* chainsCsvChunks(entries, {
       ...(opts.partial ? { partial: opts.partial } : {}),
-      planStart: planStartUsed.value || planStart.value,
+      planStart: csvStart,
       timezone: useAutoPlannerStore().timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
       currentTE: runTEUsed ?? currentTE.value,
       final: finalTE.value,
@@ -5823,14 +5877,21 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * newer save's time and TE with a route priced on the older one.
    */
   function accountFromStoredSave(inputs: SearchInputs): AccountSnapshot {
-    const stored = inputs.context?.rawBackup as { approxTime?: number; virtue?: { eovEarned?: number[] } } | undefined;
+    const stored = inputs.context?.rawBackup as
+      | { approxTime?: number; virtue?: { eovEarned?: number[]; eggsDelivered?: number[] } }
+      | undefined;
     const live = accountFields(inputs.currentTE);
     if (!stored) return plainAccount(live);
     return plainAccount({
       ...live,
       backupTime: stored.approxTime ?? null,
       backupTE: pricedTE(inputs.baseState),
-      teByEgg: (stored.virtue?.eovEarned ?? null) as AccountSnapshot['teByEgg'],
+      teByEgg: teByEggFor({
+        perEgg: inputs.baseState.teEarned,
+        eovEarned: stored.virtue?.eovEarned,
+        eggsDelivered: stored.virtue?.eggsDelivered,
+        te: pricedTE(inputs.baseState),
+      }),
     });
   }
 

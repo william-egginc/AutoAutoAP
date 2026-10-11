@@ -1,5 +1,6 @@
+import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { gearChanges, type TableGear } from './tableGear';
+import { gearChanges, gearTableName, gearTableNames, legacyGearTableName, type TableGear } from './tableGear';
 
 const slot = (artifact: string, ...stones: string[]) => ({ artifact, stones });
 
@@ -79,5 +80,51 @@ describe('gearChanges', () => {
     mine.epicResearch = { epic_multiplier: 99 };
     mine.colleggtibles = { wood: 2 };
     expect(gearChanges(stamp(), mine)).toEqual(['epic research', 'colleggtibles']);
+  });
+});
+
+describe('gear table names', () => {
+  it('the legacy name is unchanged: the stamp as worn, research left out', async () => {
+    const { research: _r, ...gear } = stamp();
+    void _r;
+    const hex = createHash('sha256').update(JSON.stringify(gear)).digest('hex').slice(0, 24);
+    expect(await legacyGearTableName(stamp())).toBe(`gear-${hex}.bin`);
+  });
+
+  it('the canonical name ignores slot order and which artifact a stone is in; the legacy one does not', async () => {
+    const mine = stamp();
+    const [necklace, cube, ankh, totem] = mine.earnings;
+    mine.earnings = [ankh, totem, necklace, cube].map(s => ({ ...s, stones: [...s.stones].reverse() }));
+    mine.deliveryFull.reverse();
+    // The same nine T4 and three T3 lunar stones in another split.
+    mine.earnings[0] = slot('T4L Tungsten ankh', 'T3 Lunar stone', 'T3 Lunar stone', 'T3 Lunar stone');
+    mine.earnings[2] = slot('T4L Demeters necklace', 'T4 Lunar stone', 'T4 Lunar stone', 'T4 Lunar stone');
+    mine.earnings[3] = slot('T4L Puzzle cube', 'T4 Lunar stone', 'T4 Lunar stone', 'T4 Lunar stone');
+    mine.earnings[1] = slot('T4L Lunar totem', 'T4 Lunar stone', 'T4 Lunar stone', 'T4 Lunar stone');
+    expect(gearChanges(stamp(), mine)).toEqual([]);
+    expect(await gearTableName(mine)).toBe(await gearTableName(stamp()));
+    expect(await legacyGearTableName(mine)).not.toBe(await legacyGearTableName(stamp()));
+    // Key order in the research maps and the waiting research do not matter either.
+    const keys = stamp();
+    keys.epicResearch = { b_epic: 1, a_epic: 2 };
+    const keys2 = stamp();
+    keys2.epicResearch = { a_epic: 2, b_epic: 1 };
+    keys2.research = { comfy_nests: 1 };
+    expect(await gearTableName(keys)).toBe(await gearTableName(keys2));
+  });
+
+  it('the canonical name still changes with the gear, and never equals a legacy name', async () => {
+    const other = stamp();
+    other.earnings[2] = slot('T4E Tungsten ankh', 'T4 Lunar stone', 'T4 Lunar stone', 'T4 Lunar stone');
+    expect(await gearTableName(other)).not.toBe(await gearTableName(stamp()));
+    const moved = stamp();
+    moved.deliveryFull[1].stones.push('T4 Tachyon stone');
+    expect(await gearTableName(moved)).not.toBe(await gearTableName(stamp()));
+    expect(await gearTableName(stamp())).toMatch(/^gear-[0-9a-f]{24}\.bin$/);
+    expect(await gearTableName(stamp())).not.toBe(await legacyGearTableName(stamp()));
+  });
+
+  it('looks up canonical first, then legacy', async () => {
+    expect(await gearTableNames(stamp())).toEqual([await gearTableName(stamp()), await legacyGearTableName(stamp())]);
   });
 });

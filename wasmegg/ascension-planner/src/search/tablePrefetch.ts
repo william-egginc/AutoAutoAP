@@ -13,9 +13,10 @@ import { isMaxed, pickBracket, type Gear, type TableEntry } from './tableBracket
  *  their gear and the maxed one; else the maxed one and then the nearest tables above and below. */
 export function prefetchPlan(o: {
   entries: TableEntry[];
-  /** The player's own table's file name (tableGear.ts `tableName`), and their gear's (`gearTableName`). */
+  /** The player's own table's file name (tableGear.ts `tableName`), and their gear's: the names to
+   *  try, in the order the page tries them (`gearTableNames`: canonical, then legacy). */
   own: string | null;
-  gear: string | null;
+  gear: string | string[] | null;
   /** Their earnings bonus and delivery k, for the nearest tables; null when unknown. */
   player: Gear | null;
   te: number;
@@ -23,7 +24,10 @@ export function prefetchPlan(o: {
   const usable = o.entries.filter(e => e.from <= o.te);
   const has = (f: string | null) => !!f && usable.some(e => e.file === f);
   if (has(o.own)) return [o.own!];
-  if (has(o.gear)) return [o.gear!, 'table.bin'];
+  // A gear table under the first name the page will fetch it by: its file or one of its aliases.
+  const listed = (f: string) => usable.some(e => e.file === f || e.aliases?.includes(f));
+  const gear = (Array.isArray(o.gear) ? o.gear : o.gear ? [o.gear] : []).find(listed);
+  if (gear) return [gear, 'table.bin'];
   const out = ['table.bin'];
   if (o.player && !isMaxed(o.player)) {
     const { above, below } = pickBracket(usable, o.player);

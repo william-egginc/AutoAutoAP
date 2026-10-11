@@ -23,7 +23,9 @@ const {
   fingerprintChanges,
   fingerprintPlanStart,
   fingerprintRun,
+  interruptedId,
   listInterrupted,
+  discardInterrupted,
   loadAnyCheckpoint,
   loadCheckpoint,
   restoreInterrupted,
@@ -291,16 +293,32 @@ describe('unfinished runs are moved aside, not overwritten', () => {
   it('swaps a moved-aside run back in, and moves the one it replaces aside', async () => {
     await saveCheckpoint(HASH, run('P|1|147|490|fc', ['a', 'b']));
     await saveCheckpoint(HASH, run('P|2|170|490|fc', ['c']));
-    await restoreInterrupted(HASH, 0);
+    await restoreInterrupted(HASH, interruptedId((await listInterrupted(HASH))[0]));
     expect((await loadAnyCheckpoint(HASH))?.fingerprint).toBe('P|1|147|490|fc');
     expect((await listInterrupted(HASH)).map(r => r.fingerprint)).toEqual(['P|2|170|490|fc']);
+  });
+
+  it('acts on the run clicked even when the list moved meanwhile (by id, not position)', async () => {
+    await saveCheckpoint(HASH, run('P|1|101|490|fc', ['a']));
+    await saveCheckpoint(HASH, run('P|2|102|490|fc', ['b']));
+    // Drawn: [1]. The id the panel holds for run 1:
+    const id1 = interruptedId((await listInterrupted(HASH))[0]);
+    // A checkpoint written before the click moves run 2 aside at the front: [2, 1].
+    await saveCheckpoint(HASH, run('P|3|103|490|fc', ['c']));
+    expect((await listInterrupted(HASH)).map(r => r.fingerprint)).toEqual(['P|2|102|490|fc', 'P|1|101|490|fc']);
+    await discardInterrupted(HASH, id1);
+    expect((await listInterrupted(HASH)).map(r => r.fingerprint)).toEqual(['P|2|102|490|fc']);
+    // An id no longer listed changes nothing.
+    await discardInterrupted(HASH, id1);
+    expect(await restoreInterrupted(HASH, id1)).toBeNull();
+    expect((await listInterrupted(HASH)).map(r => r.fingerprint)).toEqual(['P|2|102|490|fc']);
   });
 
   it('carrying one on from a full list keeps the other two, and the run it replaces', async () => {
     for (const n of [1, 2, 3, 4]) await saveCheckpoint(HASH, run(`P|${n}|10${n}|490|fc`, [`k${n}`]));
     await saveCheckpoint(HASH, run('P|5|105|490|fc', ['k5']));
     // Slot: 5. Aside, newest first: 4, 3, 2 (1 fell off, as the limit says).
-    await restoreInterrupted(HASH, 0);
+    await restoreInterrupted(HASH, interruptedId((await listInterrupted(HASH))[0]));
     expect((await loadAnyCheckpoint(HASH))?.fingerprint).toBe('P|4|104|490|fc');
     expect((await listInterrupted(HASH)).map(r => r.fingerprint)).toEqual([
       'P|5|105|490|fc',
@@ -353,7 +371,7 @@ describe('a different search on the same save', () => {
   it('swapping it back brings its own space and unfinished state', async () => {
     await saveCheckpoint(HASH, run(['a', 'b'], space(140)));
     await saveCheckpoint(HASH, run(['c'], space(145), true));
-    await restoreInterrupted(HASH, 0);
+    await restoreInterrupted(HASH, interruptedId((await listInterrupted(HASH))[0]));
     const slot = await loadAnyCheckpoint(HASH);
     expect([slot?.space?.range?.lo, slot?.complete]).toEqual([140, false]);
     expect(await listInterrupted(HASH)).toEqual([]);

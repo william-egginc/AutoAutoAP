@@ -9,7 +9,7 @@
     class="rounded-xl border border-amber-200 bg-amber-50/60 p-4 space-y-2 text-[11px] text-amber-900"
   >
     <h3 class="text-[10px] font-black text-amber-800 uppercase tracking-widest">Earlier unfinished runs</h3>
-    <div v-for="item in items" :key="item.index" class="flex flex-wrap items-center gap-x-3 gap-y-1">
+    <div v-for="item in items" :key="item.id" class="flex flex-wrap items-center gap-x-3 gap-y-1">
       <span class="leading-relaxed">
         <span class="font-bold">{{ item.record.durations.length.toLocaleString() }}</span>
         <template v-if="item.record.space?.chains"> of {{ item.record.space.chains.toLocaleString() }}</template>
@@ -21,7 +21,7 @@
         type="button"
         :disabled="busy || store.busy"
         class="px-3 py-1 rounded-md bg-amber-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-800 disabled:opacity-40"
-        @click="carryOn(item.index)"
+        @click="carryOn(item.id)"
       >
         Carry on
       </button>
@@ -29,7 +29,7 @@
         type="button"
         :disabled="busy || store.busy"
         class="text-[10px] font-black uppercase tracking-widest text-amber-700/70 hover:text-amber-900"
-        @click="store.discardInterruptedRun(playerId, item.index)"
+        @click="store.discardInterruptedRun(playerId, item.id)"
       >
         Discard
       </button>
@@ -43,6 +43,7 @@ import { computed, ref } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { showDateTime } from '@/lib/displayTime';
+import { interruptedId } from '@/search/persistence';
 
 const props = defineProps<{
   playerId: string;
@@ -58,19 +59,20 @@ const note = ref('');
 
 const items = computed(() =>
   store.interrupted
-    .map((record, index) => ({ record, index, save: store.runSaveFor(record.inputsKey) }))
+    .map(record => ({ record, id: interruptedId(record), save: store.runSaveFor(record.inputsKey) }))
     .filter(i => (props.kind === 'exhaustive' ? !!i.record.space : !i.record.space))
     // Another account's runs are never offered here (stores/chainSearch.ts `otherAccountKeys`).
     .filter(i => !i.record.inputsKey || !store.otherAccountKeys.has(i.record.inputsKey))
 );
 
-async function carryOn(index: number): Promise<void> {
+/** By the run's id (persistence.ts `interruptedId`): the list can change between drawing and the click. */
+async function carryOn(id: string): Promise<void> {
   busy.value = true;
   note.value = '';
   try {
     // Into the checkpoint slot first (the run there now takes its place in this list), then the
     // panel's own Resume, which knows how to carry on its kind of run.
-    if (await store.promoteInterrupted(props.playerId, index)) emit('resume');
+    if (await store.promoteInterrupted(props.playerId, id)) emit('resume');
     else
       note.value = store.blockedCheckpoint
         ? `Can't carry on: ${store.blockedCheckpoint.changes.join('; ')}.`

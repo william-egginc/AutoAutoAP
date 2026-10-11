@@ -83,15 +83,9 @@ export function gearStamp(
   };
 }
 
-/**
- * A gear table's file name (tables built on a board account's gear, not an account): SHA-256 of the
- * stamp, worked out at the maxed table's own waiting research so the page can work it out before it
- * loads anything else. Gear is not private (the board shows it), so a plain hash will do.
- */
-export async function gearTableName(stamp: TableGear): Promise<string> {
-  const { research: _research, ...gear } = stamp;
-  void _research;
-  const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(gear)));
+/** The 24 hex digits of SHA-256 of `text`, as a gear table's file name. */
+async function gearFile(text: string): Promise<string> {
+  const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
   return (
     'gear-' +
     [...new Uint8Array(bytes)]
@@ -100,6 +94,51 @@ export async function gearTableName(stamp: TableGear): Promise<string> {
       .join('') +
     '.bin'
   );
+}
+
+/**
+ * A gear table's file name (tables built on a board account's gear, not an account): SHA-256 of the
+ * stamp, worked out at the maxed table's own waiting research so the page can work it out before it
+ * loads anything else. Gear is not private (the board shows it), so a plain hash will do.
+ *
+ * The canonical name: the stamp with every set as `asWorn` has it (artifacts sorted, stones pooled and
+ * sorted, the same rule `gearChanges` compares by) and the research maps with their keys in code-point
+ * order, under `v: 2` so it can never equal a legacy name. The same gear gives the same name however
+ * the slots and stones are arranged. Tables made from now on are named this way; the deployed ones are
+ * aliased under it (~/code/aaap-tools/alias-gear-tables.sh), and the page also tries the legacy name
+ * (`gearTableNames`). The alias script works the same name out in plain Node: keep the two in step.
+ */
+export async function gearTableName(stamp: TableGear): Promise<string> {
+  return gearFile(JSON.stringify(canonicalGear(stamp)));
+}
+
+/** The stamp as the canonical name hashes it (`gearTableName`). */
+export function canonicalGear(stamp: TableGear): object {
+  const keys = (r: Record<string, number>) =>
+    Object.fromEntries(Object.entries(r ?? {}).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
+  return {
+    v: 2,
+    earnings: asWorn(stamp.earnings),
+    deliveryBare: asWorn(stamp.deliveryBare),
+    deliveryFull: asWorn(stamp.deliveryFull),
+    epicResearch: keys(stamp.epicResearch),
+    colleggtibles: keys(stamp.colleggtibles),
+  };
+}
+
+/** The name gear tables were deployed under before 11 Oct 2026: the stamp hashed as worn, so the same
+ *  gear in another slot order or stone split gave another name. Kept to find those tables until each
+ *  has its canonical alias, and for the instant record's `gear.stamp` (analysis matches it to files). */
+export async function legacyGearTableName(stamp: TableGear): Promise<string> {
+  const { research: _research, ...gear } = stamp;
+  void _research;
+  return gearFile(JSON.stringify(gear));
+}
+
+/** The names to look a player's gear table up under, in order: canonical, then legacy. */
+export async function gearTableNames(stamp: TableGear): Promise<string[]> {
+  const names = [await gearTableName(stamp), await legacyGearTableName(stamp)];
+  return [...new Set(names)];
 }
 
 /**

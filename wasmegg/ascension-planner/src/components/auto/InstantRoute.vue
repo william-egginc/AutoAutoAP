@@ -707,7 +707,7 @@ import type { FirstLegsRequest } from '@/workers/routeFinder.protocol';
 import { createChainSearchPool, type ChainSearchPool, type EvaluateOptions } from '@/search/pool';
 import type { HandoffChoice } from '@/search/chain';
 import type { ChainResult } from '@/search/types';
-import { GEAR_RULE, gearChanges, gearStamp, gearTableName, tableName } from '@/search/tableGear';
+import { GEAR_RULE, gearChanges, gearStamp, gearTableNames, legacyGearTableName, tableName } from '@/search/tableGear';
 import { compositeUrl, parseCompositeUrl } from '@/search/precomputedTable';
 import type { TableHeader } from '@/search/precomputedTable';
 import { useInitialStateStore } from '@/stores/initialState';
@@ -1321,19 +1321,26 @@ async function run(force = false, goAhead = false): Promise<void> {
     if (url === TABLE_URL && h.k3) {
       const stamp = gearStamp(store.collectInputs(), store.readInventory().earnings, h.k3.research);
       if (stamp) {
-        const gearName = await gearTableName(stamp);
-        // The gear stamp's hash, for an instant answer record: the gear instant answer that would fit.
-        stampHash.value = gearName.replace(/^gear-|\.bin$/g, '');
-        const gearUrl = `${import.meta.env.BASE_URL}precompute/${gearName}`;
+        // The gear stamp's hash, for an instant answer record: the legacy name's, which analysis
+        // matches to the deployed files (tableGear.ts legacyGearTableName).
+        stampHash.value = (await legacyGearTableName(stamp)).replace(/^gear-|\.bin$/g, '');
         const scale = instantDeliveryScale(store.collectInputs(), h.k3);
-        const both = compositeUrl(gearUrl, TABLE_URL, GEAR_TABLE_TO, scale);
-        try {
-          h = await p.header(both);
-          url = both;
-        } catch {
-          // No table for this gear (the usual case): the maxed one.
-          h = await p.header(TABLE_URL);
+        // The canonical name first (the same gear however it is worn), then the legacy one.
+        let found = false;
+        for (const gearName of await gearTableNames(stamp)) {
+          const gearUrl = `${import.meta.env.BASE_URL}precompute/${gearName}`;
+          const both = compositeUrl(gearUrl, TABLE_URL, GEAR_TABLE_TO, scale);
+          try {
+            h = await p.header(both);
+            url = both;
+            found = true;
+            break;
+          } catch {
+            // Not under this name.
+          }
         }
+        // No table for this gear (the usual case): the maxed one.
+        if (!found) h = await p.header(TABLE_URL);
       }
     }
     if (id !== runs) return;
@@ -2067,7 +2074,7 @@ const SHARE_WHAT =
   "Sends this check's routes, the instant answer's and the exact times, your TE and Clothed TE, a summary of your gear, " +
   'your plan start, timezone, save time and settings, with an anonymous code for your account. Never your player ID ' +
   'or your save; never shown on the board.';
-/** The gear stamp's hash (the 24 hex of `gearTableName`), worked out with the instant answer. */
+/** The gear stamp's hash (the 24 hex of `legacyGearTableName`), worked out with the instant answer. */
 const stampHash = ref('');
 /** Share the check on screen (or the one running). Starts ticked with "Keep sharing my checks". */
 const shareThis = ref(share.on.value);
@@ -2271,7 +2278,7 @@ async function recordOf(id: number): Promise<{ record: InstantRecord; sig: strin
   if (!record.gear.stamp && record.gear.answer === 'maxed' && header.value?.k3) {
     try {
       const stamp = gearStamp(store.collectInputs(), store.readInventory().earnings, header.value.k3.research);
-      if (stamp) record.gear.stamp = (await gearTableName(stamp)).replace(/^gear-|\.bin$/g, '');
+      if (stamp) record.gear.stamp = (await legacyGearTableName(stamp)).replace(/^gear-|\.bin$/g, '');
     } catch {
       /* sent without it */
     }
