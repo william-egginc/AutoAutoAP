@@ -33,6 +33,7 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
+  { at: '2026-10-11T19:26:57Z', note: 'New Science › How it works page; 12-hour times; tidier tabs on phones; a Full sweep queue survives a refresh; better time estimates; many small fixes', level: 'big' },
   { at: '2026-10-11T05:21:25Z', note: 'Watch from your phone: the finished page now shows the best route found, the route count and how long the run took' },
   { at: '2026-10-10T23:17:00Z', note: 'New: Continue my build-up (first ascension keeps buying from your farm as it is now), watch a run from your phone with a private link, big CSVs upload in parts, own tables match again', level: 'big' },
   { at: '2026-10-10T17:34:15Z', note: 'Share your instant answer checks (anonymous, opt-in) right from the instant answer, see your own check history, and send progress every 1-6 hours; the new-layout card is gone' },
@@ -40,7 +41,6 @@ const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
   { at: '2026-10-10T01:38:15Z', note: 'Long runs use far less memory; the CSV lists every route priced; a finished result is kept until it is sent (Send it now after a reload); carry-on keeps Find and submit; a note box in Share this result', level: 'big' },
   { at: '2026-10-09T23:57:44Z', note: 'Advanced (Full sweep): one time left for the whole queue that ignores replayed chains after a carry-on, and Jump to it stays on your run' },
   { at: '2026-10-09T22:49:50Z', note: 'Searches show honest progress from the start; Jump to it lands on your run in one click; a second tab no longer offers to carry on a run that is still going' },
-  { at: '2026-10-09T19:00:00Z', note: 'Stepping away? can now send your best so far by itself, every 30 minutes or an hour, only when it has changed' },
 ];
 
 export default {
