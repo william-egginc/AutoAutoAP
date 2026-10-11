@@ -315,50 +315,38 @@
       </div>
 
       <!-- An unfinished run that can't carry on, and why (usually a backup that loaded stale once). -->
-      <div
-        v-if="store.blockedCheckpoint && !store.resumable && !store.isRunning"
-        class="p-4 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-700 space-y-2"
-      >
-        <p class="leading-relaxed">
-          <span class="font-bold">An unfinished run can't continue:</span>
-          {{ store.blockedCheckpoint.changes.join('; ') }}, so the
-          {{ plural(store.blockedCheckpoint.record.durations.length, 'chain') }} it priced {{ store.blockedCheckpoint.record.durations.length === 1 ? 'describes' : 'describe' }} a different
-          farm. If a number looks wrong, your backup may not have loaded fresh: reload it and check.
-        </p>
-        <button
-          class="px-4 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-700"
-          @click="store.discardCheckpoint()"
-        >
-          Discard it
-        </button>
-      </div>
+      <BlockedRunNotice v-if="store.blockedCheckpoint && !store.resumable && !store.isRunning" />
 
       <UnfinishedRuns :player-id="playerId" kind="staged" @resume="run(true)" />
 
-      <!-- Resume banner -->
-      <div
+      <!-- The run saved here, to carry on (CarryOnOffer.vue, the same box on every search screen). -->
+      <CarryOnOffer
         v-if="store.resumable && !store.isRunning"
-        class="p-4 bg-indigo-50 border border-indigo-200 rounded-xl text-xs text-indigo-900 space-y-2"
+        :title="store.resumable.complete ? 'A finished run is saved' : 'An unfinished run is saved'"
+        :elsewhere="!store.resumable.complete && !!store.runElsewhere[store.resumable.space ? 'sweep' : 'smart']"
+        :carry-label="store.resumable.complete ? 'Carry on' : 'Carry on from where it stopped'"
+        :disabled="store.busy"
+        discardable
+        @carry-on="run(true)"
+        @discard="store.discardCheckpoint()"
       >
-        <p class="font-bold uppercase tracking-wide text-indigo-700">
-          {{ store.resumable.complete ? 'A finished run is saved' : 'An unfinished run is saved' }}
-        </p>
-        <p class="leading-relaxed">
-          {{ plural(store.resumable.durations.length, 'chain') }} {{ store.resumable.durations.length === 1 ? 'was' : 'were' }} already priced ({{
+        <p>
+          {{ plural(store.resumable.durations.length, 'chain') }}
+          {{ store.resumable.durations.length === 1 ? 'was' : 'were' }} already priced ({{
             relativeTime(store.resumable.updatedAt)
           }}), best so far <span class="font-black">{{ store.resumable.bestChain.join(' ') }}</span> at
           {{ (store.resumable.bestSeconds / 86400).toFixed(3) }} days.
           <template v-if="store.resumable.complete"
-            >That run reached the end of its tier, so resuming it finds nothing new. A higher effort tier will replay
+            >That run reached the end of its tier, so carrying it on finds nothing new. A higher effort tier will replay
             all {{ store.resumable.durations.length }} priced chains for free and carry on from there.</template
           >
-          <template v-else>Resuming replays those instantly and carries on without re-simulating anything.</template>
+          <template v-else>Carrying on replays those instantly and goes on without re-simulating anything.</template>
           <template v-if="!store.resumable.complete && store.runSaveFor(store.resumable.inputsKey)">
             It carries on with the save it started with (TE {{ store.runSaveFor(store.resumable.inputsKey)?.te }}), so
             both halves are priced on the same farm.</template
           >
           <template v-if="!store.resumable.complete && store.settingsRestoreNote(store.resumable.fingerprint)">
-            Resuming also puts your settings back to the run's ({{
+            Carrying on also puts your settings back to the run's ({{
               store.settingsRestoreNote(store.resumable.fingerprint)
             }}).</template
           >
@@ -368,21 +356,7 @@
             >, the time it was priced from.</template
           >
         </p>
-        <RunGoingElsewhere
-          v-if="!store.resumable.complete && store.runElsewhere[store.resumable.space ? 'sweep' : 'smart']"
-        />
-        <div v-else class="flex gap-2">
-          <button class="btn-premium btn-primary px-4 py-1.5 text-[10px]" :disabled="store.busy" @click="run(true)">
-            Resume
-          </button>
-          <button
-            class="px-4 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-700"
-            @click="store.discardCheckpoint()"
-          >
-            Discard
-          </button>
-        </div>
-      </div>
+      </CarryOnOffer>
 
       <!-- The Limits box only reaches the coarse scan and the prestige-count probe, so on Fast a
            seed of the wrong length is simply the length the answer comes back as. Say so
@@ -1317,7 +1291,8 @@ import ChainSearchExplainer from './ChainSearchExplainer.vue';
 import HelpTip from './HelpTip.vue';
 import StartTimeFinder from './StartTimeFinder.vue';
 import FindBar from './FindBar.vue';
-import RunGoingElsewhere from './RunGoingElsewhere.vue';
+import CarryOnOffer from './CarryOnOffer.vue';
+import BlockedRunNotice from './BlockedRunNotice.vue';
 import ShareResult from './ShareResult.vue';
 import ShareStatus from './ShareStatus.vue';
 import SendingText from './SendingText.vue';

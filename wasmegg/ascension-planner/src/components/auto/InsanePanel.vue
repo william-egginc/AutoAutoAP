@@ -316,14 +316,19 @@
         An interrupted run, found on load. Above everything, because it is time-sensitive in a way
         nothing else on this page is: starting anything else overwrites the checkpoint it lives in.
       -->
-      <div
+      <CarryOnOffer
         v-if="goal === 'fastest' && store.crashedRun && !store.isRunning && queueAt < 0"
-        class="rounded-xl border border-amber-300 bg-amber-50 p-4 space-y-2"
+        :title="store.crashedQueue ? 'Unfinished queue found' : 'Unfinished run found'"
+        :elsewhere="store.runElsewhere.sweep"
+        :carry-label="
+          store.crashedQueue
+            ? `Carry on the queue (chain ${store.crashedQueue.next + 1} of ${store.crashedQueue.record.chains.length})`
+            : 'Carry on from where it stopped'
+        "
+        :disabled="store.busy || resuming !== ''"
+        @carry-on="resumeCrashed"
       >
-        <h3 class="text-[10px] font-black text-amber-800 uppercase tracking-widest">
-          {{ store.crashedQueue ? 'Unfinished queue found' : 'Unfinished run found' }}
-        </h3>
-        <p class="text-[11px] text-amber-900/90 leading-relaxed">
+        <p>
           <template v-if="store.crashedQueue">{{ crashedQueueNote }}</template>
           <template v-else>A run on this machine stopped without finishing.</template>
           <template v-if="!store.crashedQueue || store.crashedQueue.next === store.crashedQueue.record.at">
@@ -349,21 +354,7 @@
             >, the time it was priced from.
           </template>
         </p>
-        <RunGoingElsewhere v-if="store.runElsewhere.sweep" class="text-amber-900" />
-        <button
-          v-else
-          type="button"
-          :disabled="store.busy || resuming !== ''"
-          class="px-4 py-2 rounded-lg bg-amber-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-800 disabled:opacity-40"
-          @click="resumeCrashed"
-        >
-          {{
-            store.crashedQueue
-              ? `Carry on the queue (chain ${store.crashedQueue.next + 1} of ${store.crashedQueue.record.chains.length})`
-              : 'Carry on from where it stopped'
-          }}
-        </button>
-      </div>
+      </CarryOnOffer>
 
       <UnfinishedRuns v-if="goal === 'fastest'" :player-id="playerId" kind="exhaustive" @resume="resumeCrashed" />
 
@@ -371,34 +362,7 @@
         An interrupted run that cannot carry on, with the reason. It used to just not appear, so a
         crashed overnight run looked as if it had never been saved.
       -->
-      <div
-        v-if="goal === 'fastest' && store.blockedCheckpoint && !store.crashedRun && !store.isRunning"
-        class="rounded-xl border border-slate-300 bg-slate-50 p-4 space-y-2"
-      >
-        <h3 class="text-[10px] font-black text-slate-700 uppercase tracking-widest">Unfinished run can't continue</h3>
-        <p class="text-[11px] text-slate-700 leading-relaxed">
-          A run on this machine stopped after pricing
-          <span class="font-bold">{{ store.blockedCheckpoint.record.durations.length.toLocaleString() }}</span> chains
-          ({{ agoLabel(store.blockedCheckpoint.record.updatedAt) }}), but
-          <span class="font-bold">{{ store.blockedCheckpoint.changes.join('; ') }}</span
-          >.
-          <template v-if="store.runSaveFor(store.blockedCheckpoint.record.inputsKey)">
-            Its save is kept, so put that setting back and it can carry on.
-          </template>
-          <template v-else>
-            Its save wasn't kept, so its durations describe a different farm and can't be reused. If a number looks
-            wrong, your backup may not have loaded fresh on one of the two visits: reload it and check before starting
-            again.
-          </template>
-        </p>
-        <button
-          type="button"
-          class="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-700"
-          @click="store.discardCheckpoint()"
-        >
-          Discard it
-        </button>
-      </div>
+      <BlockedRunNotice v-if="goal === 'fastest' && store.blockedCheckpoint && !store.crashedRun && !store.isRunning" />
 
       <DeadlinePanel
         v-if="goal === 'deadline'"
@@ -1231,7 +1195,8 @@ import RunSaveNotice from './RunSaveNotice.vue';
 import type { SweepQueueChain, SweepQueueRecord, SweepQueueResult } from '@/search/persistence';
 import { runSweepQueue } from '@/search/sweepQueueRun';
 import UnfinishedRuns from './UnfinishedRuns.vue';
-import RunGoingElsewhere from './RunGoingElsewhere.vue';
+import CarryOnOffer from './CarryOnOffer.vue';
+import BlockedRunNotice from './BlockedRunNotice.vue';
 import DeadlinePanel from './DeadlinePanel.vue';
 import { formatTimeLeft } from '@/search/sweepEstimate';
 import { describeTimeOff, usableTimeOff } from '@/search/timeOff';

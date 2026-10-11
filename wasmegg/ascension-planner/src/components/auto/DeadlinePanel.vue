@@ -8,12 +8,16 @@
   <div class="rounded-xl border border-slate-200 bg-white p-4 space-y-4">
     <!-- THE one offer to carry on a run that stopped before finishing (a reload, a crash, or Stop).
          Everything else on the page (the black box notice, Stepping away?) points here. -->
-    <div
+    <CarryOnOffer
       v-if="store.deadlineUnfinished && !store.busy"
       id="by-date-unfinished"
-      class="rounded-xl border border-amber-300 bg-amber-50 p-4 space-y-2 text-[11px] text-amber-900 leading-relaxed"
+      title="Unfinished By a date search"
+      :elsewhere="store.runElsewhere.deadline"
+      :can-carry-on="store.deadlineUnfinished.saveKept"
+      discardable
+      @carry-on="resume"
+      @discard="store.discardDeadlineRun(playerId)"
     >
-      <h3 class="text-[10px] font-black text-amber-800 uppercase tracking-widest">Unfinished By a date search</h3>
       <p>
         <template v-if="store.deadlineUnfinished.spec.sets">
           <span class="font-bold">{{ store.deadlineUnfinished.spec.sets.toLocaleString() }}</span> sets of early stops,
@@ -31,16 +35,7 @@
       <p v-if="autoCountdown > 0" class="font-bold" role="status">
         The last run stopped without finishing. Carrying on by itself in {{ autoCountdown }} s, with fewer workers.
       </p>
-      <RunGoingElsewhere v-if="store.runElsewhere.deadline" />
-      <div v-else class="flex flex-wrap gap-3">
-        <button
-          v-if="store.deadlineUnfinished.saveKept"
-          type="button"
-          class="px-4 py-2 rounded-lg bg-amber-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-800"
-          @click="resume"
-        >
-          Carry on from where it stopped
-        </button>
+      <template #actions>
         <button
           v-if="autoCountdown > 0"
           type="button"
@@ -49,15 +44,8 @@
         >
           Cancel the automatic carry on
         </button>
-        <button
-          type="button"
-          class="text-[10px] font-black uppercase tracking-widest text-amber-700/70 hover:text-amber-900"
-          @click="store.discardDeadlineRun(playerId)"
-        >
-          Discard it
-        </button>
-      </div>
-    </div>
+      </template>
+    </CarryOnOffer>
 
     <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">The deadline</h3>
     <!-- Egg Day or a date of your own, as one choice of two: a dark "Egg Day" button beside date
@@ -831,7 +819,7 @@ import {
 import { maxPoolSize } from '@/search/batch';
 import { findBandEdges, widenEdges, type BandEdge } from '@/search/bandCheck';
 import FindBar from './FindBar.vue';
-import RunGoingElsewhere from './RunGoingElsewhere.vue';
+import CarryOnOffer from './CarryOnOffer.vue';
 import ShareResult from './ShareResult.vue';
 import ShareStatus from './ShareStatus.vue';
 import SendingText from './SendingText.vue';
