@@ -317,15 +317,20 @@
         nothing else on this page is: starting anything else overwrites the checkpoint it lives in.
       -->
       <div
-        v-if="goal === 'fastest' && store.crashedRun && !store.isRunning"
+        v-if="goal === 'fastest' && store.crashedRun && !store.isRunning && queueAt < 0"
         class="rounded-xl border border-amber-300 bg-amber-50 p-4 space-y-2"
       >
-        <h3 class="text-[10px] font-black text-amber-800 uppercase tracking-widest">Unfinished run found</h3>
+        <h3 class="text-[10px] font-black text-amber-800 uppercase tracking-widest">
+          {{ store.crashedQueue ? 'Unfinished queue found' : 'Unfinished run found' }}
+        </h3>
         <p class="text-[11px] text-amber-900/90 leading-relaxed">
-          A run on this machine stopped without finishing.
-          <span class="font-bold">{{ (store.crashedRun.durations?.length ?? 0).toLocaleString() }}</span> chains are
-          already priced and will be replayed instead of simulated again. It was last saved
-          {{ agoLabel(store.crashedRun.updatedAt) }}.
+          <template v-if="store.crashedQueue">{{ crashedQueueNote }}</template>
+          <template v-else>A run on this machine stopped without finishing.</template>
+          <template v-if="!store.crashedQueue || store.crashedQueue.next === store.crashedQueue.record.at">
+            <span class="font-bold">{{ (store.crashedRun.durations?.length ?? 0).toLocaleString() }}</span> chains are
+            already priced and will be replayed instead of simulated again.
+          </template>
+          It was last saved {{ agoLabel(store.crashedRun.updatedAt) }}.
           <template v-if="store.runSaveFor(store.crashedRun.inputsKey)">
             It carries on with the save it started with (from
             {{ saveWhen(store.runSaveFor(store.crashedRun.inputsKey)?.backupAt) }}, TE
@@ -352,7 +357,11 @@
           class="px-4 py-2 rounded-lg bg-amber-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-800 disabled:opacity-40"
           @click="resumeCrashed"
         >
-          Carry on from where it stopped
+          {{
+            store.crashedQueue
+              ? `Carry on the queue (chain ${store.crashedQueue.next + 1} of ${store.crashedQueue.record.chains.length})`
+              : 'Carry on from where it stopped'
+          }}
         </button>
       </div>
 
@@ -787,7 +796,7 @@
         <IntegrityNotice v-if="!sweepRequest" />
         <!-- The same carry-on as the box at the top, next to Start where people look for it. -->
         <div
-          v-if="store.crashedRun && !store.busy && !store.runElsewhere.sweep"
+          v-if="store.crashedRun && !store.busy && !store.runElsewhere.sweep && queueAt < 0"
           class="flex flex-wrap items-center gap-3 rounded-xl border border-amber-300 bg-amber-50 p-3"
         >
           <button
@@ -795,9 +804,13 @@
             class="px-4 py-2 rounded-lg bg-amber-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-800"
             @click="resumeCrashed"
           >
-            Carry on the unfinished run
+            {{ store.crashedQueue ? 'Carry on the unfinished queue' : 'Carry on the unfinished run' }}
           </button>
-          <span class="text-[11px] text-amber-900">
+          <span v-if="store.crashedQueue" class="text-[11px] text-amber-900">
+            Chain {{ store.crashedQueue.next + 1 }} of {{ store.crashedQueue.record.chains.length }} next; its settings
+            are put back for you.
+          </span>
+          <span v-else class="text-[11px] text-amber-900">
             {{ (store.crashedRun.durations?.length ?? 0).toLocaleString() }} chains already priced; its settings are put
             back for you.
           </span>
@@ -898,7 +911,7 @@
         <StepAwayOptions
           kind="sweep"
           :player-id="playerId"
-          :can-carry-on="!!store.crashedRun && !store.runElsewhere.sweep"
+          :can-carry-on="!!store.crashedRun && !store.runElsewhere.sweep && queueAt < 0"
           @carry-on="resumeCrashed"
         />
         <!-- A Find and submit that finished (and sent) while this panel was closed for another tab. -->
@@ -1222,6 +1235,8 @@ import { describeCompute } from '@/utils/computeTime';
 import IntegrityNotice from './IntegrityNotice.vue';
 import SafariNotice from './SafariNotice.vue';
 import RunSaveNotice from './RunSaveNotice.vue';
+import type { SweepQueueChain, SweepQueueRecord, SweepQueueResult } from '@/search/persistence';
+import { runSweepQueue } from '@/search/sweepQueueRun';
 import UnfinishedRuns from './UnfinishedRuns.vue';
 import RunGoingElsewhere from './RunGoingElsewhere.vue';
 import DeadlinePanel from './DeadlinePanel.vue';
@@ -1672,8 +1687,9 @@ const chainCount = computed(() =>
 const combinations = computed(() => (bands.value.length ? bands.value.reduce((n, b) => n * b.length, 1) : 0));
 const unplayable = computed(() => Math.max(0, combinations.value - chainCount.value));
 
-// While a run goes, the chains IT prices (the queue's, or the one chain a carry-on runs), the count
-// the time left beside it is for; the form's figure counted the added chains on a carry-on too.
+// While a run goes, the chains IT prices (the queue's, carried on or not, or the one chain a lone
+// carry-on runs), the count the time left beside it is for; the form's figure counted the added
+// chains on a carry-on too.
 const chainCountLabel = computed(() => {
   const n = runLeft.value ? runLeft.value.chainsTotal : totalChains.value;
   return Number.isFinite(n) ? Math.round(n).toLocaleString() : '∞';
@@ -1986,6 +2002,9 @@ async function start(andSubmit = false): Promise<void> {
   // Send best so far, with the consent this click already has (or that the box asks for mid-run).
   store.beginBestSoFar('fastest', store.submitsWhenDone ? { nickname: bestSoFarName() } : null);
   try {
+    // A fresh click: an unfinished queue from before (a crash, a reload) is over, so a later carry-on
+    // of the run in the slot runs that chain alone, not the old queue's rest.
+    if (!store.busy && queueAt.value < 0) await store.persistQueue(props.playerId, null);
     await startOne();
   } finally {
     findAndSubmit.value = false;
@@ -2050,77 +2069,91 @@ async function startOne(): Promise<void> {
  */
 async function startQueue(): Promise<void> {
   if (queueAt.value >= 0 || store.busy) return;
-  queueCancelled.value = false;
-  queueResults.value = [];
-  const player = props.playerId;
-  const specs = [
-    { label: `Chain 1 · ${bands.value.length + 1} ascensions`, spec: currentSpec() },
+  const chains: SweepQueueChain[] = [
+    {
+      label: `Chain 1 · ${bands.value.length + 1} ascensions`,
+      spec: currentSpec(),
+      count: chainCount.value,
+      ascensions: bands.value.length + 1,
+    },
     ...extraChains.value.map((row, k) => ({
       label: `Chain ${k + 2} · ${row.asc} ascension${row.asc === 1 ? '' : 's'}`,
       spec: specOfExtra(k),
+      count: extraCount(k),
+      ascensions: Math.max(1, row.asc),
     })),
   ];
-  store.sweepQueue.total = specs.length;
-  // Each chain's count and length, for the one time left of the whole queue (stores `sweepLeft`).
-  store.sweepQueue.counts = [chainCount.value, ...extraChains.value.map((_, k) => extraCount(k))];
-  store.sweepQueue.ascensions = [bands.value.length + 1, ...extraChains.value.map(row => Math.max(1, row.asc))];
-  const fail = (label: string, why: string) =>
-    queueResults.value.push({ label: `${label}: ${why}`, chain: [], days: 0, stopped: true, finish: 0 });
+  await runQueue(props.playerId, chains, { from: 0, results: [], carry: null, name: bestSoFarName() });
+}
+
+/**
+ * Carry on a queue a crash or a reload interrupted: the chain it was on (or the next one, when that
+ * chain had already finished and been recorded), then the rest, as the click would have. The queue's
+ * own Find and submit (and the name it sent under) comes back with it.
+ */
+async function resumeQueue(q: SweepQueueRecord, next: number): Promise<void> {
+  if (queueAt.value >= 0 || store.busy) return;
+  resuming.value = 'checkpoint';
+  findAndSubmit.value = q.submit;
+  if (q.submit) {
+    anonymous.value = !q.name;
+    if (q.name) nickname.value = q.name;
+  }
+  store.lastAutoSend = null;
+  store.submitsWhenDone = q.submit;
+  store.beginBestSoFar('fastest', q.submit ? { nickname: q.name ?? '' } : null);
   try {
-    for (let k = 0; k < specs.length; k++) {
-      // Stopped between chains, or another account loaded: the rest don't run.
-      if (queueCancelled.value || props.playerId !== player) break;
-      // Anything else going (a carry-on clicked between chains) and `startExhaustive` returns without
-      // a word -- and the row would be filled with that run's result.
-      if (store.busy) {
-        fail(specs[k].label, 'another run was going, so the queue stopped here');
-        break;
-      }
-      queueAt.value = k;
-      autoSubmitted.value = false;
-      await store.startExhaustive(player, specs[k].spec, { recheck: findAndSubmit.value });
-      // Stop pressed while the chain was writing its last checkpoint arrives after the store copied
-      // `stoppedEarly`; the queue's own flag catches it (see the watch below).
-      const stopped = store.stoppedEarly || queueCancelled.value;
-      // A chain that could not start leaves the previous chain's result on screen; recording that as
-      // this chain's would be a lie, so the queue stops there and says which one.
-      if (store.error) {
-        fail(specs[k].label, store.error);
-        break;
-      }
-      if (store.bestDays > 0) {
+    await runQueue(props.playerId, q.chains, {
+      from: next,
+      results: q.results,
+      carry: next === q.at ? 'same' : 'next',
+      name: q.name ?? '',
+    });
+  } finally {
+    resuming.value = '';
+    findAndSubmit.value = false;
+    store.submitsWhenDone = false;
+    store.endBestSoFar();
+  }
+}
+
+/** Run the queue's chains from `from` on (search/sweepQueueRun.ts); `carry`: the first is a carry-on. */
+async function runQueue(
+  player: string,
+  chains: SweepQueueChain[],
+  o: { from: number; results: SweepQueueResult[]; carry: 'same' | 'next' | null; name: string }
+): Promise<void> {
+  await runSweepQueue(
+    {
+      queue: store.sweepQueue,
+      playerNow: () => props.playerId,
+      busy: () => store.busy,
+      start: (spec, opts) => store.startExhaustive(player, spec, opts),
+      resume: (next, opts) => store.resumeCrashedRun(player, next, opts),
+      outcome: () => ({
+        error: store.error,
+        failed: store.stage === 'failed',
+        stoppedEarly: store.stoppedEarly,
+        days: store.bestDays,
+        chain: [...store.bestChain],
         // The finish is fixed now, against this run's own start: worked out later it used whatever
         // run was on screen by then.
-        queueResults.value.push({
-          label: specs[k].label,
-          chain: [...store.bestChain],
-          days: store.bestDays,
-          stopped,
-          finish: store.planStartUsed + store.bestDays * 86400,
-        });
-        // Find and submit: each chain's result goes as it finishes, before the next takes the panel.
-        // So does one whose best so far is on the board (its result replaces it, stopped or not), and
-        // every one once the player agreed during the queue (Send best so far's box).
+        finish: store.planStartUsed + store.bestDays * 86400,
+      }),
+      chainStarting: () => (autoSubmitted.value = false),
+      // Find and submit: each chain's result goes as it finishes, before the next takes the panel.
+      // So does one whose best so far is on the board (its result replaces it, stopped or not), and
+      // every one once the player agreed during the queue (Send best so far's box).
+      sendIfOwed: async stopped => {
         await store.bestSoFarSettled();
         const owes = !!store.provisionalRows.fastest || (!findAndSubmit.value && !!store.bestSoFar?.consent);
         if ((findAndSubmit.value && !stopped) || owes) await sendFinished();
-        try {
-          await store.saveCurrentRun(player, specs[k].label);
-        } catch (e) {
-          // Its checkpoint still has it; only the library copy is missing. Say so and stop, rather
-          // than leave "Running chain 2 of 3" on screen with nothing running.
-          fail(specs[k].label, `finished, but couldn't be saved to your runs (${(e as Error)?.message ?? e})`);
-          break;
-        }
-      } else if (!stopped) fail(specs[k].label, 'no chain in this space finishes');
-      if (stopped) break;
-    }
-  } finally {
-    queueAt.value = -1;
-    // Stop's "the rest don't start" ends with the queue: left set, a later single run's Stop read
-    // "Stopping..." from the start.
-    queueCancelled.value = false;
-  }
+      },
+      save: async label => void (await store.saveCurrentRun(player, label)),
+      persistQueue: handled => store.persistQueue(player, handled),
+    },
+    { player, chains, ...o, submit: findAndSubmit.value }
+  );
 }
 
 /** Set by Stop (the store's stop() sets it too, for the progress bar's): the queue checks it between
@@ -2211,6 +2244,12 @@ async function resumeCrashed(): Promise<void> {
   // A carried-on run is a "fastest to a target" run: show that view, or its progress is hidden and
   // the deadline panel just says it is waiting (a player clicked this from the deadline view).
   goal.value = 'fastest';
+  // One chain of a Full sweep queue: carry on the queue, not that chain alone.
+  const queued = store.crashedQueue;
+  if (queued) {
+    await resumeQueue(queued.record, queued.next);
+    return;
+  }
   resuming.value = 'checkpoint';
   store.beginBestSoFar('fastest', null);
   let owes = false;
@@ -2224,6 +2263,21 @@ async function resumeCrashed(): Promise<void> {
   // Its best so far (sent before the interruption, or since) is replaced by its result.
   if (owes) await sendFinished();
 }
+
+/** The carry-on offer's words for an interrupted queue: which chain, of how many, and what is done. */
+const crashedQueueNote = computed(() => {
+  const q = store.crashedQueue;
+  if (!q) return '';
+  const of = q.record.chains.length;
+  const done = q.record.results.filter(r => r.days > 0).length;
+  const doneText = done ? ` ${done} finished chain${done === 1 ? ' is' : 's are'} kept in the table.` : '';
+  const rest = of - q.next - 1;
+  const restText = rest ? `, then the ${rest === 1 ? 'last one' : `other ${rest}`}` : '';
+  const head = `A Full sweep of ${of} chains stopped without finishing, at chain ${q.record.at + 1} of ${of}.${doneText}`;
+  return q.next === q.record.at
+    ? `${head} Carrying on finishes chain ${q.next + 1}${restText}${q.record.submit ? ', sending each as it finishes, as you asked' : ''}.`
+    : `${head} That chain finished; carrying on starts chain ${q.next + 1}${restText}${q.record.submit ? ', sending each as it finishes, as you asked' : ''}.`;
+});
 
 /** Which run is mid-resume, for the button's own label. Empty when none is. */
 const resuming = ref('');

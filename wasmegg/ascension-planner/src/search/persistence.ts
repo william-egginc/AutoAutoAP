@@ -100,6 +100,75 @@ export interface SearchCheckpoint {
   /** The run's phone link (search/watchLink.ts), so a carry-on keeps posting under the same key.
    *  Optional and unversioned, as `provisional` is, and never merged in from an earlier record. */
   watch?: WatchLinkState;
+
+  /**
+   * The Full sweep queue this run is one chain of (several chains from one click), so a carry-on
+   * after a crash or a reload runs the rest of the queue too instead of only this chain. Optional and
+   * unversioned, as `provisional` is, and never merged in from an earlier record: the run's own write
+   * says whether it is still part of a queue. Dropped when the run is moved aside (`setAside`): a
+   * different run took over, so the queue it belonged to is over.
+   */
+  queue?: SweepQueueRecord;
+}
+
+/** One chain of a Full sweep queue: what to run, and its size for the whole queue's time left. */
+export interface SweepQueueChain {
+  label: string;
+  spec: { lo: number; hi: number; step: number; minAsc: number; maxAsc: number; minGap?: number; bands?: number[][] };
+  count: number;
+  ascensions: number;
+}
+
+/** A finished chain of the queue, as the panel's table shows it. */
+export interface SweepQueueResult {
+  label: string;
+  chain: number[];
+  days: number;
+  stopped: boolean;
+  finish: number;
+}
+
+export interface SweepQueueRecord {
+  /** Every chain of the click, in order. */
+  chains: SweepQueueChain[];
+  /** The chain (index into `chains`) this checkpoint belongs to. */
+  at: number;
+  /** True once that chain's result has been recorded, sent and saved: the next to run is `at + 1`.
+   *  False while it runs, or if it ended before that: carrying on runs it, then the rest. */
+  handled: boolean;
+  /** The chains finished so far, for the table and for comparing them at the end. */
+  results: SweepQueueResult[];
+  /** Find and submit: each finished chain is sent as it finishes. */
+  submit: boolean;
+  /** The name a submitting queue sends under ('' for anonymous). */
+  name?: string;
+}
+
+/** A stored queue, checked field by field (it comes back from IndexedDB): null when unusable. */
+export function readSweepQueue(raw: unknown): SweepQueueRecord | null {
+  const q = raw as Partial<SweepQueueRecord> | null | undefined;
+  if (!q || !Array.isArray(q.chains) || !q.chains.length || !Array.isArray(q.results)) return null;
+  if (typeof q.at !== 'number' || !Number.isInteger(q.at) || q.at < 0 || q.at >= q.chains.length) return null;
+  const okChain = (c: SweepQueueChain) =>
+    !!c && typeof c.label === 'string' && !!c.spec && typeof c.spec.minAsc === 'number' && typeof c.count === 'number';
+  if (!q.chains.every(okChain)) return null;
+  return {
+    chains: q.chains.map(c => ({
+      ...c,
+      spec: { ...c.spec, ...(c.spec.bands ? { bands: c.spec.bands.map(b => [...b]) } : {}) },
+    })),
+    at: q.at,
+    handled: q.handled === true,
+    results: q.results.map(r => ({ ...r, chain: [...(r.chain ?? [])] })),
+    submit: q.submit === true,
+    ...(typeof q.name === 'string' ? { name: q.name } : {}),
+  };
+}
+
+/** The chain a carry-on of this queue runs next (index into `chains`), or -1 when none is left. */
+export function queueNext(q: SweepQueueRecord): number {
+  const next = q.handled ? q.at + 1 : q.at;
+  return next < q.chains.length ? next : -1;
 }
 
 /**
@@ -378,7 +447,10 @@ async function setAside(partitionHash: string, record: SearchCheckpoint, leaving
   // The run being carried on still sits in the list until the caller removes it; counting it here
   // trimmed the oldest real one to make room for an entry about to go anyway.
   const room = MAX_INTERRUPTED + (leaving && rest.some(r => sameEntry(r, leaving)) ? 1 : 0);
-  await saveMetadata(partitionHash, INTERRUPTED_KEY, [record, ...rest].slice(0, room));
+  // A different run took the slot, so the queue this run was part of is over: it carries on alone.
+  const alone: SearchCheckpoint = { ...record };
+  delete alone.queue;
+  await saveMetadata(partitionHash, INTERRUPTED_KEY, [alone, ...rest].slice(0, room));
 }
 
 /** Unfinished runs a later run moved out of the slot, newest first. */
@@ -430,6 +502,25 @@ export async function loadAnyCheckpoint(partitionHash: string): Promise<SearchCh
   return raw;
 }
 
+/**
+ * Write the Full sweep queue onto the run in the slot (or take it off, with null), without touching
+ * anything else in the record: the queue's state moves between chains, when no run is writing.
+ * Returns the record as written, or null when the slot is empty.
+ */
+export async function setCheckpointQueue(
+  partitionHash: string,
+  queue: SweepQueueRecord | null
+): Promise<SearchCheckpoint | null> {
+  const raw = await loadAnyCheckpoint(partitionHash);
+  if (!raw) return null;
+  const kept = queue ? readSweepQueue(queue) : null;
+  const next: SearchCheckpoint = { ...raw };
+  if (kept) next.queue = kept;
+  else delete next.queue;
+  await saveMetadata(partitionHash, METADATA_KEY, next);
+  return next;
+}
+
 export async function clearCheckpoint(partitionHash: string): Promise<void> {
   await saveMetadata(partitionHash, METADATA_KEY, null);
 }
@@ -452,6 +543,7 @@ export function buildCheckpoint(args: {
   runNote?: string;
   provisional?: ProvisionalRow | null;
   watch?: WatchLinkState | null;
+  queue?: SweepQueueRecord | null;
 }): SearchCheckpoint {
   const bestKey = args.bestChain.join(',');
   return {
@@ -473,6 +565,7 @@ export function buildCheckpoint(args: {
     ...(args.runNote ? { runNote: args.runNote } : {}),
     ...(args.provisional ? { provisional: { ...args.provisional } } : {}),
     ...(args.watch ? { watch: { ...args.watch } } : {}),
+    ...(args.queue && readSweepQueue(args.queue) ? { queue: readSweepQueue(args.queue)! } : {}),
   };
 }
 

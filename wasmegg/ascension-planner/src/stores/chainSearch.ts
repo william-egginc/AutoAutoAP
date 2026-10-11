@@ -55,7 +55,12 @@ import {
   discardInterrupted,
   restoreEntries,
   saveCheckpoint,
+  setCheckpointQueue,
+  queueNext,
+  readSweepQueue,
   type SearchCheckpoint,
+  type SweepQueueChain,
+  type SweepQueueRecord,
 } from '@/search/persistence';
 import {
   buildChainsCsv,
@@ -701,7 +706,12 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     if (longRunWorkers.value !== null && workerBudget.value === longRunWorkers.value) {
       return { kind: 'default', workers: longRunWorkers.value };
     }
-    if (workersByHand.value && longRunSeconds.value > LONG_RUN_SECONDS && cap < maxPoolSize() && workerBudget.value > cap) {
+    if (
+      workersByHand.value &&
+      longRunSeconds.value > LONG_RUN_SECONDS &&
+      cap < maxPoolSize() &&
+      workerBudget.value > cap
+    ) {
       return { kind: 'hand', have: workerBudget.value };
     }
     return null;
@@ -825,7 +835,46 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     /** Each chain's count and length, for the time left of the whole queue (`sweepLeft`). */
     counts?: number[];
     ascensions?: number[];
+    /** Every chain of the click, and whether it was Find and submit (and under what name): written
+     *  into the running chain's checkpoint, so a carry-on after a crash or a reload runs the rest of
+     *  the queue too (`queueRecord`, `persistQueue`). */
+    chains?: SweepQueueChain[];
+    submit?: boolean;
+    name?: string;
   }>({ at: -1, total: 0, cancelled: false, results: [] });
+
+  /** The queue as the checkpoint keeps it, or null when no queue is running. */
+  function queueRecord(handled: boolean): SweepQueueRecord | null {
+    const q = sweepQueue.value;
+    if (q.at < 0 || !q.chains?.length || q.chains.length !== q.total) return null;
+    return readSweepQueue({
+      chains: q.chains,
+      at: q.at,
+      handled,
+      results: q.results,
+      submit: !!q.submit,
+      ...(q.submit && q.name !== undefined ? { name: q.name } : {}),
+    });
+  }
+
+  /**
+   * Between chains of a queue: write its state onto the checkpoint in the slot. `true`: the chain
+   * just run is recorded (sent and saved), so a carry-on starts the next one. `null`: the queue is
+   * over (finished, stopped or failed), so a carry-on runs only the chain in the slot, as for any run.
+   */
+  async function persistQueue(playerId: string, handled: boolean | null): Promise<void> {
+    try {
+      const hash = await hashID(playerId);
+      const written = await setCheckpointQueue(hash, handled === null ? null : queueRecord(handled));
+      // The offer reads `resumable`: keep it in step, or it offers a queue that is over.
+      const held = resumable.value;
+      if (held && written && hash === partitionHash && held.updatedAt === written.updatedAt) {
+        resumable.value = written;
+      }
+    } catch (e) {
+      console.warn('chain search: could not write the queue onto the checkpoint', e);
+    }
+  }
 
   /**
    * HOOK for the instant answer. When something outside a search (the precomputed answer, on the
@@ -1974,9 +2023,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       runSeedUsed = summary.space ? [] : summary.seedChain?.length ? [...summary.seedChain] : null;
       // Else the save the run keeps for good (keptSaves.ts), whose moment and TE are the same facts.
       const kept = own?.backupAt ? own : summary.save?.backupAt ? summary.save : null;
-      accountUsed = kept
-        ? { ...accountFields(summary.currentTE), backupTime: kept.backupAt, backupTE: kept.te }
-        : null;
+      accountUsed = kept ? { ...accountFields(summary.currentTE), backupTime: kept.backupAt, backupTE: kept.te } : null;
     }
     runNoteUsed.value = summary.runNote;
     runNote.value = summary.runNote ?? '';
@@ -2017,7 +2064,18 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    */
   const crashedRun = computed(() => {
     const cp = resumable.value;
-    return cp && !cp.complete && cp.space ? cp : null;
+    if (!cp?.space) return null;
+    if (!cp.complete) return cp;
+    // A finished chain of a queue that still has chains to run: carrying on runs the rest.
+    const q = readSweepQueue(cp.queue);
+    return q && queueNext(q) >= 0 ? cp : null;
+  });
+  /** The queue a carry-on of `crashedRun` continues, when it was one chain of several. */
+  const crashedQueue = computed(() => {
+    const q = readSweepQueue(crashedRun.value?.queue);
+    if (!q) return null;
+    const next = queueNext(q);
+    return next >= 0 ? { record: q, next } : null;
   });
 
   /**
@@ -2154,8 +2212,15 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   }
 
   /** Carry on an interrupted run from its checkpoint. The durations replay inside
-   *  `startExhaustive`; this only has to hand back the space the checkpoint recorded. */
-  async function resumeCrashedRun(playerId: string): Promise<boolean> {
+   *  `startExhaustive`; this only has to hand back the space the checkpoint recorded.
+   *  `next`: the next chain of the checkpoint's queue instead, when the checkpoint's own chain was
+   *  already finished and recorded -- with the run's save, settings and phone link, but not its best
+   *  so far on the board, which that chain's own result already replaced. */
+  async function resumeCrashedRun(
+    playerId: string,
+    next?: ExhaustiveSpec,
+    opts: { recheck?: boolean } = {}
+  ): Promise<boolean> {
     const cp = crashedRun.value;
     const sp = cp?.space;
     if (!cp || !sp || busy.value) return false;
@@ -2168,6 +2233,15 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       preparing.value = false;
     }
     if (!own) return false;
+    if (next) {
+      carriedProvisional = null;
+      await startExhaustive(
+        playerId,
+        { ...next, ...(next.bands ? { bands: next.bands.map(b => [...b]) } : {}) },
+        { own: own === 'current' ? undefined : own, recheck: !!opts.recheck }
+      );
+      return true;
+    }
     await startExhaustive(
       playerId,
       {
@@ -2179,7 +2253,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         minGap: sp.minGap,
         ...(sp.mode === 'bands' && sp.bands?.length ? { bands: sp.bands.map(b => [...b]) } : {}),
       },
-      { own: own === 'current' ? undefined : own }
+      { own: own === 'current' ? undefined : own, recheck: !!opts.recheck }
     );
     return true;
   }
@@ -4709,6 +4783,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           runNote: runNoteUsed.value,
           provisional: provisionalRows.value.fastest,
           watch: currentWatchLink(),
+          // A Full sweep chain run as part of a queue: the rest of the queue, for a carry-on.
+          queue: searchSpace.value ? queueRecord(false) : null,
         })
       );
       return true;
@@ -7491,11 +7567,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
 
   // Keep the run's latest figures for the phone: they are gone from `runProgress` by the time the
   // run's last word is built.
-  watch(
-    runProgress,
-    p => watchLinkNoteProgress(p && p.kind !== 'start-times' ? p : null),
-    { flush: 'sync' }
-  );
+  watch(runProgress, p => watchLinkNoteProgress(p && p.kind !== 'start-times' ? p : null), { flush: 'sync' });
 
   /** Stop whatever is running, keeping its best so far: one Stop for the bar, whichever kind it is. */
   function stopRun(): void {
@@ -7535,6 +7607,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     bestSoFarSettled,
     sendBestSoFar,
     sweepQueue,
+    persistQueue,
+    crashedQueue,
     suggestedCount,
     suggestedRoute,
     instantRoutes,

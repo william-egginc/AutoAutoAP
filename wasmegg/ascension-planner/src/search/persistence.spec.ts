@@ -480,3 +480,48 @@ describe("a run's phone link (Watch this run from your phone)", () => {
     expect((await loadCheckpoint(HASH, FP))?.watch).toBeUndefined();
   });
 });
+
+describe('a Full sweep queue on the checkpoint', () => {
+  beforeEach(() => store.clear());
+  const queue = {
+    chains: [1, 2].map(k => ({
+      label: `Chain ${k}`,
+      spec: { lo: 0, hi: 0, step: 1, minAsc: 2, maxAsc: 2, bands: [[200 + k]] },
+      count: 1,
+      ascensions: 2,
+    })),
+    at: 0,
+    handled: false,
+    results: [],
+    submit: false,
+  };
+
+  it('is kept with the run, and never merged in from an earlier write', async () => {
+    await saveCheckpoint(HASH, buildCheckpoint({ ...recordArgs(['a']), queue }));
+    expect((await loadAnyCheckpoint(HASH))?.queue?.chains).toHaveLength(2);
+    await saveCheckpoint(HASH, buildCheckpoint(recordArgs(['b'])));
+    expect((await loadAnyCheckpoint(HASH))?.queue).toBeUndefined();
+  });
+
+  it('is dropped when a different run moves this one aside: that queue is over', async () => {
+    await saveCheckpoint(HASH, buildCheckpoint({ ...recordArgs(['a']), queue }));
+    await saveCheckpoint(HASH, buildCheckpoint({ ...recordArgs(['b']), fingerprint: 'other|1|2|3|fc' }));
+    const aside = await listInterrupted(HASH);
+    expect(aside).toHaveLength(1);
+    expect(aside[0].queue).toBeUndefined();
+  });
+
+  function recordArgs(keys: string[]) {
+    return {
+      fingerprint: FP,
+      effort: 'normal' as const,
+      seedChain: [195, 490],
+      bestChain: [201, 490],
+      bestSeconds: 86400,
+      entries: keys.map(k => ({ key: k, seconds: 1, legs: [] })),
+      stage: 'running',
+      detail: '',
+      chainsDone: keys.length,
+    };
+  }
+});
