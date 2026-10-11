@@ -347,8 +347,8 @@
 
 <script setup lang="ts">
 import { plural } from '@/lib/format';
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
-import { useEidsStore } from 'lib';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { useShareIdentity } from '@/composables/useShareResult';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import RunNoteBox from '@/components/auto/RunNoteBox.vue';
 import SendingText from '@/components/auto/SendingText.vue';
@@ -482,16 +482,9 @@ function setWorkers(raw: string): void {
 const consent = ref(false);
 const showWhat = ref(false);
 const anonymous = ref(true);
-const eids = useEidsStore();
-const accountName = computed(() => {
-  const entry = eids.eids.get(props.playerId.trim());
-  return entry?.nickname || entry?.username || '';
-});
-const nickname = ref(accountName.value);
-const nicknameTouched = ref(false);
-watch(accountName, name => {
-  if (!nicknameTouched.value) nickname.value = name;
-});
+/** The account's one "Credit me as" name, shared with the other screens (composables/useShareResult.ts);
+ *  the consent and anonymous-or-named above stay this runner's own. */
+const { nickname, nicknameTouched } = useShareIdentity(() => props.playerId);
 /** Anonymous wins over whatever is in the box; the collector keeps 40 characters. */
 const effectiveNickname = computed(() => (anonymous.value ? '' : nickname.value.trim().slice(0, 40)));
 

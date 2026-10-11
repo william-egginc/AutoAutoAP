@@ -24,6 +24,58 @@ describe('share identity', () => {
   });
 });
 
+describe('one share name for the account', () => {
+  const sharedOf = () => {
+    const box = ref<string | undefined>(undefined);
+    return { box, name: { get: () => box.value, set: (v: string) => (box.value = v) } };
+  };
+
+  it("typed in one screen, it is in the others; anonymous and consent stay each one's own", async () => {
+    const { name } = sharedOf();
+    const account = ref('Fliris');
+    const fastest = createShareIdentity(account, name);
+    const byDate = createShareIdentity(account, name);
+    expect(byDate.nickname.value).toBe('Fliris');
+    // A keystroke in Fastest's box: the model update, then nicknameTyped.
+    fastest.nickname.value = 'Fl';
+    fastest.nicknameTouched.value = true;
+    expect(byDate.nickname.value).toBe('Fl');
+    fastest.nickname.value = 'Flo';
+    fastest.nicknameTouched.value = true;
+    expect(byDate.nickname.value).toBe('Flo');
+    // Typing in By a date's box fills Fastest's back.
+    byDate.nickname.value = 'Flow';
+    byDate.nicknameTouched.value = true;
+    expect(fastest.nickname.value).toBe('Flow');
+    // The account's name loading late no longer replaces it anywhere.
+    account.value = 'Someone';
+    await nextTick();
+    expect(fastest.nickname.value).toBe('Flow');
+    fastest.anonymous.value = false;
+    fastest.optIn.value = true;
+    expect(byDate.anonymous.value).toBe(true);
+    expect(byDate.optIn.value).toBe(false);
+  });
+
+  it('either order of the model update and nicknameTyped shares the name', () => {
+    const { name, box } = sharedOf();
+    const id = createShareIdentity(ref(''), name);
+    id.nicknameTouched.value = true;
+    id.nickname.value = 'A';
+    expect(box.value).toBe('A');
+  });
+
+  it("a name put back by code (a carried-on run's own) stays that screen's until the player types", () => {
+    const { name, box } = sharedOf();
+    const byDate = createShareIdentity(ref('Fliris'), name);
+    const fastest = createShareIdentity(ref('Fliris'), name);
+    byDate.nickname.value = 'Old run name';
+    expect(byDate.nickname.value).toBe('Old run name');
+    expect(fastest.nickname.value).toBe('Fliris');
+    expect(box.value).toBeUndefined();
+  });
+});
+
 function fakeStore(over: Partial<BoardStore> = {}) {
   return {
     alreadySubmitted: false,

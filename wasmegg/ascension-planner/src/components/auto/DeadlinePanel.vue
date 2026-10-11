@@ -1721,10 +1721,8 @@ async function resume(): Promise<void> {
   if (submit) {
     shareOptIn.value = true;
     shareAnonymous.value = !submit.nickname;
-    if (submit.nickname) {
-      shareName.value = submit.nickname;
-      shareNameTouched.value = true;
-    }
+    // This screen's alone (composables/useShareResult.ts): the run's own name, not typed now.
+    if (submit.nickname) shareName.value = submit.nickname;
     shareExtras.sendCsv.value = submit.sendCsv;
     shareExtras.sendDiagnostics.value = submit.sendDiagnostics;
   }

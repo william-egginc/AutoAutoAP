@@ -93,7 +93,7 @@
             aria-label="Nickname"
             class="rounded-lg border-amber-300 text-sm font-bold text-slate-800 w-48 max-w-full disabled:opacity-40"
             :data-testid="`unsent-nickname-${p.id}`"
-            @input="names[p.id] = ($event.target as HTMLInputElement).value"
+            @input="typeName(p.id, ($event.target as HTMLInputElement).value)"
           />
         </div>
         <p
@@ -158,7 +158,7 @@ import {
   type PendingSend,
 } from '@/search/pendingSends';
 import { useShareExtras } from '@/composables/useShareExtras';
-import { useAccountName } from '@/composables/useShareResult';
+import { useAccountName, useSharedName } from '@/composables/useShareResult';
 import { sentence } from '@/utils/errors';
 import SendingText from './SendingText.vue';
 
@@ -194,6 +194,12 @@ const accountName = useAccountName(() => props.playerId);
 
 const anonOf = (id: string): boolean => anonymous[id] ?? true;
 const nameOf = (id: string): string => names[id] ?? (props.nickname?.trim() || accountName.value);
+/** A name typed here is the account's name everywhere (stores/shareName.ts), as in the screens' boxes. */
+const sharedName = useSharedName(() => props.playerId);
+function typeName(id: string, v: string): void {
+  names[id] = v;
+  sharedName.set(v);
+}
 const csvOf = (p: PendingSend): boolean => csvs[p.id] ?? true;
 /** Starts from the saved "Tick this by default" preference, as the main form does. */
 const diagOf = (id: string): boolean => diags[id] ?? extras.diagnosticsByDefault.value;
