@@ -636,19 +636,23 @@
           This instant answer was built on your own account: your earnings and delivery sets, epic research and colleggtibles as
           your save has them now (Clothed TE bonus {{ header?.cteBonus }}). Each of its ascensions is the simulator's
           own build, and the waiting after it is the simulator's own arithmetic, so a route here matches the full
-          simulator on your account. Your first ascension is your own (continuing the one in progress when the continue
-          rule would, from your save). Each fresh ascension starts on the hour, where the instant answer was simulated. If your
+          simulator on your account. Your first ascension is your own, simulated from your save the way Your setup's first ascension says
+          (continue your build-up, finish without buying, or prestige now). Each fresh ascension starts on the hour, where the instant answer was simulated. If your
           gear changes, the page goes back to the instant answer for fully maxed gear until yours is made again.
         </p>
         <p v-else class="mt-1 leading-relaxed">
           The instant answer was built on a maxed account: perfect delivery set, Clothed TE bonus {{ header?.cteBonus }}, all
           epic research and colleggtibles. Each of its ascensions is the simulator's own build, and the waiting after it
           is the simulator's own arithmetic, so on that account a route here matches the full simulator to the second.
-          For you: your first ascension is your own (continuing the one in progress when the continue rule would, from
-          your save), the waits run at your own peak delivery rate ({{ ((deliveryScale ?? 1) * 100).toFixed(1) }}% of
+          For you: your first ascension is your own, simulated from your save the way Your setup's first ascension
+          says (continue your build-up, finish without buying, or prestige now); the waits run at your own peak delivery rate ({{ ((deliveryScale ?? 1) * 100).toFixed(1) }}% of
           the instant answer's: the best set your inventory can wear at full research), and each ascension is read from the row
           for its own TE. Each fresh ascension starts on the hour, where the instant answer was simulated; the weekly sale is at
           a fixed Pacific time, so the hour of the week is what matters.
+        </p>
+        <p class="mt-1 leading-relaxed">
+          How it was built and how closely it matches the full simulator:
+          <a href="#/science/how" class="font-bold text-indigo-700 underline">{{ NAMES.science }} › {{ NAMES.how }}</a>.
         </p>
       </details>
     </template>
@@ -697,6 +701,7 @@ import InstantShareCheck from './InstantShareCheck.vue';
 import { useInstantDuringSearch } from '@/composables/useInstantDuringSearch';
 import { readSnapshot, recallShown, rememberShown, snapshotUsable, writeSnapshot } from '@/search/instantSnapshot';
 import { simulateRoute } from '@/search/simulateRoute';
+import { NAMES } from '@/lib/siteNav';
 import type { FirstLegsRequest } from '@/workers/routeFinder.protocol';
 import { createChainSearchPool, type ChainSearchPool, type EvaluateOptions } from '@/search/pool';
 import type { HandoffChoice } from '@/search/chain';

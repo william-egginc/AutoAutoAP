@@ -1,0 +1,480 @@
+<!--
+  Science › How it works (#/science/how): what the searches and the instant answer do, how each
+  number is worked out, and how the answers were checked. Written for players, current as of
+  UPDATED below.
+
+  Every number here is a measurement, and each one says how it was measured. Sources (not in the
+  repo, kept by the maintainer): the tables report of 10 Oct 2026, the precompute validation notes of
+  1-10 Oct, and the collector analyst's notes. When one is re-measured, change the number and the date.
+
+  PRIVACY: no player ID, no save details. The maintainer's own test account is "a test account", never
+  its board nickname. Board nicknames appear only where Insights already uses them (Allan, Fliris).
+  Never say which accounts have their own instant answer tables.
+
+  Wording rule (the user's): players read "the instant answer", never "the table(s)".
+-->
+<template>
+  <div class="space-y-4">
+    <div class="space-y-1">
+      <h2 class="text-2xl font-black text-slate-900">How it works, and how we checked it</h2>
+      <p class="text-sm text-slate-600 leading-relaxed max-w-3xl">
+        What the planner does to find a route, how each number is worked out, how far we've checked it against the full
+        simulator, and what it doesn't cover yet. Updated {{ UPDATED }}.
+      </p>
+    </div>
+
+    <!-- The short version: what to do, before how it works. -->
+    <section
+      class="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 space-y-1.5 text-[12px] text-slate-800 leading-relaxed"
+    >
+      <p class="text-[10px] font-black text-emerald-700 uppercase tracking-widest">The short version</p>
+      <p>
+        <b>Every number comes from Joo's Auto AP simulator,</b> the same one behind {{ NAMES.auto }} ›
+        {{ NAMES.classic }}. Our part is choosing which TEs to ascend at.
+      </p>
+      <p>
+        <b>The instant answer looks routes up</b> in ascensions simulated ahead of time, so it covers every route in a
+        second or two. <b>Check exactly</b> then runs its routes through the full simulator on your save. Trust the
+        Check exactly number.
+      </p>
+      <p>
+        <b>Ascend at the times the plan shows.</b> The instant answer ascends on the hour; a search ascends at once.
+        Near the weekly sale the two can differ by days on a single route.
+      </p>
+      <p>
+        <b>On the routes we've checked, it agrees with the simulator to within hours.</b> It can still miss a better
+        route; our estimate is about 1 to 2 in 100 for routes of up to 4 ascensions. Section 3 has the details.
+      </p>
+    </section>
+
+    <!-- 1. The simulator and the searches -->
+    <details class="hw rounded-xl border border-slate-200 bg-white" open>
+      <summary class="hw-summary flex cursor-pointer items-start gap-2 px-4 py-3">
+        <span class="hw-num" aria-hidden="true">1</span>
+        <span class="flex-1 text-sm font-black text-slate-900">The simulator, and what our searches add</span>
+        <span class="hw-chevron mt-0.5 text-[10px] text-slate-400" aria-hidden="true">&#9662;</span>
+      </summary>
+      <div class="hw-body">
+        <p>
+          A <b>route</b> is the list of TEs you ascend at, ending at your target, like
+          <code class="font-mono-premium text-slate-800">195 219 248 286 327 490</code>. Joo's simulator plays each
+          ascension shift by shift: the opening research, habs, vehicles and silos, the sale-timed research buying, then
+          the egg shifts up to the next TE. Every build is timed to end when the weekly Research Sale ends, Saturday
+          9:00 am Pacific. We didn't write a second simulator. Every search calls Joo's code, on your own computer's
+          cores, and a route run from the command line gives the same answer as the same route in the browser.
+        </p>
+        <p>
+          Picking the TEs is the hard part. Moving one stop by a single TE has cost up to about a month in players'
+          runs, and between TE 177 and 490 there are about 2 × 10<sup>15</sup> routes of 3 to 9 ascensions. That's far
+          too many to simulate, so each screen uses a different shortcut:
+        </p>
+        <ul class="hw-list">
+          <li>
+            <b>{{ NAMES.fastest }}, {{ NAMES.smartFirst }}:</b> starts from a route (the instant answer's fastest, or
+            one you type) and improves it in stages: it fine-tunes the last stop, nudges each stop up to 8 TE either
+            way, tries neighbouring pairs together (and triples on Very high), then tries one ascension more or fewer.
+            You can stop it at any point and keep the best route so far. The result is a strong local best. Nobody has
+            proven it's the best overall.
+          </li>
+          <li>
+            <b>{{ NAMES.fastest }}, {{ NAMES.fullFirst }}:</b> simulates <i>every</i> route inside boxes you set (for
+            example 185-200 every 5 TE for the first stop, 215-245 every 10 for the second), with nothing skipped. Its
+            winner is therefore the best route in those boxes. It says so when the winner sits on a box's edge and
+            offers to widen the box, keeping every route it has already simulated. By default it also tries one
+            ascension more and one fewer.
+          </li>
+          <li>
+            <b>{{ NAMES.byDate }}:</b> for each set of early stops it finds the highest last stop that still makes the
+            date (step up, step down, then halve the gap), then refines the best sets one TE at a time. In Simple it
+            builds the boxes around the instant answer's route for each number of ascensions; in Advanced you set them.
+            Inside its boxes it doesn't skip anything: one 12-hour run on 10 Oct simulated 153,785 routes, every route
+            in its boxes.
+          </li>
+        </ul>
+        <p>
+          <b>The memo.</b> Routes that start the same way share those ascensions exactly, so each worker remembers the
+          ascensions it has simulated, and routes are handed out so that routes with the same start go to the same
+          worker. That only saves time; it never changes an answer.
+        </p>
+        <p>
+          <b>On the hour or at once.</b> A search starts each new ascension the moment the last one reaches its TE. The
+          instant answer starts it at the next whole hour, because that's where it was simulated (inside the weekly sale
+          it can start at once, when that ends sooner). Most of the time that's a fraction of an hour, but a start just
+          before or after a sale deadline can move a single route by days. So follow the times the plan shows.
+        </p>
+        <p>
+          <b>Your hours.</b> With "Let me pick my hours" in Your setup, each prestige and egg switch waits for your
+          awake window, the farm keeps laying while it waits, and the wait counts in that ascension's time. Time off is
+          planned the same way. With no hours set, nothing waits.
+        </p>
+      </div>
+    </details>
+
+    <!-- 2. The instant answer -->
+    <details class="hw rounded-xl border border-slate-200 bg-white">
+      <summary class="hw-summary flex cursor-pointer items-start gap-2 px-4 py-3">
+        <span class="hw-num" aria-hidden="true">2</span>
+        <span class="flex-1 text-sm font-black text-slate-900">The instant answer</span>
+        <span class="hw-chevron mt-0.5 text-[10px] text-slate-400" aria-hidden="true">&#9662;</span>
+      </summary>
+      <div class="hw-body">
+        <p>
+          <b>Simulated ahead of time.</b> A fresh ascension depends on two things: the TE you start from and the hour of
+          the week you start, because the sale is always Saturday 9:00 am Pacific. So we simulated a fresh ascension
+          once for every start TE from 120 to 489 and every one of the 168 hours of the Pacific week: 62,160 starts,
+          each with its build options (1, 2 or 3 sale weeks, with and without tier 13). Only the build is simulated. The
+          waiting after it is the simulator's own arithmetic, replayed exactly, so one start gives the time to every TE
+          above it. A full set is about 90 hours of one processor core.
+        </p>
+        <p><b>Whose gear.</b> There are three kinds:</p>
+        <ul class="hw-list">
+          <li>
+            <b>Your own gear,</b> when one has been built for gear exactly like yours: the same artifacts and stones,
+            epic research and colleggtibles. The page checks this every time and says which one it used.
+          </li>
+          <li>
+            <b>Fully maxed gear,</b> for everyone else, run at your own peak delivery rate (the best delivery set your
+            inventory can wear at full research), with your first ascension worked out from your own save.
+          </li>
+          <li>
+            <b>Nearby gear,</b> used as a bracket: on maxed gear the page also prices your route on the nearest stronger
+            and weaker gear and says your real date probably falls between them.
+          </li>
+        </ul>
+        <p>
+          The files are named by a scrambled code, so nobody can tell whose gear a file was built from, and your player
+          ID never leaves your computer.
+        </p>
+        <p>
+          <b>Where the delivery-rate shortcut stops working.</b> From about TE 340 every build reaches full research, so
+          only your delivery rate matters, and scaling the waits by it is exact. Below 340 your earnings set changes how
+          much research a build gets through, which a delivery rate can't capture. The page warns you there. Measured on
+          a test account with slightly weaker gear, priced on maxed gear: ascensions were off by a median 0.48% from TE
+          200-299 (worst 10.8%) and 0.97% from 120-199 (1 in 10 over 6%). One answer from before a 10 Oct fix, when that
+          account fell back to maxed gear, claimed TE 248 by Egg Day; Check exactly gave 246-247. That's why Check
+          exactly exists.
+        </p>
+        <p>
+          <b>Finding the routes.</b> The finder walks up through the TEs once. At each TE, for each number of
+          ascensions, it keeps only the arrivals that nothing else beats on both time and eggs delivered (up to 6 of
+          them). That gives the fastest route of every length to every TE, or for {{ NAMES.byDate }} the highest TE you
+          can reach by the date, in a second or two. A polish then tries moving stops by a TE or two (not on phones or
+          small computers).
+        </p>
+        <p>
+          <b>Check exactly</b> runs the instant answer's routes through the full simulator on your save, ascending on
+          the hour as shown, or at once as well if you tick that. It takes about 10 to 40 seconds a route. That's the
+          number to plan around. Searches start from the instant answer too: Simple's starting route, and Advanced's
+          suggested boxes, are centred on its route.
+        </p>
+      </div>
+    </details>
+
+    <!-- 3. Validation -->
+    <details class="hw rounded-xl border border-slate-200 bg-white">
+      <summary class="hw-summary flex cursor-pointer items-start gap-2 px-4 py-3">
+        <span class="hw-num" aria-hidden="true">3</span>
+        <span class="flex-1 text-sm font-black text-slate-900">How we checked it</span>
+        <span class="hw-chevron mt-0.5 text-[10px] text-slate-400" aria-hidden="true">&#9662;</span>
+      </summary>
+      <div class="hw-body">
+        <p>
+          Each line says what was compared, the result, and how it was measured. A percentage is of the ascension's own
+          length (a 0.1% error on a 30-day ascension is about 43 minutes).
+        </p>
+        <div class="space-y-2">
+          <div v-for="c in CHECKS" :key="c.what" class="rounded-lg border border-slate-100 bg-slate-50/60 px-3 py-2">
+            <p class="font-bold text-slate-800">{{ c.what }}</p>
+            <p class="text-slate-700">{{ c.result }}</p>
+            <p class="text-[11px] text-slate-500">How: {{ c.how }}</p>
+          </div>
+        </div>
+
+        <p class="pt-1 font-bold text-slate-800">Could it miss a better route?</p>
+        <p>
+          Yes, sometimes. For a fresh start on a test account on 10 Oct, we put the chance that a better route of up to
+          4 ascensions exists, one that neither the 12-hour search nor the instant answer found, at
+          <b>about 1 to 2%</b>. With "Continue my build-up", the chance of one more TE was under 1%. The reasoning:
+          inside the search's boxes, none of about 5,200 nearly-good routes made the higher TE when simulated. Only a
+          route outside the boxes, 5 to 10 days late in the instant answer, that gains all of that by ascending at once
+          could do it. That's an estimate from one account and one start time, not a guarantee.
+        </p>
+        <p class="pt-1 font-bold text-slate-800">What these checks don't cover</p>
+        <ul class="hw-list">
+          <li>
+            <b>Prestiging later.</b> Every check starts from now. Waiting a day or two to prestige can be worth a TE (on
+            the test account, a fresh start on one Monday morning made one TE more than starting now), and nothing
+            searches that yet.
+          </li>
+          <li>
+            <b>On the hour against at once.</b> The two agree to within hours on most routes, but each method's best
+            routes suit its own start times, and a single route can differ by days (one route made its date with 9.5
+            hours to spare on the hour and missed by 1.7 days at once).
+          </li>
+          <li><b>A fourth sale week</b> in one build. Neither the searches nor the instant answer try it.</li>
+          <li>
+            <b>Accounts without maxed epic research or colleggtibles,</b> on the maxed instant answer: it assumes both.
+          </li>
+          <li>
+            <b>Today's code, bit for bit.</b> The last cell-by-cell rebuild was on 10 Oct, just before "Continue my
+            build-up" went in. Reading the code says that change doesn't touch a fresh build, but we haven't re-run the
+            rebuild since.
+          </li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- 4. First ascension -->
+    <details class="hw rounded-xl border border-slate-200 bg-white">
+      <summary class="hw-summary flex cursor-pointer items-start gap-2 px-4 py-3">
+        <span class="hw-num" aria-hidden="true">4</span>
+        <span class="flex-1 text-sm font-black text-slate-900">Your first ascension</span>
+        <span class="hw-chevron mt-0.5 text-[10px] text-slate-400" aria-hidden="true">&#9662;</span>
+      </summary>
+      <div class="hw-body">
+        <p>
+          Your first ascension starts from the farm you have now, so it's worked out from your save, not looked up. Your
+          setup offers four choices:
+        </p>
+        <ul class="hw-list">
+          <li><b>Fastest</b> (the default): tries the others and takes whichever reaches the first stop sooner.</li>
+          <li>
+            <b>Continue my build-up</b> (new on 10 Oct): finishes the build from where your farm is. Each build step
+            buys toward a goal (research maxed, every hab a Chicken Universe, every vehicle slot a full hyperloop,
+            enough silos), so what your farm already owns isn't bought again. A step you can afford within half an hour
+            is done where you are, without switching eggs; otherwise it runs as a fresh build would. Then the sale-timed
+            buying carries on as usual.
+          </li>
+          <li>
+            <b>Finish without buying:</b> Joo's "Continue Asc.". The farm stays as it is and lays its way to the first
+            stop. Fine when the build is done, slow when it's half done.
+          </li>
+          <li><b>Prestige now:</b> a fresh build straight away.</li>
+        </ul>
+        <p>
+          <b>Why it matters.</b> On a test account part-way through a build (10 Oct), the first ascension took
+          <b>70.1 days</b> continuing the build-up, 72.4 days prestiging now, and 86.5 days finishing without buying. By
+          Egg Day that was TE 248 with the build-up against 247 prestiging now. These are full-simulator numbers.
+        </p>
+        <p>
+          The instant answer does the same: your first ascension is simulated live from your save, and every later one
+          is a fresh ascension it already has, so no new instant answer was needed. On one check of the test account the
+          first ascension came out the same in both (47.34 days), the later ones within 0.04%, and the whole route
+          within 0.7 hours.
+        </p>
+        <p>
+          A plan that starts more than an hour from now has no ascension to continue, so it's priced as a fresh build,
+          as {{ NAMES.classic }} does.
+        </p>
+      </div>
+    </details>
+
+    <!-- 5. The board and what is sent -->
+    <details class="hw rounded-xl border border-slate-200 bg-white">
+      <summary class="hw-summary flex cursor-pointer items-start gap-2 px-4 py-3">
+        <span class="hw-num" aria-hidden="true">5</span>
+        <span class="flex-1 text-sm font-black text-slate-900">The leaderboard, and what is sent</span>
+        <span class="hw-chevron mt-0.5 text-[10px] text-slate-400" aria-hidden="true">&#9662;</span>
+      </summary>
+      <div class="hw-body">
+        <p>
+          <b>Nothing is sent unless you tick it.</b> A shared result sends the route, its dates and the target or
+          deadline, your artifact inventory, timezone and plan start, and a random code this browser keeps for your
+          account. Only a scrambled form of that code is stored. It lets you rename your rows and see your own plans.
+          Your player ID and your save are never sent. You can send anonymously or under a nickname.
+        </p>
+        <ul class="hw-list">
+          <li>
+            <b>CSV</b> (optional): every route the search simulated, compressed before it leaves your computer. A big
+            one goes in parts, up to 64 MB.
+          </li>
+          <li>
+            <b>Best so far</b> (optional, in "Stepping away?"): a long run can post its best route so far, marked "in
+            progress". The final result replaces it, so each run keeps one row.
+          </li>
+          <li>
+            <b>Diagnostics</b> (optional): memory, workers, crashes, run size and time, browser and system. Kept
+            privately for 180 days and never shown by any page or address.
+          </li>
+          <li>
+            <b>Share this check</b> (optional, beside Check exactly): the instant answer and its exact times, to measure
+            how accurate the instant answer is. Private, never on the board, at most once an hour per save.
+          </li>
+          <li>
+            <b>Phone watch link</b> (optional): your tab posts the run's progress encrypted. The key is in the part of
+            the link after the #, which browsers never send to a server, so the collector stores data it can't read.
+            Links expire after 7 days.
+          </li>
+        </ul>
+        <p>
+          <b>How the board judges.</b> Plans are compared by the date they finish, not their length, since a length
+          counts from the plan's own start. What-ifs are kept but don't race. A newer save's price of the same plan
+          replaces the old one, better or worse, so re-running can't fish for a lucky number. {{ NAMES.insights }} reads
+          only the public rows; it can't see accounts, so it guesses them from timezone and artifacts.
+        </p>
+      </div>
+    </details>
+
+    <!-- 6. Limits and next -->
+    <details class="hw rounded-xl border border-slate-200 bg-white">
+      <summary class="hw-summary flex cursor-pointer items-start gap-2 px-4 py-3">
+        <span class="hw-num" aria-hidden="true">6</span>
+        <span class="flex-1 text-sm font-black text-slate-900">Known limits, and what's next</span>
+        <span class="hw-chevron mt-0.5 text-[10px] text-slate-400" aria-hidden="true">&#9662;</span>
+      </summary>
+      <div class="hw-body">
+        <ul class="hw-list">
+          <li>
+            <b>Below about TE 340 on maxed gear,</b> the instant answer can be a day or more out over a long route, and
+            off by a TE by a date. Use Check exactly, or the bracket it shows.
+          </li>
+          <li>
+            <b>Near-ties.</b> The best TE matched every time we checked, but which route gets there can differ: on one
+            account 101 four-ascension routes reached the same TE, 23 of them within 6 hours of the best. Picks among
+            those are fragile, so re-run after each ascension.
+          </li>
+          <li>
+            <b>{{ NAMES.smartFirst }}</b> is a strong local best, not a proven one. {{ NAMES.fullFirst }} is proven only
+            inside its boxes.
+          </li>
+          <li>
+            <b>Not built yet: "prestige by".</b> A warning like "prestige by this time to keep this TE". We have the
+            method (price a few later starts and see when the answer drops) but not enough checked examples yet.
+          </li>
+          <li>
+            <b>Not built yet: the "one more TE" hint.</b> At the top of a {{ NAMES.byDate }} answer, one more TE costs a
+            flat 45 to 53 hours of the final ascension (measured on two accounts). So if your answer has more than about
+            2 days to spare, try its last stop one TE higher.
+          </li>
+          <li>
+            <b>Joo's newer simulator changes</b> (earnings lookaheads, a new opening, a tier-12 unlock) aren't in this
+            site yet. If they land, the instant answer has to be simulated again, about 55 to 70 hours on a 16-core PC,
+            before it can be trusted against the new simulator.
+          </li>
+        </ul>
+        <p>
+          The open questions players can help with are on
+          <a href="#/science" class="font-bold text-indigo-700 underline">{{ NAMES.science }} › {{ NAMES.check }}</a
+          >, and what the board's runs have shown so far is on
+          <a href="#/compare/insights" class="font-bold text-indigo-700 underline"
+            >{{ NAMES.compare }} › {{ NAMES.insights }}</a
+          >.
+        </p>
+      </div>
+    </details>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { NAMES } from '@/lib/siteNav';
+
+/** The date every number here was last checked. */
+const UPDATED = '10 Oct 2026';
+
+/** The checks, in the order a sceptic would ask for them: same inputs, then the simulator, then real runs. */
+const CHECKS: { what: string; result: string; how: string }[] = [
+  {
+    what: 'The same start gives the same answer on any machine',
+    result:
+      "Identical to the bit. 20 of 20 starts simulated on a second computer matched, and one whole TE came out byte for byte the same. Rebuilt later with the code of the day, 12 of 12 matched. After a 5 Oct fix, 8 starts from each older file matched, and the one file the fix did change was rebuilt and passed 67 of 67. A test account's starts were rechecked on 10 Oct and matched.",
+    how: 'rebuilding individual starts from scratch and comparing every number (1-10 Oct).',
+  },
+  {
+    what: 'The waiting after a build',
+    result:
+      'Matches the simulator to within a millionth of a second on 14,160 cases, and exactly on 1,059 continued ascensions.',
+    how: 'replaying the arithmetic and running the simulator side by side (1 Oct).',
+  },
+  {
+    what: 'Whole routes on the gear they were built for',
+    result:
+      'The same as the simulator to the second when ascending on the hour (0.000%). Ascending at once instead was at most 0.07% sooner. A brute-force check of every route up to 4 ascensions agreed with the finder.',
+    how: 'routes of 1 to 10 ascensions, priced both ways (1 Oct).',
+  },
+  {
+    what: 'Real ascensions from the board, from TE 300 up',
+    result:
+      'Median error 0.00%, 99 in 100 within 0.69%, worst 1.13% (4,367 ascensions). From TE 340 up, every account the board could measure: median 0.00%, 9 in 10 within 0.02%.',
+    how: "each submitted ascension priced the way the site does it, from the run's own start and eggs (1 Oct).",
+  },
+  {
+    what: 'Real ascensions on gear matched to the player',
+    result:
+      "Median within 0.15% in every TE band, for ten accounts' instant answers. For Fliris, 32 of 34 ascensions within half an hour.",
+    how: "the accounts' own submitted runs, leaving out first ascensions, which start from eggs the board doesn't have (2-7 Oct).",
+  },
+  {
+    what: 'Real ascensions on maxed gear, all TEs',
+    result:
+      'For the account whose gear the maxed answer was built on: median 0.00%, 99 in 100 within 1.74% (29,491 ascensions). On slightly weaker gear, a median 0.48% off at TE 200-299 and 0.97% at 120-199 (see section 2).',
+    how: 'the same method, by TE band (1 Oct).',
+  },
+  {
+    what: 'The instant answer against Check exactly, same save',
+    result:
+      'Each ascension within 0.09%, each route within 1.5 hours (0.023%), and the same best route and TE by Egg Day every time.',
+    how: 'three shared checks from a test account on 10 Oct, two on the hour and one also at once.',
+  },
+  {
+    what: 'The instant answer against long searches',
+    result:
+      'Ascensions after the first two: a median 0.24 hours (0.017%) apart, 9 in 10 within 1.9 hours, mostly from on the hour against at once. Whole routes: a median 1 to 1.5 hours apart, but 3 to 5 days on 1 to 3% of routes. The best TE for each number of ascensions (1 to 4) matched in every run with comparable settings, its spare time within 1 to 3.5 hours. (Runs with "Let me pick my hours" on are further apart, because of the waits for those hours, not the instant answer.)',
+    how: "52,562 ascensions and about 180,000 routes from a test account's 11 search CSVs, priced the site's way (10 Oct).",
+  },
+  {
+    what: 'Did the finder miss anything? (brute force)',
+    result:
+      'Every route of up to 4 ascensions, 2.5 million ascensions priced in under 4 minutes: the same best TE as the finder for every number of ascensions. At that TE the finder landed 1 to 3 hours behind the best route without its polish. In a 6 Oct benchmark the finder was more than an hour behind brute force in 0.8% of cases.',
+    how: 'pricing every route in the instant answer and comparing with what the finder kept (6 and 10 Oct).',
+  },
+  {
+    what: "Against players' own searches",
+    result:
+      "On 36 submitted runs the instant answer found a route at least as fast as the run's best every time, and faster on 33. One miss is known: Fliris at 4 ascensions, where brute force found a route 12 hours better.",
+    how: "each run's search space priced in the instant answer (2-7 Oct).",
+  },
+];
+</script>
+
+<style scoped>
+.hw-summary {
+  list-style: none;
+}
+.hw-summary::-webkit-details-marker {
+  display: none;
+}
+.hw[open] .hw-chevron {
+  transform: rotate(180deg);
+}
+.hw-num {
+  margin-top: 1px;
+  display: flex;
+  height: 1.25rem;
+  width: 1.25rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: rgb(254 243 199);
+  color: rgb(146 64 14);
+  font-size: 10px;
+  font-weight: 900;
+}
+.hw-body {
+  padding: 0.25rem 1rem 1.25rem;
+  font-size: 12px;
+  line-height: 1.6;
+  color: rgb(71 85 105);
+  overflow-wrap: anywhere;
+}
+.hw-body > * + * {
+  margin-top: 0.75rem;
+}
+.hw-list {
+  list-style: disc outside;
+  padding-left: 1rem;
+}
+.hw-list > li + li {
+  margin-top: 0.5rem;
+}
+</style>

@@ -4,7 +4,9 @@
   tab now, and this points there.)
 
   Updated 30 Sept 2026 from the Explorer's "What we know so far" card (29 Sept: 109 runs to 490 TE,
-  13 accounts), the fact-checked source for every board number quoted here.
+  13 accounts), the fact-checked source for every board number quoted here. 10 Oct: the starting
+  chain is the instant answer's now, and the accuracy note points to Science › How it works, which
+  holds the dated checks (components/science/HowItWorks.vue).
 
   The panel below this one asks for hours of the reader's own CPU on a run that can take all
   night, so the case for spending it has to be reachable without leaving the page. Everything here
@@ -277,17 +279,24 @@
             follow downhill: 191 beats its neighbour 192 by 10 days, and 192 is 10 days worse than 194.
           </ChainMathFigure>
           <p class="mt-3">
-            So the starting chain matters a lot. "Find a starting chain for me" helps, but it is rough: on the two
-            accounts tested, its pick was <span class="font-bold text-slate-800">8.6 and 12.0 days</span> slower than
-            where the search finished. If the start is on the wrong hill, every later step does a careful job on the
-            wrong hill. To catch that, run twice from different starting chains and compare, or use {{ NAMES.fullFirst }},
-            which prices every chain in a space you choose.
+            So the starting chain matters a lot. That's why, since 6 Oct, the search starts from the instant answer's
+            fastest route inside your limits (a chain you type still wins): the instant answer has already looked at
+            every route, so the search starts on the right hill far more often. Without one, "Find a starting chain for
+            me" helps, but it is rough: on the two accounts tested, its pick was
+            <span class="font-bold text-slate-800">8.6 and 12.0 days</span> slower than where the search finished. If
+            the start is on the wrong hill, every later step does a careful job on the wrong hill. To catch that, run
+            twice from different starting chains and compare, or use {{ NAMES.fullFirst }}, which prices every chain in
+            a space you choose.
           </p>
           <p class="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-[11px] leading-relaxed text-amber-800">
             What you get is a strong local best. Nobody has proven it's the best overall, and the search can't tell you
             how far off it might be. The accuracy figures for each effort level come from three accounts, and only one
             of those has a proven best to check against. That's also why there are no confidence percentages here: three
-            data points can't honestly be turned into one.
+            data points can't honestly be turned into one. For a proven best inside boxes you choose, use
+            {{ NAMES.fullFirst }}. How the instant answer, this search and the Full sweep were checked against each
+            other and against brute force is on
+            <a href="#/science/how" class="font-bold underline">{{ NAMES.science }} › {{ NAMES.how }}</a
+            >.
           </p>
         </div>
       </div>
@@ -338,7 +347,7 @@ const SPACE_SIZE = [
 const STAGES = [
   {
     name: 'Find a starting chain (only if ticked)',
-    what: 'price a rough grid of checkpoints (every 15 TE, wider if it would top 1,200 chains) and pick the ascension count. Quick and rough on purpose.',
+    what: "price a rough grid of checkpoints (every 15 TE, wider if it would top 1,200 chains) and pick the ascension count. Quick and rough on purpose. Without it, the search starts from the chain you type, or else the instant answer's fastest route.",
   },
   {
     name: 'Fine-tune the last checkpoint',

@@ -18,13 +18,13 @@
       <div class="flex flex-wrap items-baseline justify-between gap-2">
         <h2 class="text-lg font-black text-slate-900">What we know so far</h2>
         <span v-if="stats" class="text-[10px] font-bold text-slate-500" data-testid="know-header">
-          {{ stats.runsTo490 }} runs to 490 TE · {{ stats.accounts }} accounts<template
-            v-if="stats.te"
-          >
+          {{ stats.runsTo490 }} runs to 490 TE · {{ stats.accounts }} accounts<template v-if="stats.te">
             · TE {{ stats.te.min }}-{{ stats.te.max }}</template
           >
           · {{ stats.plans.toLocaleString('en-US') }} plans timed<template v-if="stats.byDate > 0">
-            · {{ stats.byDate }} by a date<template v-if="stats.byDateAccounts > 0"> from {{ stats.byDateAccounts }} {{ stats.byDateAccounts === 1 ? 'account' : 'accounts' }}</template></template
+            · {{ stats.byDate }} by a date<template v-if="stats.byDateAccounts > 0">
+              from {{ stats.byDateAccounts }} {{ stats.byDateAccounts === 1 ? 'account' : 'accounts' }}</template
+            ></template
           >
         </span>
         <span v-else class="text-[10px] font-bold text-slate-400">Counting the board…</span>
@@ -41,18 +41,24 @@
       <p>
         <b>Plan for 5 to 7 ascensions.</b>
         <template v-if="stats && stats.sweet.total">
-          On {{ stats.sweet.of }} of {{ stats.sweet.total }} accounts the earliest-finishing plan has 5 to 7
-          ascensions.
+          On {{ stats.sweet.of }} of {{ stats.sweet.total }} accounts the earliest-finishing plan has 5 to 7 ascensions.
         </template>
         A 3rd is worth weeks to months at low TE; past 6 or 7 they add hours, not days.
       </p>
       <p><b>Ascend at the time the plan shows,</b> and run the instant answer again after each ascension.</p>
+      <p>
+        <b>Halfway through a build?</b> Leave the first ascension on Fastest (Your setup): it now weighs finishing the
+        build against prestiging now.
+      </p>
       <p><b>Below about 220 Clothed TE,</b> upgrade your earnings set first: your first ascension stalls.</p>
     </div>
 
     <p class="text-[11px] text-slate-500 leading-relaxed">
       Tap a point for the detail. The header counts are worked out from the board each time the page loads; the points
       were checked on the date above. The charts and tables further down are live too and show dates in your timezone.
+      How the planner works out its answers, and every check behind them, is on
+      <a v-if="howHref" :href="howHref" class="font-bold text-indigo-700 underline">Science › How it works</a
+      ><template v-else>Science › How it works</template>.
     </p>
 
     <div class="space-y-1.5 text-[12px] text-slate-700 leading-relaxed">
@@ -70,22 +76,25 @@
           <p v-if="f.id === 'match'">
             Each ascension lands within about an hour of the full simulator; a whole route can move by a day or two if
             an ascension falls near a sale-timed cliff (the instant answer ascends on the hour), so use Check exactly
-            for the final word.
-            Checked on Fliris (32 of 34 ascensions within 30 minutes), Halceyx (median within 0.3 hours on ~2,400
-            ascensions), Allan (4 routes within an hour) and every new run this week. For the accounts it has
-            precomputed on their own gear (10 so far) it reproduces their submitted runs to a median of 0.15% or
-            better.
+            for the final word. On 10 Oct, three shared checks from one account had every ascension within 0.09% of
+            Check exactly, every route within 1.5 hours, and the same pick each time. Checked earlier on Fliris (32 of
+            34 ascensions within 30 minutes), Halceyx (median within 0.3 hours on ~2,400 ascensions), Allan (4 routes
+            within an hour) and every new run this week. For the accounts it has precomputed on their own gear (10 so
+            far) it reproduces their submitted runs to a median of 0.15% or better.
           </p>
           <p v-else-if="f.id === 'wider'">
             Halceyx's 120,000-plan sweep allowed only 5 ascensions, and its second checkpoint couldn't go below 201.
             From the same moment, his earlier small search's 198 231 291 was 0.73 days faster, and the instant answer's
-            7-ascension route (198 220 249 281 315) is about 7.7 days faster still. Allan's Egg Day search allowed up
-            to 4 stops; a 5-stop route (209 234 261 291 334) has about 17-19 hours more spare.
+            7-ascension route (198 220 249 281 315) is about 7.7 days faster still. Allan's Egg Day search allowed up to
+            4 stops; a 5-stop route (209 234 261 291 334) has about 17-19 hours more spare.
           </p>
           <p v-else-if="f.id === 'misses'">
             On 36 submitted runs it found a route at least as fast as the run's own best every time, and faster on 33.
-            One miss is known: Fliris at 4 ascensions, where a full brute-force check found a route 12 hours better.
-            Brute-force runs from more accounts would show how often that happens.
+            One miss is known: Fliris at 4 ascensions, where a full brute-force check found a route 12 hours better. A
+            brute-force check on 10 Oct (every route of up to 4 ascensions on one account, 2.5 million ascensions) found
+            the same best TE as the instant answer for every number of ascensions, with the route at that TE up to 1-3
+            hours better. Our estimate of the chance that a better route of up to 4 ascensions was missed by both the
+            instant answer and a 12-hour search is about 1-2%.
           </p>
           <template v-else-if="f.id === 'count'">
             <p>Finish brought forward by one more ascension (the instant answer's best routes):</p>
@@ -143,8 +152,8 @@
           </p>
           <p v-else-if="f.id === 'gear'">
             Waiting time scales with your delivery rate: a set at 94% of the best waits about 6% longer. The earnings
-            set matters only while research is still being bought: nothing from about TE 340 up, most around TE
-            190-216, where tier 13 opens. The site uses an instant answer built for your exact gear when there is one, or the
+            set matters only while research is still being bought: nothing from about TE 340 up, most around TE 190-216,
+            where tier 13 opens. The site uses an instant answer built for your exact gear when there is one, or the
             closest, and tells you which.
           </p>
           <p v-else-if="f.id === 'sale'">
@@ -152,6 +161,13 @@
             300 (up to 33 days on the final leg from 225-270, up to 194 days from 120-150), but never on short jumps or
             from about TE 300 up. Tier 13 is offered from TE 190. Starting a leg a few hours either side of the sale can
             move it by days, which is why the best checkpoints are so sharp.
+          </p>
+          <p v-else-if="f.id === 'buildup'">
+            Finishing the build without buying anything more (Joo's "Continue Asc.") keeps the farm's half-built
+            delivery rate for the whole first ascension. On one account part-way through a build (10 Oct) the first
+            ascension took 70.1 days continuing the build-up, 72.4 prestiging now and 86.5 without buying, and by Egg
+            Day that was TE 248 against 247. "Continue my build-up" simulates the rest of the build from the farm in
+            your save, and Fastest picks whichever way is sooner.
           </p>
           <p v-else-if="f.id === 'one-te'">
             Moving a single checkpoint by one TE costs up to about a month (typically 2-3 weeks on 2-3 ascension plans),
@@ -179,15 +195,15 @@
         <p>
           <b>The six gear sets on the Science tab</b> (epic earnings set, rare earnings set, rare/common delivery set,
           epic everything, rare everything, legendary set on T3 stones). Nothing on the board covers earnings bonuses
-          between 63 and 115, or weak delivery with a full earnings set. Every account so far has a T4L Lunar totem and a
-          T4L Demeters necklace.
+          between 63 and 115, or weak delivery with a full earnings set. Every account so far has a T4L Lunar totem and
+          a T4L Demeters necklace.
         </p>
         <p>
           <b>A run from an account missing epic research or colleggtibles;</b> every instant answer assumes both maxed.
         </p>
         <p>
-          <b>One more run from accounts whose instant answers were built from older runs,</b> on today's planner, to recheck
-          them.
+          <b>One more run from accounts whose instant answers were built from older runs,</b> on today's planner, to
+          recheck them.
         </p>
       </div>
     </details>
@@ -198,13 +214,15 @@
 import type { KnowStats } from './knowStats';
 
 /** The date the analyst last checked the findings against the board. */
-const FINDINGS_CHECKED = '7 Oct 2026';
+const FINDINGS_CHECKED = '10 Oct 2026';
 
 defineProps<{
   /** Counted from the loaded runs; absent until the board has answered. */
   stats?: KnowStats | null;
   /** The Science tab's address, when the page can link to it. */
   scienceHref?: string;
+  /** Science › How it works, when the page can link to it. */
+  howHref?: string;
 }>();
 
 const findings = [
@@ -214,6 +232,7 @@ const findings = [
   { id: 'count', headline: 'More ascensions help, then level off.' },
   { id: 'eggday', headline: 'By Egg Day 2027, a well-geared account gains about 100-135 TE, with 3-5 ascensions.' },
   { id: 'bydate', headline: 'The instant answer matches By a date runs ascension by ascension.' },
+  { id: 'buildup', headline: 'Halfway through a build, finishing it first can beat prestiging now.' },
   { id: 'stall', headline: 'Below about 220 Clothed TE, the first ascension stalls.' },
   { id: 'gear', headline: 'Your delivery set sets the pace; your earnings set matters early.' },
   { id: 'sale', headline: 'The research sale shapes every route.' },

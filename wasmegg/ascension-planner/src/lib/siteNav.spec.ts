@@ -22,6 +22,7 @@ describe('siteNav', () => {
       R('compare', 'classic', 'smart', 'insights'),
       R('compare', 'classic', 'smart', 'dates'),
       R('science', 'classic', 'smart', 'eggday', 'submit'),
+      R('science', 'classic', 'smart', 'eggday', 'how'),
     ];
     for (const r of all) expect(routeFromLocation('', hashFor(r))).toEqual(r);
   });
@@ -44,6 +45,11 @@ describe('siteNav', () => {
     expect(hashFor(R('compare'))).toBe('#/compare');
     expect(routeFromLocation('', '#/compare/nonsense')).toEqual(R('compare'));
     expect(hashFor(R('science'))).toBe('#/science');
+    expect(routeFromLocation('', '#/science/nonsense')).toEqual(R('science'));
+  });
+
+  it('gives Science › How it works its own address', () => {
+    expect(hashFor(R('science', 'classic', 'smart', 'eggday', 'how'))).toBe('#/science/how');
   });
 
   it('lets a new-style hash win over the old flags', () => {
