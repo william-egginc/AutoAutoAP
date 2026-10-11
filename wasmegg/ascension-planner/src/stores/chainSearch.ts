@@ -270,6 +270,10 @@ const CHECKPOINT_INTERVAL_MS = 20_000;
 /** Weight on the newest batch in the s/chain estimate. High enough to follow a stage change
  *  within a couple of batches, low enough that one slow batch does not dominate. */
 const RATE_ALPHA = 0.3;
+/** Live samples after which the s/chain estimate is settled enough to keep for the next visit. The
+ *  first batch alone is the coarse scan's pace (heavy prefix sharing, several times faster than
+ *  descent: see `noteRate`), and a run's first batch carries its warm-up too. */
+const RATE_SETTLE_SAMPLES = 5;
 
 /** Chains in a Smart search's first batch: the last checkpoint's first sweep (search/driver.ts
  *  `resolveLast`, span 12 = 25 values) plus the seed, which rides in it. Sizes the warm-up. */
@@ -1501,18 +1505,27 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // The first real measurement for this run beats whatever a pre-run benchmark guessed — record
     // where it came from, and persist it the same way `benchmarkMachine` does, so a live-measured
     // rate also survives a reload rather than only the button's own probe.
-    // The chains it was measured on are this batch's (`d`), not `done`: a carried-on run's `done`
+    // The chains it was measured on are the batches' (`d`), not `done`: a carried-on run's `done`
     // starts at its replayed chains, and "Measured on this machine · 4,394 chains" counted those.
+    // Kept again once settled (RATE_SETTLE_SAMPLES): it used to be kept from the first sample only,
+    // the coarse scan's pace, so the next visit's estimate started from a rate several times too fast.
+    // The first sample is still kept, so a run too short to settle leaves what it measured.
     if (wasUnset) {
+      liveSamples = 0;
+      liveChains = 0;
       rateSource.value = 'live';
+    }
+    if (rateSource.value === 'live' && liveSamples < RATE_SETTLE_SAMPLES) {
+      liveSamples++;
+      liveChains += d;
       benchmarkedAt.value = now;
-      benchmarkChainCount.value = d;
-      if (currentPlayerId) {
+      benchmarkChainCount.value = liveChains;
+      if (currentPlayerId && (liveSamples === 1 || liveSamples === RATE_SETTLE_SAMPLES)) {
         saveChainBenchmark(currentPlayerId, {
           secondsPerChain: secondsPerChain.value,
           source: 'live',
           at: now,
-          chainCount: d,
+          chainCount: liveChains,
           workers: workersInPool.value,
           currentTE: currentTE.value,
           finalTE: finalTE.value,
@@ -1520,6 +1533,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       }
     }
   }
+  /** Live samples and the chains in them since the s/chain estimate was last unset (`noteRate`);
+   *  RATE_SETTLE_SAMPLES (nothing being measured) until a run's first sample. */
+  let liveSamples = RATE_SETTLE_SAMPLES;
+  let liveChains = 0;
 
   /**
    * True when a run has finished (or stopped) having simulated chains, and none of them finishes.

@@ -18,6 +18,8 @@ vi.mock('@/lib/storage/db', () => ({
 /** Each chain takes 0.5 s of (fake) wall clock on the one worker; `onChain` sees the store mid-batch. */
 let onChain: ((chainsInBatch: number) => void) | null = null;
 const MS_PER_CHAIN = 500;
+/** Each chain's (fake) cost; a test may make the first batch faster, as the coarse scan is. */
+let chainMs: () => number = () => MS_PER_CHAIN;
 vi.mock('@/search/pool', () => ({
   createChainSearchPool: vi.fn(async () => ({
     size: 1,
@@ -31,7 +33,7 @@ vi.mock('@/search/pool', () => ({
     evaluate: async (chains: number[][], progress?: (done: number, total: number) => void) => {
       const results = [];
       for (let i = 0; i < chains.length; i++) {
-        vi.setSystemTime(Date.now() + MS_PER_CHAIN);
+        vi.setSystemTime(Date.now() + chainMs());
         results.push({ chain: chains[i], seconds: 100 * 86400 + chains[i][0], legs: [] });
         progress?.(i + 1, chains.length);
         onChain?.(i + 1);
@@ -44,6 +46,7 @@ vi.mock('@/search/pool', () => ({
 const { useChainSearchStore } = await import('./chainSearch');
 const { useInitialStateStore } = await import('./initialState');
 const { useActionsStore } = await import('./actions');
+const { loadChainBenchmark } = await import('@/lib/chainBenchmarkCache');
 
 function installStubs(): void {
   const backing = new Map<string, string>();
@@ -88,6 +91,7 @@ const SPACE = { lo: 200, hi: 299, step: 1, minAsc: 2, maxAsc: 2 };
 beforeEach(() => {
   db.clear();
   onChain = null;
+  chainMs = () => MS_PER_CHAIN;
   installStubs();
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(SAVE_AT * 1000 + 3600_000);
@@ -167,4 +171,26 @@ describe('a carried-on Full sweep', () => {
     await store.startExhaustive('P', SPACE);
     expect(checked).toBe(true);
   });
+
+  it('keeps the settled rate for next time, not the first batch alone', async () => {
+    const store = useChainSearchStore();
+    // The first batch at a fifth of the real cost (the coarse scan's prefix sharing), then 0.5 s a chain.
+    let priced = 0;
+    chainMs = () => (++priced <= 32 ? MS_PER_CHAIN / 5 : MS_PER_CHAIN);
+    let firstKept: number | null = null;
+    onChain = () => {
+      if (firstKept === null && store.benchmarkChainCount > 0)
+        firstKept = loadChainBenchmark('P')?.secondsPerChain ?? null;
+    };
+    await store.startExhaustive('P', { lo: 200, hi: 399, step: 1, minAsc: 2, maxAsc: 2 });
+    expect(store.error).toBeNull();
+    // Kept at once (a run too short to settle still leaves what it measured)...
+    expect(firstKept!).toBeCloseTo(0.1, 1);
+    // ...and again once settled: near the real 0.5 s, over the chains of those samples.
+    const kept = loadChainBenchmark('P')!;
+    expect(kept.secondsPerChain).toBeGreaterThan(0.35);
+    expect(kept.chainCount).toBeGreaterThan(32);
+    expect(store.benchmarkChainCount).toBe(kept.chainCount);
+  });
 });
+
