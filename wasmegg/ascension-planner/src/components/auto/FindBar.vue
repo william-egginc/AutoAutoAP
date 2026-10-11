@@ -44,7 +44,15 @@
         <!-- Whenever consent is unticked, even with Find itself blocked (no save yet): the full wording is
              in the box below, this only says where to look. -->
         <span v-if="!optIn" class="text-[10px] font-semibold text-slate-500 text-center" data-testid="acknowledge-hint"
-          >To use Find and submit, please tick the box below.</span
+          >To use Find and submit, please tick
+          <!-- A link to the box: after a Smart search the answer card sits between here and the box. -->
+          <button
+            type="button"
+            class="underline decoration-dotted underline-offset-2 hover:text-indigo-700"
+            data-testid="acknowledge-hint-link"
+            @click="showConsent"
+          >the box below</button
+          >.</span
         >
       </div>
       <div v-if="bestSoFarHere" class="flex flex-col items-center gap-1">
@@ -111,7 +119,12 @@
           >:
         </p>
         <label class="flex items-start gap-3">
-          <input v-model="optIn" type="checkbox" class="mt-0.5 rounded border-indigo-300 text-indigo-600" />
+          <input
+            ref="consentBox"
+            v-model="optIn"
+            type="checkbox"
+            class="mt-0.5 rounded border-indigo-300 text-indigo-600"
+          />
           <!-- The screen's own wording where it sends something else (Highest TE by a date sends a route
              and its deadline, not a chain's CSV). -->
           <slot v-if="$slots.consent" name="consent" />
@@ -167,7 +180,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import RunNoteBox from './RunNoteBox.vue';
 import SendingText from './SendingText.vue';
 import ShareExtras from './ShareExtras.vue';
@@ -269,5 +282,14 @@ function agreeAutoSend(): void {
   if (!optIn.value) return;
   store.agreeBestSoFar(chosenName());
   store.autoTick();
+}
+
+/** The hint under Find and submit: bring the acknowledge box into view and put the focus on it. */
+const consentBox = ref<HTMLInputElement | null>(null);
+function showConsent(): void {
+  const box = consentBox.value;
+  if (!box) return;
+  box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  box.focus({ preventScroll: true });
 }
 </script>

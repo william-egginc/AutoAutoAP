@@ -12,7 +12,7 @@
         <p class="text-[10px] font-black uppercase tracking-widest text-emerald-800"><slot name="heading" /></p>
         <slot name="headline" />
       </div>
-      <div v-if="$slots.aside" class="text-right"><slot name="aside" /></div>
+      <div v-if="$slots.aside" class="sm:text-right"><slot name="aside" /></div>
     </div>
     <p v-if="stillGoing" class="text-[11px] text-emerald-800" data-testid="route-card-still-going">
       The search is still going, so this can still improve.

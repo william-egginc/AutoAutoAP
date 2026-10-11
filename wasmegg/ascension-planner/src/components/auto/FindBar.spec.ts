@@ -34,10 +34,11 @@ const render = async (props: Record<string, unknown>) =>
 describe('FindBar', () => {
   it('says how to use Find and submit until the box is ticked', async () => {
     const t = await render({});
-    expect(t).toContain('To use Find and submit, please tick the box below.');
+    // The box is a link (it scrolls to the box), so the text extractor puts a space before the stop.
+    expect(t).toMatch(/To use Find and submit, please tick the box below ?\./);
     expect(t).not.toMatch(/(^|[^,] )Please tick the box below/);
     expect(t).toContain('I acknowledge the following');
-    expect(await render({ optIn: true })).not.toContain('To use Find and submit, please tick the box below.');
+    expect(await render({ optIn: true })).not.toMatch(/please tick the box below/);
   });
 
   for (const goalWord of ['target', 'deadline'] as const) {

@@ -657,9 +657,9 @@
                         {{ leg.startTime ? stamp(leg.startTime) : '—' }}
                       </td>
                       <td class="py-1.5 pr-3 text-slate-500 whitespace-nowrap">{{ stamp(leg.endTime) }}</td>
-                      <td class="py-1.5 pr-3 text-slate-500">{{ leg.key }}</td>
+                      <td class="py-1.5 pr-3 text-slate-500 whitespace-nowrap">{{ leg.key }}</td>
                       <td class="py-1.5 pr-3 text-slate-500">{{ (leg.durationSeconds / 86400).toFixed(2) }}</td>
-                      <td class="py-1.5 pr-3 text-slate-500">{{ ((leg.maxELR * 3600) / 1e15).toFixed(3) }} q/hr</td>
+                      <td class="py-1.5 pr-3 text-slate-500 whitespace-nowrap">{{ ((leg.maxELR * 3600) / 1e15).toFixed(3) }} q/hr</td>
                       <td v-if="store.scheduleEnabled" class="py-1.5 pr-3 whitespace-nowrap">
                         <span v-if="!leg.sleepDelaySeconds && !leg.shiftDelaySeconds" class="text-slate-400"
                           >&mdash;</span
