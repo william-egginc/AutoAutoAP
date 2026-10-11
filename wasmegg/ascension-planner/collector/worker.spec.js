@@ -339,6 +339,21 @@ describe('private extras', () => {
     expect(extraKeys()).toEqual([]);
   });
 
+  it('keeps the run timeline (`timing`, 8 KB) beside 4 KB of diagnostics, privately', async () => {
+    // src/search/runTimeline.ts: at most 8,000 characters; diagnostics at most 4 KB. Together under 16 KB.
+    const timing = { v: 1, kind: 'by-date', cols: 'min,span', s: Array.from({ length: 400 }, (_, i) => [i * 10, 10]) };
+    while (JSON.stringify(timing).length < 7900) timing.s.push([0, 10]);
+    const diagnostics = { browser: 'safari on mac', pad: 'x'.repeat(3900) };
+    const res = await (await post('/submit', { ...MINIMAL, diagnostics, timing })).json();
+    const kept = JSON.parse(env.SUBMISSIONS._m.get(`extra:${res.id}`));
+    expect(kept.timing.kind).toBe('by-date');
+    expect(kept.diagnostics.browser).toBe('safari on mac');
+    for (const path of ['/all', '/leaderboard', '/csv?id=' + res.id]) {
+      expect(await (await get(path)).text()).not.toContain('min,span');
+    }
+    expect(JSON.stringify(stored())).not.toContain('min,span');
+  });
+
   it('writes with a 180-day TTL', async () => {
     const puts = [];
     const put = env.SUBMISSIONS.put;

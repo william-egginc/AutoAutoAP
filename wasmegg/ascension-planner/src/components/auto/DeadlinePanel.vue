@@ -390,6 +390,9 @@
           <div v-else-if="store.deadlineRunning && firstGuessLabel" class="text-[9px] text-slate-400">
             first guess {{ firstGuessLabel }}
           </div>
+          <div v-else-if="backgroundLabel" class="text-[9px] text-slate-400" data-test="background-estimate">
+            {{ backgroundLabel }}
+          </div>
         </div>
         <div>
           <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Assumed cost</div>
@@ -1535,6 +1538,7 @@ const autoPlan = computed(() => {
     legs,
     workerSecondsPerLeg: workerSecondsPerLeg.value,
     seconds: (legs * workerSecondsPerLeg.value) / Math.max(1, store.workerBudget),
+    workers: Math.max(1, store.workerBudget),
   };
 });
 const plan = computed(() => (mode.value === 'space' ? spacePlan.value : autoPlan.value));
@@ -1553,10 +1557,23 @@ const estimateLabel = computed(() => {
   if (store.deadlineRunning) return timeLeft.value ? durationLabel(timeLeft.value.seconds) : '—';
   return plannedLegs.value ? formatHours(plan.value.seconds / 3600) : '—';
 });
-/** The run's own first guess, quoted beside the live figure. */
-const firstGuessLabel = computed(() =>
-  timeLeft.value?.firstGuess ? formatHours(timeLeft.value.firstGuess / 3600) : ''
-);
+/** The run's own first guess, quoted beside the live figure, with the workers it was for when the run
+ *  is on a different count now (hidden onto fewer, the slider moved): "6 min for 7 workers, 2 now". */
+const firstGuessLabel = computed(() => {
+  const t = timeLeft.value;
+  if (!t?.firstGuess) return '';
+  const label = formatHours(t.firstGuess / 3600);
+  return t.firstGuessWorkers && t.firstGuessWorkers !== t.workersNow
+    ? `${label} for ${t.firstGuessWorkers} workers, ${t.workersNow} now`
+    : label;
+});
+/** Before a run, with "When this tab is in the background" set lower: the time on that many workers,
+ *  since a run left in the background spends its time there (Safari, 10 Oct: 6 min said, 20 taken). */
+const backgroundLabel = computed(() => {
+  const bg = store.backgroundWorkers;
+  if (store.deadlineRunning || !plannedLegs.value || !(bg > 0) || bg >= store.workerBudget) return '';
+  return `${formatHours(legSeconds(plan.value.legs, bg, workerSecondsPerLeg.value) / 3600)} if left in the background (${bg} worker${bg === 1 ? '' : 's'})`;
+});
 const costLabel = computed(() => `${secondsPerLeg.value.toFixed(secondsPerLeg.value < 10 ? 2 : 1)} s`);
 
 const runEstimate = ref(0);

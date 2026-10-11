@@ -403,6 +403,9 @@ export interface Submission {
    *  search/sendRun.ts `withPrivateDiagnostics`. The collector does NOT put it on the row: it keeps it
    *  privately under `extra:<id>` and never serves it. Absent unless the player ticked the box. */
   diagnostics?: Record<string, unknown>;
+  /** With `diagnostics` on a By a date send: the run timeline (search/runTimeline.ts), kept privately
+   *  beside them under `extra:<id>` like any field the collector does not know. At most 8 KB. */
+  timing?: Record<string, unknown>;
   /** `upload` when the Chain Explorer built this from a CSV plus diagnostics; absent from the planner. */
   source?: 'upload';
   /** Why this run belongs on the flagged board (search/rules.ts). Absent means the main board. */

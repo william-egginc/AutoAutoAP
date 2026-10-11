@@ -97,6 +97,8 @@ export interface DeadlineLegPlan {
   workerSecondsPerLeg: number;
   /** Wall-clock seconds at the run's start: the first guess. */
   seconds: number;
+  /** The workers that first guess was worked out for (the panel's budget). Absent on older runs. */
+  workers?: number;
 }
 
 /** The sets a run tries: the player's boxes, then the instant answer's own early stops as one set

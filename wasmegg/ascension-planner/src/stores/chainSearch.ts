@@ -113,6 +113,7 @@ import {
   type PricedRoutes,
 } from '@/search/deadline';
 import * as blackBox from '@/search/blackBox';
+import * as runTimeline from '@/search/runTimeline';
 import { detectBrowser } from '@/lib/browserHelp';
 import {
   aboutIn,
@@ -207,6 +208,7 @@ import {
   laterRouteLegs,
   legsLeft,
   liveLegRate,
+  nextWorkerSecondsPerLeg,
   spaceSets,
   spaceShapeKey,
   usableRatio,
@@ -1342,6 +1344,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         const after = deadlinePool.resize(targetWorkers.value);
         if (after !== deadlineWorkersInPool.value) {
           bankDeadlineWorkerTime();
+          const before = deadlineWorkersInPool.value;
+          runTimeline.updateTimeline(t => runTimeline.noteWorkerChange(t, Date.now(), before, after));
           deadlineWorkersInPool.value = after;
         }
       }, 400);
@@ -3714,6 +3718,21 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     reasonText?: string;
   }
 
+  /** A send in the run timeline's log (search/runTimeline.ts). Never throws. */
+  function noteTimelineSend(s: Omit<runTimeline.SendNote, 'now'>): void {
+    runTimeline.updateTimeline(t => runTimeline.noteSendIn(t, { ...s, now: Date.now() }));
+  }
+  /**
+   * "Also send diagnostics" on a By a date send: the run timeline beside them, as `timing` (private,
+   * like `diagnostics`: the collector keeps a body's unknown fields under `extra:<id>`, whole or not
+   * at all within 16 KB, and the timeline is held to 8 KB). Only the run the payload is about.
+   */
+  function withTimeline(payload: Submission): Submission {
+    if (!payload.diagnostics || payload.deadline === undefined) return payload;
+    const timing = runTimeline.timelineFor(payload.deadline);
+    return timing ? { ...payload, timing } : payload;
+  }
+
   async function sendSubmission(
     payload: Submission,
     /**
@@ -3843,15 +3862,21 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // A board that never answers must not leave the send on "Sending..." for good.
     const ctrl = new AbortController();
     const answerTimer = setTimeout(() => ctrl.abort(), SUBMIT_TIMEOUT_MS);
+    // The run timeline's send log (search/runTimeline.ts): By a date sends only, the run it is about.
+    const body = JSON.stringify(payload);
+    const logSend = (ok: boolean, status: number | null) => {
+      if (deadlineSend) noteTimelineSend({ what: provisional ? 'progress' : 'final', ok, status, bytes: body.length });
+    };
     try {
       // ?quarantine=1: a run the collector refuses for the board but stores comes back as an answer
       // (`quarantined`), not as an error to retry. An older collector ignores it.
       const res = await fetch(quarantineAwareUrl(submitUrl), {
         method: 'POST',
         headers: { 'content-type': 'application/json', ...(owner ? { 'x-owner-token': owner } : {}) },
-        body: JSON.stringify(payload),
+        body,
         signal: ctrl.signal,
       });
+      logSend(res.ok, res.status);
       if (!res.ok) {
         // Say WHY. The collector answers a rejection with the list of problems -- "unknown
         // schema 1", "chain must strictly increase" -- and reporting only the status code turned
@@ -3890,6 +3915,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       }
       reply = ((await res.json().catch(() => ({}))) ?? {}) as SubmitReply;
     } catch {
+      logSend(false, null);
       // Ordinary: someone is offline, or the collector is down. It must not look like the run
       // broke, and "Failed to fetch" -- the browser's own words -- says neither what happened nor
       // that nothing is lost.
@@ -4068,12 +4094,23 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     }
     if (!gz.ok) return { kind: 'too-big', bytes: gz.atLeast };
     // Over 8 MB it goes in parts, each retried (search/progressSend.ts `uploadCsv`).
+    let tries = 0;
     const up = await uploadCsv(
       `${submitUrl.replace(/\/submit\/?$/, '/csv')}?id=${encodeURIComponent(id)}`,
       token,
-      gz.body
+      gz.body,
+      { onTry: () => tries++ }
     );
     const bytes = gz.body.byteLength;
+    if (kind === 'deadline')
+      noteTimelineSend({
+        what: 'csv-so-far',
+        ok: up.kind === 'stored' || up.kind === 'already',
+        status: up.kind === 'failed' ? (up.status ?? null) : null,
+        bytes,
+        parts: up.kind === 'stored' ? up.parts : csvPartCount(bytes),
+        tries,
+      });
     switch (up.kind) {
       case 'stored':
       // An earlier try landed and its answer was lost.
@@ -4145,7 +4182,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       if (useShareExtras().sendDiagnostics.value) {
         try {
           const parsed = JSON.parse(diagnosticsLine());
-          if (parsed && typeof parsed === 'object') payload = { ...payload, diagnostics: parsed };
+          if (parsed && typeof parsed === 'object') payload = withTimeline({ ...payload, diagnostics: parsed });
         } catch {
           // sent without them
         }
@@ -4384,7 +4421,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
               kind: p.kind === 'deadline' ? 'by-date' : p.payload.space ? 'full' : 'smart',
             })
           );
-        if (kept) payload = { ...payload, diagnostics: { ...kept, sentFrom: 'kept' } };
+        if (kept) payload = withTimeline({ ...payload, diagnostics: { ...kept, sentFrom: 'kept' } });
       }
       await notePendingConsent(p, yes);
       blackBoxMark('submit', 'sending a kept result');
@@ -4423,7 +4460,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         try {
           const from = r.carriedOn ? 'carry-on' : deadlineAll.length ? 'live' : 'saved';
           const parsed = JSON.parse(diagnosticsLine({ from, kind: 'by-date' }));
-          if (parsed && typeof parsed === 'object') payload = { ...payload, diagnostics: parsed };
+          if (parsed && typeof parsed === 'object') payload = withTimeline({ ...payload, diagnostics: parsed });
         } catch {
           // sent without them
         }
@@ -4563,7 +4600,17 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       pendingTable.value = null;
       return { ok: true, message: tableTooLargeMessage(mb) };
     }
-    const up = await uploadCsv(table.url, table.token, table.body);
+    let tries = 0;
+    const up = await uploadCsv(table.url, table.token, table.body, { onTry: () => tries++ });
+    if (table.source === 'deadline')
+      noteTimelineSend({
+        what: tableRetry ? 'retry' : 'csv',
+        ok: up.kind === 'stored' || up.kind === 'already',
+        status: up.kind === 'failed' ? (up.status ?? null) : null,
+        bytes: table.body.byteLength,
+        parts: up.kind === 'stored' ? up.parts : csvPartCount(table.body.byteLength),
+        tries,
+      });
     if (up.kind === 'failed' && up.status === undefined) {
       // Offline or dropped mid-upload: the token is still good and no table is stored yet.
       return {
@@ -4610,13 +4657,22 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     };
   }
 
+  /** Set while "Retry the table" is the one uploading, for the run timeline's send log. */
+  let tableRetry = false;
+  /** Parts a gzipped CSV of `bytes` goes in (search/progressSend.ts `csvParts`). */
+  const csvPartCount = (bytes: number) => Math.max(1, Math.ceil(bytes / CSV_PART_BYTES));
   /** The "Retry the table" button; `source` is the screen pressing it. */
   async function retryTable(source?: 'fastest' | 'deadline'): Promise<{ ok: boolean; message: string }> {
     if (source && pendingTable.value && pendingTable.value.source !== source) {
       return { ok: false, message: 'there is no table waiting to be sent' };
     }
-    const { ok, message } = await postTable();
-    return { ok, message };
+    tableRetry = true;
+    try {
+      const { ok, message } = await postTable();
+      return { ok, message };
+    } finally {
+      tableRetry = false;
+    }
   }
 
   /**
@@ -6038,6 +6094,22 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     deadlineRunSimple.value = !!spec.simple;
     deadlineLegPlan.value = spec.legPlan ?? null;
     deadlineSets.value = spec.legPlan?.sets ?? spec.sets ?? 0;
+    // The run timeline (search/runTimeline.ts): the estimate it starts with, for "Also send diagnostics".
+    runTimeline.beginTimeline({
+      runId: deadlineRunStartedAt,
+      deadline: spec.deadline,
+      carryOn: !!seed,
+      estimate: spec.legPlan
+        ? {
+            seconds: spec.legPlan.seconds,
+            ...(spec.legPlan.workers ? { workers: spec.legPlan.workers } : {}),
+            legs: spec.legPlan.legs,
+            routes: spec.legPlan.routes,
+            secondsPerLeg: spec.legPlan.workerSecondsPerLeg,
+            source: deadlineWorkerSeconds.value > 0 ? 'machine' : 'board',
+          }
+        : null,
+    });
     deadlineAll = [];
     deadlineAllPriced = null;
     deadlineKept = 0;
@@ -6221,7 +6293,12 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       // over the time it ran less any time the page was suspended, at its time-weighted worker count.
       const endedAt = Date.now();
       bankDeadlineWorkerTime(endedAt);
-      const sessionSeconds = (endedAt - deadlineStartedAt.value) / 1000 - (pool?.suspendedSeconds ?? 0);
+      // Less the page's own gaps too (search/runTimeline.ts: over 2 minutes without a tick, the
+      // computer asleep or the tab frozen), where the pool's watchdog did not see a suspension.
+      const timeline = runTimeline.readTimeline();
+      const suspended = pool?.suspendedSeconds ?? 0;
+      const gaps = runTimeline.gapSecondsSince(timeline, deadlineStartedAt.value);
+      const sessionSeconds = Math.max(1, (endedAt - deadlineStartedAt.value) / 1000 - Math.max(suspended, gaps));
       const avgWorkers = timeWeightedWorkers(
         deadlineWorkerMs.value,
         deadlineWorkersChangedAt.value,
@@ -6229,7 +6306,16 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         deadlineStartedAt.value,
         endedAt
       );
-      noteDeadlineSpeed(deadlineLegSims.value, sessionSeconds, avgWorkers);
+      noteDeadlineSpeed(deadlineLegSims.value, sessionSeconds, avgWorkers, runTimeline.hiddenShare(timeline));
+      runTimeline.updateTimeline(t =>
+        runTimeline.finishTimeline(t, {
+          now: endedAt,
+          activeSeconds: priorSeconds + sessionSeconds,
+          routes: out.priced,
+          legs: deadlineLegSims.value,
+          how: out.stoppedEarly ? 'stopped' : 'done',
+        })
+      );
       deadlineResult.value = {
         routes: out.routes.slice(0, 50),
         byStops: [...out.byStops.entries()].sort((a, b) => a[0] - b[0]).map(([, r]) => r),
@@ -6365,10 +6451,13 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       }
     })()
   );
-  function noteDeadlineSpeed(legs: number, seconds: number, workers: number): void {
+  function noteDeadlineSpeed(legs: number, seconds: number, workers: number, hidden: number | null = null): void {
     if (legs < 50 || !(seconds > 0) || !(workers > 0)) return;
-    const ws = (seconds * workers) / contention(workers) / legs;
-    if (!Number.isFinite(ws) || ws <= 0) return;
+    const measured = (seconds * workers) / contention(workers) / legs;
+    // Blended in by legs simulated, and not at all from a run spent mostly hidden (deadlineEstimate.ts
+    // `nextWorkerSecondsPerLeg`): a 7-minute run used to set the speed a 42-hour run was estimated at.
+    const ws = nextWorkerSecondsPerLeg({ previous: deadlineWorkerSeconds.value, measured, legs, hidden });
+    if (!Number.isFinite(ws) || ws <= 0 || ws === deadlineWorkerSeconds.value) return;
     deadlineWorkerSeconds.value = ws;
     try {
       localStorage.setItem(DEADLINE_SPEED_KEY, String(ws));
@@ -6498,6 +6587,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     seconds: number;
     legsLeft: number;
     firstGuess: number | null;
+    /** The workers the first guess was for (the panel's budget then), and the workers running now:
+     *  a run hidden onto fewer workers took 3x its first guess (Safari, 10 Oct). */
+    firstGuessWorkers: number | null;
+    workersNow: number;
     measuring: boolean;
   } | null>(() => {
     if (!deadlineRunning.value) return null;
@@ -6528,6 +6621,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       seconds: left / rate,
       legsLeft: left,
       firstGuess: plan ? plan.seconds : null,
+      firstGuessWorkers: plan?.workers ?? null,
+      workersNow: w,
       measuring,
     };
   });
@@ -6716,6 +6811,21 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         ...workerMemory(deadlinePool),
         ...(deadlineNote ? { runNote: deadlineNote } : {}),
       });
+      const beatNow = b;
+      runTimeline.updateTimeline(t =>
+        runTimeline.tickTimeline(t, {
+          now: beatNow.at,
+          routes: freshRoutes(),
+          legs: deadlineLegSims.value,
+          workers,
+          hidden: beatNow.hidden,
+          online: typeof navigator === 'undefined' || navigator.onLine !== false,
+          memo: beatNow.workersMemoEntries ?? null,
+          pct: deadlineProgressPercent.value,
+          secondsLeft: deadlineTimeLeft.value?.seconds ?? null,
+          pool: deadlinePool?.stats?.() ?? null,
+        })
+      );
     } else if (isRunning.value) {
       b = blackBox.beat({
         phase: 'search',
