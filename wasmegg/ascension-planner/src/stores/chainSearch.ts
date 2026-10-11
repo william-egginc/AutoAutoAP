@@ -22,6 +22,7 @@ import { hashID } from '@/lib/storage/db';
 import { runChainSearch, type CacheEntry } from '@/search/driver';
 import { findStartingChain, planCoarseGrid } from '@/search/coarse';
 import { teByEggFor } from '@/search/teByEgg';
+import { lastTECostFrom } from '@/search/oneMoreTE';
 import { createChainSearchPool, type ChainSearchPool } from '@/search/pool';
 import type { BuildParams } from '@/search/precomputedLeg';
 import { contention, timeWeightedWorkers, workerSecondsFromRate } from '@/search/speed';
@@ -6319,6 +6320,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           how: out.stoppedEarly ? 'stopped' : 'done',
         })
       );
+      // The "one more TE" hint's cost, from this run's own routes (search/oneMoreTE.ts).
+      const lastTECost = lastTECostFrom(out.all, out.routes[0]);
       deadlineResult.value = {
         routes: out.routes.slice(0, 50),
         byStops: [...out.byStops.entries()].sort((a, b) => a[0] - b[0]).map(([, r]) => r),
@@ -6346,6 +6349,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         ...(avgWorkers > 0 ? { workers: Math.max(1, Math.round(avgWorkers)) } : {}),
         ...(priorSeconds > 0 || seedCount ? { carriedOn: true } : {}),
         lastLo: Math.max(Math.floor(inputs.currentTE) + 1, spec.lastLo ?? 0),
+        ...(lastTECost ? { lastTECost } : {}),
         at: Date.now(),
       };
       deadlineAccount = account;

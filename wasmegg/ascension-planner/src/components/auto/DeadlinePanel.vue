@@ -570,7 +570,12 @@
             · saved result from {{ ago(result.at) }}</span
           >
         </template>
-        <template v-if="result.stoppedEarly"> Stopped early, so a better route may not have been tried.</template>
+        <!-- One more TE (search/oneMoreTE.ts): stopped early, or narrow or edge boxes, with more spare
+             than one more TE costs. Otherwise the plain "stopped early". -->
+        <span v-if="oneMoreTE" class="block mt-1 font-semibold text-amber-800" data-testid="one-more-te-hint">{{
+          oneMoreTE.text
+        }}</span>
+        <template v-else-if="result.stoppedEarly"> Stopped early, so a better route may not have been tried.</template>
         <template v-if="atCeiling">
           <span class="font-bold">That is the highest last stop it was allowed to try</span>, so more may be reachable:
           raise {{ result.step ? '"Rough guess for the last stop"' : "the top of the last stop's range" }} and run it
@@ -847,6 +852,7 @@ import {
 import { formatBand, formatHours } from '@/search/exhaustive';
 import { spareLabel, summariseByDate } from '@/search/deadlineSummary';
 import ByDateRouteCard from './ByDateRouteCard.vue';
+import { oneMoreTEHint } from '@/search/oneMoreTE';
 import { rowSettingsFor, type DeadlineRunSpec, type SavedDeadlineResult } from '@/search/deadlineStore';
 import { SPACE_STEPS, SPACE_WIDTHS, stopsByWidth } from '@/search/deadlineSuggest';
 import { simpleByDateSpace, type SimpleSpace } from '@/search/simpleByDate';
@@ -1963,6 +1969,26 @@ const edges = computed<BandEdge[]>(() => {
   const b = best.value;
   if (!box || !b || !result.value) return [];
   return findBandEdges(box.bands, b.chain, { currentTE: result.value.te, finalTE: b.chain[b.chain.length - 1] });
+});
+/** A Simple run's box around the best route is narrow: each early stop ±1 TE or less, or the best
+ *  route is the instant answer's own, outside every box. Unknown (no boxes recorded): not narrow. */
+const narrowBox = computed(() => {
+  const r = result.value as SavedDeadlineResult | null;
+  if (!r?.simple || !r.bandSets?.length || !best.value) return false;
+  const box = edgeBox.value;
+  return !box || box.bands.every(b => b.length <= 3);
+});
+/** "A better route may exist: ..." (search/oneMoreTE.ts), not while a run is going. */
+const oneMoreTE = computed(() => {
+  const r = result.value as SavedDeadlineResult | null;
+  if (!r || !best.value || store.deadlineRunning) return null;
+  return oneMoreTEHint({
+    route: best.value,
+    stoppedEarly: !!r.stoppedEarly,
+    narrow: narrowBox.value,
+    onEdge: edges.value.length > 0,
+    runCost: r.lastTECost ?? null,
+  });
 });
 const ORDINAL = ['1st', '2nd', '3rd'];
 function edgeText(e: BandEdge): string {

@@ -281,6 +281,10 @@ export interface SavedDeadlineResult {
   carriedOn?: boolean;
   /** The last stop's box (`DeadlineRunSpec.lastLo`..`lastHi`). Absent before 8 Oct. */
   lastLo?: number;
+  /** What the best route's last TE cost on this run's own routes, seconds (search/oneMoreTE.ts
+   *  `lastTECostFrom`), for the "one more TE" hint. Absent when nothing one stop lower was priced,
+   *  and on results from before 11 Oct 2026. */
+  lastTECost?: number;
   at: number;
 }
 
