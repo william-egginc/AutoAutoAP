@@ -804,6 +804,7 @@ let TIME_OFF_WINDOWS: TimeOffWindow[] = [];
 /** `runLeg`'s no-farm notice, printed once per process. */
 let warnedNoContinue = false;
 
+// A duplicate of the site's runLeg: the one to match is src/search/leg.ts runLeg.
 function runLeg(
   baseState: any,
   startTime: number,

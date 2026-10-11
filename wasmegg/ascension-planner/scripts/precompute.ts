@@ -38,7 +38,10 @@
  *                    delivery rate; no --te); --scaled starts at --te with the save's delivery rate.
  *                    Without --reference, --check then prices them for the account the save is.
  *                    --deadline ISO: also the highest TE by then (By a date); --check then prices
- *                    only that route.
+ *                    only that route. As the page does: the first leg includes Continue my build-up
+ *                    (search/instantFirstLegs.ts), up to --max-asc 12 ascensions, the polish merged
+ *                    over the finder's (--strong-polish: the page's background polish, wide 8 and 3
+ *                    candidates), and delivery x1 when DIR/meta.json's gear stamp fits the save.
  *   --grid-error --table DIR
  *                    How well an hour's builds are predicted from an earlier hour's with `lateBy`
  *                    (the case for a coarser grid of start hours), and which hours break it.
@@ -101,12 +104,12 @@ import { pickVariant, type VariantKey, type VariantResult } from '@/stores/autoP
 import {
   continueTailParams,
   continueVariantForCheck,
-  CONTINUE_MAX_SECONDS,
-  CONTINUE_PIN_MAX_SECONDS,
+  buildUpTailParams,
   instantDeliveryScale,
   runLeg,
 } from '@/search/leg';
-import { firstAscensionFromFlags, readFirstAscension } from '@/search/firstAscension';
+import { instantFirstLegsBase, type InstantFirstLegsParams } from '@/search/instantFirstLegs';
+import { firstAscensionFromFlags } from '@/search/firstAscension';
 import { calculateArtifactModifiers } from '@/lib/artifacts';
 import { computeRealisticELR } from '@/calculations/realisticELR';
 import {
@@ -131,7 +134,14 @@ import {
 } from '@/search/routeFinder';
 import { splitByWork } from '@/search/routePool';
 import { packTable, readTable, type TableHeader } from '@/search/precomputedTable';
-import { gearChanges, gearStamp, gearTableName, legacyGearTableName, tableName } from '@/search/tableGear';
+import {
+  gearChanges,
+  gearStamp,
+  gearTableName,
+  legacyGearTableName,
+  tableName,
+  type TableGear,
+} from '@/search/tableGear';
 import { buildAt, buildPeak, k3StateOf, paramsOf, PEAK_TE, REFERENCE_WEEK, startStateAt } from '@/search/tableBuild';
 import { deliveryScore, slotsFromLabels } from '@/search/virtueScore';
 import { describeLoadoutSlots } from '@/search/csv';
@@ -270,6 +280,11 @@ async function loadInputs(file: string): Promise<SearchInputs> {
   store.setFirstAscension(firstAscensionFromFlags(arg('first-ascension'), has));
   store.continueStartRule = false;
   return store.collectInputs();
+}
+
+/** The build-up's tails for `instantFirstLegsBase`, simulated here (the page asks a worker): a few seconds. */
+function cliBuildUp(inputs: SearchInputs): Pick<InstantFirstLegsParams, 'buildUpTails'> {
+  return { buildUpTails: start => buildUpTailParams(inputs, start) };
 }
 
 /** Every variant's tail to `target`, and the one the app picks (seconds, key). */
@@ -527,6 +542,8 @@ interface TableMeta {
   from: number;
   to: number;
   builtAt: string;
+  /** The gear stamp of an own-gear table (search/tableGear.ts). */
+  gear?: TableGear | null;
 }
 
 function loadTable(dir: string): {
@@ -983,7 +1000,17 @@ async function route(file: string): Promise<void> {
       ? inputs!.planStart
       : Math.floor(Date.now() / 1000);
   let deliveryScale = 1;
-  if (player || has('scaled')) {
+  // The page's own-table rule (InstantRoute.vue `deliveryScale`): a table built on the gear this save
+  // has now is already at the player's own rate, so its delivery scale is 1.
+  let ownTable = false;
+  if (player && table.meta.gear) {
+    const stamp = gearStamp(inputs!, useChainSearchStore().readInventory().earnings, table.meta.gear.research);
+    const changes = stamp ? gearChanges(table.meta.gear, stamp) : ['gear'];
+    ownTable = !changes.length;
+    if (!ownTable) console.log(`the table's gear stamp no longer fits the save (${changes.join(', ')})`);
+  }
+  if (ownTable) console.log('own table (gear stamp matches the save): delivery x1');
+  else if (player || has('scaled')) {
     if (!existsSync(`${dir}/k3.json`)) throw new Error('--player and --scaled need DIR/k3.json (--k3)');
     deliveryScale = instantDeliveryScale(inputs!, JSON.parse(readFileSync(`${dir}/k3.json`, 'utf8')));
     // --measured-k: the player's own build's peak against the table's cell at the same start (search/
@@ -998,34 +1025,45 @@ async function route(file: string): Promise<void> {
       );
     }
   }
+  // As the page: the save's first ascension to every checkpoint, Continue my build-up included.
   const firstLegs = player
     ? firstLegOptions({
         table: table.lookup,
-        startTE: te,
-        start,
-        final,
         deliveryScale,
-        delivered: EGG_ORDER.map(e => inputs!.baseState.eggsDelivered?.[e] || 0),
-        cont: continueTailParams(inputs!, start),
-        firstAscension: readFirstAscension(inputs!),
-        pinSeconds: inputs!.continuePinSeconds ?? CONTINUE_PIN_MAX_SECONDS,
-        maxContinueSeconds: inputs!.continueMaxSeconds ?? CONTINUE_MAX_SECONDS,
+        ...(await instantFirstLegsBase(inputs!, { startTE: te, start, final, ...cliBuildUp(inputs!) })),
       })
     : undefined;
   // --deadline ISO: also the highest TE reachable by then (the By a date screen's instant answer).
   const deadline = arg('deadline') ? Math.floor(Date.parse(arg('deadline')!) / 1000) : undefined;
   const t0 = performance.now();
-  const { best, byAscensions, byDate } = await findRoutes({
+  const maxAscensions = Number(arg('max-asc', '12'));
+  const found = await findRoutes({
     table: table.lookup,
     startTE: te,
     start,
     final,
-    maxAscensions: Number(arg('max-asc', '10')),
+    maxAscensions,
     ...(arg('wait-hours') ? { waitHours: Number(arg('wait-hours')) } : {}),
     deliveryScale,
     ...(firstLegs ? { firstLegs } : {}),
     ...(deadline !== undefined ? { deadline } : {}),
   });
+  // As the page does once the finder is done (InstantRoute.vue): each answer moved a stop or two on the
+  // table where that ends sooner (routeFinder.ts polishFound), then merged over the finder's. --strong-
+  // polish: the stronger polish the page runs in the background (its STRONG_POLISH).
+  const polished = polishFound(
+    table.lookup,
+    {
+      startTE: te,
+      start,
+      ...(firstLegs ? { firstLegs } : {}),
+      deliveryScale,
+      ...(deadline !== undefined ? { deadline } : {}),
+      ...(has('strong-polish') ? { wide: 8, candidates: 3 } : {}),
+    },
+    found
+  );
+  const { best, byAscensions, byDate } = { ...found, ...polished };
   const ms = performance.now() - t0;
   const days = (r: Route) => (r.seconds / 86400).toFixed(3) + ' d';
   console.log(
@@ -1278,19 +1316,10 @@ async function delayScan(file: string): Promise<void> {
   const start = arg('start') ? Math.floor(Date.parse(arg('start')!) / 1000) : inputs.planStart;
   const chain = arg('chain')!.trim().split(/\s+/).map(Number);
   const H = EGG_ORDER.indexOf('humility' as never);
-  const cont = continueTailParams(inputs, start);
-  const firstLegs = firstLegOptions({
-    table: table.lookup,
-    startTE: te,
-    start,
-    final: 490,
-    deliveryScale: 1,
-    delivered: EGG_ORDER.map(e => inputs.baseState.eggsDelivered?.[e] || 0),
-    cont,
-    firstAscension: readFirstAscension(inputs),
-    pinSeconds: inputs.continuePinSeconds ?? CONTINUE_PIN_MAX_SECONDS,
-    maxContinueSeconds: inputs.continueMaxSeconds ?? CONTINUE_MAX_SECONDS,
-  });
+  // Continue and fresh legs only: the peak below is read off the label, which a build-up leg has none for.
+  const legs = await instantFirstLegsBase(inputs, { startTE: te, start, final: 490, buildUp: false, ...cliBuildUp(inputs) });
+  const cont = legs.cont;
+  const firstLegs = firstLegOptions({ table: table.lookup, deliveryScale: 1, ...legs });
   // Each leg's end: time, TE, eggs and the rate the farm lays at afterwards.
   type End = { start?: number; end: number; te: number; eggs: number[]; peak: number; first?: string };
   const priceRest = (from: End, targets: number[]): number | null => {
@@ -1466,17 +1495,11 @@ async function waitPolicy(file: string): Promise<void> {
   };
   const level: Arr[][] = [[save]];
   // The save's ascension carried on to a checkpoint (continue), then waiting like any other.
+  // Continue legs only are used below (a build-up leg has no peak to read off here), so it is left out.
   for (const f of firstLegOptions({
     table: table.lookup,
-    startTE: te0,
-    start,
-    final: 490,
     deliveryScale: 1,
-    delivered: eggs0,
-    cont,
-    firstAscension: readFirstAscension(inputs),
-    pinSeconds: inputs.continuePinSeconds ?? CONTINUE_PIN_MAX_SECONDS,
-    maxContinueSeconds: inputs.continueMaxSeconds ?? CONTINUE_MAX_SECONDS,
+    ...(await instantFirstLegsBase(inputs, { startTE: te0, start, final: 490, buildUp: false, ...cliBuildUp(inputs) })),
   }))
     if (f.label === 'continue' && f.to < 490)
       level[0].push({
@@ -1694,19 +1717,17 @@ async function eggdayScan(file: string): Promise<void> {
   const toHour = Number(arg('to-hour') ?? 5 * 24 + 5);
   const H = EGG_ORDER.indexOf('humility' as never);
   const eggs0 = EGG_ORDER.map(e => inputs.baseState.eggsDelivered?.[e] || 0);
-  const cont = continueTailParams(inputs, start);
-  const firstLegs = firstLegOptions({
-    table: table.lookup,
+  // Continue and fresh legs only: the peak below is read off the label, which a build-up leg has none for.
+  const legs = await instantFirstLegsBase(inputs, {
     startTE: te0,
     start,
     final: 490,
-    deliveryScale: 1,
     delivered: eggs0,
-    cont,
-    firstAscension: readFirstAscension(inputs),
-    pinSeconds: inputs.continuePinSeconds ?? CONTINUE_PIN_MAX_SECONDS,
-    maxContinueSeconds: inputs.continueMaxSeconds ?? CONTINUE_MAX_SECONDS,
+    buildUp: false,
+    ...cliBuildUp(inputs),
   });
+  const cont = legs.cont;
+  const firstLegs = firstLegOptions({ table: table.lookup, deliveryScale: 1, ...legs });
   const found = await findRoutes({
     table: table.lookup,
     startTE: te0,
@@ -2082,15 +2103,15 @@ async function polish(file: string): Promise<void> {
   const eggs0 = fromTE ? canonicalDelivered(fromTE) : EGG_ORDER.map(e => inputs.baseState.eggsDelivered?.[e] || 0);
   const firstLegs = firstLegOptions({
     table: table.lookup,
-    startTE: te0,
-    start,
-    final,
     deliveryScale: 1,
-    delivered: eggs0,
-    cont: fromTE ? null : continueTailParams(inputs, start),
-    firstAscension: readFirstAscension(inputs),
-    pinSeconds: inputs.continuePinSeconds ?? CONTINUE_PIN_MAX_SECONDS,
-    maxContinueSeconds: inputs.continueMaxSeconds ?? CONTINUE_MAX_SECONDS,
+    ...(await instantFirstLegsBase(inputs, {
+      startTE: te0,
+      start,
+      final,
+      delivered: eggs0,
+      save: !fromTE,
+      ...cliBuildUp(inputs),
+    })),
   });
   let priced = 0;
   const price = (chain: number[]): number | null => {
@@ -2118,7 +2139,7 @@ async function polish(file: string): Promise<void> {
     startTE: te0,
     start,
     final,
-    maxAscensions: Number(arg('max-asc') ?? 10),
+    maxAscensions: Number(arg('max-asc') ?? 12),
     firstLegs,
     ...(deadline ? { deadline } : {}),
   });
