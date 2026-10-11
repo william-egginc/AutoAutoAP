@@ -237,12 +237,16 @@
 
         <template v-if="plannerTab === 'automatic'">
           <div class="flex justify-center">
-            <div class="flex flex-wrap justify-center gap-1 border-b border-slate-200">
+            <!-- Below sm, one equal column per tab across the page, labels wrapping inside their
+                 cell, so the underline stays on one line; from sm up, a centred row. -->
+            <div
+              class="grid grid-cols-3 w-full sm:flex sm:w-auto sm:flex-wrap sm:justify-center gap-1 border-b border-slate-200"
+            >
               <button
                 v-for="v in autoTabs"
                 :key="v.id"
                 type="button"
-                class="px-4 py-2 -mb-px border-b-2 text-[11px] font-black uppercase tracking-widest"
+                class="min-w-0 px-2 sm:px-4 py-2 -mb-px border-b-2 text-[11px] font-black uppercase tracking-wider sm:tracking-widest text-center leading-snug"
                 :class="
                   autoView === v.id
                     ? 'border-indigo-600 text-indigo-700'
@@ -267,12 +271,14 @@
         </template>
 
         <div v-else-if="plannerTab === 'science'" class="flex justify-center">
-          <div class="flex flex-wrap justify-center gap-1 border-b border-slate-200">
+          <div
+            class="grid grid-cols-3 w-full sm:flex sm:w-auto sm:flex-wrap sm:justify-center gap-1 border-b border-slate-200"
+          >
             <button
               v-for="v in scienceTabs"
               :key="v.id"
               type="button"
-              class="px-4 py-2 -mb-px border-b-2 text-[11px] font-black uppercase tracking-widest"
+              class="min-w-0 px-2 sm:px-4 py-2 -mb-px border-b-2 text-[11px] font-black uppercase tracking-wider sm:tracking-widest text-center leading-snug"
               :class="
                 scienceView === v.id
                   ? 'border-amber-600 text-amber-700'
