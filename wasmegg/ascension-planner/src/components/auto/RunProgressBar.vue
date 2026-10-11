@@ -17,13 +17,13 @@
   <div
     v-if="p"
     data-run-bar
-    class="sticky z-40 rounded-2xl bg-slate-900 text-white shadow-[0_12px_32px_rgba(0,0,0,0.35)] px-4 py-3 space-y-2"
+    class="sticky z-40 max-w-full overflow-hidden rounded-2xl bg-slate-900 text-white shadow-[0_12px_32px_rgba(0,0,0,0.35)] px-4 py-3 space-y-2"
     style="top: calc(env(safe-area-inset-top, 0px) + 0.5rem)"
     role="status"
     aria-live="polite"
   >
     <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
-      <p class="flex-1 min-w-[14rem] text-[12px] font-bold leading-snug">
+      <p class="flex-[1_1_18rem] min-w-0 text-[12px] font-bold leading-snug break-words">
         {{ kindLabel }} · {{ p.done.toLocaleString()
         }}<template v-if="p.total"> of {{ approx }}{{ p.total.toLocaleString() }}</template> {{ p.unit
         }}<template v-if="p.chain"> · chain {{ p.chain.at }} of {{ p.chain.of }}</template
@@ -34,10 +34,10 @@
           {{ show(p.best.at) }}</template
         >
       </p>
-      <div class="flex flex-wrap items-center gap-2">
+      <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:ml-auto">
         <button
           type="button"
-          class="px-3 py-1.5 rounded-lg bg-white/10 text-[10px] font-black uppercase tracking-widest hover:bg-white/20"
+          class="flex-1 sm:flex-none whitespace-nowrap px-3 py-1.5 rounded-lg bg-white/10 text-[10px] font-black uppercase tracking-widest hover:bg-white/20"
           data-testid="run-bar-show"
           @click="emit('show')"
         >
@@ -45,7 +45,7 @@
         </button>
         <span
           v-if="store.submitsWhenDone"
-          class="px-3 py-1.5 rounded-lg bg-indigo-500/30 text-[10px] font-black uppercase tracking-widest"
+          class="flex-1 sm:flex-none whitespace-nowrap text-center px-3 py-1.5 rounded-lg bg-indigo-500/30 text-[10px] font-black uppercase tracking-widest"
           title="It shares its result on the leaderboard when it finishes (Find and submit)"
         >
           Submits when done
@@ -54,7 +54,7 @@
           v-if="bestSoFarHere"
           type="button"
           :disabled="!p.best || store.bestSoFarSending || store.bestSoFarWait > 0"
-          class="px-3 py-1.5 rounded-lg bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-400 disabled:opacity-50"
+          class="flex-1 sm:flex-none whitespace-nowrap px-3 py-1.5 rounded-lg bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-400 disabled:opacity-50"
           :title="
             store.bestSoFarWait > 0
               ? `You can send again in ${store.bestSoFarWait} min`
@@ -68,7 +68,7 @@
         <button
           type="button"
           :disabled="stopping"
-          class="px-3 py-1.5 rounded-lg bg-white text-slate-900 text-[10px] font-black uppercase tracking-widest hover:bg-slate-100 disabled:opacity-60"
+          class="flex-1 sm:flex-none whitespace-nowrap px-3 py-1.5 rounded-lg bg-white text-slate-900 text-[10px] font-black uppercase tracking-widest hover:bg-slate-100 disabled:opacity-60"
           @click="stop"
         >
           <SendingText v-if="stopping" text="Stopping" /><template v-else>Stop &amp; keep best</template>
