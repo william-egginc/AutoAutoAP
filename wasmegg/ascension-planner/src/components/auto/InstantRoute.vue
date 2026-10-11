@@ -49,7 +49,8 @@
       <b>Check exactly</b> prices a route with the full simulator.
     </p>
     <p v-if="ownChanged" class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-[11px] text-amber-900">
-      Your gear changed since your instant answer was made ({{ ownChanged }}), so this answer uses the instant answer for fully maxed gear instead.
+      Your gear changed since your instant answer was made ({{ ownChanged }}), so this answer uses the instant answer
+      for fully maxed gear instead.
     </p>
 
     <p
@@ -57,8 +58,8 @@
       class="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-[12px] text-slate-600"
       data-testid="instant-at-target"
     >
-      Your save is already at TE {{ Math.floor(store.currentTE) }}, at or past {{ target }} TE, so there is no route
-      for the instant answer to find.{{ deadline || target >= 490 ? '' : ' Pick a higher target TE to plan further.' }}
+      Your save is already at TE {{ Math.floor(store.currentTE) }}, at or past {{ target }} TE, so there is no route for
+      the instant answer to find.{{ deadline || target >= 490 ? '' : ' Pick a higher target TE to plan further.' }}
     </p>
     <p v-else-if="status === 'loading'" class="text-[12px] text-slate-500 flex items-center gap-2">
       <span class="inline-block w-3 h-3 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
@@ -76,8 +77,8 @@
       v-if="header?.fake"
       class="rounded-lg bg-rose-50 border border-rose-200 px-3 py-2 text-[12px] font-bold text-rose-800"
     >
-      Test instant answer: rows below what has been simulated are filled in from the nearest real ones, to try the page. These
-      routes and dates are not real answers.
+      Test instant answer: rows below what has been simulated are filled in from the nearest real ones, to try the page.
+      These routes and dates are not real answers.
     </p>
     <p
       v-if="savedAt"
@@ -107,11 +108,7 @@
       @remember="confirmRun(true)"
       @cancel="confirming = null"
     />
-    <p
-      v-if="!confirming && runBusy && alongside"
-      class="text-[11px] text-slate-500"
-      data-testid="instant-alongside"
-    >
+    <p v-if="!confirming && runBusy && alongside" class="text-[11px] text-slate-500" data-testid="instant-alongside">
       Running alongside your search: this uses more memory.
     </p>
     <p
@@ -138,93 +135,262 @@
     />
     <!-- No routes while the integrity check holds them back (search/instantIntegrity.ts). -->
     <template v-if="!integrityHold">
-    <!-- The last checked answer for this save and setup, at once; then whether the new check beat it. -->
-    <p
-      v-if="cached && exactStatus !== 'done'"
-      class="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-[12px] text-slate-700"
-    >
-      <b>Last checked {{ show(cached.at / 1000) }}</b> (exact, your account):
-      <span class="font-mono-premium">{{ cached.chain.join(' → ') }}</span>
-      <template v-if="deadline"> · {{ cached.endTE }} TE · {{ days(deadline - cached.end) }} to spare</template>
-      <template v-else> · reaches {{ store.finalTE }} on {{ show(cached.end) }}</template
-      >.{{ waiting || exactStatus === 'waiting' ? ' Checked again when the search ends.' : ' Checking again…' }}
-    </p>
-    <p
-      v-if="sinceCache"
-      class="rounded-lg px-3 py-2 text-[12px] font-bold"
-      :class="
-        sinceCache.better ? 'bg-emerald-100 text-emerald-900' : 'bg-slate-50 border border-slate-200 text-slate-700'
-      "
-    >
-      {{ sinceCache.text }}
-    </p>
+      <!-- The last checked answer for this save and setup, at once; then whether the new check beat it. -->
+      <p
+        v-if="cached && exactStatus !== 'done'"
+        class="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-[12px] text-slate-700"
+      >
+        <b>Last checked {{ show(cached.at / 1000) }}</b> (exact, your account):
+        <span class="font-mono-premium">{{ cached.chain.join(' → ') }}</span>
+        <template v-if="deadline"> · {{ cached.endTE }} TE · {{ days(deadline - cached.end) }} to spare</template>
+        <template v-else> · reaches {{ store.finalTE }} on {{ show(cached.end) }}</template
+        >.{{ waiting || exactStatus === 'waiting' ? ' Checked again when the search ends.' : ' Checking again…' }}
+      </p>
+      <p
+        v-if="sinceCache"
+        class="rounded-lg px-3 py-2 text-[12px] font-bold"
+        :class="
+          sinceCache.better ? 'bg-emerald-100 text-emerald-900' : 'bg-slate-50 border border-slate-200 text-slate-700'
+        "
+      >
+        {{ sinceCache.text }}
+      </p>
 
-    <!-- The filters (remembered in this browser): the routes and the headline come from what is left. -->
-    <div v-if="result" class="space-y-1">
-      <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-600">
-        <label v-if="hoursOn" class="flex items-center gap-2 cursor-pointer">
-          <input v-model="filters.inHours" type="checkbox" class="rounded border-slate-300" />
-          Works inside my hours
-        </label>
-        <label class="flex items-center gap-2">
-          At most
-          <select v-model="filters.maxAscensions" class="rounded-lg border-slate-200 text-[11px] py-0.5 pl-2 pr-7">
-            <option :value="null">any number of</option>
-            <option v-for="n in MAX_ASCENSIONS" :key="n" :value="n">{{ n }}</option>
-          </select>
-          ascensions
-        </label>
-      </div>
-      <p v-if="useHours" class="text-[11px] text-slate-500">
-        Only routes where you ascend inside your hours each time. The exact check prices it with your hours, so TE keeps
-        collecting while you wait.
-      </p>
-      <p v-if="outOfHoursShown.length" class="text-[11px] text-amber-800">
-        No route with {{ countList(outOfHoursShown) }} ascensions keeps every prestige inside your hours.
-      </p>
-      <p v-if="backgroundStatus === 'running'" class="text-[11px] text-slate-400">
-        Polishing the routes in the background…
-      </p>
-      <p v-else-if="gainsText" class="text-[11px] text-emerald-800">
-        Improved by the background polish: {{ gainsText }}.
-      </p>
-      <p v-if="bracketStatus === 'running'" class="text-[11px] text-slate-400">
-        Pricing your route on the instant answers for the closest stronger and weaker gear we have…
-      </p>
-      <p v-else-if="bracketText" class="text-[11px] text-slate-700">{{ bracketText }}</p>
-    </div>
-
-    <template v-if="result && deadline">
-      <div class="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 space-y-1">
-        <div class="text-[10px] font-black uppercase tracking-widest text-emerald-700">
-          Highest TE by {{ show(deadline) }}
+      <!-- The filters (remembered in this browser): the routes and the headline come from what is left. -->
+      <div v-if="result" class="space-y-1">
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-600">
+          <label v-if="hoursOn" class="flex items-center gap-2 cursor-pointer">
+            <input v-model="filters.inHours" type="checkbox" class="rounded border-slate-300" />
+            Works inside my hours
+          </label>
+          <label class="flex items-center gap-2">
+            At most
+            <select v-model="filters.maxAscensions" class="rounded-lg border-slate-200 text-[11px] py-0.5 pl-2 pr-7">
+              <option :value="null">any number of</option>
+              <option v-for="n in MAX_ASCENSIONS" :key="n" :value="n">{{ n }}</option>
+            </select>
+            ascensions
+          </label>
         </div>
-        <template v-if="result.byDate">
-          <!-- The simulator's answer leads once it is in; the table's stays beside it. -->
-          <div class="flex flex-wrap items-baseline gap-x-3">
-            <span class="text-2xl font-black text-slate-900"
-              >{{ (dateExact ?? tableDate(result.byDate)).endTE }} TE</span
-            >
-            <span
-              class="text-lg font-black"
+        <p v-if="useHours" class="text-[11px] text-slate-500">
+          Only routes where you ascend inside your hours each time. The exact check prices it with your hours, so TE
+          keeps collecting while you wait.
+        </p>
+        <p v-if="outOfHoursShown.length" class="text-[11px] text-amber-800">
+          No route with {{ countList(outOfHoursShown) }} ascensions keeps every prestige inside your hours.
+        </p>
+        <p v-if="backgroundStatus === 'running'" class="text-[11px] text-slate-400">
+          Polishing the routes in the background…
+        </p>
+        <p v-else-if="gainsText" class="text-[11px] text-emerald-800">
+          Improved by the background polish: {{ gainsText }}.
+        </p>
+        <p v-if="bracketStatus === 'running'" class="text-[11px] text-slate-400">
+          Pricing your route on the instant answers for the closest stronger and weaker gear we have…
+        </p>
+        <p v-else-if="bracketText" class="text-[11px] text-slate-700">{{ bracketText }}</p>
+      </div>
+
+      <template v-if="result && deadline">
+        <div class="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 space-y-1">
+          <div class="text-[10px] font-black uppercase tracking-widest text-emerald-700">
+            Highest TE by {{ show(deadline) }}
+          </div>
+          <template v-if="result.byDate">
+            <!-- The simulator's answer leads once it is in; the table's stays beside it. -->
+            <div class="flex flex-wrap items-baseline gap-x-3">
+              <span class="text-2xl font-black text-slate-900"
+                >{{ (dateExact ?? tableDate(result.byDate)).endTE }} TE</span
+              >
+              <span
+                class="text-lg font-black"
+                :class="
+                  spareOf(dateExact ?? tableDate(result.byDate)) < TIGHT_SECONDS ? 'text-amber-700' : 'text-emerald-800'
+                "
+                >{{ days(spareOf(dateExact ?? tableDate(result.byDate))) }} to spare</span
+              >
+              <span
+                v-if="spareOf(dateExact ?? tableDate(result.byDate)) < TIGHT_SECONDS"
+                class="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[9px] font-black uppercase tracking-widest"
+                >tight</span
+              >
+              <span v-if="dateExact" class="text-[11px] font-bold text-emerald-700">exact, your account</span>
+            </div>
+            <div class="font-mono-premium text-sm font-bold text-slate-800">
+              {{ (dateExact ?? tableDate(result.byDate)).chain.join(' → ') }}
+            </div>
+            <div class="text-[12px] text-slate-700">
+              Reached {{ show((dateExact ?? tableDate(result.byDate)).end) }} ·
+              {{ (dateExact ?? tableDate(result.byDate)).chain.length }} ascensions
+            </div>
+            <p class="text-[11px] text-slate-600">
+              Ascend at the times shown: each fresh ascension starts on the hour (inside the weekly research sale, at
+              once when that ends sooner), and Check exactly prices it the same way.
+            </p>
+            <label class="flex items-center gap-2 text-[11px] text-slate-600 cursor-pointer">
+              <input v-model="tryAtOnce" type="checkbox" class="rounded border-slate-300" />
+              Also try ascending the moment each ascension ends, not only on the hour (slower check)
+            </label>
+            <p v-if="atOnceNote(dateExact)" class="text-[11px] font-bold text-emerald-800">
+              {{ atOnceNote(dateExact) }}
+            </p>
+            <div v-if="dateExact" class="text-[11px] text-slate-500">
+              The instant answer said {{ result.byDate.legs[result.byDate.legs.length - 1].endTE }} TE via
+              {{ result.byDate.chain.join(' ') }} with {{ days(deadline - result.byDate.end) }} to spare<template
+                v-if="missedBy !== null"
+                >; on your account that route arrives {{ days(missedBy) }} after the date</template
+              >.
+            </div>
+            <p v-if="exactStatus === 'running'" class="text-[11px] text-emerald-800 flex items-center gap-2">
+              <span
+                class="inline-block w-2.5 h-2.5 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin"
+              />
+              {{ exactText }}
+            </p>
+            <p v-else-if="exactStatus === 'done' && !dateExact" class="text-[11px] text-amber-800">
+              On your account none of these routes reaches above your TE by the date. Check exactly searches for yours.
+            </p>
+            <p v-if="small && exactStatus === 'idle'" class="text-[11px] text-slate-500">
+              On this device the full simulator's check runs only when you press Check exactly: it uses every core for a
+              minute or more.
+            </p>
+            <button
+              type="button"
               :class="
-                spareOf(dateExact ?? tableDate(result.byDate)) < TIGHT_SECONDS ? 'text-amber-700' : 'text-emerald-800'
+                exactStatus === 'running'
+                  ? 'opacity-60 cursor-not-allowed hover:bg-emerald-700'
+                  : 'hover:bg-emerald-800'
               "
-              >{{ days(spareOf(dateExact ?? tableDate(result.byDate))) }} to spare</span
+              class="mt-1 px-3 py-1.5 rounded-lg bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-1.5"
+              :disabled="exactStatus === 'running'"
+              title="Prices every route below with the full simulator on your account"
+              @click="pressCheck('check-date')"
             >
-            <span
-              v-if="spareOf(dateExact ?? tableDate(result.byDate)) < TIGHT_SECONDS"
-              class="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[9px] font-black uppercase tracking-widest"
-              >tight</span
+              <span
+                v-if="exactStatus === 'running'"
+                class="inline-block w-2.5 h-2.5 rounded-full border-2 border-white border-t-transparent animate-spin"
+              />
+              {{
+                exactStatus === 'running'
+                  ? 'Checking exactly…'
+                  : exactStatus === 'done'
+                    ? 'Check all again'
+                    : 'Check exactly'
+              }}
+            </button>
+            <button
+              type="button"
+              class="mt-1 ml-2 px-3 py-1.5 rounded-lg border border-emerald-700 text-emerald-800 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-50"
+              title="Opens this route in Your plan, simulated step by step on your save"
+              @click="openPlan((dateExact ?? tableDate(result.byDate)).chain)"
             >
-            <span v-if="dateExact" class="text-[11px] font-bold text-emerald-700">exact, your account</span>
+              Simulate this plan
+            </button>
+            <InstantShareCheck
+              v-if="instantUrl"
+              v-model:share-this="shareThis"
+              v-model:keep-sharing="keepSharing"
+              class="mt-2"
+              :status="shareText"
+              :sent="shareNote?.result === 'sent'"
+              :title="SHARE_WHAT"
+            />
+            <InstantRunWarning
+              v-if="warnHere(confirming, 'check-date')"
+              class="mt-2"
+              at="check-date"
+              check
+              @go="confirmRun(false)"
+              @remember="confirmRun(true)"
+              @cancel="confirming = null"
+            />
+          </template>
+          <p v-else class="text-[12px] text-amber-800">
+            No route gets above your TE by then{{ filtering ? ' with these filters' : '' }}.
+          </p>
+        </div>
+        <div v-if="dateRows.length > 1" class="overflow-x-auto">
+          <p class="text-[11px] text-slate-500">
+            Exact = the full simulator on your account; filled in automatically. Simulate this plan opens that route in
+            Your plan, simulated step by step on your save: each ascension, its dates and purchases.
+          </p>
+          <table class="w-full text-[12px]">
+            <thead>
+              <tr class="text-left text-[9px] font-black uppercase tracking-widest text-slate-400">
+                <th class="py-1 pr-3">Ascensions</th>
+                <th class="py-1 pr-3">Instant answer</th>
+                <th class="py-1 pr-3">Exact, your account</th>
+                <th class="py-1 pr-3">Spare</th>
+                <th class="py-1 pr-3">Route</th>
+                <th class="py-1"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="r in dateRows"
+                :key="r.legs.length"
+                class="border-t border-slate-100"
+                :class="dateExact && dateExactByK[r.legs.length]?.chain === dateExact.chain ? 'bg-emerald-50/60' : ''"
+              >
+                <td class="py-1.5 pr-3 font-bold text-slate-800">{{ r.legs.length }}</td>
+                <td class="py-1.5 pr-3 text-slate-600 whitespace-nowrap">
+                  {{ r.legs[r.legs.length - 1].endTE }} TE · {{ days(deadline - r.end) }}
+                </td>
+                <td class="py-1.5 pr-3 whitespace-nowrap font-bold text-slate-800">
+                  <template v-if="dateExactByK[r.legs.length]">{{ dateExactByK[r.legs.length]!.endTE }} TE</template>
+                  <template v-else-if="dateExactByK[r.legs.length] === null">misses</template>
+                  <span v-else-if="exactStatus === 'running'" class="text-slate-400 font-normal">…</span>
+                </td>
+                <td class="py-1.5 pr-3 whitespace-nowrap">
+                  <template v-if="dateExactByK[r.legs.length]">
+                    <span
+                      :class="
+                        spareOf(dateExactByK[r.legs.length]!) < TIGHT_SECONDS
+                          ? 'text-amber-700 font-black'
+                          : 'text-emerald-800 font-bold'
+                      "
+                      >{{ days(spareOf(dateExactByK[r.legs.length]!)) }}</span
+                    >
+                    <span
+                      v-if="spareOf(dateExactByK[r.legs.length]!) < TIGHT_SECONDS"
+                      class="ml-1 px-1 py-0.5 rounded bg-amber-100 text-amber-800 text-[8px] font-black uppercase"
+                      >tight</span
+                    >
+                  </template>
+                </td>
+                <td class="py-1.5 pr-3 font-mono-premium text-slate-800">
+                  {{ (dateExactByK[r.legs.length] ?? tableDate(r)).chain.join(' ') }}
+                </td>
+                <td class="py-1.5 text-right">
+                  <button
+                    type="button"
+                    class="px-2 py-1 rounded-md border border-slate-300 text-[9px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-800"
+                    title="Opens this route in Your plan, simulated step by step on your save"
+                    @click="openPlan((dateExactByK[r.legs.length] ?? tableDate(r)).chain)"
+                  >
+                    Simulate this plan
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </template>
+
+      <template v-if="result && !deadline">
+        <div v-if="lead" class="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 space-y-1">
+          <div class="text-[10px] font-black uppercase tracking-widest text-emerald-700">Fastest route</div>
+          <div class="font-mono-premium text-base font-black text-slate-900">{{ lead.chain.join(' → ') }}</div>
+          <div v-if="exactOf(lead)" class="text-[12px] text-slate-800">
+            Reaches {{ store.finalTE }} on <b>{{ show(exactOf(lead)!.end) }}</b> · {{ days(exactOf(lead)!.seconds) }} ·
+            {{ plural(lead.legs.length, 'ascension') }}
+            <span class="text-[11px] font-bold text-emerald-700">exact, your account</span>
           </div>
-          <div class="font-mono-premium text-sm font-bold text-slate-800">
-            {{ (dateExact ?? tableDate(result.byDate)).chain.join(' → ') }}
-          </div>
-          <div class="text-[12px] text-slate-700">
-            Reached {{ show((dateExact ?? tableDate(result.byDate)).end) }} ·
-            {{ (dateExact ?? tableDate(result.byDate)).chain.length }} ascensions
+          <div :class="exactOf(lead) ? 'text-[11px] text-slate-500' : 'text-[12px] text-slate-700'">
+            {{ exactOf(lead) ? 'The instant answer said ' : 'Reaches ' + store.finalTE + ' on '
+            }}<b v-if="!exactOf(lead)">{{ show(lead.end) }}</b
+            ><template v-else>{{ show(lead.end) }}</template> · {{ days(lead.seconds)
+            }}<template v-if="!exactOf(lead)"> · {{ plural(lead.legs.length, 'ascension') }}</template>
           </div>
           <p class="text-[11px] text-slate-600">
             Ascend at the times shown: each fresh ascension starts on the hour (inside the weekly research sale, at once
@@ -234,22 +400,20 @@
             <input v-model="tryAtOnce" type="checkbox" class="rounded border-slate-300" />
             Also try ascending the moment each ascension ends, not only on the hour (slower check)
           </label>
-          <p v-if="atOnceNote(dateExact)" class="text-[11px] font-bold text-emerald-800">{{ atOnceNote(dateExact) }}</p>
-          <div v-if="dateExact" class="text-[11px] text-slate-500">
-            The instant answer said {{ result.byDate.legs[result.byDate.legs.length - 1].endTE }} TE via
-            {{ result.byDate.chain.join(' ') }} with {{ days(deadline - result.byDate.end) }} to spare<template
-              v-if="missedBy !== null"
-              >; on your account that route arrives {{ days(missedBy) }} after the date</template
-            >.
-          </div>
+          <p v-if="atOnceNote(exactOf(lead))" class="text-[11px] font-bold text-emerald-800">
+            {{ atOnceNote(exactOf(lead)) }}
+          </p>
+          <p v-if="reranked && result.best" class="text-[11px] text-amber-800">
+            The instant answer ranked the {{ result.best.legs.length }}-ascension route first ({{
+              result.best.chain.join(' ')
+            }}); on your account the full simulator has this one
+            {{ days(exactOf(result.best)!.end - exactOf(lead)!.end) }} sooner.
+          </p>
           <p v-if="exactStatus === 'running'" class="text-[11px] text-emerald-800 flex items-center gap-2">
             <span
               class="inline-block w-2.5 h-2.5 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin"
             />
             {{ exactText }}
-          </p>
-          <p v-else-if="exactStatus === 'done' && !dateExact" class="text-[11px] text-amber-800">
-            On your account none of these routes reaches above your TE by the date. Check exactly searches for yours.
           </p>
           <p v-if="small && exactStatus === 'idle'" class="text-[11px] text-slate-500">
             On this device the full simulator's check runs only when you press Check exactly: it uses every core for a
@@ -258,26 +422,30 @@
           <button
             type="button"
             :class="
-              exactStatus === 'running'
-                ? 'opacity-60 cursor-not-allowed hover:bg-emerald-700'
-                : 'hover:bg-emerald-800'
+              exactStatus === 'running' ? 'opacity-60 cursor-not-allowed hover:bg-emerald-700' : 'hover:bg-emerald-800'
             "
             class="mt-1 px-3 py-1.5 rounded-lg bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-1.5"
             :disabled="exactStatus === 'running'"
             title="Prices every route below with the full simulator on your account"
-            @click="pressCheck('check-date')"
+            @click="pressCheck('check-fastest')"
           >
             <span
               v-if="exactStatus === 'running'"
               class="inline-block w-2.5 h-2.5 rounded-full border-2 border-white border-t-transparent animate-spin"
             />
-            {{ exactStatus === 'running' ? 'Checking exactly…' : exactStatus === 'done' ? 'Check all again' : 'Check exactly' }}
+            {{
+              exactStatus === 'running'
+                ? 'Checking exactly…'
+                : exactStatus === 'done'
+                  ? 'Check all again'
+                  : 'Check exactly'
+            }}
           </button>
           <button
             type="button"
             class="mt-1 ml-2 px-3 py-1.5 rounded-lg border border-emerald-700 text-emerald-800 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-50"
             title="Opens this route in Your plan, simulated step by step on your save"
-            @click="openPlan((dateExact ?? tableDate(result.byDate)).chain)"
+            @click="openPlan(lead.chain)"
           >
             Simulate this plan
           </button>
@@ -291,388 +459,243 @@
             :title="SHARE_WHAT"
           />
           <InstantRunWarning
-            v-if="warnHere(confirming, 'check-date')"
+            v-if="warnHere(confirming, 'check-fastest')"
             class="mt-2"
-            at="check-date"
+            at="check-fastest"
             check
             @go="confirmRun(false)"
             @remember="confirmRun(true)"
             @cancel="confirming = null"
           />
-        </template>
+        </div>
         <p v-else class="text-[12px] text-amber-800">
-          No route gets above your TE by then{{ filtering ? ' with these filters' : '' }}.
+          No route reaches {{ store.finalTE }} from here in the instant answer{{
+            filtering ? ' with these filters' : ''
+          }}.
         </p>
-      </div>
-      <div v-if="dateRows.length > 1" class="overflow-x-auto">
-        <p class="text-[11px] text-slate-500">
-          Exact = the full simulator on your account; filled in automatically. Simulate this plan opens that route in
-          Your plan, simulated step by step on your save: each ascension, its dates and purchases.
-        </p>
-        <table class="w-full text-[12px]">
-          <thead>
-            <tr class="text-left text-[9px] font-black uppercase tracking-widest text-slate-400">
-              <th class="py-1 pr-3">Ascensions</th>
-              <th class="py-1 pr-3">Instant answer</th>
-              <th class="py-1 pr-3">Exact, your account</th>
-              <th class="py-1 pr-3">Spare</th>
-              <th class="py-1 pr-3">Route</th>
-              <th class="py-1"></th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="r in dateRows"
-              :key="r.legs.length"
-              class="border-t border-slate-100"
-              :class="dateExact && dateExactByK[r.legs.length]?.chain === dateExact.chain ? 'bg-emerald-50/60' : ''"
-            >
-              <td class="py-1.5 pr-3 font-bold text-slate-800">{{ r.legs.length }}</td>
-              <td class="py-1.5 pr-3 text-slate-600 whitespace-nowrap">
-                {{ r.legs[r.legs.length - 1].endTE }} TE · {{ days(deadline - r.end) }}
-              </td>
-              <td class="py-1.5 pr-3 whitespace-nowrap font-bold text-slate-800">
-                <template v-if="dateExactByK[r.legs.length]">{{ dateExactByK[r.legs.length]!.endTE }} TE</template>
-                <template v-else-if="dateExactByK[r.legs.length] === null">misses</template>
-                <span v-else-if="exactStatus === 'running'" class="text-slate-400 font-normal">…</span>
-              </td>
-              <td class="py-1.5 pr-3 whitespace-nowrap">
-                <template v-if="dateExactByK[r.legs.length]">
-                  <span
-                    :class="
-                      spareOf(dateExactByK[r.legs.length]!) < TIGHT_SECONDS
-                        ? 'text-amber-700 font-black'
-                        : 'text-emerald-800 font-bold'
-                    "
-                    >{{ days(spareOf(dateExactByK[r.legs.length]!)) }}</span
-                  >
-                  <span
-                    v-if="spareOf(dateExactByK[r.legs.length]!) < TIGHT_SECONDS"
-                    class="ml-1 px-1 py-0.5 rounded bg-amber-100 text-amber-800 text-[8px] font-black uppercase"
-                    >tight</span
-                  >
-                </template>
-              </td>
-              <td class="py-1.5 pr-3 font-mono-premium text-slate-800">
-                {{ (dateExactByK[r.legs.length] ?? tableDate(r)).chain.join(' ') }}
-              </td>
-              <td class="py-1.5 text-right">
-                <button
-                  type="button"
-                  class="px-2 py-1 rounded-md border border-slate-300 text-[9px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-800"
-                  title="Opens this route in Your plan, simulated step by step on your save"
-                  @click="openPlan((dateExactByK[r.legs.length] ?? tableDate(r)).chain)"
+      </template>
+
+      <StrongerCheck
+        v-if="result"
+        :deadline="deadline"
+        :found="result"
+        :exact-status="exactStatus"
+        :exact-done="exactDone"
+        :best="strongBest"
+        :handoff="strongHandoff"
+        :top-missed="missedBy !== null"
+        :priced="Object.keys(exact)"
+        :ctx="findCtx"
+        :run-busy="runBusy"
+        :zone="zone"
+      />
+      <p v-if="result && exactStatus === 'error'" class="text-[11px] text-amber-800">{{ exactText }}</p>
+      <p v-if="result && exactStatus === 'waiting'" class="text-[11px] text-slate-500">
+        The exact check on your account waits while a search is running.
+      </p>
+      <p v-if="result && exactStatus === 'done' && exactMs !== null" class="text-[10px] text-slate-400">
+        Checked on your account with the full simulator in {{ (exactMs / 1000).toFixed(0) }} s.
+      </p>
+      <!-- This account's Check exactly results on this computer (search/checkHistory.ts), shared or not. -->
+      <details v-if="history.length" class="text-[11px] text-slate-600" data-testid="check-history">
+        <summary class="cursor-pointer font-bold text-slate-700">Your check history ({{ history.length }})</summary>
+        <div class="mt-2 overflow-x-auto">
+          <table class="w-full text-[10px] whitespace-nowrap">
+            <thead class="text-left text-slate-400 uppercase tracking-wider">
+              <tr>
+                <th class="pr-3 py-1 font-black">Checked</th>
+                <th class="pr-3 py-1 font-black">Save</th>
+                <th class="pr-3 py-1 font-black">TE</th>
+                <th class="pr-3 py-1 font-black">Goal</th>
+                <th class="pr-3 py-1 font-black">Instant answer</th>
+                <th class="pr-3 py-1 font-black">Exact</th>
+                <th class="pr-3 py-1 font-black">First leg</th>
+                <th class="pr-3 py-1 font-black">Change</th>
+                <th class="py-1 font-black">Shared</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(h, i) in history" :key="h.at + h.sig" class="border-t border-slate-100">
+                <td class="pr-3 py-1">{{ show(h.at / 1000) }}</td>
+                <td class="pr-3 py-1">{{ h.backupTime ? show(h.backupTime) : '–' }}</td>
+                <td class="pr-3 py-1">{{ h.te }}</td>
+                <td class="pr-3 py-1">{{ h.mode === 'date' ? `by ${show(h.deadline ?? 0)}` : `${h.target} TE` }}</td>
+                <td class="pr-3 py-1 align-top">
+                  <div>{{ historyCell(h, h.instant, show).route }}</div>
+                  <div class="text-slate-500">{{ historyCell(h, h.instant, show).result }}</div>
+                </td>
+                <td class="pr-3 py-1 align-top" data-testid="history-exact">
+                  <template v-if="h.exact">
+                    <div>{{ historyCell(h, h.exact, show).route }}</div>
+                    <div class="text-slate-500">{{ historyCell(h, h.exact, show).result }}</div>
+                  </template>
+                  <template v-else>–</template>
+                </td>
+                <td class="pr-3 py-1">
+                  {{
+                    h.firstLeg === 'continue'
+                      ? 'Continue'
+                      : h.firstLeg === 'buildup'
+                        ? 'Build-up'
+                        : h.firstLeg === 'fresh'
+                          ? 'Fresh'
+                          : '–'
+                  }}
+                </td>
+                <td
+                  class="pr-3 py-1 font-bold"
+                  :class="
+                    historyDeltas[i]?.better === true
+                      ? 'text-emerald-700'
+                      : historyDeltas[i]?.better === false
+                        ? 'text-amber-700'
+                        : 'text-slate-400'
+                  "
                 >
-                  Simulate this plan
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </template>
-
-    <template v-if="result && !deadline">
-      <div v-if="lead" class="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 space-y-1">
-        <div class="text-[10px] font-black uppercase tracking-widest text-emerald-700">Fastest route</div>
-        <div class="font-mono-premium text-base font-black text-slate-900">{{ lead.chain.join(' → ') }}</div>
-        <div v-if="exactOf(lead)" class="text-[12px] text-slate-800">
-          Reaches {{ store.finalTE }} on <b>{{ show(exactOf(lead)!.end) }}</b> · {{ days(exactOf(lead)!.seconds) }} ·
-          {{ plural(lead.legs.length, 'ascension') }}
-          <span class="text-[11px] font-bold text-emerald-700">exact, your account</span>
+                  {{ historyDeltas[i]?.text ?? '' }}
+                </td>
+                <td class="py-1">{{ h.shared ? 'Yes' : '' }}</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
-        <div :class="exactOf(lead) ? 'text-[11px] text-slate-500' : 'text-[12px] text-slate-700'">
-          {{ exactOf(lead) ? 'The instant answer said ' : 'Reaches ' + store.finalTE + ' on '
-          }}<b v-if="!exactOf(lead)">{{ show(lead.end) }}</b
-          ><template v-else>{{ show(lead.end) }}</template> · {{ days(lead.seconds)
-          }}<template v-if="!exactOf(lead)"> · {{ plural(lead.legs.length, 'ascension') }}</template>
-        </div>
-        <p class="text-[11px] text-slate-600">
-          Ascend at the times shown: each fresh ascension starts on the hour (inside the weekly research sale, at once
-          when that ends sooner), and Check exactly prices it the same way.
-        </p>
-        <label class="flex items-center gap-2 text-[11px] text-slate-600 cursor-pointer">
-          <input v-model="tryAtOnce" type="checkbox" class="rounded border-slate-300" />
-          Also try ascending the moment each ascension ends, not only on the hour (slower check)
-        </label>
-        <p v-if="atOnceNote(exactOf(lead))" class="text-[11px] font-bold text-emerald-800">
-          {{ atOnceNote(exactOf(lead)) }}
-        </p>
-        <p v-if="reranked && result.best" class="text-[11px] text-amber-800">
-          The instant answer ranked the {{ result.best.legs.length }}-ascension route first ({{ result.best.chain.join(' ') }});
-          on your account the full simulator has this one
-          {{ days(exactOf(result.best)!.end - exactOf(lead)!.end) }} sooner.
-        </p>
-        <p v-if="exactStatus === 'running'" class="text-[11px] text-emerald-800 flex items-center gap-2">
-          <span
-            class="inline-block w-2.5 h-2.5 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin"
-          />
-          {{ exactText }}
-        </p>
-        <p v-if="small && exactStatus === 'idle'" class="text-[11px] text-slate-500">
-          On this device the full simulator's check runs only when you press Check exactly: it uses every core for a
-          minute or more.
-        </p>
-        <button
-          type="button"
-          :class="
-              exactStatus === 'running'
-                ? 'opacity-60 cursor-not-allowed hover:bg-emerald-700'
-                : 'hover:bg-emerald-800'
-            "
-            class="mt-1 px-3 py-1.5 rounded-lg bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-1.5"
-          :disabled="exactStatus === 'running'"
-          title="Prices every route below with the full simulator on your account"
-          @click="pressCheck('check-fastest')"
-        >
-          <span
-              v-if="exactStatus === 'running'"
-              class="inline-block w-2.5 h-2.5 rounded-full border-2 border-white border-t-transparent animate-spin"
-            />
-            {{ exactStatus === 'running' ? 'Checking exactly…' : exactStatus === 'done' ? 'Check all again' : 'Check exactly' }}
-        </button>
-        <button
-          type="button"
-          class="mt-1 ml-2 px-3 py-1.5 rounded-lg border border-emerald-700 text-emerald-800 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-50"
-          title="Opens this route in Your plan, simulated step by step on your save"
-          @click="openPlan(lead.chain)"
-        >
-          Simulate this plan
-        </button>
-        <InstantShareCheck
-          v-if="instantUrl"
-          v-model:share-this="shareThis"
-          v-model:keep-sharing="keepSharing"
-          class="mt-2"
-          :status="shareText"
-          :sent="shareNote?.result === 'sent'"
-          :title="SHARE_WHAT"
-        />
-        <InstantRunWarning
-          v-if="warnHere(confirming, 'check-fastest')"
-          class="mt-2"
-          at="check-fastest"
-          check
-          @go="confirmRun(false)"
-          @remember="confirmRun(true)"
-          @cancel="confirming = null"
-        />
-      </div>
-      <p v-else class="text-[12px] text-amber-800">
-        No route reaches {{ store.finalTE }} from here in the instant answer{{ filtering ? ' with these filters' : '' }}.
-      </p>
-    </template>
-
-    <StrongerCheck
-      v-if="result"
-      :deadline="deadline"
-      :found="result"
-      :exact-status="exactStatus"
-      :exact-done="exactDone"
-      :best="strongBest"
-      :handoff="strongHandoff"
-      :top-missed="missedBy !== null"
-      :priced="Object.keys(exact)"
-      :ctx="findCtx"
-      :run-busy="runBusy"
-      :zone="zone"
-    />
-    <p v-if="result && exactStatus === 'error'" class="text-[11px] text-amber-800">{{ exactText }}</p>
-    <p v-if="result && exactStatus === 'waiting'" class="text-[11px] text-slate-500">
-      The exact check on your account waits while a search is running.
-    </p>
-    <p v-if="result && exactStatus === 'done' && exactMs !== null" class="text-[10px] text-slate-400">
-      Checked on your account with the full simulator in {{ (exactMs / 1000).toFixed(0) }} s.
-    </p>
-    <!-- This account's Check exactly results on this computer (search/checkHistory.ts), shared or not. -->
-    <details v-if="history.length" class="text-[11px] text-slate-600" data-testid="check-history">
-      <summary class="cursor-pointer font-bold text-slate-700">Your check history ({{ history.length }})</summary>
-      <div class="mt-2 overflow-x-auto">
-        <table class="w-full text-[10px] whitespace-nowrap">
-          <thead class="text-left text-slate-400 uppercase tracking-wider">
-            <tr>
-              <th class="pr-3 py-1 font-black">Checked</th>
-              <th class="pr-3 py-1 font-black">Save</th>
-              <th class="pr-3 py-1 font-black">TE</th>
-              <th class="pr-3 py-1 font-black">Goal</th>
-              <th class="pr-3 py-1 font-black">Instant answer</th>
-              <th class="pr-3 py-1 font-black">Exact</th>
-              <th class="pr-3 py-1 font-black">First leg</th>
-              <th class="pr-3 py-1 font-black">Change</th>
-              <th class="py-1 font-black">Shared</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(h, i) in history" :key="h.at + h.sig" class="border-t border-slate-100">
-              <td class="pr-3 py-1">{{ show(h.at / 1000) }}</td>
-              <td class="pr-3 py-1">{{ h.backupTime ? show(h.backupTime) : '–' }}</td>
-              <td class="pr-3 py-1">{{ h.te }}</td>
-              <td class="pr-3 py-1">{{ h.mode === 'date' ? `by ${show(h.deadline ?? 0)}` : `${h.target} TE` }}</td>
-              <td class="pr-3 py-1 align-top">
-                <div>{{ historyCell(h, h.instant, show).route }}</div>
-                <div class="text-slate-500">{{ historyCell(h, h.instant, show).result }}</div>
-              </td>
-              <td class="pr-3 py-1 align-top" data-testid="history-exact">
-                <template v-if="h.exact">
-                  <div>{{ historyCell(h, h.exact, show).route }}</div>
-                  <div class="text-slate-500">{{ historyCell(h, h.exact, show).result }}</div>
-                </template>
-                <template v-else>–</template>
-              </td>
-              <td class="pr-3 py-1">
-                {{
-                  h.firstLeg === 'continue'
-                    ? 'Continue'
-                    : h.firstLeg === 'buildup'
-                      ? 'Build-up'
-                      : h.firstLeg === 'fresh'
-                        ? 'Fresh'
-                        : '–'
-                }}
-              </td>
-              <td
-                class="pr-3 py-1 font-bold"
-                :class="
-                  historyDeltas[i]?.better === true
-                    ? 'text-emerald-700'
-                    : historyDeltas[i]?.better === false
-                      ? 'text-amber-700'
-                      : 'text-slate-400'
-                "
-              >
-                {{ historyDeltas[i]?.text ?? '' }}
-              </td>
-              <td class="py-1">{{ h.shared ? 'Yes' : '' }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <p class="mt-1 flex flex-wrap items-center gap-x-3 text-[10px] text-slate-400">
-        <span>Kept on this computer only, for this account; the last {{ HISTORY_CAP }} checks.</span>
-        <button
-          type="button"
-          class="font-bold text-slate-500 hover:text-rose-700 underline decoration-dotted"
-          data-testid="clear-history"
-          @click="clearHistory"
-        >
-          Clear history
-        </button>
-      </p>
-    </details>
-
-    <!-- What the answer above does not account for, on both screens. -->
-    <template v-if="result">
-      <p v-if="gearDiffers" class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-        Your gear isn't the gear the instant answer was built on (<template v-if="bonusShort > 0.05"
-          >earnings set {{ bonusShort.toFixed(2) }} Clothed TE short, </template
-        >delivery {{ ((deliveryScale ?? 1) * 100).toFixed(1) }}% of its at full research). Ascensions that start below
-        about TE {{ FULL_RESEARCH_TE }} can take a few percent more or less than these, and may need a longer build (one
-        more research sale) than shown: your earnings set, and how your delivery gear does before research is complete,
-        aren't fully taken off. From there up they match. Check exactly gives your own times.
-      </p>
-      <p
-        v-if="progressionShort"
-        class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"
-      >
-        The account the instant answer was built on has every epic research and colleggtible maxed; yours has {{ progressionShort }}. Your real
-        ascensions run slower than these, more so the further short you are. Check exactly gives your own times.
-      </p>
-      <p
-        v-if="leftOut.length"
-        class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"
-      >
-        Not in the instant answer's routes: your {{ leftOut.join(', ') }}.
-        {{ deadline ? '' : 'They are the fastest without them; ' }}the exact times on your account include them.
-      </p>
-    </template>
-
-    <template v-if="result && !deadline">
-      <div class="overflow-x-auto">
-        <p class="text-[11px] text-slate-500">
-          Exact = the full simulator on your account; filled in automatically. Simulate this plan opens that route in
-          Your plan, simulated step by step on your save: each ascension, its dates and purchases.
-        </p>
-        <table class="w-full text-[12px]">
-          <thead>
-            <tr class="text-left text-[9px] font-black uppercase tracking-widest text-slate-400">
-              <th class="py-1 pr-3">Ascensions</th>
-              <th class="py-1 pr-3">Reaches {{ store.finalTE }}</th>
-              <th class="py-1 pr-3">Behind</th>
-              <th class="py-1 pr-3">Exact, your account</th>
-              <th class="py-1 pr-3">Route</th>
-              <th class="py-1"></th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="r in rows"
-              :key="r.legs.length"
-              class="border-t border-slate-100"
-              :class="r === lead ? 'bg-emerald-50/60' : ''"
-            >
-              <td class="py-1.5 pr-3 font-bold text-slate-800">{{ r.legs.length }}</td>
-              <td class="py-1.5 pr-3 text-slate-700 whitespace-nowrap">{{ show(r.end) }}</td>
-              <td class="py-1.5 pr-3 text-slate-500 whitespace-nowrap">
-                {{ behind(r) }}
-              </td>
-              <td
-                class="py-1.5 pr-3 whitespace-nowrap"
-                :class="r === exactBest ? 'font-bold text-emerald-800' : 'text-slate-700'"
-              >
-                <template v-if="exactOf(r)">{{ show(exactOf(r)!.end) }} · {{ days(exactOf(r)!.seconds) }}</template>
-                <template v-else-if="exactOf(r) === null">couldn’t price</template>
-                <span v-else-if="exactStatus === 'running'" class="text-slate-400">…</span>
-              </td>
-              <td class="py-1.5 pr-3 font-mono-premium text-slate-800">{{ r.chain.join(' ') }}</td>
-              <td class="py-1.5 text-right">
-                <button
-                  type="button"
-                  class="px-2 py-1 rounded-md border border-slate-300 text-[9px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-800"
-                  :disabled="r.chain.length < 2"
-                  title="Opens this route in Your plan, simulated step by step on your save"
-                  @click="openPlan(r.chain)"
-                >
-                  Simulate this plan
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <details class="text-[11px] text-slate-500">
-        <summary class="cursor-pointer font-bold text-slate-600">How this is worked out</summary>
-        <p v-if="gearTable" class="mt-1 leading-relaxed">
-          This instant answer was built on gear exactly like yours (the same artifacts and stones, so the same earnings and
-          delivery sets, with epic research and colleggtibles maxed), so its ascensions match the full simulator for
-          you<template v-if="(header?.gearTo ?? 489) < 489">
-            up to TE {{ header?.gearTo }}; above that it uses the instant answer for fully maxed gear at your own delivery rate</template
-          >. Each fresh ascension starts on the hour, where the instant answer was simulated (inside the weekly research sale, at once when that ends sooner).
-        </p>
-        <p v-else-if="own" class="mt-1 leading-relaxed">
-          This instant answer was built on your own account: your earnings and delivery sets, epic research and colleggtibles as
-          your save has them now (Clothed TE bonus {{ header?.cteBonus }}). Each of its ascensions is the simulator's
-          own build, and the waiting after it is the simulator's own arithmetic, so a route here matches the full
-          simulator on your account. Your first ascension is your own, simulated from your save the way Your setup's first ascension says
-          (continue your build-up, finish without buying, or prestige now). Each fresh ascension starts on the hour, where the instant answer was simulated (inside the weekly research sale, at once when that ends sooner). If your
-          gear changes, the page goes back to the instant answer for fully maxed gear until yours is made again.
-        </p>
-        <p v-else class="mt-1 leading-relaxed">
-          The instant answer was built on a maxed account: perfect delivery set, Clothed TE bonus {{ header?.cteBonus }}, all
-          epic research and colleggtibles. Each of its ascensions is the simulator's own build, and the waiting after it
-          is the simulator's own arithmetic, so on that account a route here matches the full simulator to the second.
-          For you: your first ascension is your own, simulated from your save the way Your setup's first ascension
-          says (continue your build-up, finish without buying, or prestige now); the waits run at your own peak delivery rate ({{ ((deliveryScale ?? 1) * 100).toFixed(1) }}% of
-          the instant answer's: the best set your inventory can wear at full research), and each ascension is read from the row
-          for its own TE. Each fresh ascension starts on the hour, where the instant answer was simulated (inside the weekly research sale, at once when that ends sooner); the weekly sale is at
-          a fixed Pacific time, so the hour of the week is what matters.
-        </p>
-        <p class="mt-1 leading-relaxed">
-          How it was built and how closely it matches the full simulator:
-          <a href="#/science/how" class="font-bold text-indigo-700 underline">{{ NAMES.science }} › {{ NAMES.how }}</a>.
+        <p class="mt-1 flex flex-wrap items-center gap-x-3 text-[10px] text-slate-400">
+          <span>Kept on this computer only, for this account; the last {{ HISTORY_CAP }} checks.</span>
+          <button
+            type="button"
+            class="font-bold text-slate-500 hover:text-rose-700 underline decoration-dotted"
+            data-testid="clear-history"
+            @click="clearHistory"
+          >
+            Clear history
+          </button>
         </p>
       </details>
-    </template>
+
+      <!-- What the answer above does not account for, on both screens. -->
+      <template v-if="result">
+        <p
+          v-if="gearDiffers"
+          class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"
+        >
+          Your gear isn't the gear the instant answer was built on (<template v-if="bonusShort > 0.05"
+            >earnings set {{ bonusShort.toFixed(2) }} Clothed TE short, </template
+          >delivery {{ ((deliveryScale ?? 1) * 100).toFixed(1) }}% of its at full research). Ascensions that start below
+          about TE {{ FULL_RESEARCH_TE }} can take a few percent more or less than these, and may need a longer build
+          (one more research sale) than shown: your earnings set, and how your delivery gear does before research is
+          complete, aren't fully taken off. From there up they match. Check exactly gives your own times.
+        </p>
+        <p
+          v-if="progressionShort"
+          class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"
+        >
+          The account the instant answer was built on has every epic research and colleggtible maxed; yours has
+          {{ progressionShort }}. Your real ascensions run slower than these, more so the further short you are. Check
+          exactly gives your own times.
+        </p>
+        <p
+          v-if="leftOut.length"
+          class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"
+        >
+          Not in the instant answer's routes: your {{ leftOut.join(', ') }}.
+          {{ deadline ? '' : 'They are the fastest without them; ' }}the exact times on your account include them.
+        </p>
+      </template>
+
+      <template v-if="result && !deadline">
+        <div class="overflow-x-auto">
+          <p class="text-[11px] text-slate-500">
+            Exact = the full simulator on your account; filled in automatically. Simulate this plan opens that route in
+            Your plan, simulated step by step on your save: each ascension, its dates and purchases.
+          </p>
+          <table class="w-full text-[12px]">
+            <thead>
+              <tr class="text-left text-[9px] font-black uppercase tracking-widest text-slate-400">
+                <th class="py-1 pr-3">Ascensions</th>
+                <th class="py-1 pr-3">Reaches {{ store.finalTE }}</th>
+                <th class="py-1 pr-3">Behind</th>
+                <th class="py-1 pr-3">Exact, your account</th>
+                <th class="py-1 pr-3">Route</th>
+                <th class="py-1"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="r in rows"
+                :key="r.legs.length"
+                class="border-t border-slate-100"
+                :class="r === lead ? 'bg-emerald-50/60' : ''"
+              >
+                <td class="py-1.5 pr-3 font-bold text-slate-800">{{ r.legs.length }}</td>
+                <td class="py-1.5 pr-3 text-slate-700 whitespace-nowrap">{{ show(r.end) }}</td>
+                <td class="py-1.5 pr-3 text-slate-500 whitespace-nowrap">
+                  {{ behind(r) }}
+                </td>
+                <td
+                  class="py-1.5 pr-3 whitespace-nowrap"
+                  :class="r === exactBest ? 'font-bold text-emerald-800' : 'text-slate-700'"
+                >
+                  <template v-if="exactOf(r)">{{ show(exactOf(r)!.end) }} · {{ days(exactOf(r)!.seconds) }}</template>
+                  <template v-else-if="exactOf(r) === null">couldn’t price</template>
+                  <span v-else-if="exactStatus === 'running'" class="text-slate-400">…</span>
+                </td>
+                <td class="py-1.5 pr-3 font-mono-premium text-slate-800">{{ r.chain.join(' ') }}</td>
+                <td class="py-1.5 text-right">
+                  <button
+                    type="button"
+                    class="px-2 py-1 rounded-md border border-slate-300 text-[9px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-800"
+                    :disabled="r.chain.length < 2"
+                    title="Opens this route in Your plan, simulated step by step on your save"
+                    @click="openPlan(r.chain)"
+                  >
+                    Simulate this plan
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <details class="text-[11px] text-slate-500">
+          <summary class="cursor-pointer font-bold text-slate-600">How this is worked out</summary>
+          <p v-if="gearTable" class="mt-1 leading-relaxed">
+            This instant answer was built on gear exactly like yours (the same artifacts and stones, so the same
+            earnings and delivery sets, with epic research and colleggtibles maxed), so its ascensions match the full
+            simulator for you<template v-if="(header?.gearTo ?? 489) < 489">
+              up to TE {{ header?.gearTo }}; above that it uses the instant answer for fully maxed gear at your own
+              delivery rate</template
+            >. Each fresh ascension starts on the hour, where the instant answer was simulated (inside the weekly
+            research sale, at once when that ends sooner).
+          </p>
+          <p v-else-if="own" class="mt-1 leading-relaxed">
+            This instant answer was built on your own account: your earnings and delivery sets, epic research and
+            colleggtibles as your save has them now (Clothed TE bonus {{ header?.cteBonus }}). Each of its ascensions is
+            the simulator's own build, and the waiting after it is the simulator's own arithmetic, so a route here
+            matches the full simulator on your account. Your first ascension is your own, simulated from your save the
+            way Your setup's first ascension says (continue your build-up, finish without buying, or prestige now). Each
+            fresh ascension starts on the hour, where the instant answer was simulated (inside the weekly research sale,
+            at once when that ends sooner). If your gear changes, the page goes back to the instant answer for fully
+            maxed gear until yours is made again.
+          </p>
+          <p v-else class="mt-1 leading-relaxed">
+            The instant answer was built on a maxed account: perfect delivery set, Clothed TE bonus
+            {{ header?.cteBonus }}, all epic research and colleggtibles. Each of its ascensions is the simulator's own
+            build, and the waiting after it is the simulator's own arithmetic, so on that account a route here matches
+            the full simulator to the second. For you: your first ascension is your own, simulated from your save the
+            way Your setup's first ascension says (continue your build-up, finish without buying, or prestige now); the
+            waits run at your own peak delivery rate ({{ ((deliveryScale ?? 1) * 100).toFixed(1) }}% of the instant
+            answer's: the best set your inventory can wear at full research), and each ascension is read from the row
+            for its own TE. Each fresh ascension starts on the hour, where the instant answer was simulated (inside the
+            weekly research sale, at once when that ends sooner); the weekly sale is at a fixed Pacific time, so the
+            hour of the week is what matters.
+          </p>
+          <p class="mt-1 leading-relaxed">
+            How it was built and how closely it matches the full simulator:
+            <a href="#/science/how" class="font-bold text-indigo-700 underline">{{ NAMES.science }} › {{ NAMES.how }}</a
+            >.
+          </p>
+        </details>
+      </template>
     </template>
   </section>
 </template>
@@ -1007,7 +1030,8 @@ async function runBracket(bid: number, legs: FirstLegsBase, hours: Availability 
 const bracketText = computed(() => {
   const b = bracket.value;
   if (!b?.above?.end) return '';
-  const name = (s: BracketSide) => (s.entry.file === 'table.bin' ? 'the instant answer for fully maxed gear' : describeGear(s.entry));
+  const name = (s: BracketSide) =>
+    s.entry.file === 'table.bin' ? 'the instant answer for fully maxed gear' : describeGear(s.entry);
   const hi = b.above;
   const lo = b.below?.end ? b.below : null;
   if (props.deadline)
@@ -1104,7 +1128,10 @@ onUnmounted(() => pool?.terminate());
 // is idle and the instant answer is not mid-run (never cutting off a request: until then this
 // waits); the next request wakes it, reloading the table.
 watch(
-  () => (store.isRunning || store.deadlineRunning || store.resultSending) && status.value !== 'loading' && backgroundStatus.value !== 'running',
+  () =>
+    (store.isRunning || store.deadlineRunning || store.resultSending) &&
+    status.value !== 'loading' &&
+    backgroundStatus.value !== 'running',
   free => {
     if (free) pool?.sleep();
   }
@@ -1542,7 +1569,9 @@ const strongBest = computed(() => {
   return r && e ? { chain: r.chain, end: e.end, endTE: e.endTE, seconds: e.seconds } : null;
 });
 const strongHandoff = computed<HandoffChoice>(() =>
-  props.deadline ? (dateExact.value?.handoff ?? 'hour') : ((exactBest.value && exactOf(exactBest.value)?.handoff) || 'hour')
+  props.deadline
+    ? (dateExact.value?.handoff ?? 'hour')
+    : (exactBest.value && exactOf(exactBest.value)?.handoff) || 'hour'
 );
 
 /** Exact prices by `chain.join(',')`; null where the simulator could not price the route. */
@@ -2266,7 +2295,9 @@ function buildRecord(): InstantRecord | null {
     ...(deadline ? { deadline: Math.round(deadline) } : { target: store.finalTE }),
     planStart: Math.round(planStart),
     timezone: zone.value,
-    ...(backupTime ? { backupTime: Math.round(backupTime), backupAgeHours: round((planStart - backupTime) / 3600, 1) } : {}),
+    ...(backupTime
+      ? { backupTime: Math.round(backupTime), backupAgeHours: round((planStart - backupTime) / 3600, 1) }
+      : {}),
     currentTE: Math.floor(store.currentTE),
     ...(initialState.rawBackup ? { backupTE: round(store.backupTE, 2) } : {}),
     ...(parts ? { clothedTE: round(parts.total, 2) } : {}),
