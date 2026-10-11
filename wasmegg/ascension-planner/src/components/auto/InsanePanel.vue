@@ -1069,43 +1069,22 @@
             </p>
           </template>
 
-          <div class="flex flex-wrap gap-2">
-            <!-- Already on the board and the name box now differs from what went (typically: sent
-               anonymously, now "Credit me as ..."): the button renames the stored row, which only
-               works from the browser that sent it. -->
-            <button
-              v-if="store.submitUrl && nameToClaim"
-              type="button"
-              :disabled="!optIn || claiming"
-              class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 disabled:opacity-40"
-              :title="`Put ${nameToClaim} on the run already on the board, instead of sending it again`"
-              @click="claim"
-            >
-              {{ claiming ? 'Renaming...' : 'Put my name on it' }}
-            </button>
-            <button
-              v-else-if="store.submitUrl"
-              type="button"
-              :disabled="!optIn || submitting || store.alreadySubmitted"
-              class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 disabled:opacity-40"
-              @click="submit()"
-            >
-              <SendingText v-if="submitting" /><template v-else>{{
-                store.alreadySubmitted ? 'On the board' : 'Submit result'
-              }}</template>
-            </button>
-            <span v-else class="text-[11px] text-indigo-900/70">
-              No collector configured in this build (<code class="font-mono-premium">VITE_SUBMIT_URL</code>).
-            </span>
-          </div>
-          <!-- The summary landed but the table did not: Retry the table sends just the table, with the
-               same one-time token, rather than a second submission. -->
-          <ShareStatus
+          <BoardSubmitButtons
+            :opt-in="optIn"
+            :submit-url="store.submitUrl"
+            :name-to-claim="nameToClaim"
+            :claiming="claiming"
+            :sending="submitting"
+            :already-submitted="store.alreadySubmitted"
             :message="submitMessage"
             :ok="submitOk"
             :partial="submitPartial"
             :pending-table="store.pendingTable?.source === 'fastest'"
             :retrying="retryingTable"
+            :preview="payloadPreview"
+            @claim="claim"
+            @submit="submit()"
+            @save="downloadSubmission"
             @retry="retryTable"
           />
         </ShareResult>
@@ -1154,16 +1133,13 @@ import { useUIStore } from '@/stores/ui';
 import RunNoteBox from './RunNoteBox.vue';
 import FindBar from './FindBar.vue';
 import ShareResult from './ShareResult.vue';
-import ShareStatus from './ShareStatus.vue';
-import SendingText from './SendingText.vue';
 import UnsentResults from './UnsentResults.vue';
-import { useShareExtras } from '@/composables/useShareExtras';
-import { useBoardSubmit, useShareIdentity } from '@/composables/useShareResult';
+import { NICKNAME_MAX, useFastestShare } from '@/composables/useFastestShare';
+import BoardSubmitButtons from './BoardSubmitButtons.vue';
 import StepAwayOptions from './StepAwayOptions.vue';
 import SavedRuns from './SavedRuns.vue';
 import AutoSendReport from './AutoSendReport.vue';
 import RouteResultCard from './RouteResultCard.vue';
-import { sendRunResult } from '@/search/sendRun';
 import { parseSweepRequest, withoutSweepParams } from '@/search/sweepRequest';
 import { describeFirstAscension } from '@/search/firstAscension';
 import {
@@ -1453,22 +1429,6 @@ function setWorkers(raw: string): void {
 
 const saving = ref(false);
 
-/**
- * Credit. Same shape as the main panel's, deliberately -- this panel had no nickname field at all,
- * so every exhaustive result reached the board as `anonymous` no matter who ran it.
- *
- * The collector caps a nickname at 40 characters and TRUNCATES rather than rejecting, so the stamp
- * has to be budgeted for here: a name typed to the full length with the date appended would come
- * back from the board with the date sliced off, which is the one failure that would quietly undo
- * the reason for having it.
- */
-const NICKNAME_MAX = 40;
-/** ` YYYY-MM-DD HH:MM` -- the space plus sixteen characters. */
-const STAMP_LEN = 17;
-
-/** On, like the main panel's: the per-leg rows are what make a pooled dataset worth more than a
- *  ranking, and the whole block already sits behind an unticked opt-in. */
-const { sendCsv: includeCsv, diagnosticsGo } = useShareExtras();
 /** Off by default, because it is now a convenience rather than a fix.
  *
  *  It was introduced as a workaround: the board collapsed re-runs on
@@ -1478,32 +1438,16 @@ const { sendCsv: includeCsv, diagnosticsGo } = useShareExtras();
  *  space in that key, so both rows stand on their own and a dated name buys nothing but
  *  legibility. Defaulting it on would be decorating every name to solve a problem that is fixed. */
 const stampName = ref(false);
-/** Consent, anonymous-or-named and the name box (composables/useShareResult.ts): the same choices
- *  as Find and submit's bar. */
-const { optIn, anonymous, nickname, nicknameTouched } = useShareIdentity(() => props.playerId);
-
-/** Local time, not UTC: it sits next to `startLocal` and `endLocal` on the row, which are local
- *  too, and a stamp in a timezone the submitter never saw would read as somebody else's clock. */
-function localStamp(d = new Date()): string {
-  const p = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
-}
-
-/** What actually goes on the row. Anonymous wins over whatever is in the box, so a half-typed name
- *  cannot be sent by someone who then picked anonymous. */
-const effectiveNickname = computed(() => {
-  if (anonymous.value) return '';
-  const base = nickname.value.trim();
-  if (!base) return '';
-  if (!stampName.value) return base.slice(0, NICKNAME_MAX);
-  return `${base.slice(0, NICKNAME_MAX - STAMP_LEN)} ${localStamp()}`;
-});
-
-const submitting = ref(false);
-/** The status line, Put my name on it (with "Add the time to the name" ticked the stamp is part of
- *  the name, as it would be on a send), Retry the table and the rechecks worked out once consent is
- *  given (composables/useShareResult.ts). */
+/** Consent, anonymous-or-named, the name box, the CSV and diagnostics boxes, the status line, Put my
+ *  name on it (with "Add the time to the name" ticked the stamp is part of the name, as it would be on
+ *  a send), Retry the table and the send (composables/useFastestShare.ts, shared with Smart search). */
 const {
+  optIn,
+  anonymous,
+  nickname,
+  nicknameTouched,
+  plainName,
+  effectiveNickname,
   submitMessage,
   submitOk,
   submitPartial,
@@ -1512,8 +1456,11 @@ const {
   nameToClaim,
   claiming,
   claim,
-  refuseDuplicate,
-} = useBoardSubmit(store, effectiveNickname, optIn);
+  submitting,
+  submit,
+  payloadPreview,
+  downloadSubmission,
+} = useFastestShare(store, () => props.playerId, stampName);
 
 /** Values across all the bands (the "Values tried" figure). */
 const poolSize = computed(() => bands.value.reduce((n, b) => n + b.length, 0));
@@ -1959,7 +1906,7 @@ async function start(andSubmit = false): Promise<void> {
   // For the progress bar on other tabs: this run sends itself when it finishes.
   store.submitsWhenDone = findAndSubmit.value || (!!sweepRequest && sweepConsent.value);
   // Send best so far, with the consent this click already has (or that the box asks for mid-run).
-  store.beginBestSoFar('fastest', store.submitsWhenDone ? { nickname: bestSoFarName() } : null);
+  store.beginBestSoFar('fastest', store.submitsWhenDone ? { nickname: plainName.value } : null);
   try {
     // A fresh click: an unfinished queue from before (a crash, a reload) is over, so a later carry-on
     // of the run in the slot runs that chain alone, not the old queue's rest.
@@ -1972,10 +1919,6 @@ async function start(andSubmit = false): Promise<void> {
   }
 }
 
-/** The name a best so far goes under: the box's, without the time stamp (that is for the final row). */
-function bestSoFarName(): string {
-  return anonymous.value ? '' : nickname.value.trim().slice(0, NICKNAME_MAX);
-}
 
 /**
  * Whether the run that just ended owes the board its result: the player agreed to share during the
@@ -2042,7 +1985,7 @@ async function startQueue(): Promise<void> {
       ascensions: Math.max(1, row.asc),
     })),
   ];
-  await runQueue(props.playerId, chains, { from: 0, results: [], carry: null, name: bestSoFarName() });
+  await runQueue(props.playerId, chains, { from: 0, results: [], carry: null, name: plainName.value });
 }
 
 /**
@@ -2240,34 +2183,4 @@ const crashedQueueNote = computed(() => {
 
 /** Which run is mid-resume, for the button's own label. Empty when none is. */
 const resuming = ref('');
-
-async function submit(sweepSend = false): Promise<void> {
-  // Clicks made while the page was frozen building the table arrive afterwards; each one used to
-  // send another copy.
-  // Already sent (automatically or by hand): a second send is only a duplicate row.
-  if (refuseDuplicate()) return;
-  if (submitting.value) return;
-  submitting.value = true;
-  submitOk.value = true;
-  try {
-    // The steps themselves are shared with the Science tab's runner (search/sendRun.ts). The CSV
-    // goes as the second argument there: this panel once sent without it, so every exhaustive row
-    // on the board read "No CSV was attached".
-    const res = await sendRunResult(
-      store,
-      effectiveNickname.value,
-      // A sweep link hides the share boxes: its card promises the full CSV and does not mention
-      // diagnostics, so it always sends the one and never the other, whatever the remembered boxes say.
-      sweepSend || includeCsv.value,
-      text => {
-        submitMessage.value = text;
-      },
-      !sweepSend && diagnosticsGo.value
-    );
-    submitOk.value = res.ok;
-    submitMessage.value = res.text;
-  } finally {
-    submitting.value = false;
-  }
-}
 </script>

@@ -1088,68 +1088,24 @@
              the submit and save buttons stay disabled until it is. Defaulting this on would make
              the consent text decorative. The wording is ShareResult's own acknowledgement. -->
 
-        <div class="flex flex-wrap items-end gap-3">
-          <button
-            type="button"
-            class="px-3 py-2 rounded-lg border border-indigo-300 text-indigo-700 text-[10px] font-black uppercase tracking-widest hover:bg-white"
-            :aria-expanded="showPayload"
-            @click="showPayload = !showPayload"
-          >
-            {{ showPayload ? '&#8964; Hide' : '&#8250; Show' }} exactly what is sent
-          </button>
-
-          <!-- Already on the board and the name box now differs from what went (typically: sent
-               anonymously, now "Credit me as ..."): the button renames the stored row, which only
-               works from the browser that sent it. -->
-          <button
-            v-if="store.submitUrl && nameToClaim"
-            type="button"
-            :disabled="!optIn || claiming"
-            class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500 disabled:opacity-40"
-            :title="`Put ${nameToClaim} on the run already on the board, instead of sending it again`"
-            @click="claim"
-          >
-            {{ claiming ? 'Renaming...' : 'Put my name on it' }}
-          </button>
-          <button
-            v-else-if="store.submitUrl"
-            type="button"
-            :disabled="!optIn || submitState === 'sending' || store.alreadySubmitted"
-            class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500 disabled:opacity-40"
-            @click="submit"
-          >
-            <SendingText v-if="submitState === 'sending'" /><template v-else>{{
-              store.alreadySubmitted ? 'On the board' : 'Submit result'
-            }}</template>
-          </button>
-
-          <button
-            type="button"
-            :disabled="!optIn"
-            class="px-4 py-2 rounded-lg border border-indigo-300 text-indigo-700 text-[10px] font-black uppercase tracking-widest hover:bg-white disabled:opacity-40"
-            @click="downloadSubmission"
-          >
-            Save the file instead
-          </button>
-
-          <!-- The summary landed but the table did not: Retry the table sends just the table, with the
-               same one-time token, rather than a second submission. -->
-          <ShareStatus
-            tag="span"
-            :message="submitMessage"
-            :ok="submitOk"
-            :partial="submitPartial"
-            :pending-table="store.pendingTable?.source === 'fastest'"
-            :retrying="retryingTable"
-            @retry="retryTable"
-          />
-        </div>
-
-        <pre
-          v-if="showPayload"
-          class="max-h-64 overflow-auto rounded-lg bg-slate-900 p-3 text-[10px] leading-relaxed text-slate-200"
-          >{{ payloadPreview }}</pre
-        >
+        <BoardSubmitButtons
+          :opt-in="optIn"
+          :submit-url="store.submitUrl"
+          :name-to-claim="nameToClaim"
+          :claiming="claiming"
+          :sending="submitting"
+          :already-submitted="store.alreadySubmitted"
+          :message="submitMessage"
+          :ok="submitOk"
+          :partial="submitPartial"
+          :pending-table="store.pendingTable?.source === 'fastest'"
+          :retrying="retryingTable"
+          :preview="payloadPreview"
+          @claim="claim"
+          @submit="submit()"
+          @save="downloadSubmission"
+          @retry="retryTable"
+        />
 
         <p class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3 leading-relaxed">
           <span class="font-black uppercase tracking-wide">What this does and does not include.</span>
@@ -1198,11 +1154,6 @@
           it.
         </p>
 
-        <p v-if="!store.submitUrl" class="text-[11px] text-indigo-900/70 leading-relaxed">
-          No collector is configured in this build, so there is nowhere to submit to and the button is not shown.
-          <span class="font-semibold">Save the file</span> and share it however you like. Self-hosting: set
-          <span class="font-mono">VITE_SUBMIT_URL</span> at build time.
-        </p>
       </ShareResult>
 
       <!-- The run's own shape, and why it ended. The CSV had all of this already, but reading it
@@ -1280,13 +1231,10 @@ import { NAMES } from '@/lib/siteNav';
 import { useUIStore } from '@/stores/ui';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
-import { sentence } from '@/utils/errors';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { EFFORT, EFFORT_NOTES, EFFORT_ORDER, NEAR_OPTIMAL_SHARE } from '@/search/effort';
 import { formatDuration, plural } from '@/lib/format';
 import { isAvailable } from '@/search/availability';
-import { afterPaint } from '@/search/submission';
-import { withPrivateDiagnostics } from '@/search/sendRun';
 import ChainSearchExplainer from './ChainSearchExplainer.vue';
 import HelpTip from './HelpTip.vue';
 import StartTimeFinder from './StartTimeFinder.vue';
@@ -1294,11 +1242,9 @@ import FindBar from './FindBar.vue';
 import CarryOnOffer from './CarryOnOffer.vue';
 import BlockedRunNotice from './BlockedRunNotice.vue';
 import ShareResult from './ShareResult.vue';
-import ShareStatus from './ShareStatus.vue';
-import SendingText from './SendingText.vue';
 import UnsentResults from './UnsentResults.vue';
-import { useShareExtras } from '@/composables/useShareExtras';
-import { useBoardSubmit, useShareIdentity } from '@/composables/useShareResult';
+import { useFastestShare } from '@/composables/useFastestShare';
+import BoardSubmitButtons from './BoardSubmitButtons.vue';
 import StepAwayOptions from './StepAwayOptions.vue';
 import SavedRuns from './SavedRuns.vue';
 import AutoSendReport from './AutoSendReport.vue';
@@ -1454,30 +1400,18 @@ const suggestedCountNote = computed(() => {
   return `The instant answer suggests ${k === 1 ? '1 ascension' : `${k} ascensions`}; this search starts from ${n}.`;
 });
 
-/**
- * Hand the run's CSV to the browser as a file.
- *
- * A Blob and a revoked object URL rather than a `data:` URI: a long run's export is a few megabytes
- * of text, and `data:` URLs are length-capped in some browsers, which would truncate exactly the
- * big runs worth exporting.
- */
-/** Consent, anonymous-or-named and the name box (composables/useShareResult.ts). The consent is
- *  unchecked by default and gates every path that moves data off the machine -- including the local
- *  save, because a file on disk is the first step to sharing one. */
-const { optIn, anonymous, nickname, nicknameTouched } = useShareIdentity(() => props.playerId);
-
-/** Send the run's full CSV alongside the JSON (ShareExtras.vue; on by default). It costs the
- *  submitter almost nothing now that it is gzipped in the browser first -- 15.3 MB of chain table
- *  compresses to 0.66 MB, measured. */
-const { sendCsv: includeCsv, diagnosticsGo } = useShareExtras();
-const showPayload = ref(false);
-const submitState = ref<'idle' | 'sending' | 'done'>('idle');
-
-/** What a nickname actually resolves to. Anonymous wins over whatever is typed in the box, so
- *  a half-typed name cannot be sent by someone who then picked anonymous. */
-const effectiveNickname = computed(() => (anonymous.value ? '' : nickname.value));
-/** The status line, Put my name on it, Retry the table and the rechecks (useShareResult.ts). */
+/** Consent, anonymous-or-named, the name box, the CSV and diagnostics boxes, the status line, Put my
+ *  name on it, Retry the table and the send (composables/useFastestShare.ts, shared with the Full
+ *  sweep). The consent is unchecked by default and gates every path that moves data off the machine --
+ *  including the local save, because a file on disk is the first step to sharing one. */
 const {
+  optIn,
+  anonymous,
+  nickname,
+  nicknameTouched,
+  includeCsv,
+  diagnosticsGo,
+  effectiveNickname,
   submitMessage,
   submitOk,
   submitPartial,
@@ -1486,72 +1420,11 @@ const {
   nameToClaim,
   claiming,
   claim,
-  refuseDuplicate,
-} = useBoardSubmit(store, effectiveNickname, optIn);
-
-/** The payload, pretty-printed, so "show exactly what is sent" is the literal bytes and not a
- *  summary someone has to trust. */
-const payloadPreview = computed(() => {
-  const p = store.buildRunSubmission(effectiveNickname.value);
-  return p ? JSON.stringify(p, null, 2) : 'Nothing to share yet. Run a search first.';
-});
-
-async function submit(): Promise<void> {
-  // The guard matters as much as the flag: clicks made while the page was frozen building the
-  // table are delivered afterwards, and each one used to send another copy.
-  if (refuseDuplicate()) return;
-  if (!optIn.value || submitState.value === 'sending') return;
-  submitState.value = 'sending';
-  submitOk.value = true;
-  submitMessage.value = 'Preparing your result...';
-  try {
-    // Let the button's new state reach the screen before the heavy CSV build blocks the page.
-    await afterPaint();
-    const payload = store.buildRunSubmission(effectiveNickname.value);
-    if (!payload) {
-      submitOk.value = false;
-      submitMessage.value = 'Nothing to submit yet.';
-      return;
-    }
-    // Black box: a page that dies while building or sending the table says so on the next visit.
-    store.blackBoxMark('submit', includeCsv.value ? 'building the CSV' : 'building the result');
-    // Chunks, compressed as they are made (stores/chainSearch.ts `sendSubmission`): never one big string.
-    const csv = includeCsv.value ? store.exportCsvChunks() : undefined;
-    store.blackBoxMark('submit', csv ? 'sending (the CSV is built as it goes)' : 'sending');
-    submitMessage.value = 'Sending...';
-    const res = await store.sendSubmission(withPrivateDiagnostics(store, payload, diagnosticsGo.value), csv);
-    submitOk.value = res.ok && !res.quarantined;
-    // A copy the collector already had stored nothing, so there is nothing to thank anyone for. One it
-    // refused for the leaderboard but stored is its note as is (the code to quote, and why).
-    submitMessage.value = res.quarantined
-      ? res.message
-      : !res.ok
-      ? `Not sent: ${res.message}`
-      : res.duplicate === 'exact'
-        ? res.message
-        : `Thanks! ${sentence(res.message)}`;
-  } finally {
-    store.blackBoxEnd('submit');
-    submitState.value = 'done';
-  }
-}
-
-/** The offline path, and the only one available with no collector configured. Same Blob dance as
- *  the CSV: a `data:` URI is length-capped in some browsers. */
-function downloadSubmission(): void {
-  if (!optIn.value) return;
-  const payload = store.buildRunSubmission(effectiveNickname.value);
-  if (!payload) return;
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = store.submissionFilename(payload);
-  a.click();
-  URL.revokeObjectURL(url);
-  submitOk.value = true;
-  submitMessage.value = 'Saved. Share it wherever you like.';
-}
+  submitting,
+  submit,
+  payloadPreview,
+  downloadSubmission,
+} = useFastestShare(store, () => props.playerId);
 
 /** The result card's Download CSV (composables/useRunDownloads.ts): the same handler as the CSV card. */
 const { downloadCsv } = useRunDownloads(store);
