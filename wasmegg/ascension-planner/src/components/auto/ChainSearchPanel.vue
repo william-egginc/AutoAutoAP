@@ -382,13 +382,15 @@
         </p>
 
         <p v-if="store.seedIssue.kind === 'too-long'">
-          The starting chain has <span class="font-semibold">{{ plural(store.seedIssue.ascensions, 'ascension') }}</span> and
-          "most ascensions" is set to <span class="font-semibold">{{ store.seedIssue.maxPrestiges }}</span
+          The starting chain has
+          <span class="font-semibold">{{ plural(store.seedIssue.ascensions, 'ascension') }}</span> and "most ascensions"
+          is set to <span class="font-semibold">{{ store.seedIssue.maxPrestiges }}</span
           >.
         </p>
         <p v-else>
-          The starting chain has <span class="font-semibold">{{ plural(store.seedIssue.ascensions, 'ascension') }}</span> and
-          "fewest ascensions" is set to <span class="font-semibold">{{ store.seedIssue.minPrestiges }}</span
+          The starting chain has
+          <span class="font-semibold">{{ plural(store.seedIssue.ascensions, 'ascension') }}</span> and "fewest
+          ascensions" is set to <span class="font-semibold">{{ store.seedIssue.minPrestiges }}</span
           >.
         </p>
 
@@ -399,7 +401,8 @@
         <p v-else>
           The limits only bound the coarse scan and the prestige-count probe, and
           <span class="font-semibold">this effort tier does not run the probe</span>. Every stage works on the chain at
-          the length you gave it, so the answer will come back with {{ plural(store.seedIssue.ascensions, 'ascension') }}.
+          the length you gave it, so the answer will come back with
+          {{ plural(store.seedIssue.ascensions, 'ascension') }}.
         </p>
 
         <div class="flex flex-wrap gap-2 pt-1">
@@ -435,30 +438,16 @@
 
       <!-- Workers, background speed, keep awake and date format: in Your setup at the top. -->
 
-      <SafariNotice />
-      <RunSaveNotice />
-      <IntegrityNotice />
-
-      <div
-        v-if="store.singleAscensionAsked && !store.isRunning"
-        class="p-3 rounded-xl border border-red-200 bg-red-50 text-[11px] text-red-800 leading-relaxed"
-      >
-        <span class="font-black uppercase tracking-wide">That's a single ascension.</span>
-        {{ store.finalTE }} on its own goes straight to the target, so there are no checkpoints for {{ NAMES.smart }} to
-        look for. To plan that one ascension, go to {{ NAMES.auto }} › {{ NAMES.classic }}, type {{ store.finalTE }} in
-        Target TE(s) and press Generate plan. To search for a faster chain instead, give Starting chain some checkpoints
-        (like <span class="font-mono">200 250 300 {{ store.finalTE }}</span
-        >), or tick "Find a starting chain for me".
-      </div>
-
-      <!-- Find / Find and submit: the same bar as the Full sweep (FindBar.vue). The share opt-in is
-           given BEFORE the run, where the player is, instead of at the bottom of a page they may
+      <!-- The run controls (RunControls.vue): the same block on every search screen. The share opt-in
+           is given BEFORE the run, where the player is, instead of at the bottom of a page they may
            have walked away from. A run that is stopped early, fails, or finds nothing sends nothing. -->
-      <FindBar
+      <RunControls
         v-model:opt-in="optIn"
         v-model:anonymous="anonymous"
         v-model:nickname="nickname"
         v-model:note="store.runNote"
+        kind="smart"
+        :player-id="playerId"
         :find-disabled="
           store.busy ||
           store.integrityBlocked ||
@@ -468,11 +457,40 @@
         "
         :running="store.isRunning"
         :stopping="store.stopRequested"
-        best-so-far-kind="fastest"
+        :show-submit="!!store.submitUrl"
+        :can-carry-on="
+          !!store.resumable && !store.resumable.complete && !store.resumable.space && !store.runElsewhere.smart
+        "
+        :report="{
+          own: autoSubmitted,
+          message: submitMessage,
+          ok: submitOk,
+          partial: submitPartial,
+          nameToClaim,
+          claiming,
+          pendingTable: store.pendingTable?.source === 'fastest',
+          retrying: retryingTable,
+        }"
         @find="andSubmit => void run(false, andSubmit)"
         @stop="store.stop()"
         @nickname-typed="nicknameTouched = true"
+        @carry-on="run(true)"
+        @claim="claim"
+        @retry="retryTable"
       >
+        <template #above-find>
+          <div
+            v-if="store.singleAscensionAsked && !store.isRunning"
+            class="p-3 rounded-xl border border-red-200 bg-red-50 text-[11px] text-red-800 leading-relaxed"
+          >
+            <span class="font-black uppercase tracking-wide">That's a single ascension.</span>
+            {{ store.finalTE }} on its own goes straight to the target, so there are no checkpoints for
+            {{ NAMES.smart }} to look for. To plan that one ascension, go to {{ NAMES.auto }} › {{ NAMES.classic }},
+            type {{ store.finalTE }} in Target TE(s) and press Generate plan. To search for a faster chain instead, give
+            Starting chain some checkpoints (like <span class="font-mono">200 250 300 {{ store.finalTE }}</span
+            >), or tick "Find a starting chain for me".
+          </div>
+        </template>
         <template #progress>
           <!-- Live progress -->
           <div v-if="store.isRunning || store.bestDays > 0" class="space-y-4">
@@ -720,33 +738,24 @@
             </p>
           </div>
         </template>
-      </FindBar>
-
-      <!-- Stepping away? Carry on by itself, a watcher tab, fewer workers (StepAwayOptions.vue). -->
-      <StepAwayOptions
-        kind="smart"
-        :player-id="playerId"
-        :can-carry-on="
-          !!store.resumable && !store.resumable.complete && !store.resumable.space && !store.runElsewhere.smart
-        "
-        @carry-on="run(true)"
-      />
-      <!-- A run that finished (and sent) while this panel was closed for another tab. -->
-      <UnsentResults kind="fastest" :player-id="playerId" :nickname="nickname" />
-      <RunSendReport
-        kind="smart"
-        :own="autoSubmitted"
-        :running="store.isRunning"
-        :message="submitMessage"
-        :ok="submitOk"
-        :partial="submitPartial"
-        :name-to-claim="nameToClaim"
-        :claiming="claiming"
-        :pending-table="store.pendingTable?.source === 'fastest'"
-        :retrying="retryingTable"
-        @claim="claim"
-        @retry="retryTable"
-      />
+        <template #after>
+          <RunErrorNotes
+            :notes="store.runNotes"
+            :error="store.errorIsIntegrityNotice ? null : store.error"
+            :before-start="store.errorBeforeStart"
+          >
+            <template v-if="store.chainsDone > 0">
+              {{ plural(store.chainsDone, 'chain') }} {{ store.chainsDone === 1 ? 'was' : 'were' }} priced before it
+              stopped and are saved. Starting the search again replays them without re-simulating anything, so you are
+              resuming rather than restarting.
+            </template>
+            <template v-else>
+              Nothing was priced, so there is nothing to resume. If this repeats, lower the effort tier to see whether a
+              shorter run gets through, and check the browser console for the worker's own error.
+            </template>
+          </RunErrorNotes>
+        </template>
+      </RunControls>
 
       <!-- When to start this route: every hour of the next week, as fresh starts. -->
       <StartTimeFinder
@@ -1010,21 +1019,6 @@
       <!-- A failure is not necessarily a total loss: anything already priced is on the checkpoint
            and a rerun replays it for free. Saying so is the difference between "start again" and
            "press Start search again and keep your three hours". -->
-      <RunErrorNotes
-        :notes="store.runNotes"
-        :error="store.errorIsIntegrityNotice ? null : store.error"
-        :before-start="store.errorBeforeStart"
-      >
-        <template v-if="store.chainsDone > 0">
-          {{ plural(store.chainsDone, 'chain') }} {{ store.chainsDone === 1 ? 'was' : 'were' }} priced before it
-          stopped and are saved. Starting the search again replays them without re-simulating anything, so you are
-          resuming rather than restarting.
-        </template>
-        <template v-else>
-          Nothing was priced, so there is nothing to resume. If this repeats, lower the effort tier to see whether a
-          shorter run gets through, and check the browser console for the worker's own error.
-        </template>
-      </RunErrorNotes>
 
       <!-- Verbose view: every stage and every accepted move, in order. The panel shows only the
            newest line while running; this is the running commentary. The CSV below it is the
@@ -1141,7 +1135,6 @@
           <a href="#/compare/race" class="font-bold text-indigo-700 underline hover:text-indigo-900">Race</a>, next to
           it.
         </p>
-
       </ShareResult>
 
       <!-- The run's own shape, and why it ended. The CSV had all of this already, but reading it
@@ -1226,24 +1219,17 @@ import { isAvailable } from '@/search/availability';
 import ChainSearchExplainer from './ChainSearchExplainer.vue';
 import HelpTip from './HelpTip.vue';
 import StartTimeFinder from './StartTimeFinder.vue';
-import FindBar from './FindBar.vue';
 import CarryOnOffer from './CarryOnOffer.vue';
 import BlockedRunNotice from './BlockedRunNotice.vue';
 import ShareResult from './ShareResult.vue';
-import UnsentResults from './UnsentResults.vue';
 import { useFastestShare } from '@/composables/useFastestShare';
 import BoardSubmitButtons from './BoardSubmitButtons.vue';
-import StepAwayOptions from './StepAwayOptions.vue';
 import SavedRuns from './SavedRuns.vue';
-import RunSendReport from './RunSendReport.vue';
 import RouteResultCard from './RouteResultCard.vue';
 import LongerRouteHint from './LongerRouteHint.vue';
 import { defaultSeedChain } from '@/search/seedChain';
 import { startFromCountPlan } from '@/lib/longerRouteHint';
 import { describeCompute } from '@/utils/computeTime';
-import IntegrityNotice from './IntegrityNotice.vue';
-import SafariNotice from './SafariNotice.vue';
-import RunSaveNotice from './RunSaveNotice.vue';
 import UnfinishedRuns from './UnfinishedRuns.vue';
 import RunCharts from './charts/RunCharts.vue';
 import { chainCount } from '@/lib/chartThin';
@@ -1253,6 +1239,7 @@ import { VIEWS } from '@/search/views';
 import { useRunDownloads } from '@/composables/useRunDownloads';
 import CsvCard from './CsvCard.vue';
 import RunErrorNotes from './RunErrorNotes.vue';
+import RunControls from './RunControls.vue';
 import RunProgress from './RunProgress.vue';
 
 const props = defineProps<{ playerId: string }>();

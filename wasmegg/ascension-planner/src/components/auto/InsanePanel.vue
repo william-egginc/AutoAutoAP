@@ -152,8 +152,9 @@
           v-if="ascMismatch"
           class="rounded-lg bg-rose-50 border border-rose-200 px-3 py-2 text-[11px] font-semibold text-rose-800"
         >
-          The Ascensions box ({{ suggestAsc }}) no longer matches this sweep ({{ plural(bands.length + 1, 'ascension') }}). To
-          start, set it back to {{ bands.length + 1 }} under The space to search.
+          The Ascensions box ({{ suggestAsc }}) no longer matches this sweep ({{
+            plural(bands.length + 1, 'ascension')
+          }}). To start, set it back to {{ bands.length + 1 }} under The space to search.
         </p>
         <div class="flex flex-wrap items-center gap-3">
           <button
@@ -521,9 +522,10 @@
                 v-if="ascMismatch"
                 class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-semibold text-rose-800 leading-relaxed"
               >
-                Your bands make {{ plural(bands.length + 1, 'ascension') }}, and that is what would run, but the Ascensions box
-                says {{ suggestAsc }}. The box only chooses what Suggest a space fills in: press Suggest a space to
-                switch to {{ plural(suggestAsc, 'ascension') }}, or set the box back to {{ bands.length + 1 }}.
+                Your bands make {{ plural(bands.length + 1, 'ascension') }}, and that is what would run, but the
+                Ascensions box says {{ suggestAsc }}. The box only chooses what Suggest a space fills in: press Suggest
+                a space to switch to {{ plural(suggestAsc, 'ascension') }}, or set the box back to
+                {{ bands.length + 1 }}.
               </p>
             </label>
 
@@ -735,39 +737,15 @@
           </p>
         </div>
 
-        <SafariNotice />
-
-        <RunSaveNotice />
-        <!-- With a sweep open, the card at the top already shows it. -->
-        <IntegrityNotice v-if="!sweepRequest" />
-        <!-- The same carry-on as the box at the top, next to Start where people look for it. -->
-        <div
-          v-if="store.crashedRun && !store.busy && !store.runElsewhere.sweep && queueAt < 0"
-          class="flex flex-wrap items-center gap-3 rounded-xl border border-amber-300 bg-amber-50 p-3"
-        >
-          <button
-            type="button"
-            class="px-4 py-2 rounded-lg bg-amber-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-800"
-            @click="resumeCrashed"
-          >
-            {{ store.crashedQueue ? 'Carry on the unfinished queue' : 'Carry on the unfinished run' }}
-          </button>
-          <span v-if="store.crashedQueue" class="text-[11px] text-amber-900">
-            Chain {{ store.crashedQueue.next + 1 }} of {{ store.crashedQueue.record.chains.length }} next; its settings
-            are put back for you.
-          </span>
-          <span v-else class="text-[11px] text-amber-900">
-            {{ (store.crashedRun.durations?.length ?? 0).toLocaleString() }} chains already priced; its settings are put
-            back for you.
-          </span>
-        </div>
-        <!-- Find / Find and submit: the same bar as Smart search (FindBar.vue). A sweep link already
-             sends itself, so it gets Find alone, labelled as the card at the top labels it. -->
-        <FindBar
+        <!-- The run controls (RunControls.vue): the same block on every search screen. A sweep link
+             already sends itself, so it gets Find alone, labelled as the card at the top labels it. -->
+        <RunControls
           v-model:opt-in="optIn"
           v-model:anonymous="anonymous"
           v-model:nickname="nickname"
           v-model:note="store.runNote"
+          kind="full"
+          :player-id="playerId"
           :find-disabled="
             store.busy ||
             store.integrityBlocked ||
@@ -787,15 +765,52 @@
                 : 'Start this sweep (tick &quot;I understand&quot; at the top first)'
               : 'Find'
           "
-          :running-label="findAndSubmit ? 'Pricing every chain, then submitting...' : 'Pricing every chain...'"
-          :show-submit="!sweepRequest"
+          running-word="Pricing every chain"
+          :show-submit="!sweepRequest && !!store.submitUrl"
           consent-note="each chain's, when you queued several"
-          :nickname-max="NICKNAME_MAX"
-          best-so-far-kind="fastest"
+          :can-carry-on="!!store.crashedRun && !store.runElsewhere.sweep && queueAt < 0"
+          :integrity-notice="!sweepRequest"
+          :report="{
+            own: autoSubmitted && !sweepRequest,
+            message: submitMessage,
+            ok: submitOk,
+            partial: submitPartial,
+            nameToClaim,
+            claiming,
+            pendingTable: store.pendingTable?.source === 'fastest',
+            retrying: retryingTable,
+            quiet: autoSubmitted,
+          }"
           @find="andSubmit => void start(andSubmit)"
           @stop="stopRun"
           @nickname-typed="nicknameTouched = true"
+          @carry-on="resumeCrashed"
+          @claim="claim"
+          @retry="retryTable"
         >
+          <template #above-find>
+            <!-- The same carry-on as the box at the top, next to Start where people look for it. -->
+            <div
+              v-if="store.crashedRun && !store.busy && !store.runElsewhere.sweep && queueAt < 0"
+              class="flex flex-wrap items-center gap-3 rounded-xl border border-amber-300 bg-amber-50 p-3"
+            >
+              <button
+                type="button"
+                class="px-4 py-2 rounded-lg bg-amber-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-800"
+                @click="resumeCrashed"
+              >
+                {{ store.crashedQueue ? 'Carry on the unfinished queue' : 'Carry on the unfinished run' }}
+              </button>
+              <span v-if="store.crashedQueue" class="text-[11px] text-amber-900">
+                Chain {{ store.crashedQueue.next + 1 }} of {{ store.crashedQueue.record.chains.length }} next; its
+                settings are put back for you.
+              </span>
+              <span v-else class="text-[11px] text-amber-900">
+                {{ (store.crashedRun.durations?.length ?? 0).toLocaleString() }} chains already priced; its settings are
+                put back for you.
+              </span>
+            </div>
+          </template>
           <template #progress>
             <RunProgress
               v-if="store.stage"
@@ -854,39 +869,14 @@
               </p>
             </div>
           </template>
-        </FindBar>
-
-        <!-- Stepping away? Carry on by itself, a watcher tab, fewer workers (StepAwayOptions.vue). -->
-        <StepAwayOptions
-          kind="sweep"
-          :player-id="playerId"
-          :can-carry-on="!!store.crashedRun && !store.runElsewhere.sweep && queueAt < 0"
-          @carry-on="resumeCrashed"
-        />
-        <!-- A Find and submit that finished (and sent) while this panel was closed for another tab. -->
-        <UnsentResults kind="fastest" :player-id="playerId" :nickname="nickname" />
-        <!-- How the automatic send went (with a sweep link, the card at the top says it). -->
-        <RunSendReport
-          kind="full"
-          :own="autoSubmitted && !sweepRequest"
-          :running="store.isRunning"
-          :message="submitMessage"
-          :ok="submitOk"
-          :partial="submitPartial"
-          :name-to-claim="nameToClaim"
-          :claiming="claiming"
-          :pending-table="store.pendingTable?.source === 'fastest'"
-          :retrying="retryingTable"
-          :quiet="autoSubmitted"
-          @claim="claim"
-          @retry="retryTable"
-        />
-
-        <RunErrorNotes
-          :notes="store.runNotes"
-          :error="store.errorIsIntegrityNotice ? null : store.error"
-          :before-start="store.errorBeforeStart"
-        />
+          <template #after>
+            <RunErrorNotes
+              :notes="store.runNotes"
+              :error="store.errorIsIntegrityNotice ? null : store.error"
+              :before-start="store.errorBeforeStart"
+            />
+          </template>
+        </RunControls>
 
         <!-- The outcome with no best chain. Without it a finished run simply lacked the result card,
            the Save button stayed grey and Submit never appeared, with nothing saying why -- which
@@ -941,8 +931,8 @@
             @widen="widenAndRun"
           >
             <template v-if="edgeWiden">
-              The wider space is {{ plural(edgeWiden.chains, 'chain') }}. Chains already priced are reused when
-              your setup hasn't changed.
+              The wider space is {{ plural(edgeWiden.chains, 'chain') }}. Chains already priced are reused when your
+              setup hasn't changed.
             </template>
           </EdgeWarning>
           <!-- Fastest is fast, not best: when a longer route might win, say so (never runs anything). -->
@@ -1128,14 +1118,10 @@ import { useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useUIStore } from '@/stores/ui';
 import RunNoteBox from './RunNoteBox.vue';
-import FindBar from './FindBar.vue';
 import ShareResult from './ShareResult.vue';
-import UnsentResults from './UnsentResults.vue';
 import { NICKNAME_MAX, useFastestShare } from '@/composables/useFastestShare';
 import BoardSubmitButtons from './BoardSubmitButtons.vue';
-import StepAwayOptions from './StepAwayOptions.vue';
 import SavedRuns from './SavedRuns.vue';
-import RunSendReport from './RunSendReport.vue';
 import RouteResultCard from './RouteResultCard.vue';
 import { parseSweepRequest, withoutSweepParams } from '@/search/sweepRequest';
 import { describeFirstAscension } from '@/search/firstAscension';
@@ -1163,8 +1149,6 @@ import { showDateTime } from '@/lib/displayTime';
 import { sweepSeconds, workerSecondsFromRate, workerSecondsPerChain } from '@/search/speed';
 import { describeCompute } from '@/utils/computeTime';
 import IntegrityNotice from './IntegrityNotice.vue';
-import SafariNotice from './SafariNotice.vue';
-import RunSaveNotice from './RunSaveNotice.vue';
 import type { SweepQueueChain, SweepQueueRecord, SweepQueueResult } from '@/search/persistence';
 import { runSweepQueue } from '@/search/sweepQueueRun';
 import UnfinishedRuns from './UnfinishedRuns.vue';
@@ -1176,9 +1160,11 @@ import { describeTimeOff, usableTimeOff } from '@/search/timeOff';
 import { gridIsComplete, gridStepLabel } from '@/search/grid';
 import { useRunDownloads } from '@/composables/useRunDownloads';
 import CsvCard from './CsvCard.vue';
+import RunSendReport from './RunSendReport.vue';
 import RunProgress from './RunProgress.vue';
 import EdgeWarning from './EdgeWarning.vue';
 import RunErrorNotes from './RunErrorNotes.vue';
+import RunControls from './RunControls.vue';
 import LongerRouteHint from './LongerRouteHint.vue';
 
 const props = defineProps<{
@@ -1915,7 +1901,6 @@ async function start(andSubmit = false): Promise<void> {
     store.endBestSoFar();
   }
 }
-
 
 /**
  * Whether the run that just ended owes the board its result: the player agreed to share during the

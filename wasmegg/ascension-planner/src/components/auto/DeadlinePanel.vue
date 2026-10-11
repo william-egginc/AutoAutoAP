@@ -212,8 +212,8 @@
               instantNote(k)
             }}</span>
             <span v-else-if="chains[k].centre && !chains[k].centredOn" class="block text-[10px] text-slate-500"
-              >No instant answer for {{ plural(row.asc, 'ascension') }} yet, so the boxes after the first are the card's wider
-              ones.</span
+              >No instant answer for {{ plural(row.asc, 'ascension') }} yet, so the boxes after the first are the card's
+              wider ones.</span
             >
             <p v-if="chains[k].restored && row.asc >= 2" class="text-[10px] text-slate-400">
               Restored from the unfinished run (the sliders apply when you press Suggest a space).
@@ -407,7 +407,14 @@
         <template v-if="store.longRunNote.kind === 'default'">{{ longRunLine(store.longRunNote.workers) }}</template>
         <template v-else>
           {{ longRunHandLine(LONG_RUN_WORKERS, store.longRunNote.have) }}
-          <button type="button" class="ml-1 underline" data-testid="use-long-run-workers" @click="store.useLongRunWorkers()">Use {{ LONG_RUN_WORKERS }}</button>
+          <button
+            type="button"
+            class="ml-1 underline"
+            data-testid="use-long-run-workers"
+            @click="store.useLongRunWorkers()"
+          >
+            Use {{ LONG_RUN_WORKERS }}
+          </button>
         </template>
       </p>
     </div>
@@ -421,43 +428,39 @@
     </label>
 
     <!-- Keep awake is in Your setup at the top, with the other computer settings. -->
-    <SafariNotice />
-    <!-- An older save in the planner (a saved entry's, a file's): this search runs on it, and says so.
-         Only that half of the notice: its re-check of older results reads Fastest's routes. -->
-    <RunSaveNotice v-if="ui.runSaveLoaded" />
-    <IntegrityNotice :deadline-offer="!!store.deadlineUnfinished" />
-    <!-- A Find and submit that finished (and shared) while this panel was closed for another tab. -->
-    <!-- Finished results kept until sent (search/pendingSends.ts): "This result wasn't sent: Send it now". -->
-    <UnsentResults kind="deadline" :player-id="playerId" :nickname="shareName" />
-    <RunSendReport
-      kind="by-date"
-      :own="autoShared"
-      :running="store.deadlineRunning"
-      :message="shareMessage"
-      :ok="shareOk"
-      :partial="sharePartial"
-      :pending-table="store.pendingTable?.source === 'deadline'"
-      :retrying="retryingTable"
-      :quiet="!!shareMessage"
-      @retry="retryTable"
-    />
-    <!-- Find / Find and submit: the same bar as Fastest route (FindBar.vue), with this screen's own
+    <!-- The run controls (RunControls.vue): the same block as Fastest route's, with this screen's own
          consent wording. The same share settings as the Share this result box under the result. -->
-    <FindBar
+    <RunControls
+      ref="stepAway"
       v-model:opt-in="shareOptIn"
       v-model:anonymous="shareAnonymous"
       v-model:nickname="shareName"
       v-model:note="store.runNote"
+      kind="by-date"
+      :player-id="playerId"
       :find-disabled="store.busy || store.integrityBlocked || store.staleBackupBlocked || !canStart"
       :running="store.deadlineRunning"
       :stopping="stopAsked"
-      :running-label="autoShare ? 'Searching, then submitting...' : 'Searching...'"
       :show-submit="collectorConfigured"
-      goal-word="deadline"
-      best-so-far-kind="deadline"
+      :can-carry-on="!!store.deadlineUnfinished?.saveKept && !store.runElsewhere.deadline"
+      countdown-elsewhere
+      :run-save-notice="!!ui.runSaveLoaded"
+      :deadline-offer="!!store.deadlineUnfinished"
+      :report="{
+        own: autoShared,
+        message: shareMessage,
+        ok: shareOk,
+        partial: sharePartial,
+        pendingTable: store.pendingTable?.source === 'deadline',
+        retrying: retryingTable,
+        quiet: !!shareMessage,
+      }"
       @find="andSubmit => void start(andSubmit)"
       @stop="stopDeadline"
       @nickname-typed="shareNameTouched = true"
+      @carry-on="resume"
+      @countdown="n => (autoCountdown = n)"
+      @retry="retryTable"
     >
       <template #progress>
         <!-- Live progress, Insane-style. -->
@@ -479,9 +482,7 @@
               ><template v-if="liveTotal && liveDone >= liveTotal">
                 · more than the ~{{ roundedRoutes(liveTotal).toLocaleString() }} routes estimated</template
               ><template v-if="estNow.learned"> · {{ estimateNote(estNow) }}</template
-              ><template v-if="store.deadlineLegSims">
-                · {{ plural(store.deadlineLegSims, 'leg') }} simulated</template
-              >
+              ><template v-if="store.deadlineLegSims"> · {{ plural(store.deadlineLegSims, 'leg') }} simulated</template>
             </p>
           </RunProgress>
           <!-- The best so far in the finished answer's card (ByDateRouteCard.vue), then the next ones. -->
@@ -520,53 +521,44 @@
           </div>
         </div>
       </template>
-    </FindBar>
-
-    <!-- Stepping away? Carry on by itself, a watcher tab, fewer workers (StepAwayOptions.vue). -->
-    <StepAwayOptions
-      ref="stepAway"
-      kind="deadline"
-      countdown-elsewhere
-      @countdown="n => (autoCountdown = n)"
-      :player-id="playerId"
-      :can-carry-on="!!store.deadlineUnfinished?.saveKept && !store.runElsewhere.deadline"
-      @carry-on="resume"
-    />
-    <!-- Everything above greys out while anything else in this tab is busy; say what, and offer a way out. -->
-    <div
-      v-if="store.busy && !store.deadlineRunning"
-      class="flex flex-wrap items-center gap-3 rounded-xl border border-slate-300 bg-slate-50 p-3 text-[11px] text-slate-700"
-    >
-      <span>
-        <span class="font-bold">Waiting for another run in this tab:</span>
-        <template v-if="store.isRunning">
-          the fastest-to-a-target search ({{ store.stage || 'running' }}, {{ store.chainsDone.toLocaleString() }} of
-          {{ store.chainsEstimated.toLocaleString() }})</template
+      <template #after>
+        <!-- Everything above greys out while anything else in this tab is busy; say what, and offer a way out. -->
+        <div
+          v-if="store.busy && !store.deadlineRunning"
+          class="flex flex-wrap items-center gap-3 rounded-xl border border-slate-300 bg-slate-50 p-3 text-[11px] text-slate-700"
         >
-        <template v-else-if="store.preparing">getting an unfinished run ready to carry on</template>
-        <template v-else>re-checking routes on your latest save</template>. The deadline search can start once it is
-        done.
-      </span>
-      <button
-        v-if="store.isRunning"
-        type="button"
-        class="px-3 py-1.5 rounded-lg border border-slate-400 text-[10px] font-black uppercase tracking-widest hover:bg-white"
-        @click="emit('show-fastest')"
-      >
-        Show that run
-      </button>
-      <button
-        v-if="store.isRunning"
-        type="button"
-        class="px-3 py-1.5 rounded-lg border border-slate-400 text-[10px] font-black uppercase tracking-widest hover:bg-white disabled:opacity-60"
-        :disabled="store.stopRequested"
-        @click="store.stop()"
-      >
-        <SendingText v-if="store.stopRequested" text="Stopping" /><template v-else>Stop that run</template>
-      </button>
-    </div>
-    <p v-if="startIssue" class="text-[11px] font-semibold text-rose-700">{{ startIssue }}</p>
-    <RunErrorNotes :error="store.errorIsIntegrityNotice ? null : store.error" :labelled="false" />
+          <span>
+            <span class="font-bold">Waiting for another run in this tab:</span>
+            <template v-if="store.isRunning">
+              the fastest-to-a-target search ({{ store.stage || 'running' }}, {{ store.chainsDone.toLocaleString() }} of
+              {{ store.chainsEstimated.toLocaleString() }})</template
+            >
+            <template v-else-if="store.preparing">getting an unfinished run ready to carry on</template>
+            <template v-else>re-checking routes on your latest save</template>. The deadline search can start once it is
+            done.
+          </span>
+          <button
+            v-if="store.isRunning"
+            type="button"
+            class="px-3 py-1.5 rounded-lg border border-slate-400 text-[10px] font-black uppercase tracking-widest hover:bg-white"
+            @click="emit('show-fastest')"
+          >
+            Show that run
+          </button>
+          <button
+            v-if="store.isRunning"
+            type="button"
+            class="px-3 py-1.5 rounded-lg border border-slate-400 text-[10px] font-black uppercase tracking-widest hover:bg-white disabled:opacity-60"
+            :disabled="store.stopRequested"
+            @click="store.stop()"
+          >
+            <SendingText v-if="store.stopRequested" text="Stopping" /><template v-else>Stop that run</template>
+          </button>
+        </div>
+        <p v-if="startIssue" class="text-[11px] font-semibold text-rose-700">{{ startIssue }}</p>
+        <RunErrorNotes :error="store.errorIsIntegrityNotice ? null : store.error" :labelled="false" />
+      </template>
+    </RunControls>
 
     <div v-if="result" class="space-y-3">
       <ByDateRouteCard
@@ -829,12 +821,10 @@ import {
 } from '@/search/deadlineEstimate';
 import { maxPoolSize } from '@/search/batch';
 import { findBandEdges, widenEdges, type BandEdge } from '@/search/bandCheck';
-import FindBar from './FindBar.vue';
 import CarryOnOffer from './CarryOnOffer.vue';
 import ShareResult from './ShareResult.vue';
 import ShareStatus from './ShareStatus.vue';
 import SendingText from './SendingText.vue';
-import UnsentResults from './UnsentResults.vue';
 import { useByDateShare, useShareIdentity } from '@/composables/useShareResult';
 import { useShareExtras } from '@/composables/useShareExtras';
 import RoutesToTry from './RoutesToTry.vue';
@@ -842,11 +832,10 @@ import SavedAnswers from './SavedAnswers.vue';
 import RunProgress from './RunProgress.vue';
 import EdgeWarning from './EdgeWarning.vue';
 import RunErrorNotes from './RunErrorNotes.vue';
+import RunControls from './RunControls.vue';
 import { durationLabel, useRunClock } from '@/composables/useRunClock';
 import { useRunDownloads } from '@/composables/useRunDownloads';
 import { useDateRowSliders } from '@/composables/useRowSliders';
-import StepAwayOptions from './StepAwayOptions.vue';
-import RunSendReport from './RunSendReport.vue';
 import { NAMES, fastestName } from '@/lib/siteNav';
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { LONG_RUN_WORKERS, useChainSearchStore } from '@/stores/chainSearch';
@@ -880,10 +869,7 @@ import { useUIStore } from '@/stores/ui';
 import type { SearchMode } from '@/lib/searchMode';
 import { eggDayYearOf } from '@/lib/eggDay';
 import { showDateTime } from '@/lib/displayTime';
-import IntegrityNotice from './IntegrityNotice.vue';
 import InstantRoute from './InstantRoute.vue';
-import SafariNotice from './SafariNotice.vue';
-import RunSaveNotice from './RunSaveNotice.vue';
 
 const props = defineProps<{
   playerId: string;
@@ -1690,7 +1676,7 @@ function fillFromSpec(spec: DeadlineRunSpec): void {
   }
 }
 
-const stepAway = ref<InstanceType<typeof StepAwayOptions> | null>(null);
+const stepAway = ref<InstanceType<typeof RunControls> | null>(null);
 /** Seconds left of Stepping away?'s automatic carry-on, shown in the unfinished run's offer. */
 const autoCountdown = ref(0);
 
