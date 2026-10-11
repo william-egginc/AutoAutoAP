@@ -48,8 +48,9 @@
       </p>
       <p>
         <b>When you prestige matters near the weekly research sale.</b> Every build is timed to end with the sale, so a
-        few hours either side of it can move a route by days, and in a bad case by up to a week. A planned "Prestige
-        by…" line will show the last hour you can prestige and still keep your TE.
+        few hours either side of it can move a route by days, and in a bad case by up to a week. An experimental
+        "Prestige by…" line (off unless you turn it on, in Your setup › Experimental) shows the last hour you can
+        prestige and still keep your TE.
       </p>
       <p>
         <b>It can miss a better route, but rarely.</b> We put the chance that neither the instant answer nor a 12-hour
@@ -77,38 +78,46 @@
           Picking the TEs is the hard part, because the best ones are a narrow target. In players' early runs to 490 TE
           (2 or 3 ascensions, routes of two years or more), moving one stop by a single TE typically changed the finish
           by about 2.5% of the route, a couple of weeks. Near the end of a {{ NAMES.byDate }} route, one more TE is
-          worth about two days at TE 240-340. And between TE 177 and 490 there are about 2 × 10<sup>15</sup> routes of 3 to 9
-          ascensions. That's far too many to simulate, so each screen takes a shortcut. {{ NAMES.fastest }} and
+          worth about two days at TE 240-340. And between TE 177 and 490 there are about 2 × 10<sup>15</sup> routes of 3
+          to 9 ascensions. That's far too many to simulate, so each screen takes a shortcut. {{ NAMES.fastest }} and
           {{ NAMES.byDate }} each come in two versions, {{ NAMES.smart }} and {{ NAMES.full }}:
         </p>
         <ul class="hw-list">
           <li>
             <b>{{ NAMES.fastest }}, {{ NAMES.smartFirst }}:</b> starts from a route (the instant answer's fastest, or
             one you type) and improves it step by step. On Fast, the default, it fine-tunes the last stop and nudges
-            each stop up to 8 TE either way until nothing moves, then gives every other number of ascensions inside your
-            limits one quick pass from the instant answer's route for that count, and keeps the fastest.
-            Exact also tries each neighbouring pair of stops together, then one ascension more or fewer; Very high also
-            tries groups of three. You can stop it at any point and keep the best route so far. The result is a strong
-            local best. Nobody has proven it's the best overall.
+            each stop up to 8 TE either way until nothing moves. Then it checks every other number of ascensions inside
+            your limits: each starts from the instant answer's route for that count, gets its last stop fine-tuned and,
+            unless it is more than two days behind by then, one pass of nudges. It keeps the fastest. Exact also tries
+            each neighbouring pair of stops together, then one ascension more or fewer; Very high also tries groups of
+            three. You can stop it at any point and keep the best route so far. The result is a strong local best.
+            Nobody has proven it's the best overall.
           </li>
           <li>
             <b>{{ NAMES.fastest }}, {{ NAMES.fullFirst }}:</b> you give each stop a range, called a box (for example
             every 5th TE from 185 to 200 for the first stop). It simulates <i>every</i> route that fits in the boxes, so
             its winner is the best route in them. If the winner sits on the edge of a box, it says so and offers to
             widen that box. If your setup hasn't changed, routes it has already simulated are reused, so only the new
-            ones take time. The boxes it
-            suggests also cover one ascension fewer and one more, at half the size; you can remove those.
+            ones take time. The boxes it suggests also cover one ascension fewer and one more, at half the size; you can
+            remove those.
           </li>
           <li>
             <b>{{ NAMES.byDate }}:</b> both versions try every set of early stops in their boxes, and for each one find
             the highest last stop that still makes the date (step up, step down, then halve the gap). The last stop
             isn't held to a box. In <b>{{ NAMES.smart }}</b> you pick the date and press Find: it builds the boxes for
-            you around the instant answer's route for each number of ascensions, each early stop a few TE either side
-            at every TE, sized to take about 10 to 30 minutes on a typical 8-core computer. In
-            <b>{{ NAMES.full }}</b> you set the chains and their boxes yourself. One 12-hour {{ NAMES.full }} run on
-            10 Oct simulated 153,785 routes, every route in its boxes.
+            you around the instant answer's route for each number of ascensions, each early stop a few TE either side at
+            every TE, sized to take about 10 to 30 minutes on a typical 8-core computer. In <b>{{ NAMES.full }}</b> you
+            set the chains and their boxes yourself. One 12-hour {{ NAMES.full }} run on 10 Oct simulated 153,785
+            routes, every route in its boxes. The answer card shows your TE on each egg when the route ends, how long
+            each egg needs for its next TE at your final delivery rate, and when your next TE would come if you keep
+            laying. <b>Simulate this plan</b> opens the route in {{ NAMES.classic }}, step by step on your save.
           </li>
         </ul>
+        <p>
+          Every search screen ({{ NAMES.fastest }} {{ NAMES.smart }} and {{ NAMES.full }}, and {{ NAMES.byDate }}) has
+          the same run controls in the same order: Find or Find and submit, Stop, the progress, Stepping away?, what was
+          sent, and any errors.
+        </p>
         <p>
           <b>The memo.</b> Routes that start the same way share those ascensions exactly, so each worker remembers the
           ascensions it has simulated, and routes are handed out so that routes with the same start go to the same
@@ -185,6 +194,22 @@
           number to plan around. Searches start from the instant answer too: Simple's starting route, and Advanced's
           suggested boxes, are centred on its route.
         </p>
+        <p>
+          <b>The Integrity check.</b> Some accounts don't earn enough yet to get through a fresh ascension's first
+          Integrity shift quickly. The page measures that wait on your save before it shows routes, as every search does
+          before it starts. Over an hour, the instant answer shows its routes with a note that their times include the
+          wait. Over a week, it shows no routes, because every date would be that wait, not a plan; it shows your
+          Clothed TE against the roughly 225 that accounts get through at instead.
+        </p>
+        <p>
+          <b>Try: stronger check (a prototype).</b> A box under the instant answer, off unless you tick it. After Check
+          exactly it does three more things with the full simulator: prices your own earlier routes for the same goal
+          (from your searches here, your saved answers, your earlier checks and your board runs sent from this browser),
+          offers Refine, a small search of every route within 2 TE of each stop of the best one (at most 10 minutes),
+          and by a date, when the top route misses the date, tries the instant answer's route one TE lower (two if
+          needed). Anything that beats the answer shows as "Best now". It's a prototype: we haven't measured how often
+          it finds something better.
+        </p>
       </div>
     </details>
 
@@ -222,7 +247,7 @@
           <li>
             <b>Prestiging later.</b> Every check starts from now. Waiting a day or two to prestige can be worth a TE (on
             the test account, a fresh start on one Monday morning made one TE more than starting now), and nothing
-            searches that yet. The planned "Prestige by…" line in section 6 is the first step.
+            searches that yet, apart from the experimental "Prestige by…" line in section 6.
           </li>
           <li>
             <b>On the hour against at once.</b> The two agree to within hours on most routes, but each method's best
@@ -299,7 +324,8 @@
           <b>Nothing is sent unless you tick it.</b> A shared result sends the route, its dates and the target or
           deadline, your artifact inventory, timezone and plan start, and a random code this browser keeps for your
           account. Only a scrambled form of that code is stored. It lets you rename your rows and see your own plans.
-          Your player ID and your save are never sent. You can send anonymously or under a nickname.
+          Your player ID and your save are never sent. You can send anonymously or under a name: the "Credit me as" name
+          is one per account, kept in this browser, so a name typed on one screen is already there on the others.
         </p>
         <ul class="hw-list">
           <li>
@@ -356,26 +382,29 @@
             inside its boxes.
           </li>
           <li>
-            <b>Planned: "Prestige by…".</b> A line like "Prestige by 2:00 pm Friday to keep 248 TE": the last hour you can
-            prestige and keep your TE, since near the weekly sale a few hours can matter. We have the method (price a few
-            later starts and see when the answer drops) but not enough checked examples yet.
+            <b>"Prestige by…" (experimental, off by default).</b> Turn it on in Your setup › Experimental. A line under
+            the instant answer like "Prestige by Fri Nov 27, 2 pm to keep 248 TE", then what you'd get after that. It
+            prices your routes again from each later whole hour, up to 8 days ahead, with your farm laying while you
+            wait (for as long as your silos hold), then confirms the hour it drops with the route finder. In five test
+            cases its cutoff matched the full simulator to within an hour in four, and was two hours early in the fifth.
+            That's too few to trust yet, so it's off unless you turn it on. Work it out again after you prestige.
           </li>
           <li>
             <b>The "a better route may exist" hint.</b> At the top of a {{ NAMES.byDate }} answer, one more TE costs
             about 45 to 53 hours of the final ascension (measured on two accounts). A finished search already tries the
-            last stop one TE higher, so the hint only shows when a run stopped early or its boxes were narrow and it
-            has more spare than one TE costs: let it finish, or widen the boxes.
+            last stop one TE higher, so the hint only shows when a run stopped early, its boxes were narrow, or its best
+            route sits on the edge of a box, and it has more spare than one TE costs: let it finish, or widen the boxes.
           </li>
           <li>
             <b>Joo's newer simulator changes</b> (earnings lookaheads, a new opening, a tier-12 unlock) aren't in this
             site yet. If they land, every instant answer (one per gear set) has to be simulated again, about 55 to 70
-            hours on a 16-core PC,
-            before it can be trusted against the new simulator.
+            hours on a 16-core PC, before it can be trusted against the new simulator.
           </li>
         </ul>
         <p>
           The open questions players can help with are on
-          <a href="#/science/check" class="font-bold text-indigo-700 underline">{{ NAMES.science }} › {{ NAMES.check }}</a
+          <a href="#/science/check" class="font-bold text-indigo-700 underline"
+            >{{ NAMES.science }} › {{ NAMES.check }}</a
           >, and what the board's runs have shown so far is on
           <a href="#/compare/insights" class="font-bold text-indigo-700 underline"
             >{{ NAMES.compare }} › {{ NAMES.insights }}</a
@@ -390,7 +419,7 @@
 import { NAMES } from '@/lib/siteNav';
 
 /** The date every number here was last checked. */
-const UPDATED = '10 Oct 2026';
+const UPDATED = '11 Oct 2026';
 
 /** The checks, in the order a sceptic would ask for them: same inputs, then the simulator, then real runs. */
 const CHECKS: { what: string; result: string; how: string }[] = [

@@ -217,8 +217,8 @@
               </div>
             </div>
             <p class="text-[11px] text-slate-500 leading-relaxed">
-              Ascension count is the chain length including your final target, and it bounds both the coarse scan and
-              the prestige-count probe.
+              Ascension count is the chain length including your final target. It bounds the coarse scan, Fast's check
+              of the other counts, and the one-more-or-fewer step on Exact and Very high.
               <span v-if="store.pin > 0" class="font-semibold text-slate-700">
                 Locking {{ store.pin }} holds {{ store.seedChain.slice(0, store.pin).join(' ') }} fixed, so the search
                 will not move {{ store.pin === 1 ? 'it' : 'them' }}.
@@ -358,9 +358,9 @@
         </p>
       </CarryOnOffer>
 
-      <!-- The Limits box only reaches the coarse scan and the prestige-count probe, so on Fast a
-           seed of the wrong length is simply the length the answer comes back as. Say so
-           here, with the one-click fix, rather than at the end of a three-hour run. -->
+      <!-- The Limits box reaches the coarse scan, Fast's other-count check and the prestige-count
+           probe, each at most one step from the seed's own count, so a seed further out may come back
+           at its own length. Say so here, with the one-click fix, rather than at the end of a run. -->
       <div
         v-if="store.seedIssue"
         class="p-4 rounded-xl border text-xs leading-relaxed space-y-2"
@@ -395,14 +395,17 @@
         </p>
 
         <p v-if="store.seedIssue.probeCanFix">
-          The prestige-count probe runs on this effort tier and can change the count, so it may land inside your limits.
-          It is allowed to decline, so this is not a guarantee.
+          <template v-if="store.effort === 'quick'"
+            >Fast also checks the other ascension counts inside your limits, so the answer may land inside
+            them.</template
+          ><template v-else
+            >This effort tries one more and one fewer ascension, so the answer may land inside your limits.</template
+          >
+          It keeps whichever count is fastest, so this is not a guarantee.
         </p>
         <p v-else>
-          The limits only bound the coarse scan and the prestige-count probe, and
-          <span class="font-semibold">this effort tier does not run the probe</span>. Every stage works on the chain at
-          the length you gave it, so the answer will come back with
-          {{ plural(store.seedIssue.ascensions, 'ascension') }}.
+          The search starts from the chain at the length you gave it, more than one ascension outside your limits, so
+          the answer may come back with {{ plural(store.seedIssue.ascensions, 'ascension') }}.
         </p>
 
         <div class="flex flex-wrap gap-2 pt-1">

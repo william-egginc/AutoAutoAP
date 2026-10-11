@@ -59,11 +59,12 @@ export const EFFORT_NOTES: Record<EffortTier, EffortNote> = {
       'route for, and one more and one fewer, carrying on outward while that keeps winning; the best count ' +
       'is then fine-tuned in full.',
     accuracy:
-      'Measured 5 h, 0 h and 61 h behind the best answer found, on 3 accounts. ' +
+      'Measured before Fast checked the other ascension counts (11 Oct): 5 h, 0 h and 61 h behind the best answer found, on 3 accounts. ' +
       'Two later runs on one of those accounts landed about 6 days worse, ' +
       'so this tier’s spread is much wider than the single 5 h figure suggested. Treat it as ' +
       '"usually close, occasionally days off", not as a tight bound.',
-    warning: 'Widest spread of the three tiers. Two repeat runs on one account landed ~6 days behind.',
+    warning:
+      'Widest spread of the three tiers. Before 11 Oct, two repeat runs on one account landed ~6 days behind; not re-measured since Fast began checking other counts.',
   },
   normal: {
     label: 'Exact',

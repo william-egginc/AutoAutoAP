@@ -6,7 +6,7 @@ import { renderHtml, textOf } from '@/test/renderComponent';
 describe('Science › How it works', () => {
   it('says when it was checked, and gives the key numbers with how they were measured', async () => {
     const text = textOf(await renderHtml(HowItWorks, {}));
-    expect(text).toContain('Updated 10 Oct 2026');
+    expect(text).toContain('Updated 11 Oct 2026');
     expect(text).toContain('every start TE from 120 to 489 and every one of the 168 hours');
     expect(text).toContain('99 in 100 within 0.69%');
     expect(text).toContain('about 1 to 2%');
@@ -14,11 +14,14 @@ describe('Science › How it works', () => {
     expect(text.match(/How: /g)?.length).toBeGreaterThanOrEqual(8);
   });
 
-  it('sends players to Check exactly, says the planned Prestige by line is not built, and avoids doom figures', async () => {
+  it('sends players to Check exactly, says Prestige by is experimental, and avoids doom figures', async () => {
     const text = textOf(await renderHtml(HowItWorks, {}));
     expect(text).toContain('ascending on the hour like the instant answer');
     expect(text).toContain('Press Check exactly for the most accurate answer');
-    expect(text).toContain('A planned "Prestige by…" line');
+    expect(text).toContain('An experimental "Prestige by…" line');
+    expect(text).not.toMatch(/planned "Prestige by/i);
+    expect(text).toContain('Try: stronger check (a prototype)');
+    expect(text).toContain('The Integrity check.');
     expect(text).not.toContain('Trust the Check exactly number');
     expect(text).not.toMatch(/month/i);
     // Searches ascend at once, the instant answer on the hour: said once, in section 1.
@@ -31,6 +34,7 @@ describe('Science › How it works', () => {
     expect(text).toContain('Fastest to 490 TE, Simple (Smart search):');
     expect(text).toContain('Fastest to 490 TE, Advanced (Full sweep):');
     expect(text).toContain('On Fast, the default');
+    expect(text).toContain('Then it checks every other number of ascensions inside');
     expect(text).toContain('one ascension fewer and one more, at half the size');
   });
 

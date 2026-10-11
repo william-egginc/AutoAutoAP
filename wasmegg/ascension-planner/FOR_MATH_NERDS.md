@@ -85,6 +85,7 @@ algorithm. Stopping early leaves you exactly what the completed stages guarantee
 | **5. 2-D slices** | Exhaustive 17×17 over every adjacent pair. Catches pairs that only pay off jointly. |
 | **6. 3-D slices** | Exhaustive 13×13×13 over every adjacent triple. |
 | **7. prestige-count probe** | Drop a checkpoint or insert one, then re-polish. |
+| **4c. other counts** *(Fast only, since 11 Oct)* | Fast has no count probe. Instead, after the descent, every other ascension count inside the limits that the instant answer has a route for (plus one either side of the seed) starts from that route, gets its last checkpoint re-solved and, unless it is then more than 2 days behind the leader, one descent pass. The winning count gets 5 more passes. Added because a Fast run held at 4 ascensions finished about 4 days behind a 5-7 ascension route. |
 
 ### How little of the space that is
 
@@ -96,6 +97,9 @@ For a 7-ascension chain:
 | Balanced (retired on the site) | 2,051 | 2.8 × 10⁻¹⁴ |
 | Exact | 2,274 | 3.1 × 10⁻¹⁴ |
 | Thorough (Very high on the site) | 11,062 | 1.5 × 10⁻¹³ |
+
+The Fast figure is from before stage 4c. Each other count it now checks adds roughly 25 + 42 per movable
+checkpoint + 2 × the chain length (the estimate in `src/search/effort.ts`, not a measurement).
 
 Thorough looks at roughly **one chain in ten trillion** and lands within hours of the best
 answer found. That is not because the search is clever; it is because of the next section.

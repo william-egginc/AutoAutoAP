@@ -18,9 +18,7 @@
       <div class="flex flex-wrap items-baseline justify-between gap-2">
         <h2 class="text-lg font-black text-slate-900">What we know so far</h2>
         <span v-if="stats" class="text-[10px] font-bold text-slate-500" data-testid="know-header">
-          {{ plural(stats.runsTo490, 'run') }} to 490 TE · {{ stats.accounts }} accounts<template
-            v-if="stats.te"
-          >
+          {{ plural(stats.runsTo490, 'run') }} to 490 TE · {{ stats.accounts }} accounts<template v-if="stats.te">
             · TE {{ stats.te.min }}-{{ stats.te.max }}</template
           >
           · {{ stats.plans.toLocaleString('en-US') }} plans timed<template v-if="stats.byDate > 0">
@@ -145,16 +143,16 @@
           </template>
           <p v-else-if="f.id === 'bydate'">
             Checked on Fliris (6 Egg Day routes: 32 of 34 ascensions within 30 minutes of his submitted runs), Allan (4
-            routes, each within an hour once started from his actual first stop) and this week's first By a date run with
-            per-ascension times (within 0.4 hours per ascension, median). Where it differs from a by-date search, it's
-            because the search's range left out better routes (Allan's 5-ascension route above), not because it priced
-            them wrongly.
+            routes, each within an hour once started from his actual first stop) and this week's first By a date run
+            with per-ascension times (within 0.4 hours per ascension, median). Where it differs from a by-date search,
+            it's because the search's range left out better routes (Allan's 5-ascension route above), not because it
+            priced them wrongly.
           </p>
           <p v-else-if="f.id === 'stall'">
             Under roughly 218-225 CTE it sits on Integrity saving up for habs; the planner won't run a plan that stalls
-            more than a week. Every account on the board is above it<template v-if="stats && stats.lowestCte !== null">
-              (lowest {{ cteText(stats.lowestCte) }})</template
-            >. A full T4L earnings set with T4 Lunar stones adds +128.7 to CTE.
+            more than a week, and the instant answer shows no routes for one. Every account on the board is above
+            it<template v-if="stats && stats.lowestCte !== null"> (lowest {{ cteText(stats.lowestCte) }})</template>. A
+            full T4L earnings set with T4 Lunar stones adds +128.7 to CTE.
           </p>
           <p v-else-if="f.id === 'gear'">
             Waiting time scales with your delivery rate: a set at 94% of the best waits about 6% longer. The earnings
@@ -178,9 +176,10 @@
           <p v-else-if="f.id === 'one-te'">
             At TE 240-340 one TE is worth about two days (45-53 hours of the final ascension, measured on two accounts).
             On the early 2-3 ascension runs to 490 TE, moving one checkpoint by a single TE changed the finish by
-            typically about 2.5% of the route. Builds are timed to the weekly sale, so a badly timed prestige can cost up to a
-            week; run the instant answer again after you prestige and it plans from where you are. The best TEs differ
-            for every account and start time, which is why the instant answer prices every TE instead of guessing.
+            typically about 2.5% of the route. Builds are timed to the weekly sale, so a badly timed prestige can cost
+            up to a week; run the instant answer again after you prestige and it plans from where you are. The best TEs
+            differ for every account and start time, which is why the instant answer prices every TE instead of
+            guessing.
           </p>
         </div>
       </details>

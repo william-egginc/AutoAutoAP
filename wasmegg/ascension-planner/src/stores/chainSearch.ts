@@ -1986,7 +1986,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   });
 
   /** Why the current seed cannot produce an answer inside the Limits box, or null when it can.
-   *  Probe-aware: on Fast nothing in the run changes the seed's length at all. */
+   *  Probe-aware: Exact and Very high's probe, and Fast's check of the other counts, reach one either side. */
   const seedIssue = computed(() =>
     findSeedFirst.value
       ? null
