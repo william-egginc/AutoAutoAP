@@ -9,21 +9,22 @@
   leg missing a number shows a dash.
 -->
 <template>
-  <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 space-y-2" data-testid="by-date-route-card">
-    <p class="text-[10px] font-black uppercase tracking-widest text-emerald-800">
+  <ResultCardFrame :still-going="running" data-testid="by-date-route-card">
+    <template #heading>
       <template v-if="running">Best so far · highest by {{ when(deadline) }}</template
       ><template v-else>Highest by {{ when(deadline) }}</template>
       <slot name="heading" />
-    </p>
-    <p class="text-lg font-black text-emerald-900 break-words">
-      {{ lastStop }} TE
-      <span class="text-sm font-bold">via {{ route.chain.join(' ') }}</span>
-    </p>
+    </template>
+    <template #headline>
+      <p class="text-lg font-black text-emerald-900 break-words">
+        {{ lastStop }} TE
+        <span class="text-sm font-bold">via {{ route.chain.join(' ') }}</span>
+      </p>
+    </template>
     <p class="text-[11px] text-emerald-900 leading-relaxed">
       Reached {{ when(route.reachAt)
       }}<template v-if="route.ascendAt !== route.reachAt"> (you can ascend from {{ when(route.ascendAt) }})</template>,
       with {{ spareLabel(route.spare) }} to spare.
-      <template v-if="running"> The search is still going, so this can still improve.</template>
       <slot />
     </p>
     <div v-if="legs.length" class="overflow-x-auto">
@@ -103,11 +104,12 @@
         {{ simulateNote }}
       </p>
     </div>
-  </div>
+  </ResultCardFrame>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import ResultCardFrame from './ResultCardFrame.vue';
 import { showDateTime } from '@/lib/displayTime';
 import { spareLabel } from '@/search/deadlineSummary';
 import type { DeadlineRoute } from '@/search/deadline';

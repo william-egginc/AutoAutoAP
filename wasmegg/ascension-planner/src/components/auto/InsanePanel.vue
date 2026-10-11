@@ -119,32 +119,13 @@
         </label>
         <!-- The same two choices, and the same values, as the Submit section at the bottom: anonymous
              unless the player picks otherwise, and the name box starts from their own nickname. -->
-        <div class="flex flex-wrap items-center gap-4 pl-6 text-[11px] font-bold text-slate-700">
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input v-model="anonymous" type="radio" :value="true" :disabled="store.isRunning" class="text-indigo-600" />
-            Submit anonymously
-          </label>
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input
-              v-model="anonymous"
-              type="radio"
-              :value="false"
-              :disabled="store.isRunning"
-              class="text-indigo-600"
-            />
-            Credit me as
-          </label>
-          <input
-            v-model="nickname"
-            type="text"
-            maxlength="40"
-            placeholder="nickname"
-            aria-label="Nickname"
-            :disabled="store.isRunning || anonymous"
-            class="w-48 rounded-md border-indigo-200 text-[12px] font-normal text-slate-800 disabled:opacity-40"
-            @input="nicknameTouched = true"
-          />
-        </div>
+        <ShareNameChoice
+          v-model:anonymous="anonymous"
+          v-model:nickname="nickname"
+          :disabled="store.isRunning"
+          class="pl-6 text-[11px] text-slate-700"
+          @nickname-typed="nicknameTouched = true"
+        />
         <RunNoteBox v-model="store.runNote" :disabled="store.isRunning" class="pl-6 text-[11px] text-slate-700" />
 
         <IntegrityNotice />
@@ -152,8 +133,9 @@
           v-if="ascMismatch"
           class="rounded-lg bg-rose-50 border border-rose-200 px-3 py-2 text-[11px] font-semibold text-rose-800"
         >
-          The Ascensions box ({{ suggestAsc }}) no longer matches this sweep ({{ plural(bands.length + 1, 'ascension') }}). To
-          start, set it back to {{ bands.length + 1 }} under The space to search.
+          The Ascensions box ({{ suggestAsc }}) no longer matches this sweep ({{
+            plural(bands.length + 1, 'ascension')
+          }}). To start, set it back to {{ bands.length + 1 }} under The space to search.
         </p>
         <div class="flex flex-wrap items-center gap-3">
           <button
@@ -178,39 +160,21 @@
           </span>
         </div>
         <!-- The automatic submission, reported where the player pressed Start. -->
-        <div
-          v-if="autoSubmitted && submitMessage"
-          class="rounded-lg border px-3 py-2 text-[11px] space-y-2"
-          :class="
-            !submitOk
-              ? 'bg-red-50 border-red-200 text-red-800'
-              : submitPartial
-                ? 'bg-amber-50 border-amber-200 text-amber-900'
-                : 'bg-emerald-50 border-emerald-200 text-emerald-800'
-          "
-        >
-          <p><b>Submitted automatically.</b> {{ submitMessage }}</p>
-          <!-- Sent anonymously (the default), and the name box above now says who to credit: name the
-               stored row rather than sending a second copy. -->
-          <button
-            v-if="nameToClaim"
-            type="button"
-            :disabled="claiming"
-            class="px-3 py-1.5 rounded-lg border border-current text-[10px] font-black uppercase tracking-widest hover:bg-white/60 disabled:opacity-40"
-            @click="claim"
-          >
-            {{ claiming ? 'Renaming...' : 'Put my name on it' }}
-          </button>
-          <button
-            v-if="store.pendingTable?.source === 'fastest'"
-            type="button"
-            :disabled="retryingTable"
-            class="px-3 py-1.5 rounded-lg border border-amber-300 text-amber-800 text-[10px] font-black uppercase tracking-widest hover:bg-amber-50 disabled:opacity-40"
-            @click="retryTable"
-          >
-            {{ retryingTable ? 'Retrying...' : 'Retry the table' }}
-          </button>
-        </div>
+        <RunSendReport
+          kind="full"
+          :own="autoSubmitted"
+          :running="store.isRunning"
+          :message="submitMessage"
+          :ok="submitOk"
+          :partial="submitPartial"
+          :name-to-claim="nameToClaim"
+          :claiming="claiming"
+          :pending-table="store.pendingTable?.source === 'fastest'"
+          :retrying="retryingTable"
+          quiet
+          @claim="claim"
+          @retry="retryTable"
+        />
         <!-- Said HERE as well as further down: the card's Start is at the top of a long page, and a
              refusal that only appears below the fold reads as "the button does nothing". -->
         <p
@@ -316,14 +280,19 @@
         An interrupted run, found on load. Above everything, because it is time-sensitive in a way
         nothing else on this page is: starting anything else overwrites the checkpoint it lives in.
       -->
-      <div
+      <CarryOnOffer
         v-if="goal === 'fastest' && store.crashedRun && !store.isRunning && queueAt < 0"
-        class="rounded-xl border border-amber-300 bg-amber-50 p-4 space-y-2"
+        :title="store.crashedQueue ? 'Unfinished queue found' : 'Unfinished run found'"
+        :elsewhere="store.runElsewhere.sweep"
+        :carry-label="
+          store.crashedQueue
+            ? `Carry on the queue (chain ${store.crashedQueue.next + 1} of ${store.crashedQueue.record.chains.length})`
+            : 'Carry on from where it stopped'
+        "
+        :disabled="store.busy || resuming !== ''"
+        @carry-on="resumeCrashed"
       >
-        <h3 class="text-[10px] font-black text-amber-800 uppercase tracking-widest">
-          {{ store.crashedQueue ? 'Unfinished queue found' : 'Unfinished run found' }}
-        </h3>
-        <p class="text-[11px] text-amber-900/90 leading-relaxed">
+        <p>
           <template v-if="store.crashedQueue">{{ crashedQueueNote }}</template>
           <template v-else>A run on this machine stopped without finishing.</template>
           <template v-if="!store.crashedQueue || store.crashedQueue.next === store.crashedQueue.record.at">
@@ -349,21 +318,7 @@
             >, the time it was priced from.
           </template>
         </p>
-        <RunGoingElsewhere v-if="store.runElsewhere.sweep" class="text-amber-900" />
-        <button
-          v-else
-          type="button"
-          :disabled="store.busy || resuming !== ''"
-          class="px-4 py-2 rounded-lg bg-amber-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-800 disabled:opacity-40"
-          @click="resumeCrashed"
-        >
-          {{
-            store.crashedQueue
-              ? `Carry on the queue (chain ${store.crashedQueue.next + 1} of ${store.crashedQueue.record.chains.length})`
-              : 'Carry on from where it stopped'
-          }}
-        </button>
-      </div>
+      </CarryOnOffer>
 
       <UnfinishedRuns v-if="goal === 'fastest'" :player-id="playerId" kind="exhaustive" @resume="resumeCrashed" />
 
@@ -371,34 +326,7 @@
         An interrupted run that cannot carry on, with the reason. It used to just not appear, so a
         crashed overnight run looked as if it had never been saved.
       -->
-      <div
-        v-if="goal === 'fastest' && store.blockedCheckpoint && !store.crashedRun && !store.isRunning"
-        class="rounded-xl border border-slate-300 bg-slate-50 p-4 space-y-2"
-      >
-        <h3 class="text-[10px] font-black text-slate-700 uppercase tracking-widest">Unfinished run can't continue</h3>
-        <p class="text-[11px] text-slate-700 leading-relaxed">
-          A run on this machine stopped after pricing
-          <span class="font-bold">{{ store.blockedCheckpoint.record.durations.length.toLocaleString() }}</span> chains
-          ({{ agoLabel(store.blockedCheckpoint.record.updatedAt) }}), but
-          <span class="font-bold">{{ store.blockedCheckpoint.changes.join('; ') }}</span
-          >.
-          <template v-if="store.runSaveFor(store.blockedCheckpoint.record.inputsKey)">
-            Its save is kept, so put that setting back and it can carry on.
-          </template>
-          <template v-else>
-            Its save wasn't kept, so its durations describe a different farm and can't be reused. If a number looks
-            wrong, your backup may not have loaded fresh on one of the two visits: reload it and check before starting
-            again.
-          </template>
-        </p>
-        <button
-          type="button"
-          class="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-700"
-          @click="store.discardCheckpoint()"
-        >
-          Discard it
-        </button>
-      </div>
+      <BlockedRunNotice v-if="goal === 'fastest' && store.blockedCheckpoint && !store.crashedRun && !store.isRunning" />
 
       <DeadlinePanel
         v-if="goal === 'deadline'"
@@ -575,9 +503,10 @@
                 v-if="ascMismatch"
                 class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-semibold text-rose-800 leading-relaxed"
               >
-                Your bands make {{ plural(bands.length + 1, 'ascension') }}, and that is what would run, but the Ascensions box
-                says {{ suggestAsc }}. The box only chooses what Suggest a space fills in: press Suggest a space to
-                switch to {{ plural(suggestAsc, 'ascension') }}, or set the box back to {{ bands.length + 1 }}.
+                Your bands make {{ plural(bands.length + 1, 'ascension') }}, and that is what would run, but the
+                Ascensions box says {{ suggestAsc }}. The box only chooses what Suggest a space fills in: press Suggest
+                a space to switch to {{ plural(suggestAsc, 'ascension') }}, or set the box back to
+                {{ bands.length + 1 }}.
               </p>
             </label>
 
@@ -789,39 +718,15 @@
           </p>
         </div>
 
-        <SafariNotice />
-
-        <RunSaveNotice />
-        <!-- With a sweep open, the card at the top already shows it. -->
-        <IntegrityNotice v-if="!sweepRequest" />
-        <!-- The same carry-on as the box at the top, next to Start where people look for it. -->
-        <div
-          v-if="store.crashedRun && !store.busy && !store.runElsewhere.sweep && queueAt < 0"
-          class="flex flex-wrap items-center gap-3 rounded-xl border border-amber-300 bg-amber-50 p-3"
-        >
-          <button
-            type="button"
-            class="px-4 py-2 rounded-lg bg-amber-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-800"
-            @click="resumeCrashed"
-          >
-            {{ store.crashedQueue ? 'Carry on the unfinished queue' : 'Carry on the unfinished run' }}
-          </button>
-          <span v-if="store.crashedQueue" class="text-[11px] text-amber-900">
-            Chain {{ store.crashedQueue.next + 1 }} of {{ store.crashedQueue.record.chains.length }} next; its settings
-            are put back for you.
-          </span>
-          <span v-else class="text-[11px] text-amber-900">
-            {{ (store.crashedRun.durations?.length ?? 0).toLocaleString() }} chains already priced; its settings are put
-            back for you.
-          </span>
-        </div>
-        <!-- Find / Find and submit: the same bar as Smart search (FindBar.vue). A sweep link already
-             sends itself, so it gets Find alone, labelled as the card at the top labels it. -->
-        <FindBar
+        <!-- The run controls (RunControls.vue): the same block on every search screen. A sweep link
+             already sends itself, so it gets Find alone, labelled as the card at the top labels it. -->
+        <RunControls
           v-model:opt-in="optIn"
           v-model:anonymous="anonymous"
           v-model:nickname="nickname"
           v-model:note="store.runNote"
+          kind="full"
+          :player-id="playerId"
           :find-disabled="
             store.busy ||
             store.integrityBlocked ||
@@ -841,25 +746,65 @@
                 : 'Start this sweep (tick &quot;I understand&quot; at the top first)'
               : 'Find'
           "
-          :running-label="findAndSubmit ? 'Pricing every chain, then submitting...' : 'Pricing every chain...'"
-          :show-submit="!sweepRequest"
+          running-word="Pricing every chain"
+          :show-submit="!sweepRequest && !!store.submitUrl"
           consent-note="each chain's, when you queued several"
-          :nickname-max="NICKNAME_MAX"
-          best-so-far-kind="fastest"
+          :can-carry-on="!!store.crashedRun && !store.runElsewhere.sweep && queueAt < 0"
+          :integrity-notice="!sweepRequest"
+          :report="{
+            own: autoSubmitted && !sweepRequest,
+            message: submitMessage,
+            ok: submitOk,
+            partial: submitPartial,
+            nameToClaim,
+            claiming,
+            pendingTable: store.pendingTable?.source === 'fastest',
+            retrying: retryingTable,
+            quiet: autoSubmitted,
+          }"
           @find="andSubmit => void start(andSubmit)"
           @stop="stopRun"
           @nickname-typed="nicknameTouched = true"
+          @carry-on="resumeCrashed"
+          @claim="claim"
+          @retry="retryTable"
         >
+          <template #above-find>
+            <!-- The same carry-on as the box at the top, next to Start where people look for it. -->
+            <div
+              v-if="store.crashedRun && !store.busy && !store.runElsewhere.sweep && queueAt < 0"
+              class="flex flex-wrap items-center gap-3 rounded-xl border border-amber-300 bg-amber-50 p-3"
+            >
+              <button
+                type="button"
+                class="px-4 py-2 rounded-lg bg-amber-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-800"
+                @click="resumeCrashed"
+              >
+                {{ store.crashedQueue ? 'Carry on the unfinished queue' : 'Carry on the unfinished run' }}
+              </button>
+              <span v-if="store.crashedQueue" class="text-[11px] text-amber-900">
+                Chain {{ store.crashedQueue.next + 1 }} of {{ store.crashedQueue.record.chains.length }} next; its
+                settings are put back for you.
+              </span>
+              <span v-else class="text-[11px] text-amber-900">
+                {{ (store.crashedRun.durations?.length ?? 0).toLocaleString() }} chains already priced; its settings are
+                put back for you.
+              </span>
+            </div>
+          </template>
           <template #progress>
-            <div v-if="store.stage" class="space-y-1" data-run-progress="full">
-              <div class="flex items-center justify-between text-[10px] font-black uppercase tracking-widest">
-                <span class="text-slate-500">{{ store.stage }}</span>
-                <span class="text-slate-400 tabular-nums">
-                  {{ pricedSoFar.toLocaleString() }} / {{ store.chainsEstimated.toLocaleString() }}
-                </span>
-              </div>
-              <ProgressBar thin :percent="livePercent" />
-              <div v-if="store.secondsPerChain > 0 || store.runCost" class="text-[10px] text-slate-400 tabular-nums">
+            <RunProgress
+              v-if="store.stage"
+              data-run-progress="full"
+              :stage="store.stage"
+              :count="`${pricedSoFar.toLocaleString()} / ${plural(store.chainsEstimated, 'chain')}`"
+              thin
+              :percent="livePercent"
+            >
+              <div
+                v-if="store.secondsPerChain > 0 || store.runCost"
+                class="text-[10px] text-slate-400 font-bold tabular-nums"
+              >
                 <template v-if="store.secondsPerChain > 0"
                   >{{ store.secondsPerChain.toFixed(2) }} s/chain measured here</template
                 >
@@ -867,7 +812,7 @@
                   · took {{ describeCompute(store.runCost.minutes, store.runCost.workers) }}</template
                 >
               </div>
-            </div>
+            </RunProgress>
 
             <!-- Which chain of a multi-chain click is running, and what the finished ones found. -->
             <div
@@ -878,281 +823,242 @@
                 <template v-if="queueAt >= 0">Running chain {{ queueAt + 1 }} of {{ store.sweepQueue.total }}</template>
                 <template v-else>All chains from the last click</template>
               </p>
-              <div v-if="queueResults.length" class="overflow-x-auto">
-                <table class="w-full text-[11px] tabular-nums">
-                  <thead>
-                    <tr class="text-left text-[9px] font-black uppercase tracking-widest text-slate-400">
-                      <th class="pr-4 py-1">Chain</th>
-                      <th class="pr-4 py-1">Best found</th>
-                      <th class="pr-4 py-1">Days</th>
-                      <th class="pr-4 py-1">Finishes</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="q in queueResults" :key="q.label" class="border-t border-slate-100">
-                      <td class="pr-4 py-1 text-slate-500">
-                        {{ q.label }}<template v-if="q.stopped"> (stopped)</template>
-                      </td>
-                      <td class="pr-4 py-1 font-bold">{{ q.chain.join(' ') }}</td>
-                      <td class="pr-4 py-1">{{ q.days ? q.days.toFixed(3) : '—' }}</td>
-                      <td class="pr-4 py-1">{{ q.finish ? saveWhen(q.finish) : '—' }}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+              <ResultTable
+                v-if="queueResults.length"
+                :columns="['Chain', 'Best found', 'Days', 'Finishes']"
+                :rows="queueResults"
+                :row-key="q => q.label"
+              >
+                <template #default="{ row: q }">
+                  <td class="pr-4 py-1 text-slate-500">
+                    {{ q.label }}<template v-if="q.stopped"> (stopped)</template>
+                  </td>
+                  <td class="pr-4 py-1 font-bold">{{ q.chain.join(' ') }}</td>
+                  <td class="pr-4 py-1">{{ q.days ? q.days.toFixed(3) : '—' }}</td>
+                  <td class="pr-4 py-1">{{ q.finish ? saveWhen(q.finish) : '—' }}</td>
+                </template>
+              </ResultTable>
               <p class="text-[10px] text-slate-500">
                 Each is saved under Saved runs, so you can open any of them again. Compare them by finish date.
               </p>
             </div>
           </template>
-        </FindBar>
+          <template #after>
+            <RunErrorNotes
+              :notes="store.runNotes"
+              :error="store.errorIsIntegrityNotice ? null : store.error"
+              :before-start="store.errorBeforeStart"
+            />
+          </template>
+        </RunControls>
 
-        <!-- Stepping away? Carry on by itself, a watcher tab, fewer workers (StepAwayOptions.vue). -->
-        <StepAwayOptions
-          kind="sweep"
-          :player-id="playerId"
-          :can-carry-on="!!store.crashedRun && !store.runElsewhere.sweep && queueAt < 0"
-          @carry-on="resumeCrashed"
-        />
-        <!-- A Find and submit that finished (and sent) while this panel was closed for another tab. -->
-        <UnsentResults kind="fastest" :player-id="playerId" :nickname="nickname" />
-        <AutoSendReport v-if="!autoSubmitted" kind="full" />
-
-        <p
-          v-if="store.runNotes.length && !store.error"
-          class="p-3 rounded-xl border border-amber-200 bg-amber-50 text-[11px] text-amber-900 leading-relaxed"
-        >
-          <span v-for="n in store.runNotes" :key="n" class="block">{{ n }}</span>
-        </p>
-
-        <div
-          v-if="store.error && !store.errorIsIntegrityNotice"
-          class="p-4 bg-red-50 border border-red-200 rounded-xl text-xs text-red-800 leading-relaxed"
-        >
-          <span class="font-bold uppercase tracking-wide"
-            >{{ store.errorBeforeStart ? "Didn't start" : 'Search failed' }}:</span
-          >
-          {{ store.error }}
-        </div>
-
-        <!-- The outcome with no best chain. Without it a finished run simply lacked the result card,
-           the Save button stayed grey and Submit never appeared, with nothing saying why -- which
-           read as three separate bugs to the person looking at it. -->
-        <div
-          v-if="store.noFeasibleChain && !store.error"
-          class="rounded-xl border border-rose-300 bg-rose-50 p-4 space-y-2"
-        >
-          <p class="text-[10px] font-black text-rose-800 uppercase tracking-widest">No chain in this space finishes</p>
-          <p class="text-[11px] text-rose-900/90 leading-relaxed">
-            Every chain was simulated, and none of them reaches {{ store.finalTE }} TE in any time the planner can put a
-            date on. That is a result, not a crash, so there is nothing to save or submit.
-          </p>
-          <p class="text-[11px] text-rose-900/90 leading-relaxed">
-            The usual cause is earnings. On a low-TE account the early ascensions cannot earn enough to buy the habs and
-            vehicles the plan is waiting on, so the very first leg stalls and every leg after it inherits the stall. A
-            different space won't fix that. More Truth Eggs or a stronger earnings set (totem, ankh, necklace and their
-            stones) will. If you think the planner has this wrong, download the diagnostics below and send them in.
-          </p>
-        </div>
-
-        <!-- The answer: the same card as Smart search (RouteResultCard.vue). -->
-        <RouteResultCard
-          v-if="store.bestDays > 0"
-          :chain="store.bestChain"
-          :days="store.bestDays"
-          :final-t-e="store.finalTE"
-          :end-label="endDate"
-          :running="store.isRunning"
-          :claim="store.stoppedEarly ? '' : resultClaim"
-          :source="store.searchSpace ? '' : `From the ${NAMES.smartFirst} search you ran`"
-          :busy="store.busy"
-          can-save
-          :saving="saving"
-          @build="buildPlan"
-          @csv="downloadCsv"
-          @save="save"
-        >
-          <p v-if="!store.isRunning && resultExplain" class="text-[11px] text-emerald-900/80 leading-relaxed">
-            {{ resultExplain }}
-          </p>
-          <p v-if="coverageAfter" class="text-[11px] text-emerald-900/80 leading-relaxed">
-            {{ coverageAfter }}
-            <template v-if="suggestedCountNote">{{ suggestedCountNote }}</template>
-          </p>
-          <EdgeWarning
-            v-if="edges.length"
-            class="mt-2"
-            :lines="edges.map(edgeWords)"
-            :can-widen="!!edgeWiden"
-            :disabled="store.busy || queueAt >= 0"
-            @widen="widenAndRun"
-          >
-            <template v-if="edgeWiden">
-              The wider space is {{ plural(edgeWiden.chains, 'chain') }}. Chains already priced are reused when
-              your setup hasn't changed.
-            </template>
-          </EdgeWarning>
-          <!-- Fastest is fast, not best: when a longer route might win, say so (never runs anything). -->
-          <LongerRouteHint
-            v-if="goal === 'fastest'"
-            class="mt-2"
-            mode="chain"
-            :running="store.isRunning || queueAt >= 0"
-            :disabled="store.busy || queueAt >= 0"
-            :can-add="!sweepRequest"
-            :on-add="addChainOfCount"
-            @check="checkRouteExactly"
-          />
-          <p class="text-[10px] text-emerald-900/60">
-            Compare runs by finish date. Two runs started hours apart have different plan starts, so their day counts
-            don't measure the same thing, but the dates they land on do.
-          </p>
-          <p
-            v-if="store.continueWarning"
-            class="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-[11px] text-amber-900 leading-relaxed"
-          >
-            {{ store.continueWarning }}
-          </p>
-          <div
-            v-if="store.resultContradictions.length"
-            class="mt-2 rounded-lg border border-rose-300 bg-rose-50 p-3 space-y-1"
-          >
-            <p class="text-[10px] font-black text-rose-800 uppercase tracking-widest">This result contradicts itself</p>
-            <p
-              v-for="(issue, k) in store.resultContradictions"
-              :key="k"
-              class="text-[11px] text-rose-900/90 leading-relaxed"
+        <!-- The results (RunResults.vue): the same order on every search screen. -->
+        <RunResults>
+          <template #card>
+            <!-- The outcome with no best chain. Without it a finished run simply lacked the result card,
+               the Save button stayed grey and Submit never appeared, with nothing saying why -- which
+               read as three separate bugs to the person looking at it. -->
+            <div
+              v-if="store.noFeasibleChain && !store.error"
+              class="rounded-xl border border-rose-300 bg-rose-50 p-4 space-y-2"
             >
-              {{ issue.message }}
-            </p>
-            <p class="text-[11px] text-rose-900/80 leading-relaxed">
-              Reload your backup and run it again before trusting these dates, and compare leg 1 against the official
-              planner. If leg 1 agrees and a later leg doesn't, the fault is in the state carried between legs.
-            </p>
-          </div>
-          <p v-if="store.stoppedEarly" class="text-[11px] text-emerald-900/70 pt-1">
-            You stopped it early, so this is the best of what was priced, not the optimum of the space.
-          </p>
-          <p v-if="store.timeOff.length && !store.isRunning" class="text-[11px] text-emerald-900/80">
-            Your time off goes into the plan too: the ascension it interrupts ends when the time off starts, and the
-            next one starts after it.
-          </p>
-        </RouteResultCard>
+              <p class="text-[10px] font-black text-rose-800 uppercase tracking-widest">
+                No chain in this space finishes
+              </p>
+              <p class="text-[11px] text-rose-900/90 leading-relaxed">
+                Every chain was simulated, and none of them reaches {{ store.finalTE }} TE in any time the planner can
+                put a date on. That is a result, not a crash, so there is nothing to save or submit.
+              </p>
+              <p class="text-[11px] text-rose-900/90 leading-relaxed">
+                The usual cause is earnings. On a low-TE account the early ascensions cannot earn enough to buy the habs
+                and vehicles the plan is waiting on, so the very first leg stalls and every leg after it inherits the
+                stall. A different space won't fix that. More Truth Eggs or a stronger earnings set (totem, ankh,
+                necklace and their stones) will. If you think the planner has this wrong, download the diagnostics below
+                and send them in.
+              </p>
+            </div>
 
-        <!-- When to start this route: every hour of the next week, as fresh starts. -->
-        <StartTimeFinder
-          v-if="store.bestChain.length && store.bestDays > 0 && !store.isRunning"
-          :chain="store.bestChain"
-        />
-
-        <!-- Saved runs: the same list on both depths (SavedRuns.vue); carrying a sweep on is this one's. -->
-        <SavedRuns :player-id="playerId" can-resume />
-
-        <RunCharts v-if="store.pricedCount" />
-
-        <!-- Diagnostics are offered on a run with no answer too: that is exactly when someone wants to
-           report what went in. -->
-        <CsvCard v-if="store.pricedCount || store.noFeasibleChain" :csv="store.csvRows > 0" diagnostics>
-          <template #csv>
-            <span class="text-[11px] text-slate-500">
-              {{ countLabel(store.csvRows) }}, one row per leg. Safe to download mid-run.
-            </span>
-          </template>
-        </CsvCard>
-
-        <!-- Submission. Same payload, same opt-in, same disclosure as the main panel. -->
-        <!-- Not while a Find and submit run is going: it sends itself with the choice made at Find,
-             and a box here saying "anonymously" would not be what goes. -->
-        <ShareResult
-          v-if="store.bestDays > 0 && !(store.isRunning && store.submitsWhenDone)"
-          id="share-this-result"
-          :replaces-best-so-far="!!store.provisionalRows.fastest"
-          v-model:opt-in="optIn"
-          v-model:anonymous="anonymous"
-          v-model:nickname="nickname"
-          :note="store.runNoteUsed ?? ''"
-          @update:note="(v?: string) => (store.runNoteUsed = v ?? '')"
-          :nickname-max="NICKNAME_MAX"
-          :csv-detail="`(${store.csvRows.toLocaleString()} chains, one row per leg; chains past the memory budget export with their per-leg cells blank)`"
-          @nickname-typed="nicknameTouched = true"
-        >
-          <template #intro>
-            <p class="text-[11px] text-indigo-900/80 leading-relaxed">
-              An exhaustive result is the most useful thing the board can get: the best of a stated grid rather than a
-              search result. It is sent with the space it covered and what it found there (the runners-up, the best
-              chain at each ascension count, and the spread), so a reader can tell a real find from a flat neighbourhood
-              without downloading the CSV. A run opened from the library above is sent without a run cost, because the
-              time it took wasn't this machine's.
-            </p>
-            <p class="text-[11px] text-indigo-900/80 leading-relaxed">
-              The board uses the random code so that a run landing on the flagged board shows to you as yours and to
-              everyone else anonymously, the same result sent twice is stored once, you can put your name on a run you
-              sent anonymously, and your own later runs can replace your older plans in the race (nobody else's can). A
-              named run shows a short tag made from the code. An anonymous run shows nothing that links it to you. Your
-              best three plans already on the board go named with a named send and anonymous with an anonymous one, so a
-              re-check never ties the two together.
-            </p>
-          </template>
-          <template #opted>
-            <label class="flex items-start gap-3 cursor-pointer text-[11px] text-indigo-900/80">
-              <input
-                v-model="stampName"
-                type="checkbox"
-                :disabled="anonymous"
-                class="mt-0.5 rounded border-indigo-300 text-indigo-600 disabled:opacity-40"
+            <!-- The answer: the same card as Smart search (RouteResultCard.vue). -->
+            <RouteResultCard
+              v-if="store.bestDays > 0"
+              :chain="store.bestChain"
+              :days="store.bestDays"
+              :final-t-e="store.finalTE"
+              :end-label="endDate"
+              :running="store.isRunning"
+              :claim="store.stoppedEarly ? '' : resultClaim"
+              :source="store.searchSpace ? '' : `From the ${NAMES.smartFirst} search you ran`"
+              :busy="store.busy"
+              can-save
+              :saving="saving"
+              @build="buildPlan"
+              @csv="downloadCsv"
+              @save="save"
+            >
+              <p v-if="!store.isRunning && resultExplain" class="text-[11px] text-emerald-900/80 leading-relaxed">
+                {{ resultExplain }}
+              </p>
+              <p v-if="coverageAfter" class="text-[11px] text-emerald-900/80 leading-relaxed">
+                {{ coverageAfter }}
+                <template v-if="suggestedCountNote">{{ suggestedCountNote }}</template>
+              </p>
+              <EdgeWarning
+                v-if="edges.length"
+                class="mt-2"
+                :lines="edges.map(edgeWords)"
+                :can-widen="!!edgeWiden"
+                :disabled="store.busy || queueAt >= 0"
+                @widen="widenAndRun"
+              >
+                <template v-if="edgeWiden">
+                  The wider space is {{ plural(edgeWiden.chains, 'chain') }}. Chains already priced are reused when your
+                  setup hasn't changed.
+                </template>
+              </EdgeWarning>
+              <!-- Fastest is fast, not best: when a longer route might win, say so (never runs anything). -->
+              <LongerRouteHint
+                v-if="goal === 'fastest'"
+                class="mt-2"
+                mode="chain"
+                :running="store.isRunning || queueAt >= 0"
+                :disabled="store.busy || queueAt >= 0"
+                :can-add="!sweepRequest"
+                :on-add="addChainOfCount"
+                @check="checkRouteExactly"
               />
-              <span>
-                <span class="font-bold">Add the time to the name.</span> Optional. The board already keeps each space
-                you prove as its own row, so nothing is lost without it. It just makes your own runs easier to tell
-                apart at a glance when several are on the board.
-              </span>
-            </label>
-            <p v-if="!anonymous" class="text-[11px] text-indigo-900/70">
-              Submitting as
-              <span class="font-mono-premium font-bold">{{ effectiveNickname || '(blank, so anonymous)' }}</span>
-            </p>
+              <p class="text-[10px] text-emerald-900/60">
+                Compare runs by finish date. Two runs started hours apart have different plan starts, so their day
+                counts don't measure the same thing, but the dates they land on do.
+              </p>
+              <p
+                v-if="store.continueWarning"
+                class="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-[11px] text-amber-900 leading-relaxed"
+              >
+                {{ store.continueWarning }}
+              </p>
+              <div
+                v-if="store.resultContradictions.length"
+                class="mt-2 rounded-lg border border-rose-300 bg-rose-50 p-3 space-y-1"
+              >
+                <p class="text-[10px] font-black text-rose-800 uppercase tracking-widest">
+                  This result contradicts itself
+                </p>
+                <p
+                  v-for="(issue, k) in store.resultContradictions"
+                  :key="k"
+                  class="text-[11px] text-rose-900/90 leading-relaxed"
+                >
+                  {{ issue.message }}
+                </p>
+                <p class="text-[11px] text-rose-900/80 leading-relaxed">
+                  Reload your backup and run it again before trusting these dates, and compare leg 1 against the
+                  official planner. If leg 1 agrees and a later leg doesn't, the fault is in the state carried between
+                  legs.
+                </p>
+              </div>
+              <p v-if="store.stoppedEarly" class="text-[11px] text-emerald-900/70 pt-1">
+                You stopped it early, so this is the best of what was priced, not the optimum of the space.
+              </p>
+              <p v-if="store.timeOff.length && !store.isRunning" class="text-[11px] text-emerald-900/80">
+                Your time off goes into the plan too: the ascension it interrupts ends when the time off starts, and the
+                next one starts after it.
+              </p>
+            </RouteResultCard>
           </template>
-
-          <div class="flex flex-wrap gap-2">
-            <!-- Already on the board and the name box now differs from what went (typically: sent
-               anonymously, now "Credit me as ..."): the button renames the stored row, which only
-               works from the browser that sent it. -->
-            <button
-              v-if="store.submitUrl && nameToClaim"
-              type="button"
-              :disabled="!optIn || claiming"
-              class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 disabled:opacity-40"
-              :title="`Put ${nameToClaim} on the run already on the board, instead of sending it again`"
-              @click="claim"
-            >
-              {{ claiming ? 'Renaming...' : 'Put my name on it' }}
-            </button>
-            <button
-              v-else-if="store.submitUrl"
-              type="button"
-              :disabled="!optIn || submitting || store.alreadySubmitted"
-              class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 disabled:opacity-40"
-              @click="submit()"
-            >
-              <SendingText v-if="submitting" /><template v-else>{{
-                store.alreadySubmitted ? 'On the board' : 'Submit result'
-              }}</template>
-            </button>
-            <span v-else class="text-[11px] text-indigo-900/70">
-              No collector configured in this build (<code class="font-mono-premium">VITE_SUBMIT_URL</code>).
-            </span>
-          </div>
-          <!-- The summary landed but the table did not: Retry the table sends just the table, with the
-               same one-time token, rather than a second submission. -->
-          <ShareStatus
-            :message="submitMessage"
-            :ok="submitOk"
-            :partial="submitPartial"
-            :pending-table="store.pendingTable?.source === 'fastest'"
-            :retrying="retryingTable"
-            @retry="retryTable"
+          <!-- When to start this route: every hour of the next week, as fresh starts. -->
+          <StartTimeFinder
+            v-if="store.bestChain.length && store.bestDays > 0 && !store.isRunning"
+            :chain="store.bestChain"
           />
-        </ShareResult>
+          <RunCharts v-if="store.pricedCount" />
+          <template #keep>
+            <!-- Saved runs: the same list on both depths (SavedRuns.vue); carrying a sweep on is this one's. -->
+            <SavedRuns :player-id="playerId" can-resume />
+
+            <!-- Diagnostics are offered on a run with no answer too: that is exactly when someone wants to
+               report what went in. -->
+            <CsvCard v-if="store.pricedCount || store.noFeasibleChain" :csv="store.csvRows > 0" diagnostics>
+              <template #csv>
+                <span class="text-[11px] text-slate-500">
+                  {{ countLabel(store.csvRows) }}, one row per leg. Safe to download mid-run.
+                </span>
+              </template>
+            </CsvCard>
+          </template>
+          <template #share>
+            <!-- Submission. Same payload, same opt-in, same disclosure as the main panel. -->
+            <!-- Not while a Find and submit run is going: it sends itself with the choice made at Find,
+                 and a box here saying "anonymously" would not be what goes. -->
+            <ShareResult
+              v-if="store.bestDays > 0 && !(store.isRunning && store.submitsWhenDone)"
+              :replaces-best-so-far="!!store.provisionalRows.fastest"
+              v-model:opt-in="optIn"
+              v-model:anonymous="anonymous"
+              v-model:nickname="nickname"
+              :note="store.runNoteUsed ?? ''"
+              @update:note="(v?: string) => (store.runNoteUsed = v ?? '')"
+              :nickname-max="NICKNAME_MAX"
+              :csv-detail="`(${store.csvRows.toLocaleString()} chains, one row per leg; chains past the memory budget export with their per-leg cells blank)`"
+              @nickname-typed="nicknameTouched = true"
+            >
+              <template #intro>
+                <p class="text-[11px] text-indigo-900/80 leading-relaxed">
+                  An exhaustive result is the most useful thing the board can get: the best of a stated grid rather than
+                  a search result. It is sent with the space it covered and what it found there (the runners-up, the
+                  best chain at each ascension count, and the spread), so a reader can tell a real find from a flat
+                  neighbourhood without downloading the CSV. A run opened from the library above is sent without a run
+                  cost, because the time it took wasn't this machine's.
+                </p>
+                <p class="text-[11px] text-indigo-900/80 leading-relaxed">
+                  The board uses the random code so that a run landing on the flagged board shows to you as yours and to
+                  everyone else anonymously, the same result sent twice is stored once, you can put your name on a run
+                  you sent anonymously, and your own later runs can replace your older plans in the race (nobody else's
+                  can). A named run shows a short tag made from the code. An anonymous run shows nothing that links it
+                  to you. Your best three plans already on the board go named with a named send and anonymous with an
+                  anonymous one, so a re-check never ties the two together.
+                </p>
+              </template>
+              <template #opted>
+                <label class="flex items-start gap-3 cursor-pointer text-[11px] text-indigo-900/80">
+                  <input
+                    v-model="stampName"
+                    type="checkbox"
+                    :disabled="anonymous"
+                    class="mt-0.5 rounded border-indigo-300 text-indigo-600 disabled:opacity-40"
+                  />
+                  <span>
+                    <span class="font-bold">Add the time to the name.</span> Optional. The board already keeps each
+                    space you prove as its own row, so nothing is lost without it. It just makes your own runs easier to
+                    tell apart at a glance when several are on the board.
+                  </span>
+                </label>
+                <p v-if="!anonymous" class="text-[11px] text-indigo-900/70">
+                  Submitting as
+                  <span class="font-mono-premium font-bold">{{ effectiveNickname || '(blank, so anonymous)' }}</span>
+                </p>
+              </template>
+
+              <BoardSubmitButtons
+                :opt-in="optIn"
+                :submit-url="store.submitUrl"
+                :name-to-claim="nameToClaim"
+                :claiming="claiming"
+                :sending="submitting"
+                :already-submitted="store.alreadySubmitted"
+                :message="submitMessage"
+                :ok="submitOk"
+                :partial="submitPartial"
+                :pending-table="store.pendingTable?.source === 'fastest'"
+                :retrying="retryingTable"
+                :preview="payloadPreview"
+                @claim="claim"
+                @submit="submit()"
+                @save="downloadSubmission"
+                @retry="retryTable"
+              />
+            </ShareResult>
+          </template>
+        </RunResults>
       </template>
     </div>
   </div>
@@ -1196,18 +1102,11 @@ import { useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useUIStore } from '@/stores/ui';
 import RunNoteBox from './RunNoteBox.vue';
-import FindBar from './FindBar.vue';
 import ShareResult from './ShareResult.vue';
-import ShareStatus from './ShareStatus.vue';
-import SendingText from './SendingText.vue';
-import UnsentResults from './UnsentResults.vue';
-import { useShareExtras } from '@/composables/useShareExtras';
-import { useBoardSubmit, useShareIdentity } from '@/composables/useShareResult';
-import StepAwayOptions from './StepAwayOptions.vue';
+import { NICKNAME_MAX, useFastestShare } from '@/composables/useFastestShare';
+import BoardSubmitButtons from './BoardSubmitButtons.vue';
 import SavedRuns from './SavedRuns.vue';
-import AutoSendReport from './AutoSendReport.vue';
 import RouteResultCard from './RouteResultCard.vue';
-import { sendRunResult } from '@/search/sendRun';
 import { parseSweepRequest, withoutSweepParams } from '@/search/sweepRequest';
 import { describeFirstAscension } from '@/search/firstAscension';
 import {
@@ -1234,20 +1133,25 @@ import { showDateTime } from '@/lib/displayTime';
 import { sweepSeconds, workerSecondsFromRate, workerSecondsPerChain } from '@/search/speed';
 import { describeCompute } from '@/utils/computeTime';
 import IntegrityNotice from './IntegrityNotice.vue';
-import SafariNotice from './SafariNotice.vue';
-import RunSaveNotice from './RunSaveNotice.vue';
 import type { SweepQueueChain, SweepQueueRecord, SweepQueueResult } from '@/search/persistence';
 import { runSweepQueue } from '@/search/sweepQueueRun';
 import UnfinishedRuns from './UnfinishedRuns.vue';
-import RunGoingElsewhere from './RunGoingElsewhere.vue';
+import CarryOnOffer from './CarryOnOffer.vue';
+import BlockedRunNotice from './BlockedRunNotice.vue';
 import DeadlinePanel from './DeadlinePanel.vue';
 import { formatTimeLeft } from '@/search/sweepEstimate';
 import { describeTimeOff, usableTimeOff } from '@/search/timeOff';
 import { gridIsComplete, gridStepLabel } from '@/search/grid';
 import { useRunDownloads } from '@/composables/useRunDownloads';
 import CsvCard from './CsvCard.vue';
-import ProgressBar from './ProgressBar.vue';
+import RunSendReport from './RunSendReport.vue';
+import RunResults from './RunResults.vue';
+import ShareNameChoice from './ShareNameChoice.vue';
+import RunProgress from './RunProgress.vue';
 import EdgeWarning from './EdgeWarning.vue';
+import RunErrorNotes from './RunErrorNotes.vue';
+import RunControls from './RunControls.vue';
+import ResultTable from './ResultTable.vue';
 import LongerRouteHint from './LongerRouteHint.vue';
 
 const props = defineProps<{
@@ -1495,22 +1399,6 @@ function setWorkers(raw: string): void {
 
 const saving = ref(false);
 
-/**
- * Credit. Same shape as the main panel's, deliberately -- this panel had no nickname field at all,
- * so every exhaustive result reached the board as `anonymous` no matter who ran it.
- *
- * The collector caps a nickname at 40 characters and TRUNCATES rather than rejecting, so the stamp
- * has to be budgeted for here: a name typed to the full length with the date appended would come
- * back from the board with the date sliced off, which is the one failure that would quietly undo
- * the reason for having it.
- */
-const NICKNAME_MAX = 40;
-/** ` YYYY-MM-DD HH:MM` -- the space plus sixteen characters. */
-const STAMP_LEN = 17;
-
-/** On, like the main panel's: the per-leg rows are what make a pooled dataset worth more than a
- *  ranking, and the whole block already sits behind an unticked opt-in. */
-const { sendCsv: includeCsv, diagnosticsGo } = useShareExtras();
 /** Off by default, because it is now a convenience rather than a fix.
  *
  *  It was introduced as a workaround: the board collapsed re-runs on
@@ -1520,32 +1408,16 @@ const { sendCsv: includeCsv, diagnosticsGo } = useShareExtras();
  *  space in that key, so both rows stand on their own and a dated name buys nothing but
  *  legibility. Defaulting it on would be decorating every name to solve a problem that is fixed. */
 const stampName = ref(false);
-/** Consent, anonymous-or-named and the name box (composables/useShareResult.ts): the same choices
- *  as Find and submit's bar. */
-const { optIn, anonymous, nickname, nicknameTouched } = useShareIdentity(() => props.playerId);
-
-/** Local time, not UTC: it sits next to `startLocal` and `endLocal` on the row, which are local
- *  too, and a stamp in a timezone the submitter never saw would read as somebody else's clock. */
-function localStamp(d = new Date()): string {
-  const p = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
-}
-
-/** What actually goes on the row. Anonymous wins over whatever is in the box, so a half-typed name
- *  cannot be sent by someone who then picked anonymous. */
-const effectiveNickname = computed(() => {
-  if (anonymous.value) return '';
-  const base = nickname.value.trim();
-  if (!base) return '';
-  if (!stampName.value) return base.slice(0, NICKNAME_MAX);
-  return `${base.slice(0, NICKNAME_MAX - STAMP_LEN)} ${localStamp()}`;
-});
-
-const submitting = ref(false);
-/** The status line, Put my name on it (with "Add the time to the name" ticked the stamp is part of
- *  the name, as it would be on a send), Retry the table and the rechecks worked out once consent is
- *  given (composables/useShareResult.ts). */
+/** Consent, anonymous-or-named, the name box, the CSV and diagnostics boxes, the status line, Put my
+ *  name on it (with "Add the time to the name" ticked the stamp is part of the name, as it would be on
+ *  a send), Retry the table and the send (composables/useFastestShare.ts, shared with Smart search). */
 const {
+  optIn,
+  anonymous,
+  nickname,
+  nicknameTouched,
+  plainName,
+  effectiveNickname,
   submitMessage,
   submitOk,
   submitPartial,
@@ -1554,8 +1426,11 @@ const {
   nameToClaim,
   claiming,
   claim,
-  refuseDuplicate,
-} = useBoardSubmit(store, effectiveNickname, optIn);
+  submitting,
+  submit,
+  payloadPreview,
+  downloadSubmission,
+} = useFastestShare(store, () => props.playerId, stampName);
 
 /** Values across all the bands (the "Values tried" figure). */
 const poolSize = computed(() => bands.value.reduce((n, b) => n + b.length, 0));
@@ -2001,7 +1876,7 @@ async function start(andSubmit = false): Promise<void> {
   // For the progress bar on other tabs: this run sends itself when it finishes.
   store.submitsWhenDone = findAndSubmit.value || (!!sweepRequest && sweepConsent.value);
   // Send best so far, with the consent this click already has (or that the box asks for mid-run).
-  store.beginBestSoFar('fastest', store.submitsWhenDone ? { nickname: bestSoFarName() } : null);
+  store.beginBestSoFar('fastest', store.submitsWhenDone ? { nickname: plainName.value } : null);
   try {
     // A fresh click: an unfinished queue from before (a crash, a reload) is over, so a later carry-on
     // of the run in the slot runs that chain alone, not the old queue's rest.
@@ -2012,11 +1887,6 @@ async function start(andSubmit = false): Promise<void> {
     store.submitsWhenDone = false;
     store.endBestSoFar();
   }
-}
-
-/** The name a best so far goes under: the box's, without the time stamp (that is for the final row). */
-function bestSoFarName(): string {
-  return anonymous.value ? '' : nickname.value.trim().slice(0, NICKNAME_MAX);
 }
 
 /**
@@ -2084,7 +1954,7 @@ async function startQueue(): Promise<void> {
       ascensions: Math.max(1, row.asc),
     })),
   ];
-  await runQueue(props.playerId, chains, { from: 0, results: [], carry: null, name: bestSoFarName() });
+  await runQueue(props.playerId, chains, { from: 0, results: [], carry: null, name: plainName.value });
 }
 
 /**
@@ -2282,34 +2152,4 @@ const crashedQueueNote = computed(() => {
 
 /** Which run is mid-resume, for the button's own label. Empty when none is. */
 const resuming = ref('');
-
-async function submit(sweepSend = false): Promise<void> {
-  // Clicks made while the page was frozen building the table arrive afterwards; each one used to
-  // send another copy.
-  // Already sent (automatically or by hand): a second send is only a duplicate row.
-  if (refuseDuplicate()) return;
-  if (submitting.value) return;
-  submitting.value = true;
-  submitOk.value = true;
-  try {
-    // The steps themselves are shared with the Science tab's runner (search/sendRun.ts). The CSV
-    // goes as the second argument there: this panel once sent without it, so every exhaustive row
-    // on the board read "No CSV was attached".
-    const res = await sendRunResult(
-      store,
-      effectiveNickname.value,
-      // A sweep link hides the share boxes: its card promises the full CSV and does not mention
-      // diagnostics, so it always sends the one and never the other, whatever the remembered boxes say.
-      sweepSend || includeCsv.value,
-      text => {
-        submitMessage.value = text;
-      },
-      !sweepSend && diagnosticsGo.value
-    );
-    submitOk.value = res.ok;
-    submitMessage.value = res.text;
-  } finally {
-    submitting.value = false;
-  }
-}
 </script>

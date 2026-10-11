@@ -153,26 +153,13 @@
       <!-- The same two boxes as Share this result, on the same choices. -->
       <div class="ml-7"><ShareExtras :csv-detail="csvDetail" /></div>
       <!-- Before the tick too while Send best so far asks: ticking sends, so the name is chosen first. -->
-      <div v-if="optIn || asking" class="flex flex-wrap items-center gap-4">
-        <label class="flex items-center gap-2 cursor-pointer font-bold">
-          <input v-model="anonymous" type="radio" :value="true" class="text-indigo-600" />
-          Submit anonymously
-        </label>
-        <label class="flex items-center gap-2 cursor-pointer font-bold">
-          <input v-model="anonymous" type="radio" :value="false" class="text-indigo-600" />
-          Credit me as
-        </label>
-        <input
-          :value="nickname"
-          type="text"
-          :maxlength="nicknameMax"
-          :disabled="anonymous"
-          placeholder="nickname"
-          aria-label="Nickname"
-          class="rounded-lg border-indigo-200 text-sm font-bold text-slate-800 w-48 disabled:opacity-40"
-          @input="onNickname"
-        />
-      </div>
+      <ShareNameChoice
+        v-if="optIn || asking"
+        v-model:anonymous="anonymous"
+        v-model:nickname="nickname"
+        :nickname-max="nicknameMax"
+        @nickname-typed="emit('nicknameTyped')"
+      />
       <!-- The note goes with the run as it starts; a run already going keeps the one it started with. -->
       <RunNoteBox v-if="note !== undefined && !running" v-model="note" />
     </div>
@@ -184,6 +171,7 @@ import { computed, watch } from 'vue';
 import RunNoteBox from './RunNoteBox.vue';
 import SendingText from './SendingText.vue';
 import ShareExtras from './ShareExtras.vue';
+import ShareNameChoice from './ShareNameChoice.vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { stepAwayOptions } from '@/composables/useStepAway';
 
@@ -281,10 +269,5 @@ function agreeAutoSend(): void {
   if (!optIn.value) return;
   store.agreeBestSoFar(chosenName());
   store.autoTick();
-}
-
-function onNickname(e: Event): void {
-  nickname.value = (e.target as HTMLInputElement).value;
-  emit('nicknameTyped');
 }
 </script>

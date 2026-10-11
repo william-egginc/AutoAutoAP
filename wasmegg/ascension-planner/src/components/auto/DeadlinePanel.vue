@@ -8,12 +8,16 @@
   <div class="rounded-xl border border-slate-200 bg-white p-4 space-y-4">
     <!-- THE one offer to carry on a run that stopped before finishing (a reload, a crash, or Stop).
          Everything else on the page (the black box notice, Stepping away?) points here. -->
-    <div
+    <CarryOnOffer
       v-if="store.deadlineUnfinished && !store.busy"
       id="by-date-unfinished"
-      class="rounded-xl border border-amber-300 bg-amber-50 p-4 space-y-2 text-[11px] text-amber-900 leading-relaxed"
+      title="Unfinished By a date search"
+      :elsewhere="store.runElsewhere.deadline"
+      :can-carry-on="store.deadlineUnfinished.saveKept"
+      discardable
+      @carry-on="resume"
+      @discard="store.discardDeadlineRun(playerId)"
     >
-      <h3 class="text-[10px] font-black text-amber-800 uppercase tracking-widest">Unfinished By a date search</h3>
       <p>
         <template v-if="store.deadlineUnfinished.spec.sets">
           <span class="font-bold">{{ store.deadlineUnfinished.spec.sets.toLocaleString() }}</span> sets of early stops,
@@ -31,16 +35,7 @@
       <p v-if="autoCountdown > 0" class="font-bold" role="status">
         The last run stopped without finishing. Carrying on by itself in {{ autoCountdown }} s, with fewer workers.
       </p>
-      <RunGoingElsewhere v-if="store.runElsewhere.deadline" />
-      <div v-else class="flex flex-wrap gap-3">
-        <button
-          v-if="store.deadlineUnfinished.saveKept"
-          type="button"
-          class="px-4 py-2 rounded-lg bg-amber-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-800"
-          @click="resume"
-        >
-          Carry on from where it stopped
-        </button>
+      <template #actions>
         <button
           v-if="autoCountdown > 0"
           type="button"
@@ -49,15 +44,8 @@
         >
           Cancel the automatic carry on
         </button>
-        <button
-          type="button"
-          class="text-[10px] font-black uppercase tracking-widest text-amber-700/70 hover:text-amber-900"
-          @click="store.discardDeadlineRun(playerId)"
-        >
-          Discard it
-        </button>
-      </div>
-    </div>
+      </template>
+    </CarryOnOffer>
 
     <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">The deadline</h3>
     <!-- Egg Day or a date of your own, as one choice of two: a dark "Egg Day" button beside date
@@ -224,8 +212,8 @@
               instantNote(k)
             }}</span>
             <span v-else-if="chains[k].centre && !chains[k].centredOn" class="block text-[10px] text-slate-500"
-              >No instant answer for {{ plural(row.asc, 'ascension') }} yet, so the boxes after the first are the card's wider
-              ones.</span
+              >No instant answer for {{ plural(row.asc, 'ascension') }} yet, so the boxes after the first are the card's
+              wider ones.</span
             >
             <p v-if="chains[k].restored && row.asc >= 2" class="text-[10px] text-slate-400">
               Restored from the unfinished run (the sliders apply when you press Suggest a space).
@@ -419,7 +407,14 @@
         <template v-if="store.longRunNote.kind === 'default'">{{ longRunLine(store.longRunNote.workers) }}</template>
         <template v-else>
           {{ longRunHandLine(LONG_RUN_WORKERS, store.longRunNote.have) }}
-          <button type="button" class="ml-1 underline" data-testid="use-long-run-workers" @click="store.useLongRunWorkers()">Use {{ LONG_RUN_WORKERS }}</button>
+          <button
+            type="button"
+            class="ml-1 underline"
+            data-testid="use-long-run-workers"
+            @click="store.useLongRunWorkers()"
+          >
+            Use {{ LONG_RUN_WORKERS }}
+          </button>
         </template>
       </p>
     </div>
@@ -433,53 +428,63 @@
     </label>
 
     <!-- Keep awake is in Your setup at the top, with the other computer settings. -->
-    <SafariNotice />
-    <!-- An older save in the planner (a saved entry's, a file's): this search runs on it, and says so.
-         Only that half of the notice: its re-check of older results reads Fastest's routes. -->
-    <RunSaveNotice v-if="ui.runSaveLoaded" />
-    <IntegrityNotice :deadline-offer="!!store.deadlineUnfinished" />
-    <!-- A Find and submit that finished (and shared) while this panel was closed for another tab. -->
-    <!-- Finished results kept until sent (search/pendingSends.ts): "This result wasn't sent: Send it now". -->
-    <UnsentResults kind="deadline" :player-id="playerId" :nickname="shareName" />
-    <AutoSendReport v-if="!shareMessage" kind="by-date" />
-    <!-- Find / Find and submit: the same bar as Fastest route (FindBar.vue), with this screen's own
+    <!-- The run controls (RunControls.vue): the same block as Fastest route's, with this screen's own
          consent wording. The same share settings as the Share this result box under the result. -->
-    <FindBar
+    <RunControls
+      ref="stepAway"
       v-model:opt-in="shareOptIn"
       v-model:anonymous="shareAnonymous"
       v-model:nickname="shareName"
       v-model:note="store.runNote"
+      kind="by-date"
+      :player-id="playerId"
       :find-disabled="store.busy || store.integrityBlocked || store.staleBackupBlocked || !canStart"
       :running="store.deadlineRunning"
       :stopping="stopAsked"
-      :running-label="autoShare ? 'Searching, then submitting...' : 'Searching...'"
       :show-submit="collectorConfigured"
-      goal-word="deadline"
-      best-so-far-kind="deadline"
+      :can-carry-on="!!store.deadlineUnfinished?.saveKept && !store.runElsewhere.deadline"
+      countdown-elsewhere
+      :run-save-notice="!!ui.runSaveLoaded"
+      :deadline-offer="!!store.deadlineUnfinished"
+      :report="{
+        own: autoShared,
+        message: shareMessage,
+        ok: shareOk,
+        partial: sharePartial,
+        pendingTable: store.pendingTable?.source === 'deadline',
+        retrying: retryingTable,
+        quiet: !!shareMessage,
+      }"
       @find="andSubmit => void start(andSubmit)"
       @stop="stopDeadline"
       @nickname-typed="shareNameTouched = true"
+      @carry-on="resume"
+      @countdown="n => (autoCountdown = n)"
+      @retry="retryTable"
     >
       <template #progress>
         <!-- Live progress, Insane-style. -->
-        <div v-if="store.deadlineRunning && store.deadlineProgress" class="space-y-2" data-run-progress="by-date">
-          <ProgressBar :percent="progressPct" />
-          <p class="text-[11px] text-slate-600">
-            <span class="font-bold">{{ liveDone.toLocaleString() }}</span
-            ><template v-if="liveTotal && liveDone < liveTotal">
-              of ~{{ roundedRoutes(liveTotal).toLocaleString() }}</template
-            >
-            routes priced<template v-if="liveTotal && liveDone >= liveTotal">
-              (more than the ~{{ roundedRoutes(liveTotal).toLocaleString() }} estimated)</template
-            ><template v-if="estNow.learned"> ({{ estimateNote(estNow) }})</template> · {{ elapsedLabel }} so
-            far<template v-if="remainingLabel">
-              · about {{ remainingLabel }} left<template v-if="timeLeft?.measuring"> (measuring…)</template
-              ><template v-else-if="firstGuessLabel"> (first guess {{ firstGuessLabel }})</template></template
-            ><template v-if="store.deadlineLegSims">
-              · {{ plural(store.deadlineLegSims, 'leg') }} simulated</template
-            >
-          </p>
-          <p class="text-[11px] text-slate-500">{{ store.deadlineProgress.stage }}</p>
+        <div v-if="store.deadlineRunning && store.deadlineProgress" class="space-y-2">
+          <RunProgress
+            data-run-progress="by-date"
+            :stage="store.deadlineProgress.stage"
+            :count="
+              liveTotal && liveDone < liveTotal
+                ? `${liveDone.toLocaleString()} / ~${plural(roundedRoutes(liveTotal), 'route')}`
+                : plural(liveDone, 'route')
+            "
+            :percent="progressPct"
+          >
+            <p class="text-[10px] text-slate-400 font-bold">
+              {{ elapsedLabel }} so far<template v-if="remainingLabel">
+                · about {{ remainingLabel }} left<template v-if="timeLeft?.measuring"> (measuring…)</template
+                ><template v-else-if="firstGuessLabel"> (first guess {{ firstGuessLabel }})</template></template
+              ><template v-if="liveTotal && liveDone >= liveTotal">
+                · more than the ~{{ roundedRoutes(liveTotal).toLocaleString() }} routes estimated</template
+              ><template v-if="estNow.learned"> · {{ estimateNote(estNow) }}</template
+              ><template v-if="store.deadlineLegSims"> · {{ plural(store.deadlineLegSims, 'leg') }} simulated</template>
+            </p>
+          </RunProgress>
           <!-- The best so far in the finished answer's card (ByDateRouteCard.vue), then the next ones. -->
           <ByDateRouteCard
             v-if="liveBest"
@@ -491,111 +496,96 @@
             :simulate-note="liveSim?.note"
             @simulate="simulateLive"
           />
-          <div v-if="store.deadlineProgress.top.length > 1" class="overflow-x-auto">
-            <p class="text-[10px] font-black uppercase tracking-widest text-slate-500 pb-1">Top routes so far</p>
-            <table class="w-full text-[11px] tabular-nums">
-              <thead>
-                <tr class="text-left text-[9px] font-black uppercase tracking-widest text-slate-400">
-                  <th class="pr-4 py-1">Route</th>
-                  <th class="pr-4 py-1">Last stop reached</th>
-                  <th class="pr-4 py-1">Spare</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="r in store.deadlineProgress.top.slice(0, 5)"
-                  :key="r.chain.join(',')"
-                  class="border-t border-slate-100"
-                >
-                  <td class="pr-4 py-1 font-bold">{{ r.chain.join(' ') }}</td>
-                  <td class="pr-4 py-1">{{ inPlannerZone(r.reachAt) }}</td>
-                  <td class="pr-4 py-1">{{ spareLabel(r.spare) }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          <ResultTable
+            v-if="store.deadlineProgress.top.length > 1"
+            title="Top routes so far"
+            :columns="ROUTE_COLUMNS"
+            :rows="store.deadlineProgress.top.slice(0, 5)"
+            :row-key="r => r.chain.join(',')"
+          >
+            <template #default="{ row: r }">
+              <td class="pr-4 py-1 font-bold">{{ r.chain.join(' ') }}</td>
+              <td class="pr-4 py-1">{{ inPlannerZone(r.reachAt) }}</td>
+              <td class="pr-4 py-1">{{ spareLabel(r.spare) }}</td>
+            </template>
+          </ResultTable>
         </div>
       </template>
-    </FindBar>
-
-    <!-- Stepping away? Carry on by itself, a watcher tab, fewer workers (StepAwayOptions.vue). -->
-    <StepAwayOptions
-      ref="stepAway"
-      kind="deadline"
-      countdown-elsewhere
-      @countdown="n => (autoCountdown = n)"
-      :player-id="playerId"
-      :can-carry-on="!!store.deadlineUnfinished?.saveKept && !store.runElsewhere.deadline"
-      @carry-on="resume"
-    />
-    <!-- Everything above greys out while anything else in this tab is busy; say what, and offer a way out. -->
-    <div
-      v-if="store.busy && !store.deadlineRunning"
-      class="flex flex-wrap items-center gap-3 rounded-xl border border-slate-300 bg-slate-50 p-3 text-[11px] text-slate-700"
-    >
-      <span>
-        <span class="font-bold">Waiting for another run in this tab:</span>
-        <template v-if="store.isRunning">
-          the fastest-to-a-target search ({{ store.stage || 'running' }}, {{ store.chainsDone.toLocaleString() }} of
-          {{ store.chainsEstimated.toLocaleString() }})</template
+      <template #after>
+        <!-- Everything above greys out while anything else in this tab is busy; say what, and offer a way out. -->
+        <div
+          v-if="store.busy && !store.deadlineRunning"
+          class="flex flex-wrap items-center gap-3 rounded-xl border border-slate-300 bg-slate-50 p-3 text-[11px] text-slate-700"
         >
-        <template v-else-if="store.preparing">getting an unfinished run ready to carry on</template>
-        <template v-else>re-checking routes on your latest save</template>. The deadline search can start once it is
-        done.
-      </span>
-      <button
-        v-if="store.isRunning"
-        type="button"
-        class="px-3 py-1.5 rounded-lg border border-slate-400 text-[10px] font-black uppercase tracking-widest hover:bg-white"
-        @click="emit('show-fastest')"
-      >
-        Show that run
-      </button>
-      <button
-        v-if="store.isRunning"
-        type="button"
-        class="px-3 py-1.5 rounded-lg border border-slate-400 text-[10px] font-black uppercase tracking-widest hover:bg-white disabled:opacity-60"
-        :disabled="store.stopRequested"
-        @click="store.stop()"
-      >
-        <SendingText v-if="store.stopRequested" text="Stopping" /><template v-else>Stop that run</template>
-      </button>
-    </div>
-    <p v-if="startIssue" class="text-[11px] font-semibold text-rose-700">{{ startIssue }}</p>
-    <p v-if="store.error && !store.errorIsIntegrityNotice" class="text-[11px] font-semibold text-rose-700">
-      {{ store.error }}
-    </p>
-
-    <div v-if="result" class="space-y-3">
-      <ByDateRouteCard
-        v-if="best"
-        :route="best"
-        :deadline="result.deadline"
-        :zone="plannerZone"
-        simulate
-        :simulate-note="resultSim?.note"
-        @simulate="simulateResult"
-      >
-        <template #heading>
-          <span v-if="!store.deadlineRunning && fromEarlier" class="font-semibold normal-case tracking-normal">
-            · saved result from {{ ago(result.at) }}</span
+          <span>
+            <span class="font-bold">Waiting for another run in this tab:</span>
+            <template v-if="store.isRunning">
+              the fastest-to-a-target search ({{ store.stage || 'running' }}, {{ store.chainsDone.toLocaleString() }} of
+              {{ store.chainsEstimated.toLocaleString() }})</template
+            >
+            <template v-else-if="store.preparing">getting an unfinished run ready to carry on</template>
+            <template v-else>re-checking routes on your latest save</template>. The deadline search can start once it is
+            done.
+          </span>
+          <button
+            v-if="store.isRunning"
+            type="button"
+            class="px-3 py-1.5 rounded-lg border border-slate-400 text-[10px] font-black uppercase tracking-widest hover:bg-white"
+            @click="emit('show-fastest')"
           >
-        </template>
-        <!-- One more TE (search/oneMoreTE.ts): stopped early, or narrow or edge boxes, with more spare
-             than one more TE costs. Otherwise the plain "stopped early". -->
-        <span v-if="oneMoreTE" class="block mt-1 font-semibold text-amber-800" data-testid="one-more-te-hint">{{
-          oneMoreTE.text
-        }}</span>
-        <template v-else-if="result.stoppedEarly"> Stopped early, so a better route may not have been tried.</template>
-        <template v-if="atCeiling">
-          <span class="font-bold">That is the highest last stop it was allowed to try</span>, so more may be reachable:
-          raise {{ result.step ? '"Rough guess for the last stop"' : "the top of the last stop's range" }} and run it
-          again.</template
+            Show that run
+          </button>
+          <button
+            v-if="store.isRunning"
+            type="button"
+            class="px-3 py-1.5 rounded-lg border border-slate-400 text-[10px] font-black uppercase tracking-widest hover:bg-white disabled:opacity-60"
+            :disabled="store.stopRequested"
+            @click="store.stop()"
+          >
+            <SendingText v-if="store.stopRequested" text="Stopping" /><template v-else>Stop that run</template>
+          </button>
+        </div>
+        <p v-if="startIssue" class="text-[11px] font-semibold text-rose-700">{{ startIssue }}</p>
+        <RunErrorNotes :error="store.errorIsIntegrityNotice ? null : store.error" :labelled="false" />
+      </template>
+    </RunControls>
+
+    <!-- The results (RunResults.vue): the same order on every search screen. -->
+    <RunResults v-if="result">
+      <template #card>
+        <ByDateRouteCard
+          v-if="best"
+          :route="best"
+          :deadline="result.deadline"
+          :zone="plannerZone"
+          simulate
+          :simulate-note="resultSim?.note"
+          @simulate="simulateResult"
         >
-      </ByDateRouteCard>
-      <p v-else class="text-[11px] font-semibold text-rose-700">
-        No route tried reaches any stop by then. Try a later date, a lower last stop, or more stops.
-      </p>
+          <template #heading>
+            <span v-if="!store.deadlineRunning && fromEarlier" class="font-semibold normal-case tracking-normal">
+              · saved result from {{ ago(result.at) }}</span
+            >
+          </template>
+          <!-- One more TE (search/oneMoreTE.ts): stopped early, or narrow or edge boxes, with more spare
+               than one more TE costs. Otherwise the plain "stopped early". -->
+          <span v-if="oneMoreTE" class="block mt-1 font-semibold text-amber-800" data-testid="one-more-te-hint">{{
+            oneMoreTE.text
+          }}</span>
+          <template v-else-if="result.stoppedEarly">
+            Stopped early, so a better route may not have been tried.</template
+          >
+          <template v-if="atCeiling">
+            <span class="font-bold">That is the highest last stop it was allowed to try</span>, so more may be
+            reachable: raise
+            {{ result.step ? '"Rough guess for the last stop"' : "the top of the last stop's range" }} and run it
+            again.</template
+          >
+        </ByDateRouteCard>
+        <p v-else class="text-[11px] font-semibold text-rose-700">
+          No route tried reaches any stop by then. Try a later date, a lower last stop, or more stops.
+        </p>
+      </template>
       <!-- Where Advanced's box already says this (above, with the chains) it is not repeated here. -->
       <p
         v-if="best && (simple || mode !== 'space' || !instantSets.length)"
@@ -643,21 +633,21 @@
         </p>
       </div>
 
-      <div v-if="result.byStops.length > 1" class="overflow-x-auto">
-        <p class="text-[10px] font-black uppercase tracking-widest text-slate-500 pb-1">Best for each stop count</p>
-        <table class="w-full text-[11px] tabular-nums">
-          <tbody>
-            <tr v-for="r in result.byStops" :key="r.chain.join(',')" class="border-t border-slate-100">
-              <td class="pr-4 py-1 text-slate-500">{{ r.chain.length }} stop{{ r.chain.length === 1 ? '' : 's' }}</td>
-              <td class="pr-4 py-1 font-bold">{{ r.chain.join(' ') }}</td>
-              <td class="pr-4 py-1">{{ spareLabel(r.spare) }} spare</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <ResultTable
+        v-if="result.byStops.length > 1"
+        title="Best for each stop count"
+        :rows="result.byStops"
+        :row-key="r => r.chain.join(',')"
+      >
+        <template #default="{ row: r }">
+          <td class="pr-4 py-1 text-slate-500">{{ r.chain.length }} stop{{ r.chain.length === 1 ? '' : 's' }}</td>
+          <td class="pr-4 py-1 font-bold">{{ r.chain.join(' ') }}</td>
+          <td class="pr-4 py-1">{{ spareLabel(r.spare) }} spare</td>
+        </template>
+      </ResultTable>
 
-      <div class="overflow-x-auto">
-        <p class="text-[10px] font-black uppercase tracking-widest text-slate-500 pb-1">
+      <ResultTable :columns="ROUTE_COLUMNS" :rows="result.routes.slice(0, 15)" :row-key="r => r.chain.join(',')">
+        <template #title>
           <template v-if="!result.step && !result.stoppedEarly"
             >Every route in your space: {{ result.priced.toLocaleString() }} priced, run complete. Top routes</template
           ><template v-else
@@ -666,88 +656,80 @@
               result.step ? `early stops every ${result.step} TE, then refined` : 'every combination in your space'
             }})</template
           >
-        </p>
-        <table class="w-full text-[11px] tabular-nums">
-          <thead>
-            <tr class="text-left text-[9px] font-black uppercase tracking-widest text-slate-400">
-              <th class="pr-4 py-1">Route</th>
-              <th class="pr-4 py-1">Last stop reached</th>
-              <th class="pr-4 py-1">Spare</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="r in result.routes.slice(0, 15)" :key="r.chain.join(',')" class="border-t border-slate-100">
-              <td class="pr-4 py-1 font-bold">{{ r.chain.join(' ') }}</td>
-              <td class="pr-4 py-1">{{ inPlannerZone(r.reachAt) }}</td>
-              <td class="pr-4 py-1">{{ spareLabel(r.spare) }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <!-- Save this answer and Saved answers (SavedAnswers.vue), with Download CSV beside Save. -->
-      <SavedAnswers :player-id="playerId" :default-label="defaultAnswerLabel" :zone="plannerZone">
-        <template #actions>
-          <button
-            type="button"
-            class="px-3 py-1.5 rounded-lg border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50"
-            @click="downloadByDateCsv"
-          >
-            Download CSV
-          </button>
         </template>
-        <p v-if="downloadError" class="text-[11px] font-semibold text-red-700">{{ downloadError }}</p>
-        <p class="text-[11px] text-slate-500 leading-relaxed">
-          Priced from {{ inPlannerZone(result.planStart) }} at {{ result.te }} TE<template v-if="result.backupAt"
-            >, on your save from {{ inPlannerZone(result.backupAt) }}</template
-          >, with the hours and time off in Your setup. A route that reaches one more TE usually has much less time to
-          spare: the table shows both so you can choose.
-        </p>
-      </SavedAnswers>
-
-      <!-- Share: Compare's Egg Day tab for an Egg Day answer, else "By a date". Same opt-in as Insane. -->
-      <ShareResult
-        v-if="best && collectorConfigured"
-        :replaces-best-so-far="!!store.provisionalRows.deadline"
-        v-model:opt-in="shareOptIn"
-        v-model:anonymous="shareAnonymous"
-        v-model:nickname="shareName"
-        v-model:note="resultNote"
-        goal-word="deadline"
-        @nickname-typed="shareNameTouched = true"
-      >
-        <template #intro>
-          <p class="text-[11px] text-indigo-900/80 leading-relaxed">
-            Sends the best route above to {{ NAMES.compare }}'s <span class="font-bold">{{ shareTab }}</span> tab, where
-            answers for the same deadline are ranked by the highest TE reached, then the time to spare. It stays out of
-            the race to 490.
+        <template #default="{ row: r }">
+          <td class="pr-4 py-1 font-bold">{{ r.chain.join(' ') }}</td>
+          <td class="pr-4 py-1">{{ inPlannerZone(r.reachAt) }}</td>
+          <td class="pr-4 py-1">{{ spareLabel(r.spare) }}</td>
+        </template>
+      </ResultTable>
+      <template #keep>
+        <!-- Save this answer and Saved answers (SavedAnswers.vue), with Download CSV beside Save. -->
+        <SavedAnswers :player-id="playerId" :default-label="defaultAnswerLabel" :zone="plannerZone">
+          <template #actions>
+            <button
+              type="button"
+              class="px-3 py-1.5 rounded-lg border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50"
+              @click="downloadByDateCsv"
+            >
+              Download CSV
+            </button>
+          </template>
+          <p v-if="downloadError" class="text-[11px] font-semibold text-red-700">{{ downloadError }}</p>
+          <p class="text-[11px] text-slate-500 leading-relaxed">
+            Priced from {{ inPlannerZone(result.planStart) }} at {{ result.te }} TE<template v-if="result.backupAt"
+              >, on your save from {{ inPlannerZone(result.backupAt) }}</template
+            >, with the hours and time off in Your setup. A route that reaches one more TE usually has much less time to
+            spare: the table shows both so you can choose.
           </p>
-        </template>
-        <template #opted>
-          <p class="text-[11px] text-indigo-900/80">
-            Only named answers are ranked. Anonymous ones are listed below the ranking.
-          </p>
-          <button
-            type="button"
-            :disabled="sharing || store.deadlineRunning || sentKey === resultKey"
-            class="px-4 py-2 rounded-lg bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-800 disabled:opacity-40"
-            @click="share"
-          >
-            <SendingText v-if="sharing" />
-            <template v-else>{{
-              sentKey === resultKey ? 'Sent' : `Send ${best.chain[best.chain.length - 1]} TE by this date`
-            }}</template>
-          </button>
-          <ShareStatus
-            :message="shareMessage"
-            :ok="shareOk"
-            :partial="sharePartial"
-            :pending-table="store.pendingTable?.source === 'deadline'"
-            :retrying="retryingTable"
-            @retry="retryTable"
-          />
-        </template>
-      </ShareResult>
-    </div>
+        </SavedAnswers>
+      </template>
+      <template #share>
+        <!-- Share: Compare's Egg Day tab for an Egg Day answer, else "By a date". Same opt-in as Insane. -->
+        <ShareResult
+          v-if="best && collectorConfigured"
+          :replaces-best-so-far="!!store.provisionalRows.deadline"
+          v-model:opt-in="shareOptIn"
+          v-model:anonymous="shareAnonymous"
+          v-model:nickname="shareName"
+          v-model:note="resultNote"
+          goal-word="deadline"
+          @nickname-typed="shareNameTouched = true"
+        >
+          <template #intro>
+            <p class="text-[11px] text-indigo-900/80 leading-relaxed">
+              Sends the best route above to {{ NAMES.compare }}'s <span class="font-bold">{{ shareTab }}</span> tab,
+              where answers for the same deadline are ranked by the highest TE reached, then the time to spare. It stays
+              out of the race to 490.
+            </p>
+          </template>
+          <template #opted>
+            <p class="text-[11px] text-indigo-900/80">
+              Only named answers are ranked. Anonymous ones are listed below the ranking.
+            </p>
+            <button
+              type="button"
+              :disabled="sharing || store.deadlineRunning || sentKey === resultKey"
+              class="px-4 py-2 rounded-lg bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-800 disabled:opacity-40"
+              @click="share"
+            >
+              <SendingText v-if="sharing" />
+              <template v-else>{{
+                sentKey === resultKey ? 'Sent' : `Send ${best.chain[best.chain.length - 1]} TE by this date`
+              }}</template>
+            </button>
+            <ShareStatus
+              :message="shareMessage"
+              :ok="shareOk"
+              :partial="sharePartial"
+              :pending-table="store.pendingTable?.source === 'deadline'"
+              :retrying="retryingTable"
+              @retry="retryTable"
+            />
+          </template>
+        </ShareResult>
+      </template>
+    </RunResults>
   </div>
 </template>
 
@@ -827,23 +809,23 @@ import {
 } from '@/search/deadlineEstimate';
 import { maxPoolSize } from '@/search/batch';
 import { findBandEdges, widenEdges, type BandEdge } from '@/search/bandCheck';
-import FindBar from './FindBar.vue';
-import RunGoingElsewhere from './RunGoingElsewhere.vue';
+import CarryOnOffer from './CarryOnOffer.vue';
 import ShareResult from './ShareResult.vue';
 import ShareStatus from './ShareStatus.vue';
 import SendingText from './SendingText.vue';
-import UnsentResults from './UnsentResults.vue';
 import { useByDateShare, useShareIdentity } from '@/composables/useShareResult';
 import { useShareExtras } from '@/composables/useShareExtras';
 import RoutesToTry from './RoutesToTry.vue';
 import SavedAnswers from './SavedAnswers.vue';
-import ProgressBar from './ProgressBar.vue';
+import RunProgress from './RunProgress.vue';
 import EdgeWarning from './EdgeWarning.vue';
+import RunErrorNotes from './RunErrorNotes.vue';
+import RunControls from './RunControls.vue';
+import ResultTable from './ResultTable.vue';
+import RunResults from './RunResults.vue';
 import { durationLabel, useRunClock } from '@/composables/useRunClock';
 import { useRunDownloads } from '@/composables/useRunDownloads';
 import { useDateRowSliders } from '@/composables/useRowSliders';
-import StepAwayOptions from './StepAwayOptions.vue';
-import AutoSendReport from './AutoSendReport.vue';
 import { NAMES, fastestName } from '@/lib/siteNav';
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { LONG_RUN_WORKERS, useChainSearchStore } from '@/stores/chainSearch';
@@ -877,10 +859,7 @@ import { useUIStore } from '@/stores/ui';
 import type { SearchMode } from '@/lib/searchMode';
 import { eggDayYearOf } from '@/lib/eggDay';
 import { showDateTime } from '@/lib/displayTime';
-import IntegrityNotice from './IntegrityNotice.vue';
 import InstantRoute from './InstantRoute.vue';
-import SafariNotice from './SafariNotice.vue';
-import RunSaveNotice from './RunSaveNotice.vue';
 
 const props = defineProps<{
   playerId: string;
@@ -1687,7 +1666,7 @@ function fillFromSpec(spec: DeadlineRunSpec): void {
   }
 }
 
-const stepAway = ref<InstanceType<typeof StepAwayOptions> | null>(null);
+const stepAway = ref<InstanceType<typeof RunControls> | null>(null);
 /** Seconds left of Stepping away?'s automatic carry-on, shown in the unfinished run's offer. */
 const autoCountdown = ref(0);
 
@@ -1727,6 +1706,7 @@ async function resume(): Promise<void> {
     shareExtras.sendDiagnostics.value = submit.sendDiagnostics;
   }
   autoShare.value = !!submit?.whenDone;
+  autoShared.value = false;
   store.lastAutoSend = null;
   store.submitsWhenDone = autoShare.value;
   store.beginBestSoFar('deadline', submit ? { nickname: submit.nickname } : null);
@@ -1772,12 +1752,16 @@ async function owesAnswer(): Promise<boolean> {
 async function shareFinished(): Promise<void> {
   if (!result.value || !best.value || store.error) return;
   shareOptIn.value = true;
+  autoShared.value = true;
   await share();
   store.lastAutoSend = { kind: 'by-date', ok: shareOk.value, text: shareMessage.value };
 }
 
 /** Set while a Find and submit run is going: it shares its best answer when it finishes. */
 const autoShare = ref(false);
+/** This panel shared the last answer by itself (Find and submit, or a run that owed its answer): the
+ *  report beside Find says how it went. Cleared when a run starts. */
+const autoShared = ref(false);
 
 /** Find, and with `andSubmit` share the best answer at the end (not when stopped early or failed). */
 /** Stop pressed, until the run ends: the store's stop flag for a date search isn't reactive. */
@@ -1795,6 +1779,7 @@ function stopDeadline(): void {
 
 async function start(andSubmit: boolean): Promise<void> {
   autoShare.value = andSubmit && shareOptIn.value;
+  autoShared.value = false;
   store.lastAutoSend = null;
   // For the progress bar on other tabs: this run shares its answer when it finishes.
   store.submitsWhenDone = autoShare.value;
@@ -1905,6 +1890,8 @@ const {
 const { downloadByDateCsv, downloadError } = useRunDownloads(store);
 
 const result = computed(() => store.deadlineResult);
+/** The columns of every list of routes here (top routes so far, and the finished run's). */
+const ROUTE_COLUMNS = ['Route', 'Last stop reached', 'Spare'];
 /** Share this result's "Note on this run": the result's own note, edited in place, so the send and
  *  its CSV carry what the box says. */
 const resultNote = computed({

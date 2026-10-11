@@ -9,33 +9,26 @@
   found) goes in the default slot.
 -->
 <template>
-  <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 space-y-2">
-    <div class="flex items-baseline justify-between gap-4 flex-wrap">
-      <div class="min-w-0">
-        <div class="text-[10px] font-black text-emerald-700 uppercase tracking-widest">
-          {{ running ? 'Best so far' : 'Fastest found' }}<template v-if="claim && !running">: {{ claim }}</template>
-        </div>
-        <div v-if="source" class="text-[10px] font-bold text-emerald-700/80">{{ source }}</div>
-        <div class="font-mono-premium text-lg sm:text-xl font-black text-slate-900 break-words">
-          {{ chain.join(' ') }}
-        </div>
+  <ResultCardFrame :still-going="running && days > 0">
+    <template #heading>
+      {{ running ? 'Best so far' : 'Fastest found' }}<template v-if="claim && !running">: {{ claim }}</template>
+    </template>
+    <template #headline>
+      <div v-if="source" class="text-[10px] font-bold text-emerald-700/80">{{ source }}</div>
+      <div class="font-mono-premium text-lg sm:text-xl font-black text-slate-900 break-words">
+        {{ chain.join(' ') }}
       </div>
-      <div class="text-right">
-        <div class="text-lg font-black text-slate-900 tabular-nums">
-          {{ days > 0 ? `${days.toFixed(3)} d` : 'pricing…' }}
-        </div>
-        <div v-if="days > 0" class="text-[11px] font-bold text-emerald-800">
-          reaches {{ finalTE }} on {{ endLabel }}
-        </div>
+    </template>
+    <template #aside>
+      <div class="text-lg font-black text-slate-900 tabular-nums">
+        {{ days > 0 ? `${days.toFixed(3)} d` : 'pricing…' }}
       </div>
-    </div>
-    <p v-if="running && days > 0" class="text-[11px] text-emerald-800" data-testid="route-card-still-going">
-      The search is still going, so this can still improve.
-    </p>
+      <div v-if="days > 0" class="text-[11px] font-bold text-emerald-800">reaches {{ finalTE }} on {{ endLabel }}</div>
+    </template>
 
     <slot />
 
-    <div v-if="!running && days > 0" class="flex flex-wrap items-center gap-2 pt-2">
+    <template v-if="!running && days > 0" #actions>
       <button
         type="button"
         :disabled="busy"
@@ -76,11 +69,13 @@
         {{ saving ? 'Saving...' : 'Save run' }}
       </button>
       <span v-if="note" class="text-[11px] font-semibold text-emerald-800">{{ note }}</span>
-    </div>
-  </div>
+    </template>
+  </ResultCardFrame>
 </template>
 
 <script setup lang="ts">
+import ResultCardFrame from './ResultCardFrame.vue';
+
 withDefaults(
   defineProps<{
     chain: number[];
