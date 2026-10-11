@@ -1,5 +1,5 @@
 <!--
-  Science › How it works (#/science/how): what the searches and the instant answer do, how each
+  Science › How it works (#/science, the tab's default; #/science/how still opens it): what the searches and the instant answer do, how each
   number is worked out, and how the answers were checked. Written for players, current as of
   UPDATED below.
 
@@ -21,6 +21,13 @@
         What the planner does to find a route, how each number is worked out, how far we've checked it against the full
         simulator, and what it doesn't cover yet. Updated {{ UPDATED }}.
       </p>
+      <p class="text-sm text-slate-600 leading-relaxed max-w-3xl">
+        This page is about the planner itself. For what everybody's shared runs show (how many ascensions pay off, where
+        the stops land), see
+        <a href="#/compare/insights" class="font-bold text-indigo-700 underline"
+          >{{ NAMES.compare }} › {{ NAMES.insights }}</a
+        >.
+      </p>
     </div>
 
     <!-- The short version: what to do, before how it works. -->
@@ -34,16 +41,19 @@
       </p>
       <p>
         <b>The instant answer looks routes up</b> in ascensions simulated ahead of time, so it covers every route in a
-        second or two. <b>Check exactly</b> then runs its routes through the full simulator on your save. Trust the
-        Check exactly number.
+        second or two. <b>Check exactly</b> then runs its routes through the full simulator on your save, ascending on
+        the hour like the instant answer. Press Check exactly for the most accurate answer: it's the simulator's own
+        number for your save. In our checks the instant answer was usually within about 1% of the simulator (within 1.5
+        hours a route on gear like yours), but on maxed gear below about TE 340 one ascension can be further out.
       </p>
       <p>
-        <b>Ascend at the times the plan shows.</b> The instant answer ascends on the hour; a search ascends at once.
-        Near the weekly sale the two can differ by days on a single route.
+        <b>When you prestige matters near the weekly research sale.</b> Every build is timed to end with the sale, so a
+        few hours either side of it can move a route by days, and in a bad case by up to a week. A planned "Prestige
+        by…" line will show the last hour you can prestige and still keep your TE.
       </p>
       <p>
-        <b>On the routes we've checked, it agrees with the simulator to within hours.</b> It can still miss a better
-        route; our estimate is about 1 to 2 in 100 for routes of up to 4 ascensions. Section 3 has the details.
+        <b>It can miss a better route, but rarely.</b> We put the chance that neither the instant answer nor a 12-hour
+        search found the best route of up to 4 ascensions at about 1 to 2 in 100. Section 3 has the details.
       </p>
     </section>
 
@@ -64,31 +74,37 @@
           cores, and a route run from the command line gives the same answer as the same route in the browser.
         </p>
         <p>
-          Picking the TEs is the hard part. Moving one stop by a single TE has cost up to about a month in players'
-          runs, and between TE 177 and 490 there are about 2 × 10<sup>15</sup> routes of 3 to 9 ascensions. That's far
-          too many to simulate, so each screen uses a different shortcut:
+          Picking the TEs is the hard part, because the best ones are a narrow target. In players' early runs to 490 TE
+          (2 or 3 ascensions, routes of two years or more), moving one stop by a single TE typically changed the finish
+          by about 2.5% of the route, a couple of weeks. Near the end of a {{ NAMES.byDate }} route, one more TE is
+          worth about two days at TE 240-340. And between TE 177 and 490 there are about 2 × 10<sup>15</sup> routes of 3 to 9
+          ascensions. That's far too many to simulate, so each screen takes a shortcut. {{ NAMES.fastest }} and
+          {{ NAMES.byDate }} each come in two versions, {{ NAMES.smart }} and {{ NAMES.full }}:
         </p>
         <ul class="hw-list">
           <li>
             <b>{{ NAMES.fastest }}, {{ NAMES.smartFirst }}:</b> starts from a route (the instant answer's fastest, or
-            one you type) and improves it in stages: it fine-tunes the last stop, nudges each stop up to 8 TE either
-            way, tries neighbouring pairs together (and triples on Very high), then tries one ascension more or fewer.
-            You can stop it at any point and keep the best route so far. The result is a strong local best. Nobody has
-            proven it's the best overall.
+            one you type) and improves it step by step. On Fast, the default, it fine-tunes the last stop and nudges
+            each stop up to 8 TE either way until nothing moves, keeping the number of ascensions it started with.
+            Exact also tries each neighbouring pair of stops together, then one ascension more or fewer; Very high also
+            tries groups of three. You can stop it at any point and keep the best route so far. The result is a strong
+            local best. Nobody has proven it's the best overall.
           </li>
           <li>
-            <b>{{ NAMES.fastest }}, {{ NAMES.fullFirst }}:</b> simulates <i>every</i> route inside boxes you set (for
-            example 185-200 every 5 TE for the first stop, 215-245 every 10 for the second), with nothing skipped. Its
-            winner is therefore the best route in those boxes. It says so when the winner sits on a box's edge and
-            offers to widen the box, keeping every route it has already simulated. By default it also tries one
-            ascension more and one fewer.
+            <b>{{ NAMES.fastest }}, {{ NAMES.fullFirst }}:</b> you give each stop a range, called a box (for example
+            every 5th TE from 185 to 200 for the first stop). It simulates <i>every</i> route that fits in the boxes, so
+            its winner is the best route in them. If the winner sits on the edge of a box, it says so and offers to
+            widen that box. Routes it has already simulated are reused, so only the new ones take time. The boxes it
+            suggests also cover one ascension fewer and one more, at half the size; you can remove those.
           </li>
           <li>
-            <b>{{ NAMES.byDate }}:</b> for each set of early stops it finds the highest last stop that still makes the
-            date (step up, step down, then halve the gap), then refines the best sets one TE at a time. In Simple it
-            builds the boxes around the instant answer's route for each number of ascensions; in Advanced you set them.
-            Inside its boxes it doesn't skip anything: one 12-hour run on 10 Oct simulated 153,785 routes, every route
-            in its boxes.
+            <b>{{ NAMES.byDate }}:</b> both versions try every set of early stops in their boxes, and for each one find
+            the highest last stop that still makes the date (step up, step down, then halve the gap). The last stop
+            isn't held to a box. In <b>{{ NAMES.smart }}</b> you pick the date and press Find: it builds the boxes for
+            you around the instant answer's route for each number of ascensions, each early stop a few TE either side
+            at every TE, sized to take about 10 to 30 minutes on a typical 8-core computer. In
+            <b>{{ NAMES.full }}</b> you set the chains and their boxes yourself. One 12-hour {{ NAMES.full }} run on
+            10 Oct simulated 153,785 routes, every route in its boxes.
           </li>
         </ul>
         <p>
@@ -100,7 +116,7 @@
           <b>On the hour or at once.</b> A search starts each new ascension the moment the last one reaches its TE. The
           instant answer starts it at the next whole hour, because that's where it was simulated (inside the weekly sale
           it can start at once, when that ends sooner). Most of the time that's a fraction of an hour, but a start just
-          before or after a sale deadline can move a single route by days. So follow the times the plan shows.
+          before or after a sale deadline can move a single route by days. So ascend at the times the plan shows.
         </p>
         <p>
           <b>Your hours.</b> With "Let me pick my hours" in Your setup, each prestige and egg switch waits for your
@@ -204,7 +220,7 @@
           <li>
             <b>Prestiging later.</b> Every check starts from now. Waiting a day or two to prestige can be worth a TE (on
             the test account, a fresh start on one Monday morning made one TE more than starting now), and nothing
-            searches that yet.
+            searches that yet. The planned "Prestige by…" line in section 6 is the first step.
           </li>
           <li>
             <b>On the hour against at once.</b> The two agree to within hours on most routes, but each method's best
@@ -338,8 +354,9 @@
             inside its boxes.
           </li>
           <li>
-            <b>Not built yet: "prestige by".</b> A warning like "prestige by this time to keep this TE". We have the
-            method (price a few later starts and see when the answer drops) but not enough checked examples yet.
+            <b>Planned: "Prestige by…".</b> A line like "Prestige by 2:00 pm Friday to keep 248 TE": the last hour you can
+            prestige and keep your TE, since near the weekly sale a few hours can matter. We have the method (price a few
+            later starts and see when the answer drops) but not enough checked examples yet.
           </li>
           <li>
             <b>Not built yet: the "one more TE" hint.</b> At the top of a {{ NAMES.byDate }} answer, one more TE costs a
@@ -348,13 +365,14 @@
           </li>
           <li>
             <b>Joo's newer simulator changes</b> (earnings lookaheads, a new opening, a tier-12 unlock) aren't in this
-            site yet. If they land, the instant answer has to be simulated again, about 55 to 70 hours on a 16-core PC,
+            site yet. If they land, every instant answer (one per gear set) has to be simulated again, about 55 to 70
+            hours on a 16-core PC,
             before it can be trusted against the new simulator.
           </li>
         </ul>
         <p>
           The open questions players can help with are on
-          <a href="#/science" class="font-bold text-indigo-700 underline">{{ NAMES.science }} › {{ NAMES.check }}</a
+          <a href="#/science/check" class="font-bold text-indigo-700 underline">{{ NAMES.science }} › {{ NAMES.check }}</a
           >, and what the board's runs have shown so far is on
           <a href="#/compare/insights" class="font-bold text-indigo-700 underline"
             >{{ NAMES.compare }} › {{ NAMES.insights }}</a

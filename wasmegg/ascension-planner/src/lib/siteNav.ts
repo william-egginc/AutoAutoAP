@@ -8,9 +8,10 @@
  *                    #/auto/by-date          highest TE by a date (was Insane's deadline goal)
  *   Compare          #/compare[/<view>]      the leaderboard's views (Egg Day first), and Insights:
  *                                            the Chain Explorer's charts
- *   Science          #/science               what we still need to check (the sweeps to run)
+ *   Science          #/science               how the planner works, and how its answers were checked
+ *                                            (How it works, the default; #/science/how still opens it)
+ *                    #/science/check         what we still need to check (the sweeps to run)
  *                    #/science/submit        upload a sweep's files
- *                    #/science/how           how the planner works, and how its answers were checked
  *
  * In the hash, not the path: the live site is `vite preview` behind a tunnel, and a path it has no
  * file for is a 404 on some hosts. Old links still land where they meant to: `?insane=1` (every
@@ -26,7 +27,8 @@ export type Depth = 'smart' | 'full';
 /** The leaderboard's views, then the Explorer's charts. */
 export type CompareView = 'eggday' | 'race' | 'mine' | 'all' | 'dates' | 'insights';
 export const COMPARE_VIEWS: CompareView[] = ['eggday', 'race', 'mine', 'all', 'dates', 'insights'];
-export type ScienceView = 'check' | 'submit' | 'how';
+/** Science's views, in tab order: How it works first (the default), then the sweep pages. */
+export type ScienceView = 'how' | 'check' | 'submit';
 
 export interface SiteRoute {
   section: Section;
@@ -72,14 +74,14 @@ export const DEFAULT_ROUTE: Required<SiteRoute> = {
   auto: 'classic',
   depth: 'smart',
   compare: 'eggday',
-  science: 'check',
+  science: 'how',
 };
 
 /** `#/auto/fastest/full` for a route. The sub-parts only where the section has them. */
 export function hashFor(r: SiteRoute): string {
   if (r.section === 'compare') return !r.compare || r.compare === 'eggday' ? '#/compare' : `#/compare/${r.compare}`;
   if (r.section === 'science')
-    return r.science === 'submit' || r.science === 'how' ? `#/science/${r.science}` : '#/science';
+    return r.science === 'submit' || r.science === 'check' ? `#/science/${r.science}` : '#/science';
   if (r.section !== 'auto') return `#/${r.section}`;
   if (r.auto === 'fastest') return r.depth === 'full' ? '#/auto/fastest/full' : '#/auto/fastest';
   return `#/auto/${r.auto}`;
@@ -99,7 +101,7 @@ export function routeFromLocation(search: string, hash: string): Required<SiteRo
       return { ...DEFAULT_ROUTE, section, compare };
     }
     if (section === 'science') {
-      const science: ScienceView = sub === 'submit' || sub === 'how' ? sub : 'check';
+      const science: ScienceView = sub === 'submit' || sub === 'check' ? sub : 'how';
       return { ...DEFAULT_ROUTE, section, science };
     }
     if (section === 'auto') {

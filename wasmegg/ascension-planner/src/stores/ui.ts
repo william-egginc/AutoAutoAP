@@ -20,7 +20,7 @@ export const useUIStore = defineStore('ui', () => {
   const byDateMode = ref<SearchMode | null>(null);
   /** Compare's view (a leaderboard tab, or Insights) and Science's. */
   const compareView = ref<CompareView>('eggday');
-  const scienceView = ref<ScienceView>('check');
+  const scienceView = ref<ScienceView>('how');
   const isHeaderCollapsed = ref(false);
   const isFooterCollapsed = ref(false);
   const loading = ref(false);

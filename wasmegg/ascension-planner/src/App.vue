@@ -506,17 +506,24 @@
         <LeaderboardPanel :player-id="playerId" @use="useLeaderboardChain" />
       </div>
 
-      <!-- Science: what the collected runs still can't tell us, and a way to send a sweep in. The
-           Chain Explorer's two sections, moved here from its page (it renders just them). -->
+      <!-- Science: how the planner works (its default page), what the collected runs still can't tell
+           us, and a way to send a sweep in. The last two are the Chain Explorer's sections, moved here
+           from its page (it renders just them). -->
       <div v-else-if="plannerTab === 'science'" class="max-w-6xl mx-auto mt-6 space-y-4">
         <!-- How it works: the searches, the instant answer and how both were checked (a page of its own). -->
         <HowItWorks v-if="scienceView === 'how'" />
         <div v-else>
-          <h2 class="text-2xl font-black text-slate-900">Help crack the algorithm</h2>
+          <h2 class="text-2xl font-black text-slate-900">Help check the planner</h2>
           <p class="text-sm text-slate-600 leading-relaxed max-w-3xl">
-            Nobody outside the game knows exactly how it works out a run, and every sweep players send in narrows it
-            down. Each question below is one the board can't answer yet: run its sweep on your account and it fills the
-            gap.
+            <template v-if="scienceView === 'check'">
+              These are the runs the board still needs: Egg Day runs that check the instant answer ascension by
+              ascension, and gear nobody on the board has yet. Run one on your account and it fills a gap.
+            </template>
+            <template v-else>A sweep sent in here fills a gap listed under {{ NAMES.check }}, the same as one run on this tab.</template>
+            How the planner works is under {{ NAMES.how }}; what everybody's shared runs show is on
+            <a href="#/compare/insights" class="font-bold text-indigo-700 underline"
+              >{{ NAMES.compare }} › {{ NAMES.insights }}</a
+            >.
           </p>
         </div>
         <ChainExplorer v-if="scienceView !== 'how'" part="science" embedded :science-view="scienceView" :te-now="saveTE" :final-te="chainSearchStore.finalTE" :inventory="saveArtifacts" @run-sweep="openSweep" @run-by-date="openByDate" />
@@ -1027,9 +1034,9 @@ const saveTE = computed(() => {
   return total;
 });
 const scienceTabs: { id: ScienceView; label: string }[] = [
+  { id: 'how', label: NAMES.how },
   { id: 'check', label: NAMES.check },
   { id: 'submit', label: NAMES.submit },
-  { id: 'how', label: NAMES.how },
 ];
 
 let autoInitFor = '';

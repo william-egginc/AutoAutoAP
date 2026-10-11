@@ -6,7 +6,7 @@ const R = (
   auto: SiteRoute['auto'] = 'classic',
   depth: SiteRoute['depth'] = 'smart',
   compare: NonNullable<SiteRoute['compare']> = 'eggday',
-  science: NonNullable<SiteRoute['science']> = 'check'
+  science: NonNullable<SiteRoute['science']> = 'how'
 ) => ({ section, auto, depth, compare, science });
 
 describe('siteNav', () => {
@@ -22,7 +22,7 @@ describe('siteNav', () => {
       R('compare', 'classic', 'smart', 'insights'),
       R('compare', 'classic', 'smart', 'dates'),
       R('science', 'classic', 'smart', 'eggday', 'submit'),
-      R('science', 'classic', 'smart', 'eggday', 'how'),
+      R('science', 'classic', 'smart', 'eggday', 'check'),
     ];
     for (const r of all) expect(routeFromLocation('', hashFor(r))).toEqual(r);
   });
@@ -41,15 +41,17 @@ describe('siteNav', () => {
     expect(routeFromLocation('?insane=1', '#deadline')).toEqual(R('auto', 'by-date'));
   });
 
-  it('opens Compare on Egg Day and Science on what to check when the view is left out or unknown', () => {
+  it('opens Compare on Egg Day and Science on How it works when the view is left out or unknown', () => {
     expect(hashFor(R('compare'))).toBe('#/compare');
     expect(routeFromLocation('', '#/compare/nonsense')).toEqual(R('compare'));
     expect(hashFor(R('science'))).toBe('#/science');
     expect(routeFromLocation('', '#/science/nonsense')).toEqual(R('science'));
   });
 
-  it('gives Science › How it works its own address', () => {
-    expect(hashFor(R('science', 'classic', 'smart', 'eggday', 'how'))).toBe('#/science/how');
+  it('keeps the old How it works address, and gives What we need to check its own', () => {
+    expect(routeFromLocation('', '#/science/how')).toEqual(R('science'));
+    expect(hashFor(R('science', 'classic', 'smart', 'eggday', 'check'))).toBe('#/science/check');
+    expect(routeFromLocation('', '#/science/check')).toEqual(R('science', 'classic', 'smart', 'eggday', 'check'));
   });
 
   it('lets a new-style hash win over the old flags', () => {

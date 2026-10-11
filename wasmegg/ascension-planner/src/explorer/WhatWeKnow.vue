@@ -31,6 +31,13 @@
         </span>
         <span v-else class="text-[10px] font-bold text-slate-400">Counting the board…</span>
       </div>
+      <p class="text-[12px] text-slate-700 leading-relaxed max-w-3xl">
+        What everybody's shared runs on the leaderboard show: patterns that hold across accounts, like how many
+        ascensions pay off and where the stops land. How the planner itself works, and how its numbers were checked, is
+        on
+        <a v-if="howHref" :href="howHref" class="font-bold text-indigo-700 underline">Science › How it works</a
+        ><template v-else>Science › How it works</template>.
+      </p>
       <p class="text-[10px] text-slate-500">Findings checked {{ FINDINGS_CHECKED }}</p>
     </div>
 
@@ -58,9 +65,6 @@
     <p class="text-[11px] text-slate-500 leading-relaxed">
       Tap a point for the detail. The header counts are worked out from the board each time the page loads; the points
       were checked on the date above. The charts and tables further down are live too and show dates in your timezone.
-      How the planner works out its answers, and every check behind them, is on
-      <a v-if="howHref" :href="howHref" class="font-bold text-indigo-700 underline">Science › How it works</a
-      ><template v-else>Science › How it works</template>.
     </p>
 
     <div class="space-y-1.5 text-[12px] text-slate-700 leading-relaxed">
@@ -140,8 +144,8 @@
             </p>
           </template>
           <p v-else-if="f.id === 'bydate'">
-            Checked on Fliris (6 Egg Day routes: 32 of 34 ascensions within 30 minutes of the real run), Allan (4
-            routes, each within an hour once started from his real first stop) and this week's first By a date run with
+            Checked on Fliris (6 Egg Day routes: 32 of 34 ascensions within 30 minutes of his submitted runs), Allan (4
+            routes, each within an hour once started from his actual first stop) and this week's first By a date run with
             per-ascension times (within 0.4 hours per ascension, median). Where it differs from a by-date search, it's
             because the search's range left out better routes (Allan's 5-ascension route above), not because it priced
             them wrongly.
@@ -172,9 +176,11 @@
             your save, and Fastest picks whichever way is sooner.
           </p>
           <p v-else-if="f.id === 'one-te'">
-            Moving a single checkpoint by one TE costs up to about a month (typically 2-3 weeks on 2-3 ascension plans),
-            and the best TEs differ for every account and start time. That's why the instant answer prices every TE
-            instead of guessing, and why it's worth re-running.
+            At TE 240-340 one TE is worth about two days (45-53 hours of the final ascension, measured on two accounts).
+            On the early 2-3 ascension runs to 490 TE, moving one checkpoint by a single TE changed the finish by
+            typically about 2.5% of the route. Builds are timed to the weekly sale, so a badly timed prestige can cost up to a
+            week; run the instant answer again after you prestige and it plans from where you are. The best TEs differ
+            for every account and start time, which is why the instant answer prices every TE instead of guessing.
           </p>
         </div>
       </details>
@@ -229,7 +235,7 @@ defineProps<{
 }>();
 
 const findings = [
-  { id: 'match', headline: 'The instant answer lands within about an hour of a real run on each ascension.' },
+  { id: 'match', headline: 'The instant answer lands within about an hour of the full simulator on each ascension.' },
   { id: 'wider', headline: 'Wider searches would have found faster routes.' },
   { id: 'misses', headline: 'The instant answer rarely misses, but it can.' },
   { id: 'count', headline: 'More ascensions help, then level off.' },
@@ -239,7 +245,7 @@ const findings = [
   { id: 'stall', headline: 'Below about 220 Clothed TE, the first ascension stalls.' },
   { id: 'gear', headline: 'Your delivery set sets the pace; your earnings set matters early.' },
   { id: 'sale', headline: 'The research sale shapes every route.' },
-  { id: 'one-te', headline: 'One TE off the best can still cost weeks.' },
+  { id: 'one-te', headline: 'The best TEs are sharp: one TE is worth about two days.' },
 ];
 
 const COUNT_HEADS = ['2→3', '3→4', '4→5', '5→6'];

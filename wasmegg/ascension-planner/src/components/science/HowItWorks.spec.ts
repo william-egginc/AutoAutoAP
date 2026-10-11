@@ -14,6 +14,33 @@ describe('Science › How it works', () => {
     expect(text.match(/How: /g)?.length).toBeGreaterThanOrEqual(8);
   });
 
+  it('sends players to Check exactly, says the planned Prestige by line is not built, and avoids doom figures', async () => {
+    const text = textOf(await renderHtml(HowItWorks, {}));
+    expect(text).toContain('ascending on the hour like the instant answer');
+    expect(text).toContain('Press Check exactly for the most accurate answer');
+    expect(text).toContain('A planned "Prestige by…" line');
+    expect(text).not.toContain('Trust the Check exactly number');
+    expect(text).not.toMatch(/month/i);
+    // Searches ascend at once, the instant answer on the hour: said once, in section 1.
+    expect(text).toContain('A search starts each new ascension the moment the last one reaches its TE');
+  });
+
+  it('describes both versions of Fastest and of Highest TE by a date', async () => {
+    const text = textOf(await renderHtml(HowItWorks, {}));
+    expect(text).toContain('Fastest to 490 TE and Highest TE by a date each come in two versions, Simple and Advanced');
+    expect(text).toContain('Fastest to 490 TE, Simple (Smart search):');
+    expect(text).toContain('Fastest to 490 TE, Advanced (Full sweep):');
+    expect(text).toContain('On Fast, the default');
+    expect(text).toContain('one ascension fewer and one more, at half the size');
+  });
+
+  it('points to Insights for what the shared runs show', async () => {
+    const html = await renderHtml(HowItWorks, {});
+    expect(textOf(html)).toContain('This page is about the planner itself');
+    expect(html).toContain('href="#/compare/insights"');
+    expect(html).toContain('href="#/science/check"');
+  });
+
   it('never carries a player ID', async () => {
     const html = await renderHtml(HowItWorks, {});
     expect(html).not.toMatch(/EI\d{16}/);

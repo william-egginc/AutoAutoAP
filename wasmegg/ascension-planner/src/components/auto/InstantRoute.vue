@@ -630,14 +630,14 @@
           delivery sets, with epic research and colleggtibles maxed), so its ascensions match the full simulator for
           you<template v-if="(header?.gearTo ?? 489) < 489">
             up to TE {{ header?.gearTo }}; above that it uses the instant answer for fully maxed gear at your own delivery rate</template
-          >. Each fresh ascension starts on the hour, where the instant answer was simulated.
+          >. Each fresh ascension starts on the hour, where the instant answer was simulated (inside the weekly research sale, at once when that ends sooner).
         </p>
         <p v-else-if="own" class="mt-1 leading-relaxed">
           This instant answer was built on your own account: your earnings and delivery sets, epic research and colleggtibles as
           your save has them now (Clothed TE bonus {{ header?.cteBonus }}). Each of its ascensions is the simulator's
           own build, and the waiting after it is the simulator's own arithmetic, so a route here matches the full
           simulator on your account. Your first ascension is your own, simulated from your save the way Your setup's first ascension says
-          (continue your build-up, finish without buying, or prestige now). Each fresh ascension starts on the hour, where the instant answer was simulated. If your
+          (continue your build-up, finish without buying, or prestige now). Each fresh ascension starts on the hour, where the instant answer was simulated (inside the weekly research sale, at once when that ends sooner). If your
           gear changes, the page goes back to the instant answer for fully maxed gear until yours is made again.
         </p>
         <p v-else class="mt-1 leading-relaxed">
@@ -647,7 +647,7 @@
           For you: your first ascension is your own, simulated from your save the way Your setup's first ascension
           says (continue your build-up, finish without buying, or prestige now); the waits run at your own peak delivery rate ({{ ((deliveryScale ?? 1) * 100).toFixed(1) }}% of
           the instant answer's: the best set your inventory can wear at full research), and each ascension is read from the row
-          for its own TE. Each fresh ascension starts on the hour, where the instant answer was simulated; the weekly sale is at
+          for its own TE. Each fresh ascension starts on the hour, where the instant answer was simulated (inside the weekly research sale, at once when that ends sooner); the weekly sale is at
           a fixed Pacific time, so the hour of the week is what matters.
         </p>
         <p class="mt-1 leading-relaxed">

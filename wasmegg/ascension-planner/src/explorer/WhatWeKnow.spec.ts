@@ -12,4 +12,11 @@ describe('What we know: the instant answer against the full simulator', () => {
     );
     expect(text).not.toContain('up to about a day out');
   });
+
+  it('says what Insights is for, and states the cost of one TE without doom figures', async () => {
+    const text = textOf(await renderHtml(WhatWeKnow, { howHref: './#/science' }));
+    expect(text).toContain("What everybody's shared runs on the leaderboard show");
+    expect(text).toContain('one TE is worth about two days');
+    expect(text).not.toMatch(/a month|cost weeks/i);
+  });
 });

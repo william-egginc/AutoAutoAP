@@ -1394,7 +1394,7 @@ onUnmounted(() => {
  *  query goes along, so a link aimed at another collector (?collector=) still reads that one. */
 function scienceHref(view: ScienceView): string {
   const search = typeof location === 'undefined' ? '' : location.search;
-  return `./${search}${view === 'check' ? '#/science' : `#/science/${view}`}`;
+  return `./${search}${view === 'how' ? '#/science' : `#/science/${view}`}`;
 }
 // Links to the two sections this page used to end with go where they are now.
 if (!props.embedded && typeof location !== 'undefined') {

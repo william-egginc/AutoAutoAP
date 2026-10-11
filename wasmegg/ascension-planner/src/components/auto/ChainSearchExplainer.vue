@@ -48,9 +48,9 @@
         >
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
         </svg>
-        <span class="text-[11px] font-black text-slate-700 uppercase tracking-widest">How it works</span>
+        <span class="text-[11px] font-black text-slate-700 uppercase tracking-widest">The problem</span>
         <span class="text-[10px] font-bold text-slate-400 normal-case tracking-normal ml-auto">
-          the problem, and why it is hard
+          and why it is hard
         </span>
       </button>
 
@@ -60,9 +60,9 @@
           That list of checkpoints is a chain:
           <code class="font-mono-premium text-slate-800">195 219 248 286 327 490</code>. You pick them and the game does
           the rest. The plans players have sent in run two to three years, and two chains to the same target can finish
-          <span class="font-bold text-slate-800">weeks apart</span>: moving one checkpoint by a single TE, with the rest
-          left where they are, has cost up to 31 days in players' every-TE runs. Finding the chain that lands first is
-          what this search is for.
+          <span class="font-bold text-slate-800">weeks apart</span>: in players' every-TE runs, moving one checkpoint by
+          a single TE, with the rest left where they are, changed the finish by typically about 2.5% of the plan.
+          Finding the chain that lands first is what this search is for.
         </p>
 
         <div>
@@ -207,7 +207,7 @@
         <div>
           <p class="font-bold text-slate-800 mb-2">The shape comes from the sale calendar</p>
           <p class="mb-3">
-            Each leg's build phase ends when a Research Sale ends, Saturday at 09:00 Pacific. Move a checkpoint up one
+            Each leg's build phase ends when a Research Sale ends, Saturday at 9:00 am Pacific. Move a checkpoint up one
             Truth Egg and usually you still make the same Saturday, so the leg gets a little quicker. Go one too far and
             you miss that sale and wait a week for the next one.
           </p>
@@ -246,8 +246,8 @@
           <p class="font-bold text-slate-800 mb-2">What the search actually runs</p>
           <p class="mb-3">
             It moves checkpoints one at a time, then tries neighbouring pairs (and on Very high, triples) in every
-            combination. Each effort level adds a step to the one below. You can stop whenever you like and keep the
-            best chain priced so far. One catch: Very high does triples before the one-more-or-fewer step, so stopping
+            combination. Each effort level adds a step to the one below; Fast, the default, stops after the nudges. You
+            can stop whenever you like and keep the best chain priced so far. One catch: Very high does triples before the one-more-or-fewer step, so stopping
             it early gets you the pairs' answer plus whatever the triples found, without the count check.
           </p>
           <ol class="space-y-2 list-decimal list-outside pl-4">
@@ -304,8 +304,8 @@
 
     <!-- The ask for runs is the Science tab now; one line points there. -->
     <p class="px-1 text-[11px] text-slate-500 leading-relaxed">
-      Want to help work out the rules? The sweeps we still need, one per open question, are on the
-      <a href="#/science" class="font-bold text-indigo-700 underline">{{ NAMES.science }}</a> tab.
+      Want to help work out the rules? The sweeps we still need, one per open question, are on
+      <a href="#/science/check" class="font-bold text-indigo-700 underline">{{ NAMES.science }} › {{ NAMES.check }}</a>.
     </p>
   </div>
 </template>
