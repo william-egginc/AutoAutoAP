@@ -48,7 +48,8 @@ export const useUIStore = defineStore('ui', () => {
   const openPlannerRequested = ref(0);
   /** A route the instant answer's "Simulate this plan" sent to Classic (search/simulateRoute.ts): Classic
    *  scrolls to its plan once simulated and says where it came from, with a way back. */
-  const planFromInstant = ref<{ chain: number[]; back: 'fastest' | 'by-date' } | null>(null);
+  /** `from`: what the banner names as its source, when not the instant answer (By a date's answer). */
+  const planFromInstant = ref<{ chain: number[]; back: 'fastest' | 'by-date'; from?: string } | null>(null);
   /** Your setup's floating panel (SetupDock.vue) is open: the gear, or a screen's Edit setup. */
   const setupOpen = ref(false);
   /** Bumped to open Your setup at its time off (YourSetup.vue), e.g. from a sweep's "add time off". */

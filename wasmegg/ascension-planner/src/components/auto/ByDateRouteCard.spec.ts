@@ -102,6 +102,20 @@ describe('ByDateRouteCard: TE per egg and the next TE', () => {
   });
 });
 
+describe('ByDateRouteCard: Simulate this plan', () => {
+  it('shows the button when asked, with its note', async () => {
+    const t = textOf(
+      await renderHtml(
+        ByDateRouteCard,
+        props({ simulate: true, simulateNote: 'Your plan prices the first ascension as a fresh build/continue.' })
+      )
+    );
+    expect(t).toMatch(/Simulate this plan Your plan prices the first ascension as a fresh build\/continue\.$/);
+    expect(await renderHtml(ByDateRouteCard, props())).not.toContain('by-date-simulate');
+    expect(await renderHtml(ByDateRouteCard, props({ simulate: true }))).not.toContain('by-date-simulate-note');
+  });
+});
+
 describe('spareLabel', () => {
   it('minutes, hours under two days, then days', () => {
     expect(spareLabel(40 * 60)).toBe('40 min');

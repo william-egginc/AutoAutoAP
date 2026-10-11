@@ -512,11 +512,18 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       applied.targets === (useAutoPlannerStore().targetTE || '').trim().split(/\s+/).join(' ');
     if (forThis && mode === 'fresh' && applied!.key !== 'continue') return { 0: applied!.key };
     if (forThis && mode === 'continue' && applied!.key !== 'continue') return {};
+    // A route sent with its run's own setting (By a date's Simulate this plan): that setting, whatever
+    // Your setup says now, so the plan starts as the run priced it.
+    const own =
+      applied?.own && applied.targets === (useAutoPlannerStore().targetTE || '').trim().split(/\s+/).join(' ');
+    if (own && applied!.mode === 'fresh' && applied!.key !== 'continue') return { 0: applied!.key };
+    if (own && applied!.mode === 'continue') return applied!.key === 'continue' ? { 0: 'continue' } : {};
+    if (own) return {};
     return firstAscensionChoice.value === 'continue' ? { 0: 'continue' } : {};
   }
   /** The chain Apply last put in Classic, the variant the search took for its A1, and the setting it
    *  was priced under (`classicFirstPick`). */
-  let appliedFirstLeg: { targets: string; key: VariantKey; mode: FirstAscension } | null = null;
+  let appliedFirstLeg: { targets: string; key: VariantKey; mode: FirstAscension; own?: boolean } | null = null;
   /** @deprecated The old boolean, kept so older callers still work: true is 'continue', false 'auto'. */
   const forceContinue = computed<boolean>({
     get: () => firstAscension.value === 'continue',
@@ -5503,6 +5510,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   let deadlineRun: DeadlineSendBase | null = null;
   /** The running date search's deadline (unix seconds), for its live best so far card; 0 when none ran. */
   const deadlineRunDeadline = ref(0);
+  /** The running date search's plan start and first-ascension setting, for Simulate this plan on its
+   *  best so far; null when none ran. */
+  const deadlineRunPlan = ref<{ planStart: number; firstAscension: FirstAscension } | null>(null);
   /** What a progress send's CSV so far needs from the date search going now: its routes found so far
    *  (search/deadline.ts `routesSoFar`), its top target and whether it ascends in awake hours. */
   let deadlineRunCsv: {
@@ -6059,6 +6069,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     setProvisional('deadline', takeCarriedProvisional());
     takeCarriedWatch();
     deadlineRunDeadline.value = spec.deadline;
+    deadlineRunPlan.value = { planStart: inputs.planStart, firstAscension: deadlineSettings.firstAscension ?? 'auto' };
     deadlineRun = {
       deadline: spec.deadline,
       planStart: inputs.planStart,
@@ -7571,8 +7582,14 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * `opts`, for a route that did not come from this store's last run (the instant answer's "Open this
    * plan"): `start`, the plan start it was priced from (instead of `planStartUsed`, the last run's),
    * and `legs`, its simulated ascensions (for time off), since it is in none of this run's caches.
+   * `firstAscension`: the setting the route was priced under (a saved By a date answer's own), which
+   * then decides Classic's A1 pick (`classicFirstPick`) instead of Your setup's setting now.
    */
-  function applyChain(chain: number[], alsoGenerate = false, opts?: { start?: number; legs?: LegSummary[] }): void {
+  function applyChain(
+    chain: number[],
+    alsoGenerate = false,
+    opts?: { start?: number; legs?: LegSummary[]; firstAscension?: FirstAscension }
+  ): void {
     const planner = useAutoPlannerStore();
     // Results priced on a run's own older save, with the latest save loaded since ("Load my latest
     // save"): the old run's start is from before this save existed, and its time-off instants belong
@@ -7643,7 +7660,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       ? {
           targets: (planner.targetTE || '').trim().split(/\s+/).join(' '),
           key: legs[0].key,
-          mode: usedSettings().firstAscension,
+          mode: opts?.firstAscension ?? usedSettings().firstAscension,
+          ...(opts?.firstAscension ? { own: true } : {}),
         }
       : null;
     patchAutoPlannerSchedule({
@@ -7975,6 +7993,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     deadlineRunning,
     deadlineProgress,
     deadlineRunDeadline,
+    deadlineRunPlan,
     deadlineResult,
     savedAnswers,
     refreshSavedAnswers,

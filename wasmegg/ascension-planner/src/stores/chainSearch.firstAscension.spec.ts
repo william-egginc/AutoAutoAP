@@ -143,6 +143,32 @@ describe("Your setup's First ascension and Classic's A1 dropdown", () => {
     expect(store.classicFirstPick()).toEqual({ 0: 'continue' });
   });
 
+  it("a route sent with its run's own setting (By a date's Simulate this plan) keeps that setting's pick", () => {
+    const store = useChainSearchStore();
+    const planner = useAutoPlannerStore();
+    // Priced under Prestige now, Your setup on Continue since: the run's build, not Continue.
+    store.setFirstAscension('continue');
+    store.applyChain([220, 490], false, {
+      legs: [{ key: '2-sale-tier13', endTE: 220 }] as never,
+      firstAscension: 'fresh',
+    });
+    expect(store.classicFirstPick()).toEqual({ 0: '2-sale-tier13' });
+    // Priced under Continue, Your setup on Fastest: Continue.
+    store.setFirstAscension('auto');
+    store.applyChain([230, 490], false, {
+      legs: [{ key: 'continue', endTE: 230 }] as never,
+      firstAscension: 'continue',
+    });
+    expect(store.classicFirstPick()).toEqual({ 0: 'continue' });
+    // A build-up (Classic has none) or Fastest: no pick, Classic's own fastest.
+    store.setFirstAscension('continue');
+    store.applyChain([230, 490], false, { legs: [{ key: 'buildup', endTE: 230 }] as never, firstAscension: 'buildup' });
+    expect(store.classicFirstPick()).toEqual({});
+    // Another chain typed since: back to Your setup's.
+    planner.targetTE = '231 490';
+    expect(store.classicFirstPick()).toEqual({ 0: 'continue' });
+  });
+
   it('puts a sweep’s setting back exactly, Classic’s pick included', () => {
     const store = useChainSearchStore();
     const planner = useAutoPlannerStore();

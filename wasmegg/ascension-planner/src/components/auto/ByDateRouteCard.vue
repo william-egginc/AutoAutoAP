@@ -87,6 +87,22 @@
         }}, at the final rate of {{ formatNumber(eggs.rate! * 3600, 2) }} eggs an hour).
       </p>
     </div>
+    <!-- Simulate this plan (search/simulateRoute.ts), as the instant answer's rows: this route in Your
+         plan, from the run's own plan start and first-ascension setting. -->
+    <div v-if="simulate" class="pt-1">
+      <button
+        type="button"
+        class="px-3 py-1.5 rounded-lg border border-emerald-700 text-emerald-800 text-[10px] font-black uppercase tracking-widest hover:bg-white"
+        title="Opens this route in Your plan, simulated step by step on your save"
+        data-testid="by-date-simulate"
+        @click="emit('simulate')"
+      >
+        Simulate this plan
+      </button>
+      <p v-if="simulateNote" class="mt-1 text-[10px] text-emerald-900/70" data-testid="by-date-simulate-note">
+        {{ simulateNote }}
+      </p>
+    </div>
   </div>
 </template>
 
@@ -107,7 +123,12 @@ const props = defineProps<{
   zone: string;
   /** The run is still going: this is its best so far. */
   running?: boolean;
+  /** Show Simulate this plan (emits `simulate`). */
+  simulate?: boolean;
+  /** One line under that button, e.g. that Your plan prices a build-up first ascension differently. */
+  simulateNote?: string;
 }>();
+const emit = defineEmits<{ simulate: [] }>();
 
 const lastStop = computed(() => props.route.chain[props.route.chain.length - 1]);
 const legs = computed(() => (Array.isArray(props.route.legs) ? props.route.legs : []));

@@ -487,6 +487,9 @@
             :deadline="store.deadlineRunDeadline || deadline"
             :zone="plannerZone"
             running
+            simulate
+            :simulate-note="liveSim?.note"
+            @simulate="simulateLive"
           />
           <div v-if="store.deadlineProgress.top.length > 1" class="overflow-x-auto">
             <p class="text-[10px] font-black uppercase tracking-widest text-slate-500 pb-1">Top routes so far</p>
@@ -564,7 +567,15 @@
     </p>
 
     <div v-if="result" class="space-y-3">
-      <ByDateRouteCard v-if="best" :route="best" :deadline="result.deadline" :zone="plannerZone">
+      <ByDateRouteCard
+        v-if="best"
+        :route="best"
+        :deadline="result.deadline"
+        :zone="plannerZone"
+        simulate
+        :simulate-note="resultSim?.note"
+        @simulate="simulateResult"
+      >
         <template #heading>
           <span v-if="!store.deadlineRunning && fromEarlier" class="font-semibold normal-case tracking-normal">
             · saved result from {{ ago(result.at) }}</span
@@ -853,6 +864,9 @@ import { formatBand, formatHours } from '@/search/exhaustive';
 import { spareLabel, summariseByDate } from '@/search/deadlineSummary';
 import ByDateRouteCard from './ByDateRouteCard.vue';
 import { oneMoreTEHint } from '@/search/oneMoreTE';
+import { byDateSimulate } from '@/search/byDateSimulate';
+import { readFirstAscension } from '@/search/firstAscension';
+import { simulateRoute } from '@/search/simulateRoute';
 import { rowSettingsFor, type DeadlineRunSpec, type SavedDeadlineResult } from '@/search/deadlineStore';
 import { SPACE_STEPS, SPACE_WIDTHS, stopsByWidth } from '@/search/deadlineSuggest';
 import { simpleByDateSpace, type SimpleSpace } from '@/search/simpleByDate';
@@ -1931,6 +1945,34 @@ const liveBest = computed(() => {
   const p = store.deadlineProgress;
   return p?.top[0] ?? p?.best ?? null;
 });
+
+/** Simulate this plan on the answer, or on the best so far (search/byDateSimulate.ts): the run's own
+ *  plan start and first-ascension setting, into Your plan as the instant answer's rows go. */
+const resultSim = computed(() => {
+  const r = result.value as SavedDeadlineResult | null;
+  return r && best.value
+    ? byDateSimulate(best.value, {
+        planStart: r.planStart,
+        firstAscension: r.settings ? readFirstAscension(r.settings) : null,
+      })
+    : null;
+});
+const liveSim = computed(() =>
+  liveBest.value
+    ? byDateSimulate(liveBest.value, {
+        planStart: store.deadlineRunPlan?.planStart,
+        firstAscension: store.deadlineRunPlan?.firstAscension,
+      })
+    : null
+);
+function simulateResult(): void {
+  const s = resultSim.value;
+  if (s) simulateRoute(s.chain, 'by-date', s.opts);
+}
+function simulateLive(): void {
+  const s = liveSim.value;
+  if (s) simulateRoute(s.chain, 'by-date', s.opts);
+}
 
 /** What the shown result says about its run: time, workers, the space (and, on Advanced, the boxes). */
 const summary = computed(() =>
