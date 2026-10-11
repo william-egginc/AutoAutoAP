@@ -842,28 +842,21 @@
                 <template v-if="queueAt >= 0">Running chain {{ queueAt + 1 }} of {{ store.sweepQueue.total }}</template>
                 <template v-else>All chains from the last click</template>
               </p>
-              <div v-if="queueResults.length" class="overflow-x-auto">
-                <table class="w-full text-[11px] tabular-nums">
-                  <thead>
-                    <tr class="text-left text-[9px] font-black uppercase tracking-widest text-slate-400">
-                      <th class="pr-4 py-1">Chain</th>
-                      <th class="pr-4 py-1">Best found</th>
-                      <th class="pr-4 py-1">Days</th>
-                      <th class="pr-4 py-1">Finishes</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="q in queueResults" :key="q.label" class="border-t border-slate-100">
-                      <td class="pr-4 py-1 text-slate-500">
-                        {{ q.label }}<template v-if="q.stopped"> (stopped)</template>
-                      </td>
-                      <td class="pr-4 py-1 font-bold">{{ q.chain.join(' ') }}</td>
-                      <td class="pr-4 py-1">{{ q.days ? q.days.toFixed(3) : '—' }}</td>
-                      <td class="pr-4 py-1">{{ q.finish ? saveWhen(q.finish) : '—' }}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+              <ResultTable
+                v-if="queueResults.length"
+                :columns="['Chain', 'Best found', 'Days', 'Finishes']"
+                :rows="queueResults"
+                :row-key="q => q.label"
+              >
+                <template #default="{ row: q }">
+                  <td class="pr-4 py-1 text-slate-500">
+                    {{ q.label }}<template v-if="q.stopped"> (stopped)</template>
+                  </td>
+                  <td class="pr-4 py-1 font-bold">{{ q.chain.join(' ') }}</td>
+                  <td class="pr-4 py-1">{{ q.days ? q.days.toFixed(3) : '—' }}</td>
+                  <td class="pr-4 py-1">{{ q.finish ? saveWhen(q.finish) : '—' }}</td>
+                </template>
+              </ResultTable>
               <p class="text-[10px] text-slate-500">
                 Each is saved under Saved runs, so you can open any of them again. Compare them by finish date.
               </p>
@@ -1165,6 +1158,7 @@ import RunProgress from './RunProgress.vue';
 import EdgeWarning from './EdgeWarning.vue';
 import RunErrorNotes from './RunErrorNotes.vue';
 import RunControls from './RunControls.vue';
+import ResultTable from './ResultTable.vue';
 import LongerRouteHint from './LongerRouteHint.vue';
 
 const props = defineProps<{

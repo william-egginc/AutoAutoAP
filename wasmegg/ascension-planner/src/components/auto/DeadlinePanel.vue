@@ -496,29 +496,19 @@
             :simulate-note="liveSim?.note"
             @simulate="simulateLive"
           />
-          <div v-if="store.deadlineProgress.top.length > 1" class="overflow-x-auto">
-            <p class="text-[10px] font-black uppercase tracking-widest text-slate-500 pb-1">Top routes so far</p>
-            <table class="w-full text-[11px] tabular-nums">
-              <thead>
-                <tr class="text-left text-[9px] font-black uppercase tracking-widest text-slate-400">
-                  <th class="pr-4 py-1">Route</th>
-                  <th class="pr-4 py-1">Last stop reached</th>
-                  <th class="pr-4 py-1">Spare</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="r in store.deadlineProgress.top.slice(0, 5)"
-                  :key="r.chain.join(',')"
-                  class="border-t border-slate-100"
-                >
-                  <td class="pr-4 py-1 font-bold">{{ r.chain.join(' ') }}</td>
-                  <td class="pr-4 py-1">{{ inPlannerZone(r.reachAt) }}</td>
-                  <td class="pr-4 py-1">{{ spareLabel(r.spare) }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          <ResultTable
+            v-if="store.deadlineProgress.top.length > 1"
+            title="Top routes so far"
+            :columns="ROUTE_COLUMNS"
+            :rows="store.deadlineProgress.top.slice(0, 5)"
+            :row-key="r => r.chain.join(',')"
+          >
+            <template #default="{ row: r }">
+              <td class="pr-4 py-1 font-bold">{{ r.chain.join(' ') }}</td>
+              <td class="pr-4 py-1">{{ inPlannerZone(r.reachAt) }}</td>
+              <td class="pr-4 py-1">{{ spareLabel(r.spare) }}</td>
+            </template>
+          </ResultTable>
         </div>
       </template>
       <template #after>
@@ -637,21 +627,21 @@
         </p>
       </div>
 
-      <div v-if="result.byStops.length > 1" class="overflow-x-auto">
-        <p class="text-[10px] font-black uppercase tracking-widest text-slate-500 pb-1">Best for each stop count</p>
-        <table class="w-full text-[11px] tabular-nums">
-          <tbody>
-            <tr v-for="r in result.byStops" :key="r.chain.join(',')" class="border-t border-slate-100">
-              <td class="pr-4 py-1 text-slate-500">{{ r.chain.length }} stop{{ r.chain.length === 1 ? '' : 's' }}</td>
-              <td class="pr-4 py-1 font-bold">{{ r.chain.join(' ') }}</td>
-              <td class="pr-4 py-1">{{ spareLabel(r.spare) }} spare</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <ResultTable
+        v-if="result.byStops.length > 1"
+        title="Best for each stop count"
+        :rows="result.byStops"
+        :row-key="r => r.chain.join(',')"
+      >
+        <template #default="{ row: r }">
+          <td class="pr-4 py-1 text-slate-500">{{ r.chain.length }} stop{{ r.chain.length === 1 ? '' : 's' }}</td>
+          <td class="pr-4 py-1 font-bold">{{ r.chain.join(' ') }}</td>
+          <td class="pr-4 py-1">{{ spareLabel(r.spare) }} spare</td>
+        </template>
+      </ResultTable>
 
-      <div class="overflow-x-auto">
-        <p class="text-[10px] font-black uppercase tracking-widest text-slate-500 pb-1">
+      <ResultTable :columns="ROUTE_COLUMNS" :rows="result.routes.slice(0, 15)" :row-key="r => r.chain.join(',')">
+        <template #title>
           <template v-if="!result.step && !result.stoppedEarly"
             >Every route in your space: {{ result.priced.toLocaleString() }} priced, run complete. Top routes</template
           ><template v-else
@@ -660,24 +650,13 @@
               result.step ? `early stops every ${result.step} TE, then refined` : 'every combination in your space'
             }})</template
           >
-        </p>
-        <table class="w-full text-[11px] tabular-nums">
-          <thead>
-            <tr class="text-left text-[9px] font-black uppercase tracking-widest text-slate-400">
-              <th class="pr-4 py-1">Route</th>
-              <th class="pr-4 py-1">Last stop reached</th>
-              <th class="pr-4 py-1">Spare</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="r in result.routes.slice(0, 15)" :key="r.chain.join(',')" class="border-t border-slate-100">
-              <td class="pr-4 py-1 font-bold">{{ r.chain.join(' ') }}</td>
-              <td class="pr-4 py-1">{{ inPlannerZone(r.reachAt) }}</td>
-              <td class="pr-4 py-1">{{ spareLabel(r.spare) }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+        </template>
+        <template #default="{ row: r }">
+          <td class="pr-4 py-1 font-bold">{{ r.chain.join(' ') }}</td>
+          <td class="pr-4 py-1">{{ inPlannerZone(r.reachAt) }}</td>
+          <td class="pr-4 py-1">{{ spareLabel(r.spare) }}</td>
+        </template>
+      </ResultTable>
       <!-- Save this answer and Saved answers (SavedAnswers.vue), with Download CSV beside Save. -->
       <SavedAnswers :player-id="playerId" :default-label="defaultAnswerLabel" :zone="plannerZone">
         <template #actions>
@@ -833,6 +812,7 @@ import RunProgress from './RunProgress.vue';
 import EdgeWarning from './EdgeWarning.vue';
 import RunErrorNotes from './RunErrorNotes.vue';
 import RunControls from './RunControls.vue';
+import ResultTable from './ResultTable.vue';
 import { durationLabel, useRunClock } from '@/composables/useRunClock';
 import { useRunDownloads } from '@/composables/useRunDownloads';
 import { useDateRowSliders } from '@/composables/useRowSliders';
@@ -1900,6 +1880,8 @@ const {
 const { downloadByDateCsv, downloadError } = useRunDownloads(store);
 
 const result = computed(() => store.deadlineResult);
+/** The columns of every list of routes here (top routes so far, and the finished run's). */
+const ROUTE_COLUMNS = ['Route', 'Last stop reached', 'Spare'];
 /** Share this result's "Note on this run": the result's own note, edited in place, so the send and
  *  its CSV carry what the box says. */
 const resultNote = computed({
