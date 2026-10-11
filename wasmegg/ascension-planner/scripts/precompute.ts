@@ -131,7 +131,7 @@ import {
 } from '@/search/routeFinder';
 import { splitByWork } from '@/search/routePool';
 import { packTable, readTable, type TableHeader } from '@/search/precomputedTable';
-import { gearChanges, gearStamp, gearTableName, tableName } from '@/search/tableGear';
+import { gearChanges, gearStamp, gearTableName, legacyGearTableName, tableName } from '@/search/tableGear';
 import { buildAt, buildPeak, k3StateOf, paramsOf, PEAK_TE, REFERENCE_WEEK, startStateAt } from '@/search/tableBuild';
 import { deliveryScore, slotsFromLabels } from '@/search/virtueScore';
 import { describeLoadoutSlots } from '@/search/csv';
@@ -2405,7 +2405,10 @@ async function main(): Promise<void> {
     const k = instantDeliveryScale(inputs, refK3);
     const inv = useChainSearchStore().readInventory();
     const stamp = gearStamp(inputs, inv.earnings, refK3.research)!;
-    if (has('gear-name')) return console.log(await gearTableName(stamp));
+    // --legacy: the name it had before canonical names (tableGear.ts legacyGearTableName), to match a
+    // deployed table to its combo; ~/code/aaap-tools/alias-gear-tables.sh takes it from there.
+    if (has('gear-name'))
+      return console.log(await (has('legacy') ? legacyGearTableName(stamp) : gearTableName(stamp)));
     if (has('debug'))
       console.log('inventory as read:', JSON.stringify({ artifacts: inv.artifacts, stones: inv.stones }));
     const label = (sl: { artifact: string; stones: string[] }) =>
