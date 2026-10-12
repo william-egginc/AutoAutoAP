@@ -153,6 +153,7 @@ import {
 import { buildAt, buildPeak, k3StateOf, paramsOf, PEAK_TE, REFERENCE_WEEK, startStateAt } from '@/search/tableBuild';
 import { deliveryScore, slotsFromLabels } from '@/search/virtueScore';
 import { describeLoadoutSlots } from '@/search/csv';
+import { gearLabel, maxedLabel } from '@/search/tableLabel';
 import { cteFromArtifacts, cteFromColleggtibles, cteFromLabUpgrade, multiplierToTE } from 'lib/virtue';
 import { allPossibleTiers } from 'lib/artifacts/data';
 import { ei } from 'lib/proto';
@@ -918,6 +919,10 @@ async function manifest(file: string): Promise<void> {
         bonus: Number(h.cteBonus.toFixed(2)),
         k: Number((rate(h.k3.delivery) / top).toFixed(4)),
         from: h.from,
+        // The gear in words (search/tableLabel.ts), e.g. `LLLL · 11 T4 stones · bonus 128.7`.
+        label: h.gear
+          ? gearLabel(h.gear, h.cteBonus)
+          : maxedLabel(describeLoadoutSlots(h.k3.delivery as Parameters<typeof describeLoadoutSlots>[0]), h.cteBonus),
         ...(aliasesFor(f).length ? { aliases: aliasesFor(f) } : {}),
         // The maxed table's waiting research and delivery set: with them the page can work out a
         // player's gear stamp and delivery k before any table is downloaded (search/tablePrefetch.ts).
@@ -925,7 +930,7 @@ async function manifest(file: string): Promise<void> {
       };
     });
   writeFileSync(`${dir}/tables.json`, JSON.stringify(out, null, 1) + '\n');
-  for (const t of out) console.log(`${t.file}  bonus ${t.bonus}  k ${t.k}`);
+  for (const t of out) console.log(`${t.file}  bonus ${t.bonus}  k ${t.k}  ${t.label}`);
 }
 
 function pack(): void {
