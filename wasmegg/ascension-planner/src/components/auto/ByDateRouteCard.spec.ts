@@ -26,13 +26,15 @@ const route = (over: Partial<DeadlineRoute> = {}): DeadlineRoute => ({
 const props = (over: object = {}) => ({ route: route(), deadline: DEADLINE, zone: 'UTC', ...over });
 
 describe('ByDateRouteCard', () => {
-  it('the finished answer: highest by the date, the TE and route, the spare, a row per stop', async () => {
-    const t = textOf(await renderHtml(ByDateRouteCard, props(), { default: () => 'Stopped early.' }));
+  it('the finished answer: highest by the date, the route, the TE and spare beside it, a leg table under it', async () => {
+    const html = await renderHtml(ByDateRouteCard, props(), { default: () => 'Stopped early.' });
+    const t = textOf(html);
     expect(t).toMatch(/^Highest by .*2027/);
-    expect(t).toContain('247 TE via 166 197 223 247');
-    expect(t).toContain('with 27.3 h to spare.');
+    expect(t).toMatch(/166 197 223 247 247 TE reached .*2027.*, 27\.3 h to spare/);
     expect(t).toContain('Stopped early.');
-    expect(t).toMatch(/Stop Reached Leg 166 .* 30\.0 d 197 .* 80\.0 d 223 .* 70\.0 d 247 .* 48\.9 d/);
+    // Laid out as Fastest's leg table: Leg, to TE, Start, Finish, Days.
+    expect(t).toMatch(/Leg → TE Start Finish Days A1 166 .* 30\.00 A2 197 .* 80\.00 A3 223 .* 70\.00 A4 247 .* 48\.90/);
+    expect(html).toContain('data-testid="by-date-legs"');
     expect(t).not.toContain('Best so far');
     expect(t).not.toContain('can still improve');
   });
@@ -40,28 +42,28 @@ describe('ByDateRouteCard', () => {
   it('mid-run: labelled the best so far, and says it can still improve', async () => {
     const t = textOf(await renderHtml(ByDateRouteCard, props({ running: true })));
     expect(t).toMatch(/^Best so far · highest by .*2027/);
-    expect(t).toContain('247 TE via 166 197 223 247');
+    expect(t).toContain('166 197 223 247 247 TE');
     expect(t).toContain('The search is still going, so this can still improve.');
-    expect(t).toContain('Stop Reached Leg');
+    expect(t).toContain('Leg → TE Start Finish Days');
   });
 
   it('a best so far without its legs yet (replayed) shows what is known, and no empty table', async () => {
     const html = await renderHtml(ByDateRouteCard, props({ running: true, route: route({ legs: [] }) }));
-    expect(html).not.toContain('<table');
-    expect(textOf(html)).toContain('247 TE via 166 197 223 247');
+    expect(html).not.toContain('by-date-legs');
+    expect(textOf(html)).toContain('166 197 223 247 247 TE');
     expect(textOf(html)).toContain('The time of each stop comes with the finished result.');
   });
 
   it('a leg missing its numbers shows a dash rather than NaN', async () => {
     const bad = { key: 'continue', endTE: 197 } as never;
     const t = textOf(await renderHtml(ByDateRouteCard, props({ running: true, route: route({ legs: [bad] }) })));
-    expect(t).toContain('197 — —');
+    expect(t).toContain('A1 197 — — —');
     expect(t).not.toMatch(/NaN|Invalid/);
   });
 
   it('says when the player can ascend, when that is later than reaching the stop', async () => {
     const r = route({ ascendAt: DEADLINE - 3600 });
-    expect(textOf(await renderHtml(ByDateRouteCard, props({ route: r })))).toContain('(you can ascend from');
+    expect(textOf(await renderHtml(ByDateRouteCard, props({ route: r })))).toContain('You can ascend from');
   });
 });
 
@@ -102,17 +104,43 @@ describe('ByDateRouteCard: TE per egg and the next TE', () => {
   });
 });
 
-describe('ByDateRouteCard: Simulate this plan', () => {
-  it('shows the button when asked, with its note', async () => {
+describe('ByDateRouteCard: the button row (as on Fastest\'s card)', () => {
+  it('Simulate this plan, with its note', async () => {
     const t = textOf(
       await renderHtml(
         ByDateRouteCard,
         props({ simulate: true, simulateNote: 'Your plan prices the first ascension as a fresh build/continue.' })
       )
     );
-    expect(t).toMatch(/Simulate this plan Your plan prices the first ascension as a fresh build\/continue\.$/);
+    expect(t).toContain('Your plan prices the first ascension as a fresh build/continue. Simulate this plan');
     expect(await renderHtml(ByDateRouteCard, props())).not.toContain('by-date-simulate');
     expect(await renderHtml(ByDateRouteCard, props({ simulate: true }))).not.toContain('by-date-simulate-note');
+  });
+
+  it('Simulate, Share, CSV, Save answer in that order, styled as Fastest\'s Build / Share / CSV / Save run', async () => {
+    const html = await renderHtml(ByDateRouteCard, props({ simulate: true, canShare: true, canCsv: true, canSave: true }));
+    expect(textOf(html)).toMatch(/Simulate this plan Share CSV ↓ Save answer Leg/);
+    const fast = await renderHtml(RouteResultCard, {
+      chain: [212, 280, 490],
+      days: 760.5,
+      finalTE: 490,
+      endLabel: 'Feb 15, 2029',
+      running: false,
+      canSave: true,
+    });
+    const classOf = (h: string, text: string) => h.match(new RegExp(`class="([^"]*)"[^>]*>\\s*${text}`))?.[1];
+    expect(classOf(html, 'Simulate this plan')).toContain('bg-emerald-700');
+    expect(classOf(html, 'Simulate this plan')).toBe(classOf(fast, 'Build this plan'));
+    expect(classOf(html, 'Share')).toContain('border-emerald-300');
+    expect(classOf(html, 'Share')).toBe(classOf(fast, 'Share'));
+  });
+
+  it('mid-run: only Simulate', async () => {
+    const t = textOf(
+      await renderHtml(ByDateRouteCard, props({ running: true, simulate: true, canShare: true, canCsv: true, canSave: true }))
+    );
+    expect(t).toContain('Simulate this plan');
+    expect(t).not.toMatch(/Share|CSV|Save answer/);
   });
 });
 

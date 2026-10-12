@@ -32,7 +32,7 @@
       <button
         type="button"
         :disabled="busy"
-        class="px-4 py-2 rounded-lg bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-emerald-800 disabled:opacity-40"
+        :class="PRIMARY_BUTTON"
         @click="emit('build')"
       >
         Build this plan
@@ -40,21 +40,21 @@
       <button
         v-if="canFill"
         type="button"
-        class="px-3 py-2 rounded-lg border border-emerald-300 bg-white text-[10px] font-black uppercase tracking-widest text-emerald-800 hover:border-emerald-500"
+        :class="SECONDARY_BUTTON"
         @click="emit('fill')"
       >
         Just fill it in
       </button>
       <button
         type="button"
-        class="px-3 py-2 rounded-lg border border-emerald-300 bg-white text-[10px] font-black uppercase tracking-widest text-emerald-800 hover:border-emerald-500"
+        :class="SECONDARY_BUTTON"
         @click="toShare"
       >
         Share
       </button>
       <button
         type="button"
-        class="px-3 py-2 rounded-lg border border-emerald-300 bg-white text-[10px] font-black uppercase tracking-widest text-emerald-800 hover:border-emerald-500"
+        :class="SECONDARY_BUTTON"
         @click="emit('csv')"
       >
         CSV ↓
@@ -63,7 +63,7 @@
         v-if="canSave"
         type="button"
         :disabled="saving"
-        class="px-3 py-2 rounded-lg border border-emerald-300 bg-white text-[10px] font-black uppercase tracking-widest text-emerald-800 hover:border-emerald-500 disabled:opacity-40"
+        :class="SECONDARY_BUTTON"
         @click="emit('save')"
       >
         {{ saving ? 'Saving...' : 'Save run' }}
@@ -75,6 +75,7 @@
 
 <script setup lang="ts">
 import ResultCardFrame from './ResultCardFrame.vue';
+import { PRIMARY_BUTTON, SECONDARY_BUTTON } from './resultCardStyle';
 
 withDefaults(
   defineProps<{

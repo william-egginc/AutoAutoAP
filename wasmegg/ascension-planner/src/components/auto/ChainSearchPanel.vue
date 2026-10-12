@@ -545,7 +545,6 @@
               :end-label="endDate"
               :running="store.isRunning"
               :claim="store.stoppedEarly ? 'the best of what was priced' : ''"
-              :source="store.searchSpace ? `From the ${NAMES.fullFirst} search you ran` : ''"
               :busy="store.busy"
               can-fill
               can-save

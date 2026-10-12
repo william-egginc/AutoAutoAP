@@ -563,7 +563,14 @@
           :zone="plannerZone"
           simulate
           :simulate-note="resultSim?.note"
+          :can-share="collectorConfigured"
+          can-csv
+          can-save
+          :saving="quickSaving"
+          :note="quickSaveNote"
           @simulate="simulateResult"
+          @csv="downloadByDateCsv"
+          @save="quickSave"
         >
           <template #heading>
             <span v-if="!store.deadlineRunning && fromEarlier" class="font-semibold normal-case tracking-normal">
@@ -668,16 +675,8 @@
       </ResultTable>
       <template #keep>
         <!-- Save this answer and Saved answers (SavedAnswers.vue), with Download CSV beside Save. -->
+        <!-- CSV and a quick save are on the card (as on Fastest's); here, a save under a name of your own. -->
         <SavedAnswers :player-id="playerId" :default-label="defaultAnswerLabel" :zone="plannerZone">
-          <template #actions>
-            <button
-              type="button"
-              class="px-3 py-1.5 rounded-lg border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50"
-              @click="downloadByDateCsv"
-            >
-              Download CSV
-            </button>
-          </template>
           <p v-if="downloadError" class="text-[11px] font-semibold text-red-700">{{ downloadError }}</p>
           <p class="text-[11px] text-slate-500 leading-relaxed">
             Priced from {{ inPlannerZone(result.planStart) }} at {{ result.te }} TE<template v-if="result.backupAt"
@@ -1912,6 +1911,25 @@ const defaultAnswerLabel = computed(() => {
   const best = r?.routes[0];
   return best ? `${best.chain[best.chain.length - 1]} TE by ${inPlannerZone(r.deadline)}` : 'Name this answer';
 });
+/** The card's Save answer: kept under the default name, as Fastest's Save run (SavedAnswers below
+ *  saves under a name of your own). */
+const quickSaving = ref(false);
+const quickSaveNote = ref('');
+async function quickSave(): Promise<void> {
+  quickSaving.value = true;
+  try {
+    await store.saveCurrentAnswer(props.playerId, defaultAnswerLabel.value);
+    quickSaveNote.value = `Saved as "${defaultAnswerLabel.value}".`;
+  } catch {
+    quickSaveNote.value = "Couldn't save it in this browser.";
+  } finally {
+    quickSaving.value = false;
+  }
+}
+watch(
+  () => store.deadlineResult,
+  () => (quickSaveNote.value = '')
+);
 onMounted(() => void store.loadDeadlineState(props.playerId));
 // The integrity check up front, as Fastest's panel has it: By a date must not depend on Fastest
 // having been opened for the notice beside Find (and Find's block) to show.
