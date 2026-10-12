@@ -9,6 +9,7 @@ import { ref, watch, type Ref } from 'vue';
 import * as blackBox from '@/search/blackBox';
 import { environment } from '@/search/blackBox';
 import * as sa from '@/search/stepAway';
+import { cageStep } from '@/search/cageGuard';
 
 /** The options, remembered per browser. All off unless the player ticks them. */
 export const stepAwayOptions = ref<sa.StepAwayOptions>(sa.readOptions());
@@ -42,6 +43,9 @@ let fewerSeen = stepAwayOptions.value.fewerWorkers;
 let samples: sa.RateSample[] = [];
 let memory: sa.MemorySample[] = [];
 let lastStepAt = 0;
+/** The whole page's last few memory measurements (search/cageGuard.ts), MB, oldest first. */
+let cageRecent: number[] = [];
+let cageStepAt = 0;
 
 function post(msg: unknown): void {
   try {
@@ -131,6 +135,8 @@ export async function stepAwayRunStarted(kind: sa.RunKind): Promise<void> {
   samples = [];
   memory = [];
   lastStepAt = startedAt;
+  cageRecent = [];
+  cageStepAt = startedAt;
   const o = stepAwayOptions.value;
   if (o.fewerWorkers) applyCap();
   let account = '';
@@ -173,14 +179,38 @@ export async function stepAwayRunStarted(kind: sa.RunKind): Promise<void> {
   });
 }
 
-/** Every black-box beat while the run goes: the heartbeat, and option 3's step-down rule. */
+/**
+ * The cage guard (search/cageGuard.ts), on every beat of a run, whatever the options: a notch of
+ * workers off when the whole page, workers included, is measured near the 4 GB the browser gives it.
+ * Only where the browser can measure that (a cross-origin isolated page in Chromium).
+ */
+function cageBeat(pageMB: number | undefined): void {
+  if (!deps || typeof pageMB !== 'number' || !Number.isFinite(pageMB)) return;
+  cageRecent = [...cageRecent, pageMB].slice(-3);
+  const now = Date.now();
+  const step = cageStep({ recent: cageRecent, workers: deps.workerBudget.value, lastStepAt: cageStepAt, now });
+  if (!step) return;
+  const from = deps.workerBudget.value;
+  setBudget(step.to);
+  cageStepAt = now;
+  cageRecent = [];
+  const why = `this page was using ${Math.round(pageMB).toLocaleString('en-US')} MB of the 4 GB the browser gives it`;
+  stepAwayNote.value = `Down to ${step.to} workers at ${sa.clock12(now)}: ${why}.`;
+  deps.log(`--- workers: ${from} -> ${step.to} (memory guard: ${why})`);
+  blackBox.note(`memory guard: workers ${from} -> ${step.to} at ${Math.round(pageMB)} MB for the whole page`);
+}
+
+/** Every black-box beat while the run goes: the heartbeat, the cage guard and option 3's step-down rule. */
 export function stepAwayBeat(b: {
   done: number;
   workers: number;
   heapMB?: number;
   heapLimitMB?: number;
   workersHeapMB?: number | null;
+  /** The whole page, workers included (measureUserAgentSpecificMemory), MB; absent where unmeasured. */
+  uaMemoryMB?: number;
 }): void {
+  cageBeat(b.uaMemoryMB);
   const m = ownMark();
   if (!m || !deps) return;
   const now = Date.now();

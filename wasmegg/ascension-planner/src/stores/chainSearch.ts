@@ -138,6 +138,7 @@ import {
   uploadCsv,
   type ProgressCsv,
 } from '@/search/progressSend';
+import { csvSoFarRoom } from '@/search/cageGuard';
 import { useShareExtras } from '@/composables/useShareExtras';
 import {
   dropPendingSend,
@@ -4143,6 +4144,14 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     if (!chunks) return { kind: 'none' };
     // A collector from before progress sends hands a provisional row no token.
     if (!id || !token || !submitUrl) return { kind: 'not-taken' };
+    // Near the 4 GB the page and its workers share (search/cageGuard.ts): not now. The row and the
+    // diagnostics went; the next send tries the CSV again, by when the guard has made room.
+    const pageMB = blackBox.lastPageMemoryMB();
+    if (!csvSoFarRoom(pageMB))
+      return {
+        kind: 'failed',
+        why: `this page was using ${Math.round(pageMB ?? 0).toLocaleString('en-US')} MB, close to the browser's 4 GB, so it waited`,
+      };
     // In the black box's history only: a page that dies building it says so on the next visit,
     // without taking the run's own open beat away.
     blackBox.note(`progress send: building the CSV so far (${p.done} ${p.unit})`);
@@ -6924,6 +6933,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         heapMB: b.heapMB,
         heapLimitMB: b.heapLimitMB,
         workersHeapMB: b.workersHeapMB,
+        ...(b.uaMemoryMB !== undefined ? { uaMemoryMB: b.uaMemoryMB } : {}),
       });
     // "Watch this run from your phone": a heartbeat when one is due (composables/useWatchLink.ts).
     watchLinkTick();
