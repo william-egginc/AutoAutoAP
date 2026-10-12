@@ -30,7 +30,12 @@
         :disabled="findDisabled || notReady || running"
         @click="emit('find', false)"
       >
-        {{ running ? runningLabel : findLabel }}
+        <!-- Dots in CSS (AnimatedDots.vue): moving, so a long run never looks stuck, at no cost per tick. -->
+        <span v-if="running" :aria-label="runningLabel"
+          >{{ runningWords }}<AnimatedDots /></span
+        ><span v-else-if="blockedBy" :aria-label="`${blockedBy} is running...`" data-testid="find-blocked-label"
+          >{{ blockedBy }} is running<AnimatedDots /></span
+        ><template v-else>{{ findLabel }}</template>
       </button>
       <div v-if="showSubmit && !running" class="flex flex-col items-center gap-1">
         <button
@@ -45,7 +50,7 @@
              in the box below, this only says where to look. -->
         <span v-if="!optIn" class="text-[10px] font-semibold text-slate-500 text-center" data-testid="acknowledge-hint"
           >To use Find and submit, please tick
-          <!-- A link to the box: after a Smart search the answer card sits between here and the box. -->
+          <!-- A link to the box, which can be a long way below on a phone. -->
           <button
             type="button"
             class="underline decoration-dotted underline-offset-2 hover:text-indigo-700"
@@ -99,13 +104,26 @@
     >
       {{ store.bestSoFarStatus.text }}
     </p>
+    <!-- Greyed out because the other search on this screen is going (the user, 12 Oct: it said nothing). -->
+    <p
+      v-if="blockedBy && !running"
+      class="text-[11px] font-semibold text-slate-600"
+      data-testid="find-blocked"
+    >
+      {{ blockedBy }} is running, and one search runs at a time: Find comes back when it finishes or you stop it.
+      <button
+        v-if="blockedKind"
+        type="button"
+        class="ml-1 font-bold text-indigo-700 underline decoration-dotted underline-offset-2 hover:text-indigo-900"
+        data-testid="find-blocked-jump"
+        @click="jump"
+      >
+        Jump to it
+      </button>
+    </p>
     <!-- The save is still settling (a Science link, the Auto Planner tab, a new player id): every
          search reads it, so Find waits rather than pricing one save and labelling it with another. -->
     <p v-if="notReady" class="text-[11px] font-semibold text-amber-700">{{ store.saveNotReady }}</p>
-    <!-- The run's own progress, put by the screen directly under the buttons (and above the share box and
-         "Stepping away?") so a run's progress is never pushed to the page's end (9 Oct). -->
-    <slot name="progress" />
-
     <div
       v-if="showSubmit"
       class="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3 space-y-2 text-[11px] text-indigo-900"
@@ -181,6 +199,8 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
+import { scrollToRun, type RunAnchorKind } from '@/lib/runAnchor';
+import AnimatedDots from './AnimatedDots.vue';
 import RunNoteBox from './RunNoteBox.vue';
 import SendingText from './SendingText.vue';
 import ShareExtras from './ShareExtras.vue';
@@ -206,6 +226,10 @@ const props = withDefaults(
     nicknameMax?: number;
     /** Which run this screen starts, for Send best so far (store `bestSoFar.kind`). Unset: none. */
     bestSoFarKind?: 'fastest' | 'deadline';
+    /** The other search on this screen, by name, while it runs (Find is greyed out for it). */
+    blockedBy?: string;
+    /** Its progress block, for Jump to it (lib/runAnchor.ts). */
+    blockedKind?: RunAnchorKind;
   }>(),
   {
     stopping: false,
@@ -219,6 +243,11 @@ const props = withDefaults(
   }
 );
 const store = useChainSearchStore();
+/** The running label without its "...": the dots are drawn (AnimatedDots). */
+const runningWords = computed(() => props.runningLabel.replace(/(\.\.\.|…)$/, ''));
+function jump(): void {
+  if (props.blockedKind) void scrollToRun(props.blockedKind);
+}
 const emit = defineEmits<{ find: [andSubmit: boolean]; stop: []; nicknameTyped: [] }>();
 
 const optIn = defineModel<boolean>('optIn', { required: true });

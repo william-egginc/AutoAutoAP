@@ -97,4 +97,34 @@ describe('FindBar', () => {
     );
     store.endBestSoFar();
   });
+
+  describe('animated dots and the blocked line (12 Oct)', () => {
+    it('a running label is the words plus the animated dots, not a literal "..."', async () => {
+      const html = await renderHtml(FindBar, { ...base, running: true, runningLabel: 'Searching...' }, {}, [pinia]);
+      expect(html.match(/class="animated-dots"/g)).toHaveLength(1);
+      expect(html).toMatch(/>Searching<span class="animated-dots"[^>]*>(<span[^>]*>\.<\/span>){3}<\/span>/);
+      // The visible text is the word plus three dots once (the aria-label keeps the full label).
+      expect(textOf(html).match(/Searching\s?\.\s?\.\s?\./g)).toHaveLength(1);
+      expect(html).not.toMatch(/>Searching\.\.\./);
+    });
+
+    const blocked = { blockedBy: 'Nearby routes', blockedKind: 'smart', findDisabled: true };
+    it('blocked by the other search: the button says so and a line with Jump to it explains', async () => {
+      const html = await renderHtml(FindBar, { ...base, ...blocked }, {}, [pinia]);
+      expect(html).toMatch(/data-testid="find-blocked-label"[^>]*>Nearby routes is running<span class="animated-dots"/);
+      expect(html).toContain('data-testid="find-blocked"');
+      expect(textOf(html)).toContain('Nearby routes is running, and one search runs at a time');
+      expect(html).toContain('data-testid="find-blocked-jump"');
+      expect(textOf(html)).toContain('Jump to it');
+    });
+    it('without blockedKind there is no jump button', async () => {
+      const html = await renderHtml(FindBar, { ...base, blockedBy: 'Nearby routes', findDisabled: true }, {}, [pinia]);
+      expect(html).toContain('data-testid="find-blocked"');
+      expect(html).not.toContain('find-blocked-jump');
+    });
+    it('no blockedBy: no blocked line or label', async () => {
+      const html = await renderHtml(FindBar, { ...base, blockedKind: 'smart' }, {}, [pinia]);
+      expect(html).not.toContain('find-blocked');
+    });
+  });
 });
