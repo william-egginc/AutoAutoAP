@@ -366,7 +366,7 @@
 
           <details class="rounded-lg border border-dashed border-slate-200 px-3 py-2" @toggle="onAdvanced">
             <summary class="cursor-pointer text-[10px] font-black text-slate-500 uppercase tracking-widest">
-              Advanced: memory · detail kept for
+              Memory · detail kept for
               {{ store.legDetailBudget ? store.legDetailBudget.toLocaleString() : 'every' }} chains
             </summary>
             <div class="mt-3 space-y-3">

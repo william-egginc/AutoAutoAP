@@ -196,7 +196,7 @@
                 {{ link.label }} &rarr;
               </a>
               <span class="text-[10px] text-slate-400">
-                Opens {{ need.byDate ? `${NAMES.byDate} › Advanced` : `${fastestName(finalTe)} › ${NAMES.fullFirst}` }} in a new tab with all of this filled in, on the save
+                Opens {{ need.byDate ? `${NAMES.byDate} › ${NAMES.full}` : `${fastestName(finalTe)} › ${NAMES.fullFirst}` }} in a new tab with all of this filled in, on the save
                 you have loaded.
               </span>
             </template>

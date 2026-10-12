@@ -7,8 +7,8 @@
   <div v-if="shifts.length || more" class="space-y-1 text-[11px] leading-relaxed" data-testid="route-extras">
     <details v-if="shifts.length" data-testid="first-shifts">
       <summary class="cursor-pointer font-semibold" :class="tone">
-        First ascension: {{ shifts.length }} egg {{ shifts.length === 1 ? 'shift' : 'shifts' }}, {{ short(shifts[0].at) }}
-        to {{ short(shifts[shifts.length - 1].at) }}
+        First ascension: {{ shifts.length }} egg {{ shifts.length === 1 ? 'shift' : 'shifts' }},
+        {{ short(shifts[0].at) }} to {{ short(shifts[shifts.length - 1].at) }}
       </summary>
       <ul class="mt-1 grid gap-x-4 gap-y-0.5 sm:grid-cols-2 pl-4 list-disc" :class="muted">
         <li v-for="(s, i) in shifts" :key="i">
@@ -18,9 +18,14 @@
     </details>
     <p v-if="more" :class="tone" data-testid="one-more-te">
       <span class="font-semibold">One more TE ({{ more.te }}):</span>
-      {{ more.how === 'run' ? 'about' : 'the next one comes about' }} {{ span(more.seconds) }} later, about
-      <span class="whitespace-nowrap">{{ short(more.at) }}</span
-      ><template v-if="more.how === 'rate'"> if you keep laying at the final rate</template>.
+      <template v-if="more.how === 'run'"
+        >about {{ span(more.seconds) }} more, so about <span class="whitespace-nowrap">{{ short(more.at) }}</span> (what
+        {{ more.te - 1 }} cost over {{ more.te - 2 }} in this run).</template
+      ><template v-else
+        >if you keep laying at the final rate, about {{ span(more.seconds) }} later, about
+        <span class="whitespace-nowrap">{{ short(more.at) }}</span
+        >.</template
+      >
     </p>
   </div>
 </template>
@@ -49,13 +54,15 @@ const props = withDefaults(
 );
 
 const shifts = computed(() => firstLegShifts(props.legs));
-const more = computed(() => oneMoreTE({
+const more = computed(() =>
+  oneMoreTE({
     chain: props.chain,
     legs: props.legs,
     reachAt: props.reachAt,
     runCost: props.runCost,
     noRate: props.noRate,
-  }));
+  })
+);
 const tone = computed(() => (props.green ? 'text-emerald-900' : 'text-slate-700'));
 const muted = computed(() => (props.green ? 'text-emerald-900/80' : 'text-slate-600'));
 

@@ -73,8 +73,8 @@ export function summariseByDate(r: SearchedSummary): ByDateSummary {
   const sets = `${r.shapes.toLocaleString('en-US')} set${r.shapes === 1 ? '' : 's'} of early stops`;
   const widths = simpleWidths(r.bandSets);
   const how = r.simple
-    ? `Simple: around the instant answer's routes${widths ? `, ${widths} TE` : ''}`
-    : 'Advanced: your own boxes';
+    ? `around the instant answer's routes${widths ? `, ${widths} TE` : ''}`
+    : 'Exhaustive, in your own boxes';
   parts.push(`${parts.length ? 'searched' : 'Searched'} ${sets} (${how})`);
   parts.push(`${r.priced.toLocaleString('en-US')} route${r.priced === 1 ? '' : 's'} priced`);
 

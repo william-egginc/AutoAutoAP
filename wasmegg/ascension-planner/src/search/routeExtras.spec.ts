@@ -55,7 +55,7 @@ describe('RouteExtras', () => {
     expect(t).toContain('First ascension: 2 egg shifts, Tue Oct 13, 4 pm to Thu Oct 15, 4:30 pm');
     expect(t).toContain('Shift to Humility · Tue Oct 13, 4 pm');
     expect(t).toContain('Shift to Integrity · Thu Oct 15, 4:30 pm');
-    expect(t).toMatch(/One more TE \(248\): about 10 h later, about Wed Oct 14, 2 am ?\./);
+    expect(t).toMatch(/One more TE \(248\): about 10 h more, so about Wed Oct 14, 2 am \(what 247 cost over 246 in this run\)\./);
   });
   it('nothing to say: nothing drawn', async () => {
     expect(textOf(await renderHtml(RouteExtras, { chain: [300, 490], legs: [leg({})], reachAt: T0, zone: 'UTC' }))).toBe('');

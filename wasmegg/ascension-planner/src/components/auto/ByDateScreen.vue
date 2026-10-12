@@ -59,7 +59,7 @@ const ui = useUIStore();
 
 /** What each way does, in the chooser (decision A, 12 Oct 2026). */
 const AROUND_BLURB =
-  "Pick a date and press Find: it checks the instant answer's best route for each number of ascensions, and a few TE either side of each stop, with the full simulator on your save. It sizes itself to finish in a few hours.";
+  "Pick a date and press Find: it checks the instant answer's best route for each number of ascensions, and a few TE either side of each stop, with the full simulator on your save. It sizes itself to take under half an hour on a typical 8-core computer.";
 const EXHAUSTIVE_BLURB = 'You set the chains, their boxes and sliders, and it tries every route in them.';
 
 /** Once per page load: the player's last pick, else Simple (the watch below may move it to Advanced). */

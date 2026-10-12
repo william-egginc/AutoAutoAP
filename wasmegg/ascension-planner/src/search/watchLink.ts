@@ -292,7 +292,7 @@ export function watchMode(kind: WatchRunKind): WatchMode {
 
 export const MODE_LABEL: Record<WatchMode, string> = {
   fastest: 'Fastest',
-  'full-sweep': 'Full sweep',
+  'full-sweep': 'Exhaustive',
   'by-date': 'By a date',
 };
 

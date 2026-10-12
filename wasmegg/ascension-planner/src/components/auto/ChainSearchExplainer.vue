@@ -293,7 +293,7 @@
             how far off it might be. The accuracy figures for each effort level come from three accounts, and only one
             of those has a proven best to check against. That's also why there are no confidence percentages here: three
             data points can't honestly be turned into one. For a proven best inside boxes you choose, use
-            {{ NAMES.fullFirst }}. How the instant answer, this search and the Full sweep were checked against each
+            {{ NAMES.fullFirst }}. How the instant answer, this search and {{ NAMES.full }} were checked against each
             other and against brute force is on
             <a href="#/science/how" class="font-bold underline">{{ NAMES.science }} › {{ NAMES.how }}</a
             >.

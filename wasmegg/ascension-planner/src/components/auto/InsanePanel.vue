@@ -2156,7 +2156,7 @@ const crashedQueueNote = computed(() => {
   const doneText = done ? ` ${done} finished chain${done === 1 ? ' is' : 's are'} kept in the table.` : '';
   const rest = of - q.next - 1;
   const restText = rest ? `, then the ${rest === 1 ? 'last one' : `other ${rest}`}` : '';
-  const head = `A Full sweep of ${of} chains stopped without finishing, at chain ${q.record.at + 1} of ${of}.${doneText}`;
+  const head = `An Exhaustive run of ${of} chains stopped without finishing, at chain ${q.record.at + 1} of ${of}.${doneText}`;
   return q.next === q.record.at
     ? `${head} Carrying on finishes chain ${q.next + 1}${restText}${q.record.submit ? ', sending each as it finishes, as you asked' : ''}.`
     : `${head} That chain finished; carrying on starts chain ${q.next + 1}${restText}${q.record.submit ? ', sending each as it finishes, as you asked' : ''}.`;

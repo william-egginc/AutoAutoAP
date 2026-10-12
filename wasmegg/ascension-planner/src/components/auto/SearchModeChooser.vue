@@ -102,7 +102,7 @@ const store = useChainSearchStore();
 
 /** Each level in plain words (the same steps Science › How it works describes). */
 const LEVEL_WORDS: Record<string, string> = {
-  quick: 'Moves each stop a few TE either way until nothing gets faster, then gives every other number of ascensions in your limits one quick try.',
+  quick: 'Moves each stop up to 8 TE either way until nothing gets faster, then gives every other number of ascensions in your limits a quick try.',
   normal: 'Fast, plus moving neighbouring stops together, then one ascension more or fewer.',
   thorough: 'Exact, plus moving groups of three stops together.',
 };

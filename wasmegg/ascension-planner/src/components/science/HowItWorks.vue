@@ -49,8 +49,8 @@
       <p>
         <b>When you prestige matters near the weekly research sale.</b> Every build is timed to end with the sale, so a
         few hours either side of it can move a route by days, and in a bad case by up to a week. An experimental
-        "Prestige by…" line (off unless you turn it on, in Your setup › Experimental) shows the last hour you can
-        prestige and still keep your TE.
+        "Prestige by…" line (turn it on in Your setup › Experimental) shows the last hour you can prestige and still
+        keep your TE.
       </p>
       <p>
         <b>It can miss a better route, but rarely.</b> We put the chance that neither the instant answer nor a 12-hour
@@ -114,9 +114,16 @@
           </li>
         </ul>
         <p>
-          Every search screen ({{ NAMES.fastest }} {{ NAMES.smart }} and {{ NAMES.full }}, and {{ NAMES.byDate }}) has
-          the same run controls in the same order: Find or Find and submit, Stop, the progress, Stepping away?, what was
-          sent, and any errors.
+          Every search, {{ NAMES.smart }} or {{ NAMES.full }}, on {{ NAMES.fastest }} or {{ NAMES.byDate }}, has the
+          same run controls in the same order: Find or Find and submit, Stop, the progress, Stepping away?, what was
+          sent, and any errors. It uses the number of workers Your setup shows (half your computer's cores until you
+          pick a number), and Science's time estimates use that number too.
+        </p>
+        <p>
+          <b>Under each answer</b> (and under the instant answer once Check exactly has run) are two short lines: when
+          your first ascension switches eggs, from the simulation itself, and what one more TE above the last stop would
+          take. On {{ NAMES.byDate }} that comes from the run's own numbers (what its last TE cost over the one below);
+          elsewhere it's when the next TE would come if you keep laying at the final rate.
         </p>
         <p>
           <b>The memo.</b> Routes that start the same way share those ascensions exactly, so each worker remembers the
@@ -206,8 +213,8 @@
           exactly it does two more things with the full simulator: prices your own earlier routes for the same goal
           (from your searches here, your saved answers, your earlier checks and your board runs sent from this browser),
           and by a date, when the top route misses the date, tries the instant answer's route one TE lower (two if
-          needed). To search around the best route, use Search around this answer, just below it. Anything that beats the answer shows as "Best now". It's a prototype: we haven't measured how often
-          it finds something better.
+          needed). To search around the best route, use Search around this answer, just below it. Anything that beats
+          the answer shows as "Best now". It's a prototype: we haven't measured how often it finds something better.
         </p>
       </div>
     </details>
@@ -245,8 +252,10 @@
         <ul class="hw-list">
           <li>
             <b>Prestiging later.</b> Every check starts from now. Waiting a day or two to prestige can be worth a TE (on
-            the test account, a fresh start on one Monday morning made one TE more than starting now), and nothing
-            searches that yet, apart from the experimental "Prestige by…" line in section 6.
+            the test account, a fresh start on one Monday morning made one TE more than starting now). Two tools look at
+            this: "When should I start?" at the top of {{ NAMES.fastest }} prices one route from every hour of the next
+            week, and the experimental "Prestige by…" line in section 6. Neither searches every route from every later
+            start.
           </li>
           <li>
             <b>On the hour against at once.</b> The two agree to within hours on most routes, but each method's best
@@ -381,12 +390,13 @@
             inside its boxes.
           </li>
           <li>
-            <b>"Prestige by…" (experimental, off by default).</b> Turn it on in Your setup › Experimental. A line under
-            the instant answer like "Prestige by Fri Nov 27, 2 pm to keep 248 TE", then what you'd get after that. It
-            prices your routes again from each later whole hour, up to 8 days ahead, with your farm laying while you
-            wait (for as long as your silos hold), then confirms the hour it drops with the route finder. In five test
-            cases its cutoff matched the full simulator to within an hour in four, and was two hours early in the fifth.
-            That's too few to trust yet, so it's off unless you turn it on. Work it out again after you prestige.
+            <b>"Prestige by…" (experimental, needs more data).</b> Turn it on in Your setup › Experimental (on the beta
+            site it starts on). A line under the instant answer like "Prestige by Fri Nov 27, 2 pm to keep 248 TE", then
+            what you'd get after that. It prices your routes again from each later whole hour, up to 8 days ahead, with
+            your farm laying while you wait (for as long as your silos hold), then confirms the hour it drops with the
+            route finder. In five test cases its cutoff matched the full simulator to within an hour in four, and was
+            two hours early in the fifth. That's too few to trust yet, so treat it as a hint. Work it out again after
+            you prestige.
           </li>
           <li>
             <b>The "a better route may exist" hint.</b> At the top of a {{ NAMES.byDate }} answer, one more TE costs
@@ -418,7 +428,7 @@
 import { NAMES } from '@/lib/siteNav';
 
 /** The date every number here was last checked. */
-const UPDATED = '11 Oct 2026';
+const UPDATED = '12 Oct 2026';
 
 /** The checks, in the order a sceptic would ask for them: same inputs, then the simulator, then real runs. */
 const CHECKS: { what: string; result: string; how: string }[] = [

@@ -32,7 +32,7 @@
           type="button"
           :disabled="disabled"
           class="px-3 py-1.5 rounded-lg border border-amber-700 text-amber-900 text-[10px] font-black uppercase tracking-widest hover:bg-amber-100 disabled:opacity-40"
-          title="Sends this route to the Full sweep, which prices it with the full simulator"
+          title="Prices this route with the full simulator, in Exhaustive"
           @click="check(h.chain)"
         >
           Check exactly
