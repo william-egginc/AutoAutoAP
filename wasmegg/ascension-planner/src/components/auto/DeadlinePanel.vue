@@ -121,18 +121,20 @@
 
     <!-- The instant answer from the precomputed table (the precompute fork): the highest TE by this
          date, from every route at once. Check exactly sets its stops in the boxes below. -->
-    <InstantRoute
-      v-if="deadline"
-      :deadline="deadline"
-      stronger-to="#stronger-check-results"
-      @check="checkByDate"
-      @routes="onInstantRoutes"
-    />
+    <CollapsibleSection v-if="deadline" id="instant" title="Instant answer" :summary="lines.instant">
+      <InstantRoute
+        :deadline="deadline"
+        stronger-to="#stronger-check-results"
+        @check="checkByDate"
+        @routes="onInstantRoutes"
+      />
+    </CollapsibleSection>
     <!-- The answers side by side (SearchCompare.vue): instant answer, stronger check, Exhaustive. -->
     <SearchCompare v-if="SHOW_COMPARE && deadline" goal="date" />
 
     <!-- Stronger check (StrongerBox.vue; the user, 12 Oct 2026): the stronger check's results, and with
          Search around the routes around the instant answer, their run controls and results here. -->
+    <CollapsibleSection id="stronger" title="Stronger check" :summary="lines.stronger">
     <StrongerBox
       v-slot="{ level }"
       goal="date"
@@ -187,6 +189,7 @@
       <div id="bd-around-controls" />
       <div id="bd-around-results" />
     </StrongerBox>
+    </CollapsibleSection>
 
     <details class="rounded-xl border border-slate-200 bg-white">
       <summary class="cursor-pointer px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">
@@ -203,6 +206,7 @@
 
     <!-- Exhaustive, on the page as it is: the chain editor, and its run controls and results when it is
          the search in hand (the controls go with the search you are setting up). -->
+    <CollapsibleSection id="exhaustive" :title="EXHAUSTIVE_TITLE" :summary="lines.exhaustive">
     <section id="exhaustive" class="rounded-2xl border border-slate-200 bg-white p-4 space-y-3 scroll-mt-24">
       <div class="flex flex-wrap items-center gap-2">
         <h3 class="text-base font-black text-slate-900">{{ EXHAUSTIVE_TITLE }}</h3>
@@ -409,6 +413,7 @@
       <div id="bd-exh-controls" />
       <div id="bd-exh-results" />
     </section>
+    </CollapsibleSection>
 
 
 
@@ -907,6 +912,10 @@ import { useInitialStateStore } from '@/stores/initialState';
 import { useIntegrityProbe } from '@/composables/useIntegrityProbe';
 import { useStrongerStore, type StrongerLevel } from '@/stores/stronger';
 import StrongerBox from './StrongerBox.vue';
+import CollapsibleSection from './CollapsibleSection.vue';
+import { useSearchSnapshots } from '@/composables/useSearchSnapshots';
+import { routeLine } from '@/search/sectionSummary';
+import { pick as pickAnswer } from '@/search/compareAnswers';
 import SearchCompare from './SearchCompare.vue';
 import { SHOW_COMPARE } from '@/lib/features';
 import { getLocalTimestampInTimezone } from '@/lib/events';
@@ -1114,6 +1123,19 @@ function weightedSecondsPerLeg(sp: SimpleSpace): number {
   }
   return legs ? w / legs : fallbackWorkerSecondsPerLeg(1);
 }
+// The hidden sections' one-line results (CollapsibleSection.vue).
+useSearchSnapshots('date');
+const LEVEL_NAMES: Record<string, string> = { light: 'Light', quick: 'Fast', normal: 'Exact', thorough: 'Very high' };
+const lines = computed(() => ({
+  instant: routeLine('date', stronger.instant.date, inPlannerZone, 'working out…'),
+  stronger: `${LEVEL_NAMES[stronger.level]}: ${routeLine(
+    'date',
+    pickAnswer('date', stronger.strongerBest.date, stronger.level === 'light' ? null : stronger.lastSearch.around),
+    inPlannerZone,
+    'nothing beats the instant answer yet'
+  )}`,
+  exhaustive: routeLine('date', stronger.lastSearch.boxes, inPlannerZone),
+}));
 /** The routes near the instant answer at a level (simpleByDate.ts BY_DATE_LEVELS), sized on a typical
  *  machine so every computer gets the same boxes. */
 function spaceFor(level: ByDateLevel): SimpleSpace | null {

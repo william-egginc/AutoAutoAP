@@ -40,7 +40,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch } from 'vue';
+import { computed } from 'vue';
+import { useSearchSnapshots } from '@/composables/useSearchSnapshots';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useStrongerStore } from '@/stores/stronger';
@@ -56,42 +57,8 @@ const stronger = useStrongerStore();
 const zone = computed(() => planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
 const show = (unix: number) => showDateTime(unix, zone.value);
 
-// Keep each search's latest answer (a best so far while it runs).
-watch(
-  () => [store.bestDays, store.bestChain.join(','), store.isRunning, store.chainRunKind, store.planStart] as const,
-  () => {
-    if (!(store.bestDays > 0) || !store.bestChain.length) return;
-    stronger.lastSearch[store.chainRunKind] = {
-      chain: [...store.bestChain],
-      end: store.planStart + store.bestDays * 86400,
-      endTE: store.finalTE,
-      exact: true,
-      running: store.isRunning,
-      at: store.chainResultAt || Date.now(),
-    };
-  },
-  { immediate: true }
-);
-watch(
-  () => [store.deadlineResult, store.deadlineRunning, store.deadlineProgress?.best] as const,
-  () => {
-    const live = store.deadlineRunning ? store.deadlineProgress?.best : null;
-    const r = store.deadlineResult;
-    const route = live ?? r?.routes[0];
-    if (!route) return;
-    const simple = store.deadlineRunning ? !!store.deadlineRunSimple : !!r?.simple;
-    stronger.lastSearch[simple ? 'around' : 'boxes'] = {
-      chain: [...route.chain],
-      end: route.reachAt,
-      endTE: route.chain[route.chain.length - 1],
-      spare: route.spare,
-      exact: true,
-      running: store.deadlineRunning,
-      at: r?.at,
-    };
-  },
-  { immediate: true }
-);
+// Each search's latest answer (a best so far while it runs), kept by the screen too.
+useSearchSnapshots(props.goal);
 
 const rows = computed(() =>
   props.goal === 'fastest'

@@ -30,7 +30,9 @@
 
     <!-- The instant answer from the precomputed table (the precompute fork): every route, at once.
          Check exactly prices them on your save; its stronger check shows in the box below. -->
-    <InstantRoute stronger-to="#stronger-check-results" @check="checkExactly" />
+    <CollapsibleSection id="instant" title="Instant answer" :summary="lines.instant">
+      <InstantRoute stronger-to="#stronger-check-results" @check="checkExactly" />
+    </CollapsibleSection>
     <!-- The answers side by side (SearchCompare.vue): instant answer, stronger check, Exhaustive. -->
     <SearchCompare v-if="SHOW_COMPARE" goal="fastest" />
 
@@ -43,17 +45,20 @@
     >
       <!-- Stronger check: the stronger check's results, and at Fast and above the search around the
            instant answer, its controls and results, in one box (StrongerBox.vue; the user, 12 Oct). -->
-      <StrongerBox v-slot="{ level }" goal="fastest" :running="smartRunning">
-        <ChainSearchPanel
-          v-if="level !== 'light'"
-          :player-id="playerId"
-          embedded
-          level-elsewhere
-          @check-exactly="checkExactly"
-        />
-      </StrongerBox>
+      <CollapsibleSection id="stronger" title="Stronger check" :summary="lines.stronger">
+        <StrongerBox v-slot="{ level }" goal="fastest" :running="smartRunning">
+          <ChainSearchPanel
+            v-if="level !== 'light'"
+            :player-id="playerId"
+            embedded
+            level-elsewhere
+            @check-exactly="checkExactly"
+          />
+        </StrongerBox>
+      </CollapsibleSection>
 
       <!-- Exhaustive, on the page as it is: its boxes, run controls and results (InsanePanel.vue). -->
+      <CollapsibleSection id="exhaustive" :title="EXHAUSTIVE_TITLE" :summary="lines.exhaustive">
       <section id="exhaustive" class="rounded-2xl border border-slate-200 bg-white p-4 space-y-3 scroll-mt-24">
         <div class="flex flex-wrap items-center gap-2">
           <h3 class="text-base font-black text-slate-900">{{ EXHAUSTIVE_TITLE }}</h3>
@@ -66,6 +71,7 @@
         <p class="text-[12px] text-slate-600 leading-relaxed">{{ EXHAUSTIVE_BLURB }}</p>
         <InsanePanel :player-id="playerId" goal="fastest" embedded @update:goal="onGoal" />
       </section>
+      </CollapsibleSection>
     </div>
   </div>
 </template>
@@ -77,6 +83,12 @@ import { EXHAUSTIVE_TITLE, fastestName, type Depth } from '@/lib/siteNav';
 import { safeAsyncComponent } from '@/lib/import';
 import RunningElsewhere from './RunningElsewhere.vue';
 import StrongerBox from './StrongerBox.vue';
+import CollapsibleSection from './CollapsibleSection.vue';
+import { useSearchSnapshots } from '@/composables/useSearchSnapshots';
+import { routeLine } from '@/search/sectionSummary';
+import { pick } from '@/search/compareAnswers';
+import { showDateTime } from '@/lib/displayTime';
+import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import SearchCompare from './SearchCompare.vue';
 import { SHOW_COMPARE } from '@/lib/features';
 import InstantRoute from './InstantRoute.vue';
@@ -101,6 +113,21 @@ const store = useChainSearchStore();
 const ui = useUIStore();
 const stronger = useStrongerStore();
 
+// The hidden sections' one-line results (CollapsibleSection.vue).
+useSearchSnapshots('fastest');
+const planner = useAutoPlannerStore();
+const show = (u: number) => showDateTime(u, planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
+const LEVEL_NAMES: Record<string, string> = { light: 'Light', quick: 'Fast', normal: 'Exact', thorough: 'Very high' };
+const lines = computed(() => ({
+  instant: routeLine('fastest', stronger.instant.fastest, show, 'working out…'),
+  stronger: `${LEVEL_NAMES[stronger.level]}: ${routeLine(
+    'fastest',
+    pick('fastest', stronger.strongerBest.fastest, stronger.level === 'light' ? null : stronger.lastSearch.smart),
+    show,
+    'nothing beats the instant answer yet'
+  )}`,
+  exhaustive: routeLine('fastest', stronger.lastSearch.full, show),
+}));
 const smartRunning = computed(() => store.isRunning && store.chainRunKind === 'smart');
 const fullRunning = computed(() => (store.isRunning && store.chainRunKind === 'full') || store.sweepQueue.at >= 0);
 
