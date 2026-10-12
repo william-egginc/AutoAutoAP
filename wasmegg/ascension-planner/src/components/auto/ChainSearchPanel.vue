@@ -885,7 +885,7 @@
             one stopped early. Switch to <span class="font-semibold">Fastest</span> to see all
             {{ store.pricedCount }} of them in raw order.
           </p>
-          <div v-else class="overflow-x-auto">
+          <div v-else class="overflow-x-auto" data-testid="shortlist">
             <table class="w-full text-xs">
               <thead>
                 <tr class="text-[9px] font-black text-slate-400 uppercase tracking-widest text-left">
@@ -906,7 +906,8 @@
                       is the count you would have to get up for.
                     </HelpTip>
                   </th>
-                  <th class="py-2 pr-3">Why</th>
+                  <!-- A floor on its width: the long chains left it ~4 letters wide in Safari (the user, 12 Oct). -->
+                  <th class="py-2 pr-3 min-w-[9.5rem]">Why</th>
                   <th class="py-2"></th>
                 </tr>
               </thead>
@@ -915,7 +916,8 @@
                   <tr class="border-t border-slate-100">
                     <!-- The caret sits with the chain it opens, not off at the far right past six
                          other columns. Same move as the leg table's A1 caret, for the same reason. -->
-                    <td class="py-2 pr-3 font-mono font-bold text-slate-700 whitespace-nowrap">
+                    <!-- A long route wraps at its spaces (not the Why column, not off the side). -->
+                    <td class="py-2 pr-3 font-mono font-bold text-slate-700 min-w-[10rem]">
                       <button
                         v-if="row.legs.length"
                         type="button"
@@ -948,7 +950,7 @@
                         <span v-else class="font-bold text-amber-700">{{ row.nightShifts }} outside</span>
                       </template>
                     </td>
-                    <td class="py-2 pr-3 text-slate-400">{{ REASON_TEXT[row.reason] }}</td>
+                    <td class="py-2 pr-3 text-slate-400 min-w-[9.5rem]">{{ REASON_TEXT[row.reason] }}</td>
                     <td class="py-2 text-right whitespace-nowrap">
                       <button
                         type="button"
