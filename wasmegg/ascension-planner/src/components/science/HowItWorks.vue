@@ -421,11 +421,25 @@
         </p>
       </div>
     </details>
+
+    <!-- Moved here from Fastest's Nearby routes box (the UI specialist, 12 Oct 2026, at the user's call):
+         the problem, the algorithm and the 21-of-4913 example, too much for the search screen. -->
+    <details id="nearby-routes" class="hw rounded-xl border border-slate-200 bg-white">
+      <summary class="hw-summary flex cursor-pointer items-start gap-2 px-4 py-3">
+        <span class="hw-num" aria-hidden="true">7</span>
+        <span class="flex-1 text-sm font-black text-slate-900">How {{ NAMES.smart }} searches, in detail</span>
+        <span class="hw-chevron mt-0.5 text-[10px] text-slate-400" aria-hidden="true">&#9662;</span>
+      </summary>
+      <div class="px-4 pb-4">
+        <ChainSearchExplainer />
+      </div>
+    </details>
   </div>
 </template>
 
 <script setup lang="ts">
 import { NAMES } from '@/lib/siteNav';
+import ChainSearchExplainer from '@/components/auto/ChainSearchExplainer.vue';
 
 /** The date every number here was last checked. */
 const UPDATED = '12 Oct 2026';

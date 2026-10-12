@@ -3,39 +3,14 @@
     <div class="absolute -right-20 -top-20 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl"></div>
 
     <div class="relative z-10 space-y-8">
-      <!-- What it is, what it costs, the maths and the algorithm: folded, since the screen's own
-           heading and the "How thorough" card already say what it does (FastestRoute.vue). -->
-      <details class="rounded-xl border border-slate-200 bg-white">
-        <summary class="cursor-pointer px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">
-          How {{ NAMES.smartFirst }} works, and what it costs
-        </summary>
-        <div class="px-4 pb-4 space-y-4">
-          <div
-            class="p-4 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600 leading-relaxed space-y-2"
-          >
-            <p>
-              It starts from a route and hunts for a faster one nearby: the instant answer's route, unless you pick
-              another under Start from a different route in the settings. Every candidate is run through the same
-              simulator {{ NAMES.classic }} uses.
-            </p>
-            <p>
-              It all happens on your own computer, in
-              <span class="font-bold text-slate-800">{{ store.workerBudget }} background workers</span> (half your cores
-              to start; change it in Setup and that count is kept for next time). Each chain takes several seconds of one core, more for
-              longer chains, so a run takes <span class="font-bold">hours</span>. Keep the tab open. Closing it stops
-              the workers, but what they priced is saved and you can carry on later.
-            </p>
-            <p>
-              Why bother? Good chains are rare. In one fully priced box on one account,
-              {{ NEAR_OPTIMAL_SHARE }}. You won't find one of those by trying a few by hand.
-            </p>
-          </div>
-
-          <!-- Maths, then algorithm, then controls. This panel asks someone for hours of their own
-               CPU, so the reasons to say yes come before the knobs. -->
-          <ChainSearchExplainer />
-        </div>
-      </details>
+      <!-- What it does, in two lines; the problem, the algorithm and the worked example are on Science ›
+           How it works (moved there 12 Oct 2026: too much for this page). -->
+      <p class="text-[12px] text-slate-700 leading-relaxed" data-testid="nearby-in-brief">
+        {{ NAMES.smart }} starts from the instant answer's route and moves its stops a few TE at a time, keeping any
+        change that finishes sooner, with the full simulator on your save. It runs on this computer's workers; you can
+        stop it any time and keep the best so far.
+        <a href="#/science/how" class="font-bold text-indigo-700 underline whitespace-nowrap">How it works ›</a>
+      </p>
 
       <!-- Collapsible so a repeat visitor can skip straight to the button. Open by default; a
            collapsed form looks like an empty panel. -->
@@ -1267,7 +1242,6 @@ import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { EFFORT, EFFORT_NOTES, EFFORT_ORDER, NEAR_OPTIMAL_SHARE } from '@/search/effort';
 import { formatDuration, plural } from '@/lib/format';
 import { isAvailable } from '@/search/availability';
-import ChainSearchExplainer from './ChainSearchExplainer.vue';
 import HelpTip from './HelpTip.vue';
 import CarryOnOffer from './CarryOnOffer.vue';
 import BlockedRunNotice from './BlockedRunNotice.vue';

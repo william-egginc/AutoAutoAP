@@ -148,3 +148,14 @@ describe('Light has nothing to start, and says so (12 Oct)', () => {
     expect(t).toContain(`@picked="l => l !== 'light' && !store.deadlineRunning && pickFocus('simple')"`);
   });
 });
+
+describe('the algorithm fold moved to How it works (12 Oct)', () => {
+  it('the panel has two plain lines and a link; How it works has the explainer', () => {
+    const panel = fs.readFileSync(path.join(__dirname, 'ChainSearchPanel.vue'), 'utf8');
+    expect(panel).not.toContain('<ChainSearchExplainer');
+    expect(panel).toContain('data-testid="nearby-in-brief"');
+    expect(panel).toContain('href="#/science/how"');
+    const how = fs.readFileSync(path.join(__dirname, '../science/HowItWorks.vue'), 'utf8');
+    expect(how).toContain('<ChainSearchExplainer />');
+  });
+});
