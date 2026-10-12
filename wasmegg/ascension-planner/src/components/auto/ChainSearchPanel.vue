@@ -14,10 +14,9 @@
             class="p-4 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600 leading-relaxed space-y-2"
           >
             <p>
-              You give it a starting chain and it hunts for a faster one nearby. The start is whatever you type in
-              Starting chain below, or Target TE(s) on {{ NAMES.auto }} › {{ NAMES.classic }}, or a suggested chain if
-              both are empty. Tick "Find a starting chain for me" and it scans for one first. Every candidate is run
-              through the same simulator {{ NAMES.classic }} uses.
+              It starts from a route and hunts for a faster one nearby: the instant answer's route, unless you pick
+              another under Start from a different route in the settings. Every candidate is run through the same
+              simulator {{ NAMES.classic }} uses.
             </p>
             <p>
               It all happens on your own computer, in
@@ -171,26 +170,8 @@
             </label>
           </div>
 
-          <!-- Starting point -->
-          <label
-            class="flex items-start gap-3 p-4 bg-white border border-slate-200 rounded-xl cursor-pointer hover:border-emerald-300"
-          >
-            <input
-              v-model="store.findSeedFirst"
-              type="checkbox"
-              :disabled="store.isRunning"
-              class="mt-0.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 disabled:opacity-50"
-            />
-            <span class="text-xs text-slate-600 leading-relaxed">
-              <span class="font-bold text-slate-800">Find a starting chain for me.</span>
-              Scans a coarse grid of checkpoints first and picks the prestige count, instead of starting from the chain
-              above. Turn this on if you do not already have a chain you trust. It costs one extra wide batch (<span
-                class="font-semibold"
-                >{{ plural(store.coarseChains, 'chain') }} at your limits</span
-              >) and its answer is only a rough shape: measured 12.0 and 8.6 days off the final result on the two
-              accounts tested. The later stages close that gap.
-            </span>
-          </label>
+          <!-- "Find a starting chain for me" (the coarse scan) was removed on 12 Oct 2026 (the user): the
+               instant answer gives the start, and Start from a different route above picks another. -->
 
           <!-- Limits. Both of these already governed the search; neither had a control. -->
           <div class="p-4 rounded-xl border border-slate-200 bg-white space-y-3">
@@ -465,7 +446,7 @@
             Fit chain to limits
           </button>
           <span class="text-[11px] self-center opacity-80">
-            or change the limits above, or tick "find a starting chain for me".
+            or change the limits above.
           </span>
         </div>
       </div>
@@ -533,7 +514,7 @@
             {{ NAMES.smart }} to look for. To plan that one ascension, go to {{ NAMES.auto }} › {{ NAMES.classic }},
             type {{ store.finalTE }} in Target TE(s) and press Generate plan. To search for a faster chain instead, give
             Starting chain some checkpoints (like <span class="font-mono">200 250 300 {{ store.finalTE }}</span
-            >), or tick "Find a starting chain for me".
+            >).
           </div>
         </template>
         <template #progress>
@@ -1257,9 +1238,8 @@
         <ul class="space-y-1 list-disc list-inside">
           <li>The result is a strong <span class="font-semibold">local</span> optimum, never a proven global one.</li>
           <li>
-            The search starts from the chain you typed above, unless you tick "find a starting chain for me", in which
-            case it scans a coarse grid and picks the prestige count first, the same as the command-line tool. Either
-            way it never scans the whole space, so a bad starting chain can still strand it in a bad neighbourhood.
+            The search starts from the instant answer's route (or the one you picked) and never scans the whole space,
+            so a poor start can still leave it in a poor neighbourhood.
           </li>
           <li>Accuracy figures come from 3 accounts. Only one of them has a proven optimum to check against.</li>
           <li>A refresh is safe: progress is checkpointed and resumes without re-simulating anything.</li>
@@ -1326,6 +1306,8 @@ const props = defineProps<{
 const emit = defineEmits<{ checkExactly: [chain: number[]] }>();
 
 const store = useChainSearchStore();
+// The coarse scan has no box any more: never on for this screen.
+store.findSeedFirst = false;
 const startTimes = useStartTimesStore();
 const instantSummary = useInstantSummaryStore();
 const strongerStore = useStrongerStore();

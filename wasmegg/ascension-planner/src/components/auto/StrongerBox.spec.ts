@@ -71,3 +71,12 @@ describe('(e) the starting route, in the Stronger check box', () => {
     expect(t).toContain('data-testid="start-line"');
   });
 });
+
+describe('no "Find a starting chain for me" (12 Oct)', () => {
+  it('the coarse scan box is gone from the search settings, and the screen never turns it on', () => {
+    const t = fs.readFileSync(path.join(__dirname, 'ChainSearchPanel.vue'), 'utf8');
+    expect(t).not.toContain('v-model="store.findSeedFirst"');
+    expect(t).not.toMatch(/tick "find a starting chain/i);
+    expect(t).toContain('store.findSeedFirst = false;');
+  });
+});
