@@ -25,7 +25,7 @@ import { teByEggFor } from '@/search/teByEgg';
 import { lastTECostFrom } from '@/search/oneMoreTE';
 import { createChainSearchPool, type ChainSearchPool, type PoolFault } from '@/search/pool';
 import type { BuildParams } from '@/search/precomputedLeg';
-import { contention, timeWeightedWorkers, workerSecondsFromRate } from '@/search/speed';
+import { contention, sweepSeconds, timeWeightedWorkers, workerSecondsFromRate, workerSecondsPerChain } from '@/search/speed';
 import { addChainSample, sweepTimeLeft, type SweepTimeLeft } from '@/search/sweepEstimate';
 import { createStickyDealer } from '@/search/stickyDealer';
 import { defaultWorkerCount, hardwareThreads, maxPoolSize, clampPoolSize, targetWorkerCount, workersForBatch } from '@/search/batch';
@@ -2462,6 +2462,24 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const n = findSeedFirst.value ? 6 : Math.max(1, seedChain.value.length - 1);
     return coarseChains.value + estimateChains(n, EFFORT[effort.value], otherCountsPlan.value.counts);
   });
+
+  /**
+   * What Nearby routes would cost at a level on THIS computer (the level bar's "How long", the user,
+   * 12 Oct 2026): its chain bound at that effort, at this machine's measured speed when it has one
+   * (a run or a benchmark), else the board's typical speed for routes this long, on the worker count
+   * set now. An upper bound, like the chains: the search stops as soon as nothing moves.
+   */
+  function smartEstimate(tier: EffortTier): { chains: number; seconds: number; measured: boolean } {
+    const n = Math.max(1, seedChain.value.length - 1);
+    const cfg = EFFORT[tier];
+    const counts = cfg.otherCounts ? plannedCountsFor(seedChain.value.length) : [];
+    const chains = estimateChains(n, cfg, counts);
+    const measured = secondsPerChain.value > 0 && rateWorkers.value > 0;
+    const ws = measured
+      ? workerSecondsFromRate(secondsPerChain.value, rateWorkers.value)
+      : workerSecondsPerChain(seedChain.value.length);
+    return { chains, seconds: sweepSeconds(chains, workerBudget.value, ws), measured };
+  }
 
   /**
    * Fast's check of the other ascension counts (driver.ts stage 4c) as the run will plan it: which
@@ -8359,6 +8377,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     deleteSavedRun,
     seedOverride,
     estimateForCurrentSettings,
+    smartEstimate,
     findSeedFirst,
     coarseLog,
     runLog,

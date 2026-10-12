@@ -534,6 +534,23 @@ describe('a result from this visit, on these settings (11 Oct 2026)', () => {
   });
 });
 
+describe('Nearby routes: each level on this computer (12 Oct 2026)', () => {
+  it('more steps cost more; more workers take less time; measured speed is used when there is one', () => {
+    const store = useChainSearchStore();
+    store.workerBudget = 4;
+    const [q, n, t] = (['quick', 'normal', 'thorough'] as const).map(l => store.smartEstimate(l));
+    expect(q.chains).toBeLessThanOrEqual(n.chains);
+    expect(n.chains).toBeLessThanOrEqual(t.chains);
+    expect(q.measured).toBe(false);
+    const slow = store.smartEstimate('normal').seconds;
+    store.workerBudget = 8;
+    expect(store.smartEstimate('normal').seconds).toBeLessThan(slow);
+    store.secondsPerChain = 2;
+    store.rateWorkers = 8;
+    expect(store.smartEstimate('normal').measured).toBe(true);
+  });
+});
+
 describe('the worker count (11 Oct 2026)', () => {
   it('starts at half the cores for someone who never chose one', () => {
     vi.stubGlobal('navigator', { hardwareConcurrency: 20 });

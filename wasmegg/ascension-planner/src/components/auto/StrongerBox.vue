@@ -40,7 +40,13 @@
         :class="level === l.id ? 'bg-white text-indigo-700 shadow' : 'text-slate-500 hover:text-slate-800'"
         @click="pick(l.id)"
       >
-        {{ l.label }}
+        <span class="block">{{ l.label }}</span>
+        <span
+          v-if="estimates?.[l.id]"
+          class="block mt-0.5 text-[9px] font-bold normal-case tracking-normal"
+          :class="level === l.id ? 'text-indigo-500' : 'text-slate-400'"
+          >{{ estimates[l.id]!.short }}</span
+        >
       </button>
     </div>
     <!-- The level picked, in three plain lines: what it does, how long, what it can and can't find. -->
@@ -48,20 +54,10 @@
       <dt class="font-black text-slate-500 uppercase tracking-widest text-[9px] pt-0.5">What it does</dt>
       <dd class="text-slate-800">{{ current.does }}</dd>
       <dt class="font-black text-slate-500 uppercase tracking-widest text-[9px] pt-0.5">How long</dt>
-      <dd class="text-slate-800">{{ current.time }}</dd>
+      <dd class="text-slate-800" data-testid="level-how-long">{{ estimates?.[level]?.line ?? current.time }}</dd>
       <dt class="font-black text-slate-500 uppercase tracking-widest text-[9px] pt-0.5">What it finds</dt>
       <dd class="text-slate-800">{{ current.finds }}</dd>
     </dl>
-    <!-- By a date: each search level's cost on this computer, before anything starts. -->
-    <ul v-if="estimates && Object.keys(estimates).length" class="text-[11px] space-y-0.5" data-testid="level-estimates">
-      <li
-        v-for="l in levels.filter(x => estimates![x.id])"
-        :key="l.id"
-        :class="l.id === level ? 'font-bold text-indigo-800' : 'text-slate-500'"
-      >
-        {{ l.label }}: {{ estimates![l.id] }}
-      </li>
-    </ul>
     <!-- Open until closed (remembered in this browser), amber like the other promise boxes. -->
     <details
       :open="promiseOpen"
@@ -106,15 +102,16 @@ import { computed, ref } from 'vue';
 import { NAMES } from '@/lib/siteNav';
 import { EFFORT_NOTES } from '@/search/effort';
 import { useChainSearchStore } from '@/stores/chainSearch';
-import { useStrongerStore, type StrongerLevel } from '@/stores/stronger';
+import { useStrongerStore, type LevelEstimate, type StrongerLevel } from '@/stores/stronger';
 
 const props = defineProps<{
   /** 'fastest': Light, Fast, Exact, Very high (the Smart search's effort). 'date': Light and Around. */
   goal: 'fastest' | 'date';
   /** A search in this box is running: the level can't change. */
   running?: boolean;
-  /** By a date: what each search level would cost on this computer (DeadlinePanel.vue). */
-  estimates?: Partial<Record<StrongerLevel, string>>;
+  /** What each search level would cost on THIS computer (its workers and speed): `short` under the
+   *  level's name, `line` as How long. FastestRoute.vue and DeadlinePanel.vue work them out. */
+  estimates?: Partial<Record<StrongerLevel, LevelEstimate>>;
 }>();
 
 const store = useChainSearchStore();

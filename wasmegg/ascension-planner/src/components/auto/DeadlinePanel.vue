@@ -910,7 +910,7 @@ import { LONG_RUN_WORKERS, useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useInitialStateStore } from '@/stores/initialState';
 import { useIntegrityProbe } from '@/composables/useIntegrityProbe';
-import { useStrongerStore, type StrongerLevel } from '@/stores/stronger';
+import { useStrongerStore, type LevelEstimate, type StrongerLevel } from '@/stores/stronger';
 import StrongerBox from './StrongerBox.vue';
 import CollapsibleSection from './CollapsibleSection.vue';
 import { useSearchSnapshots } from '@/composables/useSearchSnapshots';
@@ -1156,13 +1156,18 @@ const dateLevel = computed<ByDateLevel>(() =>
 );
 const simpleSpace = computed<SimpleSpace | null>(() => spaceFor(dateLevel.value));
 /** What each level would cost on this computer, before starting (shown under the level bar). */
-const levelEstimates = computed<Partial<Record<StrongerLevel, string>>>(() => {
-  const out: Partial<Record<StrongerLevel, string>> = {};
+const levelEstimates = computed<Partial<Record<StrongerLevel, LevelEstimate>>>(() => {
+  const out: Partial<Record<StrongerLevel, LevelEstimate>> = {};
+  const speed = store.deadlineWorkerSeconds ? "this computer's measured speed" : 'the typical speed';
   for (const l of ['quick', 'normal', 'thorough'] as const) {
     const sp = l === dateLevel.value ? simpleSpace.value : spaceFor(l);
     if (!sp) continue;
     const p = simplePlanOf(sp, store.workerBudget, store.deadlineWorkerSeconds || weightedSecondsPerLeg(sp));
-    out[l] = `About ${formatHours(p.seconds / 3600)} on this computer (${store.workerBudget} workers): ${plural(p.sets, 'set')} of early stops.`;
+    const t = formatHours(p.seconds / 3600);
+    out[l] = {
+      short: `~${t}`,
+      line: `About ${t} on this computer (${plural(store.workerBudget, 'worker')}, ${speed}): ${plural(p.sets, 'set')} of early stops.`,
+    };
   }
   return out;
 });

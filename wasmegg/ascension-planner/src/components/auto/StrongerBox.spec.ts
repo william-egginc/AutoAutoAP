@@ -26,13 +26,18 @@ describe('StrongerBox', () => {
     useStrongerStore().level = 'normal';
     const html = await renderHtml(StrongerBox, {
       goal: 'date',
-      estimates: { quick: 'About 1.1 h.', normal: 'About 3.0 h.', thorough: 'About 9.4 h.' },
+      estimates: {
+        quick: { short: '~1.1 h', line: 'About 1.1 h on this computer (7 workers).' },
+        normal: { short: '~3.0 h', line: 'About 3.0 h on this computer (7 workers).' },
+        thorough: { short: '~9.4 h', line: 'About 9.4 h on this computer (7 workers).' },
+      },
     });
     const t = textOf(html);
-    expect(t).toMatch(/Light Fast Exact Very high/);
+    // Each level shows this computer's time under its name; How long is the chosen level's.
+    expect(t).toMatch(/Light Fast ~1\.1 h Exact ~3\.0 h Very high ~9\.4 h/);
     expect(html).toMatch(/aria-checked="true"[^>]*data-testid="level-normal"/);
     expect(t).toContain('The same, with one more TE either side of each early stop.');
-    expect(t).toContain('Fast: About 1.1 h. Exact: About 3.0 h. Very high: About 9.4 h.');
+    expect(t).toContain('How long About 3.0 h on this computer (7 workers).');
   });
 });
 

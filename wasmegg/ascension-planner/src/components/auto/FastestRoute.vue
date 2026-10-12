@@ -46,7 +46,7 @@
       <!-- Stronger check: the stronger check's results, and at Fast and above the search around the
            instant answer, its controls and results, in one box (StrongerBox.vue; the user, 12 Oct). -->
       <CollapsibleSection id="stronger" title="Stronger check" :summary="lines.stronger">
-        <StrongerBox v-slot="{ level }" goal="fastest" :running="smartRunning">
+        <StrongerBox v-slot="{ level }" goal="fastest" :running="smartRunning" :estimates="levelEstimates">
           <ChainSearchPanel
             v-if="level !== 'light'"
             :player-id="playerId"
@@ -95,7 +95,9 @@ import InstantRoute from './InstantRoute.vue';
 import YourSetup from './YourSetup.vue';
 import StartTimeCard from './StartTimeCard.vue';
 import { useUIStore } from '@/stores/ui';
-import { useStrongerStore } from '@/stores/stronger';
+import { useStrongerStore, type LevelEstimate, type StrongerLevel } from '@/stores/stronger';
+import { formatHours } from '@/search/exhaustive';
+import { plural } from '@/lib/format';
 
 defineProps<{
   playerId: string;
@@ -128,6 +130,21 @@ const lines = computed(() => ({
   )}`,
   exhaustive: routeLine('fastest', stronger.lastSearch.full, show),
 }));
+/** What each Nearby routes level would cost on this computer (store `smartEstimate`). */
+const levelEstimates = computed<Partial<Record<StrongerLevel, LevelEstimate>>>(() => {
+  const out: Partial<Record<StrongerLevel, LevelEstimate>> = {};
+  for (const l of ['quick', 'normal', 'thorough'] as const) {
+    const e = store.smartEstimate(l);
+    const t = formatHours(e.seconds / 3600);
+    out[l] = {
+      short: `~${t}`,
+      line: `Up to about ${t} on this computer (${plural(store.workerBudget, 'worker')}, ${
+        e.measured ? "this computer's measured speed" : 'the typical speed'
+      }): at most ~${e.chains.toLocaleString()} routes; it usually stops sooner.`,
+    };
+  }
+  return out;
+});
 const smartRunning = computed(() => store.isRunning && store.chainRunKind === 'smart');
 const fullRunning = computed(() => (store.isRunning && store.chainRunKind === 'full') || store.sweepQueue.at >= 0);
 

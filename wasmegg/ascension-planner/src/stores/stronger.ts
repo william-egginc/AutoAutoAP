@@ -26,6 +26,12 @@ function read(): StrongerLevel {
   }
 }
 
+/** What a level would cost on this computer: `short` under its name on the bar, `line` as How long. */
+export interface LevelEstimate {
+  short: string;
+  line: string;
+}
+
 /** A route as the comparison block shows it: where it ends and when. */
 export interface CompareRoute {
   chain: number[];
