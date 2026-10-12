@@ -48,6 +48,16 @@ export function maxPoolSize(): number {
 }
 
 /**
+ * The worker count a player starts with until they choose one (the user, 11 Oct 2026): half the
+ * machine's logical cores, at least one. It leaves room for everything else on the computer (what the
+ * retired "Use fewer workers" box in Stepping away? did); a player who wants more raises it in Setup
+ * once, and that count is remembered for them (stores/chainSearch.ts WORKERS_KEY).
+ */
+export function defaultWorkerCount(threads: number = hardwareThreads()): number {
+  return Math.max(1, Math.floor(threads / 2));
+}
+
+/**
  * Hold a requested worker count to something this machine can actually run.
  *
  * The ceiling is every logical core, not cores minus one. Leaving one for the main thread is the

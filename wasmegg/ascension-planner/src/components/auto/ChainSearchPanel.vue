@@ -21,8 +21,8 @@
             </p>
             <p>
               It all happens on your own computer, in
-              <span class="font-bold text-slate-800">{{ store.workerBudget }} background workers</span> (one per core,
-              less one, unless you change it in Your setup). Each chain takes several seconds of one core, more for
+              <span class="font-bold text-slate-800">{{ store.workerBudget }} background workers</span> (half your cores
+              to start; change it in Setup and that count is kept for next time). Each chain takes several seconds of one core, more for
               longer chains, so a run takes <span class="font-bold">hours</span>. Keep the tab open. Closing it stops
               the workers, but what they priced is saved and you can carry on later.
             </p>

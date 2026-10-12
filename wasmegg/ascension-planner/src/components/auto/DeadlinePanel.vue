@@ -810,7 +810,7 @@ import {
   plannedRoutes as plannedRoutesFor,
   roundedRoutes,
 } from '@/search/deadlineEstimate';
-import { maxPoolSize } from '@/search/batch';
+import { defaultWorkerCount } from '@/search/batch';
 import { findBandEdges, widenEdges, type BandEdge } from '@/search/bandCheck';
 import CarryOnOffer from './CarryOnOffer.vue';
 import ShareResult from './ShareResult.vue';
@@ -1544,10 +1544,10 @@ const autoPlan = computed(() => {
   };
 });
 const plan = computed(() => (mode.value === 'space' ? spacePlan.value : autoPlan.value));
-/** The run's time on every core but one: a long one defaults to fewer workers (store `fitWorkersToRun`),
- *  unless the count was set by hand. */
+/** The run's time on the default count (half the cores): a long one is held to LONG_RUN_WORKERS (store
+ *  `fitWorkersToRun`), unless the count was set by hand. */
 const secondsAtDefault = computed(() =>
-  plan.value.legs ? legSeconds(plan.value.legs, maxPoolSize(), workerSecondsPerLeg.value) : 0
+  plan.value.legs ? legSeconds(plan.value.legs, defaultWorkerCount(), workerSecondsPerLeg.value) : 0
 );
 watch(secondsAtDefault, s => store.fitWorkersToRun(s), { immediate: true });
 const plannedRoutes = computed(() => plan.value.routes);

@@ -28,7 +28,7 @@ import type { BuildParams } from '@/search/precomputedLeg';
 import { contention, timeWeightedWorkers, workerSecondsFromRate } from '@/search/speed';
 import { addChainSample, sweepTimeLeft, type SweepTimeLeft } from '@/search/sweepEstimate';
 import { createStickyDealer } from '@/search/stickyDealer';
-import { hardwareThreads, maxPoolSize, clampPoolSize, targetWorkerCount, workersForBatch } from '@/search/batch';
+import { defaultWorkerCount, hardwareThreads, maxPoolSize, clampPoolSize, targetWorkerCount, workersForBatch } from '@/search/batch';
 import { describeRunError } from '@/utils/errors';
 import { loadChainBenchmark, saveChainBenchmark } from '@/lib/chainBenchmarkCache';
 import { patchAutoPlannerSchedule } from '@/lib/autoPlannerFormCache';
@@ -326,6 +326,9 @@ export interface ExhaustiveSpec {
 
 /** Where the background worker count is remembered (per browser, a convenience only). */
 const BACKGROUND_WORKERS_KEY = 'aap-background-workers';
+/** The worker count the player chose (Setup's pill, the slider, "Use 12"), per browser: it is the
+ *  default on every later visit. Nothing stored: half the cores (`defaultWorkerCount`). */
+export const WORKERS_KEY = 'aap-workers';
 
 function readStoredCount(key: string): number {
   try {
@@ -364,7 +367,7 @@ function writeStoredCount(key: string, n: number): void {
   }
 }
 
-/** A By a date run estimated past this, on every core but one, defaults to LONG_RUN_WORKERS. */
+/** A By a date run estimated past this, on the default count, defaults to LONG_RUN_WORKERS. */
 export const LONG_RUN_SECONDS = 2 * 3600;
 export const LONG_RUN_WORKERS = 12;
 
@@ -697,13 +700,16 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * spawns lazily and a small batch is not worth every worker, so "how many did you end up with" is
    * not "how many may you have". Held to the machine's core count when a pool is built.
    */
-  const workerBudget = ref(maxPoolSize());
-  /** The player moved the worker slider this visit: nothing here sets the count for them after that. */
-  const workersByHand = ref(false);
+  const chosenWorkers = readStoredCount(WORKERS_KEY);
+  const workerBudget = ref(chosenWorkers ? clampPoolSize(chosenWorkers) : defaultWorkerCount());
+  /** The player set the worker count (this visit or an earlier one, remembered under WORKERS_KEY):
+   *  nothing here sets the count for them after that. */
+  const workersByHand = ref(chosenWorkers > 0);
   function setWorkersByHand(n: number): void {
     workersByHand.value = true;
     longRunWorkers.value = null;
     workerBudget.value = n;
+    writeStoredCount(WORKERS_KEY, n);
   }
   /**
    * The count a long By a date run was given instead of every core (`fitWorkersToRun`), or null. Each
@@ -739,7 +745,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     setWorkersByHand(Math.min(maxPoolSize(), LONG_RUN_WORKERS));
   }
   /**
-   * By a date's default worker count for a run of this size: every core but one, or for a run that
+   * By a date's default worker count for a run of this size: half the cores, or for a run that
    * would take over LONG_RUN_SECONDS at that, at most LONG_RUN_WORKERS. Never once the player has set
    * the count by hand, and never during a run (the slider and the step-away rules own it then).
    * `secondsAtDefault`: the run's estimate on the default count.
@@ -747,7 +753,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   function fitWorkersToRun(secondsAtDefault: number): void {
     if (!isRunning.value && !deadlineRunning.value) longRunSeconds.value = secondsAtDefault;
     if (workersByHand.value || isRunning.value || deadlineRunning.value) return;
-    const all = maxPoolSize();
+    // The default count (half the cores since 11 Oct), held to LONG_RUN_WORKERS for a long run.
+    const all = defaultWorkerCount();
     const cap = Math.min(all, LONG_RUN_WORKERS);
     if (secondsAtDefault > LONG_RUN_SECONDS && cap < all) {
       if (longRunWorkers.value === null && workerBudget.value !== all) return; // someone else's count

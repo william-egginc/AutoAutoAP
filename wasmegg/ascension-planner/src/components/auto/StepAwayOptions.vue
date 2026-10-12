@@ -235,22 +235,8 @@
         </label>
       </div>
     </div>
-    <label class="flex items-start gap-2">
-      <input v-model="options.fewerWorkers" type="checkbox" class="mt-0.5 rounded border-slate-300 text-indigo-600" />
-      <span
-        ><span class="font-bold">Use fewer workers so the computer has room.</span> Uses about half the cores ({{
-          cap
-        }}
-        of {{ store.machineThreads }}), and drops a few more during the run if it slows right down, or if the memory the
-        browser reports for this page gets high. That figure is the page's main memory only: browsers don't report the
-        workers' memory, or other programs'.
-        <span class="block text-slate-500"
-          >Slower: about half the workers, so expect roughly 1.5–2× the time (less than 2× on machines with
-          hyperthreading), in exchange for room for other programs.</span
-        ></span
-      >
-    </label>
-    <p v-if="options.fewerWorkers && stepAwayNote" class="pl-6 font-semibold text-slate-800">{{ stepAwayNote }}</p>
+    <!-- "Use fewer workers so the computer has room" was retired on 11 Oct 2026 (the user): the worker
+         count starts at half the cores and is set in Setup, where a player's own count is remembered. -->
     <div class="flex items-start gap-2">
       <input
         id="auto-send-best"
@@ -306,7 +292,6 @@ import {
   autoCarryOnVerdict,
   clock12,
   COUNTDOWN_SECONDS,
-  fewerWorkersCap,
   MAX_REOPENS_PER_HOUR,
   readRunMark,
   WATCHER_CONFIRM_MS,
@@ -320,7 +305,6 @@ import {
   pingWatcher,
   stepAwayBeginCarryOn,
   stepAwayGiveUp,
-  stepAwayNote,
   stepAwayOptions,
   watcherSeenAt,
   watcherUrl,
@@ -339,7 +323,6 @@ const emit = defineEmits<{ 'carry-on': []; countdown: [seconds: number] }>();
 
 const store = useChainSearchStore();
 const options = stepAwayOptions;
-const cap = computed(() => fewerWorkersCap(store.machineThreads));
 
 // ------------------------------------------------------------------ send my best so far
 

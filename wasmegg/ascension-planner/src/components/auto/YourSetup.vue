@@ -625,7 +625,7 @@ const PROFILES = [
   {
     id: 'balanced',
     label: 'Balanced',
-    blurb: 'Every core but one, so the tab stays responsive. The default.',
+    blurb: 'Every core but one, so the tab stays responsive.',
     workers: () => Math.max(1, store.machineThreads - 1),
     legDetail: 2000,
   },
