@@ -86,9 +86,8 @@
       </ul>
     </details>
     <!-- The stronger check's own results (earlier routes, one TE lower, Best now). -->
-    <h4 class="pt-1 text-[10px] font-black uppercase tracking-widest text-slate-500" data-testid="light-results-heading">
-      {{ goal === 'date' ? 'Your earlier routes, and one TE lower' : 'Your earlier routes' }}
-    </h4>
+    <!-- No heading of ours here: the stronger check's results carry their own ("Your earlier routes",
+         "A TE lower"); a second one doubled it (the user, 12 Oct). -->
     <div id="stronger-check-results" />
     <!-- At Fast and above: the search of the routes near the instant answer's, its controls and results. -->
     <h4

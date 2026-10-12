@@ -89,12 +89,12 @@ describe('no "Find a starting chain for me" (12 Oct)', () => {
 
 describe('names and result headings (12 Oct)', () => {
   it('the search is "Nearby routes"; Light and the search each have a results heading', async () => {
-    const light = textOf(await renderHtml(StrongerBox, { goal: 'date' }));
-    expect(light).toContain('Your earlier routes, and one TE lower');
-    expect(light).not.toContain('the best routes found near');
+    const lightHtml = await renderHtml(StrongerBox, { goal: 'date' });
+    // The stronger check's results carry their own headings: none of ours above them (no doubling).
+    expect(lightHtml).not.toContain('light-results-heading');
+    expect(textOf(lightHtml)).not.toContain('the best routes found near');
     useStrongerStore().level = 'quick';
     const fast = textOf(await renderHtml(StrongerBox, { goal: 'fastest' }));
-    expect(fast).toContain('Your earlier routes');
     expect(fast).toContain("Nearby routes: the best routes found near the instant answer's");
     expect(fast).toContain('Light, then Nearby routes');
     const { NAMES } = await import('@/lib/siteNav');
