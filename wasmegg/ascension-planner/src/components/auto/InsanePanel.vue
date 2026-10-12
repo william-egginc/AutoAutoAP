@@ -487,7 +487,7 @@
               <p v-if="!plannedGridComplete && gridExample" class="text-[11px] text-slate-600 leading-relaxed">
                 <span class="font-bold text-slate-800">This space tries {{ plannedGridLabel }}</span> (for example
                 {{ gridExample }}), not every TE in between, which would take weeks. The winner is the best on this
-                grid, and a chain between grid points can be faster.
+                grid, and a route between grid points can be faster.
               </p>
               <BandCheckNotice
                 :text="bandsText"
@@ -684,7 +684,7 @@
             </span>
             <span v-else-if="store.benchmarkedAt" class="text-[11px] text-slate-500">
               {{ store.rateSource === 'live' ? 'Measured' : 'Benchmarked' }} on this machine ·
-              {{ plural(store.benchmarkChainCount, 'chain') }} · {{ agoLabel(store.benchmarkedAt) }}
+              {{ plural(store.benchmarkChainCount, 'route') }} · {{ agoLabel(store.benchmarkedAt) }}
             </span>
           </div>
           <p v-if="store.benchmarkError" class="text-[11px] font-semibold text-red-700">{{ store.benchmarkError }}</p>
@@ -920,7 +920,7 @@
                 @widen="widenAndRun"
               >
                 <template v-if="edgeWiden">
-                  The wider space is {{ plural(edgeWiden.chains, 'chain') }}. Chains already priced are reused when your
+                  The wider space is {{ plural(edgeWiden.chains, 'route') }}. Routes already priced are reused when your
                   setup hasn't changed.
                 </template>
               </EdgeWarning>
@@ -1618,7 +1618,7 @@ function extraSummary(k: number): string {
   const row = extraChains.value[k];
   if (!row) return '';
   if (row.asc <= 1) return `Straight to ${store.finalTE}: one route.`;
-  return `${extraCount(k).toLocaleString()} chains · ${extraBands(k)
+  return `${extraCount(k).toLocaleString()} routes · ${extraBands(k)
     .map(b => b.length)
     .join(' x ')} values`;
 }

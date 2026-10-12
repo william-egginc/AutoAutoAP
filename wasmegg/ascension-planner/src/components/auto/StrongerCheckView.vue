@@ -29,7 +29,8 @@
     </p>
 
     <template v-if="on">
-      <p v-if="waitingFor" class="text-slate-500" data-testid="stronger-waiting">{{ waitingFor }}</p>
+      <!-- In the box (bare) the box's own Light status says this. -->
+      <p v-if="waitingFor && !bare" class="text-slate-500" data-testid="stronger-waiting">{{ waitingFor }}</p>
 
       <!-- Best now: whatever this box found that beats the answer above. -->
       <div
