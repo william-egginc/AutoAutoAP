@@ -18,7 +18,9 @@
       >
     </div>
     <p class="text-[12px] text-slate-600 leading-relaxed">
-      Checks the instant answer harder, with the full simulator on your save. Pick how much harder:
+      Checks the instant answer harder, with the full simulator on your save. Light prices routes you have already
+      found; Fast, Exact and Very high also search the routes near the instant answer's ({{ NAMES.smart }}). Pick how
+      much harder:
     </p>
     <div
       class="grid gap-1 rounded-xl bg-slate-100 p-1"
@@ -69,7 +71,18 @@
       </ul>
     </details>
     <!-- The stronger check's own results (earlier routes, one TE lower, Best now). -->
+    <h4 class="pt-1 text-[10px] font-black uppercase tracking-widest text-slate-500" data-testid="light-results-heading">
+      {{ goal === 'date' ? 'Your earlier routes, and one TE lower' : 'Your earlier routes' }}
+    </h4>
     <div id="stronger-check-results" />
+    <!-- At Fast and above: the search of the routes near the instant answer's, its controls and results. -->
+    <h4
+      v-if="level !== 'light'"
+      class="pt-2 border-t border-slate-100 text-[10px] font-black uppercase tracking-widest text-slate-500"
+      data-testid="nearby-heading"
+    >
+      {{ NAMES.smart }}: the best routes found near the instant answer's
+    </h4>
     <slot :level="level" />
   </section>
 </template>
@@ -108,8 +121,8 @@ const levels = computed(() => [
     time: props.goal === 'fastest' ? EFFORT_NOTES.quick.typicalTime : 'Under half an hour on a typical 8-core computer.',
     words:
       props.goal === 'fastest'
-        ? "Light, plus a search from the instant answer's route: moves each stop a few TE either way until nothing gets faster, and gives every other number of ascensions in your limits one quick try."
-        : "Light, plus every route near the instant answer's route for each number of ascensions: each early stop up to 3 TE either side (fewer on long routes), the last stop found to the exact TE.",
+        ? "Light, plus Nearby routes from the instant answer's route: moves each stop a few TE either way until nothing gets faster, and gives every other number of ascensions in your limits one quick try."
+        : "Light, plus Nearby routes: every route near the instant answer's route for each number of ascensions, each early stop up to 3 TE either side (fewer on long routes), the last stop found to the exact TE.",
   },
   {
     id: 'normal' as StrongerLevel,

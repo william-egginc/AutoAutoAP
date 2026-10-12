@@ -2296,7 +2296,7 @@ export function foundByText(row: Pick<BoardRow, 'space' | 'effort' | 'recheckOf'
 
 /** The two ways to search as the board names them (decision A, 12 Oct 2026: they were Simple and
  *  Advanced). Short, for the Effort column. */
-const NAME_AROUND = 'Around the answer';
+const NAME_AROUND = 'Nearby routes';
 const NAME_EXHAUSTIVE = 'Exhaustive';
 
 /** A sent effort tier's name on the planner's slider. */

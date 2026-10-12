@@ -1390,7 +1390,7 @@ describe('searchedOf', () => {
     const s = searchedOf(
       row({ chain: [200, 300, 490], currentTE: 180, finalTE: 490, effort: 'thorough', chainsPriced: 5806 })
     );
-    expect(s.how).toBe('Around the answer · Very high');
+    expect(s.how).toBe('Nearby routes · Very high');
     expect(s.where).toBe('');
     expect(s.title).toContain('5,806 plans priced');
   });
@@ -1514,7 +1514,7 @@ describe('searchGrade', () => {
       step: Infinity,
       steps: [],
       penalty: null,
-      text: 'staged (Around the answer · Very high)',
+      text: 'staged (Nearby routes · Very high)',
     });
     const cut = searchGrade(
       row({

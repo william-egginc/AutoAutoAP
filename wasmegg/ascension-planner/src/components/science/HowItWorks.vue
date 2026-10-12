@@ -198,7 +198,7 @@
         <p>
           <b>Check exactly</b> runs the instant answer's routes through the full simulator on your save, ascending on
           the hour as shown, or at once as well if you tick that. It takes about 10 to 40 seconds a route. That's the
-          number to plan around. Searches start from the instant answer too: Search around this answer starts from its
+          number to plan around. Searches start from the instant answer too: Nearby routes starts from its
           route, and Exhaustive's suggested boxes are centred on it.
         </p>
         <p>
@@ -213,7 +213,7 @@
           exactly it does two more things with the full simulator: prices your own earlier routes for the same goal
           (from your searches here, your saved answers, your earlier checks and your board runs sent from this browser),
           and by a date, when the top route misses the date, tries the instant answer's route one TE lower (two if
-          needed). To search around the best route, use Search around this answer, just below it. Anything that beats
+          needed). To search the routes near the best one, pick a level above Light in the same box. Anything that beats
           the answer shows as "Best now". It's a prototype: we haven't measured how often it finds something better.
         </p>
       </div>

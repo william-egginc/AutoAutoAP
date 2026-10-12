@@ -394,7 +394,7 @@ describe('Science sweeps across TEs', () => {
   it('has the plain copy', () => {
     expect(NO_FIT_TEXT).toBe("This sweep doesn't fit an account at your TE.");
     expect(SCIENCE_SWEEP_NOTE).toBe(
-      "This sweep fills a gap in the shared data for science. It isn't tuned to find your best route; use Search around this answer on Fastest to 490 TE, or the instant answer, for that."
+      "This sweep fills a gap in the shared data for science. It isn't tuned to find your best route; use Nearby routes on Fastest to 490 TE, or the instant answer, for that."
     );
   });
 });

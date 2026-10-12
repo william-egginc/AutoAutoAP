@@ -57,12 +57,12 @@ export const NAMES = {
    *  the search that starts from the instant answer (was Simple: Fastest's Smart search, By a date's
    *  Simple routes) and the one over boxes you set (was Advanced: Fastest's Full sweep, By a date's
    *  chain editor). Batch 3 called them Simple and Advanced. */
-  smart: 'Search around this answer',
+  smart: 'Nearby routes',
   full: 'Exhaustive',
   /** The older names, kept in brackets on first mention so regulars aren't lost. */
   smartWas: 'Simple',
   fullWas: 'Advanced',
-  smartFirst: 'Search around this answer (was Simple)',
+  smartFirst: 'Nearby routes (was Simple)',
   fullFirst: 'Exhaustive (was Advanced)',
 } as const;
 

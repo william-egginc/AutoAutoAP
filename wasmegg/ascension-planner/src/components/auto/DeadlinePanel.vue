@@ -179,7 +179,7 @@
           data-testid="focus-around"
           @click="pickFocus('simple')"
         >
-          Search around this answer here
+          Search nearby routes here
         </button>
       </template>
       <!-- Always there (empty unless the search around the answer is in hand): a Teleport needs its
@@ -193,7 +193,7 @@
         How {{ NAMES.byDate }} works
       </summary>
       <div class="px-4 pb-4 text-xs text-slate-600 leading-relaxed">
-        Finds the highest TE you can reach by a date. Searching around the answer picks the early stops for you: the
+        Finds the highest TE you can reach by a date. Nearby routes picks the early stops for you: the
         instant answer's route for each number of ascensions and a few TE either side of each stop. In Exhaustive you
         set the early stops
         and it tries every route in them. Either way the last stop is found to the exact TE. Like any run, it uses the
@@ -621,6 +621,14 @@
     <Teleport defer :to="resultsTo">
     <RunResults v-if="result">
       <template #card>
+        <!-- In the Exhaustive box, say whose results these are (the Stronger check box has its own heading). -->
+        <h4
+          v-if="resultsTo === '#bd-exh-results'"
+          class="text-[10px] font-black uppercase tracking-widest text-slate-500"
+          data-testid="exhaustive-results-heading"
+        >
+          {{ result.simple ? `${NAMES.smart}: the best routes found near the instant answer's` : 'Exhaustive: the best routes in your boxes' }}
+        </h4>
         <ByDateRouteCard
           v-if="best"
           :route="best"
@@ -677,7 +685,7 @@
         @widen="widenAndRun"
       >
         <template v-if="edgeWiden && simple">
-          This opens Exhaustive with the boxes the search around the answer used, that one widened to
+          This opens Exhaustive with the boxes Nearby routes used, that one widened to
           <span class="font-mono-premium">{{ edgeWiden.text }}</span
           >, and runs it.
         </template>

@@ -25,7 +25,7 @@
     <p v-if="!bare" class="text-slate-500 leading-relaxed">
       After Check exactly, also prices your own earlier routes for this
       {{ deadline ? 'date, and tries a TE lower when the top route misses it' : 'target' }}. Uses the full simulator
-      on your workers. To search around the best route, use {{ NAMES.smart }} below.
+      on your workers. To search the routes near the best one, use {{ NAMES.smart }} below.
     </p>
 
     <template v-if="on">

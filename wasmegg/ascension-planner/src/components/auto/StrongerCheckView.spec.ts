@@ -52,7 +52,7 @@ describe('StrongerCheckView', () => {
     expect(t).not.toContain('Your earlier routes');
     // Refine was retired (decision A): the line points to Search around this answer instead.
     expect(t).not.toContain('Refine');
-    expect(t).toContain('To search around the best route, use Search around this answer below.');
+    expect(t).toContain('To search the routes near the best one, use Nearby routes below.');
   });
 
   it('by a date the line mentions the TE lower', async () => {

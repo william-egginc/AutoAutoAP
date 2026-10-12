@@ -18,16 +18,16 @@ describe('effort tiers', () => {
   });
 
   it('still shows rows already sent as balanced', () => {
-    expect(effortText('balanced')).toBe('Around the answer · Balanced (retired)');
+    expect(effortText('balanced')).toBe('Nearby routes · Balanced (retired)');
     expect(foundByText({ effort: 'balanced', space: undefined, recheckOf: undefined } as never)).toBe(
-      'Around the answer · Balanced (retired)'
+      'Nearby routes · Balanced (retired)'
     );
   });
 
   it('names Smart search tiers Simple and Full sweep runs Advanced', () => {
-    expect(effortText('quick')).toBe('Around the answer · Fast');
-    expect(effortText('normal')).toBe('Around the answer · Exact');
-    expect(effortText('thorough')).toBe('Around the answer · Very high');
+    expect(effortText('quick')).toBe('Nearby routes · Fast');
+    expect(effortText('normal')).toBe('Nearby routes · Exact');
+    expect(effortText('thorough')).toBe('Nearby routes · Very high');
     expect(effortText(undefined)).toBe('unknown');
     const space = { mode: 'bands', stoppedEarly: false } as never;
     expect(foundByText({ effort: 'normal', space } as never)).toBe('Exhaustive');
@@ -39,7 +39,7 @@ describe('effort tiers', () => {
 
   it('shows a By a date row as Simple or Advanced only when it records which', () => {
     expect(foundByText({ effort: 'normal', deadline: 1 } as never)).toBe('normal');
-    expect(foundByText({ effort: 'normal', deadline: 1, mode: 'simple' } as never)).toBe('Around the answer');
+    expect(foundByText({ effort: 'normal', deadline: 1, mode: 'simple' } as never)).toBe('Nearby routes');
     expect(foundByText({ effort: 'normal', deadline: 1, mode: 'advanced' } as never)).toBe('Exhaustive');
   });
 });
