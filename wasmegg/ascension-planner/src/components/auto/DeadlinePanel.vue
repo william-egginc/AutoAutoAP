@@ -129,7 +129,7 @@
       @routes="onInstantRoutes"
     />
     <!-- The answers side by side (SearchCompare.vue): instant answer, stronger check, Exhaustive. -->
-    <SearchCompare v-if="deadline" goal="date" />
+    <SearchCompare v-if="SHOW_COMPARE && deadline" goal="date" />
 
     <!-- Stronger check (StrongerBox.vue; the user, 12 Oct 2026): the stronger check's results, and with
          Search around the routes around the instant answer, their run controls and results here. -->
@@ -895,6 +895,7 @@ import { useIntegrityProbe } from '@/composables/useIntegrityProbe';
 import { useStrongerStore } from '@/stores/stronger';
 import StrongerBox from './StrongerBox.vue';
 import SearchCompare from './SearchCompare.vue';
+import { SHOW_COMPARE } from '@/lib/features';
 import { getLocalTimestampInTimezone } from '@/lib/events';
 import { formatInZone } from '@/search/csv';
 import {

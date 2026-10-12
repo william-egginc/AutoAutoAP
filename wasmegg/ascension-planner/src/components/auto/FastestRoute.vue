@@ -32,7 +32,7 @@
          Check exactly prices them on your save; its stronger check shows in the box below. -->
     <InstantRoute stronger-to="#stronger-check-results" @check="checkExactly" />
     <!-- The answers side by side (SearchCompare.vue): instant answer, stronger check, Exhaustive. -->
-    <SearchCompare goal="fastest" />
+    <SearchCompare v-if="SHOW_COMPARE" goal="fastest" />
 
     <!-- A search running on another screen (By a date, a start-time sweep): greyed out under a line. -->
     <RunningElsewhere v-if="blockedBy" :running="blockedBy" :here="fastestName(store.finalTE)" />
@@ -78,6 +78,7 @@ import { safeAsyncComponent } from '@/lib/import';
 import RunningElsewhere from './RunningElsewhere.vue';
 import StrongerBox from './StrongerBox.vue';
 import SearchCompare from './SearchCompare.vue';
+import { SHOW_COMPARE } from '@/lib/features';
 import InstantRoute from './InstantRoute.vue';
 import YourSetup from './YourSetup.vue';
 import StartTimeCard from './StartTimeCard.vue';

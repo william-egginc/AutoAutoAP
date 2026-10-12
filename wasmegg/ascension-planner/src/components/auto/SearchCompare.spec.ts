@@ -28,3 +28,14 @@ describe('SearchCompare', () => {
     expect(t).toContain('Exhaustive Best 248 TE 30.0 h spare 161 199 248 so far, still running');
   });
 });
+
+describe('hidden for now (SHOW_COMPARE)', () => {
+  it('is off, and both screens put the block behind it', async () => {
+    const { SHOW_COMPARE } = await import('@/lib/features');
+    expect(SHOW_COMPARE).toBe(false);
+    const fs = await import('node:fs');
+    const path = await import('node:path');
+    for (const f of ['FastestRoute.vue', 'DeadlinePanel.vue'])
+      expect(fs.readFileSync(path.join(__dirname, f), 'utf8')).toMatch(/<SearchCompare v-if="SHOW_COMPARE/);
+  });
+});
