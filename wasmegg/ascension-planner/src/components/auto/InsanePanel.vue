@@ -794,7 +794,7 @@
           </template>
           <template #progress>
             <RunProgress
-              v-if="store.stage"
+              v-if="ownRun && store.stage"
               data-run-progress="full"
               :stage="store.stage"
               :count="`${pricedSoFar.toLocaleString()} / ${plural(store.chainsEstimated, 'chain')}`"
@@ -880,7 +880,7 @@
 
             <!-- The answer: the same card as Smart search (RouteResultCard.vue). -->
             <RouteResultCard
-              v-if="store.bestDays > 0"
+              v-if="ownRun && store.bestDays > 0"
               :chain="store.bestChain"
               :days="store.bestDays"
               :final-t-e="store.finalTE"
@@ -967,10 +967,10 @@
           </template>
           <!-- When to start this route: every hour of the next week, as fresh starts. -->
           <StartTimeFinder
-            v-if="store.bestChain.length && store.bestDays > 0 && !store.isRunning"
+            v-if="ownRun && store.bestChain.length && store.bestDays > 0 && !store.isRunning"
             :chain="store.bestChain"
           />
-          <RunCharts v-if="store.pricedCount" />
+          <RunCharts v-if="ownRun && store.pricedCount" />
           <template #keep>
             <!-- Saved runs: the same list on both depths (SavedRuns.vue); carrying a sweep on is this one's. -->
             <SavedRuns :player-id="playerId" can-resume />
@@ -990,7 +990,7 @@
             <!-- Not while a Find and submit run is going: it sends itself with the choice made at Find,
                  and a box here saying "anonymously" would not be what goes. -->
             <ShareResult
-              v-if="store.bestDays > 0 && !(store.isRunning && store.submitsWhenDone)"
+              v-if="ownRun && store.bestDays > 0 && !(store.isRunning && store.submitsWhenDone)"
               :replaces-best-so-far="!!store.provisionalRows.fastest"
               v-model:opt-in="optIn"
               v-model:anonymous="anonymous"
@@ -1164,6 +1164,9 @@ const props = defineProps<{
 const emit = defineEmits<{ 'update:goal': [goal: 'fastest' | 'deadline'] }>();
 
 const store = useChainSearchStore();
+/** The store's chain-search state is this panel's (Full sweep), not the other Fastest panel's: its
+ *  progress, answer, charts and share show only then (store `chainRunKind`). */
+const ownRun = computed(() => store.chainRunKind === 'full');
 // The integrity check up front (search/rules.ts), so a stalled account says so before Start.
 useIntegrityProbe(() => props.playerId);
 const autoPlannerStore = useAutoPlannerStore();

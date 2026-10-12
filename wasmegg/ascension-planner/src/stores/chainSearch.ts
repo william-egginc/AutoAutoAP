@@ -7910,6 +7910,14 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     return null;
   });
 
+  /**
+   * Which Fastest panel the chain-search state on the store (stage, counts, best, CSV, charts) belongs
+   * to: a Full sweep states its space (`searchSpace`), a Smart search clears it. The two panels share
+   * these fields, so each shows them only when they are its own: a finished Full sweep's "done" and
+   * answer used to show on Simple as if Simple had found them, and the other way round.
+   */
+  const chainRunKind = computed<'smart' | 'full'>(() => (searchSpace.value ? 'full' : 'smart'));
+
   // Keep the run's latest figures for the phone: they are gone from `runProgress` by the time the
   // run's last word is built.
   watch(runProgress, p => watchLinkNoteProgress(p && p.kind !== 'start-times' ? p : null), { flush: 'sync' });
@@ -7933,6 +7941,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     lastAutoSend,
     errorIsIntegrityNotice,
     runProgress,
+    chainRunKind,
     stopRun,
     provisionalRows,
     runElsewhere,

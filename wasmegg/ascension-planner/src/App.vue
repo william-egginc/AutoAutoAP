@@ -672,6 +672,7 @@ import { useChainSearchStore } from '@/stores/chainSearch';
 import { safeAsyncComponent } from '@/lib/import';
 import RunProgressBar from '@/components/auto/RunProgressBar.vue';
 import { scrollToRun } from '@/lib/runAnchor';
+import { runScreenOf, type SearchScreen } from '@/lib/runScreen';
 import { usePlanStartForm } from '@/composables/usePlanStartForm';
 import { useTablePrefetch } from '@/composables/useTablePrefetch';
 import { useGearCoverage } from '@/composables/useGearCoverage';
@@ -826,7 +827,6 @@ onUnmounted(() => window.removeEventListener('hashchange', onHashChange));
  * the other search screens are locked: Smart search's panel would otherwise show a full sweep's
  * progress as its own. Classic, Manual and Compare stay open, as the other tabs always did.
  */
-type SearchScreen = 'smart' | 'full' | 'by-date';
 function searchScreenOf(r: SiteRoute): SearchScreen | null {
   if (r.section !== 'auto' || r.auto === 'classic') return null;
   return r.auto === 'by-date' ? 'by-date' : r.depth;
@@ -838,20 +838,27 @@ const searchActive = computed(() => chainSearchStore.busy || chainSearchStore.sw
 watch(searchActive, active => {
   runningScreen.value = active ? (searchScreenOf(currentRoute()) ?? runningScreen.value) : null;
 });
+// Once the run says what it is, its screen is that kind's (runScreenOf), so the gaps between a queue's
+// chains stay with it too.
+watch(
+  () => chainSearchStore.runProgress?.kind,
+  kind => {
+    // Not a sweep started from Science: Show it goes back to its window there (showRun).
+    const science = uiStore.scienceRun && uiStore.scienceRun.phase !== 'done';
+    if (searchActive.value && kind && kind !== 'start-times' && !science) runningScreen.value = kind;
+  }
+);
 
 /**
  * The screen the running search belongs to, for the progress bar: the one it was started from, or,
  * for a run that started elsewhere (a carry-on from another screen), the one its kind lives on.
  */
-const runScreen = computed<SearchScreen | null>(() => {
-  const kind = chainSearchStore.runProgress?.kind;
-  if (!kind) return null;
-  if (runningScreen.value) return runningScreen.value;
-  if (kind === 'by-date' || kind === 'full' || kind === 'smart') return kind;
-  return fastestDepth.value;
-});
-/** The screen a search is going on, gaps between a queue's chains included. */
-const activeScreen = computed<SearchScreen | null>(() => runningScreen.value ?? runScreen.value);
+const runScreen = computed<SearchScreen | null>(() =>
+  runScreenOf(chainSearchStore.runProgress?.kind, runningScreen.value, fastestDepth.value)
+);
+/** The screen a search is going on: the run's own, or between a queue's chains (no run for a moment)
+ *  the one the queue was started from. */
+const activeScreen = computed<SearchScreen | null>(() => runScreen.value ?? runningScreen.value);
 /** The screen shown now, in the same terms. */
 const screenHere = computed<SearchScreen | 'classic'>(() =>
   autoView.value === 'classic' ? 'classic' : autoView.value === 'by-date' ? 'by-date' : fastestDepth.value

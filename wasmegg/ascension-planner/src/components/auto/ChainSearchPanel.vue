@@ -496,7 +496,7 @@
         </template>
         <template #progress>
           <!-- Live progress -->
-          <div v-if="store.isRunning || store.bestDays > 0" class="space-y-4">
+          <div v-if="ownRun && (store.isRunning || store.bestDays > 0)" class="space-y-4">
             <RunProgress
               data-run-progress="smart"
               :stage="store.stage"
@@ -768,7 +768,7 @@
       <RunResults>
         <!-- When to start this route: every hour of the next week, as fresh starts. -->
         <StartTimeFinder
-          v-if="store.bestChain.length && store.bestDays > 0 && !store.isRunning"
+          v-if="ownRun && store.bestChain.length && store.bestDays > 0 && !store.isRunning"
           :chain="store.bestChain"
         />
 
@@ -1098,7 +1098,7 @@
                the exact payload is inspectable BEFORE the click, and with no collector configured
                the only option is a file the player hands over themselves. -->
           <ShareResult
-            v-if="store.bestDays > 0 && !store.isRunning"
+            v-if="ownRun && store.bestDays > 0 && !store.isRunning"
             :replaces-best-so-far="!!store.provisionalRows.fastest"
             v-model:opt-in="optIn"
             v-model:anonymous="anonymous"
@@ -1256,6 +1256,9 @@ const props = defineProps<{ playerId: string }>();
 const emit = defineEmits<{ checkExactly: [chain: number[]] }>();
 
 const store = useChainSearchStore();
+/** The store's chain-search state is this panel's (Smart search), not the other Fastest panel's: its
+ *  progress, answer, charts and share show only then (store `chainRunKind`). */
+const ownRun = computed(() => store.chainRunKind === 'smart');
 
 /** Open by default: a collapsed form on first load looks like the panel has nothing in it. */
 // Folded by default so Simple looks simple; the player's choice is remembered in this browser.
