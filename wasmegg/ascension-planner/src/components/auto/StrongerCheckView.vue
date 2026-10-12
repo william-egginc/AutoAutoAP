@@ -5,11 +5,11 @@
 -->
 <template>
   <div
-    class="rounded-xl border px-3 py-2.5 space-y-2 text-[11px]"
-    :class="on ? 'border-indigo-200 bg-indigo-50/40' : 'border-slate-200 bg-white'"
+    class="space-y-2 text-[11px]"
+    :class="bare ? '' : ['rounded-xl border px-3 py-2.5', on ? 'border-indigo-200 bg-indigo-50/40' : 'border-slate-200 bg-white']"
     data-testid="stronger-check"
   >
-    <label class="flex flex-wrap items-center gap-x-2 gap-y-1 cursor-pointer">
+    <label v-if="!bare" class="flex flex-wrap items-center gap-x-2 gap-y-1 cursor-pointer">
       <input
         :checked="on"
         type="checkbox"
@@ -22,7 +22,7 @@
         >prototype</span
       >
     </label>
-    <p class="text-slate-500 leading-relaxed">
+    <p v-if="!bare" class="text-slate-500 leading-relaxed">
       After Check exactly, also prices your own earlier routes for this
       {{ deadline ? 'date, and tries a TE lower when the top route misses it' : 'target' }}. Uses the full simulator
       on your workers. To search around the best route, use {{ NAMES.smart }} below.
@@ -176,6 +176,8 @@ const props = defineProps<{
   steps: StepDownStep[];
   stepSkipped: string;
   refine: RefineView;
+  /** Inside the Stronger check box: no toggle and no description of its own (the box has both). */
+  bare?: boolean;
 }>();
 const emit = defineEmits<{
   'update:on': [on: boolean];

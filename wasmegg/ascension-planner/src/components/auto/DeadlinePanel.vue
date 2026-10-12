@@ -121,10 +121,66 @@
 
     <!-- The instant answer from the precomputed table (the precompute fork): the highest TE by this
          date, from every route at once. Check exactly sets its stops in the boxes below. -->
-    <InstantRoute v-if="deadline" :deadline="deadline" @check="checkByDate" @routes="onInstantRoutes" />
+    <InstantRoute
+      v-if="deadline"
+      :deadline="deadline"
+      stronger-to="#stronger-check-results"
+      @check="checkByDate"
+      @routes="onInstantRoutes"
+    />
 
-    <!-- How thorough (Simple or Advanced, batch 3), then how it works, then the mode's content. -->
-    <slot name="mode" />
+    <!-- Stronger check (StrongerBox.vue; the user, 12 Oct 2026): the stronger check's results, and with
+         Search around the routes around the instant answer, their run controls and results here. -->
+    <StrongerBox v-slot="{ level }" goal="date" :running="store.deadlineRunning && !!store.deadlineRunSimple">
+      <template v-if="level !== 'light'">
+        <!-- Simple (batch 3): no chain editor. The routes it tries, in one line, and a way to see them as
+             boxes in Advanced (to widen them, say). -->
+        <div
+          class="rounded-xl border border-indigo-200 bg-indigo-50/50 p-3 space-y-1.5 text-[11px] text-slate-700 leading-relaxed"
+          data-test="simple-summary"
+        >
+          <p v-if="simpleSummary" class="font-bold text-slate-900">{{ simpleSummary }}</p>
+          <p v-else class="font-semibold text-rose-700">Nothing to check yet: the save hasn't loaded.</p>
+          <p v-if="simpleSpace">
+            <template v-if="simpleFrom === 'instant'"
+              >Around the instant answer's route for each number of ascensions<template v-if="instantMax !== null">
+                (at most {{ instantMax }}, as its filter says)</template
+              >: {{ simpleWidthsText }}, and its last stop found to the exact TE.</template
+            >
+            <template v-else
+              ><span class="font-bold">No instant answer yet</span> (none for your account, or it is still working), so this
+              checks suggested routes for 1-5 ascensions instead: {{ simpleWidthsText }}. When the instant answer arrives,
+              the routes follow it.</template
+            >
+          </p>
+          <p v-if="simpleSpace">
+            <button
+              type="button"
+              class="font-bold text-indigo-700 underline hover:text-indigo-900 disabled:opacity-40"
+              :disabled="store.busy"
+              data-test="open-in-advanced"
+              @click="openInAdvanced"
+            >
+              Open in Exhaustive</button
+            ><span class="text-slate-500"> with these boxes filled in, to widen them or add your own.</span>
+          </p>
+        </div>
+        <button
+          v-if="!simple && !store.deadlineRunning"
+          type="button"
+          class="px-3 py-1.5 rounded-lg bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-800"
+          data-testid="focus-around"
+          @click="pickFocus('simple')"
+        >
+          Search around this answer here
+        </button>
+      </template>
+      <!-- Always there (empty unless the search around the answer is in hand): a Teleport needs its
+           target on the page before it moves in. -->
+      <div id="bd-around-controls" />
+      <div id="bd-around-results" />
+    </StrongerBox>
+
     <details class="rounded-xl border border-slate-200 bg-white">
       <summary class="cursor-pointer px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">
         How {{ NAMES.byDate }} works
@@ -138,299 +194,225 @@
       </div>
     </details>
 
-    <!-- Simple (batch 3): no chain editor. The routes it tries, in one line, and a way to see them as
-         boxes in Advanced (to widen them, say). -->
-    <div
-      v-if="simple"
-      class="rounded-xl border border-indigo-200 bg-indigo-50/50 p-3 space-y-1.5 text-[11px] text-slate-700 leading-relaxed"
-      data-test="simple-summary"
-    >
-      <p v-if="simpleSummary" class="font-bold text-slate-900">{{ simpleSummary }}</p>
-      <p v-else class="font-semibold text-rose-700">Nothing to check yet: the save hasn't loaded.</p>
-      <p v-if="simpleSpace">
-        <template v-if="simpleFrom === 'instant'"
-          >Around the instant answer's route for each number of ascensions<template v-if="instantMax !== null">
-            (at most {{ instantMax }}, as its filter says)</template
-          >: {{ simpleWidthsText }}, and its last stop found to the exact TE.</template
+    <!-- Exhaustive, on the page as it is: the chain editor, and its run controls and results when it is
+         the search in hand (the controls go with the search you are setting up). -->
+    <section id="exhaustive" class="rounded-2xl border border-slate-200 bg-white p-4 space-y-3 scroll-mt-24">
+      <div class="flex flex-wrap items-center gap-2">
+        <h3 class="text-base font-black text-slate-900">{{ EXHAUSTIVE_TITLE }}</h3>
+        <span
+          v-if="store.deadlineRunning && !store.deadlineRunSimple"
+          class="px-1.5 py-0.5 rounded bg-indigo-600 text-white text-[9px] font-black uppercase tracking-widest"
+          >Running</span
         >
-        <template v-else
-          ><span class="font-bold">No instant answer yet</span> (none for your account, or it is still working), so this
-          checks suggested routes for 1-5 ascensions instead: {{ simpleWidthsText }}. When the instant answer arrives,
-          the routes follow it.</template
-        >
+      </div>
+      <p class="text-[12px] text-slate-600 leading-relaxed">
+        You set the chains, their boxes and sliders, and it tries every route in them.
       </p>
-      <p v-if="simpleSpace">
-        <button
-          type="button"
-          class="font-bold text-indigo-700 underline hover:text-indigo-900 disabled:opacity-40"
-          :disabled="store.busy"
-          data-test="open-in-advanced"
-          @click="openInAdvanced"
-        >
-          Open in Exhaustive</button
-        ><span class="text-slate-500"> with these boxes filled in, to widen them or add your own.</span>
-      </p>
-    </div>
+      <template v-if="true">
+        <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest pt-1">The routes to try</h3>
+        <!-- One way only (the user, 5 Oct: "just have I'll set the stops, make it simpler"). "Pick them for
+           me" is gone from the page; an unfinished run started in it can still be carried on, which is
+           the only way `mode` becomes 'auto' now. -->
+        <!-- The player's own space, Insane-style: one box per chain, and as many chains as you like. -->
+        <template v-if="mode === 'space'">
+          <!-- The chain rows (RoutesToTry.vue, shared with the Full sweep). Suggest a space's two sliders sit
+             small and under the box they fill (the user, 4 Oct), per chain; moving one re-fills the boxes
+             Suggest filled, not ones typed by hand. -->
+          <RoutesToTry
+            v-model:linked="linkSliders"
+            class="space-y-4"
+            :rows="chains"
+            :sliders="rowSliders"
+            :kept-notes="keptNotes"
+            :problems="rowProblems"
+            :summaries="rowSummaries"
+            :disabled="store.busy"
+            :current-t-e="store.currentTE"
+            :final-t-e="490"
+            :max-asc="8"
+            :min-rows="1"
+            placeholder="138-142:1; 160-200:10; 200-240:10"
+            slider-lead="Suggest a space tries"
+            linkable
+            footer-class="items-end gap-4"
+            @asc="(k, n) => (chains[k].asc = n)"
+            @text="typedRow"
+            @suggest="suggestRow"
+            @remove="k => chains.splice(k, 1)"
+            @add="addChain"
+            @slider="setSlider"
+            @use-sliders="suggestRow"
+          >
+            <template #row-notes="{ row, k }">
+              <span v-if="instantNote(k)" class="block text-[10px] text-indigo-700" data-test="instant-set-note">{{
+                instantNote(k)
+              }}</span>
+              <span v-else-if="chains[k].centre && !chains[k].centredOn" class="block text-[10px] text-slate-500"
+                >No instant answer for {{ plural(row.asc, 'ascension') }} yet, so the boxes after the first are the card's
+                wider ones.</span
+              >
+              <p v-if="chains[k].restored && row.asc >= 2" class="text-[10px] text-slate-400">
+                Restored from the unfinished run (the sliders apply when you press Suggest a space).
+              </p>
+            </template>
+            <!-- A step wider than the ± leaves only the centre of every stop after the first (the user, 5 Oct:
+               ±3 every 10 gave "231; 277"). Say so rather than let it look like a bug. -->
+            <template #row-after="{ row, k }">
+              <p
+                v-if="row.asc >= 3 && stepOf(chains[k]) > widthOf(chains[k])"
+                class="text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1"
+              >
+                Every {{ stepOf(chains[k]) }} TE is wider than ±{{ widthOf(chains[k]) }}, so after the first stop only the
+                suggested TE itself is tried. Widen the ± slider or pick a smaller step to try more around it.
+              </p>
+            </template>
+            <template #footer>
+              <label class="space-y-1">
+                <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest"
+                  >Last stop: where to start looking</span
+                >
+                <input
+                  v-model="lastBox"
+                  type="text"
+                  :disabled="store.busy"
+                  placeholder="e.g. 220-320"
+                  class="w-40 rounded-lg border-slate-300 text-sm font-mono-premium font-bold text-slate-800 disabled:opacity-50"
+                />
+              </label>
+              <span class="text-[10px] pb-2" :class="lastRange ? 'text-slate-500' : 'text-rose-600'">
+                {{
+                  lastRange
+                    ? `starts at ${lastRange[0]}-${lastRange[1]} and looks higher or lower if the answer is outside it; found to the exact TE`
+                    : 'give it a rough range, e.g. 300-340'
+                }}
+              </span>
+            </template>
+          </RoutesToTry>
+          <p class="text-[11px] text-slate-500 leading-relaxed">
+            Each chain is one box of bands, like {{ fastestName(store.finalTE) }} › {{ NAMES.fullFirst }}'s: one band per
+            ascension before the last, separated by <span class="font-mono-premium">;</span>. A band is
+            <span class="font-mono-premium">lo-hi:step</span>, a single value, or several values with commas. Chains with
+            other ascension counts all run from the same click, and a 1- or 2-ascension chain costs next to nothing. Every
+            route in your chains is tried, and nothing outside them, so the answer is proven for that space. The last stop
+            is found to the exact TE.
+            <template v-if="suggestFrom">{{ suggestFrom }}</template>
+          </p>
+          <p v-if="instantSets.length" class="text-[10px] text-slate-500 leading-relaxed" data-test="handoff-note">
+            This search starts each fresh ascension the moment the last one ends; the instant answer's exact check starts
+            it on the next whole hour, so the same route's times here and there can differ by up to about an hour per
+            fresh ascension.
+          </p>
+        </template>
 
-    <!-- Batch 3's Simple mode can leave the chain editor out (`hideRoutes`); nothing else reads it. -->
-    <template v-if="!hideRoutes">
-      <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest pt-1">The routes to try</h3>
-      <!-- One way only (the user, 5 Oct: "just have I'll set the stops, make it simpler"). "Pick them for
-         me" is gone from the page; an unfinished run started in it can still be carried on, which is
-         the only way `mode` becomes 'auto' now. -->
-      <!-- The player's own space, Insane-style: one box per chain, and as many chains as you like. -->
-      <template v-if="mode === 'space'">
-        <!-- The chain rows (RoutesToTry.vue, shared with the Full sweep). Suggest a space's two sliders sit
-           small and under the box they fill (the user, 4 Oct), per chain; moving one re-fills the boxes
-           Suggest filled, not ones typed by hand. -->
-        <RoutesToTry
-          v-model:linked="linkSliders"
-          class="space-y-4"
-          :rows="chains"
-          :sliders="rowSliders"
-          :kept-notes="keptNotes"
-          :problems="rowProblems"
-          :summaries="rowSummaries"
-          :disabled="store.busy"
-          :current-t-e="store.currentTE"
-          :final-t-e="490"
-          :max-asc="8"
-          :min-rows="1"
-          placeholder="138-142:1; 160-200:10; 200-240:10"
-          slider-lead="Suggest a space tries"
-          linkable
-          footer-class="items-end gap-4"
-          @asc="(k, n) => (chains[k].asc = n)"
-          @text="typedRow"
-          @suggest="suggestRow"
-          @remove="k => chains.splice(k, 1)"
-          @add="addChain"
-          @slider="setSlider"
-          @use-sliders="suggestRow"
-        >
-          <template #row-notes="{ row, k }">
-            <span v-if="instantNote(k)" class="block text-[10px] text-indigo-700" data-test="instant-set-note">{{
-              instantNote(k)
-            }}</span>
-            <span v-else-if="chains[k].centre && !chains[k].centredOn" class="block text-[10px] text-slate-500"
-              >No instant answer for {{ plural(row.asc, 'ascension') }} yet, so the boxes after the first are the card's
-              wider ones.</span
-            >
-            <p v-if="chains[k].restored && row.asc >= 2" class="text-[10px] text-slate-400">
-              Restored from the unfinished run (the sliders apply when you press Suggest a space).
-            </p>
-          </template>
-          <!-- A step wider than the ± leaves only the centre of every stop after the first (the user, 5 Oct:
-             ±3 every 10 gave "231; 277"). Say so rather than let it look like a bug. -->
-          <template #row-after="{ row, k }">
-            <p
-              v-if="row.asc >= 3 && stepOf(chains[k]) > widthOf(chains[k])"
-              class="text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1"
-            >
-              Every {{ stepOf(chains[k]) }} TE is wider than ±{{ widthOf(chains[k]) }}, so after the first stop only the
-              suggested TE itself is tried. Widen the ± slider or pick a smaller step to try more around it.
-            </p>
-          </template>
-          <template #footer>
+        <!-- Let it pick: the guided search (seed, grid, homing in). -->
+        <template v-else>
+          <div class="flex flex-wrap items-end gap-4">
             <label class="space-y-1">
               <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest"
-                >Last stop: where to start looking</span
+                >Stops, including the last</span
+              >
+              <div class="flex items-center gap-2">
+                <input
+                  v-model.number="minStops"
+                  type="number"
+                  min="1"
+                  max="8"
+                  :disabled="store.busy"
+                  class="w-16 rounded-lg border-slate-200 text-sm font-bold"
+                />
+                <span class="text-slate-400">to</span>
+                <input
+                  v-model.number="maxStops"
+                  type="number"
+                  min="1"
+                  max="8"
+                  :disabled="store.busy"
+                  class="w-16 rounded-lg border-slate-200 text-sm font-bold"
+                />
+              </div>
+            </label>
+            <label class="space-y-1">
+              <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest"
+                >Rough guess for the last stop</span
               >
               <input
-                v-model="lastBox"
-                type="text"
+                v-model.number="lastHi"
+                type="number"
+                :min="store.currentTE + 2"
+                max="490"
                 :disabled="store.busy"
-                placeholder="e.g. 220-320"
-                class="w-40 rounded-lg border-slate-300 text-sm font-mono-premium font-bold text-slate-800 disabled:opacity-50"
+                class="w-24 rounded-lg border-slate-200 text-sm font-bold"
+                @input="lastHiTouched = true"
               />
             </label>
-            <span class="text-[10px] pb-2" :class="lastRange ? 'text-slate-500' : 'text-rose-600'">
-              {{
-                lastRange
-                  ? `starts at ${lastRange[0]}-${lastRange[1]} and looks higher or lower if the answer is outside it; found to the exact TE`
-                  : 'give it a rough range, e.g. 300-340'
-              }}
-            </span>
-          </template>
-        </RoutesToTry>
-        <p class="text-[11px] text-slate-500 leading-relaxed">
-          Each chain is one box of bands, like {{ fastestName(store.finalTE) }} › {{ NAMES.fullFirst }}'s: one band per
-          ascension before the last, separated by <span class="font-mono-premium">;</span>. A band is
-          <span class="font-mono-premium">lo-hi:step</span>, a single value, or several values with commas. Chains with
-          other ascension counts all run from the same click, and a 1- or 2-ascension chain costs next to nothing. Every
-          route in your chains is tried, and nothing outside them, so the answer is proven for that space. The last stop
-          is found to the exact TE.
-          <template v-if="suggestFrom">{{ suggestFrom }}</template>
-        </p>
-        <p v-if="instantSets.length" class="text-[10px] text-slate-500 leading-relaxed" data-test="handoff-note">
-          This search starts each fresh ascension the moment the last one ends; the instant answer's exact check starts
-          it on the next whole hour, so the same route's times here and there can differ by up to about an hour per
-          fresh ascension.
-        </p>
-      </template>
-
-      <!-- Let it pick: the guided search (seed, grid, homing in). -->
-      <template v-else>
-        <div class="flex flex-wrap items-end gap-4">
-          <label class="space-y-1">
-            <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest"
-              >Stops, including the last</span
-            >
-            <div class="flex items-center gap-2">
-              <input
-                v-model.number="minStops"
-                type="number"
-                min="1"
-                max="8"
-                :disabled="store.busy"
-                class="w-16 rounded-lg border-slate-200 text-sm font-bold"
-              />
-              <span class="text-slate-400">to</span>
-              <input
-                v-model.number="maxStops"
-                type="number"
-                min="1"
-                max="8"
-                :disabled="store.busy"
-                class="w-16 rounded-lg border-slate-200 text-sm font-bold"
-              />
-            </div>
-          </label>
-          <label class="space-y-1">
-            <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest"
-              >Rough guess for the last stop</span
-            >
-            <input
-              v-model.number="lastHi"
-              type="number"
-              :min="store.currentTE + 2"
-              max="490"
-              :disabled="store.busy"
-              class="w-24 rounded-lg border-slate-200 text-sm font-bold"
-              @input="lastHiTouched = true"
-            />
-          </label>
-          <!-- How thorough, as one slider (the user, 30 Sept): how many sets of early stops the first
-             look tries; the grid it uses follows, and so do the routes and the time below. -->
-          <label class="space-y-1">
-            <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest">How thorough</span>
-            <span class="flex items-center gap-2">
-              <input
-                v-model.number="thoroughIx"
-                type="range"
-                min="0"
-                :max="THOROUGH.length - 1"
-                step="1"
-                :disabled="store.busy"
-                class="w-36 accent-slate-800"
-                aria-label="How thorough the first look is"
-              />
-              <span class="text-[11px] font-bold text-slate-700"
-                >{{ THOROUGH[thoroughIx].label }} · first look every {{ usedStep }} TE</span
-              >
-            </span>
-          </label>
-        </div>
-        <div class="text-[11px] text-slate-600 leading-relaxed space-y-1.5">
-          <p>
-            <span class="font-bold text-slate-800">It looks wide, then zooms in.</span> The first look tries early stops
-            every {{ usedStep }} TE ({{ shapes.toLocaleString() }} sets, plus every TE for the first 5 above yours, and
-            the chain in your planner and your last best): rough, but across everything, so it can't miss a whole
-            region. Then it zooms in on the best few, moving one stop at a time by {{ resolutionsText }} TE and keeping
-            anything that helps, so the answer ends up placed to the exact TE, not on the grid. The last stop is always
-            found to the exact TE.
-          </p>
-          <p>
-            <span class="font-bold text-slate-800">Why not every TE from the start?</span> Good and bad stops sit a few
-            TE apart (each missed Research Sale is a jump), so you can't just walk downhill from one guess, and every TE
-            for every stop is tens of thousands of routes. A wide first look finds the right area; the zoom does the
-            fine work only there. It's the same idea as {{ fastestName(store.finalTE) }} › {{ NAMES.smartFirst }}.
-          </p>
-          <p>
-            <span class="font-bold text-slate-800">The other way, "I'll set the stops",</span> tries every route in
-            boxes you give, so its answer is proven for those boxes, but only as good as the boxes. This way covers far
-            more ground for the time, but isn't proven: a narrow winner between first-look points could be missed if the
-            zoom doesn't start near it.
-          </p>
-        </div>
-      </template>
-    </template>
-
-    <!-- The numbers that should decide whether you press the button. -->
-    <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-        <div>
-          <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Sets of early stops</div>
-          <div class="text-lg font-black text-slate-900 tabular-nums">{{ plannedShapes.toLocaleString() }}</div>
-        </div>
-        <div>
-          <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Legs to simulate</div>
-          <div class="text-lg font-black text-slate-900 tabular-nums">
-            ~{{ roundedRoutes(plannedLegs).toLocaleString() }}
+            <!-- How thorough, as one slider (the user, 30 Sept): how many sets of early stops the first
+               look tries; the grid it uses follows, and so do the routes and the time below. -->
+            <label class="space-y-1">
+              <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest">How thorough</span>
+              <span class="flex items-center gap-2">
+                <input
+                  v-model.number="thoroughIx"
+                  type="range"
+                  min="0"
+                  :max="THOROUGH.length - 1"
+                  step="1"
+                  :disabled="store.busy"
+                  class="w-36 accent-slate-800"
+                  aria-label="How thorough the first look is"
+                />
+                <span class="text-[11px] font-bold text-slate-700"
+                  >{{ THOROUGH[thoroughIx].label }} · first look every {{ usedStep }} TE</span
+                >
+              </span>
+            </label>
           </div>
-          <div class="text-[9px] text-slate-400">~{{ plural(roundedRoutes(plannedRoutes), 'route') }}</div>
-        </div>
-        <div>
-          <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-            {{ store.deadlineRunning ? 'Time left' : 'Est. wall clock' }}
+          <div class="text-[11px] text-slate-600 leading-relaxed space-y-1.5">
+            <p>
+              <span class="font-bold text-slate-800">It looks wide, then zooms in.</span> The first look tries early stops
+              every {{ usedStep }} TE ({{ shapes.toLocaleString() }} sets, plus every TE for the first 5 above yours, and
+              the chain in your planner and your last best): rough, but across everything, so it can't miss a whole
+              region. Then it zooms in on the best few, moving one stop at a time by {{ resolutionsText }} TE and keeping
+              anything that helps, so the answer ends up placed to the exact TE, not on the grid. The last stop is always
+              found to the exact TE.
+            </p>
+            <p>
+              <span class="font-bold text-slate-800">Why not every TE from the start?</span> Good and bad stops sit a few
+              TE apart (each missed Research Sale is a jump), so you can't just walk downhill from one guess, and every TE
+              for every stop is tens of thousands of routes. A wide first look finds the right area; the zoom does the
+              fine work only there. It's the same idea as {{ fastestName(store.finalTE) }} › {{ NAMES.smartFirst }}.
+            </p>
+            <p>
+              <span class="font-bold text-slate-800">The other way, "I'll set the stops",</span> tries every route in
+              boxes you give, so its answer is proven for those boxes, but only as good as the boxes. This way covers far
+              more ground for the time, but isn't proven: a narrow winner between first-look points could be missed if the
+              zoom doesn't start near it.
+            </p>
           </div>
-          <div class="text-lg font-black text-slate-900 tabular-nums" data-test="estimate">{{ estimateLabel }}</div>
-          <div v-if="store.deadlineRunning && timeLeft?.measuring" class="text-[9px] text-slate-400">measuring…</div>
-          <div v-else-if="store.deadlineRunning && firstGuessLabel" class="text-[9px] text-slate-400">
-            first guess {{ firstGuessLabel }}
-          </div>
-          <div v-else-if="backgroundLabel" class="text-[9px] text-slate-400" data-test="background-estimate">
-            {{ backgroundLabel }}
-          </div>
-        </div>
-        <div>
-          <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Assumed cost</div>
-          <div class="text-lg font-black text-slate-900 tabular-nums">{{ costLabel }}</div>
-          <div class="text-[9px] text-slate-400">a leg</div>
-        </div>
-      </div>
-      <p class="pt-2 text-[10px] text-slate-500 leading-relaxed">
-        Counted in legs (one ascension each), not routes: a set's first route simulates its early legs, shared with the
-        sets that start the same way, and every later try at its last stop only the last leg. About
-        {{ plan.sets ? (plan.routes / plan.sets).toFixed(1) : 4 }} routes per set<template
-          v-if="mode === 'space' && rememberedPerSet"
-        >
-          (what this machine's last run over a space this shape needed)</template
-        >: the last stop is narrowed down, not tried at every TE. During a run the time left is the legs left at the
-        rate of the last 12 minutes. The estimate uses
-        <template v-if="store.deadlineWorkerSeconds">this machine's speed from its last deadline search</template
-        ><template v-else
-          >the typical speed for chains this long in players' runs, until this machine has done a deadline search of its
-          own</template
-        >, on {{ store.workerBudget }} workers.
-      </p>
-      <p v-if="store.longRunNote" class="text-[10px] font-semibold text-amber-800" data-testid="long-run-workers">
-        <template v-if="store.longRunNote.kind === 'default'">{{ longRunLine(store.longRunNote.workers) }}</template>
-        <template v-else>
-          {{ longRunHandLine(LONG_RUN_WORKERS, store.longRunNote.have) }}
-          <button
-            type="button"
-            class="ml-1 underline"
-            data-testid="use-long-run-workers"
-            @click="store.useLongRunWorkers()"
-          >
-            Use {{ LONG_RUN_WORKERS }}
-          </button>
         </template>
-      </p>
-    </div>
+      </template>
+      <button
+        v-if="simple && !store.deadlineRunning"
+        type="button"
+        class="px-3 py-1.5 rounded-lg bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-800"
+        data-testid="focus-exhaustive"
+        @click="pickFocus('advanced')"
+      >
+        Find with these boxes here
+      </button>
+      <div id="bd-exh-controls" />
+      <div id="bd-exh-results" />
+    </section>
 
-    <label v-if="store.scheduleEnabled" class="flex items-start gap-3 cursor-pointer">
-      <input v-model="ascendNeeded" type="checkbox" :disabled="store.busy" class="mt-0.5 rounded border-slate-300" />
-      <span class="text-[11px] text-slate-600 leading-relaxed">
-        <span class="font-bold text-slate-800">I need to ascend at the last stop before the deadline.</span> Counts the
-        wait until your awake hours after reaching it, so you reach the last stop in time to act on it.
-      </span>
-    </label>
+
+
+
 
     <!-- Keep awake is in Your setup at the top, with the other computer settings. -->
     <!-- The run controls (RunControls.vue): the same block as Fastest route's, with this screen's own
          consent wording. The same share settings as the Share this result box under the result. -->
+    <!-- One set of run controls, in the box of the search in hand (Teleport): two would mean two Stepping
+         away? boxes for one kind of run, which could both carry the same run on. -->
+    <Teleport defer :to="controlsTo">
     <RunControls
       ref="stepAway"
       v-model:opt-in="shareOptIn"
@@ -463,9 +445,82 @@
       @countdown="n => (autoCountdown = n)"
       @retry="retryTable"
     >
-      <!-- Why Find is greyed out, right above it (it used to sit under Stepping away?, a screen away on a phone). -->
-      <template v-if="startIssue" #above-find>
-        <p class="text-[11px] font-semibold text-rose-700" data-testid="by-date-start-issue">{{ startIssue }}</p>
+      <!-- What the search in hand will cost, then why Find is greyed out, right above it. -->
+      <template #above-find>
+        <!-- The numbers that should decide whether you press the button. -->
+        <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+            <div>
+              <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Sets of early stops</div>
+              <div class="text-lg font-black text-slate-900 tabular-nums">{{ plannedShapes.toLocaleString() }}</div>
+            </div>
+            <div>
+              <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Legs to simulate</div>
+              <div class="text-lg font-black text-slate-900 tabular-nums">
+                ~{{ roundedRoutes(plannedLegs).toLocaleString() }}
+              </div>
+              <div class="text-[9px] text-slate-400">~{{ plural(roundedRoutes(plannedRoutes), 'route') }}</div>
+            </div>
+            <div>
+              <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                {{ store.deadlineRunning ? 'Time left' : 'Est. wall clock' }}
+              </div>
+              <div class="text-lg font-black text-slate-900 tabular-nums" data-test="estimate">{{ estimateLabel }}</div>
+              <div v-if="store.deadlineRunning && timeLeft?.measuring" class="text-[9px] text-slate-400">measuring…</div>
+              <div v-else-if="store.deadlineRunning && firstGuessLabel" class="text-[9px] text-slate-400">
+                first guess {{ firstGuessLabel }}
+              </div>
+              <div v-else-if="backgroundLabel" class="text-[9px] text-slate-400" data-test="background-estimate">
+                {{ backgroundLabel }}
+              </div>
+            </div>
+            <div>
+              <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Assumed cost</div>
+              <div class="text-lg font-black text-slate-900 tabular-nums">{{ costLabel }}</div>
+              <div class="text-[9px] text-slate-400">a leg</div>
+            </div>
+          </div>
+          <p class="pt-2 text-[10px] text-slate-500 leading-relaxed">
+            Counted in legs (one ascension each), not routes: a set's first route simulates its early legs, shared with the
+            sets that start the same way, and every later try at its last stop only the last leg. About
+            {{ plan.sets ? (plan.routes / plan.sets).toFixed(1) : 4 }} routes per set<template
+              v-if="mode === 'space' && rememberedPerSet"
+            >
+              (what this machine's last run over a space this shape needed)</template
+            >: the last stop is narrowed down, not tried at every TE. During a run the time left is the legs left at the
+            rate of the last 12 minutes. The estimate uses
+            <template v-if="store.deadlineWorkerSeconds">this machine's speed from its last deadline search</template
+            ><template v-else
+              >the typical speed for chains this long in players' runs, until this machine has done a deadline search of its
+              own</template
+            >, on {{ store.workerBudget }} workers.
+          </p>
+          <p v-if="store.longRunNote" class="text-[10px] font-semibold text-amber-800" data-testid="long-run-workers">
+            <template v-if="store.longRunNote.kind === 'default'">{{ longRunLine(store.longRunNote.workers) }}</template>
+            <template v-else>
+              {{ longRunHandLine(LONG_RUN_WORKERS, store.longRunNote.have) }}
+              <button
+                type="button"
+                class="ml-1 underline"
+                data-testid="use-long-run-workers"
+                @click="store.useLongRunWorkers()"
+              >
+                Use {{ LONG_RUN_WORKERS }}
+              </button>
+            </template>
+          </p>
+        </div>
+
+        <label v-if="store.scheduleEnabled" class="flex items-start gap-3 cursor-pointer">
+          <input v-model="ascendNeeded" type="checkbox" :disabled="store.busy" class="mt-0.5 rounded border-slate-300" />
+          <span class="text-[11px] text-slate-600 leading-relaxed">
+            <span class="font-bold text-slate-800">I need to ascend at the last stop before the deadline.</span> Counts the
+            wait until your awake hours after reaching it, so you reach the last stop in time to act on it.
+          </span>
+        </label>
+        <p v-if="startIssue" class="text-[11px] font-semibold text-rose-700" data-testid="by-date-start-issue">
+          {{ startIssue }}
+        </p>
       </template>
       <template #progress>
         <!-- Live progress, Insane-style. -->
@@ -553,8 +608,10 @@
         <RunErrorNotes :error="store.errorIsIntegrityNotice ? null : store.error" :labelled="false" />
       </template>
     </RunControls>
+    </Teleport>
 
     <!-- The results (RunResults.vue): the same order on every search screen. -->
+    <Teleport defer :to="resultsTo">
     <RunResults v-if="result">
       <template #card>
         <ByDateRouteCard
@@ -730,6 +787,7 @@
         </ShareResult>
       </template>
     </RunResults>
+    </Teleport>
   </div>
 </template>
 
@@ -826,12 +884,14 @@ import RunResults from './RunResults.vue';
 import { durationLabel, useRunClock } from '@/composables/useRunClock';
 import { useRunDownloads } from '@/composables/useRunDownloads';
 import { useDateRowSliders } from '@/composables/useRowSliders';
-import { NAMES, fastestName } from '@/lib/siteNav';
+import { EXHAUSTIVE_TITLE, NAMES, fastestName } from '@/lib/siteNav';
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { LONG_RUN_WORKERS, useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useInitialStateStore } from '@/stores/initialState';
 import { useIntegrityProbe } from '@/composables/useIntegrityProbe';
+import { useStrongerStore } from '@/stores/stronger';
+import StrongerBox from './StrongerBox.vue';
 import { getLocalTimestampInTimezone } from '@/lib/events';
 import { formatInZone } from '@/search/csv';
 import {
@@ -970,7 +1030,21 @@ const lastRange = computed<[number, number] | null>(() => rangeOf(lastBox.value)
  * early stop its TE either side at step 1, sized to take about 10-30 minutes on a typical 8-core
  * machine. Without an instant answer, the routes Suggest a space would centre on, for 1-5 ascensions.
  */
-const simple = computed(() => !!props.hideRoutes);
+/**
+ * The search in hand (since 12 Oct 2026 both are on the page): the routes around the instant answer
+ * (the Stronger check box at Search around) or the chains below (Exhaustive). A run going is its own;
+ * otherwise the screen's choice (ui.byDateMode, through `hideRoutes`), and Exhaustive when the
+ * Stronger check is at Light (no search around the answer then).
+ */
+const stronger = useStrongerStore();
+const simple = computed(() =>
+  store.deadlineRunning ? !!store.deadlineRunSimple : !!props.hideRoutes && stronger.level !== 'light'
+);
+/** Where the one set of run controls and the results go (Teleport targets in the two boxes). */
+const controlsTo = computed(() => (simple.value ? '#bd-around-controls' : '#bd-exh-controls'));
+const resultsTo = computed(() =>
+  result.value?.simple && stronger.level !== 'light' ? '#bd-around-results' : '#bd-exh-results'
+);
 /** The instant answer's "At most N ascensions", null for any. */
 const instantMax = ref<number | null>(null);
 /** What a typical 8-core machine costs, for sizing Simple's boxes the same on every computer. */
@@ -1139,6 +1213,11 @@ function openInAdvanced(): void {
   mode.value = 'space';
   writeSearchMode('by-date', 'advanced');
   setMode('advanced');
+}
+/** The player's own pick of the search in hand: remembered for the next visit (lib/searchMode.ts). */
+function pickFocus(m: SearchMode): void {
+  writeSearchMode('by-date', m);
+  setMode(m);
 }
 /** Show Simple or Advanced (ByDateScreen.vue reads it). Not remembered as the player's choice. */
 function setMode(m: SearchMode): void {

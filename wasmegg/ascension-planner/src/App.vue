@@ -869,9 +869,14 @@ function screenName(s: SearchScreen | 'classic'): string {
   return `${fastestName(chainSearchStore.finalTE)} (${s === 'full' ? NAMES.full : NAMES.smart})`;
 }
 /** The running search's name when this Auto Planner screen isn't where it runs, else ''. */
+/** Fastest's two searches are on one page since 12 Oct 2026 (FastestRoute.vue): one screen here. */
+function sameScreen(a: SearchScreen | 'classic' | null, b: SearchScreen | 'classic' | null): boolean {
+  const fastest = (x: typeof a) => x === 'smart' || x === 'full';
+  return a === b || (fastest(a) && fastest(b));
+}
 const blockedBy = computed(() => {
   const a = activeScreen.value;
-  if (plannerTab.value !== 'automatic' || !a || a === screenHere.value) return '';
+  if (plannerTab.value !== 'automatic' || !a || sameScreen(a, screenHere.value)) return '';
   return chainSearchStore.runProgress?.kind === 'start-times' ? 'When should I start?' : screenName(a);
 });
 const hereLabel = computed(() => screenName(screenHere.value));
@@ -879,7 +884,7 @@ const hereLabel = computed(() => screenName(screenHere.value));
 /** Whenever any search is running, the run's own screen included (the panel there shows the detail;
  *  the bar's button then scrolls to it). */
 const showRunBar = computed(() => !!runScreen.value);
-const runIsHere = computed(() => !!runScreen.value && searchScreenOf(currentRoute()) === runScreen.value);
+const runIsHere = computed(() => !!runScreen.value && sameScreen(searchScreenOf(currentRoute()), runScreen.value));
 /**
  * The bar's Jump to it / Show it: one click goes to the run's screen if it is not the one shown, then
  * waits for that screen's panels to mount and scrolls to the run's own progress block, found by its

@@ -1,5 +1,5 @@
 <template>
-  <div class="section-premium p-4 sm:p-8 max-w-4xl mx-auto mt-6 relative overflow-hidden">
+  <div :class="embedded ? 'relative overflow-hidden' : 'section-premium p-4 sm:p-8 max-w-4xl mx-auto mt-6 relative overflow-hidden'">
     <div class="absolute -right-20 -top-20 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl"></div>
 
     <div class="relative z-10 space-y-8">
@@ -315,7 +315,7 @@
       </div>
 
       <!-- An unfinished run that can't carry on, and why (usually a backup that loaded stale once). -->
-      <BlockedRunNotice v-if="store.blockedCheckpoint && !store.resumable && !store.isRunning" />
+      <BlockedRunNotice v-if="!embedded && store.blockedCheckpoint && !store.resumable && !store.isRunning" />
 
       <UnfinishedRuns :player-id="playerId" kind="staged" @resume="run(true)" />
 
@@ -458,7 +458,7 @@
           store.singleAscensionAsked ||
           (!store.findSeedFirst && store.seedChain.length < 2)
         "
-        :running="store.isRunning"
+        :running="store.isRunning && ownRun"
         :stopping="store.stopRequested"
         :show-submit="!!store.submitUrl"
         :can-carry-on="
@@ -1088,15 +1088,16 @@
               {{ runOutcome.detail }}
             </div>
 
-            <RunCharts />
+            <RunCharts v-if="ownRun" />
           </div>
         </div>
         <template #keep>
-          <!-- Saved runs: the same list as the Full sweep's (SavedRuns.vue). -->
-          <SavedRuns :player-id="playerId" />
+          <!-- Saved runs: the same list as the Full sweep's (SavedRuns.vue); on Fastest's one page the
+               Exhaustive box below has it. -->
+          <SavedRuns v-if="!embedded" :player-id="playerId" />
 
           <!-- Every chain the run priced, one row per leg. Safe to take mid-run. -->
-          <CsvCard v-if="store.csvRows || store.resumable" class="p-4 rounded-xl border border-slate-200 bg-white">
+          <CsvCard v-if="ownRun && (store.csvRows || store.resumable)" class="p-4 rounded-xl border border-slate-200 bg-white">
             <template #csv>
               <p class="text-[11px] text-slate-500 leading-relaxed flex-1 min-w-[16rem]">
                 {{ chainCount(store.csvRows || store.resumable?.durations.length || 0) }}, one row per leg: strategy,
@@ -1274,6 +1275,8 @@ const props = defineProps<{
   /** The level (effort) is picked above, in the chooser's level bar (SearchModeChooser.vue): the
    *  settings here leave it out. */
   levelElsewhere?: boolean;
+  /** Inside the Stronger check box (StrongerBox.vue): no frame of its own. */
+  embedded?: boolean;
 }>();
 /** The instant answer's route from "A longer route might win", to price exactly: the screen above moves to the Full sweep. */
 const emit = defineEmits<{ checkExactly: [chain: number[]] }>();

@@ -557,8 +557,11 @@
         </p>
       </template>
 
+      <!-- In the Stronger check box under the answer when the screen has one (`strongerTo`, StrongerBox.vue). -->
+      <Teleport defer :to="strongerTo || 'body'" :disabled="!strongerTo">
       <StrongerCheck
         v-if="result"
+        :embedded="!!strongerTo"
         :deadline="deadline"
         :found="result"
         :exact-status="exactStatus"
@@ -571,6 +574,7 @@
         :run-busy="runBusy"
         :zone="zone"
       />
+      </Teleport>
       <p v-if="result && exactStatus === 'error'" class="text-[11px] text-amber-800">{{ exactText }}</p>
       <p v-if="result && exactStatus === 'waiting'" class="text-[11px] text-slate-500">
         The exact check on your account waits while a search is running.
@@ -772,6 +776,7 @@ import InstantRunWarning from './InstantRunWarning.vue';
 import InstantShareCheck from './InstantShareCheck.vue';
 import PrestigeByLine from './PrestigeByLine.vue';
 import RouteExtras from './RouteExtras.vue';
+import { useStrongerStore } from '@/stores/stronger';
 import { usePrestigeBy, recordsPrestigeBy } from '@/composables/usePrestigeBy';
 import {
   candidatesOf,
@@ -834,6 +839,9 @@ import {
 const props = defineProps<{
   /** Highest TE by a date: the unix second. Without it, the fastest route to the target. */
   deadline?: number;
+  /** The Stronger check box's results element (a selector, StrongerBox.vue): the stronger check goes
+   *  there, always on, instead of a toggle under this answer. */
+  strongerTo?: string;
 }>();
 const emit = defineEmits<{
   check: [chain: number[]];
@@ -2158,6 +2166,28 @@ watch(
   },
   { immediate: true }
 );
+// The lead route for the comparison block (SearchCompare.vue, stores/stronger.ts).
+const strongerStore = useStrongerStore();
+watch(
+  () => {
+    if (!result.value || status.value === 'loading') return null;
+    if (props.deadline) {
+      if (!result.value.byDate) return null;
+      const d = dateExact.value ?? tableDate(result.value.byDate);
+      return { chain: [...d.chain], end: d.end, endTE: d.endTE, spare: props.deadline - d.end, exact: !!dateExact.value };
+    }
+    const r = lead.value;
+    if (!r) return null;
+    const e = exactOf(r);
+    return { chain: [...r.chain], end: e ? e.end : r.end, endTE: store.finalTE, exact: !!e };
+  },
+  v => {
+    strongerStore.instant[props.deadline ? 'date' : 'fastest'] = v;
+  },
+  { immediate: true }
+);
+onUnmounted(() => (strongerStore.instant[props.deadline ? 'date' : 'fastest'] = null));
+
 // Every route listed, the lead first, for "When should I start?" (StartTimeCard.vue).
 watch(
   () => {
