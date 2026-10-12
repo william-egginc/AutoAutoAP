@@ -15,6 +15,7 @@
  * short for 2-ascension sweeps (an 8-core desktop's M1: estimated 2 min, took 7).
  */
 import { countBanded, parseBands } from '@/search/exhaustive';
+import { defaultWorkerCount } from '@/search/batch';
 import { sweepSeconds, workerSecondsPerChain } from '@/search/speed';
 import { byDatePlan, fallbackWorkerSecondsPerLeg } from '@/search/deadlineEstimate';
 import { countBandShapes as countStopShapes } from '@/search/deadline';
@@ -28,15 +29,24 @@ export interface ComputeTier {
   id: string;
   label: string;
   detail: string;
-  /** Workers the planner runs on this machine: one per core, less one for the page. */
+  /** Workers the planner runs on this machine by default: half its cores (search/batch.ts
+   *  `defaultWorkerCount`, since 11 Oct 2026; it was every core but one). */
   workers: number;
 }
 
+/** For the standalone Explorer page, which has no Setup to read. Inside the planner, Science shows the
+ *  time on the worker count Setup shows (`yourComputer`; the user, decision C, 12 Oct 2026). */
 export const COMPUTE_TIERS: ComputeTier[] = [
-  { id: 'laptop', label: 'Laptop', detail: '4 cores', workers: 3 },
-  { id: 'desktop', label: 'Desktop', detail: '8 cores', workers: 7 },
-  { id: 'workstation', label: 'Workstation', detail: '16-20 cores', workers: 17 },
+  { id: 'laptop', label: 'Laptop', detail: '4 cores', workers: defaultWorkerCount(4) },
+  { id: 'desktop', label: 'Desktop', detail: '8 cores', workers: defaultWorkerCount(8) },
+  { id: 'workstation', label: 'Workstation', detail: '16-20 cores', workers: defaultWorkerCount(18) },
 ];
+
+/** This computer as Setup has it: the worker count Setup shows (remembered, or half the cores). */
+export function yourComputer(workers: number, threads: number): ComputeTier {
+  const w = Math.max(1, Math.floor(workers));
+  return { id: 'yours', label: 'This computer', detail: `${w} of ${threads} workers`, workers: w };
+}
 
 /** Seconds a sweep of `chains` at this length takes on this tier, from the board's own speeds. */
 export function estimateSeconds(

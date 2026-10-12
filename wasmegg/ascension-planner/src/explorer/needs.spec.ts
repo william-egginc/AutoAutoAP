@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { CollectorRow } from './collector';
 import {
   COMPUTE_TIERS,
+  yourComputer,
   dataNeeds,
   estimateSeconds,
   formatEstimate,
@@ -219,14 +220,15 @@ describe('dataNeeds', () => {
     expect(byDateSets(by['bydate-5'], 180)[0].sets).toBe(7 ** 4);
     expect(byDateSets(by['bydate-6'], 180)[0].sets).toBe(5 ** 5);
     const hours = (id: string) => byDateSeconds(by[id], 180, desktop.workers) / 3600;
-    // Hours on a desktop at TE 180, counted in legs as the panel counts them (8 Oct 2026: 1-4 4.1 h,
-    // 5 2.6 h, 6 3.8 h; by routes they read 8.4, 6.8 and 9.6, 2-3x long).
-    expect(hours('bydate-1-4')).toBeGreaterThan(3.6);
-    expect(hours('bydate-1-4')).toBeLessThan(4.6);
-    expect(hours('bydate-5')).toBeGreaterThan(2.2);
-    expect(hours('bydate-5')).toBeLessThan(3);
-    expect(hours('bydate-6')).toBeGreaterThan(3.3);
-    expect(hours('bydate-6')).toBeLessThan(4.2);
+    // Hours on a desktop at TE 180, counted in legs as the panel counts them. On the default of half the
+    // cores (4 workers on 8 cores, since 11 Oct 2026): 1-4 about 7.1 h, 5 about 4.5 h, 6 about 6.6 h,
+    // still a morning-to-night run (on 7 workers they were 4.1, 2.6 and 3.8).
+    expect(hours('bydate-1-4')).toBeGreaterThan(6.3);
+    expect(hours('bydate-1-4')).toBeLessThan(8.1);
+    expect(hours('bydate-5')).toBeGreaterThan(3.85);
+    expect(hours('bydate-5')).toBeLessThan(5.25);
+    expect(hours('bydate-6')).toBeGreaterThan(5.8);
+    expect(hours('bydate-6')).toBeLessThan(7.35);
     expect(byDateWiderText(by['bydate-6'], 180, desktop.workers)).toMatch(/^±3 would take about \d+(\.\d)? (hours|days)\.$/);
   });
 
@@ -299,9 +301,10 @@ describe('estimates', () => {
   // Measured, and the case that showed the old flat figure was wrong: an 8-core desktop's M1 sweep
   // (307 chains, 2 ascensions) took 7 minutes where the estimate said 2. The 7 Oct 2026 fallback (6 s
   // for 2 ascensions) is what the board measured on today's planner: 1.2-1.8x lower, so about 4.4 min.
-  it("puts an 8-core desktop's M1 at the fallback's 4.4 minutes", () => {
-    expect(estimateSeconds(307, 2, COMPUTE_TIERS[1]) / 60).toBeGreaterThan(4);
-    expect(estimateSeconds(307, 2, COMPUTE_TIERS[1]) / 60).toBeLessThan(5);
+  // 4.4 minutes on 7 workers; on the default 4 (half of 8 cores) about 7.7.
+  it("puts an 8-core desktop's M1 at the fallback's 7.7 minutes on the default 4 workers", () => {
+    expect(estimateSeconds(307, 2, COMPUTE_TIERS[1]) / 60).toBeGreaterThan(7);
+    expect(estimateSeconds(307, 2, COMPUTE_TIERS[1]) / 60).toBeLessThan(8.5);
   });
 
   it('charges longer chains more per chain', () => {
@@ -393,5 +396,17 @@ describe('Science sweeps across TEs', () => {
     expect(SCIENCE_SWEEP_NOTE).toBe(
       "This sweep fills a gap in the shared data for science. It isn't tuned to find your best route; use Simple (Smart search) on Fastest to 490 TE, or the instant answer, for that."
     );
+  });
+});
+
+describe("Science's times on Setup's worker count (decision C, 12 Oct 2026)", () => {
+  it('the machine sizes use the default of half the cores', () => {
+    expect(COMPUTE_TIERS.map(t => t.workers)).toEqual([2, 4, 9]);
+  });
+  it('inside the planner: this computer on the count Setup shows', () => {
+    const t = yourComputer(12, 20);
+    expect(t).toMatchObject({ label: 'This computer', detail: '12 of 20 workers', workers: 12 });
+    // Twice the workers, half the time.
+    expect(estimateSeconds(2000, 3, yourComputer(4, 8)) / estimateSeconds(2000, 3, yourComputer(8, 8))).toBeCloseTo(2, 5);
   });
 });

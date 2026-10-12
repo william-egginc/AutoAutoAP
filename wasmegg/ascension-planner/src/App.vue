@@ -526,7 +526,7 @@
             >.
           </p>
         </div>
-        <ChainExplorer v-if="scienceView !== 'how'" part="science" embedded :science-view="scienceView" :te-now="saveTE" :final-te="chainSearchStore.finalTE" :inventory="saveArtifacts" :gear-coverage="gearCoverage" @run-sweep="openSweep" @run-by-date="openByDate" />
+        <ChainExplorer v-if="scienceView !== 'how'" part="science" embedded :science-view="scienceView" :te-now="saveTE" :final-te="chainSearchStore.finalTE" :inventory="saveArtifacts" :gear-coverage="gearCoverage" :workers="chainSearchStore.workerBudget" :threads="chainSearchStore.machineThreads" @run-sweep="openSweep" @run-by-date="openByDate" />
       </div>
 
       <!-- Your setup, floating, on every Auto Planner screen: the gear opens it; workers adjust folded. -->

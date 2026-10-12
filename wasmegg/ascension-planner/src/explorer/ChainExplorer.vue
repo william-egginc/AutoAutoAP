@@ -1176,6 +1176,8 @@
           :final-te="finalTe"
           :inventory="inventory"
           :gear-coverage="gearCoverage"
+          :workers="workers"
+          :threads="threads"
           :run-in-place="embedded"
           @run="r => emit('run-sweep', r)"
           @run-by-date="r => emit('run-by-date', r)"
@@ -1331,6 +1333,9 @@ const props = withDefaults(
     inventory?: InventoryCount[];
     /** Whether that save's gear has an instant answer of its own (useGearCoverage); null if unknown. */
     gearCoverage?: GearCoverage | null;
+    /** Setup's worker count and this computer's threads, for the asks' times (planner only). */
+    workers?: number;
+    threads?: number;
   }>(),
   { part: 'insights', embedded: false, scienceView: 'check', teNow: 0 }
 );

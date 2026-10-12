@@ -22,7 +22,9 @@
       </label>
       <p class="text-[10px] text-slate-400 max-w-md">
         The ranges below are fitted to this: your 1st ascension's range starts just above your TE. Times are estimates
-        from the speeds other players' runs recorded; the planner's Re-benchmark button measures your own machine.
+        from the speeds other players' runs recorded<template v-if="workers && threads"
+          >, on the {{ workers }} workers Setup gives searches on this computer</template
+        >; the planner's Re-benchmark button measures your own machine.
       </p>
     </div>
 
@@ -212,6 +214,7 @@ import { computed, ref, watch } from 'vue';
 import type { CollectorRow } from './collector';
 import {
   COMPUTE_TIERS,
+  yourComputer,
   NO_FIT_TEXT,
   SCIENCE_SWEEP_NOTE,
   dataNeeds,
@@ -269,6 +272,11 @@ const props = defineProps<{
   /** Whether that save's gear has an instant answer of its own (useGearCoverage), for the "Any other
    *  gear" card; null or unset when unknown (and always on the standalone page, which has no save). */
   gearCoverage?: GearCoverage | null;
+  /** Inside the planner: the worker count Setup shows and this computer's threads. The times are then
+   *  for this computer only, on that count (decision C, 12 Oct 2026); the standalone page shows the
+   *  three machine sizes. */
+  workers?: number;
+  threads?: number;
   /** Run a sweep here (emit `run`) rather than link to the planner: true inside the planner. */
   runInPlace?: boolean;
 }>();
@@ -417,6 +425,12 @@ function ownership(need: DataNeed): { owned: boolean; ownedLabel: string; covera
   return { owned: false, ownedLabel: '', coverageText: '' };
 }
 
+/** The machines the times are for: this computer on Setup's worker count inside the planner, else the
+ *  three sizes. */
+const tiers = computed(() =>
+  props.workers && props.threads ? [yourComputer(props.workers, props.threads)] : COMPUTE_TIERS
+);
+
 const rowsWithCost = computed(() =>
   needs.value.map(need => {
     const te = Number.isFinite(teNow.value) && teNow.value > 0 ? teNow.value : 180;
@@ -437,7 +451,7 @@ const rowsWithCost = computed(() =>
         links: byDateLinks(request),
         minGap: 0,
         chains: 0,
-        times: COMPUTE_TIERS.map(t => ({
+        times: tiers.value.map(t => ({
           id: t.id,
           label: t.label,
           detail: t.detail,
@@ -457,7 +471,7 @@ const rowsWithCost = computed(() =>
       links: sweepLinks(need.id, need.preset, preset.label, bands, preset.minGap),
       minGap: preset.minGap,
       chains,
-      times: COMPUTE_TIERS.map(t => ({
+      times: tiers.value.map(t => ({
         id: t.id,
         label: t.label,
         detail: t.detail,
