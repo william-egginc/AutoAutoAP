@@ -24,9 +24,9 @@
   >
     <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
       <p class="flex-[1_1_18rem] min-w-0 text-[12px] font-bold leading-snug break-words">
-        {{ kindLabel }} · {{ p.done.toLocaleString()
-        }}<template v-if="p.total"> of {{ approx }}{{ p.total.toLocaleString() }}</template> {{ p.unit
-        }}<template v-if="p.chain"> · chain {{ p.chain.at }} of {{ p.chain.of }}</template
+        {{ kindLabel }} · <template v-if="p.chain">{{ queueCountLine({ chain: p.chain, done: p.done, total: p.total, queueTotal: p.queueTotal ?? null }) }}</template
+        ><template v-else>{{ p.done.toLocaleString()
+        }}<template v-if="p.total"> of {{ approx }}{{ p.total.toLocaleString() }}</template> {{ p.unit }}</template
         ><template v-if="leftLabel"> · about {{ leftLabel }} left<template v-if="p.measuring"> (measuring…)</template></template
         ><template v-else-if="p.measuring"> · measuring time left…</template
         ><template v-if="p.best">
@@ -113,6 +113,7 @@ import { NAMES, fastestName } from '@/lib/siteNav';
 import { showDateTime } from '@/lib/displayTime';
 import { formatTimeLeft } from '@/search/sweepEstimate';
 import SendingText from './SendingText.vue';
+import { queueCountLine } from '@/lib/queueCount';
 
 const props = defineProps<{ /** The bar sits on the run's own screen. */ here?: boolean }>();
 const emit = defineEmits<{ show: [] }>();

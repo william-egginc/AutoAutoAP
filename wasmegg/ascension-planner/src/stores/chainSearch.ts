@@ -423,6 +423,8 @@ export interface RunProgress {
   stopping: boolean;
   /** A Full sweep queue's chain running ("chain 1 of 3"); absent for a single run. */
   chain?: { at: number; of: number } | null;
+  /** With `chain`: every chain of the queue (lib/queueCount.ts says both scopes). */
+  queueTotal?: number | null;
   /** The best so far: its route, the TE it reaches, and when (unix seconds). */
   best: { chain: number[]; te: number; at: number } | null;
 }
@@ -8106,6 +8108,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         // which carry each worker's start (its shared early legs) and read hours too long.
         measuring: full ? !!sweepLeft.value?.measuring : !secondsPerChain.value,
         chain: full ? (sweepLeft.value?.chain ?? null) : null,
+        queueTotal: full && sweepLeft.value?.chain ? (sweepLeft.value.chainsTotal ?? null) : null,
         startedAt: startedAt.value,
         stopping: stopRequested.value,
         best:

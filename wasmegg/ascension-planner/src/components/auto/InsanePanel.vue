@@ -1105,6 +1105,7 @@ import BoardSubmitButtons from './BoardSubmitButtons.vue';
 import SavedRuns from './SavedRuns.vue';
 import RouteResultCard from './RouteResultCard.vue';
 import RouteExtras from './RouteExtras.vue';
+import { queueCountLine } from '@/lib/queueCount';
 import ResultHealth from './ResultHealth.vue';
 import { parseSweepRequest, withoutSweepParams } from '@/search/sweepRequest';
 import { describeFirstAscension } from '@/search/firstAscension';
@@ -1579,7 +1580,8 @@ const chainCountLabel = computed(() => {
 const runChainsNote = computed(() => {
   const left = runLeft.value;
   if (!left) return '';
-  if (left.chain) return `chain ${left.chain.at} of ${left.chain.of}`;
+  if (left.chain)
+    return `all boxes · ${queueCountLine({ chain: left.chain, done: pricedSoFar.value, total: store.chainsEstimated, queueTotal: null })}`;
   return !sweepRequest && extraChains.value.length ? 'the chain running; the added chains are not part of it' : '';
 });
 
