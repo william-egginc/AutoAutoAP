@@ -72,7 +72,7 @@ describe('many workers on a long run (12 Oct 2026)', () => {
     const { MANY_WORKERS, MANY_WORKERS_TEXT } = await import('./batch');
     expect(MANY_WORKERS).toBe(16);
     expect(MANY_WORKERS_TEXT).toBe(
-      "More than 16 workers may run out of browser memory on long runs (each tab's workers share about 4 GB). It may work, or the tab may crash and carry on with fewer."
+      "More than 16 workers may run out of browser memory on long runs (each tab's workers share about 4 GB). It may work. If the tab crashes, the routes already priced are kept and you can carry on."
     );
     const fs = await import('node:fs');
     const path = await import('node:path');

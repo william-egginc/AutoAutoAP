@@ -133,4 +133,4 @@ export function targetWorkerCount(budget: number, background: number, hidden: bo
  */
 export const MANY_WORKERS = 16;
 export const MANY_WORKERS_TEXT =
-  "More than 16 workers may run out of browser memory on long runs (each tab's workers share about 4 GB). It may work, or the tab may crash and carry on with fewer.";
+  "More than 16 workers may run out of browser memory on long runs (each tab's workers share about 4 GB). It may work. If the tab crashes, the routes already priced are kept and you can carry on.";
