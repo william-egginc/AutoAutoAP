@@ -936,26 +936,7 @@
               >
                 {{ store.continueWarning }}
               </p>
-              <div
-                v-if="store.resultContradictions.length"
-                class="mt-2 rounded-lg border border-rose-300 bg-rose-50 p-3 space-y-1"
-              >
-                <p class="text-[10px] font-black text-rose-800 uppercase tracking-widest">
-                  This result contradicts itself
-                </p>
-                <p
-                  v-for="(issue, k) in store.resultContradictions"
-                  :key="k"
-                  class="text-[11px] text-rose-900/90 leading-relaxed"
-                >
-                  {{ issue.message }}
-                </p>
-                <p class="text-[11px] text-rose-900/80 leading-relaxed">
-                  Reload your backup and run it again before trusting these dates, and compare leg 1 against the
-                  official planner. If leg 1 agrees and a later leg doesn't, the fault is in the state carried between
-                  legs.
-                </p>
-              </div>
+              <ResultHealth class="mt-2" :issues="store.resultContradictions" />
               <p v-if="store.stoppedEarly" class="text-[11px] text-emerald-900/70 pt-1">
                 You stopped it early, so this is the best of what was priced, not the optimum of the space.
               </p>
@@ -1107,6 +1088,7 @@ import { NICKNAME_MAX, useFastestShare } from '@/composables/useFastestShare';
 import BoardSubmitButtons from './BoardSubmitButtons.vue';
 import SavedRuns from './SavedRuns.vue';
 import RouteResultCard from './RouteResultCard.vue';
+import ResultHealth from './ResultHealth.vue';
 import { parseSweepRequest, withoutSweepParams } from '@/search/sweepRequest';
 import { describeFirstAscension } from '@/search/firstAscension';
 import {
