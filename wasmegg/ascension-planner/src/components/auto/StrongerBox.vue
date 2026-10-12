@@ -43,9 +43,15 @@
         {{ l.label }}
       </button>
     </div>
-    <p class="text-[11px] text-slate-700 leading-relaxed" data-testid="level-note">
-      <span class="font-bold text-slate-900">{{ current.time }}</span> {{ current.words }}
-    </p>
+    <!-- The level picked, in three plain lines: what it does, how long, what it can and can't find. -->
+    <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[11px] leading-relaxed" data-testid="level-note">
+      <dt class="font-black text-slate-500 uppercase tracking-widest text-[9px] pt-0.5">What it does</dt>
+      <dd class="text-slate-800">{{ current.does }}</dd>
+      <dt class="font-black text-slate-500 uppercase tracking-widest text-[9px] pt-0.5">How long</dt>
+      <dd class="text-slate-800">{{ current.time }}</dd>
+      <dt class="font-black text-slate-500 uppercase tracking-widest text-[9px] pt-0.5">What it finds</dt>
+      <dd class="text-slate-800">{{ current.finds }}</dd>
+    </dl>
     <!-- By a date: each search level's cost on this computer, before anything starts. -->
     <ul v-if="estimates && Object.keys(estimates).length" class="text-[11px] space-y-0.5" data-testid="level-estimates">
       <li
@@ -56,8 +62,16 @@
         {{ l.label }}: {{ estimates![l.id] }}
       </li>
     </ul>
-    <details class="text-[11px] text-slate-600" data-testid="stronger-promise">
-      <summary class="cursor-pointer font-bold text-slate-700">What this does and does not promise</summary>
+    <!-- Open until closed (remembered in this browser), amber like the other promise boxes. -->
+    <details
+      :open="promiseOpen"
+      class="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-900"
+      data-testid="stronger-promise"
+      @toggle="onPromiseToggle"
+    >
+      <summary class="cursor-pointer font-black uppercase tracking-wide text-amber-800">
+        What this does and does not promise
+      </summary>
       <ul class="mt-1 pl-4 list-disc space-y-0.5 leading-relaxed">
         <li>
           Every route it shows is priced with the full simulator on your save, the same as Check exactly, so its
@@ -68,6 +82,7 @@
           missed. {{ NAMES.full }}, below, is proven only inside the boxes you set.
         </li>
         <li>Light needs Check exactly to have finished; it waits while a search is running.</li>
+        <li>A search you stop early keeps the best it found so far.</li>
       </ul>
     </details>
     <!-- The stronger check's own results (earlier routes, one TE lower, Best now). -->
@@ -88,7 +103,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { NAMES } from '@/lib/siteNav';
 import { EFFORT_NOTES } from '@/search/effort';
 import { useChainSearchStore } from '@/stores/chainSearch';
@@ -106,45 +121,98 @@ const props = defineProps<{
 const store = useChainSearchStore();
 const stronger = useStrongerStore();
 
-const LIGHT = {
-  id: 'light' as StrongerLevel,
-  label: 'Light',
-  time: 'Seconds to a few minutes.',
-  words: 'After Check exactly, prices your own earlier routes for this goal on this save, and by a date tries a TE lower when the top route misses it. No search.',
-};
-/** The same bar on both screens; what each search level does differs (By a date: box sizes). */
-const levels = computed(() => [
-  LIGHT,
-  {
-    id: 'quick' as StrongerLevel,
-    label: 'Fast',
-    time: props.goal === 'fastest' ? EFFORT_NOTES.quick.typicalTime : 'Under half an hour on a typical 8-core computer.',
-    words:
-      props.goal === 'fastest'
-        ? "Light, plus Nearby routes from the instant answer's route: moves each stop a few TE either way until nothing gets faster, and gives every other number of ascensions in your limits one quick try."
-        : "Light, plus Nearby routes: every route near the instant answer's route for each number of ascensions, each early stop up to 3 TE either side (fewer on long routes), the last stop found to the exact TE.",
-  },
-  {
-    id: 'normal' as StrongerLevel,
-    label: 'Exact',
-    time: props.goal === 'fastest' ? EFFORT_NOTES.normal.typicalTime : 'Up to about 2 hours on a typical 8-core computer.',
-    words:
-      props.goal === 'fastest'
-        ? 'Fast, plus moving neighbouring stops together, then one ascension more or fewer.'
-        : 'The same, with one more TE either side of each early stop.',
-  },
-  {
-    id: 'thorough' as StrongerLevel,
-    label: 'Very high',
-    time: props.goal === 'fastest' ? EFFORT_NOTES.thorough.typicalTime : 'Up to about 8 hours on a typical 8-core computer.',
-    words:
-      props.goal === 'fastest'
-        ? 'Exact, plus moving groups of three stops together.'
-        : 'The same, with two more TE either side of each early stop.',
-  },
-]);
+interface LevelText {
+  id: StrongerLevel;
+  label: string;
+  does: string;
+  time: string;
+  finds: string;
+}
+/** Each level in plain words, per screen: what it does, how long, what it can and can't find. */
+const levels = computed<LevelText[]>(() =>
+  props.goal === 'fastest'
+    ? [
+        {
+          id: 'light',
+          label: 'Light',
+          does: 'After Check exactly, prices the routes you have already found for this target (your searches here, saved runs, earlier checks, and board runs sent from this browser) on your save as it is now.',
+          time: 'Seconds to a few minutes, once Check exactly has finished.',
+          finds: 'One of your own routes, if it is now faster than the instant answer. It does not look for new routes.',
+        },
+        {
+          id: 'quick',
+          label: 'Fast',
+          does: `Light, then ${NAMES.smart}: from the instant answer's route it moves each stop a few TE either way until nothing gets faster, then gives every other number of ascensions in your limits one quick try.`,
+          time: `${EFFORT_NOTES.quick.typicalTime}`,
+          finds: "A faster route close to the instant answer's. It can miss one where several stops have to move together, or one far from it.",
+        },
+        {
+          id: 'normal',
+          label: 'Exact',
+          does: 'Fast, plus moving neighbouring stops together, then one ascension more or fewer.',
+          time: EFFORT_NOTES.normal.typicalTime,
+          finds: 'Also routes where two stops have to move together. Still a search near the instant answer, not of every route.',
+        },
+        {
+          id: 'thorough',
+          label: 'Very high',
+          does: 'Exact, plus moving groups of three stops together.',
+          time: EFFORT_NOTES.thorough.typicalTime,
+          finds: `The strongest search near the instant answer. Still not a proven best: for that, use ${NAMES.full} below with boxes you set.`,
+        },
+      ]
+    : [
+        {
+          id: 'light',
+          label: 'Light',
+          does: "After Check exactly, prices your own earlier routes for this date on your save, and when the instant answer's top route misses the date on your account, tries its route one TE lower (two if needed).",
+          time: 'Seconds to a few minutes, once Check exactly has finished.',
+          finds: 'One of your routes that does better, or a route one TE lower that really makes the date. It does not look for new routes.',
+        },
+        {
+          id: 'quick',
+          label: 'Fast',
+          does: `Light, then ${NAMES.smart}: for each number of ascensions the instant answer has, every route with each early stop up to 3 TE either side of its route (fewer on long routes), each last stop found to the exact TE.`,
+          time: 'Under half an hour on a typical 8-core computer; yours is below.',
+          finds: "The highest TE near the instant answer's routes. It can miss a route whose early stops are further away.",
+        },
+        {
+          id: 'normal',
+          label: 'Exact',
+          does: 'The same, with one more TE either side of each early stop.',
+          time: 'Up to about 2 hours on a typical 8-core computer; yours is below.',
+          finds: 'A wider net around the same routes.',
+        },
+        {
+          id: 'thorough',
+          label: 'Very high',
+          does: 'The same, with two more TE either side of each early stop.',
+          time: 'Up to about 8 hours on a typical 8-core computer; yours is below.',
+          finds: `The widest net near the instant answer. Still not a proven best: for that, use ${NAMES.full} below with boxes you set.`,
+        },
+      ]
+);
 const level = computed<StrongerLevel>(() => stronger.level);
-const current = computed(() => levels.value.find(l => l.id === level.value) ?? LIGHT);
+const current = computed(() => levels.value.find(l => l.id === level.value) ?? levels.value[0]);
+
+/** "What this does and does not promise": open unless the player closed it (this browser). */
+const PROMISE_KEY = 'aap-stronger-promise-closed';
+function readPromiseOpen(): boolean {
+  try {
+    return localStorage.getItem(PROMISE_KEY) !== '1';
+  } catch {
+    return true;
+  }
+}
+const promiseOpen = ref(readPromiseOpen());
+function onPromiseToggle(e: Event): void {
+  promiseOpen.value = (e.target as HTMLDetailsElement).open;
+  try {
+    localStorage.setItem(PROMISE_KEY, promiseOpen.value ? '0' : '1');
+  } catch {
+    /* this visit only */
+  }
+}
 
 function pick(id: StrongerLevel): void {
   stronger.level = id;

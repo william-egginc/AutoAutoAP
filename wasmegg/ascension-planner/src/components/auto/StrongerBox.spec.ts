@@ -16,7 +16,8 @@ describe('StrongerBox', () => {
     const t = textOf(html);
     expect(t).toMatch(/^Stronger check Checks the instant answer harder.* Light Fast Exact Very high/);
     expect(html).toMatch(/aria-checked="true"[^>]*data-testid="level-light"/);
-    expect(t).toContain('No search.');
+    // Each level in three plain lines; Light looks for no new routes.
+    expect(t).toMatch(/What it does After Check exactly, prices the routes you have already found .* How long Seconds to a few minutes.* What it finds One of your own routes, if it is now faster than the instant answer\. It does not look for new routes\./);
     expect(t).toContain('What this does and does not promise');
     expect(t).toContain('not a proven best');
     expect(html).toContain('id="stronger-check-results"');
@@ -30,7 +31,7 @@ describe('StrongerBox', () => {
     const t = textOf(html);
     expect(t).toMatch(/Light Fast Exact Very high/);
     expect(html).toMatch(/aria-checked="true"[^>]*data-testid="level-normal"/);
-    expect(t).toContain('one more TE either side of each early stop');
+    expect(t).toContain('The same, with one more TE either side of each early stop.');
     expect(t).toContain('Fast: About 1.1 h. Exact: About 3.0 h. Very high: About 9.4 h.');
   });
 });
@@ -95,8 +96,18 @@ describe('names and result headings (12 Oct)', () => {
     const fast = textOf(await renderHtml(StrongerBox, { goal: 'fastest' }));
     expect(fast).toContain('Your earlier routes');
     expect(fast).toContain("Nearby routes: the best routes found near the instant answer's");
-    expect(fast).toContain('Light, plus Nearby routes');
+    expect(fast).toContain('Light, then Nearby routes');
     const { NAMES } = await import('@/lib/siteNav');
     expect(NAMES.smart).toBe('Nearby routes');
+  });
+});
+
+describe('"What this does and does not promise" (12 Oct)', () => {
+  it('an amber box, open by default, that can still be closed', async () => {
+    const html = await renderHtml(StrongerBox, { goal: 'fastest' });
+    expect(html).toMatch(/<details[^>]*open[^>]*data-testid="stronger-promise"|<details[^>]*data-testid="stronger-promise"[^>]*open/);
+    expect(html).toMatch(/border-amber-200 bg-amber-50[^"]*"[^>]*data-testid="stronger-promise"/);
+    const src = fs.readFileSync(path.join(__dirname, 'StrongerBox.vue'), 'utf8');
+    expect(src).toContain('@toggle="onPromiseToggle"');
   });
 });
