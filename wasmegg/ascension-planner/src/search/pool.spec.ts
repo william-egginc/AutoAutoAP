@@ -236,7 +236,7 @@ describe('createChainSearchPool', () => {
       [196, 490],
     ]);
     FakeWorker.instances[1].mode = 'silent';
-    const named = expectRejection(promise, /worker 1[\s\S]*chains done/);
+    const named = expectRejection(promise, /worker 1[\s\S]*routes done/);
     const reassuring = expectRejection(promise, /checkpointed/);
     await letItGoQuiet(5000);
     await named;

@@ -2158,13 +2158,13 @@ const crashedQueueNote = computed(() => {
   if (!q) return '';
   const of = q.record.chains.length;
   const done = q.record.results.filter(r => r.days > 0).length;
-  const doneText = done ? ` ${done} finished chain${done === 1 ? ' is' : 's are'} kept in the table.` : '';
+  const doneText = done ? ` ${done} finished box${done === 1 ? ' is' : 'es are'} kept in the table.` : '';
   const rest = of - q.next - 1;
   const restText = rest ? `, then the ${rest === 1 ? 'last one' : `other ${rest}`}` : '';
   const head = `An Exhaustive run of ${of} boxes stopped without finishing, at box ${q.record.at + 1} of ${of}.${doneText}`;
   return q.next === q.record.at
-    ? `${head} Carrying on finishes chain ${q.next + 1}${restText}${q.record.submit ? ', sending each as it finishes, as you asked' : ''}.`
-    : `${head} That chain finished; carrying on starts chain ${q.next + 1}${restText}${q.record.submit ? ', sending each as it finishes, as you asked' : ''}.`;
+    ? `${head} Carrying on finishes box ${q.next + 1}${restText}${q.record.submit ? ', sending each as it finishes, as you asked' : ''}.`
+    : `${head} That box finished; carrying on starts box ${q.next + 1}${restText}${q.record.submit ? ', sending each as it finishes, as you asked' : ''}.`;
 });
 
 /** Which run is mid-resume, for the button's own label. Empty when none is. */

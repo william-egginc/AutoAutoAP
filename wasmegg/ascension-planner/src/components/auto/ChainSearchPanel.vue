@@ -340,31 +340,32 @@
           </button>
         </template>
         <p>
-          {{ plural(store.resumable.durations.length, 'chain') }}
+          {{ plural(store.resumable.durations.length, 'route') }}
           {{ store.resumable.durations.length === 1 ? 'was' : 'were' }} already priced ({{
             relativeTime(store.resumable.updatedAt)
           }}), best so far <span class="font-black">{{ store.resumable.bestChain.join(' ') }}</span> at
           {{ (store.resumable.bestSeconds / 86400).toFixed(3) }} days.
+          <!-- Each sentence below starts with {{ ' ' }}: Vue drops the newline before a <template>'s first
+               word, which ran them together ("nothing new to price.Exact reuses", the user, 12 Oct). -->
           <template v-if="store.resumable.complete"
             >That run finished: Show its result puts it back on screen, with nothing new to price.<template
               v-if="nextLevel"
-            >
-              {{ nextLevel.label }} reuses all {{ store.resumable.durations.length }} priced routes for free and searches
-              further from there.</template
+              >{{ ' ' }}{{ nextLevel.label }} reuses all {{ store.resumable.durations.length }} priced routes for free
+              and searches further from there.</template
             ></template
           >
           <template v-else>Carrying on replays those instantly and goes on without re-simulating anything.</template>
-          <template v-if="!store.resumable.complete && store.runSaveFor(store.resumable.inputsKey)">
-            It carries on with the save it started with (TE {{ store.runSaveFor(store.resumable.inputsKey)?.te }}), so
-            both halves are priced on the same farm.</template
+          <template v-if="!store.resumable.complete && store.runSaveFor(store.resumable.inputsKey)"
+            >{{ ' ' }}It carries on with the save it started with (TE
+            {{ store.runSaveFor(store.resumable.inputsKey)?.te }}), so both halves are priced on the same farm.</template
           >
-          <template v-if="!store.resumable.complete && store.settingsRestoreNote(store.resumable.fingerprint)">
-            Carrying on also puts your settings back to the run's ({{
+          <template v-if="!store.resumable.complete && store.settingsRestoreNote(store.resumable.fingerprint)"
+            >{{ ' ' }}Carrying on also puts your settings back to the run's ({{
               store.settingsRestoreNote(store.resumable.fingerprint)
             }}).</template
           >
-          <template v-if="store.planStartRestoreNote(store.resumable.fingerprint)">
-            It puts the plan start back to
+          <template v-if="store.planStartRestoreNote(store.resumable.fingerprint)"
+            >{{ ' ' }}It puts the plan start back to
             <span class="font-black">{{ store.planStartRestoreNote(store.resumable.fingerprint) }}</span
             >, the time it was priced from.</template
           >
@@ -535,7 +536,7 @@
                 class="flex flex-wrap items-center justify-between gap-x-3 text-[10px] text-slate-400 font-bold"
               >
                 <span>this batch: {{ store.batchDone }} / {{ plural(store.batchTotal, 'chain') }}</span>
-                <span class="text-slate-300">updates as each chain finishes</span>
+                <span class="text-slate-300">updates as each route finishes</span>
               </div>
               <!-- The count stopping short of the estimate is normal and confusing, so say so. -->
               <p
@@ -583,7 +584,7 @@
             >
               <p v-if="!store.searchSpace" class="text-[11px] text-emerald-800 leading-relaxed">
                 The stages are nested (each one starts from the answer the previous one produced), so stopping is safe:
-                you keep this chain, and it is exactly what the stages that already finished ({{
+                you keep this route, and it is exactly what the stages that already finished ({{
                   store.lastCompletedStage
                 }}) guarantee.
               </p>
@@ -782,7 +783,7 @@
             :before-start="store.errorBeforeStart"
           >
             <template v-if="store.chainsDone > 0">
-              {{ plural(store.chainsDone, 'chain') }} {{ store.chainsDone === 1 ? 'was' : 'were' }} priced before it
+              {{ plural(store.chainsDone, 'route') }} {{ store.chainsDone === 1 ? 'was' : 'were' }} priced before it
               stopped and are saved. Starting the search again replays them without re-simulating anything, so you are
               resuming rather than restarting.
             </template>
@@ -1400,7 +1401,7 @@ watch(settingsOpen, v => {
 
 /**
  * Why the run ended, in one line. `stage` already carries this, but as an internal string
- * ("done - every chain it needed was already priced") that assumes you know what the stages are.
+ * ("done - every route it needed was already priced") that assumes you know what the stages are.
  */
 const runOutcome = computed<{ title: string; detail: string; tone: 'good' | 'warn' }>(() => {
   if (store.isRunning) {
@@ -1428,7 +1429,7 @@ const runOutcome = computed<{ title: string; detail: string; tone: 'good' | 'war
     return {
       title: 'Nothing left to price',
       detail:
-        'Every chain this tier needed was already in the checkpoint from an earlier run, so it replayed them and stopped. Raise the effort tier to go further.',
+        'Every route this level needed was already in the checkpoint from an earlier run, so it replayed them and stopped. Pick a higher level to go further.',
       tone: 'good',
     };
   }

@@ -25,7 +25,7 @@ describe('black box', () => {
   });
 
   it('reports a phase that never finished, with its last beat', () => {
-    beat({ phase: 'search', detail: 'pricing every chain', done: 100, total: 58459 });
+    beat({ phase: 'search', detail: 'pricing every route', done: 100, total: 58459 });
     beat({ phase: 'submit', detail: 'building the CSV' });
     const got = readUnfinished();
     expect(got?.last).toMatchObject({ phase: 'submit', detail: 'building the CSV' });
