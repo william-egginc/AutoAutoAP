@@ -68,14 +68,18 @@
             {{ show(soonest.finish as number) }})</template
           ><template v-else>: starting right away is already the best</template>.
         </p>
-        <p v-if="quickest" class="text-[11px] text-emerald-900 leading-relaxed">
-          <span class="font-bold">Quickest run:</span> starting {{ show(quickest.start) }} takes
-          {{ daysOf(quickest) }} days; the slowest start in the week takes {{ daysOf(slowest!) }}, so the hour you start
-          can change the run by {{ spreadLabel }}.
+        <!-- The run's own length, not counting the wait to start: the hour's own effect (the squares below are
+             coloured by finish instead, which is what the best start is picked on; Allan, Discord, 12 Oct). -->
+        <p v-if="quickest" class="text-[11px] text-emerald-900 leading-relaxed" data-testid="start-quickest">
+          <span class="font-bold">Quickest run, not counting the wait to start:</span> starting
+          {{ show(quickest.start) }} takes {{ daysOf(quickest) }} days; the slowest start in the week takes
+          {{ daysOf(slowest!) }} days, so the hour alone can change the run's length by {{ spreadLabel }}. A later start
+          that takes a little longer can still finish first, so the best start goes by when it finishes.
         </p>
       </div>
 
-      <!-- The week at a glance: how long the run takes from each start, against the quickest. -->
+      <!-- The week at a glance: when the run finishes from each start, against the soonest finish (the same
+           measure as the best start above: a 2 pm start that runs a bit longer still beats a 7 pm one). -->
       <div class="overflow-x-auto">
         <table class="text-[10px] tabular-nums border-separate" style="border-spacing: 2px">
           <thead>
@@ -91,7 +95,7 @@
                 v-for="(c, i) in d.cells"
                 :key="i"
                 class="w-6 h-5 rounded"
-                :style="{ background: c ? cellColor(c.late) : 'transparent' }"
+                :style="{ background: c ? cellColor(c.later) : 'transparent' }"
                 :title="cellTitle(c)"
               ></td>
             </tr>
@@ -99,8 +103,8 @@
         </table>
       </div>
       <p class="text-[10px] text-slate-500">
-        Each square is a start time. Darker green is a quicker run from that start; grey is the slowest in the week.
-        Hover a square for how long it takes and when it finishes. Empty squares are hours you're asleep.
+        Each square is a start time. Darker green finishes sooner; grey finishes last of the week. Hover a square for
+        when it finishes and how long the run takes. Empty squares are hours you're asleep.
       </p>
     </template>
   </div>
@@ -179,12 +183,14 @@ const hours = computed(() => Array.from({ length: Math.round(24 / gridStep.value
 function hourLabel(h: number): string {
   return showHour(h).replace(':00', '');
 }
+/** One square: a start, when it finishes, and hours after the week's soonest finish. */
+type Cell = { start: number; finish: number | null; later: number | null };
 const grid = computed(() => {
   const rows = new Map<
     string,
-    { label: string; cells: ({ start: number; finish: number | null; late: number | null } | null)[] }
+    { label: string; cells: (Cell | null)[] }
   >();
-  const quickestSecs = quickest.value ? (quickest.value.finish as number) - quickest.value.start : null;
+  const bestFinish = best.value ? (best.value.finish as number) : null;
   const step = gridStep.value;
   for (const r of sweep.value?.results ?? []) {
     const parts = new Intl.DateTimeFormat(undefined, {
@@ -203,22 +209,28 @@ const grid = computed(() => {
     rows.get(label)!.cells[col] = {
       start: r.start,
       finish: r.finish,
-      late: r.finish === null || quickestSecs === null ? null : (r.finish - r.start - quickestSecs) / 3600,
+      later: r.finish === null || bestFinish === null ? null : (r.finish - bestFinish) / 3600,
     };
   }
   return [...rows.values()];
 });
-function cellTitle(c: { start: number; finish: number | null; late: number | null } | null): string {
+function cellTitle(c: Cell | null): string {
   if (!c) return '';
-  if (c.late === null || c.finish === null) return `${show(c.start)}: couldn't be priced`;
+  if (c.later === null || c.finish === null) return `${show(c.start)}: couldn't be priced`;
   const days = ((c.finish - c.start) / 86400).toFixed(1);
-  const vs = c.late < 0.05 ? 'the quickest' : `${lateLabel(c.late)} longer than the quickest`;
-  return `Start ${show(c.start)}: takes ${days} days (${vs}), done ${show(c.finish)}`;
+  const vs = c.later < 0.05 ? 'the soonest finish' : `${lateLabel(c.later)} after the soonest finish`;
+  return `Start ${show(c.start)}: done ${show(c.finish)} (${vs}), takes ${days} days`;
 }
-/** Green for the quickest run, fading to grey at the slowest start in the week. */
-function cellColor(late: number | null): string {
-  if (late === null) return '#fecaca';
-  const t = Math.min(1, Math.max(0, late / Math.max(1, spreadHours.value)));
+/** Latest finish in the week against the soonest, in hours: the grid's colour scale. */
+const finishSpreadHours = computed(() => {
+  if (!best.value) return 0;
+  const latest = Math.max(...priced.value.map(r => r.finish as number));
+  return (latest - (best.value.finish as number)) / 3600;
+});
+/** Green for the soonest finish, fading to grey at the latest finish in the week. */
+function cellColor(later: number | null): string {
+  if (later === null) return '#fecaca';
+  const t = Math.min(1, Math.max(0, later / Math.max(1, finishSpreadHours.value)));
   const light = Math.round(30 + t * 55);
   const sat = Math.round(60 - t * 55);
   return `hsl(152 ${sat}% ${light}%)`;
