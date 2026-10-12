@@ -103,7 +103,7 @@ describe('gradeStyle', () => {
       'a finished box at up to every 6th TE'
     );
     expect(searchWords(grade('staged', Infinity, []))).toBe(
-      'a staged search (thorough), with no box to bound what it missed'
+      'a Nearby routes search (thorough), with no box to bound what it missed'
     );
   });
 });
@@ -311,7 +311,7 @@ describe('bestCountTable', () => {
     const c6 = denver.cells.find(c => c.column.label === '6')!;
     expect(c6).toMatchObject({ state: 'hidden', text: '', bin: -1, hiddenRuns: 2, noProof: true });
     expect(cellTitle(denver, c6, 'UTC')).toBe(
-      'Denver has no finished box at 6 ascensions at this target: its 2 runs at this count are staged searches or boxes they did not finish, which Proofs only hides.'
+      'Denver has no finished box at 6 ascensions at this target: its 2 runs at this count are Nearby routes searches or boxes they did not finish, which Proofs only hides.'
     );
     // 4 is still not tried by Denver at all, and the footer counts who tried each count, whatever is hidden.
     expect(denver.cells.find(c => c.column.label === '4')!.state).toBe('untried');

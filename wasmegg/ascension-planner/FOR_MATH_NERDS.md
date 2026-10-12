@@ -10,35 +10,35 @@ Everything with a number attached was measured. Where something is a hunch, it s
 ## 1. The problem
 
 You are at some Truth Egg total and you want to reach 490. You get there by ascending to a
-checkpoint, prestiging, ascending to a higher one, and so on. A **chain** is that list of
-checkpoints — `195 219 248 286 327 490`. You pick the checkpoints; the game does the rest.
+stop, prestiging, ascending to a higher one, and so on. A **route** is that list of
+stops — `195 219 248 286 327 490`. You pick the stops; the game does the rest.
 
-Two chains that reach the same target can differ by **twelve days** on a plan that runs
-roughly seven hundred. So the question is: which chain is fastest?
+Two routes that reach the same target can differ by **twelve days** on a plan that runs
+roughly seven hundred. So the question is: which route is fastest?
 
 ### Why you cannot just try them all
 
-A checkpoint is an integer TE value. Between a current 177 and a final 490 there are 313
-of them, and a chain is a strictly increasing subset:
+A stop is an integer TE value. Between a current 177 and a final 490 there are 313
+of them, and a route is a strictly increasing subset:
 
-| chain length | candidates |
+| route length | candidates |
 |---|---|
-| 6 checkpoints | 1.245 × 10¹² |
-| 7 checkpoints | 5.458 × 10¹³ |
-| 8 checkpoints | 2.088 × 10¹⁵ |
+| 6 stops | 1.245 × 10¹² |
+| 7 stops | 5.458 × 10¹³ |
+| 8 stops | 2.088 × 10¹⁵ |
 | **all lengths 3–9** | **7.29 × 10¹⁶** |
 
-Scoring one chain means simulating every leg of it. That costs about **15 seconds** — not
+Scoring one route means simulating every leg of it. That costs about **15 seconds** — not
 because the code is slow, but because a leg is a full farm simulation: research purchases,
 hab and vehicle upgrades, twelve egg switches, sale timing, the lot. A CPU profile puts the
 cost in the simulator itself; removing the browser bought almost nothing.
 
-7.29 × 10¹⁶ chains × 15 s ≈ **3.5 × 10¹⁰ years** on one core. Twenty cores and a great
+7.29 × 10¹⁶ routes × 15 s ≈ **3.5 × 10¹⁰ years** on one core. Twenty cores and a great
 deal of patience does not help.
 
-### And good chains are rare
+### And good routes are rare
 
-On the one account where an exhaustive was actually run — 4913 chains, every combination
+On the one account where an exhaustive was actually run — 4913 routes, every combination
 inside a fixed box — **21 of them (0.43%) land within a day of optimal**. The true top 100
 spans 1.66 days. You are not going to stumble into that by trying a few by hand, which is
 the entire reason this tool exists.
@@ -49,7 +49,7 @@ the entire reason this tool exists.
 
 These are all dead ends, each measured rather than reasoned about.
 
-**Predict a chain's duration without simulating it.** A feature-based surrogate — chain
+**Predict a route's duration without simulating it.** A feature-based surrogate — route
 shape in, days out — scored **Spearman ρ = −0.053** against the truth, median error **15.6
 days**, and **0/100 overlap with the true top 100**. Slightly worse than useless: it is
 anti-correlated. The reason is that unmodelled farm state moves a *single leg* by 1.0–2.6
@@ -57,7 +57,7 @@ days while the entire top 100 spans 1.66 days. The signal is smaller than the no
 
 **Prune by prefix cost.** Tempting and wrong. A prefix that arrives *later* can arrive with
 a higher delivery rate and win overall, so dropping candidates on early-leg time is not
-admissible. An implemented branch-and-bound pruned **0 of 69** chains on a real run — the
+admissible. An implemented branch-and-bound pruned **0 of 69** routes on a real run — the
 bound was never tight enough to cut anything, which is the friendly way for an inadmissible
 idea to fail.
 
@@ -80,18 +80,18 @@ algorithm. Stopping early leaves you exactly what the completed stages guarantee
 | stage | what it does |
 |---|---|
 | **coarse scan** *(optional)* | A wide grid at step 15–25, to pick a starting shape and an ascension count. Its answer is deliberately rough: measured **8.6 and 12.0 days** off the final result on two accounts. |
-| **4a. resolve last** | Sweep the final checkpoint at step 1 over a window that widens while the winner is pinned to an edge. |
-| **4. coordinate descent** | Move one checkpoint at a time, ±8, re-solving the last checkpoint after every accepted move. |
+| **4a. resolve last** | Sweep the final stop at step 1 over a window that widens while the winner is pinned to an edge. |
+| **4. coordinate descent** | Move one stop at a time, ±8, re-solving the last stop after every accepted move. |
 | **5. 2-D slices** | Exhaustive 17×17 over every adjacent pair. Catches pairs that only pay off jointly. |
 | **6. 3-D slices** | Exhaustive 13×13×13 over every adjacent triple. |
-| **7. prestige-count probe** | Drop a checkpoint or insert one, then re-polish. |
-| **4c. other counts** *(Fast only, since 11 Oct)* | Fast has no count probe. Instead, after the descent, every other ascension count inside the limits that the instant answer has a route for (plus one either side of the seed) starts from that route, gets its last checkpoint re-solved and, unless it is then more than 2 days behind the leader, one descent pass. The winning count gets 5 more passes. Added because a Fast run held at 4 ascensions finished about 4 days behind a 5-7 ascension route. |
+| **7. prestige-count probe** | Drop a stop or insert one, then re-polish. |
+| **4c. other counts** *(Fast only, since 11 Oct)* | Fast has no count probe. Instead, after the descent, every other ascension count inside the limits that the instant answer has a route for (plus one either side of the seed) starts from that route, gets its last stop re-solved and, unless it is then more than 2 days behind the leader, one descent pass. The winning count gets 5 more passes. Added because a Fast run held at 4 ascensions finished about 4 days behind a 5-7 ascension route. |
 
 ### How little of the space that is
 
-For a 7-ascension chain:
+For a 7-ascension route:
 
-| tier | chains priced | fraction of the space |
+| tier | routes priced | fraction of the space |
 |---|---|---|
 | Fast | 606 | 8.3 × 10⁻¹⁵ |
 | Balanced (retired on the site) | 2,051 | 2.8 × 10⁻¹⁴ |
@@ -99,9 +99,9 @@ For a 7-ascension chain:
 | Thorough (Very high on the site) | 11,062 | 1.5 × 10⁻¹³ |
 
 The Fast figure is from before stage 4c. Each other count it now checks adds roughly 25 + 42 per movable
-checkpoint + 2 × the chain length (the estimate in `src/search/effort.ts`, not a measurement).
+stop + 2 × the route length (the estimate in `src/search/effort.ts`, not a measurement).
 
-Thorough looks at roughly **one chain in ten trillion** and lands within hours of the best
+Thorough looks at roughly **one route in ten trillion** and lands within hours of the best
 answer found. That is not because the search is clever; it is because of the next section.
 
 ---
@@ -111,12 +111,12 @@ answer found. That is not because the search is clever; it is because of the nex
 **The landscape has structure, and it is the game's sale calendar.**
 
 A leg's build phase ends on a Research Sale END — Saturday 09:00 Pacific, DST-exact. So as
-you sweep a checkpoint one TE at a time, the duration does not vary smoothly: it forms
+you sweep a stop one TE at a time, the duration does not vary smoothly: it forms
 **descending runs of 3–5 values separated by jumps of about +3.15 days**, and the optimum
-is always at a run-end. Verified **462/462**: one 21-value sweep of the last checkpoint
+is always at a run-end. Verified **462/462**: one 21-value sweep of the last stop
 (310-330) for every prefix of the exhaustive box `195 X2 X3 X4 490` (X2 220-235, X3 265-295:
-16 × 31 = 496 prefixes, 10,416 chains), counted over the prefixes priced at all 21 values. The source is
-`SAWTOOTH_STATS` in `src/lib/charts/chainSearchMath.ts`, which the Chain Search explainer shows.
+16 × 31 = 496 prefixes, 10,416 routes), counted over the prefixes priced at all 21 values. The source is
+`SAWTOOTH_STATS` in `src/lib/charts/chainSearchMath.ts`, which Science › How it works shows.
 (Earlier versions of this page said 933/933; that figure had no recorded corpus behind it and
 cannot be a count over this box.)
 
@@ -126,7 +126,7 @@ boundary. A replay of the search across all 4913 exhaustive grid points put the 
 radius 4 and exactness at radius 7**; the code uses 8, one step of margin rather than a
 round number.
 
-**Prefix sharing.** Chains form a trie. Every chain starting `195 219 248` shares those
+**Prefix sharing.** Routes form a trie. Every route starting `195 219 248` shares those
 three leg simulations, so the marginal cost of a candidate is usually one leg, not six.
 This is why batches are cut on whole prefix subtrees and never round-robin: a 17-value
 sweep costs `2 + 17×4 = 70` leg simulations in one worker and `17×6 = 102` spread across
@@ -137,11 +137,11 @@ seventeen.
 ## 5. Where it goes wrong
 
 **Basins.** Coordinate descent cannot cross a ridge wider than its radius. A real run
-settled at 742.378 d with the last checkpoint at 359 while 741.500 d sat at 328 — thirty-one
-away, unreachable by ±8 steps, and never priced. That one was our bug (the last-checkpoint
+settled at 742.378 d with the last stop at 359 while 741.500 d sat at 328 — thirty-one
+away, unreachable by ±8 steps, and never priced. That one was our bug (the last-stop
 sweep was silently disabled by an out-of-range window; fixed, with a regression test seeded
 31 away from the optimum precisely so a ±8 descent cannot pass it). But the failure mode is
-real and survives the fix: **a bad starting chain can still strand the search in a bad
+real and survives the fix: **a bad starting route can still strand the search in a bad
 neighbourhood**, and nothing in the algorithm detects that.
 
 **The coarse scan is the weak link.** It picks the basin, and its own answer is 8–12 days
@@ -162,21 +162,21 @@ three hours.
 - The optimum is always at a sale-boundary run-end. 462/462.
 - Radius 8 is enough for single-axis moves. Knee at 4, exact at 7, across 4913 points.
 - Prefix cost is not an admissible bound. Reasoned and confirmed empirically.
-- Duration is not predictable from chain shape without simulating.
+- Duration is not predictable from route shape without simulating.
 
 **Believed, thinly evidenced.**
 
-- **`maxLast = final − 150`.** The last checkpoint should not sit near the target: a tiny
+- **`maxLast = final − 150`.** The last stop should not sit near the target: a tiny
   final leg pays a full rebuild for almost no earning time. Measured optima are ~330 on the
   main and ~289 on the alt against a 490 target. This is a *cap chosen from two
   observations*, and it is load-bearing — it is what made the coarse scan's out-of-range
   proposal possible in the first place. If someone finds a real optimum above `final − 150`,
   this is wrong and the search cannot currently find it.
-- **Stage 6 (3-D slices) earns its 79% of Thorough's chains.** One measured win: 1.665 d
+- **Stage 6 (3-D slices) earns its 79% of Thorough's routes.** One measured win: 1.665 d
   (40 h) on the alt, where an exhaustive 13³ slice beat the 2-D-polished answer and the
   recipe ranked 55 of 2197. But that predates the fix that taught stage 5 to sweep the last
   adjacent pair, so an unknown share of those 40 h may now be caught by stage 5 alone. On
-  the main, a 4913-chain 3-D exhaustive matched the recipe exactly and stage 6 added nothing.
+  the main, a 4913-route 3-D exhaustive matched the recipe exactly and stage 6 added nothing.
 - **Descent order does not matter much.** Never tested.
 
 **Open questions we have not touched.**
@@ -198,15 +198,15 @@ three hours.
 
 ## 7. If you want to check any of this
 
-`--exhaustive` prices every strictly-increasing chain over a pool with no staged search and
+`--exhaustive` prices every strictly-increasing route over a pool with no staged search and
 no pruning, so its winner is the true optimum of that space:
 
 ```bash
 node dist-search/fastsearch.js --backup me.json --exhaustive --range 185:390:15 --prestiges 6-7 --jobs 12
 ```
 
-It prints the chain count and a wall-clock estimate before simulating anything, and refuses
-past 5000 chains without `--yes` — see the table in section 1 for why that guard exists.
+It prints the route count and a wall-clock estimate before simulating anything, and refuses
+past 5000 routes without `--yes` — see the table in section 1 for why that guard exists.
 
 That is how "rank 1 of 4913" was established, and it is the only mode in this project that
 can prove anything.

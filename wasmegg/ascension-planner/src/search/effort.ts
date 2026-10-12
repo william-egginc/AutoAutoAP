@@ -52,7 +52,8 @@ export const EFFORT_NOTES: Record<EffortTier, EffortNote> = {
   quick: {
     label: 'Fast',
     cliDuration: '~1 h 05 m',
-    typicalTime: 'Minutes.',
+    // About 5 min is one board run (831b1402, Fastest 490, 9 Oct); about 1 h is the CLI time above, before 4c.
+    typicalTime: 'About 5 minutes to about an hour on 8 or more cores, depending on the route.',
     adds:
       'Coordinate descent (radius 8), re-solving the last stop after every accepted move. ' +
       'Then one quick pass at each other ascension count inside your limits that the instant answer has a ' +

@@ -24,7 +24,7 @@
            Science) the planner has its own. -->
       <template v-if="!embedded">
         <header class="space-y-1">
-          <h1 class="text-2xl font-black tracking-tight text-slate-900">Chain Explorer</h1>
+          <h1 class="text-2xl font-black tracking-tight text-slate-900">Route Explorer</h1>
           <p class="text-sm text-slate-500 max-w-3xl leading-relaxed">
             Every run submitted to the collector, grouped by how many ascensions it takes. Pick a count to see where
             each ascension lands, how long each leg runs, and whether the shape repeats across accounts.
@@ -723,7 +723,7 @@
                             ? leftTitle(leftById.get(row.id)!)
                             : row.space
                               ? 'Its box could not be counted again from this row (the recount does not match what the run stored), so what is left is not shown.'
-                              : 'A staged search improved a seed route rather than trying a fixed box of TEs, so there is nothing to measure what is left against.'
+                              : 'A Nearby routes search improved a seed route rather than trying a fixed box of TEs, so there is nothing to measure what is left against.'
                         "
                       >
                         <template v-if="leftById.get(row.id)">

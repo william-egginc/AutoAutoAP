@@ -143,7 +143,7 @@ The shared leaderboard, read from the collector (see [collector/README.md](colle
   Your filters are remembered in your browser.
 - **All runs**: every row sent, exact copies shown once, every column sortable.
 - **By a date**: the By a date answers.
-- **Insights**: charts across everybody's runs (the Chain Explorer), such as where each
+- **Insights**: charts across everybody's runs (the Route Explorer), such as where each
   checkpoint tends to land and which ascension counts people have tried.
 
 Durations are not comparable between accounts: a route's length depends on artifacts, research
@@ -789,7 +789,7 @@ Policy, set 2026-09-24, in one module the page, the health checks and the CLI al
   result goes to the flagged board. Over a **week** it does not start. The CLI prints the check on
   every run and refuses the same way unless `--allow-stall`.
 - **Board hygiene.** A result from a stalled account, a plan past ten years, or one whose delivery
-  collapses between legs is **flagged**: stored apart, shown on the Chain Explorer's flagged board, and
+  collapses between legs is **flagged**: stored apart, shown on the Route Explorer's flagged board, and
   anonymous to everyone except the browser that sent it (a random per-account code kept in
   localStorage; the collector stores only its hash).
 - **Stale saves** (`src/lib/saveAge.ts`). The plan starts **now** by default, and the farm is caught
@@ -926,7 +926,7 @@ answer — which is what the effort slider sells.
 - **The suggested bands (Suggest a space, the Science sweeps) are measured on accounts starting between 126 and 198 TE.**
   They are fixed TE values now, not fractions of the journey (the checkpoint that sets up the
   final leg lands near 280-300 TE whatever the start, where delivery reaches its ceiling), but
-  below 126 the first band is a guess. The Chain Explorer lists low-TE runs as a gap.
+  below 126 the first band is a guess. The Route Explorer lists low-TE runs as a gap.
 
 - **`--effort thorough` projects to 7–13 h.** No longer refused (`--max-hours` is off by
   default and the projection is printed, so the call is yours). Stage 6 has exactly one

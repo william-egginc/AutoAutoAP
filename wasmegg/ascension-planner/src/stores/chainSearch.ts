@@ -4070,7 +4070,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         : '';
     const note =
       (flagged?.length
-        ? ` It went to the flagged board (${flagged.join(', ')}), shown anonymously; the Chain Explorer shows it to you as yours in this browser.`
+        ? ` It went to the flagged board (${flagged.join(', ')}), shown anonymously; the Route Explorer shows it to you as yours in this browser.`
         : '') + replacedNote;
     // A copy the collector caught is said as a plain note, not an error and not a thank-you for
     // something that stored nothing (see `duplicateMessage`).
