@@ -41,7 +41,7 @@
           <div class="text-slate-500">
             best {{ csv.best?.chain.join(' ') }} · {{ csv.best?.days.toFixed(2) }} d ·
             {{ csv.chainsFound.toLocaleString() }}
-            chains
+            routes
           </div>
         </div>
         <div class="rounded-lg bg-slate-50 px-3 py-2">

@@ -130,7 +130,7 @@ describe('the promise box follows the level (12 Oct)', () => {
   it('By a date Very high: within 5 TE of the instant answer\'s route', async () => {
     useStrongerStore().level = 'thorough';
     const t = textOf(await renderHtml(StrongerBox, { goal: 'date' }));
-    expect(t).toContain('each early stop within 5 TE of the instant answer');
+    expect(t).toContain("each early stop within 5 TE of the answer's route");
     expect(t).not.toContain('No search:');
   });
 });

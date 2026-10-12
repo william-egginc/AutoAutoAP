@@ -14,7 +14,7 @@
     >
       Show the chart
     </button>
-    <span class="text-[11px] text-slate-500">Draws the heat map of every chain priced so far</span>
+    <span class="text-[11px] text-slate-500">Draws the heat map of every route priced so far</span>
   </div>
   <div v-else class="space-y-3">
     <template v-if="!showDots">
@@ -120,7 +120,7 @@ const options = computed<{ value: Detail; label: string }[]>(() => {
     s => s < total.value && (!store.isRunning || s <= LIVE_DOT_LIMIT)
   ).map(s => ({ value: s, label: s.toLocaleString() }));
   if (!store.isRunning || total.value <= LIVE_DOT_LIMIT)
-    out.push({ value: 'all', label: `every chain (${total.value.toLocaleString()})` });
+    out.push({ value: 'all', label: `every route (${total.value.toLocaleString()})` });
   return out;
 });
 /** What is really drawn: a stored choice that is not on offer (e.g. "all" mid-run) is clamped. */

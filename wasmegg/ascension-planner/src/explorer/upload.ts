@@ -367,12 +367,12 @@ export function checkUpload(csv: UploadCsv, diag: Diagnostics, existing: Collect
     );
   if (csv.chainsStated && csv.chainsFound < csv.chainsStated) {
     errors.push(
-      `The CSV says it priced ${csv.chainsStated.toLocaleString()} chains but holds ${csv.chainsFound.toLocaleString()}. It is truncated.`
+      `The CSV says it priced ${csv.chainsStated.toLocaleString()} routes but holds ${csv.chainsFound.toLocaleString()}. It is truncated.`
     );
   }
   if (csv.outOfOrder)
-    errors.push(`${csv.outOfOrder} chains are out of rank order, so the file has been edited or damaged.`);
-  if (!csv.best) errors.push('The CSV has no chains in it.');
+    errors.push(`${csv.outOfOrder} routes are out of rank order, so the file has been edited or damaged.`);
+  if (!csv.best) errors.push('The CSV has no routes in it.');
   if (!diag.result) errors.push('The diagnostics have no result. Save them after the run finishes, not before.');
   if (!diag.schedule?.planStart) errors.push('The diagnostics have no plan start.');
 
@@ -392,14 +392,14 @@ export function checkUpload(csv: UploadCsv, diag: Diagnostics, existing: Collect
         );
       } else if (!sameChain(csv.best.chain, diag.result.chain) && csv.best.days < diag.result.days - 0.01) {
         warnings.push(
-          `The CSV's best chain, ${csv.best.chain.join(' ')} at ${csv.best.days.toFixed(2)} d, beats the result the run reported (${diag.result.days.toFixed(2)} d). The CSV's best is what will be submitted.`
+          `The CSV's best route, ${csv.best.chain.join(' ')} at ${csv.best.days.toFixed(2)} d, beats the result the run reported (${diag.result.days.toFixed(2)} d). The CSV's best is what will be submitted.`
         );
       }
     }
   }
   if (!diag.loadout?.delivery?.length)
     warnings.push('No delivery set in the diagnostics, so the delivery score and the bug check are skipped.');
-  if (!csv.best?.legs.length) warnings.push('The best chain has no per-leg rows, so the graphs cannot place it.');
+  if (!csv.best?.legs.length) warnings.push('The best route has no per-leg rows, so the graphs cannot place it.');
 
   const legs = (csv.best?.legs ?? []).map(l => ({ peakDeliveryQph: l.peakQph }));
   const rate = csv.best ? checkFinalLegRate(csv.best.chain, legs, diag.loadout?.delivery) : null;

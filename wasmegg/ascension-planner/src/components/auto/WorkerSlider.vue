@@ -18,7 +18,7 @@
     />
     <span class="block text-[10px] text-slate-500">
       Fewer workers keep the computer usable and quieter; more finish sooner. You can move it during a run too: the
-      change takes effect within about a minute, and no chain in progress is lost.
+      change takes effect within about a minute, and no route in progress is lost.
     </span>
     <span
       v-if="store.longRunNote"

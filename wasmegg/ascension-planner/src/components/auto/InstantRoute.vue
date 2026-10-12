@@ -43,7 +43,7 @@
         deadline
           ? 'finding the highest TE you can reach by the date is arithmetic'
           : 'finding your fastest route is arithmetic'
-      }}: it tries every checkpoint at every TE, with any number of ascensions.{{
+      }}: it tries every stop at every TE, with any number of ascensions.{{
         own ? ' The instant answer was built on your own gear.' : " It's adjusted for your gear."
       }}
       <b>Check exactly</b> prices a route with the full simulator.

@@ -110,7 +110,7 @@
               {{ need.byDate.summary }} {{ need.bd?.wider }}
             </p>
             <p v-if="need.bd?.fitted.length">
-              The longest chain's boxes, one per stop, from {{ teNow }} TE (shorter chains use the first ones):
+              The longest route's boxes, one per stop, from {{ teNow }} TE (shorter routes use the first ones):
               <span v-for="(f, i) in need.bd.fitted" :key="i" class="font-mono-premium font-bold"
                 >{{ i ? ' · ' : '' }}{{ f }}</span
               >.
@@ -143,7 +143,7 @@
           </p>
           <div v-if="!need.byDate && need.chains > 0" class="grid gap-1 sm:grid-cols-4 text-[11px]">
             <div class="rounded bg-white px-2 py-1">
-              <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">Chains</div>
+              <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">Routes</div>
               <div class="font-bold text-slate-800">
                 {{ (need.chains * need.runs).toLocaleString()
                 }}<template v-if="need.runs > 1"> ({{ plural(need.runs, 'run') }})</template>
@@ -180,7 +180,7 @@
                 {{
                   need.byDate
                     ? `Switches to ${NAMES.byDate} with this filled in; nothing starts until you press Find.`
-                    : 'Shows how many chains and about how long on this computer before anything starts.'
+                    : 'Shows how many routes and about how long on this computer before anything starts.'
                 }}
               </span>
             </template>

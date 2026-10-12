@@ -53,7 +53,7 @@
       </button>
     </div>
     <p v-if="store.isRunning && store.timeOff.length" class="text-[11px] font-semibold text-amber-700">
-      Locked while a run is going: time off changes which chain is fastest.
+      Locked while a run is going: time off changes which route is fastest.
     </p>
   </div>
 </template>

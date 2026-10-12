@@ -14,7 +14,7 @@
       <NewVersionBanner
         page-url="./"
         entry="index"
-        note="save your results first (Save this run, Save the file instead, or Download CSV) so nothing is lost; a search that is still running picks up from its checkpoint after the reload"
+        note="save your results first (Save this run, Save the file instead, or Download CSV) so nothing is lost; a search that is still running picks up where it left off after the reload"
         class="mb-4"
       />
       <!-- A blocked account says so the moment its save loads, not after the form is filled in. -->
@@ -479,7 +479,7 @@
             <p class="max-w-4xl mx-auto text-sm text-slate-600 leading-relaxed">
               <span class="font-bold text-slate-900">{{ NAMES.classic }}</span> is Joo's Auto AP: type the TE you want
               to ascend at and it lays out every ascension from your start, with the weekly Research Sale and the Monday
-              2× earnings boost in it. To have the checkpoints found for you, use {{ fastestName(chainSearchStore.finalTE) }} or
+              2× earnings boost in it. To have the stops found for you, use {{ fastestName(chainSearchStore.finalTE) }} or
               {{ NAMES.byDate }}.
             </p>
             <AutomaticPlanner />

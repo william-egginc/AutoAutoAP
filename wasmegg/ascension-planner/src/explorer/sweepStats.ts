@@ -195,23 +195,23 @@ export function coarseStepCost(
 ): CoarseCost {
   const checkpoints = ascensions - 1;
   if (!box || box.length !== checkpoints) {
-    return { ok: false, step, why: 'This run recorded no box that lines up checkpoint by checkpoint.' };
+    return { ok: false, step, why: 'This run recorded no box that lines up stop by stop.' };
   }
   const scoped = scope === 'all' ? box.map((_, i) => i) : [scope];
   const anchors = new Map<number, number>();
   for (const i of scoped) {
     const values = usable(box[i] ?? [], currentTE, finalTE);
-    if (!values.length) return { ok: false, step, why: `The box left no TE at the ${ordinal(i + 1)} checkpoint.` };
+    if (!values.length) return { ok: false, step, why: `The box left no TE at the ${ordinal(i + 1)} stop.` };
     if (!isEveryTE(values)) {
       return {
         ok: false,
         step,
-        why: `The box did not try every TE at the ${ordinal(i + 1)} checkpoint, so a coarser grid is not a subset of it.`,
+        why: `The box did not try every TE at the ${ordinal(i + 1)} stop, so a coarser grid is not a subset of it.`,
       };
     }
     // One value is its own grid at any step: nothing to coarsen, and no loss to report as a finding.
     if (scope !== 'all' && values.length < 2) {
-      return { ok: false, step, why: `The box tried only one TE at the ${ordinal(i + 1)} checkpoint.` };
+      return { ok: false, step, why: `The box tried only one TE at the ${ordinal(i + 1)} stop.` };
     }
     anchors.set(i, values[0]);
   }

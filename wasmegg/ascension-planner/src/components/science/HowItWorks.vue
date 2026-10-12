@@ -107,10 +107,10 @@
             isn't held to a box. In <b>{{ NAMES.smart }}</b> you pick the date and press Find: it builds the boxes for
             you around the instant answer's route for each number of ascensions, each early stop a few TE either side at
             every TE, sized to take about 10 to 30 minutes on a typical 8-core computer. In <b>{{ NAMES.full }}</b> you
-            set the chains and their boxes yourself. One 12-hour {{ NAMES.full }} run on 10 Oct simulated 153,785
-            routes, every route in its boxes. The answer card shows your TE on each egg when the route ends, how long
-            each egg needs for its next TE at your final delivery rate, and when your next TE would come if you keep
-            laying. <b>Simulate this plan</b> opens the route in {{ NAMES.classic }}, step by step on your save.
+            set the boxes yourself. One 12-hour {{ NAMES.full }} run on 10 Oct simulated 153,785 routes, every route in
+            its boxes. The answer card shows your TE on each egg when the route ends, how long each egg needs for its
+            next TE at your final delivery rate, and when your next TE would come if you keep laying.
+            <b>Simulate this plan</b> opens the route in {{ NAMES.classic }}, step by step on your save.
           </li>
         </ul>
         <p>
@@ -209,12 +209,14 @@
           Clothed TE against the roughly 225 that accounts get through at instead.
         </p>
         <p>
-          <b>Try: stronger check (a prototype).</b> A box under the instant answer, off unless you tick it. After Check
-          exactly it does two more things with the full simulator: prices your own earlier routes for the same goal
-          (from your searches here, your saved answers, your earlier checks and your board runs sent from this browser),
-          and by a date, when the top route misses the date, tries the instant answer's route one TE lower (two if
-          needed). To search the routes near the best one, pick a level above Light in the same box. Anything that beats
-          the answer shows as "Best now". It's a prototype: we haven't measured how often it finds something better.
+          <b>Stronger check.</b> A box under the instant answer, with four levels: Light, Fast, Exact and Very high.
+          Light runs by itself after Check exactly, with the full simulator. It prices your own earlier routes for the
+          same goal (from your searches here, your saved runs and answers, your earlier checks and your board runs sent
+          from this browser). By a date, when the top route misses the date, it also tries the instant answer's route
+          one TE lower (two if needed). Fast, Exact and Very high do the same, then run {{ NAMES.smart }}, a search of
+          the routes near the instant answer's. Each level says what it does, how long it should take on your computer,
+          and what it can miss. Anything that beats the answer shows as "Best now". We haven't yet measured how often
+          Light finds something better.
         </p>
       </div>
     </details>

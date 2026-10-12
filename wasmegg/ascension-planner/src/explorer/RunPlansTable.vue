@@ -64,7 +64,7 @@
         </select>
       </label>
       <label class="flex items-center gap-1.5 text-[9px] font-black text-slate-400 uppercase tracking-widest">
-        Checkpoint TE
+        Stop TE
         <input
           v-model="filterText"
           type="text"
@@ -72,7 +72,7 @@
           spellcheck="false"
           placeholder="280 or 275-285"
           class="w-36 rounded-md border-slate-300 py-0.5 text-[11px] font-mono-premium normal-case tracking-normal text-slate-700 placeholder:text-slate-300"
-          title="Plans with a checkpoint at this TE, or in this range. Several, separated by spaces, must all hold: 230 275-285 is a checkpoint at 230 and one in 275-285."
+          title="Plans with a stop at this TE, or in this range. Several, separated by spaces, must all hold: 230 275-285 is a stop at 230 and one in 275-285."
         />
       </label>
     </div>
@@ -117,10 +117,10 @@
               <button
                 type="button"
                 :class="sortHeadClass('chain')"
-                title="Checkpoint by checkpoint, lowest first"
+                title="Stop by stop, lowest first"
                 @click="sortBy('chain')"
               >
-                Chain<span aria-hidden="true">{{ sortArrow('chain') }}</span>
+                Route<span aria-hidden="true">{{ sortArrow('chain') }}</span>
               </button>
             </th>
             <th class="text-right py-1 pr-5">Asc.</th>
@@ -266,8 +266,7 @@ const narrowed = computed(() => count.value !== 'all' || terms.value.length > 0)
 const shownText = computed(() => {
   const v = view.value;
   if (!v.listed) return '';
-  const order =
-    sort.value.by === 'chain' ? ', in checkpoint order' : sort.value.dir === 'desc' ? ', slowest first' : '';
+  const order = sort.value.by === 'chain' ? ', in stop order' : sort.value.dir === 'desc' ? ', slowest first' : '';
   if (limit.value === 'all') {
     return v.pages > 1
       ? `Showing ${v.from.toLocaleString()}–${v.to.toLocaleString()} of ${v.listed.toLocaleString()}${order}.`

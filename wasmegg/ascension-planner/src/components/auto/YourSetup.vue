@@ -204,7 +204,7 @@
               <input v-model="store.scheduleEnabled" type="radio" :value="false" class="mt-0.5 text-indigo-600" />
               <span class="text-[11px] text-slate-600 leading-relaxed">
                 <span class="block font-bold text-slate-800">Any hour</span>
-                The plan prestiges the moment each checkpoint is reached, day or night. Fastest on paper.
+                The plan prestiges the moment each stop is reached, day or night. Fastest on paper.
               </span>
             </label>
             <label
@@ -306,7 +306,7 @@
           <TimeOffEditor />
           <p v-if="screen === 'classic'" class="text-[11px] font-semibold text-amber-700 leading-relaxed">
             Your plan only plans around time off in a plan built from a search (Build this plan on {{ fastestName(store.finalTE) }} or
-            {{ NAMES.byDate }}). A chain typed in here goes straight through it for now.
+            {{ NAMES.byDate }}). A route typed in here goes straight through it for now.
           </p>
           <p v-else class="text-[11px] text-slate-500 leading-relaxed">
             The searches price every route with the time off in it, so the winner is the best plan around it. The Chain
@@ -367,7 +367,7 @@
           <details class="rounded-lg border border-dashed border-slate-200 px-3 py-2" @toggle="onAdvanced">
             <summary class="cursor-pointer text-[10px] font-black text-slate-500 uppercase tracking-widest">
               Memory · detail kept for
-              {{ store.legDetailBudget ? store.legDetailBudget.toLocaleString() : 'every' }} chains
+              {{ store.legDetailBudget ? store.legDetailBudget.toLocaleString() : 'every' }} routes
             </summary>
             <div class="mt-3 space-y-3">
               <dl class="grid grid-cols-2 gap-3 text-[11px]">
@@ -404,17 +404,17 @@
                     step="500"
                     class="w-32 rounded-lg border-slate-200 text-sm font-bold text-slate-800"
                   />
-                  <span class="text-[11px] font-bold text-slate-500">fastest chains</span>
+                  <span class="text-[11px] font-bold text-slate-500">fastest routes</span>
                 </span>
               </label>
               <p class="text-[11px] text-slate-500 leading-relaxed">
                 Holding detail for
-                <span class="font-bold text-slate-700">{{ store.legsHeld.toLocaleString() }}</span> chains ({{
+                <span class="font-bold text-slate-700">{{ store.legsHeld.toLocaleString() }}</span> routes ({{
                   heldMb
-                }}). Every chain keeps its total time whatever this says; past this number, the ones that didn't win
+                }}). Every route keeps its total time whatever this says; past this number, the ones that didn't win
                 lose the per-leg timings the runners-up table opens.
                 <span class="font-bold text-slate-700">0 keeps everything</span>, which on a run of hundreds of
-                thousands of chains is how a tab gets killed overnight.
+                thousands of routes is how a tab gets killed overnight.
               </p>
             </div>
           </details>
@@ -632,7 +632,7 @@ const PROFILES = [
   {
     id: 'overnight',
     label: 'Overnight',
-    blurb: "Every core, and detail kept for far more chains. For a computer you're done using.",
+    blurb: "Every core, and detail kept for far more routes. For a computer you're done using.",
     workers: () => store.machineThreads,
     legDetail: 20000,
   },

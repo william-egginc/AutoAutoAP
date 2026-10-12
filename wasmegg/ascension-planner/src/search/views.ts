@@ -36,7 +36,7 @@ export const VIEWS: ViewDef[] = [
     id: 'balanced',
     label: 'A good mix',
     hint:
-      'The leader, the best chain at each other ascension count, then whatever else is a genuinely ' +
+      'The leader, the best route at each other ascension count, then whatever else is a genuinely ' +
       'different plan rather than the same one nudged by a few TE. Anything more than five days ' +
       'behind is left out here. Switch to "Fastest" to see the raw ranking.',
   },
@@ -44,8 +44,8 @@ export const VIEWS: ViewDef[] = [
     id: 'fastest',
     label: 'Fastest',
     hint:
-      'The outright quickest chains this run priced, in order, with nothing filtered out. Expect ' +
-      'near-duplicates: a descent sweep prices dozens of chains differing by one TE, and they are ' +
+      'The outright quickest routes this run priced, in order, with nothing filtered out. Expect ' +
+      'near-duplicates: a descent sweep prices dozens of routes differing by one TE, and they are ' +
       'all really the same plan.',
   },
   {
@@ -53,14 +53,14 @@ export const VIEWS: ViewDef[] = [
     label: 'Kindest to my schedule',
     hint:
       'Sorted by how much of the plan is spent waiting for you (prestiges held plus shifts held) ' +
-      'instead of by total length. The fastest chain is rarely the one that asks least of you, and ' +
-      'a chain that costs you two fewer days of waiting may be worth half a day of plan.',
+      'instead of by total length. The fastest route is rarely the one that asks least of you, and ' +
+      'a route that costs you two fewer days of waiting may be worth half a day of plan.',
   },
   {
     id: 'per-count',
     label: 'By ascension count',
     hint:
-      'The best chain at every ascension count the run saw, shortest chain first. Each prestige is a ' +
+      'The best route at every ascension count the run saw, shortest route first. Each prestige is a ' +
       'full rebuild (twelve shifts and a fresh research grind), so one fewer for half a day is a ' +
       'trade worth seeing plainly.',
   },
@@ -68,8 +68,8 @@ export const VIEWS: ViewDef[] = [
     id: 'finish-days',
     label: 'By finish date',
     hint:
-      'One chain per calendar day it could finish on, earliest first. Useful when a date matters more ' +
-      'than a duration: several chains finishing the same morning are one choice, not four.',
+      'One route per calendar day it could finish on, earliest first. Useful when a date matters more ' +
+      'than a duration: several routes finishing the same morning are one choice, not four.',
   },
 ];
 

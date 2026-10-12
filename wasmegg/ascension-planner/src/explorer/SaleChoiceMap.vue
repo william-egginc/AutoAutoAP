@@ -107,7 +107,7 @@
       <p class="mt-1 px-1 text-[10px] text-slate-500 leading-relaxed max-w-3xl">
         n counts legs; a leg one account sent in several runs counts once. A share under two thirds, or an n of one or
         two, is only a weak tendency. Hover a cell for every plan in it and how many accounts it comes from. This is
-        which plan the planner picked for the winning chains, not by how much it won: the runs only keep the plan that
+        which plan the planner picked for the winning routes, not by how much it won: the runs only keep the plan that
         won each leg.
       </p>
     </div>

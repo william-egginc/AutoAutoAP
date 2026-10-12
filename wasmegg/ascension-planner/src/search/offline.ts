@@ -316,8 +316,8 @@ export function edgeLines(o: {
   const bands = parseBands(text);
   const widened = { text: formatBands(bands), bands, chains: o.countChains(bands) };
   lines.push(
-    `  The wider space is ${widened.chains.toLocaleString()} chains: --bands "${widened.text}"` +
-      ` (${o.hint ?? 'or add --widen to run it straight away'}; chains already priced are reused).`
+    `  The wider space is ${widened.chains.toLocaleString()} routes: --bands "${widened.text}"` +
+      ` (${o.hint ?? 'or add --widen to run it straight away'}; routes already priced are reused).`
   );
   return { lines, widened };
 }

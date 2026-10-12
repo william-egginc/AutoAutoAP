@@ -96,7 +96,7 @@ const MODES: { id: Metric; label: string; hint: string }[] = [
   {
     id: 'days',
     label: 'Days per leg',
-    hint: 'How long each ascension takes, on a log scale so the short legs are not flattened by the long ones: each labelled gridline is ten times the one below. The last leg before the target is usually the biggest single block in the plan, which is what makes the last checkpoint the value worth arguing about. Leg 1 (hollow point, dashed line) is the rest of the ascension in progress when the plan starts, so it is shorter when the plan is made later; compare legs 2 onward.',
+    hint: 'How long each ascension takes, on a log scale so the short legs are not flattened by the long ones: each labelled gridline is ten times the one below. The last leg before the target is usually the biggest single block in the plan, which is what makes the last stop the value worth arguing about. Leg 1 (hollow point, dashed line) is the rest of the ascension in progress when the plan starts, so it is shorter when the plan is made later; compare legs 2 onward.',
   },
   {
     id: 'rate',

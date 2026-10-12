@@ -25,7 +25,7 @@
           class="px-3 py-1.5 rounded-lg bg-amber-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-800 disabled:opacity-40"
           @click="add(h.count)"
         >
-          {{ mode === 'start' ? `Start from ${h.count} ascensions` : `Add a chain with ${h.count} ascensions` }}
+          {{ mode === 'start' ? `Start from ${h.count} ascensions` : `Add a box with ${h.count} ascensions` }}
         </button>
         <button
           v-if="h.kind === 'instant' && h.chain && h.chain.length > 1"
@@ -103,7 +103,7 @@ watch(
 function check(chain: number[]): void {
   emit('check', chain);
   if (props.mode === 'chain')
-    checked.value = 'Set the first chain to this route. Press Find to price it with the full simulator.';
+    checked.value = 'Set the first box to this route. Press Find to price it with the full simulator.';
 }
 
 function add(count: number): void {

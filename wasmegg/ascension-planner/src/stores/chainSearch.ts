@@ -2004,7 +2004,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       .filter(n => Number.isFinite(n) && n > 0);
     if (!seedTidied(raw, currentTE.value, finalTE.value)) return '';
     const chain = usableCheckpoints(raw, currentTE.value, finalTE.value);
-    return `Your starting chain wasn't in order, or repeated a value, so it was sorted and the repeats dropped. It starts from ${[...chain, finalTE.value].join(' ')}.`;
+    return `Your starting route wasn't in order, or repeated a value, so it was sorted and the repeats dropped. It starts from ${[...chain, finalTE.value].join(' ')}.`;
   });
 
   /** Why the current seed cannot produce an answer inside the Limits box, or null when it can.
@@ -5243,7 +5243,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         return {
           chains: [],
           error:
-            'No chains: the bands leave nothing strictly increasing once the minimum gap and your current TE are applied.',
+            'No routes: the bands leave nothing strictly increasing once the minimum gap and your current TE are applied.',
         };
       }
       return { chains, error: null };
@@ -5263,8 +5263,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       return {
         chains: [],
         error: minGap
-          ? `No chains: nothing in the pool is ${minGap} TE apart at that ascension count.`
-          : 'No chains: the ascension range asks for more checkpoints than the pool can supply.',
+          ? `No routes: nothing in the pool is ${minGap} TE apart at that ascension count.`
+          : 'No routes: the ascension range asks for more stops than the pool can supply.',
       };
     }
     return { chains, error: null };
@@ -5328,8 +5328,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     runLog.value = spec.bands?.length
       ? [`--- exhaustive: ${spec.bands.length} bands, ${spec.bands.length + 1} ascensions`]
       : [`--- exhaustive: ${spec.minAsc}-${spec.maxAsc} ascensions`];
-    if (minGap) runLog.value.push(`minimum gap ${minGap} TE between checkpoints`);
-    runLog.value.push(`${chains.length.toLocaleString()} chains, no pruning`);
+    if (minGap) runLog.value.push(`minimum gap ${minGap} TE between stops`);
+    runLog.value.push(`${chains.length.toLocaleString()} routes, no pruning`);
     secondsPerChain.value = 0;
     rateSource.value = null;
 
@@ -5440,7 +5440,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     noteRate(chainsDone.value, true);
     sweepChainSamples.value = [];
     if (chainsReplayed.value) {
-      runLog.value.push(`replayed ${chainsReplayed.value.toLocaleString()} chains from a previous run`);
+      runLog.value.push(`replayed ${chainsReplayed.value.toLocaleString()} routes from a previous run`);
       noteBest();
       refreshShortlist(true);
     }
@@ -5484,7 +5484,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       workersInPool.value = pool.size;
       startWorkerClock();
       if (!(await checkIntegrity(pool))) return void (runEnd = 'stopped');
-      stage.value = 'pricing every chain';
+      stage.value = 'pricing every route';
       // And again once the workers are up: starting them and the integrity check are not a chain's
       // cost, and the first batch's rate (the benchmark this machine keeps) was charged them.
       noteRate(chainsDone.value, true);
@@ -5537,7 +5537,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       // does not come back, the result stands without per-leg detail rather than the whole run
       // being reported as failed with nothing saved as complete.
       if (bestChain.value.length && !bestLegs.value.length && pool) {
-        stage.value = 'filling in the winning chain';
+        stage.value = 'filling in the winning route';
         try {
           // A COPY, not `bestChain.value`: that is a Vue reactive proxy, and a proxy cannot be
           // posted to a worker. It failed every resumed run at its very last step with "Failed to
@@ -5552,7 +5552,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           }
         } catch (e) {
           runLog.value.push(
-            `--- could not fill in the winning chain's legs (${describeRunError(e)}); the result stands without them`
+            `--- could not fill in the winning route's legs (${describeRunError(e)}); the result stands without them`
           );
         }
       }
@@ -7317,7 +7317,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       const elapsedSeconds = (performance.now() - probeStartedAt) / 1000;
 
       if (!results.length) {
-        benchmarkError.value = 'No chains in this batch could be evaluated, so there is nothing to benchmark.';
+        benchmarkError.value = 'No routes in this batch could be evaluated, so there is nothing to benchmark.';
         return;
       }
 
@@ -7596,7 +7596,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         bestDays.value = resumeFrom.bestSeconds / 86400;
         bestLegs.value = resumeFrom.bestLegs;
         chainsReplayed.value = restoredCache.length;
-        detail.value = `resumed with ${restoredCache.length} chains already priced`;
+        detail.value = `resumed with ${restoredCache.length} routes already priced`;
         // Seed the export with what we replayed, so a CSV taken before the first batch reports the
         // replayed chains (durations only - a checkpoint keeps legs for the best chain alone).
         liveCache = [...restoredCache];
@@ -7795,7 +7795,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       stage.value = outcome.stoppedEarly
         ? 'stopped'
         : outcome.chainsEvaluated === 0
-          ? 'done - every chain it needed was already priced'
+          ? 'done - every route it needed was already priced'
           : 'done';
       if (options.recheck && !outcome.stoppedEarly && bestDays.value > 0 && pool) {
         const finalStage = stage.value;

@@ -59,9 +59,9 @@ describe('RoutesToTry', () => {
   });
 
   it('offers the link only where the screen does, and only with two or more chains', async () => {
-    expect(textOf(await renderHtml(RoutesToTry, { ...byDate, linkable: false }))).not.toContain('move every chain');
+    expect(textOf(await renderHtml(RoutesToTry, { ...byDate, linkable: false }))).not.toContain('move every box');
     const one = { ...byDate, rows: [byDate.rows[0]], sliders: [view], problems: [''], summaries: ['x'] };
-    expect(textOf(await renderHtml(RoutesToTry, one))).not.toContain('move every chain');
+    expect(textOf(await renderHtml(RoutesToTry, one))).not.toContain('move every box');
   });
 
   it("draws the Full sweep's added chains from Chain 2, no lead words, and its own notes and footer", async () => {

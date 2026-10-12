@@ -76,7 +76,7 @@
                   </button>
                 </div>
                 <p class="text-[10px] font-bold text-slate-400 leading-relaxed px-1 mt-2">
-                  Enter several target TEs separated by spaces to generate a whole multi-ascension chain at once.
+                  Enter several target TEs separated by spaces to generate a whole multi-ascension route at once.
                 </p>
               </div>
             </div>
@@ -318,7 +318,7 @@
         class="mt-4 p-3 rounded-xl border border-sky-200 bg-sky-50 text-[11px] text-sky-900 leading-relaxed"
       >
         <span class="font-black uppercase tracking-wide">Includes your time off.</span>
-        {{ timeOffInPlan.join(' ') }} If you change the Target TE or the start, this is dropped. Re-apply from the chain
+        {{ timeOffInPlan.join(' ') }} If you change the Target TE or the start, this is dropped. Re-apply from the route
         search to put it back.
       </div>
       <div
@@ -326,7 +326,7 @@
         class="mt-4 p-3 rounded-xl border border-amber-200 bg-amber-50 text-[11px] text-amber-900 leading-relaxed"
       >
         <span class="font-black uppercase tracking-wide">Time off left out.</span>
-        It was worked into this chain for a plan starting {{ timeOffDroppedFor }}, and the start is now
+        It was worked into this route for a plan starting {{ timeOffDroppedFor }}, and the start is now
         {{ autoPlannerStore.startDate }} {{ autoPlannerStore.startTime }} (a newer save moves it up), so this plan farms
         straight through it. Search again, or re-apply from the search, to put it back.
       </div>

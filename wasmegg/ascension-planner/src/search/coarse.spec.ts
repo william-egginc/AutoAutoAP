@@ -83,7 +83,7 @@ describe('findStartingChain', () => {
     // sailed past its budget check with 0 chains and handed fastsearch an empty grid.
     const s = stub(() => ({ days: 900, finalELR: 11.585 }));
     await expect(findStartingChain({ ...BASE, currentTE: 485, evaluateBatch: s.fn })).rejects.toThrow(
-      /No room for intermediate checkpoints/
+      /No room for intermediate stops/
     );
   });
 

@@ -47,7 +47,7 @@
           <p class="text-[11px] text-slate-600">
             <template v-if="timeOffText">
               Planned around time off: <b>{{ timeOffText }}</b
-              >. It still prices every chain, but the result goes on the board with the time-off runs and won't fill
+              >. It still prices every route, but the result goes on the board with the time-off runs and won't fill
               this gap.
             </template>
             <template v-else>
@@ -55,7 +55,7 @@
               <button type="button" class="font-bold text-indigo-700 underline" @click="ui.openSetupRequested++">
                 Add it in Your setup
               </button>
-              and the sweep still prices every chain around it.
+              and the sweep still prices every route around it.
             </template>
           </p>
         </div>
@@ -99,7 +99,7 @@
           />
           <span class="block text-[10px] text-slate-500">
             Fewer workers keep the computer usable and quieter; more finish sooner. The estimate above follows the
-            slider. You can move it during a run too: the change takes effect within about a minute, and no chain in
+            slider. You can move it during a run too: the change takes effect within about a minute, and no route in
             progress is lost.
           </span>
         </label>
@@ -109,7 +109,7 @@
           <span>
             I understand this takes about <b>{{ estimateLabel }}</b
             >, that this tab has to stay open (and the computer awake) until it finishes, and that the result is then
-            <b>sent to the board automatically</b>. What gets sent: the chain, its timings and the full CSV, with my
+            <b>sent to the board automatically</b>. What gets sent: the route, its timings and the full CSV, with my
             artifact inventory, timezone and local plan start, plus a random code this browser keeps for the account
             (never my player ID, and never shown). The code folds my repeated sends together, lets me put my name on a
             run sent anonymously, and lets my own later runs replace my older plans. In its last few seconds the sweep
@@ -232,7 +232,7 @@
         </summary>
         <div class="px-4 pb-4 text-xs text-slate-600 leading-relaxed space-y-2">
           <p>
-            This prices <span class="font-bold">every</span> chain in the bands you describe, with no descent, stages or
+            This prices <span class="font-bold">every</span> route in the bands you describe, with no descent, stages or
             pruning, so the winner is the true optimum of that space, not a local one. It is also the mode that gets out
             of hand fastest: the bands multiply, so halving the step in each does far more than double the work.
           </p>
@@ -244,33 +244,33 @@
                estimate and Find). -->
           <p class="pt-2 font-bold text-slate-800">How the work is split</p>
           <p>
-            <span class="font-bold text-slate-800">Chains are sorted so related ones sit together.</span> Every chain
+            <span class="font-bold text-slate-800">Routes are sorted so related ones sit together.</span> Every route
             starting <code class="font-mono-premium">195 229</code> sits next to the others that start that way, because
-            the expensive unit is the <span class="font-semibold">leg</span>, not the chain. Two chains that share their
-            first three checkpoints share those three leg simulations exactly.
+            the expensive unit is the <span class="font-semibold">leg</span>, not the route. Two routes that share their
+            first three stops share those three leg simulations exactly.
           </p>
           <p>
             <span class="font-bold text-slate-800"
               >The sorted list is cut into chunks of {{ store.workersInPool * 2 }}</span
             >
             (workers × 2) and handed to the pool one chunk at a time. The pool splits each chunk across workers by
-            prefix, so each worker gets a family of related chains instead of a random handful, and its memo pays off.
+            prefix, so each worker gets a family of related routes instead of a random handful, and its memo pays off.
           </p>
           <p>
             <span class="font-bold text-slate-800">Each worker simulates legs and remembers them.</span> A leg is a full
             farm simulation: research purchases, hab and vehicle upgrades, twelve egg switches, sale timing. That is
-            where the ~15 s goes. A chain whose prefix the worker has already priced only pays for its new legs, which
+            where the ~15 s goes. A route whose prefix the worker has already priced only pays for its new legs, which
             is why the real cost lands well under the estimate.
           </p>
           <p>
             <span class="font-bold text-slate-800">Progress comes from the workers themselves.</span> Each worker
-            reports after every chain it finishes, so the bar moves steadily and you can tell a dead worker from one
-            that is still thinking. The s/chain figure under the bar is measured on this machine, not carried over from
+            reports after every route it finishes, so the bar moves steadily and you can tell a dead worker from one
+            that is still thinking. The s/route figure under the bar is measured on this machine, not carried over from
             another one.
           </p>
           <p>
             <span class="font-bold text-slate-800">Stop is checked between chunks.</span> A chunk in flight finishes
-            first, so on a space with long chains "Stopping…" can sit for a minute or two. Nothing is lost: everything
+            first, so on a space with long routes "Stopping…" can sit for a minute or two. Nothing is lost: everything
             priced so far stays, and the best of it is your answer.
           </p>
         </div>
@@ -286,7 +286,7 @@
         :elsewhere="store.runElsewhere.sweep"
         :carry-label="
           store.crashedQueue
-            ? `Carry on the queue (chain ${store.crashedQueue.next + 1} of ${store.crashedQueue.record.chains.length})`
+            ? `Carry on the queue (box ${store.crashedQueue.next + 1} of ${store.crashedQueue.record.chains.length})`
             : 'Carry on from where it stopped'
         "
         :disabled="store.busy || resuming !== ''"
@@ -296,7 +296,7 @@
           <template v-if="store.crashedQueue">{{ crashedQueueNote }}</template>
           <template v-else>A run on this machine stopped without finishing.</template>
           <template v-if="!store.crashedQueue || store.crashedQueue.next === store.crashedQueue.record.at">
-            <span class="font-bold">{{ (store.crashedRun.durations?.length ?? 0).toLocaleString() }}</span> chains are
+            <span class="font-bold">{{ (store.crashedRun.durations?.length ?? 0).toLocaleString() }}</span> routes are
             already priced and will be replayed instead of simulated again.
           </template>
           It was last saved {{ agoLabel(store.crashedRun.updatedAt) }}.
@@ -350,7 +350,7 @@
               <span class="flex items-center gap-1.5">
                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Final target TE</span>
                 <HelpTip
-                  >The TE every chain ends at. It's added to the end of each chain automatically, so it never goes in
+                  >The TE every route ends at. It's added to the end of each route automatically, so it never goes in
                   the bands below.</HelpTip
                 >
               </span>
@@ -366,7 +366,7 @@
               <span class="flex items-center gap-1.5">
                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Your TE now</span>
                 <HelpTip
-                  >Read from your backup, not editable here. It is the floor for every checkpoint in the bands.</HelpTip
+                  >Read from your backup, not editable here. It is the floor for every stop in the bands.</HelpTip
                 >
               </span>
               <input
@@ -386,12 +386,12 @@
               </span>
               <span class="flex items-center gap-1.5">
                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                  Bands, one per checkpoint
+                  Bands, one per stop
                 </span>
                 <HelpTip>
                   Semicolon separated, each `lo-hi` with an optional `:step`. `185-200:5; 210-240:10; 250-290:20` means
                   the first ascension lands between 185 and 200, the second between 210 and 240, the third between 250
-                  and 290, then the target. Bands may overlap; chains still have to increase.
+                  and 290, then the target. Bands may overlap; routes still have to increase.
                 </HelpTip>
               </span>
               <input
@@ -435,9 +435,9 @@
                 <HelpTip>
                   Fills the boxes with a space of the size set beside it. When the whole reachable range fits (at two
                   ascensions, and three on most accounts), it suggests that at step 1, so the run proves the optimum and
-                  no measurement is involved. Above that, it uses where near-best chains have actually landed across
+                  no measurement is involved. Above that, it uses where near-best routes have actually landed across
                   this project's runs, refined as close to 5 TE as the budget allows before any of it goes to widening
-                  the bands. It also adds a chain for one ascension fewer and one more, at half the size, so a sweep
+                  the bands. It also adds a box for one ascension fewer and one more, at half the size, so a sweep
                   covers three counts; remove them under Box 2 and 3 if you only want one. Either way it's a starting
                   point you can edit.
                 </HelpTip>
@@ -556,13 +556,13 @@
             <label class="space-y-1 block max-w-xs">
               <span class="flex items-center gap-1.5">
                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                  Keep checkpoints at least this many TE apart
+                  Keep stops at least this many TE apart
                 </span>
                 <HelpTip>
-                  Skips any chain where two checkpoints in a row are closer than this, to save time on chains you'd
-                  never play. 0 means no limit. Be careful raising it: on one account the best 7-ascension chain found,
-                  185 200 215 230 290 380 490, has checkpoints only 15 TE apart, so anything above 15 would have skipped
-                  it. It never applies to the last jump, up to the target.
+                  Skips any route where two stops in a row are closer than this, to save time on routes you'd never
+                  play. 0 means no limit. Be careful raising it: on one account the best 7-ascension route found, 185
+                  200 215 230 290 380 490, has stops only 15 TE apart, so anything above 15 would have skipped it. It
+                  never applies to the last jump, up to the target.
                 </HelpTip>
               </span>
               <input
@@ -575,8 +575,8 @@
               <span class="block text-[10px] text-slate-500">
                 {{
                   minGap > 0
-                    ? `e.g. after ascending at 200, the next checkpoint is ${200 + minGap} or higher. 0 = no limit.`
-                    : 'No limit: checkpoints can be any distance apart.'
+                    ? `e.g. after ascending at 200, the next stop is ${200 + minGap} or higher. 0 = no limit.`
+                    : 'No limit: stops can be any distance apart.'
                 }}
               </span>
             </label>
@@ -604,7 +604,7 @@
               <div class="flex items-center justify-center gap-1.5">
                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Values tried</span>
                 <HelpTip
-                  >Checkpoint values across all the bands, after anything outside (your TE, target) is dropped.</HelpTip
+                  >Stop values across all the bands, after anything outside (your TE, target) is dropped.</HelpTip
                 >
               </div>
               <div class="text-lg font-black text-slate-900 tabular-nums">{{ poolSize }}</div>
@@ -613,11 +613,11 @@
               <div class="flex items-center justify-center gap-1.5">
                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Routes it will run</span>
                 <HelpTip
-                  >Every chain through the bands that can actually be played: each checkpoint above the one before it
-                  (and at least the minimum gap above it), with the target added at the end. Combinations that go down,
-                  stand still, or fall outside your TE and the target can't be played, so they aren't counted or run.
-                  It's counted, never built as a list: at small steps the list wouldn't fit in memory, and this number
-                  warns you before that happens.</HelpTip
+                  >Every route through the bands that can actually be played: each stop above the one before it (and at
+                  least the minimum gap above it), with the target added at the end. Combinations that go down, stand
+                  still, or fall outside your TE and the target can't be played, so they aren't counted or run. It's
+                  counted, never built as a list: at small steps the list wouldn't fit in memory, and this number warns
+                  you before that happens.</HelpTip
                 >
               </div>
               <div class="text-lg font-black tabular-nums" :class="tooBig ? 'text-red-700' : 'text-slate-900'">
@@ -637,9 +637,9 @@
               <div class="flex items-center justify-center gap-1.5">
                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Est. wall clock</span>
                 <HelpTip
-                  >Chains x assumed cost / workers. It errs high on purpose: the assumed cost is the typical cost of a
-                  chain this long in players' runs until this machine has its own measured or benchmarked rate, and
-                  prefix sharing means most chains cost far less than a full simulation.</HelpTip
+                  >Routes x assumed cost / workers. It errs high on purpose: the assumed cost is the typical cost of a
+                  route this long in players' runs until this machine has its own measured or benchmarked rate, and
+                  prefix sharing means most routes cost far less than a full simulation.</HelpTip
                 >
               </div>
               <div class="text-lg font-black tabular-nums" :class="tooBig ? 'text-red-700' : 'text-slate-900'">
@@ -650,7 +650,7 @@
               <div class="flex items-center justify-center gap-1.5">
                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Assumed cost</span>
                 <HelpTip
-                  >What the estimate charges per chain. It starts at the typical cost for chains this long in players'
+                  >What the estimate charges per route. It starts at the typical cost for routes this long in players'
                   runs and switches to this machine's own measured rate once the first chunk lands, or as soon as you
                   press "Benchmark my PC" below, which prices that first chunk right away instead of waiting for a real
                   run.</HelpTip
@@ -698,7 +698,7 @@
               The bands are empty once values outside ({{ store.currentTE }}, {{ store.finalTE }}) are dropped.
             </template>
             <template v-else-if="!chainCount">
-              No routes: no way through these bands goes up at every checkpoint{{
+              No routes: no way through these bands goes up at every stop{{
                 minGap > 0 ? ` by at least ${minGap} TE` : ''
               }}.
             </template>
@@ -826,7 +826,7 @@
               </p>
               <ResultTable
                 v-if="queueResults.length"
-                :columns="['Chain', 'Best found', 'Days', 'Finishes']"
+                :columns="['Box', 'Best found', 'Days', 'Finishes']"
                 :rows="queueResults"
                 :row-key="q => q.label"
               >
@@ -1002,7 +1002,7 @@
                 <p class="text-[11px] text-indigo-900/80 leading-relaxed">
                   An exhaustive result is the most useful thing the board can get: the best of a stated grid rather than
                   a search result. It is sent with the space it covered and what it found there (the runners-up, the
-                  best chain at each ascension count, and the spread), so a reader can tell a real find from a flat
+                  best route at each ascension count, and the spread), so a reader can tell a real find from a flat
                   neighbourhood without downloading the CSV. A run opened from the library above is sent without a run
                   cost, because the time it took wasn't this machine's.
                 </p>
@@ -1469,7 +1469,7 @@ const resultClaim = computed(() => {
   const sp = store.searchSpace;
   if (!sp) return 'best found';
   const complete = gridIsComplete(sp.bands, sp.range?.step);
-  if (complete) return 'the best of every chain in this space';
+  if (complete) return 'the best of every route in this space';
   return `best on this grid (${gridStepLabel(sp.bands, sp.range?.step)})`;
 });
 const resultExplain = computed(() => {
@@ -1612,7 +1612,7 @@ function extraProblem(k: number): string {
   const b = extraBands(k);
   if (!b.length) return 'Nothing readable yet: press Suggest a space or type bands.';
   if (b.length !== row.asc - 1) return `These bands make ${b.length + 1} ascensions, not ${row.asc}.`;
-  return extraCount(k) ? '' : 'No chain in these bands goes up to the target.';
+  return extraCount(k) ? '' : 'No route in these bands goes up to the target.';
 }
 function extraSummary(k: number): string {
   const row = extraChains.value[k];
@@ -1693,11 +1693,11 @@ function addChain(): void {
 function addChainOfCount(n: number): string {
   const suggested = spaceFor(n, suggestBudget)?.text ?? '';
   const queued = extraChains.value.findIndex(r => r.asc === n && r.text.trim() === suggested);
-  if (queued >= 0) return `Chain ${queued + 2} already has ${n} ascensions. Press Find to run it.`;
+  if (queued >= 0) return `Box ${queued + 2} already has ${n} ascensions. Press Find to run it.`;
   extraChains.value.push({ asc: n, text: '' });
   const k = extraChains.value.length - 1;
   suggestExtra(k);
-  return `Added Chain ${k + 2} with ${n} ascensions under The routes to try. Press Find to run it.`;
+  return `Added Box ${k + 2} with ${n} ascensions under The routes to try. Press Find to run it.`;
 }
 /** The instant answer's route, handed to the Full sweep as one-value bands (taken by the watch on `ui.fullSweepBands`). */
 function checkRouteExactly(chain: number[]): void {
@@ -1956,7 +1956,7 @@ async function startQueue(): Promise<void> {
       ascensions: bands.value.length + 1,
     },
     ...extraChains.value.map((row, k) => ({
-      label: `Chain ${k + 2} · ${row.asc} ascension${row.asc === 1 ? '' : 's'}`,
+      label: `Box ${k + 2} · ${row.asc} ascension${row.asc === 1 ? '' : 's'}`,
       spec: specOfExtra(k),
       count: extraCount(k),
       ascensions: Math.max(1, row.asc),
@@ -2158,13 +2158,13 @@ const crashedQueueNote = computed(() => {
   if (!q) return '';
   const of = q.record.chains.length;
   const done = q.record.results.filter(r => r.days > 0).length;
-  const doneText = done ? ` ${done} finished chain${done === 1 ? ' is' : 's are'} kept in the table.` : '';
+  const doneText = done ? ` ${done} finished ${done === 1 ? 'box is' : 'boxes are'} kept in the table.` : '';
   const rest = of - q.next - 1;
   const restText = rest ? `, then the ${rest === 1 ? 'last one' : `other ${rest}`}` : '';
   const head = `An Exhaustive run of ${of} boxes stopped without finishing, at box ${q.record.at + 1} of ${of}.${doneText}`;
   return q.next === q.record.at
-    ? `${head} Carrying on finishes chain ${q.next + 1}${restText}${q.record.submit ? ', sending each as it finishes, as you asked' : ''}.`
-    : `${head} That chain finished; carrying on starts chain ${q.next + 1}${restText}${q.record.submit ? ', sending each as it finishes, as you asked' : ''}.`;
+    ? `${head} Carrying on finishes box ${q.next + 1}${restText}${q.record.submit ? ', sending each as it finishes, as you asked' : ''}.`
+    : `${head} That box finished; carrying on starts box ${q.next + 1}${restText}${q.record.submit ? ', sending each as it finishes, as you asked' : ''}.`;
 });
 
 /** Which run is mid-resume, for the button's own label. Empty when none is. */

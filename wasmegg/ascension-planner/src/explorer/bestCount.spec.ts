@@ -234,7 +234,7 @@ describe('bestCountTable', () => {
     // staged winner had no box at all, so a finer search of it would more likely widen the gap.
     expect(c6.step).toMatchObject({ from: 5, to: 6, better: 6, verdict: 'direction' });
     expect(stepWords(c6.step!)).toBe(
-      'vs 5 ascensions: 6 ascensions finish first by 2.5 d · direction holds: the count that won was searched at least as coarsely at every checkpoint'
+      'vs 5 ascensions: 6 ascensions finish first by 2.5 d · direction holds: the count that won was searched at least as coarsely at every stop'
     );
   });
 

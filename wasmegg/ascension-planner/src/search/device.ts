@@ -38,4 +38,4 @@ export function isPhone(
 }
 
 /** The note itself. */
-export const PHONE_NOTE = 'Searches run much faster on a computer; this phone can still run short ones.';
+export const PHONE_NOTE = 'Searches run much faster on a computer. This phone can still run short ones.';

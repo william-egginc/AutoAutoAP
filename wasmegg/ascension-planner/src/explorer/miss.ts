@@ -253,18 +253,18 @@ export function missAdvice(table: MissTable, truncated = 0): string {
   if (s.earlierReplanMax != null) {
     if (s.earlierReplanPays > 0 && s.earlierKeepMax != null) {
       clauses.push(
-        `if you miss an earlier checkpoint, re-plan the rest from where you land (keeping the old plan costs up to ${daysNumber(s.earlierKeepMax)} days here, re-planning ${rangeText(s.earlierReplanMin ?? 0, s.earlierReplanMax)})`
+        `if you miss an earlier stop, re-plan the rest from where you land (keeping the old plan costs up to ${daysNumber(s.earlierKeepMax)} days here, re-planning ${rangeText(s.earlierReplanMin ?? 0, s.earlierReplanMax)})`
       );
     } else if (s.earlierReplanMax < REPLAN_WORTH_DAYS && (s.earlierKeepMax ?? 0) < REPLAN_WORTH_DAYS) {
-      clauses.push(`missing an earlier checkpoint by ${by} costs under a day here, even on the old plan`);
+      clauses.push(`missing an earlier stop by ${by} costs under a day here, even on the old plan`);
     } else if (s.earlierKeepMax == null) {
       clauses.push(
-        `missing an earlier checkpoint by ${by} costs up to ${daysNumber(s.earlierReplanMax)} days here even after re-planning the rest`
+        `missing an earlier stop by ${by} costs up to ${daysNumber(s.earlierReplanMax)} days here even after re-planning the rest`
       );
     } else {
       const worst = Math.max(s.earlierReplanMax, s.earlierKeepMax);
       clauses.push(
-        `missing an earlier checkpoint by ${by} costs up to ${daysNumber(worst)} days here whether you keep the plan or re-plan`
+        `missing an earlier stop by ${by} costs up to ${daysNumber(worst)} days here whether you keep the plan or re-plan`
       );
     }
   }
@@ -274,25 +274,23 @@ export function missAdvice(table: MissTable, truncated = 0): string {
     if (table.rows.length === 1) {
       clauses.push(
         s.lastMax >= REPLAN_WORTH_DAYS
-          ? `hit this plan's one checkpoint exactly: a miss by ${by} costs ${cost}, and there is nothing after it to re-plan`
-          : `missing this plan's one checkpoint by ${by} costs under a day`
+          ? `hit this plan's one stop exactly: a miss by ${by} costs ${cost}, and there is nothing after it to re-plan`
+          : `missing this plan's one stop by ${by} costs under a day`
       );
     } else if (s.lastMax < REPLAN_WORTH_DAYS) {
-      clauses.push(`a miss at the last checkpoint costs under a day`);
+      clauses.push(`a miss at the last stop costs under a day`);
     } else if (s.earlierReplanMax != null && s.earlierReplanMax >= s.lastMax) {
       // An earlier miss can cost more even re-planned: the last checkpoint is not the special one.
-      clauses.push(`a miss at the last checkpoint costs ${cost}, with nothing left to re-plan`);
+      clauses.push(`a miss at the last stop costs ${cost}, with nothing left to re-plan`);
     } else {
-      clauses.push(
-        `the last checkpoint is the one to hit exactly: a miss there costs ${cost} and leaves nothing to re-plan`
-      );
+      clauses.push(`the last stop is the one to hit exactly: a miss there costs ${cost} and leaves nothing to re-plan`);
     }
   }
 
   if (!clauses.length) {
     return truncated
-      ? `None of the plans this page read has a checkpoint moved by ${by}, and it read only the fastest part of the table (the slowest ${truncated.toLocaleString('en-US')} plans were not read), so it cannot say what a miss costs.`
-      : `This run never priced a plan with a checkpoint moved by ${by}, so it cannot say what a miss costs: most likely its search stepped over the TEs next to the best plan's checkpoints (a box at every 5th TE, say).`;
+      ? `None of the plans this page read has a stop moved by ${by}, and it read only the fastest part of the table (the slowest ${truncated.toLocaleString('en-US')} plans were not read), so it cannot say what a miss costs.`
+      : `This run never priced a plan with a stop moved by ${by}, so it cannot say what a miss costs: most likely its search stepped over the TEs next to the best plan's stops (a box at every 5th TE, say).`;
   }
   const sentence = clauses.join('; ');
   const tail =

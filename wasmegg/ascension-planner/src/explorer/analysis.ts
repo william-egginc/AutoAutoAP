@@ -1448,7 +1448,7 @@ export function searchedOf(row: CollectorRow): Searched {
       where: '',
       pieces: [],
       finished: false,
-      title: `A ${row.effort || 'staged'} search: it improved on a seed chain rather than trying a fixed set of TEs, so there is no box to show. ${priced} plans priced.`,
+      title: `A ${row.effort || 'staged'} search: it improved on a seed route rather than trying a fixed set of TEs, so there is no box to show. ${priced} plans priced.`,
     };
   }
   const asc = sp.minAscensions === sp.maxAscensions ? `${sp.minAscensions}` : `${sp.minAscensions}-${sp.maxAscensions}`;
@@ -1533,8 +1533,8 @@ export function rateCheckOf(row: Submission): RateCheckState {
           : !(last.peakDeliveryQph > 0)
             ? 'Its final leg recorded no peak delivery rate to check.'
             : row.chain.length < 2
-              ? 'A plan with one ascension has no checkpoint to check its final leg from.'
-              : `Its last checkpoint (${row.chain[row.chain.length - 2]} TE) is under 190, below where the delivery ramp was measured.`;
+              ? 'A plan with one ascension has no stop to check its final leg from.'
+              : `Its last stop (${row.chain[row.chain.length - 2]} TE) is under 190, below where the delivery ramp was measured.`;
   return { state: 'unchecked', why: `Not checked for the delivery-set bug. ${why}` };
 }
 

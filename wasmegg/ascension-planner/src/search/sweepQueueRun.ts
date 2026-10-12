@@ -129,7 +129,7 @@ export async function runSweepQueue(d: SweepQueueRunDeps, o: SweepQueueRunOption
         }
         // Recorded, sent and saved: a crash from here on carries on with the next chain.
         if (!stopped && k < o.chains.length - 1) await d.persistQueue(true);
-      } else if (!stopped) fail(c.label, 'no chain in this space finishes');
+      } else if (!stopped) fail(c.label, 'no route in this space finishes');
       if (stopped) break;
     }
   } finally {

@@ -492,10 +492,10 @@ const view = computed(() => {
       ? `${n(top.mergedPlans)} of them were priced by more than one table, and each shows only its newest measurement (${n(top.merged)} older ${top.merged === 1 ? 'one' : 'ones'} merged).`
       : '',
     top.restRepriced
-      ? `${n(top.restRepriced)} ${top.restRepriced === 1 ? 'measurement' : 'measurements'} of plans with a checkpoint the account has since passed ${top.restRepriced === 1 ? 'was' : 'were'} replaced by a newer table's measurement of what is left.`
+      ? `${n(top.restRepriced)} ${top.restRepriced === 1 ? 'measurement' : 'measurements'} of plans with a stop the account has since passed ${top.restRepriced === 1 ? 'was' : 'were'} replaced by a newer table's measurement of what is left.`
       : '',
     top.passed
-      ? `${n(top.passed)} ${top.passed === 1 ? 'plan shows' : 'plans show'} a checkpoint struck through: a newer table shows the account past it and priced nothing of the rest, so the older measurement stands.`
+      ? `${n(top.passed)} ${top.passed === 1 ? 'plan shows' : 'plans show'} a stop struck through: a newer table shows the account past it and priced nothing of the rest, so the older measurement stands.`
       : '',
   ]
     .filter(Boolean)

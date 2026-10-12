@@ -24,7 +24,7 @@
             <th class="py-1.5 pr-3">Who</th>
             <th class="py-1.5 pr-3">TE</th>
             <th class="py-1.5 pr-3">Clothed TE</th>
-            <th class="py-1.5 pr-3">Chain</th>
+            <th class="py-1.5 pr-3">Route</th>
             <th class="py-1.5 pr-3">Plan length (from its start)</th>
             <th class="py-1.5 pr-3">Integrity wait</th>
             <th class="py-1.5 pr-3">Why it is here</th>

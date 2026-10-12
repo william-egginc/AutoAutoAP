@@ -89,7 +89,7 @@
         Nothing readable there — try `195, 196, 197` or `195-200`.
       </span>
       <span v-else-if="highlightValues.length && !matchedCount" class="text-[10px] font-bold text-amber-700">
-        No chain in this run puts {{ positionLabel.toLowerCase() }} on any of those.
+        No route in this run puts {{ positionLabel.toLowerCase() }} on any of those.
       </span>
     </div>
 
@@ -108,7 +108,7 @@
       >
         <span :style="{ color: group.color }" class="font-black">●</span>
         <span class="font-mono-premium font-black text-slate-700 w-12">{{ group.value }}</span>
-        <span class="text-slate-400">{{ plural(group.count, 'chain') }}</span>
+        <span class="text-slate-400">{{ plural(group.count, 'route') }}</span>
         <span class="font-bold text-slate-700">best {{ group.bestDays.toFixed(3) }} d</span>
         <span v-if="group.gapDays > 0" class="text-slate-400">+{{ group.gapDays.toFixed(3) }} d</span>
         <span v-else class="font-black text-emerald-600">leader</span>
@@ -119,7 +119,7 @@
     <div
       class="flex flex-wrap items-center gap-x-4 gap-y-1 px-1 text-[10px] font-bold text-slate-400 uppercase tracking-wide"
     >
-      <span>{{ plural(shown.points.length, 'chain') }} priced</span>
+      <span>{{ plural(shown.points.length, 'route') }} priced</span>
       <span v-if="thinned" class="normal-case tracking-normal font-semibold"
         >showing the fastest {{ Math.min(BEST_SHOWN, plotted.length).toLocaleString() }} and a sample,
         {{ plotted.length.toLocaleString() }} in all</span
@@ -232,13 +232,13 @@ const connect = ref(false);
 const AXIS_MODES: { id: AxisMode; label: string; hint: string }[] = [
   {
     id: 'last',
-    label: 'Last checkpoint',
-    hint: 'Duration against the last checkpoint before your target. This is where the sale-calendar sawtooth shows up: short descending runs, then a jump of about three days where a leg misses its Saturday sale.',
+    label: 'Last stop',
+    hint: 'Duration against the last stop before your target. This is where the sale-calendar sawtooth shows up: short descending runs, then a jump of about three days where a leg misses its Saturday sale.',
   },
   {
     id: 'rank',
     label: 'Sorted best first',
-    hint: 'Every chain sorted fastest to slowest. The flatter the left end, the more chains are tied near the top, and the less the exact winner matters.',
+    hint: 'Every route sorted fastest to slowest. The flatter the left end, the more routes are tied near the top, and the less the exact winner matters.',
   },
   {
     id: 'order',
@@ -301,7 +301,7 @@ const positions = computed<{ id: Position; label: string }[]>(() => {
   const checkpoints = Math.max(0, maxChainLength.value - 1);
   const out: { id: Position; label: string }[] = [];
   for (let i = 0; i < checkpoints; i++) {
-    out.push({ id: i, label: `${ORDINALS[i] ?? `${i + 1}th`} checkpoint` });
+    out.push({ id: i, label: `${ORDINALS[i] ?? `${i + 1}th`} stop` });
   }
   if (checkpoints > 1) out.push({ id: 'last', label: 'Last before target' });
   return out;
@@ -313,9 +313,7 @@ watch(positions, list => {
   if (list.length && !list.some(p => p.id === highlightPosition.value)) highlightPosition.value = list[0].id;
 });
 
-const positionLabel = computed(
-  () => positions.value.find(p => p.id === highlightPosition.value)?.label ?? 'that checkpoint'
-);
+const positionLabel = computed(() => positions.value.find(p => p.id === highlightPosition.value)?.label ?? 'that stop');
 
 const highlightValues = computed(() => parseHighlightValues(highlightText.value));
 
@@ -567,8 +565,7 @@ const option = computed<ChartOption>(() => {
     },
     xAxis: {
       type: 'value',
-      name:
-        axis.value === 'last' ? 'last checkpoint (TE)' : axis.value === 'rank' ? 'rank, best first' : 'order priced',
+      name: axis.value === 'last' ? 'last stop (TE)' : axis.value === 'rank' ? 'rank, best first' : 'order priced',
       nameLocation: 'middle',
       nameGap: props.explorerLook ? 26 : 28,
       nameTextStyle: { color: '#94a3b8', fontSize: 10 },

@@ -412,9 +412,9 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
         entry.reject(
           new Error(
             `${entry.label} stopped responding: no progress for ${forHow} ` +
-              `(${entry.done}/${entry.total} chains done). The worker was very likely killed, ` +
+              `(${entry.done}/${entry.total} routes done). The worker was very likely killed, ` +
               `most often by the browser reclaiming memory or freezing or discarding the tab. ` +
-              `Your progress is checkpointed, so resuming re-uses every chain already priced.`
+              `Your progress is saved, so resuming re-uses every route already priced.`
           )
         );
         counts.stalled++;
