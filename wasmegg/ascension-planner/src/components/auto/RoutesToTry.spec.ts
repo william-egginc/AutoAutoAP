@@ -27,7 +27,7 @@ describe('RoutesToTry', () => {
     const html = await renderHtml(RoutesToTry, { ...byDate, keptNotes: [true, false] });
     expect(html.match(/data-test="kept-box-note"/g)).toHaveLength(1);
     const t = textOf(html);
-    expect(t).toMatch(/move every chain's sliders together Your typed box is kept\. Use the sliders' box Chain 2/);
+    expect(t).toMatch(/move every box's sliders together Your typed box is kept\. Use the sliders' box Box 2/);
     const none = await renderHtml(RoutesToTry, byDate);
     expect(none).not.toContain('kept-box-note');
     // The "(from a Science card)" label is unaffected.
@@ -38,9 +38,9 @@ describe('RoutesToTry', () => {
     const html = await renderHtml(RoutesToTry, byDate);
     const t = textOf(html);
     expect(t).toMatch(
-      /Chain 1 Ascensions Suggest a space Remove 1,116 playable sets of early stops Suggest a space tries ±10 TE around each stop every 2 TE \(the first stop: every TE\) move every chain's sliders together/
+      /Box 1 Ascensions Suggest a space Remove 1,116 playable sets of early stops Suggest a space tries ±10 TE around each stop every 2 TE \(the first stop: every TE\) move every box's sliders together/
     );
-    expect(t).toContain('Chain 2');
+    expect(t).toContain('Box 2');
     // A row's problem shows in place of its summary, in red.
     expect(t).toContain('These bands make 2 ascensions, not 3.');
     expect(t).not.toContain('132 sets of early stops');
@@ -49,7 +49,7 @@ describe('RoutesToTry', () => {
     expect(t).toContain('±2 TE around each stop (from a Science card)');
     expect(html).toContain('max="8"');
     expect(html).toContain('value="306-317:1; 352-372:2; 360-380:2"');
-    expect(t).toContain('+ Add another chain');
+    expect(t).toContain('+ Add another box');
   });
 
   it('keeps the last row (By a date) or lets every row go (Full sweep)', async () => {
@@ -84,17 +84,17 @@ describe('RoutesToTry', () => {
         checkAscensions: true,
       },
       {
-        'row-after': ({ k }: { k: number }) => (k === 0 ? h('span', 'Suggest would fill in 40 chains') : null),
-        footer: () => h('span', 'One click runs all 3 chains'),
+        'row-after': ({ k }: { k: number }) => (k === 0 ? h('span', 'Suggest would fill in 40 routes') : null),
+        footer: () => h('span', 'One click runs all 3 boxes'),
       }
     );
     const t = textOf(html);
-    expect(t).toMatch(/^Chain 2 .*Chain 3 /);
+    expect(t).toMatch(/^Box 2 .*Box 3 /);
     expect(t).not.toContain('Suggest a space tries');
-    expect(t).toMatch(/every 2 TE \(the first stop: every TE\) Suggest would fill in 40 chains Chain 3/);
+    expect(t).toMatch(/every 2 TE \(the first stop: every TE\) Suggest would fill in 40 routes Box 3/);
     // One ascension: no box and no sliders, just its summary.
-    expect(t).toMatch(/Chain 3 Ascensions Suggest a space Remove Straight to 490: one route\. \+ Add another chain/);
-    expect(t).toContain('One click runs all 3 chains');
+    expect(t).toMatch(/Box 3 Ascensions Suggest a space Remove Straight to 490: one route\. \+ Add another box/);
+    expect(t).toContain('One click runs all 3 boxes');
     expect(html).toContain('max="12"');
     // Greyed out while a run is going.
     expect((html.match(/\sdisabled(\s|>|=")/g) ?? []).length).toBeGreaterThan(5);

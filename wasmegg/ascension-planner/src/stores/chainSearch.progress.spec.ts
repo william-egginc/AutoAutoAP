@@ -131,14 +131,14 @@ describe('a progress send', () => {
     expect(csvs[0].token).toBe('tok-so-far');
     const text = await inflate(csvs[0].body);
     expect(text).toMatch(/^# ascension-planner chain search/);
-    expect(text).toContain('# in progress, 100 of 400 chains priced so far');
+    expect(text).toContain('# in progress, 100 of 400 routes priced so far');
     expect(text).toContain('212 280 490');
     expect(text).not.toMatch(/EI\d{16}/);
     expect(res.text).toMatch(
       /^Sent as Jordan, with the CSV so far \(\d+ KB\)\. It will be replaced when the run finishes\.$/
     );
     // The status line under the tick says what went.
-    expect(s.bestSoFarAuto.lastDetail).toMatch(/^100 chains, CSV \d+ KB$/);
+    expect(s.bestSoFarAuto.lastDetail).toMatch(/^100 routes, CSV \d+ KB$/);
     // Never the final's retry slot.
     expect(s.pendingTable).toBeNull();
     s.endBestSoFar();
@@ -156,7 +156,7 @@ describe('a progress send', () => {
     expect(typeof submits[0].diagnostics).toBe('object');
     expect(csvs).toHaveLength(0);
     expect(res.text).toBe('Sent anonymously, with your diagnostics. It will be replaced when the run finishes.');
-    expect(s.bestSoFarAuto.lastDetail).toBe('100 chains; no CSV ("Send my CSV too" is unticked)');
+    expect(s.bestSoFarAuto.lastDetail).toBe('100 routes; no CSV ("Send my CSV too" is unticked)');
     extras.sendDiagnostics.value = false;
     extras.sendCsv.value = true;
     s.endBestSoFar();

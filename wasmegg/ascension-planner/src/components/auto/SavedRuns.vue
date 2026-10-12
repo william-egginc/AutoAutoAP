@@ -51,7 +51,7 @@
             }}</span>
           </div>
           <div class="text-[10px] text-slate-400 font-mono-premium">
-            {{ run.bestChain.join(' ') }} · {{ run.bestDays.toFixed(3) }} d · {{ plural(run.chainsPriced, 'chain') }}<template
+            {{ run.bestChain.join(' ') }} · {{ run.bestDays.toFixed(3) }} d · {{ plural(run.chainsPriced, 'route') }}<template
               v-if="!run.complete"
             >
               · stopped early<template v-if="run.space?.chains">

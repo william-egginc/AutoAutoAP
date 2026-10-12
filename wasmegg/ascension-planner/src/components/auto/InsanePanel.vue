@@ -62,7 +62,7 @@
 
         <div class="grid gap-2 sm:grid-cols-3 text-[11px]">
           <div class="rounded-lg bg-white px-3 py-2">
-            <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">Chains</div>
+            <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">Routes</div>
             <div class="font-bold text-slate-800">{{ chainCountLabel }}</div>
           </div>
           <div class="rounded-lg bg-white px-3 py-2">
@@ -181,7 +181,7 @@
           v-if="store.noFeasibleChain && !store.error"
           class="rounded-lg bg-rose-50 border border-rose-200 px-3 py-2 text-[11px] text-rose-800"
         >
-          <b>No chain finished</b>, so there is nothing to save or submit. The reason is further down.
+          <b>No route finished</b>, so there is nothing to save or submit. The reason is further down.
         </p>
         <p
           v-if="store.error && !store.errorIsIntegrityNotice"
@@ -382,7 +382,7 @@
             <label class="space-y-1 block">
               <!-- Labelled like the chains added below it (Chain 2, 3...), so it reads as one of them. -->
               <span v-if="!sweepRequest" class="block text-[10px] font-black text-slate-600 uppercase tracking-widest">
-                Chain 1<template v-if="bands.length"> · {{ plural(bands.length + 1, 'ascension') }}</template>
+                Box 1<template v-if="bands.length"> · {{ plural(bands.length + 1, 'ascension') }}</template>
               </span>
               <span class="flex items-center gap-1.5">
                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
@@ -438,11 +438,11 @@
                   no measurement is involved. Above that, it uses where near-best chains have actually landed across
                   this project's runs, refined as close to 5 TE as the budget allows before any of it goes to widening
                   the bands. It also adds a chain for one ascension fewer and one more, at half the size, so a sweep
-                  covers three counts; remove them under Chain 2 and 3 if you only want one. Either way it's a starting
+                  covers three counts; remove them under Box 2 and 3 if you only want one. Either way it's a starting
                   point you can edit.
                 </HelpTip>
                 <span v-if="suggestion" class="text-[10px] text-slate-500">
-                  Suggest would fill in {{ plural(suggestAsc, 'ascension') }}, {{ plural(suggestion.chains, 'chain') }},
+                  Suggest would fill in {{ plural(suggestAsc, 'ascension') }}, {{ plural(suggestion.chains, 'route') }},
                   about {{ chainsTimeLabel(suggestion.chains) }} &middot;
                   <template v-if="suggestion.kind === 'complete'">
                     <span class="font-black text-emerald-700">complete sweep</span>
@@ -541,13 +541,13 @@
             >
               <template #row-after="{ row, k }">
                 <span v-if="row.asc >= 2 && extraSugs[k]" class="block text-[10px] text-slate-500">
-                  Suggest would fill in {{ plural(extraSugs[k]!.chains, 'chain') }}, about
+                  Suggest would fill in {{ plural(extraSugs[k]!.chains, 'route') }}, about
                   {{ chainsTimeLabel(extraSugs[k]!.chains) }}
                 </span>
               </template>
               <template #footer>
                 <span v-if="extraChains.length" class="text-[11px] text-slate-500">
-                  One click runs {{ extraChains.length === 1 ? 'both' : 'all ' + (extraChains.length + 1) }} chains, one
+                  One click runs {{ extraChains.length === 1 ? 'both' : 'all ' + (extraChains.length + 1) }} boxes, one
                   after another. Each finished one is saved under Saved runs.
                 </span>
               </template>
@@ -611,7 +611,7 @@
             </div>
             <div>
               <div class="flex items-center justify-center gap-1.5">
-                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Chains it will run</span>
+                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Routes it will run</span>
                 <HelpTip
                   >Every chain through the bands that can actually be played: each checkpoint above the one before it
                   (and at least the minimum gap above it), with the target added at the end. Combinations that go down,
@@ -679,7 +679,7 @@
               {{ store.benchmarking ? 'Benchmarking…' : store.benchmarkedAt ? 'Re-benchmark' : 'Benchmark my PC' }}
             </button>
             <span v-if="store.benchmarking" class="text-[11px] text-slate-500">
-              Pricing the first {{ Math.max(store.workerBudget * 2, 32) }} chains as a throwaway run, at the same cost
+              Pricing the first {{ Math.max(store.workerBudget * 2, 32) }} routes as a throwaway run, at the same cost
               as a real run's opening chunk.
             </span>
             <span v-else-if="store.benchmarkedAt" class="text-[11px] text-slate-500">
@@ -698,17 +698,17 @@
               The bands are empty once values outside ({{ store.currentTE }}, {{ store.finalTE }}) are dropped.
             </template>
             <template v-else-if="!chainCount">
-              No chains: no way through these bands goes up at every checkpoint{{
+              No routes: no way through these bands goes up at every checkpoint{{
                 minGap > 0 ? ` by at least ${minGap} TE` : ''
               }}.
             </template>
             <template v-else-if="tooBig">
-              This will not finish. The estimate assumes {{ assumedCostLabel }} per chain on
+              This will not finish. The estimate assumes {{ assumedCostLabel }} per route on
               {{ store.workerBudget }} workers{{ measuredCost ? ', measured on this machine' : '' }}. Raise the step or
               narrow the ascension range.
             </template>
             <template v-else>
-              The estimate assumes {{ assumedCostLabel }} per chain on {{ store.workerBudget }} workers,
+              The estimate assumes {{ assumedCostLabel }} per route on {{ store.workerBudget }} workers,
               {{ measuredCost ? 'measured on this machine' : speedSourceLabel }}.
               <template v-if="!measuredCost"
                 >Benchmark this machine above for a number from your own computer.</template
@@ -747,9 +747,9 @@
                 : 'Start this sweep (tick &quot;I understand&quot; at the top first)'
               : 'Find'
           "
-          running-word="Pricing every chain"
+          running-word="Pricing every route"
           :show-submit="!sweepRequest && !!store.submitUrl"
-          consent-note="each chain's, when you queued several"
+          consent-note="each box's, when you queued several"
           :can-carry-on="!!store.crashedRun && !store.runElsewhere.sweep && queueAt < 0"
           :integrity-notice="!sweepRequest"
           :report="{
@@ -784,11 +784,11 @@
                 {{ store.crashedQueue ? 'Carry on the unfinished queue' : 'Carry on the unfinished run' }}
               </button>
               <span v-if="store.crashedQueue" class="text-[11px] text-amber-900">
-                Chain {{ store.crashedQueue.next + 1 }} of {{ store.crashedQueue.record.chains.length }} next; its
+                Box {{ store.crashedQueue.next + 1 }} of {{ store.crashedQueue.record.chains.length }} next; its
                 settings are put back for you.
               </span>
               <span v-else class="text-[11px] text-amber-900">
-                {{ (store.crashedRun.durations?.length ?? 0).toLocaleString() }} chains already priced; its settings are
+                {{ (store.crashedRun.durations?.length ?? 0).toLocaleString() }} routes already priced; its settings are
                 put back for you.
               </span>
             </div>
@@ -798,7 +798,7 @@
               v-if="ownRun && store.stage && store.chainRunLive"
               data-run-progress="full"
               :stage="store.stage"
-              :count="`${pricedSoFar.toLocaleString()} / ${plural(store.chainsEstimated, 'chain')}`"
+              :count="`${pricedSoFar.toLocaleString()} / ${plural(store.chainsEstimated, 'route')}`"
               thin
               :percent="livePercent"
             >
@@ -807,7 +807,7 @@
                 class="text-[10px] text-slate-400 font-bold tabular-nums"
               >
                 <template v-if="store.secondsPerChain > 0"
-                  >{{ store.secondsPerChain.toFixed(2) }} s/chain measured here</template
+                  >{{ store.secondsPerChain.toFixed(2) }} s/route measured here</template
                 >
                 <template v-if="!store.isRunning && store.runCost">
                   · took {{ describeCompute(store.runCost.minutes, store.runCost.workers) }}</template
@@ -821,8 +821,8 @@
               class="rounded-xl border border-slate-200 bg-white p-4 space-y-2"
             >
               <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                <template v-if="queueAt >= 0">Running chain {{ queueAt + 1 }} of {{ store.sweepQueue.total }}</template>
-                <template v-else>All chains from the last click</template>
+                <template v-if="queueAt >= 0">Running box {{ queueAt + 1 }} of {{ store.sweepQueue.total }}</template>
+                <template v-else>All boxes from the last click</template>
               </p>
               <ResultTable
                 v-if="queueResults.length"
@@ -864,10 +864,10 @@
               class="rounded-xl border border-rose-300 bg-rose-50 p-4 space-y-2"
             >
               <p class="text-[10px] font-black text-rose-800 uppercase tracking-widest">
-                No chain in this space finishes
+                No route in this space finishes
               </p>
               <p class="text-[11px] text-rose-900/90 leading-relaxed">
-                Every chain was simulated, and none of them reaches {{ store.finalTE }} TE in any time the planner can
+                Every route was simulated, and none of them reaches {{ store.finalTE }} TE in any time the planner can
                 put a date on. That is a result, not a crash, so there is nothing to save or submit.
               </p>
               <p class="text-[11px] text-rose-900/90 leading-relaxed">
@@ -995,7 +995,7 @@
               :note="store.runNoteUsed ?? ''"
               @update:note="(v?: string) => (store.runNoteUsed = v ?? '')"
               :nickname-max="NICKNAME_MAX"
-              :csv-detail="`(${store.csvRows.toLocaleString()} chains, one row per leg; chains past the memory budget export with their per-leg cells blank)`"
+              :csv-detail="`(${store.csvRows.toLocaleString()} routes, one row per leg; routes past the memory budget export with their per-leg cells blank)`"
               @nickname-typed="nicknameTouched = true"
             >
               <template #intro>
@@ -1476,7 +1476,7 @@ const resultExplain = computed(() => {
   const sp = store.searchSpace;
   if (!sp || gridIsComplete(sp.bands, sp.range?.step)) return '';
   const step = gridStepLabel(sp.bands, sp.range?.step);
-  return `Every chain on the grid (${step}) was priced, and this is the fastest. Values between grid points were not tried, so Nearby routes can land on something faster in between.`;
+  return `Every route on the grid (${step}) was priced, and this is the fastest. Values between grid points were not tried, so Nearby routes can land on something faster in between.`;
 });
 
 /** The ascension counts this click will try: chain 1 and each added chain that can run. */
@@ -1583,7 +1583,7 @@ const runChainsNote = computed(() => {
   if (!left) return '';
   if (left.chain)
     return `all boxes · ${queueCountLine({ chain: left.chain, done: pricedSoFar.value, total: store.chainsEstimated, queueTotal: null })}`;
-  return !sweepRequest && extraChains.value.length ? 'the chain running; the added chains are not part of it' : '';
+  return !sweepRequest && extraChains.value.length ? 'the box running; the added boxes are not part of it' : '';
 });
 
 // ------------------------------------------------------------------ more chains for one click
@@ -1950,7 +1950,7 @@ async function startQueue(): Promise<void> {
   if (queueAt.value >= 0 || store.busy) return;
   const chains: SweepQueueChain[] = [
     {
-      label: `Chain 1 · ${bands.value.length + 1} ascensions`,
+      label: `Box 1 · ${bands.value.length + 1} ascensions`,
       spec: currentSpec(),
       count: chainCount.value,
       ascensions: bands.value.length + 1,
@@ -2161,7 +2161,7 @@ const crashedQueueNote = computed(() => {
   const doneText = done ? ` ${done} finished chain${done === 1 ? ' is' : 's are'} kept in the table.` : '';
   const rest = of - q.next - 1;
   const restText = rest ? `, then the ${rest === 1 ? 'last one' : `other ${rest}`}` : '';
-  const head = `An Exhaustive run of ${of} chains stopped without finishing, at chain ${q.record.at + 1} of ${of}.${doneText}`;
+  const head = `An Exhaustive run of ${of} boxes stopped without finishing, at box ${q.record.at + 1} of ${of}.${doneText}`;
   return q.next === q.record.at
     ? `${head} Carrying on finishes chain ${q.next + 1}${restText}${q.record.submit ? ', sending each as it finishes, as you asked' : ''}.`
     : `${head} That chain finished; carrying on starts chain ${q.next + 1}${restText}${q.record.submit ? ', sending each as it finishes, as you asked' : ''}.`;

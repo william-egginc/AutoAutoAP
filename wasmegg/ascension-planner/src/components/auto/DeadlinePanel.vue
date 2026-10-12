@@ -27,7 +27,7 @@
         {{ inPlannerZone(store.deadlineUnfinished.spec.deadline) }}, from {{ store.deadlineUnfinished.te }} TE.
         <template v-if="store.deadlineUnfinished.saveKept">
           Carrying on replays the priced routes instantly, continues on the save it started with, and puts its deadline,
-          chains and sliders back in the boxes below.</template
+          boxes and sliders back below.</template
         >
         <template v-else> Its save wasn't kept on this device, so it can't carry on.</template>
         Starting a new search replaces it.
@@ -218,7 +218,7 @@
         >
       </div>
       <p class="text-[12px] text-slate-600 leading-relaxed">
-        You set the chains, their boxes and sliders, and it tries every route in them.
+        You set the boxes (one band of TEs per ascension) and their sliders, and it tries every route in them.
       </p>
       <template v-if="true">
         <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest pt-1">The routes to try</h3>
@@ -301,11 +301,11 @@
             </template>
           </RoutesToTry>
           <p class="text-[11px] text-slate-500 leading-relaxed">
-            Each chain is one box of bands, like {{ fastestName(store.finalTE) }} › {{ NAMES.fullFirst }}'s: one band per
-            ascension before the last, separated by <span class="font-mono-premium">;</span>. A band is
-            <span class="font-mono-premium">lo-hi:step</span>, a single value, or several values with commas. Chains with
-            other ascension counts all run from the same click, and a 1- or 2-ascension chain costs next to nothing. Every
-            route in your chains is tried, and nothing outside them, so the answer is proven for that space. The last stop
+            Each box is one band of TEs per ascension before the last, like {{ fastestName(store.finalTE) }} ›
+            {{ NAMES.fullFirst }}'s, separated by <span class="font-mono-premium">;</span>. A band is
+            <span class="font-mono-premium">lo-hi:step</span>, a single value, or several values with commas. Boxes with
+            other ascension counts all run from the same click, and a 1- or 2-ascension box costs next to nothing. Every
+            route in your boxes is tried, and nothing outside them, so the answer is proven for that space. The last stop
             is found to the exact TE.
             <template v-if="suggestFrom">{{ suggestFrom }}</template>
           </p>
@@ -697,7 +697,7 @@
           >, and runs it.
         </template>
         <template v-else-if="edgeWiden">
-          Chain {{ edgeWiden.row + 1 }} becomes <span class="font-mono-premium">{{ edgeWiden.text }}</span
+          Box {{ edgeWiden.row + 1 }} becomes <span class="font-mono-premium">{{ edgeWiden.text }}</span
           >.
         </template>
       </EdgeWarning>
@@ -707,7 +707,7 @@
       <div class="text-[11px] text-slate-600 leading-relaxed space-y-0.5" data-testid="by-date-took">
         <p>{{ summary.line }}</p>
         <p v-if="summary.chains.length" data-testid="by-date-chains">
-          Chains: {{ shownChains.join(' · ') }}<template v-if="chainsTruncated && !showAllChains">…</template
+          Boxes: {{ shownChains.join(' · ') }}<template v-if="chainsTruncated && !showAllChains">…</template
           ><template v-if="summary.lastStop"> · {{ summary.lastStop }}</template>
           <button
             v-if="chainsTruncated"

@@ -21,7 +21,7 @@
   <div>
     <div v-for="(row, k) in rows" :key="k" class="rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-2">
       <div class="flex flex-wrap items-center gap-2">
-        <span class="text-[10px] font-black text-slate-600 uppercase tracking-widest">Chain {{ k + firstNumber }}</span>
+        <span class="text-[10px] font-black text-slate-600 uppercase tracking-widest">Box {{ k + firstNumber }}</span>
         <label class="flex items-center gap-1.5 text-[10px] font-black text-slate-500 uppercase tracking-widest">
           Ascensions
           <input
@@ -89,7 +89,7 @@
       >
         <label v-if="linkable && rows.length > 1" class="flex items-center gap-1.5 cursor-pointer">
           <input v-model="linked" type="checkbox" class="rounded border-slate-300 text-slate-700" />
-          move every chain's sliders together
+          move every box's sliders together
         </label>
       </SpaceSliders>
       <KeptBoxNote v-if="row.asc >= 2 && keptNotes?.[k]" :disabled="disabled" @use="emit('use-sliders', k)" />
@@ -102,7 +102,7 @@
         class="px-3 py-1.5 rounded-lg border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 disabled:opacity-40"
         @click="emit('add')"
       >
-        + Add another chain
+        + Add another box
       </button>
       <slot name="footer" />
     </div>

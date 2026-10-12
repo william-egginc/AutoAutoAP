@@ -236,7 +236,7 @@ describe('Send best so far', () => {
         expect(bodies[0]).toMatchObject({ provisional: true });
         // Fastest: the finish date, not "best 490" (its target is always 490).
         expect(s.bestSoFarAutoLine).toMatch(
-          /^Last progress sent \d+:\d\d [ap]m \(best reaches 490 on [A-Z][a-z]{2} \d+, \d{4}; 100 chains\)\. Next in about 60 min\.$/
+          /^Last progress sent \d+:\d\d [ap]m \(best reaches 490 on [A-Z][a-z]{2} \d+, \d{4}; 100 routes\)\. Next in about 60 min\.$/
         );
         // An hour on, nothing new priced: not sent, and the line says so (no send status, no error).
         at('14:00');

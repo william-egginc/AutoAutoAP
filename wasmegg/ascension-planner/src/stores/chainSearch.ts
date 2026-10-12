@@ -8101,7 +8101,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           !full && batchTotal.value > 1 ? `${stage.value} · ${batchDone.value} of ${batchTotal.value}` : stage.value,
         done,
         total: chainsEstimated.value ? Math.max(chainsEstimated.value, done) : null,
-        unit: 'chains',
+        unit: 'routes',
         // A Full sweep: the one time left its panel shows too, the whole queue's, over fresh chains
         // only (`sweepLeft`); the count stays the chain running's, with "chain 1 of 3" beside it.
         secondsLeft: full ? (sweepLeft.value?.seconds ?? null) : secondsRemaining.value || null,

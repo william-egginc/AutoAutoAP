@@ -253,7 +253,7 @@
         <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl">
           <span class="flex items-center gap-1.5">
             <label for="chain-search-seed" class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-              Starting chain
+              Starting route
             </label>
             <HelpTip
               >Where the search begins. It only moves checkpoints and adds at most one, so a seed with too few cannot
@@ -295,7 +295,7 @@
         </div>
         <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl">
           <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-            Chains to price (max)
+            Routes to price (max)
             <HelpTip
               >An upper bound. Coordinate descent stops as soon as no checkpoint moves, so a run routinely finishes well
               short of this.</HelpTip
@@ -433,7 +433,7 @@
             "
             @click="store.fitSeedToLimitsNow()"
           >
-            Fit chain to limits
+            Fit route to limits
           </button>
           <span class="text-[11px] self-center opacity-80">
             or change the limits above.
@@ -889,7 +889,7 @@
             <table class="w-full text-xs">
               <thead>
                 <tr class="text-[9px] font-black text-slate-400 uppercase tracking-widest text-left">
-                  <th class="py-2 pr-3">Chain</th>
+                  <th class="py-2 pr-3">Route</th>
                   <th class="py-2 pr-3">Ascensions</th>
                   <th class="py-2 pr-3">Finishes</th>
                   <th class="py-2 pr-3">Behind</th>
@@ -1013,7 +1013,7 @@
 
           <p class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3 leading-relaxed">
             Every view above reads the <span class="font-semibold">{{ store.csvRows.toLocaleString() }}</span>
-            chains this run priced, so switching costs nothing and re-simulates nothing. A chain missing from all of
+            routes this run priced, so switching costs nothing and re-simulates nothing. A route missing from all of
             them was almost certainly never evaluated rather than evaluated and beaten: the search stays in its own
             neighbourhood. Download the CSV for the full list.
           </p>
@@ -1493,7 +1493,7 @@ function startFromCount(n: number): string {
   store.maxPrestiges = plan.maxPrestiges;
   store.findSeedFirst = false;
   store.seedOverride = plan.chain.slice(0, -1).join(' ');
-  const set = `Starting chain set to ${plan.chain.join(' ')}. Press Find to search from it`;
+  const set = `Starting route set to ${plan.chain.join(' ')}. Press Find to search from it`;
   return store.effort === 'quick'
     ? `${set} on Fast (minutes; it also checks the other counts inside the new limits). For a more exact search, raise Effort in Search settings.`
     : `${set} on ${note.value.label}, which also tries one more and one fewer ascension; Fast, in Search settings, is quicker.`;
