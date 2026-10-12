@@ -20,7 +20,7 @@
       <span
         ><b class="text-slate-700">±{{ halfWidth }}</b> TE around each stop<template v-if="fromCard">
           (from a Science card)</template
-        ><template v-else-if="fromSimple"> (from Simple)</template></span
+        ><template v-else-if="fromSimple"> (from the search around the answer)</template></span
       >
     </label>
     <label class="flex items-center gap-1.5">

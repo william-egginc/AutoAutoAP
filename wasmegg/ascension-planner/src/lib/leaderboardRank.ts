@@ -2273,21 +2273,31 @@ export function settingTagTitle(tag: string): string {
 }
 
 /** What one copy of a result was found with, as the Effort column and the run detail show it:
- *  `Simple · Fast|Exact|Very high` (Smart search; `Simple · Balanced (retired)` for rows sent before
- *  that tier went), `Advanced` (Full sweep) or `Advanced · partial` (a sweep cut short), or `re-check`
+ *  `Around the answer · Fast|Exact|Very high` (Smart search; `... · Balanced (retired)` for rows sent
+ *  before that tier went), `Exhaustive` (Full sweep) or `Exhaustive · partial` (a sweep cut short), or `re-check`
  *  for a line made from a later run's `rechecks` (that run priced the route; it did not search).
  *  A By a date row says `Simple` or `Advanced` when it records which (`mode`/`simple`), and otherwise
  *  what it always showed. Display only: the stored `effort` and `space` are untouched. */
 export function foundByText(row: Pick<BoardRow, 'space' | 'effort' | 'recheckOf'> & Partial<BoardRow>): string {
   if (row.recheckOf != null) return 're-check';
-  if (row.space) return row.space.stoppedEarly ? 'Advanced · partial' : 'Advanced';
+  if (row.space) return row.space.stoppedEarly ? `${NAME_EXHAUSTIVE} · partial` : NAME_EXHAUSTIVE;
   if (row.deadline != null) {
     const r = row as { mode?: unknown; simple?: unknown };
-    const mode = r.mode === 'simple' || r.simple === true ? 'Simple' : r.mode === 'advanced' || r.simple === false ? 'Advanced' : null;
+    const mode =
+      r.mode === 'simple' || r.simple === true
+        ? NAME_AROUND
+        : r.mode === 'advanced' || r.simple === false
+          ? NAME_EXHAUSTIVE
+          : null;
     return mode ?? (row.effort || 'unknown');
   }
   return effortText(row.effort);
 }
+
+/** The two ways to search as the board names them (decision A, 12 Oct 2026: they were Simple and
+ *  Advanced). Short, for the Effort column. */
+const NAME_AROUND = 'Around the answer';
+const NAME_EXHAUSTIVE = 'Exhaustive';
 
 /** A sent effort tier's name on the planner's slider. */
 const TIER_NAMES: Record<string, string> = { quick: 'Fast', normal: 'Exact', thorough: 'Very high', balanced: 'Balanced (retired)' };
@@ -2297,7 +2307,7 @@ const TIER_NAMES: Record<string, string> = { quick: 'Fast', normal: 'Exact', tho
 export function effortText(effort: string | undefined): string {
   if (!effort) return 'unknown';
   const name = TIER_NAMES[effort];
-  return name ? `Simple · ${name}` : effort;
+  return name ? `${NAME_AROUND} · ${name}` : effort;
 }
 
 /** Who sent a run, as All runs shows it: the name as typed minus invisible characters. */

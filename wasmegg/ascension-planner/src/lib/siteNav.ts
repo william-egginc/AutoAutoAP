@@ -53,16 +53,21 @@ export const NAMES = {
   classic: 'Your plan',
   fastest: 'Fastest to 490 TE',
   byDate: 'Highest TE by a date',
-  /** Fastest's two depths, as the "How thorough" cards name them (batch 3): Simple is Smart search,
-   *  Advanced the Full sweep. Highest TE by a date has a Simple and an Advanced of its own. */
-  smart: 'Simple',
-  full: 'Advanced',
-  /** The old names, kept in brackets on first mention for a while so regulars aren't lost. */
-  smartWas: 'Smart search',
-  fullWas: 'Full sweep',
-  smartFirst: 'Simple (Smart search)',
-  fullFirst: 'Advanced (Full sweep)',
+  /** The two ways to search on Fastest and By a date (decision A, 12 Oct 2026; SearchModeChooser.vue):
+   *  the search that starts from the instant answer (was Simple: Fastest's Smart search, By a date's
+   *  Simple routes) and the one over boxes you set (was Advanced: Fastest's Full sweep, By a date's
+   *  chain editor). Batch 3 called them Simple and Advanced. */
+  smart: 'Search around this answer',
+  full: 'Exhaustive',
+  /** The older names, kept in brackets on first mention so regulars aren't lost. */
+  smartWas: 'Simple',
+  fullWas: 'Advanced',
+  smartFirst: 'Search around this answer (was Simple)',
+  fullFirst: 'Exhaustive (was Advanced)',
 } as const;
+
+/** The exhaustive way's full title, as the chooser names it. */
+export const EXHAUSTIVE_TITLE = 'Exhaustive: every route in boxes you set';
 
 /** Fastest's name at the Final target TE ("Fastest to 490 TE" by default; `NAMES.fastest` is that default). */
 export function fastestName(finalTE?: number): string {

@@ -4,7 +4,7 @@
   Your setup, the search's own settings, the Find bar and the answer. The panel is the Full sweep's
   (InsanePanel, `goal="deadline"`), which hosts DeadlinePanel.
 
-  Simple or Advanced (batch 3), the same two cards as Fastest's (ModeChooser.vue): Simple leaves the
+  Simple or Advanced (batch 3), now "Search around this answer" and "Exhaustive" (SearchModeChooser.vue, decision A): Simple leaves the
   chain editor out and picks the routes around the instant answer (DeadlinePanel `hideRoutes`);
   Advanced is the chain editor. The choice is remembered (lib/searchMode.ts). A player who never chose
   gets Simple, unless they already have By a date work of the Advanced kind (an unfinished run or a
@@ -24,9 +24,14 @@
     <YourSetup screen="by-date" />
     <InsanePanel :player-id="playerId" goal="deadline" :hide-routes="mode === 'simple'" @update:goal="onGoal">
       <template #mode>
-        <ModeChooser
+        <!-- Search around this answer (one level: it sizes itself) or the exhaustive search
+             (SearchModeChooser.vue, decision A). -->
+        <SearchModeChooser
           :model-value="mode"
-          :options="MODES"
+          around="simple"
+          exhaustive="advanced"
+          :around-blurb="AROUND_BLURB"
+          :exhaustive-blurb="EXHAUSTIVE_BLURB"
           :running="store.deadlineRunning ? (store.deadlineRunSimple ? 'simple' : 'advanced') : null"
           @update:model-value="pick"
         />
@@ -42,7 +47,7 @@ import { safeAsyncComponent } from '@/lib/import';
 import { readSearchMode, writeSearchMode, type SearchMode } from '@/lib/searchMode';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useUIStore } from '@/stores/ui';
-import ModeChooser from './ModeChooser.vue';
+import SearchModeChooser from './SearchModeChooser.vue';
 import YourSetup from './YourSetup.vue';
 
 defineProps<{ playerId: string }>();
@@ -52,19 +57,10 @@ const InsanePanel = safeAsyncComponent(() => import('./InsanePanel.vue'));
 const store = useChainSearchStore();
 const ui = useUIStore();
 
-const MODES: { id: SearchMode; label: string; blurb: string }[] = [
-  {
-    id: 'simple',
-    label: 'Simple',
-    blurb:
-      "Pick a date and press Find: it checks the instant answer's best route for each number of ascensions and a few TE either side with the full simulator.",
-  },
-  {
-    id: 'advanced',
-    label: 'Advanced',
-    blurb: 'You set the chains, their boxes and sliders, and it tries every route in them.',
-  },
-];
+/** What each way does, in the chooser (decision A, 12 Oct 2026). */
+const AROUND_BLURB =
+  "Pick a date and press Find: it checks the instant answer's best route for each number of ascensions, and a few TE either side of each stop, with the full simulator on your save. It sizes itself to finish in a few hours.";
+const EXHAUSTIVE_BLURB = 'You set the chains, their boxes and sliders, and it tries every route in them.';
 
 /** Once per page load: the player's last pick, else Simple (the watch below may move it to Advanced). */
 if (ui.byDateMode === null) ui.byDateMode = readSearchMode('by-date') ?? 'simple';

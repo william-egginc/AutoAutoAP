@@ -32,9 +32,15 @@
          Check exactly hands a route to the Full sweep, which prices it with the full simulator. -->
     <InstantRoute @check="checkExactly" />
 
-    <ModeChooser
+    <!-- Search around this answer (with its level bar) or the exhaustive search, right under the instant
+         answer (SearchModeChooser.vue, decision A); the search and its results follow. -->
+    <SearchModeChooser
       :model-value="depth"
-      :options="DEPTHS"
+      around="smart"
+      exhaustive="full"
+      levels
+      :around-blurb="AROUND_BLURB"
+      :exhaustive-blurb="EXHAUSTIVE_BLURB"
       :running="lockedTo === 'smart' || lockedTo === 'full' ? lockedTo : null"
       @update:model-value="pick"
     />
@@ -43,7 +49,7 @@
          stay clickable, to switch back). -->
     <RunningElsewhere v-if="blockedBy" :running="blockedBy" :here="depth === 'smart' ? NAMES.smart : NAMES.full" />
     <div :class="blockedBy ? 'opacity-40 pointer-events-none select-none' : ''" :inert="blockedBy ? true : undefined">
-      <ChainSearchPanel v-if="depth === 'smart'" :player-id="playerId" @check-exactly="checkExactly" />
+      <ChainSearchPanel v-if="depth === 'smart'" :player-id="playerId" level-elsewhere @check-exactly="checkExactly" />
       <InsanePanel v-else :player-id="playerId" goal="fastest" @update:goal="onGoal" />
     </div>
   </div>
@@ -54,7 +60,7 @@ import { useChainSearchStore } from '@/stores/chainSearch';
 import { NAMES, fastestName, type Depth } from '@/lib/siteNav';
 import { safeAsyncComponent } from '@/lib/import';
 import RunningElsewhere from './RunningElsewhere.vue';
-import ModeChooser from './ModeChooser.vue';
+import SearchModeChooser from './SearchModeChooser.vue';
 import InstantRoute from './InstantRoute.vue';
 import YourSetup from './YourSetup.vue';
 import StartTimeCard from './StartTimeCard.vue';
@@ -95,21 +101,9 @@ function onGoal(g: 'fastest' | 'deadline'): void {
 const ChainSearchPanel = safeAsyncComponent(() => import('./ChainSearchPanel.vue'));
 const InsanePanel = safeAsyncComponent(() => import('./InsanePanel.vue'));
 
-/** Simple and Advanced (batch 3), with the old names in brackets for a while so regulars aren't lost. */
-const DEPTHS: { id: Depth; label: string; was: string; blurb: string; time: string }[] = [
-  {
-    id: 'smart',
-    label: NAMES.smart,
-    was: NAMES.smartWas,
-    blurb: 'Smart search: we pick where to look. Minutes.',
-    time: 'Fast: minutes. Exact: under an hour on 8+ cores. Very high: 1-3 h on 8-16 cores, longer on 4.',
-  },
-  {
-    id: 'full',
-    label: NAMES.full,
-    was: NAMES.fullWas,
-    blurb: 'Full sweep: you set the ranges and it tries every route in them. Hours, sometimes overnight.',
-    time: 'About 1-3 h per 10,000 chains on 8-16 cores; overnight for 50,000+',
-  },
-];
+/** What each way does, in the chooser (decision A, 12 Oct 2026). */
+const AROUND_BLURB =
+  "Starts from the instant answer's route and looks for a faster one nearby, with the full simulator on your save. Pick how hard it looks: Fast takes minutes.";
+const EXHAUSTIVE_BLURB =
+  'You set a box of TEs for each ascension and it tries every route in them, so nothing inside is missed. Hours, sometimes overnight.';
 </script>

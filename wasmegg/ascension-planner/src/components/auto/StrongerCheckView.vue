@@ -24,8 +24,8 @@
     </label>
     <p class="text-slate-500 leading-relaxed">
       After Check exactly, also prices your own earlier routes for this
-      {{ deadline ? 'date, tries a TE lower when the top route misses it,' : 'target,' }} and can refine the best route
-      with a small search around it. Uses the full simulator on your workers.
+      {{ deadline ? 'date, and tries a TE lower when the top route misses it' : 'target' }}. Uses the full simulator
+      on your workers. To search around the best route, use {{ NAMES.smart }} below.
     </p>
 
     <template v-if="on">
@@ -139,87 +139,15 @@
         </p>
       </div>
 
-      <!-- c. Refine -->
-      <div v-if="refine.plan" class="space-y-1.5 pt-2 border-t border-indigo-100" data-testid="stronger-refine">
-        <div class="text-[9px] font-black uppercase tracking-widest text-slate-500">Refine the best route</div>
-        <template v-if="refine.status !== 'running'">
-          <p class="text-slate-700">
-            Around <span class="font-mono-premium">{{ refine.plan.base.chain.join(' ') }}</span
-            >. {{ refine.plan.text }}
-          </p>
-          <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <button
-              type="button"
-              class="px-3 py-1.5 rounded-lg bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-800 disabled:opacity-50 disabled:cursor-not-allowed"
-              :disabled="!refine.can"
-              :title="refine.blocked || 'Prices the routes near this one with the full simulator on your account'"
-              data-testid="stronger-refine-go"
-              @click="emit('refine')"
-            >
-              {{ refine.outcome ? 'Refine again' : 'Refine' }}
-            </button>
-            <span v-if="refine.blocked" class="text-slate-500">{{ refine.blocked }}</span>
-          </div>
-        </template>
-        <template v-else>
-          <div
-            class="h-1.5 rounded-full bg-indigo-100 overflow-hidden"
-            role="progressbar"
-            :aria-valuenow="refine.percent"
-            aria-valuemin="0"
-            aria-valuemax="100"
-          >
-            <div class="h-full bg-indigo-600 transition-all" :style="{ width: `${refine.percent}%` }" />
-          </div>
-          <p class="text-indigo-900" data-testid="stronger-refine-progress">
-            Checked {{ (refine.progress?.done ?? 0).toLocaleString() }} of
-            {{ (refine.progress?.total ?? 0).toLocaleString() }} {{ deadline ? 'route shapes' : 'routes' }} ·
-            {{ refine.timeLeft
-            }}<template v-if="refine.progress && refine.progress.best !== refine.startBase">
-              · best so far {{ compareText(goal, refine.progress.best, refine.startBase) }}</template
-            >
-          </p>
-          <button
-            type="button"
-            class="px-3 py-1 rounded-lg border border-indigo-300 bg-white text-indigo-800 text-[10px] font-black uppercase tracking-widest hover:bg-indigo-50"
-            @click="emit('stop')"
-          >
-            Stop
-          </button>
-        </template>
-        <p
-          v-if="refine.outcome && refine.status !== 'running'"
-          class="text-slate-700"
-          data-testid="stronger-refine-result"
-        >
-          <template v-if="refine.outcome.improved">
-            <b class="text-emerald-800">Found a better route</b> among
-            {{ refine.outcome.priced.toLocaleString() }} priced:
-            <span class="font-mono-premium">{{ refine.outcome.best.chain.join(' ') }}</span
-            >, {{ compareText(goal, refine.outcome.best, refine.startBase) }} than the route it started from.<template
-              v-if="refine.outcome.stopped"
-            >
-              Stopped after {{ refine.outcome.done.toLocaleString() }} of
-              {{ refine.outcome.total.toLocaleString() }}.</template
-            >
-          </template>
-          <template v-else>
-            Nothing better among {{ refine.outcome.priced.toLocaleString() }} routes priced within {{ RADIUS }} TE of
-            each stop{{
-              refine.outcome.stopped
-                ? ` (stopped after ${refine.outcome.done.toLocaleString()} of ${refine.outcome.total.toLocaleString()})`
-                : ''
-            }}: this route holds.
-          </template>
-        </p>
-        <p v-if="refine.status === 'error'" class="text-amber-800">{{ refine.error }}</p>
-      </div>
+      <!-- Refine (a small search around the best route) was retired on 12 Oct 2026 (decision A): Search
+           around this answer, under the instant answer, does that job with all of a search's features. -->
     </template>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import { NAMES } from '@/lib/siteNav';
 import { showDateTime } from '@/lib/displayTime';
 import {
   beats,

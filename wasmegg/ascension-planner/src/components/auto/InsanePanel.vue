@@ -1472,7 +1472,7 @@ const resultExplain = computed(() => {
   const sp = store.searchSpace;
   if (!sp || gridIsComplete(sp.bands, sp.range?.step)) return '';
   const step = gridStepLabel(sp.bands, sp.range?.step);
-  return `Every chain on the grid (${step}) was priced, and this is the fastest. Values between grid points were not tried, so Simple (Smart search) can land on something faster in between.`;
+  return `Every chain on the grid (${step}) was priced, and this is the fastest. Values between grid points were not tried, so Search around this answer can land on something faster in between.`;
 });
 
 /** The ascension counts this click will try: chain 1 and each added chain that can run. */

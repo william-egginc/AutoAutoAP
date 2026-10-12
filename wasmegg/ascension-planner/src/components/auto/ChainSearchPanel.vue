@@ -59,20 +59,20 @@
           </svg>
           <span class="text-[11px] font-black text-slate-700 uppercase tracking-widest">Search settings</span>
           <span
-            v-if="!settingsOpen"
+            v-if="!settingsOpen && !levelElsewhere"
             class="text-[11px] font-bold text-slate-600 normal-case tracking-normal ml-auto"
             data-testid="effort-summary"
           >
             Effort: {{ note.label }} · <span class="text-indigo-700 underline">change</span>
           </span>
           <span v-else class="text-[10px] font-bold text-slate-400 normal-case tracking-normal ml-auto">
-            effort, limits, and what it simulates with
+            {{ levelElsewhere ? 'starting chain, limits, and what it simulates with' : 'effort, limits, and what it simulates with' }}
           </span>
         </button>
 
         <div v-show="settingsOpen" id="cs-settings" class="px-4 pb-5 pt-1 space-y-8">
-          <!-- Effort -->
-          <div class="space-y-3">
+          <!-- Effort (picked in the chooser's level bar above when `levelElsewhere`) -->
+          <div v-if="!levelElsewhere" class="space-y-3">
             <div class="flex items-center justify-between px-1">
               <span class="flex items-center gap-1.5">
                 <label for="effort-range" class="text-[10px] font-black text-slate-500 uppercase tracking-widest">
@@ -1269,7 +1269,12 @@ import RunErrorNotes from './RunErrorNotes.vue';
 import RunControls from './RunControls.vue';
 import RunProgress from './RunProgress.vue';
 
-const props = defineProps<{ playerId: string }>();
+const props = defineProps<{
+  playerId: string;
+  /** The level (effort) is picked above, in the chooser's level bar (SearchModeChooser.vue): the
+   *  settings here leave it out. */
+  levelElsewhere?: boolean;
+}>();
 /** The instant answer's route from "A longer route might win", to price exactly: the screen above moves to the Full sweep. */
 const emit = defineEmits<{ checkExactly: [chain: number[]] }>();
 

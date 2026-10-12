@@ -130,8 +130,9 @@
         How {{ NAMES.byDate }} works
       </summary>
       <div class="px-4 pb-4 text-xs text-slate-600 leading-relaxed">
-        Finds the highest TE you can reach by a date. In Simple it picks the early stops for you: the instant answer's
-        route for each number of ascensions and a few TE either side of each stop. In Advanced you set the early stops
+        Finds the highest TE you can reach by a date. Searching around the answer picks the early stops for you: the
+        instant answer's route for each number of ascensions and a few TE either side of each stop. In Exhaustive you
+        set the early stops
         and it tries every route in them. Either way the last stop is found to the exact TE. Like any run, it uses the
         plan start, hours, time off and computer settings in Your setup.
       </div>
@@ -166,7 +167,7 @@
           data-test="open-in-advanced"
           @click="openInAdvanced"
         >
-          Open in Advanced</button
+          Open in Exhaustive</button
         ><span class="text-slate-500"> with these boxes filled in, to widen them or add your own.</span>
       </p>
     </div>
@@ -612,7 +613,7 @@
         @widen="widenAndRun"
       >
         <template v-if="edgeWiden && simple">
-          This opens Advanced with the boxes Simple used, that one widened to
+          This opens Exhaustive with the boxes the search around the answer used, that one widened to
           <span class="font-mono-premium">{{ edgeWiden.text }}</span
           >, and runs it.
         </template>
@@ -1134,7 +1135,7 @@ function openInAdvanced(): void {
     return { asc: r.asc, text: r.text, ...(width > 0 ? { pm: width, simple: true, widthIx: 0, stepIx: 0 } : {}) };
   });
   lastBox.value = used.lastBox;
-  suggestFrom.value = "Set from Simple's routes, around the instant answer.";
+  suggestFrom.value = "Set from the routes around the instant answer.";
   mode.value = 'space';
   writeSearchMode('by-date', 'advanced');
   setMode('advanced');

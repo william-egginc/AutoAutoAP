@@ -30,9 +30,12 @@ describe('Science › How it works', () => {
 
   it('describes both versions of Fastest and of Highest TE by a date', async () => {
     const text = textOf(await renderHtml(HowItWorks, {}));
-    expect(text).toContain('Fastest to 490 TE and Highest TE by a date each come in two versions, Simple and Advanced');
-    expect(text).toContain('Fastest to 490 TE, Simple (Smart search):');
-    expect(text).toContain('Fastest to 490 TE, Advanced (Full sweep):');
+    // Decision A (12 Oct 2026): Simple and Advanced became Search around this answer and Exhaustive.
+    expect(text).toContain(
+      'Fastest to 490 TE and Highest TE by a date each come in two versions, Search around this answer and Exhaustive'
+    );
+    expect(text).toContain('Fastest to 490 TE, Search around this answer (was Simple):');
+    expect(text).toContain('Fastest to 490 TE, Exhaustive (was Advanced):');
     expect(text).toContain('On Fast, the default');
     expect(text).toContain('Then it checks every other number of ascensions inside');
     expect(text).toContain('one ascension fewer and one more, at half the size');

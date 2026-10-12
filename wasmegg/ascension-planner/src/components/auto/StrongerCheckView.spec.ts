@@ -50,11 +50,13 @@ describe('StrongerCheckView', () => {
     const t = await text({ on: false });
     expect(t).toMatch(/^Try: stronger check prototype After Check exactly, also prices your own earlier routes/);
     expect(t).not.toContain('Your earlier routes');
+    // Refine was retired (decision A): the line points to Search around this answer instead.
     expect(t).not.toContain('Refine');
+    expect(t).toContain('To search around the best route, use Search around this answer below.');
   });
 
   it('by a date the line mentions the TE lower', async () => {
-    expect(await text({ on: false, deadline: DEADLINE })).toContain('tries a TE lower when the top route misses it');
+    expect(await text({ on: false, deadline: DEADLINE })).toContain('and tries a TE lower when the top route misses it');
   });
 
   it('waiting for Check exactly', async () => {
@@ -129,70 +131,6 @@ describe('StrongerCheckView', () => {
     expect(skipped).toContain('A TE lower Put back from a saved answer.');
   });
 
-  it('refine: the estimate and button, greyed out with the reason', async () => {
-    const plan = {
-      base: p([175, 225, 490], 200),
-      text: 'Checks all 24 routes within 2 TE of each stop (every TE): about 2 min on 8 workers.',
-    };
-    const t = await text({ refine: idleRefine({ plan }) });
-    expect(t).toContain('Refine the best route Around 175 225 490 . Checks all 24 routes');
-    expect(t).toMatch(/Refine$/);
-    const html = await renderHtml(
-      StrongerCheckView,
-      base({ refine: idleRefine({ plan, can: false, blocked: 'Waits while a search is running.' }) })
-    );
-    expect(html).toMatch(/disabled[^>]*data-testid="stronger-refine-go"|data-testid="stronger-refine-go"[^>]*disabled/);
-    expect(textOf(html)).toContain('Waits while a search is running.');
-  });
-
-  it('refine running: progress, time left, best so far, Stop', async () => {
-    const start = p([175, 225, 490], 200);
-    const t = await text({
-      refine: idleRefine({
-        plan: { base: start, text: '' },
-        status: 'running',
-        startBase: start,
-        progress: { done: 120, total: 625, priced: 120, best: p([176, 225, 490], 199.8) },
-        percent: 19,
-        timeLeft: 'about 4 min left',
-      }),
-    });
-    expect(t).toContain('Checked 120 of 625 routes · about 4 min left · best so far 0.20 days sooner Stop');
-  });
-
-  it('refine done: found better, or this route holds', async () => {
-    const start = p([175, 225, 490], 200);
-    const better = await text({
-      refine: idleRefine({
-        plan: { base: p([176, 225, 490], 199.8), text: 'x' },
-        status: 'done',
-        startBase: start,
-        outcome: {
-          done: 625,
-          total: 625,
-          priced: 625,
-          best: p([176, 225, 490], 199.8),
-          improved: true,
-          stopped: false,
-        },
-      }),
-    });
-    expect(better).toContain(
-      'Found a better route among 625 priced: 176 225 490 , 0.20 days sooner than the route it started from.'
-    );
-    expect(better).toContain('Refine again');
-    const holds = await text({
-      refine: idleRefine({
-        plan: { base: start, text: 'x' },
-        status: 'done',
-        startBase: start,
-        outcome: { done: 300, total: 625, priced: 300, best: start, improved: false, stopped: true },
-      }),
-    });
-    expect(holds).toContain(
-      'Nothing better among 300 routes priced within 2 TE of each stop (stopped after 300 of 625): this route holds.'
-    );
-  });
 });
 
 describe('InstantRoute wiring', () => {
@@ -207,5 +145,16 @@ describe('InstantRoute wiring', () => {
   it('mounts the stronger check under the answer', () => {
     expect(src).toContain('<StrongerCheck');
     expect(src).toContain(':ctx="findCtx"');
+  });
+});
+
+describe('StrongerCheckView: no Refine (decision A)', () => {
+  it('shows no Refine button even with a plan to refine', async () => {
+    const html = await renderHtml(
+      StrongerCheckView,
+      base({ refine: idleRefine({ plan: { base: p([175, 225, 490], 200), text: 'x' } }) })
+    );
+    expect(html).not.toContain('stronger-refine');
+    expect(textOf(html)).not.toContain('Refine the best route');
   });
 });
