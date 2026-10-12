@@ -582,6 +582,9 @@ export interface PrestigeLine {
   latestHour: number;
   /** Spare at the latest start (By a date). */
   spareSeconds: number | null;
+  /** Hidden only because the next prestige is more than ~7 days away with a wide window: the hour it
+   *  would name, written out, so the beta site can say the line is there and waiting. */
+  farOff?: string;
 }
 
 function span(seconds: number): string {
@@ -608,7 +611,7 @@ export function describeCutoff(c: Cutoff, ctx: LineContext): PrestigeLine {
   if (c.kind === 'none' || c.lastKeep < 0) return none;
   const soon = ctx.prestigeAt - ctx.now <= SHOW_WITHIN_SECONDS;
   const narrow = latestHour - ctx.prestigeAt < SHOW_WINDOW_SECONDS;
-  if (!soon && !narrow) return none;
+  if (!soon && !narrow) return { ...none, farOff: ctx.show(byHour) };
   const right = byHour < ctx.prestigeAt;
   const lead = right
     ? ctx.fresh

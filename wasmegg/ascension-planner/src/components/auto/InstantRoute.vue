@@ -228,6 +228,7 @@
               :line="prestige?.line ?? null"
               :status="prestigeStatus"
               :mismatch="prestigeMismatch"
+              :beta="prestigeFlag.beta"
             />
             <p class="text-[11px] text-slate-600">
               Ascend at the times shown: each fresh ascension starts on the hour (inside the weekly research sale, at
@@ -403,6 +404,7 @@
             :line="prestige?.line ?? null"
             :status="prestigeStatus"
             :mismatch="prestigeMismatch"
+            :beta="prestigeFlag.beta"
           />
           <p class="text-[11px] text-slate-600">
             Ascend at the times shown: each fresh ascension starts on the hour (inside the weekly research sale, at once

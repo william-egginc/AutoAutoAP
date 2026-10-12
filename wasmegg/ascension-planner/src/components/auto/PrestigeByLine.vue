@@ -15,7 +15,9 @@
     <p class="text-[12px] text-slate-800 leading-relaxed">
       <span
         class="mr-1 px-1.5 py-0.5 rounded bg-violet-100 text-violet-800 text-[9px] font-black uppercase tracking-widest"
-        >experimental</span
+        :title="EVIDENCE"
+        data-testid="prestige-by-tag"
+        >Experimental · needs more data</span
       >
       <b>{{ line.text }}</b>
       <span
@@ -32,8 +34,14 @@
       >
       Work it out again from your new save after you prestige.
     </p>
+    <p class="text-[10px] text-violet-800" data-testid="prestige-by-evidence">{{ EVIDENCE }}</p>
     <p v-if="mismatch" class="text-[10px] text-amber-800">{{ mismatch }}</p>
   </div>
+  <!-- Beta only: hidden by the 7-day rule, but say it is there, so the line can be seen working. -->
+  <p v-else-if="beta && status === 'done' && line?.farOff" class="text-[11px] text-slate-400" data-testid="prestige-by-far">
+    Prestige by: your next prestige is more than 7 days away (the cutoff is about {{ line.farOff }}). This line
+    shows when it's closer.
+  </p>
 </template>
 
 <script setup lang="ts">
@@ -44,7 +52,13 @@ defineProps<{
   status: 'idle' | 'running' | 'done' | 'error';
   /** Set when the exact check disagrees with the instant answer the line was worked out on. */
   mismatch?: string;
+  /** The beta site: also say when the line is hidden only because the next prestige is far off. */
+  beta?: boolean;
 }>();
+
+/** What the line has been checked against so far (the prestige-warn research, 11 Oct 2026). */
+const EVIDENCE =
+  'Checked on 5 test cases so far (4 within an hour of the full simulator, 1 two hours early). Treat it as a hint.';
 
 function hours(seconds: number): string {
   const h = seconds / 3600;

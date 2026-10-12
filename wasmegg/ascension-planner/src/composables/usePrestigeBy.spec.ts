@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   createPrestigeBy,
+  isBetaHost,
   PRESTIGE_BY_KEY,
   PRESTIGE_BY_RECORD_KEY,
   prestigeByFromUrl,
@@ -78,5 +79,34 @@ describe('the "Prestige by" flag', () => {
     expect(recordsPrestigeBy({ enabled: true, record: true }, false)).toBe(false);
     expect(recordsPrestigeBy({ enabled: true, record: false }, true)).toBe(false);
     expect(recordsPrestigeBy({ enabled: false, record: true }, true)).toBe(false);
+  });
+});
+
+describe('on by default on the beta site only', () => {
+  it('knows the beta and dev hosts from the live ones', () => {
+    for (const h of ['egg-beta.williamstest.fyi', 'EGG-BETA.williamstest.fyi.', 'localhost', '127.0.0.1', '[::1]'])
+      expect(isBetaHost(h)).toBe(true);
+    for (const h of ['egg.williamstest.fyi', 'egg2.williamstest.fyi', 'egg.alearningmind.org', 'egg-beta.example.com', ''])
+      expect(isBetaHost(h)).toBe(false);
+  });
+
+  it('beta: on with nothing stored; the box unticked or ?prestigeBy=0 turns it off', () => {
+    const beta = 'egg-beta.williamstest.fyi';
+    const f = createPrestigeBy(mem(), '', beta);
+    expect(f.beta).toBe(true);
+    expect(f.enabled.value).toBe(true);
+    expect(createPrestigeBy(mem({ [PRESTIGE_BY_KEY]: '0' }), '', beta).enabled.value).toBe(false);
+    expect(createPrestigeBy(mem(), '?prestigeBy=0', beta).enabled.value).toBe(false);
+    expect(createPrestigeBy(null, '', 'localhost').enabled.value).toBe(true);
+  });
+
+  it('live: off with nothing stored; ?prestigeBy=1 or the box turns it on', () => {
+    for (const live of ['egg.williamstest.fyi', 'egg2.williamstest.fyi', 'egg.alearningmind.org']) {
+      const f = createPrestigeBy(mem(), '', live);
+      expect(f.beta).toBe(false);
+      expect(f.enabled.value).toBe(false);
+      expect(createPrestigeBy(mem(), '?prestigeBy=1', live).enabled.value).toBe(true);
+      expect(createPrestigeBy(mem({ [PRESTIGE_BY_KEY]: '1' }), '', live).enabled.value).toBe(true);
+    }
   });
 });

@@ -450,7 +450,7 @@
           </p>
         </div>
 
-        <!-- Experimental: off for players until there is data to back it (composables/usePrestigeBy.ts). -->
+        <!-- Experimental: off for players until there is data to back it, on by default on the beta site (composables/usePrestigeBy.ts). -->
         <div class="rounded-xl border border-slate-200 p-4 space-y-2 min-w-0 md:col-span-2" data-testid="experimental">
           <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Experimental</h3>
           <label class="flex items-start gap-3 cursor-pointer">
@@ -464,6 +464,7 @@
               <span class="font-bold text-slate-800">Prestige by…</span> A line under the instant answer saying how long
               your next prestige can wait before the answer gets worse, and what it gets after that. Still being
               checked, so it can be wrong.
+              <template v-if="prestigeBy.beta"> On by default on the beta site; untick it to hide it.</template>
               <template v-if="prestigeBy.fromUrl !== null">
                 This visit's address turns it {{ prestigeBy.fromUrl ? 'on' : 'off' }} whatever this box says.</template
               >

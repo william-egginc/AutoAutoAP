@@ -7,6 +7,11 @@
  * box there keeps the prediction in the opt-in instant answer record, so it can be checked later; it
  * only goes anywhere when "Share this check" is ticked for that check.
  *
+ * ON BY DEFAULT ON THE BETA SITE (the user, 11 Oct 2026): egg-beta and a local dev server show it
+ * unless the box in Your setup was unticked there (or `?prestigeBy=0`), so the line can be watched
+ * before players see it. The live hosts keep it off until the box or `?prestigeBy=1` turns it on.
+ * A runtime check of `location.hostname` (`isBetaHost`), so one build serves both.
+ *
  * Storage is wrapped in try/catch everywhere: private windows and blocked site data throw.
  */
 import { computed, ref, watch, type ComputedRef, type Ref } from 'vue';
@@ -25,6 +30,21 @@ function defaultStorage(): StorageLike | null {
     return typeof localStorage === 'undefined' ? null : localStorage;
   } catch {
     return null;
+  }
+}
+
+/** The beta site and local development: where the flag starts on. Every other host (egg., egg2.,
+ *  egg.alearningmind.org, anything unknown) starts off. */
+export function isBetaHost(hostname: string): boolean {
+  const h = hostname.trim().toLowerCase().replace(/\.$/, '');
+  return h === 'egg-beta.williamstest.fyi' || h === 'localhost' || h === '127.0.0.1' || h === '[::1]' || h === '::1';
+}
+
+function defaultHostname(): string {
+  try {
+    return typeof location === 'undefined' ? '' : location.hostname;
+  } catch {
+    return '';
   }
 }
 
@@ -56,18 +76,22 @@ export interface PrestigeByFlag {
   stored: Ref<boolean>;
   /** Keep the prediction in shared instant answer records (this browser). */
   record: Ref<boolean>;
+  /** Served from the beta site (or a dev server): the flag starts on there. */
+  beta: boolean;
   /** What the address says for this visit (null: nothing). */
   fromUrl: boolean | null;
   /** Shown on this visit: the address's say, else the box. */
   enabled: ComputedRef<boolean>;
 }
 
-function stored(storage: StorageLike | null, key: string): Ref<boolean> {
+/** A box kept in storage: '1' on, '0' off, nothing stored: `fallback`. */
+function stored(storage: StorageLike | null, key: string, fallback = false): Ref<boolean> {
   let initial: boolean;
   try {
-    initial = storage?.getItem(key) === '1';
+    const v = storage?.getItem(key);
+    initial = v === '1' ? true : v === '0' ? false : fallback;
   } catch {
-    initial = false;
+    initial = fallback;
   }
   const on = ref(initial);
   watch(
@@ -86,12 +110,14 @@ function stored(storage: StorageLike | null, key: string): Ref<boolean> {
 
 export function createPrestigeBy(
   storage: StorageLike | null = defaultStorage(),
-  search: string = defaultSearch()
+  search: string = defaultSearch(),
+  hostname: string = defaultHostname()
 ): PrestigeByFlag {
-  const box = stored(storage, PRESTIGE_BY_KEY);
+  const beta = isBetaHost(hostname);
+  const box = stored(storage, PRESTIGE_BY_KEY, beta);
   const record = stored(storage, PRESTIGE_BY_RECORD_KEY);
   const fromUrl = prestigeByFromUrl(search);
-  return { stored: box, record, fromUrl, enabled: computed(() => fromUrl ?? box.value) };
+  return { stored: box, record, beta, fromUrl, enabled: computed(() => fromUrl ?? box.value) };
 }
 
 /** Whether a record gets the prediction: the flag on, its record box ticked, and the check shared. */

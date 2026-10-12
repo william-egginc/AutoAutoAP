@@ -19,7 +19,10 @@ const LINE: PrestigeLine = {
 describe('PrestigeByLine', () => {
   it('shows the line, tagged experimental, with "tight" under 12 h of spare', async () => {
     const t = textOf(await renderHtml(PrestigeByLine, { line: LINE, status: 'done' }));
-    expect(t).toContain('experimental');
+    expect(t).toContain('Experimental · needs more data');
+    expect(t).toContain(
+      'Checked on 5 test cases so far (4 within an hour of the full simulator, 1 two hours early). Treat it as a hint.'
+    );
     expect(t).toContain(LINE.text);
     expect(t).toContain('tight');
     expect(t).toContain('lands 5.6 h before the date');
@@ -36,6 +39,14 @@ describe('PrestigeByLine', () => {
     );
   });
 
+  it('beta only: a grey note when the 7-day rule hides it, saying the cutoff it would name', async () => {
+    const far = { ...LINE, show: false, farOff: 'Fri, Nov 27 at 2 PM' };
+    const t = textOf(await renderHtml(PrestigeByLine, { line: far, status: 'done', beta: true }));
+    expect(t).toContain('Prestige by: your next prestige is more than 7 days away (the cutoff is about Fri, Nov 27 at 2 PM).');
+    expect(textOf(await renderHtml(PrestigeByLine, { line: far, status: 'done' }))).toBe('');
+    expect(textOf(await renderHtml(PrestigeByLine, { line: { ...LINE, show: false }, status: 'done', beta: true }))).toBe('');
+  });
+
   it('says when the exact check disagrees with the answer it was worked out on', async () => {
     const t = textOf(await renderHtml(PrestigeByLine, { line: LINE, status: 'done', mismatch: 'may be off' }));
     expect(t).toContain('may be off');
@@ -46,7 +57,10 @@ describe('PrestigeByLine', () => {
     const template = src.slice(0, src.indexOf('<script'));
     const uses = template.match(/<PrestigeByLine[\s\S]*?\/>/g) ?? [];
     expect(uses).toHaveLength(2);
-    for (const u of uses) expect(u).toContain('v-if="prestigeFlag.enabled.value"');
+    for (const u of uses) {
+      expect(u).toContain('v-if="prestigeFlag.enabled.value"');
+      expect(u).toContain(':beta="prestigeFlag.beta"');
+    }
     // The work itself checks the flag before it starts.
     expect(src).toMatch(/if \(!prestigeFlag\.enabled\.value \|\|/);
   });

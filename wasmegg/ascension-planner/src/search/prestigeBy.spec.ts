@@ -245,6 +245,16 @@ describe('describeCutoff (the display rules)', () => {
     expect(describeCutoff(drop(48, 6), far).show).toBe(false); // window 48 h 20 m
   });
 
+  it('says which hour it would name when hidden only for being far off (for the beta note)', () => {
+    const far = { ...base, now: P - 30 * 86400 };
+    const hidden = describeCutoff(drop(96, 6), far);
+    expect(hidden.show).toBe(false);
+    expect(hidden.farOff).toBe(show(hidden.byHour));
+    expect(describeCutoff(drop(96, 6), base).farOff).toBeUndefined();
+    const none: Cutoff = { ...drop(192, 20), kind: 'none', drop: null, dropOutcome: null };
+    expect(describeCutoff(none, far).farOff).toBeUndefined();
+  });
+
   it('is not shown when nothing changes within the horizon', () => {
     const none: Cutoff = { ...drop(192, 20), kind: 'none', drop: null, dropOutcome: null };
     expect(describeCutoff(none, base).show).toBe(false);
