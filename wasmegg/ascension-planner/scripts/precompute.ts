@@ -2512,6 +2512,7 @@ async function main(): Promise<void> {
   if (has('polish')) return polish(backup);
   if (has('prune-bench')) return pruneBench(backup);
   if (has('verify-cells')) return verifyCells(backup);
+  if (has('prestige-by')) return prestigeBy(backup);
   if (has('route')) return route(backup);
   if (has('profile')) return profile(backup);
   if (has('verify')) return verify(backup);
@@ -2529,3 +2530,160 @@ main().then(
     process.exit(1);
   }
 );
+
+/** SCRATCH (prestige-by analysis, not for commit): best TE by --deadline for a fresh prestige at each
+ *  hour from --from to --to, beside the build-up baseline, and the delay sweep at the build-up's
+ *  first stop. */
+async function prestigeBy(file: string): Promise<void> {
+  const { buildUpTailParams } = await import('@/search/leg');
+  const dir = arg('table')!;
+  const table = loadTable(dir);
+  const inputs = await loadInputs(file);
+  const final = 490;
+  const deadline = Math.floor(Date.parse(arg('deadline')!) / 1000);
+  const deliveryScale = instantDeliveryScale(inputs, JSON.parse(readFileSync(`${dir}/k3.json`, 'utf8')));
+  const te0 = Math.floor(inputs.currentTE);
+  const now = inputs.planStart;
+  const saveEggs = EGG_ORDER.map(e => inputs.baseState.eggsDelivered?.[e] || 0);
+  const fmt = (u: number) =>
+    new Date(u * 1000).toLocaleString('en-US', { timeZone: 'America/Denver', weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  const d = (s: number) => (s / 86400).toFixed(3);
+  const teOf = (eggs: number[]) => eggs.reduce((a, x) => a + countTEThresholdsPassed(x), 0);
+  console.log(`save: TE ${inputs.currentTE} (eggs give ${teOf(saveEggs)}), planStart ${fmt(now)}, scale ${deliveryScale.toFixed(4)}`);
+  const solve = async (startTE: number, start: number, firstLegs: ReturnType<typeof firstLegOptions> | undefined, startDelivered?: number[]) => {
+    const found = await findRoutes({ table: table.lookup, startTE, start, final, maxAscensions: 10, deliveryScale, deadline, ...(firstLegs ? { firstLegs } : { startDelivered }) });
+    const pol = polishFound(table.lookup, { startTE, start, deliveryScale, deadline, ...(firstLegs ? { firstLegs } : { startDelivered }) }, found);
+    const r = pol.byDate ?? found.byDate;
+    return r;
+  };
+  const show = (r: Route | null) => r ? `TE ${r.legs[r.legs.length - 1].endTE} spare ${d(deadline - r.end)} d via ${r.chain.join(' ')} [${r.legs.map(l => fmt(l.start)).join(' | ')}] first=${r.legs[0].label}` : 'none';
+  if (arg('exact-delay')) {
+    // Exact: leg 1 = continue my build-up to --leg1 from now (runLeg as the search runs it), then each
+    // --chains route started --exact-delay hours (comma list) after leg 1 ends (later legs on the hour / at once).
+    const target1 = Number(arg('leg1', '161'));
+    const l1 = runLeg(inputs, JSON.parse(JSON.stringify(inputs.baseState)), now, target1, true, te0, 2);
+    if (!l1) throw new Error('leg 1 failed');
+    const e1 = now + l1.summary.totalDurationSeconds;
+    const te1 = Object.values(l1.summary.finalTE).reduce((a, b) => a + b, 0);
+    console.log(`EXACT leg 1 (${l1.key}) from ${fmt(now)} -> TE ${te1} at ${fmt(e1)}`);
+    for (const hs of arg('exact-delay')!.split(',')) {
+      const S = e1 + Number(hs) * 3600;
+      for (const ch of arg('chains')!.split(';')) {
+        const chain = ch.trim().split(/\s+/).map(Number);
+        for (const onHour of [true, false]) {
+          let st: EngineState = JSON.parse(JSON.stringify(l1.nextState));
+          let t = onHour ? nextHour(S) : S;
+          let cur = te1;
+          let ok = true;
+          const legs: string[] = [];
+          for (const [i, target] of chain.entries()) {
+            if (i > 0 && onHour) t = nextHour(t);
+            const leg = runLeg(inputs, st, t, target, false, cur, i + 3);
+            if (!leg) { ok = false; break; }
+            cur = Object.values(leg.summary.finalTE).reduce((a, b) => a + b, 0);
+            legs.push(`${fmt(t)}->${cur}(${leg.key})`);
+            t += leg.summary.totalDurationSeconds;
+            st = leg.nextState;
+          }
+          console.log(`EXACT delay +${hs} h prestige ${fmt(S)} [${chain.join(' ')}] ${onHour ? 'on the hour' : 'at once'}: ` + (ok ? `TE ${cur} spare ${d(deadline - t)} d  ${legs.join(' | ')}` : 'failed'));
+        }
+      }
+    }
+    return;
+  }
+  if (arg('exact-at')) {
+    // Exact simulator: a fresh prestige at each --exact-at (ISO, comma list) along each --chains ("a b c;d e f"),
+    // eggs from the save, caught up (silo-capped) or uncapped (--eggs).
+    for (const at of arg('exact-at')!.split(',')) {
+      const T = Math.floor(Date.parse(at) / 1000);
+      const cont = continueTailParams(inputs, T);
+      const egg = EGG_ORDER.indexOf(inputs.baseState.currentEgg as any);
+      const eggs = [...saveEggs];
+      const mode = arg('eggs', 'save');
+      if (mode === 'caught' && cont) eggs.splice(0, eggs.length, ...cont.delivered);
+      if (mode === 'uncapped' && cont) eggs[egg] += cont.peakELR * Math.max(0, T - (inputs.currentFarmState as any).lastStepTime);
+      const startTE = Math.max(te0, teOf(eggs));
+      for (const ch of arg('chains')!.split(';')) {
+        const chain = ch.trim().split(/\s+/).map(Number);
+        for (const onHour of [true, false]) {
+          const state = JSON.parse(JSON.stringify(inputs.baseState)) as EngineState;
+          EGG_ORDER.forEach((e, i) => ((state.eggsDelivered as any)[e] = eggs[i]));
+          EGG_ORDER.forEach((e, i) => ((state.teEarned as any)[e] = Math.max((state.teEarned as any)[e] || 0, countTEThresholdsPassed(eggs[i]))));
+          (state as any).te = Object.values(state.teEarned as any).reduce((a: number, b: any) => a + (b as number), 0);
+          if (onHour && ch === arg('chains')!.split(';')[0]) console.log(`state TE ${(state as any).te} (startTE ${startTE})`);
+          let st: EngineState = state;
+          let t = T;
+          let cur = startTE;
+          let ok = true;
+          const legs: string[] = [];
+          for (const [i, target] of chain.entries()) {
+            if (i > 0 && onHour) t = nextHour(t);
+            const leg = runLeg(inputs, st, t, target, false, cur, i + 2);
+            if (!leg) { ok = false; break; }
+            legs.push(`${fmt(t)}->${Object.values(leg.summary.finalTE).reduce((a, b) => a + b, 0)}(${leg.key})`);
+            t += leg.summary.totalDurationSeconds;
+            cur = Object.values(leg.summary.finalTE).reduce((a, b) => a + b, 0);
+            st = leg.nextState;
+          }
+          console.log(`EXACT fresh ${fmt(T)} eggs=${mode} [${chain.join(' ')}] ${onHour ? 'on the hour' : 'at once'}: ` + (ok ? `TE ${cur} spare ${d(deadline - t)} d  ${legs.join(' | ')}` : 'failed'));
+        }
+      }
+    }
+    return;
+  }
+  // Baseline: continue my build-up from the save.
+  const bu = buildUpTailParams(inputs, now);
+  const common = { table: table.lookup, startTE: te0, final, deliveryScale, pinSeconds: CONTINUE_PIN_MAX_SECONDS, maxContinueSeconds: CONTINUE_MAX_SECONDS };
+  const buLegs = firstLegOptions({ ...common, start: now, delivered: saveEggs, cont: continueTailParams(inputs, now), buildUp: bu, firstAscension: 'buildup' });
+  const buRoute = await solve(te0, now, buLegs);
+  console.log(`BUILDUP baseline: ${show(buRoute)}`);
+  const autoLegs = firstLegOptions({ ...common, start: now, delivered: saveEggs, cont: continueTailParams(inputs, now), buildUp: bu, firstAscension: 'auto' });
+  console.log(`AUTO now: ${show(await solve(te0, now, autoLegs))}`);
+  const contLegs = firstLegOptions({ ...common, start: now, delivered: saveEggs, cont: continueTailParams(inputs, now), firstAscension: 'continue' });
+  console.log(`CONTINUE now: ${show(await solve(te0, now, contLegs))}`);
+  // Hourly fresh prestige sweep.
+  const from = Math.floor(Date.parse(arg('from')!) / 1000);
+  const to = Math.floor(Date.parse(arg('to')!) / 1000);
+  const step = Number(arg('step', '3600'));
+  for (let T = from; T <= to; T += step) {
+    const cont = continueTailParams(inputs, T);
+    const caught = cont?.delivered ?? saveEggs;
+    const a = await solve(te0, T, firstLegOptions({ ...common, start: T, delivered: saveEggs, cont: null, firstAscension: 'fresh' }));
+    const cte = Math.max(te0, teOf(caught));
+    const b = await solve(cte, T, firstLegOptions({ ...common, startTE: cte, start: T, delivered: caught, cont: null, firstAscension: 'fresh' }));
+    let u: Route | null = null; let ute = te0;
+    if (has('uncapped') && cont) {
+      const egg = EGG_ORDER.indexOf(inputs.baseState.currentEgg as any);
+      const last = (inputs.currentFarmState as any).lastStepTime;
+      const ue = [...saveEggs]; ue[egg] += cont.peakELR * Math.max(0, T - last);
+      ute = Math.max(te0, teOf(ue));
+      u = await solve(ute, T, firstLegOptions({ ...common, startTE: ute, start: T, delivered: ue, cont: null, firstAscension: 'fresh' }));
+      if (T === from) console.log(`uncapped: egg ${inputs.baseState.currentEgg} elr ${cont.peakELR.toExponential(3)}/s since ${fmt(last)}; caught-up extra ${(caught[egg]-saveEggs[egg]).toExponential(3)} = ${((caught[egg]-saveEggs[egg])/cont.peakELR/3600).toFixed(1)} h; next TE threshold on that egg at ${getThresholdForTE(countTEThresholdsPassed(saveEggs[egg])+1).toExponential(3)} (have ${saveEggs[egg].toExponential(3)})`);
+    }
+    console.log(`FRESH ${fmt(T)}\tsaveEggs: ${show(a)}\tcaughtUp(TE ${cte}): ${show(b)}` + (u ? `\tuncapped(TE ${ute}): ${show(u)}` : ''));
+  }
+  // Delay sweep at the build-up route's first stop.
+  if (buRoute && has('delay')) {
+    const l1 = buRoute.legs[0];
+    console.log(`build-up leg 1: -> TE ${l1.endTE} ends ${fmt(l1.end)}`);
+    const H = Number(arg('delay-hours', '200'));
+    for (let h = 0; h <= H; h += Number(arg('delay-step', '1'))) {
+      const S = l1.end + h * 3600;
+      const f1 = buLegs.find(x => x.to === l1.to)!;
+      let dv = f1.delivered;
+      let ste = l1.endTE;
+      if (has('laying')) {
+        // Keep laying at the leg's end rate while waiting: the rate from the next checkpoint's sweep.
+        const f2 = buLegs.find(x => x.to === l1.to + 2)!;
+        const i = f1.delivered.findIndex((v, k) => f2.delivered[k] !== v);
+        const rate = (f2.delivered[i] - f1.delivered[i]) / (f2.end - f1.end);
+        dv = [...f1.delivered];
+        dv[i] += rate * h * 3600;
+        ste = Math.max(l1.endTE, teOf(dv));
+        if (h === 0) console.log(`laying ${EGG_ORDER[i]} at ${rate.toExponential(3)}/s; TE from eggs at end ${teOf(f1.delivered)}`);
+      }
+      const r = await solve(ste, S, undefined, dv);
+      console.log(`DELAY +${h} h prestige ${fmt(S)} (start TE ${ste}): ${show(r)}`);
+    }
+  }
+}
