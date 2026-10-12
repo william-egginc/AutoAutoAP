@@ -103,3 +103,23 @@ describe('browserHelp', () => {
     expect(browserHelp('other', '').name).toBe('');
   });
 });
+
+describe('keeping a background run awake, per browser (12 Oct 2026)', () => {
+  const text = (b: Parameters<typeof browserHelp>[0]) =>
+    browserHelp(b, 'egg.example').keepAwake.map(p => (typeof p === 'string' ? p : p.code)).join('');
+  it('Edge, Chrome, Safari and Firefox each get their own advice', () => {
+    expect(text('edge')).toContain('edge://settings/system');
+    expect(text('chrome')).toContain('chrome://settings/performance');
+    expect(text('safari')).toContain('Safari has no setting for this');
+    expect(text('safari')).toContain('another Space');
+    expect(text('safari')).not.toContain('edge://');
+    expect(text('firefox')).toContain("Keep the run's tab visible");
+  });
+  it('the suspended-tab box uses it, not Edge\'s advice for everyone', async () => {
+    const fs = await import('node:fs');
+    const path = await import('node:path');
+    const t = fs.readFileSync(path.join(__dirname, '../components/auto/ChainSearchPanel.vue'), 'utf8');
+    expect(t).not.toContain('edge://settings/system');
+    expect(t).toContain('tabHelp.keepAwake');
+  });
+});

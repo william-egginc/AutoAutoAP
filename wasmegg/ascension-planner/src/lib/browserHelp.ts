@@ -154,7 +154,7 @@ export function browserHelp(browser: BrowserKind, site: string): BrowserHelp {
           ...add,
         ],
         keepAwake: [
-          "Firefox doesn't put tabs to sleep by default, but it may unload one if the computer runs low on memory.",
+          "Keep the run's tab visible. Firefox doesn't put tabs to sleep by default, but it may unload one if the computer runs low on memory.",
         ],
       };
     case 'safari':
@@ -166,7 +166,7 @@ export function browserHelp(browser: BrowserKind, site: string): BrowserHelp {
           ' to Allow.',
         ],
         keepAwake: [
-          "Safari pauses background tabs to save power: keep the run tab's window visible (not minimised), and keep the Mac awake and plugged in.",
+          "Safari has no setting for this. Keep the run tab's window visible (not minimised, and not moved to another Space), and keep the Mac awake and plugged in. Chrome and Edge handle long background runs better.",
         ],
         note: ["Safari doesn't report memory, so the black box records less about a crash."],
       };

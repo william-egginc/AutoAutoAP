@@ -1050,13 +1050,14 @@
             Nothing ran during that time: a frozen tab freezes its background workers too, so the search was paused. It
             has been resumed and no progress was lost.
           </p>
-          <p>
-            To stop it happening on a long run: in Edge, open
-            <span class="font-mono">edge://settings/system</span>, and either turn off
-            <span class="font-semibold">"Save resources with sleeping tabs"</span> or add
-            <span class="font-mono">{{ host }}</span> to
-            <span class="font-semibold">"Never put these sites to sleep"</span>. Keeping the tab in a visible window
-            also works. For a genuinely unattended overnight run the command-line version has no such problem.
+          <!-- This browser's own advice (lib/browserHelp.ts): it was Edge's in every browser (the user, 12 Oct). -->
+          <p data-testid="suspend-advice">
+            To stop it happening on a long run<template v-if="tabHelp.name"> in {{ tabHelp.name }}</template>:
+            <template v-for="(part, i) in tabHelp.keepAwake" :key="i"
+              ><template v-if="typeof part === 'string'">{{ part }}</template
+              ><span v-else class="font-mono select-all">{{ part.code }}</span></template
+            >
+            For a genuinely unattended overnight run the command-line version has no such problem.
           </p>
         </div>
 
@@ -1265,6 +1266,7 @@ import { useStartTimesStore } from '@/stores/startTimes';
 import { useInstantSummaryStore } from '@/stores/instantSummary';
 import { useStrongerStore } from '@/stores/stronger';
 import { smartCountText } from '@/search/smartCount';
+import { browserHelp, detectBrowser } from '@/lib/browserHelp';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { EFFORT, EFFORT_NOTES, EFFORT_ORDER, NEAR_OPTIMAL_SHARE } from '@/search/effort';
 import { formatDuration, plural } from '@/lib/format';
@@ -1558,6 +1560,8 @@ const REASON_TEXT: Record<string, string> = {
 
 /** Whatever the page is served from, so the sleeping-tabs instruction names the right site. */
 const host = typeof window !== 'undefined' ? window.location.host : 'this site';
+/** How to keep a background tab awake in this browser (lib/browserHelp.ts). */
+const tabHelp = browserHelp(detectBrowser().browser, typeof window !== 'undefined' ? window.location.host : '');
 
 interface EggBlock {
   egg: string;
