@@ -5,10 +5,11 @@
     the notices (SafariNotice, RunSaveNotice, IntegrityNotice)
     anything the screen must say right above Find (`above-find`)
     Find / Find and submit / Send best so far / Stop & keep best, the acknowledge box, the name, the
-      CSV and diagnostics boxes and the run note (FindBar.vue), with the run's progress (`progress`)
+      CSV and diagnostics boxes and the run note (FindBar.vue)
     how the automatic send went (RunSendReport.vue)
     results kept until sent (UnsentResults.vue)
     Stepping away? (StepAwayOptions.vue)
+    the run's progress, and on Fastest its answer so far (`progress`; below the boxes since 12 Oct)
     the run's warnings and error (`after`, RunErrorNotes.vue)
 
   The screen owns what the buttons do and when they're allowed (each search has its own checks); the
@@ -46,12 +47,12 @@
       :consent-note="consentNote"
       :goal-word="kind === 'by-date' ? 'deadline' : 'target'"
       :best-so-far-kind="kind === 'by-date' ? 'deadline' : 'fastest'"
+      :blocked-by="otherRun?.name"
+      :blocked-kind="otherRun?.kind"
       @find="andSubmit => emit('find', andSubmit)"
       @stop="emit('stop')"
       @nickname-typed="emit('nicknameTyped')"
-    >
-      <template #progress><slot name="progress" /></template>
-    </FindBar>
+    />
 
     <RunSendReport
       :kind="kind"
@@ -83,6 +84,9 @@
       @countdown="n => emit('countdown', n)"
     />
 
+    <!-- The run's progress, and on Fastest its answer so far, after the acknowledge box and Stepping away?
+         (the user, 12 Oct: controls, Find, acknowledge, stepping away, then progress and results). -->
+    <slot name="progress" />
     <slot name="after" />
   </div>
 </template>
@@ -91,6 +95,7 @@
 import { MANY_WORKERS, MANY_WORKERS_TEXT } from '@/search/batch';
 import { isPhone, PHONE_NOTE } from '@/search/device';
 import { computed, ref } from 'vue';
+import { NAMES } from '@/lib/siteNav';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import FindBar from './FindBar.vue';
 import IntegrityNotice from './IntegrityNotice.vue';
@@ -171,6 +176,16 @@ const manyWorkers = computed(() => !!props.longRun && !props.running && store.wo
 /** "Searching, then submitting..." for a run that sends itself when it finishes (store `submitsWhenDone`,
  *  set by every screen for the length of a Find and submit run, and by a sweep link). */
 const runningLabel = computed(() => `${props.runningWord}${store.submitsWhenDone ? ', then submitting' : ''}...`);
+
+/** Fastest's other search (Nearby routes or Exhaustive), while it runs and this one isn't: both are on one
+ *  screen and one search runs at a time, so this Find is greyed out for it and says so. */
+const otherRun = computed<{ name: string; kind: 'smart' | 'full' } | null>(() => {
+  if (props.running || props.kind === 'by-date') return null;
+  const k = store.runProgress?.kind;
+  if (k !== 'smart' && k !== 'full') return null;
+  if (k === props.kind) return null;
+  return { name: k === 'smart' ? NAMES.smart : NAMES.full, kind: k };
+});
 
 const stepAway = ref<InstanceType<typeof StepAwayOptions> | null>(null);
 /** Stepping away?'s Cancel for the automatic carry-on, for a screen that shows the countdown itself. */
