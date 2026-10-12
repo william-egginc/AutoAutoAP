@@ -133,7 +133,12 @@
 
     <!-- Stronger check (StrongerBox.vue; the user, 12 Oct 2026): the stronger check's results, and with
          Search around the routes around the instant answer, their run controls and results here. -->
-    <StrongerBox v-slot="{ level }" goal="date" :running="store.deadlineRunning && !!store.deadlineRunSimple">
+    <StrongerBox
+      v-slot="{ level }"
+      goal="date"
+      :running="store.deadlineRunning && !!store.deadlineRunSimple"
+      :estimates="levelEstimates"
+    >
       <template v-if="level !== 'light'">
         <!-- Simple (batch 3): no chain editor. The routes it tries, in one line, and a way to see them as
              boxes in Advanced (to widen them, say). -->
@@ -892,7 +897,7 @@ import { LONG_RUN_WORKERS, useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useInitialStateStore } from '@/stores/initialState';
 import { useIntegrityProbe } from '@/composables/useIntegrityProbe';
-import { useStrongerStore } from '@/stores/stronger';
+import { useStrongerStore, type StrongerLevel } from '@/stores/stronger';
 import StrongerBox from './StrongerBox.vue';
 import SearchCompare from './SearchCompare.vue';
 import { SHOW_COMPARE } from '@/lib/features';
@@ -915,7 +920,7 @@ import { readFirstAscension } from '@/search/firstAscension';
 import { simulateRoute } from '@/search/simulateRoute';
 import { rowSettingsFor, type DeadlineRunSpec, type SavedDeadlineResult } from '@/search/deadlineStore';
 import { SPACE_STEPS, SPACE_WIDTHS, stopsByWidth } from '@/search/deadlineSuggest';
-import { simpleByDateSpace, type SimpleSpace } from '@/search/simpleByDate';
+import { BY_DATE_LEVELS, simpleByDateSpace, widthForLevel, type ByDateLevel, type SimpleSpace } from '@/search/simpleByDate';
 import { writeSearchMode } from '@/lib/searchMode';
 import { firstTime } from '@/lib/linkOnce';
 import { parseByDateRequest, SCIENCE_WIDTHS, type ByDateRequest } from '@/search/byDateRequest';
@@ -1053,7 +1058,6 @@ const resultsTo = computed(() =>
 const instantMax = ref<number | null>(null);
 /** What a typical 8-core machine costs, for sizing Simple's boxes the same on every computer. */
 const TYPICAL_WORKERS = 8;
-const SIMPLE_MAX_SECONDS = 25 * 60;
 const simpleCentres = computed<{ from: 'instant' | 'suggested'; routes: Record<number, number[]> }>(() => {
   const te = Math.floor(store.currentTE);
   const max = instantMax.value;
@@ -1102,14 +1106,35 @@ function weightedSecondsPerLeg(sp: SimpleSpace): number {
   }
   return legs ? w / legs : fallbackWorkerSecondsPerLeg(1);
 }
-const simpleSpace = computed<SimpleSpace | null>(() => {
+/** The routes near the instant answer at a level (simpleByDate.ts BY_DATE_LEVELS), sized on a typical
+ *  machine so every computer gets the same boxes. */
+function spaceFor(level: ByDateLevel): SimpleSpace | null {
   if (!(store.currentTE > 0)) return null;
+  const cfg = BY_DATE_LEVELS[level];
   return simpleByDateSpace({
     currentTE: store.currentTE,
     routes: simpleCentres.value.routes,
+    widthFor: widthForLevel(level),
+    maxSetsPerRow: cfg.maxSetsPerRow,
     secondsOf: sp => simplePlanOf(sp, TYPICAL_WORKERS, weightedSecondsPerLeg(sp)).seconds,
-    maxSeconds: SIMPLE_MAX_SECONDS,
+    maxSeconds: cfg.maxSeconds,
   });
+}
+/** The level the bar is on (Light searches nothing: its boxes are Fast's, for the summary). */
+const dateLevel = computed<ByDateLevel>(() =>
+  stronger.level === 'normal' || stronger.level === 'thorough' ? stronger.level : 'quick'
+);
+const simpleSpace = computed<SimpleSpace | null>(() => spaceFor(dateLevel.value));
+/** What each level would cost on this computer, before starting (shown under the level bar). */
+const levelEstimates = computed<Partial<Record<StrongerLevel, string>>>(() => {
+  const out: Partial<Record<StrongerLevel, string>> = {};
+  for (const l of ['quick', 'normal', 'thorough'] as const) {
+    const sp = l === dateLevel.value ? simpleSpace.value : spaceFor(l);
+    if (!sp) continue;
+    const p = simplePlanOf(sp, store.workerBudget, store.deadlineWorkerSeconds || weightedSecondsPerLeg(sp));
+    out[l] = `About ${formatHours(p.seconds / 3600)} on this computer (${store.workerBudget} workers): ${plural(p.sets, 'set')} of early stops.`;
+  }
+  return out;
 });
 /** Simple's boxes as chain rows: the last run's while it goes, else the ones worked out now. */
 const simpleLive = computed(() =>

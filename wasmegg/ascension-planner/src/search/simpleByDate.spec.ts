@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { simpleByDateSpace, simpleWidth } from './simpleByDate';
+import { BY_DATE_LEVELS, simpleByDateSpace, simpleWidth, widthForLevel } from './simpleByDate';
 import { countBandShapes } from './deadline';
 
 describe('Simple By a date space', () => {
@@ -48,5 +48,24 @@ describe('Simple By a date space', () => {
 
   it('is null without a route to centre on', () => {
     expect(simpleByDateSpace({ currentTE: 150, routes: {} })).toBeNull();
+  });
+});
+
+describe('By a date levels (12 Oct 2026)', () => {
+  it('each level gives each early stop more TE either side, and more room before narrowing', () => {
+    expect([widthForLevel('quick')(3), widthForLevel('normal')(3), widthForLevel('thorough')(3)]).toEqual([3, 4, 5]);
+    expect([widthForLevel('quick')(6), widthForLevel('thorough')(6)]).toEqual([1, 3]);
+    expect(BY_DATE_LEVELS.quick.maxSeconds).toBeLessThan(BY_DATE_LEVELS.normal.maxSeconds);
+    expect(BY_DATE_LEVELS.normal.maxSeconds).toBeLessThan(BY_DATE_LEVELS.thorough.maxSeconds);
+  });
+  it('a wider level searches more sets around the same routes', () => {
+    const routes = { 3: [160, 200, 248], 4: [161, 198, 218, 248] };
+    const sets = (l: 'quick' | 'normal' | 'thorough') =>
+      simpleByDateSpace({ currentTE: 141, routes, widthFor: widthForLevel(l), maxSetsPerRow: BY_DATE_LEVELS[l].maxSetsPerRow })!.rows.map(
+        r => r.bands.reduce((n, b) => n * b.length, 1)
+      );
+    expect(sets('quick')).toEqual([49, 125]);
+    expect(sets('normal')).toEqual([81, 343]);
+    expect(sets('thorough')).toEqual([121, 729]);
   });
 });

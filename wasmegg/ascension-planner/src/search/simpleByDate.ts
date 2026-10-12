@@ -113,3 +113,22 @@ export function simpleByDateSpace(o: {
   }
   return space;
 }
+
+/**
+ * By a date's levels (the user, 12 Oct 2026: the same Light / Fast / Exact / Very high bar as Fastest).
+ * Each searches the routes near the instant answer's route for every number of ascensions it has; a
+ * higher level gives each early stop more TE either side and is allowed longer on a typical 8-core
+ * machine before it narrows. Fast is the sizing By a date's Simple search always had.
+ * (No "one ascension more or fewer" as on Fastest: this already tries every count the instant answer
+ * has a route for.)
+ */
+export type ByDateLevel = 'quick' | 'normal' | 'thorough';
+export const BY_DATE_LEVELS: Record<ByDateLevel, { extra: number; maxSetsPerRow: number; maxSeconds: number }> = {
+  quick: { extra: 0, maxSetsPerRow: 1000, maxSeconds: 25 * 60 },
+  normal: { extra: 1, maxSetsPerRow: 5000, maxSeconds: 2 * 3600 },
+  thorough: { extra: 2, maxSetsPerRow: 20000, maxSeconds: 8 * 3600 },
+};
+/** The TE either side of each early stop at this level, before any narrowing. */
+export function widthForLevel(level: ByDateLevel): (n: number) => number {
+  return n => simpleWidth(n) + BY_DATE_LEVELS[level].extra;
+}

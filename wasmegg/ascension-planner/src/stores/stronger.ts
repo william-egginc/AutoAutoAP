@@ -2,22 +2,25 @@
  * The "Stronger check" box under the instant answer (StrongerBox.vue; the user, 12 Oct 2026): how
  * much stronger, and what the parts of the page publish for the comparison block (SearchCompare.vue).
  *
- * LEVELS. Light: the stronger check alone (your earlier routes priced on this save, and by a date one
- * TE lower), after Check exactly. Fast / Exact / Very high (Fastest only): Light plus the search around
- * the instant answer at that effort (store `effort`). By a date's search around the answer sizes
- * itself, so it has one level above Light, 'around'. Remembered in this browser.
+ * LEVELS, the same bar on Fastest and By a date. Light: the stronger check alone (your earlier routes
+ * priced on this save, and by a date one TE lower), after Check exactly. Fast / Exact / Very high: Light
+ * plus a search of the routes near the instant answer's: on Fastest at that effort (store `effort`), by
+ * a date with wider boxes at each level (search/simpleByDate.ts BY_DATE_LEVELS). Remembered in this
+ * browser.
  */
 import { defineStore } from 'pinia';
 import { ref, watch } from 'vue';
 
-export type StrongerLevel = 'light' | 'quick' | 'normal' | 'thorough' | 'around';
+export type StrongerLevel = 'light' | 'quick' | 'normal' | 'thorough';
 const KEY = 'aap-stronger-level';
-const LEVELS: StrongerLevel[] = ['light', 'quick', 'normal', 'thorough', 'around'];
+const LEVELS: StrongerLevel[] = ['light', 'quick', 'normal', 'thorough'];
 
 function read(): StrongerLevel {
   try {
-    const v = localStorage.getItem(KEY) as StrongerLevel | null;
-    return v && LEVELS.includes(v) ? v : 'light';
+    const v = localStorage.getItem(KEY);
+    // By a date's one search level ('around', 12 Oct morning) is Fast now: both screens share the bar.
+    if (v === 'around') return 'quick';
+    return v && (LEVELS as string[]).includes(v) ? (v as StrongerLevel) : 'light';
   } catch {
     return 'light';
   }

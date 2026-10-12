@@ -22,7 +22,7 @@
     </p>
     <div
       class="grid gap-1 rounded-xl bg-slate-100 p-1"
-      :class="levels.length === 4 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2'"
+      :class="'grid-cols-2 sm:grid-cols-4'"
       role="radiogroup"
       aria-label="How much stronger"
     >
@@ -44,6 +44,16 @@
     <p class="text-[11px] text-slate-700 leading-relaxed" data-testid="level-note">
       <span class="font-bold text-slate-900">{{ current.time }}</span> {{ current.words }}
     </p>
+    <!-- By a date: each search level's cost on this computer, before anything starts. -->
+    <ul v-if="estimates && Object.keys(estimates).length" class="text-[11px] space-y-0.5" data-testid="level-estimates">
+      <li
+        v-for="l in levels.filter(x => estimates![x.id])"
+        :key="l.id"
+        :class="l.id === level ? 'font-bold text-indigo-800' : 'text-slate-500'"
+      >
+        {{ l.label }}: {{ estimates![l.id] }}
+      </li>
+    </ul>
     <details class="text-[11px] text-slate-600" data-testid="stronger-promise">
       <summary class="cursor-pointer font-bold text-slate-700">What this does and does not promise</summary>
       <ul class="mt-1 pl-4 list-disc space-y-0.5 leading-relaxed">
@@ -76,6 +86,8 @@ const props = defineProps<{
   goal: 'fastest' | 'date';
   /** A search in this box is running: the level can't change. */
   running?: boolean;
+  /** By a date: what each search level would cost on this computer (DeadlinePanel.vue). */
+  estimates?: Partial<Record<StrongerLevel, string>>;
 }>();
 
 const store = useChainSearchStore();
@@ -87,45 +99,38 @@ const LIGHT = {
   time: 'Seconds to a few minutes.',
   words: 'After Check exactly, prices your own earlier routes for this goal on this save, and by a date tries a TE lower when the top route misses it. No search.',
 };
-const levels = computed(() =>
-  props.goal === 'fastest'
-    ? [
-        LIGHT,
-        {
-          id: 'quick' as StrongerLevel,
-          label: 'Fast',
-          time: EFFORT_NOTES.quick.typicalTime,
-          words: "Light, plus a search from the instant answer's route: moves each stop a few TE either way until nothing gets faster, and gives every other number of ascensions in your limits one quick try.",
-        },
-        {
-          id: 'normal' as StrongerLevel,
-          label: 'Exact',
-          time: EFFORT_NOTES.normal.typicalTime,
-          words: 'Fast, plus moving neighbouring stops together, then one ascension more or fewer.',
-        },
-        {
-          id: 'thorough' as StrongerLevel,
-          label: 'Very high',
-          time: EFFORT_NOTES.thorough.typicalTime,
-          words: 'Exact, plus moving groups of three stops together.',
-        },
-      ]
-    : [
-        LIGHT,
-        {
-          id: 'around' as StrongerLevel,
-          label: 'Search around',
-          time: 'Sized to take under an hour or so.',
-          words: "Light, plus every route around the instant answer's route for each number of ascensions: a few TE either side of each stop, the last stop found to the exact TE.",
-        },
-      ]
-);
-/** This screen's level: a level the other screen uses reads as the nearest here. */
-const level = computed<StrongerLevel>(() => {
-  const l = stronger.level;
-  if (props.goal === 'date') return l === 'light' ? 'light' : 'around';
-  return l === 'around' ? 'quick' : l;
-});
+/** The same bar on both screens; what each search level does differs (By a date: box sizes). */
+const levels = computed(() => [
+  LIGHT,
+  {
+    id: 'quick' as StrongerLevel,
+    label: 'Fast',
+    time: props.goal === 'fastest' ? EFFORT_NOTES.quick.typicalTime : 'Under half an hour on a typical 8-core computer.',
+    words:
+      props.goal === 'fastest'
+        ? "Light, plus a search from the instant answer's route: moves each stop a few TE either way until nothing gets faster, and gives every other number of ascensions in your limits one quick try."
+        : "Light, plus every route near the instant answer's route for each number of ascensions: each early stop up to 3 TE either side (fewer on long routes), the last stop found to the exact TE.",
+  },
+  {
+    id: 'normal' as StrongerLevel,
+    label: 'Exact',
+    time: props.goal === 'fastest' ? EFFORT_NOTES.normal.typicalTime : 'Up to about 2 hours on a typical 8-core computer.',
+    words:
+      props.goal === 'fastest'
+        ? 'Fast, plus moving neighbouring stops together, then one ascension more or fewer.'
+        : 'The same, with one more TE either side of each early stop.',
+  },
+  {
+    id: 'thorough' as StrongerLevel,
+    label: 'Very high',
+    time: props.goal === 'fastest' ? EFFORT_NOTES.thorough.typicalTime : 'Up to about 8 hours on a typical 8-core computer.',
+    words:
+      props.goal === 'fastest'
+        ? 'Exact, plus moving groups of three stops together.'
+        : 'The same, with two more TE either side of each early stop.',
+  },
+]);
+const level = computed<StrongerLevel>(() => stronger.level);
 const current = computed(() => levels.value.find(l => l.id === level.value) ?? LIGHT);
 
 function pick(id: StrongerLevel): void {

@@ -21,12 +21,17 @@ describe('StrongerBox', () => {
     expect(t).toContain('not a proven best');
     expect(html).toContain('id="stronger-check-results"');
   });
-  it('By a date: Light and Search around; a Fastest level reads as Search around there', async () => {
+  it('By a date: the same Light / Fast / Exact / Very high bar, with each search level\'s estimate', async () => {
     useStrongerStore().level = 'normal';
-    const html = await renderHtml(StrongerBox, { goal: 'date' });
-    expect(textOf(html)).toMatch(/Light Search around/);
-    expect(html).toMatch(/aria-checked="true"[^>]*data-testid="level-around"/);
-    expect(html).not.toContain('level-quick');
+    const html = await renderHtml(StrongerBox, {
+      goal: 'date',
+      estimates: { quick: 'About 1.1 h.', normal: 'About 3.0 h.', thorough: 'About 9.4 h.' },
+    });
+    const t = textOf(html);
+    expect(t).toMatch(/Light Fast Exact Very high/);
+    expect(html).toMatch(/aria-checked="true"[^>]*data-testid="level-normal"/);
+    expect(t).toContain('one more TE either side of each early stop');
+    expect(t).toContain('Fast: About 1.1 h. Exact: About 3.0 h. Very high: About 9.4 h.');
   });
 });
 
