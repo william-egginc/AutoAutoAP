@@ -183,36 +183,6 @@ function watcherIsolation(): Plugin {
   };
 }
 
-/**
- * Cross-origin isolation for the whole site (12 Oct): `Cross-Origin-Opener-Policy: same-origin` and
- * `Cross-Origin-Embedder-Policy: credentialless` on every response. What it buys is
- * `performance.measureUserAgentSpecificMemory()`, the only way a page can see its WORKERS' memory:
- * the PC's 34-hour run died when the page and its 19 workers filled the 4 GB pointer-compression
- * cage they share, and the page could not see it coming (search/cageGuard.ts acts on the
- * measurement). `credentialless` rather than `require-corp`: cross-origin things without a CORP
- * header (the GoatCounter script, any image) still load, only without cookies; the collector and
- * the save forwarder are fetched with CORS as before. Every response, not only the HTML: a module
- * worker's script must carry COEP too or a Chromium page that has it may refuse the worker. Browsers
- * that do not know `credentialless` (Safari) ignore it and are simply not isolated. Takes effect
- * when `pnpm serve` restarts; test on beta first (self.crossOriginIsolated should read true).
- */
-function crossOriginIsolation(): Plugin {
-  const set = (_req: unknown, res: ServerResponse, next: () => void) => {
-    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
-    res.setHeader('Cross-Origin-Embedder-Policy', 'credentialless');
-    next();
-  };
-  return {
-    name: 'aap-cross-origin-isolation',
-    configureServer(server) {
-      server.middlewares.use(set);
-    },
-    configurePreviewServer(server) {
-      server.middlewares.use(set);
-    },
-  };
-}
-
 const IMMUTABLE = 'public, max-age=31536000, immutable';
 
 function immutableAssets(): Plugin {
@@ -496,8 +466,6 @@ export default defineConfig(({ mode }) => {
       versionFile(),
       noChunkCycles(),
       warnIfReleaseStale(),
-      // First, so its headers are on every response, the assets answered by the plugins below too.
-      crossOriginIsolation(),
       keepOldAssets(),
       brotliAssets(),
       immutableAssets(),
