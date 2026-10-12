@@ -16,3 +16,26 @@ export function isSmallDevice(
   if (typeof nav.hardwareConcurrency === 'number' && nav.hardwareConcurrency <= 2) return true;
   return false;
 }
+
+/**
+ * A phone (not a tablet or a computer), for the note beside Find that searches run much faster on a
+ * computer (the user, 12 Oct 2026): a phone's user agent, or a touch-first screen narrower than a
+ * tablet (pointer: coarse and under 768 px).
+ */
+export function isPhone(
+  nav: Partial<Navigator> = globalThis.navigator ?? {},
+  win: { innerWidth?: number; matchMedia?: (q: string) => { matches: boolean } } = (globalThis as never) ?? {}
+): boolean {
+  const ua = nav.userAgent ?? '';
+  if (/iPhone|iPod|Android.+Mobile|Mobi/i.test(ua)) return true;
+  let coarse = false;
+  try {
+    coarse = !!win.matchMedia?.('(pointer: coarse)').matches;
+  } catch {
+    coarse = false;
+  }
+  return coarse && typeof win.innerWidth === 'number' && win.innerWidth < 768;
+}
+
+/** The note itself. */
+export const PHONE_NOTE = 'Searches run much faster on a computer; this phone can still run short ones.';

@@ -25,3 +25,16 @@ describe('isSmallDevice', () => {
     expect(isSmallDevice({})).toBe(false);
   });
 });
+
+describe('isPhone (12 Oct 2026)', () => {
+  const coarse = (w: number) => ({ innerWidth: w, matchMedia: () => ({ matches: true }) });
+  const fine = (w: number) => ({ innerWidth: w, matchMedia: () => ({ matches: false }) });
+  it('phones by user agent or a narrow touch screen; not tablets or computers', async () => {
+    const { isPhone } = await import('./device');
+    expect(isPhone({ userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)' }, fine(1200))).toBe(true);
+    expect(isPhone({ userAgent: 'Mozilla/5.0 (Linux; Android 14) Mobile Safari' }, fine(1200))).toBe(true);
+    expect(isPhone({ userAgent: 'Mozilla/5.0 (Macintosh)' }, coarse(390))).toBe(true);
+    expect(isPhone({ userAgent: 'Mozilla/5.0 (Macintosh)' }, coarse(1024))).toBe(false);
+    expect(isPhone({ userAgent: 'Mozilla/5.0 (Windows NT 10.0)' }, fine(390))).toBe(false);
+  });
+});

@@ -21,6 +21,8 @@
     <RunSaveNotice v-if="runSaveNotice" />
     <IntegrityNotice v-if="integrityNotice" :deadline-offer="deadlineOffer" />
     <slot name="above-find" />
+    <!-- Phones only (the user, 12 Oct 2026). -->
+    <p v-if="phone" class="text-[11px] text-slate-500" data-testid="phone-note">{{ PHONE_NOTE }}</p>
     <!-- Many workers on a long run (the user, 12 Oct 2026): a warning, never a block. -->
     <p
       v-if="manyWorkers"
@@ -87,6 +89,7 @@
 
 <script setup lang="ts">
 import { MANY_WORKERS, MANY_WORKERS_TEXT } from '@/search/batch';
+import { isPhone, PHONE_NOTE } from '@/search/device';
 import { computed, ref } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import FindBar from './FindBar.vue';
@@ -163,6 +166,7 @@ const nickname = defineModel<string>('nickname', { required: true });
 const note = defineModel<string>('note', { required: true });
 
 const store = useChainSearchStore();
+const phone = isPhone();
 const manyWorkers = computed(() => !!props.longRun && !props.running && store.workerBudget > MANY_WORKERS);
 /** "Searching, then submitting..." for a run that sends itself when it finishes (store `submitsWhenDone`,
  *  set by every screen for the length of a Find and submit run, and by a sweep link). */
