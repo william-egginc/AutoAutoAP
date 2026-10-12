@@ -4,29 +4,30 @@
 -->
 <template>
   <div
-    v-if="crash"
+    v-if="crash && !sameFinishedRun"
     class="p-3 rounded-xl border border-amber-300 bg-amber-50 text-[11px] text-amber-900 leading-relaxed space-y-2"
   >
     <p>
       <span class="font-black uppercase tracking-wide">Last time, this page stopped without finishing.</span>
       It was {{ doing }} at {{ when(crash.last.at)
       }}<template v-if="crash.last.done !== undefined"
-        >, {{ crash.last.done.toLocaleString()
-        }}<template v-if="crash.last.total"> of {{ crash.last.total.toLocaleString() }}</template> done</template
+        >, {{ crash.last.done.toLocaleString() }} priced<template v-if="crash.last.total">
+          (estimate up to ~{{ crash.last.total.toLocaleString() }})</template
+        ></template
       >, with the tab {{ crash.last.hidden ? 'hidden' : 'on screen'
       }}<template v-if="memory"> and {{ memory }} in use</template>.
       {{ workers }}
       <template v-if="crash.last.runNote">Its note: {{ crash.last.runNote }}</template>
       <template v-if="crash.last.pageClosed"
-        >The page was reloaded or closed while it was going, which ends a run.</template
+        >{{ ' ' }}The page was reloaded or closed while it was going, which ends a run.</template
       >
-      <template v-else>The browser closed the page itself, most likely because it ran short of memory.</template>
+      <template v-else>{{ ' ' }}The browser closed the page itself, most likely because it ran short of memory.</template>
       <template v-if="deadlineOffer"
-        >A By a date search was going: its progress is saved, see
+        >{{ ' ' }}A By a date search was going: its progress is saved, see
         <a href="#by-date-unfinished" class="underline font-bold" @click.prevent="toOffer">the unfinished run above</a>
         to carry it on.</template
       >
-      <template v-else>If a run was going, its progress is saved and it can carry on.</template>
+      <template v-else>{{ ' ' }}If a run was going, its progress is saved and it can carry on.</template>
     </p>
     <div class="flex flex-wrap gap-3">
       <button
@@ -62,6 +63,9 @@ function toOffer(): void {
   document.getElementById('by-date-unfinished')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 const crash = computed(() => store.lastCrash);
+/** The crash was a Nearby routes / Exhaustive search whose saved run has since finished: its own
+ *  "A finished run is saved" box says all there is (the user, 12 Oct: two boxes for one run). */
+const sameFinishedRun = computed(() => crash.value?.last.phase === 'search' && !!store.resumable?.complete);
 const doing = computed(() => {
   const l = crash.value?.last;
   if (!l) return '';

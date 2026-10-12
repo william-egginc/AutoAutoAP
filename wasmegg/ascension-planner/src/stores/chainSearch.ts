@@ -7101,7 +7101,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       b = blackBox.beat({
         phase: 'search',
         detail: stage.value,
-        done: chainsDone.value,
+        // Priced so far, counting what a carry-on replayed: the same count the panel shows.
+        done: chainsDone.value + chainsReplayed.value,
         total: chainsEstimated.value,
         workers,
         entries: liveCache.length,

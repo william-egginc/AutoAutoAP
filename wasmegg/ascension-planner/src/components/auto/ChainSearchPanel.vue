@@ -322,12 +322,23 @@
         v-if="store.resumable && !store.isRunning"
         :title="store.resumable.complete ? 'A finished run is saved' : 'An unfinished run is saved'"
         :elsewhere="!store.resumable.complete && !!store.runElsewhere[store.resumable.space ? 'sweep' : 'smart']"
-        :carry-label="store.resumable.complete ? 'Carry on' : 'Carry on from where it stopped'"
+        :carry-label="store.resumable.complete ? 'Show its result' : 'Carry on from where it stopped'"
         :disabled="store.busy"
         discardable
         @carry-on="run(true)"
         @discard="store.discardCheckpoint()"
       >
+        <template v-if="store.resumable.complete && nextLevel" #actions>
+          <button
+            type="button"
+            :disabled="store.busy"
+            class="px-3 py-1.5 rounded-lg border border-amber-700 text-amber-800 text-[10px] font-black uppercase tracking-widest hover:bg-white disabled:opacity-40"
+            data-testid="run-higher-level"
+            @click="runHigher"
+          >
+            Run at {{ nextLevel.label }}
+          </button>
+        </template>
         <p>
           {{ plural(store.resumable.durations.length, 'chain') }}
           {{ store.resumable.durations.length === 1 ? 'was' : 'were' }} already priced ({{
@@ -335,8 +346,12 @@
           }}), best so far <span class="font-black">{{ store.resumable.bestChain.join(' ') }}</span> at
           {{ (store.resumable.bestSeconds / 86400).toFixed(3) }} days.
           <template v-if="store.resumable.complete"
-            >That run reached the end of its tier, so carrying it on finds nothing new. A higher effort tier will replay
-            all {{ store.resumable.durations.length }} priced chains for free and carry on from there.</template
+            >That run finished: Show its result puts it back on screen, with nothing new to price.<template
+              v-if="nextLevel"
+            >
+              {{ nextLevel.label }} reuses all {{ store.resumable.durations.length }} priced routes for free and searches
+              further from there.</template
+            ></template
           >
           <template v-else>Carrying on replays those instantly and goes on without re-simulating anything.</template>
           <template v-if="!store.resumable.complete && store.runSaveFor(store.resumable.inputsKey)">
@@ -500,7 +515,15 @@
               v-if="store.chainRunLive"
               data-run-progress="smart"
               :stage="store.stage"
-              :count="`${store.chainsDone} / ~${plural(store.chainsEstimated, 'chain')}${store.chainsReplayed ? `, ${store.chainsReplayed} replayed` : ''}`"
+              :count="
+                smartCountText({
+                  done: store.chainsDone,
+                  replayed: store.chainsReplayed,
+                  estimate: store.chainsEstimated,
+                  running: store.isRunning,
+                  level: EFFORT_NOTES[store.effort].label,
+                })
+              "
               tone="smart"
               :percent="store.progressFraction * 100"
             >
@@ -1241,6 +1264,7 @@ import { showDateTime } from '@/lib/displayTime';
 import { useStartTimesStore } from '@/stores/startTimes';
 import { useInstantSummaryStore } from '@/stores/instantSummary';
 import { useStrongerStore } from '@/stores/stronger';
+import { smartCountText } from '@/search/smartCount';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { EFFORT, EFFORT_NOTES, EFFORT_ORDER, NEAR_OPTIMAL_SHARE } from '@/search/effort';
 import { formatDuration, plural } from '@/lib/format';
@@ -1283,6 +1307,19 @@ const props = defineProps<{
 const emit = defineEmits<{ checkExactly: [chain: number[]] }>();
 
 const store = useChainSearchStore();
+/** A finished saved run: the next level up, which reuses its priced routes (null at Very high). */
+const nextLevel = computed(() => {
+  const i = EFFORT_ORDER.indexOf(store.effort);
+  const tier = i >= 0 && i < EFFORT_ORDER.length - 1 ? EFFORT_ORDER[i + 1] : null;
+  return tier ? { tier, label: EFFORT_NOTES[tier].label } : null;
+});
+function runHigher(): void {
+  const n = nextLevel.value;
+  if (!n) return;
+  store.effort = n.tier;
+  useStrongerStore().level = n.tier;
+  void run(true);
+}
 // The coarse scan has no box any more: never on for this screen.
 store.findSeedFirst = false;
 const startTimes = useStartTimesStore();

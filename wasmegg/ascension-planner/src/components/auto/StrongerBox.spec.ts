@@ -177,3 +177,12 @@ describe('the run log (12 Oct)', () => {
     expect(t.slice(log - 120, log)).not.toMatch(/<details[^>]*open/);
   });
 });
+
+describe('a finished saved run (12 Oct)', () => {
+  it('offers Show its result and the next level, not Carry on', () => {
+    const t = fs.readFileSync(path.join(__dirname, 'ChainSearchPanel.vue'), 'utf8');
+    expect(t).toContain(`:carry-label="store.resumable.complete ? 'Show its result' : 'Carry on from where it stopped'"`);
+    expect(t).toContain('data-testid="run-higher-level"');
+    expect(t).not.toContain('carrying it on finds nothing new');
+  });
+});
