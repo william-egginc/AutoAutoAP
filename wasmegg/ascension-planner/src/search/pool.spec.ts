@@ -10,7 +10,7 @@
  * here is the bookkeeping, not the simulation.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createChainSearchPool } from './pool';
+import { createChainSearchPool, type PoolFault } from './pool';
 import type { SearchInputs } from './types';
 import type { WorkerRequest, WorkerResponse } from '@/workers/chainSearch.protocol';
 
@@ -583,6 +583,22 @@ describe('a dealt batch (workerOf)', () => {
     expect(out.results).toHaveLength(12);
     // Worker 1 took pieces: the batch used both.
     expect(out.workersUsed).toBe(2);
+    pool.terminate();
+  });
+});
+
+describe('worker faults reach the diagnostics (12 Oct)', () => {
+  it('says which worker crashed, with the browser\'s words or none', async () => {
+    FakeWorker.instances = [];
+    const faults: PoolFault[] = [];
+    const pool = await createChainSearchPool(INPUTS, { size: 2, spawn: () => new FakeWorker() as never, onFault: f => faults.push(f) });
+    const w = FakeWorker.instances[0];
+    w.onerror?.({ message: '', filename: '' } as ErrorEvent);
+    w.onerror?.({ message: 'Out of memory', filename: 'w.js', lineno: 3 } as ErrorEvent);
+    expect(faults).toEqual([
+      { kind: 'crash', worker: 0, message: '', pending: 0 },
+      { kind: 'crash', worker: 0, message: 'Out of memory at w.js:3', pending: 0 },
+    ]);
     pool.terminate();
   });
 });

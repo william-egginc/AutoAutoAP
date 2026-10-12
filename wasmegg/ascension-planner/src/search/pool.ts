@@ -111,6 +111,23 @@ export interface PoolOptions {
   /** How many workers to allow. Held to [1, logical cores] by `clampPoolSize`. Unset keeps the
    *  historical default of one per core less one for the main thread. */
   size?: number;
+  /**
+   * A worker failed: it reported an error or died (`crash`, its `onerror`), or went silent past the
+   * stall limit (`stall`, the watchdog let it go). For the run's diagnostics: which worker, the
+   * browser's message (often empty: then the worker died without a word, which is how an out-of-
+   * memory kill or a script that would not load looks), and how many requests it had in hand.
+   */
+  onFault?: (f: PoolFault) => void;
+}
+
+/** One worker failure (`PoolOptions.onFault`). */
+export interface PoolFault {
+  kind: 'crash' | 'stall';
+  worker: number;
+  /** What the browser said, '' when nothing ("stopped without reporting why"). */
+  message: string;
+  /** Requests it had in hand. */
+  pending: number;
 }
 
 export interface EvaluateOptions {
@@ -346,6 +363,11 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
               'memory from a background tab; keeping the tab visible, or lowering the effort tier, ' +
               'gives a run its best chance of finishing.'
       );
+      try {
+        opts.onFault?.({ kind: 'crash', worker: pw.index, message: detail, pending: pw.pending.size });
+      } catch {
+        // diagnostics only
+      }
       for (const entry of pw.pending.values()) entry.reject(err);
       pw.pending.clear();
     };
@@ -396,6 +418,11 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
           )
         );
         counts.stalled++;
+        try {
+          opts.onFault?.({ kind: 'stall', worker: pw.index, message: `silent ${forHow}`, pending: pw.pending.size + 1 });
+        } catch {
+          // diagnostics only
+        }
         // Do not reuse a worker that has stopped answering: drop it so a later batch spawns a
         // fresh one in its slot rather than sending into a void.
         try {

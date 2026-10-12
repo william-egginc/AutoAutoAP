@@ -31,6 +31,7 @@ export const MAX_SAMPLES = 300;
 export const MAX_SENDS = 40;
 export const MAX_GAPS = 40;
 export const MAX_WORKER_EVENTS = 40;
+export const MAX_FAULTS = 20;
 /** The progress points the estimate is recorded at. */
 export const MILESTONES = [10, 50, 90] as const;
 /**
@@ -63,6 +64,18 @@ export type Gap = [number, number, 0 | 1];
 export type SendEntry = [number, SendKind, 0 | 1, number | null, number, number, number];
 /** [minutes into the run, what, from, to]. */
 export type WorkerEvent = [number, WorkerEventKind, number | null, number | null];
+
+/**
+ * Something went wrong under the run (12 Oct, for finding out what and why memory errors happen):
+ * [minutes into the run, what, worker index or null, workers then, 1 if the tab was hidden,
+ *  main-thread heap MB or null, memo entries summed or null, % done or null, the browser's words].
+ * `crash`: a worker died or reported an error; `stall`: one went silent and was let go; `page`: the
+ * whole page died (found at the next load, from the black box's last beat); `failed`: the run ended
+ * on an error with the page alive. `load` is how the page after it was opened: 'reload' (Safari
+ * reloads a page it lost itself), 'navigate' (a new tab, the watcher's), 'back_forward'.
+ */
+export type FaultEntry = [number, FaultKind, number | null, number | null, 0 | 1, number | null, number | null, number | null, string];
+export type FaultKind = 'crash' | 'stall' | 'page' | 'failed';
 
 export type SendKind = 'progress' | 'csv-so-far' | 'final' | 'csv' | 'retry' | 'kept';
 export type WorkerEventKind = 'resize' | 'crash' | 'stall' | 'spawn';
@@ -106,6 +119,8 @@ export interface Timeline {
   gapMinutes: number;
   sends: SendEntry[];
   workerEvents: WorkerEvent[];
+  /** What went wrong, and in what state (`FaultEntry`). Absent on timelines from before 12 Oct. */
+  faults?: FaultEntry[];
   /** The pool's lifetime counts as last seen this session (search/pool.ts `stats`), and the sums of
    *  earlier sessions'. */
   pool: { made: number; crashed: number; stalled: number };
@@ -307,6 +322,36 @@ export function noteWorkerChange(t: Timeline, now: number, from: number, to: num
   return { ...t, workerEvents: push(t.workerEvents, [min1(now - t.runId), 'resize', from, to], MAX_WORKER_EVENTS) };
 }
 
+export interface FaultNote {
+  /** When it happened, ms (a page crash: its last beat's time). */
+  at: number;
+  kind: FaultKind;
+  worker?: number | null;
+  workers?: number | null;
+  hidden?: boolean;
+  heapMB?: number | null;
+  memo?: number | null;
+  pct?: number | null;
+  /** The browser's words, or what the page knows; cut to 100 characters, player ids swept out. */
+  message?: string;
+}
+
+export function noteFaultIn(t: Timeline, f: FaultNote): Timeline {
+  const num = (x: number | null | undefined) => (typeof x === 'number' && Number.isFinite(x) ? Math.round(x) : null);
+  const entry: FaultEntry = [
+    min1(f.at - t.runId),
+    f.kind,
+    num(f.worker),
+    num(f.workers),
+    f.hidden ? 1 : 0,
+    num(f.heapMB),
+    num(f.memo),
+    num(f.pct),
+    (f.message ?? '').replace(/EI\d{16}/g, 'EI[redacted]').slice(0, 100),
+  ];
+  return { ...t, faults: push(t.faults ?? [], entry, MAX_FAULTS) };
+}
+
 export interface SendNote {
   now: number;
   what: SendKind;
@@ -419,7 +464,16 @@ export function timelinePayload(t: Timeline, maxChars = PAYLOAD_MAX_CHARS): Reco
   let sends = t.sends;
   let gaps = t.gaps;
   let events = t.workerEvents;
-  const build = () => ({ ...base, s: samples, gaps, sends, wk: events });
+  // The faults are the point of the 12 Oct addition: kept whole while anything else can shrink.
+  let faults = t.faults ?? [];
+  const build = () => ({
+    ...base,
+    s: samples,
+    gaps,
+    sends,
+    wk: events,
+    ...(faults.length ? { faults, faultCols: 'min,what,worker,workers,hidden,heapMB,memo,pct,msg' } : {}),
+  });
   let text = JSON.stringify(build());
   while (text.length > maxChars && samples.length > 8) {
     samples = halve(samples);
@@ -433,6 +487,10 @@ export function timelinePayload(t: Timeline, maxChars = PAYLOAD_MAX_CHARS): Reco
   }
   if (text.length > maxChars) {
     samples = [];
+    text = JSON.stringify(build());
+  }
+  if (text.length > maxChars) {
+    faults = faults.slice(-5);
     text = JSON.stringify(build());
   }
   return text.length > maxChars ? base : build();
@@ -485,4 +543,9 @@ export function timelineFor(deadline: number | undefined): Record<string, unknow
   } catch {
     return undefined;
   }
+}
+
+/** A fault into the stored timeline (`noteFaultIn`). Never throws. */
+export function noteFault(f: FaultNote): void {
+  updateTimeline(t => noteFaultIn(t, f));
 }

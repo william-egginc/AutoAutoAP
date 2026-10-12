@@ -345,6 +345,20 @@ export function clearUnfinished(): void {
   write(box);
 }
 
+/**
+ * How this page was opened (the Navigation Timing entry's `type`): 'reload' (the player's, or Safari
+ * reloading a page it lost: "This webpage was reloaded because a problem occurred"), 'navigate' (a
+ * new tab, such as the run watcher's), 'back_forward' or 'prerender'; 'unknown' where not reported.
+ */
+export function navigationType(): string {
+  try {
+    const nav = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
+    return nav?.type ?? 'unknown';
+  } catch {
+    return 'unknown';
+  }
+}
+
 /** What a player who ticks "Also send diagnostics" shares: see `diagnosticsSummary`. */
 export interface DiagnosticsExtra {
   /** "chrome on windows" (lib/browserHelp.ts detectBrowser): a family and an OS, never the user agent. */
@@ -402,6 +416,8 @@ export function diagnosticsSummary(x: DiagnosticsExtra): Record<string, string |
     workers: x.workers,
     carryOns: x.carryOns,
     lastVisitCrashed: !!x.crashed || !!x.lastVisitCrashed,
+    // How this page was opened: with a crash, tells Safari's own reload from the watcher's new tab.
+    load: navigationType(),
   };
   if (x.run) out.run = x.run;
   if (x.runStartedAt) {
@@ -460,6 +476,10 @@ export function diagnosticsSummary(x: DiagnosticsExtra): Record<string, string |
       ...(c.pageClosed ? { pageClosed: true } : {}),
       ...(c.heapMB !== undefined ? { heapMB: c.heapMB } : {}),
       ...(c.workers !== undefined ? { workers: c.workers } : {}),
+      ...(typeof c.workersMemoEntries === 'number' ? { memo: c.workersMemoEntries } : {}),
+      ...(typeof c.uaMemoryMB === 'number' ? { pageMB: c.uaMemoryMB } : {}),
+      ...(typeof c.done === 'number' ? { done: c.done } : {}),
+      ...(x.runStartedAt ? { atMin: Math.round((c.at - x.runStartedAt) / 60000) } : {}),
     };
   }
   return out;

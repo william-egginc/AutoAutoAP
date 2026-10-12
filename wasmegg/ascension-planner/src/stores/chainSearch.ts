@@ -23,7 +23,7 @@ import { plannedCountChecks, runChainSearch, type CacheEntry } from '@/search/dr
 import { findStartingChain, planCoarseGrid } from '@/search/coarse';
 import { teByEggFor } from '@/search/teByEgg';
 import { lastTECostFrom } from '@/search/oneMoreTE';
-import { createChainSearchPool, type ChainSearchPool } from '@/search/pool';
+import { createChainSearchPool, type ChainSearchPool, type PoolFault } from '@/search/pool';
 import type { BuildParams } from '@/search/precomputedLeg';
 import { contention, timeWeightedWorkers, workerSecondsFromRate } from '@/search/speed';
 import { addChainSample, sweepTimeLeft, type SweepTimeLeft } from '@/search/sweepEstimate';
@@ -5454,6 +5454,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     try {
       pool = await createChainSearchPool(startInputs, {
         size: workerBudget.value,
+        onFault: f => noteWorkerFault(f, false),
         onSuspend: gap => {
           suspendedSeconds.value += gap;
           longestStallSeconds.value = Math.max(longestStallSeconds.value, gap);
@@ -6299,6 +6300,22 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           }
         : null,
     });
+    // The page before this one died under the run (the black box's open beat): into the timeline,
+    // with how this page was opened (Safari reloads a page it lost; the watcher opens a new tab).
+    if (seed && crashAtLoad && !crashNoted && crashAtLoad.last.phase === 'deadline search') {
+      crashNoted = true;
+      const c = crashAtLoad.last;
+      runTimeline.noteFault({
+        at: c.at,
+        kind: 'page',
+        workers: c.workers ?? null,
+        hidden: c.hidden,
+        heapMB: c.heapMB ?? null,
+        memo: c.workersMemoEntries ?? null,
+        pct: null,
+        message: `${(c.detail ?? '').slice(0, 60)}; ${c.pageClosed ? 'closed' : 'died'}; next load ${blackBox.navigationType()}`,
+      });
+    }
     deadlineAll = [];
     deadlineAllPriced = null;
     deadlineKept = 0;
@@ -6360,7 +6377,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       return written;
     };
     try {
-      pool = await createChainSearchPool(inputs, { size: workerBudget.value });
+      pool = await createChainSearchPool(inputs, { size: workerBudget.value, onFault: f => noteWorkerFault(f, true) });
       deadlinePool = pool;
       if (targetWorkers.value < workerBudget.value) pool.resize(targetWorkers.value);
       // The worker clock (the other runs have had it all along): seconds per leg is recorded at the
@@ -6607,6 +6624,16 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         };
       }
       error.value = describeRunError(e);
+      runTimeline.noteFault({
+        at: Date.now(),
+        kind: 'failed',
+        workers: pool?.size ?? null,
+        hidden: typeof document !== 'undefined' && document.visibilityState === 'hidden',
+        heapMB: lastBeat?.heapMB ?? null,
+        memo: lastBeat?.workersMemoEntries ?? null,
+        pct: deadlineProgressPercent.value,
+        message: e instanceof Error ? e.message : String(e),
+      });
     } finally {
       pool?.terminate();
       deadlinePool = null;
@@ -6990,6 +7017,34 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       return {};
     }
   }
+  /** The last black-box beat of a run, for a fault's "memory then" (`noteWorkerFault`). */
+  let lastBeat: blackBox.Beat | null = null;
+  /** The previous page's crash went into this run's timeline already (once per load). */
+  let crashNoted = false;
+  /**
+   * A worker failed (search/pool.ts `onFault`): into the black box's history for every run, and for
+   * a By a date run into its timeline too (search/runTimeline.ts `noteFault`): which worker, the
+   * browser's words, the workers then, hidden or not, the last memory reading and how far it got.
+   */
+  function noteWorkerFault(f: PoolFault, deadline: boolean): void {
+    const hidden = typeof document !== 'undefined' && document.visibilityState === 'hidden';
+    const what = `${f.kind === 'crash' ? 'worker crashed' : 'worker went silent'}: #${f.worker}${f.message ? ` (${f.message.slice(0, 80)})` : ' (no message)'}`;
+    blackBox.note(`${what}, ${f.pending} in hand, ${hidden ? 'hidden' : 'visible'}`);
+    runLog.value.push(`--- ${what}`);
+    if (!deadline) return;
+    const stage = deadlineProgress.value?.stage ?? '';
+    runTimeline.noteFault({
+      at: Date.now(),
+      kind: f.kind,
+      worker: f.worker,
+      workers: deadlinePool?.size ?? null,
+      hidden,
+      heapMB: lastBeat?.heapMB ?? null,
+      memo: lastBeat?.workersMemoEntries ?? null,
+      pct: deadlineProgressPercent.value,
+      message: `${f.message || 'no message'}; ${stage.slice(0, 50)}`,
+    });
+  }
   function blackBoxBeat(): void {
     let b: blackBox.Beat | null = null;
     // What the run is really using: the live pool's size, or before the pool exists the count it is about
@@ -7034,6 +7089,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         ...(runNoteUsed.value ? { runNote: runNoteUsed.value } : {}),
       });
     }
+    if (b) lastBeat = b;
     if (b && typeof b.workersMemoCapacity === 'number' && b.workers)
       memoPerWorker = Math.round(b.workersMemoCapacity / b.workers);
     // The "Stepping away?" heartbeat and fewer-workers rule (composables/useStepAway.ts).
@@ -7553,6 +7609,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     try {
       pool = await createChainSearchPool(startInputs, {
         size: workerBudget.value,
+        onFault: f => noteWorkerFault(f, false),
         onSuspend: gap => {
           suspendedSeconds.value += gap;
           longestStallSeconds.value = Math.max(longestStallSeconds.value, gap);

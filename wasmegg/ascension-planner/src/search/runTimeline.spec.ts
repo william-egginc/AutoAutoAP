@@ -23,6 +23,8 @@ import {
   type Sample,
   type Timeline,
   type TickInput,
+  noteFaultIn,
+  MAX_FAULTS,
 } from './runTimeline';
 
 const T0 = 1_760_000_000_000;
@@ -279,5 +281,20 @@ describe('storage', () => {
 
   it('SAMPLE_EVERY_MS is 10 minutes', () => {
     expect(SAMPLE_EVERY_MS).toBe(10 * MIN);
+  });
+});
+
+describe('faults (12 Oct: what and why memory errors happen)', () => {
+  it('records each fault with its state, swept of player ids, and the payload carries them', () => {
+    let t = newTimeline({ runId: 0, estimate: null });
+    t = noteFaultIn(t, { at: 90_000, kind: 'crash', worker: 3, workers: 19, hidden: true, heapMB: 201.4, memo: 43627, pct: 61.2, message: '' });
+    t = noteFaultIn(t, { at: 120_000, kind: 'page', workers: 19, hidden: false, heapMB: 202, message: 'Round 4 · EI1234567890123456; died; next load navigate' });
+    expect(t.faults![0]).toEqual([1.5, 'crash', 3, 19, 1, 201, 43627, 61, '']);
+    expect(t.faults![1][8]).toBe('Round 4 · EI[redacted]; died; next load navigate');
+    const p = timelinePayload(t) as { faults?: unknown[]; faultCols?: string };
+    expect(p.faults).toHaveLength(2);
+    expect(p.faultCols).toMatch(/^min,what,worker/);
+    for (let i = 0; i < 30; i++) t = noteFaultIn(t, { at: i, kind: 'stall', message: 'silent 10 minutes' });
+    expect(t.faults).toHaveLength(MAX_FAULTS);
   });
 });
