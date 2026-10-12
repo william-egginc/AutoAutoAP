@@ -166,3 +166,14 @@ describe('the algorithm fold moved to How it works (12 Oct)', () => {
     expect(how).toContain('<ChainSearchExplainer />');
   });
 });
+
+describe('the run log (12 Oct)', () => {
+  it('folded, titled "Run log (for checking)", after the CSV in the keep part', () => {
+    const t = fs.readFileSync(path.join(__dirname, 'ChainSearchPanel.vue'), 'utf8');
+    expect(t).not.toContain('Show what it tried');
+    expect(t).toContain('Run log (for checking)');
+    const log = t.indexOf('data-testid="run-log"');
+    expect(log).toBeGreaterThan(t.indexOf('</CsvCard>'));
+    expect(t.slice(log - 120, log)).not.toMatch(/<details[^>]*open/);
+  });
+});

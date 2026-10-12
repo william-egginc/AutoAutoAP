@@ -1037,26 +1037,6 @@
           </p>
         </div>
 
-        <!-- Verbose view: every stage and every accepted move, in order. The panel shows only the
-             newest line while running; this is the running commentary. The CSV below it is the
-             per-candidate record, which this log cannot be — a log line is one accepted move, not
-             one chain. Kept OUTSIDE the amber honesty block below: it was nested inside it, which
-             rendered a black terminal panel in the middle of a warning box. -->
-        <details v-if="store.runLog.length" class="rounded-xl border border-slate-200 bg-white">
-          <summary class="cursor-pointer px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500">
-            Show what it tried ({{ store.runLog.length }} lines)
-          </summary>
-          <div class="max-h-80 overflow-y-auto border-t border-slate-100 bg-slate-900 px-4 py-3">
-            <div
-              v-for="(line, i) in store.runLog"
-              :key="i"
-              class="whitespace-pre font-mono text-[11px] leading-relaxed"
-              :class="line.startsWith('--- ') ? 'text-emerald-400 font-bold mt-2' : 'text-slate-300'"
-            >
-              {{ line }}
-            </div>
-          </div>
-        </details>
 
         <!-- The run's own shape, and why it ended. The CSV had all of this already, but reading it
              meant finishing a three-hour run and opening a spreadsheet. -->
@@ -1106,6 +1086,28 @@
               </p>
             </template>
           </CsvCard>
+
+        <!-- Run log (for checking): at the bottom with the CSV, folded (the user, 12 Oct 2026: useful for bug
+             reports, too much in the results). Verbose view: every stage and every accepted move, in order. The panel shows only the
+             newest line while running; this is the running commentary. The CSV below it is the
+             per-candidate record, which this log cannot be — a log line is one accepted move, not
+             one chain. Kept OUTSIDE the amber honesty block below: it was nested inside it, which
+             rendered a black terminal panel in the middle of a warning box. -->
+        <details v-if="ownRun && store.runLog.length" class="rounded-xl border border-slate-200 bg-white" data-testid="run-log">
+          <summary class="cursor-pointer px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500">
+            Run log (for checking) · {{ store.runLog.length }} lines
+          </summary>
+          <div class="max-h-80 overflow-y-auto border-t border-slate-100 bg-slate-900 px-4 py-3">
+            <div
+              v-for="(line, i) in store.runLog"
+              :key="i"
+              class="whitespace-pre font-mono text-[11px] leading-relaxed"
+              :class="line.startsWith('--- ') ? 'text-emerald-400 font-bold mt-2' : 'text-slate-300'"
+            >
+              {{ line }}
+            </div>
+          </div>
+        </details>
         </template>
         <template #share>
           <!-- Share the result.
