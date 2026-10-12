@@ -243,7 +243,7 @@
                 Exact = the full simulator on your account; filled in automatically. Simulate this plan opens that route in
                 Your plan, simulated step by step on your save: each ascension, its dates and purchases.
               </p>
-              <table class="w-full text-[12px]">
+              <table class="w-full text-[12px] whitespace-nowrap">
                 <thead>
                   <tr class="text-left text-[9px] font-black uppercase tracking-widest text-slate-400">
                     <th class="py-1 pr-3">Ascensions</th>
@@ -427,7 +427,7 @@
               Exact = the full simulator on your account; filled in automatically. Simulate this plan opens that route in
               Your plan, simulated step by step on your save: each ascension, its dates and purchases.
             </p>
-            <table class="w-full text-[12px]">
+            <table class="w-full text-[12px] whitespace-nowrap">
               <thead>
                 <tr class="text-left text-[9px] font-black uppercase tracking-widest text-slate-400">
                   <th class="py-1 pr-3">Ascensions</th>

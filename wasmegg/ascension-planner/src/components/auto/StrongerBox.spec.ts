@@ -56,3 +56,18 @@ describe('the screens (12 Oct layout)', () => {
     expect(fs.existsSync(path.join(__dirname, 'ModeChooser.vue'))).toBe(false);
   });
 });
+
+describe('(e) the starting route, in the Stronger check box', () => {
+  const t = fs.readFileSync(path.join(__dirname, 'ChainSearchPanel.vue'), 'utf8');
+  it("defaults to the instant answer's route; other routes, yours, or typed are in the settings", () => {
+    expect(t).toContain('data-testid="start-from"');
+    expect(t).toContain(`{ key: 'instant', label: "The instant answer's route (default)" }`);
+    expect(t).toContain("instantSummary.listed.slice(1).forEach");
+    expect(t).toContain("strongerStore.earlierChains.forEach");
+    expect(t).toContain("{ key: 'typed', label: 'Type a route…' }");
+    // Lock the first N and the limits stay in the same settings.
+    expect(t.indexOf('data-testid="start-from"')).toBeLessThan(t.indexOf('Lock the first'));
+    // The four tiles become one line when embedded.
+    expect(t).toContain('data-testid="start-line"');
+  });
+});

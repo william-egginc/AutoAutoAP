@@ -132,6 +132,45 @@
             </div>
           </div>
 
+          <!-- Start from a different route (in the Stronger check box; the user, 12 Oct 2026): by default the
+               instant answer's route; or another route it lists, one of yours, or one typed. -->
+          <div v-if="embedded" class="p-4 rounded-xl border border-slate-200 bg-white space-y-2" data-testid="start-from">
+            <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Start from a different route</h3>
+            <select
+              v-model="startPick"
+              :disabled="store.isRunning"
+              class="w-full rounded-lg border-slate-300 text-[12px] font-bold text-slate-800 disabled:opacity-50"
+              data-testid="start-from-pick"
+            >
+              <option v-for="o in startOptions" :key="o.key" :value="o.key">{{ o.label }}</option>
+            </select>
+            <input
+              v-if="startPick === 'typed'"
+              v-model="store.seedOverride"
+              type="text"
+              inputmode="numeric"
+              :placeholder="store.seedChain.join(' ')"
+              :disabled="store.isRunning"
+              aria-label="Your starting route"
+              class="w-full rounded-lg border-slate-300 text-sm font-bold text-slate-800 disabled:opacity-50"
+            />
+            <p class="text-[11px] text-slate-500 leading-relaxed">
+              The search moves the stops of the route it starts from and adds at most one, so a route with too few
+              stops can't reach a longer answer. Leave the final target off a typed route; it is added for you.
+            </p>
+            <label class="flex items-center gap-2 text-[11px] text-slate-600">
+              <span class="font-bold text-slate-700">Final target TE</span>
+              <input
+                v-model.number="store.finalTE"
+                type="number"
+                :min="store.currentTE + 1"
+                :max="2000"
+                :disabled="store.isRunning"
+                class="w-24 rounded-lg border-slate-300 text-sm font-bold text-slate-800 disabled:opacity-50"
+              />
+            </label>
+          </div>
+
           <!-- Starting point -->
           <label
             class="flex items-start gap-3 p-4 bg-white border border-slate-200 rounded-xl cursor-pointer hover:border-emerald-300"
@@ -240,7 +279,18 @@
         <div v-for="(line, i) in store.coarseLog" :key="i" class="whitespace-pre">{{ line }}</div>
       </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <!-- In the Stronger check box: one line; the route to start from is in the settings above. -->
+      <p v-if="embedded" class="text-[12px] text-slate-700 leading-relaxed" data-testid="start-line">
+        Starts from <span class="font-mono-premium font-bold">{{ store.seedChain.join(' ') }}</span>&nbsp;<span
+          class="text-slate-500"
+          >({{ seedSource }})</span
+        > · up to ~{{ store.estimateForCurrentSettings }} chains<template
+          v-if="store.otherCountsPlan.chains"
+        >
+          (incl. ~{{ store.otherCountsPlan.chains }} checking {{ countList(store.otherCountsPlan.counts) }} ascensions)</template
+        >.
+      </p>
+      <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <!-- Editable. This was a read-only readout, so the only way to change the seed was to
              find the Target TE field in a different card - and a two-element seed cannot reach a
              7-prestige answer, because descent only MOVES checkpoints and the probe adds one. -->
@@ -264,15 +314,7 @@
             class="w-full mt-1 bg-transparent text-sm font-black text-slate-800 border-0 border-b border-slate-300 focus:border-indigo-500 focus:ring-0 p-0 disabled:opacity-50"
           />
           <div class="text-[9px] text-slate-400 mt-1">
-            {{
-              store.seedOverride.trim()
-                ? 'using ' + store.seedChain.join(' ')
-                : store.instantSeed
-                  ? 'from the instant answer'
-                  : autoPlannerStore.targetTE.trim()
-                    ? `from Target TE(s) on ${NAMES.classic}`
-                    : 'a suggested chain'
-            }}
+            {{ store.seedOverride.trim() ? 'using ' + store.seedChain.join(' ') : seedSource }}
           </div>
         </div>
         <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl">
@@ -1239,6 +1281,8 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { showDateTime } from '@/lib/displayTime';
 import { useStartTimesStore } from '@/stores/startTimes';
+import { useInstantSummaryStore } from '@/stores/instantSummary';
+import { useStrongerStore } from '@/stores/stronger';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { EFFORT, EFFORT_NOTES, EFFORT_ORDER, NEAR_OPTIMAL_SHARE } from '@/search/effort';
 import { formatDuration, plural } from '@/lib/format';
@@ -1283,6 +1327,53 @@ const emit = defineEmits<{ checkExactly: [chain: number[]] }>();
 
 const store = useChainSearchStore();
 const startTimes = useStartTimesStore();
+const instantSummary = useInstantSummaryStore();
+const strongerStore = useStrongerStore();
+
+/** Where the starting route comes from, in words. */
+const seedSource = computed(() =>
+  store.seedOverride.trim()
+    ? 'your choice'
+    : store.instantSeed
+      ? "the instant answer's route"
+      : autoPlannerStore.targetTE.trim()
+        ? `from Target TE(s) on ${NAMES.classic}`
+        : 'a suggested route'
+);
+/** "Start from a different route": the instant answer's best (the default), its other routes, your
+ *  earlier routes (the stronger check's), or one typed (startTimeChoices-like, each route once). */
+const startOptions = computed(() => {
+  const out: { key: string; label: string; chain?: number[] }[] = [
+    { key: 'instant', label: "The instant answer's route (default)" },
+  ];
+  const seen = new Set<string>();
+  const add = (c: number[], label: string) => {
+    const k = c.join(',');
+    if (c.length < 2 || seen.has(k)) return;
+    seen.add(k);
+    out.push({ key: k, label: `${label}: ${c.join(' ')}`, chain: c });
+  };
+  instantSummary.listed.slice(1).forEach(c => add(c, `Instant answer, ${c.length} ascensions`));
+  strongerStore.earlierChains.forEach(c => add(c, 'Your earlier route'));
+  out.push({ key: 'typed', label: 'Type a route…' });
+  return out;
+});
+const startPick = computed<string>({
+  get: () => {
+    const typed = store.seedOverride.trim();
+    if (!typed) return 'instant';
+    const match = startOptions.value.find(o => o.chain && o.chain.slice(0, -1).join(' ') === typed);
+    return match ? match.key : 'typed';
+  },
+  set: key => {
+    if (key === 'instant') store.seedOverride = '';
+    else if (key === 'typed') store.seedOverride = store.seedOverride.trim() || store.seedChain.slice(0, -1).join(' ') + ' ';
+    else {
+      const o = startOptions.value.find(x => x.key === key);
+      if (o?.chain) store.seedOverride = o.chain.slice(0, -1).join(' ');
+    }
+  },
+});
 /** The store's chain-search state is this panel's (Smart search), not the other Fastest panel's: its
  *  progress, answer, charts and share show only then (store `chainRunKind`). */
 const ownRun = computed(() => store.chainRunKind === 'smart');
