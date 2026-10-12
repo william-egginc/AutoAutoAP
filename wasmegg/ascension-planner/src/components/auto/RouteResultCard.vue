@@ -11,7 +11,9 @@
 <template>
   <ResultCardFrame :still-going="running && days > 0">
     <template #heading>
-      {{ running ? 'Best so far' : 'Fastest found' }}<template v-if="claim && !running">: {{ claim }}</template>
+      <template v-if="lastRun && !running">Your last run · {{ lastRun }}</template
+      ><template v-else>{{ running ? 'Best so far' : 'Fastest found' }}</template
+      ><template v-if="claim && !running">: {{ claim }}</template>
     </template>
     <template #headline>
       <div v-if="source" class="text-[10px] font-bold text-emerald-700/80">{{ source }}</div>
@@ -69,6 +71,9 @@
         {{ saving ? 'Saving...' : 'Save run' }}
       </button>
       <span v-if="note" class="text-[11px] font-semibold text-emerald-800">{{ note }}</span>
+      <p class="w-full text-[10px] text-emerald-900/70" data-testid="build-plan-note">
+        Build this plan shows every shift and when each TE arrives in Your plan.
+      </p>
     </template>
   </ResultCardFrame>
 </template>
@@ -96,8 +101,11 @@ withDefaults(
     source?: string;
     /** A line after the buttons: what the last click did. */
     note?: string;
+    /** Not from a run in this visit on these settings: when it was found ("Oct 11, 2026, 4:15 PM"),
+     *  and the heading says "Your last run · ..." ('' for a live one). */
+    lastRun?: string;
   }>(),
-  { claim: '', source: '', busy: false, canFill: false, canSave: false, saving: false, note: '' }
+  { claim: '', source: '', busy: false, canFill: false, canSave: false, saving: false, note: '', lastRun: '' }
 );
 const emit = defineEmits<{ build: []; fill: []; csv: []; save: [] }>();
 

@@ -28,7 +28,7 @@ describe('each Fastest panel shows only its own run', () => {
     expect(s).toContain('v-if="ownRun && (store.isRunning || store.bestDays > 0)"');
     const f = read('InsanePanel.vue');
     expect(f).toContain("const ownRun = computed(() => store.chainRunKind === 'full')");
-    expect(f).toContain('v-if="ownRun && store.stage"');
+    expect(f).toContain('v-if="ownRun && store.stage && store.chainRunLive"');
     expect(f).toContain('v-if="ownRun && store.bestDays > 0"');
   });
 });

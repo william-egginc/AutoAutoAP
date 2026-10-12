@@ -498,6 +498,7 @@
           <!-- Live progress -->
           <div v-if="ownRun && (store.isRunning || store.bestDays > 0)" class="space-y-4">
             <RunProgress
+              v-if="store.chainRunLive"
               data-run-progress="smart"
               :stage="store.stage"
               :count="`${store.chainsDone} / ~${plural(store.chainsEstimated, 'chain')}${store.chainsReplayed ? `, ${store.chainsReplayed} replayed` : ''}`"
@@ -545,6 +546,7 @@
               :end-label="endDate"
               :running="store.isRunning"
               :claim="store.stoppedEarly ? 'the best of what was priced' : ''"
+              :last-run="lastRunLabel"
               :busy="store.busy"
               can-fill
               can-save
@@ -1226,6 +1228,7 @@ import { NAMES } from '@/lib/siteNav';
 import { useUIStore } from '@/stores/ui';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
+import { showDateTime } from '@/lib/displayTime';
 import { useStartTimesStore } from '@/stores/startTimes';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { EFFORT, EFFORT_NOTES, EFFORT_ORDER, NEAR_OPTIMAL_SHARE } from '@/search/effort';
@@ -1501,6 +1504,16 @@ function eggBlocks(leg: LegSummary): EggBlock[] {
 const expandedRow = ref('');
 
 const activeView = computed(() => VIEWS.find(v => v.id === store.shortlistView));
+
+/** The card's "Your last run · ..." when its result isn't from a run in this visit on these settings
+ *  (store `chainRunLive`); '' for a live one. */
+const lastRunLabel = computed(() => {
+  if (store.chainRunLive) return '';
+  const at = store.chainResultAt;
+  return at
+    ? showDateTime(at / 1000, autoPlannerStore.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone)
+    : 'from an earlier visit';
+});
 
 /** `Sep 30, 5:25 PM` — deliberately no year. Every leg of a plan sits within a couple of years of
  *  the others, so the year is dead weight in a table this dense; the finish date above carries it. */

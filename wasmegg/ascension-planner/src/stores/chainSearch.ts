@@ -1240,6 +1240,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    */
   const runStartedAt = ref(0);
   const runEndedAt = ref(0);
+  /** When the chain result on screen was found (ms): a run's end, or an opened saved run's save. */
+  const chainResultAt = ref(0);
 
   /** Minutes actually spent searching, or null when this result did not come from a live run. */
   const runMinutes = computed(() => {
@@ -2106,6 +2108,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     runNote.value = summary.runNote ?? '';
     integrityWait.value = null;
     openedRun.value = summary;
+    chainResultAt.value = summary.savedAt || 0;
     // Its own start, for "Build this plan": that pins the planner to `planStartUsed`, which still
     // held whichever run last went in this tab. Unknown (no fingerprint): don't pin at all.
     planStartUsed.value = fingerprintPlanStart(summary.fingerprint) ?? 0;
@@ -5440,6 +5443,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       stage.value = 'failed';
     } finally {
       runEndedAt.value = Date.now();
+      chainResultAt.value = runEndedAt.value;
       pool?.terminate();
       pool = null;
       // The answer (finished, or stopped with one) kept for sending until sent or dismissed, built now
@@ -7606,6 +7610,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       stage.value = 'failed';
     } finally {
       runEndedAt.value = Date.now();
+      chainResultAt.value = runEndedAt.value;
       pool?.terminate();
       pool = null;
       // The answer (finished, or stopped with one) kept for sending until sent or dismissed, built now
@@ -7918,6 +7923,39 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   });
 
   /**
+   * IS THE RESULT ON SCREEN FROM A RUN IN THIS VISIT, ON THESE SETTINGS? (the user, egg-beta review
+   * 11 Oct). A run's progress ("DONE · 61 / ~61 chains, 61 replayed") stays only while both hold; a
+   * result from an earlier visit, or one the settings have since moved away from, keeps its card,
+   * labelled "Your last run" with when it was found (`chainResultAt`, `deadlineResult.at`), and the
+   * progress goes back to idle. `settingsKey` is the run fingerprint's settings without the player.
+   */
+  const settingsKey = computed(() =>
+    fingerprintRun({
+      playerId: '',
+      planStart: planStart.value,
+      currentTE: currentTE.value,
+      final: finalTE.value,
+      firstAscension: firstAscensionFor(),
+      availability: availability.value,
+      milestones: activeMilestones.value,
+      deferShifts: deferShifts.value,
+      timeOff: timeOffWindows(timeOff.value, planTimezone()),
+    })
+  );
+  const chainLiveKey = ref('');
+  const dateLiveKey = ref('');
+  // At the start and again at the end: anything a run moves itself (a pinned plan start, the save's
+  // TE) doesn't count as the player changing the settings.
+  watch(isRunning, () => (chainLiveKey.value = settingsKey.value));
+  watch(deadlineRunning, () => (dateLiveKey.value = settingsKey.value));
+  const chainRunLive = computed(
+    () => isRunning.value || (!!chainLiveKey.value && chainLiveKey.value === settingsKey.value)
+  );
+  const dateRunLive = computed(
+    () => deadlineRunning.value || (!!dateLiveKey.value && dateLiveKey.value === settingsKey.value)
+  );
+
+  /**
    * Which Fastest panel the chain-search state on the store (stage, counts, best, CSV, charts) belongs
    * to: a Full sweep states its space (`searchSpace`), a Smart search clears it. The two panels share
    * these fields, so each shows them only when they are its own: a finished Full sweep's "done" and
@@ -7949,6 +7987,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     errorIsIntegrityNotice,
     runProgress,
     chainRunKind,
+    chainRunLive,
+    dateRunLive,
+    chainResultAt,
     stopRun,
     provisionalRows,
     runElsewhere,

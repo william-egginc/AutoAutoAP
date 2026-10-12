@@ -794,7 +794,7 @@
           </template>
           <template #progress>
             <RunProgress
-              v-if="ownRun && store.stage"
+              v-if="ownRun && store.stage && store.chainRunLive"
               data-run-progress="full"
               :stage="store.stage"
               :count="`${pricedSoFar.toLocaleString()} / ${plural(store.chainsEstimated, 'chain')}`"
@@ -887,13 +887,13 @@
               :end-label="endDate"
               :running="store.isRunning"
               :claim="store.stoppedEarly ? '' : resultClaim"
-              :source="store.searchSpace ? '' : `From the ${NAMES.smartFirst} search you ran`"
               :busy="store.busy"
               can-save
               :saving="saving"
               @build="buildPlan"
               @csv="downloadCsv"
               @save="save"
+              :last-run="lastRunLabel"
             >
               <p v-if="!store.isRunning && resultExplain" class="text-[11px] text-emerald-900/80 leading-relaxed">
                 {{ resultExplain }}
@@ -2079,6 +2079,15 @@ function buildPlan(): void {
   ui.openPlannerRequested++;
 }
 
+/** The card's "Your last run · ..." when its result isn't from a run in this visit on these settings
+ *  (store `chainRunLive`); '' for a live one. */
+const lastRunLabel = computed(() => {
+  if (store.chainRunLive) return '';
+  const at = store.chainResultAt;
+  return at
+    ? showDateTime(at / 1000, autoPlannerStore.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone)
+    : 'from an earlier visit';
+});
 function saveWhen(unixSeconds: number | undefined): string {
   if (!unixSeconds) return 'an unknown time';
   return showDateTime(unixSeconds, autoPlannerStore.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);

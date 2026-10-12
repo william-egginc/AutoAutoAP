@@ -568,15 +568,11 @@
           can-save
           :saving="quickSaving"
           :note="quickSaveNote"
+          :last-run="store.dateRunLive ? '' : inPlannerZone(Math.floor(result.at / 1000))"
           @simulate="simulateResult"
           @csv="downloadByDateCsv"
           @save="quickSave"
         >
-          <template #heading>
-            <span v-if="!store.deadlineRunning && fromEarlier" class="font-semibold normal-case tracking-normal">
-              · saved result from {{ ago(result.at) }}</span
-            >
-          </template>
           <!-- One more TE (search/oneMoreTE.ts): stopped early, or narrow or edge boxes, with more spare
                than one more TE costs. Otherwise the plain "stopped early". -->
           <span v-if="oneMoreTE" class="block mt-1 font-semibold text-amber-800" data-testid="one-more-te-hint">{{
@@ -1902,9 +1898,6 @@ const resultNote = computed({
     if (store.deadlineResult) store.deadlineResult.note = v;
   },
 });
-/** A result loaded from this browser rather than produced since the panel opened. */
-const openedAt = Date.now();
-const fromEarlier = computed(() => !!result.value && result.value.at < openedAt);
 /** What Save this answer names an answer saved with an empty box (SavedAnswers.vue). */
 const defaultAnswerLabel = computed(() => {
   const r = store.deadlineResult;

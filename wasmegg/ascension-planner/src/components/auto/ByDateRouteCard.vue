@@ -15,6 +15,7 @@
     <ResultCardFrame :still-going="running" data-testid="by-date-route-card">
       <template #heading>
         <template v-if="running">Best so far · highest by {{ when(deadline) }}</template
+        ><template v-else-if="lastRun">Your last run · {{ lastRun }} · highest by {{ when(deadline) }}</template
         ><template v-else>Highest by {{ when(deadline) }}</template>
         <slot name="heading" />
       </template>
@@ -112,6 +113,9 @@
           </button>
           <span v-if="note" class="text-[11px] font-semibold text-emerald-800">{{ note }}</span>
         </template>
+        <p v-if="simulate" class="w-full text-[10px] text-emerald-900/70" data-testid="simulate-plan-note">
+          Simulate this plan shows every shift and when each TE arrives in Your plan.
+        </p>
       </template>
     </ResultCardFrame>
     <!-- A row per stop, laid out as Fastest's leg table (under its card too). -->
@@ -175,6 +179,9 @@ const props = defineProps<{
   saving?: boolean;
   /** A line after the buttons: what the last click did. */
   note?: string;
+  /** Not from a run in this visit on these settings: when it was found; the heading says
+   *  "Your last run · ...". */
+  lastRun?: string;
 }>();
 const emit = defineEmits<{ simulate: []; csv: []; save: [] }>();
 

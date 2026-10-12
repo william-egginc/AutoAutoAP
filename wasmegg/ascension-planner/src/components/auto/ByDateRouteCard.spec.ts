@@ -119,7 +119,9 @@ describe('ByDateRouteCard: the button row (as on Fastest\'s card)', () => {
 
   it('Simulate, Share, CSV, Save answer in that order, styled as Fastest\'s Build / Share / CSV / Save run', async () => {
     const html = await renderHtml(ByDateRouteCard, props({ simulate: true, canShare: true, canCsv: true, canSave: true }));
-    expect(textOf(html)).toMatch(/Simulate this plan Share CSV ↓ Save answer Leg/);
+    expect(textOf(html)).toMatch(
+      /Simulate this plan Share CSV ↓ Save answer Simulate this plan shows every shift and when each TE arrives in Your plan\. Leg/
+    );
     const fast = await renderHtml(RouteResultCard, {
       chain: [212, 280, 490],
       days: 760.5,
@@ -133,6 +135,12 @@ describe('ByDateRouteCard: the button row (as on Fastest\'s card)', () => {
     expect(classOf(html, 'Simulate this plan')).toBe(classOf(fast, 'Build this plan'));
     expect(classOf(html, 'Share')).toContain('border-emerald-300');
     expect(classOf(html, 'Share')).toBe(classOf(fast, 'Share'));
+  });
+
+  it('an earlier result: labelled "Your last run" with when it was found', async () => {
+    const t = textOf(await renderHtml(ByDateRouteCard, props({ lastRun: 'Oct 11, 2026, 3:05 PM' })));
+    expect(t).toMatch(/^Your last run · Oct 11, 2026, 3:05 PM · highest by .*2027/);
+    expect(textOf(await renderHtml(ByDateRouteCard, props()))).not.toContain('Your last run');
   });
 
   it('mid-run: only Simulate', async () => {
@@ -149,6 +157,20 @@ describe('spareLabel', () => {
     expect(spareLabel(40 * 60)).toBe('40 min');
     expect(spareLabel(27.3 * 3600)).toBe('27.3 h');
     expect(spareLabel(3.5 * 86400)).toBe('3.5 days');
+  });
+});
+
+describe('RouteResultCard (Fastest): last run and the Build note', () => {
+  const base = { chain: [212, 280, 490], days: 760.5, finalTE: 490, endLabel: 'Feb 15, 2029' };
+  it('an earlier result says "Your last run" with when; a live one says Fastest found', async () => {
+    expect(textOf(await renderHtml(RouteResultCard, { ...base, running: false, lastRun: 'Oct 11, 2026, 3:05 PM' }))).toMatch(
+      /^Your last run · Oct 11, 2026, 3:05 PM/
+    );
+    const live = textOf(await renderHtml(RouteResultCard, { ...base, running: false }));
+    expect(live).toMatch(/^Fastest found/);
+    expect(live).toContain('Build this plan shows every shift and when each TE arrives in Your plan.');
+    // While running: still the best so far, never "Your last run".
+    expect(textOf(await renderHtml(RouteResultCard, { ...base, running: true, lastRun: 'x' }))).toMatch(/^Best so far/);
   });
 });
 

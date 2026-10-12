@@ -509,6 +509,31 @@ describe('the end of a By a date run (the 9 Oct crash)', () => {
   });
 });
 
+describe('a result from this visit, on these settings (11 Oct 2026)', () => {
+  it('is live after a run until the settings change; a fresh visit starts idle', async () => {
+    const store = useChainSearchStore();
+    expect(store.chainRunLive).toBe(false);
+    expect(store.dateRunLive).toBe(false);
+    store.isRunning = true;
+    await Promise.resolve();
+    expect(store.chainRunLive).toBe(true);
+    store.isRunning = false;
+    await Promise.resolve();
+    expect(store.chainRunLive).toBe(true);
+    store.finalTE = store.finalTE - 1;
+    expect(store.chainRunLive).toBe(false);
+    store.deadlineRunning = true;
+    await Promise.resolve();
+    store.deadlineRunning = false;
+    await Promise.resolve();
+    expect(store.dateRunLive).toBe(true);
+    store.finalTE = store.finalTE + 1;
+    expect(store.dateRunLive).toBe(false);
+    setActivePinia(createPinia());
+    expect(useChainSearchStore().chainRunLive).toBe(false);
+  });
+});
+
 describe('the worker count (11 Oct 2026)', () => {
   it('starts at half the cores for someone who never chose one', () => {
     vi.stubGlobal('navigator', { hardwareConcurrency: 20 });
