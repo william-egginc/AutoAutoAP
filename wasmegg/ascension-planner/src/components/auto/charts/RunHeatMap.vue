@@ -12,7 +12,7 @@
       :viewBox="`0 0 ${W} ${H}`"
       class="w-full h-auto select-none"
       role="img"
-      :aria-label="`Heat map of ${chainCount(heat.total)}: last checkpoint against days`"
+      :aria-label="`Heat map of ${chainCount(heat.total)}: last stop against days`"
       @mouseleave="hover = null"
     >
       <!-- cells -->
@@ -67,9 +67,7 @@
       >
         {{ t.v }}
       </text>
-      <text :x="(L + W - R) / 2" :y="H - 4" text-anchor="middle" font-size="10" fill="#94a3b8">
-        last checkpoint (TE)
-      </text>
+      <text :x="(L + W - R) / 2" :y="H - 4" text-anchor="middle" font-size="10" fill="#94a3b8">last stop (TE)</text>
       <text
         :x="12"
         :y="T + plotH / 2"
@@ -86,11 +84,11 @@
     </p>
     <p class="text-[11px] text-slate-500 px-1 min-h-[1.25rem]">
       <template v-if="hover">
-        Last checkpoint {{ hover.xLo === hover.xHi ? hover.xLo : `${hover.xLo}–${hover.xHi}` }} TE, {{ hover.yLo.toFixed(1) }}–{{ hover.yHi.toFixed(1) }} days:
+        Last stop {{ hover.xLo === hover.xHi ? hover.xLo : `${hover.xLo}–${hover.xHi}` }} TE, {{ hover.yLo.toFixed(1) }}–{{ hover.yHi.toFixed(1) }} days:
         <span class="font-bold text-slate-700">{{ chainCount(hover.count) }}</span>
       </template>
       <template v-else-if="heat">
-        {{ chainCount(heat.total) }}. Darker means more chains; the dots are the fastest in each column.
+        {{ chainCount(heat.total) }}. Darker means more routes; the dots are the fastest in each column.
       </template>
     </p>
   </div>

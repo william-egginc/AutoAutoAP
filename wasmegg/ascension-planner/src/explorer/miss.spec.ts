@@ -187,7 +187,7 @@ describe('missAdvice', () => {
     expect([s.earlierReplanMin, s.earlierReplanMax]).toEqual([2.5, 12]);
     expect([s.lastMin, s.lastMax]).toEqual([4, 16]);
     expect(missAdvice(t)).toBe(
-      'If you miss an earlier checkpoint, re-plan the rest from where you land (keeping the old plan costs up to 16 days here, re-planning 2.5–12 days); the last checkpoint is the one to hit exactly: a miss there costs 4.0–16 days and leaves nothing to re-plan.'
+      'If you miss an earlier stop, re-plan the rest from where you land (keeping the old plan costs up to 16 days here, re-planning 2.5–12 days); the last stop is the one to hit exactly: a miss there costs 4.0–16 days and leaves nothing to re-plan.'
     );
   });
 
@@ -201,7 +201,7 @@ describe('missAdvice', () => {
     );
     const text = missAdvice(missTable(flat, 4)!);
     expect(text).toContain('costs under a day here, even on the old plan');
-    expect(text).toContain('a miss at the last checkpoint costs under a day');
+    expect(text).toContain('a miss at the last stop costs under a day');
   });
 
   it('does not single out the last checkpoint when an earlier miss costs more even re-planned', () => {
@@ -214,9 +214,7 @@ describe('missAdvice', () => {
     );
     const t = missTable(steep, 4)!;
     expect(summariseMisses(t).earlierReplanMax).toBe(24);
-    expect(missAdvice(t)).toMatch(
-      /; a miss at the last checkpoint costs 4\.0–16 days, with nothing left to re-plan\.$/
-    );
+    expect(missAdvice(t)).toMatch(/; a miss at the last stop costs 4\.0–16 days, with nothing left to re-plan\.$/);
   });
 
   it('says a miss costs either way when re-planning does not help', () => {
@@ -233,7 +231,7 @@ describe('missAdvice', () => {
     const two = range(270, 290).map(a => priced([a, FINAL], 800 + 4 * Math.abs(a - 280)));
     const text = missAdvice(missTable(two, 2)!);
     expect(text).toBe(
-      "Hit this plan's one checkpoint exactly: a miss by 1–2 TE costs 4.0–8.0 days, and there is nothing after it to re-plan."
+      "Hit this plan's one stop exactly: a miss by 1–2 TE costs 4.0–8.0 days, and there is nothing after it to re-plan."
     );
   });
 
@@ -242,7 +240,7 @@ describe('missAdvice', () => {
     const t = missTable(grid(range(220, 240, 5), range(250, 270, 5), range(285, 310, 5)), 4)!;
     expect(hasPricedCell(t)).toBe(false);
     expect(missAdvice(t)).toBe(
-      "This run never priced a plan with a checkpoint moved by 1–2 TE, so it cannot say what a miss costs: most likely its search stepped over the TEs next to the best plan's checkpoints (a box at every 5th TE, say)."
+      "This run never priced a plan with a stop moved by 1–2 TE, so it cannot say what a miss costs: most likely its search stepped over the TEs next to the best plan's stops (a box at every 5th TE, say)."
     );
     expect(hasPricedCell(missTable(BOX, 4)!)).toBe(true);
   });
@@ -250,7 +248,7 @@ describe('missAdvice', () => {
   it('does not call a plan untried when the page read only part of the table', () => {
     const coarse = missTable(grid(range(220, 240, 5), range(250, 270, 5), range(285, 310, 5)), 4)!;
     expect(missAdvice(coarse, 1200)).toBe(
-      'None of the plans this page read has a checkpoint moved by 1–2 TE, and it read only the fastest part of the table (the slowest 1,200 plans were not read), so it cannot say what a miss costs.'
+      'None of the plans this page read has a stop moved by 1–2 TE, and it read only the fastest part of the table (the slowest 1,200 plans were not read), so it cannot say what a miss costs.'
     );
     // The fastest 60 plans of the box stand in for a capped read: the numbers read are still right,
     // and the advice says the missing cells may be in the tail.

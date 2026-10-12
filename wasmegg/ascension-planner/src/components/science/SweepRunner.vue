@@ -117,7 +117,7 @@
       <template v-else-if="phase === 'ready'">
         <div class="grid gap-2 grid-cols-2 sm:grid-cols-4 text-[11px]">
           <div class="rounded-lg bg-slate-50 px-3 py-2">
-            <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">Chains</div>
+            <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">Routes</div>
             <div class="font-bold text-slate-800">{{ chainCount.toLocaleString() }}</div>
           </div>
           <div class="rounded-lg bg-slate-50 px-3 py-2">
@@ -175,7 +175,7 @@
 
         <p v-if="timeOffText" class="text-[11px] text-slate-600">
           Planned around your time off (<b>{{ timeOffText }}</b
-          >). It still prices every chain, but the result goes on the board with the time-off runs and won’t fill this
+          >). It still prices every route, but the result goes on the board with the time-off runs and won’t fill this
           gap.
         </p>
 
@@ -192,7 +192,7 @@
             </span>
           </label>
           <p v-if="showWhat" class="pl-6 text-[11px] text-slate-500 leading-relaxed">
-            The chain, its timings and the full CSV, with your artifact inventory, timezone and local plan start, plus a
+            The route, its timings and the full CSV, with your artifact inventory, timezone and local plan start, plus a
             random code this browser keeps for the account (never your player ID, and never shown). The code folds
             repeated sends together, lets you put your name on a run sent anonymously, and lets your own later runs
             replace your older plans. In its last few seconds the sweep also re-prices your best three plans already on
@@ -302,7 +302,7 @@
             <template v-if="store.stoppedEarly"
               >Stopped early, after {{ plural(store.chainsDone, 'route') }}.
             </template>
-            <template v-else>Done: every chain in the sweep was priced. </template>
+            <template v-else>Done: every route in the sweep was priced. </template>
             The fastest was <span class="font-mono-premium font-bold">{{ store.bestChain.join(' → ') }}</span
             >, done {{ finishDate }} ({{ store.bestDays.toFixed(2) }} days).
           </p>
@@ -460,7 +460,7 @@ const workerSeconds = computed(() =>
     ? workerSecondsFromRate(measuredCost.value, store.rateWorkers || store.workerBudget)
     : workerSecondsPerChain(ascensions.value)
 );
-const speedSource = computed(() => `typical for ${ascensions.value}-ascension chains in players’ runs`);
+const speedSource = computed(() => `typical for ${ascensions.value}-ascension routes in players’ runs`);
 const hours = computed(() => sweepSeconds(chainCount.value, store.workerBudget, workerSeconds.value) / 3600);
 /** The Full sweep's line for "longer than anyone will wait": two weeks. */
 const tooBig = computed(() => chainCount.value > 0 && hours.value > 24 * 14);

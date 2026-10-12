@@ -63,7 +63,7 @@
              the result. An exhaustive run has none: it enumerates rather than improves, and
              naming a seed would invent a starting point the search never used. -->
         <div class="flex justify-between gap-3">
-          <span>Seed chain</span>
+          <span>Seed route</span>
           <span v-if="isRecheck" class="text-slate-400 text-right">none (priced again, not searched)</span>
           <span v-else-if="row.seed?.length" class="font-mono font-bold">{{ row.seed.join(' ') }}</span>
           <span v-else class="text-slate-400">none (exhaustive)</span>
@@ -77,7 +77,7 @@
           <span class="font-bold text-right" :title="utcTitle(firstSent)">{{ sentWhen(firstSent) }}</span>
         </div>
         <div class="flex justify-between gap-3">
-          <span>Chains priced</span><span class="font-bold">{{ row.chainsPriced ?? '—' }}</span>
+          <span>Routes priced</span><span class="font-bold">{{ row.chainsPriced ?? '—' }}</span>
         </div>
         <div class="flex justify-between gap-3">
           <span>Shifts held</span><span class="font-bold">{{ row.holdShifts ? 'yes' : 'no' }}</span>
@@ -186,11 +186,11 @@
           <span>Minimum gap</span><span class="font-bold">{{ row.space.minGap }} TE</span>
         </div>
         <div class="flex justify-between gap-3">
-          <span>Chains in space</span>
+          <span>Routes in space</span>
           <span class="font-bold">{{ row.space.chains.toLocaleString() }}</span>
         </div>
         <div class="flex justify-between gap-3">
-          <span>Chains priced</span>
+          <span>Routes priced</span>
           <span class="font-bold">{{ row.space.chainsPriced.toLocaleString() }}</span>
         </div>
       </div>

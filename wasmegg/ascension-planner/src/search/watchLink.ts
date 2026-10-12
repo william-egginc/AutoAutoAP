@@ -520,7 +520,7 @@ export function watchView(h: WatchHeartbeat, updatedAt: number, now: number): Wa
   const tone: WatchView['tone'] =
     h.status === 'running' ? (stale ? 'warn' : 'ok') : h.status === 'failed' ? 'bad' : 'done';
   const ran = h.endedAt && h.status !== 'running' ? durationWords(Math.max(0, h.endedAt - h.startedAt) / 1000) : '';
-  const unit = h.mode === 'by-date' ? 'routes' : 'chains';
+  const unit = 'routes';
   const progress = h.total
     ? `${h.done.toLocaleString('en-US')} of ${h.total.toLocaleString('en-US')} ${unit}`
     : h.done

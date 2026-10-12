@@ -236,7 +236,7 @@ export async function fetchFlagged(base: string, tokens: string[] = [], signal?:
  */
 export async function fetchRunCsv(base: string, id: string, signal?: AbortSignal): Promise<string> {
   const res = await fetch(`${base}/csv?id=${encodeURIComponent(id)}`, { signal });
-  if (res.status === 404) throw new Error('That run has no chain table stored.');
+  if (res.status === 404) throw new Error('That run has no route table stored.');
   if (!res.ok) throw new Error(`The collector answered ${res.status} for that run's table.`);
   const bytes = new Uint8Array(await res.arrayBuffer());
   return inflateIfGzip(bytes);

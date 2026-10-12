@@ -364,7 +364,7 @@ export function bestCountTable(
 
 const VERDICT_WORDS: Record<CountStep['verdict'], string> = {
   settled: 'settled: bigger than a finer search of the slower count has ever made up',
-  direction: 'direction holds: the count that won was searched at least as coarsely at every checkpoint',
+  direction: 'direction holds: the count that won was searched at least as coarsely at every stop',
   noise: 'within search noise: the gap could be how the two were searched',
 };
 

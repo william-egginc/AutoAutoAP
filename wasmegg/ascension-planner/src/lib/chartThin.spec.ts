@@ -154,9 +154,9 @@ describe('heat map ranges', () => {
 
 describe('chainCount', () => {
   it('pluralises', () => {
-    expect(chainCount(0)).toBe('0 chains');
-    expect(chainCount(1)).toBe('1 chain');
-    expect(chainCount(2)).toBe('2 chains');
-    expect(chainCount(1234)).toBe('1,234 chains');
+    expect(chainCount(0)).toBe('0 routes');
+    expect(chainCount(1)).toBe('1 route');
+    expect(chainCount(2)).toBe('2 routes');
+    expect(chainCount(1234)).toBe('1,234 routes');
   });
 });

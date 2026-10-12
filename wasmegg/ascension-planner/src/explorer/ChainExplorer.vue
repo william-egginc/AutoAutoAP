@@ -81,7 +81,7 @@
                  worker-time note read like developer notes). The page on its own keeps the detail. -->
             <p v-else class="text-sm font-bold text-slate-700">
               {{ plural(usable.length, 'run') }} from {{ accounts.length }} accounts<template v-if="!embedded">
-                · {{ plural(totalChainsPriced, 'chain') }} priced between them<template v-if="computeTotal.runs">
+                · {{ plural(totalChainsPriced, 'route') }} priced between them<template v-if="computeTotal.runs">
                   · {{ formatMinutes(computeTotal.minutes) }} of computing</template
                 ></template
               >
@@ -185,8 +185,8 @@
               into one.
             </p>
             <p class="leading-relaxed">
-              <b class="text-slate-700">Shapes travel, durations do not.</b> Where the checkpoints sit is a fact about
-              the game's sale calendar and research curve. How long the plan takes is a fact about somebody's artifacts.
+              <b class="text-slate-700">Shapes travel, durations do not.</b> Where the stops sit is a fact about the
+              game's sale calendar and research curve. How long the plan takes is a fact about somebody's artifacts.
             </p>
             <p class="leading-relaxed">
               <b class="text-slate-700">Compare finish dates, not totals.</b> A plan's length counts from its own start,
@@ -197,7 +197,7 @@
             </p>
             <p class="leading-relaxed">
               <b class="text-slate-700">These are searches, not surveys.</b> Most runs explored a band somebody typed,
-              so this shows where good chains were found, which is not always where the good chains are. A band that
+              so this shows where good routes were found, which is not always where the good routes are. A band that
               stops dead at a round number is usually the edge of a search box.
             </p>
           </div>
@@ -233,8 +233,8 @@
             </label>
           </div>
           <p class="text-[11px] text-slate-500 leading-relaxed">
-            One target at a time, because a 300 chain and a 490 chain are different problems and their checkpoints do
-            not sit in the same places.
+            One target at a time, because a 300 route and a 490 route are different problems and their stops do not sit
+            in the same places.
             <template v-if="exhaustiveOnly">
               Proofs only: runs that enumerated a stated space and finished it, so the winner is the optimum of that
               space rather than the best thing a search happened to find.
@@ -262,7 +262,7 @@
               border says how the run behind the cell searched: solid for a finished box at every TE, dashed for every
               2nd-3rd TE, dotted for every 4th or coarser, striped for a search-around-the-answer run or a box it did
               not finish. A dark cell with a dotted or striped edge is a best count found by a search that could have
-              missed a better plan, so it is weaker than it looks. Hover or tap a cell for the chain, its finish date,
+              missed a better plan, so it is weaker than it looks. Hover or tap a cell for the route, its finish date,
               how it searched and whether the step from the next count down is bigger than the search could explain.
             </p>
           </details>
@@ -360,9 +360,7 @@
 
           <template v-if="selectedCount !== 'all'">
             <div class="space-y-2">
-              <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                Where each checkpoint lands
-              </h3>
+              <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Where each stop lands</h3>
               <CountShapeChart
                 :rows="selected.rows"
                 :bests="selectedBests"
@@ -387,9 +385,8 @@
             </details>
           </template>
           <p v-else class="text-[11px] text-slate-500 leading-relaxed">
-            Pick one count to see where its checkpoints land and how each ascension goes: the third ascension of a
-            4-ascension plan and of a 7-ascension plan are not the same thing, so those charts only work one count at a
-            time.
+            Pick one count to see where its stops land and how each ascension goes: the third ascension of a 4-ascension
+            plan and of a 7-ascension plan are not the same thing, so those charts only work one count at a time.
           </p>
 
           <!-- Every run, folded: twelve columns and a long explainer, for the few who want them (review,
@@ -416,9 +413,9 @@
                 <span class="font-mono-premium">:1</span> every TE); the full box is on hover. <b>What's left</b> is how
                 much of that same box at every TE the run did not price (the TEs between its steps, or the rest of a box
                 it stopped early) and how long pricing the rest would take on a 16-20 core machine. Runs that improved a
-                seed chain instead of trying a fixed box have nothing to measure against. <b>can't check</b> marks a run
-                the delivery-set check could not look at (no delivery set or per-leg detail recorded, a last checkpoint
-                under 190 TE, or a target other than 490): not flagged, and not cleared either.
+                seed route instead of trying a fixed box have nothing to measure against. <b>can't check</b> marks a run
+                the delivery-set check could not look at (no delivery set or per-leg detail recorded, a last stop under
+                190 TE, or a target other than 490): not flagged, and not cleared either.
               </p>
               <div class="flex flex-wrap items-center gap-1.5">
                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest mr-1"
@@ -506,7 +503,7 @@
                           Journey<span aria-hidden="true">{{ sortArrow('te') }}</span>
                         </button>
                       </th>
-                      <th class="text-left py-1 pr-3">Chain</th>
+                      <th class="text-left py-1 pr-3">Route</th>
                       <th class="text-left py-1 pr-3" :aria-sort="ariaSort('planned')">
                         <button type="button" :class="sortHeadClass('planned')" @click="sortRunsBy('planned')">
                           Planned<span aria-hidden="true">{{ sortArrow('planned') }}</span>
@@ -726,7 +723,7 @@
                             ? leftTitle(leftById.get(row.id)!)
                             : row.space
                               ? 'Its box could not be counted again from this row (the recount does not match what the run stored), so what is left is not shown.'
-                              : 'A staged search improved a seed chain rather than trying a fixed box of TEs, so there is nothing to measure what is left against.'
+                              : 'A staged search improved a seed route rather than trying a fixed box of TEs, so there is nothing to measure what is left against.'
                         "
                       >
                         <template v-if="leftById.get(row.id)">
@@ -782,7 +779,7 @@
             </summary>
             <p class="mt-1 text-[11px] text-slate-500 leading-relaxed max-w-3xl">
               One line per account, never one line across accounts: a duration depends on artifacts, colleggtibles,
-              research and starting TE at least as much as on the chain, so the fair way to ask this is to hold one
+              research and starting TE at least as much as on the route, so the fair way to ask this is to hold one
               account still and vary the count. Each point is how many days after that account's earliest finish the
               best plan at that count finishes, so a line only touches 0 at the count that holds it. That earliest
               finish is taken from all of the account's runs that still stand, the same one the runs table names. A
@@ -803,23 +800,23 @@
         <section class="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
           <h2 class="text-lg font-black text-slate-900">Each sweep, every account (to 490)</h2>
           <p class="text-[12px] text-slate-700 leading-relaxed max-w-3xl">
-            <b>How to read it:</b> Each line is one run's full table: how much slower every TE at a checkpoint is than
-            that run's best one. A narrow dip means the exact TE matters; the table under it says how many days a
-            coarser search would have lost.
+            <b>How to read it:</b> Each line is one run's full table: how much slower every TE at a stop is than that
+            run's best one. A narrow dip means the exact TE matters; the table under it says how many days a coarser
+            search would have lost.
           </p>
           <details>
             <summary class="cursor-pointer text-[10px] font-bold text-slate-400 hover:text-slate-600">
               How this is worked out
             </summary>
             <p class="mt-1 text-[11px] text-slate-500 leading-relaxed max-w-3xl">
-              Runs to 490 only, whatever target is picked above. For each TE at the picked checkpoint (the last by
-              default), how far the best plan through it is behind that run's own best, as a percent of it, one line per
-              run. Each line is one table priced from one save, so its shape is exact, and as a percent of its own best
-              it compares between accounts whose plans differ in length; "TE above start" lines accounts up by where
-              they started. It opens on 0 to 5% with a guide at 1%, which on a plan to 490 is about a week or more;
-              "Whole range" shows the rest. The table under the chart is in days, each run against its own best: the
-              best TE at that checkpoint, every TE within 1 and 3 days of it, and, for a run whose box tried every TE
-              there, how many days a search at every 2nd, 5th or 10th TE would have lost.
+              Runs to 490 only, whatever target is picked above. For each TE at the picked stop (the last by default),
+              how far the best plan through it is behind that run's own best, as a percent of it, one line per run. Each
+              line is one table priced from one save, so its shape is exact, and as a percent of its own best it
+              compares between accounts whose plans differ in length; "TE above start" lines accounts up by where they
+              started. It opens on 0 to 5% with a guide at 1%, which on a plan to 490 is about a week or more; "Whole
+              range" shows the rest. The table under the chart is in days, each run against its own best: the best TE at
+              that stop, every TE within 1 and 3 days of it, and, for a run whose box tried every TE there, how many
+              days a search at every 2nd, 5th or 10th TE would have lost.
             </p>
           </details>
           <SweepCurvesChart
@@ -895,9 +892,9 @@
         >
           <div class="flex flex-wrap items-baseline justify-between gap-2">
             <h2 class="text-lg font-black text-slate-900">
-              Every chain {{ whoText(loadedRun) || 'that run' }} priced
+              Every route {{ whoText(loadedRun) || 'that run' }} priced
               <span class="text-[11px] font-bold text-slate-400">
-                · {{ plural(loadedChains.length, 'chain') }}
+                · {{ plural(loadedChains.length, 'route') }}
                 <!-- The file is in rank order, fastest first, and the cap keeps the first N — so
                      what a cap drops is the SLOW tail, not the old one. -->
                 <template v-if="loadedTruncated">(slowest {{ loadedTruncated.toLocaleString() }} dropped)</template>
@@ -943,12 +940,12 @@
               </button>
             </div>
             <p class="text-[11px] text-slate-600 leading-relaxed">
-              <b>{{ plateau.near.toLocaleString() }}</b> of {{ plural(plateau.total, 'chain') }} at
+              <b>{{ plateau.near.toLocaleString() }}</b> of {{ plural(plateau.total, 'route') }} at
               {{ plural(loadedRun.ascensions, 'ascension') }} came within {{ toleranceText }} of this run's best ({{
                 plateau.bestDays.toFixed(2)
               }}
               d, <span class="font-mono-premium">{{ plateau.bestChain.join(' ') }}</span
-              >). That plateau put each checkpoint here:
+              >). That plateau put each stop here:
             </p>
             <p class="text-[11px] font-mono-premium text-slate-700">
               <span v-for="band in plateau.bands" :key="band.index" class="mr-3">
@@ -960,7 +957,7 @@
               measured against the space this run actually enumerated, so a band that runs to the edge of that space is
               telling you about the search as much as about the game. 1% of a 700-day plan is 7 days, more than most
               extra ascensions save, which is why this starts at 1 day. The chart marks the same line and the last
-              checkpoint's band.
+              stop's band.
             </p>
           </div>
 
@@ -972,16 +969,16 @@
           />
 
           <div class="space-y-2 border-t border-slate-100 pt-4">
-            <h3 class="text-sm font-black text-slate-900">What missing a checkpoint costs</h3>
+            <h3 class="text-sm font-black text-slate-900">What missing a stop costs</h3>
             <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
-              A plan rarely goes exactly to schedule: you are asleep when a checkpoint arrives, or you ascend a little
-              early. This reads what that costs off this run's own table, where every plan was priced from the same
-              save, so the days compare directly. For each checkpoint of the best plan and a miss of 1 or 2 TE either
-              way, "keep" is the same plan with only that checkpoint moved, and "re-plan" is the fastest plan this run
-              priced that shares the earlier checkpoints and the missed one, whatever it does after. On the tables sent
-              so far, re-planning after an early miss usually wins back much of what keeping the old plan loses. A miss
-              at the last checkpoint leaves nothing to re-plan: on some tables it is the costliest miss, on others an
-              earlier miss costs more even after re-planning. The line under the table says which, for this run.
+              A plan rarely goes exactly to schedule: you are asleep when a stop arrives, or you ascend a little early.
+              This reads what that costs off this run's own table, where every plan was priced from the same save, so
+              the days compare directly. For each stop of the best plan and a miss of 1 or 2 TE either way, "keep" is
+              the same plan with only that stop moved, and "re-plan" is the fastest plan this run priced that shares the
+              earlier stops and the missed one, whatever it does after. On the tables sent so far, re-planning after an
+              early miss usually wins back much of what keeping the old plan loses. A miss at the last stop leaves
+              nothing to re-plan: on some tables it is the costliest miss, on others an earlier miss costs more even
+              after re-planning. The line under the table says which, for this run.
             </p>
             <MissTable :chains="loadedChains" :ascensions="loadedRun.ascensions" :truncated="loadedTruncated" />
           </div>
@@ -992,8 +989,8 @@
               The run's whole table, fastest first: its top 10, 25 or 100, or every plan it checked, 100 to a page. All
               of them were priced from one save, so here, and only here, days compare directly: "vs best" is the gap
               between two plans and nothing else, and each finish date is this run's plan start plus that plan's days,
-              in your timezone. Filter to plans with a checkpoint at a TE (280) or in a range (275-285), or download the
-              full table with every leg.
+              in your timezone. Filter to plans with a stop at a TE (280) or in a range (275-285), or download the full
+              table with every leg.
             </p>
             <RunPlansTable
               :key="loadedRun.id"
@@ -1034,7 +1031,7 @@
                   made. A sale plan is a choice for one leg against a sale calendar everyone shares, so unlike a total
                   it lines up across accounts by TE. A leg one account sent in several runs is one mark. Larger, ringed
                   marks are legs that unlock research tier 13. The table under the chart names the commonest plan for
-                  each 20-TE start band and leg length. It shows which plan won each leg of the winning chains, not by
+                  each 20-TE start band and leg length. It shows which plan won each leg of the winning routes, not by
                   how much it won.
                 </p>
               </details>
@@ -1058,10 +1055,10 @@
                   every plan a day shorter. Only runs whose finish still stands are used; the line under the picker says
                   which were left out and why (tap one to see). A plan is a route under its run's settings, so a plan
                   priced with a schedule, or with "prestige now", is its own row, tagged. A plan two tables priced shows
-                  its newest measurement. A plan with a checkpoint the account has since passed (most likely because it
+                  its newest measurement. A plan with a stop the account has since passed (most likely because it
                   followed that plan) is matched on what is left of it: a newer table's measurement of the rest stands,
-                  and with none the older one stays, the passed checkpoint struck through. The tables are big, so they
-                  load one at a time and only when you press the button; Cancel keeps what has arrived.
+                  and with none the older one stays, the passed stop struck through. The tables are big, so they load
+                  one at a time and only when you press the button; Cancel keeps what has arrived.
                 </p>
               </details>
               <AccountTopPlans
@@ -1086,8 +1083,8 @@
                 <p class="mt-1 text-[11px] text-slate-500 leading-relaxed max-w-3xl">
                   One account at a time. Each mark is a plan at the date it was made, measured by its finish date as
                   days after the account's earliest finish that still stands; totals never compare across starts. A line
-                  joins the same plan each time it was priced: by a newer run of it, by a newer run with the checkpoints
-                  since passed dropped, by a re-check sent with a newer run, or because it turned up among a newer run's
+                  joins the same plan each time it was priced: by a newer run of it, by a newer run with the stops since
+                  passed dropped, by a re-check sent with a newer run, or because it turned up among a newer run's
                   runners-up. A line that rises is a plan whose finish slipped when priced again; a flat one is a plan
                   that holds. A plan that won its search was the fastest of many priced that day, so a small rise when
                   it is priced again is expected. The colour is the ascension count, not an account: one account is
@@ -1114,14 +1111,14 @@
                   How this is worked out
                 </summary>
                 <p class="mt-1 text-[11px] text-slate-500 leading-relaxed max-w-3xl">
-                  One point per run to 490, whatever target is picked above. Across is the run's last checkpoint; up is
-                  the peak delivery its final leg reached, as a percent of what its delivery set should reach from that
-                  checkpoint. Below the 80% line the run is flagged for the old delivery-set bug (earnings researched
-                  with the wrong set, so the farm never reached its real rate) and kept out of everything else on the
-                  page. Runs the check cannot judge (a last checkpoint under 190 TE, no per-leg detail, or no delivery
-                  set recorded) are counted in the note under the chart but not drawn. What each set "should reach" was
-                  fitted on these same runs, so clean runs sit near 100% by construction: this checks the runs, it does
-                  not measure the game.
+                  One point per run to 490, whatever target is picked above. Across is the run's last stop; up is the
+                  peak delivery its final leg reached, as a percent of what its delivery set should reach from that
+                  stop. Below the 80% line the run is flagged for the old delivery-set bug (earnings researched with the
+                  wrong set, so the farm never reached its real rate) and kept out of everything else on the page. Runs
+                  the check cannot judge (a last stop under 190 TE, no per-leg detail, or no delivery set recorded) are
+                  counted in the note under the chart but not drawn. What each set "should reach" was fitted on these
+                  same runs, so clean runs sit near 100% by construction: this checks the runs, it does not measure the
+                  game.
                 </p>
               </details>
               <FinalLegChart :rows="checkRows" :account-colors="accountColors" :account-labels="accountLabels" />
@@ -1728,7 +1725,7 @@ const runSortOptions = computed(() =>
       { by: 'length', label: 'Plan length' },
       { by: 'ascensions', label: 'Ascensions' },
       { by: 'te', label: 'Starting TE' },
-      { by: 'priced', label: 'Chains priced' },
+      { by: 'priced', label: 'Routes priced' },
       { by: 'left', label: "What's left" },
       { by: 'compute', label: 'Compute' },
     ] as { by: RunSortKey; label: string }[]
@@ -1928,7 +1925,7 @@ async function openTable(row: CollectorRow, event?: Event): Promise<void> {
     loadedFinalTE.value = parsed.finalTE || row.finalTE;
     if (parsed.byDate) csvError.value = byDateCsvLine(parsed.byDate);
     else if (!parsed.chains.length)
-      csvError.value = 'That table parsed to no chains, which means the format has moved.';
+      csvError.value = 'That table parsed to no routes, which means the format has moved.';
     // It opens thousands of px below the button: take the reader there, or "Open" looks dead.
     await nextTick();
     if (csvController === controller) deepDive.value?.scrollIntoView({ behavior: scrollBehaviour(), block: 'start' });

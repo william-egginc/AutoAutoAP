@@ -149,10 +149,10 @@
         up (nothing for a box at every TE, {{ STEP_PENALTY_DAYS.fine }} days for every 2nd or 3rd TE,
         {{ STEP_PENALTY_DAYS.coarse }} days for every 4th or 5th; never for anything coarser, which has not been
         measured, or for a staged search, whose shortfall is unknown). <b class="text-sky-700">Direction holds</b>: not
-        settled, but the count that won was searched at least as coarsely as the other at every checkpoint, counting
-        back from the last, and more coarsely at one or more, so a finer search would more likely widen the gap than
-        close it. <b class="text-slate-500">Within search noise</b>: the gap could be how the two were searched rather
-        than the count. All three are about the searches only; each side is still limited to the box of TEs it tried.
+        settled, but the count that won was searched at least as coarsely as the other at every stop, counting back from
+        the last, and more coarsely at one or more, so a finer search would more likely widen the gap than close it.
+        <b class="text-slate-500">Within search noise</b>: the gap could be how the two were searched rather than the
+        count. All three are about the searches only; each side is still limited to the box of TEs it tried.
       </p>
     </div>
   </div>

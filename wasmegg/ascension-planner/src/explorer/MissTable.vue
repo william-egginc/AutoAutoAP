@@ -25,12 +25,12 @@
       <table class="text-[11px] tabular-nums">
         <thead>
           <tr class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-            <th class="text-left py-1 pr-2 align-bottom">Checkpoint</th>
+            <th class="text-left py-1 pr-2 align-bottom">Stop</th>
             <th
               v-for="d in table.offsets"
               :key="d"
               class="text-right py-1 px-1 align-bottom"
-              :title="`Ascending ${Math.abs(d)} TE ${d < 0 ? 'before' : 'after'} the planned checkpoint`"
+              :title="`Ascending ${Math.abs(d)} TE ${d < 0 ? 'before' : 'after'} the planned stop`"
             >
               {{ offsetText(d) }}
               <div class="normal-case tracking-normal font-bold">{{ d < 0 ? 'early' : 'late' }}</div>
@@ -78,9 +78,9 @@
       </table>
     </div>
     <p class="text-[10px] text-slate-400 leading-relaxed max-w-3xl">
-      <b class="text-slate-500">Keep</b>: the same plan with only that checkpoint moved.
-      <b class="text-slate-500">Re-plan</b>: the fastest plan in this table with the same earlier checkpoints and that
-      one moved, whatever it does after. At the last checkpoint they are the same plan.
+      <b class="text-slate-500">Keep</b>: the same plan with only that stop moved.
+      <b class="text-slate-500">Re-plan</b>: the fastest plan in this table with the same earlier stops and that one
+      moved, whatever it does after. At the last stop they are the same plan.
       <span class="rounded bg-emerald-50 px-1 font-bold text-emerald-800">Green</span>: re-planning saves more than
       {{ REPLAN_WORTH_DAYS === 1 ? 'a day' : `${REPLAN_WORTH_DAYS} days` }}. <i>Same</i>: the same finish as the best,
       to a few minutes.
@@ -98,7 +98,7 @@
     <p class="text-[11px] font-bold text-slate-700 leading-relaxed max-w-3xl">{{ advice }}</p>
   </div>
   <p v-else class="text-[11px] text-slate-400">
-    This table holds no plan at {{ plural(ascensions, 'ascension') }} with a checkpoint to miss.
+    This table holds no plan at {{ plural(ascensions, 'ascension') }} with a stop to miss.
   </p>
 </template>
 
@@ -157,11 +157,11 @@ function planText(chain: number[], behind: number): string {
 function cellTitle(row: MissRow, cell: MissCell): string {
   const head = `Ascend at ${cell.te} TE instead of ${row.te}.`;
   const never = truncatedCount.value
-    ? `Not in the part of the table read: no plan among the fastest ${props.chains.length.toLocaleString()} this page read has checkpoint ${row.index + 1} at ${cell.te} TE after the same earlier checkpoints. The run may have priced one among the ${truncatedCount.value.toLocaleString()} slowest, which were not read.`
-    : `This run never priced a plan with checkpoint ${row.index + 1} at ${cell.te} TE after the same earlier checkpoints: outside its search box, or a TE it stepped over.`;
+    ? `Not in the part of the table read: no plan among the fastest ${props.chains.length.toLocaleString()} this page read has stop ${row.index + 1} at ${cell.te} TE after the same earlier stops. The run may have priced one among the ${truncatedCount.value.toLocaleString()} slowest, which were not read.`
+    : `This run never priced a plan with stop ${row.index + 1} at ${cell.te} TE after the same earlier stops: outside its search box, or a TE it stepped over.`;
   if (row.last) {
     return cell.keep
-      ? `${head}\n${planText(cell.keep.chain, cell.keep.behind)} after the best.\nNothing comes after the last checkpoint, so keeping the plan and re-planning are the same plan.`
+      ? `${head}\n${planText(cell.keep.chain, cell.keep.behind)} after the best.\nNothing comes after the last stop, so keeping the plan and re-planning are the same plan.`
       : `${head}\n${never}`;
   }
   if (!cell.replan) return `${head}\n${never}`;
@@ -169,7 +169,7 @@ function cellTitle(row: MissRow, cell: MissCell): string {
     ? `Keep the plan: ${planText(cell.keep.chain, cell.keep.behind)}.`
     : truncatedCount.value
       ? `Keep the plan: not in the part of the table read (never priced, or among the slowest plans this page did not read).`
-      : `Keep the plan: not tried. That exact plan was not priced (the box's rules left it out, for example a minimum gap between checkpoints).`;
+      : `Keep the plan: not tried. That exact plan was not priced (the box's rules left it out, for example a minimum gap between stops).`;
   const saves =
     cell.saving != null && cell.saving >= SAME_FINISH_DAYS
       ? ` Saves ${signedDays(cell.saving).slice(1)} over keeping the plan.`

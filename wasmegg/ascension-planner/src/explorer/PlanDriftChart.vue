@@ -306,7 +306,7 @@ function tipOf(p: DriftPoint, line: DriftLine, prev: DriftPoint | null, anchorTe
   const title =
     `<b>${esc(p.chain.join(' '))}</b> · ${esc(n)} ascension${n === 1 ? '' : 's'}` +
     (p.chain.length !== n && dropped.length
-      ? `<br/><span style="color:#64748b">the ${esc(n)}-ascension plan with passed checkpoint${dropped.length === 1 ? '' : 's'} ${esc(dropped.join(', '))} dropped</span>`
+      ? `<br/><span style="color:#64748b">the ${esc(n)}-ascension plan with passed stop${dropped.length === 1 ? '' : 's'} ${esc(dropped.join(', '))} dropped</span>`
       : '');
   const state = p.standing ? '' : `<br/><span style="color:#b45309">${esc(p.reason || 'no longer stands')}</span>`;
   return `${title}<br/>${lines.map(esc).join('<br/>')}<br/><span style="color:#94a3b8">${esc(how)}</span>${state}`;

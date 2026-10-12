@@ -42,7 +42,7 @@
          this says only how "expected" is worked out and what the hollow marker means. -->
     <p class="text-[10px] text-slate-400 leading-relaxed px-1">
       Expected peak = the run's delivery score × {{ PERFECT_QPH }} q/hr × how much of that rate a farm has reached by
-      its last checkpoint ({{ rampAt(190) }}% at 190 TE, all of it from 280). A hollow marker is a flagged run.
+      its last stop ({{ rampAt(190) }}% at 190 TE, all of it from 280). A hollow marker is a flagged run.
     </p>
   </div>
 </template>
@@ -123,8 +123,8 @@ const unchecked = computed(() => {
   const parts = [
     noSet && `${noSet} with no delivery set recorded`,
     noLegs && `${noLegs} without per-leg detail`,
-    belowRamp && `${belowRamp} with a last checkpoint under 190 TE, below where the expected rate was measured`,
-    other && `${other} with no peak rate or checkpoint to check`,
+    belowRamp && `${belowRamp} with a last stop under 190 TE, below where the expected rate was measured`,
+    other && `${other} with no peak rate or stop to check`,
   ].filter(Boolean);
   return { total: noLegs + noSet + belowRamp + other, text: parts.join(', ') };
 });
@@ -220,12 +220,12 @@ const option = computed<ChartOption>(() => {
         if (!Array.isArray(d) || d.length < 6) return '';
         const [x, pct, measured, expected, chain, suspect] = d;
         const verdict = suspect ? '<br/><b>Flagged</b>: looks like the delivery-set-for-earnings bug' : '';
-        return `<b>${esc(params.seriesName)}</b><br/>last checkpoint ${esc(x)}: final leg peaks at ${esc(measured.toFixed(2))} q/hr<br/>this delivery set should reach about ${esc(expected.toFixed(2))} q/hr from there: ${esc(pct.toFixed(1))}%${verdict}<br/><span style="color:#94a3b8">${esc(chain)}</span>`;
+        return `<b>${esc(params.seriesName)}</b><br/>last stop ${esc(x)}: final leg peaks at ${esc(measured.toFixed(2))} q/hr<br/>this delivery set should reach about ${esc(expected.toFixed(2))} q/hr from there: ${esc(pct.toFixed(1))}%${verdict}<br/><span style="color:#94a3b8">${esc(chain)}</span>`;
       },
     },
     xAxis: {
       type: 'value',
-      name: 'last checkpoint before 490 (TE)',
+      name: 'last stop before 490 (TE)',
       nameLocation: 'middle',
       nameGap: 24,
       nameTextStyle: AXIS_LABEL,

@@ -40,7 +40,7 @@
             Effort: {{ note.label }} · <span class="text-indigo-700 underline">change</span>
           </span>
           <span v-else class="text-[10px] font-bold text-slate-400 normal-case tracking-normal ml-auto">
-            {{ levelElsewhere ? 'starting chain, limits, and what it simulates with' : 'effort, limits, and what it simulates with' }}
+            {{ levelElsewhere ? 'starting route, limits, and what it simulates with' : 'effort, limits, and what it simulates with' }}
           </span>
         </button>
 
@@ -161,8 +161,8 @@
                     Fewest ascensions
                   </label>
                   <HelpTip
-                    >Counted including your final target, so a plan reaching 490 through five checkpoints is 5. Each
-                    ascension is a full rebuild.</HelpTip
+                    >Counted including your final target, so a plan reaching 490 through five stops is 5. Each ascension
+                    is a full rebuild.</HelpTip
                   >
                 </span>
                 <input
@@ -195,9 +195,9 @@
                     Lock the first
                   </label>
                   <HelpTip
-                    >Hold this many leading checkpoints exactly as typed. Useful once you have committed to them in
-                    game. It is also the cheapest speedup here, because moving the first checkpoint forces every later
-                    leg to be re-simulated.</HelpTip
+                    >Hold this many leading stops exactly as typed. Useful once you have committed to them in game. It
+                    is also the cheapest speedup here, because moving the first stop forces every later leg to be
+                    re-simulated.</HelpTip
                   >
                 </span>
                 <input
@@ -212,15 +212,15 @@
               </div>
             </div>
             <p class="text-[11px] text-slate-500 leading-relaxed">
-              Ascension count is the chain length including your final target. It bounds the coarse scan, Fast's check
+              Ascension count is the route length including your final target. It bounds the coarse scan, Fast's check
               of the other counts, and the one-more-or-fewer step on Exact and Very high.
               <span v-if="store.pin > 0" class="font-semibold text-slate-700">
                 Locking {{ store.pin }} holds {{ store.seedChain.slice(0, store.pin).join(' ') }} fixed, so the search
                 will not move {{ store.pin === 1 ? 'it' : 'them' }}.
               </span>
               <span v-else>
-                Locking checkpoints is worth it when you have already committed to them in game: moving the first
-                checkpoint re-simulates every leg after it, so pinning it is usually the cheapest speedup available.
+                Locking stops is worth it when you have already committed to them in game: moving the first stop
+                re-simulates every leg after it, so pinning it is usually the cheapest speedup available.
               </span>
             </p>
           </div>
@@ -256,8 +256,8 @@
               Starting route
             </label>
             <HelpTip
-              >Where the search begins. It only moves checkpoints and adds at most one, so a seed with too few cannot
-              reach a longer answer. Leave the final target off; it is added for you.</HelpTip
+              >Where the search begins. It only moves stops and adds at most one, so a seed with too few cannot reach a
+              longer answer. Leave the final target off; it is added for you.</HelpTip
             >
           </span>
           <input
@@ -297,8 +297,8 @@
           <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
             Routes to price (max)
             <HelpTip
-              >An upper bound. Coordinate descent stops as soon as no checkpoint moves, so a run routinely finishes well
-              short of this.</HelpTip
+              >An upper bound. Coordinate descent stops as soon as no stop moves, so a run routinely finishes well short
+              of this.</HelpTip
             >
           </div>
           <div class="text-sm font-black text-slate-800 mt-1">~{{ store.estimateForCurrentSettings }}</div>
@@ -390,19 +390,19 @@
         >
           {{
             store.seedIssue.probeCanFix
-              ? 'This chain may not match your limits'
-              : 'This chain does not match your limits'
+              ? 'This route may not match your limits'
+              : 'This route does not match your limits'
           }}
         </p>
 
         <p v-if="store.seedIssue.kind === 'too-long'">
-          The starting chain has
+          The starting route has
           <span class="font-semibold">{{ plural(store.seedIssue.ascensions, 'ascension') }}</span> and "most ascensions"
           is set to <span class="font-semibold">{{ store.seedIssue.maxPrestiges }}</span
           >.
         </p>
         <p v-else>
-          The starting chain has
+          The starting route has
           <span class="font-semibold">{{ plural(store.seedIssue.ascensions, 'ascension') }}</span> and "fewest
           ascensions" is set to <span class="font-semibold">{{ store.seedIssue.minPrestiges }}</span
           >.
@@ -418,7 +418,7 @@
           It keeps whichever count is fastest, so this is not a guarantee.
         </p>
         <p v-else>
-          The search starts from the chain at the length you gave it, more than one ascension outside your limits, so
+          The search starts from the route at the length you gave it, more than one ascension outside your limits, so
           the answer may come back with {{ plural(store.seedIssue.ascensions, 'ascension') }}.
         </p>
 
@@ -502,10 +502,10 @@
             class="p-3 rounded-xl border border-red-200 bg-red-50 text-[11px] text-red-800 leading-relaxed"
           >
             <span class="font-black uppercase tracking-wide">That's a single ascension.</span>
-            {{ store.finalTE }} on its own goes straight to the target, so there are no checkpoints for
-            {{ NAMES.smart }} to look for. To plan that one ascension, go to {{ NAMES.auto }} › {{ NAMES.classic }},
-            type {{ store.finalTE }} in Target TE(s) and press Generate plan. To search for a faster chain instead, give
-            Starting chain some checkpoints (like <span class="font-mono">200 250 300 {{ store.finalTE }}</span
+            {{ store.finalTE }} on its own goes straight to the target, so there are no stops for {{ NAMES.smart }} to
+            look for. To plan that one ascension, go to {{ NAMES.auto }} › {{ NAMES.classic }}, type
+            {{ store.finalTE }} in Target TE(s) and press Generate plan. To search for a faster route instead, give
+            Starting route some stops (like <span class="font-mono">200 250 300 {{ store.finalTE }}</span
             >).
           </div>
         </template>
@@ -535,7 +535,7 @@
                 v-if="store.isRunning && store.batchTotal > 1"
                 class="flex flex-wrap items-center justify-between gap-x-3 text-[10px] text-slate-400 font-bold"
               >
-                <span>this batch: {{ store.batchDone }} / {{ plural(store.batchTotal, 'chain') }}</span>
+                <span>this batch: {{ store.batchDone }} / {{ plural(store.batchTotal, 'route') }}</span>
                 <span class="text-slate-300">updates as each route finishes</span>
               </div>
               <!-- The count stopping short of the estimate is normal and confusing, so say so. -->
@@ -543,8 +543,8 @@
                 v-if="store.finishedCleanly && store.chainsDone < store.chainsEstimated * 0.9"
                 class="text-[10px] text-emerald-700 font-bold"
               >
-                Finished early. The estimate is an upper bound, and descent stops as soon as no checkpoint moves, which
-                is what happens when you start from a chain that is already good.
+                Finished early. The estimate is an upper bound, and descent stops as soon as no stop moves, which is
+                what happens when you start from a route that is already good.
               </p>
               <div class="flex flex-wrap items-center justify-between gap-x-3 text-[10px] text-slate-400 font-bold">
                 <span>{{ store.detail }}</span>
@@ -624,8 +624,8 @@
                     <th class="py-2 pr-3">
                       → TE
                       <HelpTip
-                        >The total Truth Eggs you will have when this ascension ends. That is the checkpoint you
-                        prestige on.</HelpTip
+                        >The total Truth Eggs you will have when this ascension ends. That is the stop you prestige
+                        on.</HelpTip
                       >
                     </th>
                     <th class="py-2 pr-3">
@@ -665,7 +665,7 @@
                         >Two costs, both charged to the plan and both already inside the days column. <b>P</b> is the
                         prestige at the end of this leg waiting for you to be available. <b>S</b> is the twelve shifts
                         inside it being held for the same reason. Between them they are the whole difference your
-                        schedule makes, which is why turning it on changes which chain wins.</HelpTip
+                        schedule makes, which is why turning it on changes which route wins.</HelpTip
                       >
                     </th>
                     <th class="py-2"></th>
@@ -823,8 +823,8 @@
           <p>
             Only this search knows about your available hours; the Auto Planner does not. It will lay the plan out
             assuming you prestige the instant each target is hit, so its dates omit the
-            <span class="font-semibold">{{ totalPrestigeWait }}</span> of waiting the search charged. The checkpoints
-            and strategies are the same; only the clock differs, and
+            <span class="font-semibold">{{ totalPrestigeWait }}</span> of waiting the search charged. The stops and
+            strategies are the same; only the clock differs, and
             <span class="font-semibold">this panel's finish date is the realistic one</span>.
           </p>
         </div>
@@ -881,10 +881,10 @@
             v-if="store.shortlist.length <= 1"
             class="text-[11px] text-slate-500 leading-relaxed rounded-lg border border-slate-200 bg-slate-50 p-3"
           >
-            Nothing else here is a genuinely different plan: every other chain this run priced is the same shape moved
-            by a few TE, or more than five days behind. That is normal for a run that only swept one checkpoint, and for
-            one stopped early. Switch to <span class="font-semibold">Fastest</span> to see all
-            {{ store.pricedCount }} of them in raw order.
+            Nothing else here is a genuinely different plan: every other route this run priced is the same shape moved
+            by a few TE, or more than five days behind. That is normal for a run that only swept one stop, and for one
+            stopped early. Switch to <span class="font-semibold">Fastest</span> to see all {{ store.pricedCount }} of
+            them in raw order.
           </p>
           <div v-else class="overflow-x-auto" data-testid="shortlist">
             <table class="w-full text-xs">
@@ -1034,7 +1034,7 @@
           </p>
           <p>
             An unfinished run still carries on after a reload: it goes back to the start it was priced from. But
-            <span class="font-semibold">day counts stop being comparable:</span> the same chain reports a smaller number
+            <span class="font-semibold">day counts stop being comparable:</span> the same route reports a smaller number
             simply because the stopwatch started later, so compare <span class="font-semibold">finish dates</span>,
             which do not move. Set a start date and time in Your setup to pin it.
           </p>
@@ -1150,7 +1150,7 @@
             v-model:nickname="nickname"
             :note="store.runNoteUsed ?? ''"
             @update:note="(v?: string) => (store.runNoteUsed = v ?? '')"
-            :csv-detail="`(${(store.csvRows || 0).toLocaleString()} chains, one row per leg; the JSON above is the headline and this is the working)`"
+            :csv-detail="`(${(store.csvRows || 0).toLocaleString()} routes, one row per leg; the JSON above is the headline and this is the working)`"
             @nickname-typed="nicknameTouched = true"
           >
             <template #intro>
@@ -1158,7 +1158,7 @@
                 <span class="font-bold">Share your result with the virtue track and the leaderboards.</span>
                 Pooling results across accounts is the only way to answer questions one account cannot: whether the
                 effort tiers behave the same everywhere, whether
-                <span class="font-mono">maxLast</span> is right, whether a chain shape that wins here wins anywhere
+                <span class="font-mono">maxLast</span> is right, whether a route shape that wins here wins anywhere
                 else.
               </p>
             </template>
@@ -1207,7 +1207,7 @@
               without, so a re-check never ties the two together.
               <span v-if="includeCsv"
                 >The <span class="font-semibold">CSV goes too</span> ("Send my CSV too", ticked by default above). It is
-                the whole run: every chain it priced, one row per leg, with start and end times in your plan's timezone.
+                the whole run: every route it priced, one row per leg, with start and end times in your plan's timezone.
                 Untick it to send the headline alone.</span
               >
               <span v-if="diagnosticsGo"
@@ -1227,7 +1227,7 @@
                 >{{ NAMES.compare }} › All runs</a
               >: one line per result (anonymous runs included), and every row opens to show the artifacts, stones and
               per-leg timings it was simulated with. Read it as "what shapes are winning for people": a duration depends
-              on the account as much as on the chain. The race to the target by finish date, one line per named player,
+              on the account as much as on the route. The race to the target by finish date, one line per named player,
               is <a href="#/compare/race" class="font-bold text-indigo-700 underline hover:text-indigo-900">Race</a>,
               next to it.
             </p>
@@ -1429,13 +1429,13 @@ const runOutcome = computed<{ title: string; detail: string; tone: 'good' | 'war
     return {
       title: 'Nothing left to price',
       detail:
-        'Every route this level needed was already in the checkpoint from an earlier run, so it replayed them and stopped. Pick a higher level to go further.',
+        'Every route this level needed was already saved from an earlier run, so it replayed them and stopped. Pick a higher level to go further.',
       tone: 'good',
     };
   }
   return {
     title: 'Finished',
-    detail: `Every stage in this tier ran to completion, ending on "${store.lastCompletedStage}". Descent stops when no checkpoint moves, so finishing short of the estimate is normal.`,
+    detail: `Every stage in this tier ran to completion, ending on "${store.lastCompletedStage}". Descent stops when no stop moves, so finishing short of the estimate is normal.`,
     tone: 'good',
   };
 });
@@ -1460,11 +1460,11 @@ const coverageNote = computed(() => {
   const label = note.value.label;
   if (EFFORT[store.effort].otherCounts) {
     const other = store.otherCountsPlan.counts;
-    if (!other.length) return `${label} keeps your starting chain's ${word}: your limits allow no other count.`;
+    if (!other.length) return `${label} keeps your starting route's ${word}: your limits allow no other count.`;
     return `${label} starts from your route's ${word}, then gives ${countList(other)} ascensions one quick pass each (from the instant answer's route at that count when it has one), carries on outward while that keeps winning, and fine-tunes the best, within your limits of ${store.minPrestiges} to ${store.maxPrestiges}.`;
   }
   if (!EFFORT[store.effort].countProbe) {
-    return `${label} keeps your starting chain's ${word}; Exact and Very high also try one more and one fewer.`;
+    return `${label} keeps your starting route's ${word}; Exact and Very high also try one more and one fewer.`;
   }
   return `${label} starts from your route's ${word} and also tries one more and one fewer, then again while that keeps helping, within your limits of ${store.minPrestiges} to ${store.maxPrestiges}.`;
 });
@@ -1489,7 +1489,7 @@ function startFromCount(n: number): string {
     fallback: () =>
       defaultSeedChain({ currentTE: store.currentTE, finalTE: store.finalTE, minPrestiges: n, maxPrestiges: n }),
   });
-  if (!plan) return `A starting chain with ${n} ascensions doesn't fit between your TE and the target.`;
+  if (!plan) return `A starting route with ${n} ascensions doesn't fit between your TE and the target.`;
   store.minPrestiges = plan.minPrestiges;
   store.maxPrestiges = plan.maxPrestiges;
   store.findSeedFirst = false;

@@ -130,7 +130,7 @@ export function checkBandText(text: string, ctx: BandCheckContext): BandIssue[] 
       issues.push({
         code: 'empty',
         band: n,
-        message: `Band ${n} is empty, so it is skipped and the chain gets one ascension fewer.`,
+        message: `Band ${n} is empty, so it is skipped and the box gets one ascension fewer.`,
         fix: withSegment(segs, i, null),
       });
       return;
@@ -146,7 +146,7 @@ export function checkBandText(text: string, ctx: BandCheckContext): BandIssue[] 
           code: 'unreadable',
           band: n,
           message: only
-            ? `${band(n)}: I can't read "${p.piece}", so it is skipped and the chain gets one ascension fewer.`
+            ? `${band(n)}: I can't read "${p.piece}", so it is skipped and the box gets one ascension fewer.`
             : `${band(n)}: I can't read "${p.piece}", so that part is skipped.`,
           fix: only ? withSegment(segs, i, null) : swap(null),
         });
@@ -190,7 +190,7 @@ export function checkBandText(text: string, ctx: BandCheckContext): BandIssue[] 
       issues.push({
         code: 'outsideRange',
         band: n,
-        message: `${band(n)} has nothing between your TE (${cur}) and the target (${final}), so no chain can use it.`,
+        message: `${band(n)} has nothing between your TE (${cur}) and the target (${final}), so no route can use it.`,
       });
       continue;
     }
@@ -237,7 +237,7 @@ export function checkBandText(text: string, ctx: BandCheckContext): BandIssue[] 
         issues.push({
           code: 'outOfOrder',
           band: late.n,
-          message: `${band(late.n)} (${late.seg.text}) sits below band ${early.n} (${early.seg.text}), but checkpoints go up, so no chain can use both.${
+          message: `${band(late.n)} (${late.seg.text}) sits below band ${early.n} (${early.seg.text}), but stops go up, so no route can use both.${
             ok ? ' Did you mean them in this order?' : ''
           }`,
           fix: ok ? sorted.join('; ') : undefined,
@@ -251,7 +251,7 @@ export function checkBandText(text: string, ctx: BandCheckContext): BandIssue[] 
     issues.push({
       code: 'countMismatch',
       band: 0,
-      message: `These bands make ${count + 1} ascensions, but this chain is set to ${ctx.ascensions}.`,
+      message: `These bands make ${count + 1} ascensions, but this box is set to ${ctx.ascensions}.`,
     });
   }
 
@@ -386,7 +386,7 @@ function countList(counts: readonly number[]): string {
 export function coverageBeforeText(
   counts: readonly number[],
   /** What to do to try another count: the panel says "add a chain below", the command line names its flag. */
-  hint = 'add a chain below to try another count'
+  hint = 'add a box below to try another count'
 ): string {
   if (!counts.length) return '';
   return counts.length === 1

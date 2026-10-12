@@ -87,8 +87,8 @@
             far) it reproduces their submitted runs to a median of 0.15% or better.
           </p>
           <p v-else-if="f.id === 'wider'">
-            Halceyx's 120,000-plan sweep allowed only 5 ascensions, and its second checkpoint couldn't go below 201.
-            From the same moment, his earlier small search's 198 231 291 was 0.73 days faster, and the instant answer's
+            Halceyx's 120,000-plan sweep allowed only 5 ascensions, and its second stop couldn't go below 201. From the
+            same moment, his earlier small search's 198 231 291 was 0.73 days faster, and the instant answer's
             7-ascension route (198 220 249 281 315) is about 7.7 days faster still. Allan's Egg Day search allowed up to
             4 stops; a 5-stop route (209 234 261 291 334) has about 17-19 hours more spare.
           </p>
@@ -119,8 +119,7 @@
               </table>
             </div>
             <p>
-              The board's runs agree. The last checkpoint before 490 sits around 280 with 2-3 ascensions and 285-335
-              with 5-7.
+              The board's runs agree. The last stop before 490 sits around 280 with 2-3 ascensions and 285-335 with 5-7.
             </p>
           </template>
           <template v-else-if="f.id === 'eggday'">
@@ -164,7 +163,7 @@
             Every build ends at the Saturday 9:00 am (Pacific) sale. A third sale week pays on long jumps below about TE
             300 (up to 33 days on the final leg from 225-270, up to 194 days from 120-150), but never on short jumps or
             from about TE 300 up. Tier 13 is offered from TE 190. Starting a leg a few hours either side of the sale can
-            move it by days, which is why the best checkpoints are so sharp.
+            move it by days, which is why the best stops are so sharp.
           </p>
           <p v-else-if="f.id === 'buildup'">
             Finishing the build without buying anything more (Joo's "Continue Asc.") keeps the farm's half-built
@@ -175,11 +174,10 @@
           </p>
           <p v-else-if="f.id === 'one-te'">
             At TE 240-340 one TE is worth about two days (45-53 hours of the final ascension, measured on two accounts).
-            On the early 2-3 ascension runs to 490 TE, moving one checkpoint by a single TE changed the finish by
-            typically about 2.5% of the route. Builds are timed to the weekly sale, so a badly timed prestige can cost
-            up to a week; run the instant answer again after you prestige and it plans from where you are. The best TEs
-            differ for every account and start time, which is why the instant answer prices every TE instead of
-            guessing.
+            On the early 2-3 ascension runs to 490 TE, moving one stop by a single TE changed the finish by typically
+            about 2.5% of the route. Builds are timed to the weekly sale, so a badly timed prestige can cost up to a
+            week; run the instant answer again after you prestige and it plans from where you are. The best TEs differ
+            for every account and start time, which is why the instant answer prices every TE instead of guessing.
           </p>
         </div>
       </details>

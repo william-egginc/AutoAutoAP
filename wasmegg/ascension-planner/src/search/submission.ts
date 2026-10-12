@@ -664,10 +664,10 @@ export const QUARANTINE_CONTACT = 'Williamthe5thc';
 /** The collector's reason codes, in plain words, for when it sends a code without its own text. */
 export const QUARANTINE_REASONS: Record<string, string> = {
   'contradicts-itself': 'the planner marked this result as contradicting itself',
-  'target-not-last': "the chain doesn't end at the target",
-  'ascensions-disagree': "the number of ascensions doesn't match the chain",
-  'first-checkpoint-reached': 'the first checkpoint is not above the starting TE',
-  'legs-disagree': "the legs don't match the chain",
+  'target-not-last': "the route doesn't end at the target",
+  'ascensions-disagree': "the number of ascensions doesn't match the route",
+  'first-checkpoint-reached': 'the first stop is not above the starting TE',
+  'legs-disagree': "the legs don't match the route",
   'leg-not-positive': 'a leg takes no time',
   'legs-sum': "the legs don't add up to the total",
   'impossible-te-jump': 'a leg gains TE faster than any farm can',

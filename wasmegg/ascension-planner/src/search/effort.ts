@@ -54,7 +54,7 @@ export const EFFORT_NOTES: Record<EffortTier, EffortNote> = {
     cliDuration: '~1 h 05 m',
     typicalTime: 'Minutes.',
     adds:
-      'Coordinate descent (radius 8), re-solving the last checkpoint after every accepted move. ' +
+      'Coordinate descent (radius 8), re-solving the last stop after every accepted move. ' +
       'Then one quick pass at each other ascension count inside your limits that the instant answer has a ' +
       'route for, and one more and one fewer, carrying on outward while that keeps winning; the best count ' +
       'is then fine-tuned in full.',
@@ -71,9 +71,9 @@ export const EFFORT_NOTES: Record<EffortTier, EffortNote> = {
     cliDuration: '~3 h 30 m',
     typicalTime: 'Under an hour on 8+ cores.',
     adds:
-      '+ every combination of each neighbouring pair of checkpoints, which moving one at a time can miss. ' +
+      '+ every combination of each neighbouring pair of stops, which moving one at a time can miss. ' +
       '+ tries one ascension fewer or one more, and again from there while the count keeps changing (within your limits), then fine-tunes again. ' +
-      'The count check adds roughly 10 to 15% more chains.',
+      'The count check adds roughly 10 to 15% more routes.',
     accuracy:
       'Matched the best of all 4,913 plans tested in full around it, on 1 account. ' +
       'The other accounts have no proven answer to check against.',
@@ -83,13 +83,13 @@ export const EFFORT_NOTES: Record<EffortTier, EffortNote> = {
     label: 'Very high',
     cliDuration: '7–13 h',
     typicalTime: '1-3 h on 8-16 cores, longer on 4.',
-    adds: '+ every combination of each group of three neighbouring checkpoints.',
+    adds: '+ every combination of each group of three neighbouring stops.',
     accuracy:
       'On one account this step found a plan 1.7 days (40 h) faster than the pairs alone; on another it added ' +
       'nothing. A later fix to the pairs step may have taken some of that gain.',
     warning:
-      'Most of this level’s time goes on the extra step (about 8,788 of 11,062 chains on a 7-ascension ' +
-      'chain), and the one-more-or-fewer check waits until it finishes.',
+      'Most of this level’s time goes on the extra step (about 8,788 of 11,062 routes on a 7-ascension ' +
+      'route), and the one-more-or-fewer check waits until it finishes.',
   },
 };
 
@@ -117,7 +117,7 @@ export const EFFORT_ORDER: EffortTier[] = ['quick', 'normal', 'thorough'];
 
 /** How rare a genuinely good chain is — the reason "just try a few by hand" does not work.
  *  From the 4913-chain exhaustive on the main account. */
-export const NEAR_OPTIMAL_SHARE = '21 of 4913 chains (0.43%) are within one day of optimal';
+export const NEAR_OPTIMAL_SHARE = '21 of 4913 routes (0.43%) are within one day of optimal';
 
 /** Sample size behind every accuracy figure above. Rendered next to them so it is never dropped. */
 export const ACCURACY_SAMPLE = 'n = 3 accounts';

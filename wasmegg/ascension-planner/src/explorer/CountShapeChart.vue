@@ -57,7 +57,7 @@
       <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wide">
         {{ bests.length }} account{{ bests.length === 1 ? '' : 's' }} ({{ rows.length }} run{{
           rows.length === 1 ? '' : 's'
-        }}) · {{ summary.length }} checkpoint{{ summary.length === 1 ? '' : 's' }}
+        }}) · {{ summary.length }} stop{{ summary.length === 1 ? '' : 's' }}
       </span>
     </div>
 
@@ -67,7 +67,7 @@
          which (only with two or more), then which stalk is whose, without hovering. The share view:
          the accounts, each a button that hides its lines, as ECharts' legend did. -->
     <template v-if="bests.length && view === 'map'">
-      <ChartLegend v-if="!single" :entries="checkpointKey" label="Checkpoints" />
+      <ChartLegend v-if="!single" :entries="checkpointKey" label="Stops" />
       <ChartLegend :entries="accountEntries" label="Accounts" />
     </template>
     <ChartLegend
@@ -84,13 +84,11 @@
       <table class="w-full text-[11px]">
         <thead>
           <tr class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-            <th class="text-left py-1 pr-3">Checkpoint</th>
+            <th class="text-left py-1 pr-3">Stop</th>
             <th class="text-right py-1 pr-3">Accounts</th>
             <th class="text-left py-1 pr-3">TE</th>
             <th class="text-left py-1 pr-3">TE above start</th>
-            <th class="text-right py-1 pr-3" title="TE the checkpoint moves per TE higher the plan starts">
-              Slope vs start
-            </th>
+            <th class="text-right py-1 pr-3" title="TE the stop moves per TE higher the plan starts">Slope vs start</th>
             <th class="text-left py-1">Share of journey</th>
           </tr>
         </thead>
@@ -121,10 +119,10 @@
         </tbody>
       </table>
       <p class="mt-1 px-1 text-[10px] text-slate-500 leading-relaxed max-w-3xl">
-        Each account counts once, by its best plan at this count. <b>Slope vs start</b>: how many TE the checkpoint
-        moves for each TE higher the plan starts; about 0 is the same TE whoever you are, about 1 moves with your start
-        (from {{ summary[0]?.accounts ?? 0 }} accounts at most, so it is only a rough trend). Of the two ranges, the
-        narrower is in bold: the way of stating that checkpoint that holds across accounts.
+        Each account counts once, by its best plan at this count. <b>Slope vs start</b>: how many TE the stop moves for
+        each TE higher the plan starts; about 0 is the same TE whoever you are, about 1 moves with your start (from
+        {{ summary[0]?.accounts ?? 0 }} accounts at most, so it is only a rough trend). Of the two ranges, the narrower
+        is in bold: the way of stating that stop that holds across accounts.
       </p>
     </div>
   </div>
@@ -157,19 +155,19 @@ const props = defineProps<{
 type View = 'map' | 'share';
 const view = ref<View>('map');
 const MODES: { id: View; label: string }[] = [
-  { id: 'map', label: 'Checkpoint map' },
+  { id: 'map', label: 'Stop map' },
   { id: 'share', label: 'Share of journey' },
 ];
 
 /** What the chart shows, in words; the map reads differently with one checkpoint. */
 const hint = computed(() => {
   if (view.value === 'share') {
-    return "Each checkpoint as a share of that run's own journey, from the TE it started at to the target. One thin line per run in its account's colour, grey once its finish no longer stands; the thick dark line is the median over accounts, each counted once by its best plan. Checkpoint 1 is dashed and hollow: it is timing more than shape. Click a name to hide or show its lines; hover or tap a point for the run.";
+    return "Each stop as a share of that run's own journey, from the TE it started at to the target. One thin line per run in its account's colour, grey once its finish no longer stands; the thick dark line is the median over accounts, each counted once by its best plan. Stop 1 is dashed and hollow: it is timing more than shape. Click a name to hide or show its lines; hover or tap a point for the run.";
   }
   if (single.value) {
-    return "Each large mark is one account's best plan at this count, in the account's colour and shape: across is the TE the plan started from, up is its one checkpoint. A row of marks that stays level is a checkpoint at the same TE whoever you are; one that climbs to the right moves with your start. Small faint marks are the account's other runs that still stand. With one checkpoint it is also when the ascension in progress ends, so part of it is timing. Hover or tap a mark for the run.";
+    return "Each large mark is one account's best plan at this count, in the account's colour and shape: across is the TE the plan started from, up is its one stop. A row of marks that stays level is a stop at the same TE whoever you are; one that climbs to the right moves with your start. Small faint marks are the account's other runs that still stand. With one stop it is also when the ascension in progress ends, so part of it is timing. Hover or tap a mark for the run.";
   }
-  return "Each coloured stalk is one account's best plan at this count, standing at the TE the plan started from; the marks on it are its checkpoints, in the account's shape, darker for later ones, the last one largest. A row of marks that stays level across the stalks is a checkpoint at the same TE whoever you are; a row that climbs to the right moves with your start. Small faint marks are the account's other runs that still stand. Checkpoint 1 is hollow: it is mostly timing (when the ascension in progress ends), like leg 1 below. Hover or tap a mark for the run.";
+  return "Each coloured stalk is one account's best plan at this count, standing at the TE the plan started from; the marks on it are its stops, in the account's shape, darker for later ones, the last one largest. A row of marks that stays level across the stalks is a stop at the same TE whoever you are; a row that climbs to the right moves with your start. Small faint marks are the account's other runs that still stand. Stop 1 is hollow: it is mostly timing (when the ascension in progress ends), like leg 1 below. Hover or tap a mark for the run.";
 });
 
 /** Accounts (by key) and the median the share view's legend has turned off. */
@@ -234,7 +232,7 @@ const checkpointKey = computed<LegendEntry[]>(() => {
   const n = summary.value.length;
   return summary.value.map((cp, i) => ({
     id: `cp${cp.index}`,
-    label: `Checkpoint ${cp.index + 1}${i === n - 1 ? ' (last)' : ''}`,
+    label: `Stop ${cp.index + 1}${i === n - 1 ? ' (last)' : ''}`,
     color: shadeOf(i, n),
     symbol: 'circle' as const,
     hollow: i === 0,
@@ -277,7 +275,7 @@ function tipFor(row: CollectorRow, i: number, key: string, role: Role): Tip {
   const share = chainFractions(row.chain, row.currentTE, row.finalTE)[i];
   return {
     title: labelOf(key, row),
-    line: `checkpoint ${i + 1}: ${te} TE · +${te - row.currentTE} above its ${row.currentTE} start · ${pct(share)} of the journey`,
+    line: `stop ${i + 1}: ${te} TE · +${te - row.currentTE} above its ${row.currentTE} start · ${pct(share)} of the journey`,
     detail: `${row.chain.join(' ')} · ${ROLE_TEXT[role]}`,
   };
 }
@@ -315,7 +313,7 @@ function mapOption(): ChartOption {
   summary.value.forEach(cp => {
     const i = cp.index;
     const last = i === n - 1;
-    const name = `Checkpoint ${i + 1}${last ? ' (last)' : ''}`;
+    const name = `Stop ${i + 1}${last ? ' (last)' : ''}`;
     const color = shadeOf(i, n);
     const markColor = (key: string) => (oneCheckpoint ? colorAt(indexOf(key)) : color);
     series.push({
@@ -409,7 +407,7 @@ function mapOption(): ChartOption {
     },
     yAxis: {
       type: 'value',
-      name: 'checkpoint TE',
+      name: 'stop TE',
       nameTextStyle: AXIS_LABEL,
       scale: true,
       axisLabel: AXIS_LABEL,
@@ -464,7 +462,7 @@ function shareOption(): ChartOption {
     value: [cp.index + 1, cp.share.mid * 100],
     tip: {
       title: 'Median of accounts',
-      line: `checkpoint ${cp.index + 1}: ${pct(cp.share.mid)} of the journey (${pct(cp.share.lo)}–${pct(cp.share.hi)})`,
+      line: `stop ${cp.index + 1}: ${pct(cp.share.mid)} of the journey (${pct(cp.share.lo)}–${pct(cp.share.hi)})`,
       detail: `from ${cp.accounts} account${cp.accounts === 1 ? '' : 's'}, each by its best plan here`,
     },
   }));
@@ -495,7 +493,7 @@ function shareOption(): ChartOption {
     // run on the right border; at any count the first and last markers sat on the frame.
     xAxis: {
       type: 'value',
-      name: 'checkpoint',
+      name: 'stop',
       nameLocation: 'middle',
       nameGap: 24,
       nameTextStyle: AXIS_LABEL,

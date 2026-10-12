@@ -37,7 +37,7 @@
     <div class="p-4 rounded-xl border border-indigo-200 bg-indigo-50/40 space-y-3">
       <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 class="text-[10px] font-black text-indigo-700 uppercase tracking-widest">Chain leaderboard</h3>
+          <h3 class="text-[10px] font-black text-indigo-700 uppercase tracking-widest">Route leaderboard</h3>
         </div>
         <div v-if="tab !== 'insights'" class="flex items-end gap-2">
           <label v-if="tab !== 'dates' && tab !== 'eggday'" class="block">

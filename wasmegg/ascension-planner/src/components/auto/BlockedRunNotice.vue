@@ -8,7 +8,7 @@
     <h3 class="text-[10px] font-black text-slate-700 uppercase tracking-widest">Unfinished run can't continue</h3>
     <p class="text-[11px] text-slate-700 leading-relaxed">
       A run on this machine stopped after pricing
-      <span class="font-bold">{{ plural(blocked.record.durations.length, 'chain') }}</span>
+      <span class="font-bold">{{ plural(blocked.record.durations.length, 'route') }}</span>
       ({{ ago(blocked.record.updatedAt) }}), but <span class="font-bold">{{ blocked.changes.join('; ') }}</span
       >.
       <template v-if="store.runSaveFor(blocked.record.inputsKey)">

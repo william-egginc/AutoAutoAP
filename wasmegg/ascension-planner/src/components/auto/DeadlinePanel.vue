@@ -382,7 +382,7 @@
             <p>
               <span class="font-bold text-slate-800">It looks wide, then zooms in.</span> The first look tries early stops
               every {{ usedStep }} TE ({{ shapes.toLocaleString() }} sets, plus every TE for the first 5 above yours, and
-              the chain in your planner and your last best): rough, but across everything, so it can't miss a whole
+              the route in your planner and your last best): rough, but across everything, so it can't miss a whole
               region. Then it zooms in on the best few, moving one stop at a time by {{ resolutionsText }} TE and keeping
               anything that helps, so the answer ends up placed to the exact TE, not on the grid. The last stop is always
               found to the exact TE.
@@ -505,7 +505,7 @@
             rate of the last 12 minutes. The estimate uses
             <template v-if="store.deadlineWorkerSeconds">this machine's speed from its last deadline search</template
             ><template v-else
-              >the typical speed for chains this long in players' runs, until this machine has done a deadline search of its
+              >the typical speed for routes this long in players' runs, until this machine has done a deadline search of its
               own</template
             >, on {{ store.workerBudget }} workers.
           </p>
@@ -1409,12 +1409,12 @@ function suggestion(k: number): { text: string; from: string; lastGuess: number 
   const lastGuess = base.last;
   const from =
     base.from === 'instant'
-      ? `Chain ${k + 1} was suggested around the instant answer, ${base.around.join(' ')}.`
+      ? `Box ${k + 1} was suggested around the instant answer, ${base.around.join(' ')}.`
       : base.from === 'answer'
-        ? `Chain ${k + 1} was suggested around your last answer, ${base.around.join(' ')}.`
+        ? `Box ${k + 1} was suggested around your last answer, ${base.around.join(' ')}.`
         : base.from === 'route'
-          ? `Chain ${k + 1} was suggested around your route, ${base.around.join(' ')}.`
-          : `Chain ${k + 1} was spaced evenly: no answer or route to start from yet.`;
+          ? `Box ${k + 1} was suggested around your route, ${base.around.join(' ')}.`
+          : `Box ${k + 1} was spaced evenly: no answer or route to start from yet.`;
   // Sized to the slider (search/deadlineSuggest.ts): the first stop at every TE from just above
   // yours, the later ones as fine and as wide as the size allows.
   const lastHi = lastRange.value?.[1] ?? Math.min(490, lastGuess + 20);
@@ -1741,9 +1741,9 @@ const startIssue = computed(() => {
   if (mode.value === 'space') {
     if (!runLastRange.value) return 'Give the last stop a range above your TE now.';
     const bad = activeChains.value.findIndex(row => !!problemOf(row, runLastRange.value));
-    if (bad >= 0) return `Chain ${bad + 1}: ${problemOf(activeChains.value[bad], runLastRange.value)}`;
+    if (bad >= 0) return `Box ${bad + 1}: ${problemOf(activeChains.value[bad], runLastRange.value)}`;
     if (!spaceShapes.value && !instantSets.value.length)
-      return 'No route in these chains goes up from your TE to the last stop.';
+      return 'No route in these boxes goes up from your TE to the last stop.';
     return '';
   }
   if (minStops.value > maxStops.value) return 'The fewest stops is more than the most.';

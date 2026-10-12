@@ -143,28 +143,28 @@ const levels = computed<LevelText[]>(() =>
         {
           id: 'light',
           label: 'Light',
-          does: 'After Check exactly, prices the routes you have already found for this target (your searches here, saved runs, earlier checks, and board runs sent from this browser) on your save as it is now.',
+          does: 'After Check exactly, prices the routes you have already found for this target (your searches here, saved runs and answers, earlier checks, and board runs sent from this browser) on your save as it is now.',
           time: 'Seconds to a few minutes, once Check exactly has finished.',
           finds: 'One of your own routes, if it is now faster than the instant answer. It does not look for new routes.',
         },
         {
           id: 'quick',
           label: 'Fast',
-          does: `Light, then ${NAMES.smart}: from the instant answer's route it moves each stop a few TE either way until nothing gets faster, then gives every other number of ascensions in your limits one quick try.`,
+          does: `Light, then ${NAMES.smart}. Starting from the instant answer's route, it moves one stop at a time, up to 8 TE either way, until nothing gets faster. Then it gives the other numbers of ascensions in your limits a quick try.`,
           time: `${EFFORT_NOTES.quick.typicalTime}`,
           finds: "A faster route close to the instant answer's. It can miss one where several stops have to move together, or one far from it.",
         },
         {
           id: 'normal',
           label: 'Exact',
-          does: 'Fast, plus moving neighbouring stops together, then one ascension more or fewer.',
+          does: 'Fast, plus moving neighbouring stops in pairs. Then it tries one ascension more or fewer.',
           time: EFFORT_NOTES.normal.typicalTime,
           finds: 'Also routes where two stops have to move together. Still a search near the instant answer, not of every route.',
         },
         {
           id: 'thorough',
           label: 'Very high',
-          does: 'Exact, plus moving groups of three stops together.',
+          does: 'Exact, plus moving three neighbouring stops together.',
           time: EFFORT_NOTES.thorough.typicalTime,
           finds: `The strongest search near the instant answer. Still not a proven best: for that, use ${NAMES.full} below with boxes you set.`,
         },
@@ -173,14 +173,14 @@ const levels = computed<LevelText[]>(() =>
         {
           id: 'light',
           label: 'Light',
-          does: "After Check exactly, prices your own earlier routes for this date on your save, and when the instant answer's top route misses the date on your account, tries its route one TE lower (two if needed).",
+          does: "After Check exactly, prices your own earlier routes for this date on your save. If the instant answer's top route misses the date on your account, it also tries that route one TE lower (two if needed).",
           time: 'Seconds to a few minutes, once Check exactly has finished.',
           finds: 'One of your routes that does better, or a route one TE lower that really makes the date. It does not look for new routes.',
         },
         {
           id: 'quick',
           label: 'Fast',
-          does: `Light, then ${NAMES.smart}: for each number of ascensions the instant answer has, every route with each early stop up to 3 TE either side of its route (fewer on long routes), each last stop found to the exact TE.`,
+          does: `Light, then ${NAMES.smart}. For each number of ascensions the instant answer has, it tries every route with each early stop up to 3 TE either side of the answer's route (fewer on long routes). Each last stop is found to the exact TE.`,
           time: 'Under half an hour on a typical 8-core computer; yours is below.',
           finds: "The highest TE near the instant answer's routes. It can miss a route whose early stops are further away.",
         },
@@ -229,8 +229,8 @@ const promises = computed<string[]>(() => {
   if (l === 'light')
     return [
       props.goal === 'date'
-        ? "No search: it only prices routes you have already found (your searches here, saved answers, earlier checks, and board runs sent from this browser) on your save as it is now, and when the instant answer's top route misses the date on your account, that route one TE lower (two if needed)."
-        : 'No search: it only prices routes you have already found (your searches here, saved runs, earlier checks, and board runs sent from this browser) on your save as it is now.',
+        ? "No search: it only prices routes you have already found (your searches here, saved runs and answers, earlier checks, and board runs sent from this browser) on your save as it is now. If the instant answer's top route misses the date on your account, it also tries that route one TE lower (two if needed)."
+        : 'No search: it only prices routes you have already found (your searches here, saved runs and answers, earlier checks, and board runs sent from this browser) on your save as it is now.',
       "It can't find a route nobody has tried yet. Fast, Exact and Very high search for those.",
       'It runs by itself once Check exactly has finished, and waits while a search is running.',
     ];
@@ -238,7 +238,7 @@ const promises = computed<string[]>(() => {
     const w = { quick: 3, normal: 4, thorough: 5 }[l];
     return [
       PRICED,
-      `For each number of ascensions the instant answer has, it tries every route with each early stop within ${w} TE of the instant answer's route (fewer on long routes, and narrower if that would take too long), and finds each last stop to the exact TE.`,
+      `For each number of ascensions the instant answer has, it tries every route with each early stop within ${w} TE of the answer's route. Long routes get fewer, and it narrows if the search would take too long. Each last stop is found to the exact TE.`,
       `It can miss a route whose early stops are further away. ${NAMES.full}, below, proves the best only inside the boxes you set.`,
       STOP,
     ];

@@ -117,8 +117,8 @@ export function planCoarseGrid(opts: {
   if (hi <= lo) hi = final - 20;
   if (hi <= lo) {
     throw new Error(
-      `No room for intermediate checkpoints: current TE ${currentTE}, final ${final}. ` +
-        `Pick a higher final target, or search from a chain you supply.`
+      `No room for intermediate stops: current TE ${currentTE}, final ${final}. ` +
+        `Pick a higher final target, or search from a route you supply.`
     );
   }
 
@@ -136,17 +136,17 @@ export function planCoarseGrid(opts: {
 
   let n = enumerationSize(vals.length, minPrestiges, maxPrestiges);
   log.push(`grid ${lo}..${hi} step ${step} (${vals.length} values), prestiges ${minPrestiges}-${maxPrestiges}`);
-  log.push(`-> ${n} chains`);
+  log.push(`-> ${n} routes`);
   // Auto-coarsen rather than dying: the caller asked for a plan, not a lecture.
   while (n > budget && step < 60) {
     step += 5;
     vals = values();
     n = enumerationSize(vals.length, minPrestiges, maxPrestiges);
-    log.push(`too many; coarsening to step ${step} -> ${vals.length} values, ${n} chains`);
+    log.push(`too many; coarsening to step ${step} -> ${vals.length} values, ${n} routes`);
   }
   if (n > budget) {
     throw new Error(
-      `Cannot get the coarse scan under ${budget} chains (${n} at step ${step}). ` + `Narrow the prestige range.`
+      `Cannot get the coarse scan under ${budget} routes (${n} at step ${step}). ` + `Narrow the prestige range.`
     );
   }
   return { lo, hi, step, values: vals, chains: n, log };
@@ -183,7 +183,7 @@ export async function findStartingChain(opts: CoarseOptions): Promise<CoarseResu
     }
     opts.onProgress?.(evaluated, want.length, `coarse scan ${evaluated}/${want.length}`);
   }
-  if (!best.size) throw new Error('The coarse scan produced no usable chain.');
+  if (!best.size) throw new Error('The coarse scan produced no usable route.');
 
   const byCount = [...best.entries()].sort((a, b) => a[0] - b[0]).map(([, v]) => v);
   for (const c of byCount) {

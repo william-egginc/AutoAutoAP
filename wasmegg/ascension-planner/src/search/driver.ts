@@ -428,7 +428,7 @@ export async function runChainSearch(opts: DriverOptions): Promise<SearchOutcome
       if (!pinned || span >= 36) return [...ch.slice(0, -2), bestValue, final];
       // Widening: say so, so the count and the log move between the sweeps (the bar used to sit on
       // one number through all three).
-      report(`last checkpoint ${lo}-${hi} tried, best at ${bestValue}: widening`);
+      report(`last stop ${lo}-${hi} tried, best at ${bestValue}: widening`);
       span += 12;
     }
   }
@@ -472,7 +472,7 @@ export async function runChainSearch(opts: DriverOptions): Promise<SearchOutcome
           best = (await cache.need(cur)) ?? best;
           note(cur, best);
         }
-        report(`pass ${p + 1}, checkpoint ${j + 1}: ${days(best)} d  ${cur.join(' ')}`);
+        report(`pass ${p + 1}, stop ${j + 1}: ${days(best)} d  ${cur.join(' ')}`);
       }
       report(`pass ${p + 1}: ${days(best)} d  ${cur.join(' ')}`);
       if (!moved) break;
@@ -588,7 +588,7 @@ export async function runChainSearch(opts: DriverOptions): Promise<SearchOutcome
 
     const allowed = cands.filter(c => c.length >= minLen && c.length <= maxLen);
     if (!allowed.length) {
-      report(`nothing to probe within ${minLen}-${maxLen} checkpoints`);
+      report(`nothing to probe within ${minLen}-${maxLen} stops`);
       return;
     }
 
@@ -611,7 +611,7 @@ export async function runChainSearch(opts: DriverOptions): Promise<SearchOutcome
 
     const win = cache.bestSeen(minLen, maxLen);
     if (!win || win.chain.join(',') === cur.join(',')) {
-      report(`no change: ${cur.length} checkpoints confirmed at ${days(best)} d`);
+      report(`no change: ${cur.length} stops confirmed at ${days(best)} d`);
       return;
     }
 
@@ -689,7 +689,7 @@ export async function runChainSearch(opts: DriverOptions): Promise<SearchOutcome
       best = d;
       note(cur, best);
       if (best > leader + OTHER_COUNT_CUTOFF_SECONDS) {
-        report(`${cur.length} ascensions: ${days(best)} d after the last checkpoint, too far behind for a pass`);
+        report(`${cur.length} ascensions: ${days(best)} d after the last stop, too far behind for a pass`);
         return { chain: [...cur], seconds: best };
       }
       await descent(1, label);
@@ -771,8 +771,8 @@ export async function runChainSearch(opts: DriverOptions): Promise<SearchOutcome
   }
 
   // ------------------------------------------------------------------ the run
-  stage = 'stage 4a: solving the last checkpoint';
-  report('sweeping the last checkpoint');
+  stage = 'stage 4a: solving the last stop';
+  report('sweeping the last stop');
   const seed = [...cur];
   cur = await resolveLast(cur, best === Infinity ? [seed] : []);
   // The seed's own time, when the sweep priced it (or `need` below prices it: a seed the sweep

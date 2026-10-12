@@ -193,7 +193,7 @@ describe('runChainSearch', () => {
     expect(new Set(all).size).toBe(all.length);
     // The first report says nothing is priced yet (0, never Infinity), and descent says so itself
     // before its first axis rather than after it.
-    expect(stages[0]).toBe('stage 4a: solving the last checkpoint|0|0');
+    expect(stages[0]).toBe('stage 4a: solving the last stop|0|0');
     expect(stages.some(s => s.startsWith('stage 4: coordinate descent|'))).toBe(true);
     const firstDescent = stages.findIndex(s => s.startsWith('stage 4: coordinate descent|'));
     expect(Number(stages[firstDescent].split('|')[1])).toBe(calls[0].length);

@@ -194,39 +194,39 @@ const spec = computed(() => {
     case 'sawtooth':
       return {
         ariaLabel:
-          'Plan duration against the last checkpoint over 21 consecutive Truth Egg values, showing short descending runs separated by jumps of about three days.',
+          'Plan duration against the last stop over 21 consecutive Truth Egg values, showing short descending runs separated by jumps of about three days.',
         m: { t: 22, r: 104, b: 40, l: 54 },
         xDomain: [310, 330] as [number, number],
         yDomain: [758.0, 763.2] as [number, number],
         yTicks: [759, 760, 761, 762, 763],
         xTicks: [310, 315, 320, 325, 330].map(v => ({ at: v, label: String(v) })),
         yLabel: 'DAYS',
-        xLabel: 'last checkpoint, Truth Eggs',
+        xLabel: 'last stop, Truth Eggs',
         area: false,
       };
     case 'wide':
       return {
         ariaLabel:
-          'Plan duration against the last checkpoint over 86 consecutive values, falling in ledges to a plateau near 285 and then climbing.',
+          'Plan duration against the last stop over 86 consecutive values, falling in ledges to a plateau near 285 and then climbing.',
         m: { t: 26, r: 96, b: 40, l: 54 },
         xDomain: [255, 340] as [number, number],
         yDomain: [760, 900] as [number, number],
         yTicks: [780, 800, 820, 840, 860, 880, 900],
         xTicks: [260, 280, 300, 320, 340].map(v => ({ at: v, label: String(v) })),
         yLabel: 'DAYS',
-        xLabel: 'last checkpoint, Truth Eggs',
+        xLabel: 'last stop, Truth Eggs',
         area: true,
       };
     case 'distribution':
       return {
         ariaLabel:
-          'Histogram of all 10,413 chains in the exhaustive box, with the near-optimal chains a thin sliver at the left.',
+          'Histogram of all 10,413 routes in the exhaustive box, with the near-optimal routes a thin sliver at the left.',
         m: { t: 54, r: 24, b: 40, l: 54 },
         xDomain: [DISTRIBUTION.edges[0], DISTRIBUTION.edges[DISTRIBUTION.edges.length - 1]] as [number, number],
         yDomain: [0, Math.max(...DISTRIBUTION.counts)] as [number, number],
         yTicks: [0, 100, 200, 300, 400],
         xTicks: [760, 764, 768, 772, 775].map(v => ({ at: v, label: String(v) })),
-        yLabel: 'CHAINS',
+        yLabel: 'ROUTES',
         xLabel: 'plan duration, days',
         area: false,
       };
@@ -234,14 +234,14 @@ const spec = computed(() => {
     default:
       return {
         ariaLabel:
-          'Best chain reachable from each starting first checkpoint, varying by sixteen days in a jagged rather than smooth pattern.',
+          'Best route reachable from each starting first stop, varying by sixteen days in a jagged rather than smooth pattern.',
         m: { t: 44, r: 24, b: 40, l: 54 },
         xDomain: [185, 199] as [number, number],
         yDomain: [331, 352] as [number, number],
         yTicks: [335, 340, 345, 350],
         xTicks: SEED_SENSITIVITY.x1.map(v => ({ at: v, label: String(v) })),
         yLabel: 'DAYS',
-        xLabel: 'first checkpoint you start from, Truth Eggs',
+        xLabel: 'first stop you start from, Truth Eggs',
         area: false,
       };
   }
@@ -430,7 +430,7 @@ const annotations = computed<Annotation[]>(() => {
         stroke: '#059669',
       },
       {
-        text: `${DISTRIBUTION.within1} chains, 0.50%`,
+        text: `${DISTRIBUTION.within1} routes, 0.50%`,
         sub: 'everything within a day of optimal is left of this line',
         tx: sx(cut) + 8,
         ty: Y0.value - 34,

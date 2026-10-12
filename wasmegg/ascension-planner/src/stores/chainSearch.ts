@@ -2004,7 +2004,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       .filter(n => Number.isFinite(n) && n > 0);
     if (!seedTidied(raw, currentTE.value, finalTE.value)) return '';
     const chain = usableCheckpoints(raw, currentTE.value, finalTE.value);
-    return `Your starting chain wasn't in order, or repeated a value, so it was sorted and the repeats dropped. It starts from ${[...chain, finalTE.value].join(' ')}.`;
+    return `Your starting route wasn't in order, or repeated a value, so it was sorted and the repeats dropped. It starts from ${[...chain, finalTE.value].join(' ')}.`;
   });
 
   /** Why the current seed cannot produce an answer inside the Limits box, or null when it can.
@@ -5243,7 +5243,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         return {
           chains: [],
           error:
-            'No chains: the bands leave nothing strictly increasing once the minimum gap and your current TE are applied.',
+            'No routes: the bands leave nothing strictly increasing once the minimum gap and your current TE are applied.',
         };
       }
       return { chains, error: null };
@@ -5263,8 +5263,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       return {
         chains: [],
         error: minGap
-          ? `No chains: nothing in the pool is ${minGap} TE apart at that ascension count.`
-          : 'No chains: the ascension range asks for more checkpoints than the pool can supply.',
+          ? `No routes: nothing in the pool is ${minGap} TE apart at that ascension count.`
+          : 'No routes: the ascension range asks for more stops than the pool can supply.',
       };
     }
     return { chains, error: null };
@@ -5328,7 +5328,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     runLog.value = spec.bands?.length
       ? [`--- exhaustive: ${spec.bands.length} bands, ${spec.bands.length + 1} ascensions`]
       : [`--- exhaustive: ${spec.minAsc}-${spec.maxAsc} ascensions`];
-    if (minGap) runLog.value.push(`minimum gap ${minGap} TE between checkpoints`);
+    if (minGap) runLog.value.push(`minimum gap ${minGap} TE between stops`);
     runLog.value.push(`${chains.length.toLocaleString()} routes, no pruning`);
     secondsPerChain.value = 0;
     rateSource.value = null;
@@ -7317,7 +7317,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       const elapsedSeconds = (performance.now() - probeStartedAt) / 1000;
 
       if (!results.length) {
-        benchmarkError.value = 'No chains in this batch could be evaluated, so there is nothing to benchmark.';
+        benchmarkError.value = 'No routes in this batch could be evaluated, so there is nothing to benchmark.';
         return;
       }
 

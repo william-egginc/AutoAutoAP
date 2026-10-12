@@ -254,5 +254,5 @@ export function integerTicks(lo: number, hi: number, n = 4): number[] {
 
 /** "1 chain", "90 chains". */
 export function chainCount(n: number): string {
-  return `${n.toLocaleString()} ${n === 1 ? 'chain' : 'chains'}`;
+  return `${n.toLocaleString()} ${n === 1 ? 'route' : 'routes'}`;
 }

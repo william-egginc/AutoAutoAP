@@ -123,7 +123,7 @@
       </div>
       <!-- A 2-ascension plan has one checkpoint: nothing to pick. -->
       <div v-if="checkpoints.length > 1" class="flex flex-wrap items-center gap-1.5">
-        <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Checkpoint</span>
+        <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Stop</span>
         <button
           v-for="k in checkpoints"
           :key="k"
@@ -365,13 +365,13 @@ const scope = ref<Scope>('here');
 const SCOPES: { id: Scope; label: string; title: string }[] = [
   {
     id: 'here',
-    label: 'this checkpoint only',
-    title: 'Only the picked checkpoint on the coarser grid; the others as the run tried them',
+    label: 'this stop only',
+    title: 'Only the picked stop on the coarser grid; the others as the run tried them',
   },
   {
     id: 'all',
-    label: 'every checkpoint',
-    title: 'Every checkpoint on the coarser grid at once: what a run of the same box at that step would have found',
+    label: 'every stop',
+    title: 'Every stop on the coarser grid at once: what a run of the same box at that step would have found',
   },
 ];
 
@@ -433,7 +433,7 @@ function pickCheckpoint(k: number): void {
 }
 /** `last checkpoint`, `2nd checkpoint`: what the axis, the table and the notes call it. */
 function checkpointWords(k: number): string {
-  return `${checkpointName(k, shownCount.value ?? 0)} checkpoint`;
+  return `${checkpointName(k, shownCount.value ?? 0)} stop`;
 }
 
 /** Per run id: its table boiled down (`summariseSweepRun`), or null when it held no plan of the
@@ -676,7 +676,7 @@ const option = computed<ChartOption>(() => {
       name: above
         ? `${where}, TE above the run's starting TE`
         : lastOnly
-          ? 'last checkpoint before 490 (TE)'
+          ? 'last stop before 490 (TE)'
           : `${where} (TE)`,
       nameLocation: 'middle',
       nameGap: 24,
@@ -706,7 +706,7 @@ const daysText = (d: number) => signedDays(d);
 
 const scopeWords = computed(() =>
   scope.value === 'all' || checkpoints.value.length <= 1
-    ? 'every checkpoint on the grid'
+    ? 'every stop on the grid'
     : `only the ${checkpointWords(checkpoint.value)} on the grid, the others as the run tried them`
 );
 
@@ -735,7 +735,7 @@ function rangeCell(r: NearBestRange | null, days: number, s: SweepRunStats, wher
 function coarseCell(c: CoarseCost, s: SweepRunStats, where: string) {
   if (!c.ok) return { step: c.step, ok: false, none: false, text: '—', title: c.why };
   const none = c.lost < SAME_FINISH_DAYS;
-  const grid = scope.value === 'all' || checkpoints.value.length <= 1 ? 'at every checkpoint' : `at the ${where}`;
+  const grid = scope.value === 'all' || checkpoints.value.length <= 1 ? 'at every stop' : `at the ${where}`;
   const title = `Trying only every ${ordinalText(c.step)} TE ${grid}, from the low end of the band as the presets do: ${c.tried.toLocaleString('en-US')} of the ${s.plans.toLocaleString('en-US')} plans in this table. ${
     none
       ? `Its best plan, ${c.chain.join(' ')}, is this run's best: the grid happens to hold it.`

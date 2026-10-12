@@ -250,7 +250,7 @@ describe('what a --bands text prints', () => {
 
 describe('coverage words', () => {
   it('say which counts a sweep tries, with the hint the front end gives', () => {
-    expect(coverageBeforeText([5])).toMatch(/only tries 5 ascensions.*add a chain below/);
+    expect(coverageBeforeText([5])).toMatch(/only tries 5 ascensions.*add a box below/);
     expect(coverageBeforeText([5], 'use --neighbours')).toMatch(/use --neighbours\.$/);
     expect(coverageBeforeText([4, 5, 6])).toBe('This sweep tries 4, 5 and 6 ascensions, and no other count.');
     expect(coverageBeforeText([])).toBe('');
