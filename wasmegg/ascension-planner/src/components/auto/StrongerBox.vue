@@ -49,6 +49,25 @@
         >
       </button>
     </div>
+    <!-- Light has nothing to start (the user, 12 Oct: no Find there looked broken): a status sign,
+         waiting -> running -> done, with how many of your earlier routes it priced and when. Right under
+         the level bar so it shows without scrolling past the routes (the user, 12 Oct). -->
+    <p
+      v-if="level === 'light'"
+      class="flex items-center gap-2 rounded-xl border px-3 py-2 text-[11px]"
+      :class="
+        stronger.light.state === 'done'
+          ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+          : 'border-indigo-100 bg-indigo-50/50 text-slate-700'
+      "
+      data-testid="light-status"
+    >
+      <span
+        v-if="stronger.light.state === 'running'"
+        class="inline-block w-2.5 h-2.5 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin"
+      />
+      <span>{{ lightText }}</span>
+    </p>
     <!-- The level picked, in three plain lines: what it does, how long, what it can and can't find. -->
     <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[11px] leading-relaxed" data-testid="level-note">
       <dt class="font-black text-slate-500 uppercase tracking-widest text-[9px] pt-0.5">What it does</dt>
@@ -77,24 +96,6 @@
     <!-- No heading of ours here: the stronger check's results carry their own ("Your earlier routes",
          "A TE lower"); a second one doubled it (the user, 12 Oct). -->
     <div id="stronger-check-results" />
-    <!-- Light has nothing to start (the user, 12 Oct: no Find there looked broken): a status sign,
-         waiting -> running -> done, with how many of your earlier routes it priced and when. -->
-    <p
-      v-if="level === 'light'"
-      class="flex items-center gap-2 rounded-xl border px-3 py-2 text-[11px]"
-      :class="
-        stronger.light.state === 'done'
-          ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
-          : 'border-indigo-100 bg-indigo-50/50 text-slate-700'
-      "
-      data-testid="light-status"
-    >
-      <span
-        v-if="stronger.light.state === 'running'"
-        class="inline-block w-2.5 h-2.5 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin"
-      />
-      <span>{{ lightText }}</span>
-    </p>
     <!-- At Fast and above: the search of the routes near the instant answer's, its controls and results. -->
     <h4
       v-if="level !== 'light'"
