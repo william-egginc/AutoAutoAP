@@ -721,6 +721,7 @@
         <!-- The run controls (RunControls.vue): the same block on every search screen. A sweep link
              already sends itself, so it gets Find alone, labelled as the card at the top labels it. -->
         <RunControls
+          long-run
           v-model:opt-in="optIn"
           v-model:anonymous="anonymous"
           v-model:nickname="nickname"

@@ -427,6 +427,7 @@
          away? boxes for one kind of run, which could both carry the same run on. -->
     <Teleport defer :to="controlsTo">
     <RunControls
+      long-run
       ref="stepAway"
       v-model:opt-in="shareOptIn"
       v-model:anonymous="shareAnonymous"

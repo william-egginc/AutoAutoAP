@@ -443,6 +443,7 @@
            is given BEFORE the run, where the player is, instead of at the bottom of a page they may
            have walked away from. A run that is stopped early, fails, or finds nothing sends nothing. -->
       <RunControls
+        :long-run="store.effort === 'thorough' || store.smartEstimate(store.effort).seconds > 7200"
         v-model:opt-in="optIn"
         v-model:anonymous="anonymous"
         v-model:nickname="nickname"

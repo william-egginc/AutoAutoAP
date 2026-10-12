@@ -21,6 +21,14 @@
     <RunSaveNotice v-if="runSaveNotice" />
     <IntegrityNotice v-if="integrityNotice" :deadline-offer="deadlineOffer" />
     <slot name="above-find" />
+    <!-- Many workers on a long run (the user, 12 Oct 2026): a warning, never a block. -->
+    <p
+      v-if="manyWorkers"
+      class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] leading-relaxed text-amber-900"
+      data-testid="many-workers"
+    >
+      <span class="font-bold">{{ store.workerBudget }} workers.</span> {{ MANY_WORKERS_TEXT }}
+    </p>
 
     <FindBar
       v-model:opt-in="optIn"
@@ -78,6 +86,7 @@
 </template>
 
 <script setup lang="ts">
+import { MANY_WORKERS, MANY_WORKERS_TEXT } from '@/search/batch';
 import { computed, ref } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import FindBar from './FindBar.vue';
@@ -123,6 +132,9 @@ const props = withDefaults(
     integrityNotice?: boolean;
     deadlineOffer?: boolean;
     report: SendReport;
+    /** A long run is about to start (By a date, Exhaustive, Very high, or over about 2 hours): with
+     *  more than MANY_WORKERS workers, warn about the browser's memory. */
+    longRun?: boolean;
   }>(),
   {
     stopping: false,
@@ -151,6 +163,7 @@ const nickname = defineModel<string>('nickname', { required: true });
 const note = defineModel<string>('note', { required: true });
 
 const store = useChainSearchStore();
+const manyWorkers = computed(() => !!props.longRun && !props.running && store.workerBudget > MANY_WORKERS);
 /** "Searching, then submitting..." for a run that sends itself when it finishes (store `submitsWhenDone`,
  *  set by every screen for the length of a Find and submit run, and by a sweep link). */
 const runningLabel = computed(() => `${props.runningWord}${store.submitsWhenDone ? ', then submitting' : ''}...`);

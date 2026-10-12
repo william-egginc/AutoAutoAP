@@ -66,3 +66,22 @@ describe('defaultWorkerCount', () => {
     expect(defaultWorkerCount(2)).toBe(1);
   });
 });
+
+describe('many workers on a long run (12 Oct 2026)', () => {
+  it('warns above 16, in the words agreed, and every long-run screen asks for it', async () => {
+    const { MANY_WORKERS, MANY_WORKERS_TEXT } = await import('./batch');
+    expect(MANY_WORKERS).toBe(16);
+    expect(MANY_WORKERS_TEXT).toBe(
+      "More than 16 workers may run out of browser memory on long runs (each tab's workers share about 4 GB). It may work, or the tab may crash and carry on with fewer."
+    );
+    const fs = await import('node:fs');
+    const path = await import('node:path');
+    const dir = path.join(__dirname, '../components/auto');
+    const rc = fs.readFileSync(path.join(dir, 'RunControls.vue'), 'utf8');
+    expect(rc).toContain('store.workerBudget > MANY_WORKERS');
+    for (const f of ['InsanePanel.vue', 'DeadlinePanel.vue']) expect(fs.readFileSync(path.join(dir, f), 'utf8')).toMatch(/<RunControls\s+long-run/);
+    expect(fs.readFileSync(path.join(dir, 'ChainSearchPanel.vue'), 'utf8')).toContain(
+      `:long-run="store.effort === 'thorough' || store.smartEstimate(store.effort).seconds > 7200"`
+    );
+  });
+});

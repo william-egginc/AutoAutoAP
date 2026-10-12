@@ -125,3 +125,12 @@ export function splitByPrefix(chains: number[][], workers: number): number[][][]
 export function targetWorkerCount(budget: number, background: number, hidden: boolean): number {
   return hidden && background > 0 ? Math.min(background, budget) : budget;
 }
+
+/**
+ * Above this many workers a long run may run out of browser memory: each tab's workers share one
+ * memory budget (about 4 GB), and every worker holds its own copy of the simulator and its memo
+ * (the user, 12 Oct 2026). A warning beside Find (RunControls.vue), never a block.
+ */
+export const MANY_WORKERS = 16;
+export const MANY_WORKERS_TEXT =
+  "More than 16 workers may run out of browser memory on long runs (each tab's workers share about 4 GB). It may work, or the tab may crash and carry on with fewer.";
