@@ -237,6 +237,73 @@
               :reach-at="dateExact.end"
               :zone="zone"
             />
+            <!-- Every number of ascensions, inside the answer's card above its buttons (the user, 12 Oct 2026). -->
+            <div v-if="dateRows.length > 1" class="overflow-x-auto rounded-lg bg-white/70 px-2 py-1">
+              <p class="text-[11px] text-slate-500">
+                Exact = the full simulator on your account; filled in automatically. Simulate this plan opens that route in
+                Your plan, simulated step by step on your save: each ascension, its dates and purchases.
+              </p>
+              <table class="w-full text-[12px]">
+                <thead>
+                  <tr class="text-left text-[9px] font-black uppercase tracking-widest text-slate-400">
+                    <th class="py-1 pr-3">Ascensions</th>
+                    <th class="py-1 pr-3">Instant answer</th>
+                    <th class="py-1 pr-3">Exact, your account</th>
+                    <th class="py-1 pr-3">Spare</th>
+                    <th class="py-1 pr-3">Route</th>
+                    <th class="py-1"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="r in dateRows"
+                    :key="r.legs.length"
+                    class="border-t border-slate-100"
+                    :class="dateExact && dateExactByK[r.legs.length]?.chain === dateExact.chain ? 'bg-emerald-50/60' : ''"
+                  >
+                    <td class="py-1.5 pr-3 font-bold text-slate-800">{{ r.legs.length }}</td>
+                    <td class="py-1.5 pr-3 text-slate-600 whitespace-nowrap">
+                      {{ r.legs[r.legs.length - 1].endTE }} TE · {{ days(deadline - r.end) }}
+                    </td>
+                    <td class="py-1.5 pr-3 whitespace-nowrap font-bold text-slate-800">
+                      <template v-if="dateExactByK[r.legs.length]">{{ dateExactByK[r.legs.length]!.endTE }} TE</template>
+                      <template v-else-if="dateExactByK[r.legs.length] === null">misses</template>
+                      <span v-else-if="exactStatus === 'running'" class="text-slate-400 font-normal">…</span>
+                    </td>
+                    <td class="py-1.5 pr-3 whitespace-nowrap">
+                      <template v-if="dateExactByK[r.legs.length]">
+                        <span
+                          :class="
+                            spareOf(dateExactByK[r.legs.length]!) < TIGHT_SECONDS
+                              ? 'text-amber-700 font-black'
+                              : 'text-emerald-800 font-bold'
+                          "
+                          >{{ days(spareOf(dateExactByK[r.legs.length]!)) }}</span
+                        >
+                        <span
+                          v-if="spareOf(dateExactByK[r.legs.length]!) < TIGHT_SECONDS"
+                          class="ml-1 px-1 py-0.5 rounded bg-amber-100 text-amber-800 text-[8px] font-black uppercase"
+                          >tight</span
+                        >
+                      </template>
+                    </td>
+                    <td class="py-1.5 pr-3 font-mono-premium text-slate-800">
+                      {{ (dateExactByK[r.legs.length] ?? tableDate(r)).chain.join(' ') }}
+                    </td>
+                    <td class="py-1.5 text-right">
+                      <button
+                        type="button"
+                        class="px-2 py-1 rounded-md border border-slate-300 text-[9px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-800"
+                        title="Opens this route in Your plan, simulated step by step on your save"
+                        @click="openPlan((dateExactByK[r.legs.length] ?? tableDate(r)).chain)"
+                      >
+                        Simulate this plan
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
             <p class="text-[11px] text-slate-600">
               Ascend at the times shown: each fresh ascension starts on the hour (inside the weekly research sale, at
               once when that ends sooner), and Check exactly prices it the same way.
@@ -323,72 +390,6 @@
             No route gets above your TE by then{{ filtering ? ' with these filters' : '' }}.
           </p>
         </div>
-        <div v-if="dateRows.length > 1" class="overflow-x-auto">
-          <p class="text-[11px] text-slate-500">
-            Exact = the full simulator on your account; filled in automatically. Simulate this plan opens that route in
-            Your plan, simulated step by step on your save: each ascension, its dates and purchases.
-          </p>
-          <table class="w-full text-[12px]">
-            <thead>
-              <tr class="text-left text-[9px] font-black uppercase tracking-widest text-slate-400">
-                <th class="py-1 pr-3">Ascensions</th>
-                <th class="py-1 pr-3">Instant answer</th>
-                <th class="py-1 pr-3">Exact, your account</th>
-                <th class="py-1 pr-3">Spare</th>
-                <th class="py-1 pr-3">Route</th>
-                <th class="py-1"></th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="r in dateRows"
-                :key="r.legs.length"
-                class="border-t border-slate-100"
-                :class="dateExact && dateExactByK[r.legs.length]?.chain === dateExact.chain ? 'bg-emerald-50/60' : ''"
-              >
-                <td class="py-1.5 pr-3 font-bold text-slate-800">{{ r.legs.length }}</td>
-                <td class="py-1.5 pr-3 text-slate-600 whitespace-nowrap">
-                  {{ r.legs[r.legs.length - 1].endTE }} TE · {{ days(deadline - r.end) }}
-                </td>
-                <td class="py-1.5 pr-3 whitespace-nowrap font-bold text-slate-800">
-                  <template v-if="dateExactByK[r.legs.length]">{{ dateExactByK[r.legs.length]!.endTE }} TE</template>
-                  <template v-else-if="dateExactByK[r.legs.length] === null">misses</template>
-                  <span v-else-if="exactStatus === 'running'" class="text-slate-400 font-normal">…</span>
-                </td>
-                <td class="py-1.5 pr-3 whitespace-nowrap">
-                  <template v-if="dateExactByK[r.legs.length]">
-                    <span
-                      :class="
-                        spareOf(dateExactByK[r.legs.length]!) < TIGHT_SECONDS
-                          ? 'text-amber-700 font-black'
-                          : 'text-emerald-800 font-bold'
-                      "
-                      >{{ days(spareOf(dateExactByK[r.legs.length]!)) }}</span
-                    >
-                    <span
-                      v-if="spareOf(dateExactByK[r.legs.length]!) < TIGHT_SECONDS"
-                      class="ml-1 px-1 py-0.5 rounded bg-amber-100 text-amber-800 text-[8px] font-black uppercase"
-                      >tight</span
-                    >
-                  </template>
-                </td>
-                <td class="py-1.5 pr-3 font-mono-premium text-slate-800">
-                  {{ (dateExactByK[r.legs.length] ?? tableDate(r)).chain.join(' ') }}
-                </td>
-                <td class="py-1.5 text-right">
-                  <button
-                    type="button"
-                    class="px-2 py-1 rounded-md border border-slate-300 text-[9px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-800"
-                    title="Opens this route in Your plan, simulated step by step on your save"
-                    @click="openPlan((dateExactByK[r.legs.length] ?? tableDate(r)).chain)"
-                  >
-                    Simulate this plan
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
       </template>
 
       <template v-if="result && !deadline">
@@ -420,6 +421,59 @@
             :reach-at="exactOf(lead)!.end"
             :zone="zone"
           />
+          <!-- Every number of ascensions, inside the answer's card above its buttons (the user, 12 Oct 2026). -->
+          <div class="overflow-x-auto rounded-lg bg-white/70 px-2 py-1">
+            <p class="text-[11px] text-slate-500">
+              Exact = the full simulator on your account; filled in automatically. Simulate this plan opens that route in
+              Your plan, simulated step by step on your save: each ascension, its dates and purchases.
+            </p>
+            <table class="w-full text-[12px]">
+              <thead>
+                <tr class="text-left text-[9px] font-black uppercase tracking-widest text-slate-400">
+                  <th class="py-1 pr-3">Ascensions</th>
+                  <th class="py-1 pr-3">Reaches {{ store.finalTE }}</th>
+                  <th class="py-1 pr-3">Behind</th>
+                  <th class="py-1 pr-3">Exact, your account</th>
+                  <th class="py-1 pr-3">Route</th>
+                  <th class="py-1"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="r in rows"
+                  :key="r.legs.length"
+                  class="border-t border-slate-100"
+                  :class="r === lead ? 'bg-emerald-50/60' : ''"
+                >
+                  <td class="py-1.5 pr-3 font-bold text-slate-800">{{ r.legs.length }}</td>
+                  <td class="py-1.5 pr-3 text-slate-700 whitespace-nowrap">{{ show(r.end) }}</td>
+                  <td class="py-1.5 pr-3 text-slate-500 whitespace-nowrap">
+                    {{ behind(r) }}
+                  </td>
+                  <td
+                    class="py-1.5 pr-3 whitespace-nowrap"
+                    :class="r === exactBest ? 'font-bold text-emerald-800' : 'text-slate-700'"
+                  >
+                    <template v-if="exactOf(r)">{{ show(exactOf(r)!.end) }} · {{ days(exactOf(r)!.seconds) }}</template>
+                    <template v-else-if="exactOf(r) === null">couldn’t price</template>
+                    <span v-else-if="exactStatus === 'running'" class="text-slate-400">…</span>
+                  </td>
+                  <td class="py-1.5 pr-3 font-mono-premium text-slate-800">{{ r.chain.join(' ') }}</td>
+                  <td class="py-1.5 text-right">
+                    <button
+                      type="button"
+                      class="px-2 py-1 rounded-md border border-slate-300 text-[9px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-800"
+                      :disabled="r.chain.length < 2"
+                      title="Opens this route in Your plan, simulated step by step on your save"
+                      @click="openPlan(r.chain)"
+                    >
+                      Simulate this plan
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
           <p class="text-[11px] text-slate-600">
             Ascend at the times shown: each fresh ascension starts on the hour (inside the weekly research sale, at once
             when that ends sooner), and Check exactly prices it the same way.
@@ -631,58 +685,6 @@
       </template>
 
       <template v-if="result && !deadline">
-        <div class="overflow-x-auto">
-          <p class="text-[11px] text-slate-500">
-            Exact = the full simulator on your account; filled in automatically. Simulate this plan opens that route in
-            Your plan, simulated step by step on your save: each ascension, its dates and purchases.
-          </p>
-          <table class="w-full text-[12px]">
-            <thead>
-              <tr class="text-left text-[9px] font-black uppercase tracking-widest text-slate-400">
-                <th class="py-1 pr-3">Ascensions</th>
-                <th class="py-1 pr-3">Reaches {{ store.finalTE }}</th>
-                <th class="py-1 pr-3">Behind</th>
-                <th class="py-1 pr-3">Exact, your account</th>
-                <th class="py-1 pr-3">Route</th>
-                <th class="py-1"></th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="r in rows"
-                :key="r.legs.length"
-                class="border-t border-slate-100"
-                :class="r === lead ? 'bg-emerald-50/60' : ''"
-              >
-                <td class="py-1.5 pr-3 font-bold text-slate-800">{{ r.legs.length }}</td>
-                <td class="py-1.5 pr-3 text-slate-700 whitespace-nowrap">{{ show(r.end) }}</td>
-                <td class="py-1.5 pr-3 text-slate-500 whitespace-nowrap">
-                  {{ behind(r) }}
-                </td>
-                <td
-                  class="py-1.5 pr-3 whitespace-nowrap"
-                  :class="r === exactBest ? 'font-bold text-emerald-800' : 'text-slate-700'"
-                >
-                  <template v-if="exactOf(r)">{{ show(exactOf(r)!.end) }} · {{ days(exactOf(r)!.seconds) }}</template>
-                  <template v-else-if="exactOf(r) === null">couldn’t price</template>
-                  <span v-else-if="exactStatus === 'running'" class="text-slate-400">…</span>
-                </td>
-                <td class="py-1.5 pr-3 font-mono-premium text-slate-800">{{ r.chain.join(' ') }}</td>
-                <td class="py-1.5 text-right">
-                  <button
-                    type="button"
-                    class="px-2 py-1 rounded-md border border-slate-300 text-[9px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-800"
-                    :disabled="r.chain.length < 2"
-                    title="Opens this route in Your plan, simulated step by step on your save"
-                    @click="openPlan(r.chain)"
-                  >
-                    Simulate this plan
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
 
         <details class="text-[11px] text-slate-500">
           <summary class="cursor-pointer font-bold text-slate-600">How this is worked out</summary>
