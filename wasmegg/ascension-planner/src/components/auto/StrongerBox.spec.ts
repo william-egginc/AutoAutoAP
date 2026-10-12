@@ -19,7 +19,9 @@ describe('StrongerBox', () => {
     // Each level in three plain lines; Light looks for no new routes.
     expect(t).toMatch(/What it does After Check exactly, prices the routes you have already found .* How long Seconds to a few minutes.* What it finds One of your own routes, if it is now faster than the instant answer\. It does not look for new routes\./);
     expect(t).toContain('What this does and does not promise');
-    expect(t).toContain('not a proven best');
+    // Light's promise: no search, and nothing about searches it doesn't run.
+    expect(t).toContain("It can't find a route nobody has tried yet.");
+    expect(t).not.toContain('proves the best only inside');
     expect(html).toContain('id="stronger-check-results"');
   });
   it('By a date: the same Light / Fast / Exact / Very high bar, with each search level\'s estimate', async () => {
@@ -114,5 +116,21 @@ describe('"What this does and does not promise" (12 Oct)', () => {
     expect(html).toMatch(/border-amber-200 bg-amber-50[^"]*"[^>]*data-testid="stronger-promise"/);
     const src = fs.readFileSync(path.join(__dirname, 'StrongerBox.vue'), 'utf8');
     expect(src).toContain('@toggle="onPromiseToggle"');
+  });
+});
+
+describe('the promise box follows the level (12 Oct)', () => {
+  it('Fastest Exact: what it finds and can miss; no Light lines', async () => {
+    useStrongerStore().level = 'normal';
+    const t = textOf(await renderHtml(StrongerBox, { goal: 'fastest' }));
+    expect(t).toContain('moves neighbouring stops in pairs and tries one ascension more or fewer');
+    expect(t).toContain('never a proven best');
+    expect(t).not.toContain('No search:');
+  });
+  it('By a date Very high: within 5 TE of the instant answer\'s route', async () => {
+    useStrongerStore().level = 'thorough';
+    const t = textOf(await renderHtml(StrongerBox, { goal: 'date' }));
+    expect(t).toContain('each early stop within 5 TE of the instant answer');
+    expect(t).not.toContain('No search:');
   });
 });

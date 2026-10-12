@@ -68,17 +68,9 @@
       <summary class="cursor-pointer font-black uppercase tracking-wide text-amber-800">
         What this does and does not promise
       </summary>
-      <ul class="mt-1 pl-4 list-disc space-y-0.5 leading-relaxed">
-        <li>
-          Every route it shows is priced with the full simulator on your save, the same as Check exactly, so its
-          times are your own.
-        </li>
-        <li>
-          It finds a strong nearby answer, not a proven best: a better route far from the instant answer's can be
-          missed. {{ NAMES.full }}, below, is proven only inside the boxes you set.
-        </li>
-        <li>Light needs Check exactly to have finished; it waits while a search is running.</li>
-        <li>A search you stop early keeps the best it found so far.</li>
+      <!-- What the level picked promises, and only that (the user, 12 Oct: no lines that don't apply). -->
+      <ul class="mt-1 pl-4 list-disc space-y-0.5 leading-relaxed" data-testid="promise-lines">
+        <li v-for="(line, k) in promises" :key="k">{{ line }}</li>
       </ul>
     </details>
     <!-- The stronger check's own results (earlier routes, one TE lower, Best now). -->
@@ -189,6 +181,41 @@ const levels = computed<LevelText[]>(() =>
       ]
 );
 const level = computed<StrongerLevel>(() => stronger.level);
+
+/** "What this does and does not promise" for the level picked, on this screen. */
+const PRICED = 'Every route it shows is priced with the full simulator on your save, the same as Check exactly, so its times are your own.';
+const STOP = 'You can stop it at any point and keep the best route it found so far.';
+const promises = computed<string[]>(() => {
+  const l = level.value;
+  if (l === 'light')
+    return [
+      props.goal === 'date'
+        ? "No search: it only prices routes you have already found (your searches here, saved answers, earlier checks, and board runs sent from this browser) on your save as it is now, and when the instant answer's top route misses the date on your account, that route one TE lower (two if needed)."
+        : 'No search: it only prices routes you have already found (your searches here, saved runs, earlier checks, and board runs sent from this browser) on your save as it is now.',
+      "It can't find a route nobody has tried yet. Fast, Exact and Very high search for those.",
+      'It runs by itself once Check exactly has finished, and waits while a search is running.',
+    ];
+  if (props.goal === 'date') {
+    const w = { quick: 3, normal: 4, thorough: 5 }[l];
+    return [
+      PRICED,
+      `For each number of ascensions the instant answer has, it tries every route with each early stop within ${w} TE of the instant answer's route (fewer on long routes, and narrower if that would take too long), and finds each last stop to the exact TE.`,
+      `It can miss a route whose early stops are further away. ${NAMES.full}, below, proves the best only inside the boxes you set.`,
+      STOP,
+    ];
+  }
+  const miss = {
+    quick: "It moves one stop at a time from the instant answer's route, then gives the other numbers of ascensions in your limits one quick try. It can miss a better route where several stops have to move together, or one far from the instant answer's.",
+    normal: "It also moves neighbouring stops in pairs and tries one ascension more or fewer. It can still miss a route where three or more stops have to move together, or one far from the instant answer's.",
+    thorough: 'It also moves groups of three stops together. It is still a search near the instant answer, not of every route.',
+  }[l];
+  return [
+    PRICED,
+    miss,
+    `It is a strong nearby answer, never a proven best: ${NAMES.full}, below, proves the best only inside the boxes you set.`,
+    STOP,
+  ];
+});
 const current = computed(() => levels.value.find(l => l.id === level.value) ?? levels.value[0]);
 
 /** "What this does and does not promise": open unless the player closed it (this browser). */
