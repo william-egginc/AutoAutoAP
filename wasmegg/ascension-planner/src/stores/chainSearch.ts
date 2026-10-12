@@ -69,6 +69,7 @@ import {
   buildDeadlineCsv,
   chainsCsvChunks,
   deadlineCsvChunks,
+  pricedDeltaChunks,
   DEADLINE_LEG_ROUTES,
   type CsvMeta,
   describeLoadoutSlots,
@@ -139,6 +140,16 @@ import {
   type ProgressCsv,
 } from '@/search/progressSend';
 import { csvSoFarRoom } from '@/search/cageGuard';
+import {
+  checkDeltaState,
+  deflateSegment,
+  DELTA_HEAD_LEG_ROUTES,
+  freshDeltaState,
+  readDeltaState,
+  uploadDelta,
+  uploadDeltaHead,
+  type DeltaState,
+} from '@/search/csvDelta';
 import { useShareExtras } from '@/composables/useShareExtras';
 import {
   dropPendingSend,
@@ -3761,6 +3772,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   interface SubmitReply {
     id?: string;
     uploadToken?: string;
+    /** With a progress send's `csvRun`: the token for its deltas (search/csvDelta.ts). */
+    deltaToken?: string;
     flagged?: string[];
     duplicate?: 'exact' | 'result';
     firstAt?: string;
@@ -3817,6 +3830,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     dailyCap?: boolean;
     /** A provisional row's token for its CSV so far (`sendBestSoFar` posts it itself). */
     uploadToken?: string;
+    /** And for its deltas, when the collector takes them (search/csvDelta.ts). */
+    deltaToken?: string;
     /** Refused for the leaderboard but stored (collector "quarantine"): `ok` (nothing to retry, nothing
      *  left unsent), `message` says so with the code to quote, and `id` is that code. */
     quarantined?: boolean;
@@ -3891,7 +3906,13 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         setProvisional(kind, null);
       let message = quarantineMessage(code, Array.isArray(r.reasons) ? r.reasons : [], r.reasonText ?? '');
       const base = { ok: true, quarantined: true, ...(code ? { id: code } : {}) };
-      if (provisional) return { ...base, message, ...(r.uploadToken ? { uploadToken: r.uploadToken } : {}) };
+      if (provisional)
+        return {
+          ...base,
+          message,
+          ...(r.uploadToken ? { uploadToken: r.uploadToken } : {}),
+          ...(typeof r.deltaToken === 'string' ? { deltaToken: r.deltaToken } : {}),
+        };
       if (csv && code && r.uploadToken) {
         try {
           let body: ArrayBuffer | null;
@@ -4048,6 +4069,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       ...(id ? { id } : {}),
       // A provisional row's CSV so far follows from `sendBestSoFar`, never through `pendingTable`.
       ...(provisional && uploadToken ? { uploadToken } : {}),
+      ...(provisional && typeof reply.deltaToken === 'string' ? { deltaToken: reply.deltaToken } : {}),
     });
     if (!csv) return done(lead + note);
     // An exact copy stores nothing; the collector hands back a CSV token only when the stored row is
@@ -4120,6 +4142,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     /** The run ended: its final send takes over. */
     superseded: boolean;
   }
+  /** The running By a date run's CSV so far in deltas (search/csvDelta.ts); null when none runs. */
+  let deadlineDelta: DeltaState | null = null;
   /** The progress send in flight's stop, so the run's end can supersede it (`supersedeProgressSend`). */
   let progressStop: ProgressStop | null = null;
   /** The run ended: a CSV so far still being built is dropped (the final send carries the whole CSV),
@@ -4137,13 +4161,17 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     id: string | undefined,
     token: string | undefined,
     /** Set to give up part-way: a timeout (`why` says so), or the run's end (`superseded`). */
-    stop: ProgressStop = { stopped: false, why: '', superseded: false }
+    stop: ProgressStop = { stopped: false, why: '', superseded: false },
+    /** The collector takes this run's CSV so far in deltas (search/csvDelta.ts). */
+    deltaToken?: string
   ): Promise<ProgressCsv> {
     if (!useShareExtras().sendCsv.value) return { kind: 'off' };
     const chunks = progressCsvChunks(kind, p);
     if (!chunks) return { kind: 'none' };
     // A collector from before progress sends hands a provisional row no token.
     if (!id || !token || !submitUrl) return { kind: 'not-taken' };
+    if (kind === 'deadline' && deltaToken && deadlineDelta && deadlineRunCsv?.all && deadlineRun)
+      return sendCsvDeltas(p, id, token, deltaToken, stop);
     // Near the 4 GB the page and its workers share (search/cageGuard.ts): not now. The row and the
     // diagnostics went; the next send tries the CSV again, by when the guard has made room.
     const pageMB = blackBox.lastPageMemoryMB();
@@ -4199,6 +4227,88 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   }
 
   /**
+   * The CSV so far in deltas (search/csvDelta.ts): the summary lines of the routes priced since the
+   * last delta that landed, then a small head for this row (header, top routes' legs, the summary
+   * section's header) that seals the row's file at that many deltas. Never throws.
+   */
+  async function sendCsvDeltas(p: RunProgress, id: string, token: string, deltaToken: string, stop: ProgressStop): Promise<ProgressCsv> {
+    const all = deadlineRunCsv!.all!;
+    const run = deadlineRun!;
+    const base = submitUrl!.replace(/\/submit\/?$/, '');
+    const st = deadlineDelta!;
+    const meta = deadlineCsvMeta(run, deadlineRunCsv!.ceiling, { done: p.done, total: p.total, unit: p.unit });
+    blackBox.note(`progress send: CSV so far in deltas (${all.size - st.sent} new routes)`);
+    let deltaBytes = 0;
+    let deltaFailed = '';
+    const stoppedOut = (): ProgressCsv => (stop.superseded ? { kind: 'superseded' } : { kind: 'failed', why: stop.why });
+    try {
+      // A carry-on still replaying below what was sent has nothing new: the head alone goes.
+      const to = all.size;
+      if (to > st.sent && (st.sent === 0 || all.hashAt(st.sent - 1) === st.hash)) {
+        const seg = await deflateSegment(
+          pricedDeltaChunks(all, st.sent, to, meta, run.deadline),
+          CSV_PART_BYTES,
+          scrubIdentifiers,
+          () => stop.stopped
+        );
+        if (!seg.ok) deltaFailed = `the new part was over ${sizeLabel(CSV_PART_BYTES)}`;
+        else {
+          let tries = 0;
+          const up = await uploadDelta(base, { run: st.run, seq: st.seq, token: deltaToken, seg, count: to - st.sent }, (...a) => {
+            tries++;
+            return fetch(...a);
+          });
+          noteTimelineSend({
+            what: 'csv-so-far',
+            ok: up.kind === 'stored',
+            status: up.kind === 'failed' ? (up.status ?? null) : null,
+            bytes: seg.body.byteLength,
+            parts: 1,
+            tries,
+          });
+          if (up.kind === 'stored' && deadlineDelta === st) {
+            const sent = st.sent + up.count;
+            deadlineDelta = { run: st.run, seq: st.seq + 1, sent, hash: sent ? all.hashAt(sent - 1) : 0 };
+            deltaBytes = seg.body.byteLength;
+            // Into the checkpoint at its next write, now rather than in up to 30 s.
+            deadlineSavedAt = 0;
+          } else if (up.kind === 'failed') deltaFailed = up.why;
+        }
+      }
+      const now = deadlineDelta ?? st;
+      const head = await deflateSegment(
+        deadlineCsvChunks(
+          deadlineRunCsv?.routes() ?? [],
+          meta,
+          {
+            deadline: run.deadline,
+            priced: deadlineProgress.value?.priced ?? 0,
+            ascendNeeded: deadlineRunCsv?.ascendNeeded,
+            all,
+            pricedInDeltas: true,
+          },
+          DELTA_HEAD_LEG_ROUTES
+        ),
+        CSV_PART_BYTES,
+        scrubIdentifiers,
+        () => stop.stopped
+      );
+      if (!head.ok) return { kind: 'too-big', bytes: CSV_PART_BYTES };
+      const sealed = await uploadDeltaHead(base, { id, run: now.run, deltas: now.seq, token, deltaToken, seg: head });
+      if (sealed.kind === 'failed') {
+        // A piece the board lost: the next send starts the run's deltas again from route 0.
+        if (sealed.status === 422) deadlineDelta = freshDeltaState();
+        return { kind: 'failed', why: sealed.why };
+      }
+      if (deltaFailed) return { kind: 'failed', why: `its newest part didn't (${deltaFailed})` };
+      return { kind: 'sent', bytes: head.body.byteLength + deltaBytes };
+    } catch (e) {
+      if (stop.stopped) return stoppedOut();
+      return { kind: 'failed', why: e instanceof Error ? e.message : String(e) };
+    }
+  }
+
+  /**
    * Send best so far, which is now a PROGRESS SEND (10 Oct): the running search's best as a provisional
    * row its final send will replace, plus the run's data -- the CSV so far when "Send my CSV too" is
    * ticked, and the private diagnostics when "Also send diagnostics" is. The button and the automatic
@@ -4248,6 +4358,12 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           : buildRunSubmission(run.consent!.nickname);
       if (!base) return say(false, 'Nothing found yet to send.');
       let payload = asProvisional(base, provisionalProgress(p.done, p.total), provisionalRows.value[kind]?.id);
+      // The CSV so far in deltas (search/csvDelta.ts): checked against the routes priced so far first
+      // (a carry-on that priced in another order, or the board's cap, starts a fresh run key).
+      if (kind === 'deadline' && deadlineDelta && deadlineRunCsv?.all && useShareExtras().sendCsv.value) {
+        deadlineDelta = checkDeltaState(deadlineDelta, deadlineRunCsv.all).state;
+        payload = { ...payload, csvRun: deadlineDelta.run };
+      }
       // "Also send diagnostics": a private field of the body, kept by the collector as `extra:<id>`.
       if (useShareExtras().sendDiagnostics.value) {
         try {
@@ -4286,7 +4402,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       }, PROGRESS_CSV_TIMEOUT_MS);
       let csv: ProgressCsv;
       try {
-        csv = await sendCsvSoFar(kind, p, res.id, res.uploadToken, stop);
+        csv = await sendCsvSoFar(kind, p, res.id, res.uploadToken, stop, res.deltaToken);
       } finally {
         clearTimeout(timer);
         if (progressStop === stop) progressStop = null;
@@ -6108,7 +6224,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     /** A carry-on's checkpoint: its routes are replayed, and its parts appended to. Null: a fresh run. */
     seed: Pick<
       DeadlineCheckpoint,
-      'entries' | 'parts' | 'version' | 'runId' | 'partsWritten' | 'carryOns' | 'bytes' | 'count'
+      'entries' | 'parts' | 'version' | 'runId' | 'partsWritten' | 'carryOns' | 'bytes' | 'count' | 'csvDelta'
     > | null,
     /** The account the run is priced on (see `prepareDeadline`, `resumeDeadline`). */
     accountIn?: AccountSnapshot,
@@ -6195,6 +6311,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     deadlineAll = [];
     deadlineAllPriced = null;
     deadlineKept = 0;
+    // The CSV so far in deltas (search/csvDelta.ts): a carry-on goes on from where its sends got to.
+    deadlineDelta = readDeltaState(seed?.csvDelta) ?? freshDeltaState();
     holdRunLock();
     void holdScreenLock();
     // The same hidden-tab tracking the other runs have: without it "When this tab is in the
@@ -6235,6 +6353,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         ...(provisionalRows.value.deadline ? { provisional: { ...provisionalRows.value.deadline } } : {}),
         ...(currentWatchLink() ? { watch: currentWatchLink()! } : {}),
         ...(deadlineSubmitIntent() ? { submit: deadlineSubmitIntent()! } : {}),
+        ...(deadlineDelta ? { csvDelta: { ...deadlineDelta } } : {}),
       };
       written = written.then(async () => {
         if (closed) return;
@@ -6505,6 +6624,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       dropRunLock();
       dropScreenLock();
       deadlineRunCsv = null;
+      deadlineDelta = null;
       // A run that sends its result when it ends: hold the instant answer's workers off (and keep
       // them asleep) until that send is done, rather than let them wake for the moment between.
       if (

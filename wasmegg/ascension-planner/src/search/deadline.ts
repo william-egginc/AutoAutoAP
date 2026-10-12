@@ -30,6 +30,7 @@
  *
  * Pure: the caller supplies `evaluate` (the worker pool, or a stand-in in tests).
  */
+import { hashKey } from './routeHash';
 import type { ChainResult, LegSummary } from './types';
 import type { SetsLearned } from './deadlineEstimate';
 
@@ -175,6 +176,9 @@ export class PricedRoutes {
   readonly keys: string[] = [];
   private reach = new Float64Array(1024);
   private ascend = new Float64Array(1024);
+  /** The running hash of the keys up to each index (search/csvDelta.ts `hashKey`): how a progress
+   *  send's deltas check that a carry-on priced the same routes in the same order. */
+  private hashes = new Uint32Array(1024);
 
   get size(): number {
     return this.keys.length;
@@ -191,11 +195,20 @@ export class PricedRoutes {
       };
       this.reach = grow(this.reach);
       this.ascend = grow(this.ascend);
+      const h = new Uint32Array(this.hashes.length * 2);
+      h.set(this.hashes);
+      this.hashes = h;
     }
     this.keys.push(key);
     this.reach[i] = reachAt;
     this.ascend[i] = ascendAt;
+    this.hashes[i] = hashKey(i ? this.hashes[i - 1] : 0, key);
     return i;
+  }
+
+  /** The running hash of keys 0..i (search/csvDelta.ts). */
+  hashAt(i: number): number {
+    return this.hashes[i];
   }
 
   /** Unix seconds the last stop is reached; NaN when the route could not be priced. */

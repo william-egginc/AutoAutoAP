@@ -422,6 +422,54 @@ replace) and deletes `m` keys instead of 1. On the free plan (1,000 writes and 1
 3-part CSV so far sent every hour of a day-long run adds about 48 writes and 48 deletes a day over a
 single-file one; a final with an 8-part CSV adds 7 writes once.
 
+### CSV so far in deltas
+
+A long run's progress send used to upload the WHOLE CSV so far, and the next send replaced it. Now it
+uploads only what was priced since the last send (the `priced,...` summary lines), a **delta**, under
+the run's key, plus a small **head** for the row. `GET /csv` stitches head and deltas into one gzip
+member, with no recompression in the Worker (Chrome's `DecompressionStream` rejects multi-member gzip,
+so joining gzip files is not an option).
+
+- **Segments.** The head and each delta are raw deflate compressed independently with a sync flush and
+  no final block (they end `00 00 ff ff`, BFINAL=0 everywhere), as pigz does, so no back-reference
+  crosses a segment. The served file is the gzip header `1f 8b 08 00 00 00 00 00 00 ff`, the head, the
+  deltas in order, `03 00` (an empty final fixed-Huffman block), the CRC-32 of the whole text and its
+  length mod 2^32, both 4 bytes little-endian. The whole's CRC is computed without the data by
+  `crc32Combine` (zlib's GF(2) algorithm) from each piece's CRC and length.
+- **`POST /submit`** (provisional rows only) may carry `csvRun`, a string matching
+  `/^[a-f0-9]{16,32}$/`, with `CSV_UPLOAD_KEY` set. The reply then has `deltaToken`, an HMAC of
+  `csvd:<run>`. `csvRun` is private: kept on the stored record and as the 4th field of the snapshot's
+  private `prov` entry (never in row text, `/all`, `/mine`, the extras). Invalid, or on a final row:
+  ignored silently, no `deltaToken`.
+- **`POST /csvd?run&seq&len&crc&count`**, header `x-upload-token: <deltaToken>`. `seq` 0..255
+  (`MAX.CSV_DELTAS`), `len` the uncompressed bytes (1..2^31), `crc` its CRC-32 (decimal), `count` the
+  routes in it. Token checked before the body is read (`403`, `503` without the key). Body non-empty,
+  at most 8 MB (`413`), ending `00 00 ff ff` (else `400`). Write-once at `csvd:<run>:<seq>` with
+  metadata `{len, crc, count, at}`: a resend gets `409` and the stored `count`, which the client
+  advances by. Reply `{ok, seq, bytes}`. One write, no snapshot patch.
+- **`POST /csv?id&run&deltas=k&len&crc`**, headers `x-upload-token` (the row's `csvp:` token only; a
+  final or quarantine token with `run` is `400`) and `x-delta-token` (`403` if wrong). `len` and `crc`
+  describe the head's text. Body: the head segment. Write-once (`409`). It reads the metadata of
+  `csvd:<run>:0..k-1`; any missing gives `422` and `missing: [n...]`. Stored at `csv:<id>` with
+  metadata `{run, deltas, crc, len}` where `crc` and `len` are those of the WHOLE text. Then the usual
+  hasCsv flip. Reply `{ok, bytes, deltas, partial: true}`.
+- **`GET /csv?id=`**: `csv:<id>` metadata with `run` streams the stitched file (the same headers as any
+  CSV), delta after delta, never all in memory. A missing delta answers `500` naming it.
+- **Replacement.** The deltas belong to the run, not the row. When a send replaces a row whose CSV has
+  a `run`, `deleteRow` deletes `csvd:<run>:0..k-1` unless the new row carries the same `csvRun` (its new
+  head references them). A final therefore deletes them.
+- **Sweep.** At UTC hours 11 and 23 the cron sweeps `csvd:` (those hours used to sweep `instn:`, the
+  idlest prefix; the others keep their rotation): a delta whose run no row on either board names, and
+  whose own `metadata.at` is a day old, is deleted (at most 10 a run, 2 snapshot reads, 1 list).
+  Abandoned runs larger than that drain over several days.
+
+**What it costs per send.** A delta: 1 write. A head: 1 write plus `k` reads (the delta metadata) plus
+the usual snapshot patch. A `GET`: `k + 1` reads. A replace that drops the deltas: `k` extra deletes.
+
+**Compatibility.** An old client never sends `csvRun`, so nothing changes for it. A client must only use
+deltas when `/submit` returned `deltaToken`: an old collector returns none, and the client falls back to
+today's whole CSV.
+
 ### What is stored, and what is not
 
 A submission is built in the app by **whitelist** (`src/search/submission.ts`) — a fresh
@@ -681,6 +729,8 @@ prefix, in turn by UTC hour (`hour % 3`):
   two sweeps at least 24 h apart (first-seen times live in `gc:state`), so a CSV that beats its row's
   snapshot patch is never touched. A sealed orphan's parts go with it. Skipped for whole CSVs while
   either snapshot is missing.
+- **`csvd:`** (UTC hours 11 and 23, in place of `instn:`): a delta whose run no row names, a day old
+  (see *CSV so far in deltas*).
 - `1` **`gate:`**, `2` **`instn:`**: rate-limit and daily counters with no TTL (every current write
   has one, so these can only be an older Worker's and would never expire). Upload and owner tokens
   are never stored (HMACs and hashes), so there are no other tokens to sweep.

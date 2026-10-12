@@ -151,6 +151,9 @@ const MAX = {
   /** Parts one CSV may be split into when its gzip is over CSV_BYTES (see "the CSV in parts"): 64 MB
    *  compressed in all, about 1.5 GB of raw CSV. Each part is one KV write. */
   CSV_PARTS: 8,
+  /** Deltas one run's CSV so far may be made of (see "the CSV so far in deltas"): one per progress
+   *  send, and a run sends at most PROVISIONAL_PER_DAY a day, so this is about five days of sends. */
+  CSV_DELTAS: 256,
   /** A virtue loadout is four artifacts with at most three stones each; the caps are generous
    *  rather than exact so a future game change does not silently truncate a real set. */
   LOADOUT_SLOTS: 8,
@@ -307,7 +310,7 @@ function cleanExtra(v, depth = 0) {
 function pickExtras(body, record) {
   const out = {};
   for (const [k, v] of Object.entries(body)) {
-    if (k in record || idLikeKey(k) || k === 'replaces') continue;
+    if (k in record || idLikeKey(k) || k === 'replaces' || k === 'csvRun') continue;
     const c = cleanExtra(v);
     if (c === undefined) continue;
     if (k === 'diagnostics' && JSON.stringify(c).length > DIAGNOSTICS_MAX_BYTES) continue;
@@ -784,6 +787,16 @@ const CORS = {
  * than silently falling back to the old open door.
  */
 async function uploadToken(env, id, provisional = false) {
+  // A provisional row's token signs another string, so /csv can tell the CSV so far from a final
+  // table without reading anything (see "provisional rows"). A quarantined row's (`'quar'`) signs a
+  // third, so its CSV goes to the private `quarcsv:` prefix (see "quarantine").
+  return hmacHex(env, (provisional === 'quar' ? 'csvq:' : provisional ? 'csvp:' : 'csv:') + id);
+}
+
+/** The token for a run's deltas (see "the CSV so far in deltas"): signs `csvd:<run>`, a fifth kind. */
+const deltaToken = (env, run) => hmacHex(env, 'csvd:' + run);
+
+async function hmacHex(env, what) {
   const key = await crypto.subtle.importKey(
     'raw',
     new TextEncoder().encode(env.CSV_UPLOAD_KEY),
@@ -791,12 +804,48 @@ async function uploadToken(env, id, provisional = false) {
     false,
     ['sign']
   );
-  // A provisional row's token signs another string, so /csv can tell the CSV so far from a final
-  // table without reading anything (see "provisional rows"). A quarantined row's (`'quar'`) signs a
-  // third, so its CSV goes to the private `quarcsv:` prefix (see "quarantine").
-  const what = (provisional === 'quar' ? 'csvq:' : provisional ? 'csvp:' : 'csv:') + id;
   const sig = new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(what)));
   return [...sig].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// ------------------------------------------------------------- CRC-32 of joined pieces
+//
+// zlib's crc32_combine: the CRC-32 of A+B from crc(A), crc(B) and len(B), with no data. Lets the CSV
+// so far be served as ONE gzip member made of independently compressed pieces without ever reading or
+// compressing them here (see "the CSV so far in deltas"). GF(2) matrix squaring, as in zlib.
+function gf2Times(mat, vec) {
+  let sum = 0;
+  for (let i = 0; vec; vec >>>= 1, i++) if (vec & 1) sum ^= mat[i];
+  return sum >>> 0;
+}
+function gf2Square(sq, mat) {
+  for (let n = 0; n < 32; n++) sq[n] = gf2Times(mat, mat[n]);
+}
+/** crc32(A + B) from crc32(A), crc32(B) and B's length in bytes. All unsigned 32-bit numbers. */
+export function crc32Combine(crc1, crc2, len2) {
+  crc1 >>>= 0;
+  crc2 >>>= 0;
+  if (!(len2 > 0)) return crc1;
+  const even = new Array(32);
+  const odd = new Array(32);
+  odd[0] = 0xedb88320;
+  let row = 1;
+  for (let n = 1; n < 32; n++) {
+    odd[n] = row;
+    row <<= 1;
+  }
+  gf2Square(even, odd);
+  gf2Square(odd, even);
+  do {
+    gf2Square(even, odd);
+    if (len2 % 2) crc1 = gf2Times(even, crc1);
+    len2 = Math.floor(len2 / 2);
+    if (!len2) break;
+    gf2Square(odd, even);
+    if (len2 % 2) crc1 = gf2Times(odd, crc1);
+    len2 = Math.floor(len2 / 2);
+  } while (len2);
+  return (crc1 ^ crc2) >>> 0;
 }
 
 /** Compare without an early exit, so the response time does not leak how much of a guess matched. */
@@ -1230,7 +1279,7 @@ const spanFinal = span => {
 };
 
 /** Fields a stored record never passes into the snapshot as they are: derived here, or private. */
-const NOT_FROM_RECORD = new Set(['id', 'hasCsv', 'acct', 'owner', 'yours', 'provSeq']);
+const NOT_FROM_RECORD = new Set(['id', 'hasCsv', 'acct', 'owner', 'yours', 'provSeq', 'csvRun']);
 /** A row as the snapshot writes it: `id` then `hasCsv` first (see "the text"), never the owner. */
 function rowText(record, id, hasCsv, acct) {
   const row = { id, hasCsv: !!hasCsv };
@@ -1912,10 +1961,17 @@ async function replaceTarget(env, ctx, id, owner, boards) {
  *  nothing costs one operation where finding out would cost a read. A CSV in parts (see "the CSV in
  *  parts") says how many in its `csv:<id>` metadata, so that key is read first (one read) and its
  *  other parts go too. */
-async function deleteRow(env, target) {
+async function deleteRow(env, target, keepRun) {
   await env.SUBMISSIONS.delete(target.key);
-  const parts = await csvParts(env, target.id);
+  const meta = await csvMeta(env, target.id);
+  const parts = partsOf(meta);
   for (let n = 1; n < parts; n++) await env.SUBMISSIONS.delete(csvPartKey(target.id, n));
+  // A CSV so far in deltas (see "the CSV so far in deltas"): its deltas belong to its RUN, so they go
+  // unless the row replacing this one carries the same run (its new head will reference them).
+  if (typeof meta?.run === 'string' && meta.run !== keepRun) {
+    const k = deltaCount(meta);
+    for (let n = 0; n < k; n++) await env.SUBMISSIONS.delete(csvdKey(meta.run, n));
+  }
   await env.SUBMISSIONS.delete(`csv:${target.id}`);
   await env.SUBMISSIONS.delete(`extra:${target.id}`);
 }
@@ -1947,12 +2003,22 @@ const csvPartKey = (id, n, base = 'csv:') => `${base}${id}:p${n}`;
 
 /** How many parts the stored CSV of `id` has: 1 for a single file (or none), from `csv:<id>`'s metadata. */
 async function csvParts(env, id) {
-  if (typeof env.SUBMISSIONS.getWithMetadata !== 'function') return 1;
-  const got = await env.SUBMISSIONS.getWithMetadata(`csv:${id}`, 'stream');
-  if (got?.value && typeof got.value.cancel === 'function') await got.value.cancel().catch(() => {});
-  const m = got?.metadata?.parts;
-  return Number.isInteger(m) && m > 1 && m <= MAX.CSV_PARTS ? m : 1;
+  return partsOf(await csvMeta(env, id));
 }
+
+/** Whether `key` exists and its KV metadata (null for none), read without pulling the bytes across. */
+async function kvHead(env, key) {
+  if (typeof env.SUBMISSIONS.getWithMetadata !== 'function') return { exists: await hasCsv(env, key, ''), metadata: null };
+  const got = await env.SUBMISSIONS.getWithMetadata(key, 'stream');
+  if (got?.value && typeof got.value.cancel === 'function') await got.value.cancel().catch(() => {});
+  return { exists: got?.value !== null && got?.value !== undefined, metadata: got?.metadata ?? null };
+}
+/** `csv:<id>`'s KV metadata (null for none). */
+const csvMeta = async (env, id) => (await kvHead(env, `csv:${id}`)).metadata;
+const partsOf = meta => {
+  const m = meta?.parts;
+  return Number.isInteger(m) && m > 1 && m <= MAX.CSV_PARTS ? m : 1;
+};
 
 /** `part` and `parts` from a /csv URL: null for a single upload, 'bad' for nonsense. */
 function partOf(url) {
@@ -1965,6 +2031,47 @@ function partOf(url) {
   if (parts < 2 || parts > MAX.CSV_PARTS || part >= parts) return 'bad';
   return { part, parts };
 }
+
+// ------------------------------------------------------ the CSV so far in deltas
+//
+// A long run's progress send used to upload the WHOLE CSV so far each time (and the next send
+// replaced it). Now it uploads only what was priced since the last send, a DELTA, under the RUN's key,
+// plus a small HEAD for the row; GET /csv stitches them into one gzip member with no recompression.
+//
+//   POST /submit (provisional)   body.csvRun /^[a-f0-9]{16,32}$/ -> reply.deltaToken (HMAC of `csvd:<run>`)
+//   POST /csvd?run&seq&len&crc&count   x-upload-token: deltaToken. Body: raw deflate, sync-flushed
+//                                (ends 00 00 ff ff, BFINAL=0), compressed independently. Stored at
+//                                `csvd:<run>:<seq>`, write-once (409 carries the stored `count`).
+//   POST /csv?id&run&deltas=k&len&crc   x-upload-token: the row's `csvp:` token, x-delta-token: deltaToken.
+//                                Body: the head, same kind of segment. Needs csvd:<run>:0..k-1 (else 422
+//                                `missing`). Stored at `csv:<id>`, metadata `{run, deltas, crc, len}`
+//                                where crc and len are those of the WHOLE text (crc32Combine).
+//   GET /csv?id=                 `1f 8b 08 00 00 00 00 00 00 ff`, head, deltas..., `03 00`, crc32 LE, len LE.
+//
+// `03 00` is an empty final fixed-Huffman block: the segments end byte-aligned (sync flush) and none
+// is final, so the stream is one valid deflate stream, which the browser's DecompressionStream needs
+// (it rejects multi-member gzip). The run's deltas outlive each progress row: a replacing provisional
+// row with the same csvRun keeps them, a final deletes them (deleteRow), and the sweep takes the rest.
+// `csvRun` is private: kept on the stored record and as the 4th field of the snapshot's `prov` entry.
+
+const CSV_RUN = /^[a-f0-9]{16,32}$/;
+const csvdKey = (run, seq) => `csvd:${run}:${seq}`;
+const deltaCount = meta => (Number.isInteger(meta?.deltas) && meta.deltas >= 0 && meta.deltas <= MAX.CSV_DELTAS ? meta.deltas : 0);
+const SYNC_TAIL = [0x00, 0x00, 0xff, 0xff];
+/** Does `buf` (an ArrayBuffer) end with a sync flush marker? */
+function endsSynced(buf) {
+  const u = new Uint8Array(buf);
+  return u.length >= 4 && SYNC_TAIL.every((b, i) => u[u.length - 4 + i] === b);
+}
+/** A whole number in [lo, hi] from a query string, or null. */
+function wholeParam(url, name, lo, hi) {
+  const t = url.searchParams.get(name);
+  if (t === null || !/^\d{1,12}$/.test(t)) return null;
+  const n = Number(t);
+  return n >= lo && n <= hi ? n : null;
+}
+/** The run `prov` entry's 4th field (see provSeq) from a snapshot's private line. */
+const runOfProv = v => (typeof v === 'string' && CSV_RUN.test(v.split('|')[3] ?? '') ? v.split('|')[3] : null);
 
 // ------------------------------------------------------------- instant answer records
 //
@@ -2503,7 +2610,7 @@ async function quarantine(env, body, record, reasons, gate, knowsQuarantine) {
 // ---------------------------------------------------------------------- the sweep (cron)
 //
 // The other half of the garbage collector: keys nothing will ever read again, deleted by the cron
-// (scheduled(), once an hour at :30) a few at a time. Three kinds, one per hour in turn, so each run
+// (scheduled(), once an hour at :30) a few at a time. Three kinds, one per hour in turn (plus `csvd:` in place of two of `instn:`'s hours), so each run
 // costs ONE list (KV's free plan allows 1,000 lists a day; this is 24):
 //   hour % 3 == 0  `csv:`   - a CSV whose row is on neither board (a row deleted by hand, a replaced
 //                             progress row whose deletes failed), and a part `csv:<id>:p<n>` whose
@@ -2517,6 +2624,8 @@ async function quarantine(env, body, record, reasons, gate, knowsQuarantine) {
 // past one page is walked an hour at a time. Whole-CSV orphans need both board snapshots: when either
 // is missing or unreadable that part of the run is skipped, never guessed.
 //
+//   hours 11, 23   `csvd:`  - a delta (see "the CSV so far in deltas") of a run no row on either board
+//                             names, once its own `metadata.at` is GC_GRACE_MS old. Costs the 2 snapshot reads.
 // COST PER RUN: 1 list; 1 read (`gc:state`); for `csv:` 2 more reads (the snapshots) plus at most
 // GC_MAX_READS reads to check a part's `csv:<id>` off the page; at most GC_MAX_DELETES deletes; 1
 // write only when the state changed. So at most 24 lists, 24 writes and 240 deletes a day, and on a
@@ -2528,9 +2637,13 @@ const GC_MAX_READS = 20;
 const GC_FORGET_MS = 7 * 24 * 60 * 60 * 1000;
 const GC_MAX_SEEN = 2000;
 const GC_PREFIXES = ['csv:', 'gate:', 'instn:'];
+/** The two UTC hours a day that sweep `csvd:` instead of their usual prefix (both would have swept
+ *  `instn:`, the idlest one), so the other prefixes keep their rotation. */
+const CSVD_HOURS = [11, 23];
+const sweepPrefixOf = now => (CSVD_HOURS.includes(new Date(now).getUTCHours()) ? 'csvd:' : GC_PREFIXES[new Date(now).getUTCHours() % GC_PREFIXES.length]);
 
 /** One sweep. `prefix` defaults to the hour's (see above). Resolves to what it did, for tests and logs. */
-async function sweepGarbage(env, now, prefix = GC_PREFIXES[new Date(now).getUTCHours() % GC_PREFIXES.length]) {
+async function sweepGarbage(env, now, prefix = sweepPrefixOf(now)) {
   const kv = env.SUBMISSIONS;
   const stats = { prefix, listed: 0, deleted: [], seen: 0, skipped: null };
   let state;
@@ -2602,6 +2715,21 @@ async function sweepGarbage(env, now, prefix = GC_PREFIXES[new Date(now).getUTCH
       } else if (typeof first !== 'number') {
         state.seen[k.name] = now;
         stats.seen++;
+      }
+    }
+  } else if (prefix === 'csvd:') {
+    // A delta of a run no row on either board names (see "the CSV so far in deltas"), a day after it
+    // was written (its own `metadata.at`: no "seen" state needed). Both snapshots are read; when either
+    // is missing nothing is judged.
+    const [sub, flag] = await Promise.all([kv.get('snap:sub'), kv.get('snap:flag')]);
+    const snaps = [viewSnapshot(sub), viewSnapshot(flag)];
+    if (!snaps[0] || !snaps[1]) stats.skipped = 'a board snapshot is missing, so no delta is judged an orphan of its run this run';
+    else {
+      const live = new Set(snaps.flatMap(sn => Object.values(sn.prov).map(runOfProv)).filter(Boolean));
+      for (const k of keys) {
+        const run = /^csvd:([^:]+):\d+$/.exec(k.name)?.[1];
+        const at = k.metadata?.at;
+        if (run && !live.has(run) && typeof at === 'number' && now - at >= GC_GRACE_MS) await del(k.name);
       }
     }
   } else {
@@ -2729,6 +2857,11 @@ export default {
         // The rows this one takes over, newest first: the one it replaced and that one's own list.
         const back = replaced ? [replaced.id, ...(provSeqAcross(boards, replaced.id)?.back ?? [])] : [];
         record.provSeq = `${day}|${before + 1}|${back.slice(0, PROVISIONAL_HOPS).join(',')}`;
+        // The run its CSV so far is made of (see "the CSV so far in deltas"): private, never on the row.
+        if (env.CSV_UPLOAD_KEY && typeof body.csvRun === 'string' && CSV_RUN.test(body.csvRun)) {
+          record.csvRun = body.csvRun;
+          record.provSeq += `|${body.csvRun}`;
+        }
       }
       const replaceReply = replace
         ? replace.ok
@@ -2740,7 +2873,7 @@ export default {
       /** Delete the old row, and take it off its board when no patch of `patched` already did. */
       const retire = async patched => {
         if (!replaced) return;
-        await deleteRow(env, replaced);
+        await deleteRow(env, replaced, record.csvRun);
         if (replaced.board !== patched)
           await commitSnapshot(env, ctx, replaced.board, { remove: replaced.id }, url.origin);
       };
@@ -2848,6 +2981,7 @@ export default {
         ok: true,
         id,
         ...(env.CSV_UPLOAD_KEY ? { uploadToken: await uploadToken(env, id, !!record.provisional) } : {}),
+        ...(record.csvRun ? { deltaToken: await deltaToken(env, record.csvRun) } : {}),
         ...flagged,
         ...(copies.length ? { duplicate: 'result', ...(record.dupOf ? { dupOf: record.dupOf } : {}) } : {}),
         ...replaceReply,
@@ -2926,6 +3060,37 @@ export default {
     // belt-and-braces either way -- `buildChainsCsv` has no playerId in its metadata and never
     // printed one -- but the guarantee is now enforced one step upstream, and a hand-made gzip
     // posted directly is NOT swept. It is still capped and still has to be valid gzip.
+    // One delta of a run's CSV so far (see "the CSV so far in deltas").
+    if (url.pathname === '/csvd' && request.method === 'POST') {
+      const run = url.searchParams.get('run') ?? '';
+      if (!CSV_RUN.test(run)) return json({ error: 'bad run' }, 400);
+      const seq = wholeParam(url, 'seq', 0, MAX.CSV_DELTAS - 1);
+      const len = wholeParam(url, 'len', 1, 2 ** 31);
+      const crc = wholeParam(url, 'crc', 0, 2 ** 32 - 1);
+      const count = wholeParam(url, 'count', 0, 1e9);
+      if (!env.CSV_UPLOAD_KEY) return json({ error: 'CSV uploads are not configured on this collector' }, 503);
+      // Before the body is read, so a refused upload costs nothing.
+      if (!sameToken(request.headers.get('x-upload-token'), await deltaToken(env, run))) {
+        return json({ error: 'missing or wrong delta token' }, 403);
+      }
+      if (seq === null || len === null || crc === null || count === null) {
+        return json({ error: `seq (0..${MAX.CSV_DELTAS - 1}), len (1..2^31), crc (0..2^32-1) and count (>= 0) must be whole numbers` }, 400);
+      }
+      const key = csvdKey(run, seq);
+      const have = await kvHead(env, key);
+      if (have.exists) {
+        return json({ error: 'this delta is already stored', count: Number.isInteger(have.metadata?.count) ? have.metadata.count : 0 }, 409);
+      }
+      const body = await request.arrayBuffer();
+      if (!body.byteLength) return json({ error: 'empty body' }, 400);
+      if (body.byteLength > MAX.CSV_BYTES) {
+        return json({ error: `delta too large (${body.byteLength} bytes, limit ${MAX.CSV_BYTES})` }, 413);
+      }
+      if (!endsSynced(body)) return json({ error: 'a delta must be a sync-flushed raw deflate segment' }, 400);
+      await env.SUBMISSIONS.put(key, body, { metadata: { len, crc, count, at: Date.now() } });
+      return json({ ok: true, seq, bytes: body.byteLength });
+    }
+
     if (url.pathname === '/csv' && request.method === 'POST') {
       const id = url.searchParams.get('id');
       if (!id || !/^[a-f0-9-]{4,40}$/.test(id)) return json({ error: 'bad id' }, 400);
@@ -2943,6 +3108,45 @@ export default {
       }
       const base = quar ? 'quarcsv:' : 'csv:';
       const ttl = quar ? { expirationTtl: QUAR.TTL_SECONDS } : {};
+      // The head of a CSV so far in deltas (see "the CSV so far in deltas"): its own mode.
+      if (url.searchParams.has('run')) {
+        if (!soFar || url.searchParams.has('part') || url.searchParams.has('parts')) {
+          return json({ error: 'run is only for a best so far\'s CSV so far (its csvp token), and not in parts' }, 400);
+        }
+        const run = url.searchParams.get('run');
+        if (!CSV_RUN.test(run) || !sameToken(request.headers.get('x-delta-token'), await deltaToken(env, run))) {
+          return json({ error: 'missing or wrong delta token' }, 403);
+        }
+        const k = wholeParam(url, 'deltas', 0, MAX.CSV_DELTAS);
+        const len = wholeParam(url, 'len', 0, 2 ** 31);
+        const crc = wholeParam(url, 'crc', 0, 2 ** 32 - 1);
+        if (k === null || len === null || crc === null) {
+          return json({ error: `deltas (0..${MAX.CSV_DELTAS}), len (0..2^31) and crc (0..2^32-1) must be whole numbers` }, 400);
+        }
+        if (await hasCsv(env, id)) return json({ error: 'this submission already has a CSV' }, 409);
+        const head = await request.arrayBuffer();
+        if (!head.byteLength) return json({ error: 'empty body' }, 400);
+        if (head.byteLength > MAX.CSV_BYTES) {
+          return json({ error: `head too large (${head.byteLength} bytes, limit ${MAX.CSV_BYTES})` }, 413);
+        }
+        if (!endsSynced(head)) return json({ error: 'a head must be a sync-flushed raw deflate segment' }, 400);
+        const missing = [];
+        let total = len;
+        let all = crc;
+        for (let n = 0; n < k; n++) {
+          const d = await kvHead(env, csvdKey(run, n));
+          const dm = d.metadata;
+          if (!d.exists || !Number.isFinite(dm?.len) || !Number.isFinite(dm?.crc)) missing.push(n);
+          else {
+            all = crc32Combine(all, dm.crc, dm.len);
+            total += dm.len;
+          }
+        }
+        if (missing.length) return json({ error: 'deltas missing; send them, then the head again', missing }, 422);
+        await env.SUBMISSIONS.put(`csv:${id}`, head, { metadata: { run, deltas: k, crc: all, len: total } });
+        await later(ctx, markCsv(env, id, url.origin));
+        return json({ ok: true, bytes: head.byteLength, deltas: k, partial: true });
+      }
       // One part of a CSV over the cap (see "the CSV in parts"), or null for a whole file.
       const split = partOf(url);
       if (split === 'bad') {
@@ -3011,7 +3215,43 @@ export default {
       if (!got?.value) return json({ error: 'not found' }, 404);
       let buf = got.value;
       const parts = got.metadata?.parts;
-      if (Number.isInteger(parts) && parts > 1 && parts <= MAX.CSV_PARTS) {
+      if (typeof got.metadata?.run === 'string' && CSV_RUN.test(got.metadata.run)) {
+        // A CSV so far in deltas: head + deltas as one gzip member (see "the CSV so far in deltas").
+        const k = deltaCount(got.metadata);
+        const rest = [];
+        for (let n = 0; n < k; n++) {
+          const v = await env.SUBMISSIONS.get(csvdKey(got.metadata.run, n), 'stream');
+          if (v === null || v === undefined) {
+            for (const r of rest) if (typeof r.cancel === 'function') await r.cancel().catch(() => {});
+            return json({ error: `this CSV is stored in ${k} deltas and delta ${n} is missing` }, 500);
+          }
+          rest.push(v);
+        }
+        const trailer = new Uint8Array(10);
+        trailer.set([0x03, 0x00]);
+        new DataView(trailer.buffer).setUint32(2, Number(got.metadata.crc) >>> 0, true);
+        new DataView(trailer.buffer).setUint32(6, Number(got.metadata.len) % 2 ** 32 >>> 0, true);
+        const { readable, writable } = new TransformStream();
+        const pump = (async () => {
+          const w = writable.getWriter();
+          await w.write(new Uint8Array([0x1f, 0x8b, 0x08, 0, 0, 0, 0, 0, 0, 0xff]));
+          await w.write(new Uint8Array(got.value));
+          w.releaseLock();
+          for (const r of rest) {
+            if (r instanceof ReadableStream) await r.pipeTo(writable, { preventClose: true });
+            else {
+              const w2 = writable.getWriter();
+              await w2.write(new Uint8Array(r));
+              w2.releaseLock();
+            }
+          }
+          const w3 = writable.getWriter();
+          await w3.write(trailer);
+          await w3.close();
+        })();
+        later(ctx, pump.catch(() => {}));
+        buf = readable;
+      } else if (Number.isInteger(parts) && parts > 1 && parts <= MAX.CSV_PARTS) {
         const rest = [];
         for (let n = 1; n < parts; n++) {
           const v = await env.SUBMISSIONS.get(csvPartKey(id, n), 'stream');

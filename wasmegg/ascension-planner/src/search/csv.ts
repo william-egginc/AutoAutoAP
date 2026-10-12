@@ -635,6 +635,12 @@ export interface DeadlineCsvInfo {
   all?: PricedRoutesLike | null;
   /** How many routes were kept, when `routes` is only the top of them (the store trims to the leg cap). */
   kept?: number;
+  /**
+   * The summary lines are not written here: they follow in DELTAS, in the order the routes were
+   * priced (`pricedDeltaChunks`; a progress send's "CSV so far in deltas", search/csvDelta.ts). With
+   * `all`, the file stops after the summary section's header.
+   */
+  pricedInDeltas?: boolean;
 }
 
 /** One route the By a date search kept. */
@@ -806,7 +812,10 @@ export function* deadlineCsvChunks(
       chars = 0;
     }
   }
-  if (all) yield* pricedSummaryChunks(all, meta, info.deadline, lines, chars);
+  if (all && info.pricedInDeltas) {
+    pricedSectionHead(lines, true);
+    yield takeChunk(lines);
+  } else if (all) yield* pricedSummaryChunks(all, meta, info.deadline, lines, chars);
   else if (lines.length) yield takeChunk(lines);
 }
 
@@ -824,7 +833,23 @@ function* pricedSummaryChunks(
   /** Characters already in `lines`, for the chunk bound. */
   carried = 0
 ): Generator<string> {
-  const tz = meta.timezone;
+  pricedSectionHead(lines, false);
+  const order = pricedOrder(all, deadline);
+  let chars = carried;
+  for (let j = 0; j < order.length; j++) {
+    const row = pricedLine(all, order[j], meta, deadline);
+    lines.push(row);
+    chars += row.length + 1;
+    if (lines.length >= CHUNK_ROWS || chars >= CHUNK_CHARS) {
+      yield takeChunk(lines);
+      chars = 0;
+    }
+  }
+  if (lines.length) yield takeChunk(lines);
+}
+
+/** The summary section's opening: a comment that starts it, what its columns mean, its header. */
+function pricedSectionHead(lines: string[], inDeltas: boolean): void {
   const note = (s: string) => lines.push(`# ${s}`);
   note('');
   lines.push(PRICED_SECTION_LINE);
@@ -832,33 +857,53 @@ function* pricedSummaryChunks(
     'reached_local is when the last stop is reached; spare_hours is the time to spare at the deadline (negative: that many hours late).'
   );
   note(
-    "makes_it: yes, doesn't make it, or couldn't be priced (then the times are blank). Routes that make it come first, then the rest, highest last stop first."
+    inDeltas
+      ? "makes_it: yes, doesn't make it, or couldn't be priced (then the times are blank). In this file so far the lines are in the order the routes were priced, not ranked; the final file ranks them."
+      : "makes_it: yes, doesn't make it, or couldn't be priced (then the times are blank). Routes that make it come first, then the rest, highest last stop first."
   );
   lines.push(DEADLINE_PRICED_COLUMNS.join(','));
-  const order = pricedOrder(all, deadline);
-  let chars = carried;
-  for (let j = 0; j < order.length; j++) {
-    const i = order[j];
-    const key = all.keys[i];
-    const reach = all.reachAt(i);
-    const at = all.ascendAt(i);
-    const route = key.split(',');
-    const priced = !Number.isNaN(at);
-    const makes = priced && at <= deadline;
-    const row =
-      [
-        PRICED_ROW_TAG,
-        route.join(' '),
-        route.length,
-        route[route.length - 1],
-        priced ? formatInZone(reach, tz) : '',
-        priced ? formatInZone(at, tz) : '',
-        priced ? ((deadline - at) / 3600).toFixed(2) : '',
-        priced ? ((reach - meta.planStart) / 86400).toFixed(4) : '',
-        makes ? 'yes' : priced ? "doesn't make it" : "couldn't be priced",
-      ]
-        .map(cell)
-        .join(',');
+}
+
+/** Route `i`'s summary line (no newline). */
+export function pricedLine(all: PricedRoutesLike, i: number, meta: Pick<CsvMeta, 'timezone' | 'planStart'>, deadline: number): string {
+  const tz = meta.timezone;
+  const key = all.keys[i];
+  const reach = all.reachAt(i);
+  const at = all.ascendAt(i);
+  const route = key.split(',');
+  const priced = !Number.isNaN(at);
+  const makes = priced && at <= deadline;
+  return [
+    PRICED_ROW_TAG,
+    route.join(' '),
+    route.length,
+    route[route.length - 1],
+    priced ? formatInZone(reach, tz) : '',
+    priced ? formatInZone(at, tz) : '',
+    priced ? ((deadline - at) / 3600).toFixed(2) : '',
+    priced ? ((reach - meta.planStart) / 86400).toFixed(4) : '',
+    makes ? 'yes' : priced ? "doesn't make it" : "couldn't be priced",
+  ]
+    .map(cell)
+    .join(',');
+}
+
+/**
+ * The summary lines of routes `from` (inclusive) to `to` (exclusive) of `all`, in the order they were
+ * priced, a chunk at a time: one delta of a progress send's CSV so far (search/csvDelta.ts). Nothing
+ * else: the header and the leg rows are the head's (`deadlineCsvChunks` with `pricedInDeltas`).
+ */
+export function* pricedDeltaChunks(
+  all: PricedRoutesLike,
+  from: number,
+  to: number,
+  meta: Pick<CsvMeta, 'timezone' | 'planStart'>,
+  deadline: number
+): Generator<string> {
+  const lines: string[] = [];
+  let chars = 0;
+  for (let i = Math.max(0, from); i < Math.min(to, all.size); i++) {
+    const row = pricedLine(all, i, meta, deadline);
     lines.push(row);
     chars += row.length + 1;
     if (lines.length >= CHUNK_ROWS || chars >= CHUNK_CHARS) {

@@ -429,6 +429,12 @@ export interface Submission {
    * An instruction to the collector, never stored.
    */
   replaces?: string;
+  /**
+   * A progress send's run key for its CSV so far in deltas (search/csvDelta.ts): the collector keeps
+   * it privately and answers with a `deltaToken` for it. An older collector drops it (unknown fields
+   * are dropped) and answers with none, and the CSV so far then goes whole, as before.
+   */
+  csvRun?: string;
 
   submittedAt: string;
 }

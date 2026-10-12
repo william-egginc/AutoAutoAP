@@ -203,6 +203,9 @@ export interface DeadlineCheckpoint {
    *  carried-on Find and submit run of 9 Oct finished as a plain Find and sent nothing. Absent: it
    *  doesn't send. */
   submit?: DeadlineSubmitIntent;
+  /** Where the run's CSV so far stands in deltas on the collector (search/csvDelta.ts), so a carry-on
+   *  sends only what is new. Absent: none sent that way yet. */
+  csvDelta?: unknown;
   /** Times this run was carried on (each after its page died, reloaded or failed), for diagnostics. */
   carryOns?: number;
   /** About how many bytes its parts hold, for diagnostics. */
