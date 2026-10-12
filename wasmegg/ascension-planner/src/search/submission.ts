@@ -632,6 +632,10 @@ export function cleanNote(text: string | undefined): string | undefined {
  * clickable, and people clicked again. Await this between the flip and the work.
  */
 export function afterPaint(): Promise<void> {
+  // A hidden tab paints no frames, so `requestAnimationFrame` never fires there: a send that started
+  // in the background (the Science sweep's, at its end) waited until someone looked. Nothing to
+  // paint then, so it goes on at once.
+  if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return Promise.resolve();
   return new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
 }
 

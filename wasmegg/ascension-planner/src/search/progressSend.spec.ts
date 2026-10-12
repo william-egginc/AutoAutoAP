@@ -1,10 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   csvNote,
   csvParts,
   csvSettled,
   CSV_MAX_PARTS,
   CSV_PART_BYTES,
+  breathe,
   gzipChunksCapped,
   progressDetail,
   PROGRESS_CSV_LIMIT_BYTES,
@@ -188,4 +189,17 @@ describe('a CSV over the cap goes in parts (uploadCsv)', () => {
       kind: 'refused',
     });
   });
+});
+
+describe('breathe (12 Oct: a hidden tab holds timers to one a minute)', () => {
+  it('yields through a message, not a timer, so a hidden tab is not held back', async () => {
+    // With setTimeout faked, a timer-based yield would never resolve and the test would time out.
+    vi.useFakeTimers({ toFake: ['setTimeout'] });
+    try {
+      await breathe();
+      await breathe();
+    } finally {
+      vi.useRealTimers();
+    }
+  }, 2_000);
 });

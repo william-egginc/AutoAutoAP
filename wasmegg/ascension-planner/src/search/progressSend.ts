@@ -36,8 +36,30 @@ export class GzipStopped extends Error {
 /** How long a progress send may spend on its CSV so far before it gives up and says so. */
 export const PROGRESS_CSV_TIMEOUT_MS = 5 * 60_000;
 
-/** A macrotask, so the page paints and the workers' messages are handled between chunks. */
-const breathe = () => new Promise<void>(resolve => setTimeout(resolve, 0));
+/**
+ * A macrotask, so the page paints and the workers' messages are handled between chunks.
+ *
+ * NOT `setTimeout`. In a hidden tab Chromium holds chained timers to one a second, and after five
+ * minutes hidden to one a MINUTE (intensive wake-up throttling): with a few hundred chunks the CSV so
+ * far of a big run could not be built in the five minutes a progress send gives it. That is what the
+ * PC run of 12 Oct hit after its carry-on (its reopened tab was in the background: "building it took
+ * over 5 minutes"). A MessageChannel message is a task too, and is not throttled; the timer stays
+ * only where there is no MessageChannel.
+ */
+export function breathe(): Promise<void> {
+  return new Promise<void>(resolve => {
+    if (typeof MessageChannel === 'undefined') {
+      setTimeout(resolve, 0);
+      return;
+    }
+    const ch = new MessageChannel();
+    ch.port1.onmessage = () => {
+      ch.port1.close();
+      resolve();
+    };
+    ch.port2.postMessage(null);
+  });
+}
 
 /**
  * Gzip text that arrives a chunk at a time, stopping as soon as the compressed size passes `cap`.

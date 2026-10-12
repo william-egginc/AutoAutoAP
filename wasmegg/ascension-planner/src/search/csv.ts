@@ -520,6 +520,26 @@ function metaLines(meta: CsvMeta, head: string[], count: string): string[] {
 export const CHUNK_ROWS = 2000;
 
 /**
+ * And at most about this many characters a chunk, whichever comes first (12 Oct). A By a date leg row
+ * is several hundred characters, so 2,000 of them made a chunk of a megabyte or more -- a large
+ * object in V8, which needs that much CONTIGUOUS room in the 4 GB pointer-compression cage the page
+ * shares with every search worker. The PC's 34-hour run died building its CSV so far with 117 MB free
+ * in that cage but no free run longer than 1.5 MB ("ran out of reservation", in `scrubIdentifiers`'s
+ * `replace` flattening one such chunk). Chunks well under V8's large-object size (128 KB) fit in an
+ * ordinary heap page. The text is the same either way: only where it is cut changes.
+ */
+export const CHUNK_CHARS = 64 * 1024;
+
+/** The rows gathered so far as one chunk (each row then a newline), and the buffer emptied. Joined
+ *  in one go: a `+ '\n'` on the end made a rope that the scrub's regex then had to flatten. */
+function takeChunk(lines: string[]): string {
+  lines.push('');
+  const out = lines.join('\n');
+  lines.length = 0;
+  return out;
+}
+
+/**
  * The CSV, a chunk at a time.
  *
  * WHY THIS IS A GENERATOR. The straightforward version built every row into one `string[]` and
@@ -557,6 +577,11 @@ export function* chainsCsvChunks(entries: CacheEntry[], meta: CsvMeta): Generato
   lines.push(COLUMNS.join(','));
 
   let rank = 0;
+  let chars = 0;
+  const push = (row: string) => {
+    lines.push(row);
+    chars += row.length + 1;
+  };
   for (const entry of ranked) {
     rank++;
     const chain = entry.key.split(',').map(Number);
@@ -564,23 +589,23 @@ export function* chainsCsvChunks(entries: CacheEntry[], meta: CsvMeta): Generato
     const totalDays = entry.seconds / 86400;
     const gapDays = (entry.seconds - bestSeconds) / 86400;
     if (!entry.legs.length) {
-      lines.push(legRow(rank, chainText, chain.length, totalDays, gapDays, '', null, tz));
+      push(legRow(rank, chainText, chain.length, totalDays, gapDays, '', null, tz));
     } else {
       entry.legs.forEach((leg, i) => {
-        lines.push(legRow(rank, chainText, chain.length, totalDays, gapDays, i, leg, tz));
+        push(legRow(rank, chainText, chain.length, totalDays, gapDays, i, leg, tz));
       });
     }
     // Flushed between chains, never inside one: a chunk boundary in the middle of a chain's legs
     // would still produce a correct file, but it makes the buffer length depend on leg count and
     // there is no reason to pay that for nothing.
-    if (lines.length >= CHUNK_ROWS) {
-      yield lines.join('\n') + '\n';
-      lines.length = 0;
+    if (lines.length >= CHUNK_ROWS || chars >= CHUNK_CHARS) {
+      yield takeChunk(lines);
+      chars = 0;
     }
   }
 
   // Trailing newline: some spreadsheet importers drop the last row without one.
-  if (lines.length) yield lines.join('\n') + '\n';
+  if (lines.length) yield takeChunk(lines);
 }
 
 /**
@@ -753,6 +778,7 @@ export function* deadlineCsvChunks(
   }
   lines.push(DEADLINE_COLUMNS.join(','));
 
+  let chars = 0;
   for (let i = 0; i < shown; i++) {
     const x = routes[i];
     const rank = i + 1;
@@ -771,15 +797,17 @@ export function* deadlineCsvChunks(
     const legs = i < withLegs && x.legs?.length ? x.legs : [null];
     legs.forEach((leg, k) => {
       const cells = legCells(rank, chainText, x.chain.length, totalDays, gapDays, leg ? k : '', leg, tz);
-      lines.push([...own, ...cells.slice(1)].map(cell).join(','));
+      const row = [...own, ...cells.slice(1)].map(cell).join(',');
+      lines.push(row);
+      chars += row.length + 1;
     });
-    if (lines.length >= CHUNK_ROWS) {
-      yield lines.join('\n') + '\n';
-      lines.length = 0;
+    if (lines.length >= CHUNK_ROWS || chars >= CHUNK_CHARS) {
+      yield takeChunk(lines);
+      chars = 0;
     }
   }
-  if (all) yield* pricedSummaryChunks(all, meta, info.deadline, lines);
-  else if (lines.length) yield lines.join('\n') + '\n';
+  if (all) yield* pricedSummaryChunks(all, meta, info.deadline, lines, chars);
+  else if (lines.length) yield takeChunk(lines);
 }
 
 /**
@@ -792,7 +820,9 @@ function* pricedSummaryChunks(
   all: PricedRoutesLike,
   meta: CsvMeta,
   deadline: number,
-  lines: string[]
+  lines: string[],
+  /** Characters already in `lines`, for the chunk bound. */
+  carried = 0
 ): Generator<string> {
   const tz = meta.timezone;
   const note = (s: string) => lines.push(`# ${s}`);
@@ -806,6 +836,7 @@ function* pricedSummaryChunks(
   );
   lines.push(DEADLINE_PRICED_COLUMNS.join(','));
   const order = pricedOrder(all, deadline);
+  let chars = carried;
   for (let j = 0; j < order.length; j++) {
     const i = order[j];
     const key = all.keys[i];
@@ -814,7 +845,7 @@ function* pricedSummaryChunks(
     const route = key.split(',');
     const priced = !Number.isNaN(at);
     const makes = priced && at <= deadline;
-    lines.push(
+    const row =
       [
         PRICED_ROW_TAG,
         route.join(' '),
@@ -827,14 +858,15 @@ function* pricedSummaryChunks(
         makes ? 'yes' : priced ? "doesn't make it" : "couldn't be priced",
       ]
         .map(cell)
-        .join(',')
-    );
-    if (lines.length >= CHUNK_ROWS) {
-      yield lines.join('\n') + '\n';
-      lines.length = 0;
+        .join(',');
+    lines.push(row);
+    chars += row.length + 1;
+    if (lines.length >= CHUNK_ROWS || chars >= CHUNK_CHARS) {
+      yield takeChunk(lines);
+      chars = 0;
     }
   }
-  if (lines.length) yield lines.join('\n') + '\n';
+  if (lines.length) yield takeChunk(lines);
 }
 
 export function buildDeadlineCsv(

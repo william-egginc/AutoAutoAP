@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { getLocalTimestampInTimezone } from '@/lib/events';
-import { buildDeadlineCsv, deadlineCsvChunks, DEADLINE_PRICED_COLUMNS, pricedOrder } from './csv';
+import { buildDeadlineCsv, CHUNK_CHARS, deadlineCsvChunks, DEADLINE_PRICED_COLUMNS, pricedOrder } from './csv';
 import { PricedRoutes } from './deadline';
 import { byDateCsvLine, parseByDateCsv, parseRunCsv } from '@/explorer/collector';
 import type { LegSummary } from './types';
@@ -137,4 +137,26 @@ describe('every priced route in the By a date CSV', () => {
     expect(performance.now() - t0).toBeLessThan(2000);
     expect(order).toHaveLength(50_000);
   });
+});
+
+describe('chunk size (12 Oct: the PC run died flattening a megabyte chunk in a full cage)', () => {
+  // 3,000 priced routes of ~90 characters a summary line is well over CHUNK_CHARS but under the
+  // 2,000-row cut twice over: before 12 Oct this came out as two chunks, one of them ~180 KB.
+  const n = 3000;
+  const all = new PricedRoutes();
+  for (let i = 0; i < n; i++) {
+    const t = START + (50 + (i % 40)) * 86400;
+    all.add(`${170 + (i % 20)},${200 + (i % 30)},${240 + (i % 9)}`, t, t);
+  }
+  const kept = Array.from({ length: 300 }, (_, i) => route([170 + (i % 20), 200 + (i % 30), 240 + (i % 9)], 60));
+  const info = { deadline: DEADLINE, priced: n, all };
+
+  it('keeps every chunk near CHUNK_CHARS, and the joined file the same as the one-string build', () => {
+    const chunks = [...deadlineCsvChunks(kept, META, info, 300)];
+    expect(chunks.length).toBeGreaterThan(3);
+    // A chunk is cut at the first row that reaches the bound, so it may run over by one route's rows.
+    for (const c of chunks) expect(c.length).toBeLessThan(CHUNK_CHARS + 4096);
+    expect(chunks.join('')).toBe(buildDeadlineCsv(kept, META, info, 300));
+    for (const c of chunks) expect(c.endsWith('\n')).toBe(true);
+  }, 30_000);
 });
