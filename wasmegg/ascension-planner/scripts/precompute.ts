@@ -65,6 +65,8 @@
  *                    DIR/meta.json describing the account and the reference week. Re-running skips
  *                    the start TEs already finished, so an interrupted run carries on.
  *
+ *   --v3-name FILE   The v3 gear table name of a packed table, from its header stamp.
+ *   --own-check FILE --backup SAVE   Whether the page would use that own table for that save.
  *   --manifest --backup FILE [--dir public/precompute]
  *                    Write DIR/tables.json: every table there by file name with its earnings bonus,
  *                    delivery k against the maxed table and lowest start TE (the instant answer's
@@ -146,6 +148,7 @@ import {
   gearChanges,
   gearStamp,
   gearTableName,
+  gearTableNameV3,
   legacyGearTableName,
   tableName,
   type TableGear,
@@ -153,6 +156,7 @@ import {
 import { buildAt, buildPeak, k3StateOf, paramsOf, PEAK_TE, REFERENCE_WEEK, startStateAt } from '@/search/tableBuild';
 import { deliveryScore, slotsFromLabels } from '@/search/virtueScore';
 import { describeLoadoutSlots } from '@/search/csv';
+import { gearLabel, maxedLabel } from '@/search/tableLabel';
 import { cteFromArtifacts, cteFromColleggtibles, cteFromLabUpgrade, multiplierToTE } from 'lib/virtue';
 import { allPossibleTiers } from 'lib/artifacts/data';
 import { ei } from 'lib/proto';
@@ -918,6 +922,10 @@ async function manifest(file: string): Promise<void> {
         bonus: Number(h.cteBonus.toFixed(2)),
         k: Number((rate(h.k3.delivery) / top).toFixed(4)),
         from: h.from,
+        // The gear in words (search/tableLabel.ts), e.g. `LLLL · 11 T4 stones · bonus 128.7`.
+        label: h.gear
+          ? gearLabel(h.gear, h.cteBonus)
+          : maxedLabel(describeLoadoutSlots(h.k3.delivery as Parameters<typeof describeLoadoutSlots>[0]), h.cteBonus),
         ...(aliasesFor(f).length ? { aliases: aliasesFor(f) } : {}),
         // The maxed table's waiting research and delivery set: with them the page can work out a
         // player's gear stamp and delivery k before any table is downloaded (search/tablePrefetch.ts).
@@ -925,7 +933,7 @@ async function manifest(file: string): Promise<void> {
       };
     });
   writeFileSync(`${dir}/tables.json`, JSON.stringify(out, null, 1) + '\n');
-  for (const t of out) console.log(`${t.file}  bonus ${t.bonus}  k ${t.k}`);
+  for (const t of out) console.log(`${t.file}  bonus ${t.bonus}  k ${t.k}  ${t.label}`);
 }
 
 function pack(): void {
@@ -2421,6 +2429,24 @@ async function main(): Promise<void> {
     }
     return;
   }
+  if (arg('v3-name')) {
+    // --v3-name FILE: the v3 gear name (tableGear.ts gearTableNameV3) of a packed table, from its own
+    // header stamp (~/code/aaap-tools/alias-gear-tables-v3.sh). Only right for tables whose header
+    // stamp is the stamp they were named by; the script takes the other three from their combos.
+    const h = readTable(new Uint8Array(readFileSync(arg('v3-name')!)).buffer).header;
+    if (!h.gear) throw new Error(`--v3-name: ${arg('v3-name')} has no gear stamp`);
+    return console.log(await gearTableNameV3(h.gear));
+  }
+  if (arg('own-check')) {
+    // --own-check FILE --backup SAVE: would the page use this own table for this save? The page's own
+    // test (InstantRoute.vue): the save's gear stamp at the table's research against the header's.
+    const h = readTable(new Uint8Array(readFileSync(arg('own-check')!)).buffer).header;
+    if (!h.gear) throw new Error(`--own-check: ${arg('own-check')} has no gear stamp`);
+    const inputs = await loadInputs(arg('backup')!);
+    const stamp = gearStamp(inputs, useChainSearchStore().readInventory().earnings, h.gear.research);
+    const changes = stamp ? gearChanges(h.gear, stamp) : ['gear'];
+    return console.log(changes.length ? `differs in ${changes.join(', ')}` : 'matches');
+  }
   if (has('gear-check') || has('gear-name')) {
     // A board gear combination (--combos FILE --combo NAME) put on the maxed base: what the optimizer
     // picks from it, against what the board recorded; and the file name its table goes under. Needs
@@ -2437,7 +2463,9 @@ async function main(): Promise<void> {
     // --legacy: the name it had before canonical names (tableGear.ts legacyGearTableName), to match a
     // deployed table to its combo; ~/code/aaap-tools/alias-gear-tables.sh takes it from there.
     if (has('gear-name'))
-      return console.log(await (has('legacy') ? legacyGearTableName(stamp) : gearTableName(stamp)));
+      return console.log(
+        await (has('legacy') ? legacyGearTableName(stamp) : has('v3') ? gearTableNameV3(stamp) : gearTableName(stamp))
+      );
     if (has('debug'))
       console.log('inventory as read:', JSON.stringify({ artifacts: inv.artifacts, stones: inv.stones }));
     const label = (sl: { artifact: string; stones: string[] }) =>

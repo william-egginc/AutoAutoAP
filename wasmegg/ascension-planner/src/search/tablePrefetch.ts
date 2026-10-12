@@ -14,7 +14,7 @@ import { isMaxed, pickBracket, type Gear, type TableEntry } from './tableBracket
 export function prefetchPlan(o: {
   entries: TableEntry[];
   /** The player's own table's file name (tableGear.ts `tableName`), and their gear's: the names to
-   *  try, in the order the page tries them (`gearTableNames`: canonical, then legacy). */
+   *  try, in the order the page tries them (`gearTableNames`: v3, v2 canonical, then legacy). */
   own: string | null;
   gear: string | string[] | null;
   /** Their earnings bonus and delivery k, for the nearest tables; null when unknown. */

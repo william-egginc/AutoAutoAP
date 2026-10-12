@@ -18,7 +18,8 @@
 import { getOptimalELRSet } from '@/lib/artifacts';
 import { sanitizeLongs } from '@/lib/artifacts/utils';
 import { describeLoadoutSlots, type LoadoutSlot } from './csv';
-import { getColleggtibleTiers } from 'lib/collegtibles';
+import { getColleggtibleTiers, modifiersFromColleggtibleTiers } from 'lib/collegtibles';
+import { epicResearchDefs } from '@/lib/epicResearch';
 import type { EquippedArtifact } from '@/lib/artifacts/types';
 import type { SearchInputs } from './types';
 
@@ -135,9 +136,55 @@ export async function legacyGearTableName(stamp: TableGear): Promise<string> {
   return gearFile(JSON.stringify(gear));
 }
 
-/** The names to look a player's gear table up under, in order: canonical, then legacy. */
+/**
+ * The epic research the planner models (lib/epicResearch.ts epicResearchDefs), each at the save's
+ * level or 0, keys sorted. Saves also carry research the planner never reads (silo quality, warp
+ * shift: 11 Oct 2026, the main and theFliris have 40 and 16, the alt 0 and 0), which changes no build
+ * but split every v2 name: a board gear table built on the alt's save could never match a real owner.
+ */
+export function simEpicResearch(levels: Record<string, number> | undefined): Record<string, number> {
+  return Object.fromEntries(
+    epicResearchDefs
+      .map(d => d.id)
+      .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
+      .map(id => [id, levels?.[id] ?? 0])
+  );
+}
+
+/** What the colleggtibles do (lib/collegtibles.ts modifiersFromColleggtibleTiers: the multipliers
+ *  the simulator reads), not which eggs at which tier: a new egg with no effect, or the same effect
+ *  from other eggs, is the same farm. Rounded to 12 significant digits so float order can't split. */
+export function colleggtibleEffects(tiers: Record<string, number> | undefined): Record<string, number> {
+  const mods = modifiersFromColleggtibleTiers(tiers ?? {}) as unknown as Record<string, number>;
+  return Object.fromEntries(
+    Object.keys(mods)
+      .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
+      .map(k => [k, Number(mods[k].toPrecision(12))])
+  );
+}
+
+/** The stamp as the v3 name hashes it: v2's sets, but only what the simulator reads of the account
+ *  (`simEpicResearch`, `colleggtibleEffects`). */
+export function canonicalGearV3(stamp: TableGear): object {
+  return {
+    v: 3,
+    earnings: asWorn(stamp.earnings),
+    deliveryBare: asWorn(stamp.deliveryBare),
+    deliveryFull: asWorn(stamp.deliveryFull),
+    epicResearch: simEpicResearch(stamp.epicResearch),
+    colleggtibles: colleggtibleEffects(stamp.colleggtibles),
+  };
+}
+
+/** The v3 gear table name (11 Oct 2026): what the page looks up first. Deployed tables get it as an
+ *  alias (~/code/aaap-tools/alias-gear-tables-v3.sh); new tables can be packed under it. */
+export async function gearTableNameV3(stamp: TableGear): Promise<string> {
+  return gearFile(JSON.stringify(canonicalGearV3(stamp)));
+}
+
+/** The names to look a player's gear table up under, in order: v3, v2 canonical, then legacy. */
 export async function gearTableNames(stamp: TableGear): Promise<string[]> {
-  const names = [await gearTableName(stamp), await legacyGearTableName(stamp)];
+  const names = [await gearTableNameV3(stamp), await gearTableName(stamp), await legacyGearTableName(stamp)];
   return [...new Set(names)];
 }
 
@@ -165,9 +212,10 @@ function asWorn(slots: LoadoutSlot[]): { artifacts: string[]; stones: string[] }
  * Which rule `gearChanges` compares by. A saved instant answer (InstantRoute.vue's snapshot) keeps
  * the gear note it was shown with, so one saved under an older rule is worked out again rather than
  * shown with a note this rule would not give. 1: slots exactly; 2 (0ec1fe28): slot order ignored;
- * 3: which artifact a stone is in ignored too. Raise it whenever `gearChanges` changes.
+ * 3: which artifact a stone is in ignored too; 4: only the epic research and colleggtible effects
+ * the simulator reads. Raise it whenever `gearChanges` changes.
  */
-export const GEAR_RULE = 3;
+export const GEAR_RULE = 4;
 
 /** What differs between a table's stamp and the player's, in words; empty when they match. Which
  *  slot an artifact is in and which artifact a stone is in are ignored here only (`asWorn`): the
@@ -179,7 +227,9 @@ export function gearChanges(table: TableGear, mine: TableGear): string[] {
   if (!sameSet(table.earnings, mine.earnings)) out.push('earnings set');
   if (!sameSet(table.deliveryBare, mine.deliveryBare) || !sameSet(table.deliveryFull, mine.deliveryFull))
     out.push('delivery set');
-  if (!same(table.epicResearch, mine.epicResearch)) out.push('epic research');
-  if (!same(table.colleggtibles, mine.colleggtibles)) out.push('colleggtibles');
+  // Only what the simulator reads (rule 4): research it never models and colleggtibles with the
+  // same effects no longer count as a change.
+  if (!same(simEpicResearch(table.epicResearch), simEpicResearch(mine.epicResearch))) out.push('epic research');
+  if (!same(colleggtibleEffects(table.colleggtibles), colleggtibleEffects(mine.colleggtibles))) out.push('colleggtibles');
   return out;
 }
