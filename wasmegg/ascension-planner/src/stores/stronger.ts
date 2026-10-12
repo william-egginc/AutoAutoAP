@@ -53,5 +53,14 @@ export const useStrongerStore = defineStore('stronger', () => {
   const instant = ref<{ fastest: CompareRoute | null; date: CompareRoute | null }>({ fastest: null, date: null });
   /** The routes the stronger check priced from the player's own history (for "start from a different route"). */
   const earlierChains = ref<number[][]>([]);
-  return { level, strongerBest, instant, earlierChains };
+  /** Each search's last answer in this visit (SearchCompare.vue keeps them), so a later run of the
+   *  other search doesn't wipe the comparison: Fastest's Smart search ('smart') and Full sweep ('full'),
+   *  By a date's routes around the answer ('around') and boxes ('boxes'). */
+  const lastSearch = ref<Record<'smart' | 'full' | 'around' | 'boxes', (CompareRoute & { running?: boolean }) | null>>({
+    smart: null,
+    full: null,
+    around: null,
+    boxes: null,
+  });
+  return { level, strongerBest, instant, earlierChains, lastSearch };
 });
