@@ -240,7 +240,7 @@
         Starts from <span class="font-mono-premium font-bold">{{ store.seedChain.join(' ') }}</span>&nbsp;<span
           class="text-slate-500"
           >({{ seedSource }})</span
-        > · up to ~{{ store.estimateForCurrentSettings }} chains<template
+        > · up to ~{{ store.estimateForCurrentSettings.toLocaleString() }} routes<template
           v-if="store.otherCountsPlan.chains"
         >
           (incl. ~{{ store.otherCountsPlan.chains }} checking {{ countList(store.otherCountsPlan.counts) }} ascensions)</template
@@ -1460,12 +1460,12 @@ const coverageNote = computed(() => {
   if (EFFORT[store.effort].otherCounts) {
     const other = store.otherCountsPlan.counts;
     if (!other.length) return `${label} keeps your starting chain's ${word}: your limits allow no other count.`;
-    return `${label} starts from your chain's ${word}, then gives ${countList(other)} ascensions one quick pass each (from the instant answer's route at that count when it has one), carries on outward while that keeps winning, and fine-tunes the best, within your limits of ${store.minPrestiges} to ${store.maxPrestiges}.`;
+    return `${label} starts from your route's ${word}, then gives ${countList(other)} ascensions one quick pass each (from the instant answer's route at that count when it has one), carries on outward while that keeps winning, and fine-tunes the best, within your limits of ${store.minPrestiges} to ${store.maxPrestiges}.`;
   }
   if (!EFFORT[store.effort].countProbe) {
     return `${label} keeps your starting chain's ${word}; Exact and Very high also try one more and one fewer.`;
   }
-  return `${label} starts from your chain's ${word} and also tries one more and one fewer, then again while that keeps helping, within your limits of ${store.minPrestiges} to ${store.maxPrestiges}.`;
+  return `${label} starts from your route's ${word} and also tries one more and one fewer, then again while that keeps helping, within your limits of ${store.minPrestiges} to ${store.maxPrestiges}.`;
 });
 /** "5, 7 and 8". */
 function countList(counts: number[]): string {
