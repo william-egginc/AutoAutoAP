@@ -765,11 +765,18 @@
       <!-- The results (RunResults.vue): the same order on every search screen. This screen's answer is
            in the run's progress above, where it doubles as the best so far. -->
       <RunResults>
-        <!-- When to start this route: every hour of the next week, as fresh starts. -->
-        <StartTimeFinder
-          v-if="ownRun && store.bestChain.length && store.bestDays > 0 && !store.isRunning"
-          :chain="store.bestChain"
-        />
+        <!-- When to start this route: the card at the top of the screen (StartTimeCard.vue), opened on it. -->
+        <p v-if="ownRun && store.bestChain.length && store.bestDays > 0 && !store.isRunning" class="text-[11px]">
+          <button
+            type="button"
+            class="font-bold text-indigo-700 underline decoration-dotted underline-offset-2 hover:text-indigo-900"
+            data-testid="check-start-times"
+            @click="startTimes.show(store.bestChain)"
+          >
+            Check start times for this route</button
+          >
+          <span class="text-slate-500"> (When should I start?, at the top of this screen)</span>
+        </p>
 
         <!-- The generated plan does NOT know about the schedule. Said here rather than buried,
              because the two numbers WILL disagree and the search's is the realistic one. -->
@@ -1219,13 +1226,13 @@ import { NAMES } from '@/lib/siteNav';
 import { useUIStore } from '@/stores/ui';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
+import { useStartTimesStore } from '@/stores/startTimes';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { EFFORT, EFFORT_NOTES, EFFORT_ORDER, NEAR_OPTIMAL_SHARE } from '@/search/effort';
 import { formatDuration, plural } from '@/lib/format';
 import { isAvailable } from '@/search/availability';
 import ChainSearchExplainer from './ChainSearchExplainer.vue';
 import HelpTip from './HelpTip.vue';
-import StartTimeFinder from './StartTimeFinder.vue';
 import CarryOnOffer from './CarryOnOffer.vue';
 import BlockedRunNotice from './BlockedRunNotice.vue';
 import ShareResult from './ShareResult.vue';
@@ -1255,6 +1262,7 @@ const props = defineProps<{ playerId: string }>();
 const emit = defineEmits<{ checkExactly: [chain: number[]] }>();
 
 const store = useChainSearchStore();
+const startTimes = useStartTimesStore();
 /** The store's chain-search state is this panel's (Smart search), not the other Fastest panel's: its
  *  progress, answer, charts and share show only then (store `chainRunKind`). */
 const ownRun = computed(() => store.chainRunKind === 'smart');

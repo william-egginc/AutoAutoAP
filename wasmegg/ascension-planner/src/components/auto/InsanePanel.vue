@@ -946,11 +946,18 @@
               </p>
             </RouteResultCard>
           </template>
-          <!-- When to start this route: every hour of the next week, as fresh starts. -->
-          <StartTimeFinder
-            v-if="ownRun && store.bestChain.length && store.bestDays > 0 && !store.isRunning"
-            :chain="store.bestChain"
-          />
+          <!-- When to start this route: the card at the top of the screen (StartTimeCard.vue), opened on it. -->
+          <p v-if="ownRun && store.bestChain.length && store.bestDays > 0 && !store.isRunning" class="text-[11px]">
+            <button
+              type="button"
+              class="font-bold text-indigo-700 underline decoration-dotted underline-offset-2 hover:text-indigo-900"
+              data-testid="check-start-times"
+              @click="startTimes.show(store.bestChain)"
+            >
+              Check start times for this route</button
+            >
+            <span class="text-slate-500"> (When should I start?, at the top of this screen)</span>
+          </p>
           <RunCharts v-if="ownRun && store.pricedCount" />
           <template #keep>
             <!-- Saved runs: the same list on both depths (SavedRuns.vue); carrying a sweep on is this one's. -->
@@ -1080,6 +1087,7 @@ const kept = {
 import { NAMES } from '@/lib/siteNav';
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
+import { useStartTimesStore } from '@/stores/startTimes';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useUIStore } from '@/stores/ui';
 import RunNoteBox from './RunNoteBox.vue';
@@ -1110,7 +1118,6 @@ import { chainCount as countLabel } from '@/lib/chartThin';
 import HelpTip from './HelpTip.vue';
 import BandCheckNotice from './BandCheckNotice.vue';
 import { coverageAfterText, coverageBeforeText, describeEdge, findBandEdges, widenEdges } from '@/search/bandCheck';
-import StartTimeFinder from './StartTimeFinder.vue';
 import { showDateTime } from '@/lib/displayTime';
 import { sweepSeconds, workerSecondsFromRate, workerSecondsPerChain } from '@/search/speed';
 import { describeCompute } from '@/utils/computeTime';
@@ -1146,6 +1153,7 @@ const props = defineProps<{
 const emit = defineEmits<{ 'update:goal': [goal: 'fastest' | 'deadline'] }>();
 
 const store = useChainSearchStore();
+const startTimes = useStartTimesStore();
 /** The store's chain-search state is this panel's (Full sweep), not the other Fastest panel's: its
  *  progress, answer, charts and share show only then (store `chainRunKind`). */
 const ownRun = computed(() => store.chainRunKind === 'full');

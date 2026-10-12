@@ -5,8 +5,8 @@
   differently, so it is worked out again for each route.
 -->
 <template>
-  <div class="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
-    <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">When should I start?</h3>
+  <div :class="bare ? 'space-y-3' : 'rounded-xl border border-slate-200 bg-white p-4 space-y-3'">
+    <h3 v-if="!bare" class="text-[10px] font-black text-slate-500 uppercase tracking-widest">When should I start?</h3>
     <p class="text-[11px] text-slate-600 leading-relaxed">
       Prices <span class="font-bold">{{ chain.join(' ') }}</span> as a fresh start at every
       {{ stepMinutes === 60 ? 'hour' : `${stepMinutes / 60} hours` }} of the next week<template
@@ -114,7 +114,11 @@ import { showDateTime, showHour } from '@/lib/displayTime';
 import { sweepSeconds, workerSecondsPerChain } from '@/search/speed';
 import { formatHours } from '@/search/exhaustive';
 
-const props = defineProps<{ chain: number[] }>();
+const props = defineProps<{
+  chain: number[];
+  /** Inside a card that has its own frame and heading (StartTimeCard.vue). */
+  bare?: boolean;
+}>();
 const store = useChainSearchStore();
 const planner = useAutoPlannerStore();
 const stepMinutes = ref(60);

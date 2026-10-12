@@ -24,6 +24,10 @@
          (How ... works, and the mode's content). By a date adds The deadline after Your setup. -->
     <YourSetup screen="fastest" />
 
+    <!-- When should I start? For a player coming back after a break: folded, under Your setup
+         (StartTimeCard.vue), on the instant answer's best route unless another is picked. -->
+    <StartTimeCard />
+
     <!-- The instant answer from the precomputed table (the precompute fork): every route, at once.
          Check exactly hands a route to the Full sweep, which prices it with the full simulator. -->
     <InstantRoute @check="checkExactly" />
@@ -53,6 +57,7 @@ import RunningElsewhere from './RunningElsewhere.vue';
 import ModeChooser from './ModeChooser.vue';
 import InstantRoute from './InstantRoute.vue';
 import YourSetup from './YourSetup.vue';
+import StartTimeCard from './StartTimeCard.vue';
 import { useUIStore } from '@/stores/ui';
 import { writeSearchMode } from '@/lib/searchMode';
 

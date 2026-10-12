@@ -901,6 +901,9 @@ function showRun(): void {
     else if (s) goAuto('fastest', s);
   }
   if (anchor) void scrollToRun(anchor);
+  // A start-time sweep: its card at the top of Fastest route (StartTimeCard.vue).
+  else if (kind === 'start-times')
+    setTimeout(() => document.getElementById('start-times')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
 }
 
 /** Open a tab: a deliberate choice, so a backup finishing loading no longer pulls the page back. */
