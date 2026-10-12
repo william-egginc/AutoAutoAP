@@ -2183,6 +2183,37 @@ const INSTANT_RECORD = IV.obj(
   ['v', 'mode', 'planStart', 'currentTE', 'gear', 'instant']
 );
 
+/** The experimental "Prestige by" prediction worked out beside the check (src/search/prestigeBy.ts
+ *  `PrestigeByRecord`), present only when the player turned the line on and kept it in shared checks.
+ *  Checked on its own, NOT as part of INSTANT_RECORD: an experimental field that drifts out of bounds
+ *  is dropped (with its first problem noted as `prestigeByDropped`), never the record it rides on.
+ *  Times are numbers, not whole numbers: they come out of the prediction's own arithmetic. */
+const IUNIXN = IV.num(UNIX_LO, UNIX_HI);
+const PRESTIGE_BY = IV.obj(
+  {
+    v: IV.int(1, 1),
+    mode: IV.oneOf(['date', 'fastest']),
+    eggs: IV.oneOf(['frozen', 'silo', 'laying']),
+    prestigeAt: IUNIXN,
+    fresh: IV.bool,
+    keepTE: ITE,
+    keepEnd: IV.orNull(IUNIXN),
+    kind: IV.oneOf(['drop', 'none', 'unsure']),
+    latest: IUNIXN,
+    drop: IV.orNull(IUNIXN),
+    dropTE: IV.orNull(ITE),
+    dropEnd: IV.orNull(IUNIXN),
+    until: IV.orNull(IUNIXN),
+    thenTE: IV.orNull(ITE),
+    spareHours: IV.orNull(IV.num(-1e6, 1e6)),
+    tight: IV.bool,
+    shown: IV.bool,
+    estimateDropHours: IV.orNull(IV.num(0, 1e6)),
+    lookups: IV.int(0, 100),
+  },
+  ['v', 'mode', 'prestigeAt', 'kind', 'latest']
+);
+
 /** A record from a request body: `{record}` or `{problems}`. */
 function pickInstant(body) {
   const problems = [];
@@ -2192,6 +2223,12 @@ function pickInstant(body) {
   if (!record) return { problems: problems.length ? problems.slice(0, 12) : ['rejected'] };
   if (record.mode === 'fastest' && record.target === undefined) return { problems: ['record.target is required'] };
   if (record.mode === 'date' && record.deadline === undefined) return { problems: ['record.deadline is required'] };
+  if (body.prestigeBy !== undefined) {
+    const pbProblems = [];
+    const pb = PRESTIGE_BY(body.prestigeBy, 'record.prestigeBy', pbProblems);
+    if (pb) record.prestigeBy = pb;
+    else record.prestigeByDropped = String(pbProblems[0] || 'rejected').slice(0, 120);
+  }
   return { record };
 }
 

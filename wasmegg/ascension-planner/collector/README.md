@@ -547,7 +547,13 @@ answer and its exact check, for the analyst:
   shift holds and prestige delays) with leg 1's `firstLeg` and `firstLegOtherHours`;
 - `buildGap`: the farm the plan would continue (its peak delivery now) against the first fresh
   build's peak in the exact route, and the ratio (under ~0.85: a half-built farm);
-- the app build and how long the check took.
+- the app build and how long the check took;
+- `prestigeBy` (experimental, only when the player turned the "Prestige by" line on and ticked
+  "Include it in checks I share"): the prediction itself, worked out beside the check (mode, how the
+  waiting eggs were counted, prestige time, the TE kept and when, the cutoff kind, the last hour that
+  keeps it and the first that drops, the dropped TE, spare hours, whether it was shown, how many
+  lookups it took). Checked on its own whitelist (`PRESTIGE_BY`): out of bounds it is dropped and
+  `prestigeByDropped` names the first problem; the record is never refused for it.
 
 Never the player id or the save. The sender is the account's owner code (as for board sends): the
 Worker stores `owner` (12 hex of its SHA-256, what the snapshots' private owner index holds) and
