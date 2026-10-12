@@ -1234,26 +1234,6 @@
           </ShareResult>
         </template>
       </RunResults>
-
-      <!-- Honesty block. Do not soften this. -->
-      <div
-        class="p-4 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-800 space-y-1.5 leading-relaxed"
-      >
-        <p class="font-bold uppercase tracking-wide text-amber-700">What this does and does not promise</p>
-        <ul class="space-y-1 list-disc list-inside">
-          <li>The result is a strong <span class="font-semibold">local</span> optimum, never a proven global one.</li>
-          <li>
-            The search starts from the instant answer's route (or the one you picked) and never scans the whole space,
-            so a poor start can still leave it in a poor neighbourhood.
-          </li>
-          <li>Accuracy figures come from 3 accounts. Only one of them has a proven optimum to check against.</li>
-          <li>A refresh is safe: progress is checkpointed and resumes without re-simulating anything.</li>
-          <li>
-            "Let me pick my hours" (in Your setup) makes each prestige and each egg shift wait for your hours. The CSV
-            counts the waits per leg.
-          </li>
-        </ul>
-      </div>
     </div>
   </div>
 </template>

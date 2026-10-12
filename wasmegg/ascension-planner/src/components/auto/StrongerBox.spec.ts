@@ -43,6 +43,27 @@ describe('StrongerBox', () => {
   });
 });
 
+describe('StrongerBox promise lines (12 Oct: one promise box)', () => {
+  const lines = async (level: 'light' | 'quick' | 'normal' | 'thorough') => {
+    useStrongerStore().level = level;
+    const html = await renderHtml(StrongerBox, { goal: 'fastest' });
+    return [...html.matchAll(/<li[^>]*>([^<]*)<\/li>/g)].map(m => textOf(m[1]));
+  };
+  it('Fast on Fastest: a refresh is safe, your hours, the picked start, and where the accuracy figures come from', async () => {
+    const all = (await lines('quick')).join('\n');
+    expect(all).toContain('A refresh is safe');
+    expect(all).toContain('Let me pick my hours');
+    expect(all).toContain('or the one you picked');
+    expect(all).toContain('3 accounts');
+  });
+  it('Light promises none of that: it runs no search', async () => {
+    const all = (await lines('light')).join('\n');
+    expect(all).not.toContain('A refresh is safe');
+    expect(all).not.toContain('Let me pick my hours');
+    expect(all).not.toContain('3 accounts');
+  });
+});
+
 describe('the screens (12 Oct layout)', () => {
   const read = (f: string) => fs.readFileSync(path.join(__dirname, f), 'utf8');
   it('Fastest: instant answer, then the Stronger check (search inside at Fast and above), then Exhaustive', () => {
