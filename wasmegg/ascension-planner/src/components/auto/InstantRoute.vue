@@ -230,6 +230,13 @@
               :mismatch="prestigeMismatch"
               :beta="prestigeFlag.beta"
             />
+            <RouteExtras
+              v-if="dateExact && legsFor(dateExact.chain)"
+              :chain="dateExact.chain"
+              :legs="legsFor(dateExact.chain)"
+              :reach-at="dateExact.end"
+              :zone="zone"
+            />
             <p class="text-[11px] text-slate-600">
               Ascend at the times shown: each fresh ascension starts on the hour (inside the weekly research sale, at
               once when that ends sooner), and Check exactly prices it the same way.
@@ -405,6 +412,13 @@
             :status="prestigeStatus"
             :mismatch="prestigeMismatch"
             :beta="prestigeFlag.beta"
+          />
+          <RouteExtras
+            v-if="exactOf(lead)"
+            :chain="lead.chain"
+            :legs="exactOf(lead)!.legs"
+            :reach-at="exactOf(lead)!.end"
+            :zone="zone"
           />
           <p class="text-[11px] text-slate-600">
             Ascend at the times shown: each fresh ascension starts on the hour (inside the weekly research sale, at once
@@ -755,6 +769,7 @@ import {
 import InstantRunWarning from './InstantRunWarning.vue';
 import InstantShareCheck from './InstantShareCheck.vue';
 import PrestigeByLine from './PrestigeByLine.vue';
+import RouteExtras from './RouteExtras.vue';
 import { usePrestigeBy, recordsPrestigeBy } from '@/composables/usePrestigeBy';
 import {
   candidatesOf,
@@ -2391,6 +2406,10 @@ watch(
 onUnmounted(() => timer && clearTimeout(timer));
 
 const zone = computed(() => planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
+/** The exact check's simulated legs for a route (first-ascension shifts, one more TE: RouteExtras.vue). */
+function legsFor(chain: number[]): Exact['legs'] | null {
+  return exact.value[key(chain)]?.legs ?? null;
+}
 function show(unix: number): string {
   return showDateTime(unix, zone.value);
 }

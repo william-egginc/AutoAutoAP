@@ -36,6 +36,16 @@
         <template v-if="route.ascendAt !== route.reachAt">You can ascend from {{ when(route.ascendAt) }}.</template>
         <slot />
       </p>
+      <RouteExtras
+        v-if="!running"
+        :chain="route.chain"
+        :legs="legs"
+        :reach-at="route.reachAt"
+        :zone="zone"
+        :run-cost="runCost"
+        no-rate
+        green
+      />
       <p v-if="!legs.length && running" class="text-[10px] text-emerald-900/70" data-testid="by-date-card-no-legs">
         The time of each stop comes with the finished result.
       </p>
@@ -151,6 +161,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import ResultCardFrame from './ResultCardFrame.vue';
+import RouteExtras from './RouteExtras.vue';
 import { CARD_NOTE, LEG_HEAD, LEG_ROW, LEG_TABLE, PRIMARY_BUTTON, SECONDARY_BUTTON } from './resultCardStyle';
 import { showDateTime } from '@/lib/displayTime';
 import { spareLabel } from '@/search/deadlineSummary';
@@ -182,6 +193,8 @@ const props = defineProps<{
   /** Not from a run in this visit on these settings: when it was found; the heading says
    *  "Your last run · ...". */
   lastRun?: string;
+  /** The run's measured cost of one more TE above the last stop, seconds (`lastTECost`). */
+  runCost?: number | null;
 }>();
 const emit = defineEmits<{ simulate: []; csv: []; save: [] }>();
 

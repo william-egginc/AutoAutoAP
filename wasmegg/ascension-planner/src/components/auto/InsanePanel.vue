@@ -895,6 +895,14 @@
               @save="save"
               :last-run="lastRunLabel"
             >
+              <RouteExtras
+                v-if="!store.isRunning"
+                :chain="store.bestChain"
+                :legs="store.bestLegs"
+                :reach-at="store.planStart + store.bestDays * 86400"
+                :zone="autoPlannerStore.timezone || plannerTzFallback"
+                green
+              />
               <p v-if="!store.isRunning && resultExplain" class="text-[11px] text-emerald-900/80 leading-relaxed">
                 {{ resultExplain }}
               </p>
@@ -1096,6 +1104,7 @@ import { NICKNAME_MAX, useFastestShare } from '@/composables/useFastestShare';
 import BoardSubmitButtons from './BoardSubmitButtons.vue';
 import SavedRuns from './SavedRuns.vue';
 import RouteResultCard from './RouteResultCard.vue';
+import RouteExtras from './RouteExtras.vue';
 import ResultHealth from './ResultHealth.vue';
 import { parseSweepRequest, withoutSweepParams } from '@/search/sweepRequest';
 import { describeFirstAscension } from '@/search/firstAscension';
@@ -1160,6 +1169,7 @@ const ownRun = computed(() => store.chainRunKind === 'full');
 // The integrity check up front (search/rules.ts), so a stalled account says so before Start.
 useIntegrityProbe(() => props.playerId);
 const autoPlannerStore = useAutoPlannerStore();
+const plannerTzFallback = Intl.DateTimeFormat().resolvedOptions().timeZone;
 const ui = useUIStore();
 /** The result card's Download CSV (composables/useRunDownloads.ts): the same handler as the CSV row. */
 const { downloadCsv } = useRunDownloads(store);

@@ -565,6 +565,14 @@
                   store.lastCompletedStage
                 }}) guarantee.
               </p>
+              <RouteExtras
+                v-if="!store.isRunning"
+                :chain="store.bestChain"
+                :legs="store.bestLegs"
+                :reach-at="store.planStart + store.bestDays * 86400"
+                :zone="autoPlannerStore.timezone || plannerTzFallback"
+                green
+              />
               <!-- Fastest is fast, not best: when a longer route might win, say so (never runs anything). -->
               <LongerRouteHint
                 mode="start"
@@ -1243,6 +1251,7 @@ import { useFastestShare } from '@/composables/useFastestShare';
 import BoardSubmitButtons from './BoardSubmitButtons.vue';
 import SavedRuns from './SavedRuns.vue';
 import RouteResultCard from './RouteResultCard.vue';
+import RouteExtras from './RouteExtras.vue';
 import LongerRouteHint from './LongerRouteHint.vue';
 import { defaultSeedChain } from '@/search/seedChain';
 import { startFromCountPlan } from '@/lib/longerRouteHint';
@@ -1331,6 +1340,7 @@ const runOutcome = computed<{ title: string; detail: string; tone: 'good' | 'war
   };
 });
 const autoPlannerStore = useAutoPlannerStore();
+const plannerTzFallback = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 // The slider is an index, not a tier name — `<input type="range">` only speaks numbers.
 const effortIndex = computed({

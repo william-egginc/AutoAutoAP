@@ -568,6 +568,7 @@
           can-save
           :saving="quickSaving"
           :note="quickSaveNote"
+          :run-cost="result.lastTECost ?? null"
           :last-run="store.dateRunLive ? '' : inPlannerZone(Math.floor(result.at / 1000))"
           @simulate="simulateResult"
           @csv="downloadByDateCsv"
