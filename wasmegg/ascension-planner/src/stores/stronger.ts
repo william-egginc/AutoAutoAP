@@ -71,5 +71,13 @@ export const useStrongerStore = defineStore('stronger', () => {
     around: null,
     boxes: null,
   });
-  return { level, strongerBest, instant, earlierChains, lastSearch };
+  /** Light's status sign (StrongerBox.vue): waiting for Check exactly, running, or done with how many
+   *  of the player's earlier routes it priced and when (ms). */
+  const light = ref<{ state: 'idle' | 'running' | 'done' | 'error'; priced: number; total: number; at: number }>({
+    state: 'idle',
+    priced: 0,
+    total: 0,
+    at: 0,
+  });
+  return { level, strongerBest, instant, earlierChains, lastSearch, light };
 });

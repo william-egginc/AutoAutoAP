@@ -77,27 +77,24 @@
     <!-- No heading of ours here: the stronger check's results carry their own ("Your earlier routes",
          "A TE lower"); a second one doubled it (the user, 12 Oct). -->
     <div id="stronger-check-results" />
-    <!-- Light has nothing to start (the user, 12 Oct: no Find there looked broken): say so, and offer the
-         search one click away. -->
-    <div
+    <!-- Light has nothing to start (the user, 12 Oct: no Find there looked broken): a status sign,
+         waiting -> running -> done, with how many of your earlier routes it priced and when. -->
+    <p
       v-if="level === 'light'"
-      class="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-indigo-100 bg-indigo-50/50 px-3 py-2 text-[11px] text-slate-700"
-      data-testid="light-runs-itself"
+      class="flex items-center gap-2 rounded-xl border px-3 py-2 text-[11px]"
+      :class="
+        stronger.light.state === 'done'
+          ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+          : 'border-indigo-100 bg-indigo-50/50 text-slate-700'
+      "
+      data-testid="light-status"
     >
-      <span class="flex-1 min-w-[12rem]"
-        ><span class="font-bold text-slate-900">Light runs by itself after Check exactly: nothing to start.</span> For a
-        search, pick Fast, Exact or Very high.</span
-      >
-      <button
-        type="button"
-        :disabled="running"
-        class="px-3 py-1.5 rounded-lg bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-800 disabled:opacity-40"
-        data-testid="light-to-fast"
-        @click="pick('quick')"
-      >
-        Search {{ NAMES.smart.toLowerCase() }} (Fast)
-      </button>
-    </div>
+      <span
+        v-if="stronger.light.state === 'running'"
+        class="inline-block w-2.5 h-2.5 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin"
+      />
+      <span>{{ lightText }}</span>
+    </p>
     <!-- At Fast and above: the search of the routes near the instant answer's, its controls and results. -->
     <h4
       v-if="level !== 'light'"
@@ -203,6 +200,25 @@ const levels = computed<LevelText[]>(() =>
       ]
 );
 const level = computed<StrongerLevel>(() => stronger.level);
+
+/** Light's status sign: "runs by itself" -> "Running…" -> "Done: priced N of your earlier routes". */
+const lightText = computed(() => {
+  const l = stronger.light;
+  if (l.state === 'running') return 'Running… pricing your earlier routes on this save.';
+  if (l.state === 'done') {
+    const at = l.at ? ` at ${clock(l.at)}` : '';
+    if (!l.total) return `Done${at}: you have no earlier routes for this goal yet.`;
+    return `Done${at}: priced ${l.priced} of your ${l.total} earlier route${l.total === 1 ? '' : 's'}.`;
+  }
+  if (l.state === 'error') return "Stopped before it finished. It runs again after the next Check exactly.";
+  return 'Light runs by itself after Check exactly: nothing to start.';
+});
+/** "12:31 pm" */
+function clock(ms: number): string {
+  return new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+    .format(new Date(ms))
+    .toLowerCase();
+}
 
 /** "What this does and does not promise" for the level picked, on this screen. */
 const PRICED = 'Every route it shows is priced with the full simulator on your save, the same as Check exactly, so its times are your own.';

@@ -413,6 +413,19 @@ watch(
   { immediate: true }
 );
 watch(earlier, list => (stronger.earlierChains = list.filter(e => e.priced).map(e => [...e.route.chain])));
+// Light's status sign in the box.
+watch(
+  [autoStatus, earlier],
+  ([st, list]) => {
+    stronger.light = {
+      state: st,
+      priced: list.filter(e => e.priced).length,
+      total: list.length,
+      at: st === 'done' ? Date.now() : stronger.light.at,
+    };
+  },
+  { immediate: true }
+);
 onUnmounted(() => {
   stronger.strongerBest[props.deadline ? 'date' : 'fastest'] = null;
 });

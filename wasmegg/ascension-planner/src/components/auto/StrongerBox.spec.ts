@@ -136,12 +136,19 @@ describe('the promise box follows the level (12 Oct)', () => {
 });
 
 describe('Light has nothing to start, and says so (12 Oct)', () => {
-  it('a line and a one-click way to a search level; none at a search level', async () => {
-    const html = await renderHtml(StrongerBox, { goal: 'fastest' });
-    expect(textOf(html)).toContain('Light runs by itself after Check exactly: nothing to start.');
-    expect(html).toContain('data-testid="light-to-fast"');
-    useStrongerStore().level = 'quick';
-    expect(await renderHtml(StrongerBox, { goal: 'fastest' })).not.toContain('light-runs-itself');
+  it('a status sign: waiting, running, done with how many earlier routes and when; none at a search level', async () => {
+    const st = useStrongerStore();
+    expect(textOf(await renderHtml(StrongerBox, { goal: 'fastest' }))).toContain(
+      'Light runs by itself after Check exactly: nothing to start.'
+    );
+    st.light = { state: 'running', priced: 0, total: 3, at: 0 };
+    expect(textOf(await renderHtml(StrongerBox, { goal: 'fastest' }))).toContain('Running… pricing your earlier routes');
+    st.light = { state: 'done', priced: 2, total: 3, at: new Date(2026, 9, 12, 12, 31).getTime() };
+    expect(textOf(await renderHtml(StrongerBox, { goal: 'fastest' }))).toContain(
+      'Done at 12:31 pm: priced 2 of your 3 earlier routes.'
+    );
+    st.level = 'quick';
+    expect(await renderHtml(StrongerBox, { goal: 'fastest' })).not.toContain('light-status');
   });
   it('By a date moves its run controls to the box when a search level is picked', () => {
     const t = fs.readFileSync(path.join(__dirname, 'DeadlinePanel.vue'), 'utf8');
