@@ -1,6 +1,15 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { gearChanges, gearTableName, gearTableNames, legacyGearTableName, type TableGear } from './tableGear';
+import {
+  colleggtibleEffects,
+  gearChanges,
+  gearTableName,
+  gearTableNameV3,
+  gearTableNames,
+  legacyGearTableName,
+  simEpicResearch,
+  type TableGear,
+} from './tableGear';
 
 const slot = (artifact: string, ...stones: string[]) => ({ artifact, stones });
 
@@ -124,7 +133,68 @@ describe('gear table names', () => {
     expect(await gearTableName(stamp())).not.toBe(await legacyGearTableName(stamp()));
   });
 
-  it('looks up canonical first, then legacy', async () => {
-    expect(await gearTableNames(stamp())).toEqual([await gearTableName(stamp()), await legacyGearTableName(stamp())]);
+  it('looks up v3 first, then the v2 canonical name, then legacy', async () => {
+    expect(await gearTableNames(stamp())).toEqual([
+      await gearTableNameV3(stamp()),
+      await gearTableName(stamp()),
+      await legacyGearTableName(stamp()),
+    ]);
+  });
+});
+
+describe('v3 names: only what the simulator reads', () => {
+  // The alt's save has silo quality and warp shift at 0, the main's and theFliris's at 40 and 16
+  // (11 Oct 2026); the planner models neither, so a table built on the alt's save must match them.
+  const withUnread = () => {
+    const s = stamp();
+    s.epicResearch = { ...s.epicResearch, epic_silo_quality: 40, warp_shift: 16 };
+    return s;
+  };
+
+  it('ignores epic research the planner never reads; v2 and legacy did not', async () => {
+    expect(await gearTableNameV3(withUnread())).toBe(await gearTableNameV3(stamp()));
+    expect(await gearTableName(withUnread())).not.toBe(await gearTableName(stamp()));
+    expect(await legacyGearTableName(withUnread())).not.toBe(await legacyGearTableName(stamp()));
+  });
+
+  it('a missing modelled research counts as 0, so it matches a save that lists it at 0', async () => {
+    const zero = stamp();
+    zero.epicResearch = { ...zero.epicResearch, epic_clucking: 0 };
+    expect(await gearTableNameV3(zero)).toBe(await gearTableNameV3(stamp()));
+    expect(simEpicResearch(zero.epicResearch)).toEqual(simEpicResearch(stamp().epicResearch));
+  });
+
+  it('still changes with modelled epic research, colleggtible effects and gear', async () => {
+    const er = stamp();
+    er.epicResearch = { epic_multiplier: 99 };
+    expect(await gearTableNameV3(er)).not.toBe(await gearTableNameV3(stamp()));
+    const coll = stamp();
+    coll.colleggtibles = { wood: 2 };
+    expect(colleggtibleEffects(coll.colleggtibles)).not.toEqual(colleggtibleEffects(stamp().colleggtibles));
+    expect(await gearTableNameV3(coll)).not.toBe(await gearTableNameV3(stamp()));
+    const gear = stamp();
+    gear.deliveryFull[1].stones.push('T4 Tachyon stone');
+    expect(await gearTableNameV3(gear)).not.toBe(await gearTableNameV3(stamp()));
+  });
+
+  it('colleggtibles count by effect: an egg not earned and an egg absent are the same', async () => {
+    const absent = stamp();
+    const listed = stamp();
+    listed.colleggtibles = { ...listed.colleggtibles, not_a_real_egg: 3 };
+    expect(await gearTableNameV3(listed)).toBe(await gearTableNameV3(absent));
+  });
+
+  it('never equals a v2 or legacy name', async () => {
+    const v3 = await gearTableNameV3(stamp());
+    expect(v3).toMatch(/^gear-[0-9a-f]{24}\.bin$/);
+    expect(v3).not.toBe(await gearTableName(stamp()));
+    expect(v3).not.toBe(await legacyGearTableName(stamp()));
+  });
+
+  it('gearChanges (own tables) ignores unread research too, and still sees modelled research', () => {
+    expect(gearChanges(stamp(), withUnread())).toEqual([]);
+    const mine = stamp();
+    mine.epicResearch = { epic_multiplier: 99 };
+    expect(gearChanges(stamp(), mine)).toEqual(['epic research']);
   });
 });
