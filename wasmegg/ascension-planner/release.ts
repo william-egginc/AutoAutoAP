@@ -33,6 +33,7 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
+  { at: '2026-10-12T20:16:33Z', note: 'New: Stronger check (Light/Fast/Exact/Very high) with Nearby routes; Exhaustive on the page, in boxes; When should I start?; egg-shift dates; By a date TE per egg; steadier long runs', level: 'big' },
   { at: '2026-10-11T19:26:57Z', note: 'New Science › How it works page; 12-hour times; tidier tabs on phones; a Full sweep queue survives a refresh; better time estimates; many small fixes', level: 'big' },
   { at: '2026-10-11T05:21:25Z', note: 'Watch from your phone: the finished page now shows the best route found, the route count and how long the run took' },
   { at: '2026-10-10T23:17:00Z', note: 'New: Continue my build-up (first ascension keeps buying from your farm as it is now), watch a run from your phone with a private link, big CSVs upload in parts, own tables match again', level: 'big' },
@@ -40,7 +41,6 @@ const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
   { at: '2026-10-10T03:43:13Z', note: 'Saved answers and saved runs keep the save they were priced from: Use the save from… brings it back to plan, check or search from, and Download this save keeps it as a file', level: 'big' },
   { at: '2026-10-10T01:38:15Z', note: 'Long runs use far less memory; the CSV lists every route priced; a finished result is kept until it is sent (Send it now after a reload); carry-on keeps Find and submit; a note box in Share this result', level: 'big' },
   { at: '2026-10-09T23:57:44Z', note: 'Advanced (Full sweep): one time left for the whole queue that ignores replayed chains after a carry-on, and Jump to it stays on your run' },
-  { at: '2026-10-09T22:49:50Z', note: 'Searches show honest progress from the start; Jump to it lands on your run in one click; a second tab no longer offers to carry on a run that is still going' },
 ];
 
 export default {
