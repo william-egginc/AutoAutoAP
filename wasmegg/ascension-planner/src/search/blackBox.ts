@@ -251,12 +251,6 @@ function pageMemory(): Pick<Beat, 'heapMB' | 'heapLimitMB' | 'uaMemoryMB'> {
   return out;
 }
 
-/** The whole page's last measured memory, workers included, MB (`measureUserAgentSpecificMemory`);
- *  undefined where the browser cannot measure it (search/cageGuard.ts). */
-export function lastPageMemoryMB(): number | undefined {
-  return uaMemory;
-}
-
 /** Whether THIS page wrote the open beat. The box is one key shared by every tab, and a second
  *  tab closing must not mark the first tab's run as closed by the player. */
 let mine = false;
