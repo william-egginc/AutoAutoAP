@@ -28,7 +28,7 @@ import type { BuildParams } from '@/search/precomputedLeg';
 import { contention, timeWeightedWorkers, workerSecondsFromRate } from '@/search/speed';
 import { addChainSample, sweepTimeLeft, type SweepTimeLeft } from '@/search/sweepEstimate';
 import { createStickyDealer } from '@/search/stickyDealer';
-import { hardwareThreads, maxPoolSize, clampPoolSize, targetWorkerCount, workersForBatch } from '@/search/batch';
+import { defaultWorkerCount, hardwareThreads, maxPoolSize, clampPoolSize, targetWorkerCount, workersForBatch } from '@/search/batch';
 import { describeRunError } from '@/utils/errors';
 import { loadChainBenchmark, saveChainBenchmark } from '@/lib/chainBenchmarkCache';
 import { patchAutoPlannerSchedule } from '@/lib/autoPlannerFormCache';
@@ -326,6 +326,9 @@ export interface ExhaustiveSpec {
 
 /** Where the background worker count is remembered (per browser, a convenience only). */
 const BACKGROUND_WORKERS_KEY = 'aap-background-workers';
+/** The worker count the player chose (Setup's pill, the slider, "Use 12"), per browser: it is the
+ *  default on every later visit. Nothing stored: half the cores (`defaultWorkerCount`). */
+export const WORKERS_KEY = 'aap-workers';
 
 function readStoredCount(key: string): number {
   try {
@@ -364,7 +367,7 @@ function writeStoredCount(key: string, n: number): void {
   }
 }
 
-/** A By a date run estimated past this, on every core but one, defaults to LONG_RUN_WORKERS. */
+/** A By a date run estimated past this, on the default count, defaults to LONG_RUN_WORKERS. */
 export const LONG_RUN_SECONDS = 2 * 3600;
 export const LONG_RUN_WORKERS = 12;
 
@@ -697,13 +700,16 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * spawns lazily and a small batch is not worth every worker, so "how many did you end up with" is
    * not "how many may you have". Held to the machine's core count when a pool is built.
    */
-  const workerBudget = ref(maxPoolSize());
-  /** The player moved the worker slider this visit: nothing here sets the count for them after that. */
-  const workersByHand = ref(false);
+  const chosenWorkers = readStoredCount(WORKERS_KEY);
+  const workerBudget = ref(chosenWorkers ? clampPoolSize(chosenWorkers) : defaultWorkerCount());
+  /** The player set the worker count (this visit or an earlier one, remembered under WORKERS_KEY):
+   *  nothing here sets the count for them after that. */
+  const workersByHand = ref(chosenWorkers > 0);
   function setWorkersByHand(n: number): void {
     workersByHand.value = true;
     longRunWorkers.value = null;
     workerBudget.value = n;
+    writeStoredCount(WORKERS_KEY, n);
   }
   /**
    * The count a long By a date run was given instead of every core (`fitWorkersToRun`), or null. Each
@@ -739,7 +745,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     setWorkersByHand(Math.min(maxPoolSize(), LONG_RUN_WORKERS));
   }
   /**
-   * By a date's default worker count for a run of this size: every core but one, or for a run that
+   * By a date's default worker count for a run of this size: half the cores, or for a run that
    * would take over LONG_RUN_SECONDS at that, at most LONG_RUN_WORKERS. Never once the player has set
    * the count by hand, and never during a run (the slider and the step-away rules own it then).
    * `secondsAtDefault`: the run's estimate on the default count.
@@ -747,7 +753,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   function fitWorkersToRun(secondsAtDefault: number): void {
     if (!isRunning.value && !deadlineRunning.value) longRunSeconds.value = secondsAtDefault;
     if (workersByHand.value || isRunning.value || deadlineRunning.value) return;
-    const all = maxPoolSize();
+    // The default count (half the cores since 11 Oct), held to LONG_RUN_WORKERS for a long run.
+    const all = defaultWorkerCount();
     const cap = Math.min(all, LONG_RUN_WORKERS);
     if (secondsAtDefault > LONG_RUN_SECONDS && cap < all) {
       if (longRunWorkers.value === null && workerBudget.value !== all) return; // someone else's count
@@ -1233,6 +1240,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    */
   const runStartedAt = ref(0);
   const runEndedAt = ref(0);
+  /** When the chain result on screen was found (ms): a run's end, or an opened saved run's save. */
+  const chainResultAt = ref(0);
 
   /** Minutes actually spent searching, or null when this result did not come from a live run. */
   const runMinutes = computed(() => {
@@ -2099,6 +2108,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     runNote.value = summary.runNote ?? '';
     integrityWait.value = null;
     openedRun.value = summary;
+    chainResultAt.value = summary.savedAt || 0;
     // Its own start, for "Build this plan": that pins the planner to `planStartUsed`, which still
     // held whichever run last went in this tab. Unknown (no fingerprint): don't pin at all.
     planStartUsed.value = fingerprintPlanStart(summary.fingerprint) ?? 0;
@@ -5433,6 +5443,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       stage.value = 'failed';
     } finally {
       runEndedAt.value = Date.now();
+      chainResultAt.value = runEndedAt.value;
       pool?.terminate();
       pool = null;
       // The answer (finished, or stopped with one) kept for sending until sent or dismissed, built now
@@ -7599,6 +7610,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       stage.value = 'failed';
     } finally {
       runEndedAt.value = Date.now();
+      chainResultAt.value = runEndedAt.value;
       pool?.terminate();
       pool = null;
       // The answer (finished, or stopped with one) kept for sending until sent or dismissed, built now
@@ -7910,6 +7922,47 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     return null;
   });
 
+  /**
+   * IS THE RESULT ON SCREEN FROM A RUN IN THIS VISIT, ON THESE SETTINGS? (the user, egg-beta review
+   * 11 Oct). A run's progress ("DONE · 61 / ~61 chains, 61 replayed") stays only while both hold; a
+   * result from an earlier visit, or one the settings have since moved away from, keeps its card,
+   * labelled "Your last run" with when it was found (`chainResultAt`, `deadlineResult.at`), and the
+   * progress goes back to idle. `settingsKey` is the run fingerprint's settings without the player.
+   */
+  const settingsKey = computed(() =>
+    fingerprintRun({
+      playerId: '',
+      planStart: planStart.value,
+      currentTE: currentTE.value,
+      final: finalTE.value,
+      firstAscension: firstAscensionFor(),
+      availability: availability.value,
+      milestones: activeMilestones.value,
+      deferShifts: deferShifts.value,
+      timeOff: timeOffWindows(timeOff.value, planTimezone()),
+    })
+  );
+  const chainLiveKey = ref('');
+  const dateLiveKey = ref('');
+  // At the start and again at the end: anything a run moves itself (a pinned plan start, the save's
+  // TE) doesn't count as the player changing the settings.
+  watch(isRunning, () => (chainLiveKey.value = settingsKey.value));
+  watch(deadlineRunning, () => (dateLiveKey.value = settingsKey.value));
+  const chainRunLive = computed(
+    () => isRunning.value || (!!chainLiveKey.value && chainLiveKey.value === settingsKey.value)
+  );
+  const dateRunLive = computed(
+    () => deadlineRunning.value || (!!dateLiveKey.value && dateLiveKey.value === settingsKey.value)
+  );
+
+  /**
+   * Which Fastest panel the chain-search state on the store (stage, counts, best, CSV, charts) belongs
+   * to: a Full sweep states its space (`searchSpace`), a Smart search clears it. The two panels share
+   * these fields, so each shows them only when they are its own: a finished Full sweep's "done" and
+   * answer used to show on Simple as if Simple had found them, and the other way round.
+   */
+  const chainRunKind = computed<'smart' | 'full'>(() => (searchSpace.value ? 'full' : 'smart'));
+
   // Keep the run's latest figures for the phone: they are gone from `runProgress` by the time the
   // run's last word is built.
   watch(runProgress, p => watchLinkNoteProgress(p && p.kind !== 'start-times' ? p : null), { flush: 'sync' });
@@ -7933,6 +7986,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     lastAutoSend,
     errorIsIntegrityNotice,
     runProgress,
+    chainRunKind,
+    chainRunLive,
+    dateRunLive,
+    chainResultAt,
     stopRun,
     provisionalRows,
     runElsewhere,

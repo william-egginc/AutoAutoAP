@@ -12,5 +12,8 @@ export const useInstantSummaryStore = defineStore('instantSummary', () => {
   /** The fastest route the instant answer has for this save (the full simulator's time once the exact
    *  check is in), or null while it is loading, has none, or is not on screen. */
   const fastest = ref<InstantRouteSummary | null>(null);
-  return { fastest };
+  /** Every route the Fastest instant answer lists (the one it leads with first), for "When should I
+   *  start?" to offer (StartTimeCard.vue). Empty while loading or off screen. */
+  const listed = ref<number[][]>([]);
+  return { fastest, listed };
 });

@@ -4,8 +4,8 @@
  *  1. Carry on by itself after a crash: the next load of the page carries the run on without a click.
  *  2. Watch from a second tab (watch.html, src/watch/main.ts): a tiny page that reopens the run's page
  *     when its heartbeat stops.
- *  3. Use fewer workers: about half the cores, and one notch fewer when the page's own memory climbs
- *     or its speed falls well below its own recent pace.
+ *  3. (Retired 11 Oct 2026) Use fewer workers: the worker count now starts at half the cores and is
+ *     set in Setup; `fewerWorkers` is always read as off, and its rules stay for old run marks.
  *  4. Send my progress every 1 to 6 hours (search/bestSoFarAuto.ts). Kept per browser like the
  *     rest, so it survives a carry-on after a crash.
  *
@@ -135,7 +135,9 @@ export function readOptions(s: KV | null = store()): StepAwayOptions {
       return {
         autoCarryOn: raw.autoCarryOn === true,
         watch: raw.watch === true,
-        fewerWorkers: raw.fewerWorkers === true,
+        // Retired 11 Oct 2026: the worker count starts at half the cores and lives in Setup. A box
+        // ticked before then reads as off (the new default already gives what it asked for).
+        fewerWorkers: false,
         autoSendBest: raw.autoSendBest === true,
         autoSendEveryMin: readAutoEveryMin(raw.autoSendEveryMin),
       };

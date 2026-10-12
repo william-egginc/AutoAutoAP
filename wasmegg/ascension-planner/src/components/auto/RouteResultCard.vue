@@ -11,7 +11,9 @@
 <template>
   <ResultCardFrame :still-going="running && days > 0">
     <template #heading>
-      {{ running ? 'Best so far' : 'Fastest found' }}<template v-if="claim && !running">: {{ claim }}</template>
+      <template v-if="lastRun && !running">Your last run · {{ lastRun }}</template
+      ><template v-else>{{ running ? 'Best so far' : 'Fastest found' }}</template
+      ><template v-if="claim && !running">: {{ claim }}</template>
     </template>
     <template #headline>
       <div v-if="source" class="text-[10px] font-bold text-emerald-700/80">{{ source }}</div>
@@ -32,7 +34,7 @@
       <button
         type="button"
         :disabled="busy"
-        class="px-4 py-2 rounded-lg bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-emerald-800 disabled:opacity-40"
+        :class="PRIMARY_BUTTON"
         @click="emit('build')"
       >
         Build this plan
@@ -40,21 +42,21 @@
       <button
         v-if="canFill"
         type="button"
-        class="px-3 py-2 rounded-lg border border-emerald-300 bg-white text-[10px] font-black uppercase tracking-widest text-emerald-800 hover:border-emerald-500"
+        :class="SECONDARY_BUTTON"
         @click="emit('fill')"
       >
         Just fill it in
       </button>
       <button
         type="button"
-        class="px-3 py-2 rounded-lg border border-emerald-300 bg-white text-[10px] font-black uppercase tracking-widest text-emerald-800 hover:border-emerald-500"
+        :class="SECONDARY_BUTTON"
         @click="toShare"
       >
         Share
       </button>
       <button
         type="button"
-        class="px-3 py-2 rounded-lg border border-emerald-300 bg-white text-[10px] font-black uppercase tracking-widest text-emerald-800 hover:border-emerald-500"
+        :class="SECONDARY_BUTTON"
         @click="emit('csv')"
       >
         CSV ↓
@@ -63,18 +65,22 @@
         v-if="canSave"
         type="button"
         :disabled="saving"
-        class="px-3 py-2 rounded-lg border border-emerald-300 bg-white text-[10px] font-black uppercase tracking-widest text-emerald-800 hover:border-emerald-500 disabled:opacity-40"
+        :class="SECONDARY_BUTTON"
         @click="emit('save')"
       >
         {{ saving ? 'Saving...' : 'Save run' }}
       </button>
       <span v-if="note" class="text-[11px] font-semibold text-emerald-800">{{ note }}</span>
+      <p class="w-full text-[10px] text-emerald-900/70" data-testid="build-plan-note">
+        Build this plan shows every shift and when each TE arrives in Your plan.
+      </p>
     </template>
   </ResultCardFrame>
 </template>
 
 <script setup lang="ts">
 import ResultCardFrame from './ResultCardFrame.vue';
+import { PRIMARY_BUTTON, SECONDARY_BUTTON } from './resultCardStyle';
 
 withDefaults(
   defineProps<{
@@ -95,8 +101,11 @@ withDefaults(
     source?: string;
     /** A line after the buttons: what the last click did. */
     note?: string;
+    /** Not from a run in this visit on these settings: when it was found ("Oct 11, 2026, 4:15 PM"),
+     *  and the heading says "Your last run · ..." ('' for a live one). */
+    lastRun?: string;
   }>(),
-  { claim: '', source: '', busy: false, canFill: false, canSave: false, saving: false, note: '' }
+  { claim: '', source: '', busy: false, canFill: false, canSave: false, saving: false, note: '', lastRun: '' }
 );
 const emit = defineEmits<{ build: []; fill: []; csv: []; save: [] }>();
 

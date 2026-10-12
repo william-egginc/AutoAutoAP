@@ -473,15 +473,17 @@ describe('the end of a By a date run (the 9 Oct crash)', () => {
     expect(store.deadlineUnfinished?.submit).toMatchObject({ whenDone: true, nickname: 'Allan' });
   });
 
+  // The default count is half the cores (11 Oct 2026), so the 12-worker cap matters on a machine with
+  // more than 24 threads: 32 here, default 16.
   it('a long run defaults to 12 workers, unless the count was set by hand', () => {
-    vi.stubGlobal('navigator', { hardwareConcurrency: 20 });
+    vi.stubGlobal('navigator', { hardwareConcurrency: 32 });
     const store = useChainSearchStore();
-    store.workerBudget = 19;
+    store.workerBudget = 16;
     store.fitWorkersToRun(3 * 3600);
     expect(store.workerBudget).toBe(12);
     expect(store.longRunWorkers).toBe(12);
     store.fitWorkersToRun(3600);
-    expect(store.workerBudget).toBe(19);
+    expect(store.workerBudget).toBe(16);
     expect(store.longRunWorkers).toBeNull();
     store.setWorkersByHand(17);
     store.fitWorkersToRun(3 * 3600);
@@ -490,9 +492,9 @@ describe('the end of a By a date run (the 9 Oct crash)', () => {
   });
 
   it('says so when the count is set by hand above the default, and the note never claims a count not in use', () => {
-    vi.stubGlobal('navigator', { hardwareConcurrency: 20 });
+    vi.stubGlobal('navigator', { hardwareConcurrency: 32 });
     const store = useChainSearchStore();
-    store.workerBudget = 19;
+    store.workerBudget = 16;
     store.fitWorkersToRun(3 * 3600);
     expect(store.longRunNote).toEqual({ kind: 'default', workers: 12 });
     expect(store.workerBudget).toBe(12);
@@ -504,6 +506,62 @@ describe('the end of a By a date run (the 9 Oct crash)', () => {
     store.useLongRunWorkers();
     expect(store.workerBudget).toBe(12);
     expect(store.longRunNote).toBeNull();
+  });
+});
+
+describe('a result from this visit, on these settings (11 Oct 2026)', () => {
+  it('is live after a run until the settings change; a fresh visit starts idle', async () => {
+    const store = useChainSearchStore();
+    expect(store.chainRunLive).toBe(false);
+    expect(store.dateRunLive).toBe(false);
+    store.isRunning = true;
+    await Promise.resolve();
+    expect(store.chainRunLive).toBe(true);
+    store.isRunning = false;
+    await Promise.resolve();
+    expect(store.chainRunLive).toBe(true);
+    store.finalTE = store.finalTE - 1;
+    expect(store.chainRunLive).toBe(false);
+    store.deadlineRunning = true;
+    await Promise.resolve();
+    store.deadlineRunning = false;
+    await Promise.resolve();
+    expect(store.dateRunLive).toBe(true);
+    store.finalTE = store.finalTE + 1;
+    expect(store.dateRunLive).toBe(false);
+    setActivePinia(createPinia());
+    expect(useChainSearchStore().chainRunLive).toBe(false);
+  });
+});
+
+describe('the worker count (11 Oct 2026)', () => {
+  it('starts at half the cores for someone who never chose one', () => {
+    vi.stubGlobal('navigator', { hardwareConcurrency: 20 });
+    setActivePinia(createPinia());
+    const store = useChainSearchStore();
+    expect(store.workerBudget).toBe(10);
+    expect(store.workersByHand).toBe(false);
+  });
+
+  it('remembers a count the player set, and starts there next visit', () => {
+    vi.stubGlobal('navigator', { hardwareConcurrency: 20 });
+    setActivePinia(createPinia());
+    useChainSearchStore().setWorkersByHand(18);
+    expect(localStorage.getItem('aap-workers')).toBe('18');
+    setActivePinia(createPinia());
+    const next = useChainSearchStore();
+    expect(next.workerBudget).toBe(18);
+    expect(next.workersByHand).toBe(true);
+    // A long run's default cap doesn't override the player's own count.
+    next.fitWorkersToRun(3 * 3600);
+    expect(next.workerBudget).toBe(18);
+  });
+
+  it('holds a remembered count to this machine (a count from a bigger computer)', () => {
+    localStorage.setItem('aap-workers', '30');
+    vi.stubGlobal('navigator', { hardwareConcurrency: 8 });
+    setActivePinia(createPinia());
+    expect(useChainSearchStore().workerBudget).toBe(8);
   });
 });
 

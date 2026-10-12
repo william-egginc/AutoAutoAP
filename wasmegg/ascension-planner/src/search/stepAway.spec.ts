@@ -74,7 +74,8 @@ describe('options and run mark storage', () => {
       autoSendEveryMin: 180,
     } as const;
     writeOptions({ ...ticked }, s);
-    expect(readOptions(s)).toEqual(ticked);
+    // "Use fewer workers" was retired on 11 Oct 2026: a stored tick reads as off.
+    expect(readOptions(s)).toEqual({ ...ticked, fewerWorkers: false });
   });
 
   it('reads an older stored 30 min as an hour', () => {

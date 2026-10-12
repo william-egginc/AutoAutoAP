@@ -21,8 +21,8 @@
             </p>
             <p>
               It all happens on your own computer, in
-              <span class="font-bold text-slate-800">{{ store.workerBudget }} background workers</span> (one per core,
-              less one, unless you change it in Your setup). Each chain takes several seconds of one core, more for
+              <span class="font-bold text-slate-800">{{ store.workerBudget }} background workers</span> (half your cores
+              to start; change it in Setup and that count is kept for next time). Each chain takes several seconds of one core, more for
               longer chains, so a run takes <span class="font-bold">hours</span>. Keep the tab open. Closing it stops
               the workers, but what they priced is saved and you can carry on later.
             </p>
@@ -496,8 +496,9 @@
         </template>
         <template #progress>
           <!-- Live progress -->
-          <div v-if="store.isRunning || store.bestDays > 0" class="space-y-4">
+          <div v-if="ownRun && (store.isRunning || store.bestDays > 0)" class="space-y-4">
             <RunProgress
+              v-if="store.chainRunLive"
               data-run-progress="smart"
               :stage="store.stage"
               :count="`${store.chainsDone} / ~${plural(store.chainsEstimated, 'chain')}${store.chainsReplayed ? `, ${store.chainsReplayed} replayed` : ''}`"
@@ -545,7 +546,7 @@
               :end-label="endDate"
               :running="store.isRunning"
               :claim="store.stoppedEarly ? 'the best of what was priced' : ''"
-              :source="store.searchSpace ? `From the ${NAMES.fullFirst} search you ran` : ''"
+              :last-run="lastRunLabel"
               :busy="store.busy"
               can-fill
               can-save
@@ -766,11 +767,18 @@
       <!-- The results (RunResults.vue): the same order on every search screen. This screen's answer is
            in the run's progress above, where it doubles as the best so far. -->
       <RunResults>
-        <!-- When to start this route: every hour of the next week, as fresh starts. -->
-        <StartTimeFinder
-          v-if="store.bestChain.length && store.bestDays > 0 && !store.isRunning"
-          :chain="store.bestChain"
-        />
+        <!-- When to start this route: the card at the top of the screen (StartTimeCard.vue), opened on it. -->
+        <p v-if="ownRun && store.bestChain.length && store.bestDays > 0 && !store.isRunning" class="text-[11px]">
+          <button
+            type="button"
+            class="font-bold text-indigo-700 underline decoration-dotted underline-offset-2 hover:text-indigo-900"
+            data-testid="check-start-times"
+            @click="startTimes.show(store.bestChain)"
+          >
+            Check start times for this route</button
+          >
+          <span class="text-slate-500"> (When should I start?, at the top of this screen)</span>
+        </p>
 
         <!-- The generated plan does NOT know about the schedule. Said here rather than buried,
              because the two numbers WILL disagree and the search's is the realistic one. -->
@@ -1098,7 +1106,7 @@
                the exact payload is inspectable BEFORE the click, and with no collector configured
                the only option is a file the player hands over themselves. -->
           <ShareResult
-            v-if="store.bestDays > 0 && !store.isRunning"
+            v-if="ownRun && store.bestDays > 0 && !store.isRunning"
             :replaces-best-so-far="!!store.provisionalRows.fastest"
             v-model:opt-in="optIn"
             v-model:anonymous="anonymous"
@@ -1220,13 +1228,14 @@ import { NAMES } from '@/lib/siteNav';
 import { useUIStore } from '@/stores/ui';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
+import { showDateTime } from '@/lib/displayTime';
+import { useStartTimesStore } from '@/stores/startTimes';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { EFFORT, EFFORT_NOTES, EFFORT_ORDER, NEAR_OPTIMAL_SHARE } from '@/search/effort';
 import { formatDuration, plural } from '@/lib/format';
 import { isAvailable } from '@/search/availability';
 import ChainSearchExplainer from './ChainSearchExplainer.vue';
 import HelpTip from './HelpTip.vue';
-import StartTimeFinder from './StartTimeFinder.vue';
 import CarryOnOffer from './CarryOnOffer.vue';
 import BlockedRunNotice from './BlockedRunNotice.vue';
 import ShareResult from './ShareResult.vue';
@@ -1256,6 +1265,10 @@ const props = defineProps<{ playerId: string }>();
 const emit = defineEmits<{ checkExactly: [chain: number[]] }>();
 
 const store = useChainSearchStore();
+const startTimes = useStartTimesStore();
+/** The store's chain-search state is this panel's (Smart search), not the other Fastest panel's: its
+ *  progress, answer, charts and share show only then (store `chainRunKind`). */
+const ownRun = computed(() => store.chainRunKind === 'smart');
 
 /** Open by default: a collapsed form on first load looks like the panel has nothing in it. */
 // Folded by default so Simple looks simple; the player's choice is remembered in this browser.
@@ -1491,6 +1504,16 @@ function eggBlocks(leg: LegSummary): EggBlock[] {
 const expandedRow = ref('');
 
 const activeView = computed(() => VIEWS.find(v => v.id === store.shortlistView));
+
+/** The card's "Your last run · ..." when its result isn't from a run in this visit on these settings
+ *  (store `chainRunLive`); '' for a live one. */
+const lastRunLabel = computed(() => {
+  if (store.chainRunLive) return '';
+  const at = store.chainResultAt;
+  return at
+    ? showDateTime(at / 1000, autoPlannerStore.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone)
+    : 'from an earlier visit';
+});
 
 /** `Sep 30, 5:25 PM` — deliberately no year. Every leg of a plan sits within a couple of years of
  *  the others, so the year is dead weight in a table this dense; the finish date above carries it. */

@@ -3,7 +3,7 @@
  * a typed number and how many workers a machine is asked to run.
  */
 import { describe, expect, it } from 'vitest';
-import { clampPoolSize, maxPoolSize, targetWorkerCount } from './batch';
+import { defaultWorkerCount, clampPoolSize, maxPoolSize, targetWorkerCount } from './batch';
 
 describe('clampPoolSize', () => {
   const withCores = (cores: number | undefined, run: () => void) => {
@@ -55,5 +55,14 @@ describe('targetWorkerCount', () => {
   });
   it('never goes above the budget, even if the remembered background count is larger', () => {
     expect(targetWorkerCount(3, 4, true)).toBe(3);
+  });
+});
+
+describe('defaultWorkerCount', () => {
+  it('is half the logical cores, at least one', () => {
+    expect(defaultWorkerCount(20)).toBe(10);
+    expect(defaultWorkerCount(7)).toBe(3);
+    expect(defaultWorkerCount(1)).toBe(1);
+    expect(defaultWorkerCount(2)).toBe(1);
   });
 });

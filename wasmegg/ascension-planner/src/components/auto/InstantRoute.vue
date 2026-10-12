@@ -2141,8 +2141,23 @@ watch(
   },
   { immediate: true }
 );
+// Every route listed, the lead first, for "When should I start?" (StartTimeCard.vue).
+watch(
+  () => {
+    if (props.deadline || status.value === 'loading' || !lead.value) return [];
+    const out = [lead.value.chain, ...rows.value.map(r => r.chain)];
+    return out.filter((c, i) => out.findIndex(o => o.join(',') === c.join(',')) === i).map(c => [...c]);
+  },
+  list => {
+    if (!props.deadline) instantSummary.listed = list;
+  },
+  { immediate: true }
+);
 onUnmounted(() => {
-  if (!props.deadline) instantSummary.fastest = null;
+  if (!props.deadline) {
+    instantSummary.fastest = null;
+    instantSummary.listed = [];
+  }
 });
 
 /**

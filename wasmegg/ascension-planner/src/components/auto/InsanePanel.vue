@@ -794,7 +794,7 @@
           </template>
           <template #progress>
             <RunProgress
-              v-if="store.stage"
+              v-if="ownRun && store.stage && store.chainRunLive"
               data-run-progress="full"
               :stage="store.stage"
               :count="`${pricedSoFar.toLocaleString()} / ${plural(store.chainsEstimated, 'chain')}`"
@@ -880,20 +880,20 @@
 
             <!-- The answer: the same card as Smart search (RouteResultCard.vue). -->
             <RouteResultCard
-              v-if="store.bestDays > 0"
+              v-if="ownRun && store.bestDays > 0"
               :chain="store.bestChain"
               :days="store.bestDays"
               :final-t-e="store.finalTE"
               :end-label="endDate"
               :running="store.isRunning"
               :claim="store.stoppedEarly ? '' : resultClaim"
-              :source="store.searchSpace ? '' : `From the ${NAMES.smartFirst} search you ran`"
               :busy="store.busy"
               can-save
               :saving="saving"
               @build="buildPlan"
               @csv="downloadCsv"
               @save="save"
+              :last-run="lastRunLabel"
             >
               <p v-if="!store.isRunning && resultExplain" class="text-[11px] text-emerald-900/80 leading-relaxed">
                 {{ resultExplain }}
@@ -936,26 +936,7 @@
               >
                 {{ store.continueWarning }}
               </p>
-              <div
-                v-if="store.resultContradictions.length"
-                class="mt-2 rounded-lg border border-rose-300 bg-rose-50 p-3 space-y-1"
-              >
-                <p class="text-[10px] font-black text-rose-800 uppercase tracking-widest">
-                  This result contradicts itself
-                </p>
-                <p
-                  v-for="(issue, k) in store.resultContradictions"
-                  :key="k"
-                  class="text-[11px] text-rose-900/90 leading-relaxed"
-                >
-                  {{ issue.message }}
-                </p>
-                <p class="text-[11px] text-rose-900/80 leading-relaxed">
-                  Reload your backup and run it again before trusting these dates, and compare leg 1 against the
-                  official planner. If leg 1 agrees and a later leg doesn't, the fault is in the state carried between
-                  legs.
-                </p>
-              </div>
+              <ResultHealth class="mt-2" :issues="store.resultContradictions" />
               <p v-if="store.stoppedEarly" class="text-[11px] text-emerald-900/70 pt-1">
                 You stopped it early, so this is the best of what was priced, not the optimum of the space.
               </p>
@@ -965,12 +946,19 @@
               </p>
             </RouteResultCard>
           </template>
-          <!-- When to start this route: every hour of the next week, as fresh starts. -->
-          <StartTimeFinder
-            v-if="store.bestChain.length && store.bestDays > 0 && !store.isRunning"
-            :chain="store.bestChain"
-          />
-          <RunCharts v-if="store.pricedCount" />
+          <!-- When to start this route: the card at the top of the screen (StartTimeCard.vue), opened on it. -->
+          <p v-if="ownRun && store.bestChain.length && store.bestDays > 0 && !store.isRunning" class="text-[11px]">
+            <button
+              type="button"
+              class="font-bold text-indigo-700 underline decoration-dotted underline-offset-2 hover:text-indigo-900"
+              data-testid="check-start-times"
+              @click="startTimes.show(store.bestChain)"
+            >
+              Check start times for this route</button
+            >
+            <span class="text-slate-500"> (When should I start?, at the top of this screen)</span>
+          </p>
+          <RunCharts v-if="ownRun && store.pricedCount" />
           <template #keep>
             <!-- Saved runs: the same list on both depths (SavedRuns.vue); carrying a sweep on is this one's. -->
             <SavedRuns :player-id="playerId" can-resume />
@@ -990,7 +978,7 @@
             <!-- Not while a Find and submit run is going: it sends itself with the choice made at Find,
                  and a box here saying "anonymously" would not be what goes. -->
             <ShareResult
-              v-if="store.bestDays > 0 && !(store.isRunning && store.submitsWhenDone)"
+              v-if="ownRun && store.bestDays > 0 && !(store.isRunning && store.submitsWhenDone)"
               :replaces-best-so-far="!!store.provisionalRows.fastest"
               v-model:opt-in="optIn"
               v-model:anonymous="anonymous"
@@ -1099,6 +1087,7 @@ const kept = {
 import { NAMES } from '@/lib/siteNav';
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
+import { useStartTimesStore } from '@/stores/startTimes';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useUIStore } from '@/stores/ui';
 import RunNoteBox from './RunNoteBox.vue';
@@ -1107,6 +1096,7 @@ import { NICKNAME_MAX, useFastestShare } from '@/composables/useFastestShare';
 import BoardSubmitButtons from './BoardSubmitButtons.vue';
 import SavedRuns from './SavedRuns.vue';
 import RouteResultCard from './RouteResultCard.vue';
+import ResultHealth from './ResultHealth.vue';
 import { parseSweepRequest, withoutSweepParams } from '@/search/sweepRequest';
 import { describeFirstAscension } from '@/search/firstAscension';
 import {
@@ -1128,7 +1118,6 @@ import { chainCount as countLabel } from '@/lib/chartThin';
 import HelpTip from './HelpTip.vue';
 import BandCheckNotice from './BandCheckNotice.vue';
 import { coverageAfterText, coverageBeforeText, describeEdge, findBandEdges, widenEdges } from '@/search/bandCheck';
-import StartTimeFinder from './StartTimeFinder.vue';
 import { showDateTime } from '@/lib/displayTime';
 import { sweepSeconds, workerSecondsFromRate, workerSecondsPerChain } from '@/search/speed';
 import { describeCompute } from '@/utils/computeTime';
@@ -1164,6 +1153,10 @@ const props = defineProps<{
 const emit = defineEmits<{ 'update:goal': [goal: 'fastest' | 'deadline'] }>();
 
 const store = useChainSearchStore();
+const startTimes = useStartTimesStore();
+/** The store's chain-search state is this panel's (Full sweep), not the other Fastest panel's: its
+ *  progress, answer, charts and share show only then (store `chainRunKind`). */
+const ownRun = computed(() => store.chainRunKind === 'full');
 // The integrity check up front (search/rules.ts), so a stalled account says so before Start.
 useIntegrityProbe(() => props.playerId);
 const autoPlannerStore = useAutoPlannerStore();
@@ -2086,6 +2079,15 @@ function buildPlan(): void {
   ui.openPlannerRequested++;
 }
 
+/** The card's "Your last run · ..." when its result isn't from a run in this visit on these settings
+ *  (store `chainRunLive`); '' for a live one. */
+const lastRunLabel = computed(() => {
+  if (store.chainRunLive) return '';
+  const at = store.chainResultAt;
+  return at
+    ? showDateTime(at / 1000, autoPlannerStore.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone)
+    : 'from an earlier visit';
+});
 function saveWhen(unixSeconds: number | undefined): string {
   if (!unixSeconds) return 'an unknown time';
   return showDateTime(unixSeconds, autoPlannerStore.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
