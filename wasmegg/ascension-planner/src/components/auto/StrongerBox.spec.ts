@@ -134,3 +134,17 @@ describe('the promise box follows the level (12 Oct)', () => {
     expect(t).not.toContain('No search:');
   });
 });
+
+describe('Light has nothing to start, and says so (12 Oct)', () => {
+  it('a line and a one-click way to a search level; none at a search level', async () => {
+    const html = await renderHtml(StrongerBox, { goal: 'fastest' });
+    expect(textOf(html)).toContain('Light runs by itself after Check exactly: nothing to start.');
+    expect(html).toContain('data-testid="light-to-fast"');
+    useStrongerStore().level = 'quick';
+    expect(await renderHtml(StrongerBox, { goal: 'fastest' })).not.toContain('light-runs-itself');
+  });
+  it('By a date moves its run controls to the box when a search level is picked', () => {
+    const t = fs.readFileSync(path.join(__dirname, 'DeadlinePanel.vue'), 'utf8');
+    expect(t).toContain(`@picked="l => l !== 'light' && !store.deadlineRunning && pickFocus('simple')"`);
+  });
+});

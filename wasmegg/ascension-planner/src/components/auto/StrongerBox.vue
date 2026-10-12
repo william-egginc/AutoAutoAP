@@ -77,6 +77,27 @@
     <!-- No heading of ours here: the stronger check's results carry their own ("Your earlier routes",
          "A TE lower"); a second one doubled it (the user, 12 Oct). -->
     <div id="stronger-check-results" />
+    <!-- Light has nothing to start (the user, 12 Oct: no Find there looked broken): say so, and offer the
+         search one click away. -->
+    <div
+      v-if="level === 'light'"
+      class="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-indigo-100 bg-indigo-50/50 px-3 py-2 text-[11px] text-slate-700"
+      data-testid="light-runs-itself"
+    >
+      <span class="flex-1 min-w-[12rem]"
+        ><span class="font-bold text-slate-900">Light runs by itself after Check exactly: nothing to start.</span> For a
+        search, pick Fast, Exact or Very high.</span
+      >
+      <button
+        type="button"
+        :disabled="running"
+        class="px-3 py-1.5 rounded-lg bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-800 disabled:opacity-40"
+        data-testid="light-to-fast"
+        @click="pick('quick')"
+      >
+        Search {{ NAMES.smart.toLowerCase() }} (Fast)
+      </button>
+    </div>
     <!-- At Fast and above: the search of the routes near the instant answer's, its controls and results. -->
     <h4
       v-if="level !== 'light'"
@@ -105,6 +126,7 @@ const props = defineProps<{
    *  level's name, `line` as How long. FastestRoute.vue and DeadlinePanel.vue work them out. */
   estimates?: Partial<Record<StrongerLevel, LevelEstimate>>;
 }>();
+const emit = defineEmits<{ picked: [level: StrongerLevel] }>();
 
 const store = useChainSearchStore();
 const stronger = useStrongerStore();
@@ -240,5 +262,6 @@ function onPromiseToggle(e: Event): void {
 function pick(id: StrongerLevel): void {
   stronger.level = id;
   if (id === 'quick' || id === 'normal' || id === 'thorough') store.effort = id;
+  emit('picked', id);
 }
 </script>

@@ -140,6 +140,7 @@
       goal="date"
       :running="store.deadlineRunning && !!store.deadlineRunSimple"
       :estimates="levelEstimates"
+      @picked="l => l !== 'light' && !store.deadlineRunning && pickFocus('simple')"
     >
       <template v-if="level !== 'light'">
         <!-- Simple (batch 3): no chain editor. The routes it tries, in one line, and a way to see them as
