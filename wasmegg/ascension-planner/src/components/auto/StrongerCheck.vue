@@ -11,6 +11,7 @@
 <template>
   <StrongerCheckView
     v-model:on="on"
+    :bare="embedded"
     :deadline="deadline"
     :target="store.finalTE"
     :zone="zone"
@@ -32,6 +33,7 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref, watch } from 'vue';
 import StrongerCheckView from './StrongerCheckView.vue';
+import { useStrongerStore } from '@/stores/stronger';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useInitialStateStore } from '@/stores/initialState';
 import { showDateTime } from '@/lib/displayTime';
@@ -93,6 +95,8 @@ const props = defineProps<{
   /** A search is running: it has the cores. */
   runBusy: boolean;
   zone: string;
+  /** Inside the Stronger check box (StrongerBox.vue): always on, no toggle of its own. */
+  embedded?: boolean;
 }>();
 
 const store = useChainSearchStore();
@@ -107,7 +111,7 @@ function readOn(): boolean {
     return false;
   }
 }
-const on = ref(readOn());
+const on = ref(props.embedded || readOn());
 watch(on, v => {
   try {
     localStorage.setItem(TOGGLE_KEY, v ? '1' : '0');
@@ -388,6 +392,29 @@ const bestNow = computed<Found | null>(() => {
   let top: Found | null = null;
   for (const f of list) if (beats(goal.value, f.p, top?.p ?? props.best)) top = f;
   return top;
+});
+
+// For the comparison block and "Start from a different route" (stores/stronger.ts).
+const stronger = useStrongerStore();
+watch(
+  bestNow,
+  f => {
+    const g = props.deadline ? 'date' : 'fastest';
+    stronger.strongerBest[g] = f
+      ? {
+          chain: [...f.p.chain],
+          end: f.p.end,
+          endTE: f.p.endTE,
+          ...(props.deadline ? { spare: props.deadline - f.p.end } : {}),
+          exact: true,
+        }
+      : null;
+  },
+  { immediate: true }
+);
+watch(earlier, list => (stronger.earlierChains = list.filter(e => e.priced).map(e => [...e.route.chain])));
+onUnmounted(() => {
+  stronger.strongerBest[props.deadline ? 'date' : 'fastest'] = null;
 });
 
 const refinePlan = computed(() => {

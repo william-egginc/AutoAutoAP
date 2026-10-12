@@ -19,7 +19,7 @@
   -- and when it was implemented and measured it cut 0 of 69 chains. Exhaustive means exhaustive.
 -->
 <template>
-  <div class="section-premium p-4 sm:p-8 max-w-4xl mx-auto mt-6 relative overflow-hidden">
+  <div :class="embedded ? 'relative overflow-hidden' : 'section-premium p-4 sm:p-8 max-w-4xl mx-auto mt-6 relative overflow-hidden'">
     <div class="absolute -right-20 -top-20 w-64 h-64 bg-rose-500/5 rounded-full blur-3xl"></div>
 
     <div class="relative z-10 space-y-6">
@@ -737,7 +737,7 @@
             (!sweepRequest && !extrasReady) ||
             queueAt >= 0
           "
-          :running="store.isRunning || queueAt >= 0"
+          :running="(store.isRunning && ownRun) || queueAt >= 0"
           :stopping="store.stopRequested || queueCancelled"
           :find-label="
             sweepRequest
@@ -973,7 +973,7 @@
 
             <!-- Diagnostics are offered on a run with no answer too: that is exactly when someone wants to
                report what went in. -->
-            <CsvCard v-if="store.pricedCount || store.noFeasibleChain" :csv="store.csvRows > 0" diagnostics>
+            <CsvCard v-if="ownRun && (store.pricedCount || store.noFeasibleChain)" :csv="store.csvRows > 0" diagnostics>
               <template #csv>
                 <span class="text-[11px] text-slate-500">
                   {{ countLabel(store.csvRows) }}, one row per leg. Safe to download mid-run.
@@ -1158,6 +1158,8 @@ const props = defineProps<{
   goal?: 'fastest' | 'deadline';
   /** Leave out the space to search / The routes to try (a Simple mode that picks the routes itself). */
   hideRoutes?: boolean;
+  /** Inside a box of the screen's own (FastestRoute.vue's Exhaustive box): no frame of its own. */
+  embedded?: boolean;
 }>();
 const emit = defineEmits<{ 'update:goal': [goal: 'fastest' | 'deadline'] }>();
 

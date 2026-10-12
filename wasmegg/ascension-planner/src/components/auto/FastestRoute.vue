@@ -29,71 +29,98 @@
     <StartTimeCard />
 
     <!-- The instant answer from the precomputed table (the precompute fork): every route, at once.
-         Check exactly hands a route to the Full sweep, which prices it with the full simulator. -->
-    <InstantRoute @check="checkExactly" />
+         Check exactly prices them on your save; its stronger check shows in the box below. -->
+    <InstantRoute stronger-to="#stronger-check-results" @check="checkExactly" />
+    <!-- The answers side by side (SearchCompare.vue): instant answer, stronger check, Exhaustive. -->
+    <SearchCompare goal="fastest" />
 
-    <!-- Search around this answer (with its level bar) or the exhaustive search, right under the instant
-         answer (SearchModeChooser.vue, decision A); the search and its results follow. -->
-    <SearchModeChooser
-      :model-value="depth"
-      around="smart"
-      exhaustive="full"
-      levels
-      :around-blurb="AROUND_BLURB"
-      :exhaustive-blurb="EXHAUSTIVE_BLURB"
-      :running="lockedTo === 'smart' || lockedTo === 'full' ? lockedTo : null"
-      @update:model-value="pick"
-    />
+    <!-- A search running on another screen (By a date, a start-time sweep): greyed out under a line. -->
+    <RunningElsewhere v-if="blockedBy" :running="blockedBy" :here="fastestName(store.finalTE)" />
+    <div
+      class="space-y-4"
+      :class="blockedBy ? 'opacity-40 pointer-events-none select-none' : ''"
+      :inert="blockedBy ? true : undefined"
+    >
+      <!-- Stronger check: the stronger check's results, and at Fast and above the search around the
+           instant answer, its controls and results, in one box (StrongerBox.vue; the user, 12 Oct). -->
+      <StrongerBox v-slot="{ level }" goal="fastest" :running="smartRunning">
+        <ChainSearchPanel
+          v-if="level !== 'light'"
+          :player-id="playerId"
+          embedded
+          level-elsewhere
+          @check-exactly="checkExactly"
+        />
+      </StrongerBox>
 
-    <!-- A search running elsewhere: this depth greyed out under a line saying so (the cards above
-         stay clickable, to switch back). -->
-    <RunningElsewhere v-if="blockedBy" :running="blockedBy" :here="depth === 'smart' ? NAMES.smart : NAMES.full" />
-    <div :class="blockedBy ? 'opacity-40 pointer-events-none select-none' : ''" :inert="blockedBy ? true : undefined">
-      <ChainSearchPanel v-if="depth === 'smart'" :player-id="playerId" level-elsewhere @check-exactly="checkExactly" />
-      <InsanePanel v-else :player-id="playerId" goal="fastest" @update:goal="onGoal" />
+      <!-- Exhaustive, on the page as it is: its boxes, run controls and results (InsanePanel.vue). -->
+      <section id="exhaustive" class="rounded-2xl border border-slate-200 bg-white p-4 space-y-3 scroll-mt-24">
+        <div class="flex flex-wrap items-center gap-2">
+          <h3 class="text-base font-black text-slate-900">{{ EXHAUSTIVE_TITLE }}</h3>
+          <span
+            v-if="fullRunning"
+            class="px-1.5 py-0.5 rounded bg-indigo-600 text-white text-[9px] font-black uppercase tracking-widest"
+            >Running</span
+          >
+        </div>
+        <p class="text-[12px] text-slate-600 leading-relaxed">{{ EXHAUSTIVE_BLURB }}</p>
+        <InsanePanel :player-id="playerId" goal="fastest" embedded @update:goal="onGoal" />
+      </section>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { computed, nextTick, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
-import { NAMES, fastestName, type Depth } from '@/lib/siteNav';
+import { EXHAUSTIVE_TITLE, fastestName, type Depth } from '@/lib/siteNav';
 import { safeAsyncComponent } from '@/lib/import';
 import RunningElsewhere from './RunningElsewhere.vue';
-import SearchModeChooser from './SearchModeChooser.vue';
+import StrongerBox from './StrongerBox.vue';
+import SearchCompare from './SearchCompare.vue';
 import InstantRoute from './InstantRoute.vue';
 import YourSetup from './YourSetup.vue';
 import StartTimeCard from './StartTimeCard.vue';
 import { useUIStore } from '@/stores/ui';
-import { writeSearchMode } from '@/lib/searchMode';
+import { useStrongerStore } from '@/stores/stronger';
 
 defineProps<{
   playerId: string;
+  /** The address's depth (#/auto/fastest/full): both searches are on the page now; it only says
+   *  which one a link (or the progress bar's Jump to it) means. */
   depth: Depth;
-  /** The screen a running search belongs to ('smart', 'full' or 'by-date'): its card says Running. */
+  /** The screen a running search belongs to. */
   lockedTo: string | null;
-  /** The running search's name when it isn't this depth's: the panel is shown greyed out. */
+  /** The running search's name when it runs on another screen: the searches are shown greyed out. */
   blockedBy: string;
 }>();
 const emit = defineEmits<{ 'update:depth': [depth: Depth]; goal: [goal: 'fastest' | 'deadline'] }>();
 
 const store = useChainSearchStore();
 const ui = useUIStore();
+const stronger = useStrongerStore();
 
-/** The instant answer's Check exactly: the route's checkpoints as one-value bands in the Full sweep,
- *  so the sweep prices exactly that route with the full simulator. */
+const smartRunning = computed(() => store.isRunning && store.chainRunKind === 'smart');
+const fullRunning = computed(() => (store.isRunning && store.chainRunKind === 'full') || store.sweepQueue.at >= 0);
+
+// The level bar and the Smart search's effort are one setting at Fast and above.
+watch(
+  () => stronger.level,
+  l => {
+    if ((l === 'quick' || l === 'normal' || l === 'thorough') && !store.isRunning) store.effort = l;
+  },
+  { immediate: true }
+);
+
+/** The instant answer's Check exactly: the route's checkpoints as one-value bands in the exhaustive
+ *  search below, which prices exactly that route with the full simulator; the page goes there. */
 function checkExactly(chain: number[]): void {
   ui.fullSweepBands = chain.slice(0, -1).join('; ');
   emit('update:depth', 'full');
+  void nextTick(() => document.getElementById('exhaustive')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
 }
 
-/** A card picked: that depth, remembered for the next visit (lib/searchMode.ts). */
-function pick(d: Depth): void {
-  writeSearchMode('fastest', d === 'full' ? 'advanced' : 'simple');
-  emit('update:depth', d);
-}
-
-/** The Full sweep's own goal switch (carrying on a date run from here): App changes screen. */
+/** The exhaustive search's own goal switch (carrying on a date run from here): App changes screen. */
 function onGoal(g: 'fastest' | 'deadline'): void {
   emit('goal', g);
 }
@@ -101,9 +128,6 @@ function onGoal(g: 'fastest' | 'deadline'): void {
 const ChainSearchPanel = safeAsyncComponent(() => import('./ChainSearchPanel.vue'));
 const InsanePanel = safeAsyncComponent(() => import('./InsanePanel.vue'));
 
-/** What each way does, in the chooser (decision A, 12 Oct 2026). */
-const AROUND_BLURB =
-  "Starts from the instant answer's route and looks for a faster one nearby, with the full simulator on your save. Pick how hard it looks: Fast takes minutes.";
 const EXHAUSTIVE_BLURB =
   'You set a box of TEs for each ascension and it tries every route in them, so nothing inside is missed. Hours, sometimes overnight.';
 </script>

@@ -22,21 +22,9 @@
       </p>
     </div>
     <YourSetup screen="by-date" />
-    <InsanePanel :player-id="playerId" goal="deadline" :hide-routes="mode === 'simple'" @update:goal="onGoal">
-      <template #mode>
-        <!-- Search around this answer (one level: it sizes itself) or the exhaustive search
-             (SearchModeChooser.vue, decision A). -->
-        <SearchModeChooser
-          :model-value="mode"
-          around="simple"
-          exhaustive="advanced"
-          :around-blurb="AROUND_BLURB"
-          :exhaustive-blurb="EXHAUSTIVE_BLURB"
-          :running="store.deadlineRunning ? (store.deadlineRunSimple ? 'simple' : 'advanced') : null"
-          @update:model-value="pick"
-        />
-      </template>
-    </InsanePanel>
+    <!-- The instant answer, the Stronger check (with the routes around the answer) and Exhaustive, all
+         on the page (DeadlinePanel.vue); `hide-routes` now says which search is in hand. -->
+    <InsanePanel :player-id="playerId" goal="deadline" :hide-routes="mode === 'simple'" @update:goal="onGoal" />
   </div>
 </template>
 
@@ -47,7 +35,6 @@ import { safeAsyncComponent } from '@/lib/import';
 import { readSearchMode, writeSearchMode, type SearchMode } from '@/lib/searchMode';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useUIStore } from '@/stores/ui';
-import SearchModeChooser from './SearchModeChooser.vue';
 import YourSetup from './YourSetup.vue';
 
 defineProps<{ playerId: string }>();
@@ -57,19 +44,11 @@ const InsanePanel = safeAsyncComponent(() => import('./InsanePanel.vue'));
 const store = useChainSearchStore();
 const ui = useUIStore();
 
-/** What each way does, in the chooser (decision A, 12 Oct 2026). */
-const AROUND_BLURB =
-  "Pick a date and press Find: it checks the instant answer's best route for each number of ascensions, and a few TE either side of each stop, with the full simulator on your save. It sizes itself to take under half an hour on a typical 8-core computer.";
-const EXHAUSTIVE_BLURB = 'You set the chains, their boxes and sliders, and it tries every route in them.';
 
 /** Once per page load: the player's last pick, else Simple (the watch below may move it to Advanced). */
 if (ui.byDateMode === null) ui.byDateMode = readSearchMode('by-date') ?? 'simple';
 const mode = computed<SearchMode>(() => ui.byDateMode ?? 'simple');
 
-function pick(m: SearchMode): void {
-  writeSearchMode('by-date', m);
-  ui.byDateMode = m;
-}
 
 // Work Simple would hide, for a player who never chose: an unfinished Advanced run or an Advanced
 // answer (both load after the screen opens). And whatever the choice, a run going is shown in its
