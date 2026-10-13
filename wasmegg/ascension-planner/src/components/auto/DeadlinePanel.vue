@@ -40,7 +40,7 @@
           v-if="autoCountdown > 0"
           type="button"
           class="px-3 py-1.5 rounded-lg border border-amber-400 text-[10px] font-black uppercase tracking-widest hover:bg-white"
-          @click="stepAway?.cancel()"
+          @click="cancelAutoCarryOn()"
         >
           Cancel the automatic carry on
         </button>
@@ -118,6 +118,14 @@
       The weekly Research Sale and Monday 2× earnings boost are in the plan; other game events (including Egg Day's own
       bonuses) aren't. The plan is for reaching the TE by then.
     </p>
+    <!-- For both searches (Nearby routes and Exhaustive), so it sits with the deadline. -->
+    <label v-if="store.scheduleEnabled" class="flex items-start gap-3 cursor-pointer">
+      <input v-model="ascendNeeded" type="checkbox" :disabled="store.busy" class="mt-0.5 rounded border-slate-300" />
+      <span class="text-[11px] text-slate-600 leading-relaxed">
+        <span class="font-bold text-slate-800">I need to ascend at the last stop before the deadline.</span> Counts the
+        wait until your awake hours after reaching it, so you reach the last stop in time to act on it.
+      </span>
+    </label>
 
     <!-- The instant answer from the precomputed table (the precompute fork): the highest TE by this
          date, from every route at once. Check exactly sets its stops in the boxes below. -->
@@ -140,7 +148,6 @@
       goal="date"
       :running="store.deadlineRunning && !!store.deadlineRunSimple"
       :estimates="levelEstimates"
-      @picked="l => l !== 'light' && !store.deadlineRunning && pickFocus('simple')"
     >
       <template v-if="level !== 'light'">
         <!-- Simple (batch 3): no chain editor. The routes it tries, in one line, and a way to see them as
@@ -175,18 +182,9 @@
             ><span class="text-slate-500"> with these boxes filled in, to widen them or add your own.</span>
           </p>
         </div>
-        <button
-          v-if="!simple && !store.deadlineRunning"
-          type="button"
-          class="px-3 py-1.5 rounded-lg bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-800"
-          data-testid="focus-around"
-          @click="pickFocus('simple')"
-        >
-          Search nearby routes here
-        </button>
       </template>
-      <!-- Always there (empty unless the search around the answer is in hand): a Teleport needs its
-           target on the page before it moves in. -->
+      <!-- Nearby routes' own run controls and results (teleported in from below): always on the page, as a
+           Teleport needs its target there before it moves in. -->
       <div id="bd-around-controls" />
       <div id="bd-around-results" />
     </StrongerBox>
@@ -390,32 +388,22 @@
           </div>
         </template>
       </template>
-      <button
-        v-if="simple && !store.deadlineRunning"
-        type="button"
-        class="px-3 py-1.5 rounded-lg bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-800"
-        data-testid="focus-exhaustive"
-        @click="pickFocus('advanced')"
-      >
-        Find with these boxes here
-      </button>
+      <!-- Exhaustive's own run controls and results (teleported in from below). -->
       <div id="bd-exh-controls" />
       <div id="bd-exh-results" />
     </section>
     </CollapsibleSection>
 
-
-
-
-
     <!-- Keep awake is in Your setup at the top, with the other computer settings. -->
-    <!-- The run controls (RunControls.vue): the same block as Fastest route's, with this screen's own
-         consent wording. The same share settings as the Share this result box under the result. -->
-    <!-- One set of run controls, in the box of the search in hand (Teleport): two would mean two Stepping
-         away? boxes for one kind of run, which could both carry the same run on. -->
-    <Teleport defer :to="controlsTo">
+    <!-- The run controls (RunControls.vue), one set in each box, as on Fastest: Nearby routes' in the
+         Stronger check box, Exhaustive's under its boxes. Each shows only its own run (`runKind`); the store
+         holds one deadline run, so while one goes the other's Find is greyed out (store.busy). Two
+         Stepping away? boxes, as on Fastest; StepAwayOptions makes one automatic carry-on decision per
+         kind, and only the box of the unfinished run's kind can carry it on. -->
+    <Teleport v-for="k in BY_DATE_KINDS" :key="`controls-${k}`" defer :to="TARGETS[k].controls">
     <RunControls
-      long-run
+      v-if="showControls(k)"
+      :long-run="k === 'boxes' || stronger.level === 'thorough'"
       ref="stepAway"
       v-model:opt-in="shareOptIn"
       v-model:anonymous="shareAnonymous"
@@ -423,16 +411,21 @@
       v-model:note="store.runNote"
       kind="by-date"
       :player-id="playerId"
-      :find-disabled="store.busy || store.integrityBlocked || store.staleBackupBlocked || !canStart"
-      :running="store.deadlineRunning"
-      :stopping="stopAsked"
+      :find-disabled="
+        store.busy ||
+        store.integrityBlocked ||
+        store.staleBackupBlocked ||
+        !(k === 'around' ? canStartAround : canStart)
+      "
+      :running="runKind === k"
+      :stopping="stopAsked && runKind === k"
       :show-submit="collectorConfigured"
-      :can-carry-on="!!store.deadlineUnfinished?.saveKept && !store.runElsewhere.deadline"
+      :can-carry-on="!!store.deadlineUnfinished?.saveKept && !store.runElsewhere.deadline && unfinishedKind === k"
       countdown-elsewhere
       :run-save-notice="!!ui.runSaveLoaded"
       :deadline-offer="!!store.deadlineUnfinished"
       :report="{
-        own: autoShared,
+        own: autoShared && reportKind === k,
         message: shareMessage,
         ok: shareOk,
         partial: sharePartial,
@@ -440,17 +433,19 @@
         retrying: retryingTable,
         quiet: !!shareMessage,
       }"
-      @find="andSubmit => void start(andSubmit)"
+      @find="andSubmit => void start(andSubmit, k)"
       @stop="stopDeadline"
       @nickname-typed="shareNameTouched = true"
       @carry-on="resume"
       @countdown="n => (autoCountdown = n)"
       @retry="retryTable"
     >
-      <!-- What the search in hand will cost, then why Find is greyed out, right above it. -->
+      <!-- What Exhaustive will cost, then why Find is greyed out, right above it. Nearby routes' cost is
+           under the level bar and in its summary above. -->
       <template #above-find>
-        <!-- The numbers that should decide whether you press the button. -->
-        <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+        <!-- The numbers that should decide whether you press the button (not while Nearby routes runs:
+             the time left would be that run's). -->
+        <div v-if="k === 'boxes' && runKind !== 'around'" class="rounded-xl border border-slate-200 bg-slate-50 p-3">
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
             <div>
               <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Sets of early stops</div>
@@ -513,20 +508,18 @@
           </p>
         </div>
 
-        <label v-if="store.scheduleEnabled" class="flex items-start gap-3 cursor-pointer">
-          <input v-model="ascendNeeded" type="checkbox" :disabled="store.busy" class="mt-0.5 rounded border-slate-300" />
-          <span class="text-[11px] text-slate-600 leading-relaxed">
-            <span class="font-bold text-slate-800">I need to ascend at the last stop before the deadline.</span> Counts the
-            wait until your awake hours after reaching it, so you reach the last stop in time to act on it.
-          </span>
-        </label>
-        <p v-if="startIssue" class="text-[11px] font-semibold text-rose-700" data-testid="by-date-start-issue">
-          {{ startIssue }}
+        <p
+          v-if="k === 'around' ? aroundIssue : startIssue"
+          class="text-[11px] font-semibold text-rose-700"
+          data-testid="by-date-start-issue"
+        >
+          {{ k === 'around' ? aroundIssue : startIssue }}
         </p>
       </template>
       <template #progress>
         <!-- Live progress, Insane-style. -->
-        <div v-if="store.deadlineRunning && store.deadlineProgress" class="space-y-2">
+        <!-- Only in the box whose run it is (and so the one `data-run-progress` block, for Jump to it). -->
+        <div v-if="runKind === k && store.deadlineProgress" class="space-y-2">
           <RunProgress
             data-run-progress="by-date"
             :stage="store.deadlineProgress.stage"
@@ -576,7 +569,7 @@
       <template #after>
         <!-- Everything above greys out while anything else in this tab is busy; say what, and offer a way out. -->
         <div
-          v-if="store.busy && !store.deadlineRunning"
+          v-if="store.busy && !store.deadlineRunning && reportKind === k"
           class="flex flex-wrap items-center gap-3 rounded-xl border border-slate-300 bg-slate-50 p-3 text-[11px] text-slate-700"
         >
           <span>
@@ -607,18 +600,23 @@
             <SendingText v-if="store.stopRequested" text="Stopping" /><template v-else>Stop that run</template>
           </button>
         </div>
-        <RunErrorNotes :error="store.errorIsIntegrityNotice ? null : store.error" :labelled="false" />
+        <RunErrorNotes
+          v-if="reportKind === k"
+          :error="store.errorIsIntegrityNotice ? null : store.error"
+          :labelled="false"
+        />
       </template>
     </RunControls>
     </Teleport>
 
-    <!-- The results (RunResults.vue): the same order on every search screen. -->
-    <Teleport defer :to="resultsTo">
-    <RunResults v-if="result">
+    <!-- The results (RunResults.vue): the same order on every search screen. One answer in the store, shown
+         in the box of the search that found it (`resultKind`), whatever the level. -->
+    <Teleport v-for="k in BY_DATE_KINDS" :key="`results-${k}`" defer :to="TARGETS[k].results">
+    <RunResults v-if="result && resultKind === k">
       <template #card>
-        <!-- In the Exhaustive box, say whose results these are (the Stronger check box has its own heading). -->
+        <!-- Say whose results these are (the Stronger check box has its own heading above Light). -->
         <h4
-          v-if="resultsTo === '#bd-exh-results'"
+          v-if="k === 'boxes' || stronger.level === 'light'"
           class="text-[10px] font-black uppercase tracking-widest text-slate-500"
           data-testid="exhaustive-results-heading"
         >
@@ -663,7 +661,7 @@
       </template>
       <!-- Where Advanced's box already says this (above, with the chains) it is not repeated here. -->
       <p
-        v-if="best && (simple || mode !== 'space' || !instantSets.length)"
+        v-if="best && (result.simple || mode !== 'space' || !instantSets.length)"
         class="text-[10px] text-slate-500 leading-relaxed"
         data-test="start-timing-note"
       >
@@ -676,10 +674,10 @@
         v-if="edges.length && !store.deadlineRunning"
         :lines="edges.map(edgeText)"
         :can-widen="!!edgeWiden"
-        :disabled="store.busy || !canStart"
+        :disabled="store.busy || (!result.simple && !canStart)"
         @widen="widenAndRun"
       >
-        <template v-if="edgeWiden && simple">
+        <template v-if="edgeWiden && result.simple">
           This opens Exhaustive with the boxes Nearby routes used, that one widened to
           <span class="font-mono-premium">{{ edgeWiden.text }}</span
           >, and runs it.
@@ -755,6 +753,8 @@
         <!-- Share: Compare's Egg Day tab for an Egg Day answer, else "By a date". Same opt-in as Insane. -->
         <ShareResult
           v-if="best && collectorConfigured"
+          compact
+          :send-label="`Send ${best.chain[best.chain.length - 1]} TE by this date`"
           :replaces-best-so-far="!!store.provisionalRows.deadline"
           v-model:opt-in="shareOptIn"
           v-model:anonymous="shareAnonymous"
@@ -903,6 +903,16 @@ import { useIntegrityProbe } from '@/composables/useIntegrityProbe';
 import { useStrongerStore, type LevelEstimate, type StrongerLevel } from '@/stores/stronger';
 import StrongerBox from './StrongerBox.vue';
 import ExhaustivePromise from './ExhaustivePromise.vue';
+import {
+  BY_DATE_KINDS as BY_DATE_KIND_LIST,
+  BY_DATE_TARGETS,
+  kindOfSimple,
+  readsAround,
+  reportKindOf,
+  runKindOf,
+  showsControls,
+  type ByDateKind,
+} from '@/search/byDateKinds';
 import CollapsibleSection from './CollapsibleSection.vue';
 import { useSearchSnapshots } from '@/composables/useSearchSnapshots';
 import { routeLine } from '@/search/sectionSummary';
@@ -929,19 +939,15 @@ import { simulateRoute } from '@/search/simulateRoute';
 import { rowSettingsFor, type DeadlineRunSpec, type SavedDeadlineResult } from '@/search/deadlineStore';
 import { SPACE_STEPS, SPACE_WIDTHS, stopsByWidth } from '@/search/deadlineSuggest';
 import { BY_DATE_LEVELS, simpleByDateSpace, widthForLevel, type ByDateLevel, type SimpleSpace } from '@/search/simpleByDate';
-import { writeSearchMode } from '@/lib/searchMode';
 import { firstTime } from '@/lib/linkOnce';
 import { parseByDateRequest, SCIENCE_WIDTHS, type ByDateRequest } from '@/search/byDateRequest';
 import { useUIStore } from '@/stores/ui';
-import type { SearchMode } from '@/lib/searchMode';
 import { eggDayYearOf } from '@/lib/eggDay';
 import { showDateTime } from '@/lib/displayTime';
 import InstantRoute from './InstantRoute.vue';
 
 const props = defineProps<{
   playerId: string;
-  /** Leave out The routes to try (a Simple mode that picks the routes itself). */
-  hideRoutes?: boolean;
 }>();
 const emit = defineEmits<{ (e: 'show-fastest'): void }>();
 const store = useChainSearchStore();
@@ -1042,26 +1048,54 @@ function rangeOf(box: string): [number, number] | null {
 const lastRange = computed<[number, number] | null>(() => rangeOf(lastBox.value));
 
 /**
- * SIMPLE (batch 3): the chain editor is left out (`hideRoutes`) and the boxes are picked here, one
+ * NEARBY ROUTES (was Simple, batch 3): no chain editor; the boxes are picked here, one
  * chain per number of ascensions the instant answer has a route for (search/simpleByDate.ts), each
  * early stop its TE either side at step 1, sized to take about 10-30 minutes on a typical 8-core
  * machine. Without an instant answer, the routes Suggest a space would centre on, for 1-5 ascensions.
  */
 /**
- * The search in hand (since 12 Oct 2026 both are on the page): the routes around the instant answer
- * (the Stronger check box at Search around) or the chains below (Exhaustive). A run going is its own;
- * otherwise the screen's choice (ui.byDateMode, through `hideRoutes`), and Exhaustive when the
- * Stronger check is at Light (no search around the answer then).
+ * Two searches on the page, each in its own box with its own run controls and results, like Fastest's
+ * (the user, 12 Oct 2026: "the same, just different steps"): Nearby routes (the routes around the
+ * instant answer, in the Stronger check box) and Exhaustive (the boxes below). The store holds one
+ * deadline run and one answer; each box shows only its own (`runKind`, `resultKind`), as Fastest's
+ * panels do with `ownRun`.
  */
+const BY_DATE_KINDS = BY_DATE_KIND_LIST;
+const TARGETS = BY_DATE_TARGETS;
 const stronger = useStrongerStore();
-const simple = computed(() =>
-  store.deadlineRunning ? !!store.deadlineRunSimple : !!props.hideRoutes && stronger.level !== 'light'
+/** The box whose Find was pressed, for the length of that run (the store's flag for which kind is
+ *  running is only set once the run has set itself up). */
+const startingKind = ref<ByDateKind | null>(null);
+/** The kind of run last started or carried on here: its box reports the send and the error. */
+const lastKind = ref<ByDateKind | null>(null);
+const runState = () => ({
+  running: store.deadlineRunning,
+  starting: startingKind.value,
+  runSimple: !!store.deadlineRunSimple,
+});
+/** The run going, by box. */
+const runKind = computed(() => runKindOf(runState()));
+/** The answer on screen, by box. */
+const resultKind = computed(() => kindOfSimple(result.value));
+/** The unfinished run, by box. */
+const unfinishedKind = computed(() => kindOfSimple(store.deadlineUnfinished?.spec));
+/** The box that says how the last run went (its send report, its error, a wait for another run). */
+const reportKind = computed(() =>
+  reportKindOf({ run: runKind.value, last: lastKind.value, result: resultKind.value })
 );
-/** Where the one set of run controls and the results go (Teleport targets in the two boxes). */
-const controlsTo = computed(() => (simple.value ? '#bd-around-controls' : '#bd-exh-controls'));
-const resultsTo = computed(() =>
-  result.value?.simple && stronger.level !== 'light' ? '#bd-around-results' : '#bd-exh-results'
-);
+const showControls = (k: ByDateKind) =>
+  showsControls(k, {
+    level: stronger.level,
+    run: runKind.value,
+    result: resultKind.value,
+    unfinished: unfinishedKind.value,
+    report: reportKind.value,
+  });
+/**
+ * What the run being planned or going reads: Nearby's boxes (`simple`) or Exhaustive's chains. Idle,
+ * Exhaustive (its estimate box is the one on the page); Nearby's own numbers are `aroundPlan`.
+ */
+const simple = computed(() => readsAround(runState()));
 /** The instant answer's "At most N ascensions", null for any. */
 const instantMax = ref<number | null>(null);
 /** What a typical 8-core machine costs, for sizing Simple's boxes the same on every computer. */
@@ -1234,10 +1268,10 @@ const rowProblem = (k: number) => problemOf(chains.value[k], lastRange.value);
 /** "Checks 5 ascension counts, 1,240 routes, about 18 min on this computer" */
 const simpleSummary = computed(() => {
   const rows = simpleRunBoxes.value.chains;
-  if (!simple.value || !rows.length) return '';
+  if (!rows.length) return '';
   const counts = new Set(rows.map(r => r.asc)).size;
-  // Planned for the run's own boxes once a Simple run is on screen; else the plan Find would run.
-  const shown = simpleRunBoxes.value === simpleLive.value ? plan.value : summaryPlan.value;
+  // Planned for the run's own boxes once a Nearby run is on screen; else the plan its Find would run.
+  const shown = simpleRunBoxes.value === simpleLive.value ? aroundPlan.value : summaryPlan.value;
   const time = shown.legs ? formatHours(shown.seconds / 3600) : '';
   return `Checks ${counts} ascension count${counts === 1 ? '' : 's'}, ~${roundedRoutes(shown.routes).toLocaleString()} routes${time ? `, about ${time} on this computer` : ''}.`;
 });
@@ -1248,10 +1282,39 @@ const summaryPlan = computed(() =>
     lastHi: rangeOf(simpleRunBoxes.value.lastBox)?.[1] ?? 0,
     instantSets: result.value?.instantSets ?? [],
     workers: store.workerBudget,
-    rememberedPerSet: rememberedPerSet.value,
-    workerSecondsPerLeg: workerSecondsPerLeg.value,
+    rememberedPerSet: rememberedPerSetOf(simpleRunBoxes.value.chains),
+    workerSecondsPerLeg: aroundSecondsPerLeg.value,
   })
 );
+/** Nearby routes' own numbers, whichever box's run is being planned (`plan` is the run in hand's). */
+const aroundSecondsPerLeg = computed(
+  () =>
+    store.deadlineWorkerSeconds ||
+    (simpleSpace.value
+      ? weightedSecondsPerLeg(simpleSpace.value)
+      : fallbackWorkerSecondsPerLeg(Math.max(1, ...simpleBoxes.value.chains.map(r => Math.floor(r.asc) || 1))))
+);
+const aroundPlan = computed(() =>
+  byDatePlan({
+    rows: simpleBoxes.value.chains.map(row => ({ asc: row.asc, bands: bandsOf(row) })),
+    currentTE: store.currentTE,
+    lastHi: rangeOf(simpleBoxes.value.lastBox)?.[1] ?? 0,
+    instantSets: instantSetsOf(simpleBoxes.value.chains),
+    workers: store.workerBudget,
+    rememberedPerSet: rememberedPerSetOf(simpleBoxes.value.chains),
+    workerSecondsPerLeg: aroundSecondsPerLeg.value,
+  })
+);
+/** Why Nearby routes' Find is greyed out, or ''. */
+const aroundIssue = computed(() => {
+  if (!deadline.value) return '';
+  if (deadline.value <= store.planStart) return 'The deadline is before the plan starts.';
+  if (!simpleBoxes.value.chains.length || !rangeOf(simpleBoxes.value.lastBox))
+    return 'Nothing to check yet: the save has to load first.';
+  if (!aroundPlan.value.sets) return 'No route in these boxes goes up from your TE to the last stop.';
+  return '';
+});
+const canStartAround = computed(() => !!deadline.value && !aroundIssue.value && store.currentTE > 0);
 
 /** Simple's boxes into Advanced's chain editor, and Advanced shown: to widen them, or add chains. */
 function openInAdvanced(): void {
@@ -1266,31 +1329,29 @@ function openInAdvanced(): void {
   lastBox.value = used.lastBox;
   suggestFrom.value = "Set from the routes around the instant answer.";
   mode.value = 'space';
-  writeSearchMode('by-date', 'advanced');
-  setMode('advanced');
+  showExhaustive();
 }
-/** The player's own pick of the search in hand: remembered for the next visit (lib/searchMode.ts). */
-function pickFocus(m: SearchMode): void {
-  writeSearchMode('by-date', m);
-  setMode(m);
-}
-/** Show Simple or Advanced (ByDateScreen.vue reads it). Not remembered as the player's choice. */
-function setMode(m: SearchMode): void {
-  ui.byDateMode = m;
+/** Scroll to the Exhaustive box (its boxes were just filled in, from Nearby routes or Check exactly). */
+function showExhaustive(): void {
+  void nextTick(() => {
+    if (typeof document !== 'undefined')
+      document.getElementById('exhaustive')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
 }
 /** The instant answer's early stops for each ascension count in the chains: tried as sets of their own
  *  on top of the boxes (the run drops any already in one), so its route is always in the space. */
-const instantSets = computed<number[][]>(() => {
+const instantSets = computed<number[][]>(() => instantSetsOf(activeChains.value));
+function instantSetsOf(rows: { asc: number }[]): number[][] {
   const te = Math.floor(store.currentTE);
   const out: number[][] = [];
-  for (const asc of [...new Set(activeChains.value.map(r => Math.floor(r.asc)))].sort((a, b) => a - b)) {
+  for (const asc of [...new Set(rows.map(r => Math.floor(r.asc)))].sort((a, b) => a - b)) {
     const route = instantByCount.value[asc];
     if (asc < 2 || !route || route.length !== asc) continue;
     const early = route.slice(0, -1);
     if (early.every((v, i) => v > (i ? early[i - 1] : te))) out.push(early);
   }
   return out;
-});
+}
 /** Whether chain `k`'s own box already holds the instant answer's early stops. */
 function instantInBox(k: number, early: number[]): boolean {
   const b = rowBands(k);
@@ -1468,8 +1529,8 @@ function checkByDate(chain: number[]): void {
   const last = chain[chain.length - 1];
   const te = Math.floor(store.currentTE);
   mode.value = 'space';
-  // Single-value boxes are Advanced's: show them there.
-  setMode('advanced');
+  // Single-value boxes are Exhaustive's: show them there.
+  showExhaustive();
   chains.value = [{ asc: chain.length, text: chain.slice(0, -1).join('; ') }];
   lastBox.value = `${Math.max(te + 1, last - 5)}-${Math.min(490, last + 5)}`;
   suggestFrom.value = `Set from the instant answer's route, ${chain.join(' ')}.`;
@@ -1507,8 +1568,7 @@ const linkRequest =
  *  they are not reset for "another player" the way the kept boxes are. */
 const linked = ref(false);
 function applyRequest(req: ByDateRequest): void {
-  // A Science card fills boxes: always Advanced, where they show.
-  setMode('advanced');
+  // A Science card fills Exhaustive's boxes (always on the page now).
   if (req.eggDay) {
     useEggDay();
     customDate.value = false;
@@ -1635,9 +1695,12 @@ const workerSecondsPerLeg = computed(
 /** The rows as the run reads them. */
 const spaceRows = computed(() => activeChains.value.map(row => ({ asc: row.asc, bands: bandsOf(row) })));
 /** Routes a set needed in this machine's last finished run over a space of this shape, or 0. */
-const rememberedPerSet = computed(() =>
-  store.deadlineRoutesPerSet(spaceRows.value.map(r => (r.asc <= 1 ? [] : r.bands.map(b => [...b]))))
-);
+const rememberedPerSet = computed(() => rememberedPerSetOf(activeChains.value));
+function rememberedPerSetOf(rows: { asc: number; text: string }[]): number {
+  return store.deadlineRoutesPerSet(
+    rows.map(row => (row.asc <= 1 ? [] : bandsOf(row).map(b => [...b])))
+  );
+}
 /**
  * The estimate, counted in legs (deadlineEstimate.ts `byDatePlan`): each set's first route simulates
  * its early legs (shared with the sets that start the same way), every later route one leg. Routes per
@@ -1800,7 +1863,11 @@ function fillFromSpec(spec: DeadlineRunSpec): void {
   }
 }
 
-const stepAway = ref<InstanceType<typeof RunControls> | null>(null);
+/** Each box's run controls (Stepping away?'s countdown Cancel is in whichever started it). */
+const stepAway = ref<InstanceType<typeof RunControls>[]>([]);
+function cancelAutoCarryOn(): void {
+  for (const c of stepAway.value) c?.cancel();
+}
 /** Seconds left of Stepping away?'s automatic carry-on, shown in the unfinished run's offer. */
 const autoCountdown = ref(0);
 
@@ -1813,7 +1880,8 @@ function startedLabel(u: { spec: DeadlineRunSpec; updatedAt: number }): string {
 
 async function resume(): Promise<void> {
   const spec = store.deadlineUnfinished?.spec;
-  // Back in the mode it was started in: a Simple run's boxes are Simple's (its spec), not the editor's.
+  // Back in its own box: a Nearby routes run's boxes are its spec's, not the editor's.
+  lastKind.value = spec?.simple ? 'around' : 'boxes';
   if (spec?.simple && spec.bandSets?.length) {
     fillDateFromSpec(spec);
     simpleUsed.value = {
@@ -1821,10 +1889,8 @@ async function resume(): Promise<void> {
       lastBox: `${spec.lastLo ?? Math.floor(store.currentTE) + 1}-${spec.lastHi}`,
     };
     mode.value = 'space';
-    setMode('simple');
   } else if (spec) {
     fillFromSpec(spec);
-    setMode('advanced');
   }
   runEstimate.value = spec?.estimate ?? 0;
   // A run started with Find and submit (or agreed to share during it) carries on doing so, on its own
@@ -1911,7 +1977,13 @@ function stopDeadline(): void {
   store.stopDeadline();
 }
 
-async function start(andSubmit: boolean): Promise<void> {
+/** Find (or Find and submit) in box `kind`: Nearby routes' or Exhaustive's. */
+async function start(andSubmit: boolean, kind: ByDateKind): Promise<void> {
+  if (store.busy) return;
+  // The run reads this box's routes from here on (`simple`), and its workers fit this run.
+  startingKind.value = kind;
+  lastKind.value = kind;
+  store.fitWorkersToRun(secondsAtDefault.value);
   autoShare.value = andSubmit && shareOptIn.value;
   autoShared.value = false;
   store.lastAutoSend = null;
@@ -1922,6 +1994,7 @@ async function start(andSubmit: boolean): Promise<void> {
   try {
     await find();
   } finally {
+    startingKind.value = null;
     store.submitsWhenDone = false;
     const go = autoShare.value || (await owesAnswer());
     autoShare.value = false;
@@ -2180,8 +2253,8 @@ const edgeWiden = computed<{ row: number; text: string } | null>(() => {
   const text = widenEdges(box.bands, edges.value, { currentTE: result.value.te, finalTE: 490 });
   if (!text) return null;
   const asc = box.bands.length + 1;
-  // From Simple the rows are the run's boxes (widenAndRun opens them in Advanced in this order).
-  const rows = simple.value ? simpleRunBoxes.value.chains : activeChains.value;
+  // From Nearby routes the rows are the run's boxes (widenAndRun opens them in Exhaustive in this order).
+  const rows = result.value.simple ? simpleRunBoxes.value.chains : chains.value;
   const same = (k: number) => formatBands(bandsOf(rows[k])) === formatBands(box.bands);
   let row = rows.findIndex((r, k) => r.asc === asc && same(k));
   if (row < 0) row = rows.findIndex(r => r.asc === asc);
@@ -2193,16 +2266,12 @@ const formatBands = (bands: number[][]) => bands.map(b => formatBand(b)).join(';
 async function widenAndRun(): Promise<void> {
   const w = edgeWiden.value;
   if (!w || store.busy) return;
-  // From Simple: its boxes into Advanced first (the same rows, in the same order), widened there.
-  if (simple.value) {
-    openInAdvanced();
-    // The screen shows Advanced through two components above this one.
-    for (let i = 0; i < 5 && simple.value; i++) await nextTick();
-    if (simple.value) return;
-  }
+  // From Nearby routes: its boxes into Exhaustive first (the same rows, in the same order), widened
+  // there, and run as Exhaustive.
+  if (result.value?.simple) openInAdvanced();
   typedRow(w.row, w.text);
   await nextTick();
-  if (canStart.value) await start(false);
+  if (canStart.value) await start(false, 'boxes');
 }
 const atCeiling = computed(
   () => !!best.value && best.value.chain[best.value.chain.length - 1] >= (result.value!.ceiling ?? result.value!.lastHi)

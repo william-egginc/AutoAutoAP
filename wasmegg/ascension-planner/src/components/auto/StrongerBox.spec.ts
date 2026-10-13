@@ -75,14 +75,16 @@ describe('the screens (12 Oct layout)', () => {
     expect(t).toContain('stronger-to="#stronger-check-results"');
     expect(t).toContain(`v-if="level !== 'light'"`);
   });
-  it('By a date: one set of run controls and results, teleported to the box of the search in hand', () => {
+  it('By a date: run controls and results in each box, as on Fastest (no search "in hand")', () => {
     const t = read('DeadlinePanel.vue');
     expect(t.match(/<RunControls/g)).toHaveLength(1);
-    expect(t).toContain('<Teleport defer :to="controlsTo">');
-    expect(t).toContain('<Teleport defer :to="resultsTo">');
+    expect(t).toContain('<Teleport v-for="k in BY_DATE_KINDS" :key="`controls-${k}`" defer :to="TARGETS[k].controls">');
+    expect(t).toContain('<Teleport v-for="k in BY_DATE_KINDS" :key="`results-${k}`" defer :to="TARGETS[k].results">');
     for (const id of ['bd-around-controls', 'bd-around-results', 'bd-exh-controls', 'bd-exh-results'])
       expect(t).toContain(`id="${id}"`);
     expect(t.indexOf('<StrongerBox')).toBeLessThan(t.indexOf('id="exhaustive"'));
+    for (const gone of ['controlsTo', 'resultsTo', 'pickFocus', 'focus-around', 'focus-exhaustive', '@picked'])
+      expect(t).not.toContain(gone);
   });
   it('the stronger check has no toggle inside the box, and no Simple / Advanced chooser is left', () => {
     expect(read('InstantRoute.vue')).toContain(':embedded="!!strongerTo"');
@@ -171,9 +173,10 @@ describe('Light has nothing to start, and says so (12 Oct)', () => {
     st.level = 'quick';
     expect(await renderHtml(StrongerBox, { goal: 'fastest' })).not.toContain('light-status');
   });
-  it('By a date moves its run controls to the box when a search level is picked', () => {
+  it('By a date no longer moves its run controls when a level is picked: each box has its own', () => {
     const t = fs.readFileSync(path.join(__dirname, 'DeadlinePanel.vue'), 'utf8');
-    expect(t).toContain(`@picked="l => l !== 'light' && !store.deadlineRunning && pickFocus('simple')"`);
+    expect(t).not.toContain('@picked=');
+    expect(t).toContain('v-if="showControls(k)"');
   });
 });
 

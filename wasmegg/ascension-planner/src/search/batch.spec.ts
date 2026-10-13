@@ -79,7 +79,11 @@ describe('many workers on a long run (12 Oct 2026)', () => {
     const dir = path.join(__dirname, '../components/auto');
     const rc = fs.readFileSync(path.join(dir, 'RunControls.vue'), 'utf8');
     expect(rc).toContain('store.workerBudget > MANY_WORKERS');
-    for (const f of ['InsanePanel.vue', 'DeadlinePanel.vue']) expect(fs.readFileSync(path.join(dir, f), 'utf8')).toMatch(/<RunControls\s+long-run/);
+    expect(fs.readFileSync(path.join(dir, 'InsanePanel.vue'), 'utf8')).toMatch(/<RunControls\s+long-run/);
+    // By a date: Exhaustive always, Nearby routes at Very high (about 8 hours).
+    expect(fs.readFileSync(path.join(dir, 'DeadlinePanel.vue'), 'utf8')).toContain(
+      `:long-run="k === 'boxes' || stronger.level === 'thorough'"`
+    );
     expect(fs.readFileSync(path.join(dir, 'ChainSearchPanel.vue'), 'utf8')).toContain(
       `:long-run="store.effort === 'thorough' || store.smartEstimate(store.effort).seconds > 7200"`
     );

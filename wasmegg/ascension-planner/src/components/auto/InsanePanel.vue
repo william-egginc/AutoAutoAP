@@ -331,7 +331,6 @@
       <DeadlinePanel
         v-if="goal === 'deadline'"
         :player-id="playerId"
-        :hide-routes="hideRoutes"
         @show-fastest="goal = 'fastest'"
       >
         <template #mode><slot name="mode" /></template>
@@ -988,6 +987,7 @@
                  and a box here saying "anonymously" would not be what goes. -->
             <ShareResult
               v-if="ownRun && store.bestDays > 0 && !(store.isRunning && store.submitsWhenDone)"
+              compact
               :replaces-best-so-far="!!store.provisionalRows.fastest"
               v-model:opt-in="optIn"
               v-model:anonymous="anonymous"
