@@ -768,7 +768,7 @@ function pickSubmission(s) {
 const CORS = {
   'access-control-allow-origin': '*',
   'access-control-allow-methods': 'GET,POST,OPTIONS',
-  'access-control-allow-headers': 'content-type,x-upload-token,x-owner-token',
+  'access-control-allow-headers': 'content-type,x-upload-token,x-owner-token,x-delta-token',
 };
 
 /**

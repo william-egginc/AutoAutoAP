@@ -686,6 +686,14 @@ describe('the CSV half', () => {
       const res = await worker.fetch(new Request('https://collector.test/csv?id=x', { method: 'OPTIONS' }), env);
       expect(res.headers.get('access-control-allow-headers')).toContain('x-upload-token');
     });
+
+    it('lets the browser send every custom header the app uses (a missing one fails the preflight)', async () => {
+      // 12 Oct: x-delta-token was sent by the app (csvDelta.ts) but not listed, so the browser refused
+      // the head POST /csv before it left and the CSV so far never uploaded.
+      const res = await worker.fetch(new Request('https://collector.test/csv?id=x', { method: 'OPTIONS' }), env);
+      const allowed = (res.headers.get('access-control-allow-headers') || '').split(',').map(h => h.trim().toLowerCase());
+      for (const h of ['content-type', 'x-upload-token', 'x-owner-token', 'x-delta-token']) expect(allowed).toContain(h);
+    });
   });
 
   it('404s for a CSV that was never uploaded', async () => {
