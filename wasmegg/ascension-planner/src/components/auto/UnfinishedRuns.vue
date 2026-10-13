@@ -9,10 +9,12 @@
     class="rounded-xl border border-amber-200 bg-amber-50/60 p-4 space-y-2 text-[11px] text-amber-900"
   >
     <h3 class="text-[10px] font-black text-amber-800 uppercase tracking-widest">Earlier unfinished runs</h3>
-    <!-- Runs more than a day old fold into one line (the user, 12 Oct: clutter); Show lists them. -->
+    <!-- Folded by default on every screen (the user, 13 Oct: clutter): one line, Show lists them. Runs from this
+         page's last visit (a crash or reload in the last few hours) stay open, so carrying on after one is obvious. -->
     <p v-if="old.length && !showOld" class="flex flex-wrap items-center gap-x-2" data-testid="unfinished-old">
       <span
-        >{{ old.length === 1 ? '1 older run' : `${old.length} older runs` }}, the newest {{ ago(newestOld) }}</span
+        >{{ old.length === 1 ? '1' : old.length }} {{ shown.length ? 'older' : 'unfinished' }}
+        {{ old.length === 1 ? 'run' : 'runs' }}, the newest {{ ago(newestOld) }}</span
       >
       <button
         type="button"
@@ -80,12 +82,12 @@ const items = computed(() =>
     .filter(i => !i.record.inputsKey || !store.otherAccountKeys.has(i.record.inputsKey))
 );
 
-/** More than a day old: folded into one line until Show. */
-const DAY_MS = 24 * 3600 * 1000;
-const old = computed(() => items.value.filter(i => Date.now() - i.record.updatedAt > DAY_MS));
+/** Not from this page's last visit (a crash or reload in the last few hours): folded into one line until Show. */
+const RECENT_MS = 6 * 3600 * 1000;
+const old = computed(() => items.value.filter(i => Date.now() - i.record.updatedAt > RECENT_MS));
 const newestOld = computed(() => Math.max(...old.value.map(i => i.record.updatedAt)));
 const shown = computed(() =>
-  showOld.value ? items.value : items.value.filter(i => Date.now() - i.record.updatedAt <= DAY_MS)
+  showOld.value ? items.value : items.value.filter(i => Date.now() - i.record.updatedAt <= RECENT_MS)
 );
 
 /** By the run's id (persistence.ts `interruptedId`): the list can change between drawing and the click. */

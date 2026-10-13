@@ -1,5 +1,5 @@
 /**
- * Earlier unfinished runs (UnfinishedRuns.vue). 12 Oct: runs more than a day old fold into one line
+ * Earlier unfinished runs (UnfinishedRuns.vue). 13 Oct: folded by default into one line, except runs from the last 6 hours
  * ("2 older runs, the newest 5 days ago") with Show; recent ones are listed as before.
  * Specs render on the server (no DOM), so Show's click is its `showOld` ref set through the
  * component's setup state before it renders.
@@ -80,16 +80,27 @@ describe('UnfinishedRuns', () => {
     expect(t.match(/Carry on/g)).toHaveLength(3);
   });
 
-  it('one old run reads "1 older run"', async () => {
+  it('one run, not from the last few hours: "1 unfinished run", folded', async () => {
     const t = textOf(await render([run(3 * DAY, 5, [1])]));
-    expect(t).toContain('1 older run, the newest 3 days ago');
+    expect(t).toContain('1 unfinished run, the newest 3 days ago');
+    expect(t).not.toContain('Carry on');
+  });
+
+  it('a run from this page\'s last visit (5 h) stays open; one from 7 h ago folds', async () => {
+    const open = textOf(await render([run(5 * HOUR, 8, [1])]));
+    expect(open).toContain('8 plans priced');
+    expect(open).toContain('Carry on');
+    expect(open).not.toContain('unfinished run,');
+    const folded = textOf(await render([run(7 * HOUR, 8, [1])]));
+    expect(folded).toContain('1 unfinished run, the newest 7 h ago');
+    expect(folded).not.toContain('Carry on');
   });
 
   it('every run old: the header still shows, with just the one line and no rows', async () => {
     const html = await render([run(5 * DAY, 22, [3]), run(6 * DAY, 33, [4])]);
     const t = textOf(html);
     expect(t).toContain('Earlier unfinished runs');
-    expect(t).toContain('2 older runs, the newest 5 days ago');
+    expect(t).toContain('2 unfinished runs, the newest 5 days ago');
     expect(t).not.toContain('Carry on');
     expect(t).not.toContain('plans priced');
   });

@@ -70,7 +70,13 @@
           your saved {{ deadline ? 'answers' : 'searches' }}, your earlier checks, or your board runs sent from this
           browser.
         </p>
-        <ul v-else class="space-y-1">
+        <!-- Folded by default (the user, 13 Oct: these boxes take space): the heading above, then one line with the
+             count; Show opens the routes. -->
+        <details v-else data-testid="stronger-earlier-fold">
+        <summary class="cursor-pointer text-slate-500">
+          {{ earlier.length === 1 ? '1 route' : `${earlier.length} routes` }} priced on this save · Show
+        </summary>
+        <ul class="space-y-1 mt-1">
           <li
             v-for="e in earlier"
             :key="e.route.chain.join(',')"
@@ -116,6 +122,7 @@
             </button>
           </li>
         </ul>
+        </details>
       </div>
 
       <!-- b. A TE lower (by a date, when the top route misses) -->

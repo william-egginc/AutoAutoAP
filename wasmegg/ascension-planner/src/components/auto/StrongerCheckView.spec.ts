@@ -85,6 +85,8 @@ describe('StrongerCheckView', () => {
     expect(t).toContain('Best now · found by the stronger check 176 → 226 → 490');
     expect(t).toContain('0.50 days sooner than the answer above');
     expect(t).toContain('Your earlier route, from your board run. Simulate this plan');
+    // Folded by default behind one line with the count (13 Oct); the routes are still in the page.
+    expect(t).toMatch(/\d+ routes priced on this save · Show/);
     expect(t.match(/your earlier route/g)?.length).toBe(3);
     expect(t).toContain('From your board run, sent');
     expect(t).toContain('From your earlier check');
