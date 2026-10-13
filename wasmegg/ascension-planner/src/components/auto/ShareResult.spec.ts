@@ -1,108 +1,109 @@
-import { describe, expect, it } from 'vitest';
-import { h } from 'vue';
+/**
+ * Share this result: the compact form (one button, then the folded consent) and the full box. Specs render
+ * on the server, so "clicked" is the component's own ref set through its setup state, as in FindBar.spec.ts.
+ */
+import fs from 'node:fs';
+import path from 'node:path';
+import { afterEach, describe, expect, it } from 'vitest';
+import { createSSRApp, h } from 'vue';
+import { renderToString } from 'vue/server-renderer';
 import ShareResult from './ShareResult.vue';
-import ShareStatus from './ShareStatus.vue';
-import { renderHtml, textOf } from '@/test/renderComponent';
+import { textOf } from '@/test/renderComponent';
+import { useShareExtras } from '@/composables/useShareExtras';
 
-const nameBox = (html: string) => html.match(/<input[^>]*aria-label="Nickname"[^>]*>/)?.[0] ?? '';
-const isDisabled = (tag: string) => /\sdisabled(\s|>|=)/.test(tag);
+afterEach(() => {
+  const extras = useShareExtras();
+  extras.sendCsv.value = true;
+  extras.sendDiagnostics.value = false;
+});
 
-const base = { optIn: false, anonymous: true, nickname: 'Fliris' };
+const base = { optIn: false, anonymous: true, nickname: '' };
 
-describe('ShareResult', () => {
-  it('shows the heading, the screen intro and its consent wording, and nothing else until ticked', async () => {
-    const html = await renderHtml(ShareResult, base, {
-      intro: () => h('p', "Sends the best route above to Compare's Egg Day 2027 tab"),
-      consent: () => h('span', 'Yes, share this result. This sends the route, its dates and the deadline'),
-      opted: () => h('button', 'Send 377 TE by this date'),
-    });
+async function renderWith(props: Record<string, unknown>, setup: Record<string, unknown> = {}): Promise<string> {
+  const app = createSSRApp({
+    render: () => h(ShareResult, { ...base, ...props }, { opted: () => h('i', 'OPTED-SLOT') }),
+  });
+  app.mixin({
+    created(this: { $: { type: { __file?: string }; setupState: Record<string, unknown> } }) {
+      if (this.$.type.__file?.endsWith('/ShareResult.vue')) Object.assign(this.$.setupState, setup);
+    },
+  });
+  return renderToString(app);
+}
+
+const CONSENT = 'I acknowledge the following';
+
+describe('ShareResult compact', () => {
+  it('not agreed, with a send label: one button that asks first', async () => {
+    const html = await renderWith({ compact: true, sendLabel: 'Send 239 TE by this date' });
     const t = textOf(html);
-    expect(t).toContain('Share this result');
-    expect(t).toContain("Sends the best route above to Compare's Egg Day 2027 tab");
-    expect(t).toContain('This sends the route, its dates and the deadline');
-    expect(t).not.toContain('Submit anonymously');
-    expect(t).not.toContain('Send my CSV too');
-    expect(t).not.toContain('Send 377 TE');
-    expect(html).not.toMatch(/data-testid="share-consent"[^>]*checked/);
+    expect(html).toContain('data-testid="share-ask"');
+    expect(t).toContain('Send 239 TE by this date');
+    expect(t).toContain('nothing is sent by that press');
+    expect(html).not.toContain('data-testid="share-consent"');
+    expect(t).not.toContain(CONSENT);
   });
 
-  it('once ticked: anonymous or named, the CSV and diagnostics boxes, then the screen extras', async () => {
-    const html = await renderHtml(
-      ShareResult,
-      { ...base, optIn: true, anonymous: false, csvDetail: '(12 chains, one row per leg)', nicknameMax: 33 },
-      { opted: () => h('button', 'Send 377 TE by this date'), default: () => h('span', 'BUTTONS') }
-    );
+  it('asking opens the full box', async () => {
+    const html = await renderWith({ compact: true, sendLabel: 'Send 239 TE by this date' }, { asking: true });
+    expect(html).toContain('data-testid="share-consent"');
+    expect(textOf(html)).toContain(CONSENT);
+    expect(html).not.toContain('data-testid="share-ask"');
+  });
+
+  it('agreed: the summary, the opted slot and a folded note', async () => {
+    const html = await renderWith({ compact: true, optIn: true, note: '' });
     const t = textOf(html);
-    expect(t).toMatch(
-      /Submit anonymously.*Credit me as.*Send my CSV too.*\(12 chains, one row per leg\).*Also send diagnostics.*Send 377 TE by this date.*BUTTONS/
-    );
-    expect(html).toContain('maxlength="33"');
-    expect(html).toContain('value="Fliris"');
-    // Named: the box is enabled.
-    expect(isDisabled(nameBox(html))).toBe(false);
+    expect(html).toContain('data-testid="consent-summary"');
+    expect(html).not.toContain('data-testid="share-consent"');
+    expect(t).not.toContain(CONSENT);
+    expect(t).toContain('OPTED-SLOT');
+    expect(html).toMatch(/<details[^>]*data-testid="share-note-fold"/);
+    expect(t).toContain('Add a note on this run');
   });
 
-  it("has Find and submit's note box, holding the run's note, once ticked (when the screen binds it)", async () => {
-    const withNote = textOf(await renderHtml(ShareResult, { ...base, optIn: true, note: 'testing 3 sales' }));
-    expect(withNote).toContain('Note on this run');
-    expect(await renderHtml(ShareResult, { ...base, optIn: true, note: 'testing 3 sales' })).toContain(
-      'testing 3 sales'
-    );
-    expect(textOf(await renderHtml(ShareResult, { ...base, optIn: false, note: 'x' }))).not.toContain(
-      'Note on this run'
-    );
-    expect(textOf(await renderHtml(ShareResult, { ...base, optIn: true }))).not.toContain('Note on this run');
+  it('agreed, with a note: the fold says it was added', async () => {
+    const t = textOf(await renderWith({ compact: true, optIn: true, note: 'hello' }));
+    expect(t).toContain('Note on this run (added)');
+    expect(t).not.toContain('Add a note on this run');
   });
 
-  it('greys the name box out when anonymous', async () => {
-    const html = await renderHtml(ShareResult, { ...base, optIn: true });
-    expect(isDisabled(nameBox(html))).toBe(true);
+  it('agreed without a bound note: no note fold', async () => {
+    expect(await renderWith({ compact: true, optIn: true })).not.toContain('share-note-fold');
   });
 
-  it('has a default consent line and takes a heading', async () => {
-    const t = textOf(await renderHtml(ShareResult, { ...base, heading: 'Share this answer' }));
-    expect(t).toContain('Share this answer');
-    expect(t).toContain('I acknowledge the following: I want to share this result on the leaderboard.');
+  it('agreed, then Change: the full box with Fold this away, no summary', async () => {
+    const html = await renderWith({ compact: true, optIn: true }, { expanded: true });
+    expect(html).toContain('data-testid="share-consent"');
+    expect(html).toContain('data-testid="share-fold"');
+    expect(textOf(html)).toContain('Fold this away');
+    expect(html).not.toContain('data-testid="consent-summary"');
   });
 
-  it("words the acknowledgement as Find and submit's, varying only the target or deadline", async () => {
-    const target = textOf(await renderHtml(ShareResult, base));
-    const deadline = textOf(await renderHtml(ShareResult, { ...base, goalWord: 'deadline' }));
-    for (const t of [target, deadline]) {
-      expect(t).toContain('I acknowledge the following');
-      expect(t).toContain('not my player ID, and never shown');
-      expect(t).toContain('plus my CSV if ticked below');
-      expect(t).toContain('private diagnostics (never shown)');
-    }
-    expect(target).toContain('its dates and the target,');
-    expect(target).toContain('my best three plans already on the board');
-    expect(deadline).toContain('its dates and the deadline,');
-    expect(deadline).not.toContain('best three');
-    expect(deadline).not.toContain('Yes, share');
+  it('without a send label (Fastest): the full box', async () => {
+    const html = await renderWith({ compact: true });
+    expect(html).toContain('data-testid="share-consent"');
+    expect(html).not.toContain('data-testid="share-ask"');
+    expect(textOf(html)).toContain(CONSENT);
   });
 });
 
-describe('ShareStatus', () => {
-  it('colours thanks green, a refusal red and "Sent, but" amber', async () => {
-    expect(await renderHtml(ShareStatus, { message: 'Thanks! On the board.', ok: true })).toContain('text-emerald-700');
-    expect(await renderHtml(ShareStatus, { message: 'Not sent: offline', ok: false })).toContain('text-rose-700');
-    expect(
-      await renderHtml(ShareStatus, { message: 'Sent, but the table did not', ok: true, partial: true })
-    ).toContain('text-amber-700');
+describe('ShareResult not compact', () => {
+  it('is the full box, even when agreed', async () => {
+    for (const optIn of [false, true]) {
+      const html = await renderWith({ optIn, sendLabel: 'Send it' });
+      expect(html).toContain('data-testid="share-consent"');
+      expect(html).not.toContain('data-testid="consent-summary"');
+      expect(html).not.toContain('data-testid="share-ask"');
+      expect(html).not.toContain('data-testid="share-fold"');
+    }
   });
+});
 
-  it('shows nothing without a message, and Retry the table while the table is pending', async () => {
-    expect(textOf(await renderHtml(ShareStatus, { message: '', ok: true }))).toBe('');
-    expect(textOf(await renderHtml(ShareStatus, { message: '', ok: true, pendingTable: true }))).toBe(
-      'Retry the table'
-    );
-    // The moving dots (SendingText.vue): the words, then three dots it animates.
-    const sending = await renderHtml(ShareStatus, { message: '', ok: true, pendingTable: true, retrying: true });
-    expect(textOf(sending)).toMatch(/^Sending the table/);
-    expect(sending).toContain('sending-dots');
-  });
-
-  it('is a span inside a row of buttons when asked', async () => {
-    expect(await renderHtml(ShareStatus, { message: 'x', ok: true, tag: 'span' })).toMatch(/^(<!--\[-->)?<span/);
+describe('ShareResult source', () => {
+  it('opens the choices for a box ticked now (optIn true sets expanded)', () => {
+    const src = fs.readFileSync(path.join(__dirname, 'ShareResult.vue'), 'utf8');
+    // A watch can't fire in a server render, so this is checked in the source.
+    expect(src).toMatch(/watch\(optIn,\s*v\s*=>\s*\{[^}]*expanded\.value\s*=\s*v;/);
   });
 });

@@ -17,6 +17,31 @@
     <p v-if="replacesBestSoFar" class="text-[11px] font-semibold text-indigo-900" data-testid="share-replaces">
       Your best so far from this run is on the board as "in progress". Sending this result replaces it.
     </p>
+    <!-- Compact (the user, 12 Oct: the same consent twice): not agreed yet, the screen's one button, which
+         opens the consent (nothing is sent by that press); agreed (remembered in this browser), the one-line
+         summary with Change, the note folded, and the screen's button and status below it. -->
+    <template v-if="compact && !optIn && sendLabel && !asking">
+      <button
+        type="button"
+        class="px-4 py-2 rounded-lg bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-800"
+        data-testid="share-ask"
+        @click="asking = true"
+      >
+        {{ sendLabel }}
+      </button>
+      <p class="text-[10px] text-indigo-900/70">This asks you to agree first; nothing is sent by that press.</p>
+    </template>
+    <template v-else-if="folded">
+      <ConsentSummary :anonymous="anonymous" :nickname="nickname" :nickname-max="nicknameMax" @change="expanded = true" />
+      <details v-if="note !== undefined" class="text-[11px] text-indigo-900" data-testid="share-note-fold">
+        <summary class="cursor-pointer font-bold text-indigo-800">
+          {{ note ? 'Note on this run (added)' : 'Add a note on this run' }}
+        </summary>
+        <RunNoteBox v-model="note" class="mt-1 text-[11px] text-indigo-900" />
+      </details>
+      <div class="space-y-2"><slot name="opted" /></div>
+    </template>
+    <template v-else>
     <!-- OPT IN, UNCHECKED. Nothing leaves the machine until this is deliberately ticked. -->
     <label class="flex items-start gap-3 cursor-pointer text-xs text-indigo-900">
       <input
@@ -51,18 +76,31 @@
       <!-- The same note box as Find and submit's (FindBar.vue), holding the run's own note: what it
            says here is what is sent, and what the CSV's header carries. -->
       <RunNoteBox v-if="note !== undefined" v-model="note" class="text-[11px] text-indigo-900" />
+      <p v-if="compact && optIn" class="text-[10px] text-indigo-900/70" data-testid="share-fold">
+        Remembered in this browser; untick the box to withdraw it.
+        <button
+          type="button"
+          class="underline decoration-dotted underline-offset-2 font-bold text-indigo-700 hover:text-indigo-900"
+          @click="expanded = false"
+        >
+          Fold this away
+        </button>
+      </p>
       <slot name="opted" />
     </div>
+    </template>
     <slot />
   </div>
 </template>
 
 <script setup lang="ts">
+import { computed, ref, watch } from 'vue';
+import ConsentSummary from './ConsentSummary.vue';
 import ShareExtras from './ShareExtras.vue';
 import ShareNameChoice from './ShareNameChoice.vue';
 import RunNoteBox from './RunNoteBox.vue';
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     heading?: string;
     /** After "(the same file as Download CSV)" in the CSV box: what this screen's CSV holds. */
@@ -72,8 +110,20 @@ withDefaults(
     goalWord?: 'target' | 'deadline';
     /** The run sent a best so far that this send replaces (store `provisionalRows`). */
     replacesBestSoFar?: boolean;
+    /** Show the agreed consent as one line (ConsentSummary.vue) instead of the full box. */
+    compact?: boolean;
+    /** With `compact`, and not agreed yet: the screen's one send button, which asks for the consent. */
+    sendLabel?: string;
   }>(),
-  { heading: 'Share this result', csvDetail: '', nicknameMax: 40, goalWord: 'target', replacesBestSoFar: false }
+  {
+    heading: 'Share this result',
+    csvDetail: '',
+    nicknameMax: 40,
+    goalWord: 'target',
+    replacesBestSoFar: false,
+    compact: false,
+    sendLabel: '',
+  }
 );
 const emit = defineEmits<{ nicknameTyped: [] }>();
 const optIn = defineModel<boolean>('optIn', { required: true });
@@ -81,4 +131,13 @@ const anonymous = defineModel<boolean>('anonymous', { required: true });
 const nickname = defineModel<string>('nickname', { required: true });
 /** "Note on this run": the run's note, sent with the result. Left unbound, the box isn't shown. */
 const note = defineModel<string>('note');
+/** Change opened the folded consent; the send button of a not-yet-agreed box asked for it. */
+const expanded = ref(false);
+const asking = ref(false);
+const folded = computed(() => props.compact && optIn.value && !expanded.value);
+// Ticked now (not remembered from before): its choices stay open for this visit; it folds next time.
+watch(optIn, v => {
+  if (v) asking.value = false;
+  expanded.value = v;
+});
 </script>

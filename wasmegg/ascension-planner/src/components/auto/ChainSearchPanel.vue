@@ -1158,6 +1158,7 @@
                the only option is a file the player hands over themselves. -->
           <ShareResult
             v-if="ownRun && store.bestDays > 0 && !store.isRunning"
+            compact
             :replaces-best-so-far="!!store.provisionalRows.fastest"
             v-model:opt-in="optIn"
             v-model:anonymous="anonymous"
