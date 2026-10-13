@@ -28,7 +28,15 @@ import type { BuildParams } from '@/search/precomputedLeg';
 import { contention, sweepSeconds, timeWeightedWorkers, workerSecondsFromRate, workerSecondsPerChain } from '@/search/speed';
 import { addChainSample, sweepTimeLeft, type SweepTimeLeft } from '@/search/sweepEstimate';
 import { createStickyDealer } from '@/search/stickyDealer';
-import { defaultWorkerCount, hardwareThreads, maxPoolSize, clampPoolSize, targetWorkerCount, workersForBatch } from '@/search/batch';
+import {
+  DEFAULT_WORKER_CAP,
+  defaultWorkerCount,
+  hardwareThreads,
+  maxPoolSize,
+  clampPoolSize,
+  targetWorkerCount,
+  workersForBatch,
+} from '@/search/batch';
 import { describeRunError } from '@/utils/errors';
 import { loadChainBenchmark, saveChainBenchmark } from '@/lib/chainBenchmarkCache';
 import { patchAutoPlannerSchedule } from '@/lib/autoPlannerFormCache';
@@ -338,7 +346,7 @@ export interface ExhaustiveSpec {
 /** Where the background worker count is remembered (per browser, a convenience only). */
 const BACKGROUND_WORKERS_KEY = 'aap-background-workers';
 /** The worker count the player chose (Setup's pill, the slider, "Use 12"), per browser: it is the
- *  default on every later visit. Nothing stored: half the cores (`defaultWorkerCount`). */
+ *  default on every later visit. Nothing stored: half the cores, at most 12 (`defaultWorkerCount`). */
 export const WORKERS_KEY = 'aap-workers';
 
 function readStoredCount(key: string): number {
@@ -380,7 +388,8 @@ function writeStoredCount(key: string, n: number): void {
 
 /** A By a date run estimated past this, on the default count, defaults to LONG_RUN_WORKERS. */
 export const LONG_RUN_SECONDS = 2 * 3600;
-export const LONG_RUN_WORKERS = 12;
+/** The default's own cap (search/batch.ts DEFAULT_WORKER_CAP), so the two never disagree. */
+export const LONG_RUN_WORKERS = DEFAULT_WORKER_CAP;
 
 /** Workers the end-of-run rechecks keep (`recheckBeforeTheEnd`). */
 const RECHECK_WORKERS = 2;

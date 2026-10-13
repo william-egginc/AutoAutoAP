@@ -475,29 +475,26 @@ describe('the end of a By a date run (the 9 Oct crash)', () => {
 
   // The default count is half the cores (11 Oct 2026), so the 12-worker cap matters on a machine with
   // more than 24 threads: 32 here, default 16.
-  it('a long run defaults to 12 workers, unless the count was set by hand', () => {
+  it('a long run starts at the default 12 on a big machine, and a count set by hand stays', () => {
     vi.stubGlobal('navigator', { hardwareConcurrency: 32 });
+    setActivePinia(createPinia());
     const store = useChainSearchStore();
-    store.workerBudget = 16;
+    // Half of 32 is 16; the default stops at 12 (13 Oct 2026), so a long run has nothing to lower.
+    expect(store.workerBudget).toBe(12);
     store.fitWorkersToRun(3 * 3600);
     expect(store.workerBudget).toBe(12);
-    expect(store.longRunWorkers).toBe(12);
-    store.fitWorkersToRun(3600);
-    expect(store.workerBudget).toBe(16);
-    expect(store.longRunWorkers).toBeNull();
+    expect(store.longRunNote).toBeNull();
     store.setWorkersByHand(17);
     store.fitWorkersToRun(3 * 3600);
     expect(store.workerBudget).toBe(17);
     expect(store.longRunWorkers).toBeNull();
   });
 
-  it('says so when the count is set by hand above the default, and the note never claims a count not in use', () => {
+  it('says so when the count is set by hand above 12 for a long run, with a one-click Use 12', () => {
     vi.stubGlobal('navigator', { hardwareConcurrency: 32 });
+    setActivePinia(createPinia());
     const store = useChainSearchStore();
-    store.workerBudget = 16;
     store.fitWorkersToRun(3 * 3600);
-    expect(store.longRunNote).toEqual({ kind: 'default', workers: 12 });
-    expect(store.workerBudget).toBe(12);
     // moved to 19 by hand (Setup's buttons now go through setWorkersByHand)
     store.setWorkersByHand(19);
     expect(store.longRunNote).toEqual({ kind: 'hand', have: 19 });
@@ -572,6 +569,17 @@ describe('the worker count (11 Oct 2026)', () => {
     // A long run's default cap doesn't override the player's own count.
     next.fitWorkersToRun(3 * 3600);
     expect(next.workerBudget).toBe(18);
+  });
+
+  it('starts at no more than 12 on a big machine, and keeps a remembered count above it (13 Oct 2026)', () => {
+    vi.stubGlobal('navigator', { hardwareConcurrency: 64 });
+    setActivePinia(createPinia());
+    expect(useChainSearchStore().workerBudget).toBe(12);
+    localStorage.setItem('aap-workers', '19');
+    setActivePinia(createPinia());
+    const kept = useChainSearchStore();
+    expect(kept.workerBudget).toBe(19);
+    expect(kept.workersByHand).toBe(true);
   });
 
   it('holds a remembered count to this machine (a count from a bigger computer)', () => {

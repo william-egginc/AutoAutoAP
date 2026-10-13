@@ -19,6 +19,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
+import { DEFAULT_WORKER_CAP } from '@/search/batch';
 
 const store = useChainSearchStore();
 
@@ -28,6 +29,7 @@ const isSafari =
   /safari/i.test(navigator.userAgent) &&
   !/chrome|chromium|crios|fxios|edg|android/i.test(navigator.userAgent);
 
-/** About 60% of the cores: each worker is its own heap, and Safari squeezes the whole tab. */
-const workers = computed(() => Math.max(1, Math.ceil(store.machineThreads * 0.6)));
+/** About 60% of the cores, and never more than the default's cap (search/batch.ts DEFAULT_WORKER_CAP):
+ *  each worker is its own heap, and Safari squeezes the whole tab. */
+const workers = computed(() => Math.max(1, Math.min(DEFAULT_WORKER_CAP, Math.ceil(store.machineThreads * 0.6))));
 </script>

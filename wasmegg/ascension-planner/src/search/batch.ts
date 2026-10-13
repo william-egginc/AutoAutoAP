@@ -48,13 +48,21 @@ export function maxPoolSize(): number {
 }
 
 /**
+ * The most workers a player starts with (the user, 13 Oct 2026): on the 20-thread PC 19 workers were
+ * no faster than 12 (about 120-140 routes a minute either way; aaap-tools analytics-2026-10-13.md),
+ * and the long runs that crashed of memory were at 19.
+ */
+export const DEFAULT_WORKER_CAP = 12;
+
+/**
  * The worker count a player starts with until they choose one (the user, 11 Oct 2026): half the
- * machine's logical cores, at least one. It leaves room for everything else on the computer (what the
- * retired "Use fewer workers" box in Stepping away? did); a player who wants more raises it in Setup
- * once, and that count is remembered for them (stores/chainSearch.ts WORKERS_KEY).
+ * machine's logical cores, at least one, and at most DEFAULT_WORKER_CAP (13 Oct). It leaves room for
+ * everything else on the computer (what the retired "Use fewer workers" box in Stepping away? did); a
+ * player who wants more raises it in Setup once, and that count is remembered for them, above the
+ * cap too (stores/chainSearch.ts WORKERS_KEY).
  */
 export function defaultWorkerCount(threads: number = hardwareThreads()): number {
-  return Math.max(1, Math.floor(threads / 2));
+  return Math.max(1, Math.min(DEFAULT_WORKER_CAP, Math.floor(threads / 2)));
 }
 
 /**

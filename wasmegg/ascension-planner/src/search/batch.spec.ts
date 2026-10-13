@@ -3,7 +3,7 @@
  * a typed number and how many workers a machine is asked to run.
  */
 import { describe, expect, it } from 'vitest';
-import { defaultWorkerCount, clampPoolSize, maxPoolSize, targetWorkerCount } from './batch';
+import { DEFAULT_WORKER_CAP, defaultWorkerCount, clampPoolSize, maxPoolSize, targetWorkerCount } from './batch';
 
 describe('clampPoolSize', () => {
   const withCores = (cores: number | undefined, run: () => void) => {
@@ -64,6 +64,12 @@ describe('defaultWorkerCount', () => {
     expect(defaultWorkerCount(7)).toBe(3);
     expect(defaultWorkerCount(1)).toBe(1);
     expect(defaultWorkerCount(2)).toBe(1);
+  });
+  it('stops at 12 (13 Oct 2026: 19 was no faster than 12 on a 20-thread PC)', () => {
+    expect(DEFAULT_WORKER_CAP).toBe(12);
+    expect(defaultWorkerCount(24)).toBe(12);
+    expect(defaultWorkerCount(26)).toBe(12);
+    expect(defaultWorkerCount(64)).toBe(12);
   });
 });
 
