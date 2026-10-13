@@ -1,7 +1,7 @@
 <template>
   <div
     v-if="actionsStore.hasStartAction"
-    class="fixed right-4 top-20 z-50 flex flex-col items-center card-glass p-1.5 shadow-2xl transition-all duration-300"
+    class="fixed right-2 md:right-4 bottom-28 md:bottom-auto md:top-20 z-50 flex flex-col items-center card-glass p-1.5 shadow-2xl transition-all duration-300"
     :class="[isCollapsed ? 'w-12' : 'p-4 min-w-[140px]']"
   >
     <!-- Toggle Handler -->
