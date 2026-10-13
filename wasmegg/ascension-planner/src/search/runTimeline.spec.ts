@@ -173,6 +173,16 @@ describe('timelinePayload', () => {
     expect(p.wk).toEqual([[1, 'resize', 7, 2]]);
   });
 
+  it("keeps why a send failed, and nothing extra on one that worked", () => {
+    let t = fresh();
+    t = noteSendIn(t, { now: T0 + MIN, what: 'csv-head', ok: false, tries: 3, why: 'blocked by CORS, or offline' });
+    t = noteSendIn(t, { now: T0 + 2 * MIN, what: 'csv-so-far', ok: true, status: 200, why: 'ignored' });
+    expect(t.sends).toEqual([
+      [1, 'csv-head', 0, null, 0, 1, 3, 'blocked by CORS, or offline'],
+      [2, 'csv-so-far', 1, 200, 0, 1, 1],
+    ]);
+  });
+
   it('a 42-hour run with everything full stays under PAYLOAD_MAX_CHARS', () => {
     let t = fresh();
     for (let at = 0; at <= 42 * 60 * MIN; at += 15_000) {

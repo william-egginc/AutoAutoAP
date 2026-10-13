@@ -6,7 +6,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import zlib from 'node:zlib';
 // @ts-expect-error -- the collector is plain JS
 import worker from '../../collector/worker.js';
-import { checkDeltaState, crc32, deflateSegment, freshDeltaState, MAX_DELTAS, uploadDelta, uploadDeltaHead } from './csvDelta';
+import {
+  BLOCKED_WHY,
+  checkDeltaState,
+  crc32,
+  deflateSegment,
+  fetchFailureWhy,
+  freshDeltaState,
+  MAX_DELTAS,
+  uploadDelta,
+  uploadDeltaHead,
+} from './csvDelta';
 import { PricedRoutes } from './deadline';
 import { pricedDeltaChunks, pricedLine } from './csv';
 
@@ -170,4 +180,48 @@ describe('end to end with the collector', () => {
     const text = await new Response(new Blob([gz]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
     expect(text).toBe(want);
   }, 30_000);
+});
+
+describe('why an upload failed (12 Oct 2026: a CORS block went unrecorded)', () => {
+  const seg = { body: new Uint8Array([1, 2, 3]), crc: 1, len: 3 };
+  const head = { id: 'r1', run: 'abc', deltas: 1, token: 't', deltaToken: 'd', seg };
+  const delta = { run: 'abc', seq: 0, token: 'd', seg, count: 3 };
+  async function settle<T>(p: Promise<T>): Promise<T> {
+    // The retries wait 3 s and 6 s.
+    await vi.advanceTimersByTimeAsync(10_000);
+    return p;
+  }
+
+  it('says the browser refused or could not send when fetch throws a TypeError', async () => {
+    vi.useFakeTimers();
+    try {
+      let tries = 0;
+      const blocked = (() => {
+        tries++;
+        return Promise.reject(new TypeError('Failed to fetch'));
+      }) as typeof fetch;
+      expect(await settle(uploadDeltaHead(BASE, head, blocked))).toEqual({ kind: 'failed', why: BLOCKED_WHY });
+      expect(tries).toBe(3);
+      expect(await settle(uploadDelta(BASE, delta, blocked))).toEqual({ kind: 'failed', why: BLOCKED_WHY });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("gives the board's status when it kept answering a server error", async () => {
+    vi.useFakeTimers();
+    try {
+      const busy = (() => Promise.resolve(new Response('', { status: 503 }))) as typeof fetch;
+      expect(await settle(uploadDeltaHead(BASE, head, busy))).toEqual({ kind: 'failed', why: 'the board answered 503', status: 503 });
+      expect(await settle(uploadDelta(BASE, delta, busy))).toEqual({ kind: 'failed', why: 'the board answered 503', status: 503 });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('names other failures by their message', () => {
+    expect(fetchFailureWhy(new TypeError('Load failed'))).toBe(BLOCKED_WHY);
+    expect(fetchFailureWhy(Object.assign(new Error('x'), { name: 'AbortError' }))).toBe('the request was cut off');
+    expect(fetchFailureWhy(new Error('boom'))).toBe('the request failed (boom)');
+  });
 });

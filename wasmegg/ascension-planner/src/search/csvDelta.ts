@@ -150,6 +150,16 @@ export type DeltaUpload =
   | { kind: 'stored'; count: number }
   | { kind: 'failed'; why: string; status?: number };
 
+/** What a fetch that threw means: a TypeError with no response is the browser refusing or failing to
+ *  send (a CORS block looks exactly like being offline from the page; 12 Oct 2026, the collector's
+ *  CORS list lacked x-delta-token and the CSV failed without a word). */
+export const BLOCKED_WHY = "the browser refused or couldn't send the request: blocked by CORS, or offline";
+export function fetchFailureWhy(e: unknown): string {
+  if (e instanceof TypeError) return BLOCKED_WHY;
+  if (e instanceof Error && e.name === 'AbortError') return 'the request was cut off';
+  return `the request failed (${(e instanceof Error ? e.message : String(e)).slice(0, 80)})`;
+}
+
 /** POST one delta (collector "CSV so far in deltas"). Never throws. */
 export async function uploadDelta(
   base: string,
@@ -157,6 +167,8 @@ export async function uploadDelta(
   doFetch: typeof fetch = (...x) => fetch(...x)
 ): Promise<DeltaUpload> {
   const url = `${base}/csvd?run=${a.run}&seq=${a.seq}&len=${a.seg.len}&crc=${a.seg.crc}&count=${a.count}`;
+  // The last try's reason, for the run timeline and the page's note.
+  let last: { why: string; status?: number } = { why: 'the connection dropped' };
   for (let attempt = 0; attempt < 3; attempt++) {
     if (attempt) await new Promise(r => setTimeout(r, attempt * 3000));
     let r: Response;
@@ -166,7 +178,8 @@ export async function uploadDelta(
         headers: { 'content-type': 'application/octet-stream', 'x-upload-token': a.token },
         body: a.seg.body as Uint8Array<ArrayBuffer>,
       });
-    } catch {
+    } catch (e) {
+      last = { why: fetchFailureWhy(e) };
       continue;
     }
     if (r.ok) return { kind: 'stored', count: a.count };
@@ -175,10 +188,13 @@ export async function uploadDelta(
       const n = got && typeof got.count === 'number' && Number.isInteger(got.count) ? got.count : null;
       return n === null ? { kind: 'failed', why: 'the board had that piece already but did not say what was in it', status: 409 } : { kind: 'stored', count: n };
     }
-    if (r.status >= 500 || r.status === 429) continue;
+    if (r.status >= 500 || r.status === 429) {
+      last = { why: `the board answered ${r.status}`, status: r.status };
+      continue;
+    }
     return { kind: 'failed', why: `the board answered ${r.status}`, status: r.status };
   }
-  return { kind: 'failed', why: 'the connection dropped' };
+  return { kind: 'failed', ...last };
 }
 
 /** POST the head of a row whose CSV is in deltas: it seals the row's file at `deltas` pieces. */
@@ -188,6 +204,8 @@ export async function uploadDeltaHead(
   doFetch: typeof fetch = (...x) => fetch(...x)
 ): Promise<{ kind: 'stored' } | { kind: 'failed'; why: string; status?: number; missing?: number[] }> {
   const url = `${base}/csv?id=${encodeURIComponent(a.id)}&run=${a.run}&deltas=${a.deltas}&len=${a.seg.len}&crc=${a.seg.crc}`;
+  // The last try's reason, for the run timeline and the page's note.
+  let last: { why: string; status?: number } = { why: 'the connection dropped' };
   for (let attempt = 0; attempt < 3; attempt++) {
     if (attempt) await new Promise(r => setTimeout(r, attempt * 3000));
     let r: Response;
@@ -197,7 +215,8 @@ export async function uploadDeltaHead(
         headers: { 'content-type': 'application/octet-stream', 'x-upload-token': a.token, 'x-delta-token': a.deltaToken },
         body: a.seg.body as Uint8Array<ArrayBuffer>,
       });
-    } catch {
+    } catch (e) {
+      last = { why: fetchFailureWhy(e) };
       continue;
     }
     if (r.ok || r.status === 409) return { kind: 'stored' };
@@ -206,8 +225,11 @@ export async function uploadDeltaHead(
       const missing = Array.isArray(got?.missing) ? got!.missing.filter((n): n is number => Number.isInteger(n)) : [];
       return { kind: 'failed', why: 'the board was missing a piece of it', status: 422, missing };
     }
-    if (r.status >= 500 || r.status === 429) continue;
+    if (r.status >= 500 || r.status === 429) {
+      last = { why: `the board answered ${r.status}`, status: r.status };
+      continue;
+    }
     return { kind: 'failed', why: `the board answered ${r.status}`, status: r.status };
   }
-  return { kind: 'failed', why: 'the connection dropped' };
+  return { kind: 'failed', ...last };
 }
