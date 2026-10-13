@@ -33,6 +33,7 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
+  { at: '2026-10-13T19:15:55Z', note: 'Fixes iPhone crashes on By a date; agree to share once; By a date laid out like Fastest; start times by finish; clearer search screens; upload errors say why', level: 'big' },
   { at: '2026-10-12T20:16:33Z', note: 'New: Stronger check (Light/Fast/Exact/Very high) with Nearby routes; Exhaustive on the page, in boxes; When should I start?; egg-shift dates; By a date TE per egg; steadier long runs', level: 'big' },
   { at: '2026-10-11T19:26:57Z', note: 'New Science › How it works page; 12-hour times; tidier tabs on phones; a Full sweep queue survives a refresh; better time estimates; many small fixes', level: 'big' },
   { at: '2026-10-11T05:21:25Z', note: 'Watch from your phone: the finished page now shows the best route found, the route count and how long the run took' },
@@ -40,7 +41,6 @@ const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
   { at: '2026-10-10T17:34:15Z', note: 'Share your instant answer checks (anonymous, opt-in) right from the instant answer, see your own check history, and send progress every 1-6 hours; the new-layout card is gone' },
   { at: '2026-10-10T03:43:13Z', note: 'Saved answers and saved runs keep the save they were priced from: Use the save from… brings it back to plan, check or search from, and Download this save keeps it as a file', level: 'big' },
   { at: '2026-10-10T01:38:15Z', note: 'Long runs use far less memory; the CSV lists every route priced; a finished result is kept until it is sent (Send it now after a reload); carry-on keeps Find and submit; a note box in Share this result', level: 'big' },
-  { at: '2026-10-09T23:57:44Z', note: 'Advanced (Full sweep): one time left for the whole queue that ignores replayed chains after a carry-on, and Jump to it stays on your run' },
 ];
 
 export default {
