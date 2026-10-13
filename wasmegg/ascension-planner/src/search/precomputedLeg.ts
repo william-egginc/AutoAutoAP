@@ -204,6 +204,9 @@ function greedyOrder(delivered: ArrayLike<number>, eggs: number[], max: number):
   return out.subarray(0, n);
 }
 
+/** A sweep's objects and array headers beyond the arrays' own bytes. */
+const SWEEP_OVERHEAD = 600;
+
 /** Every checkpoint's tail from one build at once (`sweepTails`); index = checkpoint - `from`. */
 export interface TailSweep {
   /** The first checkpoint asked for and the last. */
@@ -215,6 +218,9 @@ export interface TailSweep {
   /** The end egg counts for checkpoint index `i` (EGG_ORDER), written into `out`. Worked out when
    *  asked rather than stored: a route search asks for few of them. */
   deliveredInto(i: number, out: number[] | Float64Array): void;
+  /** About what it holds in memory, bytes: its arrays and the ones `deliveredInto` keeps (about 40 KB
+   *  low in the game), for a cache's budget (search/sweepCache.ts). */
+  bytes: number;
 }
 
 /**
@@ -243,7 +249,7 @@ export function sweepTails(p: BuildParams, top: number, lateBy = 0, lowest?: num
   // Per checkpoint, what kindness and the other four were asked for: the end counts follow from them.
   const needKAt = new Int16Array(Math.max(0, n));
   const leftAt = new Int16Array(Math.max(0, n));
-  if (n <= 0) return { from, to, seconds, endTE, deliveredInto: () => {} };
+  if (n <= 0) return { from, to, seconds, endTE, deliveredInto: () => {}, bytes: SWEEP_OVERHEAD };
 
   const span = Math.max(0, to - now);
   const all = greedyOrder(d, GREEDY_IDX, span);
@@ -342,7 +348,16 @@ export function sweepTails(p: BuildParams, top: number, lateBy = 0, lowest?: num
     for (const e of OTHERS_IDX) out[e] = oEggs[e * (L + 1) + (left > 0 ? per[e * (L + 1) + left] : 0)];
     out[KIND] = kEggs[needKAt[i]];
   };
-  return { from, to, seconds, endTE, deliveredInto };
+  const bytes =
+    SWEEP_OVERHEAD +
+    seconds.byteLength +
+    endTE.byteLength +
+    needKAt.byteLength +
+    leftAt.byteLength +
+    oEggs.byteLength +
+    per.byteLength +
+    kEggs.byteLength;
+  return { from, to, seconds, endTE, deliveredInto, bytes };
 }
 
 /** Hours in a week: the table's second key. */

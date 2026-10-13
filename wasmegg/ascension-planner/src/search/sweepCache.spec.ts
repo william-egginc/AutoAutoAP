@@ -1,0 +1,60 @@
+import { describe, expect, it } from 'vitest';
+import { canonicalDelivered, sweepTails, type BuildParams, type TailSweep } from './precomputedLeg';
+import { SMALL_SWEEP_BUDGET, SWEEP_BUDGET, SweepCache, sweepBudget } from './sweepCache';
+
+const fake = (bytes: number): TailSweep => ({
+  from: 0,
+  to: 0,
+  seconds: new Float64Array(0),
+  endTE: new Int16Array(0),
+  deliveredInto: () => {},
+  bytes,
+});
+
+describe('SweepCache', () => {
+  it('stays inside its budget as sweeps go in, dropping the longest unused first', () => {
+    const c = new SweepCache(100);
+    c.set('a', fake(40));
+    c.set('b', fake(40));
+    expect(c.get('a')).toBeDefined(); // a is now the most recent
+    c.set('c', fake(40));
+    expect(c.bytes).toBeLessThanOrEqual(100);
+    expect(c.get('b')).toBeUndefined();
+    expect(c.get('a')).toBeDefined();
+    expect(c.get('c')).toBeDefined();
+  });
+
+  it('keeps the newest even when it alone is over budget, and counts a replaced key once', () => {
+    const c = new SweepCache(10);
+    c.set('a', fake(5));
+    c.set('big', fake(50));
+    expect(c.size).toBe(1);
+    expect(c.get('big')).toBeDefined();
+    c.set('big', fake(8));
+    expect(c.bytes).toBe(8);
+    c.clear();
+    expect(c.size).toBe(0);
+    expect(c.bytes).toBe(0);
+  });
+
+  it('gives a phone the smaller budget', () => {
+    expect(sweepBudget(true)).toBe(SMALL_SWEEP_BUDGET);
+    expect(sweepBudget(false)).toBe(SWEEP_BUDGET);
+  });
+
+  it("counts a real sweep at what it holds (about 40 KB low in the game; 12 Oct 2026's iPhone crash)", () => {
+    const b: BuildParams = {
+      sales: 2,
+      tier13: false,
+      waitStart: 300000,
+      saleEnd: 400000,
+      peakELR: 5e12,
+      delivered: canonicalDelivered(160),
+    };
+    const sw = sweepTails(b, 490, 0, 157);
+    expect(sw.bytes).toBeGreaterThan(20_000);
+    expect(sw.bytes).toBeLessThan(80_000);
+    // The old limit of 60,000 sweeps would have been gigabytes; the budget holds a few thousand.
+    expect(Math.floor(SMALL_SWEEP_BUDGET / sw.bytes)).toBeGreaterThan(500);
+  });
+});

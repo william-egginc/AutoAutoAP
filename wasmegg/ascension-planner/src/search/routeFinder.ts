@@ -26,6 +26,7 @@
  * (`rebase`, exact): the times of a route found here are the simulator's. The first ascension is the
  * player's own (finishing the one in progress, from the real save), so callers can supply it.
  */
+import { SweepCache, type SweepStore } from './sweepCache';
 import {
   bestTailTo,
   canonicalDelivered,
@@ -313,7 +314,7 @@ export function expandArrivals(
   stats?: { expanded: number; sweeps: number; cached: number },
   /** Sweeps kept from earlier steps of the same search: the same counts at the same TE and hour come
    *  back at other numbers of ascensions. Its owner keeps it to one table and one `s`. */
-  sweepCache: Map<string, TailSweep> = new Map()
+  sweepCache: SweepStore = new Map()
 ): Candidate[] {
   const top = s.top;
   const lists = new Map<number, Candidate[]>();
@@ -456,7 +457,7 @@ export async function findRoutes(
     keep,
     ...(o.waitHours ? { waitHours: o.waitHours } : {}),
   };
-  const cache = new Map<string, TailSweep>();
+  const cache = new SweepCache();
   const expand =
     o.expand ?? ((items: ArrivalItem[], st: ExpandSettings) => expandArrivals(o.table, st, items, o.stats, cache));
   let nextId = 0;

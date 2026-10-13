@@ -10,13 +10,13 @@ import { compositeTable, parseCompositeUrl, type Table } from '@/search/precompu
 import { fetchTable } from '@/search/tableFetch';
 import { expandArrivals, firstLegOptions, polishFound } from '@/search/routeFinder';
 import { estimateProfile } from '@/search/prestigeBy';
-import type { TailSweep } from '@/search/precomputedLeg';
+import { SweepCache } from '@/search/sweepCache';
 import type { RouteWorkerRequest, RouteWorkerResponse } from './routeFinder.protocol';
 
 const ctx = self as unknown as Worker;
-/** Sweeps reused across steps (search/routeFinder.ts `expandArrivals`); cleared past this many. */
-const CACHE_LIMIT = 60000;
-let cache = new Map<string, TailSweep>();
+/** Sweeps reused across steps (search/routeFinder.ts `expandArrivals`), held to a memory budget as each
+ *  goes in (search/sweepCache.ts: 60,000 of them, the old limit, was about 2.3 GB). */
+const cache = new SweepCache();
 let cacheKey = '';
 let table: Promise<Table> | null = null;
 let tableUrl = '';
@@ -70,10 +70,10 @@ ctx.onmessage = async (event: MessageEvent<RouteWorkerRequest>) => {
         return;
       case 'expand': {
         // One cache per table and settings, kept across a search's steps (and the next search with
-        // the same settings), bounded so a long session does not grow it without end.
+        // the same settings).
         const key = `${tableUrl}|${JSON.stringify(m.settings)}`;
-        if (key !== cacheKey || cache.size > CACHE_LIMIT) {
-          cache = new Map();
+        if (key !== cacheKey) {
+          cache.clear();
           cacheKey = key;
         }
         reply({
