@@ -5,10 +5,31 @@
  * hint under Find and submit said only "Please tick the box below".
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createSSRApp, h } from 'vue';
+import { renderToString } from 'vue/server-renderer';
 import { createPinia, setActivePinia, type Pinia } from 'pinia';
 import FindBar from './FindBar.vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { renderHtml, textOf } from '@/test/renderComponent';
+import { useShareExtras } from '@/composables/useShareExtras';
+
+/**
+ * The Change button (and Fold this away) only set FindBar's own `expanded` ref, and specs here render
+ * on the server (no DOM, so nothing can be clicked). So: the button's presence is checked in the
+ * HTML, and "clicked" is the same ref set through the component's setup state before it renders.
+ */
+async function renderWith(props: Record<string, unknown>, setup: Record<string, unknown> = {}): Promise<string> {
+  const app = createSSRApp({ render: () => h(FindBar, { ...base, ...props }) });
+  app.use(pinia);
+  app.mixin({
+    created(this: { $: { type: { __file?: string }; setupState: Record<string, unknown> } }) {
+      if (this.$.type.__file?.endsWith('/FindBar.vue')) Object.assign(this.$.setupState, setup);
+    },
+  });
+  return renderToString(app);
+}
+/** Agreed before, then Change pressed. */
+const changed = (props: Record<string, unknown>) => renderWith(props, { expanded: true });
 
 let pinia: Pinia;
 beforeEach(() => {
@@ -25,7 +46,13 @@ beforeEach(() => {
   pinia = createPinia();
   setActivePinia(pinia);
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  // The site-wide singleton: put the extras back to their defaults.
+  const extras = useShareExtras();
+  extras.sendCsv.value = true;
+  extras.sendDiagnostics.value = false;
+});
 
 const base = { findDisabled: false, running: false, optIn: false, anonymous: true, nickname: '' };
 const render = async (props: Record<string, unknown>) =>
@@ -43,7 +70,8 @@ describe('FindBar', () => {
 
   for (const goalWord of ['target', 'deadline'] as const) {
     it(`keeps the CSV and diagnostics boxes during a run (${goalWord})`, async () => {
-      const t = await render({ running: true, goalWord, optIn: true });
+      // Agreed already, so the share box is folded to its summary until Change opens it.
+      const t = textOf(await changed({ running: true, goalWord, optIn: true }));
       expect(t).toContain('Send my CSV too');
       expect(t).toContain('Also send diagnostics');
       expect(t).toContain('Tick this by default from now on');
@@ -57,7 +85,49 @@ describe('FindBar', () => {
 
   it('says the run sends these when it finishes, for a Find and submit run', async () => {
     useChainSearchStore().submitsWhenDone = true;
-    expect(await render({ running: true, optIn: true })).toContain('Sent with the result when the run finishes');
+    expect(textOf(await changed({ running: true, optIn: true }))).toContain('Sent with the result when the run finishes');
+  });
+
+  describe('the remembered consent folds to one line (12 Oct)', () => {
+    it('with the box ticked: a summary with Change, without the consent text or the CSV box', async () => {
+      const html = await renderWith({ optIn: true });
+      const t = textOf(html);
+      expect(html).toContain('data-testid="consent-summary"');
+      expect(html).toContain('data-testid="consent-change"');
+      expect(t).toContain('You agreed to share runs on the leaderboard');
+      expect(t).not.toContain('I acknowledge the following');
+      expect(t).not.toContain('Send my CSV too');
+      expect(html).not.toContain('consent-fold');
+    });
+
+    it('the summary says what goes: CSV, diagnostics, and the name', async () => {
+      const extras = useShareExtras();
+      extras.sendCsv.value = false;
+      extras.sendDiagnostics.value = true;
+      expect(textOf(await renderWith({ optIn: true }))).toMatch(/CSV off · diagnostics on · anonymous/);
+      extras.sendCsv.value = true;
+      extras.sendDiagnostics.value = false;
+      const t = textOf(await renderWith({ optIn: true, anonymous: false, nickname: 'Fred' }));
+      expect(t).toMatch(/CSV on · diagnostics off · credited as Fred/);
+      expect(t).not.toContain('anonymous');
+    });
+
+    it('Change shows the consent text, the boxes and Fold this away, and the summary goes', async () => {
+      const html = await changed({ optIn: true });
+      const t = textOf(html);
+      expect(html).not.toContain('data-testid="consent-summary"');
+      expect(t).toContain('I acknowledge the following');
+      expect(t).toContain('Send my CSV too');
+      expect(html).toContain('data-testid="consent-remembered"');
+      expect(t).toContain('Fold this away');
+    });
+
+    it('with the box unticked: the full text and no summary', async () => {
+      const html = await renderWith({ optIn: false });
+      expect(html).not.toContain('consent-summary');
+      expect(textOf(html)).toContain('I acknowledge the following');
+      expect(textOf(html)).toContain('Send my CSV too');
+    });
   });
 
   it('after a Send best so far press: ticking sends, the name comes first, and both places say so', async () => {
