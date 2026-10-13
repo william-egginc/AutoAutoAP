@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { BLOCKED_WHY } from './uploadWhy';
 import {
   csvNote,
   csvParts,
@@ -152,9 +153,25 @@ describe('a CSV over the cap goes in parts (uploadCsv)', () => {
     expect(await uploadCsv(URL_, 't', new ArrayBuffer(20), { fetch: g.fetch, partBytes: 10, retryMs: [0, 0] })).toEqual(
       {
         kind: 'failed',
-        why: 'the connection dropped',
+        why: BLOCKED_WHY,
       }
     );
+  });
+
+  it("says why a single file or a part didn't land: blocked or offline, the board's answer, or the error", async () => {
+    const one = fake(new TypeError('Load failed'));
+    expect(await uploadCsv(URL_, 't', new ArrayBuffer(10), { fetch: one.fetch })).toEqual({ kind: 'failed', why: BLOCKED_WHY });
+    const busy = fake(ok({}, 503));
+    expect(await uploadCsv(URL_, 't', new ArrayBuffer(10), { fetch: busy.fetch })).toEqual({
+      kind: 'failed',
+      why: 'the board answered 503',
+      status: 503,
+    });
+    const odd = fake(new Error('boom'), new Error('boom'), new Error('boom'));
+    expect(await uploadCsv(URL_, 't', new ArrayBuffer(20), { fetch: odd.fetch, partBytes: 10, retryMs: [0, 0] })).toEqual({
+      kind: 'failed',
+      why: 'the request failed (boom)',
+    });
   });
 
   it('sends the parts the seal says are missing, then seals again', async () => {

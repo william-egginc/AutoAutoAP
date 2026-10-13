@@ -9,6 +9,7 @@
  * This module is the part that does not need the store: compressing the CSV so far without holding
  * the whole text at once, and the words for what went.
  */
+import { fetchFailureWhy } from './uploadWhy';
 
 /** The collector's cap on one upload of a gzipped CSV (collector/worker.js, MAX.CSV_BYTES). */
 export const CSV_PART_BYTES = 8 * 1024 * 1024;
@@ -215,7 +216,8 @@ export type CsvUpload =
   | { kind: 'refused' }
   /** A big CSV's parts were refused as bad requests (400): a collector from before parts. */
   | { kind: 'no-parts' }
-  /** It did not upload; `why` in words, `status` when the collector answered. Worth another go. */
+  /** It did not upload; `why` in words (search/uploadWhy.ts: blocked or offline, or the board's
+   *  answer), `status` when the collector answered. Worth another go. */
   | { kind: 'failed'; why: string; status?: number };
 
 /** Waits between tries of one part: a dropped connection or a 5xx is usually gone in seconds. */
@@ -278,7 +280,7 @@ export async function uploadCsv(
   };
   const failedFrom = (r: Response | Error): CsvUpload =>
     r instanceof Error
-      ? { kind: 'failed', why: 'the connection dropped' }
+      ? { kind: 'failed', why: fetchFailureWhy(r) }
       : { kind: 'failed', why: `the board answered ${r.status}`, status: r.status };
 
   if (parts.length === 1) {

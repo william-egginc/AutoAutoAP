@@ -26,6 +26,9 @@
  */
 import { Deflate, constants as zc } from 'pako';
 import { breathe } from './progressSend';
+import { fetchFailureWhy } from './uploadWhy';
+
+export { BLOCKED_WHY, fetchFailureWhy } from './uploadWhy';
 export { hashKey } from './routeHash';
 
 /** Routes whose legs a progress send's head carries (the final file has DEADLINE_LEG_ROUTES). */
@@ -149,16 +152,6 @@ export type DeltaUpload =
   /** Stored, or stored before (a retry whose answer was lost): `count` routes are in it. */
   | { kind: 'stored'; count: number }
   | { kind: 'failed'; why: string; status?: number };
-
-/** What a fetch that threw means: a TypeError with no response is the browser refusing or failing to
- *  send (a CORS block looks exactly like being offline from the page; 12 Oct 2026, the collector's
- *  CORS list lacked x-delta-token and the CSV failed without a word). */
-export const BLOCKED_WHY = "the browser refused or couldn't send the request: blocked by CORS, or offline";
-export function fetchFailureWhy(e: unknown): string {
-  if (e instanceof TypeError) return BLOCKED_WHY;
-  if (e instanceof Error && e.name === 'AbortError') return 'the request was cut off';
-  return `the request failed (${(e instanceof Error ? e.message : String(e)).slice(0, 80)})`;
-}
 
 /** POST one delta (collector "CSV so far in deltas"). Never throws. */
 export async function uploadDelta(
