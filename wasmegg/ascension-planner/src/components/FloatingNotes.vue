@@ -1,7 +1,7 @@
 <template>
   <div
-    class="fixed left-4 top-20 z-50 flex flex-col items-center p-1.5 shadow-2xl transition-all duration-300 bg-white/95 backdrop-blur-xl rounded-2xl border border-slate-100"
-    :class="[isCollapsed ? 'w-12' : 'p-4 min-w-[300px] w-80 max-w-[90vw] max-h-[80vh] overflow-y-auto overflow-x-hidden']"
+    class="fixed left-2 md:left-4 bottom-28 md:bottom-auto md:top-20 z-50 flex flex-col items-center p-1.5 shadow-2xl transition-all duration-300 bg-white/95 backdrop-blur-xl rounded-2xl border border-slate-100"
+    :class="[isCollapsed ? 'w-12' : 'p-4 min-w-[300px] w-80 max-w-[90vw] max-h-[55vh] md:max-h-[80vh] overflow-y-auto overflow-x-hidden']"
   >
     <!-- Toggle Handler -->
     <button
