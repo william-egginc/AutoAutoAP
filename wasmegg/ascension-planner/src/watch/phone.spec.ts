@@ -94,7 +94,14 @@ describe('the phone page', () => {
   });
 
   it('a wrong secret is an incomplete link', async () => {
-    await startAt(`#${ID}.${newWatchSecret()}`);
+    // A well-formed secret that is certainly not SECRET (a random one could, in theory, be it), and a wait
+    // for the answer: opening the heartbeat is real async crypto, which a few event-loop turns do not always
+    // cover on a busy machine (it failed once in a full run, and passed alone).
+    const wrong = SECRET.slice(0, -1) + (SECRET.endsWith('A') ? 'B' : 'A');
+    await startAt(`#${ID}.${wrong}`);
+    for (let i = 0; i < 200 && els['p-title']?.textContent !== 'This link is incomplete'; i++) {
+      await new Promise(r => setTimeout(r, 10));
+    }
     expect(els['p-title'].textContent).toBe('This link is incomplete');
   });
 
