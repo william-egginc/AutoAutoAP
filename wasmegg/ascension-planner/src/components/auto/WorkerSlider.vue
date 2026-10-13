@@ -17,7 +17,8 @@
       @input="setWorkers(($event.target as HTMLInputElement).value)"
     />
     <span class="block text-[10px] text-slate-500">
-      Fewer workers keep the computer usable and quieter; more finish sooner. You can move it during a run too: the
+      Fewer workers keep the computer usable and quieter; more finish sooner, up to a point (on the one 20-thread PC
+      we measured, 12 workers were as fast as 19). You can move it during a run too: the
       change takes effect within about a minute, and no route in progress is lost.
     </span>
     <span

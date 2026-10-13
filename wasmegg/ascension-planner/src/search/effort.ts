@@ -37,7 +37,7 @@ export interface EffortNote {
   /** Measured CLI wall time on a 20-core Windows box at --jobs 12. The browser will differ; see
    *  the store's own `secondsPerChain`, which is measured on this machine instead. */
   cliDuration: string;
-  /** How long the tier takes in plain words, by machine size (7 Oct 2026, from the board's runs). */
+  /** How long the tier takes in plain words, by machine size (13 Oct 2026, from players' runs). */
   typicalTime: string;
   /** What the tier adds over the one below it. */
   adds: string;
@@ -52,8 +52,9 @@ export const EFFORT_NOTES: Record<EffortTier, EffortNote> = {
   quick: {
     label: 'Fast',
     cliDuration: '~1 h 05 m',
-    // About 5 min is one board run (831b1402, Fastest 490, 9 Oct); about 1 h is the CLI time above, before 4c.
-    typicalTime: 'About 5 minutes to about an hour on 8 or more cores, depending on the route.',
+    // From players' runs, 13 Oct 2026 (aaap-tools/analytics-2026-10-13.md): about 70 routes/min on 8 cores, 120-140 on 16+.
+    // Fast rests on 3 runs; the 8- and 16-core figures come from a fit, not a measurement.
+    typicalTime: 'About 5-10 minutes on an 8-core computer, a few minutes on 16.',
     adds:
       'Coordinate descent (radius 8), re-solving the last stop after every accepted move. ' +
       'Then one quick pass at each other ascension count inside your limits that the instant answer has a ' +
@@ -70,7 +71,7 @@ export const EFFORT_NOTES: Record<EffortTier, EffortNote> = {
   normal: {
     label: 'Exact',
     cliDuration: '~3 h 30 m',
-    typicalTime: 'Under an hour on 8+ cores.',
+    typicalTime: 'About 20-30 minutes on an 8-core computer, 10-20 on 16 or more.',
     adds:
       '+ every combination of each neighbouring pair of stops, which moving one at a time can miss. ' +
       '+ tries one ascension fewer or one more, and again from there while the count keeps changing (within your limits), then fine-tunes again. ' +
@@ -83,7 +84,7 @@ export const EFFORT_NOTES: Record<EffortTier, EffortNote> = {
   thorough: {
     label: 'Very high',
     cliDuration: '7–13 h',
-    typicalTime: '1-3 h on 8-16 cores, longer on 4.',
+    typicalTime: 'About 1.5-2.5 hours on an 8-core computer, 45 minutes to 1.5 hours on 16.',
     adds: '+ every combination of each group of three neighbouring stops.',
     accuracy:
       'On one account this step found a plan 1.7 days (40 h) faster than the pairs alone; on another it added ' +

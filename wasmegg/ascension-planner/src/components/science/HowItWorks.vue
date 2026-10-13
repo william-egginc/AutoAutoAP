@@ -106,7 +106,7 @@
             the highest last stop that still makes the date (step up, step down, then halve the gap). The last stop
             isn't held to a box. In <b>{{ NAMES.smart }}</b> you pick the date and press Find: it builds the boxes for
             you around the instant answer's route for each number of ascensions, each early stop a few TE either side at
-            every TE, sized to take about 10 to 30 minutes on a typical 8-core computer. In <b>{{ NAMES.full }}</b> you
+            every TE, sized to stay under about 25 minutes (a cap, not a measurement). In <b>{{ NAMES.full }}</b> you
             set the boxes yourself. One 12-hour {{ NAMES.full }} run on 10 Oct simulated 153,785 routes, every route in
             its boxes. The answer card shows your TE on each egg when the route ends, how long each egg needs for its
             next TE at your final delivery rate, and when your next TE would come if you keep laying.
@@ -117,7 +117,22 @@
           Every search, {{ NAMES.smart }} or {{ NAMES.full }}, on {{ NAMES.fastest }} or {{ NAMES.byDate }}, has the
           same run controls in the same order: Find or Find and submit, Stop, the progress, Stepping away?, what was
           sent, and any errors. It uses the number of workers Your setup shows (half your computer's cores until you
-          pick a number), and Science's time estimates use that number too.
+          pick a number), and Science's time estimates use that number too. On the one 20-thread PC we measured, 12
+          workers were as fast as 19, so more is not always faster.
+        </p>
+        <p>
+          <b>How long, and what it finds</b> (from players' runs up to 13 Oct 2026, a small sample). On
+          {{ NAMES.fastest }}, Fast takes about 5-10 minutes on an 8-core computer and a few minutes on 16; Exact about
+          20-30 minutes on 8 cores and 10-20 on 16 or more; Very high about 1.5-2.5 hours on 8 cores and 45 minutes to
+          1.5 hours on 16. {{ NAMES.full }} runs about 70 routes a minute on 8 cores and about 120 on 16, so its time
+          follows the size of your boxes. Light is seconds to a few minutes after Check exactly. The Fast and Very high
+          figures rest on very few runs, and the 8- and 16-core figures are estimates fitted from other machines. A tab
+          in the background runs several times slower, so keep it in front. On {{ NAMES.fastest }}, a short Fast search
+          often found a route sooner than the instant answer's: at least a day in 9 of 12 runs, though some of that gap
+          may come from how the instant route is priced. Going bigger (Exact, Very high, {{ NAMES.full }}) rarely added
+          more. On {{ NAMES.byDate }}, no search so far has beaten the instant answer's TE (22 paired runs from 4 real
+          players, none above TE 250), and a long search mostly confirmed it. We will update these figures as more runs
+          come in.
         </p>
         <p>
           <b>Under each answer</b> (and under the instant answer once Check exactly has run) are two short lines: when
@@ -444,7 +459,7 @@ import { NAMES } from '@/lib/siteNav';
 import ChainSearchExplainer from '@/components/auto/ChainSearchExplainer.vue';
 
 /** The date every number here was last checked. */
-const UPDATED = '12 Oct 2026';
+const UPDATED = '13 Oct 2026';
 
 /** The checks, in the order a sceptic would ask for them: same inputs, then the simulator, then real runs. */
 const CHECKS: { what: string; result: string; how: string }[] = [
