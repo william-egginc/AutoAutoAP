@@ -1396,6 +1396,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   /** Seconds a fresh ascension sat on its first Integrity shift, measured as the last run started
    *  (search/rules.ts). Null until measured, and after a saved run is opened. */
   const integrityWait = ref<number | null>(null);
+  /** LOW-TE GATE (temporary until Joo's PR 717 merges): the fresh build's low-TE opening, from the
+   *  same check (search/leg.ts `integrityCheck`); null when it takes the standard opening. */
+  const integrityLowTe = ref<import('@/search/leg').LowTeOpeningInfo | null>(null);
 
   /**
    * The integrity check, on the run's own pool before a single chain is priced. False means the run
@@ -1421,6 +1424,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   async function gateIntegrity(p: ChainSearchPool): Promise<'ok' | 'warn' | 'block'> {
     const wait = await p.integrityWait();
     integrityWait.value = wait;
+    // LOW-TE GATE (temporary until Joo's PR 717 merges)
+    integrityLowTe.value = p.integrityLowTe?.() ?? null;
     if (wait === null || wait <= INTEGRITY_WARN_SECONDS) return 'ok';
     if (wait > INTEGRITY_BLOCK_SECONDS) {
       error.value = integrityMessage(wait, cteParts());
@@ -1444,12 +1449,17 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     if (key === integrityKey) return;
     integrityKey = key;
     integrityWait.value = null;
+    integrityLowTe.value = null;
     integrityChecking.value = true;
     let probe: ChainSearchPool | null = null;
     try {
       probe = await createChainSearchPool(collectInputs(), { size: 1 });
       const wait = await probe.integrityWait();
-      if (integrityKey === key) integrityWait.value = wait;
+      if (integrityKey === key) {
+        integrityWait.value = wait;
+        // LOW-TE GATE (temporary until Joo's PR 717 merges)
+        integrityLowTe.value = probe.integrityLowTe?.() ?? null;
+      }
     } catch {
       // Not worth a message: Start runs the same check again and reports properly.
     } finally {
@@ -2120,6 +2130,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     runNoteUsed.value = summary.runNote;
     runNote.value = summary.runNote ?? '';
     integrityWait.value = null;
+    integrityLowTe.value = null;
     openedRun.value = summary;
     chainResultAt.value = summary.savedAt || 0;
     // Its own start, for "Build this plan": that pins the planner to `planStartUsed`, which still
@@ -8439,6 +8450,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     resultContradictions,
     continueWarning,
     integrityWait,
+    integrityLowTe,
     singleAscensionAsked,
     integrityChecking,
     integrityNotice,

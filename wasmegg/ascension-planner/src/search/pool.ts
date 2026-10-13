@@ -235,6 +235,9 @@ export interface ChainSearchPool {
   /** The integrity check (search/rules.ts), run on the first worker against the pool's own inputs:
    *  how long a fresh ascension from the plan start sits on its first Integrity shift. */
   integrityWait(): Promise<number | null>;
+  /** LOW-TE GATE (temporary until Joo's PR 717 merges): the low-TE opening the last `integrityWait`
+   *  found (search/leg.ts `integrityCheck`), or null. Optional: test pools leave it out. */
+  integrityLowTe?(): import('./leg').LowTeOpeningInfo | null;
   /** "Continue my build-up" as the instant answer's tails (search/leg.ts `buildUpTailParams`), on the
    *  first worker against the pool's own inputs: empty without a farm in the save. */
   buildUpTails(): Promise<import('./precomputedLeg').BuildParams[]>;
@@ -632,6 +635,9 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
   // throws HERE, when the user presses Start, instead of surfacing mid-run an hour later.
   await workerAt(0);
 
+  // LOW-TE GATE (temporary until Joo's PR 717 merges): the last integrity check's low-TE opening.
+  let lastLowTe: import('./leg').LowTeOpeningInfo | null = null;
+
   return {
     get size(): number {
       return size;
@@ -792,8 +798,15 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
         'worker 0 (integrity check)'
       )) as {
         seconds: number | null;
+        lowTe?: import('./leg').LowTeOpeningInfo | null;
       };
+      // LOW-TE GATE (temporary until Joo's PR 717 merges)
+      lastLowTe = reply.lowTe ?? null;
       return reply.seconds;
+    },
+
+    integrityLowTe(): import('./leg').LowTeOpeningInfo | null {
+      return lastLowTe;
     },
 
     async buildUpTails(): Promise<import('./precomputedLeg').BuildParams[]> {

@@ -72,6 +72,14 @@
       {{ errorText }}
     </p>
     <InstantIntegrity v-if="status !== 'loading' && !atTarget" :state="integrity" />
+    <!-- LOW-TE GATE (temporary until Joo's PR 717 merges): search/instantIntegrity.ts lowTeOpeningNote. -->
+    <p
+      v-if="status !== 'loading' && !atTarget && lowTeNote"
+      class="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-[11px] leading-relaxed text-sky-900"
+      data-testid="instant-lowte"
+    >
+      {{ lowTeNote }}
+    </p>
 
     <p
       v-if="header?.fake"
@@ -793,7 +801,7 @@ import {
 } from '@/search/prestigeBy';
 import InstantIntegrity from './InstantIntegrity.vue';
 import StrongerCheck from './StrongerCheck.vue';
-import { holdsRoutes, instantIntegrity } from '@/search/instantIntegrity';
+import { holdsRoutes, instantIntegrity, lowTeOpeningNote } from '@/search/instantIntegrity';
 import type { FindContext } from '@/search/strongerCheck';
 import { useIntegrityProbe } from '@/composables/useIntegrityProbe';
 import { useInstantDuringSearch } from '@/composables/useInstantDuringSearch';
@@ -1788,6 +1796,8 @@ const integrity = computed(() =>
   )
 );
 const integrityHold = computed(() => holdsRoutes(integrity.value));
+// LOW-TE GATE (temporary until Joo's PR 717 merges)
+const lowTeNote = computed(() => lowTeOpeningNote(store.integrityLowTe));
 watch(
   () => store.integrityBlocked,
   blocked => {
