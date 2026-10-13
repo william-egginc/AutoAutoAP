@@ -173,9 +173,20 @@ export function useBoardSubmit(store: BoardStore, effectiveNickname: Ref<string>
   }
 
   // Once the player has said yes to sharing, work out the rechecks (their best earlier plans priced
-  // again from this save), so the payload shows them before Submit is pressed.
+  // again from this save), so the payload shows them before Submit is pressed. That reads the board
+  // with this browser's code, so it waits for a yes given in this visit: a yes remembered from an
+  // earlier visit (useShareConsent.ts) only skips the tick, and contacts nothing by itself. The send
+  // works the rechecks out for itself when they are missing (`sendSubmission`).
+  const tickedThisVisit = ref(false);
   watch(
-    () => optIn.value && store.bestDays > 0 && !store.isRunning,
+    optIn,
+    v => {
+      if (v) tickedThisVisit.value = true;
+    },
+    { flush: 'sync' }
+  );
+  watch(
+    () => optIn.value && tickedThisVisit.value && store.bestDays > 0 && !store.isRunning,
     ready => {
       if (ready) void store.prepareRechecks();
     },

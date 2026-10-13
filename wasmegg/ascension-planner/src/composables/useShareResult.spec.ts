@@ -143,4 +143,18 @@ describe('board submit', () => {
     await nextTick();
     expect(st.prepareRechecks).toHaveBeenCalledTimes(1);
   });
+
+  it('a consent remembered from an earlier visit contacts nothing: rechecks wait for a yes given now', async () => {
+    const st = fakeStore({ bestDays: 30 } as never);
+    // Agreed on arrival (useShareConsent.ts reads it from storage), and a finished result is on screen.
+    const optIn = ref(true);
+    useBoardSubmit(st, ref(''), optIn);
+    await nextTick();
+    expect(st.prepareRechecks).not.toHaveBeenCalled();
+    // Withdrawn and ticked again this visit: now it is the player's yes.
+    optIn.value = false;
+    optIn.value = true;
+    await nextTick();
+    expect(st.prepareRechecks).toHaveBeenCalledTimes(1);
+  });
 });
