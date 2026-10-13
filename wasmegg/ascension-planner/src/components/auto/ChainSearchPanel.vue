@@ -94,8 +94,10 @@
               </p>
               <p class="text-[11px] text-slate-500">
                 <span class="font-black uppercase tracking-widest text-slate-400">Reference time:</span>
-                {{ note.typicalTime }} Your machine has {{ store.workersInPool + 1 }} logical cores, so expect a
-                different number. The live estimate below is measured on your machine.
+                {{ note.typicalTime }} These come from players' runs (few of them for Fast and Very high; the 8- and
+                16-core figures are estimates). Your machine has {{ store.workersInPool + 1 }} logical cores, so expect
+                a different number. The live estimate below is measured on your machine. Keep this tab in front: a
+                hidden tab runs several times slower.
               </p>
               <p
                 v-if="note.warning"

@@ -176,5 +176,5 @@ const ChainSearchPanel = safeAsyncComponent(() => import('./ChainSearchPanel.vue
 const InsanePanel = safeAsyncComponent(() => import('./InsanePanel.vue'));
 
 const EXHAUSTIVE_BLURB =
-  'You set a box of TEs for each ascension and it tries every route in them, so nothing inside is missed. Hours, sometimes overnight.';
+  'You set a box of TEs for each ascension and it tries every route in them, so nothing inside is missed. In players\' runs that was about 1 minute per 70 routes on an 8-core computer (per 120 on 16), so big boxes take hours.';
 </script>

@@ -98,7 +98,8 @@
             @input="setWorkers(($event.target as HTMLInputElement).value)"
           />
           <span class="block text-[10px] text-slate-500">
-            Fewer workers keep the computer usable and quieter; more finish sooner. The estimate above follows the
+            Fewer workers keep the computer usable and quieter; more finish sooner, up to a point (on the one 20-thread
+            PC we measured, 12 workers were as fast as 19). The estimate above follows the
             slider. You can move it during a run too: the change takes effect within about a minute, and no route in
             progress is lost.
           </span>
@@ -638,7 +639,9 @@
                 <HelpTip
                   >Routes x assumed cost / workers. It errs high on purpose: the assumed cost is the typical cost of a
                   route this long in players' runs until this machine has its own measured or benchmarked rate, and
-                  prefix sharing means most routes cost far less than a full simulation.</HelpTip
+                  prefix sharing means most routes cost far less than a full simulation. As a guide from players' runs:
+                  about 1 minute per 70 routes on an 8-core computer, per 120 on 16. A hidden tab runs several times
+                  slower.</HelpTip
                 >
               </div>
               <div class="text-lg font-black tabular-nums" :class="tooBig ? 'text-red-700' : 'text-slate-900'">
@@ -1795,7 +1798,7 @@ const workerSeconds = computed(() =>
 );
 /** Wall-clock seconds per chain on the workers the slider asks for. */
 const wallPerChain = computed(() => sweepSeconds(1, store.workerBudget, workerSeconds.value));
-const speedSourceLabel = computed(() => `typical for ${sweepAscensions.value}-ascension chains in players' runs`);
+const speedSourceLabel = computed(() => `typical for ${sweepAscensions.value}-ascension routes in players' runs`);
 /** What the paragraph under the estimate says it charges per chain, on the chosen workers. */
 const assumedCostLabel = computed(() => `${wallPerChain.value.toFixed(2)} s`);
 

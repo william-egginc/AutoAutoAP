@@ -152,21 +152,21 @@ const levels = computed<LevelText[]>(() =>
           label: 'Fast',
           does: `Light, then ${NAMES.smart}. Starting from the instant answer's route, it moves one stop at a time, up to 8 TE either way, until nothing gets faster. Then it gives the other numbers of ascensions in your limits a quick try.`,
           time: `${EFFORT_NOTES.quick.typicalTime}`,
-          finds: "A faster route close to the instant answer's. It can miss one where several stops have to move together, or one far from it.",
+          finds: "A faster route close to the instant answer's. In players' runs so far, a short search like this found one at least a day sooner in 9 of 12 runs (a small sample; some of that gap may be how the instant route is priced). It can miss one where several stops have to move together, or one far from it.",
         },
         {
           id: 'normal',
           label: 'Exact',
           does: 'Fast, plus moving neighbouring stops in pairs. Then it tries one ascension more or fewer.',
           time: EFFORT_NOTES.normal.typicalTime,
-          finds: 'Also routes where two stops have to move together. Still a search near the instant answer, not of every route.',
+          finds: "Also routes where two stops have to move together. Still a search near the instant answer, not of every route. In players' runs so far it rarely found more than Fast did.",
         },
         {
           id: 'thorough',
           label: 'Very high',
           does: 'Exact, plus moving three neighbouring stops together.',
           time: EFFORT_NOTES.thorough.typicalTime,
-          finds: `The strongest search near the instant answer. Still not a proven best: for that, use ${NAMES.full} below with boxes you set.`,
+          finds: `The strongest search near the instant answer. In players' runs so far it rarely found more than Fast did. Still not a proven best: for that, use ${NAMES.full} below with boxes you set.`,
         },
       ]
     : [
@@ -181,21 +181,21 @@ const levels = computed<LevelText[]>(() =>
           id: 'quick',
           label: 'Fast',
           does: `Light, then ${NAMES.smart}. For each number of ascensions the instant answer has, it tries every route with each early stop up to 3 TE either side of the answer's route (fewer on long routes). Each last stop is found to the exact TE.`,
-          time: 'Under half an hour on a typical 8-core computer; yours is below.',
-          finds: "The highest TE near the instant answer's routes. It can miss a route whose early stops are further away.",
+          time: 'Sized to stay under about 25 minutes (a cap, not a measurement); yours is below.',
+          finds: "The highest TE near the instant answer's routes. So far no search has beaten the instant answer's TE by a date (22 paired players' runs, 4 real players, none above TE 250), so expect this to confirm it. It can miss a route whose early stops are further away.",
         },
         {
           id: 'normal',
           label: 'Exact',
           does: 'The same, with one more TE either side of each early stop.',
-          time: 'Up to about 2 hours on a typical 8-core computer; yours is below.',
+          time: 'Sized to stay under about 2 hours (a cap, not a measurement); yours is below.',
           finds: 'A wider net around the same routes.',
         },
         {
           id: 'thorough',
           label: 'Very high',
           does: 'The same, with two more TE either side of each early stop.',
-          time: 'Up to about 8 hours on a typical 8-core computer; yours is below.',
+          time: 'Sized to stay under about 8 hours (a cap, not a measurement); yours is below.',
           finds: `The widest net near the instant answer. Still not a proven best: for that, use ${NAMES.full} below with boxes you set.`,
         },
       ]
@@ -224,6 +224,7 @@ function clock(ms: number): string {
 /** "What this does and does not promise" for the level picked, on this screen. */
 const PRICED = 'Every route it shows is priced with the full simulator on your save, the same as Check exactly, so its times are your own.';
 const STOP = 'You can stop it at any point and keep the best route it found so far.';
+const TIMING = "The times come from players' runs and your computer's own speed. Keep this tab in front: a hidden tab runs several times slower.";
 const promises = computed<string[]>(() => {
   const l = level.value;
   if (l === 'light')
@@ -240,6 +241,8 @@ const promises = computed<string[]>(() => {
       PRICED,
       `For each number of ascensions the instant answer has, it tries every route with each early stop within ${w} TE of the answer's route. Long routes get fewer, and it narrows if the search would take too long. Each last stop is found to the exact TE.`,
       `It can miss a route whose early stops are further away. ${NAMES.full}, below, proves the best only inside the boxes you set.`,
+      "So far no search has beaten the instant answer's TE by a date (22 paired players' runs, 4 real players, none above TE 250), so a long search mostly confirms it. That sample is small.",
+      TIMING,
       STOP,
     ];
   }
@@ -255,6 +258,8 @@ const promises = computed<string[]>(() => {
     miss,
     "It starts from the instant answer's route (or the one you picked) and never scans every route, so a poor start can leave it near a poor answer.",
     `It is a strong nearby answer, never a proven best: ${NAMES.full}, below, proves the best only inside the boxes you set. Its accuracy figures come from 3 accounts, and only one of them has a proven best to check against.`,
+    "In players' runs so far, a short search (Fast) often found a route days sooner than the instant answer's: at least a day in 9 of 12 runs. Going bigger rarely added more. That sample is small.",
+    TIMING,
     `${STOP} A refresh is safe: its progress is saved and carries on without re-simulating anything.`,
   ];
 });
