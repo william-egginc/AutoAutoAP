@@ -3949,6 +3949,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
               )
             : null;
           if (up && (up.kind === 'stored' || up.kind === 'already')) message += ' Its CSV was stored with it.';
+          else if (up?.kind === 'failed') blackBox.note(`kept-off-the-board send: CSV not stored: ${up.why}`);
         } catch {
           // The row is stored; the table was only evidence.
         }
@@ -4219,7 +4220,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         bytes,
         parts: up.kind === 'stored' ? up.parts : csvPartCount(bytes),
         tries,
+        ...(up.kind === 'failed' ? { why: up.why } : {}),
       });
+    if (up.kind === 'failed') blackBox.note(`progress send: CSV so far not stored: ${up.why}`);
     switch (up.kind) {
       case 'stored':
       // An earlier try landed and its answer was lost.
@@ -4823,13 +4826,15 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         bytes: table.body.byteLength,
         parts: up.kind === 'stored' ? up.parts : csvPartCount(table.body.byteLength),
         tries,
+        ...(up.kind === 'failed' ? { why: up.why } : {}),
       });
+    if (up.kind === 'failed') blackBox.note(`final send: CSV not stored: ${up.why}`);
     if (up.kind === 'failed' && up.status === undefined) {
-      // Offline or dropped mid-upload: the token is still good and no table is stored yet.
+      // Blocked, offline or dropped mid-upload (search/uploadWhy.ts): the token is still good and no
+      // table is stored yet.
       return {
         ok: true,
-        message:
-          'sent, but the table did not upload (the connection dropped). The summary is in. Press Retry the table to send just the table.',
+        message: `sent, but the table did not upload (${up.why}). The summary is in. Press Retry the table to send just the table.`,
       };
     }
     if (up.kind === 'stored') {
@@ -4866,7 +4871,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // Anything else (a 5xx, a restart mid-deploy) is worth another go with the same token.
     return {
       ok: true,
-      message: `sent, but the table did not upload (${up.kind === 'failed' ? up.status : 'unknown'}). The summary is in. Press Retry the table to send just the table.`,
+      message: `sent, but the table did not upload (${up.kind === 'failed' ? up.why : 'unknown'}). The summary is in. Press Retry the table to send just the table.`,
     };
   }
 
