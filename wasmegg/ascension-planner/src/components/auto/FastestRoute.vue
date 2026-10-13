@@ -69,6 +69,7 @@
           >
         </div>
         <p class="text-[12px] text-slate-600 leading-relaxed">{{ EXHAUSTIVE_BLURB }}</p>
+        <ExhaustivePromise goal="fastest" />
         <InsanePanel :player-id="playerId" goal="fastest" embedded @update:goal="onGoal" />
       </section>
       </CollapsibleSection>
@@ -92,6 +93,7 @@ import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import SearchCompare from './SearchCompare.vue';
 import { SHOW_COMPARE } from '@/lib/features';
 import InstantRoute from './InstantRoute.vue';
+import ExhaustivePromise from './ExhaustivePromise.vue';
 import YourSetup from './YourSetup.vue';
 import StartTimeCard from './StartTimeCard.vue';
 import { useUIStore } from '@/stores/ui';

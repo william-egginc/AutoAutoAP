@@ -192,19 +192,6 @@
     </StrongerBox>
     </CollapsibleSection>
 
-    <details class="rounded-xl border border-slate-200 bg-white">
-      <summary class="cursor-pointer px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">
-        How {{ NAMES.byDate }} works
-      </summary>
-      <div class="px-4 pb-4 text-xs text-slate-600 leading-relaxed">
-        Finds the highest TE you can reach by a date. Nearby routes picks the early stops for you: the
-        instant answer's route for each number of ascensions and a few TE either side of each stop. In Exhaustive you
-        set the early stops
-        and it tries every route in them. Either way the last stop is found to the exact TE. Like any run, it uses the
-        plan start, hours, time off and computer settings in Your setup.
-      </div>
-    </details>
-
     <!-- Exhaustive, on the page as it is: the chain editor, and its run controls and results when it is
          the search in hand (the controls go with the search you are setting up). -->
     <CollapsibleSection id="exhaustive" :title="EXHAUSTIVE_TITLE" :summary="lines.exhaustive">
@@ -220,6 +207,7 @@
       <p class="text-[12px] text-slate-600 leading-relaxed">
         You set the boxes (one band of TEs per ascension) and their sliders, and it tries every route in them.
       </p>
+      <ExhaustivePromise goal="deadline" />
       <template v-if="true">
         <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest pt-1">The routes to try</h3>
         <!-- One way only (the user, 5 Oct: "just have I'll set the stops, make it simpler"). "Pick them for
@@ -914,6 +902,7 @@ import { useInitialStateStore } from '@/stores/initialState';
 import { useIntegrityProbe } from '@/composables/useIntegrityProbe';
 import { useStrongerStore, type LevelEstimate, type StrongerLevel } from '@/stores/stronger';
 import StrongerBox from './StrongerBox.vue';
+import ExhaustivePromise from './ExhaustivePromise.vue';
 import CollapsibleSection from './CollapsibleSection.vue';
 import { useSearchSnapshots } from '@/composables/useSearchSnapshots';
 import { routeLine } from '@/search/sectionSummary';

@@ -21,6 +21,18 @@
         simulated.
       </p>
     </div>
+    <!-- Folded under the title, like Fastest's explainer (the user, 12 Oct: it sat in the middle of the page). -->
+    <details class="rounded-xl border border-slate-200 bg-white" data-testid="by-date-how">
+      <summary class="cursor-pointer px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+        How {{ NAMES.byDate }} works
+      </summary>
+      <div class="px-4 pb-4 text-xs text-slate-600 leading-relaxed">
+        Finds the highest TE you can reach by a date. Nearby routes picks the early stops for you: the
+        instant answer's route for each number of ascensions and a few TE either side of each stop. In Exhaustive you
+        set the early stops and it tries every route in them. Either way the last stop is found to the exact TE. Like
+        any run, it uses the plan start, hours, time off and computer settings in Your setup.
+      </div>
+    </details>
     <YourSetup screen="by-date" />
     <!-- The instant answer, the Stronger check (with the routes around the answer) and Exhaustive, all
          on the page (DeadlinePanel.vue); `hide-routes` now says which search is in hand. -->
