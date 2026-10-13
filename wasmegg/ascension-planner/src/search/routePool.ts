@@ -13,7 +13,8 @@ type Pending = { resolve: (m: RouteWorkerResponse) => void; reject: (e: Error) =
 /** A request without its id, member by member (Omit on the union would collapse it). */
 type Unsent<T> = T extends unknown ? Omit<T, 'id'> : never;
 
-/** Workers to use: a core left for the page, at most four (more barely helps, and each holds the table). */
+/** Workers to use: a core left for the page, at most four (more barely helps, and each holds the table).
+ *  search/sweepCache.ts `routeWorkers` counts the same, to share the sweeps' memory budget. */
 export function poolSize(): number {
   const cores = typeof navigator !== 'undefined' && navigator.hardwareConcurrency ? navigator.hardwareConcurrency : 4;
   return Math.max(1, Math.min(4, cores - 1));

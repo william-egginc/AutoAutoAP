@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { canonicalDelivered, sweepTails, type BuildParams, type TailSweep } from './precomputedLeg';
-import { SMALL_SWEEP_BUDGET, SWEEP_BUDGET, SweepCache, sweepBudget } from './sweepCache';
+import { routeWorkers, SMALL_SWEEP_BUDGET, SWEEP_BUDGET, SweepCache, sweepBudget } from './sweepCache';
 
 const fake = (bytes: number): TailSweep => ({
   from: 0,
@@ -37,9 +37,13 @@ describe('SweepCache', () => {
     expect(c.bytes).toBe(0);
   });
 
-  it('gives a phone the smaller budget', () => {
-    expect(sweepBudget(true)).toBe(SMALL_SWEEP_BUDGET);
-    expect(sweepBudget(false)).toBe(SWEEP_BUDGET);
+  it("splits the pool's budget across its route workers, a phone's smaller", () => {
+    expect(routeWorkers(true, 6)).toBe(2);
+    expect(routeWorkers(false, 8)).toBe(4);
+    expect(routeWorkers(false, 2)).toBe(1);
+    expect(sweepBudget(true, 6)).toBe(SMALL_SWEEP_BUDGET / 2);
+    expect(sweepBudget(false, 20)).toBe(SWEEP_BUDGET / 4);
+    expect(sweepBudget(false, 2)).toBe(SWEEP_BUDGET);
   });
 
   it("counts a real sweep at what it holds (about 21 KB low in the game; 12 Oct 2026's iPhone crash)", () => {
@@ -55,6 +59,6 @@ describe('SweepCache', () => {
     // Its end counts only: a closure over sweepTails' own arrays kept about 39 KB a sweep.
     expect(sw.bytes).toBeGreaterThan(10_000);
     expect(sw.bytes).toBeLessThan(30_000);
-    expect(Math.floor(SMALL_SWEEP_BUDGET / sw.bytes)).toBeGreaterThan(5_000);
+    expect(Math.floor(sweepBudget(true, 6) / sw.bytes)).toBeGreaterThan(5_000);
   });
 });

@@ -12,7 +12,8 @@
  *
  * The budgets, from 12 lookups sharing one cache at TE 160 (the instant answer and Prestige by's
  * re-pricing, in Node, 12 Oct): no limit 54 s and 1.8 GB; 1 GB 60 s (live's old code: 61 s);
- * 512 MB 68 s; 128 MB 102 s. A computer has the memory for its 1 GB; a phone's page dies first.
+ * 512 MB 68 s; 128 MB 102 s. That is one cache seeing every sweep; split across workers each sees
+ * its share, so a pool's budget goes as far as one cache with all of it.
  */
 import type { TailSweep } from './precomputedLeg';
 import { isSmallDevice } from './device';
@@ -24,13 +25,25 @@ export interface SweepStore {
 }
 
 const MB = 1024 * 1024;
-/** A route worker's budget on a phone or small machine (search/device.ts), and on a computer. */
-export const SMALL_SWEEP_BUDGET = 192 * MB;
-export const SWEEP_BUDGET = 1024 * MB;
+/** The instant answer's route workers' budget, all of them together, on a phone or small machine
+ *  (search/device.ts) and on a computer. Each worker gets its share: a step's arrivals are split
+ *  across them (search/routePool.ts), so each sees about its share of the sweeps too. The search
+ *  workers never keep sweeps; the route workers sleep while a search runs. */
+export const SMALL_SWEEP_BUDGET = 384 * MB;
+export const SWEEP_BUDGET = 2048 * MB;
 
-/** This device's budget for one cache. */
-export function sweepBudget(small: boolean = isSmallDevice()): number {
-  return small ? SMALL_SWEEP_BUDGET : SWEEP_BUDGET;
+/** The route workers the instant answer runs (routePool.ts `poolSize`, two on a small device). */
+export function routeWorkers(small: boolean, cores: number): number {
+  const n = Math.max(1, Math.min(4, (cores || 4) - 1));
+  return small ? Math.min(2, n) : n;
+}
+
+/** One route worker's budget on this device. */
+export function sweepBudget(
+  small: boolean = isSmallDevice(),
+  cores: number = (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 4
+): number {
+  return Math.floor((small ? SMALL_SWEEP_BUDGET : SWEEP_BUDGET) / routeWorkers(small, cores));
 }
 
 export class SweepCache implements SweepStore {
