@@ -204,8 +204,9 @@ function greedyOrder(delivered: ArrayLike<number>, eggs: number[], max: number):
   return out.subarray(0, n);
 }
 
-/** A sweep's objects and array headers beyond the arrays' own bytes. */
-const SWEEP_OVERHEAD = 600;
+/** A sweep's objects, array headers and cache key beyond the arrays' own bytes (measured in Node:
+ *  about 21 KB in all low in the game, 17 KB of it arrays). */
+const SWEEP_OVERHEAD = 4500;
 
 /** Every checkpoint's tail from one build at once (`sweepTails`); index = checkpoint - `from`. */
 export interface TailSweep {
@@ -215,11 +216,10 @@ export interface TailSweep {
   /** Seconds to each checkpoint; NaN where it cannot be reached. */
   seconds: Float64Array;
   endTE: Int16Array;
-  /** The end egg counts for checkpoint index `i` (EGG_ORDER), written into `out`. Worked out when
-   *  asked rather than stored: a route search asks for few of them. */
+  /** The end egg counts for checkpoint index `i` (EGG_ORDER), written into `out`. */
   deliveredInto(i: number, out: number[] | Float64Array): void;
-  /** About what it holds in memory, bytes: its arrays and the ones `deliveredInto` keeps (about 40 KB
-   *  low in the game), for a cache's budget (search/sweepCache.ts). */
+  /** About what it holds in memory, bytes (about 21 KB low in the game), for a cache's budget
+   *  (search/sweepCache.ts). */
   bytes: number;
 }
 
@@ -247,8 +247,10 @@ export function sweepTails(p: BuildParams, top: number, lateBy = 0, lowest?: num
   const seconds = new Float64Array(Math.max(0, n)).fill(NaN);
   const endTE = new Int16Array(Math.max(0, n));
   // Per checkpoint, what kindness and the other four were asked for: the end counts follow from them.
-  const needKAt = new Int16Array(Math.max(0, n));
-  const leftAt = new Int16Array(Math.max(0, n));
+  // Each checkpoint's end egg counts, EGG_ORDER, worked out here: a closure over this function's
+  // arrays would keep every one of them for the sweep's life (V8 keeps one scope for all its
+  // closures), about 40 KB a sweep, and a route worker keeps thousands (search/sweepCache.ts).
+  const ends = new Float64Array(5 * Math.max(0, n));
   if (n <= 0) return { from, to, seconds, endTE, deliveredInto: () => {}, bytes: SWEEP_OVERHEAD };
 
   const span = Math.max(0, to - now);
@@ -340,24 +342,30 @@ export function sweepTails(p: BuildParams, top: number, lateBy = 0, lowest?: num
     const i = target - from;
     seconds[i] = t;
     endTE[i] = total;
-    needKAt[i] = needK;
-    leftAt[i] = left;
+    for (const e of OTHERS_IDX) ends[i * 5 + e] = oEggs[e * (L + 1) + (left > 0 ? per[e * (L + 1) + left] : 0)];
+    ends[i * 5 + KIND] = kEggs[needK];
   }
-  const deliveredInto = (i: number, out: number[] | Float64Array): void => {
-    const left = leftAt[i];
-    for (const e of OTHERS_IDX) out[e] = oEggs[e * (L + 1) + (left > 0 ? per[e * (L + 1) + left] : 0)];
-    out[KIND] = kEggs[needKAt[i]];
+  // A checkpoint it can't reach reads as before (the counts asked of nothing).
+  for (let i = 0; i < n; i++) {
+    if (!Number.isNaN(seconds[i])) continue;
+    for (const e of OTHERS_IDX) ends[i * 5 + e] = oEggs[e * (L + 1)];
+    ends[i * 5 + KIND] = kEggs[0];
+  }
+  return {
+    from,
+    to,
+    seconds,
+    endTE,
+    deliveredInto: deliveredFrom(ends),
+    bytes: SWEEP_OVERHEAD + seconds.byteLength + endTE.byteLength + ends.byteLength,
   };
-  const bytes =
-    SWEEP_OVERHEAD +
-    seconds.byteLength +
-    endTE.byteLength +
-    needKAt.byteLength +
-    leftAt.byteLength +
-    oEggs.byteLength +
-    per.byteLength +
-    kEggs.byteLength;
-  return { from, to, seconds, endTE, deliveredInto, bytes };
+}
+
+/** `deliveredInto` over a sweep's end counts, in a scope of its own (it keeps `ends` and nothing else). */
+function deliveredFrom(ends: Float64Array): TailSweep['deliveredInto'] {
+  return (i, out) => {
+    for (let e = 0; e < 5; e++) out[e] = ends[i * 5 + e];
+  };
 }
 
 /** Hours in a week: the table's second key. */

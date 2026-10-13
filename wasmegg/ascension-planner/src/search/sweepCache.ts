@@ -2,12 +2,17 @@
  * The route search's sweeps kept across its steps (search/routeFinder.ts `expandArrivals`), held to a
  * memory budget.
  *
- * Each sweep holds about 40 KB of arrays (TailSweep `bytes`), and they are typed arrays, so they don't
- * show in a heap figure. The route worker used to keep up to 60,000 of them, checked only between
- * requests: up to about 2.3 GB a worker. On an iPhone the instant answer's two route workers took
+ * Each sweep held about 39 KB (its arrays are typed arrays, so they don't show in a heap figure), and
+ * the route worker kept up to 60,000 of them, checked only between requests: up to about 2.3 GB a
+ * worker. On an iPhone the instant answer's two route workers took
  * Safari's page past its memory limit, and it reloaded and died again (the user, 12 Oct 2026, By a
- * date on egg-beta). Here the budget is checked as each one goes in, and the longest unused goes first.
- * A sweep dropped is only worked out again when it is asked for: the answer is the same.
+ * date on egg-beta). A sweep is now about 21 KB (precomputedLeg.ts `sweepTails`), and the budget is
+ * checked as each one goes in, the longest unused first out. A sweep dropped is only worked out again
+ * when it is asked for: the answer is the same.
+ *
+ * The budgets, from 12 lookups sharing one cache at TE 160 (the instant answer and Prestige by's
+ * re-pricing, in Node, 12 Oct): no limit 54 s and 1.8 GB; 1 GB 60 s (live's old code: 61 s);
+ * 512 MB 68 s; 128 MB 102 s. A computer has the memory for its 1 GB; a phone's page dies first.
  */
 import type { TailSweep } from './precomputedLeg';
 import { isSmallDevice } from './device';
@@ -20,8 +25,8 @@ export interface SweepStore {
 
 const MB = 1024 * 1024;
 /** A route worker's budget on a phone or small machine (search/device.ts), and on a computer. */
-export const SMALL_SWEEP_BUDGET = 48 * MB;
-export const SWEEP_BUDGET = 192 * MB;
+export const SMALL_SWEEP_BUDGET = 192 * MB;
+export const SWEEP_BUDGET = 1024 * MB;
 
 /** This device's budget for one cache. */
 export function sweepBudget(small: boolean = isSmallDevice()): number {

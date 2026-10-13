@@ -42,7 +42,7 @@ describe('SweepCache', () => {
     expect(sweepBudget(false)).toBe(SWEEP_BUDGET);
   });
 
-  it("counts a real sweep at what it holds (about 40 KB low in the game; 12 Oct 2026's iPhone crash)", () => {
+  it("counts a real sweep at what it holds (about 21 KB low in the game; 12 Oct 2026's iPhone crash)", () => {
     const b: BuildParams = {
       sales: 2,
       tier13: false,
@@ -52,9 +52,9 @@ describe('SweepCache', () => {
       delivered: canonicalDelivered(160),
     };
     const sw = sweepTails(b, 490, 0, 157);
-    expect(sw.bytes).toBeGreaterThan(20_000);
-    expect(sw.bytes).toBeLessThan(80_000);
-    // The old limit of 60,000 sweeps would have been gigabytes; the budget holds a few thousand.
-    expect(Math.floor(SMALL_SWEEP_BUDGET / sw.bytes)).toBeGreaterThan(500);
+    // Its end counts only: a closure over sweepTails' own arrays kept about 39 KB a sweep.
+    expect(sw.bytes).toBeGreaterThan(10_000);
+    expect(sw.bytes).toBeLessThan(30_000);
+    expect(Math.floor(SMALL_SWEEP_BUDGET / sw.bytes)).toBeGreaterThan(5_000);
   });
 });
