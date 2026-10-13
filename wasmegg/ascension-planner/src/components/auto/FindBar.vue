@@ -129,7 +129,29 @@
       class="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3 space-y-2 text-[11px] text-indigo-900"
       data-testid="share-box"
     >
-      <template v-if="!running || asking">
+      <!-- Agreed before (remembered in this browser): one line that says what goes with a run, and Change.
+           The full text, the boxes and the untick are one click away, and unticking withdraws it. -->
+      <p
+        v-if="folded"
+        class="flex flex-wrap items-center gap-x-1.5 gap-y-1 font-semibold text-indigo-900"
+        data-testid="consent-summary"
+      >
+        <span class="font-black text-emerald-700">✓</span>
+        <span>You agreed to share runs on the leaderboard</span>
+        <span class="text-indigo-900/70" data-testid="consent-summary-choices"
+          >· CSV {{ sendCsv ? 'on' : 'off' }} · diagnostics {{ sendDiagnostics ? 'on' : 'off' }} ·
+          {{ anonymous || !nickname.trim() ? 'anonymous' : `credited as ${nickname.trim().slice(0, nicknameMax)}` }}</span
+        >
+        <button
+          type="button"
+          class="ml-1 underline decoration-dotted underline-offset-2 font-bold text-indigo-700 hover:text-indigo-900"
+          data-testid="consent-change"
+          @click="expanded = true"
+        >
+          Change
+        </button>
+      </p>
+      <template v-else-if="!running || asking">
         <p v-if="!optIn" class="font-black text-indigo-800">
           To use {{ running ? 'Send best so far' : 'Find and submit' }}, please read this and tick the box to
           agree<template v-if="sendsOnTick"
@@ -161,6 +183,18 @@
         <p v-if="goalWord === 'target'" class="ml-7 text-[10px] text-indigo-900/70">
           It also sends your best three plans already on the board, re-priced from this save.
         </p>
+        <!-- Remembered in this browser: say so, and how to take it back. -->
+        <p v-if="optIn" class="ml-7 text-[10px] text-indigo-900/70" data-testid="consent-remembered">
+          This is remembered in this browser, so you are not asked again. Untick the box to withdraw it.
+          <button
+            type="button"
+            class="underline decoration-dotted underline-offset-2 font-bold text-indigo-700 hover:text-indigo-900"
+            data-testid="consent-fold"
+            @click="expanded = false"
+          >
+            Fold this away
+          </button>
+        </p>
         <!-- Asked for by "Send my progress every..." (Stepping away?): the yes, then it sends by itself. -->
         <div v-if="asking && optIn && autoSendOn" class="ml-7">
           <button
@@ -174,7 +208,7 @@
         </div>
       </template>
       <!-- A run going and nothing asked: what still applies to the send at the end. -->
-      <p v-else class="font-black text-indigo-800" data-testid="share-during-run">
+      <p v-else-if="!folded" class="font-black text-indigo-800" data-testid="share-during-run">
         {{
           store.submitsWhenDone
             ? 'Sent with the result when the run finishes (you can still change these):'
@@ -182,10 +216,10 @@
         }}
       </p>
       <!-- The same two boxes as Share this result, on the same choices. -->
-      <div class="ml-7"><ShareExtras :csv-detail="csvDetail" /></div>
+      <div v-if="!folded" class="ml-7"><ShareExtras :csv-detail="csvDetail" /></div>
       <!-- Before the tick too while Send best so far asks: ticking sends, so the name is chosen first. -->
       <ShareNameChoice
-        v-if="optIn || asking"
+        v-if="!folded && (optIn || asking)"
         v-model:anonymous="anonymous"
         v-model:nickname="nickname"
         :nickname-max="nicknameMax"
@@ -207,6 +241,7 @@ import ShareExtras from './ShareExtras.vue';
 import ShareNameChoice from './ShareNameChoice.vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { stepAwayOptions } from '@/composables/useStepAway';
+import { useShareExtras } from '@/composables/useShareExtras';
 
 const props = withDefaults(
   defineProps<{
@@ -255,6 +290,14 @@ const anonymous = defineModel<boolean>('anonymous', { required: true });
 const nickname = defineModel<string>('nickname', { required: true });
 /** The run note (store `runNote`). Left unbound, the box isn't shown. */
 const note = defineModel<string>('note');
+const { sendCsv, sendDiagnostics } = useShareExtras();
+/** The remembered acknowledgement opened up (Change); it folds again when it is withdrawn. */
+const expanded = ref(false);
+/** Agreed already and not being changed: the one-line summary stands in for the full box. */
+const folded = computed(() => optIn.value && !expanded.value && !asking.value);
+watch(optIn, v => {
+  if (!v) expanded.value = false;
+});
 /** Find waits for the save to settle; a run already going is left alone. */
 const notReady = computed(() => !props.running && !!store.saveNotReady);
 

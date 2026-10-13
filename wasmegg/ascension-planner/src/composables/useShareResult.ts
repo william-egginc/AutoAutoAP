@@ -7,8 +7,8 @@
  *  - `createShareIdentity` / `useShareIdentity`: the consent tick, anonymous-or-named, and the name
  *    box that follows the account's own name until the player types in it. The name is one per
  *    account across the site (stores/shareName.ts): typed in one screen, it is in the others. The
- *    consent and anonymous-or-named stay each screen's own; the consent starts unticked on every
- *    visit (FindBar.vue explains why it is not remembered).
+ *    anonymous-or-named stays each screen's own; the consent is the one remembered in this browser
+ *    (useShareConsent.ts: ticked once, shown folded by FindBar.vue, unticking withdraws it).
  *  - `useBoardSubmit`: the race-to-the-target send (Smart search and the Full sweep): the status
  *    message, Put my name on it, Retry the table, the rechecks worked out once consent is given,
  *    and the guard against sending a result twice. Each screen still says HOW it sends (`send`).
@@ -20,6 +20,7 @@ import { useEidsStore } from 'lib';
 import { sentence } from '@/utils/errors';
 import { NAMES } from '@/lib/siteNav';
 import { eggDayYearOf } from '@/lib/eggDay';
+import { useShareConsent } from './useShareConsent';
 import { useShareExtras } from './useShareExtras';
 import type { useChainSearchStore } from '@/stores/chainSearch';
 import type { DeadlineRoute } from '@/search/deadline';
@@ -52,8 +53,12 @@ export interface SharedName {
  * Writes before the player types (a carried-on run putting back the name it was started with) stay
  * this screen's alone; once typed here, what is in the box is the shared name.
  */
-export function createShareIdentity(accountName: Ref<string>, shared?: SharedName): ShareIdentity {
-  const optIn = ref(false);
+export function createShareIdentity(
+  accountName: Ref<string>,
+  shared?: SharedName,
+  /** The acknowledgement; the real screens pass the one remembered in this browser (useShareConsent). */
+  optIn: Ref<boolean> = ref(false)
+): ShareIdentity {
   const anonymous = ref(true);
   const own = ref<string | undefined>(undefined);
   const name: SharedName = shared ?? { get: () => own.value, set: v => (own.value = v) };
@@ -103,7 +108,7 @@ export function useAccountName(playerId: () => string): ComputedRef<string> {
 }
 
 export function useShareIdentity(playerId: () => string): ShareIdentity {
-  return createShareIdentity(useAccountName(playerId), useSharedName(playerId));
+  return createShareIdentity(useAccountName(playerId), useSharedName(playerId), useShareConsent());
 }
 
 /** The parts of the chain search store the race-to-the-target send reads. */
@@ -168,9 +173,20 @@ export function useBoardSubmit(store: BoardStore, effectiveNickname: Ref<string>
   }
 
   // Once the player has said yes to sharing, work out the rechecks (their best earlier plans priced
-  // again from this save), so the payload shows them before Submit is pressed.
+  // again from this save), so the payload shows them before Submit is pressed. That reads the board
+  // with this browser's code, so it waits for a yes given in this visit: a yes remembered from an
+  // earlier visit (useShareConsent.ts) only skips the tick, and contacts nothing by itself. The send
+  // works the rechecks out for itself when they are missing (`sendSubmission`).
+  const tickedThisVisit = ref(false);
   watch(
-    () => optIn.value && store.bestDays > 0 && !store.isRunning,
+    optIn,
+    v => {
+      if (v) tickedThisVisit.value = true;
+    },
+    { flush: 'sync' }
+  );
+  watch(
+    () => optIn.value && tickedThisVisit.value && store.bestDays > 0 && !store.isRunning,
     ready => {
       if (ready) void store.prepareRechecks();
     },

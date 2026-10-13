@@ -9,7 +9,21 @@
     class="rounded-xl border border-amber-200 bg-amber-50/60 p-4 space-y-2 text-[11px] text-amber-900"
   >
     <h3 class="text-[10px] font-black text-amber-800 uppercase tracking-widest">Earlier unfinished runs</h3>
-    <div v-for="item in items" :key="item.id" class="flex flex-wrap items-center gap-x-3 gap-y-1">
+    <!-- Runs more than a day old fold into one line (the user, 12 Oct: clutter); Show lists them. -->
+    <p v-if="old.length && !showOld" class="flex flex-wrap items-center gap-x-2" data-testid="unfinished-old">
+      <span
+        >{{ old.length === 1 ? '1 older run' : `${old.length} older runs` }}, the newest {{ ago(newestOld) }}</span
+      >
+      <button
+        type="button"
+        class="font-bold text-amber-800 underline decoration-dotted underline-offset-2 hover:text-amber-950"
+        data-testid="unfinished-old-show"
+        @click="showOld = true"
+      >
+        Show
+      </button>
+    </p>
+    <div v-for="item in shown" :key="item.id" class="flex flex-wrap items-center gap-x-3 gap-y-1">
       <span class="leading-relaxed">
         <span class="font-bold">{{ item.record.durations.length.toLocaleString() }}</span>
         <template v-if="item.record.space?.chains"> of {{ item.record.space.chains.toLocaleString() }}</template>
@@ -56,6 +70,7 @@ const store = useChainSearchStore();
 const planner = useAutoPlannerStore();
 const busy = ref(false);
 const note = ref('');
+const showOld = ref(false);
 
 const items = computed(() =>
   store.interrupted
@@ -63,6 +78,14 @@ const items = computed(() =>
     .filter(i => (props.kind === 'exhaustive' ? !!i.record.space : !i.record.space))
     // Another account's runs are never offered here (stores/chainSearch.ts `otherAccountKeys`).
     .filter(i => !i.record.inputsKey || !store.otherAccountKeys.has(i.record.inputsKey))
+);
+
+/** More than a day old: folded into one line until Show. */
+const DAY_MS = 24 * 3600 * 1000;
+const old = computed(() => items.value.filter(i => Date.now() - i.record.updatedAt > DAY_MS));
+const newestOld = computed(() => Math.max(...old.value.map(i => i.record.updatedAt)));
+const shown = computed(() =>
+  showOld.value ? items.value : items.value.filter(i => Date.now() - i.record.updatedAt <= DAY_MS)
 );
 
 /** By the run's id (persistence.ts `interruptedId`): the list can change between drawing and the click. */
