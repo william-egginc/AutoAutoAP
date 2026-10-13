@@ -319,7 +319,7 @@
 
       <!-- The run saved here, to carry on (CarryOnOffer.vue, the same box on every search screen). -->
       <CarryOnOffer
-        v-if="store.resumable && !store.isRunning"
+        v-if="store.resumable && !store.isRunning && !finishedOnScreen"
         :title="store.resumable.complete ? 'A finished run is saved' : 'An unfinished run is saved'"
         :elsewhere="!store.resumable.complete && !!store.runElsewhere[store.resumable.space ? 'sweep' : 'smart']"
         :carry-label="store.resumable.complete ? 'Show its result' : 'Carry on from where it stopped'"
@@ -596,6 +596,20 @@
                 :zone="autoPlannerStore.timezone || plannerTzFallback"
                 green
               />
+              <!-- The next level up, reusing this run's priced routes (the saved-run box that offered it hides
+                   while this result is on screen: the user, 12 Oct, found it clutter). -->
+              <p v-if="goFurther" class="text-[11px] text-emerald-900/80" data-testid="go-further">
+                <button
+                  type="button"
+                  :disabled="store.busy"
+                  class="font-bold text-emerald-800 underline decoration-dotted underline-offset-2 hover:text-emerald-950 disabled:opacity-40"
+                  data-testid="go-further-run"
+                  @click="runHigher"
+                >
+                  Go further: run at {{ goFurther.label }}
+                </button>
+                <span> (reuses {{ plural(goFurther.routes, 'route') }})</span>
+              </p>
               <!-- Fastest is fast, not best: when a longer route might win, say so (never runs anything). -->
               <LongerRouteHint
                 mode="start"
@@ -1298,6 +1312,21 @@ const nextLevel = computed(() => {
   const tier = i >= 0 && i < EFFORT_ORDER.length - 1 ? EFFORT_ORDER[i + 1] : null;
   return tier ? { tier, label: EFFORT_NOTES[tier].label } : null;
 });
+/** The saved finished run is the answer on screen (this panel's own run, same route): its saved-run box
+ *  would only repeat it. After a reload, or once another result replaced it, the box comes back. */
+const finishedOnScreen = computed(
+  () =>
+    !!store.resumable?.complete &&
+    store.chainRunKind === 'smart' &&
+    store.bestDays > 0 &&
+    store.bestChain.join(',') === store.resumable.bestChain.join(',')
+);
+/** "Go further": the next level up with the routes it would reuse; only while the saved box is folded away. */
+const goFurther = computed(() =>
+  finishedOnScreen.value && !store.isRunning && nextLevel.value && store.resumable
+    ? { label: nextLevel.value.label, routes: store.resumable.durations.length }
+    : null
+);
 function runHigher(): void {
   const n = nextLevel.value;
   if (!n) return;
