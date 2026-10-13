@@ -60,8 +60,9 @@ export interface TimelineEstimate {
 export type Sample = [number, number, number, number, number, number, 0 | 1, number | null];
 /** [minutes into the run, the gap in minutes, 1 if the tab was hidden at the time]. */
 export type Gap = [number, number, 0 | 1];
-/** [minutes into the run, what, 1 ok / 0 not, HTTP status or null, kB, parts, tries]. */
-export type SendEntry = [number, SendKind, 0 | 1, number | null, number, number, number];
+/** [minutes into the run, what, 1 ok / 0 not, HTTP status or null, kB, parts, tries, and on a failure
+ *  why (search/csvDelta.ts `fetchFailureWhy`: blocked or offline, or the board's answer)]. */
+export type SendEntry = [number, SendKind, 0 | 1, number | null, number, number, number, string?];
 /** [minutes into the run, what, from, to]. */
 export type WorkerEvent = [number, WorkerEventKind, number | null, number | null];
 
@@ -77,7 +78,7 @@ export type WorkerEvent = [number, WorkerEventKind, number | null, number | null
 export type FaultEntry = [number, FaultKind, number | null, number | null, 0 | 1, number | null, number | null, number | null, string];
 export type FaultKind = 'crash' | 'stall' | 'page' | 'failed';
 
-export type SendKind = 'progress' | 'csv-so-far' | 'final' | 'csv' | 'retry' | 'kept';
+export type SendKind = 'progress' | 'csv-so-far' | 'csv-head' | 'final' | 'csv' | 'retry' | 'kept';
 export type WorkerEventKind = 'resize' | 'crash' | 'stall' | 'spawn';
 
 export interface Milestone {
@@ -360,6 +361,8 @@ export interface SendNote {
   bytes?: number;
   parts?: number;
   tries?: number;
+  /** Why it failed, kept short (only on a failure). */
+  why?: string;
 }
 
 export function noteSendIn(t: Timeline, s: SendNote): Timeline {
@@ -372,6 +375,7 @@ export function noteSendIn(t: Timeline, s: SendNote): Timeline {
     s.parts ?? 1,
     s.tries ?? 1,
   ];
+  if (!s.ok && s.why) entry.push(s.why.replace(/EI\d{16}/g, 'EI[redacted]').slice(0, 100));
   return { ...t, sends: push(t.sends, entry, MAX_SENDS) };
 }
 

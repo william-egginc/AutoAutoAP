@@ -4276,7 +4276,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
             bytes: seg.body.byteLength,
             parts: 1,
             tries,
+            ...(up.kind === 'failed' ? { why: up.why } : {}),
           });
+          if (up.kind === 'failed') blackBox.note(`progress send: CSV part not stored: ${up.why}`);
           if (up.kind === 'stored' && deadlineDelta === st) {
             const sent = st.sent + up.count;
             deadlineDelta = { run: st.run, seq: st.seq + 1, sent, hash: sent ? all.hashAt(sent - 1) : 0 };
@@ -4305,8 +4307,22 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         () => stop.stopped
       );
       if (!head.ok) return { kind: 'too-big', bytes: CSV_PART_BYTES };
-      const sealed = await uploadDeltaHead(base, { id, run: now.run, deltas: now.seq, token, deltaToken, seg: head });
+      let headTries = 0;
+      const sealed = await uploadDeltaHead(base, { id, run: now.run, deltas: now.seq, token, deltaToken, seg: head }, (...a) => {
+        headTries++;
+        return fetch(...a);
+      });
+      noteTimelineSend({
+        what: 'csv-head',
+        ok: sealed.kind === 'stored',
+        status: sealed.kind === 'failed' ? (sealed.status ?? null) : null,
+        bytes: head.body.byteLength,
+        parts: 1,
+        tries: headTries,
+        ...(sealed.kind === 'failed' ? { why: sealed.why } : {}),
+      });
       if (sealed.kind === 'failed') {
+        blackBox.note(`progress send: CSV head not stored: ${sealed.why}`);
         // A piece the board lost: the next send starts the run's deltas again from route 0.
         if (sealed.status === 422) deadlineDelta = freshDeltaState();
         return { kind: 'failed', why: sealed.why };
