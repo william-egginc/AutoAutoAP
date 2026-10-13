@@ -183,6 +183,16 @@ function shiftIndices(timeline: TimedAction[]): number[] {
  * whose plan was cut short by a date goal before reaching it).
  */
 function phaseWindow(timeline: TimedAction[], phaseIndex: number): [number, number] | null {
+  // LOW-TE GATE (temporary until Joo's PR 717 merges): a low-TE build (auto/lowTeOpening.ts) has a
+  // variable number of opening shifts, and names its shifts instead; look the phase up by name there
+  // (Joo's `phaseWindow`). Plans without names are found by position exactly as before.
+  if (timeline.some(t => t.action.type === 'shift' && t.action.payload.autoShiftName)) {
+    const name = CANONICAL_PHASES[phaseIndex];
+    const at = timeline.findIndex(t => t.action.type === 'shift' && t.action.payload.autoShiftName === name);
+    if (at === -1) return null;
+    const next = timeline.findIndex((t, i) => i > at && t.action.type === 'shift');
+    return [at, next === -1 ? timeline.length - 1 : next];
+  }
   const shifts = shiftIndices(timeline);
   const start = phaseIndex === 0 ? 0 : shifts[phaseIndex - 1];
   if (start === undefined || timeline.length === 0) return null;
