@@ -17,6 +17,10 @@ export interface ShiftPayload {
   fromEgg: VirtueEgg;
   toEgg: VirtueEgg;
   newShiftCount: number;
+  /** LOW-TE GATE (temporary until Joo's PR 717 merges): the auto planner's name for the shift this
+   * action starts (e.g. 'K1', 'C3'), set only on the low-TE path (auto/lowTeOpening.ts), whose
+   * opening repeats C1/K1/I1 so a shift's name can't be derived from its position. */
+  autoShiftName?: string;
   eggsLaid?: number;
   peakELR?: number;
 }
