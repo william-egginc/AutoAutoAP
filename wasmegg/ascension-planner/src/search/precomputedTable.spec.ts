@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compositeTable, LruCache, packTable, readTable } from './precomputedTable';
+import { compositeTable, LruCache, packTable, readTable, restampTable } from './precomputedTable';
 import type { BuildParams } from './precomputedLeg';
 
 const build = (sales: number, tier13: boolean, k: number): BuildParams => ({
@@ -78,6 +78,45 @@ describe('precomputed table file', () => {
         expect(both.lookup(c.te, c.h), `pass ${pass}`).toEqual(
           c.te > 200 ? c.builds.map(b => ({ ...b, peakELR: b.peakELR * 2 })) : c.builds
         );
+  });
+
+  it('restamps the header and keeps every cell byte for byte', () => {
+    const cells = [
+      { te: 200, h: 0, builds: [build(1, false, 0), build(2, true, 1)] },
+      { te: 201, h: 3, builds: [build(3, false, 2)] },
+    ];
+    const bytes = packTable(
+      { version: 1, referenceWeek: 1, cteBonus: 128.71, deliveryScore: 1, from: 200, to: 201, builtAt: 'x' },
+      cells
+    );
+    const out = restampTable(bytes.buffer as ArrayBuffer, { simVersion: '2026-10-13-test' });
+    const t = readTable(out.buffer as ArrayBuffer);
+    expect(t.header).toEqual({ ...readTable(bytes.buffer as ArrayBuffer).header, simVersion: '2026-10-13-test' });
+    for (const c of cells) expect(t.lookup(c.te, c.h)).toEqual(c.builds);
+    const bodyOf = (b: Uint8Array) => b.subarray(Math.ceil((4 + new DataView(b.buffer).getUint32(0, true)) / 8) * 8);
+    expect(Array.from(bodyOf(out))).toEqual(Array.from(bodyOf(bytes)));
+  });
+
+  it('a joined table carries a stamp only when both parts have the same one', () => {
+    const one = (from: number, simVersion?: string) =>
+      readTable(
+        packTable(
+          {
+            version: 1,
+            referenceWeek: 1,
+            cteBonus: 1,
+            deliveryScore: 1,
+            from,
+            to: from,
+            builtAt: 'x',
+            ...(simVersion ? { simVersion } : {}),
+          },
+          [{ te: from, h: 0, builds: [build(1, false, 0)] }]
+        ).buffer as ArrayBuffer
+      );
+    expect(compositeTable(one(200, 'a'), one(201, 'a'), 201, 1).header.simVersion).toBe('a');
+    expect(compositeTable(one(200, 'a'), one(201, 'b'), 201, 1).header.simVersion).toBeUndefined();
+    expect(compositeTable(one(200), one(201, 'a'), 201, 1).header.simVersion).toBeUndefined();
   });
 
   it('LruCache drops the least recently used entry', () => {

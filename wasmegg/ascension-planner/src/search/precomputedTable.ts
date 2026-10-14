@@ -10,6 +10,7 @@
  */
 import { EGG_ORDER, WEEK_HOURS, type BuildParams } from './precomputedLeg';
 import type { TableGear } from './tableGear';
+import { jointSimVersion } from './simVersion';
 
 const FIELDS = 9;
 
@@ -41,6 +42,9 @@ export interface TableHeader {
   gear?: TableGear;
   /** A gear table joined to the maxed one (compositeTable): the last start TE from the gear table. */
   gearTo?: number;
+  /** The simulator the cells came from (search/simVersion.ts SIM_VERSION). Absent on a table packed
+   *  before stamping; the page then treats it as older (tableSimMismatch). */
+  simVersion?: string;
 }
 
 export interface Table {
@@ -74,6 +78,24 @@ export function packTable(
       for (let e = 0; e < EGG_ORDER.length; e++) body[at + 4 + e] = b.delivered[e];
     });
   }
+  return bytes;
+}
+
+/**
+ * The same file with header fields set (scripts/precompute.ts --stamp-sim): the header is rewritten
+ * and the cells are copied byte for byte, so only the header can differ. Throws on a file that does
+ * not read as a whole table.
+ */
+export function restampTable(buffer: ArrayBuffer, patch: Partial<Omit<TableHeader, 'slots' | 'from' | 'to'>>): Uint8Array {
+  const old = readTable(buffer).header;
+  const oldStart = Math.ceil((4 + new DataView(buffer).getUint32(0, true)) / 8) * 8;
+  const json = new TextEncoder().encode(JSON.stringify({ ...old, ...patch }));
+  const start = Math.ceil((4 + json.length) / 8) * 8;
+  const body = new Uint8Array(buffer, oldStart);
+  const bytes = new Uint8Array(start + body.length);
+  new DataView(bytes.buffer).setUint32(0, json.length, true);
+  bytes.set(json, 4);
+  bytes.set(body, start);
   return bytes;
 }
 
@@ -185,7 +207,13 @@ export function compositeTable(low: Table, high: Table, split: number, scale: nu
   const scaled = new LruCache<number, BuildParams[]>(maxCells);
   const top = Math.max(split - 1, low.header.to);
   return {
-    header: { ...low.header, to: Math.max(high.header.to, low.header.to), k3: high.header.k3, gearTo: top },
+    header: {
+      ...low.header,
+      to: Math.max(high.header.to, low.header.to),
+      k3: high.header.k3,
+      gearTo: top,
+      simVersion: jointSimVersion(low.header.simVersion, high.header.simVersion),
+    },
     lookup(te, hour) {
       if (te <= top) return low.lookup(te, hour);
       const raw = high.lookup(te, hour);
