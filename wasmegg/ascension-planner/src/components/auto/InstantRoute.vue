@@ -473,9 +473,10 @@
                     {{ behind(r) }}
                     <span
                       v-if="!deadline && nearTie(r)"
-                      class="block min-w-[13rem] max-w-[15rem] whitespace-normal text-[10px] leading-snug text-slate-400"
-                      data-testid="near-tie"
-                      >about the same: one more prestige for no gain</span
+                      class="block min-w-[13rem] max-w-[15rem] whitespace-normal text-[10px] leading-snug"
+                      :class="nearTie(r)!.kind === 'fewer' ? 'font-semibold text-emerald-700' : 'text-slate-400'"
+                      :data-testid="`near-tie-${nearTie(r)!.kind}`"
+                      >{{ nearTie(r)!.text }}</span
                     >
                   </td>
                   <td
@@ -843,6 +844,7 @@ import StrongerCheck from './StrongerCheck.vue';
 import { holdsRoutes, instantIntegrity, lowTeOpeningNote } from '@/search/instantIntegrity';
 import type { FindContext } from '@/search/strongerCheck';
 import { rowLine, type AtOnceItem } from '@/search/lightAtOnce';
+import { nearTieOf, type NearTie } from '@/search/nearTie';
 import { useIntegrityProbe } from '@/composables/useIntegrityProbe';
 import { useInstantDuringSearch } from '@/composables/useInstantDuringSearch';
 import { readSnapshot, recallShown, rememberShown, snapshotUsable, writeSnapshot } from '@/search/instantSnapshot';
@@ -2193,17 +2195,30 @@ const missedBy = computed<number | null>(() => {
 watch(exactStatus, st => {
   strongerStore.exact = st === 'running' ? { ...strongerStore.exact, running: true } : { running: false, done: 0, total: 0 };
 });
-/** A row whose gap to the fastest is under about a tenth of a day is usually the same route with one ascension cut in
- *  two (Allan, 14 Oct): correct, and worth saying so. */
+/** A row whose gap to the fastest is under about a tenth of a day (Allan, 14 Oct). With MORE ascensions it is usually the
+ *  same route with one ascension cut in two: one more prestige for no gain. With FEWER it is a good option, not a
+ *  waste (carpetsage, Discord): one fewer prestige for a little time. */
 const NEAR_TIE_SECONDS = 0.1 * 86400;
-function nearTie(r: Route): boolean {
+function nearTie(r: Route): NearTie | null {
   const best = exactBest.value;
+  let gap: number | null = null;
+  let than: Route | null = null;
   if (best) {
     const e = exactOf(r);
-    return !!e && r !== best && e.end - exactOf(best)!.end < NEAR_TIE_SECONDS;
+    const eb = exactOf(best);
+    if (e && eb && r !== best) {
+      gap = e.end - eb.end;
+      than = best;
+    }
+  } else {
+    const t = result.value?.best;
+    if (t && r !== t) {
+      gap = r.seconds - t.seconds;
+      than = t;
+    }
   }
-  const t = result.value?.best;
-  return !!t && r !== t && r.seconds - t.seconds < NEAR_TIE_SECONDS;
+  if (gap === null || than === null || gap >= NEAR_TIE_SECONDS) return null;
+  return nearTieOf(r.legs.length, than.legs.length, gap);
 }
 /** How far a row is behind the fastest: by the simulator once every row is priced, by the table until then. */
 function behind(r: Route): string {
