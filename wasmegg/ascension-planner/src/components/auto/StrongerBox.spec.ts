@@ -24,6 +24,16 @@ describe('StrongerBox', () => {
     expect(t).not.toContain('proves the best only inside');
     expect(html).toContain('id="stronger-check-results"');
   });
+  it('in a tab (SearchTabs.vue): no frame, heading or intro of its own; the levels, promise and results target stay', async () => {
+    const html = await renderHtml(StrongerBox, { goal: 'fastest', inTab: true });
+    const t = textOf(html);
+    expect(t).toMatch(/^How hard to look Light Fast Exact Very high/);
+    expect(t).not.toContain('Stronger check');
+    expect(t).not.toContain('Checks the instant answer harder');
+    expect(html).not.toContain('border-indigo-200 bg-white p-4');
+    expect(t).toContain('What this does and does not promise');
+    expect(html).toContain('id="stronger-check-results"');
+  });
   it('By a date: the same Light / Fast / Exact / Very high bar, with each search level\'s estimate', async () => {
     useStrongerStore().level = 'normal';
     const html = await renderHtml(StrongerBox, {
@@ -64,16 +74,41 @@ describe('StrongerBox promise lines (12 Oct: one promise box)', () => {
   });
 });
 
-describe('the screens (12 Oct layout)', () => {
+describe('the screens (14 Oct layout: two tabs under the instant answer)', () => {
   const read = (f: string) => fs.readFileSync(path.join(__dirname, f), 'utf8');
-  it('Fastest: instant answer, then the Stronger check (search inside at Fast and above), then Exhaustive', () => {
+  it('Fastest: instant answer, then the tabs: Search nearby (the Stronger check, search inside at Fast and above), Exhaustive', () => {
     const t = read('FastestRoute.vue');
-    const order = ['<InstantRoute', '<StrongerBox', '<ChainSearchPanel', 'id="exhaustive"', '<InsanePanel'].map(m =>
-      t.indexOf(m)
-    );
+    const order = [
+      '<InstantRoute',
+      '<SearchTabs',
+      '<template #nearby>',
+      '<StrongerBox',
+      '<ChainSearchPanel',
+      '<template #exhaustive>',
+      'id="exhaustive"',
+      '<InsanePanel',
+    ].map(m => t.indexOf(m));
     expect(order.every((v, i) => v > 0 && (i === 0 || v > order[i - 1]))).toBe(true);
     expect(t).toContain('stronger-to="#stronger-check-results"');
     expect(t).toContain(`v-if="level !== 'light'"`);
+    expect(t).toMatch(/<StrongerBox[^>]*\bin-tab\b/);
+  });
+  it('By a date: the same two tabs, the teleport targets inside them', () => {
+    const t = read('DeadlinePanel.vue');
+    const order = [
+      '<InstantRoute',
+      '<SearchTabs',
+      '<template #nearby>',
+      '<StrongerBox',
+      'id="bd-around-controls"',
+      '<template #exhaustive>',
+      'id="exhaustive"',
+      'id="bd-exh-controls"',
+      '</SearchTabs>',
+      '<Teleport',
+    ].map(m => t.indexOf(m));
+    expect(order.every((v, i) => v > 0 && (i === 0 || v > order[i - 1]))).toBe(true);
+    expect(t).toMatch(/<StrongerBox[^>]*\bin-tab\b/);
   });
   it('By a date: run controls and results in each box, as on Fastest (no search "in hand")', () => {
     const t = read('DeadlinePanel.vue');

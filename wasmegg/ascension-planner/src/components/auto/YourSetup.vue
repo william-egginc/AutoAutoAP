@@ -14,11 +14,24 @@
 -->
 <template>
   <!-- Strong colour and a real button: folded into a thin line it was easy to miss (the user, 30 Sept). -->
-  <section class="text-left" :class="docked ? '' : 'rounded-2xl border-2 border-indigo-200 bg-indigo-50/50 shadow-sm'">
+  <!-- `issues-only` (Fastest and By a date since 14 Oct: the floating Setup button is the one way in, Allan's
+       "too many boxes"): nothing unless the save has a problem, then the problems and Open setup. -->
+  <section
+    v-if="!issuesOnly || store.setupIssues.length"
+    class="text-left"
+    :class="
+      docked
+        ? ''
+        : issuesOnly
+          ? 'rounded-2xl border-2 border-rose-200 bg-white shadow-sm'
+          : 'rounded-2xl border-2 border-indigo-200 bg-indigo-50/50 shadow-sm'
+    "
+    :data-testid="issuesOnly ? 'setup-issues' : undefined"
+  >
     <!-- On a screen: one line, every value visible; Edit setup opens the floating panel
          (SetupDock.vue), the one place the setup is edited. -->
     <button
-      v-if="!docked"
+      v-if="!docked && !issuesOnly"
       type="button"
       class="w-full flex flex-wrap items-center gap-x-5 gap-y-2 px-4 py-3.5 text-left"
       :aria-expanded="ui.setupOpen"
@@ -59,7 +72,11 @@
     </button>
 
     <!-- Problems with the save show folded too: nobody opens a card to look for them. -->
-    <div v-if="!docked && store.setupIssues.length" class="border-t border-indigo-50 px-4 py-2 space-y-1">
+    <div
+      v-if="!docked && store.setupIssues.length"
+      class="px-4 py-2 space-y-1"
+      :class="issuesOnly ? '' : 'border-t border-indigo-50'"
+    >
       <p
         v-for="(issue, k) in store.setupIssues"
         :key="k"
@@ -68,6 +85,14 @@
       >
         {{ issue.level === 'error' ? '✕' : '!' }} {{ issue.message }}
       </p>
+      <button
+        v-if="issuesOnly"
+        type="button"
+        class="mt-1 px-3 py-1.5 min-h-[44px] sm:min-h-0 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest"
+        @click="ui.setupOpen = true"
+      >
+        Open setup
+      </button>
     </div>
 
     <div v-if="docked" class="p-4 space-y-4">
@@ -520,6 +545,9 @@ defineProps<{
   screen: AutoView;
   /** The full setup, in the floating panel (SetupDock.vue); without it, the one-line bar. */
   docked?: boolean;
+  /** Only the save's problems (nothing when there are none), for screens whose way into the setup is
+   *  the floating Setup button. */
+  issuesOnly?: boolean;
 }>();
 
 const store = useChainSearchStore();

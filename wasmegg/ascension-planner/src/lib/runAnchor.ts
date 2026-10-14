@@ -18,7 +18,14 @@
  * (so the progress and the best so far under it are what shows), and the page is watched for a moment
  * afterwards (`holdInView`): whenever the block moves, the scroll follows it, until it has stayed put
  * for a second and a half, or the player scrolls themselves.
+ *
+ * And a fourth (Allan, 14 Oct: the search tabs, SearchTabs.vue): a block in the hidden tab is on the page
+ * but not laid out, so it would never count as shown and the jump would wait for nothing. While waiting,
+ * a block found in a hidden search tab switches to that tab (lib/searchTab.ts `revealElement`); the
+ * callers also switch first (App.vue showRun), this catches any that don't.
  */
+import { revealElement } from './searchTab';
+
 export type RunAnchorKind = 'smart' | 'full' | 'by-date';
 
 export function runAnchorSelector(kind: RunAnchorKind): string {
@@ -61,6 +68,8 @@ export async function findRunBlock(kind: RunAnchorKind, opts: FindRunOptions = {
       await frame();
       return el;
     }
+    // On the page but in the hidden search tab: show that tab, and look again next step.
+    for (const hidden of root.querySelectorAll(runAnchorSelector(kind))) if (revealElement(hidden)) break;
     await frame();
   }
   return null;

@@ -140,12 +140,18 @@
     <!-- The answers side by side (SearchCompare.vue): instant answer, stronger check, Exhaustive. -->
     <SearchCompare v-if="SHOW_COMPARE && deadline" goal="date" />
 
+    <!-- The two ways to search, one shown at a time (SearchTabs.vue; Allan, 14 Oct 2026: "too many
+         boxes, use one at a time"). Both stay mounted (v-show): the teleport targets below
+         (#bd-around-*, #bd-exh-*) must be on the page before the run controls move in, and a run in the
+         hidden tab keeps going. -->
+    <SearchTabs screen="by-date" :intro="TAB_INTRO" :running="{ nearby: runKind === 'around', exhaustive: runKind === 'boxes' }">
+    <template #nearby>
     <!-- Stronger check (StrongerBox.vue; the user, 12 Oct 2026): the stronger check's results, and with
          Search around the routes around the instant answer, their run controls and results here. -->
-    <CollapsibleSection id="stronger" title="Stronger check" :summary="lines.stronger">
     <StrongerBox
       v-slot="{ level }"
       goal="date"
+      in-tab
       :running="store.deadlineRunning && !!store.deadlineRunSimple"
       :estimates="levelEstimates"
     >
@@ -188,23 +194,11 @@
       <div id="bd-around-controls" />
       <div id="bd-around-results" />
     </StrongerBox>
-    </CollapsibleSection>
+    </template>
 
-    <!-- Exhaustive, on the page as it is: the chain editor, and its run controls and results when it is
-         the search in hand (the controls go with the search you are setting up). -->
-    <CollapsibleSection id="exhaustive" :title="EXHAUSTIVE_TITLE" :summary="lines.exhaustive">
-    <section id="exhaustive" class="rounded-2xl border border-slate-200 bg-white p-4 space-y-3 scroll-mt-24">
-      <div class="flex flex-wrap items-center gap-2">
-        <h3 class="text-base font-black text-slate-900">{{ EXHAUSTIVE_TITLE }}</h3>
-        <span
-          v-if="store.deadlineRunning && !store.deadlineRunSimple"
-          class="px-1.5 py-0.5 rounded bg-indigo-600 text-white text-[9px] font-black uppercase tracking-widest"
-          >Running</span
-        >
-      </div>
-      <p class="text-[12px] text-slate-600 leading-relaxed">
-        You set the boxes (one band of TEs per ascension) and their sliders, and it tries every route in them.
-      </p>
+    <!-- Exhaustive: the chain editor, and its run controls and results. -->
+    <template #exhaustive>
+    <section id="exhaustive" class="space-y-3 scroll-mt-24">
       <ExhaustivePromise goal="deadline" />
       <template v-if="true">
         <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest pt-1">The routes to try</h3>
@@ -392,7 +386,8 @@
       <div id="bd-exh-controls" />
       <div id="bd-exh-results" />
     </section>
-    </CollapsibleSection>
+    </template>
+    </SearchTabs>
 
     <!-- Keep awake is in Your setup at the top, with the other computer settings. -->
     <!-- The run controls (RunControls.vue), one set in each box, as on Fastest: Nearby routes' in the
@@ -894,7 +889,7 @@ import RunResults from './RunResults.vue';
 import { durationLabel, useRunClock } from '@/composables/useRunClock';
 import { useRunDownloads } from '@/composables/useRunDownloads';
 import { useDateRowSliders } from '@/composables/useRowSliders';
-import { EXHAUSTIVE_TITLE, NAMES, fastestName } from '@/lib/siteNav';
+import { NAMES, fastestName } from '@/lib/siteNav';
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { LONG_RUN_WORKERS, useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
@@ -914,9 +909,10 @@ import {
   type ByDateKind,
 } from '@/search/byDateKinds';
 import CollapsibleSection from './CollapsibleSection.vue';
+import SearchTabs from './SearchTabs.vue';
+import { selectSearchTab, type SearchTabId } from '@/lib/searchTab';
 import { useSearchSnapshots } from '@/composables/useSearchSnapshots';
 import { routeLine } from '@/search/sectionSummary';
-import { pick as pickAnswer } from '@/search/compareAnswers';
 import SearchCompare from './SearchCompare.vue';
 import { SHOW_COMPARE } from '@/lib/features';
 import { getLocalTimestampInTimezone } from '@/lib/events';
@@ -1075,6 +1071,22 @@ const runState = () => ({
 });
 /** The run going, by box. */
 const runKind = computed(() => runKindOf(runState()));
+/** A run that starts (Find, a carry-on, the countdown) or is going when the screen opens shows its own
+ *  tab (not remembered: the next visit opens on the tab the player picked). */
+watch(
+  runKind,
+  k => {
+    if (k) selectSearchTab('by-date', k === 'around' ? 'nearby' : 'exhaustive');
+  },
+  { immediate: true }
+);
+/** The first lines of each tab (SearchTabs.vue): what it does, when to use it, how long it takes. */
+const TAB_INTRO: Record<SearchTabId, string> = {
+  nearby:
+    "Start here. It checks the instant answer on your save and, at Fast and above, tries the routes near it for each number of ascensions, each last stop found to the exact TE. Light takes seconds to a few minutes; each other level's time on this computer is under its name.",
+  exhaustive:
+    'For a proven best inside boxes you choose, or to widen what Search nearby found: you set a band of TEs for each ascension and it tries every route in them, the last stop found to the exact TE. Big boxes take hours.',
+};
 /** The answer on screen, by box. */
 const resultKind = computed(() => kindOfSimple(result.value));
 /** The unfinished run, by box. */
@@ -1148,18 +1160,10 @@ function weightedSecondsPerLeg(sp: SimpleSpace): number {
   }
   return legs ? w / legs : fallbackWorkerSecondsPerLeg(1);
 }
-// The hidden sections' one-line results (CollapsibleSection.vue).
+// Each search's latest answer (stores/stronger.ts lastSearch), for the comparison block.
 useSearchSnapshots('date');
-const LEVEL_NAMES: Record<string, string> = { light: 'Light', quick: 'Fast', normal: 'Exact', thorough: 'Very high' };
 const lines = computed(() => ({
   instant: routeLine('date', stronger.instant.date, inPlannerZone, 'working out…'),
-  stronger: `${LEVEL_NAMES[stronger.level]}: ${routeLine(
-    'date',
-    pickAnswer('date', stronger.strongerBest.date, stronger.level === 'light' ? null : stronger.lastSearch.around),
-    inPlannerZone,
-    'nothing beats the instant answer yet'
-  )}`,
-  exhaustive: routeLine('date', stronger.lastSearch.boxes, inPlannerZone),
 }));
 /** The routes near the instant answer at a level (simpleByDate.ts BY_DATE_LEVELS), sized on a typical
  *  machine so every computer gets the same boxes. */
@@ -1333,6 +1337,8 @@ function openInAdvanced(): void {
 }
 /** Scroll to the Exhaustive box (its boxes were just filled in, from Nearby routes or Check exactly). */
 function showExhaustive(): void {
+  // Its tab first: a hidden tab has no place on the page to scroll to.
+  selectSearchTab('by-date', 'exhaustive');
   void nextTick(() => {
     if (typeof document !== 'undefined')
       document.getElementById('exhaustive')?.scrollIntoView({ behavior: 'smooth', block: 'start' });

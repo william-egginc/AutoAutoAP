@@ -2219,7 +2219,9 @@ watch(
     return out.filter((c, i) => out.findIndex(o => o.join(',') === c.join(',')) === i).map(c => [...c]);
   },
   list => {
-    if (!props.deadline) instantSummary.listed = list;
+    if (props.deadline) return;
+    instantSummary.listed = list;
+    if (list.length) instantSummary.lastListed = { finalTE: store.finalTE, routes: list };
   },
   { immediate: true }
 );
