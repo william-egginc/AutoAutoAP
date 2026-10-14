@@ -213,7 +213,7 @@
         </p>
         <p>
           <b>Check exactly</b> runs the instant answer's routes through the full simulator on your save, ascending on
-          the hour as shown, or at once as well if you tick that. It takes about 10 to 40 seconds a route. That's the
+          the hour as shown (Light, below, then prices them ascending at once). It takes about 10 to 40 seconds a route. That's the
           number to plan around. Searches start from the instant answer too: Nearby routes starts from its
           route, and Exhaustive's suggested boxes are centred on it.
         </p>
