@@ -467,6 +467,12 @@
                   <td class="py-1.5 pr-3 text-slate-700 whitespace-nowrap">{{ show(r.end) }}</td>
                   <td class="py-1.5 pr-3 text-slate-500 whitespace-nowrap">
                     {{ behind(r) }}
+                    <span
+                      v-if="!deadline && nearTie(r)"
+                      class="block min-w-[13rem] max-w-[15rem] whitespace-normal text-[10px] leading-snug text-slate-400"
+                      data-testid="near-tie"
+                      >about the same: one more prestige for no gain</span
+                    >
                   </td>
                   <td
                     class="py-1.5 pr-3 whitespace-nowrap"
@@ -2107,6 +2113,7 @@ async function runExact(id: number, found: NonNullable<typeof result.value>, man
       const rest = routes.slice(1);
       for (let i = 0; i < rest.length; i += size) {
         exactText.value = `Checking the other routes: ${i} of ${rest.length} done…`;
+        strongerStore.exact = { running: true, done: i + 1, total: rest.length + 1 };
         if (
           !(await price(
             rest.slice(i, i + size).map(r => r.chain),
@@ -2176,6 +2183,22 @@ const missedBy = computed<number | null>(() => {
   const e = r ? exact.value[key(r.chain)] : undefined;
   return props.deadline && e && e.end > props.deadline ? e.end - props.deadline : null;
 });
+// Light's status sign (StrongerBox.vue) says what it is waiting for: Check exactly going, and how far it is.
+watch(exactStatus, st => {
+  strongerStore.exact = st === 'running' ? { ...strongerStore.exact, running: true } : { running: false, done: 0, total: 0 };
+});
+/** A row whose gap to the fastest is under about a tenth of a day is usually the same route with one ascension cut in
+ *  two (Allan, 14 Oct): correct, and worth saying so. */
+const NEAR_TIE_SECONDS = 0.1 * 86400;
+function nearTie(r: Route): boolean {
+  const best = exactBest.value;
+  if (best) {
+    const e = exactOf(r);
+    return !!e && r !== best && e.end - exactOf(best)!.end < NEAR_TIE_SECONDS;
+  }
+  const t = result.value?.best;
+  return !!t && r !== t && r.seconds - t.seconds < NEAR_TIE_SECONDS;
+}
 /** How far a row is behind the fastest: by the simulator once every row is priced, by the table until then. */
 function behind(r: Route): string {
   const best = exactBest.value;

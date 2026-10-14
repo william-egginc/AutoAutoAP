@@ -77,6 +77,19 @@
       />
       <span>{{ lightText }}</span>
     </p>
+    <!-- Light has no Find on purpose: say where it is (the user, 14 Oct: "where go button?"). -->
+    <p v-if="level === 'light'" class="flex flex-wrap items-center gap-2 text-[11px] text-slate-600" data-testid="light-next">
+      <span>Want it to search for new routes?</span>
+      <button
+        type="button"
+        class="px-2.5 py-1 rounded-lg border border-indigo-300 bg-white text-[10px] font-black uppercase tracking-widest text-indigo-700 hover:bg-indigo-50"
+        data-testid="light-go-fast"
+        @click="pick('quick')"
+      >
+        Search with Fast{{ estimates?.quick ? ` (${estimates.quick.short})` : '' }}
+      </button>
+      <span class="text-slate-400">then Find appears</span>
+    </p>
     <!-- What the level picked is for, in a few words (the user, 14 Oct), from players' runs so far. -->
     <p class="text-[12px] font-black text-indigo-700" data-testid="level-tag">{{ tag }}</p>
     <!-- The level picked, in three plain lines: what it does, how long, what it can and can't find. -->
@@ -218,10 +231,21 @@ const level = computed<StrongerLevel>(() => stronger.level);
 /** Light's status sign: "runs by itself" -> "Running…" -> "Done: priced N of your earlier routes". */
 const lightText = computed(() => {
   const l = stronger.light;
-  if (l.state === 'running') return 'Running… pricing your earlier routes on this save.';
+  const ex = stronger.exact;
+  // Check exactly comes first: Light waits for it, so say so, with how far it is (the user, 14 Oct: "nothing to
+  // start" read as if nothing would happen).
+  if (ex.running && l.state !== 'running') {
+    const progress = ex.total ? ` (${ex.done} of ${ex.total} routes)` : '';
+    const next = l.total ? `${l.total} earlier route${l.total === 1 ? '' : 's'} of yours` : 'your earlier routes';
+    return `Waiting for Check exactly to finish${progress}… then Light prices ${next} on your hours.`;
+  }
+  if (l.state === 'running')
+    return l.total
+      ? `Pricing your ${l.total} earlier route${l.total === 1 ? '' : 's'} on this save…`
+      : 'Pricing your earlier routes on this save…';
   if (l.state === 'done') {
     const at = l.at ? ` at ${clock(l.at)}` : '';
-    if (!l.total) return `Done${at}: you have no earlier routes for this goal yet.`;
+    if (!l.total) return 'Nothing of yours to price yet. Pick Fast to search for new routes.';
     return `Done${at}: priced ${l.priced} of your ${l.total} earlier route${l.total === 1 ? '' : 's'}.`;
   }
   if (l.state === 'error') return "Stopped before it finished. It runs again after the next Check exactly.";

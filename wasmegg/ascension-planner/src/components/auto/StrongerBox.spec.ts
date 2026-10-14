@@ -200,13 +200,47 @@ describe('Light has nothing to start, and says so (12 Oct)', () => {
       'Light runs by itself after Check exactly: nothing to start.'
     );
     st.light = { state: 'running', priced: 0, total: 3, at: 0 };
-    expect(textOf(await renderHtml(StrongerBox, { goal: 'fastest' }))).toContain('Running… pricing your earlier routes');
+    expect(textOf(await renderHtml(StrongerBox, { goal: 'fastest' }))).toContain('Pricing your 3 earlier routes on this save…');
     st.light = { state: 'done', priced: 2, total: 3, at: new Date(2026, 9, 12, 12, 31).getTime() };
     expect(textOf(await renderHtml(StrongerBox, { goal: 'fastest' }))).toContain(
       'Done at 12:31 pm: priced 2 of your 3 earlier routes.'
     );
     st.level = 'quick';
     expect(await renderHtml(StrongerBox, { goal: 'fastest' })).not.toContain('light-status');
+  });
+  it('follows Check exactly (14 Oct): waiting with its progress, then pricing, then done; nothing of yours; a Fast button', async () => {
+    const st = useStrongerStore();
+    // Check exactly going, Light not started: say what it waits for, with the real progress.
+    st.exact = { running: true, done: 4, total: 9 };
+    let t = textOf(await renderHtml(StrongerBox, { goal: 'fastest' }));
+    expect(t).toContain('Waiting for Check exactly to finish (4 of 9 routes)… then Light prices your earlier routes on your hours.');
+    expect(t).not.toContain('nothing to start');
+    // With the earlier routes already known, say how many.
+    st.light = { state: 'idle', priced: 0, total: 6, at: 0 };
+    t = textOf(await renderHtml(StrongerBox, { goal: 'fastest' }));
+    expect(t).toContain('then Light prices 6 earlier routes of yours on your hours.');
+    // Check exactly over, Light pricing, then done.
+    st.exact = { running: false, done: 0, total: 0 };
+    st.light = { state: 'running', priced: 0, total: 6, at: 0 };
+    expect(textOf(await renderHtml(StrongerBox, { goal: 'fastest' }))).toContain('Pricing your 6 earlier routes on this save…');
+    // Nothing of the player's to price.
+    st.light = { state: 'done', priced: 0, total: 0, at: Date.now() };
+    expect(textOf(await renderHtml(StrongerBox, { goal: 'fastest' }))).toContain(
+      'Nothing of yours to price yet. Pick Fast to search for new routes.'
+    );
+    // Light has no Find on purpose: a small button says where it is, with the level's own time.
+    const html = await renderHtml(StrongerBox, {
+      goal: 'fastest',
+      estimates: { quick: { short: '~1.7 h', line: 'x' }, normal: { short: '~3.9 h', line: 'x' }, thorough: { short: '~18 h', line: 'x' } },
+    });
+    expect(html).toContain('data-testid="light-go-fast"');
+    expect(textOf(html)).toContain('Search with Fast (~1.7 h)');
+    st.level = 'quick';
+    expect(await renderHtml(StrongerBox, { goal: 'fastest' })).not.toContain('light-go-fast');
+  });
+  it('the Fast button picks Fast, as the level bar does (source)', () => {
+    const t = fs.readFileSync(path.join(__dirname, 'StrongerBox.vue'), 'utf8');
+    expect(t).toMatch(/data-testid="light-go-fast"\s+@click="pick\('quick'\)"/);
   });
   it('By a date no longer moves its run controls when a level is picked: each box has its own', () => {
     const t = fs.readFileSync(path.join(__dirname, 'DeadlinePanel.vue'), 'utf8');

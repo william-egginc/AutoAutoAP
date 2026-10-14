@@ -79,5 +79,8 @@ export const useStrongerStore = defineStore('stronger', () => {
     total: 0,
     at: 0,
   });
-  return { level, strongerBest, instant, earlierChains, lastSearch, light };
+  /** Check exactly on the instant answer (InstantRoute.vue): going or not, and how many of its routes are priced, so
+   *  Light's status sign can say what it is waiting for. */
+  const exact = ref({ running: false, done: 0, total: 0 });
+  return { level, strongerBest, instant, earlierChains, lastSearch, light, exact };
 });
