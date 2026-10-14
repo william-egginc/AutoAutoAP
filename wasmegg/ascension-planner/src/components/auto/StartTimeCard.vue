@@ -1,33 +1,33 @@
 <!--
-  "When should I start?" at the top of Fastest route, under Your setup and above the instant answer
-  (the user, egg-beta review 11 Oct): the tool for a player coming back after a break, so it sits where
-  they arrive, folded until opened. It prices the instant answer's best route by default; the other
-  routes the instant answer lists, and the last search's best, are in the menu. The pricing is
-  StartTimeFinder.vue's (stores/chainSearch.ts `findBestStart`), unchanged. The Fastest answer's
-  "Check start times for this route" opens it on that route (stores/startTimes.ts).
+  "When should I start?", Science › When should I start? (#/science/start). It sat folded at the top of
+  Fastest route (the user, egg-beta review 11 Oct) until Allan's "too many boxes" (14 Oct 2026): it is a
+  tool for a player coming back after a break, not a step of the search, so it has a page of its own.
+
+  It prices the instant answer's best route by default; the other routes the instant answer listed, and
+  the last search's best, are in the menu. The instant answer isn't on this page, so its routes are the
+  ones Fastest last showed for this target (stores/instantSummary.ts `lastListed`). The pricing is
+  StartTimeFinder.vue's (stores/chainSearch.ts `findBestStart`), unchanged, on the save and setup the
+  Auto Planner has loaded. A result's "Check start times for this route" opens this page on that route
+  (stores/startTimes.ts, App.vue `showStartTimes`). The run bar's kind for its sweep is 'start-times'.
 -->
 <template>
-  <section
-    id="start-times"
-    class="rounded-xl border border-slate-200 bg-white scroll-mt-24"
-    data-testid="start-times-card"
-  >
-    <button
-      type="button"
-      class="w-full flex items-center justify-between gap-3 px-4 py-3 text-left"
-      :aria-expanded="st.open"
-      data-testid="start-times-toggle"
-      @click="st.open = !st.open"
-    >
-      <span class="min-w-0">
-        <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">When should I start?</span>
-        <span class="block sm:inline sm:ml-2 text-[11px] text-slate-500">For coming back after a break</span>
-      </span>
-      <span class="text-slate-400 text-sm" aria-hidden="true">{{ st.open ? '⌄' : '›' }}</span>
-    </button>
-    <div v-if="st.open" class="px-4 pb-4 space-y-3">
-      <p v-if="!choices.length" class="text-[11px] text-slate-500 leading-relaxed">
-        It prices the instant answer's best route, which shows here once the instant answer has loaded below.
+  <section id="start-times" class="space-y-4 scroll-mt-24" data-testid="start-times-card">
+    <div class="space-y-1">
+      <h2 class="text-2xl font-black text-slate-900">{{ NAMES.start }}</h2>
+      <p class="text-sm text-slate-600 leading-relaxed max-w-3xl">
+        For coming back after a break: one route priced as a fresh start at every hour of the next week, to see
+        whether waiting for the weekly sales finishes sooner. It uses your save and Your setup from the
+        {{ NAMES.auto }}.
+      </p>
+    </div>
+    <div class="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+      <p v-if="!(store.currentTE > 0)" class="text-[11px] font-semibold text-amber-700" data-testid="start-times-no-save">
+        Load your save first: open {{ fastestName(store.finalTE) }} in the {{ NAMES.auto }}, then come back here.
+      </p>
+      <p v-else-if="store.saveNotReady" class="text-[11px] font-semibold text-amber-700">{{ store.saveNotReady }}</p>
+      <p v-if="!choices.length" class="text-[11px] text-slate-500 leading-relaxed" data-testid="start-times-empty">
+        It prices the instant answer's best route. Open {{ fastestName(store.finalTE) }} once so the instant answer
+        loads, or use "Check start times for this route" under a search's result.
       </p>
       <label v-else class="flex flex-wrap items-center gap-2 text-[11px] text-slate-600">
         <span class="font-bold text-slate-700">Route</span>
@@ -41,6 +41,7 @@
         </select>
       </label>
       <StartTimeFinder v-if="chosen" :chain="chosen.chain" bare />
+      <p v-if="newError" class="text-[11px] font-semibold text-rose-700" data-testid="start-times-error">{{ newError }}</p>
     </div>
   </section>
 </template>
@@ -52,14 +53,26 @@ import { useChainSearchStore } from '@/stores/chainSearch';
 import { useInstantSummaryStore } from '@/stores/instantSummary';
 import { useStartTimesStore } from '@/stores/startTimes';
 import { startTimeChoices } from '@/lib/startTimeChoices';
+import { NAMES, fastestName } from '@/lib/siteNav';
 
 const store = useChainSearchStore();
 const instant = useInstantSummaryStore();
 const st = useStartTimesStore();
 
+/** Why Find the best time to start didn't start (the store's error, set by `findBestStart`): only one
+ *  that appeared while this page was open, not a search's error from another screen. */
+const errorAtOpen = store.error;
+const newError = computed(() => (!store.busy && store.error && store.error !== errorAtOpen ? store.error : ''));
+
+/** The instant answer's routes: on screen now, else the ones Fastest last listed for this target. */
+const instantRoutes = computed(() => {
+  if (instant.listed.length) return instant.listed;
+  const last = instant.lastListed;
+  return last && last.finalTE === store.finalTE ? last.routes : [];
+});
 const choices = computed(() =>
   startTimeChoices({
-    instant: instant.listed,
+    instant: instantRoutes.value,
     search: store.bestDays > 0 && !store.isRunning ? store.bestChain : null,
     requested: st.requested,
   })

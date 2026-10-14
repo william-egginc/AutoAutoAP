@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  stopCause,
+  stopCauseLine,
   beat,
   clearUnfinished,
   diagnosticsSummary,
@@ -178,5 +180,25 @@ describe('black box memory helpers', () => {
       expect(got.lastVisitCrashed).toBe(true);
       expect(got.crash).toMatchObject({ phase: 'submit', detail: 'building the CSV', workers: 4 });
     });
+  });
+});
+
+describe('why the last visit stopped (13 Oct 2026: a blue screen was blamed on memory)', () => {
+  it('says the player closed it when pagehide fired', () => {
+    expect(stopCause({ pageClosed: true, heapMB: 4000, heapLimitMB: 4096 })).toBe('closed');
+  });
+  it('blames memory only on evidence: the main heap near its ceiling, or 3 GB in the workers or the page', () => {
+    expect(stopCause({ heapMB: 3500, heapLimitMB: 4096 })).toBe('memory');
+    expect(stopCause({ heapMB: 170, heapLimitMB: 4096, workersHeapMB: 3200 })).toBe('memory');
+    expect(stopCause({ uaMemoryMB: 3100 })).toBe('memory');
+  });
+  it('is neutral otherwise: a crash, a restart and unreported memory look the same', () => {
+    expect(stopCause({ heapMB: 170, heapLimitMB: 4096, workersHeapMB: null })).toBe('unknown');
+    expect(stopCause({})).toBe('unknown');
+    expect(stopCauseLine('unknown')).toBe(
+      'The browser or the computer closed it (for example a crash, a restart or running short of memory).'
+    );
+    expect(stopCauseLine('memory')).toMatch(/short of memory/);
+    expect(stopCauseLine('closed')).toMatch(/reloaded or closed/);
   });
 });

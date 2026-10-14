@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { findRunBlock, holdInView, runAnchorSelector, scrollToRun, type HoldView } from './runAnchor';
+import { searchTabs, selectSearchTab } from './searchTab';
 
 /** A stand-in element: `rects` 0 is "not shown" (display:none, or a hidden screen); `top` is its
  *  place on the page, which a test moves to make the page above it change height. */
@@ -107,6 +108,28 @@ describe('the progress bar jumping to the run (review, 9 Oct)', () => {
     expect(v.scrolls).toEqual([2000 - 120]);
     // It waited for the mount, and one frame more.
     expect(p.frames()).toBe(6);
+  });
+
+  it('a block in the hidden search tab: that tab is shown, then it scrolls (Allan, 14 Oct: the tabs)', async () => {
+    selectSearchTab('fastest', 'nearby');
+    // In the Exhaustive panel: laid out only once that tab is shown.
+    const panel = { getAttribute: (n: string) => ({ 'data-screen': 'fastest', 'data-tab': 'exhaustive' })[n] ?? null };
+    const block = {
+      ...el('full'),
+      getClientRects: () => ({ length: searchTabs.fastest === 'exhaustive' ? 1 : 0 }),
+      closest: (sel: string) => (sel === '[data-search-tab-panel]' ? panel : null),
+    };
+    const p = page([block]);
+    const v = fakeView(120);
+    expect(await scrollToRun('full', { ...p, view: v.view, maxFrames: 10 })).toBe(true);
+    expect(searchTabs.fastest).toBe('exhaustive');
+    expect(v.scrolls).toEqual([2000 - 120]);
+    selectSearchTab('fastest', 'nearby');
+  });
+
+  it('a hidden block outside the tabs is still not jumped to', async () => {
+    const p = page([el('smart', 0)]);
+    expect(await findRunBlock('smart', { ...p, maxFrames: 3 })).toBe(null);
   });
 
   it('gives up when the block never comes', async () => {

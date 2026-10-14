@@ -1508,6 +1508,23 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   }
 
   /**
+   * A fresh build at `te` from `start` on this account (search/liveCell.ts), for the instant answer
+   * above its table's top: a few seconds of simulation, so on one background worker, as the build-up's
+   * tails run. Empty on failure.
+   */
+  async function liveFreshBuilds(te: number, start: number): Promise<BuildParams[]> {
+    let pool: ChainSearchPool | null = null;
+    try {
+      pool = await createChainSearchPool(collectInputs(), { size: 1 });
+      return (await pool.liveFresh?.(te, start)) ?? [];
+    } catch {
+      return [];
+    } finally {
+      pool?.terminate();
+    }
+  }
+
+  /**
    * This account's Clothed TE, part by part, for the "can't be planned yet" advice: its best earnings
    * set, colleggtibles, Lab Upgrade and permit, from the save loaded now. Null without a save.
    */
@@ -8468,6 +8485,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     staleBackupBlocked,
     probeIntegrity,
     buildUpTails,
+    liveFreshBuilds,
     openedRun,
     crashedRun,
     resumeCrashedRun,

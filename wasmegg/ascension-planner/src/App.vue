@@ -39,15 +39,6 @@
 
             <the-player-id-form :player-id="playerId" @submit="submitPlayerId" />
 
-            <!-- The tabs, where they always were: under the player ID. -->
-            <SiteTabs
-              v-if="playerId && !isHeaderCollapsed"
-              class="mt-6"
-              :tabs="topTabs"
-              :current="plannerTab"
-              @select="selectSection"
-            />
-
             <!-- Plan Library Section -->
             <div v-if="playerId && plannerTab === 'manual'" class="max-w-6xl mx-auto mt-6">
               <PlanLibrary @plan-loaded="handlePlanLoaded" />
@@ -227,9 +218,9 @@
       />
 
       <nav v-if="playerId" class="mt-4 space-y-3" aria-label="Site">
-        <!-- The header (with the tabs in it) folds away on the Auto Planner: the same tabs here then. -->
+        <!-- One set of tabs, always here, outside the header that folds away: they used to sit inside it when it
+             was open and jump out when it closed (Allan, 14 Oct). -->
         <SiteTabs
-          v-if="isHeaderCollapsed"
           :tabs="topTabs"
           :current="plannerTab"
           @select="selectSection"
@@ -258,6 +249,7 @@
                 <span
                   v-if="
                     activeScreen &&
+                    chainSearchStore.runProgress?.kind !== 'start-times' &&
                     (v.id === 'by-date'
                       ? activeScreen === 'by-date'
                       : v.id === 'fastest' && (activeScreen === 'smart' || activeScreen === 'full'))
@@ -272,7 +264,7 @@
 
         <div v-else-if="plannerTab === 'science'" class="flex justify-center">
           <div
-            class="grid grid-cols-3 w-full sm:flex sm:w-auto sm:flex-wrap sm:justify-center gap-1 border-b border-slate-200"
+            class="grid grid-cols-2 w-full sm:flex sm:w-auto sm:flex-wrap sm:justify-center gap-1 border-b border-slate-200"
           >
             <button
               v-for="v in scienceTabs"
@@ -512,6 +504,9 @@
       <div v-else-if="plannerTab === 'science'" class="max-w-6xl mx-auto mt-6 space-y-4">
         <!-- How it works: the searches, the instant answer and how both were checked (a page of its own). -->
         <HowItWorks v-if="scienceView === 'how'" />
+        <!-- When should I start? (StartTimeCard.vue): moved here from the top of Fastest (Allan, 14 Oct:
+             too many boxes there). A result's "Check start times for this route" opens it on that route. -->
+        <StartTimeCard v-else-if="scienceView === 'start'" />
         <div v-else>
           <h2 class="text-2xl font-black text-slate-900">Help check the planner</h2>
           <p class="text-sm text-slate-600 leading-relaxed max-w-3xl">
@@ -526,7 +521,7 @@
             >.
           </p>
         </div>
-        <ChainExplorer v-if="scienceView !== 'how'" part="science" embedded :science-view="scienceView" :te-now="saveTE" :final-te="chainSearchStore.finalTE" :inventory="saveArtifacts" :gear-coverage="gearCoverage" :workers="chainSearchStore.workerBudget" :threads="chainSearchStore.machineThreads" @run-sweep="openSweep" @run-by-date="openByDate" />
+        <ChainExplorer v-if="scienceView === 'check' || scienceView === 'submit'" part="science" embedded :science-view="scienceView" :te-now="saveTE" :final-te="chainSearchStore.finalTE" :inventory="saveArtifacts" :gear-coverage="gearCoverage" :workers="chainSearchStore.workerBudget" :threads="chainSearchStore.machineThreads" @run-sweep="openSweep" @run-by-date="openByDate" />
       </div>
 
       <!-- Your setup, floating, on every Auto Planner screen: the gear opens it; workers adjust folded. -->
@@ -680,6 +675,9 @@ import SiteTabs from '@/components/SiteTabs.vue';
 import SetupDock from '@/components/auto/SetupDock.vue';
 import SweepRunner from '@/components/science/SweepRunner.vue';
 import HowItWorks from '@/components/science/HowItWorks.vue';
+import StartTimeCard from '@/components/auto/StartTimeCard.vue';
+import { useStartTimesStore } from '@/stores/startTimes';
+import { revealRunTab } from '@/lib/searchTab';
 import type { SweepRequest } from '@/search/sweepRequest';
 import { virtueInventory } from '@/search/csv';
 import type { ByDateRequest } from '@/search/byDateRequest';
@@ -876,15 +874,21 @@ function sameScreen(a: SearchScreen | 'classic' | null, b: SearchScreen | 'class
 }
 const blockedBy = computed(() => {
   const a = activeScreen.value;
-  if (plannerTab.value !== 'automatic' || !a || sameScreen(a, screenHere.value)) return '';
-  return chainSearchStore.runProgress?.kind === 'start-times' ? 'When should I start?' : screenName(a);
+  if (plannerTab.value !== 'automatic' || !a) return '';
+  // A start-time sweep runs in Science › When should I start? (since 14 Oct): every search screen waits.
+  if (chainSearchStore.runProgress?.kind === 'start-times') return NAMES.start;
+  return sameScreen(a, screenHere.value) ? '' : screenName(a);
 });
 const hereLabel = computed(() => screenName(screenHere.value));
 
 /** Whenever any search is running, the run's own screen included (the panel there shows the detail;
  *  the bar's button then scrolls to it). */
 const showRunBar = computed(() => !!runScreen.value);
-const runIsHere = computed(() => !!runScreen.value && sameScreen(searchScreenOf(currentRoute()), runScreen.value));
+const runIsHere = computed(() => {
+  // A start-time sweep's place is Science › When should I start? (StartTimeCard.vue).
+  if (chainSearchStore.runProgress?.kind === 'start-times') return plannerTab.value === 'science' && scienceView.value === 'start';
+  return !!runScreen.value && sameScreen(searchScreenOf(currentRoute()), runScreen.value);
+});
 /**
  * The bar's Jump to it / Show it: one click goes to the run's screen if it is not the one shown, then
  * waits for that screen's panels to mount and scrolls to the run's own progress block, found by its
@@ -893,6 +897,14 @@ const runIsHere = computed(() => !!runScreen.value && sameScreen(searchScreenOf(
 function showRun(): void {
   const kind = chainSearchStore.runProgress?.kind;
   const anchor = kind === 'smart' || kind === 'full' || kind === 'by-date' ? kind : null;
+  // A start-time sweep: Science › When should I start?, where it runs (moved from Fastest, 14 Oct).
+  if (kind === 'start-times') {
+    showStartTimes();
+    return;
+  }
+  // The search tab the run is in first (SearchTabs.vue): the other tab hides it, and a hidden block
+  // can't be scrolled to.
+  if (anchor) revealRunTab(anchor, !!chainSearchStore.deadlineRunSimple);
   if (!runIsHere.value) {
     // A sweep started from Science: back to its window there, which is where it was started from.
     const science = uiStore.scienceRun;
@@ -906,10 +918,16 @@ function showRun(): void {
     else if (s) goAuto('fastest', s);
   }
   if (anchor) void scrollToRun(anchor);
-  // A start-time sweep: its card at the top of Fastest route (StartTimeCard.vue).
-  else if (kind === 'start-times')
-    setTimeout(() => document.getElementById('start-times')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
 }
+
+/** Science › When should I start?, scrolled to its card: the run bar's Show it for a start-time sweep,
+ *  and a result's "Check start times for this route" (stores/startTimes.ts `show`). */
+function showStartTimes(): void {
+  goTo({ ...currentRoute(), section: 'science', science: 'start' });
+  setTimeout(() => document.getElementById('start-times')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
+}
+const startTimes = useStartTimesStore();
+watch(() => startTimes.asked, showStartTimes);
 
 /** Open a tab: a deliberate choice, so a backup finishing loading no longer pulls the page back. */
 function goTo(r: SiteRoute): void {
@@ -1056,6 +1074,7 @@ const scienceTabs: { id: ScienceView; label: string }[] = [
   { id: 'how', label: NAMES.how },
   { id: 'check', label: NAMES.check },
   { id: 'submit', label: NAMES.submit },
+  { id: 'start', label: NAMES.start },
 ];
 
 let autoInitFor = '';

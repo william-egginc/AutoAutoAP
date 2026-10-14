@@ -15,5 +15,8 @@ export const useInstantSummaryStore = defineStore('instantSummary', () => {
   /** Every route the Fastest instant answer lists (the one it leads with first), for "When should I
    *  start?" to offer (StartTimeCard.vue). Empty while loading or off screen. */
   const listed = ref<number[][]>([]);
-  return { fastest, listed };
+  /** The last non-empty `listed`, kept when Fastest closes, with the target it was for: "When should I
+   *  start?" lives in Science (#/science/start), where the instant answer isn't on screen. */
+  const lastListed = ref<{ finalTE: number; routes: number[][] } | null>(null);
+  return { fastest, listed, lastListed };
 });

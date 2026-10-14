@@ -30,7 +30,8 @@
         any run, it uses the plan start, hours, time off and computer settings in Your setup.
       </div>
     </details>
-    <YourSetup screen="by-date" />
+    <!-- The setup is the floating Setup button (SetupDock.vue); here only the save's problems, if any. -->
+    <YourSetup screen="by-date" issues-only />
     <!-- The instant answer, the Stronger check (with Nearby routes) and Exhaustive, all on the page
          (DeadlinePanel.vue). -->
     <InsanePanel :player-id="playerId" goal="deadline" @update:goal="onGoal" />

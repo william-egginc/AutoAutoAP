@@ -814,7 +814,7 @@
       <!-- The results (RunResults.vue): the same order on every search screen. This screen's answer is
            in the run's progress above, where it doubles as the best so far. -->
       <RunResults>
-        <!-- When to start this route: the card at the top of the screen (StartTimeCard.vue), opened on it. -->
+        <!-- When to start this route: Science › When should I start? (StartTimeCard.vue), opened on it. -->
         <p v-if="ownRun && store.bestChain.length && store.bestDays > 0 && !store.isRunning" class="text-[11px]">
           <button
             type="button"
@@ -824,7 +824,7 @@
           >
             Check start times for this route</button
           >
-          <span class="text-slate-500"> (When should I start?, at the top of this screen)</span>
+          <span class="text-slate-500"> (opens {{ NAMES.science }} › {{ NAMES.start }})</span>
         </p>
 
         <!-- The generated plan does NOT know about the schedule. Said here rather than buried,

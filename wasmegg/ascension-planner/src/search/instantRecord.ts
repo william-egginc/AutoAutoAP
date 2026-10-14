@@ -63,6 +63,8 @@ export interface BracketSideOut {
 export interface InstantRecord {
   v: 1;
   build?: string;
+  /** The simulator this page runs (search/simVersion.ts SIM_VERSION). */
+  simVersion?: string;
   mode: 'fastest' | 'date';
   /** Fastest: the target TE. */
   target?: number;
@@ -96,6 +98,8 @@ export interface InstantRecord {
     /** The instant answer's first TE, and (a gear one) the last TE before it hands over to the maxed one. */
     tableFrom?: number;
     gearTo?: number;
+    /** The simulator the instant answer's table was built with; null when it predates stamping. */
+    tableSim?: string | null;
     /** The route priced on the closest stronger and weaker gear's instant answers. */
     bracket?: { above: BracketSideOut | null; below: BracketSideOut | null };
   };

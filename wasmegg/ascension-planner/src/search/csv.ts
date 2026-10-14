@@ -22,6 +22,7 @@
  *      rather than being told what to wear. So they are recorded once in the header block, from the
  *      backup the run was launched against, and the header says which sets those are.
  */
+import { SIM_VERSION } from './simVersion';
 import { describeTimeOff, type TimeOffDates } from './timeOff';
 import { getArtifact, getStone } from '@/lib/artifacts/data';
 // The workspace tier table, the same source src/lib/artifacts/data.ts parses its own
@@ -479,6 +480,8 @@ function metaLines(meta: CsvMeta, head: string[], count: string): string[] {
   for (const h of head) note(h);
   if (meta.partial) note(partialLine(meta.partial));
   note(`generated ${formatInZone(Math.floor((meta.generatedAt ?? Date.now()) / 1000), tz)} (${tz})`);
+  // Which simulator priced these routes (search/simVersion.ts), so a file can be matched to its code.
+  note(`simulator ${SIM_VERSION}`);
   note(`plan start ${formatInZone(meta.planStart, tz)}`);
   note(`current TE ${meta.currentTE} -> final target ${meta.final}`);
   // `force-continue on|off` stays first, as it always read, for the readers that parse it (the Chain

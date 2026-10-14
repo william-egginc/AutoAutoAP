@@ -321,6 +321,8 @@ function pickExtras(body, record) {
   return text.length > EXTRA_MAX_BYTES ? null : text;
 }
 
+/** A version stamp such as `2026-10-13-lowte-gate`: letters, digits, dots, dashes, at most MAX.BUILD. */
+const stamp = v => (typeof v === 'string' && /^[0-9A-Za-z._-]{1,40}$/.test(v) ? v : undefined);
 const text = (v, max) => (typeof v === 'string' ? scrubText(v).slice(0, max) : undefined);
 const num = v => (Number.isFinite(v) ? v : undefined);
 const flag = v => (typeof v === 'boolean' ? v : undefined);
@@ -744,6 +746,9 @@ function pickSubmission(s) {
     // Schema 7 (2026-09-25), for the finish-date board. See the note on ACCEPTED_SCHEMAS.
     backupTE: within(s.backupTE, 0, MAX.TE),
     build: text(s.build, MAX.BUILD),
+    // The simulator that priced it (13 Oct 2026, the app's SIM_VERSION): moves only when results do, for
+    // 'priced by an older simulator' labels. Optional, no schema bump; a plain stamp, nothing else kept.
+    simVersion: stamp(s.simVersion),
     startUtc: isoStamp(s.startUtc),
     endUtc: isoStamp(s.endUtc),
     rechecks: recheckList(s.rechecks, s.finalTE),
@@ -2196,6 +2201,8 @@ const INSTANT_RECORD = IV.obj(
   {
     v: IV.int(1, 1),
     build: IV.str(MAX.BUILD),
+    // The simulator the page ran (13 Oct 2026) and the one that built the answer's table (null: none).
+    simVersion: IV.str(MAX.BUILD),
     mode: IV.oneOf(['fastest', 'date']),
     target: IV.int(1, MAX.TE),
     deadline: IV.int(MAX.DEADLINE_FROM, MAX.DEADLINE_TO),
@@ -2217,6 +2224,7 @@ const INSTANT_RECORD = IV.obj(
         progressionShort: IV.bool,
         tableFrom: ITE,
         gearTo: ITE,
+        tableSim: IV.orNull(IV.str(MAX.BUILD)),
         bracket: IV.obj({ above: IV.orNull(BRACKET_SIDE), below: IV.orNull(BRACKET_SIDE) }),
       },
       ['answer']

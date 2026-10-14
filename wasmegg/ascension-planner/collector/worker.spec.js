@@ -391,6 +391,18 @@ describe('rate limit', () => {
   });
 });
 
+describe('simVersion on board rows', () => {
+  it('stores the simulator stamp of a row and serves it, and drops one that is not a plain stamp', async () => {
+    const good = await (await post('/submit', { ...MINIMAL, simVersion: '2026-10-13-lowte-gate' }, '7.7.7.1')).json();
+    const bad = await (await post('/submit', { ...MINIMAL, chain: [195, 489], finalTE: 489, durationDays: 701, simVersion: '<script>x</script>' }, '7.7.7.2')).json();
+    const none = await (await post('/submit', { ...MINIMAL, chain: [195, 488], finalTE: 488, durationDays: 702 }, '7.7.7.3')).json();
+    const rows = (await (await get('/all')).json()).rows;
+    expect(rows.find(r => r.id === good.id).simVersion).toBe('2026-10-13-lowte-gate');
+    expect(rows.find(r => r.id === bad.id)).not.toHaveProperty('simVersion');
+    expect(rows.find(r => r.id === none.id)).not.toHaveProperty('simVersion');
+  });
+});
+
 describe('the board keeps different experiments, and folds copies of one result', () => {
   const run = (over, ip) =>
     post(
@@ -2912,6 +2924,22 @@ describe('POST /instant (opt-in instant answer records)', () => {
     expect(stored.prestigeBy).toEqual(prestigeBy);
     expect(stored.prestigeByDropped).toBeUndefined();
     expect(stored.instant).toEqual(RECORD.instant);
+  });
+
+  it('keeps the simulator stamps (simVersion, gear.tableSim) and refuses a record whose stamp is not a string', async () => {
+    const withSim = { ...RECORD, simVersion: '2026-10-13-lowte-gate', gear: { ...RECORD.gear, tableSim: '2026-10-09-old' } };
+    const res = await postOwned('/instant', withSim, TOKEN_A);
+    expect(res.status).toBe(200);
+    const { id } = await res.json();
+    const day = new Date().toISOString().slice(0, 10);
+    const stored = JSON.parse(env.SUBMISSIONS._m.get(`inst:${day}:${id}`));
+    expect(stored.simVersion).toBe('2026-10-13-lowte-gate');
+    expect(stored.gear.tableSim).toBe('2026-10-09-old');
+    // A table with no stamp sends null; that is kept as null.
+    const none = await postOwned('/instant', { ...withSim, gear: { ...RECORD.gear, tableSim: null } }, TOKEN_A);
+    expect(none.status).toBe(200);
+    // A stamp that is not a string rejects the record, as any other bad field does.
+    expect((await postOwned('/instant', { ...withSim, simVersion: 7 }, TOKEN_A)).status).toBe(400);
   });
 
   it('drops a prestigeBy that is out of bounds, keeping the record and noting why', async () => {
