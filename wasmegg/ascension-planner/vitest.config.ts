@@ -28,6 +28,10 @@ export default defineConfig({
     // the spec had ended, and it landed in the next spec's storage (deadlineTE's kept-result spec
     // found two and timed out). It also left the real collector one missing fetch stub away.
     env: { VITE_SUBMIT_URL: '' },
+    // Simulator specs (src/auto/shifts/c1.spec.ts and others) run real builds that take 4-5 s on
+    // their own and time out at vitest's 5 s default when the full run shares the machine with other
+    // work. Real hangs still fail, just later.
+    testTimeout: 20_000,
     coverage: {
       provider: 'v8',
       include: ['src/**/*.ts'],
