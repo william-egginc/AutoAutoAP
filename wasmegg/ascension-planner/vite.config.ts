@@ -10,18 +10,6 @@ import { defineConfig, loadEnv, type Plugin } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import vueJsx from '@vitejs/plugin-vue-jsx';
 import release from './release';
-import {
-  COMMON_HEADERS,
-  contentSecurityPolicy,
-  documentHeaders,
-  hostKind,
-  inlineScriptHashes,
-  originOf,
-  robotsTag,
-  robotsTxt,
-  rootFile,
-  securityTxt,
-} from './src/lib/securityHeaders';
 
 /**
  * `version.json`: each page's hashed entry script, `{"index":"assets/index-BGv8tSVu.js",...}`.
@@ -191,85 +179,6 @@ function watcherIsolation(): Plugin {
     },
     configurePreviewServer(server) {
       server.middlewares.use(set);
-    },
-  };
-}
-
-/**
- * Security headers on everything `vite preview` serves (src/lib/securityHeaders.ts says which and
- * why): nosniff, a referrer policy and HSTS on every response; X-Frame-Options and the
- * Content-Security-Policy on the HTML pages, recognised by their content type as the response goes
- * out (a page, or preview's SPA fallback to index.html). The inline scripts' hashes are read from the
- * built pages when the server starts. Also /robots.txt, /.well-known/security.txt, /favicon.ico and X-Robots-Tag,
- * by the request's Host (live or test site). Preview only: the dev server's own inline scripts (HMR)
- * would need a looser policy. Takes effect when `pnpm serve` restarts.
- */
-function securityHeaders(env: Record<string, string | undefined>): Plugin {
-  return {
-    name: 'aap-security-headers',
-    async configurePreviewServer(server) {
-      const { config } = server;
-      const outDir = path.resolve(config.root, config.build.outDir);
-      const hashes = new Set<string>();
-      for (const page of ['index.html', 'explorer.html', 'watch.html']) {
-        try {
-          for (const h of await inlineScriptHashes(await readFile(path.join(outDir, page), 'utf8'))) hashes.add(h);
-        } catch {
-          // Not built (yet): its inline scripts, if any, are refused until the next restart.
-        }
-      }
-      const extra = [env.VITE_SUBMIT_URL, env.VITE_EGG_PROXY, env.VITE_EGG_AUTH_PROXY]
-        .map(originOf)
-        .filter((o): o is string => !!o && !o.endsWith('.workers.dev'));
-      const doc = documentHeaders(contentSecurityPolicy([...hashes], extra));
-      // The planner's path, for robots.txt (a relative base is served from `/` by preview).
-      const base = config.base.startsWith('/') ? config.base : '/';
-      // A year from when the server started; a restart (every deploy) moves it on.
-      const security = securityTxt();
-      server.middlewares.use((req, res, next) => {
-        for (const [k, v] of Object.entries(COMMON_HEADERS)) res.setHeader(k, v);
-        const kind = hostKind(req.headers.host);
-        const pathname = (req.url ?? '').split('?')[0];
-        const tag = robotsTag(kind, pathname);
-        if (tag) res.setHeader('X-Robots-Tag', tag);
-        // At the site root, outside the planner's path, so answered here rather than by preview.
-        if ((req.method === 'GET' || req.method === 'HEAD') && (pathname === '/robots.txt' || pathname === '/.well-known/security.txt')) {
-          const text = pathname === '/robots.txt' ? robotsTxt(kind, base) : security;
-          res.statusCode = 200;
-          res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-          res.setHeader('Cache-Control', 'public, max-age=3600');
-          res.end(req.method === 'HEAD' ? undefined : text);
-          return;
-        }
-        const root = req.method === 'GET' || req.method === 'HEAD' ? rootFile(pathname) : null;
-        if (root && isFile(path.join(outDir, root.file))) {
-          res.statusCode = 200;
-          res.setHeader('Content-Type', root.type);
-          res.setHeader('Cache-Control', 'public, max-age=86400');
-          if (req.method === 'HEAD') {
-            res.end();
-            return;
-          }
-          createReadStream(path.join(outDir, root.file))
-            .on('error', () => res.destroy())
-            .pipe(res);
-          return;
-        }
-        const writeHead = res.writeHead;
-        res.writeHead = function (this: ServerResponse, ...args: unknown[]) {
-          const given = args.find(a => a && typeof a === 'object' && !Array.isArray(a)) as
-            | Record<string, unknown>
-            | undefined;
-          const type = String(
-            res.getHeader('Content-Type') ??
-              (given && Object.entries(given).find(([k]) => k.toLowerCase() === 'content-type')?.[1]) ??
-              ''
-          );
-          if (/text\/html/i.test(type)) for (const [k, v] of Object.entries(doc)) res.setHeader(k, v);
-          return (writeHead as (...a: unknown[]) => ServerResponse).apply(this, args);
-        } as typeof res.writeHead;
-        next();
-      });
     },
   };
 }
@@ -550,13 +459,6 @@ export default defineConfig(({ mode }) => {
       // store call throws, and Vue drops that subtree silently -- the Player ID form simply is
       // not in the DOM, with no visible error. Force one copy of each.
       dedupe: ['vue', 'pinia'],
-      // protobufjs's `inquire` looks for Node's require with an eval, which always fails in a
-      // browser and, under the Content-Security-Policy (securityHeaders), is reported as a violation
-      // on every load. The stub gives the same answer (nothing) without the eval. Not under vitest,
-      // which runs in Node.
-      alias: process.env.VITEST
-        ? []
-        : [{ find: /^@protobufjs\/inquire$/, replacement: fileURLToPath(new URL('./src/lib/inquireStub.cjs', import.meta.url)) }],
     },
     plugins: [
       vue(),
@@ -566,8 +468,6 @@ export default defineConfig(({ mode }) => {
       warnIfReleaseStale(),
       keepOldAssets(),
       brotliAssets(),
-      // Before immutableAssets, which answers brotli requests itself.
-      securityHeaders(env),
       immutableAssets(),
       watcherIsolation(),
       collectorEarlyStart(env.VITE_SUBMIT_URL),
