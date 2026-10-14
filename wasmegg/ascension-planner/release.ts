@@ -33,6 +33,7 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
+  { at: '2026-10-14T20:04:27Z', note: 'Instant answer on top with two tabs (Search nearby, Exhaustive); each level says what it is for; no more pointless 489 to 490 plans; tabs stay put; maybe you on the board', level: 'big' },
   { at: '2026-10-14T03:59:25Z', note: 'Low-TE accounts that used to stall now get Joo’s opening rounds; clearer run times and advice; old runs fold away; at most 12 workers by default', level: 'big' },
   { at: '2026-10-13T19:15:55Z', note: 'Fixes iPhone crashes on By a date; agree to share once; By a date laid out like Fastest; start times by finish; clearer search screens; upload errors say why', level: 'big' },
   { at: '2026-10-12T20:16:33Z', note: 'New: Stronger check (Light/Fast/Exact/Very high) with Nearby routes; Exhaustive on the page, in boxes; When should I start?; egg-shift dates; By a date TE per egg; steadier long runs', level: 'big' },
@@ -40,7 +41,6 @@ const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
   { at: '2026-10-11T05:21:25Z', note: 'Watch from your phone: the finished page now shows the best route found, the route count and how long the run took' },
   { at: '2026-10-10T23:17:00Z', note: 'New: Continue my build-up (first ascension keeps buying from your farm as it is now), watch a run from your phone with a private link, big CSVs upload in parts, own tables match again', level: 'big' },
   { at: '2026-10-10T17:34:15Z', note: 'Share your instant answer checks (anonymous, opt-in) right from the instant answer, see your own check history, and send progress every 1-6 hours; the new-layout card is gone' },
-  { at: '2026-10-10T03:43:13Z', note: 'Saved answers and saved runs keep the save they were priced from: Use the save from… brings it back to plan, check or search from, and Download this save keeps it as a file', level: 'big' },
 ];
 
 export default {
