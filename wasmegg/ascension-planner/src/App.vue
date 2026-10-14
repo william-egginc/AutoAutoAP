@@ -648,6 +648,16 @@
       />
       <FloatingStats v-if="plannerTab === 'manual'" />
       <FloatingNotes v-if="plannerTab === 'manual'" />
+
+      <!-- On every screen, at the end of the page (a plain link, so it shows on phones too). -->
+      <footer class="pt-8 text-center text-[11px] text-slate-500" data-testid="site-footer">
+        <a
+          href="./about.html"
+          class="inline-block px-3 py-2 underline decoration-dotted underline-offset-2 hover:text-slate-800"
+          data-testid="about-link"
+          >About and privacy</a
+        >
+      </footer>
     </div>
   </div>
 </template>
