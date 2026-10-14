@@ -7,6 +7,11 @@
     c. Refine (a button, with an estimate first): every route within 2 TE of each stop of the best,
        priced on the current workers, nearest first, capped at 10 minutes.
   Whatever beats the answer above shows as "Best now" at the top of this box.
+  Since 14 Oct (Jordan) Light first prices the instant answer's routes at once, on the player's hours
+  (search/lightAtOnce.ts; it took over the instant answer's "Also try ascending the moment each ascension
+  ends" box): the lead first, then the counts table's other rows, each line shown as it lands. Then a.
+  and b. as before. The same pool does both; a search starting, Check exactly starting, a new answer or
+  leaving the screen stops it (the generation counter `autoGen` and the pool's terminate).
 -->
 <template>
   <StrongerCheckView
@@ -33,7 +38,7 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref, watch } from 'vue';
 import StrongerCheckView from './StrongerCheckView.vue';
-import { useStrongerStore } from '@/stores/stronger';
+import { idleLight, useStrongerStore } from '@/stores/stronger';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useInitialStateStore } from '@/stores/initialState';
 import { showDateTime } from '@/lib/displayTime';
@@ -46,6 +51,15 @@ import { loadHistory } from '@/search/checkHistory';
 import { existingOwnerToken } from '@/search/owner';
 import { simulateRoute } from '@/search/simulateRoute';
 import { workerSecondsFromRate } from '@/search/speed';
+import type { ChainResult } from '@/search/types';
+import {
+  atOnceQueue,
+  earlierText,
+  lookingText,
+  runAtOnce,
+  summaryLine,
+  type AtOnceItem,
+} from '@/search/lightAtOnce';
 import type { BoardRow } from '@/lib/leaderboardRank';
 import {
   beats,
@@ -97,10 +111,13 @@ const props = defineProps<{
   zone: string;
   /** Inside the Stronger check box (StrongerBox.vue): always on, no toggle of its own. */
   embedded?: boolean;
+  /** The counts table's rows (InstantRoute.vue), which Light prices at once before the earlier routes. */
+  atOnceRows?: AtOnceItem[];
 }>();
 
 const store = useChainSearchStore();
 const initialState = useInitialStateStore();
+const stronger = useStrongerStore();
 
 /** Remembered in this browser; a convenience only, so a blocked storage just means off. */
 const TOGGLE_KEY = 'aap-stronger-check';
@@ -136,8 +153,17 @@ const showMs = (t: number) => show(t / 1000);
 /** Each priced route's ascensions, for "Simulate this plan". */
 const legsOf = new Map<string, LegSummary[]>();
 let pricedFrom = 0;
-function pricer(pool: ChainSearchPool, planStart: number, refining: boolean): PriceFn {
+function pricer(
+  pool: ChainSearchPool,
+  planStart: number,
+  refining: boolean,
+  /** The first call's per-route progress (Light's "Your earlier routes: 3 of 6"). */
+  onFirst?: (done: number, total: number) => void
+): PriceFn {
+  let first = true;
   return async (chains, sameShape) => {
+    const onDone = first ? onFirst : undefined;
+    first = false;
     // Same shape: one worker shares the prefix. Refine's routes: the ones sharing all but their last
     // moved stop go to one worker. Otherwise each its own worker.
     const opts: EvaluateOptions = sameShape
@@ -147,7 +173,7 @@ function pricer(pool: ChainSearchPool, planStart: number, refining: boolean): Pr
         : { spreadOut: true };
     const { results } = await pool.evaluate(
       chains.map(c => [...c]),
-      undefined,
+      onDone,
       { ...opts, handoff: props.handoff }
     );
     const out = new Map<string, Priced | null>(chains.map(c => [key(c), null]));
@@ -278,38 +304,123 @@ function stopAuto(): void {
   autoPool = null;
 }
 
+// ------------------------------------------------------------------------------- Light: at once first
+
+/** Which of the store's at-once maps is this screen's. */
+const goalKey = computed<'fastest' | 'date'>(() => (props.deadline ? 'date' : 'fastest'));
+/** The instant answer's routes Light prices at once: the lead (Check exactly's answer) first, then the
+ *  counts table's other rows. */
+const atOnceItems = computed(() => atOnceQueue(props.atOnceRows ?? [], props.best?.chain ?? null));
+/** What Light is doing now, while it runs ("Looking at 7 ascensions (1 of 5)"). */
+const lightStep = ref('');
+/** The player's earlier routes: how many, and how many priced so far (the pool's per-route count). */
+const earlierTotal = ref(0);
+const earlierDone = ref(0);
+const lightAt = ref(0);
+function clearAtOnce(): void {
+  stronger.atOnce[goalKey.value] = {};
+}
+// A fresh screen: nothing priced at once yet for its answer.
+clearAtOnce();
+
+const toPriced = (r: ChainResult, planStart: number): Priced => ({
+  chain: [...r.chain],
+  seconds: r.seconds,
+  end: planStart + r.seconds,
+  endTE: r.legs[r.legs.length - 1]?.endTE ?? 0,
+});
+
+/** The pool, made once per Light run and shared by the at-once routes and the earlier ones: the same
+ *  workers and inputs Check exactly uses (store.collectInputs: the save, your hours, your time off). */
+async function lightPool(): Promise<{ pool: ChainSearchPool; planStart: number }> {
+  if (!autoPool) {
+    const inputs = store.collectInputs();
+    pricedFrom = inputs.planStart;
+    autoPool = await createChainSearchPool(inputs, { size: Math.max(1, Math.min(store.workerBudget, 4)) });
+  }
+  return { pool: autoPool, planStart: pricedFrom };
+}
+
+/** The instant answer's routes, each fresh ascension at once (handoff 'now'), one route per worker,
+ *  each line shown as it lands. Routes already priced for this answer (a run stopped by a search) are
+ *  skipped. False when stopped. */
+async function priceAtOnce(g: number): Promise<boolean> {
+  const have = stronger.atOnce[goalKey.value];
+  const all = atOnceItems.value;
+  const todo = all.filter(it => !(key(it.chain) in have));
+  if (!todo.length) return true;
+  const { pool, planStart } = await lightPool();
+  if (g !== autoGen) return false;
+  const offset = all.length - todo.length;
+  const which = goalKey.value;
+  return runAtOnce({
+    items: todo,
+    price: async (chains, onEach) => {
+      await pool.evaluate(chains, undefined, {
+        handoff: 'now',
+        workerOf: (cs, workers) => cs.map((_, i) => i % Math.max(1, workers)),
+        piece: 1,
+        shouldStop: () => g !== autoGen,
+        onResult: (c, r) => onEach(c, r && r.seconds > 0 ? toPriced(r, planStart) : null),
+      });
+    },
+    onResult: (c, p) => {
+      if (g === autoGen) stronger.atOnce[which] = { ...stronger.atOnce[which], [key(c)]: p };
+    },
+    onProgress: (next, i) => {
+      if (g === autoGen && next) lightStep.value = lookingText(next.count, offset + i, all.length);
+    },
+    shouldStop: () => g !== autoGen,
+    // Yield to the page between the lead and the rest, so its line paints before the next batch.
+    pause: () => new Promise<void>(r => setTimeout(r, 0)),
+  });
+}
+
 async function runAuto(): Promise<void> {
   const g = ++autoGen;
   stopAuto();
   earlier.value = [];
   steps.value = [];
   stepSkipped.value = '';
+  earlierTotal.value = 0;
+  earlierDone.value = 0;
   autoStatus.value = 'running';
-  autoText.value = 'Looking up your earlier routes for this goal…';
+  autoText.value = "Pricing the instant answer's routes ascending at once, on your account with the full simulator…";
   try {
+    // First the instant answer's routes, at once on your hours (Jordan, 14 Oct).
+    if (!(await priceAtOnce(g)) || g !== autoGen) return;
+    lightStep.value = 'Looking up your earlier routes';
+    autoText.value = 'Looking up your earlier routes for this goal…';
     const routes = await gatherEarlier();
     if (g !== autoGen) return;
+    earlierTotal.value = routes.length;
     const wantStep = !!props.deadline && props.topMissed && topTE.value !== null;
     if (wantStep && !props.ctx)
       stepSkipped.value =
         'This answer was put back from a saved one, so a TE lower is checked after Work it out again. Check exactly already lowered the last stop until it made the date.';
     const doStep = wantStep && !!props.ctx;
     if (!routes.length && !doStep) {
+      lightAt.value = Date.now();
       autoStatus.value = 'done';
       return;
     }
-    const inputs = store.collectInputs();
-    pricedFrom = inputs.planStart;
-    autoPool = await createChainSearchPool(inputs, { size: Math.max(1, Math.min(store.workerBudget, 4)) });
+    const { pool, planStart } = await lightPool();
     if (g !== autoGen) return;
-    const price = pricer(autoPool, inputs.planStart, false);
+    const price = pricer(pool, planStart, false, (d, t) => {
+      if (g !== autoGen || t !== routes.length) return;
+      earlierDone.value = d;
+      lightStep.value = earlierText(d, routes.length);
+    });
     if (routes.length) {
+      lightStep.value = earlierText(0, routes.length);
       autoText.value = `Pricing ${routes.length} earlier route${routes.length === 1 ? '' : 's'} of yours on your account with the full simulator…`;
       const got = await priceEarlier({ goal: goal.value, routes, currentTE: currentTE.value, price });
       if (g !== autoGen) return;
+      earlierDone.value = routes.length;
       earlier.value = got;
     }
     if (doStep && props.deadline && topTE.value !== null) {
+      lightStep.value = `Trying the top route ${topTE.value - 1} TE`;
       autoText.value = `The top route misses the date on your account: checking the instant answer's fastest route to ${topTE.value - 1} TE…`;
       const got = await stepDown({
         deadline: props.deadline,
@@ -322,17 +433,22 @@ async function runAuto(): Promise<void> {
       if (g !== autoGen) return;
       steps.value = got;
     }
+    lightAt.value = Date.now();
     autoStatus.value = 'done';
   } catch (err) {
     if (g !== autoGen) return;
     autoStatus.value = 'error';
     autoText.value = `The stronger check couldn't run: ${err instanceof Error ? err.message : String(err)}`;
   } finally {
-    if (g === autoGen) stopAuto();
+    if (g === autoGen) {
+      stopAuto();
+      lightStep.value = '';
+    }
   }
 }
 
-// Automatically once each Check exactly finishes (or at once, with the box ticked on a checked answer).
+// Automatically once each Check exactly finishes (or at once, with the box ticked on a checked answer), and
+// never while a search is running (`runBusy`): it waits, and starts when the search ends.
 watch(
   () => [on.value, props.exactStatus, props.exactDone, props.runBusy, props.found] as const,
   () => {
@@ -348,6 +464,7 @@ watch(
   () => props.found,
   () => {
     stopAll();
+    clearAtOnce();
     earlier.value = [];
     steps.value = [];
     stepSkipped.value = '';
@@ -361,6 +478,8 @@ watch(
   s => {
     if (s === 'running') {
       stopAll();
+      // A new Check exactly: new on-the-hour prices, so the at-once lines are priced again after it.
+      clearAtOnce();
       autoFor = null;
       autoStatus.value = 'idle';
     }
@@ -395,7 +514,6 @@ const bestNow = computed<Found | null>(() => {
 });
 
 // For the comparison block and "Start from a different route" (stores/stronger.ts).
-const stronger = useStrongerStore();
 watch(
   bestNow,
   f => {
@@ -413,21 +531,37 @@ watch(
   { immediate: true }
 );
 watch(earlier, list => (stronger.earlierChains = list.filter(e => e.priced).map(e => [...e.route.chain])));
-// Light's status sign in the box.
+// Light's status sign in the box (StrongerBox.vue): its state, what it is looking at, how many of the
+// instant answer's routes it priced at once and of your earlier routes, and its own summary line.
+const lightSummary = computed(() => {
+  const have = stronger.atOnce[goalKey.value];
+  const prices = atOnceItems.value.map(it => have[key(it.chain)]).filter(p => p !== undefined);
+  return prices.length ? summaryLine({ goal: goal.value, prices, best: props.best, show }) : '';
+});
 watch(
-  [autoStatus, earlier],
-  ([st, list]) => {
-    stronger.light = {
+  () => {
+    const have = stronger.atOnce[goalKey.value];
+    const items = atOnceItems.value;
+    const st = autoStatus.value;
+    const earlierPriced = st === 'done' ? earlier.value.filter(e => e.priced).length : earlierDone.value;
+    const total = st === 'done' ? earlier.value.length : earlierTotal.value;
+    return {
       state: st,
-      priced: list.filter(e => e.priced).length,
-      total: list.length,
-      at: st === 'done' ? Date.now() : stronger.light.at,
+      priced: earlierPriced,
+      total,
+      at: lightAt.value,
+      instant: { priced: items.filter(it => have[key(it.chain)]).length, total: items.length },
+      ...(st === 'running' && lightStep.value ? { step: `${lightStep.value}…` } : {}),
+      ...(lightSummary.value ? { summary: lightSummary.value } : {}),
     };
   },
+  l => (stronger.light = l),
   { immediate: true }
 );
 onUnmounted(() => {
   stronger.strongerBest[props.deadline ? 'date' : 'fastest'] = null;
+  clearAtOnce();
+  stronger.light = idleLight();
 });
 
 const refinePlan = computed(() => {
