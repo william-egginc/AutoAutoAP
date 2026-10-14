@@ -184,6 +184,11 @@
                             v-if="isMe(e)"
                             class="ml-1 px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[9px] font-black uppercase tracking-widest"
                             >you</span
+                          ><span
+                            v-else-if="whoIs(e) === 'maybe'"
+                            class="ml-1 text-[9px] font-semibold text-slate-400"
+                            title="Same timezone and gear as the save you loaded, but this browser holds no code that proves it."
+                            >maybe you</span
                           ></span
                         >
                         <!-- Under the name on a phone, wrapping rather than widening the column. -->
@@ -1036,11 +1041,13 @@ import {
   settingTagTitle,
   settingTags,
   startMs,
+  viewerTag,
   whoText,
   type BoardRow,
   type Plan,
   type PlayerPlans,
   type RaceEntry,
+  type ViewerTag,
 } from '@/lib/leaderboardRank';
 import {
   bestPerGroup,
@@ -1245,15 +1252,15 @@ const exactMe = computed<Set<string> | null>(() => {
 });
 
 /**
- * Is this race line the viewer's? Exactly, from /mine, when it says so. Otherwise the phase-1 guess --
- * a line with the loaded save's timezone and artifacts -- and, once /mine has answered, only for a
- * line from before owner codes: an owner line /mine did not return belongs to another browser's code.
+ * Is this race line the viewer's? 'you' only when /mine says so. Otherwise a look-alike guess (the loaded
+ * save's timezone and artifacts), and only 'maybe': never for a line that carries an owner code, and
+ * never for one that started from a higher TE than this save (see `viewerTag`).
  */
+function whoIs(e: RaceEntry): ViewerTag {
+  return viewerTag(e, exactMe.value, myKey.value, myTE.value);
+}
 function isMe(e: RaceEntry): boolean {
-  const exact = exactMe.value;
-  if (exact?.size) return exact.has(e.key);
-  if (!myKey.value || !e.accounts.has(myKey.value)) return false;
-  return !exact || !e.key.startsWith('acct:');
+  return whoIs(e) === 'you';
 }
 
 // ------------------------------------------------------------------------------------ race
