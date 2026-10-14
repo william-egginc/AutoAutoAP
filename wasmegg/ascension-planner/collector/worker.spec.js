@@ -3052,3 +3052,440 @@ describe('POST /instant (opt-in instant answer records)', () => {
     expect(instKeys()).toHaveLength(2);
   });
 });
+
+// ---------------------------------------------------------------------------------------------
+// Hide from the public (Oct 2026): POST /hide takes a player's own rows off every public read, and
+// puts them back. Nothing is deleted; /mine still returns them, marked.
+// ---------------------------------------------------------------------------------------------
+describe('POST /hide: hide from the public, and show again', () => {
+  const hide = (body, token = TOKEN_A, ip = '5.5.5.5') => postOwned('/hide', body, token, ip);
+  const send = async (body, token = TOKEN_A, ip = '1.1.1.1') => (await postOwned('/submit', body, token, ip)).json();
+  const allRows = async (path = '/all') => (await (await get(path)).json()).rows;
+  const mineRows = async (token = TOKEN_A) => (await (await getOwned('/mine', token)).json()).rows;
+  const recordOf = id => {
+    const [k, v] = [...env.SUBMISSIONS._m.entries()].find(([key]) => /^(sub|flag):/.test(key) && key.endsWith(':' + id));
+    return { key: k, record: JSON.parse(v), meta: env.SUBMISSIONS._meta.get(k) };
+  };
+  const GZ = new Uint8Array([0x1f, 0x8b, 8, 0, 0, 0, 0, 0, 0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+  const postCsv = (id, token) =>
+    worker.fetch(
+      new Request(`https://collector.test/csv?id=${id}`, { method: 'POST', headers: { 'x-upload-token': token }, body: GZ }),
+      env
+    );
+  /** Moves a board's settleAt into the past, as if its settle were due: the next read settles it. */
+  const settleDue = board => {
+    const { raw, pub } = snapOf(board);
+    env.SUBMISSIONS._m.set('snap:' + board, raw.replace(`"settleAt":${pub.settleAt}`, `"settleAt":${pub.builtAt}`));
+  };
+
+  it('hides one row from /all, /leaderboard and /all?final, keeps it in /mine marked hidden, and in KV', async () => {
+    const a = await send(SEND);
+    const b = await send({ ...SEND, durationDays: 700, nickname: 'Shown' });
+    const res = await hide({ ids: [a.id], hidden: true });
+    expect(res.status).toBe(200);
+    expect(res.headers.get('cache-control')).toContain('no-store');
+    expect(await res.json()).toEqual({ ok: true, hidden: true, ids: [a.id], changed: [a.id] });
+
+    for (const path of ['/all', '/all?final=490', '/leaderboard', '/leaderboard?final=490']) {
+      const body = await (await get(path)).json();
+      expect(body.rows.map(r => r.id), path).toEqual([b.id]);
+      expect(body.count, path).toBe(1);
+      expect(JSON.stringify(body), path).not.toContain(a.id);
+    }
+    // Still stored, flagged on the record and on the key's metadata (what a maintainer lists).
+    const { record, meta } = recordOf(a.id);
+    expect(record.hidden).toBe(true);
+    expect(meta.h).toBe(1);
+    // The owner still sees it, marked, so the app can say "Hidden from the public · Show again".
+    const mine = await mineRows();
+    expect(mine.map(r => r.id).sort()).toEqual([a.id, b.id].sort());
+    expect(mine.find(r => r.id === a.id)).toMatchObject({ hidden: true, yours: true });
+    expect(mine.find(r => r.id === b.id).hidden).toBeUndefined();
+    // In the snapshot's private line, not the public one.
+    const { pub, priv } = snapOf('sub');
+    expect(pub.rows.map(r => r.id)).toEqual([b.id]);
+    expect(priv.hid.map(r => r.id)).toEqual([a.id]);
+    expect(priv.own[a.id]).toMatch(/^[a-f0-9]{12}$/);
+  });
+
+  it('shows it again: the same row, back where it sorts, with no hidden mark anywhere', async () => {
+    const a = await send(SEND);
+    const b = await send({ ...SEND, durationDays: 700 });
+    const before = await allRows();
+    await hide({ ids: [a.id], hidden: true });
+    const res = await (await hide({ ids: [a.id], hidden: false })).json();
+    expect(res).toEqual({ ok: true, hidden: false, ids: [a.id], changed: [a.id] });
+    const after = await allRows();
+    expect(after).toEqual(before);
+    expect(after.map(r => r.id)).toEqual([a.id, b.id]);
+    expect(recordOf(a.id).record.hidden).toBeUndefined();
+    expect(recordOf(a.id).meta.h).toBeUndefined();
+    expect(snapOf('sub').priv.hid).toBeUndefined();
+    expect((await mineRows()).every(r => r.hidden === undefined)).toBe(true);
+  });
+
+  it('hides all of one code\'s rows on both boards, and no one else\'s', async () => {
+    await send(SEND);
+    await send({ ...SEND, durationDays: 700, nickname: 'Named' });
+    await send({ ...SEND, durationDays: 720, flags: ['integrity-stall'] });
+    const other = await send({ ...SEND, durationDays: 710, nickname: 'Other' }, TOKEN_B, '2.2.2.2');
+    const res = await (await hide({ all: true, hidden: true })).json();
+    expect(res.ok).toBe(true);
+    expect(res.ids).toHaveLength(3);
+    expect(res.changed).toHaveLength(3);
+    expect(res.missing).toBeUndefined();
+    expect((await allRows()).map(r => r.id)).toEqual([other.id]);
+    expect((await allRows('/leaderboard')).map(r => r.id)).toEqual([other.id]);
+    // The flagged board drops it too, even for its owner: /mine is where the owner sees it.
+    expect((await (await get('/flagged')).json()).count).toBe(0);
+    expect((await (await getOwned('/flagged', TOKEN_A)).json()).rows).toEqual([]);
+    const mine = await mineRows();
+    expect(mine).toHaveLength(3);
+    expect(mine.every(r => r.hidden === true)).toBe(true);
+    // And all of them back.
+    expect((await (await hide({ all: true, hidden: false })).json()).changed).toHaveLength(3);
+    expect(await allRows()).toHaveLength(3);
+    expect((await (await get('/flagged')).json()).count).toBe(1);
+  });
+
+  it("answers someone else's row exactly as it answers an id nobody sent, and changes nothing", async () => {
+    const a = await send(SEND);
+    const bare = await (await post('/submit', { ...SEND, durationDays: 700 }, '3.3.3.3')).json();
+    const theirs = await (await hide({ ids: [a.id], hidden: true }, TOKEN_B)).json();
+    const nobody = await (await hide({ ids: ['deadbeef'], hidden: true }, TOKEN_B)).json();
+    const noCode = await (await hide({ ids: [bare.id], hidden: true }, TOKEN_B)).json();
+    expect(theirs).toEqual({ ok: true, hidden: true, ids: [], changed: [], missing: [a.id] });
+    expect(nobody).toEqual({ ok: true, hidden: true, ids: [], changed: [], missing: ['deadbeef'] });
+    expect(noCode).toEqual({ ok: true, hidden: true, ids: [], changed: [], missing: [bare.id] });
+    // A mix: what is yours is done, the rest is `missing`.
+    const mixed = await (await hide({ ids: [a.id, 'deadbeef', bare.id], hidden: true })).json();
+    expect(mixed).toEqual({ ok: true, hidden: true, ids: [a.id], changed: [a.id], missing: ['deadbeef', bare.id] });
+    expect((await allRows()).map(r => r.id)).toEqual([bare.id]);
+    expect(recordOf(bare.id).record.hidden).toBeUndefined();
+  });
+
+  it('checks the full owner hash, not the 12 hex in the index', async () => {
+    const a = await send(SEND);
+    // Plant a record whose index entry matches the caller but whose full hash does not.
+    const { key, record } = recordOf(a.id);
+    env.SUBMISSIONS._m.set(key, JSON.stringify({ ...record, owner: record.owner.slice(0, 12) + '0'.repeat(52) }));
+    const res = await (await hide({ ids: [a.id], hidden: true })).json();
+    expect(res).toMatchObject({ ids: [], changed: [], missing: [a.id] });
+    expect((await allRows()).map(r => r.id)).toEqual([a.id]);
+  });
+
+  it('refuses a call without a usable code, or with a bad body, with 400 and writes nothing', async () => {
+    const a = await send(SEND);
+    const counts = countKV(env.SUBMISSIONS);
+    expect((await hide({ ids: [a.id], hidden: true }, null)).status).toBe(400);
+    expect((await hide({ ids: [a.id], hidden: true }, `${TOKEN_A},${TOKEN_B}`)).status).toBe(400);
+    for (const bad of [
+      { ids: [a.id] },
+      { ids: [a.id], hidden: 'yes' },
+      { hidden: true },
+      { ids: [a.id], all: true, hidden: true },
+      { all: false, hidden: true },
+      { all: 'yes', hidden: true },
+      { ids: [], hidden: true },
+      { ids: ['not an id!'], hidden: true },
+      { ids: a.id, hidden: true },
+      { ids: Array.from({ length: 51 }, (_, i) => i.toString(16).padStart(8, '0')), hidden: true },
+      [a.id],
+    ]) {
+      const res = await hide(bad);
+      expect(res.status, JSON.stringify(bad)).toBe(400);
+    }
+    expect(counts.put).toBe(0);
+    expect((await allRows()).map(r => r.id)).toEqual([a.id]);
+  });
+
+  it('serves a hidden row\'s CSV only to its owner', async () => {
+    const a = await send(SEND);
+    expect((await postCsv(a.id, a.uploadToken)).status).toBe(200);
+    await hide({ ids: [a.id], hidden: true });
+    const anon = await get(`/csv?id=${a.id}`);
+    expect(anon.status).toBe(403);
+    expect((await getOwned(`/csv?id=${a.id}`, TOKEN_B)).status).toBe(403);
+    const own = await getOwned(`/csv?id=${a.id}`, TOKEN_A);
+    expect(own.status).toBe(200);
+    expect(own.headers.get('content-type')).toBe('application/gzip');
+    expect(own.headers.get('cache-control')).toContain('no-store');
+    expect(new Uint8Array(await own.arrayBuffer())).toEqual(GZ);
+    // Still marked as having one, for the owner.
+    expect((await mineRows())[0]).toMatchObject({ hasCsv: true, hidden: true });
+    await hide({ ids: [a.id], hidden: false });
+    expect((await get(`/csv?id=${a.id}`)).status).toBe(200);
+    expect((await allRows())[0].hasCsv).toBe(true);
+  });
+
+  it('flips hasCsv on a hidden row when its CSV arrives after the hide, and keeps the CSV from the sweep', async () => {
+    const a = await send(SEND);
+    await hide({ ids: [a.id], hidden: true });
+    expect((await postCsv(a.id, a.uploadToken)).status).toBe(200);
+    expect((await mineRows())[0]).toMatchObject({ hasCsv: true, hidden: true });
+    expect((await get(`/csv?id=${a.id}`)).status).toBe(403);
+    // The sweep judges a CSV an orphan when its row is on neither snapshot: a hidden row still is.
+    await getOwned('/mine', TOKEN_A);
+    const sweep = async at => {
+      const jobs = [];
+      await worker.scheduled({ scheduledTime: at }, env, { waitUntil: p => jobs.push(p) });
+      await Promise.all(jobs);
+    };
+    const t = Date.UTC(2026, 9, 14, 0, 30);
+    await sweep(t);
+    await sweep(t + 3 * 24 * 60 * 60 * 1000);
+    expect(env.SUBMISSIONS._m.has(`csv:${a.id}`)).toBe(true);
+  });
+
+  it('costs what the README says, and a GET /csv one snapshot read more', async () => {
+    const a = await send(SEND);
+    const b = await send({ ...SEND, durationDays: 700 });
+    await getOwned('/mine', TOKEN_A); // builds the (empty) flagged board's snapshot, as a live one has
+    let counts = countKV(env.SUBMISSIONS);
+    await hide({ ids: [a.id, b.id], hidden: true });
+    // rate gate, both snapshots, the two rows, the daily count | the two rows, the snapshot, the count,
+    // the rate gate
+    expect(counts).toEqual({ get: 6, put: 5, list: 0, delete: 0 });
+    counts = countKV(env.SUBMISSIONS);
+    const again = await (await hide({ ids: [a.id, b.id], hidden: true })).json();
+    // Idempotent: nothing changes, so only the rate gate is written.
+    expect(again).toEqual({ ok: true, hidden: true, ids: [a.id, b.id], changed: [] });
+    expect(counts).toEqual({ get: 5, put: 1, list: 0, delete: 0 });
+    // GET /csv: the snapshot, then the file; a hidden row's owner adds the row.
+    await hide({ ids: [b.id], hidden: false });
+    await postCsv(b.id, b.uploadToken);
+    counts = countKV(env.SUBMISSIONS);
+    expect((await get(`/csv?id=${b.id}`)).status).toBe(200);
+    expect(counts).toEqual({ get: 2, put: 0, list: 0, delete: 0 });
+    counts = countKV(env.SUBMISSIONS);
+    expect((await get(`/csv?id=${a.id}`)).status).toBe(403);
+    expect(counts).toEqual({ get: 1, put: 0, list: 0, delete: 0 });
+  });
+
+  it('shares the rate limit of the other owner calls', async () => {
+    const a = await send(SEND, TOKEN_A, '6.6.6.6');
+    // The send above used one of 6.6.6.6's ten a minute.
+    for (let i = 0; i < 9; i++) expect((await hide({ ids: [a.id], hidden: i % 2 === 0 }, TOKEN_A, '6.6.6.6')).status).toBe(200);
+    const res = await hide({ ids: [a.id], hidden: true }, TOKEN_A, '6.6.6.6');
+    expect(res.status).toBe(429);
+    expect((await res.json()).retryAfter).toBeGreaterThan(0);
+  });
+
+  it('caps one code at 200 row changes a UTC day, and writes nothing past it', async () => {
+    const a = await send(SEND);
+    const mine12 = recordOf(a.id).record.owner.slice(0, 12);
+    const day = new Date().toISOString().slice(0, 10);
+    env.SUBMISSIONS._m.set(`hidn:${mine12}:${day}`, '200');
+    await getOwned('/mine', TOKEN_A); // builds the (empty) flagged board's snapshot, as a live one has
+    const counts = countKV(env.SUBMISSIONS);
+    const res = await hide({ ids: [a.id], hidden: true });
+    expect(res.status).toBe(429);
+    expect(await res.json()).toMatchObject({ dailyCap: true });
+    expect(counts.put).toBe(1); // the rate gate only
+    expect((await allRows()).map(r => r.id)).toEqual([a.id]);
+    // Another code is counted on its own.
+    const b = await send({ ...SEND, durationDays: 700 }, TOKEN_B, '2.2.2.2');
+    expect((await (await hide({ ids: [b.id], hidden: true }, TOKEN_B)).json()).changed).toEqual([b.id]);
+  });
+
+  it('caps all at 50 rows a call, work first, and says when there is more', async () => {
+    const ids = [];
+    for (let i = 0; i < 53; i++) {
+      // Planted straight into KV, as rows of one owner, then a rebuild: 53 sends would hit the flood caps.
+      ids.push(i.toString(16).padStart(8, '0'));
+    }
+    const a = await send(SEND);
+    const { record } = recordOf(a.id);
+    for (const [i, id] of ids.entries()) {
+      const r = { ...record, durationDays: 600 + i };
+      env.SUBMISSIONS._m.set(`sub:490:${String(Math.round(r.durationDays * 10000)).padStart(10, '0')}:${id}`, JSON.stringify(r));
+    }
+    env.SUBMISSIONS._m.delete('snap:sub');
+    expect(await allRows()).toHaveLength(54);
+    const one = await (await hide({ all: true, hidden: true })).json();
+    expect(one.changed).toHaveLength(50);
+    expect(one.more).toBe(true);
+    const two = await (await hide({ all: true, hidden: true })).json();
+    expect(two.changed).toHaveLength(4);
+    expect(two.more).toBeUndefined();
+    expect(await allRows()).toHaveLength(0);
+    expect(await mineRows()).toHaveLength(54);
+  });
+
+  it('a hidden row is counted nowhere public: count, finals, copies, the fold, or another row\'s dupOf', async () => {
+    await secondsApart(async tick => {
+      // The first copy, then the same result from a thorough search: stored, pointed at the first.
+      const first = await send({ ...SEND, finalTE: 491, chain: [195, 219, 248, 286, 327, 491], legs: SEND.legs.map((l, i, all) => (i === all.length - 1 ? { ...l, te: 491 } : l)) });
+      tick();
+      const x = await send(SEND);
+      tick();
+      const y = await send({ ...SEND, effort: 'thorough', chainsPriced: 99000 });
+      expect(y.dupOf).toBe(x.id);
+      expect((await (await get('/leaderboard')).json()).rows.find(r => r.finalTE === 490).copies).toBe(2);
+
+      await hide({ ids: [x.id, first.id], hidden: true });
+      const all = await (await get('/all')).json();
+      expect(all.count).toBe(1);
+      expect(all.finals).toEqual([490]);
+      expect(all.rows.map(r => r.id)).toEqual([y.id]);
+      // y's link to x would say this sender has another, hidden, row with this result.
+      expect(all.rows[0].dupOf).toBeUndefined();
+      expect(JSON.stringify(all)).not.toContain(x.id);
+      const board = await (await get('/leaderboard')).json();
+      expect(board.rows).toHaveLength(1);
+      expect(board.rows[0].copies).toBeUndefined();
+      expect(JSON.stringify(board)).not.toContain(x.id);
+      // ... remembered privately, and the record keeps it.
+      expect(snapOf('sub').priv.dup).toEqual({ [y.id]: x.id });
+      expect(recordOf(y.id).record.dupOf).toBe(x.id);
+      // The owner still sees the link.
+      expect((await mineRows()).find(r => r.id === y.id).dupOf).toBe(x.id);
+      // Shown again: the link comes back, and the fold with it.
+      await hide({ ids: [x.id], hidden: false });
+      expect((await allRows()).find(r => r.id === y.id).dupOf).toBe(x.id);
+      expect(snapOf('sub').priv.dup).toBeUndefined();
+      expect((await (await get('/leaderboard')).json()).rows.find(r => r.finalTE === 490).copies).toBe(2);
+    });
+  });
+
+  it('a re-send of a hidden result never shows it again: an exact copy, or the same result from another search', async () => {
+    await secondsApart(async tick => {
+      const x = await send(SEND);
+      await hide({ ids: [x.id], hidden: true });
+      tick();
+      const exact = await send(SEND);
+      expect(exact).toMatchObject({ duplicate: 'exact', id: x.id, hidden: true });
+      tick();
+      // Named this time: the rename lands on the hidden row and it stays hidden.
+      const named = await send({ ...SEND, nickname: 'Me' });
+      expect(named).toMatchObject({ duplicate: 'exact', id: x.id, renamed: true, hidden: true });
+      expect(recordOf(x.id).record).toMatchObject({ nickname: 'Me', hidden: true });
+      tick();
+      const other = await send({ ...SEND, nickname: 'Me', effort: 'thorough', chainsPriced: 99000 });
+      expect(other.duplicate).toBe('result');
+      // Never pointed at a hidden row, and stored hidden: every copy of this result is.
+      expect(other.dupOf).toBeUndefined();
+      expect(other.hidden).toBe(true);
+      expect(recordOf(other.id).record.dupOf).toBeUndefined();
+      expect(await allRows()).toEqual([]);
+      expect((await mineRows()).every(r => r.hidden === true)).toBe(true);
+      // Someone else sending the same result is their own row, public as ever.
+      tick();
+      const stranger = await send(SEND, TOKEN_B, '2.2.2.2');
+      expect(stranger.hidden).toBeUndefined();
+      expect((await allRows()).map(r => r.id)).toEqual([stranger.id]);
+    });
+  });
+
+  it('a new copy anchors on a public copy when one of the sender\'s copies is still shown', async () => {
+    await secondsApart(async tick => {
+      const x = await send(SEND);
+      tick();
+      const y = await send({ ...SEND, effort: 'thorough', chainsPriced: 99000 });
+      await hide({ ids: [x.id], hidden: true });
+      tick();
+      const z = await send({ ...SEND, effort: 'exhaustive', chainsPriced: 199000 });
+      expect(z.hidden).toBeUndefined();
+      expect(z.dupOf).toBe(y.id);
+      expect((await allRows()).map(r => r.id).sort()).toEqual([y.id, z.id].sort());
+    });
+  });
+
+  it('a final replacing a hidden progress row is hidden too', async () => {
+    const BEST = { ...SEND, durationDays: 700, chainsPriced: 1200, provisional: true, progress: { done: 1200, total: 4000 } };
+    const best = await send(BEST);
+    expect((await (await hide({ ids: [best.id], hidden: true })).json()).changed).toEqual([best.id]);
+    expect(await allRows()).toEqual([]);
+    const fin = await send({ ...SEND, durationDays: 690, chainsPriced: 4000, replaces: best.id });
+    expect(fin).toMatchObject({ replaced: best.id, hidden: true });
+    expect(recordOf(fin.id).record.hidden).toBe(true);
+    expect(await allRows()).toEqual([]);
+    const mine = await mineRows();
+    expect(mine.map(r => r.id)).toEqual([fin.id]);
+    expect(mine[0].hidden).toBe(true);
+  });
+
+  it('a rename keeps a hidden row hidden', async () => {
+    const a = await send(SEND);
+    await hide({ ids: [a.id], hidden: true });
+    expect((await postOwned('/claim', { id: a.id, nickname: 'Later' }, TOKEN_A, '7.7.7.7')).status).toBe(200);
+    expect(await allRows()).toEqual([]);
+    expect((await mineRows())[0]).toMatchObject({ nickname: 'Later', hidden: true });
+  });
+
+  it('a rebuild from nothing (snap:sub deleted) keeps hidden rows out of the public line', async () => {
+    const a = await send(SEND);
+    const b = await send({ ...SEND, durationDays: 700 });
+    await hide({ ids: [a.id], hidden: true });
+    env.SUBMISSIONS._m.delete('snap:sub');
+    expect((await allRows()).map(r => r.id)).toEqual([b.id]);
+    expect(snapOf('sub').priv.hid.map(r => r.id)).toEqual([a.id]);
+    expect((await mineRows()).find(r => r.id === a.id).hidden).toBe(true);
+    expect((await get(`/csv?id=${a.id}`)).status).toBe(403);
+  });
+
+  it('a hide whose snapshot write lost a race to another write is put right by the settle', async () => {
+    const a = await send(SEND);
+    const b = await send({ ...SEND, durationDays: 700 });
+    const raceRaw = env.SUBMISSIONS._m.get('snap:sub');
+    await hide({ ids: [a.id], hidden: true });
+    // Another write read the snapshot before the hide and wrote it after: the hide's patch is gone.
+    env.SUBMISSIONS._m.set('snap:sub', raceRaw);
+    expect((await allRows()).map(r => r.id)).toEqual([a.id, b.id]);
+    // That write asked for a settle; once it is due, the settle reads the row whose metadata changed.
+    settleDue('sub');
+    await get('/all');
+    expect((await allRows()).map(r => r.id)).toEqual([b.id]);
+    expect(snapOf('sub').priv.hid.map(r => r.id)).toEqual([a.id]);
+    // And the other way: a show whose patch was lost.
+    const hiddenRaw = env.SUBMISSIONS._m.get('snap:sub');
+    await hide({ ids: [a.id], hidden: false });
+    env.SUBMISSIONS._m.set('snap:sub', hiddenRaw);
+    settleDue('sub');
+    await get('/all');
+    expect((await allRows()).map(r => r.id)).toEqual([a.id, b.id]);
+  });
+
+  it('a hide and a send at the same moment both land, at the latest by the settle', async () => {
+    const a = await send(SEND);
+    const [h, s] = await Promise.all([
+      hide({ ids: [a.id], hidden: true }),
+      postOwned('/submit', { ...SEND, durationDays: 700 }, TOKEN_B, '2.2.2.2'),
+    ]);
+    expect(h.status).toBe(200);
+    const sent = await s.json();
+    settleDue('sub');
+    await get('/all');
+    expect((await allRows()).map(r => r.id)).toEqual([sent.id]);
+    expect((await mineRows()).map(r => [r.id, r.hidden])).toEqual([[a.id, true]]);
+  });
+
+  it('a repeat after a lost patch writes the snapshot, not the row', async () => {
+    const a = await send(SEND);
+    const raceRaw = env.SUBMISSIONS._m.get('snap:sub');
+    await hide({ ids: [a.id], hidden: true });
+    env.SUBMISSIONS._m.set('snap:sub', raceRaw);
+    const counts = countKV(env.SUBMISSIONS);
+    const res = await (await hide({ ids: [a.id], hidden: true })).json();
+    expect(res).toEqual({ ok: true, hidden: true, ids: [a.id], changed: [] });
+    // snapshot, rate gate: the record already said hidden
+    expect(counts.put).toBe(2);
+    expect(await allRows()).toEqual([]);
+  });
+
+  it('keeps hidden rows in the provisional ration and the daily flood count', async () => {
+    const BEST = { ...SEND, durationDays: 700, chainsPriced: 1200, provisional: true, progress: { done: 1200, total: 4000 } };
+    const best = await send(BEST);
+    await hide({ ids: [best.id], hidden: true });
+    // Hiding the last best so far does not reset the gap between progress sends.
+    const again = await postOwned('/submit', { ...BEST, durationDays: 695 }, TOKEN_A, '1.1.1.1');
+    expect(again.status).toBe(429);
+    expect((await again.json()).tooSoon).toBe(true);
+  });
+
+  it('lets the browser send x-owner-token across origins', async () => {
+    const res = await worker.fetch(new Request('https://collector.test/hide', { method: 'OPTIONS' }), env);
+    expect(res.headers.get('access-control-allow-headers')).toContain('x-owner-token');
+    expect(res.headers.get('access-control-allow-methods')).toContain('POST');
+  });
+});

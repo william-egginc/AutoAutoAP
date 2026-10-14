@@ -8,13 +8,20 @@
  *   POST /submit       one submission, validated, stored, rate-limited by IP. A copy of a result
  *                      already on the board is caught here and not stored twice (see "duplicates").
  *   POST /claim        {id, nickname} -> put a name on a row you sent. Needs that row's owner code.
+ *   POST /hide         {ids: [row ids] | all: true, hidden: true|false} -> take your own rows off every
+ *                      public view, or show them again. Needs the rows' owner code (one) in x-owner-token.
+ *                      Answers {ok, hidden, ids, changed, missing?, more?}. Nothing is deleted. See
+ *                      "hidden rows".
  *   POST /instant      one opt-in instant-answer record (the instant answer and its Check exactly),
  *                      stored privately under `inst:` and never served. Needs an owner code; at most
  *                      30 a day per code. See "instant answer records".
  *   GET  /leaderboard  ?final=490&limit=50  -> one line per distinct result, fastest first
- *   GET  /all          everything, for anyone who wants to do their own analysis
- *   GET  /mine         the caller's own rows from both boards, anonymous ones included. Needs the
- *                      owner code(s), comma-separated, in x-owner-token. Never cached.
+ *   GET  /all          everything public, for anyone who wants to do their own analysis (a row its
+ *                      sender hid is on no public read: /all, /leaderboard, /flagged)
+ *   GET  /csv?id=      a row's gzipped CSV; a hidden row's only with its owner code in x-owner-token
+ *   GET  /mine         the caller's own rows from both boards, anonymous and hidden ones included (a
+ *                      hidden one carries `hidden: true`). Needs the owner code(s), comma-separated, in
+ *                      x-owner-token. Never cached.
  *   GET  /flagged      the flagged board: runs from accounts the planner cannot help yet (a stall
  *                      on the Integrity shift, a plan past ten years). Anonymous, except a row
  *                      whose owner code the caller presents. A result that contradicts itself is
@@ -139,6 +146,8 @@ const MAX = {
   BACKUP_AGE_HOURS: 24 * 365,
   /** Owner codes one /mine call may present -- one per account this browser has sent for. */
   OWNER_TOKENS: 20,
+  /** Rows one /hide call may name, or change with `all` (see "hidden rows"): each is a read and a write. */
+  HIDE_IDS: 50,
   DURATION_DAYS: 100000,
   /** Schema 8: a deadline between 2020 and 2100. */
   DEADLINE_FROM: 1577836800,
@@ -989,6 +998,9 @@ async function metaOf(r) {
     at: r.receivedAt || r.submittedAt || undefined,
     // A provisional row: never a `dupOf` anchor, since its run will replace it and delete it.
     p: r.provisional === true ? 1 : undefined,
+    // A row hidden from the public (see "hidden rows"): never a `dupOf` anchor either, and what a
+    // maintainer lists to find them (`wrangler kv key list --prefix sub:`, metadata `h: 1`).
+    h: r.hidden === true ? 1 : undefined,
   });
 }
 
@@ -1284,16 +1296,23 @@ const spanFinal = span => {
 };
 
 /** Fields a stored record never passes into the snapshot as they are: derived here, or private. */
-const NOT_FROM_RECORD = new Set(['id', 'hasCsv', 'acct', 'owner', 'yours', 'provSeq', 'csvRun']);
-/** A row as the snapshot writes it: `id` then `hasCsv` first (see "the text"), never the owner. */
+const NOT_FROM_RECORD = new Set(['id', 'hasCsv', 'hidden', 'acct', 'owner', 'yours', 'provSeq', 'csvRun']);
+/** A row as the snapshot writes it: `id` then `hasCsv` first (see "the text"), never the owner. A
+ *  hidden row (see "hidden rows") says so third, `"hidden":true`, so one test on the text tells. */
 function rowText(record, id, hasCsv, acct) {
   const row = { id, hasCsv: !!hasCsv };
+  if (record.hidden === true) row.hidden = true;
   for (const [k, v] of Object.entries(record)) if (!NOT_FROM_RECORD.has(k)) row[k] = v;
   if (acct) row.acct = acct;
   return JSON.stringify(row);
 }
 /** Does this row's text say it has a CSV? */
 const spanHasCsv = (span, id) => span.startsWith(`${rowPrefix(id)},"hasCsv":true`);
+/** Is this row hidden from the public (see "hidden rows")? Read off the row's own text. */
+const HIDDEN_AT = /^\{"id":"[^"]*","hasCsv":(?:true|false),"hidden":true[,}]/;
+const spanHidden = span => HIDDEN_AT.test(span);
+/** A public row's `dupOf`, from its text (top-level only: no nested object has one). */
+const DUP_RE = /,"dupOf":"([a-f0-9-]+)"/;
 /** The `acct` for a record on `board`, or undefined: main board, named, sent with an owner code. */
 async function acctFor(sign, board, record) {
   return sign && board === 'sub' && record.nickname && typeof record.owner === 'string'
@@ -1332,6 +1351,7 @@ function openSnapshot(raw) {
   const cut = raw.indexOf('\n');
   const first = cut < 0 ? raw : raw.slice(0, cut);
   let spans = splitRows(first, head);
+  const laidOut = !!spans;
   if (!spans) {
     try {
       const rows = JSON.parse(first).rows;
@@ -1344,15 +1364,50 @@ function openSnapshot(raw) {
   }
   let own = {};
   let prov = {};
+  let hid = [];
+  let dup = {};
   try {
     const priv = cut < 0 ? {} : JSON.parse(raw.slice(cut + 1));
     own = priv.own || {};
     prov = priv.prov && typeof priv.prov === 'object' ? priv.prov : {};
+    hid = Array.isArray(priv.hid) ? priv.hid : [];
+    dup = priv.dup && typeof priv.dup === 'object' ? priv.dup : {};
   } catch {
     own = {};
     prov = {};
   }
-  return { head, first, spans, own, prov };
+  // `pub` is line 1 exactly: what the public reads serve. `spans` is every row, as the writes and the
+  // owner's reads need it: the hidden rows merged back where their keys sort, and a `dupOf` the public
+  // text left out (its target is hidden) put back. Neither costs anything on a board with no hidden row.
+  // (A line 1 laid out by hand is re-written above, and may carry a hidden row: never served.)
+  const pub = laidOut ? spans : spans.filter(s => !spanHidden(s));
+  if (hid.length || Object.keys(dup).length) {
+    spans = spans.slice();
+    for (const [id, to] of Object.entries(dup)) {
+      const at = typeof to === 'string' && ROW_ID.test(to) ? spans.findIndex(s => s.startsWith(rowPrefix(id))) : -1;
+      if (at >= 0 && !DUP_RE.test(spans[at])) spans[at] = `${spans[at].slice(0, -1)},"dupOf":"${to}"}`;
+    }
+    for (const r of hid) {
+      if (!r || typeof r !== 'object' || typeof r.id !== 'string' || r.hidden !== true) continue;
+      if (spans.some(s => s.startsWith(rowPrefix(r.id)))) continue;
+      insertSorted(spans, rowText(r, r.id, r.hasCsv, r.acct));
+    }
+  }
+  return { head, first, pub, spans, own, prov };
+}
+
+/** Put a row's text where it sorts among `spans` (target, then duration, then id: the key's order,
+ *  which is the same on both boards since only the prefix differs). */
+function insertSorted(spans, text) {
+  const key = spanKey('', text);
+  let lo = 0;
+  let hi = spans.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (spanKey('', spans[mid]) < key) lo = mid + 1;
+    else hi = mid;
+  }
+  spans.splice(lo, 0, text);
 }
 
 /**
@@ -1361,14 +1416,36 @@ function openSnapshot(raw) {
  * a row taken off the board takes its entry with it.
  */
 function composeSnapshot(spans, own, builtAt, settleAt, prov = {}) {
-  const finals = [...new Set(spans.map(spanFinal).filter(Number.isFinite))].sort((a, b) => a - b);
+  // Hidden rows (see "hidden rows") go to the private line; the public one never sees them, so its
+  // `count` and `finals` do not either.
+  const pub = [];
+  const hid = [];
+  for (const s of spans) (spanHidden(s) ? hid : pub).push(s);
+  // A public row's `dupOf` naming a hidden row would say the sender has another, hidden, row with
+  // this result: left out of the public text, remembered privately (`dup`), put back when it is shown.
+  const dup = {};
+  if (hid.length) {
+    const hidIds = new Set(hid.map(spanId));
+    for (let i = 0; i < pub.length; i++) {
+      const m = DUP_RE.exec(pub[i]);
+      if (!m || !hidIds.has(m[1])) continue;
+      dup[spanId(pub[i])] = m[1];
+      pub[i] = pub[i].replace(m[0], '');
+    }
+  }
+  const finals = [...new Set(pub.map(spanFinal).filter(Number.isFinite))].sort((a, b) => a - b);
   const kept = {};
   for (const [id, v] of Object.entries(prov)) if (own[id] !== undefined && typeof v === 'string') kept[id] = v;
+  const priv = JSON.stringify({
+    own,
+    ...(Object.keys(kept).length ? { prov: kept } : {}),
+    ...(Object.keys(dup).length ? { dup } : {}),
+  });
   return (
     `{"builtAt":${builtAt},"v":${SNAP_VERSION},"settleAt":${settleAt},` +
     `"finals":${finals.length <= SNAP_MAX_FINALS ? JSON.stringify(finals) : 'null'},` +
-    `"count":${spans.length},"rows":[${spans.join(',')}]}\n` +
-    JSON.stringify(Object.keys(kept).length ? { own, prov: kept } : { own })
+    `"count":${pub.length},"rows":[${pub.join(',')}]}\n` +
+    (hid.length ? `${priv.slice(0, -1)},"hid":[${hid.join(',')}]}` : priv)
   );
 }
 
@@ -1410,8 +1487,12 @@ async function putSnapshot(env, board, text) {
   }
 }
 
+/** The rows a change writes: `row` (one), or `rows` (a hide of several, see "hidden rows"). */
+const changedRows = change => (change?.rows ?? (change?.row ? [change.row] : []));
+
 /**
- * Apply one write's change to `snap:<board>`: `{row: {key, record}}` (a new or renamed row),
+ * Apply one write's change to `snap:<board>`: `{row: {key, record}}` (a new or renamed row; `rows`
+ * for several, as a hide sends),
  * `{remove: id}` (a replaced provisional row, alone or beside `row`) or `{csvId}`. One read, one
  * write, no list. Resolves to the new text, to null when `csvId` (or a lone `remove`) is not a row of
  * this board (nothing written), or to false when the write did not land.
@@ -1429,19 +1510,20 @@ async function patchSnapshot(env, board, change, preRead) {
     return settled.stored ? settled.text : false;
   }
   const { spans, own, prov } = snap;
+  const rows = changedRows(change);
   if (change.remove) {
     const at = spans.findIndex(s => s.startsWith(rowPrefix(change.remove)));
-    if (at < 0 && !change.row && !change.csvId) return null;
+    if (at < 0 && !rows.length && !change.csvId) return null;
     if (at >= 0) spans.splice(at, 1);
     delete own[change.remove];
     delete prov[change.remove];
   }
-  if (change.row) {
-    const { key, record } = change.row;
+  const sign = rows.length && board === 'sub' ? await acctSigner(env) : null;
+  for (const { key, record } of rows) {
     const id = idOf(key);
     const held = spans.find(s => s.startsWith(rowPrefix(id)));
-    const acct = await acctFor(board === 'sub' ? await acctSigner(env) : null, board, record);
-    // A rename keeps the row's hasCsv; a new row has no CSV yet (its token was not even sent).
+    const acct = await acctFor(sign, board, record);
+    // A rename (or a hide) keeps the row's hasCsv; a new row has no CSV yet (its token was not even sent).
     placeRow(board, spans, key, rowText(record, id, !!held && spanHasCsv(held, id), acct));
     if (typeof record.owner === 'string') own[id] = record.owner.slice(0, OWNER_HEX);
     if (typeof record.provSeq === 'string') prov[id] = record.provSeq;
@@ -1491,7 +1573,12 @@ async function settleSnapshot(env, board, raw, change = null) {
     const held = byId.get(idOf(k.name));
     if (!held) need.push(k.name);
     // A rename writes the key's metadata too; a row stored before metadata existed was never renamed.
-    else if (k.metadata && typeof k.metadata.fp === 'string' && (k.metadata.n || '') !== spanNickname(held)) {
+    // So does a hide (`h`, see "hidden rows"): a hide whose patch lost a race is put right here.
+    else if (
+      k.metadata &&
+      typeof k.metadata.fp === 'string' &&
+      ((k.metadata.n || '') !== spanNickname(held) || !!k.metadata.h !== spanHidden(held))
+    ) {
       need.push(k.name);
     }
   }
@@ -1520,7 +1607,7 @@ async function settleSnapshot(env, board, raw, change = null) {
     }
     if (record && typeof record === 'object' && !Array.isArray(record)) await addRecord(take[i], record);
   }
-  if (change?.row) await addRecord(change.row.key, change.row.record);
+  for (const r of changedRows(change)) await addRecord(r.key, r.record);
   if (change?.csvId) csvIds.add(change.csvId);
   const keyed = [];
   for (const [id, s] of byId) {
@@ -1595,12 +1682,13 @@ async function readSnapshotText(env, ctx, board) {
   return raw;
 }
 
-/** Every row of a snapshot, parsed, and the owner index: for the reads that need to look inside. */
+/** Every PUBLIC row of a snapshot (line 1: never a hidden one), parsed, and the owner index: for the
+ *  public reads that need to look inside. */
 function parseSnapshot(raw) {
   const snap = openSnapshot(raw);
   if (!snap) return { rows: [], own: {} };
   const rows = [];
-  for (const s of snap.spans) {
+  for (const s of snap.pub) {
     try {
       rows.push(JSON.parse(s));
     } catch {
@@ -1957,7 +2045,7 @@ async function replaceTarget(env, ctx, id, owner, boards) {
     return { ok: false, id, why: 'that row was not sent with your owner code' };
   }
   if (stored.provisional !== true) return { ok: false, id, why: 'that row is a final result, not a best so far' };
-  return { ok: true, id, board: found.board, key: found.key, hasCsv: found.hasCsv };
+  return { ok: true, id, board: found.board, key: found.key, hasCsv: found.hasCsv, hidden: stored.hidden === true };
 }
 
 /** Delete a replaced provisional row, its CSV so far and its private extras. The snapshot is the
@@ -1979,6 +2067,64 @@ async function deleteRow(env, target, keepRun) {
   }
   await env.SUBMISSIONS.delete(`csv:${target.id}`);
   await env.SUBMISSIONS.delete(`extra:${target.id}`);
+}
+
+// ------------------------------------------------------------------ hidden rows
+//
+// "Hide from the public" (Oct 2026): a player takes their own rows off every public view with one
+// click, and can show them again. NO DELETE: a hidden row stays in KV, and in the maintainer's
+// analytics, which read KV with wrangler.
+//
+// WHO: proven exactly as /claim proves it -- the owner code in x-owner-token, whose full SHA-256 must
+// equal the `owner` stored on the row. Never the name, never the 12 hex in the owner index (that only
+// narrows the search; every row is read and checked on the full hash before anything is written).
+// One code per call. A row that is not yours and a row that does not exist get the same answer
+// (`missing`), so /hide cannot be used to ask whether someone else's row exists.
+//
+// WHAT IS STORED: `hidden: true` on the row's record (absent once shown again) and `h: 1` in its key's
+// metadata. The metadata is how a maintainer finds them (see the README) and how a settle notices a
+// hide whose snapshot patch lost a race (as `n` does for a rename). In the snapshot a hidden row moves
+// to the PRIVATE second line (`hid`: the rows, written exactly as public ones, `"hidden":true` third),
+// so line 1 -- the /all body, and what /leaderboard and /flagged read -- never holds one, and its
+// `count` and `finals` do not count one. `own` and `prov` keep them, so /mine, /claim, a `replaces`,
+// the provisional ration, the 60-a-day count and the sweep all still find them with no extra read.
+// A public row whose `dupOf` names a hidden row has that field left out of line 1 (remembered in the
+// private `dup`, put back when the row is shown again): it would tell a reader the sender has another,
+// hidden, row with this result.
+//
+// AND EVERYWHERE ELSE: a hidden row is never a `dupOf` anchor (`h`); an exact copy of it is caught as
+// usual, stores nothing and stays hidden (the reply says `hidden: true`: sending it again is not "Show
+// again"); a new row whose same-sender copies are ALL hidden is stored hidden; a row that replaces a
+// hidden provisional row (a final, or the next progress send) is stored hidden; a rename keeps it
+// hidden. GET /csv serves a hidden row's CSV only to its owner (403 to everyone else).
+//
+// COST (`POST /hide`, N rows, N <= MAX.HIDE_IDS): reads: rate gate, both snapshots, N rows, the owner's
+// daily count; writes: N rows (only those that change), one snapshot per board touched, the count, the
+// rate gate. No list, no delete. Capped at HIDE_PER_DAY row changes per owner code per UTC day, so one
+// account toggling cannot spend the free plan's 1,000 writes.
+//
+// A ROLLBACK to a Worker from before this would show hidden rows again: its settle reads the records
+// and does not know `hidden`.
+/** Row changes one owner code may make with /hide in a UTC day (a hide and a show are one each). */
+const HIDE_PER_DAY = 200;
+
+/**
+ * Where row `id` is, from the snapshots: `{board, key, hidden}`, or null when it is on neither (a
+ * row deleted, or one whose patch has not landed). `boards` as for findRow.
+ */
+async function rowPlace(env, ctx, id, boards = {}) {
+  for (const b of ['sub', 'flag']) {
+    const raw = (boards[b] ??= await readSnapshotText(env, ctx, b));
+    if (typeof raw !== 'string') continue;
+    const at = raw.indexOf(rowPrefix(id));
+    if (at < 0) continue;
+    const cut = raw.indexOf('\n');
+    // Line 1 holds only public rows; a hidden one is in line 2's `hid`, the only `{"id":"` there.
+    const hidden = cut >= 0 && at > cut;
+    const span = viewSnapshot(raw)?.spans.find(sp => sp.startsWith(rowPrefix(id)));
+    if (span) return { board: b, key: spanKey(b, span), hidden };
+  }
+  return null;
 }
 
 // ------------------------------------------------------------------ the CSV in parts
@@ -2858,6 +3004,9 @@ export default {
       }
       const replace = await replaceTarget(env, ctx, rowId(body.replaces), owner, boards);
       const replaced = replace?.ok ? replace : null;
+      // A row that takes a hidden row's place is hidden too (see "hidden rows"): the run's newer
+      // answer is the same thing its sender took off the board.
+      if (replaced?.hidden) record.hidden = true;
       if (record.provisional) {
         // This send's place in its chain's day (see "provisional rows"): private, never on the row's text.
         const day = utcDay(Date.parse(record.receivedAt));
@@ -2906,6 +3055,8 @@ export default {
           duplicate: 'exact',
           firstAt: exact.meta.at ?? null,
           nickname: exact.meta.n || '',
+          // Hidden, and it stays hidden: sending it again is not "Show again" (see "hidden rows").
+          ...(exact.meta.h ? { hidden: true } : {}),
           ...flagged,
           ...replaceReply,
         };
@@ -2963,8 +3114,12 @@ export default {
       // player's -- exactly what the app promises an anonymous send never shows. The reply still says
       // it is the same result: that goes to the sender alone. Never at a provisional row: its run
       // will replace it, and the row will be gone.
-      const anchor = copies.find(c => !c.meta.p && !!c.meta.n === !!record.nickname);
+      // Nor at a hidden row (see "hidden rows"). And a result whose every copy from this sender is
+      // hidden arrives hidden: a re-send from another search never quietly shows it again.
+      const anchor = copies.find(c => !c.meta.p && !c.meta.h && !!c.meta.n === !!record.nickname);
       if (anchor) record.dupOf = anchor.id;
+      if (!record.hidden && copies.length && copies.every(c => c.meta.h)) record.hidden = true;
+      if (record.hidden) meta.h = 1;
       await env.SUBMISSIONS.put(key, JSON.stringify(record), { metadata: meta });
       // On the board before the answer goes back, so the CSV and a "Put my name on it" that follow
       // find the row (see "snapshots" above). A replaced row on the same board leaves in the same
@@ -2992,6 +3147,7 @@ export default {
         ...(record.csvRun ? { deltaToken: await deltaToken(env, record.csvRun) } : {}),
         ...flagged,
         ...(copies.length ? { duplicate: 'result', ...(record.dupOf ? { dupOf: record.dupOf } : {}) } : {}),
+        ...(record.hidden ? { hidden: true } : {}),
         ...replaceReply,
       });
     }
@@ -3046,6 +3202,148 @@ export default {
       await commitSnapshot(env, ctx, found.board, { row: { key: found.key, record: stored } }, url.origin);
       await gate.commit();
       return json({ ok: true, id, nickname });
+    }
+
+    // -------------------------------------------------------------------- hide
+    // "Hide from the public" and "Show again" (see "hidden rows"). `{ids: [...]}` or `{all: true}`,
+    // with `hidden: true` to hide and `false` to show; one owner code in x-owner-token. Idempotent: a
+    // row already in that state is answered as done and written again only if its snapshot disagrees.
+    if (url.pathname === '/hide' && request.method === 'POST') {
+      const gate = await floodGate(env, request);
+      if (gate.refused) return gate.refused;
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return json({ error: 'body must be JSON' }, 400, PRIVATE);
+      }
+      const owner = await ownerHash(request.headers.get('x-owner-token'));
+      if (!owner) return json({ error: 'send your owner code (one) in the x-owner-token header' }, 400, PRIVATE);
+      const problems = [];
+      if (!body || typeof body !== 'object' || Array.isArray(body)) problems.push('body must be an object');
+      else {
+        if (typeof body.hidden !== 'boolean') problems.push('hidden must be true (hide) or false (show again)');
+        const all = body.all === true;
+        if (body.all !== undefined && typeof body.all !== 'boolean') problems.push('all must be true or false');
+        if (all === (body.ids !== undefined)) problems.push('send either ids (a list of row ids) or all: true');
+        if (
+          body.ids !== undefined &&
+          (!Array.isArray(body.ids) || !body.ids.length || body.ids.length > MAX.HIDE_IDS || !body.ids.every(rowId))
+        ) {
+          problems.push(`ids must be a list of 1 to ${MAX.HIDE_IDS} row ids`);
+        }
+      }
+      if (problems.length) return json({ error: 'rejected', problems }, 400, PRIVATE);
+      const want = body.hidden;
+      const mine = owner.slice(0, OWNER_HEX);
+
+      // Which rows, from the snapshots (two reads, no list). The 12-hex owner index narrows; each row's
+      // record is read below and its full hash decides.
+      const boards = { sub: await readSnapshotText(env, ctx, 'sub'), flag: await readSnapshotText(env, ctx, 'flag') };
+      const owned = [];
+      for (const b of ['sub', 'flag']) {
+        const snap = viewSnapshot(boards[b]);
+        if (!snap) continue;
+        for (const sp of snap.spans) {
+          const id = spanId(sp);
+          if (snap.own[id] === mine) owned.push({ id, board: b, key: spanKey(b, sp), wasHidden: spanHidden(sp) });
+        }
+      }
+      let picked;
+      let missing = [];
+      let more = false;
+      if (body.all) {
+        // Rows whose board does not already show the asked-for state first, so the cap is spent on work.
+        const todo = [...owned.filter(r => r.wasHidden !== want), ...owned.filter(r => r.wasHidden === want)];
+        picked = todo.slice(0, MAX.HIDE_IDS);
+        more = todo.slice(MAX.HIDE_IDS).some(r => r.wasHidden !== want);
+      } else {
+        const ids = [...new Set(body.ids)];
+        const byId = new Map(owned.map(r => [r.id, r]));
+        picked = ids.filter(id => byId.has(id)).map(id => byId.get(id));
+        missing = ids.filter(id => !byId.has(id));
+      }
+      const records = await Promise.all(
+        picked.map(r =>
+          env.SUBMISSIONS.get(r.key).then(
+            v => {
+              try {
+                return JSON.parse(v);
+              } catch {
+                return null;
+              }
+            },
+            () => null
+          )
+        )
+      );
+      const done = [];
+      const writes = [];
+      const patches = { sub: [], flag: [] };
+      picked.forEach((r, i) => {
+        const rec = records[i];
+        // Not yours (on the full hash), or gone: the same answer as an id nobody sent.
+        if (!rec || typeof rec !== 'object' || rec.owner !== owner) {
+          if (!body.all) missing.push(r.id);
+          return;
+        }
+        done.push(r.id);
+        const recordChanges = (rec.hidden === true) !== want;
+        if (recordChanges) {
+          if (want) rec.hidden = true;
+          else delete rec.hidden;
+          writes.push({ r, rec });
+        }
+        // The snapshot is patched when the record changes, or when it shows the row the other way (a
+        // patch that lost a race): the record is the truth.
+        if (recordChanges || r.wasHidden !== want) patches[r.board].push({ key: r.key, record: rec });
+      });
+      // The owner's daily ration (see "hidden rows"): read only when something would be written.
+      const countKey = `hidn:${mine}:${utcDay(Date.now())}`;
+      let used = 0;
+      if (writes.length) {
+        used = Number(await env.SUBMISSIONS.get(countKey)) || 0;
+        if (used + writes.length > HIDE_PER_DAY) {
+          const now = Date.now();
+          const midnight = Date.UTC(new Date(now).getUTCFullYear(), new Date(now).getUTCMonth(), new Date(now).getUTCDate() + 1);
+          await gate.commit();
+          return json(
+            {
+              error: `at most ${HIDE_PER_DAY} hides and shows a day from one account; more after midnight UTC`,
+              retryAfter: Math.max(1, Math.ceil((midnight - now) / 1000)),
+              dailyCap: true,
+            },
+            429,
+            PRIVATE
+          );
+        }
+      }
+      // Records first, then the boards: a snapshot write that loses a race is put right by the settle,
+      // which reads the `h` this writes into each key's metadata.
+      for (const { r, rec } of writes) await env.SUBMISSIONS.put(r.key, JSON.stringify(rec), { metadata: await metaOf(rec) });
+      for (const b of ['sub', 'flag']) {
+        if (patches[b].length) await commitSnapshot(env, ctx, b, { rows: patches[b] }, url.origin, boards[b]);
+      }
+      if (writes.length) {
+        try {
+          await env.SUBMISSIONS.put(countKey, String(used + writes.length), { expirationTtl: 2 * 86400 });
+        } catch {
+          /* KV refuses a second write to one key inside a second: the rows are done, the count can lag */
+        }
+      }
+      await gate.commit();
+      return json(
+        {
+          ok: true,
+          hidden: want,
+          ids: done,
+          changed: writes.map(w => w.r.id),
+          ...(missing.length ? { missing } : {}),
+          ...(more ? { more: true } : {}),
+        },
+        200,
+        PRIVATE
+      );
     }
 
     // --------------------------------------------------------------- the CSV
@@ -3214,6 +3512,24 @@ export default {
     if (url.pathname === '/csv' && request.method === 'GET') {
       const id = url.searchParams.get('id');
       if (!id || !/^[a-f0-9-]{4,40}$/.test(id)) return json({ error: 'bad id' }, 400);
+      // A hidden row's CSV is its owner's alone (see "hidden rows"): the snapshot says which rows are
+      // hidden (a read, two for a flagged row), and the record's full owner hash decides (one more).
+      const place = await rowPlace(env, ctx, id);
+      if (place?.hidden) {
+        const owner = await ownerHash(request.headers.get('x-owner-token'));
+        let stored = null;
+        if (owner) {
+          try {
+            stored = JSON.parse(await env.SUBMISSIONS.get(place.key));
+          } catch {
+            stored = null;
+          }
+        }
+        if (!owner || !stored || stored.owner !== owner) {
+          return json({ error: 'this CSV is not public: its row was hidden by the player who sent it' }, 403, PRIVATE);
+        }
+      }
+      const csvHeaders = place?.hidden ? PRIVATE : {};
       // One read for a whole file, as before; a CSV in parts says so in its metadata and is joined
       // here (see "the CSV in parts"), so the board's link and every script reading /csv get one file.
       const got =
@@ -3306,6 +3622,7 @@ export default {
           'content-type': 'application/gzip',
           'content-disposition': `attachment; filename="chains-${id}.csv.gz"`,
           ...CORS,
+          ...csvHeaders,
         },
       });
     }
@@ -3327,7 +3644,7 @@ export default {
             return jsonText(publicPart(raw));
           }
           // Filtered on the rows' text, not on parsed rows (the target is a top-level number).
-          const spans = (openSnapshot(raw)?.spans ?? []).filter(sp => spanField(sp, FINAL_RE) === final);
+          const spans = (openSnapshot(raw)?.pub ?? []).filter(sp => spanField(sp, FINAL_RE) === final);
           const builtAt = head ? head.builtAt : Date.now();
           return jsonText(`{"builtAt":${builtAt},"count":${spans.length},"rows":[${spans.join(',')}]}`);
         }

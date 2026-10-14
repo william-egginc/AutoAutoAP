@@ -209,12 +209,13 @@ no button.
 | `POST /claim` | `{ id, nickname }` with `x-owner-token`: puts a name on a row sent with that owner code. `403` if the row has no code or another one, `404` for an unknown id, `400` for a bad name (same rule as `/submit`, and not empty). Shares `/submit`'s rate limit |
 | `POST /csv?id=<id>` | that run's gzipped CSV, once. Needs the `x-upload-token` header `/submit` returned. Must be gzip, capped at 8 MB compressed. For a provisional row it is the CSV so far, answered `{ ok, bytes, partial: true }` |
 | `POST /csv?id=<id>&part=<n>&parts=<m>` | one part of a CSV whose gzip is over 8 MB (see *A CSV in parts*). Same token, same 8 MB cap per part; `2 <= m <= 8`. Parts `1..m-1` first, then part 0, which seals the file; `422` with `missing: [n...]` when part 0 comes before the rest |
+| `POST /hide` | `{ ids: [<row id>...], hidden }` or `{ all: true, hidden }` with `x-owner-token` (one code): `hidden: true` takes those rows of yours off every public read, `false` shows them again (see *Hidden rows*). Nothing is deleted. `200 { ok, hidden, ids, changed, missing?, more? }`: `ids` every row now in that state, `changed` the ones this call moved, `missing` asked-for ids that are not found **or not yours** (one answer for both), `more: true` when `all` left rows for another call (50 a call). `400` for no or bad code, both or neither of `ids`/`all`, a non-boolean `hidden`, or more than 50 ids; `429` from `/submit`'s rate limit, or with `dailyCap: true` past 200 row changes a UTC day from one code. Idempotent; never cached |
 | `POST /instant` | one opt-in instant answer record with `x-owner-token` (required). Stored privately under `inst:<UTC day>:<id>` for 180 days and never served (see *Instant answer records*). `{ ok, id }`; `400` with `problems` (each naming the field), `413` past 8 KB, `429` past 30 a day from one owner code |
-| `GET /csv?id=<id>` | it back, as a `.csv.gz` file (`application/gzip`); a CSV in parts comes back joined, one file |
+| `GET /csv?id=<id>` | it back, as a `.csv.gz` file (`application/gzip`); a CSV in parts comes back joined, one file. A hidden row's CSV answers `403` unless `x-owner-token` is that row's owner code (then `200`, `private, no-store`) |
 | `GET /leaderboard?final=490&limit=50` | one line per distinct result, already in duration order, copies folded (`copies: n` when more than one). `limit` is at most 200. By a date answers (rows with a `deadline`) are left out: plan lengths do not rank them |
-| `GET /all` | every row, By a date answers included, for your own analysis. `?final=490` narrows it |
-| `GET /mine` | the caller's own rows from both boards, anonymous ones included, each with `yours: true`. `x-owner-token` may be a comma list (up to 20 codes). Never cached |
-| `GET /flagged` | the flagged board (below): anonymous, except rows whose owner code the caller sends as `x-owner-token` |
+| `GET /all` | every public row, By a date answers included, for your own analysis. `?final=490` narrows it. A hidden row is on no public read (`/all`, `/leaderboard`, `/flagged`), nor in `count` or `finals` |
+| `GET /mine` | the caller's own rows from both boards, anonymous and hidden ones included, each with `yours: true`; a hidden one also carries `hidden: true`. `x-owner-token` may be a comma list (up to 20 codes). Never cached |
+| `GET /flagged` | the flagged board (below): anonymous, except rows whose owner code the caller sends as `x-owner-token`. A hidden row is left out even for its owner (it is in `/mine`) |
 | `GET /` | the leaderboard page |
 
 **The flagged board.** A submission carrying `flags` (a stall on the Integrity shift, a plan past ten
@@ -353,7 +354,8 @@ end. While it runs, the app can send its best so far as a **provisional** row an
 - **No expiry.** A run that is abandoned leaves its provisional row on the board, tagged.
 
 What each costs in KV operations, on settled boards (checked by `worker.spec.js`, "costs what the
-README says" and "costs at most seven writes a send"). Every write asks for one settle, which the next
+README says" -- the hide lines and `GET /csv` by its namesake under "POST /hide" -- and "costs at most
+seven writes a send"). Every write asks for one settle, which the next
 read of that board does whoever reads it (the next progress send's own snapshot read, at the latest):
 **2 lists and 1 write**, plus a read per row the snapshot lacks. It is listed as its own line, because
 it is paid once per burst of writes, not per request.
@@ -375,6 +377,9 @@ it is paid once per burst of writes, not per request.
 | quarantined (see *Quarantine*) | 2 (rate gate, the day's key); +1 snapshot for `too-many-today` | 2 (record, rate gate); 1 for a repeat that day | 0 | 0 |
 | ... plus its CSV | 1 (write-once check) | 1 (`quarcsv:`) | 0 | 0 |
 | the hourly sweep (see *The sweep*) | 1-3, + up to 20 | 0-1 | 0-10 | 1 |
+| hide or show N rows (`POST /hide`, N <= 50, see *Hidden rows*) | 4 + N (rate gate, both snapshots, the N rows, the daily count) | N + 3 (the rows that change, the snapshot, the count, the rate gate); +1 when rows on both boards change | 0 | 0 |
+| ... the same call again (nothing changes) | 3 + N | 1 (rate gate) | 0 | 0 |
+| `GET /csv` | 2 (the snapshot, to see whether the row is hidden; the file); +1 for a flagged row's (the other snapshot); +1 for a hidden row's, read by its owner (the row); a refused one (`403`) reads only the snapshot | 0 | 0 | 0 |
 
 So a progress send costs **7 writes** counting its settle (6 without diagnostics), 3 deletes and 2
 lists. At the default one an hour a day-long run is about 168 writes, 72 deletes and 48 lists; at the
@@ -389,6 +394,56 @@ gzipped a request (KV's own ceiling is 25 MB a value); past that it goes in part
 parts*, each part one more write), up to 64 MB. Past 64 MB the app sends the row and its diagnostics
 without the CSV and says so. Each send's CSV replaces the last one's, so a
 running run holds one at a time.
+
+### Hidden rows ("Hide from the public")
+
+A player can take their own rows off every public view with one click, and put them back. **Nothing
+is deleted**: a hidden row stays in KV, keeps its CSV, and still counts in the maintainer's own
+analysis (which reads KV with wrangler, not `/all`).
+
+- **Who.** `POST /hide` with the owner code in `x-owner-token` (one code a call), proven exactly as
+  `/claim` proves it: the code's full SHA-256 must equal the `owner` stored on the row. Never the
+  name, never the 12-hex index entry (that only narrows the search; every row is read and checked on
+  the full hash first). A row that is not yours and an id nobody sent both come back in `missing`, so
+  the call cannot be used to ask whether someone else's row exists.
+- **What changes.** The record gets `hidden: true` (removed again by `hidden: false`) and its key's
+  metadata `h: 1`. In the board snapshot the row moves to the private second line (`hid`, written
+  exactly as a public row, with `"hidden":true` third), so line 1 -- the `/all` body, which
+  `/leaderboard`, `/flagged` and every view in the app (Egg Day, Race to 490, All runs, By a date,
+  Insights) are built from -- never holds it, and its `count` and `finals` do not count it. Gone from
+  a reader's `/all` within a minute (the edge cache is dropped at once; KV's own read cache is up to
+  60 s elsewhere). A public row whose `dupOf` names a hidden row loses that field in line 1 (kept in
+  the record, and privately as `dup`), and gets it back when the row is shown again.
+- **What does not change.** The owner index (`own`), so `/mine` (which marks the row `hidden: true`),
+  `/claim`, a progress send's `replaces`, the progress-send ration, the 60-a-day `too-many-today`
+  count and the sweep (which keeps the row's CSV) all still see it. Its CSV is served only to its
+  owner (`GET /csv` with the code; `403` for anyone else).
+- **Copies.** A hidden row is never a `dupOf` anchor. Sending the same result again never shows it
+  again: an exact copy stores nothing and answers `hidden: true` (a named copy still names the row,
+  which stays hidden); a copy from another search is stored **hidden** when every earlier copy from
+  that sender is hidden (and `hidden: true` in its reply), public when one of them is still shown. A
+  final (or a newer progress send) replacing a hidden progress row is stored hidden too. A rename
+  keeps it hidden. Showing it again is only ever `POST /hide` with `hidden: false`.
+- **Races.** The records are written first, then one snapshot patch per board. A patch lost to
+  another write at the same moment is put right by the settle that write asked for, which re-reads a
+  row whose `h` disagrees with the snapshot (as it does for a rename's `n`). A row so new that its
+  own snapshot patch has not landed comes back in `missing`; try again.
+- **Rationed**: at most 50 rows a call (`all: true` past that answers `more: true`; call again) and
+  200 row changes a UTC day per owner code (`hidn:<owner 12 hex>:<day>`, kept two days), on top of
+  `/submit`'s 10 a minute per address, so one account toggling cannot spend the free plan's 1,000
+  writes. A call that changes nothing writes only the rate gate.
+- **Rolling back** the Worker to a build from before this would show hidden rows again (its settle
+  reads the records and does not know `hidden`).
+
+**Finding them as the maintainer** (no admin endpoint; KV only):
+
+```bash
+# every hidden row, both boards: the key metadata says h: 1
+npx wrangler kv key list --binding SUBMISSIONS --remote --prefix sub: --config "$PWD/wrangler.toml" | jq -r '.[] | select(.metadata.h == 1) | .name'
+npx wrangler kv key list --binding SUBMISSIONS --remote --prefix flag: --config "$PWD/wrangler.toml" | jq -r '.[] | select(.metadata.h == 1) | .name'
+# or, in one read, the hidden rows a board snapshot holds privately
+npx wrangler kv key get --binding SUBMISSIONS --remote snap:sub --config "$PWD/wrangler.toml" | sed -n 2p | jq '.hid'
+```
 
 ### A CSV in parts
 
