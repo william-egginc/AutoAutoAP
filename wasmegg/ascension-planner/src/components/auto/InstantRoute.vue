@@ -81,6 +81,16 @@
       {{ lowTeNote }}
     </p>
 
+    <!-- A table from an older simulator (search/simVersion.ts): still shown, said so. -->
+    <p
+      v-if="status !== 'loading' && simNote"
+      class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] leading-relaxed text-amber-900"
+      data-testid="instant-sim-version"
+    >
+      This instant answer comes from a table {{ simNote }}, not the simulator this page runs, so its routes and
+      dates may be a little off. <b>Check exactly</b> to confirm.
+    </p>
+
     <p
       v-if="header?.fake"
       class="rounded-lg bg-rose-50 border border-rose-200 px-3 py-2 text-[12px] font-bold text-rose-800"
@@ -818,6 +828,7 @@ import type { TableHeader } from '@/search/precomputedTable';
 import { useInitialStateStore } from '@/stores/initialState';
 import { ownerToken } from '@/search/owner';
 import { appBuildId } from '@/search/submission';
+import { SIM_VERSION, tableSimMismatch } from '@/search/simVersion';
 import { describeAvailability } from '@/search/availabilitySchedule';
 import { CTE_CLEARS, INTEGRITY_BLOCK_SECONDS, INTEGRITY_WARN_SECONDS } from '@/search/rules';
 import {
@@ -1798,6 +1809,8 @@ const integrity = computed(() =>
 const integrityHold = computed(() => holdsRoutes(integrity.value));
 // LOW-TE GATE (temporary until Joo's PR 717 merges)
 const lowTeNote = computed(() => lowTeOpeningNote(store.integrityLowTe));
+/** Why the table's cells may not be this simulator's (search/simVersion.ts), or null. */
+const simNote = computed(() => tableSimMismatch(header.value));
 watch(
   () => store.integrityBlocked,
   blocked => {
@@ -2591,6 +2604,7 @@ function buildRecord(): InstantRecord | null {
   return {
     v: 1,
     ...(build ? { build } : {}),
+    simVersion: SIM_VERSION,
     mode: deadline ? 'date' : 'fastest',
     ...(deadline ? { deadline: Math.round(deadline) } : { target: store.finalTE }),
     planStart: Math.round(planStart),
@@ -2609,7 +2623,7 @@ function buildRecord(): InstantRecord | null {
       ...(deliveryScale.value !== null ? { deliveryScale: round(deliveryScale.value, 4) } : {}),
       adjusted: gearDiffers.value,
       progressionShort: !!progressionShort.value,
-      ...(header.value ? { tableFrom: header.value.from } : {}),
+      ...(header.value ? { tableFrom: header.value.from, tableSim: header.value.simVersion ?? null } : {}),
       ...(header.value?.gearTo ? { gearTo: header.value.gearTo } : {}),
       ...(b ? { bracket: { above: side(b.above), below: side(b.below) } } : {}),
     },

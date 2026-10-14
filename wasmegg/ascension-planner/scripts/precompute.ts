@@ -65,6 +65,9 @@
  *                    DIR/meta.json describing the account and the reference week. Re-running skips
  *                    the start TEs already finished, so an interrupted run carries on.
  *
+ *   --stamp-sim --dir DIR [--sim-version V] [--write]
+ *                    Set the simulator stamp (search/simVersion.ts) in every table's header in DIR;
+ *                    dry run unless --write (then FILE.bin.gz is remade too). Then --manifest.
  *   --v3-name FILE   The v3 gear table name of a packed table, from its header stamp.
  *   --own-check FILE --backup SAVE   Whether the page would use that own table for that save.
  *   --manifest --backup FILE [--dir public/precompute]
@@ -97,6 +100,7 @@ import { createPinia, setActivePinia } from 'pinia';
 setActivePinia(createPinia());
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { gzipSync } from 'node:zlib';
 import { fork } from 'node:child_process';
 import { getNextSaleEnd } from '@/lib/events';
 import { resolveColleggtibleContracts } from 'lib';
@@ -143,7 +147,8 @@ import {
   type Route,
 } from '@/search/routeFinder';
 import { splitByWork } from '@/search/routePool';
-import { packTable, readTable, type TableHeader } from '@/search/precomputedTable';
+import { packTable, readTable, restampTable, type TableHeader } from '@/search/precomputedTable';
+import { SIM_VERSION } from '@/search/simVersion';
 import {
   gearChanges,
   gearStamp,
@@ -469,6 +474,15 @@ async function generate(file: string): Promise<void> {
   // What the table was built on, written first so a half-built table still says what it is: for an
   // account's own table (no --reference) also its gear stamp (search/tableGear.ts), which the page
   // checks a save against before it uses the table, and the waiting research (k3.json).
+  // Cells already here from another simulator would be packed under this one's stamp, and the table
+  // would claim results its code never produced (search/simVersion.ts).
+  const before = existsSync(`${out}/meta.json`) ? JSON.parse(readFileSync(`${out}/meta.json`, 'utf8')) : null;
+  const made = readdirSync(out).some(f => /^te-\d+\.jsonl$/.test(f));
+  if (made && before?.simVersion !== SIM_VERSION && !has('allow-sim-change'))
+    throw new Error(
+      `${out} has cells from simulator ${before?.simVersion ?? '(unstamped)'}, and this build is ${SIM_VERSION}. ` +
+        'Start a new --out, or pass --allow-sim-change once a bitcheck shows the cells are identical.'
+    );
   const inputs = await loadInputs(file);
   const inv = useChainSearchStore().readInventory();
   const k3 = k3Of(inputs);
@@ -491,6 +505,7 @@ async function generate(file: string): Promise<void> {
         from,
         to,
         builtAt: new Date().toISOString(),
+        simVersion: SIM_VERSION,
       },
       null,
       1
@@ -554,6 +569,8 @@ interface TableMeta {
   from: number;
   to: number;
   builtAt: string;
+  /** The simulator the cells came from (search/simVersion.ts). */
+  simVersion?: string;
   /** The gear stamp of an own-gear table (search/tableGear.ts). */
   gear?: TableGear | null;
 }
@@ -922,6 +939,8 @@ async function manifest(file: string): Promise<void> {
         bonus: Number(h.cteBonus.toFixed(2)),
         k: Number((rate(h.k3.delivery) / top).toFixed(4)),
         from: h.from,
+        // The simulator its cells came from (search/simVersion.ts); absent on an unstamped table.
+        ...(h.simVersion ? { simVersion: h.simVersion } : {}),
         // The gear in words (search/tableLabel.ts), e.g. `LLLL · 11 T4 stones · bonus 128.7`.
         label: h.gear
           ? gearLabel(h.gear, h.cteBonus)
@@ -975,6 +994,7 @@ function pack(): void {
       from,
       to: tes[tes.length - 1],
       builtAt: meta.builtAt,
+      ...(meta.simVersion ? { simVersion: meta.simVersion } : {}),
       ...(fakeBelow !== null ? { fake: true } : {}),
       ...(meta.gear ? { gear: meta.gear } : {}),
       ...(existsSync(`${dir}/k3.json`)
@@ -994,6 +1014,44 @@ function pack(): void {
   console.log(
     `packed start TEs ${from}-${tes[tes.length - 1]} (${cells.length} cells) into ${out}: ${(bytes.length / 1e6).toFixed(1)} MB`
   );
+}
+
+/**
+ * --stamp-sim --dir DIR [--sim-version V] [--write]: set `simVersion` in the header of every table in
+ * DIR (default this build's SIM_VERSION), for tables a bitcheck has shown identical under that
+ * simulator. Dry run unless --write. With --write, FILE.bin is rewritten (cells byte for byte the same,
+ * checked by reading it back) and FILE.bin.gz remade from it; run --manifest afterwards so tables.json
+ * carries the stamp too. A table already stamped with V is left alone.
+ */
+function stampSim(): void {
+  const dir = arg('dir');
+  if (!dir) throw new Error('--stamp-sim needs --dir DIR');
+  const version = arg('sim-version') ?? SIM_VERSION;
+  const write = has('write');
+  for (const f of readdirSync(dir).filter(f => f.endsWith('.bin')).sort()) {
+    const path = `${dir}/${f}`;
+    const old = new Uint8Array(readFileSync(path));
+    const h = readTable(old.buffer).header;
+    if (h.simVersion === version) {
+      console.log(`${f}: already ${version}`);
+      continue;
+    }
+    const bytes = restampTable(old.buffer, { simVersion: version });
+    const back = readTable(bytes.slice().buffer).header;
+    const oldBody = old.subarray(Math.ceil((4 + new DataView(old.buffer).getUint32(0, true)) / 8) * 8);
+    const newBody = bytes.subarray(Math.ceil((4 + new DataView(bytes.buffer).getUint32(0, true)) / 8) * 8);
+    const same =
+      oldBody.length === newBody.length &&
+      Buffer.compare(Buffer.from(oldBody), Buffer.from(newBody)) === 0 &&
+      JSON.stringify({ ...h, simVersion: version }) === JSON.stringify(back);
+    if (!same) throw new Error(`${f}: the restamped file does not read back the same; nothing written`);
+    console.log(`${f}: ${h.simVersion ?? '(unstamped)'} -> ${version}${write ? '' : '  (dry run)'}`);
+    if (!write) continue;
+    writeFileSync(path + '.tmp', bytes);
+    renameSync(path + '.tmp', path);
+    writeFileSync(path + '.gz.tmp', gzipSync(bytes, { level: 9 }));
+    renameSync(path + '.gz.tmp', path + '.gz');
+  }
 }
 
 async function route(file: string): Promise<void> {
@@ -2405,6 +2463,7 @@ async function pruneBench(file: string): Promise<void> {
 
 async function main(): Promise<void> {
   if (has('pack')) return pack();
+  if (has('stamp-sim')) return stampSim();
   if (has('restamp')) {
     // Work an existing own-gear table's gear stamp out again from its save (search/tableGear.ts), at
     // the table's own waiting research (DIR/k3.json), and write it into DIR/meta.json. The cells are
