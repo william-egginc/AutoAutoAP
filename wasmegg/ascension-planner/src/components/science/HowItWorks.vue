@@ -287,9 +287,9 @@
             <b>Accounts without maxed epic research or colleggtibles,</b> on the maxed instant answer: it assumes both.
           </li>
           <li>
-            <b>Today's code, bit for bit.</b> The last cell-by-cell rebuild was on 10 Oct, just before "Continue my
-            build-up" went in. Reading the code says that change doesn't touch a fresh build, but we haven't re-run the
-            rebuild since.
+            <b>Today's code, bit for bit.</b> The last cell-by-cell check was on 13 Oct 2026 at 6:44 pm, on the current
+            code including the low-TE opening: 13 tables, 15 cells each, rebuilt from scratch, and all 195 came out
+            identical to the instant answer's.
           </li>
         </ul>
       </div>
@@ -469,8 +469,8 @@ const CHECKS: { what: string; result: string; how: string }[] = [
   {
     what: 'The same start gives the same answer on any machine',
     result:
-      "Identical to the bit. 20 of 20 starts simulated on a second computer matched, and one whole TE came out byte for byte the same. Rebuilt later with the code of the day, 12 of 12 matched. After a 5 Oct fix, 8 starts from each older file matched, and the one file the fix did change was rebuilt and passed 67 of 67. A test account's starts were rechecked on 10 Oct and matched.",
-    how: 'rebuilding individual starts from scratch and comparing every number (1-10 Oct).',
+      "Identical to the bit. 20 of 20 starts simulated on a second computer matched, and one whole TE came out byte for byte the same. Rebuilt later with the code of the day, 12 of 12 matched. After a 5 Oct fix, 8 starts from each older file matched, and the one file the fix did change was rebuilt and passed 67 of 67. A test account's starts were rechecked on 10 Oct and matched. On 13 Oct, 195 of 195 cells (13 tables, 15 cells each) matched on the current code.",
+    how: 'rebuilding individual starts from scratch and comparing every number (1-13 Oct).',
   },
   {
     what: 'The waiting after a build',

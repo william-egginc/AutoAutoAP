@@ -131,7 +131,7 @@ no allowlist beyond this one.
 
 ## 2. The collector
 
-One Worker plus one KV namespace, holding `POST /submit`, a JSON leaderboard API, and the
+One Worker plus one KV namespace (and, for the phone watch only, one small D1 database), holding `POST /submit`, a JSON leaderboard API, and the
 leaderboard page itself. The dataset is a few thousand small objects, so KV is enough and a
 database would be borrowing trouble.
 

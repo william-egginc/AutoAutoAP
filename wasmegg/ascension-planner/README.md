@@ -163,10 +163,10 @@ The original planner: build a plan by hand, action by action.
 
 ### The precomputed instant answer
 
-A separate build of the site on the `precompute` branch (the "egg-precompute" site) can answer
-without running a search, from results computed ahead of time. Its internals are not documented
-here; this README covers the site on the `ascension-chain-search` branch.
-On the `precompute` branch, [PRECOMPUTE.md](PRECOMPUTE.md) explains how it works and how its tables are built.
+The site answers without running a search, from results computed ahead of time (the "instant
+answer"). That work began on a separate `precompute` branch and is now merged into
+`ascension-chain-search`. [PRECOMPUTE.md](PRECOMPUTE.md) explains how it works and how its tables
+are built.
 
 ### Update notes
 
@@ -217,7 +217,7 @@ The planner lives in this folder (`wasmegg/ascension-planner`); the search tools
 ### 1. Requirements
 
 - **Node 24+** (26 works)
-- **pnpm 8+**
+- **pnpm 11.11.0** (the version pinned in `package.json`; pnpm 8 ships two Vue runtimes and silently breaks the build)
 - **Python 3.9+** — `python3` on macOS, and `pip install tzdata` **on Windows only**
   (`zoneinfo` has no system timezone database there; macOS and Linux already have one)
 
