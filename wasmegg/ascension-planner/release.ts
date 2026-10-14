@@ -33,6 +33,7 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
+  { at: '2026-10-14T21:05:05Z', note: 'Light now says it is waiting for Check exactly, then pricing your routes, with a button to search with Fast; near-tie ascension counts are marked about the same' },
   { at: '2026-10-14T20:04:27Z', note: 'Instant answer on top with two tabs (Search nearby, Exhaustive); each level says what it is for; no more pointless 489 to 490 plans; tabs stay put; maybe you on the board', level: 'big' },
   { at: '2026-10-14T03:59:25Z', note: 'Low-TE accounts that used to stall now get Joo’s opening rounds; clearer run times and advice; old runs fold away; at most 12 workers by default', level: 'big' },
   { at: '2026-10-13T19:15:55Z', note: 'Fixes iPhone crashes on By a date; agree to share once; By a date laid out like Fastest; start times by finish; clearer search screens; upload errors say why', level: 'big' },
@@ -40,7 +41,6 @@ const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
   { at: '2026-10-11T19:26:57Z', note: 'New Science › How it works page; 12-hour times; tidier tabs on phones; a Full sweep queue survives a refresh; better time estimates; many small fixes', level: 'big' },
   { at: '2026-10-11T05:21:25Z', note: 'Watch from your phone: the finished page now shows the best route found, the route count and how long the run took' },
   { at: '2026-10-10T23:17:00Z', note: 'New: Continue my build-up (first ascension keeps buying from your farm as it is now), watch a run from your phone with a private link, big CSVs upload in parts, own tables match again', level: 'big' },
-  { at: '2026-10-10T17:34:15Z', note: 'Share your instant answer checks (anonymous, opt-in) right from the instant answer, see your own check history, and send progress every 1-6 hours; the new-layout card is gone' },
 ];
 
 export default {
