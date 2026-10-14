@@ -33,6 +33,19 @@ import { runSiloBudgetPlan } from './shifts/helpers/silos';
 import { runBuyResearchLevelByLevel, runTierUnlockMilestone } from './shifts/helpers/milestones';
 import { getResearchById, isTierUnlocked } from '@/calculations/commonResearch';
 import { eggOfShift, holdForPlayer } from './hold';
+// LOW-TE GATE (temporary until Joo's PR 717 merges)
+import {
+  habsMaxed,
+  I1_TIME_LIMIT_SECONDS,
+  isPurchase,
+  onLowTePath,
+  runI1Capped,
+  runLowTeRounds,
+  SKIP_WHEN_NO_PURCHASES,
+  tagShiftName,
+  lowTeCandidate,
+  wantsLowTeOpening,
+} from './lowTeOpening';
 
 /** A step whose purchases, made in place, take no longer than this keeps them and drops its shift. */
 export const IN_PLACE_SECONDS = 1800;
@@ -135,6 +148,8 @@ export function runBuildUpUntilC3(start: EngineState, context: SimulationContext
       take(trial);
       continue;
     }
+    // LOW-TE GATE (temporary until Joo's PR 717 merges): where to go back to if the shift is dropped.
+    const before = { state, elapsedSeconds, actions: actions.length };
     // The player's hours (auto/hold.ts): a real shift waits for them, as in a fresh build.
     const h = holdForPlayer(state, context, context.ascensionStartTime, elapsedSeconds, eggOfShift(step.name));
     if (h.heldSeconds) {
@@ -143,7 +158,42 @@ export function runBuildUpUntilC3(start: EngineState, context: SimulationContext
       elapsedSeconds = h.elapsedSeconds;
     }
     state.lastStepTime = elapsedSeconds;
-    take(step.shift(state, context));
+    // LOW-TE GATE (temporary until Joo's PR 717 merges): the same rule as a fresh build
+    // (auto/lowTeOpening.ts). An I1 that would stall past Joo's 4-hour cap is capped there and the
+    // build carries on with Joo's rounds (C1, K1, I1) until the habs are maxed; from then on C2 and
+    // K2 are dropped when they buy nothing, and C3 unlocks Tier 12 if needed. Every other build-up
+    // runs exactly as before.
+    if (step.name === 'I1' && lowTeCandidate(context, state)) {
+      const full = step.shift(state, context);
+      if (wantsLowTeOpening(context, full.elapsedSeconds)) {
+        const i1 = runI1Capped(state, context, I1_TIME_LIMIT_SECONDS);
+        tagShiftName(i1.actions, 'I1');
+        take(i1);
+        shifted.push(step.name);
+        state.lowTeOpening = 1;
+        if (!habsMaxed(state)) {
+          const low = runLowTeRounds(state, elapsedSeconds, context, 2);
+          actions.push(...low.actions);
+          state = low.state;
+          elapsedSeconds = low.elapsedSeconds;
+        }
+        continue;
+      }
+      take(full);
+      shifted.push(step.name);
+      continue;
+    }
+    const result = step.shift(state, context);
+    if (onLowTePath(state)) {
+      if (SKIP_WHEN_NO_PURCHASES.has(step.name) && !result.actions.some(isPurchase)) {
+        state = before.state;
+        elapsedSeconds = before.elapsedSeconds;
+        actions.length = before.actions;
+        continue;
+      }
+      tagShiftName(result.actions, step.name);
+    }
+    take(result);
     shifted.push(step.name);
   }
 

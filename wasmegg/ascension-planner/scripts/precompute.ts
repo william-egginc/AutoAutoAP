@@ -102,7 +102,7 @@ import { getNextSaleEnd } from '@/lib/events';
 import { resolveColleggtibleContracts } from 'lib';
 import { initPlanFuture } from '@/lib/modes/planFuture';
 import { useChainSearchStore } from '@/stores/chainSearch';
-import { runAscensionFromC3Variant } from '@/auto/ascension';
+import { runAscensionFromC3Variant, runUntilShift } from '@/auto/ascension';
 import { computeTEEarned } from '@/auto/te-thresholds';
 import { countTEThresholdsPassed, getThresholdForTE } from '@/lib/truthEggs';
 import { createChainEvaluator } from '@/search/chain';
@@ -2592,7 +2592,107 @@ async function main(): Promise<void> {
   if (has('check')) return check(backup);
   if (has('verify-continue')) return verifyContinue(backup);
   if (has('k3')) return recordK3(backup);
+  if (has('lowte-probe')) return lowteProbe(backup);
+  if (has('lowte-route')) return lowteRoute(backup);
   throw new Error('nothing to do: pass --profile, --verify or --check');
+}
+
+/**
+ * LOW-TE GATE (temporary until Joo's PR 717 merges): --lowte-route --te TE --chains "a,b,..;c,d,.."
+ * [--start ISO] [--mode never|force]: whole routes from a fresh start at TE (the table's canonical
+ * start state for the save's account), every leg a fresh ascension priced by the search's own chain
+ * evaluator: each chain's days and its legs.
+ */
+async function lowteRoute(file: string): Promise<void> {
+  const inputs = await loadInputs(file);
+  const te = Number(arg('te', '93'));
+  const mode = arg('mode') as 'never' | 'force' | undefined;
+  if (mode) inputs.context.lowTeOpening = mode;
+  inputs.baseState = startStateAt(inputs, te);
+  inputs.currentTE = te;
+  inputs.firstAscension = 'fresh';
+  if (arg('start')) inputs.planStart = Math.floor(Date.parse(arg('start')!) / 1000);
+  const evaluator = createChainEvaluator(inputs);
+  for (const c of arg('chains', '136,180,225,270,315,360,405,450,490')!.split(';')) {
+    const chain = c.split(',').map(Number);
+    const r = evaluator.evaluate(chain);
+    console.log(
+      JSON.stringify({
+        chain: chain.join(','),
+        days: r ? +(r.seconds / 86400).toFixed(2) : null,
+        legs: r?.legs.map(l => `${l.key}`),
+      })
+    );
+  }
+}
+
+/**
+ * LOW-TE GATE (temporary until Joo's PR 717 merges): --lowte-probe --tes TE,.. [--hours H,..]
+ * [--gain N]: for fresh builds from each start TE (the table's canonical start state) at each hour of
+ * the reference week, the opening today (the current one, forced) against the gated build and Joo's
+ * rounds forced: how long today's I1 sits, whether the gate switches, rounds, the opening's length,
+ * and the whole ascension's time to start TE + N (default 43). One JSON line per cell.
+ */
+async function lowteProbe(file: string): Promise<void> {
+  const inputs = await loadInputs(file);
+  const cte = useChainSearchStore().cteParts();
+  const list = (s: string) => s.split(',').map(Number);
+  const tes = list(arg('tes', '75,93,105,120,141,160,190')!);
+  const hours = list(arg('hours', '0,40,128')!);
+  const gain = Number(arg('gain', '43'));
+  const shiftsOf = (actions: { type: string; endState?: { lastStepTime?: number }; payload?: unknown }[]) =>
+    actions
+      .filter(a => a.type === 'shift')
+      .map(a => ({ at: a.endState?.lastStepTime ?? NaN, egg: (a.payload as { toEgg: string }).toEgg }));
+  const one = (te: number, start: number, mode: 'never' | 'force' | undefined) => {
+    inputs.context.lowTeOpening = mode;
+    const t0 = Date.now();
+    const build = buildAt(inputs, startStateAt(inputs, te), start, te);
+    const s = shiftsOf(build.preC3.actions);
+    const integ = s.map((x, i) => (x.egg === 'integrity' ? i : -1)).filter(i => i >= 0);
+    const firstI1 = integ.length ? (s[integ[0] + 1]?.at ?? build.preC3.elapsedSeconds) - s[integ[0]].at : null;
+    const last = integ[integ.length - 1];
+    const openingEnd = last === undefined ? null : (s[last + 1]?.at ?? build.preC3.elapsedSeconds);
+    const leg = legTo(startStateAt(inputs, te), build, start, te + gain);
+    inputs.context.lowTeOpening = undefined;
+    return {
+      rounds: build.preC3.state.lowTeOpening ?? 0,
+      i1h: firstI1 === null ? null : +(firstI1 / 3600).toFixed(2),
+      openingH: openingEnd === null ? null : +(openingEnd / 3600).toFixed(2),
+      preC3H: +(build.preC3.elapsedSeconds / 3600).toFixed(2),
+      shifts: s.length,
+      legD: leg ? +(leg.seconds / 86400).toFixed(3) : null,
+      key: leg?.key ?? null,
+      ms: Date.now() - t0,
+    };
+  };
+  console.log(JSON.stringify({ cteOffset: cte ? +(cte.total - cte.te - (cte.pending ?? 0)).toFixed(1) : null }));
+  if (has('gate-only')) {
+    // Only whether the gate switches: today's opening, its longest I1 per start, every hour given.
+    for (const te of tes) {
+      let worst = 0;
+      let switched = 0;
+      for (const h of hours) {
+        const start = REFERENCE_WEEK + h * 3600;
+        const ctx = { ...inputs.context, ascensionStartTime: start, planStartOffset: 0 };
+        const pre = runUntilShift(startStateAt(inputs, te), ctx, 'C3');
+        if (pre.state.lowTeOpening) switched++;
+        const s = shiftsOf(pre.actions);
+        const i = s.findIndex(x => x.egg === 'integrity');
+        if (i >= 0 && !pre.state.lowTeOpening) worst = Math.max(worst, (s[i + 1]?.at ?? pre.elapsedSeconds) - s[i].at);
+      }
+      console.log(JSON.stringify({ te, hours: hours.length, switched, worstFirstI1H: +(worst / 3600).toFixed(3) }));
+    }
+    return;
+  }
+  for (const te of tes)
+    for (const h of hours) {
+      const start = REFERENCE_WEEK + h * 3600;
+      const today = one(te, start, 'never');
+      const gated = one(te, start, undefined);
+      const joo = has('no-force') ? null : one(te, start, 'force');
+      console.log(JSON.stringify({ te, h, today, gated: { rounds: gated.rounds, legD: gated.legD }, joo }));
+    }
 }
 
 main().then(

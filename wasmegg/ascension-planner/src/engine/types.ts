@@ -43,6 +43,9 @@ export interface EngineState {
     multiplier: number;
   };
   maxELR?: number;
+  /** LOW-TE GATE (temporary until Joo's PR 717 merges): set (to its round count) only when this
+   *  ascension's build took the low-TE opening (auto/lowTeOpening.ts); absent everywhere else. */
+  lowTeOpening?: number;
 }
 
 /**
@@ -62,6 +65,10 @@ export interface SimulationContext {
    * else, which leaves every other path exactly as it was.
    */
   holdUntil?: (unixSeconds: number) => number;
+  /** LOW-TE GATE (temporary until Joo's PR 717 merges): force the low-TE opening on ('force') or
+   *  off ('never') for tests and probes. Absent everywhere else: the gate decides
+   *  (auto/lowTeOpening.ts `wantsLowTeOpening`). */
+  lowTeOpening?: 'force' | 'never';
   // TODO: Add any other global context needed (e.g. events?)
 }
 

@@ -16,6 +16,16 @@ import { runR1 } from './shifts/r1';
 import { runC3, type C3Params, type C3Variant } from './shifts/c3';
 import { runH1 } from './shifts/h1';
 import { runK3 } from './shifts/k3';
+// LOW-TE GATE (temporary until Joo's PR 717 merges)
+import {
+  isPurchase,
+  onLowTePath,
+  runLowTeRounds,
+  SKIP_WHEN_NO_PURCHASES,
+  tagShiftName,
+  lowTeCandidate,
+  wantsLowTeOpening,
+} from './lowTeOpening';
 import { runC4, runI2, runR2, runH2, runTEWaitShift, distributeTargetTE, solveTEDistributionForDeadline } from './shifts/te-wait';
 import { countSalesThrough, isResearchSaleActive, isEarningsBoostActive } from '@/lib/events';
 import { calculateArtifactModifiers } from '@/lib/artifacts';
@@ -131,6 +141,11 @@ function runC1K1I1Segment(
   let elapsedSeconds = 0;
   let currentState = startState;
   const shiftTimings: { name: string; ms: number }[] = [];
+  // LOW-TE GATE (temporary until Joo's PR 717 merges): the untouched start, for the low-TE opening
+  // when the current one stalls on I1 (auto/lowTeOpening.ts). Only below the tables' lowest TE.
+  const lowTeStart: EngineState | null = lowTeCandidate(context, startState)
+    ? JSON.parse(JSON.stringify(startState))
+    : null;
 
   const pushShiftResult = (name: string, result: ShiftResult, ms: number) => {
     const eggsLaid = calculateEggsLaidDuringActions(result.actions, currentState, context);
@@ -172,6 +187,8 @@ function runC1K1I1Segment(
   const speculativeI1Ms = performance.now() - t0I1;
 
   const I1_ORDER_SWAP_THRESHOLD_SECONDS = 3600;
+  // LOW-TE GATE (temporary until Joo's PR 717 merges): how long this opening's I1 took.
+  let i1Seconds = speculativeI1.elapsedSeconds;
   if (speculativeI1.elapsedSeconds < I1_ORDER_SWAP_THRESHOLD_SECONDS) {
     pushShiftResult('I1', speculativeI1, speculativeI1Ms);
     hold('K1');
@@ -181,7 +198,17 @@ function runC1K1I1Segment(
     timed('K1', () => runK1(currentState, context));
     hold('I1');
     currentState.lastStepTime = elapsedSeconds;
-    timed('I1', () => runI1(currentState, context));
+    const t0 = performance.now();
+    const i1 = runI1(currentState, context);
+    i1Seconds = i1.elapsedSeconds;
+    pushShiftResult('I1', i1, performance.now() - t0);
+  }
+
+  // LOW-TE GATE (temporary until Joo's PR 717 merges): a build whose I1 stalls takes Joo's rounds
+  // from the same start instead (auto/lowTeOpening.ts). Every other build returns exactly as before.
+  if (lowTeStart && wantsLowTeOpening(context, i1Seconds)) {
+    const low = runLowTeRounds(lowTeStart, 0, context);
+    return { actions: low.actions, elapsedSeconds: low.elapsedSeconds, endState: low.state, shiftTimings: low.shiftTimings };
   }
 
   return { actions, elapsedSeconds, endState: currentState, shiftTimings };
@@ -224,6 +251,10 @@ export function runUntilShift(
 
   for (const shift of allShifts) {
     if (shift.name === stopBeforeShift) break;
+    // LOW-TE GATE (temporary until Joo's PR 717 merges): on the low-TE path only, C2/K2 are dropped
+    // (with any wait for the player before them) when they buy nothing; see auto/lowTeOpening.ts.
+    const lowTe = onLowTePath(currentState);
+    const beforeShift = { state: currentState, elapsedSeconds: totalElapsedSeconds, actions: currentActions.length };
     {
       const h = holdForPlayer(currentState, context, context.ascensionStartTime, totalElapsedSeconds, eggOfShift(shift.name));
       if (h.heldSeconds) {
@@ -236,6 +267,17 @@ export function runUntilShift(
     const t0 = performance.now();
     const result = shift.run(currentState, context);
     shiftTimings.push({ name: shift.name, ms: performance.now() - t0 });
+
+    // LOW-TE GATE (temporary until Joo's PR 717 merges)
+    if (lowTe) {
+      if (SKIP_WHEN_NO_PURCHASES.has(shift.name) && !result.actions.some(isPurchase)) {
+        currentState = beforeShift.state;
+        totalElapsedSeconds = beforeShift.elapsedSeconds;
+        currentActions.length = beforeShift.actions;
+        continue;
+      }
+      tagShiftName(result.actions, shift.name);
+    }
 
     // Calculate eggs laid during this shift (assuming full habs)
     const eggsLaid = calculateEggsLaidDuringActions(result.actions, currentState, context);
@@ -401,6 +443,10 @@ export function runAscension(
       else continue;
     }
 
+    // LOW-TE GATE (temporary until Joo's PR 717 merges): as in runUntilShift.
+    const lowTe = onLowTePath(currentState);
+    const beforeShift = { state: currentState, elapsedSeconds: totalElapsedSeconds, actions: currentActions.length };
+
     // The player's hours (auto/hold.ts): before the shift, before any TE target is worked out, so
     // what the farm lays while waiting is in the egg counts the targets are recomputed from.
     {
@@ -485,6 +531,17 @@ export function runAscension(
       lockedEggs.push(activeEgg);
     } else {
       result = shift.run(currentState, context);
+    }
+
+    // LOW-TE GATE (temporary until Joo's PR 717 merges)
+    if (lowTe) {
+      if (SKIP_WHEN_NO_PURCHASES.has(shift.name) && !result.actions.some(isPurchase)) {
+        currentState = beforeShift.state;
+        totalElapsedSeconds = beforeShift.elapsedSeconds;
+        currentActions.length = beforeShift.actions;
+        continue;
+      }
+      tagShiftName(result.actions, shift.name);
     }
 
     // Calculate eggs laid during this shift (assuming full habs)

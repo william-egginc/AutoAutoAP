@@ -28,6 +28,8 @@ import {
   countSalesThrough,
 } from '@/lib/events';
 import { DEBUG_SHIFT_TIMING } from '@/lib/debugFlags';
+// LOW-TE GATE (temporary until Joo's PR 717 merges)
+import { lowTeTier12Step, onLowTePath, tagShiftName } from '../lowTeOpening';
 import { calculateEggsLaidDuringActions } from '../engine/eggs';
 
 export interface C3Params {
@@ -359,6 +361,8 @@ export function runC3(
     currentState = shifted.state;
     actions.push(shifted.action);
     if (shifted.saleToggleAction) actions.push(shifted.saleToggleAction);
+    // LOW-TE GATE (temporary until Joo's PR 717 merges): name the shift on the low-TE path only.
+    if (onLowTePath(currentState)) tagShiftName(actions, 'C3');
   }
 
   // 1a. Opening smart-buy sweep — see this function's own top-level doc comment (step 1a) for why
@@ -373,6 +377,13 @@ export function runC3(
       Math.max(0, buildPhaseEnd - getAbsTime())
     )
   );
+
+  // LOW-TE GATE (temporary until Joo's PR 717 merges): Joo's step 1b (unlock Tier 12 if C1/C2
+  // didn't), only on the low-TE path; a no-op (null) on every other build. See auto/lowTeOpening.ts.
+  {
+    const t12 = lowTeTier12Step(currentState, context, Math.max(0, buildPhaseEnd - getAbsTime()), roiDeadline);
+    if (t12) runStep(t12);
+  }
 
   // 2 (only when requested): try to unlock Tier 13 before any of steps 3-4's own deliberate,
   // ROI-gated spending gets a chance to eat into the same budget. Safe to run after step 1a's sweep

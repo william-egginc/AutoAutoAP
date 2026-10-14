@@ -48,7 +48,11 @@ export function runC1(
   startState: EngineState,
   context: SimulationContext,
   timeLimit: number = 1800,
-  peakELR: number = 0
+  peakELR: number = 0,
+  // LOW-TE GATE (temporary until Joo's PR 717 merges): Joo's `equipEarningsSet`. Repeat C1 rounds
+  // of the low-TE opening (auto/lowTeOpening.ts) pass false, since the first round already equipped
+  // it and nothing since has switched gear. Every other caller leaves it true (unchanged).
+  equipEarningsSet: boolean = true
 ): ShiftResult {
   let currentState: EngineState = { ...startState, maxELR: peakELR };
   let elapsedSeconds = 0;
@@ -62,7 +66,7 @@ export function runC1(
   // it differs from the current state — so every generated plan makes the expected starting
   // loadout explicit in its action list (and visible in the shift summary, see ShiftSummary.vue's
   // `equip_artifact_set` handling) instead of silently relying on whatever was already equipped.
-  {
+  if (equipEarningsSet) {
     let earningsSet = currentState.artifactSets.earnings;
     const needsUpdate = !earningsSet;
     if (needsUpdate && context.rawBackup) {

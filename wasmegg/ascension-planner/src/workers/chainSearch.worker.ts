@@ -25,7 +25,7 @@
  *   new Worker(new URL('./chainSearch.worker.ts', import.meta.url), { type: 'module' })
  */
 import { createChainEvaluator, type ChainEvaluator } from '@/search/chain';
-import { buildUpTailParams, integrityWaitSeconds } from '@/search/leg';
+import { buildUpTailParams, integrityCheck } from '@/search/leg';
 import type { SearchInputs } from '@/search/types';
 import type { ChainResult } from '@/search/types';
 import type { WorkerRequest, WorkerResponse } from './chainSearch.protocol';
@@ -101,7 +101,9 @@ ctx.onmessage = (event: MessageEvent<WorkerRequest>) => {
 
       case 'integrity': {
         if (!loaded) throw new Error('chainSearch worker received integrity before init');
-        post({ type: 'integrity', requestId: msg.requestId, seconds: integrityWaitSeconds(loaded) });
+        // LOW-TE GATE (temporary until Joo's PR 717 merges): the low-TE opening rides along.
+        const check = integrityCheck(loaded);
+        post({ type: 'integrity', requestId: msg.requestId, seconds: check.seconds, lowTe: check.lowTe });
         break;
       }
       case 'buildup-tails': {

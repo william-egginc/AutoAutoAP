@@ -608,6 +608,8 @@ const shifts = computed(() => {
   ];
   const eggShiftTitles: Partial<Record<VirtueEgg, string>> = { kindness: 'K1 Shift', integrity: 'I1 Shift' };
   let shiftIndex = 0;
+  // LOW-TE GATE (temporary until Joo's PR 717 merges): how often each named shift came up so far.
+  const namedCounts: Partial<Record<string, number>> = {};
 
   for (const action of actions) {
     if (action.type === 'shift') {
@@ -618,7 +620,13 @@ const shifts = computed(() => {
       shiftIndex++;
       const nextEgg = action.payload.toEgg;
       const defaultTitle = `${nextEgg.charAt(0).toUpperCase() + nextEgg.slice(1)} Shift`;
-      const title = isContinueCurrent
+      // LOW-TE GATE (temporary until Joo's PR 717 merges): a low-TE build names its shifts and repeats
+      // C1/K1/I1 in rounds (auto/lowTeOpening.ts), so its titles come from the names, with the round.
+      const named = action.payload.autoShiftName;
+      if (named) namedCounts[named] = (namedCounts[named] || 0) + 1;
+      const title = named
+        ? `${named} Shift${namedCounts[named]! > 1 ? ` (round ${namedCounts[named]})` : ''}`
+        : isContinueCurrent
         ? defaultTitle
         : (shiftIndex === 1 || shiftIndex === 2)
           ? (eggShiftTitles[nextEgg as VirtueEgg] || defaultTitle)
