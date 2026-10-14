@@ -1085,7 +1085,7 @@ const TAB_INTRO: Record<SearchTabId, string> = {
   nearby:
     "Start here. It checks the instant answer on your save and, at Fast and above, tries the routes near it for each number of ascensions, each last stop found to the exact TE. Light takes seconds to a few minutes; each other level's time on this computer is under its name.",
   exhaustive:
-    'For a proven best inside boxes you choose, or to widen what Search nearby found: you set a band of TEs for each ascension and it tries every route in them, the last stop found to the exact TE. Big boxes take hours.',
+    "For proving an answer, not for finding a much better one: it proves the best inside the boxes you set, and so far no search has beaten the instant answer's TE by a date. You set a band of TEs for each ascension and it tries every route in them, the last stop found to the exact TE. Big boxes take hours.",
 };
 /** The answer on screen, by box. */
 const resultKind = computed(() => kindOfSimple(result.value));

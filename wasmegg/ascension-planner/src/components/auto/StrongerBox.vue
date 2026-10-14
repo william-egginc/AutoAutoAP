@@ -77,6 +77,8 @@
       />
       <span>{{ lightText }}</span>
     </p>
+    <!-- What the level picked is for, in a few words (the user, 14 Oct), from players' runs so far. -->
+    <p class="text-[12px] font-black text-indigo-700" data-testid="level-tag">{{ tag }}</p>
     <!-- The level picked, in three plain lines: what it does, how long, what it can and can't find. -->
     <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[11px] leading-relaxed" data-testid="level-note">
       <dt class="font-black text-slate-500 uppercase tracking-widest text-[9px] pt-0.5">What it does</dt>
@@ -154,7 +156,7 @@ const levels = computed<LevelText[]>(() =>
         {
           id: 'light',
           label: 'Light',
-          does: 'After Check exactly, prices the routes you have already found for this target (your searches here, saved runs and answers, earlier checks, and board runs sent from this browser) on your save as it is now.',
+          does: 'After Check exactly, prices the routes you have already found for this target (your searches here, saved runs and answers, earlier checks, and board runs sent from this browser) on your save as it is now. It uses your hours and time off, which the instant answer\'s own estimate leaves out.',
           time: 'Seconds to a few minutes, once Check exactly has finished.',
           finds: 'One of your own routes, if it is now faster than the instant answer. It does not look for new routes.',
         },
@@ -184,7 +186,7 @@ const levels = computed<LevelText[]>(() =>
         {
           id: 'light',
           label: 'Light',
-          does: "After Check exactly, prices your own earlier routes for this date on your save. If the instant answer's top route misses the date on your account, it also tries that route one TE lower (two if needed).",
+          does: "After Check exactly, prices your own earlier routes for this date on your save. If the instant answer's top route misses the date on your account, it also tries that route one TE lower (two if needed). It uses your hours and time off, which the instant answer's own estimate leaves out.",
           time: 'Seconds to a few minutes, once Check exactly has finished.',
           finds: 'One of your routes that does better, or a route one TE lower that really makes the date. It does not look for new routes.',
         },
@@ -275,6 +277,24 @@ const promises = computed<string[]>(() => {
   ];
 });
 const current = computed(() => levels.value.find(l => l.id === level.value) ?? levels.value[0]);
+
+/** What each level is for, from players' runs so far (analytics of 13 Oct 2026, a small sample).
+ *  By a date no search has beaten the instant answer's TE yet, so its Fast is not "where the gain is". */
+const TAGS: Record<'fastest' | 'date', Record<StrongerLevel, string>> = {
+  fastest: {
+    light: 'Your own routes, on your hours',
+    quick: 'Where nearly all the gain is',
+    normal: "If you're curious",
+    thorough: "If you're curious",
+  },
+  date: {
+    light: 'Your own routes, on your hours',
+    quick: 'A quick second opinion',
+    normal: "If you're curious",
+    thorough: "If you're curious",
+  },
+};
+const tag = computed(() => TAGS[props.goal][level.value]);
 
 /** "What this does and does not promise": open unless the player closed it (this browser). */
 const PROMISE_KEY = 'aap-stronger-promise-closed';

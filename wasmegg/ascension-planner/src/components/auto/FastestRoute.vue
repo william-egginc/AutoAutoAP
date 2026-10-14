@@ -172,7 +172,7 @@ const TAB_INTRO: Record<SearchTabId, string> = {
   nearby:
     "Start here. It checks the instant answer on your save and, at Fast and above, searches the routes near it. Light takes seconds to a few minutes; each other level's time on this computer is under its name.",
   exhaustive:
-    "For a proven best inside boxes you choose, or to widen what Search nearby found: you set a box of TEs for each ascension and it tries every route in them. In players' runs that was about 1 minute per 70 routes on an 8-core computer, so big boxes take hours.",
+    "For proving an answer, not for finding a much better one: it proves the best inside the boxes you set, and in players' runs so far it added minutes to hours, not days. You set a box of TEs for each ascension and it tries every route in them. In players' runs that was about 1 minute per 70 routes on an 8-core computer, so big boxes take hours.",
 };
 
 /** The address and the tab: #/auto/fastest/full (a sweep link, an old ?insane=1 link, Check exactly)
