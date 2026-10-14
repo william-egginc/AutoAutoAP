@@ -79,6 +79,7 @@
 </template>
 
 <script setup lang="ts">
+import { scrollToShownId } from '@/lib/searchTab';
 import ResultCardFrame from './ResultCardFrame.vue';
 import { PRIMARY_BUTTON, SECONDARY_BUTTON } from './resultCardStyle';
 
@@ -109,8 +110,9 @@ withDefaults(
 );
 const emit = defineEmits<{ build: []; fill: []; csv: []; save: [] }>();
 
-/** Each panel's Share this result section carries id="share-this-result"; one panel is on screen. */
+/** Each panel's Share this result section carries id="share-this-result"; both search tabs are on the
+ *  page (SearchTabs.vue), so the one laid out is this card's. */
 function toShare(): void {
-  document.getElementById('share-this-result')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  scrollToShownId('share-this-result');
 }
 </script>

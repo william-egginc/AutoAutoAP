@@ -1,8 +1,9 @@
 <!--
   Your setup, floating (the user, 30 Sept): a pill at the bottom right of every Auto Planner screen
   with a gear that opens the whole setup over the page, and the worker count, which stays adjustable
-  while the setup is folded away. One copy of the setup (YourSetup.vue, docked); each screen keeps a
-  one-line bar of the values, whose Edit setup opens this.
+  while the setup is folded away. One copy of the setup (YourSetup.vue, docked). Your plan keeps a
+  one-line bar of the values, whose Edit setup opens this; Fastest and By a date have only this button
+  since 14 Oct (Allan: too many boxes), and show the save's problems, if any, at the top.
 -->
 <template>
   <div ref="dock" class="fixed z-50" :style="dockStyle">

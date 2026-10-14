@@ -8,8 +8,14 @@
   in this box. What it promises, and what it doesn't, is said here.
 -->
 <template>
-  <section class="rounded-2xl border border-indigo-200 bg-white p-4 space-y-3" data-testid="stronger-box">
-    <div class="flex flex-wrap items-center gap-2">
+  <section
+    class="space-y-3"
+    :class="inTab ? '' : 'rounded-2xl border border-indigo-200 bg-white p-4'"
+    data-testid="stronger-box"
+  >
+    <!-- In the Search nearby tab (SearchTabs.vue) the tab's own name and first lines say this: the
+         heading and the intro would only repeat them (Allan, 14 Oct: too many boxes). -->
+    <div v-if="!inTab" class="flex flex-wrap items-center gap-2">
       <h3 class="text-base font-black text-slate-900">Stronger check</h3>
       <span
         v-if="running"
@@ -17,7 +23,10 @@
         >Running</span
       >
     </div>
-    <p class="text-[12px] text-slate-600 leading-relaxed">
+    <p v-if="inTab" class="text-[10px] font-black uppercase tracking-widest text-slate-500" data-testid="level-bar-label">
+      How hard to look
+    </p>
+    <p v-else class="text-[12px] text-slate-600 leading-relaxed">
       Checks the instant answer harder, with the full simulator on your save. Light prices routes you have already
       found; Fast, Exact and Very high also search the routes near the instant answer's ({{ NAMES.smart }}). Pick how
       much harder:
@@ -123,6 +132,8 @@ const props = defineProps<{
   /** What each search level would cost on THIS computer (its workers and speed): `short` under the
    *  level's name, `line` as How long. FastestRoute.vue and DeadlinePanel.vue work them out. */
   estimates?: Partial<Record<StrongerLevel, LevelEstimate>>;
+  /** Inside the Search nearby tab (SearchTabs.vue): no frame, heading or intro of its own. */
+  inTab?: boolean;
 }>();
 const emit = defineEmits<{ picked: [level: StrongerLevel] }>();
 
@@ -166,7 +177,7 @@ const levels = computed<LevelText[]>(() =>
           label: 'Very high',
           does: 'Exact, plus moving three neighbouring stops together.',
           time: EFFORT_NOTES.thorough.typicalTime,
-          finds: `The strongest search near the instant answer. In players' runs so far it rarely found more than Fast did. Still not a proven best: for that, use ${NAMES.full} below with boxes you set.`,
+          finds: `The strongest search near the instant answer. In players' runs so far it rarely found more than Fast did. Still not a proven best: for that, use the ${NAMES.full} tab with boxes you set.`,
         },
       ]
     : [
@@ -196,7 +207,7 @@ const levels = computed<LevelText[]>(() =>
           label: 'Very high',
           does: 'The same, with two more TE either side of each early stop.',
           time: 'Sized to stay under about 8 hours (a cap, not a measurement); yours is below.',
-          finds: `The widest net near the instant answer. Still not a proven best: for that, use ${NAMES.full} below with boxes you set.`,
+          finds: `The widest net near the instant answer. Still not a proven best: for that, use the ${NAMES.full} tab with boxes you set.`,
         },
       ]
 );
@@ -240,7 +251,7 @@ const promises = computed<string[]>(() => {
     return [
       PRICED,
       `For each number of ascensions the instant answer has, it tries every route with each early stop within ${w} TE of the answer's route. Long routes get fewer, and it narrows if the search would take too long. Each last stop is found to the exact TE.`,
-      `It can miss a route whose early stops are further away. ${NAMES.full}, below, proves the best only inside the boxes you set.`,
+      `It can miss a route whose early stops are further away. The ${NAMES.full} tab proves the best only inside the boxes you set.`,
       "So far no search has beaten the instant answer's TE by a date (22 paired players' runs, 4 real players, none above TE 250), so a long search mostly confirms it. That sample is small.",
       TIMING,
       STOP,
@@ -257,7 +268,7 @@ const promises = computed<string[]>(() => {
     `${PRICED} With "Let me pick my hours" (in Your setup), each prestige and each egg shift waits for your hours, and the CSV counts the waits per leg.`,
     miss,
     "It starts from the instant answer's route (or the one you picked) and never scans every route, so a poor start can leave it near a poor answer.",
-    `It is a strong nearby answer, never a proven best: ${NAMES.full}, below, proves the best only inside the boxes you set. Its accuracy figures come from 3 accounts, and only one of them has a proven best to check against.`,
+    `It is a strong nearby answer, never a proven best: the ${NAMES.full} tab proves the best only inside the boxes you set. Its accuracy figures come from 3 accounts, and only one of them has a proven best to check against.`,
     "In players' runs so far, a short search (Fast) often found a route days sooner than the instant answer's: at least a day in 9 of 12 runs. Going bigger rarely added more. That sample is small.",
     TIMING,
     `${STOP} A refresh is safe: its progress is saved and carries on without re-simulating anything.`,

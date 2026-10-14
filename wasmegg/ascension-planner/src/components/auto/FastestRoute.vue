@@ -20,16 +20,14 @@
       </p>
     </div>
 
-    <!-- One order on both search tabs: Your setup, the instant answer, How thorough, then the panel
-         (How ... works, and the mode's content). By a date adds The deadline after Your setup. -->
-    <YourSetup screen="fastest" />
-
-    <!-- When should I start? For a player coming back after a break: folded, under Your setup
-         (StartTimeCard.vue), on the instant answer's best route unless another is picked. -->
-    <StartTimeCard />
+    <!-- One order on both search screens: the instant answer, then the two ways to search, one shown at a
+         time (SearchTabs.vue; Allan, 14 Oct: "too many boxes, use one at a time"). Your setup is the
+         floating Setup button (SetupDock.vue): here only the save's problems, if any. "When should I
+         start?" is in Science (#/science/start). -->
+    <YourSetup screen="fastest" issues-only />
 
     <!-- The instant answer from the precomputed table (the precompute fork): every route, at once.
-         Check exactly prices them on your save; its stronger check shows in the box below. -->
+         Check exactly prices them on your save; its stronger check shows in the Search nearby tab. -->
     <CollapsibleSection id="instant" title="Instant answer" :summary="lines.instant">
       <InstantRoute stronger-to="#stronger-check-results" @check="checkExactly" />
     </CollapsibleSection>
@@ -43,36 +41,35 @@
       :class="blockedBy ? 'opacity-40 pointer-events-none select-none' : ''"
       :inert="blockedBy ? true : undefined"
     >
-      <!-- Stronger check: the stronger check's results, and at Fast and above the search around the
-           instant answer, its controls and results, in one box (StrongerBox.vue; the user, 12 Oct). -->
-      <CollapsibleSection id="stronger" title="Stronger check" :summary="lines.stronger">
-        <StrongerBox v-slot="{ level }" goal="fastest" :running="smartRunning" :estimates="levelEstimates">
-          <ChainSearchPanel
-            v-if="level !== 'light'"
-            :player-id="playerId"
-            embedded
-            level-elsewhere
-            @check-exactly="checkExactly"
-          />
-        </StrongerBox>
-      </CollapsibleSection>
-
-      <!-- Exhaustive, on the page as it is: its boxes, run controls and results (InsanePanel.vue). -->
-      <CollapsibleSection id="exhaustive" :title="EXHAUSTIVE_TITLE" :summary="lines.exhaustive">
-      <section id="exhaustive" class="rounded-2xl border border-slate-200 bg-white p-4 space-y-3 scroll-mt-24">
-        <div class="flex flex-wrap items-center gap-2">
-          <h3 class="text-base font-black text-slate-900">{{ EXHAUSTIVE_TITLE }}</h3>
-          <span
-            v-if="fullRunning"
-            class="px-1.5 py-0.5 rounded bg-indigo-600 text-white text-[9px] font-black uppercase tracking-widest"
-            >Running</span
-          >
-        </div>
-        <p class="text-[12px] text-slate-600 leading-relaxed">{{ EXHAUSTIVE_BLURB }}</p>
-        <ExhaustivePromise goal="fastest" />
-        <InsanePanel :player-id="playerId" goal="fastest" embedded @update:goal="onGoal" />
-      </section>
-      </CollapsibleSection>
+      <!-- Both tabs stay mounted (v-show): a run, its progress block and #stronger-check-results (the
+           instant answer teleports the stronger check there) live on in the hidden one. -->
+      <SearchTabs
+        screen="fastest"
+        :intro="TAB_INTRO"
+        :running="{ nearby: smartRunning, exhaustive: fullRunning }"
+        @pick="t => emit('update:depth', t === 'exhaustive' ? 'full' : 'smart')"
+      >
+        <template #nearby>
+          <!-- The stronger check's results, and at Fast and above the search around the instant answer,
+               its controls and results (StrongerBox.vue; the user, 12 Oct). -->
+          <StrongerBox v-slot="{ level }" goal="fastest" in-tab :running="smartRunning" :estimates="levelEstimates">
+            <ChainSearchPanel
+              v-if="level !== 'light'"
+              :player-id="playerId"
+              embedded
+              level-elsewhere
+              @check-exactly="checkExactly"
+            />
+          </StrongerBox>
+        </template>
+        <template #exhaustive>
+          <!-- Exhaustive: its boxes, run controls and results (InsanePanel.vue). -->
+          <section id="exhaustive" class="space-y-3 scroll-mt-24">
+            <ExhaustivePromise goal="fastest" />
+            <InsanePanel :player-id="playerId" goal="fastest" embedded @update:goal="onGoal" />
+          </section>
+        </template>
+      </SearchTabs>
     </div>
   </div>
 </template>
@@ -80,14 +77,15 @@
 <script setup lang="ts">
 import { computed, nextTick, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
-import { EXHAUSTIVE_TITLE, fastestName, type Depth } from '@/lib/siteNav';
+import { fastestName, type Depth } from '@/lib/siteNav';
 import { safeAsyncComponent } from '@/lib/import';
 import RunningElsewhere from './RunningElsewhere.vue';
 import StrongerBox from './StrongerBox.vue';
 import CollapsibleSection from './CollapsibleSection.vue';
+import SearchTabs from './SearchTabs.vue';
+import { revealRunTab, selectSearchTab, type SearchTabId } from '@/lib/searchTab';
 import { useSearchSnapshots } from '@/composables/useSearchSnapshots';
 import { routeLine } from '@/search/sectionSummary';
-import { pick } from '@/search/compareAnswers';
 import { showDateTime } from '@/lib/displayTime';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import SearchCompare from './SearchCompare.vue';
@@ -95,13 +93,12 @@ import { SHOW_COMPARE } from '@/lib/features';
 import InstantRoute from './InstantRoute.vue';
 import ExhaustivePromise from './ExhaustivePromise.vue';
 import YourSetup from './YourSetup.vue';
-import StartTimeCard from './StartTimeCard.vue';
 import { useUIStore } from '@/stores/ui';
 import { useStrongerStore, type LevelEstimate, type StrongerLevel } from '@/stores/stronger';
 import { formatHours } from '@/search/exhaustive';
 import { plural } from '@/lib/format';
 
-defineProps<{
+const props = defineProps<{
   playerId: string;
   /** The address's depth (#/auto/fastest/full): both searches are on the page now; it only says
    *  which one a link (or the progress bar's Jump to it) means. */
@@ -121,16 +118,8 @@ const stronger = useStrongerStore();
 useSearchSnapshots('fastest');
 const planner = useAutoPlannerStore();
 const show = (u: number) => showDateTime(u, planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
-const LEVEL_NAMES: Record<string, string> = { light: 'Light', quick: 'Fast', normal: 'Exact', thorough: 'Very high' };
 const lines = computed(() => ({
   instant: routeLine('fastest', stronger.instant.fastest, show, 'working out…'),
-  stronger: `${LEVEL_NAMES[stronger.level]}: ${routeLine(
-    'fastest',
-    pick('fastest', stronger.strongerBest.fastest, stronger.level === 'light' ? null : stronger.lastSearch.smart),
-    show,
-    'nothing beats the instant answer yet'
-  )}`,
-  exhaustive: routeLine('fastest', stronger.lastSearch.full, show),
 }));
 /** What each Nearby routes level would cost on this computer (store `smartEstimate`). */
 const levelEstimates = computed<Partial<Record<StrongerLevel, LevelEstimate>>>(() => {
@@ -164,6 +153,8 @@ watch(
 function checkExactly(chain: number[]): void {
   ui.fullSweepBands = chain.slice(0, -1).join('; ');
   emit('update:depth', 'full');
+  // The Exhaustive tab first: a hidden tab has no place on the page to scroll to.
+  selectSearchTab('fastest', 'exhaustive');
   void nextTick(() => document.getElementById('exhaustive')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
 }
 
@@ -175,6 +166,35 @@ function onGoal(g: 'fastest' | 'deadline'): void {
 const ChainSearchPanel = safeAsyncComponent(() => import('./ChainSearchPanel.vue'));
 const InsanePanel = safeAsyncComponent(() => import('./InsanePanel.vue'));
 
-const EXHAUSTIVE_BLURB =
-  'You set a box of TEs for each ascension and it tries every route in them, so nothing inside is missed. In players\' runs that was about 1 minute per 70 routes on an 8-core computer (per 120 on 16), so big boxes take hours.';
+/** The first lines of each tab (SearchTabs.vue): what it does, when to use it, how long it takes. The
+ *  Exhaustive one is the old section's blurb, with when to use it in front. */
+const TAB_INTRO: Record<SearchTabId, string> = {
+  nearby:
+    "Start here. It checks the instant answer on your save and, at Fast and above, searches the routes near it. Light takes seconds to a few minutes; each other level's time on this computer is under its name.",
+  exhaustive:
+    "For a proven best inside boxes you choose, or to widen what Search nearby found: you set a box of TEs for each ascension and it tries every route in them. In players' runs that was about 1 minute per 70 routes on an 8-core computer, so big boxes take hours.",
+};
+
+/** The address and the tab: #/auto/fastest/full (a sweep link, an old ?insane=1 link, Check exactly)
+ *  opens Exhaustive, and a tab picked by hand changes the address (@pick above). Opened on the plain
+ *  address, the tab remembered from last time wins (the address is left alone then: changing it
+ *  counts as picking a tab in App.vue, which would drop a link's hold on the page while a save loads). */
+watch(
+  () => props.depth,
+  (d, before) => {
+    if (d === 'full') selectSearchTab('fastest', 'exhaustive');
+    else if (before !== undefined) selectSearchTab('fastest', 'nearby');
+  },
+  { immediate: true }
+);
+
+/** A run that starts (a carry-on, a link) or is going when the screen opens shows its own tab; what the
+ *  player picked last is still what the next visit opens on. */
+watch(
+  () => (smartRunning.value ? 'smart' : fullRunning.value ? 'full' : null),
+  k => {
+    if (k) revealRunTab(k, false);
+  },
+  { immediate: true }
+);
 </script>
