@@ -39,15 +39,6 @@
 
             <the-player-id-form :player-id="playerId" @submit="submitPlayerId" />
 
-            <!-- The tabs, where they always were: under the player ID. -->
-            <SiteTabs
-              v-if="playerId && !isHeaderCollapsed"
-              class="mt-6"
-              :tabs="topTabs"
-              :current="plannerTab"
-              @select="selectSection"
-            />
-
             <!-- Plan Library Section -->
             <div v-if="playerId && plannerTab === 'manual'" class="max-w-6xl mx-auto mt-6">
               <PlanLibrary @plan-loaded="handlePlanLoaded" />
@@ -227,9 +218,9 @@
       />
 
       <nav v-if="playerId" class="mt-4 space-y-3" aria-label="Site">
-        <!-- The header (with the tabs in it) folds away on the Auto Planner: the same tabs here then. -->
+        <!-- One set of tabs, always here, outside the header that folds away: they used to sit inside it when it
+             was open and jump out when it closed (Allan, 14 Oct). -->
         <SiteTabs
-          v-if="isHeaderCollapsed"
           :tabs="topTabs"
           :current="plannerTab"
           @select="selectSection"
