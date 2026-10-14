@@ -175,6 +175,7 @@
                   :max="store.maxPrestiges"
                   :disabled="store.isRunning"
                   class="mt-1 w-20 rounded-lg border-slate-300 text-sm font-bold text-slate-800 disabled:opacity-50"
+                  @input="store.markLimitTouched('min')"
                 />
               </div>
               <div>
@@ -189,8 +190,13 @@
                   max="12"
                   :disabled="store.isRunning"
                   class="mt-1 w-20 rounded-lg border-slate-300 text-sm font-bold text-slate-800 disabled:opacity-50"
+                  @input="store.markLimitTouched('max')"
                 />
               </div>
+              <!-- Two either side of the instant answer's fastest count until set (lib/limitsFollow.ts). -->
+              <span v-if="limitsFollowHint" class="pb-2 text-[10px] text-slate-400" data-testid="limits-follow-hint">{{
+                limitsFollowHint
+              }}</span>
               <div>
                 <span class="flex items-center gap-1.5">
                   <label for="pin-count" class="block text-[9px] font-black text-slate-400 uppercase tracking-widest">
@@ -366,6 +372,7 @@
               store.settingsRestoreNote(store.resumable.fingerprint)
             }}).</template
           >
+          <template v-if="resumableLimitsNote">{{ ' ' }}{{ resumableLimitsNote }}</template>
           <template v-if="store.planStartRestoreNote(store.resumable.fingerprint)"
             >{{ ' ' }}It puts the plan start back to
             <span class="font-black">{{ store.planStartRestoreNote(store.resumable.fingerprint) }}</span
@@ -1283,6 +1290,8 @@ import RouteExtras from './RouteExtras.vue';
 import LongerRouteHint from './LongerRouteHint.vue';
 import { defaultSeedChain } from '@/search/seedChain';
 import { startFromCountPlan } from '@/lib/longerRouteHint';
+import { carryOnLimitsNote, limitsHint } from '@/lib/limitsFollow';
+import { checkpointLimits } from '@/search/persistence';
 import { describeCompute } from '@/utils/computeTime';
 import UnfinishedRuns from './UnfinishedRuns.vue';
 import RunCharts from './charts/RunCharts.vue';
@@ -1502,8 +1511,8 @@ function startFromCount(n: number): string {
       defaultSeedChain({ currentTE: store.currentTE, finalTE: store.finalTE, minPrestiges: n, maxPrestiges: n }),
   });
   if (!plan) return `A starting route with ${n} ascensions doesn't fit between your TE and the target.`;
-  store.minPrestiges = plan.minPrestiges;
-  store.maxPrestiges = plan.maxPrestiges;
+  // On purpose: these no longer follow the instant answer.
+  store.setLimits(plan.minPrestiges, plan.maxPrestiges);
   store.findSeedFirst = false;
   store.seedOverride = plan.chain.slice(0, -1).join(' ');
   const set = `Starting route set to ${plan.chain.join(' ')}. Press Find to search from it`;
@@ -1511,6 +1520,14 @@ function startFromCount(n: number): string {
     ? `${set} on Fast (minutes; it also checks the other counts inside the new limits). For a more exact search, raise Effort in Search settings.`
     : `${set} on ${note.value.label}, which also tries one more and one fewer ascension; Fast, in Search settings, is quicker.`;
 }
+/** "(from the instant answer)" beside the Limits inputs while they follow it. */
+const limitsFollowHint = computed(() => limitsHint(store.limitsFollowing));
+/** A staged run waiting to carry on under limits other than the box's now (it puts its own back). */
+const resumableLimitsNote = computed(() => {
+  const r = store.resumable;
+  if (!r || r.complete || r.space) return '';
+  return carryOnLimitsNote(checkpointLimits(r), { min: store.minPrestiges, max: store.maxPrestiges });
+});
 /** The instant answer's count (set by the branch that has one), when it isn't the one searched from. */
 const suggestedCountNote = computed(() => {
   const k = store.suggestedCount;

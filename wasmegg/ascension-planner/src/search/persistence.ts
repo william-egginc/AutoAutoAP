@@ -109,6 +109,14 @@ export interface SearchCheckpoint {
    * different run took over, so the queue it belonged to is over.
    */
   queue?: SweepQueueRecord;
+
+  /**
+   * A staged (Nearby routes) run's ascension limits, counted as the Limits box counts them. Since the
+   * limits follow the instant answer until the player sets them (lib/limitsFollow.ts), a carry-on puts
+   * these back rather than searching under whatever the instant answer says by then. Optional and
+   * unversioned, as `provisional` is: a record without them carries on under the current limits.
+   */
+  limits?: { min: number; max: number };
 }
 
 /** One chain of a Full sweep queue: what to run, and its size for the whole queue's time left. */
@@ -555,6 +563,7 @@ export function buildCheckpoint(args: {
   provisional?: ProvisionalRow | null;
   watch?: WatchLinkState | null;
   queue?: SweepQueueRecord | null;
+  limits?: { min: number; max: number } | null;
 }): SearchCheckpoint {
   const bestKey = args.bestChain.join(',');
   return {
@@ -577,7 +586,18 @@ export function buildCheckpoint(args: {
     ...(args.provisional ? { provisional: { ...args.provisional } } : {}),
     ...(args.watch ? { watch: { ...args.watch } } : {}),
     ...(args.queue && readSweepQueue(args.queue) ? { queue: readSweepQueue(args.queue)! } : {}),
+    ...(args.limits ? { limits: { min: args.limits.min, max: args.limits.max } } : {}),
   };
+}
+
+/** A checkpoint's stored limits, when they are usable (1 <= min <= max <= 12); else null. */
+export function checkpointLimits(record: { limits?: unknown } | null | undefined): { min: number; max: number } | null {
+  const l = record?.limits as { min?: unknown; max?: unknown } | undefined;
+  if (!l || typeof l !== 'object') return null;
+  const min = Number(l.min);
+  const max = Number(l.max);
+  if (!Number.isInteger(min) || !Number.isInteger(max) || min < 1 || max < min || max > 12) return null;
+  return { min, max };
 }
 
 /** Turn a checkpoint's flat `durations` back into driver cache entries. Legs come back empty for
