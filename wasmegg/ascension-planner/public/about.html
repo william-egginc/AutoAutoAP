@@ -189,7 +189,7 @@
       <section id="never">
         <h2>What is never sent to the leaderboard</h2>
         <ul>
-          <li>Your player ID. It is not a field in anything that is sent, and the planner and the server both remove anything shaped like one from names, notes and the CSV.</li>
+          <li>Your player ID. It is not a field in anything that is sent. The planner removes anything shaped like one from names, notes and the CSV before sending, and the server removes it from names and notes again.</li>
           <li>Your game save.</li>
         </ul>
         <p class="muted">
@@ -226,7 +226,7 @@
           <tbody>
             <tr>
               <td>Leaderboard rows and their CSVs</td>
-              <td>No time limit. They stay until you hide them or they are removed by hand.</td>
+              <td>No time limit. They stay until they are removed by hand. Hiding a row only hides it from public views.</td>
             </tr>
             <tr>
               <td>Private diagnostics, instant-answer checks, refused results</td>
