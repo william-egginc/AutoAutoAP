@@ -6,6 +6,7 @@
  * number is wrong" but "something got included that nobody agreed to share".
  */
 import { describe, expect, it } from 'vitest';
+import { SIM_VERSION } from './simVersion';
 import {
   asProvisional,
   bestPerFamily,
@@ -676,6 +677,13 @@ describe('buildSubmission: schema 7', () => {
     expect(buildSubmission(inputs({ build: 'x'.repeat(90) })).build).toHaveLength(40);
     const bare = buildSubmission(inputs({ backupTE: null, build: '' }));
     expect('backupTE' in bare || 'build' in bare).toBe(false);
+  });
+
+  it('stamps the simulator whenever it stamps the build, and neither when the build is unknown', () => {
+    const s = buildSubmission(inputs({ build: '2026-10-13T12:00:00.000Z' }));
+    expect(s.simVersion).toBe(SIM_VERSION);
+    expect('simVersion' in buildSubmission(inputs({ build: '' }))).toBe(false);
+    expect(validateSubmission({ ...s, simVersion: 'x'.repeat(41) })[0]).toMatch(/simVersion/);
   });
 
   it('sends only rechecks the collector will take, and never the winner again', () => {

@@ -30,6 +30,7 @@ import type { ColleggtibleSummary, EpicResearchSummary } from './progression';
 import type { Availability } from './availabilitySchedule';
 import { describeAvailability } from './availabilitySchedule';
 import type { LegSummary } from './types';
+import { SIM_VERSION } from './simVersion';
 import type { DeliveryScore } from './virtueScore';
 import { firstLegKindOf, forceContinueOf, type FirstAscension, type FirstLegKind } from './firstAscension';
 
@@ -377,6 +378,10 @@ export interface Submission {
   /** Schema 7: which build of the planner priced the run (`appBuildId`). Simulator changes move
    *  finishes by days, and without this two builds' numbers cannot be told apart. */
   build?: string;
+  /** Which simulator priced the run (search/simVersion.ts SIM_VERSION, 13 Oct 2026): unlike `build` it
+   *  moves only when results do, so a row can later be labelled "priced by an older simulator". Sent
+   *  whenever `build` is (a run priced in this tab); a collector from before 13 Oct drops it. */
+  simVersion?: string;
   /**
    * Schema 7: the player's best current plans already on the board, cut to the checkpoints still
    * ahead and priced again from THIS run's save and start. Up to three.
@@ -1034,7 +1039,7 @@ export function buildSubmission(input: SubmissionInputs): Submission {
     ...(i.backupTE !== null && i.backupTE !== undefined && Number.isFinite(i.backupTE) && i.backupTE >= 0
       ? { backupTE: Number(i.backupTE.toFixed(2)) }
       : {}),
-    ...(build ? { build } : {}),
+    ...(build ? { build, simVersion: SIM_VERSION } : {}),
     ...(rechecks.length ? { rechecks } : {}),
     ...(i.deadline ? { deadline: Math.round(i.deadline.at), deadlineAscendAt: Math.round(i.deadline.ascendAt) } : {}),
     ...(i.flags?.length ? { flags: [...i.flags] } : {}),
@@ -1189,6 +1194,9 @@ export function validateSubmission(value: unknown): string[] {
   }
   if (s.build !== undefined && (typeof s.build !== 'string' || s.build.length > MAX_BUILD)) {
     problems.push(`build must be a string of at most ${MAX_BUILD} characters`);
+  }
+  if (s.simVersion !== undefined && (typeof s.simVersion !== 'string' || s.simVersion.length > MAX_BUILD)) {
+    problems.push(`simVersion must be a string of at most ${MAX_BUILD} characters`);
   }
   for (const field of ['startUtc', 'endUtc'] as const) {
     const v = s[field];
