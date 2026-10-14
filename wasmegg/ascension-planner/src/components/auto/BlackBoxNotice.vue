@@ -18,10 +18,7 @@
       }}<template v-if="memory"> and {{ memory }} in use</template>.
       {{ workers }}
       <template v-if="crash.last.runNote">Its note: {{ crash.last.runNote }}</template>
-      <template v-if="crash.last.pageClosed"
-        >{{ ' ' }}The page was reloaded or closed while it was going, which ends a run.</template
-      >
-      <template v-else>{{ ' ' }}The browser closed the page itself, most likely because it ran short of memory.</template>
+      {{ ' ' }}{{ causeLine }}
       <template v-if="deadlineOffer"
         >{{ ' ' }}A By a date search was going: its progress is saved, see
         <a href="#by-date-unfinished" class="underline font-bold" @click.prevent="toOffer">the unfinished run above</a>
@@ -52,7 +49,7 @@
 import { computed } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { downloadFile } from '@/utils/export';
-import { memoryPhrase, workersNote } from '@/search/blackBox';
+import { memoryPhrase, stopCause, stopCauseLine, workersNote } from '@/search/blackBox';
 
 defineProps<{
   /** The By a date panel has its own unfinished run on offer (DeadlinePanel's single carry-on box). */
@@ -75,6 +72,8 @@ const doing = computed(() => {
 const memory = computed(() => (crash.value ? memoryPhrase(crash.value.last) : ''));
 /** Chrome reports no worker memory: say so, with how full the workers' caches were instead. */
 const workers = computed(() => (crash.value ? workersNote(crash.value.last) : ''));
+/** Reloaded or closed by the player, memory by the evidence, or said neutrally (search/blackBox.ts). */
+const causeLine = computed(() => (crash.value ? stopCauseLine(stopCause(crash.value.last)) : ''));
 function when(ms: number): string {
   return new Date(ms).toLocaleString();
 }

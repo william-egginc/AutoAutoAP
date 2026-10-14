@@ -221,6 +221,36 @@ export function memoryPhrase(b: Pick<Beat, 'heapMB' | 'workersHeapMB' | 'workers
 }
 
 /**
+ * Why the last visit stopped, as far as its last beat can tell (13 Oct 2026: a Windows blue screen
+ * restarted the whole PC mid-run, and the notice blamed the browser's memory). 'closed': the player
+ * reloaded, closed or left it (`pagehide`). 'memory': the last readings point at memory -- the main
+ * thread near its heap ceiling, or the page or its workers past 3 GB -- so the browser most likely
+ * took the page away for it. 'unknown' otherwise: a crash, a restart of the browser or the computer,
+ * or memory the browser didn't report (Chrome reports no worker memory at all) all look the same
+ * from here, since a beat comes every 15 s and nothing is written as the machine goes down.
+ */
+export type StopCause = 'closed' | 'memory' | 'unknown';
+/** Past this the page or its workers are near the ~4 GB a Chromium tab shares. */
+const MEMORY_EVIDENCE_MB = 3072;
+export function stopCause(
+  b: Pick<Beat, 'pageClosed' | 'heapMB' | 'heapLimitMB' | 'workersHeapMB' | 'uaMemoryMB'>
+): StopCause {
+  if (b.pageClosed) return 'closed';
+  if (typeof b.heapMB === 'number' && typeof b.heapLimitMB === 'number' && b.heapLimitMB > 0 && b.heapMB >= 0.8 * b.heapLimitMB)
+    return 'memory';
+  if ((typeof b.workersHeapMB === 'number' && b.workersHeapMB >= MEMORY_EVIDENCE_MB) || (b.uaMemoryMB ?? 0) >= MEMORY_EVIDENCE_MB)
+    return 'memory';
+  return 'unknown';
+}
+
+/** The crash notice's sentence for that cause. */
+export function stopCauseLine(cause: StopCause): string {
+  if (cause === 'closed') return 'The page was reloaded or closed while it was going, which ends a run.';
+  if (cause === 'memory') return 'The browser closed the page itself, most likely because it ran short of memory.';
+  return 'The browser or the computer closed it (for example a crash, a restart or running short of memory).';
+}
+
+/**
  * What the crash notice says about the workers when the browser gave no figure for their memory
  * (Chrome never does from a worker): that it doesn't, and how full their caches were instead.
  * '' when the workers' memory is known, or there were no workers.
