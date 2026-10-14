@@ -41,7 +41,8 @@ describe('security headers (13 Oct 2026, the Sucuri check)', () => {
     expect(p['object-src']).toEqual(["'none'"]);
     expect(p['base-uri']).toEqual(["'self'"]);
     expect(p['frame-src']).toEqual(["'self'"]);
-    expect(p['script-src']).toEqual(["'self'", 'https://gc.zgo.at', "'sha256-abc'"]);
+    expect(p['script-src']).toEqual(["'self'", 'https://gc.zgo.at', 'https://static.cloudflareinsights.com', "'sha256-abc'"]);
+    expect(p['connect-src']).toContain('https://cloudflareinsights.com');
     expect(p['script-src']).not.toContain("'unsafe-eval'");
     expect(p['script-src']).not.toContain("'unsafe-inline'");
     expect(p['worker-src']).toEqual(["'self'"]);

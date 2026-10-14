@@ -11,7 +11,8 @@
  * `watcherIsolation`.
  *
  * The policy lists every origin the pages reach, checked against the build (13 Oct):
- * - scripts: our own, GoatCounter's count.js (index.html), and watch.html's inline before-paint
+ * - scripts: our own, GoatCounter's count.js (index.html), Cloudflare Web Analytics' beacon (added
+ *   by Cloudflare on the public hosts; kept by Jordan's choice), and watch.html's inline before-paint
  *   script by its hash (`inlineScriptHashes`). No eval: protobufjs's `inquire` (an eval looking for
  *   Node's require, always failing in a browser) is swapped out in the build (vite.config.ts).
  * - connect: the collector, the save forwarders and the auth worker (all *.workers.dev, so a
@@ -38,10 +39,13 @@ export const CONNECT_ORIGINS = [
   'https://gist.githubusercontent.com',
   'https://ntfy.sh',
   'https://wasmegg-carpet.goatcounter.com',
+  // Cloudflare Web Analytics' reports (its beacon, below).
+  'https://cloudflareinsights.com',
 ];
 
-/** Scripts from elsewhere (index.html's GoatCounter). */
-export const SCRIPT_ORIGINS = ['https://gc.zgo.at'];
+/** Scripts from elsewhere: index.html's GoatCounter, and the Cloudflare Web Analytics beacon that
+ *  Cloudflare puts into the public hosts' pages at its edge (never in a local preview). */
+export const SCRIPT_ORIGINS = ['https://gc.zgo.at', 'https://static.cloudflareinsights.com'];
 
 /** The policy for the HTML pages. `scriptHashes`: 'sha256-…' sources of the pages' inline scripts.
  *  `extraConnect`: origins from the build's settings (VITE_SUBMIT_URL and the proxies) not already
