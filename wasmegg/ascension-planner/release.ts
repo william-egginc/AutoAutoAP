@@ -33,7 +33,7 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
-  { at: '2026-10-14T03:59:25Z', note: 'Low-TE accounts that used to stall now get Joo's opening rounds; clearer run times and advice; old runs fold away; at most 12 workers by default', level: 'big' },
+  { at: '2026-10-14T03:59:25Z', note: 'Low-TE accounts that used to stall now get Joo’s opening rounds; clearer run times and advice; old runs fold away; at most 12 workers by default', level: 'big' },
   { at: '2026-10-13T19:15:55Z', note: 'Fixes iPhone crashes on By a date; agree to share once; By a date laid out like Fastest; start times by finish; clearer search screens; upload errors say why', level: 'big' },
   { at: '2026-10-12T20:16:33Z', note: 'New: Stronger check (Light/Fast/Exact/Very high) with Nearby routes; Exhaustive on the page, in boxes; When should I start?; egg-shift dates; By a date TE per egg; steadier long runs', level: 'big' },
   { at: '2026-10-11T19:26:57Z', note: 'New Science › How it works page; 12-hour times; tidier tabs on phones; a Full sweep queue survives a refresh; better time estimates; many small fixes', level: 'big' },
