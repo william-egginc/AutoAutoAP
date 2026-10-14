@@ -191,8 +191,9 @@
           </li>
         </ul>
         <p>
-          The files are named by a scrambled code, so nobody can tell whose gear a file was built from, and your player
-          ID never leaves your computer.
+          The files are named by a scrambled code made in your browser, so nobody can tell whose gear a file was built
+          from, and fetching one sends no player ID. (Your player ID does go to the game's server, through a relay, to
+          load your save; see About and privacy.)
         </p>
         <p>
           <b>Where the delivery-rate shortcut stops working.</b> From about TE 340 every build reaches full research, so
