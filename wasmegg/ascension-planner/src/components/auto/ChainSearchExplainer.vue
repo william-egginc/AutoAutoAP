@@ -281,8 +281,8 @@
           <p class="mt-3">
             So the starting route matters a lot. That's why, since 6 Oct, the search starts from the instant answer's
             fastest route inside your limits (a route you type still wins): the instant answer has already looked at
-            every route, so the search starts on the right hill far more often. Without one, "Find a starting route for
-            me" helps, but it is rough: on the two accounts tested, its pick was
+            every route, so the search starts on the right hill far more often. Until 12 Oct there was a "Find a starting
+            route for me" button instead; it was rough: on the two accounts tested, its pick was
             <span class="font-bold text-slate-800">8.6 and 12.0 days</span> slower than where the search finished. If
             the start is on the wrong hill, every later step does a careful job on the wrong hill. To catch that, run
             twice from different starting routes and compare, or use {{ NAMES.fullFirst }}, which prices every route in
@@ -347,7 +347,7 @@ const SPACE_SIZE = [
 
 const STAGES = [
   {
-    name: 'Find a starting route (only if ticked)',
+    name: 'Find a starting route (no longer offered as a button)',
     what: "price a rough grid of stops (every 15 TE, wider if it would top 1,200 routes) and pick the ascension count. Quick and rough on purpose. Without it, the search starts from the route you type, or else the instant answer's fastest route.",
   },
   {
