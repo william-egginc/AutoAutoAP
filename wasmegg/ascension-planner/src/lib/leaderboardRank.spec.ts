@@ -19,6 +19,7 @@ import {
   foldCopies,
   gapToBest,
   groupPlayers,
+  hiddenRuns,
   localToUtcMs,
   nameLabel,
   placeFor,
@@ -26,6 +27,7 @@ import {
   playerKey,
   projectedTE,
   provisionalTag,
+  publicRows,
   remainingChain,
   rowFirstAscension,
   sameBuild,
@@ -38,6 +40,7 @@ import {
   viewerTag,
 } from './leaderboardRank';
 import { sortRows } from './leaderboardSort';
+import { currentPlans } from '@/search/rechecks';
 
 const CHICAGO = 'America/Chicago';
 const WINDOW = `every day 07:00-23:00 ${CHICAGO}`;
@@ -1968,5 +1971,87 @@ describe('who the viewer is, when /mine cannot say (Renegade tagged YOU on Allan
       allanfieldhouse: 'maybe',
       Kenzie: null,
     });
+  });
+});
+
+describe('runs hidden from the public', () => {
+  const ALLAN = 'a11a11a11a11';
+  // Allan's named plan, public, and a faster one he hid. Both came back from /mine.
+  const shown = row({ id: 'shown', acct: ALLAN, yours: true });
+  const hid = row({
+    id: 'hid',
+    acct: ALLAN,
+    yours: true,
+    hidden: true,
+    chain: [230, 300, 490],
+    durationDays: 600,
+    receivedAt: '2026-09-25T21:00:00Z',
+  });
+  const kenzie = rival('Kenzie', 700);
+
+  it('is never in the race, even when it is the player\'s fastest', () => {
+    const race = buildRace([shown, hid, kenzie], { target: 490, now: NOW });
+    const allan = race.entries.find(e => e.label.includes('allan'))!;
+    expect(allan.best.row.id).toBe('shown');
+    expect(race.entries.flatMap(e => [e.best, ...e.listed, ...e.dropped]).map(p => p.row.id)).not.toContain('hid');
+    // Hiding every run of his takes his line out altogether, and the rest move up.
+    const without = buildRace([{ ...shown, hidden: true }, hid, kenzie], { target: 490, now: NOW });
+    expect(without.entries.map(e => e.label)).toEqual(['Kenzie']);
+    expect(without.entries[0].rank).toBe(1);
+    expect(groupPlayers([hid], { target: 490, now: NOW })).toEqual([]);
+  });
+
+  it('is not My plans\' best nor ranked there, but My plans lists it apart', () => {
+    const mine = buildMyPlans([shown, hid, kenzie], null, { target: 490, now: NOW })!;
+    expect(mine.best!.row.id).toBe('shown');
+    expect(mine.plans.map(p => p.row.id)).toEqual(['shown']);
+    expect(hiddenRuns([shown, hid, kenzie]).map(r => r.id)).toEqual(['hid']);
+    // Only hidden runs: no plans, but still listed.
+    expect(buildMyPlans([hid], null, { target: 490, now: NOW })).toBeNull();
+    expect(hiddenRuns([hid]).map(r => r.id)).toEqual(['hid']);
+  });
+
+  it('lists only the viewer\'s own hidden runs, once each, newest first', () => {
+    const older = row({ id: 'older', yours: true, hidden: true, receivedAt: '2026-09-01T00:00:00Z' });
+    const notMine = row({ id: 'other', hidden: true });
+    expect(hiddenRuns([older, hid, hid, notMine]).map(r => r.id)).toEqual(['hid', 'older']);
+  });
+
+  it('is never re-checked by a later run (a re-check is sent publicly)', () => {
+    expect(currentPlans([shown, hid], null, 490, NOW).map(p => p.row.id)).toEqual(['shown']);
+  });
+
+  it('is not on a By a date board', () => {
+    const EGG_DAY = 1815926400;
+    const answer = (id: string, over: Partial<BoardRow> = {}) =>
+      row({
+        id,
+        chain: [195, 238, 307],
+        finalTE: 307,
+        durationDays: 200,
+        startLocal: '2026-09-28 16:27',
+        currentTE: 184,
+        deadline: EGG_DAY,
+        acct: undefined,
+        ...over,
+      });
+    const board = buildDeadlineBoard([answer('pub', { nickname: 'Kenzie' }), answer('hid', { hidden: true })], {
+      now: Date.parse('2026-09-30T00:00:00Z'),
+    });
+    const ids = board.flatMap(g => [...g.entries, ...g.anonymous].flatMap(e => [e.best, ...e.others])).map(r => r.id);
+    expect(ids).toEqual(['pub']);
+  });
+
+  it('public views drop the runs the board knows are hidden, though /all still has them for a minute', () => {
+    // /all from another edge, a minute stale: Allan's run is there, unmarked.
+    const stale = [row({ id: 'shown', acct: ALLAN }), row({ id: 'justHidden', acct: ALLAN, durationDays: 500 }), kenzie];
+    const pub = publicRows(stale, new Set(['justHidden']));
+    expect(pub.map(r => r.id)).toEqual(['shown', kenzie.id]);
+    expect(buildRace(pub, { target: 490, now: NOW }).entries.find(e => e.label.includes('allan'))!.best.row.id).toBe(
+      'shown'
+    );
+    // Nothing hidden: the same array, so memoised work downstream keeps its identity.
+    expect(publicRows(stale, new Set())).toBe(stale);
+    expect(publicRows([hid, shown], new Set()).map(r => r.id)).toEqual(['shown']);
   });
 });
