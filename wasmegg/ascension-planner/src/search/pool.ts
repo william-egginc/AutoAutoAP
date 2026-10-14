@@ -241,6 +241,9 @@ export interface ChainSearchPool {
   /** "Continue my build-up" as the instant answer's tails (search/leg.ts `buildUpTailParams`), on the
    *  first worker against the pool's own inputs: empty without a farm in the save. */
   buildUpTails(): Promise<import('./precomputedLeg').BuildParams[]>;
+  /** A fresh build at `te` from `start` on the pool's own account, as a table cell holds it (search/
+   *  liveCell.ts), on the first worker. Optional: test pools leave it out. */
+  liveFresh?(te: number, start: number): Promise<import('./precomputedLeg').BuildParams[]>;
   /**
    * One route priced from each of `starts` (unix seconds), shared out across the workers. Resolves
    * with the seconds from each start to the route's end, in the order given (null where it failed).
@@ -817,6 +820,16 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
         'worker 0 (build-up tails)'
       )) as { tails: import('./precomputedLeg').BuildParams[] };
       return reply.tails;
+    },
+
+    async liveFresh(te: number, start: number): Promise<import('./precomputedLeg').BuildParams[]> {
+      const pw = await workerAt(0);
+      const reply = (await send(
+        pw,
+        { kind: 'live-fresh', requestId: ++nextRequestId, te, start },
+        'worker 0 (live first ascension)'
+      )) as { builds: import('./precomputedLeg').BuildParams[] };
+      return reply.builds;
     },
 
     resize(n: number): number {

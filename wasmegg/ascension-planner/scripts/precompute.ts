@@ -57,9 +57,9 @@
  *                    (search/precomputedTable.ts), covering the start TEs finished so far.
  *                    --fake-below fills the rows down to TE from the nearest real one (marked fake),
  *                    only to try the page out before the table reaches a player's TE.
- *   --route-bin FILE --te TE [--start ISO] [--keep N] [--max-asc N]
+ *   --route-bin FILE --te TE [--start ISO] [--keep N] [--max-asc N] [--stop-max N|none]
  *                    The route finder on a packed table file, timed (what the site's worker runs).
- *   --generate --out DIR [--from TE] [--to TE] [--jobs N]
+ *   --generate --out DIR [--from TE] [--to TE] [--max-start-te N] [--jobs N]
  *                    Build the table: every start TE in the range (default 100-489) at each of the
  *                    168 Pacific hours of the week, one file per start TE (DIR/te-NNN.jsonl), with
  *                    DIR/meta.json describing the account and the reference week. Re-running skips
@@ -149,6 +149,7 @@ import {
 import { splitByWork } from '@/search/routePool';
 import { packTable, readTable, restampTable, type TableHeader } from '@/search/precomputedTable';
 import { SIM_VERSION } from '@/search/simVersion';
+import { liveFreshBuilds } from '@/search/liveCell';
 import {
   gearChanges,
   gearStamp,
@@ -468,7 +469,9 @@ async function generate(file: string): Promise<void> {
   mkdirSync(out, { recursive: true });
   if (pacificHourOfWeek(REFERENCE_WEEK) !== 0) throw new Error('reference week does not start at Monday 00:00 Pacific');
   const from = Number(arg('from', String(TABLE_FROM)));
-  const to = Number(arg('to', String(TABLE_TO)));
+  // --max-start-te N: build no start TE above N (the next rebuild stops at 339: above the useful stops
+  // the page simulates a player's one ascension live, search/liveCell.ts). Default: TABLE_TO.
+  const to = Math.min(Number(arg('to', String(TABLE_TO))), Number(arg('max-start-te', String(TABLE_TO))));
   const jobs = Math.max(1, Number(arg('jobs', '4')));
 
   // What the table was built on, written first so a half-built table still says what it is: for an
@@ -860,6 +863,12 @@ async function recordK3(file: string): Promise<void> {
   );
 }
 
+/** --stop-max N|none: the finder's USEFUL_STOP_MAX for this run (none: no limit, the old search). */
+function stopMaxArg(): { usefulStopMax?: number } {
+  const v = arg('stop-max');
+  return v === undefined ? {} : { usefulStopMax: v === 'none' ? Infinity : Number(v) };
+}
+
 async function routeBin(): Promise<void> {
   const buf = readFileSync(arg('route-bin')!);
   const table = readTable(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer);
@@ -877,6 +886,7 @@ async function routeBin(): Promise<void> {
     final: 490,
     maxAscensions: Number(arg('max-asc', '10')),
     ...(arg('keep') ? { keep: Number(arg('keep')) } : {}),
+    ...stopMaxArg(),
     stats,
     ...(split > 1
       ? {
@@ -1057,7 +1067,12 @@ function stampSim(): void {
 async function route(file: string): Promise<void> {
   const dir = arg('table');
   if (!dir) throw new Error('--route needs --table DIR');
-  const table = loadTable(dir);
+  const loaded = loadTable(dir);
+  // --table-top N: as if the table stopped at start TE N (a rebuild with --max-start-te), to try the
+  // page's live first ascension above it (search/liveCell.ts).
+  const tableTop = arg('table-top') ? Number(arg('table-top')) : null;
+  const table =
+    tableTop === null ? loaded : { ...loaded, lookup: (t: number, h: number) => (t > tableTop ? null : loaded.lookup(t, h)) };
   const final = Number(arg('final', '490'));
   const startArg = arg('start');
   // --player: the instant answer as the page works it out for the loaded save (InstantRoute.vue): from
@@ -1104,7 +1119,15 @@ async function route(file: string): Promise<void> {
     ? firstLegOptions({
         table: table.lookup,
         deliveryScale,
-        ...(await instantFirstLegsBase(inputs!, { startTE: te, start, final, ...cliBuildUp(inputs!) })),
+        ...(await instantFirstLegsBase(inputs!, {
+          startTE: te,
+          start,
+          final,
+          ...cliBuildUp(inputs!),
+          ...(tableTop !== null && te > tableTop
+            ? { liveFresh: (t: number, at: number) => liveFreshBuilds(inputs!, t, at) }
+            : {}),
+        })),
       })
     : undefined;
   // --deadline ISO: also the highest TE reachable by then (the By a date screen's instant answer).
@@ -1118,6 +1141,7 @@ async function route(file: string): Promise<void> {
     final,
     maxAscensions,
     ...(arg('wait-hours') ? { waitHours: Number(arg('wait-hours')) } : {}),
+    ...stopMaxArg(),
     deliveryScale,
     ...(firstLegs ? { firstLegs } : {}),
     ...(deadline !== undefined ? { deadline } : {}),

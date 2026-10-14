@@ -458,7 +458,7 @@
               </thead>
               <tbody>
                 <tr
-                  v-for="r in rows"
+                  v-for="r in shownRows"
                   :key="r.legs.length"
                   class="border-t border-slate-100"
                   :class="r === lead ? 'bg-emerald-50/60' : ''"
@@ -491,6 +491,20 @@
                 </tr>
               </tbody>
             </table>
+            <!-- Counts past the best + 1 add stops that no longer help (routeFinder.ts USEFUL_STOP_MAX). -->
+            <button
+              v-if="hiddenCounts || showMoreCounts"
+              type="button"
+              class="mt-1 text-[10px] font-bold text-slate-500 underline hover:text-emerald-800"
+              data-testid="instant-more-counts"
+              @click="showMoreCounts = !showMoreCounts"
+            >
+              {{ showMoreCounts ? 'Show fewer ascension counts' : `Show more ascension counts (${hiddenCounts})` }}
+            </button>
+            <p v-else-if="moreDontHelp" class="mt-1 text-[10px] text-slate-500" data-testid="instant-more-dont-help">
+              More ascensions don’t help past TE ~{{ USEFUL_STOP_NOTE }}: a build there already lays at its full rate, so an
+              extra stop only adds a prestige.
+            </p>
           </div>
           <p class="text-[11px] text-slate-600">
             Ascend at the times shown: each fresh ascension starts on the hour (inside the weekly research sale, at once
@@ -829,6 +843,7 @@ import { useInitialStateStore } from '@/stores/initialState';
 import { ownerToken } from '@/search/owner';
 import { appBuildId } from '@/search/submission';
 import { SIM_VERSION, tableSimMismatch } from '@/search/simVersion';
+import { countsShown } from '@/search/instantCounts';
 import { describeAvailability } from '@/search/availabilitySchedule';
 import { CTE_CLEARS, INTEGRITY_BLOCK_SECONDS, INTEGRITY_WARN_SECONDS } from '@/search/rules';
 import {
@@ -1302,6 +1317,18 @@ function fastestRowsOf(found: NonNullable<typeof result.value>, bestK?: number):
   return found.byAscensions.filter((r, k): r is Route => !!r && k <= top);
 }
 const rows = computed(() => (result.value ? fastestRowsOf(result.value, exactBestAll.value?.legs.length) : []));
+/** The per-count table shows counts up to one past the best (the table's and the exact check's), the
+ *  rest behind a toggle: past that, more ascensions only add stops that no longer help. */
+const showMoreCounts = ref(false);
+const counts = computed(() => countsShown(rows.value, result.value?.best, exactBestAll.value));
+const shownRows = computed(() => (showMoreCounts.value ? rows.value : counts.value.shown));
+const hiddenCounts = computed(() => counts.value.hidden);
+/** No route at all past the best + 1: the finder left them out (USEFUL_STOP_MAX), so say why. */
+const moreDontHelp = computed(
+  () => !!result.value?.best && !rows.value.some(r => r.legs.length > counts.value.limit)
+);
+/** The TE the note names: where builds reach their full laying rate (measured 338; the cap is 360). */
+const USEFUL_STOP_NOTE = 340;
 
 /** Setup the instant answer does not model, named so nobody reads it as accounted for. */
 const leftOut = computed(() => {
@@ -1666,6 +1693,16 @@ async function run(force = false, goAhead = false): Promise<void> {
     const legsRequest: FirstLegsBase = await instantFirstLegsBase(inputs, {
       startTE: te,
       final: target.value,
+      // Above the table's top it has no row for the player: their one ascension to the target is
+      // simulated live instead (search/liveCell.ts), a fraction of a second.
+      ...(te > h.to
+        ? {
+            liveFresh: (t: number, at: number) => {
+              loadingText.value = 'Working out your one ascension to the target (you are above the table)…';
+              return store.liveFreshBuilds(t, at);
+            },
+          }
+        : {}),
       buildUpTails: () => {
         loadingText.value = 'Working out your build-up from your farm as it is…';
         return store.buildUpTails();

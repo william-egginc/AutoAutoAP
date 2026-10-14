@@ -71,6 +71,10 @@ class FakeWorker {
       this.emit({ type: 'buildup-tails', requestId: msg.requestId, tails: [] });
       return;
     }
+    if (msg.kind === 'live-fresh') {
+      this.emit({ type: 'live-fresh', requestId: msg.requestId, builds: [] });
+      return;
+    }
     if (msg.kind === 'starts') {
       // A stand-in that depends on the start, so an answer filed under the wrong start shows.
       msg.starts.forEach((_, i) =>

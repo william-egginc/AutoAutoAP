@@ -16,14 +16,14 @@ describe('InstantRoute layout', () => {
   });
   it('Fastest: the table is inside the card, above its buttons', () => {
     const card = t.indexOf('>Fastest route</div>');
-    const table = t.indexOf('v-for="r in rows"');
+    const table = t.indexOf('v-for="r in shownRows"');
     const button = t.indexOf('Check all again', card);
     expect(table).toBeGreaterThan(card);
     expect(table).toBeLessThan(button);
   });
   it('the check history stays below, folded', () => {
     const history = t.indexOf('data-testid="check-history"');
-    expect(history).toBeGreaterThan(t.indexOf('v-for="r in rows"'));
+    expect(history).toBeGreaterThan(t.indexOf('v-for="r in shownRows"'));
     expect(t.slice(history - 80, history)).toContain('<details');
   });
 });
