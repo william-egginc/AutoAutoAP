@@ -20,8 +20,17 @@
       <!-- A blocked account says so the moment its save loads, not after the form is filled in. -->
       <IntegrityAlert />
 
-      <!-- Collapsible Header Region -->
-      <div class="bg-white/95 backdrop-blur-xl rounded-2xl border border-slate-100 shadow-sm">
+      <!-- The header, in three parts that always sit in this order (the user, 14 Oct): the title, backup and Player ID (folds
+           away), the site tabs and the chevron (never fold), then what folds on Manual: the plan library and the action
+           cards. The tabs are never inside a folding part (Allan, 14 Oct). -->
+      <div
+        class="rounded-2xl border transition-all duration-500"
+        :class="
+          isHeaderCollapsed
+            ? 'border-transparent'
+            : 'bg-white/95 backdrop-blur-xl border-slate-100 shadow-sm'
+        "
+      >
         <div
           class="grid transition-all duration-500 ease-in-out"
           :class="isHeaderCollapsed ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100'"
@@ -38,15 +47,61 @@
             </div>
 
             <the-player-id-form :player-id="playerId" @submit="submitPlayerId" />
+          </div>
+        </div>
+      </div>
 
+      <SiteTabs
+        v-if="playerId"
+        class="mt-4"
+        :tabs="topTabs"
+        :current="plannerTab"
+        @select="selectSection"
+      />
+
+      <!-- The chevron: one fixed place, just under the tabs, whatever the screen (it used to jump between above and
+           below the Auto Planner). -->
+      <div v-if="playerId" class="flex justify-center mt-2" data-testid="header-toggle">
+        <button
+          class="bg-white/95 backdrop-blur-xl border border-slate-100 px-4 py-1 rounded-lg shadow-sm text-slate-500 hover:text-slate-800 transition-colors flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider h-7 cursor-pointer"
+          :aria-label="isHeaderCollapsed ? 'Open the top menu' : 'Close the top menu'"
+          :aria-expanded="!isHeaderCollapsed"
+          @click="isHeaderCollapsed = !isHeaderCollapsed"
+        >
+          <svg
+            class="w-3.5 h-3.5 transition-transform duration-300"
+            :class="{ 'rotate-180': isHeaderCollapsed }"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- What folds on Manual: the plan library and the action cards (nothing folds on the other screens). -->
+      <div
+        v-if="plannerTab === 'manual'"
+        class="mt-2 rounded-2xl border transition-all duration-500"
+        :class="
+          isHeaderCollapsed
+            ? 'border-transparent'
+            : 'bg-white/95 backdrop-blur-xl border-slate-100 shadow-sm'
+        "
+      >
+        <div
+          class="grid transition-all duration-500 ease-in-out"
+          :class="isHeaderCollapsed ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100'"
+        >
+          <div class="overflow-hidden">
             <!-- Plan Library Section -->
-            <div v-if="playerId && plannerTab === 'manual'" class="max-w-6xl mx-auto mt-6">
+            <div v-if="playerId" class="max-w-6xl mx-auto mt-6">
               <PlanLibrary @plan-loaded="handlePlanLoaded" />
             </div>
 
             <!-- Ascension Action Buttons -->
             <div
-              v-if="plannerTab === 'manual'"
               class="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-3 max-w-6xl mx-auto"
             >
               <!-- Start from Scratch -->
@@ -183,23 +238,6 @@
         </div>
       </div>
 
-      <!-- Header Toggle Tab (PlanFinalSummary style) - normal flow, centered below card -->
-      <div v-if="playerId" class="flex justify-center -mt-px mb-2">
-        <button
-          class="bg-white/95 backdrop-blur-xl border border-t-0 border-slate-100 px-4 py-1 rounded-b-lg shadow-sm text-slate-500 hover:text-slate-800 transition-colors flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider h-7 cursor-pointer"
-          @click="isHeaderCollapsed = !isHeaderCollapsed"
-        >
-          <svg
-            class="w-3.5 h-3.5 transition-transform duration-300"
-            :class="{ 'rotate-180': isHeaderCollapsed }"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
-          </svg>
-        </button>
-      </div>
 
       <!-- The site's tabs (lib/siteNav.ts has the names and addresses). Outside the header, which
            folds away on the Auto Planner: the tabs are how you get anywhere, so they never hide. -->
@@ -218,14 +256,6 @@
       />
 
       <nav v-if="playerId" class="mt-4 space-y-3" aria-label="Site">
-        <!-- One set of tabs, always here, outside the header that folds away: they used to sit inside it when it
-             was open and jump out when it closed (Allan, 14 Oct). -->
-        <SiteTabs
-          :tabs="topTabs"
-          :current="plannerTab"
-          @select="selectSection"
-        />
-
         <template v-if="plannerTab === 'automatic'">
           <div class="flex justify-center">
             <!-- Below sm, one equal column per tab across the page, labels wrapping inside their
