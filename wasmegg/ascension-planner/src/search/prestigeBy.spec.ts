@@ -461,6 +461,34 @@ describe('the estimate on a table', () => {
     expect(estimateAt(table, req, 0).end).toBeLessThanOrEqual(f.best!.end);
     expect(outcomeOf(f, 'fastest', FROM)).toEqual({ te: FINAL, end: f.best!.end });
   });
+
+  it('with the player’s hours, the later prestiges wait for them as the finder holds them', async () => {
+    const hours = { days: [], fromHour: 9, toHour: 17, timezone: 'America/Los_Angeles' };
+    const always = { days: [], fromHour: 0, toHour: 0, timezone: 'America/Los_Angeles' };
+    const f = await findRoutes({ table, startTE: FROM, start: START, final: FINAL, maxAscensions: 6, hours });
+    for (const mode of ['fastest', 'date'] as const) {
+      const req = {
+        mode,
+        prestigeAt: START,
+        startTE: FROM,
+        delivered: canonicalDelivered(FROM),
+        laying: null,
+        final: FINAL,
+        deliveryScale: 1,
+        ...(mode === 'date' ? { deadline: DEADLINE } : {}),
+        candidates: candidatesOf(f, mode, true),
+        hours: 0,
+      };
+      const free = estimateAt(table, req, 0);
+      const held = estimateAt(table, { ...req, playHours: hours }, 0);
+      // Waiting never helps; every hour available changes nothing.
+      if (mode === 'fastest') expect(held.end!).toBeGreaterThanOrEqual(free.end!);
+      else expect(held.te).toBeLessThanOrEqual(free.te);
+      expect(estimateAt(table, { ...req, playHours: always }, 0)).toEqual(free);
+      // Fastest: the finder's own route with these hours, priced the same.
+      if (mode === 'fastest') expect(held.end).toBeLessThanOrEqual(f.best!.end);
+    }
+  });
 });
 
 describe('prestigePlan (the prestige the line is about)', () => {

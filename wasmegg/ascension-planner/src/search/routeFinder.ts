@@ -38,7 +38,7 @@ import {
   type TailSweep,
 } from './precomputedLeg';
 import { getNextSaleEnd, isResearchSaleActive } from '@/lib/events';
-import { isAvailable, type Availability } from './availability';
+import { isAvailable, nextAvailable, type Availability } from './availability';
 import type { FirstAscension } from './firstAscension';
 
 /** The table as the finder reads it: the builds for a start TE at a Pacific hour of the week. */
@@ -114,12 +114,16 @@ export interface FindOptions {
   /** False: start the moment the last one ends and shift the sale by the minutes past the hour
    *  (`lateBy`), the approximation, kept for comparing. Default: on the next whole hour. */
   onTheHour?: boolean;
-  /** "Works inside my hours": only routes whose every prestige (each fresh ascension after the
-   *  first, at the time the table starts it) falls inside these hours and days (`prestigesInHours`).
-   *  An arrival whose prestige falls outside is dropped as it is made, so the arrivals kept are all
-   *  inside and every count has its best chance of an answer. Counts left without one, once hours
-   *  have dropped something, are listed in `outOfHours`. */
+  /** "Works inside my hours": every prestige (each fresh ascension after the first) happens inside
+   *  these hours and days (`prestigesInHours`). One that would fall outside waits for the next whole
+   *  hour inside them and the wait is priced (`ExpandSettings.hours`, as Check exactly holds it in
+   *  chain.ts), so no count loses its route over a night (Allan, 14 Oct: dropping instead cost a
+   *  4-ascension route ~20 days). With `holdForHours: false`, such an arrival is dropped as it is
+   *  made instead (the old filter) and the counts left without a route are listed in `outOfHours`. */
   hours?: Availability;
+  /** With `hours`: false drops an arrival whose next prestige falls outside them (the old filter);
+   *  default: it waits for the next hour inside them. */
+  holdForHours?: boolean;
 }
 
 /** Whether every prestige of `route` falls inside `hours`: the start of each ascension after the
@@ -177,13 +181,15 @@ export function priceLeg(
   t: number,
   delivered: number[],
   target: number,
-  deliveryScale = 1
+  deliveryScale = 1,
+  /** A prestige outside these hours waits for the next hour inside them (expandArrivals). */
+  hours?: Availability
 ): { start: number; end: number; endTE: number; delivered: number[]; build: BuildParams } | null {
   const options: { start: number; lateBy: number; builds: BuildParams[] }[] = [];
-  const at = nextHour(t);
+  const at = hours ? nextHour(nextAvailable(nextHour(t), hours)) : nextHour(t);
   const raw = table(te, pacificHourOfWeek(at));
   if (raw?.length) options.push({ start: at, lateBy: 0, builds: raw });
-  const late = at !== t ? startInSale(table, te, t) : null;
+  const late = at !== t && (!hours || isAvailable(t, hours)) ? startInSale(table, te, t) : null;
   if (late) options.push({ start: t, ...late });
   let best: ReturnType<typeof priceLeg> = null;
   for (const o of options) {
@@ -306,6 +312,9 @@ export interface ExpandSettings {
   /** Keep arrivals at checkpoints above `usefulStopMax` that are not the target: a by-date search
    *  ends there. Without it (fastest route) they are not made at all, since nothing continues from them. */
   keepHighEnds?: boolean;
+  /** "Works inside my hours": a fresh ascension whose start falls outside these hours waits for the
+   *  next whole hour inside them (`nextAvailable`), so the wait is priced instead of the route dropped. */
+  hours?: Availability;
 }
 
 type Kept<T> = T & { time: number; delivered: number[] };
@@ -381,13 +390,18 @@ export function expandArrivals(
     // A route that ascended above the useful stops goes no further (USEFUL_STOP_MAX).
     if (item.stop !== undefined && item.stop > cap) continue;
     const te = item.te;
-    const startAt = s.onTheHour ? nextHour(item.time) : item.time;
+    const ready = s.onTheHour ? nextHour(item.time) : item.time;
+    // Outside the player's hours: hold until the next hour inside them (on the hour, as the table is).
+    const startAt = s.hours && item.stop !== undefined ? nextHour(nextAvailable(ready, s.hours)) : ready;
     const hour = pacificHourOfWeek(startAt);
     // Seconds into the hour (0 on the hour): the table was built at the hour's first second.
     const lateBy = ((startAt % 3600) + 3600) % 3600;
     const raw = table(te, hour) ?? [];
     // Inside the sale, this hour's own cell started late too (`startInSale`); whichever ends sooner.
-    const late = s.onTheHour && startAt !== item.time ? startInSale(table, te, item.time) : null;
+    const late =
+      s.onTheHour && startAt !== item.time && (!s.hours || item.stop === undefined || isAvailable(item.time, s.hours))
+        ? startInSale(table, te, item.time)
+        : null;
     if (!raw.length && !late) continue;
     if (stats) stats.expanded++;
     // The table's builds, moved onto the eggs this route really arrived with, each priced to every
@@ -484,6 +498,7 @@ export async function findRoutes(
     ...(o.waitHours ? { waitHours: o.waitHours } : {}),
     usefulStopMax: o.usefulStopMax ?? USEFUL_STOP_MAX,
     ...(o.deadline !== undefined ? { keepHighEnds: true } : {}),
+    ...(o.hours && o.holdForHours !== false ? { hours: o.hours } : {}),
   };
   const cache = new SweepCache();
   const expand =
@@ -505,6 +520,8 @@ export async function findRoutes(
   let firstDrop = Infinity;
   const relax = (k: number, te: number, l: Omit<Label, 'id'>) => {
     // An ascension after the first starts with a prestige: outside the hours, this route is out.
+    // (Holding, every start is already inside, so this only drops with `holdForHours: false`, or a
+    // schedule with no hour at all.)
     if (hours && l.prev?.leg && l.leg && !isAvailable(l.leg.start, hours)) {
       firstDrop = Math.min(firstDrop, k);
       return;
@@ -740,8 +757,11 @@ export interface PolishOptions {
   /** How far one stop moves (default 2); neighbouring pairs move by one each unless `pairs` is false. */
   reach?: number;
   pairs?: boolean;
-  /** As FindOptions: only moves that keep every prestige inside these hours. */
+  /** As FindOptions: each prestige waits for these hours (priceLeg), and only moves that keep every
+   *  prestige inside them. */
   hours?: Availability;
+  /** As FindOptions. */
+  holdForHours?: boolean;
   /** The stronger polish (the user, 6 Oct): the first two stops searched together, each moved by up
    *  to this many TE, before the local search (default 0: off). */
   wide?: number;
@@ -814,7 +834,7 @@ export function priceChain(
       remember(i, true);
       continue;
     }
-    const p = priceLeg(table, te, t, eggs, target, scale);
+    const p = priceLeg(table, te, t, eggs, target, scale, i > 0 && o.holdForHours !== false ? o.hours : undefined);
     if (!p) return (remember(i, false), null);
     legs.push({
       from: te,

@@ -13,7 +13,10 @@
     - other gear: the table's account is maxed (perfect delivery, Clothed TE bonus 128.71); a player's
       waits run at their own peak delivery rate, and their builds are the table's for their own TE (a
       weaker earnings set is not taken off; the page says so when it is).
-  What it leaves out: playing hours, time off and dated milestones (said beside the result), and the
+  With "Works inside my hours", each prestige waits for the player's hours and the wait is priced
+  (routeFinder.ts `hours`); the shifts inside an ascension are not held to them here.
+  What it leaves out: playing hours (or, with that box, only the shifts' hours), time off and dated
+  milestones (said beside the result), and the
   history of how a player reached each TE (shown to barely matter on the board). "Check exactly" hands
   any route to the Full sweep, which prices it with the full simulator.
 -->
@@ -191,11 +194,7 @@
           </label>
         </div>
         <p v-if="useHours" class="text-[11px] text-slate-500">
-          Only routes where you ascend inside your hours each time. The exact check prices it with your hours, so TE
-          keeps collecting while you wait.
-        </p>
-        <p v-if="outOfHoursShown.length" class="text-[11px] text-amber-800">
-          No route with {{ countList(outOfHoursShown) }} ascensions keeps every prestige inside your hours.
+          Each prestige waits for your hours (the times shown include the wait).
         </p>
         <p v-if="backgroundStatus === 'running'" class="text-[11px] text-slate-400">
           Polishing the routes in the background…
@@ -1131,6 +1130,7 @@ async function prestigeWork(id: number, p: RoutePool, url: string): Promise<void
     deliveryScale: ctx.scale,
     candidates: plan.candidates,
     hours: HORIZON_HOURS,
+    ...(hours ? { playHours: hours } : {}),
   };
   const stale = () => pid !== prestigeRuns;
   const t0 = performance.now();
@@ -1317,17 +1317,6 @@ watch(filters, f => writeFilters(f), { deep: true });
 const hoursOn = computed(() => store.scheduleEnabled && !!store.availability);
 const useHours = computed(() => hoursOn.value && filters.value.inHours);
 const filtering = computed(() => useHours.value || filters.value.maxAscensions !== null);
-/** The counts a row could show that have no route inside the hours. */
-const outOfHoursShown = computed(() => {
-  const r = result.value;
-  if (!r?.outOfHours || !useHours.value) return [];
-  const top = props.deadline ? (r.byDate?.legs.length ?? 8) + 2 : Math.max(10, (r.best?.legs.length ?? 0) + 2);
-  return r.outOfHours.filter(k => k <= top);
-});
-/** 3 -> "3"; [2, 3, 5] -> "2, 3 or 5". */
-function countList(ks: number[]): string {
-  return ks.length < 2 ? ks.join('') : `${ks.slice(0, -1).join(', ')} or ${ks[ks.length - 1]}`;
-}
 function fastestRowsOf(found: NonNullable<typeof result.value>, bestK?: number): Route[] {
   const top = Math.max(10, (bestK ?? found.best?.legs.length ?? 0) + 2);
   return found.byAscensions.filter((r, k): r is Route => !!r && k <= top);
@@ -1349,7 +1338,9 @@ const USEFUL_STOP_NOTE = 340;
 /** Setup the instant answer does not model, named so nobody reads it as accounted for. */
 const leftOut = computed(() => {
   const out: string[] = [];
-  if (store.scheduleEnabled) out.push('playing hours');
+  // With "Works inside my hours" the prestiges wait for them; the shifts inside an ascension still don't.
+  if (store.scheduleEnabled)
+    out.push(useHours.value ? 'playing hours for the shifts inside each ascension (Check exactly and Light hold those)' : 'playing hours');
   if (store.timeOff.length) out.push('time off');
   if (store.milestones.length) out.push('dates to hit');
   return out;
