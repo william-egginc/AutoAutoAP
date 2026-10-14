@@ -61,6 +61,16 @@ export interface BuildUpTailsRequest {
   requestId: number;
 }
 
+/** A fresh build at a start TE and start time on this account, as a table cell holds it (search/
+ *  liveCell.ts): for a player above the table's top. A few seconds of simulation, so it runs here. */
+export interface LiveFreshRequest {
+  kind: 'live-fresh';
+  requestId: number;
+  te: number;
+  /** Unix seconds: the next whole hour after the plan start. */
+  start: number;
+}
+
 /**
  * One route from many start times ("when should I start?"): how long it takes from each. Each start
  * gets its own evaluator, since every leg is timed from the plan start. `fresh`: price the first leg
@@ -74,7 +84,13 @@ export interface StartsRequest {
   fresh: boolean;
 }
 
-export type WorkerRequest = InitRequest | EvaluateRequest | IntegrityRequest | BuildUpTailsRequest | StartsRequest;
+export type WorkerRequest =
+  | InitRequest
+  | EvaluateRequest
+  | IntegrityRequest
+  | BuildUpTailsRequest
+  | LiveFreshRequest
+  | StartsRequest;
 
 export interface InitDoneMessage extends WithHeap {
   type: 'init-done';
@@ -131,6 +147,13 @@ export interface BuildUpTailsResultMessage {
   tails: import('@/search/precomputedLeg').BuildParams[];
 }
 
+export interface LiveFreshResultMessage {
+  type: 'live-fresh';
+  requestId: number;
+  /** Empty when nothing could be simulated. */
+  builds: import('@/search/precomputedLeg').BuildParams[];
+}
+
 export interface StartsResultMessage extends WithHeap {
   type: 'starts';
   requestId: number;
@@ -161,4 +184,5 @@ export type WorkerResponse =
   | EvaluateResultMessage
   | IntegrityResultMessage
   | BuildUpTailsResultMessage
+  | LiveFreshResultMessage
   | WorkerErrorMessage;

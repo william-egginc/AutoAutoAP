@@ -26,6 +26,7 @@
  */
 import { createChainEvaluator, type ChainEvaluator } from '@/search/chain';
 import { buildUpTailParams, integrityCheck } from '@/search/leg';
+import { liveFreshBuilds } from '@/search/liveCell';
 import type { SearchInputs } from '@/search/types';
 import type { ChainResult } from '@/search/types';
 import type { WorkerRequest, WorkerResponse } from './chainSearch.protocol';
@@ -115,6 +116,17 @@ ctx.onmessage = (event: MessageEvent<WorkerRequest>) => {
           tails = [];
         }
         post({ type: 'buildup-tails', requestId: msg.requestId, tails });
+        break;
+      }
+      case 'live-fresh': {
+        if (!loaded) throw new Error('chainSearch worker received live-fresh before init');
+        let builds: ReturnType<typeof liveFreshBuilds> = [];
+        try {
+          builds = liveFreshBuilds(loaded, msg.te, msg.start);
+        } catch {
+          builds = [];
+        }
+        post({ type: 'live-fresh', requestId: msg.requestId, builds });
         break;
       }
       case 'evaluate': {

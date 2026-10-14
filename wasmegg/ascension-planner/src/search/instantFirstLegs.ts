@@ -8,6 +8,7 @@
  * never simulate them.
  */
 import { continueTailParams } from './leg';
+import { nextHour } from './routeFinder';
 import { readFirstAscension } from './firstAscension';
 import { EGG_ORDER, type BuildParams } from './precomputedLeg';
 import { CONTINUE_MAX_SECONDS, CONTINUE_PIN_MAX_SECONDS } from './rules';
@@ -34,6 +35,10 @@ export interface InstantFirstLegsParams {
    * builds up and the save has a farm.
    */
   buildUpTails: (start: number) => Promise<BuildParams[]> | BuildParams[];
+  /** The table has no row for `startTE` (the player is above its top): the fresh first build simulated
+   *  live instead (search/liveCell.ts), from `start` (the next whole hour). The page asks a background
+   *  worker (store `liveFreshBuilds`), the CLI simulates in place. */
+  liveFresh?: (te: number, start: number) => Promise<BuildParams[]> | BuildParams[];
 }
 
 function buildsUpFirst(inputs: SearchInputs): boolean {
@@ -57,6 +62,9 @@ export async function instantFirstLegsBase(
     // reactive proxy.
     cont: withSave ? JSON.parse(JSON.stringify(continueTailParams(inputs, start))) : null,
     buildUp: JSON.parse(JSON.stringify(buildUp)) as BuildParams[],
+    ...(p.liveFresh
+      ? { freshLive: JSON.parse(JSON.stringify(await p.liveFresh(p.startTE, nextHour(start)))) as BuildParams[] }
+      : {}),
     firstAscension: readFirstAscension(inputs),
     pinSeconds: inputs.continuePinSeconds ?? CONTINUE_PIN_MAX_SECONDS,
     maxContinueSeconds: inputs.continueMaxSeconds ?? CONTINUE_MAX_SECONDS,

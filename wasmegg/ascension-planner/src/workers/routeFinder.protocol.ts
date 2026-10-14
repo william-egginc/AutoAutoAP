@@ -39,6 +39,8 @@ export interface FirstLegsRequest {
   cont: BuildParams | null;
   /** Continue my build-up's tails (search/leg.ts `buildUpTailParams`), or null/empty: not simulated. */
   buildUp?: BuildParams[] | null;
+  /** The player's own fresh build at `startTE`, simulated live, where the table has no row there. */
+  freshLive?: BuildParams[] | null;
   firstAscension: FirstAscension;
   pinSeconds: number;
   maxContinueSeconds: number;

@@ -102,6 +102,8 @@ export interface FindOptions {
   deliveryScale?: number;
   /** Arrivals kept per TE and number of ascensions (`DEFAULT_KEEP`). */
   keep?: number;
+  /** No route continues from a checkpoint above this (default USEFUL_STOP_MAX; Infinity: no limit). */
+  usefulStopMax?: number;
   /** Also find the highest TE reachable by this unix second (Highest TE by a date), from the same
    *  pass: the highest TE whose earliest arrival is no later. */
   deadline?: number;
@@ -259,12 +261,26 @@ function dominates(a: { time: number; delivered: number[] }, b: { time: number; 
 /** Arrivals kept per (TE, ascensions) by default. */
 export const DEFAULT_KEEP = 6;
 
+/**
+ * The highest checkpoint worth ascending at on the way to a later target. Past about TE 340 a build
+ * already reaches the full laying rate, so one more ascension there only adds a prestige and its
+ * rebuild (carpetsage, 14 Oct): over 650 routes on the maxed, alt, main and Fliris tables (start TEs
+ * 120-460, up to 10 ascensions) no fastest route had a stop above 338, and the 8-10 ascension routes
+ * that did ("... 318 423 475 490") were near-ties that never won. So a route never continues from a
+ * stop above this (`expandArrivals`), with margin over the measured 338. A route can still END above
+ * it, and a player who starts above it goes straight to the target.
+ */
+export const USEFUL_STOP_MAX = 360;
+
 /** One arrival handed out to be carried one ascension further (`expandArrivals`). */
 export interface ArrivalItem {
   id: number;
   te: number;
   time: number;
   delivered: number[];
+  /** The checkpoint the arrival ascended at (absent at the start): above `usefulStopMax`, the route
+   *  goes no further. */
+  stop?: number;
 }
 
 /** Where an arrival can get with one more ascension, and which arrival it came from. */
@@ -285,6 +301,11 @@ export interface ExpandSettings {
   /** Also let each fresh ascension wait 1..waitHours whole hours before it starts (a test of whether
    *  a later start hour ever pays; scripts/precompute.ts --wait-hours). Default 0. */
   waitHours?: number;
+  /** No route continues from a checkpoint above this (USEFUL_STOP_MAX; absent: no limit). */
+  usefulStopMax?: number;
+  /** Keep arrivals at checkpoints above `usefulStopMax` that are not the target: a by-date search
+   *  ends there. Without it (fastest route) they are not made at all, since nothing continues from them. */
+  keepHighEnds?: boolean;
 }
 
 type Kept<T> = T & { time: number; delivered: number[] };
@@ -355,7 +376,10 @@ export function expandArrivals(
       for (let w = 1; w <= s.waitHours; w++) more.push({ ...item, time: nextHour(item.time) + w * 3600 });
     items = [...items, ...more];
   }
+  const cap = s.usefulStopMax ?? Infinity;
   for (const item of items) {
+    // A route that ascended above the useful stops goes no further (USEFUL_STOP_MAX).
+    if (item.stop !== undefined && item.stop > cap) continue;
     const te = item.te;
     const startAt = s.onTheHour ? nextHour(item.time) : item.time;
     const hour = pacificHourOfWeek(startAt);
@@ -375,6 +399,8 @@ export function expandArrivals(
     const lateKey = `${te}|${item.time}|${item.delivered.join(',')}|late|`;
     const lateSweeps = lateBuilds.map((b, j) => sweepOf(b, lateKey + j, late!.lateBy, te + 1));
     for (let target = te + 1; target <= top; target++) {
+      // A stop above the cap that is not the target leads nowhere (it is never continued from).
+      if (target > cap && target < top && !s.keepHighEnds) continue;
       const onHour = fastest(sweeps, builds, target);
       const early = late ? fastest(lateSweeps, lateBuilds, target) : null;
       const takeEarly =
@@ -456,6 +482,8 @@ export async function findRoutes(
     onTheHour: o.onTheHour ?? true,
     keep,
     ...(o.waitHours ? { waitHours: o.waitHours } : {}),
+    usefulStopMax: o.usefulStopMax ?? USEFUL_STOP_MAX,
+    ...(o.deadline !== undefined ? { keepHighEnds: true } : {}),
   };
   const cache = new SweepCache();
   const expand =
@@ -513,7 +541,8 @@ export async function findRoutes(
     }
     const items: ArrivalItem[] = [];
     for (const te of tes)
-      for (const l of arrivals[k].get(te)!) items.push({ id: l.id, te, time: l.time, delivered: l.delivered });
+      for (const l of arrivals[k].get(te)!)
+        items.push({ id: l.id, te, time: l.time, delivered: l.delivered, ...(l.leg ? { stop: l.leg.to } : {}) });
     if (!items.length) break;
     for (const c of await expand(items, settings)) {
       relax(k + 1, c.te, { time: c.time, delivered: c.delivered, prev: byId.get(c.from) ?? null, leg: c.leg });
@@ -587,6 +616,10 @@ export interface FirstLegOptions {
   delivered: number[];
   /** Continue current ascension through the tail (search/leg.ts `continueTailParams`), or null. */
   cont: BuildParams | null;
+  /** A fresh build at `startTE` simulated on the player's own account (search/liveCell.ts), starting
+   *  on the next whole hour: used where the table has no row for `startTE` (a player above the
+   *  table's top). Already at the player's delivery, so never scaled. */
+  freshLive?: BuildParams[] | null;
   /** Continue my build-up (search/leg.ts `buildUpTailParams`): one per sale variant, timed from the
    *  plan start, on the player's real eggs and delivery already. Empty or absent: not simulated. */
   buildUp?: BuildParams[] | null;
@@ -610,7 +643,10 @@ export function firstLegOptions(o: FirstLegOptions): FirstLeg[] {
   const hour = pacificHourOfWeek(freshAt);
   const row = o.startTE;
   const raw = o.table(row, hour) ?? [];
-  const fresh = scaled(raw, o.deliveryScale ?? 1).map(b => rebase(b, row, o.delivered));
+  // No row here (above the table's top): the player's own build, simulated live, in its place.
+  const fresh = (
+    raw.length || !o.freshLive?.length ? scaled(raw, o.deliveryScale ?? 1) : o.freshLive
+  ).map(b => rebase(b, row, o.delivered));
   const freshSweeps = fresh.map(b => sweepTails(b, o.final, 0, Math.floor(o.startTE) + 1));
   // Inside the sale, ascending right away from this hour's cell can catch what the next hour misses.
   const late = freshAt !== o.start ? startInSale(o.table, row, o.start) : null;

@@ -62,6 +62,7 @@ ctx.onmessage = async (event: MessageEvent<RouteWorkerRequest>) => {
             delivered: m.delivered,
             cont: m.cont,
             buildUp: m.buildUp ?? null,
+            freshLive: m.freshLive ?? null,
             firstAscension: m.firstAscension,
             pinSeconds: m.pinSeconds,
             maxContinueSeconds: m.maxContinueSeconds,
