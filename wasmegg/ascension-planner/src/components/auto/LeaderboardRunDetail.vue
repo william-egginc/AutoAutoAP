@@ -83,16 +83,32 @@
           <span>Shifts held</span><span class="font-bold">{{ row.holdShifts ? 'yes' : 'no' }}</span>
         </div>
       </div>
-      <a
-        v-if="row.hasCsv && row.id"
-        :href="csvHref(row.id)"
-        class="inline-block mt-2 font-bold text-indigo-700 underline hover:text-indigo-900"
-        >{{
-          row.provisional
-            ? 'Download the CSV so far (.csv.gz, the run is still going) ↓'
-            : 'Download the full CSV (.csv.gz) ↓'
-        }}</a
-      >
+      <template v-if="row.hasCsv && row.id">
+        <!-- The viewer's own hidden run: its plain link answers 403 (only its owner may read it), so the
+             CSV is fetched with this browser's code and saved. -->
+        <button
+          v-if="privateCsv(row.id)"
+          type="button"
+          class="inline-block mt-2 font-bold text-indigo-700 underline hover:text-indigo-900 text-left"
+          @click="hide!.downloadCsv(row.id)"
+        >
+          {{
+            row.provisional
+              ? 'Download the CSV so far (.csv.gz, the run is still going) ↓'
+              : 'Download the full CSV (.csv.gz) ↓'
+          }}
+        </button>
+        <a
+          v-else
+          :href="csvHref(row.id)"
+          class="inline-block mt-2 font-bold text-indigo-700 underline hover:text-indigo-900"
+          >{{
+            row.provisional
+              ? 'Download the CSV so far (.csv.gz, the run is still going) ↓'
+              : 'Download the full CSV (.csv.gz) ↓'
+          }}</a
+        >
+      </template>
       <!-- A line made from a later run's `rechecks` (lib/leaderboardRank.ts `recheckLines`): that run
            priced this route again from its own save. It was never a send, so it has no table. -->
       <p v-else-if="isRecheck" class="mt-2 text-slate-400">
@@ -100,6 +116,40 @@
         there is no CSV.
       </p>
       <p v-else class="mt-2 text-slate-400">No CSV was attached{{ several ? ' to this copy' : '' }}.</p>
+      <!-- "Hide from the public": only on the viewer's own runs (GET /mine), and quiet. Every copy of
+           this result the viewer sent goes together, or the line would stay up as the next copy.
+           ABOUT LINK: when the About page has a section on hidden runs, link "the planner's
+           maintainer" below to it. -->
+      <div v-if="hide && ownIds.length" class="mt-2 text-[10px] text-slate-500">
+        <p v-if="allHidden">
+          <span class="font-semibold text-slate-600">Hidden from the public</span> ·
+          <button
+            type="button"
+            class="font-semibold underline hover:text-indigo-800 disabled:opacity-50 disabled:no-underline"
+            :disabled="busy"
+            @click="hide.setHidden(ownIds, false)"
+          >
+            {{ busy ? 'Showing…' : 'Show again' }}
+          </button>
+        </p>
+        <template v-else>
+          <button
+            type="button"
+            class="font-semibold underline hover:text-indigo-800 disabled:opacity-50 disabled:no-underline"
+            :disabled="busy"
+            @click="hide.setHidden(ownIds, true)"
+          >
+            {{
+              busy
+                ? 'Hiding…'
+                : ownIds.length > 1
+                  ? `Hide from the public (your ${ownIds.length} copies)`
+                  : 'Hide from the public'
+            }}
+          </button>
+          <p>Only you and the planner's maintainer will see it.</p>
+        </template>
+      </div>
     </div>
     <!-- The sets the simulator actually wears, which is the question the inventory only gestures
          at. The fourth DELIVERY slot is chosen as a stone holder, so showing the stones inside
@@ -261,8 +311,16 @@
             c.chainsPriced != null ? `${c.chainsPriced.toLocaleString()} priced` : 'priced: —'
           }}</span>
           <span class="text-slate-400">·</span>
+          <button
+            v-if="c.hasCsv && c.id && privateCsv(c.id)"
+            type="button"
+            class="font-bold text-indigo-700 underline hover:text-indigo-900 whitespace-nowrap"
+            @click="hide!.downloadCsv(c.id)"
+          >
+            Download ↓
+          </button>
           <a
-            v-if="c.hasCsv && c.id"
+            v-else-if="c.hasCsv && c.id"
             :href="csvHref(c.id)"
             class="font-bold text-indigo-700 underline hover:text-indigo-900 whitespace-nowrap"
             >Download ↓</a
@@ -276,7 +334,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, inject, ref } from 'vue';
+import { HIDE_CONTROL } from '@/lib/hiddenRuns';
 import {
   finishMs,
   formatDate,
@@ -338,6 +397,24 @@ function isShown(c: BoardRow): boolean {
 
 function csvHref(id: string): string {
   return `${props.csvRoot}?id=${encodeURIComponent(id)}`;
+}
+
+/** "Hide from the public", from LeaderboardPanel; null where nothing provides it. */
+const hide = inject(HIDE_CONTROL, null);
+
+/** The viewer's own copies of this result (this row and every listed copy), by GET /mine. */
+const ownIds = computed(() => {
+  const h = hide;
+  if (!h) return [];
+  const ids = [props.row, ...(props.copies ?? [])].map(r => r.id).filter((id): id is string => !!id && h.isMine(id));
+  return [...new Set(ids)];
+});
+const allHidden = computed(() => !!hide && ownIds.value.length > 0 && ownIds.value.every(id => hide.isHidden(id)));
+const busy = computed(() => !!hide && ownIds.value.some(id => hide.isBusy(id)));
+
+/** A CSV only its owner may read: the viewer's own run, hidden from the public. */
+function privateCsv(id: string): boolean {
+  return !!hide && hide.isMine(id) && hide.isHidden(id);
 }
 
 /** Which set is showing. Delivery first: it is the one that changes between accounts. */

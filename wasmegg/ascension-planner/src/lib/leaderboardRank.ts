@@ -169,6 +169,13 @@ export interface BoardRow {
   dupOf?: string;
   /** Only on rows from GET /mine: sent with the code this browser presented. */
   yours?: boolean;
+  /**
+   * The player took this run off the public board ("Hide from the public", collector POST /hide). Only
+   * GET /mine sends it (and the board marks a run it hid itself, before /mine says so): /all never
+   * holds a hidden run. A hidden run is never ranked, raced, re-checked or put on a By a date board
+   * (`rankable`, `buildDeadlineBoard`); My plans lists it apart (`hiddenRuns`).
+   */
+  hidden?: boolean;
   /** Why a row is on the flagged board. Such rows are never ranked. */
   flags?: string[];
   /** Set by this module on a line made from another row's `rechecks` entry: that row's id. */
@@ -1361,9 +1368,43 @@ function pickLabel(rows: readonly BoardRow[]): string {
 
 /** Rows that can be ranked: on the main board, with a route. A flagged run (it can only arrive
  *  through GET /mine) is evidence about an account the planner cannot help yet, not a plan. A
- *  deadline answer (schema 8) is ranked on its own board (`buildDeadlineBoard`), not in the race. */
+ *  deadline answer (schema 8) is ranked on its own board (`buildDeadlineBoard`), not in the race. A
+ *  run its player hid from the public (`hidden`, only from GET /mine) is no plan anywhere: not in
+ *  the race, not My plans' best or "you'd be #N", and never re-checked by a later run (a re-check is
+ *  sent publicly and would show its route). My plans lists hidden runs on their own (`hiddenRuns`). */
 function rankable<T extends BoardRow>(rows: readonly T[]): T[] {
-  return rows.filter(r => r && Array.isArray(r.chain) && !r.flags?.length && !isDeadlineRow(r));
+  return rows.filter(r => r && Array.isArray(r.chain) && !r.flags?.length && !r.hidden && !isDeadlineRow(r));
+}
+
+/**
+ * The viewer's runs that are hidden from the public, newest sent first: every row marked both `yours`
+ * and `hidden`, at any target and By a date answers too (My plans lists them apart, muted, each with
+ * "Show again"). One per id.
+ */
+export function hiddenRuns<T extends BoardRow>(rows: readonly T[]): T[] {
+  const seen = new Set<string>();
+  const out: T[] = [];
+  for (const r of rows) {
+    if (!r || !r.yours || !r.hidden || !Array.isArray(r.chain)) continue;
+    if (r.id) {
+      if (seen.has(r.id)) continue;
+      seen.add(r.id);
+    }
+    out.push(r);
+  }
+  return out.sort((a, b) => (sentMs(b) ?? 0) - (sentMs(a) ?? 0));
+}
+
+/**
+ * The rows a public view may show: every row except one whose id is in `hidden` (the viewer's own
+ * runs hidden from the public, by /mine or by a hide just made here) or that says `hidden` itself.
+ * /all drops hidden runs on its own, but only once its cache turns over (up to a minute at other
+ * edge locations), so the board applies what it knows straight away.
+ */
+export function publicRows<T extends BoardRow>(rows: readonly T[], hidden: ReadonlySet<string>): T[] {
+  // The same array when nothing is hidden, so memoised work downstream keeps its identity.
+  if (!hidden.size && !rows.some(r => r?.hidden)) return rows as T[];
+  return rows.filter(r => r && !r.hidden && !(r.id && hidden.has(r.id)));
 }
 
 /** A deadline search's answer (schema 8). */
@@ -1469,6 +1510,7 @@ export function buildDeadlineBoard<T extends BoardRow>(
       r &&
       Array.isArray(r.chain) &&
       !r.flags?.length &&
+      !r.hidden &&
       isDeadlineRow(r) &&
       !(typeof r.backupAgeHours === 'number' && r.backupAgeHours < -1)
   );

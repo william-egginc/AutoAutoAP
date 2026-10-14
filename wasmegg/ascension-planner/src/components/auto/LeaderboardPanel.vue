@@ -77,6 +77,25 @@
         </button>
       </div>
 
+      <!-- What the last "Hide from the public" or "Show again" came to, on every tab: the run it was
+           about may have just left the list it was clicked in. -->
+      <div aria-live="polite">
+        <p
+          v-if="hideMsg && tab !== 'insights'"
+          class="flex items-start justify-between gap-3 rounded-lg border px-3 py-2 text-[11px]"
+          :class="hideMsgClass(hideMsg)"
+        >
+          <span>{{ hideMsg.text }}</span>
+          <button
+            type="button"
+            class="shrink-0 text-[10px] font-black uppercase tracking-widest opacity-60 hover:opacity-100"
+            @click="hideMsg = null"
+          >
+            OK
+          </button>
+        </p>
+      </div>
+
       <!-- Insights: the Chain Explorer's charts (its own load, filters and refresh), in place of a
            link out to its page (the unified layout, phase 4). -->
       <ChainExplorer v-if="tab === 'insights'" part="insights" embedded />
@@ -559,6 +578,9 @@
         <p v-else-if="target == null" class="text-[11px] text-indigo-900/70 py-4">
           Pick a target TE above to see your plans to it.
         </p>
+        <p v-else-if="!mine && myHidden.length" class="text-[11px] text-indigo-900/70 py-4">
+          None of your public runs go to {{ target }}. Your runs hidden from the public are listed below.
+        </p>
         <p v-else-if="!mine" class="text-[11px] text-indigo-900/70 py-4">
           None of the runs to {{ target }} on the board are yours yet. This browser hasn't sent one for this account,
           and none match your timezone and artifacts. Share a result and it will show up here.
@@ -774,7 +796,17 @@
                       <td class="pr-3 py-1 whitespace-nowrap text-slate-500" :title="hoursTitle(r.window)">
                         {{ hoursLabel(r.window) }}
                       </td>
-                      <td class="py-1 text-right">
+                      <td class="py-1 text-right whitespace-nowrap">
+                        <button
+                          v-if="r.id && mineIds.has(r.id)"
+                          type="button"
+                          class="mr-2 text-[10px] font-semibold text-slate-400 underline hover:text-indigo-800 disabled:opacity-50"
+                          title="Only you and the planner's maintainer will see it."
+                          :disabled="hideAllBusy || hideBusy.has(r.id)"
+                          @click="changeHidden({ ids: [r.id] }, true)"
+                        >
+                          {{ hideBusy.has(r.id) ? 'Hiding…' : 'Hide from the public' }}
+                        </button>
                         <button
                           type="button"
                           class="px-2 py-0.5 rounded-md border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-700"
@@ -790,6 +822,85 @@
             </div>
           </details>
         </template>
+
+        <!-- Who sees your runs: hide every run this browser sent for the account, or show them all
+             again, and the hidden ones, listed apart and muted, each with "Show again". Only when /mine
+             answered: without this browser's code nothing here could be proved yours. -->
+        <section
+          v-if="mineRows?.length"
+          class="mt-2 space-y-2 rounded-lg border border-slate-200 bg-white/60 p-3 text-[11px]"
+          aria-label="Who sees your runs"
+        >
+          <div class="flex flex-wrap items-center gap-2">
+            <h4 class="mr-auto text-[9px] font-black uppercase tracking-widest text-slate-500">Who sees your runs</h4>
+            <button
+              v-if="myPublicCount"
+              type="button"
+              class="px-2.5 py-1 rounded-md border border-slate-300 text-[10px] font-bold text-slate-600 hover:border-indigo-400 hover:text-indigo-800 disabled:opacity-50"
+              :disabled="hideAllBusy || hideBusy.size > 0"
+              @click="changeHidden({ all: true }, true)"
+            >
+              {{ hideAllBusy ? 'Working…' : 'Hide all my runs from the public' }}
+            </button>
+            <button
+              v-if="myHidden.length"
+              type="button"
+              class="px-2.5 py-1 rounded-md border border-slate-300 text-[10px] font-bold text-slate-600 hover:border-indigo-400 hover:text-indigo-800 disabled:opacity-50"
+              :disabled="hideAllBusy || hideBusy.size > 0"
+              @click="changeHidden({ all: true }, false)"
+            >
+              {{ hideAllBusy ? 'Working…' : 'Show all again' }}
+            </button>
+          </div>
+          <!-- ABOUT LINK: when the About page has a section on hidden runs, link "the planner's
+               maintainer" here to it. -->
+          <p class="text-slate-500">
+            A hidden run leaves the public board but stays here for you. Only you and the planner's maintainer will see
+            it. Nothing is deleted, and you can show it again any time.
+          </p>
+          <div v-if="myHidden.length">
+            <p class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">
+              Hidden from the public ({{ myHidden.length }})
+            </p>
+            <ul class="divide-y divide-slate-100 text-slate-500">
+              <li v-for="h in myHidden" :key="h.id ?? contentFingerprint(h)" class="py-1.5">
+                <div class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                  <button
+                    type="button"
+                    class="text-slate-400 hover:text-indigo-700"
+                    :aria-expanded="openHidden === (h.id ?? '')"
+                    :aria-label="`Show what ${h.chain.join(' ')} was simulated with`"
+                    @click="openHidden = openHidden === (h.id ?? '') ? '' : (h.id ?? '')"
+                  >
+                    {{ openHidden === (h.id ?? '') ? '⌄' : '›' }}
+                  </button>
+                  <span class="font-mono">{{ h.chain.join(' ') }}</span>
+                  <span v-if="isDeadlineRow(h)">{{ h.finalTE }} TE by {{ deadlineText(h.deadline as number) }}</span>
+                  <span v-else :title="finishTitle(finishMs(h), h.timezone)"
+                    >to {{ h.finalTE }}, finishes {{ finishDateText(finishMs(h), viewZone) }}</span
+                  >
+                  <span :title="sentTitle(h.receivedAt ?? h.submittedAt)"
+                    >sent {{ sentText(h.receivedAt ?? h.submittedAt) }}</span
+                  >
+                  <span class="ml-auto whitespace-nowrap">
+                    Hidden from the public ·
+                    <button
+                      type="button"
+                      class="font-semibold text-indigo-700 underline hover:text-indigo-900 disabled:opacity-50 disabled:no-underline"
+                      :disabled="hideAllBusy || (!!h.id && hideBusy.has(h.id))"
+                      @click="h.id && changeHidden({ ids: [h.id] }, false)"
+                    >
+                      {{ h.id && hideBusy.has(h.id) ? 'Showing…' : 'Show again' }}
+                    </button>
+                  </span>
+                </div>
+                <div v-if="h.id && openHidden === h.id" class="mt-2 rounded-lg bg-slate-50 px-3 py-3">
+                  <LeaderboardRunDetail :row="h" :csv-root="csvRoot" :view-zone="viewZone" />
+                </div>
+              </li>
+            </ul>
+          </div>
+        </section>
       </template>
 
       <!-- ================================================================== ALL RUNS -->
@@ -1006,7 +1117,7 @@ import { COMPARE_VIEWS, NAMES, type CompareView } from '@/lib/siteNav';
 import { useUIStore } from '@/stores/ui';
 import { safeAsyncComponent } from '@/lib/import';
 import { describeFetchError } from '@/utils/errors';
-import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, provide, reactive, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useInitialStateStore } from '@/stores/initialState';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
@@ -1027,6 +1138,8 @@ import {
   foldCopies,
   formatDate,
   foundByText,
+  hiddenRuns,
+  publicRows,
   deadlineOrder,
   deadlineSpare,
   isDeadlineRow,
@@ -1067,6 +1180,16 @@ import {
 import { virtueInventory } from '@/search/csv';
 import { bestPerFamily, keepVirtueArtifacts } from '@/search/submission';
 import { existingOwnerToken } from '@/search/owner';
+import { csvFileName, fetchOwnCsv, setRunsHidden, type HideResult, type HideTarget } from '@/search/hideRuns';
+import {
+  HIDE_CONTROL,
+  hiddenIdSet,
+  hideStatus,
+  markHidden,
+  settleHidden,
+  withHidden,
+  type HideStatus,
+} from '@/lib/hiddenRuns';
 import { hashID } from '@/lib/storage/db';
 import { eggDaySeconds, nextEggDayYear } from '@/lib/eggDay';
 import LeaderboardPlanList from './LeaderboardPlanList.vue';
@@ -1186,7 +1309,7 @@ const targets = computed(() => {
   // Not a deadline answer's last stop: those are ranked by date on their own tab, and a target of
   // 307 because someone reached 307 by Egg Day is not a finish line anybody is racing to.
   const seen = new Set(
-    allRows.value
+    shownRows.value
       .filter(r => !isDeadlineRow(r))
       .map(r => r.finalTE)
       .filter(v => Number.isFinite(v))
@@ -1221,18 +1344,154 @@ const mineRows = ref<Row[] | null>(null);
 const mineIds = computed(() => new Set((mineRows.value ?? []).map(r => r.id).filter((x): x is string => !!x)));
 const myAccts = computed(() => new Set((mineRows.value ?? []).map(r => r.acct).filter((x): x is string => !!x)));
 
+// ------------------------------------------------------------------ hidden from the public
+//
+// A player can take their own runs off the public board and put them back (collector POST /hide,
+// search/hideRuns.ts; the rules and the optimistic update are lib/hiddenRuns.ts). /all drops a hidden
+// run by itself, but another edge can serve its cached /all for up to a minute, so every public view
+// here reads `shownRows`: /all without the runs this board knows are hidden. Hidden runs reach only
+// My plans' own "Hidden from the public" list; `rankable` in lib/leaderboardRank.ts keeps them out of
+// every race, rank, My plans best and re-check, and `buildDeadlineBoard` out of By a date.
+
+/** Runs the board hid or showed itself this visit, which win over /mine (see lib/hiddenRuns.ts). */
+const hideOverrides = ref<Map<string, boolean>>(new Map());
+/** Runs with a hide or show call out. */
+const hideBusy = ref<Set<string>>(new Set());
+/** "Hide all" / "Show all again" is out. */
+const hideAllBusy = ref(false);
+/** What the last hide or show (or a hidden run's CSV) came to, said once above the board. */
+const hideMsg = ref<HideStatus | null>(null);
+
+/** The viewer's runs hidden from the public right now. */
+const hiddenIds = computed(() => hiddenIdSet(mineRows.value, hideOverrides.value));
+/** /mine's rows with `hidden` as the board knows it now. */
+const mineNow = computed<Row[]>(() => withHidden(mineRows.value ?? [], hiddenIds.value));
+/** Every public view's rows: /all without the viewer's hidden runs. */
+const shownRows = computed<Row[]>(() => publicRows(allRows.value, hiddenIds.value));
+
 /** Every row, with the viewer's marked `yours`, plus any of theirs /all does not show yet (it is
- *  cached for a minute at the edge; /mine is not). */
+ *  cached for a minute at the edge; /mine is not), hidden ones included and marked `hidden`: only My
+ *  plans reads this, and `rankable` keeps the hidden ones out of its ranking. */
 const mergedRows = computed<Row[]>(() => {
-  const mine = mineRows.value;
-  if (!mine?.length) return allRows.value;
+  const mine = mineNow.value;
+  if (!mine.length) return shownRows.value;
   const ids = mineIds.value;
-  const seen = new Set(allRows.value.map(r => r.id));
+  const seen = new Set(shownRows.value.map(r => r.id));
   return [
-    ...allRows.value.map(r => (r.id && ids.has(r.id) ? { ...r, yours: true } : r)),
+    ...shownRows.value.map(r => (r.id && ids.has(r.id) ? { ...r, yours: true } : r)),
     ...mine.filter(r => !r.id || !seen.has(r.id)),
   ];
 });
+
+/** The viewer's runs hidden from the public, any target, newest sent first (My plans lists them). */
+const myHidden = computed(() => hiddenRuns(mergedRows.value));
+/** How many of the viewer's runs are still public, for "Hide all my runs from the public". */
+const myPublicCount = computed(() => mineNow.value.filter(r => !r.hidden).length);
+/** The hidden run whose details are open in My plans. */
+const openHidden = ref('');
+
+/** The code this browser holds for the loaded account (never minted here), or null. */
+async function ownerCode(): Promise<string | null> {
+  const id = props.playerId?.trim();
+  if (!id) return null;
+  try {
+    return existingOwnerToken(await hashID(id));
+  } catch {
+    return null;
+  }
+}
+
+/** Every round of `all` at most: 50 runs a round, and the collector's rate gate is 10 a minute. */
+const HIDE_ALL_ROUNDS = 4;
+
+/**
+ * Hide (`hidden: true`) or show again the viewer's runs: marked at once, put back if the call fails,
+ * then /mine read again. /all is not: it may lag a minute at other edges, and `shownRows` already
+ * leaves the run out.
+ */
+async function changeHidden(target: HideTarget, hidden: boolean): Promise<void> {
+  const all = 'all' in target;
+  const ids = all
+    ? mineNow.value.filter(r => !!r.hidden !== hidden && r.id).map(r => r.id as string)
+    : [...new Set(target.ids)].filter(id => mineIds.value.has(id));
+  if (!all && !ids.length) return;
+  if (hideAllBusy.value || ids.some(id => hideBusy.value.has(id))) return;
+  const { next, previous } = markHidden(hideOverrides.value, ids, hidden);
+  hideOverrides.value = next;
+  hideBusy.value = new Set([...hideBusy.value, ...ids]);
+  if (all) hideAllBusy.value = true;
+  hideMsg.value = null;
+  const token = await ownerCode();
+  let last: HideResult;
+  const done: string[] = [];
+  const missing: string[] = [];
+  let rounds = 0;
+  do {
+    last = await setRunsHidden({ base: root.value, token, target: all ? { all: true } : { ids }, hidden });
+    if (last.kind === 'ok') {
+      done.push(...last.reply.ids);
+      missing.push(...(last.reply.missing ?? []));
+    }
+    rounds++;
+  } while (all && last.kind === 'ok' && last.reply.more && rounds < HIDE_ALL_ROUNDS);
+  // Every round that worked counts, even when a later one did not.
+  const settled: HideResult =
+    last.kind === 'ok' || done.length
+      ? {
+          kind: 'ok',
+          reply: {
+            ok: true,
+            hidden,
+            ids: done,
+            changed: [],
+            ...(missing.length ? { missing } : {}),
+            ...(last.kind === 'ok' && last.reply.more ? { more: true } : {}),
+          },
+        }
+      : last;
+  hideOverrides.value = settleHidden(hideOverrides.value, previous, hidden, settled);
+  hideMsg.value = hideStatus(last.kind === 'ok' ? settled : last, hidden, { all });
+  const still = new Set(hideBusy.value);
+  for (const id of ids) still.delete(id);
+  hideBusy.value = still;
+  if (all) hideAllBusy.value = false;
+  if (done.length) {
+    const fresh = await fetchMine();
+    if (fresh) mineRows.value = fresh;
+  }
+}
+
+/** Save the viewer's own hidden run's CSV, fetched with the code (its plain link answers 403). */
+async function downloadOwnCsv(id: string): Promise<void> {
+  try {
+    const blob = await fetchOwnCsv({ base: root.value, id, token: await ownerCode() });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = csvFileName(id);
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  } catch (e) {
+    hideMsg.value = { text: e instanceof Error ? e.message : String(e), tone: 'error' };
+  }
+}
+
+provide(HIDE_CONTROL, {
+  isMine: id => !!id && mineIds.value.has(id),
+  isHidden: id => !!id && hiddenIds.value.has(id),
+  isBusy: id => hideAllBusy.value || (!!id && hideBusy.value.has(id)),
+  setHidden: (ids, hidden) => changeHidden({ ids }, hidden),
+  downloadCsv: downloadOwnCsv,
+});
+
+/** The status line's colours. */
+function hideMsgClass(m: HideStatus): string {
+  if (m.tone === 'error') return 'border-red-200 bg-red-50 text-red-800';
+  if (m.tone === 'warn') return 'border-amber-200 bg-amber-50 text-amber-900';
+  return 'border-slate-200 bg-white text-slate-700';
+}
 
 /**
  * Race lines that are provably the viewer's: an owner line whose tag /mine returned, or a line holding
@@ -1267,7 +1526,7 @@ function isMe(e: RaceEntry): boolean {
 
 // Reasons are dated on the viewer's calendar, like the Planned and Finishes cells beside them.
 const race = computed(() =>
-  target.value == null ? null : buildRace(allRows.value, { target: target.value, now: now.value, zone: viewZone })
+  target.value == null ? null : buildRace(shownRows.value, { target: target.value, now: now.value, zone: viewZone })
 );
 
 /** Settings words for a race line whose best plan has a look-alike among the player's plans. */
@@ -1334,6 +1593,7 @@ const myDeadlineRows = computed<Row[]>(() => {
     r =>
       isDeadlineRow(r) &&
       !r.flags?.length &&
+      !r.hidden &&
       madeDeadline(r) &&
       !(typeof r.backupAgeHours === 'number' && r.backupAgeHours < -1) &&
       (r.yours || (myKey.value != null && accountKeyOf(r) === myKey.value))
@@ -1543,10 +1803,10 @@ const dateHours = ref<'awake' | 'any' | null>(null);
 const dateOff = ref<'with' | 'without' | null>(null);
 /** Ascension counts that answers actually have, for the filter's options. */
 const dateAscOptions = computed(() =>
-  [...new Set(allRows.value.filter(r => isDeadlineRow(r)).map(r => r.chain.length))].sort((a, b) => a - b)
+  [...new Set(shownRows.value.filter(r => isDeadlineRow(r)).map(r => r.chain.length))].sort((a, b) => a - b)
 );
 const dateBoard = computed(() =>
-  buildDeadlineBoard(allRows.value, {
+  buildDeadlineBoard(shownRows.value, {
     now: now.value,
     filter: { ascensions: dateAsc.value, hours: dateHours.value, timeOff: dateOff.value },
   })
@@ -1606,9 +1866,9 @@ const NO_CODE_TITLE =
   'line tagged "no code", or, if its timezone, artifacts or TE do not fit theirs, on a separate line marked (no code).';
 
 const runLines = computed<RunLine[]>(() => {
-  const rows = target.value == null ? allRows.value : allRows.value.filter(r => r.finalTE === target.value);
+  const rows = target.value == null ? shownRows.value : shownRows.value.filter(r => r.finalTE === target.value);
   // Names filed over every row, as the Race does, so both tabs fold the same copies together.
-  const filing = fileRows(allRows.value);
+  const filing = fileRows(shownRows.value);
   const folded = foldCopies(rows, filing);
   const tags = settingTags(
     folded.map(f => f.row),
@@ -1686,10 +1946,8 @@ const sortedLines = computed(() => sortRows(runLines.value, sortKey.value, sortA
  * throws, so a collector without /mine leaves the board exactly as it was.
  */
 async function fetchMine(): Promise<Row[] | null> {
-  const id = props.playerId?.trim();
-  if (!id) return null;
   try {
-    const token = existingOwnerToken(await hashID(id));
+    const token = await ownerCode();
     if (!token) return null;
     const res = await fetch(`${root.value}/mine`, { headers: { 'x-owner-token': token } });
     if (!res.ok) return null;
@@ -1756,6 +2014,8 @@ async function load(): Promise<void> {
 watch(
   () => props.playerId,
   async () => {
+    hideMsg.value = null;
+    openHidden.value = '';
     mineRows.value = await fetchMine();
   }
 );
