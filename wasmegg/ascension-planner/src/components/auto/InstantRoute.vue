@@ -287,6 +287,13 @@
                       <template v-if="dateExactByK[r.legs.length]">{{ dateExactByK[r.legs.length]!.endTE }} TE</template>
                       <template v-else-if="dateExactByK[r.legs.length] === null">misses</template>
                       <span v-else-if="exactStatus === 'running'" class="text-slate-400 font-normal">…</span>
+                      <!-- Light's price of this row's route at once (StrongerCheck.vue), as it lands. -->
+                      <span
+                        v-if="atOnceText(dateRowChain(r))"
+                        class="block text-[10px] font-normal text-indigo-700"
+                        data-testid="at-once-line"
+                        >{{ atOnceText(dateRowChain(r)) }}</span
+                      >
                     </td>
                     <td class="py-1.5 pr-3 whitespace-nowrap">
                       <template v-if="dateExactByK[r.legs.length]">
@@ -324,12 +331,9 @@
             </div>
             <p class="text-[11px] text-slate-600">
               Ascend at the times shown: each fresh ascension starts on the hour (inside the weekly research sale, at
-              once when that ends sooner), and Check exactly prices it the same way.
+              once when that ends sooner), and Check exactly prices it the same way. Light, under Search nearby, then
+              prices these routes ascending at once, on your hours.
             </p>
-            <label class="flex items-center gap-2 text-[11px] text-slate-600 cursor-pointer">
-              <input v-model="tryAtOnce" type="checkbox" class="rounded border-slate-300" />
-              Also try ascending the moment each ascension ends, not only on the hour (slower check)
-            </label>
             <p v-if="atOnceNote(dateExact)" class="text-[11px] font-bold text-emerald-800">
               {{ atOnceNote(dateExact) }}
             </p>
@@ -481,6 +485,13 @@
                     <template v-if="exactOf(r)">{{ show(exactOf(r)!.end) }} · {{ days(exactOf(r)!.seconds) }}</template>
                     <template v-else-if="exactOf(r) === null">couldn’t price</template>
                     <span v-else-if="exactStatus === 'running'" class="text-slate-400">…</span>
+                    <!-- Light's price of this route at once (StrongerCheck.vue), as it lands. -->
+                    <span
+                      v-if="atOnceText(r.chain)"
+                      class="block text-[10px] font-normal text-indigo-700"
+                      data-testid="at-once-line"
+                      >{{ atOnceText(r.chain) }}</span
+                    >
                   </td>
                   <td class="py-1.5 pr-3 font-mono-premium text-slate-800">{{ r.chain.join(' ') }}</td>
                   <td class="py-1.5 text-right">
@@ -514,12 +525,9 @@
           </div>
           <p class="text-[11px] text-slate-600">
             Ascend at the times shown: each fresh ascension starts on the hour (inside the weekly research sale, at once
-            when that ends sooner), and Check exactly prices it the same way.
+            when that ends sooner), and Check exactly prices it the same way. Light, under Search nearby, then prices
+            these routes ascending at once, on your hours.
           </p>
-          <label class="flex items-center gap-2 text-[11px] text-slate-600 cursor-pointer">
-            <input v-model="tryAtOnce" type="checkbox" class="rounded border-slate-300" />
-            Also try ascending the moment each ascension ends, not only on the hour (slower check)
-          </label>
           <p v-if="atOnceNote(exactOf(lead))" class="text-[11px] font-bold text-emerald-800">
             {{ atOnceNote(exactOf(lead)) }}
           </p>
@@ -611,6 +619,7 @@
         :ctx="findCtx"
         :run-busy="runBusy"
         :zone="zone"
+        :at-once-rows="lightRows"
       />
       </Teleport>
       <p v-if="result && exactStatus === 'error'" class="text-[11px] text-amber-800">{{ exactText }}</p>
@@ -833,6 +842,7 @@ import InstantIntegrity from './InstantIntegrity.vue';
 import StrongerCheck from './StrongerCheck.vue';
 import { holdsRoutes, instantIntegrity, lowTeOpeningNote } from '@/search/instantIntegrity';
 import type { FindContext } from '@/search/strongerCheck';
+import { rowLine, type AtOnceItem } from '@/search/lightAtOnce';
 import { useIntegrityProbe } from '@/composables/useIntegrityProbe';
 import { useInstantDuringSearch } from '@/composables/useInstantDuringSearch';
 import { readSnapshot, recallShown, rememberShown, snapshotUsable, writeSnapshot } from '@/search/instantSnapshot';
@@ -1574,8 +1584,9 @@ async function run(force = false, goAhead = false): Promise<void> {
   cachedKey = cacheKey();
   cached.value = readCache(cachedKey);
   // The same save, setup and filters as when it was last worked out: show that answer, in full, and
-  // skip the work. (The at-once box is in this key; the plan start is not, as it is a new minute on every visit: the note says which start the saved dates are for.)
-  snapKey = cachedKey ? `${cachedKey}|${tryAtOnce.value ? 1 : 0}` : null;
+  // skip the work. (The plan start is not in this key, as it is a new minute on every visit: the note says which
+  // start the saved dates are for. The "|0" is the retired at-once box, off: snapshots saved before keep loading.)
+  snapKey = cachedKey ? `${cachedKey}|0` : null;
   savedAt.value = null;
   waiting.value = false;
   afterRun = null;
@@ -1824,8 +1835,8 @@ interface Exact {
   end: number;
   /** TE when the route ends (above its last checkpoint when a sale wait overshoots). */
   endTE: number;
-  /** How its fresh ascensions start in the price kept (chain.ts `HandoffChoice`): 'hour' unless
-   *  the player ticked "also try ascending at once" and another way was sooner. */
+  /** How its fresh ascensions start in the price kept (chain.ts `HandoffChoice`): 'hour'. (The "also try
+   *  ascending at once" box is gone since 14 Oct: Light prices the routes at once, StrongerCheck.vue.) */
   handoff: HandoffChoice;
   /** The fresh ascensions (1-based) that start at once rather than on the hour in that price. */
   atOnce: number[];
@@ -1885,10 +1896,6 @@ const strongHandoff = computed<HandoffChoice>(() =>
 
 /** Exact prices by `chain.join(',')`; null where the simulator could not price the route. */
 const exact = ref<Record<string, Exact | null>>({});
-/** "Also try ascending at once" (off by default): the exact check also prices every route with each
- *  fresh ascension at once, and with the sooner of the two at each one, and keeps the best. Up to
- *  three times the work, so it is the player's choice. */
-const tryAtOnce = ref(false);
 const exactStatus = ref<'idle' | 'running' | 'done' | 'error' | 'waiting'>('idle');
 const exactText = ref('');
 const exactMs = ref<number | null>(null);
@@ -2010,9 +2017,8 @@ async function runExact(id: number, found: NonNullable<typeof result.value>, man
     if (id !== runs) return;
     const price = async (chains: number[][], opts?: EvaluateOptions) => {
       // On the hour, as the table was simulated and as the times shown assume (chain.ts
-      // `HandoffChoice`); with "also try ascending at once", all at once and the sooner of the two
-      // at each ascension too, keeping whichever reaches the end soonest.
-      const ways: HandoffChoice[] = tryAtOnce.value ? ['hour', 'now', 'sooner'] : ['hour'];
+      // `HandoffChoice`). Ascending at once is Light's job, after this (StrongerCheck.vue, 14 Oct).
+      const ways: HandoffChoice[] = ['hour'];
       const best = new Map<string, { r: ChainResult; handoff: HandoffChoice }>();
       for (const handoff of ways) {
         const { results } = await exactPool!.evaluate(chains, undefined, { ...opts, handoff });
@@ -2251,6 +2257,35 @@ watch(
 );
 // The lead route for the comparison block (SearchCompare.vue, stores/stronger.ts).
 const strongerStore = useStrongerStore();
+
+/**
+ * LIGHT, AT ONCE (Jordan, 14 Oct: it took over the "also try ascending at once"
+ * box). After Check exactly, Light (StrongerCheck.vue) prices the counts table's routes with each fresh
+ * ascension starting the moment the one before ends, on your hours and time off; each row shows its line
+ * as it lands. Fastest: the rows shown (`shownRows`). By a date: each count's route as Check exactly left
+ * it (the one that makes the date on the hour, else the table's own), so a row that misses on the hour
+ * may make it at once.
+ */
+const dateRowChain = (r: Route): number[] => (dateExactByK.value[r.legs.length] ?? tableDate(r)).chain;
+const lightRows = computed<AtOnceItem[]>(() =>
+  props.deadline
+    ? dateRows.value.map(r => ({ chain: [...dateRowChain(r)], count: r.legs.length }))
+    : shownRows.value.map(r => ({ chain: [...r.chain], count: r.legs.length }))
+);
+/** "at once, on your hours: Feb 16, 9:40 PM (−0.40 days)" under a row, once Light has priced it. */
+function atOnceText(chain: number[]): string {
+  const have = strongerStore.atOnce[props.deadline ? 'date' : 'fastest'];
+  const k = key(chain);
+  if (!(k in have)) return '';
+  const p = have[k];
+  return rowLine({
+    goal: props.deadline ? { kind: 'date', deadline: props.deadline } : { kind: 'fastest', target: store.finalTE },
+    priced: p,
+    hourEnd: exact.value[k]?.end ?? null,
+    hours: !!store.availability,
+    show,
+  });
+}
 watch(
   () => {
     if (!result.value || status.value === 'loading') return null;
@@ -2510,7 +2545,6 @@ watch(
       props.deadline,
       store.firstAscension,
       bonus.value,
-      tryAtOnce.value,
       useHours.value ? availabilityKey(store.availability) : '',
       filters.value.maxAscensions,
     ]),
@@ -2708,7 +2742,6 @@ function buildRecord(): InstantRecord | null {
       inHours: useHours.value,
       window: store.scheduleEnabled && store.availability ? describeAvailability(store.availability) : null,
       holdShifts: !!store.deferShifts,
-      tryAtOnce: tryAtOnce.value,
       timeOff: store.timeOff.length,
       milestones: store.milestones.length,
       small,

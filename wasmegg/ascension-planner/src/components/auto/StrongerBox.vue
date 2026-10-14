@@ -2,8 +2,8 @@
   "Stronger check" under the instant answer, on Fastest and By a date (the user, 12 Oct 2026): one box
   for "Try: stronger check" and "Search around this answer", with a level bar for how much stronger.
   Light is the stronger check alone (InstantRoute.vue teleports StrongerCheck into `#stronger-check-results`
-  here, always on): your earlier routes priced on this save and, by a date, one TE lower, after Check
-  exactly. The levels above it also run the search around the instant answer (the default slot:
+  here, always on): after Check exactly, the instant answer's routes priced ascending at once on your hours
+  (14 Oct), then your earlier routes priced on this save and, by a date, one TE lower. The levels above it also run the search around the instant answer (the default slot:
   Fastest's Smart search at that effort, By a date's routes around the answer), its controls and results
   in this box. What it promises, and what it doesn't, is said here.
 -->
@@ -27,8 +27,8 @@
       How hard to look
     </p>
     <p v-else class="text-[12px] text-slate-600 leading-relaxed">
-      Checks the instant answer harder, with the full simulator on your save. Light prices routes you have already
-      found; Fast, Exact and Very high also search the routes near the instant answer's ({{ NAMES.smart }}). Pick how
+      Checks the instant answer harder, with the full simulator on your save. Light prices the instant answer's routes
+      ascending at once, and routes you have already found; Fast, Exact and Very high also search the routes near the instant answer's ({{ NAMES.smart }}). Pick how
       much harder:
     </p>
     <div
@@ -71,11 +71,20 @@
       "
       data-testid="light-status"
     >
-      <span
-        v-if="stronger.light.state === 'running'"
-        class="inline-block w-2.5 h-2.5 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin"
-      />
-      <span>{{ lightText }}</span>
+      <!-- Running: "Searching" with the CSS dots (AnimatedDots.vue, no timer), then what it is on now
+           ("Looking at 7 ascensions (1 of 5)…", "Your earlier routes: 3 of 6…"; Jordan, 14 Oct). -->
+      <span v-if="stronger.light.state === 'running'" data-testid="light-searching"
+        ><b>Searching<AnimatedDots /></b>{{ ' ' }}{{ lightText }}</span
+      >
+      <span v-else>{{ lightText }}</span>
+    </p>
+    <!-- Light's own result, as soon as one route is priced at once: the fastest as you'd play it. -->
+    <p
+      v-if="stronger.light.summary"
+      class="text-[12px] font-bold text-indigo-900"
+      data-testid="light-as-played"
+    >
+      {{ stronger.light.summary }}
     </p>
     <!-- Light has no Find on purpose: say where it is (the user, 14 Oct: "where go button?"). -->
     <p v-if="level === 'light'" class="flex flex-wrap items-center gap-2 text-[11px] text-slate-600" data-testid="light-next">
@@ -138,6 +147,8 @@ import { NAMES } from '@/lib/siteNav';
 import { EFFORT_NOTES } from '@/search/effort';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useStrongerStore, type LevelEstimate, type StrongerLevel } from '@/stores/stronger';
+import { doneWhat } from '@/search/lightAtOnce';
+import AnimatedDots from './AnimatedDots.vue';
 
 const props = defineProps<{
   /** 'fastest': Light, Fast, Exact, Very high (the Smart search's effort). 'date': Light and Around. */
@@ -169,9 +180,9 @@ const levels = computed<LevelText[]>(() =>
         {
           id: 'light',
           label: 'Light',
-          does: 'After Check exactly, prices the routes you have already found for this target (your searches here, saved runs and answers, earlier checks, and board runs sent from this browser) on your save as it is now. It uses your hours and time off, which the instant answer\'s own estimate leaves out.',
+          does: "After Check exactly, prices the instant answer's routes, ascending at once, on your hours: each fresh ascension starts the moment the one before ends, not on the hour. Then it prices the routes you have already found for this target (your searches here, saved runs and answers, earlier checks, and board runs sent from this browser) on your save as it is now. It uses your hours and time off, which the instant answer's own estimate leaves out.",
           time: 'Seconds to a few minutes, once Check exactly has finished.',
-          finds: 'One of your own routes, if it is now faster than the instant answer. It does not look for new routes.',
+          finds: "When the instant answer's routes finish if you ascend at once, and one of your own routes, if it is now faster than the instant answer. It does not look for new routes.",
         },
         {
           id: 'quick',
@@ -199,9 +210,9 @@ const levels = computed<LevelText[]>(() =>
         {
           id: 'light',
           label: 'Light',
-          does: "After Check exactly, prices your own earlier routes for this date on your save. If the instant answer's top route misses the date on your account, it also tries that route one TE lower (two if needed). It uses your hours and time off, which the instant answer's own estimate leaves out.",
+          does: "After Check exactly, prices the instant answer's routes, ascending at once, on your hours: each fresh ascension starts the moment the one before ends, not on the hour. Then it prices your own earlier routes for this date on your save. If the instant answer's top route misses the date on your account, it also tries that route one TE lower (two if needed). It uses your hours and time off, which the instant answer's own estimate leaves out.",
           time: 'Seconds to a few minutes, once Check exactly has finished.',
-          finds: 'One of your routes that does better, or a route one TE lower that really makes the date. It does not look for new routes.',
+          finds: "How much spare time the instant answer's routes have if you ascend at once, and one of your routes that does better, or a route one TE lower that really makes the date. It does not look for new routes.",
         },
         {
           id: 'quick',
@@ -228,25 +239,31 @@ const levels = computed<LevelText[]>(() =>
 );
 const level = computed<StrongerLevel>(() => stronger.level);
 
-/** Light's status sign: "runs by itself" -> "Running…" -> "Done: priced N of your earlier routes". */
+/** Light's status sign: "runs by itself" -> "Searching… Looking at 7 ascensions (1 of 5)…" -> "Done: priced the
+ *  instant answer's 5 routes at once, and 2 of your 3 earlier routes". */
 const lightText = computed(() => {
   const l = stronger.light;
   const ex = stronger.exact;
+  const instant = l.instant?.total ?? 0;
   // Check exactly comes first: Light waits for it, so say so, with how far it is (the user, 14 Oct: "nothing to
   // start" read as if nothing would happen).
   if (ex.running && l.state !== 'running') {
     const progress = ex.total ? ` (${ex.done} of ${ex.total} routes)` : '';
     const next = l.total ? `${l.total} earlier route${l.total === 1 ? '' : 's'} of yours` : 'your earlier routes';
-    return `Waiting for Check exactly to finish${progress}… then Light prices ${next} on your hours.`;
+    return `Waiting for Check exactly to finish${progress}… then Light prices the instant answer's routes at once, and ${next}, on your hours.`;
   }
-  if (l.state === 'running')
+  if (l.state === 'running') {
+    if (l.step) return l.step;
     return l.total
       ? `Pricing your ${l.total} earlier route${l.total === 1 ? '' : 's'} on this save…`
       : 'Pricing your earlier routes on this save…';
+  }
   if (l.state === 'done') {
     const at = l.at ? ` at ${clock(l.at)}` : '';
-    if (!l.total) return 'Nothing of yours to price yet. Pick Fast to search for new routes.';
-    return `Done${at}: priced ${l.priced} of your ${l.total} earlier route${l.total === 1 ? '' : 's'}.`;
+    const what = doneWhat({ instantPriced: l.instant?.priced ?? 0, instantTotal: instant, earlierPriced: l.priced, earlierTotal: l.total });
+    if (!what) return 'Nothing of yours to price yet. Pick Fast to search for new routes.';
+    const none = l.total ? '' : ' Nothing of yours to price yet.';
+    return `Done${at}: priced ${what}.${none}`;
   }
   if (l.state === 'error') return "Stopped before it finished. It runs again after the next Check exactly.";
   return 'Light runs by itself after Check exactly: nothing to start.';
@@ -267,8 +284,9 @@ const promises = computed<string[]>(() => {
   if (l === 'light')
     return [
       props.goal === 'date'
-        ? "No search: it only prices routes you have already found (your searches here, saved runs and answers, earlier checks, and board runs sent from this browser) on your save as it is now. If the instant answer's top route misses the date on your account, it also tries that route one TE lower (two if needed)."
-        : 'No search: it only prices routes you have already found (your searches here, saved runs and answers, earlier checks, and board runs sent from this browser) on your save as it is now.',
+        ? "No search: it only prices the instant answer's routes, ascending at once, on your hours, and routes you have already found (your searches here, saved runs and answers, earlier checks, and board runs sent from this browser) on your save as it is now. If the instant answer's top route misses the date on your account, it also tries that route one TE lower (two if needed)."
+        : "No search: it only prices the instant answer's routes, ascending at once, on your hours, and routes you have already found (your searches here, saved runs and answers, earlier checks, and board runs sent from this browser) on your save as it is now.",
+      'Ascending at once means starting each fresh ascension the moment the one before ends. Its times show under each row of the table above, next to the on-the-hour times.',
       "It can't find a route nobody has tried yet. Fast, Exact and Very high search for those.",
       'It runs by itself once Check exactly has finished, and waits while a search is running.',
     ];
@@ -306,13 +324,13 @@ const current = computed(() => levels.value.find(l => l.id === level.value) ?? l
  *  By a date no search has beaten the instant answer's TE yet, so its Fast is not "where the gain is". */
 const TAGS: Record<'fastest' | 'date', Record<StrongerLevel, string>> = {
   fastest: {
-    light: 'Your own routes, on your hours',
+    light: 'Ascending at once, and your own routes',
     quick: 'Where nearly all the gain is',
     normal: "If you're curious",
     thorough: "If you're curious",
   },
   date: {
-    light: 'Your own routes, on your hours',
+    light: 'Ascending at once, and your own routes',
     quick: 'A quick second opinion',
     normal: "If you're curious",
     thorough: "If you're curious",
