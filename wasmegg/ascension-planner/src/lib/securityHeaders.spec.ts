@@ -9,6 +9,7 @@ import {
   originOf,
   robotsTag,
   robotsTxt,
+  rootFile,
   securityTxt,
 } from './securityHeaders';
 
@@ -97,5 +98,21 @@ describe('indexing and security.txt by host (13 Oct 2026)', () => {
         '',
       ].join('\n')
     );
+  });
+});
+
+describe('the site root (13 Oct 2026: /favicon.ico 404ed on every host)', () => {
+  it("answers /favicon.ico with the planner's own icon, and nothing else", () => {
+    expect(rootFile('/favicon.ico')).toEqual({ file: 'static/favicon.ico', type: 'image/x-icon' });
+    expect(rootFile('/ascension-planner/favicon.ico')).toBeNull();
+    expect(rootFile('/other.ico')).toBeNull();
+  });
+  it('the pages name their icons themselves', async () => {
+    const { readFileSync } = await import('node:fs');
+    for (const page of ['index.html', 'explorer.html']) {
+      const html = readFileSync(new URL(`../../${page}`, import.meta.url), 'utf8');
+      expect(html).toContain('<link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />');
+      expect(html).toContain('href="/static/favicon-128.png"');
+    }
   });
 });

@@ -137,3 +137,14 @@ export function securityTxt(now: Date = new Date()): string {
     '',
   ].join('\n');
 }
+
+/**
+ * Files answered at the site root, outside the planner's path: /favicon.ico, which a browser asks for
+ * when a page names no icon (an old one, a scanner, a bookmark) and which 404ed on every host
+ * (13 Oct 2026). The pages name their icons themselves (index.html, explorer.html). `file` is
+ * relative to the build's output folder.
+ */
+export function rootFile(pathname: string): { file: string; type: string } | null {
+  if (pathname === '/favicon.ico') return { file: 'static/favicon.ico', type: 'image/x-icon' };
+  return null;
+}

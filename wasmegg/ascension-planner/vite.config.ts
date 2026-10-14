@@ -19,6 +19,7 @@ import {
   originOf,
   robotsTag,
   robotsTxt,
+  rootFile,
   securityTxt,
 } from './src/lib/securityHeaders';
 
@@ -199,7 +200,7 @@ function watcherIsolation(): Plugin {
  * why): nosniff, a referrer policy and HSTS on every response; X-Frame-Options and the
  * Content-Security-Policy on the HTML pages, recognised by their content type as the response goes
  * out (a page, or preview's SPA fallback to index.html). The inline scripts' hashes are read from the
- * built pages when the server starts. Also /robots.txt, /.well-known/security.txt and X-Robots-Tag,
+ * built pages when the server starts. Also /robots.txt, /.well-known/security.txt, /favicon.ico and X-Robots-Tag,
  * by the request's Host (live or test site). Preview only: the dev server's own inline scripts (HMR)
  * would need a looser policy. Takes effect when `pnpm serve` restarts.
  */
@@ -238,6 +239,20 @@ function securityHeaders(env: Record<string, string | undefined>): Plugin {
           res.setHeader('Content-Type', 'text/plain; charset=utf-8');
           res.setHeader('Cache-Control', 'public, max-age=3600');
           res.end(req.method === 'HEAD' ? undefined : text);
+          return;
+        }
+        const root = req.method === 'GET' || req.method === 'HEAD' ? rootFile(pathname) : null;
+        if (root && isFile(path.join(outDir, root.file))) {
+          res.statusCode = 200;
+          res.setHeader('Content-Type', root.type);
+          res.setHeader('Cache-Control', 'public, max-age=86400');
+          if (req.method === 'HEAD') {
+            res.end();
+            return;
+          }
+          createReadStream(path.join(outDir, root.file))
+            .on('error', () => res.destroy())
+            .pipe(res);
           return;
         }
         const writeHead = res.writeHead;
