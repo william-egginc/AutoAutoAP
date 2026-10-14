@@ -1731,6 +1731,39 @@ function withUnnamedRechecks<T extends BoardRow>(
   return [...lines];
 }
 
+/** What the board says about whether a race line is the viewer's: 'you' when /mine proves it, 'maybe'
+ *  when only a look-alike guess supports it, null otherwise. */
+export type ViewerTag = 'you' | 'maybe' | null;
+
+/**
+ * Is this race line the viewer's? Exactly, from /mine (`exact`, the keys of the lines it returned), when
+ * it answered with anything. Otherwise only a GUESS, and a guess is only ever 'maybe':
+ *   - the line must carry the loaded save's account key (timezone + artifact labels: every maxed account
+ *     in one timezone has the same one, so it can match strangers);
+ *   - it must not carry an owner code (an `acct:` line belongs to a code this browser could have asked
+ *     about; if /mine gave nothing for it, it is not this browser's);
+ *   - it must not start from a TE above the save's own: a save was never at a higher TE earlier. Renegade
+ *     (TE 202, 6 Oct) read as Allan's (TE 200, later 201) by timezone and gear alone, 13 Oct 2026.
+ * `exact` null: /mine could not be asked. `viewerTE` 0: no save loaded.
+ */
+export function viewerTag(
+  e: Pick<RaceLine, 'key' | 'lines' | 'accounts' | 'plans' | 'dropped' | 'replaced'>,
+  exact: ReadonlySet<string> | null,
+  accountKey: string | null,
+  viewerTE: number
+): ViewerTag {
+  if (exact?.size) return exact.has(e.key) ? 'you' : null;
+  if (!accountKey || !e.accounts.has(accountKey)) return null;
+  if (e.key.startsWith('acct:') || e.lines.some(k => k.startsWith('acct:'))) return null;
+  if (viewerTE > 0) {
+    const tes = [...e.plans, ...e.dropped, ...e.replaced]
+      .map(p => p.row.backupTE ?? p.row.currentTE)
+      .filter((t): t is number => typeof t === 'number');
+    if (tes.length && Math.min(...tes) > viewerTE) return null;
+  }
+  return 'maybe';
+}
+
 /** One player's place in the race: a line from `groupPlayers`, or several owner lines joined. */
 export interface RaceLine<T extends BoardRow = BoardRow> extends PlayerPlans<T> {
   /**

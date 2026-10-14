@@ -35,6 +35,7 @@ import {
   scheduleText,
   settingTags,
   type BoardRow,
+  viewerTag,
 } from './leaderboardRank';
 import { sortRows } from './leaderboardSort';
 
@@ -1916,5 +1917,56 @@ describe('provisional rows (Send best so far)', () => {
     const a = row({ id: 'a', deadline: 1815926400, provisional: true, submittedAt: '2026-09-25T22:00:00Z' });
     const b = row({ id: 'b', deadline: 1815926400, submittedAt: '2026-09-25T21:00:00Z' });
     expect([a, b].sort(deadlineOrder).map(r => r.id)).toEqual(['b', 'a']);
+  });
+});
+
+describe('who the viewer is, when /mine cannot say (Renegade tagged YOU on Allan\'s board, 13 Oct 2026)', () => {
+  const opts = { target: 490, now: NOW };
+  const ALLAN = 'a11a11a11a11';
+  const RENEGADE = '5e5e5e5e5e5e';
+  const lines = (rows: BoardRow[]) => buildRace(rows, opts).entries;
+  const allanRow = (over: Partial<BoardRow> = {}) => row({ id: 'allan', acct: ALLAN, currentTE: 200, ...over });
+  // A different player: the same timezone, the same maxed artifact set, from a higher TE, with an owner code.
+  const renegade = (over: Partial<BoardRow> = {}) =>
+    row({ id: 'renegade', nickname: 'Renegade', acct: RENEGADE, currentTE: 202, durationDays: 640, ...over });
+  const key = accountKeyOf(row());
+
+  it('never tags a maxed look-alike with an owner code: no match, no guess', () => {
+    const [a, r] = [allanRow(), renegade()];
+    expect(accountKeyOf(a)).toBe(accountKeyOf(r));
+    const es = lines([a, r]);
+    expect(es).toHaveLength(2);
+    // /mine could not be asked (null) or answered with nothing (empty): neither line is tagged.
+    for (const exact of [null, new Set<string>()]) {
+      expect(es.map(e => viewerTag(e, exact, key, 201))).toEqual([null, null]);
+    }
+  });
+
+  it('with no owner code, a look-alike from a TE above the save is not even a maybe', () => {
+    const [mine] = lines([allanRow({ acct: undefined })]);
+    expect(viewerTag(mine, null, key, 201)).toBe('maybe');
+    const [theirs] = lines([renegade({ acct: undefined })]);
+    expect(theirs.label).toBe('Renegade');
+    expect(viewerTag(theirs, null, key, 201)).toBeNull();
+    // From a save at a higher TE it is possible again (the save can have been at 202 earlier): a maybe.
+    expect(viewerTag(theirs, null, key, 205)).toBe('maybe');
+  });
+
+  it('/mine proves ownership: YOU for the exact line only', () => {
+    const es = lines([allanRow(), renegade()]);
+    const mine = new Set(es.filter(e => e.label === 'allanfieldhouse').map(e => e.key));
+    expect(Object.fromEntries(es.map(e => [e.label, viewerTag(e, mine, key, 201)]))).toEqual({
+      allanfieldhouse: 'you',
+      Renegade: null,
+    });
+  });
+
+  it('shows no tag without a loaded save, and ignores lines of other accounts', () => {
+    const es = lines([allanRow({ acct: undefined }), rival('Kenzie', 700)]);
+    expect(es.map(e => viewerTag(e, null, null, 0))).toEqual([null, null]);
+    expect(Object.fromEntries(es.map(e => [e.label, viewerTag(e, null, key, 201)]))).toEqual({
+      allanfieldhouse: 'maybe',
+      Kenzie: null,
+    });
   });
 });
