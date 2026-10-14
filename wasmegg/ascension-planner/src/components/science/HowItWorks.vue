@@ -208,8 +208,8 @@
           <b>Finding the routes.</b> The finder walks up through the TEs once. At each TE, for each number of
           ascensions, it keeps only the arrivals that nothing else beats on both time and eggs delivered (up to 6 of
           them). That gives the fastest route of every length to every TE, or for {{ NAMES.byDate }} the highest TE you
-          can reach by the date, in a second or two. A polish then tries moving stops by a TE or two (not on phones or
-          small computers).
+          can reach by the date, in a second or two. A quick polish then tries moving stops by a TE or two, and a
+          longer one keeps going in the background (not on phones or small computers).
         </p>
         <p>
           <b>Check exactly</b> runs the instant answer's routes through the full simulator on your save, ascending on
