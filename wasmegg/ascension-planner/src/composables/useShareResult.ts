@@ -14,6 +14,7 @@
  *    message, Put my name on it, Retry the table, the rechecks worked out once consent is given,
  *    and the guard against sending a result twice. Each screen still says HOW it sends (`send`).
  *  - `useByDateShare`: the By a date send, to Compare's Egg Day or By a date tab.
+ *  - `useLightShare`: Light's result (search/lightResult.ts), Fastest or By a date, as its own row.
  */
 import { computed, ref, watch, type ComputedRef, type Ref, type WritableComputedRef } from 'vue';
 import { useShareNameStore } from '@/stores/shareName';
@@ -25,6 +26,7 @@ import { useShareConsent } from './useShareConsent';
 import { useShareExtras } from './useShareExtras';
 import type { useChainSearchStore } from '@/stores/chainSearch';
 import type { DeadlineRoute } from '@/search/deadline';
+import type { LightResult } from '@/search/lightResult';
 
 type Store = ReturnType<typeof useChainSearchStore>;
 
@@ -314,6 +316,95 @@ export function useByDateShare(
     resultKey,
     sentKey,
     shareTab,
+    share,
+  };
+}
+
+/** The parts of the chain search store Light's send reads (stores/chainSearch.ts). */
+export type LightShareStore = Pick<Store, 'leaderboardUrl' | 'lightSent' | 'sendLightResult' | 'retryTable' | 'pendingTable'>;
+
+/**
+ * Light's send (LightShare.vue): Light's result (search/lightResult.ts) to the board as its own row, with
+ * `level: 'light'`. Only on a press, only with the account's agreement as it is at that moment (a withdraw
+ * stops it), and once per result (store `lightSent`, remembered in this browser).
+ */
+export function useLightShare(store: LightShareStore, identity: ShareIdentity, result: Ref<LightResult | null>) {
+  const { sendCsv, diagnosticsGo } = useShareExtras();
+  const collectorConfigured = computed(() => store.leaderboardUrl.replace(/\/$/, '') !== '');
+  const sharing = ref(false);
+  const shareMessage = ref('');
+  const shareOk = ref(true);
+  const sharePartial = computed(() => /\bbut\b/.test(shareMessage.value));
+  /** Sent from this browser (this visit or an earlier one): Send locks. */
+  const sent = computed(() => store.lightSent(result.value));
+  /** Where it lands: the race (Fastest), or Compare's By a date / Egg Day tab. */
+  const shareTab = computed(() => {
+    const g = result.value?.goal;
+    if (!g || g.kind !== 'date') return '';
+    const y = eggDayYearOf(g.deadline);
+    return y ? `Egg Day ${y}` : 'By a date';
+  });
+  const retryingTable = ref(false);
+  async function retryTable(): Promise<void> {
+    if (retryingTable.value) return;
+    retryingTable.value = true;
+    try {
+      const res = await store.retryTable('light');
+      shareOk.value = res.ok;
+      shareMessage.value = res.ok ? `Thanks! ${sentence(res.message)}` : `Not sent: ${res.message}`;
+    } finally {
+      retryingTable.value = false;
+    }
+  }
+  async function share(note?: string): Promise<void> {
+    const r = result.value;
+    if (!r || sharing.value) return;
+    // Read live: a withdraw since the box was drawn stops the send.
+    if (!identity.optIn.value) {
+      shareOk.value = false;
+      shareMessage.value = 'Not sent: agree to share on the leaderboard first.';
+      return;
+    }
+    if (sent.value) {
+      shareOk.value = true;
+      shareMessage.value = 'Already on the board: this result was sent from this browser.';
+      return;
+    }
+    sharing.value = true;
+    shareOk.value = true;
+    shareMessage.value = '';
+    try {
+      const name = identity.anonymous.value ? '' : identity.nickname.value.trim().slice(0, 40);
+      const res = await store.sendLightResult({
+        result: r,
+        nickname: name,
+        ...(note !== undefined ? { note } : {}),
+        sendCsv: sendCsv.value,
+        diagnostics: diagnosticsGo.value,
+      });
+      shareOk.value = res.ok && !res.quarantined;
+      const where = shareTab.value ? `${NAMES.compare}'s ${shareTab.value} tab` : NAMES.compare;
+      shareMessage.value = res.quarantined
+        ? res.message
+        : res.ok
+          ? res.duplicate === 'exact'
+            ? res.message
+            : `Thanks! ${sentence(res.message)} It's on the ${where}.`
+          : `Not sent: ${res.message}`;
+    } finally {
+      sharing.value = false;
+    }
+  }
+  return {
+    collectorConfigured,
+    sharing,
+    shareMessage,
+    shareOk,
+    sharePartial,
+    sent,
+    shareTab,
+    retryingTable,
+    retryTable,
     share,
   };
 }

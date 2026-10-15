@@ -136,6 +136,8 @@
     <!-- No heading of ours here: the stronger check's results carry their own ("Your earlier routes",
          "A TE lower"); a second one doubled it (the user, 12 Oct). -->
     <div id="stronger-check-results" />
+    <!-- Light's result to the board (Jordan, 15 Oct): once Light is done with one, a Send like Fast's. -->
+    <LightShare v-if="level === 'light'" :goal="goal" :player-id="playerId" />
     <!-- At Fast and above: the search of the routes near the instant answer's, its controls and results. -->
     <h4
       v-if="level !== 'light'"
@@ -156,6 +158,7 @@ import { useChainSearchStore } from '@/stores/chainSearch';
 import { useStrongerStore, type LevelEstimate, type StrongerLevel } from '@/stores/stronger';
 import { doneWhat } from '@/search/lightAtOnce';
 import AnimatedDots from './AnimatedDots.vue';
+import LightShare from './LightShare.vue';
 
 const props = defineProps<{
   /** 'fastest': Light, Fast, Exact, Very high (the Smart search's effort). 'date': Light and Around. */
@@ -167,6 +170,8 @@ const props = defineProps<{
   estimates?: Partial<Record<StrongerLevel, LevelEstimate>>;
   /** Inside the Search nearby tab (SearchTabs.vue): no frame, heading or intro of its own. */
   inTab?: boolean;
+  /** The header's player ID, for Light's Share box (LightShare.vue). */
+  playerId?: string;
 }>();
 const emit = defineEmits<{ picked: [level: StrongerLevel] }>();
 

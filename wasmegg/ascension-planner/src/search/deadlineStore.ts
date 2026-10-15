@@ -80,6 +80,9 @@ export interface DeadlineRunSpec {
   /** Started from By a date's Simple mode (batch 3): its boxes were picked around the instant answer,
    *  so a carry-on goes back to Simple. Absent on Advanced runs and runs from before 8 Oct. */
   simple?: boolean;
+  /** A Simple run's Stronger check level (15 Oct 2026; the bar's 'quick' / 'normal' / 'thorough'), sent as
+   *  the board row's `level`. Absent on Advanced runs and older runs. */
+  level?: import('./submission').SubmissionLevel;
   /** The estimate the run started with, counted in legs (deadlineEstimate.ts `planLegs`): the first
    *  guess the progress line quotes, and what the live estimate counts down from. */
   legPlan?: DeadlineLegPlan;
@@ -235,6 +238,8 @@ export type DeadlineAccount = Record<string, unknown> & { backupTime?: number | 
 export interface SavedDeadlineResult {
   /** From By a date's Simple mode (`DeadlineRunSpec.simple`). */
   simple?: boolean;
+  /** The Simple run's level (`DeadlineRunSpec.level`), for its board row. Absent before 15 Oct 2026. */
+  level?: import('./submission').SubmissionLevel;
   routes: DeadlineRoute[];
   byStops: DeadlineRoute[];
   deadline: number;

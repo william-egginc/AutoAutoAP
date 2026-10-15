@@ -12,6 +12,7 @@
 import { defineStore } from 'pinia';
 import { ref, watch } from 'vue';
 import type { LegSummary } from '@/search/types';
+import type { LightResult } from '@/search/lightResult';
 
 export type StrongerLevel = 'light' | 'quick' | 'normal' | 'thorough';
 const KEY = 'aap-stronger-level';
@@ -116,5 +117,8 @@ export const useStrongerStore = defineStore('stronger', () => {
   /** Check exactly on the instant answer (InstantRoute.vue): going or not, and how many of its routes are priced, so
    *  Light's status sign can say what it is waiting for. */
   const exact = ref({ running: false, done: 0, total: 0 });
-  return { level, strongerBest, instant, earlierChains, lastSearch, light, atOnce, exact };
+  /** Light's result to send (search/lightResult.ts), per goal: set by StrongerCheck.vue once Light is done,
+   *  null while it runs, before it and after a new answer. LightShare.vue sends it. This visit only. */
+  const lightResult = ref<{ fastest: LightResult | null; date: LightResult | null }>({ fastest: null, date: null });
+  return { level, strongerBest, instant, earlierChains, lastSearch, light, atOnce, exact, lightResult };
 });

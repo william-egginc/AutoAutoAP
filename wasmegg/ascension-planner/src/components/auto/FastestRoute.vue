@@ -51,7 +51,14 @@
         <template #nearby>
           <!-- The stronger check's results, and at Fast and above the search around the instant answer,
                its controls and results (StrongerBox.vue; the user, 12 Oct). -->
-          <StrongerBox v-slot="{ level }" goal="fastest" in-tab :running="smartRunning" :estimates="levelEstimates">
+          <StrongerBox
+            v-slot="{ level }"
+            goal="fastest"
+            in-tab
+            :player-id="playerId"
+            :running="smartRunning"
+            :estimates="levelEstimates"
+          >
             <ChainSearchPanel
               v-if="level !== 'light'"
               :player-id="playerId"

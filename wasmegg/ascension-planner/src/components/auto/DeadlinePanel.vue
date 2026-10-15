@@ -152,6 +152,7 @@
       v-slot="{ level }"
       goal="date"
       in-tab
+      :player-id="playerId"
       :running="store.deadlineRunning && !!store.deadlineRunSimple"
       :estimates="levelEstimates"
     >
@@ -2132,7 +2133,8 @@ async function find(): Promise<void> {
       rows: simple.value
         ? rows.map(() => ({ widthIx: widthIx.value, stepIx: stepIx.value, auto: false }))
         : chains.value.map(r => ({ widthIx: rowWidthIx(r), stepIx: rowStepIx(r), auto: !!r.auto })),
-      ...(simple.value ? { simple: true } : {}),
+      // The level bar's level (Fast / Exact / Very high), for the board row's `level`.
+      ...(simple.value ? { simple: true, level: dateLevel.value } : {}),
     });
     return;
   }

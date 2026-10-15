@@ -60,6 +60,7 @@ import {
   summaryLine,
   type AtOnceItem,
 } from '@/search/lightAtOnce';
+import { lightBest, type LightResult } from '@/search/lightResult';
 import type { BoardRow } from '@/lib/leaderboardRank';
 import {
   beats,
@@ -317,6 +318,8 @@ const lightStep = ref('');
 const earlierTotal = ref(0);
 const earlierDone = ref(0);
 const lightAt = ref(0);
+/** The plan start Light's routes were priced from (its pool's). */
+const lightPlanStart = ref(0);
 function clearAtOnce(): void {
   stronger.atOnce[goalKey.value] = {};
 }
@@ -338,6 +341,9 @@ async function lightPool(): Promise<{ pool: ChainSearchPool; planStart: number }
   if (!autoPool) {
     const inputs = store.collectInputs();
     pricedFrom = inputs.planStart;
+    lightPlanStart.value = inputs.planStart;
+    // What Light prices under, for its board row (store `buildLightSubmission`).
+    store.beginLight(inputs.planStart, inputs.currentTE);
     autoPool = await createChainSearchPool(inputs, { size: Math.max(1, Math.min(store.workerBudget, 4)) });
   }
   return { pool: autoPool, planStart: pricedFrom };
@@ -560,7 +566,27 @@ watch(
   l => (stronger.light = l),
   { immediate: true }
 );
+// Light's result, to send (LightShare.vue): once Light is done, the best of the instant answer's routes at
+// once, your earlier routes and, by a date, one TE lower (search/lightResult.ts). Null while it runs.
+const lightResult = computed<LightResult | null>(() => {
+  if (autoStatus.value !== 'done' || !lightPlanStart.value) return null;
+  const have = stronger.atOnce[goalKey.value];
+  const withLegs = (p: Priced | null) => {
+    const legs = p ? (p.legs ?? legsOf.get(key(p.chain))) : undefined;
+    return p && legs ? { ...p, legs } : p;
+  };
+  return lightBest({
+    goal: goal.value,
+    atOnce: atOnceItems.value.map(it => have[key(it.chain)] ?? null),
+    earlier: earlier.value.map(e => withLegs(e.made)),
+    lower: steps.value.map(s => withLegs(s.made)),
+    planStart: lightPlanStart.value,
+    handoffNow: props.handoff === 'now',
+  });
+});
+watch(lightResult, r => (stronger.lightResult[goalKey.value] = r), { immediate: true });
 onUnmounted(() => {
+  stronger.lightResult[goalKey.value] = null;
   stronger.strongerBest[props.deadline ? 'date' : 'fastest'] = null;
   clearAtOnce();
   stronger.light = idleLight();
