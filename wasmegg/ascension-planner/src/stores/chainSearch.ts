@@ -68,6 +68,7 @@ import {
   setCheckpointQueue,
   queueNext,
   readSweepQueue,
+  checkpointLimits,
   type SearchCheckpoint,
   type SweepQueueChain,
   type SweepQueueRecord,
@@ -190,6 +191,7 @@ import {
   watchLinkTick,
 } from '@/composables/useWatchLink';
 import { readWatchLinkState, type WatchLinkState } from '@/search/watchLink';
+import { DEFAULT_LIMITS, followLimits, followingFields, type LimitsTouched } from '@/lib/limitsFollow';
 import {
   appendDeadlineCheckpoint,
   checkpointCount,
@@ -600,8 +602,23 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   /** Override for the driver's `maxLast`. Null means "use the driver's default". Advanced only. */
   const maxLastOverride = ref<number | null>(null);
 
-  const minPrestiges = ref(5);
-  const maxPrestiges = ref(8);
+  // Before any instant answer; from then on two either side of its fastest route's count until the
+  // player sets them (lib/limitsFollow.ts, the watch after `suggestedCount`).
+  const minPrestiges = ref(DEFAULT_LIMITS.min);
+  const maxPrestiges = ref(DEFAULT_LIMITS.max);
+  /** Which limits were set on purpose (the inputs, the longer-route hint, a carried-on run's own):
+   *  those never follow the instant answer again this visit. Not stored, like the limits. */
+  const limitsTouched = ref<LimitsTouched>({ min: false, max: false });
+  /** The player set one of the limits by hand (the Limits box's inputs). */
+  function markLimitTouched(which: 'min' | 'max'): void {
+    if (!limitsTouched.value[which]) limitsTouched.value = { ...limitsTouched.value, [which]: true };
+  }
+  /** Code that sets both limits on purpose (a carry-on, the longer-route hint): they stay put. */
+  function setLimits(min: number, max: number): void {
+    minPrestiges.value = min;
+    maxPrestiges.value = max;
+    limitsTouched.value = { min: true, max: true };
+  }
 
   /**
    * When the player can actually act — the schedule the plan has to fit around.
@@ -931,6 +948,15 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    */
   const suggestedCount = ref<number | null>(null);
   const suggestedRoute = ref<number[] | null>(null);
+
+  /** Which limits read as the instant answer has them now (the grey hint beside the inputs). */
+  const limitsFollowing = computed(() =>
+    followingFields(
+      { min: minPrestiges.value, max: maxPrestiges.value },
+      suggestedCount.value,
+      limitsTouched.value
+    )
+  );
   /** The instant answer's route for each number of ascensions, fastest first (precompute: set by
    *  InstantRoute.vue on Fastest route; by the exact check's order once it is in). Smart search starts
    *  from the fastest of them inside the Limits box, and the Full sweep's Suggest a space centres on
@@ -2549,6 +2575,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * sweep, a saved run, or before any run.
    */
   const runCounts = ref<{ counts: number[]; min: number; max: number } | null>(null);
+  /** The limits the staged run going (or last run) started under, for its checkpoint. */
+  let runLimits: { min: number; max: number } = { ...DEFAULT_LIMITS };
 
   function fingerprint(playerId: string): string {
     return fingerprintRun({
@@ -5217,6 +5245,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           watch: currentWatchLink(),
           // A Full sweep chain run as part of a queue: the rest of the queue, for a carry-on.
           queue: searchSpace.value ? queueRecord(false) : null,
+          // A staged run's limits, so a carry-on searches under them (they follow the instant answer).
+          limits: searchSpace.value ? null : { min: runLimits.min, max: runLimits.max },
         })
       );
       return true;
@@ -7564,6 +7594,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       }
       if (!got) return;
       if (got !== 'current') own = got;
+      // Its own limits back (they would otherwise follow the instant answer as it reads now): a carry-on
+      // of a run is that run's search. Older records have none and carry on under the current ones.
+      const kept = checkpointLimits(resumeFrom);
+      if (kept) setLimits(kept.min, kept.max);
     }
     recheckPriced = new Map();
     recheckFetch = null;
@@ -7620,6 +7654,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       !findSeedFirst.value && kept?.length && kept[kept.length - 1] === finalTE.value ? [...kept] : seedChain.value;
     runSeedUsed = [...chain];
     runCounts.value = { counts: [chain.length], min: minPrestiges.value, max: maxPrestiges.value };
+    runLimits = { min: minPrestiges.value, max: maxPrestiges.value };
     chainsEstimated.value = estimateChains(
       Math.max(1, chain.length - 1),
       EFFORT[effort.value],
@@ -8237,6 +8272,25 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     if (running && sweepQueue.value.at < 0) sweepQueue.value.results = [];
   });
 
+  /**
+   * The Limits box follows the instant answer (Jordan, 14 Oct: Allan's Fast ran inside 5-8 while the
+   * instant answer's best was 4): the fields the player has not set sit two either side of its fastest
+   * route's count (`suggestedCount`, which InstantRoute sets fastest first, by the exact check once in,
+   * under its "At most N ascensions"). Only while nothing runs or is being carried on: a run keeps the
+   * limits it started with, and the next idle moment catches up.
+   */
+  // At the end of the store: `busy` reads refs declared after `suggestedCount`.
+  watch(
+    [suggestedCount, busy, limitsTouched],
+    () => {
+      const now = { min: minPrestiges.value, max: maxPrestiges.value };
+      const next = followLimits(now, suggestedCount.value, limitsTouched.value, !busy.value);
+      if (next.min !== now.min) minPrestiges.value = next.min;
+      if (next.max !== now.max) maxPrestiges.value = next.max;
+    },
+    { immediate: true }
+  );
+
   return {
     /** The coarse scan's chain count at the current limits (shown beside "Find a starting chain"). */
     coarseChains,
@@ -8305,6 +8359,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     runNotes,
     pin,
     minPrestiges,
+    limitsTouched,
+    limitsFollowing,
+    markLimitTouched,
+    setLimits,
     maxLastOverride,
     maxPrestiges,
     scheduleEnabled,

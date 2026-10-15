@@ -9,10 +9,12 @@ describe('InstantRoute hints', () => {
   it('a row within a tenth of a day of the fastest says one more prestige gains nothing (Fastest only)', () => {
     expect(t).toContain('const NEAR_TIE_SECONDS = 0.1 * 86400;');
     expect(t).toContain('v-if="!deadline && nearTie(r)"');
-    expect(t).toContain('about the same: one more prestige for no gain');
-    // Never on the fastest row itself, whichever number is used (exact once priced, the table's until then).
-    expect(t).toContain('r !== best && e.end - exactOf(best)!.end < NEAR_TIE_SECONDS');
-    expect(t).toContain('r !== t && r.seconds - t.seconds < NEAR_TIE_SECONDS');
+    expect(t).toContain('nearTieOf(r.legs.length, than.legs.length, gap)');
+    // Never on the fastest row itself, whichever number is used (exact once priced, the table's until then); the words
+    // (more vs fewer ascensions) are in search/nearTie.ts.
+    expect(t).toContain('if (e && eb && r !== best)');
+    expect(t).toContain('if (t && r !== t)');
+    expect(t).toContain('near-tie-${nearTie(r)!.kind}');
   });
 
   it("passes Check exactly's progress to the stronger-check store, and clears it when it stops", () => {

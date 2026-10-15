@@ -227,14 +227,19 @@
             slider-lead="Suggest a space tries"
             linkable
             footer-class="items-end gap-4"
-            @asc="(k, n) => (chains[k].asc = n)"
+            @asc="setRowAsc"
             @text="typedRow"
             @suggest="suggestRow"
-            @remove="k => chains.splice(k, 1)"
+            @remove="removeRow"
             @add="addChain"
             @slider="setSlider"
             @use-sliders="suggestRow"
           >
+            <template #asc-after="{ k }">
+              <span v-if="k === 0 && boxFromInstant" class="text-[10px] text-slate-400" data-testid="asc-follow-hint"
+                >(from the instant answer)</span
+              >
+            </template>
             <template #row-notes="{ row, k }">
               <span v-if="instantNote(k)" class="block text-[10px] text-indigo-700" data-test="instant-set-note">{{
                 instantNote(k)
@@ -846,6 +851,11 @@ const kept = {
       keptText?: string;
     }[]
   >([{ asc: 4, text: '' }]),
+  /** The one default box's Ascensions still follows the instant answer's best route's count (the 4 above
+   *  is only for before it is in). Cleared for good (this page load) by anything that sets the boxes on
+   *  purpose: the Ascensions box, Add/Remove, a typed box, a link or Science request, Open in Exhaustive,
+   *  Check exactly, a carried-on run's boxes. */
+  ascFollows: keptRef(true),
   lastBox: keptRef(''),
   suggestFrom: keptRef(''),
   widthIx: keptRef(KEPT_WIDTH_IX),
@@ -934,6 +944,7 @@ import { readFirstAscension } from '@/search/firstAscension';
 import { simulateRoute } from '@/search/simulateRoute';
 import { rowSettingsFor, type DeadlineRunSpec, type SavedDeadlineResult } from '@/search/deadlineStore';
 import { SPACE_STEPS, SPACE_WIDTHS, stopsByWidth } from '@/search/deadlineSuggest';
+import { boxCountFromBest } from '@/lib/limitsFollow';
 import { BY_DATE_LEVELS, simpleByDateSpace, widthForLevel, type ByDateLevel, type SimpleSpace } from '@/search/simpleByDate';
 import { firstTime } from '@/lib/linkOnce';
 import { parseByDateRequest, SCIENCE_WIDTHS, type ByDateRequest } from '@/search/byDateRequest';
@@ -1031,7 +1042,7 @@ const { mode } = kept;
 if (mode.value === 'auto' && !store.deadlineRunning) mode.value = 'space';
 
 /** The chains to run from one click: each an ascension count and one box of bands. */
-const { chains, lastBox, suggestFrom, simpleUsed } = kept;
+const { chains, lastBox, suggestFrom, simpleUsed, ascFollows } = kept;
 const rowBands = (k: number) => parseChainText(chains.value[k]?.text ?? '');
 function rangeOf(box: string): [number, number] | null {
   const v = parseStopBox(box, 1);
@@ -1324,6 +1335,7 @@ const canStartAround = computed(() => !!deadline.value && !aroundIssue.value && 
 function openInAdvanced(): void {
   const used = simpleRunBoxes.value;
   if (!used.chains.length) return;
+  ascFollows.value = false;
   // Each row keeps the width Simple built it with, so its slider says "±2 TE around each stop (from
   // Simple)" rather than the default ±10; moving the width slider clears that, as for a Science card.
   chains.value = used.chains.map(r => {
@@ -1513,6 +1525,48 @@ const {
   suggestedText: k => suggestion(k)?.text ?? null,
 });
 
+/** The Ascensions box of a row changed by hand: that count is the player's from now on. */
+function setRowAsc(k: number, n: number): void {
+  const row = chains.value[k];
+  if (!row) return;
+  ascFollows.value = false;
+  row.asc = n;
+}
+function removeRow(k: number): void {
+  ascFollows.value = false;
+  chains.value.splice(k, 1);
+}
+/** The instant answer's best By a date route's count (InstantRoute's lead, stores/stronger.ts). */
+const dateBestCount = computed(() => stronger.instant.date?.chain.length ?? null);
+/**
+ * The one default box follows that count (lib/limitsFollow.ts `boxCountFromBest`, 1..8): it was a fixed
+ * 4, so a player whose best By a date route had 6 ascensions proved the best of 4s. Only the default:
+ * one box, filled by Suggest a space or empty, not restored or from a request, and only while nothing
+ * runs or is being carried on (a run keeps its own boxes).
+ */
+function followDateBest(): void {
+  if (!ascFollows.value || linked.value || store.deadlineRunning || store.preparing) return;
+  const n = boxCountFromBest(dateBestCount.value);
+  const row = chains.value[0];
+  if (n === null || chains.value.length !== 1 || !row || row.restored || row.centre) return;
+  if (row.text && !row.auto) return;
+  if (row.asc === n) return;
+  row.asc = n;
+  if (n < 2) {
+    row.text = '';
+    return;
+  }
+  if (store.currentTE > 0) suggestRow(0);
+}
+/** Box 1 is still the default, at the instant answer's count (the grey hint beside its Ascensions). */
+const boxFromInstant = computed(
+  () =>
+    ascFollows.value &&
+    chains.value.length === 1 &&
+    dateBestCount.value !== null &&
+    chains.value[0]?.asc === boxCountFromBest(dateBestCount.value)
+);
+
 const rowProblems = computed(() => chains.value.map((_, k) => rowProblem(k)));
 const rowSummaries = computed(() => chains.value.map((_, k) => rowSummary(k)));
 /** A box typed in (or a band checker's "did you mean" taken): the player's own now, so Suggest a space
@@ -1520,6 +1574,7 @@ const rowSummaries = computed(() => chains.value.map((_, k) => rowSummary(k)));
 function typedRow(k: number, text: string): void {
   const row = chains.value[k];
   if (!row) return;
+  ascFollows.value = false;
   row.text = text;
   row.auto = false;
   row.restored = false;
@@ -1537,6 +1592,7 @@ function checkByDate(chain: number[]): void {
   mode.value = 'space';
   // Single-value boxes are Exhaustive's: show them there.
   showExhaustive();
+  ascFollows.value = false;
   chains.value = [{ asc: chain.length, text: chain.slice(0, -1).join('; ') }];
   lastBox.value = `${Math.max(te + 1, last - 5)}-${Math.min(490, last + 5)}`;
   suggestFrom.value = `Set from the instant answer's route, ${chain.join(' ')}.`;
@@ -1544,6 +1600,7 @@ function checkByDate(chain: number[]): void {
 
 /** A new chain one ascension shorter than the shortest, since the short ones are what get added. */
 function addChain(): void {
+  ascFollows.value = false;
   const used = chains.value.map(r => r.asc);
   let asc = Math.max(1, Math.min(...used) - 1);
   while (used.includes(asc) && asc < 8) asc++;
@@ -1580,6 +1637,7 @@ function applyRequest(req: ByDateRequest): void {
     customDate.value = false;
   }
   mode.value = 'space';
+  ascFollows.value = false;
   // The sliders a request names go on that chain's own row, so the panel's shared sliders (and a normal
   // By a date run) stay as they were.
   chains.value = req.asc.map(asc => {
@@ -1637,6 +1695,8 @@ watch(
   },
   { immediate: true }
 );
+// Box 1 follows the instant answer's count (`followDateBest`), after `linked` and the first fill.
+watch([dateBestCount, () => store.deadlineRunning, () => store.preparing], followDateBest, { immediate: true });
 
 // The boxes outlive the screen and the save (kept refs), so a box filled for another account -- or
 // for this one before its TE moved past the first stops -- can describe no playable route at all
@@ -1840,6 +1900,7 @@ function fillFromSpec(spec: DeadlineRunSpec): void {
     mode.value = 'space';
     // The sliders and "filled by Suggest" go back with the boxes. A run saved before they were kept
     // has none: its sliders stay as they are and its boxes count as typed by hand.
+    ascFollows.value = false;
     chains.value = sets.map((set, i) => {
       const saved = rowSettingsFor(spec, i);
       return {

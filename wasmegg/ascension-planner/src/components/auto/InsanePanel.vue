@@ -413,8 +413,12 @@
                     :max="suggestRange[1]"
                     :disabled="store.isRunning"
                     class="w-16 rounded-md border-slate-300 text-xs font-bold text-slate-800 disabled:opacity-50"
+                    @input="markAscTouched"
                   />
                 </label>
+                <span v-if="chain1FromInstant" class="text-[10px] text-slate-400" data-testid="asc-follow-hint"
+                  >(from the instant answer)</span
+                >
                 <SpaceSliders
                   :width-ix="chain1View.widthIx"
                   :step-ix="chain1View.stepIx"
@@ -1083,6 +1087,9 @@ const kept = {
   autoFilled: keptRef(''),
   minGap: keptRef(0),
   suggestAsc: keptRef(6),
+  /** The Ascensions box was changed by hand: the default space stops following the instant answer's
+   *  count (lib/limitsFollow.ts's rule for the Limits box, here for chain 1's one count). */
+  ascTouched: keptRef(false),
   /** Chain 1's two Suggest a space sliders; null until moved (then the space is sized to the default chain budget). */
   suggestWidthIx: keptRef<number | null>(null),
   suggestStepIx: keptRef<number | null>(null),
@@ -1371,6 +1378,8 @@ function fillDefault(): void {
   if (sweepRequest || store.isRunning || !(store.currentTE > 0) || !(store.finalTE > store.currentTE)) return;
   const typed = bandsText.value.trim();
   if (typed && typed !== kept.autoFilled.value) return;
+  // The Ascensions box set by hand: the player's count, not the instant answer's, from then on.
+  if (kept.ascTouched.value) return;
   // Precompute: the instant answer's count first (`store.suggestedCount`), then the usual six and down.
   const counts = [...new Set([store.suggestedCount ?? 6, 6, 5, 4, 3, 2])];
   for (const n of counts) {
@@ -1387,6 +1396,19 @@ function fillDefault(): void {
 watch(() => [store.currentTE, store.finalTE, store.suggestedCount, store.instantRoutes], fillDefault, {
   immediate: true,
 });
+/** The Ascensions box typed in: the default space keeps the player's count from now on. */
+function markAscTouched(): void {
+  kept.ascTouched.value = true;
+}
+/** Chain 1 is still the default space, at the instant answer's count (the grey hint beside Ascensions). */
+const chain1FromInstant = computed(
+  () =>
+    !kept.ascTouched.value &&
+    !!kept.autoFilled.value &&
+    bandsText.value.trim() === kept.autoFilled.value.trim() &&
+    store.suggestedCount !== null &&
+    suggestAsc.value === store.suggestedCount
+);
 
 /**
  * Both budget cards start collapsed.
