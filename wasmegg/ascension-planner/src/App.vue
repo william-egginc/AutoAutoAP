@@ -267,7 +267,8 @@
             <!-- Below sm, one equal column per tab across the page, labels wrapping inside their
                  cell, so the underline stays on one line; from sm up, a centred row. -->
             <div
-              class="grid grid-cols-3 w-full sm:flex sm:w-auto sm:flex-wrap sm:justify-center gap-1 border-b border-slate-200"
+              class="grid w-full sm:flex sm:w-auto sm:flex-wrap sm:justify-center gap-1 border-b border-slate-200"
+              :class="chainSearchStore.submitUrl ? 'grid-cols-2' : 'grid-cols-3'"
             >
               <button
                 v-for="v in autoTabs"
@@ -293,6 +294,17 @@
                   class="ml-1 inline-block w-1.5 h-1.5 rounded-full bg-indigo-600 align-middle"
                   title="A search is running here"
                 ></span>
+              </button>
+              <!-- My runs here too (Jordan, 16 Oct 2026): the same page as the top tab (#/myruns), from
+                   where a player has just run something. Only with a collector, as the top tab. -->
+              <button
+                v-if="chainSearchStore.submitUrl"
+                type="button"
+                class="min-w-0 px-2 sm:px-4 py-2 -mb-px border-b-2 border-transparent text-[11px] font-black uppercase tracking-wider sm:tracking-widest text-center leading-snug text-slate-400 hover:text-slate-700"
+                data-testid="auto-tab-myruns"
+                @click="selectSection('myruns')"
+              >
+                {{ NAMES.myRuns }}
               </button>
             </div>
           </div>
@@ -692,6 +704,7 @@ import TheNavBar from 'ui/components/NavBar.vue';
 import { getSavedPlayerID, savePlayerID, requestFirstContact, resolveColleggtibleContracts } from 'lib';
 import ThePlayerIdForm from 'ui/components/PlayerIdForm.vue';
 import { useInitialStateStore } from '@/stores/initialState';
+import { offerStartTimes } from '@/lib/onVirtue';
 import { useActionsStore } from '@/stores/actions';
 import { useVirtueStore } from '@/stores/virtue';
 import { useUIStore } from '@/stores/ui';
@@ -1142,12 +1155,14 @@ const saveTE = computed(() => {
   }
   return total;
 });
-const scienceTabs: { id: ScienceView; label: string }[] = [
+/** When should I start? only before the player is on virtue (lib/onVirtue.ts, Jordan 16 Oct 2026); its
+ *  address still opens, with a short note, for a link from before. */
+const scienceTabs = computed<{ id: ScienceView; label: string }[]>(() => [
   { id: 'how', label: NAMES.how },
   { id: 'check', label: NAMES.check },
   { id: 'submit', label: NAMES.submit },
-  { id: 'start', label: NAMES.start },
-];
+  ...(offerStartTimes(initialStateStore.rawBackup) ? [{ id: 'start' as const, label: NAMES.start }] : []),
+]);
 
 let autoInitFor = '';
 async function initAutoOnce(): Promise<void> {

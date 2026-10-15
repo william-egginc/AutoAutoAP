@@ -29,6 +29,8 @@
     </template>
 
     <slot />
+    <!-- The hours and time off the run used, named (lib/pricedWith.ts, 16 Oct 2026). -->
+    <p v-if="pricedWith && !running && days > 0" :class="CARD_NOTE" data-testid="priced-with">{{ pricedWith }}.</p>
 
     <template v-if="!running && days > 0" #actions>
       <button
@@ -72,17 +74,17 @@
       </button>
       <span v-if="note" class="text-[11px] font-semibold text-emerald-800">{{ note }}</span>
       <p class="w-full text-[10px] text-emerald-900/70" data-testid="build-plan-note">
-        Build this plan shows every shift and when each TE arrives in {{ NAMES.classic }}.
+        {{ simulateNote('Build this plan') }}
       </p>
     </template>
   </ResultCardFrame>
 </template>
 
 <script setup lang="ts">
-import { NAMES } from '@/lib/siteNav';
+import { simulateNote } from '@/lib/siteNav';
 import { scrollToShownId } from '@/lib/searchTab';
 import ResultCardFrame from './ResultCardFrame.vue';
-import { PRIMARY_BUTTON, SECONDARY_BUTTON } from './resultCardStyle';
+import { CARD_NOTE, PRIMARY_BUTTON, SECONDARY_BUTTON } from './resultCardStyle';
 
 withDefaults(
   defineProps<{
@@ -106,8 +108,20 @@ withDefaults(
     /** Not from a run in this visit on these settings: when it was found ("Oct 11, 2026, 4:15 PM"),
      *  and the heading says "Your last run · ..." ('' for a live one). */
     lastRun?: string;
+    /** "Priced with your hours 9 am to 1 am, no time off": the run's own settings (lib/pricedWith.ts). */
+    pricedWith?: string;
   }>(),
-  { claim: '', source: '', busy: false, canFill: false, canSave: false, saving: false, note: '', lastRun: '' }
+  {
+    claim: '',
+    source: '',
+    busy: false,
+    canFill: false,
+    canSave: false,
+    saving: false,
+    note: '',
+    lastRun: '',
+    pricedWith: '',
+  }
 );
 const emit = defineEmits<{ build: []; fill: []; csv: []; save: [] }>();
 

@@ -295,6 +295,7 @@ import { useActionsStore } from './actions';
 import { useAutoPlannerStore, type VariantKey } from './autoPlanner';
 import { useInitialStateStore } from './initialState';
 import { useUIStore } from './ui';
+import { thisDevice } from '@/search/device';
 
 /** Don't write to IndexedDB more often than this. A checkpoint costs a JSON round-trip over the
  *  whole cache; a batch takes tens of seconds, so this loses at most one batch on a crash. */
@@ -2316,7 +2317,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       // settings it can put back itself.
       const locked = record.fingerprint ? lockedChanges(record.fingerprint, fingerprint(playerId)) : [];
       if (locked.length) {
-        error.value = `This run's save isn't stored on this device, and ${locked.join('; ')}, so it can't carry on.`;
+        error.value = `This run's save isn't stored on ${thisDevice()}, and ${locked.join('; ')}, so it can't carry on.`;
         return null;
       }
       if (record.fingerprint) applyRunSettings(record.fingerprint);
@@ -6095,7 +6096,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       const hash = await hashID(playerId);
       const raw = await loadKeptSave(hash, entry.save.key);
       if (!raw) {
-        olderSaveError.value = 'That save is no longer kept on this device.';
+        olderSaveError.value = `That save is no longer kept on ${thisDevice()}.`;
         await refreshKeptSaves(hash);
         return false;
       }
@@ -6117,7 +6118,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     olderSaveError.value = null;
     const raw = await loadKeptSave(await hashID(playerId), save.key);
     if (!raw) {
-      olderSaveError.value = 'That save is no longer kept on this device.';
+      olderSaveError.value = `That save is no longer kept on ${thisDevice()}.`;
       return null;
     }
     return { name: saveFileName(save, planTimezone()), text: backupText(raw) };
@@ -6303,7 +6304,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       }
       const inputs = await loadRunInputs(partitionHash, cp.inputsKey);
       if (!inputs) {
-        error.value = "This search's save is no longer stored on this device, so it can't carry on. Start it again.";
+        error.value = `This search's save is no longer stored on ${thisDevice()}, so it can't carry on. Start it again.`;
         return;
       }
       ready = [cp, inputs, (cp.account as AccountSnapshot | undefined) ?? accountFromStoredSave(inputs)];
@@ -8324,6 +8325,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   );
 
   return {
+    /** The chain search's own settings (its hours and time off among them), null before one ran or was
+     *  loaded: the result says what it was priced with (lib/pricedWith.ts), never the live setup. */
+    runSettingsUsed,
     /** The coarse scan's chain count at the current limits (shown beside "Find a starting chain"). */
     coarseChains,
     lastAutoSend,

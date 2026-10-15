@@ -50,10 +50,22 @@ describe('endEggsOf', () => {
     expect(r.next!.at - END).toBeCloseTo(1.3e5, -1);
   });
 
+  it("each egg's next TE as a moment: the route's end plus its time at the final rate (16 Oct)", () => {
+    const r = endEggsOf(route(lastLeg()))!;
+    expect(r.rows[0].at! - END).toBeCloseTo(3.1e5, -1);
+    for (const x of r.rows) expect(x.at).toBe(END + x.seconds!);
+    expect(r.next!.at).toBe(Math.min(...r.rows.map(x => x.at!)));
+    // No end time: the eggs and the time it would take, but no moment.
+    const noEnd = endEggsOf(route(lastLeg({ endTime: undefined as never })))!;
+    expect(noEnd.rows[0].seconds).toBeCloseTo(3.1e5, -1);
+    expect(noEnd.rows.every(x => x.at === null)).toBe(true);
+    expect(noEnd.next).toBeNull();
+  });
+
   it('an egg with every TE has no next one', () => {
     const maxed = { delivered: [3.7e19, 0, 0, 0, 0], te: [98, 0, 0, 0, 0], egg: 'curiosity' };
     const r = endEggsOf(route(lastLeg({ endEggs: maxed }), [98]))!;
-    expect(r.rows[0]).toMatchObject({ te: 98, need: null, seconds: null });
+    expect(r.rows[0]).toMatchObject({ te: 98, need: null, seconds: null, at: null });
     // TE 1 on integrity is 5e7 eggs away.
     expect(r.next?.egg).toBe('integrity');
   });
@@ -61,7 +73,7 @@ describe('endEggsOf', () => {
   it('no rate: the TE and eggs needed, no times', () => {
     const r = endEggsOf(route(lastLeg({ maxELR: 0 })))!;
     expect(r.rate).toBeNull();
-    expect(r.rows.every(x => x.seconds === null)).toBe(true);
+    expect(r.rows.every(x => x.seconds === null && x.at === null)).toBe(true);
     expect(r.next).toBeNull();
     expect(r.rows[0].need).toBeGreaterThan(0);
   });

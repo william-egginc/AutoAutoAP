@@ -50,7 +50,9 @@
         </div>
         <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-slate-600">
           <span>{{ bestNow.how }}</span>
-          <button type="button" :class="smallButton" @click="emit('simulate', bestNow.p)">Simulate this plan</button>
+          <button type="button" :class="smallButton" :title="SIMULATE_TITLE" @click="emit('simulate', bestNow.p)">
+            Simulate this plan
+          </button>
         </div>
       </div>
 
@@ -117,7 +119,7 @@
                 >
               </template>
             </div>
-            <button v-if="e.made" type="button" :class="smallButton" @click="emit('simulate', e.made)">
+            <button v-if="e.made" type="button" :class="smallButton" :title="SIMULATE_TITLE" @click="emit('simulate', e.made)">
               Simulate this plan
             </button>
           </li>
@@ -135,7 +137,7 @@
             <b>{{ s.target }} TE</b> was checked:
             <span class="font-mono-premium">{{ s.made.chain.join(' ') }}</span> makes it with
             <b>{{ days(deadline - s.made.end) }}</b> to spare.
-            <button type="button" :class="smallButton" class="ml-1" @click="emit('simulate', s.made)">
+            <button type="button" :class="smallButton" class="ml-1" :title="SIMULATE_TITLE" @click="emit('simulate', s.made)">
               Simulate this plan
             </button>
           </template>
@@ -155,7 +157,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { NAMES } from '@/lib/siteNav';
+import { NAMES, SIMULATE_TITLE } from '@/lib/siteNav';
 import { showDateTime } from '@/lib/displayTime';
 import {
   beats,

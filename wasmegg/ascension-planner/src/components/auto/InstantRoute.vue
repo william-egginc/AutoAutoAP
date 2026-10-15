@@ -257,8 +257,7 @@
             <!-- Every number of ascensions, inside the answer's card above its buttons (the user, 12 Oct 2026). -->
             <div v-if="dateRows.length > 1" class="overflow-x-auto rounded-lg bg-white/70 px-2 py-1">
               <p class="text-[11px] text-slate-500">
-                Exact = the full simulator on your account; filled in automatically. Simulate this plan opens that route in
-                {{ NAMES.classic }}, simulated step by step on your save: each ascension, its dates and purchases.
+                Exact = the full simulator on your account; filled in automatically. {{ simulateNote() }}
               </p>
               <table class="w-full text-[12px] whitespace-nowrap">
                 <thead>
@@ -318,7 +317,7 @@
                       <button
                         type="button"
                         class="px-2 py-1 rounded-md border border-slate-300 text-[9px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-800"
-                        :title="`Opens this route in ${NAMES.classic}, simulated step by step on your save`"
+                        :title="SIMULATE_TITLE"
                         @click="openPlan((dateExactByK[r.legs.length] ?? tableDate(r)).chain)"
                       >
                         Simulate this plan
@@ -353,7 +352,7 @@
               On your account none of these routes reaches above your TE by the date. Check exactly searches for yours.
             </p>
             <p v-if="small && exactStatus === 'idle'" class="text-[11px] text-slate-500">
-              On this device the full simulator's check runs only when you press Check exactly: it uses every core for a
+              On {{ thisDevice() }} the full simulator's check runs only when you press Check exactly: it uses every core for a
               minute or more.
             </p>
             <button
@@ -383,7 +382,7 @@
             <button
               type="button"
               class="mt-1 ml-2 px-3 py-1.5 rounded-lg border border-emerald-700 text-emerald-800 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-50"
-              :title="`Opens this route in ${NAMES.classic}, simulated step by step on your save`"
+              :title="SIMULATE_TITLE"
               @click="openPlan((dateExact ?? tableDate(result.byDate)).chain)"
             >
               Simulate this plan
@@ -445,8 +444,7 @@
           <!-- Every number of ascensions, inside the answer's card above its buttons (the user, 12 Oct 2026). -->
           <div class="overflow-x-auto rounded-lg bg-white/70 px-2 py-1">
             <p class="text-[11px] text-slate-500">
-              Exact = the full simulator on your account; filled in automatically. Simulate this plan opens that route in
-              {{ NAMES.classic }}, simulated step by step on your save: each ascension, its dates and purchases.
+              Exact = the full simulator on your account; filled in automatically. {{ simulateNote() }}
             </p>
             <table class="w-full text-[12px] whitespace-nowrap">
               <thead>
@@ -499,7 +497,7 @@
                       type="button"
                       class="px-2 py-1 rounded-md border border-slate-300 text-[9px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-800"
                       :disabled="r.chain.length < 2"
-                      :title="`Opens this route in ${NAMES.classic}, simulated step by step on your save`"
+                      :title="SIMULATE_TITLE"
                       @click="openPlan(r.chain)"
                     >
                       Simulate this plan
@@ -544,7 +542,7 @@
             {{ exactText }}
           </p>
           <p v-if="small && exactStatus === 'idle'" class="text-[11px] text-slate-500">
-            On this device the full simulator's check runs only when you press Check exactly: it uses every core for a
+            On {{ thisDevice() }} the full simulator's check runs only when you press Check exactly: it uses every core for a
             minute or more.
           </p>
           <button
@@ -572,7 +570,7 @@
           <button
             type="button"
             class="mt-1 ml-2 px-3 py-1.5 rounded-lg border border-emerald-700 text-emerald-800 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-50"
-            :title="`Opens this route in ${NAMES.classic}, simulated step by step on your save`"
+            :title="SIMULATE_TITLE"
             @click="openPlan(lead.chain)"
           >
             Simulate this plan
@@ -627,7 +625,11 @@
         The exact check on your account waits while a search is running.
       </p>
       <p v-if="result && exactStatus === 'done' && exactMs !== null" class="text-[10px] text-slate-400">
-        Checked on your account with the full simulator in {{ (exactMs / 1000).toFixed(0) }} s.
+        Checked on your account with the full simulator in {{ (exactMs / 1000).toFixed(0) }} s.<template
+          v-if="exactPricedWith"
+        >
+          {{ exactPricedWith }}.</template
+        >
       </p>
       <!-- This account's Check exactly results on this computer (search/checkHistory.ts), shared or not. -->
       <details v-if="history.length" class="text-[11px] text-slate-600" data-testid="check-history">
@@ -693,7 +695,7 @@
           </table>
         </div>
         <p class="mt-1 flex flex-wrap items-center gap-x-3 text-[10px] text-slate-400">
-          <span>Kept on this computer only, for this account; the last {{ HISTORY_CAP }} checks.</span>
+          <span>Kept on {{ thisDevice() }} only, for this account; the last {{ HISTORY_CAP }} checks.</span>
           <button
             type="button"
             class="font-bold text-slate-500 hover:text-rose-700 underline decoration-dotted"
@@ -807,7 +809,7 @@ import { availabilityKey, type Availability } from '@/search/availabilitySchedul
 import { describeColleggtibles } from '@/search/progression';
 import { poolSize, RoutePool } from '@/search/routePool';
 import { describeGear, isMaxed, pickBracket, type TableEntry } from '@/search/tableBracket';
-import { isSmallDevice } from '@/search/device';
+import { isSmallDevice, thisDevice } from '@/search/device';
 import {
   answerInputsKey,
   backgroundMayStart,
@@ -848,7 +850,8 @@ import { useIntegrityProbe } from '@/composables/useIntegrityProbe';
 import { useInstantDuringSearch } from '@/composables/useInstantDuringSearch';
 import { readSnapshot, recallShown, rememberShown, snapshotUsable, writeSnapshot } from '@/search/instantSnapshot';
 import { simulateRoute } from '@/search/simulateRoute';
-import { NAMES } from '@/lib/siteNav';
+import { NAMES, SIMULATE_TITLE, simulateNote } from '@/lib/siteNav';
+import { pricedWithLine } from '@/lib/pricedWith';
 import type { FirstLegsRequest } from '@/workers/routeFinder.protocol';
 import { createChainSearchPool, type ChainSearchPool, type EvaluateOptions } from '@/search/pool';
 import type { HandoffChoice } from '@/search/chain';
@@ -1892,6 +1895,9 @@ const exact = ref<Record<string, Exact | null>>({});
 const exactStatus = ref<'idle' | 'running' | 'done' | 'error' | 'waiting'>('idle');
 const exactText = ref('');
 const exactMs = ref<number | null>(null);
+/** "Priced with your hours 9 am to 1 am, no time off": the exact check's own hours and time off, taken when it
+ *  starts (lib/pricedWith.ts, 16 Oct 2026); '' for a check restored from an earlier visit. */
+const exactPricedWith = ref('');
 /** A date answer: a route, the TE it ends at and the unix second it gets there. */
 interface DateExact {
   chain: number[];
@@ -1982,6 +1988,7 @@ async function runExact(id: number, found: NonNullable<typeof result.value>, man
   dateExact.value = null;
   dateExactByK.value = {};
   exactMs.value = null;
+  exactPricedWith.value = '';
   // An account the integrity check blocks has no routes to check (the panel says why).
   if (store.integrityBlocked) {
     exactStatus.value = 'idle';
@@ -2005,6 +2012,11 @@ async function runExact(id: number, found: NonNullable<typeof result.value>, man
   try {
     const inputs = store.collectInputs();
     answerStart.value = inputs.planStart;
+    // The hours and time off this check prices with, as it starts: what the line under it names.
+    exactPricedWith.value = pricedWithLine({
+      availability: inputs.availability,
+      timeOff: JSON.parse(JSON.stringify(store.timeOff)),
+    });
     const size = Math.max(1, Math.min(store.workerBudget, routes.length, 4));
     exactPool = await createChainSearchPool(inputs, { size });
     if (id !== runs) return;

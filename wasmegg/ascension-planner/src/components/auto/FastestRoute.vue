@@ -74,6 +74,7 @@
 </template>
 
 <script setup lang="ts">
+import { thisDevice } from '@/search/device';
 import { computed, nextTick, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { NAMES, fastestName, type Depth } from '@/lib/siteNav';
@@ -127,8 +128,8 @@ const levelEstimates = computed<Partial<Record<StrongerLevel, LevelEstimate>>>((
     const t = formatHours(e.seconds / 3600);
     out[l] = {
       short: `~${t}`,
-      line: `Up to about ${t} on this computer (${plural(store.workerBudget, 'worker')}, ${
-        e.measured ? "this computer's measured speed" : 'the typical speed'
+      line: `Up to about ${t} on ${thisDevice()} (${plural(store.workerBudget, 'worker')}, ${
+        e.measured ? `${thisDevice()}'s measured speed` : 'the typical speed'
       }): at most ~${e.chains.toLocaleString()} routes; it usually stops sooner.`,
     };
   }
@@ -168,7 +169,7 @@ const InsanePanel = safeAsyncComponent(() => import('./InsanePanel.vue'));
  *  Exhaustive one is the old section's blurb, with when to use it in front. */
 const TAB_INTRO: Record<SearchTabId, string> = {
   nearby:
-    "Start here. It checks the instant answer on your save and, at Fast and above, searches the routes near it. Light takes seconds to a few minutes; each other level's time on this computer is under its name.",
+    `Start here. It checks the instant answer on your save and, at Fast and above, searches the routes near it. Light takes seconds to a few minutes; each other level's time on ${thisDevice()} is under its name.`,
   exhaustive:
     "For proving an answer, not for finding a much better one: it proves the best inside the boxes you set, and in players' runs so far it added minutes to hours, not days. You set a box of TEs for each ascension and it tries every route in them. In players' runs that was about 1 minute per 70 routes on an 8-core computer, so big boxes take hours.",
 };

@@ -5,7 +5,7 @@
 <template>
   <label class="block space-y-1">
     <span class="flex items-baseline justify-between text-[11px] font-bold text-slate-700">
-      <span>How much of this computer to use</span>
+      <span>How much of {{ thisDevice() }} to use</span>
       <span>{{ store.workerBudget }} of {{ store.machineThreads }} workers</span>
     </span>
     <input
@@ -36,6 +36,7 @@
 </template>
 
 <script setup lang="ts">
+import { thisDevice } from '@/search/device';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { longRunLine, longRunHandLine } from '@/search/deadlineEstimate';
 import { LONG_RUN_WORKERS } from '@/stores/chainSearch';
