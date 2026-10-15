@@ -29,6 +29,7 @@
  * the line says "on the hour" instead.
  */
 import { countTEThresholdsPassed } from '@/lib/truthEggs';
+import { isAvailable, nextAvailable, type Availability } from './availability';
 import { pacificHourOfWeek, rebase, sweepTails, type BuildParams } from './precomputedLeg';
 import {
   nextHour,
@@ -173,6 +174,9 @@ export interface EstimateRequest {
   /** The profile covers h = from..hours (from: 0 when left out). */
   hours: number;
   from?: number;
+  /** "Works inside my hours": each prestige after this one waits for these hours, as the finder
+   *  holds it (routeFinder.ts FindOptions `hours`). This one is the player's, at the hour tried. */
+  playHours?: Availability;
 }
 
 /** Where a prestige `h` hours late starts: the time, the TE and the eggs. */
@@ -197,13 +201,15 @@ function highestByDeadline(
   eggs: number[],
   deadline: number,
   top: number,
-  scale: number
+  scale: number,
+  /** The player's hours, when this ascension starts with a prestige that waits for them. */
+  hours?: Availability
 ): Outcome | null {
   const options: { start: number; lateBy: number; builds: BuildParams[] }[] = [];
-  const at = nextHour(t);
+  const at = hours ? nextHour(nextAvailable(nextHour(t), hours)) : nextHour(t);
   const raw = table(te, pacificHourOfWeek(at));
   if (raw?.length) options.push({ start: at, lateBy: 0, builds: raw });
-  const late = at !== t ? startInSale(table, te, t) : null;
+  const late = at !== t && (!hours || isAvailable(t, hours)) ? startInSale(table, te, t) : null;
   if (late) options.push({ start: t, ...late });
   let best: Outcome | null = null;
   for (const o of options)
@@ -236,6 +242,7 @@ export function estimateAt(table: BuildLookup, req: EstimateRequest, h: number):
     start: s.start,
     startDelivered: s.delivered,
     deliveryScale: req.deliveryScale,
+    ...(req.playHours ? { hours: req.playHours } : {}),
   };
   const memo = new Map<string, PricedPrefix | null>();
   const chains = dedupe(req.candidates.map(c => c.filter(x => x > s.startTE)));
@@ -267,7 +274,9 @@ export function estimateAt(table: BuildLookup, req: EstimateRequest, h: number):
         if (!m) continue;
         at = { t: m.t, te: m.te, eggs: m.eggs };
       }
-      const last = highestByDeadline(table, at.te, at.t, at.eggs, deadline, req.final, req.deliveryScale);
+      // The last ascension starts with a prestige that waits for the hours, unless it is the player's.
+      const hold = prefix.length ? req.playHours : undefined;
+      const last = highestByDeadline(table, at.te, at.t, at.eggs, deadline, req.final, req.deliveryScale, hold);
       best = better('date', best, last)!;
     }
   return best;
