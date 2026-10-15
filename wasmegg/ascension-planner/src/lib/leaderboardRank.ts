@@ -152,6 +152,9 @@ export interface BoardRow {
   backupTE?: number;
   /** Schema 7: which planner build priced it. */
   build?: string;
+  /** Which simulator priced it (search/simVersion.ts SIM_VERSION), sent beside `build` since 13 Oct 2026
+   *  (collector/worker.js keeps it as a plain stamp). Absent on older rows. */
+  simVersion?: string;
   /** Schema 7: the sender's best earlier plans priced again from this row's save and start. */
   rechecks?: { chain: number[]; days: number }[];
   /** Schema 8: a deadline search's answer -- the highest TE found reachable by this date (unix

@@ -742,7 +742,10 @@ import SweepRunner from '@/components/science/SweepRunner.vue';
 import HowItWorks from '@/components/science/HowItWorks.vue';
 import StartTimeCard from '@/components/auto/StartTimeCard.vue';
 import { useStartTimesStore } from '@/stores/startTimes';
-import { revealRunTab } from '@/lib/searchTab';
+import { revealRunTab, selectSearchTab } from '@/lib/searchTab';
+import { presetByDate } from '@/lib/byDateForm';
+import type { MyRunsOpen } from '@/lib/myRunsDashboard';
+import { useStrongerStore } from '@/stores/stronger';
 import type { SweepRequest } from '@/search/sweepRequest';
 import { virtueInventory } from '@/search/csv';
 import type { ByDateRequest } from '@/search/byDateRequest';
@@ -796,6 +799,7 @@ if (new URLSearchParams(window.location.search).has('_hardReload')) {
 }
 
 const chainSearchStore = useChainSearchStore();
+const strongerStore = useStrongerStore();
 
 /** Take a chain off the board into the Auto Planner. It is someone else's ANSWER, not a result
  *  for this account -- their artifacts and starting TE produced it -- so this loads the shape and
@@ -808,8 +812,17 @@ function useLeaderboardChain(chain: number[]): void {
 }
 /** My runs' Open on a saved run or answer: its screen, showing what Open just put there. Like Use, without
  *  the tab click's fresh save (that would set the planner up again under the opened entry). */
-function openFromMyRuns(to: { auto: AutoView; depth?: Depth }): void {
+function openFromMyRuns(to: MyRunsOpen): void {
   pinnedRoute = null;
+  // A Next step's own setup (lib/myRunsDashboard.ts): the target, the level, the search tab and By a date's
+  // deadline (taken by DeadlinePanel when it mounts, lib/byDateForm.ts). Never under a running search, which
+  // owns them: the screen then opens as it is.
+  if (!searchActive.value) {
+    if (to.target != null) chainSearchStore.finalTE = to.target;
+    if (to.level) strongerStore.level = to.level;
+    if (to.byDate) presetByDate(to.byDate);
+    if (to.tab) selectSearchTab(to.auto === 'by-date' ? 'by-date' : 'fastest', to.tab);
+  }
   uiStore.autoView = to.auto;
   if (to.depth) uiStore.fastestDepth = to.depth;
   plannerTab.value = 'automatic';

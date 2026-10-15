@@ -809,7 +809,7 @@
 <script lang="ts">
 import { plural } from '@/lib/format';
 import { ref as keptRef } from 'vue';
-import { nextEggDayYear as keptEggDayYear } from '@/lib/eggDay';
+import { byDateForm, eggDayYearAtLoad } from '@/lib/byDateForm';
 import {
   DEFAULT_STEP_IX as KEPT_STEP_IX,
   DEFAULT_WIDTH_IX as KEPT_WIDTH_IX,
@@ -821,12 +821,9 @@ import {
  * planner's tabs, leaving this screen unmounts it, and everything typed (the date, the boxes, the
  * sliders) came back as the defaults; the Egg Day link's boxes came back instead, every visit.
  */
-const eggDayYearAtLoad = keptEggDayYear();
 const kept = {
-  date: keptRef(`${eggDayYearAtLoad}-07-14`),
-  time: keptRef('09:00'),
-  zone: keptRef('America/Los_Angeles'),
-  customDate: keptRef(false),
+  // The deadline (date, time, zone, "Another date") lives in lib/byDateForm.ts, so My runs can preset it.
+  ...byDateForm,
   minStops: keptRef(3),
   maxStops: keptRef(5),
   lastHi: keptRef(490),
@@ -958,6 +955,7 @@ import { firstTime } from '@/lib/linkOnce';
 import { parseByDateRequest, SCIENCE_WIDTHS, type ByDateRequest } from '@/search/byDateRequest';
 import { useUIStore } from '@/stores/ui';
 import { eggDayYearOf } from '@/lib/eggDay';
+import { applyByDatePreset, byDatePresetPending, takeByDatePreset } from '@/lib/byDateForm';
 import { showDateTime } from '@/lib/displayTime';
 import InstantRoute from './InstantRoute.vue';
 
@@ -990,6 +988,18 @@ function chooseEggDay(): void {
   customDate.value = false;
   useEggDay();
 }
+// A deadline asked for by another page (My runs' "Find my Egg Day answer", lib/byDateForm.ts): taken
+// once, when this screen mounts or at once if it is open, and never applied under a run going or being
+// restored, which owns its date.
+watch(
+  byDatePresetPending,
+  p => {
+    if (!p) return;
+    const preset = takeByDatePreset();
+    if (preset && !store.deadlineRunning && !store.preparing) applyByDatePreset(preset);
+  },
+  { immediate: true }
+);
 
 const deadline = computed(() => {
   if (!date.value || !time.value) return 0;

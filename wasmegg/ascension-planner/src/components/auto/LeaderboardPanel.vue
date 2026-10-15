@@ -1020,6 +1020,8 @@ const emit = defineEmits<{
   use: [chain: number[]];
   /** My runs only: how many of the viewer's runs are on the board, null until the first load is in. */
   count: [n: number | null];
+  /** My runs only: those runs themselves (for its summary, MyRunsDashboard), null until the first load is in. */
+  rows: [rows: BoardRow[] | null];
 }>();
 const myRunsMode = computed(() => props.mode === 'myruns');
 
@@ -1425,6 +1427,12 @@ const myRunRows = computed<Row[]>(() => {
 watch(
   () => (myRunsMode.value && loadedOnce.value ? myRunRows.value.length : null),
   n => emit('count', n),
+  { immediate: true }
+);
+// And the rows, for My runs' summary at the top (cards and Next steps); null until the first load is in.
+watch(
+  () => (myRunsMode.value && loadedOnce.value ? myRunRows.value : null),
+  rows => emit('rows', rows),
   { immediate: true }
 );
 

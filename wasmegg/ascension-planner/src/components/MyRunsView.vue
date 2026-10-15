@@ -8,6 +8,11 @@
     2. Saved on this computer: Saved runs (Fastest) and Saved answers (By a date), the same lists as under
        the searches (which keep theirs); Open shows the screen it opened on.
     3. Not sent yet: results this browser kept for sending (UnsentResults, every kind), with Send it now.
+
+  Above them (16 Oct 2026, lib/myRunsDashboard.ts): Next steps (components/myruns/DashboardGaps.vue), then
+  six cards (DashboardCards.vue), from the board's rows (LeaderboardPanel's `rows`) and this browser's
+  saved runs and answers, unsent results and Your setup. A step's button opens its screen set up (App.vue
+  `openFromMyRuns`) or scrolls to a part here.
 -->
 <template>
   <div class="space-y-4" data-testid="my-runs">
@@ -16,6 +21,11 @@
       <p class="text-sm text-slate-600 leading-relaxed max-w-3xl">
         Your runs on the board, the runs and answers saved on {{ thisDevice() }}, and results that weren't sent yet.
       </p>
+    </div>
+
+    <div class="space-y-3" data-testid="my-runs-summary">
+      <DashboardGaps :state="steps" @act="act" />
+      <DashboardCards :cards="cards" @act="act" />
     </div>
 
     <details
@@ -33,6 +43,7 @@
           :player-id="playerId"
           @use="c => emit('use', c)"
           @count="n => (boardCount = n)"
+          @rows="r => (boardRows = r)"
         />
       </div>
     </details>
@@ -91,10 +102,23 @@
 
 <script setup lang="ts">
 import { thisDevice } from '@/search/device';
-import { computed, reactive, ref, watch } from 'vue';
-import { NAMES, fastestName, type AutoView, type Depth } from '@/lib/siteNav';
+import { computed, nextTick, reactive, ref, watch } from 'vue';
+import { NAMES, fastestName } from '@/lib/siteNav';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
+import { useInitialStateStore } from '@/stores/initialState';
+import { eggDaySeconds, nextEggDayYear } from '@/lib/eggDay';
+import type { BoardRow } from '@/lib/leaderboardRank';
+import {
+  buildCards,
+  buildSteps,
+  openFor,
+  type DashAction,
+  type DashInput,
+  type MyRunsOpen,
+} from '@/lib/myRunsDashboard';
+import DashboardCards from './myruns/DashboardCards.vue';
+import DashboardGaps from './myruns/DashboardGaps.vue';
 import LeaderboardPanel from './auto/LeaderboardPanel.vue';
 import SavedRuns from './auto/SavedRuns.vue';
 import SavedAnswers from './auto/SavedAnswers.vue';
@@ -103,8 +127,8 @@ import UnsentResults from './auto/UnsentResults.vue';
 defineProps<{ playerId: string }>();
 const emit = defineEmits<{
   use: [chain: number[]];
-  /** A saved run or answer was opened: the Auto Planner screen it is on. */
-  open: [to: { auto: AutoView; depth?: Depth }];
+  /** A saved run or answer was opened (the Auto Planner screen it is on), or a Next step's screen, set up. */
+  open: [to: MyRunsOpen];
 }>();
 
 const store = useChainSearchStore();
@@ -146,5 +170,61 @@ watch(
 );
 function sync(part: Part, e: Event): void {
   open[part] = (e.target as HTMLDetailsElement).open;
+}
+
+// ------------------------------------------------------------------ the summary (cards, Next steps)
+
+const initialState = useInitialStateStore();
+/** The viewer's board rows, null until the board's first load is in. */
+const boardRows = ref<BoardRow[] | null>(null);
+/** "Now" for the summary: when the page opened, and again whenever the rows arrive. */
+const now = ref(Date.now());
+watch(boardRows, () => (now.value = Date.now()));
+// The board's own Egg Day (LeaderboardPanel's): an answer to that moment is Egg Day's.
+const eggDayYear = nextEggDayYear();
+const eggDayAt = eggDaySeconds(eggDayYear);
+
+const dashInput = computed<DashInput>(() => ({
+  rows: boardRows.value,
+  now: now.value,
+  eggDayAt,
+  eggDayYear,
+  zone: zone.value,
+  teNow: initialState.rawBackup ? store.backupTE : 0,
+  setup: {
+    availability: store.availability,
+    timeOff: store.timeOff,
+    rememberedAt: store.setupRemembered?.at || null,
+  },
+  local: {
+    answers: store.savedAnswers.map(a => ({
+      savedAt: a.savedAt,
+      deadline: a.result.deadline,
+      chain: a.result.routes[0]?.chain ?? null,
+      spare: a.result.routes[0]?.spare ?? null,
+    })),
+    runs: store.savedRuns.map(r => ({ savedAt: r.savedAt })),
+    pending: store.pendingSends.map(p => ({
+      createdAt: p.createdAt,
+      deadline: p.kind === 'deadline' && typeof p.payload?.deadline === 'number' ? p.payload.deadline : null,
+    })),
+  },
+}));
+const cards = computed(() => buildCards(dashInput.value));
+const steps = computed(() => buildSteps(dashInput.value));
+
+/** A card's or a step's button: a part here (opened, then scrolled to), or a screen, set up. */
+function act(to: DashAction): void {
+  if (to.to === 'unsent' || to.to === 'board') {
+    open[to.to] = true;
+    void nextTick(() => {
+      if (typeof document === 'undefined') return;
+      document
+        .querySelector(`[data-testid="my-runs-part-${to.to}"]`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    return;
+  }
+  emit('open', openFor(to, zone.value));
 }
 </script>
