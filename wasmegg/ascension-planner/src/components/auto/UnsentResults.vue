@@ -182,7 +182,8 @@ const agreed = reactive<Record<string, boolean>>({});
 const messages = reactive<Record<string, string>>({});
 const okIds = reactive<Record<string, boolean>>({});
 const sendingId = ref<string | null>(null);
-/** Each kept result's "Submit anonymously" / "Credit me as": anonymous until chosen, as the main form. */
+/** Each kept result's "Submit anonymously" / "Credit me as", once picked here; until then the account's
+ *  choice from the screens (stores/shareName.ts), anonymous when there is none. */
 const anonymous = reactive<Record<string, boolean>>({});
 /** Each one's name box, once typed in; until then it follows the screen's (or the account's) name. */
 const names = reactive<Record<string, string>>({});
@@ -192,7 +193,7 @@ const diags = reactive<Record<string, boolean>>({});
 const extras = useShareExtras();
 const accountName = useAccountName(() => props.playerId);
 
-const anonOf = (id: string): boolean => anonymous[id] ?? true;
+const anonOf = (id: string): boolean => anonymous[id] ?? sharedName.getAnonymous?.() ?? true;
 const nameOf = (id: string): string => names[id] ?? (props.nickname?.trim() || accountName.value);
 /** A name typed here is the account's name everywhere (stores/shareName.ts), as in the screens' boxes. */
 const sharedName = useSharedName(() => props.playerId);

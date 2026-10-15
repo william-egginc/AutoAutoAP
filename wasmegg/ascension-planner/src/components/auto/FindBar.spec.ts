@@ -14,7 +14,7 @@ import { renderHtml, textOf } from '@/test/renderComponent';
 import { useShareExtras } from '@/composables/useShareExtras';
 
 /**
- * The Change button (and Fold this away) only set FindBar's own `expanded` ref, and specs here render
+ * The Change button (and Done) only set FindBar's own `expanded` ref, and specs here render
  * on the server (no DOM, so nothing can be clicked). So: the button's presence is checked in the
  * HTML, and "clicked" is the same ref set through the component's setup state before it renders.
  */
@@ -97,7 +97,7 @@ describe('FindBar', () => {
       expect(t).toContain('You agreed to share runs on the leaderboard');
       expect(t).not.toContain('I acknowledge the following');
       expect(t).not.toContain('Send my CSV too');
-      expect(html).not.toContain('consent-fold');
+      expect(html).not.toContain('consent-done');
     });
 
     it('the summary says what goes: CSV, diagnostics, and the name', async () => {
@@ -112,14 +112,41 @@ describe('FindBar', () => {
       expect(t).not.toContain('anonymous');
     });
 
-    it('Change shows the consent text, the boxes and Fold this away, and the summary goes', async () => {
+    it('Change shows the consent text, the boxes and Done, and the summary goes', async () => {
       const html = await changed({ optIn: true });
       const t = textOf(html);
       expect(html).not.toContain('data-testid="consent-summary"');
       expect(t).toContain('I acknowledge the following');
       expect(t).toContain('Send my CSV too');
       expect(html).toContain('data-testid="consent-remembered"');
-      expect(t).toContain('Fold this away');
+      expect(html).toContain('data-testid="consent-done"');
+      expect(t).not.toContain('Fold this away');
+    });
+
+    it('Done is there during a run too (14 Oct: opened mid-run, nothing closed it)', async () => {
+      const html = await changed({ running: true, optIn: true });
+      expect(html).toContain('data-testid="consent-done"');
+      expect(textOf(html)).toContain('Done');
+    });
+
+    it('Done folds it back to the one line', async () => {
+      const html = await renderWith({ optIn: true }, { expanded: false });
+      expect(html).toContain('data-testid="consent-summary"');
+      expect(html).not.toContain('consent-done');
+    });
+
+    it('no Done before the box is ticked, nor while Send best so far asks for the tick', async () => {
+      expect(await renderWith({ optIn: false }, { expanded: true })).not.toContain('consent-done');
+      const store = useChainSearchStore();
+      store.beginBestSoFar('fastest', null);
+      store.askBestSoFar(true);
+      const html = await renderWith({ running: true, optIn: false, bestSoFarKind: 'fastest' }, { expanded: true });
+      expect(html).not.toContain('consent-done');
+    });
+
+    it('"Credit me as" with no name says anonymous in the summary', async () => {
+      const t = textOf(await renderWith({ optIn: true, anonymous: false, nickname: '  ' }));
+      expect(t).toMatch(/diagnostics off · anonymous/);
     });
 
     it('with the box unticked: the full text and no summary', async () => {

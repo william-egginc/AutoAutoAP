@@ -72,12 +72,29 @@ describe('ShareResult compact', () => {
     expect(await renderWith({ compact: true, optIn: true })).not.toContain('share-note-fold');
   });
 
-  it('agreed, then Change: the full box with Fold this away, no summary', async () => {
+  it('agreed, then Change: the full box with Done, no summary', async () => {
     const html = await renderWith({ compact: true, optIn: true }, { expanded: true });
     expect(html).toContain('data-testid="share-consent"');
     expect(html).toContain('data-testid="share-fold"');
-    expect(textOf(html)).toContain('Fold this away');
+    expect(html).toContain('data-testid="share-done"');
+    expect(textOf(html)).toContain('Done');
+    expect(textOf(html)).not.toContain('Fold this away');
     expect(html).not.toContain('data-testid="consent-summary"');
+  });
+
+  it('Done folds it back: the summary, no Done', async () => {
+    const html = await renderWith({ compact: true, optIn: true }, { expanded: false });
+    expect(html).toContain('data-testid="consent-summary"');
+    expect(html).not.toContain('data-testid="share-done"');
+  });
+
+  it('"Credit me as" with a name: the summary credits it; with none, anonymous', async () => {
+    expect(textOf(await renderWith({ compact: true, optIn: true, anonymous: false, nickname: 'Willsalt' }))).toContain(
+      'credited as Willsalt'
+    );
+    expect(textOf(await renderWith({ compact: true, optIn: true, anonymous: false, nickname: '' }))).toMatch(
+      /diagnostics (on|off) · anonymous/
+    );
   });
 
   it('without a send label (Fastest): the full box', async () => {
@@ -96,6 +113,7 @@ describe('ShareResult not compact', () => {
       expect(html).not.toContain('data-testid="consent-summary"');
       expect(html).not.toContain('data-testid="share-ask"');
       expect(html).not.toContain('data-testid="share-fold"');
+      expect(html).not.toContain('data-testid="share-done"');
     }
   });
 });

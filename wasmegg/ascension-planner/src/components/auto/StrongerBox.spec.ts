@@ -14,7 +14,7 @@ describe('StrongerBox', () => {
   it('Fastest: Light, Fast, Exact, Very high; Light by default; the promise text and the results target', async () => {
     const html = await renderHtml(StrongerBox, { goal: 'fastest' });
     const t = textOf(html);
-    expect(t).toMatch(/^Stronger check Checks the instant answer harder.* Light Fast Exact Very high/);
+    expect(t).toMatch(/^Stronger check Checks the instant answer harder.* Light quick, your routes Fast most likely best Exact if you're curious Very high if you're curious/);
     expect(html).toMatch(/aria-checked="true"[^>]*data-testid="level-light"/);
     // Each level in three plain lines; Light looks for no new routes.
     expect(t).toMatch(/What it does After Check exactly, prices the instant answer's routes, ascending at once, on your hours.* Then it prices the routes you have already found .* How long Seconds to a few minutes.* What it finds When the instant answer's routes finish if you ascend at once, and one of your own routes, if it is now faster than the instant answer\. It does not look for new routes\./);
@@ -27,7 +27,7 @@ describe('StrongerBox', () => {
   it('in a tab (SearchTabs.vue): no frame, heading or intro of its own; the levels, promise and results target stay', async () => {
     const html = await renderHtml(StrongerBox, { goal: 'fastest', inTab: true });
     const t = textOf(html);
-    expect(t).toMatch(/^How hard to look Light Fast Exact Very high/);
+    expect(t).toMatch(/^How hard to look Light quick, your routes Fast most likely best Exact if you're curious Very high/);
     expect(t).not.toContain('Stronger check');
     expect(t).not.toContain('Checks the instant answer harder');
     expect(html).not.toContain('border-indigo-200 bg-white p-4');
@@ -46,7 +46,7 @@ describe('StrongerBox', () => {
     });
     const t = textOf(html);
     // Each level shows this computer's time under its name; How long is the chosen level's.
-    expect(t).toMatch(/Light Fast ~1\.1 h Exact ~3\.0 h Very high ~9\.4 h/);
+    expect(t).toMatch(/Light quick, your routes Fast ~1\.1 h a second opinion Exact ~3\.0 h if you're curious Very high ~9\.4 h if you're curious/);
     expect(html).toMatch(/aria-checked="true"[^>]*data-testid="level-normal"/);
     expect(t).toContain('The same, with one more TE either side of each early stop.');
     expect(t).toContain('How long About 3.0 h on this computer (7 workers).');
@@ -365,5 +365,41 @@ describe('the at-once box moved to Light (14 Oct, source)', () => {
     const atOnce = t.slice(t.indexOf('async function priceAtOnce'), t.indexOf('async function runAuto'));
     expect(atOnce).not.toContain('fetch(');
     expect(atOnce).not.toMatch(/setInterval/);
+  });
+});
+
+describe('what each level is for, on its button (15 Oct)', () => {
+  it('Fastest: Light quick/your routes, Fast most likely best, Exact and Very high if you are curious', async () => {
+    const html = await renderHtml(StrongerBox, { goal: 'fastest' });
+    expect(html).toMatch(/data-testid="level-for-light"[^>]*>quick, your routes</);
+    expect(html).toMatch(/data-testid="level-for-quick"[^>]*>most likely best</);
+    expect(html).toMatch(/data-testid="level-for-normal"[^>]*>if you(?:'|&#39;)re curious</);
+    expect(html).toMatch(/data-testid="level-for-thorough"[^>]*>if you(?:'|&#39;)re curious</);
+  });
+  it('By a date: Fast is a second opinion', async () => {
+    const html = await renderHtml(StrongerBox, { goal: 'date' });
+    expect(html).toMatch(/data-testid="level-for-quick"[^>]*>a second opinion</);
+    expect(html).toMatch(/data-testid="level-for-light"[^>]*>quick, your routes</);
+  });
+});
+
+describe('the Exhaustive tab says what it is for (15 Oct)', () => {
+  it('"Exhaustive · to prove it" in SearchTabs', () => {
+    const t = fs.readFileSync(path.join(__dirname, 'SearchTabs.vue'), 'utf8');
+    expect(t).toContain("{ id: 'exhaustive', label: NAMES.full, tag: 'to prove it' }");
+  });
+});
+
+describe('the "is running" notice floats in the run bar (15 Oct)', () => {
+  it('RunProgressBar shows it under the progress line; no amber in-page box remains', () => {
+    const bar = fs.readFileSync(path.join(__dirname, 'RunProgressBar.vue'), 'utf8');
+    expect(bar).toContain('data-testid="run-bar-elsewhere"');
+    expect(bar).toContain('is running.</span> Stop it');
+    expect(bar.indexOf('run-bar-elsewhere')).toBeGreaterThan(bar.indexOf('{{ p.stage }}'));
+    const app = fs.readFileSync(path.join(__dirname, '../../App.vue'), 'utf8');
+    expect(app).not.toContain('<RunningElsewhere');
+    expect(app).toContain(":elsewhere=\"blockedBy && plannerTab === 'automatic' ? { running: blockedBy, here: hereLabel } : null\"");
+    expect(fs.existsSync(path.join(__dirname, 'RunningElsewhere.vue'))).toBe(false);
+    expect(fs.readFileSync(path.join(__dirname, 'FastestRoute.vue'), 'utf8')).not.toContain('RunningElsewhere');
   });
 });

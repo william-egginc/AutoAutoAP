@@ -173,14 +173,6 @@
         <!-- Remembered in this browser: say so, and how to take it back. -->
         <p v-if="optIn" class="ml-7 text-[10px] text-indigo-900/70" data-testid="consent-remembered">
           This is remembered in this browser, so you are not asked again. Untick the box to withdraw it.
-          <button
-            type="button"
-            class="underline decoration-dotted underline-offset-2 font-bold text-indigo-700 hover:text-indigo-900"
-            data-testid="consent-fold"
-            @click="expanded = false"
-          >
-            Fold this away
-          </button>
         </p>
         <!-- Asked for by "Send my progress every..." (Stepping away?): the yes, then it sends by itself. -->
         <div v-if="asking && optIn && autoSendOn" class="ml-7">
@@ -214,6 +206,18 @@
       />
       <!-- The note goes with the run as it starts; a run already going keeps the one it started with. -->
       <RunNoteBox v-if="note !== undefined && !running" v-model="note" />
+      <!-- Opened (Change, or just ticked): Done folds it back to the one line, before a run and during one
+           (the user, 14 Oct: once opened there was no clear way to close it). -->
+      <div v-if="optIn && expanded && !asking">
+        <button
+          type="button"
+          class="px-4 py-1.5 rounded-lg border border-indigo-300 bg-white text-indigo-700 text-[10px] font-black uppercase tracking-widest hover:bg-indigo-50"
+          data-testid="consent-done"
+          @click="expanded = false"
+        >
+          Done
+        </button>
+      </div>
     </div>
   </div>
 </template>

@@ -84,6 +84,16 @@
       <div v-else class="h-full w-1/3 rounded-full bg-indigo-400/70 animate-pulse"></div>
     </div>
     <p v-if="p.stage" class="text-[10px] text-white/60 truncate">{{ p.stage }}</p>
+    <!-- On another Auto Planner screen: this one is greyed out and a second search can't start. Said here, under the
+         progress line, so it floats with the bar instead of an amber box pushing the page down (the user, 15 Oct). -->
+    <p
+      v-if="props.elsewhere"
+      class="rounded-lg bg-amber-400/15 px-2.5 py-1.5 text-[11px] leading-snug text-amber-100"
+      data-testid="run-bar-elsewhere"
+    >
+      <span class="font-black">{{ props.elsewhere.running }} is running.</span> Stop it (Stop &amp; keep best, here), or
+      wait until it's done, to use {{ props.elsewhere.here }}.
+    </p>
     <p
       v-if="bestSoFarHere && (store.bestSoFarStatus || store.bestSoFarWait > 0)"
       class="text-[10px] font-semibold"
@@ -115,7 +125,12 @@ import { formatTimeLeft } from '@/search/sweepEstimate';
 import SendingText from './SendingText.vue';
 import { queueCountLine } from '@/lib/queueCount';
 
-const props = defineProps<{ /** The bar sits on the run's own screen. */ here?: boolean }>();
+const props = defineProps<{
+  /** The bar sits on the run's own screen. */
+  here?: boolean;
+  /** Another Auto Planner screen than the run's is open (greyed out): which search is running and which screen this is. */
+  elsewhere?: { running: string; here: string } | null;
+}>();
 const emit = defineEmits<{ show: [] }>();
 const store = useChainSearchStore();
 const planner = useAutoPlannerStore();

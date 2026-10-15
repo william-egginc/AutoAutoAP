@@ -57,7 +57,7 @@ describe('SearchTabs', () => {
     expect(t).toContain('EXHAUSTIVE BODY');
     expect(panelTag(html, 'nearby')).not.toContain('display:none');
     expect(panelTag(html, 'exhaustive')).toContain('display:none');
-    expect(t).toMatch(/^Search nearby Exhaustive/);
+    expect(t).toMatch(/^Search nearby Exhaustive · to prove it/);
   });
 
   it('is an ARIA tablist: tabs say which is selected and which panel they control; panels name their tab', async () => {
@@ -93,7 +93,7 @@ describe('SearchTabs', () => {
     const html = await render({ running: { exhaustive: true } });
     expect(html).toContain('data-testid="search-tab-running-exhaustive"');
     expect(html).not.toContain('data-testid="search-tab-running-nearby"');
-    expect(textOf(html)).toMatch(/Exhaustive \(running\)/);
+    expect(textOf(html)).toMatch(/Exhaustive · to prove it \(running\)/);
     expect(html).toMatch(/<span class="search-tab-dot"[^>]*aria-hidden="true"/);
     // CSS only, and still with reduced motion.
     const src = fs.readFileSync(path.join(__dirname, 'SearchTabs.vue'), 'utf8');

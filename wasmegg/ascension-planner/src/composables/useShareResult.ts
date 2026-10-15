@@ -5,10 +5,11 @@
  * click that sent twice) had to be made two or three times.
  *
  *  - `createShareIdentity` / `useShareIdentity`: the consent tick, anonymous-or-named, and the name
- *    box that follows the account's own name until the player types in it. The name is one per
- *    account across the site (stores/shareName.ts): typed in one screen, it is in the others. The
- *    anonymous-or-named stays each screen's own; the consent is the one remembered in this browser
- *    (useShareConsent.ts: ticked once, shown folded by FindBar.vue, unticking withdraws it).
+ *    box that follows the account's own name until the player types in it. The name and the
+ *    anonymous-or-named choice are one per account across the site (stores/shareName.ts): picked in
+ *    one screen, they are in the others, and remembered in this browser. The consent is the one
+ *    remembered in this browser (useShareConsent.ts: ticked once, shown folded by FindBar.vue,
+ *    unticking withdraws it).
  *  - `useBoardSubmit`: the race-to-the-target send (Smart search and the Full sweep): the status
  *    message, Put my name on it, Retry the table, the rechecks worked out once consent is given,
  *    and the guard against sending a result twice. Each screen still says HOW it sends (`send`).
@@ -30,8 +31,9 @@ type Store = ReturnType<typeof useChainSearchStore>;
 export interface ShareIdentity {
   /** "Yes, share this result" / Find and submit's acknowledgement. */
   optIn: Ref<boolean>;
-  /** Anonymous by default: crediting yourself should be a choice, not the fallback. */
-  anonymous: Ref<boolean>;
+  /** Anonymous by default: crediting yourself should be a choice, not the fallback. Once picked, the
+   *  account's choice on every screen (stores/shareName.ts). */
+  anonymous: WritableComputedRef<boolean>;
   /** The "Credit me as" box. */
   nickname: WritableComputedRef<string>;
   /** The player typed in the name box: it stops following the account's name. Set it true after
@@ -43,6 +45,9 @@ export interface ShareIdentity {
 export interface SharedName {
   get(): string | undefined;
   set(name: string): void;
+  /** Anonymous or "Credit me as", undefined until picked; without these, each identity keeps its own. */
+  getAnonymous?(): boolean | undefined;
+  setAnonymous?(v: boolean): void;
 }
 
 /**
@@ -59,7 +64,11 @@ export function createShareIdentity(
   /** The acknowledgement; the real screens pass the one remembered in this browser (useShareConsent). */
   optIn: Ref<boolean> = ref(false)
 ): ShareIdentity {
-  const anonymous = ref(true);
+  const ownAnonymous = ref<boolean | undefined>(undefined);
+  const anonymous = computed<boolean>({
+    get: () => (shared?.getAnonymous ? shared.getAnonymous() : ownAnonymous.value) ?? true,
+    set: v => (shared?.setAnonymous ? shared.setAnonymous(v) : (ownAnonymous.value = v)),
+  });
   const own = ref<string | undefined>(undefined);
   const name: SharedName = shared ?? { get: () => own.value, set: v => (own.value = v) };
   /** This screen's own name, set by code, until the player types. */
@@ -91,7 +100,12 @@ export function createShareIdentity(
 export function useSharedName(playerId: () => string): SharedName {
   const names = useShareNameStore();
   watch(playerId, id => void names.load(id), { immediate: true });
-  return { get: () => names.nameFor(playerId()), set: v => names.setName(playerId(), v) };
+  return {
+    get: () => names.nameFor(playerId()),
+    set: v => names.setName(playerId(), v),
+    getAnonymous: () => names.anonymousFor(playerId()),
+    setAnonymous: v => names.setAnonymous(playerId(), v),
+  };
 }
 
 /**

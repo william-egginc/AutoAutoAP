@@ -481,10 +481,9 @@ function setWorkers(raw: string): void {
 
 const consent = ref(false);
 const showWhat = ref(false);
-const anonymous = ref(true);
-/** The account's one "Credit me as" name, shared with the other screens (composables/useShareResult.ts);
- *  the consent and anonymous-or-named above stay this runner's own. */
-const { nickname, nicknameTouched } = useShareIdentity(() => props.playerId);
+/** The account's one "Credit me as" name and anonymous-or-named choice, shared with the other screens
+ *  (composables/useShareResult.ts); the consent above stays this runner's own. */
+const { anonymous, nickname, nicknameTouched } = useShareIdentity(() => props.playerId);
 /** Anonymous wins over whatever is in the box; the collector keeps 40 characters. */
 const effectiveNickname = computed(() => (anonymous.value ? '' : nickname.value.trim().slice(0, 40)));
 

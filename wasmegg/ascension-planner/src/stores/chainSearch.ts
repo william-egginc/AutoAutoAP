@@ -13,6 +13,7 @@
  * a worker never has — the same split researchCalc.worker.ts documents. Everything the simulation
  * itself calls is already Pinia-free.
  */
+import { markProvisionalDone, stillOpen } from '@/search/doneProvisional';
 import { defineStore } from 'pinia';
 import { computed, markRaw, ref, shallowRef, toRaw, watch } from 'vue';
 import { CHART_AUTO_LIMIT, addToHeat, createHeat, heatSnapshot, type HeatSnapshot } from '@/lib/chartThin';
@@ -2296,8 +2297,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   ): Promise<SearchInputs | 'current' | null> {
     // The run's own note comes back with it (the box is what the carried-on run captures).
     if (record.runNote !== undefined) runNote.value = record.runNote;
-    // And its best so far on the board, which its final send must still replace (taken at its start).
-    carriedProvisional = readProvisionalRow(record.provisional);
+    // And its best so far on the board, which its final send must still replace (taken at its start),
+    // unless the run's final send already replaced it (search/doneProvisional.ts).
+    carriedProvisional = stillOpen(readProvisionalRow(record.provisional));
     // And its phone link, so the phone the player already set up keeps following it.
     carriedWatch = readWatchLinkState(record.watch);
     partitionHash = partitionHash || (await hashID(playerId));
@@ -2908,6 +2910,17 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   const chartShown = ref(loadChartShown());
 
   /**
+   * Whether a chart is on screen (RunCharts.vue mounted: Compare › Your latest run, LatestRunView.vue).
+   * The chart's data is built only while the chart is both shown AND on screen, so a remembered "shown"
+   * costs nothing on every batch while Compare is closed. `chartMounted` counts the mounted charts.
+   */
+  const chartOnScreen = ref(false);
+  let chartViewers = 0;
+  function chartLive(): boolean {
+    return chartShown.value && chartOnScreen.value;
+  }
+
+  /**
    * The heat map's running counts (lib/chartThin.ts): a fixed grid fed only the chains priced since
    * the last feed, so it costs the same on a 100-chain run and a 120,000-chain one. `heat` is the
    * copy the chart draws, taken on the same 30-second beat as everything else here.
@@ -2936,18 +2949,34 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     if (on) {
       refreshChartData();
     } else {
-      heatGrid = createHeat();
-      heatFedLive = 0;
-      heatFedCoarse = 0;
-      heat.value = null;
-      pricedChains.value = markRaw([]);
-      chartsWanted.value = false;
+      freeChartData();
     }
   }
 
-  /** Build the chart's data from the caches as they are. A no-op while the chart is hidden. */
+  /** Drop the chart's data (hidden, or off screen); showing it again rebuilds from the caches. */
+  function freeChartData(): void {
+    heatGrid = createHeat();
+    heatFedLive = 0;
+    heatFedCoarse = 0;
+    heat.value = null;
+    pricedChains.value = markRaw([]);
+    chartsWanted.value = false;
+  }
+
+  /** A chart mounted (`true`) or unmounted (`false`): the first one on screen builds the data, the last
+   *  one off screen frees it. The remembered shown/hidden choice is untouched. */
+  function chartMounted(on: boolean): void {
+    chartViewers = Math.max(0, chartViewers + (on ? 1 : -1));
+    const next = chartViewers > 0;
+    if (next === chartOnScreen.value) return;
+    chartOnScreen.value = next;
+    if (next) refreshChartData();
+    else freeChartData();
+  }
+
+  /** Build the chart's data from the caches as they are. A no-op while the chart is hidden or off screen. */
   function refreshChartData(): void {
-    if (!chartShown.value) return;
+    if (!chartLive()) return;
     feedHeat();
     heat.value = heatSnapshot(heatGrid);
     // Past the limit, no point list unless asked for: dropping it frees the old copy too.
@@ -3003,7 +3032,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
 
   /** "Draw the charts" on a big run: build the point list now, and keep it on the usual beat. */
   function drawCharts(): void {
-    if (!chartShown.value) return;
+    if (!chartLive()) return;
     chartsWanted.value = true;
     pricedChains.value = buildPricedChains(allEntries());
   }
@@ -3062,8 +3091,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
 
   function refreshShortlist(force = false): void {
     // Every call, not only on the beat: it reads just the chains that arrived since the last one.
-    // (Nothing at all while the chart is hidden.)
-    if (chartShown.value) feedHeat();
+    // (Nothing at all while the chart is hidden or off screen.)
+    if (chartLive()) feedHeat();
     const now = Date.now();
     if (!force && now - lastShortlistAt < SHORTLIST_INTERVAL_MS) return;
     lastShortlistAt = now;
@@ -3078,7 +3107,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     let priced = 0;
     for (const e of entries) if (e.seconds > 0) priced++;
     pricedCount.value = priced;
-    if (chartShown.value) {
+    if (chartLive()) {
       heat.value = heatSnapshot(heatGrid);
       // Past the limit, no point list unless asked for: dropping it frees the old copy too.
       pricedChains.value = priced <= CHART_AUTO_LIMIT || chartsWanted.value ? buildPricedChains(entries) : markRaw([]);
@@ -3986,6 +4015,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       if (kept) void dropPending(kept.id);
       if (!deadlineSend && !provisional) rememberSent(sentKey, { ...(code ? { id: code } : {}), quarantined: true });
       // The run is over either way: its best so far stays where it was (nothing replaced it).
+      if (!provisional && payload.replaces) markProvisionalDone(payload.replaces);
       if (!provisional && payload.replaces && provisionalRows.value[kind]?.id === payload.replaces)
         setProvisional(kind, null);
       let message = quarantineMessage(code, Array.isArray(r.reasons) ? r.reasons : [], r.reasonText ?? '');
@@ -4119,7 +4149,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     if (!deadlineSend && !provisional)
       rememberSent(sentKey, { ...(id ? { id } : {}), ...(storedName !== undefined ? { nickname: storedName } : {}) });
     // The final went: the best so far it carried `replaces` for is done with, replaced or not (a
-    // refusal leaves that row up, and sending again cannot change that).
+    // refusal leaves that row up, and sending again cannot change that). Its checkpoint still names it,
+    // so a carry-on of the run must not take it again (search/doneProvisional.ts).
+    if (!provisional && payload.replaces) markProvisionalDone(payload.replaces);
     if (!provisional && payload.replaces && provisionalRows.value[kind]?.id === payload.replaces)
       setProvisional(kind, null);
     // The board has a new row of this account's: the next run's rechecks should see it.
@@ -6263,7 +6295,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       const cp = await loadDeadlineCheckpoint(partitionHash);
       if (!cp) return;
       runNote.value = cp.spec.note ?? '';
-      carriedProvisional = readProvisionalRow(cp.provisional);
+      carriedProvisional = stillOpen(readProvisionalRow(cp.provisional));
       carriedWatch = readWatchLinkState(cp.watch);
       if (await fromOtherAccount(partitionHash, cp.inputsKey)) {
         error.value = `This search can't carry on: ${OTHER_ACCOUNT}.`;
@@ -8508,6 +8540,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     chartsWanted,
     chartShown,
     setChartShown,
+    chartOnScreen,
+    chartMounted,
     refreshChartData,
     drawCharts,
     releaseCharts,

@@ -35,7 +35,6 @@
     <SearchCompare v-if="SHOW_COMPARE" goal="fastest" />
 
     <!-- A search running on another screen (By a date, a start-time sweep): greyed out under a line. -->
-    <RunningElsewhere v-if="blockedBy" :running="blockedBy" :here="fastestName(store.finalTE)" />
     <div
       class="space-y-4"
       :class="blockedBy ? 'opacity-40 pointer-events-none select-none' : ''"
@@ -79,7 +78,6 @@ import { computed, nextTick, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { fastestName, type Depth } from '@/lib/siteNav';
 import { safeAsyncComponent } from '@/lib/import';
-import RunningElsewhere from './RunningElsewhere.vue';
 import StrongerBox from './StrongerBox.vue';
 import CollapsibleSection from './CollapsibleSection.vue';
 import SearchTabs from './SearchTabs.vue';

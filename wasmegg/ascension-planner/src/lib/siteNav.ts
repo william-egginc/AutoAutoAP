@@ -8,6 +8,8 @@
  *                    #/auto/by-date          highest TE by a date (was Insane's deadline goal)
  *   Compare          #/compare[/<view>]      the leaderboard's views (Egg Day first), and Insights:
  *                                            the Chain Explorer's charts
+ *                    #/compare/latest        Your latest run: this visit's Fastest run's other options
+ *                                            and charts (moved off Fastest's results, 15 Oct 2026)
  *   Science          #/science               how the planner works, and how its answers were checked
  *                                            (How it works, the default; #/science/how still opens it)
  *                    #/science/check         what we still need to check (the sweeps to run)
@@ -27,8 +29,8 @@ export type AutoView = 'classic' | 'fastest' | 'by-date';
 /** How thorough the fastest-route search is: descent (Smart) or every route in a box (full). */
 export type Depth = 'smart' | 'full';
 /** The leaderboard's views, then the Explorer's charts. */
-export type CompareView = 'eggday' | 'race' | 'mine' | 'all' | 'dates' | 'insights';
-export const COMPARE_VIEWS: CompareView[] = ['eggday', 'race', 'mine', 'all', 'dates', 'insights'];
+export type CompareView = 'eggday' | 'race' | 'mine' | 'all' | 'dates' | 'latest' | 'insights';
+export const COMPARE_VIEWS: CompareView[] = ['eggday', 'race', 'mine', 'all', 'dates', 'latest', 'insights'];
 /** Science's views, in tab order: How it works first (the default), then the sweep pages. */
 export type ScienceView = 'how' | 'check' | 'submit' | 'start';
 /** The Science views that have their own address part (`how` is the plain #/science). */
@@ -50,6 +52,9 @@ export const NAMES = {
   compare: 'Compare',
   science: 'Science',
   insights: 'Insights',
+  /** Compare › Your latest run (#/compare/latest): the other options and charts of this visit's Fastest
+   *  run (LatestRunView.vue; moved off Fastest's results, 15 Oct 2026). */
+  latest: 'Your latest run',
   check: 'What we need to check',
   submit: 'Submit a sweep',
   /** Science › When should I start? (StartTimeCard.vue). */

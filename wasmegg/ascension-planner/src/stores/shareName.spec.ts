@@ -50,4 +50,48 @@ describe('useShareNameStore', () => {
     await loading;
     expect(s.nameFor(ID)).toBe('New');
   });
+
+  it('anonymous or "Credit me as": undefined until picked, then kept under the hash, never the ID', async () => {
+    const s = useShareNameStore();
+    expect(s.anonymousFor(ID)).toBeUndefined();
+    s.setAnonymous(ID, false);
+    expect(s.anonymousFor(` ${ID} `)).toBe(false);
+    await flush();
+    // (The test before may still be writing its name: only the choice's keys here.)
+    const keys = Object.keys(localStorage).filter(k => k.startsWith('aap-share-anon:'));
+    expect(keys).toEqual([`aap-share-anon:${await hashID(ID)}`]);
+    expect(keys.join()).not.toContain(ID);
+    expect(localStorage.getItem(keys[0])).toBe('0');
+    // The next visit has it back.
+    setActivePinia(createPinia());
+    const next = useShareNameStore();
+    await next.load(ID);
+    expect(next.anonymousFor(ID)).toBe(false);
+    next.setAnonymous(ID, true);
+    await flush();
+    expect(localStorage.getItem(keys[0])).toBe('1');
+  });
+
+  it('one choice per account: another account starts anonymous-undecided', async () => {
+    const s = useShareNameStore();
+    s.setAnonymous(ID, false);
+    await flush();
+    await s.load('another-test-id');
+    expect(s.anonymousFor('another-test-id')).toBeUndefined();
+  });
+
+  it('storage that throws: the choice holds for this visit', async () => {
+    const s = useShareNameStore();
+    const orig = localStorage.setItem;
+    localStorage.setItem = () => {
+      throw new Error('blocked');
+    };
+    try {
+      s.setAnonymous(ID, false);
+      await flush();
+      expect(s.anonymousFor(ID)).toBe(false);
+    } finally {
+      localStorage.setItem = orig;
+    }
+  });
 });

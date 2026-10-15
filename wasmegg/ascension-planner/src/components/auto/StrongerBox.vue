@@ -56,6 +56,13 @@
           :class="level === l.id ? 'text-indigo-500' : 'text-slate-400'"
           >{{ estimates[l.id]!.short }}</span
         >
+        <!-- What it is for, small, before the player clicks (the user, 15 Oct). -->
+        <span
+          class="block mt-0.5 text-[9px] font-semibold normal-case tracking-normal leading-tight"
+          :class="level === l.id ? 'text-indigo-400' : 'text-slate-400'"
+          :data-testid="`level-for-${l.id}`"
+          >{{ LEVEL_FOR[goal][l.id] }}</span
+        >
       </button>
     </div>
     <!-- Light has nothing to start (the user, 12 Oct: no Find there looked broken): a status sign,
@@ -337,6 +344,13 @@ const TAGS: Record<'fastest' | 'date', Record<StrongerLevel, string>> = {
   },
 };
 const tag = computed(() => TAGS[props.goal][level.value]);
+
+/** The few words under each level's name and time: what it is for. Fast is the one to try first; By a date's Fast is a
+ *  second opinion on the instant answer. */
+const LEVEL_FOR: Record<'fastest' | 'date', Record<StrongerLevel, string>> = {
+  fastest: { light: 'quick, your routes', quick: 'most likely best', normal: "if you're curious", thorough: "if you're curious" },
+  date: { light: 'quick, your routes', quick: 'a second opinion', normal: "if you're curious", thorough: "if you're curious" },
+};
 
 /** "What this does and does not promise": open unless the player closed it (this browser). */
 const PROMISE_KEY = 'aap-stronger-promise-closed';

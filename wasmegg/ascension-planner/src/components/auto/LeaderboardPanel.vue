@@ -39,7 +39,7 @@
         <div>
           <h3 class="text-[10px] font-black text-indigo-700 uppercase tracking-widest">Route leaderboard</h3>
         </div>
-        <div v-if="tab !== 'insights'" class="flex items-end gap-2">
+        <div v-if="boardView" class="flex items-end gap-2">
           <label v-if="tab !== 'dates' && tab !== 'eggday'" class="block">
             <span class="block text-[9px] font-black uppercase tracking-widest text-indigo-700/70 mb-1">Target TE</span>
             <select v-model="final" class="rounded-lg border-indigo-200 text-xs font-bold text-slate-700 py-1.5">
@@ -81,7 +81,7 @@
            about may have just left the list it was clicked in. -->
       <div aria-live="polite">
         <p
-          v-if="hideMsg && tab !== 'insights'"
+          v-if="hideMsg && boardView"
           class="flex items-start justify-between gap-3 rounded-lg border px-3 py-2 text-[11px]"
           :class="hideMsgClass(hideMsg)"
         >
@@ -99,6 +99,10 @@
       <!-- Insights: the Chain Explorer's charts (its own load, filters and refresh), in place of a
            link out to its page (the unified layout, phase 4). -->
       <ChainExplorer v-if="tab === 'insights'" part="insights" embedded />
+
+      <!-- Your latest run: this visit's Fastest run's other options and charts (LatestRunView.vue; moved
+           here off Fastest's results, 15 Oct 2026). Reads the search's store, not the collector. -->
+      <LatestRunView v-else-if="tab === 'latest'" />
 
       <p v-else-if="error" class="text-[11px] text-red-700 font-semibold">Could not reach the collector: {{ error }}</p>
 
@@ -1118,7 +1122,7 @@
         </div>
       </template>
 
-      <p v-if="capped && tab !== 'insights'" class="text-[10px] text-amber-800">
+      <p v-if="capped && boardView" class="text-[10px] text-amber-800">
         The collector sent its maximum of {{ plural(ALL_CAP, 'run') }}, so the oldest or slowest runs may be missing.
       </p>
     </div>
@@ -1212,6 +1216,8 @@ import LeaderboardRunDetail from './LeaderboardRunDetail.vue';
 
 /** Insights: the Explorer's charts and their chart library load only when that tab opens. */
 const ChainExplorer = safeAsyncComponent(() => import('@/explorer/ChainExplorer.vue'));
+/** Your latest run: loads only when that tab opens (its charts load later still, when drawn). */
+const LatestRunView = safeAsyncComponent(() => import('./LatestRunView.vue'));
 
 const props = defineProps<{
   /** The account whose owner code asks GET /mine for "my" rows. Only its hash is used, as the
@@ -1247,6 +1253,12 @@ const tab = computed<Tab>({
   get: () => ui.compareView,
   set: v => (ui.compareView = v),
 });
+/** The views that read the collector's board (not Insights, which loads its own, nor Your latest run,
+ *  which reads this visit's search). */
+function isBoardView(t: Tab): boolean {
+  return t !== 'insights' && t !== 'latest';
+}
+const boardView = computed(() => isBoardView(tab.value));
 const allRows = ref<Row[]>([]);
 const loading = ref(false);
 const error = ref('');
@@ -1316,6 +1328,7 @@ function tabLabel(t: Tab): string {
   if (t === 'dates') return 'By a date';
   if (t === 'eggday') return `Egg Day ${eggDayYear}`;
   if (t === 'insights') return NAMES.insights;
+  if (t === 'latest') return NAMES.latest;
   return t === 'mine' ? 'My plans' : 'All runs';
 }
 
@@ -2041,12 +2054,12 @@ watch(final, () => {
   if (capped.value) void load();
 });
 
-// Not while Insights is open: the Explorer there fetches the runs itself. The board loads the first
+// Not while Insights is open (the Explorer there fetches the runs itself), nor Your latest run. The board loads the first
 // time one of its own views is shown.
 onMounted(() => {
-  if (tab.value !== 'insights') void load();
+  if (boardView.value) void load();
 });
 watch(tab, t => {
-  if (t !== 'insights' && !allRows.value.length && !loading.value && !error.value) void load();
+  if (isBoardView(t) && !allRows.value.length && !loading.value && !error.value) void load();
 });
 </script>

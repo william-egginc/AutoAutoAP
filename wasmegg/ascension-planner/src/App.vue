@@ -243,7 +243,13 @@
            folds away on the Auto Planner: the tabs are how you get anywhere, so they never hide. -->
       <!-- The search that's running, on every tab but its own (RunProgressBar.vue), so looking at
            the leaderboard or Classic mid-run doesn't mean losing sight of it or its Stop. -->
-      <RunProgressBar v-if="showRunBar" class="mt-4" :here="runIsHere" @show="showRun" />
+      <RunProgressBar
+        v-if="showRunBar"
+        class="mt-4"
+        :here="runIsHere"
+        :elsewhere="blockedBy && plannerTab === 'automatic' ? { running: blockedBy, here: hereLabel } : null"
+        @show="showRun"
+      />
       <!-- A Science sweep, run in place (SweepRunner.vue): a window over the page, so the figures and
            Start sit where the sweep was clicked rather than on another screen. -->
       <SweepRunner
@@ -490,7 +496,6 @@
         <!-- A search running on another Auto Planner screen: this one greyed out under a line saying
              which, with Stop on the progress bar above. Fastest route greys only its panel, below its
              depth cards (FastestRoute.vue). -->
-        <RunningElsewhere v-if="blockedBy && autoView !== 'fastest'" :running="blockedBy" :here="hereLabel" />
         <div
           :class="
             blockedBy && autoView !== 'fastest' ? 'opacity-40 pointer-events-none select-none space-y-4' : 'space-y-4'
@@ -721,7 +726,6 @@ import { revealRunTab } from '@/lib/searchTab';
 import type { SweepRequest } from '@/search/sweepRequest';
 import { virtueInventory } from '@/search/csv';
 import type { ByDateRequest } from '@/search/byDateRequest';
-import RunningElsewhere from '@/components/auto/RunningElsewhere.vue';
 import { useSalesStore } from '@/stores/sales';
 import { hashID, saveMetadata, loadMetadata } from '@/lib/storage/db';
 import { useActionExecutor } from '@/composables/useActionExecutor';

@@ -852,196 +852,14 @@
           </p>
         </div>
 
-        <!-- Runners-up. Picked for SPREAD, not the raw top N: a descent sweep leaves the same plan
-             nudged by one TE all over the cache, and ten of those is a useless menu. -->
-        <div v-if="store.pricedCount > 1" class="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
-          <div class="flex items-center justify-between gap-3">
-            <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-              Other options worth considering
-            </h3>
-            <button
-              v-if="!store.isRunning"
-              type="button"
-              class="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600"
-              @click="store.rebuildShortlist()"
-            >
-              Refresh
-            </button>
-          </div>
-
-          <p class="text-[11px] text-slate-500 leading-relaxed">
-            Fastest is not always best. Every prestige is a full rebuild (twelve shifts and a fresh research grind), so
-            half a day slower for one fewer ascension may well be the trade you want. Pick on the
-            <span class="font-semibold">finish date</span>, not the day count: durations from different plan starts are
-            not comparable.
-          </p>
-
-          <!-- Preset views over the SAME priced chains. Nothing here re-simulates; every one of
-               these reads the cache the run already built, so switching is instant. -->
-          <div class="flex flex-wrap gap-1.5">
-            <button
-              v-for="v in VIEWS"
-              :key="v.id"
-              type="button"
-              class="px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-widest transition-colors"
-              :class="
-                store.shortlistView === v.id
-                  ? 'bg-slate-800 border-slate-800 text-white'
-                  : 'bg-white border-slate-300 text-slate-500 hover:border-slate-400 hover:text-slate-700'
-              "
-              @click="store.setShortlistView(v.id)"
-            >
-              {{ v.label }}
-            </button>
-          </div>
-
-          <p class="text-[11px] text-slate-500 leading-relaxed">{{ activeView?.hint }}</p>
-
-          <!-- A single-axis sweep prices dozens of chains that are all the same plan nudged by a few
-               TE, so "A good mix" can legitimately have nothing to add beyond the leader. The whole
-               section used to vanish in that case, which reads as a bug rather than as an answer. -->
-          <p
-            v-if="store.shortlist.length <= 1"
-            class="text-[11px] text-slate-500 leading-relaxed rounded-lg border border-slate-200 bg-slate-50 p-3"
+        <!-- The run's other options and its charts are on Compare › Your latest run (LatestRunView.vue;
+             moved off this screen, 15 Oct 2026). -->
+        <p v-if="ownRun && store.pricedCount" class="text-[11px] text-slate-600" data-testid="latest-run-link">
+          More views of this run (other options, charts) are on
+          <a href="#/compare/latest" class="font-bold text-indigo-700 underline hover:text-indigo-900"
+            >{{ NAMES.compare }} › {{ NAMES.latest }}</a
           >
-            Nothing else here is a genuinely different plan: every other route this run priced is the same shape moved
-            by a few TE, or more than five days behind. That is normal for a run that only swept one stop, and for one
-            stopped early. Switch to <span class="font-semibold">Fastest</span> to see all {{ store.pricedCount }} of
-            them in raw order.
-          </p>
-          <div v-else class="overflow-x-auto" data-testid="shortlist">
-            <table class="w-full text-xs">
-              <thead>
-                <tr class="text-[9px] font-black text-slate-400 uppercase tracking-widest text-left">
-                  <th class="py-2 pr-3">Route</th>
-                  <th class="py-2 pr-3">Ascensions</th>
-                  <th class="py-2 pr-3">Finishes</th>
-                  <th class="py-2 pr-3">Behind</th>
-                  <th v-if="store.scheduleEnabled" class="py-2 pr-3 whitespace-nowrap">
-                    {{ store.deferShifts ? 'Cost of your hours' : 'Night shifts' }}
-                    <HelpTip v-if="store.deferShifts">
-                      How much of this option's length is waiting for you: prestiges plus the twelve shifts per
-                      ascension, all held until you are available. It is the part of the finish date your schedule is
-                      responsible for, and the number that actually differs between these options. The night-shift count
-                      cannot differ, because holding the shifts drives it to zero for every row.
-                    </HelpTip>
-                    <HelpTip v-else>
-                      Shifts landing outside your hours. You are not holding them, so they are reported and free. This
-                      is the count you would have to get up for.
-                    </HelpTip>
-                  </th>
-                  <!-- A floor on its width: the long chains left it ~4 letters wide in Safari (the user, 12 Oct). -->
-                  <th class="py-2 pr-3 min-w-[9.5rem]">Why</th>
-                  <th class="py-2"></th>
-                </tr>
-              </thead>
-              <tbody>
-                <template v-for="row in store.shortlist" :key="row.chain.join(',')">
-                  <tr class="border-t border-slate-100">
-                    <!-- The caret sits with the chain it opens, not off at the far right past six
-                         other columns. Same move as the leg table's A1 caret, for the same reason. -->
-                    <!-- A long route wraps at its spaces (not the Why column, not off the side). -->
-                    <td class="py-2 pr-3 font-mono font-bold text-slate-700 min-w-[10rem]">
-                      <button
-                        v-if="row.legs.length"
-                        type="button"
-                        class="mr-1.5 text-slate-400 hover:text-emerald-700"
-                        :aria-expanded="expandedRow === row.chain.join(',')"
-                        :aria-label="`Show when ${row.chain.join(' ')} happens`"
-                        @click="expandedRow = expandedRow === row.chain.join(',') ? '' : row.chain.join(',')"
-                      >
-                        {{ expandedRow === row.chain.join(',') ? '⌄' : '›' }}
-                      </button>
-                      {{ row.chain.join(' ') }}
-                    </td>
-                    <td class="py-2 pr-3 font-bold text-slate-600">{{ row.prestiges }}</td>
-                    <td class="py-2 pr-3 text-slate-600 whitespace-nowrap">{{ finishInstant(row.seconds) }}</td>
-                    <td class="py-2 pr-3 text-slate-500 whitespace-nowrap">
-                      {{ row.gapSeconds < 1 ? '—' : '+' + (row.gapSeconds / 86400).toFixed(2) + ' d' }}
-                    </td>
-                    <!-- null, not 0: a replayed chain has no legs to count, and "0" would be a claim. -->
-                    <td v-if="store.scheduleEnabled" class="py-2 pr-3 whitespace-nowrap">
-                      <template v-if="store.deferShifts">
-                        <span v-if="scheduleCost(row) === null" class="text-slate-400">not recorded</span>
-                        <span v-else-if="scheduleCost(row)! < 3600" class="text-slate-400">&mdash;</span>
-                        <span v-else class="font-bold text-amber-700">
-                          +{{ (scheduleCost(row)! / 86400).toFixed(2) }} d
-                        </span>
-                      </template>
-                      <template v-else>
-                        <span v-if="row.nightShifts === null" class="text-slate-400">not recorded</span>
-                        <span v-else-if="!row.nightShifts" class="text-slate-400">none</span>
-                        <span v-else class="font-bold text-amber-700">{{ row.nightShifts }} outside</span>
-                      </template>
-                    </td>
-                    <td class="py-2 pr-3 text-slate-400 min-w-[9.5rem]">{{ REASON_TEXT[row.reason] }}</td>
-                    <td class="py-2 text-right whitespace-nowrap">
-                      <button
-                        type="button"
-                        class="px-2.5 py-1 rounded-md border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-700"
-                        @click="use(row.chain, true)"
-                      >
-                        Use
-                      </button>
-                    </td>
-                  </tr>
-                  <tr v-if="expandedRow === row.chain.join(',') && row.legs.length" class="bg-slate-50">
-                    <td :colspan="store.scheduleEnabled ? 7 : 6" class="px-3 py-3 space-y-2">
-                      <div v-for="(leg, li) in row.legs" :key="li" class="text-[11px]">
-                        <div class="flex flex-wrap items-baseline gap-x-2 text-slate-600">
-                          <span class="font-black text-slate-700">A{{ li + 1 }}</span>
-                          <span class="font-bold">&rarr; {{ leg.endTE }}</span>
-                          <span class="text-slate-400">{{ leg.key }}</span>
-                          <span v-if="leg.startTime" class="font-mono text-slate-500">
-                            {{ stamp(leg.startTime) }} &rarr; {{ stamp(leg.endTime) }}
-                          </span>
-                        </div>
-                        <div v-if="leg.shifts?.length" class="flex flex-wrap gap-1 mt-1 ml-4">
-                          <span
-                            v-for="(b, k) in eggBlocks(leg)"
-                            :key="k"
-                            class="px-1.5 py-0.5 rounded border text-[10px]"
-                            :class="
-                              b.isSwitch && outsideSchedule(b.at)
-                                ? 'border-amber-300 bg-amber-50 text-amber-800 font-bold'
-                                : b.isSwitch
-                                  ? 'border-slate-200 bg-white text-slate-500'
-                                  : 'border-emerald-200 bg-emerald-50/60 text-emerald-700'
-                            "
-                          >
-                            <span class="capitalize">{{ b.egg || 'shift' }}</span>
-                            <span class="font-mono"> {{ stamp(b.at) }}</span>
-                            <span v-if="!b.isSwitch"> start</span>
-                          </span>
-                        </div>
-                      </div>
-                      <p class="text-[10px] text-slate-400 leading-relaxed pt-1">
-                        One entry per egg. The first is where the ascension starts (you are already on it), and each one
-                        after it is a manual switch.
-                        <template v-if="store.scheduleEnabled && store.deferShifts">
-                          These have already been moved into your hours, which is what this option's
-                          <span class="font-semibold">cost</span> above paid for, so none are amber. Untick "hold the
-                          shifts" and re-run to see where they would fall unassisted.
-                        </template>
-                        <template v-else-if="store.scheduleEnabled">
-                          <span class="font-semibold text-amber-700">Amber ones fall outside your hours</span>, so you
-                          would have to be up for them. Compare the amber between options.
-                        </template>
-                      </p>
-                    </td>
-                  </tr>
-                </template>
-              </tbody>
-            </table>
-          </div>
-
-          <p class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3 leading-relaxed">
-            Every view above reads the <span class="font-semibold">{{ store.csvRows.toLocaleString() }}</span>
-            routes this run priced, so switching costs nothing and re-simulates nothing. A route missing from all of
-            them was almost certainly never evaluated rather than evaluated and beaten: the search stays in its own
-            neighbourhood. Download the CSV for the full list.
-          </p>
-        </div>
+        </p>
 
         <!-- A plan start that slides is the quietest way to lose a checkpoint, and it cost a real
              user a 778-chain run: after a rebuild the start moved 10:39 -> 17:44, the fingerprint
@@ -1085,40 +903,6 @@
             >
             For a genuinely unattended overnight run the command-line version has no such problem.
           </p>
-        </div>
-
-
-        <!-- The run's own shape, and why it ended. The CSV had all of this already, but reading it
-             meant finishing a three-hour run and opening a spreadsheet. -->
-        <div v-if="store.pricedCount" class="p-4 rounded-xl border border-slate-200 bg-white space-y-4">
-          <div class="flex items-center justify-between gap-3">
-            <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">The shape of this search</h3>
-            <button
-              type="button"
-              class="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600"
-              @click="store.setChartShown(!store.chartShown)"
-            >
-              {{ store.chartShown ? 'Hide' : 'Show' }}
-            </button>
-          </div>
-
-          <div class="space-y-4">
-            <!-- Why it ended, stated before the chart, because it changes how the chart reads: a run
-                 that stopped early has a right-hand edge that means nothing. -->
-            <div
-              class="rounded-lg border p-3 text-[11px] leading-relaxed"
-              :class="
-                runOutcome.tone === 'good'
-                  ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
-                  : 'border-amber-200 bg-amber-50 text-amber-900'
-              "
-            >
-              <span class="font-bold uppercase tracking-wide">{{ runOutcome.title }}:</span>
-              {{ runOutcome.detail }}
-            </div>
-
-            <RunCharts v-if="ownRun" />
-          </div>
         </div>
         <template #keep>
           <!-- Saved runs: the same list as the Full sweep's (SavedRuns.vue); on Fastest's one page the
@@ -1165,8 +949,10 @@
                panel can do, so it is built to be refused easily: nothing happens without a click,
                the exact payload is inspectable BEFORE the click, and with no collector configured
                the only option is a file the player hands over themselves. -->
+          <!-- Sent by the run itself: one line instead of the box (SentByRunNote.vue). -->
+          <SentByRunNote v-if="ownRun && store.bestDays > 0 && !store.isRunning && sentByRun" :sending="submitting" />
           <ShareResult
-            v-if="ownRun && store.bestDays > 0 && !store.isRunning"
+            v-else-if="ownRun && store.bestDays > 0 && !store.isRunning"
             compact
             :replaces-best-so-far="!!store.provisionalRows.fastest"
             v-model:opt-in="optIn"
@@ -1282,6 +1068,7 @@ import HelpTip from './HelpTip.vue';
 import CarryOnOffer from './CarryOnOffer.vue';
 import BlockedRunNotice from './BlockedRunNotice.vue';
 import ShareResult from './ShareResult.vue';
+import SentByRunNote from './SentByRunNote.vue';
 import { useFastestShare } from '@/composables/useFastestShare';
 import BoardSubmitButtons from './BoardSubmitButtons.vue';
 import SavedRuns from './SavedRuns.vue';
@@ -1294,11 +1081,8 @@ import { carryOnLimitsNote, limitsHint } from '@/lib/limitsFollow';
 import { checkpointLimits } from '@/search/persistence';
 import { describeCompute } from '@/utils/computeTime';
 import UnfinishedRuns from './UnfinishedRuns.vue';
-import RunCharts from './charts/RunCharts.vue';
 import { chainCount } from '@/lib/chartThin';
 import type { EffortTier, LegSummary } from '@/search/types';
-import type { ShortlistRow } from '@/search/shortlist';
-import { VIEWS } from '@/search/views';
 import { useRunDownloads } from '@/composables/useRunDownloads';
 import CsvCard from './CsvCard.vue';
 import RunResults from './RunResults.vue';
@@ -1420,46 +1204,6 @@ watch(settingsOpen, v => {
   }
 });
 
-/**
- * Why the run ended, in one line. `stage` already carries this, but as an internal string
- * ("done - every route it needed was already priced") that assumes you know what the stages are.
- */
-const runOutcome = computed<{ title: string; detail: string; tone: 'good' | 'warn' }>(() => {
-  if (store.isRunning) {
-    return {
-      title: 'Still running',
-      detail: `${store.stage}. The chart fills in as batches report, so the right-hand edge is wherever it has reached.`,
-      tone: 'warn',
-    };
-  }
-  if (store.error) {
-    return {
-      title: 'Stopped by an error',
-      detail: `${store.error} Everything priced before it stopped is on the chart and saved.`,
-      tone: 'warn',
-    };
-  }
-  if (store.stoppedEarly) {
-    return {
-      title: 'Stopped early',
-      detail: `You stopped it during "${store.lastCompletedStage}". The answer is the best of what was priced and is exactly what the completed stages guarantee, but the later stages never ran.`,
-      tone: 'warn',
-    };
-  }
-  if (store.chainsDone === 0) {
-    return {
-      title: 'Nothing left to price',
-      detail:
-        'Every route this level needed was already saved from an earlier run, so it replayed them and stopped. Pick a higher level to go further.',
-      tone: 'good',
-    };
-  }
-  return {
-    title: 'Finished',
-    detail: `Every stage in this tier ran to completion, ending on "${store.lastCompletedStage}". Descent stops when no stop moves, so finishing short of the estimate is normal.`,
-    tone: 'good',
-  };
-});
 const autoPlannerStore = useAutoPlannerStore();
 const plannerTzFallback = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
@@ -1583,13 +1327,6 @@ function finishInstant(seconds: number): string {
 
 const endDate = computed(() => finishInstant(store.bestDays * 86400));
 
-/** Why a runner-up is on the list, in words. A bare ranking invites "so why is #4 here?". */
-const REASON_TEXT: Record<string, string> = {
-  best: 'fastest found',
-  'prestige-count': 'best at this prestige count',
-  'different-shape': 'a genuinely different shape',
-};
-
 /** Whatever the page is served from, so the sleeping-tabs instruction names the right site. */
 const host = typeof window !== 'undefined' ? window.location.host : 'this site';
 /** How to keep a background tab awake in this browser (lib/browserHelp.ts). */
@@ -1641,11 +1378,6 @@ function eggBlocks(leg: LegSummary): EggBlock[] {
   return blocks;
 }
 
-/** Which runner-up's timing is open, by chain key. Empty for none. */
-const expandedRow = ref('');
-
-const activeView = computed(() => VIEWS.find(v => v.id === store.shortlistView));
-
 /** The card's "Your last run · ..." when its result isn't from a run in this visit on these settings
  *  (store `chainRunLive`); '' for a live one. */
 const lastRunLabel = computed(() => {
@@ -1672,18 +1404,6 @@ function stamp(unixSeconds: number | undefined): string {
 
 /** Which leg's shift list is open. -1 for none; one at a time keeps the table readable. */
 const expandedLeg = ref(-1);
-
-/**
- * Everything a row's finish date owes to the schedule: prestiges waiting plus shifts held.
- *
- * Both halves are already inside the chain's duration; this pulls them back out so two options can
- * be compared on the one axis the schedule controls. Null when the chain was replayed from a
- * checkpoint and has no legs -- "0 d" there would be a claim, not a measurement.
- */
-function scheduleCost(row: ShortlistRow): number | null {
-  if (row.prestigeWaitSeconds === null && row.shiftHoldSeconds === null) return null;
-  return (row.prestigeWaitSeconds ?? 0) + (row.shiftHoldSeconds ?? 0);
-}
 
 /** True when this instant falls outside the schedule. Uses the same predicate the search does, so
  *  the highlighting can never disagree with the count in the row above it. */
@@ -1736,6 +1456,9 @@ async function save(): Promise<void> {
 
 /** This run sends itself when it finishes (Find and submit), so the result says it did. */
 const autoSubmitted = ref(false);
+/** The result on screen went with its run (Find and submit, or a run that owed it): Share this result
+ *  gives way to one line. A send that failed keeps the box, so it can still be sent by hand. */
+const sentByRun = computed(() => autoSubmitted.value && submitOk.value && (submitting.value || store.alreadySubmitted));
 
 /** Find (or carry on a run, `resume`); with `andSubmit`, the result is sent as Share this result
  *  would send it once the run finishes. */

@@ -751,8 +751,10 @@
       </template>
       <template #share>
         <!-- Share: Compare's Egg Day tab for an Egg Day answer, else "By a date". Same opt-in as Insane. -->
+        <!-- Sent by the run itself: one line instead of the box (SentByRunNote.vue). -->
+        <SentByRunNote v-if="best && collectorConfigured && sentByRun" :sending="sharing" />
         <ShareResult
-          v-if="best && collectorConfigured"
+          v-else-if="best && collectorConfigured"
           compact
           :send-label="`Send ${best.chain[best.chain.length - 1]} TE by this date`"
           :replaces-best-so-far="!!store.provisionalRows.deadline"
@@ -884,6 +886,7 @@ import { defaultWorkerCount } from '@/search/batch';
 import { findBandEdges, widenEdges, type BandEdge } from '@/search/bandCheck';
 import CarryOnOffer from './CarryOnOffer.vue';
 import ShareResult from './ShareResult.vue';
+import SentByRunNote from './SentByRunNote.vue';
 import ShareStatus from './ShareStatus.vue';
 import SendingText from './SendingText.vue';
 import { useByDateShare, useShareIdentity } from '@/composables/useShareResult';
@@ -2029,6 +2032,11 @@ const autoShare = ref(false);
 /** This panel shared the last answer by itself (Find and submit, or a run that owed its answer): the
  *  report beside Find says how it went. Cleared when a run starts. */
 const autoShared = ref(false);
+/** The answer on screen went with its run: Share this result gives way to one line. A send that failed
+ *  (or was kept off the board) keeps the box, so it says so and can still be sent by hand. */
+const sentByRun = computed(
+  () => autoShared.value && !store.deadlineRunning && shareOk.value && (sharing.value || sentKey.value === resultKey.value)
+);
 
 /** Find, and with `andSubmit` share the best answer at the end (not when stopped early or failed). */
 /** Stop pressed, until the run ends: the store's stop flag for a date search isn't reactive. */

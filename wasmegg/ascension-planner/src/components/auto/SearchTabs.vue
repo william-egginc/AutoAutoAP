@@ -35,7 +35,9 @@
         :class="selected === t.id ? 'bg-white text-indigo-700 shadow' : 'text-slate-500 hover:text-slate-800'"
         @click="choose(t.id)"
       >
-        <span class="min-w-0 break-words">{{ t.label }}</span>
+        <span class="min-w-0 break-words"
+          >{{ t.label }}<template v-if="t.tag"> <span class="whitespace-nowrap">· {{ t.tag }}</span></template></span
+        >
         <template v-if="running?.[t.id]">
           <span class="search-tab-dot" aria-hidden="true" :data-testid="`search-tab-running-${t.id}`"></span>
           <span class="sr-only"> (running)</span>
@@ -84,9 +86,9 @@ const props = defineProps<{
 }>();
 
 /** The tab names a player reads. "Exhaustive" is NAMES.full, as everywhere else. */
-const TABS: { id: SearchTabId; label: string }[] = [
+const TABS: { id: SearchTabId; label: string; tag?: string }[] = [
   { id: 'nearby', label: 'Search nearby' },
-  { id: 'exhaustive', label: NAMES.full },
+  { id: 'exhaustive', label: NAMES.full, tag: 'to prove it' },
 ];
 
 const selected = computed(() => searchTabs[props.screen]);

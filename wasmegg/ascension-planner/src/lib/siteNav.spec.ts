@@ -21,6 +21,7 @@ describe('siteNav', () => {
       R('auto', 'by-date'),
       R('compare', 'classic', 'smart', 'insights'),
       R('compare', 'classic', 'smart', 'dates'),
+      R('compare', 'classic', 'smart', 'latest'),
       R('science', 'classic', 'smart', 'eggday', 'submit'),
       R('science', 'classic', 'smart', 'eggday', 'check'),
       R('science', 'classic', 'smart', 'eggday', 'start'),
@@ -58,6 +59,12 @@ describe('siteNav', () => {
   it('gives When should I start? (moved from Fastest, 14 Oct) its own Science address', () => {
     expect(hashFor(R('science', 'classic', 'smart', 'eggday', 'start'))).toBe('#/science/start');
     expect(routeFromLocation('', '#/science/start')).toEqual(R('science', 'classic', 'smart', 'eggday', 'start'));
+  });
+
+  it("gives Your latest run (Fastest's other options and charts, moved 15 Oct) its own Compare address", () => {
+    expect(NAMES.latest).toBe('Your latest run');
+    expect(hashFor(R('compare', 'classic', 'smart', 'latest'))).toBe('#/compare/latest');
+    expect(routeFromLocation('', '#/compare/latest')).toEqual(R('compare', 'classic', 'smart', 'latest'));
   });
 
   it('lets a new-style hash win over the old flags', () => {

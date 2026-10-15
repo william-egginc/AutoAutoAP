@@ -973,7 +973,14 @@
             >
             <span class="text-slate-500"> (opens {{ NAMES.science }} › {{ NAMES.start }})</span>
           </p>
-          <RunCharts v-if="ownRun && store.pricedCount" />
+          <!-- The run's charts are on Compare › Your latest run (LatestRunView.vue; moved off this screen,
+               15 Oct 2026). -->
+          <p v-if="ownRun && store.pricedCount" class="text-[11px] text-slate-600" data-testid="latest-run-link">
+            More views of this run (other options, charts) are on
+            <a href="#/compare/latest" class="font-bold text-indigo-700 underline hover:text-indigo-900"
+              >{{ NAMES.compare }} › {{ NAMES.latest }}</a
+            >
+          </p>
           <template #keep>
             <!-- Saved runs: the same list on both depths (SavedRuns.vue); carrying a sweep on is this one's. -->
             <SavedRuns :player-id="playerId" can-resume />
@@ -992,8 +999,13 @@
             <!-- Submission. Same payload, same opt-in, same disclosure as the main panel. -->
             <!-- Not while a Find and submit run is going: it sends itself with the choice made at Find,
                  and a box here saying "anonymously" would not be what goes. -->
+            <!-- Sent by the run itself: one line instead of the box (SentByRunNote.vue). -->
+            <SentByRunNote
+              v-if="ownRun && store.bestDays > 0 && !store.isRunning && sentByRun"
+              :sending="submitting"
+            />
             <ShareResult
-              v-if="ownRun && store.bestDays > 0 && !(store.isRunning && store.submitsWhenDone)"
+              v-else-if="ownRun && store.bestDays > 0 && !(store.isRunning && store.submitsWhenDone)"
               compact
               :replaces-best-so-far="!!store.provisionalRows.fastest"
               v-model:opt-in="optIn"
@@ -1111,6 +1123,7 @@ import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useUIStore } from '@/stores/ui';
 import RunNoteBox from './RunNoteBox.vue';
 import ShareResult from './ShareResult.vue';
+import SentByRunNote from './SentByRunNote.vue';
 import { NICKNAME_MAX, useFastestShare } from '@/composables/useFastestShare';
 import BoardSubmitButtons from './BoardSubmitButtons.vue';
 import SavedRuns from './SavedRuns.vue';
@@ -1134,7 +1147,6 @@ import SpaceSliders from './SpaceSliders.vue';
 import RoutesToTry from './RoutesToTry.vue';
 import KeptBoxNote from './KeptBoxNote.vue';
 import { pinSliders, sweepSliderView } from '@/composables/useRowSliders';
-import RunCharts from './charts/RunCharts.vue';
 import { chainCount as countLabel } from '@/lib/chartThin';
 import HelpTip from './HelpTip.vue';
 import BandCheckNotice from './BandCheckNotice.vue';
@@ -1895,6 +1907,9 @@ function currentSpec(): {
  */
 const autoSubmitArmed = ref(false);
 const autoSubmitted = ref(false);
+/** The result on screen went with its run (Find and submit, a sweep link, or a run that owed it): Share
+ *  this result gives way to one line. A send that failed keeps the box, so it can still be sent by hand. */
+const sentByRun = computed(() => autoSubmitted.value && submitOk.value && (submitting.value || store.alreadySubmitted));
 
 /** Set for the length of a Find and submit click (one run or a whole queue). */
 const findAndSubmit = ref(false);

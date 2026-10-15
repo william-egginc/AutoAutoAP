@@ -78,15 +78,20 @@
       <RunNoteBox v-if="note !== undefined" v-model="note" class="text-[11px] text-indigo-900" />
       <p v-if="compact && optIn" class="text-[10px] text-indigo-900/70" data-testid="share-fold">
         Remembered in this browser; untick the box to withdraw it.
-        <button
-          type="button"
-          class="underline decoration-dotted underline-offset-2 font-bold text-indigo-700 hover:text-indigo-900"
-          @click="expanded = false"
-        >
-          Fold this away
-        </button>
       </p>
       <slot name="opted" />
+      <!-- Opened (Change, or just ticked): Done folds it back to the one line (the user, 14 Oct: once
+           opened there was no clear way to close it). -->
+      <div v-if="compact && expanded">
+        <button
+          type="button"
+          class="px-4 py-1.5 rounded-lg border border-indigo-300 bg-white text-indigo-700 text-[10px] font-black uppercase tracking-widest hover:bg-indigo-50"
+          data-testid="share-done"
+          @click="expanded = false"
+        >
+          Done
+        </button>
+      </div>
     </div>
     </template>
     <slot />
