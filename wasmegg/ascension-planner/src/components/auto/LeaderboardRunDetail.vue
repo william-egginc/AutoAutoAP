@@ -204,20 +204,16 @@
       <div v-else-if="!row.legs?.length" class="text-slate-400">
         no per-ascension detail (resumed from a saved search)
       </div>
-      <!-- One line per leg, in columns, each value kept with its unit: run together as text, the
-           longest leg's "q/hr" wrapped onto a line of its own. -->
-      <table v-if="row.legs?.length" class="font-mono text-[10px] text-slate-600">
-        <tbody>
-          <tr v-for="(l, k) in row.legs" :key="k" class="whitespace-nowrap">
-            <td class="pr-1.5">A{{ k + 1 }} → {{ l.te }}</td>
-            <td class="pr-1.5">{{ l.strategy }}</td>
-            <td class="pr-1.5 text-right">{{ l.days?.toFixed(2) }} d</td>
-            <td class="text-right">
-              <template v-if="l.peakDeliveryQph != null">{{ l.peakDeliveryQph.toFixed(2) }} q/hr</template>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <!-- One line per leg, each value kept with its unit, the line wrapping between values when its column is
+           narrow (15 Oct: a nowrap table ran past the panel's edge: "25.24 d 2.65 q/hr" outside the grey box). -->
+      <div v-if="row.legs?.length" class="font-mono text-[10px] text-slate-600 space-y-0.5" data-testid="run-legs">
+        <div v-for="(l, k) in row.legs" :key="k" class="flex flex-wrap gap-x-2">
+          <span class="whitespace-nowrap">A{{ k + 1 }} → {{ l.te }}</span>
+          <span class="whitespace-nowrap">{{ l.strategy }}</span>
+          <span class="whitespace-nowrap">{{ l.days?.toFixed(2) }} d</span>
+          <span v-if="l.peakDeliveryQph != null" class="whitespace-nowrap">{{ l.peakDeliveryQph.toFixed(2) }} q/hr</span>
+        </div>
+      </div>
     </div>
     <!-- Shown in full rather than summarised: the value of an exhaustive row is that a reader can
          check the claim, and "fastest 2-ascension chain to 490 with a first target in {249, 299}"
