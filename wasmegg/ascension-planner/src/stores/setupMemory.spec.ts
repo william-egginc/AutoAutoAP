@@ -12,7 +12,7 @@ import { hashID } from '@/lib/storage/db';
 import { isDefaultSetup, mergeSetup, parseSetup, setupDefaults, setupKey } from '@/lib/setupMemory';
 
 const A = 'EI1234567890123456';
-const B = 'EI6543210987654321';
+const B = 'EI0000000000000000';
 let mem: Map<string, string>;
 
 beforeEach(() => {
