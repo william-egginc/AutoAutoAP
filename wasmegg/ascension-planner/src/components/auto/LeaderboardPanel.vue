@@ -89,6 +89,13 @@
       :egg-day-year="eggDayYear"
       @use="c => emit('use', c)"
     />
+    <MyRunsMissing
+      v-if="loadedOnce && (myKey || mineRows?.length)"
+      :rows="mergedRows"
+      :look-alike="lookAlike"
+      :save-key="myKey"
+      :has-code="hasCode"
+    />
     <!-- Who sees your runs (moved here from Compare's My plans, 15 Oct 2026): hide every run this
          browser sent for the account, or show them all again, and the hidden ones, listed apart and
          muted, each with "Show again". Only when /mine answered: without this browser's code nothing
@@ -983,7 +990,9 @@ import {
   type RaceEntry,
   type ViewerTag,
 } from '@/lib/leaderboardRank';
-import { isMyRun } from '@/lib/myRuns';
+import { isMyRun, myRunsCount, nameKeys } from '@/lib/myRuns';
+import { rememberKey, rememberedKeys } from '@/lib/myKeys';
+import { useAccountName, useSharedName } from '@/composables/useShareResult';
 import { virtueInventory } from '@/search/csv';
 import { bestPerFamily, keepVirtueArtifacts } from '@/search/submission';
 import { existingOwnerToken } from '@/search/owner';
@@ -1002,6 +1011,7 @@ import { eggDaySeconds, nextEggDayYear } from '@/lib/eggDay';
 import LeaderboardPlanList from './LeaderboardPlanList.vue';
 import LeaderboardRunDetail from './LeaderboardRunDetail.vue';
 import MyRunsList from './MyRunsList.vue';
+import MyRunsMissing from './MyRunsMissing.vue';
 
 /** Insights: the Explorer's charts and their chart library load only when that tab opens. */
 const ChainExplorer = safeAsyncComponent(() => import('@/explorer/ChainExplorer.vue'));
@@ -1162,6 +1172,50 @@ const myKey = computed(() => {
   return accountKeyOf({ timezone, artifacts: labels });
 });
 
+/** The loaded account's partition hash (lib/storage/db.ts `hashID`), '' with none: what lib/myKeys.ts keys by. */
+const partition = ref('');
+watch(
+  () => props.playerId?.trim() ?? '',
+  async id => {
+    const p = id ? await hashID(id).catch(() => '') : '';
+    if ((props.playerId?.trim() ?? '') === id) partition.value = p;
+  },
+  { immediate: true }
+);
+/**
+ * The account keys this browser remembered for the account (lib/myKeys.ts), the save's own added
+ * whenever one is loaded -- only a save of this very account, never the one left over from the last.
+ */
+const keptKeys = ref<string[]>([]);
+watch(
+  [partition, myKey],
+  ([p, key]) => {
+    const raw = initialState.rawBackup as { eiUserId?: string | null } | null;
+    const own = !!key && !!raw?.eiUserId && raw.eiUserId.toLowerCase() === (props.playerId ?? '').trim().toLowerCase();
+    keptKeys.value = !p ? [] : own ? rememberKey(p, key as string) : rememberedKeys(p);
+  },
+  { immediate: true }
+);
+/** Every key that is the viewer's (lib/myRuns.ts `isMyRun`): the save's, the remembered ones, /mine's rows'. */
+const myKeys = computed<ReadonlySet<string>>(() => {
+  const keys = new Set<string>(keptKeys.value);
+  if (myKey.value) keys.add(myKey.value);
+  for (const r of mineRows.value ?? []) keys.add(accountKeyOf(r));
+  return keys;
+});
+/** The names this account sends under: its own, the one it credits runs to here, and those on its /mine rows. */
+const accountName = useAccountName(() => props.playerId ?? '');
+const sharedName = useSharedName(() => props.playerId ?? '');
+const myNames = computed(() =>
+  nameKeys([accountName.value, sharedName.get(), ...(mineRows.value ?? []).map(r => r.nickname)])
+);
+/** What My runs' look-alike match and its "isn't here?" answer read; no look-alikes without a save. */
+const lookAlike = computed(() => ({
+  keys: myKey.value ? myKeys.value : new Set<string>(),
+  names: myNames.value,
+  viewerTE: myTE.value,
+}));
+
 /** The save's own TE, for "near me". */
 const myTE = computed(() => (initialState.rawBackup ? store.backupTE : 0));
 
@@ -1171,6 +1225,8 @@ const myTE = computed(() => (initialState.rawBackup ? store.backupTE : 0));
  * yet (nothing sent from this browser), or a collector from before /mine.
  */
 const mineRows = ref<Row[] | null>(null);
+/** This site in this browser holds a code for the loaded account (so /mine could be asked at all). */
+const hasCode = ref(false);
 const mineIds = computed(() => new Set((mineRows.value ?? []).map(r => r.id).filter((x): x is string => !!x)));
 const myAccts = computed(() => new Set((mineRows.value ?? []).map(r => r.acct).filter((x): x is string => !!x)));
 
@@ -1421,11 +1477,13 @@ const mine = computed(() =>
  */
 const myRunRows = computed<Row[]>(() => {
   if (!myKey.value && !mineRows.value?.length) return [];
-  return mergedRows.value.filter(r => isMyRun(r, myKey.value, myTE.value));
+  const l = lookAlike.value;
+  return mergedRows.value.filter(r => isMyRun(r, l.keys, l.viewerTE, l.names));
 });
-// How many, for My runs to fold its part when there are none; null until the first load is in.
+// How many, for My runs' header and to fold its part when there are none; null until the first load is
+// in. One per result, as the list counts them (`myRunsCount`): a result sent twice is one run.
 watch(
-  () => (myRunsMode.value && loadedOnce.value ? myRunRows.value.length : null),
+  () => (myRunsMode.value && loadedOnce.value ? myRunsCount(myRunRows.value) : null),
   n => emit('count', n),
   { immediate: true }
 );
@@ -1650,6 +1708,7 @@ const sortedLines = computed(() => sortRows(runLines.value, sortKey.value, sortA
 async function fetchMine(): Promise<Row[] | null> {
   try {
     const token = await ownerCode();
+    hasCode.value = !!token;
     if (!token) return null;
     const res = await fetch(`${root.value}/mine`, { headers: { 'x-owner-token': token } });
     if (!res.ok) return null;

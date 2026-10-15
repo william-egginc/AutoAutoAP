@@ -21,8 +21,10 @@ import {
   deadlineAscendMs,
   deadlineOrder,
   finishMs,
+  foldCopies,
   isDeadlineRow,
   madeDeadline,
+  nameKey,
   sentMs,
   type BoardRow,
 } from './leaderboardRank';
@@ -65,17 +67,156 @@ export const SORT_LABELS: Record<RunSort, string> = {
 };
 
 /**
- * Whether a board row is the viewer's: sent with this browser's code (`yours`, from GET /mine), or an
- * older run that looks like it, as My plans counted them (the save's timezone and artifacts), with the
- * race's own limits on a guess (lib/leaderboardRank.ts `viewerTag`): never a row that carries another
- * owner code, never one priced from a TE above the save's (a save was never at a higher TE earlier).
- * `viewerTE` 0: no save loaded, so no TE check.
+ * Whether a board row is the viewer's: sent with this browser's code (`yours`, from GET /mine), or a
+ * run that looks like it ("maybe you"), as My plans counted them, with the race's own limits on a
+ * guess (lib/leaderboardRank.ts `viewerTag`): never one priced from a TE above the save's (a save was
+ * never at a higher TE earlier). `viewerTE` 0: no save loaded, so no TE check.
+ *
+ * "Looks like it" is the account key (timezone + best artifact per family), and since 16 Oct 2026 (a
+ * tester's newest runs were missing) any of the viewer's keys, not only the loaded save's: `keys` holds
+ * the save's, the ones this browser remembered for the account (lib/myKeys.ts) and those of the runs
+ * /mine returned, so a run sent before the gear or the timezone changed still matches.
+ *
+ * A row with an owner code (`acct`) that /mine did not return was sent from another browser or site
+ * (codes are per browser and per site). It looks like the viewer's only when, besides the key, its name
+ * is one this account sends under (`names`, `nameKey`'d): the race joins one player's browsers the same
+ * way (`joinBrowsers`: same name, same key). Without a name to go on it stays out, as before.
  */
-export function isMyRun(row: BoardRow, accountKey: string | null, viewerTE: number): boolean {
+export function isMyRun(
+  row: BoardRow,
+  keys: string | null | ReadonlySet<string>,
+  viewerTE: number,
+  names: ReadonlySet<string> = NO_NAMES
+): boolean {
   if (row.yours) return true;
-  if (!accountKey || row.acct || accountKeyOf(row) !== accountKey) return false;
+  return missReasons(row, { keys: keySet(keys), names, viewerTE }).length === 0;
+}
+
+const NO_NAMES: ReadonlySet<string> = new Set();
+
+function keySet(keys: string | null | ReadonlySet<string>): ReadonlySet<string> {
+  if (keys == null) return new Set();
+  return typeof keys === 'string' ? new Set([keys]) : keys;
+}
+
+/** What the "maybe you" match reads (see `isMyRun`). */
+export interface LookAlike {
+  keys: ReadonlySet<string>;
+  names: ReadonlySet<string>;
+  viewerTE: number;
+}
+
+export type MissReason = 'other-code' | 'key' | 'te';
+
+/** Why a row (not from /mine) does not look like the viewer's; empty when it does. */
+export function missReasons(row: BoardRow, l: LookAlike): MissReason[] {
+  const out: MissReason[] = [];
+  if (row.acct && !l.names.has(nameKey(row.nickname))) out.push('other-code');
+  if (!l.keys.size || !l.keys.has(accountKeyOf(row))) out.push('key');
   const te = row.backupTE ?? row.currentTE;
-  return !(viewerTE > 0 && typeof te === 'number' && te > viewerTE);
+  if (l.viewerTE > 0 && typeof te === 'number' && te > l.viewerTE) out.push('te');
+  return out;
+}
+
+/** The names an account sends under, as `nameKey` reads them: its own, the one typed, the ones on its runs. */
+export function nameKeys(names: readonly (string | null | undefined)[]): Set<string> {
+  return new Set(names.map(n => nameKey(n ?? '')).filter(Boolean));
+}
+
+/** A key's two halves (`accountKeyOf`: "timezone::label|label"). */
+function splitKey(key: string): { zone: string; gear: string[] } {
+  const at = key.indexOf('::');
+  const zone = at < 0 ? key : key.slice(0, at);
+  const rest = at < 0 ? '' : key.slice(at + 2);
+  return { zone, gear: rest ? rest.split('|') : [] };
+}
+
+/** Up to `n` items, then "and k more". */
+function some(items: readonly string[], n = 4): string {
+  return items.length > n ? `${items.slice(0, n).join(', ')} and ${items.length - n} more` : items.join(', ');
+}
+
+/**
+ * My runs' "A run of yours isn't here?" (MyRunsMissing.vue): in plain words, why the run with this id
+ * is or isn't listed. `row` null: no public row has that id. `saveKey` is the loaded save's own key
+ * (null without a save), `hasCode` whether this site in this browser holds a code for the account.
+ */
+export function whyNotMine(
+  row: BoardRow | null,
+  l: LookAlike & { saveKey: string | null; hasCode: boolean }
+): string[] {
+  const noCode = l.hasCode
+    ? []
+    : [
+        'This site in this browser has never sent a run for this account, so it holds no code to prove a run is yours: every run listed here is a look-alike. Each browser, and each site (the planner and its beta), keeps its own code.',
+      ];
+  if (!row)
+    return [
+      'No run on the public board has that id. A run hidden from the public is listed only for the browser that sent it.',
+    ];
+  if (row.yours) return ['It is listed: this browser sent it with its code.'];
+  const reasons = missReasons(row, l);
+  if (!reasons.length) return ['It is listed, tagged “maybe you”: its timezone and gear match yours.', ...noCode];
+  const out: string[] = [];
+  if (reasons.includes('other-code'))
+    out.push(
+      `It was sent ${row.nickname?.trim() ? `as “${row.nickname.trim()}” ` : ''}from another browser or site, with that browser’s code, and that name isn’t one this account uses here. A named run from another browser counts only when its name is yours too (your account’s name, or the name you credit runs to).`
+    );
+  if (reasons.includes('key')) {
+    const theirs = splitKey(accountKeyOf(row));
+    if (!l.saveKey) out.push('Load your save to compare its timezone and gear with yours.');
+    else {
+      const mine = splitKey(l.saveKey);
+      if (theirs.zone !== mine.zone)
+        out.push(`It was sent with the timezone ${theirs.zone}; your planner is set to ${mine.zone}.`);
+      const extra = theirs.gear.filter(g => !mine.gear.includes(g));
+      const missing = mine.gear.filter(g => !theirs.gear.includes(g));
+      if (extra.length || missing.length)
+        out.push(
+          `Its gear differs from your save’s${extra.length ? `: it has ${some(extra)}` : ''}${
+            missing.length ? `${extra.length ? ';' : ':'} your save has ${some(missing)}` : ''
+          }.`
+        );
+      if (theirs.zone === mine.zone && !extra.length && !missing.length)
+        out.push('Its timezone and gear match your save’s, but not as this browser remembers them.');
+    }
+  }
+  if (reasons.includes('te'))
+    out.push(
+      `It starts from TE ${row.backupTE ?? row.currentTE}, above your save’s ${l.viewerTE}: a save is never at a higher TE earlier, so it can’t be yours.`
+    );
+  return [...out, ...noCode];
+}
+
+/** The rows whose id starts with what was typed (at least 6 characters, any case). */
+export function rowsById(rows: readonly BoardRow[], typed: string): BoardRow[] {
+  const q = typed.trim().toLowerCase();
+  if (q.length < 6) return [];
+  const seen = new Set<string>();
+  return rows.filter(r => {
+    const id = r.id?.toLowerCase();
+    if (!id || !id.startsWith(q) || seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
+}
+
+/**
+ * How many runs the viewer has on the board: one per result, a result sent more than once counted once
+ * (`foldCopies`, as the list shows them). My runs' header, its list and "Showing n of m" all count this.
+ */
+export function myRunsCount(rows: readonly BoardRow[]): number {
+  return foldCopies(rows).length;
+}
+
+/** When a result was last sent: the newest of its copies (a re-send is a run too). */
+export function lastSentMs(copies: readonly BoardRow[]): number | null {
+  let best: number | null = null;
+  for (const c of copies) {
+    const t = sentMs(c);
+    if (t != null && (best == null || t > best)) best = t;
+  }
+  return best;
 }
 
 /** Which board a row belongs on: Egg Day's (its deadline is Egg Day's moment), By a date's, or a race. */
@@ -104,6 +245,23 @@ export function inMyRunsFilters(row: BoardRow, f: MyRunsFilters, eggDayAt: numbe
   if (f.hours === 'any' && awake) return false;
   if (f.ascensions != null && row.chain.length !== f.ascensions) return false;
   return hasStops(row, parseStops(f.stops));
+}
+
+/**
+ * The filters that narrow the list, in words, for the empty list ("None of your runs are in these
+ * categories: Ascensions 5"), so a list narrowed to nothing says why.
+ */
+export function activeFilterWords(f: MyRunsFilters, eggDayYear: number): string[] {
+  const out: string[] = [];
+  if (f.kind === 'eggday') out.push(`Egg Day ${eggDayYear}`);
+  else if (f.kind === 'dates') out.push('By a date');
+  else if (f.kind === 'race') out.push(f.target != null ? `Race to ${f.target}` : 'Races');
+  if (f.hours === 'awake') out.push('my awake hours');
+  else if (f.hours === 'any') out.push('any time of day');
+  if (f.ascensions != null) out.push(`${f.ascensions} ${f.ascensions === 1 ? 'ascension' : 'ascensions'}`);
+  const stops = parseStops(f.stops);
+  if (stops.length) out.push(`stops ${stops.join(' ')}`);
+  return out;
 }
 
 /** How many filters narrow the list, for "Filters (2 active)". The kind and its target count once. */

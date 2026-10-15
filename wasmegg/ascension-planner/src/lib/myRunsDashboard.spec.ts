@@ -167,6 +167,15 @@ describe('the cards', () => {
     expect(cards[3].lines).toEqual(['1 result not sent']);
     expect(cards[4].lines).toEqual(['11:00 am', 'not sent yet']);
   });
+  it("Last run reads a result's newest copy, not the copy that stands for it (16 Oct: a re-send on Oct 15 read Oct 12)", () => {
+    // The same result sent twice: the older copy priced more routes, so it stands for the line.
+    const older = date(EGG, { id: 'old', chainsPriced: 900, receivedAt: new Date(NOW - 3 * DAY).toISOString() });
+    const newer = date(EGG, { id: 'new', chainsPriced: 10, receivedAt: new Date(NOW - 3600_000).toISOString() });
+    const lines = dashLines([older, newer]);
+    expect(lines).toHaveLength(1);
+    expect(lines[0].row.id).toBe('old');
+    expect(buildCards(input([older, newer]))[4].lines).toEqual(['11:00 am', 'sent']);
+  });
   it('hours: any hour, and time off in the setup words', () => {
     const c = buildCards(
       input([], {

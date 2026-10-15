@@ -466,7 +466,7 @@ export function displayName(raw: string | undefined, timezone: string | undefine
 const nameKeys = new Map<string, string>();
 
 /** The grouping key for one name: case-folded label, or the raw icon text for an icon name. */
-function nameKey(raw: string | undefined): string {
+export function nameKey(raw: string | undefined): string {
   if (!raw?.trim()) return '';
   const held = nameKeys.get(raw);
   if (held !== undefined) return held;

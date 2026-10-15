@@ -34,7 +34,7 @@ import {
   sentMs,
   type BoardRow,
 } from './leaderboardRank';
-import { compareBest, runKind, type RunKind } from './myRuns';
+import { compareBest, lastSentMs, runKind, type RunKind } from './myRuns';
 import { parseWindow } from './planFilters';
 import { hoursWords, timeOffWords } from './pricedWith';
 import { SIM_VERSION } from '@/search/simVersion';
@@ -405,8 +405,10 @@ export function buildCards(input: DashInput): DashCard[] {
 
   // The newest of sent, saved and kept.
   const events: { at: number; what: string; maybe?: boolean }[] = [
+    // The newest copy's send, not the line's: a result sent again (the same route from the same start) is
+    // a run too, and the line stands on its biggest search, which may be an older copy.
     ...lines.flatMap(l => {
-      const t = sentMs(l.row);
+      const t = lastSentMs(l.copies);
       return t != null ? [{ at: t, what: 'sent', maybe: l.maybe }] : [];
     }),
     ...answers.map(a => ({ at: a.savedAt, what: 'answer saved' })),
