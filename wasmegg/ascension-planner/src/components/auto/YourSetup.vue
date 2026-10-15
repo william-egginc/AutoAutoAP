@@ -345,7 +345,7 @@
           :class="screen === 'classic' ? 'opacity-60' : ''"
         >
           <div class="flex flex-wrap items-center justify-between gap-2">
-            <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">This computer</h3>
+            <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">{{ ThisDevice() }}</h3>
             <div class="flex flex-wrap gap-1">
               <button
                 v-for="p in PROFILES"
@@ -520,6 +520,7 @@
 </template>
 
 <script setup lang="ts">
+import { ThisDevice } from '@/search/device';
 import SaveFileBar from './SaveFileBar.vue';
 import { computed, onUnmounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';

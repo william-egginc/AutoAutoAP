@@ -49,8 +49,10 @@
       <p v-if="!legs.length && running" class="text-[10px] text-emerald-900/70" data-testid="by-date-card-no-legs">
         The time of each stop comes with the finished result.
       </p>
-      <!-- TE per egg when the route ends, and each egg's next TE at the final delivery rate
-           (search/endEggs.ts). Only when the last leg carries its end state: nothing rather than a guess. -->
+      <!-- TE per egg when the route ends, and when each egg's next TE would come at the final delivery rate
+           (search/endEggs.ts): a date and time, not the eggs still to lay (Jordan, 16 Oct 2026; the eggs and the
+           time it takes are in the cell's title). Only when the last leg carries its end state: nothing rather than
+           a guess, and a dash with its reason when the rate or the end time isn't known. -->
       <div v-if="eggs" class="space-y-1" data-testid="by-date-te-per-egg">
         <div class="overflow-x-auto">
           <table class="text-[11px] tabular-nums whitespace-nowrap">
@@ -58,8 +60,7 @@
               <tr class="text-left text-[9px] font-black uppercase tracking-widest text-emerald-700">
                 <th class="pr-4 py-1">TE per egg</th>
                 <th class="pr-4 py-1">TE</th>
-                <th class="pr-4 py-1">Next TE in</th>
-                <th v-if="eggs.rate" class="pr-4 py-1">At final rate</th>
+                <th class="pr-4 py-1" :title="NEXT_TE_TITLE">Next TE</th>
               </tr>
             </thead>
             <tbody>
@@ -75,8 +76,9 @@
                   >
                 </td>
                 <td class="pr-4 py-1 font-bold">{{ r.te }}</td>
-                <td class="pr-4 py-1">{{ r.need === null ? 'all 98' : `${formatNumber(r.need, 2)} eggs` }}</td>
-                <td v-if="eggs.rate" class="pr-4 py-1">{{ r.seconds === null ? '—' : spareLabel(r.seconds) }}</td>
+                <td class="pr-4 py-1" :title="nextTitle(r)" data-testid="by-date-next-te-at">
+                  {{ r.need === null ? 'all 98' : r.at === null ? '—' : when(r.at) }}
+                </td>
               </tr>
             </tbody>
           </table>
@@ -87,6 +89,8 @@
           }}, at the final rate of {{ formatNumber(eggs.rate! * 3600, 2) }} eggs an hour).
         </p>
       </div>
+      <!-- The hours and time off the run used, named (lib/pricedWith.ts, 16 Oct 2026). -->
+      <p v-if="pricedWith && !running" :class="CARD_NOTE" data-testid="priced-with">{{ pricedWith }}.</p>
       <p v-if="simulate && simulateNote" class="text-[10px] text-emerald-900/70" data-testid="by-date-simulate-note">
         {{ simulateNote }}
       </p>
@@ -98,7 +102,7 @@
           v-if="simulate"
           type="button"
           :class="PRIMARY_BUTTON"
-          :title="`Opens this route in ${NAMES.classic}, simulated step by step on your save`"
+          :title="SIMULATE_TITLE"
           data-testid="by-date-simulate"
           @click="emit('simulate')"
         >
@@ -124,7 +128,7 @@
           <span v-if="note" class="text-[11px] font-semibold text-emerald-800">{{ note }}</span>
         </template>
         <p v-if="simulate" class="w-full text-[10px] text-emerald-900/70" data-testid="simulate-plan-note">
-          Simulate this plan shows every shift and when each TE arrives in {{ NAMES.classic }}.
+          {{ simulateLine() }}
         </p>
       </template>
     </ResultCardFrame>
@@ -159,7 +163,7 @@
 </template>
 
 <script setup lang="ts">
-import { NAMES } from '@/lib/siteNav';
+import { SIMULATE_TITLE, simulateNote as simulateLine } from '@/lib/siteNav';
 import { scrollToShownId } from '@/lib/searchTab';
 import { computed } from 'vue';
 import ResultCardFrame from './ResultCardFrame.vue';
@@ -168,7 +172,7 @@ import { CARD_NOTE, LEG_HEAD, LEG_ROW, LEG_TABLE, PRIMARY_BUTTON, SECONDARY_BUTT
 import { showDateTime } from '@/lib/displayTime';
 import { spareLabel } from '@/search/deadlineSummary';
 import type { DeadlineRoute } from '@/search/deadline';
-import { endEggsOf } from '@/search/endEggs';
+import { endEggsOf, type EggAtEnd } from '@/search/endEggs';
 import { formatNumber } from '@/lib/format';
 import { VIRTUE_EGG_NAMES } from '@/types';
 
@@ -197,6 +201,8 @@ const props = defineProps<{
   lastRun?: string;
   /** The run's measured cost of one more TE above the last stop, seconds (`lastTECost`). */
   runCost?: number | null;
+  /** "Priced with your hours 9 am to 1 am, no time off": the run's own settings (lib/pricedWith.ts). */
+  pricedWith?: string;
 }>();
 const emit = defineEmits<{ simulate: []; csv: []; save: [] }>();
 
@@ -218,6 +224,18 @@ const lastStop = computed(() => props.route.chain[props.route.chain.length - 1])
 const legs = computed(() => (Array.isArray(props.route.legs) ? props.route.legs : []));
 /** TE per egg at the end and each egg's next TE (search/endEggs.ts); null when the legs don't say. */
 const eggs = computed(() => endEggsOf(props.route));
+
+/** The Next TE column: what its moment means. */
+const NEXT_TE_TITLE =
+  "When this egg's next TE would come if the farm laid only it from the end of the route, at the route's final delivery rate";
+/** A Next TE cell's title: the eggs still to lay and how long, or why there is no time. */
+function nextTitle(r: EggAtEnd): string {
+  if (r.need === null) return 'Every TE on this egg';
+  const eggsLeft = `${formatNumber(r.need, 2)} eggs to go`;
+  if (r.at !== null && r.seconds !== null) return `${eggsLeft}: about ${spareLabel(r.seconds)} at the final rate`;
+  if (r.seconds === null) return `${eggsLeft}. The route's final delivery rate isn't known, so there is no time for it.`;
+  return `${eggsLeft}, about ${spareLabel(r.seconds)} at the final rate. The route's end time isn't known, so there is no date for it.`;
+}
 
 const okNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 function when(unixSeconds: number): string {

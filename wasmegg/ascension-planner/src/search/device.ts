@@ -39,3 +39,33 @@ export function isPhone(
 
 /** The note itself. */
 export const PHONE_NOTE = 'Searches run much faster on a computer. This phone can still run short ones.';
+
+/**
+ * What to call the player's machine in a sentence (Jordan, 16 Oct 2026): "Saved on this phone" on a
+ * phone, "this computer" on a computer, rather than "this computer" or "this device" for everyone.
+ * A tablet (an iPad, which may say Macintosh but has a touch screen, or an Android without "Mobile")
+ * is "this tablet". `isPhone` decides the phone, so this and PHONE_NOTE never disagree. Read once per
+ * call: cheap, and nothing to keep in step when a window is resized.
+ */
+export type DeviceWord = 'phone' | 'tablet' | 'computer';
+
+export function deviceWord(
+  nav: Partial<Navigator> = globalThis.navigator ?? {},
+  win: { innerWidth?: number; matchMedia?: (q: string) => { matches: boolean } } = (globalThis as never) ?? {}
+): DeviceWord {
+  if (isPhone(nav, win)) return 'phone';
+  const ua = nav.userAgent ?? '';
+  if (/iPad|Tablet|Android/i.test(ua)) return 'tablet';
+  if (/Macintosh/.test(ua) && (nav.maxTouchPoints ?? 0) > 1) return 'tablet';
+  return 'computer';
+}
+
+/** "this phone" / "this tablet" / "this computer", for the middle of a sentence. */
+export function thisDevice(...args: Parameters<typeof deviceWord>): string {
+  return `this ${deviceWord(...args)}`;
+}
+
+/** "This phone" / "This tablet" / "This computer", to start one (or as a heading). */
+export function ThisDevice(...args: Parameters<typeof deviceWord>): string {
+  return `This ${deviceWord(...args)}`;
+}

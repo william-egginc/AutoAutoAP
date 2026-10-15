@@ -279,7 +279,7 @@ export function useByDateShare(
         : res.ok
         ? res.duplicate === 'exact'
           ? res.message
-          : `Thanks! ${sentence(res.message)} It's on ${NAMES.compare}'s ${shareTab.value} tab.`
+          : `Thanks! ${sentence(res.message)} It's on the ${NAMES.compare}'s ${shareTab.value} tab.`
         : `Not sent: ${res.message}`;
     } finally {
       sharing.value = false;

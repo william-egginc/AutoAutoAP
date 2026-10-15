@@ -77,24 +77,41 @@ describe('ByDateRouteCard: TE per egg and the next TE', () => {
     return { ...r, legs: [...r.legs.slice(0, 3), last] };
   };
 
-  it('lays out each egg at the end, its next TE, and when the soonest would come', async () => {
+  it('lays out each egg at the end, and WHEN its next TE would come (a date, not eggs; Jordan 16 Oct)', async () => {
     const html = await renderHtml(ByDateRouteCard, props({ route: withEnd() }));
     const t = textOf(html);
     expect(html).toContain('data-testid="by-date-te-per-egg"');
-    expect(t).toContain('TE per egg TE Next TE in At final rate');
-    expect(t).toMatch(/Curiosity 50 310\.00q eggs 3\.6 days/);
-    expect(t).toMatch(/Humility 49 130\.00q eggs 36\.1 h/);
+    expect(t).toContain('TE per egg TE Next TE Curiosity');
+    // The "At final rate" column and the eggs still to lay are gone from the table.
+    expect(t).not.toContain('At final rate');
+    expect(t).not.toContain('Next TE in');
+    expect(t).not.toMatch(/310\.00q eggs/);
+    // The last leg ends 27.3 h before the deadline; Curiosity needs 3.1e17 eggs at 1e12 a second (3.6 days),
+    // Humility 1.3e17 (36.1 h): each a date and time in the planner's zone, 12-hour.
+    const end = DEADLINE - 27.3 * 3600;
+    const at = (s: number) => new Intl.DateTimeFormat(undefined, { timeZone: 'UTC', year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(s * 1000));
+    expect(t).toContain(`Curiosity 50 ${at(end + 3.1e5)}`);
+    expect(t).toContain(`Humility 49 ${at(end + 1.3e5)}`);
     expect(t).toMatch(/Kindness · laying 49/);
+    // The eggs and how long are in the cell's title.
+    expect(html).toMatch(/title="310\.00q eggs to go: about 3\.6 days at the final rate"/);
     expect(t).toMatch(
       /your next TE would arrive about .*2027.* \(Humility, at the final rate of 3\.60q eggs an hour\)\./
     );
   });
 
-  it('without a rate: the TE and eggs needed, no times and no next TE', async () => {
-    const t = textOf(await renderHtml(ByDateRouteCard, props({ route: withEnd({ maxELR: 0 }) })));
-    expect(t).toContain('TE per egg TE Next TE in Curiosity 50 310.00q eggs');
-    expect(t).not.toContain('At final rate');
+  it('without a rate: the TE, and a dash for when, with its reason in the title', async () => {
+    const html = await renderHtml(ByDateRouteCard, props({ route: withEnd({ maxELR: 0 }) }));
+    const t = textOf(html);
+    expect(t).toContain('TE per egg TE Next TE Curiosity 50 —');
+    expect(html).toContain("final delivery rate isn&#39;t known, so there is no time for it.");
     expect(t).not.toContain('next TE would arrive');
+  });
+
+  it('without the end time: a dash, and the title says the date is what is missing', async () => {
+    const html = await renderHtml(ByDateRouteCard, props({ route: withEnd({ endTime: undefined }) }));
+    expect(textOf(html)).toContain('Curiosity 50 —');
+    expect(html).toContain("end time isn&#39;t known, so there is no date for it.");
   });
 
   it('shows nothing when the legs carry no end state, or it does not add up', async () => {
@@ -121,7 +138,7 @@ describe('ByDateRouteCard: the button row (as on Fastest\'s card)', () => {
   it('Simulate, Share, CSV, Save answer in that order, styled as Fastest\'s Build / Share / CSV / Save run', async () => {
     const html = await renderHtml(ByDateRouteCard, props({ simulate: true, canShare: true, canCsv: true, canSave: true }));
     expect(textOf(html)).toMatch(
-      /Simulate this plan Share CSV ↓ Save answer Simulate this plan shows every shift and when each TE arrives in Single run\. Leg/
+      /Simulate this plan Share CSV ↓ Save answer Simulate this plan opens this route in Single run \(Joo's original planner\) and simulates every shift: when each TE arrives, and each ascension's dates and purchases\. Leg/
     );
     const fast = await renderHtml(RouteResultCard, {
       chain: [212, 280, 490],
@@ -169,7 +186,7 @@ describe('RouteResultCard (Fastest): last run and the Build note', () => {
     );
     const live = textOf(await renderHtml(RouteResultCard, { ...base, running: false }));
     expect(live).toMatch(/^Fastest found/);
-    expect(live).toContain('Build this plan shows every shift and when each TE arrives in Single run.');
+    expect(live).toContain("Build this plan opens this route in Single run (Joo's original planner) and simulates every shift: when each TE arrives");
     // While running: still the best so far, never "Your last run".
     expect(textOf(await renderHtml(RouteResultCard, { ...base, running: true, lastRun: 'x' }))).toMatch(/^Best so far/);
   });

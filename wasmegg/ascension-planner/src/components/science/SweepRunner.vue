@@ -66,7 +66,7 @@
       >
         <p class="font-bold">Another search is running.</p>
         <p>
-          One search at a time: they share this computer's workers. Let it finish, or stop it from the bar at the top of
+          One search at a time: they share {{ thisDevice() }}'s workers. Let it finish, or stop it from the bar at the top of
           the page, then open this sweep again.
         </p>
       </div>
@@ -134,7 +134,7 @@
           </div>
         </div>
         <p class="text-[10px] text-slate-400 -mt-2">
-          The time is {{ measuredCost ? 'from this computer’s own measured speed' : speedSource }}, on the workers
+          The time is {{ measuredCost ? `from ${thisDevice()}’s own measured speed` : speedSource }}, on the workers
           below. Real runs often go faster: plans that share their first ascensions share the work.
         </p>
 
@@ -155,7 +155,7 @@
 
         <label class="block space-y-1">
           <span class="flex items-baseline justify-between text-[11px] font-bold text-slate-700">
-            <span>How much of this computer to use</span>
+            <span>How much of {{ thisDevice() }} to use</span>
             <span>{{ store.workerBudget }} of {{ store.machineThreads }} workers</span>
           </span>
           <input
@@ -346,6 +346,7 @@
 </template>
 
 <script setup lang="ts">
+import { thisDevice } from '@/search/device';
 import { plural } from '@/lib/format';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useShareIdentity } from '@/composables/useShareResult';

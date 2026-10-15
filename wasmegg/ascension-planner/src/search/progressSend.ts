@@ -10,6 +10,7 @@
  * the whole text at once, and the words for what went.
  */
 import { fetchFailureWhy } from './uploadWhy';
+import { thisDevice } from '@/search/device';
 
 /** The collector's cap on one upload of a gzipped CSV (collector/worker.js, MAX.CSV_BYTES). */
 export const CSV_PART_BYTES = 8 * 1024 * 1024;
@@ -181,7 +182,7 @@ export function progressDetail(done: number, unit: string, csv: ProgressCsv): st
 export function csvNote(csv: ProgressCsv): string {
   switch (csv.kind) {
     case 'too-big':
-      return ` The CSV so far is too big to send (over ${sizeLabel(PROGRESS_CSV_LIMIT_BYTES)} compressed), so only the best so far and diagnostics went; Download CSV keeps it on this computer.`;
+      return ` The CSV so far is too big to send (over ${sizeLabel(PROGRESS_CSV_LIMIT_BYTES)} compressed), so only the best so far and diagnostics went; Download CSV keeps it on ${thisDevice()}.`;
     case 'not-taken':
       return " The CSV so far wasn't sent: the board doesn't take one mid-run yet.";
     case 'failed':

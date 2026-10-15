@@ -86,7 +86,7 @@
 
         <label class="block space-y-1">
           <span class="flex items-baseline justify-between text-[11px] font-bold text-slate-700">
-            <span>How much of this computer to use</span>
+            <span>How much of {{ thisDevice() }} to use</span>
             <span>{{ store.workerBudget }} of {{ store.machineThreads }} workers</span>
           </span>
           <input
@@ -800,26 +800,17 @@
             </div>
           </template>
           <template #progress>
-            <RunProgress
+            <!-- The run's place on the page, for the run bar's Jump to it (lib/runAnchor.ts). Its progress is in
+                 that bar only (Jordan, 16 Oct 2026; the measured speed is under the bar's Details). -->
+            <div
               v-if="ownRun && store.stage && store.chainRunLive"
               data-run-progress="full"
-              :stage="store.stage"
-              :count="`${pricedSoFar.toLocaleString()} / ${plural(store.chainsEstimated, 'route')}`"
-              thin
-              :percent="livePercent"
+              class="scroll-mt-24"
             >
-              <div
-                v-if="store.secondsPerChain > 0 || store.runCost"
-                class="text-[10px] text-slate-400 font-bold tabular-nums"
-              >
-                <template v-if="store.secondsPerChain > 0"
-                  >{{ store.secondsPerChain.toFixed(2) }} s/route measured here</template
-                >
-                <template v-if="!store.isRunning && store.runCost">
-                  · took {{ describeCompute(store.runCost.minutes, store.runCost.workers) }}</template
-                >
-              </div>
-            </RunProgress>
+              <p v-if="!store.isRunning && store.runCost" class="text-[10px] text-slate-400 font-bold tabular-nums">
+                Took {{ describeCompute(store.runCost.minutes, store.runCost.workers) }}
+              </p>
+            </div>
 
             <!-- Which chain of a multi-chain click is running, and what the finished ones found. -->
             <div
@@ -887,6 +878,7 @@
 
             <!-- The answer: the same card as Smart search (RouteResultCard.vue). -->
             <RouteResultCard
+              :priced-with="pricedWith"
               v-if="ownRun && store.bestDays > 0"
               :chain="store.bestChain"
               :days="store.bestDays"
@@ -961,8 +953,9 @@
               </p>
             </RouteResultCard>
           </template>
-          <!-- When to start this route: Science › When should I start? (StartTimeCard.vue), opened on it. -->
-          <p v-if="ownRun && store.bestChain.length && store.bestDays > 0 && !store.isRunning" class="text-[11px]">
+          <!-- When to start this route: Science › When should I start? (StartTimeCard.vue), opened on it. Not for a
+             player already on virtue (lib/onVirtue.ts): their first ascension has started. -->
+          <p v-if="offerStart && ownRun && store.bestChain.length && store.bestDays > 0 && !store.isRunning" class="text-[11px]">
             <button
               type="button"
               class="font-bold text-indigo-700 underline decoration-dotted underline-offset-2 hover:text-indigo-900"
@@ -1115,6 +1108,10 @@ const kept = {
 </script>
 
 <script setup lang="ts">
+import { pricedWithLine } from '@/lib/pricedWith';
+import { offerStartTimes } from '@/lib/onVirtue';
+import { useInitialStateStore } from '@/stores/initialState';
+import { thisDevice } from '@/search/device';
 import { NAMES } from '@/lib/siteNav';
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
@@ -1169,7 +1166,6 @@ import CsvCard from './CsvCard.vue';
 import RunSendReport from './RunSendReport.vue';
 import RunResults from './RunResults.vue';
 import ShareNameChoice from './ShareNameChoice.vue';
-import RunProgress from './RunProgress.vue';
 import EdgeWarning from './EdgeWarning.vue';
 import RunErrorNotes from './RunErrorNotes.vue';
 import RunControls from './RunControls.vue';
@@ -1799,10 +1795,6 @@ const endDate = computed(() => {
     minute: '2-digit',
   }).format(new Date((store.planStart + store.bestDays * 86400) * 1000));
 });
-const livePercent = computed(() =>
-  store.chainsEstimated > 0 ? Math.min(100, (pricedSoFar.value / store.chainsEstimated) * 100) : 0
-);
-
 /**
  * The rate this machine is actually managing, once it has managed anything. The 15 s assumption is
  * a floor for a cold leg, and prefix sharing means most chains cost a fraction of that -- on these
@@ -2209,4 +2201,10 @@ const crashedQueueNote = computed(() => {
 
 /** Which run is mid-resume, for the button's own label. Empty when none is. */
 const resuming = ref('');
+
+/** "Check start times for this route" only before the player is on virtue (lib/onVirtue.ts). */
+const offerStart = computed(() => offerStartTimes(useInitialStateStore().rawBackup));
+/** The hours and time off this run was priced with (its own settings, not the live setup); '' when no run's
+ *  settings are known (lib/pricedWith.ts). */
+const pricedWith = computed(() => (store.runSettingsUsed ? pricedWithLine(store.runSettingsUsed) : ''));
 </script>

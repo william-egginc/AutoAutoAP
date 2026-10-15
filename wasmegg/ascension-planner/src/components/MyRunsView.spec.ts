@@ -127,4 +127,14 @@ describe('the My runs tab', () => {
     expect(tabs).toContain('grid grid-cols-6 w-full lg:flex');
     expect(tabs).toContain("i < 2 ? 'col-span-3' : 'col-span-2'");
   });
+
+  it("is also the Auto Planner's fourth sub-tab, opening the same page (#/myruns)", () => {
+    const nav = app.slice(app.indexOf('v-for="v in autoTabs"'), app.indexOf("v-else-if=\"plannerTab === 'science'\""));
+    expect(nav).toContain('data-testid="auto-tab-myruns"');
+    expect(nav).toContain("@click=\"selectSection('myruns')\"");
+    expect(nav).toContain('{{ NAMES.myRuns }}');
+    // Only with a collector, like the top tab; four tabs make two rows of two on a phone.
+    expect(nav).toMatch(/v-if="chainSearchStore\.submitUrl"[\s\S]{0,40}type="button"/);
+    expect(app).toContain(":class=\"chainSearchStore.submitUrl ? 'grid-cols-2' : 'grid-cols-3'\"");
+  });
 });

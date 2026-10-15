@@ -11,6 +11,7 @@
  */
 
 const NETWORK = /failed to fetch|networkerror|load failed|network ?request failed|the internet connection appears to be offline|err_internet_disconnected/i;
+import { thisDevice } from '@/search/device';
 const CODE_DOWNLOAD = /dynamically imported module|importing a module script failed|failed to load module script|importscripts|error loading dynamically/i;
 const MEMORY = /out of memory|allocation failed|array buffer allocation|invalid array length|maximum call stack/i;
 
@@ -36,7 +37,7 @@ function rawMessage(e: unknown): string {
 export function describeFetchError(e: unknown, what: string): string {
   switch (errorKind(e)) {
     case 'network':
-      return `Could not reach ${what}: this computer looks to be offline, or the address is wrong. Check the connection and try again.`;
+      return `Could not reach ${what}: ${thisDevice()} looks to be offline, or the address is wrong. Check the connection and try again.`;
     default:
       return rawMessage(e);
   }

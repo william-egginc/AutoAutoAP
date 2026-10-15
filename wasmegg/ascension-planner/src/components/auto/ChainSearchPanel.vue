@@ -7,7 +7,7 @@
            How it works (moved there 12 Oct 2026: too much for this page). -->
       <p class="text-[12px] text-slate-700 leading-relaxed" data-testid="nearby-in-brief">
         {{ NAMES.smart }} starts from the instant answer's route and moves its stops a few TE at a time, keeping any
-        change that finishes sooner, with the full simulator on your save. It runs on this computer's workers; you can
+        change that finishes sooner, with the full simulator on your save. It runs on {{ thisDevice() }}'s workers; you can
         stop it any time and keep the best so far.
         <a href="#/science/how" class="font-bold text-indigo-700 underline whitespace-nowrap">How it works ›</a>
       </p>
@@ -521,32 +521,11 @@
         <template #progress>
           <!-- Live progress -->
           <div v-if="ownRun && (store.isRunning || store.bestDays > 0)" class="space-y-4">
-            <RunProgress
-              v-if="store.chainRunLive"
-              data-run-progress="smart"
-              :stage="store.stage"
-              :count="
-                smartCountText({
-                  done: store.chainsDone,
-                  replayed: store.chainsReplayed,
-                  estimate: store.chainsEstimated,
-                  running: store.isRunning,
-                  level: EFFORT_NOTES[store.effort].label,
-                })
-              "
-              tone="smart"
-              :percent="store.progressFraction * 100"
-            >
-              <!-- Movement WITHIN the current batch. `chainsDone` only advances when a whole batch
-                 returns, and stage 6's widest sweep is one ~2200-chain request — so this line is the
-                 difference between "thinking" and "dead", which a run once got wrong for 8.5 hours. -->
-              <div
-                v-if="store.isRunning && store.batchTotal > 1"
-                class="flex flex-wrap items-center justify-between gap-x-3 text-[10px] text-slate-400 font-bold"
-              >
-                <span>this batch: {{ store.batchDone }} / {{ plural(store.batchTotal, 'route') }}</span>
-                <span class="text-slate-300">updates as each route finishes</span>
-              </div>
+            <!-- The run's place on the page, for the run bar's Jump to it (lib/runAnchor.ts). Its progress is in
+                 that bar only (Jordan, 16 Oct 2026): the stage, routes, time left and best so far there, and
+                 this block's detail and measured speed under its Details. What is left here is about the
+                 finished run. -->
+            <div v-if="store.chainRunLive" data-run-progress="smart" class="scroll-mt-24 space-y-1">
               <!-- The count stopping short of the estimate is normal and confusing, so say so. -->
               <p
                 v-if="store.finishedCleanly && store.chainsDone < store.chainsEstimated * 0.9"
@@ -555,23 +534,15 @@
                 Finished early. The estimate is an upper bound, and descent stops as soon as no stop moves, which is
                 what happens when you start from a route that is already good.
               </p>
-              <div class="flex flex-wrap items-center justify-between gap-x-3 text-[10px] text-slate-400 font-bold">
-                <span>{{ store.detail }}</span>
-                <span v-if="store.isRunning && store.secondsPerChain > 0"
-                  >~{{ formatDuration(store.secondsRemaining) }} left ({{ store.secondsPerChain.toFixed(1) }} s/chain
-                  here)</span
-                >
-                <span v-else-if="store.isRunning">timing the first batch...</span>
-                <!-- A finished run used to keep saying "timing the first batch..." here. -->
-                <span v-else-if="store.runCost"
-                  >took {{ describeCompute(store.runCost.minutes, store.runCost.workers) }}</span
-                >
-              </div>
-            </RunProgress>
+              <p v-if="!store.isRunning && store.runCost" class="text-[10px] text-slate-400 font-bold">
+                Took {{ describeCompute(store.runCost.minutes, store.runCost.workers) }}
+              </p>
+            </div>
 
             <!-- Best so far, and the answer once it stops: the same card as the Full sweep
                (RouteResultCard.vue). Always usable: the stages are nested, so stopping is safe. -->
             <RouteResultCard
+              :priced-with="pricedWith"
               :chain="store.bestChain"
               :days="store.bestDays"
               :final-t-e="store.finalTE"
@@ -821,8 +792,9 @@
       <!-- The results (RunResults.vue): the same order on every search screen. This screen's answer is
            in the run's progress above, where it doubles as the best so far. -->
       <RunResults>
-        <!-- When to start this route: Science › When should I start? (StartTimeCard.vue), opened on it. -->
-        <p v-if="ownRun && store.bestChain.length && store.bestDays > 0 && !store.isRunning" class="text-[11px]">
+        <!-- When to start this route: Science › When should I start? (StartTimeCard.vue), opened on it. Not for a
+             player already on virtue (lib/onVirtue.ts): their first ascension has started. -->
+        <p v-if="offerStart && ownRun && store.bestChain.length && store.bestDays > 0 && !store.isRunning" class="text-[11px]">
           <button
             type="button"
             class="font-bold text-indigo-700 underline decoration-dotted underline-offset-2 hover:text-indigo-900"
@@ -1049,6 +1021,10 @@
 </template>
 
 <script setup lang="ts">
+import { pricedWithLine } from '@/lib/pricedWith';
+import { offerStartTimes } from '@/lib/onVirtue';
+import { useInitialStateStore } from '@/stores/initialState';
+import { thisDevice } from '@/search/device';
 import { useIntegrityProbe } from '@/composables/useIntegrityProbe';
 import { NAMES } from '@/lib/siteNav';
 import { useUIStore } from '@/stores/ui';
@@ -1058,7 +1034,6 @@ import { showDateTime } from '@/lib/displayTime';
 import { useStartTimesStore } from '@/stores/startTimes';
 import { useInstantSummaryStore } from '@/stores/instantSummary';
 import { useStrongerStore } from '@/stores/stronger';
-import { smartCountText } from '@/search/smartCount';
 import { browserHelp, detectBrowser } from '@/lib/browserHelp';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { EFFORT, EFFORT_NOTES, EFFORT_ORDER, NEAR_OPTIMAL_SHARE } from '@/search/effort';
@@ -1088,7 +1063,6 @@ import CsvCard from './CsvCard.vue';
 import RunResults from './RunResults.vue';
 import RunErrorNotes from './RunErrorNotes.vue';
 import RunControls from './RunControls.vue';
-import RunProgress from './RunProgress.vue';
 
 const props = defineProps<{
   playerId: string;
@@ -1512,4 +1486,10 @@ watch(
     if (!store.busy) void store.checkResumable(props.playerId);
   }
 );
+
+/** "Check start times for this route" only before the player is on virtue (lib/onVirtue.ts). */
+const offerStart = computed(() => offerStartTimes(useInitialStateStore().rawBackup));
+/** The hours and time off this run was priced with (its own settings, not the live setup); '' when no run's
+ *  settings are known (lib/pricedWith.ts). */
+const pricedWith = computed(() => (store.runSettingsUsed ? pricedWithLine(store.runSettingsUsed) : ''));
 </script>

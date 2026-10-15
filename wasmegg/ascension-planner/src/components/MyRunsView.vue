@@ -14,7 +14,7 @@
     <div>
       <h2 class="text-2xl font-black text-slate-900">{{ NAMES.myRuns }}</h2>
       <p class="text-sm text-slate-600 leading-relaxed max-w-3xl">
-        Your runs on the board, the runs and answers saved on this computer, and results that weren't sent yet.
+        Your runs on the board, the runs and answers saved on {{ thisDevice() }}, and results that weren't sent yet.
       </p>
     </div>
 
@@ -44,7 +44,7 @@
       @toggle="sync('saved', $event)"
     >
       <summary :class="SUMMARY">
-        Saved on this computer<span :class="COUNT">{{ countText(savedCount) }}</span>
+        Saved on {{ thisDevice() }}<span :class="COUNT">{{ countText(savedCount) }}</span>
       </summary>
       <div class="mt-3 space-y-3">
         <p class="text-[11px] text-slate-500 leading-relaxed">
@@ -90,6 +90,7 @@
 </template>
 
 <script setup lang="ts">
+import { thisDevice } from '@/search/device';
 import { computed, reactive, ref, watch } from 'vue';
 import { NAMES, fastestName, type AutoView, type Depth } from '@/lib/siteNav';
 import { useChainSearchStore } from '@/stores/chainSearch';

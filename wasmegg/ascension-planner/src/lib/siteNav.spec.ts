@@ -84,6 +84,17 @@ describe('siteNav', () => {
     expect(NAMES.classicWas).toBe('Your plan');
   });
 
+  it('calls the board tab Leaderboard (was Compare, 16 Oct), keeps #/compare and takes #/leaderboard too', () => {
+    expect(NAMES.compare).toBe('Leaderboard');
+    expect(hashFor(R('compare'))).toBe('#/compare');
+    expect(routeFromLocation('', '#/leaderboard')).toEqual(R('compare'));
+    expect(routeFromLocation('', '#/leaderboard/race')).toEqual(R('compare', 'classic', 'smart', 'race'));
+    // The alias is read, never written: the address shown is #/compare.
+    expect(canonicalUrl('https://x.test/p/#/leaderboard/all', R('compare', 'classic', 'smart', 'all'))).toBe(
+      'https://x.test/p/#/compare/all'
+    );
+  });
+
   it('lets a new-style hash win over the old flags', () => {
     expect(routeFromLocation('?insane=1', '#/compare')).toEqual(R('compare'));
   });

@@ -6,7 +6,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { NAMES } from './siteNav';
+import { NAMES, simulateNote } from './siteNav';
 import { BUILDUP_NOTE } from '@/search/byDateSimulate';
 
 const SRC = path.resolve(__dirname, '..');
@@ -41,6 +41,56 @@ describe('the Single run name', () => {
       .filter(f => !f.includes(`${path.sep}components${path.sep}classic${path.sep}`))
       .flatMap(f => playerFacing(f).map(l => `${path.relative(SRC, f)}: ${l.trim()}`));
     expect(left).toEqual([]);
+  });
+
+  it('no other spelling of it either: "Your Plan", "YOUR PLAN", "in your plan", in code, the About page or the README', () => {
+    // Any capital in "your plan" names the screen; all lower case it is ordinary English ("set up your
+    // plan", "your plan's timezone") unless it says where something happens ("arrives in your plan").
+    const named = /\b(?!your plan\b)[Yy][Oo][Uu][Rr][\s-]+[Pp][Ll][Aa][Nn]\b(?! start)|\b(?:in|on|opens?(?: it)? in) your plan\b(?!'s| start)/;
+    const strip = (src: string) =>
+      src
+        .replace(/<!--[\s\S]*?-->/g, '')
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/^\s*\/\/.*$/gm, '');
+    const root = path.resolve(SRC, '..');
+    const others = [
+      ...fs
+        .readdirSync(path.join(root, 'public'))
+        .filter(f => f.endsWith('.html'))
+        .map(f => path.join(root, 'public', f)),
+      path.join(root, 'README.md'),
+    ];
+    const left = [
+      ...files(SRC).filter(f => !f.endsWith(path.join('lib', 'siteNav.ts'))),
+      ...others,
+    ]
+      .filter(f => !f.includes(`${path.sep}components${path.sep}classic${path.sep}`))
+      .flatMap(f =>
+        strip(fs.readFileSync(f, 'utf8'))
+          .split('\n')
+          // The README's one "(was Your plan)", as the screen's own intro says it.
+          .map(l => l.replace('(was Your plan)', ''))
+          .filter(l => named.test(l))
+          .map(l => `${path.relative(root, f)}: ${l.trim()}`)
+      );
+    expect(left).toEqual([]);
+    // The guard itself: each spelling it is for is caught.
+    for (const bad of ['Your Plan', 'YOUR PLAN', "when each TE arrives in your plan", 'opens in your plan', 'Your-plan'])
+      expect(named.test(bad), bad).toBe(true);
+    for (const fine of ['set up your plan', "your plan's timezone", 'Your plan start', 'your plans'])
+      expect(named.test(fine), fine).toBe(false);
+  });
+
+  it("Simulate this plan's line says what it does, in Single run (Joo's original planner)", () => {
+    expect(simulateNote()).toBe(
+      "Simulate this plan opens this route in Single run (Joo's original planner) and simulates every shift: when each TE arrives, and each ascension's dates and purchases."
+    );
+    expect(simulateNote('Build this plan')).toMatch(/^Build this plan opens this route in Single run/);
+    for (const f of ['ByDateRouteCard.vue', 'InstantRoute.vue', 'RouteResultCard.vue']) {
+      const src = fs.readFileSync(path.join(SRC, 'components', 'auto', f), 'utf8');
+      expect(src, f).toMatch(/\{\{ simulate(?:Note|Line)\((?:'Build this plan')?\) \}\}/);
+      expect(src, f).not.toContain('shows every shift and when each TE arrives');
+    }
   });
 
   it('"(was Your plan)" is said once, on the screen\'s own intro', () => {

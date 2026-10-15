@@ -140,12 +140,13 @@
       <p v-else-if="p.lastError" class="text-rose-700">Last try: {{ p.lastError }}</p>
     </div>
     <p class="text-[10px] text-amber-800/70">
-      Kept on this computer until it is sent or dismissed (the newest {{ MAX_PENDING_SENDS }} at most).
+      Kept on {{ thisDevice() }} until it is sent or dismissed (the newest {{ MAX_PENDING_SENDS }} at most).
     </p>
   </div>
 </template>
 
 <script setup lang="ts">
+import { thisDevice } from '@/search/device';
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { hashID } from '@/lib/storage/db';

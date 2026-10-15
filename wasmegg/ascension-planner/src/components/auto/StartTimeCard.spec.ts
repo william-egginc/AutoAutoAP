@@ -6,6 +6,9 @@ import { renderHtml, textOf } from '@/test/renderComponent';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useInstantSummaryStore } from '@/stores/instantSummary';
 import { useStartTimesStore } from '@/stores/startTimes';
+import { useInitialStateStore } from '@/stores/initialState';
+import fs from 'node:fs';
+import path from 'node:path';
 
 let pinia: Pinia;
 beforeEach(() => {
@@ -57,5 +60,39 @@ describe('StartTimeCard (Science)', () => {
   it('no save loaded: says so', async () => {
     const html = await renderHtml(StartTimeCard, {}, {}, [pinia]);
     expect(html).toContain('data-testid="start-times-no-save"');
+  });
+});
+
+describe('StartTimeCard: only before the player is on virtue (16 Oct 2026)', () => {
+  it('a save with a virtue farm going: a short note instead of the page (a link from before still lands)', async () => {
+    useInitialStateStore().rawBackup = { farms: [{ eggType: 51 }] } as never;
+    const html = await renderHtml(StartTimeCard, {}, {}, [pinia]);
+    expect(html).toContain('data-testid="start-times-on-virtue"');
+    expect(textOf(html)).toContain(
+      "You're already ascending: this is for coming back after a break, before your first ascension."
+    );
+    expect(html).not.toContain('start-times-no-save');
+    expect(html).not.toContain('start-times-route');
+  });
+
+  it('no save, or a save off virtue: the page as before', async () => {
+    expect(await renderHtml(StartTimeCard, {}, {}, [pinia])).not.toContain('start-times-on-virtue');
+    useInitialStateStore().rawBackup = { farms: [{ eggType: 1 }] } as never;
+    const html = await renderHtml(StartTimeCard, {}, {}, [pinia]);
+    expect(html).not.toContain('start-times-on-virtue');
+    expect(html).toContain('start-times-no-save');
+  });
+
+  it('the Science tab and both "Check start times" links follow offerStartTimes', () => {
+    const src = (f: string) => fs.readFileSync(path.resolve(__dirname, f), 'utf8');
+    expect(src('../../App.vue')).toContain(
+      "...(offerStartTimes(initialStateStore.rawBackup) ? [{ id: 'start' as const, label: NAMES.start }] : [])"
+    );
+    for (const f of ['ChainSearchPanel.vue', 'InsanePanel.vue']) {
+      const s = src(f);
+      const link = s.lastIndexOf('<p', s.indexOf('data-testid="check-start-times"'));
+      expect(s.slice(link, link + 40), f).toContain('<p v-if="offerStart && ');
+      expect(s, f).toContain('offerStartTimes(useInitialStateStore().rawBackup)');
+    }
   });
 });

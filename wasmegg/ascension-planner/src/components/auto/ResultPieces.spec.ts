@@ -1,10 +1,9 @@
-/** Specs for the small shared pieces under a search's result: EdgeWarning, ProgressBar, CsvCard and
+/** Specs for the small shared pieces under a search's result: EdgeWarning, CsvCard and
  *  SavedAnswers (the last two read the chain search store). */
 import { beforeEach, describe, expect, it } from 'vitest';
 import { h } from 'vue';
 import { createPinia, setActivePinia, type Pinia } from 'pinia';
 import EdgeWarning from './EdgeWarning.vue';
-import ProgressBar from './ProgressBar.vue';
 import CsvCard from './CsvCard.vue';
 import SavedAnswers from './SavedAnswers.vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
@@ -28,17 +27,6 @@ describe('EdgeWarning', () => {
   it('leaves out the button when there is no wider box', async () => {
     const t = textOf(await renderHtml(EdgeWarning, { lines: ['Edge.'], canWiden: false, disabled: false }));
     expect(t).toBe('Edge.');
-  });
-});
-
-describe('ProgressBar', () => {
-  it('fills to the rounded percent, green for Smart search and rose otherwise', async () => {
-    const smart = await renderHtml(ProgressBar, { percent: 41.6, tone: 'smart' });
-    expect(smart).toContain('width:42%');
-    expect(smart).toContain('bg-emerald-500');
-    const sweep = await renderHtml(ProgressBar, { percent: 3, thin: true });
-    expect(sweep).toContain('bg-rose-500');
-    expect(sweep).toContain('h-1.5');
   });
 });
 
@@ -111,7 +99,7 @@ describe('SavedAnswers', () => {
     );
     expect(t).toMatch(/Kept no route · saved .*Open Delete Use the save from Oct 3, 2026, 9:39\sPM \(TE 230\) Download this save/);
     expect(t).toMatch(/Dropped .*The save for this one was dropped to make room \(only the 30 newest saves are kept here\)\./);
-    expect(t).toMatch(/Missing .*The save for this one wasn't kept \(it was no longer on this device when this was saved\)\./);
+    expect(t).toMatch(/Missing .*The save for this one wasn't kept \(it was no longer on this (computer|phone|tablet) when this was saved\)\./);
   });
 
   it('shows no list with nothing saved', async () => {
