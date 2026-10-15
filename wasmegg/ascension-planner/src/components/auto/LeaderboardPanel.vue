@@ -196,7 +196,11 @@
                         </button>
                       </td>
                       <td class="py-2 pr-3 text-right font-black text-slate-500">{{ e.rank }}</td>
-                      <td class="py-2 pr-3 font-bold text-slate-700">
+                      <td
+                        class="py-2 pr-3 font-bold text-slate-700 cursor-pointer"
+                        data-testid="row-open-name"
+                        @click="onRowClick($event, () => (openPlayers[e.key] = !openPlayers[e.key]))"
+                      >
                         <span class="whitespace-nowrap"
                           >{{ e.label }}
                           <span
@@ -228,7 +232,11 @@
                           >
                         </div>
                       </td>
-                      <td v-if="!narrow" class="py-2 pr-3">
+                      <td
+                        v-if="!narrow"
+                        class="py-2 pr-3 cursor-pointer"
+                        @click="onRowClick($event, () => (openPlayers[e.key] = !openPlayers[e.key]))"
+                      >
                         <span class="font-mono font-bold text-slate-700 whitespace-nowrap">{{
                           e.best.row.chain.join(' ')
                         }}</span>
@@ -966,8 +974,10 @@
                            other column off screen. The whole name is in the tooltip. -->
                       <td
                         v-if="c.key === 'nickname'"
-                        class="py-2 pr-3 font-bold text-slate-700"
+                        class="py-2 pr-3 font-bold text-slate-700 cursor-pointer"
                         :title="line.nickname || undefined"
+                        data-testid="row-open-name"
+                        @click="onRowClick($event, () => (open = open === line.key ? '' : line.key))"
                       >
                         <span class="block max-w-[8rem] truncate whitespace-nowrap">{{
                           line.nickname || 'anonymous'
@@ -995,7 +1005,11 @@
                       <!-- A route of up to nine checkpoints stays on one line; a longer one (a
                            15-checkpoint sweep result) wraps rather than widening the table. The chips
                            after it wrap under it when the table would not fit otherwise. -->
-                      <td v-else-if="c.key === 'chain'" class="py-2 pr-3">
+                      <td
+                        v-else-if="c.key === 'chain'"
+                        class="py-2 pr-3 cursor-pointer"
+                        @click="onRowClick($event, () => (open = open === line.key ? '' : line.key))"
+                      >
                         <span
                           class="font-mono font-bold text-slate-700"
                           :class="
@@ -1113,6 +1127,7 @@
 
 <script setup lang="ts">
 import { plural } from '@/lib/format';
+import { onRowClick } from '@/lib/rowClick';
 import { COMPARE_VIEWS, NAMES, type CompareView } from '@/lib/siteNav';
 import { useUIStore } from '@/stores/ui';
 import { safeAsyncComponent } from '@/lib/import';

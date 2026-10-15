@@ -56,7 +56,12 @@
               </td>
               <!-- The chips wrap under the route when the table would not fit otherwise; on a phone the
                    route wraps too, so the finish beside it is on screen. -->
-              <td class="py-1.5 pr-3" :class="narrow ? 'max-w-[11rem] leading-snug' : ''">
+              <td
+                class="py-1.5 pr-3 cursor-pointer"
+                :class="narrow ? 'max-w-[11rem] leading-snug' : ''"
+                data-testid="row-open-name"
+                @click="onRowClick($event, () => (open[keyOf(p, i)] = !open[keyOf(p, i)]))"
+              >
                 <span class="font-mono font-bold text-slate-700" :class="narrow ? '' : 'whitespace-nowrap'">{{
                   p.row.chain.join(' ')
                 }}</span>
@@ -182,6 +187,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
+import { onRowClick } from '@/lib/rowClick';
 import LeaderboardRunDetail from './LeaderboardRunDetail.vue';
 import {
   browserTag,
