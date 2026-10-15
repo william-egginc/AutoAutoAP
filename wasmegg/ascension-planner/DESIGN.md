@@ -1,5 +1,19 @@
 # Ascension Planner - Component Architecture Design
 
+Last checked against the code on 14 Oct 2026.
+
+> Status (14 Oct 2026): this is the original design note for the manual planner, from upstream (it came
+> in with Joo's planner merge, PR #477). The principles below still guide the manual planner, but the
+> stores, composables and folders it sketches were a plan: `stores/player.ts`, `stores/plan.ts`,
+> `useStepMetrics`, `useTimeline` and the step container/presenter pair do not exist. The manual
+> planner is built on actions instead (`src/lib/actions/`: one executor per action type in `executors/`,
+> registered in `executor.ts`, with the composables' results captured after each action by
+> `snapshot.ts`), with one Pinia store per concern in `src/stores/` and
+> composables such as `useLayRate.ts` in `src/composables/`. The Auto Planner, the searches and the
+> instant answer are not covered here, and their components do hold logic of their own; see the wiki's
+> [Architecture](https://github.com/william-egginc/AutoAutoAP/wiki/Architecture) and
+> [Technical overview](https://github.com/william-egginc/AutoAutoAP/wiki/Technical-overview).
+
 ## Overview
 
 This application has many interdependent calculations where the output of one component becomes the input to another. This document describes the architecture for managing this reactive data flow.
@@ -109,6 +123,9 @@ const formattedValue = computed(() => formatMultiplier(calculateBonus(level.valu
 ---
 
 ## Store Definitions
+
+> Status (14 Oct 2026): a historical sketch. Neither store below exists; the real stores are in
+> `src/stores/` (for example `initialState.ts`, `actions.ts`, `virtue.ts`, `truthEggs.ts`).
 
 ### 1. Player Store (`stores/player.ts`)
 
@@ -538,6 +555,10 @@ Here's how data flows when a user buys a research item:
 ---
 
 ## File Organization
+
+> Status (14 Oct 2026): the planned layout, not the current one. Today `src/` also has `auto/`,
+> `engine/`, `search/`, `workers/`, `explorer/` and `watch/`; `components/containers/` and
+> `components/presenters/` hold one file each; there is no `types/player.ts` or `types/plan.ts`.
 
 ```
 src/
