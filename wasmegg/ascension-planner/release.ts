@@ -33,6 +33,7 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
+  { at: '2026-10-15T00:42:15Z', note: 'New: Hide from the public on your own runs; About and privacy page; Light prices the instant routes at once on your hours; your hours no longer make the instant answer worse; limits follow the answer', level: 'big' },
   { at: '2026-10-14T21:05:05Z', note: 'Light now says it is waiting for Check exactly, then pricing your routes, with a button to search with Fast; near-tie ascension counts are marked about the same' },
   { at: '2026-10-14T20:04:27Z', note: 'Instant answer on top with two tabs (Search nearby, Exhaustive); each level says what it is for; no more pointless 489 to 490 plans; tabs stay put; maybe you on the board', level: 'big' },
   { at: '2026-10-14T03:59:25Z', note: 'Low-TE accounts that used to stall now get Joo’s opening rounds; clearer run times and advice; old runs fold away; at most 12 workers by default', level: 'big' },
@@ -40,7 +41,6 @@ const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
   { at: '2026-10-12T20:16:33Z', note: 'New: Stronger check (Light/Fast/Exact/Very high) with Nearby routes; Exhaustive on the page, in boxes; When should I start?; egg-shift dates; By a date TE per egg; steadier long runs', level: 'big' },
   { at: '2026-10-11T19:26:57Z', note: 'New Science › How it works page; 12-hour times; tidier tabs on phones; a Full sweep queue survives a refresh; better time estimates; many small fixes', level: 'big' },
   { at: '2026-10-11T05:21:25Z', note: 'Watch from your phone: the finished page now shows the best route found, the route count and how long the run took' },
-  { at: '2026-10-10T23:17:00Z', note: 'New: Continue my build-up (first ascension keeps buying from your farm as it is now), watch a run from your phone with a private link, big CSVs upload in parts, own tables match again', level: 'big' },
 ];
 
 export default {
