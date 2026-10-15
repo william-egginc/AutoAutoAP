@@ -697,11 +697,7 @@
         The exact check on your account waits while a search is running.
       </p>
       <p v-if="result && exactStatus === 'done' && exactMs !== null" class="text-[10px] text-slate-400">
-        Checked on your account with the full simulator in {{ (exactMs / 1000).toFixed(0) }} s.<template
-          v-if="exactPricedWith"
-        >
-          {{ exactPricedWith }}.</template
-        >
+        Checked on your account with the full simulator in {{ (exactMs / 1000).toFixed(0) }} s.<template v-if="exactPricedWith">{{ ' ' }}{{ exactPricedWith }}.</template>
       </p>
       <!-- This account's Check exactly results on this computer (search/checkHistory.ts), shared or not. -->
       <details v-if="history.length" class="text-[11px] text-slate-600" data-testid="check-history">
