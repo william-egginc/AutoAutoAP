@@ -2629,7 +2629,13 @@ function quarantineReasons(body, record, now) {
       }
     }
     const days = legs.map(l => l.days);
-    if (days.some(d => Number.isFinite(d) && d <= 0)) add('leg-not-positive', 'a leg takes no time or less than none');
+    // A first leg that is a continue may take exactly 0 days: the run under way had already reached its
+    // first checkpoint when the plan starts (a save older than the plan start; 15 Oct 2026, 190 -> 191).
+    // A negative leg, or a zero one anywhere else, is still refused.
+    const zeroOk = i => i === 0 && legs[0].strategy === 'continue';
+    if (days.some((d, i) => Number.isFinite(d) && (d < 0 || (d === 0 && !zeroOk(i))))) {
+      add('leg-not-positive', 'a leg takes no time or less than none');
+    }
     if (days.every(Number.isFinite)) {
       const sum = days.reduce((a, b) => a + b, 0);
       const slack = Math.max(QUAR.LEGS_SUM_DAYS, QUAR.LEGS_SUM_FRACTION * record.durationDays);

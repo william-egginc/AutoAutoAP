@@ -354,6 +354,16 @@
                   </template>
                 </tbody>
               </table>
+              <MaxedWhatIf
+                v-if="whatIf"
+                v-bind="whatIf"
+                :table-url="TABLE_URL"
+                :zone="zone"
+                :final="target"
+                :max-ascensions="MAX_ASCENSIONS"
+                :at-most="filters.maxAscensions"
+                :deadline="deadline"
+              />
             </div>
             <p class="text-[11px] text-slate-600">
               Ascend at the times shown: each fresh ascension starts on the hour (inside the weekly research sale, at
@@ -573,6 +583,15 @@
               More ascensions don’t help past TE ~{{ USEFUL_STOP_NOTE }}: a build there already lays at its full rate, so an
               extra stop only adds a prestige.
             </p>
+            <MaxedWhatIf
+              v-if="whatIf"
+              v-bind="whatIf"
+              :table-url="TABLE_URL"
+              :zone="zone"
+              :final="target"
+              :max-ascensions="MAX_ASCENSIONS"
+              :at-most="filters.maxAscensions"
+            />
           </div>
           <p class="text-[11px] text-slate-600">
             Ascend at the times shown: each fresh ascension starts on the hour (inside the weekly research sale, at once
@@ -918,6 +937,8 @@ import { ownerToken } from '@/search/owner';
 import { appBuildId } from '@/search/submission';
 import { SIM_VERSION, tableSimMismatch } from '@/search/simVersion';
 import { countsShown } from '@/search/instantCounts';
+import { priceOnTable, type FirstLegsBase } from '@/search/priceOnTable';
+import MaxedWhatIf from './MaxedWhatIf.vue';
 import { describeAvailability } from '@/search/availabilitySchedule';
 import { CTE_CLEARS, INTEGRITY_BLOCK_SECONDS, INTEGRITY_WARN_SECONDS } from '@/search/rules';
 import {
@@ -1280,7 +1301,23 @@ let bracketPool: RoutePool | null = null;
 let bracketArgs: { legs: FirstLegsBase; hours: Availability | null } | null = null;
 /** The bracket, held back until the search running now ends. */
 let bracketLater: (() => void) | null = null;
-type FirstLegsBase = Omit<FirstLegsRequest, 'id' | 'kind' | 'url' | 'deliveryScale'>;
+
+/** "What if you had maxed gear?" (MaxedWhatIf.vue): the last answer's first-legs request and hours,
+ *  its own answer, and whether the player is on the maxed table at maxed gear already. */
+const whatIfInputs = shallowRef<{ legs: FirstLegsBase; hours: Availability | null } | null>(null);
+const whatIf = computed(() => {
+  const r = result.value;
+  const w = whatIfInputs.value;
+  if (!r || !w) return null;
+  const mine = props.deadline ? r.byDate : r.best;
+  return {
+    legs: w.legs,
+    hours: w.hours,
+    mine: { end: mine?.end ?? null, te: mine ? mine.legs[mine.legs.length - 1].endTE : 0 },
+    alreadyMaxed:
+      !own.value && !gearTable.value && deliveryScale.value !== null && isMaxed({ bonus: bonus.value, k: deliveryScale.value }),
+  };
+});
 async function runBracket(bid: number, legs: FirstLegsBase, hours: Availability | null): Promise<void> {
   if (bid !== bracketRuns || own.value || gearTable.value || deliveryScale.value === null) return;
   // Two more route workers, each loading a table: not while a search runs, unless the player chose.
@@ -1314,21 +1351,15 @@ async function runBracket(bid: number, legs: FirstLegsBase, hours: Availability 
       entry.file === 'table.bin'
         ? TABLE_URL
         : compositeUrl(`${import.meta.env.BASE_URL}precompute/${entry.file}`, TABLE_URL, GEAR_TABLE_TO, entry.k);
-    const firstLegs = await pool.firstLegs({ url, deliveryScale: 1, ...legs });
-    const found = await findRoutes({
-      table: () => null,
-      startTE: legs.startTE,
-      start: legs.start,
+    const r = await priceOnTable(pool, url, {
+      legs,
       final: target.value,
       maxAscensions: MAX_ASCENSIONS,
-      firstLegs,
+      atMost: filters.value.maxAscensions,
       ...(props.deadline ? { deadline: props.deadline } : {}),
-      ...(hours ? { hours } : {}),
-      expand: (items, settings) => pool.expand(url, items, settings),
+      hours,
     });
-    const f = atMostAscensions(found, filters.value.maxAscensions);
-    const r = props.deadline ? f.byDate : f.best;
-    return { entry, end: r?.end ?? null, te: r ? r.legs[r.legs.length - 1].endTE : 0 };
+    return { entry, end: r.end, te: r.te };
   };
   try {
     const a = await side(above);
@@ -1761,7 +1792,7 @@ async function run(force = false, goAhead = false): Promise<void> {
       startTE: te,
       final: target.value,
       // Above the table's top it has no row for the player: their one ascension to the target is
-      // simulated live instead (search/liveCell.ts), a fraction of a second.
+      // simulated live instead (search/liveCell.ts), a few seconds on a background worker.
       ...(te > h.to
         ? {
             liveFresh: (t: number, at: number) => {
@@ -1782,6 +1813,7 @@ async function run(force = false, goAhead = false): Promise<void> {
     // A plain copy: it goes to the workers.
     const hours =
       useHours.value && store.availability ? (JSON.parse(JSON.stringify(store.availability)) as Availability) : null;
+    whatIfInputs.value = { legs: legsRequest, hours };
     const found = await findRoutes({
       table: () => null,
       startTE: te,
