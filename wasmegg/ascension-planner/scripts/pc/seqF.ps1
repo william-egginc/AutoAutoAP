@@ -2,7 +2,7 @@
 # round, so runs can be added while it works: one line per run, "who|preset|bands|mingap". Runs each
 # line once, one at a time, on 16 workers, pinned to the fast cores; stops when nothing is left.
 (Get-Process -Id $PID).PriorityClass = 'BelowNormal'
-$priv = 'C:\Users\cha12\aaap-private'
+$priv = "$env:USERPROFILE\aaap-private"
 $dir = "$priv\fine0925"
 New-Item -ItemType Directory -Force $dir | Out-Null
 $log = "$dir\queue.log"

@@ -25,7 +25,7 @@ param(
 )
 $ErrorActionPreference = 'Continue'
 (Get-Process -Id $PID).PriorityClass = 'BelowNormal'
-$priv = 'C:\Users\cha12\aaap-private'
+$priv = "$env:USERPROFILE\aaap-private"
 $base = "$priv\refine0928"
 New-Item -ItemType Directory -Force $base | Out-Null
 $log = "$base\eggday.log"
