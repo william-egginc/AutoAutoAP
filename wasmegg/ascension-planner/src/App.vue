@@ -1073,6 +1073,10 @@ watch([compareView, scienceView], () => (pinnedRoute = null));
 watch(playerId, () => {
   if (chainSearchStore.sweepQueue.at >= 0) chainSearchStore.sweepQueue.cancelled = true;
 });
+// Your setup, remembered per account (lib/setupMemory.ts): this account's hours, hold shifts, time off and
+// first ascension, or the defaults. Until it is in, `setupLoaded` holds back the instant answer and its Check
+// exactly, so a reload doesn't start it on the defaults and restart it when the hours arrive.
+watch(playerId, id => void chainSearchStore.loadSetupFor(id), { immediate: true });
 // A copy with no collector has no Compare, My runs or Science tab: an address for one opens the Manual Planner.
 if (
   !chainSearchStore.submitUrl &&

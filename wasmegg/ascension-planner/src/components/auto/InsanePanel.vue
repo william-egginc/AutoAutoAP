@@ -966,14 +966,12 @@
             >
             <span class="text-slate-500"> (opens {{ NAMES.science }} › {{ NAMES.start }})</span>
           </p>
-          <!-- The run's charts are on Compare › Your latest run (LatestRunView.vue; moved off this screen,
-               15 Oct 2026). -->
-          <p v-if="ownRun && store.pricedCount" class="text-[11px] text-slate-600" data-testid="latest-run-link">
-            More views of this run (other options, charts) are on
-            <a href="#/compare/latest" class="font-bold text-indigo-700 underline hover:text-indigo-900"
-              >{{ NAMES.compare }} › {{ NAMES.latest }}</a
-            >
-          </p>
+          <!-- The run's charts are on Leaderboard › Your latest run (LatestRunView.vue; moved off this screen,
+               15 Oct 2026): "Dig deeper into your plan ›". -->
+          <DigDeeperLink
+            v-if="ownRun && store.pricedCount"
+            detail="other options, charts, and when each stop and egg happens"
+          />
           <template #keep>
             <!-- Saved runs: the same list on both depths (SavedRuns.vue); carrying a sweep on is this one's. -->
             <SavedRuns :player-id="playerId" can-resume />
@@ -1170,6 +1168,7 @@ import EdgeWarning from './EdgeWarning.vue';
 import RunErrorNotes from './RunErrorNotes.vue';
 import RunControls from './RunControls.vue';
 import ResultTable from './ResultTable.vue';
+import DigDeeperLink from './DigDeeperLink.vue';
 import LongerRouteHint from './LongerRouteHint.vue';
 
 const props = defineProps<{
@@ -1223,7 +1222,8 @@ if (sweepRequest) {
   bandsText.value = sweepRequest.bands;
   minGap.value = sweepRequest.minGap;
   store.sweepTag = { preset: sweepRequest.preset, bands: sweepRequest.bands, minGap: sweepRequest.minGap };
-  if (sweepRequest.firstAscension !== null) store.setFirstAscension(sweepRequest.firstAscension);
+  // The link's first ascension is the sweep's, not the player's: not remembered (lib/setupMemory.ts).
+  if (sweepRequest.firstAscension !== null) store.muteSetupMemory(() => store.setFirstAscension(sweepRequest.firstAscension!));
 }
 // A route handed over by the instant answer's "Check exactly" (InstantRoute.vue): its checkpoints as
 // single-value bands, so the sweep prices exactly that route. Taken once and cleared.

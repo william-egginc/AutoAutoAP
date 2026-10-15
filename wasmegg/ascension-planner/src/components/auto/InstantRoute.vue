@@ -271,13 +271,26 @@
                   </tr>
                 </thead>
                 <tbody>
+                  <template v-for="r in dateRows" :key="r.legs.length">
                   <tr
-                    v-for="r in dateRows"
-                    :key="r.legs.length"
                     class="border-t border-slate-100"
                     :class="dateExact && dateExactByK[r.legs.length]?.chain === dateExact.chain ? 'bg-emerald-50/60' : ''"
                   >
-                    <td class="py-1.5 pr-3 font-bold text-slate-800">{{ r.legs.length }}</td>
+                    <td class="py-1.5 pr-3 font-bold text-slate-800 whitespace-nowrap">
+                      <!-- The arrow: when each stop and egg happens, from Check exactly's legs (RouteTimeline.vue). -->
+                      <button
+                        v-if="rowLegs(dateRowChain(r))"
+                        type="button"
+                        class="mr-1 text-slate-400 hover:text-emerald-700"
+                        :aria-expanded="openRow === key(dateRowChain(r))"
+                        :aria-label="`Show when each stop of ${dateRowChain(r).join(' ')} happens`"
+                        data-testid="instant-row-expand"
+                        @click="toggleRow(dateRowChain(r))"
+                      >
+                        {{ openRow === key(dateRowChain(r)) ? '⌄' : '›' }}
+                      </button>
+                      {{ r.legs.length }}
+                    </td>
                     <td class="py-1.5 pr-3 text-slate-600 whitespace-nowrap">
                       {{ r.legs[r.legs.length - 1].endTE }} TE · {{ days(deadline - r.end) }}
                     </td>
@@ -324,6 +337,21 @@
                       </button>
                     </td>
                   </tr>
+                  <tr v-if="openRow === key(dateRowChain(r)) && rowLegs(dateRowChain(r))" class="bg-slate-50">
+                    <td colspan="6" class="px-2 py-2 whitespace-normal">
+                      <div class="space-y-1" data-testid="instant-row-timeline">
+                        <template v-if="exactLegsOf(dateRowChain(r))">
+                          <p class="text-[10px] font-black uppercase tracking-widest text-slate-400">Check exactly: each ascension on the hour</p>
+                          <RouteTimeline :chain="dateRowChain(r)" :legs="exactLegsOf(dateRowChain(r))" :zone="zone" />
+                        </template>
+                        <template v-if="atOnceLegsOf(dateRowChain(r))">
+                          <p class="mt-2 text-[10px] font-black uppercase tracking-widest text-indigo-500">Light: each ascension at once</p>
+                          <RouteTimeline :chain="dateRowChain(r)" :legs="atOnceLegsOf(dateRowChain(r))" :zone="zone" />
+                        </template>
+                      </div>
+                    </td>
+                  </tr>
+                  </template>
                 </tbody>
               </table>
             </div>
@@ -458,13 +486,23 @@
                 </tr>
               </thead>
               <tbody>
-                <tr
-                  v-for="r in shownRows"
-                  :key="r.legs.length"
-                  class="border-t border-slate-100"
-                  :class="r === lead ? 'bg-emerald-50/60' : ''"
-                >
-                  <td class="py-1.5 pr-3 font-bold text-slate-800">{{ r.legs.length }}</td>
+                <template v-for="r in shownRows" :key="r.legs.length">
+                <tr class="border-t border-slate-100" :class="r === lead ? 'bg-emerald-50/60' : ''">
+                  <td class="py-1.5 pr-3 font-bold text-slate-800 whitespace-nowrap">
+                    <!-- The arrow: when each stop and egg happens, from Check exactly's legs (RouteTimeline.vue). -->
+                    <button
+                      v-if="rowLegs(r.chain)"
+                      type="button"
+                      class="mr-1 text-slate-400 hover:text-emerald-700"
+                      :aria-expanded="openRow === key(r.chain)"
+                      :aria-label="`Show when each stop of ${r.chain.join(' ')} happens`"
+                      data-testid="instant-row-expand"
+                      @click="toggleRow(r.chain)"
+                    >
+                      {{ openRow === key(r.chain) ? '⌄' : '›' }}
+                    </button>
+                    {{ r.legs.length }}
+                  </td>
                   <td class="py-1.5 pr-3 text-slate-700 whitespace-nowrap">{{ show(r.end) }}</td>
                   <td class="py-1.5 pr-3 text-slate-500 whitespace-nowrap">
                     {{ behind(r) }}
@@ -504,6 +542,21 @@
                     </button>
                   </td>
                 </tr>
+                <tr v-if="openRow === key(r.chain) && rowLegs(r.chain)" class="bg-slate-50">
+                  <td colspan="6" class="px-2 py-2 whitespace-normal">
+                    <div class="space-y-1" data-testid="instant-row-timeline">
+                      <template v-if="exactLegsOf(r.chain)">
+                        <p class="text-[10px] font-black uppercase tracking-widest text-slate-400">Check exactly: each ascension on the hour</p>
+                        <RouteTimeline :chain="r.chain" :legs="exactLegsOf(r.chain)" :zone="zone" />
+                      </template>
+                      <template v-if="atOnceLegsOf(r.chain)">
+                        <p class="mt-2 text-[10px] font-black uppercase tracking-widest text-indigo-500">Light: each ascension at once</p>
+                        <RouteTimeline :chain="r.chain" :legs="atOnceLegsOf(r.chain)" :zone="zone" />
+                      </template>
+                    </div>
+                  </td>
+                </tr>
+                </template>
               </tbody>
             </table>
             <!-- Counts past the best + 1 add stops that no longer help (routeFinder.ts USEFUL_STOP_MAX). -->
@@ -825,6 +878,7 @@ import InstantRunWarning from './InstantRunWarning.vue';
 import InstantShareCheck from './InstantShareCheck.vue';
 import PrestigeByLine from './PrestigeByLine.vue';
 import RouteExtras from './RouteExtras.vue';
+import RouteTimeline from './RouteTimeline.vue';
 import { useStrongerStore } from '@/stores/stronger';
 import { usePrestigeBy, recordsPrestigeBy } from '@/composables/usePrestigeBy';
 import {
@@ -2291,6 +2345,26 @@ const lightRows = computed<AtOnceItem[]>(() =>
     : shownRows.value.map(r => ({ chain: [...r.chain], count: r.legs.length }))
 );
 /** "at once, on your hours: Feb 16, 9:40 PM (−0.40 days)" under a row, once Light has priced it. */
+/** The counts row whose arrow is open (its route's key); '' for none. */
+const openRow = ref('');
+function toggleRow(chain: number[]): void {
+  openRow.value = openRow.value === key(chain) ? '' : key(chain);
+}
+/** A counts row's legs to show under its arrow: Check exactly's (on the hour), or Light's at once when
+ *  only that priced it. Null when neither did. */
+function rowLegs(chain: number[]): ChainResult['legs'] | null {
+  return exactLegsOf(chain) ?? atOnceLegsOf(chain);
+}
+/** Check exactly's legs for a route (on the hour), and Light's at once; null when not priced that way. */
+function exactLegsOf(chain: number[]): ChainResult['legs'] | null {
+  const legs = exact.value[key(chain)]?.legs;
+  return legs?.length ? legs : null;
+}
+function atOnceLegsOf(chain: number[]): ChainResult['legs'] | null {
+  const legs = strongerStore.atOnce[props.deadline ? 'date' : 'fastest'][key(chain)]?.legs;
+  return legs?.length ? legs : null;
+}
+
 function atOnceText(chain: number[]): string {
   const have = strongerStore.atOnce[props.deadline ? 'date' : 'fastest'];
   const k = key(chain);
@@ -2565,9 +2639,13 @@ watch(
       bonus.value,
       useHours.value ? availabilityKey(store.availability) : '',
       filters.value.maxAscensions,
+      // Your setup, remembered per account, still loading (stores/chainSearch.ts `loadSetupFor`): wait for
+      // it, so a reload doesn't work the answer out and start Check exactly on the defaults first.
+      store.setupLoaded,
     ]),
   () => {
     if (timer) clearTimeout(timer);
+    if (!store.setupLoaded) return;
     timer = setTimeout(() => void run(), 300);
   },
   { immediate: true }

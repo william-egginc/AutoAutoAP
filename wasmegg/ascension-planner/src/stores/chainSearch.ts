@@ -20,6 +20,18 @@ import { CHART_AUTO_LIMIT, addToHeat, createHeat, heatSnapshot, type HeatSnapsho
 import { getSimulationContext, createBaseEngineState } from '@/engine/adapter';
 import { getLocalTimestampInTimezone } from '@/lib/events';
 import { hashID } from '@/lib/storage/db';
+import {
+  isDefaultSetup,
+  mergeSetup,
+  readSetup,
+  removeSetup,
+  setupDefaults,
+  setupKey,
+  writeSetup,
+  type RememberedSetup,
+  type SetupGroup,
+  type SetupValues,
+} from '@/lib/setupMemory';
 import { plannedCountChecks, runChainSearch, type CacheEntry } from '@/search/driver';
 import { findStartingChain, planCoarseGrid } from '@/search/coarse';
 import { teByEggFor } from '@/search/teByEgg';
@@ -491,6 +503,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * `forceContinue` (on by default) on 9 Oct 2026.
    */
   const firstAscensionChoice = ref<FirstAscension>(DEFAULT_FIRST_ASCENSION);
+  /** Above zero while code (not the player) sets Your setup: nothing set then is remembered
+   *  (`muteSetupMemory`, lib/setupMemory.ts). */
+  let setupMute = 0;
   /** Classic's A1 dropdown read as the setting ('continue', or any build for a fresh start), or null
    *  when nothing is picked there. */
   const firstAscensionFromClassic = computed(() => fromClassicOverride(useAutoPlannerStore().planVariantOverrides[0]));
@@ -564,7 +579,13 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     return { choice: firstAscensionChoice.value, pick: useAutoPlannerStore().planVariantOverrides[0] };
   }
   function restoreFirstAscension(s: { choice: FirstAscension; pick: VariantKey | undefined }): void {
-    firstAscensionChoice.value = s.choice;
+    // Putting back what a sweep borrowed: not an edit to remember.
+    setupMute++;
+    try {
+      firstAscensionChoice.value = s.choice;
+    } finally {
+      setupMute--;
+    }
     const planner = useAutoPlannerStore();
     if (planner.planVariantOverrides[0] === s.pick) return;
     const rest = { ...planner.planVariantOverrides };
@@ -664,6 +685,158 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   const deferShifts = ref(true);
 
   const availabilityLabel = computed(() => describeAvailability(availability.value));
+
+  // ------------------------------------------------------------------ YOUR SETUP, REMEMBERED PER ACCOUNT
+  //
+  // Batch 16, item 8 (lib/setupMemory.ts): hours, hold shifts, time off and first ascension, one blob per
+  // account under its hash. Read when the account loads (App's player ID watcher, `loadSetupFor`), and
+  // `setupLoaded` holds back anything that starts work from the setup (the instant answer and its Check
+  // exactly) until then, so a reload doesn't start a three-minute check on the defaults and restart it
+  // when the hours arrive. Written from the player's own edits only: every programmatic restore (a run's
+  // settings for a carry-on, a saved answer's, a sweep's first ascension, the read itself) runs muted.
+
+  /** False from an account's load starting until its remembered setup is in (true with no account). */
+  const setupLoaded = ref(true);
+  /** The blob on disk for this account (null: nothing remembered), for the "Remembered" line. */
+  const setupRemembered = ref<RememberedSetup | null>(null);
+  /** The key of the account loaded (`aap-setup:<hash>`); null before one loads. */
+  let setupKeyNow: string | null = null;
+  let setupLoadGen = 0;
+  /** Edits waiting for the debounced write, by group, with the key they belong to. */
+  let setupPending: { key: string; edits: Partial<SetupValues> } | null = null;
+  let setupTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /** Run `fn` without remembering what it sets: a run's or a saved answer's settings are not the player's.
+   *  Async functions are counted until they settle. */
+  function muteSetupMemory<T>(fn: () => T): T {
+    setupMute++;
+    let out: T;
+    try {
+      out = fn();
+    } catch (e) {
+      setupMute--;
+      throw e;
+    }
+    if (out instanceof Promise) {
+      return out.finally(() => setupMute--) as unknown as T;
+    }
+    setupMute--;
+    return out;
+  }
+
+  /** True while code, not the player, is setting Your setup. */
+  function setupMuted(): boolean {
+    return setupMute > 0;
+  }
+
+  /** The setup as it stands, as the blob holds it. */
+  function setupNow(): SetupValues {
+    return {
+      hours: {
+        on: scheduleEnabled.value,
+        from: availableFrom.value,
+        to: availableTo.value,
+        days: [...availableDays.value],
+      },
+      holdShifts: deferShifts.value,
+      timeOff: timeOff.value.map(w => ({ from: w.from, to: w.to })),
+      firstAscension: firstAscensionChoice.value,
+    };
+  }
+  /** Put a remembered (or default) setup in place, muted. First ascension straight into Your setup's own
+   *  choice, not through `setFirstAscension`, which writes Classic's A1 pick (Joo's). */
+  function applySetup(v: SetupValues): void {
+    muteSetupMemory(() => {
+      scheduleEnabled.value = v.hours.on;
+      availableFrom.value = v.hours.from;
+      availableTo.value = v.hours.to;
+      availableDays.value = [...v.hours.days];
+      deferShifts.value = v.holdShifts;
+      timeOff.value = v.timeOff.map(w => ({ ...w }));
+      firstAscensionChoice.value = v.firstAscension;
+    });
+  }
+  /** Today, `YYYY-MM-DD`, in the planner's zone: time off that ended before it is dropped on read. */
+  function setupToday(): string {
+    return formatInZone(Date.now() / 1000, planTimezone()).slice(0, 10);
+  }
+
+  /** Write what is waiting now (an account switch, a reset, or the debounce running out). */
+  function flushSetupWrite(): void {
+    if (setupTimer) clearTimeout(setupTimer);
+    setupTimer = null;
+    const p = setupPending;
+    setupPending = null;
+    if (!p) return;
+    const base = readSetup(p.key, setupToday()) ?? setupDefaults();
+    const merged = mergeSetup(base, p.edits, Date.now());
+    writeSetup(p.key, merged);
+    if (p.key === setupKeyNow) setupRemembered.value = merged;
+  }
+
+  /** A setting changed: remembered when the player changed it (not muted, an account loaded and read). */
+  function noteSetupEdit(group: SetupGroup): void {
+    if (setupMute > 0 || !setupKeyNow || !setupLoaded.value) return;
+    const now = setupNow();
+    if (setupPending && setupPending.key !== setupKeyNow) flushSetupWrite();
+    setupPending = { key: setupKeyNow, edits: { ...setupPending?.edits, [group]: now[group] } };
+    if (setupTimer) clearTimeout(setupTimer);
+    setupTimer = setTimeout(flushSetupWrite, 400);
+  }
+  // `sync`: the mute is read at the moment of the change, not after the restore that made it has ended.
+  watch([scheduleEnabled, availableFrom, availableTo, availableDays], () => noteSetupEdit('hours'), {
+    flush: 'sync',
+    deep: true,
+  });
+  watch(deferShifts, () => noteSetupEdit('holdShifts'), { flush: 'sync' });
+  watch(timeOff, () => noteSetupEdit('timeOff'), { flush: 'sync', deep: true });
+  watch(firstAscensionChoice, () => noteSetupEdit('firstAscension'), { flush: 'sync' });
+
+  /**
+   * An account loaded (App.vue's player ID watcher): its remembered setup, or the defaults, so nothing of
+   * the previous account's hours or time off carries over. Edits waiting for the last account are written
+   * to it first. `setupLoaded` is false until done; any failure still ends with it true.
+   */
+  async function loadSetupFor(playerId: string): Promise<void> {
+    const gen = ++setupLoadGen;
+    flushSetupWrite();
+    setupLoaded.value = false;
+    try {
+      if (!playerId) {
+        setupKeyNow = null;
+        setupRemembered.value = null;
+        return;
+      }
+      const key = setupKey(await hashID(playerId));
+      if (gen !== setupLoadGen) return;
+      const blob = readSetup(key, setupToday());
+      // A first load with nothing remembered keeps what is there (the defaults, or a run carried on
+      // before this finished); a switch from another account goes back to the defaults.
+      if (blob || setupKeyNow !== null) applySetup(blob ?? setupDefaults());
+      setupKeyNow = key;
+      setupRemembered.value = blob;
+    } catch {
+      // No hashing here (an old browser, a test): nothing remembered, nothing held back.
+    } finally {
+      if (gen === setupLoadGen) setupLoaded.value = true;
+    }
+  }
+
+  /** "Remembered for this account": a blob that isn't just the defaults. */
+  const setupIsRemembered = computed(() => !!setupRemembered.value && !isDefaultSetup(setupRemembered.value));
+
+  /** "Reset to defaults": the defaults back (first ascension through `setFirstAscension`, so Single run's
+   *  A1 pick follows, as Your setup's own control does) and the remembered setup removed. */
+  function resetSetupToDefaults(): void {
+    if (setupTimer) clearTimeout(setupTimer);
+    setupTimer = null;
+    setupPending = null;
+    const d = setupDefaults();
+    applySetup(d);
+    muteSetupMemory(() => setFirstAscension(d.firstAscension, { rebuildClassic: true }));
+    if (setupKeyNow) removeSetup(setupKeyNow);
+    setupRemembered.value = null;
+  }
 
   /** True when the boxes are ticked but describe no restriction at all — every day, all hours.
    *  The panel says so rather than letting the user think a constraint is in force. */
@@ -2242,6 +2415,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * not have to set everything up again from memory.
    */
   function applyRunSettings(fp: string): void {
+    // A run's settings, not the player's: never remembered (lib/setupMemory.ts).
+    muteSetupMemory(() => applyRunSettingsNow(fp));
+  }
+  function applyRunSettingsNow(fp: string): void {
     const set = fingerprintSettings(fp);
     if (!set) return;
     finalTE.value = set.final;
@@ -2293,6 +2470,13 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * never leaves the planner quietly sitting on an older save.
    */
   async function prepareToCarryOn(
+    playerId: string,
+    record: { fingerprint?: string; inputsKey?: string; runNote?: string; provisional?: unknown; watch?: unknown }
+  ): Promise<SearchInputs | 'current' | null> {
+    // Everything it puts back is the run's: never remembered as the player's setup (lib/setupMemory.ts).
+    return muteSetupMemory(() => prepareToCarryOnNow(playerId, record));
+  }
+  async function prepareToCarryOnNow(
     playerId: string,
     record: { fingerprint?: string; inputsKey?: string; runNote?: string; provisional?: unknown; watch?: unknown }
   ): Promise<SearchInputs | 'current' | null> {
@@ -6004,6 +6188,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
 
   /** Put stored settings (a saved answer's `settings`) back in Your setup: what it was priced under. */
   function applyStoredSettings(st: unknown): void {
+    // A saved answer's settings, not the player's: never remembered (lib/setupMemory.ts).
+    muteSetupMemory(() => applyStoredSettingsNow(st));
+  }
+  function applyStoredSettingsNow(st: unknown): void {
     const set = settingsOf(st);
     if (!set) return;
     setFirstAscension(set.firstAscension);
@@ -8458,6 +8646,13 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     planStartIsNow,
     planStartRestoreNote,
     settingsRestoreNote,
+    setupLoaded,
+    setupRemembered,
+    setupIsRemembered,
+    loadSetupFor,
+    resetSetupToDefaults,
+    muteSetupMemory,
+    setupMuted,
     pinPlanStart,
     resumeInputsKey,
     blockedCheckpoint,

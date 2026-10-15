@@ -244,6 +244,7 @@ function internLegs(legs: LegSummary[], intern: (s: string) => string): void {
       s.egg = intern(s.egg);
       if (s.fromEgg !== undefined) s.fromEgg = intern(s.fromEgg);
     }
+    if (leg.endEgg) leg.endEgg.egg = intern(leg.endEgg.egg);
   }
 }
 

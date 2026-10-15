@@ -521,7 +521,8 @@ async function start(): Promise<void> {
   const tagBefore = store.sweepTag;
   const firstBefore = store.firstAscensionState();
   store.sweepTag = { preset: request.preset, bands: bandsText.value, minGap: request.minGap };
-  if (request.firstAscension !== null) store.setFirstAscension(request.firstAscension);
+  // The sweep's own first ascension, for this run only: not remembered as the player's setup.
+  if (request.firstAscension !== null) store.muteSetupMemory(() => store.setFirstAscension(request.firstAscension!));
   store.submitsWhenDone = true;
 
   const startedAt = Date.now();

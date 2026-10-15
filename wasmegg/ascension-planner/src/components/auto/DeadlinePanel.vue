@@ -541,7 +541,11 @@
             :columns="ROUTE_COLUMNS"
             :rows="store.deadlineProgress.top.slice(0, 5)"
             :row-key="r => r.chain.join(',')"
+            :can-expand="hasLegs"
           >
+            <template #expand="{ row: r }">
+              <RouteTimeline :chain="r.chain" :legs="r.legs" :zone="plannerZone" />
+            </template>
             <template #default="{ row: r }">
               <td class="pr-4 py-1 font-bold">{{ r.chain.join(' ') }}</td>
               <td class="pr-4 py-1">{{ inPlannerZone(r.reachAt) }}</td>
@@ -643,6 +647,8 @@
         <p v-else class="text-[11px] font-semibold text-rose-700">
           No route tried reaches any stop by then. Try a later date, a lower last stop, or more stops.
         </p>
+        <!-- Its routes with when each stop and egg happens, on Leaderboard › Your latest run (LatestRunView.vue). -->
+        <DigDeeperLink v-if="best && !store.deadlineRunning" detail="its top 50 routes and when each stop and egg happens" />
       </template>
       <!-- Where Advanced's box already says this (above, with the chains) it is not repeated here. -->
       <p
@@ -696,7 +702,11 @@
         title="Best for each stop count"
         :rows="result.byStops"
         :row-key="r => r.chain.join(',')"
+        :can-expand="hasLegs"
       >
+        <template #expand="{ row: r }">
+          <RouteTimeline :chain="r.chain" :legs="r.legs" :zone="plannerZone" />
+        </template>
         <template #default="{ row: r }">
           <td class="pr-4 py-1 text-slate-500">{{ r.chain.length }} stop{{ r.chain.length === 1 ? '' : 's' }}</td>
           <td class="pr-4 py-1 font-bold">{{ r.chain.join(' ') }}</td>
@@ -704,7 +714,15 @@
         </template>
       </ResultTable>
 
-      <ResultTable :columns="ROUTE_COLUMNS" :rows="result.routes.slice(0, 15)" :row-key="r => r.chain.join(',')">
+      <ResultTable
+        :columns="ROUTE_COLUMNS"
+        :rows="result.routes.slice(0, 15)"
+        :row-key="r => r.chain.join(',')"
+        :can-expand="hasLegs"
+      >
+        <template #expand="{ row: r }">
+          <RouteTimeline :chain="r.chain" :legs="r.legs" :zone="plannerZone" />
+        </template>
         <template #title>
           <template v-if="!result.step && !result.stoppedEarly"
             >Every route in your space: {{ result.priced.toLocaleString() }} priced, run complete. Top routes</template
@@ -883,6 +901,8 @@ import EdgeWarning from './EdgeWarning.vue';
 import RunErrorNotes from './RunErrorNotes.vue';
 import RunControls from './RunControls.vue';
 import ResultTable from './ResultTable.vue';
+import RouteTimeline from './RouteTimeline.vue';
+import DigDeeperLink from './DigDeeperLink.vue';
 import RunResults from './RunResults.vue';
 import { durationLabel } from '@/composables/useRunClock';
 import { useRunDownloads } from '@/composables/useRunDownloads';
@@ -2149,6 +2169,8 @@ const { downloadByDateCsv, downloadError } = useRunDownloads(store);
 const result = computed(() => store.deadlineResult);
 /** The columns of every list of routes here (top routes so far, and the finished run's). */
 const ROUTE_COLUMNS = ['Route', 'Last stop reached', 'Spare'];
+/** A row's arrow (RouteTimeline.vue): only a route with its legs has stops to show. */
+const hasLegs = (r: { legs?: unknown }): boolean => Array.isArray(r.legs) && r.legs.length > 0;
 /** Share this result's "Note on this run": the result's own note, edited in place, so the send and
  *  its CSV carry what the box says. */
 const resultNote = computed({

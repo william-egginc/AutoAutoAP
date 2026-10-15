@@ -20,6 +20,7 @@
  */
 import { remainingChain, type BoardRow } from '@/lib/leaderboardRank';
 import type { CheckEntry } from './checkHistory';
+import type { LegSummary } from './types';
 import type { RunSummary } from './runLibrary';
 import type { SavedAnswer } from './deadlineStore';
 import { fallbackWorkerSeconds, sweepSeconds } from './speed';
@@ -64,6 +65,8 @@ export interface Priced {
   end: number;
   /** TE at the end (above the last stop when a sale wait overshoots). */
   endTE: number;
+  /** Its simulated legs, when kept (Light's at-once routes, for the row's arrow: RouteTimeline.vue). */
+  legs?: LegSummary[];
 }
 
 // ------------------------------------------------------------------------------- earlier routes

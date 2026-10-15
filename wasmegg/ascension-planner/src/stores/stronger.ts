@@ -11,6 +11,7 @@
  */
 import { defineStore } from 'pinia';
 import { ref, watch } from 'vue';
+import type { LegSummary } from '@/search/types';
 
 export type StrongerLevel = 'light' | 'quick' | 'normal' | 'thorough';
 const KEY = 'aap-stronger-level';
@@ -67,12 +68,14 @@ export function idleLight(): LightStatus {
   return { state: 'idle', priced: 0, total: 0, at: 0 };
 }
 
-/** A route priced at once (Light): when it ends and at what TE. */
+/** A route priced at once (Light): when it ends and at what TE, and its legs (since 15 Oct 2026, for the
+ *  instant answer's row arrows: a few kB for the eight or so routes Light prices). */
 export interface AtOncePriced {
   chain: number[];
   seconds: number;
   end: number;
   endTE: number;
+  legs?: LegSummary[];
 }
 
 export const useStrongerStore = defineStore('stronger', () => {

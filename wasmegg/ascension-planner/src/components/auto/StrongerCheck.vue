@@ -323,11 +323,13 @@ function clearAtOnce(): void {
 // A fresh screen: nothing priced at once yet for its answer.
 clearAtOnce();
 
+// The legs are kept (they were dropped before 15 Oct 2026): the instant answer's rows show them under their arrow.
 const toPriced = (r: ChainResult, planStart: number): Priced => ({
   chain: [...r.chain],
   seconds: r.seconds,
   end: planStart + r.seconds,
   endTE: r.legs[r.legs.length - 1]?.endTE ?? 0,
+  ...(r.legs.length ? { legs: r.legs } : {}),
 });
 
 /** The pool, made once per Light run and shared by the at-once routes and the earlier ones: the same

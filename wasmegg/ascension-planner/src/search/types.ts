@@ -99,8 +99,15 @@ export interface SearchInputs {
 export interface ShiftMoment {
   at: number;
   egg: string;
-  /** The egg being switched away from. Only the first entry's is ever read. */
+  /** The egg being switched away from. The first entry's names the egg the leg opens on; the rest are
+   *  read by search/routeTimeline.ts (which egg a shift's `te` belongs to). */
   fromEgg?: string;
+  /** The TE of the egg being LEFT (`fromEgg`) at this shift, lifetime as the game counts it: the
+   *  shift action's own end state, `max(teEarned, thresholds its eggs delivered passed)` as
+   *  search/endEggs.ts reads a route's end. Nothing is laid between that state and the switch, so it is
+   *  that egg's TE from here until the farm comes back to it (search/leg.shiftTE.spec.ts). Absent on
+   *  legs simulated before 15 Oct 2026 and on replayed legs. */
+  te?: number;
 }
 
 /** One leg's headline numbers, kept for the results table. Mirrors fastsearch's CSV `legs` row. */
@@ -177,6 +184,10 @@ export interface LegSummary {
    *  reads it for TE per egg and when the next TE would come (search/endEggs.ts). Absent on every
    *  other leg, on replayed legs and on runs from before 11 Oct 2026. */
   endEggs?: { delivered: number[]; te: number[]; egg: string };
+  /** The egg the farm is on when this leg ends and its TE then (the leg's own end state, search/leg.ts
+   *  `LegResult.endEgg`): the one egg of a leg no shift moves off, for "Integrity reaches 45 TE on ..."
+   *  (search/routeTimeline.ts). Every leg; absent on replayed legs and on runs from before 15 Oct 2026. */
+  endEgg?: { egg: string; te: number };
   /** Read back from a By a date checkpoint (search/deadlineStore.ts `replayingEvaluator`), which keeps
    *  only each leg's end TE, end time, duration and strategy: peak delivery, start, shifts and leg 1's
    *  rival are UNKNOWN here, not zero. Absent on a leg simulated in this session. */

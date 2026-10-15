@@ -145,8 +145,23 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(leg, i) in legs" :key="i" :class="LEG_ROW">
-            <td class="py-1.5 pr-3 font-black text-slate-700 whitespace-nowrap">A{{ i + 1 }}</td>
+          <template v-for="(leg, i) in legs" :key="i">
+          <tr :class="LEG_ROW">
+            <td class="py-1.5 pr-3 font-black text-slate-700 whitespace-nowrap">
+              <!-- The sub-arrow: this ascension's eggs, first and last shift and TE (RouteTimeline.vue). -->
+              <button
+                v-if="leg.shifts?.length"
+                type="button"
+                class="mr-1 text-slate-400 hover:text-emerald-700"
+                :aria-expanded="openLeg === i"
+                :aria-label="`Show when each egg of ascension ${i + 1} happens`"
+                data-testid="by-date-leg-expand"
+                @click="openLeg = openLeg === i ? -1 : i"
+              >
+                {{ openLeg === i ? '⌄' : '›' }}
+              </button>
+              A{{ i + 1 }}
+            </td>
             <td class="py-1.5 pr-3 font-bold text-slate-600">{{ leg.endTE ?? '—' }}</td>
             <td class="py-1.5 pr-3 text-slate-500 whitespace-nowrap">{{ startOf(i) }}</td>
             <td class="py-1.5 pr-3 text-slate-500 whitespace-nowrap">
@@ -156,6 +171,12 @@
               {{ okNumber(leg.durationSeconds) ? (leg.durationSeconds / 86400).toFixed(2) : '—' }}
             </td>
           </tr>
+          <tr v-if="openLeg === i && leg.shifts?.length" class="bg-slate-50">
+            <td colspan="5" class="px-2 py-2 whitespace-normal">
+              <RouteTimeline :chain="route.chain" :legs="legs" :zone="zone" :only="i" open />
+            </td>
+          </tr>
+          </template>
         </tbody>
       </table>
     </div>
@@ -165,9 +186,10 @@
 <script setup lang="ts">
 import { SIMULATE_TITLE, simulateNote as simulateLine } from '@/lib/siteNav';
 import { scrollToShownId } from '@/lib/searchTab';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import ResultCardFrame from './ResultCardFrame.vue';
 import RouteExtras from './RouteExtras.vue';
+import RouteTimeline from './RouteTimeline.vue';
 import { CARD_NOTE, LEG_HEAD, LEG_ROW, LEG_TABLE, PRIMARY_BUTTON, SECONDARY_BUTTON } from './resultCardStyle';
 import { showDateTime } from '@/lib/displayTime';
 import { spareLabel } from '@/search/deadlineSummary';
@@ -236,6 +258,9 @@ function nextTitle(r: EggAtEnd): string {
   if (r.seconds === null) return `${eggsLeft}. The route's final delivery rate isn't known, so there is no time for it.`;
   return `${eggsLeft}, about ${spareLabel(r.seconds)} at the final rate. The route's end time isn't known, so there is no date for it.`;
 }
+
+/** Which ascension's eggs are open under the legs table; -1 for none. */
+const openLeg = ref(-1);
 
 const okNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 function when(unixSeconds: number): string {

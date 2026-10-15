@@ -755,6 +755,15 @@
                           no action needed, you are already on it. Every row after it is one manual switch, which is why
                           twelve eggs means eleven switches. This matches the Auto Planner's own C1 / I1 / K1 list.
                         </p>
+                        <!-- Each egg's first and last shift and the TE it reaches (search/routeTimeline.ts). -->
+                        <RouteTimeline
+                          class="mt-2"
+                          :chain="store.bestChain"
+                          :legs="store.bestLegs"
+                          :only="i"
+                          open
+                          :zone="autoPlannerStore.timezone || plannerTzFallback"
+                        />
                       </td>
                     </tr>
                   </template>
@@ -824,14 +833,12 @@
           </p>
         </div>
 
-        <!-- The run's other options and its charts are on Compare › Your latest run (LatestRunView.vue;
-             moved off this screen, 15 Oct 2026). -->
-        <p v-if="ownRun && store.pricedCount" class="text-[11px] text-slate-600" data-testid="latest-run-link">
-          More views of this run (other options, charts) are on
-          <a href="#/compare/latest" class="font-bold text-indigo-700 underline hover:text-indigo-900"
-            >{{ NAMES.compare }} › {{ NAMES.latest }}</a
-          >
-        </p>
+        <!-- The run's other options and its charts are on Leaderboard › Your latest run (LatestRunView.vue;
+             moved off this screen, 15 Oct 2026): "Dig deeper into your plan ›". -->
+        <DigDeeperLink
+          v-if="ownRun && store.pricedCount"
+          detail="other options, charts, and when each stop and egg happens"
+        />
 
         <!-- A plan start that slides is the quietest way to lose a checkpoint, and it cost a real
              user a 778-chain run: after a rebuild the start moved 10:39 -> 17:44, the fingerprint
@@ -1057,7 +1064,10 @@ import { checkpointLimits } from '@/search/persistence';
 import { describeCompute } from '@/utils/computeTime';
 import UnfinishedRuns from './UnfinishedRuns.vue';
 import { chainCount } from '@/lib/chartThin';
-import type { EffortTier, LegSummary } from '@/search/types';
+import type { EffortTier } from '@/search/types';
+import { eggBlocks } from '@/search/routeTimeline';
+import RouteTimeline from './RouteTimeline.vue';
+import DigDeeperLink from './DigDeeperLink.vue';
 import { useRunDownloads } from '@/composables/useRunDownloads';
 import CsvCard from './CsvCard.vue';
 import RunResults from './RunResults.vue';
@@ -1306,51 +1316,7 @@ const host = typeof window !== 'undefined' ? window.location.host : 'this site';
 /** How to keep a background tab awake in this browser (lib/browserHelp.ts). */
 const tabHelp = browserHelp(detectBrowser().browser, typeof window !== 'undefined' ? window.location.host : '');
 
-interface EggBlock {
-  egg: string;
-  at: number;
-  length: string;
-  /** False for the block the leg opens on -- there is nothing to do, you are already there. */
-  isSwitch: boolean;
-}
-
-/**
- * The eggs a leg lays, in order, INCLUDING the one it opens on.
- *
- * `leg.shifts` holds switches, not blocks, and a leg that switches eleven times lays twelve eggs.
- * Listing only the switches made the panel appear to start each ascension on Integrity when every
- * ascension in fact starts on Curiosity -- the opening stretch on Curiosity, 27 minutes of it in
- * the run that surfaced this, was simply missing. The Auto Planner's roadmap lists blocks (C1, I1,
- * K1 ...), so this now lines up with it one row per row, which is what makes the two cross-checkable.
- *
- * Each block runs until the next switch, or until the leg ends for the last one; the switch action
- * itself takes no time, so what a player experiences is the farming stretch between switches.
- */
-function eggBlocks(leg: LegSummary): EggBlock[] {
-  const shifts = leg.shifts ?? [];
-  if (!shifts.length) return [];
-
-  const span = (from: number, to: number | undefined) =>
-    to !== undefined && to > from ? formatDuration(to - from) : '—';
-
-  const blocks: EggBlock[] = [];
-  // The opening block. Needs both a name and a start: `fromEgg` is only recorded from the build
-  // that added it, and `startTime` is optional on LegSummary, so a checkpoint written by older
-  // code simply does not get this row rather than getting a wrong one.
-  const opener = shifts[0].fromEgg;
-  if (opener && leg.startTime) {
-    blocks.push({ egg: opener, at: leg.startTime, length: span(leg.startTime, shifts[0].at), isSwitch: false });
-  }
-  shifts.forEach((sh, k) => {
-    blocks.push({
-      egg: sh.egg,
-      at: sh.at,
-      length: span(sh.at, k + 1 < shifts.length ? shifts[k + 1].at : leg.endTime),
-      isSwitch: true,
-    });
-  });
-  return blocks;
-}
+// The eggs a leg lays, in order, INCLUDING the one it opens on: search/routeTimeline.ts `eggBlocks`.
 
 /** The card's "Your last run · ..." when its result isn't from a run in this visit on these settings
  *  (store `chainRunLive`); '' for a live one. */
