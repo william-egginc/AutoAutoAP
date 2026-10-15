@@ -7,9 +7,9 @@
  *  - `createShareIdentity` / `useShareIdentity`: the consent tick, anonymous-or-named, and the name
  *    box that follows the account's own name until the player types in it. The name and the
  *    anonymous-or-named choice are one per account across the site (stores/shareName.ts): picked in
- *    one screen, they are in the others, and remembered in this browser. The consent is the one
- *    remembered in this browser (useShareConsent.ts: ticked once, shown folded by FindBar.vue,
- *    unticking withdraws it).
+ *    one screen, they are in the others, and remembered in this browser. The consent is the
+ *    account's (useShareConsent.ts over composables/useConsent.ts: remembered per account with "Remember
+ *    my choice", shown folded by ConsentBox.vue, Withdraw or unticking takes it back).
  *  - `useBoardSubmit`: the race-to-the-target send (Smart search and the Full sweep): the status
  *    message, Put my name on it, Retry the table, the rechecks worked out once consent is given,
  *    and the guard against sending a result twice. Each screen still says HOW it sends (`send`).
@@ -61,7 +61,7 @@ export interface SharedName {
 export function createShareIdentity(
   accountName: Ref<string>,
   shared?: SharedName,
-  /** The acknowledgement; the real screens pass the one remembered in this browser (useShareConsent). */
+  /** The acknowledgement; the real screens pass the account's (useShareConsent). */
   optIn: Ref<boolean> = ref(false)
 ): ShareIdentity {
   const ownAnonymous = ref<boolean | undefined>(undefined);
@@ -138,7 +138,15 @@ export type BoardStore = Pick<
   | 'isRunning'
 >;
 
-export function useBoardSubmit(store: BoardStore, effectiveNickname: Ref<string>, optIn: Ref<boolean>) {
+export function useBoardSubmit(
+  store: BoardStore,
+  effectiveNickname: Ref<string>,
+  optIn: Ref<boolean>,
+  /** The yes now is a tick given this visit (composables/useConsent.ts `consentGivenThisVisit`): with the
+   *  consent per account, a remembered yes arrives a moment after load, or with an account switch, and must
+   *  not count as a tick. Left out: every change to true counts. */
+  tickedNow: () => boolean = () => true
+) {
   const submitMessage = ref('');
   const submitOk = ref(false);
   /** "Sent, but ..." -- the summary is in and something about the table is not. Amber, not green. */
@@ -195,12 +203,12 @@ export function useBoardSubmit(store: BoardStore, effectiveNickname: Ref<string>
   watch(
     optIn,
     v => {
-      if (v) tickedThisVisit.value = true;
+      if (v && tickedNow()) tickedThisVisit.value = true;
     },
     { flush: 'sync' }
   );
   watch(
-    () => optIn.value && tickedThisVisit.value && store.bestDays > 0 && !store.isRunning,
+    () => optIn.value && tickedThisVisit.value && tickedNow() && store.bestDays > 0 && !store.isRunning,
     ready => {
       if (ready) void store.prepareRechecks();
     },

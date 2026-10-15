@@ -892,6 +892,7 @@ import ShareStatus from './ShareStatus.vue';
 import SendingText from './SendingText.vue';
 import { useByDateShare, useShareIdentity } from '@/composables/useShareResult';
 import { useShareExtras } from '@/composables/useShareExtras';
+import { agreeThisVisit } from '@/composables/useConsent';
 import RoutesToTry from './RoutesToTry.vue';
 import SavedAnswers from './SavedAnswers.vue';
 import EdgeWarning from './EdgeWarning.vue';
@@ -1971,9 +1972,12 @@ async function resume(): Promise<void> {
   // A run started with Find and submit (or agreed to share during it) carries on doing so, on its own
   // name, CSV and diagnostics choices: on 9 Oct a carried-on Find and submit run ended as a plain
   // Find and sent nothing.
-  const submit = store.deadlineUnfinished?.submit ?? null;
+  // Not once the account's agreement was withdrawn since (store `carriedYesHolds`).
+  const recorded = store.deadlineUnfinished?.submit ?? null;
+  const submit = recorded && store.carriedYesHolds() ? recorded : null;
   if (submit) {
-    shareOptIn.value = true;
+    // The run's recorded yes, for this visit only.
+    agreeThisVisit('leaderboard');
     shareAnonymous.value = !submit.nickname;
     // This screen's alone (composables/useShareResult.ts): the run's own name, not typed now.
     if (submit.nickname) shareName.value = submit.nickname;
@@ -1988,7 +1992,8 @@ async function resume(): Promise<void> {
   let go = false;
   try {
     await store.resumeDeadline(props.playerId);
-    go = autoShare.value || (await owesAnswer());
+    // Read live: a withdraw during the run cleared `submitsWhenDone` (store `withdrawShareConsent`).
+    go = (autoShare.value && store.submitsWhenDone) || (await owesAnswer());
   } finally {
     store.submitsWhenDone = false;
     autoShare.value = false;
@@ -2015,7 +2020,8 @@ function bestSoFarName(): string {
 async function owesAnswer(): Promise<boolean> {
   const agreed = !!store.bestSoFar?.consent;
   await store.bestSoFarSettled();
-  const owed = store.provisionalRows.deadline;
+  // Not once the player withdrew (store `owedRow`).
+  const owed = store.owedRow('deadline');
   if (!agreed && owed) {
     shareAnonymous.value = !owed.nickname;
     if (owed.nickname) shareName.value = owed.nickname;
@@ -2025,8 +2031,10 @@ async function owesAnswer(): Promise<boolean> {
 
 /** Send the answer on screen, as Find and submit does at the end. */
 async function shareFinished(): Promise<void> {
-  if (!result.value || !best.value || store.error) return;
-  shareOptIn.value = true;
+  // Withdrawn during the run: nothing goes.
+  if (!result.value || !best.value || store.error || store.shareWithdrawn) return;
+  // The send needs the box ticked; the run's yes counts for this visit only.
+  agreeThisVisit('leaderboard');
   autoShared.value = true;
   await share();
   store.lastAutoSend = { kind: 'by-date', ok: shareOk.value, text: shareMessage.value };
@@ -2075,8 +2083,10 @@ async function start(andSubmit: boolean, kind: ByDateKind): Promise<void> {
     await find();
   } finally {
     startingKind.value = null;
+    // Read live: a withdraw during the run cleared `submitsWhenDone` (store `withdrawShareConsent`).
+    const armed = autoShare.value && store.submitsWhenDone;
     store.submitsWhenDone = false;
-    const go = autoShare.value || (await owesAnswer());
+    const go = armed || (await owesAnswer());
     autoShare.value = false;
     store.endBestSoFar();
     // Stopped early it still shares: its best is a real route to that TE by the date, just maybe not

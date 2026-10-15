@@ -763,6 +763,7 @@ import IntegrityAlert from '@/components/auto/IntegrityAlert.vue';
 import { getSimulationContext, createBaseEngineState } from '@/engine/adapter';
 import type { Action, VirtueEgg } from '@/types';
 import { countTEThresholdsPassed } from '@/lib/truthEggs';
+import { setConsentAccount } from '@/composables/useConsent';
 import { getArtifact, getArtifactLoadoutFromBackup } from '@/lib/artifacts';
 import {
   initStartFromScratch,
@@ -1090,6 +1091,9 @@ watch(playerId, () => {
 // first ascension, or the defaults. Until it is in, `setupLoaded` holds back the instant answer and its Check
 // exactly, so a reload doesn't start it on the defaults and restart it when the hours arrive.
 watch(playerId, id => void chainSearchStore.loadSetupFor(id), { immediate: true });
+// Every consent box, remembered per account (composables/useConsent.ts): this account's agreements, or
+// nothing agreed. A switch never carries the last account's yes over.
+watch(playerId, id => void setConsentAccount(id), { immediate: true });
 // A copy with no collector has no Compare, My runs or Science tab: an address for one opens the Manual Planner.
 if (
   !chainSearchStore.submitUrl &&

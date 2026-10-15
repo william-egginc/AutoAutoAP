@@ -1,6 +1,7 @@
 <!--
   "Stepping away?": four opt-in helpers for long runs, beside the Find bar of all three searches
-  (Smart search, Full sweep, By a date). All off until ticked, remembered per browser. The rules are in
+  (Smart search, Full sweep, By a date). All off until ticked; each tick is one of the account's consents
+  (ConsentBox.vue, composables/useConsent.ts), remembered per account and folded once on. The rules are in
   search/stepAway.ts; the run side is composables/useStepAway.ts; the watcher is watch.html.
   "Watch this run from your phone" is search/watchLink.ts and composables/useWatchLink.ts, with its
   page at watch.html?k=<key> (src/watch/phone.ts) and its server half in collector/watch.js.
@@ -30,248 +31,295 @@
     <p v-if="autoNote" class="font-semibold text-amber-800">{{ autoNote }}</p>
 
     <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Stepping away?</h3>
-    <label class="flex items-start gap-2">
-      <input v-model="options.autoCarryOn" type="checkbox" class="mt-0.5 rounded border-slate-300 text-indigo-600" />
-      <span
-        ><span class="font-bold">Carry on by itself after a crash.</span> If the browser closes this page mid-run, the
-        next time it opens it carries on after a {{ COUNTDOWN_SECONDS }}-second countdown, with fewer workers.
-        <span class="block text-slate-500">Doesn't slow the run.</span></span
-      >
-    </label>
-    <label class="flex items-start gap-2">
-      <input
-        :checked="options.watch"
-        type="checkbox"
-        class="mt-0.5 rounded border-slate-300 text-indigo-600"
-        @change="onWatch(($event.target as HTMLInputElement).checked)"
-      />
-      <span
-        ><span class="font-bold">Watch this run from a second tab and reopen it if it crashes.</span> Opens a small tab
-        that reopens this page if the run goes quiet for 2 minutes (at most {{ MAX_REOPENS_PER_HOUR }} times an hour).
-        Keep both tabs open.
-        <span class="block text-slate-500"
-          >Doesn't slow the run: the watcher is a tiny page that checks in about once a minute.</span
-        ></span
-      >
-    </label>
-    <div v-if="options.watch" class="pl-6 space-y-1.5">
-      <p v-if="watcherOk" class="font-bold text-emerald-700" role="status">
-        ✓ Watcher tab open and watching <span class="font-normal">(checked in {{ agoShort(watcherAge!) }} ago)</span>
-      </p>
-      <div
-        v-else-if="popupBlocked"
-        class="rounded-lg border border-amber-300 bg-amber-50 p-2 space-y-1 text-amber-900"
-        role="status"
-      >
-        <p class="font-bold">
-          The watcher tab didn't open: {{ help.name || 'your browser' }} may have blocked it as a pop-up.
-        </p>
-        <p>
-          <template v-for="(part, i) in help.popups" :key="i"
-            ><template v-if="typeof part === 'string'">{{ part }}</template
-            ><template v-else
-              ><code class="rounded bg-white px-1 select-all">{{ part.code }}</code
-              ><button
-                type="button"
-                class="mx-1 rounded border border-amber-300 bg-white px-1 text-[10px] font-bold hover:bg-amber-100"
-                @click="copy(part.code)"
-              >
-                {{ copied === part.code ? 'Copied' : 'Copy' }}
-              </button></template
-            ></template
-          >
-        </p>
-        <p>Then open it with the button below.</p>
-      </div>
-      <p v-else-if="confirmTimer">Opening the watcher tab...</p>
-      <p v-else>The watcher tab isn't open.</p>
-      <p class="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <a
-          :href="watcherHref"
-          target="_blank"
-          rel="noopener"
-          class="inline-block rounded-md border border-indigo-300 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-widest text-indigo-700 hover:bg-indigo-50 hover:text-indigo-900"
-          @click="onWatcherLink"
-          @auxclick="onWatcherAux"
-          >Open the watcher tab</a
+    <!-- Each option is one of the account's consents (ConsentBox.vue, composables/useConsent.ts): remembered
+         per account with "Remember my choice", folded to one line once on, and withdrawn at once. -->
+    <ConsentBox
+      v-model="carryOn"
+      consent-id="carryOn"
+      testid="carry-on"
+      input-class="border-slate-300 text-indigo-600"
+      summary-class="text-slate-700"
+    >
+      <template #summary><span>Carry on by itself after a crash: on</span></template>
+      <template #text>
+        <span
+          ><span class="font-bold">Carry on by itself after a crash.</span> If the browser closes this page mid-run, the
+          next time it opens it carries on after a {{ COUNTDOWN_SECONDS }}-second countdown, with fewer workers.
+          <span class="block text-slate-500">Doesn't slow the run.</span></span
         >
-        <span v-if="tip" class="text-[10px] text-slate-500">{{ tip }}</span>
-      </p>
-      <p class="text-slate-500">
-        <template v-for="(part, i) in [...help.keepAwake, ...(help.note ? [' ', ...help.note] : [])]" :key="i"
-          ><template v-if="typeof part === 'string'">{{ part }}</template
-          ><template v-else
-            ><code class="rounded bg-white px-1 select-all">{{ part.code }}</code
-            ><button
-              type="button"
-              class="mx-1 rounded border border-slate-300 bg-white px-1 text-[10px] font-bold hover:bg-slate-100"
-              @click="copy(part.code)"
-            >
-              {{ copied === part.code ? 'Copied' : 'Copy' }}
-            </button></template
-          ></template
+      </template>
+    </ConsentBox>
+    <ConsentBox
+      :model-value="watchTab"
+      consent-id="watchTab"
+      testid="watch-tab"
+      input-class="border-slate-300 text-indigo-600"
+      summary-class="text-slate-700"
+      @update:model-value="onWatch"
+    >
+      <template #summary><span>Watch this run from a second tab: on</span></template>
+      <template #text>
+        <span
+          ><span class="font-bold">Watch this run from a second tab and reopen it if it crashes.</span> Opens a small
+          tab that reopens this page if the run goes quiet for 2 minutes (at most {{ MAX_REOPENS_PER_HOUR }} times an
+          hour). Keep both tabs open.
+          <span class="block text-slate-500"
+            >Doesn't slow the run: the watcher is a tiny page that checks in about once a minute.</span
+          ></span
         >
-      </p>
-    </div>
-    <label class="flex items-start gap-2" data-testid="watch-phone">
-      <input
-        v-model="phoneOptions.phone"
-        type="checkbox"
-        class="mt-0.5 rounded border-slate-300 text-indigo-600"
-        :disabled="!phoneAvailable"
-      />
-      <span
-        ><span class="font-bold">Watch this run from your phone.</span> Gives the run a private link that shows how it's
-        going from anywhere. Every 5 minutes this tab sends its progress, time left and best so far, locked with a key
-        that's only in the link: the server stores it but can't read it. Never your save, player ID or name.
-        <span class="block text-slate-500">Doesn't slow the run.</span>
-        <span v-if="!phoneAvailable" class="block text-slate-500"
-          >Needs a collector, and this copy of the planner has none.</span
-        ></span
-      >
-    </label>
-    <div v-if="phoneOptions.phone && phoneAvailable" class="pl-6 space-y-2" data-testid="watch-phone-box">
-      <template v-if="phoneLink">
-        <p class="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <a
-            :href="phoneLink.url"
-            target="_blank"
-            rel="noopener"
-            class="break-all font-mono text-[10px] text-indigo-700 underline hover:text-indigo-900"
-            data-testid="watch-phone-link"
-            >{{ phoneLink.url }}</a
-          >
-          <button
-            type="button"
-            class="rounded border border-slate-300 bg-white px-1 text-[10px] font-bold hover:bg-slate-100"
-            @click="copy(phoneLink.url)"
-          >
-            {{ copied === phoneLink.url ? 'Copied' : 'Copy' }}
-          </button>
-        </p>
-        <div class="flex flex-wrap items-start gap-3">
-          <!-- eslint-disable vue/no-v-html -- an SVG the qrcode library drew from our own link -->
+      </template>
+      <template #aside>
+        <div v-if="watchTab" class="pl-6 space-y-1.5">
+          <p v-if="watcherOk" class="font-bold text-emerald-700" role="status">
+            ✓ Watcher tab open and watching
+            <span class="font-normal">(checked in {{ agoShort(watcherAge!) }} ago)</span>
+          </p>
           <div
-            v-if="qrSvg"
-            class="h-32 w-32 shrink-0 rounded border border-slate-200 bg-white p-1"
-            role="img"
-            aria-label="QR code of the link"
-            v-html="qrSvg"
-          ></div>
-          <!-- eslint-enable vue/no-v-html -->
-          <p class="max-w-xs">
-            Scan with your phone, then bookmark it or Add to Home Screen; you can close the page, it keeps updating.
-            <span class="block font-semibold text-slate-800"
-              >Only someone with this link or QR code can see it; keep it private.</span
+            v-else-if="popupBlocked"
+            class="rounded-lg border border-amber-300 bg-amber-50 p-2 space-y-1 text-amber-900"
+            role="status"
+          >
+            <p class="font-bold">
+              The watcher tab didn't open: {{ help.name || 'your browser' }} may have blocked it as a pop-up.
+            </p>
+            <p>
+              <template v-for="(part, i) in help.popups" :key="i"
+                ><template v-if="typeof part === 'string'">{{ part }}</template
+                ><template v-else
+                  ><code class="rounded bg-white px-1 select-all">{{ part.code }}</code
+                  ><button
+                    type="button"
+                    class="mx-1 rounded border border-amber-300 bg-white px-1 text-[10px] font-bold hover:bg-amber-100"
+                    @click="copy(part.code)"
+                  >
+                    {{ copied === part.code ? 'Copied' : 'Copy' }}
+                  </button></template
+                ></template
+              >
+            </p>
+            <p>Then open it with the button below.</p>
+          </div>
+          <p v-else-if="confirmTimer">Opening the watcher tab...</p>
+          <p v-else>The watcher tab isn't open.</p>
+          <p class="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <a
+              :href="watcherHref"
+              target="_blank"
+              rel="noopener"
+              class="inline-block rounded-md border border-indigo-300 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-widest text-indigo-700 hover:bg-indigo-50 hover:text-indigo-900"
+              @click="onWatcherLink"
+              @auxclick="onWatcherAux"
+              >Open the watcher tab</a
+            >
+            <span v-if="tip" class="text-[10px] text-slate-500">{{ tip }}</span>
+          </p>
+          <p class="text-slate-500">
+            <template v-for="(part, i) in [...help.keepAwake, ...(help.note ? [' ', ...help.note] : [])]" :key="i"
+              ><template v-if="typeof part === 'string'">{{ part }}</template
+              ><template v-else
+                ><code class="rounded bg-white px-1 select-all">{{ part.code }}</code
+                ><button
+                  type="button"
+                  class="mx-1 rounded border border-slate-300 bg-white px-1 text-[10px] font-bold hover:bg-slate-100"
+                  @click="copy(part.code)"
+                >
+                  {{ copied === part.code ? 'Copied' : 'Copy' }}
+                </button></template
+              ></template
             >
           </p>
         </div>
-        <p v-if="phoneLine" class="text-slate-500" role="status">{{ phoneLine }}</p>
       </template>
-      <p v-else class="text-slate-500">The link appears here when the run starts.</p>
-      <label class="flex flex-wrap items-center gap-2">
-        <span class="font-bold">Label</span>
-        <input
-          v-model="phoneOptions.label"
-          type="text"
-          :maxlength="WATCH_LABEL_MAX"
-          placeholder="optional, e.g. big sweep"
-          class="w-48 rounded border-slate-300 px-1 py-0 text-[11px]"
-        />
-        <span class="text-slate-500">Shown on the phone page. Leave it empty to send none.</span>
-      </label>
-      <label class="flex items-start gap-2">
-        <input v-model="phoneOptions.ntfy" type="checkbox" class="mt-0.5 rounded border-slate-300 text-indigo-600" />
-        <span
-          ><span class="font-bold">Also notify my phone</span> (through ntfy) when the run finishes or fails, and if it
-          stops reporting for 15 minutes.</span
+    </ConsentBox>
+    <div data-testid="watch-phone">
+      <ConsentBox
+        v-model="phone"
+        consent-id="watchPhone"
+        testid="watch-phone-consent"
+        input-class="border-slate-300 text-indigo-600"
+        summary-class="text-slate-700"
+        :disabled="!phoneAvailable"
+      >
+        <template #summary
+          ><span>Watch this run from your phone: on (a private link, updated every 5 minutes)</span></template
         >
-      </label>
-      <div v-if="phoneOptions.ntfy" class="pl-6 space-y-1">
-        <p class="flex flex-wrap items-center gap-2">
-          <span class="font-bold">ntfy topic</span>
-          <input
-            v-model.trim="phoneOptions.ntfyTopic"
-            type="text"
-            maxlength="64"
-            class="w-56 rounded border-slate-300 px-1 py-0 font-mono text-[11px]"
-            aria-label="ntfy topic"
-          />
-          <button
-            type="button"
-            class="rounded border border-slate-300 bg-white px-1 text-[10px] font-bold hover:bg-slate-100"
-            @click="copy(phoneOptions.ntfyTopic)"
-          >
-            {{ copied === phoneOptions.ntfyTopic ? 'Copied' : 'Copy' }}
-          </button>
-        </p>
-        <p v-if="!topicOk" class="font-semibold text-amber-800">Letters, numbers, - and _ only.</p>
-        <p class="text-slate-500">
-          Install the free ntfy app and subscribe to this topic. Anyone who knows a topic can read it, so keep it
-          random.
-        </p>
-        <p>
-          Progress note every
-          <select
-            v-model.number="phoneOptions.ntfyEveryMin"
-            aria-label="How often to send a progress note"
-            class="mx-1 rounded border-slate-300 py-0 pl-1 pr-6 text-[11px] font-bold"
-          >
-            <option :value="0">never</option>
-            <option :value="60">1 hour</option>
-            <option v-for="h in [2, 3, 4, 5, 6]" :key="h" :value="h * 60">{{ h }} hours</option>
-          </select>
-        </p>
-        <label class="flex items-start gap-2">
-          <input
-            v-model="phoneOptions.ntfyDetails"
-            type="checkbox"
-            class="mt-0.5 rounded border-slate-300 text-indigo-600"
-          />
+        <template #text>
           <span
-            ><span class="font-bold">Include results in notifications</span> (TE, finish date, how far it got). Off,
-            they only say what happened. Anyone with the topic can read them.</span
+            ><span class="font-bold">Watch this run from your phone.</span> Gives the run a private link that shows how
+            it's going from anywhere. Every 5 minutes this tab sends its progress, time left and best so far, locked
+            with a key that's only in the link: the server stores it but can't read it. Never your save, player ID or
+            name.
+            <span class="block text-slate-500">Doesn't slow the run.</span>
+            <span v-if="!phoneAvailable" class="block text-slate-500"
+              >Needs a collector, and this copy of the planner has none.</span
+            ></span
           >
-        </label>
-      </div>
+        </template>
+        <template #aside>
+          <div v-if="phone && phoneAvailable" class="pl-6 space-y-2" data-testid="watch-phone-box">
+            <template v-if="phoneLink">
+              <p class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <a
+                  :href="phoneLink.url"
+                  target="_blank"
+                  rel="noopener"
+                  class="break-all font-mono text-[10px] text-indigo-700 underline hover:text-indigo-900"
+                  data-testid="watch-phone-link"
+                  >{{ phoneLink.url }}</a
+                >
+                <button
+                  type="button"
+                  class="rounded border border-slate-300 bg-white px-1 text-[10px] font-bold hover:bg-slate-100"
+                  @click="copy(phoneLink.url)"
+                >
+                  {{ copied === phoneLink.url ? 'Copied' : 'Copy' }}
+                </button>
+              </p>
+              <div class="flex flex-wrap items-start gap-3">
+                <!-- eslint-disable vue/no-v-html -- an SVG the qrcode library drew from our own link -->
+                <div
+                  v-if="qrSvg"
+                  class="h-32 w-32 shrink-0 rounded border border-slate-200 bg-white p-1"
+                  role="img"
+                  aria-label="QR code of the link"
+                  v-html="qrSvg"
+                ></div>
+                <!-- eslint-enable vue/no-v-html -->
+                <p class="max-w-xs">
+                  Scan with your phone, then bookmark it or Add to Home Screen; you can close the page, it keeps
+                  updating.
+                  <span class="block font-semibold text-slate-800"
+                    >Only someone with this link or QR code can see it; keep it private.</span
+                  >
+                </p>
+              </div>
+              <p v-if="phoneLine" class="text-slate-500" role="status">{{ phoneLine }}</p>
+            </template>
+            <p v-else class="text-slate-500">The link appears here when the run starts.</p>
+            <label class="flex flex-wrap items-center gap-2">
+              <span class="font-bold">Label</span>
+              <input
+                v-model="phoneOptions.label"
+                type="text"
+                :maxlength="WATCH_LABEL_MAX"
+                placeholder="optional, e.g. big sweep"
+                class="w-48 rounded border-slate-300 px-1 py-0 text-[11px]"
+              />
+              <span class="text-slate-500">Shown on the phone page. Leave it empty to send none.</span>
+            </label>
+            <label class="flex items-start gap-2">
+              <input
+                v-model="phoneOptions.ntfy"
+                type="checkbox"
+                class="mt-0.5 rounded border-slate-300 text-indigo-600"
+              />
+              <span
+                ><span class="font-bold">Also notify my phone</span> (through ntfy) when the run finishes or fails, and
+                if it stops reporting for 15 minutes.</span
+              >
+            </label>
+            <div v-if="phoneOptions.ntfy" class="pl-6 space-y-1">
+              <p class="flex flex-wrap items-center gap-2">
+                <span class="font-bold">ntfy topic</span>
+                <input
+                  v-model.trim="phoneOptions.ntfyTopic"
+                  type="text"
+                  maxlength="64"
+                  class="w-56 rounded border-slate-300 px-1 py-0 font-mono text-[11px]"
+                  aria-label="ntfy topic"
+                />
+                <button
+                  type="button"
+                  class="rounded border border-slate-300 bg-white px-1 text-[10px] font-bold hover:bg-slate-100"
+                  @click="copy(phoneOptions.ntfyTopic)"
+                >
+                  {{ copied === phoneOptions.ntfyTopic ? 'Copied' : 'Copy' }}
+                </button>
+              </p>
+              <p v-if="!topicOk" class="font-semibold text-amber-800">Letters, numbers, - and _ only.</p>
+              <p class="text-slate-500">
+                Install the free ntfy app and subscribe to this topic. Anyone who knows a topic can read it, so keep it
+                random.
+              </p>
+              <p>
+                Progress note every
+                <select
+                  v-model.number="phoneOptions.ntfyEveryMin"
+                  aria-label="How often to send a progress note"
+                  class="mx-1 rounded border-slate-300 py-0 pl-1 pr-6 text-[11px] font-bold"
+                >
+                  <option :value="0">never</option>
+                  <option :value="60">1 hour</option>
+                  <option v-for="h in [2, 3, 4, 5, 6]" :key="h" :value="h * 60">{{ h }} hours</option>
+                </select>
+              </p>
+              <label class="flex items-start gap-2">
+                <input
+                  v-model="phoneOptions.ntfyDetails"
+                  type="checkbox"
+                  class="mt-0.5 rounded border-slate-300 text-indigo-600"
+                />
+                <span
+                  ><span class="font-bold">Include results in notifications</span> (TE, finish date, how far it got).
+                  Off, they only say what happened. Anyone with the topic can read them.</span
+                >
+              </label>
+            </div>
+          </div>
+        </template>
+      </ConsentBox>
     </div>
     <!-- "Use fewer workers so the computer has room" was retired on 11 Oct 2026 (the user): the worker
          count starts at half the cores and is set in Setup, where a player's own count is remembered. -->
-    <div class="flex items-start gap-2">
-      <input
-        id="auto-send-best"
-        v-model="options.autoSendBest"
-        type="checkbox"
-        class="mt-0.5 rounded border-slate-300 text-indigo-600"
-        data-testid="auto-send-best"
-      />
-      <span
-        ><label for="auto-send-best" class="font-bold">Send my progress every</label>
-        <select
-          v-model.number="options.autoSendEveryMin"
-          aria-label="How often to send my progress"
-          class="mx-1 rounded border-slate-300 py-0 pl-1 pr-6 text-[11px] font-bold"
-          data-testid="auto-send-every"
+    <ConsentBox
+      v-model="autoSend"
+      consent-id="autoSend"
+      testid="auto-send"
+      box-testid="auto-send-best"
+      input-class="border-slate-300 text-indigo-600"
+      summary-class="text-slate-700"
+    >
+      <template #summary
+        ><span
+          >Sending my progress every {{ everyLabel }} while a run goes (it still needs your OK to share, given at Find
+          and submit or under Find)</span
+        ></template
+      >
+      <template #text>
+        <span
+          ><span class="font-bold">Send my progress every</span>
+          <select
+            v-model.number="options.autoSendEveryMin"
+            aria-label="How often to send my progress"
+            class="mx-1 rounded border-slate-300 py-0 pl-1 pr-6 text-[11px] font-bold"
+            data-testid="auto-send-every"
+          >
+            <option :value="60">1 hour</option>
+            <option v-for="h in [2, 3, 4, 5, 6]" :key="h" :value="h * 60">{{ h }} hours</option>
+          </select>
+          <span class="font-bold">while this runs</span>
+          (best so far, the CSV so far, and diagnostics if ticked)
+          <span class="block text-slate-500"
+            >Puts your best on the leaderboard as an in-progress row, and saves the CSV of everything priced so far with
+            it, so a crash loses less. Only when something new was priced since the last one. The CSV goes when "Send my
+            CSV too" is ticked under Find, diagnostics when "Also send diagnostics" is. The finished run replaces it
+            all.</span
+          ></span
         >
-          <option :value="60">1 hour</option>
-          <option v-for="h in [2, 3, 4, 5, 6]" :key="h" :value="h * 60">{{ h }} hours</option>
-        </select>
-        <label for="auto-send-best" class="font-bold">while this runs</label>
-        (best so far, the CSV so far, and diagnostics if ticked)
-        <span class="block text-slate-500"
-          >Puts your best on the leaderboard as an in-progress row, and saves the CSV of everything priced so far with
-          it, so a crash loses less. Only when something new was priced since the last one. The CSV goes when "Send my
-          CSV too" is ticked under Find, diagnostics when "Also send diagnostics" is. The finished run replaces it
-          all.</span
-        >
-        <span v-if="options.autoSendBest && !autoHere" class="block text-slate-500"
+      </template>
+      <template #aside>
+        <span v-if="options.autoSendBest && !autoHere" class="block pl-6 text-slate-500"
           >It asks for your OK when a run starts, unless you start it with Find and submit.</span
         >
-        <span v-if="autoLine" class="block font-semibold text-slate-800" role="status" data-testid="auto-send-line">{{
-          autoLine
-        }}</span></span
-      >
-    </div>
+        <span
+          v-if="autoLine"
+          class="block pl-6 font-semibold text-slate-800"
+          role="status"
+          data-testid="auto-send-line"
+          >{{ autoLine }}</span
+        >
+      </template>
+    </ConsentBox>
   </div>
 </template>
 
@@ -287,6 +335,8 @@ const EARLY_CRASH_MS = 90_000;
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { hashID } from '@/lib/storage/db';
+import ConsentBox from './ConsentBox.vue';
+import { useConsent } from '@/composables/useConsent';
 import {
   agoShort,
   autoCarryOnVerdict,
@@ -323,6 +373,15 @@ const emit = defineEmits<{ 'carry-on': []; countdown: [seconds: number] }>();
 
 const store = useChainSearchStore();
 const options = stepAwayOptions;
+/** The four ticks: the account's consents (composables/useConsent.ts); `options` follows them. */
+const carryOn = useConsent('carryOn').agreed;
+const watchTab = useConsent('watchTab').agreed;
+const phone = useConsent('watchPhone').agreed;
+const autoSend = useConsent('autoSend').agreed;
+const everyLabel = computed(() => {
+  const h = Math.round(options.value.autoSendEveryMin / 60);
+  return h === 1 ? '1 hour' : `${h} hours`;
+});
 
 // ------------------------------------------------------------------ send my best so far
 
@@ -436,7 +495,7 @@ function onStorage(e: StorageEvent): void {
 }
 if (typeof window !== 'undefined') window.addEventListener('storage', onStorage);
 function onWatch(on: boolean): void {
-  options.value.watch = on;
+  watchTab.value = on;
   // Ticking is a click, so the browser lets the page open a tab now (and only now).
   if (on) openWatcherTab();
   else popupBlocked.value = false;

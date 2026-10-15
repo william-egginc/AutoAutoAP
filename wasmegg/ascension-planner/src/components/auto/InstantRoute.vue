@@ -2700,7 +2700,8 @@ function days(seconds: number): string {
  * hour, and never the same one twice.
  */
 const share = useInstantShare();
-/** "Keep sharing my checks": the per-browser setting itself (Your setup › Sharing shows the same). */
+/** "Keep sharing my checks": the account's consent itself (composables/useConsent.ts; Your setup › Sharing
+ *  shows the same). */
 const keepSharing = share.on;
 const initialState = useInitialStateStore();
 const instantUrl = instantUrlOf(store.submitUrl);
@@ -2718,10 +2719,11 @@ let doneId = -1;
 let shareUsed = false;
 /** What the last share did, for the line beside the boxes. */
 const shareNote = ref<(InstantSendOutcome & { at: number }) | null>(null);
+// Ticked: this check goes too. Withdrawn (or another account with it off): nor does this one, at once.
 watch(
   () => share.on.value,
   v => {
-    if (v) shareThis.value = true;
+    shareThis.value = v;
   }
 );
 watch(shareThis, v => {

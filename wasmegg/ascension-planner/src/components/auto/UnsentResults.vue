@@ -44,14 +44,20 @@
         }}{{ p.consent.sendCsv && p.csvGz ? ', with its CSV' : ''
         }}{{ p.consent.sendDiagnostics ? ' and diagnostics' : '' }}, as you chose when it was going to be sent.
       </p>
-      <template v-else>
-        <label class="flex items-start gap-2">
-          <input
-            v-model="agreed[p.id]"
-            type="checkbox"
-            class="mt-0.5 rounded border-amber-400"
-            :data-testid="`agree-unsent-${p.id}`"
-          />
+      <!-- A one-off yes for this result (ConsentBox.vue, no "Remember": it is about this result alone).
+           Withdrawn (or never ticked), Send it now stays greyed out. -->
+      <ConsentBox
+        v-else
+        :model-value="!!agreed[p.id]"
+        :testid="`unsent-consent-${p.id}`"
+        :box-testid="`agree-unsent-${p.id}`"
+        input-class="border-amber-400"
+        summary-class="text-amber-900"
+        :footer-indent="false"
+        @update:model-value="(v: boolean) => (agreed[p.id] = v)"
+      >
+        <template #summary><span>You agreed to share this result on the leaderboard</span></template>
+        <template #text>
           <!-- Share this result's acknowledgement (ShareResult.vue), for a result already finished:
                the name, or none, is chosen below once ticked, as there. -->
           <span data-testid="unsent-consent-text"
@@ -60,80 +66,82 @@
             timezone, local plan start and the random code this browser keeps for the account (not my player ID, and
             never shown)<template v-if="p.csvGz">, plus its CSV</template>.</span
           >
-        </label>
-        <div v-if="agreed[p.id]" class="ml-6 flex flex-wrap items-center gap-x-4 gap-y-1">
-          <label class="flex items-center gap-2 cursor-pointer font-bold">
+        </template>
+        <template #after>
+          <div v-if="agreed[p.id]" class="ml-6 flex flex-wrap items-center gap-x-4 gap-y-1">
+            <label class="flex items-center gap-2 cursor-pointer font-bold">
+              <input
+                :checked="anonOf(p.id)"
+                type="radio"
+                :name="`unsent-name-${p.id}`"
+                class="text-amber-700"
+                :data-testid="`unsent-anonymous-${p.id}`"
+                @change="anonymous[p.id] = true"
+              />
+              Submit anonymously
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer font-bold">
+              <input
+                :checked="!anonOf(p.id)"
+                type="radio"
+                :name="`unsent-name-${p.id}`"
+                class="text-amber-700"
+                :data-testid="`unsent-named-${p.id}`"
+                @change="anonymous[p.id] = false"
+              />
+              Credit me as
+            </label>
             <input
-              :checked="anonOf(p.id)"
-              type="radio"
-              :name="`unsent-name-${p.id}`"
-              class="text-amber-700"
-              :data-testid="`unsent-anonymous-${p.id}`"
-              @change="anonymous[p.id] = true"
+              :value="nameOf(p.id)"
+              type="text"
+              :maxlength="PENDING_NAME_MAX"
+              :disabled="anonOf(p.id)"
+              placeholder="nickname"
+              aria-label="Nickname"
+              class="rounded-lg border-amber-300 text-sm font-bold text-slate-800 w-48 max-w-full disabled:opacity-40"
+              :data-testid="`unsent-nickname-${p.id}`"
+              @input="typeName(p.id, ($event.target as HTMLInputElement).value)"
             />
-            Submit anonymously
-          </label>
-          <label class="flex items-center gap-2 cursor-pointer font-bold">
-            <input
-              :checked="!anonOf(p.id)"
-              type="radio"
-              :name="`unsent-name-${p.id}`"
-              class="text-amber-700"
-              :data-testid="`unsent-named-${p.id}`"
-              @change="anonymous[p.id] = false"
-            />
-            Credit me as
-          </label>
-          <input
-            :value="nameOf(p.id)"
-            type="text"
-            :maxlength="PENDING_NAME_MAX"
-            :disabled="anonOf(p.id)"
-            placeholder="nickname"
-            aria-label="Nickname"
-            class="rounded-lg border-amber-300 text-sm font-bold text-slate-800 w-48 max-w-full disabled:opacity-40"
-            :data-testid="`unsent-nickname-${p.id}`"
-            @input="typeName(p.id, ($event.target as HTMLInputElement).value)"
-          />
-        </div>
-        <p
-          v-if="agreed[p.id] && namedButBlank(p.id)"
-          class="ml-6 font-semibold text-rose-700"
-          :data-testid="`unsent-name-warning-${p.id}`"
-        >
-          Type a nickname to be credited, or choose Submit anonymously.
-        </p>
-        <div v-if="agreed[p.id]" class="ml-6 space-y-1">
-          <label v-if="p.csvGz" class="flex items-start gap-2 cursor-pointer">
-            <input
-              :checked="csvOf(p)"
-              type="checkbox"
-              class="mt-0.5 rounded border-amber-400"
-              :data-testid="`unsent-csv-${p.id}`"
-              @change="csvs[p.id] = ($event.target as HTMLInputElement).checked"
-            />
-            <span
-              ><span class="font-bold">Send my CSV too</span>: everything this search priced, best first (the same file
-              as Download CSV). It is compressed before it leaves your machine. Untick it to send the headline
-              alone.</span
-            >
-          </label>
-          <label class="flex items-start gap-2 cursor-pointer">
-            <input
-              :checked="diagOf(p.id)"
-              type="checkbox"
-              class="mt-0.5 rounded border-amber-400"
-              :data-testid="`unsent-diagnostics-${p.id}`"
-              @change="diags[p.id] = ($event.target as HTMLInputElement).checked"
-            />
-            <span
-              ><span class="font-bold">Also send diagnostics</span>: memory readings, how many workers ran, any crash or
-              carry-on, the run's size and time, the app version, and your browser and system. Sent privately to the
-              planner's maintainer, never shown on the board; no player ID and no save.</span
-            >
-          </label>
-        </div>
-      </template>
+          </div>
+          <p
+            v-if="agreed[p.id] && namedButBlank(p.id)"
+            class="ml-6 font-semibold text-rose-700"
+            :data-testid="`unsent-name-warning-${p.id}`"
+          >
+            Type a nickname to be credited, or choose Submit anonymously.
+          </p>
+          <div v-if="agreed[p.id]" class="ml-6 space-y-1">
+            <label v-if="p.csvGz" class="flex items-start gap-2 cursor-pointer">
+              <input
+                :checked="csvOf(p)"
+                type="checkbox"
+                class="mt-0.5 rounded border-amber-400"
+                :data-testid="`unsent-csv-${p.id}`"
+                @change="csvs[p.id] = ($event.target as HTMLInputElement).checked"
+              />
+              <span
+                ><span class="font-bold">Send my CSV too</span>: everything this search priced, best first (the same
+                file as Download CSV). It is compressed before it leaves your machine. Untick it to send the headline
+                alone.</span
+              >
+            </label>
+            <label class="flex items-start gap-2 cursor-pointer">
+              <input
+                :checked="diagOf(p.id)"
+                type="checkbox"
+                class="mt-0.5 rounded border-amber-400"
+                :data-testid="`unsent-diagnostics-${p.id}`"
+                @change="diags[p.id] = ($event.target as HTMLInputElement).checked"
+              />
+              <span
+                ><span class="font-bold">Also send diagnostics</span>: memory readings, how many workers ran, any crash
+                or carry-on, the run's size and time, the app version, and your browser and system. Sent privately to
+                the planner's maintainer, never shown on the board; no player ID and no save.</span
+              >
+            </label>
+          </div>
+        </template>
+      </ConsentBox>
       <p v-if="messages[p.id]" :class="okIds[p.id] ? 'text-emerald-700' : 'text-rose-700'" class="font-semibold">
         {{ messages[p.id] }}
       </p>
@@ -162,6 +170,7 @@ import { useShareExtras } from '@/composables/useShareExtras';
 import { useAccountName, useSharedName } from '@/composables/useShareResult';
 import { sentence } from '@/utils/errors';
 import SendingText from './SendingText.vue';
+import ConsentBox from './ConsentBox.vue';
 
 const props = defineProps<{
   /** This screen's kind; every kind when left out (My runs' "Not sent yet"). */

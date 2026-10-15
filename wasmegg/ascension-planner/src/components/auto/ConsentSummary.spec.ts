@@ -12,13 +12,12 @@ afterEach(() => {
 const render = async (props: Record<string, unknown>) => textOf(await renderHtml(ConsentSummary, props));
 
 describe('ConsentSummary', () => {
-  it('says what was agreed, the extras and a Change button', async () => {
+  it("says what was agreed and the extras (the ✓ and Change are the consent box's, ConsentBox.vue)", async () => {
     const html = await renderHtml(ConsentSummary, { anonymous: true, nickname: '' });
     const t = textOf(html);
     expect(t).toContain('You agreed to share runs on the leaderboard');
     expect(t).toContain('CSV on · diagnostics off · anonymous');
-    expect(html).toContain('data-testid="consent-change"');
-    expect(t).toContain('Change');
+    expect(html).not.toContain('data-testid="consent-change"');
   });
 
   it('follows the CSV and diagnostics choices', async () => {

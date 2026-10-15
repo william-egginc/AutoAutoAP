@@ -105,8 +105,20 @@
           </span>
         </label>
 
-        <label class="flex items-start gap-2 text-[11px] text-slate-700">
-          <input v-model="sweepConsent" type="checkbox" class="mt-0.5 rounded border-indigo-300 text-indigo-600" />
+        <!-- The account's "I understand" for a science sweep (ConsentBox.vue, composables/useConsent.ts), the
+             same one as Science's sweep runner. Withdrawn during the run: the result is not sent. -->
+        <ConsentBox
+          v-model="sweepConsent"
+          consent-id="scienceSweep"
+          testid="sweep-consent"
+          label-class="text-[11px] text-slate-700"
+          summary-class="text-[11px] text-slate-700"
+          withdrawn-text="Withdrawn: this sweep's result will not be sent."
+        >
+          <template #summary>
+            <span>You agreed this sweep is sent to the board automatically when it finishes</span>
+          </template>
+          <template #text>
           <span>
             I understand this takes about <b>{{ estimateLabel }}</b
             >, that this tab has to stay open (and the computer awake) until it finishes, and that the result is then
@@ -117,7 +129,8 @@
             also re-prices my best three plans already on the board from this save, and those are sent too (named ones
             with a named send, anonymous ones with an anonymous send).
           </span>
-        </label>
+          </template>
+        </ConsentBox>
         <!-- The same two choices, and the same values, as the Submit section at the bottom: anonymous
              unless the player picks otherwise, and the name box starts from their own nickname. -->
         <ShareNameChoice
@@ -1170,6 +1183,8 @@ import RunControls from './RunControls.vue';
 import ResultTable from './ResultTable.vue';
 import DigDeeperLink from './DigDeeperLink.vue';
 import LongerRouteHint from './LongerRouteHint.vue';
+import ConsentBox from './ConsentBox.vue';
+import { agreeThisVisit, useConsent } from '@/composables/useConsent';
 
 const props = defineProps<{
   playerId: string;
@@ -1217,7 +1232,8 @@ const { bandsText, minGap } = kept;
 // sweep link left in the address put its banner and its tag on the date search too.
 const sweepRequest =
   typeof window === 'undefined' || props.goal === 'deadline' ? null : parseSweepRequest(window.location.search);
-const sweepConsent = ref(false);
+/** "I understand ... sent to the board automatically": the account's `scienceSweep` consent. */
+const sweepConsent = useConsent('scienceSweep').agreed;
 if (sweepRequest) {
   bandsText.value = sweepRequest.bands;
   minGap.value = sweepRequest.minGap;
@@ -1937,7 +1953,8 @@ async function start(andSubmit = false): Promise<void> {
 async function owesResult(): Promise<boolean> {
   const agreed = !!store.bestSoFar?.consent;
   await store.bestSoFarSettled();
-  const owed = store.provisionalRows.fastest;
+  // Not once the player withdrew (store `owedRow`).
+  const owed = store.owedRow('fastest');
   if (!agreed && owed) {
     anonymous.value = !owed.nickname;
     if (owed.nickname) nickname.value = owed.nickname;
@@ -1948,9 +1965,11 @@ async function owesResult(): Promise<boolean> {
 /** The result on screen, sent the way the sweep card sends one (CSV included, no time stamp on the name). */
 async function sendFinished(): Promise<void> {
   // Stopped early it still sends: the board labels it partial rather than exhaustive (leaderboardRank).
-  if (store.error || store.bestDays <= 0) return;
+  // Withdrawn during the run (the agreement, or the sweep card's "I understand"): nothing goes.
+  if (store.shareWithdrawn || store.error || store.bestDays <= 0) return;
   stampName.value = false;
-  optIn.value = true;
+  // The send needs the box ticked; the run's yes counts for this visit only.
+  agreeThisVisit('leaderboard');
   autoSubmitted.value = true;
   await submit(!!sweepRequest);
   store.lastAutoSend = { kind: 'full', ok: submitOk.value, text: submitMessage.value };
@@ -1966,7 +1985,8 @@ async function startOne(): Promise<void> {
   // Armed: the sweep sends itself at the end, so its last seconds may re-price the player's best
   // earlier plans on the workers before they are shut down (the store's "re-checks").
   await store.startExhaustive(props.playerId, currentSpec(), { recheck: autoSubmitArmed.value });
-  if (!autoSubmitArmed.value && !(await owesResult())) return;
+  // Read live: a withdraw during the run cleared `submitsWhenDone` (store `withdrawShareConsent`).
+  if (!(autoSubmitArmed.value && store.submitsWhenDone) && !(await owesResult())) return;
   autoSubmitArmed.value = false;
   // The card's own choice (anonymous by default, or the nickname box) is what goes; blank name with
   // "credit me" picked still goes anonymously, as `effectiveNickname` already decides.
@@ -2005,14 +2025,15 @@ async function startQueue(): Promise<void> {
 async function resumeQueue(q: SweepQueueRecord, next: number): Promise<void> {
   if (queueAt.value >= 0 || store.busy) return;
   resuming.value = 'checkpoint';
-  findAndSubmit.value = q.submit;
+  // Its recorded Find and submit holds unless the account's agreement was withdrawn since.
+  findAndSubmit.value = q.submit && store.carriedYesHolds();
   if (q.submit) {
     anonymous.value = !q.name;
     if (q.name) nickname.value = q.name;
   }
   store.lastAutoSend = null;
-  store.submitsWhenDone = q.submit;
-  store.beginBestSoFar('fastest', q.submit ? { nickname: q.name ?? '' } : null);
+  store.submitsWhenDone = findAndSubmit.value;
+  store.beginBestSoFar('fastest', findAndSubmit.value ? { nickname: q.name ?? '' } : null);
   try {
     await runQueue(props.playerId, q.chains, {
       from: next,
@@ -2057,8 +2078,10 @@ async function runQueue(
       // every one once the player agreed during the queue (Send best so far's box).
       sendIfOwed: async stopped => {
         await store.bestSoFarSettled();
-        const owes = !!store.provisionalRows.fastest || (!findAndSubmit.value && !!store.bestSoFar?.consent);
-        if ((findAndSubmit.value && !stopped) || owes) await sendFinished();
+        // Live: a withdraw during the queue cleared `submitsWhenDone` and the yes, and `owedRow` is null.
+        const armed = findAndSubmit.value && store.submitsWhenDone;
+        const owes = !!store.owedRow('fastest') || (!armed && !!store.bestSoFar?.consent);
+        if ((armed && !stopped) || owes) await sendFinished();
       },
       save: async label => void (await store.saveCurrentRun(player, label)),
       persistQueue: handled => store.persistQueue(player, handled),

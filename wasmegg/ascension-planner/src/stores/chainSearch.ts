@@ -172,6 +172,7 @@ import {
   type DeltaState,
 } from '@/search/csvDelta';
 import { useShareExtras } from '@/composables/useShareExtras';
+import { consentDeclined, consentWithdrawals } from '@/composables/useConsent';
 import {
   dropPendingSend,
   keepPendingSend,
@@ -1214,6 +1215,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   });
   function beginBestSoFar(kind: 'fastest' | 'deadline', consent: { nickname: string } | null): void {
     bestSoFar.value = { kind, consent, asked: false, sendOnAgree: false };
+    // A run starting: a withdraw before it is in the agreement itself (the box is unticked, so Find and
+    // submit is not offered); this run's own withdraw is what `shareWithdrawn` tracks from here.
+    shareWithdrawn.value = false;
     bestSoFarStatus.value = null;
     bestSoFarNow.value = Date.now();
     bestSoFarStartedAt = bestSoFarNow.value;
@@ -1242,9 +1246,68 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   }
   /** The player agreed, in the screen's box, during the run (or changed the name it goes under). */
   function agreeBestSoFar(nickname: string): void {
+    shareWithdrawn.value = false;
     if (bestSoFar.value)
       bestSoFar.value = { ...bestSoFar.value, consent: { nickname }, asked: false, sendOnAgree: false };
     if (bestSoFarStatus.value?.pending) bestSoFarStatus.value = null;
+  }
+
+  // ------------------------------------------------------------------------- Withdrawing the agreement
+  //
+  // Jordan, 15 Oct: withdrawing must stop future sends AT ONCE. The leaderboard agreement (or a science
+  // sweep's "I understand") withdrawn in its box (ConsentBox.vue, composables/useConsent.ts) lands here
+  // synchronously, and every gate reads live state: `submitsWhenDone` (the final send of Find and submit
+  // and of a sweep), `bestSoFar.consent` (Send best so far and the automatic progress sends), and
+  // `shareWithdrawn` (the final send a best so far on the board would otherwise be owed, and the
+  // automatic option asking again or re-agreeing from that row). Kept results lose their recorded yes:
+  // Send it now asks again. A send already on the wire is not called back.
+
+  /** Withdrawn during this run (or since the last run began); a new yes (`agreeBestSoFar`) clears it. */
+  const shareWithdrawn = ref(false);
+  function withdrawShareConsent(): void {
+    shareWithdrawn.value = true;
+    submitsWhenDone.value = false;
+    autoAsked = false;
+    const run = bestSoFar.value;
+    if (run) {
+      bestSoFar.value = { ...run, consent: null, asked: false, sendOnAgree: false };
+      bestSoFarStatus.value = {
+        ok: false,
+        pending: true,
+        text: 'Withdrawn: nothing more is sent from this run, not even its result when it finishes.',
+      };
+    }
+    if (pendingSends.value.some(p => p.consent)) {
+      const was = pendingSends.value;
+      pendingSends.value = was.map(p => (p.consent ? { ...p, consent: null } : p));
+      void (async () => {
+        try {
+          const hash = await accountPartition();
+          if (!hash) return;
+          for (const p of pendingSends.value) if (was.find(x => x.id === p.id)?.consent) await keepPendingSend(hash, p);
+        } catch {
+          // the list in memory has it; a reload shows the recorded yes again, and the gate below still holds
+        }
+      })();
+    }
+  }
+  watch(
+    () => consentWithdrawals('leaderboard') + consentWithdrawals('scienceSweep'),
+    () => withdrawShareConsent(),
+    { flush: 'sync' }
+  );
+  /**
+   * The result this run owes because a best so far of it is on the board (its result replaces that row),
+   * or null. Not once the player withdrew: during this run, or (for a run carried on from before) an
+   * explicit no on record for the account.
+   */
+  function owedRow(kind: 'fastest' | 'deadline'): ProvisionalRow | null {
+    if (shareWithdrawn.value || consentDeclined('leaderboard')) return null;
+    return provisionalRows.value[kind];
+  }
+  /** A carried-on run's recorded yes (its checkpoint's Find and submit) still holds: not withdrawn since. */
+  function carriedYesHolds(): boolean {
+    return !shareWithdrawn.value && !consentDeclined('leaderboard');
   }
   /**
    * Send best so far pressed before consent (`send`), or the automatic option wanting its yes: the
@@ -1361,9 +1424,12 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const run = bestSoFar.value;
     if (!run || !stepAwayOptions.value.autoSendBest) return;
     bestSoFarNow.value = Date.now();
+    // Withdrawn: no send, no asking again, no yes taken back from the board's row. Only a new tick.
+    if (!run.consent && shareWithdrawn.value) return;
     if (!run.consent) {
-      // A carried-on run that already sent a row under a name has the player's yes for that name.
-      const row = provisionalRows.value[run.kind];
+      // A carried-on run that already sent a row under a name has the player's yes for that name (not
+      // once an explicit no is on record for the account: `owedRow`).
+      const row = owedRow(run.kind);
       if (row) agreeBestSoFar(row.nickname);
       else if (!run.asked) {
         askBestSoFar();
@@ -8530,6 +8596,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     runElsewhere,
     refreshRunElsewhere,
     bestSoFar,
+    shareWithdrawn,
+    withdrawShareConsent,
+    owedRow,
+    carriedYesHolds,
     bestSoFarSending,
     bestSoFarStatus,
     bestSoFarWait,

@@ -1073,6 +1073,7 @@ import CsvCard from './CsvCard.vue';
 import RunResults from './RunResults.vue';
 import RunErrorNotes from './RunErrorNotes.vue';
 import RunControls from './RunControls.vue';
+import { agreeThisVisit } from '@/composables/useConsent';
 
 const props = defineProps<{
   playerId: string;
@@ -1416,23 +1417,25 @@ async function run(resume: boolean, andSubmit = false): Promise<void> {
   try {
     await store.start(props.playerId, { resume, recheck: armed });
   } finally {
+    // Read live, not from the click: a withdraw during the run cleared both (store `withdrawShareConsent`).
+    agreed = store.submitsWhenDone || !!store.bestSoFar?.consent;
     store.submitsWhenDone = false;
-    agreed = armed || !!store.bestSoFar?.consent;
     store.endBestSoFar();
   }
   // A best so far on the board is replaced by the run's result, so the run sends one when it ends:
   // after a yes in the box during the run, or for a carried-on run that sent one before (under the
-  // name that went with it).
+  // name that went with it). Not once the player withdrew (`owedRow`).
   await store.bestSoFarSettled();
-  const owed = store.provisionalRows.fastest;
+  const owed = store.owedRow('fastest');
   if (!agreed && owed) {
     anonymous.value = !owed.nickname;
     if (owed.nickname) nickname.value = owed.nickname;
   }
   // Stopped early it still sends: the best of what was priced is a real result, and the player asked
   // for it to be shared (the user, 30 Sept: "why does stopping early mean nothing is sent?").
-  if (!(agreed || owed) || store.error || store.bestDays <= 0) return;
-  optIn.value = true;
+  if (!(agreed || owed) || store.shareWithdrawn || store.error || store.bestDays <= 0) return;
+  // The send below needs the box ticked; a yes the run had (or owed) counts for this visit only.
+  agreeThisVisit('leaderboard');
   autoSubmitted.value = true;
   await submit();
   store.lastAutoSend = { kind: 'smart', ok: submitOk.value, text: submitMessage.value };
