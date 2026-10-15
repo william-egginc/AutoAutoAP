@@ -8,9 +8,12 @@
   Not the same list as Saved runs (SavedRuns.vue), which holds Smart search and Full sweep runs in the
   run library, carries them on and names them after saving: the two stores hold different records,
   and joining them would change both. Several roots, so it sits in the screen's own spacing.
+
+  `list-only` (My runs, 15 Oct 2026): the list alone, without Save this answer or the slots, and Open says
+  so (`opened`) for My runs to show By a date.
 -->
 <template>
-  <div class="flex flex-wrap items-center gap-2">
+  <div v-if="!listOnly" class="flex flex-wrap items-center gap-2">
     <slot name="actions" />
     <input
       v-model="label"
@@ -29,7 +32,7 @@
       {{ flash ? 'Saved' : 'Save this answer' }}
     </button>
   </div>
-  <slot />
+  <slot v-if="!listOnly" />
   <div v-if="store.savedAnswers.length" class="space-y-1">
     <h4 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Saved answers</h4>
     <div
@@ -46,7 +49,7 @@
         type="button"
         class="ml-auto text-[10px] font-black uppercase tracking-widest text-indigo-600 hover:text-indigo-800 disabled:opacity-40"
         :disabled="store.deadlineRunning"
-        @click="store.openSavedAnswer(a.id)"
+        @click="open(a.id)"
       >
         Open
       </button>
@@ -61,10 +64,10 @@
         :player-id="playerId"
         :entry="{ label: a.label, save: a.save, planStart: a.result.planStart, settings: a.result.settings }"
         :zone="zone"
-        @used="store.openSavedAnswer(a.id)"
+        @used="open(a.id)"
       />
     </div>
-    <SaveFileBar :player-id="playerId" />
+    <SaveFileBar v-if="!listOnly" :player-id="playerId" />
   </div>
 </template>
 
@@ -81,8 +84,16 @@ const props = defineProps<{
   defaultLabel: string;
   /** The planner's time zone, for "saved Oct 8, 2026, 2:22 PM". */
   zone: string;
+  /** My runs: the list alone (no Save this answer, no slots, no save-file bar). */
+  listOnly?: boolean;
 }>();
+const emit = defineEmits<{ opened: [] }>();
 const store = useChainSearchStore();
+
+function open(id: string): void {
+  store.openSavedAnswer(id);
+  emit('opened');
+}
 
 const label = ref('');
 const saving = ref(false);

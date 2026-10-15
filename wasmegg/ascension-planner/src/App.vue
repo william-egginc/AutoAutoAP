@@ -504,7 +504,7 @@
         >
           <template v-if="autoView === 'classic'">
             <p class="max-w-4xl mx-auto text-sm text-slate-600 leading-relaxed">
-              <span class="font-bold text-slate-900">{{ NAMES.classic }}</span> is Joo's Auto AP: type the TE you want
+              <span class="font-bold text-slate-900">{{ NAMES.classicFirst }}</span> is Joo's Auto AP: type the TE you want
               to ascend at and it lays out every ascension from your start, with the weekly Research Sale and the Monday
               2× earnings boost in it. To have the stops found for you, use {{ fastestName(chainSearchStore.finalTE) }} or
               {{ NAMES.byDate }}.
@@ -531,6 +531,12 @@
              else's account becomes a claim about yours. The player id only picks which of this
              browser's owner codes asks for "my" runs; it is hashed locally and never sent. -->
         <LeaderboardPanel :player-id="playerId" @use="useLeaderboardChain" />
+      </div>
+
+      <!-- My runs (15 Oct 2026; was Compare's My plans): your runs on the board (hidden ones too), saved on this
+           computer, and not sent yet. Use and a saved entry's Open go to the Auto Planner, as Compare's Use does. -->
+      <div v-else-if="plannerTab === 'myruns'" class="max-w-6xl mx-auto mt-6">
+        <MyRunsView :player-id="playerId" @use="useLeaderboardChain" @open="openFromMyRuns" />
       </div>
 
       <!-- Science: how the planner works (its default page), what the collected runs still can't tell
@@ -717,6 +723,7 @@ import { usePlanStartForm } from '@/composables/usePlanStartForm';
 import { useTablePrefetch } from '@/composables/useTablePrefetch';
 import { useGearCoverage } from '@/composables/useGearCoverage';
 import SiteTabs from '@/components/SiteTabs.vue';
+import MyRunsView from '@/components/MyRunsView.vue';
 import SetupDock from '@/components/auto/SetupDock.vue';
 import SweepRunner from '@/components/science/SweepRunner.vue';
 import HowItWorks from '@/components/science/HowItWorks.vue';
@@ -786,6 +793,14 @@ function useLeaderboardChain(chain: number[]): void {
   uiStore.autoView = 'classic';
   plannerTab.value = 'automatic';
 }
+/** My runs' Open on a saved run or answer: its screen, showing what Open just put there. Like Use, without
+ *  the tab click's fresh save (that would set the planner up again under the opened entry). */
+function openFromMyRuns(to: { auto: AutoView; depth?: Depth }): void {
+  pinnedRoute = null;
+  uiStore.autoView = to.auto;
+  if (to.depth) uiStore.fastestDepth = to.depth;
+  plannerTab.value = 'automatic';
+}
 const initialStateStore = useInitialStateStore();
 // The Auto Planner's start and timezone, restored and defaulted before any screen or chunk loads.
 usePlanStartForm();
@@ -809,9 +824,11 @@ function currentRoute(): SiteRoute {
       ? 'auto'
       : plannerTab.value === 'leaderboard'
         ? 'compare'
-        : plannerTab.value === 'science'
-          ? 'science'
-          : 'manual';
+        : plannerTab.value === 'myruns'
+          ? 'myruns'
+          : plannerTab.value === 'science'
+            ? 'science'
+            : 'manual';
   return {
     section,
     auto: autoView.value,
@@ -831,9 +848,11 @@ function applyRoute(r: SiteRoute): void {
       ? 'automatic'
       : r.section === 'compare'
         ? 'leaderboard'
-        : r.section === 'science'
-          ? 'science'
-          : 'manual';
+        : r.section === 'myruns'
+          ? 'myruns'
+          : r.section === 'science'
+            ? 'science'
+            : 'manual';
 }
 
 if (initialRoute) {
@@ -1041,8 +1060,11 @@ watch([compareView, scienceView], () => (pinnedRoute = null));
 watch(playerId, () => {
   if (chainSearchStore.sweepQueue.at >= 0) chainSearchStore.sweepQueue.cancelled = true;
 });
-// A copy with no collector has no Compare or Science tab: an address for one opens the Manual Planner.
-if (!chainSearchStore.submitUrl && (plannerTab.value === 'leaderboard' || plannerTab.value === 'science')) {
+// A copy with no collector has no Compare, My runs or Science tab: an address for one opens the Manual Planner.
+if (
+  !chainSearchStore.submitUrl &&
+  (plannerTab.value === 'leaderboard' || plannerTab.value === 'myruns' || plannerTab.value === 'science')
+) {
   plannerTab.value = 'manual';
 }
 
@@ -1077,6 +1099,12 @@ const topTabs = computed(() => [
           tab: 'leaderboard',
           label: NAMES.compare,
           on: 'bg-emerald-600 text-white shadow-lg shadow-emerald-100',
+        },
+        {
+          id: 'myruns' as const,
+          tab: 'myruns',
+          label: NAMES.myRuns,
+          on: 'bg-sky-600 text-white shadow-lg shadow-sky-100',
         },
         {
           id: 'science' as const,

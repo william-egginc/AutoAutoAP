@@ -97,7 +97,7 @@
 
     <div v-if="docked" class="p-4 space-y-4">
       <p class="text-[11px] text-slate-500">
-        One setup for all three Auto Planner screens: change it here and Your plan, {{ fastestName(store.finalTE) }} and
+        One setup for all three Auto Planner screens: change it here and {{ NAMES.classic }}, {{ fastestName(store.finalTE) }} and
         {{ NAMES.byDate }} all use it.
       </p>
 
@@ -200,12 +200,12 @@
               </span>
             </label>
             <p v-if="store.firstAscensionFromClassic" class="text-[11px] text-slate-500 leading-relaxed">
-              Set from A1's dropdown in Your plan ({{ FIRST_ASCENSION_WORDS[store.firstAscensionFromClassic] }}).
+              Set from A1's dropdown in {{ NAMES.classic }} ({{ FIRST_ASCENSION_WORDS[store.firstAscensionFromClassic] }}).
               Choosing here changes it there too.
             </p>
             <p v-if="startTooFar" class="text-[11px] font-semibold text-amber-700 leading-relaxed">
               The plan starts more than an hour from now, so there's no current ascension to continue then: the first
-              ascension starts fresh, as in Your plan.
+              ascension starts fresh, as in {{ NAMES.classic }}.
             </p>
           </div>
         </fieldset>
@@ -218,7 +218,7 @@
         >
           <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">When you can play</h3>
           <p v-if="screen === 'classic'" class="text-[11px] font-semibold text-amber-700">
-            Your plan doesn't plan around awake hours yet. The two searches do.
+            {{ NAMES.classic }} doesn't plan around awake hours yet. The two searches do.
           </p>
           <!-- Two plain choices instead of one checkbox (the user, 4 Oct: "the hours don't seem that clear"). -->
           <div class="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="When you can prestige">
@@ -330,7 +330,7 @@
           <div id="your-setup-time-off" class="scroll-mt-4"></div>
           <TimeOffEditor />
           <p v-if="screen === 'classic'" class="text-[11px] font-semibold text-amber-700 leading-relaxed">
-            Your plan only plans around time off in a plan built from a search (Build this plan on {{ fastestName(store.finalTE) }} or
+            {{ NAMES.classic }} only plans around time off in a plan built from a search (Build this plan on {{ fastestName(store.finalTE) }} or
             {{ NAMES.byDate }}). A route typed in here goes straight through it for now.
           </p>
           <p v-else class="text-[11px] text-slate-500 leading-relaxed">
@@ -366,7 +366,7 @@
             </div>
           </div>
           <p v-if="screen === 'classic'" class="text-[11px] font-semibold text-amber-700">
-            Not used by Your plan: it builds one plan, no search.
+            Not used by {{ NAMES.classic }}: it builds one plan, no search.
           </p>
           <WorkerSlider />
           <BackgroundSpeed />

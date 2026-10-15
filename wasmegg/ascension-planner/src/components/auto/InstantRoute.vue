@@ -258,7 +258,7 @@
             <div v-if="dateRows.length > 1" class="overflow-x-auto rounded-lg bg-white/70 px-2 py-1">
               <p class="text-[11px] text-slate-500">
                 Exact = the full simulator on your account; filled in automatically. Simulate this plan opens that route in
-                Your plan, simulated step by step on your save: each ascension, its dates and purchases.
+                {{ NAMES.classic }}, simulated step by step on your save: each ascension, its dates and purchases.
               </p>
               <table class="w-full text-[12px] whitespace-nowrap">
                 <thead>
@@ -318,7 +318,7 @@
                       <button
                         type="button"
                         class="px-2 py-1 rounded-md border border-slate-300 text-[9px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-800"
-                        title="Opens this route in Your plan, simulated step by step on your save"
+                        :title="`Opens this route in ${NAMES.classic}, simulated step by step on your save`"
                         @click="openPlan((dateExactByK[r.legs.length] ?? tableDate(r)).chain)"
                       >
                         Simulate this plan
@@ -383,7 +383,7 @@
             <button
               type="button"
               class="mt-1 ml-2 px-3 py-1.5 rounded-lg border border-emerald-700 text-emerald-800 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-50"
-              title="Opens this route in Your plan, simulated step by step on your save"
+              :title="`Opens this route in ${NAMES.classic}, simulated step by step on your save`"
               @click="openPlan((dateExact ?? tableDate(result.byDate)).chain)"
             >
               Simulate this plan
@@ -446,7 +446,7 @@
           <div class="overflow-x-auto rounded-lg bg-white/70 px-2 py-1">
             <p class="text-[11px] text-slate-500">
               Exact = the full simulator on your account; filled in automatically. Simulate this plan opens that route in
-              Your plan, simulated step by step on your save: each ascension, its dates and purchases.
+              {{ NAMES.classic }}, simulated step by step on your save: each ascension, its dates and purchases.
             </p>
             <table class="w-full text-[12px] whitespace-nowrap">
               <thead>
@@ -499,7 +499,7 @@
                       type="button"
                       class="px-2 py-1 rounded-md border border-slate-300 text-[9px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-800"
                       :disabled="r.chain.length < 2"
-                      title="Opens this route in Your plan, simulated step by step on your save"
+                      :title="`Opens this route in ${NAMES.classic}, simulated step by step on your save`"
                       @click="openPlan(r.chain)"
                     >
                       Simulate this plan
@@ -572,7 +572,7 @@
           <button
             type="button"
             class="mt-1 ml-2 px-3 py-1.5 rounded-lg border border-emerald-700 text-emerald-800 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-50"
-            title="Opens this route in Your plan, simulated step by step on your save"
+            :title="`Opens this route in ${NAMES.classic}, simulated step by step on your save`"
             @click="openPlan(lead.chain)"
           >
             Simulate this plan

@@ -91,14 +91,14 @@
         {{ simulateNote }}
       </p>
       <!-- The same row as Fastest's card, in the same order: the main action (Simulate this plan, as
-           the instant answer's rows: this route in Your plan, search/simulateRoute.ts), Share, CSV, Save.
+           the instant answer's rows: this route in Single run (NAMES.classic), search/simulateRoute.ts), Share, CSV, Save.
            Mid-run only Simulate (the rest belong to the finished answer). -->
       <template v-if="simulate || canShare || canCsv || canSave" #actions>
         <button
           v-if="simulate"
           type="button"
           :class="PRIMARY_BUTTON"
-          title="Opens this route in Your plan, simulated step by step on your save"
+          :title="`Opens this route in ${NAMES.classic}, simulated step by step on your save`"
           data-testid="by-date-simulate"
           @click="emit('simulate')"
         >
@@ -124,7 +124,7 @@
           <span v-if="note" class="text-[11px] font-semibold text-emerald-800">{{ note }}</span>
         </template>
         <p v-if="simulate" class="w-full text-[10px] text-emerald-900/70" data-testid="simulate-plan-note">
-          Simulate this plan shows every shift and when each TE arrives in Your plan.
+          Simulate this plan shows every shift and when each TE arrives in {{ NAMES.classic }}.
         </p>
       </template>
     </ResultCardFrame>
@@ -159,6 +159,7 @@
 </template>
 
 <script setup lang="ts">
+import { NAMES } from '@/lib/siteNav';
 import { scrollToShownId } from '@/lib/searchTab';
 import { computed } from 'vue';
 import ResultCardFrame from './ResultCardFrame.vue';

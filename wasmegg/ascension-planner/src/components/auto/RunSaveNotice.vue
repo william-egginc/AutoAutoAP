@@ -16,7 +16,7 @@
       The planner is using
       <template v-if="ui.runSaveLoaded.from === 'entry'"
         >the save that "{{ ui.runSaveLoaded.label }}" was priced from (TE {{ ui.runSaveLoaded.te }})</template
-      ><template v-else>the save from your file (TE {{ ui.runSaveLoaded.te }})</template>, not your latest one. Your plan,
+      ><template v-else>the save from your file (TE {{ ui.runSaveLoaded.te }})</template>, not your latest one. {{ NAMES.classic }},
       Simulate this plan, Check exactly and any search you start now use this save<template v-if="store.isRunning || store.deadlineRunning"
         >, including the search running now</template
       >. Anything you send to the leaderboard says how old this save is.
@@ -80,6 +80,7 @@
 </template>
 
 <script setup lang="ts">
+import { NAMES } from '@/lib/siteNav';
 import { computed } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useUIStore } from '@/stores/ui';

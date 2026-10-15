@@ -1,4 +1,4 @@
-/** What By a date's Simulate this plan hands Your plan (search/byDateSimulate.ts). */
+/** What By a date's Simulate this plan hands Single run (search/byDateSimulate.ts). */
 import { describe, expect, it } from 'vitest';
 import { BUILDUP_NOTE, byDateSimulate } from './byDateSimulate';
 import type { DeadlineRoute } from './deadline';
@@ -25,7 +25,7 @@ describe('byDateSimulate', () => {
     const s = byDateSimulate(route(['buildup', '1-sale', '1-sale']), { planStart: START, firstAscension: 'auto' });
     expect(s.opts.legs?.[0].key).toBe('buildup');
     expect(s.note).toBe(BUILDUP_NOTE);
-    expect(BUILDUP_NOTE).toBe('Your plan prices the first ascension as a fresh build/continue.');
+    expect(BUILDUP_NOTE).toBe('Single run prices the first ascension as a fresh build/continue.');
   });
 
   it('no legs yet (a best so far replayed): the setting decides the note; nothing recorded, nothing passed', () => {

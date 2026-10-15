@@ -584,7 +584,7 @@
               can-save
               :saving="saving"
               :note="
-                applied ? `Sent ${applied} to Your plan${generated ? ' and started building the plan.' : '.'}` : ''
+                applied ? `Sent ${applied} to ${NAMES.classic}${generated ? ' and started building the plan.' : '.'}` : ''
               "
               @build="use(store.bestChain, true)"
               @fill="use(store.bestChain)"

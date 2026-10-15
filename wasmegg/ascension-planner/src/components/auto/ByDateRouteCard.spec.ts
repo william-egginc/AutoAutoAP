@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { h } from 'vue';
 import ByDateRouteCard from './ByDateRouteCard.vue';
 import RouteResultCard from './RouteResultCard.vue';
+import { BUILDUP_NOTE } from '@/search/byDateSimulate';
 import { renderHtml, textOf } from '@/test/renderComponent';
 import { spareLabel } from '@/search/deadlineSummary';
 import type { DeadlineRoute } from '@/search/deadline';
@@ -109,10 +110,10 @@ describe('ByDateRouteCard: the button row (as on Fastest\'s card)', () => {
     const t = textOf(
       await renderHtml(
         ByDateRouteCard,
-        props({ simulate: true, simulateNote: 'Your plan prices the first ascension as a fresh build/continue.' })
+        props({ simulate: true, simulateNote: BUILDUP_NOTE })
       )
     );
-    expect(t).toContain('Your plan prices the first ascension as a fresh build/continue. Simulate this plan');
+    expect(t).toContain('Single run prices the first ascension as a fresh build/continue. Simulate this plan');
     expect(await renderHtml(ByDateRouteCard, props())).not.toContain('by-date-simulate');
     expect(await renderHtml(ByDateRouteCard, props({ simulate: true }))).not.toContain('by-date-simulate-note');
   });
@@ -120,7 +121,7 @@ describe('ByDateRouteCard: the button row (as on Fastest\'s card)', () => {
   it('Simulate, Share, CSV, Save answer in that order, styled as Fastest\'s Build / Share / CSV / Save run', async () => {
     const html = await renderHtml(ByDateRouteCard, props({ simulate: true, canShare: true, canCsv: true, canSave: true }));
     expect(textOf(html)).toMatch(
-      /Simulate this plan Share CSV ↓ Save answer Simulate this plan shows every shift and when each TE arrives in Your plan\. Leg/
+      /Simulate this plan Share CSV ↓ Save answer Simulate this plan shows every shift and when each TE arrives in Single run\. Leg/
     );
     const fast = await renderHtml(RouteResultCard, {
       chain: [212, 280, 490],
@@ -168,7 +169,7 @@ describe('RouteResultCard (Fastest): last run and the Build note', () => {
     );
     const live = textOf(await renderHtml(RouteResultCard, { ...base, running: false }));
     expect(live).toMatch(/^Fastest found/);
-    expect(live).toContain('Build this plan shows every shift and when each TE arrives in Your plan.');
+    expect(live).toContain('Build this plan shows every shift and when each TE arrives in Single run.');
     // While running: still the best so far, never "Your last run".
     expect(textOf(await renderHtml(RouteResultCard, { ...base, running: true, lastRun: 'x' }))).toMatch(/^Best so far/);
   });

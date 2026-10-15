@@ -10,6 +10,9 @@
  *                                            the Chain Explorer's charts
  *                    #/compare/latest        Your latest run: this visit's Fastest run's other options
  *                                            and charts (moved off Fastest's results, 15 Oct 2026)
+ *   My runs          #/myruns                every run of yours: on the board (hidden ones too), saved on
+ *                                            this computer, and not sent yet (15 Oct 2026; was Compare's
+ *                                            My plans tab, and #/compare/mine still lands here)
  *   Science          #/science               how the planner works, and how its answers were checked
  *                                            (How it works, the default; #/science/how still opens it)
  *                    #/science/check         what we still need to check (the sweeps to run)
@@ -24,13 +27,13 @@
  * Every name a player reads is in NAMES, so the names the Discord feedback settles on are one edit.
  */
 
-export type Section = 'manual' | 'auto' | 'compare' | 'science';
+export type Section = 'manual' | 'auto' | 'compare' | 'myruns' | 'science';
 export type AutoView = 'classic' | 'fastest' | 'by-date';
 /** How thorough the fastest-route search is: descent (Smart) or every route in a box (full). */
 export type Depth = 'smart' | 'full';
 /** The leaderboard's views, then the Explorer's charts. */
-export type CompareView = 'eggday' | 'race' | 'mine' | 'all' | 'dates' | 'latest' | 'insights';
-export const COMPARE_VIEWS: CompareView[] = ['eggday', 'race', 'mine', 'all', 'dates', 'latest', 'insights'];
+export type CompareView = 'eggday' | 'race' | 'all' | 'dates' | 'latest' | 'insights';
+export const COMPARE_VIEWS: CompareView[] = ['eggday', 'race', 'all', 'dates', 'latest', 'insights'];
 /** Science's views, in tab order: How it works first (the default), then the sweep pages. */
 export type ScienceView = 'how' | 'check' | 'submit' | 'start';
 /** The Science views that have their own address part (`how` is the plain #/science). */
@@ -50,6 +53,8 @@ export const NAMES = {
   manual: 'Manual Planner',
   auto: 'Auto Planner',
   compare: 'Compare',
+  /** My runs (#/myruns, MyRunsView.vue): the account's runs on the board, saved here, and not sent yet. */
+  myRuns: 'My runs',
   science: 'Science',
   insights: 'Insights',
   /** Compare › Your latest run (#/compare/latest): the other options and charts of this visit's Fastest
@@ -61,7 +66,11 @@ export const NAMES = {
   start: 'When should I start?',
   /** Science › How it works: what the searches and the instant answer do, and how they were checked. */
   how: 'How it works',
-  classic: 'Your plan',
+  /** Joo's single-plan simulator (Classic), the Auto Planner's first screen. Was "Your plan" until 15 Oct
+   *  2026; `classicFirst` says so in one place (the screen's own intro). */
+  classic: 'Single run',
+  classicWas: 'Your plan',
+  classicFirst: 'Single run (was Your plan)',
   fastest: 'Fastest to 490 TE',
   byDate: 'Highest TE by a date',
   /** The two ways to search on Fastest and By a date (decision A, 12 Oct 2026; SearchModeChooser.vue):
@@ -96,6 +105,7 @@ export const DEFAULT_ROUTE: Required<SiteRoute> = {
 /** `#/auto/fastest/full` for a route. The sub-parts only where the section has them. */
 export function hashFor(r: SiteRoute): string {
   if (r.section === 'compare') return !r.compare || r.compare === 'eggday' ? '#/compare' : `#/compare/${r.compare}`;
+  if (r.section === 'myruns') return '#/myruns';
   if (r.section === 'science')
     return r.science && SCIENCE_SUBS.includes(r.science) ? `#/science/${r.science}` : '#/science';
   if (r.section !== 'auto') return `#/${r.section}`;
@@ -111,7 +121,9 @@ export function routeFromLocation(search: string, hash: string): Required<SiteRo
   const h = hash.replace(/^#/, '');
   if (h.startsWith('/')) {
     const [section, sub, depth] = h.slice(1).split('/');
-    if (section === 'manual') return { ...DEFAULT_ROUTE, section };
+    if (section === 'manual' || section === 'myruns') return { ...DEFAULT_ROUTE, section };
+    // Compare's My plans tab became My runs (15 Oct 2026): old links land there.
+    if (section === 'compare' && sub === 'mine') return { ...DEFAULT_ROUTE, section: 'myruns' };
     if (section === 'compare') {
       const compare = COMPARE_VIEWS.find(v => v === sub) ?? 'eggday';
       return { ...DEFAULT_ROUTE, section, compare };

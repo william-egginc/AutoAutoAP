@@ -163,7 +163,8 @@ import { sentence } from '@/utils/errors';
 import SendingText from './SendingText.vue';
 
 const props = defineProps<{
-  kind: PendingKind;
+  /** This screen's kind; every kind when left out (My runs' "Not sent yet"). */
+  kind?: PendingKind;
   playerId: string;
   /** The screen's own "Credit me as" box, to start each name from; else the account's name. */
   nickname?: string;
@@ -174,7 +175,7 @@ const store = useChainSearchStore();
 const shown = computed(() =>
   store.isRunning || store.deadlineRunning || (store.resultSending && !sendingId.value)
     ? []
-    : store.pendingSends.filter(p => p.kind === props.kind)
+    : store.pendingSends.filter(p => !props.kind || p.kind === props.kind)
 );
 /** What the last Send it now here said once its result left the list (sent). */
 const sentNote = ref('');

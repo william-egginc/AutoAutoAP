@@ -30,12 +30,14 @@ The names are the ones players read, kept in `NAMES` in `src/lib/siteNav.ts`.
 
 - **Manual Planner**: plan an ascension by hand, action by action (upstream's planner).
 - **Auto Planner**
-  - **Your plan**: Joo's Classic auto planner. Type the TEs to ascend at and it lays out every ascension.
+  - **Single run** (was Your plan): Joo's Classic auto planner. Type the TEs to ascend at and it lays out every ascension.
   - **Fastest to 490 TE** (the name follows your final target): the instant answer and Check exactly
     on top, then two tabs, **Nearby routes** (with the Stronger check levels) and **Exhaustive**.
   - **Highest TE by a date**: the same layout, for the most TE by a date.
-- **Compare**: Egg Day, Race, My plans, All runs, By a date, and **Insights** (charts across everybody's
+- **Compare**: Egg Day, Race, All runs, By a date, Your latest run, and **Insights** (charts across everybody's
   runs; also the standalone `explorer.html`).
+- **My runs**: your runs on the board (any kind, the ones hidden from the public too, with Hide from the
+  public), runs and answers saved on this computer, and results not sent yet. `#/compare/mine` lands here.
 - **Science**: **How it works** (the default), **What we need to check**, **Submit a sweep** and
   **When should I start?**
 

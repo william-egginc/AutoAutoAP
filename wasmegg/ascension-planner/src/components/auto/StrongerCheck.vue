@@ -223,7 +223,7 @@ let autoPool: ChainSearchPool | null = null;
 let autoGen = 0;
 let autoFor: { found: FoundRoutes | null; done: number } | null = null;
 
-/** This browser's board rows for the account, read with its owner code (as My plans does); none
+/** This browser's board rows for the account, read with its owner code (as My runs does); none
  *  without a code or a collector. */
 async function fetchMine(partition: string): Promise<BoardRow[]> {
   const token = existingOwnerToken(partition);

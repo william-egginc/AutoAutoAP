@@ -72,13 +72,14 @@
       </button>
       <span v-if="note" class="text-[11px] font-semibold text-emerald-800">{{ note }}</span>
       <p class="w-full text-[10px] text-emerald-900/70" data-testid="build-plan-note">
-        Build this plan shows every shift and when each TE arrives in Your plan.
+        Build this plan shows every shift and when each TE arrives in {{ NAMES.classic }}.
       </p>
     </template>
   </ResultCardFrame>
 </template>
 
 <script setup lang="ts">
+import { NAMES } from '@/lib/siteNav';
 import { scrollToShownId } from '@/lib/searchTab';
 import ResultCardFrame from './ResultCardFrame.vue';
 import { PRIMARY_BUTTON, SECONDARY_BUTTON } from './resultCardStyle';

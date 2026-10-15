@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { NAMES, canonicalUrl, fastestName, hashFor, routeFromLocation, type SiteRoute } from './siteNav';
+import { COMPARE_VIEWS, NAMES, canonicalUrl, fastestName, hashFor, routeFromLocation, type SiteRoute } from './siteNav';
 
 const R = (
   section: SiteRoute['section'],
@@ -14,6 +14,7 @@ describe('siteNav', () => {
     const all = [
       R('manual'),
       R('compare'),
+      R('myruns'),
       R('science'),
       R('auto', 'classic'),
       R('auto', 'fastest'),
@@ -65,6 +66,22 @@ describe('siteNav', () => {
     expect(NAMES.latest).toBe('Your latest run');
     expect(hashFor(R('compare', 'classic', 'smart', 'latest'))).toBe('#/compare/latest');
     expect(routeFromLocation('', '#/compare/latest')).toEqual(R('compare', 'classic', 'smart', 'latest'));
+  });
+
+  it('gives My runs its own top-level address, and sends old My plans links there (15 Oct)', () => {
+    expect(NAMES.myRuns).toBe('My runs');
+    expect(hashFor(R('myruns'))).toBe('#/myruns');
+    expect(routeFromLocation('', '#/myruns')).toEqual(R('myruns'));
+    expect(routeFromLocation('', '#/compare/mine')).toEqual(R('myruns'));
+    // Compare has no My plans view left.
+    expect(COMPARE_VIEWS as string[]).not.toContain('mine');
+    expect(routeFromLocation('', '#/compare/race')).toEqual(R('compare', 'classic', 'smart', 'race'));
+  });
+
+  it('names Classic "Single run" in one place (was Your plan)', () => {
+    expect(NAMES.classic).toBe('Single run');
+    expect(NAMES.classicFirst).toBe(`${NAMES.classic} (was ${NAMES.classicWas})`);
+    expect(NAMES.classicWas).toBe('Your plan');
   });
 
   it('lets a new-style hash win over the old flags', () => {

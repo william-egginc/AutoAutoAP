@@ -15,7 +15,7 @@
       <h2 class="text-2xl font-black text-slate-900">{{ fastestName(store.finalTE) }}</h2>
       <p class="text-sm text-slate-600">
         Finds the stops that get you to {{ store.finalTE }} TE soonest, from your save and your setup. Plans
-        include the weekly Research Sale and the Monday 2× earnings boost, the same as Your plan; other game events aren't
+        include the weekly Research Sale and the Monday 2× earnings boost, the same as {{ NAMES.classic }}; other game events aren't
         simulated.
       </p>
     </div>
@@ -76,7 +76,7 @@
 <script setup lang="ts">
 import { computed, nextTick, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
-import { fastestName, type Depth } from '@/lib/siteNav';
+import { NAMES, fastestName, type Depth } from '@/lib/siteNav';
 import { safeAsyncComponent } from '@/lib/import';
 import StrongerBox from './StrongerBox.vue';
 import CollapsibleSection from './CollapsibleSection.vue';

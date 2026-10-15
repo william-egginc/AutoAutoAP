@@ -1,5 +1,5 @@
 <!--
-  The four top tabs (lib/siteNav.ts), in the original buttons' style: the user asked to keep those
+  The five top tabs (lib/siteNav.ts), in the original buttons' style: the user asked to keep those
   (30 Sept), so the same pill, sizes, icons and colours, with the BETA badge on the Auto Planner.
   Sits where the tabs always sat, under the player ID in the header, and App shows the same row just
   below the header when it's folded away (the Auto Planner folds it).
@@ -7,19 +7,23 @@
 <template>
   <div class="space-y-1">
     <div class="flex justify-center">
-      <!-- Narrow windows: a 2 x 2 grid of equal cells across the bar (four tabs in one row need about
-           700px, and a free wrap left Science alone on a second row at ~700px and three ragged rows at
-           375). Below sm the icons go, so each label fits its cell on one line at 375. From md up, one row;
-           the wide padding only from lg, so the row fits at 768. -->
+      <!-- Narrow windows: two rows on a 6-column grid, the two planners on the first (3 columns each) and
+           Compare, My runs and Science on the second (2 each), so no tab is left alone on a row (five tabs
+           in one row need about 900px with the icons; a free wrap left ragged rows). Below sm the icons go,
+           so each label fits its cell at 375. From lg up, one row. A copy with no collector has only the
+           two planners: one row of two. -->
       <div
-        class="bg-slate-50 p-1 sm:p-1.5 rounded-2xl border border-slate-200/50 shadow-sm grid grid-cols-2 w-full md:flex md:w-auto md:justify-center gap-1"
+        class="bg-slate-50 p-1 sm:p-1.5 rounded-2xl border border-slate-200/50 shadow-sm grid grid-cols-6 w-full lg:flex lg:w-auto lg:justify-center gap-1"
       >
         <button
-          v-for="t in tabs"
+          v-for="(t, i) in tabs"
           :key="t.id"
           type="button"
+          :class="[
+            i < 2 ? 'col-span-3' : 'col-span-2',
+            current === t.tab ? t.on : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50',
+          ]"
           class="min-w-0 px-2 sm:px-4 lg:px-6 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider sm:tracking-[0.15em] transition-all duration-300 flex items-center justify-center gap-1.5 sm:gap-2 text-center leading-tight"
-          :class="current === t.tab ? t.on : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'"
           :aria-current="current === t.tab ? 'page' : undefined"
           @click="emit('select', t.id)"
         >
@@ -55,12 +59,13 @@ defineProps<{
 }>();
 const emit = defineEmits<{ select: [section: Section] }>();
 
-/** The original tabs' icons (pencil, lightning, bag), and a flask for Science. */
+/** The original tabs' icons (pencil, lightning, bag), a list for My runs and a flask for Science. */
 const ICONS: Record<Section, string> = {
   manual:
     'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z',
   auto: 'M13 10V3L4 14h7v7l9-11h-7z',
   compare: 'M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z',
+  myruns: 'M9 5h11M9 12h11M9 19h11M4 5h.01M4 12h.01M4 19h.01',
   science: 'M9 3h6M10 3v6.5L4.6 18.2A2 2 0 006.3 21h11.4a2 2 0 001.7-2.8L14 9.5V3M7.5 15h9',
 };
 </script>

@@ -1,7 +1,7 @@
 <!--
   One player's plans as a small table: route, finish date, days left, where it was planned from,
   and either the gap to their best plan or the reason it no longer counts. Used inside an opened
-  Race line and on My plans, so a plan reads the same in both.
+  Race line (and on My plans, until it moved to the My runs tab, 15 Oct 2026).
 
   The table scrolls sideways inside its own box rather than wrapping: on a phone a long route and a
   wrapped "Planned" line made every plan five lines tall. The box only scrolls when something
