@@ -1,15 +1,21 @@
 import { createReadStream, statSync, type Stats } from 'node:fs';
-import { cp, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readFile, rm } from 'node:fs/promises';
 import type { ServerResponse } from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
-import { promisify } from 'node:util';
-import { brotliCompress, constants as zlibConstants } from 'node:zlib';
 import { defineConfig, loadEnv, type Plugin } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import vueJsx from '@vitejs/plugin-vue-jsx';
 import release from './release';
+import {
+  BROTLI_TYPES,
+  digest,
+  freshBrotli,
+  restoreKept,
+  verifyAssets,
+  writeBrotliCopies,
+} from './src/lib/buildAssets';
 import {
   COMMON_HEADERS,
   contentSecurityPolicy,
@@ -151,7 +157,7 @@ function warnIfReleaseStale(): Plugin {
 
 /**
  * Hashed files under `assets/` are cached for a year by browsers and by Cloudflare, and sent
- * brotli-compressed when the build made a `.br` copy (see `brotliAssets`); everything else (the two
+ * brotli-compressed when the build made a `.br` copy (see `writeBrotliCopies`); everything else (the two
  * HTML pages, version.json, favicon) keeps `vite preview`'s `no-cache`.
  *
  * WHY. The live site is `vite preview` behind a Cloudflare tunnel, so netlify.toml's headers never
@@ -302,7 +308,7 @@ function immutableAssets(): Plugin {
         // (a Range request, no .br, a client without br) falls through to the normal gzip path.
         const brFile = `${file}.br`;
         const type = BROTLI_TYPES[path.extname(file)];
-        if (!type || !isFile(brFile)) return next();
+        if (!type || !freshBrotli(file, brFile)) return next();
         appendVary(res, 'Accept-Encoding');
         if (req.headers.range || !acceptsBrotli(req.headers['accept-encoding'])) return next();
         let stat: Stats;
@@ -379,31 +385,28 @@ function appendVary(res: ServerResponse, field: string): void {
  * Never fails the build: a file that will not compress simply has no copy, and preview then serves
  * it as before. Build-only (`apply`), so a dev server shutting down never writes into dist.
  */
-const BROTLI_TYPES: Record<string, string> = {
-  '.js': 'text/javascript',
-  '.css': 'text/css',
-  '.json': 'application/json',
-  '.svg': 'image/svg+xml',
-};
-const brotli = promisify(brotliCompress);
 
 /**
  * KEEP THE PREVIOUS BUILDS' CHUNKS (the user, 7 Oct). A build empties dist/, so a tab opened before a
  * deploy asked for a lazy chunk that no longer existed the next time it switched screens, and got the
  * "New version available, please refresh" dialog (lib/import.ts) after even a small update. The old
  * hashed files are copied aside before the build and the ones the new build did not write are put
- * back, so an open tab keeps working until it reloads on its own. Hashed names never collide, and
+ * back, so an open tab keeps working until it reloads on its own. Hashed names never collide (only
+ * what the bundle itself did not emit is put back), and
  * anything older than KEEP_DAYS is dropped so dist/ does not grow forever.
  */
-const KEEP_DAYS = 7;
 function keepOldAssets(): Plugin {
   let assetsPath = '';
+  let assetsDir = '';
   let stash = '';
+  /** File name under assets/ -> digest, for every file this build emitted (writeBundle). */
+  const emitted = new Map<string, string>();
   return {
     name: 'aap-keep-old-assets',
     apply: 'build',
     configResolved(config) {
       assetsPath = path.resolve(config.root, config.build.outDir, config.build.assetsDir);
+      assetsDir = config.build.assetsDir;
       stash = path.resolve(config.root, 'node_modules/.aap-old-assets');
     },
     async buildStart() {
@@ -415,65 +418,24 @@ function keepOldAssets(): Plugin {
         // First build, or no assets yet: nothing to keep.
       }
     },
-    async closeBundle() {
-      let names: string[];
-      try {
-        names = await readdir(stash);
-      } catch {
-        return;
+    // What this build wrote, and a digest of each, as the bundler handed it over.
+    writeBundle(_options, bundle) {
+      for (const [name, out] of Object.entries(bundle)) {
+        if (!name.startsWith(`${assetsDir}/`)) continue;
+        const body = out.type === 'chunk' ? out.code : out.source;
+        emitted.set(path.basename(name), digest(Buffer.from(body)));
       }
-      const fresh = new Set(await readdir(assetsPath).catch(() => [] as string[]));
-      const cutoff = Date.now() - KEEP_DAYS * 86_400_000;
-      for (const name of names) {
-        if (fresh.has(name)) continue;
-        const from = path.join(stash, name);
-        try {
-          if ((await stat(from)).mtimeMs < cutoff) continue;
-          await cp(from, path.join(assetsPath, name), { preserveTimestamps: true });
-        } catch {
-          // One unreadable file must not fail the build.
-        }
-      }
-      await rm(stash, { recursive: true, force: true });
     },
-  };
-}
-
-function brotliAssets(): Plugin {
-  let assetsPath = '';
-  return {
-    name: 'aap-brotli-assets',
-    apply: 'build',
-    configResolved(config) {
-      assetsPath = path.resolve(config.root, config.build.outDir, config.build.assetsDir);
-    },
+    // One after another (closeBundle hooks may run in parallel): put the old files back, write the
+    // brotli copies, then check what is on disk before anyone is served it.
     async closeBundle() {
-      let names: string[];
-      try {
-        names = await readdir(assetsPath);
-      } catch {
-        return;
-      }
-      await Promise.all(
-        names
-          .filter(name => BROTLI_TYPES[path.extname(name)])
-          .map(async name => {
-            const file = path.join(assetsPath, name);
-            try {
-              const data = await readFile(file);
-              if (data.length < 1024) return;
-              const compressed = await brotli(data, {
-                params: {
-                  [zlibConstants.BROTLI_PARAM_QUALITY]: 11,
-                  [zlibConstants.BROTLI_PARAM_SIZE_HINT]: data.length,
-                },
-              });
-              if (compressed.length < data.length) await writeFile(`${file}.br`, compressed);
-            } catch (error) {
-              console.warn(`[aap-brotli-assets] no brotli copy of ${name}:`, error);
-            }
-          })
-      );
+      await restoreKept(stash, assetsPath, emitted);
+      await writeBrotliCopies(assetsPath);
+      const problems = await verifyAssets(assetsPath, emitted);
+      if (problems.length)
+        throw new Error(
+          `[aap-keep-old-assets] the built files are not what the build emitted; do not deploy this:\n  ${problems.slice(0, 20).join('\n  ')}`
+        );
     },
   };
 }
@@ -564,8 +526,8 @@ export default defineConfig(({ mode }) => {
       versionFile(),
       noChunkCycles(),
       warnIfReleaseStale(),
+      // Also writes the brotli copies and checks the files (one closeBundle, in order).
       keepOldAssets(),
-      brotliAssets(),
       // Before immutableAssets, which answers brotli requests itself.
       securityHeaders(env),
       immutableAssets(),
