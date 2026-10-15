@@ -729,7 +729,7 @@ carries; a row without them is never quarantined for that.
 | `ascensions-disagree` | `ascensions` is not the chain's length | 0 |
 | `first-checkpoint-reached` | `chain[0] <= currentTE` (the app refuses to send these too) | 0 (closest: 1 TE above) |
 | `legs-disagree` | the legs' TEs are not increasing, skip a checkpoint, or end elsewhere (milestone legs between checkpoints are fine) | 0 |
-| `leg-not-positive` | a leg of 0 days or less | 0 (shortest 0.111 d) |
+| `leg-not-positive` | a leg of 0 days or less (a first-leg continue may be exactly 0: the run under way had already passed its first checkpoint when the plan started) | 0 (shortest 0.111 d) |
 | `legs-sum` | legs total vs `durationDays` off by more than max(3 d, 1%), plus the whole days of time off on the long side | 0 (worst 1.05 d, 0.16%; 2.0 d on rows with 2 days off) |
 | `impossible-te-jump` | a leg (other than a first-leg continue) gaining more than 3 TE a day | 0 (fastest 0.53/day) |
 | `too-fast` | `(finalTE - currentTE) / durationDays` over 2 TE a day | 0 (fastest 0.71, then 0.48) |

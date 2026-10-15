@@ -135,6 +135,10 @@ describe('quarantine rules, each both ways', () => {
     ['first-checkpoint-reached', { ...GOOD, currentTE: 195, backupTE: 195 }, { ...GOOD, currentTE: 194, backupTE: 194 }],
     ['legs-disagree', withLeg(3, { te: 280 }), { ...GOOD, legs: [...LEGS.slice(0, 2), { ...LEGS[2], te: 240, days: 30 }, { ...LEGS[2], days: 32.3 }, ...LEGS.slice(3)] }],
     ['leg-not-positive', withLeg(1, { days: 0 }), { ...GOOD, legs: LEGS.map((l, k) => (k === 0 ? { ...l, days: 0.11 } : k === 5 ? { ...l, days: l.days + 70.09 } : l)) }],
+    // A first leg that is a continue may be 0 days (the run under way had already passed its first
+    // checkpoint when the plan starts); a negative one, or a 0 on any other first leg, may not.
+    ['leg-not-positive', { ...GOOD, legs: LEGS.map((l, k) => (k === 0 ? { ...l, days: -0.5 } : k === 5 ? { ...l, days: l.days + 70.7 } : l)) }, { ...GOOD, legs: LEGS.map((l, k) => (k === 0 ? { ...l, days: 0 } : k === 5 ? { ...l, days: l.days + 70.2 } : l)) }],
+    ['leg-not-positive', { ...GOOD, legs: LEGS.map((l, k) => (k === 0 ? { ...l, strategy: '1-sale', days: 0 } : k === 5 ? { ...l, days: l.days + 70.2 } : l)) }, { ...GOOD, legs: LEGS.map((l, k) => (k === 0 ? { ...l, strategy: '1-sale', days: 3.5 } : k === 5 ? { ...l, days: l.days + 66.7 } : l)) }],
     // A total past the legs by more than the time off and the slack; and one the time off explains.
     ['legs-sum', { ...GOOD, durationDays: 760, endUtc: endAfter(760) }, { ...GOOD, durationDays: 750, endUtc: endAfter(750), timeOff: [{ from: '2027-07-14', to: '2027-07-19' }] }],
     // 24 TE in 4 days on a fresh leg; a continue that quick is fine (it finishes a run under way).
