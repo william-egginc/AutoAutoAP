@@ -1161,7 +1161,7 @@ async function route(file: string): Promise<void> {
     },
     found
   );
-  const { best, byAscensions, byDate } = { ...found, ...polished };
+  const { best, byAscensions, byDate, byDateByAscensions } = { ...found, ...polished };
   const ms = performance.now() - t0;
   const days = (r: Route) => (r.seconds / 86400).toFixed(3) + ' d';
   console.log(
@@ -1180,6 +1180,15 @@ async function route(file: string): Promise<void> {
         (byDate
           ? `${byDate.legs[byDate.legs.length - 1].endTE} via ${byDate.chain.join(' ')} (${byDate.legs.length} ascensions, first: ${byDate.legs[0].label}), ${spare(byDate.end)} to spare`
           : 'none')
+    );
+  // By a date: each count's own answer (the per-count rows of the page's date table).
+  if (deadline !== undefined)
+    byDateByAscensions.forEach(
+      (r, k) =>
+        r &&
+        console.log(
+          `    ${k} ascensions: ${r.legs[r.legs.length - 1].endTE} via ${r.chain.join(' ')}, ${spare(r.end)} to spare`
+        )
     );
 
   if (has('check')) {
