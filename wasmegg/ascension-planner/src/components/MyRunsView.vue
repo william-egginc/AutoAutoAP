@@ -49,7 +49,10 @@
         :zone="page.zone.value"
         :save-seconds="page.saveSeconds.value"
         :egg-day-year="page.eggDayYear"
+        :goals="page.goalChoices.value"
+        :selected-goal="page.selectedGoal.value"
         @open="to => emit('open', to)"
+        @select="page.selectGoal"
       />
 
       <YourEggs

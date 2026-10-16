@@ -64,7 +64,6 @@ import { buildTile, type SavedDateAnswer, type Tile } from '@/lib/savedTiles';
 import {
   currentSetup,
   otherSetupLabel,
-  pickCardPlan,
   pricedWithWords,
   setupCheck,
   todayIn,
@@ -74,6 +73,17 @@ import {
 import { eggLines, farmFacts, saveEggCountsOf, saveFarmOf } from '@/lib/farmFacts';
 import { nextShiftCostAt, plannedShiftsCost } from '@/lib/shiftCost';
 import { dateStanding, raceStanding, type Standing } from '@/lib/standing';
+import { formatDate } from '@/lib/leaderboardRank';
+import {
+  defaultGoalKey,
+  goalDefs,
+  goalKeyOf,
+  goalOptions,
+  plansByGoal,
+  type GoalAnswer,
+  type GoalKey,
+  type PlanGoal,
+} from '@/lib/planGoals';
 
 /** The race the Fastest tile is for first (the board's), then the player's own target. */
 export const RACE_TARGET = 490;
@@ -91,7 +101,23 @@ export interface CardPlan {
   /** A better plan of the same goal and save priced with other hours: its plan and label ("with any hour (before
    *  your hours changed)"); null when none. */
   secondary?: { plan: NowPlan; label: string } | null;
+  /** The goal's key and name (lib/planGoals.ts): "Race to 490", "Egg Day 2027", "By Mar 3, 2027". */
+  key?: GoalKey;
+  name?: string;
 }
+
+/**
+ * The goal picked on Right now's switch, for this visit: module state (not stored), kept with the account and save
+ * it was picked on, so it falls back to the default when either changes.
+ */
+const chosenGoal = ref<{ scope: string; key: GoalKey } | null>(null);
+/** Forget the pick (specs). */
+export function resetGoalChoice(): void {
+  chosenGoal.value = null;
+}
+
+const goalOf = (d: PlanGoal): Goal =>
+  d.goal === 'date' && d.deadline ? { goal: 'date', target: d.target, deadline: d.deadline } : { goal: 'fastest', target: d.target, deadline: null };
 
 /**
  * The instant answer's key for a goal, from the same store values InstantRoute.vue's `cacheKey` reads (its
@@ -171,16 +197,16 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   const keyFor = (deadline: number | null, finalTE: number) =>
     hasSave.value && storeReady.value ? instantKeyFromStores(deadline, finalTE) : null;
 
-  const goals = computed<Goal[]>(() => {
-    const list: Goal[] = [{ goal: 'fastest', target: RACE_TARGET, deadline: null }];
-    if (store.finalTE !== RACE_TARGET) list.push({ goal: 'fastest', target: store.finalTE, deadline: null });
-    list.push({ goal: 'date', target: store.finalTE, deadline: eggDayAt });
-    return list;
-  });
+  const eggDay = { year: eggDayYear, at: eggDayAt };
+  const dayWords = (t: number) => formatDate(t * 1000, zone.value, { month: 'short', day: 'numeric', year: 'numeric' });
   /** Fastest's goal words use the target in the key (`target 490`); By a date's its deadline. */
-  const keys = computed(() =>
-    goals.value.map(g => ({ g, key: keyFor(g.deadline, g.deadline ? store.finalTE : g.target) }))
+  const keyOfGoal = (d: PlanGoal) => keyFor(d.deadline, d.goal === 'date' ? store.finalTE : d.target);
+
+  /** The goals always looked for (lib/planGoals.ts): Race to your target, Fastest to 490 when it differs, Egg Day. */
+  const baseGoals = computed(() =>
+    goalDefs({ ownTarget: store.finalTE, raceTarget: RACE_TARGET, eggDay, otherDates: [], dayWords })
   );
+  const baseKeys = computed(() => baseGoals.value.map(d => ({ d, g: goalOf(d), key: keyOfGoal(d) })));
 
   /** Parsed once per key (a snapshot can be 600 kB). */
   const parsed = new Map<string, SnapLike | null>();
@@ -204,14 +230,69 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
 
   /** The snapshot index (small), read again when the save or setup changes. */
   const index = computed(() => {
-    void keys.value;
+    void baseKeys.value;
     return readSnapIndex();
   });
+
+  /** Every other date a plan of this account was kept for (By a date): each is a goal of its own on the switch. */
+  const otherDates = computed(() => {
+    const acct = account.value;
+    if (!acct) return [];
+    const out: number[] = [];
+    for (const e of index.value) {
+      const m = /^date (\d+)$/.exec(e.meta?.account === acct ? (e.meta.goal ?? '') : '');
+      const d = m ? Number(m[1]) : 0;
+      if (d && d !== eggDayAt) out.push(d);
+    }
+    return out;
+  });
+  const goalList = computed<PlanGoal[]>(() =>
+    otherDates.value.length
+      ? goalDefs({ ownTarget: store.finalTE, raceTarget: RACE_TARGET, eggDay, otherDates: otherDates.value, dayWords })
+      : baseGoals.value
+  );
+  /** Each goal with its instant-answer key (the base goals' keys are worked out once). */
+  const keys = computed(() =>
+    goalList.value.map(d => baseKeys.value.find(b => b.d.key === d.key) ?? { d, g: goalOf(d), key: keyOfGoal(d) })
+  );
 
   function planOf(g: Goal, s: SnapLike | null): NowPlan | null {
     return planFromSnapshot(s, g.goal, g.deadline);
   }
 
+  // ------------------------------------------------------------------------- the answers kept
+
+  const history = ref<CheckEntry[]>([]);
+  watch(
+    raw,
+    async r => {
+      history.value = [];
+      if (!r) return;
+      // The save's own account, never the store's cached partition (it can still be the last account's after a
+      // switch).
+      const id = (r as { eiUserId?: string }).eiUserId ?? '';
+      const partition = id ? await hashID(id).catch(() => '') : '';
+      if (raw.value !== r) return;
+      history.value = partition ? await loadHistory(partition).catch(() => []) : [];
+    },
+    { immediate: true }
+  );
+  const savedDate = computed<SavedDateAnswer[]>(() =>
+    store.savedAnswers.map(a => ({
+      savedAt: a.savedAt,
+      deadline: a.result.deadline,
+      te: a.result.te,
+      saveSeconds: a.save?.backupAt || null,
+      level: a.result.level,
+      simple: a.result.simple,
+      setup: a.result.settings
+        ? { availability: a.result.settings.availability ?? null, timeOff: a.result.settings.timeOff ?? [] }
+        : null,
+      route: a.result.routes[0]
+        ? { chain: [...a.result.routes[0].chain], reachAt: a.result.routes[0].reachAt, spare: a.result.routes[0].spare, legs: a.result.routes[0].legs }
+        : null,
+    }))
+  );
   // ------------------------------------------------------------------------------- the card's plan
 
   /** Your setup now (the hours and time off every answer is compared with) and today in the planner's zone. */
@@ -235,7 +316,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       if (!snapKey) return;
       seen.add(snapKey);
       const p = planOf(g, snapOf(snapKey));
-      if (p) out.push({ plan: p, goalIndex, ownKey: true, check: currentSetup(sn.setup) });
+      if (p) out.push({ plan: p, goalIndex, goalKey: keys.value[goalIndex].d.key, ownKey: true, check: currentSetup(sn.setup) });
     });
     const acct = account.value;
     if (!acct) return out;
@@ -248,22 +329,70 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       const p = planOf(keys.value[goalIndex].g, snapOf(e.key));
       if (!p) continue;
       seen.add(e.key);
-      out.push({ plan: p, goalIndex, ownKey: false, check: setupCheck(m.setup ?? null, sn.setup, sn.today) });
+      out.push({
+        plan: p,
+        goalIndex,
+        goalKey: keys.value[goalIndex].d.key,
+        ownKey: false,
+        check: setupCheck(m.setup ?? null, sn.setup, sn.today),
+      });
     }
     return out;
   });
 
-  /** Right now's plan: the same rule as the tiles (lib/currentAnswer.ts `pickCardPlan`). */
+  /**
+   * The answers kept without their times (they say a goal was checked, and when): the last checked answer under
+   * each goal's own key, Check exactly's history and the By a date answers saved here.
+   */
+  const goalAnswers = computed<GoalAnswer[]>(() => {
+    if (!hasSave.value) return [];
+    const out: GoalAnswer[] = [];
+    for (const { d, key } of keys.value) {
+      const c = lastCheckedOf(key && key.startsWith(ANSWER_PREFIX) ? key : null);
+      if (c) out.push({ goalKey: d.key, calculatedAt: c.at, saveSeconds: saveSeconds.value, ownKey: true });
+    }
+    for (const e of history.value) {
+      const gk =
+        e.mode === 'date' ? (e.deadline ? goalKeyOf('date', 0, e.deadline, eggDay) : null) : typeof e.target === 'number' ? goalKeyOf('fastest', e.target, null, eggDay) : null;
+      if (gk) out.push({ goalKey: gk, calculatedAt: e.at, saveSeconds: e.backupTime ?? null });
+    }
+    for (const a of savedDate.value)
+      if (a.route) out.push({ goalKey: goalKeyOf('date', 0, a.deadline, eggDay), calculatedAt: a.savedAt, saveSeconds: a.saveSeconds });
+    return out;
+  });
+
+  /** Per goal its saved plan (lib/currentAnswer.ts's rule, through lib/planGoals.ts `plansByGoal`). */
+  const planGoals = computed(() =>
+    hasSave.value ? plansByGoal(goalList.value, snapCandidates.value, goalAnswers.value, saveSeconds.value) : []
+  );
+  /** The goal Right now opens on: the one checked last (`defaultGoalKey`). */
+  const defaultGoal = computed(() => defaultGoalKey(planGoals.value, saveSeconds.value));
+  const choiceScope = computed(() => `${account.value ?? ''}|${saveSeconds.value}`);
+  /** The goal shown: the one picked on the switch for this account and save, else the default. */
+  const selectedGoal = computed<GoalKey | null>(() => {
+    const c = chosenGoal.value;
+    if (c && c.scope === choiceScope.value && planGoals.value.some(p => p.goal.key === c.key)) return c.key;
+    return defaultGoal.value;
+  });
+  function selectGoal(key: GoalKey): void {
+    chosenGoal.value = { scope: choiceScope.value, key };
+  }
+  const goalChoices = computed(() => goalOptions(planGoals.value, zone.value));
+
+  /** Right now's plan: the selected goal's (the table, Next step, the timeline and the calendar all follow it). */
   const cardPlan = computed<CardPlan | null>(() => {
-    const pick = pickCardPlan(snapCandidates.value, saveSeconds.value);
-    if (!pick) return null;
+    const sel = planGoals.value.find(p => p.goal.key === selectedGoal.value);
+    const pick = sel?.pick;
+    if (!sel || !pick) return null;
     const c = pick.candidate;
     return {
       plan: c.plan,
-      goal: keys.value[c.goalIndex].g,
+      goal: goalOf(sel.goal),
       state: pick.state,
       pricedWith: pricedWithWords(c.check),
       secondary: pick.secondary ? { plan: pick.secondary.plan, label: otherSetupLabel(pick.secondary.check) } : null,
+      key: sel.goal.key,
+      name: sel.goal.name,
     };
   });
 
@@ -353,37 +482,6 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
 
   // -------------------------------------------------------------------------------------- the tiles
 
-  const history = ref<CheckEntry[]>([]);
-  watch(
-    raw,
-    async r => {
-      history.value = [];
-      if (!r) return;
-      // The save's own account, never the store's cached partition (it can still be the last account's after a
-      // switch).
-      const id = (r as { eiUserId?: string }).eiUserId ?? '';
-      const partition = id ? await hashID(id).catch(() => '') : '';
-      if (raw.value !== r) return;
-      history.value = partition ? await loadHistory(partition).catch(() => []) : [];
-    },
-    { immediate: true }
-  );
-  const savedDate = computed<SavedDateAnswer[]>(() =>
-    store.savedAnswers.map(a => ({
-      savedAt: a.savedAt,
-      deadline: a.result.deadline,
-      te: a.result.te,
-      saveSeconds: a.save?.backupAt || null,
-      level: a.result.level,
-      simple: a.result.simple,
-      setup: a.result.settings
-        ? { availability: a.result.settings.availability ?? null, timeOff: a.result.settings.timeOff ?? [] }
-        : null,
-      route: a.result.routes[0]
-        ? { chain: [...a.result.routes[0].chain], reachAt: a.result.routes[0].reachAt, spare: a.result.routes[0].spare, legs: a.result.routes[0].legs }
-        : null,
-    }))
-  );
   function tileFor(g: Goal): Tile {
     const gi = keys.value.findIndex(x => x.g.goal === g.goal && x.g.target === g.target && x.g.deadline === g.deadline);
     const k = keys.value[gi]?.key ?? null;
@@ -449,6 +547,9 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     eggDayAt,
     eggDayYear,
     cardPlan,
+    goalChoices,
+    selectedGoal,
+    selectGoal,
     events,
     shownEvents,
     ascNow,

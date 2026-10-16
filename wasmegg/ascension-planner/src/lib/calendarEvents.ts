@@ -38,7 +38,7 @@ export function scrub(text: string): string {
 export function icsEscape(text: string): string {
   return scrub(text)
     .replace(/\\/g, '\\\\')
-    .replace(/;/g, '\;')
+    .replace(/;/g, '\\;')
     .replace(/,/g, '\\,')
     .replace(/\r\n|\r|\n/g, '\\n');
 }
@@ -136,7 +136,13 @@ export function downloadIcs(events: readonly CalEvent[], now = Date.now()): void
 /** A plan's shift or prestige as a calendar event: the egg or the TE, which save, and that it goes stale. */
 export function planCalEvent(
   e: { kind: 'shift' | 'prestige' | 'goal'; at: number; egg?: string; eggs?: string[]; te?: number },
-  ctx: { eggName: (egg: string) => string; saveWhen: string; calculatedWhen: string }
+  ctx: {
+    eggName: (egg: string) => string;
+    saveWhen: string;
+    calculatedWhen: string;
+    /** The route followed: "Following 197 → 222 → 247 → 285 → 313 (Egg Day 2027)" (nowWords `followingLine`). */
+    following?: string;
+  }
 ): CalEvent {
   // Shifts at the same minute are one event, as the events table shows them (nowPlan.ts `shiftTitle`).
   const title =
@@ -145,7 +151,8 @@ export function planCalEvent(
     at: e.at,
     title: `${title} (Egg, Inc.)`,
     description:
-      `${title}, as your virtue plan has it. From your save of ${ctx.saveWhen}; plan calculated ${ctx.calculatedWhen}. ` +
+      `${title}, as your virtue plan has it.${ctx.following ? `\n${ctx.following}.\n` : ' '}` +
+      `From your save of ${ctx.saveWhen}; plan calculated ${ctx.calculatedWhen}. ` +
       'If the plan changes, add it again after a new check. Made on your device by the ascension planner; nothing was sent.',
   };
 }

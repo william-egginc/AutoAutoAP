@@ -71,6 +71,8 @@ const props = defineProps<{
   /** "Oct 15 at 2:36 pm": the save the plan was made from. */
   saveWhen: string;
   calculatedWhen: string;
+  /** "Following 197 → 222 → … (Egg Day 2027)": each calendar event says it. */
+  following?: string;
 }>();
 
 const device = thisDevice();
@@ -78,6 +80,11 @@ const title = (e: PlanEvent) => eventTitle(e, props.goal, props.goalName);
 const addable = (e: PlanEvent) => !e.past && e.kind !== 'goal';
 const upcoming = computed(() => props.events.filter(addable));
 function calOf(e: PlanEvent) {
-  return planCalEvent(e, { eggName: virtueEggName, saveWhen: props.saveWhen, calculatedWhen: props.calculatedWhen });
+  return planCalEvent(e, {
+    eggName: virtueEggName,
+    saveWhen: props.saveWhen,
+    calculatedWhen: props.calculatedWhen,
+    following: props.following,
+  });
 }
 </script>

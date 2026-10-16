@@ -4,6 +4,9 @@
   their dates, times and distances, and the whole route folded. The plan is the instant answer kept after Check
   exactly (for this save; else the same save under an older setup; else an earlier save's), so its times are
   the simulator's. Without one the card says so and opens a screen that works one out; nothing is worked out here.
+  Which plan (Jordan, 16 Oct): a switch at the top picks the goal (Race to 490 | Egg Day 2027 | By a date), the one
+  checked last by default (lib/planGoals.ts); everything below follows it. The header names the route followed,
+  the ascension the save is in highlighted, the ones already passed greyed.
 -->
 <template>
   <section class="rounded-2xl border border-slate-200 bg-white p-4 space-y-2" data-testid="now-card">
@@ -17,6 +20,53 @@
         · from your save of {{ planSaveWhen }}
       </p>
     </div>
+    <!-- Which plan: a radiogroup, one option per goal (lib/planGoals.ts goalOptions); arrows move and pick. -->
+    <div
+      v-if="goals && goals.length"
+      role="radiogroup"
+      aria-label="Which plan"
+      class="flex flex-wrap gap-2"
+      data-testid="now-goal-switch"
+      @keydown="onSwitchKey"
+    >
+      <button
+        v-for="(g, i) in goals"
+        :key="g.key"
+        :ref="el => (radios[i] = el as HTMLButtonElement | null)"
+        type="button"
+        role="radio"
+        :aria-checked="g.key === selectedGoal ? 'true' : 'false'"
+        :tabindex="g.key === selectedGoal || (!selectedGoal && i === 0) ? 0 : -1"
+        class="min-h-[44px] min-w-[44px] rounded-xl border px-3 py-1.5 text-left leading-tight"
+        :class="g.key === selectedGoal ? 'border-indigo-600 bg-indigo-50 text-indigo-900' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'"
+        :data-testid="`now-goal-${g.key}`"
+        :data-state="g.state"
+        @click="emit('select', g.key)"
+      >
+        <span class="block text-[13px] font-bold">{{ g.label }}</span>
+        <span class="block text-[11px]" :class="g.state === 'plan' ? 'text-slate-500' : 'text-slate-400'">{{ optionSub(g) }}</span>
+      </button>
+    </div>
+
+    <!-- The route followed: the ascension the save is in highlighted, the stops passed greyed; wraps. -->
+    <p v-if="card && card.plan.chain.length" class="text-[13px] text-slate-700 break-words" data-testid="now-chain">
+      Following<template v-for="(s, i) in stops" :key="i"
+        >{{ i ? ' → ' : ' '
+        }}<span
+          :class="
+            s.state === 'now'
+              ? 'font-black text-indigo-800 underline decoration-indigo-500 decoration-2 underline-offset-2'
+              : s.state === 'passed'
+                ? 'text-slate-400'
+                : ''
+          "
+          :aria-current="s.state === 'now' ? 'step' : undefined"
+          :data-stop="s.state"
+          >{{ s.te }}</span
+        ></template
+      >{{ ' ' }}({{ followName }})
+    </p>
+
     <!-- A better plan of this save priced with other hours: named, never the lead (fix 22, lib/currentAnswer.ts). -->
     <p v-if="card?.secondary" class="text-[12px] text-slate-500" data-testid="now-secondary">
       {{ secondaryText }}<template v-if="card.secondary.plan.calculatedAt">
@@ -68,6 +118,16 @@
           <button type="button" class="font-bold underline" @click="emit('open', goalOpen)">Check again ›</button>
         </p>
       </template>
+      <p v-else-if="selectedOption" class="text-[13px] text-slate-700" data-testid="now-no-plan">
+        {{ selectedOption.label }}: {{ emptyGoalWords(selectedOption.state) }} ·
+        <button type="button" class="font-bold text-indigo-700 underline" data-testid="now-work-it-out" @click="emit('open', selectedOption.open)">
+          Work it out ›
+        </button>
+        <span class="block mt-0.5 text-[11px] text-slate-500"
+          >A plan with its times is kept for a day after Check exactly finishes (computers run it by themselves; on a
+          phone, press Check exactly).</span
+        >
+      </p>
       <p v-else class="text-[13px] text-slate-700" data-testid="now-no-plan">
         No plan with its times is saved for this save yet: one is kept for a day after Check exactly finishes (computers
         run it by themselves; on a phone, press Check exactly).
@@ -100,6 +160,7 @@
         :zone="zone"
         :save-when="planSaveWhen"
         :calculated-when="calculatedWhen"
+        :following="following"
       />
       <details class="mt-2" data-testid="now-timeline">
         <summary class="cursor-pointer text-[13px] font-semibold text-indigo-700">
@@ -119,14 +180,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, nextTick, ref } from 'vue';
 import { iconURL } from 'lib';
 import CalendarButton from './CalendarButton.vue';
 import EventsTable from './EventsTable.vue';
 import GearBlock from './GearBlock.vue';
 import RouteTimeline from '../auto/RouteTimeline.vue';
 import { dateAt, relativeWords } from '@/lib/eventWhen';
-import { nextStepText } from '@/lib/nowWords';
+import { chainStops, followingLine, nextStepText } from '@/lib/nowWords';
+import { emptyGoalWords, nextGoalIndex, type GoalKey, type GoalOption } from '@/lib/planGoals';
 import { trackWords, type PlanEvent, type TrackState } from '@/lib/nowPlan';
 import { planCalEvent } from '@/lib/calendarEvents';
 import { secondaryLine } from '@/lib/currentAnswer';
@@ -158,8 +220,11 @@ const props = defineProps<{
   zone: string;
   saveSeconds: number;
   eggDayYear: number;
+  /** The switch's options (lib/planGoals.ts); absent: no switch. */
+  goals?: GoalOption[];
+  selectedGoal?: GoalKey | null;
 }>();
-const emit = defineEmits<{ open: [to: MyRunsOpen] }>();
+const emit = defineEmits<{ open: [to: MyRunsOpen]; select: [key: GoalKey] }>();
 
 const CHIP = {
   ok: 'border-emerald-300 bg-emerald-50 text-emerald-800',
@@ -171,8 +236,34 @@ const CHIP = {
 const eggName = computed(() => virtueEggName(props.currentEgg));
 const eggPicture = computed(() => eggIconPath(props.currentEgg));
 const goalName = computed(() =>
-  props.card?.goal.goal === 'date' ? `Egg Day ${props.eggDayYear}` : `Fastest to ${props.card?.goal.target ?? 490}`
+  props.card?.goal.goal === 'date'
+    ? (props.card.name ?? `Egg Day ${props.eggDayYear}`)
+    : `Fastest to ${props.card?.goal.target ?? 490}`
 );
+/** The goal in the route line and the calendar: "Race to 490", "Egg Day 2027", "By Mar 3, 2027". */
+const followName = computed(() => props.card?.name ?? (props.card?.goal.goal === 'fastest' ? `Race to ${props.card.goal.target}` : goalName.value));
+const stops = computed(() => chainStops(props.card?.plan.chain ?? [], props.ascNow));
+/** "Following 197 → 222 → 247 → 285 → 313 (Egg Day 2027)": the same words go into each calendar event. */
+const following = computed(() => followingLine(props.card?.plan.chain ?? [], followName.value));
+
+// ------------------------------------------------------------------------------------- the switch
+const selectedOption = computed(() => props.goals?.find(g => g.key === props.selectedGoal) ?? null);
+const radios = ref<(HTMLButtonElement | null)[]>([]);
+function optionSub(g: GoalOption): string {
+  if (g.state !== 'plan') return g.state === 'answer-only' ? 'no saved plan with its times yet' : 'no saved plan yet';
+  const day = g.kind === 'date' && g.deadline ? `${dateAt(g.deadline, props.now, props.zone).replace(/ at .*$/, '')} · ` : '';
+  return g.calculatedAt ? `${day}calculated ${relativeWords(g.calculatedAt / 1000 - props.now)}` : `${day}saved plan`;
+}
+/** Arrow keys, Home and End move the pick and the focus (a radiogroup). */
+function onSwitchKey(ev: KeyboardEvent): void {
+  const list = props.goals ?? [];
+  const at = Math.max(0, list.findIndex(g => g.key === props.selectedGoal));
+  const to = nextGoalIndex(ev.key, at, list.length);
+  if (to == null) return;
+  ev.preventDefault();
+  emit('select', list[to].key);
+  void nextTick(() => radios.value[to]?.focus());
+}
 const calculatedWhen = computed(() => {
   const at = props.card ? props.card.plan.calculatedAt / 1000 : 0;
   return at ? `${dateAt(at, props.now, props.zone)} (${relativeWords(at - props.now)})` : '';
@@ -189,11 +280,18 @@ const nextText = computed(() => (props.card ? nextStepText(props.events, props.c
 const nextEvent = computed(() => props.events.find(e => !e.past && e.kind !== 'goal') ?? null);
 const nextCal = computed(() =>
   nextEvent.value
-    ? planCalEvent(nextEvent.value, { eggName: virtueEggName, saveWhen: planSaveWhen.value, calculatedWhen: calculatedWhen.value })
+    ? planCalEvent(nextEvent.value, {
+        eggName: virtueEggName,
+        saveWhen: planSaveWhen.value,
+        calculatedWhen: calculatedWhen.value,
+        following: following.value,
+      })
     : null
 );
 const goalOpen = computed<MyRunsOpen>(() =>
-  props.card?.goal.goal === 'date'
+  selectedOption.value
+    ? selectedOption.value.open
+    : props.card?.goal.goal === 'date'
     ? { auto: 'by-date', byDate: { eggDay: true } }
     : { auto: 'fastest', depth: 'smart', target: props.card?.goal.target ?? 490 }
 );

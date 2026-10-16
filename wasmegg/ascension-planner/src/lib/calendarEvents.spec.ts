@@ -21,7 +21,7 @@ const ev: CalEvent = {
 
 describe('calendar events', () => {
   it('escapes text per RFC 5545', () => {
-    expect(icsEscape('a\\b;c,d\ne')).toBe('a\\\\b\;c\\,d\\ne');
+    expect(icsEscape('a\\b;c,d\ne')).toBe('a\\\\b\\;c\\,d\\ne');
   });
 
   it('folds lines at 75 octets, never inside a character', () => {
@@ -92,5 +92,24 @@ describe('a plan event in a calendar', () => {
     expect(s.description).toContain('From your save of Oct 15 at 2:36 pm');
     expect(s.description).toContain('add it again after a new check');
     expect(planCalEvent({ kind: 'prestige', at: AT, te: 198 }, ctx).title).toBe('Prestige at 198 TE (Egg, Inc.)');
+  });
+
+  it('names the route followed, in the .ics DESCRIPTION and the Google link (Jordan, 16 Oct)', async () => {
+    const { planCalEvent } = await import('./calendarEvents');
+    const { followingLine } = await import('./nowWords');
+    const following = followingLine([197, 222, 247, 285, 313], 'Egg Day 2027');
+    expect(following).toBe('Following 197 → 222 → 247 → 285 → 313 (Egg Day 2027)');
+    const ctx = { eggName: (e: string) => e, saveWhen: 'Oct 15 at 2:36 pm', calculatedWhen: 'Oct 15 at 2:40 pm', following };
+    const e = planCalEvent({ kind: 'prestige', at: AT, te: 222 }, ctx);
+    expect(e.description.split('\n')[1]).toBe('Following 197 → 222 → 247 → 285 → 313 (Egg Day 2027).');
+    // The .ics: unfolded, escaped (newlines as \n, the semicolon as \;), the arrows kept whole.
+    const ics = icsText([e], AT * 1000).replace(/\r\n /g, '');
+    expect(ics).toContain(
+      'DESCRIPTION:Prestige at 222 TE\\, as your virtue plan has it.\\nFollowing 197 → 222 → 247 → 285 → 313 (Egg Day 2027).\\nFrom your save of Oct 15 at 2:36 pm\\; plan calculated'
+    );
+    const details = new URL(googleCalendarUrl(e)).searchParams.get('details')!;
+    expect(details).toContain('\nFollowing 197 → 222 → 247 → 285 → 313 (Egg Day 2027).\n');
+    // Without a route the words are as before.
+    expect(planCalEvent({ kind: 'prestige', at: AT, te: 222 }, { ...ctx, following: undefined }).description).not.toContain('Following');
   });
 });

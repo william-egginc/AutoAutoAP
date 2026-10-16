@@ -50,6 +50,19 @@ export function nextStepText(events: readonly PlanEvent[], goal: 'fastest' | 'da
   return text;
 }
 
+/** The route the plan follows, every stop, and its goal: "Following 197 → 222 → 247 → 285 → 313 (Egg Day 2027)".
+ *  Right now's header and each calendar event say it. */
+export function followingLine(chain: readonly number[], goalName: string): string {
+  if (!chain.length) return '';
+  return `Following ${chain.join(' → ')}${goalName ? ` (${goalName})` : ''}`;
+}
+
+/** Each stop of the route against the clock: 'passed' before the ascension the save is in (`ascNow`, 1-based;
+ *  0 before the plan starts), 'now' for that one, 'ahead' after. */
+export function chainStops(chain: readonly number[], ascNow: number): { te: number; state: 'passed' | 'now' | 'ahead' }[] {
+  return chain.map((te, i) => ({ te, state: ascNow <= 0 ? 'ahead' : i + 1 < ascNow ? 'passed' : i + 1 === ascNow ? 'now' : 'ahead' }));
+}
+
 /** "Oct 15 at 2:40 pm (2 h ago)". */
 export function whenAgo(atSeconds: number, nowSeconds: number, zone: string): string {
   const d = dateAt(atSeconds, nowSeconds, zone);

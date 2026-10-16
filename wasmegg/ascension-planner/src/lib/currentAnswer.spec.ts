@@ -195,13 +195,28 @@ describe('Right now and the Fastest tile name the same plan (beta, 16 Oct)', () 
     expect(tile.sure?.reason).toBe('priced before your hours changed');
   });
 
-  it('a current-setup plan of the same save leads an Egg Day plan only in goal order, never across the setup', () => {
+  it('across goals the setup still comes first: a current-setup Egg Day plan leads an other-hours Fastest one', () => {
     const date: NowPlan = { ...B, goal: 'date', deadline: SEP22, spareHours: 10 };
     const list: CardCandidate[] = [
       { plan: A, goalIndex: 0, ownKey: false, check: setupCheck(ANY, MINE, TODAY) },
       { plan: date, goalIndex: 2, ownKey: true, check: currentSetup(MINE) },
     ];
     expect(pickCardPlan(list, SAVE)!.candidate.plan).toBe(date);
+  });
+
+  it('across goals in the same tier: the goal checked LAST leads, no longer the fixed Fastest > own target > Egg Day', () => {
+    const date: NowPlan = { ...B, goal: 'date', deadline: SEP22, spareHours: 10, calculatedAt: AT_1159 + 60_000 };
+    const list: CardCandidate[] = [
+      { plan: B, goalIndex: 0, ownKey: true, check: currentSetup(MINE) },
+      { plan: date, goalIndex: 2, ownKey: true, check: currentSetup(MINE) },
+    ];
+    expect(pickCardPlan(list, SAVE)!.candidate.plan).toBe(date);
+    // Fastest checked after Egg Day: Fastest.
+    const later = { ...B, calculatedAt: AT_1159 + 120_000 };
+    expect(pickCardPlan([{ ...list[0], plan: later }, list[1]], SAVE)!.candidate.plan).toBe(later);
+    // The same moment: the goal order breaks the tie.
+    const same = { ...date, calculatedAt: B.calculatedAt };
+    expect(pickCardPlan([list[0], { ...list[1], plan: same }], SAVE)!.candidate.plan).toBe(B);
   });
 });
 
@@ -218,7 +233,7 @@ describe('the setup is recorded where answers are kept', () => {
     expect(src).toMatch(/setup: exactSetup \?\? \{/);
     // My runs builds both Right now and the tiles from the one selector.
     const page = fs.readFileSync(path.resolve(__dirname, '../composables/useNowPage.ts'), 'utf8');
-    expect(page).toContain('pickCardPlan(snapCandidates.value');
+    expect(page).toContain('plansByGoal(goalList.value, snapCandidates.value, goalAnswers.value, saveSeconds.value)');
     expect(page).toContain('otherSnapshots: others');
     expect(page).toContain('setupNow: setupNow.value');
   });

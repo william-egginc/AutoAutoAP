@@ -198,8 +198,11 @@ export function pickAnswer<T extends Rankable>(list: readonly T[], goal: 'fastes
 /** A kept snapshot Right now could show. */
 export interface CardCandidate {
   plan: NowPlan;
-  /** The goal's place in Right now's order (Fastest to 490, the player's own target, Egg Day): lower first. */
+  /** Which goal it is for (its place in My runs' goal list): candidates of one goal are ranked together; across
+   *  goals the place is only the last tie-break (`pickCardPlan`). */
   goalIndex: number;
+  /** lib/planGoals.ts's key for the goal ('fastest-490', 'eggday-2027', 'date-<unix>'), when known. */
+  goalKey?: string;
   /** Under this save's own key (this save, this setup). */
   ownKey: boolean;
   check: SetupCheck;
@@ -223,17 +226,36 @@ const rankableOf = (c: CardCandidate, loaded: number): Rankable => ({
   plan: true,
 });
 
-/**
- * Right now's plan: the save tier and the setup first (as the tiles), then the goal order, then the same rule as
- * the tiles within the goal. So when the Fastest tile's lead is a kept snapshot it is this one.
- */
-export function pickCardPlan(list: readonly CardCandidate[], loadedSave: number): CardPick | null {
+/** A candidate's tier: 0 current save and setup, 1 current save other setup, 2 and 3 the same for an older save. */
+export function cardTier(c: CardCandidate, loadedSave: number): number {
+  const r = rankableOf(c, loadedSave);
+  return (r.currentSave ? 0 : 2) + (r.fit === 'current' ? 0 : 1);
+}
+
+/** What the goals are ordered by when nothing is chosen: the tier of the goal's lead (`cardTier`, 4 with no plan),
+ *  then the goal checked LAST (`lastAt`, ms: its newest calculated time), then the goal's place in the list. */
+export interface GoalOrder {
+  tier: number;
+  lastAt: number;
+  order: number;
+}
+
+/** Negative when goal `a` is the default before `b` (Jordan, 16 Oct: the goal last checked, not a fixed order). */
+export function compareGoals(a: GoalOrder, b: GoalOrder): number {
+  return a.tier - b.tier || b.lastAt - a.lastAt || a.order - b.order;
+}
+
+/** The newest calculated time of a goal's plans of the loaded save (any save when it has none of it), ms. */
+export function newestPlanAt(list: readonly CardCandidate[], loadedSave: number): number {
+  const current = list.filter(c => rankableOf(c, loadedSave).currentSave);
+  return Math.max(0, ...(current.length ? current : list).map(c => c.plan.calculatedAt));
+}
+
+/** One goal's plan: the same rule as the tiles (`compareAnswers`), its state and its secondary line. */
+export function pickGoalPlan(list: readonly CardCandidate[], loadedSave: number): CardPick | null {
   if (!list.length) return null;
   const r = new Map(list.map(c => [c, rankableOf(c, loadedSave)]));
-  const tier = (c: CardCandidate) => (r.get(c)!.currentSave ? 0 : 2) + (r.get(c)!.fit === 'current' ? 0 : 1);
-  const sorted = [...list].sort(
-    (a, b) => tier(a) - tier(b) || a.goalIndex - b.goalIndex || compareAnswers(a.plan.goal)(r.get(a)!, r.get(b)!)
-  );
+  const sorted = [...list].sort((a, b) => compareAnswers(a.plan.goal)(r.get(a)!, r.get(b)!));
   const lead = sorted[0];
   const bt = lead.plan.meta?.backupTime ?? null;
   const state = lead.ownKey
@@ -243,10 +265,27 @@ export function pickCardPlan(list: readonly CardCandidate[], loadedSave: number)
       : bt != null && bt < loadedSave - 60
         ? 'older-save'
         : 'setup-changed';
-  const sameGoal = list.filter(c => c.goalIndex === lead.goalIndex);
   const { secondary } = pickAnswer(
-    sameGoal.map(c => ({ ...r.get(c)!, c })),
+    list.map(c => ({ ...r.get(c)!, c })),
     lead.plan.goal
   );
   return { candidate: lead, state, secondary: secondary && secondary.c !== lead ? secondary.c : null };
+}
+
+/**
+ * Right now's default plan over every goal: each goal's lead by the same rule as the tiles (`pickGoalPlan`), then
+ * the goals by the save tier and the setup of their lead (as before), then the goal the player checked LAST
+ * (the newest calculated time of its plans), then the goal order. The fixed order Fastest 490 > own target > Egg
+ * Day is now only the last tie-break. My runs lets the player pick another goal (lib/planGoals.ts).
+ */
+export function pickCardPlan(list: readonly CardCandidate[], loadedSave: number): CardPick | null {
+  if (!list.length) return null;
+  const groups = new Map<number, CardCandidate[]>();
+  for (const c of list) groups.set(c.goalIndex, [...(groups.get(c.goalIndex) ?? []), c]);
+  const goals = [...groups.entries()].map(([order, g]) => {
+    const pick = pickGoalPlan(g, loadedSave)!;
+    return { pick, o: { tier: cardTier(pick.candidate, loadedSave), lastAt: newestPlanAt(g, loadedSave), order } };
+  });
+  goals.sort((a, b) => compareGoals(a.o, b.o));
+  return goals[0].pick;
 }
