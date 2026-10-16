@@ -45,13 +45,15 @@ const legs: LegSummary[] = [
 ];
 
 describe('RouteTimeline', () => {
-  it('a line per ascension, and under each its eggs with the TE they reach and when', async () => {
+  it('a line per ascension, and under each its stretches in order: label, egg, start, length, TE', async () => {
     const t = textOf(await renderHtml(RouteTimeline, { chain: [210, 230], legs, zone: ZONE, open: true }));
     expect(t).toContain(`A1 → 210 TE · reached ${showWhen(T0 + 50 * H, ZONE)}`);
-    expect(t).toContain(`Curiosity reaches 41 TE on ${showWhen(T0 + 2 * H, ZONE)}`);
-    expect(t).toContain('on it from the start, last shift off it then');
-    expect(t).toContain(`Integrity reaches 45 TE on ${showWhen(T0 + 50 * H, ZONE)}`);
-    expect(t).toContain(`first shift ${showWhen(T0 + 2 * H, ZONE)}, still on it when the stop is reached`);
+    expect(t).toContain(`C1 · Curiosity · ${showWhen(T0, ZONE)} · 2 h · 41 TE`);
+    expect(t).toContain(`I1 · Integrity · ${showWhen(T0 + 2 * H, ZONE)} · 2 d · 45 TE`);
+    // The per-egg first and last: one small footer line.
+    expect(t).toContain(
+      `Each egg, first to last: Curiosity ${showWhen(T0, ZONE)} to ${showWhen(T0 + 2 * H, ZONE)} (41 TE) · Integrity ${showWhen(T0 + 2 * H, ZONE)} to ${showWhen(T0 + 50 * H, ZONE)} (45 TE)`
+    );
     // The replayed ascension: its stop, no eggs, and a note saying why.
     expect(t).toContain(`A2 → 230 TE · reached ${showWhen(T0 + 90 * H, ZONE)}`);
     expect(t).toContain("Each egg's times weren't kept for the ascensions without an arrow");
@@ -84,10 +86,57 @@ describe('RouteTimeline', () => {
       { ...legs[0], shifts: [{ at: T0 + 2 * H, egg: 'integrity', fromEgg: 'curiosity' }], endEgg: undefined },
     ];
     const t = textOf(await renderHtml(RouteTimeline, { chain: [210], legs: old, zone: ZONE, open: true }));
-    // (textOf puts a space where the name's tag ends.)
-    expect(t).toContain(`Curiosity : ${showWhen(T0, ZONE)} to ${showWhen(T0 + 2 * H, ZONE)}`);
-    expect(t).not.toMatch(/reaches \d+ TE/);
+    expect(t).toContain(`C1 · Curiosity · ${showWhen(T0, ZONE)} · 2 h`);
+    expect(t).toContain(`I1 · Integrity · ${showWhen(T0 + 2 * H, ZONE)} · 2 d`);
+    expect(t.replace('A1 → 210 TE ·', '')).not.toMatch(/\d+ TE/);
+    expect(t).toContain(`Each egg, first to last: Curiosity ${showWhen(T0, ZONE)} to ${showWhen(T0 + 2 * H, ZONE)}`);
     expect(t).toContain("priced before the planner kept each egg's TE");
+  });
+
+  it('the build-up in order, zero-length steps marked, rows that wrap on a phone', async () => {
+    const t1 = T0 + 1800;
+    const t2 = t1 + 780;
+    const t3 = t2 + 55;
+    const t4 = t3 + 1;
+    const t5 = t4 + 15 * 24 * H;
+    const real: LegSummary[] = [
+      {
+        ...legs[0],
+        endTE: 250,
+        endTime: t5 + 5 * 24 * H,
+        shifts: [
+          { at: t1, egg: 'integrity', fromEgg: 'curiosity', te: 28 },
+          { at: t2, egg: 'kindness', fromEgg: 'integrity', te: 20 },
+          { at: t2, egg: 'curiosity', fromEgg: 'kindness', te: 15 },
+          { at: t3, egg: 'kindness', fromEgg: 'curiosity', te: 29 },
+          { at: t3, egg: 'resilience', fromEgg: 'kindness', te: 15 },
+          { at: t4, egg: 'curiosity', fromEgg: 'resilience', te: 10 },
+          { at: t5, egg: 'humility', fromEgg: 'curiosity', te: 60 },
+          { at: t5, egg: 'kindness', fromEgg: 'humility', te: 12 },
+        ],
+        endEgg: { egg: 'kindness', te: 40 },
+      },
+    ];
+    const html = await renderHtml(RouteTimeline, { chain: [250], legs: real, zone: ZONE, open: true });
+    const rows = [...html.matchAll(/<li[^>]*data-testid="route-timeline-step"[^>]*>([\s\S]*?)<\/li>/g)].map(m =>
+      textOf(m[1])
+    );
+    expect(rows.map(r => r.split(' · ')[0])).toEqual(['C1', 'I1', 'K1', 'C2', 'K2', 'R1', 'C3', 'H1', 'K3']);
+    expect(rows[0]).toBe(`C1 · Curiosity · ${showWhen(T0, ZONE)} · 30 min · 28 TE`);
+    expect(rows[2]).toBe(`K1 · Kindness · ${showWhen(t2, ZONE)} · 0 s · 15 TE (no laying: artifact swap / build step)`);
+    expect(rows[3]).toBe(`C2 · Curiosity · ${showWhen(t2, ZONE)} · 55 s · 29 TE`);
+    expect(rows[5]).toBe(`R1 · Resilience · ${showWhen(t3, ZONE)} · 1 s · 10 TE`);
+    expect(rows[6]).toBe(`C3 · Curiosity · ${showWhen(t4, ZONE)} · 15 d · 60 TE`);
+    expect(rows[7]).toContain('H1 · Humility');
+    expect(rows[7]).toContain('(no laying: artifact swap / build step)');
+    expect(rows[8]).toBe(`K3 · Kindness · ${showWhen(t5, ZONE)} · 5 d · 40 TE`);
+    expect(rows.filter(r => r.includes('no laying')).length).toBe(3);
+    // One footer line per ascension, under the list.
+    expect(html.match(/data-testid="route-timeline-egg-summary"/g)?.length).toBe(1);
+    expect(html.indexOf('route-timeline-egg-summary')).toBeGreaterThan(html.lastIndexOf('route-timeline-step'));
+    // Phone: rows wrap (no nowrap on the row itself), only the short pieces keep together.
+    expect(read('RouteTimeline.vue')).toMatch(/<li v-for="\(s, k\) in l.steps"[^>]*class="break-words"/);
+    expect(read('RouteTimeline.vue')).not.toMatch(/overflow-x|whitespace-nowrap" data-testid="route-timeline-step/);
   });
 
   it('no legs: one line, never a guess', async () => {

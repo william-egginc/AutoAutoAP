@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { eggBlocks, hasEggTimes, routeTimeline } from './routeTimeline';
+import { eggBlocks, hasEggTimes, routeTimeline, shiftSteps, stepLength, timelineMoments } from './routeTimeline';
 import type { LegSummary } from './types';
 
 const H = 3600;
@@ -112,5 +112,107 @@ describe('eggBlocks (moved from ChainSearchPanel and Your latest run)', () => {
     ]);
     expect(b[0].length).not.toBe('—');
     expect(eggBlocks(legs[1])).toEqual([]);
+  });
+});
+
+describe('shiftSteps: every stretch in order, so the build-up shows (fix 22b)', () => {
+  const D = 24 * H;
+  // A real-shaped leg: C1 30 min, I1 13 min, K1 0 s, C2 55 s, K2 0 s, R1 1 s, C3 15 d, H1 0 s, K3 5 d.
+  const t1 = T0 + 1800;
+  const t2 = t1 + 780;
+  const t3 = t2 + 55;
+  const t4 = t3 + 1;
+  const t5 = t4 + 15 * D;
+  const real = leg({
+    startTime: T0,
+    endTime: t5 + 5 * D,
+    endTE: 250,
+    shifts: [
+      { at: t1, egg: 'integrity', fromEgg: 'curiosity', te: 28 },
+      { at: t2, egg: 'kindness', fromEgg: 'integrity', te: 20 },
+      { at: t2, egg: 'curiosity', fromEgg: 'kindness', te: 15 },
+      { at: t3, egg: 'kindness', fromEgg: 'curiosity', te: 29 },
+      { at: t3, egg: 'resilience', fromEgg: 'kindness', te: 15 },
+      { at: t4, egg: 'curiosity', fromEgg: 'resilience', te: 10 },
+      { at: t5, egg: 'humility', fromEgg: 'curiosity', te: 60 },
+      { at: t5, egg: 'kindness', fromEgg: 'humility', te: 12 },
+    ],
+    endEgg: { egg: 'kindness', te: 40 },
+  });
+
+  it('order, labels (opener is C1, each egg counted per ascension), starts, lengths, TE at each end', () => {
+    const st = shiftSteps(real);
+    expect(st.map(x => [x.label, x.egg, x.start, x.seconds, x.te, x.noLaying])).toEqual([
+      ['C1', 'curiosity', T0, 1800, 28, false],
+      ['I1', 'integrity', t1, 780, 20, false],
+      ['K1', 'kindness', t2, 0, 15, true],
+      ['C2', 'curiosity', t2, 55, 29, false],
+      ['K2', 'kindness', t3, 0, 15, true],
+      ['R1', 'resilience', t3, 1, 10, false],
+      ['C3', 'curiosity', t4, 15 * D, 60, false],
+      ['H1', 'humility', t5, 0, 12, true],
+      // The last stretch: to the leg's end, at endEgg's TE.
+      ['K3', 'kindness', t5, 5 * D, 40, false],
+    ]);
+    expect(st.map(x => stepLength(x.seconds))).toEqual([
+      '30 min',
+      '13 min',
+      '0 s',
+      '55 s',
+      '0 s',
+      '1 s',
+      '15 d',
+      '0 s',
+      '5 d',
+    ]);
+  });
+
+  it('routeTimeline carries the steps; timelineMoments includes their starts', () => {
+    const [a1] = routeTimeline([250], [real]);
+    expect(a1.steps.map(x => x.label).join(' ')).toBe('C1 I1 K1 C2 K2 R1 C3 H1 K3');
+    // The per-egg summary (the footer) is still there.
+    expect(a1.eggs.map(e => e.egg)).toEqual(['curiosity', 'integrity', 'kindness', 'resilience', 'humility']);
+    expect(timelineMoments([a1])).toContain(t4);
+  });
+
+  it('no TE recorded: times and lengths, TE null', () => {
+    const old = leg({
+      startTime: T0,
+      endTime: T0 + 10 * H,
+      shifts: [
+        { at: T0 + H, egg: 'integrity', fromEgg: 'curiosity' },
+        { at: T0 + 5 * H, egg: 'curiosity' },
+      ],
+    });
+    expect(shiftSteps(old).map(x => [x.label, x.seconds, x.te])).toEqual([
+      ['C1', H, null],
+      ['I1', 4 * H, null],
+      ['C2', 5 * H, null],
+    ]);
+  });
+
+  it('the opener unknown (older legs): no labels, never a count that could be one short', () => {
+    const older = leg({ endTime: T0 + 10 * H, shifts: [{ at: T0 + H, egg: 'integrity', te: 5 }] });
+    expect(shiftSteps(older)).toEqual([
+      { label: null, egg: 'integrity', start: T0 + H, seconds: 9 * H, te: null, noLaying: false },
+    ]);
+  });
+
+  it('a leg that never shifts: one stretch on its end egg; replayed legs: none', () => {
+    const still = leg({ startTime: T0, endTime: T0 + 10 * H, shifts: [], endEgg: { egg: 'humility', te: 7 } });
+    expect(shiftSteps(still)).toEqual([
+      { label: 'H1', egg: 'humility', start: T0, seconds: 10 * H, te: 7, noLaying: false },
+    ]);
+    expect(shiftSteps(legs[1])).toEqual([]);
+  });
+
+  it('stepLength: s / min / h / d', () => {
+    expect(stepLength(0)).toBe('0 s');
+    expect(stepLength(0.4)).toBe('0 s');
+    expect(stepLength(125)).toBe('2 min 5 s');
+    expect(stepLength(29 * 60 + 40)).toBe('29 min');
+    expect(stepLength(3 * H + 300)).toBe('3 h 5 min');
+    expect(stepLength(14 * 24 * H + 23 * H + 59)).toBe('14 d 23 h');
+    expect(stepLength(null)).toBe('—');
   });
 });
