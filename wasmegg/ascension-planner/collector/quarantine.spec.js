@@ -117,6 +117,15 @@ async function reasonsOf(body) {
   return j.quarantined ? j.reasons : [];
 }
 
+describe('the backdated-start reason tells the player what is wrong', () => {
+  it('says how early the plan starts and the two TEs', async () => {
+    const res = await send({ ...GOOD, backupAgeHours: -5, currentTE: 184, backupTE: 185 });
+    const j = await res.json();
+    expect(j.reasons).toEqual(['backdated-start']);
+    expect(j.reasonText).toBe('it starts 5 hours before the save it was made from, and from TE 184 when that save already had TE 185');
+  });
+});
+
 describe('quarantine rules, each both ways', () => {
   it('a genuine send passes every rule and goes on the board', async () => {
     const res = await send(GOOD);
@@ -148,6 +157,11 @@ describe('quarantine rules, each both ways', () => {
     ['delivery-collapse', withLeg(3, { peakDeliveryQph: 6.9 }), withLeg(3, { peakDeliveryQph: 7.0 })],
     ['finish-before-start', { ...GOOD, endUtc: '2026-09-24T00:00:00.000Z' }, GOOD],
     ['times-disagree', { ...GOOD, endUtc: endAfter(743.5) }, { ...GOOD, endUtc: endAfter(742.9) }],
+    // Backdated both ways: a start before the save AND a TE below the save's. Either alone is fine (a
+    // what-if start; a lower TE is the app's own contradicts-itself check).
+    ['backdated-start', { ...GOOD, backupAgeHours: -5, currentTE: 184, backupTE: 185 }, { ...GOOD, backupAgeHours: -5, currentTE: 185, backupTE: 185 }],
+    ['backdated-start', { ...GOOD, backupAgeHours: -1.1, currentTE: 184, backupTE: 185 }, { ...GOOD, backupAgeHours: -0.9, currentTE: 184, backupTE: 185 }],
+    ['backdated-start', { ...GOOD, backupAgeHours: -80, currentTE: 180, backupTE: 185 }, { ...GOOD, backupAgeHours: 5, currentTE: 184, backupTE: 185 }],
     ['save-age', { ...GOOD, backupAgeHours: 2161 }, { ...GOOD, backupAgeHours: 2159 }],
     ['save-age', { ...GOOD, backupAgeHours: -2161 }, { ...GOOD, backupAgeHours: -168.1 }],
     // A save age past a year is dropped from the row by the whitelist, but still quarantines.

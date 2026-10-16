@@ -2713,6 +2713,18 @@ function quarantineReasons(body, record, now) {
   if (Number.isFinite(age) && Math.abs(age) > QUAR.SAVE_AGE_HOURS) {
     add('save-age', `the save is ${fmt(Math.abs(age) / 24, 0)} days ${age < 0 ? 'after' : 'before'} the plan's start`);
   }
+  // BACKDATED BOTH WAYS (16 Oct 2026): the plan starts before the save it was made from AND from a TE below
+  // the save's own. A start before the save alone is the what-if feature (the board drops those); a lower TE
+  // alone is the app's 'contradicts-itself'. Together they say "I was here when my build began", while the
+  // eggs laid come from the save: a plan that finishes days sooner than any real one. Two rows from 14 Sep
+  // did exactly this and ranked first until the maintainer hid them.
+  const saved = record.backupTE;
+  if (Number.isFinite(age) && age < -1 && cur !== null && Number.isFinite(saved) && cur < saved) {
+    add(
+      'backdated-start',
+      `it starts ${fmt(-age, 0)} hours before the save it was made from, and from TE ${cur} when that save already had TE ${saved}`
+    );
+  }
   return out;
 }
 
