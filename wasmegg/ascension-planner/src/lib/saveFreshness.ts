@@ -60,16 +60,23 @@ export function backupSecondsOf(raw: unknown): number {
 }
 
 /**
- * The save's own TE: per virtue egg the claimed TE or the thresholds passed, whichever is more, capped at 98
- * (pending Truth Eggs counted, as the planner counts them once it sets the save up, and as a sent row's
- * `backupTE`). 0 without a save.
+ * The save's own TE by virtue egg (Curiosity, Integrity, Humility, Resilience, Kindness): the claimed TE or the
+ * thresholds passed, whichever is more, capped at 98 (pending Truth Eggs counted, as the planner counts them once it
+ * sets the save up, and as a sent row's `backupTE`). Five zeros without a save. Not the initial-state store's
+ * `initialTeEarned`: after an account switch that is the CLAIMED TE only (`loadFromBackup` without
+ * `rollUpPendingTE`), and on a page load it can be a restored Manual draft's (ui fix 21).
  */
-export function saveTEOf(raw: unknown): number {
+export function saveTEByEggOf(raw: unknown): number[] {
   const v = (raw as RawSave | null | undefined)?.virtue;
-  if (!v) return 0;
-  const earned = v.eovEarned ?? [];
-  const delivered = v.eggsDelivered ?? [];
-  let total = 0;
-  for (let i = 0; i < 5; i++) total += Math.min(98, Math.max(earned[i] ?? 0, countTEThresholdsPassed(delivered[i] ?? 0)));
-  return total;
+  const earned = v?.eovEarned ?? [];
+  const delivered = v?.eggsDelivered ?? [];
+  const out: number[] = [];
+  for (let i = 0; i < 5; i++)
+    out.push(v ? Math.min(98, Math.max(earned[i] ?? 0, countTEThresholdsPassed(delivered[i] ?? 0))) : 0);
+  return out;
+}
+
+/** The save's own TE: `saveTEByEggOf` summed. 0 without a save. */
+export function saveTEOf(raw: unknown): number {
+  return saveTEByEggOf(raw).reduce((a, b) => a + b, 0);
 }

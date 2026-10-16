@@ -3,7 +3,8 @@
  * aaap-tools/specialists/ui-nowpage-build.md). NOTHING is worked out again: no instant answer, no Check exactly,
  * no search, no worker. The reads:
  *
- *   the loaded save            initialState (raw backup, farm, TE, eggs), its time
+ *   the loaded save            the raw backup itself (its time, farm, TE, eggs: lib/saveFreshness.ts, lib/farmFacts.ts);
+ *                              the stores only for the instant answer's key and the gear sets, once they hold it
  *   saved instant answers      localStorage `aap-instant-snap:<key>|0` (the whole answer, kept after Check exactly,
  *                              24 h at most) and its index (each answer's account, goal and save), parsed once per
  *                              key; `aap-instant-answer:<key>` (the last checked answer, no age limit)
@@ -39,13 +40,13 @@ import { GEAR_RULE } from '@/search/tableGear';
 import { getSimulationContext } from '@/engine/adapter';
 import { saveOnVirtue } from '@/lib/onVirtue';
 import { eggDaySeconds, nextEggDayYear } from '@/lib/eggDay';
-import { countTEThresholdsPassed } from '@/lib/truthEggs';
 import { calculateClothedTEForSet } from '@/lib/artifacts/virtue';
 import type { EquippedArtifact } from '@/lib/artifacts/types';
 import type { BoardRow } from '@/lib/leaderboardRank';
 import { hoursDiffer, simulatorAge } from '@/lib/myRunsDashboard';
 import { useMinuteClock } from './useMinuteClock';
-import { backupSecondsOf, saveStrip } from '@/lib/saveFreshness';
+import { backupSecondsOf, saveStrip, saveTEByEggOf, saveTEOf } from '@/lib/saveFreshness';
+import { hashID } from '@/lib/storage/db';
 import { virtueEggOf } from '@/lib/virtueEggs';
 import {
   SAVE_EGG_ORDER,
@@ -59,7 +60,7 @@ import {
   type SnapLike,
 } from '@/lib/nowPlan';
 import { buildTile, type SavedDateAnswer, type Tile } from '@/lib/savedTiles';
-import { eggLines, farmFacts } from '@/lib/farmFacts';
+import { eggLines, farmFacts, saveEggCountsOf, saveFarmOf } from '@/lib/farmFacts';
 import { nextShiftCostAt, plannedShiftsCost } from '@/lib/shiftCost';
 import { dateStanding, raceStanding, type Standing } from '@/lib/standing';
 
@@ -119,37 +120,40 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   // ------------------------------------------------------------------------------------------ the save
 
   /**
-   * The stores hold a save only once one was LOADED into them (`loadFromBackup` sets its time). On a page load
-   * they first hold the Manual planner's restored draft (hydrate: `lastBackupTime` 0, the TE and egg of whenever
-   * that plan was made) beside the save itself (`rawBackup`, the last one fetched). On beta (fix 20) the main account's
-   * strip said "No save loaded" over the draft's egg and 159 TE while its save was at 191. Until App loads the
-   * save (it does on My runs), only the strip reads the save, straight from `rawBackup`.
+   * The save is `rawBackup`, and on this page it wins: every TE, egg, farm and time below is read from the save
+   * itself, never from the initial-state store's TE, egg or farm fields. Those can be another state of it:
+   *   - a page load restores the Manual planner's draft (hydrate: `lastBackupTime` 0, the TE and egg of whenever that
+   *     plan was made) beside the save (fix 20);
+   *   - an account switch (`submitPlayerId`) loads the save without rolling the pending Truth Eggs up, and moves the
+   *     farm on to "now" (`catchUpFarmState`): on beta the main account's card said "159 TE so far" (the CLAIMED TE)
+   *     and both tiles "Your TE has moved since" over a save at 191 (fix 21).
+   * The page shows once the stores hold THIS save (same save time); App sets them up the Auto Planner's way on My
+   * runs. What has to match another screen or the planner's setup (the instant answer's key, the gear sets) waits
+   * for `storeReady`: the stores set up from this save with its pending TE rolled up, as Fastest and By a date have.
    */
-  const fromSave = computed(() => initial.hasData && initial.lastBackupTime > 0);
-  const raw = computed(() => (fromSave.value ? initial.rawBackup : null));
-  const hasSave = computed(() => !!raw.value);
-  /** A save is here but not read into the stores yet: the page waits for it (App loads it). */
-  const saveWaiting = computed(() => !fromSave.value && backupSecondsOf(initial.rawBackup) > 0);
-  const saveSeconds = computed(() => (raw.value ? initial.lastBackupTime || 0 : 0));
+  const raw = computed(() => (backupSecondsOf(initial.rawBackup) > 0 ? initial.rawBackup : null));
+  const saveSeconds = computed(() => backupSecondsOf(raw.value));
+  const storeHasSave = computed(() => !!raw.value && initial.hasData && initial.lastBackupTime === saveSeconds.value);
+  const storeReady = computed(() => storeHasSave.value && Math.floor(store.currentTE) === saveTEOf(raw.value));
+  const hasSave = computed(() => storeHasSave.value);
+  /** A save is here but the stores don't hold it yet: the page waits for it (App loads it). */
+  const saveWaiting = computed(() => !!raw.value && !storeHasSave.value);
   const onVirtue = computed(() => saveOnVirtue(raw.value));
   const account = computed(() => accountOf(raw.value));
-  const currentEgg = computed(() => (onVirtue.value ? virtueEggOf(initial.currentFarmState?.eggType) : null));
-  const teByEgg = computed(() =>
-    SAVE_EGG_ORDER.map(e =>
-      Math.max(initial.initialTeEarned?.[e] ?? 0, countTEThresholdsPassed(initial.initialEggsDelivered?.[e] ?? 0))
-    )
-  );
-  const teSoFar = computed(() => (raw.value ? store.backupTE : 0));
-  const strip = computed(() =>
-    saveStrip(saveSeconds.value || backupSecondsOf(initial.rawBackup), now.value, zone.value)
-  );
+  /** The save's virtue farm, as the save has it. */
+  const farm = computed(() => saveFarmOf(raw.value));
+  const currentEgg = computed(() => (hasSave.value && onVirtue.value ? virtueEggOf(farm.value?.eggType) : null));
+  const teByEgg = computed(() => saveTEByEggOf(raw.value));
+  const teSoFar = computed(() => (hasSave.value ? saveTEOf(raw.value) : 0));
+  const strip = computed(() => saveStrip(saveSeconds.value, now.value, zone.value));
 
   // ------------------------------------------------------------------------------------- the keys
 
   const eggDayYear = nextEggDayYear();
   const eggDayAt = eggDaySeconds(eggDayYear);
 
-  const keyFor = (deadline: number | null, finalTE: number) => (raw.value ? instantKeyFromStores(deadline, finalTE) : null);
+  const keyFor = (deadline: number | null, finalTE: number) =>
+    hasSave.value && storeReady.value ? instantKeyFromStores(deadline, finalTE) : null;
 
   const goals = computed<Goal[]>(() => {
     const list: Goal[] = [{ goal: 'fastest', target: RACE_TARGET, deadline: null }];
@@ -195,7 +199,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   // ------------------------------------------------------------------------------- the card's plan
 
   const cardPlan = computed<CardPlan | null>(() => {
-    if (!raw.value) return null;
+    if (!hasSave.value) return null;
     // 1. This save and setup, by goal.
     for (const { g, key } of keys.value) {
       const p = planOf(g, snapOf(instantSnapKey(key)));
@@ -236,9 +240,9 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   /** The save's three sets, worked out once per save (store `readInventory`: pure, a few ms). */
   const inventory = shallowRef<{ equipped: EquippedArtifact[] | null; earnings: EquippedArtifact[] | null; production: EquippedArtifact[] | null } | null>(null);
   watch(
-    raw,
-    r => {
-      if (!r) {
+    [raw, storeHasSave, storeReady],
+    ([r, here]) => {
+      if (!r || !here) {
         inventory.value = null;
         return;
       }
@@ -252,7 +256,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     { immediate: true }
   );
   function clothedOf(set: EquippedArtifact[] | null): number | null {
-    if (!set || !raw.value) return null;
+    if (!set || !hasSave.value) return null;
     try {
       const ctx = getSimulationContext();
       return calculateClothedTEForSet(set, {
@@ -279,20 +283,20 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   // -------------------------------------------------------------------------------- eggs and facts
 
   const facts = computed(() =>
-    raw.value
+    hasSave.value
       ? farmFacts({
-          farm: onVirtue.value ? initial.currentFarmState : null,
+          farm: onVirtue.value ? farm.value : null,
           epic: initial.epicResearchLevels,
           colleggtibles: initial.colleggtibleModifiers,
           equipped: inventory.value?.equipped ?? initial.artifactLoadout,
         })
       : null
   );
-  const eggs = computed(() =>
-    raw.value
-      ? eggLines(initial.initialEggsDelivered ?? {}, initial.initialTeEarned ?? {}, currentEgg.value, facts.value?.elr ?? null)
-      : []
-  );
+  const eggs = computed(() => {
+    if (!hasSave.value) return [];
+    const { delivered, earned } = saveEggCountsOf(raw.value);
+    return eggLines(delivered, earned, currentEgg.value, facts.value?.elr ?? null);
+  });
   const shiftsDone = computed(() => (raw.value as { virtue?: { shiftCount?: number | null } } | null)?.virtue?.shiftCount ?? 0);
   const soulEggs = computed(() => (raw.value as { game?: { soulEggsD?: number | null } } | null)?.game?.soulEggsD ?? 0);
   const nextShiftCost = computed(() => (raw.value ? nextShiftCostAt(soulEggs.value, shiftsDone.value) : null));
@@ -312,9 +316,12 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     async r => {
       history.value = [];
       if (!r) return;
-      const partition = await store.accountPartition().catch(() => '');
+      // The save's own account, never the store's cached partition (it can still be the last account's after a
+      // switch).
+      const id = (r as { eiUserId?: string }).eiUserId ?? '';
+      const partition = id ? await hashID(id).catch(() => '') : '';
       if (raw.value !== r) return;
-      history.value = partition ? await loadHistory(partition) : [];
+      history.value = partition ? await loadHistory(partition).catch(() => []) : [];
     },
     { immediate: true }
   );
@@ -340,7 +347,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       target: g.target,
       deadline: g.deadline,
       nowMs,
-      save: raw.value ? { seconds: saveSeconds.value, te: store.backupTE } : null,
+      save: hasSave.value ? { seconds: saveSeconds.value, te: saveTEOf(raw.value) } : null,
       snapshot: planOf(g, snapOf(instantSnapKey(k))),
       lastChecked: lastCheckedOf(k && k.startsWith(ANSWER_PREFIX) ? k : null),
       history: history.value,

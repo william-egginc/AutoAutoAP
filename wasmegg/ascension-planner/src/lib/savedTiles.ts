@@ -10,10 +10,19 @@
  *   board        your runs on the board (searches: level, Exhaustive, the save they started from)
  *   saved        By a date answers saved on this device (with the save they were priced from)
  *
- * The headline is the best answer from the LOADED save (a save within SAME_SAVE_SECONDS of it); with none, the
- * newest from any save, flagged `olderSave` ("Older save than the one you loaded"). So a board run sent today
- * from another browser off this very save (a "looks like yours" row) leads a weeks-old answer from an older
- * save, and the tile says where it came from (`sourceWords`). Pure.
+ * Which answer heads the tile (fix 21, after beta showed a 310 over a 311 for Egg Day):
+ *
+ *   An answer is CURRENT when it is of the loaded save, or of a save at most CURRENT_SAVE_SECONDS older (or any
+ *   newer). Current answers always rank ahead of the rest. Among them, Egg Day: the most TE, then the most time to
+ *   spare, then the stronger pricing, then the newest; Fastest: the soonest finish, then the stronger, then the
+ *   newest. An instant answer (the table only) leads only when no current answer was checked or searched.
+ *   With no current answer, the newest from an older save leads, flagged `olderSave` ("Older save than the one you
+ *   loaded").
+ *
+ * A board row's save time is worked out (its plan start less its rounded save age), and a run started from a save
+ * a few minutes older than the one loaded used to fall outside the 10-minute "same save" window: the 311 lost to
+ * the loaded save's 310. Such an answer now competes, and the tile says which save it was (`saveGapSeconds`:
+ * "4 min older than the one loaded"). A board run sent from another browser says so too (`sourceWords`). Pure.
  */
 import {
   deadlineAscendMs,
@@ -29,8 +38,13 @@ import { howSure, type SearchLevel, type Sure } from './howSure';
 import type { NowPlan } from './nowPlan';
 import type { CheckEntry } from '@/search/checkHistory';
 
-/** Two save times this close are the same save. */
+/** Two save times this close are the same save (the agreeing search for How sure is looked for among these). */
 export const SAME_SAVE_SECONDS = 10 * 60;
+/** An answer from a save at most this much older than the loaded one is current: it competes with the loaded
+ *  save's own (fix 21). Older than this, it ranks below every current answer and is flagged Older save. */
+export const CURRENT_SAVE_SECONDS = 2 * 3600;
+/** A save time further than this from the loaded save's is "another save" on the tile's words. */
+export const SAVE_GAP_WORDS_SECONDS = 60;
 /** Fastest: a search whose finish is within this of the answer's agrees with it. */
 export const AGREE_FINISH_SECONDS = 3600;
 
@@ -64,8 +78,11 @@ export interface TileAnswer {
 export interface Tile {
   goal: 'fastest' | 'date';
   answer: TileAnswer | null;
-  /** The answer is from an older save than the one loaded. */
+  /** The answer is from an older save than the one loaded (more than CURRENT_SAVE_SECONDS older). */
   olderSave: boolean;
+  /** A current answer from another save than the one loaded: its save time less the loaded save's, seconds
+   *  (negative: older). Null for the loaded save's own answers. */
+  saveGapSeconds?: number | null;
   sure: Sure | null;
 }
 
@@ -222,18 +239,22 @@ function better(goal: 'fastest' | 'date') {
 export function buildTile(i: TileInput): Tile {
   const all = candidates(i);
   const saveNow = i.save?.seconds ?? null;
+  const ownKey = (a: TileAnswer) => a.source === 'snapshot' || a.source === 'lastChecked';
   const sameSave = (a: TileAnswer) =>
-    a.source === 'snapshot' ||
-    a.source === 'lastChecked' ||
-    (saveNow != null && a.saveSeconds != null && Math.abs(a.saveSeconds - saveNow) <= SAME_SAVE_SECONDS);
+    ownKey(a) || (saveNow != null && a.saveSeconds != null && Math.abs(a.saveSeconds - saveNow) <= SAME_SAVE_SECONDS);
+  const current = (a: TileAnswer) =>
+    ownKey(a) || (saveNow != null && a.saveSeconds != null && a.saveSeconds >= saveNow - CURRENT_SAVE_SECONDS);
   const here = all.filter(sameSave);
-  // An instant answer (the table only) heads the tile only when nothing of this save was checked or searched:
+  const fresh = all.filter(current);
+  // An instant answer (the table only) heads the tile only when nothing current was checked or searched:
   // the table can be a TE out either way (the alt, 15 Oct: 248 by the table, 247 by Check exactly).
-  const priced = here.filter(a => a.how !== 'instant');
-  const pool = priced.length ? priced : here;
+  const priced = fresh.filter(a => a.how !== 'instant');
+  const pool = priced.length ? priced : fresh;
   const pick = pool.length ? [...pool].sort(better(i.goal))[0] : [...all].sort((a, b) => b.calculatedAt - a.calculatedAt)[0];
-  if (!pick) return { goal: i.goal, answer: null, olderSave: false, sure: null };
-  const olderSave = !here.length && pick.saveSeconds != null && saveNow != null && pick.saveSeconds < saveNow - SAME_SAVE_SECONDS;
+  if (!pick) return { goal: i.goal, answer: null, olderSave: false, saveGapSeconds: null, sure: null };
+  const olderSave = !current(pick) && pick.saveSeconds != null && saveNow != null && pick.saveSeconds < saveNow - CURRENT_SAVE_SECONDS;
+  const gap = !ownKey(pick) && current(pick) && saveNow != null && pick.saveSeconds != null ? pick.saveSeconds - saveNow : null;
+  const saveGapSeconds = gap != null && Math.abs(gap) > SAVE_GAP_WORDS_SECONDS ? gap : null;
   // The strongest search of the same save that agrees with the headline.
   const agreeing = here
     .filter(a => a !== pick && a.how === 'search' && a.level)
@@ -256,7 +277,14 @@ export function buildTile(i: TileInput): Tile {
     teMoved: i.save != null && pick.fromTE != null && Math.floor(pick.fromTE) !== Math.floor(i.save.te),
     te: pick.endTE,
   });
-  return { goal: i.goal, answer: pick, olderSave, sure };
+  return { goal: i.goal, answer: pick, olderSave, saveGapSeconds, sure };
+}
+
+/** "4 min older than the one loaded", "1 h 20 min newer than the one loaded" (`Tile.saveGapSeconds`). */
+export function saveGapWords(gapSeconds: number): string {
+  const m = Math.max(1, Math.round(Math.abs(gapSeconds) / 60));
+  const span = m < 60 ? `${m} min` : `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ''}`;
+  return `${span} ${gapSeconds < 0 ? 'older' : 'newer'} than the one loaded`;
 }
 
 /** Where a board answer came from, for the tile ('' for the rest): said plainly, as the board's own runs are

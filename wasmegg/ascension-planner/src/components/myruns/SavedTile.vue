@@ -13,7 +13,9 @@
       </p>
       <p class="text-[12px] text-slate-500" data-testid="now-tile-when">
         Calculated {{ whenAgo(a.calculatedAt / 1000, now, zone) }}<template v-if="a.saveSeconds">
-          · from your save of {{ dateAt(a.saveSeconds, now, zone) }}</template
+          · from your save of {{ dateAt(a.saveSeconds, now, zone) }}<template v-if="tile.saveGapSeconds"
+            >, <span data-testid="now-tile-save-gap">{{ saveGapWords(tile.saveGapSeconds) }}</span></template
+          ></template
         >
         · {{ howWords(a) }}<template v-if="sourceWords(a)"> · {{ sourceWords(a) }}</template>
       </p>
@@ -54,7 +56,7 @@
 import { computed } from 'vue';
 import { dateAt } from '@/lib/eventWhen';
 import { spareWords, whenAgo } from '@/lib/nowWords';
-import { howWords, sourceWords, type Tile } from '@/lib/savedTiles';
+import { howWords, saveGapWords, sourceWords, type Tile } from '@/lib/savedTiles';
 import { formatDate } from '@/lib/leaderboardRank';
 import type { MyRunsOpen } from '@/lib/myRunsDashboard';
 

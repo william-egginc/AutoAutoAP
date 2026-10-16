@@ -717,6 +717,7 @@ import { getSavedPlayerID, savePlayerID, requestFirstContact, resolveColleggtibl
 import ThePlayerIdForm from 'ui/components/PlayerIdForm.vue';
 import { useInitialStateStore } from '@/stores/initialState';
 import { offerStartTimes } from '@/lib/onVirtue';
+import { backupSecondsOf, saveTEOf } from '@/lib/saveFreshness';
 import { useActionsStore } from '@/stores/actions';
 import { useVirtueStore } from '@/stores/virtue';
 import { useUIStore } from '@/stores/ui';
@@ -775,7 +776,6 @@ import NewVersionBanner from '@/components/NewVersionBanner.vue';
 import IntegrityAlert from '@/components/auto/IntegrityAlert.vue';
 import { getSimulationContext, createBaseEngineState } from '@/engine/adapter';
 import type { Action, VirtueEgg } from '@/types';
-import { countTEThresholdsPassed } from '@/lib/truthEggs';
 import { setConsentAccount } from '@/composables/useConsent';
 import { getArtifact, getArtifactLoadoutFromBackup } from '@/lib/artifacts';
 import {
@@ -1179,16 +1179,7 @@ const saveArtifacts = computed(() => virtueInventory(initialStateStore.rawBackup
 /** Whether the save's gear has an instant answer of its own, for the "Any other gear" card (worked out
  *  only once Science's gap list is open). */
 const gearCoverage = useGearCoverage(() => plannerTab.value === 'science' && scienceView.value === 'check');
-const saveTE = computed(() => {
-  const virtue = initialStateStore.rawBackup?.virtue;
-  const earned = virtue?.eovEarned ?? [];
-  const delivered = virtue?.eggsDelivered ?? [];
-  let total = 0;
-  for (let i = 0; i < 5; i++) {
-    total += Math.min(98, Math.max(earned[i] ?? 0, countTEThresholdsPassed(delivered[i] ?? 0)));
-  }
-  return total;
-});
+const saveTE = computed(() => saveTEOf(initialStateStore.rawBackup));
 /** When should I start? only before the player is on virtue (lib/onVirtue.ts, Jordan 16 Oct 2026); its
  *  address still opens, with a short note, for a link from before. */
 const scienceTabs = computed<{ id: ScienceView; label: string }[]>(() => [
@@ -1604,17 +1595,50 @@ function loadFreshSave(): void {
  * page's own restore (onMounted ends with it), at most once per account per page visit (a Manual plan opened
  * later from the library is never reset by a tab click: the strip's "Load your save" is there), never under a
  * search or over a save the player picked.
+ *
+ * An account switch (submitPlayerId) DOES load the save into the stores, but the 'default' way: the pending Truth
+ * Eggs not rolled up (the TE is the claimed one) and the farm caught up to now. My runs reads its TE and eggs from
+ * the save itself (useNowPage), but the instant answer's key and the gear sets need the stores set up as Fastest
+ * and By a date have them, so then it sets them up from the save already in hand (no second fetch; fix 21).
  */
 const storesFromSave = computed(() => initialStateStore.hasData && initialStateStore.lastBackupTime > 0);
+/** The stores hold the loaded save set up the Auto Planner's way: its own time, its pending TE rolled up. */
+const storesSetUpFromSave = computed(
+  () =>
+    storesFromSave.value &&
+    initialStateStore.lastBackupTime === backupSecondsOf(initialStateStore.rawBackup) &&
+    chainSearchStore.currentTE === saveTEOf(initialStateStore.rawBackup)
+);
 let myRunsReady = false;
 let myRunsLoadFor = '';
 function loadSaveForMyRuns(): void {
-  if (!myRunsReady || plannerTab.value !== 'myruns' || !playerId.value || loading.value || storesFromSave.value) return;
+  if (!myRunsReady || plannerTab.value !== 'myruns' || !playerId.value || loading.value || storesSetUpFromSave.value) return;
   if (myRunsLoadFor === playerId.value || searchActive.value || uiStore.runSaveLoaded) return;
   myRunsLoadFor = playerId.value;
-  void prepareAutoPlanner();
+  const raw = initialStateStore.rawBackup;
+  const inHand =
+    storesFromSave.value &&
+    !!raw &&
+    raw.eiUserId === playerId.value &&
+    initialStateStore.lastBackupTime === backupSecondsOf(raw);
+  void (inHand ? setUpFromSaveInHand() : prepareAutoPlanner());
 }
-watch([plannerTab, playerId, loading, storesFromSave], loadSaveForMyRuns);
+/** initPlanFuture from the save already loaded (an account switch just fetched it). */
+async function setUpFromSaveInHand(): Promise<void> {
+  const raw = initialStateStore.rawBackup;
+  if (!playerId.value || !raw || loading.value) return;
+  loading.value = true;
+  try {
+    await initPlanFuture(playerId.value, raw);
+  } catch (e) {
+    console.error('Could not set the planner up from the loaded save:', e);
+  } finally {
+    loading.value = false;
+  }
+}
+// Once per account per visit: a switch back to an account counts again (its stores were loaded the switch's way).
+watch(playerId, () => (myRunsLoadFor = ''));
+watch([plannerTab, playerId, loading, storesSetUpFromSave], loadSaveForMyRuns);
 
 /** What we need to check's Run this sweep, on the Science tab: open its window. */
 function openSweep(request: SweepRequest): void {

@@ -16,8 +16,74 @@ import { calculateArtifactModifiers } from '@/lib/artifacts/calculator';
 import type { EquippedArtifact } from '@/lib/artifacts/types';
 import { countTEThresholdsPassed, getThresholdForTE, nextTEThreshold } from '@/lib/truthEggs';
 import { totalAwayTime } from '@/stores/silos';
-import type { CurrentFarmState, ResearchLevels } from '@/types';
+import type { CurrentFarmState, ResearchLevels, VehicleSlot } from '@/types';
 import { SAVE_EGG_ORDER } from './nowPlan';
+
+/** The farm fields of a save read here (ei.IBackup's, loosely). */
+interface RawFarm {
+  eggType?: number | null;
+  commonResearch?: { id?: string | null; level?: number | null }[] | null;
+  habs?: (number | null)[] | null;
+  habPopulation?: (number | null)[] | null;
+  numChickens?: number | null;
+  vehicles?: (number | null)[] | null;
+  trainLength?: (number | null)[] | null;
+  silosOwned?: number | null;
+  unclaimedCash?: number | null;
+  cashEarned?: number | null;
+  cashSpent?: number | null;
+  eggsLaid?: number | null;
+  lastStepTime?: number | null;
+}
+
+/**
+ * The save's virtue farm (egg types 50 to 54) as the save itself has it, read the way the initial-state store's
+ * `loadFromBackup` reads it; null when the save isn't on one. Not the store's `currentFarmState`: after an account
+ * switch `catchUpFarmState` moves its population and delivered count on to "now", and on a page load it can be a
+ * restored Manual draft's farm (ui fix 21). Pure.
+ */
+export function saveFarmOf(raw: unknown): CurrentFarmState | null {
+  const farms = (raw as { farms?: RawFarm[] | null } | null | undefined)?.farms;
+  if (!Array.isArray(farms)) return null;
+  const farm = farms.find(f => f && typeof f.eggType === 'number' && f.eggType >= 50 && f.eggType <= 54);
+  if (!farm) return null;
+  const commonResearches: ResearchLevels = {};
+  for (const r of farm.commonResearch ?? []) if (r?.id && r.level != null) commonResearches[r.id] = r.level;
+  const habs = (farm.habs ?? []).map(h => (h === 19 ? null : (h as number | null)));
+  while (habs.length < 4) habs.push(null);
+  const train = farm.trainLength ?? [];
+  const vehicles: VehicleSlot[] = (farm.vehicles ?? []).map((v, i) => ({ vehicleId: v as number | null, trainLength: train[i] || 1 }));
+  const population = Array.isArray(farm.habPopulation)
+    ? farm.habPopulation.reduce<number>((a, p) => a + (p || 0), 0)
+    : farm.numChickens || 0;
+  return {
+    eggType: farm.eggType as number,
+    cash: farm.unclaimedCash || Math.max(0, (farm.cashEarned || 0) - (farm.cashSpent || 0)),
+    numSilos: farm.silosOwned || 1,
+    commonResearches,
+    habs,
+    vehicles,
+    population,
+    deliveredEggs: farm.eggsLaid || 0,
+    lastStepTime: farm.lastStepTime || 0,
+    cashEarned: farm.cashEarned || 0,
+    cashSpent: farm.cashSpent || 0,
+  };
+}
+
+/** The save's own eggs delivered and claimed TE per virtue egg, by name (`eggLines`' inputs); empty without one. */
+export function saveEggCountsOf(raw: unknown): { delivered: Record<string, number>; earned: Record<string, number> } {
+  const v = (raw as { virtue?: { eggsDelivered?: (number | null)[] | null; eovEarned?: (number | null)[] | null } | null } | null)
+    ?.virtue;
+  const delivered: Record<string, number> = {};
+  const earned: Record<string, number> = {};
+  if (!v) return { delivered, earned };
+  SAVE_EGG_ORDER.forEach((egg, i) => {
+    delivered[egg] = v.eggsDelivered?.[i] ?? 0;
+    earned[egg] = v.eovEarned?.[i] ?? 0;
+  });
+  return { delivered, earned };
+}
 
 export interface FarmInput {
   farm: CurrentFarmState | null;

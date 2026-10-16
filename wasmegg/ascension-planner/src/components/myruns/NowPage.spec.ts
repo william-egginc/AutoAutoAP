@@ -327,7 +327,7 @@ describe('the page with a real save and a saved answer (nothing worked out)', ()
     const t = textOf(html);
     expect(html).toContain('data-testid="now-card"');
     expect(t).toContain('Plan for Fastest to 490 calculated');
-    expect(t).toContain('Shift to Humility today at');
+    expect(t).toMatch(/Shift to Humility (today|tomorrow) at/); // an hour from now: tomorrow after 11 pm
     expect(t).toContain('Fastest to 490 · saved answer');
     expect(t).toContain('Your eggs · from your save');
     expect(html).not.toMatch(/EI\d{16}/);

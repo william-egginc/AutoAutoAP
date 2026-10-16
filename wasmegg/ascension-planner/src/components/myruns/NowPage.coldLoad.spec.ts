@@ -160,7 +160,7 @@ describe('the cold load, in the source', () => {
     const path = await import('node:path');
     const app = fs.readFileSync(path.resolve(__dirname, '../../App.vue'), 'utf8');
     expect(app).toContain('const storesFromSave = computed(() => initialStateStore.hasData && initialStateStore.lastBackupTime > 0);');
-    expect(app).toContain('watch([plannerTab, playerId, loading, storesFromSave], loadSaveForMyRuns);');
+    expect(app).toContain('watch([plannerTab, playerId, loading, storesSetUpFromSave], loadSaveForMyRuns);');
     expect(app).toMatch(/myRunsReady = true;\s+loadSaveForMyRuns\(\);\s+\}\);/);
     expect(app).toContain('if (myRunsLoadFor === playerId.value || searchActive.value || uiStore.runSaveLoaded) return;');
   });

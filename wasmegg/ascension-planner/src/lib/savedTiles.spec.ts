@@ -56,7 +56,7 @@ const row = (o: Partial<BoardRow>): BoardRow => ({
 
 describe('saved-answer tiles', () => {
   it('nothing worked out: no answer', () => {
-    expect(buildTile(base({}))).toEqual({ goal: 'date', answer: null, olderSave: false, sure: null });
+    expect(buildTile(base({}))).toEqual({ goal: 'date', answer: null, olderSave: false, saveGapSeconds: null, sure: null });
   });
 
   it('a checked snapshot of this save: High when it confirms the TE with room', () => {
