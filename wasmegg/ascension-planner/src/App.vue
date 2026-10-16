@@ -862,7 +862,7 @@ async function recalcFromMyRuns(req: RecalcRequest): Promise<void> {
     }
   }
   openFromMyRuns(req.open);
-  uiStore.askExact(req.goal);
+  uiStore.askExact(req.goal, req.chain);
 }
 const initialStateStore = useInitialStateStore();
 // The Auto Planner's start and timezone, restored and defaulted before any screen or chunk loads.

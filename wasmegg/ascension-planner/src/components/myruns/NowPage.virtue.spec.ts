@@ -292,7 +292,7 @@ describe('Recalculate', () => {
     const appSrc = read('../../App.vue');
     expect(appSrc).toContain('@recalc="recalcFromMyRuns"');
     expect(appSrc).toMatch(
-      /if \(needsFreshSave\(backupSecondsOf\(initialStateStore\.rawBackup\), Date\.now\(\) \/ 1000\)\) \{\s*const why = await prepareAutoPlanner\(\);[\s\S]*?openFromMyRuns\(req\.open\);\s*uiStore\.askExact\(req\.goal\);/
+      /if \(needsFreshSave\(backupSecondsOf\(initialStateStore\.rawBackup\), Date\.now\(\) \/ 1000\)\) \{\s*const why = await prepareAutoPlanner\(\);[\s\S]*?openFromMyRuns\(req\.open\);\s*uiStore\.askExact\(req\.goal, req\.chain\);/
     );
   });
 
@@ -304,7 +304,7 @@ describe('Recalculate', () => {
     const route = read('../auto/InstantRoute.vue');
     expect(route).toContain('goal: instantGoal(props.deadline, store.finalTE),');
     expect(route).toMatch(
-      /if \(step === 'none' \|\| step === 'wait'\) return;\s*ui\.exactAsk = null;\s*if \(step === 'run'\) checkAgain\(\);/
+      /if \(step === 'none' \|\| step === 'wait'\) return;[\s\S]*?ui\.exactAsk = null;\s*if \(step === 'run'\) checkAgain\(\);/
     );
   });
 });

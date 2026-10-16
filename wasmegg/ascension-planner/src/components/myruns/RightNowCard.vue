@@ -12,6 +12,11 @@
   <date>: …" (lib/nowStart.ts). On virtue, a badge in the corner says Building or Producing with the rate
   (lib/nowPhase.ts), and "Recalculate" opens the goal's screen with the save and runs Check exactly there
   (lib/recalc.ts): this card still works nothing out.
+  "Follow this route" (lib/follow.ts): a route the player picked for the goal (on the instant answer, a saved answer or
+  run, a board row, or typed in the box under the route line) replaces the planner's pick: the route line, the events,
+  the timeline and the calendar text follow it, priced from a save's Check exactly (lib/followPrice.ts). Priced on an
+  older save, it says so; not priced, it says so and offers "Price it ›" (Recalculate with the route attached) and
+  "Simulate it ›" (Single run). "Use the checked route ›" goes back to the planner's pick.
 -->
 <template>
   <section class="rounded-2xl border border-slate-200 bg-white p-4 space-y-2" data-testid="now-card">
@@ -73,7 +78,7 @@
     </div>
 
     <!-- The route followed: the ascension the save is in highlighted, the stops passed greyed; wraps. -->
-    <p v-if="card && card.plan.chain.length" class="text-[13px] text-slate-700 break-words" data-testid="now-chain">
+    <p v-if="shownChain.length" class="text-[13px] text-slate-700 break-words" data-testid="now-chain">
       <template v-if="notOnVirtue">If you start then:{{ ' ' }}</template>Following<template v-for="(s, i) in stops" :key="i"
         >{{ i ? ' → ' : ' '
         }}<span
@@ -91,6 +96,48 @@
       >{{ ' ' }}({{ followName }})
     </p>
 
+    <!-- The player's own pick (lib/follow.ts): where its price came from, Price it / Simulate it, and the way back. -->
+    <p v-if="follow" class="text-[12px] text-slate-600" data-testid="now-follow" :data-price="follow.price" :data-source="follow.source ?? ''">
+      <span class="font-bold text-indigo-800">Following your pick</span><template v-if="followNote">{{ ' ' }}· {{ followNote }}</template
+      ><template v-if="follow.missesDate">{{ ' ' }}· lands after the date</template
+      ><template v-if="offerPrice"
+        >{{ ' ' }}·
+        <button type="button" class="font-bold text-indigo-700 underline" data-testid="now-follow-price" @click="priceIt">
+          Price it ›
+        </button>
+        ·
+        <button type="button" class="font-bold text-indigo-700 underline" data-testid="now-follow-simulate" title="Opens Single run with this route on your save (nothing is kept for this page)" @click="emit('simulate', [...follow.chain])">
+          Simulate it ›
+        </button></template
+      >{{ ' ' }}·
+      <button type="button" class="font-bold text-indigo-700 underline" data-testid="now-follow-back" @click="emit('unfollow')">
+        Use the checked route ›
+      </button>
+    </p>
+
+    <!-- Follow another route: typed stops (lib/follow.ts parseTypedRoute). -->
+    <details v-if="selectedOption && !notOnVirtue" class="text-[12px]" data-testid="now-follow-typed">
+      <summary class="cursor-pointer font-semibold text-indigo-700">Follow another route</summary>
+      <form class="mt-1.5 flex flex-wrap items-center gap-2" @submit.prevent="followTyped">
+        <label class="sr-only" for="now-follow-input">Stops of the route</label>
+        <input
+          id="now-follow-input"
+          v-model="typed"
+          type="text"
+          inputmode="numeric"
+          autocomplete="off"
+          :placeholder="typedHint"
+          class="min-h-[44px] w-56 max-w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-[13px]"
+          data-testid="now-follow-input"
+        />
+        <button type="submit" class="min-h-[44px] rounded-xl border border-indigo-300 bg-white px-3 py-1.5 text-[13px] font-bold text-indigo-700 hover:bg-indigo-50">
+          Follow
+        </button>
+        <span v-if="typedError" class="w-full text-rose-700" data-testid="now-follow-error">{{ typedError }}</span>
+        <span v-else class="w-full text-slate-500">Stops split by spaces, commas or arrows; Right now follows it for {{ selectedOption.name }}.</span>
+      </form>
+    </details>
+
     <!-- A better plan of this save priced with other hours: named, never the lead (fix 22, lib/currentAnswer.ts). -->
     <p v-if="card?.secondary" class="text-[12px] text-slate-500" data-testid="now-secondary">
       {{ secondaryText }}<template v-if="card.secondary.plan.calculatedAt">
@@ -102,7 +149,7 @@
       Your setup changed since this plan.
       <button type="button" class="font-bold underline" @click="emit('open', goalOpen)">Work it out again ›</button>
     </p>
-    <p v-else-if="card?.state === 'older-save'" class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-1.5 text-[12px] text-amber-900" data-testid="now-older-save">
+    <p v-else-if="card?.state === 'older-save' && !follow" class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-1.5 text-[12px] text-amber-900" data-testid="now-older-save">
       This plan was worked out from your save of {{ planSaveWhen }}, an older one than you loaded.
     </p>
 
@@ -165,6 +212,9 @@
           <button type="button" class="font-bold underline" @click="emit('open', goalOpen)">Check again ›</button>
         </p>
       </template>
+      <p v-else-if="follow" class="text-[13px] text-slate-700" data-testid="now-follow-next">
+        No timeline for your route on this save yet: Price it › runs Check exactly on it (about a minute more on a phone).
+      </p>
       <p v-else-if="selectedOption" class="text-[13px] text-slate-700" data-testid="now-no-plan">
         {{ selectedOption.label }}: {{ emptyGoalWords(selectedOption.state) }} ·
         <button type="button" class="font-bold text-indigo-700 underline" data-testid="now-work-it-out" @click="emit('open', selectedOption.open)">
@@ -262,6 +312,8 @@ import type { SetMatch } from '@/lib/gearMatch';
 import { phaseWords, type PhaseBadge } from '@/lib/nowPhase';
 import { NOTHING_PRICED, type StartLine } from '@/lib/nowStart';
 import { askGoal, recalcWords, type RecalcRequest } from '@/lib/recalc';
+import { parseTypedRoute } from '@/lib/follow';
+import type { FollowCard } from '@/composables/useNowPage';
 
 const props = defineProps<{
   card: CardPlan | null;
@@ -292,6 +344,8 @@ const props = defineProps<{
   phase?: PhaseBadge | null;
   /** Not on virtue yet: each goal's saved plan as "If you start <date>: …" (lib/nowStart.ts). */
   startInfo?: StartLine[];
+  /** The route the player follows for this goal (lib/follow.ts) and how it is priced; null or absent: none. */
+  follow?: FollowCard | null;
 }>();
 const emit = defineEmits<{
   open: [to: MyRunsOpen];
@@ -300,6 +354,12 @@ const emit = defineEmits<{
   startTimes: [chain: number[] | null];
   /** "Recalculate": open the goal's screen with the save and run Check exactly there (App, lib/recalc.ts). */
   recalc: [req: RecalcRequest];
+  /** A route typed in "Follow another route": follow it for this goal. */
+  follow: [chain: number[]];
+  /** "Use the checked route ›": back to the planner's pick for this goal. */
+  unfollow: [];
+  /** "Simulate it ›": the followed route in Single run (search/simulateRoute.ts). */
+  simulate: [chain: number[]];
 }>();
 
 /** Not on virtue yet (null: not known, the card stays as it is). */
@@ -321,10 +381,62 @@ const goalName = computed(() =>
     : `Fastest to ${props.card?.goal.target ?? 490}`
 );
 /** The goal in the route line and the calendar: "Race to 490", "Egg Day 2027", "By Mar 3, 2027". */
-const followName = computed(() => props.card?.name ?? (props.card?.goal.goal === 'fastest' ? `Race to ${props.card.goal.target}` : goalName.value));
-const stops = computed(() => chainStops(props.card?.plan.chain ?? [], props.ascNow));
+const followName = computed(() => {
+  const name =
+    props.card?.name ??
+    (props.card ? (props.card.goal.goal === 'fastest' ? `Race to ${props.card.goal.target}` : goalName.value) : (selectedOption.value?.name ?? ''));
+  return props.follow ? `${name} · your pick` : name;
+});
+/** The route on the line: the plan's, else (a followed route not priced yet) the followed one. */
+const shownChain = computed(() => props.card?.plan.chain ?? props.follow?.chain ?? []);
+const stops = computed(() => chainStops(shownChain.value, props.card ? props.ascNow : 0));
 /** "Following 197 → 222 → 247 → 285 → 313 (Egg Day 2027)": the same words go into each calendar event. */
 const following = computed(() => followingLine(props.card?.plan.chain ?? [], followName.value));
+
+// ------------------------------------------------------------------------------- following your pick
+/** Where the followed route's price came from, in words. */
+const followNote = computed(() => {
+  const f = props.follow;
+  if (!f) return '';
+  if (f.price === 'none') return 'not priced on this save yet';
+  if (f.price === 'finish' && f.finish) {
+    const lands = dateAt(f.finish.end, props.now, props.zone);
+    return `checked ${dateAt(f.finish.at / 1000, props.now, props.zone)}: lands ${lands}, no timeline kept`;
+  }
+  if (f.source === 'older-save' && f.pricedSave) return `priced on your save of ${dateAt(f.pricedSave, props.now, props.zone)}, may have drifted`;
+  return '';
+});
+/** "Price it ›" and "Simulate it ›": whenever the route has no Check exactly times of this save. */
+const offerPrice = computed(() => !!props.follow && (props.follow.price !== 'exact' || props.follow.source === 'older-save'));
+/** The goal asked for: the card's, else the selected option's (a followed route with no plan yet). */
+const askFor = computed<{ goal: 'fastest' | 'date'; target: number; deadline: number | null }>(() => {
+  if (props.card) return props.card.goal;
+  const o = selectedOption.value;
+  if (o && o.kind !== 'race' && o.deadline) return { goal: 'date', target: 0, deadline: o.deadline };
+  const t = Number(/^fastest-(\d+)$/.exec(o?.key ?? '')?.[1] ?? 490);
+  return { goal: 'fastest', target: t, deadline: null };
+});
+/** Recalculate with the followed route attached: Check exactly prices it as one more route (lib/recalc.ts). */
+function priceIt(): void {
+  if (!props.follow) return;
+  emit('recalc', { ...recalcRequest.value, chain: [...props.follow.chain] });
+}
+const typed = ref('');
+const typedError = ref('');
+const typedHint = computed(() => (askFor.value.goal === 'fastest' ? `e.g. 197 222 247 ${askFor.value.target}` : 'e.g. 197 222 247'));
+function followTyped(): void {
+  const r = parseTypedRoute(typed.value, {
+    currentTE: props.teSoFar,
+    target: askFor.value.goal === 'fastest' ? askFor.value.target : null,
+  });
+  if ('error' in r) {
+    typedError.value = r.error;
+    return;
+  }
+  typedError.value = '';
+  typed.value = '';
+  emit('follow', r.chain);
+}
 
 // ------------------------------------------------------------------------------------- the switch
 const selectedOption = computed(() => props.goals?.find(g => g.key === props.selectedGoal) ?? null);
@@ -377,7 +489,7 @@ const goalOpen = computed<MyRunsOpen>(() =>
 );
 const recalcRequest = computed<RecalcRequest>(() => ({
   open: goalOpen.value,
-  goal: askGoal(props.card?.goal ?? { goal: 'fastest', target: 490, deadline: null }),
+  goal: askGoal(askFor.value),
 }));
 const recalcLine = computed(() => recalcWords(goalOpen.value));
 </script>

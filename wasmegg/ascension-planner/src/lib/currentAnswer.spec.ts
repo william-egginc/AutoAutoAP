@@ -233,7 +233,7 @@ describe('the setup is recorded where answers are kept', () => {
     expect(src).toMatch(/setup: exactSetup \?\? \{/);
     // My runs builds both Right now and the tiles from the one selector.
     const page = fs.readFileSync(path.resolve(__dirname, '../composables/useNowPage.ts'), 'utf8');
-    expect(page).toContain('plansByGoal(goalList.value, snapCandidates.value, goalAnswers.value, saveSeconds.value)');
+    expect(page).toContain('plansByGoal(goalList.value, snapCandidates.value, goalAnswers.value, saveSeconds.value, followedKeys.value)');
     expect(page).toContain('otherSnapshots: others');
     expect(page).toContain('setupNow: setupNow.value');
   });

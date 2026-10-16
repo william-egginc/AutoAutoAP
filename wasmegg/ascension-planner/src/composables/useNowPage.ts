@@ -87,6 +87,9 @@ import {
 import { whichSet } from '@/lib/gearMatch';
 import { phaseNow } from '@/lib/nowPhase';
 import { startLines } from '@/lib/nowStart';
+import { useFollowStore } from '@/stores/follow';
+import { followPrice, type FollowSnap } from '@/lib/followPrice';
+import { followedFromNow, type FollowFrom } from '@/lib/follow';
 
 /** The race the Fastest tile is for first (the board's), then the player's own target. */
 export const RACE_TARGET = 490;
@@ -107,6 +110,25 @@ export interface CardPlan {
   /** The goal's key and name (lib/planGoals.ts): "Race to 490", "Egg Day 2027", "By Mar 3, 2027". */
   key?: GoalKey;
   name?: string;
+  /** The route is the player's own pick for this goal ("Follow this route", lib/follow.ts), priced from a save. */
+  followed?: FollowCard;
+}
+
+/** The route the player follows for the selected goal, and how it is priced (lib/followPrice.ts). */
+export interface FollowCard {
+  /** The route shown: as priced (a plan's), else the stops still ahead of the save. */
+  chain: number[];
+  from: FollowFrom;
+  /** 'exact': Check exactly's times kept (the card's plan is it); 'finish': only its finish, from Check exactly's
+   *  history; 'none': not priced yet. */
+  price: 'exact' | 'finish' | 'none';
+  source: 'this-save' | 'setup-changed' | 'older-save' | 'history' | null;
+  /** The save it was priced from, unix seconds (an older save's, or the history entry's); null when not known. */
+  pricedSave: number | null;
+  /** 'finish': when it lands and the TE then, and when that check ran (ms). */
+  finish?: { end: number; endTE: number | null; at: number };
+  /** By a date: the route lands after the date. */
+  missesDate?: boolean;
 }
 
 /**
@@ -159,6 +181,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   const store = useChainSearchStore();
   const initial = useInitialStateStore();
   const planner = useAutoPlannerStore();
+  const follows = useFollowStore();
   const now = useMinuteClock();
   const zone = computed(() => planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
 
@@ -249,9 +272,24 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     }
     return out;
   });
+  /** The goals a route is followed for (lib/follow.ts): listed on the switch even without a plan. */
+  const followedKeys = computed(() => new Set(account.value ? follows.followedGoals() : []));
+  const followedDates = computed(() =>
+    [...followedKeys.value].map(k => /^date-(\d+)$/.exec(k)).filter((m): m is RegExpExecArray => !!m).map(m => Number(m[1]))
+  );
+  const followedTargets = computed(() =>
+    [...followedKeys.value].map(k => /^fastest-(\d+)$/.exec(k)).filter((m): m is RegExpExecArray => !!m).map(m => Number(m[1]))
+  );
   const goalList = computed<PlanGoal[]>(() =>
-    otherDates.value.length
-      ? goalDefs({ ownTarget: store.finalTE, raceTarget: RACE_TARGET, eggDay, otherDates: otherDates.value, dayWords })
+    otherDates.value.length || followedDates.value.length || followedTargets.value.length
+      ? goalDefs({
+          ownTarget: store.finalTE,
+          raceTarget: RACE_TARGET,
+          eggDay,
+          otherDates: [...otherDates.value, ...followedDates.value],
+          otherTargets: followedTargets.value,
+          dayWords,
+        })
       : baseGoals.value
   );
   /** Each goal with its instant-answer key (the base goals' keys are worked out once). */
@@ -366,7 +404,9 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
 
   /** Per goal its saved plan (lib/currentAnswer.ts's rule, through lib/planGoals.ts `plansByGoal`). */
   const planGoals = computed(() =>
-    hasSave.value ? plansByGoal(goalList.value, snapCandidates.value, goalAnswers.value, saveSeconds.value) : []
+    hasSave.value
+      ? plansByGoal(goalList.value, snapCandidates.value, goalAnswers.value, saveSeconds.value, followedKeys.value)
+      : []
   );
   /** The goal Right now opens on: the one checked last (`defaultGoalKey`). */
   const defaultGoal = computed(() => defaultGoalKey(planGoals.value, saveSeconds.value));
@@ -380,10 +420,98 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   function selectGoal(key: GoalKey): void {
     chosenGoal.value = { scope: choiceScope.value, key };
   }
-  const goalChoices = computed(() => goalOptions(planGoals.value, zone.value));
+  const goalChoices = computed(() =>
+    goalOptions(planGoals.value, zone.value).map(g => (followedKeys.value.has(g.key) ? { ...g, following: true } : g))
+  );
+
+  /**
+   * The selected goal's followed route priced from what is saved (lib/followPrice.ts): every kept snapshot of this
+   * account and goal (this save's own key first, then the index's), each with the TE its routes start from, then
+   * Check exactly's history. Nothing is worked out.
+   */
+  const followState = computed<{ card: FollowCard; plan: CardPlan | null } | null>(() => {
+    const sel = planGoals.value.find(p => p.goal.key === selectedGoal.value);
+    const f = sel ? follows.followed(sel.goal.key) : null;
+    if (!sel || !f || !hasSave.value) return null;
+    const g = goalOf(sel.goal);
+    const gi = keys.value.findIndex(k => k.d.key === sel.goal.key);
+    const sn = setupNow.value;
+    const snaps: FollowSnap[] = [];
+    const seen = new Set<string>();
+    const own = instantSnapKey(keys.value[gi]?.key ?? null);
+    const ownSnap = snapOf(own);
+    if (own && ownSnap) {
+      seen.add(own);
+      snaps.push({ snap: ownSnap, startTE: teSoFar.value, ownKey: true, check: currentSetup(sn.setup) });
+    }
+    const acct = account.value;
+    const words = instantGoal(g.deadline, g.deadline ? store.finalTE : g.target);
+    if (acct)
+      for (const e of [...index.value].reverse()) {
+        const m = e.meta;
+        if (!m || m.account !== acct || m.goal !== words || seen.has(e.key)) continue;
+        const sp = snapOf(e.key);
+        if (!sp) continue;
+        seen.add(e.key);
+        const te = Array.isArray(m.teByEgg) && m.teByEgg.length ? m.teByEgg.reduce((a, b) => a + b, 0) : null;
+        snaps.push({ snap: sp, startTE: te, ownKey: false, check: setupCheck(m.setup ?? null, sn.setup, sn.today) });
+      }
+    const price = followPrice({
+      chain: f.chain,
+      goal: g,
+      currentTE: teSoFar.value,
+      loadedSave: saveSeconds.value,
+      snaps,
+      history: history.value,
+      goalIndex: Math.max(0, gi),
+      goalKey: sel.goal.key,
+    });
+    if (price.priced === 'exact') {
+      const p = price.plan;
+      const card: FollowCard = {
+        chain: [...p.chain],
+        from: f.from,
+        price: 'exact',
+        source: price.source,
+        pricedSave: p.meta?.backupTime ?? null,
+        ...(g.deadline && p.end > g.deadline ? { missesDate: true } : {}),
+      };
+      return {
+        card,
+        plan: {
+          plan: p,
+          goal: g,
+          state: price.source,
+          pricedWith: pricedWithWords(price.candidate.check),
+          secondary: null,
+          key: sel.goal.key,
+          name: sel.goal.name,
+          followed: card,
+        },
+      };
+    }
+    if (price.priced === 'finish')
+      return {
+        card: {
+          chain: followedFromNow(f.chain, teSoFar.value),
+          from: f.from,
+          price: 'finish',
+          source: 'history',
+          pricedSave: price.backupTime,
+          finish: { end: price.end, endTE: price.endTE, at: price.at },
+          ...(g.deadline && price.end > g.deadline ? { missesDate: true } : {}),
+        },
+        plan: null,
+      };
+    return { card: { chain: price.chain, from: f.from, price: 'none', source: null, pricedSave: null }, plan: null };
+  });
+  /** The followed route of the selected goal, for the card (null: the planner's checked route is shown). */
+  const follow = computed<FollowCard | null>(() => followState.value?.card ?? null);
 
   /** Right now's plan: the selected goal's (the table, Next step, the timeline and the calendar all follow it). */
   const cardPlan = computed<CardPlan | null>(() => {
+    // A route the player follows replaces the planner's pick (priced from a save, or nothing to show yet).
+    if (followState.value) return followState.value.plan;
     const sel = planGoals.value.find(p => p.goal.key === selectedGoal.value);
     const pick = sel?.pick;
     if (!sel || !pick) return null;
@@ -584,6 +712,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     eggDayAt,
     eggDayYear,
     cardPlan,
+    follow,
     goalChoices,
     selectedGoal,
     selectGoal,

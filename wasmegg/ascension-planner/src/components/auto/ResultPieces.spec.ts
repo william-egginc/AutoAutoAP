@@ -81,7 +81,7 @@ describe('SavedAnswers', () => {
       )
     );
     expect(t).toMatch(
-      /^Download CSV Save this answer Priced from now\. Saved answers Egg Day try 307 368 · saved .*Open Delete The save for this one wasn't kept \(saved before 10 Oct\)\. Empty no route · saved .*Open Delete The save for this one wasn't kept \(saved before 10 Oct\)\. Load a save file This file is your game save; don't share it publicly\.$/
+      /^Download CSV Save this answer Priced from now\. Saved answers Egg Day try 307 368 · saved .*Open Follow this route Delete The save for this one wasn't kept \(saved before 10 Oct\)\. Empty no route · saved .*Open Delete The save for this one wasn't kept \(saved before 10 Oct\)\. Load a save file This file is your game save; don't share it publicly\.$/
     );
   });
 

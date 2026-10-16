@@ -55,8 +55,8 @@ export const useUIStore = defineStore('ui', () => {
    */
   const exactAsk = ref<ExactAsk | null>(null);
   let exactAsks = 0;
-  function askExact(goal: string): void {
-    exactAsk.value = { goal, n: ++exactAsks };
+  function askExact(goal: string, chain?: number[]): void {
+    exactAsk.value = { goal, n: ++exactAsks, ...(chain && chain.length ? { chain: [...chain] } : {}) };
   }
   /** Your setup's floating panel (SetupDock.vue) is open: the gear, or a screen's Edit setup. */
   const setupOpen = ref(false);

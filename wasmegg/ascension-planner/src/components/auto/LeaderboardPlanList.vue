@@ -144,6 +144,7 @@
                 >
                   Use
                 </button>
+                <FollowButton class="ml-1" :chain="p.row.chain" :goal-key="boardGoalKey(p.row)" from="board" />
               </td>
             </tr>
             <tr v-if="open[keyOf(p, i)]" class="bg-slate-50">
@@ -186,6 +187,8 @@
 </template>
 
 <script setup lang="ts">
+import FollowButton from '../FollowButton.vue';
+import { boardGoalKey } from '@/lib/follow';
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 import { onRowClick } from '@/lib/rowClick';
 import LeaderboardRunDetail from './LeaderboardRunDetail.vue';

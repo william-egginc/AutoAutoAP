@@ -53,10 +53,14 @@
         :selected-goal="page.selectedGoal.value"
         :phase="page.phase.value"
         :start-info="page.startInfo.value"
+        :follow="page.follow.value"
         @open="to => emit('open', to)"
         @select="page.selectGoal"
         @start-times="openStartTimes"
         @recalc="req => emit('recalc', req)"
+        @follow="followTyped"
+        @unfollow="unfollowGoal"
+        @simulate="simulateFollowed"
       />
 
       <YourEggs
@@ -245,6 +249,8 @@ import { oneMoreLine, tryNextPills } from '@/lib/tryNext';
 import { takeYourRunsAsk } from '@/lib/myRunsFocus';
 import { useNowPage } from '@/composables/useNowPage';
 import { useStartTimesStore } from '@/stores/startTimes';
+import { useFollowStore } from '@/stores/follow';
+import { simulateRoute } from '@/search/simulateRoute';
 import type { RecalcRequest } from '@/lib/recalc';
 import { saveTEOf } from '@/lib/saveFreshness';
 import DashboardCards from './myruns/DashboardCards.vue';
@@ -277,6 +283,21 @@ const startTimes = useStartTimesStore();
 function openStartTimes(chain: number[] | null): void {
   if (chain && chain.length) startTimes.show(chain);
   else startTimes.open();
+}
+
+/** Right now's followed route (lib/follow.ts): typed in its box, back to the checked route, or opened in Single run. */
+const follows = useFollowStore();
+function followTyped(chain: number[]): void {
+  const g = page.selectedGoal.value;
+  if (g) void follows.follow(g, chain, 'typed');
+}
+function unfollowGoal(): void {
+  const g = page.selectedGoal.value;
+  if (g) void follows.unfollow(g);
+}
+function simulateFollowed(chain: number[]): void {
+  const date = page.cardPlan.value?.goal.goal === 'date' || !(page.selectedGoal.value ?? 'fastest').startsWith('fastest');
+  simulateRoute(chain, date ? 'by-date' : 'fastest', { from: 'the route you follow (My runs)' });
 }
 
 const store = useChainSearchStore();

@@ -16,6 +16,9 @@ import type { MyRunsOpen } from './myRunsDashboard';
 export interface ExactAsk {
   goal: string;
   n: number;
+  /** A route the player follows (lib/follow.ts, Right now's "Price it ›"): priced as one more route after the rows,
+   *  so it lands in the snapshot's `exact` and Right now finds its times. */
+  chain?: number[];
 }
 
 /** The goal's words as `instantGoal` (search/instantSnapshot.ts) has them; kept here so lib stays free of search. */
@@ -27,6 +30,8 @@ export function askGoal(goal: { goal: 'fastest' | 'date'; target: number; deadli
 export interface RecalcRequest {
   open: MyRunsOpen;
   goal: string;
+  /** "Price it ›": the followed route to price as well. */
+  chain?: number[];
 }
 
 /** The short line under the button. */
