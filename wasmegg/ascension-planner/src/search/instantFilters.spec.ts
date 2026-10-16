@@ -42,6 +42,13 @@ describe('atMostAscensions', () => {
     expect(atMostAscensions(found, null)).toBe(found);
   });
 
+  it('carries each kept count\'s other routes (HOURS FIX B prices the next best: hoursRunnerUp.ts)', () => {
+    const f = atMostAscensions({ ...found, alternatives: [[], [r2], [r1], [r1]], dateAlternatives: [[], [], [r3], [r2]] }, 2);
+    expect(f.alternatives).toEqual([[], [r2], [r1], []]);
+    expect(f.dateAlternatives).toEqual([[], [], [r3], []]);
+    expect('alternatives' in atMostAscensions(found, 2)).toBe(false);
+  });
+
   it('is empty when nothing is left, and keeps no date answer when there was none', () => {
     const f = atMostAscensions({ ...found, byDate: null, byAscensions: [null, null, r2, r3] }, 1);
     expect(f.best).toBeNull();

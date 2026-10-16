@@ -262,6 +262,10 @@
               <p class="text-[11px] text-slate-500">
                 Exact = the full simulator on your account; filled in automatically. {{ simulateNote() }}
               </p>
+              <p v-if="hoursMoveShifts" class="text-[11px] text-slate-400" data-testid="hours-shifts-note">
+                Your hours move shifts inside each ascension, which the instant answer can’t see; Check exactly decides.
+                With your hours on it also prices each count’s next-best route (about one more route per count).
+              </p>
               <div class="overflow-x-auto" data-testid="counts-scroll">
                 <table class="w-full min-w-[32rem] text-[12px]" data-testid="counts-table">
                   <thead>
@@ -346,6 +350,13 @@
                             class="basis-full text-[10px] leading-snug text-amber-700"
                             data-testid="simulate-note"
                             >{{ simulateCaveat((dateExactByK[r.legs.length] ?? tableDate(r)).chain, r.legs.length) }}</span
+                          >
+                          <!-- HOURS FIX B: the route the table ranked second leads this row on your hours. -->
+                          <span
+                            v-if="secondNoteFor(r.legs.length, dateExactByK[r.legs.length]?.chain)"
+                            class="basis-full text-[10px] leading-snug text-slate-500"
+                            data-testid="second-route-note"
+                            >{{ secondNoteFor(r.legs.length, dateExactByK[r.legs.length]?.chain) }}</span
                           >
                         </div>
                       </td>
@@ -506,6 +517,10 @@
             <p class="text-[11px] text-slate-500">
               Exact = the full simulator on your account; filled in automatically. {{ simulateNote() }}
             </p>
+            <p v-if="hoursMoveShifts" class="text-[11px] text-slate-400" data-testid="hours-shifts-note">
+              Your hours move shifts inside each ascension, which the instant answer can’t see; Check exactly decides.
+              With your hours on it also prices each count’s next-best route (about one more route per count).
+            </p>
             <div class="overflow-x-auto" data-testid="counts-scroll">
               <table class="w-full min-w-[32rem] text-[12px]" data-testid="counts-table">
                 <thead>
@@ -582,6 +597,13 @@
                           class="basis-full text-[10px] leading-snug text-amber-700"
                           data-testid="simulate-note"
                           >{{ simulateCaveat(r.chain) }}</span
+                        >
+                        <!-- HOURS FIX B: the route the table ranked second leads this row on your hours. -->
+                        <span
+                          v-if="secondNoteFor(r.legs.length, r.chain)"
+                          class="basis-full text-[10px] leading-snug text-slate-500"
+                          data-testid="second-route-note"
+                          >{{ secondNoteFor(r.legs.length, r.chain) }}</span
                         >
                       </div>
                     </td>
@@ -953,7 +975,17 @@ import InstantIntegrity from './InstantIntegrity.vue';
 import StrongerCheck from './StrongerCheck.vue';
 import { holdsRoutes, instantIntegrity, lowTeOpeningNote } from '@/search/instantIntegrity';
 import type { FindContext } from '@/search/strongerCheck';
-import { rowLine, type AtOnceItem } from '@/search/lightAtOnce';
+import { rowAtOnce, rowLine, type AtOnceItem } from '@/search/lightAtOnce';
+import { isConstrained } from '@/search/availability';
+import {
+  nextBest,
+  priceWithRunnerUps,
+  secondNote,
+  withPicks,
+  withWinners,
+  type RowWin,
+  type SecondWin,
+} from '@/search/hoursRunnerUp';
 import { nearTieOf, type NearTie } from '@/search/nearTie';
 import { useIntegrityProbe } from '@/composables/useIntegrityProbe';
 import { useInstantDuringSearch } from '@/composables/useInstantDuringSearch';
@@ -2060,6 +2092,26 @@ interface DateExact {
  *  overall and for each row's number of ascensions (null: that row misses it). */
 const dateExact = ref<DateExact | null>(null);
 const dateExactByK = ref<Record<number, DateExact | null>>({});
+/** HOURS FIX B (search/hoursRunnerUp.ts): the counts whose next-best route beat the table's pick on the player's
+ *  hours, by count (kept with the snapshot, for the row's note), and Fastest's two Routes for each (to put the
+ *  pick back when the check runs again). */
+const secondWins = ref<Record<number, SecondWin>>({});
+let secondRoutes: Record<number, { pick: Route; winner: Route }> = {};
+/** The row's note when the route the table ranked second leads it ('' for none). `shown`: the route the row
+ *  shows now (Fastest: its route; By a date: its exact answer's). */
+function secondNoteFor(count: number, shown: readonly number[] | undefined): string {
+  const w = secondWins.value[count];
+  if (!w || !shown || key(w.winner) !== key([...shown])) return '';
+  const mine = exact.value[key(w.winner)];
+  let gap: string | undefined;
+  if (w.pickEnd !== null && mine && (w.why === 'sooner' || w.why === 'spare')) gap = days(w.pickEnd - mine.end);
+  return secondNote(w.why, w.pick, gap);
+}
+/** The player's hours are on: the simulator holds the shifts inside each ascension, which the instant answer
+ *  can't see (the muted line by the counts table; Check exactly then prices each count's next-best route too). */
+// Hours move shifts only when the player's hours are on AND each shift is held for them (Your setup › hold each shift): with
+// the hold off, shifts go at once and only the prestige waits, which the instant answer's own estimate already includes.
+const hoursMoveShifts = computed(() => isConstrained(store.availability) && store.deferShifts);
 /** dateExact read through a call, so TypeScript does not keep it narrowed to the null it was reset to
  *  at the start of the exact check while awaits in between set it. */
 const readDateLead = (): DateExact | null => dateExact.value;
@@ -2148,10 +2200,15 @@ function checkAgain(): void {
   void runExact(id, result.value, true);
 }
 
-async function runExact(id: number, found: NonNullable<typeof result.value>, manual = false): Promise<void> {
+async function runExact(id: number, given: NonNullable<typeof result.value>, manual = false): Promise<void> {
   stopExact();
   resetShareForNewCheck();
   shareNote.value = null;
+  // A check run again starts from the table's own routes (a runner-up that won last time is priced again).
+  const found = withPicks(given, secondRoutes);
+  if (found !== given && result.value === given) result.value = found;
+  secondRoutes = {};
+  secondWins.value = {};
   exact.value = {};
   dateExact.value = null;
   dateExactByK.value = {};
@@ -2168,6 +2225,32 @@ async function runExact(id: number, found: NonNullable<typeof result.value>, man
     exactStatus.value = 'waiting';
     return;
   }
+  // HOURS FIX B (search/hoursRunnerUp.ts): with the player's hours on, the simulator holds the shifts inside
+  // each ascension, which the table can't see, so each row's next-best route is priced too and the better
+  // leads the row. About one extra exact route per count; with hours off, only the rows' own routes.
+  const hoursOn = isConstrained(store.availability) && store.deferShifts;
+  /** Fastest: the counts priced, each one's winner swapped into the answer where its runner-up won. */
+  const settle = (list: Route[], wins: Record<number, RowWin>): void => {
+    if (!hoursOn) return;
+    const routesNow = { ...secondRoutes };
+    const winsNow = { ...secondWins.value };
+    for (const r of list) {
+      const k = r.legs.length;
+      delete routesNow[k];
+      delete winsNow[k];
+      const w = wins[k];
+      if (!w) continue;
+      routesNow[k] = { pick: w.pick, winner: w.winner };
+      const pickEnd = exact.value[key(w.pick.chain)]?.end ?? null;
+      winsNow[k] = { pick: [...w.pick.chain], winner: [...w.winner.chain], why: w.why, pickEnd };
+    }
+    secondRoutes = routesNow;
+    secondWins.value = winsNow;
+    current = withWinners(found, secondRoutes);
+    if (id === runs) result.value = current;
+  };
+  /** The answer with the winners in (Fastest), what the later steps read. */
+  let current = found;
   const tableRows = fastestRowsOf(found);
   const routes = props.deadline
     ? dateRowsOf(found)
@@ -2226,6 +2309,18 @@ async function runExact(id: number, found: NonNullable<typeof result.value>, man
       exact.value = next;
       return true;
     };
+    /** Some rows, and with hours on each one's next-best route in the same call (one per worker): about one
+     *  extra exact route per count (hoursRunnerUp.ts `priceWithRunnerUps`). Fastest settles each count's
+     *  winner into the answer; By a date reads `alts` and `wins` itself. */
+    const priceRows = (list: Route[], opts?: EvaluateOptions) =>
+      priceWithRunnerUps({
+        goal: props.deadline ? { kind: 'date', deadline: props.deadline } : { kind: 'fastest' },
+        rows: list,
+        alternatives: props.deadline ? found.dateAlternatives : found.alternatives,
+        hoursOn,
+        price: chains => price(chains, opts ?? (chains.length > 1 ? { spreadOut: true } : undefined)),
+        exactOf: chain => exact.value[key(chain)],
+      });
 
     if (props.deadline) {
       const deadline = props.deadline;
@@ -2236,32 +2331,28 @@ async function runExact(id: number, found: NonNullable<typeof result.value>, man
       const byK: Record<number, DateExact | null> = {};
       const done = new Set<number>();
       const checkRows = async (list: Route[]): Promise<boolean> => {
-        exactText.value = 'Checking these routes on your account with the full simulator…';
-        if (
-          !(await price(
-            list.map(r => r.chain),
-            { spreadOut: true }
-          ))
-        )
-          return false;
+        exactText.value = hoursOn
+          ? 'Checking these routes and their next-best routes on your account with the full simulator…'
+          : 'Checking these routes on your account with the full simulator…';
+        const got = await priceRows(list, { spreadOut: true });
+        if (!got.ok) return false;
+        const madeOf = (chain: number[]): DateExact | null => {
+          const e = exact.value[key(chain)];
+          return e && e.end <= deadline
+            ? { chain, endTE: e.endTE, end: e.end, handoff: e.handoff, atOnce: e.atOnce, fresh: e.fresh }
+            : null;
+        };
         for (const route of list) {
           const k = route.legs.length;
           done.add(k);
-          const first = exact.value[key(route.chain)];
-          let made: DateExact | null =
-            first && first.end <= deadline
-              ? {
-                  chain: route.chain,
-                  endTE: first.endTE,
-                  end: first.end,
-                  handoff: first.handoff,
-                  atOnce: first.atOnce,
-                  fresh: first.fresh,
-                }
-              : null;
+          let made = madeOf(route.chain);
+          // With hours on: the row's next-best route, priced with it (null when it misses the date too).
+          const alt = got.alts[k];
+          const altMade = alt ? madeOf(alt.chain) : null;
           const prefix = route.chain.slice(0, -1);
           const floor = prefix.length ? prefix[prefix.length - 1] : Math.floor(store.currentTE);
-          for (let hi = route.chain[route.chain.length - 1] - 1; hi > floor && !made; hi -= 3) {
+          // Lower last stops only when neither makes it (a lower one reaches less TE than the runner-up).
+          for (let hi = route.chain[route.chain.length - 1] - 1; hi > floor && !made && !altMade; hi -= 3) {
             const tries = [hi, hi - 1, hi - 2].filter(t => t > floor).map(t => [...prefix, t]);
             exactText.value = `${k} ascensions misses the date on your account; trying lower last stops (${tries.map(c => c[c.length - 1]).join(', ')})…`;
             if (!(await price(tries, sticky))) return false;
@@ -2273,6 +2364,21 @@ async function runExact(id: number, found: NonNullable<typeof result.value>, man
               }
             }
           }
+          // The runner-up leads the row when it is better (`got.wins`: it makes the date when the pick misses,
+          // more TE, or more to spare); the lower last stops above only ran when neither made it.
+          const win = got.wins[k];
+          const winsNow = { ...secondWins.value };
+          delete winsNow[k];
+          if (win && altMade) {
+            winsNow[k] = {
+              pick: [...route.chain],
+              winner: [...win.winner.chain],
+              why: win.why,
+              pickEnd: made ? made.end : null,
+            };
+            made = altMade;
+          }
+          secondWins.value = winsNow;
           byK[k] = made;
           dateExactByK.value = { ...byK };
           emitRoutes(found);
@@ -2289,34 +2395,34 @@ async function runExact(id: number, found: NonNullable<typeof result.value>, man
       const more = dateRowsOf(found, readDateLead()?.chain.length).filter(r => !done.has(r.legs.length));
       if (more.length && !(await checkRows(more))) return;
     } else {
-      exactText.value = 'Checking the fastest route on your account with the full simulator…';
-      if (!(await price([routes[0].chain]))) return;
+      exactText.value = hoursOn
+        ? 'Checking the fastest route and its next-best route on your account with the full simulator…'
+        : 'Checking the fastest route on your account with the full simulator…';
+      const first = await priceRows([routes[0]]);
+      if (!first.ok) return;
+      settle([routes[0]], first.wins);
       const rest = routes.slice(1);
       for (let i = 0; i < rest.length; i += size) {
-        exactText.value = `Checking the other routes: ${i} of ${rest.length} done…`;
+        exactText.value = hoursOn
+          ? `Checking the other routes and their next-best routes: ${i} of ${rest.length} done…`
+          : `Checking the other routes: ${i} of ${rest.length} done…`;
         strongerStore.exact = { running: true, done: i + 1, total: rest.length + 1 };
-        if (
-          !(await price(
-            rest.slice(i, i + size).map(r => r.chain),
-            { spreadOut: true }
-          ))
-        )
-          return;
+        const batch = rest.slice(i, i + size);
+        const got = await priceRows(batch, { spreadOut: true });
+        if (!got.ok) return;
+        settle(batch, got.wins);
       }
     }
     if (!props.deadline) {
-      // A best at 9 or 10 ascensions shows rows up to its count plus two.
+      // A best at 9 or 10 ascensions shows rows up to its count plus two (the table's picks: `found`).
       const priced = new Set(routes.map(r => key(r.chain)));
-      const bestNow = bestExactOf(found);
+      const bestNow = bestExactOf(current);
       const more = bestNow ? fastestRowsOf(found, bestNow.legs.length).filter(r => !priced.has(key(r.chain))) : [];
-      if (
-        more.length &&
-        !(await price(
-          more.map(r => r.chain),
-          { spreadOut: true }
-        ))
-      )
-        return;
+      if (more.length) {
+        const got = await priceRows(more, { spreadOut: true });
+        if (!got.ok) return;
+        settle(more, got.wins);
+      }
     }
     if (again && !(await price([again]))) return;
     exactMs.value = performance.now() - t0;
@@ -2455,11 +2561,28 @@ const strongerStore = useStrongerStore();
  * may make it at once.
  */
 const dateRowChain = (r: Route): number[] => (dateExactByK.value[r.legs.length] ?? tableDate(r)).chain;
-const lightRows = computed<AtOnceItem[]>(() =>
-  props.deadline
-    ? dateRows.value.map(r => ({ chain: [...dateRowChain(r)], count: r.legs.length }))
-    : shownRows.value.map(r => ({ chain: [...r.chain], count: r.legs.length }))
-);
+/** With the player's hours on (HOURS FIX B), each row's other route goes to Light too: the table's pick when its
+ *  runner-up won Check exactly, else the next-best route; at once the order can flip again. */
+const otherRoute = (count: number, shown: number[], alternatives: Route[] | undefined): number[] | null => {
+  if (!hoursMoveShifts.value) return null;
+  const w = secondWins.value[count];
+  if (w && key(w.winner) === key(shown)) return [...w.pick];
+  const alt = nextBest(shown, alternatives);
+  return alt ? [...alt.chain] : null;
+};
+const lightRows = computed<AtOnceItem[]>(() => {
+  const withAlt = (chain: number[], count: number, alts: Route[] | undefined): AtOnceItem => {
+    const alt = otherRoute(count, chain, alts);
+    return { chain, count, ...(alt ? { alt } : {}) };
+  };
+  return props.deadline
+    ? dateRows.value.map(r =>
+        withAlt([...dateRowChain(r)], r.legs.length, result.value?.dateAlternatives?.[r.legs.length])
+      )
+    : shownRows.value.map(r => withAlt([...r.chain], r.legs.length, result.value?.alternatives?.[r.legs.length]));
+});
+/** A row's other route Light priced at once (lightRows' `alt`), for its line. */
+const lightAltOf = (chain: number[]): number[] | undefined => lightRows.value.find(it => key(it.chain) === key(chain))?.alt;
 /** "at once, on your hours: Feb 16, 9:40 PM (−0.40 days)" under a row, once Light has priced it. */
 /** The counts row whose arrow is open (its route's key); '' for none. */
 const openRow = ref('');
@@ -2483,16 +2606,20 @@ function atOnceLegsOf(chain: number[]): ChainResult['legs'] | null {
 
 function atOnceText(chain: number[]): string {
   const have = strongerStore.atOnce[props.deadline ? 'date' : 'fastest'];
-  const k = key(chain);
-  if (!(k in have)) return '';
-  const p = have[k];
-  return rowLine({
-    goal: props.deadline ? { kind: 'date', deadline: props.deadline } : { kind: 'fastest', target: store.finalTE },
-    priced: p,
-    hourEnd: exact.value[k]?.end ?? null,
+  const goal = props.deadline
+    ? ({ kind: 'date', deadline: props.deadline } as const)
+    : ({ kind: 'fastest', target: store.finalTE } as const);
+  // With hours on, the better at once of the row's route and its other one (lightAtOnce.ts `rowAtOnce`).
+  const row = rowAtOnce(goal, have, chain, lightAltOf(chain));
+  if (!row) return '';
+  const line = rowLine({
+    goal,
+    priced: row.priced,
+    hourEnd: exact.value[key(row.chain)]?.end ?? null,
     hours: !!store.availability,
     show,
   });
+  return row.extra ? `${line}, via ${row.chain.join(' ')}` : line;
 }
 watch(
   () => {
@@ -2619,6 +2746,8 @@ interface InstantSnapshot {
   exact: Record<string, Exact | null>;
   dateExact: DateExact | null;
   dateExactByK: Record<number, DateExact | null>;
+  /** Counts whose next-best route won on the player's hours (hoursRunnerUp.ts; absent before 16 Oct 2026). */
+  secondWins?: Record<number, SecondWin>;
   answerStart: number;
   exactMs: number | null;
   gains: PolishGain[];
@@ -2666,6 +2795,7 @@ function currentSnapshot(): InstantSnapshot | null {
       exact: exact.value,
       dateExact: dateExact.value,
       dateExactByK: dateExactByK.value,
+      ...(Object.keys(secondWins.value).length ? { secondWins: secondWins.value } : {}),
       answerStart: answerStart.value,
       exactMs: exactMs.value,
       gains: gains.value,
@@ -2723,6 +2853,8 @@ function applySnapshot(s: InstantSnapshot): void {
   exact.value = s.exact;
   dateExactByK.value = s.dateExactByK;
   dateExact.value = s.dateExact;
+  secondWins.value = s.secondWins ?? {};
+  secondRoutes = {};
   answerStart.value = s.answerStart;
   exactMs.value = s.exactMs;
   gains.value = s.gains;
