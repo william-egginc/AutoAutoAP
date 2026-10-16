@@ -130,6 +130,35 @@ describe('every kind of row says its level', () => {
     expect(s.buildRunSubmission('')!.level).toBe('exhaustive');
   });
 
+  it("the level is the SENDING run's, not the last Exhaustive setup's (bf6034eb: a Fast row went out as exhaustive)", async () => {
+    const { s } = await fresh();
+    s.bestChain = [212, 280, 490];
+    s.bestDays = 700;
+    s.effort = 'quick';
+    // An earlier Exhaustive setup is still stated in the store; the result on screen is from a Fast (Smart) run.
+    s.searchSpace = { mode: 'range', range: { lo: 200, hi: 300, step: 10 }, chains: 10, chainsPriced: 10 } as never;
+    s.runKindUsed = 'smart';
+    expect(s.buildRunSubmission('')!.level).toBe('quick');
+    // And the reverse: an Exhaustive run's row says exhaustive whatever the effort left in the store reads.
+    s.runKindUsed = 'full';
+    expect(s.buildRunSubmission('')!.level).toBe('exhaustive');
+    s.effort = 'thorough';
+    expect(s.buildRunSubmission('')!.level).toBe('exhaustive');
+    // A Smart run after it says its own effort.
+    s.runKindUsed = 'smart';
+    expect(s.buildRunSubmission('')!.level).toBe('thorough');
+  });
+
+  it('every start sets the run kind (source)', async () => {
+    const fs = await import('node:fs');
+    const path = await import('node:path');
+    const src = fs.readFileSync(path.join(__dirname, 'chainSearch.ts'), 'utf8');
+    expect(src).toContain("runKindUsed.value = 'full';");
+    expect(src).toContain("runKindUsed.value = 'smart';");
+    expect(src).toContain("runKindUsed.value = summary.space ? 'full' : 'smart';");
+    expect(src).toContain("(runKindUsed.value ?? (searchSpace.value ? 'full' : 'smart')) === 'full' ? 'exhaustive'");
+  });
+
   it("By a date: the level bar's for Nearby routes, exhaustive for the boxes, none when not recorded", async () => {
     const { s } = await fresh();
     const route = { chain: [212, 300], reachAt: START + 300 * DAY, ascendAt: START + 300 * DAY, spare: 0, legs: [] };

@@ -1522,6 +1522,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   const longestStallSeconds = ref(0);
   /** The space an exhaustive run covered, for the submission. Null for every staged run. */
   const searchSpace = ref<SearchSpace | null>(null);
+  /** What kind of search the result on screen came from, set when THAT run started (or its saved run opened): the row's `level`
+   *  reads this, never the live `searchSpace`, which belongs to whichever Exhaustive setup was last stated (a Fast row went out
+   *  as 'exhaustive', 15 Oct). Null before any run: then the space decides, as before. */
+  const runKindUsed = ref<'smart' | 'full' | null>(null);
 
   /**
    * Wall clock around the search, for the submission's run cost.
@@ -2424,6 +2428,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // Restored so the panel can say what this run covered, and so Resume has a space to hand back
     // to `startExhaustive`. Absent on a staged run and on anything saved before library version 2.
     searchSpace.value = summary.space ? { ...summary.space } : null;
+    runKindUsed.value = summary.space ? 'full' : 'smart';
     runSweepTag = null;
     // Its own settings, so sending or downloading it after opening labels it with them (older saved
     // runs carry none and fall back to Your setup as it is now), never the last search's.
@@ -3661,7 +3666,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       effort: usedSettings().effort,
       // The level that found it (15 Oct): a Full sweep is Exhaustive, a Smart search its effort (Fast,
       // Exact, Very high are quick, normal, thorough).
-      level: searchSpace.value ? 'exhaustive' : levelOf(usedSettings().effort),
+      level: (runKindUsed.value ?? (searchSpace.value ? 'full' : 'smart')) === 'full' ? 'exhaustive' : levelOf(usedSettings().effort),
       availability: isConstrained(usedSettings().availability) ? usedSettings().availability : null,
       holdShifts: usedSettings().deferShifts,
       firstAscension: usedSettings().firstAscension,
@@ -5852,6 +5857,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     runNoteUsed.value = cleanNote(runNote.value);
     // Stated before a single chain is priced, so the submission says what was ASKED for even when
     // the run is stopped halfway. chainsPriced and stoppedEarly are filled in at the end.
+    runKindUsed.value = 'full';
     searchSpace.value = {
       mode: spec.bands?.length ? 'bands' : 'range',
       ...(spec.bands?.length
@@ -8104,6 +8110,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     runLog.value = [];
     // A staged run proves nothing over a stated space, and must not inherit the last one's.
     searchSpace.value = null;
+    runKindUsed.value = 'smart';
     runSweepTag = null;
     runNoteUsed.value = cleanNote(runNote.value);
     secondsPerChain.value = 0;
@@ -9035,6 +9042,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     discardCheckpoint,
     runStartedAt,
     searchSpace,
+    runKindUsed,
     buildRunDiagnostics,
     setupIssues,
     setupFacts,
