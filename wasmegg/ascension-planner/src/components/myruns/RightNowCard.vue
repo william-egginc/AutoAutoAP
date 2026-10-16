@@ -26,8 +26,8 @@
     <!-- The egg. -->
     <div class="flex flex-wrap items-center gap-3">
       <img
-        v-if="eggType"
-        :src="iconURL(`egginc/egg_${eggType}.png`, 64)"
+        v-if="currentEgg"
+        :src="iconURL(`egginc/egg_${currentEgg}.png`, 64)"
         :alt="eggName"
         class="w-14 h-14 rounded-full bg-indigo-50 object-contain p-1"
       />
@@ -96,7 +96,7 @@
       />
       <details class="mt-2" data-testid="now-timeline">
         <summary class="cursor-pointer text-[13px] font-semibold text-indigo-700">
-          ▸ Full timeline (every ascension, each egg's first and last shift)
+          Full timeline (every ascension, each egg's first and last shift)
         </summary>
         <div class="mt-2">
           <RouteTimeline
@@ -122,7 +122,7 @@ import { dateAt, relativeWords } from '@/lib/eventWhen';
 import { nextStepText } from '@/lib/nowWords';
 import { trackWords, type PlanEvent, type TrackState } from '@/lib/nowPlan';
 import { planCalEvent } from '@/lib/calendarEvents';
-import { virtueEggName, virtueEggType } from '@/lib/virtueEggs';
+import { virtueEggName } from '@/lib/virtueEggs';
 import type { CardPlan } from '@/composables/useNowPage';
 import type { MyRunsOpen } from '@/lib/myRunsDashboard';
 import type { EquippedArtifact } from '@/lib/artifacts/types';
@@ -160,7 +160,6 @@ const CHIP = {
 } as const;
 
 const eggName = computed(() => virtueEggName(props.currentEgg));
-const eggType = computed(() => virtueEggType(props.currentEgg));
 const goalName = computed(() =>
   props.card?.goal.goal === 'date' ? `Egg Day ${props.eggDayYear}` : `Fastest to ${props.card?.goal.target ?? 490}`
 );

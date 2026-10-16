@@ -109,7 +109,8 @@ describe('the Right now card', () => {
     expect(t).toContain('ascension 1 of 2 · 186 TE so far');
     expect(t).toContain('Made from this save');
     expect(t).toContain('Shift to Humility today at 4:00 pm (in 1 h 20 m), then Kindness tomorrow at 9:15 am');
-    expect(html).toContain('egginc/egg_51.png');
+    // The picture is named by the egg's name, as FloatingStats does (a numeric name did not load).
+    expect(html).toContain('egginc/egg_integrity.png');
     // The table: the passed shift greyed, the next highlighted, the prestige, the goal.
     expect(html).toContain('data-testid="now-event-past"');
     expect(html).toContain('data-testid="now-event-next"');
@@ -271,7 +272,7 @@ describe('your eggs and Try next', () => {
         saveSeconds: NOW,
       })
     );
-    expect(t).toMatch(/All planned shifts 19 shifts · about 61\.0\S* at today's soul eggs/);
+    expect(t).toMatch(/All planned shifts 19 shifts · about 61\.0\S* soul eggs at today's soul eggs/);
   });
 
   it('Try next opens screens set up, at most four', async () => {
@@ -362,5 +363,17 @@ describe('source checks', () => {
       const src = read(f);
       expect(src, f).not.toMatch(/new Worker|createChainSearchPool|RoutePool|findRoutes\(|startSearch|runExact/);
     }
+  });
+});
+
+describe('spacing and picture fixes (19 Oct shots)', () => {
+  it('the save-age strip keeps a space before its link, and the egg picture is named by the egg', () => {
+    const fs = require('node:fs') as typeof import('node:fs');
+    const path = require('node:path') as typeof import('node:path');
+    const strip = fs.readFileSync(path.join(__dirname, 'SaveAgeStrip.vue'), 'utf8');
+    expect(strip).toContain("{{ strip.text }}{{ ' ' }}");
+    const card = fs.readFileSync(path.join(__dirname, 'RightNowCard.vue'), 'utf8');
+    expect(card).toContain('iconURL(`egginc/egg_${currentEgg}.png`, 64)');
+    expect(card).not.toContain('▸ Full timeline');
   });
 });
