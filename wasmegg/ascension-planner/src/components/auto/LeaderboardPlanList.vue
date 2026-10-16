@@ -1,7 +1,7 @@
 <!--
   One player's plans as a small table: route, finish date, days left, where it was planned from,
   and either the gap to their best plan or the reason it no longer counts. Used inside an opened
-  Race line and on My plans, so a plan reads the same in both.
+  Race line (and on My plans, until it moved to the My runs tab, 15 Oct 2026).
 
   The table scrolls sideways inside its own box rather than wrapping: on a phone a long route and a
   wrapped "Planned" line made every plan five lines tall. The box only scrolls when something
@@ -56,7 +56,12 @@
               </td>
               <!-- The chips wrap under the route when the table would not fit otherwise; on a phone the
                    route wraps too, so the finish beside it is on screen. -->
-              <td class="py-1.5 pr-3" :class="narrow ? 'max-w-[11rem] leading-snug' : ''">
+              <td
+                class="py-1.5 pr-3 cursor-pointer"
+                :class="narrow ? 'max-w-[11rem] leading-snug' : ''"
+                data-testid="row-open-name"
+                @click="onRowClick($event, () => (open[keyOf(p, i)] = !open[keyOf(p, i)]))"
+              >
                 <span class="font-mono font-bold text-slate-700" :class="narrow ? '' : 'whitespace-nowrap'">{{
                   p.row.chain.join(' ')
                 }}</span>
@@ -182,6 +187,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
+import { onRowClick } from '@/lib/rowClick';
 import LeaderboardRunDetail from './LeaderboardRunDetail.vue';
 import {
   browserTag,

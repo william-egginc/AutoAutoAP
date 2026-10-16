@@ -1,7 +1,7 @@
 # Posts every fine0925 run to the board once its payload + table are written (user asked for these PC
 # runs to be run and posted under their names, 2026-09-25). post_pair.mjs names main-* Williamthe5thc
 # and alt-* Willsalt, strips the run cost, and refuses a payload that mentions a player id.
-$priv = 'C:\Users\cha12\aaap-private'
+$priv = "$env:USERPROFILE\aaap-private"
 $dir = "$priv\fine0925"
 $log = "$dir\posted.log"
 $until = (Get-Date).AddHours(96)

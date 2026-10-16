@@ -84,6 +84,23 @@
       <div v-else class="h-full w-1/3 rounded-full bg-indigo-400/70 animate-pulse"></div>
     </div>
     <p v-if="p.stage" class="text-[10px] text-white/60 truncate">{{ p.stage }}</p>
+    <!-- What the screen's own progress block used to add (lib/runDetails.ts; the in-page header, bar and time
+         line went on 16 Oct 2026, so this bar is the one progress display). Folded: the line above is enough
+         most of the time. -->
+    <details v-if="details" class="text-[10px] text-white/60" data-testid="run-bar-details">
+      <summary class="cursor-pointer select-none font-bold text-white/70 hover:text-white">Details</summary>
+      <p class="mt-1 break-words leading-snug">{{ details }}</p>
+    </details>
+    <!-- On another Auto Planner screen: this one is greyed out and a second search can't start. Said here, under the
+         progress line, so it floats with the bar instead of an amber box pushing the page down (the user, 15 Oct). -->
+    <p
+      v-if="props.elsewhere"
+      class="rounded-lg bg-amber-400/15 px-2.5 py-1.5 text-[11px] leading-snug text-amber-100"
+      data-testid="run-bar-elsewhere"
+    >
+      <span class="font-black">{{ props.elsewhere.running }} is running.</span> Stop it (Stop &amp; keep best, here), or
+      wait until it's done, to use {{ props.elsewhere.here }}.
+    </p>
     <p
       v-if="bestSoFarHere && (store.bestSoFarStatus || store.bestSoFarWait > 0)"
       class="text-[10px] font-semibold"
@@ -114,8 +131,17 @@ import { showDateTime } from '@/lib/displayTime';
 import { formatTimeLeft } from '@/search/sweepEstimate';
 import SendingText from './SendingText.vue';
 import { queueCountLine } from '@/lib/queueCount';
+import { runDetailLine } from '@/lib/runDetails';
+import { durationLabel } from '@/composables/useRunClock';
+import { formatHours } from '@/search/exhaustive';
+import { estimateNote, roundedRoutes } from '@/search/deadlineEstimate';
 
-const props = defineProps<{ /** The bar sits on the run's own screen. */ here?: boolean }>();
+const props = defineProps<{
+  /** The bar sits on the run's own screen. */
+  here?: boolean;
+  /** Another Auto Planner screen than the run's is open (greyed out): which search is running and which screen this is. */
+  elsewhere?: { running: string; here: string } | null;
+}>();
 const emit = defineEmits<{ show: [] }>();
 const store = useChainSearchStore();
 const planner = useAutoPlannerStore();
@@ -177,6 +203,36 @@ const leftLabel = computed(() => {
     secs = Math.max(0, r.total - r.done) * ((now.value - r.startedAt) / 1000 / r.done);
   }
   return secs ? formatTimeLeft(secs) : '';
+});
+
+/** The Details line: the rest of what the screen's progress block said (lib/runDetails.ts). */
+const details = computed(() => {
+  const r = p.value;
+  if (!r) return '';
+  if (r.kind !== 'by-date')
+    return runDetailLine({
+      kind: r.kind,
+      detail: store.detail,
+      replayed: store.chainsReplayed,
+      secondsPerRoute: store.secondsPerChain,
+    });
+  const t = store.deadlineTimeLeft;
+  const guess = t?.firstGuess ? formatHours(t.firstGuess / 3600) : '';
+  const est = store.deadlineEstimateNow;
+  return runDetailLine({
+    kind: 'by-date',
+    elapsed: r.startedAt ? durationLabel((now.value - r.startedAt) / 1000) : '',
+    firstGuess:
+      guess && !t?.measuring && t?.firstGuessWorkers && t.firstGuessWorkers !== t.workersNow
+        ? `${guess} for ${t.firstGuessWorkers} workers, ${t.workersNow} now`
+        : t?.measuring
+          ? ''
+          : guess,
+    done: r.done,
+    estimated: store.deadlineRoutesTotal ? roundedRoutes(store.deadlineRoutesTotal) : null,
+    estimateNote: est?.learned ? estimateNote(est) : '',
+    legs: store.deadlineLegSims,
+  });
 });
 
 const zone = computed(() => planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);

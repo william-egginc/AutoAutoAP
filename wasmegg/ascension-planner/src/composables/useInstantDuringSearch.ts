@@ -2,7 +2,7 @@
  * "Let the instant answer run during a search": whether pressing Work it out again while a search is
  * running goes straight ahead (true) or shows the memory warning first (false, the default).
  *
- * Remembered per browser (localStorage), like the share boxes (useShareExtras.ts). One value for the
+ * Remembered per browser (localStorage). One value for the
  * whole site: the warning's "Don't ask again, just warn me" button and the box in Your setup are the
  * same ref, so ticking one ticks the other.
  *

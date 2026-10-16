@@ -42,4 +42,16 @@ describe('effort tiers', () => {
     expect(foundByText({ effort: 'normal', deadline: 1, mode: 'simple' } as never)).toBe('Nearby routes');
     expect(foundByText({ effort: 'normal', deadline: 1, mode: 'advanced' } as never)).toBe('Exhaustive');
   });
+
+  it("names Light, and a Nearby routes answer's level, once rows record them (15 Oct)", () => {
+    expect(foundByText({ effort: 'light' } as never)).toBe('Light');
+    expect(foundByText({ effort: 'deadline', deadline: 1, level: 'light' } as never)).toBe('Light');
+    expect(foundByText({ effort: 'deadline', deadline: 1, mode: 'simple', level: 'normal' } as never)).toBe(
+      'Nearby routes · Exact'
+    );
+    expect(foundByText({ effort: 'deadline', deadline: 1, mode: 'advanced', level: 'exhaustive' } as never)).toBe(
+      'Exhaustive'
+    );
+    expect(foundByText({ effort: 'quick', level: 'quick' } as never)).toBe('Nearby routes · Fast');
+  });
 });

@@ -5,10 +5,10 @@ import type { SweepRequest } from '@/search/sweepRequest';
 import type { ByDateRequest } from '@/search/byDateRequest';
 import { readSearchMode } from '@/lib/searchMode';
 
-export type PlannerTab = 'manual' | 'automatic' | 'leaderboard' | 'science';
+export type PlannerTab = 'manual' | 'automatic' | 'leaderboard' | 'myruns' | 'science';
 
 export const useUIStore = defineStore('ui', () => {
-  /** The top tab (lib/siteNav.ts has the names and addresses): Manual, Auto, Compare, Science. */
+  /** The top tab (lib/siteNav.ts has the names and addresses): Manual, Auto, Compare, My runs, Science. */
   const plannerTab = ref<PlannerTab>('manual');
   /** Which Auto Planner screen, and how thorough the fastest-route one is. */
   const autoView = ref<AutoView>('classic');

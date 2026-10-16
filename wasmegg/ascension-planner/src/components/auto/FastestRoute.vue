@@ -15,7 +15,7 @@
       <h2 class="text-2xl font-black text-slate-900">{{ fastestName(store.finalTE) }}</h2>
       <p class="text-sm text-slate-600">
         Finds the stops that get you to {{ store.finalTE }} TE soonest, from your save and your setup. Plans
-        include the weekly Research Sale and the Monday 2× earnings boost, the same as Your plan; other game events aren't
+        include the weekly Research Sale and the Monday 2× earnings boost, the same as {{ NAMES.classic }}; other game events aren't
         simulated.
       </p>
     </div>
@@ -35,7 +35,6 @@
     <SearchCompare v-if="SHOW_COMPARE" goal="fastest" />
 
     <!-- A search running on another screen (By a date, a start-time sweep): greyed out under a line. -->
-    <RunningElsewhere v-if="blockedBy" :running="blockedBy" :here="fastestName(store.finalTE)" />
     <div
       class="space-y-4"
       :class="blockedBy ? 'opacity-40 pointer-events-none select-none' : ''"
@@ -52,7 +51,14 @@
         <template #nearby>
           <!-- The stronger check's results, and at Fast and above the search around the instant answer,
                its controls and results (StrongerBox.vue; the user, 12 Oct). -->
-          <StrongerBox v-slot="{ level }" goal="fastest" in-tab :running="smartRunning" :estimates="levelEstimates">
+          <StrongerBox
+            v-slot="{ level }"
+            goal="fastest"
+            in-tab
+            :player-id="playerId"
+            :running="smartRunning"
+            :estimates="levelEstimates"
+          >
             <ChainSearchPanel
               v-if="level !== 'light'"
               :player-id="playerId"
@@ -75,11 +81,11 @@
 </template>
 
 <script setup lang="ts">
+import { thisDevice } from '@/search/device';
 import { computed, nextTick, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
-import { fastestName, type Depth } from '@/lib/siteNav';
+import { NAMES, fastestName, type Depth } from '@/lib/siteNav';
 import { safeAsyncComponent } from '@/lib/import';
-import RunningElsewhere from './RunningElsewhere.vue';
 import StrongerBox from './StrongerBox.vue';
 import CollapsibleSection from './CollapsibleSection.vue';
 import SearchTabs from './SearchTabs.vue';
@@ -129,8 +135,8 @@ const levelEstimates = computed<Partial<Record<StrongerLevel, LevelEstimate>>>((
     const t = formatHours(e.seconds / 3600);
     out[l] = {
       short: `~${t}`,
-      line: `Up to about ${t} on this computer (${plural(store.workerBudget, 'worker')}, ${
-        e.measured ? "this computer's measured speed" : 'the typical speed'
+      line: `Up to about ${t} on ${thisDevice()} (${plural(store.workerBudget, 'worker')}, ${
+        e.measured ? `${thisDevice()}'s measured speed` : 'the typical speed'
       }): at most ~${e.chains.toLocaleString()} routes; it usually stops sooner.`,
     };
   }
@@ -170,7 +176,7 @@ const InsanePanel = safeAsyncComponent(() => import('./InsanePanel.vue'));
  *  Exhaustive one is the old section's blurb, with when to use it in front. */
 const TAB_INTRO: Record<SearchTabId, string> = {
   nearby:
-    "Start here. It checks the instant answer on your save and, at Fast and above, searches the routes near it. Light takes seconds to a few minutes; each other level's time on this computer is under its name.",
+    `Start here. It checks the instant answer on your save and, at Fast and above, searches the routes near it. Light takes seconds to a few minutes; each other level's time on ${thisDevice()} is under its name.`,
   exhaustive:
     "For proving an answer, not for finding a much better one: it proves the best inside the boxes you set, and in players' runs so far it added minutes to hours, not days. You set a box of TEs for each ascension and it tries every route in them. In players' runs that was about 1 minute per 70 routes on an 8-core computer, so big boxes take hours.",
 };

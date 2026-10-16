@@ -108,9 +108,10 @@
             you around the instant answer's route for each number of ascensions, each early stop a few TE either side at
             every TE, sized to stay under about 25 minutes (a cap, not a measurement). In <b>{{ NAMES.full }}</b> you
             set the boxes yourself. One 12-hour {{ NAMES.full }} run on 10 Oct simulated 153,785 routes, every route in
-            its boxes. The answer card shows your TE on each egg when the route ends, how long each egg needs for its
-            next TE at your final delivery rate, and when your next TE would come if you keep laying.
-            <b>Simulate this plan</b> opens the route in {{ NAMES.classic }}, step by step on your save.
+            its boxes. The answer card shows your TE on each egg when the route ends, the date and time each egg's next TE
+            would come at your final delivery rate, and when your next TE would come if you keep laying.
+            <b>Simulate this plan</b> opens the route in {{ NAMES.classic }} (Joo's original planner) and simulates every
+            shift on your save.
           </li>
         </ul>
         <p>
@@ -191,8 +192,9 @@
           </li>
         </ul>
         <p>
-          The files are named by a scrambled code, so nobody can tell whose gear a file was built from, and your player
-          ID never leaves your computer.
+          The files are named by a scrambled code made in your browser, so nobody can tell whose gear a file was built
+          from, and fetching one sends no player ID. (Your player ID does go to the game's server, through a relay, to
+          load your save; see About and privacy.)
         </p>
         <p>
           <b>Where the delivery-rate shortcut stops working.</b> From about TE 340 every build reaches full research, so
@@ -207,12 +209,12 @@
           <b>Finding the routes.</b> The finder walks up through the TEs once. At each TE, for each number of
           ascensions, it keeps only the arrivals that nothing else beats on both time and eggs delivered (up to 6 of
           them). That gives the fastest route of every length to every TE, or for {{ NAMES.byDate }} the highest TE you
-          can reach by the date, in a second or two. A polish then tries moving stops by a TE or two (not on phones or
-          small computers).
+          can reach by the date, in a second or two. A quick polish then tries moving stops by a TE or two, and a
+          longer one keeps going in the background (not on phones or small computers).
         </p>
         <p>
           <b>Check exactly</b> runs the instant answer's routes through the full simulator on your save, ascending on
-          the hour as shown, or at once as well if you tick that. It takes about 10 to 40 seconds a route. That's the
+          the hour as shown (Light, below, then prices them ascending at once). It takes about 10 to 40 seconds a route. That's the
           number to plan around. Searches start from the instant answer too: Nearby routes starts from its
           route, and Exhaustive's suggested boxes are centred on it.
         </p>
@@ -225,8 +227,10 @@
         </p>
         <p>
           <b>Stronger check.</b> A box under the instant answer, with four levels: Light, Fast, Exact and Very high.
-          Light runs by itself after Check exactly, with the full simulator. It prices your own earlier routes for the
-          same goal (from your searches here, your saved runs and answers, your earlier checks and your board runs sent
+          Light runs by itself after Check exactly, with the full simulator. First it prices the instant answer's
+          routes ascending at once, on your hours: each fresh ascension starts the moment the one before ends, not on
+          the hour, and each row of the answer's table shows that time as it comes in. Then it prices your own earlier
+          routes for the same goal (from your searches here, your saved runs and answers, your earlier checks and your board runs sent
           from this browser). By a date, when the top route misses the date, it also tries the instant answer's route
           one TE lower (two if needed). Fast, Exact and Very high do the same, then run {{ NAMES.smart }}, a search of
           the routes near the instant answer's. Each level says what it does, how long it should take on your computer,
@@ -284,9 +288,9 @@
             <b>Accounts without maxed epic research or colleggtibles,</b> on the maxed instant answer: it assumes both.
           </li>
           <li>
-            <b>Today's code, bit for bit.</b> The last cell-by-cell rebuild was on 10 Oct, just before "Continue my
-            build-up" went in. Reading the code says that change doesn't touch a fresh build, but we haven't re-run the
-            rebuild since.
+            <b>Today's code, bit for bit.</b> The last cell-by-cell check was on 13 Oct 2026 at 6:44 pm, on the current
+            code including the low-TE opening: 13 tables, 15 cells each, rebuilt from scratch, and all 195 came out
+            identical to the instant answer's.
           </li>
         </ul>
       </div>
@@ -466,8 +470,8 @@ const CHECKS: { what: string; result: string; how: string }[] = [
   {
     what: 'The same start gives the same answer on any machine',
     result:
-      "Identical to the bit. 20 of 20 starts simulated on a second computer matched, and one whole TE came out byte for byte the same. Rebuilt later with the code of the day, 12 of 12 matched. After a 5 Oct fix, 8 starts from each older file matched, and the one file the fix did change was rebuilt and passed 67 of 67. A test account's starts were rechecked on 10 Oct and matched.",
-    how: 'rebuilding individual starts from scratch and comparing every number (1-10 Oct).',
+      "Identical to the bit. 20 of 20 starts simulated on a second computer matched, and one whole TE came out byte for byte the same. Rebuilt later with the code of the day, 12 of 12 matched. After a 5 Oct fix, 8 starts from each older file matched, and the one file the fix did change was rebuilt and passed 67 of 67. A test account's starts were rechecked on 10 Oct and matched. On 13 Oct, 195 of 195 cells (13 tables, 15 cells each) matched on the current code.",
+    how: 'rebuilding individual starts from scratch and comparing every number (1-13 Oct).',
   },
   {
     what: 'The waiting after a build',

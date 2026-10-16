@@ -7,6 +7,9 @@
 
   Resume (carry on an unfinished run) is the Full sweep's: it re-enters `startExhaustive` with the
   saved space, so it is offered only there, and only for a sweep. Open works for either kind.
+
+  `list-only` (My runs, 15 Oct 2026): the list alone, without the explanation, Save this run or the
+  save-file bar, and Open says so (`opened`) for My runs to show the screen it opened on.
 -->
 <template>
   <div class="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
@@ -14,14 +17,14 @@
       <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Saved runs</h3>
       <span class="text-[10px] font-bold text-slate-400">{{ store.savedRuns.length }} / {{ MAX_RUNS }}</span>
     </div>
-    <p class="text-[11px] text-slate-500 leading-relaxed">
+    <p v-if="!listOnly" class="text-[11px] text-slate-500 leading-relaxed">
       Kept in this browser, per player, for both {{ NAMES.smartFirst }} and {{ NAMES.fullFirst }}. A saved run carries on with
       the save it started with while that save is kept here, and puts its target, schedule, time off and plan start
       back; without that save, your TE has to be the same. Past {{ MAX_RUNS }}, the oldest is dropped. Each run also
       keeps the save it was priced from, so you can go back to it after the game has moved on.
     </p>
 
-    <div class="flex flex-wrap gap-2">
+    <div v-if="!listOnly" class="flex flex-wrap gap-2">
       <input
         v-model="label"
         type="text"
@@ -95,7 +98,7 @@
         />
       </div>
     </div>
-    <SaveFileBar :player-id="playerId" />
+    <SaveFileBar v-if="!listOnly" :player-id="playerId" />
   </div>
 </template>
 
@@ -113,7 +116,11 @@ const props = defineProps<{
   playerId: string;
   /** The Full sweep's screen: an unfinished sweep can be carried on from here. */
   canResume?: boolean;
+  /** My runs: the list alone (no explanation, no Save this run, no save-file bar). */
+  listOnly?: boolean;
 }>();
+/** A run was opened: `full` when it is an Exhaustive run (it has a space), for My runs to show its screen. */
+const emit = defineEmits<{ opened: [run: { full: boolean }] }>();
 const store = useChainSearchStore();
 const planner = useAutoPlannerStore();
 /** The planner's time zone, for the save's date. */
@@ -138,7 +145,8 @@ async function save(): Promise<void> {
 
 async function open(id: string): Promise<void> {
   store.sweepQueue.results = [];
-  await store.openSavedRun(props.playerId, id);
+  const opened = await store.openSavedRun(props.playerId, id);
+  if (opened) emit('opened', { full: !!store.savedRuns.find(r => r.id === id)?.space });
   note.value =
     props.canResume && store.openedRun?.space && !store.canResumeOpenedRun
       ? `Cannot resume: ${store.resumeBlocker}.`

@@ -91,6 +91,7 @@ describe('the run chart is off until asked for', () => {
   it('builds from the current results when shown, remembers the choice, and frees on hide', async () => {
     const mem = memoryStorage();
     const s = await openedRun();
+    s.chartMounted(true); // a chart on screen (RunCharts.vue on Compare › Your latest run)
     s.setChartShown(true);
     expect(mem.get('autoap.chartShown')).toBe('1');
     expect(s.heat?.total).toBe(3);
@@ -102,6 +103,30 @@ describe('the run chart is off until asked for', () => {
     expect(s.heat).toBeNull();
     expect(s.pricedChains).toHaveLength(0);
     s.setChartShown(true); // shown again: rebuilt from scratch, same totals
+    expect(s.heat?.total).toBe(3);
+  });
+
+  it('builds nothing while shown but off screen (Compare closed), and frees when the last chart unmounts', async () => {
+    const mem = memoryStorage({ 'autoap.chartShown': '1' });
+    const s = await openedRun();
+    expect(s.chartShown).toBe(true);
+    expect(s.chartOnScreen).toBe(false);
+    s.rebuildShortlist();
+    expect(s.heat).toBeNull();
+    expect(s.pricedChains).toHaveLength(0);
+    expect(s.shortlist.length).toBeGreaterThan(0);
+    s.chartMounted(true); // the first chart on screen builds from what was priced
+    expect(s.heat?.total).toBe(3);
+    s.chartMounted(true);
+    s.chartMounted(false); // one of two gone: still on screen
+    expect(s.heat?.total).toBe(3);
+    s.chartMounted(false); // the last one: freed, the remembered choice kept
+    expect(s.chartOnScreen).toBe(false);
+    expect(s.heat).toBeNull();
+    expect(s.pricedChains).toHaveLength(0);
+    expect(mem.get('autoap.chartShown')).toBe('1');
+    s.chartMounted(false); // never below zero
+    s.chartMounted(true);
     expect(s.heat?.total).toBe(3);
   });
 

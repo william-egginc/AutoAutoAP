@@ -29,7 +29,7 @@
           Carrying on replays the priced routes instantly, continues on the save it started with, and puts its deadline,
           boxes and sliders back below.</template
         >
-        <template v-else> Its save wasn't kept on this device, so it can't carry on.</template>
+        <template v-else> Its save wasn't kept on {{ thisDevice() }}, so it can't carry on.</template>
         Starting a new search replaces it.
       </p>
       <p v-if="autoCountdown > 0" class="font-bold" role="status">
@@ -63,7 +63,7 @@
       >
         <span class="block text-sm font-black text-slate-900">Egg Day {{ eggDayYear }}</span>
         <span class="block mt-0.5 text-[11px] text-slate-600 leading-relaxed"
-          >14 July {{ eggDayYear }}, 9:00 AM Pacific. Answers go on {{ NAMES.compare }}'s Egg Day
+          >14 July {{ eggDayYear }}, 9:00 AM Pacific. Answers go on the {{ NAMES.compare }}'s Egg Day
           {{ eggDayYear }} tab.</span
         >
       </button>
@@ -78,7 +78,7 @@
       >
         <span class="block text-sm font-black text-slate-900">Another date</span>
         <span class="block mt-0.5 text-[11px] text-slate-600 leading-relaxed"
-          >Any date and time you like. Answers go on {{ NAMES.compare }}'s By a date tab.</span
+          >Any date and time you like. Answers go on the {{ NAMES.compare }}'s By a date tab.</span
         >
       </button>
     </div>
@@ -152,6 +152,7 @@
       v-slot="{ level }"
       goal="date"
       in-tab
+      :player-id="playerId"
       :running="store.deadlineRunning && !!store.deadlineRunSimple"
       :estimates="levelEstimates"
     >
@@ -227,14 +228,19 @@
             slider-lead="Suggest a space tries"
             linkable
             footer-class="items-end gap-4"
-            @asc="(k, n) => (chains[k].asc = n)"
+            @asc="setRowAsc"
             @text="typedRow"
             @suggest="suggestRow"
-            @remove="k => chains.splice(k, 1)"
+            @remove="removeRow"
             @add="addChain"
             @slider="setSlider"
             @use-sliders="suggestRow"
           >
+            <template #asc-after="{ k }">
+              <span v-if="k === 0 && boxFromInstant" class="text-[10px] text-slate-400" data-testid="asc-follow-hint"
+                >(from the instant answer)</span
+              >
+            </template>
             <template #row-notes="{ row, k }">
               <span v-if="instantNote(k)" class="block text-[10px] text-indigo-700" data-test="instant-set-note">{{
                 instantNote(k)
@@ -515,26 +521,10 @@
         <!-- Live progress, Insane-style. -->
         <!-- Only in the box whose run it is (and so the one `data-run-progress` block, for Jump to it). -->
         <div v-if="runKind === k && store.deadlineProgress" class="space-y-2">
-          <RunProgress
-            data-run-progress="by-date"
-            :stage="store.deadlineProgress.stage"
-            :count="
-              liveTotal && liveDone < liveTotal
-                ? `${liveDone.toLocaleString()} / ~${plural(roundedRoutes(liveTotal), 'route')}`
-                : plural(liveDone, 'route')
-            "
-            :percent="progressPct"
-          >
-            <p class="text-[10px] text-slate-400 font-bold">
-              {{ elapsedLabel }} so far<template v-if="remainingLabel">
-                · about {{ remainingLabel }} left<template v-if="timeLeft?.measuring"> (measuring…)</template
-                ><template v-else-if="firstGuessLabel"> (first guess {{ firstGuessLabel }})</template></template
-              ><template v-if="liveTotal && liveDone >= liveTotal">
-                · more than the ~{{ roundedRoutes(liveTotal).toLocaleString() }} routes estimated</template
-              ><template v-if="estNow.learned"> · {{ estimateNote(estNow) }}</template
-              ><template v-if="store.deadlineLegSims"> · {{ plural(store.deadlineLegSims, 'leg') }} simulated</template>
-            </p>
-          </RunProgress>
+          <!-- The run's place on the page, for the run bar's Jump to it (lib/runAnchor.ts). Its progress is in
+               that bar only (Jordan, 16 Oct 2026): time so far, the first guess, the estimate's basis and the
+               legs simulated are under the bar's Details. -->
+          <div data-run-progress="by-date" class="scroll-mt-24"></div>
           <!-- The best so far in the finished answer's card (ByDateRouteCard.vue), then the next ones. -->
           <ByDateRouteCard
             v-if="liveBest"
@@ -552,7 +542,11 @@
             :columns="ROUTE_COLUMNS"
             :rows="store.deadlineProgress.top.slice(0, 5)"
             :row-key="r => r.chain.join(',')"
+            :can-expand="hasLegs"
           >
+            <template #expand="{ row: r }">
+              <RouteTimeline :chain="r.chain" :legs="r.legs" :zone="plannerZone" />
+            </template>
             <template #default="{ row: r }">
               <td class="pr-4 py-1 font-bold">{{ r.chain.join(' ') }}</td>
               <td class="pr-4 py-1">{{ inPlannerZone(r.reachAt) }}</td>
@@ -622,6 +616,7 @@
           :route="best"
           :deadline="result.deadline"
           :zone="plannerZone"
+          :priced-with="resultPricedWith"
           simulate
           :simulate-note="resultSim?.note"
           :can-share="collectorConfigured"
@@ -653,6 +648,8 @@
         <p v-else class="text-[11px] font-semibold text-rose-700">
           No route tried reaches any stop by then. Try a later date, a lower last stop, or more stops.
         </p>
+        <!-- Its routes with when each stop and egg happens, on Leaderboard › Your latest run (LatestRunView.vue). -->
+        <DigDeeperLink v-if="best && !store.deadlineRunning" detail="its top 50 routes and when each stop and egg happens" />
       </template>
       <!-- Where Advanced's box already says this (above, with the chains) it is not repeated here. -->
       <p
@@ -706,7 +703,11 @@
         title="Best for each stop count"
         :rows="result.byStops"
         :row-key="r => r.chain.join(',')"
+        :can-expand="hasLegs"
       >
+        <template #expand="{ row: r }">
+          <RouteTimeline :chain="r.chain" :legs="r.legs" :zone="plannerZone" />
+        </template>
         <template #default="{ row: r }">
           <td class="pr-4 py-1 text-slate-500">{{ r.chain.length }} stop{{ r.chain.length === 1 ? '' : 's' }}</td>
           <td class="pr-4 py-1 font-bold">{{ r.chain.join(' ') }}</td>
@@ -714,7 +715,15 @@
         </template>
       </ResultTable>
 
-      <ResultTable :columns="ROUTE_COLUMNS" :rows="result.routes.slice(0, 15)" :row-key="r => r.chain.join(',')">
+      <ResultTable
+        :columns="ROUTE_COLUMNS"
+        :rows="result.routes.slice(0, 15)"
+        :row-key="r => r.chain.join(',')"
+        :can-expand="hasLegs"
+      >
+        <template #expand="{ row: r }">
+          <RouteTimeline :chain="r.chain" :legs="r.legs" :zone="plannerZone" />
+        </template>
         <template #title>
           <template v-if="!result.step && !result.stoppedEarly"
             >Every route in your space: {{ result.priced.toLocaleString() }} priced, run complete. Top routes</template
@@ -739,15 +748,17 @@
           <p class="text-[11px] text-slate-500 leading-relaxed">
             Priced from {{ inPlannerZone(result.planStart) }} at {{ result.te }} TE<template v-if="result.backupAt"
               >, on your save from {{ inPlannerZone(result.backupAt) }}</template
-            >, with the hours and time off in Your setup. A route that reaches one more TE usually has much less time to
-            spare: the table shows both so you can choose.
+            >.<template v-if="resultPricedWith"> {{ resultPricedWith }}.</template> A route that reaches one more TE
+            usually has much less time to spare: the table shows both so you can choose.
           </p>
         </SavedAnswers>
       </template>
       <template #share>
         <!-- Share: Compare's Egg Day tab for an Egg Day answer, else "By a date". Same opt-in as Insane. -->
+        <!-- Sent by the run itself: one line instead of the box (SentByRunNote.vue). -->
+        <SentByRunNote v-if="best && collectorConfigured && sentByRun" :sending="sharing" />
         <ShareResult
-          v-if="best && collectorConfigured"
+          v-else-if="best && collectorConfigured"
           compact
           :send-label="`Send ${best.chain[best.chain.length - 1]} TE by this date`"
           :replaces-best-so-far="!!store.provisionalRows.deadline"
@@ -760,7 +771,7 @@
         >
           <template #intro>
             <p class="text-[11px] text-indigo-900/80 leading-relaxed">
-              Sends the best route above to {{ NAMES.compare }}'s <span class="font-bold">{{ shareTab }}</span> tab,
+              Sends the best route above to the {{ NAMES.compare }}'s <span class="font-bold">{{ shareTab }}</span> tab,
               where answers for the same deadline are ranked by the highest TE reached, then the time to spare. It stays
               out of the race to 490.
             </p>
@@ -799,7 +810,7 @@
 <script lang="ts">
 import { plural } from '@/lib/format';
 import { ref as keptRef } from 'vue';
-import { nextEggDayYear as keptEggDayYear } from '@/lib/eggDay';
+import { byDateForm, eggDayYearAtLoad } from '@/lib/byDateForm';
 import {
   DEFAULT_STEP_IX as KEPT_STEP_IX,
   DEFAULT_WIDTH_IX as KEPT_WIDTH_IX,
@@ -811,12 +822,9 @@ import {
  * planner's tabs, leaving this screen unmounts it, and everything typed (the date, the boxes, the
  * sliders) came back as the defaults; the Egg Day link's boxes came back instead, every visit.
  */
-const eggDayYearAtLoad = keptEggDayYear();
 const kept = {
-  date: keptRef(`${eggDayYearAtLoad}-07-14`),
-  time: keptRef('09:00'),
-  zone: keptRef('America/Los_Angeles'),
-  customDate: keptRef(false),
+  // The deadline (date, time, zone, "Another date") lives in lib/byDateForm.ts, so My runs can preset it.
+  ...byDateForm,
   minStops: keptRef(3),
   maxStops: keptRef(5),
   lastHi: keptRef(490),
@@ -846,6 +854,11 @@ const kept = {
       keptText?: string;
     }[]
   >([{ asc: 4, text: '' }]),
+  /** The one default box's Ascensions still follows the instant answer's best route's count (the 4 above
+   *  is only for before it is in). Cleared for good (this page load) by anything that sets the boxes on
+   *  purpose: the Ascensions box, Add/Remove, a typed box, a link or Science request, Open in Exhaustive,
+   *  Check exactly, a carried-on run's boxes. */
+  ascFollows: keptRef(true),
   lastBox: keptRef(''),
   suggestFrom: keptRef(''),
   widthIx: keptRef(KEPT_WIDTH_IX),
@@ -860,9 +873,10 @@ const kept = {
 </script>
 
 <script setup lang="ts">
+import { pricedWithLine } from '@/lib/pricedWith';
+import { thisDevice } from '@/search/device';
 import {
   byDatePlan,
-  estimateNote,
   fallbackWorkerSecondsPerLeg,
   legSeconds,
   longRunLine,
@@ -874,19 +888,22 @@ import { defaultWorkerCount } from '@/search/batch';
 import { findBandEdges, widenEdges, type BandEdge } from '@/search/bandCheck';
 import CarryOnOffer from './CarryOnOffer.vue';
 import ShareResult from './ShareResult.vue';
+import SentByRunNote from './SentByRunNote.vue';
 import ShareStatus from './ShareStatus.vue';
 import SendingText from './SendingText.vue';
 import { useByDateShare, useShareIdentity } from '@/composables/useShareResult';
 import { useShareExtras } from '@/composables/useShareExtras';
+import { agreeThisVisit } from '@/composables/useConsent';
 import RoutesToTry from './RoutesToTry.vue';
 import SavedAnswers from './SavedAnswers.vue';
-import RunProgress from './RunProgress.vue';
 import EdgeWarning from './EdgeWarning.vue';
 import RunErrorNotes from './RunErrorNotes.vue';
 import RunControls from './RunControls.vue';
 import ResultTable from './ResultTable.vue';
+import RouteTimeline from './RouteTimeline.vue';
+import DigDeeperLink from './DigDeeperLink.vue';
 import RunResults from './RunResults.vue';
-import { durationLabel, useRunClock } from '@/composables/useRunClock';
+import { durationLabel } from '@/composables/useRunClock';
 import { useRunDownloads } from '@/composables/useRunDownloads';
 import { useDateRowSliders } from '@/composables/useRowSliders';
 import { NAMES, fastestName } from '@/lib/siteNav';
@@ -934,11 +951,13 @@ import { readFirstAscension } from '@/search/firstAscension';
 import { simulateRoute } from '@/search/simulateRoute';
 import { rowSettingsFor, type DeadlineRunSpec, type SavedDeadlineResult } from '@/search/deadlineStore';
 import { SPACE_STEPS, SPACE_WIDTHS, stopsByWidth } from '@/search/deadlineSuggest';
+import { boxCountFromBest } from '@/lib/limitsFollow';
 import { BY_DATE_LEVELS, simpleByDateSpace, widthForLevel, type ByDateLevel, type SimpleSpace } from '@/search/simpleByDate';
 import { firstTime } from '@/lib/linkOnce';
 import { parseByDateRequest, SCIENCE_WIDTHS, type ByDateRequest } from '@/search/byDateRequest';
 import { useUIStore } from '@/stores/ui';
 import { eggDayYearOf } from '@/lib/eggDay';
+import { applyByDatePreset, byDatePresetPending, takeByDatePreset } from '@/lib/byDateForm';
 import { showDateTime } from '@/lib/displayTime';
 import InstantRoute from './InstantRoute.vue';
 
@@ -971,6 +990,18 @@ function chooseEggDay(): void {
   customDate.value = false;
   useEggDay();
 }
+// A deadline asked for by another page (My runs' "Find my Egg Day answer", lib/byDateForm.ts): taken
+// once, when this screen mounts or at once if it is open, and never applied under a run going or being
+// restored, which owns its date.
+watch(
+  byDatePresetPending,
+  p => {
+    if (!p) return;
+    const preset = takeByDatePreset();
+    if (preset && !store.deadlineRunning && !store.preparing) applyByDatePreset(preset);
+  },
+  { immediate: true }
+);
 
 const deadline = computed(() => {
   if (!date.value || !time.value) return 0;
@@ -1031,7 +1062,7 @@ const { mode } = kept;
 if (mode.value === 'auto' && !store.deadlineRunning) mode.value = 'space';
 
 /** The chains to run from one click: each an ascension count and one box of bands. */
-const { chains, lastBox, suggestFrom, simpleUsed } = kept;
+const { chains, lastBox, suggestFrom, simpleUsed, ascFollows } = kept;
 const rowBands = (k: number) => parseChainText(chains.value[k]?.text ?? '');
 function rangeOf(box: string): [number, number] | null {
   const v = parseStopBox(box, 1);
@@ -1083,7 +1114,7 @@ watch(
 /** The first lines of each tab (SearchTabs.vue): what it does, when to use it, how long it takes. */
 const TAB_INTRO: Record<SearchTabId, string> = {
   nearby:
-    "Start here. It checks the instant answer on your save and, at Fast and above, tries the routes near it for each number of ascensions, each last stop found to the exact TE. Light takes seconds to a few minutes; each other level's time on this computer is under its name.",
+    `Start here. It checks the instant answer on your save and, at Fast and above, tries the routes near it for each number of ascensions, each last stop found to the exact TE. Light takes seconds to a few minutes; each other level's time on ${thisDevice()} is under its name.`,
   exhaustive:
     "For proving an answer, not for finding a much better one: it proves the best inside the boxes you set, and so far no search has beaten the instant answer's TE by a date. You set a band of TEs for each ascension and it tries every route in them, the last stop found to the exact TE. Big boxes take hours.",
 };
@@ -1187,7 +1218,7 @@ const simpleSpace = computed<SimpleSpace | null>(() => spaceFor(dateLevel.value)
 /** What each level would cost on this computer, before starting (shown under the level bar). */
 const levelEstimates = computed<Partial<Record<StrongerLevel, LevelEstimate>>>(() => {
   const out: Partial<Record<StrongerLevel, LevelEstimate>> = {};
-  const speed = store.deadlineWorkerSeconds ? "this computer's measured speed" : 'the typical speed';
+  const speed = store.deadlineWorkerSeconds ? `${thisDevice()}'s measured speed` : 'the typical speed';
   for (const l of ['quick', 'normal', 'thorough'] as const) {
     const sp = l === dateLevel.value ? simpleSpace.value : spaceFor(l);
     if (!sp) continue;
@@ -1195,7 +1226,7 @@ const levelEstimates = computed<Partial<Record<StrongerLevel, LevelEstimate>>>((
     const t = formatHours(p.seconds / 3600);
     out[l] = {
       short: `~${t}`,
-      line: `About ${t} on this computer (${plural(store.workerBudget, 'worker')}, ${speed}): ${plural(p.sets, 'set')} of early stops.`,
+      line: `About ${t} on ${thisDevice()} (${plural(store.workerBudget, 'worker')}, ${speed}): ${plural(p.sets, 'set')} of early stops.`,
     };
   }
   return out;
@@ -1277,7 +1308,7 @@ const simpleSummary = computed(() => {
   // Planned for the run's own boxes once a Nearby run is on screen; else the plan its Find would run.
   const shown = simpleRunBoxes.value === simpleLive.value ? aroundPlan.value : summaryPlan.value;
   const time = shown.legs ? formatHours(shown.seconds / 3600) : '';
-  return `Checks ${counts} ascension count${counts === 1 ? '' : 's'}, ~${roundedRoutes(shown.routes).toLocaleString()} routes${time ? `, about ${time} on this computer` : ''}.`;
+  return `Checks ${counts} ascension count${counts === 1 ? '' : 's'}, ~${roundedRoutes(shown.routes).toLocaleString()} routes${time ? `, about ${time} on ${thisDevice()}` : ''}.`;
 });
 const summaryPlan = computed(() =>
   byDatePlan({
@@ -1324,6 +1355,7 @@ const canStartAround = computed(() => !!deadline.value && !aroundIssue.value && 
 function openInAdvanced(): void {
   const used = simpleRunBoxes.value;
   if (!used.chains.length) return;
+  ascFollows.value = false;
   // Each row keeps the width Simple built it with, so its slider says "±2 TE around each stop (from
   // Simple)" rather than the default ±10; moving the width slider clears that, as for a Science card.
   chains.value = used.chains.map(r => {
@@ -1513,6 +1545,48 @@ const {
   suggestedText: k => suggestion(k)?.text ?? null,
 });
 
+/** The Ascensions box of a row changed by hand: that count is the player's from now on. */
+function setRowAsc(k: number, n: number): void {
+  const row = chains.value[k];
+  if (!row) return;
+  ascFollows.value = false;
+  row.asc = n;
+}
+function removeRow(k: number): void {
+  ascFollows.value = false;
+  chains.value.splice(k, 1);
+}
+/** The instant answer's best By a date route's count (InstantRoute's lead, stores/stronger.ts). */
+const dateBestCount = computed(() => stronger.instant.date?.chain.length ?? null);
+/**
+ * The one default box follows that count (lib/limitsFollow.ts `boxCountFromBest`, 1..8): it was a fixed
+ * 4, so a player whose best By a date route had 6 ascensions proved the best of 4s. Only the default:
+ * one box, filled by Suggest a space or empty, not restored or from a request, and only while nothing
+ * runs or is being carried on (a run keeps its own boxes).
+ */
+function followDateBest(): void {
+  if (!ascFollows.value || linked.value || store.deadlineRunning || store.preparing) return;
+  const n = boxCountFromBest(dateBestCount.value);
+  const row = chains.value[0];
+  if (n === null || chains.value.length !== 1 || !row || row.restored || row.centre) return;
+  if (row.text && !row.auto) return;
+  if (row.asc === n) return;
+  row.asc = n;
+  if (n < 2) {
+    row.text = '';
+    return;
+  }
+  if (store.currentTE > 0) suggestRow(0);
+}
+/** Box 1 is still the default, at the instant answer's count (the grey hint beside its Ascensions). */
+const boxFromInstant = computed(
+  () =>
+    ascFollows.value &&
+    chains.value.length === 1 &&
+    dateBestCount.value !== null &&
+    chains.value[0]?.asc === boxCountFromBest(dateBestCount.value)
+);
+
 const rowProblems = computed(() => chains.value.map((_, k) => rowProblem(k)));
 const rowSummaries = computed(() => chains.value.map((_, k) => rowSummary(k)));
 /** A box typed in (or a band checker's "did you mean" taken): the player's own now, so Suggest a space
@@ -1520,6 +1594,7 @@ const rowSummaries = computed(() => chains.value.map((_, k) => rowSummary(k)));
 function typedRow(k: number, text: string): void {
   const row = chains.value[k];
   if (!row) return;
+  ascFollows.value = false;
   row.text = text;
   row.auto = false;
   row.restored = false;
@@ -1537,6 +1612,7 @@ function checkByDate(chain: number[]): void {
   mode.value = 'space';
   // Single-value boxes are Exhaustive's: show them there.
   showExhaustive();
+  ascFollows.value = false;
   chains.value = [{ asc: chain.length, text: chain.slice(0, -1).join('; ') }];
   lastBox.value = `${Math.max(te + 1, last - 5)}-${Math.min(490, last + 5)}`;
   suggestFrom.value = `Set from the instant answer's route, ${chain.join(' ')}.`;
@@ -1544,6 +1620,7 @@ function checkByDate(chain: number[]): void {
 
 /** A new chain one ascension shorter than the shortest, since the short ones are what get added. */
 function addChain(): void {
+  ascFollows.value = false;
   const used = chains.value.map(r => r.asc);
   let asc = Math.max(1, Math.min(...used) - 1);
   while (used.includes(asc) && asc < 8) asc++;
@@ -1580,6 +1657,7 @@ function applyRequest(req: ByDateRequest): void {
     customDate.value = false;
   }
   mode.value = 'space';
+  ascFollows.value = false;
   // The sliders a request names go on that chain's own row, so the panel's shared sliders (and a normal
   // By a date run) stay as they were.
   chains.value = req.asc.map(asc => {
@@ -1637,6 +1715,8 @@ watch(
   },
   { immediate: true }
 );
+// Box 1 follows the instant answer's count (`followDateBest`), after `linked` and the first fill.
+watch([dateBestCount, () => store.deadlineRunning, () => store.preparing], followDateBest, { immediate: true });
 
 // The boxes outlive the screen and the save (kept refs), so a box filled for another account -- or
 // for this one before its TE moved past the first stops -- can describe no playable route at all
@@ -1779,18 +1859,8 @@ const backgroundLabel = computed(() => {
 const costLabel = computed(() => `${secondsPerLeg.value.toFixed(secondsPerLeg.value < 10 ? 2 : 1)} s`);
 
 const runEstimate = ref(0);
-const now = useRunClock(() => store.deadlineRunning);
-
-const liveDone = computed(() => (store.deadlineProgress?.priced ?? 0) + store.deadlineInBatch);
-/** The store's one route total (never below what is done: an estimate is a guess, a count is a fact),
- *  and its one fill for the bar, so this, the bar on every tab and the time left agree. */
-const estNow = computed(() => store.deadlineEstimateNow);
-const liveTotal = computed(() => store.deadlineRoutesTotal);
-const progressPct = computed(() => store.deadlineProgressPercent ?? 0);
-const elapsedSeconds = computed(() => (store.deadlineStartedAt ? (now.value - store.deadlineStartedAt) / 1000 : 0));
-const elapsedLabel = computed(() => durationLabel(elapsedSeconds.value));
-/** The same figure as the box's (`estimateLabel` during a run). */
-const remainingLabel = computed(() => (timeLeft.value ? durationLabel(timeLeft.value.seconds) : ''));
+// The run's live figures (time so far, the estimate's basis, legs simulated) are in the run bar's Details
+// (RunProgressBar.vue, lib/runDetails.ts) since the in-page progress went (16 Oct 2026).
 
 const startIssue = computed(() => {
   if (!deadline.value) return '';
@@ -1840,6 +1910,7 @@ function fillFromSpec(spec: DeadlineRunSpec): void {
     mode.value = 'space';
     // The sliders and "filled by Suggest" go back with the boxes. A run saved before they were kept
     // has none: its sliders stay as they are and its boxes count as typed by hand.
+    ascFollows.value = false;
     chains.value = sets.map((set, i) => {
       const saved = rowSettingsFor(spec, i);
       return {
@@ -1902,9 +1973,12 @@ async function resume(): Promise<void> {
   // A run started with Find and submit (or agreed to share during it) carries on doing so, on its own
   // name, CSV and diagnostics choices: on 9 Oct a carried-on Find and submit run ended as a plain
   // Find and sent nothing.
-  const submit = store.deadlineUnfinished?.submit ?? null;
+  // Not once the account's agreement was withdrawn since (store `carriedYesHolds`).
+  const recorded = store.deadlineUnfinished?.submit ?? null;
+  const submit = recorded && store.carriedYesHolds() ? recorded : null;
   if (submit) {
-    shareOptIn.value = true;
+    // The run's recorded yes, for this visit only.
+    agreeThisVisit('leaderboard');
     shareAnonymous.value = !submit.nickname;
     // This screen's alone (composables/useShareResult.ts): the run's own name, not typed now.
     if (submit.nickname) shareName.value = submit.nickname;
@@ -1919,7 +1993,8 @@ async function resume(): Promise<void> {
   let go = false;
   try {
     await store.resumeDeadline(props.playerId);
-    go = autoShare.value || (await owesAnswer());
+    // Read live: a withdraw during the run cleared `submitsWhenDone` (store `withdrawShareConsent`).
+    go = (autoShare.value && store.submitsWhenDone) || (await owesAnswer());
   } finally {
     store.submitsWhenDone = false;
     autoShare.value = false;
@@ -1946,7 +2021,8 @@ function bestSoFarName(): string {
 async function owesAnswer(): Promise<boolean> {
   const agreed = !!store.bestSoFar?.consent;
   await store.bestSoFarSettled();
-  const owed = store.provisionalRows.deadline;
+  // Not once the player withdrew (store `owedRow`).
+  const owed = store.owedRow('deadline');
   if (!agreed && owed) {
     shareAnonymous.value = !owed.nickname;
     if (owed.nickname) shareName.value = owed.nickname;
@@ -1956,8 +2032,10 @@ async function owesAnswer(): Promise<boolean> {
 
 /** Send the answer on screen, as Find and submit does at the end. */
 async function shareFinished(): Promise<void> {
-  if (!result.value || !best.value || store.error) return;
-  shareOptIn.value = true;
+  // Withdrawn during the run: nothing goes.
+  if (!result.value || !best.value || store.error || store.shareWithdrawn) return;
+  // The send needs the box ticked; the run's yes counts for this visit only.
+  agreeThisVisit('leaderboard');
   autoShared.value = true;
   await share();
   store.lastAutoSend = { kind: 'by-date', ok: shareOk.value, text: shareMessage.value };
@@ -1968,6 +2046,11 @@ const autoShare = ref(false);
 /** This panel shared the last answer by itself (Find and submit, or a run that owed its answer): the
  *  report beside Find says how it went. Cleared when a run starts. */
 const autoShared = ref(false);
+/** The answer on screen went with its run: Share this result gives way to one line. A send that failed
+ *  (or was kept off the board) keeps the box, so it says so and can still be sent by hand. */
+const sentByRun = computed(
+  () => autoShared.value && !store.deadlineRunning && shareOk.value && (sharing.value || sentKey.value === resultKey.value)
+);
 
 /** Find, and with `andSubmit` share the best answer at the end (not when stopped early or failed). */
 /** Stop pressed, until the run ends: the store's stop flag for a date search isn't reactive. */
@@ -2001,8 +2084,10 @@ async function start(andSubmit: boolean, kind: ByDateKind): Promise<void> {
     await find();
   } finally {
     startingKind.value = null;
+    // Read live: a withdraw during the run cleared `submitsWhenDone` (store `withdrawShareConsent`).
+    const armed = autoShare.value && store.submitsWhenDone;
     store.submitsWhenDone = false;
-    const go = autoShare.value || (await owesAnswer());
+    const go = armed || (await owesAnswer());
     autoShare.value = false;
     store.endBestSoFar();
     // Stopped early it still shares: its best is a real route to that TE by the date, just maybe not
@@ -2048,7 +2133,8 @@ async function find(): Promise<void> {
       rows: simple.value
         ? rows.map(() => ({ widthIx: widthIx.value, stepIx: stepIx.value, auto: false }))
         : chains.value.map(r => ({ widthIx: rowWidthIx(r), stepIx: rowStepIx(r), auto: !!r.auto })),
-      ...(simple.value ? { simple: true } : {}),
+      // The level bar's level (Fast / Exact / Very high), for the board row's `level`.
+      ...(simple.value ? { simple: true, level: dateLevel.value } : {}),
     });
     return;
   }
@@ -2105,6 +2191,8 @@ const { downloadByDateCsv, downloadError } = useRunDownloads(store);
 const result = computed(() => store.deadlineResult);
 /** The columns of every list of routes here (top routes so far, and the finished run's). */
 const ROUTE_COLUMNS = ['Route', 'Last stop reached', 'Spare'];
+/** A row's arrow (RouteTimeline.vue): only a route with its legs has stops to show. */
+const hasLegs = (r: { legs?: unknown }): boolean => Array.isArray(r.legs) && r.legs.length > 0;
 /** Share this result's "Note on this run": the result's own note, edited in place, so the send and
  *  its CSV carry what the box says. */
 const resultNote = computed({
@@ -2286,4 +2374,7 @@ const atCeiling = computed(
 function inPlannerZone(unixSeconds: number): string {
   return showDateTime(unixSeconds, plannerZone.value);
 }
+/** The hours and time off the answer was priced with: its own recorded settings, never the live setup
+ *  (lib/pricedWith.ts); '' for an answer from before settings were recorded. */
+const resultPricedWith = computed(() => (result.value?.settings ? pricedWithLine(result.value.settings) : ''));
 </script>

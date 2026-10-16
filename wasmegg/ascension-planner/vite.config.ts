@@ -1,15 +1,33 @@
 import { createReadStream, statSync, type Stats } from 'node:fs';
-import { cp, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readFile, rm } from 'node:fs/promises';
 import type { ServerResponse } from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
-import { promisify } from 'node:util';
-import { brotliCompress, constants as zlibConstants } from 'node:zlib';
 import { defineConfig, loadEnv, type Plugin } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import vueJsx from '@vitejs/plugin-vue-jsx';
 import release from './release';
+import {
+  BROTLI_TYPES,
+  digest,
+  freshBrotli,
+  restoreKept,
+  verifyAssets,
+  writeBrotliCopies,
+} from './src/lib/buildAssets';
+import {
+  COMMON_HEADERS,
+  contentSecurityPolicy,
+  documentHeaders,
+  hostKind,
+  inlineScriptHashes,
+  originOf,
+  robotsTag,
+  robotsTxt,
+  rootFile,
+  securityTxt,
+} from './src/lib/securityHeaders';
 
 /**
  * `version.json`: each page's hashed entry script, `{"index":"assets/index-BGv8tSVu.js",...}`.
@@ -139,7 +157,7 @@ function warnIfReleaseStale(): Plugin {
 
 /**
  * Hashed files under `assets/` are cached for a year by browsers and by Cloudflare, and sent
- * brotli-compressed when the build made a `.br` copy (see `brotliAssets`); everything else (the two
+ * brotli-compressed when the build made a `.br` copy (see `writeBrotliCopies`); everything else (the two
  * HTML pages, version.json, favicon) keeps `vite preview`'s `no-cache`.
  *
  * WHY. The live site is `vite preview` behind a Cloudflare tunnel, so netlify.toml's headers never
@@ -183,6 +201,85 @@ function watcherIsolation(): Plugin {
   };
 }
 
+/**
+ * Security headers on everything `vite preview` serves (src/lib/securityHeaders.ts says which and
+ * why): nosniff, a referrer policy and HSTS on every response; X-Frame-Options and the
+ * Content-Security-Policy on the HTML pages, recognised by their content type as the response goes
+ * out (a page, or preview's SPA fallback to index.html). The inline scripts' hashes are read from the
+ * built pages when the server starts. Also /robots.txt, /.well-known/security.txt, /favicon.ico and X-Robots-Tag,
+ * by the request's Host (live or test site). Preview only: the dev server's own inline scripts (HMR)
+ * would need a looser policy. Takes effect when `pnpm serve` restarts.
+ */
+function securityHeaders(env: Record<string, string | undefined>): Plugin {
+  return {
+    name: 'aap-security-headers',
+    async configurePreviewServer(server) {
+      const { config } = server;
+      const outDir = path.resolve(config.root, config.build.outDir);
+      const hashes = new Set<string>();
+      for (const page of ['index.html', 'explorer.html', 'watch.html']) {
+        try {
+          for (const h of await inlineScriptHashes(await readFile(path.join(outDir, page), 'utf8'))) hashes.add(h);
+        } catch {
+          // Not built (yet): its inline scripts, if any, are refused until the next restart.
+        }
+      }
+      const extra = [env.VITE_SUBMIT_URL, env.VITE_EGG_PROXY, env.VITE_EGG_AUTH_PROXY]
+        .map(originOf)
+        .filter((o): o is string => !!o && !o.endsWith('.workers.dev'));
+      const doc = documentHeaders(contentSecurityPolicy([...hashes], extra));
+      // The planner's path, for robots.txt (a relative base is served from `/` by preview).
+      const base = config.base.startsWith('/') ? config.base : '/';
+      // A year from when the server started; a restart (every deploy) moves it on.
+      const security = securityTxt();
+      server.middlewares.use((req, res, next) => {
+        for (const [k, v] of Object.entries(COMMON_HEADERS)) res.setHeader(k, v);
+        const kind = hostKind(req.headers.host);
+        const pathname = (req.url ?? '').split('?')[0];
+        const tag = robotsTag(kind, pathname);
+        if (tag) res.setHeader('X-Robots-Tag', tag);
+        // At the site root, outside the planner's path, so answered here rather than by preview.
+        if ((req.method === 'GET' || req.method === 'HEAD') && (pathname === '/robots.txt' || pathname === '/.well-known/security.txt')) {
+          const text = pathname === '/robots.txt' ? robotsTxt(kind, base) : security;
+          res.statusCode = 200;
+          res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+          res.setHeader('Cache-Control', 'public, max-age=3600');
+          res.end(req.method === 'HEAD' ? undefined : text);
+          return;
+        }
+        const root = req.method === 'GET' || req.method === 'HEAD' ? rootFile(pathname) : null;
+        if (root && isFile(path.join(outDir, root.file))) {
+          res.statusCode = 200;
+          res.setHeader('Content-Type', root.type);
+          res.setHeader('Cache-Control', 'public, max-age=86400');
+          if (req.method === 'HEAD') {
+            res.end();
+            return;
+          }
+          createReadStream(path.join(outDir, root.file))
+            .on('error', () => res.destroy())
+            .pipe(res);
+          return;
+        }
+        const writeHead = res.writeHead;
+        res.writeHead = function (this: ServerResponse, ...args: unknown[]) {
+          const given = args.find(a => a && typeof a === 'object' && !Array.isArray(a)) as
+            | Record<string, unknown>
+            | undefined;
+          const type = String(
+            res.getHeader('Content-Type') ??
+              (given && Object.entries(given).find(([k]) => k.toLowerCase() === 'content-type')?.[1]) ??
+              ''
+          );
+          if (/text\/html/i.test(type)) for (const [k, v] of Object.entries(doc)) res.setHeader(k, v);
+          return (writeHead as (...a: unknown[]) => ServerResponse).apply(this, args);
+        } as typeof res.writeHead;
+        next();
+      });
+    },
+  };
+}
+
 const IMMUTABLE = 'public, max-age=31536000, immutable';
 
 function immutableAssets(): Plugin {
@@ -211,7 +308,7 @@ function immutableAssets(): Plugin {
         // (a Range request, no .br, a client without br) falls through to the normal gzip path.
         const brFile = `${file}.br`;
         const type = BROTLI_TYPES[path.extname(file)];
-        if (!type || !isFile(brFile)) return next();
+        if (!type || !freshBrotli(file, brFile)) return next();
         appendVary(res, 'Accept-Encoding');
         if (req.headers.range || !acceptsBrotli(req.headers['accept-encoding'])) return next();
         let stat: Stats;
@@ -288,31 +385,28 @@ function appendVary(res: ServerResponse, field: string): void {
  * Never fails the build: a file that will not compress simply has no copy, and preview then serves
  * it as before. Build-only (`apply`), so a dev server shutting down never writes into dist.
  */
-const BROTLI_TYPES: Record<string, string> = {
-  '.js': 'text/javascript',
-  '.css': 'text/css',
-  '.json': 'application/json',
-  '.svg': 'image/svg+xml',
-};
-const brotli = promisify(brotliCompress);
 
 /**
  * KEEP THE PREVIOUS BUILDS' CHUNKS (the user, 7 Oct). A build empties dist/, so a tab opened before a
  * deploy asked for a lazy chunk that no longer existed the next time it switched screens, and got the
  * "New version available, please refresh" dialog (lib/import.ts) after even a small update. The old
  * hashed files are copied aside before the build and the ones the new build did not write are put
- * back, so an open tab keeps working until it reloads on its own. Hashed names never collide, and
+ * back, so an open tab keeps working until it reloads on its own. Hashed names never collide (only
+ * what the bundle itself did not emit is put back), and
  * anything older than KEEP_DAYS is dropped so dist/ does not grow forever.
  */
-const KEEP_DAYS = 7;
 function keepOldAssets(): Plugin {
   let assetsPath = '';
+  let assetsDir = '';
   let stash = '';
+  /** File name under assets/ -> digest, for every file this build emitted (writeBundle). */
+  const emitted = new Map<string, string>();
   return {
     name: 'aap-keep-old-assets',
     apply: 'build',
     configResolved(config) {
       assetsPath = path.resolve(config.root, config.build.outDir, config.build.assetsDir);
+      assetsDir = config.build.assetsDir;
       stash = path.resolve(config.root, 'node_modules/.aap-old-assets');
     },
     async buildStart() {
@@ -324,65 +418,24 @@ function keepOldAssets(): Plugin {
         // First build, or no assets yet: nothing to keep.
       }
     },
-    async closeBundle() {
-      let names: string[];
-      try {
-        names = await readdir(stash);
-      } catch {
-        return;
+    // What this build wrote, and a digest of each, as the bundler handed it over.
+    writeBundle(_options, bundle) {
+      for (const [name, out] of Object.entries(bundle)) {
+        if (!name.startsWith(`${assetsDir}/`)) continue;
+        const body = out.type === 'chunk' ? out.code : out.source;
+        emitted.set(path.basename(name), digest(Buffer.from(body)));
       }
-      const fresh = new Set(await readdir(assetsPath).catch(() => [] as string[]));
-      const cutoff = Date.now() - KEEP_DAYS * 86_400_000;
-      for (const name of names) {
-        if (fresh.has(name)) continue;
-        const from = path.join(stash, name);
-        try {
-          if ((await stat(from)).mtimeMs < cutoff) continue;
-          await cp(from, path.join(assetsPath, name), { preserveTimestamps: true });
-        } catch {
-          // One unreadable file must not fail the build.
-        }
-      }
-      await rm(stash, { recursive: true, force: true });
     },
-  };
-}
-
-function brotliAssets(): Plugin {
-  let assetsPath = '';
-  return {
-    name: 'aap-brotli-assets',
-    apply: 'build',
-    configResolved(config) {
-      assetsPath = path.resolve(config.root, config.build.outDir, config.build.assetsDir);
-    },
+    // One after another (closeBundle hooks may run in parallel): put the old files back, write the
+    // brotli copies, then check what is on disk before anyone is served it.
     async closeBundle() {
-      let names: string[];
-      try {
-        names = await readdir(assetsPath);
-      } catch {
-        return;
-      }
-      await Promise.all(
-        names
-          .filter(name => BROTLI_TYPES[path.extname(name)])
-          .map(async name => {
-            const file = path.join(assetsPath, name);
-            try {
-              const data = await readFile(file);
-              if (data.length < 1024) return;
-              const compressed = await brotli(data, {
-                params: {
-                  [zlibConstants.BROTLI_PARAM_QUALITY]: 11,
-                  [zlibConstants.BROTLI_PARAM_SIZE_HINT]: data.length,
-                },
-              });
-              if (compressed.length < data.length) await writeFile(`${file}.br`, compressed);
-            } catch (error) {
-              console.warn(`[aap-brotli-assets] no brotli copy of ${name}:`, error);
-            }
-          })
-      );
+      await restoreKept(stash, assetsPath, emitted);
+      await writeBrotliCopies(assetsPath);
+      const problems = await verifyAssets(assetsPath, emitted);
+      if (problems.length)
+        throw new Error(
+          `[aap-keep-old-assets] the built files are not what the build emitted; do not deploy this:\n  ${problems.slice(0, 20).join('\n  ')}`
+        );
     },
   };
 }
@@ -459,6 +512,13 @@ export default defineConfig(({ mode }) => {
       // store call throws, and Vue drops that subtree silently -- the Player ID form simply is
       // not in the DOM, with no visible error. Force one copy of each.
       dedupe: ['vue', 'pinia'],
+      // protobufjs's `inquire` looks for Node's require with an eval, which always fails in a
+      // browser and, under the Content-Security-Policy (securityHeaders), is reported as a violation
+      // on every load. The stub gives the same answer (nothing) without the eval. Not under vitest,
+      // which runs in Node.
+      alias: process.env.VITEST
+        ? []
+        : [{ find: /^@protobufjs\/inquire$/, replacement: fileURLToPath(new URL('./src/lib/inquireStub.cjs', import.meta.url)) }],
     },
     plugins: [
       vue(),
@@ -466,8 +526,10 @@ export default defineConfig(({ mode }) => {
       versionFile(),
       noChunkCycles(),
       warnIfReleaseStale(),
+      // Also writes the brotli copies and checks the files (one closeBundle, in order).
       keepOldAssets(),
-      brotliAssets(),
+      // Before immutableAssets, which answers brotli requests itself.
+      securityHeaders(env),
       immutableAssets(),
       watcherIsolation(),
       collectorEarlyStart(env.VITE_SUBMIT_URL),

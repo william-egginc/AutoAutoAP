@@ -73,7 +73,7 @@
       >
         −
       </button>
-      <span class="text-[11px] font-bold tabular-nums" :title="'Workers this computer gives the searches'"
+      <span class="text-[11px] font-bold tabular-nums" :title="`Workers ${thisDevice()} gives the searches`"
         >{{ store.workerBudget }}/{{ store.machineThreads }} workers</span
       >
       <button
@@ -90,6 +90,7 @@
 </template>
 
 <script setup lang="ts">
+import { thisDevice } from '@/search/device';
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useUIStore } from '@/stores/ui';

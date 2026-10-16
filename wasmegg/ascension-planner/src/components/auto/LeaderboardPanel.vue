@@ -10,7 +10,7 @@
   other page's styling into the middle of this one, would not share the planner's TE target, and
   could not offer "use this chain". Nothing here re-simulates anything -- it is one GET.
 
-  THREE RACE TABS, because a plan length answers none of the questions people bring here. A plan's
+  TWO RACE TABS, because a plan length answers none of the questions people bring here. A plan's
   length counts from its own start, so the same plan run a day later is a day shorter; a board
   sorted by it rewards whoever submitted most recently (a player's own words: "every day the new
   run shows up 1 day faster than the previous best, but it's the same plan"). So:
@@ -18,7 +18,6 @@
     - Race: one line per named player, sorted by the date their best plan that still counts
       reaches the target (lib/leaderboardRank.ts has the rules). Being further along counts, and
       the header says so.
-    - My plans: only the loaded save's account, where "is this plan better" has a real answer.
     - All runs: every row, exact copies shown once, every column sortable.
 
   And two for the deadline search's answers (schema 8), "the highest TE by this date": Egg Day
@@ -27,19 +26,167 @@
 
   PHASE 2 (collector redeploy, 2026-09-25). Rows carry `acct`, a tag made from the sender's owner
   code (search/owner.ts), so the race knows who is who exactly and nobody can knock a plan out with
-  rows dressed as someone else's (lib/leaderboardRank.ts `mayJudge`). My plans and the "you" chip come
+  rows dressed as someone else's (lib/leaderboardRank.ts `mayJudge`). My runs and the "you" chip come
   from GET /mine -- the rows sent with this browser's code for the loaded account, anonymous ones
   included -- plus, for runs from before codes existed, the timezone+artifacts match. An anonymous
   viewer is told privately where they would place.
+
+  MY RUNS (15 Oct 2026). Compare's My plans tab, which listed one target's runs, became the top-level My
+  runs tab (MyRunsView.vue): this panel with mode="myruns" shows the viewer's runs of every kind there
+  (MyRunsList.vue), and "Who sees your runs" with them. One load and one "which runs are mine" for both.
 -->
 <template>
-  <div class="space-y-4">
+  <!-- ================================================================== MY RUNS (#/myruns) -->
+  <!-- My runs' "Your runs on the board" (MyRunsView.vue): the same load, /mine, "which runs are mine"
+       and Hide from the public as Compare, without its tabs. Every kind and target, hidden runs too. -->
+  <div v-if="myRunsMode" class="space-y-3" data-testid="my-runs-board">
+    <div class="flex flex-wrap items-start justify-between gap-3">
+      <p class="flex-1 min-w-[14rem] text-[11px] text-indigo-900/80 leading-relaxed">
+        Every run this browser sent for your account, plus older runs with your timezone and artifacts: Egg Day, races
+        to any target and other dates, and the ones hidden from the public. Open one for its details, or press
+        <span class="font-semibold">Use</span> to price it on your account.
+      </p>
+      <button
+        type="button"
+        class="px-3 py-2 rounded-lg border border-indigo-300 text-indigo-700 text-[10px] font-black uppercase tracking-widest hover:bg-white disabled:opacity-40"
+        :disabled="loading"
+        @click="load"
+      >
+        {{ loading ? 'Loading' : 'Refresh' }}
+      </button>
+    </div>
+    <div aria-live="polite">
+      <p
+        v-if="hideMsg"
+        class="flex items-start justify-between gap-3 rounded-lg border px-3 py-2 text-[11px]"
+        :class="hideMsgClass(hideMsg)"
+      >
+        <span>{{ hideMsg.text }}</span>
+        <button
+          type="button"
+          class="shrink-0 text-[10px] font-black uppercase tracking-widest opacity-60 hover:opacity-100"
+          @click="hideMsg = null"
+        >
+          OK
+        </button>
+      </p>
+    </div>
+    <!-- Not exclusive: with /all down, the runs /mine returned (hidden ones too) still list. -->
+    <p v-if="error" class="text-[11px] text-red-700 font-semibold">Could not reach the collector: {{ error }}</p>
+    <p v-if="loading && !allRows.length && !mineRows" class="text-[11px] text-indigo-900/60 py-6 text-center">
+      Loading…
+    </p>
+    <p v-else-if="!myKey && !mineRows?.length" class="text-[11px] text-indigo-900/70 py-4">
+      Load your save to see your own runs here. They are the runs this browser sent for your account, plus older runs
+      with your timezone and artifacts.
+    </p>
+    <MyRunsList
+      v-else-if="!error || mineRows?.length"
+      :rows="myRunRows"
+      :csv-root="csvRoot"
+      :view-zone="viewZone"
+      :egg-day-at="eggDayAt"
+      :egg-day-year="eggDayYear"
+      @use="c => emit('use', c)"
+    />
+    <MyRunsMissing
+      v-if="loadedOnce && (myKey || mineRows?.length)"
+      :rows="mergedRows"
+      :look-alike="lookAlike"
+      :save-key="myKey"
+      :has-code="hasCode"
+    />
+    <!-- Who sees your runs (moved here from Compare's My plans, 15 Oct 2026): hide every run this
+         browser sent for the account, or show them all again, and the hidden ones, listed apart and
+         muted, each with "Show again". Only when /mine answered: without this browser's code nothing
+         here could be proved yours. -->
+    <section
+      v-if="mineRows?.length"
+      class="mt-2 space-y-2 rounded-lg border border-slate-200 bg-white/60 p-3 text-[11px]"
+      aria-label="Who sees your runs"
+    >
+      <div class="flex flex-wrap items-center gap-2">
+        <h4 class="mr-auto text-[9px] font-black uppercase tracking-widest text-slate-500">Who sees your runs</h4>
+        <button
+          v-if="myPublicCount"
+          type="button"
+          class="px-2.5 py-1 rounded-md border border-slate-300 text-[10px] font-bold text-slate-600 hover:border-indigo-400 hover:text-indigo-800 disabled:opacity-50"
+          :disabled="hideAllBusy || hideBusy.size > 0"
+          @click="changeHidden({ all: true }, true)"
+        >
+          {{ hideAllBusy ? 'Working…' : 'Hide all my runs from the public' }}
+        </button>
+        <button
+          v-if="myHidden.length"
+          type="button"
+          class="px-2.5 py-1 rounded-md border border-slate-300 text-[10px] font-bold text-slate-600 hover:border-indigo-400 hover:text-indigo-800 disabled:opacity-50"
+          :disabled="hideAllBusy || hideBusy.size > 0"
+          @click="changeHidden({ all: true }, false)"
+        >
+          {{ hideAllBusy ? 'Working…' : 'Show all again' }}
+        </button>
+      </div>
+      <!-- ABOUT LINK: when the About page has a section on hidden runs, link "the planner's
+           maintainer" here to it. -->
+      <p class="text-slate-500">
+        A hidden run leaves the public board but stays here for you. Only you and the planner's maintainer will see it.
+        Nothing is deleted, and you can show it again any time.
+      </p>
+      <div v-if="myHidden.length">
+        <p class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">
+          Hidden from the public ({{ myHidden.length }})
+        </p>
+        <ul class="divide-y divide-slate-100 text-slate-500">
+          <li v-for="h in myHidden" :key="h.id ?? contentFingerprint(h)" class="py-1.5">
+            <div class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+              <button
+                type="button"
+                class="text-slate-400 hover:text-indigo-700"
+                :aria-expanded="openHidden === (h.id ?? '')"
+                :aria-label="`Show what ${h.chain.join(' ')} was simulated with`"
+                @click="openHidden = openHidden === (h.id ?? '') ? '' : (h.id ?? '')"
+              >
+                {{ openHidden === (h.id ?? '') ? '⌄' : '›' }}
+              </button>
+              <span class="font-mono">{{ h.chain.join(' ') }}</span>
+              <span v-if="isDeadlineRow(h)">{{ h.finalTE }} TE by {{ deadlineText(h.deadline as number) }}</span>
+              <span v-else :title="finishTitle(finishMs(h), h.timezone)"
+                >to {{ h.finalTE }}, finishes {{ finishDateText(finishMs(h), viewZone) }}</span
+              >
+              <span :title="sentTitle(h.receivedAt ?? h.submittedAt)"
+                >sent {{ sentText(h.receivedAt ?? h.submittedAt) }}</span
+              >
+              <span class="ml-auto whitespace-nowrap">
+                Hidden from the public ·
+                <button
+                  type="button"
+                  class="font-semibold text-indigo-700 underline hover:text-indigo-900 disabled:opacity-50 disabled:no-underline"
+                  :disabled="hideAllBusy || (!!h.id && hideBusy.has(h.id))"
+                  @click="h.id && changeHidden({ ids: [h.id] }, false)"
+                >
+                  {{ h.id && hideBusy.has(h.id) ? 'Showing…' : 'Show again' }}
+                </button>
+              </span>
+            </div>
+            <div v-if="h.id && openHidden === h.id" class="mt-2 rounded-lg bg-slate-50 px-3 py-3">
+              <LeaderboardRunDetail :row="h" :csv-root="csvRoot" :view-zone="viewZone" />
+            </div>
+          </li>
+        </ul>
+      </div>
+    </section>
+    <p v-if="capped" class="text-[10px] text-amber-800">
+      The collector sent its maximum of {{ plural(ALL_CAP, 'run') }}, so the oldest or slowest runs may be missing.
+    </p>
+  </div>
+
+  <div v-else class="space-y-4">
     <div class="p-4 rounded-xl border border-indigo-200 bg-indigo-50/40 space-y-3">
       <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 class="text-[10px] font-black text-indigo-700 uppercase tracking-widest">Route leaderboard</h3>
         </div>
-        <div v-if="tab !== 'insights'" class="flex items-end gap-2">
+        <div v-if="boardView" class="flex items-end gap-2">
           <label v-if="tab !== 'dates' && tab !== 'eggday'" class="block">
             <span class="block text-[9px] font-black uppercase tracking-widest text-indigo-700/70 mb-1">Target TE</span>
             <select v-model="final" class="rounded-lg border-indigo-200 text-xs font-bold text-slate-700 py-1.5">
@@ -81,7 +228,7 @@
            about may have just left the list it was clicked in. -->
       <div aria-live="polite">
         <p
-          v-if="hideMsg && tab !== 'insights'"
+          v-if="hideMsg && boardView"
           class="flex items-start justify-between gap-3 rounded-lg border px-3 py-2 text-[11px]"
           :class="hideMsgClass(hideMsg)"
         >
@@ -99,6 +246,10 @@
       <!-- Insights: the Chain Explorer's charts (its own load, filters and refresh), in place of a
            link out to its page (the unified layout, phase 4). -->
       <ChainExplorer v-if="tab === 'insights'" part="insights" embedded />
+
+      <!-- Your latest run: this visit's Fastest run's other options and charts (LatestRunView.vue; moved
+           here off Fastest's results, 15 Oct 2026). Reads the search's store, not the collector. -->
+      <LatestRunView v-else-if="tab === 'latest'" />
 
       <p v-else-if="error" class="text-[11px] text-red-700 font-semibold">Could not reach the collector: {{ error }}</p>
 
@@ -196,7 +347,11 @@
                         </button>
                       </td>
                       <td class="py-2 pr-3 text-right font-black text-slate-500">{{ e.rank }}</td>
-                      <td class="py-2 pr-3 font-bold text-slate-700">
+                      <td
+                        class="py-2 pr-3 font-bold text-slate-700 cursor-pointer"
+                        data-testid="row-open-name"
+                        @click="onRowClick($event, () => (openPlayers[e.key] = !openPlayers[e.key]))"
+                      >
                         <span class="whitespace-nowrap"
                           >{{ e.label }}
                           <span
@@ -228,7 +383,11 @@
                           >
                         </div>
                       </td>
-                      <td v-if="!narrow" class="py-2 pr-3">
+                      <td
+                        v-if="!narrow"
+                        class="py-2 pr-3 cursor-pointer"
+                        @click="onRowClick($event, () => (openPlayers[e.key] = !openPlayers[e.key]))"
+                      >
                         <span class="font-mono font-bold text-slate-700 whitespace-nowrap">{{
                           e.best.row.chain.join(' ')
                         }}</span>
@@ -397,7 +556,6 @@
         </template>
       </template>
 
-      <!-- ================================================================== MINE -->
       <!-- ======================================================= EGG DAY, AND BY A DATE -->
       <template v-else-if="tab === 'eggday' || tab === 'dates'">
         <p v-if="tab === 'eggday'" class="text-[11px] text-indigo-900/80 leading-relaxed">
@@ -570,339 +728,6 @@
         </div>
       </template>
 
-      <template v-else-if="tab === 'mine'">
-        <p v-if="!myKey && !mineRows?.length" class="text-[11px] text-indigo-900/70 py-4">
-          Load your save to see your own plans here. They are the runs this browser sent for your account, plus older
-          runs with your timezone and artifacts.
-        </p>
-        <p v-else-if="target == null" class="text-[11px] text-indigo-900/70 py-4">
-          Pick a target TE above to see your plans to it.
-        </p>
-        <p v-else-if="!mine && myHidden.length" class="text-[11px] text-indigo-900/70 py-4">
-          None of your public runs go to {{ target }}. Your runs hidden from the public are listed below.
-        </p>
-        <p v-else-if="!mine" class="text-[11px] text-indigo-900/70 py-4">
-          None of the runs to {{ target }} on the board are yours yet. This browser hasn't sent one for this account,
-          and none match your timezone and artifacts. Share a result and it will show up here.
-        </p>
-        <template v-else>
-          <p class="text-[11px] text-indigo-900/80 leading-relaxed">
-            <template v-if="mine.best">
-              Your best current plan finishes
-              <span class="font-bold" :title="finishTitle(mine.best.finish, mine.best.row.timezone)">{{
-                finishDateText(mine.best.finish, viewZone)
-              }}</span>
-              ({{ daysLeftPhrase(mine.best.finish, now, viewZone) }})<template v-if="myPlace">, {{ myPlace }}</template
-              >.
-            </template>
-            <template v-else>None of your plans to {{ target }} count right now. The reasons are below.</template>
-            {{ mine.sends }} {{ mine.sends === 1 ? 'run' : 'runs' }} sent, {{ mine.plansTried }} different
-            {{ mine.plansTried === 1 ? 'plan' : 'plans' }}.
-          </p>
-          <p v-if="mine.best && mine.listed.length" class="text-[10px] text-slate-500 leading-relaxed">
-            "vs your best" only compares plans made from the same save and priced by the same version of the planner, so
-            the gap comes from the plans alone. For a plan from an older save, press Use to price it again from today's
-            save.
-          </p>
-          <!-- Filters (lib/planFilters.ts): "what is best if I play these hours, start that day, take
-               this many ascensions". Each row only appears when your runs differ on it, and with
-               nothing chosen the list below is exactly the unfiltered one. Chips wrap on a phone. -->
-          <div
-            v-if="filterBar.length || groupChoices.length"
-            class="space-y-1.5 rounded-lg border border-indigo-100 bg-white/60 p-2"
-            role="group"
-            aria-label="Filter your plans"
-          >
-            <div v-for="r in filterBar" :key="r.key" class="flex flex-wrap items-center gap-1">
-              <span
-                class="w-full sm:w-24 shrink-0 text-[9px] font-black uppercase tracking-widest text-indigo-700/70"
-                :title="r.title"
-                >{{ r.label }}</span
-              >
-              <button
-                type="button"
-                :class="chipClass(mineApplied[r.key] === null)"
-                :aria-pressed="mineApplied[r.key] === null"
-                @click="pick(r.key, null)"
-              >
-                All
-              </button>
-              <button
-                v-for="o in r.options"
-                :key="String(o.value)"
-                type="button"
-                :class="chipClass(mineApplied[r.key] === o.value)"
-                :aria-pressed="mineApplied[r.key] === o.value"
-                :title="o.title"
-                @click="pick(r.key, o.value)"
-              >
-                {{ o.label }}
-              </button>
-            </div>
-            <div v-if="groupChoices.length" class="flex flex-wrap items-center gap-1">
-              <span
-                class="w-full sm:w-24 shrink-0 text-[9px] font-black uppercase tracking-widest text-indigo-700/70"
-                title="Show only the best plan for each value, so the values can be compared side by side"
-                >Best for each</span
-              >
-              <button
-                type="button"
-                :class="chipClass(mineApplied.groupBy === null)"
-                :aria-pressed="mineApplied.groupBy === null"
-                @click="setFilter('groupBy', null)"
-              >
-                Off
-              </button>
-              <button
-                v-for="g in groupChoices"
-                :key="g"
-                type="button"
-                :class="chipClass(mineApplied.groupBy === g)"
-                :aria-pressed="mineApplied.groupBy === g"
-                @click="setFilter('groupBy', g)"
-              >
-                {{ GROUP_LABELS[g] }}
-              </button>
-              <button
-                v-if="mineFiltered"
-                type="button"
-                class="ml-auto text-[10px] font-black uppercase tracking-widest text-indigo-700/70 hover:text-indigo-900"
-                @click="mineFilters = { ...NO_FILTERS }"
-              >
-                Clear
-              </button>
-            </div>
-          </div>
-
-          <template v-if="!mineFiltered">
-            <LeaderboardPlanList
-              v-if="mine.best"
-              :plans="[mine.best, ...mine.listed]"
-              :all-plans="shownPlans(mine)"
-              :best="mine.best"
-              :resends="mine.resends"
-              :now="now"
-              :view-zone="viewZone"
-              :csv-root="csvRoot"
-              gap-label="vs your best"
-              @use="c => emit('use', c)"
-            />
-            <div v-if="mine.dropped.length">
-              <h4 class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Not counted</h4>
-              <LeaderboardPlanList
-                :plans="mine.dropped"
-                :all-plans="shownPlans(mine)"
-                :now="now"
-                :view-zone="viewZone"
-                :csv-root="csvRoot"
-                show-reason
-                @use="c => emit('use', c)"
-              />
-            </div>
-          </template>
-
-          <!-- Filtered: the same lists, sliced. The gap column is measured against the best plan shown,
-               so with "best for each" it compares the groups' best plans with each other. -->
-          <template v-else-if="mineApplied.goal !== 'deadline'">
-            <div v-if="mineGroups.length" class="rounded-lg border border-emerald-200 bg-emerald-50/60 px-3 py-2">
-              <p class="text-[9px] font-black uppercase tracking-widest text-emerald-800 mb-1">
-                Best plan to {{ target }} for each {{ GROUP_LABELS[mineApplied.groupBy!] }}
-              </p>
-              <ul class="space-y-0.5 text-[11px] text-emerald-950">
-                <li v-for="(g, i) in mineGroups" :key="g.label" class="flex flex-wrap gap-x-2">
-                  <span class="font-bold">{{ g.label }}</span>
-                  <span class="font-mono text-slate-600">{{ g.plan.row.chain.join(' ') }}</span>
-                  <span :title="finishTitle(g.plan.finish, g.plan.row.timezone)"
-                    >finishes {{ finishDateText(g.plan.finish, viewZone)
-                    }}<template v-if="i === 0"> (soonest)</template></span
-                  >
-                </li>
-              </ul>
-            </div>
-            <LeaderboardPlanList
-              v-if="mineShown.length"
-              :plans="mineShown"
-              :all-plans="shownPlans(mine)"
-              :best="mineShown[0]"
-              :resends="mine.resends"
-              :now="now"
-              :view-zone="viewZone"
-              :csv-root="csvRoot"
-              gap-label="vs best shown"
-              @use="c => emit('use', c)"
-            />
-            <p v-else class="text-[11px] text-indigo-900/60 py-4 text-center">
-              None of your current plans to {{ target }} are in these categories.
-            </p>
-            <div v-if="mineDroppedShown.length">
-              <h4 class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Not counted</h4>
-              <LeaderboardPlanList
-                :plans="mineDroppedShown"
-                :all-plans="shownPlans(mine)"
-                :now="now"
-                :view-zone="viewZone"
-                :csv-root="csvRoot"
-                show-reason
-                @use="c => emit('use', c)"
-              />
-            </div>
-          </template>
-
-          <!-- Your "highest TE by a date" answers, which the list above never held. Folded away until
-               the goal filter asks for them, so the default view is the list it always was. -->
-          <details
-            v-if="mineApplied.goal !== 'target' && (mineDeadlines.length || mineApplied.goal === 'deadline')"
-            :open="mineApplied.goal === 'deadline'"
-            class="text-[11px] text-indigo-900/80"
-          >
-            <summary class="cursor-pointer font-semibold">
-              Your answers to {{ NAMES.byDate }} ({{ mineDeadlines.reduce((n, g) => n + g.rows.length, 0) }})
-            </summary>
-            <p v-if="!mineDeadlines.length" class="py-4 text-center text-indigo-900/60">
-              None of your answers by a date are in these categories.
-            </p>
-            <div
-              v-for="g in mineDeadlines"
-              :key="g.deadline"
-              class="mt-2 rounded-lg border border-indigo-100 bg-white p-2"
-            >
-              <p class="text-[10px] font-black uppercase tracking-widest text-indigo-800 mb-1">
-                By {{ deadlineText(g.deadline) }}
-              </p>
-              <div class="overflow-x-auto">
-                <table class="w-full text-[11px] tabular-nums">
-                  <thead>
-                    <tr
-                      class="text-left text-[9px] font-black uppercase tracking-widest text-indigo-700/60 whitespace-nowrap"
-                    >
-                      <th v-if="mineApplied.groupBy" class="pr-3 py-1">Best for</th>
-                      <th class="pr-3 py-1">TE by then</th>
-                      <th class="pr-3 py-1">Route</th>
-                      <th class="pr-3 py-1">Spare</th>
-                      <th class="pr-3 py-1">Starts</th>
-                      <th class="pr-3 py-1">Hours</th>
-                      <th class="py-1"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="r in g.rows" :key="r.id ?? contentFingerprint(r)" class="border-t border-indigo-50">
-                      <td v-if="mineApplied.groupBy" class="pr-3 py-1 font-bold whitespace-nowrap">
-                        {{ groupLabel(r, mineApplied.groupBy, viewZone) }}
-                      </td>
-                      <td class="pr-3 py-1 font-black text-indigo-900">{{ r.finalTE }}</td>
-                      <td class="pr-3 py-1 font-mono">{{ r.chain.join(' ') }}</td>
-                      <td class="pr-3 py-1 whitespace-nowrap">{{ spareText(deadlineSpare(r)) }}</td>
-                      <td class="pr-3 py-1 whitespace-nowrap" :title="r.timezone">{{ startText(r) }}</td>
-                      <td class="pr-3 py-1 whitespace-nowrap text-slate-500" :title="hoursTitle(r.window)">
-                        {{ hoursLabel(r.window) }}
-                      </td>
-                      <td class="py-1 text-right whitespace-nowrap">
-                        <button
-                          v-if="r.id && mineIds.has(r.id)"
-                          type="button"
-                          class="mr-2 text-[10px] font-semibold text-slate-400 underline hover:text-indigo-800 disabled:opacity-50"
-                          title="Only you and the planner's maintainer will see it."
-                          :disabled="hideAllBusy || hideBusy.has(r.id)"
-                          @click="changeHidden({ ids: [r.id] }, true)"
-                        >
-                          {{ hideBusy.has(r.id) ? 'Hiding…' : 'Hide from the public' }}
-                        </button>
-                        <button
-                          type="button"
-                          class="px-2 py-0.5 rounded-md border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-700"
-                          @click="emit('use', r.chain)"
-                        >
-                          Use
-                        </button>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </details>
-        </template>
-
-        <!-- Who sees your runs: hide every run this browser sent for the account, or show them all
-             again, and the hidden ones, listed apart and muted, each with "Show again". Only when /mine
-             answered: without this browser's code nothing here could be proved yours. -->
-        <section
-          v-if="mineRows?.length"
-          class="mt-2 space-y-2 rounded-lg border border-slate-200 bg-white/60 p-3 text-[11px]"
-          aria-label="Who sees your runs"
-        >
-          <div class="flex flex-wrap items-center gap-2">
-            <h4 class="mr-auto text-[9px] font-black uppercase tracking-widest text-slate-500">Who sees your runs</h4>
-            <button
-              v-if="myPublicCount"
-              type="button"
-              class="px-2.5 py-1 rounded-md border border-slate-300 text-[10px] font-bold text-slate-600 hover:border-indigo-400 hover:text-indigo-800 disabled:opacity-50"
-              :disabled="hideAllBusy || hideBusy.size > 0"
-              @click="changeHidden({ all: true }, true)"
-            >
-              {{ hideAllBusy ? 'Working…' : 'Hide all my runs from the public' }}
-            </button>
-            <button
-              v-if="myHidden.length"
-              type="button"
-              class="px-2.5 py-1 rounded-md border border-slate-300 text-[10px] font-bold text-slate-600 hover:border-indigo-400 hover:text-indigo-800 disabled:opacity-50"
-              :disabled="hideAllBusy || hideBusy.size > 0"
-              @click="changeHidden({ all: true }, false)"
-            >
-              {{ hideAllBusy ? 'Working…' : 'Show all again' }}
-            </button>
-          </div>
-          <!-- ABOUT LINK: when the About page has a section on hidden runs, link "the planner's
-               maintainer" here to it. -->
-          <p class="text-slate-500">
-            A hidden run leaves the public board but stays here for you. Only you and the planner's maintainer will see
-            it. Nothing is deleted, and you can show it again any time.
-          </p>
-          <div v-if="myHidden.length">
-            <p class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">
-              Hidden from the public ({{ myHidden.length }})
-            </p>
-            <ul class="divide-y divide-slate-100 text-slate-500">
-              <li v-for="h in myHidden" :key="h.id ?? contentFingerprint(h)" class="py-1.5">
-                <div class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                  <button
-                    type="button"
-                    class="text-slate-400 hover:text-indigo-700"
-                    :aria-expanded="openHidden === (h.id ?? '')"
-                    :aria-label="`Show what ${h.chain.join(' ')} was simulated with`"
-                    @click="openHidden = openHidden === (h.id ?? '') ? '' : (h.id ?? '')"
-                  >
-                    {{ openHidden === (h.id ?? '') ? '⌄' : '›' }}
-                  </button>
-                  <span class="font-mono">{{ h.chain.join(' ') }}</span>
-                  <span v-if="isDeadlineRow(h)">{{ h.finalTE }} TE by {{ deadlineText(h.deadline as number) }}</span>
-                  <span v-else :title="finishTitle(finishMs(h), h.timezone)"
-                    >to {{ h.finalTE }}, finishes {{ finishDateText(finishMs(h), viewZone) }}</span
-                  >
-                  <span :title="sentTitle(h.receivedAt ?? h.submittedAt)"
-                    >sent {{ sentText(h.receivedAt ?? h.submittedAt) }}</span
-                  >
-                  <span class="ml-auto whitespace-nowrap">
-                    Hidden from the public ·
-                    <button
-                      type="button"
-                      class="font-semibold text-indigo-700 underline hover:text-indigo-900 disabled:opacity-50 disabled:no-underline"
-                      :disabled="hideAllBusy || (!!h.id && hideBusy.has(h.id))"
-                      @click="h.id && changeHidden({ ids: [h.id] }, false)"
-                    >
-                      {{ h.id && hideBusy.has(h.id) ? 'Showing…' : 'Show again' }}
-                    </button>
-                  </span>
-                </div>
-                <div v-if="h.id && openHidden === h.id" class="mt-2 rounded-lg bg-slate-50 px-3 py-3">
-                  <LeaderboardRunDetail :row="h" :csv-root="csvRoot" :view-zone="viewZone" />
-                </div>
-              </li>
-            </ul>
-          </div>
-        </section>
-      </template>
-
       <!-- ================================================================== ALL RUNS -->
       <template v-else>
         <p class="text-[11px] text-indigo-900/80 leading-relaxed">
@@ -966,8 +791,10 @@
                            other column off screen. The whole name is in the tooltip. -->
                       <td
                         v-if="c.key === 'nickname'"
-                        class="py-2 pr-3 font-bold text-slate-700"
+                        class="py-2 pr-3 font-bold text-slate-700 cursor-pointer"
                         :title="line.nickname || undefined"
+                        data-testid="row-open-name"
+                        @click="onRowClick($event, () => (open = open === line.key ? '' : line.key))"
                       >
                         <span class="block max-w-[8rem] truncate whitespace-nowrap">{{
                           line.nickname || 'anonymous'
@@ -995,7 +822,11 @@
                       <!-- A route of up to nine checkpoints stays on one line; a longer one (a
                            15-checkpoint sweep result) wraps rather than widening the table. The chips
                            after it wrap under it when the table would not fit otherwise. -->
-                      <td v-else-if="c.key === 'chain'" class="py-2 pr-3">
+                      <td
+                        v-else-if="c.key === 'chain'"
+                        class="py-2 pr-3 cursor-pointer"
+                        @click="onRowClick($event, () => (open = open === line.key ? '' : line.key))"
+                      >
                         <span
                           class="font-mono font-bold text-slate-700"
                           :class="
@@ -1104,7 +935,7 @@
         </div>
       </template>
 
-      <p v-if="capped && tab !== 'insights'" class="text-[10px] text-amber-800">
+      <p v-if="capped && boardView" class="text-[10px] text-amber-800">
         The collector sent its maximum of {{ plural(ALL_CAP, 'run') }}, so the oldest or slowest runs may be missing.
       </p>
     </div>
@@ -1113,6 +944,7 @@
 
 <script setup lang="ts">
 import { plural } from '@/lib/format';
+import { onRowClick } from '@/lib/rowClick';
 import { COMPARE_VIEWS, NAMES, type CompareView } from '@/lib/siteNav';
 import { useUIStore } from '@/stores/ui';
 import { safeAsyncComponent } from '@/lib/import';
@@ -1140,12 +972,9 @@ import {
   foundByText,
   hiddenRuns,
   publicRows,
-  deadlineOrder,
-  deadlineSpare,
   isDeadlineRow,
   isNoCodeLine,
   localZone,
-  madeDeadline,
   placeFor,
   plannedText,
   provisionalTag,
@@ -1153,7 +982,6 @@ import {
   scheduleText,
   settingTagTitle,
   settingTags,
-  startMs,
   viewerTag,
   whoText,
   type BoardRow,
@@ -1162,21 +990,9 @@ import {
   type RaceEntry,
   type ViewerTag,
 } from '@/lib/leaderboardRank';
-import {
-  bestPerGroup,
-  planFilterBar,
-  groupLabel,
-  hoursLabel,
-  hoursTitle,
-  inFilters,
-  isFiltered,
-  loadPlanFilters,
-  savePlanFilters,
-  NO_FILTERS,
-  type FilterOption,
-  type GroupBy,
-  type PlanFilters,
-} from '@/lib/planFilters';
+import { isMyRun, myRunsCount, nameKeys } from '@/lib/myRuns';
+import { rememberKey, rememberedKeys } from '@/lib/myKeys';
+import { useAccountName, useSharedName } from '@/composables/useShareResult';
 import { virtueInventory } from '@/search/csv';
 import { bestPerFamily, keepVirtueArtifacts } from '@/search/submission';
 import { existingOwnerToken } from '@/search/owner';
@@ -1194,16 +1010,30 @@ import { hashID } from '@/lib/storage/db';
 import { eggDaySeconds, nextEggDayYear } from '@/lib/eggDay';
 import LeaderboardPlanList from './LeaderboardPlanList.vue';
 import LeaderboardRunDetail from './LeaderboardRunDetail.vue';
+import MyRunsList from './MyRunsList.vue';
+import MyRunsMissing from './MyRunsMissing.vue';
 
 /** Insights: the Explorer's charts and their chart library load only when that tab opens. */
 const ChainExplorer = safeAsyncComponent(() => import('@/explorer/ChainExplorer.vue'));
+/** Your latest run: loads only when that tab opens (its charts load later still, when drawn). */
+const LatestRunView = safeAsyncComponent(() => import('./LatestRunView.vue'));
 
 const props = defineProps<{
   /** The account whose owner code asks GET /mine for "my" rows. Only its hash is used, as the
    *  storage key the code is kept under; the id itself never leaves the browser. */
   playerId?: string;
+  /** 'myruns': My runs' "Your runs on the board" (MyRunsView.vue), the viewer's own runs of every kind
+   *  without Compare's tabs. Compare's views otherwise. */
+  mode?: 'compare' | 'myruns';
 }>();
-const emit = defineEmits<{ use: [chain: number[]] }>();
+const emit = defineEmits<{
+  use: [chain: number[]];
+  /** My runs only: how many of the viewer's runs are on the board, null until the first load is in. */
+  count: [n: number | null];
+  /** My runs only: those runs themselves (for its summary, MyRunsDashboard), null until the first load is in. */
+  rows: [rows: BoardRow[] | null];
+}>();
+const myRunsMode = computed(() => props.mode === 'myruns');
 
 /** The collector's row shape (lib/leaderboardRank.ts). Loose on purpose: this reads a public
  *  endpoint that may be a version ahead or behind, and a missing field should render a dash. */
@@ -1232,8 +1062,17 @@ const tab = computed<Tab>({
   get: () => ui.compareView,
   set: v => (ui.compareView = v),
 });
+/** The views that read the collector's board (not Insights, which loads its own, nor Your latest run,
+ *  which reads this visit's search). */
+function isBoardView(t: Tab): boolean {
+  return t !== 'insights' && t !== 'latest';
+}
+/** My runs always reads the board. */
+const boardView = computed(() => myRunsMode.value || isBoardView(tab.value));
 const allRows = ref<Row[]>([]);
 const loading = ref(false);
+/** The first load has answered (or failed): My runs folds an empty part only then. */
+const loadedOnce = ref(false);
 const error = ref('');
 /** True when the collector's list hit its cap, so some runs may be missing. */
 const capped = ref(false);
@@ -1301,7 +1140,8 @@ function tabLabel(t: Tab): string {
   if (t === 'dates') return 'By a date';
   if (t === 'eggday') return `Egg Day ${eggDayYear}`;
   if (t === 'insights') return NAMES.insights;
-  return t === 'mine' ? 'My plans' : 'All runs';
+  if (t === 'latest') return NAMES.latest;
+  return 'All runs';
 }
 
 /** Target-TE options, from what has actually been submitted plus the player's own target. */
@@ -1332,6 +1172,50 @@ const myKey = computed(() => {
   return accountKeyOf({ timezone, artifacts: labels });
 });
 
+/** The loaded account's partition hash (lib/storage/db.ts `hashID`), '' with none: what lib/myKeys.ts keys by. */
+const partition = ref('');
+watch(
+  () => props.playerId?.trim() ?? '',
+  async id => {
+    const p = id ? await hashID(id).catch(() => '') : '';
+    if ((props.playerId?.trim() ?? '') === id) partition.value = p;
+  },
+  { immediate: true }
+);
+/**
+ * The account keys this browser remembered for the account (lib/myKeys.ts), the save's own added
+ * whenever one is loaded -- only a save of this very account, never the one left over from the last.
+ */
+const keptKeys = ref<string[]>([]);
+watch(
+  [partition, myKey],
+  ([p, key]) => {
+    const raw = initialState.rawBackup as { eiUserId?: string | null } | null;
+    const own = !!key && !!raw?.eiUserId && raw.eiUserId.toLowerCase() === (props.playerId ?? '').trim().toLowerCase();
+    keptKeys.value = !p ? [] : own ? rememberKey(p, key as string) : rememberedKeys(p);
+  },
+  { immediate: true }
+);
+/** Every key that is the viewer's (lib/myRuns.ts `isMyRun`): the save's, the remembered ones, /mine's rows'. */
+const myKeys = computed<ReadonlySet<string>>(() => {
+  const keys = new Set<string>(keptKeys.value);
+  if (myKey.value) keys.add(myKey.value);
+  for (const r of mineRows.value ?? []) keys.add(accountKeyOf(r));
+  return keys;
+});
+/** The names this account sends under: its own, the one it credits runs to here, and those on its /mine rows. */
+const accountName = useAccountName(() => props.playerId ?? '');
+const sharedName = useSharedName(() => props.playerId ?? '');
+const myNames = computed(() =>
+  nameKeys([accountName.value, sharedName.get(), ...(mineRows.value ?? []).map(r => r.nickname)])
+);
+/** What My runs' look-alike match and its "isn't here?" answer read; no look-alikes without a save. */
+const lookAlike = computed(() => ({
+  keys: myKey.value ? myKeys.value : new Set<string>(),
+  names: myNames.value,
+  viewerTE: myTE.value,
+}));
+
 /** The save's own TE, for "near me". */
 const myTE = computed(() => (initialState.rawBackup ? store.backupTE : 0));
 
@@ -1341,6 +1225,8 @@ const myTE = computed(() => (initialState.rawBackup ? store.backupTE : 0));
  * yet (nothing sent from this browser), or a collector from before /mine.
  */
 const mineRows = ref<Row[] | null>(null);
+/** This site in this browser holds a code for the loaded account (so /mine could be asked at all). */
+const hasCode = ref(false);
 const mineIds = computed(() => new Set((mineRows.value ?? []).map(r => r.id).filter((x): x is string => !!x)));
 const myAccts = computed(() => new Set((mineRows.value ?? []).map(r => r.acct).filter((x): x is string => !!x)));
 
@@ -1574,8 +1460,10 @@ function triedTitle(e: RaceEntry): string {
   return `${sent}${from}. Each plan counts once, however often it was run or sent.${noCode}`;
 }
 
-// -------------------------------------------------------------------------------- my plans
+// ----------------------------------------------------------------------- the viewer's own runs
 
+/** The viewer's best plan to the race's target (lib/leaderboardRank.ts `buildMyPlans`), for the line
+ *  above the race that says where it would place. */
 const mine = computed(() =>
   (myKey.value || mineRows.value?.length) && target.value != null
     ? buildMyPlans(mergedRows.value, myKey.value, { target: target.value, now: now.value, zone: viewZone })
@@ -1583,128 +1471,28 @@ const mine = computed(() =>
 );
 
 /**
- * The viewer's "highest TE by a date" answers, which `buildMyPlans` leaves out (they are not plans to
- * the target): theirs by /mine or by timezone and artifacts, one per copy, answers that make their
- * date only, best first by the By a date board's own order.
+ * My runs' rows (mode "myruns"): every run of the viewer's on the board, any kind and target, the ones
+ * hidden from the public included (marked `hidden`), by /mine or by the save's timezone and artifacts
+ * (lib/myRuns.ts `isMyRun`). Replaced Compare's My plans, which showed one target's runs only.
  */
-const myDeadlineRows = computed<Row[]>(() => {
+const myRunRows = computed<Row[]>(() => {
   if (!myKey.value && !mineRows.value?.length) return [];
-  const rows = mergedRows.value.filter(
-    r =>
-      isDeadlineRow(r) &&
-      !r.flags?.length &&
-      !r.hidden &&
-      madeDeadline(r) &&
-      !(typeof r.backupAgeHours === 'number' && r.backupAgeHours < -1) &&
-      (r.yours || (myKey.value != null && accountKeyOf(r) === myKey.value))
-  );
-  return foldCopies(rows)
-    .map(f => f.row)
-    .sort((a, b) => (a.deadline as number) - (b.deadline as number) || deadlineOrder(a, b));
+  const l = lookAlike.value;
+  return mergedRows.value.filter(r => isMyRun(r, l.keys, l.viewerTE, l.names));
 });
-
-/** The My plans filters, remembered in this browser (lib/planFilters.ts). */
-const mineFilters = ref<PlanFilters>(loadPlanFilters());
-watch(mineFilters, savePlanFilters, { deep: true });
-
-/** My plans' current plans, best first: what the filters slice and "the best for each" picks from. */
-const mineCurrent = computed<Plan[]>(() => (mine.value?.best ? [mine.value.best, ...mine.value.listed] : []));
-
-/**
- * The bar and the filters as they apply (lib/planFilters.ts `planFilterBar`). The Goal chips switch
- * between the fastest-route plans and the answers by a date; every other chip is built from the list
- * on show and offered only when it leaves at least one row there.
- */
-const mineBar = computed(() =>
-  planFilterBar({
-    fastest: mineCurrent.value.length ? mineCurrent.value.map(p => p.row) : (mine.value?.dropped ?? []).map(p => p.row),
-    dated: myDeadlineRows.value,
-    filters: mineFilters.value,
-    zone: viewZone,
-    target: target.value,
-  })
+// How many, for My runs' header and to fold its part when there are none; null until the first load is
+// in. One per result, as the list counts them (`myRunsCount`): a result sent twice is one run.
+watch(
+  () => (myRunsMode.value && loadedOnce.value ? myRunsCount(myRunRows.value) : null),
+  n => emit('count', n),
+  { immediate: true }
 );
-const mineApplied = computed(() => mineBar.value.applied);
-const mineFiltered = computed(() => isFiltered(mineApplied.value));
-
-const GROUP_LABELS: Record<GroupBy, string> = { hours: 'hours', day: 'start day', ascensions: 'ascensions' };
-/** The "best for each" choices that make two or more groups. */
-const groupChoices = computed(() => mineBar.value.groupChoices);
-
-type FilterKey = Exclude<keyof PlanFilters, 'groupBy'>;
-
-/** The bar's rows, each only when it is a choice on the list on show. */
-const filterBar = computed(() => {
-  const o = mineBar.value.options;
-  const rows: { key: FilterKey; label: string; title?: string; options: FilterOption<string | number>[] }[] = [
-    { key: 'goal', label: 'Goal', options: o.goal },
-    { key: 'hours', label: 'Playing hours', title: 'The awake hours the plan was made for', options: o.hours },
-    { key: 'day', label: 'Plan starts', title: "The plan's start, on its own clock", options: o.day },
-    { key: 'part', label: 'Start time', title: "The plan's start, on its own clock", options: o.part },
-    { key: 'ascensions', label: 'Ascensions', options: o.ascensions },
-    { key: 'timeOff', label: 'Time off', options: o.timeOff },
-  ];
-  return rows.filter(r => r.options.length > 0);
-});
-
-function setFilter<K extends keyof PlanFilters>(key: K, value: PlanFilters[K]): void {
-  mineFilters.value = { ...mineFilters.value, [key]: value };
-}
-
-/** A chip's value comes from that row's own options, so it is always of the key's type. */
-function pick(key: FilterKey, value: string | number | null): void {
-  setFilter(key, value as never);
-}
-
-function chipClass(on: boolean): string {
-  return `px-2 py-0.5 rounded-full border text-[10px] font-bold whitespace-nowrap ${
-    on
-      ? 'bg-indigo-600 border-indigo-600 text-white'
-      : 'bg-white border-indigo-200 text-indigo-800 hover:border-indigo-400'
-  }`;
-}
-
-/** When an answer by a date starts, on its own clock and a 12-hour one: `Sat 4 Oct, 8 am`. */
-function startText(r: Row): string {
-  return formatDate(startMs(r), r.timezone || viewZone, {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-    hour: 'numeric',
-    hour12: true,
-  });
-}
-
-function slice<T>(items: readonly T[], rowOf: (t: T) => Row): T[] {
-  const f = mineApplied.value;
-  const kept = items.filter(t => inFilters(rowOf(t), f, viewZone));
-  return f.groupBy ? bestPerGroup(kept, rowOf, f.groupBy, viewZone) : kept;
-}
-
-/** The current plans in the chosen categories (only the best of each group when grouping). */
-const mineShown = computed(() => slice(mineCurrent.value, p => p.row));
-/** Dropped plans in the chosen categories; none when grouping, which compares only plans that count. */
-const mineDroppedShown = computed(() =>
-  mineApplied.value.groupBy
-    ? []
-    : (mine.value?.dropped ?? []).filter(p => inFilters(p.row, mineApplied.value, viewZone))
+// And the rows, for My runs' summary at the top (cards and Next steps); null until the first load is in.
+watch(
+  () => (myRunsMode.value && loadedOnce.value ? myRunRows.value : null),
+  rows => emit('rows', rows),
+  { immediate: true }
 );
-/** "The best for each": one line per group, its label and finish. */
-const mineGroups = computed(() => {
-  const by = mineApplied.value.groupBy;
-  return by ? mineShown.value.map(p => ({ label: groupLabel(p.row, by, viewZone), plan: p })) : [];
-});
-
-/** The viewer's answers by a date in the chosen categories, one list per date, best first. */
-const mineDeadlines = computed(() => {
-  const byDate = new Map<number, Row[]>();
-  for (const r of myDeadlineRows.value) {
-    const list = byDate.get(r.deadline as number);
-    if (list) list.push(r);
-    else byDate.set(r.deadline as number, [r]);
-  }
-  return [...byDate].map(([deadline, rows]) => ({ deadline, rows: slice(rows, r => r) })).filter(g => g.rows.length);
-});
 
 /**
  * For a viewer with no line in the race: where their best plan would sit if it carried a name. Shown
@@ -1717,34 +1505,6 @@ const anonPlace = computed(() => {
   const place = placeFor(r, best.finish);
   if (place == null) return '';
   return `You'd be #${place} of ${r.entries.length + 1} if you added a name: your best plan finishes ${finishDateText(best.finish, viewZone)}. Only you see this line.`;
-});
-
-/**
- * "#3 of 11 in the race", or where the viewer would sit if their best plan carried a name.
- *
- * The race line and the best plan here are not always the same plan: the best one may have been
- * sent without a name, and the race only ranks named plans. Then both are said, so the rank shown
- * is never the rank of a different, slower plan passed off as this one's.
- */
-const myPlace = computed(() => {
-  const r = race.value;
-  const best = mine.value?.best;
-  if (!r || !best) return '';
-  const n = r.entries.length;
-  const entry = r.entries.find(isMe);
-  if (!entry) {
-    const place = placeFor(r, best.finish);
-    return place == null ? '' : `you'd be #${place} of ${n + 1} in the race if this plan carried your name`;
-  }
-  const sameLine =
-    entry.best.finish != null && best.finish != null && Math.abs(entry.best.finish - best.finish) < 60_000;
-  if (sameLine) return `#${entry.rank} of ${n} in the race`;
-  const onNamed = `#${entry.rank} of ${n} in the race on your named plan (finishes ${finishDateText(entry.best.finish, viewZone)})`;
-  const place = placeFor(r, best.finish, entry.key);
-  if (place == null) return onNamed;
-  return best.row.nickname?.trim()
-    ? `${onNamed}; this one would place #${place}`
-    : `${onNamed}; this one would be #${place} if you sent it with your name`;
 });
 
 // -------------------------------------------------------------------------------- all runs
@@ -1948,6 +1708,7 @@ const sortedLines = computed(() => sortRows(runLines.value, sortKey.value, sortA
 async function fetchMine(): Promise<Row[] | null> {
   try {
     const token = await ownerCode();
+    hasCode.value = !!token;
     if (!token) return null;
     const res = await fetch(`${root.value}/mine`, { headers: { 'x-owner-token': token } });
     if (!res.ok) return null;
@@ -2007,6 +1768,7 @@ async function load(): Promise<void> {
   } finally {
     mineRows.value = await mine;
     loading.value = false;
+    loadedOnce.value = true;
   }
 }
 
@@ -2026,12 +1788,12 @@ watch(final, () => {
   if (capped.value) void load();
 });
 
-// Not while Insights is open: the Explorer there fetches the runs itself. The board loads the first
+// Not while Insights is open (the Explorer there fetches the runs itself), nor Your latest run. The board loads the first
 // time one of its own views is shown.
 onMounted(() => {
-  if (tab.value !== 'insights') void load();
+  if (boardView.value) void load();
 });
 watch(tab, t => {
-  if (t !== 'insights' && !allRows.value.length && !loading.value && !error.value) void load();
+  if (!myRunsMode.value && isBoardView(t) && !allRows.value.length && !loading.value && !error.value) void load();
 });
 </script>

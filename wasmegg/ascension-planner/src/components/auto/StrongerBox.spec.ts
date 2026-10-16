@@ -14,10 +14,10 @@ describe('StrongerBox', () => {
   it('Fastest: Light, Fast, Exact, Very high; Light by default; the promise text and the results target', async () => {
     const html = await renderHtml(StrongerBox, { goal: 'fastest' });
     const t = textOf(html);
-    expect(t).toMatch(/^Stronger check Checks the instant answer harder.* Light Fast Exact Very high/);
+    expect(t).toMatch(/^Stronger check Checks the instant answer harder.* Light quick, your routes Fast most likely best Exact if you're curious Very high if you're curious/);
     expect(html).toMatch(/aria-checked="true"[^>]*data-testid="level-light"/);
     // Each level in three plain lines; Light looks for no new routes.
-    expect(t).toMatch(/What it does After Check exactly, prices the routes you have already found .* How long Seconds to a few minutes.* What it finds One of your own routes, if it is now faster than the instant answer\. It does not look for new routes\./);
+    expect(t).toMatch(/What it does After Check exactly, prices the instant answer's routes, ascending at once, on your hours.* Then it prices the routes you have already found .* How long Seconds to a few minutes.* What it finds When the instant answer's routes finish if you ascend at once, and one of your own routes, if it is now faster than the instant answer\. It does not look for new routes\./);
     expect(t).toContain('What this does and does not promise');
     // Light's promise: no search, and nothing about searches it doesn't run.
     expect(t).toContain("It can't find a route nobody has tried yet.");
@@ -27,7 +27,7 @@ describe('StrongerBox', () => {
   it('in a tab (SearchTabs.vue): no frame, heading or intro of its own; the levels, promise and results target stay', async () => {
     const html = await renderHtml(StrongerBox, { goal: 'fastest', inTab: true });
     const t = textOf(html);
-    expect(t).toMatch(/^How hard to look Light Fast Exact Very high/);
+    expect(t).toMatch(/^How hard to look Light quick, your routes Fast most likely best Exact if you're curious Very high/);
     expect(t).not.toContain('Stronger check');
     expect(t).not.toContain('Checks the instant answer harder');
     expect(html).not.toContain('border-indigo-200 bg-white p-4');
@@ -46,7 +46,7 @@ describe('StrongerBox', () => {
     });
     const t = textOf(html);
     // Each level shows this computer's time under its name; How long is the chosen level's.
-    expect(t).toMatch(/Light Fast ~1\.1 h Exact ~3\.0 h Very high ~9\.4 h/);
+    expect(t).toMatch(/Light quick, your routes Fast ~1\.1 h a second opinion Exact ~3\.0 h if you're curious Very high ~9\.4 h if you're curious/);
     expect(html).toMatch(/aria-checked="true"[^>]*data-testid="level-normal"/);
     expect(t).toContain('The same, with one more TE either side of each early stop.');
     expect(t).toContain('How long About 3.0 h on this computer (7 workers).');
@@ -213,12 +213,14 @@ describe('Light has nothing to start, and says so (12 Oct)', () => {
     // Check exactly going, Light not started: say what it waits for, with the real progress.
     st.exact = { running: true, done: 4, total: 9 };
     let t = textOf(await renderHtml(StrongerBox, { goal: 'fastest' }));
-    expect(t).toContain('Waiting for Check exactly to finish (4 of 9 routes)… then Light prices your earlier routes on your hours.');
+    expect(t).toContain(
+      "Waiting for Check exactly to finish (4 of 9 routes)… then Light prices the instant answer's routes at once, and your earlier routes, on your hours."
+    );
     expect(t).not.toContain('nothing to start');
     // With the earlier routes already known, say how many.
     st.light = { state: 'idle', priced: 0, total: 6, at: 0 };
     t = textOf(await renderHtml(StrongerBox, { goal: 'fastest' }));
-    expect(t).toContain('then Light prices 6 earlier routes of yours on your hours.');
+    expect(t).toContain("then Light prices the instant answer's routes at once, and 6 earlier routes of yours, on your hours.");
     // Check exactly over, Light pricing, then done.
     st.exact = { running: false, done: 0, total: 0 };
     st.light = { state: 'running', priced: 0, total: 6, at: 0 };
@@ -277,5 +279,127 @@ describe('a finished saved run (12 Oct)', () => {
     expect(t).toContain(`:carry-label="store.resumable.complete ? 'Show its result' : 'Carry on from where it stopped'"`);
     expect(t).toContain('data-testid="run-higher-level"');
     expect(t).not.toContain('carrying it on finds nothing new');
+  });
+});
+
+describe('Light prices the instant answer at once first (14 Oct)', () => {
+  it('running: "Searching" with the CSS dots, then the route it is on; then the earlier routes', async () => {
+    const st = useStrongerStore();
+    st.light = { state: 'running', priced: 0, total: 0, at: 0, instant: { priced: 0, total: 5 }, step: 'Looking at 7 ascensions (1 of 5)…' };
+    let html = await renderHtml(StrongerBox, { goal: 'fastest' });
+    expect(html).toContain('data-testid="light-searching"');
+    expect(html).toContain('animated-dots');
+    expect(html).not.toContain('animate-spin');
+    expect(textOf(html)).toMatch(/Searching \. \. \. Looking at 7 ascensions \(1 of 5\)…/);
+    st.light = { ...st.light, total: 6, priced: 3, step: 'Your earlier routes: 3 of 6…' };
+    html = await renderHtml(StrongerBox, { goal: 'fastest' });
+    expect(textOf(html)).toContain('Your earlier routes: 3 of 6…');
+  });
+  it('done: the instant answer at once, and the earlier routes; the summary line as soon as one lands', async () => {
+    const st = useStrongerStore();
+    const at = new Date(2026, 9, 14, 14, 16).getTime();
+    st.light = {
+      state: 'done',
+      priced: 2,
+      total: 3,
+      at,
+      instant: { priced: 5, total: 5 },
+      summary: "Fastest as you'd play it: 250 → 350 → 490 reaches 490 on Feb 16 (0.40 days sooner than on the hour)",
+    };
+    const t = textOf(await renderHtml(StrongerBox, { goal: 'fastest' }));
+    expect(t).toContain("Done at 2:16 pm: priced the instant answer's 5 routes at once, and 2 of your 3 earlier routes.");
+    expect(t).toContain("Fastest as you'd play it: 250 → 350 → 490 reaches 490 on Feb 16 (0.40 days sooner than on the hour)");
+    // Nothing of the player's, but the instant answer priced at once.
+    st.light = { state: 'done', priced: 0, total: 0, at, instant: { priced: 4, total: 5 } };
+    expect(textOf(await renderHtml(StrongerBox, { goal: 'fastest' }))).toContain(
+      "Done at 2:16 pm: priced 4 of the instant answer's 5 routes at once. Nothing of yours to price yet."
+    );
+  });
+  it('the summary shows at the search levels too (Light runs under them); no summary, no line', async () => {
+    const st = useStrongerStore();
+    expect(await renderHtml(StrongerBox, { goal: 'fastest' })).not.toContain('light-as-played');
+    st.level = 'quick';
+    st.light = { state: 'done', priced: 0, total: 0, at: 1, summary: "As you'd play it: 300 → 310 reaches 310 TE" };
+    expect(await renderHtml(StrongerBox, { goal: 'date' })).toContain('data-testid="light-as-played"');
+  });
+  it("both goals: Light's does, finds and promise name the instant answer's routes, ascending at once, on your hours", async () => {
+    for (const goal of ['fastest', 'date'] as const) {
+      setActivePinia(createPinia());
+      const t = textOf(await renderHtml(StrongerBox, { goal }));
+      expect(t).toContain("What it does After Check exactly, prices the instant answer's routes, ascending at once, on your hours");
+      expect(t).toContain("No search: it only prices the instant answer's routes, ascending at once, on your hours, and routes you have already found");
+      expect(t).toContain('Ascending at once means starting each fresh ascension the moment the one before ends.');
+    }
+  });
+});
+
+describe('the at-once box moved to Light (14 Oct, source)', () => {
+  const read = (f: string) => fs.readFileSync(path.join(__dirname, f), 'utf8');
+  it('the instant answer has no "Also try ascending" box; Check exactly prices on the hour only', () => {
+    const t = read('InstantRoute.vue');
+    expect(t).not.toContain('tryAtOnce');
+    expect(t).not.toContain('Also try ascending the moment');
+    expect(t).toContain("const ways: HandoffChoice[] = ['hour'];");
+    // Saved snapshots (keyed with the old box off) still load.
+    expect(t).toContain('snapKey = cachedKey ? `${cachedKey}|0` : null;');
+    // Light gets the table's rows and each row shows its at-once line.
+    expect(t).toContain(':at-once-rows="lightRows"');
+    expect(t.match(/data-testid="at-once-line"/g)).toHaveLength(2);
+  });
+  it("Light prices at once ('now') on its one pool, one route per worker, and stops with the run", () => {
+    const t = read('StrongerCheck.vue');
+    expect(t).toContain("handoff: 'now'");
+    expect(t).toContain('piece: 1');
+    expect(t).toContain('shouldStop: () => g !== autoGen');
+    // The same inputs and pool path Check exactly uses, made once for both steps.
+    expect(t).toContain('const inputs = store.collectInputs();');
+    expect(t.match(/createChainSearchPool\(inputs, \{ size: Math\.max\(1, Math\.min\(store\.workerBudget, 4\)\) \}\)/g)).toHaveLength(1);
+    // At once first, then the earlier routes.
+    expect(t.indexOf('await priceAtOnce(g)')).toBeLessThan(t.indexOf('await gatherEarlier()'));
+    // Stops: a search starting, Check exactly starting, a new answer, leaving the screen.
+    expect(t).toMatch(/busy && autoStatus\.value === 'running'\) \{\s+\+\+autoGen;\s+stopAuto\(\);/);
+    expect(t).toMatch(/s === 'running'\) \{\s+stopAll\(\);\s+\/\/[^\n]*\n\s+clearAtOnce\(\);/);
+    expect(t).toMatch(/\(\) => props\.found,\s+\(\) => \{\s+stopAll\(\);\s+clearAtOnce\(\);/);
+    expect(t).toContain('onUnmounted(stopAll);');
+    // Nothing is sent: no fetch in the at-once step, and no timer but the one yield.
+    const atOnce = t.slice(t.indexOf('async function priceAtOnce'), t.indexOf('async function runAuto'));
+    expect(atOnce).not.toContain('fetch(');
+    expect(atOnce).not.toMatch(/setInterval/);
+  });
+});
+
+describe('what each level is for, on its button (15 Oct)', () => {
+  it('Fastest: Light quick/your routes, Fast most likely best, Exact and Very high if you are curious', async () => {
+    const html = await renderHtml(StrongerBox, { goal: 'fastest' });
+    expect(html).toMatch(/data-testid="level-for-light"[^>]*>quick, your routes</);
+    expect(html).toMatch(/data-testid="level-for-quick"[^>]*>most likely best</);
+    expect(html).toMatch(/data-testid="level-for-normal"[^>]*>if you(?:'|&#39;)re curious</);
+    expect(html).toMatch(/data-testid="level-for-thorough"[^>]*>if you(?:'|&#39;)re curious</);
+  });
+  it('By a date: Fast is a second opinion', async () => {
+    const html = await renderHtml(StrongerBox, { goal: 'date' });
+    expect(html).toMatch(/data-testid="level-for-quick"[^>]*>a second opinion</);
+    expect(html).toMatch(/data-testid="level-for-light"[^>]*>quick, your routes</);
+  });
+});
+
+describe('the Exhaustive tab says what it is for (15 Oct)', () => {
+  it('"Exhaustive · to prove it" in SearchTabs', () => {
+    const t = fs.readFileSync(path.join(__dirname, 'SearchTabs.vue'), 'utf8');
+    expect(t).toContain("{ id: 'exhaustive', label: NAMES.full, tag: 'to prove it' }");
+  });
+});
+
+describe('the "is running" notice floats in the run bar (15 Oct)', () => {
+  it('RunProgressBar shows it under the progress line; no amber in-page box remains', () => {
+    const bar = fs.readFileSync(path.join(__dirname, 'RunProgressBar.vue'), 'utf8');
+    expect(bar).toContain('data-testid="run-bar-elsewhere"');
+    expect(bar).toContain('is running.</span> Stop it');
+    expect(bar.indexOf('run-bar-elsewhere')).toBeGreaterThan(bar.indexOf('{{ p.stage }}'));
+    const app = fs.readFileSync(path.join(__dirname, '../../App.vue'), 'utf8');
+    expect(app).not.toContain('<RunningElsewhere');
+    expect(app).toContain(":elsewhere=\"blockedBy && plannerTab === 'automatic' ? { running: blockedBy, here: hereLabel } : null\"");
+    expect(fs.existsSync(path.join(__dirname, 'RunningElsewhere.vue'))).toBe(false);
+    expect(fs.readFileSync(path.join(__dirname, 'FastestRoute.vue'), 'utf8')).not.toContain('RunningElsewhere');
   });
 });

@@ -114,6 +114,30 @@ describe("the run's final send replaces its best so far", () => {
     expect(s.provisionalRows).toEqual({ fastest: { id: 'aaaa0001', nickname: '' }, deadline: null });
   });
 
+  it('marks the replaced row done, so a carry-on of the run (Show its result, Run at Exact) never takes it again', async () => {
+    const s = await store();
+    s.bestChain = [...CHAIN];
+    s.bestDays = 760.5;
+    s.provisionalRows = { fastest: { id: 'aaaa0001', nickname: '' }, deadline: null };
+    collector({ ok: true, id: 'aaaa0009' }, { ok: true, id: 'bbbb0002', replaced: 'aaaa0009' });
+    // A best so far is not a final: nothing is done with yet.
+    await s.sendSubmission({ ...PAYLOAD, provisional: true, progress: { done: 10, total: 40 }, replaces: 'aaaa0001' });
+    const { isProvisionalDone } = await import('@/search/doneProvisional');
+    expect(isProvisionalDone('aaaa0001')).toBe(false);
+    s.provisionalRows = { fastest: { id: 'aaaa0009', nickname: '' }, deadline: null };
+    await s.sendSubmission(PAYLOAD);
+    expect(isProvisionalDone('aaaa0009')).toBe(true);
+  });
+
+  it('a refused replace is done with too (sending again cannot change it)', async () => {
+    const s = await store();
+    s.provisionalRows = { fastest: null, deadline: { id: 'dddd0007', nickname: '' } };
+    collector({ ok: true, id: 'eeee0005', replaceRefused: 'the earlier row (dddd0007) was kept: not yours' });
+    await s.sendSubmission(BY_DATE);
+    const { isProvisionalDone } = await import('@/search/doneProvisional');
+    expect(isProvisionalDone('dddd0007')).toBe(true);
+  });
+
   it('says so when the collector kept the earlier row', async () => {
     const s = await store();
     s.provisionalRows = { fastest: null, deadline: { id: 'dddd0004', nickname: '' } };

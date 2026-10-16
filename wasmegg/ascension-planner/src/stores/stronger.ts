@@ -2,14 +2,17 @@
  * The "Stronger check" box under the instant answer (StrongerBox.vue; the user, 12 Oct 2026): how
  * much stronger, and what the parts of the page publish for the comparison block (SearchCompare.vue).
  *
- * LEVELS, the same bar on Fastest and By a date. Light: the stronger check alone (your earlier routes
- * priced on this save, and by a date one TE lower), after Check exactly. Fast / Exact / Very high: Light
+ * LEVELS, the same bar on Fastest and By a date. Light: the stronger check alone (the instant answer's
+ * routes priced ascending at once on your hours, then your earlier routes priced on this save, and by a
+ * date one TE lower), after Check exactly. Fast / Exact / Very high: Light
  * plus a search of the routes near the instant answer's: on Fastest at that effort (store `effort`), by
  * a date with wider boxes at each level (search/simpleByDate.ts BY_DATE_LEVELS). Remembered in this
  * browser.
  */
 import { defineStore } from 'pinia';
 import { ref, watch } from 'vue';
+import type { LegSummary } from '@/search/types';
+import type { LightResult } from '@/search/lightResult';
 
 export type StrongerLevel = 'light' | 'quick' | 'normal' | 'thorough';
 const KEY = 'aap-stronger-level';
@@ -47,6 +50,35 @@ export interface CompareRoute {
   at?: number;
 }
 
+/** Light's status (stores `light`). */
+export interface LightStatus {
+  state: 'idle' | 'running' | 'done' | 'error';
+  /** The player's earlier routes: priced so far, and how many. */
+  priced: number;
+  total: number;
+  /** When it finished, ms. */
+  at: number;
+  /** The instant answer's routes priced at once: so far, and how many. */
+  instant?: { priced: number; total: number };
+  /** What it is doing now, while running. */
+  step?: string;
+  /** "Fastest as you'd play it: …" once a route is priced at once. */
+  summary?: string;
+}
+export function idleLight(): LightStatus {
+  return { state: 'idle', priced: 0, total: 0, at: 0 };
+}
+
+/** A route priced at once (Light): when it ends and at what TE, and its legs (since 15 Oct 2026, for the
+ *  instant answer's row arrows: a few kB for the eight or so routes Light prices). */
+export interface AtOncePriced {
+  chain: number[];
+  seconds: number;
+  end: number;
+  endTE: number;
+  legs?: LegSummary[];
+}
+
 export const useStrongerStore = defineStore('stronger', () => {
   const level = ref<StrongerLevel>(read());
   watch(level, v => {
@@ -72,15 +104,21 @@ export const useStrongerStore = defineStore('stronger', () => {
     boxes: null,
   });
   /** Light's status sign (StrongerBox.vue): waiting for Check exactly, running, or done with how many
-   *  of the player's earlier routes it priced and when (ms). */
-  const light = ref<{ state: 'idle' | 'running' | 'done' | 'error'; priced: number; total: number; at: number }>({
-    state: 'idle',
-    priced: 0,
-    total: 0,
-    at: 0,
+   *  of the player's earlier routes it priced and when (ms). Since 14 Oct Light first prices the instant
+   *  answer's routes at once (search/lightAtOnce.ts): `instant` counts those, `step` says what it is
+   *  looking at while running ("Looking at 7 ascensions (1 of 5)"), `summary` is its own result line. */
+  const light = ref<LightStatus>(idleLight());
+  /** The instant answer's routes priced at once by Light, per goal, by `chain.join(',')` (null: couldn't
+   *  price). The counts table shows a line under each row (InstantRoute.vue). This visit only. */
+  const atOnce = ref<{ fastest: Record<string, AtOncePriced | null>; date: Record<string, AtOncePriced | null> }>({
+    fastest: {},
+    date: {},
   });
   /** Check exactly on the instant answer (InstantRoute.vue): going or not, and how many of its routes are priced, so
    *  Light's status sign can say what it is waiting for. */
   const exact = ref({ running: false, done: 0, total: 0 });
-  return { level, strongerBest, instant, earlierChains, lastSearch, light, exact };
+  /** Light's result to send (search/lightResult.ts), per goal: set by StrongerCheck.vue once Light is done,
+   *  null while it runs, before it and after a new answer. LightShare.vue sends it. This visit only. */
+  const lightResult = ref<{ fastest: LightResult | null; date: LightResult | null }>({ fastest: null, date: null });
+  return { level, strongerBest, instant, earlierChains, lastSearch, light, atOnce, exact, lightResult };
 });

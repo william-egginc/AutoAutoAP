@@ -2,14 +2,14 @@
 # best 4/5/6-ascension routes with step 1, the every-TE pair refinement). Alt, today's save, hours
 # 9:00-01:00 Denver, deadline 14 Jul 2027 9:00 AM Pacific. No player ID in this file.
 $ErrorActionPreference = 'Continue'
-$priv = 'C:\Users\cha12\aaap-private'
+$priv = "$env:USERPROFILE\aaap-private"
 $tlog = "$priv\refine0928\tonight.log"
 function T([string]$s) { "$(Get-Date -Format s) $s" | Add-Content $tlog }
 $who = 'alt-0929'; $startAt = '2026-09-29 10:32'; $by = '2027-07-14 10:00'
 $allowed = ([datetime]$by - [datetime]$startAt).TotalDays
 
 # 1. Update the planner copy and rebuild the search program (pnpm 11, not the pnpm 8 on PATH).
-Set-Location C:\Users\cha12\aaap-runs
+Set-Location $env:USERPROFILE\aaap-runs
 Get-ChildItem wasmegg\ascension-planner\src\stores -Filter 'zz_e2e_*' | Remove-Item -Force
 T "update from $(git log --oneline -1)"
 git pull --ff-only 2>&1 | Out-Null

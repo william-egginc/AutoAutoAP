@@ -13,7 +13,10 @@
     - other gear: the table's account is maxed (perfect delivery, Clothed TE bonus 128.71); a player's
       waits run at their own peak delivery rate, and their builds are the table's for their own TE (a
       weaker earnings set is not taken off; the page says so when it is).
-  What it leaves out: playing hours, time off and dated milestones (said beside the result), and the
+  With "Works inside my hours", each prestige waits for the player's hours and the wait is priced
+  (routeFinder.ts `hours`); the shifts inside an ascension are not held to them here.
+  What it leaves out: playing hours (or, with that box, only the shifts' hours), time off and dated
+  milestones (said beside the result), and the
   history of how a player reached each TE (shown to barely matter on the board). "Check exactly" hands
   any route to the Full sweep, which prices it with the full simulator.
 -->
@@ -191,11 +194,7 @@
           </label>
         </div>
         <p v-if="useHours" class="text-[11px] text-slate-500">
-          Only routes where you ascend inside your hours each time. The exact check prices it with your hours, so TE
-          keeps collecting while you wait.
-        </p>
-        <p v-if="outOfHoursShown.length" class="text-[11px] text-amber-800">
-          No route with {{ countList(outOfHoursShown) }} ascensions keeps every prestige inside your hours.
+          Each prestige waits for your hours (the times shown include the wait).
         </p>
         <p v-if="backgroundStatus === 'running'" class="text-[11px] text-slate-400">
           Polishing the routes in the background…
@@ -258,8 +257,7 @@
             <!-- Every number of ascensions, inside the answer's card above its buttons (the user, 12 Oct 2026). -->
             <div v-if="dateRows.length > 1" class="overflow-x-auto rounded-lg bg-white/70 px-2 py-1">
               <p class="text-[11px] text-slate-500">
-                Exact = the full simulator on your account; filled in automatically. Simulate this plan opens that route in
-                Your plan, simulated step by step on your save: each ascension, its dates and purchases.
+                Exact = the full simulator on your account; filled in automatically. {{ simulateNote() }}
               </p>
               <table class="w-full text-[12px] whitespace-nowrap">
                 <thead>
@@ -273,13 +271,26 @@
                   </tr>
                 </thead>
                 <tbody>
+                  <template v-for="r in dateRows" :key="r.legs.length">
                   <tr
-                    v-for="r in dateRows"
-                    :key="r.legs.length"
                     class="border-t border-slate-100"
                     :class="dateExact && dateExactByK[r.legs.length]?.chain === dateExact.chain ? 'bg-emerald-50/60' : ''"
                   >
-                    <td class="py-1.5 pr-3 font-bold text-slate-800">{{ r.legs.length }}</td>
+                    <td class="py-1.5 pr-3 font-bold text-slate-800 whitespace-nowrap">
+                      <!-- The arrow: when each stop and egg happens, from Check exactly's legs (RouteTimeline.vue). -->
+                      <button
+                        v-if="rowLegs(dateRowChain(r))"
+                        type="button"
+                        class="mr-1 text-slate-400 hover:text-emerald-700"
+                        :aria-expanded="openRow === key(dateRowChain(r))"
+                        :aria-label="`Show when each stop of ${dateRowChain(r).join(' ')} happens`"
+                        data-testid="instant-row-expand"
+                        @click="toggleRow(dateRowChain(r))"
+                      >
+                        {{ openRow === key(dateRowChain(r)) ? '⌄' : '›' }}
+                      </button>
+                      {{ r.legs.length }}
+                    </td>
                     <td class="py-1.5 pr-3 text-slate-600 whitespace-nowrap">
                       {{ r.legs[r.legs.length - 1].endTE }} TE · {{ days(deadline - r.end) }}
                     </td>
@@ -287,6 +298,13 @@
                       <template v-if="dateExactByK[r.legs.length]">{{ dateExactByK[r.legs.length]!.endTE }} TE</template>
                       <template v-else-if="dateExactByK[r.legs.length] === null">misses</template>
                       <span v-else-if="exactStatus === 'running'" class="text-slate-400 font-normal">…</span>
+                      <!-- Light's price of this row's route at once (StrongerCheck.vue), as it lands. -->
+                      <span
+                        v-if="atOnceText(dateRowChain(r))"
+                        class="block text-[10px] font-normal text-indigo-700"
+                        data-testid="at-once-line"
+                        >{{ atOnceText(dateRowChain(r)) }}</span
+                      >
                     </td>
                     <td class="py-1.5 pr-3 whitespace-nowrap">
                       <template v-if="dateExactByK[r.legs.length]">
@@ -312,24 +330,46 @@
                       <button
                         type="button"
                         class="px-2 py-1 rounded-md border border-slate-300 text-[9px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-800"
-                        title="Opens this route in Your plan, simulated step by step on your save"
+                        :title="SIMULATE_TITLE"
                         @click="openPlan((dateExactByK[r.legs.length] ?? tableDate(r)).chain)"
                       >
                         Simulate this plan
                       </button>
                     </td>
                   </tr>
+                  <tr v-if="openRow === key(dateRowChain(r)) && rowLegs(dateRowChain(r))" class="bg-slate-50">
+                    <td colspan="6" class="px-2 py-2 whitespace-normal">
+                      <div class="space-y-1" data-testid="instant-row-timeline">
+                        <template v-if="exactLegsOf(dateRowChain(r))">
+                          <p class="text-[10px] font-black uppercase tracking-widest text-slate-400">Check exactly: each ascension on the hour</p>
+                          <RouteTimeline :chain="dateRowChain(r)" :legs="exactLegsOf(dateRowChain(r))" :zone="zone" />
+                        </template>
+                        <template v-if="atOnceLegsOf(dateRowChain(r))">
+                          <p class="mt-2 text-[10px] font-black uppercase tracking-widest text-indigo-500">Light: each ascension at once</p>
+                          <RouteTimeline :chain="dateRowChain(r)" :legs="atOnceLegsOf(dateRowChain(r))" :zone="zone" />
+                        </template>
+                      </div>
+                    </td>
+                  </tr>
+                  </template>
                 </tbody>
               </table>
+              <MaxedWhatIf
+                v-if="whatIf"
+                v-bind="whatIf"
+                :table-url="TABLE_URL"
+                :zone="zone"
+                :final="target"
+                :max-ascensions="MAX_ASCENSIONS"
+                :at-most="filters.maxAscensions"
+                :deadline="deadline"
+              />
             </div>
             <p class="text-[11px] text-slate-600">
               Ascend at the times shown: each fresh ascension starts on the hour (inside the weekly research sale, at
-              once when that ends sooner), and Check exactly prices it the same way.
+              once when that ends sooner), and Check exactly prices it the same way. Light, under Search nearby, then
+              prices these routes ascending at once, on your hours.
             </p>
-            <label class="flex items-center gap-2 text-[11px] text-slate-600 cursor-pointer">
-              <input v-model="tryAtOnce" type="checkbox" class="rounded border-slate-300" />
-              Also try ascending the moment each ascension ends, not only on the hour (slower check)
-            </label>
             <p v-if="atOnceNote(dateExact)" class="text-[11px] font-bold text-emerald-800">
               {{ atOnceNote(dateExact) }}
             </p>
@@ -350,7 +390,7 @@
               On your account none of these routes reaches above your TE by the date. Check exactly searches for yours.
             </p>
             <p v-if="small && exactStatus === 'idle'" class="text-[11px] text-slate-500">
-              On this device the full simulator's check runs only when you press Check exactly: it uses every core for a
+              On {{ thisDevice() }} the full simulator's check runs only when you press Check exactly: it uses every core for a
               minute or more.
             </p>
             <button
@@ -380,7 +420,7 @@
             <button
               type="button"
               class="mt-1 ml-2 px-3 py-1.5 rounded-lg border border-emerald-700 text-emerald-800 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-50"
-              title="Opens this route in Your plan, simulated step by step on your save"
+              :title="SIMULATE_TITLE"
               @click="openPlan((dateExact ?? tableDate(result.byDate)).chain)"
             >
               Simulate this plan
@@ -442,8 +482,7 @@
           <!-- Every number of ascensions, inside the answer's card above its buttons (the user, 12 Oct 2026). -->
           <div class="overflow-x-auto rounded-lg bg-white/70 px-2 py-1">
             <p class="text-[11px] text-slate-500">
-              Exact = the full simulator on your account; filled in automatically. Simulate this plan opens that route in
-              Your plan, simulated step by step on your save: each ascension, its dates and purchases.
+              Exact = the full simulator on your account; filled in automatically. {{ simulateNote() }}
             </p>
             <table class="w-full text-[12px] whitespace-nowrap">
               <thead>
@@ -457,21 +496,32 @@
                 </tr>
               </thead>
               <tbody>
-                <tr
-                  v-for="r in shownRows"
-                  :key="r.legs.length"
-                  class="border-t border-slate-100"
-                  :class="r === lead ? 'bg-emerald-50/60' : ''"
-                >
-                  <td class="py-1.5 pr-3 font-bold text-slate-800">{{ r.legs.length }}</td>
+                <template v-for="r in shownRows" :key="r.legs.length">
+                <tr class="border-t border-slate-100" :class="r === lead ? 'bg-emerald-50/60' : ''">
+                  <td class="py-1.5 pr-3 font-bold text-slate-800 whitespace-nowrap">
+                    <!-- The arrow: when each stop and egg happens, from Check exactly's legs (RouteTimeline.vue). -->
+                    <button
+                      v-if="rowLegs(r.chain)"
+                      type="button"
+                      class="mr-1 text-slate-400 hover:text-emerald-700"
+                      :aria-expanded="openRow === key(r.chain)"
+                      :aria-label="`Show when each stop of ${r.chain.join(' ')} happens`"
+                      data-testid="instant-row-expand"
+                      @click="toggleRow(r.chain)"
+                    >
+                      {{ openRow === key(r.chain) ? '⌄' : '›' }}
+                    </button>
+                    {{ r.legs.length }}
+                  </td>
                   <td class="py-1.5 pr-3 text-slate-700 whitespace-nowrap">{{ show(r.end) }}</td>
                   <td class="py-1.5 pr-3 text-slate-500 whitespace-nowrap">
                     {{ behind(r) }}
                     <span
                       v-if="!deadline && nearTie(r)"
-                      class="block min-w-[13rem] max-w-[15rem] whitespace-normal text-[10px] leading-snug text-slate-400"
-                      data-testid="near-tie"
-                      >about the same: one more prestige for no gain</span
+                      class="block min-w-[13rem] max-w-[15rem] whitespace-normal text-[10px] leading-snug"
+                      :class="nearTie(r)!.kind === 'fewer' ? 'font-semibold text-emerald-700' : 'text-slate-400'"
+                      :data-testid="`near-tie-${nearTie(r)!.kind}`"
+                      >{{ nearTie(r)!.text }}</span
                     >
                   </td>
                   <td
@@ -481,6 +531,13 @@
                     <template v-if="exactOf(r)">{{ show(exactOf(r)!.end) }} · {{ days(exactOf(r)!.seconds) }}</template>
                     <template v-else-if="exactOf(r) === null">couldn’t price</template>
                     <span v-else-if="exactStatus === 'running'" class="text-slate-400">…</span>
+                    <!-- Light's price of this route at once (StrongerCheck.vue), as it lands. -->
+                    <span
+                      v-if="atOnceText(r.chain)"
+                      class="block text-[10px] font-normal text-indigo-700"
+                      data-testid="at-once-line"
+                      >{{ atOnceText(r.chain) }}</span
+                    >
                   </td>
                   <td class="py-1.5 pr-3 font-mono-premium text-slate-800">{{ r.chain.join(' ') }}</td>
                   <td class="py-1.5 text-right">
@@ -488,13 +545,28 @@
                       type="button"
                       class="px-2 py-1 rounded-md border border-slate-300 text-[9px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-800"
                       :disabled="r.chain.length < 2"
-                      title="Opens this route in Your plan, simulated step by step on your save"
+                      :title="SIMULATE_TITLE"
                       @click="openPlan(r.chain)"
                     >
                       Simulate this plan
                     </button>
                   </td>
                 </tr>
+                <tr v-if="openRow === key(r.chain) && rowLegs(r.chain)" class="bg-slate-50">
+                  <td colspan="6" class="px-2 py-2 whitespace-normal">
+                    <div class="space-y-1" data-testid="instant-row-timeline">
+                      <template v-if="exactLegsOf(r.chain)">
+                        <p class="text-[10px] font-black uppercase tracking-widest text-slate-400">Check exactly: each ascension on the hour</p>
+                        <RouteTimeline :chain="r.chain" :legs="exactLegsOf(r.chain)" :zone="zone" />
+                      </template>
+                      <template v-if="atOnceLegsOf(r.chain)">
+                        <p class="mt-2 text-[10px] font-black uppercase tracking-widest text-indigo-500">Light: each ascension at once</p>
+                        <RouteTimeline :chain="r.chain" :legs="atOnceLegsOf(r.chain)" :zone="zone" />
+                      </template>
+                    </div>
+                  </td>
+                </tr>
+                </template>
               </tbody>
             </table>
             <!-- Counts past the best + 1 add stops that no longer help (routeFinder.ts USEFUL_STOP_MAX). -->
@@ -511,15 +583,21 @@
               More ascensions don’t help past TE ~{{ USEFUL_STOP_NOTE }}: a build there already lays at its full rate, so an
               extra stop only adds a prestige.
             </p>
+            <MaxedWhatIf
+              v-if="whatIf"
+              v-bind="whatIf"
+              :table-url="TABLE_URL"
+              :zone="zone"
+              :final="target"
+              :max-ascensions="MAX_ASCENSIONS"
+              :at-most="filters.maxAscensions"
+            />
           </div>
           <p class="text-[11px] text-slate-600">
             Ascend at the times shown: each fresh ascension starts on the hour (inside the weekly research sale, at once
-            when that ends sooner), and Check exactly prices it the same way.
+            when that ends sooner), and Check exactly prices it the same way. Light, under Search nearby, then prices
+            these routes ascending at once, on your hours.
           </p>
-          <label class="flex items-center gap-2 text-[11px] text-slate-600 cursor-pointer">
-            <input v-model="tryAtOnce" type="checkbox" class="rounded border-slate-300" />
-            Also try ascending the moment each ascension ends, not only on the hour (slower check)
-          </label>
           <p v-if="atOnceNote(exactOf(lead))" class="text-[11px] font-bold text-emerald-800">
             {{ atOnceNote(exactOf(lead)) }}
           </p>
@@ -536,7 +614,7 @@
             {{ exactText }}
           </p>
           <p v-if="small && exactStatus === 'idle'" class="text-[11px] text-slate-500">
-            On this device the full simulator's check runs only when you press Check exactly: it uses every core for a
+            On {{ thisDevice() }} the full simulator's check runs only when you press Check exactly: it uses every core for a
             minute or more.
           </p>
           <button
@@ -564,7 +642,7 @@
           <button
             type="button"
             class="mt-1 ml-2 px-3 py-1.5 rounded-lg border border-emerald-700 text-emerald-800 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-50"
-            title="Opens this route in Your plan, simulated step by step on your save"
+            :title="SIMULATE_TITLE"
             @click="openPlan(lead.chain)"
           >
             Simulate this plan
@@ -611,6 +689,7 @@
         :ctx="findCtx"
         :run-busy="runBusy"
         :zone="zone"
+        :at-once-rows="lightRows"
       />
       </Teleport>
       <p v-if="result && exactStatus === 'error'" class="text-[11px] text-amber-800">{{ exactText }}</p>
@@ -618,7 +697,7 @@
         The exact check on your account waits while a search is running.
       </p>
       <p v-if="result && exactStatus === 'done' && exactMs !== null" class="text-[10px] text-slate-400">
-        Checked on your account with the full simulator in {{ (exactMs / 1000).toFixed(0) }} s.
+        Checked on your account with the full simulator in {{ (exactMs / 1000).toFixed(0) }} s.<template v-if="exactPricedWith">{{ ' ' }}{{ exactPricedWith }}.</template>
       </p>
       <!-- This account's Check exactly results on this computer (search/checkHistory.ts), shared or not. -->
       <details v-if="history.length" class="text-[11px] text-slate-600" data-testid="check-history">
@@ -684,7 +763,7 @@
           </table>
         </div>
         <p class="mt-1 flex flex-wrap items-center gap-x-3 text-[10px] text-slate-400">
-          <span>Kept on this computer only, for this account; the last {{ HISTORY_CAP }} checks.</span>
+          <span>Kept on {{ thisDevice() }} only, for this account; the last {{ HISTORY_CAP }} checks.</span>
           <button
             type="button"
             class="font-bold text-slate-500 hover:text-rose-700 underline decoration-dotted"
@@ -798,7 +877,7 @@ import { availabilityKey, type Availability } from '@/search/availabilitySchedul
 import { describeColleggtibles } from '@/search/progression';
 import { poolSize, RoutePool } from '@/search/routePool';
 import { describeGear, isMaxed, pickBracket, type TableEntry } from '@/search/tableBracket';
-import { isSmallDevice } from '@/search/device';
+import { isSmallDevice, thisDevice } from '@/search/device';
 import {
   answerInputsKey,
   backgroundMayStart,
@@ -814,6 +893,7 @@ import InstantRunWarning from './InstantRunWarning.vue';
 import InstantShareCheck from './InstantShareCheck.vue';
 import PrestigeByLine from './PrestigeByLine.vue';
 import RouteExtras from './RouteExtras.vue';
+import RouteTimeline from './RouteTimeline.vue';
 import { useStrongerStore } from '@/stores/stronger';
 import { usePrestigeBy, recordsPrestigeBy } from '@/composables/usePrestigeBy';
 import {
@@ -833,11 +913,14 @@ import InstantIntegrity from './InstantIntegrity.vue';
 import StrongerCheck from './StrongerCheck.vue';
 import { holdsRoutes, instantIntegrity, lowTeOpeningNote } from '@/search/instantIntegrity';
 import type { FindContext } from '@/search/strongerCheck';
+import { rowLine, type AtOnceItem } from '@/search/lightAtOnce';
+import { nearTieOf, type NearTie } from '@/search/nearTie';
 import { useIntegrityProbe } from '@/composables/useIntegrityProbe';
 import { useInstantDuringSearch } from '@/composables/useInstantDuringSearch';
 import { readSnapshot, recallShown, rememberShown, snapshotUsable, writeSnapshot } from '@/search/instantSnapshot';
 import { simulateRoute } from '@/search/simulateRoute';
-import { NAMES } from '@/lib/siteNav';
+import { NAMES, SIMULATE_TITLE, simulateNote } from '@/lib/siteNav';
+import { pricedWithLine } from '@/lib/pricedWith';
 import type { FirstLegsRequest } from '@/workers/routeFinder.protocol';
 import { createChainSearchPool, type ChainSearchPool, type EvaluateOptions } from '@/search/pool';
 import type { HandoffChoice } from '@/search/chain';
@@ -850,6 +933,8 @@ import { ownerToken } from '@/search/owner';
 import { appBuildId } from '@/search/submission';
 import { SIM_VERSION, tableSimMismatch } from '@/search/simVersion';
 import { countsShown } from '@/search/instantCounts';
+import { priceOnTable, type FirstLegsBase } from '@/search/priceOnTable';
+import MaxedWhatIf from './MaxedWhatIf.vue';
 import { describeAvailability } from '@/search/availabilitySchedule';
 import { CTE_CLEARS, INTEGRITY_BLOCK_SECONDS, INTEGRITY_WARN_SECONDS } from '@/search/rules';
 import {
@@ -1121,6 +1206,7 @@ async function prestigeWork(id: number, p: RoutePool, url: string): Promise<void
     deliveryScale: ctx.scale,
     candidates: plan.candidates,
     hours: HORIZON_HOURS,
+    ...(hours ? { playHours: hours } : {}),
   };
   const stale = () => pid !== prestigeRuns;
   const t0 = performance.now();
@@ -1211,7 +1297,23 @@ let bracketPool: RoutePool | null = null;
 let bracketArgs: { legs: FirstLegsBase; hours: Availability | null } | null = null;
 /** The bracket, held back until the search running now ends. */
 let bracketLater: (() => void) | null = null;
-type FirstLegsBase = Omit<FirstLegsRequest, 'id' | 'kind' | 'url' | 'deliveryScale'>;
+
+/** "What if you had maxed gear?" (MaxedWhatIf.vue): the last answer's first-legs request and hours,
+ *  its own answer, and whether the player is on the maxed table at maxed gear already. */
+const whatIfInputs = shallowRef<{ legs: FirstLegsBase; hours: Availability | null } | null>(null);
+const whatIf = computed(() => {
+  const r = result.value;
+  const w = whatIfInputs.value;
+  if (!r || !w) return null;
+  const mine = props.deadline ? r.byDate : r.best;
+  return {
+    legs: w.legs,
+    hours: w.hours,
+    mine: { end: mine?.end ?? null, te: mine ? mine.legs[mine.legs.length - 1].endTE : 0 },
+    alreadyMaxed:
+      !own.value && !gearTable.value && deliveryScale.value !== null && isMaxed({ bonus: bonus.value, k: deliveryScale.value }),
+  };
+});
 async function runBracket(bid: number, legs: FirstLegsBase, hours: Availability | null): Promise<void> {
   if (bid !== bracketRuns || own.value || gearTable.value || deliveryScale.value === null) return;
   // Two more route workers, each loading a table: not while a search runs, unless the player chose.
@@ -1245,21 +1347,15 @@ async function runBracket(bid: number, legs: FirstLegsBase, hours: Availability 
       entry.file === 'table.bin'
         ? TABLE_URL
         : compositeUrl(`${import.meta.env.BASE_URL}precompute/${entry.file}`, TABLE_URL, GEAR_TABLE_TO, entry.k);
-    const firstLegs = await pool.firstLegs({ url, deliveryScale: 1, ...legs });
-    const found = await findRoutes({
-      table: () => null,
-      startTE: legs.startTE,
-      start: legs.start,
+    const r = await priceOnTable(pool, url, {
+      legs,
       final: target.value,
       maxAscensions: MAX_ASCENSIONS,
-      firstLegs,
+      atMost: filters.value.maxAscensions,
       ...(props.deadline ? { deadline: props.deadline } : {}),
-      ...(hours ? { hours } : {}),
-      expand: (items, settings) => pool.expand(url, items, settings),
+      hours,
     });
-    const f = atMostAscensions(found, filters.value.maxAscensions);
-    const r = props.deadline ? f.byDate : f.best;
-    return { entry, end: r?.end ?? null, te: r ? r.legs[r.legs.length - 1].endTE : 0 };
+    return { entry, end: r.end, te: r.te };
   };
   try {
     const a = await side(above);
@@ -1307,17 +1403,6 @@ watch(filters, f => writeFilters(f), { deep: true });
 const hoursOn = computed(() => store.scheduleEnabled && !!store.availability);
 const useHours = computed(() => hoursOn.value && filters.value.inHours);
 const filtering = computed(() => useHours.value || filters.value.maxAscensions !== null);
-/** The counts a row could show that have no route inside the hours. */
-const outOfHoursShown = computed(() => {
-  const r = result.value;
-  if (!r?.outOfHours || !useHours.value) return [];
-  const top = props.deadline ? (r.byDate?.legs.length ?? 8) + 2 : Math.max(10, (r.best?.legs.length ?? 0) + 2);
-  return r.outOfHours.filter(k => k <= top);
-});
-/** 3 -> "3"; [2, 3, 5] -> "2, 3 or 5". */
-function countList(ks: number[]): string {
-  return ks.length < 2 ? ks.join('') : `${ks.slice(0, -1).join(', ')} or ${ks[ks.length - 1]}`;
-}
 function fastestRowsOf(found: NonNullable<typeof result.value>, bestK?: number): Route[] {
   const top = Math.max(10, (bestK ?? found.best?.legs.length ?? 0) + 2);
   return found.byAscensions.filter((r, k): r is Route => !!r && k <= top);
@@ -1339,7 +1424,9 @@ const USEFUL_STOP_NOTE = 340;
 /** Setup the instant answer does not model, named so nobody reads it as accounted for. */
 const leftOut = computed(() => {
   const out: string[] = [];
-  if (store.scheduleEnabled) out.push('playing hours');
+  // With "Works inside my hours" the prestiges wait for them; the shifts inside an ascension still don't.
+  if (store.scheduleEnabled)
+    out.push(useHours.value ? 'playing hours for the shifts inside each ascension (Check exactly and Light hold those)' : 'playing hours');
   if (store.timeOff.length) out.push('time off');
   if (store.milestones.length) out.push('dates to hit');
   return out;
@@ -1574,8 +1661,9 @@ async function run(force = false, goAhead = false): Promise<void> {
   cachedKey = cacheKey();
   cached.value = readCache(cachedKey);
   // The same save, setup and filters as when it was last worked out: show that answer, in full, and
-  // skip the work. (The at-once box is in this key; the plan start is not, as it is a new minute on every visit: the note says which start the saved dates are for.)
-  snapKey = cachedKey ? `${cachedKey}|${tryAtOnce.value ? 1 : 0}` : null;
+  // skip the work. (The plan start is not in this key, as it is a new minute on every visit: the note says which
+  // start the saved dates are for. The "|0" is the retired at-once box, off: snapshots saved before keep loading.)
+  snapKey = cachedKey ? `${cachedKey}|0` : null;
   savedAt.value = null;
   waiting.value = false;
   afterRun = null;
@@ -1700,7 +1788,7 @@ async function run(force = false, goAhead = false): Promise<void> {
       startTE: te,
       final: target.value,
       // Above the table's top it has no row for the player: their one ascension to the target is
-      // simulated live instead (search/liveCell.ts), a fraction of a second.
+      // simulated live instead (search/liveCell.ts), a few seconds on a background worker.
       ...(te > h.to
         ? {
             liveFresh: (t: number, at: number) => {
@@ -1721,6 +1809,7 @@ async function run(force = false, goAhead = false): Promise<void> {
     // A plain copy: it goes to the workers.
     const hours =
       useHours.value && store.availability ? (JSON.parse(JSON.stringify(store.availability)) as Availability) : null;
+    whatIfInputs.value = { legs: legsRequest, hours };
     const found = await findRoutes({
       table: () => null,
       startTE: te,
@@ -1824,8 +1913,8 @@ interface Exact {
   end: number;
   /** TE when the route ends (above its last checkpoint when a sale wait overshoots). */
   endTE: number;
-  /** How its fresh ascensions start in the price kept (chain.ts `HandoffChoice`): 'hour' unless
-   *  the player ticked "also try ascending at once" and another way was sooner. */
+  /** How its fresh ascensions start in the price kept (chain.ts `HandoffChoice`): 'hour'. (The "also try
+   *  ascending at once" box is gone since 14 Oct: Light prices the routes at once, StrongerCheck.vue.) */
   handoff: HandoffChoice;
   /** The fresh ascensions (1-based) that start at once rather than on the hour in that price. */
   atOnce: number[];
@@ -1885,13 +1974,12 @@ const strongHandoff = computed<HandoffChoice>(() =>
 
 /** Exact prices by `chain.join(',')`; null where the simulator could not price the route. */
 const exact = ref<Record<string, Exact | null>>({});
-/** "Also try ascending at once" (off by default): the exact check also prices every route with each
- *  fresh ascension at once, and with the sooner of the two at each one, and keeps the best. Up to
- *  three times the work, so it is the player's choice. */
-const tryAtOnce = ref(false);
 const exactStatus = ref<'idle' | 'running' | 'done' | 'error' | 'waiting'>('idle');
 const exactText = ref('');
 const exactMs = ref<number | null>(null);
+/** "Priced with your hours 9 am to 1 am, no time off": the exact check's own hours and time off, taken when it
+ *  starts (lib/pricedWith.ts, 16 Oct 2026); '' for a check restored from an earlier visit. */
+const exactPricedWith = ref('');
 /** A date answer: a route, the TE it ends at and the unix second it gets there. */
 interface DateExact {
   chain: number[];
@@ -1982,6 +2070,7 @@ async function runExact(id: number, found: NonNullable<typeof result.value>, man
   dateExact.value = null;
   dateExactByK.value = {};
   exactMs.value = null;
+  exactPricedWith.value = '';
   // An account the integrity check blocks has no routes to check (the panel says why).
   if (store.integrityBlocked) {
     exactStatus.value = 'idle';
@@ -2005,14 +2094,18 @@ async function runExact(id: number, found: NonNullable<typeof result.value>, man
   try {
     const inputs = store.collectInputs();
     answerStart.value = inputs.planStart;
+    // The hours and time off this check prices with, as it starts: what the line under it names.
+    exactPricedWith.value = pricedWithLine({
+      availability: inputs.availability,
+      timeOff: JSON.parse(JSON.stringify(store.timeOff)),
+    });
     const size = Math.max(1, Math.min(store.workerBudget, routes.length, 4));
     exactPool = await createChainSearchPool(inputs, { size });
     if (id !== runs) return;
     const price = async (chains: number[][], opts?: EvaluateOptions) => {
       // On the hour, as the table was simulated and as the times shown assume (chain.ts
-      // `HandoffChoice`); with "also try ascending at once", all at once and the sooner of the two
-      // at each ascension too, keeping whichever reaches the end soonest.
-      const ways: HandoffChoice[] = tryAtOnce.value ? ['hour', 'now', 'sooner'] : ['hour'];
+      // `HandoffChoice`). Ascending at once is Light's job, after this (StrongerCheck.vue, 14 Oct).
+      const ways: HandoffChoice[] = ['hour'];
       const best = new Map<string, { r: ChainResult; handoff: HandoffChoice }>();
       for (const handoff of ways) {
         const { results } = await exactPool!.evaluate(chains, undefined, { ...opts, handoff });
@@ -2187,17 +2280,30 @@ const missedBy = computed<number | null>(() => {
 watch(exactStatus, st => {
   strongerStore.exact = st === 'running' ? { ...strongerStore.exact, running: true } : { running: false, done: 0, total: 0 };
 });
-/** A row whose gap to the fastest is under about a tenth of a day is usually the same route with one ascension cut in
- *  two (Allan, 14 Oct): correct, and worth saying so. */
+/** A row whose gap to the fastest is under about a tenth of a day (Allan, 14 Oct). With MORE ascensions it is usually the
+ *  same route with one ascension cut in two: one more prestige for no gain. With FEWER it is a good option, not a
+ *  waste (carpetsage, Discord): one fewer prestige for a little time. */
 const NEAR_TIE_SECONDS = 0.1 * 86400;
-function nearTie(r: Route): boolean {
+function nearTie(r: Route): NearTie | null {
   const best = exactBest.value;
+  let gap: number | null = null;
+  let than: Route | null = null;
   if (best) {
     const e = exactOf(r);
-    return !!e && r !== best && e.end - exactOf(best)!.end < NEAR_TIE_SECONDS;
+    const eb = exactOf(best);
+    if (e && eb && r !== best) {
+      gap = e.end - eb.end;
+      than = best;
+    }
+  } else {
+    const t = result.value?.best;
+    if (t && r !== t) {
+      gap = r.seconds - t.seconds;
+      than = t;
+    }
   }
-  const t = result.value?.best;
-  return !!t && r !== t && r.seconds - t.seconds < NEAR_TIE_SECONDS;
+  if (gap === null || than === null || gap >= NEAR_TIE_SECONDS) return null;
+  return nearTieOf(r.legs.length, than.legs.length, gap);
 }
 /** How far a row is behind the fastest: by the simulator once every row is priced, by the table until then. */
 function behind(r: Route): string {
@@ -2251,6 +2357,55 @@ watch(
 );
 // The lead route for the comparison block (SearchCompare.vue, stores/stronger.ts).
 const strongerStore = useStrongerStore();
+
+/**
+ * LIGHT, AT ONCE (Jordan, 14 Oct: it took over the "also try ascending at once"
+ * box). After Check exactly, Light (StrongerCheck.vue) prices the counts table's routes with each fresh
+ * ascension starting the moment the one before ends, on your hours and time off; each row shows its line
+ * as it lands. Fastest: the rows shown (`shownRows`). By a date: each count's route as Check exactly left
+ * it (the one that makes the date on the hour, else the table's own), so a row that misses on the hour
+ * may make it at once.
+ */
+const dateRowChain = (r: Route): number[] => (dateExactByK.value[r.legs.length] ?? tableDate(r)).chain;
+const lightRows = computed<AtOnceItem[]>(() =>
+  props.deadline
+    ? dateRows.value.map(r => ({ chain: [...dateRowChain(r)], count: r.legs.length }))
+    : shownRows.value.map(r => ({ chain: [...r.chain], count: r.legs.length }))
+);
+/** "at once, on your hours: Feb 16, 9:40 PM (−0.40 days)" under a row, once Light has priced it. */
+/** The counts row whose arrow is open (its route's key); '' for none. */
+const openRow = ref('');
+function toggleRow(chain: number[]): void {
+  openRow.value = openRow.value === key(chain) ? '' : key(chain);
+}
+/** A counts row's legs to show under its arrow: Check exactly's (on the hour), or Light's at once when
+ *  only that priced it. Null when neither did. */
+function rowLegs(chain: number[]): ChainResult['legs'] | null {
+  return exactLegsOf(chain) ?? atOnceLegsOf(chain);
+}
+/** Check exactly's legs for a route (on the hour), and Light's at once; null when not priced that way. */
+function exactLegsOf(chain: number[]): ChainResult['legs'] | null {
+  const legs = exact.value[key(chain)]?.legs;
+  return legs?.length ? legs : null;
+}
+function atOnceLegsOf(chain: number[]): ChainResult['legs'] | null {
+  const legs = strongerStore.atOnce[props.deadline ? 'date' : 'fastest'][key(chain)]?.legs;
+  return legs?.length ? legs : null;
+}
+
+function atOnceText(chain: number[]): string {
+  const have = strongerStore.atOnce[props.deadline ? 'date' : 'fastest'];
+  const k = key(chain);
+  if (!(k in have)) return '';
+  const p = have[k];
+  return rowLine({
+    goal: props.deadline ? { kind: 'date', deadline: props.deadline } : { kind: 'fastest', target: store.finalTE },
+    priced: p,
+    hourEnd: exact.value[k]?.end ?? null,
+    hours: !!store.availability,
+    show,
+  });
+}
 watch(
   () => {
     if (!result.value || status.value === 'loading') return null;
@@ -2510,12 +2665,15 @@ watch(
       props.deadline,
       store.firstAscension,
       bonus.value,
-      tryAtOnce.value,
       useHours.value ? availabilityKey(store.availability) : '',
       filters.value.maxAscensions,
+      // Your setup, remembered per account, still loading (stores/chainSearch.ts `loadSetupFor`): wait for
+      // it, so a reload doesn't work the answer out and start Check exactly on the defaults first.
+      store.setupLoaded,
     ]),
   () => {
     if (timer) clearTimeout(timer);
+    if (!store.setupLoaded) return;
     timer = setTimeout(() => void run(), 300);
   },
   { immediate: true }
@@ -2542,7 +2700,8 @@ function days(seconds: number): string {
  * hour, and never the same one twice.
  */
 const share = useInstantShare();
-/** "Keep sharing my checks": the per-browser setting itself (Your setup › Sharing shows the same). */
+/** "Keep sharing my checks": the account's consent itself (composables/useConsent.ts; Your setup › Sharing
+ *  shows the same). */
 const keepSharing = share.on;
 const initialState = useInitialStateStore();
 const instantUrl = instantUrlOf(store.submitUrl);
@@ -2560,10 +2719,11 @@ let doneId = -1;
 let shareUsed = false;
 /** What the last share did, for the line beside the boxes. */
 const shareNote = ref<(InstantSendOutcome & { at: number }) | null>(null);
+// Ticked: this check goes too. Withdrawn (or another account with it off): nor does this one, at once.
 watch(
   () => share.on.value,
   v => {
-    if (v) shareThis.value = true;
+    shareThis.value = v;
   }
 );
 watch(shareThis, v => {
@@ -2708,7 +2868,6 @@ function buildRecord(): InstantRecord | null {
       inHours: useHours.value,
       window: store.scheduleEnabled && store.availability ? describeAvailability(store.availability) : null,
       holdShifts: !!store.deferShifts,
-      tryAtOnce: tryAtOnce.value,
       timeOff: store.timeOff.length,
       milestones: store.milestones.length,
       small,

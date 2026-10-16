@@ -125,6 +125,9 @@ export interface BoardRow {
   finalTE: number;
   window?: string | null;
   effort?: string;
+  /** The Stronger check level that found it (submission.ts `level`, 15 Oct 2026): 'light', 'quick', 'normal',
+   *  'thorough' or 'exhaustive'. Absent on older rows, and until the collector keeps it. */
+  level?: string;
   holdShifts?: boolean;
   /** Before 9 Oct 2026 the only record of A1's setting: true for Continue Asc. Read both with `rowFirstAscension`. */
   forceContinue?: boolean;
@@ -152,6 +155,9 @@ export interface BoardRow {
   backupTE?: number;
   /** Schema 7: which planner build priced it. */
   build?: string;
+  /** Which simulator priced it (search/simVersion.ts SIM_VERSION), sent beside `build` since 13 Oct 2026
+   *  (collector/worker.js keeps it as a plain stamp). Absent on older rows. */
+  simVersion?: string;
   /** Schema 7: the sender's best earlier plans priced again from this row's save and start. */
   rechecks?: { chain: number[]; days: number }[];
   /** Schema 8: a deadline search's answer -- the highest TE found reachable by this date (unix
@@ -463,7 +469,7 @@ export function displayName(raw: string | undefined, timezone: string | undefine
 const nameKeys = new Map<string, string>();
 
 /** The grouping key for one name: case-folded label, or the raw icon text for an icon name. */
-function nameKey(raw: string | undefined): string {
+export function nameKey(raw: string | undefined): string {
   if (!raw?.trim()) return '';
   const held = nameKeys.get(raw);
   if (held !== undefined) return held;
@@ -2355,6 +2361,8 @@ export function settingTagTitle(tag: string): string {
  *  what it always showed. Display only: the stored `effort` and `space` are untouched. */
 export function foundByText(row: Pick<BoardRow, 'space' | 'effort' | 'recheckOf'> & Partial<BoardRow>): string {
   if (row.recheckOf != null) return 're-check';
+  // Light (15 Oct 2026) searched nothing: it priced known routes. Fastest's Light rows say `effort: 'light'`.
+  if (row.level === 'light' || row.effort === 'light') return NAME_LIGHT;
   if (row.space) return row.space.stoppedEarly ? `${NAME_EXHAUSTIVE} · partial` : NAME_EXHAUSTIVE;
   if (row.deadline != null) {
     const r = row as { mode?: unknown; simple?: unknown };
@@ -2364,6 +2372,9 @@ export function foundByText(row: Pick<BoardRow, 'space' | 'effort' | 'recheckOf'
         : r.mode === 'advanced' || r.simple === false
           ? NAME_EXHAUSTIVE
           : null;
+    // A Nearby routes answer that records its level (15 Oct 2026): "Nearby routes · Exact".
+    const tier = mode === NAME_AROUND && row.level ? TIER_NAMES[row.level] : undefined;
+    if (tier) return `${NAME_AROUND} · ${tier}`;
     return mode ?? (row.effort || 'unknown');
   }
   return effortText(row.effort);
@@ -2373,6 +2384,8 @@ export function foundByText(row: Pick<BoardRow, 'space' | 'effort' | 'recheckOf'
  *  Advanced). Short, for the Effort column. */
 const NAME_AROUND = 'Nearby routes';
 const NAME_EXHAUSTIVE = 'Exhaustive';
+/** The Stronger check's first level: the instant answer's routes priced at once and your earlier routes. */
+const NAME_LIGHT = 'Light';
 
 /** A sent effort tier's name on the planner's slider. */
 const TIER_NAMES: Record<string, string> = { quick: 'Fast', normal: 'Exact', thorough: 'Very high', balanced: 'Balanced (retired)' };

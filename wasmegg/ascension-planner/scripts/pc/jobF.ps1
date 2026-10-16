@@ -3,19 +3,19 @@
 # (postwatch2.ps1 posts them).
 param([string]$who, [string]$preset, [string]$bands, [int]$mingap, [int]$workers)
 $ErrorActionPreference = 'Continue'
-Set-Location C:\Users\cha12\aaap-runs\wasmegg\ascension-planner
+Set-Location $env:USERPROFILE\aaap-runs\wasmegg\ascension-planner
 $name = "$who-$preset"
-$dir = "C:\Users\cha12\aaap-private\fine0925\$name"
+$dir = "$env:USERPROFILE\aaap-private\fine0925\$name"
 New-Item -ItemType Directory -Force $dir | Out-Null
 $spec = "src\stores\zz_e2e_$($name -replace '-','_').spec.ts"
-Copy-Item C:\Users\cha12\aaap-private\zz_e2e_fine.spec.ts $spec -Force
-$env:E2E_BACKUP = "C:\Users\cha12\aaap-private\$who.json"
+Copy-Item $env:USERPROFILE\aaap-private\zz_e2e_fine.spec.ts $spec -Force
+$env:E2E_BACKUP = "$env:USERPROFILE\aaap-private\$who.json"
 $env:E2E_PRESET = $preset
 $env:E2E_BANDS = $bands
 $env:E2E_MINGAP = "$mingap"
 $env:E2E_WORKERS = "$workers"
 $env:E2E_BATCH_FACTOR = "4"
-$env:E2E_CLI = 'C:\Users\cha12\aaap-runs\wasmegg\ascension-planner\dist-search\fastsearch.js'
+$env:E2E_CLI = "$env:USERPROFILE\aaap-runs\wasmegg\ascension-planner\dist-search\fastsearch.js"
 $env:E2E_OUTDIR = $dir
 $env:E2E_OUT = "$dir\log.txt"
 Remove-Item $env:E2E_OUT -ErrorAction SilentlyContinue

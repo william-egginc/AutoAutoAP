@@ -71,7 +71,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineComponent, h, ref, watch } from 'vue';
+import { computed, defineComponent, h, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { CHART_AUTO_LIMIT, MAX_DRAWN_POINTS } from '@/lib/chartThin';
 import SearchShapeChart from './SearchShapeChart.vue';
@@ -103,6 +103,9 @@ function saveDetail(d: Detail): void {
 }
 
 const store = useChainSearchStore();
+// On screen: the store builds the chart's data only while a chart is mounted (and shown).
+onMounted(() => store.chartMounted(true));
+onBeforeUnmount(() => store.chartMounted(false));
 const detail = ref<Detail>(loadDetail());
 // Every run starts on the heat map. The store clears `heat` when a run starts or a saved one opens.
 const showDots = ref(false);

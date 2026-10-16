@@ -3,7 +3,8 @@
  *
  * Deploy this and point the app's `VITE_SUBMIT_URL` at `https://<worker>/submit`. Everything
  * lives in one Worker plus one KV namespace, because the whole dataset is a few thousand small
- * JSON objects and reaching for a database would be borrowing trouble.
+ * JSON objects and reaching for a database would be borrowing trouble. (The one exception is the
+ * phone watch in watch.js, which keeps its rows in a small D1 database.)
  *
  *   POST /submit       one submission, validated, stored, rate-limited by IP. A copy of a result
  *                      already on the board is caught here and not stored twice (see "duplicates").
@@ -44,7 +45,7 @@
  * side by side; if they drift, the Worker's copy is the one that matters.
  *
  * WHAT THIS DELIBERATELY DOES NOT STORE. No IP addresses beyond a rate-limit key that lives in
- * KV under a 60-second TTL and is never read back into any record, no cookies, nothing derived
+ * KV under a 120-second TTL and is never read back into any record, no cookies, nothing derived
  * from the connection. The one header read into a record is `x-owner-token`: a random code the
  * app keeps per account in the submitter's browser, stored here only as its SHA-256 and never
  * served back. It is not derived from the player id. It is what lets a player -- and only that

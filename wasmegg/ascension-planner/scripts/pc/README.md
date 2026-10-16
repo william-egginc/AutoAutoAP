@@ -4,8 +4,8 @@ Tooling for long chain-search runs on a Windows PC, driven over SSH. It isn't pa
 
 ## Layout on the PC
 
-- `C:\Users\cha12\aaap-runs`: a clone of this repo. `dist-search/` is built with `pnpm search:build`, using pnpm 11 (`npx -y pnpm@11.11.0 ...`), not an older pnpm on PATH.
-- `C:\Users\cha12\aaap-private`: these scripts, the saves (`<who>.json`, never committed), and the run folders:
+- `%USERPROFILE%\aaap-runs`: a clone of this repo. `dist-search/` is built with `pnpm search:build`, using pnpm 11 (`npx -y pnpm@11.11.0 ...`), not an older pnpm on PATH.
+- `%USERPROFILE%\aaap-private`: these scripts, the saves (`<who>.json`, never committed), and the run folders:
   - `fine0925\`: queue runs;
   - `refine0928\`: refinement, horizon and Egg Day runs.
 

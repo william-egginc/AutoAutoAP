@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { nextTick, ref } from 'vue';
-import { createShareIdentity, useBoardSubmit, type BoardStore } from './useShareResult';
+import { createPinia, setActivePinia } from 'pinia';
+import { createShareIdentity, useBoardSubmit, useSharedName, type BoardStore } from './useShareResult';
+import { useShareNameStore } from '@/stores/shareName';
 
 describe('share identity', () => {
   it('starts unticked and anonymous, with the account name in the box', () => {
@@ -55,6 +57,38 @@ describe('one share name for the account', () => {
     fastest.optIn.value = true;
     expect(byDate.anonymous.value).toBe(true);
     expect(byDate.optIn.value).toBe(false);
+  });
+
+  it('anonymous or "Credit me as" is the account\'s one choice on every screen (14 Oct)', () => {
+    const { name } = sharedOf();
+    const picked = ref<boolean | undefined>(undefined);
+    const shared = { ...name, getAnonymous: () => picked.value, setAnonymous: (v: boolean) => (picked.value = v) };
+    const fastest = createShareIdentity(ref('Fliris'), shared);
+    const byDate = createShareIdentity(ref('Fliris'), shared);
+    // Not picked yet: anonymous, as before.
+    expect(fastest.anonymous.value).toBe(true);
+    expect(byDate.anonymous.value).toBe(true);
+    // "Credit me as" on Fastest: By a date has it too, and it is what is kept.
+    fastest.anonymous.value = false;
+    expect(byDate.anonymous.value).toBe(false);
+    expect(picked.value).toBe(false);
+    byDate.anonymous.value = true;
+    expect(fastest.anonymous.value).toBe(true);
+    // A choice kept from an earlier visit is where a new screen starts.
+    picked.value = false;
+    expect(createShareIdentity(ref(''), shared).anonymous.value).toBe(false);
+    // The consent is still the screen's own here (the real screens pass the site's one).
+    fastest.optIn.value = true;
+    expect(byDate.optIn.value).toBe(false);
+  });
+
+  it('useSharedName reads and writes the choice in the account store', () => {
+    setActivePinia(createPinia());
+    const shared = useSharedName(() => 'test-player-id');
+    expect(shared.getAnonymous?.()).toBeUndefined();
+    shared.setAnonymous?.(false);
+    expect(useShareNameStore().anonymousFor('test-player-id')).toBe(false);
+    expect(createShareIdentity(ref(''), shared).anonymous.value).toBe(false);
   });
 
   it('either order of the model update and nicknameTyped shares the name', () => {

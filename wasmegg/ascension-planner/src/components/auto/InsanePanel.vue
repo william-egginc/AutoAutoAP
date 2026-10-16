@@ -86,7 +86,7 @@
 
         <label class="block space-y-1">
           <span class="flex items-baseline justify-between text-[11px] font-bold text-slate-700">
-            <span>How much of this computer to use</span>
+            <span>How much of {{ thisDevice() }} to use</span>
             <span>{{ store.workerBudget }} of {{ store.machineThreads }} workers</span>
           </span>
           <input
@@ -105,8 +105,20 @@
           </span>
         </label>
 
-        <label class="flex items-start gap-2 text-[11px] text-slate-700">
-          <input v-model="sweepConsent" type="checkbox" class="mt-0.5 rounded border-indigo-300 text-indigo-600" />
+        <!-- The account's "I understand" for a science sweep (ConsentBox.vue, composables/useConsent.ts), the
+             same one as Science's sweep runner. Withdrawn during the run: the result is not sent. -->
+        <ConsentBox
+          v-model="sweepConsent"
+          consent-id="scienceSweep"
+          testid="sweep-consent"
+          label-class="text-[11px] text-slate-700"
+          summary-class="text-[11px] text-slate-700"
+          withdrawn-text="Withdrawn: this sweep's result will not be sent."
+        >
+          <template #summary>
+            <span>You agreed this sweep is sent to the board automatically when it finishes</span>
+          </template>
+          <template #text>
           <span>
             I understand this takes about <b>{{ estimateLabel }}</b
             >, that this tab has to stay open (and the computer awake) until it finishes, and that the result is then
@@ -117,7 +129,8 @@
             also re-prices my best three plans already on the board from this save, and those are sent too (named ones
             with a named send, anonymous ones with an anonymous send).
           </span>
-        </label>
+          </template>
+        </ConsentBox>
         <!-- The same two choices, and the same values, as the Submit section at the bottom: anonymous
              unless the player picks otherwise, and the name box starts from their own nickname. -->
         <ShareNameChoice
@@ -413,8 +426,12 @@
                     :max="suggestRange[1]"
                     :disabled="store.isRunning"
                     class="w-16 rounded-md border-slate-300 text-xs font-bold text-slate-800 disabled:opacity-50"
+                    @input="markAscTouched"
                   />
                 </label>
+                <span v-if="chain1FromInstant" class="text-[10px] text-slate-400" data-testid="asc-follow-hint"
+                  >(from the instant answer)</span
+                >
                 <SpaceSliders
                   :width-ix="chain1View.widthIx"
                   :step-ix="chain1View.stepIx"
@@ -796,26 +813,17 @@
             </div>
           </template>
           <template #progress>
-            <RunProgress
+            <!-- The run's place on the page, for the run bar's Jump to it (lib/runAnchor.ts). Its progress is in
+                 that bar only (Jordan, 16 Oct 2026; the measured speed is under the bar's Details). -->
+            <div
               v-if="ownRun && store.stage && store.chainRunLive"
               data-run-progress="full"
-              :stage="store.stage"
-              :count="`${pricedSoFar.toLocaleString()} / ${plural(store.chainsEstimated, 'route')}`"
-              thin
-              :percent="livePercent"
+              class="scroll-mt-24"
             >
-              <div
-                v-if="store.secondsPerChain > 0 || store.runCost"
-                class="text-[10px] text-slate-400 font-bold tabular-nums"
-              >
-                <template v-if="store.secondsPerChain > 0"
-                  >{{ store.secondsPerChain.toFixed(2) }} s/route measured here</template
-                >
-                <template v-if="!store.isRunning && store.runCost">
-                  · took {{ describeCompute(store.runCost.minutes, store.runCost.workers) }}</template
-                >
-              </div>
-            </RunProgress>
+              <p v-if="!store.isRunning && store.runCost" class="text-[10px] text-slate-400 font-bold tabular-nums">
+                Took {{ describeCompute(store.runCost.minutes, store.runCost.workers) }}
+              </p>
+            </div>
 
             <!-- Which chain of a multi-chain click is running, and what the finished ones found. -->
             <div
@@ -883,6 +891,7 @@
 
             <!-- The answer: the same card as Smart search (RouteResultCard.vue). -->
             <RouteResultCard
+              :priced-with="pricedWith"
               v-if="ownRun && store.bestDays > 0"
               :chain="store.bestChain"
               :days="store.bestDays"
@@ -957,8 +966,9 @@
               </p>
             </RouteResultCard>
           </template>
-          <!-- When to start this route: Science › When should I start? (StartTimeCard.vue), opened on it. -->
-          <p v-if="ownRun && store.bestChain.length && store.bestDays > 0 && !store.isRunning" class="text-[11px]">
+          <!-- When to start this route: Science › When should I start? (StartTimeCard.vue), opened on it. Not for a
+             player already on virtue (lib/onVirtue.ts): their first ascension has started. -->
+          <p v-if="offerStart && ownRun && store.bestChain.length && store.bestDays > 0 && !store.isRunning" class="text-[11px]">
             <button
               type="button"
               class="font-bold text-indigo-700 underline decoration-dotted underline-offset-2 hover:text-indigo-900"
@@ -969,7 +979,12 @@
             >
             <span class="text-slate-500"> (opens {{ NAMES.science }} › {{ NAMES.start }})</span>
           </p>
-          <RunCharts v-if="ownRun && store.pricedCount" />
+          <!-- The run's charts are on Leaderboard › Your latest run (LatestRunView.vue; moved off this screen,
+               15 Oct 2026): "Dig deeper into your plan ›". -->
+          <DigDeeperLink
+            v-if="ownRun && store.pricedCount"
+            detail="other options, charts, and when each stop and egg happens"
+          />
           <template #keep>
             <!-- Saved runs: the same list on both depths (SavedRuns.vue); carrying a sweep on is this one's. -->
             <SavedRuns :player-id="playerId" can-resume />
@@ -988,8 +1003,13 @@
             <!-- Submission. Same payload, same opt-in, same disclosure as the main panel. -->
             <!-- Not while a Find and submit run is going: it sends itself with the choice made at Find,
                  and a box here saying "anonymously" would not be what goes. -->
+            <!-- Sent by the run itself: one line instead of the box (SentByRunNote.vue). -->
+            <SentByRunNote
+              v-if="ownRun && store.bestDays > 0 && !store.isRunning && sentByRun"
+              :sending="submitting"
+            />
             <ShareResult
-              v-if="ownRun && store.bestDays > 0 && !(store.isRunning && store.submitsWhenDone)"
+              v-else-if="ownRun && store.bestDays > 0 && !(store.isRunning && store.submitsWhenDone)"
               compact
               :replaces-best-so-far="!!store.provisionalRows.fastest"
               v-model:opt-in="optIn"
@@ -1083,6 +1103,9 @@ const kept = {
   autoFilled: keptRef(''),
   minGap: keptRef(0),
   suggestAsc: keptRef(6),
+  /** The Ascensions box was changed by hand: the default space stops following the instant answer's
+   *  count (lib/limitsFollow.ts's rule for the Limits box, here for chain 1's one count). */
+  ascTouched: keptRef(false),
   /** Chain 1's two Suggest a space sliders; null until moved (then the space is sized to the default chain budget). */
   suggestWidthIx: keptRef<number | null>(null),
   suggestStepIx: keptRef<number | null>(null),
@@ -1096,6 +1119,10 @@ const kept = {
 </script>
 
 <script setup lang="ts">
+import { pricedWithLine } from '@/lib/pricedWith';
+import { offerStartTimes } from '@/lib/onVirtue';
+import { useInitialStateStore } from '@/stores/initialState';
+import { thisDevice } from '@/search/device';
 import { NAMES } from '@/lib/siteNav';
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
@@ -1104,6 +1131,7 @@ import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useUIStore } from '@/stores/ui';
 import RunNoteBox from './RunNoteBox.vue';
 import ShareResult from './ShareResult.vue';
+import SentByRunNote from './SentByRunNote.vue';
 import { NICKNAME_MAX, useFastestShare } from '@/composables/useFastestShare';
 import BoardSubmitButtons from './BoardSubmitButtons.vue';
 import SavedRuns from './SavedRuns.vue';
@@ -1127,7 +1155,6 @@ import SpaceSliders from './SpaceSliders.vue';
 import RoutesToTry from './RoutesToTry.vue';
 import KeptBoxNote from './KeptBoxNote.vue';
 import { pinSliders, sweepSliderView } from '@/composables/useRowSliders';
-import RunCharts from './charts/RunCharts.vue';
 import { chainCount as countLabel } from '@/lib/chartThin';
 import HelpTip from './HelpTip.vue';
 import BandCheckNotice from './BandCheckNotice.vue';
@@ -1150,12 +1177,14 @@ import CsvCard from './CsvCard.vue';
 import RunSendReport from './RunSendReport.vue';
 import RunResults from './RunResults.vue';
 import ShareNameChoice from './ShareNameChoice.vue';
-import RunProgress from './RunProgress.vue';
 import EdgeWarning from './EdgeWarning.vue';
 import RunErrorNotes from './RunErrorNotes.vue';
 import RunControls from './RunControls.vue';
 import ResultTable from './ResultTable.vue';
+import DigDeeperLink from './DigDeeperLink.vue';
 import LongerRouteHint from './LongerRouteHint.vue';
+import ConsentBox from './ConsentBox.vue';
+import { agreeThisVisit, useConsent } from '@/composables/useConsent';
 
 const props = defineProps<{
   playerId: string;
@@ -1203,12 +1232,14 @@ const { bandsText, minGap } = kept;
 // sweep link left in the address put its banner and its tag on the date search too.
 const sweepRequest =
   typeof window === 'undefined' || props.goal === 'deadline' ? null : parseSweepRequest(window.location.search);
-const sweepConsent = ref(false);
+/** "I understand ... sent to the board automatically": the account's `scienceSweep` consent. */
+const sweepConsent = useConsent('scienceSweep').agreed;
 if (sweepRequest) {
   bandsText.value = sweepRequest.bands;
   minGap.value = sweepRequest.minGap;
   store.sweepTag = { preset: sweepRequest.preset, bands: sweepRequest.bands, minGap: sweepRequest.minGap };
-  if (sweepRequest.firstAscension !== null) store.setFirstAscension(sweepRequest.firstAscension);
+  // The link's first ascension is the sweep's, not the player's: not remembered (lib/setupMemory.ts).
+  if (sweepRequest.firstAscension !== null) store.muteSetupMemory(() => store.setFirstAscension(sweepRequest.firstAscension!));
 }
 // A route handed over by the instant answer's "Check exactly" (InstantRoute.vue): its checkpoints as
 // single-value bands, so the sweep prices exactly that route. Taken once and cleared.
@@ -1371,6 +1402,8 @@ function fillDefault(): void {
   if (sweepRequest || store.isRunning || !(store.currentTE > 0) || !(store.finalTE > store.currentTE)) return;
   const typed = bandsText.value.trim();
   if (typed && typed !== kept.autoFilled.value) return;
+  // The Ascensions box set by hand: the player's count, not the instant answer's, from then on.
+  if (kept.ascTouched.value) return;
   // Precompute: the instant answer's count first (`store.suggestedCount`), then the usual six and down.
   const counts = [...new Set([store.suggestedCount ?? 6, 6, 5, 4, 3, 2])];
   for (const n of counts) {
@@ -1387,6 +1420,19 @@ function fillDefault(): void {
 watch(() => [store.currentTE, store.finalTE, store.suggestedCount, store.instantRoutes], fillDefault, {
   immediate: true,
 });
+/** The Ascensions box typed in: the default space keeps the player's count from now on. */
+function markAscTouched(): void {
+  kept.ascTouched.value = true;
+}
+/** Chain 1 is still the default space, at the instant answer's count (the grey hint beside Ascensions). */
+const chain1FromInstant = computed(
+  () =>
+    !kept.ascTouched.value &&
+    !!kept.autoFilled.value &&
+    bandsText.value.trim() === kept.autoFilled.value.trim() &&
+    store.suggestedCount !== null &&
+    suggestAsc.value === store.suggestedCount
+);
 
 /**
  * Both budget cards start collapsed.
@@ -1765,10 +1811,6 @@ const endDate = computed(() => {
     minute: '2-digit',
   }).format(new Date((store.planStart + store.bestDays * 86400) * 1000));
 });
-const livePercent = computed(() =>
-  store.chainsEstimated > 0 ? Math.min(100, (pricedSoFar.value / store.chainsEstimated) * 100) : 0
-);
-
 /**
  * The rate this machine is actually managing, once it has managed anything. The 15 s assumption is
  * a floor for a cold leg, and prefix sharing means most chains cost a fraction of that -- on these
@@ -1873,6 +1915,9 @@ function currentSpec(): {
  */
 const autoSubmitArmed = ref(false);
 const autoSubmitted = ref(false);
+/** The result on screen went with its run (Find and submit, a sweep link, or a run that owed it): Share
+ *  this result gives way to one line. A send that failed keeps the box, so it can still be sent by hand. */
+const sentByRun = computed(() => autoSubmitted.value && submitOk.value && (submitting.value || store.alreadySubmitted));
 
 /** Set for the length of a Find and submit click (one run or a whole queue). */
 const findAndSubmit = ref(false);
@@ -1908,7 +1953,8 @@ async function start(andSubmit = false): Promise<void> {
 async function owesResult(): Promise<boolean> {
   const agreed = !!store.bestSoFar?.consent;
   await store.bestSoFarSettled();
-  const owed = store.provisionalRows.fastest;
+  // Not once the player withdrew (store `owedRow`).
+  const owed = store.owedRow('fastest');
   if (!agreed && owed) {
     anonymous.value = !owed.nickname;
     if (owed.nickname) nickname.value = owed.nickname;
@@ -1919,9 +1965,11 @@ async function owesResult(): Promise<boolean> {
 /** The result on screen, sent the way the sweep card sends one (CSV included, no time stamp on the name). */
 async function sendFinished(): Promise<void> {
   // Stopped early it still sends: the board labels it partial rather than exhaustive (leaderboardRank).
-  if (store.error || store.bestDays <= 0) return;
+  // Withdrawn during the run (the agreement, or the sweep card's "I understand"): nothing goes.
+  if (store.shareWithdrawn || store.error || store.bestDays <= 0) return;
   stampName.value = false;
-  optIn.value = true;
+  // The send needs the box ticked; the run's yes counts for this visit only.
+  agreeThisVisit('leaderboard');
   autoSubmitted.value = true;
   await submit(!!sweepRequest);
   store.lastAutoSend = { kind: 'full', ok: submitOk.value, text: submitMessage.value };
@@ -1937,7 +1985,8 @@ async function startOne(): Promise<void> {
   // Armed: the sweep sends itself at the end, so its last seconds may re-price the player's best
   // earlier plans on the workers before they are shut down (the store's "re-checks").
   await store.startExhaustive(props.playerId, currentSpec(), { recheck: autoSubmitArmed.value });
-  if (!autoSubmitArmed.value && !(await owesResult())) return;
+  // Read live: a withdraw during the run cleared `submitsWhenDone` (store `withdrawShareConsent`).
+  if (!(autoSubmitArmed.value && store.submitsWhenDone) && !(await owesResult())) return;
   autoSubmitArmed.value = false;
   // The card's own choice (anonymous by default, or the nickname box) is what goes; blank name with
   // "credit me" picked still goes anonymously, as `effectiveNickname` already decides.
@@ -1976,14 +2025,15 @@ async function startQueue(): Promise<void> {
 async function resumeQueue(q: SweepQueueRecord, next: number): Promise<void> {
   if (queueAt.value >= 0 || store.busy) return;
   resuming.value = 'checkpoint';
-  findAndSubmit.value = q.submit;
+  // Its recorded Find and submit holds unless the account's agreement was withdrawn since.
+  findAndSubmit.value = q.submit && store.carriedYesHolds();
   if (q.submit) {
     anonymous.value = !q.name;
     if (q.name) nickname.value = q.name;
   }
   store.lastAutoSend = null;
-  store.submitsWhenDone = q.submit;
-  store.beginBestSoFar('fastest', q.submit ? { nickname: q.name ?? '' } : null);
+  store.submitsWhenDone = findAndSubmit.value;
+  store.beginBestSoFar('fastest', findAndSubmit.value ? { nickname: q.name ?? '' } : null);
   try {
     await runQueue(props.playerId, q.chains, {
       from: next,
@@ -2028,8 +2078,10 @@ async function runQueue(
       // every one once the player agreed during the queue (Send best so far's box).
       sendIfOwed: async stopped => {
         await store.bestSoFarSettled();
-        const owes = !!store.provisionalRows.fastest || (!findAndSubmit.value && !!store.bestSoFar?.consent);
-        if ((findAndSubmit.value && !stopped) || owes) await sendFinished();
+        // Live: a withdraw during the queue cleared `submitsWhenDone` and the yes, and `owedRow` is null.
+        const armed = findAndSubmit.value && store.submitsWhenDone;
+        const owes = !!store.owedRow('fastest') || (!armed && !!store.bestSoFar?.consent);
+        if ((armed && !stopped) || owes) await sendFinished();
       },
       save: async label => void (await store.saveCurrentRun(player, label)),
       persistQueue: handled => store.persistQueue(player, handled),
@@ -2172,4 +2224,10 @@ const crashedQueueNote = computed(() => {
 
 /** Which run is mid-resume, for the button's own label. Empty when none is. */
 const resuming = ref('');
+
+/** "Check start times for this route" only before the player is on virtue (lib/onVirtue.ts). */
+const offerStart = computed(() => offerStartTimes(useInitialStateStore().rawBackup));
+/** The hours and time off this run was priced with (its own settings, not the live setup); '' when no run's
+ *  settings are known (lib/pricedWith.ts). */
+const pricedWith = computed(() => (store.runSettingsUsed ? pricedWithLine(store.runSettingsUsed) : ''));
 </script>

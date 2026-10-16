@@ -349,6 +349,8 @@ export function createChainEvaluator(inputs: SearchInputs, memoSettings: MemoSet
             ...(leg.firstLegEnds ? { firstLegEnds: { ...leg.firstLegEnds } } : {}),
             // The route's end state, for By a date's TE per egg and next TE (search/endEggs.ts).
             ...(isFinalLeg ? { endEggs: endEggsOf(leg) } : {}),
+            // The egg it ends on and its TE then, every leg (search/routeTimeline.ts).
+            ...(leg.endEgg ? { endEgg: { ...leg.endEgg } } : {}),
           });
 
           state = leg.nextState;

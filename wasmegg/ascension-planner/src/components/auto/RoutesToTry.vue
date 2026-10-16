@@ -34,6 +34,8 @@
             @input="emit('asc', k, asNumber(($event.target as HTMLInputElement).value))"
           />
         </label>
+        <!-- Beside the Ascensions box: By a date's "(from the instant answer)" while box 1 follows it. -->
+        <slot name="asc-after" :row="row" :k="k" />
         <button
           type="button"
           :disabled="disabled || row.asc < 2"

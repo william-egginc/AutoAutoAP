@@ -243,7 +243,13 @@
            folds away on the Auto Planner: the tabs are how you get anywhere, so they never hide. -->
       <!-- The search that's running, on every tab but its own (RunProgressBar.vue), so looking at
            the leaderboard or Classic mid-run doesn't mean losing sight of it or its Stop. -->
-      <RunProgressBar v-if="showRunBar" class="mt-4" :here="runIsHere" @show="showRun" />
+      <RunProgressBar
+        v-if="showRunBar"
+        class="mt-4"
+        :here="runIsHere"
+        :elsewhere="blockedBy && plannerTab === 'automatic' ? { running: blockedBy, here: hereLabel } : null"
+        @show="showRun"
+      />
       <!-- A Science sweep, run in place (SweepRunner.vue): a window over the page, so the figures and
            Start sit where the sweep was clicked rather than on another screen. -->
       <SweepRunner
@@ -261,7 +267,8 @@
             <!-- Below sm, one equal column per tab across the page, labels wrapping inside their
                  cell, so the underline stays on one line; from sm up, a centred row. -->
             <div
-              class="grid grid-cols-3 w-full sm:flex sm:w-auto sm:flex-wrap sm:justify-center gap-1 border-b border-slate-200"
+              class="grid w-full sm:flex sm:w-auto sm:flex-wrap sm:justify-center gap-1 border-b border-slate-200"
+              :class="chainSearchStore.submitUrl ? 'grid-cols-2' : 'grid-cols-3'"
             >
               <button
                 v-for="v in autoTabs"
@@ -287,6 +294,17 @@
                   class="ml-1 inline-block w-1.5 h-1.5 rounded-full bg-indigo-600 align-middle"
                   title="A search is running here"
                 ></span>
+              </button>
+              <!-- My runs here too (Jordan, 16 Oct 2026): the same page as the top tab (#/myruns), from
+                   where a player has just run something. Only with a collector, as the top tab. -->
+              <button
+                v-if="chainSearchStore.submitUrl"
+                type="button"
+                class="min-w-0 px-2 sm:px-4 py-2 -mb-px border-b-2 border-transparent text-[11px] font-black uppercase tracking-wider sm:tracking-widest text-center leading-snug text-slate-400 hover:text-slate-700"
+                data-testid="auto-tab-myruns"
+                @click="selectSection('myruns')"
+              >
+                {{ NAMES.myRuns }}
               </button>
             </div>
           </div>
@@ -490,7 +508,6 @@
         <!-- A search running on another Auto Planner screen: this one greyed out under a line saying
              which, with Stop on the progress bar above. Fastest route greys only its panel, below its
              depth cards (FastestRoute.vue). -->
-        <RunningElsewhere v-if="blockedBy && autoView !== 'fastest'" :running="blockedBy" :here="hereLabel" />
         <div
           :class="
             blockedBy && autoView !== 'fastest' ? 'opacity-40 pointer-events-none select-none space-y-4' : 'space-y-4'
@@ -499,7 +516,7 @@
         >
           <template v-if="autoView === 'classic'">
             <p class="max-w-4xl mx-auto text-sm text-slate-600 leading-relaxed">
-              <span class="font-bold text-slate-900">{{ NAMES.classic }}</span> is Joo's Auto AP: type the TE you want
+              <span class="font-bold text-slate-900">{{ NAMES.classicFirst }}</span> is Joo's Auto AP: type the TE you want
               to ascend at and it lays out every ascension from your start, with the weekly Research Sale and the Monday
               2× earnings boost in it. To have the stops found for you, use {{ fastestName(chainSearchStore.finalTE) }} or
               {{ NAMES.byDate }}.
@@ -526,6 +543,12 @@
              else's account becomes a claim about yours. The player id only picks which of this
              browser's owner codes asks for "my" runs; it is hashed locally and never sent. -->
         <LeaderboardPanel :player-id="playerId" @use="useLeaderboardChain" />
+      </div>
+
+      <!-- My runs (15 Oct 2026; was Compare's My plans): your runs on the board (hidden ones too), saved on this
+           computer, and not sent yet. Use and a saved entry's Open go to the Auto Planner, as Compare's Use does. -->
+      <div v-else-if="plannerTab === 'myruns'" class="max-w-6xl mx-auto mt-6">
+        <MyRunsView :player-id="playerId" @use="useLeaderboardChain" @open="openFromMyRuns" />
       </div>
 
       <!-- Science: how the planner works (its default page), what the collected runs still can't tell
@@ -648,6 +671,16 @@
       />
       <FloatingStats v-if="plannerTab === 'manual'" />
       <FloatingNotes v-if="plannerTab === 'manual'" />
+
+      <!-- On every screen, at the end of the page (a plain link, so it shows on phones too). -->
+      <footer class="pt-8 text-center text-[11px] text-slate-500" data-testid="site-footer">
+        <a
+          href="./about.html"
+          class="inline-block px-3 py-2 underline decoration-dotted underline-offset-2 hover:text-slate-800"
+          data-testid="about-link"
+          >About and privacy</a
+        >
+      </footer>
     </div>
   </div>
 </template>
@@ -671,6 +704,7 @@ import TheNavBar from 'ui/components/NavBar.vue';
 import { getSavedPlayerID, savePlayerID, requestFirstContact, resolveColleggtibleContracts } from 'lib';
 import ThePlayerIdForm from 'ui/components/PlayerIdForm.vue';
 import { useInitialStateStore } from '@/stores/initialState';
+import { offerStartTimes } from '@/lib/onVirtue';
 import { useActionsStore } from '@/stores/actions';
 import { useVirtueStore } from '@/stores/virtue';
 import { useUIStore } from '@/stores/ui';
@@ -702,16 +736,19 @@ import { usePlanStartForm } from '@/composables/usePlanStartForm';
 import { useTablePrefetch } from '@/composables/useTablePrefetch';
 import { useGearCoverage } from '@/composables/useGearCoverage';
 import SiteTabs from '@/components/SiteTabs.vue';
+import MyRunsView from '@/components/MyRunsView.vue';
 import SetupDock from '@/components/auto/SetupDock.vue';
 import SweepRunner from '@/components/science/SweepRunner.vue';
 import HowItWorks from '@/components/science/HowItWorks.vue';
 import StartTimeCard from '@/components/auto/StartTimeCard.vue';
 import { useStartTimesStore } from '@/stores/startTimes';
-import { revealRunTab } from '@/lib/searchTab';
+import { revealRunTab, selectSearchTab } from '@/lib/searchTab';
+import { presetByDate } from '@/lib/byDateForm';
+import type { MyRunsOpen } from '@/lib/myRunsDashboard';
+import { useStrongerStore } from '@/stores/stronger';
 import type { SweepRequest } from '@/search/sweepRequest';
 import { virtueInventory } from '@/search/csv';
 import type { ByDateRequest } from '@/search/byDateRequest';
-import RunningElsewhere from '@/components/auto/RunningElsewhere.vue';
 import { useSalesStore } from '@/stores/sales';
 import { hashID, saveMetadata, loadMetadata } from '@/lib/storage/db';
 import { useActionExecutor } from '@/composables/useActionExecutor';
@@ -726,6 +763,7 @@ import IntegrityAlert from '@/components/auto/IntegrityAlert.vue';
 import { getSimulationContext, createBaseEngineState } from '@/engine/adapter';
 import type { Action, VirtueEgg } from '@/types';
 import { countTEThresholdsPassed } from '@/lib/truthEggs';
+import { setConsentAccount } from '@/composables/useConsent';
 import { getArtifact, getArtifactLoadoutFromBackup } from '@/lib/artifacts';
 import {
   initStartFromScratch,
@@ -762,6 +800,7 @@ if (new URLSearchParams(window.location.search).has('_hardReload')) {
 }
 
 const chainSearchStore = useChainSearchStore();
+const strongerStore = useStrongerStore();
 
 /** Take a chain off the board into the Auto Planner. It is someone else's ANSWER, not a result
  *  for this account -- their artifacts and starting TE produced it -- so this loads the shape and
@@ -770,6 +809,23 @@ function useLeaderboardChain(chain: number[]): void {
   pinnedRoute = null;
   chainSearchStore.applyChain(chain, false);
   uiStore.autoView = 'classic';
+  plannerTab.value = 'automatic';
+}
+/** My runs' Open on a saved run or answer: its screen, showing what Open just put there. Like Use, without
+ *  the tab click's fresh save (that would set the planner up again under the opened entry). */
+function openFromMyRuns(to: MyRunsOpen): void {
+  pinnedRoute = null;
+  // A Next step's own setup (lib/myRunsDashboard.ts): the target, the level, the search tab and By a date's
+  // deadline (taken by DeadlinePanel when it mounts, lib/byDateForm.ts). Never under a running search, which
+  // owns them: the screen then opens as it is.
+  if (!searchActive.value) {
+    if (to.target != null) chainSearchStore.finalTE = to.target;
+    if (to.level) strongerStore.level = to.level;
+    if (to.byDate) presetByDate(to.byDate);
+    if (to.tab) selectSearchTab(to.auto === 'by-date' ? 'by-date' : 'fastest', to.tab);
+  }
+  uiStore.autoView = to.auto;
+  if (to.depth) uiStore.fastestDepth = to.depth;
   plannerTab.value = 'automatic';
 }
 const initialStateStore = useInitialStateStore();
@@ -795,9 +851,11 @@ function currentRoute(): SiteRoute {
       ? 'auto'
       : plannerTab.value === 'leaderboard'
         ? 'compare'
-        : plannerTab.value === 'science'
-          ? 'science'
-          : 'manual';
+        : plannerTab.value === 'myruns'
+          ? 'myruns'
+          : plannerTab.value === 'science'
+            ? 'science'
+            : 'manual';
   return {
     section,
     auto: autoView.value,
@@ -817,9 +875,11 @@ function applyRoute(r: SiteRoute): void {
       ? 'automatic'
       : r.section === 'compare'
         ? 'leaderboard'
-        : r.section === 'science'
-          ? 'science'
-          : 'manual';
+        : r.section === 'myruns'
+          ? 'myruns'
+          : r.section === 'science'
+            ? 'science'
+            : 'manual';
 }
 
 if (initialRoute) {
@@ -1027,8 +1087,18 @@ watch([compareView, scienceView], () => (pinnedRoute = null));
 watch(playerId, () => {
   if (chainSearchStore.sweepQueue.at >= 0) chainSearchStore.sweepQueue.cancelled = true;
 });
-// A copy with no collector has no Compare or Science tab: an address for one opens the Manual Planner.
-if (!chainSearchStore.submitUrl && (plannerTab.value === 'leaderboard' || plannerTab.value === 'science')) {
+// Your setup, remembered per account (lib/setupMemory.ts): this account's hours, hold shifts, time off and
+// first ascension, or the defaults. Until it is in, `setupLoaded` holds back the instant answer and its Check
+// exactly, so a reload doesn't start it on the defaults and restart it when the hours arrive.
+watch(playerId, id => void chainSearchStore.loadSetupFor(id), { immediate: true });
+// Every consent box, remembered per account (composables/useConsent.ts): this account's agreements, or
+// nothing agreed. A switch never carries the last account's yes over.
+watch(playerId, id => void setConsentAccount(id), { immediate: true });
+// A copy with no collector has no Compare, My runs or Science tab: an address for one opens the Manual Planner.
+if (
+  !chainSearchStore.submitUrl &&
+  (plannerTab.value === 'leaderboard' || plannerTab.value === 'myruns' || plannerTab.value === 'science')
+) {
   plannerTab.value = 'manual';
 }
 
@@ -1063,6 +1133,12 @@ const topTabs = computed(() => [
           tab: 'leaderboard',
           label: NAMES.compare,
           on: 'bg-emerald-600 text-white shadow-lg shadow-emerald-100',
+        },
+        {
+          id: 'myruns' as const,
+          tab: 'myruns',
+          label: NAMES.myRuns,
+          on: 'bg-sky-600 text-white shadow-lg shadow-sky-100',
         },
         {
           id: 'science' as const,
@@ -1100,12 +1176,14 @@ const saveTE = computed(() => {
   }
   return total;
 });
-const scienceTabs: { id: ScienceView; label: string }[] = [
+/** When should I start? only before the player is on virtue (lib/onVirtue.ts, Jordan 16 Oct 2026); its
+ *  address still opens, with a short note, for a link from before. */
+const scienceTabs = computed<{ id: ScienceView; label: string }[]>(() => [
   { id: 'how', label: NAMES.how },
   { id: 'check', label: NAMES.check },
   { id: 'submit', label: NAMES.submit },
-  { id: 'start', label: NAMES.start },
-];
+  ...(offerStartTimes(initialStateStore.rawBackup) ? [{ id: 'start' as const, label: NAMES.start }] : []),
+]);
 
 let autoInitFor = '';
 async function initAutoOnce(): Promise<void> {

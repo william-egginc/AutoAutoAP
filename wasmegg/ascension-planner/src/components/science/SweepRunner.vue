@@ -66,7 +66,7 @@
       >
         <p class="font-bold">Another search is running.</p>
         <p>
-          One search at a time: they share this computer's workers. Let it finish, or stop it from the bar at the top of
+          One search at a time: they share {{ thisDevice() }}'s workers. Let it finish, or stop it from the bar at the top of
           the page, then open this sweep again.
         </p>
       </div>
@@ -134,7 +134,7 @@
           </div>
         </div>
         <p class="text-[10px] text-slate-400 -mt-2">
-          The time is {{ measuredCost ? 'from this computer’s own measured speed' : speedSource }}, on the workers
+          The time is {{ measuredCost ? `from ${thisDevice()}’s own measured speed` : speedSource }}, on the workers
           below. Real runs often go faster: plans that share their first ascensions share the work.
         </p>
 
@@ -155,7 +155,7 @@
 
         <label class="block space-y-1">
           <span class="flex items-baseline justify-between text-[11px] font-bold text-slate-700">
-            <span>How much of this computer to use</span>
+            <span>How much of {{ thisDevice() }} to use</span>
             <span>{{ store.workerBudget }} of {{ store.machineThreads }} workers</span>
           </span>
           <input
@@ -180,9 +180,21 @@
         </p>
 
         <div class="rounded-lg border border-slate-200 px-3 py-2 space-y-2">
-          <label class="flex items-start gap-2 text-[11px] text-slate-700">
-            <input v-model="consent" type="checkbox" class="mt-0.5 rounded border-indigo-300 text-indigo-600" />
-            <span>
+          <!-- The account's "I understand" for a science sweep (ConsentBox.vue, composables/useConsent.ts), the
+               same one as the sweep card's. Withdrawn during the run: its result is not sent. -->
+          <ConsentBox
+            v-model="consent"
+            consent-id="scienceSweep"
+            testid="sweep-consent"
+            label-class="text-[11px] text-slate-700"
+            summary-class="text-[11px] text-slate-700"
+            withdrawn-text="Withdrawn: this sweep's result will not be sent."
+          >
+            <template #summary>
+              <span>You agreed the sweep is sent to the board automatically when it finishes</span>
+            </template>
+            <template #text>
+              <span>
               I understand it takes about <b>{{ roughly(hours) }}</b
               >, that this tab has to stay open (and the computer awake) until it finishes, and that the result is then
               <b>sent to the board automatically</b>, tagged {{ request.preset }}.
@@ -190,7 +202,8 @@
                 What gets sent?
               </button>
             </span>
-          </label>
+            </template>
+          </ConsentBox>
           <p v-if="showWhat" class="pl-6 text-[11px] text-slate-500 leading-relaxed">
             The route, its timings and the full CSV, with your artifact inventory, timezone and local plan start, plus a
             random code this browser keeps for the account (never your player ID, and never shown). The code folds
@@ -346,6 +359,7 @@
 </template>
 
 <script setup lang="ts">
+import { thisDevice } from '@/search/device';
 import { plural } from '@/lib/format';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useShareIdentity } from '@/composables/useShareResult';
@@ -364,6 +378,8 @@ import { sendRunResult } from '@/search/sendRun';
 import type { SweepRequest } from '@/search/sweepRequest';
 import { describeFirstAscension } from '@/search/firstAscension';
 import IntegrityNotice from '@/components/auto/IntegrityNotice.vue';
+import ConsentBox from '@/components/auto/ConsentBox.vue';
+import { useConsent } from '@/composables/useConsent';
 
 const props = defineProps<{
   request: SweepRequest;
@@ -479,12 +495,12 @@ function setWorkers(raw: string): void {
 
 // ------------------------------------------------------------------ credit (as the sweep card's)
 
-const consent = ref(false);
+/** "I understand ... sent to the board automatically": the account's `scienceSweep` consent. */
+const consent = useConsent('scienceSweep').agreed;
 const showWhat = ref(false);
-const anonymous = ref(true);
-/** The account's one "Credit me as" name, shared with the other screens (composables/useShareResult.ts);
- *  the consent and anonymous-or-named above stay this runner's own. */
-const { nickname, nicknameTouched } = useShareIdentity(() => props.playerId);
+/** The account's one "Credit me as" name and anonymous-or-named choice, shared with the other screens
+ *  (composables/useShareResult.ts); the consent above stays this runner's own. */
+const { anonymous, nickname, nicknameTouched } = useShareIdentity(() => props.playerId);
 /** Anonymous wins over whatever is in the box; the collector keeps 40 characters. */
 const effectiveNickname = computed(() => (anonymous.value ? '' : nickname.value.trim().slice(0, 40)));
 
@@ -521,8 +537,11 @@ async function start(): Promise<void> {
   const tagBefore = store.sweepTag;
   const firstBefore = store.firstAscensionState();
   store.sweepTag = { preset: request.preset, bands: bandsText.value, minGap: request.minGap };
-  if (request.firstAscension !== null) store.setFirstAscension(request.firstAscension);
+  // The sweep's own first ascension, for this run only: not remembered as the player's setup.
+  if (request.firstAscension !== null) store.muteSetupMemory(() => store.setFirstAscension(request.firstAscension!));
   store.submitsWhenDone = true;
+  // This run's own withdraw (the box above, or the leaderboard agreement) is tracked from here.
+  store.shareWithdrawn = false;
 
   const startedAt = Date.now();
   let finished: Promise<void>;
@@ -558,7 +577,10 @@ async function start(): Promise<void> {
   // that was refused (another search, the integrity block) can't send whatever was on screen before.
   const ranHere = store.runStartedAt >= startedAt && !store.error && store.bestDays > 0;
   let report: { ok: boolean; text: string };
-  if (ranHere) {
+  // Withdrawn during the run (store `withdrawShareConsent`): nothing goes.
+  if (ranHere && store.shareWithdrawn) {
+    report = { ok: false, text: 'Not sent: you withdrew your agreement during the run.' };
+  } else if (ranHere) {
     if (current) current.phase = 'sending';
     report = await sendRunResult(store, nick, true);
     store.lastAutoSend = { kind: 'full', ok: report.ok, text: report.text };

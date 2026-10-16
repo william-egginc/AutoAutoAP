@@ -34,7 +34,7 @@ $env:E2E_FINAL = "$final"
 if ($from -ne $to) { $env:E2E_AVAIL_FROM = "$from"; $env:E2E_AVAIL_TO = "$to" } else { Remove-Item Env:E2E_AVAIL_FROM, Env:E2E_AVAIL_TO -ErrorAction SilentlyContinue }
 $ErrorActionPreference = 'Continue'
 (Get-Process -Id $PID).PriorityClass = 'BelowNormal'
-$priv = 'C:\Users\cha12\aaap-private'
+$priv = "$env:USERPROFILE\aaap-private"
 $base = "$priv\refine0928"
 New-Item -ItemType Directory -Force $base | Out-Null
 $log = "$base\refine.log"
