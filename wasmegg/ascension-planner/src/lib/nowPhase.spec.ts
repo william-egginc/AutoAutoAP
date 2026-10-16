@@ -72,6 +72,8 @@ describe("Right now's badge", () => {
     expect(at(NOW, { setMatch: 'production' })).toEqual({ phase: 'building', elr: null, elrFrom: null });
     expect(at(H1 + 60, { setMatch: 'production' })).toEqual({ phase: 'producing', elr: 1e12, elrFrom: 'save' });
     expect(at(H1 + 60, { setMatch: 'earnings' })).toEqual({ phase: 'producing', elr: 2e12, elrFrom: 'projected' });
+    // "A mix": the plan's projected rate for either phase when it has legs.
+    expect(at(NOW, { setMatch: 'mix' })?.elrFrom).toBe('projected');
   });
 
   it('without a timeline, from the set equipped', () => {
@@ -90,7 +92,7 @@ describe("Right now's badge", () => {
   it('its words', () => {
     expect(phaseWords({ phase: 'building', elr: null, elrFrom: null })).toEqual({ title: 'Building', rate: '' });
     expect(phaseWords({ phase: 'producing', elr: 1e12, elrFrom: 'save' }).rate).toMatch(
-      /^ELR .+\/hr · from your save$/
+      /^.+\/hr · from your save$/
     );
     expect(phaseWords({ phase: 'producing', elr: 2e12, elrFrom: 'projected' }).rate).toMatch(/· projected$/);
   });

@@ -6,8 +6,9 @@
  *               artifacts are swapped) in the plan's current ascension; without a timeline, wearing the earnings set
  *   Producing   after the H1 step; without a timeline, wearing the production (delivery-rate) set
  *
- * The rate: the save's own (lib/farmFacts.ts) when the save wears the set of that phase, else for Producing the
- * plan's projected peak rate of this ascension (`LegSummary.maxELR`, after K3), labelled "projected".
+ * The rate: the save's own (lib/farmFacts.ts) when the save wears the set of that phase, else for Producing (and for
+ * Building on "a mix") the plan's projected peak rate of this ascension (`LegSummary.maxELR`, after K3), labelled
+ * "projected".
  * Not on virtue (or not known yet): no badge.
  */
 import { formatNumber } from './format';
@@ -57,7 +58,8 @@ export function phaseNow(o: {
   if (!phase) return null;
   const wears = o.setMatch === 'both' || o.setMatch === (phase === 'building' ? 'earnings' : 'production');
   if (wears && o.saveElr != null && o.saveElr > 0) return { phase, elr: o.saveElr, elrFrom: 'save' };
-  if (phase === 'producing' && o.plan?.legs) {
+  // Producing without its set on, and Building on "a mix": the plan's projected rate when it has legs.
+  if ((phase === 'producing' || o.setMatch === 'mix') && o.plan?.legs) {
     const i = fromPlan?.leg ?? Math.max(0, ascensionAt(o.plan, o.nowSeconds) - 1);
     const max = o.plan.legs[i]?.maxELR;
     if (typeof max === 'number' && max > 0) return { phase, elr: max, elrFrom: 'projected' };
@@ -65,10 +67,10 @@ export function phaseNow(o: {
   return { phase, elr: null, elrFrom: null };
 }
 
-/** The badge's words: "Building", "Producing"; the rate "ELR 1.234Q/hr · from your save" or "… · projected". */
+/** The badge's words: "Building", "Producing"; the rate "1.234Q/hr · from your save" or "… · projected". */
 export function phaseWords(b: PhaseBadge): { title: string; rate: string } {
   const title = b.phase === 'building' ? 'Building' : 'Producing';
   if (b.elr == null) return { title, rate: '' };
-  const rate = `ELR ${formatNumber(b.elr * 3600, 3)}/hr`;
+  const rate = `${formatNumber(b.elr * 3600, 3)}/hr`;
   return { title, rate: b.elrFrom === 'projected' ? `${rate} · projected` : `${rate} · from your save` };
 }

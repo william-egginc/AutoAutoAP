@@ -226,15 +226,14 @@ describe('not on virtue yet', () => {
 describe('the corner badge and the gear', () => {
   it("Building with the save's rate; Producing with the plan's, labelled projected", async () => {
     const b = await renderHtml(RightNowCard, cardProps({ phase: { phase: 'building', elr: 1e12, elrFrom: 'save' } }));
-    const badge = b.match(
-      /<span[^>]*data-testid="now-phase"[\s\S]*?<\/span>\s*<\/span>|<span[^>]*data-testid="now-phase"[\s\S]*?<\/span>/
-    )![0];
-    expect(badge).toContain('data-phase="building"');
-    expect(textOf(badge)).toMatch(/^Building · ELR .+\/hr · from your save$/);
+    expect(b).toContain('data-phase="building"');
+    expect(textOf(b.match(/<span[^>]*data-testid="now-phase"[\s\S]*?<\/span>/)![0])).toBe('Building');
+    // The rate sits smaller underneath the badge, on the egg's own line (16 Oct 2026, Jordan).
+    expect(textOf(b.match(/<span[^>]*data-testid="now-phase-rate"[\s\S]*?<\/span>/)![0])).toMatch(/^.+\/hr · from your save$/);
     const p = textOf(
       await renderHtml(RightNowCard, cardProps({ phase: { phase: 'producing', elr: 2e12, elrFrom: 'projected' } }))
     );
-    expect(p).toMatch(/Producing · ELR .+\/hr · projected/);
+    expect(p).toMatch(/Producing .+\/hr · projected/);
     const none = await renderHtml(RightNowCard, cardProps({ phase: null }));
     expect(none).not.toContain('data-testid="now-phase"');
   });

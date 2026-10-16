@@ -20,7 +20,7 @@
 -->
 <template>
   <section class="rounded-2xl border border-slate-200 bg-white p-4 space-y-2" data-testid="now-card">
-    <div class="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
+    <div class="flex flex-wrap items-start gap-x-3 gap-y-1">
       <div class="min-w-0 flex flex-wrap items-baseline gap-x-3">
         <p class="text-[11px] font-black uppercase tracking-widest text-slate-500">Right now</p>
         <p v-if="card" class="text-[12px] text-slate-500" data-testid="now-calculated">
@@ -31,23 +31,6 @@
           · from your save of {{ planSaveWhen }}
         </p>
       </div>
-      <!-- The corner: "Not on virtue yet", else Building or Producing with the rate (lib/nowPhase.ts). -->
-      <span
-        v-if="notOnVirtue"
-        class="ml-auto shrink-0 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-[12px] font-bold text-amber-900"
-        data-testid="now-not-virtue-pill"
-        >Not on virtue yet</span
-      >
-      <span
-        v-else-if="phaseText"
-        class="ml-auto shrink-0 rounded-full border px-2.5 py-0.5 text-[12px] font-bold"
-        :class="phase!.phase === 'building' ? 'border-sky-300 bg-sky-50 text-sky-900' : 'border-emerald-300 bg-emerald-50 text-emerald-800'"
-        data-testid="now-phase"
-        :data-phase="phase!.phase"
-        >{{ phaseText.title }}<template v-if="phaseText.rate"
-          >{{ ' ' }}<span class="font-semibold">· {{ phaseText.rate }}</span></template
-        ></span
-      >
     </div>
     <!-- Which plan: a radiogroup, one option per goal (lib/planGoals.ts goalOptions); arrows move and pick. -->
     <div
@@ -160,13 +143,33 @@
         <img :src="iconURL(eggPicture, 64)" :alt="eggName" class="w-full h-full object-contain" data-testid="now-egg-picture" />
       </div>
       <div class="min-w-0">
-        <p v-if="onVirtue" class="text-xl font-black text-slate-900">{{ eggName || 'Your virtue farm' }}</p>
-        <p v-else-if="notOnVirtue" class="text-sm font-bold text-slate-800" data-testid="now-not-virtue">
-          Not on virtue yet: no virtue farm in this save, so nothing to do on a farm yet.
-        </p>
-        <p v-else class="text-sm font-bold text-slate-800" data-testid="now-not-virtue">
-          No virtue farm in this save<template v-if="card?.plan.planStart">: the plan starts with a fresh ascension {{ dateAt(card.plan.planStart, now, zone) }}</template>.
-        </p>
+        <div class="flex flex-wrap items-start gap-x-2.5 gap-y-1">
+          <p v-if="onVirtue" class="text-xl font-black text-slate-900">{{ eggName || 'Your virtue farm' }}</p>
+          <p v-else-if="notOnVirtue" class="text-sm font-bold text-slate-800" data-testid="now-not-virtue">
+            No virtue farm in this save, so nothing to do on a farm yet.
+          </p>
+          <p v-else class="text-sm font-bold text-slate-800" data-testid="now-not-virtue">
+            No virtue farm in this save<template v-if="card?.plan.planStart">: the plan starts with a fresh ascension {{ dateAt(card.plan.planStart, now, zone) }}</template>.
+          </p>
+          <!-- The state, as a badge on the egg's own line (lib/nowPhase.ts), its rate smaller underneath. -->
+          <span v-if="notOnVirtue || phaseText" class="inline-flex flex-col items-start">
+            <span
+              v-if="notOnVirtue"
+              class="rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-[12px] font-bold text-amber-900"
+              data-testid="now-not-virtue-pill"
+              >Not on virtue yet</span
+            >
+            <span
+              v-else-if="phaseText"
+              class="rounded-full border px-2.5 py-0.5 text-[12px] font-bold"
+              :class="phase!.phase === 'building' ? 'border-sky-300 bg-sky-50 text-sky-900' : 'border-emerald-300 bg-emerald-50 text-emerald-800'"
+              data-testid="now-phase"
+              :data-phase="phase!.phase"
+              >{{ phaseText.title }}</span
+            >
+            <span v-if="phaseText && phaseText.rate && !notOnVirtue" class="mt-0.5 text-[11px] text-slate-500" data-testid="now-phase-rate">{{ phaseText.rate }}</span>
+          </span>
+        </div>
         <p class="text-[12px] text-slate-500">
           <template v-if="card && ascNow > 0">ascension {{ ascNow }} of {{ card.plan.chain.length }} · </template>
           <template v-else-if="card && card.plan.planStart && ascNow === 0">plan starts {{ dateAt(card.plan.planStart, now, zone) }} · </template>
