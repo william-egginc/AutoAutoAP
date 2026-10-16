@@ -7,18 +7,47 @@
   Which plan (Jordan, 16 Oct): a switch at the top picks the goal (Race to 490 | Egg Day 2027 | By a date), the one
   checked last by default (lib/planGoals.ts); everything below follows it. The header names the route followed,
   the ascension the save is in highlighted, the ones already passed greyed.
+  16 Oct 2026: not on virtue yet (lib/onVirtue.ts, the test "When should I start?" uses), the card says so and leads
+  with "When should I start?"; no Next step, no events, no calendar, only each goal's saved plan as "If you start
+  <date>: …" (lib/nowStart.ts). On virtue, a badge in the corner says Building or Producing with the rate
+  (lib/nowPhase.ts), and "Recalculate" opens the goal's screen with the save and runs Check exactly there
+  (lib/recalc.ts): this card still works nothing out.
+  "Follow this route" (lib/follow.ts): a route the player picked for the goal (on the instant answer, a saved answer or
+  run, a board row, or typed in the box under the route line) replaces the planner's pick: the route line, the events,
+  the timeline and the calendar text follow it, priced from a save's Check exactly (lib/followPrice.ts). Priced on an
+  older save, it says so; not priced, it says so and offers "Price it ›" (Recalculate with the route attached) and
+  "Simulate it ›" (Single run). "Use the checked route ›" goes back to the planner's pick.
 -->
 <template>
   <section class="rounded-2xl border border-slate-200 bg-white p-4 space-y-2" data-testid="now-card">
-    <div class="flex flex-wrap items-baseline justify-between gap-x-3">
-      <p class="text-[11px] font-black uppercase tracking-widest text-slate-500">Right now</p>
-      <p v-if="card" class="text-[12px] text-slate-500" data-testid="now-calculated">
-        Plan for {{ followName }} calculated {{ calculatedWhen }} ({{ card.plan.exact ? 'Check exactly' : 'instant answer' }})<template
-          v-if="card.pricedWith"
-          >{{ ' ' }}· <span data-testid="now-priced-with">{{ card.pricedWith }}</span></template
-        >
-        · from your save of {{ planSaveWhen }}
-      </p>
+    <div class="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
+      <div class="min-w-0 flex flex-wrap items-baseline gap-x-3">
+        <p class="text-[11px] font-black uppercase tracking-widest text-slate-500">Right now</p>
+        <p v-if="card" class="text-[12px] text-slate-500" data-testid="now-calculated">
+          Plan for {{ followName }} calculated {{ calculatedWhen }} ({{ card.plan.exact ? 'Check exactly' : 'instant answer' }})<template
+            v-if="card.pricedWith"
+            >{{ ' ' }}· <span data-testid="now-priced-with">{{ card.pricedWith }}</span></template
+          >
+          · from your save of {{ planSaveWhen }}
+        </p>
+      </div>
+      <!-- The corner: "Not on virtue yet", else Building or Producing with the rate (lib/nowPhase.ts). -->
+      <span
+        v-if="notOnVirtue"
+        class="ml-auto shrink-0 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-[12px] font-bold text-amber-900"
+        data-testid="now-not-virtue-pill"
+        >Not on virtue yet</span
+      >
+      <span
+        v-else-if="phaseText"
+        class="ml-auto shrink-0 rounded-full border px-2.5 py-0.5 text-[12px] font-bold"
+        :class="phase!.phase === 'building' ? 'border-sky-300 bg-sky-50 text-sky-900' : 'border-emerald-300 bg-emerald-50 text-emerald-800'"
+        data-testid="now-phase"
+        :data-phase="phase!.phase"
+        >{{ phaseText.title }}<template v-if="phaseText.rate"
+          >{{ ' ' }}<span class="font-semibold">· {{ phaseText.rate }}</span></template
+        ></span
+      >
     </div>
     <!-- Which plan: a radiogroup, one option per goal (lib/planGoals.ts goalOptions); arrows move and pick. -->
     <div
@@ -49,8 +78,8 @@
     </div>
 
     <!-- The route followed: the ascension the save is in highlighted, the stops passed greyed; wraps. -->
-    <p v-if="card && card.plan.chain.length" class="text-[13px] text-slate-700 break-words" data-testid="now-chain">
-      Following<template v-for="(s, i) in stops" :key="i"
+    <p v-if="shownChain.length" class="text-[13px] text-slate-700 break-words" data-testid="now-chain">
+      <template v-if="notOnVirtue">If you start then:{{ ' ' }}</template>Following<template v-for="(s, i) in stops" :key="i"
         >{{ i ? ' → ' : ' '
         }}<span
           :class="
@@ -67,6 +96,48 @@
       >{{ ' ' }}({{ followName }})
     </p>
 
+    <!-- The player's own pick (lib/follow.ts): where its price came from, Price it / Simulate it, and the way back. -->
+    <p v-if="follow" class="text-[12px] text-slate-600" data-testid="now-follow" :data-price="follow.price" :data-source="follow.source ?? ''">
+      <span class="font-bold text-indigo-800">Following your pick</span><template v-if="followNote">{{ ' ' }}· {{ followNote }}</template
+      ><template v-if="follow.missesDate">{{ ' ' }}· lands after the date</template
+      ><template v-if="offerPrice"
+        >{{ ' ' }}·
+        <button type="button" class="font-bold text-indigo-700 underline" data-testid="now-follow-price" @click="priceIt">
+          Price it ›
+        </button>
+        ·
+        <button type="button" class="font-bold text-indigo-700 underline" data-testid="now-follow-simulate" title="Opens Single run with this route on your save (nothing is kept for this page)" @click="emit('simulate', [...follow.chain])">
+          Simulate it ›
+        </button></template
+      >{{ ' ' }}·
+      <button type="button" class="font-bold text-indigo-700 underline" data-testid="now-follow-back" @click="emit('unfollow')">
+        Use the checked route ›
+      </button>
+    </p>
+
+    <!-- Follow another route: typed stops (lib/follow.ts parseTypedRoute). -->
+    <details v-if="selectedOption && !notOnVirtue" class="text-[12px]" data-testid="now-follow-typed">
+      <summary class="cursor-pointer font-semibold text-indigo-700">Follow another route</summary>
+      <form class="mt-1.5 flex flex-wrap items-center gap-2" @submit.prevent="followTyped">
+        <label class="sr-only" for="now-follow-input">Stops of the route</label>
+        <input
+          id="now-follow-input"
+          v-model="typed"
+          type="text"
+          inputmode="numeric"
+          autocomplete="off"
+          :placeholder="typedHint"
+          class="min-h-[44px] w-56 max-w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-[13px]"
+          data-testid="now-follow-input"
+        />
+        <button type="submit" class="min-h-[44px] rounded-xl border border-indigo-300 bg-white px-3 py-1.5 text-[13px] font-bold text-indigo-700 hover:bg-indigo-50">
+          Follow
+        </button>
+        <span v-if="typedError" class="w-full text-rose-700" data-testid="now-follow-error">{{ typedError }}</span>
+        <span v-else class="w-full text-slate-500">Stops split by spaces, commas or arrows; Right now follows it for {{ selectedOption.name }}.</span>
+      </form>
+    </details>
+
     <!-- A better plan of this save priced with other hours: named, never the lead (fix 22, lib/currentAnswer.ts). -->
     <p v-if="card?.secondary" class="text-[12px] text-slate-500" data-testid="now-secondary">
       {{ secondaryText }}<template v-if="card.secondary.plan.calculatedAt">
@@ -78,7 +149,7 @@
       Your setup changed since this plan.
       <button type="button" class="font-bold underline" @click="emit('open', goalOpen)">Work it out again ›</button>
     </p>
-    <p v-else-if="card?.state === 'older-save'" class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-1.5 text-[12px] text-amber-900" data-testid="now-older-save">
+    <p v-else-if="card?.state === 'older-save' && !follow" class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-1.5 text-[12px] text-amber-900" data-testid="now-older-save">
       This plan was worked out from your save of {{ planSaveWhen }}, an older one than you loaded.
     </p>
 
@@ -90,6 +161,9 @@
       </div>
       <div class="min-w-0">
         <p v-if="onVirtue" class="text-xl font-black text-slate-900">{{ eggName || 'Your virtue farm' }}</p>
+        <p v-else-if="notOnVirtue" class="text-sm font-bold text-slate-800" data-testid="now-not-virtue">
+          Not on virtue yet: no virtue farm in this save, so nothing to do on a farm yet.
+        </p>
         <p v-else class="text-sm font-bold text-slate-800" data-testid="now-not-virtue">
           No virtue farm in this save<template v-if="card?.plan.planStart">: the plan starts with a fresh ascension {{ dateAt(card.plan.planStart, now, zone) }}</template>.
         </p>
@@ -104,8 +178,28 @@
       </span>
     </div>
 
+    <!-- Not on virtue yet: when to start, from each goal's saved plan (lib/nowStart.ts); nothing worked out here. -->
+    <div v-if="notOnVirtue" class="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2" data-testid="now-start">
+      <p class="text-[10px] font-black uppercase tracking-widest text-indigo-700">When to start</p>
+      <ul v-if="startInfo && startInfo.length" class="mt-0.5 space-y-0.5 text-[13px] text-slate-800" data-testid="now-start-lines">
+        <li v-for="l in startInfo" :key="l.key">{{ l.text }}</li>
+      </ul>
+      <p v-else class="text-[13px] text-slate-700" data-testid="now-start-none">{{ NOTHING_PRICED }}</p>
+      <button
+        type="button"
+        class="mt-2 min-h-[44px] rounded-xl bg-indigo-600 px-4 py-2 text-[14px] font-bold text-white hover:bg-indigo-700"
+        data-testid="now-when-start"
+        @click="emit('startTimes', card?.plan.chain.length ? [...card.plan.chain] : null)"
+      >
+        When should I start? ›
+      </button>
+      <span class="block mt-1 text-[11px] text-slate-500"
+        >Prices a route at every hour of the next week for this save (Science › When should I start?).</span
+      >
+    </div>
+
     <!-- Next step. -->
-    <div class="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2" data-testid="now-next">
+    <div v-else class="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2" data-testid="now-next">
       <p class="text-[10px] font-black uppercase tracking-widest text-indigo-700">Next step</p>
       <template v-if="card">
         <p v-if="nextText" class="text-[13px] text-slate-800">
@@ -118,6 +212,9 @@
           <button type="button" class="font-bold underline" @click="emit('open', goalOpen)">Check again ›</button>
         </p>
       </template>
+      <p v-else-if="follow" class="text-[13px] text-slate-700" data-testid="now-follow-next">
+        No timeline for your route on this save yet: Price it › runs Check exactly on it (about a minute more on a phone).
+      </p>
       <p v-else-if="selectedOption" class="text-[13px] text-slate-700" data-testid="now-no-plan">
         {{ selectedOption.label }}: {{ emptyGoalWords(selectedOption.state) }} ·
         <button type="button" class="font-bold text-indigo-700 underline" data-testid="now-work-it-out" @click="emit('open', selectedOption.open)">
@@ -137,6 +234,18 @@
       </p>
     </div>
 
+    <!-- Recalculate: the goal's screen with this save, running Check exactly there (lib/recalc.ts). -->
+    <div v-if="card && !notOnVirtue" class="flex flex-wrap items-center gap-x-3 gap-y-1" data-testid="now-recalc">
+      <button
+        type="button"
+        class="min-h-[44px] rounded-xl border border-indigo-300 bg-white px-3 py-1.5 text-[13px] font-bold text-indigo-700 hover:bg-indigo-50"
+        @click="emit('recalc', recalcRequest)"
+      >
+        Recalculate
+      </button>
+      <span class="text-[11px] text-slate-500">{{ recalcLine }}</span>
+    </div>
+
     <GearBlock
       v-if="gear"
       :equipped="gear.equipped"
@@ -147,11 +256,12 @@
       :what-if="gear.whatIf"
       :what-if-when="gear.whatIf ? dateAt(gear.whatIf.at / 1000, now, zone) : ''"
       :goal="card?.goal.goal ?? 'fastest'"
+      :match="gear.match ?? null"
     />
 
     <template v-if="card">
       <EventsTable
-        v-if="shownEvents.length"
+        v-if="shownEvents.length && !notOnVirtue"
         class="mt-3"
         :events="shownEvents"
         :goal="card.goal.goal"
@@ -198,6 +308,12 @@ import type { CardPlan } from '@/composables/useNowPage';
 import type { MyRunsOpen } from '@/lib/myRunsDashboard';
 import type { EquippedArtifact } from '@/lib/artifacts/types';
 import type { SnapWhatIf } from '@/search/instantSnapshot';
+import type { SetMatch } from '@/lib/gearMatch';
+import { phaseWords, type PhaseBadge } from '@/lib/nowPhase';
+import { NOTHING_PRICED, type StartLine } from '@/lib/nowStart';
+import { askGoal, recalcWords, type RecalcRequest } from '@/lib/recalc';
+import { parseTypedRoute } from '@/lib/follow';
+import type { FollowCard } from '@/composables/useNowPage';
 
 const props = defineProps<{
   card: CardPlan | null;
@@ -215,6 +331,7 @@ const props = defineProps<{
     clothedEquipped: number | null;
     clothedEarnings: number | null;
     whatIf: SnapWhatIf | null;
+    match?: SetMatch;
   } | null;
   now: number;
   zone: string;
@@ -223,8 +340,31 @@ const props = defineProps<{
   /** The switch's options (lib/planGoals.ts); absent: no switch. */
   goals?: GoalOption[];
   selectedGoal?: GoalKey | null;
+  /** The corner badge (lib/nowPhase.ts); null or absent: none. */
+  phase?: PhaseBadge | null;
+  /** Not on virtue yet: each goal's saved plan as "If you start <date>: …" (lib/nowStart.ts). */
+  startInfo?: StartLine[];
+  /** The route the player follows for this goal (lib/follow.ts) and how it is priced; null or absent: none. */
+  follow?: FollowCard | null;
 }>();
-const emit = defineEmits<{ open: [to: MyRunsOpen]; select: [key: GoalKey] }>();
+const emit = defineEmits<{
+  open: [to: MyRunsOpen];
+  select: [key: GoalKey];
+  /** "When should I start?": Science › When should I start? for this save, on this route when there is one. */
+  startTimes: [chain: number[] | null];
+  /** "Recalculate": open the goal's screen with the save and run Check exactly there (App, lib/recalc.ts). */
+  recalc: [req: RecalcRequest];
+  /** A route typed in "Follow another route": follow it for this goal. */
+  follow: [chain: number[]];
+  /** "Use the checked route ›": back to the planner's pick for this goal. */
+  unfollow: [];
+  /** "Simulate it ›": the followed route in Single run (search/simulateRoute.ts). */
+  simulate: [chain: number[]];
+}>();
+
+/** Not on virtue yet (null: not known, the card stays as it is). */
+const notOnVirtue = computed(() => props.onVirtue === false);
+const phaseText = computed(() => (props.phase ? phaseWords(props.phase) : null));
 
 const CHIP = {
   ok: 'border-emerald-300 bg-emerald-50 text-emerald-800',
@@ -241,10 +381,62 @@ const goalName = computed(() =>
     : `Fastest to ${props.card?.goal.target ?? 490}`
 );
 /** The goal in the route line and the calendar: "Race to 490", "Egg Day 2027", "By Mar 3, 2027". */
-const followName = computed(() => props.card?.name ?? (props.card?.goal.goal === 'fastest' ? `Race to ${props.card.goal.target}` : goalName.value));
-const stops = computed(() => chainStops(props.card?.plan.chain ?? [], props.ascNow));
+const followName = computed(() => {
+  const name =
+    props.card?.name ??
+    (props.card ? (props.card.goal.goal === 'fastest' ? `Race to ${props.card.goal.target}` : goalName.value) : (selectedOption.value?.name ?? ''));
+  return props.follow ? `${name} · your pick` : name;
+});
+/** The route on the line: the plan's, else (a followed route not priced yet) the followed one. */
+const shownChain = computed(() => props.card?.plan.chain ?? props.follow?.chain ?? []);
+const stops = computed(() => chainStops(shownChain.value, props.card ? props.ascNow : 0));
 /** "Following 197 → 222 → 247 → 285 → 313 (Egg Day 2027)": the same words go into each calendar event. */
 const following = computed(() => followingLine(props.card?.plan.chain ?? [], followName.value));
+
+// ------------------------------------------------------------------------------- following your pick
+/** Where the followed route's price came from, in words. */
+const followNote = computed(() => {
+  const f = props.follow;
+  if (!f) return '';
+  if (f.price === 'none') return 'not priced on this save yet';
+  if (f.price === 'finish' && f.finish) {
+    const lands = dateAt(f.finish.end, props.now, props.zone);
+    return `checked ${dateAt(f.finish.at / 1000, props.now, props.zone)}: lands ${lands}, no timeline kept`;
+  }
+  if (f.source === 'older-save' && f.pricedSave) return `priced on your save of ${dateAt(f.pricedSave, props.now, props.zone)}, may have drifted`;
+  return '';
+});
+/** "Price it ›" and "Simulate it ›": whenever the route has no Check exactly times of this save. */
+const offerPrice = computed(() => !!props.follow && (props.follow.price !== 'exact' || props.follow.source === 'older-save'));
+/** The goal asked for: the card's, else the selected option's (a followed route with no plan yet). */
+const askFor = computed<{ goal: 'fastest' | 'date'; target: number; deadline: number | null }>(() => {
+  if (props.card) return props.card.goal;
+  const o = selectedOption.value;
+  if (o && o.kind !== 'race' && o.deadline) return { goal: 'date', target: 0, deadline: o.deadline };
+  const t = Number(/^fastest-(\d+)$/.exec(o?.key ?? '')?.[1] ?? 490);
+  return { goal: 'fastest', target: t, deadline: null };
+});
+/** Recalculate with the followed route attached: Check exactly prices it as one more route (lib/recalc.ts). */
+function priceIt(): void {
+  if (!props.follow) return;
+  emit('recalc', { ...recalcRequest.value, chain: [...props.follow.chain] });
+}
+const typed = ref('');
+const typedError = ref('');
+const typedHint = computed(() => (askFor.value.goal === 'fastest' ? `e.g. 197 222 247 ${askFor.value.target}` : 'e.g. 197 222 247'));
+function followTyped(): void {
+  const r = parseTypedRoute(typed.value, {
+    currentTE: props.teSoFar,
+    target: askFor.value.goal === 'fastest' ? askFor.value.target : null,
+  });
+  if ('error' in r) {
+    typedError.value = r.error;
+    return;
+  }
+  typedError.value = '';
+  typed.value = '';
+  emit('follow', r.chain);
+}
 
 // ------------------------------------------------------------------------------------- the switch
 const selectedOption = computed(() => props.goals?.find(g => g.key === props.selectedGoal) ?? null);
@@ -295,4 +487,9 @@ const goalOpen = computed<MyRunsOpen>(() =>
     ? { auto: 'by-date', byDate: { eggDay: true } }
     : { auto: 'fastest', depth: 'smart', target: props.card?.goal.target ?? 490 }
 );
+const recalcRequest = computed<RecalcRequest>(() => ({
+  open: goalOpen.value,
+  goal: askGoal(askFor.value),
+}));
+const recalcLine = computed(() => recalcWords(goalOpen.value));
 </script>

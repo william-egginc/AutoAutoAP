@@ -146,6 +146,7 @@
                 >
                   Use
                 </button>
+                <FollowButton class="ml-1" :chain="l.row.chain" :goal-key="boardGoalKey(l.row)" from="board" />
               </td>
             </tr>
             <tr v-if="open === l.key" class="bg-slate-50">
@@ -162,6 +163,8 @@
 </template>
 
 <script setup lang="ts">
+import FollowButton from '../FollowButton.vue';
+import { boardGoalKey } from '@/lib/follow';
 import { computed, inject, ref } from 'vue';
 import {
   contentFingerprint,

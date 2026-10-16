@@ -70,6 +70,8 @@ export function goalDefs(o: {
   eggDay: { year: number; at: number };
   otherDates: readonly number[];
   dayWords: (unix: number) => string;
+  /** Other race targets (a followed board row's, lib/follow.ts): each a race of its own, listed when kept. */
+  otherTargets?: readonly number[];
 }): PlanGoal[] {
   const race = (target: number, optional: boolean): PlanGoal => ({
     key: `fastest-${target}`,
@@ -83,6 +85,8 @@ export function goalDefs(o: {
   });
   const list: PlanGoal[] = [race(o.ownTarget, false)];
   if (o.ownTarget !== o.raceTarget) list.push(race(o.raceTarget, true));
+  for (const t of [...new Set(o.otherTargets ?? [])].sort((a, b) => a - b))
+    if (t !== o.ownTarget && t !== o.raceTarget) list.push(race(t, true));
   list.push({
     key: `eggday-${o.eggDay.year}`,
     goal: 'date',
@@ -116,13 +120,15 @@ export function plansByGoal(
   goals: readonly PlanGoal[],
   candidates: readonly CardCandidate[],
   answers: readonly GoalAnswer[],
-  loadedSave: number
+  loadedSave: number,
+  /** Goals kept even without a plan: the ones a route is followed for (lib/follow.ts). */
+  keep: ReadonlySet<GoalKey> = new Set()
 ): GoalPlans[] {
   const out: GoalPlans[] = [];
   for (const g of goals) {
     const mine = candidates.filter(c => c.goalKey === g.key && c.plan.goal === g.goal);
     const pick = pickGoalPlan(mine, loadedSave);
-    if (!pick && g.optional) continue;
+    if (!pick && g.optional && !keep.has(g.key)) continue;
     const said = answers.filter(a => a.goalKey === g.key);
     const saidHere = said.filter(a => isCurrentSave(a.saveSeconds, loadedSave, a.ownKey)).map(a => a.calculatedAt);
     const planAt = mine.length ? newestPlanAt(mine, loadedSave) : 0;
@@ -176,6 +182,8 @@ export interface GoalOption {
   calculatedAt: number | null;
   /** "Work it out ›": the goal's screen. */
   open: MyRunsOpen;
+  /** The player follows a route of their own for this goal (lib/follow.ts). */
+  following?: boolean;
 }
 
 export function goalOptions(list: readonly GoalPlans[], zone: string): GoalOption[] {

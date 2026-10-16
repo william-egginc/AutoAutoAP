@@ -191,6 +191,44 @@ export function planFromSnapshot(snap: SnapLike | null, goal: 'fastest' | 'date'
   };
 }
 
+/**
+ * One route's plan from a snapshot's Check exactly prices (`exact`, keyed by the route as priced from that save), for
+ * a route the player follows (lib/followPrice.ts); null when that route wasn't priced there. No runner-up: it is the
+ * player's pick, not the planner's.
+ */
+export function planFromExactChain(
+  snap: SnapLike | null,
+  chain: readonly number[],
+  goal: 'fastest' | 'date',
+  deadline: number | null = null
+): NowPlan | null {
+  const e = snap?.exact?.[key(chain)] ?? null;
+  if (!snap || !e || !Number.isFinite(e.end)) return null;
+  const tableRoute = [
+    ...(snap.result?.byAscensions ?? []),
+    snap.result?.byDate ?? null,
+    ...(snap.result?.byDateByAscensions ?? []),
+  ].find(r => r && Array.isArray(r.chain) && key(r.chain) === key(chain));
+  return {
+    goal,
+    deadline: goal === 'date' ? deadline : null,
+    chain: [...chain],
+    end: e.end,
+    endTE: e.endTE,
+    legs: Array.isArray(e.legs) && e.legs.length ? e.legs : null,
+    tableLegs: tableRoute?.legs ?? null,
+    exact: true,
+    instantTE: null,
+    spareHours: goal === 'date' && deadline ? (deadline - e.end) / 3600 : null,
+    runnerUpHours: null,
+    runnerUp: null,
+    calculatedAt: snap.at,
+    planStart: typeof snap.answerStart === 'number' ? snap.answerStart : null,
+    meta: snap.meta ?? null,
+    whatIf: snap.whatIf ?? null,
+  };
+}
+
 // ------------------------------------------------------------------------------------- events
 
 export interface PlanEvent {

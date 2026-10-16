@@ -188,7 +188,7 @@ describe('the My runs tab', () => {
     expect(tabs.indexOf("id: 'myruns'")).toBeGreaterThan(tabs.indexOf('chainSearchStore.submitUrl'));
     expect(app).toContain('<div v-else-if="plannerTab === \'myruns\'"');
     expect(app).toMatch(
-      /<MyRunsView\s+:player-id="playerId"\s+:loading="loading"\s+@use="useLeaderboardChain"\s+@open="openFromMyRuns"\s+@fresh="loadFreshSave"\s+\/>/
+      /<MyRunsView\s+:player-id="playerId"\s+:loading="loading"\s+@use="useLeaderboardChain"\s+@open="openFromMyRuns"\s+@fresh="loadFreshSave"\s+@recalc="recalcFromMyRuns"\s+\/>/
     );
     // An address for it with no collector opens the Manual Planner, like Compare and Science.
     expect(app).toMatch(/!chainSearchStore\.submitUrl &&[\s\S]{0,120}plannerTab\.value === 'myruns'/);

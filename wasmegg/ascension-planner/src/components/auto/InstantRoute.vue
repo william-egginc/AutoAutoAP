@@ -345,6 +345,7 @@
                           >
                             Simulate this plan
                           </button>
+                          <FollowButton :chain="(dateExactByK[r.legs.length] ?? tableDate(r)).chain" :goal-key="followGoal" from="count" />
                           <span
                             v-if="simulateCaveat((dateExactByK[r.legs.length] ?? tableDate(r)).chain, r.legs.length)"
                             class="basis-full text-[10px] leading-snug text-amber-700"
@@ -451,6 +452,7 @@
             >
               Simulate this plan
             </button>
+            <FollowButton class="mt-1 ml-2" primary :chain="(dateExact ?? tableDate(result.byDate)).chain" :goal-key="followGoal" from="answer" />
             <span
               v-if="simulateCaveat((dateExact ?? tableDate(result.byDate)).chain, result.byDate.legs.length)"
               class="block mt-1 text-[10px] leading-snug text-amber-700"
@@ -592,6 +594,7 @@
                         >
                           Simulate this plan
                         </button>
+                        <FollowButton v-if="r.chain.length" :chain="r.chain" :goal-key="followGoal" from="count" />
                         <span
                           v-if="simulateCaveat(r.chain)"
                           class="basis-full text-[10px] leading-snug text-amber-700"
@@ -705,6 +708,7 @@
           >
             Simulate this plan
           </button>
+          <FollowButton class="mt-1 ml-2" primary :chain="lead.chain" :goal-key="followGoal" from="answer" />
           <span
             v-if="simulateCaveat(lead.chain)"
             class="block mt-1 text-[10px] leading-snug text-amber-700"
@@ -974,7 +978,9 @@ import {
 import InstantIntegrity from './InstantIntegrity.vue';
 import StrongerCheck from './StrongerCheck.vue';
 import { holdsRoutes, instantIntegrity, lowTeOpeningNote } from '@/search/instantIntegrity';
-import type { FindContext } from '@/search/strongerCheck';
+import { cutRoute, type FindContext } from '@/search/strongerCheck';
+import FollowButton from '../FollowButton.vue';
+import { screenGoalKey } from '@/lib/follow';
 import { rowAtOnce, rowLine, type AtOnceItem } from '@/search/lightAtOnce';
 import { isConstrained } from '@/search/availability';
 import {
@@ -1013,6 +1019,8 @@ import { GEAR_RULE, gearChanges, gearStamp, gearTableNames, legacyGearTableName,
 import { compositeUrl, parseCompositeUrl } from '@/search/precomputedTable';
 import type { TableHeader } from '@/search/precomputedTable';
 import { useInitialStateStore } from '@/stores/initialState';
+import { useUIStore } from '@/stores/ui';
+import { exactAskStep } from '@/lib/recalc';
 import { ownerToken } from '@/search/owner';
 import { appBuildId } from '@/search/submission';
 import { SIM_VERSION, tableSimMismatch } from '@/search/simVersion';
@@ -2199,6 +2207,52 @@ function checkAgain(): void {
   const id = ++runs;
   void runExact(id, result.value, true);
 }
+/**
+ * My runs' "Recalculate" (lib/recalc.ts, stores/ui.ts `exactAsk`): App opened this screen for a goal and asks for
+ * Check exactly. Answered here as the button above, once this answer is in, only for this screen's own goal and
+ * never under a running search (then the ask is dropped). Check exactly already started by itself counts as done.
+ */
+/** "Follow this route": the goal My runs' Right now follows it for (lib/follow.ts). */
+const followGoal = computed(() => screenGoalKey(props.deadline, store.finalTE));
+/** The followed route "Price it ›" asked for (`followedToPrice` below). */
+let followAsk: number[] | null = null;
+const ui = useUIStore();
+watch(
+  () =>
+    exactAskStep({
+      ask: ui.exactAsk,
+      goal: instantGoal(props.deadline, store.finalTE),
+      searchRunning: runBusy.value || store.busy,
+      status: status.value,
+      backgroundStatus: backgroundStatus.value,
+      exactStatus: exactStatus.value,
+      hasResult: !!result.value,
+    }),
+  step => {
+    if (step === 'none' || step === 'wait') return;
+    // "Price it ›" on Right now: the followed route goes with this check (or the one already running) as one more.
+    if (step !== 'drop' && ui.exactAsk?.chain?.length) followAsk = [...ui.exactAsk.chain];
+    ui.exactAsk = null;
+    if (step === 'run') checkAgain();
+  },
+  { immediate: true }
+);
+
+/**
+ * A route the player follows (lib/follow.ts) that Right now asked to price ("Price it ›", `exactAsk.chain`): priced
+ * once as one more route after the rows (the stops already passed dropped, `cutRoute`), so it is kept in `exact` and in
+ * the snapshot, where Right now reads its times. Cleared once priced.
+ */
+function followedToPrice(): number[] | null {
+  const chain = followAsk;
+  if (!chain) return null;
+  const cut = cutRoute(
+    chain,
+    store.currentTE,
+    props.deadline ? { kind: 'date', deadline: props.deadline } : { kind: 'fastest', target: store.finalTE }
+  );
+  return cut && !(key(cut) in exact.value) ? cut : null;
+}
 
 async function runExact(id: number, given: NonNullable<typeof result.value>, manual = false): Promise<void> {
   stopExact();
@@ -2425,6 +2479,12 @@ async function runExact(id: number, given: NonNullable<typeof result.value>, man
       }
     }
     if (again && !(await price([again]))) return;
+    const followed = followedToPrice();
+    if (followed) {
+      exactText.value = 'Checking the route you follow on your account with the full simulator…';
+      if (!(await price([followed]))) return;
+    }
+    followAsk = null;
     exactMs.value = performance.now() - t0;
     exactStatus.value = 'done';
     exactDone.value++;
