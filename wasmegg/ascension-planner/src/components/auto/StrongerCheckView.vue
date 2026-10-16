@@ -69,8 +69,8 @@
         <div class="text-[9px] font-black uppercase tracking-widest text-slate-500">Your earlier routes</div>
         <p v-if="!earlier.length" class="text-slate-500" data-testid="stronger-no-earlier">
           None for this {{ deadline ? 'date' : 'target' }} beyond the routes above: nothing from your searches here,
-          your saved {{ deadline ? 'answers' : 'searches' }}, your earlier checks, or your board runs sent from this
-          browser.
+          your saved {{ deadline ? 'answers' : 'searches' }}, your earlier checks, or your board runs (sent from this
+          browser or another).
         </p>
         <!-- Folded by default (the user, 13 Oct: these boxes take space): the heading above, then one line with the
              count; Show opens the routes. -->

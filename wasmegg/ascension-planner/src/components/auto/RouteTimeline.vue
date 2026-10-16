@@ -68,8 +68,8 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { showWhen } from '@/lib/displayTime';
-import { routeTimeline } from '@/search/routeTimeline';
+import { showWhen, spansYears } from '@/lib/displayTime';
+import { routeTimeline, timelineMoments } from '@/search/routeTimeline';
 import type { LegSummary } from '@/search/types';
 import { VIRTUE_EGG_NAMES } from '@/types';
 
@@ -94,8 +94,11 @@ const lines = computed(() =>
 /** Eggs with times but no TE: legs simulated before shifts kept their TE. */
 const missingTE = computed(() => lines.value.some(l => l.eggs.some(e => e.te === null)));
 
+/** The route runs into another calendar year: every date shows its year, not only next year's (one
+ *  decision for the whole route, also when only one ascension is shown). */
+const withYear = computed(() => spansYears(timelineMoments(all.value), props.zone));
 function when(t: number | null): string {
-  return showWhen(t, props.zone) || '—';
+  return showWhen(t, props.zone, undefined, undefined, withYear.value) || '—';
 }
 function eggName(egg: string): string {
   return (VIRTUE_EGG_NAMES as Record<string, string>)[egg] ?? egg.charAt(0).toUpperCase() + egg.slice(1);

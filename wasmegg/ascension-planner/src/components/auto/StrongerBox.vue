@@ -192,7 +192,7 @@ const levels = computed<LevelText[]>(() =>
         {
           id: 'light',
           label: 'Light',
-          does: "After Check exactly, prices the instant answer's routes, ascending at once, on your hours: each fresh ascension starts the moment the one before ends, not on the hour. Then it prices the routes you have already found for this target (your searches here, saved runs and answers, earlier checks, and board runs sent from this browser) on your save as it is now. It uses your hours and time off, which the instant answer's own estimate leaves out.",
+          does: "After Check exactly, prices the instant answer's routes, ascending at once, on your hours: each fresh ascension starts the moment the one before ends, not on the hour. Then it prices the routes you have already found for this target (your searches here, saved runs and answers, earlier checks, and your board runs, from this browser or another) on your save as it is now. It uses your hours and time off, which the instant answer's own estimate leaves out.",
           time: 'Seconds to a few minutes, once Check exactly has finished.',
           finds: "When the instant answer's routes finish if you ascend at once, and one of your own routes, if it is now faster than the instant answer. It does not look for new routes.",
         },
@@ -275,7 +275,9 @@ const lightText = computed(() => {
     const what = doneWhat({ instantPriced: l.instant?.priced ?? 0, instantTotal: instant, earlierPriced: l.priced, earlierTotal: l.total });
     if (!what) return 'Nothing of yours to price yet. Pick Fast to search for new routes.';
     const none = l.total ? '' : ' Nothing of yours to price yet.';
-    return `Done${at}: priced ${what}.${none}`;
+    // Where the earlier routes came from: "from your board runs (sent from another browser)" (18 Oct 2026).
+    const from = l.total && l.from ? `, ${l.from}` : '';
+    return `Done${at}: priced ${what}${from}.${none}`;
   }
   if (l.state === 'error') return "Stopped before it finished. It runs again after the next Check exactly.";
   return 'Light runs by itself after Check exactly: nothing to start.';
@@ -296,8 +298,8 @@ const promises = computed<string[]>(() => {
   if (l === 'light')
     return [
       props.goal === 'date'
-        ? "No search: it only prices the instant answer's routes, ascending at once, on your hours, and routes you have already found (your searches here, saved runs and answers, earlier checks, and board runs sent from this browser) on your save as it is now. If the instant answer's top route misses the date on your account, it also tries that route one TE lower (two if needed)."
-        : "No search: it only prices the instant answer's routes, ascending at once, on your hours, and routes you have already found (your searches here, saved runs and answers, earlier checks, and board runs sent from this browser) on your save as it is now.",
+        ? "No search: it only prices the instant answer's routes, ascending at once, on your hours, and routes you have already found (your searches here, saved runs and answers, earlier checks, and your board runs, from this browser or another) on your save as it is now. If the instant answer's top route misses the date on your account, it also tries that route one TE lower (two if needed)."
+        : "No search: it only prices the instant answer's routes, ascending at once, on your hours, and routes you have already found (your searches here, saved runs and answers, earlier checks, and your board runs, from this browser or another) on your save as it is now.",
       'Ascending at once means starting each fresh ascension the moment the one before ends. Its times show under each row of the table above, next to the on-the-hour times.',
       "It can't find a route nobody has tried yet. Fast, Exact and Very high search for those.",
       'It runs by itself once Check exactly has finished, and waits while a search is running.',

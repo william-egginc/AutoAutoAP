@@ -137,6 +137,16 @@ export function routeTimeline(chain: number[], legs: LegSummary[] | null | undef
   }));
 }
 
+/** Every moment a timeline shows (each stop, each egg's first and last), for `spansYears`. */
+export function timelineMoments(lines: readonly AscensionLine[]): number[] {
+  const out: number[] = [];
+  for (const l of lines) {
+    if (l.reachedAt !== null) out.push(l.reachedAt);
+    for (const e of l.eggs) out.push(e.firstAt, e.lastAt);
+  }
+  return out;
+}
+
 /** True when the legs say when each egg happens (any leg kept its shifts). */
 export function hasEggTimes(legs: LegSummary[] | null | undefined): boolean {
   return Array.isArray(legs) && legs.some(l => Array.isArray(l.shifts) && l.shifts.length > 0);

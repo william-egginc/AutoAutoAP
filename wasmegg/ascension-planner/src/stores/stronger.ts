@@ -64,6 +64,8 @@ export interface LightStatus {
   step?: string;
   /** "Fastest as you'd play it: …" once a route is priced at once. */
   summary?: string;
+  /** Where the earlier routes came from: "from your board runs (sent from another browser)". */
+  from?: string;
 }
 export function idleLight(): LightStatus {
   return { state: 'idle', priced: 0, total: 0, at: 0 };

@@ -88,11 +88,14 @@ describe('LeaderboardPanel feeds the match', () => {
 
   it('matches on every key of the account and its names, with no look-alikes without a save', () => {
     expect(src).toContain('return mergedRows.value.filter(r => isMyRun(r, l.keys, l.viewerTE, l.names));');
-    expect(src).toMatch(/keys: myKey\.value \? myKeys\.value : new Set<string>\(\)/);
-    expect(src).toMatch(/for \(const r of mineRows\.value \?\? \[\]\) keys\.add\(accountKeyOf\(r\)\)/);
+    // Since 18 Oct 2026 the match is built in search/myBoardRows.ts `lookAlikeFor`, which Light reads too.
     expect(src).toMatch(
-      /nameKeys\(\[accountName\.value, sharedName\.get\(\), \.\.\.\(mineRows\.value \?\? \[\]\)\.map\(r => r\.nickname\)\]\)/
+      /lookAlikeFor\(\{\s*saveKey: myKey\.value,\s*remembered: keptKeys\.value,\s*mine: mineRows\.value,\s*names: \[accountName\.value, sharedName\.get\(\)\],\s*viewerTE: myTE\.value,\s*\}\)/
     );
+    const shared = read('../../search/myBoardRows.ts');
+    expect(shared).toContain('keys: o.saveKey ? keys : new Set<string>()');
+    expect(shared).toContain('for (const r of o.mine ?? []) keys.add(accountKeyOf(r));');
+    expect(shared).toContain('names: nameKeys([...o.names, ...(o.mine ?? []).map(r => r.nickname)])');
   });
 
   it("remembers a save's key only under its own account, never the one left over from the last", () => {

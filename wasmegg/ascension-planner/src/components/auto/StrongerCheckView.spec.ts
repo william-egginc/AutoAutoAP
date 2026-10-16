@@ -97,7 +97,7 @@ describe('StrongerCheckView', () => {
   it('none found says where it looked', async () => {
     const t = await text();
     expect(t).toContain('None for this target beyond the routes above');
-    expect(t).toContain('your board runs sent from this browser');
+    expect(t).toContain('your board runs (sent from this browser or another)');
   });
 
   it('by a date: an earlier route that misses, lowered, and one that misses even lower', async () => {

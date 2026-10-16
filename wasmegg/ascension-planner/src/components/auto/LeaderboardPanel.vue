@@ -990,12 +990,13 @@ import {
   type RaceEntry,
   type ViewerTag,
 } from '@/lib/leaderboardRank';
-import { isMyRun, myRunsCount, nameKeys } from '@/lib/myRuns';
+import { isMyRun, myRunsCount } from '@/lib/myRuns';
 import { rememberKey, rememberedKeys } from '@/lib/myKeys';
 import { useAccountName, useSharedName } from '@/composables/useShareResult';
 import { virtueInventory } from '@/search/csv';
 import { bestPerFamily, keepVirtueArtifacts } from '@/search/submission';
 import { existingOwnerToken } from '@/search/owner';
+import { fetchAllRows, fetchMineRows, lookAlikeFor, mergeMine, rememberAll } from '@/search/myBoardRows';
 import { csvFileName, fetchOwnCsv, setRunsHidden, type HideResult, type HideTarget } from '@/search/hideRuns';
 import {
   HIDE_CONTROL,
@@ -1196,25 +1197,22 @@ watch(
   },
   { immediate: true }
 );
-/** Every key that is the viewer's (lib/myRuns.ts `isMyRun`): the save's, the remembered ones, /mine's rows'. */
-const myKeys = computed<ReadonlySet<string>>(() => {
-  const keys = new Set<string>(keptKeys.value);
-  if (myKey.value) keys.add(myKey.value);
-  for (const r of mineRows.value ?? []) keys.add(accountKeyOf(r));
-  return keys;
-});
-/** The names this account sends under: its own, the one it credits runs to here, and those on its /mine rows. */
+/** The names this account sends under (its own, the one it credits runs to here; /mine's rows' are added
+ *  by `lookAlikeFor`). */
 const accountName = useAccountName(() => props.playerId ?? '');
 const sharedName = useSharedName(() => props.playerId ?? '');
-const myNames = computed(() =>
-  nameKeys([accountName.value, sharedName.get(), ...(mineRows.value ?? []).map(r => r.nickname)])
+/** What My runs' look-alike match and its "isn't here?" answer read (search/myBoardRows.ts `lookAlikeFor`,
+ *  which Light reads too): every key that is the viewer's -- the save's, the remembered ones, /mine's
+ *  rows' -- and the account's names; no look-alikes without a save. */
+const lookAlike = computed(() =>
+  lookAlikeFor({
+    saveKey: myKey.value,
+    remembered: keptKeys.value,
+    mine: mineRows.value,
+    names: [accountName.value, sharedName.get()],
+    viewerTE: myTE.value,
+  })
 );
-/** What My runs' look-alike match and its "isn't here?" answer read; no look-alikes without a save. */
-const lookAlike = computed(() => ({
-  keys: myKey.value ? myKeys.value : new Set<string>(),
-  names: myNames.value,
-  viewerTE: myTE.value,
-}));
 
 /** The save's own TE, for "near me". */
 const myTE = computed(() => (initialState.rawBackup ? store.backupTE : 0));
@@ -1260,13 +1258,7 @@ const shownRows = computed<Row[]>(() => publicRows(allRows.value, hiddenIds.valu
  *  plans reads this, and `rankable` keeps the hidden ones out of its ranking. */
 const mergedRows = computed<Row[]>(() => {
   const mine = mineNow.value;
-  if (!mine.length) return shownRows.value;
-  const ids = mineIds.value;
-  const seen = new Set(shownRows.value.map(r => r.id));
-  return [
-    ...shownRows.value.map(r => (r.id && ids.has(r.id) ? { ...r, yours: true } : r)),
-    ...mine.filter(r => !r.id || !seen.has(r.id)),
-  ];
+  return mine.length ? mergeMine(shownRows.value, mine) : shownRows.value;
 });
 
 /** The viewer's runs hidden from the public, any target, newest sent first (My plans lists them). */
@@ -1710,12 +1702,7 @@ async function fetchMine(): Promise<Row[] | null> {
     const token = await ownerCode();
     hasCode.value = !!token;
     if (!token) return null;
-    const res = await fetch(`${root.value}/mine`, { headers: { 'x-owner-token': token } });
-    if (!res.ok) return null;
-    const data = (await res.json()) as { rows?: Row[] };
-    return Array.isArray(data.rows)
-      ? data.rows.filter(r => r && Array.isArray(r.chain)).map(r => ({ ...r, yours: true }))
-      : null;
+    return await fetchMineRows(root.value, token);
   } catch {
     return null;
   }
@@ -1731,11 +1718,7 @@ async function fetchMine(): Promise<Row[] | null> {
  * board as it is now (the collector says `no-cache` too; this covers one that does not).
  */
 async function fetchAll(query: string): Promise<{ rows: Row[]; cut: boolean }> {
-  const res = await fetch(`${root.value}/all${query}`, { cache: 'no-cache' });
-  if (!res.ok) throw new Error(`the collector answered ${res.status}`);
-  const data = (await res.json()) as { rows?: Row[]; builtAt?: number };
-  const rows = Array.isArray(data.rows) ? data.rows.filter(r => r && Array.isArray(r.chain)) : [];
-  return { rows, cut: typeof data.builtAt !== 'number' && rows.length >= ALL_CAP };
+  return fetchAllRows(root.value, query, { cap: ALL_CAP });
 }
 
 /**
@@ -1761,6 +1744,8 @@ async function load(): Promise<void> {
     }
     allRows.value = rows;
     capped.value = cut;
+    // Light (StrongerCheck.vue) reads the viewer's runs from this for a minute (search/myBoardRows.ts).
+    if (!cut) rememberAll(root.value, rows);
     now.value = Date.now();
   } catch (e) {
     error.value = describeFetchError(e, 'the leaderboard');

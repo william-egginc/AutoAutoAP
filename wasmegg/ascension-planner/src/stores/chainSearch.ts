@@ -9033,6 +9033,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     stopStartSweep,
     cteParts,
     accountPartition,
+    saveAccountKey,
     otherAccountKeys,
     deadlineWorkerSeconds,
     sendSubmission,
