@@ -145,6 +145,40 @@ node dist-search/fastsearch.js submit --from run1 --nickname Me --yes
 - Its own tools, not on the site: `--exhaustive --range`, `--stages`, `--grid`, `--direct`.
 - `scripts/autoplan.py` is an older Python driver of `--stages`. Prefer `--effort` for anything new.
 
+#### Helping with a long run (an Exhaustive box for someone else's check)
+
+From a fresh clone, once (Node 24 and pnpm 11.11.0 as above):
+
+```bash
+git clone https://github.com/william-egginc/AutoAutoAP.git && cd AutoAutoAP
+git checkout ascension-chain-search
+pnpm install && make -C lib
+cd wasmegg/ascension-planner && pnpm search:build
+```
+
+Then, with your save as `me.json` (Settings, Download backup) and the box you were given: each band
+is one stop before the last, `low-high:step`, and `--last` is where to look for the last stop. This
+is the Highest TE by a date screen's Exhaustive, by Egg Day, as an example:
+
+```bash
+# How big it is, without running it (sets of early stops, routes, a time estimate)
+node dist-search/fastsearch.js --backup me.json --egg-day --timezone America/Denver \
+  --start-date 2026-10-15 --start-time 19:00 --chain "229-239:1; 256-266:1; 286-296:1" --last 337-339 --dry-run
+# Run it, keeping a checkpoint in run1/, and send it to the board with your name when it finishes
+node dist-search/fastsearch.js --backup me.json --egg-day --timezone America/Denver \
+  --start-date 2026-10-15 --start-time 19:00 --chain "229-239:1; 256-266:1; 286-296:1" --last 337-339 \
+  --out run1 --submit --nickname YourName --yes
+```
+
+- Killed or restarted? Run the same command again: it carries on from `run1/`.
+- Workers default to your cores minus one, at most 12 (more were no faster on a 20-thread PC and
+  used more memory). `--jobs N` sets it; each worker holds about 0.1-0.25 GB.
+- Your playing hours: `--available-from 7 --available-to 23` (with `--timezone`). Leave them out
+  for "any hour".
+- Offline? Leave out `--submit` and later run `node dist-search/fastsearch.js submit --from run1
+  --nickname YourName --yes`.
+- The row says which level found it (`exhaustive`), and the CSV goes with it.
+
 Long offline runs, worker counts and memory: [Long runs](https://github.com/william-egginc/AutoAutoAP/wiki/Long-runs)
 and [Searches in detail](https://github.com/william-egginc/AutoAutoAP/wiki/Searches-in-detail).
 

@@ -210,11 +210,18 @@ loads a save (`--backup FILE.json`) the way the site does. Main modes:
 | `--manifest --backup FILE [--dir public/precompute]`         | Write `tables.json` (each table's bonus, delivery k, lowest TE, simulator stamp, label and aliases).                            |
 | `--table-name --backup FILE`                                 | The file name an account's own table is served under.                                                                          |
 | `--gear-name`, `--gear-check`, `--v3-name FILE`, `--own-check FILE`, `--restamp` | Gear table names and checks, and rewriting an own table's gear stamp in `meta.json`.                                  |
-| `--route …`, `--route-bin …`                                 | The finder from the command line, optionally checked against the simulator (`--check`, `--brute`; `--stop-max N\|none`).       |
+| `--route …`, `--route-bin …`                                 | The finder from the command line, optionally checked against the simulator (`--check`, `--brute`; `--stop-max N\|none`). `--route --player` is the page's instant answer for a save; with `--deadline ISO` it also prints each count's By a date answer, with `--available-from H --available-to H [--available-days …] --timezone TZ` only routes inside those hours (the page's "Works inside my hours"), and `--table-top N` tries a table cut at N (the live first ascension above it). |
 | `--polish …`, `--prune-bench …`                              | The polish on one route; the finder-vs-brute-force benchmark.                                                                  |
 | `--grid-error --table DIR`                                   | How well an hour's builds predict a later hour's (the case against a coarser grid of start hours).                             |
 | `--prestige-by …`                                            | The instant answer's experimental "Prestige by" line, as the page works it out.                                                |
 | `--verify`, `--verify-table`, `--verify-continue`, `--check`, `--profile` | Checks of the tail, the table and the continue rule against the simulator, a summary of the account's sets and Clothed TE, and timings. |
+
+The instant answer for a save, by Egg Day, with the player's hours (a check against a search's result):
+
+```bash
+node dist-search/precompute.js --route --table tables/own-DIR --backup me.json --player \
+  --start 2026-10-11T01:10:00Z --deadline 2027-07-14T16:00:00Z --available-from 7 --available-to 23 --timezone America/Denver
+```
 
 A typical pipeline:
 
