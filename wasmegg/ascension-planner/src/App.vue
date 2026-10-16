@@ -548,7 +548,13 @@
       <!-- My runs (15 Oct 2026; was Compare's My plans): your runs on the board (hidden ones too), saved on this
            computer, and not sent yet. Use and a saved entry's Open go to the Auto Planner, as Compare's Use does. -->
       <div v-else-if="plannerTab === 'myruns'" class="max-w-6xl mx-auto mt-6">
-        <MyRunsView :player-id="playerId" @use="useLeaderboardChain" @open="openFromMyRuns" />
+        <MyRunsView
+          :player-id="playerId"
+          :loading="loading"
+          @use="useLeaderboardChain"
+          @open="openFromMyRuns"
+          @fresh="loadFreshSave"
+        />
       </div>
 
       <!-- Science: how the planner works (its default page), what the collected runs still can't tell
@@ -579,6 +585,12 @@
 
       <!-- Your setup, floating, on every Auto Planner screen: the gear opens it; workers adjust folded. -->
       <SetupDock v-if="plannerTab === 'automatic' && playerId && !loading" :screen="autoView" />
+      <!-- And on My runs (17 Oct 2026), which has no setup box: Fastest's setup, its hours under the button. -->
+      <SetupDock
+        v-else-if="plannerTab === 'myruns' && playerId && !loading"
+        screen="fastest"
+        :summary="setupSummary(chainSearchStore.availability, chainSearchStore.timeOff)"
+      />
 
       <!-- Undo Confirmation Dialog -->
       <UndoConfirmationDialog
@@ -738,6 +750,7 @@ import { useGearCoverage } from '@/composables/useGearCoverage';
 import SiteTabs from '@/components/SiteTabs.vue';
 import MyRunsView from '@/components/MyRunsView.vue';
 import SetupDock from '@/components/auto/SetupDock.vue';
+import { setupSummary } from '@/lib/nowWords';
 import SweepRunner from '@/components/science/SweepRunner.vue';
 import HowItWorks from '@/components/science/HowItWorks.vue';
 import StartTimeCard from '@/components/auto/StartTimeCard.vue';
@@ -1572,6 +1585,11 @@ async function prepareAutoPlanner(): Promise<string> {
   } finally {
     loading.value = false;
   }
+}
+
+/** My runs' "Load a fresh one": the same fresh save as entering the Auto Planner, staying on My runs. */
+function loadFreshSave(): void {
+  void prepareAutoPlanner();
 }
 
 /** What we need to check's Run this sweep, on the Science tab: open its window. */

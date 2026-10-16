@@ -386,7 +386,7 @@
     </template>
 
     <!-- The other search's run, when there is one too: the view shows the newest, this switches. -->
-    <p v-if="other" class="text-[11px] text-slate-500" data-testid="latest-run-other">
+    <p v-if="other && want === undefined" class="text-[11px] text-slate-500" data-testid="latest-run-other">
       <button type="button" class="font-bold text-indigo-700 underline hover:text-indigo-900" @click="pick = other">
         Show your {{ other === 'date' ? NAMES.byDate : fastestName(store.finalTE) }} run instead
       </button>
@@ -420,6 +420,9 @@ import { runIsMine } from '@/lib/latestRunOwner';
 const props = defineProps<{
   /** The account on screen: only its runs show here. Never shown; only its hash is compared. */
   playerId: string;
+  /** Which run to show, from My runs' "Showing" switch (17 Oct 2026): its own "instead" line is then left out.
+   *  Absent: the newest, with that line. */
+  want?: 'fastest' | 'date' | null;
 }>();
 
 /** The charts (heat map, dots) and their drawing code load only when this view first shows them. */
@@ -484,7 +487,13 @@ const dateAt = computed<number | null>(() =>
   dateMine.value && store.deadlineRunning ? Infinity : dateResult.value ? dateResult.value.at || 1 : null
 );
 /** The player's switch to the other run ("Show your … run instead"); null: the newest. */
-const pick = ref<'fastest' | 'date' | null>(null);
+const pick = ref<'fastest' | 'date' | null>(props.want ?? null);
+watch(
+  () => props.want,
+  w => {
+    if (w !== undefined) pick.value = w ?? null;
+  }
+);
 /** The run shown: the one picked, else the newer (a run going now is newest), else none. */
 const shown = computed<'fastest' | 'date' | 'none'>(() => {
   if (pick.value === 'fastest' && fastestAt.value !== null) return 'fastest';
@@ -500,11 +509,17 @@ const newest = computed<'fastest' | 'date' | 'none'>(() => {
   // A By a date run going now: its last result is the newest thing on that side, unless Fastest's is newer.
   return d > f ? 'date' : 'fastest';
 });
-/** Whether there is a run of this account to show (My runs opens its block then). */
-const emit = defineEmits<{ has: [has: boolean] }>();
+/** Whether there is a run of this account to show (My runs opens its block then), and which kinds there are
+ *  (My runs' "Showing" switch). */
+const emit = defineEmits<{ has: [has: boolean]; kinds: [kinds: { fastest: boolean; date: boolean }] }>();
 watch(
   () => shown.value !== 'none',
   has => emit('has', has),
+  { immediate: true }
+);
+watch(
+  () => `${fastestAt.value !== null}|${dateAt.value !== null}`,
+  () => emit('kinds', { fastest: fastestAt.value !== null, date: dateAt.value !== null }),
   { immediate: true }
 );
 /** The other run, when there is one to switch to. */

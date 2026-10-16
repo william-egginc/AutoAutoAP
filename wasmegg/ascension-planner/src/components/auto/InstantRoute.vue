@@ -365,6 +365,7 @@
               <MaxedWhatIf
                 v-if="whatIf"
                 v-bind="whatIf"
+                @result="onWhatIf"
                 :table-url="TABLE_URL"
                 :zone="zone"
                 :final="target"
@@ -602,6 +603,7 @@
             <MaxedWhatIf
               v-if="whatIf"
               v-bind="whatIf"
+              @result="onWhatIf"
               :table-url="TABLE_URL"
               :zone="zone"
               :final="target"
@@ -876,8 +878,6 @@ import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { dateStyle, showDateTime } from '@/lib/displayTime';
 import { continueTailParams, farmLaying, instantDeliveryScale, saveSiloSeconds } from '@/search/leg';
 import { instantFirstLegsBase } from '@/search/instantFirstLegs';
-import type { FirstAscension } from '@/search/firstAscension';
-import { EGG_ORDER } from '@/search/precomputedLeg';
 import { cteFromArtifacts } from 'lib/virtue';
 import { equippedArtifactsToLibArtifacts } from '@/lib/artifacts/utils';
 import { findRoutes, type FirstLeg, type FoundRoutes, type PolishOptions, type Route } from '@/search/routeFinder';
@@ -933,7 +933,19 @@ import { rowLine, type AtOnceItem } from '@/search/lightAtOnce';
 import { nearTieOf, type NearTie } from '@/search/nearTie';
 import { useIntegrityProbe } from '@/composables/useIntegrityProbe';
 import { useInstantDuringSearch } from '@/composables/useInstantDuringSearch';
-import { readSnapshot, recallShown, rememberShown, snapshotUsable, writeSnapshot } from '@/search/instantSnapshot';
+import {
+  instantGoal,
+  instantKey,
+  instantSnapKey,
+  patchSnapshot,
+  readSnapshot,
+  recallShown,
+  rememberShown,
+  snapshotUsable,
+  writeSnapshot,
+  type SnapMeta,
+  type SnapWhatIf,
+} from '@/search/instantSnapshot';
 import { simulateRoute } from '@/search/simulateRoute';
 import { NAMES, SIMULATE_TITLE, simulateNote } from '@/lib/siteNav';
 import { pricedWithLine } from '@/lib/pricedWith';
@@ -951,6 +963,8 @@ import { SIM_VERSION, tableSimMismatch } from '@/search/simVersion';
 import { countsShown } from '@/search/instantCounts';
 import { priceOnTable, type FirstLegsBase } from '@/search/priceOnTable';
 import MaxedWhatIf from './MaxedWhatIf.vue';
+import { accountOf } from '@/search/runSaves';
+import { countTEThresholdsPassed } from '@/lib/truthEggs';
 import { describeAvailability } from '@/search/availabilitySchedule';
 import { CTE_CLEARS, INTEGRITY_BLOCK_SECONDS, INTEGRITY_WARN_SECONDS } from '@/search/rules';
 import {
@@ -1682,12 +1696,13 @@ async function run(force = false, goAhead = false): Promise<void> {
   }
   const id = ++runs;
   const bid = ++bracketRuns;
+  whatIfResult.value = null;
   cachedKey = cacheKey();
   cached.value = readCache(cachedKey);
   // The same save, setup and filters as when it was last worked out: show that answer, in full, and
   // skip the work. (The plan start is not in this key, as it is a new minute on every visit: the note says which
   // start the saved dates are for. The "|0" is the retired at-once box, off: snapshots saved before keep loading.)
-  snapKey = cachedKey ? `${cachedKey}|0` : null;
+  snapKey = instantSnapKey(cachedKey);
   savedAt.value = null;
   waiting.value = false;
   afterRun = null;
@@ -2490,33 +2505,29 @@ interface CachedAnswer {
   end: number;
   endTE: number;
 }
-const CACHE_PREFIX = 'aap-instant-answer:';
-const cacheFirst = (m: FirstAscension): boolean | 'fresh' | 'buildup' =>
-  m === 'fresh' ? 'fresh' : m === 'buildup' ? 'buildup' : m === 'continue';
+/** The key (search/instantSnapshot.ts `instantKey`, shared with My runs since 17 Oct 2026: the same hash as
+ *  before, so answers saved in players' browsers keep matching). */
 function cacheKey(): string | null {
   const inputs = store.collectInputs();
   const raw = inputs.context.rawBackup as { eiUserId?: string } | undefined;
   if (!raw?.eiUserId) return null;
   const inv = store.readInventory();
-  const sig = (x: number) => Number(x.toPrecision(6));
-  const parts = {
-    id: raw.eiUserId,
-    mode: props.deadline ? `date ${props.deadline}` : `target ${store.finalTE}`,
-    te: Math.floor(store.currentTE),
-    eggs: EGG_ORDER.map(e => sig(inputs.baseState.eggsDelivered?.[e] || 0)),
+  return instantKey({
+    playerId: raw.eiUserId,
+    deadline: props.deadline,
+    finalTE: store.finalTE,
+    currentTE: store.currentTE,
+    eggsDelivered: inputs.baseState.eggsDelivered,
     artifacts: inv.artifacts,
     stones: inv.stones,
     epic: inputs.context.epicResearchLevels,
-    // The first ascension as the boolean it was (true Continue Asc., false Fastest), so answers saved
-    // under those still match; Prestige Now is new.
-    setup: [store.availability, store.timeOff, store.milestones, cacheFirst(inputs.firstAscension ?? 'auto')],
-    filters: [useHours.value, filters.value.maxAscensions],
-  };
-  // FNV-1a: the key only has to tell setups apart; the id never leaves this browser.
-  const text = JSON.stringify(parts);
-  let h = 0x811c9dc5;
-  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193) >>> 0;
-  return CACHE_PREFIX + h.toString(16);
+    availability: store.availability,
+    timeOff: store.timeOff,
+    milestones: store.milestones,
+    firstAscension: inputs.firstAscension,
+    useHours: useHours.value,
+    maxAscensions: filters.value.maxAscensions,
+  });
 }
 function readCache(k: string | null): CachedAnswer | null {
   if (!k) return null;
@@ -2565,6 +2576,10 @@ interface InstantSnapshot {
   bracket: { above: BracketSide | null; below: BracketSide | null } | null;
   /** The experimental "Prestige by" line, when it was worked out. */
   prestige?: { line: PrestigeLine; cutoff: Cutoff; record: PrestigeByRecord } | null;
+  /** Which account, goal and save it is for (17 Oct 2026, for My runs; absent before). */
+  meta?: SnapMeta;
+  /** "What if you had maxed gear?", once worked out for this answer (MaxedWhatIf `result`). */
+  whatIf?: SnapWhatIf | null;
 }
 let snapKey: string | null = null;
 /** When the answer on screen was saved, while it is a saved one (not worked out in this visit). */
@@ -2607,8 +2622,33 @@ function currentSnapshot(): InstantSnapshot | null {
       gains: gains.value,
       bracket: bracket.value,
       prestige: prestige.value,
+      meta: snapMeta(),
+      whatIf: whatIfResult.value,
     })
   ) as InstantSnapshot;
+}
+/** What My runs reads to find this answer again from a newer save (search/instantSnapshot.ts SnapMeta). */
+function snapMeta(): SnapMeta | undefined {
+  const raw = initialState.rawBackup;
+  const account = accountOf(raw);
+  if (!account) return undefined;
+  const earned = initialState.initialTeEarned;
+  const delivered = initialState.initialEggsDelivered;
+  const order = ['curiosity', 'integrity', 'humility', 'resilience', 'kindness'] as const;
+  return {
+    account,
+    goal: instantGoal(props.deadline, store.finalTE),
+    backupTime: initialState.lastBackupTime,
+    teByEgg: order.map(e => Math.max(earned?.[e] ?? 0, countTEThresholdsPassed(delivered?.[e] ?? 0))),
+  };
+}
+/** The maxed what-if worked out for the answer on screen (kept with its snapshot; cleared with a new answer). */
+const whatIfResult = ref<SnapWhatIf | null>(null);
+function onWhatIf(r: SnapWhatIf): void {
+  whatIfResult.value = r;
+  // Already saved (the usual case: the line is opened after everything finished): kept with it. Not saved yet:
+  // it goes in with the answer (`currentSnapshot`).
+  patchSnapshot(snapKey, { whatIf: r });
 }
 // The answer on screen when the panel closes, for a panel opened again during a search (run's wait).
 onUnmounted(() => {
@@ -2634,6 +2674,7 @@ function applySnapshot(s: InstantSnapshot): void {
   gains.value = s.gains;
   bracket.value = s.bracket;
   prestige.value = s.prestige ?? null;
+  whatIfResult.value = s.whatIf ?? null;
   prestigeStatus.value = s.prestige ? 'done' : 'idle';
   bracketStatus.value = 'done';
   backgroundStatus.value = 'done';

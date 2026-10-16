@@ -55,7 +55,11 @@
             d="M10.3 4.3c.4-1.8 3-1.8 3.4 0a1.7 1.7 0 002.6 1.1c1.5-1 3.4.9 2.4 2.4a1.7 1.7 0 001.1 2.6c1.8.4 1.8 3 0 3.4a1.7 1.7 0 00-1.1 2.6c1 1.5-.9 3.4-2.4 2.4a1.7 1.7 0 00-2.6 1.1c-.4 1.8-3 1.8-3.4 0a1.7 1.7 0 00-2.6-1.1c-1.5 1-3.4-.9-2.4-2.4a1.7 1.7 0 00-1.1-2.6c-1.8-.4-1.8-3 0-3.4a1.7 1.7 0 001.1-2.6c-1-1.5.9-3.4 2.4-2.4a1.7 1.7 0 002.6-1.1zM15 12a3 3 0 11-6 0 3 3 0 016 0z"
           />
         </svg>
-        <span class="text-[10px] font-black uppercase tracking-widest">Setup</span>
+        <span class="flex flex-col items-start leading-tight">
+          <span class="text-[10px] font-black uppercase tracking-widest">Setup</span>
+          <!-- My runs (17 Oct 2026): the hours and time off under it, since that page has no setup box. -->
+          <span v-if="summary" class="text-[10px] font-normal text-white/85" data-testid="setup-dock-summary">{{ summary }}</span>
+        </span>
         <span
           v-if="errors"
           class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-rose-400 ring-2 ring-indigo-600"
@@ -97,7 +101,11 @@ import { useUIStore } from '@/stores/ui';
 import type { AutoView } from '@/lib/siteNav';
 import YourSetup from './YourSetup.vue';
 
-defineProps<{ screen: AutoView }>();
+defineProps<{
+  screen: AutoView;
+  /** A short line under "Setup" ("7 am–11 pm · no time off"), on My runs, which has no setup box of its own. */
+  summary?: string;
+}>();
 const store = useChainSearchStore();
 const ui = useUIStore();
 

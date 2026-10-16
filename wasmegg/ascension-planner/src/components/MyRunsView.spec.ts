@@ -93,17 +93,17 @@ describe('MyRunsView', () => {
   });
 });
 
-describe('the summary above the parts (16 Oct 2026)', () => {
-  it('Next steps first, then the six cards, then the three parts; it waits for the board', async () => {
+describe('Next steps and the six cards, folded under Your runs (17 Oct 2026; were above the parts)', () => {
+  it('come after the three parts, folded; they wait for the board', async () => {
     const html = await renderHtml(MyRunsView, { playerId: 'EI1234567890123456' }, {}, [pinia]);
     const steps = html.indexOf('data-testid="my-runs-steps"');
     const cards = html.indexOf('data-testid="my-runs-cards"');
-    expect(steps).toBeGreaterThan(-1);
+    expect(steps).toBeGreaterThan(html.indexOf('data-testid="my-runs-part-unsent"'));
     expect(steps).toBeLessThan(cards);
-    expect(cards).toBeLessThan(html.indexOf('data-testid="my-runs-part-board"'));
     for (const id of ['eggday', 'race', 'date', 'saved', 'last', 'hours'])
       expect(html).toContain(`data-testid="my-runs-card-${id}"`);
     const t = textOf(html);
+    expect(t).toContain('Next steps · checking');
     expect(t).toContain('Checking your runs on the board…');
     expect(t).toContain('Your hours Any hour no time off');
     expect(html).not.toContain('EI1234567890123456');
@@ -187,7 +187,9 @@ describe('the My runs tab', () => {
     expect(ids).toEqual(['manual', 'auto', 'compare', 'myruns', 'science']);
     expect(tabs.indexOf("id: 'myruns'")).toBeGreaterThan(tabs.indexOf('chainSearchStore.submitUrl'));
     expect(app).toContain('<div v-else-if="plannerTab === \'myruns\'"');
-    expect(app).toContain('<MyRunsView :player-id="playerId" @use="useLeaderboardChain" @open="openFromMyRuns" />');
+    expect(app).toMatch(
+      /<MyRunsView\s+:player-id="playerId"\s+:loading="loading"\s+@use="useLeaderboardChain"\s+@open="openFromMyRuns"\s+@fresh="loadFreshSave"\s+\/>/
+    );
     // An address for it with no collector opens the Manual Planner, like Compare and Science.
     expect(app).toMatch(/!chainSearchStore\.submitUrl &&[\s\S]{0,120}plannerTab\.value === 'myruns'/);
   });
@@ -209,30 +211,32 @@ describe('the My runs tab', () => {
   });
 });
 
-describe('My runs › Your latest run (16 Oct: moved off the Leaderboard; Dig deeper opens it)', () => {
-  it('sits below the summary and above Your runs on the board, folded with no run of this account', async () => {
+describe('My runs › Your runs: the latest run inside it (17 Oct 2026; was its own part)', () => {
+  it('opens Your runs on the latest run, before the board part, with the Showing switch', async () => {
     const html = await renderHtml(MyRunsView, { playerId: 'EI1234567890123456' }, {}, [pinia]);
-    const summary = html.indexOf('data-testid="my-runs-summary"');
+    const section = html.indexOf('data-testid="my-runs-your-runs"');
+    const showing = html.indexOf('data-testid="my-runs-showing"');
     const latest = html.indexOf('data-testid="my-runs-part-latest"');
     const board = html.indexOf('data-testid="my-runs-part-board"');
-    expect(summary).toBeGreaterThan(-1);
-    expect(latest).toBeGreaterThan(summary);
+    expect(section).toBeGreaterThan(-1);
+    expect(showing).toBeGreaterThan(section);
+    expect(latest).toBeGreaterThan(showing);
     expect(latest).toBeLessThan(board);
-    expect(partTag(html, 'my-runs-part-latest')).not.toMatch(/\sopen/);
-    expect(textOf(html)).toContain('Your latest run · none yet on this account');
+    const t = textOf(html);
+    expect(t).toMatch(/Latest Fastest to 490 TE run|Latest .* run/);
+    expect(t).toContain('All my runs');
     expect(html).toContain('data-testid="latest-run-empty"');
+    expect(t).toContain('The filters change this list only, not Right now above.');
     expect(html).not.toContain('EI1234567890123456');
   });
 
-  it("opens with a run of this account's, and shows nothing of another account's", async () => {
+  it("shows a run of this account's, and nothing of another account's", async () => {
     const { accountHash } = await import('@/lib/accountHash');
     const store = useChainSearchStore();
     store.chainResultOwner = await accountHash('EI1234567890123456');
     store.pricedCount = 2;
     const mine = await renderHtml(MyRunsView, { playerId: 'EI1234567890123456' }, {}, [pinia]);
     expect(mine).toContain('data-testid="latest-run-from"');
-    // It opens when the block says it has a run (`has`; the server render draws the part before the block).
-    expect(read('MyRunsView.vue')).toContain('watch(latestHas, has => (open.latest = has));');
     expect(read('auto/LatestRunView.vue')).toMatch(/\(\) => shown\.value !== 'none',\s*has => emit\('has', has\),\s*\{ immediate: true \}/);
     const theirs = await renderHtml(MyRunsView, { playerId: 'EI0000000000000000' }, {}, [pinia]);
     expect(theirs).not.toContain('data-testid="latest-run-from"');

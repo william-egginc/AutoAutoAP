@@ -26,6 +26,7 @@ import { priceOnTable, type FirstLegsBase, type PricedOnTable } from '@/search/p
 import { maxedLetters, maxedWhatIfText } from '@/search/maxedWhatIf';
 import type { Availability } from '@/search/availability';
 import type { TableEntry } from '@/search/tableBracket';
+import type { SnapWhatIf } from '@/search/instantSnapshot';
 
 const props = defineProps<{
   legs: FirstLegsBase;
@@ -43,6 +44,9 @@ const props = defineProps<{
   atMost: number | null;
   deadline?: number;
 }>();
+
+/** The result, once worked out, for the instant answer to keep with its snapshot (My runs' gear block reads it). */
+const emit = defineEmits<{ result: [r: SnapWhatIf] }>();
 
 const open = ref(false);
 const status = ref<'idle' | 'running' | 'done' | 'error'>('idle');
@@ -95,6 +99,7 @@ async function run(): Promise<void> {
     if (id !== runs) return;
     maxed.value = r;
     status.value = 'done';
+    emit('result', { at: Date.now(), end: r.end, te: r.te, mineEnd: props.mine.end, mineTE: props.mine.te });
   } catch {
     if (id === runs) status.value = 'error';
   } finally {

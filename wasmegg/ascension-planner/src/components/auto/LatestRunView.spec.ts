@@ -109,8 +109,8 @@ describe('LatestRunView (My runs › Your latest run)', () => {
     const src = read('LatestRunView.vue');
     expect(src).toMatch(/const RunCharts = safeAsyncComponent\(\(\) => import\('\.\/charts\/RunCharts\.vue'\)\)/);
     expect(src).not.toMatch(/import RunCharts from/);
-    // The view is on My runs now, not on the Leaderboard.
-    expect(read('../MyRunsView.vue')).toContain('<LatestRunView :player-id="playerId" @has="v => (latestHas = v)" />');
+    // The view is on My runs now (inside its Your runs section, 17 Oct 2026), not on the Leaderboard.
+    expect(read('../MyRunsView.vue')).toMatch(/<LatestRunView\s+:player-id="playerId"\s+:want="[^"]+"\s+@has="v => \(latestHas = v\)"/);
     expect(read('LeaderboardPanel.vue')).not.toMatch(/<LatestRunView|import\('\.\/LatestRunView\.vue'\)/);
     // Its Leaderboard tab stays, as one line to My runs (the integrator, 16 Oct).
     expect(read('LeaderboardPanel.vue')).toMatch(/v-else-if="tab === 'latest'"[^>]*data-testid="latest-moved"/);
@@ -158,7 +158,9 @@ describe("Fastest's results: one line in place of the moved blocks", () => {
     const { default: DigDeeperLink } = await import('./DigDeeperLink.vue');
     const html = await renderHtml(DigDeeperLink, {});
     expect(textOf(html)).toContain('Dig deeper into your plan ›');
-    expect(textOf(html)).toContain('(My runs › Your latest run)');
+    expect(textOf(html)).toContain('(My runs › Your runs)');
+    // Its click asks My runs to open on Your runs (lib/myRunsFocus.ts).
+    expect(read('DigDeeperLink.vue')).toContain('@click="askYourRuns()"');
     expect(html).toContain('href="#/myruns"');
     expect(html).not.toContain('#/compare/latest');
   });

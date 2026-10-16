@@ -57,3 +57,22 @@ describe('relativeWords', () => {
     expect(relativeWords(-86400 * 3)).toBe('3 days ago');
   });
 });
+
+describe('dateAt and agoLong', () => {
+  it('always the date, the weekday when asked, the year only when it differs', async () => {
+    const { dateAt } = await import('./eventWhen');
+    expect(dateAt(at(14, 36), NOW, ZONE)).toBe('Oct 15 at 2:36 pm');
+    expect(dateAt(at(16, 0), NOW, ZONE, true)).toBe('Thu, Oct 15 at 4:00 pm');
+    expect(dateAt(Date.UTC(2027, 6, 13, 23, 14) / 1000, NOW, ZONE, true)).toBe('Tue, Jul 13, 2027 at 5:14 pm');
+    expect(dateAt(null, NOW, ZONE)).toBe('');
+  });
+
+  it('says how long ago in words', async () => {
+    const { agoLong } = await import('./eventWhen');
+    expect(agoLong(30)).toBe('just now');
+    expect(agoLong(60)).toBe('1 minute ago');
+    expect(agoLong(45 * 60)).toBe('45 minutes ago');
+    expect(agoLong(3 * 3600 + 100)).toBe('3 hours ago');
+    expect(agoLong(3 * 86400)).toBe('3 days ago');
+  });
+});

@@ -1,0 +1,186 @@
+<!--
+  My runs' Right now card (spec myruns-now v3, section 2), from a SAVED plan only (composables/useNowPage.ts):
+  the egg the save is on, how the save compares with the plan, the next step, the gear, the next events with
+  their dates, times and distances, and the whole route folded. The plan is the instant answer kept after Check
+  exactly (for this save; else the same save under an older setup; else an earlier save's), so its times are
+  the simulator's. Without one the card says so and opens a screen that works one out; nothing is worked out here.
+-->
+<template>
+  <section class="rounded-2xl border border-slate-200 bg-white p-4 space-y-2" data-testid="now-card">
+    <div class="flex flex-wrap items-baseline justify-between gap-x-3">
+      <p class="text-[11px] font-black uppercase tracking-widest text-slate-500">Right now</p>
+      <p v-if="card" class="text-[12px] text-slate-500" data-testid="now-calculated">
+        Plan for {{ goalName }} calculated {{ calculatedWhen }} ({{ card.plan.exact ? 'Check exactly' : 'instant answer' }}) · from
+        your save of {{ planSaveWhen }}
+      </p>
+    </div>
+
+    <p v-if="card?.state === 'setup-changed'" class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-1.5 text-[12px] text-amber-900" data-testid="now-setup-changed">
+      Your setup changed since this plan.
+      <button type="button" class="font-bold underline" @click="emit('open', goalOpen)">Work it out again ›</button>
+    </p>
+    <p v-else-if="card?.state === 'older-save'" class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-1.5 text-[12px] text-amber-900" data-testid="now-older-save">
+      This plan was worked out from your save of {{ planSaveWhen }}, an older one than you loaded.
+    </p>
+
+    <!-- The egg. -->
+    <div class="flex flex-wrap items-center gap-3">
+      <img
+        v-if="eggType"
+        :src="iconURL(`egginc/egg_${eggType}.png`, 64)"
+        :alt="eggName"
+        class="w-14 h-14 rounded-full bg-indigo-50 object-contain p-1"
+      />
+      <div class="min-w-0">
+        <p v-if="onVirtue" class="text-xl font-black text-slate-900">{{ eggName || 'Your virtue farm' }}</p>
+        <p v-else class="text-sm font-bold text-slate-800" data-testid="now-not-virtue">
+          No virtue farm in this save<template v-if="card?.plan.planStart">: the plan starts with a fresh ascension {{ dateAt(card.plan.planStart, now, zone) }}</template>.
+        </p>
+        <p class="text-[12px] text-slate-500">
+          <template v-if="card && ascNow > 0">ascension {{ ascNow }} of {{ card.plan.chain.length }} · </template>
+          <template v-else-if="card && card.plan.planStart && ascNow === 0">plan starts {{ dateAt(card.plan.planStart, now, zone) }} · </template>
+          {{ Math.floor(teSoFar) }} TE so far
+        </p>
+      </div>
+      <span v-if="chip" class="ml-auto rounded-full border px-2.5 py-0.5 text-[12px] font-bold" :class="CHIP[chip.tone]" data-testid="now-track">
+        {{ chip.text }}
+      </span>
+    </div>
+
+    <!-- Next step. -->
+    <div class="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2" data-testid="now-next">
+      <p class="text-[10px] font-black uppercase tracking-widest text-indigo-700">Next step</p>
+      <template v-if="card">
+        <p v-if="nextText" class="text-[13px] text-slate-800">
+          <b>{{ nextText }}</b>
+          <span v-if="nextEvent" class="ml-1.5 align-middle"><CalendarButton :events="[nextCal!]" label="Add to calendar" /></span>
+        </p>
+        <p v-else class="text-[13px] text-slate-700">Nothing left in this plan: work out a new one.</p>
+        <p v-if="track?.kind === 'behind'" class="mt-1 text-[12px] text-rose-800" data-testid="now-behind">
+          Behind by {{ chip?.text.replace('Behind by ', '') }}.
+          <button type="button" class="font-bold underline" @click="emit('open', goalOpen)">Check again ›</button>
+        </p>
+      </template>
+      <p v-else class="text-[13px] text-slate-700" data-testid="now-no-plan">
+        No plan with its times is saved for this save yet: one is kept for a day after Check exactly finishes (computers
+        run it by themselves; on a phone, press Check exactly).
+        <button type="button" class="font-bold text-indigo-700 underline" @click="emit('open', { auto: 'fastest', depth: 'smart', target: 490 })">
+          Work out my plan ›
+        </button>
+      </p>
+    </div>
+
+    <GearBlock
+      v-if="gear"
+      :equipped="gear.equipped"
+      :earnings="gear.earnings"
+      :production="gear.production"
+      :clothed-equipped="gear.clothedEquipped"
+      :clothed-earnings="gear.clothedEarnings"
+      :what-if="gear.whatIf"
+      :what-if-when="gear.whatIf ? dateAt(gear.whatIf.at / 1000, now, zone) : ''"
+      :goal="card?.goal.goal ?? 'fastest'"
+    />
+
+    <template v-if="card">
+      <EventsTable
+        v-if="shownEvents.length"
+        class="mt-3"
+        :events="shownEvents"
+        :goal="card.goal.goal"
+        :goal-name="goalName"
+        :now="now"
+        :zone="zone"
+        :save-when="planSaveWhen"
+        :calculated-when="calculatedWhen"
+      />
+      <details class="mt-2" data-testid="now-timeline">
+        <summary class="cursor-pointer text-[13px] font-semibold text-indigo-700">
+          ▸ Full timeline (every ascension, each egg's first and last shift)
+        </summary>
+        <div class="mt-2">
+          <RouteTimeline
+            :chain="card.plan.chain"
+            :legs="card.plan.legs"
+            :zone="zone"
+            no-legs-text="This plan was kept without each ascension's shifts (it was too big to keep whole): open its screen for them."
+          />
+        </div>
+      </details>
+    </template>
+  </section>
+</template>
+
+<script setup lang="ts">
+import { computed } from 'vue';
+import { iconURL } from 'lib';
+import CalendarButton from './CalendarButton.vue';
+import EventsTable from './EventsTable.vue';
+import GearBlock from './GearBlock.vue';
+import RouteTimeline from '../auto/RouteTimeline.vue';
+import { dateAt, relativeWords } from '@/lib/eventWhen';
+import { nextStepText } from '@/lib/nowWords';
+import { trackWords, type PlanEvent, type TrackState } from '@/lib/nowPlan';
+import { planCalEvent } from '@/lib/calendarEvents';
+import { virtueEggName, virtueEggType } from '@/lib/virtueEggs';
+import type { CardPlan } from '@/composables/useNowPage';
+import type { MyRunsOpen } from '@/lib/myRunsDashboard';
+import type { EquippedArtifact } from '@/lib/artifacts/types';
+import type { SnapWhatIf } from '@/search/instantSnapshot';
+
+const props = defineProps<{
+  card: CardPlan | null;
+  onVirtue: boolean | null;
+  currentEgg: string | null;
+  teSoFar: number;
+  ascNow: number;
+  track: TrackState | null;
+  events: PlanEvent[];
+  shownEvents: PlanEvent[];
+  gear: {
+    equipped: EquippedArtifact[] | null;
+    earnings: EquippedArtifact[] | null;
+    production: EquippedArtifact[] | null;
+    clothedEquipped: number | null;
+    clothedEarnings: number | null;
+    whatIf: SnapWhatIf | null;
+  } | null;
+  now: number;
+  zone: string;
+  saveSeconds: number;
+  eggDayYear: number;
+}>();
+const emit = defineEmits<{ open: [to: MyRunsOpen] }>();
+
+const CHIP = {
+  ok: 'border-emerald-300 bg-emerald-50 text-emerald-800',
+  bad: 'border-rose-300 bg-rose-50 text-rose-800',
+  warn: 'border-amber-300 bg-amber-50 text-amber-900',
+  plain: 'border-slate-200 bg-slate-50 text-slate-600',
+} as const;
+
+const eggName = computed(() => virtueEggName(props.currentEgg));
+const eggType = computed(() => virtueEggType(props.currentEgg));
+const goalName = computed(() =>
+  props.card?.goal.goal === 'date' ? `Egg Day ${props.eggDayYear}` : `Fastest to ${props.card?.goal.target ?? 490}`
+);
+const calculatedWhen = computed(() => {
+  const at = props.card ? props.card.plan.calculatedAt / 1000 : 0;
+  return at ? `${dateAt(at, props.now, props.zone)} (${relativeWords(at - props.now)})` : '';
+});
+/** The save the plan was made from: its own (an older save's), else the loaded one. */
+const planSaveWhen = computed(() => dateAt(props.card?.plan.meta?.backupTime || props.saveSeconds, props.now, props.zone));
+const chip = computed(() => (props.track ? trackWords(props.track) : null));
+const nextText = computed(() => (props.card ? nextStepText(props.events, props.card.goal.goal, props.now, props.zone) : ''));
+const nextEvent = computed(() => props.events.find(e => !e.past && e.kind !== 'goal') ?? null);
+const nextCal = computed(() =>
+  nextEvent.value
+    ? planCalEvent(nextEvent.value, { eggName: virtueEggName, saveWhen: planSaveWhen.value, calculatedWhen: calculatedWhen.value })
+    : null
+);
+const goalOpen = computed<MyRunsOpen>(() =>
+  props.card?.goal.goal === 'date'
+    ? { auto: 'by-date', byDate: { eggDay: true } }
+    : { auto: 'fastest', depth: 'smart', target: props.card?.goal.target ?? 490 }
+);
+</script>

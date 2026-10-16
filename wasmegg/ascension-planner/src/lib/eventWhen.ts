@@ -109,3 +109,38 @@ export function eventWhenText(at: number | null | undefined, nowSeconds: number,
   const w = eventWhen(at, nowSeconds, zone);
   return w ? `${w.day} at ${w.clock}, ${w.relative}` : '';
 }
+
+/**
+ * The calendar date and clock, never "today": "Oct 15 at 2:36 pm", with the weekday ("Thu, Oct 15 at 4:00 pm")
+ * when asked and the year only when it is not `nowSeconds`'s ("Jul 13, 2027 at 5:14 pm"). '' when unknown. My
+ * runs' events table and every "calculated …" / "from your save of …" line.
+ */
+export function dateAt(at: number | null | undefined, nowSeconds: number, zone: string, weekday = false): string {
+  if (!at || !Number.isFinite(at)) return '';
+  try {
+    const p = partsOf(at, zone);
+    const n = partsOf(nowSeconds, zone);
+    const wd = weekday
+      ? `${new Intl.DateTimeFormat('en-US', { timeZone: zone, weekday: 'short' }).format(new Date(at * 1000))}, `
+      : '';
+    return `${wd}${p.month} ${p.day}${p.year !== n.year ? `, ${p.year}` : ''} at ${p.hour}:${p.minute} ${p.period}`;
+  } catch {
+    return '';
+  }
+}
+
+/** "3 hours ago", "45 minutes ago", "1 hour ago", "3 days ago", "just now" (the save-age strip's words). */
+export function agoLong(seconds: number): string {
+  const s = Math.max(0, seconds);
+  if (s < 60) return 'just now';
+  if (s < 3600) {
+    const m = Math.round(s / 60);
+    return `${m} minute${m === 1 ? '' : 's'} ago`;
+  }
+  if (s < 48 * 3600) {
+    const h = Math.round(s / 3600);
+    return `${h} hour${h === 1 ? '' : 's'} ago`;
+  }
+  const d = Math.floor(s / DAY);
+  return `${d} days ago`;
+}

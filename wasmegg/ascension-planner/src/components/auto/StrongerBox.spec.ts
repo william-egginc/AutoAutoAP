@@ -340,8 +340,9 @@ describe('the at-once box moved to Light (14 Oct, source)', () => {
     expect(t).not.toContain('tryAtOnce');
     expect(t).not.toContain('Also try ascending the moment');
     expect(t).toContain("const ways: HandoffChoice[] = ['hour'];");
-    // Saved snapshots (keyed with the old box off) still load.
-    expect(t).toContain('snapKey = cachedKey ? `${cachedKey}|0` : null;');
+    // Saved snapshots (keyed with the old box off, "|0") still load: search/instantSnapshot.ts instantSnapKey
+    // (instantKey.spec.ts holds its "|0").
+    expect(t).toContain('snapKey = instantSnapKey(cachedKey);');
     // Light gets the table's rows and each row shows its at-once line.
     expect(t).toContain(':at-once-rows="lightRows"');
     expect(t.match(/data-testid="at-once-line"/g)).toHaveLength(2);

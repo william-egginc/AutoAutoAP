@@ -1035,6 +1035,9 @@ const emit = defineEmits<{
   count: [n: number | null];
   /** My runs only: those runs themselves (for its summary, MyRunsDashboard), null until the first load is in. */
   rows: [rows: BoardRow[] | null];
+  /** My runs mode: every public row already loaded (your hidden ones left out), for "where you stand" on the
+   *  Right now page (lib/standing.ts). Null until the first load is in. */
+  board: [rows: BoardRow[] | null];
 }>();
 const myRunsMode = computed(() => props.mode === 'myruns');
 
@@ -1486,6 +1489,11 @@ watch(
 watch(
   () => (myRunsMode.value && loadedOnce.value ? myRunRows.value : null),
   rows => emit('rows', rows),
+  { immediate: true }
+);
+watch(
+  () => (myRunsMode.value && loadedOnce.value ? shownRows.value : null),
+  rows => emit('board', rows),
   { immediate: true }
 );
 
