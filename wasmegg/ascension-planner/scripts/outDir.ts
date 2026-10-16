@@ -12,7 +12,7 @@
  * anything against the clock they were priced under, and a default start of "the current hour" would
  * make every restart a different run.
  */
-import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 export type RunStatus = 'running' | 'stopped' | 'done' | 'failed';
@@ -58,6 +58,14 @@ export type OutPlan =
  * What to do with `dir` for a run of this signature. Throws when it holds another run, rather than
  * quietly mixing two runs' checkpoints; `fresh` clears it instead.
  */
+/** Whether a checkpoint directory holds any saved record (a .json file anywhere under it). */
+function holdsRecords(dir: string): boolean {
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    if (e.isDirectory() ? holdsRecords(join(dir, e.name)) : e.name.endsWith('.json')) return true;
+  }
+  return false;
+}
+
 export function planOutDir(dir: string, signature: string, fresh: boolean): OutPlan {
   const record = readRunRecord(dir);
   const hasCheckpoint = existsSync(join(dir, CHECKPOINT_DIR));
@@ -67,6 +75,12 @@ export function planOutDir(dir: string, signature: string, fresh: boolean): OutP
     return { action: 'new', record: null };
   }
   if (!record) {
+    // A checkpoint with no records in it is what a run that stopped before pricing anything leaves
+    // (it made the folder, then exited): nothing to lose, so start afresh rather than refuse.
+    if (hasCheckpoint && !holdsRecords(join(dir, CHECKPOINT_DIR))) {
+      rmSync(join(dir, CHECKPOINT_DIR), { recursive: true, force: true });
+      return { action: 'new', record: null };
+    }
     if (hasCheckpoint) {
       throw new Error(
         `${dir} holds a checkpoint but no ${RUN_FILE}, so it cannot be told what run it is. Use another --out, or --fresh to clear it.`

@@ -1323,7 +1323,8 @@ async function route(file: string): Promise<void> {
         const f = firstLegs?.find(x => x.to === target);
         if (f) tLeg = { start: tt, end: f.end, endTE: f.endTE, delivered: f.delivered, label: f.label ?? 'first' };
       } else {
-        const p = priceLeg(table.lookup, tcur, tt, teggs, target, deliveryScale);
+        // With --available-*: the prestige waits for the hours, as the finder prices it.
+        const p = priceLeg(table.lookup, tcur, tt, teggs, target, deliveryScale, hours ?? undefined);
         if (p) tLeg = { ...p, label: `${p.build.sales}-sale${p.build.tier13 ? '-t13' : ''}` };
       }
       // The simulator.
