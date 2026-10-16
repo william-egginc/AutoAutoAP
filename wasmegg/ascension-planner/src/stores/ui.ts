@@ -4,6 +4,7 @@ import type { AutoView, CompareView, Depth, ScienceView } from '@/lib/siteNav';
 import type { SweepRequest } from '@/search/sweepRequest';
 import type { ByDateRequest } from '@/search/byDateRequest';
 import { readSearchMode } from '@/lib/searchMode';
+import type { ExactAsk } from '@/lib/recalc';
 
 export type PlannerTab = 'manual' | 'automatic' | 'leaderboard' | 'myruns' | 'science';
 
@@ -47,6 +48,16 @@ export const useUIStore = defineStore('ui', () => {
    *  scrolls to its plan once simulated and says where it came from, with a way back. */
   /** `from`: what the banner names as its source, when not the instant answer (By a date's answer). */
   const planFromInstant = ref<{ chain: number[]; back: 'fastest' | 'by-date'; from?: string } | null>(null);
+  /**
+   * My runs' "Recalculate" (lib/recalc.ts): run Check exactly on the screen just opened for this goal (its words as
+   * `instantGoal` has them). InstantRoute.vue watches it, answers it once its instant answer is in (never under a
+   * running search) and clears it. `n` counts the asks, so the same goal asked twice is two asks.
+   */
+  const exactAsk = ref<ExactAsk | null>(null);
+  let exactAsks = 0;
+  function askExact(goal: string): void {
+    exactAsk.value = { goal, n: ++exactAsks };
+  }
   /** Your setup's floating panel (SetupDock.vue) is open: the gear, or a screen's Edit setup. */
   const setupOpen = ref(false);
   /** Bumped to open Your setup at its time off (YourSetup.vue), e.g. from a sweep's "add time off". */
@@ -102,6 +113,8 @@ export const useUIStore = defineStore('ui', () => {
     runSaveLoaded,
     openPlannerRequested,
     planFromInstant,
+    exactAsk,
+    askExact,
     backupRetryRequested,
     openSetupRequested,
     setupOpen,

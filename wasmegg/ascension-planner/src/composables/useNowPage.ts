@@ -84,6 +84,9 @@ import {
   type GoalKey,
   type PlanGoal,
 } from '@/lib/planGoals';
+import { whichSet } from '@/lib/gearMatch';
+import { phaseNow } from '@/lib/nowPhase';
+import { startLines } from '@/lib/nowStart';
 
 /** The race the Fastest tile is for first (the board's), then the player's own target. */
 export const RACE_TARGET = 490;
@@ -441,11 +444,17 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       return null;
     }
   }
+  /** Which set the save wears (lib/gearMatch.ts): Gear's "Equipped now = your earnings set" and the badge. */
+  const setMatch = computed(() => {
+    const inv = inventory.value;
+    return inv ? whichSet(inv.equipped, inv.earnings, inv.production) : null;
+  });
   const gear = computed(() => {
     const inv = inventory.value;
     if (!inv) return null;
     return {
       ...inv,
+      match: setMatch.value,
       clothedEquipped: clothedOf(inv.equipped),
       clothedEarnings: clothedOf(inv.earnings),
       whatIf: cardPlan.value?.state === 'this-save' ? cardPlan.value.plan.whatIf : null,
@@ -463,6 +472,34 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
           equipped: inventory.value?.equipped ?? initial.artifactLoadout,
         })
       : null
+  );
+  /** The corner badge, Building or Producing with the rate (lib/nowPhase.ts); null off virtue. */
+  const phase = computed(() =>
+    hasSave.value
+      ? phaseNow({
+          onVirtue: onVirtue.value,
+          plan: cardPlan.value?.plan ?? null,
+          nowSeconds: now.value,
+          setMatch: setMatch.value,
+          saveElr: facts.value?.elr ?? null,
+        })
+      : null
+  );
+  /** Not on virtue yet: each goal's saved plan as "If you start <date>: …" (lib/nowStart.ts). */
+  const startInfo = computed(() =>
+    onVirtue.value === false
+      ? startLines(
+          planGoals.value.map(p => ({
+            key: p.goal.key,
+            name: p.goal.name,
+            goal: p.goal.goal,
+            target: p.goal.target,
+            plan: p.pick?.candidate.plan ?? null,
+          })),
+          now.value,
+          zone.value
+        )
+      : []
   );
   const eggs = computed(() => {
     if (!hasSave.value) return [];
@@ -556,6 +593,8 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     track,
     gear,
     facts,
+    phase,
+    startInfo,
     eggs,
     shiftsDone,
     soulEggs,

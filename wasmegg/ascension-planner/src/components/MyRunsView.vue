@@ -51,8 +51,12 @@
         :egg-day-year="page.eggDayYear"
         :goals="page.goalChoices.value"
         :selected-goal="page.selectedGoal.value"
+        :phase="page.phase.value"
+        :start-info="page.startInfo.value"
         @open="to => emit('open', to)"
         @select="page.selectGoal"
+        @start-times="openStartTimes"
+        @recalc="req => emit('recalc', req)"
       />
 
       <YourEggs
@@ -240,6 +244,8 @@ import { standingWords } from '@/lib/standing';
 import { oneMoreLine, tryNextPills } from '@/lib/tryNext';
 import { takeYourRunsAsk } from '@/lib/myRunsFocus';
 import { useNowPage } from '@/composables/useNowPage';
+import { useStartTimesStore } from '@/stores/startTimes';
+import type { RecalcRequest } from '@/lib/recalc';
 import { saveTEOf } from '@/lib/saveFreshness';
 import DashboardCards from './myruns/DashboardCards.vue';
 import DashboardGaps from './myruns/DashboardGaps.vue';
@@ -261,7 +267,17 @@ const emit = defineEmits<{
   open: [to: MyRunsOpen];
   /** "Load a fresh one": App fetches the save again (and stays here). */
   fresh: [];
+  /** Right now's "Recalculate": App opens the goal's screen with the save and runs Check exactly (lib/recalc.ts). */
+  recalc: [req: RecalcRequest];
 }>();
+
+/** Right now's "When should I start?" (not on virtue yet): Science › When should I start?, on the plan's route when
+ *  there is one (stores/startTimes.ts; App goes there). */
+const startTimes = useStartTimesStore();
+function openStartTimes(chain: number[] | null): void {
+  if (chain && chain.length) startTimes.show(chain);
+  else startTimes.open();
+}
 
 const store = useChainSearchStore();
 const planner = useAutoPlannerStore();

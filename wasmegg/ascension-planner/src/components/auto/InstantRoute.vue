@@ -1013,6 +1013,8 @@ import { GEAR_RULE, gearChanges, gearStamp, gearTableNames, legacyGearTableName,
 import { compositeUrl, parseCompositeUrl } from '@/search/precomputedTable';
 import type { TableHeader } from '@/search/precomputedTable';
 import { useInitialStateStore } from '@/stores/initialState';
+import { useUIStore } from '@/stores/ui';
+import { exactAskStep } from '@/lib/recalc';
 import { ownerToken } from '@/search/owner';
 import { appBuildId } from '@/search/submission';
 import { SIM_VERSION, tableSimMismatch } from '@/search/simVersion';
@@ -2199,6 +2201,30 @@ function checkAgain(): void {
   const id = ++runs;
   void runExact(id, result.value, true);
 }
+/**
+ * My runs' "Recalculate" (lib/recalc.ts, stores/ui.ts `exactAsk`): App opened this screen for a goal and asks for
+ * Check exactly. Answered here as the button above, once this answer is in, only for this screen's own goal and
+ * never under a running search (then the ask is dropped). Check exactly already started by itself counts as done.
+ */
+const ui = useUIStore();
+watch(
+  () =>
+    exactAskStep({
+      ask: ui.exactAsk,
+      goal: instantGoal(props.deadline, store.finalTE),
+      searchRunning: runBusy.value || store.busy,
+      status: status.value,
+      backgroundStatus: backgroundStatus.value,
+      exactStatus: exactStatus.value,
+      hasResult: !!result.value,
+    }),
+  step => {
+    if (step === 'none' || step === 'wait') return;
+    ui.exactAsk = null;
+    if (step === 'run') checkAgain();
+  },
+  { immediate: true }
+);
 
 async function runExact(id: number, given: NonNullable<typeof result.value>, manual = false): Promise<void> {
   stopExact();

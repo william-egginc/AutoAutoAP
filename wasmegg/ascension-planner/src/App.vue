@@ -554,6 +554,7 @@
           @use="useLeaderboardChain"
           @open="openFromMyRuns"
           @fresh="loadFreshSave"
+          @recalc="recalcFromMyRuns"
         />
       </div>
 
@@ -759,6 +760,7 @@ import { useStartTimesStore } from '@/stores/startTimes';
 import { revealRunTab, selectSearchTab } from '@/lib/searchTab';
 import { presetByDate } from '@/lib/byDateForm';
 import type { MyRunsOpen } from '@/lib/myRunsDashboard';
+import { needsFreshSave, type RecalcRequest } from '@/lib/recalc';
 import { useStrongerStore } from '@/stores/stronger';
 import type { SweepRequest } from '@/search/sweepRequest';
 import { virtueInventory } from '@/search/csv';
@@ -840,6 +842,27 @@ function openFromMyRuns(to: MyRunsOpen): void {
   uiStore.autoView = to.auto;
   if (to.depth) uiStore.fastestDepth = to.depth;
   plannerTab.value = 'automatic';
+}
+/**
+ * My runs' "Recalculate" (lib/recalc.ts): a fresh save first when the loaded one is 6 hours old or more (the same
+ * path as entering the Auto Planner; stops on its reason), then the goal's screen as Open does, then Check exactly
+ * there (`ui.exactAsk`, which InstantRoute.vue answers once its instant answer is in). Under a running search the
+ * screen only opens, as Open does: nothing is loaded or run.
+ */
+async function recalcFromMyRuns(req: RecalcRequest): Promise<void> {
+  if (searchActive.value) {
+    openFromMyRuns(req.open);
+    return;
+  }
+  if (needsFreshSave(backupSecondsOf(initialStateStore.rawBackup), Date.now() / 1000)) {
+    const why = await prepareAutoPlanner();
+    if (why) {
+      error.value = why;
+      return;
+    }
+  }
+  openFromMyRuns(req.open);
+  uiStore.askExact(req.goal);
 }
 const initialStateStore = useInitialStateStore();
 // The Auto Planner's start and timezone, restored and defaulted before any screen or chunk loads.

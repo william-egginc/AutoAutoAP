@@ -140,7 +140,9 @@ describe('the Right now card', () => {
 
   it('not on virtue, a changed setup, an older save', async () => {
     const off = textOf(await renderHtml(RightNowCard, cardProps({ onVirtue: false, currentEgg: null })));
-    expect(off).toContain('No virtue farm in this save: the plan starts with a fresh ascension Oct 15 at 6:40 am');
+    // Not on virtue yet (16 Oct 2026, NowPage.virtue.spec.ts): said plainly, no Next step.
+    expect(off).toContain('Not on virtue yet: no virtue farm in this save');
+    expect(off).not.toContain('Next step');
     const changed = textOf(await renderHtml(RightNowCard, cardProps({ card: { ...card, state: 'setup-changed' } })));
     expect(changed).toContain('Your setup changed since this plan. Work it out again ›');
     const older = await renderHtml(

@@ -4,14 +4,21 @@
   ascension uses), each as four icons with a few words; each unfolds into every artifact and its stones
   (LoadoutDisplay.vue, the same picture as the setup's). Both sets are worked out from the save, as the instant
   answer does for its key (store `readInventory`). "+N with maxed gear" only when that what-if was worked out
-  for this save on Fastest or By a date and kept with its answer.
+  for this save on Fastest or By a date and kept with its answer. The Equipped row says which set it is (16 Oct
+  2026, lib/gearMatch.ts): "Equipped now = your earnings set", "= your production set" or "= a mix".
 -->
 <template>
   <div class="mt-3" data-testid="now-gear">
     <p class="text-[10px] font-black uppercase tracking-widest text-slate-500">Gear · from your save</p>
     <details v-for="r in rows" :key="r.id" class="border-t border-slate-100 py-1.5" :data-testid="`now-gear-${r.id}`">
       <summary class="cursor-pointer list-none flex flex-wrap items-center gap-2 text-[12px]">
-        <span class="w-28 shrink-0 text-[11px] font-bold text-slate-500">{{ r.name }}</span>
+        <span
+          class="shrink-0 text-[11px] font-bold"
+          :class="r.id === 'equipped' && match ? 'min-w-[7rem] max-w-full text-slate-700' : 'w-28 text-slate-500'"
+          :data-testid="r.id === 'equipped' ? 'now-gear-match' : undefined"
+          :data-match="r.id === 'equipped' ? (match ?? undefined) : undefined"
+          >{{ r.name }}</span
+        >
         <span class="flex gap-1">
           <template v-for="(s, i) in r.set ?? []" :key="i">
             <img
@@ -39,6 +46,7 @@ import LoadoutDisplay from '../auto/LoadoutDisplay.vue';
 import { getArtifact } from '@/lib/artifacts';
 import type { EquippedArtifact } from '@/lib/artifacts/types';
 import { gearWords } from '@/lib/gearWords';
+import { equippedName, type SetMatch } from '@/lib/gearMatch';
 import type { SnapWhatIf } from '@/search/instantSnapshot';
 
 const props = defineProps<{
@@ -51,6 +59,8 @@ const props = defineProps<{
   goal: 'fastest' | 'date';
   /** "Oct 15 at 2:40 pm": when the what-if was worked out. */
   whatIfWhen?: string;
+  /** Which set is equipped (lib/gearMatch.ts `whichSet`); absent or null: the row says only "Equipped now". */
+  match?: SetMatch;
 }>();
 
 const icon = (id: string | null) => {
@@ -63,7 +73,7 @@ const rows = computed(() => {
   const gain =
     props.clothedEarnings != null && props.clothedEquipped != null ? Math.round(props.clothedEarnings - props.clothedEquipped) : null;
   return [
-    { id: 'equipped', name: 'Equipped now', set: props.equipped, words: gearWords(props.equipped), tone: 'text-slate-700' },
+    { id: 'equipped', name: equippedName(props.match ?? null), set: props.equipped, words: gearWords(props.equipped), tone: 'text-slate-700' },
     {
       id: 'earnings',
       name: 'Earnings set',
