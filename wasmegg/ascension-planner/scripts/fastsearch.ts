@@ -76,7 +76,7 @@ setActivePinia(createPinia());
 
 import { readFileSync, writeFileSync, unlinkSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
-import { availableParallelism, homedir, totalmem } from 'node:os';
+import { availableParallelism, cpus, homedir, totalmem } from 'node:os';
 import { join } from 'node:path';
 import { runSiteSearch, type SiteKind, type SiteRunOptions } from './siteRun';
 import { useChainSearchStore } from '@/stores/chainSearch';
@@ -1962,6 +1962,26 @@ function submissionDirs(dir: string): string[] {
  * save time, TE and plan start, and is not filed as a what-if); the table is run.csv.gz, uncompressed
  * and sent through the same upload the site uses. Returns the exit code.
  */
+/**
+ * The public board's collector, the one the live site sends to. A fresh clone has no .env.local, so
+ * VITE_SUBMIT_URL is empty in its build; without this default a `--submit` run printed "no collector
+ * configured" and quietly ended (pieha's first run, 16 Oct).
+ */
+export const PUBLIC_COLLECTOR = 'https://ascension-chain-collector.williamthe5thc.workers.dev/submit';
+
+/**
+ * Where sends go: --collector URL, else the build's own (VITE_SUBMIT_URL), else the public board.
+ * Set before the store is first used (it reads `__AAP_SUBMIT_URL__` once), and said out loud.
+ */
+function chooseCollector(): string {
+  const given = arg('collector');
+  const built = ((import.meta.env.VITE_SUBMIT_URL as string | undefined) ?? '').trim();
+  const url = given ? given.replace(/\/?$/, '').replace(/(\/submit)?$/, '/submit') : built || PUBLIC_COLLECTOR;
+  (globalThis as any).__AAP_SUBMIT_URL__ = url;
+  if (!given && !built) console.log(`sends go to the public board: ${url} (the default; --collector URL changes it)`);
+  return url;
+}
+
 async function submitCommand(): Promise<number> {
   const from = arg('from');
   if (!from) throw new Error('submit needs --from DIR (the --out directory of a run)');
@@ -1969,8 +1989,7 @@ async function submitCommand(): Promise<number> {
   if (!dirs.length) throw new Error(`no ${SUBMISSION_FILE} in ${from} (or in its chain-K folders): run with --out first`);
 
   // Before the store is first used: it reads the collector once, and the owner code from storage.
-  const collector = arg('collector');
-  if (collector) (globalThis as any).__AAP_SUBMIT_URL__ = collector.replace(/\/?$/, '').replace(/(\/submit)?$/, '/submit');
+  chooseCollector();
   const dry = has('dry-run');
   if (has('anonymous') && has('nickname')) throw new Error('--anonymous and --nickname together: pick one');
   persistLocalStorage(arg('state') ?? join(homedir(), '.config', 'autoautoap', 'cli-state.json'));
@@ -2079,14 +2098,31 @@ async function main() {
       ? Math.max(1, Math.min(availableParallelism() - 1, DEFAULT_WORKER_CAP))
       : 1;
   if (!Number.isFinite(jobs) || jobs < 1) throw new Error('--jobs must be a whole number of at least 1');
+  // An explicit --jobs above what Node detects runs as asked. On Windows Node can see fewer threads
+  // than the machine has (one processor group, or the process's affinity): pieha's 24-core/32-thread
+  // PC reported 16, and --jobs 32 used to be held to 16. The worker pool sizes itself from
+  // navigator.hardwareConcurrency, so that is raised to the count asked for before the store starts.
+  if (siteMode && has('jobs') && jobs > availableParallelism()) {
+    Object.defineProperty(globalThis.navigator, 'hardwareConcurrency', { value: jobs, configurable: true });
+  }
   const planMode = has('effort') || has('exhaustive') || siteMode;
   checkSiteFlags(siteMode);
   let pinned: ReturnType<typeof readRunRecord> = null;
   let outRecord: (() => void) | undefined;
   if (siteMode) {
     // Before the store is first used: it reads the collector once, and the owner code from storage.
-    const collector = arg('collector');
-    if (collector) (globalThis as any).__AAP_SUBMIT_URL__ = collector.replace(/\/?$/, '').replace(/(\/submit)?$/, '/submit');
+    if (has('submit') || arg('collector')) chooseCollector();
+    // A send that would be refused is refused NOW, before --out makes its directory: an early exit
+    // used to leave DIR/checkpoint without DIR/run.json, which the re-run then would not touch
+    // (pieha, 16 Oct).
+    if (has('submit') && !has('dry-run')) {
+      const allowed = checkSendAllowed((globalThis as any).__AAP_SUBMIT_URL__ as string, has('yes'));
+      if (!allowed.ok) {
+        console.error(`error: ${allowed.message}`);
+        process.exitCode = 1;
+        return;
+      }
+    }
     if (has('submit') || has('state') || (has('out') && !has('dry-run'))) {
       persistLocalStorage(arg('state') ?? join(homedir(), '.config', 'autoautoap', 'cli-state.json'));
     }
@@ -2120,7 +2156,13 @@ async function main() {
         `Each holds roughly 0.1-0.25 GB of simulator memory, so about ${(jobs * 0.25).toFixed(1)} GB at most, of this machine's ${(mb / 1024).toFixed(0)} GB, ` +
         `plus the priced chains in the main process.`
     );
-    if (jobs > cores) console.warn(`  warning: --jobs ${jobs} is more than the ${cores} cores here; it is held to ${cores}.`);
+    console.log(`  Node detects ${cores} usable threads here (os.cpus() lists ${cpus().length} logical processors).`);
+    if (jobs > cores)
+      console.warn(
+        `  warning: --jobs ${jobs} is more than the ${cores} threads Node detects; running ${jobs} as asked. ` +
+          'If the machine really has more, Windows may be giving Node one processor group or a limited affinity; ' +
+          'if it does not, extra workers only queue for the same cores.'
+      );
     if (jobs * 0.25 * 1024 > mb * 0.8) {
       console.warn('  warning: that may be more memory than this machine has free. Use fewer workers if it starts swapping or is killed.');
     }
@@ -2322,6 +2364,10 @@ async function main() {
     process.exitCode = await runSiteSearch(
       siteOptions({ jobs, tz, startDate, startTime, final, availability, deferShifts, milestones: usable, currentTE })
     );
+    // The store's worker threads (and the integrity probe's) keep Node alive after a site search has
+    // finished, sent and written everything, so a run without --out sat idle for hours instead of
+    // ending (16 Oct). Leave once anything still flushing has had a moment.
+    setTimeout(() => process.exit(process.exitCode ?? 0), 2000);
     return;
   }
 

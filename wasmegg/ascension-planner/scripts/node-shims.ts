@@ -96,8 +96,15 @@ export function persistLocalStorage(file: string): void {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- a browser global scope, assembled by hand
 const g = globalThis as any;
-if (!g.localStorage) g.localStorage = memoryStorage();
-if (!g.sessionStorage) g.sessionStorage = memoryStorage();
+// Node 22+ has its own experimental Web Storage: a `localStorage` getter on the global that prints
+// "ExperimentalWarning: localStorage is not available because --localstorage-file was not provided"
+// the moment anything READS it, in every worker thread (pieha's 16-worker run, Node 24/25 on
+// Windows, printed it nonstop). So the property is checked without being read, and Node's getter is
+// replaced by our own storage: no warning, and the same storage on every Node.
+for (const name of ['localStorage', 'sessionStorage']) {
+  const own = Object.getOwnPropertyDescriptor(g, name);
+  if (!own || own.get) Object.defineProperty(g, name, { value: memoryStorage(), writable: true, configurable: true, enumerable: true });
+}
 if (!g.window) g.window = g;
 // The store listens for page events (visibility, unload) that a command line never has.
 // The step-away watcher records the page's address in its run mark (composables/useStepAway.ts).

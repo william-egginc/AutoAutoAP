@@ -216,8 +216,13 @@ node dist-search/fastsearch.js --backup me.json --egg-day --timezone America/Den
   on the one 20-thread PC we measured, 12 workers were as fast as 19, so check your own speed first.
 - Your playing hours: `--available-from 7 --available-to 23` (with `--timezone`). Leave them out
   for "any hour".
-- Offline? Leave out `--submit` and later run `node dist-search/fastsearch.js submit --from run1
-  --nickname YourName --yes`.
+- `--submit` sends to the public board (the same one the site uses; the run prints the address, and
+  `--collector URL` changes it). `--yes` is required for that, or the run stops before it starts.
+  Rather send it yourself later? Leave out `--submit` (keep `--out run1`) and when it has finished run
+  `node dist-search/fastsearch.js submit --from run1 --nickname YourName --yes`.
+- On a big machine, ask for the workers you want with `--jobs N`. The start of the run prints how many
+  threads Node detects; on Windows that can be fewer than the machine has (one processor group), and
+  an explicit `--jobs` above it now runs as asked, with a warning.
 - The row says which level found it (`exhaustive`), and the CSV goes with it.
 
 Long offline runs, worker counts and memory: [Long runs](https://github.com/william-egginc/AutoAutoAP/wiki/Long-runs)

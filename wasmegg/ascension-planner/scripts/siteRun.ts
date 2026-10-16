@@ -223,11 +223,15 @@ export async function runSiteSearch(o: SiteRunOptions): Promise<number> {
       `, plan start ${show(store.planStart)}`
   );
   if (o.submit) {
+    if (!store.submitUrl) {
+      // Only if the public default was overridden with nothing usable: say so plainly and stop
+      // before anything runs, rather than ending without a word (pieha, 16 Oct).
+      console.error('error: --submit has nowhere to send: pass --collector URL (the board\'s /submit address), or run without --submit and send later with `submit --from DIR`.');
+      return 1;
+    }
     console.log(
-      `    sends to ${store.leaderboardUrl || '(no collector configured: pass --collector URL)'} when it finishes` +
-        `, ${o.submit.nickname ? `as "${o.submit.nickname}"` : 'anonymously'}`
+      `    sends to ${store.submitUrl} when it finishes` + `, ${o.submit.nickname ? `as "${o.submit.nickname}"` : 'anonymously'}`
     );
-    if (!store.submitUrl) return 1;
     // Before anything runs: a destination that is not this machine needs --yes (src/search/offline.ts).
     const allowed = checkSendAllowed(store.submitUrl, o.submit.yes);
     if (!allowed.ok && !o.dryRun) {
