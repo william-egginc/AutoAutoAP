@@ -139,7 +139,7 @@
           <b>Under each answer</b> (and under the instant answer once Check exactly has run) are two short lines: when
           your first ascension switches eggs, from the simulation itself, and what one more TE above the last stop would
           take. On {{ NAMES.byDate }} that comes from the run's own numbers (what its last TE cost over the one below);
-          elsewhere it's when the next TE would come if you keep laying at the final rate.
+          elsewhere it's when the next TE would come if you keep laying the same egg at the final rate (another egg needs a shift, which starts the farm again from one chicken).
         </p>
         <p>
           <b>The memo.</b> Routes that start the same way share those ascensions exactly, so each worker remembers the

@@ -36,28 +36,33 @@ describe('endEggsOf', () => {
       ['resilience', 49],
       ['kindness', 49],
     ]);
-    // Curiosity: 7.41e18 - 7.1e18 = 3.1e17 eggs, at 1e12 a second.
+    // Curiosity: 7.41e18 - 7.1e18 = 3.1e17 eggs, but no time: the farm is on kindness, and another egg
+    // needs a shift, which starts the farm again from one chicken (15 Oct 2026, Halceyx).
     expect(r.rows[0].need).toBeCloseTo(3.1e17, -14);
-    expect(r.rows[0].seconds).toBeCloseTo(3.1e5, -1);
+    expect(r.rows[0].seconds).toBeNull();
+    // Kindness: 7.03e18 - 6.8e18 = 2.3e17 at 1e12 a second.
+    expect(r.rows[4].seconds).toBeCloseTo(2.3e5, -1);
     expect(r.rows.find(x => x.laying)?.egg).toBe('kindness');
     expect(r.rate).toBe(1e12);
   });
 
-  it('the next TE: the soonest egg, from when the last stop is reached', () => {
+  it('the next TE: the egg being laid, never a part-filled egg the farm would have to shift to', () => {
     const r = endEggsOf(route(lastLeg()))!;
-    // Humility needs 7.03e18 - 6.9e18 = 1.3e17 (the least), so 1.3e5 s after the end.
-    expect(r.next?.egg).toBe('humility');
-    expect(r.next!.at - END).toBeCloseTo(1.3e5, -1);
+    // Humility is nearest (1.3e17 eggs) but the farm is on kindness (2.3e17): 2.3e5 s after the end.
+    expect(r.next?.egg).toBe('kindness');
+    expect(r.next!.at - END).toBeCloseTo(2.3e5, -1);
+    // Not known which egg the farm is on: no next TE rather than a guess.
+    expect(endEggsOf(route(lastLeg({ endEggs: { ...endEggs, egg: undefined as never } })))!.next).toBeNull();
   });
 
-  it("each egg's next TE as a moment: the route's end plus its time at the final rate (16 Oct)", () => {
+  it("the laid egg's next TE as a moment: the route's end plus its time at the final rate (16 Oct)", () => {
     const r = endEggsOf(route(lastLeg()))!;
-    expect(r.rows[0].at! - END).toBeCloseTo(3.1e5, -1);
-    for (const x of r.rows) expect(x.at).toBe(END + x.seconds!);
-    expect(r.next!.at).toBe(Math.min(...r.rows.map(x => x.at!)));
+    expect(r.rows[4].at! - END).toBeCloseTo(2.3e5, -1);
+    expect(r.rows.filter(x => !x.laying).every(x => x.at === null)).toBe(true);
+    expect(r.next!.at).toBe(r.rows[4].at);
     // No end time: the eggs and the time it would take, but no moment.
     const noEnd = endEggsOf(route(lastLeg({ endTime: undefined as never })))!;
-    expect(noEnd.rows[0].seconds).toBeCloseTo(3.1e5, -1);
+    expect(noEnd.rows[4].seconds).toBeCloseTo(2.3e5, -1);
     expect(noEnd.rows.every(x => x.at === null)).toBe(true);
     expect(noEnd.next).toBeNull();
   });
@@ -66,8 +71,8 @@ describe('endEggsOf', () => {
     const maxed = { delivered: [3.7e19, 0, 0, 0, 0], te: [98, 0, 0, 0, 0], egg: 'curiosity' };
     const r = endEggsOf(route(lastLeg({ endEggs: maxed }), [98]))!;
     expect(r.rows[0]).toMatchObject({ te: 98, need: null, seconds: null, at: null });
-    // TE 1 on integrity is 5e7 eggs away.
-    expect(r.next?.egg).toBe('integrity');
+    // The farm is on curiosity, which has every TE: no next one by laying on.
+    expect(r.next).toBeNull();
   });
 
   it('no rate: the TE and eggs needed, no times', () => {
