@@ -331,6 +331,13 @@ function pickExtras(body, record) {
   return text.length > EXTRA_MAX_BYTES ? null : text;
 }
 
+/** The Stronger check levels a row can record (src/search/submission.ts `SUBMISSION_LEVELS`). */
+const SUBMISSION_LEVELS = ['light', 'quick', 'normal', 'thorough', 'exhaustive'];
+/** Where a Light row's routes came from (`Submission.lightFrom`). */
+const LIGHT_FROMS = ['instant', 'earlier', 'lower-te'];
+/** A Light row: it says so by level, or by effort on a Fastest row (By a date Light rows carry level only). */
+const isLightRow = s => s.level === 'light' || s.effort === 'light';
+
 /** A version stamp such as `2026-10-13-lowte-gate`: letters, digits, dots, dashes, at most MAX.BUILD. */
 const stamp = v => (typeof v === 'string' && /^[0-9A-Za-z._-]{1,40}$/.test(v) ? v : undefined);
 const text = (v, max) => (typeof v === 'string' ? scrubText(v).slice(0, max) : undefined);
@@ -687,6 +694,12 @@ function pickSubmission(s) {
     firstLegOtherHours: within(s.firstLegOtherHours, -MAX.DURATION_DAYS * 24, MAX.DURATION_DAYS * 24),
     // By a date only: which mode found the row (the board's Effort column). Absent before 9 Oct 2026.
     mode: s.mode === 'simple' || s.mode === 'advanced' ? s.mode : undefined,
+    // Which Stronger check level found it (15 Oct 2026, optional, no schema bump): one of five words, anything
+    // else dropped. A Light row (`level` 'light', or effort 'light' on a Fastest row) also says whether it
+    // was priced at once and where its routes came from; those two are kept for Light rows only.
+    level: SUBMISSION_LEVELS.includes(s.level) ? s.level : undefined,
+    atOnce: isLightRow(s) ? flag(s.atOnce) : undefined,
+    lightFrom: isLightRow(s) && LIGHT_FROMS.includes(s.lightFrom) ? s.lightFrom : undefined,
     waitingHours: s.waitingHours === null ? null : num(s.waitingHours),
 
     // Labels, not counts: an artifact slot takes one artifact, so how many are owned never
@@ -982,6 +995,10 @@ function searchSig(r) {
     // it as an exact copy (and stored as nothing). Appended only when set: every other row keeps the
     // digest it was stored with.
     ...(r.provisional === true ? ['provisional'] : []),
+    // A Light row prices a route at once from what the instant answer or an earlier run offered: a
+    // different measurement from a searched row of the same route, even when the effort word is the
+    // same (By a date says 'deadline' for both). Appended for Light rows only, so no other row's digest moves.
+    ...(r.level === 'light' ? ['light', r.atOnce ?? null, r.lightFrom ?? null] : []),
   ]);
 }
 

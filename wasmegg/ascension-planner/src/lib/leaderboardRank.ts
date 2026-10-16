@@ -128,6 +128,9 @@ export interface BoardRow {
   /** The Stronger check level that found it (submission.ts `level`, 15 Oct 2026): 'light', 'quick', 'normal',
    *  'thorough' or 'exhaustive'. Absent on older rows, and until the collector keeps it. */
   level?: string;
+  /** Light rows only (15 Oct 2026): priced at once, and where its routes came from. */
+  atOnce?: boolean;
+  lightFrom?: string;
   holdShifts?: boolean;
   /** Before 9 Oct 2026 the only record of A1's setting: true for Continue Asc. Read both with `rowFirstAscension`. */
   forceContinue?: boolean;
@@ -873,6 +876,17 @@ export function sameBuild(a: Pick<BoardRow, 'build'>, b: Pick<BoardRow, 'build'>
   return (a.build ?? '') === (b.build ?? '');
 }
 
+/** A Light row: the Stronger check's Light level, which prices a route at once rather than searching. */
+export function isLightRow(r: Pick<BoardRow, 'level' | 'effort'>): boolean {
+  return r.level === 'light' || r.effort === 'light';
+}
+
+/** Whether two rows are the same KIND of measurement: both Light, or both not. Light at-once prices and
+ *  searched prices of one route differ, so a newer one of the other kind never replaces an older one. */
+export function sameMeasurement(a: Pick<BoardRow, 'level' | 'effort'>, b: Pick<BoardRow, 'level' | 'effort'>): boolean {
+  return isLightRow(a) === isLightRow(b);
+}
+
 export type PlanState = 'current' | 'replaced' | 'behind' | 'what-if' | 'old-save' | 'old' | 'no-date';
 
 export interface Plan<T extends BoardRow = BoardRow> {
@@ -1169,9 +1183,12 @@ export function assessPlans<T extends BoardRow>(
     // A provisional row never judges another (see PROVISIONAL ROWS): its run will replace it.
     const later = real.filter(e => e.start > p.start! + LATER_MS && e.f !== p.folded && !e.row.provisional);
     // A newer measurement of this plan, among the lines judged here, that has a finish of its own.
+    // A Light row (a route priced at once from the instant answer or an earlier run) is a different
+    // measurement from a searched row of the same route, so neither replaces the other: only a
+    // re-measurement of the same kind does (`sameMeasurement`, 15 Oct 2026).
     const remeasure = later.find(e => {
       const line = byFolded.get(e.f);
-      return !!line && line.finish != null && samePlan(p.row, e.row);
+      return !!line && line.finish != null && samePlan(p.row, e.row) && sameMeasurement(p.row, e.row);
     });
     if (remeasure) {
       p.state = 'replaced';
