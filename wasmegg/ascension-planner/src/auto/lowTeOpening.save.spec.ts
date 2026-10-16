@@ -144,14 +144,17 @@ describe.skipIf(!hasSave)('low-TE opening on a real save', () => {
   }, 300_000);
 
   it('the integrity check measures the rounds, not the capped first I1', () => {
-    const at93 = { ...inputs, baseState: startStateAt(inputs, 93) };
+    // From the reference week, like every other case here: the check runs from the plan start, which is
+    // otherwise now, and the opening is about 5 h outside the research sale but 1-2 h when it starts in or
+    // just before the sale (16 Oct 2026: it failed on a Friday morning, Pacific, and passed later).
+    const at93 = { ...inputs, planStart: REFERENCE_WEEK, baseState: startStateAt(inputs, 93) };
     const check = integrityCheck(at93);
     expect(check.lowTe?.rounds).toBeGreaterThan(1);
     expect(check.lowTe!.openingSeconds).toBeGreaterThan(4 * 3600);
     // Inside the 10-round backstop the rounds fix the stall: no warning.
     expect(check.seconds).toBe(0);
     // Above the cutoff: no low-TE opening, and the first Integrity shift measured as before.
-    const at300 = integrityCheck({ ...inputs, baseState: startStateAt(inputs, 300) });
+    const at300 = integrityCheck({ ...inputs, planStart: REFERENCE_WEEK, baseState: startStateAt(inputs, 300) });
     expect(at300.lowTe).toBeNull();
     expect(at300.seconds!).toBeLessThan(3600);
   }, 300_000);
