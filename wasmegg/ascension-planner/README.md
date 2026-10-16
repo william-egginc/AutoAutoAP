@@ -210,19 +210,23 @@ node dist-search/fastsearch.js --backup me.json --egg-day --timezone America/Den
   --out run1 --submit --nickname YourName --yes
 ```
 
-- Killed or restarted? Run the same command again: it carries on from `run1/`.
-- Workers default to your cores minus one, at most 12 (more were no faster on a 20-thread PC and
-  used more memory). `--jobs N` sets it; each worker holds about 0.1-0.25 GB. On a big machine you can set `--jobs 31`;
-  on the one 20-thread PC we measured, 12 workers were as fast as 19, so check your own speed first.
+- Killed or restarted? Run the same command again: it carries on from `run1/`. A run that stopped
+  before pricing anything leaves an empty checkpoint, and the next run just starts afresh there.
+- `--submit` sends to the public board, the same one the site uses, even from a fresh clone with no
+  `.env.local` (the run prints the address; `--collector URL` changes it). It needs `--yes`: without
+  it the run stops with an error and exit code 1 before it searches or makes `run1/`. Rather send it
+  yourself later? Leave out `--submit` (keep `--out run1`) and when it has finished run
+  `node dist-search/fastsearch.js submit --from run1 --nickname YourName --yes`.
+- Workers default to the threads Node detects minus one, at most 12 (more were no faster on a
+  20-thread PC and used more memory); each holds about 0.1-0.25 GB. `--jobs N` sets it. The start of
+  the run prints how many threads Node detects and how many logical processors `os.cpus()` lists; on
+  Windows Node can detect fewer than the machine has (one processor group), and a `--jobs` above
+  that now runs as asked, with a warning (it used to be held to the detected count).
+- When the search has finished and sent, the command exits by itself (it used to sit idle without
+  `--out`, and after every `--dry-run`, until killed). Newer Node versions no longer print a
+  localStorage `ExperimentalWarning` from every worker.
 - Your playing hours: `--available-from 7 --available-to 23` (with `--timezone`). Leave them out
   for "any hour".
-- `--submit` sends to the public board (the same one the site uses; the run prints the address, and
-  `--collector URL` changes it). `--yes` is required for that, or the run stops before it starts.
-  Rather send it yourself later? Leave out `--submit` (keep `--out run1`) and when it has finished run
-  `node dist-search/fastsearch.js submit --from run1 --nickname YourName --yes`.
-- On a big machine, ask for the workers you want with `--jobs N`. The start of the run prints how many
-  threads Node detects; on Windows that can be fewer than the machine has (one processor group), and
-  an explicit `--jobs` above it now runs as asked, with a warning.
 - The row says which level found it (`exhaustive`), and the CSV goes with it.
 
 Long offline runs, worker counts and memory: [Long runs](https://github.com/william-egginc/AutoAutoAP/wiki/Long-runs)
