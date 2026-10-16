@@ -5,6 +5,7 @@ import {
   doneWhat,
   earlierText,
   lookingText,
+  rowAtOnce,
   rowLine,
   runAtOnce,
   signedGap,
@@ -158,5 +159,56 @@ describe('runAtOnce', () => {
         shouldStop: () => false,
       })
     ).toBe(true);
+  });
+});
+
+// HOURS FIX B (hoursRunnerUp.ts): with the player's hours on, each row's other route goes to Light too.
+describe('Light at once with hours on: each row\'s next-best route (the alt case, Egg Day)', () => {
+  const PICK = [161, 198, 224, 248];
+  const SECOND = [161, 198, 218, 248];
+  const rows: AtOnceItem[] = [
+    { chain: [170, 220, 248], count: 3 },
+    { chain: PICK, count: 4, alt: SECOND },
+  ];
+  it('the queue adds each alt after the rows, flagged, each route once', () => {
+    const q = atOnceQueue(rows, PICK);
+    expect(q.map(it => [it.chain.join(' '), !!it.extra])).toEqual([
+      ['161 198 224 248', false],
+      ['170 220 248', false],
+      ['161 198 218 248', true],
+    ]);
+  });
+  it('hours off (no alt): the queue is the rows alone', () => {
+    expect(atOnceQueue([rows[0], { chain: PICK, count: 4 }], PICK)).toHaveLength(2);
+  });
+  it('the status counts the extra routes honestly', async () => {
+    const steps: string[] = [];
+    const calls: number[][][] = [];
+    const items = atOnceQueue(rows, PICK);
+    await runAtOnce({
+      items,
+      price: async (chains, onEach) => {
+        calls.push(chains);
+        for (const c of chains) onEach(c, p(c, 100));
+      },
+      onResult: () => {},
+      onProgress: (next, i, n) => steps.push(next ? lookingText(next.count, i, n, !!next.extra) : 'done'),
+      shouldStop: () => false,
+    });
+    // Every route priced: the pick, the other row, and the pick's next best.
+    expect(calls.flat().map(c => c.join(' '))).toEqual(['161 198 224 248', '170 220 248', '161 198 218 248']);
+    expect(steps[0]).toBe('Looking at 4 ascensions (1 of 3)');
+    expect(steps).toContain('Looking at 4 ascensions, next-best route (3 of 3)');
+  });
+  it('a row shows the better at once of its two routes (By a date: more to spare), naming the alt', () => {
+    const goal = { kind: 'date' as const, deadline: 10 * DAY };
+    const have = { [PICK.join(',')]: p(PICK, 9 * DAY, 248), [SECOND.join(',')]: p(SECOND, 8 * DAY, 248) };
+    expect(rowAtOnce(goal, have, PICK, SECOND)).toEqual({ chain: SECOND, priced: have[SECOND.join(',')], extra: true });
+    // The pick better: it stays.
+    const pickBetter = { [PICK.join(',')]: p(PICK, 7 * DAY, 248), [SECOND.join(',')]: p(SECOND, 8 * DAY, 248) };
+    expect(rowAtOnce(goal, pickBetter, PICK, SECOND)!.extra).toBe(false);
+    // Hours off (no alt), or nothing priced yet.
+    expect(rowAtOnce(goal, have, PICK)!.chain).toEqual(PICK);
+    expect(rowAtOnce(goal, {}, PICK, SECOND)).toBeNull();
   });
 });
