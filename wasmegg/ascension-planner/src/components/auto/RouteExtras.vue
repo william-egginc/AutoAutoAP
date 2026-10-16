@@ -22,7 +22,7 @@
         >{{ ' ' }}about {{ span(more.seconds) }} more, so about <span class="whitespace-nowrap">{{ short(more.at) }}</span> (what
         {{ more.te - 1 }} cost over {{ more.te - 2 }} in this run).</template
       ><template v-else
-        >{{ ' ' }}if you keep laying at the final rate, about {{ span(more.seconds) }} later, about
+        >{{ ' ' }}if you keep laying the same egg at the final rate, about {{ span(more.seconds) }} later, about
         <span class="whitespace-nowrap">{{ short(more.at) }}</span
         >.</template
       >

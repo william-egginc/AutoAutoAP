@@ -77,16 +77,18 @@
                 </td>
                 <td class="pr-4 py-1 font-bold">{{ r.te }}</td>
                 <td class="pr-4 py-1" :title="nextTitle(r)" data-testid="by-date-next-te-at">
-                  {{ r.need === null ? 'all 98' : r.at === null ? '—' : when(r.at) }}
+                  {{ r.need === null ? 'all 98' : !r.laying ? 'after a shift' : r.at === null ? '—' : when(r.at) }}
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
-        <p v-if="eggs.next" :class="CARD_NOTE" data-testid="by-date-next-te">
-          If you keep laying after the last stop, your next TE would arrive about {{ when(eggs.next.at) }} ({{
-            VIRTUE_EGG_NAMES[eggs.next.egg]
-          }}, at the final rate of {{ formatNumber(eggs.rate! * 3600, 2) }} eggs an hour).
+        <!-- Only when it comes after the deadline (the search prices one TE higher, so before it would mean a
+             missed route: no line then, and a note in the black box). Never a TE the answer leaves out. -->
+        <p v-if="nextAfterDeadline" :class="CARD_NOTE" data-testid="by-date-next-te">
+          Laying on after the last stop, your next TE ({{ VIRTUE_EGG_NAMES[nextAfterDeadline.egg] }}, at the final rate
+          of {{ formatNumber(eggs.rate! * 3600, 2) }} eggs an hour) would come about {{ when(nextAfterDeadline.at) }},
+          after the deadline, so it isn't counted.
         </p>
       </div>
       <!-- The hours and time off the run used, named (lib/pricedWith.ts, 16 Oct 2026). -->
@@ -186,7 +188,7 @@
 <script setup lang="ts">
 import { SIMULATE_TITLE, simulateNote as simulateLine } from '@/lib/siteNav';
 import { scrollToShownId } from '@/lib/searchTab';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import ResultCardFrame from './ResultCardFrame.vue';
 import RouteExtras from './RouteExtras.vue';
 import RouteTimeline from './RouteTimeline.vue';
@@ -195,6 +197,7 @@ import { showDateTime } from '@/lib/displayTime';
 import { spareLabel } from '@/search/deadlineSummary';
 import type { DeadlineRoute } from '@/search/deadline';
 import { endEggsOf, type EggAtEnd } from '@/search/endEggs';
+import { note as blackBoxNote } from '@/search/blackBox';
 import { formatNumber } from '@/lib/format';
 import { VIRTUE_EGG_NAMES } from '@/types';
 
@@ -247,13 +250,30 @@ const legs = computed(() => (Array.isArray(props.route.legs) ? props.route.legs 
 /** TE per egg at the end and each egg's next TE (search/endEggs.ts); null when the legs don't say. */
 const eggs = computed(() => endEggsOf(props.route));
 
+/** The laid egg's next TE, only when it comes after the deadline. Before it, the search should have found
+ *  a route one TE higher (it prices the last stop above the answer's): no line, and a note in the black
+ *  box to find out why. */
+const nextAfterDeadline = computed(() => {
+  const n = eggs.value?.next;
+  return n && n.at > props.deadline ? n : null;
+});
+watch(
+  () => eggs.value?.next,
+  n => {
+    if (n && n.at <= props.deadline && !props.running)
+      blackBoxNote(`by a date card: laying on reaches TE ${lastStop.value + 1} before the deadline (${new Date(n.at * 1000).toISOString()}); the search may have missed a route`);
+  },
+  { immediate: true }
+);
+
 /** The Next TE column: what its moment means. */
 const NEXT_TE_TITLE =
-  "When this egg's next TE would come if the farm laid only it from the end of the route, at the route's final delivery rate";
+  "When the egg the farm is on at the end would reach its next TE, laying on at the route's final delivery rate. Another egg needs a shift first, which starts the farm again from one chicken";
 /** A Next TE cell's title: the eggs still to lay and how long, or why there is no time. */
 function nextTitle(r: EggAtEnd): string {
   if (r.need === null) return 'Every TE on this egg';
   const eggsLeft = `${formatNumber(r.need, 2)} eggs to go`;
+  if (!r.laying) return `${eggsLeft}, after a shift to this egg, which starts the farm again from one chicken`;
   if (r.at !== null && r.seconds !== null) return `${eggsLeft}: about ${spareLabel(r.seconds)} at the final rate`;
   if (r.seconds === null) return `${eggsLeft}. The route's final delivery rate isn't known, so there is no time for it.`;
   return `${eggsLeft}, about ${spareLabel(r.seconds)} at the final rate. The route's end time isn't known, so there is no date for it.`;

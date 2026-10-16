@@ -86,31 +86,37 @@ describe('ByDateRouteCard: TE per egg and the next TE', () => {
     expect(t).not.toContain('At final rate');
     expect(t).not.toContain('Next TE in');
     expect(t).not.toMatch(/310\.00q eggs/);
-    // The last leg ends 27.3 h before the deadline; Curiosity needs 3.1e17 eggs at 1e12 a second (3.6 days),
-    // Humility 1.3e17 (36.1 h): each a date and time in the planner's zone, 12-hour.
+    // The last leg ends 27.3 h before the deadline. The farm is on kindness: 2.3e17 eggs at 1e12 a second
+    // (63.9 h), a date and time in the planner's zone, 12-hour. The other eggs need a shift first.
     const end = DEADLINE - 27.3 * 3600;
     const at = (s: number) => new Intl.DateTimeFormat(undefined, { timeZone: 'UTC', year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(s * 1000));
-    expect(t).toContain(`Curiosity 50 ${at(end + 3.1e5)}`);
-    expect(t).toContain(`Humility 49 ${at(end + 1.3e5)}`);
-    expect(t).toMatch(/Kindness · laying 49/);
-    // The eggs and how long are in the cell's title.
-    expect(html).toMatch(/title="310\.00q eggs to go: about 3\.6 days at the final rate"/);
+    expect(t).toContain('Curiosity 50 after a shift');
+    expect(t).toMatch(new RegExp(`Kindness · laying 49 ${at(end + 2.3e5).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
+    expect(html).toMatch(/title="310\.00q eggs to go, after a shift to this egg, which starts the farm again from one chicken"/);
+    // After the deadline: said so, and never as a TE the answer could have had (15 Oct 2026, Halceyx).
     expect(t).toMatch(
-      /your next TE would arrive about .*2027.* \(Humility, at the final rate of 3\.60q eggs an hour\)\./
+      /Laying on after the last stop, your next TE \(Kindness, at the final rate of 3\.60q eggs an hour\) would come about .*2027.*, after the deadline, so it isn't counted\./
     );
+  });
+
+  it('no next-TE line when laying on would beat the deadline (the search should have found that route)', async () => {
+    const html = await renderHtml(ByDateRouteCard, props({ route: withEnd(), deadline: DEADLINE + 100 * 3600 }));
+    expect(html).toContain('data-testid="by-date-te-per-egg"');
+    expect(html).not.toContain('by-date-next-te"');
   });
 
   it('without a rate: the TE, and a dash for when, with its reason in the title', async () => {
     const html = await renderHtml(ByDateRouteCard, props({ route: withEnd({ maxELR: 0 }) }));
     const t = textOf(html);
-    expect(t).toContain('TE per egg TE Next TE Curiosity 50 —');
+    expect(t).toContain('TE per egg TE Next TE Curiosity 50 after a shift');
+    expect(t).toMatch(/Kindness · laying 49 —/);
     expect(html).toContain("final delivery rate isn&#39;t known, so there is no time for it.");
-    expect(t).not.toContain('next TE would arrive');
+    expect(t).not.toContain('Laying on after the last stop');
   });
 
   it('without the end time: a dash, and the title says the date is what is missing', async () => {
     const html = await renderHtml(ByDateRouteCard, props({ route: withEnd({ endTime: undefined }) }));
-    expect(textOf(html)).toContain('Curiosity 50 —');
+    expect(textOf(html)).toMatch(/Kindness · laying 49 —/);
     expect(html).toContain("end time isn&#39;t known, so there is no date for it.");
   });
 
