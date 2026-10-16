@@ -554,7 +554,8 @@ OFFLINE: FILES, CHECKPOINTS, SENDING LATER
                             Ctrl+C, it still sends what it has, marked partial). Includes the CSV and
                             the re-checks of your earlier plans, which need the network.
   --nickname NAME           Credit a name (up to 40 characters). Anonymous without it. Also with --out.
-  --collector URL           Where to send (default: the collector this build was made with).
+  --collector URL           Where to send (default: the collector this build was made with, else the
+                            public board).
   --yes                     Needed to send to any collector that is not localhost/127.0.0.1, with
                             --submit or \`submit\`. Without it the send is refused (non-zero exit,
                             before a search starts) and nothing leaves this machine.
@@ -1995,6 +1996,8 @@ async function submitCommand(): Promise<number> {
   persistLocalStorage(arg('state') ?? join(homedir(), '.config', 'autoautoap', 'cli-state.json'));
 
   const store = useChainSearchStore();
+  // Unreachable today: chooseCollector() always sets a destination (the public board at worst) before
+  // the store reads it. Kept as a guard in case that fallback ever goes, so a send never runs blind.
   if (!store.submitUrl) {
     throw new Error('no collector configured in this build: pass --collector URL (the board\'s /submit address)');
   }
