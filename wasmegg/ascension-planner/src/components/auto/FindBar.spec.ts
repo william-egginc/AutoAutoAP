@@ -21,9 +21,13 @@ import { useShareExtras } from '@/composables/useShareExtras';
 async function renderWith(props: Record<string, unknown>, setup: Record<string, unknown> = {}): Promise<string> {
   const app = createSSRApp({ render: () => h(FindBar, { ...base, ...props }) });
   app.use(pinia);
+  // `expanded` (Change pressed, Done not) is the consent box's own `open` (ConsentBox.vue).
+  const { expanded, ...own } = setup;
   app.mixin({
     created(this: { $: { type: { __file?: string }; setupState: Record<string, unknown> } }) {
-      if (this.$.type.__file?.endsWith('/FindBar.vue')) Object.assign(this.$.setupState, setup);
+      if (this.$.type.__file?.endsWith('/FindBar.vue')) Object.assign(this.$.setupState, own);
+      if (expanded !== undefined && this.$.type.__file?.endsWith('/ConsentBox.vue'))
+        Object.assign(this.$.setupState, { open: expanded });
     },
   });
   return renderToString(app);

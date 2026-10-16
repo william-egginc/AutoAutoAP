@@ -10,6 +10,8 @@ import MyRunsList from './MyRunsList.vue';
 import { renderHtml, textOf } from '@/test/renderComponent';
 import { HIDE_CONTROL, type HideControl } from '@/lib/hiddenRuns';
 import type { BoardRow } from '@/lib/leaderboardRank';
+import { myRunsCount } from '@/lib/myRuns';
+import { EGG_DAY as MIX_EGG_DAY, mix } from '@/test/myRunsMix';
 
 const EGG_DAY = 1_815_840_000;
 const OTHER_DATE = 1_800_000_000;
@@ -132,5 +134,55 @@ describe('MyRunsList (My runs › Your runs on the board)', () => {
     expect(await renderWith({ initialFilters: { ascensions: 12 } })).toContain('data-testid="my-runs-none-shown"');
     const none = await renderHtml(MyRunsList, { ...base, rows: [] });
     expect(none).toContain('data-testid="my-runs-none"');
+  });
+});
+
+describe('MyRunsList with a realistic mix (16 Oct: "Showing 0 of 25" under Kind = All)', () => {
+  const rows = mix();
+  const realistic = {
+    rows,
+    csvRoot: 'https://collector.test/csv',
+    viewZone: 'UTC',
+    eggDayAt: MIX_EGG_DAY,
+    eggDayYear: 2027,
+  };
+  const render = (initialFilters?: Record<string, unknown>) =>
+    renderHtml(MyRunsList, { ...realistic, ...(initialFilters ? { initialFilters } : {}) });
+
+  it('the default filters list every run, one line per result, and say how the sends differ', async () => {
+    const html = await render();
+    const t = textOf(html);
+    expect(html.match(/data-testid="my-runs-row"/g)).toHaveLength(25);
+    expect(html).not.toContain('data-testid="my-runs-none-shown"');
+    expect(t).toContain(
+      '25 runs. 27 sends in all: a run sent more than once is one line (sent ×n), its copies inside.'
+    );
+    expect(t).not.toContain('Showing');
+    expect(t.match(/sent ×2/g)).toHaveLength(2);
+    expect(t).toContain('hidden');
+    expect(t).toContain('maybe you');
+    expect(t).toContain('Egg Day 2027');
+    expect(t).toContain('Race to 490');
+    expect(t).toContain('Race to 300');
+    expect(t).toMatch(/By \d+ [A-Z][a-z]{2} 2027/);
+  });
+
+  it('the header and the list count the same: runs, a result sent twice once (myRunsCount)', () => {
+    expect(myRunsCount(rows)).toBe(25);
+  });
+
+  it('a filter that keeps nothing names itself and offers to show them all', async () => {
+    const html = await render({ ascensions: 7 });
+    const t = textOf(html);
+    expect(html).toContain('data-testid="my-runs-none-shown"');
+    expect(t).toContain('None of your 25 runs are in these categories: 7 ascensions.');
+    expect(html).toContain('data-testid="my-runs-clear"');
+    expect(t).toContain('Show them all');
+    expect(t).toContain('Showing 0 of 25 runs.');
+  });
+
+  it('a filter that keeps some says "Showing n of m"', async () => {
+    const t = textOf(await render({ kind: 'eggday' }));
+    expect(t).toContain('Showing 5 of 25 runs.');
   });
 });

@@ -10,6 +10,8 @@ import { createPinia, setActivePinia, type Pinia } from 'pinia';
 import MyRunsView from './MyRunsView.vue';
 import LeaderboardPanel from './auto/LeaderboardPanel.vue';
 import { renderHtml, textOf } from '@/test/renderComponent';
+import { createSSRApp, h } from 'vue';
+import { renderToString } from 'vue/server-renderer';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import type { PendingSend } from '@/search/pendingSends';
 
@@ -91,6 +93,74 @@ describe('MyRunsView', () => {
   });
 });
 
+describe('the summary above the parts (16 Oct 2026)', () => {
+  it('Next steps first, then the six cards, then the three parts; it waits for the board', async () => {
+    const html = await renderHtml(MyRunsView, { playerId: 'EI1234567890123456' }, {}, [pinia]);
+    const steps = html.indexOf('data-testid="my-runs-steps"');
+    const cards = html.indexOf('data-testid="my-runs-cards"');
+    expect(steps).toBeGreaterThan(-1);
+    expect(steps).toBeLessThan(cards);
+    expect(cards).toBeLessThan(html.indexOf('data-testid="my-runs-part-board"'));
+    for (const id of ['eggday', 'race', 'date', 'saved', 'last', 'hours'])
+      expect(html).toContain(`data-testid="my-runs-card-${id}"`);
+    const t = textOf(html);
+    expect(t).toContain('Checking your runs on the board…');
+    expect(t).toContain('Your hours Any hour no time off');
+    expect(html).not.toContain('EI1234567890123456');
+  });
+
+  it("holds the board's rows (LeaderboardPanel's own, emitted beside the count)", () => {
+    const src = read('MyRunsView.vue');
+    expect(src).toContain('@rows="r => (boardRows = r)"');
+    const panel = read('auto/LeaderboardPanel.vue');
+    expect(panel).toContain('rows: [rows: BoardRow[] | null];');
+    expect(panel).toMatch(
+      /myRunsMode\.value && loadedOnce\.value \? myRunRows\.value : null\),\s*rows => emit\('rows', rows\)/
+    );
+  });
+
+  it('a step opens its part here (unsent, the board list) or asks App for its screen, set up', async () => {
+    let setup: Record<string, unknown> = {};
+    const onOpen = vi.fn();
+    const app = createSSRApp({ render: () => h(MyRunsView, { playerId: 'P', onOpen }) });
+    app.use(pinia);
+    app.mixin({
+      created(this: { $: { type: { __file?: string }; setupState: Record<string, unknown> } }) {
+        if (this.$.type.__file?.endsWith('/MyRunsView.vue')) setup = this.$.setupState;
+      },
+    });
+    await renderToString(app);
+    const act = setup.act as (to: unknown) => void;
+    const open = setup.open as { board: boolean; saved: boolean; unsent: boolean };
+    expect(open.unsent).toBe(false);
+    act({ to: 'unsent' });
+    expect(open.unsent).toBe(true);
+    act({ to: 'board' });
+    expect(open.board).toBe(true);
+    expect(onOpen).not.toHaveBeenCalled();
+    act({ to: 'by-date', deadline: 1, eggDay: true, tab: 'nearby' });
+    expect(onOpen).toHaveBeenLastCalledWith({ auto: 'by-date', tab: 'nearby', byDate: { eggDay: true } });
+    act({ to: 'fastest', target: 490, tab: 'nearby', level: 'normal' });
+    expect(onOpen).toHaveBeenLastCalledWith({
+      auto: 'fastest',
+      depth: 'smart',
+      tab: 'nearby',
+      target: 490,
+      level: 'normal',
+    });
+  });
+
+  it("App opens the screen set up: target, level, tab and By a date's deadline, never under a running search", () => {
+    const app = read('../App.vue');
+    const fn = app.slice(app.indexOf('function openFromMyRuns'), app.indexOf('const initialStateStore'));
+    expect(fn).toContain('function openFromMyRuns(to: MyRunsOpen): void');
+    expect(fn).toMatch(
+      /if \(!searchActive\.value\) \{[\s\S]*chainSearchStore\.finalTE = to\.target[\s\S]*strongerStore\.level = to\.level[\s\S]*presetByDate\(to\.byDate\)[\s\S]*selectSearchTab\(/
+    );
+    expect(fn).toContain("plannerTab.value = 'automatic'");
+  });
+});
+
 describe('Compare without My plans', () => {
   it('has no My plans tab or view', async () => {
     const html = await renderHtml(LeaderboardPanel, { playerId: 'P' }, {}, [pinia]);
@@ -126,5 +196,56 @@ describe('the My runs tab', () => {
     const tabs = read('SiteTabs.vue');
     expect(tabs).toContain('grid grid-cols-6 w-full lg:flex');
     expect(tabs).toContain("i < 2 ? 'col-span-3' : 'col-span-2'");
+  });
+
+  it("is also the Auto Planner's fourth sub-tab, opening the same page (#/myruns)", () => {
+    const nav = app.slice(app.indexOf('v-for="v in autoTabs"'), app.indexOf("v-else-if=\"plannerTab === 'science'\""));
+    expect(nav).toContain('data-testid="auto-tab-myruns"');
+    expect(nav).toContain("@click=\"selectSection('myruns')\"");
+    expect(nav).toContain('{{ NAMES.myRuns }}');
+    // Only with a collector, like the top tab; four tabs make two rows of two on a phone.
+    expect(nav).toMatch(/v-if="chainSearchStore\.submitUrl"[\s\S]{0,40}type="button"/);
+    expect(app).toContain(":class=\"chainSearchStore.submitUrl ? 'grid-cols-2' : 'grid-cols-3'\"");
+  });
+});
+
+describe('My runs › Your latest run (16 Oct: moved off the Leaderboard; Dig deeper opens it)', () => {
+  it('sits below the summary and above Your runs on the board, folded with no run of this account', async () => {
+    const html = await renderHtml(MyRunsView, { playerId: 'EI1234567890123456' }, {}, [pinia]);
+    const summary = html.indexOf('data-testid="my-runs-summary"');
+    const latest = html.indexOf('data-testid="my-runs-part-latest"');
+    const board = html.indexOf('data-testid="my-runs-part-board"');
+    expect(summary).toBeGreaterThan(-1);
+    expect(latest).toBeGreaterThan(summary);
+    expect(latest).toBeLessThan(board);
+    expect(partTag(html, 'my-runs-part-latest')).not.toMatch(/\sopen/);
+    expect(textOf(html)).toContain('Your latest run · none yet on this account');
+    expect(html).toContain('data-testid="latest-run-empty"');
+    expect(html).not.toContain('EI1234567890123456');
+  });
+
+  it("opens with a run of this account's, and shows nothing of another account's", async () => {
+    const { accountHash } = await import('@/lib/accountHash');
+    const store = useChainSearchStore();
+    store.chainResultOwner = await accountHash('EI1234567890123456');
+    store.pricedCount = 2;
+    const mine = await renderHtml(MyRunsView, { playerId: 'EI1234567890123456' }, {}, [pinia]);
+    expect(mine).toContain('data-testid="latest-run-from"');
+    // It opens when the block says it has a run (`has`; the server render draws the part before the block).
+    expect(read('MyRunsView.vue')).toContain('watch(latestHas, has => (open.latest = has));');
+    expect(read('auto/LatestRunView.vue')).toMatch(/\(\) => shown\.value !== 'none',\s*has => emit\('has', has\),\s*\{ immediate: true \}/);
+    const theirs = await renderHtml(MyRunsView, { playerId: 'EI0000000000000000' }, {}, [pinia]);
+    expect(theirs).not.toContain('data-testid="latest-run-from"');
+    expect(theirs).not.toContain('EI0000000000000000');
+  });
+
+  it("the Leaderboard's Your latest run tab is one line to My runs", async () => {
+    const { useUIStore } = await import('@/stores/ui');
+    useUIStore().compareView = 'latest';
+    const html = await renderHtml(LeaderboardPanel, { playerId: 'P' }, {}, [pinia]);
+    expect(html).toContain('data-testid="latest-moved"');
+    expect(textOf(html)).toContain('Your latest run is now in My runs ›');
+    expect(html).toContain('href="#/myruns"');
+    expect(html).not.toContain('data-testid="latest-run"');
   });
 });

@@ -267,7 +267,8 @@
             <!-- Below sm, one equal column per tab across the page, labels wrapping inside their
                  cell, so the underline stays on one line; from sm up, a centred row. -->
             <div
-              class="grid grid-cols-3 w-full sm:flex sm:w-auto sm:flex-wrap sm:justify-center gap-1 border-b border-slate-200"
+              class="grid w-full sm:flex sm:w-auto sm:flex-wrap sm:justify-center gap-1 border-b border-slate-200"
+              :class="chainSearchStore.submitUrl ? 'grid-cols-2' : 'grid-cols-3'"
             >
               <button
                 v-for="v in autoTabs"
@@ -293,6 +294,17 @@
                   class="ml-1 inline-block w-1.5 h-1.5 rounded-full bg-indigo-600 align-middle"
                   title="A search is running here"
                 ></span>
+              </button>
+              <!-- My runs here too (Jordan, 16 Oct 2026): the same page as the top tab (#/myruns), from
+                   where a player has just run something. Only with a collector, as the top tab. -->
+              <button
+                v-if="chainSearchStore.submitUrl"
+                type="button"
+                class="min-w-0 px-2 sm:px-4 py-2 -mb-px border-b-2 border-transparent text-[11px] font-black uppercase tracking-wider sm:tracking-widest text-center leading-snug text-slate-400 hover:text-slate-700"
+                data-testid="auto-tab-myruns"
+                @click="selectSection('myruns')"
+              >
+                {{ NAMES.myRuns }}
               </button>
             </div>
           </div>
@@ -692,6 +704,7 @@ import TheNavBar from 'ui/components/NavBar.vue';
 import { getSavedPlayerID, savePlayerID, requestFirstContact, resolveColleggtibleContracts } from 'lib';
 import ThePlayerIdForm from 'ui/components/PlayerIdForm.vue';
 import { useInitialStateStore } from '@/stores/initialState';
+import { offerStartTimes } from '@/lib/onVirtue';
 import { useActionsStore } from '@/stores/actions';
 import { useVirtueStore } from '@/stores/virtue';
 import { useUIStore } from '@/stores/ui';
@@ -729,7 +742,10 @@ import SweepRunner from '@/components/science/SweepRunner.vue';
 import HowItWorks from '@/components/science/HowItWorks.vue';
 import StartTimeCard from '@/components/auto/StartTimeCard.vue';
 import { useStartTimesStore } from '@/stores/startTimes';
-import { revealRunTab } from '@/lib/searchTab';
+import { revealRunTab, selectSearchTab } from '@/lib/searchTab';
+import { presetByDate } from '@/lib/byDateForm';
+import type { MyRunsOpen } from '@/lib/myRunsDashboard';
+import { useStrongerStore } from '@/stores/stronger';
 import type { SweepRequest } from '@/search/sweepRequest';
 import { virtueInventory } from '@/search/csv';
 import type { ByDateRequest } from '@/search/byDateRequest';
@@ -747,6 +763,7 @@ import IntegrityAlert from '@/components/auto/IntegrityAlert.vue';
 import { getSimulationContext, createBaseEngineState } from '@/engine/adapter';
 import type { Action, VirtueEgg } from '@/types';
 import { countTEThresholdsPassed } from '@/lib/truthEggs';
+import { setConsentAccount } from '@/composables/useConsent';
 import { getArtifact, getArtifactLoadoutFromBackup } from '@/lib/artifacts';
 import {
   initStartFromScratch,
@@ -783,6 +800,7 @@ if (new URLSearchParams(window.location.search).has('_hardReload')) {
 }
 
 const chainSearchStore = useChainSearchStore();
+const strongerStore = useStrongerStore();
 
 /** Take a chain off the board into the Auto Planner. It is someone else's ANSWER, not a result
  *  for this account -- their artifacts and starting TE produced it -- so this loads the shape and
@@ -795,8 +813,17 @@ function useLeaderboardChain(chain: number[]): void {
 }
 /** My runs' Open on a saved run or answer: its screen, showing what Open just put there. Like Use, without
  *  the tab click's fresh save (that would set the planner up again under the opened entry). */
-function openFromMyRuns(to: { auto: AutoView; depth?: Depth }): void {
+function openFromMyRuns(to: MyRunsOpen): void {
   pinnedRoute = null;
+  // A Next step's own setup (lib/myRunsDashboard.ts): the target, the level, the search tab and By a date's
+  // deadline (taken by DeadlinePanel when it mounts, lib/byDateForm.ts). Never under a running search, which
+  // owns them: the screen then opens as it is.
+  if (!searchActive.value) {
+    if (to.target != null) chainSearchStore.finalTE = to.target;
+    if (to.level) strongerStore.level = to.level;
+    if (to.byDate) presetByDate(to.byDate);
+    if (to.tab) selectSearchTab(to.auto === 'by-date' ? 'by-date' : 'fastest', to.tab);
+  }
   uiStore.autoView = to.auto;
   if (to.depth) uiStore.fastestDepth = to.depth;
   plannerTab.value = 'automatic';
@@ -1060,6 +1087,13 @@ watch([compareView, scienceView], () => (pinnedRoute = null));
 watch(playerId, () => {
   if (chainSearchStore.sweepQueue.at >= 0) chainSearchStore.sweepQueue.cancelled = true;
 });
+// Your setup, remembered per account (lib/setupMemory.ts): this account's hours, hold shifts, time off and
+// first ascension, or the defaults. Until it is in, `setupLoaded` holds back the instant answer and its Check
+// exactly, so a reload doesn't start it on the defaults and restart it when the hours arrive.
+watch(playerId, id => void chainSearchStore.loadSetupFor(id), { immediate: true });
+// Every consent box, remembered per account (composables/useConsent.ts): this account's agreements, or
+// nothing agreed. A switch never carries the last account's yes over.
+watch(playerId, id => void setConsentAccount(id), { immediate: true });
 // A copy with no collector has no Compare, My runs or Science tab: an address for one opens the Manual Planner.
 if (
   !chainSearchStore.submitUrl &&
@@ -1142,12 +1176,14 @@ const saveTE = computed(() => {
   }
   return total;
 });
-const scienceTabs: { id: ScienceView; label: string }[] = [
+/** When should I start? only before the player is on virtue (lib/onVirtue.ts, Jordan 16 Oct 2026); its
+ *  address still opens, with a short note, for a link from before. */
+const scienceTabs = computed<{ id: ScienceView; label: string }[]>(() => [
   { id: 'how', label: NAMES.how },
   { id: 'check', label: NAMES.check },
   { id: 'submit', label: NAMES.submit },
-  { id: 'start', label: NAMES.start },
-];
+  ...(offerStartTimes(initialStateStore.rawBackup) ? [{ id: 'start' as const, label: NAMES.start }] : []),
+]);
 
 let autoInitFor = '';
 async function initAutoOnce(): Promise<void> {

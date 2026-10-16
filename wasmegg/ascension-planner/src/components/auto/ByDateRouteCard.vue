@@ -49,8 +49,10 @@
       <p v-if="!legs.length && running" class="text-[10px] text-emerald-900/70" data-testid="by-date-card-no-legs">
         The time of each stop comes with the finished result.
       </p>
-      <!-- TE per egg when the route ends, and each egg's next TE at the final delivery rate
-           (search/endEggs.ts). Only when the last leg carries its end state: nothing rather than a guess. -->
+      <!-- TE per egg when the route ends, and when each egg's next TE would come at the final delivery rate
+           (search/endEggs.ts): a date and time, not the eggs still to lay (Jordan, 16 Oct 2026; the eggs and the
+           time it takes are in the cell's title). Only when the last leg carries its end state: nothing rather than
+           a guess, and a dash with its reason when the rate or the end time isn't known. -->
       <div v-if="eggs" class="space-y-1" data-testid="by-date-te-per-egg">
         <div class="overflow-x-auto">
           <table class="text-[11px] tabular-nums whitespace-nowrap">
@@ -58,8 +60,7 @@
               <tr class="text-left text-[9px] font-black uppercase tracking-widest text-emerald-700">
                 <th class="pr-4 py-1">TE per egg</th>
                 <th class="pr-4 py-1">TE</th>
-                <th class="pr-4 py-1">Next TE in</th>
-                <th v-if="eggs.rate" class="pr-4 py-1">At final rate</th>
+                <th class="pr-4 py-1" :title="NEXT_TE_TITLE">Next TE</th>
               </tr>
             </thead>
             <tbody>
@@ -75,18 +76,23 @@
                   >
                 </td>
                 <td class="pr-4 py-1 font-bold">{{ r.te }}</td>
-                <td class="pr-4 py-1">{{ r.need === null ? 'all 98' : `${formatNumber(r.need, 2)} eggs` }}</td>
-                <td v-if="eggs.rate" class="pr-4 py-1">{{ r.seconds === null ? '—' : spareLabel(r.seconds) }}</td>
+                <td class="pr-4 py-1" :title="nextTitle(r)" data-testid="by-date-next-te-at">
+                  {{ r.need === null ? 'all 98' : !r.laying ? 'after a shift' : r.at === null ? '—' : when(r.at) }}
+                </td>
               </tr>
             </tbody>
           </table>
         </div>
-        <p v-if="eggs.next" :class="CARD_NOTE" data-testid="by-date-next-te">
-          If you keep laying after the last stop, your next TE would arrive about {{ when(eggs.next.at) }} ({{
-            VIRTUE_EGG_NAMES[eggs.next.egg]
-          }}, at the final rate of {{ formatNumber(eggs.rate! * 3600, 2) }} eggs an hour).
+        <!-- Only when it comes after the deadline (the search prices one TE higher, so before it would mean a
+             missed route: no line then, and a note in the black box). Never a TE the answer leaves out. -->
+        <p v-if="nextAfterDeadline" :class="CARD_NOTE" data-testid="by-date-next-te">
+          Laying on after the last stop, your next TE ({{ VIRTUE_EGG_NAMES[nextAfterDeadline.egg] }}, at the final rate
+          of {{ formatNumber(eggs.rate! * 3600, 2) }} eggs an hour) would come about {{ when(nextAfterDeadline.at) }},
+          after the deadline, so it isn't counted.
         </p>
       </div>
+      <!-- The hours and time off the run used, named (lib/pricedWith.ts, 16 Oct 2026). -->
+      <p v-if="pricedWith && !running" :class="CARD_NOTE" data-testid="priced-with">{{ pricedWith }}.</p>
       <p v-if="simulate && simulateNote" class="text-[10px] text-emerald-900/70" data-testid="by-date-simulate-note">
         {{ simulateNote }}
       </p>
@@ -98,7 +104,7 @@
           v-if="simulate"
           type="button"
           :class="PRIMARY_BUTTON"
-          :title="`Opens this route in ${NAMES.classic}, simulated step by step on your save`"
+          :title="SIMULATE_TITLE"
           data-testid="by-date-simulate"
           @click="emit('simulate')"
         >
@@ -124,7 +130,7 @@
           <span v-if="note" class="text-[11px] font-semibold text-emerald-800">{{ note }}</span>
         </template>
         <p v-if="simulate" class="w-full text-[10px] text-emerald-900/70" data-testid="simulate-plan-note">
-          Simulate this plan shows every shift and when each TE arrives in {{ NAMES.classic }}.
+          {{ simulateLine() }}
         </p>
       </template>
     </ResultCardFrame>
@@ -141,8 +147,23 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(leg, i) in legs" :key="i" :class="LEG_ROW">
-            <td class="py-1.5 pr-3 font-black text-slate-700 whitespace-nowrap">A{{ i + 1 }}</td>
+          <template v-for="(leg, i) in legs" :key="i">
+          <tr :class="LEG_ROW">
+            <td class="py-1.5 pr-3 font-black text-slate-700 whitespace-nowrap">
+              <!-- The sub-arrow: this ascension's eggs, first and last shift and TE (RouteTimeline.vue). -->
+              <button
+                v-if="leg.shifts?.length"
+                type="button"
+                class="mr-1 text-slate-400 hover:text-emerald-700"
+                :aria-expanded="openLeg === i"
+                :aria-label="`Show when each egg of ascension ${i + 1} happens`"
+                data-testid="by-date-leg-expand"
+                @click="openLeg = openLeg === i ? -1 : i"
+              >
+                {{ openLeg === i ? '⌄' : '›' }}
+              </button>
+              A{{ i + 1 }}
+            </td>
             <td class="py-1.5 pr-3 font-bold text-slate-600">{{ leg.endTE ?? '—' }}</td>
             <td class="py-1.5 pr-3 text-slate-500 whitespace-nowrap">{{ startOf(i) }}</td>
             <td class="py-1.5 pr-3 text-slate-500 whitespace-nowrap">
@@ -152,6 +173,12 @@
               {{ okNumber(leg.durationSeconds) ? (leg.durationSeconds / 86400).toFixed(2) : '—' }}
             </td>
           </tr>
+          <tr v-if="openLeg === i && leg.shifts?.length" class="bg-slate-50">
+            <td colspan="5" class="px-2 py-2 whitespace-normal">
+              <RouteTimeline :chain="route.chain" :legs="legs" :zone="zone" :only="i" open />
+            </td>
+          </tr>
+          </template>
         </tbody>
       </table>
     </div>
@@ -159,16 +186,18 @@
 </template>
 
 <script setup lang="ts">
-import { NAMES } from '@/lib/siteNav';
+import { SIMULATE_TITLE, simulateNote as simulateLine } from '@/lib/siteNav';
 import { scrollToShownId } from '@/lib/searchTab';
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import ResultCardFrame from './ResultCardFrame.vue';
 import RouteExtras from './RouteExtras.vue';
+import RouteTimeline from './RouteTimeline.vue';
 import { CARD_NOTE, LEG_HEAD, LEG_ROW, LEG_TABLE, PRIMARY_BUTTON, SECONDARY_BUTTON } from './resultCardStyle';
 import { showDateTime } from '@/lib/displayTime';
 import { spareLabel } from '@/search/deadlineSummary';
 import type { DeadlineRoute } from '@/search/deadline';
-import { endEggsOf } from '@/search/endEggs';
+import { endEggsOf, type EggAtEnd } from '@/search/endEggs';
+import { note as blackBoxNote } from '@/search/blackBox';
 import { formatNumber } from '@/lib/format';
 import { VIRTUE_EGG_NAMES } from '@/types';
 
@@ -197,6 +226,8 @@ const props = defineProps<{
   lastRun?: string;
   /** The run's measured cost of one more TE above the last stop, seconds (`lastTECost`). */
   runCost?: number | null;
+  /** "Priced with your hours 9 am to 1 am, no time off": the run's own settings (lib/pricedWith.ts). */
+  pricedWith?: string;
 }>();
 const emit = defineEmits<{ simulate: []; csv: []; save: [] }>();
 
@@ -218,6 +249,38 @@ const lastStop = computed(() => props.route.chain[props.route.chain.length - 1])
 const legs = computed(() => (Array.isArray(props.route.legs) ? props.route.legs : []));
 /** TE per egg at the end and each egg's next TE (search/endEggs.ts); null when the legs don't say. */
 const eggs = computed(() => endEggsOf(props.route));
+
+/** The laid egg's next TE, only when it comes after the deadline. Before it, the search should have found
+ *  a route one TE higher (it prices the last stop above the answer's): no line, and a note in the black
+ *  box to find out why. */
+const nextAfterDeadline = computed(() => {
+  const n = eggs.value?.next;
+  return n && n.at > props.deadline ? n : null;
+});
+watch(
+  () => eggs.value?.next,
+  n => {
+    if (n && n.at <= props.deadline && !props.running)
+      blackBoxNote(`by a date card: laying on reaches TE ${lastStop.value + 1} before the deadline (${new Date(n.at * 1000).toISOString()}); the search may have missed a route`);
+  },
+  { immediate: true }
+);
+
+/** The Next TE column: what its moment means. */
+const NEXT_TE_TITLE =
+  "When the egg the farm is on at the end would reach its next TE, laying on at the route's final delivery rate. Another egg needs a shift first, which starts the farm again from one chicken";
+/** A Next TE cell's title: the eggs still to lay and how long, or why there is no time. */
+function nextTitle(r: EggAtEnd): string {
+  if (r.need === null) return 'Every TE on this egg';
+  const eggsLeft = `${formatNumber(r.need, 2)} eggs to go`;
+  if (!r.laying) return `${eggsLeft}, after a shift to this egg, which starts the farm again from one chicken`;
+  if (r.at !== null && r.seconds !== null) return `${eggsLeft}: about ${spareLabel(r.seconds)} at the final rate`;
+  if (r.seconds === null) return `${eggsLeft}. The route's final delivery rate isn't known, so there is no time for it.`;
+  return `${eggsLeft}, about ${spareLabel(r.seconds)} at the final rate. The route's end time isn't known, so there is no date for it.`;
+}
+
+/** Which ascension's eggs are open under the legs table; -1 for none. */
+const openLeg = ref(-1);
 
 const okNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 function when(unixSeconds: number): string {

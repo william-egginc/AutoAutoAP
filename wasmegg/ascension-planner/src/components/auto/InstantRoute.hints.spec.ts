@@ -22,4 +22,11 @@ describe('InstantRoute hints', () => {
     expect(t).toContain("{ running: false, done: 0, total: 0 }");
     expect(t).toMatch(/watch\(exactStatus, st => \{/);
   });
+
+  it('a space between the check time and the Priced-with sentence (Vue drops the newline before a template)', () => {
+    expect(t).toContain("<template v-if=\"exactPricedWith\">{{ ' ' }}{{ exactPricedWith }}.</template>");
+    const extras = fs.readFileSync(path.join(__dirname, 'RouteExtras.vue'), 'utf8');
+    expect(extras).toContain("{{ ' ' }}about {{");
+    expect(extras).toContain("{{ ' ' }}if you keep laying");
+  });
 });

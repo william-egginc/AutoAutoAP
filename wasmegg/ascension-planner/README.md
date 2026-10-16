@@ -11,7 +11,7 @@ with, or endorsed by, Auxbrain. A **route** is a list of stops, like `195 219 24
   Fast and up also run **Nearby routes**, a search near the instant answer's route.
 - **Exhaustive**: every route in boxes you set, so the answer is proven inside those boxes.
 - **Highest TE by a date**: how much TE you can have by a date such as Egg Day.
-- **Compare**: the shared leaderboard and its charts. **Science**: how it works and how it was checked.
+- **Leaderboard** (was Compare): the shared leaderboard and its charts. **Science**: how it works and how it was checked.
 
 Everything runs in your browser. The live site is <https://egg.williamstest.fyi/>. The
 [wiki](https://github.com/william-egginc/AutoAutoAP/wiki) explains each part in detail, for players
@@ -34,12 +34,15 @@ The names are the ones players read, kept in `NAMES` in `src/lib/siteNav.ts`.
   - **Fastest to 490 TE** (the name follows your final target): the instant answer and Check exactly
     on top, then two tabs, **Nearby routes** (with the Stronger check levels) and **Exhaustive**.
   - **Highest TE by a date**: the same layout, for the most TE by a date.
-- **Compare**: Egg Day, Race, All runs, By a date, Your latest run, and **Insights** (charts across everybody's
-  runs; also the standalone `explorer.html`).
-- **My runs**: your runs on the board (any kind, the ones hidden from the public too, with Hide from the
-  public), runs and answers saved on this computer, and results not sent yet. `#/compare/mine` lands here.
+- **Leaderboard** (was Compare): Egg Day, Race, All runs, By a date, and **Insights** (charts across everybody's
+  runs; also the standalone `explorer.html`). Its Your latest run tab is one line pointing to My runs now.
+- **My runs** (a top tab, and the Auto Planner's fourth tab: the same page): **Your latest run** (the newest search's
+  routes with when each stop and egg happens, By a date's top routes, Fastest's other options and charts; this
+  account's only; "Dig deeper into your plan ›" under each result opens it), your runs on the board (any kind, the
+  ones hidden from the public too, with Hide from the public), runs and answers saved on this computer or phone, and
+  results not sent yet. `#/compare/mine` lands here.
 - **Science**: **How it works** (the default), **What we need to check**, **Submit a sweep** and
-  **When should I start?**
+  **When should I start?** (only before you are on virtue: hidden once your save has a virtue farm)
 
 The addresses are hash routes (`#/auto/fastest`, `#/auto/fastest/full`, `#/compare/race`, ...), and old
 links (`?insane=1`, `#deadline`) still land in the right place (`routeFromLocation` in `siteNav.ts`).

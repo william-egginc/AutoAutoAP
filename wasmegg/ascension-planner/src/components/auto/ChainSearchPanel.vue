@@ -7,7 +7,7 @@
            How it works (moved there 12 Oct 2026: too much for this page). -->
       <p class="text-[12px] text-slate-700 leading-relaxed" data-testid="nearby-in-brief">
         {{ NAMES.smart }} starts from the instant answer's route and moves its stops a few TE at a time, keeping any
-        change that finishes sooner, with the full simulator on your save. It runs on this computer's workers; you can
+        change that finishes sooner, with the full simulator on your save. It runs on {{ thisDevice() }}'s workers; you can
         stop it any time and keep the best so far.
         <a href="#/science/how" class="font-bold text-indigo-700 underline whitespace-nowrap">How it works ›</a>
       </p>
@@ -521,32 +521,11 @@
         <template #progress>
           <!-- Live progress -->
           <div v-if="ownRun && (store.isRunning || store.bestDays > 0)" class="space-y-4">
-            <RunProgress
-              v-if="store.chainRunLive"
-              data-run-progress="smart"
-              :stage="store.stage"
-              :count="
-                smartCountText({
-                  done: store.chainsDone,
-                  replayed: store.chainsReplayed,
-                  estimate: store.chainsEstimated,
-                  running: store.isRunning,
-                  level: EFFORT_NOTES[store.effort].label,
-                })
-              "
-              tone="smart"
-              :percent="store.progressFraction * 100"
-            >
-              <!-- Movement WITHIN the current batch. `chainsDone` only advances when a whole batch
-                 returns, and stage 6's widest sweep is one ~2200-chain request — so this line is the
-                 difference between "thinking" and "dead", which a run once got wrong for 8.5 hours. -->
-              <div
-                v-if="store.isRunning && store.batchTotal > 1"
-                class="flex flex-wrap items-center justify-between gap-x-3 text-[10px] text-slate-400 font-bold"
-              >
-                <span>this batch: {{ store.batchDone }} / {{ plural(store.batchTotal, 'route') }}</span>
-                <span class="text-slate-300">updates as each route finishes</span>
-              </div>
+            <!-- The run's place on the page, for the run bar's Jump to it (lib/runAnchor.ts). Its progress is in
+                 that bar only (Jordan, 16 Oct 2026): the stage, routes, time left and best so far there, and
+                 this block's detail and measured speed under its Details. What is left here is about the
+                 finished run. -->
+            <div v-if="store.chainRunLive" data-run-progress="smart" class="scroll-mt-24 space-y-1">
               <!-- The count stopping short of the estimate is normal and confusing, so say so. -->
               <p
                 v-if="store.finishedCleanly && store.chainsDone < store.chainsEstimated * 0.9"
@@ -555,23 +534,15 @@
                 Finished early. The estimate is an upper bound, and descent stops as soon as no stop moves, which is
                 what happens when you start from a route that is already good.
               </p>
-              <div class="flex flex-wrap items-center justify-between gap-x-3 text-[10px] text-slate-400 font-bold">
-                <span>{{ store.detail }}</span>
-                <span v-if="store.isRunning && store.secondsPerChain > 0"
-                  >~{{ formatDuration(store.secondsRemaining) }} left ({{ store.secondsPerChain.toFixed(1) }} s/chain
-                  here)</span
-                >
-                <span v-else-if="store.isRunning">timing the first batch...</span>
-                <!-- A finished run used to keep saying "timing the first batch..." here. -->
-                <span v-else-if="store.runCost"
-                  >took {{ describeCompute(store.runCost.minutes, store.runCost.workers) }}</span
-                >
-              </div>
-            </RunProgress>
+              <p v-if="!store.isRunning && store.runCost" class="text-[10px] text-slate-400 font-bold">
+                Took {{ describeCompute(store.runCost.minutes, store.runCost.workers) }}
+              </p>
+            </div>
 
             <!-- Best so far, and the answer once it stops: the same card as the Full sweep
                (RouteResultCard.vue). Always usable: the stages are nested, so stopping is safe. -->
             <RouteResultCard
+              :priced-with="pricedWith"
               :chain="store.bestChain"
               :days="store.bestDays"
               :final-t-e="store.finalTE"
@@ -784,6 +755,15 @@
                           no action needed, you are already on it. Every row after it is one manual switch, which is why
                           twelve eggs means eleven switches. This matches the Auto Planner's own C1 / I1 / K1 list.
                         </p>
+                        <!-- Each egg's first and last shift and the TE it reaches (search/routeTimeline.ts). -->
+                        <RouteTimeline
+                          class="mt-2"
+                          :chain="store.bestChain"
+                          :legs="store.bestLegs"
+                          :only="i"
+                          open
+                          :zone="autoPlannerStore.timezone || plannerTzFallback"
+                        />
                       </td>
                     </tr>
                   </template>
@@ -821,8 +801,9 @@
       <!-- The results (RunResults.vue): the same order on every search screen. This screen's answer is
            in the run's progress above, where it doubles as the best so far. -->
       <RunResults>
-        <!-- When to start this route: Science › When should I start? (StartTimeCard.vue), opened on it. -->
-        <p v-if="ownRun && store.bestChain.length && store.bestDays > 0 && !store.isRunning" class="text-[11px]">
+        <!-- When to start this route: Science › When should I start? (StartTimeCard.vue), opened on it. Not for a
+             player already on virtue (lib/onVirtue.ts): their first ascension has started. -->
+        <p v-if="offerStart && ownRun && store.bestChain.length && store.bestDays > 0 && !store.isRunning" class="text-[11px]">
           <button
             type="button"
             class="font-bold text-indigo-700 underline decoration-dotted underline-offset-2 hover:text-indigo-900"
@@ -852,14 +833,12 @@
           </p>
         </div>
 
-        <!-- The run's other options and its charts are on Compare › Your latest run (LatestRunView.vue;
-             moved off this screen, 15 Oct 2026). -->
-        <p v-if="ownRun && store.pricedCount" class="text-[11px] text-slate-600" data-testid="latest-run-link">
-          More views of this run (other options, charts) are on
-          <a href="#/compare/latest" class="font-bold text-indigo-700 underline hover:text-indigo-900"
-            >{{ NAMES.compare }} › {{ NAMES.latest }}</a
-          >
-        </p>
+        <!-- The run's other options and its charts are on My runs › Your latest run (LatestRunView.vue;
+             moved off this screen, 15 Oct 2026): "Dig deeper into your plan ›". -->
+        <DigDeeperLink
+          v-if="ownRun && store.pricedCount"
+          detail="other options, charts, and when each stop and egg happens"
+        />
 
         <!-- A plan start that slides is the quietest way to lose a checkpoint, and it cost a real
              user a 778-chain run: after a rebuild the start moved 10:39 -> 17:44, the fingerprint
@@ -1049,6 +1028,10 @@
 </template>
 
 <script setup lang="ts">
+import { pricedWithLine } from '@/lib/pricedWith';
+import { offerStartTimes } from '@/lib/onVirtue';
+import { useInitialStateStore } from '@/stores/initialState';
+import { thisDevice } from '@/search/device';
 import { useIntegrityProbe } from '@/composables/useIntegrityProbe';
 import { NAMES } from '@/lib/siteNav';
 import { useUIStore } from '@/stores/ui';
@@ -1058,7 +1041,6 @@ import { showDateTime } from '@/lib/displayTime';
 import { useStartTimesStore } from '@/stores/startTimes';
 import { useInstantSummaryStore } from '@/stores/instantSummary';
 import { useStrongerStore } from '@/stores/stronger';
-import { smartCountText } from '@/search/smartCount';
 import { browserHelp, detectBrowser } from '@/lib/browserHelp';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { EFFORT, EFFORT_NOTES, EFFORT_ORDER, NEAR_OPTIMAL_SHARE } from '@/search/effort';
@@ -1082,13 +1064,16 @@ import { checkpointLimits } from '@/search/persistence';
 import { describeCompute } from '@/utils/computeTime';
 import UnfinishedRuns from './UnfinishedRuns.vue';
 import { chainCount } from '@/lib/chartThin';
-import type { EffortTier, LegSummary } from '@/search/types';
+import type { EffortTier } from '@/search/types';
+import { eggBlocks } from '@/search/routeTimeline';
+import RouteTimeline from './RouteTimeline.vue';
+import DigDeeperLink from './DigDeeperLink.vue';
 import { useRunDownloads } from '@/composables/useRunDownloads';
 import CsvCard from './CsvCard.vue';
 import RunResults from './RunResults.vue';
 import RunErrorNotes from './RunErrorNotes.vue';
 import RunControls from './RunControls.vue';
-import RunProgress from './RunProgress.vue';
+import { agreeThisVisit } from '@/composables/useConsent';
 
 const props = defineProps<{
   playerId: string;
@@ -1332,51 +1317,7 @@ const host = typeof window !== 'undefined' ? window.location.host : 'this site';
 /** How to keep a background tab awake in this browser (lib/browserHelp.ts). */
 const tabHelp = browserHelp(detectBrowser().browser, typeof window !== 'undefined' ? window.location.host : '');
 
-interface EggBlock {
-  egg: string;
-  at: number;
-  length: string;
-  /** False for the block the leg opens on -- there is nothing to do, you are already there. */
-  isSwitch: boolean;
-}
-
-/**
- * The eggs a leg lays, in order, INCLUDING the one it opens on.
- *
- * `leg.shifts` holds switches, not blocks, and a leg that switches eleven times lays twelve eggs.
- * Listing only the switches made the panel appear to start each ascension on Integrity when every
- * ascension in fact starts on Curiosity -- the opening stretch on Curiosity, 27 minutes of it in
- * the run that surfaced this, was simply missing. The Auto Planner's roadmap lists blocks (C1, I1,
- * K1 ...), so this now lines up with it one row per row, which is what makes the two cross-checkable.
- *
- * Each block runs until the next switch, or until the leg ends for the last one; the switch action
- * itself takes no time, so what a player experiences is the farming stretch between switches.
- */
-function eggBlocks(leg: LegSummary): EggBlock[] {
-  const shifts = leg.shifts ?? [];
-  if (!shifts.length) return [];
-
-  const span = (from: number, to: number | undefined) =>
-    to !== undefined && to > from ? formatDuration(to - from) : '—';
-
-  const blocks: EggBlock[] = [];
-  // The opening block. Needs both a name and a start: `fromEgg` is only recorded from the build
-  // that added it, and `startTime` is optional on LegSummary, so a checkpoint written by older
-  // code simply does not get this row rather than getting a wrong one.
-  const opener = shifts[0].fromEgg;
-  if (opener && leg.startTime) {
-    blocks.push({ egg: opener, at: leg.startTime, length: span(leg.startTime, shifts[0].at), isSwitch: false });
-  }
-  shifts.forEach((sh, k) => {
-    blocks.push({
-      egg: sh.egg,
-      at: sh.at,
-      length: span(sh.at, k + 1 < shifts.length ? shifts[k + 1].at : leg.endTime),
-      isSwitch: true,
-    });
-  });
-  return blocks;
-}
+// The eggs a leg lays, in order, INCLUDING the one it opens on: search/routeTimeline.ts `eggBlocks`.
 
 /** The card's "Your last run · ..." when its result isn't from a run in this visit on these settings
  *  (store `chainRunLive`); '' for a live one. */
@@ -1476,23 +1417,25 @@ async function run(resume: boolean, andSubmit = false): Promise<void> {
   try {
     await store.start(props.playerId, { resume, recheck: armed });
   } finally {
+    // Read live, not from the click: a withdraw during the run cleared both (store `withdrawShareConsent`).
+    agreed = store.submitsWhenDone || !!store.bestSoFar?.consent;
     store.submitsWhenDone = false;
-    agreed = armed || !!store.bestSoFar?.consent;
     store.endBestSoFar();
   }
   // A best so far on the board is replaced by the run's result, so the run sends one when it ends:
   // after a yes in the box during the run, or for a carried-on run that sent one before (under the
-  // name that went with it).
+  // name that went with it). Not once the player withdrew (`owedRow`).
   await store.bestSoFarSettled();
-  const owed = store.provisionalRows.fastest;
+  const owed = store.owedRow('fastest');
   if (!agreed && owed) {
     anonymous.value = !owed.nickname;
     if (owed.nickname) nickname.value = owed.nickname;
   }
   // Stopped early it still sends: the best of what was priced is a real result, and the player asked
   // for it to be shared (the user, 30 Sept: "why does stopping early mean nothing is sent?").
-  if (!(agreed || owed) || store.error || store.bestDays <= 0) return;
-  optIn.value = true;
+  if (!(agreed || owed) || store.shareWithdrawn || store.error || store.bestDays <= 0) return;
+  // The send below needs the box ticked; a yes the run had (or owed) counts for this visit only.
+  agreeThisVisit('leaderboard');
   autoSubmitted.value = true;
   await submit();
   store.lastAutoSend = { kind: 'smart', ok: submitOk.value, text: submitMessage.value };
@@ -1512,4 +1455,10 @@ watch(
     if (!store.busy) void store.checkResumable(props.playerId);
   }
 );
+
+/** "Check start times for this route" only before the player is on virtue (lib/onVirtue.ts). */
+const offerStart = computed(() => offerStartTimes(useInitialStateStore().rawBackup));
+/** The hours and time off this run was priced with (its own settings, not the live setup); '' when no run's
+ *  settings are known (lib/pricedWith.ts). */
+const pricedWith = computed(() => (store.runSettingsUsed ? pricedWithLine(store.runSettingsUsed) : ''));
 </script>

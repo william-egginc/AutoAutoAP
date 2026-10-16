@@ -49,6 +49,10 @@ import { findRoutes, type FoundRoutes } from '@/search/routeFinder';
 import { atMostAscensions } from '@/search/instantFilters';
 import { loadHistory } from '@/search/checkHistory';
 import { existingOwnerToken } from '@/search/owner';
+import { lookAlikeFor, readMyBoardRows } from '@/search/myBoardRows';
+import { rememberedKeys } from '@/lib/myKeys';
+import { useShareNameStore } from '@/stores/shareName';
+import { useEidsStore } from 'lib';
 import { simulateRoute } from '@/search/simulateRoute';
 import { workerSecondsFromRate } from '@/search/speed';
 import type { ChainResult } from '@/search/types';
@@ -60,9 +64,11 @@ import {
   summaryLine,
   type AtOnceItem,
 } from '@/search/lightAtOnce';
+import { lightBest, type LightResult } from '@/search/lightResult';
 import type { BoardRow } from '@/lib/leaderboardRank';
 import {
   beats,
+  earlierFromText,
   earlierRoutes,
   fastestFirst,
   key,
@@ -223,32 +229,44 @@ let autoPool: ChainSearchPool | null = null;
 let autoGen = 0;
 let autoFor: { found: FoundRoutes | null; done: number } | null = null;
 
-/** This browser's board rows for the account, read with its owner code (as My runs does); none
- *  without a code or a collector. */
-async function fetchMine(partition: string): Promise<BoardRow[]> {
-  const token = existingOwnerToken(partition);
-  const root = store.leaderboardUrl.replace(/\/$/, '');
-  if (!token || !store.submitUrl) return [];
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 5000);
-  try {
-    const res = await fetch(`${root}/mine`, { headers: { 'x-owner-token': token }, signal: ctrl.signal });
-    if (!res.ok) return [];
-    const rows = ((await res.json()) as { rows?: unknown }).rows;
-    return Array.isArray(rows) ? (rows as BoardRow[]).filter(r => r && Array.isArray(r.chain)) : [];
-  } catch {
-    return [];
-  } finally {
-    clearTimeout(timer);
-  }
+/**
+ * The account's board runs, as My runs counts them (search/myBoardRows.ts): the rows /mine returns for
+ * this browser's code and those that look like the account's from another browser or site (its keys
+ * and, for a run with another code, its names). /mine alone missed every run sent from live or the PC
+ * (18 Oct 2026). None without a collector; whatever /mine gave when /all can't be read.
+ */
+async function fetchMyRuns(partition: string): Promise<BoardRow[]> {
+  if (!store.submitUrl) return [];
+  const playerId = initialState.playerId ?? '';
+  const names = useShareNameStore();
+  if (playerId) await names.load(playerId).catch(() => undefined);
+  const entry = playerId ? useEidsStore().eids.get(playerId.trim()) : undefined;
+  const hasSave = !!initialState.rawBackup;
+  return readMyBoardRows({
+    root: store.leaderboardUrl.replace(/\/$/, ''),
+    token: existingOwnerToken(partition),
+    look: mine =>
+      lookAlikeFor({
+        saveKey: hasSave ? store.saveAccountKey() : null,
+        remembered: rememberedKeys(partition),
+        mine,
+        names: [entry?.nickname || entry?.username || '', playerId ? names.nameFor(playerId) : ''],
+        viewerTE: hasSave ? store.backupTE : 0,
+      }),
+  }).catch(() => []);
 }
+
+/** Where the earlier routes came from ("from your board runs sent from another browser"), once gathered. */
+const earlierFrom = ref('');
+/** "Your earlier routes: 1 of 3, from your board runs sent from another browser". */
+const withFrom = (text: string): string => (earlierFrom.value ? `${text}, ${earlierFrom.value}` : text);
 
 async function gatherEarlier(): Promise<EarlierRoute[]> {
   const partition = await store.accountPartition().catch(() => '');
   const playerId = initialState.playerId;
   const [history, board] = await Promise.all([
     partition ? loadHistory(partition).catch(() => []) : Promise.resolve([]),
-    partition ? fetchMine(partition) : Promise.resolve([]),
+    partition ? fetchMyRuns(partition) : Promise.resolve([]),
     playerId
       ? Promise.allSettled([store.refreshSavedRuns(playerId), store.refreshSavedAnswers(playerId)])
       : Promise.resolve(),
@@ -317,17 +335,21 @@ const lightStep = ref('');
 const earlierTotal = ref(0);
 const earlierDone = ref(0);
 const lightAt = ref(0);
+/** The plan start Light's routes were priced from (its pool's). */
+const lightPlanStart = ref(0);
 function clearAtOnce(): void {
   stronger.atOnce[goalKey.value] = {};
 }
 // A fresh screen: nothing priced at once yet for its answer.
 clearAtOnce();
 
+// The legs are kept (they were dropped before 15 Oct 2026): the instant answer's rows show them under their arrow.
 const toPriced = (r: ChainResult, planStart: number): Priced => ({
   chain: [...r.chain],
   seconds: r.seconds,
   end: planStart + r.seconds,
   endTE: r.legs[r.legs.length - 1]?.endTE ?? 0,
+  ...(r.legs.length ? { legs: r.legs } : {}),
 });
 
 /** The pool, made once per Light run and shared by the at-once routes and the earlier ones: the same
@@ -336,6 +358,9 @@ async function lightPool(): Promise<{ pool: ChainSearchPool; planStart: number }
   if (!autoPool) {
     const inputs = store.collectInputs();
     pricedFrom = inputs.planStart;
+    lightPlanStart.value = inputs.planStart;
+    // What Light prices under, for its board row (store `buildLightSubmission`).
+    store.beginLight(inputs.planStart, inputs.currentTE);
     autoPool = await createChainSearchPool(inputs, { size: Math.max(1, Math.min(store.workerBudget, 4)) });
   }
   return { pool: autoPool, planStart: pricedFrom };
@@ -384,6 +409,7 @@ async function runAuto(): Promise<void> {
   stepSkipped.value = '';
   earlierTotal.value = 0;
   earlierDone.value = 0;
+  earlierFrom.value = '';
   autoStatus.value = 'running';
   autoText.value = "Pricing the instant answer's routes ascending at once, on your account with the full simulator…";
   try {
@@ -394,6 +420,7 @@ async function runAuto(): Promise<void> {
     const routes = await gatherEarlier();
     if (g !== autoGen) return;
     earlierTotal.value = routes.length;
+    earlierFrom.value = earlierFromText(routes);
     const wantStep = !!props.deadline && props.topMissed && topTE.value !== null;
     if (wantStep && !props.ctx)
       stepSkipped.value =
@@ -409,11 +436,11 @@ async function runAuto(): Promise<void> {
     const price = pricer(pool, planStart, false, (d, t) => {
       if (g !== autoGen || t !== routes.length) return;
       earlierDone.value = d;
-      lightStep.value = earlierText(d, routes.length);
+      lightStep.value = withFrom(earlierText(d, routes.length));
     });
     if (routes.length) {
-      lightStep.value = earlierText(0, routes.length);
-      autoText.value = `Pricing ${routes.length} earlier route${routes.length === 1 ? '' : 's'} of yours on your account with the full simulator…`;
+      lightStep.value = withFrom(earlierText(0, routes.length));
+      autoText.value = `Pricing ${routes.length} earlier route${routes.length === 1 ? '' : 's'} of yours (${earlierFrom.value}) on your account with the full simulator…`;
       const got = await priceEarlier({ goal: goal.value, routes, currentTE: currentTE.value, price });
       if (g !== autoGen) return;
       earlierDone.value = routes.length;
@@ -553,12 +580,33 @@ watch(
       instant: { priced: items.filter(it => have[key(it.chain)]).length, total: items.length },
       ...(st === 'running' && lightStep.value ? { step: `${lightStep.value}…` } : {}),
       ...(lightSummary.value ? { summary: lightSummary.value } : {}),
+      ...(earlierFrom.value ? { from: earlierFrom.value } : {}),
     };
   },
   l => (stronger.light = l),
   { immediate: true }
 );
+// Light's result, to send (LightShare.vue): once Light is done, the best of the instant answer's routes at
+// once, your earlier routes and, by a date, one TE lower (search/lightResult.ts). Null while it runs.
+const lightResult = computed<LightResult | null>(() => {
+  if (autoStatus.value !== 'done' || !lightPlanStart.value) return null;
+  const have = stronger.atOnce[goalKey.value];
+  const withLegs = (p: Priced | null) => {
+    const legs = p ? (p.legs ?? legsOf.get(key(p.chain))) : undefined;
+    return p && legs ? { ...p, legs } : p;
+  };
+  return lightBest({
+    goal: goal.value,
+    atOnce: atOnceItems.value.map(it => have[key(it.chain)] ?? null),
+    earlier: earlier.value.map(e => withLegs(e.made)),
+    lower: steps.value.map(s => withLegs(s.made)),
+    planStart: lightPlanStart.value,
+    handoffNow: props.handoff === 'now',
+  });
+});
+watch(lightResult, r => (stronger.lightResult[goalKey.value] = r), { immediate: true });
 onUnmounted(() => {
+  stronger.lightResult[goalKey.value] = null;
   stronger.strongerBest[props.deadline ? 'date' : 'fastest'] = null;
   clearAtOnce();
   stronger.light = idleLight();

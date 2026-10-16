@@ -89,6 +89,13 @@
       :egg-day-year="eggDayYear"
       @use="c => emit('use', c)"
     />
+    <MyRunsMissing
+      v-if="loadedOnce && (myKey || mineRows?.length)"
+      :rows="mergedRows"
+      :look-alike="lookAlike"
+      :save-key="myKey"
+      :has-code="hasCode"
+    />
     <!-- Who sees your runs (moved here from Compare's My plans, 15 Oct 2026): hide every run this
          browser sent for the account, or show them all again, and the hidden ones, listed apart and
          muted, each with "Show again". Only when /mine answered: without this browser's code nothing
@@ -240,9 +247,13 @@
            link out to its page (the unified layout, phase 4). -->
       <ChainExplorer v-if="tab === 'insights'" part="insights" embedded />
 
-      <!-- Your latest run: this visit's Fastest run's other options and charts (LatestRunView.vue; moved
-           here off Fastest's results, 15 Oct 2026). Reads the search's store, not the collector. -->
-      <LatestRunView v-else-if="tab === 'latest'" />
+      <!-- Your latest run: its block moved to My runs (16 Oct 2026; LatestRunView.vue in MyRunsView.vue). The
+           tab and its address stay, as one line pointing there. -->
+      <p v-else-if="tab === 'latest'" class="text-xs text-slate-700 py-2" data-testid="latest-moved">
+        <a :href="MY_RUNS_HASH" class="font-bold text-indigo-700 underline hover:text-indigo-900"
+          >{{ NAMES.latest }} is now in {{ NAMES.myRuns }} ›</a
+        >
+      </p>
 
       <p v-else-if="error" class="text-[11px] text-red-700 font-semibold">Could not reach the collector: {{ error }}</p>
 
@@ -938,7 +949,7 @@
 <script setup lang="ts">
 import { plural } from '@/lib/format';
 import { onRowClick } from '@/lib/rowClick';
-import { COMPARE_VIEWS, NAMES, type CompareView } from '@/lib/siteNav';
+import { COMPARE_VIEWS, DEFAULT_ROUTE, NAMES, hashFor, type CompareView } from '@/lib/siteNav';
 import { useUIStore } from '@/stores/ui';
 import { safeAsyncComponent } from '@/lib/import';
 import { describeFetchError } from '@/utils/errors';
@@ -983,10 +994,13 @@ import {
   type RaceEntry,
   type ViewerTag,
 } from '@/lib/leaderboardRank';
-import { isMyRun } from '@/lib/myRuns';
+import { isMyRun, myRunsCount } from '@/lib/myRuns';
+import { rememberKey, rememberedKeys } from '@/lib/myKeys';
+import { useAccountName, useSharedName } from '@/composables/useShareResult';
 import { virtueInventory } from '@/search/csv';
 import { bestPerFamily, keepVirtueArtifacts } from '@/search/submission';
 import { existingOwnerToken } from '@/search/owner';
+import { fetchAllRows, fetchMineRows, lookAlikeFor, mergeMine, rememberAll } from '@/search/myBoardRows';
 import { csvFileName, fetchOwnCsv, setRunsHidden, type HideResult, type HideTarget } from '@/search/hideRuns';
 import {
   HIDE_CONTROL,
@@ -1002,11 +1016,10 @@ import { eggDaySeconds, nextEggDayYear } from '@/lib/eggDay';
 import LeaderboardPlanList from './LeaderboardPlanList.vue';
 import LeaderboardRunDetail from './LeaderboardRunDetail.vue';
 import MyRunsList from './MyRunsList.vue';
+import MyRunsMissing from './MyRunsMissing.vue';
 
 /** Insights: the Explorer's charts and their chart library load only when that tab opens. */
 const ChainExplorer = safeAsyncComponent(() => import('@/explorer/ChainExplorer.vue'));
-/** Your latest run: loads only when that tab opens (its charts load later still, when drawn). */
-const LatestRunView = safeAsyncComponent(() => import('./LatestRunView.vue'));
 
 const props = defineProps<{
   /** The account whose owner code asks GET /mine for "my" rows. Only its hash is used, as the
@@ -1020,6 +1033,8 @@ const emit = defineEmits<{
   use: [chain: number[]];
   /** My runs only: how many of the viewer's runs are on the board, null until the first load is in. */
   count: [n: number | null];
+  /** My runs only: those runs themselves (for its summary, MyRunsDashboard), null until the first load is in. */
+  rows: [rows: BoardRow[] | null];
 }>();
 const myRunsMode = computed(() => props.mode === 'myruns');
 
@@ -1050,11 +1065,12 @@ const tab = computed<Tab>({
   get: () => ui.compareView,
   set: v => (ui.compareView = v),
 });
-/** The views that read the collector's board (not Insights, which loads its own, nor Your latest run,
- *  which reads this visit's search). */
+/** The views that read the collector's board (not Insights, which loads its own, nor Your latest run's line). */
 function isBoardView(t: Tab): boolean {
   return t !== 'insights' && t !== 'latest';
 }
+/** Your latest run's tab: one line to My runs, where its block is. */
+const MY_RUNS_HASH = hashFor({ ...DEFAULT_ROUTE, section: 'myruns' });
 /** My runs always reads the board. */
 const boardView = computed(() => myRunsMode.value || isBoardView(tab.value));
 const allRows = ref<Row[]>([]);
@@ -1160,6 +1176,47 @@ const myKey = computed(() => {
   return accountKeyOf({ timezone, artifacts: labels });
 });
 
+/** The loaded account's partition hash (lib/storage/db.ts `hashID`), '' with none: what lib/myKeys.ts keys by. */
+const partition = ref('');
+watch(
+  () => props.playerId?.trim() ?? '',
+  async id => {
+    const p = id ? await hashID(id).catch(() => '') : '';
+    if ((props.playerId?.trim() ?? '') === id) partition.value = p;
+  },
+  { immediate: true }
+);
+/**
+ * The account keys this browser remembered for the account (lib/myKeys.ts), the save's own added
+ * whenever one is loaded -- only a save of this very account, never the one left over from the last.
+ */
+const keptKeys = ref<string[]>([]);
+watch(
+  [partition, myKey],
+  ([p, key]) => {
+    const raw = initialState.rawBackup as { eiUserId?: string | null } | null;
+    const own = !!key && !!raw?.eiUserId && raw.eiUserId.toLowerCase() === (props.playerId ?? '').trim().toLowerCase();
+    keptKeys.value = !p ? [] : own ? rememberKey(p, key as string) : rememberedKeys(p);
+  },
+  { immediate: true }
+);
+/** The names this account sends under (its own, the one it credits runs to here; /mine's rows' are added
+ *  by `lookAlikeFor`). */
+const accountName = useAccountName(() => props.playerId ?? '');
+const sharedName = useSharedName(() => props.playerId ?? '');
+/** What My runs' look-alike match and its "isn't here?" answer read (search/myBoardRows.ts `lookAlikeFor`,
+ *  which Light reads too): every key that is the viewer's -- the save's, the remembered ones, /mine's
+ *  rows' -- and the account's names; no look-alikes without a save. */
+const lookAlike = computed(() =>
+  lookAlikeFor({
+    saveKey: myKey.value,
+    remembered: keptKeys.value,
+    mine: mineRows.value,
+    names: [accountName.value, sharedName.get()],
+    viewerTE: myTE.value,
+  })
+);
+
 /** The save's own TE, for "near me". */
 const myTE = computed(() => (initialState.rawBackup ? store.backupTE : 0));
 
@@ -1169,6 +1226,8 @@ const myTE = computed(() => (initialState.rawBackup ? store.backupTE : 0));
  * yet (nothing sent from this browser), or a collector from before /mine.
  */
 const mineRows = ref<Row[] | null>(null);
+/** This site in this browser holds a code for the loaded account (so /mine could be asked at all). */
+const hasCode = ref(false);
 const mineIds = computed(() => new Set((mineRows.value ?? []).map(r => r.id).filter((x): x is string => !!x)));
 const myAccts = computed(() => new Set((mineRows.value ?? []).map(r => r.acct).filter((x): x is string => !!x)));
 
@@ -1202,13 +1261,7 @@ const shownRows = computed<Row[]>(() => publicRows(allRows.value, hiddenIds.valu
  *  plans reads this, and `rankable` keeps the hidden ones out of its ranking. */
 const mergedRows = computed<Row[]>(() => {
   const mine = mineNow.value;
-  if (!mine.length) return shownRows.value;
-  const ids = mineIds.value;
-  const seen = new Set(shownRows.value.map(r => r.id));
-  return [
-    ...shownRows.value.map(r => (r.id && ids.has(r.id) ? { ...r, yours: true } : r)),
-    ...mine.filter(r => !r.id || !seen.has(r.id)),
-  ];
+  return mine.length ? mergeMine(shownRows.value, mine) : shownRows.value;
 });
 
 /** The viewer's runs hidden from the public, any target, newest sent first (My plans lists them). */
@@ -1419,12 +1472,20 @@ const mine = computed(() =>
  */
 const myRunRows = computed<Row[]>(() => {
   if (!myKey.value && !mineRows.value?.length) return [];
-  return mergedRows.value.filter(r => isMyRun(r, myKey.value, myTE.value));
+  const l = lookAlike.value;
+  return mergedRows.value.filter(r => isMyRun(r, l.keys, l.viewerTE, l.names));
 });
-// How many, for My runs to fold its part when there are none; null until the first load is in.
+// How many, for My runs' header and to fold its part when there are none; null until the first load is
+// in. One per result, as the list counts them (`myRunsCount`): a result sent twice is one run.
 watch(
-  () => (myRunsMode.value && loadedOnce.value ? myRunRows.value.length : null),
+  () => (myRunsMode.value && loadedOnce.value ? myRunsCount(myRunRows.value) : null),
   n => emit('count', n),
+  { immediate: true }
+);
+// And the rows, for My runs' summary at the top (cards and Next steps); null until the first load is in.
+watch(
+  () => (myRunsMode.value && loadedOnce.value ? myRunRows.value : null),
+  rows => emit('rows', rows),
   { immediate: true }
 );
 
@@ -1642,13 +1703,9 @@ const sortedLines = computed(() => sortRows(runLines.value, sortKey.value, sortA
 async function fetchMine(): Promise<Row[] | null> {
   try {
     const token = await ownerCode();
+    hasCode.value = !!token;
     if (!token) return null;
-    const res = await fetch(`${root.value}/mine`, { headers: { 'x-owner-token': token } });
-    if (!res.ok) return null;
-    const data = (await res.json()) as { rows?: Row[] };
-    return Array.isArray(data.rows)
-      ? data.rows.filter(r => r && Array.isArray(r.chain)).map(r => ({ ...r, yours: true }))
-      : null;
+    return await fetchMineRows(root.value, token);
   } catch {
     return null;
   }
@@ -1664,11 +1721,7 @@ async function fetchMine(): Promise<Row[] | null> {
  * board as it is now (the collector says `no-cache` too; this covers one that does not).
  */
 async function fetchAll(query: string): Promise<{ rows: Row[]; cut: boolean }> {
-  const res = await fetch(`${root.value}/all${query}`, { cache: 'no-cache' });
-  if (!res.ok) throw new Error(`the collector answered ${res.status}`);
-  const data = (await res.json()) as { rows?: Row[]; builtAt?: number };
-  const rows = Array.isArray(data.rows) ? data.rows.filter(r => r && Array.isArray(r.chain)) : [];
-  return { rows, cut: typeof data.builtAt !== 'number' && rows.length >= ALL_CAP };
+  return fetchAllRows(root.value, query, { cap: ALL_CAP });
 }
 
 /**
@@ -1694,6 +1747,8 @@ async function load(): Promise<void> {
     }
     allRows.value = rows;
     capped.value = cut;
+    // Light (StrongerCheck.vue) reads the viewer's runs from this for a minute (search/myBoardRows.ts).
+    if (!cut) rememberAll(root.value, rows);
     now.value = Date.now();
   } catch (e) {
     error.value = describeFetchError(e, 'the leaderboard');

@@ -25,13 +25,26 @@
     <p v-if="!lines.length" class="text-[11px] text-indigo-900/60 py-4 text-center" data-testid="my-runs-none">
       None of the runs on the board are yours yet. Share a result from the Auto Planner and it shows up here.
     </p>
-    <p
+    <div
       v-else-if="!shown.length"
       class="text-[11px] text-indigo-900/60 py-4 text-center"
       data-testid="my-runs-none-shown"
     >
-      None of your runs are in these categories.
-    </p>
+      <p>
+        None of your {{ lines.length }} {{ lines.length === 1 ? 'run is' : 'runs are' }} in these categories<template
+          v-if="activeWords.length"
+          >: {{ activeWords.join(' · ') }}</template
+        >.
+      </p>
+      <button
+        type="button"
+        class="mt-1 text-[10px] font-black uppercase tracking-widest text-indigo-700 underline hover:text-indigo-900"
+        data-testid="my-runs-clear"
+        @click="filters = { ...DEFAULT_MY_RUNS_FILTERS, sort: filters.sort }"
+      >
+        Show them all
+      </button>
+    </div>
     <div v-else class="overflow-x-auto">
       <table class="w-full text-[11px] tabular-nums" data-testid="my-runs-table">
         <thead>
@@ -144,9 +157,7 @@
         </tbody>
       </table>
     </div>
-    <p v-if="lines.length && active" class="text-[10px] text-slate-500" data-testid="my-runs-count">
-      Showing {{ shown.length }} of {{ lines.length }} runs.
-    </p>
+    <p v-if="countText" class="text-[10px] text-slate-500" data-testid="my-runs-count">{{ countText }}</p>
   </div>
 </template>
 
@@ -169,6 +180,7 @@ import {
 import {
   DEFAULT_MY_RUNS_FILTERS,
   activeFilterCount,
+  activeFilterWords,
   inMyRunsFilters,
   raceTargets,
   runKind,
@@ -201,6 +213,7 @@ const hide = inject(HIDE_CONTROL, null);
 
 const filters = ref<Filters>({ ...DEFAULT_MY_RUNS_FILTERS, ...props.initialFilters });
 const active = computed(() => activeFilterCount(filters.value));
+const activeWords = computed(() => activeFilterWords(filters.value, props.eggDayYear));
 const targets = computed(() => raceTargets(props.rows));
 
 interface Line {
@@ -234,6 +247,20 @@ const shown = computed(() =>
     props.eggDayAt
   )
 );
+
+/**
+ * What the list counts. A run is one result, however often it was sent ("sent ×2"): the header above
+ * (MyRunsView, `myRunsCount`) counts the same. The sends are said only when they differ.
+ */
+const countText = computed(() => {
+  const runs = lines.value.length;
+  if (!runs) return '';
+  const sends = props.rows.length;
+  const sent =
+    sends !== runs ? ` ${sends} sends in all: a run sent more than once is one line (sent ×n), its copies inside.` : '';
+  if (active.value) return `Showing ${shown.value.length} of ${runs} ${runs === 1 ? 'run' : 'runs'}.${sent}`;
+  return sent ? `${runs} ${runs === 1 ? 'run' : 'runs'}.${sent}` : '';
+});
 
 const open = ref('');
 function toggle(key: string): void {

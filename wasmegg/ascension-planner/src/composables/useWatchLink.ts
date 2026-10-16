@@ -12,9 +12,19 @@
  */
 import { ref, watch } from 'vue';
 import * as wl from '@/search/watchLink';
+import { consentAgreed, consentDeclined, consentState } from './useConsent';
 
-/** The phone options, remembered per browser. Off unless the player ticks them. */
+/** The phone options. Off unless the player ticks them. The tick itself is the account's `watchPhone`
+ *  consent (composables/useConsent.ts, remembered per account) and follows it here; the label and the
+ *  ntfy choices stay settings of this browser. */
 export const watchOptions = ref<wl.WatchLinkOptions>(wl.readWatchOptions());
+watch(
+  () => [consentAgreed('watchPhone'), consentState.account, consentState.loaded] as const,
+  ([phone]) => {
+    if (watchOptions.value.phone !== phone) watchOptions.value.phone = phone;
+  },
+  { flush: 'sync' }
+);
 
 export interface ActiveWatch {
   link: wl.WatchLinkState;
@@ -233,9 +243,10 @@ export function watchLinkRunStarted(
   keepCurrent = false
 ): void {
   if (!deps || !deps.collector()) return;
-  // A carried-on run keeps posting to the link the player already has, even if the box was unticked
-  // since: that link is what their phone is looking at. Otherwise only when ticked.
-  if (!watchOptions.value.phone && !carried) {
+  // A carried-on run keeps posting to the link the player already has, even if the box is not ticked
+  // now: that link is what their phone is looking at. Otherwise only when ticked. Not once the player
+  // withdrew it (an explicit no on record for the account): withdrawn means no more posts.
+  if (!watchOptions.value.phone && (!carried || consentDeclined('watchPhone'))) {
     activeWatch.value = null;
     return;
   }
@@ -312,7 +323,8 @@ watch(
 watch(
   watchOptions,
   o => {
-    wl.writeWatchOptions(o);
+    // The tick is kept per account (useConsent.ts), not in this browser's options.
+    wl.writeWatchOptions({ ...o, phone: false });
     const a = activeWatch.value;
     if (a && a.status === 'running') {
       const link = linkFromOptions(a.link, a.link.startedAt);

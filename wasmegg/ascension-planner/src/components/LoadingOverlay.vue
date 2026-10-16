@@ -37,7 +37,7 @@ withDefaults(
     message?: string;
   }>(),
   {
-    title: 'Optimizing Your Plan',
+    title: 'Optimizing the Plan',
     message:
       'Simulating research sales and 2x earnings windows across thousands of purchase orders to chart your fastest path...',
   }

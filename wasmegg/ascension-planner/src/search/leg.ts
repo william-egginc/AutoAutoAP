@@ -41,6 +41,7 @@ import type { SearchInputs, ShiftMoment } from './types';
 import { CONTINUE_PIN_MAX_SECONDS, CONTINUE_MAX_SECONDS } from './rules';
 import { readFirstAscension } from './firstAscension';
 import { catchUpSeconds, siloSeconds } from '@/lib/saveAge';
+import { countTEThresholdsPassed } from '@/lib/truthEggs';
 import { EGG_ORDER, type BuildParams } from './precomputedLeg';
 import type { TableHeader } from './precomputedTable';
 
@@ -94,6 +95,10 @@ export interface LegResult {
   /** The egg the farm is on when the leg ends: the one it keeps laying while the player waits to
    *  prestige (search/chain.ts). */
   lastEgg: string;
+  /** That egg and its TE when the leg ends (the leg's end state, as `eggTE` reads a shift's): the one
+   *  egg no shift moves off (LegSummary.endEgg, search/routeTimeline.ts). Absent when the state doesn't
+   *  say. */
+  endEgg?: { egg: string; te: number };
   /** A1 only, when both kinds were simulated: the best option of the OTHER kind -- the fresh build
    *  continue beat, or the continue that lost (also when it was dropped for running past six months,
    *  so a record can say how far off it was). Absent when only one kind was simulated: Prestige Now,
@@ -133,9 +138,34 @@ function shiftInstants(actions: Action[], legStart: number): ShiftMoment[] {
     // `toEgg` is the virtue egg this shift switches to - the thing the player physically does.
     // `fromEgg` is carried so the panel can name the block the leg starts on; see ShiftMoment.
     const payload = a.payload as { toEgg?: string; fromEgg?: string } | undefined;
-    out.push({ at: legStart + step, egg: payload?.toEgg ?? '', fromEgg: payload?.fromEgg });
+    // The TE of the egg being left, from this shift's own end state: the shift only changes which egg
+    // is laid (and spends soul eggs), so nothing has been laid between that state and the switch, and
+    // the egg keeps this TE until the farm comes back to it (search/leg.shiftTE.spec.ts). Read only;
+    // the simulation is untouched.
+    const te = payload?.fromEgg ? eggTE(a.endState, payload.fromEgg) : null;
+    out.push({
+      at: legStart + step,
+      egg: payload?.toEgg ?? '',
+      fromEgg: payload?.fromEgg,
+      ...(te !== null ? { te } : {}),
+    });
   }
   return out;
+}
+
+/** An egg's TE in a simulated state, lifetime as the game counts it: the larger of the TE the state
+ *  records and the thresholds its eggs delivered have passed (search/endEggs.ts reads a route's end
+ *  the same way). Null when the state doesn't say. */
+export function eggTE(
+  state: { teEarned?: Partial<Record<string, number>>; eggsDelivered?: Partial<Record<string, number>> } | undefined,
+  egg: string
+): number | null {
+  const te = state?.teEarned?.[egg];
+  const delivered = state?.eggsDelivered?.[egg];
+  const okTE = typeof te === 'number' && Number.isFinite(te);
+  const okDelivered = typeof delivered === 'number' && Number.isFinite(delivered) && delivered >= 0;
+  if (!okTE && !okDelivered) return null;
+  return Math.max(okTE ? Math.round(te) : 0, okDelivered ? countTEThresholdsPassed(delivered) : 0);
 }
 
 /** A fresh `SimulationContext` pinned to this leg's start. The stored context is never mutated —
@@ -169,6 +199,13 @@ interface CompactVariant extends VariantResult {
   lastEgg: string;
 }
 const NO_ACTIONS: Action[] = Object.freeze([]) as unknown as Action[];
+
+/** `LegResult.endEgg` from a simulated variant: the egg it ends on and its TE then. */
+function endEggOf(v: CompactVariant): { endEgg?: { egg: string; te: number } } {
+  const s = v.summary as { finalTE?: Partial<Record<string, number>>; eggsDelivered?: Partial<Record<string, number>> };
+  const te = v.lastEgg ? eggTE({ teEarned: s.finalTE, eggsDelivered: s.eggsDelivered }, v.lastEgg) : null;
+  return te !== null ? { endEgg: { egg: v.lastEgg, te } } : {};
+}
 
 /**
  * Simulate one ascension and return the variant the app itself would pick.
@@ -237,6 +274,7 @@ export function runLeg(
       shifts: v.shifts,
       heldSeconds: v.heldSeconds,
       lastEgg: v.lastEgg,
+      ...endEggOf(v),
       ...(rival ? { rival: { key: rival.key, endTime: rival.v.summary.endTime } } : {}),
       ...(Object.keys(ends).length ? { firstLegEnds: ends } : {}),
     };

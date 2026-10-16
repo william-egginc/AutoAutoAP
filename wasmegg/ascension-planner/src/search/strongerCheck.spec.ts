@@ -58,11 +58,12 @@ describe('cutRoute', () => {
 });
 
 describe('earlierRoutes', () => {
+  // From /mine (sent from this browser): `yours`. Look-alikes from another browser: search/earlierBoard.spec.ts.
   const board = [
-    { chain: [180, 230, 490], finalTE: 490, durationDays: 200, receivedAt: '2026-10-03T12:00:00Z' },
-    { chain: [175, 225, 490], finalTE: 490, durationDays: 190 },
-    { chain: [175, 225, 247], finalTE: 247, durationDays: 100, deadline: DEADLINE + 3600 },
-    { chain: [175, 225, 246], finalTE: 246, durationDays: 100, deadline: DEADLINE - 30 * 86400 },
+    { chain: [180, 230, 490], finalTE: 490, durationDays: 200, receivedAt: '2026-10-03T12:00:00Z', yours: true },
+    { chain: [175, 225, 490], finalTE: 490, durationDays: 190, yours: true },
+    { chain: [175, 225, 247], finalTE: 247, durationDays: 100, deadline: DEADLINE + 3600, yours: true },
+    { chain: [175, 225, 246], finalTE: 246, durationDays: 100, deadline: DEADLINE - 30 * 86400, yours: true },
   ] as BoardRow[];
   const history = [
     {

@@ -91,7 +91,7 @@ describe('the run chart is off until asked for', () => {
   it('builds from the current results when shown, remembers the choice, and frees on hide', async () => {
     const mem = memoryStorage();
     const s = await openedRun();
-    s.chartMounted(true); // a chart on screen (RunCharts.vue on Compare › Your latest run)
+    s.chartMounted(true); // a chart on screen (RunCharts.vue on My runs › Your latest run)
     s.setChartShown(true);
     expect(mem.get('autoap.chartShown')).toBe('1');
     expect(s.heat?.total).toBe(3);

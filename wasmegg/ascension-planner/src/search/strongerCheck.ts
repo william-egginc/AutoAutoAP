@@ -4,8 +4,9 @@
  * extra things the full simulator does after Check exactly, each about making the answer harder to
  * beat.
  *
- *  a. YOUR EARLIER ROUTES. The routes this player already found for the same goal (their board runs
- *     sent from this browser, saved searches and answers, the last search on this page, earlier
+ *  a. YOUR EARLIER ROUTES. The routes this player already found for the same goal (their board runs,
+ *     as My runs counts them: sent from this browser or looking like theirs from another, see
+ *     search/myBoardRows.ts; saved searches and answers, the last search on this page, earlier
  *     Check exactly results) priced on the save loaded now, next to the instant answer's. A route a
  *     search found days ago can still beat what the table suggests today.
  *  b. REFINE. A small search around the best route: every route with each stop up to RADIUS TE either
@@ -20,6 +21,7 @@
  */
 import { remainingChain, type BoardRow } from '@/lib/leaderboardRank';
 import type { CheckEntry } from './checkHistory';
+import type { LegSummary } from './types';
 import type { RunSummary } from './runLibrary';
 import type { SavedAnswer } from './deadlineStore';
 import { fallbackWorkerSeconds, sweepSeconds } from './speed';
@@ -64,11 +66,15 @@ export interface Priced {
   end: number;
   /** TE at the end (above the last stop when a sale wait overshoots). */
   endTE: number;
+  /** Its simulated legs, when kept (Light's at-once routes, for the row's arrow: RouteTimeline.vue). */
+  legs?: LegSummary[];
 }
 
 // ------------------------------------------------------------------------------- earlier routes
 
-export type EarlierSource = 'last-search' | 'board' | 'saved-search' | 'saved-answer' | 'check';
+/** 'board': a board run sent from this browser (GET /mine); 'board-other': one that looks like the
+ *  player's (lib/myRuns.ts `isMyRun`), sent from another browser or site. */
+export type EarlierSource = 'last-search' | 'board' | 'board-other' | 'saved-search' | 'saved-answer' | 'check';
 
 export interface EarlierRoute {
   chain: number[];
@@ -110,6 +116,30 @@ const ms = (iso: string | undefined): number | undefined => {
   return Number.isFinite(t) ? t : undefined;
 };
 
+/** A board row made from the save loaded now: its save's TE is the player's TE now. */
+export function onCurrentSave(r: Pick<BoardRow, 'backupTE' | 'currentTE'>, currentTE: number): boolean {
+  const te = r.backupTE ?? r.currentTE;
+  return typeof te === 'number' && Number.isFinite(te) && Math.floor(te) === Math.floor(currentTE);
+}
+
+/**
+ * The player's board runs for this goal, most telling first: those made on the save loaded now, then
+ * the best by the row's own result (by a date the highest TE, else the fewest days), then the newest.
+ * Each is priced on the save loaded now anyway; the order only decides which make the cap.
+ */
+export function boardOrder(rows: readonly BoardRow[], goal: Goal, currentTE: number): BoardRow[] {
+  const mine = rows.filter(r =>
+    goal.kind === 'fastest' ? !r.deadline && r.finalTE === goal.target : sameDate(r.deadline, goal.deadline)
+  );
+  const sent = (r: BoardRow) => ms(r.receivedAt ?? r.submittedAt) ?? 0;
+  const result = (a: BoardRow, b: BoardRow) =>
+    goal.kind === 'fastest' ? (a.durationDays || Infinity) - (b.durationDays || Infinity) : b.finalTE - a.finalTE;
+  return mine.sort(
+    (a, b) =>
+      Number(onCurrentSave(b, currentTE)) - Number(onCurrentSave(a, currentTE)) || result(a, b) || sent(b) - sent(a)
+  );
+}
+
 export interface EarlierInput {
   goal: Goal;
   currentTE: number;
@@ -117,7 +147,7 @@ export interface EarlierInput {
   lastSearch?: { chain: number[]; finalTE: number } | null;
   /** The last By a date answer on this page, with its date. */
   lastDate?: { chain: number[]; deadline: number } | null;
-  /** This browser's rows from the board's GET /mine (sent with this account's owner code). */
+  /** The player's board rows (search/myBoardRows.ts): /mine's marked `yours`, the look-alikes not. */
   board?: readonly BoardRow[];
   savedRuns?: readonly RunSummary[];
   savedAnswers?: readonly SavedAnswer[];
@@ -130,7 +160,7 @@ export interface EarlierInput {
 
 /**
  * The player's own earlier routes for this goal, usable from the save loaded now, most telling first:
- * the last search here, then board runs (best first), saved searches and answers, then earlier checks
+ * the last search here, then board runs (`boardOrder`), saved searches and answers, then earlier checks
  * (newest first). Each route once; none the panel prices anyway.
  */
 export function earlierRoutes(o: EarlierInput): EarlierRoute[] {
@@ -145,23 +175,18 @@ export function earlierRoutes(o: EarlierInput): EarlierRoute[] {
     seen.add(key(cut));
     out.push({ chain: cut, source, ...(at !== undefined ? { at } : {}) });
   };
+  const addRow = (r: BoardRow) => add(r.chain, r.yours ? 'board' : 'board-other', ms(r.receivedAt ?? r.submittedAt));
 
   if (goal.kind === 'fastest') {
     if (o.lastSearch && o.lastSearch.finalTE === goal.target) add(o.lastSearch.chain, 'last-search');
-    const rows = (o.board ?? [])
-      .filter(r => !r.deadline && r.finalTE === goal.target)
-      .sort((a, b) => (a.durationDays || Infinity) - (b.durationDays || Infinity));
-    for (const r of rows) add(r.chain, 'board', ms(r.receivedAt ?? r.submittedAt));
+    for (const r of boardOrder(o.board ?? [], goal, currentTE)) addRow(r);
     for (const r of [...(o.savedRuns ?? [])].sort((a, b) => b.savedAt - a.savedAt))
       if (r.finalTE === goal.target) add(r.bestChain, 'saved-search', r.savedAt);
     for (const h of o.history ?? [])
       if (h.mode === 'fastest' && h.target === goal.target) add(h.exact?.chain ?? h.instant.chain, 'check', h.at);
   } else {
     if (o.lastDate && sameDate(o.lastDate.deadline, goal.deadline)) add(o.lastDate.chain, 'last-search');
-    const rows = (o.board ?? [])
-      .filter(r => sameDate(r.deadline, goal.deadline))
-      .sort((a, b) => b.finalTE - a.finalTE || (ms(b.receivedAt) ?? 0) - (ms(a.receivedAt) ?? 0));
-    for (const r of rows) add(r.chain, 'board', ms(r.receivedAt ?? r.submittedAt));
+    for (const r of boardOrder(o.board ?? [], goal, currentTE)) addRow(r);
     for (const a of [...(o.savedAnswers ?? [])].sort((x, y) => y.savedAt - x.savedAt))
       if (sameDate(a.result.deadline, goal.deadline)) add(a.result.routes[0]?.chain, 'saved-answer', a.savedAt);
     for (const h of o.history ?? [])
@@ -179,6 +204,8 @@ export function sourceLabel(r: EarlierRoute, showMs: (unixMs: number) => string)
       return 'your last search here';
     case 'board':
       return when ? `your board run, sent ${when}` : 'your board run';
+    case 'board-other':
+      return when ? `your board run, sent ${when} from another browser` : 'your board run, sent from another browser';
     case 'saved-search':
       return when ? `your saved search, ${when}` : 'your saved search';
     case 'saved-answer':
@@ -186,6 +213,30 @@ export function sourceLabel(r: EarlierRoute, showMs: (unixMs: number) => string)
     case 'check':
       return when ? `your check, ${when}` : 'your earlier check';
   }
+}
+
+/**
+ * Where Light's earlier routes came from, for its status line: "from your board runs (2 sent from
+ * another browser) and your saved answers". '' with none.
+ */
+export function earlierFromText(routes: readonly EarlierRoute[]): string {
+  const n = (s: EarlierSource) => routes.filter(r => r.source === s).length;
+  const parts: string[] = [];
+  if (n('last-search')) parts.push('your last search here');
+  const here = n('board');
+  const other = n('board-other');
+  if (here + other) {
+    const runs = here + other === 1 ? 'your board run' : 'your board runs';
+    parts.push(
+      !other ? runs : !here ? `${runs} sent from another browser` : `${runs}, ${other} of them sent from another browser`
+    );
+  }
+  if (n('saved-search')) parts.push(n('saved-search') === 1 ? 'your saved search' : 'your saved searches');
+  if (n('saved-answer')) parts.push(n('saved-answer') === 1 ? 'your saved answer' : 'your saved answers');
+  if (n('check')) parts.push(n('check') === 1 ? 'your earlier check' : 'your earlier checks');
+  if (!parts.length) return '';
+  const list = parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`;
+  return `from ${list}`;
 }
 
 // ------------------------------------------------------------------------------- refine

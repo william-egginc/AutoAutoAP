@@ -7,13 +7,14 @@
  *  - `createShareIdentity` / `useShareIdentity`: the consent tick, anonymous-or-named, and the name
  *    box that follows the account's own name until the player types in it. The name and the
  *    anonymous-or-named choice are one per account across the site (stores/shareName.ts): picked in
- *    one screen, they are in the others, and remembered in this browser. The consent is the one
- *    remembered in this browser (useShareConsent.ts: ticked once, shown folded by FindBar.vue,
- *    unticking withdraws it).
+ *    one screen, they are in the others, and remembered in this browser. The consent is the
+ *    account's (useShareConsent.ts over composables/useConsent.ts: remembered per account with "Remember
+ *    my choice", shown folded by ConsentBox.vue, Withdraw or unticking takes it back).
  *  - `useBoardSubmit`: the race-to-the-target send (Smart search and the Full sweep): the status
  *    message, Put my name on it, Retry the table, the rechecks worked out once consent is given,
  *    and the guard against sending a result twice. Each screen still says HOW it sends (`send`).
  *  - `useByDateShare`: the By a date send, to Compare's Egg Day or By a date tab.
+ *  - `useLightShare`: Light's result (search/lightResult.ts), Fastest or By a date, as its own row.
  */
 import { computed, ref, watch, type ComputedRef, type Ref, type WritableComputedRef } from 'vue';
 import { useShareNameStore } from '@/stores/shareName';
@@ -25,6 +26,7 @@ import { useShareConsent } from './useShareConsent';
 import { useShareExtras } from './useShareExtras';
 import type { useChainSearchStore } from '@/stores/chainSearch';
 import type { DeadlineRoute } from '@/search/deadline';
+import type { LightResult } from '@/search/lightResult';
 
 type Store = ReturnType<typeof useChainSearchStore>;
 
@@ -61,7 +63,7 @@ export interface SharedName {
 export function createShareIdentity(
   accountName: Ref<string>,
   shared?: SharedName,
-  /** The acknowledgement; the real screens pass the one remembered in this browser (useShareConsent). */
+  /** The acknowledgement; the real screens pass the account's (useShareConsent). */
   optIn: Ref<boolean> = ref(false)
 ): ShareIdentity {
   const ownAnonymous = ref<boolean | undefined>(undefined);
@@ -138,7 +140,15 @@ export type BoardStore = Pick<
   | 'isRunning'
 >;
 
-export function useBoardSubmit(store: BoardStore, effectiveNickname: Ref<string>, optIn: Ref<boolean>) {
+export function useBoardSubmit(
+  store: BoardStore,
+  effectiveNickname: Ref<string>,
+  optIn: Ref<boolean>,
+  /** The yes now is a tick given this visit (composables/useConsent.ts `consentGivenThisVisit`): with the
+   *  consent per account, a remembered yes arrives a moment after load, or with an account switch, and must
+   *  not count as a tick. Left out: every change to true counts. */
+  tickedNow: () => boolean = () => true
+) {
   const submitMessage = ref('');
   const submitOk = ref(false);
   /** "Sent, but ..." -- the summary is in and something about the table is not. Amber, not green. */
@@ -195,12 +205,12 @@ export function useBoardSubmit(store: BoardStore, effectiveNickname: Ref<string>
   watch(
     optIn,
     v => {
-      if (v) tickedThisVisit.value = true;
+      if (v && tickedNow()) tickedThisVisit.value = true;
     },
     { flush: 'sync' }
   );
   watch(
-    () => optIn.value && tickedThisVisit.value && store.bestDays > 0 && !store.isRunning,
+    () => optIn.value && tickedThisVisit.value && tickedNow() && store.bestDays > 0 && !store.isRunning,
     ready => {
       if (ready) void store.prepareRechecks();
     },
@@ -279,7 +289,7 @@ export function useByDateShare(
         : res.ok
         ? res.duplicate === 'exact'
           ? res.message
-          : `Thanks! ${sentence(res.message)} It's on ${NAMES.compare}'s ${shareTab.value} tab.`
+          : `Thanks! ${sentence(res.message)} It's on the ${NAMES.compare}'s ${shareTab.value} tab.`
         : `Not sent: ${res.message}`;
     } finally {
       sharing.value = false;
@@ -306,6 +316,95 @@ export function useByDateShare(
     resultKey,
     sentKey,
     shareTab,
+    share,
+  };
+}
+
+/** The parts of the chain search store Light's send reads (stores/chainSearch.ts). */
+export type LightShareStore = Pick<Store, 'leaderboardUrl' | 'lightSent' | 'sendLightResult' | 'retryTable' | 'pendingTable'>;
+
+/**
+ * Light's send (LightShare.vue): Light's result (search/lightResult.ts) to the board as its own row, with
+ * `level: 'light'`. Only on a press, only with the account's agreement as it is at that moment (a withdraw
+ * stops it), and once per result (store `lightSent`, remembered in this browser).
+ */
+export function useLightShare(store: LightShareStore, identity: ShareIdentity, result: Ref<LightResult | null>) {
+  const { sendCsv, diagnosticsGo } = useShareExtras();
+  const collectorConfigured = computed(() => store.leaderboardUrl.replace(/\/$/, '') !== '');
+  const sharing = ref(false);
+  const shareMessage = ref('');
+  const shareOk = ref(true);
+  const sharePartial = computed(() => /\bbut\b/.test(shareMessage.value));
+  /** Sent from this browser (this visit or an earlier one): Send locks. */
+  const sent = computed(() => store.lightSent(result.value));
+  /** Where it lands: the race (Fastest), or Compare's By a date / Egg Day tab. */
+  const shareTab = computed(() => {
+    const g = result.value?.goal;
+    if (!g || g.kind !== 'date') return '';
+    const y = eggDayYearOf(g.deadline);
+    return y ? `Egg Day ${y}` : 'By a date';
+  });
+  const retryingTable = ref(false);
+  async function retryTable(): Promise<void> {
+    if (retryingTable.value) return;
+    retryingTable.value = true;
+    try {
+      const res = await store.retryTable('light');
+      shareOk.value = res.ok;
+      shareMessage.value = res.ok ? `Thanks! ${sentence(res.message)}` : `Not sent: ${res.message}`;
+    } finally {
+      retryingTable.value = false;
+    }
+  }
+  async function share(note?: string): Promise<void> {
+    const r = result.value;
+    if (!r || sharing.value) return;
+    // Read live: a withdraw since the box was drawn stops the send.
+    if (!identity.optIn.value) {
+      shareOk.value = false;
+      shareMessage.value = 'Not sent: agree to share on the leaderboard first.';
+      return;
+    }
+    if (sent.value) {
+      shareOk.value = true;
+      shareMessage.value = 'Already on the board: this result was sent from this browser.';
+      return;
+    }
+    sharing.value = true;
+    shareOk.value = true;
+    shareMessage.value = '';
+    try {
+      const name = identity.anonymous.value ? '' : identity.nickname.value.trim().slice(0, 40);
+      const res = await store.sendLightResult({
+        result: r,
+        nickname: name,
+        ...(note !== undefined ? { note } : {}),
+        sendCsv: sendCsv.value,
+        diagnostics: diagnosticsGo.value,
+      });
+      shareOk.value = res.ok && !res.quarantined;
+      const where = shareTab.value ? `${NAMES.compare}'s ${shareTab.value} tab` : NAMES.compare;
+      shareMessage.value = res.quarantined
+        ? res.message
+        : res.ok
+          ? res.duplicate === 'exact'
+            ? res.message
+            : `Thanks! ${sentence(res.message)} It's on the ${where}.`
+          : `Not sent: ${res.message}`;
+    } finally {
+      sharing.value = false;
+    }
+  }
+  return {
+    collectorConfigured,
+    sharing,
+    shareMessage,
+    shareOk,
+    sharePartial,
+    sent,
+    shareTab,
+    retryingTable,
+    retryTable,
     share,
   };
 }

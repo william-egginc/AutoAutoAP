@@ -254,79 +254,114 @@
               :reach-at="dateExact.end"
               :zone="zone"
             />
-            <!-- Every number of ascensions, inside the answer's card above its buttons (the user, 12 Oct 2026). -->
-            <div v-if="dateRows.length > 1" class="overflow-x-auto rounded-lg bg-white/70 px-2 py-1">
+            <!-- Every number of ascensions, inside the answer's card above its buttons (the user, 12 Oct 2026).
+                 Fits a desktop card (18 Oct 2026: at a ~1000 px card the Route column and its buttons were cut
+                 off): only the table scrolls, and only below its min-w-[32rem] (phones); the intro and the maxed
+                 line stay put. Cells wrap: the at-once line, the route, the button under the route. -->
+            <div v-if="dateRows.length > 1" class="rounded-lg bg-white/70 px-2 py-1" data-testid="counts-card">
               <p class="text-[11px] text-slate-500">
-                Exact = the full simulator on your account; filled in automatically. Simulate this plan opens that route in
-                {{ NAMES.classic }}, simulated step by step on your save: each ascension, its dates and purchases.
+                Exact = the full simulator on your account; filled in automatically. {{ simulateNote() }}
               </p>
-              <table class="w-full text-[12px] whitespace-nowrap">
-                <thead>
-                  <tr class="text-left text-[9px] font-black uppercase tracking-widest text-slate-400">
-                    <th class="py-1 pr-3">Ascensions</th>
-                    <th class="py-1 pr-3">Instant answer</th>
-                    <th class="py-1 pr-3">Exact, your account</th>
-                    <th class="py-1 pr-3">Spare</th>
-                    <th class="py-1 pr-3">Route</th>
-                    <th class="py-1"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr
-                    v-for="r in dateRows"
-                    :key="r.legs.length"
-                    class="border-t border-slate-100"
-                    :class="dateExact && dateExactByK[r.legs.length]?.chain === dateExact.chain ? 'bg-emerald-50/60' : ''"
-                  >
-                    <td class="py-1.5 pr-3 font-bold text-slate-800">{{ r.legs.length }}</td>
-                    <td class="py-1.5 pr-3 text-slate-600 whitespace-nowrap">
-                      {{ r.legs[r.legs.length - 1].endTE }} TE · {{ days(deadline - r.end) }}
-                    </td>
-                    <td class="py-1.5 pr-3 whitespace-nowrap font-bold text-slate-800">
-                      <template v-if="dateExactByK[r.legs.length]">{{ dateExactByK[r.legs.length]!.endTE }} TE</template>
-                      <template v-else-if="dateExactByK[r.legs.length] === null">misses</template>
-                      <span v-else-if="exactStatus === 'running'" class="text-slate-400 font-normal">…</span>
-                      <!-- Light's price of this row's route at once (StrongerCheck.vue), as it lands. -->
-                      <span
-                        v-if="atOnceText(dateRowChain(r))"
-                        class="block text-[10px] font-normal text-indigo-700"
-                        data-testid="at-once-line"
-                        >{{ atOnceText(dateRowChain(r)) }}</span
-                      >
-                    </td>
-                    <td class="py-1.5 pr-3 whitespace-nowrap">
-                      <template v-if="dateExactByK[r.legs.length]">
-                        <span
-                          :class="
-                            spareOf(dateExactByK[r.legs.length]!) < TIGHT_SECONDS
-                              ? 'text-amber-700 font-black'
-                              : 'text-emerald-800 font-bold'
-                          "
-                          >{{ days(spareOf(dateExactByK[r.legs.length]!)) }}</span
+              <div class="overflow-x-auto" data-testid="counts-scroll">
+                <table class="w-full min-w-[32rem] text-[12px]" data-testid="counts-table">
+                  <thead>
+                    <tr class="text-left text-[9px] font-black uppercase tracking-widest text-slate-400 align-bottom">
+                      <th class="py-1 pr-2">Ascensions</th>
+                      <th class="py-1 pr-2">Instant answer</th>
+                      <th class="py-1 pr-2">Exact, your account</th>
+                      <th class="py-1 pr-2">Spare</th>
+                      <th class="py-1">Route</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <template v-for="r in dateRows" :key="r.legs.length">
+                    <tr
+                      class="border-t border-slate-100"
+                      :class="dateExact && dateExactByK[r.legs.length]?.chain === dateExact.chain ? 'bg-emerald-50/60' : ''"
+                    >
+                      <td class="py-1.5 pr-2 font-bold text-slate-800 whitespace-nowrap align-top">
+                        <!-- The arrow: when each stop and egg happens, from Check exactly's legs (RouteTimeline.vue). -->
+                        <button
+                          v-if="rowLegs(dateRowChain(r))"
+                          type="button"
+                          class="mr-1 text-slate-400 hover:text-emerald-700"
+                          :aria-expanded="openRow === key(dateRowChain(r))"
+                          :aria-label="`Show when each stop of ${dateRowChain(r).join(' ')} happens`"
+                          data-testid="instant-row-expand"
+                          @click="toggleRow(dateRowChain(r))"
                         >
+                          {{ openRow === key(dateRowChain(r)) ? '⌄' : '›' }}
+                        </button>
+                        {{ r.legs.length }}
+                      </td>
+                      <td class="py-1.5 pr-2 text-slate-600 align-top">
+                        <span class="whitespace-nowrap">{{ r.legs[r.legs.length - 1].endTE }} TE</span> ·
+                        <span class="whitespace-nowrap">{{ days(deadline - r.end) }}</span>
+                      </td>
+                      <td class="py-1.5 pr-2 font-bold text-slate-800 align-top">
+                        <template v-if="dateExactByK[r.legs.length]">{{ dateExactByK[r.legs.length]!.endTE }} TE</template>
+                        <template v-else-if="dateExactByK[r.legs.length] === null">misses</template>
+                        <span v-else-if="exactStatus === 'running'" class="text-slate-400 font-normal">…</span>
+                        <!-- Light's price of this row's route at once (StrongerCheck.vue), as it lands. -->
                         <span
-                          v-if="spareOf(dateExactByK[r.legs.length]!) < TIGHT_SECONDS"
-                          class="ml-1 px-1 py-0.5 rounded bg-amber-100 text-amber-800 text-[8px] font-black uppercase"
-                          >tight</span
+                          v-if="atOnceText(dateRowChain(r))"
+                          class="block min-w-[9rem] max-w-[13rem] whitespace-normal text-[10px] font-normal leading-snug text-indigo-700"
+                          data-testid="at-once-line"
+                          >{{ atOnceText(dateRowChain(r)) }}</span
                         >
-                      </template>
-                    </td>
-                    <td class="py-1.5 pr-3 font-mono-premium text-slate-800">
-                      {{ (dateExactByK[r.legs.length] ?? tableDate(r)).chain.join(' ') }}
-                    </td>
-                    <td class="py-1.5 text-right">
-                      <button
-                        type="button"
-                        class="px-2 py-1 rounded-md border border-slate-300 text-[9px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-800"
-                        :title="`Opens this route in ${NAMES.classic}, simulated step by step on your save`"
-                        @click="openPlan((dateExactByK[r.legs.length] ?? tableDate(r)).chain)"
-                      >
-                        Simulate this plan
-                      </button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+                      </td>
+                      <td class="py-1.5 pr-2 whitespace-nowrap align-top">
+                        <template v-if="dateExactByK[r.legs.length]">
+                          <span
+                            :class="
+                              spareOf(dateExactByK[r.legs.length]!) < TIGHT_SECONDS
+                                ? 'text-amber-700 font-black'
+                                : 'text-emerald-800 font-bold'
+                            "
+                            >{{ days(spareOf(dateExactByK[r.legs.length]!)) }}</span
+                          >
+                          <span
+                            v-if="spareOf(dateExactByK[r.legs.length]!) < TIGHT_SECONDS"
+                            class="ml-1 px-1 py-0.5 rounded bg-amber-100 text-amber-800 text-[8px] font-black uppercase"
+                            >tight</span
+                          >
+                        </template>
+                      </td>
+                      <!-- The route, with its Simulate button beside it when the card has room and under it when not. -->
+                      <td class="py-1.5 align-top" data-testid="counts-route">
+                        <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <span class="font-mono-premium text-slate-800">{{
+                            (dateExactByK[r.legs.length] ?? tableDate(r)).chain.join(' ')
+                          }}</span>
+                          <button
+                            type="button"
+                            class="px-2 py-1 rounded-md border border-slate-300 text-[9px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-800 whitespace-nowrap"
+                            :title="SIMULATE_TITLE"
+                            @click="openPlan((dateExactByK[r.legs.length] ?? tableDate(r)).chain)"
+                          >
+                            Simulate this plan
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                    <tr v-if="openRow === key(dateRowChain(r)) && rowLegs(dateRowChain(r))" class="bg-slate-50">
+                      <td colspan="5" class="px-2 py-2">
+                        <div class="space-y-1" data-testid="instant-row-timeline">
+                          <template v-if="exactLegsOf(dateRowChain(r))">
+                            <p class="text-[10px] font-black uppercase tracking-widest text-slate-400">Check exactly: each ascension on the hour</p>
+                            <RouteTimeline :chain="dateRowChain(r)" :legs="exactLegsOf(dateRowChain(r))" :zone="zone" />
+                          </template>
+                          <template v-if="atOnceLegsOf(dateRowChain(r))">
+                            <p class="mt-2 text-[10px] font-black uppercase tracking-widest text-indigo-500">Light: each ascension at once</p>
+                            <RouteTimeline :chain="dateRowChain(r)" :legs="atOnceLegsOf(dateRowChain(r))" :zone="zone" />
+                          </template>
+                        </div>
+                      </td>
+                    </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </div>
               <MaxedWhatIf
                 v-if="whatIf"
                 v-bind="whatIf"
@@ -363,7 +398,7 @@
               On your account none of these routes reaches above your TE by the date. Check exactly searches for yours.
             </p>
             <p v-if="small && exactStatus === 'idle'" class="text-[11px] text-slate-500">
-              On this device the full simulator's check runs only when you press Check exactly: it uses every core for a
+              On {{ thisDevice() }} the full simulator's check runs only when you press Check exactly: it uses every core for a
               minute or more.
             </p>
             <button
@@ -393,7 +428,7 @@
             <button
               type="button"
               class="mt-1 ml-2 px-3 py-1.5 rounded-lg border border-emerald-700 text-emerald-800 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-50"
-              :title="`Opens this route in ${NAMES.classic}, simulated step by step on your save`"
+              :title="SIMULATE_TITLE"
               @click="openPlan((dateExact ?? tableDate(result.byDate)).chain)"
             >
               Simulate this plan
@@ -452,72 +487,104 @@
             :reach-at="exactOf(lead)!.end"
             :zone="zone"
           />
-          <!-- Every number of ascensions, inside the answer's card above its buttons (the user, 12 Oct 2026). -->
-          <div class="overflow-x-auto rounded-lg bg-white/70 px-2 py-1">
+          <!-- Every number of ascensions, inside the answer's card above its buttons (the user, 12 Oct 2026).
+               Only the table scrolls, and only on phones (see By a date's table above). -->
+          <div class="rounded-lg bg-white/70 px-2 py-1" data-testid="counts-card">
             <p class="text-[11px] text-slate-500">
-              Exact = the full simulator on your account; filled in automatically. Simulate this plan opens that route in
-              {{ NAMES.classic }}, simulated step by step on your save: each ascension, its dates and purchases.
+              Exact = the full simulator on your account; filled in automatically. {{ simulateNote() }}
             </p>
-            <table class="w-full text-[12px] whitespace-nowrap">
-              <thead>
-                <tr class="text-left text-[9px] font-black uppercase tracking-widest text-slate-400">
-                  <th class="py-1 pr-3">Ascensions</th>
-                  <th class="py-1 pr-3">Reaches {{ store.finalTE }}</th>
-                  <th class="py-1 pr-3">Behind</th>
-                  <th class="py-1 pr-3">Exact, your account</th>
-                  <th class="py-1 pr-3">Route</th>
-                  <th class="py-1"></th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="r in shownRows"
-                  :key="r.legs.length"
-                  class="border-t border-slate-100"
-                  :class="r === lead ? 'bg-emerald-50/60' : ''"
-                >
-                  <td class="py-1.5 pr-3 font-bold text-slate-800">{{ r.legs.length }}</td>
-                  <td class="py-1.5 pr-3 text-slate-700 whitespace-nowrap">{{ show(r.end) }}</td>
-                  <td class="py-1.5 pr-3 text-slate-500 whitespace-nowrap">
-                    {{ behind(r) }}
-                    <span
-                      v-if="!deadline && nearTie(r)"
-                      class="block min-w-[13rem] max-w-[15rem] whitespace-normal text-[10px] leading-snug"
-                      :class="nearTie(r)!.kind === 'fewer' ? 'font-semibold text-emerald-700' : 'text-slate-400'"
-                      :data-testid="`near-tie-${nearTie(r)!.kind}`"
-                      >{{ nearTie(r)!.text }}</span
+            <div class="overflow-x-auto" data-testid="counts-scroll">
+              <table class="w-full min-w-[32rem] text-[12px]" data-testid="counts-table">
+                <thead>
+                  <tr class="text-left text-[9px] font-black uppercase tracking-widest text-slate-400 align-bottom">
+                    <th class="py-1 pr-2">Ascensions</th>
+                    <th class="py-1 pr-2">Reaches {{ store.finalTE }}</th>
+                    <th class="py-1 pr-2">Behind</th>
+                    <th class="py-1 pr-2">Exact, your account</th>
+                    <th class="py-1">Route</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template v-for="r in shownRows" :key="r.legs.length">
+                  <tr class="border-t border-slate-100" :class="r === lead ? 'bg-emerald-50/60' : ''">
+                    <td class="py-1.5 pr-2 font-bold text-slate-800 whitespace-nowrap align-top">
+                      <!-- The arrow: when each stop and egg happens, from Check exactly's legs (RouteTimeline.vue). -->
+                      <button
+                        v-if="rowLegs(r.chain)"
+                        type="button"
+                        class="mr-1 text-slate-400 hover:text-emerald-700"
+                        :aria-expanded="openRow === key(r.chain)"
+                        :aria-label="`Show when each stop of ${r.chain.join(' ')} happens`"
+                        data-testid="instant-row-expand"
+                        @click="toggleRow(r.chain)"
+                      >
+                        {{ openRow === key(r.chain) ? '⌄' : '›' }}
+                      </button>
+                      {{ r.legs.length }}
+                    </td>
+                    <td class="py-1.5 pr-2 text-slate-700 whitespace-nowrap align-top">{{ show(r.end) }}</td>
+                    <td class="py-1.5 pr-2 text-slate-500 align-top">
+                      <span class="whitespace-nowrap">{{ behind(r) }}</span>
+                      <span
+                        v-if="!deadline && nearTie(r)"
+                        class="block min-w-[9rem] max-w-[13rem] whitespace-normal text-[10px] leading-snug"
+                        :class="nearTie(r)!.kind === 'fewer' ? 'font-semibold text-emerald-700' : 'text-slate-400'"
+                        :data-testid="`near-tie-${nearTie(r)!.kind}`"
+                        >{{ nearTie(r)!.text }}</span
+                      >
+                    </td>
+                    <td
+                      class="py-1.5 pr-2 align-top"
+                      :class="r === exactBest ? 'font-bold text-emerald-800' : 'text-slate-700'"
                     >
-                  </td>
-                  <td
-                    class="py-1.5 pr-3 whitespace-nowrap"
-                    :class="r === exactBest ? 'font-bold text-emerald-800' : 'text-slate-700'"
-                  >
-                    <template v-if="exactOf(r)">{{ show(exactOf(r)!.end) }} · {{ days(exactOf(r)!.seconds) }}</template>
-                    <template v-else-if="exactOf(r) === null">couldn’t price</template>
-                    <span v-else-if="exactStatus === 'running'" class="text-slate-400">…</span>
-                    <!-- Light's price of this route at once (StrongerCheck.vue), as it lands. -->
-                    <span
-                      v-if="atOnceText(r.chain)"
-                      class="block text-[10px] font-normal text-indigo-700"
-                      data-testid="at-once-line"
-                      >{{ atOnceText(r.chain) }}</span
-                    >
-                  </td>
-                  <td class="py-1.5 pr-3 font-mono-premium text-slate-800">{{ r.chain.join(' ') }}</td>
-                  <td class="py-1.5 text-right">
-                    <button
-                      type="button"
-                      class="px-2 py-1 rounded-md border border-slate-300 text-[9px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-800"
-                      :disabled="r.chain.length < 2"
-                      :title="`Opens this route in ${NAMES.classic}, simulated step by step on your save`"
-                      @click="openPlan(r.chain)"
-                    >
-                      Simulate this plan
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+                      <template v-if="exactOf(r)"
+                        ><span class="whitespace-nowrap">{{ show(exactOf(r)!.end) }}</span> ·
+                        <span class="whitespace-nowrap">{{ days(exactOf(r)!.seconds) }}</span></template
+                      >
+                      <template v-else-if="exactOf(r) === null">couldn’t price</template>
+                      <span v-else-if="exactStatus === 'running'" class="text-slate-400">…</span>
+                      <!-- Light's price of this route at once (StrongerCheck.vue), as it lands. -->
+                      <span
+                        v-if="atOnceText(r.chain)"
+                        class="block min-w-[9rem] max-w-[13rem] whitespace-normal text-[10px] font-normal leading-snug text-indigo-700"
+                        data-testid="at-once-line"
+                        >{{ atOnceText(r.chain) }}</span
+                      >
+                    </td>
+                    <!-- The route, with its Simulate button beside it when the card has room and under it when not. -->
+                    <td class="py-1.5 align-top" data-testid="counts-route">
+                      <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <span class="font-mono-premium text-slate-800">{{ r.chain.join(' ') }}</span>
+                        <button
+                          type="button"
+                          class="px-2 py-1 rounded-md border border-slate-300 text-[9px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-800 whitespace-nowrap"
+                          :disabled="r.chain.length < 2"
+                          :title="SIMULATE_TITLE"
+                          @click="openPlan(r.chain)"
+                        >
+                          Simulate this plan
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr v-if="openRow === key(r.chain) && rowLegs(r.chain)" class="bg-slate-50">
+                    <td colspan="5" class="px-2 py-2">
+                      <div class="space-y-1" data-testid="instant-row-timeline">
+                        <template v-if="exactLegsOf(r.chain)">
+                          <p class="text-[10px] font-black uppercase tracking-widest text-slate-400">Check exactly: each ascension on the hour</p>
+                          <RouteTimeline :chain="r.chain" :legs="exactLegsOf(r.chain)" :zone="zone" />
+                        </template>
+                        <template v-if="atOnceLegsOf(r.chain)">
+                          <p class="mt-2 text-[10px] font-black uppercase tracking-widest text-indigo-500">Light: each ascension at once</p>
+                          <RouteTimeline :chain="r.chain" :legs="atOnceLegsOf(r.chain)" :zone="zone" />
+                        </template>
+                      </div>
+                    </td>
+                  </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
             <!-- Counts past the best + 1 add stops that no longer help (routeFinder.ts USEFUL_STOP_MAX). -->
             <button
               v-if="hiddenCounts || showMoreCounts"
@@ -563,7 +630,7 @@
             {{ exactText }}
           </p>
           <p v-if="small && exactStatus === 'idle'" class="text-[11px] text-slate-500">
-            On this device the full simulator's check runs only when you press Check exactly: it uses every core for a
+            On {{ thisDevice() }} the full simulator's check runs only when you press Check exactly: it uses every core for a
             minute or more.
           </p>
           <button
@@ -591,7 +658,7 @@
           <button
             type="button"
             class="mt-1 ml-2 px-3 py-1.5 rounded-lg border border-emerald-700 text-emerald-800 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-50"
-            :title="`Opens this route in ${NAMES.classic}, simulated step by step on your save`"
+            :title="SIMULATE_TITLE"
             @click="openPlan(lead.chain)"
           >
             Simulate this plan
@@ -646,7 +713,7 @@
         The exact check on your account waits while a search is running.
       </p>
       <p v-if="result && exactStatus === 'done' && exactMs !== null" class="text-[10px] text-slate-400">
-        Checked on your account with the full simulator in {{ (exactMs / 1000).toFixed(0) }} s.
+        Checked on your account with the full simulator in {{ (exactMs / 1000).toFixed(0) }} s.<template v-if="exactPricedWith">{{ ' ' }}{{ exactPricedWith }}.</template>
       </p>
       <!-- This account's Check exactly results on this computer (search/checkHistory.ts), shared or not. -->
       <details v-if="history.length" class="text-[11px] text-slate-600" data-testid="check-history">
@@ -712,7 +779,7 @@
           </table>
         </div>
         <p class="mt-1 flex flex-wrap items-center gap-x-3 text-[10px] text-slate-400">
-          <span>Kept on this computer only, for this account; the last {{ HISTORY_CAP }} checks.</span>
+          <span>Kept on {{ thisDevice() }} only, for this account; the last {{ HISTORY_CAP }} checks.</span>
           <button
             type="button"
             class="font-bold text-slate-500 hover:text-rose-700 underline decoration-dotted"
@@ -826,7 +893,7 @@ import { availabilityKey, type Availability } from '@/search/availabilitySchedul
 import { describeColleggtibles } from '@/search/progression';
 import { poolSize, RoutePool } from '@/search/routePool';
 import { describeGear, isMaxed, pickBracket, type TableEntry } from '@/search/tableBracket';
-import { isSmallDevice } from '@/search/device';
+import { isSmallDevice, thisDevice } from '@/search/device';
 import {
   answerInputsKey,
   backgroundMayStart,
@@ -842,6 +909,7 @@ import InstantRunWarning from './InstantRunWarning.vue';
 import InstantShareCheck from './InstantShareCheck.vue';
 import PrestigeByLine from './PrestigeByLine.vue';
 import RouteExtras from './RouteExtras.vue';
+import RouteTimeline from './RouteTimeline.vue';
 import { useStrongerStore } from '@/stores/stronger';
 import { usePrestigeBy, recordsPrestigeBy } from '@/composables/usePrestigeBy';
 import {
@@ -867,7 +935,9 @@ import { useIntegrityProbe } from '@/composables/useIntegrityProbe';
 import { useInstantDuringSearch } from '@/composables/useInstantDuringSearch';
 import { readSnapshot, recallShown, rememberShown, snapshotUsable, writeSnapshot } from '@/search/instantSnapshot';
 import { simulateRoute } from '@/search/simulateRoute';
-import { NAMES } from '@/lib/siteNav';
+import { NAMES, SIMULATE_TITLE, simulateNote } from '@/lib/siteNav';
+import { pricedWithLine } from '@/lib/pricedWith';
+import type { FirstLegsRequest } from '@/workers/routeFinder.protocol';
 import { createChainSearchPool, type ChainSearchPool, type EvaluateOptions } from '@/search/pool';
 import type { HandoffChoice } from '@/search/chain';
 import type { ChainResult } from '@/search/types';
@@ -1256,6 +1326,14 @@ const whatIf = computed(() => {
     legs: w.legs,
     hours: w.hours,
     mine: { end: mine?.end ?? null, te: mine ? mine.legs[mine.legs.length - 1].endTE : 0 },
+    // Check exactly's answer, once in: the line then says "instead of 248 (instant answer; exact on your account: 247)".
+    exact: props.deadline
+      ? dateExact.value
+        ? { end: dateExact.value.end, te: dateExact.value.endTE }
+        : null
+      : exactBest.value && exactOf(exactBest.value)
+        ? { end: exactOf(exactBest.value)!.end, te: exactOf(exactBest.value)!.endTE }
+        : null,
     alreadyMaxed:
       !own.value && !gearTable.value && deliveryScale.value !== null && isMaxed({ bonus: bonus.value, k: deliveryScale.value }),
   };
@@ -1923,6 +2001,9 @@ const exact = ref<Record<string, Exact | null>>({});
 const exactStatus = ref<'idle' | 'running' | 'done' | 'error' | 'waiting'>('idle');
 const exactText = ref('');
 const exactMs = ref<number | null>(null);
+/** "Priced with your hours 9 am to 1 am, no time off": the exact check's own hours and time off, taken when it
+ *  starts (lib/pricedWith.ts, 16 Oct 2026); '' for a check restored from an earlier visit. */
+const exactPricedWith = ref('');
 /** A date answer: a route, the TE it ends at and the unix second it gets there. */
 interface DateExact {
   chain: number[];
@@ -2013,6 +2094,7 @@ async function runExact(id: number, found: NonNullable<typeof result.value>, man
   dateExact.value = null;
   dateExactByK.value = {};
   exactMs.value = null;
+  exactPricedWith.value = '';
   // An account the integrity check blocks has no routes to check (the panel says why).
   if (store.integrityBlocked) {
     exactStatus.value = 'idle';
@@ -2036,6 +2118,11 @@ async function runExact(id: number, found: NonNullable<typeof result.value>, man
   try {
     const inputs = store.collectInputs();
     answerStart.value = inputs.planStart;
+    // The hours and time off this check prices with, as it starts: what the line under it names.
+    exactPricedWith.value = pricedWithLine({
+      availability: inputs.availability,
+      timeOff: JSON.parse(JSON.stringify(store.timeOff)),
+    });
     const size = Math.max(1, Math.min(store.workerBudget, routes.length, 4));
     exactPool = await createChainSearchPool(inputs, { size });
     if (id !== runs) return;
@@ -2310,6 +2397,26 @@ const lightRows = computed<AtOnceItem[]>(() =>
     : shownRows.value.map(r => ({ chain: [...r.chain], count: r.legs.length }))
 );
 /** "at once, on your hours: Feb 16, 9:40 PM (−0.40 days)" under a row, once Light has priced it. */
+/** The counts row whose arrow is open (its route's key); '' for none. */
+const openRow = ref('');
+function toggleRow(chain: number[]): void {
+  openRow.value = openRow.value === key(chain) ? '' : key(chain);
+}
+/** A counts row's legs to show under its arrow: Check exactly's (on the hour), or Light's at once when
+ *  only that priced it. Null when neither did. */
+function rowLegs(chain: number[]): ChainResult['legs'] | null {
+  return exactLegsOf(chain) ?? atOnceLegsOf(chain);
+}
+/** Check exactly's legs for a route (on the hour), and Light's at once; null when not priced that way. */
+function exactLegsOf(chain: number[]): ChainResult['legs'] | null {
+  const legs = exact.value[key(chain)]?.legs;
+  return legs?.length ? legs : null;
+}
+function atOnceLegsOf(chain: number[]): ChainResult['legs'] | null {
+  const legs = strongerStore.atOnce[props.deadline ? 'date' : 'fastest'][key(chain)]?.legs;
+  return legs?.length ? legs : null;
+}
+
 function atOnceText(chain: number[]): string {
   const have = strongerStore.atOnce[props.deadline ? 'date' : 'fastest'];
   const k = key(chain);
@@ -2584,9 +2691,13 @@ watch(
       bonus.value,
       useHours.value ? availabilityKey(store.availability) : '',
       filters.value.maxAscensions,
+      // Your setup, remembered per account, still loading (stores/chainSearch.ts `loadSetupFor`): wait for
+      // it, so a reload doesn't work the answer out and start Check exactly on the defaults first.
+      store.setupLoaded,
     ]),
   () => {
     if (timer) clearTimeout(timer);
+    if (!store.setupLoaded) return;
     timer = setTimeout(() => void run(), 300);
   },
   { immediate: true }
@@ -2613,7 +2724,8 @@ function days(seconds: number): string {
  * hour, and never the same one twice.
  */
 const share = useInstantShare();
-/** "Keep sharing my checks": the per-browser setting itself (Your setup › Sharing shows the same). */
+/** "Keep sharing my checks": the account's consent itself (composables/useConsent.ts; Your setup › Sharing
+ *  shows the same). */
 const keepSharing = share.on;
 const initialState = useInitialStateStore();
 const instantUrl = instantUrlOf(store.submitUrl);
@@ -2631,10 +2743,11 @@ let doneId = -1;
 let shareUsed = false;
 /** What the last share did, for the line beside the boxes. */
 const shareNote = ref<(InstantSendOutcome & { at: number }) | null>(null);
+// Ticked: this check goes too. Withdrawn (or another account with it off): nor does this one, at once.
 watch(
   () => share.on.value,
   v => {
-    if (v) shareThis.value = true;
+    shareThis.value = v;
   }
 );
 watch(shareThis, v => {

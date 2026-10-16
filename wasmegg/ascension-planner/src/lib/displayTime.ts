@@ -83,3 +83,57 @@ export function showDay(ymd: string, style = dateStyle.value): string {
     timeZone: 'UTC',
   }).format(new Date(Date.UTC(+m[1], +m[2] - 1, +m[3])));
 }
+
+/**
+ * A moment in a sentence, in `timezone`, on the 12-hour clock: "Nov 5 at 4:00 pm", with the year only
+ * when it isn't this year ("Jan 3, 2028 at 9:00 am"), or always with `withYear` (a timeline that spans
+ * two calendar years gives every date its year, `spansYears`). The ISO style gives its fixed
+ * `2027-03-18 11:15`. '' when unknown. Each egg's moment under a route's arrow (RouteTimeline.vue).
+ */
+/**
+ * True when these moments fall in more than one calendar year in `timezone` (Dec 8 and Jan 3): one
+ * timeline decides once, so "Dec 8" never sits beside "Jan 3, 2027" (18 Oct 2026). Unknowns skipped.
+ */
+export function spansYears(unixSeconds: readonly (number | null | undefined)[], timezone: string): boolean {
+  let fmt: Intl.DateTimeFormat;
+  try {
+    fmt = new Intl.DateTimeFormat('en-US', { timeZone: timezone, year: 'numeric' });
+  } catch {
+    fmt = new Intl.DateTimeFormat('en-US', { year: 'numeric' });
+  }
+  const years = new Set<string>();
+  for (const t of unixSeconds) if (t && Number.isFinite(t)) years.add(fmt.format(new Date(t * 1000)));
+  return years.size > 1;
+}
+
+export function showWhen(
+  unixSeconds: number | null | undefined,
+  timezone: string,
+  style = dateStyle.value,
+  nowSeconds = Date.now() / 1000,
+  withYear = false
+): string {
+  if (!unixSeconds || !Number.isFinite(unixSeconds)) return '';
+  if (style === 'iso') return formatInZone(unixSeconds, timezone);
+  try {
+    const parts = (t: number) =>
+      Object.fromEntries(
+        new Intl.DateTimeFormat('en-US', {
+          timeZone: timezone,
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true,
+        })
+          .formatToParts(new Date(t * 1000))
+          .map(p => [p.type, p.value])
+      ) as Record<string, string>;
+    const p = parts(unixSeconds);
+    const year = withYear || p.year !== parts(nowSeconds).year ? `, ${p.year}` : '';
+    return `${p.month} ${p.day}${year} at ${p.hour}:${p.minute} ${(p.dayPeriod || '').toLowerCase()}`.trim();
+  } catch {
+    return formatInZone(unixSeconds, timezone);
+  }
+}

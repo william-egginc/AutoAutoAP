@@ -2251,6 +2251,79 @@ describe('dupOf never ties an anonymous row to a named one', () => {
   });
 });
 
+describe('Stronger check level (15 Oct 2026): level, atOnce, lightFrom', () => {
+  const EGG_DAY = 1815926400;
+  const FASTEST_LIGHT = { ...MINIMAL, schema: 7, chain: [195, 490], effort: 'light', level: 'light', atOnce: true, lightFrom: 'instant' };
+  const D8 = { ...MINIMAL, schema: 8, chain: [195, 238, 307], finalTE: 307, deadline: EGG_DAY, deadlineAscendAt: EGG_DAY - 46440 };
+  const D8_LIGHT = { ...D8, effort: 'deadline', level: 'light', atOnce: false, lightFrom: 'earlier' };
+
+  it('stores the three optional fields on a Light row (Fastest and By a date) and serves them', async () => {
+    expect((await post('/submit', FASTEST_LIGHT, '5.5.5.1')).status).toBe(200);
+    expect((await post('/submit', D8_LIGHT, '5.5.5.2')).status).toBe(200);
+    const rows = (await (await get('/all')).json()).rows;
+    const fastest = rows.find(r => r.finalTE === 490);
+    const byDate = rows.find(r => r.finalTE === 307);
+    expect([fastest.level, fastest.atOnce, fastest.lightFrom]).toEqual(['light', true, 'instant']);
+    expect([byDate.level, byDate.atOnce, byDate.lightFrom]).toEqual(['light', false, 'earlier']);
+    expect(byDate.effort).toBe('deadline');
+  });
+
+  it('stores level on every kind of row, and atOnce and lightFrom only on Light rows', async () => {
+    for (const level of ['quick', 'normal', 'thorough', 'exhaustive']) {
+      const r = await post('/submit', { ...MINIMAL, effort: level === 'quick' ? 'quick' : 'balanced', durationDays: 700 + level.length, level, atOnce: true, lightFrom: 'instant' }, '5.5.5.3');
+      expect(r.status).toBe(200);
+    }
+    const rows = (await (await get('/all')).json()).rows;
+    expect(rows.map(r => r.level).sort()).toEqual(['exhaustive', 'normal', 'quick', 'thorough']);
+    for (const r of rows) {
+      expect(r).not.toHaveProperty('atOnce');
+      expect(r).not.toHaveProperty('lightFrom');
+    }
+  });
+
+  it('drops a value it does not know, keeps the row, and refuses nothing', async () => {
+    const res = await post('/submit', { ...FASTEST_LIGHT, level: 'huge', atOnce: 'yes', lightFrom: 'elsewhere', effort: 'light' }, '5.5.5.4');
+    expect(res.status).toBe(200);
+    const row = (await (await get('/all')).json()).rows[0];
+    // effort 'light' still marks it Light, so atOnce/lightFrom are considered, but neither value is valid.
+    expect(row).not.toHaveProperty('level');
+    expect(row).not.toHaveProperty('atOnce');
+    expect(row).not.toHaveProperty('lightFrom');
+    expect(row.effort).toBe('light');
+  });
+
+  it('a row without them is stored exactly as before', async () => {
+    await post('/submit', MINIMAL, '5.5.5.5');
+    const row = (await (await get('/all')).json()).rows[0];
+    for (const k of ['level', 'atOnce', 'lightFrom']) expect(row).not.toHaveProperty(k);
+  });
+
+  it('a Light row is not an exact copy of a searched row of the same route (By a date says deadline for both)', async () => {
+    const searched = await (await postOwned('/submit', { ...D8, effort: 'deadline', level: 'normal' }, TOKEN_A)).json();
+    const light = await (await postOwned('/submit', D8_LIGHT, TOKEN_A)).json();
+    expect(searched.ok).toBe(true);
+    expect(light.duplicate).not.toBe('exact');
+    expect(light.id).not.toBe(searched.id);
+    expect((await (await get('/all')).json()).rows.filter(r => r.finalTE === 307)).toHaveLength(2);
+  });
+
+  it('the same Light result sent twice is still one row, and a different Light setting is another', async () => {
+    const first = await (await postOwned('/submit', D8_LIGHT, TOKEN_A)).json();
+    const again = await (await postOwned('/submit', D8_LIGHT, TOKEN_A)).json();
+    expect(again).toMatchObject({ duplicate: 'exact', id: first.id });
+    const other = await (await postOwned('/submit', { ...D8_LIGHT, atOnce: true }, TOKEN_A)).json();
+    expect(other.duplicate).not.toBe('exact');
+  });
+
+  it('an older collector keeps the three fields in the private extras: the new body is accepted (checked by name here)', async () => {
+    // The worker before this change had no whitelist entry for them, so pickExtras kept them in extra:<id>;
+    // now they are public fields on the row and so are no longer repeated in the extras.
+    const res = await post('/submit', FASTEST_LIGHT, '5.5.5.6');
+    const { id } = await res.json();
+    expect(env.SUBMISSIONS._m.get(`extra:${id}`)).toBeUndefined();
+  });
+});
+
 describe('schema 8: the highest TE by a date', () => {
   // 14 Jul 2027 09:00 PT, Egg Day.
   const EGG_DAY = 1815926400;

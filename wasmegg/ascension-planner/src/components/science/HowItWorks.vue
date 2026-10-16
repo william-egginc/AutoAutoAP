@@ -108,9 +108,10 @@
             you around the instant answer's route for each number of ascensions, each early stop a few TE either side at
             every TE, sized to stay under about 25 minutes (a cap, not a measurement). In <b>{{ NAMES.full }}</b> you
             set the boxes yourself. One 12-hour {{ NAMES.full }} run on 10 Oct simulated 153,785 routes, every route in
-            its boxes. The answer card shows your TE on each egg when the route ends, how long each egg needs for its
-            next TE at your final delivery rate, and when your next TE would come if you keep laying.
-            <b>Simulate this plan</b> opens the route in {{ NAMES.classic }}, step by step on your save.
+            its boxes. The answer card shows your TE on each egg when the route ends, the date and time each egg's next TE
+            would come at your final delivery rate, and when your next TE would come if you keep laying.
+            <b>Simulate this plan</b> opens the route in {{ NAMES.classic }} (Joo's original planner) and simulates every
+            shift on your save.
           </li>
         </ul>
         <p>
@@ -138,7 +139,7 @@
           <b>Under each answer</b> (and under the instant answer once Check exactly has run) are two short lines: when
           your first ascension switches eggs, from the simulation itself, and what one more TE above the last stop would
           take. On {{ NAMES.byDate }} that comes from the run's own numbers (what its last TE cost over the one below);
-          elsewhere it's when the next TE would come if you keep laying at the final rate.
+          elsewhere it's when the next TE would come if you keep laying the same egg at the final rate (another egg needs a shift, which starts the farm again from one chicken).
         </p>
         <p>
           <b>The memo.</b> Routes that start the same way share those ascensions exactly, so each worker remembers the

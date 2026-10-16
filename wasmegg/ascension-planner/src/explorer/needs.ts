@@ -24,6 +24,7 @@ import type { CollectorRow } from './collector';
 import { SWEEP_PRESETS } from './upload';
 import type { InventoryCount } from '@/search/csv';
 import type { ByDateRequest } from '@/search/byDateRequest';
+import { ThisDevice } from '@/search/device';
 
 export interface ComputeTier {
   id: string;
@@ -45,7 +46,7 @@ export const COMPUTE_TIERS: ComputeTier[] = [
 /** This computer as Setup has it: the worker count Setup shows (remembered, or half the cores). */
 export function yourComputer(workers: number, threads: number): ComputeTier {
   const w = Math.max(1, Math.floor(workers));
-  return { id: 'yours', label: 'This computer', detail: `${w} of ${threads} workers`, workers: w };
+  return { id: 'yours', label: ThisDevice(), detail: `${w} of ${threads} workers`, workers: w };
 }
 
 /** Seconds a sweep of `chains` at this length takes on this tier, from the board's own speeds. */

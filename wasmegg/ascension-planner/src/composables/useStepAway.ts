@@ -9,9 +9,29 @@ import { ref, watch, type Ref } from 'vue';
 import * as blackBox from '@/search/blackBox';
 import { environment } from '@/search/blackBox';
 import * as sa from '@/search/stepAway';
+import { consentAgreed, consentState } from './useConsent';
 
-/** The options, remembered per browser. All off unless the player ticks them. */
+/** The options. All off unless the player ticks them. The three ticks (carry on, the watcher tab, send my
+ *  progress) are the account's consents (composables/useConsent.ts, remembered per account) and follow
+ *  them here; the interval stays a setting of this browser. */
 export const stepAwayOptions = ref<sa.StepAwayOptions>(sa.readOptions());
+watch(
+  () =>
+    [
+      consentAgreed('carryOn'),
+      consentAgreed('watchTab'),
+      consentAgreed('autoSend'),
+      consentState.account,
+      consentState.loaded,
+    ] as const,
+  ([carryOn, watchTab, autoSend]) => {
+    const o = stepAwayOptions.value;
+    if (o.autoCarryOn !== carryOn) o.autoCarryOn = carryOn;
+    if (o.watch !== watchTab) o.watch = watchTab;
+    if (o.autoSendBest !== autoSend) o.autoSendBest = autoSend;
+  },
+  { flush: 'sync' }
+);
 /** The last thing the worker rules did, for the box to show ("Down to 6 workers at 3:07 am: ..."). */
 export const stepAwayNote = ref('');
 
@@ -101,7 +121,8 @@ function ownMark(): sa.RunMark | null {
 watch(
   stepAwayOptions,
   o => {
-    sa.writeOptions(o);
+    // The ticks are kept per account (useConsent.ts), not in this browser's options.
+    sa.writeOptions({ ...o, autoCarryOn: false, watch: false, autoSendBest: false });
     const fewerChanged = o.fewerWorkers !== fewerSeen;
     fewerSeen = o.fewerWorkers;
     const m = ownMark();

@@ -38,6 +38,8 @@ import {
   settingTags,
   type BoardRow,
   viewerTag,
+  isLightRow,
+  sameMeasurement,
 } from './leaderboardRank';
 import { sortRows } from './leaderboardSort';
 import { currentPlans } from '@/search/rechecks';
@@ -2053,5 +2055,69 @@ describe('runs hidden from the public', () => {
     // Nothing hidden: the same array, so memoised work downstream keeps its identity.
     expect(publicRows(stale, new Set())).toBe(stale);
     expect(publicRows([hid, shown], new Set()).map(r => r.id)).toEqual(['shown']);
+  });
+});
+
+describe('a Light row is a different measurement from a searched row of the same route (15 Oct 2026)', () => {
+  const base = Date.parse('2026-10-01T18:00:00Z');
+  const now = base + 3 * DAY_MS;
+  /** The same plan priced again `i` days later, from the same player. */
+  const run = (id: string, i: number, over: Partial<BoardRow> = {}) =>
+    row({
+      id,
+      acct: 'a11a11a11a11',
+      startLocal: stamp(base + i * DAY_MS, CHICAGO),
+      submittedAt: new Date(base + i * DAY_MS + 20 * 60_000).toISOString(),
+      durationDays: 663.2713 - i,
+      currentTE: 199,
+      legs: [
+        { te: 225, days: 60 - i },
+        { te: 255, days: 70 },
+        { te: 290, days: 80 },
+        { te: 328, days: 90 },
+        { te: 490, days: 363.2713 },
+      ],
+      ...over,
+    });
+  const states = (rows: BoardRow[]) => {
+    const [player] = groupPlayers(rows, { target: 490, now });
+    return Object.fromEntries(player.plans.map(p => [p.row.id, p.state]));
+  };
+
+  it('knows a Light row by level or by effort, and which pairs are the same kind', () => {
+    expect(isLightRow({ level: 'light' })).toBe(true);
+    expect(isLightRow({ effort: 'light' })).toBe(true);
+    expect(isLightRow({ level: 'normal', effort: 'balanced' })).toBe(false);
+    expect(isLightRow({})).toBe(false);
+    expect(sameMeasurement({ level: 'light' }, { effort: 'light' })).toBe(true);
+    expect(sameMeasurement({ level: 'light' }, { level: 'thorough' })).toBe(false);
+    expect(sameMeasurement({}, { level: 'quick' })).toBe(true);
+  });
+
+  it('a newer Light row does not replace an older searched row of the same plan', () => {
+    const searched = run('searched', 0, { level: 'normal', effort: 'balanced' });
+    const light = run('light', 1, { level: 'light', effort: 'light', atOnce: true });
+    expect(states([searched, light]).searched).toBe('current');
+    expect(states([searched, light]).light).toBe('current');
+  });
+
+  it('and a newer searched row does not replace an older Light row either', () => {
+    const light = run('light', 0, { level: 'light', effort: 'light' });
+    const searched = run('searched', 1, { level: 'thorough', effort: 'thorough' });
+    expect(states([light, searched])).toEqual({ light: 'current', searched: 'current' });
+  });
+
+  it('same-kind re-measurements still replace: searched by searched, Light by Light, old rows without a level', () => {
+    expect(states([run('a', 0, { level: 'normal' }), run('b', 1, { level: 'thorough' })]).a).toBe('replaced');
+    expect(states([run('a', 0, { level: 'light', effort: 'light' }), run('b', 1, { level: 'light', effort: 'light' })]).a).toBe('replaced');
+    expect(states([run('a', 0), run('b', 1)]).a).toBe('replaced');
+    expect(states([run('a', 0), run('b', 1, { level: 'quick' })]).a).toBe('replaced');
+  });
+
+  it('Light rows rank on the board like any other row', () => {
+    const light = run('light', 0, { level: 'light', effort: 'light', atOnce: true, nickname: 'Willsalt' });
+    const race = buildRace([light, rival('Kenzie', 700)], { target: 490, now });
+    expect(race.entries.map(e => e.label)).toEqual(['Willsalt', 'Kenzie'].sort((a, b) => race.entries.findIndex(e => e.label === a) - race.entries.findIndex(e => e.label === b)));
+    expect(race.entries.find(e => e.label === 'Willsalt')!.best.row.id).toBe('light');
   });
 });

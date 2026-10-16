@@ -19,13 +19,18 @@ afterEach(() => {
 
 const base = { optIn: false, anonymous: true, nickname: '' };
 
+/** `asking` is ShareResult's own; `expanded` (Change pressed, or Done not) is the consent box's `open`
+ *  (ConsentBox.vue, which folds every consent box the same way). */
 async function renderWith(props: Record<string, unknown>, setup: Record<string, unknown> = {}): Promise<string> {
   const app = createSSRApp({
     render: () => h(ShareResult, { ...base, ...props }, { opted: () => h('i', 'OPTED-SLOT') }),
   });
+  const { expanded, ...own } = setup;
   app.mixin({
     created(this: { $: { type: { __file?: string }; setupState: Record<string, unknown> } }) {
-      if (this.$.type.__file?.endsWith('/ShareResult.vue')) Object.assign(this.$.setupState, setup);
+      if (this.$.type.__file?.endsWith('/ShareResult.vue')) Object.assign(this.$.setupState, own);
+      if (expanded !== undefined && this.$.type.__file?.endsWith('/ConsentBox.vue'))
+        Object.assign(this.$.setupState, { open: expanded });
     },
   });
   return renderToString(app);
@@ -75,7 +80,9 @@ describe('ShareResult compact', () => {
   it('agreed, then Change: the full box with Done, no summary', async () => {
     const html = await renderWith({ compact: true, optIn: true }, { expanded: true });
     expect(html).toContain('data-testid="share-consent"');
-    expect(html).toContain('data-testid="share-fold"');
+    // "Remember my choice" and Withdraw (ConsentBox.vue), where "Remembered in this browser" was.
+    expect(html).toContain('data-testid="consent-remember"');
+    expect(html).toContain('data-testid="consent-withdraw"');
     expect(html).toContain('data-testid="share-done"');
     expect(textOf(html)).toContain('Done');
     expect(textOf(html)).not.toContain('Fold this away');
@@ -112,16 +119,21 @@ describe('ShareResult not compact', () => {
       expect(html).toContain('data-testid="share-consent"');
       expect(html).not.toContain('data-testid="consent-summary"');
       expect(html).not.toContain('data-testid="share-ask"');
-      expect(html).not.toContain('data-testid="share-fold"');
       expect(html).not.toContain('data-testid="share-done"');
+      // Agreed: Withdraw and "Remember my choice" are there all the same.
+      expect(html.includes('data-testid="consent-withdraw"')).toBe(optIn);
     }
   });
 });
 
 describe('ShareResult source', () => {
-  it('opens the choices for a box ticked now (optIn true sets expanded)', () => {
-    const src = fs.readFileSync(path.join(__dirname, 'ShareResult.vue'), 'utf8');
+  it('opens the choices for a box ticked now (the consent box opens on its own tick)', () => {
+    const src = fs.readFileSync(path.join(__dirname, 'ConsentBox.vue'), 'utf8');
     // A watch can't fire in a server render, so this is checked in the source.
-    expect(src).toMatch(/watch\(optIn,\s*v\s*=>\s*\{[^}]*expanded\.value\s*=\s*v;/);
+    expect(src).toMatch(/function set\(v: boolean\): void \{[^}]*agreed\.value = v;\s*if \(v\) open\.value = true;/);
+    // Withdrawn (from anywhere): back to the full box.
+    expect(src).toMatch(/watch\(agreed,\s*v\s*=>\s*\{[^}]*else open\.value = false;/);
+    const share = fs.readFileSync(path.join(__dirname, 'ShareResult.vue'), 'utf8');
+    expect(share).toMatch(/<ConsentBox[\s\S]*?consent-id="leaderboard"[\s\S]*?:foldable="compact"/);
   });
 });

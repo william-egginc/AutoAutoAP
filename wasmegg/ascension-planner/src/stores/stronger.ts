@@ -11,6 +11,8 @@
  */
 import { defineStore } from 'pinia';
 import { ref, watch } from 'vue';
+import type { LegSummary } from '@/search/types';
+import type { LightResult } from '@/search/lightResult';
 
 export type StrongerLevel = 'light' | 'quick' | 'normal' | 'thorough';
 const KEY = 'aap-stronger-level';
@@ -62,17 +64,21 @@ export interface LightStatus {
   step?: string;
   /** "Fastest as you'd play it: …" once a route is priced at once. */
   summary?: string;
+  /** Where the earlier routes came from: "from your board runs sent from another browser". */
+  from?: string;
 }
 export function idleLight(): LightStatus {
   return { state: 'idle', priced: 0, total: 0, at: 0 };
 }
 
-/** A route priced at once (Light): when it ends and at what TE. */
+/** A route priced at once (Light): when it ends and at what TE, and its legs (since 15 Oct 2026, for the
+ *  instant answer's row arrows: a few kB for the eight or so routes Light prices). */
 export interface AtOncePriced {
   chain: number[];
   seconds: number;
   end: number;
   endTE: number;
+  legs?: LegSummary[];
 }
 
 export const useStrongerStore = defineStore('stronger', () => {
@@ -113,5 +119,8 @@ export const useStrongerStore = defineStore('stronger', () => {
   /** Check exactly on the instant answer (InstantRoute.vue): going or not, and how many of its routes are priced, so
    *  Light's status sign can say what it is waiting for. */
   const exact = ref({ running: false, done: 0, total: 0 });
-  return { level, strongerBest, instant, earlierChains, lastSearch, light, atOnce, exact };
+  /** Light's result to send (search/lightResult.ts), per goal: set by StrongerCheck.vue once Light is done,
+   *  null while it runs, before it and after a new answer. LightShare.vue sends it. This visit only. */
+  const lightResult = ref<{ fastest: LightResult | null; date: LightResult | null }>({ fastest: null, date: null });
+  return { level, strongerBest, instant, earlierChains, lastSearch, light, atOnce, exact, lightResult };
 });

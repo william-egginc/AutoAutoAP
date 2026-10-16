@@ -23,7 +23,7 @@
       <p class="text-[10px] text-slate-400 max-w-md">
         The ranges below are fitted to this: your 1st ascension's range starts just above your TE. Times are estimates
         from the speeds other players' runs recorded<template v-if="workers && threads"
-          >, on the {{ workers }} workers Setup gives searches on this computer</template
+          >, on the {{ workers }} workers Setup gives searches on {{ thisDevice() }}</template
         >; the planner's Re-benchmark button measures your own machine.
       </p>
     </div>
@@ -180,7 +180,7 @@
                 {{
                   need.byDate
                     ? `Switches to ${NAMES.byDate} with this filled in; nothing starts until you press Find.`
-                    : 'Shows how many routes and about how long on this computer before anything starts.'
+                    : `Shows how many routes and about how long on ${thisDevice()} before anything starts.`
                 }}
               </span>
             </template>
@@ -208,6 +208,7 @@
 </template>
 
 <script setup lang="ts">
+import { thisDevice } from '@/search/device';
 import { plural } from '@/lib/format';
 import { NAMES, fastestName } from '@/lib/siteNav';
 import { computed, ref, watch } from 'vue';

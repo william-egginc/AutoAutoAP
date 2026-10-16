@@ -35,7 +35,8 @@ describe('where "When should I start?" sits (Science since 14 Oct)', () => {
   it('not on Fastest route any more; Science › When should I start? has it; the answers link to it', () => {
     expect(read('FastestRoute.vue')).not.toContain('StartTimeCard');
     expect(app).toContain(`<StartTimeCard v-else-if="scienceView === 'start'" />`);
-    expect(app).toContain("{ id: 'start', label: NAMES.start }");
+    // Only before the player is on virtue (lib/onVirtue.ts, 16 Oct 2026).
+    expect(app).toContain("{ id: 'start' as const, label: NAMES.start }");
     for (const f of ['ChainSearchPanel.vue', 'InsanePanel.vue']) {
       const s = read(f);
       expect(s).not.toContain('<StartTimeFinder');

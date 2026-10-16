@@ -32,6 +32,8 @@ const props = defineProps<{
   hours: Availability | null;
   /** The player's own answer: when it reaches the target (Fastest), the TE by the date (By a date). */
   mine: { end: number | null; te: number };
+  /** Check exactly's answer for the same goal, once known (search/maxedWhatIf.ts `exact`). */
+  exact?: { end: number | null; te: number } | null;
   /** On the maxed table at maxed gear already: nothing to compare. */
   alreadyMaxed: boolean;
   tableUrl: string;
@@ -56,6 +58,7 @@ const text = computed(() =>
         deadline: props.deadline,
         final: props.final,
         mine: props.mine,
+        exact: props.exact ?? null,
         maxed: maxed.value,
         show: t => showDateTime(t, props.zone),
       })

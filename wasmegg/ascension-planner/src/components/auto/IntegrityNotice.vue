@@ -27,7 +27,7 @@
     -->
     <p v-if="!initialState.rawBackup">
       <span class="font-black uppercase tracking-wide">Your save didn't load.</span>
-      Fetching it failed ({{ ui.staleBackup }}) and there's no earlier copy on this device, so there is nothing to plan
+      Fetching it failed ({{ ui.staleBackup }}) and there's no earlier copy on {{ thisDevice() }}, so there is nothing to plan
       from yet. Try again in a minute.
     </p>
     <p v-else>
@@ -74,6 +74,7 @@
 </template>
 
 <script setup lang="ts">
+import { thisDevice } from '@/search/device';
 import { computed } from 'vue';
 import BlackBoxNotice from './BlackBoxNotice.vue';
 

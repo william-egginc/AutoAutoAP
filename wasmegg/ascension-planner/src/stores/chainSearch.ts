@@ -20,6 +20,19 @@ import { CHART_AUTO_LIMIT, addToHeat, createHeat, heatSnapshot, type HeatSnapsho
 import { getSimulationContext, createBaseEngineState } from '@/engine/adapter';
 import { getLocalTimestampInTimezone } from '@/lib/events';
 import { hashID } from '@/lib/storage/db';
+import { accountHash, accountHashNow } from '@/lib/accountHash';
+import {
+  isDefaultSetup,
+  mergeSetup,
+  readSetup,
+  removeSetup,
+  setupDefaults,
+  setupKey,
+  writeSetup,
+  type RememberedSetup,
+  type SetupGroup,
+  type SetupValues,
+} from '@/lib/setupMemory';
 import { plannedCountChecks, runChainSearch, type CacheEntry } from '@/search/driver';
 import { findStartingChain, planCoarseGrid } from '@/search/coarse';
 import { teByEggFor } from '@/search/teByEgg';
@@ -91,6 +104,7 @@ import {
 import { showDateTime, showDay } from '@/lib/displayTime';
 import { type ShortlistRow } from '@/search/shortlist';
 import { buildView, type ViewId } from '@/search/views';
+import { lightResultKey, type LightResult } from '@/search/lightResult';
 import {
   appBuildId,
   bestPerFamily,
@@ -102,8 +116,10 @@ import {
   quarantineAwareUrl,
   quarantineMessage,
   keepVirtueArtifacts,
+  levelOf,
   scrubIdentifiers,
   submissionFilename,
+  validateSubmission,
   summariseProof,
   provisionalProgress,
   readProvisionalRow,
@@ -160,6 +176,7 @@ import {
   type DeltaState,
 } from '@/search/csvDelta';
 import { useShareExtras } from '@/composables/useShareExtras';
+import { consentDeclined, consentWithdrawals } from '@/composables/useConsent';
 import {
   dropPendingSend,
   keepPendingSend,
@@ -295,6 +312,7 @@ import { useActionsStore } from './actions';
 import { useAutoPlannerStore, type VariantKey } from './autoPlanner';
 import { useInitialStateStore } from './initialState';
 import { useUIStore } from './ui';
+import { thisDevice } from '@/search/device';
 
 /** Don't write to IndexedDB more often than this. A checkpoint costs a JSON round-trip over the
  *  whole cache; a batch takes tens of seconds, so this loses at most one batch on a crash. */
@@ -490,6 +508,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * `forceContinue` (on by default) on 9 Oct 2026.
    */
   const firstAscensionChoice = ref<FirstAscension>(DEFAULT_FIRST_ASCENSION);
+  /** Above zero while code (not the player) sets Your setup: nothing set then is remembered
+   *  (`muteSetupMemory`, lib/setupMemory.ts). */
+  let setupMute = 0;
   /** Classic's A1 dropdown read as the setting ('continue', or any build for a fresh start), or null
    *  when nothing is picked there. */
   const firstAscensionFromClassic = computed(() => fromClassicOverride(useAutoPlannerStore().planVariantOverrides[0]));
@@ -563,7 +584,13 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     return { choice: firstAscensionChoice.value, pick: useAutoPlannerStore().planVariantOverrides[0] };
   }
   function restoreFirstAscension(s: { choice: FirstAscension; pick: VariantKey | undefined }): void {
-    firstAscensionChoice.value = s.choice;
+    // Putting back what a sweep borrowed: not an edit to remember.
+    setupMute++;
+    try {
+      firstAscensionChoice.value = s.choice;
+    } finally {
+      setupMute--;
+    }
     const planner = useAutoPlannerStore();
     if (planner.planVariantOverrides[0] === s.pick) return;
     const rest = { ...planner.planVariantOverrides };
@@ -663,6 +690,158 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   const deferShifts = ref(true);
 
   const availabilityLabel = computed(() => describeAvailability(availability.value));
+
+  // ------------------------------------------------------------------ YOUR SETUP, REMEMBERED PER ACCOUNT
+  //
+  // Batch 16, item 8 (lib/setupMemory.ts): hours, hold shifts, time off and first ascension, one blob per
+  // account under its hash. Read when the account loads (App's player ID watcher, `loadSetupFor`), and
+  // `setupLoaded` holds back anything that starts work from the setup (the instant answer and its Check
+  // exactly) until then, so a reload doesn't start a three-minute check on the defaults and restart it
+  // when the hours arrive. Written from the player's own edits only: every programmatic restore (a run's
+  // settings for a carry-on, a saved answer's, a sweep's first ascension, the read itself) runs muted.
+
+  /** False from an account's load starting until its remembered setup is in (true with no account). */
+  const setupLoaded = ref(true);
+  /** The blob on disk for this account (null: nothing remembered), for the "Remembered" line. */
+  const setupRemembered = ref<RememberedSetup | null>(null);
+  /** The key of the account loaded (`aap-setup:<hash>`); null before one loads. */
+  let setupKeyNow: string | null = null;
+  let setupLoadGen = 0;
+  /** Edits waiting for the debounced write, by group, with the key they belong to. */
+  let setupPending: { key: string; edits: Partial<SetupValues> } | null = null;
+  let setupTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /** Run `fn` without remembering what it sets: a run's or a saved answer's settings are not the player's.
+   *  Async functions are counted until they settle. */
+  function muteSetupMemory<T>(fn: () => T): T {
+    setupMute++;
+    let out: T;
+    try {
+      out = fn();
+    } catch (e) {
+      setupMute--;
+      throw e;
+    }
+    if (out instanceof Promise) {
+      return out.finally(() => setupMute--) as unknown as T;
+    }
+    setupMute--;
+    return out;
+  }
+
+  /** True while code, not the player, is setting Your setup. */
+  function setupMuted(): boolean {
+    return setupMute > 0;
+  }
+
+  /** The setup as it stands, as the blob holds it. */
+  function setupNow(): SetupValues {
+    return {
+      hours: {
+        on: scheduleEnabled.value,
+        from: availableFrom.value,
+        to: availableTo.value,
+        days: [...availableDays.value],
+      },
+      holdShifts: deferShifts.value,
+      timeOff: timeOff.value.map(w => ({ from: w.from, to: w.to })),
+      firstAscension: firstAscensionChoice.value,
+    };
+  }
+  /** Put a remembered (or default) setup in place, muted. First ascension straight into Your setup's own
+   *  choice, not through `setFirstAscension`, which writes Classic's A1 pick (Joo's). */
+  function applySetup(v: SetupValues): void {
+    muteSetupMemory(() => {
+      scheduleEnabled.value = v.hours.on;
+      availableFrom.value = v.hours.from;
+      availableTo.value = v.hours.to;
+      availableDays.value = [...v.hours.days];
+      deferShifts.value = v.holdShifts;
+      timeOff.value = v.timeOff.map(w => ({ ...w }));
+      firstAscensionChoice.value = v.firstAscension;
+    });
+  }
+  /** Today, `YYYY-MM-DD`, in the planner's zone: time off that ended before it is dropped on read. */
+  function setupToday(): string {
+    return formatInZone(Date.now() / 1000, planTimezone()).slice(0, 10);
+  }
+
+  /** Write what is waiting now (an account switch, a reset, or the debounce running out). */
+  function flushSetupWrite(): void {
+    if (setupTimer) clearTimeout(setupTimer);
+    setupTimer = null;
+    const p = setupPending;
+    setupPending = null;
+    if (!p) return;
+    const base = readSetup(p.key, setupToday()) ?? setupDefaults();
+    const merged = mergeSetup(base, p.edits, Date.now());
+    writeSetup(p.key, merged);
+    if (p.key === setupKeyNow) setupRemembered.value = merged;
+  }
+
+  /** A setting changed: remembered when the player changed it (not muted, an account loaded and read). */
+  function noteSetupEdit(group: SetupGroup): void {
+    if (setupMute > 0 || !setupKeyNow || !setupLoaded.value) return;
+    const now = setupNow();
+    if (setupPending && setupPending.key !== setupKeyNow) flushSetupWrite();
+    setupPending = { key: setupKeyNow, edits: { ...setupPending?.edits, [group]: now[group] } };
+    if (setupTimer) clearTimeout(setupTimer);
+    setupTimer = setTimeout(flushSetupWrite, 400);
+  }
+  // `sync`: the mute is read at the moment of the change, not after the restore that made it has ended.
+  watch([scheduleEnabled, availableFrom, availableTo, availableDays], () => noteSetupEdit('hours'), {
+    flush: 'sync',
+    deep: true,
+  });
+  watch(deferShifts, () => noteSetupEdit('holdShifts'), { flush: 'sync' });
+  watch(timeOff, () => noteSetupEdit('timeOff'), { flush: 'sync', deep: true });
+  watch(firstAscensionChoice, () => noteSetupEdit('firstAscension'), { flush: 'sync' });
+
+  /**
+   * An account loaded (App.vue's player ID watcher): its remembered setup, or the defaults, so nothing of
+   * the previous account's hours or time off carries over. Edits waiting for the last account are written
+   * to it first. `setupLoaded` is false until done; any failure still ends with it true.
+   */
+  async function loadSetupFor(playerId: string): Promise<void> {
+    const gen = ++setupLoadGen;
+    flushSetupWrite();
+    setupLoaded.value = false;
+    try {
+      if (!playerId) {
+        setupKeyNow = null;
+        setupRemembered.value = null;
+        return;
+      }
+      const key = setupKey(await hashID(playerId));
+      if (gen !== setupLoadGen) return;
+      const blob = readSetup(key, setupToday());
+      // A first load with nothing remembered keeps what is there (the defaults, or a run carried on
+      // before this finished); a switch from another account goes back to the defaults.
+      if (blob || setupKeyNow !== null) applySetup(blob ?? setupDefaults());
+      setupKeyNow = key;
+      setupRemembered.value = blob;
+    } catch {
+      // No hashing here (an old browser, a test): nothing remembered, nothing held back.
+    } finally {
+      if (gen === setupLoadGen) setupLoaded.value = true;
+    }
+  }
+
+  /** "Remembered for this account": a blob that isn't just the defaults. */
+  const setupIsRemembered = computed(() => !!setupRemembered.value && !isDefaultSetup(setupRemembered.value));
+
+  /** "Reset to defaults": the defaults back (first ascension through `setFirstAscension`, so Single run's
+   *  A1 pick follows, as Your setup's own control does) and the remembered setup removed. */
+  function resetSetupToDefaults(): void {
+    if (setupTimer) clearTimeout(setupTimer);
+    setupTimer = null;
+    setupPending = null;
+    const d = setupDefaults();
+    applySetup(d);
+    muteSetupMemory(() => setFirstAscension(d.firstAscension, { rebuildClassic: true }));
+    if (setupKeyNow) removeSetup(setupKeyNow);
+    setupRemembered.value = null;
+  }
 
   /** True when the boxes are ticked but describe no restriction at all — every day, all hours.
    *  The panel says so rather than letting the user think a constraint is in force. */
@@ -1040,6 +1219,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   });
   function beginBestSoFar(kind: 'fastest' | 'deadline', consent: { nickname: string } | null): void {
     bestSoFar.value = { kind, consent, asked: false, sendOnAgree: false };
+    // A run starting: a withdraw before it is in the agreement itself (the box is unticked, so Find and
+    // submit is not offered); this run's own withdraw is what `shareWithdrawn` tracks from here.
+    shareWithdrawn.value = false;
     bestSoFarStatus.value = null;
     bestSoFarNow.value = Date.now();
     bestSoFarStartedAt = bestSoFarNow.value;
@@ -1068,9 +1250,68 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   }
   /** The player agreed, in the screen's box, during the run (or changed the name it goes under). */
   function agreeBestSoFar(nickname: string): void {
+    shareWithdrawn.value = false;
     if (bestSoFar.value)
       bestSoFar.value = { ...bestSoFar.value, consent: { nickname }, asked: false, sendOnAgree: false };
     if (bestSoFarStatus.value?.pending) bestSoFarStatus.value = null;
+  }
+
+  // ------------------------------------------------------------------------- Withdrawing the agreement
+  //
+  // Jordan, 15 Oct: withdrawing must stop future sends AT ONCE. The leaderboard agreement (or a science
+  // sweep's "I understand") withdrawn in its box (ConsentBox.vue, composables/useConsent.ts) lands here
+  // synchronously, and every gate reads live state: `submitsWhenDone` (the final send of Find and submit
+  // and of a sweep), `bestSoFar.consent` (Send best so far and the automatic progress sends), and
+  // `shareWithdrawn` (the final send a best so far on the board would otherwise be owed, and the
+  // automatic option asking again or re-agreeing from that row). Kept results lose their recorded yes:
+  // Send it now asks again. A send already on the wire is not called back.
+
+  /** Withdrawn during this run (or since the last run began); a new yes (`agreeBestSoFar`) clears it. */
+  const shareWithdrawn = ref(false);
+  function withdrawShareConsent(): void {
+    shareWithdrawn.value = true;
+    submitsWhenDone.value = false;
+    autoAsked = false;
+    const run = bestSoFar.value;
+    if (run) {
+      bestSoFar.value = { ...run, consent: null, asked: false, sendOnAgree: false };
+      bestSoFarStatus.value = {
+        ok: false,
+        pending: true,
+        text: 'Withdrawn: nothing more is sent from this run, not even its result when it finishes.',
+      };
+    }
+    if (pendingSends.value.some(p => p.consent)) {
+      const was = pendingSends.value;
+      pendingSends.value = was.map(p => (p.consent ? { ...p, consent: null } : p));
+      void (async () => {
+        try {
+          const hash = await accountPartition();
+          if (!hash) return;
+          for (const p of pendingSends.value) if (was.find(x => x.id === p.id)?.consent) await keepPendingSend(hash, p);
+        } catch {
+          // the list in memory has it; a reload shows the recorded yes again, and the gate below still holds
+        }
+      })();
+    }
+  }
+  watch(
+    () => consentWithdrawals('leaderboard') + consentWithdrawals('scienceSweep'),
+    () => withdrawShareConsent(),
+    { flush: 'sync' }
+  );
+  /**
+   * The result this run owes because a best so far of it is on the board (its result replaces that row),
+   * or null. Not once the player withdrew: during this run, or (for a run carried on from before) an
+   * explicit no on record for the account.
+   */
+  function owedRow(kind: 'fastest' | 'deadline'): ProvisionalRow | null {
+    if (shareWithdrawn.value || consentDeclined('leaderboard')) return null;
+    return provisionalRows.value[kind];
+  }
+  /** A carried-on run's recorded yes (its checkpoint's Find and submit) still holds: not withdrawn since. */
+  function carriedYesHolds(): boolean {
+    return !shareWithdrawn.value && !consentDeclined('leaderboard');
   }
   /**
    * Send best so far pressed before consent (`send`), or the automatic option wanting its yes: the
@@ -1187,9 +1428,12 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const run = bestSoFar.value;
     if (!run || !stepAwayOptions.value.autoSendBest) return;
     bestSoFarNow.value = Date.now();
+    // Withdrawn: no send, no asking again, no yes taken back from the board's row. Only a new tick.
+    if (!run.consent && shareWithdrawn.value) return;
     if (!run.consent) {
-      // A carried-on run that already sent a row under a name has the player's yes for that name.
-      const row = provisionalRows.value[run.kind];
+      // A carried-on run that already sent a row under a name has the player's yes for that name (not
+      // once an explicit no is on record for the account: `owedRow`).
+      const row = owedRow(run.kind);
       if (row) agreeBestSoFar(row.nickname);
       else if (!run.asked) {
         askBestSoFar();
@@ -1291,6 +1535,22 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   const runEndedAt = ref(0);
   /** When the chain result on screen was found (ms): a run's end, or an opened saved run's save. */
   const chainResultAt = ref(0);
+  /**
+   * Whose that result (or the run going now) is: the partition hash of the player ID it ran for
+   * (lib/accountHash.ts), '' when unknown. My runs › Your latest run shows it only on that account (16 Oct
+   * 2026: another account's run showed there). Never the ID itself.
+   */
+  const chainResultOwner = ref('');
+  let chainOwnerSeq = 0;
+  /** Tag the Fastest result about to be built with the account it is for. */
+  function tagChainResult(playerId: string): void {
+    const seq = ++chainOwnerSeq;
+    chainResultOwner.value = accountHashNow(playerId);
+    if (!chainResultOwner.value)
+      void accountHash(playerId).then(h => {
+        if (seq === chainOwnerSeq) chainResultOwner.value = h;
+      });
+  }
 
   /** Minutes actually spent searching, or null when this result did not come from a live run. */
   const runMinutes = computed(() => {
@@ -2154,6 +2414,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const summary = savedRuns.value.find(r => r.id === id);
     const body = await loadRun(await hashID(playerId), id);
     if (!summary || !body) return false;
+    const owner = await accountHash(playerId);
     // Another run on screen: sending it must not replace the last run's best so far.
     setProvisional('fastest', null);
 
@@ -2186,6 +2447,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     integrityLowTe.value = null;
     openedRun.value = summary;
     chainResultAt.value = summary.savedAt || 0;
+    chainOwnerSeq++;
+    chainResultOwner.value = owner;
     // Its own start, for "Build this plan": that pins the planner to `planStartUsed`, which still
     // held whichever run last went in this tab. Unknown (no fingerprint): don't pin at all.
     planStartUsed.value = fingerprintPlanStart(summary.fingerprint) ?? 0;
@@ -2241,6 +2504,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * not have to set everything up again from memory.
    */
   function applyRunSettings(fp: string): void {
+    // A run's settings, not the player's: never remembered (lib/setupMemory.ts).
+    muteSetupMemory(() => applyRunSettingsNow(fp));
+  }
+  function applyRunSettingsNow(fp: string): void {
     const set = fingerprintSettings(fp);
     if (!set) return;
     finalTE.value = set.final;
@@ -2295,6 +2562,13 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     playerId: string,
     record: { fingerprint?: string; inputsKey?: string; runNote?: string; provisional?: unknown; watch?: unknown }
   ): Promise<SearchInputs | 'current' | null> {
+    // Everything it puts back is the run's: never remembered as the player's setup (lib/setupMemory.ts).
+    return muteSetupMemory(() => prepareToCarryOnNow(playerId, record));
+  }
+  async function prepareToCarryOnNow(
+    playerId: string,
+    record: { fingerprint?: string; inputsKey?: string; runNote?: string; provisional?: unknown; watch?: unknown }
+  ): Promise<SearchInputs | 'current' | null> {
     // The run's own note comes back with it (the box is what the carried-on run captures).
     if (record.runNote !== undefined) runNote.value = record.runNote;
     // And its best so far on the board, which its final send must still replace (taken at its start),
@@ -2316,7 +2590,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       // settings it can put back itself.
       const locked = record.fingerprint ? lockedChanges(record.fingerprint, fingerprint(playerId)) : [];
       if (locked.length) {
-        error.value = `This run's save isn't stored on this device, and ${locked.join('; ')}, so it can't carry on.`;
+        error.value = `This run's save isn't stored on ${thisDevice()}, and ${locked.join('; ')}, so it can't carry on.`;
         return null;
       }
       if (record.fingerprint) applyRunSettings(record.fingerprint);
@@ -2910,7 +3184,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   const chartShown = ref(loadChartShown());
 
   /**
-   * Whether a chart is on screen (RunCharts.vue mounted: Compare › Your latest run, LatestRunView.vue).
+   * Whether a chart is on screen (RunCharts.vue mounted: My runs › Your latest run, LatestRunView.vue).
    * The chart's data is built only while the chart is both shown AND on screen, so a remembered "shown"
    * costs nothing on every batch while Compare is closed. `chartMounted` counts the mounted charts.
    */
@@ -3385,6 +3659,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       // at 309 and sent after the box was changed to 308 was filed under 308 (b7c361cc).
       finalTE: bestChain.value[bestChain.value.length - 1] ?? finalTE.value,
       effort: usedSettings().effort,
+      // The level that found it (15 Oct): a Full sweep is Exhaustive, a Smart search its effort (Fast,
+      // Exact, Very high are quick, normal, thorough).
+      level: searchSpace.value ? 'exhaustive' : levelOf(usedSettings().effort),
       availability: isConstrained(usedSettings().availability) ? usedSettings().availability : null,
       holdShifts: usedSettings().deferShifts,
       firstAscension: usedSettings().firstAscension,
@@ -3426,7 +3703,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   /** What a deadline send reads from its run: a finished result has all of it, a running one too. */
   type DeadlineSendBase = Pick<
     SavedDeadlineResult,
-    'deadline' | 'planStart' | 'te' | 'note' | 'settings' | 'account' | 'simple' | 'priced'
+    'deadline' | 'planStart' | 'te' | 'note' | 'settings' | 'account' | 'simple' | 'level' | 'priced'
   >;
 
   /** The running date search's best route as a submission, for Send best so far. */
@@ -3467,6 +3744,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       holdShifts: (r.settings ?? usedSettings()).deferShifts,
       firstAscension: readFirstAscension(r.settings ?? usedSettings()),
       mode: r.simple ? 'simple' : 'advanced',
+      // The level that found it (15 Oct): the Exhaustive tab's boxes, or the level bar's for a Search nearby
+      // run (kept with the run). A nearby result saved before 15 Oct has none: left off, never guessed.
+      level: r.simple ? levelOf(r.level) : 'exhaustive',
       chainsPriced: r.priced,
       // The run's own account, kept in its result; then the live run's; and only for a result saved
       // before results kept one, the loaded save (`sendSubmission` refuses it if that contradicts).
@@ -3474,6 +3754,95 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       timeOff: usableTimeOff((r.settings ?? usedSettings()).timeOff),
       deadline: { at: r.deadline, ascendAt: route.ascendAt },
     });
+  }
+
+  // ------------------------------------------------------------------ Light's result (search/lightResult.ts)
+  //
+  // Light (StrongerCheck.vue) prices known routes: no search, no run. Its result goes to the board as the
+  // same row a Fast result or a By a date answer makes, with `level: 'light'`, priced under what Light
+  // priced under: taken when Light makes its pool (`beginLight`), as `deadlineRun` is for By a date.
+
+  /** What Light priced under: the plan start, the TE, the settings and the account, when it made its pool. */
+  let lightRun: { planStart: number; te: number; settings: RunSettings; account: AccountSnapshot } | null = null;
+  function beginLight(planStart: number, te: number): void {
+    try {
+      lightRun = { planStart, te, settings: snapshotSettings(), account: plainAccount(accountFields(te)) };
+    } catch {
+      lightRun = null;
+    }
+  }
+
+  /** Light's result as a submission: Fastest's shape (schema 7, `effort: 'light'`) or By a date's
+   *  (schema 8, `effort: 'deadline'`), with `level: 'light'`, `atOnce` and `lightFrom`. Null before Light
+   *  priced anything here, or for a result from another plan start. */
+  function buildLightSubmission(r: LightResult, nickname?: string, note?: string): Submission | null {
+    const run = lightRun;
+    const b = r.best;
+    if (!run || run.planStart !== r.planStart || !b.chain.length || !(b.seconds > 0)) return null;
+    const st = run.settings;
+    const date = r.goal.kind === 'date' ? r.goal : null;
+    return buildSubmission({
+      nickname,
+      note,
+      chain: [...b.chain],
+      seconds: b.seconds,
+      legs: b.legs ?? [],
+      planStart: run.planStart,
+      timezone: planTimezone(),
+      currentTE: run.te,
+      finalTE: b.chain[b.chain.length - 1],
+      effort: date ? 'deadline' : 'light',
+      level: 'light',
+      atOnce: b.atOnce,
+      lightFrom: b.from,
+      availability: isConstrained(st.availability) ? st.availability : null,
+      holdShifts: st.deferShifts,
+      firstAscension: st.firstAscension,
+      // The routes Light priced for this answer (at once, earlier, one TE lower).
+      chainsPriced: r.routes.length,
+      ...run.account,
+      flags: b.seconds / 86400 > DECADES_LONG_DAYS ? ['decades-long'] : [],
+      timeOff: usableTimeOff(st.timeOff),
+      // By a date: Light makes the date when the last stop is reached by then (strongerCheck.ts `makesDate`).
+      ...(date ? { deadline: { at: date.deadline, ascendAt: b.end } } : {}),
+    });
+  }
+
+  /** Light's routes as a chains CSV (search/csv.ts), the same file as a search's, effort 'light'. */
+  function lightCsvChunks(r: LightResult, note?: string): Iterable<string> {
+    const run = lightRun;
+    const raw = (getSimulationContext().rawBackup ?? null) as ReturnType<typeof getSimulationContext>['rawBackup'] | null;
+    const equipped = raw ? getArtifactLoadoutFromBackup(raw) : null;
+    const st = run?.settings ?? snapshotSettings();
+    return chainsCsvChunks(
+      r.routes.map(p => ({ key: p.chain.join(','), seconds: p.seconds, legs: p.legs ?? [] })),
+      {
+        planStart: r.planStart,
+        timezone: planTimezone(),
+        currentTE: run?.te ?? currentTE.value,
+        final: r.best.chain[r.best.chain.length - 1],
+        effort: 'light',
+        firstAscension: st.firstAscension,
+        availability: st.availability,
+        timeOff: usableTimeOff(st.timeOff),
+        seedChain: [],
+        runNote: note,
+        inventory: raw ? describeVirtueInventory(raw) : undefined,
+        loadouts: [
+          { label: 'equipped in the backup', loadout: equipped },
+          { label: 'best earnings set available', loadout: raw ? getOptimalEarningsSet(raw) : null },
+        ],
+      }
+    );
+  }
+
+  /** The key a Light result is remembered under once sent (`aap-submitted:light|...`). */
+  function lightKeyOf(r: LightResult): string {
+    return lightResultKey(r, lightRun?.te ?? currentTE.value);
+  }
+  /** This Light result was sent from this browser: Send locks. */
+  function lightSent(r: LightResult | null): boolean {
+    return !!r && sentRecords.value.has(lightKeyOf(r));
   }
 
   /**
@@ -3930,7 +4299,13 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
      * the account's partition hash and the result's own key come from the file instead of this
      * store. Without it, exactly the site's send.
      */
-    saved?: { partition: string; resultKey: string | null }
+    saved?: {
+      partition: string;
+      resultKey: string | null;
+      /** Light's result (`sendLightResult`): sent beside the run on screen, never as it. Its table is its
+       *  own (`pendingTable.source` 'light'), and a By a date one is remembered as sent too. */
+      light?: boolean;
+    }
   ): Promise<{
     ok: boolean;
     message: string;
@@ -3962,7 +4337,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // A best so far (Send best so far): no table, no rechecks, and the result is not "sent" -- the
     // run's final send is still to come, and must not be turned away as a copy.
     const provisional = payload.provisional === true;
-    if (!deadlineSend && !provisional) pendingTable.value = null;
+    if (!deadlineSend && !provisional && !saved?.light) pendingTable.value = null;
     // Schema 7's rechecks, when the payload is this run's result and has none yet. Bounded, and a
     // failure only means the send goes without them.
     // By the chain alone (it ends at the run's target): the target box may have changed since.
@@ -4013,7 +4388,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const quarantined = async (r: SubmitReply) => {
       const code = typeof r.id === 'string' ? r.id : '';
       if (kept) void dropPending(kept.id);
-      if (!deadlineSend && !provisional) rememberSent(sentKey, { ...(code ? { id: code } : {}), quarantined: true });
+      if ((!deadlineSend || saved?.light) && !provisional)
+        rememberSent(sentKey, { ...(code ? { id: code } : {}), quarantined: true });
       // The run is over either way: its best so far stays where it was (nothing replaced it).
       if (!provisional && payload.replaces) markProvisionalDone(payload.replaces);
       if (!provisional && payload.replaces && provisionalRows.value[kind]?.id === payload.replaces)
@@ -4063,7 +4439,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // The run timeline's send log (search/runTimeline.ts): By a date sends only, the run it is about.
     const body = JSON.stringify(payload);
     const logSend = (ok: boolean, status: number | null) => {
-      if (deadlineSend) noteTimelineSend({ what: provisional ? 'progress' : 'final', ok, status, bytes: body.length });
+      if (deadlineSend && !saved?.light) noteTimelineSend({ what: provisional ? 'progress' : 'final', ok, status, bytes: body.length });
     };
     try {
       // ?quarantine=1: a run the collector refuses for the board but stores comes back as an answer
@@ -4146,7 +4522,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
             ? reply.nickname
             : undefined
         : (payload.nickname ?? '');
-    if (!deadlineSend && !provisional)
+    if ((!deadlineSend || saved?.light) && !provisional)
       rememberSent(sentKey, { ...(id ? { id } : {}), ...(storedName !== undefined ? { nickname: storedName } : {}) });
     // The final went: the best so far it carried `replaces` for is done with, replaced or not (a
     // refusal leaves that row up, and sending again cannot change that). Its checkpoint still names it,
@@ -4214,7 +4590,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         body = gz.body;
       }
       pendingTable.value = {
-        source: deadlineSend ? 'deadline' : 'fastest',
+        source: saved?.light ? 'light' : deadlineSend ? 'deadline' : 'fastest',
         url: `${submitUrl.replace(/\/submit\/?$/, '/csv')}?id=${encodeURIComponent(id)}`,
         token: uploadToken,
         body,
@@ -4788,6 +5164,52 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     }
   }
 
+  /**
+   * Send Light's result (LightShare.vue's Send): its own row, beside whatever search is on screen, never
+   * replacing it. A second send of the same result is refused here (`lightSent`). Never throws.
+   */
+  async function sendLightResult(o: {
+    result: LightResult;
+    nickname: string;
+    note?: string;
+    sendCsv: boolean;
+    diagnostics: boolean;
+  }): Promise<{ ok: boolean; message: string; duplicate?: 'exact' | 'result'; quarantined?: boolean }> {
+    try {
+      if (lightSent(o.result))
+        return { ok: true, duplicate: 'exact', message: 'Already on the board: this result was sent from this browser.' };
+      let payload = buildLightSubmission(o.result, o.nickname, o.note);
+      if (!payload) return { ok: false, message: 'Nothing to send yet.' };
+      const problems = validateSubmission(payload);
+      if (problems.length) return { ok: false, message: `this result can't go on the board (${problems.join('; ')}).` };
+      if (o.diagnostics) {
+        try {
+          const parsed = JSON.parse(
+            diagnosticsLine({
+              from: 'live',
+              light: {
+                goal: o.result.goal.kind,
+                routes: o.result.routes.length,
+                atOnce: o.result.routes.filter(p => p.atOnce).length,
+              },
+            })
+          );
+          if (parsed && typeof parsed === 'object') payload = { ...payload, diagnostics: parsed };
+        } catch {
+          // sent without them
+        }
+      }
+      const partition = await accountPartition();
+      return await sendSubmission(payload, o.sendCsv ? lightCsvChunks(o.result, o.note) : undefined, {
+        partition,
+        resultKey: lightKeyOf(o.result),
+        light: true,
+      });
+    } catch (e) {
+      return { ok: false, message: e instanceof Error ? e.message : String(e) };
+    }
+  }
+
   /** A finish moment (unix seconds) as the day the player reads, in the plan's zone: "Feb 24, 2029". */
   function finishDay(at: number): string {
     if (!at || !Number.isFinite(at)) return '';
@@ -4883,7 +5305,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * `source` is the screen whose send left it: Fastest and By a date share this one slot, and each
    * screen offers (and runs) a retry only for its own table, never the other's.
    */
-  const pendingTable = ref<{ source: 'fastest' | 'deadline'; url: string; token: string; body: ArrayBuffer } | null>(
+  const pendingTable = ref<{ source: 'fastest' | 'deadline' | 'light'; url: string; token: string; body: ArrayBuffer } | null>(
     null
   );
 
@@ -4977,7 +5399,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   /** Parts a gzipped CSV of `bytes` goes in (search/progressSend.ts `csvParts`). */
   const csvPartCount = (bytes: number) => Math.max(1, Math.ceil(bytes / CSV_PART_BYTES));
   /** The "Retry the table" button; `source` is the screen pressing it. */
-  async function retryTable(source?: 'fastest' | 'deadline'): Promise<{ ok: boolean; message: string }> {
+  async function retryTable(source?: 'fastest' | 'deadline' | 'light'): Promise<{ ok: boolean; message: string }> {
     if (source && pendingTable.value && pendingTable.value.source !== source) {
       return { ok: false, message: 'there is no table waiting to be sent' };
     }
@@ -5028,14 +5450,21 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       from?: 'live' | 'carry-on' | 'saved' | 'kept';
       /** The run being sent; default: the one going, else the last to end. */
       kind?: 'smart' | 'full' | 'by-date';
+      /** A Light send (search/lightResult.ts): no search ran, so its own facts instead of a run's. */
+      light?: { goal: 'fastest' | 'date'; routes: number; atOnce: number };
     } = {}
   ): string {
     try {
       const b = detectBrowser();
-      const kind =
-        o.kind ??
-        (deadlineRunning.value ? 'by-date' : isRunning.value ? (searchSpace.value ? 'full' : 'smart') : lastRunKind);
-      const run = kind === 'by-date' ? deadlineRunFacts() : fastestRunFacts(kind);
+      const kind = o.light
+        ? 'light'
+        : (o.kind ??
+          (deadlineRunning.value ? 'by-date' : isRunning.value ? (searchSpace.value ? 'full' : 'smart') : lastRunKind));
+      const run = o.light
+        ? { facts: { goal: o.light.goal, routesPriced: o.light.routes, atOncePriced: o.light.atOnce }, startedAt: 0, carryOns: 0 }
+        : kind === 'by-date'
+          ? deadlineRunFacts()
+          : fastestRunFacts(kind as 'smart' | 'full');
       const from = o.from ?? (run.carryOns ? 'carry-on' : 'live');
       return JSON.stringify(
         blackBox.diagnosticsSummary({
@@ -5504,6 +5933,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     suspendedSeconds.value = 0;
     longestStallSeconds.value = 0;
     runStartedAt.value = Date.now();
+    tagChainResult(playerId);
     runEndedAt.value = 0;
     lastRateAt = Date.now();
     lastRateChains = 0;
@@ -5809,6 +6239,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   const deadlineRunning = ref(false);
   const deadlineProgress = ref<DeadlineProgress | null>(null);
   const deadlineResult = ref<SavedDeadlineResult | null>(null);
+  /** Whose `deadlineResult` (or the date search going now) is: the partition hash of the player ID it was
+   *  loaded, opened or run for (lib/accountHash.ts), '' when unknown; see `chainResultOwner`. */
+  const deadlineResultOwner = ref('');
   /** A deadline run that stopped before finishing (crash, reload, Stop), ready to carry on. */
   const deadlineUnfinished = ref<{
     spec: DeadlineRunSpec;
@@ -5877,10 +6310,14 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
 
   /** Saved By a date answers for this account (search/deadlineStore.ts `saveAnswer`). */
   const savedAnswers = ref<SavedAnswer[]>([]);
+  /** Whose `savedAnswers` are (`deadlineResultOwner` of one opened). */
+  let savedAnswersOwner = '';
   async function refreshSavedAnswers(playerId: string): Promise<void> {
     if (!playerId) return;
     const hash = await hashID(playerId);
+    const owner = await accountHash(playerId);
     savedAnswers.value = await listSavedAnswers(hash);
+    savedAnswersOwner = owner;
     await refreshKeptSaves(hash);
   }
   /** Keep the answer on screen under a name, with the save it was priced from (`entrySaveFor`). */
@@ -5907,6 +6344,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // Another answer on screen: sending it must not replace the last run's best so far.
     setProvisional('deadline', null);
     deadlineResult.value = JSON.parse(JSON.stringify(a.result)) as SavedDeadlineResult;
+    deadlineResultOwner.value = savedAnswersOwner;
     restoreDeadlineAccount(deadlineResult.value);
   }
   /** The account a shown result was priced with: its own, when it kept one (results from 7 Oct). */
@@ -6003,6 +6441,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
 
   /** Put stored settings (a saved answer's `settings`) back in Your setup: what it was priced under. */
   function applyStoredSettings(st: unknown): void {
+    // A saved answer's settings, not the player's: never remembered (lib/setupMemory.ts).
+    muteSetupMemory(() => applyStoredSettingsNow(st));
+  }
+  function applyStoredSettingsNow(st: unknown): void {
     const set = settingsOf(st);
     if (!set) return;
     setFirstAscension(set.firstAscension);
@@ -6095,7 +6537,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       const hash = await hashID(playerId);
       const raw = await loadKeptSave(hash, entry.save.key);
       if (!raw) {
-        olderSaveError.value = 'That save is no longer kept on this device.';
+        olderSaveError.value = `That save is no longer kept on ${thisDevice()}.`;
         await refreshKeptSaves(hash);
         return false;
       }
@@ -6117,7 +6559,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     olderSaveError.value = null;
     const raw = await loadKeptSave(await hashID(playerId), save.key);
     if (!raw) {
-      olderSaveError.value = 'That save is no longer kept on this device.';
+      olderSaveError.value = `That save is no longer kept on ${thisDevice()}.`;
       return null;
     }
     return { name: saveFileName(save, planTimezone()), text: backupText(raw) };
@@ -6164,12 +6606,15 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     restoreDeadlineAccount(null);
     try {
       partitionHash = await hashID(playerId);
+      const owner = await accountHash(playerId);
       runSaves.value = await listRunSaves(partitionHash);
       deadlineAll = []; // the last run's full list, which may be another account's
       // A run may have started during the awaits above: its result and account are its own.
       if (deadlineRunning.value) return;
-      deadlineResult.value = await loadDeadlineResult(partitionHash);
+      const loadedResult = await loadDeadlineResult(partitionHash);
       if (deadlineRunning.value) return;
+      deadlineResult.value = loadedResult;
+      deadlineResultOwner.value = owner;
       restoreDeadlineAccount(deadlineResult.value);
       // The header only: the offer needs the count, not a hundred thousand routes read back.
       let loaded = await loadDeadlineCheckpointHeader(partitionHash);
@@ -6303,7 +6748,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       }
       const inputs = await loadRunInputs(partitionHash, cp.inputsKey);
       if (!inputs) {
-        error.value = "This search's save is no longer stored on this device, so it can't carry on. Start it again.";
+        error.value = `This search's save is no longer stored on ${thisDevice()}, so it can't carry on. Start it again.`;
         return;
       }
       ready = [cp, inputs, (cp.account as AccountSnapshot | undefined) ?? accountFromStoredSave(inputs)];
@@ -6393,6 +6838,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       ...(deadlineSettings ? { settings: deadlineSettings } : {}),
       account: account as DeadlineAccount,
       ...(spec.simple ? { simple: true } : {}),
+      ...(spec.simple && levelOf(spec.level) ? { level: spec.level } : {}),
       priced: 0,
     };
     deadlineRunCsv = {
@@ -6404,6 +6850,14 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     deadlineEstimate.value = Math.max(0, Math.floor(spec.estimate ?? 0));
     deadlineStop = false;
     deadlineResult.value = null;
+    // The run (and its result) is the account it was started on (`startDeadline`, `resumeDeadline`).
+    deadlineResultOwner.value = accountHashNow(currentPlayerId);
+    if (!deadlineResultOwner.value) {
+      const runFor = currentPlayerId;
+      void accountHash(runFor).then(h => {
+        if (deadlineRunning.value && currentPlayerId === runFor) deadlineResultOwner.value = h;
+      });
+    }
     deadlineUnfinished.value = null;
     deadlineSavedAt = 0;
     deadlineProgress.value = {
@@ -6689,6 +7143,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         ...(spec.bandSets?.length ? { bandSets: spec.bandSets } : {}),
         ...(spec.instantSets?.length ? { instantSets: spec.instantSets } : {}),
         ...(spec.simple ? { simple: true } : {}),
+        ...(spec.simple && levelOf(spec.level) ? { level: spec.level } : {}),
         legSims: deadlineLegSims.value,
         elapsedSeconds: priorSeconds + Math.max(0, sessionSeconds),
         ...(avgWorkers > 0 ? { workers: Math.max(1, Math.round(avgWorkers)) } : {}),
@@ -7667,6 +8122,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     suspendedSeconds.value = 0;
     longestStallSeconds.value = 0;
     runStartedAt.value = Date.now();
+    tagChainResult(playerId);
     runEndedAt.value = 0;
     lastCheckpointAt = 0;
     lastRateAt = Date.now();
@@ -8324,6 +8780,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   );
 
   return {
+    /** The chain search's own settings (its hours and time off among them), null before one ran or was
+     *  loaded: the result says what it was priced with (lib/pricedWith.ts), never the live setup. */
+    runSettingsUsed,
     /** The coarse scan's chain count at the current limits (shown beside "Find a starting chain"). */
     coarseChains,
     lastAutoSend,
@@ -8333,11 +8792,16 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     chainRunLive,
     dateRunLive,
     chainResultAt,
+    chainResultOwner,
     stopRun,
     provisionalRows,
     runElsewhere,
     refreshRunElsewhere,
     bestSoFar,
+    shareWithdrawn,
+    withdrawShareConsent,
+    owedRow,
+    carriedYesHolds,
     bestSoFarSending,
     bestSoFarStatus,
     bestSoFarWait,
@@ -8454,6 +8918,13 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     planStartIsNow,
     planStartRestoreNote,
     settingsRestoreNote,
+    setupLoaded,
+    setupRemembered,
+    setupIsRemembered,
+    loadSetupFor,
+    resetSetupToDefaults,
+    muteSetupMemory,
+    setupMuted,
     pinPlanStart,
     resumeInputsKey,
     blockedCheckpoint,
@@ -8474,6 +8945,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     deadlineRunDeadline,
     deadlineRunPlan,
     deadlineResult,
+    deadlineResultOwner,
     savedAnswers,
     refreshSavedAnswers,
     saveCurrentAnswer,
@@ -8491,6 +8963,11 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     deadlineCsv,
     deadlineCsvChunksNow,
     sendDeadlineAnswer,
+    beginLight,
+    buildLightSubmission,
+    lightCsvChunks,
+    lightSent,
+    sendLightResult,
     pendingSends,
     sendPending,
     dropPending,
@@ -8599,6 +9076,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     stopStartSweep,
     cteParts,
     accountPartition,
+    saveAccountKey,
     otherAccountKeys,
     deadlineWorkerSeconds,
     sendSubmission,

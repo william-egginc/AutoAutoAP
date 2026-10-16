@@ -12,6 +12,7 @@ import type { useChainSearchStore } from '@/stores/chainSearch';
 import { sendRunResult } from '@/search/sendRun';
 import { useShareExtras } from './useShareExtras';
 import { useBoardSubmit, useShareIdentity } from './useShareResult';
+import { consentGivenThisVisit } from './useConsent';
 
 type Store = ReturnType<typeof useChainSearchStore>;
 
@@ -47,7 +48,8 @@ export function useFastestShare(
     return `${base.slice(0, NICKNAME_MAX - STAMP_LEN)} ${localStamp()}`;
   });
 
-  const board = useBoardSubmit(store, effectiveNickname, optIn);
+  // A yes remembered for the account (arriving as it loads) is not a tick: rechecks wait for one.
+  const board = useBoardSubmit(store, effectiveNickname, optIn, () => consentGivenThisVisit('leaderboard'));
   const { submitMessage, submitOk, refuseDuplicate } = board;
   const submitting = ref(false);
 

@@ -71,6 +71,29 @@
       >
     </button>
 
+    <!-- Your setup remembered for this account (lib/setupMemory.ts), when it isn't just the defaults. -->
+    <template v-if="!docked && !issuesOnly">
+      <p
+        v-if="store.setupIsRemembered"
+        class="text-[11px] text-slate-500"
+        :class="docked ? '' : 'px-4 pb-2.5 -mt-1'"
+        data-testid="setup-remembered"
+      >
+        Remembered for this account<template v-if="rememberedWhen"> ({{ rememberedWhen }})</template>: your hours, hold
+        shifts, time off and first ascension. ·
+        <button
+          type="button"
+          class="font-bold text-indigo-700 underline hover:text-indigo-900 disabled:opacity-40 disabled:no-underline"
+          :disabled="locked"
+          :title="locked ? 'A search is running: stop it to change the setup' : 'Any hour, hold shifts on, no time off, first ascension Fastest'"
+          data-testid="setup-reset"
+          @click="store.resetSetupToDefaults()"
+        >
+          Reset to defaults
+        </button>
+      </p>
+    </template>
+
     <!-- Problems with the save show folded too: nobody opens a card to look for them. -->
     <div
       v-if="!docked && store.setupIssues.length"
@@ -99,6 +122,26 @@
       <p class="text-[11px] text-slate-500">
         One setup for all three Auto Planner screens: change it here and {{ NAMES.classic }}, {{ fastestName(store.finalTE) }} and
         {{ NAMES.byDate }} all use it.
+      </p>
+
+      <p
+        v-if="store.setupIsRemembered"
+        class="text-[11px] text-slate-500"
+        :class="docked ? '' : 'px-4 pb-2.5 -mt-1'"
+        data-testid="setup-remembered"
+      >
+        Remembered for this account<template v-if="rememberedWhen"> ({{ rememberedWhen }})</template>: your hours, hold
+        shifts, time off and first ascension. ·
+        <button
+          type="button"
+          class="font-bold text-indigo-700 underline hover:text-indigo-900 disabled:opacity-40 disabled:no-underline"
+          :disabled="locked"
+          :title="locked ? 'A search is running: stop it to change the setup' : 'Any hour, hold shifts on, no time off, first ascension Fastest'"
+          data-testid="setup-reset"
+          @click="store.resetSetupToDefaults()"
+        >
+          Reset to defaults
+        </button>
       </p>
 
       <p
@@ -345,7 +388,7 @@
           :class="screen === 'classic' ? 'opacity-60' : ''"
         >
           <div class="flex flex-wrap items-center justify-between gap-2">
-            <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">This computer</h3>
+            <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">{{ ThisDevice() }}</h3>
             <div class="flex flex-wrap gap-1">
               <button
                 v-for="p in PROFILES"
@@ -520,6 +563,7 @@
 </template>
 
 <script setup lang="ts">
+import { ThisDevice } from '@/search/device';
 import SaveFileBar from './SaveFileBar.vue';
 import { computed, onUnmounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
@@ -557,18 +601,26 @@ const { on: shareInstantOn } = useInstantShare();
 const canShareInstant = !!instantUrlOf(store.submitUrl);
 /** Experimental: the "Prestige by" line (?prestigeBy=1 for one visit, or this box). */
 const prestigeBy = usePrestigeBy();
-// Choosing "Let me pick my hours" holds the egg shifts for those hours as well.
+// Choosing "Let me pick my hours" holds the egg shifts for those hours as well. The player's choosing only:
+// `sync`, so a restore (a carry-on's settings, the remembered setup with hold shifts off) is seen as one and
+// left as it was put back (stores/chainSearch.ts `setupMuted`).
 watch(
   () => store.scheduleEnabled,
   on => {
-    if (on) store.deferShifts = true;
-  }
+    if (on && !store.setupMuted()) store.deferShifts = true;
+  },
+  { flush: 'sync' }
 );
 const planner = useAutoPlannerStore();
 const initialState = useInitialStateStore();
 const ui = useUIStore();
 
 const locked = computed(() => store.busy);
+/** When the remembered setup was last written, for the "Remembered for this account" line. */
+const rememberedWhen = computed(() => {
+  const at = store.setupRemembered?.at;
+  return at ? showDateTime(at / 1000, zone.value) : '';
+});
 const zone = computed(() => planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
 /** Whether the plan may prestige in this hour of the day: from-hour inclusive, to-hour exclusive,
  *  wrapping past midnight, and equal ends meaning all day (search/availability.ts). */

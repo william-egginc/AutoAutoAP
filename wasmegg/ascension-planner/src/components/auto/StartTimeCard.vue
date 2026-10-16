@@ -20,7 +20,16 @@
         {{ NAMES.auto }}.
       </p>
     </div>
-    <div class="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+    <!-- Already on virtue (lib/onVirtue.ts, Jordan 16 Oct 2026): the tab and the links are hidden; a link from
+         before still lands here, so say why there is nothing to pick. -->
+    <p
+      v-if="onVirtue"
+      class="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600 leading-relaxed"
+      data-testid="start-times-on-virtue"
+    >
+      You're already ascending: this is for coming back after a break, before your first ascension.
+    </p>
+    <div v-else class="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
       <p v-if="!(store.currentTE > 0)" class="text-[11px] font-semibold text-amber-700" data-testid="start-times-no-save">
         Load your save first: open {{ fastestName(store.finalTE) }} in the {{ NAMES.auto }}, then come back here.
       </p>
@@ -54,10 +63,15 @@ import { useInstantSummaryStore } from '@/stores/instantSummary';
 import { useStartTimesStore } from '@/stores/startTimes';
 import { startTimeChoices } from '@/lib/startTimeChoices';
 import { NAMES, fastestName } from '@/lib/siteNav';
+import { useInitialStateStore } from '@/stores/initialState';
+import { saveOnVirtue } from '@/lib/onVirtue';
 
 const store = useChainSearchStore();
 const instant = useInstantSummaryStore();
 const st = useStartTimesStore();
+const initial = useInitialStateStore();
+/** The save has a virtue farm going: nothing to pick a start for. No save: unknown, so the page shows. */
+const onVirtue = computed(() => saveOnVirtue(initial.rawBackup) === true);
 
 /** Why Find the best time to start didn't start (the store's error, set by `findBestStart`): only one
  *  that appeared while this page was open, not a search's error from another screen. */

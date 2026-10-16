@@ -6,13 +6,16 @@
  *                    #/auto/fastest          fastest route to 490, Smart search (was Chain Search)
  *                    #/auto/fastest/full     the same, every route in a box (was Insane mode)
  *                    #/auto/by-date          highest TE by a date (was Insane's deadline goal)
- *   Compare          #/compare[/<view>]      the leaderboard's views (Egg Day first), and Insights:
+ *   Leaderboard      #/compare[/<view>]      the leaderboard's views (Egg Day first), and Insights:
+ *                                            (was Compare until 16 Oct 2026; #/leaderboard[/<view>] lands here too)
  *                                            the Chain Explorer's charts
- *                    #/compare/latest        Your latest run: this visit's Fastest run's other options
- *                                            and charts (moved off Fastest's results, 15 Oct 2026)
- *   My runs          #/myruns                every run of yours: on the board (hidden ones too), saved on
- *                                            this computer, and not sent yet (15 Oct 2026; was Compare's
- *                                            My plans tab, and #/compare/mine still lands here)
+ *                    #/compare/latest        Your latest run: one line, "Your latest run is now in My runs ›"
+ *                                            (16 Oct 2026; the block itself is on My runs)
+ *   My runs          #/myruns                every run of yours: your latest run (its routes, other options
+ *                                            and charts; was Leaderboard › Your latest run until 16 Oct 2026),
+ *                                            on the board (hidden ones too), saved on this computer, and not
+ *                                            sent yet (15 Oct 2026; was Compare's My plans tab, and
+ *                                            #/compare/mine still lands here)
  *   Science          #/science               how the planner works, and how its answers were checked
  *                                            (How it works, the default; #/science/how still opens it)
  *                    #/science/check         what we still need to check (the sweeps to run)
@@ -52,13 +55,16 @@ export interface SiteRoute {
 export const NAMES = {
   manual: 'Manual Planner',
   auto: 'Auto Planner',
-  compare: 'Compare',
+  /** The shared board and its charts (#/compare: the address kept its old name). Was "Compare" until
+   *  16 Oct 2026. */
+  compare: 'Leaderboard',
   /** My runs (#/myruns, MyRunsView.vue): the account's runs on the board, saved here, and not sent yet. */
   myRuns: 'My runs',
   science: 'Science',
   insights: 'Insights',
-  /** Compare › Your latest run (#/compare/latest): the other options and charts of this visit's Fastest
-   *  run (LatestRunView.vue; moved off Fastest's results, 15 Oct 2026). */
+  /** My runs › Your latest run (LatestRunView.vue): the newest search's routes, other options and charts.
+   *  Was a Leaderboard tab's content (#/compare/latest, 15 Oct 2026) until 16 Oct 2026; that tab is one line
+   *  to My runs now, and "Dig deeper into your plan ›" opens My runs (DigDeeperLink.vue). */
   latest: 'Your latest run',
   check: 'What we need to check',
   submit: 'Submit a sweep',
@@ -85,6 +91,16 @@ export const NAMES = {
   smartFirst: 'Nearby routes (was Simple)',
   fullFirst: 'Exhaustive (was Advanced)',
 } as const;
+
+/**
+ * What "Simulate this plan" (and Fastest's "Build this plan") does, said on the button's own line (Jordan,
+ * 16 Oct 2026): it opens the route in Single run, Joo's original planner, and simulates every shift.
+ */
+export function simulateNote(button = 'Simulate this plan'): string {
+  return `${button} opens this route in ${NAMES.classic} (Joo's original planner) and simulates every shift: when each TE arrives, and each ascension's dates and purchases.`;
+}
+/** The same, for the button's title. */
+export const SIMULATE_TITLE = `Opens this route in ${NAMES.classic} (Joo's original planner) and simulates every shift on your save`;
 
 /** The exhaustive way's full title, as the chooser names it. */
 export const EXHAUSTIVE_TITLE = 'Exhaustive: every route in boxes you set';
@@ -124,9 +140,10 @@ export function routeFromLocation(search: string, hash: string): Required<SiteRo
     if (section === 'manual' || section === 'myruns') return { ...DEFAULT_ROUTE, section };
     // Compare's My plans tab became My runs (15 Oct 2026): old links land there.
     if (section === 'compare' && sub === 'mine') return { ...DEFAULT_ROUTE, section: 'myruns' };
-    if (section === 'compare') {
+    // The tab is called Leaderboard (16 Oct 2026); its address kept the old name, and either works.
+    if (section === 'compare' || section === 'leaderboard') {
       const compare = COMPARE_VIEWS.find(v => v === sub) ?? 'eggday';
-      return { ...DEFAULT_ROUTE, section, compare };
+      return { ...DEFAULT_ROUTE, section: 'compare', compare };
     }
     if (section === 'science') {
       const science: ScienceView = SCIENCE_SUBS.find(v => v === sub) ?? 'how';

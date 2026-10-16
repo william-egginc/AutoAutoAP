@@ -258,6 +258,19 @@ export interface Submission {
   firstLegOtherHours?: number;
   /** By a date only: which mode found it (Simple tries the instant answer's routes, Advanced the player's boxes). */
   mode?: 'simple' | 'advanced';
+  /**
+   * Which Stronger check level found it (15 Oct 2026, optional, no schema bump; a collector that does not
+   * know it drops it): 'light' (no search: the instant answer's routes priced at once and the player's
+   * earlier routes), 'quick' (Fast), 'normal' (Exact), 'thorough' (Very high), 'exhaustive' (the Full sweep,
+   * By a date's boxes). On every kind of row, so the board can set Light against Fast and the table.
+   */
+  level?: SubmissionLevel;
+  /** Light only: the route was priced with each fresh ascension the moment the one before ended
+   *  (search/lightAtOnce.ts), not on the hour. */
+  atOnce?: boolean;
+  /** Light only: where its route came from: the instant answer's routes, the player's earlier routes, or
+   *  By a date's "one TE lower". */
+  lightFrom?: LightFrom;
   /** Total time the plan spends waiting for the player: prestiges held plus shifts held. */
   waitingHours: number | null;
 
@@ -802,6 +815,21 @@ export function weekdayIn(unixSeconds: number, timezone: string): string {
   );
 }
 
+/** The levels a row can record (`Submission.level`): the Stronger check's ids (stores/stronger.ts,
+ *  search/effort.ts) plus 'exhaustive'. */
+export const SUBMISSION_LEVELS = ['light', 'quick', 'normal', 'thorough', 'exhaustive'] as const;
+export type SubmissionLevel = (typeof SUBMISSION_LEVELS)[number];
+export const LIGHT_FROM = ['instant', 'earlier', 'lower-te'] as const;
+export type LightFrom = (typeof LIGHT_FROM)[number];
+/** The longest of these short words, as validated (and the collector's cap to ask for). */
+export const MAX_LEVEL_TEXT = 16;
+/** A level as sent: one of `SUBMISSION_LEVELS`, else nothing (an older effort word is never guessed into one). */
+export function levelOf(v: unknown): SubmissionLevel | undefined {
+  return typeof v === 'string' && (SUBMISSION_LEVELS as readonly string[]).includes(v)
+    ? (v as SubmissionLevel)
+    : undefined;
+}
+
 export interface SubmissionInputs {
   nickname?: string;
   note?: string;
@@ -821,6 +849,11 @@ export interface SubmissionInputs {
   /** @deprecated For callers that still have only the boolean: sent as `forceContinue` alone. */
   forceContinue?: boolean;
   mode?: 'simple' | 'advanced';
+  /** See `Submission.level`; left off when unknown. */
+  level?: SubmissionLevel;
+  /** Light only (`Submission.atOnce`, `Submission.lightFrom`). */
+  atOnce?: boolean;
+  lightFrom?: LightFrom;
   artifacts: InventoryCount[];
   stones: InventoryCount[];
   /** Solved sets, already reduced to words by `describeLoadoutSlots`. */
@@ -1004,6 +1037,9 @@ export function buildSubmission(input: SubmissionInputs): Submission {
       ? { firstLegOtherHours: otherHours + 0 }
       : {}),
     ...(i.mode ? { mode: i.mode } : {}),
+    ...(levelOf(i.level) ? { level: i.level } : {}),
+    ...(typeof i.atOnce === 'boolean' ? { atOnce: i.atOnce } : {}),
+    ...(i.lightFrom && (LIGHT_FROM as readonly string[]).includes(i.lightFrom) ? { lightFrom: i.lightFrom } : {}),
     waitingHours: waiting === null ? null : Number(waiting.toFixed(2)),
     // Stones are kept wholesale -- they slot into every family above -- while artifacts are
     // narrowed to what a virtue ascension can equip. See VIRTUE_ARTIFACT_FAMILIES.
@@ -1182,6 +1218,19 @@ export function validateSubmission(value: unknown): string[] {
   ) {
     problems.push(`backupAgeHours must be within ${MAX_BACKUP_AGE_HOURS} hours either way`);
   }
+  // Short words (15 Oct 2026): one of a known list, so never longer than MAX_LEVEL_TEXT.
+  if (s.level !== undefined && !(typeof s.level === 'string' && s.level.length <= MAX_LEVEL_TEXT && levelOf(s.level)))
+    problems.push(`level must be one of ${SUBMISSION_LEVELS.join(', ')}`);
+  if (s.atOnce !== undefined && typeof s.atOnce !== 'boolean') problems.push('atOnce must be true or false');
+  if (
+    s.lightFrom !== undefined &&
+    !(
+      typeof s.lightFrom === 'string' &&
+      s.lightFrom.length <= MAX_LEVEL_TEXT &&
+      (LIGHT_FROM as readonly string[]).includes(s.lightFrom)
+    )
+  )
+    problems.push(`lightFrom must be one of ${LIGHT_FROM.join(', ')}`);
   if (s.firstLeg !== undefined && s.firstLeg !== 'continue' && s.firstLeg !== 'buildup' && s.firstLeg !== 'fresh')
     problems.push("firstLeg must be 'continue', 'buildup' or 'fresh'");
   if (
