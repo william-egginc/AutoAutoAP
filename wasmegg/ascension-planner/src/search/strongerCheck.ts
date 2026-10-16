@@ -228,7 +228,7 @@ export function earlierFromText(routes: readonly EarlierRoute[]): string {
   if (here + other) {
     const runs = here + other === 1 ? 'your board run' : 'your board runs';
     parts.push(
-      !other ? runs : !here ? `${runs} (sent from another browser)` : `${runs} (${other} sent from another browser)`
+      !other ? runs : !here ? `${runs} sent from another browser` : `${runs}, ${other} of them sent from another browser`
     );
   }
   if (n('saved-search')) parts.push(n('saved-search') === 1 ? 'your saved search' : 'your saved searches');

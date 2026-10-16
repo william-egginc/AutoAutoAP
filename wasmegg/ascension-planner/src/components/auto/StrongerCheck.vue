@@ -256,9 +256,9 @@ async function fetchMyRuns(partition: string): Promise<BoardRow[]> {
   }).catch(() => []);
 }
 
-/** Where the earlier routes came from ("from your board runs (sent from another browser)"), once gathered. */
+/** Where the earlier routes came from ("from your board runs sent from another browser"), once gathered. */
 const earlierFrom = ref('');
-/** "Your earlier routes: 1 of 3, from your board runs (sent from another browser)". */
+/** "Your earlier routes: 1 of 3, from your board runs sent from another browser". */
 const withFrom = (text: string): string => (earlierFrom.value ? `${text}, ${earlierFrom.value}` : text);
 
 async function gatherEarlier(): Promise<EarlierRoute[]> {

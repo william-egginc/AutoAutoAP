@@ -275,7 +275,7 @@ const lightText = computed(() => {
     const what = doneWhat({ instantPriced: l.instant?.priced ?? 0, instantTotal: instant, earlierPriced: l.priced, earlierTotal: l.total });
     if (!what) return 'Nothing of yours to price yet. Pick Fast to search for new routes.';
     const none = l.total ? '' : ' Nothing of yours to price yet.';
-    // Where the earlier routes came from: "from your board runs (sent from another browser)" (18 Oct 2026).
+    // Where the earlier routes came from: "from your board runs sent from another browser" (18 Oct 2026).
     const from = l.total && l.from ? `, ${l.from}` : '';
     return `Done${at}: priced ${what}${from}.${none}`;
   }
