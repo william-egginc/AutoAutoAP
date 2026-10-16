@@ -281,13 +281,21 @@ const allRows = ref<BoardRow[] | null>(null);
 
 const page = useNowPage({ myRows: boardRows, boardRows: allRows });
 const pills = computed(() => tryNextPills(page.fastestTile.value, page.eggDayTile.value));
-/** "One more TE by Egg Day (249) would need about 1.6 more days.": from saved legs only. */
+/** "One more TE by Egg Day … would come …, after the deadline, so it isn't counted.": saved legs only, the laid
+ *  egg's next TE (lib/tryNext.ts `oneMoreLine`, from endEggsOf's `next`). */
 const oneMore = computed(() => {
   const card = page.cardPlan.value;
   const a = page.eggDayTile.value.answer;
   const legs = card?.goal.goal === 'date' && card.state === 'this-save' ? card.plan.legs : (a?.legs ?? null);
   if (!a) return '';
-  return oneMoreLine({ chain: a.chain, legs, reachAt: a.end, spareHours: a.spareHours, what: `Egg Day ${page.eggDayYear}` });
+  return oneMoreLine({
+    chain: a.chain,
+    legs,
+    deadline: page.eggDayAt,
+    what: `Egg Day ${page.eggDayYear}`,
+    nowSeconds: page.now.value,
+    zone: page.zone.value,
+  });
 });
 
 // ------------------------------------------------------------------------------------- Your runs

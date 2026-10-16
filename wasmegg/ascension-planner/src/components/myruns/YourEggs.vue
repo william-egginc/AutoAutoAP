@@ -49,6 +49,8 @@ const props = defineProps<{
 }>();
 
 function nextLine(e: EggLine): string {
+  // Only the egg being laid gets a time; the others' next TE comes after a shift (never timed "at the final rate").
+  if (!e.current) return `${Math.round(e.progress * 100)}% to the next TE · after a shift`;
   if (e.nextInSeconds == null) return `${Math.round(e.progress * 100)}% to the next TE`;
   const left = e.nextInSeconds - Math.max(0, props.now - props.saveSeconds);
   return left <= 0 ? 'next TE likely reached since your save' : `next TE ${relativeWords(left)} at your save's rate`;

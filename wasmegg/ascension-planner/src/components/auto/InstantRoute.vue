@@ -341,6 +341,12 @@
                           >
                             Simulate this plan
                           </button>
+                          <span
+                            v-if="simulateCaveat((dateExactByK[r.legs.length] ?? tableDate(r)).chain, r.legs.length)"
+                            class="basis-full text-[10px] leading-snug text-amber-700"
+                            data-testid="simulate-note"
+                            >{{ simulateCaveat((dateExactByK[r.legs.length] ?? tableDate(r)).chain, r.legs.length) }}</span
+                          >
                         </div>
                       </td>
                     </tr>
@@ -434,6 +440,12 @@
             >
               Simulate this plan
             </button>
+            <span
+              v-if="simulateCaveat((dateExact ?? tableDate(result.byDate)).chain, result.byDate.legs.length)"
+              class="block mt-1 text-[10px] leading-snug text-amber-700"
+              data-testid="simulate-note"
+              >{{ simulateCaveat((dateExact ?? tableDate(result.byDate)).chain, result.byDate.legs.length) }}</span
+            >
             <InstantShareCheck
               v-if="instantUrl"
               v-model:share-this="shareThis"
@@ -565,6 +577,12 @@
                         >
                           Simulate this plan
                         </button>
+                        <span
+                          v-if="simulateCaveat(r.chain)"
+                          class="basis-full text-[10px] leading-snug text-amber-700"
+                          data-testid="simulate-note"
+                          >{{ simulateCaveat(r.chain) }}</span
+                        >
                       </div>
                     </td>
                   </tr>
@@ -665,6 +683,12 @@
           >
             Simulate this plan
           </button>
+          <span
+            v-if="simulateCaveat(lead.chain)"
+            class="block mt-1 text-[10px] leading-snug text-amber-700"
+            data-testid="simulate-note"
+            >{{ simulateCaveat(lead.chain) }}</span
+          >
           <InstantShareCheck
             v-if="instantUrl"
             v-model:share-this="shareThis"
@@ -2087,6 +2111,25 @@ const answerStart = ref(0);
  * player's save from the start it was priced from and with its time off; Classic scrolls to the plan
  * and says where it came from (search/simulateRoute.ts).
  */
+/**
+ * What to say under a Simulate this plan button when the route it opens is the instant answer's own estimate, not the
+ * exact check's (ViperTGB, 19 Oct: a new account's Single run landed days later than the instant answer said): before
+ * Check exactly has priced it (including on phones, where it does not start by itself), or, on By a date, a row the exact
+ * check marked 'misses'. '' once the exact check has priced the row. `count` is the By a date row's ascension count.
+ */
+const SIMULATE_ESTIMATE_NOTE = "Instant answer's estimate on standard gear; press Check exactly first";
+const SIMULATE_MISSES_NOTE = 'This route misses the date on your account';
+function simulateCaveat(chain: number[], count?: number): string {
+  if (props.deadline) {
+    if (count === undefined) return dateExact.value ? '' : SIMULATE_ESTIMATE_NOTE;
+    const e = dateExactByK.value[count];
+    if (e === null) return SIMULATE_MISSES_NOTE;
+    return e ? '' : SIMULATE_ESTIMATE_NOTE;
+  }
+  const e = exact.value[key(chain)];
+  if (e) return '';
+  return e === null ? "This route couldn't be priced on your account" : SIMULATE_ESTIMATE_NOTE;
+}
 function openPlan(chain: number[]): void {
   simulateRoute(chain, props.deadline ? 'by-date' : 'fastest', {
     ...(answerStart.value ? { start: answerStart.value } : {}),

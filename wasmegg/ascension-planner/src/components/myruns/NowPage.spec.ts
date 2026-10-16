@@ -248,6 +248,8 @@ describe('your eggs and Try next', () => {
     );
     expect(t).toContain('Curiosity 41 TE');
     expect(t).toContain('next TE in 2 h');
+    // Another egg is never timed: its next TE comes after a shift.
+    expect(t).toContain('60% to the next TE · after a shift');
     expect(t).toContain('Shifts done 214');
     expect(t).toContain("All planned shifts Can't tell");
     expect(t).toContain('Silos 17h 20m away');

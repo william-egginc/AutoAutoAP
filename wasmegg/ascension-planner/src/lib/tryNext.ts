@@ -9,10 +9,12 @@
  *                                  is set on the screen: there is no preset for it yet)
  *   Check exactly                  a tile shows the instant answer only (it runs on its screen)
  *
- * Plus one line: what one more TE by Egg Day would take (search/routeExtras.ts `oneMoreTE`), from saved legs.
+ * Plus one line: when one more TE by Egg Day would come (search/endEggs.ts `endEggsOf` `next`), from saved legs.
  */
 import type { LegSummary } from '@/search/types';
-import { oneMoreTE } from '@/search/routeExtras';
+import { endEggsOf } from '@/search/endEggs';
+import { dateAt } from './eventWhen';
+import { virtueEggName } from './virtueEggs';
 import type { MyRunsOpen } from './myRunsDashboard';
 import type { Tile } from './savedTiles';
 
@@ -56,16 +58,27 @@ export function tryNextPills(fastest: { tile: Tile; target: number }, eggDay: Ti
 }
 
 /**
- * "One more TE by Egg Day (249) would need about 1.6 more days." from the answer's legs (the route's last leg's
- * egg counts and rate). '' without legs, at 490, or when the extra TE already fits in the spare time.
+ * "One more TE by Egg Day 2027 (249) would come Jul 15, 2027 at 3:10 am, after the deadline, so it isn't counted."
+ * Read ONLY from endEggsOf's `next` (search/endEggs.ts: the egg being laid at the route's end, shift-aware; the
+ * other eggs come only after a shift and are never timed here). Never a per-egg time "at the final rate" for
+ * another egg (main e6a4ed50, Reliability's next-TE fix). '' without the route's legs or a next TE.
  */
-export function oneMoreLine(o: { chain: number[]; legs: LegSummary[] | null | undefined; reachAt: number; spareHours: number | null; what: string }): string {
+export function oneMoreLine(o: {
+  chain: number[];
+  legs: LegSummary[] | null | undefined;
+  deadline: number | null;
+  what: string;
+  nowSeconds: number;
+  zone: string;
+}): string {
   if (!o.legs?.length) return '';
-  const m = oneMoreTE({ chain: o.chain, legs: o.legs, reachAt: o.reachAt });
-  if (!m) return '';
-  const extra = m.seconds - Math.max(0, o.spareHours ?? 0) * 3600;
-  if (extra <= 0) return '';
-  const d = extra / 86400;
-  const amount = d >= 1 ? `${d.toFixed(1)} more days` : `${(extra / 3600).toFixed(1)} more hours`;
-  return `One more TE by ${o.what} (${m.te}) would need about ${amount}.`;
+  const last = o.chain[o.chain.length - 1];
+  if (!(last > 0) || last >= 490) return '';
+  const next = endEggsOf({ chain: o.chain, legs: o.legs })?.next ?? null;
+  if (!next || !Number.isFinite(next.at)) return '';
+  const when = dateAt(next.at, o.nowSeconds, o.zone);
+  const egg = virtueEggName(next.egg);
+  if (o.deadline != null && next.at > o.deadline)
+    return `One more TE by ${o.what} (${last + 1}, on ${egg}) would come ${when}, after the deadline, so it isn't counted.`;
+  return `One more TE (${last + 1}, on ${egg}) would come ${when}.`;
 }
