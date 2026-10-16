@@ -9,14 +9,61 @@
  * as one JSON file each under `dir`, and a re-run finds them: Smart search resumes from its
  * checkpoint, the Full sweep replays every chain it already priced, and a By a date search carries on.
  *
- * Deliberately tiny: only what db.ts calls, callbacks fired on a later tick (callers assign
+ * Deliberately tiny: only what db.ts calls (`put`, `get`, `getAll`, `delete` by key or by an
+ * `IDBKeyRange.bound` prefix range, and a cursor), callbacks fired on a later tick (callers assign
  * `onsuccess` after `put()` returns), and every write is a temp file then a rename, so a run killed
  * mid-write leaves the previous record intact rather than half of a new one.
+ *
+ * Transactions: db.ts resolves a write when its TRANSACTION completes (`oncomplete`), and rejects on
+ * `onerror` / `onabort` (lib/storage/db.ts saveMetadata, putMetadataRecords). Each transaction here
+ * counts its requests and fires `oncomplete` once the last one has settled; a request that fails
+ * fires the transaction's `onerror`. Without that, the CLI's first checkpoint write waited forever.
  */
 import fs from 'node:fs';
 import path from 'node:path';
 
 type Handler = ((event: { target: unknown }) => void) | null;
+
+/** What `IDBKeyRange.bound` gives here: inclusive both ends, string keys only (all db.ts uses). */
+interface KeyRange {
+  lower: string;
+  upper: string;
+}
+const inRange = (key: string, r: KeyRange) => key >= r.lower && key <= r.upper;
+const isRange = (q: unknown): q is KeyRange => typeof q === 'object' && q !== null && 'lower' in q && 'upper' in q;
+
+/** One transaction: `oncomplete` once every request made in it has settled. */
+class Tx {
+  oncomplete: (() => void) | null = null;
+  onerror: (() => void) | null = null;
+  onabort: (() => void) | null = null;
+  error: Error | null = null;
+  private open = 0;
+  private done = false;
+  constructor() {
+    // A transaction with no requests at all still completes (on a later tick, after the caller
+    // has made its requests and assigned its handlers).
+    setImmediate(() => this.finishIfIdle());
+  }
+  begin(): void {
+    this.open++;
+  }
+  end(error?: Error): void {
+    this.open--;
+    if (error && !this.done) {
+      this.done = true;
+      this.error = error;
+      this.onerror?.();
+      return;
+    }
+    setImmediate(() => this.finishIfIdle());
+  }
+  private finishIfIdle(): void {
+    if (this.done || this.open > 0) return;
+    this.done = true;
+    this.oncomplete?.();
+  }
+}
 
 class Request<T = unknown> {
   result: T | undefined = undefined;
@@ -24,6 +71,9 @@ class Request<T = unknown> {
   onsuccess: Handler = null;
   onerror: Handler = null;
   onupgradeneeded: Handler = null;
+  constructor(private readonly tx?: Tx) {
+    tx?.begin();
+  }
   /** Settle on a later tick, so the caller has assigned its handlers. */
   settle(run: () => T): void {
     setImmediate(() => {
@@ -32,9 +82,11 @@ class Request<T = unknown> {
       } catch (e) {
         this.error = e instanceof Error ? e : new Error(String(e));
         this.onerror?.({ target: this });
+        this.tx?.end(this.error);
         return;
       }
       this.onsuccess?.({ target: this });
+      this.tx?.end();
     });
   }
 }
@@ -62,8 +114,8 @@ class FileStore {
   private file(key: string): string {
     return path.join(this.dir, encodeURIComponent(key) + '.json');
   }
-  put(value: Record<string, unknown>): Request {
-    const req = new Request();
+  put(value: Record<string, unknown>, tx?: Tx): Request {
+    const req = new Request(tx);
     req.settle(() => {
       const key = value[this.keyPath];
       if (typeof key !== 'string') throw new Error('record has no key');
@@ -76,21 +128,39 @@ class FileStore {
     });
     return req;
   }
-  get(key: string): Request {
-    const req = new Request();
+  get(key: string, tx?: Tx): Request {
+    const req = new Request(tx);
     req.settle(() => (this.records.has(key) ? structuredClone(this.records.get(key)) : undefined));
     return req;
   }
-  delete(key: string): Request {
-    const req = new Request();
+  /** Every record, or those whose key is in `range`, in key order (as IndexedDB returns them). */
+  getAll(range?: KeyRange, tx?: Tx): Request {
+    const req = new Request(tx);
+    req.settle(() =>
+      [...this.records.keys()]
+        .filter(k => !range || inRange(k, range))
+        .sort()
+        .map(k => structuredClone(this.records.get(k)))
+    );
+    return req;
+  }
+  /** One key, or every key in a range. */
+  delete(query: string | KeyRange, tx?: Tx): Request {
+    const req = new Request(tx);
     req.settle(() => {
-      this.records.delete(key);
-      fs.rmSync(this.file(key), { force: true });
+      const keys = isRange(query) ? [...this.records.keys()].filter(k => inRange(k, query)) : [query];
+      for (const key of keys) {
+        this.records.delete(key);
+        fs.rmSync(this.file(key), { force: true });
+      }
       return undefined;
     });
     return req;
   }
-  openCursor(): Request {
+  openCursor(tx?: Tx): Request {
+    // The cursor walks on its own; the transaction counts it as one request that settles at once.
+    tx?.begin();
+    setImmediate(() => tx?.end());
     const req = new Request<unknown>();
     const values = [...this.records.values()];
     let at = -1;
@@ -129,14 +199,22 @@ class FileDb {
       if (fs.existsSync(path.join(this.root, name))) this.createObjectStore(name);
     }
   }
-  transaction(name: string): { objectStore: (n: string) => FileStore } {
-    return {
+  /** A transaction over one store: its requests are counted, and it completes after the last. */
+  transaction(name: string): Tx & { objectStore: (n: string) => unknown } {
+    const tx = new Tx();
+    return Object.assign(tx, {
       objectStore: (n: string) => {
         const s = this.stores.get(n ?? name);
         if (!s) throw new Error(`no object store ${n}`);
-        return s;
+        return {
+          put: (v: Record<string, unknown>) => s.put(v, tx),
+          get: (k: string) => s.get(k, tx),
+          getAll: (r?: KeyRange) => s.getAll(r, tx),
+          delete: (q: string | KeyRange) => s.delete(q, tx),
+          openCursor: () => s.openCursor(tx),
+        };
       },
-    };
+    });
   }
   close(): void {}
 }
@@ -147,6 +225,9 @@ class FileDb {
  */
 export function installFileIndexedDb(dir: string): void {
   fs.mkdirSync(dir, { recursive: true });
+  // db.ts builds prefix ranges with IDBKeyRange.bound (lib/storage/db.ts prefixRange).
+  const g = globalThis as { IDBKeyRange?: unknown };
+  if (!g.IDBKeyRange) g.IDBKeyRange = { bound: (lower: string, upper: string): KeyRange => ({ lower, upper }) };
   const db = new FileDb(dir);
   db.openExisting();
   (globalThis as { indexedDB?: unknown }).indexedDB = {

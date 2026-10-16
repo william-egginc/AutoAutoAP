@@ -112,7 +112,7 @@ import { describeSaveAge, siloSeconds } from '@/lib/saveAge';
 import { runChainSearch, type CacheEntry, type EvaluateBatch } from '@/search/driver';
 import { findStartingChain } from '@/search/coarse';
 import { EFFORT, EFFORT_ORDER, estimateChains } from '@/search/effort';
-import { splitByPrefix, workersForBatch } from '@/search/batch';
+import { DEFAULT_WORKER_CAP, splitByPrefix, workersForBatch } from '@/search/batch';
 import { exhaustiveChains } from '@/search/exhaustive';
 import { buildChainsCsv, describeVirtueInventory } from '@/search/csv';
 import type { ChainResult, EffortTier, SearchInputs, TimeOffWindow } from '@/search/types';
@@ -534,7 +534,7 @@ OFFLINE: FILES, CHECKPOINTS, SENDING LATER
   --dry-run                 Say what would run (spaces, chain counts, about how long) and stop.
   --plain-csv               With --out: also write run.csv, uncompressed.
   --no-submit-csv           With --out/--submit: leave the table out of the send.
-  --jobs N                  Worker threads. Default: your cores minus one (this machine: see the
+  --jobs N                  Worker threads. Default: your cores minus one, at most 12 (see the
                             line printed at the start). Each worker holds roughly 0.1-0.25 GB of
                             simulator memory, and a long sweep keeps every priced chain in the main
                             process too: watch the 'rss' in the progress lines, and lift Node's heap
@@ -2069,9 +2069,15 @@ async function main() {
   // it does its own parallelism with a persistent pool instead. A worker must never re-shard.
   // The site's searches (scripts/siteRun.ts) run on worker threads of their own, sized by --jobs.
   const siteMode = isSiteMode();
-  // Worker threads for the site's searches: every core but one by default, as the site's own pool
-  // does (search/batch.ts `maxPoolSize`). The script's own tools fork processes and stay at 1.
-  const jobs = has('jobs') ? +arg('jobs')! : siteMode ? Math.max(1, availableParallelism() - 1) : 1;
+  // Worker threads for the site's searches: every core but one by default, held to the site's own
+  // DEFAULT_WORKER_CAP (search/batch.ts, 12): on the 20-thread PC 19 workers were no faster than 12,
+  // and the long runs that crashed of memory were at 19, so a 32-core machine should not start 31.
+  // --jobs N goes above it on purpose. The script's own tools fork processes and stay at 1.
+  const jobs = has('jobs')
+    ? +arg('jobs')!
+    : siteMode
+      ? Math.max(1, Math.min(availableParallelism() - 1, DEFAULT_WORKER_CAP))
+      : 1;
   if (!Number.isFinite(jobs) || jobs < 1) throw new Error('--jobs must be a whole number of at least 1');
   const planMode = has('effort') || has('exhaustive') || siteMode;
   checkSiteFlags(siteMode);
@@ -2110,7 +2116,7 @@ async function main() {
     const cores = availableParallelism();
     const mb = Math.round(totalmem() / 1048576);
     console.log(
-      `workers: ${jobs} of ${cores} cores${has('jobs') ? '' : ' (the default is cores minus one; --jobs N changes it)'}. ` +
+      `workers: ${jobs} of ${cores} cores${has('jobs') ? '' : ` (the default is cores minus one, at most ${DEFAULT_WORKER_CAP}; --jobs N changes it)`}. ` +
         `Each holds roughly 0.1-0.25 GB of simulator memory, so about ${(jobs * 0.25).toFixed(1)} GB at most, of this machine's ${(mb / 1024).toFixed(0)} GB, ` +
         `plus the priced chains in the main process.`
     );

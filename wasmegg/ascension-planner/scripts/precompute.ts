@@ -58,6 +58,10 @@
  *                    --fake-below fills the rows down to TE from the nearest real one (marked fake),
  *                    only to try the page out before the table reaches a player's TE.
  *   --route-bin FILE --te TE [--start ISO] [--keep N] [--max-asc N] [--stop-max N|none]
+ *   --route --table DIR --backup SAVE --player [--start ISO] [--deadline ISO] [--available-from H
+ *           --available-to H [--available-days sat,sun] --timezone TZ] [--table-top N] [--stop-max N|none]
+ *                    The page's instant answer for a save, from a table's source DIR; with --deadline
+ *                    also each count's By a date answer; with --available-* only routes inside the hours.
  *                    The route finder on a packed table file, timed (what the site's worker runs).
  *   --generate --out DIR [--from TE] [--to TE] [--max-start-te N] [--jobs N]
  *                    Build the table: every start TE in the range (default 100-489) at each of the
@@ -149,6 +153,7 @@ import {
 import { splitByWork } from '@/search/routePool';
 import { packTable, readTable, restampTable, type TableHeader } from '@/search/precomputedTable';
 import { SIM_VERSION } from '@/search/simVersion';
+import type { Availability } from '@/search/availability';
 import { liveFreshBuilds } from '@/search/liveCell';
 import {
   gearChanges,
@@ -863,6 +868,32 @@ async function recordK3(file: string): Promise<void> {
   );
 }
 
+/** --available-from H --available-to H [--available-days sat,sun] [--timezone TZ] as the search CLI
+ *  reads them (scripts/fastsearch.ts), or null without them. */
+function hoursArg(): Availability | null {
+  const from = arg('available-from');
+  const to = arg('available-to');
+  const daysArg = arg('available-days');
+  if (from === undefined && to === undefined && daysArg === undefined) return null;
+  if ((from === undefined) !== (to === undefined))
+    throw new Error('--available-from and --available-to must be given together');
+  const fromHour = from !== undefined ? Number(from) : 0;
+  const toHour = to !== undefined ? Number(to) : 0;
+  for (const [flag, h] of [['from', fromHour], ['to', toHour]] as const)
+    if (!Number.isInteger(h) || h < 0 || h > 23) throw new Error(`--available-${flag}: expected a whole hour 0-23`);
+  const names = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+  const days = (daysArg ?? '')
+    .split(',')
+    .map(t => t.trim().toLowerCase())
+    .filter(Boolean)
+    .map(t => {
+      const i = /^[0-6]$/.test(t) ? Number(t) : names.indexOf(t.slice(0, 3));
+      if (i < 0) throw new Error(`--available-days: unrecognised day "${t}"`);
+      return i;
+    });
+  return { days, fromHour, toHour, timezone: arg('timezone') ?? Intl.DateTimeFormat().resolvedOptions().timeZone };
+}
+
 /** --stop-max N|none: the finder's USEFUL_STOP_MAX for this run (none: no limit, the old search). */
 function stopMaxArg(): { usefulStopMax?: number } {
   const v = arg('stop-max');
@@ -1132,6 +1163,10 @@ async function route(file: string): Promise<void> {
     : undefined;
   // --deadline ISO: also the highest TE reachable by then (the By a date screen's instant answer).
   const deadline = arg('deadline') ? Math.floor(Date.parse(arg('deadline')!) / 1000) : undefined;
+  // --available-from H --available-to H [--available-days sat,sun] [--timezone TZ]: the instant answer's
+  // "Works inside my hours" (routeFinder.ts FindOptions.hours): only routes whose every prestige falls
+  // inside them, as the page does with the player's hours on.
+  const hours = hoursArg();
   const t0 = performance.now();
   const maxAscensions = Number(arg('max-asc', '12'));
   const found = await findRoutes({
@@ -1145,6 +1180,7 @@ async function route(file: string): Promise<void> {
     deliveryScale,
     ...(firstLegs ? { firstLegs } : {}),
     ...(deadline !== undefined ? { deadline } : {}),
+    ...(hours ? { hours } : {}),
   });
   // As the page does once the finder is done (InstantRoute.vue): each answer moved a stop or two on the
   // table where that ends sooner (routeFinder.ts polishFound), then merged over the finder's. --strong-
@@ -1157,6 +1193,7 @@ async function route(file: string): Promise<void> {
       ...(firstLegs ? { firstLegs } : {}),
       deliveryScale,
       ...(deadline !== undefined ? { deadline } : {}),
+      ...(hours ? { hours } : {}),
       ...(has('strong-polish') ? { wide: 8, candidates: 3 } : {}),
     },
     found
