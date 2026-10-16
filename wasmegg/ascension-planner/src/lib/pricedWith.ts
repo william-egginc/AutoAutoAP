@@ -44,6 +44,13 @@ export function hoursWords(a: Availability | null | undefined): string {
   return `your hours ${hour12(a.fromHour)} to ${hour12(a.toHour)}${on}`;
 }
 
+/** The hours alone, short: "any hour", "9 am–1 am", "9 am–11 pm on Mon–Fri", "all day on Sat, Sun". */
+export function hoursShort(a: Availability | null | undefined): string {
+  return hoursWords(a)
+    .replace(/^your hours /, '')
+    .replace(/^(\d+ [ap]m) to (\d+ [ap]m)/, '$1–$2');
+}
+
 /** "Oct 20", "Oct 20–22", "Oct 30–Nov 2", "Dec 30, 2026–Jan 2, 2027". */
 function stretch(d: TimeOffDates): string {
   const [fy, fm, fd] = d.from.split('-').map(Number);

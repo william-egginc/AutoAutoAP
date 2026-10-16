@@ -27,12 +27,21 @@
 <template>
   <div class="space-y-4" data-testid="latest-run">
     <div v-if="shown === 'none'" class="rounded-xl border border-slate-200 bg-white p-4 space-y-1.5" data-testid="latest-run-empty">
-      <p v-if="store.isRunning && fastestMine" class="text-xs text-slate-700">
+      <p v-if="store.isRunning && fastestMine && want !== 'date'" class="text-xs text-slate-700">
         Your run on {{ fastestName(store.finalTE) }} has started: its other options and charts show here as its
         routes are priced.
       </p>
-      <p v-else-if="store.deadlineRunning && dateMine" class="text-xs text-slate-700">
+      <p v-else-if="store.deadlineRunning && dateMine && want !== 'fastest'" class="text-xs text-slate-700">
         Your {{ NAMES.byDate }} run has started: its routes show here when it finishes.
+      </p>
+      <p v-else-if="want === 'date'" class="text-xs text-slate-700" data-testid="latest-run-none-date">
+        No {{ NAMES.byDate }} run yet on this account: run one on
+        <a :href="byDateHash" class="font-bold text-indigo-700 underline hover:text-indigo-900">{{ NAMES.byDate }}</a>
+        and its routes show here.
+      </p>
+      <p v-else-if="want === 'fastest'" class="text-xs text-slate-700" data-testid="latest-run-none-fastest">
+        No {{ fastestName(store.finalTE) }} run yet on this account: run Nearby routes or Exhaustive on it and its routes
+        show here.
       </p>
       <p v-else class="text-xs text-slate-700">
         Run a search on {{ fastestName(store.finalTE) }} or {{ NAMES.byDate }} and its routes show here, each with
@@ -496,6 +505,10 @@ watch(
 );
 /** The run shown: the one picked, else the newer (a run going now is newest), else none. */
 const shown = computed<'fastest' | 'date' | 'none'>(() => {
+  // My runs' "Showing" switch asks for one kind: only that kind's run, never the other one in its place (beta,
+  // 16 Oct: "Latest Highest TE by a date run" showed an Exhaustive run on Fastest, the fallback to the newest).
+  if (props.want === 'fastest') return fastestAt.value !== null ? 'fastest' : 'none';
+  if (props.want === 'date') return dateAt.value !== null ? 'date' : 'none';
   if (pick.value === 'fastest' && fastestAt.value !== null) return 'fastest';
   if (pick.value === 'date' && dateAt.value !== null) return 'date';
   return newest.value;

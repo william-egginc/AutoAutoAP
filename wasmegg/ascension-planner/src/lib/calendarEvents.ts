@@ -12,6 +12,7 @@
  * RFC 5545: text escaped (backslash, semicolon, comma, newline), lines folded at 75 octets (UTF-8, never inside
  * a character), CRLF line ends, times in UTC.
  */
+import { shiftTitle } from './nowPlan';
 
 export interface CalEvent {
   /** Unix seconds it happens. */
@@ -134,11 +135,12 @@ export function downloadIcs(events: readonly CalEvent[], now = Date.now()): void
 
 /** A plan's shift or prestige as a calendar event: the egg or the TE, which save, and that it goes stale. */
 export function planCalEvent(
-  e: { kind: 'shift' | 'prestige' | 'goal'; at: number; egg?: string; te?: number },
+  e: { kind: 'shift' | 'prestige' | 'goal'; at: number; egg?: string; eggs?: string[]; te?: number },
   ctx: { eggName: (egg: string) => string; saveWhen: string; calculatedWhen: string }
 ): CalEvent {
+  // Shifts at the same minute are one event, as the events table shows them (nowPlan.ts `shiftTitle`).
   const title =
-    e.kind === 'shift' ? `Shift to ${ctx.eggName(e.egg ?? '')}` : e.kind === 'prestige' ? `Prestige at ${e.te} TE` : `Reach ${e.te} TE`;
+    e.kind === 'shift' ? shiftTitle(e, ctx.eggName) : e.kind === 'prestige' ? `Prestige at ${e.te} TE` : `Reach ${e.te} TE`;
   return {
     at: e.at,
     title: `${title} (Egg, Inc.)`,

@@ -19,6 +19,10 @@
         >
         · {{ howWords(a) }}<template v-if="sourceWords(a)"> · {{ sourceWords(a) }}</template>
       </p>
+      <!-- A better answer of this save priced with other hours: secondary, named (fix 22, lib/currentAnswer.ts). -->
+      <p v-if="tile.secondary" class="text-[12px] text-slate-500" data-testid="now-tile-secondary">
+        {{ secondaryText }} (calculated {{ dateAt(tile.secondary.calculatedAt / 1000, now, zone) }} · {{ howWords(tile.secondary) }})
+      </p>
       <div v-if="tile.sure" class="mt-1 rounded-lg px-2.5 py-1.5 text-[13px]" :class="SURE[tile.sure.level]" data-testid="now-tile-sure">
         <b>How sure: {{ LEVEL[tile.sure.level] }}</b>
         <span class="block">
@@ -56,7 +60,8 @@
 import { computed } from 'vue';
 import { dateAt } from '@/lib/eventWhen';
 import { spareWords, whenAgo } from '@/lib/nowWords';
-import { howWords, saveGapWords, sourceWords, type Tile } from '@/lib/savedTiles';
+import { howWords, saveGapWords, secondaryLabel, sourceWords, type Tile } from '@/lib/savedTiles';
+import { secondaryLine } from '@/lib/currentAnswer';
 import { formatDate } from '@/lib/leaderboardRank';
 import type { MyRunsOpen } from '@/lib/myRunsDashboard';
 
@@ -98,6 +103,13 @@ const sub = computed(() => {
 const route = computed(() => {
   const c = a.value?.chain ?? [];
   return c.length > 5 ? `${c.slice(0, 3).join(' ')} … ${c[c.length - 1]}` : c.join(' ');
+});
+const secondaryText = computed(() => {
+  const b = props.tile.secondary;
+  if (!b) return '';
+  return secondaryLine(secondaryLabel(b), { goal: props.goal, ...b }, t =>
+    formatDate(t * 1000, props.zone, { month: 'short', day: 'numeric', year: 'numeric' })
+  );
 });
 const screenOpen = computed<MyRunsOpen>(() =>
   props.goal === 'date' ? { auto: 'by-date', byDate: { eggDay: true } } : { auto: 'fastest', depth: 'smart', target: props.target }

@@ -7,6 +7,9 @@
  * than `MAX_AGE_MS` (a new table is deployed now and then; a day-old answer is recomputed). Storage is
  * localStorage, in try/catch everywhere: it is a convenience, never a reason for the page to fail.
  */
+import type { Availability } from './availabilitySchedule';
+import type { TimeOffDates } from './timeOff';
+
 export const SNAP_PREFIX = 'aap-instant-snap:';
 const INDEX_KEY = 'aap-instant-snap-index';
 export const MAX_SNAPSHOTS = 10;
@@ -42,6 +45,9 @@ export interface SnapMeta {
   /** Each egg's TE in that save, lifetime as the game counts it (max of earned and thresholds passed),
    *  in the save's order (Curiosity, Integrity, Humility, Resilience, Kindness). */
   teByEgg?: number[];
+  /** The hours and time off it was priced with (fix 22, 16 Oct 2026; absent before): My runs ranks answers priced
+   *  with Your setup now first and names the hours of the others (lib/currentAnswer.ts). */
+  setup?: { availability: Availability | null; timeOff: TimeOffDates[] };
 }
 
 /** "What if you had maxed gear?" as worked out for this answer (MaxedWhatIf.vue), kept with the snapshot of the

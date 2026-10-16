@@ -51,7 +51,12 @@ describe('relativeWords', () => {
     expect(relativeWords(3600)).toBe('in 1 h');
     expect(relativeWords(3600 * 18)).toBe('in 18 h');
     expect(relativeWords(3599)).toBe('in 60 min');
-    expect(relativeWords(86400)).toBe('in 1 day');
+    // Under two days: hours, not "1 day" (16 Oct).
+    expect(relativeWords(86400)).toBe('in 24 h');
+    expect(relativeWords(33 * 3600)).toBe('in 33 h');
+    expect(relativeWords(-30 * 3600)).toBe('30 h ago');
+    expect(relativeWords(2 * 86400 - 1)).toBe('in 48 h');
+    expect(relativeWords(2 * 86400)).toBe('in 2 days');
     expect(relativeWords(86400 * 2 + 5000)).toBe('in 2 days');
     expect(relativeWords(-3 * 3600)).toBe('3 h ago');
     expect(relativeWords(-86400 * 3)).toBe('3 days ago');

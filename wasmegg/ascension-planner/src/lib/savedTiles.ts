@@ -19,6 +19,10 @@
  *   With no current answer, the newest from an older save leads, flagged `olderSave` ("Older save than the one you
  *   loaded").
  *
+ * Fix 22: the ranking is lib/currentAnswer.ts's, shared with Right now: after the save, an answer priced with Your
+ * setup now (hours and time off) leads one priced with other hours even when that finishes sooner, and on a tie the
+ * kept snapshot (Right now's plan) leads. A better answer priced with other hours is the tile's `secondary`.
+ *
  * A board row's save time is worked out (its plan start less its rounded save age), and a run started from a save
  * a few minutes older than the one loaded used to fall outside the 10-minute "same save" window: the 311 lost to
  * the loaded save's 310. Such an answer now competes, and the tile says which save it was (`saveGapSeconds`:
@@ -36,13 +40,23 @@ import {
 } from './leaderboardRank';
 import { howSure, type SearchLevel, type Sure } from './howSure';
 import type { NowPlan } from './nowPlan';
+import {
+  CURRENT_SAVE_SECONDS,
+  SAME_SAVE_SECONDS,
+  currentSetup,
+  isCurrentSave,
+  otherSetupLabel,
+  pickAnswer,
+  rowSetup,
+  setupCheck,
+  type PricedSetup,
+  type SetupCheck,
+} from './currentAnswer';
 import type { CheckEntry } from '@/search/checkHistory';
 
-/** Two save times this close are the same save (the agreeing search for How sure is looked for among these). */
-export const SAME_SAVE_SECONDS = 10 * 60;
-/** An answer from a save at most this much older than the loaded one is current: it competes with the loaded
- *  save's own (fix 21). Older than this, it ranks below every current answer and is flagged Older save. */
-export const CURRENT_SAVE_SECONDS = 2 * 3600;
+/** Two save times this close are the same save (the agreeing search for How sure is looked for among these); an
+ *  answer from a save at most CURRENT_SAVE_SECONDS older is current (fix 21). Both live in lib/currentAnswer.ts. */
+export { SAME_SAVE_SECONDS, CURRENT_SAVE_SECONDS };
 /** A save time further than this from the loaded save's is "another save" on the tile's words. */
 export const SAVE_GAP_WORDS_SECONDS = 60;
 /** Fastest: a search whose finish is within this of the answer's agrees with it. */
@@ -73,6 +87,15 @@ export interface TileAnswer {
   otherBrowser?: boolean;
   /** Its legs (each shift), when the source kept them: By a date's saved answers. */
   legs?: NowPlan['legs'];
+  /** The hours and time off it was priced with against Your setup now (lib/currentAnswer.ts); absent: current. */
+  setup?: SetupCheck;
+  /** Under this save's own key (the snapshot and the last checked answer): this save, this setup. */
+  ownKey?: boolean;
+  /** A kept snapshot: the plan Right now shows (it leads a tie, so the card and the tile name the same one). */
+  plan?: boolean;
+  /** The next-best route, and whether it is the same answer exactly (How sure's "another route ties it exactly"). */
+  runnerUpChain?: number[] | null;
+  runnerUpSame?: boolean;
 }
 
 export interface Tile {
@@ -84,6 +107,14 @@ export interface Tile {
    *  (negative: older). Null for the loaded save's own answers. */
   saveGapSeconds?: number | null;
   sure: Sure | null;
+  /** A better answer of this save priced with other hours or time off than Your setup now, shown under the lead
+   *  with `secondaryLabel` ("with any hour (before your hours changed)"); null when none beats the lead. */
+  secondary?: TileAnswer | null;
+}
+
+/** "with any hour (before your hours changed)", "with other hours": the secondary answer's label. */
+export function secondaryLabel(a: TileAnswer): string {
+  return a.setup ? otherSetupLabel(a.setup) : '';
 }
 
 /** A By a date answer saved on this device, in the fields read here. */
@@ -94,6 +125,8 @@ export interface SavedDateAnswer {
   saveSeconds: number | null;
   level?: string;
   simple?: boolean;
+  /** The hours and time off it was priced with (`result.settings`), when recorded. */
+  setup?: PricedSetup | null;
   route: { chain: number[]; reachAt: number; spare: number; legs?: NowPlan['legs'] } | null;
 }
 
@@ -110,6 +143,12 @@ export interface TileInput {
   /** Your board rows (null while loading or without the board). */
   board: readonly BoardRow[] | null;
   saved: readonly SavedDateAnswer[];
+  /** Your setup now and today's date in the planner's zone: each answer's recorded hours and time off are compared
+   *  with it (lib/currentAnswer.ts). Absent: every answer counts as priced with it. */
+  setupNow?: { setup: PricedSetup; today: string } | null;
+  /** Kept snapshots of this goal under OTHER keys (the same save with another setup, or an older save), each with
+   *  the setup it recorded (SnapMeta `setup`, null before fix 22). */
+  otherSnapshots?: readonly { plan: NowPlan; recorded: PricedSetup | null }[];
   /** Whether a board row was priced with other hours or time off than Your setup now (myRunsDashboard `hoursDiffer`). */
   hoursChanged?: (row: BoardRow) => boolean;
   /** Whether a board row was priced by an older simulator (myRunsDashboard `simulatorAge` === 'older'). */
@@ -138,21 +177,33 @@ function candidates(i: TileInput): TileAnswer[] {
   const goalOk = (deadline: number | undefined | null, target: number | undefined) =>
     i.goal === 'date' ? deadline === i.deadline : !deadline && target === i.target;
   // The snapshot and the last checked answer are under this save's own key.
+  const now = i.setupNow ?? null;
+  const ownSetup = now ? currentSetup(now.setup) : undefined;
+  const checkOf = (recorded: PricedSetup | null | undefined): SetupCheck | undefined =>
+    now ? setupCheck(recorded, now.setup, now.today) : undefined;
+  const fromSnap = (s: NowPlan, own: boolean, setup: SetupCheck | undefined): TileAnswer => ({
+    chain: s.chain,
+    end: s.end,
+    endTE: s.endTE,
+    spareHours: s.spareHours,
+    calculatedAt: s.calculatedAt,
+    saveSeconds: s.meta?.backupTime ?? (own ? saveNow : null),
+    fromTE: own ? (i.save?.te ?? null) : null,
+    source: 'snapshot',
+    how: s.exact ? 'check' : 'instant',
+    exactConfirmsTE: i.goal === 'date' && s.exact ? s.instantTE === s.endTE : undefined,
+    runnerUpHours: s.runnerUpHours,
+    runnerUpChain: s.runnerUp?.chain ?? null,
+    runnerUpSame: !!s.runnerUp && s.runnerUp.end === s.end && s.runnerUp.endTE === s.endTE,
+    plan: true,
+    ownKey: own,
+    setup: own ? ownSetup : setup,
+    hoursChanged: setup?.fit === 'other',
+  });
   const s = i.snapshot;
-  if (s && s.goal === i.goal)
-    out.push({
-      chain: s.chain,
-      end: s.end,
-      endTE: s.endTE,
-      spareHours: s.spareHours,
-      calculatedAt: s.calculatedAt,
-      saveSeconds: s.meta?.backupTime ?? saveNow,
-      fromTE: i.save?.te ?? null,
-      source: 'snapshot',
-      how: s.exact ? 'check' : 'instant',
-      exactConfirmsTE: i.goal === 'date' && s.exact ? s.instantTE === s.endTE : undefined,
-      runnerUpHours: s.runnerUpHours,
-    });
+  if (s && s.goal === i.goal) out.push(fromSnap(s, true, ownSetup));
+  for (const o of i.otherSnapshots ?? [])
+    if (o.plan.goal === i.goal) out.push(fromSnap(o.plan, false, checkOf(o.recorded)));
   const c = i.lastChecked;
   if (c && Array.isArray(c.chain) && c.chain.length)
     out.push({
@@ -165,6 +216,8 @@ function candidates(i: TileInput): TileAnswer[] {
       fromTE: i.save?.te ?? null,
       source: 'lastChecked',
       how: 'check',
+      ownKey: true,
+      setup: ownSetup,
     });
   for (const e of i.history) {
     if (!goalOk(e.deadline, e.target) || (i.goal === 'date' ? e.mode !== 'date' : e.mode !== 'fastest')) continue;
@@ -180,6 +233,8 @@ function candidates(i: TileInput): TileAnswer[] {
       source: 'history',
       how: e.exact ? 'check' : 'instant',
       exactConfirmsTE: i.goal === 'date' && e.exact ? e.exact.endTE === e.instant.endTE : undefined,
+      setup: checkOf(e.setup ?? null),
+      hoursChanged: checkOf(e.setup ?? null)?.fit === 'other',
     });
   }
   for (const r of i.board ?? []) {
@@ -205,6 +260,7 @@ function candidates(i: TileInput): TileAnswer[] {
       olderSimulator: i.olderSimulator?.(r) ?? false,
       hoursChanged: i.hoursChanged?.(r) ?? false,
       otherBrowser: !r.yours,
+      setup: checkOf(rowSetup(r)),
     });
   }
   if (i.goal === 'date')
@@ -222,36 +278,50 @@ function candidates(i: TileInput): TileAnswer[] {
         how: 'search',
         level: asLevel(a.level) ?? (a.simple ? 'quick' : 'exhaustive'),
         legs: a.route.legs ?? null,
+        setup: checkOf(a.setup ?? null),
+        hoursChanged: checkOf(a.setup ?? null)?.fit === 'other',
       });
     }
   return out.filter(a => Array.isArray(a.chain) && a.chain.length && Number.isFinite(a.end));
 }
 
-/** Better first: By a date, more TE then more spare; Fastest, sooner. Then the stronger pricing, then newer. */
-function better(goal: 'fastest' | 'date') {
-  const strength = (a: TileAnswer) => (a.how === 'search' ? 2 : a.how === 'check' ? 1 : 0);
-  return (a: TileAnswer, b: TileAnswer) =>
-    (goal === 'date' ? b.endTE - a.endTE || (b.spareHours ?? 0) - (a.spareHours ?? 0) : a.end - b.end) ||
-    strength(b) - strength(a) ||
-    b.calculatedAt - a.calculatedAt;
-}
-
 export function buildTile(i: TileInput): Tile {
   const all = candidates(i);
   const saveNow = i.save?.seconds ?? null;
-  const ownKey = (a: TileAnswer) => a.source === 'snapshot' || a.source === 'lastChecked';
+  const ownKey = (a: TileAnswer) => !!a.ownKey;
   const sameSave = (a: TileAnswer) =>
     ownKey(a) || (saveNow != null && a.saveSeconds != null && Math.abs(a.saveSeconds - saveNow) <= SAME_SAVE_SECONDS);
-  const current = (a: TileAnswer) =>
-    ownKey(a) || (saveNow != null && a.saveSeconds != null && a.saveSeconds >= saveNow - CURRENT_SAVE_SECONDS);
+  const current = (a: TileAnswer) => isCurrentSave(a.saveSeconds, saveNow, ownKey(a));
   const here = all.filter(sameSave);
-  const fresh = all.filter(current);
-  // An instant answer (the table only) heads the tile only when nothing current was checked or searched:
-  // the table can be a TE out either way (the alt, 15 Oct: 248 by the table, 247 by Check exactly).
-  const priced = fresh.filter(a => a.how !== 'instant');
-  const pool = priced.length ? priced : fresh;
-  const pick = pool.length ? [...pool].sort(better(i.goal))[0] : [...all].sort((a, b) => b.calculatedAt - a.calculatedAt)[0];
+  // One rule with Right now (lib/currentAnswer.ts): current save, then priced with Your setup now, then checked
+  // or searched over the table alone, then the goal's measure; an answer priced with other hours only as the
+  // secondary line.
+  const { lead: pick, secondary } = pickAnswer(
+    all.map(a => ({ ...rankOf(a, current(a)), a })),
+    i.goal
+  );
   if (!pick) return { goal: i.goal, answer: null, olderSave: false, saveGapSeconds: null, sure: null };
+  return finish(i, pick.a, secondary?.a ?? null, { current, ownKey, here, saveNow });
+}
+
+const rankOf = (a: TileAnswer, currentSave: boolean) => ({
+  currentSave,
+  fit: a.setup?.fit ?? ('current' as const),
+  how: a.how,
+  end: a.end,
+  endTE: a.endTE,
+  spareHours: a.spareHours,
+  calculatedAt: a.calculatedAt,
+  plan: a.plan,
+});
+
+function finish(
+  i: TileInput,
+  pick: TileAnswer,
+  secondary: TileAnswer | null,
+  c: { current: (a: TileAnswer) => boolean; ownKey: (a: TileAnswer) => boolean; here: TileAnswer[]; saveNow: number | null }
+): Tile {
+  const { current, ownKey, here, saveNow } = c;
   const olderSave = !current(pick) && pick.saveSeconds != null && saveNow != null && pick.saveSeconds < saveNow - CURRENT_SAVE_SECONDS;
   const gap = !ownKey(pick) && current(pick) && saveNow != null && pick.saveSeconds != null ? pick.saveSeconds - saveNow : null;
   const saveGapSeconds = gap != null && Math.abs(gap) > SAVE_GAP_WORDS_SECONDS ? gap : null;
@@ -276,8 +346,10 @@ export function buildTile(i: TileInput): Tile {
     hoursChanged: pick.hoursChanged,
     teMoved: i.save != null && pick.fromTE != null && Math.floor(pick.fromTE) !== Math.floor(i.save.te),
     te: pick.endTE,
+    runnerUpChain: pick.runnerUpChain ?? null,
+    runnerUpSame: pick.runnerUpSame,
   });
-  return { goal: i.goal, answer: pick, olderSave, saveGapSeconds, sure };
+  return { goal: i.goal, answer: pick, olderSave, saveGapSeconds, sure, secondary };
 }
 
 /** "4 min older than the one loaded", "1 h 20 min newer than the one loaded" (`Tile.saveGapSeconds`). */

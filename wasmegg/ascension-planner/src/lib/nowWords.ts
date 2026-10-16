@@ -3,14 +3,14 @@
  * the next-step sentence and the "calculated …" line. Pure; `now` and the zone are parameters.
  */
 import { dateAt, eventWhen, relativeWords } from './eventWhen';
-import type { PlanEvent } from './nowPlan';
+import { shiftTitle, type PlanEvent } from './nowPlan';
 import { virtueEggName } from './virtueEggs';
 import { hoursWords, timeOffWords } from './pricedWith';
 import type { Availability } from '@/search/availabilitySchedule';
 import type { TimeOffDates } from '@/search/timeOff';
 
-export function eventTitle(e: Pick<PlanEvent, 'kind' | 'egg' | 'te'>, goal: 'fastest' | 'date', goalName = 'Egg Day'): string {
-  if (e.kind === 'shift') return `Shift to ${virtueEggName(e.egg)}`;
+export function eventTitle(e: Pick<PlanEvent, 'kind' | 'egg' | 'eggs' | 'te'>, goal: 'fastest' | 'date', goalName = 'Egg Day'): string {
+  if (e.kind === 'shift') return shiftTitle(e, virtueEggName);
   if (e.kind === 'prestige') return `Prestige at ${e.te} TE`;
   return goal === 'date' ? `${goalName} goal: ${e.te} TE` : `${e.te} TE reached`;
 }
@@ -40,7 +40,13 @@ export function nextStepText(events: readonly PlanEvent[], goal: 'fastest' | 'da
   let text = `${eventTitle(first, goal)} ${w.day} at ${w.clock} (${w.relative})`;
   const second = ahead[1];
   const w2 = second ? eventWhen(second.at, nowSeconds, zone) : null;
-  if (second && w2) text += `, then ${second.kind === 'shift' ? virtueEggName(second.egg) : eventTitle(second, goal).toLowerCase()} ${w2.day} at ${w2.clock}`;
+  if (second && w2) {
+    // "then prestige at 197 TE" (only the first letter lowered: "TE" stays), "then Kindness", "then shift to …".
+    const lower = (x: string) => x.charAt(0).toLowerCase() + x.slice(1);
+    const what =
+      second.kind === 'shift' && !(second.eggs && second.eggs.length > 1) ? virtueEggName(second.egg) : lower(eventTitle(second, goal));
+    text += `, then ${what} ${w2.day} at ${w2.clock}`;
+  }
   return text;
 }
 

@@ -63,7 +63,7 @@ function dayDistance(a: Parts, b: Parts): number {
   return Math.round(t(a.ymd) - t(b.ymd));
 }
 
-/** 'in 1 h 20 m', 'in 18 h', 'in 2 days', 'in 1 day', '45 min ago', 'now'. */
+/** 'in 1 h 20 m', 'in 18 h', 'in 33 h' (hours up to 2 days), 'in 2 days', '45 min ago', '30 h ago', 'now'. */
 export function relativeWords(seconds: number): string {
   const abs = Math.abs(seconds);
   if (abs < 60) return 'now';
@@ -73,6 +73,9 @@ export function relativeWords(seconds: number): string {
     const h = Math.floor(abs / 3600);
     const m = Math.round((abs - h * 3600) / 60);
     body = m === 0 || m === 60 ? `${m === 60 ? h + 1 : h} h` : `${h} h ${m} m`;
+  } else if (abs < 2 * DAY) {
+    // Under two days, hours (Jordan, 16 Oct: "in 1 day" for 33 h hid most of a day).
+    body = `${Math.round(abs / 3600)} h`;
   } else {
     const d = Math.floor(abs / DAY);
     body = `${d} day${d === 1 ? '' : 's'}`;

@@ -79,6 +79,8 @@ export interface NowPlan {
   /** How far behind the next-best route is, hours; Infinity when every other route makes less TE (By a date);
    *  null when there is no other to compare. */
   runnerUpHours: number | null;
+  /** That next-best route, when there is one with a time (for "another route ties it exactly (…)"). */
+  runnerUp?: { chain: number[]; end: number; endTE: number } | null;
   meta: SnapMeta | null;
   whatIf: SnapWhatIf | null;
 }
@@ -116,6 +118,7 @@ export function planFromSnapshot(snap: SnapLike | null, goal: 'fastest' | 'date'
         instantTE: null,
         spareHours: null,
         runnerUpHours: priced[1] ? (priced[1].e.end - e.end) / 3600 : null,
+        runnerUp: priced[1] ? { chain: [...priced[1].r.chain], end: priced[1].e.end, endTE: priced[1].e.endTE } : null,
         ...common,
       };
     }
@@ -134,6 +137,7 @@ export function planFromSnapshot(snap: SnapLike | null, goal: 'fastest' | 'date'
       instantTE: null,
       spareHours: null,
       runnerUpHours: others[0] ? (others[0].end - best.end) / 3600 : null,
+      runnerUp: others[0] ? { chain: [...others[0].chain], end: others[0].end, endTE: lastTE(others[0]) } : null,
       ...common,
     };
   }
@@ -161,6 +165,7 @@ export function planFromSnapshot(snap: SnapLike | null, goal: 'fastest' | 'date'
       instantTE: table ? lastTE(table) : null,
       spareHours: spare(lead.end),
       runnerUpHours,
+      runnerUp: sameTE.length ? { chain: [...sameTE[0].chain], end: sameTE[0].end, endTE: sameTE[0].endTE } : null,
       ...common,
     };
   }
@@ -181,6 +186,7 @@ export function planFromSnapshot(snap: SnapLike | null, goal: 'fastest' | 'date'
     instantTE: lastTE(table),
     spareHours: spare(table.end),
     runnerUpHours: sameTE.length ? Math.max(0, (sameTE[0].end - table.end) / 3600) : others.length ? Infinity : null,
+    runnerUp: sameTE.length ? { chain: [...sameTE[0].chain], end: sameTE[0].end, endTE: lastTE(sameTE[0]) } : null,
     ...common,
   };
 }
@@ -193,8 +199,10 @@ export interface PlanEvent {
   at: number;
   /** 1-based ascension of the plan it belongs to. */
   asc: number;
-  /** Shift: the egg shifted to. */
+  /** Shift: the egg shifted to (the last one, for shifts merged by `mergeSimultaneousShifts`). */
   egg?: string;
+  /** Shifts at the same minute shown as one row (`mergeSimultaneousShifts`): every egg shifted to, in order. */
+  eggs?: string[];
   /** Prestige: the TE it prestiges at. Goal: the goal's TE. */
   te?: number;
   /** Goal (By a date): hours to spare. */
@@ -240,6 +248,63 @@ export function planEvents(plan: NowPlan, nowSeconds: number): PlanEvent[] {
   });
 }
 const order = (k: PlanEvent['kind']) => (k === 'shift' ? 0 : k === 'prestige' ? 1 : 2);
+
+/** The minute an instant falls in, in `zone` ("2026-10-17 04:16"): two shifts with the same are "at once". */
+function minuteKey(at: number, zone: string): string {
+  try {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: zone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    }).format(new Date(at * 1000));
+  } catch {
+    return String(Math.floor(at / 60));
+  }
+}
+
+/**
+ * Shifts at the same minute (in the planner's zone) as ONE row: the plan really does that (Joo's H1 step shifts to
+ * Humility to swap to the production set, then K3 shifts straight on to Kindness; both are charged), and two rows
+ * with the same time read as a mistake (Jordan, 16 Oct: "Shift to Humility Sat Oct 17 at 4:16 am" twice over).
+ * Only shifts next to each other merge; a prestige or the goal never does. The merged row keeps the first
+ * shift's time, `eggs` lists every egg in order and `egg` is the last; it is `next` when any of them was. Counting
+ * shifts (the planned-shift total and its cost) reads the legs, never these rows, so both still count.
+ */
+export function mergeSimultaneousShifts(events: readonly PlanEvent[], zone: string): PlanEvent[] {
+  const out: PlanEvent[] = [];
+  let lastKey = '';
+  for (const e of events) {
+    const prev = out[out.length - 1];
+    const key = e.kind === 'shift' ? minuteKey(e.at, zone) : '';
+    if (prev && prev.kind === 'shift' && e.kind === 'shift' && key === lastKey) {
+      const eggs = [...(prev.eggs ?? [prev.egg ?? '']), e.egg ?? ''];
+      out[out.length - 1] = { ...prev, eggs, egg: e.egg, next: prev.next || e.next, past: prev.past && e.past };
+      continue;
+    }
+    out.push(e);
+    lastKey = key;
+  }
+  return out;
+}
+
+/** Joo's H1 step: a shift to Humility for the production set, then straight on to Kindness (K3). */
+const isH1Pair = (eggs: readonly string[]) => eggs.length === 2 && eggs[0] === 'humility' && eggs[1] === 'kindness';
+
+/**
+ * A shift row's words: "Shift to Humility"; merged, "Shift to Humility (Joo's H1 step: artifact swap), then straight
+ * to Kindness" (the known H1/K3 pair), else "Shift to Integrity, then straight to Resilience" (and on, for three).
+ * The events table, Next step and the calendar all use it.
+ */
+export function shiftTitle(e: Pick<PlanEvent, 'egg' | 'eggs'>, eggName: (egg: string) => string): string {
+  const eggs = e.eggs && e.eggs.length > 1 ? e.eggs : [e.egg ?? ''];
+  const [first, ...rest] = eggs;
+  const head = `Shift to ${eggName(first)}${isH1Pair(eggs) ? " (Joo's H1 step: artifact swap)" : ''}`;
+  return [head, ...rest.map(x => `straight to ${eggName(x)}`)].join(', then ');
+}
 
 /** The plan's ascension the clock is in (1-based), 0 before the plan starts, the last one after it ends. */
 export function ascensionAt(plan: NowPlan, nowSeconds: number): number {

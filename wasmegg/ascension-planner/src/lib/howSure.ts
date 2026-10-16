@@ -26,6 +26,9 @@ export const HIGH_RUNNER_UP_DATE_HOURS = 2.4;
 /** Fastest: High needs the next-best route more than this many hours behind (a day). */
 export const HIGH_RUNNER_UP_FASTEST_HOURS = 24;
 
+/** A runner-up gap under this many hours shows as "0.0 h": it is said as a tie instead (Jordan, 16 Oct). */
+export const TIE_HOURS = 0.05;
+
 export type SureLevel = 'high' | 'medium' | 'low';
 /** A search's strength, weakest first ('quick' is Fast, 'normal' Exact, 'thorough' Very high). */
 export type SearchLevel = 'light' | 'quick' | 'normal' | 'thorough' | 'exhaustive';
@@ -54,6 +57,10 @@ export interface SureInput {
   spareHours?: number | null;
   /** Hours the next-best route is behind; null: not known. */
   runnerUpHours?: number | null;
+  /** The next-best route itself, when kept, and whether it is the same answer exactly (the same finish, TE
+   *  and spare): a tie is then named. */
+  runnerUpChain?: number[] | null;
+  runnerUpSame?: boolean;
   /** The older of the save and the answer, in days. */
   ageDays: number;
   olderSimulator?: boolean;
@@ -79,6 +86,18 @@ function age(days: number): string {
   return `${d} day${d === 1 ? '' : 's'} old`;
 }
 const hours = (h: number) => (h >= 48 ? `${(h / 24).toFixed(1)} days` : `${h.toFixed(1)} h`);
+/**
+ * How far behind the next route is: "the next route is only 1.2 h behind"; under TIE_HOURS "another route ties
+ * it"; the very same finish, TE and spare "another route ties it exactly (155 180 247)" (its route when kept).
+ */
+export function behindWords(runner: number, i: Pick<SureInput, 'runnerUpChain' | 'runnerUpSame'> = {}): string {
+  if (runner >= TIE_HOURS) return `the next route is only ${hours(runner)} behind`;
+  if (runner === 0 && i.runnerUpSame) {
+    const c = i.runnerUpChain;
+    return `another route ties it exactly${c && c.length ? ` (${c.join(' ')})` : ''}`;
+  }
+  return 'another route ties it';
+}
 const atLeast = (l: SearchLevel | null | undefined, min: SearchLevel) => !!l && RANK[l] >= RANK[min];
 
 export function howSure(i: SureInput): Sure {
@@ -117,7 +136,7 @@ export function howSure(i: SureInput): Sure {
         reason:
           runner == null
             ? `${LEVEL_WORDS[strong]} search; how far behind the next route is wasn't kept`
-            : `${LEVEL_WORDS[strong]} search; the next route is only ${hours(runner)} behind`,
+            : `${LEVEL_WORDS[strong]} search; ${behindWords(runner, i)}`,
       };
   }
   // Medium.
@@ -130,6 +149,6 @@ export function howSure(i: SureInput): Sure {
   if (typeof i.spareHours === 'number' && i.spareHours < HIGH_SPARE_HOURS)
     return { level: 'medium', reason: `${what} done; only ${hours(i.spareHours)} to spare` };
   if (runner != null && runner !== Infinity && runner <= HIGH_RUNNER_UP_DATE_HOURS)
-    return { level: 'medium', reason: `${what} done; the next route is only ${hours(runner)} behind` };
+    return { level: 'medium', reason: `${what} done; ${behindWords(runner, i)}` };
   return { level: 'medium', reason: `${what} done` };
 }

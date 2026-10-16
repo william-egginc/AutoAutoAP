@@ -10,10 +10,19 @@
     <div class="flex flex-wrap items-baseline justify-between gap-x-3">
       <p class="text-[11px] font-black uppercase tracking-widest text-slate-500">Right now</p>
       <p v-if="card" class="text-[12px] text-slate-500" data-testid="now-calculated">
-        Plan for {{ goalName }} calculated {{ calculatedWhen }} ({{ card.plan.exact ? 'Check exactly' : 'instant answer' }}) · from
-        your save of {{ planSaveWhen }}
+        Plan for {{ goalName }} calculated {{ calculatedWhen }} ({{ card.plan.exact ? 'Check exactly' : 'instant answer' }})<template
+          v-if="card.pricedWith"
+          >{{ ' ' }}· <span data-testid="now-priced-with">{{ card.pricedWith }}</span></template
+        >
+        · from your save of {{ planSaveWhen }}
       </p>
     </div>
+    <!-- A better plan of this save priced with other hours: named, never the lead (fix 22, lib/currentAnswer.ts). -->
+    <p v-if="card?.secondary" class="text-[12px] text-slate-500" data-testid="now-secondary">
+      {{ secondaryText }}<template v-if="card.secondary.plan.calculatedAt">
+        (calculated {{ dateAt(card.secondary.plan.calculatedAt / 1000, now, zone) }})</template
+      >
+    </p>
 
     <p v-if="card?.state === 'setup-changed'" class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-1.5 text-[12px] text-amber-900" data-testid="now-setup-changed">
       Your setup changed since this plan.
@@ -120,6 +129,8 @@ import { dateAt, relativeWords } from '@/lib/eventWhen';
 import { nextStepText } from '@/lib/nowWords';
 import { trackWords, type PlanEvent, type TrackState } from '@/lib/nowPlan';
 import { planCalEvent } from '@/lib/calendarEvents';
+import { secondaryLine } from '@/lib/currentAnswer';
+import { formatDate } from '@/lib/leaderboardRank';
 import { eggIconPath, virtueEggName } from '@/lib/virtueEggs';
 import type { CardPlan } from '@/composables/useNowPage';
 import type { MyRunsOpen } from '@/lib/myRunsDashboard';
@@ -168,6 +179,11 @@ const calculatedWhen = computed(() => {
 });
 /** The save the plan was made from: its own (an older save's), else the loaded one. */
 const planSaveWhen = computed(() => dateAt(props.card?.plan.meta?.backupTime || props.saveSeconds, props.now, props.zone));
+const secondaryText = computed(() => {
+  const sec = props.card?.secondary;
+  if (!sec) return '';
+  return secondaryLine(sec.label, sec.plan, t => formatDate(t * 1000, props.zone, { month: 'short', day: 'numeric', year: 'numeric' }));
+});
 const chip = computed(() => (props.track ? trackWords(props.track) : null));
 const nextText = computed(() => (props.card ? nextStepText(props.events, props.card.goal.goal, props.now, props.zone) : ''));
 const nextEvent = computed(() => props.events.find(e => !e.past && e.kind !== 'goal') ?? null);

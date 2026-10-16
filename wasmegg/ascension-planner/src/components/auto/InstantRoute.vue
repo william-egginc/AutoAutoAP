@@ -990,6 +990,7 @@ import MaxedWhatIf from './MaxedWhatIf.vue';
 import { accountOf } from '@/search/runSaves';
 import { countTEThresholdsPassed } from '@/lib/truthEggs';
 import { describeAvailability } from '@/search/availabilitySchedule';
+import type { TimeOffDates } from '@/search/timeOff';
 import { CTE_CLEARS, INTEGRITY_BLOCK_SECONDS, INTEGRITY_WARN_SECONDS } from '@/search/rules';
 import {
   buildGapOf,
@@ -2043,6 +2044,9 @@ const exactMs = ref<number | null>(null);
 /** "Priced with your hours 9 am to 1 am, no time off": the exact check's own hours and time off, taken when it
  *  starts (lib/pricedWith.ts, 16 Oct 2026); '' for a check restored from an earlier visit. */
 const exactPricedWith = ref('');
+/** The same, as the settings themselves: kept with the history entry and the snapshot (fix 22: My runs ranks
+ *  answers priced with Your setup now first, and names the hours of the others). */
+let exactSetup: { availability: Availability | null; timeOff: TimeOffDates[] } | null = null;
 /** A date answer: a route, the TE it ends at and the unix second it gets there. */
 interface DateExact {
   chain: number[];
@@ -2153,6 +2157,7 @@ async function runExact(id: number, found: NonNullable<typeof result.value>, man
   dateExactByK.value = {};
   exactMs.value = null;
   exactPricedWith.value = '';
+  exactSetup = null;
   // An account the integrity check blocks has no routes to check (the panel says why).
   if (store.integrityBlocked) {
     exactStatus.value = 'idle';
@@ -2177,10 +2182,11 @@ async function runExact(id: number, found: NonNullable<typeof result.value>, man
     const inputs = store.collectInputs();
     answerStart.value = inputs.planStart;
     // The hours and time off this check prices with, as it starts: what the line under it names.
-    exactPricedWith.value = pricedWithLine({
-      availability: inputs.availability,
+    exactSetup = {
+      availability: inputs.availability ? JSON.parse(JSON.stringify(inputs.availability)) : null,
       timeOff: JSON.parse(JSON.stringify(store.timeOff)),
-    });
+    };
+    exactPricedWith.value = pricedWithLine(exactSetup);
     const size = Math.max(1, Math.min(store.workerBudget, routes.length, 4));
     exactPool = await createChainSearchPool(inputs, { size });
     if (id !== runs) return;
@@ -2683,6 +2689,11 @@ function snapMeta(): SnapMeta | undefined {
     goal: instantGoal(props.deadline, store.finalTE),
     backupTime: initialState.lastBackupTime,
     teByEgg: order.map(e => Math.max(earned?.[e] ?? 0, countTEThresholdsPassed(delivered?.[e] ?? 0))),
+    // The hours and time off: the key holds them, so these are this snapshot's (Check exactly's when it ran here).
+    setup: exactSetup ?? {
+      availability: store.availability ? JSON.parse(JSON.stringify(store.availability)) : null,
+      timeOff: JSON.parse(JSON.stringify(store.timeOff)),
+    },
   };
 }
 /** The maxed what-if worked out for the answer on screen (kept with its snapshot; cleared with a new answer). */
@@ -3103,7 +3114,7 @@ async function rememberCheck(c: { record: InstantRecord; sig: string }): Promise
     historyPartition = partition;
     history.value = await loadHistory(partition);
   }
-  history.value = addCheck(history.value, entryFromRecord(c.record, c.sig, Date.now()));
+  history.value = addCheck(history.value, entryFromRecord(c.record, c.sig, Date.now(), false, exactSetup));
   await saveHistory(partition, history.value);
 }
 function clearHistory(): void {

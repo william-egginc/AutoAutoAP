@@ -51,6 +51,7 @@ import { virtueEggOf } from '@/lib/virtueEggs';
 import {
   SAVE_EGG_ORDER,
   ascensionAt,
+  mergeSimultaneousShifts,
   onTrack,
   planEvents,
   planFromSnapshot,
@@ -60,6 +61,16 @@ import {
   type SnapLike,
 } from '@/lib/nowPlan';
 import { buildTile, type SavedDateAnswer, type Tile } from '@/lib/savedTiles';
+import {
+  currentSetup,
+  otherSetupLabel,
+  pickCardPlan,
+  pricedWithWords,
+  setupCheck,
+  todayIn,
+  type CardCandidate,
+  type PricedSetup,
+} from '@/lib/currentAnswer';
 import { eggLines, farmFacts, saveEggCountsOf, saveFarmOf } from '@/lib/farmFacts';
 import { nextShiftCostAt, plannedShiftsCost } from '@/lib/shiftCost';
 import { dateStanding, raceStanding, type Standing } from '@/lib/standing';
@@ -75,6 +86,11 @@ export interface CardPlan {
   /** 'this-save': worked out from the loaded save and setup. 'setup-changed': the same save, another setup.
    *  'older-save': worked out from an earlier save (its own time in `plan.meta.backupTime`). */
   state: 'this-save' | 'setup-changed' | 'older-save';
+  /** "priced with your hours 7 am to 1 am, no time off" (lib/currentAnswer.ts `pricedWithWords`). */
+  pricedWith?: string;
+  /** A better plan of the same goal and save priced with other hours: its plan and label ("with any hour (before
+   *  your hours changed)"); null when none. */
+  secondary?: { plan: NowPlan; label: string } | null;
 }
 
 /**
@@ -198,37 +214,64 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
 
   // ------------------------------------------------------------------------------- the card's plan
 
-  const cardPlan = computed<CardPlan | null>(() => {
-    if (!hasSave.value) return null;
-    // 1. This save and setup, by goal.
-    for (const { g, key } of keys.value) {
-      const p = planOf(g, snapOf(instantSnapKey(key)));
-      if (p) return { plan: p, goal: g, state: 'this-save' };
-    }
+  /** Your setup now (the hours and time off every answer is compared with) and today in the planner's zone. */
+  const setupNow = computed<{ setup: PricedSetup; today: string }>(() => ({
+    setup: { availability: store.availability ?? null, timeOff: store.timeOff ?? [] },
+    today: todayIn(now.value * 1000, zone.value),
+  }));
+
+  /**
+   * Every kept snapshot Right now could show, each with how it was priced (lib/currentAnswer.ts): this save's own
+   * key for each goal (priced with Your setup now: the key holds it), then the index's snapshots of this account and
+   * goal under other keys (the same save with another setup, or an earlier save), with the setup each recorded.
+   */
+  const snapCandidates = computed<CardCandidate[]>(() => {
+    if (!hasSave.value) return [];
+    const out: CardCandidate[] = [];
+    const seen = new Set<string>();
+    const sn = setupNow.value;
+    keys.value.forEach(({ g, key }, goalIndex) => {
+      const snapKey = instantSnapKey(key);
+      if (!snapKey) return;
+      seen.add(snapKey);
+      const p = planOf(g, snapOf(snapKey));
+      if (p) out.push({ plan: p, goalIndex, ownKey: true, check: currentSetup(sn.setup) });
+    });
     const acct = account.value;
-    if (!acct) return null;
-    const entries = [...index.value].reverse(); // newest first
+    if (!acct) return out;
     const goalWords = (g: Goal) => instantGoal(g.deadline, g.deadline ? store.finalTE : g.target);
-    // 2. This save, another setup (the setup changed since).
-    for (const { g } of keys.value)
-      for (const e of entries) {
-        const m = e.meta;
-        if (!m || m.account !== acct || m.goal !== goalWords(g) || Math.abs(m.backupTime - saveSeconds.value) > 60) continue;
-        const p = planOf(g, snapOf(e.key));
-        if (p) return { plan: p, goal: g, state: 'setup-changed' };
-      }
-    // 3. An earlier save's plan, the newest.
-    for (const { g } of keys.value)
-      for (const e of entries) {
-        const m = e.meta;
-        if (!m || m.account !== acct || m.goal !== goalWords(g) || m.backupTime >= saveSeconds.value - 60) continue;
-        const p = planOf(g, snapOf(e.key));
-        if (p) return { plan: p, goal: g, state: 'older-save' };
-      }
-    return null;
+    for (const e of [...index.value].reverse()) {
+      const m = e.meta;
+      if (!m || m.account !== acct || seen.has(e.key)) continue;
+      const goalIndex = keys.value.findIndex(({ g }) => goalWords(g) === m.goal);
+      if (goalIndex < 0) continue;
+      const p = planOf(keys.value[goalIndex].g, snapOf(e.key));
+      if (!p) continue;
+      seen.add(e.key);
+      out.push({ plan: p, goalIndex, ownKey: false, check: setupCheck(m.setup ?? null, sn.setup, sn.today) });
+    }
+    return out;
   });
 
-  const events = computed(() => (cardPlan.value ? planEvents(cardPlan.value.plan, now.value) : []));
+  /** Right now's plan: the same rule as the tiles (lib/currentAnswer.ts `pickCardPlan`). */
+  const cardPlan = computed<CardPlan | null>(() => {
+    const pick = pickCardPlan(snapCandidates.value, saveSeconds.value);
+    if (!pick) return null;
+    const c = pick.candidate;
+    return {
+      plan: c.plan,
+      goal: keys.value[c.goalIndex].g,
+      state: pick.state,
+      pricedWith: pricedWithWords(c.check),
+      secondary: pick.secondary ? { plan: pick.secondary.plan, label: otherSetupLabel(pick.secondary.check) } : null,
+    };
+  });
+
+  /** Shifts at the same minute are one row (Joo's H1 step, then K3): nowPlan `mergeSimultaneousShifts`. The
+   *  planned-shift total reads the legs, so it still counts both. */
+  const events = computed(() =>
+    cardPlan.value ? mergeSimultaneousShifts(planEvents(cardPlan.value.plan, now.value), zone.value) : []
+  );
   const shownEvents = computed(() => tableEvents(events.value));
   const ascNow = computed(() => (cardPlan.value ? ascensionAt(cardPlan.value.plan, now.value) : 0));
   const track = computed(() =>
@@ -333,15 +376,23 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       saveSeconds: a.save?.backupAt || null,
       level: a.result.level,
       simple: a.result.simple,
+      setup: a.result.settings
+        ? { availability: a.result.settings.availability ?? null, timeOff: a.result.settings.timeOff ?? [] }
+        : null,
       route: a.result.routes[0]
         ? { chain: [...a.result.routes[0].chain], reachAt: a.result.routes[0].reachAt, spare: a.result.routes[0].spare, legs: a.result.routes[0].legs }
         : null,
     }))
   );
   function tileFor(g: Goal): Tile {
-    const k = keys.value.find(x => x.g.goal === g.goal && x.g.target === g.target && x.g.deadline === g.deadline)?.key ?? null;
+    const gi = keys.value.findIndex(x => x.g.goal === g.goal && x.g.target === g.target && x.g.deadline === g.deadline);
+    const k = keys.value[gi]?.key ?? null;
     const setup = { availability: store.availability, timeOff: store.timeOff };
     const nowMs = now.value * 1000;
+    // Every kept snapshot of this goal under another key, with the setup it recorded (Right now ranks the same).
+    const others = snapCandidates.value
+      .filter(c => !c.ownKey && c.goalIndex === gi && c.plan.goal === g.goal)
+      .map(c => ({ plan: c.plan, recorded: c.check.recorded }));
     return buildTile({
       goal: g.goal,
       target: g.target,
@@ -353,6 +404,8 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       history: history.value,
       board: o.myRows.value,
       saved: savedDate.value,
+      setupNow: setupNow.value,
+      otherSnapshots: others,
       hoursChanged: row => {
         const d = hoursDiffer(row, setup, nowMs, zone.value);
         return d.hours || d.timeOff;
