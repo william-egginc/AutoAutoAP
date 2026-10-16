@@ -27,12 +27,21 @@
 <template>
   <div class="space-y-4" data-testid="latest-run">
     <div v-if="shown === 'none'" class="rounded-xl border border-slate-200 bg-white p-4 space-y-1.5" data-testid="latest-run-empty">
-      <p v-if="store.isRunning && fastestMine" class="text-xs text-slate-700">
+      <p v-if="store.isRunning && fastestMine && want !== 'date'" class="text-xs text-slate-700">
         Your run on {{ fastestName(store.finalTE) }} has started: its other options and charts show here as its
         routes are priced.
       </p>
-      <p v-else-if="store.deadlineRunning && dateMine" class="text-xs text-slate-700">
+      <p v-else-if="store.deadlineRunning && dateMine && want !== 'fastest'" class="text-xs text-slate-700">
         Your {{ NAMES.byDate }} run has started: its routes show here when it finishes.
+      </p>
+      <p v-else-if="want === 'date'" class="text-xs text-slate-700" data-testid="latest-run-none-date">
+        No {{ NAMES.byDate }} run yet on this account: run one on
+        <a :href="byDateHash" class="font-bold text-indigo-700 underline hover:text-indigo-900">{{ NAMES.byDate }}</a>
+        and its routes show here.
+      </p>
+      <p v-else-if="want === 'fastest'" class="text-xs text-slate-700" data-testid="latest-run-none-fastest">
+        No {{ fastestName(store.finalTE) }} run yet on this account: run Nearby routes or Exhaustive on it and its routes
+        show here.
       </p>
       <p v-else class="text-xs text-slate-700">
         Run a search on {{ fastestName(store.finalTE) }} or {{ NAMES.byDate }} and its routes show here, each with
@@ -386,7 +395,7 @@
     </template>
 
     <!-- The other search's run, when there is one too: the view shows the newest, this switches. -->
-    <p v-if="other" class="text-[11px] text-slate-500" data-testid="latest-run-other">
+    <p v-if="other && want === undefined" class="text-[11px] text-slate-500" data-testid="latest-run-other">
       <button type="button" class="font-bold text-indigo-700 underline hover:text-indigo-900" @click="pick = other">
         Show your {{ other === 'date' ? NAMES.byDate : fastestName(store.finalTE) }} run instead
       </button>
@@ -420,6 +429,9 @@ import { runIsMine } from '@/lib/latestRunOwner';
 const props = defineProps<{
   /** The account on screen: only its runs show here. Never shown; only its hash is compared. */
   playerId: string;
+  /** Which run to show, from My runs' "Showing" switch (17 Oct 2026): its own "instead" line is then left out.
+   *  Absent: the newest, with that line. */
+  want?: 'fastest' | 'date' | null;
 }>();
 
 /** The charts (heat map, dots) and their drawing code load only when this view first shows them. */
@@ -484,9 +496,19 @@ const dateAt = computed<number | null>(() =>
   dateMine.value && store.deadlineRunning ? Infinity : dateResult.value ? dateResult.value.at || 1 : null
 );
 /** The player's switch to the other run ("Show your … run instead"); null: the newest. */
-const pick = ref<'fastest' | 'date' | null>(null);
+const pick = ref<'fastest' | 'date' | null>(props.want ?? null);
+watch(
+  () => props.want,
+  w => {
+    if (w !== undefined) pick.value = w ?? null;
+  }
+);
 /** The run shown: the one picked, else the newer (a run going now is newest), else none. */
 const shown = computed<'fastest' | 'date' | 'none'>(() => {
+  // My runs' "Showing" switch asks for one kind: only that kind's run, never the other one in its place (beta,
+  // 16 Oct: "Latest Highest TE by a date run" showed an Exhaustive run on Fastest, the fallback to the newest).
+  if (props.want === 'fastest') return fastestAt.value !== null ? 'fastest' : 'none';
+  if (props.want === 'date') return dateAt.value !== null ? 'date' : 'none';
   if (pick.value === 'fastest' && fastestAt.value !== null) return 'fastest';
   if (pick.value === 'date' && dateAt.value !== null) return 'date';
   return newest.value;
@@ -500,11 +522,17 @@ const newest = computed<'fastest' | 'date' | 'none'>(() => {
   // A By a date run going now: its last result is the newest thing on that side, unless Fastest's is newer.
   return d > f ? 'date' : 'fastest';
 });
-/** Whether there is a run of this account to show (My runs opens its block then). */
-const emit = defineEmits<{ has: [has: boolean] }>();
+/** Whether there is a run of this account to show (My runs opens its block then), and which kinds there are
+ *  (My runs' "Showing" switch). */
+const emit = defineEmits<{ has: [has: boolean]; kinds: [kinds: { fastest: boolean; date: boolean }] }>();
 watch(
   () => shown.value !== 'none',
   has => emit('has', has),
+  { immediate: true }
+);
+watch(
+  () => `${fastestAt.value !== null}|${dateAt.value !== null}`,
+  () => emit('kinds', { fastest: fastestAt.value !== null, date: dateAt.value !== null }),
   { immediate: true }
 );
 /** The other run, when there is one to switch to. */

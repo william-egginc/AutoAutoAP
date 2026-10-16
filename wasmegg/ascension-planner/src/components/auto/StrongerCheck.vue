@@ -250,7 +250,14 @@ async function fetchMyRuns(partition: string): Promise<BoardRow[]> {
         saveKey: hasSave ? store.saveAccountKey() : null,
         remembered: rememberedKeys(partition),
         mine,
-        names: [entry?.nickname || entry?.username || '', playerId ? names.nameFor(playerId) : ''],
+        // Every name the account may be credited as from another browser (fix 20): nickname AND username, the
+        // save's own name, the credit name here.
+        names: [
+          entry?.nickname,
+          entry?.username,
+          (initialState.rawBackup as { userName?: string | null } | null)?.userName,
+          playerId ? names.nameFor(playerId) : '',
+        ],
         viewerTE: hasSave ? store.backupTE : 0,
       }),
   }).catch(() => []);
@@ -327,7 +334,8 @@ function stopAuto(): void {
 /** Which of the store's at-once maps is this screen's. */
 const goalKey = computed<'fastest' | 'date'>(() => (props.deadline ? 'date' : 'fastest'));
 /** The instant answer's routes Light prices at once: the lead (Check exactly's answer) first, then the
- *  counts table's other rows. */
+ *  counts table's other rows, then with the player's hours on each row's other route (`alt`, HOURS FIX B:
+ *  search/hoursRunnerUp.ts; about one extra route per count, and the status's total counts them). */
 const atOnceItems = computed(() => atOnceQueue(props.atOnceRows ?? [], props.best?.chain ?? null));
 /** What Light is doing now, while it runs ("Looking at 7 ascensions (1 of 5)"). */
 const lightStep = ref('');
@@ -393,7 +401,7 @@ async function priceAtOnce(g: number): Promise<boolean> {
       if (g === autoGen) stronger.atOnce[which] = { ...stronger.atOnce[which], [key(c)]: p };
     },
     onProgress: (next, i) => {
-      if (g === autoGen && next) lightStep.value = lookingText(next.count, offset + i, all.length);
+      if (g === autoGen && next) lightStep.value = lookingText(next.count, offset + i, all.length, !!next.extra);
     },
     shouldStop: () => g !== autoGen,
     // Yield to the page between the lead and the rest, so its line paints before the next batch.

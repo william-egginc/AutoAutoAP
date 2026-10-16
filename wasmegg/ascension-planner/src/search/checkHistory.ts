@@ -12,6 +12,8 @@
 import { loadMetadata, saveMetadata } from '@/lib/storage/db';
 import type { InstantRecord } from './instantRecord';
 import type { FirstLegKind } from './firstAscension';
+import type { Availability } from './availabilitySchedule';
+import type { TimeOffDates } from './timeOff';
 
 export const HISTORY_CAP = 200;
 export const HISTORY_KEY = 'checkHistory';
@@ -38,6 +40,9 @@ export interface CheckEntry {
   exact: HistoryAnswer | null;
   firstLeg?: FirstLegKind;
   shared: boolean;
+  /** The hours and time off the check priced with (fix 22, 16 Oct 2026; absent before): My runs ranks answers
+   *  priced with Your setup now first (lib/currentAnswer.ts). */
+  setup?: { availability: Availability | null; timeOff: TimeOffDates[] };
   /** The record's signature (instantRecord.ts `recordSig`): two checks with the same one are the same. */
   sig: string;
 }
@@ -50,7 +55,14 @@ const answerOf = (a: { chain: number[]; end: number; endTE?: number; spareHours?
 });
 
 /** A history entry from the record a finished check builds (whether or not it is ever sent). */
-export function entryFromRecord(rec: InstantRecord, sig: string, at: number, shared = false): CheckEntry {
+export function entryFromRecord(
+  rec: InstantRecord,
+  sig: string,
+  at: number,
+  shared = false,
+  /** The hours and time off it priced with (`CheckEntry.setup`). */
+  setup?: CheckEntry['setup'] | null
+): CheckEntry {
   return {
     at,
     ...(rec.backupTime !== undefined ? { backupTime: rec.backupTime } : {}),
@@ -61,6 +73,7 @@ export function entryFromRecord(rec: InstantRecord, sig: string, at: number, sha
     exact: rec.exact ? answerOf(rec.exact) : null,
     ...(rec.exact?.firstLeg ? { firstLeg: rec.exact.firstLeg } : {}),
     shared,
+    ...(setup ? { setup: JSON.parse(JSON.stringify(setup)) as CheckEntry['setup'] } : {}),
     sig,
   };
 }

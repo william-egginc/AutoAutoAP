@@ -79,6 +79,8 @@ describe('the result names its hours and time off (item 10)', () => {
     expect(deadline).toContain('result.value?.settings ? pricedWithLine(result.value.settings)');
     expect(deadline).toContain('{{ resultPricedWith }}.');
     const instant = read('InstantRoute.vue');
-    expect(instant).toMatch(/exactPricedWith\.value = pricedWithLine\(\{\s+availability: inputs\.availability,/);
+    // The check's own inputs, kept as `exactSetup` (fix 22: the history and the snapshot record them too).
+    expect(instant).toMatch(/exactSetup = \{\s+availability: inputs\.availability \?/);
+    expect(instant).toContain('exactPricedWith.value = pricedWithLine(exactSetup);');
   });
 });

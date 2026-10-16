@@ -10,39 +10,67 @@
  *
  * Pure: the order, the words, and the loop with the pricing passed in. The component owns the workers.
  */
-import { bestOf, key, makesDate, type Goal, type Priced } from './strongerCheck';
+import { beats, bestOf, key, makesDate, type Goal, type Priced } from './strongerCheck';
 
 /** One route Light prices at once: a row of the counts table. */
 export interface AtOnceItem {
   chain: number[];
   /** Its row's number of ascensions. */
   count: number;
+  /** HOURS FIX B (search/hoursRunnerUp.ts), with the player's hours on only: the row's other route (the table's
+   *  pick when its runner-up won Check exactly, else the count's next-best route), priced at once too. */
+  alt?: number[];
+  /** In the queue: this is a row's `alt`, not the row's own route. */
+  extra?: true;
 }
 
 /**
  * The routes to price, the lead (the fastest by Check exactly, or By a date's answer) first, then the
- * rest in the table's order, each route once.
+ * rest in the table's order, then (hours on) each row's other route flagged `extra`, each route once.
+ * About one extra route per count with hours on; none with hours off (no `alt`).
  */
 export function atOnceQueue(rows: readonly AtOnceItem[], lead: readonly number[] | null): AtOnceItem[] {
   const out: AtOnceItem[] = [];
   const seen = new Set<string>();
-  const push = (it: AtOnceItem) => {
+  const push = (it: AtOnceItem, extra = false) => {
     const k = key(it.chain);
     if (seen.has(k) || it.chain.length < 1) return;
     seen.add(k);
-    out.push({ chain: [...it.chain], count: it.count });
+    out.push({ chain: [...it.chain], count: it.count, ...(extra ? { extra: true as const } : {}) });
   };
   const leadRow = lead ? rows.find(r => key(r.chain) === key(lead)) : undefined;
   if (lead) push(leadRow ?? { chain: [...lead], count: lead.length });
   for (const r of rows) push(r);
+  for (const r of rows) if (r.alt?.length) push({ chain: r.alt, count: r.count }, true);
   return out;
 }
 
 const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? '' : 's'}`;
 
-/** "Looking at 7 ascensions (1 of 5)": the route being priced, and how far along. */
-export function lookingText(count: number, index: number, total: number): string {
-  return `Looking at ${plural(count, 'ascension')} (${index + 1} of ${total})`;
+/** "Looking at 7 ascensions (1 of 5)": the route being priced, and how far along. A row's other route (hours
+ *  on): "Looking at 7 ascensions, next-best route (6 of 10)"; the total counts those too. */
+export function lookingText(count: number, index: number, total: number, extra = false): string {
+  return `Looking at ${plural(count, 'ascension')}${extra ? ', next-best route' : ''} (${index + 1} of ${total})`;
+}
+
+/**
+ * A row's at-once price to show: its own route's, or (hours on) its other route's when that is better by the
+ * goal (strongerCheck.ts `beats`). Null until the row's own route or its other one is priced; `extra` when the
+ * other one leads.
+ */
+export function rowAtOnce(
+  goal: Goal,
+  have: Readonly<Record<string, Priced | null>>,
+  chain: readonly number[],
+  alt?: readonly number[]
+): { chain: number[]; priced: Priced | null; extra: boolean } | null {
+  const k = key([...chain]);
+  const a = alt?.length ? key([...alt]) : null;
+  const mine = k in have ? { chain: [...chain], priced: have[k], extra: false } : null;
+  const other = a && a in have && have[a] ? { chain: [...alt!], priced: have[a], extra: true } : null;
+  if (!other) return mine;
+  if (!mine || beats(goal, other.priced, mine.priced)) return other;
+  return mine;
 }
 
 /** "Your earlier routes: 3 of 6". */

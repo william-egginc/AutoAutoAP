@@ -123,6 +123,19 @@ export function useAccountName(playerId: () => string): ComputedRef<string> {
   });
 }
 
+/**
+ * Every name this account may be credited as from another browser, for My runs' "looks like yours" (lib/myRuns.ts
+ * `isMyRun`): the header's nickname AND the in-game username (a browser sends under `nickname || username`, and
+ * the other browser may have no nickname, or another one). Blank ones dropped.
+ */
+export function useAccountNames(playerId: () => string): ComputedRef<string[]> {
+  const eidsStore = useEidsStore();
+  return computed(() => {
+    const entry = eidsStore.eids.get(playerId().trim());
+    return [entry?.nickname, entry?.username].filter((n): n is string => !!n?.trim());
+  });
+}
+
 export function useShareIdentity(playerId: () => string): ShareIdentity {
   return createShareIdentity(useAccountName(playerId), useSharedName(playerId), useShareConsent());
 }

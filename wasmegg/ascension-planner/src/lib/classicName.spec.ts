@@ -68,8 +68,8 @@ describe('the Single run name', () => {
       .flatMap(f =>
         strip(fs.readFileSync(f, 'utf8'))
           .split('\n')
-          // The README's one "(was Your plan)", as the screen's own intro says it.
-          .map(l => l.replace('(was Your plan)', ''))
+          // The README's history mentions: "(was Your plan)" and "(formerly Your plan, formerly Classic)".
+          .map(l => l.replace('(was Your plan)', '').replace('(formerly Your plan, formerly Classic)', ''))
           .filter(l => named.test(l))
           .map(l => `${path.relative(root, f)}: ${l.trim()}`)
       );

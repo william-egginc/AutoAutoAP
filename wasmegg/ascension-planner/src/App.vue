@@ -548,7 +548,14 @@
       <!-- My runs (15 Oct 2026; was Compare's My plans): your runs on the board (hidden ones too), saved on this
            computer, and not sent yet. Use and a saved entry's Open go to the Auto Planner, as Compare's Use does. -->
       <div v-else-if="plannerTab === 'myruns'" class="max-w-6xl mx-auto mt-6">
-        <MyRunsView :player-id="playerId" @use="useLeaderboardChain" @open="openFromMyRuns" />
+        <MyRunsView
+          :player-id="playerId"
+          :loading="loading"
+          @use="useLeaderboardChain"
+          @open="openFromMyRuns"
+          @fresh="loadFreshSave"
+          @recalc="recalcFromMyRuns"
+        />
       </div>
 
       <!-- Science: how the planner works (its default page), what the collected runs still can't tell
@@ -579,6 +586,12 @@
 
       <!-- Your setup, floating, on every Auto Planner screen: the gear opens it; workers adjust folded. -->
       <SetupDock v-if="plannerTab === 'automatic' && playerId && !loading" :screen="autoView" />
+      <!-- And on My runs (17 Oct 2026), which has no setup box: Fastest's setup, its hours under the button. -->
+      <SetupDock
+        v-else-if="plannerTab === 'myruns' && playerId && !loading"
+        screen="fastest"
+        :summary="setupSummary(chainSearchStore.availability, chainSearchStore.timeOff)"
+      />
 
       <!-- Undo Confirmation Dialog -->
       <UndoConfirmationDialog
@@ -705,6 +718,7 @@ import { getSavedPlayerID, savePlayerID, requestFirstContact, resolveColleggtibl
 import ThePlayerIdForm from 'ui/components/PlayerIdForm.vue';
 import { useInitialStateStore } from '@/stores/initialState';
 import { offerStartTimes } from '@/lib/onVirtue';
+import { backupSecondsOf, saveTEOf } from '@/lib/saveFreshness';
 import { useActionsStore } from '@/stores/actions';
 import { useVirtueStore } from '@/stores/virtue';
 import { useUIStore } from '@/stores/ui';
@@ -738,6 +752,7 @@ import { useGearCoverage } from '@/composables/useGearCoverage';
 import SiteTabs from '@/components/SiteTabs.vue';
 import MyRunsView from '@/components/MyRunsView.vue';
 import SetupDock from '@/components/auto/SetupDock.vue';
+import { setupSummary } from '@/lib/nowWords';
 import SweepRunner from '@/components/science/SweepRunner.vue';
 import HowItWorks from '@/components/science/HowItWorks.vue';
 import StartTimeCard from '@/components/auto/StartTimeCard.vue';
@@ -745,6 +760,7 @@ import { useStartTimesStore } from '@/stores/startTimes';
 import { revealRunTab, selectSearchTab } from '@/lib/searchTab';
 import { presetByDate } from '@/lib/byDateForm';
 import type { MyRunsOpen } from '@/lib/myRunsDashboard';
+import { needsFreshSave, type RecalcRequest } from '@/lib/recalc';
 import { useStrongerStore } from '@/stores/stronger';
 import type { SweepRequest } from '@/search/sweepRequest';
 import { virtueInventory } from '@/search/csv';
@@ -762,7 +778,6 @@ import NewVersionBanner from '@/components/NewVersionBanner.vue';
 import IntegrityAlert from '@/components/auto/IntegrityAlert.vue';
 import { getSimulationContext, createBaseEngineState } from '@/engine/adapter';
 import type { Action, VirtueEgg } from '@/types';
-import { countTEThresholdsPassed } from '@/lib/truthEggs';
 import { setConsentAccount } from '@/composables/useConsent';
 import { getArtifact, getArtifactLoadoutFromBackup } from '@/lib/artifacts';
 import {
@@ -827,6 +842,27 @@ function openFromMyRuns(to: MyRunsOpen): void {
   uiStore.autoView = to.auto;
   if (to.depth) uiStore.fastestDepth = to.depth;
   plannerTab.value = 'automatic';
+}
+/**
+ * My runs' "Recalculate" (lib/recalc.ts): a fresh save first when the loaded one is 6 hours old or more (the same
+ * path as entering the Auto Planner; stops on its reason), then the goal's screen as Open does, then Check exactly
+ * there (`ui.exactAsk`, which InstantRoute.vue answers once its instant answer is in). Under a running search the
+ * screen only opens, as Open does: nothing is loaded or run.
+ */
+async function recalcFromMyRuns(req: RecalcRequest): Promise<void> {
+  if (searchActive.value) {
+    openFromMyRuns(req.open);
+    return;
+  }
+  if (needsFreshSave(backupSecondsOf(initialStateStore.rawBackup), Date.now() / 1000)) {
+    const why = await prepareAutoPlanner();
+    if (why) {
+      error.value = why;
+      return;
+    }
+  }
+  openFromMyRuns(req.open);
+  uiStore.askExact(req.goal, req.chain);
 }
 const initialStateStore = useInitialStateStore();
 // The Auto Planner's start and timezone, restored and defaulted before any screen or chunk loads.
@@ -1166,16 +1202,7 @@ const saveArtifacts = computed(() => virtueInventory(initialStateStore.rawBackup
 /** Whether the save's gear has an instant answer of its own, for the "Any other gear" card (worked out
  *  only once Science's gap list is open). */
 const gearCoverage = useGearCoverage(() => plannerTab.value === 'science' && scienceView.value === 'check');
-const saveTE = computed(() => {
-  const virtue = initialStateStore.rawBackup?.virtue;
-  const earned = virtue?.eovEarned ?? [];
-  const delivered = virtue?.eggsDelivered ?? [];
-  let total = 0;
-  for (let i = 0; i < 5; i++) {
-    total += Math.min(98, Math.max(earned[i] ?? 0, countTEThresholdsPassed(delivered[i] ?? 0)));
-  }
-  return total;
-});
+const saveTE = computed(() => saveTEOf(initialStateStore.rawBackup));
 /** When should I start? only before the player is on virtue (lib/onVirtue.ts, Jordan 16 Oct 2026); its
  *  address still opens, with a short note, for a link from before. */
 const scienceTabs = computed<{ id: ScienceView; label: string }[]>(() => [
@@ -1320,6 +1347,9 @@ onMounted(async () => {
 
   // A saved player id on a link into the Auto Planner: set it up now rather than waiting for a click.
   await initAutoOnce();
+  // On My runs: load the save into the stores now that the draft is restored (loadSaveForMyRuns).
+  myRunsReady = true;
+  loadSaveForMyRuns();
 });
 
 // Auto-save logic
@@ -1573,6 +1603,65 @@ async function prepareAutoPlanner(): Promise<string> {
     loading.value = false;
   }
 }
+
+/** My runs' "Load a fresh one": the same fresh save as entering the Auto Planner, staying on My runs. */
+function loadFreshSave(): void {
+  void prepareAutoPlanner();
+}
+
+/**
+ * My runs reads everything from the save, so it needs one LOADED into the stores. On a page load they hold the
+ * Manual planner's restored draft instead (initPersistence -> importPlan -> hydrate: no save time, and the TE
+ * and egg of whenever that plan was made) beside the last fetched save: the strip said "No save loaded" and the
+ * board's look-alike rule read the draft's TE (fix 20). So on My runs, with no save loaded into the stores, load
+ * one the way entering the Auto Planner does (prepareAutoPlanner: a fresh save, else the stored one). After the
+ * page's own restore (onMounted ends with it), at most once per account per page visit (a Manual plan opened
+ * later from the library is never reset by a tab click: the strip's "Load your save" is there), never under a
+ * search or over a save the player picked.
+ *
+ * An account switch (submitPlayerId) DOES load the save into the stores, but the 'default' way: the pending Truth
+ * Eggs not rolled up (the TE is the claimed one) and the farm caught up to now. My runs reads its TE and eggs from
+ * the save itself (useNowPage), but the instant answer's key and the gear sets need the stores set up as Fastest
+ * and By a date have them, so then it sets them up from the save already in hand (no second fetch; fix 21).
+ */
+const storesFromSave = computed(() => initialStateStore.hasData && initialStateStore.lastBackupTime > 0);
+/** The stores hold the loaded save set up the Auto Planner's way: its own time, its pending TE rolled up. */
+const storesSetUpFromSave = computed(
+  () =>
+    storesFromSave.value &&
+    initialStateStore.lastBackupTime === backupSecondsOf(initialStateStore.rawBackup) &&
+    chainSearchStore.currentTE === saveTEOf(initialStateStore.rawBackup)
+);
+let myRunsReady = false;
+let myRunsLoadFor = '';
+function loadSaveForMyRuns(): void {
+  if (!myRunsReady || plannerTab.value !== 'myruns' || !playerId.value || loading.value || storesSetUpFromSave.value) return;
+  if (myRunsLoadFor === playerId.value || searchActive.value || uiStore.runSaveLoaded) return;
+  myRunsLoadFor = playerId.value;
+  const raw = initialStateStore.rawBackup;
+  const inHand =
+    storesFromSave.value &&
+    !!raw &&
+    raw.eiUserId === playerId.value &&
+    initialStateStore.lastBackupTime === backupSecondsOf(raw);
+  void (inHand ? setUpFromSaveInHand() : prepareAutoPlanner());
+}
+/** initPlanFuture from the save already loaded (an account switch just fetched it). */
+async function setUpFromSaveInHand(): Promise<void> {
+  const raw = initialStateStore.rawBackup;
+  if (!playerId.value || !raw || loading.value) return;
+  loading.value = true;
+  try {
+    await initPlanFuture(playerId.value, raw);
+  } catch (e) {
+    console.error('Could not set the planner up from the loaded save:', e);
+  } finally {
+    loading.value = false;
+  }
+}
+// Once per account per visit: a switch back to an account counts again (its stores were loaded the switch's way).
+watch(playerId, () => (myRunsLoadFor = ''));
+watch([plannerTab, playerId, loading, storesSetUpFromSave], loadSaveForMyRuns);
 
 /** What we need to check's Run this sweep, on the Science tab: open its window. */
 function openSweep(request: SweepRequest): void {

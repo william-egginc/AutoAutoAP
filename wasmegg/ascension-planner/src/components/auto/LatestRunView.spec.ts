@@ -109,8 +109,8 @@ describe('LatestRunView (My runs › Your latest run)', () => {
     const src = read('LatestRunView.vue');
     expect(src).toMatch(/const RunCharts = safeAsyncComponent\(\(\) => import\('\.\/charts\/RunCharts\.vue'\)\)/);
     expect(src).not.toMatch(/import RunCharts from/);
-    // The view is on My runs now, not on the Leaderboard.
-    expect(read('../MyRunsView.vue')).toContain('<LatestRunView :player-id="playerId" @has="v => (latestHas = v)" />');
+    // The view is on My runs now (inside its Your runs section, 17 Oct 2026), not on the Leaderboard.
+    expect(read('../MyRunsView.vue')).toMatch(/<LatestRunView\s+:player-id="playerId"\s+:want="[^"]+"\s+@has="v => \(latestHas = v\)"/);
     expect(read('LeaderboardPanel.vue')).not.toMatch(/<LatestRunView|import\('\.\/LatestRunView\.vue'\)/);
     // Its Leaderboard tab stays, as one line to My runs (the integrator, 16 Oct).
     expect(read('LeaderboardPanel.vue')).toMatch(/v-else-if="tab === 'latest'"[^>]*data-testid="latest-moved"/);
@@ -158,7 +158,9 @@ describe("Fastest's results: one line in place of the moved blocks", () => {
     const { default: DigDeeperLink } = await import('./DigDeeperLink.vue');
     const html = await renderHtml(DigDeeperLink, {});
     expect(textOf(html)).toContain('Dig deeper into your plan ›');
-    expect(textOf(html)).toContain('(My runs › Your latest run)');
+    expect(textOf(html)).toContain('(My runs › Your runs)');
+    // Its click asks My runs to open on Your runs (lib/myRunsFocus.ts).
+    expect(read('DigDeeperLink.vue')).toContain('@click="askYourRuns()"');
     expect(html).toContain('href="#/myruns"');
     expect(html).not.toContain('#/compare/latest');
   });
@@ -356,5 +358,55 @@ describe('Your latest run: one account at a time (Jordan, 16 Oct: another accoun
     expect(store).toContain('deadlineResultOwner.value = accountHashNow(currentPlayerId);');
     const src = read('LatestRunView.vue');
     expect(src).toContain('store.deadlineResultOwner !== h) await store.loadDeadlineState(id)');
+  });
+});
+
+describe("My runs' Showing switch: each option shows only its own kind (beta, 16 Oct)", () => {
+  const wanted = (want: 'fastest' | 'date') => renderHtml(LatestRunView, { playerId: A, want }, {}, [pinia]);
+  const fastestRun = (store: ReturnType<typeof storeOfA>) => {
+    store.pricedCount = 7;
+    store.shortlist = [row([212, 280, 490], 700, 'best')];
+  };
+
+  it('By a date with only a Fastest run: "none yet on this account", never the Fastest run', async () => {
+    fastestRun(storeOfA());
+    const html = await wanted('date');
+    const t = textOf(html);
+    expect(html).toContain('data-testid="latest-run-none-date"');
+    expect(t).toContain('No Highest TE by a date run yet on this account');
+    expect(t).not.toContain('run on Fastest to 490 TE');
+    expect(t).not.toContain('212 280 490');
+    expect(html).not.toContain('data-testid="latest-run-other"');
+  });
+
+  it('Fastest with only a By a date run: "none yet on this account"', async () => {
+    const store = storeOfA();
+    store.deadlineResult = dateResult(Date.parse('2026-10-15T18:00:00Z')) as never;
+    const html = await wanted('fastest');
+    expect(html).toContain('data-testid="latest-run-none-fastest"');
+    expect(textOf(html)).toContain('No Fastest to 490 TE run yet on this account');
+    expect(html).not.toContain('data-testid="latest-run-from-date"');
+  });
+
+  it('each with its own run shows its own, whichever is newer', async () => {
+    const store = storeOfA();
+    fastestRun(store);
+    store.chainResultAt = Date.parse('2026-10-15T12:00:00Z');
+    // By a date found later: still Fastest on the Fastest option, By a date on its own.
+    store.deadlineResult = dateResult(Date.parse('2026-10-15T13:00:00Z')) as never;
+    const f = textOf(await wanted('fastest'));
+    expect(f).toContain('run on Fastest to 490 TE');
+    expect(f).not.toContain('From your Highest TE by a date run');
+    const d = textOf(await wanted('date'));
+    expect(d).toContain('From your Highest TE by a date run');
+    expect(d).not.toContain('run on Fastest to 490 TE');
+  });
+
+  it('a By a date run going now is not announced on the Fastest option', async () => {
+    const store = storeOfA();
+    store.deadlineRunning = true;
+    const t = textOf(await wanted('fastest'));
+    expect(t).toContain('No Fastest to 490 TE run yet on this account');
+    expect(t).not.toContain('run has started');
   });
 });

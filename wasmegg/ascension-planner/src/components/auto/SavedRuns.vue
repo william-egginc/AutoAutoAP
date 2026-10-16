@@ -83,6 +83,13 @@
         >
           Open
         </button>
+        <FollowButton
+          v-if="run.bestChain.length"
+          :chain="run.bestChain"
+          :goal-key="`fastest-${run.finalTE}`"
+          from="saved"
+          :label="run.label"
+        />
         <button
           type="button"
           class="px-3 py-1.5 rounded-md border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:border-red-300 hover:text-red-600"
@@ -110,6 +117,7 @@ import { MAX_RUNS } from '@/search/runLibrary';
 import { NAMES } from '@/lib/siteNav';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import EntrySaveActions from './EntrySaveActions.vue';
+import FollowButton from '../FollowButton.vue';
 import SaveFileBar from './SaveFileBar.vue';
 
 const props = defineProps<{

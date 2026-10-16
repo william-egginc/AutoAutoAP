@@ -17,5 +17,10 @@ export const useStartTimesStore = defineStore('startTimes', () => {
     requested.value = [...chain];
     asked.value++;
   }
-  return { requested, asked, show };
+  /** Open the card on its own pick (no route asked for): My runs' "When should I start?" with no saved plan. */
+  function open(): void {
+    requested.value = null;
+    asked.value++;
+  }
+  return { requested, asked, show, open };
 });

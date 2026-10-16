@@ -51,9 +51,33 @@ describe('relativeWords', () => {
     expect(relativeWords(3600)).toBe('in 1 h');
     expect(relativeWords(3600 * 18)).toBe('in 18 h');
     expect(relativeWords(3599)).toBe('in 60 min');
-    expect(relativeWords(86400)).toBe('in 1 day');
+    // Under two days: hours, not "1 day" (16 Oct).
+    expect(relativeWords(86400)).toBe('in 24 h');
+    expect(relativeWords(33 * 3600)).toBe('in 33 h');
+    expect(relativeWords(-30 * 3600)).toBe('30 h ago');
+    expect(relativeWords(2 * 86400 - 1)).toBe('in 48 h');
+    expect(relativeWords(2 * 86400)).toBe('in 2 days');
     expect(relativeWords(86400 * 2 + 5000)).toBe('in 2 days');
     expect(relativeWords(-3 * 3600)).toBe('3 h ago');
     expect(relativeWords(-86400 * 3)).toBe('3 days ago');
+  });
+});
+
+describe('dateAt and agoLong', () => {
+  it('always the date, the weekday when asked, the year only when it differs', async () => {
+    const { dateAt } = await import('./eventWhen');
+    expect(dateAt(at(14, 36), NOW, ZONE)).toBe('Oct 15 at 2:36 pm');
+    expect(dateAt(at(16, 0), NOW, ZONE, true)).toBe('Thu, Oct 15 at 4:00 pm');
+    expect(dateAt(Date.UTC(2027, 6, 13, 23, 14) / 1000, NOW, ZONE, true)).toBe('Tue, Jul 13, 2027 at 5:14 pm');
+    expect(dateAt(null, NOW, ZONE)).toBe('');
+  });
+
+  it('says how long ago in words', async () => {
+    const { agoLong } = await import('./eventWhen');
+    expect(agoLong(30)).toBe('just now');
+    expect(agoLong(60)).toBe('1 minute ago');
+    expect(agoLong(45 * 60)).toBe('45 minutes ago');
+    expect(agoLong(3 * 3600 + 100)).toBe('3 hours ago');
+    expect(agoLong(3 * 86400)).toBe('3 days ago');
   });
 });

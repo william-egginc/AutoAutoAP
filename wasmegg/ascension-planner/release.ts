@@ -33,6 +33,7 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
+  { at: '2026-10-16T15:15:49Z', note: 'New on My runs: where you are now, your next shifts with dates and calendar reminders, your saved answers with how sure they are, and each ascension step by step like Single run', level: 'big' },
   { at: '2026-10-16T02:31:45Z', note: 'New: My runs tab; Compare is now Leaderboard; arrows show when each stop and egg shift happens; maxed-gear what-if; Light results can be shared; your setup and choices are remembered', level: 'big' },
   { at: '2026-10-15T04:52:00Z', note: 'Your name choice is remembered; the running notice sits in the run bar; other options and charts moved to Compare, Your latest run; tags on the level buttons' },
   { at: '2026-10-15T00:42:15Z', note: 'New: Hide from the public on your own runs; About and privacy page; Light prices the instant routes at once on your hours; your hours no longer make the instant answer worse; limits follow the answer', level: 'big' },
@@ -40,7 +41,6 @@ const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
   { at: '2026-10-14T20:04:27Z', note: 'Instant answer on top with two tabs (Search nearby, Exhaustive); each level says what it is for; no more pointless 489 to 490 plans; tabs stay put; maybe you on the board', level: 'big' },
   { at: '2026-10-14T03:59:25Z', note: 'Low-TE accounts that used to stall now get Joo’s opening rounds; clearer run times and advice; old runs fold away; at most 12 workers by default', level: 'big' },
   { at: '2026-10-13T19:15:55Z', note: 'Fixes iPhone crashes on By a date; agree to share once; By a date laid out like Fastest; start times by finish; clearer search screens; upload errors say why', level: 'big' },
-  { at: '2026-10-12T20:16:33Z', note: 'New: Stronger check (Light/Fast/Exact/Very high) with Nearby routes; Exhaustive on the page, in boxes; When should I start?; egg-shift dates; By a date TE per egg; steadier long runs', level: 'big' },
 ];
 
 export default {

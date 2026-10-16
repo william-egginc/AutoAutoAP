@@ -445,6 +445,7 @@
                         >
                           Use
                         </button>
+                        <FollowButton class="ml-1" :chain="e.best.row.chain" :goal-key="boardGoalKey(e.best.row)" from="board" />
                       </td>
                     </tr>
                     <tr v-if="openPlayers[e.key]" class="bg-white/70">
@@ -910,6 +911,7 @@
                       >
                         Use
                       </button>
+                      <FollowButton class="ml-1" :chain="line.row.chain" :goal-key="boardGoalKey(line.row)" from="board" />
                     </td>
                   </tr>
                   <tr v-if="open === line.key" class="bg-slate-50">
@@ -947,6 +949,8 @@
 </template>
 
 <script setup lang="ts">
+import FollowButton from '../FollowButton.vue';
+import { boardGoalKey } from '@/lib/follow';
 import { plural } from '@/lib/format';
 import { onRowClick } from '@/lib/rowClick';
 import { COMPARE_VIEWS, DEFAULT_ROUTE, NAMES, hashFor, type CompareView } from '@/lib/siteNav';
@@ -996,7 +1000,8 @@ import {
 } from '@/lib/leaderboardRank';
 import { isMyRun, myRunsCount } from '@/lib/myRuns';
 import { rememberKey, rememberedKeys } from '@/lib/myKeys';
-import { useAccountName, useSharedName } from '@/composables/useShareResult';
+import { useAccountNames, useSharedName } from '@/composables/useShareResult';
+import { saveTEOf } from '@/lib/saveFreshness';
 import { virtueInventory } from '@/search/csv';
 import { bestPerFamily, keepVirtueArtifacts } from '@/search/submission';
 import { existingOwnerToken } from '@/search/owner';
@@ -1035,6 +1040,9 @@ const emit = defineEmits<{
   count: [n: number | null];
   /** My runs only: those runs themselves (for its summary, MyRunsDashboard), null until the first load is in. */
   rows: [rows: BoardRow[] | null];
+  /** My runs mode: every public row already loaded (your hidden ones left out), for "where you stand" on the
+   *  Right now page (lib/standing.ts). Null until the first load is in. */
+  board: [rows: BoardRow[] | null];
 }>();
 const myRunsMode = computed(() => props.mode === 'myruns');
 
@@ -1202,7 +1210,13 @@ watch(
 );
 /** The names this account sends under (its own, the one it credits runs to here; /mine's rows' are added
  *  by `lookAlikeFor`). */
-const accountName = useAccountName(() => props.playerId ?? '');
+const accountNames = useAccountNames(() => props.playerId ?? '');
+/** The loaded save's own in-game name, only when the save is this account's (never the last account's). */
+const saveName = computed(() => {
+  const raw = initialState.rawBackup as { eiUserId?: string | null; userName?: string | null } | null;
+  const own = !!raw?.eiUserId && raw.eiUserId.toLowerCase() === (props.playerId ?? '').trim().toLowerCase();
+  return own ? (raw?.userName ?? '') : '';
+});
 const sharedName = useSharedName(() => props.playerId ?? '');
 /** What My runs' look-alike match and its "isn't here?" answer read (search/myBoardRows.ts `lookAlikeFor`,
  *  which Light reads too): every key that is the viewer's -- the save's, the remembered ones, /mine's
@@ -1212,13 +1226,15 @@ const lookAlike = computed(() =>
     saveKey: myKey.value,
     remembered: keptKeys.value,
     mine: mineRows.value,
-    names: [accountName.value, sharedName.get()],
+    names: [...accountNames.value, saveName.value, sharedName.get()],
     viewerTE: myTE.value,
   })
 );
 
 /** The save's own TE, for "near me". */
-const myTE = computed(() => (initialState.rawBackup ? store.backupTE : 0));
+/** The save's own TE, for "near me" and the look-alike TE rule: read from the save itself, never from a restored
+ *  Manual draft's stores (which held the TE of whenever that plan was made: 159 for a save at 191, fix 20). */
+const myTE = computed(() => saveTEOf(initialState.rawBackup));
 
 /**
  * The viewer's own rows, from GET /mine: sent with this browser's code for the loaded account,
@@ -1486,6 +1502,11 @@ watch(
 watch(
   () => (myRunsMode.value && loadedOnce.value ? myRunRows.value : null),
   rows => emit('rows', rows),
+  { immediate: true }
+);
+watch(
+  () => (myRunsMode.value && loadedOnce.value ? shownRows.value : null),
+  rows => emit('board', rows),
   { immediate: true }
 );
 

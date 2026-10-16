@@ -99,7 +99,7 @@ describe('the phone page', () => {
     // cover on a busy machine (it failed once in a full run, and passed alone).
     const wrong = SECRET.slice(0, -1) + (SECRET.endsWith('A') ? 'B' : 'A');
     await startAt(`#${ID}.${wrong}`);
-    for (let i = 0; i < 200 && els['p-title']?.textContent !== 'This link is incomplete'; i++) {
+    for (let i = 0; i < 800 && els['p-title']?.textContent !== 'This link is incomplete'; i++) {
       await new Promise(r => setTimeout(r, 10));
     }
     expect(els['p-title'].textContent).toBe('This link is incomplete');

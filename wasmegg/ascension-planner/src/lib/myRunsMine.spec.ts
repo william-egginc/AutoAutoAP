@@ -129,7 +129,12 @@ describe("B2: which runs are the viewer's", () => {
 
   it("a run from an earlier save matches once the account's earlier key is known (remembered, or a /mine row's)", () => {
     const names = nameKeys(['AltName']);
-    expect(mine(oct10, save({ names }))).toBe(false);
+    // Unnamed (any name not the account's): only an exact key counts, so the earlier key is needed.
+    const anonOct10 = { ...oct10, nickname: undefined, acct: undefined };
+    expect(mine(anonOct10, save({ names }))).toBe(false);
+    expect(mine(anonOct10, save({ names, keys: new Set([KEY_NOW, KEY_OCT10]) }))).toBe(true);
+    // Under the account's own name a one-item gear change is near enough (fix 20, lib/myRuns.ts `nearKey`).
+    expect(mine(oct10, save({ names }))).toBe(true);
     expect(mine(oct10, save({ names, keys: new Set([KEY_NOW, KEY_OCT10]) }))).toBe(true);
     // Never one from a TE above the save's.
     expect(mine({ ...oct10, backupTE: 200 }, save({ names, keys: new Set([KEY_NOW, KEY_OCT10]) }))).toBe(false);

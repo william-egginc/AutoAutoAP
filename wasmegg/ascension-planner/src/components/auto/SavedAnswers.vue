@@ -53,6 +53,13 @@
       >
         Open
       </button>
+      <FollowButton
+        v-if="a.result.routes[0]?.chain.length"
+        :chain="a.result.routes[0].chain"
+        :goal-key="screenGoalKey(a.result.deadline, a.result.te)"
+        from="saved"
+        :label="a.label"
+      />
       <button
         type="button"
         class="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-rose-600"
@@ -76,6 +83,8 @@ import { onMounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { showDateTime } from '@/lib/displayTime';
 import EntrySaveActions from './EntrySaveActions.vue';
+import FollowButton from '../FollowButton.vue';
+import { screenGoalKey } from '@/lib/follow';
 import SaveFileBar from './SaveFileBar.vue';
 
 const props = defineProps<{

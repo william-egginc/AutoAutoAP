@@ -36,11 +36,14 @@ The names are the ones players read, kept in `NAMES` in `src/lib/siteNav.ts`.
   - **Highest TE by a date**: the same layout, for the most TE by a date.
 - **Leaderboard** (was Compare): Egg Day, Race, All runs, By a date, and **Insights** (charts across everybody's
   runs; also the standalone `explorer.html`). Its Your latest run tab is one line pointing to My runs now.
-- **My runs** (a top tab, and the Auto Planner's fourth tab: the same page): **Your latest run** (the newest search's
-  routes with when each stop and egg happens, By a date's top routes, Fastest's other options and charts; this
-  account's only; "Dig deeper into your plan ›" under each result opens it), your runs on the board (any kind, the
-  ones hidden from the public too, with Hide from the public), runs and answers saved on this computer or phone, and
-  results not sent yet. `#/compare/mine` lands here.
+- **My runs** (a top tab, and the Auto Planner's fourth tab: the same page): the "where am I now" page. A save-age strip;
+  **Right now** (your plan's next shifts with dates, relative times and calendar reminders built in the browser:
+  an .ics file or a Google link, with a 10-minute alert); **Your eggs and gear** (earnings and production sets, the
+  planned-shift total); your saved answers as tiles with **How sure** (High, Medium or Low); **Try next**; then **Your
+  runs** (Latest or All, with filters): runs on the board that are proved yours or look like yours (names are matched
+  across browsers), the ones hidden from the public too, with Hide from the public, runs and answers saved on this
+  computer or phone, and results not sent yet. "Dig deeper into your plan ›" under each result opens it.
+  `#/compare/mine` lands here.
 - **Science**: **How it works** (the default), **What we need to check**, **Submit a sweep** and
   **When should I start?** (only before you are on virtue: hidden once your save has a virtue farm)
 
@@ -55,6 +58,25 @@ Player guides: [Getting started](https://github.com/william-egginc/AutoAutoAP/wi
 [Leaderboard](https://github.com/william-egginc/AutoAutoAP/wiki/Leaderboard),
 [Long runs](https://github.com/william-egginc/AutoAutoAP/wiki/Long-runs),
 [FAQ](https://github.com/william-egginc/AutoAutoAP/wiki/FAQ).
+
+---
+
+## What our Single run adds to Joo's Auto AP
+
+Single run (formerly Your plan, formerly Classic) is Joo's Auto Ascension Planner screen. The simulator
+(`src/auto`, `src/engine`), the shifts, the generator, the ascension cards, the plan library, export and
+import are his. What our branch adds around it:
+
+- One shared **Your setup** dock (plan start, time zone, first ascension), remembered per account.
+- The plan starts now, never before the save; the farm's catch-up to the start is Joo's, capped at what the silos hold.
+- First-ascension choices: **Finish without buying** (Joo's "Continue Asc.") and **Prestige now**, kept in step with the per-ascension dropdown.
+- **Time off** windows, applied to plans sent from a search and carried in the JSON export and the plan library.
+- **Simulate this plan** from the instant answer, Nearby routes and Exhaustive: it hands over the route, the start and the legs.
+- The low-TE gate: below TE 120, a fresh build whose habs would stall past 4 hours runs Joo's C1/K1/I1 rounds (a port of his PR 717, temporary until it merges).
+
+Single run does **not** plan around awake hours or Continue my build-up (those are in the Fastest and By a date searches), and it
+does not find stops for you. Full list with code locations and commits:
+[Single run vs Joo's Auto AP](https://github.com/william-egginc/AutoAutoAP/wiki/Single-run-vs-Joos-Auto-AP).
 
 ---
 
@@ -156,6 +178,24 @@ pnpm install && make -C lib
 cd wasmegg/ascension-planner && pnpm search:build
 ```
 
+On **Windows** there is no `make`. Use Git Bash (it comes with Git for Windows) and run what `lib/Makefile`
+runs, from the `lib` folder, in place of `make -C lib`:
+
+```bash
+pnpm install   # (or: npx -y pnpm@11.11.0 install) at the repo root, once
+cd lib
+npx -y pnpm@11.11.0 pbjs -p protobuf -t static-module -w es6 --force-number -o proto/index.js ../protobuf/*.proto
+node proto/patch-missioninfo.js
+npx -y pnpm@11.11.0 pbts -o proto/index.d.ts proto/index.js
+npx -y pnpm@11.11.0 pbjs -t static-module -w es6 --force-number -o sandbox/schema.js sandbox/schema.proto
+npx -y pnpm@11.11.0 pbts -o sandbox/schema.d.ts sandbox/schema.js
+cd ../wasmegg/ascension-planner && npx -y pnpm@11.11.0 search:build
+```
+
+Already cloned? Update and rebuild: `git pull` on the `ascension-chain-search` branch, then `pnpm install` at the repo
+root, then `pnpm search:build` in `wasmegg/ascension-planner`. Run the generation steps (`make -C lib`, or the
+Windows block above) again only if a `.proto` file changed, because the generated files are not in git.
+
 Then, with your save as `me.json` (Settings, Download backup) and the box you were given: each band
 is one stop before the last, `low-high:step`, and `--last` is where to look for the last stop. This
 is the Highest TE by a date screen's Exhaustive, by Egg Day, as an example:
@@ -172,7 +212,8 @@ node dist-search/fastsearch.js --backup me.json --egg-day --timezone America/Den
 
 - Killed or restarted? Run the same command again: it carries on from `run1/`.
 - Workers default to your cores minus one, at most 12 (more were no faster on a 20-thread PC and
-  used more memory). `--jobs N` sets it; each worker holds about 0.1-0.25 GB.
+  used more memory). `--jobs N` sets it; each worker holds about 0.1-0.25 GB. On a big machine you can set `--jobs 31`;
+  on the one 20-thread PC we measured, 12 workers were as fast as 19, so check your own speed first.
 - Your playing hours: `--available-from 7 --available-to 23` (with `--timezone`). Leave them out
   for "any hour".
 - Offline? Leave out `--submit` and later run `node dist-search/fastsearch.js submit --from run1
@@ -252,7 +293,7 @@ How to merge upstream safely: [Contributing and upstream sync](https://github.co
 ## Privacy and security
 
 - Your save and player ID stay in your browser. The save is fetched through a small relay that stores nothing.
-- Nothing goes to the leaderboard until you tick the agreement and press a send button.
+- Nothing goes to the leaderboard until you tick the agreement and press a send button. The agreement is remembered per account, folds to one line, and unticking it stops sends at once. Each row records which level made it (light, quick, normal, thorough or exhaustive), and a Light row never replaces a searched one.
 - A send never holds your player ID; it is not a field, and ID-shaped text is stripped from names, notes and the CSV.
 - The short version is on the site's About and privacy page (`public/about.html`); problems go to `/.well-known/security.txt`.
 - What the collector keeps and for how long: `collector/README.md`.

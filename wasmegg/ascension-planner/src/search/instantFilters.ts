@@ -27,6 +27,11 @@ export function atMostAscensions(found: FoundRoutes, max: number | null): FoundR
     byDate,
     byDateByAscensions,
     ...(found.outOfHours ? { outOfHours: found.outOfHours.filter(k => k <= max) } : {}),
+    // Each kept count's other routes go along (HOURS FIX B prices a count's next best: search/hoursRunnerUp.ts).
+    ...(found.alternatives ? { alternatives: found.alternatives.map((rs, k) => (k <= max ? rs : [])) } : {}),
+    ...(found.dateAlternatives
+      ? { dateAlternatives: found.dateAlternatives.map((rs, k) => (k <= max ? rs : [])) }
+      : {}),
   };
 }
 

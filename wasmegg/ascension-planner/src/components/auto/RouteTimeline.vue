@@ -1,8 +1,8 @@
 <!--
-  When each stop of a route is reached, and inside each ascension when each egg is first and last
-  shifted and the TE it reaches (search/routeTimeline.ts): "A2 → 230 TE · reached Nov 5 at 4:00 pm",
-  each line a native <details> (the sub-arrow) listing its eggs, "Integrity reaches 45 TE on Nov 5 at
-  4:00 pm". Native details: no state to keep, and keyboards and phones open it as they open anything.
+  When each stop of a route is reached, and inside each ascension every stretch on an egg in order
+  (search/routeTimeline.ts shiftSteps): "A2 → 230 TE · reached Nov 5 at 4:00 pm", each line a native
+  <details> (the sub-arrow) listing "C1 · Curiosity · Oct 29 at 7:00 pm · 29 min · 28 TE", then one
+  small line with each egg's first and last shift. Native details: no state to keep, and keyboards and phones open it as they open anything.
 
   Shown under a row's arrow (ResultTable's expand slot and the tables that keep their own rows): By a
   date, the instant answer's counts after Check exactly, Fastest's leg table and Your latest run.
@@ -26,25 +26,29 @@
             · reached <span class="whitespace-nowrap">{{ when(l.reachedAt) }}</span></template
           >
         </summary>
-        <ul class="mt-1 mb-0.5 ml-3 space-y-0.5 text-slate-600">
-          <li v-for="e in l.eggs" :key="e.egg" data-testid="route-timeline-egg">
-            <template v-if="e.te !== null">
-              <span class="font-bold text-slate-700">{{ eggName(e.egg) }}</span> reaches {{ e.te }} TE on
-              <span class="whitespace-nowrap">{{ when(e.lastAt) }}</span>
+        <!-- Every stretch in order, so the build-up shows: "C1 · Curiosity · Oct 29 at 7:00 pm · 29 min · 28 TE". -->
+        <ol class="mt-1 mb-0.5 ml-3 space-y-0.5 text-slate-600">
+          <li v-for="(s, k) in l.steps" :key="k" class="break-words" data-testid="route-timeline-step">
+            <template v-if="s.label"
+              ><span class="font-black text-slate-700">{{ s.label }}</span> ·
             </template>
-            <template v-else>
-              <span class="font-bold text-slate-700">{{ eggName(e.egg) }}</span
-              >: <span class="whitespace-nowrap">{{ when(e.firstAt) }}</span> to
-              <span class="whitespace-nowrap">{{ when(e.lastAt) }}</span>
-            </template>
-            <span class="text-slate-400">
-              · {{ e.opens ? 'on it from the start' : `first shift ${when(e.firstAt)}`
-              }}{{
-                e.ends ? ', still on it when the stop is reached' : e.te !== null ? ', last shift off it then' : ''
-              }}</span
+            <span class="font-bold text-slate-700">{{ eggName(s.egg) }}</span> ·
+            <span class="whitespace-nowrap">{{ when(s.start) }}</span> ·
+            <span class="whitespace-nowrap">{{ stepLength(s.seconds) }}</span>
+            <template v-if="s.te !== null">
+              · <span class="whitespace-nowrap">{{ s.te }} TE</span></template
             >
+            <span v-if="s.noLaying" class="text-slate-400"> (no laying: artifact swap / build step)</span>
           </li>
-        </ul>
+        </ol>
+        <!-- Each egg's first and last shift, one small line under the list. -->
+        <p class="mt-0.5 ml-3 text-[10px] text-slate-400" data-testid="route-timeline-egg-summary">
+          Each egg, first to last:
+          <template v-for="(e, k) in l.eggs" :key="e.egg"
+            >{{ k ? ' · ' : '' }}{{ eggName(e.egg) }} {{ when(e.firstAt) }} to {{ when(e.lastAt)
+            }}{{ e.te !== null ? ` (${e.te} TE)` : '' }}</template
+          >
+        </p>
       </details>
       <!-- No eggs kept (a leg read back from a saved run): the stop and when, without an arrow. -->
       <p v-else class="px-2 py-1 pl-5 text-slate-700" data-testid="route-timeline-line">
@@ -69,7 +73,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { showWhen, spansYears } from '@/lib/displayTime';
-import { routeTimeline, timelineMoments } from '@/search/routeTimeline';
+import { routeTimeline, stepLength, timelineMoments } from '@/search/routeTimeline';
 import type { LegSummary } from '@/search/types';
 import { VIRTUE_EGG_NAMES } from '@/types';
 
