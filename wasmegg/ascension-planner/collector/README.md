@@ -739,6 +739,7 @@ carries; a row without them is never quarantined for that.
 | `times-disagree` | `endUtc - startUtc` vs `durationDays` off by over 1 day | 0 (worst 0.0007 d) |
 | `start-out-of-range` | `startUtc` more than 365 days AFTER receipt (before is an old file uploaded late) | 0 (+4.8 d at most) |
 | `after-deadline` | a schema-8 answer ending over a day after its `deadline` | 0 (latest 0.04 d before) |
+| `backdated-start` | `backupAgeHours` below -1 (the plan starts before its save) AND `currentTE` below `backupTE` (a lower TE than the save already had): both backdated, the eggs come from the save | 0 of 267 live rows (checked 16 Oct 2026; rows from before the backup fields, like Allan's two 14 Sep ones, carry no age or backup TE and cannot be caught by this) |
 | `save-age` | `|backupAgeHours|` over 90 days (a value past a year, which the row drops, counts too) | 0 (-168 h to +120 h) |
 | `too-many-today` | an owner code with 60 rows on that board in the last 24 h | 0 (10 at most from any sender) |
 
