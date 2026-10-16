@@ -230,8 +230,8 @@
           Light runs by itself after Check exactly, with the full simulator. First it prices the instant answer's
           routes ascending at once, on your hours: each fresh ascension starts the moment the one before ends, not on
           the hour, and each row of the answer's table shows that time as it comes in. Then it prices your own earlier
-          routes for the same goal (from your searches here, your saved runs and answers, your earlier checks and your board runs sent
-          from this browser). By a date, when the top route misses the date, it also tries the instant answer's route
+          routes for the same goal (from your searches here, your saved runs and answers, your earlier checks and your board runs,
+          including ones sent from another browser that look like yours; see My runs). By a date, when the top route misses the date, it also tries the instant answer's route
           one TE lower (two if needed). Fast, Exact and Very high do the same, then run {{ NAMES.smart }}, a search of
           the routes near the instant answer's. Each level says what it does, how long it should take on your computer,
           and what it can miss. Anything that beats the answer shows as "Best now". We haven't yet measured how often

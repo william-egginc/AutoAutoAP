@@ -218,7 +218,7 @@ How to merge upstream safely: [Contributing and upstream sync](https://github.co
 ## Privacy and security
 
 - Your save and player ID stay in your browser. The save is fetched through a small relay that stores nothing.
-- Nothing goes to the leaderboard until you tick the agreement and press a send button.
+- Nothing goes to the leaderboard until you tick the agreement and press a send button. The agreement is remembered per account, folds to one line, and unticking it stops sends at once. Each row records which level made it (light, quick, normal, thorough or exhaustive), and a Light row never replaces a searched one.
 - A send never holds your player ID; it is not a field, and ID-shaped text is stripped from names, notes and the CSV.
 - The short version is on the site's About and privacy page (`public/about.html`); problems go to `/.well-known/security.txt`.
 - What the collector keeps and for how long: `collector/README.md`.
