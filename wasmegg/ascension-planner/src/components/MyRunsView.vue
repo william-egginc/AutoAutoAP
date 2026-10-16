@@ -30,6 +30,9 @@
     </div>
 
     <SaveAgeStrip :strip="page.strip.value" :loading="loading" @fresh="emit('fresh')" />
+    <p v-if="page.saveWaiting.value" class="text-[12px] text-slate-500" data-testid="now-save-waiting">
+      {{ loading ? 'Reading your save: where you are, your eggs and your saved answers show once it is in.' : 'Load your save to see where you are, your eggs and your saved answers.' }}
+    </p>
 
     <template v-if="page.hasSave.value">
       <RightNowCard
@@ -234,6 +237,7 @@ import { standingWords } from '@/lib/standing';
 import { oneMoreLine, tryNextPills } from '@/lib/tryNext';
 import { takeYourRunsAsk } from '@/lib/myRunsFocus';
 import { useNowPage } from '@/composables/useNowPage';
+import { saveTEOf } from '@/lib/saveFreshness';
 import DashboardCards from './myruns/DashboardCards.vue';
 import DashboardGaps from './myruns/DashboardGaps.vue';
 import SaveAgeStrip from './myruns/SaveAgeStrip.vue';
@@ -377,7 +381,8 @@ const dashInput = computed<DashInput>(() => ({
   eggDayAt,
   eggDayYear,
   zone: zone.value,
-  teNow: initialState.rawBackup ? store.backupTE : 0,
+  // The save's own TE, never a restored Manual draft's (lib/saveFreshness.ts `saveTEOf`).
+  teNow: saveTEOf(initialState.rawBackup),
   setup: {
     availability: store.availability,
     timeOff: store.timeOff,

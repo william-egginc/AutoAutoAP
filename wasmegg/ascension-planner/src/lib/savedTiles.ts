@@ -11,7 +11,9 @@
  *   saved        By a date answers saved on this device (with the save they were priced from)
  *
  * The headline is the best answer from the LOADED save (a save within SAME_SAVE_SECONDS of it); with none, the
- * newest from any save, flagged `olderSave` ("Older save than the one you loaded"). Pure.
+ * newest from any save, flagged `olderSave` ("Older save than the one you loaded"). So a board run sent today
+ * from another browser off this very save (a "looks like yours" row) leads a weeks-old answer from an older
+ * save, and the tile says where it came from (`sourceWords`). Pure.
  */
 import {
   deadlineAscendMs,
@@ -53,6 +55,8 @@ export interface TileAnswer {
   runnerUpHours?: number | null;
   olderSimulator?: boolean;
   hoursChanged?: boolean;
+  /** A board run this browser didn't send (not on /mine): a "looks like yours" row from another browser or site. */
+  otherBrowser?: boolean;
   /** Its legs (each shift), when the source kept them: By a date's saved answers. */
   legs?: NowPlan['legs'];
 }
@@ -183,6 +187,7 @@ function candidates(i: TileInput): TileAnswer[] {
       complete: level === 'exhaustive' && !r.provisional && !r.space?.stoppedEarly,
       olderSimulator: i.olderSimulator?.(r) ?? false,
       hoursChanged: i.hoursChanged?.(r) ?? false,
+      otherBrowser: !r.yours,
     });
   }
   if (i.goal === 'date')
@@ -252,6 +257,13 @@ export function buildTile(i: TileInput): Tile {
     te: pick.endTE,
   });
   return { goal: i.goal, answer: pick, olderSave, sure };
+}
+
+/** Where a board answer came from, for the tile ('' for the rest): said plainly, as the board's own runs are
+ *  guessed from another browser ("looks like yours"). */
+export function sourceWords(a: TileAnswer): string {
+  if (a.source !== 'board') return '';
+  return a.otherBrowser ? 'from your board run sent from another browser' : 'from your board run';
 }
 
 /** "Snapshot" etc. in player words, for the tile's calculated line: "(Check exactly)", "(Exhaustive)". */

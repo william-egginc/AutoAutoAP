@@ -90,7 +90,7 @@ describe('LeaderboardPanel feeds the match', () => {
     expect(src).toContain('return mergedRows.value.filter(r => isMyRun(r, l.keys, l.viewerTE, l.names));');
     // Since 18 Oct 2026 the match is built in search/myBoardRows.ts `lookAlikeFor`, which Light reads too.
     expect(src).toMatch(
-      /lookAlikeFor\(\{\s*saveKey: myKey\.value,\s*remembered: keptKeys\.value,\s*mine: mineRows\.value,\s*names: \[accountName\.value, sharedName\.get\(\)\],\s*viewerTE: myTE\.value,\s*\}\)/
+      /lookAlikeFor\(\{\s*saveKey: myKey\.value,\s*remembered: keptKeys\.value,\s*mine: mineRows\.value,\s*names: \[\.\.\.accountNames\.value, saveName\.value, sharedName\.get\(\)\],\s*viewerTE: myTE\.value,\s*\}\)/
     );
     const shared = read('../../search/myBoardRows.ts');
     expect(shared).toContain('keys: o.saveKey ? keys : new Set<string>()');

@@ -29,3 +29,15 @@ export function virtueEggType(egg: string | null | undefined): number | null {
   for (const [n, e] of Object.entries(VIRTUE_EGG_BY_TYPE)) if (e === egg) return Number(n);
   return null;
 }
+
+/**
+ * A virtue egg's picture, the path `iconURL(path, 64)` takes: `egginc/egg_<name>.png`, by the egg's NAME
+ * (`egg_integrity.png`), never its number and never a `virtue` variant. Mirrors exactly what the app already shows:
+ * FloatingStats.vue (`iconURL(\`egginc/egg_${currentEgg}.png\`, 64)`, the Manual planner's current egg),
+ * ShiftActions.vue, AscensionOverview.vue, lib/missions.ts `virtueEggIconPath`, and the shared lib's
+ * `eggIconPath(ei.Egg.CURIOSITY..KINDNESS)` (lib/eggs.ts). virtueEggs.spec.ts lists all five. Every egg picture on
+ * My runs goes through here. Null for anything that isn't a virtue egg.
+ */
+export function eggIconPath(egg: string | null | undefined): string | null {
+  return virtueEggType(egg) != null ? `egginc/egg_${egg}.png` : null;
+}

@@ -25,12 +25,10 @@
 
     <!-- The egg. -->
     <div class="flex flex-wrap items-center gap-3">
-      <img
-        v-if="currentEgg"
-        :src="iconURL(`egginc/egg_${currentEgg}.png`, 64)"
-        :alt="eggName"
-        class="w-14 h-14 rounded-full bg-indigo-50 object-contain p-1"
-      />
+      <!-- The picture and its frame as FloatingStats.vue shows the current egg (lib/virtueEggs.ts eggIconPath). -->
+      <div v-if="eggPicture" class="w-14 h-14 shrink-0 rounded-xl border border-slate-200/50 bg-white/50 p-1.5 shadow-inner overflow-hidden">
+        <img :src="iconURL(eggPicture, 64)" :alt="eggName" class="w-full h-full object-contain" data-testid="now-egg-picture" />
+      </div>
       <div class="min-w-0">
         <p v-if="onVirtue" class="text-xl font-black text-slate-900">{{ eggName || 'Your virtue farm' }}</p>
         <p v-else class="text-sm font-bold text-slate-800" data-testid="now-not-virtue">
@@ -122,7 +120,7 @@ import { dateAt, relativeWords } from '@/lib/eventWhen';
 import { nextStepText } from '@/lib/nowWords';
 import { trackWords, type PlanEvent, type TrackState } from '@/lib/nowPlan';
 import { planCalEvent } from '@/lib/calendarEvents';
-import { virtueEggName } from '@/lib/virtueEggs';
+import { eggIconPath, virtueEggName } from '@/lib/virtueEggs';
 import type { CardPlan } from '@/composables/useNowPage';
 import type { MyRunsOpen } from '@/lib/myRunsDashboard';
 import type { EquippedArtifact } from '@/lib/artifacts/types';
@@ -160,6 +158,7 @@ const CHIP = {
 } as const;
 
 const eggName = computed(() => virtueEggName(props.currentEgg));
+const eggPicture = computed(() => eggIconPath(props.currentEgg));
 const goalName = computed(() =>
   props.card?.goal.goal === 'date' ? `Egg Day ${props.eggDayYear}` : `Fastest to ${props.card?.goal.target ?? 490}`
 );

@@ -80,7 +80,8 @@ export const SORT_LABELS: Record<RunSort, string> = {
  * A row with an owner code (`acct`) that /mine did not return was sent from another browser or site
  * (codes are per browser and per site). It looks like the viewer's only when, besides the key, its name
  * is one this account sends under (`names`, `nameKey`'d): the race joins one player's browsers the same
- * way (`joinBrowsers`: same name, same key). Without a name to go on it stays out, as before.
+ * way (`joinBrowsers`: same name, same key). Without a name to go on it stays out, as before. A row under
+ * one of those names matches a NEAR key too (`missReasons`, `nearKey`).
  */
 export function isMyRun(
   row: BoardRow,
@@ -108,11 +109,22 @@ export interface LookAlike {
 
 export type MissReason = 'other-code' | 'key' | 'te';
 
-/** Why a row (not from /mine) does not look like the viewer's; empty when it does. */
+/**
+ * Why a row (not from /mine) does not look like the viewer's; empty when it does.
+ *
+ * The key: an exact match with one of the viewer's keys. A row sent under one of the account's own names (fix 20,
+ * the main account's runs from the PC) also counts with a NEAR key (`nearKey`: the timezone differs, or one gear
+ * item does), since the name already says whose it is and another browser's planner may have another timezone
+ * or a save a step newer. A row without one of the account's names keeps the exact key: the board holds a dozen
+ * names on one timezone and gear (maxed players look alike), so gear alone says little.
+ */
 export function missReasons(row: BoardRow, l: LookAlike): MissReason[] {
   const out: MissReason[] = [];
-  if (row.acct && !l.names.has(nameKey(row.nickname))) out.push('other-code');
-  if (!l.keys.size || !l.keys.has(accountKeyOf(row))) out.push('key');
+  const named = l.names.has(nameKey(row.nickname));
+  if (row.acct && !named) out.push('other-code');
+  const key = accountKeyOf(row);
+  const keyOk = l.keys.size > 0 && (l.keys.has(key) || (named && [...l.keys].some(k => nearKey(key, k))));
+  if (!keyOk) out.push('key');
   const te = row.backupTE ?? row.currentTE;
   if (l.viewerTE > 0 && typeof te === 'number' && te > l.viewerTE) out.push('te');
   return out;
@@ -129,6 +141,21 @@ function splitKey(key: string): { zone: string; gear: string[] } {
   const zone = at < 0 ? key : key.slice(0, at);
   const rest = at < 0 ? '' : key.slice(at + 2);
   return { zone, gear: rest ? rest.split('|') : [] };
+}
+
+/**
+ * Two keys one step apart: the same gear in another timezone, or the same timezone with one gear item changed
+ * (one family's best moved up a tier, or one family more or less). Not both.
+ */
+export function nearKey(a: string, b: string): boolean {
+  if (a === b) return true;
+  const x = splitKey(a);
+  const y = splitKey(b);
+  const extra = x.gear.filter(g => !y.gear.includes(g)).length;
+  const missing = y.gear.filter(g => !x.gear.includes(g)).length;
+  const gearSteps = Math.max(extra, missing);
+  if (!x.gear.length || !y.gear.length) return false;
+  return x.zone === y.zone ? gearSteps <= 1 : gearSteps === 0;
 }
 
 /** Up to `n` items, then "and k more". */
@@ -158,24 +185,29 @@ export function whyNotMine(
   const reasons = missReasons(row, l);
   if (!reasons.length) return ['It is listed, tagged “maybe you”: its timezone and gear match yours.', ...noCode];
   const out: string[] = [];
+  const named = l.names.has(nameKey(row.nickname));
   if (reasons.includes('other-code'))
     out.push(
-      `It was sent ${row.nickname?.trim() ? `as “${row.nickname.trim()}” ` : ''}from another browser or site, with that browser’s code, and that name isn’t one this account uses here. A named run from another browser counts only when its name is yours too (your account’s name, or the name you credit runs to).`
+      `It was sent ${row.nickname?.trim() ? `as “${row.nickname.trim()}” ` : ''}from another browser or site, with that browser’s code, and that name isn’t one this account uses here. A named run from another browser counts only when its name is yours too (your account’s name or in-game name, or the name you credit runs to here): set the same “Credit me as” name in both browsers.`
     );
   if (reasons.includes('key')) {
     const theirs = splitKey(accountKeyOf(row));
     if (!l.saveKey) out.push('Load your save to compare its timezone and gear with yours.');
     else {
       const mine = splitKey(l.saveKey);
-      if (theirs.zone !== mine.zone)
-        out.push(`It was sent with the timezone ${theirs.zone}; your planner is set to ${mine.zone}.`);
       const extra = theirs.gear.filter(g => !mine.gear.includes(g));
       const missing = mine.gear.filter(g => !theirs.gear.includes(g));
+      // Without one of your names, only an exact timezone and gear match counts (`missReasons`).
+      const nameHint = named
+        ? ''
+        : ' A run sent under your name counts with one difference (the timezone, or one item of gear); one without your name needs both to match.';
+      if (theirs.zone !== mine.zone)
+        out.push(`It was sent with the timezone ${theirs.zone}; your planner is set to ${mine.zone}.${extra.length || missing.length ? '' : nameHint}`);
       if (extra.length || missing.length)
         out.push(
           `Its gear differs from your save’s${extra.length ? `: it has ${some(extra)}` : ''}${
             missing.length ? `${extra.length ? ';' : ':'} your save has ${some(missing)}` : ''
-          }.`
+          }.${theirs.zone === mine.zone && Math.max(extra.length, missing.length) === 1 ? nameHint : ''}`
         );
       if (theirs.zone === mine.zone && !extra.length && !missing.length)
         out.push('Its timezone and gear match your save’s, but not as this browser remembers them.');
@@ -183,7 +215,7 @@ export function whyNotMine(
   }
   if (reasons.includes('te'))
     out.push(
-      `It starts from TE ${row.backupTE ?? row.currentTE}, above your save’s ${l.viewerTE}: a save is never at a higher TE earlier, so it can’t be yours.`
+      `It starts from TE ${row.backupTE ?? row.currentTE}, above your save’s ${l.viewerTE}: a save is never at a higher TE earlier, so it can’t be yours. If the other browser had a newer save than the one loaded here, load a fresh save.`
     );
   return [...out, ...noCode];
 }

@@ -250,7 +250,14 @@ async function fetchMyRuns(partition: string): Promise<BoardRow[]> {
         saveKey: hasSave ? store.saveAccountKey() : null,
         remembered: rememberedKeys(partition),
         mine,
-        names: [entry?.nickname || entry?.username || '', playerId ? names.nameFor(playerId) : ''],
+        // Every name the account may be credited as from another browser (fix 20): nickname AND username, the
+        // save's own name, the credit name here.
+        names: [
+          entry?.nickname,
+          entry?.username,
+          (initialState.rawBackup as { userName?: string | null } | null)?.userName,
+          playerId ? names.nameFor(playerId) : '',
+        ],
         viewerTE: hasSave ? store.backupTE : 0,
       }),
   }).catch(() => []);

@@ -1333,6 +1333,9 @@ onMounted(async () => {
 
   // A saved player id on a link into the Auto Planner: set it up now rather than waiting for a click.
   await initAutoOnce();
+  // On My runs: load the save into the stores now that the draft is restored (loadSaveForMyRuns).
+  myRunsReady = true;
+  loadSaveForMyRuns();
 });
 
 // Auto-save logic
@@ -1591,6 +1594,27 @@ async function prepareAutoPlanner(): Promise<string> {
 function loadFreshSave(): void {
   void prepareAutoPlanner();
 }
+
+/**
+ * My runs reads everything from the save, so it needs one LOADED into the stores. On a page load they hold the
+ * Manual planner's restored draft instead (initPersistence -> importPlan -> hydrate: no save time, and the TE
+ * and egg of whenever that plan was made) beside the last fetched save: the strip said "No save loaded" and the
+ * board's look-alike rule read the draft's TE (fix 20). So on My runs, with no save loaded into the stores, load
+ * one the way entering the Auto Planner does (prepareAutoPlanner: a fresh save, else the stored one). After the
+ * page's own restore (onMounted ends with it), at most once per account per page visit (a Manual plan opened
+ * later from the library is never reset by a tab click: the strip's "Load your save" is there), never under a
+ * search or over a save the player picked.
+ */
+const storesFromSave = computed(() => initialStateStore.hasData && initialStateStore.lastBackupTime > 0);
+let myRunsReady = false;
+let myRunsLoadFor = '';
+function loadSaveForMyRuns(): void {
+  if (!myRunsReady || plannerTab.value !== 'myruns' || !playerId.value || loading.value || storesFromSave.value) return;
+  if (myRunsLoadFor === playerId.value || searchActive.value || uiStore.runSaveLoaded) return;
+  myRunsLoadFor = playerId.value;
+  void prepareAutoPlanner();
+}
+watch([plannerTab, playerId, loading, storesFromSave], loadSaveForMyRuns);
 
 /** What we need to check's Run this sweep, on the Science tab: open its window. */
 function openSweep(request: SweepRequest): void {

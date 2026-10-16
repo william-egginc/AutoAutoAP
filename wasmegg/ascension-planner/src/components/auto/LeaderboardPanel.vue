@@ -996,7 +996,8 @@ import {
 } from '@/lib/leaderboardRank';
 import { isMyRun, myRunsCount } from '@/lib/myRuns';
 import { rememberKey, rememberedKeys } from '@/lib/myKeys';
-import { useAccountName, useSharedName } from '@/composables/useShareResult';
+import { useAccountNames, useSharedName } from '@/composables/useShareResult';
+import { saveTEOf } from '@/lib/saveFreshness';
 import { virtueInventory } from '@/search/csv';
 import { bestPerFamily, keepVirtueArtifacts } from '@/search/submission';
 import { existingOwnerToken } from '@/search/owner';
@@ -1205,7 +1206,13 @@ watch(
 );
 /** The names this account sends under (its own, the one it credits runs to here; /mine's rows' are added
  *  by `lookAlikeFor`). */
-const accountName = useAccountName(() => props.playerId ?? '');
+const accountNames = useAccountNames(() => props.playerId ?? '');
+/** The loaded save's own in-game name, only when the save is this account's (never the last account's). */
+const saveName = computed(() => {
+  const raw = initialState.rawBackup as { eiUserId?: string | null; userName?: string | null } | null;
+  const own = !!raw?.eiUserId && raw.eiUserId.toLowerCase() === (props.playerId ?? '').trim().toLowerCase();
+  return own ? (raw?.userName ?? '') : '';
+});
 const sharedName = useSharedName(() => props.playerId ?? '');
 /** What My runs' look-alike match and its "isn't here?" answer read (search/myBoardRows.ts `lookAlikeFor`,
  *  which Light reads too): every key that is the viewer's -- the save's, the remembered ones, /mine's
@@ -1215,13 +1222,15 @@ const lookAlike = computed(() =>
     saveKey: myKey.value,
     remembered: keptKeys.value,
     mine: mineRows.value,
-    names: [accountName.value, sharedName.get()],
+    names: [...accountNames.value, saveName.value, sharedName.get()],
     viewerTE: myTE.value,
   })
 );
 
 /** The save's own TE, for "near me". */
-const myTE = computed(() => (initialState.rawBackup ? store.backupTE : 0));
+/** The save's own TE, for "near me" and the look-alike TE rule: read from the save itself, never from a restored
+ *  Manual draft's stores (which held the TE of whenever that plan was made: 159 for a save at 191, fix 20). */
+const myTE = computed(() => saveTEOf(initialState.rawBackup));
 
 /**
  * The viewer's own rows, from GET /mine: sent with this browser's code for the loaded account,

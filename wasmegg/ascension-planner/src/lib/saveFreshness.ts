@@ -4,6 +4,7 @@
  * and 24 h, "we will see what players think"). Pure: the clock is a parameter.
  */
 import { agoLong, dateAt } from './eventWhen';
+import { countTEThresholdsPassed } from './truthEggs';
 
 /** Past this many hours the strip turns amber: the times below may have drifted. */
 export const SAVE_AMBER_HOURS = 6;
@@ -38,4 +39,37 @@ export function saveStrip(backupSeconds: number | null | undefined, nowSeconds: 
       link: 'Load a fresh save',
     };
   return { tone: 'ok', text: `Your save is from ${when} (${agoLong(age)}).`, link: 'Load a fresh one' };
+}
+
+/** What the save itself says, read straight from it (the raw backup), not from the planner's stores. */
+interface RawSave {
+  settings?: { lastBackupTime?: number | null } | null;
+  approxTime?: number | null;
+  virtue?: { eovEarned?: (number | null)[] | null; eggsDelivered?: (number | null)[] | null } | null;
+}
+
+/**
+ * The save's own time (unix seconds): `settings.lastBackupTime`, else `approxTime`, as the initial-state store's
+ * `loadFromBackup` reads it; 0 without one. On a page load the store can hold the Manual planner's restored
+ * draft, whose `lastBackupTime` is always 0 (stores/actions/io.ts `exportPlanData`), beside the save itself.
+ */
+export function backupSecondsOf(raw: unknown): number {
+  const r = raw as RawSave | null | undefined;
+  const t = r?.settings?.lastBackupTime || r?.approxTime || 0;
+  return typeof t === 'number' && t > 1e9 ? t : 0;
+}
+
+/**
+ * The save's own TE: per virtue egg the claimed TE or the thresholds passed, whichever is more, capped at 98
+ * (pending Truth Eggs counted, as the planner counts them once it sets the save up, and as a sent row's
+ * `backupTE`). 0 without a save.
+ */
+export function saveTEOf(raw: unknown): number {
+  const v = (raw as RawSave | null | undefined)?.virtue;
+  if (!v) return 0;
+  const earned = v.eovEarned ?? [];
+  const delivered = v.eggsDelivered ?? [];
+  let total = 0;
+  for (let i = 0; i < 5; i++) total += Math.min(98, Math.max(earned[i] ?? 0, countTEThresholdsPassed(delivered[i] ?? 0)));
+  return total;
 }

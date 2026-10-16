@@ -373,7 +373,7 @@ describe('spacing and picture fixes (19 Oct shots)', () => {
     const strip = fs.readFileSync(path.join(__dirname, 'SaveAgeStrip.vue'), 'utf8');
     expect(strip).toContain("{{ strip.text }}{{ ' ' }}");
     const card = fs.readFileSync(path.join(__dirname, 'RightNowCard.vue'), 'utf8');
-    expect(card).toContain('iconURL(`egginc/egg_${currentEgg}.png`, 64)');
+    expect(card).toContain(':src="iconURL(eggPicture, 64)"'); // lib/virtueEggs.ts eggIconPath (fix 20)
     expect(card).not.toContain('▸ Full timeline');
   });
 });

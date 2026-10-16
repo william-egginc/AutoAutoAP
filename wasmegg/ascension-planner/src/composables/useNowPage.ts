@@ -45,7 +45,7 @@ import type { EquippedArtifact } from '@/lib/artifacts/types';
 import type { BoardRow } from '@/lib/leaderboardRank';
 import { hoursDiffer, simulatorAge } from '@/lib/myRunsDashboard';
 import { useMinuteClock } from './useMinuteClock';
-import { saveStrip } from '@/lib/saveFreshness';
+import { backupSecondsOf, saveStrip } from '@/lib/saveFreshness';
 import { virtueEggOf } from '@/lib/virtueEggs';
 import {
   SAVE_EGG_ORDER,
@@ -118,8 +118,18 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
 
   // ------------------------------------------------------------------------------------------ the save
 
-  const raw = computed(() => (initial.hasData ? initial.rawBackup : null));
+  /**
+   * The stores hold a save only once one was LOADED into them (`loadFromBackup` sets its time). On a page load
+   * they first hold the Manual planner's restored draft (hydrate: `lastBackupTime` 0, the TE and egg of whenever
+   * that plan was made) beside the save itself (`rawBackup`, the last one fetched). On beta (fix 20) the main account's
+   * strip said "No save loaded" over the draft's egg and 159 TE while its save was at 191. Until App loads the
+   * save (it does on My runs), only the strip reads the save, straight from `rawBackup`.
+   */
+  const fromSave = computed(() => initial.hasData && initial.lastBackupTime > 0);
+  const raw = computed(() => (fromSave.value ? initial.rawBackup : null));
   const hasSave = computed(() => !!raw.value);
+  /** A save is here but not read into the stores yet: the page waits for it (App loads it). */
+  const saveWaiting = computed(() => !fromSave.value && backupSecondsOf(initial.rawBackup) > 0);
   const saveSeconds = computed(() => (raw.value ? initial.lastBackupTime || 0 : 0));
   const onVirtue = computed(() => saveOnVirtue(raw.value));
   const account = computed(() => accountOf(raw.value));
@@ -130,7 +140,9 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     )
   );
   const teSoFar = computed(() => (raw.value ? store.backupTE : 0));
-  const strip = computed(() => saveStrip(saveSeconds.value, now.value, zone.value));
+  const strip = computed(() =>
+    saveStrip(saveSeconds.value || backupSecondsOf(initial.rawBackup), now.value, zone.value)
+  );
 
   // ------------------------------------------------------------------------------------- the keys
 
@@ -368,6 +380,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     now,
     zone,
     hasSave,
+    saveWaiting,
     saveSeconds,
     onVirtue,
     currentEgg,

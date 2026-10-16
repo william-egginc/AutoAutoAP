@@ -15,7 +15,7 @@
         Calculated {{ whenAgo(a.calculatedAt / 1000, now, zone) }}<template v-if="a.saveSeconds">
           · from your save of {{ dateAt(a.saveSeconds, now, zone) }}</template
         >
-        · {{ howWords(a) }}
+        · {{ howWords(a) }}<template v-if="sourceWords(a)"> · {{ sourceWords(a) }}</template>
       </p>
       <div v-if="tile.sure" class="mt-1 rounded-lg px-2.5 py-1.5 text-[13px]" :class="SURE[tile.sure.level]" data-testid="now-tile-sure">
         <b>How sure: {{ LEVEL[tile.sure.level] }}</b>
@@ -54,7 +54,7 @@
 import { computed } from 'vue';
 import { dateAt } from '@/lib/eventWhen';
 import { spareWords, whenAgo } from '@/lib/nowWords';
-import { howWords, type Tile } from '@/lib/savedTiles';
+import { howWords, sourceWords, type Tile } from '@/lib/savedTiles';
 import { formatDate } from '@/lib/leaderboardRank';
 import type { MyRunsOpen } from '@/lib/myRunsDashboard';
 
