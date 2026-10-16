@@ -10,8 +10,8 @@
     data-testid="now-save-strip"
     :data-tone="strip?.tone ?? 'none'"
   >
-    <template v-if="strip">{{ strip.text }} </template>
-    <template v-else>No save loaded: the page reads everything from your save. </template>
+    <template v-if="strip">{{ strip.text }}{{ ' ' }}</template>
+    <template v-else>No save loaded: the page reads everything from your save.{{ ' ' }}</template>
     <button type="button" class="font-bold underline disabled:opacity-50" :disabled="loading" @click="emit('fresh')">
       {{ loading ? 'Loading your save…' : strip ? strip.link : 'Load your save' }}<template v-if="!loading"> ›</template>
     </button>

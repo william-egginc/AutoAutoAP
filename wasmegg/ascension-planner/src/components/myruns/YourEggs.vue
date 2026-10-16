@@ -64,7 +64,7 @@ const tiles = computed(() => [
     ? {
         id: 'planned',
         label: 'All planned shifts',
-        value: `${props.plannedShifts.count} shift${props.plannedShifts.count === 1 ? '' : 's'} · about ${formatNumber(props.plannedShifts.cost, 1)}`,
+        value: `${props.plannedShifts.count} shift${props.plannedShifts.count === 1 ? '' : 's'} · about ${se(props.plannedShifts.cost)}`,
         note: "at today's soul eggs",
       }
     : { id: 'planned', label: 'All planned shifts', value: "Can't tell", note: 'no saved plan with its timeline' },
