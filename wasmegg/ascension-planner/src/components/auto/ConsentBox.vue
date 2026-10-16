@@ -4,7 +4,9 @@
   "I understand", "Keep sharing my checks", a kept result's agreement.
 
    - Not agreed: the checkbox and the box's own words (`text`, unchanged: this only wraps them).
-   - Agreed and remembered from before: folded to ONE line, "✓ <summary> · Change". Change opens it again.
+   - Agreed and remembered from before: folded to ONE line, "[✓] <summary> · Change". Change opens it again.
+     The line's tick turns it off in one click (`quick`): an agreement then shows its full text to be ticked
+     again there; a Stepping away? option (`quick="both"`) stays one line and turns back on in one click.
    - Agreed just now (or opened with Change): open, with a footer: "Remember my choice for this account"
      (where the box has a `consent-id`, composables/useConsent.ts), Withdraw, and Done (folds it back).
    - Withdraw (or unticking the box) takes the agreement back at once; what was armed on it stops
@@ -23,13 +25,27 @@
       :class="summaryClass"
       :data-testid="`${testid}-summary`"
     >
-      <span class="font-black text-emerald-700" aria-hidden="true">✓</span>
-      <slot name="summary" />
+      <!-- The folded line's own tick (Jordan, 16 Oct: "each option stays clickable"): one click turns it off.
+           `quick="both"` (the Stepping away? options): one click turns it back on too, and the line stays
+           folded. Otherwise (an agreement with words to read): turning it off is one click, and the full
+           text shows again to be ticked there. -->
+      <input
+        :checked="agreed"
+        type="checkbox"
+        class="rounded"
+        :class="inputClass"
+        :disabled="disabled"
+        :title="agreed ? 'Untick to turn it off' : 'Tick to turn it on'"
+        :aria-label="agreed ? 'On: untick to turn it off' : 'Off: tick to turn it on'"
+        :data-testid="`${testid}-toggle`"
+        @change="quickSet(($event.target as HTMLInputElement).checked)"
+      />
+      <slot name="summary" :agreed="agreed" />
       <button
         type="button"
         class="ml-1 underline decoration-dotted underline-offset-2 font-bold text-indigo-700 hover:text-indigo-900"
         :data-testid="`${testid}-change`"
-        @click="open = true"
+        @click="open = true; quickOff = false"
       >
         Change
       </button>
@@ -116,6 +132,10 @@ const props = withDefaults(
     consentId?: ConsentId;
     /** Once agreed, it can fold to one line. */
     foldable?: boolean;
+    /** The folded line's tick: 'off' turns it off in one click (turning it on again is the full box's tick,
+     *  with its words); 'both' turns it off and on in one click and stays folded (for options with no
+     *  agreement to read, the Stepping away? ones). */
+    quick?: 'off' | 'both';
     /** Never folded, and no Done (Send best so far is asking for the tick). */
     forceOpen?: boolean;
     /** The checkbox and its words (off while a run goes, where only the boxes that still apply show). */
@@ -138,6 +158,7 @@ const props = withDefaults(
   {
     consentId: undefined,
     foldable: true,
+    quick: 'off',
     forceOpen: false,
     showBox: true,
     footer: true,
@@ -160,7 +181,11 @@ const emit = defineEmits<{ withdrawn: [] }>();
 const open = ref(false);
 /** Withdrawn here (this mount), for the line that says so. */
 const withdrawn = ref(false);
-const folded = computed(() => props.foldable && agreed.value && !open.value && !props.forceOpen);
+/** Turned off on the folded line of a `quick="both"` box: it stays one line, now saying off. */
+const quickOff = ref(false);
+const folded = computed(
+  () => props.foldable && (agreed.value || (quickOff.value && props.quick === 'both')) && !open.value && !props.forceOpen
+);
 // Ticked here now: its choices stay open for this visit, so the extras can be set; it folds next time, or
 // with Done. A yes that arrives otherwise (the account's remembered one loading, a run's own send) stays
 // folded. Withdrawn: back to the full box.
@@ -178,6 +203,23 @@ function set(v: boolean): void {
   const was = agreed.value;
   agreed.value = v;
   if (v) open.value = true;
+  if (was && !v) {
+    withdrawn.value = true;
+    emit('withdrawn');
+  }
+}
+
+/** The folded line's tick: on or off at once, without opening the box. An agreement ('off') only goes off
+ *  here; it is agreed again in the full box, with its words. */
+function quickSet(v: boolean): void {
+  if (props.disabled) return;
+  if (v && props.quick !== 'both') {
+    open.value = true;
+    return;
+  }
+  const was = agreed.value;
+  if (props.quick === 'both') quickOff.value = !v;
+  agreed.value = v;
   if (was && !v) {
     withdrawn.value = true;
     emit('withdrawn');

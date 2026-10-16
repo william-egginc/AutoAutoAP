@@ -13,13 +13,19 @@
   six cards (DashboardCards.vue), from the board's rows (LeaderboardPanel's `rows`) and this browser's
   saved runs and answers, unsent results and Your setup. A step's button opens its screen set up (App.vue
   `openFromMyRuns`) or scrolls to a part here.
+
+  Then Your latest run (16 Oct 2026; was Leaderboard › Your latest run): components/auto/LatestRunView.vue, the
+  newest search's routes, other options and charts, this account's only; open when there is one, folded when
+  not. "Dig deeper into your plan ›" under each search's result opens this page. A self-contained block: the
+  now page (specialists/ui-nowpage-plan.md) may move it.
 -->
 <template>
   <div class="space-y-4" data-testid="my-runs">
     <div>
       <h2 class="text-2xl font-black text-slate-900">{{ NAMES.myRuns }}</h2>
       <p class="text-sm text-slate-600 leading-relaxed max-w-3xl">
-        Your runs on the board, the runs and answers saved on {{ thisDevice() }}, and results that weren't sent yet.
+        Your latest run, your runs on the board, the runs and answers saved on {{ thisDevice() }}, and results that
+        weren't sent yet.
       </p>
     </div>
 
@@ -27,6 +33,20 @@
       <DashboardGaps :state="steps" @act="act" />
       <DashboardCards :cards="cards" @act="act" />
     </div>
+
+    <details
+      :open="open.latest"
+      class="rounded-xl border border-emerald-200 bg-emerald-50/30 p-4"
+      data-testid="my-runs-part-latest"
+      @toggle="sync('latest', $event)"
+    >
+      <summary :class="SUMMARY">
+        {{ NAMES.latest }}<span v-if="!latestHas" :class="COUNT"> · none yet on this account</span>
+      </summary>
+      <div class="mt-3">
+        <LatestRunView :player-id="playerId" @has="v => (latestHas = v)" />
+      </div>
+    </details>
 
     <details
       :open="open.board"
@@ -123,6 +143,7 @@ import LeaderboardPanel from './auto/LeaderboardPanel.vue';
 import SavedRuns from './auto/SavedRuns.vue';
 import SavedAnswers from './auto/SavedAnswers.vue';
 import UnsentResults from './auto/UnsentResults.vue';
+import LatestRunView from './auto/LatestRunView.vue';
 
 defineProps<{ playerId: string }>();
 const emit = defineEmits<{
@@ -153,12 +174,16 @@ function countText(n: number | null): string {
  * it loads). A part opens or folds by itself only when it gains its first item or loses its last; in
  * between, the player's own click holds.
  */
+/** Your latest run has a run of this account's to show (LatestRunView's `has`). */
+const latestHas = ref(false);
 const open = reactive({
+  latest: false,
   board: boardCount.value !== 0,
   saved: savedCount.value > 0,
   unsent: unsentCount.value > 0,
 });
 type Part = keyof typeof open;
+watch(latestHas, has => (open.latest = has));
 watch(boardCount, n => (open.board = n !== 0));
 watch(
   () => savedCount.value > 0,

@@ -9,7 +9,7 @@
       <input v-model="sendCsv" type="checkbox" class="mt-0.5 rounded border-indigo-300 text-indigo-600" />
       <span>
         <span class="font-bold">Send my CSV too</span>: everything this search priced, best first (the same file as
-        Download CSV)<template v-if="csvDetail"> {{ csvDetail }}</template
+        Download CSV)<template v-if="csvDetail">{{ ' ' }}{{ csvDetail }}</template
         >. It is compressed before it leaves your machine. Untick it to send the headline alone.
       </span>
     </label>

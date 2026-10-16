@@ -144,9 +144,10 @@ describe('ResultTable expand slot', () => {
     expect(html).not.toContain('result-row-expand');
   });
 
-  it('hosts: By a date (three tables), the instant answer, the leg tables, and Light keeps its legs', () => {
+  it('hosts: By a date (its best per stop count; its top routes moved to Your latest run, 16 Oct), the instant answer, the leg tables, and Light keeps its legs', () => {
     const deadline = read('DeadlinePanel.vue');
-    expect(deadline.match(/<RouteTimeline :chain="r.chain" :legs="r.legs" :zone="plannerZone" \/>/g)?.length).toBe(3);
+    expect(deadline.match(/<RouteTimeline :chain="r.chain" :legs="r.legs" :zone="plannerZone" \/>/g)?.length).toBe(1);
+    expect(read('LatestRunView.vue').match(/<RouteTimeline :chain="r.chain" :legs="r.legs" :zone="zone" \/>/g)?.length).toBe(3);
     const instant = read('InstantRoute.vue');
     expect(instant.match(/data-testid="instant-row-expand"/g)?.length).toBe(2);
     expect(instant).toContain(':legs="exactLegsOf(');

@@ -536,23 +536,12 @@
             :simulate-note="liveSim?.note"
             @simulate="simulateLive"
           />
-          <ResultTable
+          <!-- Its top routes so far are on My runs › Your latest run (LatestRunView.vue; moved off here, Jordan
+               16 Oct 2026). -->
+          <DigDeeperLink
             v-if="store.deadlineProgress.top.length > 1"
-            title="Top routes so far"
-            :columns="ROUTE_COLUMNS"
-            :rows="store.deadlineProgress.top.slice(0, 5)"
-            :row-key="r => r.chain.join(',')"
-            :can-expand="hasLegs"
-          >
-            <template #expand="{ row: r }">
-              <RouteTimeline :chain="r.chain" :legs="r.legs" :zone="plannerZone" />
-            </template>
-            <template #default="{ row: r }">
-              <td class="pr-4 py-1 font-bold">{{ r.chain.join(' ') }}</td>
-              <td class="pr-4 py-1">{{ inPlannerZone(r.reachAt) }}</td>
-              <td class="pr-4 py-1">{{ spareLabel(r.spare) }}</td>
-            </template>
-          </ResultTable>
+            detail="its top routes so far, and when each stop and egg happens"
+          />
         </div>
       </template>
       <template #after>
@@ -648,7 +637,7 @@
         <p v-else class="text-[11px] font-semibold text-rose-700">
           No route tried reaches any stop by then. Try a later date, a lower last stop, or more stops.
         </p>
-        <!-- Its routes with when each stop and egg happens, on Leaderboard › Your latest run (LatestRunView.vue). -->
+        <!-- Its top routes with when each stop and egg happens, on My runs › Your latest run (LatestRunView.vue). -->
         <DigDeeperLink v-if="best && !store.deadlineRunning" detail="its top 50 routes and when each stop and egg happens" />
       </template>
       <!-- Where Advanced's box already says this (above, with the chains) it is not repeated here. -->
@@ -715,31 +704,9 @@
         </template>
       </ResultTable>
 
-      <ResultTable
-        :columns="ROUTE_COLUMNS"
-        :rows="result.routes.slice(0, 15)"
-        :row-key="r => r.chain.join(',')"
-        :can-expand="hasLegs"
-      >
-        <template #expand="{ row: r }">
-          <RouteTimeline :chain="r.chain" :legs="r.legs" :zone="plannerZone" />
-        </template>
-        <template #title>
-          <template v-if="!result.step && !result.stoppedEarly"
-            >Every route in your space: {{ result.priced.toLocaleString() }} priced, run complete. Top routes</template
-          ><template v-else
-            >Top routes ({{ result.priced.toLocaleString() }} priced,
-            {{
-              result.step ? `early stops every ${result.step} TE, then refined` : 'every combination in your space'
-            }})</template
-          >
-        </template>
-        <template #default="{ row: r }">
-          <td class="pr-4 py-1 font-bold">{{ r.chain.join(' ') }}</td>
-          <td class="pr-4 py-1">{{ inPlannerZone(r.reachAt) }}</td>
-          <td class="pr-4 py-1">{{ spareLabel(r.spare) }}</td>
-        </template>
-      </ResultTable>
+      <!-- The top routes and how many were priced ("Every route in your space: N priced, run complete") are on
+           My runs › Your latest run (LatestRunView.vue; Jordan, 16 Oct 2026): the result keeps its best, the best
+           for each stop count and the share box. -->
       <template #keep>
         <!-- Save this answer and Saved answers (SavedAnswers.vue), with Download CSV beside Save. -->
         <!-- CSV and a quick save are on the card (as on Fastest's); here, a save under a name of your own. -->
@@ -748,7 +715,7 @@
           <p class="text-[11px] text-slate-500 leading-relaxed">
             Priced from {{ inPlannerZone(result.planStart) }} at {{ result.te }} TE<template v-if="result.backupAt"
               >, on your save from {{ inPlannerZone(result.backupAt) }}</template
-            >.<template v-if="resultPricedWith"> {{ resultPricedWith }}.</template> A route that reaches one more TE
+            >.<template v-if="resultPricedWith">{{ ' ' }}{{ resultPricedWith }}.</template> A route that reaches one more TE
             usually has much less time to spare: the table shows both so you can choose.
           </p>
         </SavedAnswers>
@@ -2189,8 +2156,6 @@ const {
 const { downloadByDateCsv, downloadError } = useRunDownloads(store);
 
 const result = computed(() => store.deadlineResult);
-/** The columns of every list of routes here (top routes so far, and the finished run's). */
-const ROUTE_COLUMNS = ['Route', 'Last stop reached', 'Spare'];
 /** A row's arrow (RouteTimeline.vue): only a route with its legs has stops to show. */
 const hasLegs = (r: { legs?: unknown }): boolean => Array.isArray(r.legs) && r.legs.length > 0;
 /** Share this result's "Note on this run": the result's own note, edited in place, so the send and

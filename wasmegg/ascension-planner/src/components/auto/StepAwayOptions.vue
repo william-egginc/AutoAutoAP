@@ -37,10 +37,11 @@
       v-model="carryOn"
       consent-id="carryOn"
       testid="carry-on"
+      quick="both"
       input-class="border-slate-300 text-indigo-600"
       summary-class="text-slate-700"
     >
-      <template #summary><span>Carry on by itself after a crash: on</span></template>
+      <template #summary="{ agreed }"><span>Carry on by itself after a crash: {{ agreed ? 'on' : 'off' }}</span></template>
       <template #text>
         <span
           ><span class="font-bold">Carry on by itself after a crash.</span> If the browser closes this page mid-run, the
@@ -53,11 +54,12 @@
       :model-value="watchTab"
       consent-id="watchTab"
       testid="watch-tab"
+      quick="both"
       input-class="border-slate-300 text-indigo-600"
       summary-class="text-slate-700"
       @update:model-value="onWatch"
     >
-      <template #summary><span>Watch this run from a second tab: on</span></template>
+      <template #summary="{ agreed }"><span>Watch this run from a second tab: {{ agreed ? 'on' : 'off' }}</span></template>
       <template #text>
         <span
           ><span class="font-bold">Watch this run from a second tab and reopen it if it crashes.</span> Opens a small
@@ -136,12 +138,15 @@
         v-model="phone"
         consent-id="watchPhone"
         testid="watch-phone-consent"
+        quick="both"
         input-class="border-slate-300 text-indigo-600"
         summary-class="text-slate-700"
         :disabled="!phoneAvailable"
       >
-        <template #summary
-          ><span>Watch this run from your phone: on (a private link, updated every 5 minutes)</span></template
+        <template #summary="{ agreed }"
+          ><span>Watch this run from your phone: {{
+            agreed ? 'on (a private link, updated every 5 minutes)' : 'off'
+          }}</span></template
         >
         <template #text>
           <span
@@ -275,15 +280,16 @@
       v-model="autoSend"
       consent-id="autoSend"
       testid="auto-send"
+      quick="both"
       box-testid="auto-send-best"
       input-class="border-slate-300 text-indigo-600"
       summary-class="text-slate-700"
     >
-      <template #summary
-        ><span
+      <template #summary="{ agreed }"
+        ><span v-if="agreed"
           >Sending my progress every {{ everyLabel }} while a run goes (it still needs your OK to share, given at Find
           and submit or under Find)</span
-        ></template
+        ><span v-else>Send my progress every {{ everyLabel }}: off</span></template
       >
       <template #text>
         <span

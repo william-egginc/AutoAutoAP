@@ -20,6 +20,7 @@ import { CHART_AUTO_LIMIT, addToHeat, createHeat, heatSnapshot, type HeatSnapsho
 import { getSimulationContext, createBaseEngineState } from '@/engine/adapter';
 import { getLocalTimestampInTimezone } from '@/lib/events';
 import { hashID } from '@/lib/storage/db';
+import { accountHash, accountHashNow } from '@/lib/accountHash';
 import {
   isDefaultSetup,
   mergeSetup,
@@ -1534,6 +1535,22 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   const runEndedAt = ref(0);
   /** When the chain result on screen was found (ms): a run's end, or an opened saved run's save. */
   const chainResultAt = ref(0);
+  /**
+   * Whose that result (or the run going now) is: the partition hash of the player ID it ran for
+   * (lib/accountHash.ts), '' when unknown. My runs › Your latest run shows it only on that account (16 Oct
+   * 2026: another account's run showed there). Never the ID itself.
+   */
+  const chainResultOwner = ref('');
+  let chainOwnerSeq = 0;
+  /** Tag the Fastest result about to be built with the account it is for. */
+  function tagChainResult(playerId: string): void {
+    const seq = ++chainOwnerSeq;
+    chainResultOwner.value = accountHashNow(playerId);
+    if (!chainResultOwner.value)
+      void accountHash(playerId).then(h => {
+        if (seq === chainOwnerSeq) chainResultOwner.value = h;
+      });
+  }
 
   /** Minutes actually spent searching, or null when this result did not come from a live run. */
   const runMinutes = computed(() => {
@@ -2397,6 +2414,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const summary = savedRuns.value.find(r => r.id === id);
     const body = await loadRun(await hashID(playerId), id);
     if (!summary || !body) return false;
+    const owner = await accountHash(playerId);
     // Another run on screen: sending it must not replace the last run's best so far.
     setProvisional('fastest', null);
 
@@ -2429,6 +2447,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     integrityLowTe.value = null;
     openedRun.value = summary;
     chainResultAt.value = summary.savedAt || 0;
+    chainOwnerSeq++;
+    chainResultOwner.value = owner;
     // Its own start, for "Build this plan": that pins the planner to `planStartUsed`, which still
     // held whichever run last went in this tab. Unknown (no fingerprint): don't pin at all.
     planStartUsed.value = fingerprintPlanStart(summary.fingerprint) ?? 0;
@@ -3164,7 +3184,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   const chartShown = ref(loadChartShown());
 
   /**
-   * Whether a chart is on screen (RunCharts.vue mounted: Compare › Your latest run, LatestRunView.vue).
+   * Whether a chart is on screen (RunCharts.vue mounted: My runs › Your latest run, LatestRunView.vue).
    * The chart's data is built only while the chart is both shown AND on screen, so a remembered "shown"
    * costs nothing on every batch while Compare is closed. `chartMounted` counts the mounted charts.
    */
@@ -5913,6 +5933,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     suspendedSeconds.value = 0;
     longestStallSeconds.value = 0;
     runStartedAt.value = Date.now();
+    tagChainResult(playerId);
     runEndedAt.value = 0;
     lastRateAt = Date.now();
     lastRateChains = 0;
@@ -6218,6 +6239,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   const deadlineRunning = ref(false);
   const deadlineProgress = ref<DeadlineProgress | null>(null);
   const deadlineResult = ref<SavedDeadlineResult | null>(null);
+  /** Whose `deadlineResult` (or the date search going now) is: the partition hash of the player ID it was
+   *  loaded, opened or run for (lib/accountHash.ts), '' when unknown; see `chainResultOwner`. */
+  const deadlineResultOwner = ref('');
   /** A deadline run that stopped before finishing (crash, reload, Stop), ready to carry on. */
   const deadlineUnfinished = ref<{
     spec: DeadlineRunSpec;
@@ -6286,10 +6310,14 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
 
   /** Saved By a date answers for this account (search/deadlineStore.ts `saveAnswer`). */
   const savedAnswers = ref<SavedAnswer[]>([]);
+  /** Whose `savedAnswers` are (`deadlineResultOwner` of one opened). */
+  let savedAnswersOwner = '';
   async function refreshSavedAnswers(playerId: string): Promise<void> {
     if (!playerId) return;
     const hash = await hashID(playerId);
+    const owner = await accountHash(playerId);
     savedAnswers.value = await listSavedAnswers(hash);
+    savedAnswersOwner = owner;
     await refreshKeptSaves(hash);
   }
   /** Keep the answer on screen under a name, with the save it was priced from (`entrySaveFor`). */
@@ -6316,6 +6344,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // Another answer on screen: sending it must not replace the last run's best so far.
     setProvisional('deadline', null);
     deadlineResult.value = JSON.parse(JSON.stringify(a.result)) as SavedDeadlineResult;
+    deadlineResultOwner.value = savedAnswersOwner;
     restoreDeadlineAccount(deadlineResult.value);
   }
   /** The account a shown result was priced with: its own, when it kept one (results from 7 Oct). */
@@ -6577,12 +6606,15 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     restoreDeadlineAccount(null);
     try {
       partitionHash = await hashID(playerId);
+      const owner = await accountHash(playerId);
       runSaves.value = await listRunSaves(partitionHash);
       deadlineAll = []; // the last run's full list, which may be another account's
       // A run may have started during the awaits above: its result and account are its own.
       if (deadlineRunning.value) return;
-      deadlineResult.value = await loadDeadlineResult(partitionHash);
+      const loadedResult = await loadDeadlineResult(partitionHash);
       if (deadlineRunning.value) return;
+      deadlineResult.value = loadedResult;
+      deadlineResultOwner.value = owner;
       restoreDeadlineAccount(deadlineResult.value);
       // The header only: the offer needs the count, not a hundred thousand routes read back.
       let loaded = await loadDeadlineCheckpointHeader(partitionHash);
@@ -6818,6 +6850,14 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     deadlineEstimate.value = Math.max(0, Math.floor(spec.estimate ?? 0));
     deadlineStop = false;
     deadlineResult.value = null;
+    // The run (and its result) is the account it was started on (`startDeadline`, `resumeDeadline`).
+    deadlineResultOwner.value = accountHashNow(currentPlayerId);
+    if (!deadlineResultOwner.value) {
+      const runFor = currentPlayerId;
+      void accountHash(runFor).then(h => {
+        if (deadlineRunning.value && currentPlayerId === runFor) deadlineResultOwner.value = h;
+      });
+    }
     deadlineUnfinished.value = null;
     deadlineSavedAt = 0;
     deadlineProgress.value = {
@@ -8082,6 +8122,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     suspendedSeconds.value = 0;
     longestStallSeconds.value = 0;
     runStartedAt.value = Date.now();
+    tagChainResult(playerId);
     runEndedAt.value = 0;
     lastCheckpointAt = 0;
     lastRateAt = Date.now();
@@ -8751,6 +8792,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     chainRunLive,
     dateRunLive,
     chainResultAt,
+    chainResultOwner,
     stopRun,
     provisionalRows,
     runElsewhere,
@@ -8903,6 +8945,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     deadlineRunDeadline,
     deadlineRunPlan,
     deadlineResult,
+    deadlineResultOwner,
     savedAnswers,
     refreshSavedAnswers,
     saveCurrentAnswer,

@@ -833,7 +833,7 @@
           </p>
         </div>
 
-        <!-- The run's other options and its charts are on Leaderboard › Your latest run (LatestRunView.vue;
+        <!-- The run's other options and its charts are on My runs › Your latest run (LatestRunView.vue;
              moved off this screen, 15 Oct 2026): "Dig deeper into your plan ›". -->
         <DigDeeperLink
           v-if="ownRun && store.pricedCount"

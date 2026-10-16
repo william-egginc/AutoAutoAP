@@ -62,10 +62,11 @@ describe('siteNav', () => {
     expect(routeFromLocation('', '#/science/start')).toEqual(R('science', 'classic', 'smart', 'eggday', 'start'));
   });
 
-  it("gives Your latest run (Fastest's other options and charts, moved 15 Oct) its own Compare address", () => {
+  it('Your latest run keeps its Leaderboard address (16 Oct: a one-line page pointing to My runs)', () => {
     expect(NAMES.latest).toBe('Your latest run');
     expect(hashFor(R('compare', 'classic', 'smart', 'latest'))).toBe('#/compare/latest');
     expect(routeFromLocation('', '#/compare/latest')).toEqual(R('compare', 'classic', 'smart', 'latest'));
+    expect(routeFromLocation('', '#/leaderboard/latest')).toEqual(R('compare', 'classic', 'smart', 'latest'));
   });
 
   it('gives My runs its own top-level address, and sends old My plans links there (15 Oct)', () => {

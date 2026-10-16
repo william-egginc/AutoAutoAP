@@ -1,10 +1,19 @@
 <!--
-  Leaderboard › Your latest run (#/compare/latest): the newest search of this visit, Fastest's or By a date's,
+  My runs › Your latest run (MyRunsView.vue; was Leaderboard › Your latest run, #/compare/latest, until 16 Oct
+  2026, and that tab is one line pointing here now): the newest search of this visit, Fastest's or By a date's,
   with when each stop and egg happens under each route's arrow (RouteTimeline.vue). For Fastest (Nearby routes
   or Exhaustive) also its other options and charts, moved here off Fastest's results (15 Oct 2026), where they
   pushed the CSV, saved runs and share box a long way down; for By a date its best route for each stop count
-  and its top 50 routes (its panel shows the top 15). Fastest's panels and By a date's link here ("Dig deeper
-  into your plan ›", DigDeeperLink.vue).
+  and its top 50 routes, and while one runs its top routes so far (By a date's result shows only its best and
+  its best for each stop count since 16 Oct 2026). Fastest's panels and By a date's link here ("Dig deeper
+  into your plan ›", DigDeeperLink.vue, opens My runs).
+
+  ONE ACCOUNT'S (16 Oct 2026): a run shows only on the account it ran for (lib/latestRunOwner.ts `runIsMine`,
+  on the store's `chainResultOwner` / `deadlineResultOwner`, hashes of the player ID). Another account's run
+  in memory is ignored, not cleared, so switching back shows it again. When the By a date result in memory
+  isn't this account's, this account's own is read back (store `loadDeadlineState`).
+
+  Self-contained on purpose (only `playerId` in): the now page will move it.
 
   "Newest" compares when each was found (`chainResultAt`, `deadlineResult.at`), not which exists: By a date's
   result comes back from IndexedDB on every load. A run going now counts as newest. Light isn't a search (it
@@ -18,11 +27,11 @@
 <template>
   <div class="space-y-4" data-testid="latest-run">
     <div v-if="shown === 'none'" class="rounded-xl border border-slate-200 bg-white p-4 space-y-1.5" data-testid="latest-run-empty">
-      <p v-if="store.isRunning" class="text-xs text-slate-700">
+      <p v-if="store.isRunning && fastestMine" class="text-xs text-slate-700">
         Your run on {{ fastestName(store.finalTE) }} has started: its other options and charts show here as its
         routes are priced.
       </p>
-      <p v-else-if="store.deadlineRunning" class="text-xs text-slate-700">
+      <p v-else-if="store.deadlineRunning && dateMine" class="text-xs text-slate-700">
         Your {{ NAMES.byDate }} run has started: its routes show here when it finishes.
       </p>
       <p v-else class="text-xs text-slate-700">
@@ -36,6 +45,42 @@
       </p>
     </div>
 
+    <!-- By a date's run going now: its top routes so far (moved off By a date's progress, 16 Oct 2026). -->
+    <template v-else-if="shown === 'date' && !dateResult">
+      <p class="text-[11px] text-slate-600 leading-relaxed" data-testid="latest-run-date-running">
+        Your
+        <a :href="byDateHash" class="font-bold text-indigo-700 underline hover:text-indigo-900">{{ NAMES.byDate }}</a>
+        run is going<template v-if="store.deadlineProgress"
+          >: {{ store.deadlineProgress.priced.toLocaleString() }} route{{
+            store.deadlineProgress.priced === 1 ? '' : 's'
+          }}
+          priced so far</template
+        >. Its routes show here in full when it finishes.
+      </p>
+      <div
+        v-if="(store.deadlineProgress?.top.length ?? 0) > 0"
+        class="rounded-xl border border-slate-200 bg-white p-4"
+        data-testid="latest-run-top-so-far"
+      >
+        <ResultTable
+          title="Top routes so far"
+          :columns="['Route', 'Last stop reached', 'Spare']"
+          :rows="store.deadlineProgress!.top.slice(0, 15)"
+          :row-key="r => r.chain.join(',')"
+          :can-expand="hasLegs"
+        >
+          <template #expand="{ row: r }">
+            <RouteTimeline :chain="r.chain" :legs="r.legs" :zone="zone" />
+          </template>
+          <template #default="{ row: r }">
+            <td class="pr-4 py-1 font-bold">{{ r.chain.join(' ') }}</td>
+            <td class="pr-4 py-1">{{ when(r.reachAt) }}</td>
+            <td class="pr-4 py-1">{{ spareLabel(r.spare) }}</td>
+          </template>
+        </ResultTable>
+      </div>
+    </template>
+
     <!-- By a date's run: its best route for each stop count and its top 50, each with its arrow. -->
     <template v-else-if="shown === 'date' && dateResult">
       <p class="text-[11px] text-slate-600 leading-relaxed" data-testid="latest-run-from-date">
@@ -45,7 +90,12 @@
           v-if="store.deadlineRunning"
           >; a new run is going, and its routes replace these when it finishes</template
         ><template v-else-if="!store.dateRunLive && dateResult.at">, found {{ when(dateResult.at / 1000) }}</template>.
-        {{ dateResult.priced.toLocaleString() }} route{{ dateResult.priced === 1 ? '' : 's' }} priced.
+        {{ dateResult.priced.toLocaleString() }} route{{ dateResult.priced === 1 ? '' : 's' }} priced<template
+          v-if="!dateResult.step && !dateResult.stoppedEarly"
+          >: every route in your space, run complete</template
+        ><template v-else-if="dateResult.step"
+          >, early stops every {{ dateResult.step }} TE, then refined</template
+        ><template v-else-if="dateResult.stoppedEarly">, stopped early</template>.
       </p>
       <div class="rounded-xl border border-slate-200 bg-white p-4 space-y-4" data-testid="latest-run-by-date">
         <p class="text-[11px] text-slate-500 leading-relaxed">
@@ -346,7 +396,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useUIStore } from '@/stores/ui';
@@ -362,6 +412,15 @@ import RouteTimeline from './RouteTimeline.vue';
 import { useStrongerStore } from '@/stores/stronger';
 import { createChainSearchPool } from '@/search/pool';
 import { createLegsOnDemand, driftNote, legsKey, type LegsOnDemand } from '@/search/legsOnDemand';
+import { useInitialStateStore } from '@/stores/initialState';
+import { accountOf } from '@/search/runSaves';
+import { accountHash, accountHashNow } from '@/lib/accountHash';
+import { runIsMine } from '@/lib/latestRunOwner';
+
+const props = defineProps<{
+  /** The account on screen: only its runs show here. Never shown; only its hash is compared. */
+  playerId: string;
+}>();
 
 /** The charts (heat map, dots) and their drawing code load only when this view first shows them. */
 const RunCharts = safeAsyncComponent(() => import('./charts/RunCharts.vue'));
@@ -371,13 +430,59 @@ const autoPlannerStore = useAutoPlannerStore();
 /** The planner's time zone, for every moment shown. */
 const zone = computed(() => autoPlannerStore.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
 
-/** By a date's result (restored from IndexedDB on load, or this visit's run). */
-const dateResult = computed(() => store.deadlineResult);
-/** When each search's result was found (ms); Infinity while it runs; null when there is none. */
-const fastestAt = computed<number | null>(() =>
-  store.pricedCount ? (store.isRunning ? Infinity : store.chainResultAt || 1) : null
+/** This account's hash (lib/accountHash.ts): known at once when anything worked it out already. */
+const here = ref(accountHashNow(props.playerId));
+const initial = useInitialStateStore();
+/** The loaded save's account (search/runSaves.ts `accountOf`, a hash), '' when unknown. */
+const nowAccount = computed(() => accountOf(initial.rawBackup));
+/** Fastest's result (or run) in memory is this account's. */
+const fastestMine = computed(() =>
+  runIsMine({
+    owner: store.chainResultOwner,
+    here: here.value,
+    saveAccount: store.runSaves.find(r => r.key === store.openedRun?.inputsKey)?.account,
+    nowAccount: nowAccount.value,
+  })
 );
-const dateAt = computed<number | null>(() => (dateResult.value ? dateResult.value.at || 1 : null));
+/** By a date's result (or run) in memory is this account's. */
+const dateMine = computed(() =>
+  runIsMine({
+    owner: store.deadlineResultOwner,
+    here: here.value,
+    saveAccount: store.deadlineResult?.inputsKey
+      ? store.runSaves.find(r => r.key === store.deadlineResult?.inputsKey)?.account
+      : undefined,
+    nowAccount: nowAccount.value,
+  })
+);
+/** On opening and on an account switch: the hash, and this account's own By a date result when the one in
+ *  memory is another's (it is read back from this browser, as By a date does on opening). */
+async function follow(id: string): Promise<void> {
+  const h = await accountHash(id);
+  if (id !== props.playerId) return;
+  here.value = h;
+  if (h && !store.deadlineRunning && store.deadlineResultOwner !== h) await store.loadDeadlineState(id);
+}
+onMounted(() => void follow(props.playerId));
+watch(
+  () => props.playerId,
+  id => {
+    here.value = accountHashNow(id);
+    pick.value = null;
+    void follow(id);
+  }
+);
+
+/** By a date's result (restored from IndexedDB on load, or this visit's run), this account's only. */
+const dateResult = computed(() => (dateMine.value ? store.deadlineResult : null));
+/** When each search's result was found (ms); Infinity while it runs; null when there is none (or it is
+ *  another account's). */
+const fastestAt = computed<number | null>(() =>
+  fastestMine.value && store.pricedCount ? (store.isRunning ? Infinity : store.chainResultAt || 1) : null
+);
+const dateAt = computed<number | null>(() =>
+  dateMine.value && store.deadlineRunning ? Infinity : dateResult.value ? dateResult.value.at || 1 : null
+);
 /** The player's switch to the other run ("Show your … run instead"); null: the newest. */
 const pick = ref<'fastest' | 'date' | null>(null);
 /** The run shown: the one picked, else the newer (a run going now is newest), else none. */
@@ -395,6 +500,13 @@ const newest = computed<'fastest' | 'date' | 'none'>(() => {
   // A By a date run going now: its last result is the newest thing on that side, unless Fastest's is newer.
   return d > f ? 'date' : 'fastest';
 });
+/** Whether there is a run of this account to show (My runs opens its block then). */
+const emit = defineEmits<{ has: [has: boolean] }>();
+watch(
+  () => shown.value !== 'none',
+  has => emit('has', has),
+  { immediate: true }
+);
 /** The other run, when there is one to switch to. */
 const other = computed<'fastest' | 'date' | null>(() => {
   if (shown.value === 'fastest' && dateAt.value !== null) return 'date';

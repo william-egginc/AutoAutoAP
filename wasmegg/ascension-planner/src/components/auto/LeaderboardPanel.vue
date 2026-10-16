@@ -247,9 +247,13 @@
            link out to its page (the unified layout, phase 4). -->
       <ChainExplorer v-if="tab === 'insights'" part="insights" embedded />
 
-      <!-- Your latest run: this visit's Fastest run's other options and charts (LatestRunView.vue; moved
-           here off Fastest's results, 15 Oct 2026). Reads the search's store, not the collector. -->
-      <LatestRunView v-else-if="tab === 'latest'" />
+      <!-- Your latest run: its block moved to My runs (16 Oct 2026; LatestRunView.vue in MyRunsView.vue). The
+           tab and its address stay, as one line pointing there. -->
+      <p v-else-if="tab === 'latest'" class="text-xs text-slate-700 py-2" data-testid="latest-moved">
+        <a :href="MY_RUNS_HASH" class="font-bold text-indigo-700 underline hover:text-indigo-900"
+          >{{ NAMES.latest }} is now in {{ NAMES.myRuns }} ›</a
+        >
+      </p>
 
       <p v-else-if="error" class="text-[11px] text-red-700 font-semibold">Could not reach the collector: {{ error }}</p>
 
@@ -945,7 +949,7 @@
 <script setup lang="ts">
 import { plural } from '@/lib/format';
 import { onRowClick } from '@/lib/rowClick';
-import { COMPARE_VIEWS, NAMES, type CompareView } from '@/lib/siteNav';
+import { COMPARE_VIEWS, DEFAULT_ROUTE, NAMES, hashFor, type CompareView } from '@/lib/siteNav';
 import { useUIStore } from '@/stores/ui';
 import { safeAsyncComponent } from '@/lib/import';
 import { describeFetchError } from '@/utils/errors';
@@ -1016,8 +1020,6 @@ import MyRunsMissing from './MyRunsMissing.vue';
 
 /** Insights: the Explorer's charts and their chart library load only when that tab opens. */
 const ChainExplorer = safeAsyncComponent(() => import('@/explorer/ChainExplorer.vue'));
-/** Your latest run: loads only when that tab opens (its charts load later still, when drawn). */
-const LatestRunView = safeAsyncComponent(() => import('./LatestRunView.vue'));
 
 const props = defineProps<{
   /** The account whose owner code asks GET /mine for "my" rows. Only its hash is used, as the
@@ -1063,11 +1065,12 @@ const tab = computed<Tab>({
   get: () => ui.compareView,
   set: v => (ui.compareView = v),
 });
-/** The views that read the collector's board (not Insights, which loads its own, nor Your latest run,
- *  which reads this visit's search). */
+/** The views that read the collector's board (not Insights, which loads its own, nor Your latest run's line). */
 function isBoardView(t: Tab): boolean {
   return t !== 'insights' && t !== 'latest';
 }
+/** Your latest run's tab: one line to My runs, where its block is. */
+const MY_RUNS_HASH = hashFor({ ...DEFAULT_ROUTE, section: 'myruns' });
 /** My runs always reads the board. */
 const boardView = computed(() => myRunsMode.value || isBoardView(tab.value));
 const allRows = ref<Row[]>([]);

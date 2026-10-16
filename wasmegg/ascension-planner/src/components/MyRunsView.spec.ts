@@ -208,3 +208,44 @@ describe('the My runs tab', () => {
     expect(app).toContain(":class=\"chainSearchStore.submitUrl ? 'grid-cols-2' : 'grid-cols-3'\"");
   });
 });
+
+describe('My runs › Your latest run (16 Oct: moved off the Leaderboard; Dig deeper opens it)', () => {
+  it('sits below the summary and above Your runs on the board, folded with no run of this account', async () => {
+    const html = await renderHtml(MyRunsView, { playerId: 'EI1234567890123456' }, {}, [pinia]);
+    const summary = html.indexOf('data-testid="my-runs-summary"');
+    const latest = html.indexOf('data-testid="my-runs-part-latest"');
+    const board = html.indexOf('data-testid="my-runs-part-board"');
+    expect(summary).toBeGreaterThan(-1);
+    expect(latest).toBeGreaterThan(summary);
+    expect(latest).toBeLessThan(board);
+    expect(partTag(html, 'my-runs-part-latest')).not.toMatch(/\sopen/);
+    expect(textOf(html)).toContain('Your latest run · none yet on this account');
+    expect(html).toContain('data-testid="latest-run-empty"');
+    expect(html).not.toContain('EI1234567890123456');
+  });
+
+  it("opens with a run of this account's, and shows nothing of another account's", async () => {
+    const { accountHash } = await import('@/lib/accountHash');
+    const store = useChainSearchStore();
+    store.chainResultOwner = await accountHash('EI1234567890123456');
+    store.pricedCount = 2;
+    const mine = await renderHtml(MyRunsView, { playerId: 'EI1234567890123456' }, {}, [pinia]);
+    expect(mine).toContain('data-testid="latest-run-from"');
+    // It opens when the block says it has a run (`has`; the server render draws the part before the block).
+    expect(read('MyRunsView.vue')).toContain('watch(latestHas, has => (open.latest = has));');
+    expect(read('auto/LatestRunView.vue')).toMatch(/\(\) => shown\.value !== 'none',\s*has => emit\('has', has\),\s*\{ immediate: true \}/);
+    const theirs = await renderHtml(MyRunsView, { playerId: 'EI0000000000000000' }, {}, [pinia]);
+    expect(theirs).not.toContain('data-testid="latest-run-from"');
+    expect(theirs).not.toContain('EI0000000000000000');
+  });
+
+  it("the Leaderboard's Your latest run tab is one line to My runs", async () => {
+    const { useUIStore } = await import('@/stores/ui');
+    useUIStore().compareView = 'latest';
+    const html = await renderHtml(LeaderboardPanel, { playerId: 'P' }, {}, [pinia]);
+    expect(html).toContain('data-testid="latest-moved"');
+    expect(textOf(html)).toContain('Your latest run is now in My runs ›');
+    expect(html).toContain('href="#/myruns"');
+    expect(html).not.toContain('data-testid="latest-run"');
+  });
+});

@@ -34,10 +34,13 @@ The names are the ones players read, kept in `NAMES` in `src/lib/siteNav.ts`.
   - **Fastest to 490 TE** (the name follows your final target): the instant answer and Check exactly
     on top, then two tabs, **Nearby routes** (with the Stronger check levels) and **Exhaustive**.
   - **Highest TE by a date**: the same layout, for the most TE by a date.
-- **Leaderboard** (was Compare): Egg Day, Race, All runs, By a date, Your latest run, and **Insights** (charts across everybody's
-  runs; also the standalone `explorer.html`).
-- **My runs** (a top tab, and the Auto Planner's fourth tab: the same page): your runs on the board (any kind, the ones hidden from the public too, with Hide from the
-  public), runs and answers saved on this computer or phone, and results not sent yet. `#/compare/mine` lands here.
+- **Leaderboard** (was Compare): Egg Day, Race, All runs, By a date, and **Insights** (charts across everybody's
+  runs; also the standalone `explorer.html`). Its Your latest run tab is one line pointing to My runs now.
+- **My runs** (a top tab, and the Auto Planner's fourth tab: the same page): **Your latest run** (the newest search's
+  routes with when each stop and egg happens, By a date's top routes, Fastest's other options and charts; this
+  account's only; "Dig deeper into your plan ›" under each result opens it), your runs on the board (any kind, the
+  ones hidden from the public too, with Hide from the public), runs and answers saved on this computer or phone, and
+  results not sent yet. `#/compare/mine` lands here.
 - **Science**: **How it works** (the default), **What we need to check**, **Submit a sweep** and
   **When should I start?** (only before you are on virtue: hidden once your save has a virtue farm)
 

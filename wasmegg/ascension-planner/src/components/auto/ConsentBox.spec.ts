@@ -52,7 +52,9 @@ describe('ConsentBox', () => {
     const t = textOf(html);
     expect(html).toContain('data-testid="consent-summary"');
     expect(html).toContain('data-testid="consent-change"');
-    expect(t).toMatch(/^✓ You agreed to the thing Change ASIDE$/);
+    // The tick on the line is a checkbox, ticked (it turns the agreement off in one click).
+    expect(t).toMatch(/^You agreed to the thing Change ASIDE$/);
+    expect(html).toMatch(/<input[^>]*checked[^>]*data-testid="consent-toggle"/);
     expect(t).not.toContain('THE TEXT');
     expect(t).not.toContain('BEFORE');
     expect(t).not.toContain('AFTER');
@@ -123,6 +125,100 @@ describe('ConsentBox', () => {
     expect(src).toMatch(/data-testid="`\$\{testid\}-withdraw`"\s*@click="set\(false\)"/);
     expect(src).toMatch(/@change="set\(\(\$event\.target as HTMLInputElement\)\.checked\)"/);
     expect(src).toMatch(/function set\(v: boolean\): void \{\s*const was = agreed\.value;\s*agreed\.value = v;/);
+  });
+});
+
+/** Render with `act` run on the box's setup state before it draws; what it emitted comes back too. */
+async function renderActing(
+  props: Record<string, unknown>,
+  act: (st: Record<string, unknown>) => void
+): Promise<{ html: string; models: boolean[]; withdrawn: number }> {
+  const models: boolean[] = [];
+  let withdrawn = 0;
+  const app = createSSRApp({
+    render: () =>
+      h(
+        ConsentBox,
+        {
+          modelValue: false,
+          ...props,
+          'onUpdate:modelValue': (v: boolean) => models.push(v),
+          onWithdrawn: () => withdrawn++,
+        },
+        slots
+      ),
+  });
+  app.mixin({
+    created(this: { $: { type: { __file?: string }; setupState: Record<string, unknown> } }) {
+      if (this.$.type.__file?.endsWith('/ConsentBox.vue')) act(this.$.setupState);
+    },
+  });
+  const html = await renderToString(app);
+  return { html, models, withdrawn };
+}
+
+describe('the folded line: each option one click (Jordan, 16 Oct)', () => {
+  it('an agreement (the default): unticking the line withdraws at once', async () => {
+    const r = await renderActing({ modelValue: true, consentId: 'leaderboard' }, st =>
+      (st.quickSet as (v: boolean) => void)(false)
+    );
+    expect(r.models).toEqual([false]);
+    expect(r.withdrawn).toBe(1);
+  });
+
+  it('…but never agrees from the line: a tick there opens the full text, and nothing is agreed', async () => {
+    const r = await renderActing({ modelValue: false, consentId: 'leaderboard' }, st =>
+      (st.quickSet as (v: boolean) => void)(true)
+    );
+    expect(r.models).toEqual([]);
+    expect(textOf(r.html)).toContain('I acknowledge THE TEXT');
+    // Off, an agreement shows its full text and its own checkbox, not the line.
+    const off = await renderActing({ modelValue: false, consentId: 'leaderboard' }, st => {
+      st.quickOff = true;
+    });
+    expect(off.html).not.toContain('consent-summary');
+    expect(textOf(off.html)).toContain('I acknowledge THE TEXT');
+  });
+
+  it('a Stepping away? option (quick="both"): off and on in one click each, still one line', async () => {
+    const offClick = await renderActing({ modelValue: true, consentId: 'carryOn', quick: 'both' }, st =>
+      (st.quickSet as (v: boolean) => void)(false)
+    );
+    expect(offClick.models).toEqual([false]);
+    // Turned off on the line: it stays one line, unticked, with Change still there.
+    const off = await renderActing({ modelValue: false, consentId: 'carryOn', quick: 'both' }, st => {
+      st.quickOff = true;
+    });
+    expect(off.html).toContain('data-testid="consent-summary"');
+    expect(off.html).toContain('data-testid="consent-change"');
+    expect(off.html).not.toMatch(/<input[^>]*checked[^>]*data-testid="consent-toggle"/);
+    expect(textOf(off.html)).not.toContain('THE TEXT');
+    const onClick = await renderActing({ modelValue: false, consentId: 'carryOn', quick: 'both' }, st => {
+      st.quickOff = true;
+      (st.quickSet as (v: boolean) => void)(true);
+    });
+    expect(onClick.models).toEqual([true]);
+    // Not opened by it: the line stays.
+    expect((await renderActing({ modelValue: true, consentId: 'carryOn', quick: 'both' }, () => {})).html).toContain(
+      'data-testid="consent-summary"'
+    );
+  });
+
+  it('disabled (the phone link not available): the line does nothing', async () => {
+    const r = await renderActing({ modelValue: true, consentId: 'watchPhone', quick: 'both', disabled: true }, st =>
+      (st.quickSet as (v: boolean) => void)(false)
+    );
+    expect(r.models).toEqual([]);
+  });
+
+  it('the four Stepping away? options are quick="both" and say on or off; the agreements are not', () => {
+    const src = fs.readFileSync(path.join(__dirname, 'StepAwayOptions.vue'), 'utf8');
+    for (const id of ['carryOn', 'watchTab', 'watchPhone', 'autoSend'])
+      expect(src).toMatch(new RegExp(`consent-id="${id}"[^>]*quick="both"`));
+    expect(src).toContain("Carry on by itself after a crash: {{ agreed ? 'on' : 'off' }}");
+    expect(src).toContain("Watch this run from a second tab: {{ agreed ? 'on' : 'off' }}");
+    for (const f of ['FindBar.vue', 'ShareResult.vue', 'InstantShareCheck.vue', 'UnsentResults.vue', 'InsanePanel.vue'])
+      expect(fs.readFileSync(path.join(__dirname, f), 'utf8')).not.toMatch(/<ConsentBox[^>]*quick="both"/);
   });
 });
 

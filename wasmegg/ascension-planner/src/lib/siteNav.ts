@@ -9,11 +9,13 @@
  *   Leaderboard      #/compare[/<view>]      the leaderboard's views (Egg Day first), and Insights:
  *                                            (was Compare until 16 Oct 2026; #/leaderboard[/<view>] lands here too)
  *                                            the Chain Explorer's charts
- *                    #/compare/latest        Your latest run: this visit's Fastest run's other options
- *                                            and charts (moved off Fastest's results, 15 Oct 2026)
- *   My runs          #/myruns                every run of yours: on the board (hidden ones too), saved on
- *                                            this computer, and not sent yet (15 Oct 2026; was Compare's
- *                                            My plans tab, and #/compare/mine still lands here)
+ *                    #/compare/latest        Your latest run: one line, "Your latest run is now in My runs ›"
+ *                                            (16 Oct 2026; the block itself is on My runs)
+ *   My runs          #/myruns                every run of yours: your latest run (its routes, other options
+ *                                            and charts; was Leaderboard › Your latest run until 16 Oct 2026),
+ *                                            on the board (hidden ones too), saved on this computer, and not
+ *                                            sent yet (15 Oct 2026; was Compare's My plans tab, and
+ *                                            #/compare/mine still lands here)
  *   Science          #/science               how the planner works, and how its answers were checked
  *                                            (How it works, the default; #/science/how still opens it)
  *                    #/science/check         what we still need to check (the sweeps to run)
@@ -60,8 +62,9 @@ export const NAMES = {
   myRuns: 'My runs',
   science: 'Science',
   insights: 'Insights',
-  /** Compare › Your latest run (#/compare/latest): the other options and charts of this visit's Fastest
-   *  run (LatestRunView.vue; moved off Fastest's results, 15 Oct 2026). */
+  /** My runs › Your latest run (LatestRunView.vue): the newest search's routes, other options and charts.
+   *  Was a Leaderboard tab's content (#/compare/latest, 15 Oct 2026) until 16 Oct 2026; that tab is one line
+   *  to My runs now, and "Dig deeper into your plan ›" opens My runs (DigDeeperLink.vue). */
   latest: 'Your latest run',
   check: 'What we need to check',
   submit: 'Submit a sweep',
