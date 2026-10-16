@@ -13,7 +13,7 @@
     <div class="flex flex-wrap items-baseline justify-between gap-x-3">
       <p class="text-[11px] font-black uppercase tracking-widest text-slate-500">Right now</p>
       <p v-if="card" class="text-[12px] text-slate-500" data-testid="now-calculated">
-        Plan for {{ goalName }} calculated {{ calculatedWhen }} ({{ card.plan.exact ? 'Check exactly' : 'instant answer' }})<template
+        Plan for {{ followName }} calculated {{ calculatedWhen }} ({{ card.plan.exact ? 'Check exactly' : 'instant answer' }})<template
           v-if="card.pricedWith"
           >{{ ' ' }}· <span data-testid="now-priced-with">{{ card.pricedWith }}</span></template
         >
