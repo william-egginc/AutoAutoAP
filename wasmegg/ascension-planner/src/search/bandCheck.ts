@@ -289,9 +289,21 @@ export function widenBandText(
   const added: number[] = [];
   if (side === 'low') {
     for (let v = vals[0] - step; v >= vals[0] - reach && v >= lowest; v -= step) added.push(v);
+    // The band's step can jump past a hard floor (80-90:5 at TE 77: 75 is too low, but 78 and 79
+    // aren't). When the floor is what stops it, fill the last few up to it one TE at a time, so the
+    // floor itself gets tried.
+    if (lowest > vals[0] - reach) {
+      const edge = added.length ? added[added.length - 1] : vals[0];
+      for (let v = edge - 1; v >= lowest; v--) added.push(v);
+    }
   } else {
     for (let v = vals[vals.length - 1] + step; v <= vals[vals.length - 1] + reach && v <= highest; v += step) {
       added.push(v);
+    }
+    // Same at the top, when the target (or the next band) is what stops the step.
+    if (highest < vals[vals.length - 1] + reach) {
+      const edge = added.length ? added[added.length - 1] : vals[vals.length - 1];
+      for (let v = edge + 1; v <= highest; v++) added.push(v);
     }
   }
   if (!added.length) return null;

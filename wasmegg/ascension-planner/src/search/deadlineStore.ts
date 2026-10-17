@@ -86,6 +86,20 @@ export interface DeadlineRunSpec {
   /** The estimate the run started with, counted in legs (deadlineEstimate.ts `planLegs`): the first
    *  guess the progress line quotes, and what the live estimate counts down from. */
   legPlan?: DeadlineLegPlan;
+  /** The fine pass around the best routes (deadline.ts `refine`). Only false is kept: the quick scan
+   *  that places Nearby routes' boxes when there is no instant answer (search/autoWiden.ts). */
+  refine?: false;
+  /** A run of the no-instant-answer fallback (search/autoWiden.ts), carried into its result. */
+  fallback?: DeadlineFallback;
+}
+
+/**
+ * By a date with no instant answer for the player's TE: whether a quick scan placed the boxes, and how
+ * many times they were widened automatically before this run (search/autoWiden.ts).
+ */
+export interface DeadlineFallback {
+  scanned: boolean;
+  widenRounds: number;
 }
 
 /** `LegPlan` plus the speed and time it was priced at. */
@@ -293,6 +307,8 @@ export interface SavedDeadlineResult {
    *  `lastTECostFrom`), for the "one more TE" hint. Absent when nothing one stop lower was priced,
    *  and on results from before 11 Oct 2026. */
   lastTECost?: number;
+  /** A run of the no-instant-answer fallback (`DeadlineRunSpec.fallback`). Absent otherwise. */
+  fallback?: DeadlineFallback;
   at: number;
 }
 

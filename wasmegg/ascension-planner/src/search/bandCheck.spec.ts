@@ -125,8 +125,22 @@ describe('checkBandText', () => {
 describe('widenBandText', () => {
   it('widens the low side on the band step, not past the player or the neighbour', () => {
     expect(widenBandText('195-205:5; 230-250:10', 1, 'low', 10, ctx)).toBe('185-205:5; 230-250:10');
-    expect(widenBandText('185-205:5', 1, 'low', 10, ctx)).toBeNull();
+    // The step would jump past your TE (180 is too low), so the last few up to the floor (182) come
+    // in one TE at a time.
+    expect(parseBand(widenBandText('185-205:5', 1, 'low', 10, ctx)!)).toEqual([182, 183, 184, 185, 190, 195, 200, 205]);
     expect(widenBandText('182-205:1', 1, 'low', 10, ctx)).toBeNull();
+  });
+  it('reaches the floor on a wide step: 80-90:5 at TE 77 adds 78 and 79', () => {
+    const c77 = { currentTE: 77, finalTE: 160 };
+    expect(parseBand(widenBandText('80-90:5', 1, 'low', 10, c77)!)).toEqual([78, 79, 80, 85, 90]);
+    // The step still leads while the floor is far away: no single TEs then.
+    expect(parseBand(widenBandText('100-110:5', 1, 'low', 10, c77)!)).toEqual([90, 95, 100, 105, 110]);
+  });
+  it('reaches the target on a wide step at the top', () => {
+    // 500 is past the target (490), so 481 to 489 come in one at a time.
+    expect(parseBand(widenBandText('440-480:20', 1, 'high', 20, ctx)!)).toEqual([
+      440, 460, 480, 481, 482, 483, 484, 485, 486, 487, 488, 489,
+    ]);
   });
   it('widens the high side up to the next band', () => {
     expect(widenBandText('195-205:5; 210-250:10', 1, 'high', 10, ctx)).toBe('195-215:5; 210-250:10');
@@ -206,10 +220,13 @@ describe('findBandEdges at a floor that cannot move (By a date, low TE)', () => 
       value: 79,
     });
   });
-  it('leaves out an edge the wider box could not reach on its step', () => {
-    // 80 is on a step of 5 and your TE is 77: 78 and 79 are legal, but the box grows on its own step
-    // (75, below your TE), so Widen and run again would not move it.
-    expect(findBandEdges([[80, 85, 90]], [80, 160], { currentTE: 77, finalTE: 160 })).toEqual([]);
+  it('flags an edge on a wide step when the floor is closer than one step', () => {
+    // 80 is on a step of 5 and your TE is 77: 75 is too low, but 78 and 79 are legal, and Widen now
+    // adds them one TE at a time, so this edge is worth a warning again (it used to be hidden).
+    const c77 = { currentTE: 77, finalTE: 160 };
+    const edges = findBandEdges([[80, 85, 90]], [80, 160], c77);
+    expect(edges).toEqual([{ band: 1, side: 'low', value: 80 }]);
+    expect(parseBand(widenEdges([[80, 85, 90]], edges, c77)!)).toEqual([78, 79, 80, 85, 90]);
   });
 });
 

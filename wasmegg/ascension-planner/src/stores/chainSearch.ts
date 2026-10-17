@@ -5066,6 +5066,17 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     return key ? (pendingSends.value.find(p => p.key === key) ?? null) : null;
   }
 
+  /**
+   * Forget the kept results of By a date runs an automatic widening went past (search/autoWiden.ts):
+   * the rounds before the last one would otherwise each wait as "This result wasn't sent". Waits for
+   * the result being kept now first.
+   */
+  async function dropDeadlineSends(ats: readonly number[]): Promise<void> {
+    await pendingBuild;
+    const keys = new Set(ats.map(at => `deadline:${at}`));
+    for (const p of pendingSends.value.filter(x => keys.has(x.key))) await dropPending(p.id);
+  }
+
   /** Forget a kept result: sent, or dismissed by the player. */
   async function dropPending(id: string): Promise<void> {
     pendingSends.value = pendingSends.value.filter(p => p.id !== id);
@@ -7048,6 +7059,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           seedShapes: spec.seedShapes ?? [],
           parallel: spec.parallel ?? 1,
           ...(spec.extend ? { extend: true } : {}),
+          // The no-instant-answer quick scan (search/autoWiden.ts): the coarse pass only.
+          ...(spec.refine === false ? { refine: false } : {}),
           ...(spec.bands?.length ? { bands: spec.bands } : {}),
           ...(spec.bandSets?.length ? { bandSets: runBandSets(spec) } : {}),
           ...(spec.ascendNeeded && schedule ? { ascendAt: (t: number) => nextAvailable(t, schedule) } : {}),
@@ -7156,6 +7169,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         ...(priorSeconds > 0 || seedCount ? { carriedOn: true } : {}),
         lastLo: Math.max(Math.floor(inputs.currentTE) + 1, spec.lastLo ?? 0),
         ...(lastTECost ? { lastTECost } : {}),
+        ...(spec.fallback ? { fallback: { ...spec.fallback } } : {}),
         at: Date.now(),
       };
       deadlineAccount = account;
@@ -7876,6 +7890,21 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   function stopDeadline(): void {
     deadlineStop = true;
     stepAwayStopPressed();
+  }
+
+  /**
+   * Put an earlier By a date answer back on screen (and in its saved slot): an automatic widening round
+   * stopped by hand before it caught up with the round before (search/autoWiden.ts `betterRoute`).
+   * Stop & keep best keeps the best route found so far, not the stopped round's.
+   */
+  async function restoreDeadlineResult(r: SavedDeadlineResult): Promise<void> {
+    if (deadlineRunning.value) return;
+    deadlineResult.value = r;
+    try {
+      if (partitionHash) await saveDeadlineResult(partitionHash, r);
+    } catch (e) {
+      console.warn('chain search: could not save the deadline result', e);
+    }
   }
 
   async function benchmarkMachine(playerId: string, spec: ExhaustiveSpec): Promise<void> {
@@ -8978,6 +9007,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     pendingSends,
     sendPending,
     dropPending,
+    dropDeadlineSends,
     refreshPendingSends,
     pendingKeyFor,
     resultSending,
@@ -8995,6 +9025,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     resumeDeadline,
     discardDeadlineRun,
     stopDeadline,
+    restoreDeadlineResult,
     resultsFromOlderSave,
     olderSaveNote,
     recheckingLatest,

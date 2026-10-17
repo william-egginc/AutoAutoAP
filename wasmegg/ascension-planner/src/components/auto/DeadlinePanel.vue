@@ -525,6 +525,10 @@
                that bar only (Jordan, 16 Oct 2026): time so far, the first guess, the estimate's basis and the
                legs simulated are under the bar's Details. -->
           <div data-run-progress="by-date" class="scroll-mt-24"></div>
+          <!-- No instant answer for this TE: which step of the fallback is going (search/autoWiden.ts). -->
+          <p v-if="autoStatus" class="text-[11px] font-semibold text-slate-700" data-test="auto-widen-status">
+            {{ autoStatus }}
+          </p>
           <!-- The best so far in the finished answer's card (ByDateRouteCard.vue), then the next ones. -->
           <ByDateRouteCard
             v-if="liveBest"
@@ -862,6 +866,15 @@ import {
 } from '@/search/deadlineEstimate';
 import { defaultWorkerCount } from '@/search/batch';
 import { findBandEdges, noInstantAnswerText, widenEdges, type BandEdge } from '@/search/bandCheck';
+import {
+  AFTER_SCAN_STATUS,
+  QUICK_SCAN_STATUS,
+  autoFallbackNote,
+  betterRoute,
+  needsQuickScan,
+  quickScanSpec,
+  runAutoWiden,
+} from '@/search/autoWiden';
 import CarryOnOffer from './CarryOnOffer.vue';
 import ShareResult from './ShareResult.vue';
 import SentByRunNote from './SentByRunNote.vue';
@@ -925,7 +938,12 @@ import { oneMoreTEHint } from '@/search/oneMoreTE';
 import { byDateSimulate } from '@/search/byDateSimulate';
 import { readFirstAscension } from '@/search/firstAscension';
 import { simulateRoute } from '@/search/simulateRoute';
-import { rowSettingsFor, type DeadlineRunSpec, type SavedDeadlineResult } from '@/search/deadlineStore';
+import {
+  rowSettingsFor,
+  type DeadlineFallback,
+  type DeadlineRunSpec,
+  type SavedDeadlineResult,
+} from '@/search/deadlineStore';
 import { SPACE_STEPS, SPACE_WIDTHS, stopsByWidth } from '@/search/deadlineSuggest';
 import { boxCountFromBest } from '@/lib/limitsFollow';
 import { BY_DATE_LEVELS, simpleByDateSpace, widthForLevel, type ByDateLevel, type SimpleSpace } from '@/search/simpleByDate';
@@ -1207,9 +1225,14 @@ const levelEstimates = computed<Partial<Record<StrongerLevel, LevelEstimate>>>((
   }
   return out;
 });
+/** The boxes an automatic widening round runs next (search/autoWiden.ts): the last round's, one of
+ *  them widened. Only while the fallback goes; null otherwise. */
+const simpleNext = ref<{ chains: { asc: number; text: string }[]; lastBox: string } | null>(null);
 /** Simple's boxes as chain rows: the last run's while it goes, else the ones worked out now. */
 const simpleLive = computed(() =>
-  simpleSpace.value
+  simpleNext.value
+    ? simpleNext.value
+    : simpleSpace.value
     ? {
         chains: simpleSpace.value.rows.map(r => ({ asc: r.asc, text: r.text })),
         lastBox: `${simpleSpace.value.lastLo}-${simpleSpace.value.lastHi}`,
@@ -2039,6 +2062,7 @@ watch(
 );
 function stopDeadline(): void {
   stopAsked.value = true;
+  autoStop.value = true;
   store.stopDeadline();
 }
 
@@ -2057,7 +2081,8 @@ async function start(andSubmit: boolean, kind: ByDateKind): Promise<void> {
   // Send best so far, with the consent Find and submit already has (or asked for during the run).
   store.beginBestSoFar('deadline', autoShare.value ? { nickname: bestSoFarName() } : null);
   try {
-    await find();
+    if (kind === 'around' && simple.value && simpleFrom.value !== 'instant') await findWithoutInstant();
+    else await find();
   } finally {
     startingKind.value = null;
     // Read live: a withdraw during the run cleared `submitsWhenDone` (store `withdrawShareConsent`).
@@ -2076,7 +2101,7 @@ async function start(andSubmit: boolean, kind: ByDateKind): Promise<void> {
   }
 }
 
-async function find(): Promise<void> {
+async function find(fallback?: DeadlineFallback): Promise<void> {
   runEstimate.value = plannedRoutes.value;
   // Simple runs in its own boxes (always a space), frozen for the run.
   if (simple.value) {
@@ -2111,6 +2136,7 @@ async function find(): Promise<void> {
         : chains.value.map(r => ({ widthIx: rowWidthIx(r), stepIx: rowStepIx(r), auto: !!r.auto })),
       // The level bar's level (Fast / Exact / Very high), for the board row's `level`.
       ...(simple.value ? { simple: true, level: dateLevel.value } : {}),
+      ...(simple.value && fallback ? { fallback: { ...fallback } } : {}),
     });
     return;
   }
@@ -2126,6 +2152,97 @@ async function find(): Promise<void> {
     extend: true,
     legPlan: { ...autoPlan.value },
   });
+}
+
+/**
+ * Nearby routes with no instant answer for this TE (search/autoWiden.ts): a quick scan places the
+ * boxes when there is no earlier answer to centre them on, Nearby routes runs in them, and a box whose
+ * edge the best route sits on is widened and run again, up to 3 rounds. Each run is an ordinary By a
+ * date run on the player's own settings; Stop ends it all, and the best route found so far stays.
+ */
+const autoStatus = ref('');
+/** Stop pressed during the fallback: no further run starts (the store's own flag resets each run). */
+const autoStop = ref(false);
+async function findWithoutInstant(): Promise<void> {
+  autoStop.value = false;
+  /** Every answer the fallback went past, for dropping its kept send at the end (store `dropDeadlineSends`). */
+  const went: number[] = [];
+  /** The last run was stopped (here, or by the run bar's Stop & keep best) or failed: read from the run
+   *  itself, before an earlier answer is put back over it. */
+  let lastStopped = false;
+  const noteRun = () => {
+    const now = store.deadlineResult;
+    lastStopped = autoStop.value || !now || !!store.error || now.stoppedEarly;
+    if (now) went.push(now.at);
+  };
+  const ended = () => autoStop.value || lastStopped;
+  /** After a run: the answer before it comes back if this one did not match it (stopped, or failed). */
+  const keepBest = async (prev: SavedDeadlineResult | null): Promise<void> => {
+    noteRun();
+    if (prev && !betterRoute(store.deadlineResult?.routes[0], prev.routes[0])) await store.restoreDeadlineResult(prev);
+  };
+  try {
+    const te = Math.floor(store.currentTE);
+    const scanned = needsQuickScan({
+      hadInstant: false,
+      answers: (store.deadlineResult?.byStops ?? []).map(r => r.chain),
+      currentTE: te,
+    });
+    if (scanned) {
+      autoStatus.value = QUICK_SCAN_STATUS;
+      // Nothing frozen from an older run while the scan goes: its boxes come from the scan's answer.
+      simpleUsed.value = null;
+      await store.startDeadline(
+        props.playerId,
+        quickScanSpec({
+          currentTE: store.currentTE,
+          deadline: deadline.value,
+          guessHi: rangeOf(simpleLive.value.lastBox)?.[1] ?? 0,
+          ascendNeeded: ascendNeeded.value,
+          level: dateLevel.value,
+        })
+      );
+      noteRun();
+      if (ended()) return;
+      autoStatus.value = AFTER_SCAN_STATUS;
+    }
+    // Whatever Nearby routes' Find would have refused (the deadline moved, nothing to check).
+    if (aroundIssue.value) return;
+    // The boxes now centre on the scan's best route for each count (`simpleCentres`, "answer").
+    // Only this fallback's own answers are put back: an older run's may be for another date.
+    let prev = scanned ? store.deadlineResult : null;
+    await find({ scanned, widenRounds: 0 });
+    await keepBest(prev);
+    await runAutoWiden({
+      read: () => ({
+        hadInstant: !!result.value?.instantSets?.length,
+        bands: edgeBox.value?.bands ?? null,
+        chain: best.value?.chain ?? null,
+        currentTE: edgeTE.value,
+        stopped: ended(),
+        busy: store.busy,
+      }),
+      onStatus: text => (autoStatus.value = text),
+      runRound: async d => {
+        const box = edgeBox.value!;
+        const used = simpleRunBoxes.value;
+        simpleNext.value = {
+          chains: used.chains.map((r, k) => (k === box.row ? { asc: r.asc, text: d.text } : { ...r })),
+          lastBox: used.lastBox,
+        };
+        prev = store.deadlineResult;
+        await find({ scanned, widenRounds: d.round });
+        await keepBest(prev);
+      },
+    });
+  } finally {
+    simpleNext.value = null;
+    autoStatus.value = '';
+    // Only the answer on screen waits to be sent; the rounds it went past don't.
+    const kept = store.deadlineResult?.at;
+    const drop = went.filter(at => at !== kept);
+    if (drop.length) void store.dropDeadlineSends(drop);
+  }
 }
 
 // ------------------------------------------------------------------ share to the board
@@ -2301,6 +2418,8 @@ const noInstantNote = computed(() => {
   const r = result.value as SavedDeadlineResult | null;
   if (!r || !best.value || store.deadlineRunning || best.value.chain.length < 2) return '';
   if (r.instantSets?.length) return '';
+  // Found by the no-instant-answer fallback (search/autoWiden.ts): it says what it did instead.
+  if (r.fallback) return autoFallbackNote(r.fallback);
   return noInstantAnswerText(!!edges.value.length && !!edgeWiden.value);
 });
 /** A Simple run's box around the best route is narrow: each early stop ±1 TE or less, or the best
