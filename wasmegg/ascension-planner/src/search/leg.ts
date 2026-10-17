@@ -320,19 +320,9 @@ export function runLeg(
     return buildUp ? asLeg(buildUp, 'buildup') : asLeg(cont!, 'continue');
   }
 
-  // Single C1->R1 precompute shared by every build variant, exactly as the app does it — K3..H2 is
-  // the expensive part and must not be repeated per variant.
-  const pre = runUntilShift(baseState, ctx, 'C3');
-  // C3's own shift waits for the player too (the C3 variants start with it, outside the main loop).
-  const held = holdForPlayer(pre.state, ctx, startTime, pre.elapsedSeconds, 'curiosity');
-  if (held.heldSeconds) {
-    pre.actions = [...pre.actions, ...held.actions];
-    pre.state = held.state;
-    pre.elapsedSeconds = held.elapsedSeconds;
-  }
-  const preC3 = { actions: pre.actions, state: pre.state, elapsedSeconds: pre.elapsedSeconds };
-
-  const c3 = runC3Variants(pre.state, ctx, 3, startTE < TIER_13_MIN_STARTING_TE);
+  // The build to C3 and its variants: no target in it, so shared by every target tried from this
+  // start (legBuild below).
+  const { preC3, c3 } = legBuild(inputs, baseState, ctx, startTime, startTE);
   let surviving = c3.filter(x => !x.impossible);
   // K3's mandatory wait to buildPhaseEnd cannot be truncated, so under a deadline a variant whose
   // build phase ends after it is not slower but unevaluable.
@@ -373,6 +363,111 @@ export function runLeg(
   }
   if (!freshBest || !freshKey) return null;
   return asLeg(freshBest, freshKey);
+}
+
+/**
+ * THE BUILD TO C3, SHARED ACROSS TARGETS (16 Oct 2026; aaap-tools specialists/gpu-research.md). A
+ * fresh leg is the C1..R1 build, C3's variants, and each variant's K3..H2 tail to the leg's target.
+ * The build and the variants are 99.5% of the time and depend on the leg's start (state, time, TE
+ * and the run's settings) but never on its target, yet every target a search tries from one start
+ * -- each last stop By a date brackets, each value a sweep gives the last stop -- simulated them
+ * again. They are kept here for the next leg from the same start: the pool deals a shape's last
+ * stops to one worker (search/stickyDealer.ts), so they come one after another.
+ *
+ * Kept small: of the build's actions (each carrying a whole state; ~22 MB as JSON) only what
+ * anything after it reads -- the shifts (count, moments, eggs: `shiftInstants`, the tail's shift
+ * cost) and the waits held for the player (`heldSecondsOf`) -- on every leg, shared or not, so the
+ * two cannot differ. The tail clones the state it resumes from (auto/ascension.ts `runAscension`),
+ * so a shared build is never changed by one target and read by the next. `setLegBuildSharing(false)`
+ * runs the build in full every time, as before, for the specs that prove the results identical.
+ */
+const LEG_BUILD_CACHE = 8;
+interface LegBuild {
+  preC3: { actions: Action[]; state: EngineState; elapsedSeconds: number };
+  c3: C3Variant[];
+}
+const legBuilds = new Map<string, LegBuild>();
+let sharing = true;
+let builds = { hits: 0, misses: 0 };
+/** One id per save (`context.rawBackup`) a worker has seen, for the key. */
+const backupIds = new WeakMap<object, number>();
+let nextBackupId = 1;
+
+/** Turn the sharing off (and empty it) or back on; the specs compare the two. */
+export function setLegBuildSharing(on: boolean): void {
+  sharing = on;
+  legBuilds.clear();
+}
+/** How often a leg found its build already done, since the last reset. */
+export function legBuildStats(reset = false): { hits: number; misses: number } {
+  const out = { ...builds };
+  if (reset) builds = { hits: 0, misses: 0 };
+  return out;
+}
+
+/** The actions anything after the build reads (see above). */
+function keptActions(actions: Action[]): Action[] {
+  return actions.filter(
+    a =>
+      a.type === 'shift' ||
+      (a.type === 'wait_for_te' && !!(a.payload as { heldForPlayer?: boolean } | undefined)?.heldForPlayer)
+  );
+}
+
+/** Everything the build reads: the start state, the context (its save by identity, the rest by value,
+ *  the player's hours for the hook that waits for them), the start time and TE. */
+function legBuildKey(inputs: SearchInputs, baseState: EngineState, ctx: SimulationContext, startTE: number): string {
+  const raw = ctx.rawBackup as object | undefined;
+  let id = 0;
+  if (raw && typeof raw === 'object') {
+    id = backupIds.get(raw) ?? 0;
+    if (!id) backupIds.set(raw, (id = nextBackupId++));
+  }
+  // The save left out before stringifying (JSON.stringify would read even its toJSON; a worker is given
+  // a trimmed save, search/workerBackup.ts, and the spec there checks nothing else is read). Functions
+  // (the hours hook) are dropped by JSON; the hours themselves are in the key below.
+  const { rawBackup: _save, ...rest } = ctx;
+  const context = JSON.stringify(rest);
+  const hours = JSON.stringify({ a: inputs.availability ?? null, d: !!inputs.deferShifts });
+  return `${id}|${startTE}|${hours}|${context}|${JSON.stringify(baseState)}`;
+}
+
+function legBuild(
+  inputs: SearchInputs,
+  baseState: EngineState,
+  ctx: SimulationContext,
+  startTime: number,
+  startTE: number
+): LegBuild {
+  const key = sharing ? legBuildKey(inputs, baseState, ctx, startTE) : '';
+  const hit = sharing ? legBuilds.get(key) : undefined;
+  if (hit) {
+    builds.hits++;
+    // Most recently used last, so the oldest is the first to go.
+    legBuilds.delete(key);
+    legBuilds.set(key, hit);
+    return hit;
+  }
+  builds.misses++;
+  // Single C1->R1 precompute shared by every build variant, exactly as the app does it — K3..H2 is
+  // the expensive part and must not be repeated per variant.
+  const pre = runUntilShift(baseState, ctx, 'C3');
+  // C3's own shift waits for the player too (the C3 variants start with it, outside the main loop).
+  const held = holdForPlayer(pre.state, ctx, startTime, pre.elapsedSeconds, 'curiosity');
+  if (held.heldSeconds) {
+    pre.actions = [...pre.actions, ...held.actions];
+    pre.state = held.state;
+    pre.elapsedSeconds = held.elapsedSeconds;
+  }
+  const c3 = runC3Variants(pre.state, ctx, 3, startTE < TIER_13_MIN_STARTING_TE);
+  if (!sharing) return { preC3: { actions: pre.actions, state: pre.state, elapsedSeconds: pre.elapsedSeconds }, c3 };
+  const build: LegBuild = {
+    preC3: { actions: keptActions(pre.actions), state: pre.state, elapsedSeconds: pre.elapsedSeconds },
+    c3: c3.map(v => (v.result ? { ...v, result: { ...v.result, actions: keptActions(v.result.actions) } } : v)),
+  };
+  legBuilds.set(key, build);
+  while (legBuilds.size > LEG_BUILD_CACHE) legBuilds.delete(legBuilds.keys().next().value!);
+  return build;
 }
 
 /**
