@@ -928,6 +928,7 @@ import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { dateStyle, showDateTime } from '@/lib/displayTime';
 import { continueTailParams, farmLaying, instantDeliveryScale, saveSiloSeconds } from '@/search/leg';
 import { instantFirstLegsBase } from '@/search/instantFirstLegs';
+import type { InstantState } from '@/search/autoWiden';
 import { cteFromArtifacts } from 'lib/virtue';
 import { equippedArtifactsToLibArtifacts } from '@/lib/artifacts/utils';
 import { findRoutes, type FirstLeg, type FoundRoutes, type PolishOptions, type Route } from '@/search/routeFinder';
@@ -1068,6 +1069,9 @@ const emit = defineEmits<{
   /** By a date: the route for each number of ascensions, and the "At most N ascensions" filter (null
    *  for any), which the exact check's routes don't go through. */
   routes: [byCount: Record<number, number[]>, maxAscensions: number | null];
+  /** Whether the answer is still being worked out, in, or settled with none (no instant answer for
+   *  this TE, it failed, or it waits on a run), for By a date's Find (search/autoWiden.ts `awaitInstant`). */
+  state: [state: InstantState];
 }>();
 /** By a date: hand the panel this answer's route for each number of ascensions (the exact check's
  *  where it has one), so its chain boxes can be suggested around them. */
@@ -2967,6 +2971,8 @@ const sinceCache = computed<{ better: boolean; text: string } | null>(() => {
 
 // Again whenever what it depends on changes (a new save, a new plan start, another target).
 let timer: ReturnType<typeof setTimeout> | null = null;
+/** A run is due once the inputs settle (`timer`): the answer on screen is for the inputs before. */
+const runDue = ref(false);
 watch(
   () =>
     answerInputsKey([
@@ -2985,11 +2991,23 @@ watch(
   () => {
     if (timer) clearTimeout(timer);
     if (!store.setupLoaded) return;
-    timer = setTimeout(() => void run(), 300);
+    // (Your setup still loading reads as loading by itself: `instantState`.)
+    runDue.value = true;
+    timer = setTimeout(() => {
+      runDue.value = false;
+      void run();
+    }, 300);
   },
   { immediate: true }
 );
 onUnmounted(() => timer && clearTimeout(timer));
+/** By a date: the answer still being worked out (or about to be, or Your setup still loading), in with a
+ *  route, or settled with none, for the panel's Find (`state` event). */
+const instantState = computed<InstantState>(() => {
+  if (runDue.value || !store.setupLoaded || status.value === 'loading') return 'loading';
+  return status.value === 'done' && result.value ? 'answer' : 'none';
+});
+watch(instantState, s => emit('state', s), { immediate: true });
 
 const zone = computed(() => planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
 /** The exact check's simulated legs for a route (first-ascension shifts, one more TE: RouteExtras.vue). */

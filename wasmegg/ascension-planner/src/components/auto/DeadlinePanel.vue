@@ -135,6 +135,7 @@
         stronger-to="#stronger-check-results"
         @check="checkByDate"
         @routes="onInstantRoutes"
+        @state="st => (instantLoad = st)"
       />
     </CollapsibleSection>
     <!-- The answers side by side (SearchCompare.vue): instant answer, stronger check, Exhaustive. -->
@@ -414,6 +415,7 @@
       :player-id="playerId"
       :find-disabled="
         store.busy ||
+        !!instantWait ||
         store.integrityBlocked ||
         store.staleBackupBlocked ||
         !(k === 'around' ? canStartAround : canStart)
@@ -444,6 +446,14 @@
       <!-- What Exhaustive will cost, then why Find is greyed out, right above it. Nearby routes' cost is
            under the level bar and in its summary above. -->
       <template #above-find>
+        <!-- Find on Nearby routes waits for the instant answer still being worked out (search/autoWiden.ts). -->
+        <p
+          v-if="k === 'around' && instantWait"
+          class="text-[11px] font-semibold text-slate-700"
+          data-test="instant-wait-status"
+        >
+          {{ instantWait }}
+        </p>
         <!-- The numbers that should decide whether you press the button (not while Nearby routes runs:
              the time left would be that run's). -->
         <div v-if="k === 'boxes' && runKind !== 'around'" class="rounded-xl border border-slate-200 bg-slate-50 p-3">
@@ -868,12 +878,16 @@ import { defaultWorkerCount } from '@/search/batch';
 import { findBandEdges, noInstantAnswerText, widenEdges, type BandEdge } from '@/search/bandCheck';
 import {
   AFTER_SCAN_STATUS,
+  INSTANT_TIMEOUT_STATUS,
+  INSTANT_WAIT_STATUS,
   QUICK_SCAN_STATUS,
   autoFallbackNote,
+  awaitInstant,
   betterRoute,
   needsQuickScan,
   quickScanSpec,
   runAutoWiden,
+  type InstantState,
 } from '@/search/autoWiden';
 import CarryOnOffer from './CarryOnOffer.vue';
 import ShareResult from './ShareResult.vue';
@@ -896,7 +910,7 @@ import { durationLabel } from '@/composables/useRunClock';
 import { useRunDownloads } from '@/composables/useRunDownloads';
 import { useDateRowSliders } from '@/composables/useRowSliders';
 import { NAMES, fastestName } from '@/lib/siteNav';
-import { computed, nextTick, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { LONG_RUN_WORKERS, useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useInitialStateStore } from '@/stores/initialState';
@@ -2068,7 +2082,7 @@ function stopDeadline(): void {
 
 /** Find (or Find and submit) in box `kind`: Nearby routes' or Exhaustive's. */
 async function start(andSubmit: boolean, kind: ByDateKind): Promise<void> {
-  if (store.busy) return;
+  if (store.busy || instantWait.value) return;
   // The run reads this box's routes from here on (`simple`), and its workers fit this run.
   startingKind.value = kind;
   lastKind.value = kind;
@@ -2081,8 +2095,19 @@ async function start(andSubmit: boolean, kind: ByDateKind): Promise<void> {
   // Send best so far, with the consent Find and submit already has (or asked for during the run).
   store.beginBestSoFar('deadline', autoShare.value ? { nickname: bestSoFarName() } : null);
   try {
-    if (kind === 'around' && simple.value && simpleFrom.value !== 'instant') await findWithoutInstant();
-    else await find();
+    if (kind === 'around' && simple.value && simpleFrom.value !== 'instant') {
+      // The instant answer still being worked out: wait for it to settle (at most 10 seconds), then run
+      // around it if it came in with a route, else the fallback (search/autoWiden.ts `awaitInstant`).
+      const d = await awaitInstant({
+        read: () => instantNow.value,
+        onWait: () => (instantWait.value = INSTANT_WAIT_STATUS),
+        cancelled: () => unmounted,
+      });
+      instantWait.value = '';
+      if (unmounted) return;
+      if (d.go === 'normal') await find();
+      else await findWithoutInstant(d.timedOut);
+    } else await find();
   } finally {
     startingKind.value = null;
     // Read live: a withdraw during the run cleared `submitsWhenDone` (store `withdrawShareConsent`).
@@ -2161,9 +2186,19 @@ async function find(fallback?: DeadlineFallback): Promise<void> {
  * date run on the player's own settings; Stop ends it all, and the best route found so far stays.
  */
 const autoStatus = ref('');
+/** InstantRoute's `state`: its answer still being worked out, in, or settled with none. */
+const instantLoad = ref<InstantState>('none');
+/** The instant answer as Find on Nearby routes reads it: in only with a route the boxes centre on. */
+const instantNow = computed<InstantState>(() =>
+  instantLoad.value === 'loading' ? 'loading' : simpleFrom.value === 'instant' ? 'answer' : 'none'
+);
+/** Find waits for the instant answer to settle: the line it shows meanwhile, '' otherwise. */
+const instantWait = ref('');
+let unmounted = false;
+onUnmounted(() => (unmounted = true));
 /** Stop pressed during the fallback: no further run starts (the store's own flag resets each run). */
 const autoStop = ref(false);
-async function findWithoutInstant(): Promise<void> {
+async function findWithoutInstant(timedOut = false): Promise<void> {
   autoStop.value = false;
   /** Every answer the fallback went past, for dropping its kept send at the end (store `dropDeadlineSends`). */
   const went: number[] = [];
@@ -2182,14 +2217,20 @@ async function findWithoutInstant(): Promise<void> {
     if (prev && !betterRoute(store.deadlineResult?.routes[0], prev.routes[0])) await store.restoreDeadlineResult(prev);
   };
   try {
-    const te = Math.floor(store.currentTE);
+    // An earlier answer centres the boxes only for this date and near this TE (`canCentreOn`).
+    const earlier = store.deadlineResult;
     const scanned = needsQuickScan({
       hadInstant: false,
-      answers: (store.deadlineResult?.byStops ?? []).map(r => r.chain),
-      currentTE: te,
+      answer: earlier
+        ? { deadline: earlier.deadline, te: earlier.te, chains: earlier.byStops.map(r => r.chain) }
+        : null,
+      deadline: deadline.value,
+      currentTE: store.currentTE,
     });
+    // Gave up waiting for the instant answer: the line says so.
+    if (timedOut) autoStatus.value = INSTANT_TIMEOUT_STATUS;
     if (scanned) {
-      autoStatus.value = QUICK_SCAN_STATUS;
+      autoStatus.value = timedOut ? `${INSTANT_TIMEOUT_STATUS} ${QUICK_SCAN_STATUS}` : QUICK_SCAN_STATUS;
       // Nothing frozen from an older run while the scan goes: its boxes come from the scan's answer.
       simpleUsed.value = null;
       await store.startDeadline(

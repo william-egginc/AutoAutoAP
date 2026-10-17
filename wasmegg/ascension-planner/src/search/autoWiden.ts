@@ -7,7 +7,8 @@
  * early stop of the best route sat on its box's low edge: the real best was outside every box.
  *
  * WHAT IT DOES.
- *   1. Quick scan. With no earlier By a date answer to centre on either, one coarse pass first: every
+ *   1. Quick scan. With no earlier By a date answer to centre on either (one for the same date, priced
+ *      from a TE within 3 of the save's: `canCentreOn`), one coarse pass first: every
  *      set of early stops on a wide grid, 1 to 5 ascensions, the last stop bracketed to the exact TE
  *      (deadline.ts without boxes, its fine pass off). It is By a date's own coarse scan, the same idea
  *      as Fastest's "find a starting chain" (coarse.ts `findStartingChain`), which is not used here: that
@@ -18,6 +19,9 @@
  *   3. Widening. While the best route sits on an edge of its box that can move (bandCheck.ts
  *      `findBandEdges`), that box is widened toward the edge (`widenEdges`, as the command line's
  *      `--widen` and the panel's Widen and run again) and the run goes again: up to 3 rounds.
+ *
+ * Find on Nearby routes takes this path only once the instant answer has settled with none: while it is
+ * still being worked out, Find waits for it (`awaitInstant`, at most 10 seconds, then goes on without).
  *
  * It ends with no edge, no room to widen, 3 rounds, a stop, a failed run, or another run going. Each
  * round keeps the best route found so far: a round stopped by hand that has not caught up with the
@@ -36,18 +40,102 @@ export const QUICK_SCAN_SHAPES = 250;
 /** Ascension counts the quick scan tries: Nearby routes' own, 1 to 5. */
 export const QUICK_SCAN_MAX_STOPS = 5;
 
+/** How far (in TE) the save's TE may have moved since an earlier By a date answer was priced for it to
+ *  still centre the boxes: past that its routes start from somewhere else, and the quick scan goes. */
+export const CENTRE_TE_SLACK = 3;
+
+/** An earlier By a date answer, as the fallback reads it (`SavedDeadlineResult`): the date it was for,
+ *  the save TE it was priced from, and its best route for each count. */
+export interface EarlierAnswer {
+  deadline: number;
+  te: number;
+  chains: readonly (readonly number[])[];
+}
+
 /**
- * Whether the quick scan goes first: no instant answer, and no earlier By a date answer (for any count
- * of 2 or more, above the TE now) that the boxes could centre on instead.
+ * Whether an earlier answer can centre the boxes: for the same date, priced from a TE within
+ * `CENTRE_TE_SLACK` of the TE now, with a route of 2 or more stops above the TE now.
+ */
+export function canCentreOn(o: {
+  answer: EarlierAnswer | null | undefined;
+  deadline: number;
+  currentTE: number;
+}): boolean {
+  const a = o.answer;
+  if (!a || a.deadline !== o.deadline) return false;
+  if (!(Math.abs(a.te - o.currentTE) <= CENTRE_TE_SLACK)) return false;
+  const te = Math.floor(o.currentTE);
+  return a.chains.some(c => c.length >= 2 && c[0] > te);
+}
+
+/**
+ * Whether the quick scan goes first: no instant answer, and no earlier By a date answer the boxes could
+ * centre on instead (`canCentreOn`: same date, near this TE).
  */
 export function needsQuickScan(o: {
   hadInstant: boolean;
-  answers: readonly (readonly number[])[];
+  answer: EarlierAnswer | null | undefined;
+  deadline: number;
   currentTE: number;
 }): boolean {
   if (o.hadInstant) return false;
-  const te = Math.floor(o.currentTE);
-  return !o.answers.some(c => c.length >= 2 && c[0] > te);
+  return !canCentreOn(o);
+}
+
+/** How long Find waits for the instant answer to settle before going on without it. */
+export const INSTANT_SETTLE_MS = 10_000;
+/** How often the wait looks again. */
+export const INSTANT_POLL_MS = 200;
+
+/**
+ * The instant answer as Find on Nearby routes sees it (InstantRoute.vue's `state` event, then the
+ * panel's own check that it has a route to centre on): still being worked out, in with a route, or
+ * settled with none (no instant answer for this TE, it failed, or it waits on another run).
+ */
+export type InstantState = 'loading' | 'answer' | 'none';
+
+export type InstantDecision = { go: 'wait' } | { go: 'normal' } | { go: 'fallback'; timedOut: boolean };
+
+/** What Find does now: the normal run around the instant answer, the fallback, or wait a little more. */
+export function decideInstant(o: { state: InstantState; waitedMs: number; maxWaitMs?: number }): InstantDecision {
+  if (o.state === 'answer') return { go: 'normal' };
+  if (o.state === 'none') return { go: 'fallback', timedOut: false };
+  if (o.waitedMs >= (o.maxWaitMs ?? INSTANT_SETTLE_MS)) return { go: 'fallback', timedOut: true };
+  return { go: 'wait' };
+}
+
+/** Shown while Find waits for the instant answer, and when it gave up waiting. */
+export const INSTANT_WAIT_STATUS = 'Checking for an instant answer…';
+export const INSTANT_TIMEOUT_STATUS = `No instant answer after ${INSTANT_SETTLE_MS / 1000} seconds, so going on without one…`;
+
+/**
+ * Wait until the instant answer settles (or `maxWaitMs` passes), then say what Find does. `read` gives
+ * the state now; `sleep` and `now` are the clock (injected for the specs). `cancelled` ends the wait
+ * early (the panel went away): reads as settled with none, and the caller checks it itself.
+ */
+export async function awaitInstant(o: {
+  read: () => InstantState;
+  sleep?: (ms: number) => Promise<void>;
+  now?: () => number;
+  maxWaitMs?: number;
+  pollMs?: number;
+  onWait?: () => void;
+  cancelled?: () => boolean;
+}): Promise<Exclude<InstantDecision, { go: 'wait' }>> {
+  const now = o.now ?? (() => Date.now());
+  const sleep = o.sleep ?? ((ms: number) => new Promise<void>(r => setTimeout(r, ms)));
+  const t0 = now();
+  let told = false;
+  for (;;) {
+    const d = decideInstant({ state: o.read(), waitedMs: now() - t0, maxWaitMs: o.maxWaitMs });
+    if (d.go !== 'wait') return d;
+    if (o.cancelled?.()) return { go: 'fallback', timedOut: false };
+    if (!told) {
+      told = true;
+      o.onWait?.();
+    }
+    await sleep(o.pollMs ?? INSTANT_POLL_MS);
+  }
 }
 
 /** The highest early stop the quick scan's grid goes to: the boxes' own guess, never under TE + 150. */

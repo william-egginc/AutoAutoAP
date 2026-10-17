@@ -1,10 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import {
   AUTO_WIDEN_ROUNDS,
+  CENTRE_TE_SLACK,
+  INSTANT_SETTLE_MS,
+  INSTANT_TIMEOUT_STATUS,
+  INSTANT_WAIT_STATUS,
   QUICK_SCAN_SHAPES,
   autoFallbackNote,
+  awaitInstant,
   betterRoute,
+  canCentreOn,
+  decideInstant,
   needsQuickScan,
+  type InstantState,
   nextWidenRound,
   quickScanSpec,
   runAutoWiden,
@@ -134,12 +142,54 @@ describe('runAutoWiden', () => {
 });
 
 describe('the quick scan', () => {
+  const DATE = 2_000_000_000;
+  const answer = (chains: number[][], o: { deadline?: number; te?: number } = {}) => ({
+    deadline: o.deadline ?? DATE,
+    te: o.te ?? 78,
+    chains,
+  });
+
   it('goes first only with no instant answer and no earlier answer to centre on', () => {
-    expect(needsQuickScan({ hadInstant: false, answers: [], currentTE: 78 })).toBe(true);
-    expect(needsQuickScan({ hadInstant: true, answers: [], currentTE: 78 })).toBe(false);
-    expect(needsQuickScan({ hadInstant: false, answers: [[95, 160]], currentTE: 78 })).toBe(false);
+    expect(needsQuickScan({ hadInstant: false, answer: null, deadline: DATE, currentTE: 78 })).toBe(true);
+    expect(needsQuickScan({ hadInstant: true, answer: null, deadline: DATE, currentTE: 78 })).toBe(false);
+    expect(needsQuickScan({ hadInstant: false, answer: answer([[95, 160]]), deadline: DATE, currentTE: 78 })).toBe(
+      false
+    );
     // An answer from below the TE now (or of one stop) has nothing to centre on.
-    expect(needsQuickScan({ hadInstant: false, answers: [[70, 160], [160]], currentTE: 78 })).toBe(true);
+    expect(
+      needsQuickScan({ hadInstant: false, answer: answer([[70, 160], [160]]), deadline: DATE, currentTE: 78 })
+    ).toBe(true);
+  });
+
+  it('centres on an earlier answer only for the same date and within 3 TE of the save', () => {
+    expect(CENTRE_TE_SLACK).toBe(3);
+    const chains = [[95, 160]];
+    // Same date, TE within 3 either way: centre on it.
+    for (const te of [75, 76.5, 78, 80, 81])
+      expect(canCentreOn({ answer: answer(chains, { te }), deadline: DATE, currentTE: 78 })).toBe(true);
+    // TE off by more than 3: scan.
+    for (const te of [74, 74.9, 81.1, 90]) {
+      expect(canCentreOn({ answer: answer(chains, { te }), deadline: DATE, currentTE: 78 })).toBe(false);
+      expect(needsQuickScan({ hadInstant: false, answer: answer(chains, { te }), deadline: DATE, currentTE: 78 })).toBe(
+        true
+      );
+    }
+    // Another date, even at the same TE: scan.
+    expect(canCentreOn({ answer: answer(chains, { deadline: DATE + 86400 }), deadline: DATE, currentTE: 78 })).toBe(
+      false
+    );
+    expect(
+      needsQuickScan({
+        hadInstant: false,
+        answer: answer(chains, { deadline: DATE - 3600 }),
+        deadline: DATE,
+        currentTE: 78,
+      })
+    ).toBe(true);
+    // An instant answer: never a scan, whatever the earlier answer.
+    expect(
+      needsQuickScan({ hadInstant: true, answer: answer(chains, { te: 50 }), deadline: DATE + 1, currentTE: 78 })
+    ).toBe(false);
   });
 
   it('looks up to TE + 150 at least, never past 490', () => {
@@ -212,5 +262,84 @@ describe('autoFallbackNote', () => {
     );
     for (const f of [true, false])
       for (const n of [0, 3]) expect(autoFallbackNote({ scanned: f, widenRounds: n })).not.toMatch(/table/i);
+  });
+});
+
+describe('waiting for the instant answer before the fallback', () => {
+  it('decides from the instant answer as it stands', () => {
+    // Still loading: wait.
+    expect(decideInstant({ state: 'loading', waitedMs: 0 })).toEqual({ go: 'wait' });
+    expect(decideInstant({ state: 'loading', waitedMs: INSTANT_SETTLE_MS - 1 })).toEqual({ go: 'wait' });
+    // Settled with none: the fallback.
+    expect(decideInstant({ state: 'none', waitedMs: 0 })).toEqual({ go: 'fallback', timedOut: false });
+    // Not settled in 10 seconds: the fallback, saying so.
+    expect(INSTANT_SETTLE_MS).toBe(10_000);
+    expect(decideInstant({ state: 'loading', waitedMs: INSTANT_SETTLE_MS })).toEqual({
+      go: 'fallback',
+      timedOut: true,
+    });
+    // Settled with an answer: the normal run, centred on it.
+    expect(decideInstant({ state: 'answer', waitedMs: 0 })).toEqual({ go: 'normal' });
+    expect(decideInstant({ state: 'answer', waitedMs: 60_000 })).toEqual({ go: 'normal' });
+  });
+
+  /** A fake clock: `sleep` moves it on, and `states` gives the state at each look. */
+  function clock(states: (t: number) => InstantState) {
+    let t = 0;
+    const looks: number[] = [];
+    return {
+      read: () => {
+        looks.push(t);
+        return states(t);
+      },
+      now: () => t,
+      sleep: async (ms: number) => {
+        t += ms;
+      },
+      looks,
+    };
+  }
+
+  it('goes straight on when the instant answer has already settled, with no waiting line', async () => {
+    for (const [state, want] of [
+      ['answer', { go: 'normal' }],
+      ['none', { go: 'fallback', timedOut: false }],
+    ] as const) {
+      const c = clock(() => state);
+      let waited = false;
+      expect(await awaitInstant({ ...c, onWait: () => (waited = true) })).toEqual(want);
+      expect(waited).toBe(false);
+      expect(c.looks).toEqual([0]);
+    }
+  });
+
+  it('waits while it loads, then runs around it if it came in with a route', async () => {
+    const c = clock(t => (t < 3000 ? 'loading' : 'answer'));
+    let waits = 0;
+    expect(await awaitInstant({ ...c, onWait: () => waits++ })).toEqual({ go: 'normal' });
+    // The waiting line once, not at every look.
+    expect(waits).toBe(1);
+  });
+
+  it('waits while it loads, then the fallback if it settled with none', async () => {
+    const c = clock(t => (t < 1000 ? 'loading' : 'none'));
+    expect(await awaitInstant(c)).toEqual({ go: 'fallback', timedOut: false });
+  });
+
+  it('gives up after 10 seconds and goes on without it', async () => {
+    const c = clock(() => 'loading');
+    expect(await awaitInstant(c)).toEqual({ go: 'fallback', timedOut: true });
+    expect(c.looks[c.looks.length - 1]).toBe(INSTANT_SETTLE_MS);
+  });
+
+  it('stops waiting when cancelled', async () => {
+    const c = clock(() => 'loading');
+    expect(await awaitInstant({ ...c, cancelled: () => c.now() >= 400 })).toEqual({ go: 'fallback', timedOut: false });
+  });
+
+  it('says what it is doing in player words', () => {
+    expect(INSTANT_WAIT_STATUS).toBe('Checking for an instant answer…');
+    expect(INSTANT_TIMEOUT_STATUS).toContain('10 seconds');
+    for (const t of [INSTANT_WAIT_STATUS, INSTANT_TIMEOUT_STATUS]) expect(t).not.toMatch(/table/i);
   });
 });

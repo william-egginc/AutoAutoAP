@@ -20,9 +20,36 @@ const fallback = script.slice(
 
 describe('the no-instant-answer fallback on By a date', () => {
   it('Find on Nearby routes takes it only without an instant answer; Exhaustive never', () => {
+    const go = script.slice(script.indexOf('async function start('), script.indexOf('async function find('));
+    expect(go).toContain("if (kind === 'around' && simple.value && simpleFrom.value !== 'instant') {");
+    expect(go).toContain('} else await find();');
+    // Once the instant answer has settled: with a route, the normal run around it; else the fallback.
+    expect(go).toContain("if (d.go === 'normal') await find();\n      else await findWithoutInstant(d.timedOut);");
+    expect(go.indexOf('await awaitInstant(')).toBeLessThan(go.indexOf('findWithoutInstant('));
+  });
+
+  it('waits for the instant answer to settle, with a line by Find, and no second Find meanwhile', () => {
+    const go = script.slice(script.indexOf('async function start('), script.indexOf('async function find('));
+    expect(go).toContain('read: () => instantNow.value');
+    expect(go).toContain('onWait: () => (instantWait.value = INSTANT_WAIT_STATUS)');
+    expect(go).toContain("instantWait.value = '';");
+    expect(go).toContain('if (store.busy || instantWait.value) return;');
+    expect(template).toContain('@state="st => (instantLoad = st)"');
+    expect(template).toContain('!!instantWait ||');
+    const above = template.slice(template.indexOf('<template #above-find>'), template.indexOf('<template #progress>'));
+    expect(above).toContain('data-test="instant-wait-status"');
+    // Loading while InstantRoute works it out; once settled, in only with a route to centre on.
     expect(script).toContain(
-      "if (kind === 'around' && simple.value && simpleFrom.value !== 'instant') await findWithoutInstant();\n    else await find();"
+      "instantLoad.value === 'loading' ? 'loading' : simpleFrom.value === 'instant' ? 'answer' : 'none'"
     );
+  });
+
+  it('centres on an earlier answer only for this date and near this TE, and says when it gave up waiting', () => {
+    expect(fallback).toContain(
+      '{ deadline: earlier.deadline, te: earlier.te, chains: earlier.byStops.map(r => r.chain) }'
+    );
+    expect(fallback).toContain('deadline: deadline.value,');
+    expect(fallback).toContain('if (timedOut) autoStatus.value = INSTANT_TIMEOUT_STATUS;');
   });
 
   it('shows its status line with the run, in the box whose run it is', () => {
@@ -75,5 +102,22 @@ describe('the no-instant-answer fallback on By a date', () => {
     const text = textOf(await renderHtml(EdgeWarning, { lines: [line, note], canWiden: true, disabled: false }));
     expect(text).toContain('No instant answer for your TE yet: started from a quick scan and widened automatically.');
     expect(text).not.toMatch(/table/i);
+  });
+});
+
+describe("the instant answer's state, for Find on Nearby routes", () => {
+  const instant = fs.readFileSync(path.join(__dirname, 'InstantRoute.vue'), 'utf8');
+  const state = instant.slice(instant.indexOf('const instantState = computed'), instant.indexOf("emit('state', s)"));
+
+  it('is loading while a run is due or going, in with an answer, else settled with none', () => {
+    expect(state).toContain("if (runDue.value || !store.setupLoaded || status.value === 'loading') return 'loading';");
+    expect(state).toContain("return status.value === 'done' && result.value ? 'answer' : 'none';");
+    expect(instant).toContain("watch(instantState, s => emit('state', s), { immediate: true });");
+  });
+
+  it('counts the wait before a run as loading: the answer on screen is for the inputs before', () => {
+    expect(instant).toMatch(
+      /runDue\.value = true;\n {4}timer = setTimeout\(\(\) => \{\n {6}runDue\.value = false;\n {6}void run\(\);/
+    );
   });
 });
