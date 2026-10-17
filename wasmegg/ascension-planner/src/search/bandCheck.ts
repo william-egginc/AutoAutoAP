@@ -315,7 +315,10 @@ export interface BandEdge {
  * Where the winning chain's checkpoints sit on the first or last value of their band while the band
  * could have gone further. "Could have gone further" leaves out an edge that is a hard limit: the
  * player's own TE, the target, or the neighbouring checkpoint of that same chain (a step or the
- * minimum gap away). A band of one value is a pinned checkpoint, not an edge.
+ * minimum gap away). A band of one value is a pinned checkpoint, not an edge. The first stop's floor
+ * is your TE + 1 under every First ascension setting (a stop is an ascension still to come; the
+ * band boxes, `gridValues` and `checkBandText` all start there), so `currentTE` must be the TE a run
+ * again would start from, not an older one.
  *
  * `chain` is the winner as the store keeps it: one checkpoint per band, then the target.
  */
@@ -339,7 +342,21 @@ export function findBandEdges(
     if (v === values[0] && v > lowestPossible) out.push({ band: i + 1, side: 'low', value: v });
     else if (v === values[values.length - 1] && v < highestPossible) out.push({ band: i + 1, side: 'high', value: v });
   });
-  return out;
+  // Only an edge "Widen and run again" can actually move: `widenBandText` is what the button runs, so
+  // a box it can't grow that way (its floor is your TE + 1, say) is a hard limit too, not a warning.
+  const text = bands.map(b => formatBand([...b])).join('; ');
+  return out.filter(e => widenBandText(text, e.band, e.side, 1, { currentTE: ctx.currentTE, finalTE: final }) !== null);
+}
+
+/**
+ * By a date, when its run had no instant answer to start from (none for this TE yet): the boxes were
+ * a rough guess, so the best route is worth checking with a wider box. `canWiden` when the edge
+ * warning's "Widen and run again" is there to do it.
+ */
+export function noInstantAnswerText(canWiden: boolean): string {
+  return `No instant answer for your TE yet, so this search started from a rough guess${
+    canWiden ? '; Widen and run again is worth it.' : '; a wider box may find a better route.'
+  }`;
 }
 
 /** How far to widen a band on its edge: its own width, never under 10 TE or over 30. */
