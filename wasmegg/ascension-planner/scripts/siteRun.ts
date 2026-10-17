@@ -26,6 +26,7 @@ import { createWriteStream, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createGzip } from 'node:zlib';
 import { Worker as NodeWorker } from 'node:worker_threads';
+import { getHeapStatistics } from 'node:v8';
 import { watch } from 'vue';
 import { setDefaultWorkerSpawn } from '@/search/pool';
 import { checkSendAllowed } from '@/search/offline';
@@ -34,6 +35,7 @@ import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { sendRunResult } from '@/search/sendRun';
 import { eggDayYearOf } from '@/lib/eggDay';
 import { sentence } from '@/utils/errors';
+import { heapLabel, heapNearLimit, heapStopMessage } from '@/search/cliHeap';
 import { hashID } from '@/lib/storage/db';
 import { scrubIdentifiers } from '@/search/submission';
 import { countBanded, formatBands, formatHours } from '@/search/exhaustive';
@@ -266,7 +268,8 @@ export async function runSiteSearch(o: SiteRunOptions): Promise<number> {
       // The By a date total is a guess until enough sets have finished; then it is re-worked from what
       // they cost, and the note says so (as the panel does).
       const learned = p.kind === 'by-date' ? estimateNote(store.deadlineEstimateNow) : '';
-      const rss = `rss ${Math.round(process.memoryUsage().rss / 1048576).toLocaleString()} MB`;
+      // The whole process (every worker thread too), and this thread's heap against its limit.
+      const rss = `rss ${Math.round(process.memoryUsage().rss / 1048576).toLocaleString()} MB, ${heapLabel(process.memoryUsage().heapUsed, getHeapStatistics().heap_size_limit)}`;
       console.log(`  ${p.stage}: ${p.done.toLocaleString()}${total} ${p.unit}${left}   ${rss}${best}${learned ? `   (${learned})` : ''}`);
     },
     { deep: true }
@@ -284,6 +287,20 @@ export async function runSiteSearch(o: SiteRunOptions): Promise<number> {
     store.stopRun();
   };
   process.on('SIGINT', onSigint);
+  // Near Node's heap limit: stop as Ctrl+C does (best so far and checkpoint kept) rather than let V8
+  // abort the process and lose the run's end (search/cliHeap.ts).
+  let heapStopped = false;
+  const heapCheck = setInterval(() => {
+    const used = process.memoryUsage().heapUsed;
+    const limit = getHeapStatistics().heap_size_limit;
+    // AAP_HEAP_STOP_SHARE: a lower share, to try the stop without filling the heap.
+    const share = Number(process.env.AAP_HEAP_STOP_SHARE) || undefined;
+    if (heapStopped || !heapNearLimit(used, limit, share)) return;
+    heapStopped = true;
+    console.log(`\n  stopping: ${heapStopMessage(used, limit, o.out?.dir)}`);
+    store.stopRun();
+  }, 5000);
+  heapCheck.unref();
 
   // Without --out there is no database for the store's checkpoints and saved runs, so it warns at each
   // failed write and carries on. Said once here instead of at every chunk. Recognised by the error
@@ -319,6 +336,8 @@ export async function runSiteSearch(o: SiteRunOptions): Promise<number> {
     console.error = consoleError;
     console.warn = consoleWarn;
     stopWatching();
+    clearInterval(heapCheck);
+    if (heapStopped) console.log(`  stopped for memory: ${heapStopMessage(process.memoryUsage().heapUsed, getHeapStatistics().heap_size_limit, o.out?.dir)}`);
     process.off('SIGINT', onSigint);
     store.submitsWhenDone = false;
   }
