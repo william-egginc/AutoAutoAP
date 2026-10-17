@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   checkBandText,
   findBandEdges,
+  noInstantAnswerText,
   widenAmount,
   widenBandText,
   widenEdges,
@@ -169,5 +170,55 @@ describe('findBandEdges', () => {
     const text = widenEdges(bands, [{ band: 2, side: 'high', value: 250 }], c);
     expect(text).toBe('195-210:5; 230-270:10');
     expect(parseBands(text!)[1]).toEqual([230, 240, 250, 260, 270]);
+  });
+});
+
+describe('findBandEdges at a floor that cannot move (By a date, low TE)', () => {
+  const run = (lo: number, hi: number) => Array.from({ length: hi - lo + 1 }, (_, k) => lo + k);
+  const bands = [run(79, 85), run(94, 100), run(119, 125)];
+  const c = { currentTE: 78, finalTE: 160 };
+  it('does not flag a 1st stop at your TE + 1, the floor of its box', () => {
+    expect(findBandEdges([run(79, 85)], [79, 160], c)).toEqual([]);
+    // Nor when the box was written lower than the TE: what is left of it starts at TE + 1.
+    expect(findBandEdges([run(70, 85)], [79, 160], c)).toEqual([]);
+  });
+  it('keeps a 2nd stop on its box floor while the 1st stop leaves room below it', () => {
+    expect(findBandEdges([run(79, 85), run(94, 100)], [82, 94, 160], c)).toEqual([{ band: 2, side: 'low', value: 94 }]);
+  });
+  it("the player's case: every stop on its floor, only the 2nd and 3rd are flagged", () => {
+    const edges = findBandEdges(bands, [79, 94, 119, 160], c);
+    expect(edges).toEqual([
+      { band: 2, side: 'low', value: 94 },
+      { band: 3, side: 'low', value: 119 },
+    ]);
+    // And widening never touches the 1st box: every edge it offers really grows.
+    const text = widenEdges(bands, edges, { currentTE: 78, finalTE: 490 });
+    expect(text).not.toBeNull();
+    const wider = parseBands(text!);
+    expect(wider[0]).toEqual(run(79, 85));
+    expect(wider[1][0]).toBeLessThan(94);
+    expect(wider[2][0]).toBeLessThan(119);
+  });
+  it('still flags the 1st stop when there is room below it', () => {
+    expect(findBandEdges(bands, [79, 94, 119, 160], { currentTE: 76, finalTE: 160 })[0]).toEqual({
+      band: 1,
+      side: 'low',
+      value: 79,
+    });
+  });
+  it('leaves out an edge the wider box could not reach on its step', () => {
+    // 80 is on a step of 5 and your TE is 77: 78 and 79 are legal, but the box grows on its own step
+    // (75, below your TE), so Widen and run again would not move it.
+    expect(findBandEdges([[80, 85, 90]], [80, 160], { currentTE: 77, finalTE: 160 })).toEqual([]);
+  });
+});
+
+describe('noInstantAnswerText', () => {
+  it('says the search started from a rough guess, and what to do', () => {
+    expect(noInstantAnswerText(true)).toBe(
+      'No instant answer for your TE yet, so this search started from a rough guess; Widen and run again is worth it.'
+    );
+    expect(noInstantAnswerText(false)).toContain('a wider box may find a better route');
+    expect(noInstantAnswerText(false)).not.toMatch(/table/i);
   });
 });

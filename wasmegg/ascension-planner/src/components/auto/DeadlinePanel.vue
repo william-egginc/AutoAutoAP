@@ -653,7 +653,7 @@
            find better. -->
       <EdgeWarning
         v-if="edges.length && !store.deadlineRunning"
-        :lines="edges.map(edgeText)"
+        :lines="noInstantNote ? [...edges.map(edgeText), noInstantNote] : edges.map(edgeText)"
         :can-widen="!!edgeWiden"
         :disabled="store.busy || (!result.simple && !canStart)"
         @widen="widenAndRun"
@@ -668,6 +668,15 @@
           >.
         </template>
       </EdgeWarning>
+      <!-- No instant answer for this TE: the boxes were a rough guess (with an edge it is said in the box
+           above, beside the button). -->
+      <p
+        v-else-if="noInstantNote && !store.deadlineRunning"
+        class="text-[11px] text-amber-900 leading-relaxed"
+        data-test="no-instant-note"
+      >
+        {{ noInstantNote }}
+      </p>
 
       <!-- How long the run took and what it searched (search/deadlineSummary.ts), kept with the result so
            a saved answer and a carried-on run say it too. -->
@@ -852,7 +861,7 @@ import {
   roundedRoutes,
 } from '@/search/deadlineEstimate';
 import { defaultWorkerCount } from '@/search/batch';
-import { findBandEdges, widenEdges, type BandEdge } from '@/search/bandCheck';
+import { findBandEdges, noInstantAnswerText, widenEdges, type BandEdge } from '@/search/bandCheck';
 import CarryOnOffer from './CarryOnOffer.vue';
 import ShareResult from './ShareResult.vue';
 import SentByRunNote from './SentByRunNote.vue';
@@ -2273,11 +2282,26 @@ const edgeBox = computed<{ row: number; bands: number[][] } | null>(() => {
   const row = r.bandSets.findIndex(set => set.length === early.length && early.every((v, i) => set[i].includes(v)));
   return row >= 0 && early.length ? { row, bands: r.bandSets[row] } : null;
 });
+/**
+ * The TE "Widen and run again" would start from: the save loaded now, or the run's own TE if that is
+ * higher. A result priced on an older save (a lower TE) used to judge the 1st stop against that TE,
+ * so a 1st stop at your TE + 1 read as an edge the wider box could not move.
+ */
+const edgeTE = computed(() => Math.max(result.value?.te ?? 0, store.currentTE > 0 ? store.currentTE : 0));
 const edges = computed<BandEdge[]>(() => {
   const box = edgeBox.value;
   const b = best.value;
   if (!box || !b || !result.value) return [];
-  return findBandEdges(box.bands, b.chain, { currentTE: result.value.te, finalTE: b.chain[b.chain.length - 1] });
+  return findBandEdges(box.bands, b.chain, { currentTE: edgeTE.value, finalTE: b.chain[b.chain.length - 1] });
+});
+/** The run had no instant answer to start from (none for this TE yet): its boxes were a rough guess.
+ *  Runs record the instant answer's early stops they tried (`instantSets`); a route of one stop has
+ *  no boxes to guess. */
+const noInstantNote = computed(() => {
+  const r = result.value as SavedDeadlineResult | null;
+  if (!r || !best.value || store.deadlineRunning || best.value.chain.length < 2) return '';
+  if (r.instantSets?.length) return '';
+  return noInstantAnswerText(!!edges.value.length && !!edgeWiden.value);
 });
 /** A Simple run's box around the best route is narrow: each early stop ±1 TE or less, or the best
  *  route is the instant answer's own, outside every box. Unknown (no boxes recorded): not narrow. */
@@ -2309,7 +2333,7 @@ function edgeText(e: BandEdge): string {
 const edgeWiden = computed<{ row: number; text: string } | null>(() => {
   const box = edgeBox.value;
   if (!box || !edges.value.length || !result.value) return null;
-  const text = widenEdges(box.bands, edges.value, { currentTE: result.value.te, finalTE: 490 });
+  const text = widenEdges(box.bands, edges.value, { currentTE: edgeTE.value, finalTE: 490 });
   if (!text) return null;
   const asc = box.bands.length + 1;
   // From Nearby routes the rows are the run's boxes (widenAndRun opens them in Exhaustive in this order).
