@@ -15,6 +15,7 @@ import {
   keepVirtueStones,
   keepVirtueArtifacts,
   MAX_RECHECKS,
+  MAX_SEARCHED,
   scrubIdentifiers,
   submissionFilename,
   SUBMISSION_SCHEMA,
@@ -41,7 +42,6 @@ describe('tooManySubmissionsMessage', () => {
   });
 });
 import type { LegSummary } from './types';
-import { MAX_SEARCHED } from './searched';
 
 const DENVER = 'America/Denver';
 const PLAN_START = Math.floor(Date.UTC(2026, 8, 10, 1, 4) / 1000); // 2026-09-09 19:04 Denver
@@ -828,23 +828,31 @@ describe('which way leg 1 went (firstLeg, 9 Oct)', () => {
   });
 });
 
-describe('searched (what the run looked at, search/searched.ts)', () => {
+describe('searched (what the run looked at, search/searched.ts; 18 Oct)', () => {
   const line = '195-197:2; 209-240:1; last 300-320; ascensions: 3';
-  it('is sent as given when the run said, and left off when it did not', () => {
+  const BOXES = '195-197:2; 209-240:1; last 300-320; 2-5 ascensions, min gap 20';
+
+  it('is sent as given when the run said, and left off when empty or not recorded', () => {
     const s = buildSubmission(inputs({ searched: line }));
     expect(s.searched).toBe(line);
     expect(validateSubmission(s)).toEqual([]);
+    expect(buildSubmission(inputs({ searched: BOXES })).searched).toBe(BOXES);
     expect('searched' in buildSubmission(inputs())).toBe(false);
     expect('searched' in buildSubmission(inputs({ searched: '  ' }))).toBe(false);
+    expect('searched' in buildSubmission(inputs({ searched: '  \n ' }))).toBe(false);
   });
-  it('is held to the cap, one line', () => {
+
+  it('is held to the cap, one line, and refused by the validator only when over it', () => {
     const long = Array.from({ length: 200 }, (_, k) => `${100 + k}-${110 + k}:1`).join('; ') + '; ascensions: 3-6';
     const s = buildSubmission(inputs({ searched: long }));
     expect(s.searched!.length).toBeLessThanOrEqual(MAX_SEARCHED);
     expect(s.searched!.endsWith('…; ascensions: 3-6')).toBe(true);
     expect(validateSubmission(s)).toEqual([]);
+    expect(buildSubmission(inputs({ searched: 'a-b:1; '.repeat(200) })).searched!.length).toBeLessThanOrEqual(600);
+    expect(buildSubmission(inputs({ searched: 'x\ny' })).searched).toBe('x y');
     expect(validateSubmission({ ...s, searched: 'x'.repeat(MAX_SEARCHED + 1) })).toContain(
       `searched must be a string of at most ${MAX_SEARCHED} characters`
     );
+    expect(validateSubmission({ ...s, searched: 'z'.repeat(601) }).join()).toMatch(/searched/);
   });
 });

@@ -34,6 +34,9 @@ import { SIM_VERSION } from './simVersion';
 import type { DeliveryScore } from './virtueScore';
 import { firstLegKindOf, forceContinueOf, type FirstAscension, type FirstLegKind } from './firstAscension';
 import { cleanSearched, MAX_SEARCHED } from './searched';
+// `searched`'s cleaner and cap live with its text (search/searched.ts); exported here too, where the
+// rest of the submission's fields are.
+export { cleanSearched, MAX_SEARCHED };
 
 /** Bumped when the shape changes, so a collector can reject or migrate old submissions rather
  *  than mis-reading them. Receivers should refuse anything they do not recognise.
@@ -861,6 +864,8 @@ export interface SubmissionInputs {
   mode?: 'simple' | 'advanced';
   /** See `Submission.level`; left off when unknown. */
   level?: SubmissionLevel;
+  /** See `Submission.searched`; left off when not recorded. */
+  searched?: string;
   /** Light only (`Submission.atOnce`, `Submission.lightFrom`). */
   atOnce?: boolean;
   lightFrom?: LightFrom;
@@ -873,8 +878,6 @@ export interface SubmissionInputs {
   /** Omitted when the run's cost is not known, e.g. a result replayed from a checkpoint. */
   /** Only set by Insane mode; a staged run has no stated space to prove anything over. */
   space?: SearchSpace;
-  /** What the run looked at (`Submission.searched`); left off when unknown. */
-  searched?: string;
   /** The outcome side of the same run. Null when there was nothing to summarise. */
   proof?: ExhaustiveProof | null;
   /** The seed the search descended from. Omitted by Insane mode, which descends from nothing. */

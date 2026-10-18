@@ -53,7 +53,8 @@ export interface SearchedSpace {
   minGap?: number;
 }
 
-/** The longest `searched` the board is sent (and keeps). The boxes of a big By a date run fit easily. */
+/** The longest `searched` the board is sent (the collector keeps it, and cuts anything longer). The
+ *  boxes of a big By a date run fit easily. Also exported from submission.ts. */
 export const MAX_SEARCHED = 600;
 
 const SEP = '; ';
@@ -142,7 +143,8 @@ const oneLine = (text: string | undefined) => (text ?? '').replace(/[\u0000-\u00
  * `searched` as it is sent: one line, no player ids, at most `MAX_SEARCHED` characters. Too long, box
  * tokens are dropped from the end (the counts are kept) and `…` marks the cut. Undefined when empty.
  */
-export function cleanSearched(text: string | undefined): string | undefined {
+export function cleanSearched(text: unknown): string | undefined {
+  if (typeof text !== 'string') return undefined;
   const one = oneLine(text).replace(/EI\d{16}/g, 'EI[redacted]');
   if (!one) return undefined;
   if (one.length <= MAX_SEARCHED) return one;

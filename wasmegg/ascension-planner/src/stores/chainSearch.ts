@@ -5576,9 +5576,23 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         checkpointRoutes: deadlineCheckpointSize.routes,
         checkpointKB: Math.round(deadlineCheckpointSize.bytes / 1024),
         ...(deadlineKept ? { setsKept: deadlineKept } : {}),
+        ...deadlineWorkerHours(priced),
       },
       startedAt: deadlineRunStartedAt,
       carryOns: deadlineRunCarryOns,
+    };
+  }
+
+  /** The run's worker-hours from its timeline (whole run, carry-ons included), and its routes per
+   *  worker-hour: what a run's speed is when the count changed mid-run (Q1, 18 Oct 2026). */
+  function deadlineWorkerHours(priced: number): Record<string, number> {
+    const t = runTimeline.readTimeline();
+    const w = t && t.runId === deadlineRunStartedAt ? runTimeline.workerHoursOf(t) : null;
+    if (!w) return {};
+    return {
+      workerHours: w.workerHours,
+      averageWorkers: w.averageWorkers,
+      ...(w.workerHours > 0 && priced > 0 ? { routesPerWorkerHour: Math.round(priced / w.workerHours) } : {}),
     };
   }
 
@@ -7613,6 +7627,12 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     );
   }
 
+  /** The run's worker count over its life for the CSV header, from its timeline (Q1, 18 Oct 2026). */
+  function workersMeta(deadline: number | undefined): { workers?: string } {
+    const tz = planTimezone();
+    const line = runTimeline.workersSummaryFor(deadlineRunStartedAt, deadline, t => formatInZone(t, tz));
+    return line ? { workers: line } : {};
+  }
   /**
    * The By a date CSV's metadata: the same as the chain-search CSV's, read off the settings the run
    * started with (a saved result carries them), falling back to the current ones for results saved
@@ -7643,6 +7663,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       timeOff: usableTimeOff(st ? st.timeOff : usedSettings().timeOff),
       seedChain: [],
       runNote: r.note,
+      ...workersMeta(r.deadline),
       searched: deadlineSearchedOf(r),
       inventory: raw ? describeVirtueInventory(raw) : undefined,
       loadouts: [

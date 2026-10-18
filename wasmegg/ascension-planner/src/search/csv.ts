@@ -67,6 +67,9 @@ export interface CsvMeta {
   /** What the run looked at (search/searched.ts `searchedText`): written as `# searched: ...` and
    *  `# ascensions: N-M; min gap: G` under the count line. Left out when unknown. */
   searched?: string;
+  /** The run's worker count over its life (search/runTimeline.ts `workersSummary`): By a date only,
+   *  so a run's speed can be read in the worker-hours it really had. */
+  workers?: string;
   /** Named artifact/stone sets, in the order they should appear. */
   loadouts: { label: string; loadout: EquippedArtifact[] | null }[];
   /** Everything in the VIRTUE inventory, already summarised. This is the honest answer to "what
@@ -494,6 +497,7 @@ function metaLines(meta: CsvMeta, head: string[], count: string): string[] {
     `effort ${meta.effort}; force-continue ${forceContinueOf(meta.firstAscension) ? 'on' : 'off'}; first-ascension ${meta.firstAscension}${meta.mode ? `; mode ${meta.mode}` : ''}`
   );
   note(`available ${describeAvailability(meta.availability)}`);
+  if (meta.workers) note(`workers: ${meta.workers}`);
   if (meta.timeOff?.length)
     note(
       `time off from virtue: ${describeTimeOff(meta.timeOff)} (each ends the ascension in progress; a rebuild follows)`
