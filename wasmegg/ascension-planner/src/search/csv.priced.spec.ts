@@ -123,6 +123,13 @@ describe('every priced route in the By a date CSV', () => {
     expect(byDateCsvLine(parsed)).toMatch(/3 routes kept/);
   });
 
+  it("says the run's workers over its life when it knows them (Q1, 18 Oct 2026)", () => {
+    const line = '19 from the start; 5 from 2026-10-17 19:31; 19 from 2026-10-17 22:31. 407 worker-hours over 23.7 h; never hidden';
+    const text = buildDeadlineCsv(kept, { ...META, workers: line }, { deadline: DEADLINE, priced: 6, all });
+    expect(text).toContain(`# workers: ${line}\n`);
+    expect(buildDeadlineCsv(kept, META, { deadline: DEADLINE, priced: 6, all })).not.toContain('# workers:');
+  });
+
   it('comes out a chunk at a time, the same text as built whole', () => {
     const chunks = [...deadlineCsvChunks(kept, META, { deadline: DEADLINE, priced: 6, all }, 2)];
     expect(chunks.join('')).toBe(csv);

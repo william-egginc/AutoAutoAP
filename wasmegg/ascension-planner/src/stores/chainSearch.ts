@@ -5538,9 +5538,23 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         checkpointRoutes: deadlineCheckpointSize.routes,
         checkpointKB: Math.round(deadlineCheckpointSize.bytes / 1024),
         ...(deadlineKept ? { setsKept: deadlineKept } : {}),
+        ...deadlineWorkerHours(priced),
       },
       startedAt: deadlineRunStartedAt,
       carryOns: deadlineRunCarryOns,
+    };
+  }
+
+  /** The run's worker-hours from its timeline (whole run, carry-ons included), and its routes per
+   *  worker-hour: what a run's speed is when the count changed mid-run (Q1, 18 Oct 2026). */
+  function deadlineWorkerHours(priced: number): Record<string, number> {
+    const t = runTimeline.readTimeline();
+    const w = t && t.runId === deadlineRunStartedAt ? runTimeline.workerHoursOf(t) : null;
+    if (!w) return {};
+    return {
+      workerHours: w.workerHours,
+      averageWorkers: w.averageWorkers,
+      ...(w.workerHours > 0 && priced > 0 ? { routesPerWorkerHour: Math.round(priced / w.workerHours) } : {}),
     };
   }
 
@@ -7561,6 +7575,12 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * started with (a saved result carries them), falling back to the current ones for results saved
    * before they were. `r` is a finished result, or the run going now (a progress send's CSV so far).
    */
+  /** The run's worker count over its life for the CSV header, from its timeline (Q1, 18 Oct 2026). */
+  function workersMeta(deadline: number | undefined): { workers?: string } {
+    const tz = planTimezone();
+    const line = runTimeline.workersSummaryFor(deadlineRunStartedAt, deadline, t => formatInZone(t, tz));
+    return line ? { workers: line } : {};
+  }
   function deadlineCsvMeta(
     r: Pick<SavedDeadlineResult, 'planStart' | 'te' | 'note' | 'settings' | 'simple'>,
     final: number,
@@ -7586,6 +7606,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       timeOff: usableTimeOff(st ? st.timeOff : usedSettings().timeOff),
       seedChain: [],
       runNote: r.note,
+      ...workersMeta((r as { deadline?: number }).deadline),
       inventory: raw ? describeVirtueInventory(raw) : undefined,
       loadouts: [
         { label: 'equipped in the backup', loadout: equipped },

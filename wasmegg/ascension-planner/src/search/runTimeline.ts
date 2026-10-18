@@ -553,3 +553,80 @@ export function timelineFor(deadline: number | undefined): Record<string, unknow
 export function noteFault(f: FaultNote): void {
   updateTimeline(t => noteFaultIn(t, f));
 }
+
+/**
+ * The run's worker count over its life, in a line for the CSV header (Q1, 18 Oct 2026: Jordan took the
+ * PC's workers from 19 to 5 for three hours mid-run, and only the run timeline knew). "19 from the
+ * start; 5 from 7:31 pm; 19 from 10:31 pm. 407 worker-hours over 23.7 h; never hidden". The first
+ * two minutes are the pool starting (counts can step 10, 18, 19), so the count they end on is the
+ * start's; changes within a minute of each other are one change. Worker-hours are the samples'
+ * time-weighted counts. `at` formats a unix second in the run's zone. Null without samples.
+ */
+export function workersSummary(t: Timeline | null, at: (unixSeconds: number) => string): string | null {
+  if (!t || !t.samples.length) return null;
+  const starting = 2;
+  const changes: { min: number; to: number }[] = [];
+  let start: number | null = null;
+  for (const e of t.workerEvents) {
+    if (e[1] !== 'resize' || typeof e[3] !== 'number') continue;
+    if (e[0] <= starting) {
+      start = e[3];
+      continue;
+    }
+    const last = changes[changes.length - 1];
+    if (last && e[0] - last.min <= 1) last.to = e[3];
+    else changes.push({ min: e[0], to: e[3] });
+  }
+  if (start === null) start = Math.round(t.samples[0][4]);
+  const parts = [`${start} from the start`];
+  let now = start;
+  for (const c of changes) {
+    if (c.to === now) continue;
+    parts.push(`${c.to} from ${at(Math.floor(t.runId / 1000 + c.min * 60))}`);
+    now = c.to;
+  }
+  let span = 0;
+  let workerMinutes = 0;
+  for (const s of t.samples) {
+    span += s[1];
+    workerMinutes += s[1] * s[4];
+  }
+  const hidden = hiddenShare(t) ?? 0;
+  const hiddenText = hidden < 0.005 ? 'never hidden' : `hidden ${Math.round(hidden * 100)}% of the time`;
+  return `${parts.join('; ')}. ${Math.round(workerMinutes / 60).toLocaleString('en-US')} worker-hours over ${(span / 60).toFixed(1)} h; ${hiddenText}`;
+}
+
+/** `workersSummary` of the stored timeline when it is run `runId`'s (its start, ms) with this deadline;
+ *  null otherwise, so an older result's CSV never takes a later run's workers. */
+export function workersSummaryFor(
+  runId: number,
+  deadline: number | undefined,
+  at: (unixSeconds: number) => string
+): string | null {
+  const t = readTimeline();
+  if (!t || !runId || t.runId !== runId) return null;
+  if (t.deadline !== undefined && deadline !== undefined && t.deadline !== deadline) return null;
+  try {
+    return workersSummary(t, at);
+  } catch {
+    return null;
+  }
+}
+
+/** Worker-hours the run had (the samples' time-weighted counts) over its sampled wall time, for the
+ *  diagnostics: a speed in routes per worker-hour holds even when the count changed mid-run. */
+export function workerHoursOf(t: Timeline | null): { workerHours: number; wallHours: number; averageWorkers: number } | null {
+  if (!t || !t.samples.length) return null;
+  let span = 0;
+  let workerMinutes = 0;
+  for (const s of t.samples) {
+    span += s[1];
+    workerMinutes += s[1] * s[4];
+  }
+  if (!(span > 0)) return null;
+  return {
+    workerHours: Math.round(workerMinutes / 6) / 10,
+    wallHours: Math.round(span / 6) / 10,
+    averageWorkers: Math.round((workerMinutes / span) * 10) / 10,
+  };
+}
