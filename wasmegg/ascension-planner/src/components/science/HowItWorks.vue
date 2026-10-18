@@ -274,8 +274,8 @@
           <li>
             <b>Prestiging later.</b> Every check starts from now. Waiting a day or two to prestige can be worth a TE (on
             the test account, a fresh start on one Monday morning made one TE more than starting now). Two tools look at
-            this: "When should I start?" at the top of {{ NAMES.fastest }} prices one route from every hour of the next
-            week, and the experimental "Prestige by…" line in section 6. Neither searches every route from every later
+            this: the "{{ NAMES.start }}" tab in Science (offered only before your first ascension, for coming
+            back after a break) prices one route from every hour of the next week, and the experimental "Prestige by…" line in section 6. Neither searches every route from every later
             start.
           </li>
           <li>
