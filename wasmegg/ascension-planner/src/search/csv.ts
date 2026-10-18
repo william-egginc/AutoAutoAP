@@ -37,6 +37,7 @@ import { firstLegKindOf, forceContinueOf, type FirstAscension, type FirstLegKind
 // Runtime import in this direction only: submission.ts takes `InventoryCount` from here as a
 // type-only import, which is erased, so there is no cycle at runtime.
 import { bestPerFamily, keepVirtueArtifacts, keepVirtueStones } from './submission';
+import { searchedCsvLines } from './searched';
 
 export interface CsvMeta {
   planStart: number;
@@ -63,6 +64,9 @@ export interface CsvMeta {
   /** The player's note on the run. Printed on one line whatever it holds (line breaks would end the
    *  comment and start a data row). */
   runNote?: string;
+  /** What the run looked at (search/searched.ts `searchedText`): written as `# searched: ...` and
+   *  `# ascensions: N-M; min gap: G` under the count line. Left out when unknown. */
+  searched?: string;
   /** Named artifact/stone sets, in the order they should appear. */
   loadouts: { label: string; loadout: EquippedArtifact[] | null }[];
   /** Everything in the VIRTUE inventory, already summarised. This is the honest answer to "what
@@ -503,6 +507,7 @@ function metaLines(meta: CsvMeta, head: string[], count: string): string[] {
   const runNote = meta.runNote?.replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, ' ').trim();
   if (runNote) note(`note: ${runNote}`);
   note(count);
+  for (const line of searchedCsvLines(meta.searched)) note(line);
   note('');
   note('artifacts and stones — fixed for the whole run, never varied by the search.');
   note('The simulator re-optimises the equipped set inside each leg, so what matters is what it');

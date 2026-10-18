@@ -41,6 +41,7 @@ describe('tooManySubmissionsMessage', () => {
   });
 });
 import type { LegSummary } from './types';
+import { MAX_SEARCHED } from './searched';
 
 const DENVER = 'America/Denver';
 const PLAN_START = Math.floor(Date.UTC(2026, 8, 10, 1, 4) / 1000); // 2026-09-09 19:04 Denver
@@ -824,5 +825,26 @@ describe('which way leg 1 went (firstLeg, 9 Oct)', () => {
     const ok = buildSubmission(inputs());
     expect(validateSubmission({ ...ok, firstLeg: 'auto' } as unknown as Submission).join()).toMatch(/firstLeg/);
     expect(validateSubmission({ ...ok, firstLegOtherHours: Infinity }).join()).toMatch(/firstLegOtherHours/);
+  });
+});
+
+describe('searched (what the run looked at, search/searched.ts)', () => {
+  const line = '195-197:2; 209-240:1; last 300-320; ascensions: 3';
+  it('is sent as given when the run said, and left off when it did not', () => {
+    const s = buildSubmission(inputs({ searched: line }));
+    expect(s.searched).toBe(line);
+    expect(validateSubmission(s)).toEqual([]);
+    expect('searched' in buildSubmission(inputs())).toBe(false);
+    expect('searched' in buildSubmission(inputs({ searched: '  ' }))).toBe(false);
+  });
+  it('is held to the cap, one line', () => {
+    const long = Array.from({ length: 200 }, (_, k) => `${100 + k}-${110 + k}:1`).join('; ') + '; ascensions: 3-6';
+    const s = buildSubmission(inputs({ searched: long }));
+    expect(s.searched!.length).toBeLessThanOrEqual(MAX_SEARCHED);
+    expect(s.searched!.endsWith('…; ascensions: 3-6')).toBe(true);
+    expect(validateSubmission(s)).toEqual([]);
+    expect(validateSubmission({ ...s, searched: 'x'.repeat(MAX_SEARCHED + 1) })).toContain(
+      `searched must be a string of at most ${MAX_SEARCHED} characters`
+    );
   });
 });

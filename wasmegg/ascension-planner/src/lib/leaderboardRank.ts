@@ -141,6 +141,10 @@ export interface BoardRow {
   chainsPriced?: number;
   /** The chain the search descended from. Absent on an exhaustive run, which descends from none. */
   seed?: number[];
+  /** What the run looked at, as one line (search/searched.ts, submission.ts `searched`): its boxes in the
+   *  command line's notation, then the count range and min gap. Absent on rows sent before 18 Oct 2026,
+   *  and until the collector keeps it. Read with `searchedWords`. */
+  searched?: string;
   /** ISO 8601, stamped by the app when the submission was built. The sender's own clock. */
   submittedAt?: string;
   /** ISO 8601, stamped by the collector when the row arrived (phase 2). Unlike `submittedAt` the

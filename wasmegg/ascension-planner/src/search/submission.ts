@@ -33,6 +33,7 @@ import type { LegSummary } from './types';
 import { SIM_VERSION } from './simVersion';
 import type { DeliveryScore } from './virtueScore';
 import { firstLegKindOf, forceContinueOf, type FirstAscension, type FirstLegKind } from './firstAscension';
+import { cleanSearched, MAX_SEARCHED } from './searched';
 
 /** Bumped when the shape changes, so a collector can reject or migrate old submissions rather
  *  than mis-reading them. Receivers should refuse anything they do not recognise.
@@ -333,6 +334,15 @@ export interface Submission {
    * different winners are not in conflict when one searched a box the other never entered.
    */
   space?: SearchSpace;
+
+  /**
+   * What the run looked at, as one line (search/searched.ts; 18 Oct 2026, optional, no schema bump): the
+   * boxes in the command line's notation, then the count range and min gap, e.g. "195-197:2; 209-240:1;
+   * last 300-320; ascensions: 5". The same text as the CSV's `# searched:` and `# ascensions:` lines,
+   * joined with "; ". On every kind of run: Nearby routes and Light write what they generated. At most
+   * `MAX_SEARCHED` characters; absent when the run did not say (never guessed).
+   */
+  searched?: string;
 
   /**
    * What the exhaustive run FOUND, as opposed to what it looked at. Schema 5, Insane mode only.
@@ -863,6 +873,8 @@ export interface SubmissionInputs {
   /** Omitted when the run's cost is not known, e.g. a result replayed from a checkpoint. */
   /** Only set by Insane mode; a staged run has no stated space to prove anything over. */
   space?: SearchSpace;
+  /** What the run looked at (`Submission.searched`); left off when unknown. */
+  searched?: string;
   /** The outcome side of the same run. Null when there was nothing to summarise. */
   proof?: ExhaustiveProof | null;
   /** The seed the search descended from. Omitted by Insane mode, which descends from nothing. */
@@ -990,6 +1002,7 @@ export function buildSubmission(input: SubmissionInputs): Submission {
 
   const nickname = i.nickname?.trim() ? scrubIdentifiers(i.nickname.trim()).slice(0, 40) : undefined;
   const note = cleanNote(i.note);
+  const searched = cleanSearched(i.searched);
 
   const startUtc = utcStamp(i.planStart);
   const endUtc = utcStamp(i.planStart + i.seconds);
@@ -1058,6 +1071,7 @@ export function buildSubmission(input: SubmissionInputs): Submission {
     // to nothing anyway, but the collector distinguishes "absent" from "present and empty".
     ...(i.run ? { run: roundRunCost(i.run) } : {}),
     ...(i.space ? { space: i.space } : {}),
+    ...(searched ? { searched } : {}),
     ...(i.proof ? { proof: i.proof } : {}),
     ...(i.seed?.length ? { seed: [...i.seed] } : {}),
     ...(i.epicResearch ? { epicResearch: i.epicResearch } : {}),
@@ -1195,6 +1209,9 @@ export function validateSubmission(value: unknown): string[] {
   }
   if (s.note !== undefined && (typeof s.note !== 'string' || s.note.length > MAX_NOTE)) {
     problems.push(`note must be a string of at most ${MAX_NOTE} characters`);
+  }
+  if (s.searched !== undefined && (typeof s.searched !== 'string' || s.searched.length > MAX_SEARCHED)) {
+    problems.push(`searched must be a string of at most ${MAX_SEARCHED} characters`);
   }
   // Schema 7. Optional, so absent is fine; present and malformed is a client bug worth saying.
   if (s.rechecks !== undefined) {

@@ -105,6 +105,7 @@ import { showDateTime, showDay } from '@/lib/displayTime';
 import { type ShortlistRow } from '@/search/shortlist';
 import { buildView, type ViewId } from '@/search/views';
 import { lightResultKey, type LightResult } from '@/search/lightResult';
+import { deadlineSearched, lightSearched, nearbySearched, searchedText, sweepSearched } from '@/search/searched';
 import {
   appBuildId,
   bestPerFamily,
@@ -3679,6 +3680,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       // a starting point the search never used.
       ...(searchSpace.value ? {} : { seed: [...seedUsed()] }),
       ...(searchSpace.value ? { space: searchSpace.value } : {}),
+      searched: fastestSearchedText(),
       // Only alongside a space. The block describes the distribution over an ENUMERATED set, and
       // the same numbers taken from a staged run would be the distribution over whatever the
       // heuristic chose to look at -- a spread that says more about the pruning than the game.
@@ -3705,11 +3707,44 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     return runSweepTag ? { ...sub, sweep: { ...runSweepTag } } : sub;
   }
 
+  /**
+   * What the Fastest run on screen looked at (search/searched.ts), for its CSV and its board row: an
+   * Exhaustive run its stated space, a Nearby routes run the route it started from, the counts it
+   * searched from and its limits. Undefined when none of that is known.
+   */
+  function fastestSearchedText(): string | undefined {
+    const sp = searchSpace.value;
+    if (sp) return searchedText(sweepSearched(sp));
+    const rc = runCounts.value;
+    return searchedText(
+      nearbySearched({ seed: seedUsed(), counts: rc?.counts, limits: rc ? { min: rc.min, max: rc.max } : null })
+    );
+  }
+
   /** What a deadline send reads from its run: a finished result has all of it, a running one too. */
   type DeadlineSendBase = Pick<
     SavedDeadlineResult,
-    'deadline' | 'planStart' | 'te' | 'note' | 'settings' | 'account' | 'simple' | 'level' | 'priced'
-  >;
+    'deadline' | 'planStart' | 'te' | 'note' | 'settings' | 'account' | 'simple' | 'level' | 'priced' | 'searched'
+  > &
+    Partial<Pick<SavedDeadlineResult, 'bandSets' | 'instantSets' | 'lastLo' | 'lastHi' | 'ceiling'>>;
+
+  /**
+   * What a By a date run looked at: the line kept with it, else (a result saved before 18 Oct 2026) read
+   * off the boxes it kept. Undefined for an older result without boxes: never guessed.
+   */
+  function deadlineSearchedOf(r: DeadlineSendBase): string | undefined {
+    if (r.searched) return r.searched;
+    if (!r.bandSets?.length || r.lastHi === undefined) return undefined;
+    return searchedText(
+      deadlineSearched({
+        bandSets: r.bandSets,
+        instantSets: r.instantSets,
+        lastLo: r.lastLo,
+        lastHi: r.lastHi,
+        ceiling: r.ceiling,
+      })
+    );
+  }
 
   /** The running date search's best route as a submission, for Send best so far. */
   function deadlineBestSoFarSubmission(nickname: string): Submission | null {
@@ -3753,6 +3788,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       // run (kept with the run). A nearby result saved before 15 Oct has none: left off, never guessed.
       level: r.simple ? levelOf(r.level) : 'exhaustive',
       chainsPriced: r.priced,
+      searched: deadlineSearchedOf(r),
       // The run's own account, kept in its result; then the live run's; and only for a result saved
       // before results kept one, the loaded save (`sendSubmission` refuses it if that contradicts).
       ...((r.account as AccountSnapshot | undefined) ?? deadlineAccount ?? accountFields(r.te)),
@@ -3805,6 +3841,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       firstAscension: st.firstAscension,
       // The routes Light priced for this answer (at once, earlier, one TE lower).
       chainsPriced: r.routes.length,
+      searched: searchedText(lightSearched(r.routes)),
       ...run.account,
       flags: b.seconds / 86400 > DECADES_LONG_DAYS ? ['decades-long'] : [],
       timeOff: usableTimeOff(st.timeOff),
@@ -3832,6 +3869,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         timeOff: usableTimeOff(st.timeOff),
         seedChain: [],
         runNote: note,
+        searched: searchedText(lightSearched(r.routes)),
         inventory: raw ? describeVirtueInventory(raw) : undefined,
         loadouts: [
           { label: 'equipped in the backup', loadout: equipped },
@@ -5606,6 +5644,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       seedChain: seedUsed(),
       ...(runCounts.value ? { countsProbed: runCounts.value.counts } : {}),
       runNote: runNoteUsed.value,
+      searched: fastestSearchedText(),
       ...(opts.diagnostics ? { diagnostics: diagnosticsLine() } : {}),
       // The ELR set is deliberately NOT listed. `getOptimalELRSet` re-solves the structure per leg
       // against that leg's research state (up to 495 combos, and the reason it is the hotspot in
@@ -5651,6 +5690,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       seedChain: seedUsed(),
       ...(runCounts.value ? { countsProbed: runCounts.value.counts } : {}),
       runNote: runNoteUsed.value,
+      searched: fastestSearchedText(),
       // The ELR set is deliberately NOT listed. `getOptimalELRSet` re-solves the structure per leg
       // against that leg's research state (up to 495 combos, and the reason it is the hotspot in
       // leg.ts), so there is no single "ELR set for the run" to report — and running the search
@@ -6846,6 +6886,21 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     setProvisional('deadline', takeCarriedProvisional());
     takeCarriedWatch();
     deadlineRunDeadline.value = spec.deadline;
+    // What this run looks at (search/searched.ts), read off its own spec: Nearby routes' boxes are made
+    // for it (around the instant answer, or widened round by round), so this is the round's own.
+    const searched = searchedText(
+      deadlineSearched({
+        bandSets: spec.bandSets,
+        bands: spec.bands,
+        instantSets: spec.instantSets,
+        lastLo: Math.max(Math.floor(inputs.currentTE) + 1, spec.lastLo ?? 0),
+        lastHi: spec.lastHi,
+        ceiling: spec.extend ? Math.max(spec.lastHi, MAX_LAST_STOP) : spec.lastHi,
+        step: spec.step,
+        minStops: spec.minStops,
+        maxStops: spec.maxStops,
+      })
+    );
     deadlineRunPlan.value = { planStart: inputs.planStart, firstAscension: deadlineSettings.firstAscension ?? 'auto' };
     deadlineRun = {
       deadline: spec.deadline,
@@ -6856,6 +6911,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       account: account as DeadlineAccount,
       ...(spec.simple ? { simple: true } : {}),
       ...(spec.simple && levelOf(spec.level) ? { level: spec.level } : {}),
+      ...(searched ? { searched } : {}),
       priced: 0,
     };
     deadlineRunCsv = {
@@ -7170,6 +7226,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         lastLo: Math.max(Math.floor(inputs.currentTE) + 1, spec.lastLo ?? 0),
         ...(lastTECost ? { lastTECost } : {}),
         ...(spec.fallback ? { fallback: { ...spec.fallback } } : {}),
+        ...(searched ? { searched } : {}),
         at: Date.now(),
       };
       deadlineAccount = account;
@@ -7562,7 +7619,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * before they were. `r` is a finished result, or the run going now (a progress send's CSV so far).
    */
   function deadlineCsvMeta(
-    r: Pick<SavedDeadlineResult, 'planStart' | 'te' | 'note' | 'settings' | 'simple'>,
+    r: DeadlineSendBase,
     final: number,
     partial?: CsvMeta['partial']
   ): CsvMeta {
@@ -7586,6 +7643,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       timeOff: usableTimeOff(st ? st.timeOff : usedSettings().timeOff),
       seedChain: [],
       runNote: r.note,
+      searched: deadlineSearchedOf(r),
       inventory: raw ? describeVirtueInventory(raw) : undefined,
       loadouts: [
         { label: 'equipped in the backup', loadout: equipped },
