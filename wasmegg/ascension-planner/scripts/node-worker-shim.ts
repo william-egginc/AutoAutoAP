@@ -11,6 +11,13 @@ const g = globalThis as any;
 g.self = g;
 g.postMessage = (message: unknown) => parentPort!.postMessage(message);
 // The worker module sets `self.onmessage`; deliver each message the way a browser does, as an event.
-parentPort!.on('message', (data: unknown) => g.onmessage?.({ data }));
+// AAP_TEST_WORKER_EXIT_AFTER=N: the worker ends itself, with code 0, at its Nth message, to try what the
+// run does when a worker goes away with requests in hand (scripts/siteRun.ts `nodeWorker`).
+const exitAfter = Math.floor(Number(process.env.AAP_TEST_WORKER_EXIT_AFTER)) || 0;
+let seen = 0;
+parentPort!.on('message', (data: unknown) => {
+  if (exitAfter && ++seen >= exitAfter) process.exit(0);
+  g.onmessage?.({ data });
+});
 
 export {};

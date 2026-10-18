@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { HEAP_STOP_SHARE, heapLabel, heapNearLimit, heapStopMessage } from './cliHeap';
+import { freeMemoryLabel, HEAP_STOP_SHARE, heapLabel, heapNearLimit, heapStopMessage, workerHeapMb } from './cliHeap';
 
 const MB = 1024 * 1024;
 
@@ -23,5 +23,16 @@ describe("the command line's heap guard (17 Oct 2026: a V8 fatal error 129K rout
     expect(m).toContain('no --fresh');
     expect(heapStopMessage(1, 1024 * MB, undefined)).toContain('Without --out there is no checkpoint');
     expect(heapStopMessage(1, 1024 * MB, undefined)).toContain('--max-old-space-size=8192');
+  });
+
+  it("gives each worker thread 2 GB of heap unless AAP_WORKER_HEAP_MB says otherwise", () => {
+    expect(workerHeapMb(undefined)).toBe(2048);
+    expect(workerHeapMb('4096')).toBe(4096);
+    expect(workerHeapMb('100')).toBe(2048);
+    expect(workerHeapMb('lots')).toBe(2048);
+  });
+
+  it("says the machine's free memory", () => {
+    expect(freeMemoryLabel(12.34 * 1024 * MB, 31.9 * 1024 * MB)).toBe('free 12.3 of 31.9 GB');
   });
 });

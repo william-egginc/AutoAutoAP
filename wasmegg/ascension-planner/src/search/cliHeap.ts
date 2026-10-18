@@ -34,3 +34,16 @@ export function heapStopMessage(usedBytes: number, limitBytes: number, out: stri
     : `Without --out there is no checkpoint to carry on from: run it again with --out DIR and NODE_OPTIONS=--max-old-space-size=${raise}, or split the box.`;
   return `this process's memory is near Node's limit (${heapLabel(usedBytes, limitBytes)}). ${again}`;
 }
+
+/** Each worker thread's heap ceiling, MB: AAP_WORKER_HEAP_MB, else 2 GB. A worker holds about 0.1-0.25
+ *  GB in a long By a date run (README), so this only stops one that runs away. */
+export function workerHeapMb(env: string | undefined): number {
+  const n = Math.floor(Number(env));
+  return Number.isFinite(n) && n >= 256 ? n : 2048;
+}
+
+/** "free 12.3 of 31.9 GB" (the machine's, for the progress line). */
+export function freeMemoryLabel(freeBytes: number, totalBytes: number): string {
+  const GB = 1024 * MB;
+  return `free ${(freeBytes / GB).toFixed(1)} of ${(totalBytes / GB).toFixed(1)} GB`;
+}
