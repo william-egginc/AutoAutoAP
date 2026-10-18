@@ -265,6 +265,12 @@ export interface Submission {
    * By a date's boxes). On every kind of row, so the board can set Light against Fast and the table.
    */
   level?: SubmissionLevel;
+  /**
+   * What the search looked at (18 Oct 2026, optional, no schema bump): the boxes and the ascension range as
+   * the CLI writes them, e.g. "195-197:2; 209-240:1; last 300-320; 2-5 ascensions, min gap 20". At most
+   * `MAX_SEARCHED` characters; a row sent before this existed has none (never guessed).
+   */
+  searched?: string;
   /** Light only: the route was priced with each fresh ascension the moment the one before ended
    *  (search/lightAtOnce.ts), not on the hour. */
   atOnce?: boolean;
@@ -824,11 +830,21 @@ export type LightFrom = (typeof LIGHT_FROM)[number];
 /** The longest of these short words, as validated (and the collector's cap to ask for). */
 export const MAX_LEVEL_TEXT = 16;
 /** A level as sent: one of `SUBMISSION_LEVELS`, else nothing (an older effort word is never guessed into one). */
+/** `searched` as sent: one line of plain text, identifiers scrubbed, cut to `MAX_SEARCHED`; undefined when empty. */
+export function cleanSearched(v: unknown): string | undefined {
+  if (typeof v !== 'string') return undefined;
+  const clean = scrubIdentifiers(v.replace(/[\u0000-\u001F\u007F]+/g, ' ')).slice(0, MAX_SEARCHED).trim();
+  return clean || undefined;
+}
+
 export function levelOf(v: unknown): SubmissionLevel | undefined {
   return typeof v === 'string' && (SUBMISSION_LEVELS as readonly string[]).includes(v)
     ? (v as SubmissionLevel)
     : undefined;
 }
+
+/** The longest `searched` text the collector keeps (it cuts anything longer). */
+export const MAX_SEARCHED = 600;
 
 export interface SubmissionInputs {
   nickname?: string;
@@ -851,6 +867,8 @@ export interface SubmissionInputs {
   mode?: 'simple' | 'advanced';
   /** See `Submission.level`; left off when unknown. */
   level?: SubmissionLevel;
+  /** See `Submission.searched`; left off when not recorded. */
+  searched?: string;
   /** Light only (`Submission.atOnce`, `Submission.lightFrom`). */
   atOnce?: boolean;
   lightFrom?: LightFrom;
@@ -1038,6 +1056,7 @@ export function buildSubmission(input: SubmissionInputs): Submission {
       : {}),
     ...(i.mode ? { mode: i.mode } : {}),
     ...(levelOf(i.level) ? { level: i.level } : {}),
+    ...(cleanSearched(i.searched) ? { searched: cleanSearched(i.searched) } : {}),
     ...(typeof i.atOnce === 'boolean' ? { atOnce: i.atOnce } : {}),
     ...(i.lightFrom && (LIGHT_FROM as readonly string[]).includes(i.lightFrom) ? { lightFrom: i.lightFrom } : {}),
     waitingHours: waiting === null ? null : Number(waiting.toFixed(2)),
@@ -1221,6 +1240,8 @@ export function validateSubmission(value: unknown): string[] {
   // Short words (15 Oct 2026): one of a known list, so never longer than MAX_LEVEL_TEXT.
   if (s.level !== undefined && !(typeof s.level === 'string' && s.level.length <= MAX_LEVEL_TEXT && levelOf(s.level)))
     problems.push(`level must be one of ${SUBMISSION_LEVELS.join(', ')}`);
+  if (s.searched !== undefined && (typeof s.searched !== 'string' || s.searched.length > MAX_SEARCHED))
+    problems.push(`searched must be a string of at most ${MAX_SEARCHED} characters`);
   if (s.atOnce !== undefined && typeof s.atOnce !== 'boolean') problems.push('atOnce must be true or false');
   if (
     s.lightFrom !== undefined &&

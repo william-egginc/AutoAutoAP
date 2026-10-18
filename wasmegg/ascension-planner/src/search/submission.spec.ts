@@ -826,3 +826,22 @@ describe('which way leg 1 went (firstLeg, 9 Oct)', () => {
     expect(validateSubmission({ ...ok, firstLegOtherHours: Infinity }).join()).toMatch(/firstLegOtherHours/);
   });
 });
+
+describe('what the search looked at (searched, 18 Oct)', () => {
+  const BOXES = '195-197:2; 209-240:1; last 300-320; 2-5 ascensions, min gap 20';
+
+  it('is sent as given, and left off when empty or not recorded', () => {
+    expect(buildSubmission(inputs({ searched: BOXES })).searched).toBe(BOXES);
+    expect('searched' in buildSubmission(inputs())).toBe(false);
+    expect('searched' in buildSubmission(inputs({ searched: '  \n ' }))).toBe(false);
+  });
+
+  it('is cut to the limit, one line, and refused by the validator only when over it', () => {
+    const long = buildSubmission(inputs({ searched: 'a-b:1; '.repeat(200) }));
+    expect(long.searched!.length).toBeLessThanOrEqual(600);
+    expect(buildSubmission(inputs({ searched: 'x\ny' })).searched).toBe('x y');
+    const ok = buildSubmission(inputs({ searched: BOXES }));
+    expect(validateSubmission(ok)).toEqual([]);
+    expect(validateSubmission({ ...ok, searched: 'z'.repeat(601) }).join()).toMatch(/searched/);
+  });
+});
