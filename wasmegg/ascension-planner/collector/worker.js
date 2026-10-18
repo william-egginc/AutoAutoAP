@@ -138,6 +138,9 @@ const MAX = {
   /** What the sender says the run was for ("testing a Friday start", ...). Plain text, shown as
    *  text. Long enough for a sentence or two, short enough that it can't carry a CSV. */
   NOTE: 500,
+  /** What a search looked at, as the CLI writes it ("195-197:2; 209-240:1; last 300-320; 2-5 ascensions,
+   *  min gap 20"). A dozen boxes fit well inside this; a longer string is cut, not refused. */
+  SEARCHED: 600,
   /** Schema 7: the simulator build that priced a run. A short commit id is seven characters; this
    *  leaves room for a tag without letting the field become a second free-text box. */
   BUILD: 40,
@@ -700,6 +703,10 @@ function pickSubmission(s) {
     level: SUBMISSION_LEVELS.includes(s.level) ? s.level : undefined,
     atOnce: isLightRow(s) ? flag(s.atOnce) : undefined,
     lightFrom: isLightRow(s) && LIGHT_FROMS.includes(s.lightFrom) ? s.lightFrom : undefined,
+    // What the search looked at (18 Oct 2026, optional, no schema bump): the boxes and the ascension range as
+    // the CLI writes them, plain text kept to MAX.SEARCHED characters (cut, never refused; control characters
+    // dropped). Old rows have none: it is never guessed.
+    searched: typeof s.searched === 'string' ? text(s.searched.replace(/[\u0000-\u001F\u007F]/g, ''), MAX.SEARCHED)?.trim() || undefined : undefined,
     waitingHours: s.waitingHours === null ? null : num(s.waitingHours),
 
     // Labels, not counts: an artifact slot takes one artifact, so how many are owned never
