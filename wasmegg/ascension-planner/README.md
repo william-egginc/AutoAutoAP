@@ -228,6 +228,15 @@ node dist-search/fastsearch.js --backup me.json --egg-day --timezone America/Den
 - Your playing hours: `--available-from 7 --available-to 23` (with `--timezone`). Leave them out
   for "any hour".
 - The row says which level found it (`exhaustive`), and the CSV goes with it.
+- If a long run stops on memory (it says "this process's memory is near Node's limit", or Node crashes with
+  a heap or "fatal error" message), set `NODE_OPTIONS=--max-old-space-size=16384` and run the same command
+  again (no `--fresh`): it carries on from its checkpoint. In Git Bash or a Mac/Linux shell put it in front of
+  the command (`NODE_OPTIONS=--max-old-space-size=16384 node dist-search/fastsearch.js ...`); in PowerShell
+  run `$env:NODE_OPTIONS="--max-old-space-size=16384"` first. Each progress line shows `heap X of Y MB`.
+- Don't run `pnpm self-update` or follow pnpm's "update available" banner, and don't install a newer pnpm
+  globally: it rewrites `package.json` and `pnpm-lock.yaml` for that version, and plain `pnpm` then breaks.
+  Use `npx -y pnpm@11.11.0 ...` whenever you are unsure. Already updated? `git checkout package.json
+  pnpm-lock.yaml` at the repo root puts them back, then `npx -y pnpm@11.11.0 install`.
 
 Long offline runs, worker counts and memory: [Long runs](https://github.com/william-egginc/AutoAutoAP/wiki/Long-runs)
 and [Searches in detail](https://github.com/william-egginc/AutoAutoAP/wiki/Searches-in-detail).
