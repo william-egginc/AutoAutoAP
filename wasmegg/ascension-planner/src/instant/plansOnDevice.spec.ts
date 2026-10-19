@@ -16,6 +16,7 @@ import {
   readPlans,
   recordPlan,
   routeText,
+  updatePlan,
   PLANS_CAP,
   type PlanEntry,
   type PlanStorage,
@@ -213,6 +214,32 @@ describe('plans on this device', () => {
     expect(next.map(planId)).toEqual(['Reach 490 TE|300 490', 'Egg Day 2027|350 470']);
     expect(migratePlan({ chain: [490], goal: 'x', start: 1, a1: '' })).toBeNull();
     expect(migratePlan({ ...entry([490]), ascensions: [{ to: 490, start: 1, end: 2, kind: 'guess' }] })?.ascensions).toEqual([]);
+  });
+
+  it('an exact check updates its entry in place (kind exact, shifts, next) and the shifts survive a reload', async () => {
+    const hash = await hashID(ID);
+    const s = memory();
+    recordPlan(s, hash, entry([300, 490]));
+    recordPlan(s, hash, entry([490]));
+    const exact: PlanEntry = {
+      ...entry([300, 490]),
+      ascensions: [
+        { to: 300, start: 10, end: 20, kind: 'exact', shifts: [{ egg: 'Kindness', at: 15 }, { egg: 7 as never, at: 1 }] },
+        { to: 490, start: 20, end: 30, kind: 'estimate', shifts: [{ egg: 'Humility', at: 25 }] },
+      ],
+      next: { egg: 'Kindness', at: 15 },
+    };
+    const kept = updatePlan(s, hash, exact);
+    // In place: the order is unchanged.
+    expect(kept.map(planId)).toEqual(['Reach 490 TE|490', 'Reach 490 TE|300 490']);
+    const back = readPlans(s, hash)[1];
+    expect(back.ascensions[0]).toEqual({ to: 300, start: 10, end: 20, kind: 'exact', shifts: [{ egg: 'Kindness', at: 15 }] });
+    // Shifts are kept on exact ascensions only.
+    expect(back.ascensions[1]).toEqual({ to: 490, start: 20, end: 30, kind: 'estimate' });
+    expect(back.next).toEqual({ egg: 'Kindness', at: 15 });
+    // An entry deleted meanwhile is not brought back.
+    deletePlan(s, hash, planId(exact));
+    expect(updatePlan(s, hash, exact).map(planId)).toEqual(['Reach 490 TE|490']);
   });
 
   it('Delete drops one entry by route + goal', async () => {

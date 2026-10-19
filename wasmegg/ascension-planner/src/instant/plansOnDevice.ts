@@ -31,6 +31,8 @@ export interface SavedAscension {
   start: number;
   end: number;
   kind: TimeKind;
+  /** Exact only: the ascension's shifts (egg and unix seconds), as the check timed them. */
+  shifts?: NextShift[];
 }
 
 /** The next shift, from an exact check only (never from an estimate). */
@@ -99,6 +101,15 @@ function isAscension(a: unknown): a is SavedAscension {
   return !!x && num(x.to) && num(x.start) && num(x.end) && (x.kind === 'estimate' || x.kind === 'exact');
 }
 
+const isShift = (s: unknown): s is NextShift =>
+  !!s && typeof (s as NextShift).egg === 'string' && num((s as NextShift).at);
+
+/** A stored ascension as kept: shifts only on exact ones, and only well-formed ones. */
+function keptAscension(a: SavedAscension): SavedAscension {
+  const { shifts, ...rest } = a;
+  return a.kind === 'exact' && Array.isArray(shifts) ? { ...rest, shifts: shifts.filter(isShift).map(s => ({ egg: s.egg, at: s.at })) } : rest;
+}
+
 /**
  * A stored entry in the current shape, or null when it is broken. Older entries (Simulate this plan's:
  * `simulatedAt`, "Race to 490", no times, gear or save time) are kept, their missing fields left empty.
@@ -120,7 +131,7 @@ export function migratePlan(raw: unknown): PlanEntry | null {
     savedAt,
     start: p.start,
     a1: p.a1,
-    ascensions: Array.isArray(p.ascensions) ? (p.ascensions as unknown[]).filter(isAscension) : [],
+    ascensions: Array.isArray(p.ascensions) ? (p.ascensions as unknown[]).filter(isAscension).map(keptAscension) : [],
     simVersion: typeof p.simVersion === 'string' ? p.simVersion : '',
     gear: typeof p.gear === 'string' ? p.gear : '',
     ...(num(p.saveTime) ? { saveTime: p.saveTime } : {}),
@@ -218,6 +229,13 @@ export function recordPlan(
   entry: PlanEntry
 ): PlanEntry[] {
   return write(storage, hash, addPlan(readPlans(storage, hash), entry));
+}
+
+/** Replace the entry with the same `planId` in place (nothing when it is gone); returns the list now kept. */
+export function updatePlan(storage: PlanStorage | null, hash: string | null | undefined, entry: PlanEntry): PlanEntry[] {
+  const list = readPlans(storage, hash);
+  if (!list.some(e => planId(e) === planId(entry))) return list;
+  return write(storage, hash, list.map(e => (planId(e) === planId(entry) ? entry : e)));
 }
 
 /** Drop one entry (by `planId`); returns the list now kept. */
