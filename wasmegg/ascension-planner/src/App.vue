@@ -534,6 +534,7 @@
             :blocked-by="blockedBy"
             @update:depth="onDepth"
             @goal="onInsaneGoal"
+            @by-date="goAuto('by-date')"
           />
           <ByDateScreen v-else :player-id="playerId" @goal="onInsaneGoal" />
         </div>

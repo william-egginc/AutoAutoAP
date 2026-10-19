@@ -68,6 +68,15 @@
       <span class="inline-block w-3 h-3 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
       {{ loadingText }}{{ result ? ' The answer below is the previous one until the new one is ready.' : '' }}
     </p>
+    <!-- Below the table's lowest TE: where the answer would be, what to do instead (NoInstantAnswer.vue). -->
+    <NoInstantAnswer
+      v-else-if="status === 'error' && below"
+      :heading="noInstantHeading(below.from)"
+      :sub="`Your route starts at TE ${below.te}.`"
+      @by-date="emit('by-date')"
+    >
+      <template v-if="$slots['no-answer']" #default><slot name="no-answer" /></template>
+    </NoInstantAnswer>
     <p
       v-else-if="status === 'error'"
       class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-[12px] text-amber-900"
@@ -77,7 +86,7 @@
     <InstantIntegrity v-if="status !== 'loading' && !atTarget" :state="integrity" />
     <!-- LOW-TE GATE (temporary until Joo's PR 717 merges): search/instantIntegrity.ts lowTeOpeningNote. -->
     <p
-      v-if="status !== 'loading' && !atTarget && lowTeNote"
+      v-if="status !== 'loading' && !atTarget && lowTeNote && !below"
       class="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-[11px] leading-relaxed text-sky-900"
       data-testid="instant-lowte"
     >
@@ -955,6 +964,13 @@
       </template>
     </template>
   </section>
+  <!-- No usable table on this site at all: only the card, so the player still sees what to do. -->
+  <section v-else class="rounded-2xl border border-emerald-200 bg-white p-4 space-y-3" data-testid="instant-no-table">
+    <h3 class="text-base font-black text-slate-900">Instant answer</h3>
+    <NoInstantAnswer :heading="noInstantHeading(null)" @by-date="emit('by-date')">
+      <template v-if="$slots['no-answer']" #default><slot name="no-answer" /></template>
+    </NoInstantAnswer>
+  </section>
 </template>
 
 <script setup lang="ts">
@@ -966,7 +982,7 @@ import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { dateStyle, showDateTime } from '@/lib/displayTime';
 import { continueTailParams, farmLaying, instantDeliveryScale, saveSiloSeconds } from '@/search/leg';
 import { instantFirstLegsBase } from '@/search/instantFirstLegs';
-import type { InstantState } from '@/search/autoWiden';
+import { noInstantHeading, type InstantState } from '@/search/autoWiden';
 import { cteFromArtifacts } from 'lib/virtue';
 import { equippedArtifactsToLibArtifacts } from '@/lib/artifacts/utils';
 import { findRoutes, type FirstLeg, type FoundRoutes, type PolishOptions, type Route } from '@/search/routeFinder';
@@ -1064,6 +1080,7 @@ import {
 } from '@/search/instantSnapshot';
 import { simulateRoute } from '@/search/simulateRoute';
 import { NAMES, SIMULATE_TITLE, simulateNote } from '@/lib/siteNav';
+import NoInstantAnswer from './NoInstantAnswer.vue';
 import { pricedWithLine } from '@/lib/pricedWith';
 import type { FirstLegsRequest } from '@/workers/routeFinder.protocol';
 import { createChainSearchPool, type ChainSearchPool, type EvaluateOptions } from '@/search/pool';
@@ -1125,6 +1142,8 @@ const emit = defineEmits<{
   /** Whether the answer is still being worked out, in, or settled with none (no instant answer for
    *  this TE, it failed, or it waits on a run), for By a date's Find (search/autoWiden.ts `awaitInstant`). */
   state: [state: InstantState];
+  /** Fastest, with no instant answer: open By a date for its quick estimate (NoInstantAnswer.vue). */
+  'by-date': [];
 }>();
 /** By a date: hand the panel this answer's route for each number of ascensions (the exact check's
  *  where it has one), so its chain boxes can be suggested around them. */
@@ -1165,8 +1184,10 @@ async function ownTableUrl(): Promise<string | null> {
 }
 
 const status = ref<'idle' | 'loading' | 'error' | 'done'>('idle');
-/** This site has no usable table: the panel is not shown at all. */
+/** This site has no usable table: only the no-instant-answer card is shown (NoInstantAnswer.vue). */
 const noTable = ref(false);
+/** The route starts below the table's lowest TE (`from`, the table header's): no instant answer for it. */
+const below = ref<{ from: number; te: number } | null>(null);
 const loadingText = ref('');
 const errorText = ref('');
 const result = ref<FoundRoutes | null>(null);
@@ -1871,6 +1892,7 @@ async function run(force = false, goAhead = false): Promise<void> {
   exactStatus.value = 'idle';
   status.value = 'loading';
   noTable.value = false;
+  below.value = null;
   backgroundStatus.value = 'idle';
   gains.value = [];
   bracket.value = null;
@@ -1937,6 +1959,7 @@ async function run(force = false, goAhead = false): Promise<void> {
     if (te < h.from) {
       result.value = null;
       status.value = 'error';
+      below.value = { from: h.from, te };
       errorText.value = `The instant answer starts at TE ${h.from} and your route starts at ${te}, so there is no instant answer yet. The searches below work as always.`;
       return;
     }
@@ -2045,8 +2068,8 @@ async function run(force = false, goAhead = false): Promise<void> {
     if (id !== runs) return;
     const message = err instanceof Error ? err.message : String(err);
     status.value = 'error';
-    // No usable table on this site (missing, a web page in its place, or cut short): the panel is
-    // hidden and every search works exactly as without it.
+    // No usable table on this site (missing, a web page in its place, or cut short): only the card
+    // saying so (NoInstantAnswer.vue), and every search works exactly as without it.
     noTable.value = /404|not a precomputed table|incomplete|precomputed table version/.test(message);
     errorText.value = noTable.value
       ? 'The instant answer isn’t on this site yet.'
@@ -3071,6 +3094,7 @@ function applySnapshot(s: InstantSnapshot): void {
   exactText.value = '';
   status.value = 'done';
   noTable.value = false;
+  below.value = null;
   // The last-checked line is for a recompute to compare against; this answer is that check.
   cached.value = null;
   savedAt.value = s.at;
