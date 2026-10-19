@@ -20,6 +20,13 @@
  *     needle warning around the answer. Every route priced once (a cache), so the cost is bounded:
  *     at most (n-1) x maxHours + 1 + passes x (n-1) x (maxHours + 1) + (n-1) x 2 x near routes.
  *
+ * WHEN A WAIT IS SUGGESTED (19 Oct 2026, aaap-tools/notes/delay.md): on the main's save with the
+ * player's hours, the best waits gained 44 min and waiting 3 h instead of 1 h after the first stop cost
+ * 92 h. So a wait is suggested only when it gains more than WAIT_MIN_GAIN_SECONDS and the worst loss
+ * within WAIT_RISK_HOURS either side stays under WAIT_RISK_RATIO times the gain (`waitVerdict`);
+ * otherwise the answer is "prestige as soon as you reach it". Waits priced at any hour (no hours set)
+ * gained 8.9 h there and lost it all once the shifts waited for the hours: callers warn.
+ *
  * Pure: no workers, no store. Times are seconds from the plan start (ChainResult.seconds), lower
  * better; a route that cannot be priced is never better than one that can.
  */
@@ -67,6 +74,8 @@ export interface SingleWait {
   gainSeconds: number;
   /** The worst nearby wait, or null when none within `near` hours loses. */
   needle: NeedleWarning | null;
+  /** The worst loss within WAIT_RISK_HOURS of the best wait (for `waitVerdict`). */
+  risk: NeedleWarning | null;
   /** The route's seconds for each wait 0..maxHours (null: unpriceable). */
   curve: (number | null)[];
 }
@@ -77,6 +86,8 @@ export interface CombinedWaits {
   gainSeconds: number;
   /** For each prestige with its wait moved alone by up to `near` hours, the worst loss (null: none loses). */
   needles: (NeedleWarning | null)[];
+  /** For each prestige, the worst loss within WAIT_RISK_HOURS of its wait (for `waitVerdict`). */
+  risks: (NeedleWarning | null)[];
   /** When each stop is reached under these waits (unix seconds), then the prestige at reached + wait. */
   reachedAt: (number | null)[];
   /** Passes the descent ran, and whether the last changed nothing (a local best for single moves). */
@@ -103,7 +114,8 @@ export function waitSearchBound(stops: number, o: WaitSearchOptions = {}): numbe
   const near = o.near ?? 3;
   const passes = o.passes ?? 2;
   const singles = n * max + 1;
-  return o.singlesOnly ? singles : singles + 1 + passes * n * (max + 1) + n * (2 * near + 1);
+  const win = Math.max(near, WAIT_RISK_HOURS);
+  return o.singlesOnly ? singles : singles + 1 + passes * n * (max + 1) + n * (2 * win + 1);
 }
 
 /** The legs a priced wait set re-simulates, roughly: every ascension after the first wait. For estimates. */
@@ -115,9 +127,23 @@ export function waitSearchLegs(stops: number, o: WaitSearchOptions = {}): number
   for (let p = 1; p <= n; p++) legs += max * (stops - p);
   if (o.singlesOnly) return legs;
   const passes = o.passes ?? 2;
-  const near = o.near ?? 3;
+  const near = Math.max(o.near ?? 3, WAIT_RISK_HOURS);
   for (let p = 1; p <= n; p++) legs += (passes * (max + 1) + 2 * near) * (stops - p);
   return legs + stops;
+}
+
+/** A wait must gain more than this to be suggested: half an hour. */
+export const WAIT_MIN_GAIN_SECONDS = 1800;
+/** How far either side of a suggested wait the risk check looks, hours. */
+export const WAIT_RISK_HOURS = 2;
+/** The worst loss within WAIT_RISK_HOURS must be under this many times the gain. */
+export const WAIT_RISK_RATIO = 3;
+
+/** Whether a wait is worth suggesting: `risk` is the worst loss within WAIT_RISK_HOURS of it. */
+export function waitVerdict(gainSeconds: number, risk: NeedleWarning | null): 'wait' | 'tooSmall' | 'tooRisky' {
+  if (!(gainSeconds > WAIT_MIN_GAIN_SECONDS)) return 'tooSmall';
+  if (risk && risk.lossSeconds >= WAIT_RISK_RATIO * gainSeconds) return 'tooRisky';
+  return 'wait';
 }
 
 const keyOf = (w: Waits) => w.join(',');
@@ -203,6 +229,7 @@ export async function searchWaits(chain: number[], price: WaitPricer, o: WaitSea
       bestHours,
       gainSeconds: Math.max(0, gain),
       needle: needleOf(curve, bestHours, near),
+      risk: needleOf(curve, bestHours, WAIT_RISK_HOURS),
       curve,
     });
   }
@@ -243,17 +270,21 @@ export async function searchWaits(chain: number[], price: WaitPricer, o: WaitSea
     }
   }
 
-  // 3. The needle warning around the answer: each wait moved alone by up to `near` hours.
+  // 3. The needle warning around the answer: each wait moved alone by up to `near` hours (and at
+  //    least WAIT_RISK_HOURS, for the risk check).
+  const win = Math.max(near, WAIT_RISK_HOURS);
   const around: Waits[] = [];
   for (let p = 0; p < n; p++)
-    for (let h = Math.max(0, cur[p] - near); h <= Math.min(max, cur[p] + near); h++) around.push(with1(cur, p, h));
+    for (let h = Math.max(0, cur[p] - win); h <= Math.min(max, cur[p] + win); h++) around.push(with1(cur, p, h));
   await run(around);
-  const needles = cur.map((w, p) => {
+  const curves = cur.map((w, p) => {
     const curve: (number | null)[] = [];
-    for (let h = 0; h <= Math.min(max, w + near); h++)
-      curve.push(Math.abs(h - w) <= near ? secondsOf(with1(cur, p, h)) : null);
-    return needleOf(curve, w, near);
+    for (let h = 0; h <= Math.min(max, w + win); h++)
+      curve.push(Math.abs(h - w) <= win ? secondsOf(with1(cur, p, h)) : null);
+    return curve;
   });
+  const needles = curves.map((c, p) => needleOf(c, cur[p], near));
+  const risks = curves.map((c, p) => needleOf(c, cur[p], WAIT_RISK_HOURS));
   const seconds = secondsOf(cur);
   const combined: CombinedWaits | null =
     seconds == null
@@ -263,6 +294,7 @@ export async function searchWaits(chain: number[], price: WaitPricer, o: WaitSea
           seconds,
           gainSeconds: Math.max(0, baseSeconds - seconds),
           needles,
+          risks,
           reachedAt: reachedTimes(cache.get(keyOf(cur)), chain.length),
           passes: ran,
           settled,
@@ -285,6 +317,17 @@ export function needleText(n: NeedleWarning | null, chosenHours: number, minLoss
   return `needle-sharp: ${which} (off by ${off} h) costs ${hoursText(n.lossSeconds)}`;
 }
 
+/** "2 h later costs 92 h" / "1 h sooner costs 18 h" (prestiging that much off the time shown). */
+export function slipText(n: NeedleWarning | null, chosenHours: number): string | null {
+  if (!n || n.lossSeconds <= 0) return null;
+  const off = n.hours - chosenHours;
+  return `${Math.abs(off)} h ${off > 0 ? 'later' : 'sooner'} costs ${hoursText(n.lossSeconds)}`;
+}
+
+/** Shown above the suggestions when they were priced without the player's hours. */
+export const ANY_HOUR_WARNING =
+  'These waits assume you can shift eggs at any hour. Set your hours in Setup first: with real hours, long waits usually lose.';
+
 /** What the "Try waiting before each prestige" panel says about each prestige, and about the waits together. */
 export interface WaitLines {
   singles: { stop: number; text: string; warn: string | null; wait: boolean }[];
@@ -292,16 +335,27 @@ export interface WaitLines {
   togetherWarns: string[];
 }
 
-/** The report in a player's words; `show` formats an instant (12-hour, the player's zone). */
+/** Why a wait that wins is still not suggested, or null when it is. */
+function holdBack(gainSeconds: number, risk: NeedleWarning | null, chosenHours: number): string | null {
+  const v = waitVerdict(gainSeconds, risk);
+  if (v === 'tooSmall') return `waiting ${chosenHours} h gains only ${hoursText(gainSeconds)}`;
+  if (v === 'tooRisky') return `waiting ${chosenHours} h gains ${hoursText(gainSeconds)}, but ${slipText(risk, chosenHours)}`;
+  return null;
+}
+
+/** The report in a player's words; `show` formats an instant (12-hour, the player's zone). A wait is
+ *  suggested only when `waitVerdict` says so; otherwise "prestige as soon as you reach it". */
 export function waitLines(r: WaitReport, show: (t: number) => string): WaitLines {
   const singles = r.singles.map(s => {
     const reached = s.reachedAt != null ? ` (reached ${show(s.reachedAt)})` : '';
-    if (!s.bestHours || s.gainSeconds <= 0)
-      return { stop: s.stop, text: `After ${s.stop}${reached}: prestige at once. No wait helps.`, warn: null, wait: false };
-    const at = s.reachedAt != null ? `, prestige ${show(s.reachedAt + s.bestHours * 3600)}` : '';
+    const atOnce = `After ${s.stop}${reached}: prestige as soon as you reach it.`;
+    if (!s.bestHours || s.gainSeconds <= 0) return { stop: s.stop, text: `${atOnce} No wait helps.`, warn: null, wait: false };
+    const why = holdBack(s.gainSeconds, s.risk, s.bestHours);
+    if (why) return { stop: s.stop, text: `${atOnce} (${capital(why)}.)`, warn: null, wait: false };
+    const at = s.reachedAt != null ? `prestige at ${show(s.reachedAt + s.bestHours * 3600)} (wait ${s.bestHours} h)` : `wait ${s.bestHours} h`;
     return {
       stop: s.stop,
-      text: `After ${s.stop}${reached}: wait ${s.bestHours} h${at}. Finishes ${hoursText(s.gainSeconds)} sooner.`,
+      text: `After ${s.stop}${reached}: ${at}. Finishes ${hoursText(s.gainSeconds)} sooner.`,
       warn: sharpText(s.needle, s.bestHours),
       wait: true,
     };
@@ -310,21 +364,37 @@ export function waitLines(r: WaitReport, show: (t: number) => string): WaitLines
   let together: string | null = null;
   const togetherWarns: string[] = [];
   if (c && c.gainSeconds > 0 && c.waits.some(w => w > 0)) {
-    const parts = c.waits
-      .map((w, i) => (w > 0 ? `${w} h after ${r.chain[i]}${c.reachedAt[i] != null ? ` (prestige ${show(c.reachedAt[i]! + w * 3600)})` : ''}` : null))
-      .filter((x): x is string => !!x);
-    together = `Together: wait ${parts.join(', ')}. Finishes ${hoursText(c.gainSeconds)} sooner than prestiging at once.`;
-    c.waits.forEach((w, i) => {
-      const t = w > 0 ? sharpText(c.needles[i], w) : null;
-      if (t) togetherWarns.push(`After ${r.chain[i]}: ${t}`);
-    });
-  } else if (c) together = 'Together: no set of waits beats prestiging at once.';
+    // Every wait in the set must pass, against the set's whole gain.
+    const why = c.waits.map((w, i) => (w > 0 ? holdBack(c.gainSeconds, c.risks[i], w) : null));
+    const firstWhy = why.findIndex(x => !!x);
+    if (firstWhy >= 0) {
+      together = `Together: prestige as soon as you reach each stop. (The best waits together gain ${hoursText(c.gainSeconds)}${
+        waitVerdict(c.gainSeconds, null) === 'tooSmall' ? '' : `, but after ${r.chain[firstWhy]}, ${slipText(c.risks[firstWhy], c.waits[firstWhy])}`
+      }.)`;
+    } else {
+      const parts = c.waits
+        .map((w, i) =>
+          w > 0
+            ? c.reachedAt[i] != null
+              ? `after ${r.chain[i]}, prestige at ${show(c.reachedAt[i]! + w * 3600)} (wait ${w} h)`
+              : `wait ${w} h after ${r.chain[i]}`
+            : null
+        )
+        .filter((x): x is string => !!x);
+      together = `Together: ${parts.join('; ')}. Finishes ${hoursText(c.gainSeconds)} sooner than prestiging at once.`;
+      c.waits.forEach((w, i) => {
+        const t = w > 0 ? sharpText(c.needles[i], w) : null;
+        if (t) togetherWarns.push(`After ${r.chain[i]}: ${t}`);
+      });
+    }
+  } else if (c) together = 'Together: no set of waits beats prestiging as soon as you reach each stop.';
   return { singles, together, togetherWarns };
 }
 
-/** "Needle-sharp: waiting 7 h instead (2 h more) finishes 40 h later." Null below an hour. */
+const capital = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+
+/** "Needle-sharp: 2 h later costs 92 h." Null below an hour. */
 function sharpText(n: NeedleWarning | null, chosen: number): string | null {
   if (!n || n.lossSeconds < 3600) return null;
-  const off = n.hours - chosen;
-  return `Needle-sharp: waiting ${n.hours} h instead (${Math.abs(off)} h ${off > 0 ? 'more' : 'less'}) finishes ${hoursText(n.lossSeconds)} later.`;
+  return `Needle-sharp: ${slipText(n, chosen)}.`;
 }

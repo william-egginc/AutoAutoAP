@@ -104,23 +104,84 @@ describe('try waiting before each prestige', () => {
   });
 });
 
+describe('when a wait is suggested', () => {
+  it('needs a gain over half an hour and a 2 h slip costing under three times it', async () => {
+    const { waitVerdict } = await import('./delays');
+    expect(waitVerdict(0.5 * H, null)).toBe('tooSmall');
+    expect(waitVerdict(0.6 * H, null)).toBe('wait');
+    expect(waitVerdict(2 * H, { hours: 3, lossSeconds: 5.9 * H })).toBe('wait');
+    expect(waitVerdict(2 * H, { hours: 3, lossSeconds: 6 * H })).toBe('tooRisky');
+    // The main's save on his hours (19 Oct): 1 h after 197 gained 44 min, 3 h cost 92 h.
+    expect(waitVerdict(44 * 60, { hours: 3, lossSeconds: 92 * H })).toBe('tooRisky');
+  });
+
+  it('looks 2 h either side, whatever the needle window', async () => {
+    const { price } = pricer();
+    const r = await searchWaits(CHAIN, price, { maxHours: 12, near: 0 });
+    // 6 h is 1 h past the best 5 h: the risk still sees it with no needle window.
+    expect(r.singles[0].needle).toBeNull();
+    expect(r.singles[0].risk).toEqual({ hours: 6, lossSeconds: 23 * H });
+    expect(r.combined!.risks[0]!.hours).toBe(6);
+  });
+});
+
 describe('the panel’s words', () => {
-  it('says each prestige’s wait, the waits together and how sharp they are', async () => {
+  const show = (t: number) => `T${t - 1_800_000_000}`;
+
+  it('says prestige as soon as you reach it when the best wait is too sharp', async () => {
     const { waitLines } = await import('./delays');
     const { price } = pricer();
     const r = await searchWaits(CHAIN, price, { maxHours: 12 });
-    const show = (t: number) => `T${t - 1_800_000_000}`;
     const lines = waitLines(r, show);
     expect(lines.singles[0]).toEqual({
       stop: 197,
-      text: 'After 197 (reached T86400): wait 5 h, prestige T104400. Finishes 3 h sooner.',
-      warn: 'Needle-sharp: waiting 6 h instead (1 h more) finishes 23 h later.',
+      text: 'After 197 (reached T86400): prestige as soon as you reach it. (Waiting 5 h gains 3 h, but 1 h later costs 23 h.)',
+      warn: null,
+      wait: false,
+    });
+    expect(lines.singles[1].text).toBe('After 222 (reached T172800): prestige as soon as you reach it. No wait helps.');
+    expect(lines.together).toBe(
+      'Together: prestige as soon as you reach each stop. (The best waits together gain 5 h, but after 197, 1 h later costs 25.8 h.)'
+    );
+    expect(lines.togetherWarns).toEqual([]);
+  });
+
+  it('gives a wait that passes as a clock time, with the slip warning', async () => {
+    const { waitLines } = await import('./delays');
+    const reachedAt = 1_800_000_000 + 86_400;
+    const r = {
+      chain: [197, 313],
+      baseSeconds: 1000 * H,
+      singles: [
+        {
+          prestige: 1, stop: 197, reachedAt, bestHours: 2, gainSeconds: 2 * H,
+          needle: { hours: 4, lossSeconds: 5 * H }, risk: { hours: 4, lossSeconds: 5 * H }, curve: [],
+        },
+      ],
+      combined: {
+        waits: [2], seconds: 998 * H, gainSeconds: 2 * H,
+        needles: [{ hours: 4, lossSeconds: 5 * H }], risks: [{ hours: 4, lossSeconds: 5 * H }],
+        reachedAt: [reachedAt, null], passes: 1, settled: true,
+      },
+      priced: 0, bound: 0, stopped: false,
+    };
+    const lines = waitLines(r, show);
+    expect(lines.singles[0]).toEqual({
+      stop: 197,
+      text: 'After 197 (reached T86400): prestige at T93600 (wait 2 h). Finishes 2 h sooner.',
+      warn: 'Needle-sharp: 2 h later costs 5 h.',
       wait: true,
     });
-    expect(lines.singles[1].text).toBe('After 222 (reached T172800): prestige at once. No wait helps.');
-    expect(lines.together).toBe(
-      'Together: wait 5 h after 197 (prestige T104400), 4 h after 222 (prestige T187200). Finishes 5 h sooner than prestiging at once.'
-    );
-    expect(lines.togetherWarns[0]).toBe('After 197: Needle-sharp: waiting 6 h instead (1 h more) finishes 25.8 h later.');
+    expect(lines.together).toBe('Together: after 197, prestige at T93600 (wait 2 h). Finishes 2 h sooner than prestiging at once.');
+    expect(lines.togetherWarns).toEqual(['After 197: Needle-sharp: 2 h later costs 5 h.']);
+  });
+
+  it('says a gain under half an hour is too small', async () => {
+    const { waitLines } = await import('./delays');
+    const r = {
+      chain: [197, 313], baseSeconds: 1000 * H, combined: null, priced: 0, bound: 0, stopped: false,
+      singles: [{ prestige: 1, stop: 197, reachedAt: null, bestHours: 1, gainSeconds: 20 * 60, needle: null, risk: null, curve: [] }],
+    };
+    expect(waitLines(r, show).singles[0].text).toBe('After 197: prestige as soon as you reach it. (Waiting 1 h gains only 20 min.)');
   });
 });

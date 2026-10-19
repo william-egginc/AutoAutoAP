@@ -104,7 +104,7 @@ import { countUnavailable, describeAvailability, isConstrained, nextAvailable,
          type Availability } from '@/search/availability';
 import { meetsAll, usableMilestones, type LegArrival, type Milestone } from '@/search/milestones';
 import { createChainEvaluator, type HandoffChoice } from '@/search/chain';
-import { searchWaits, waitSearchBound, waitSearchLegs, needleText, hoursText, type Waits, type WaitReport } from '@/search/delays';
+import { ANY_HOUR_WARNING, searchWaits, waitSearchBound, waitSearchLegs, hoursText, slipText, waitVerdict, type Waits, type WaitReport } from '@/search/delays';
 import { CONTINUE_MAX_SECONDS, CONTINUE_PIN_MAX_SECONDS, CONTINUE_WARN_SECONDS, LAST_DATEABLE_SECONDS, buildUpVariantForCheck, integrityWaitSeconds } from '@/search/leg';
 import { firstAscensionFromFlags, type FirstAscension } from '@/search/firstAscension';
 import { INTEGRITY_BLOCK_SECONDS, INTEGRITY_WARN_SECONDS, describeDuration, integrityMessage, longContinueMessage } from '@/search/rules';
@@ -498,8 +498,12 @@ THE SITE'S SEARCHES  (Auto Planner > Fastest route and Highest TE by a date)
   --try-delays              Price ONE route (--stages "197;222;247;285" --final 313, one value per
                             stop) with a wait of 1-24 h before each prestige, the farm laying
                             meanwhile, then the waits together (coordinate descent). Prints each
-                            prestige's best wait, its gain, and how sharp it is ("off by 2 h costs
-                            40 h"). With --egg-day or --by-date it also shows the spare at the date.
+                            prestige's best wait, its gain, and how sharp it is ("2 h later costs
+                            40 h"). A wait is suggested only when it gains over 0.5 h and the worst
+                            loss within 2 h of it is under 3x the gain; else "prestige as soon as you
+                            reach it". Give your hours (--sleep-from/--sleep-until): waits priced at
+                            any hour usually lose once the shifts wait for them, and it warns.
+                            With --egg-day or --by-date it also shows the spare at the date.
   --delay-max H             Longest wait tried (default 24).   --delay-near H  needle window (default 3)
   --delay-passes N          Descent passes for the waits together (default 2).  --singles-only: skip them
   --handoff now|hour        Prestige at once (default, as the searches) or on the next whole hour
@@ -1511,21 +1515,29 @@ async function runTryDelays(
     pool?.close();
   }
   process.stdout.write('\n');
-  printWaitReport(report, { tz: o.tz, planStart: o.planStart, deadline, near: opts.near });
+  const onHours = isConstrained(inputs.availability) && !!inputs.deferShifts;
+  printWaitReport(report, { tz: o.tz, planStart: o.planStart, deadline, near: opts.near, onHours });
   console.log(`  ${report.priced} routes priced in ${((Date.now() - o.t0) / 60000).toFixed(1)} min`);
 }
 
 /** The report as text: the route at once, each prestige's best wait, then the waits together. */
 function printWaitReport(
   r: WaitReport,
-  o: { tz: string; planStart: number; deadline: number | null; near: number }
+  o: { tz: string; planStart: number; deadline: number | null; near: number; onHours: boolean }
 ): void {
   const when = (t: number | null) =>
     t == null
       ? '?'
-      : new Date(t * 1000).toLocaleString('en-US', {
-          timeZone: o.tz, weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
-        });
+      : new Date(t * 1000)
+          .toLocaleString('en-US', {
+            timeZone: o.tz, weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
+          })
+          .replace(/\b(AM|PM)\b/, m => m.toLowerCase());
+  // Suggested only when the gain is over half an hour and being 2 h off costs under three times it (waitVerdict).
+  const verdictText = (gain: number, risk: Parameters<typeof waitVerdict>[1], w: number) => {
+    const v = waitVerdict(gain, risk);
+    return v === 'wait' ? null : v === 'tooSmall' ? `gains only ${hoursText(gain)}` : `gains ${hoursText(gain)}, but ${slipText(risk, w)}`;
+  };
   const ends = (sec: number) =>
     `ends ${when(o.planStart + sec)}` +
     (o.deadline != null ? `, ${hoursText(Math.abs(o.deadline - o.planStart - sec))} ${o.deadline - o.planStart - sec >= 0 ? 'spare' : 'LATE'}` : '');
@@ -1533,17 +1545,23 @@ function printWaitReport(
     console.log('  the route could not be priced as it is');
     return;
   }
+  if (!o.onHours) console.log(`  WARNING: ${ANY_HOUR_WARNING} (Give --sleep-from/--sleep-until.)`);
   console.log(`  at once: ${ends(r.baseSeconds)}`);
   console.log('  one prestige at a time:');
   for (const s of r.singles) {
     const head = `    after ${s.stop} (reached ${when(s.reachedAt)}): `;
     if (s.bestHours === 0 || s.gainSeconds <= 0) {
-      console.log(head + 'prestige at once (no wait up to the limit helps)');
+      console.log(head + 'prestige as soon as you reach it (no wait up to the limit helps)');
       continue;
     }
-    const at = s.reachedAt != null ? ` (prestige ${when(s.reachedAt + s.bestHours * 3600)})` : '';
-    const sharp = needleText(s.needle, s.bestHours);
-    console.log(head + `wait ${s.bestHours} h${at}: ${hoursText(s.gainSeconds)} sooner` + (sharp ? `; ${sharp}` : ''));
+    const no = verdictText(s.gainSeconds, s.risk, s.bestHours);
+    if (no) {
+      console.log(head + `prestige as soon as you reach it (waiting ${s.bestHours} h ${no})`);
+      continue;
+    }
+    const at = s.reachedAt != null ? `prestige at ${when(s.reachedAt + s.bestHours * 3600)} (wait ${s.bestHours} h)` : `wait ${s.bestHours} h`;
+    const slip = slipText(s.needle, s.bestHours);
+    console.log(head + `${at}: ${hoursText(s.gainSeconds)} sooner` + (slip ? `; ${slip}` : ''));
   }
   // The whole curve per prestige, hours sooner (+) or later (-) than at once, for anyone checking.
   console.log('  each wait, hours sooner (+) or later (-) than prestiging at once:');
@@ -1553,17 +1571,24 @@ function printWaitReport(
   }
   const c = r.combined;
   if (!c) return;
+  const nos = c.waits.map((w, i) => (w > 0 ? verdictText(c.gainSeconds, c.risks[i], w) : null));
+  const firstNo = nos.findIndex(x => !!x);
   console.log(
     `  together: waits ${c.waits.map((w, i) => `${w} h after ${r.chain[i]}`).join(', ')}: ${ends(c.seconds)}, ` +
       `${hoursText(c.gainSeconds)} sooner than at once` +
       (c.settled ? '' : ` (descent stopped after ${c.passes} passes; more might find more)`)
   );
-  c.waits.forEach((w, i) => {
-    if (!w) return;
-    const at = c.reachedAt[i] != null ? `reach ${r.chain[i]} ${when(c.reachedAt[i])}, prestige ${when(c.reachedAt[i]! + w * 3600)}` : '';
-    const sharp = needleText(c.needles[i], w);
-    console.log(`    ${at}${sharp ? `; ${sharp}` : ''}`);
-  });
+  if (firstNo >= 0) {
+    console.log(`    suggestion: prestige as soon as you reach each stop (after ${r.chain[firstNo]}, waiting ${c.waits[firstNo]} h ${nos[firstNo]})`);
+  } else if (c.waits.some(w => w > 0)) {
+    console.log('    suggestion:');
+    c.waits.forEach((w, i) => {
+      if (!w) return;
+      const at = c.reachedAt[i] != null ? `reach ${r.chain[i]} ${when(c.reachedAt[i])}, prestige at ${when(c.reachedAt[i]! + w * 3600)} (wait ${w} h)` : `wait ${w} h after ${r.chain[i]}`;
+      const slip = slipText(c.needles[i], w);
+      console.log(`    ${at}${slip ? `; ${slip}` : ''}`);
+    });
+  }
   if (r.stopped) console.log('  (stopped early)');
 }
 

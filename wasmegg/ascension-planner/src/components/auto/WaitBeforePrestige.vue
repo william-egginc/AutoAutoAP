@@ -27,6 +27,7 @@
     </p>
     <p v-if="status === 'error'" class="mt-1 text-slate-500">Couldn’t price the waits this time.</p>
     <div v-if="lines" class="mt-1 space-y-0.5" data-testid="wait-result">
+      <p v-if="!pricedOnHours" class="mb-1 font-bold text-amber-700" data-testid="wait-any-hour">{{ ANY_HOUR_WARNING }}</p>
       <p v-if="report && report.baseSeconds !== null" class="text-slate-500">
         Prestiging at once{{ deadline ? ', with ' + spareText(report.baseSeconds) + ' to spare' : '' }}, as Check exactly prices it.
       </p>
@@ -40,7 +41,8 @@
       <p class="pt-1 text-[10px] text-slate-400">
         While you wait, the farm keeps laying the egg it ended on, and those eggs carry into your next ascension. Stops
         stay whole TE: prestiging before one always costs more than it saves. A wait an hour or two off can lose far more
-        than it gains, so prestige at the time shown.
+        than it gains, so a wait is suggested only when it gains more than half an hour and being 2 h off costs less
+        than three times the gain; otherwise prestige as soon as you reach the stop.
       </p>
     </div>
   </div>
@@ -50,7 +52,8 @@
 import { computed, onUnmounted, ref, watch } from 'vue';
 import { showDateTime } from '@/lib/displayTime';
 import { createChainSearchPool, type ChainSearchPool } from '@/search/pool';
-import { searchWaits, waitLines, waitSearchLegs, hoursText, type WaitReport, type Waits } from '@/search/delays';
+import { ANY_HOUR_WARNING, searchWaits, waitLines, waitSearchLegs, hoursText, type WaitReport, type Waits } from '@/search/delays';
+import { isConstrained } from '@/search/availabilitySchedule';
 import { useChainSearchStore } from '@/stores/chainSearch';
 
 const props = defineProps<{
@@ -77,9 +80,20 @@ let runs = 0;
 let planStart = 0;
 
 const legs = computed(() => waitSearchLegs(props.chain.length));
-const lines = computed(() =>
-  report.value ? waitLines(report.value, t => showDateTime(t, props.zone)) : null
-);
+const lines = computed(() => (report.value ? waitLines(report.value, prestigeTime) : null));
+/** "Thu Oct 29, 2026, 10:34 PM": the weekday, then the date as the player reads dates. */
+function prestigeTime(t: number): string {
+  let day = '';
+  try {
+    day = new Intl.DateTimeFormat(undefined, { timeZone: props.zone, weekday: 'short' }).format(new Date(t * 1000)) + ' ';
+  } catch {
+    // An unknown zone: the date alone.
+  }
+  return day + showDateTime(t, props.zone);
+}
+/** Whether the last run was priced with the player's hours, the shifts waiting for them (Setup). Without
+ *  them, waits that win at any hour usually lose once the shifts wait (aaap-tools/notes/delay.md). */
+const pricedOnHours = ref(false);
 function spareText(seconds: number): string {
   const spare = (props.deadline ?? 0) - (planStart + seconds);
   return spare >= 0 ? hoursText(spare) : `${hoursText(-spare)} short`;
@@ -97,6 +111,7 @@ async function start(): Promise<void> {
   try {
     const inputs = store.collectInputs();
     planStart = inputs.planStart;
+    pricedOnHours.value = isConstrained(inputs.availability) && !!inputs.deferShifts;
     p = await createChainSearchPool(inputs, { size: Math.max(1, store.workerBudget) });
     if (id !== runs) return;
     pool = p;

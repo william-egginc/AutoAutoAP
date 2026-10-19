@@ -26,6 +26,12 @@ describe('WaitBeforePrestige', () => {
     expect(src).toContain("{ handoff: 'hour' }");
     expect(src).toContain('shouldStop: () => stopAsked.value');
   });
+
+  it('warns above the suggestions when they were priced without the player’s hours', () => {
+    const src = read('./WaitBeforePrestige.vue');
+    expect(src).toContain('pricedOnHours.value = isConstrained(inputs.availability) && !!inputs.deferShifts');
+    expect(src).toMatch(/<p v-if="!pricedOnHours"[^>]*data-testid="wait-any-hour">\{\{ ANY_HOUR_WARNING \}\}<\/p>/);
+  });
 });
 
 describe('InstantRoute', () => {
