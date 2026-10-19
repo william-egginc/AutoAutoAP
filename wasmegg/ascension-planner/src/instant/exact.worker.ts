@@ -3,7 +3,7 @@
  * page's thread, a minute or more. One check per worker; the page ends it (terminate) to cancel, and
  * makes a new one for the next check, so a cancelled run leaves nothing behind.
  */
-import { runExactCheck, type ExactInputs, type ExactProgress, type ExactResult } from './exactCheck';
+import { describeError, runExactCheck, type ExactInputs, type ExactProgress, type ExactResult } from './exactCheck';
 
 export type ExactWorkerRequest = { kind: 'check'; id: number; inputs: ExactInputs };
 export type ExactWorkerResponse =
@@ -20,6 +20,7 @@ ctx.onmessage = async (event: MessageEvent<ExactWorkerRequest>) => {
     const result = await runExactCheck(m.inputs, progress => ctx.postMessage({ kind: 'progress', id: m.id, progress }));
     ctx.postMessage({ kind: 'done', id: m.id, result } satisfies ExactWorkerResponse);
   } catch (err) {
-    ctx.postMessage({ kind: 'error', id: m.id, message: err instanceof Error ? err.message : String(err) } satisfies ExactWorkerResponse);
+    console.error('Check exactly (worker):', err);
+    ctx.postMessage({ kind: 'error', id: m.id, message: describeError(err) } satisfies ExactWorkerResponse);
   }
 };

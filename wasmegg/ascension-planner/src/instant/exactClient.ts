@@ -5,7 +5,15 @@
  * worker. The instant answer's own worker (instantClient.ts) is separate and keeps answering.
  */
 import { reactive, ref } from 'vue';
-import { nextCheckState, type CheckState, type ExactInputs, type ExactResult } from './exactCheck';
+import {
+  MESSAGE_ERROR_TEXT,
+  describeError,
+  nextCheckState,
+  workerErrorText,
+  type CheckState,
+  type ExactInputs,
+  type ExactResult,
+} from './exactCheck';
 import type { ExactWorkerRequest, ExactWorkerResponse } from './exact.worker';
 
 const states = reactive(new Map<string, CheckState>());
@@ -58,7 +66,8 @@ export function startCheck(key: string, inputs: () => ExactInputs): Promise<Exac
   try {
     inp = inputs();
   } catch (err) {
-    states.set(key, { kind: 'error', message: err instanceof Error ? err.message : String(err) });
+    console.error('Check exactly: reading the inputs failed', err);
+    states.set(key, { kind: 'error', message: describeError(err) });
     return Promise.resolve(null);
   }
   const id = ++lastId;
@@ -67,29 +76,46 @@ export function startCheck(key: string, inputs: () => ExactInputs): Promise<Exac
   set(key, { kind: 'start', atMs: nowMs.value });
   tick = setInterval(() => (nowMs.value = Date.now()), 1000);
   return new Promise(resolve => {
-    const w = new Worker(new URL('./exact.worker.ts', import.meta.url), { type: 'module' });
+    /** End this check with an error said on the page (full error to the console). */
+    const fail = (message: string, full: unknown) => {
+      console.error(`Check exactly: ${message}`, full);
+      finish();
+      set(key, { kind: 'error', message });
+      resolve(null);
+    };
+    let w: Worker;
+    try {
+      w = new Worker(new URL('./exact.worker.ts', import.meta.url), { type: 'module' });
+    } catch (err) {
+      return fail(`the simulator couldn’t be started: ${describeError(err)}`, err);
+    }
     worker = w;
     w.onmessage = (e: MessageEvent<ExactWorkerResponse>) => {
       const r = e.data;
       if (r.id !== id || worker !== w) return;
       if (r.kind === 'progress') return set(key, { kind: 'progress', progress: r.progress });
-      finish();
       if (r.kind === 'done') {
+        finish();
         set(key, { kind: 'done', result: r.result, atMs: Date.now() });
         resolve(r.result);
-      } else {
-        set(key, { kind: 'error', message: r.message });
-        resolve(null);
-      }
+      } else fail(r.message, r);
     };
     w.onerror = e => {
       if (worker !== w) return;
-      finish();
-      set(key, { kind: 'error', message: e.message || 'the simulator stopped' });
-      resolve(null);
+      e.preventDefault?.();
+      fail(workerErrorText(e), e);
+    };
+    w.onmessageerror = e => {
+      if (worker !== w) return;
+      fail(MESSAGE_ERROR_TEXT, e);
     };
     cancels.set(key, () => resolve(null));
-    w.postMessage({ kind: 'check', id, inputs: inp } satisfies ExactWorkerRequest);
+    try {
+      w.postMessage({ kind: 'check', id, inputs: inp } satisfies ExactWorkerRequest);
+    } catch (err) {
+      // A DataCloneError: something in the inputs can't be copied to the worker.
+      fail(describeError(err), err);
+    }
   });
 }
 

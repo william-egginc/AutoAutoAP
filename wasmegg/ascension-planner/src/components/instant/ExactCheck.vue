@@ -119,6 +119,7 @@ import {
   exactFinish,
   futureShifts,
   runningText,
+  startMismatch,
   type ExactResult,
 } from '@/instant/exactCheck';
 import { cancelCheck, checkResult, checkState, nowMs, runningKey, startCheck } from '@/instant/exactClient';
@@ -188,7 +189,14 @@ function check(forCalendar: boolean): void {
   if (forCalendar) calendarWanted.value = true;
   const done = props.onDone;
   const route = { chain: [...props.route.chain], a1: props.route.a1, start: props.route.start };
-  const run = startCheck(props.checkKey, () => exactInputsFromStores(route));
+  const answerTE = props.startTE;
+  const run = startCheck(props.checkKey, () => {
+    const inp = exactInputsFromStores(route);
+    // The check must start from the TE the instant answer used for this row, or nothing is exact.
+    const mismatch = startMismatch(inp.backupBase.te, answerTE);
+    if (mismatch) throw new Error(mismatch);
+    return inp;
+  });
   if (run) void run.then(r => r && done?.(r));
 }
 </script>

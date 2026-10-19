@@ -240,10 +240,67 @@ export function runningText(s: Extract<CheckState, { kind: 'running' }>, nowMs: 
   return `${elapsedText(nowMs - s.startedMs)} so far${where}`;
 }
 
+/**
+ * The check must start where the instant answer started: its starting TE (backupBase.te: the TE
+ * claimed plus the pending TE, once) equal to the TE the answer used for the row (the save's eggs
+ * delivered, instantAnswer.ts saveStart). Otherwise the "exact" times would be for another save, so
+ * the check stops before running with this message (nothing is shown or saved as exact).
+ */
+export function startMismatch(checkTE: number, answerTE: number | undefined): string | null {
+  if (answerTE === undefined || !Number.isFinite(answerTE)) return null;
+  if (Math.abs(checkTE - answerTE) <= 0.01) return null;
+  const n = (x: number) => String(Math.round(x * 100) / 100);
+  return `The check starts from TE ${n(checkTE)} but the instant answer used TE ${n(answerTE)}: nothing was shown as exact.`;
+}
+
 /** The line shown on an error. */
 export function errorText(message: string): string {
+  // A message that is already a whole sentence about the check (startMismatch) is said as it is.
+  if (/^The check /.test(message)) return message;
   return `The check couldn’t finish: ${message}`;
 }
+
+/** Longest error said on the page (the full error goes to the console). */
+export const ERROR_MAX = 300;
+
+function cut(s: string): string {
+  const one = s.replace(/\s+/g, ' ').trim();
+  return one.length > ERROR_MAX ? `${one.slice(0, ERROR_MAX - 1)}…` : one;
+}
+
+/**
+ * Any thrown thing as the words after "couldn't finish:": its name and message ("DataCloneError:
+ * Failed to execute 'postMessage' …"), never a stock phrase. A DataCloneError says so in plain words.
+ */
+export function describeError(err: unknown): string {
+  if (err instanceof Error || (err && typeof err === 'object' && 'message' in err)) {
+    const e = err as { name?: unknown; message?: unknown };
+    const name = typeof e.name === 'string' && e.name ? e.name : 'Error';
+    const msg = typeof e.message === 'string' ? e.message : String(e.message ?? '');
+    const why = name === 'DataCloneError' ? ' (the route couldn’t be copied to the simulator)' : '';
+    // Our own plain errors (thrown with `new Error('…')`) read as they are; others keep their name.
+    return cut(name === 'Error' && msg ? msg : `${name}: ${msg || '(no message)'}${why}`);
+  }
+  if (err === undefined || err === null || err === '') return 'an unknown error (nothing was thrown with it)';
+  return cut(String(err));
+}
+
+/**
+ * A worker 'error' event (the worker's script failed to load or threw outside the check) as words:
+ * the message and where (file:line:column). The event can come with no message at all (a script
+ * that would not load: a 404 page or the wrong type served for it): then it says that.
+ */
+export function workerErrorText(e: { message?: string; filename?: string; lineno?: number; colno?: number; error?: unknown }): string {
+  const where = e.filename ? ` (${e.filename.replace(/^[a-z]+:\/\/[^/]+/i, '')}${e.lineno ? `:${e.lineno}` : ''}${e.colno ? `:${e.colno}` : ''})` : '';
+  if (e.error !== undefined && e.error !== null) return cut(`the simulator stopped: ${describeError(e.error)}${where}`);
+  if (e.message) return cut(`the simulator stopped: ${e.message}${where}`);
+  return cut(
+    `the simulator didn’t start: its script failed to load or run${where || ' (no file or line was given)'}; reloading the page usually fixes this`
+  );
+}
+
+/** The worker's reply couldn't be read (a 'messageerror' event). */
+export const MESSAGE_ERROR_TEXT = 'the simulator’s answer couldn’t be read back (messageerror: it could not be copied to the page)';
 
 /* ---------- Merging the exact times into the row and the saved entry ---------- */
 

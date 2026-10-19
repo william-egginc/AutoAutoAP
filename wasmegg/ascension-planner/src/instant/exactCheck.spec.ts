@@ -54,7 +54,10 @@ vi.mock('@/auto/shifts/c3', () => ({
 vi.mock('@/engine/compute', () => ({ computeSnapshot: () => ({ elr: 5 }) }));
 
 const {
+  ERROR_MAX,
+  MESSAGE_ERROR_TEXT,
   checkKey,
+  describeError,
   diffText,
   elapsedText,
   errorText,
@@ -67,6 +70,7 @@ const {
   runningText,
   shiftTimes,
   withExact,
+  workerErrorText,
 } = await import('./exactCheck');
 type ExactInputs = import('./exactCheck').ExactInputs;
 type ExactResult = import('./exactCheck').ExactResult;
@@ -262,6 +266,49 @@ describe('exact times into the row and the saved entry', () => {
 
   it('kept in memory per save, goal, route and first build', () => {
     expect(checkKey({ saveTime: 5, goal: 'Egg Day 2027', chain: [160, 200], a1: 'continue' })).toBe('5|Egg Day 2027|160 200|continue');
+  });
+});
+
+describe('an error says its real cause (never a stock phrase)', () => {
+  it('a thrown error: our own plain message as it is; other errors with their name', () => {
+    expect(describeError(new Error('ascension 1 already reaches 223 TE, past the next stop (197)'))).toBe(
+      'ascension 1 already reaches 223 TE, past the next stop (197)'
+    );
+    expect(describeError(new TypeError('x is not a function'))).toBe('TypeError: x is not a function');
+    expect(describeError(new RangeError(''))).toBe('RangeError: (no message)');
+    expect(describeError('plain words')).toBe('plain words');
+    expect(describeError(undefined)).toMatch(/unknown error/);
+  });
+  it('a DataCloneError (a DOMException-like object) says so in plain words', () => {
+    const e = { name: 'DataCloneError', message: "Failed to execute 'postMessage' on 'Worker': #<Object> could not be cloned." };
+    expect(describeError(e)).toBe(
+      "DataCloneError: Failed to execute 'postMessage' on 'Worker': #<Object> could not be cloned. (the route couldn’t be copied to the simulator)"
+    );
+  });
+  it('a worker error event: message and where; with no message, that the script failed to load', () => {
+    expect(
+      workerErrorText({ message: 'Uncaught ReferenceError: window is not defined', filename: 'https://x.test/ascension-planner/assets/exact.worker-abc.js', lineno: 3, colno: 17 })
+    ).toBe('the simulator stopped: Uncaught ReferenceError: window is not defined (/ascension-planner/assets/exact.worker-abc.js:3:17)');
+    expect(workerErrorText({ error: new SyntaxError("Unexpected token '<'") })).toBe("the simulator stopped: SyntaxError: Unexpected token '<'");
+    expect(workerErrorText({ message: '', filename: '' })).toMatch(/^the simulator didn’t start: its script failed to load or run \(no file or line was given\)/);
+    expect(MESSAGE_ERROR_TEXT).toMatch(/messageerror/);
+  });
+  it('long errors are cut to about 300 characters, on one line', () => {
+    const t = describeError(new Error('a\nb ' + 'x'.repeat(1000)));
+    expect(t.length).toBe(ERROR_MAX);
+    expect(t.startsWith('a b ')).toBe(true);
+    expect(t.endsWith('…')).toBe(true);
+  });
+  it('the client: every way a check can fail ends with the real cause and logs the full error', () => {
+    const src = readFileSync(join(__dirname, 'exactClient.ts'), 'utf8');
+    expect(src).not.toMatch(/the simulator stopped'/);
+    expect(src).toMatch(/w\.onerror = e => \{[\s\S]*?workerErrorText\(e\)/);
+    expect(src).toMatch(/w\.onmessageerror = /);
+    expect(src).toMatch(/try \{\s*w\.postMessage\(/);
+    expect(src).toMatch(/try \{\s*w = new Worker\(/);
+    expect(src).toMatch(/console\.error\(/);
+    const worker = readFileSync(join(__dirname, 'exact.worker.ts'), 'utf8');
+    expect(worker).toMatch(/message: describeError\(err\)/);
   });
 });
 
