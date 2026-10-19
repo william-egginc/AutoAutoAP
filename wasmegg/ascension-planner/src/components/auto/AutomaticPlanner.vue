@@ -235,7 +235,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick } from 'vue';
+import { ref, computed, watch, nextTick, onMounted } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useAutoPlannerStore, type VariantKey } from '@/stores/autoPlanner';
 import { useVirtueStore } from '@/stores/virtue';
@@ -252,6 +252,7 @@ import SimulationErrorAlert from './SimulationErrorAlert.vue';
 import AscensionOverview from './AscensionOverview.vue';
 import ForcedAscensionPreview from './ForcedAscensionPreview.vue';
 import ValidationDialog from './ValidationDialog.vue';
+import { runPendingSimulate } from '@/instant/simulatePlan';
 
 const autoPlannerStore = useAutoPlannerStore();
 const virtueStore = useVirtueStore();
@@ -346,7 +347,11 @@ const {
   saveSingleAscensionToLibrary,
   handleSetPlanVariant,
   handleSetEndTimeOverride,
+  generate,
 } = useAscensionGenerator();
+
+// My runs' "Simulate this plan" (instant/simulatePlan.ts): run the route it put in the form.
+onMounted(() => runPendingSimulate(autoPlannerStore, generate));
 
 // The main Generate/Update Plan button (and Enter in the Target TE field) always starts fresh —
 // see `regeneratePlan`'s own doc comment for why it clears both override maps rather than trying to
