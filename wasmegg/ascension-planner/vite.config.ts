@@ -395,7 +395,7 @@ function appendVary(res: ServerResponse, field: string): void {
  * what the bundle itself did not emit is put back), and
  * anything older than KEEP_DAYS is dropped so dist/ does not grow forever.
  */
-function keepOldAssets(): Plugin {
+function keepOldAssets(stashName = '.aap-old-assets'): Plugin {
   let assetsPath = '';
   let assetsDir = '';
   let stash = '';
@@ -407,7 +407,7 @@ function keepOldAssets(): Plugin {
     configResolved(config) {
       assetsPath = path.resolve(config.root, config.build.outDir, config.build.assetsDir);
       assetsDir = config.build.assetsDir;
-      stash = path.resolve(config.root, 'node_modules/.aap-old-assets');
+      stash = path.resolve(config.root, 'node_modules', stashName);
     },
     async buildStart() {
       await rm(stash, { recursive: true, force: true });
@@ -481,6 +481,46 @@ function collectorEarlyStart(submitUrl: string | undefined): Plugin {
   };
 }
 
+/**
+ * THE JOO SITE (`VITE_SITE=joo`, src/joo/siteOptions.ts): the same index.html, its entry script swapped
+ * for src/main-joo.ts (AppJoo.vue, and the read-only fetch), one page only, built to dist-joo.
+ *
+ * Its `precompute/` is emptied after the copy from public/: the live site's tables are stamped with
+ * another simulator version (search/simVersion.ts), and the instant answer would still use them with
+ * only a note. With none, it shows its no-table card until the Joo site's own table is put there. The
+ * dev server refuses them for the same reason.
+ */
+const JOO_ENTRY = '/src/main-joo.ts';
+
+function jooSite(): Plugin {
+  let precompute = '';
+  return {
+    name: 'aap-joo-site',
+    transformIndexHtml(html) {
+      if (!html.includes('src="/src/main.ts"')) throw new Error('[aap-joo-site] index.html no longer loads /src/main.ts');
+      return html.replace('src="/src/main.ts"', `src="${JOO_ENTRY}"`);
+    },
+    configResolved(config) {
+      precompute = path.resolve(config.root, config.build.outDir, 'precompute');
+    },
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        if (/\/precompute\//.test((req.url ?? '').split('?')[0])) {
+          res.statusCode = 404;
+          res.end('No instant answer table on the Joo site yet.');
+          return;
+        }
+        next();
+      });
+    },
+    async closeBundle() {
+      if (!precompute) return;
+      await rm(precompute, { recursive: true, force: true });
+      await mkdir(precompute, { recursive: true });
+    },
+  };
+}
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   // vite.config.ts is evaluated before vite loads .env files, so `process.env` here holds only
@@ -489,6 +529,8 @@ export default defineConfig(({ mode }) => {
   // inlined into the bundle) and `vite preview` (the hostnames below). A real shell variable
   // still wins, so a one-off `VITE_PREVIEW_HOSTS=... pnpm serve` keeps working.
   const env = { ...loadEnv(mode, process.cwd(), 'VITE_'), ...process.env };
+  // The Joo site (jooSite above): unset, the full site builds exactly as before.
+  const joo = env.VITE_SITE === 'joo';
 
   return {
     // Where the built pages will be SERVED from, which is not always where they are built.
@@ -527,28 +569,34 @@ export default defineConfig(({ mode }) => {
       noChunkCycles(),
       warnIfReleaseStale(),
       // Also writes the brotli copies and checks the files (one closeBundle, in order).
-      keepOldAssets(),
+      keepOldAssets(joo ? '.aap-old-assets-joo' : undefined),
       // Before immutableAssets, which answers brotli requests itself.
       securityHeaders(env),
       immutableAssets(),
       watcherIsolation(),
       collectorEarlyStart(env.VITE_SUBMIT_URL),
+      ...(joo ? [jooSite()] : []),
     ],
     define: { __BUILD_TIME__: JSON.stringify(BUILD_TIME) },
     build: {
       chunkSizeWarningLimit: 2000,
+      // The Joo site: dist-joo unless --outDir says otherwise (the CLI wins over this).
+      ...(joo ? { outDir: 'dist-joo' } : {}),
       // TWO PAGES, ONE BUILD. `explorer.html` is the Chain Explorer: a static reader of the
       // collector's public endpoints that needs no save, no player id and no Pinia, so it is a
       // separate document rather than a route inside the planner. Listing it here is what makes
       // `dist/explorer.html` exist; vite's default single-entry build would simply ignore the file
       // and the page would 404 in production while working perfectly in dev.
+      // The Joo site has the planner page only (jooSite above).
       rollupOptions: {
-        input: {
-          index: fileURLToPath(new URL('./index.html', import.meta.url)),
-          explorer: fileURLToPath(new URL('./explorer.html', import.meta.url)),
-          // The run watcher ("Stepping away?"): a few KB, no Vue, never the simulator (src/watch/main.ts).
-          watch: fileURLToPath(new URL('./watch.html', import.meta.url)),
-        },
+        input: joo
+          ? ({ index: fileURLToPath(new URL('./index.html', import.meta.url)) } as Record<string, string>)
+          : {
+              index: fileURLToPath(new URL('./index.html', import.meta.url)),
+              explorer: fileURLToPath(new URL('./explorer.html', import.meta.url)),
+              // The run watcher ("Stepping away?"): a few KB, no Vue, never the simulator (src/watch/main.ts).
+              watch: fileURLToPath(new URL('./watch.html', import.meta.url)),
+            },
       },
     },
 

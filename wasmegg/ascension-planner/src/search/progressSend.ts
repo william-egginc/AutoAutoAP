@@ -10,6 +10,7 @@
  * the whole text at once, and the words for what went.
  */
 import { fetchFailureWhy } from './uploadWhy';
+import { isJooSite, JOO_READ_ONLY } from '@/joo/siteOptions';
 import { thisDevice } from '@/search/device';
 
 /** The collector's cap on one upload of a gzipped CSV (collector/worker.js, MAX.CSV_BYTES). */
@@ -249,6 +250,8 @@ export async function uploadCsv(
   body: ArrayBuffer,
   opts: UploadCsvOptions = {}
 ): Promise<CsvUpload> {
+  // The Joo site only reads (joo/siteOptions.ts): nothing is uploaded.
+  if (isJooSite()) return { kind: 'failed', why: JOO_READ_ONLY };
   const doFetch = opts.fetch ?? ((...a: Parameters<typeof fetch>) => fetch(...a));
   const retryMs = opts.retryMs ?? PART_RETRY_MS;
   const parts = csvParts(body, opts.partBytes ?? CSV_PART_BYTES);

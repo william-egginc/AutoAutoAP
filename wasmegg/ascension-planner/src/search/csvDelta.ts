@@ -27,6 +27,7 @@
 import { Deflate, constants as zc } from 'pako';
 import { breathe } from './progressSend';
 import { fetchFailureWhy } from './uploadWhy';
+import { isJooSite, JOO_READ_ONLY } from '@/joo/siteOptions';
 
 export { BLOCKED_WHY, fetchFailureWhy } from './uploadWhy';
 export { hashKey } from './routeHash';
@@ -159,6 +160,8 @@ export async function uploadDelta(
   a: { run: string; seq: number; token: string; seg: { body: Uint8Array; crc: number; len: number }; count: number },
   doFetch: typeof fetch = (...x) => fetch(...x)
 ): Promise<DeltaUpload> {
+  // The Joo site only reads (joo/siteOptions.ts): nothing is uploaded.
+  if (isJooSite()) return { kind: 'failed', why: JOO_READ_ONLY };
   const url = `${base}/csvd?run=${a.run}&seq=${a.seq}&len=${a.seg.len}&crc=${a.seg.crc}&count=${a.count}`;
   // The last try's reason, for the run timeline and the page's note.
   let last: { why: string; status?: number } = { why: 'the connection dropped' };
@@ -196,6 +199,7 @@ export async function uploadDeltaHead(
   a: { id: string; run: string; deltas: number; token: string; deltaToken: string; seg: { body: Uint8Array; crc: number; len: number } },
   doFetch: typeof fetch = (...x) => fetch(...x)
 ): Promise<{ kind: 'stored' } | { kind: 'failed'; why: string; status?: number; missing?: number[] }> {
+  if (isJooSite()) return { kind: 'failed', why: JOO_READ_ONLY };
   const url = `${base}/csv?id=${encodeURIComponent(a.id)}&run=${a.run}&deltas=${a.deltas}&len=${a.seg.len}&crc=${a.seg.crc}`;
   // The last try's reason, for the run timeline and the page's note.
   let last: { why: string; status?: number } = { why: 'the connection dropped' };

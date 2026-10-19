@@ -10,3 +10,8 @@ declare module '*.vue' {
 /** When this bundle was built (vite.config.ts); compared with release.ts to decide whether an open
  *  tab has to reload. */
 declare const __BUILD_TIME__: string;
+
+interface ImportMetaEnv {
+  /** 'joo' in the Joo site's build (src/joo/siteOptions.ts `isJooSite`); unset for the full site. */
+  readonly VITE_SITE?: string;
+}
