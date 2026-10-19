@@ -100,6 +100,20 @@ ctx.onmessage = (event: MessageEvent<WorkerRequest>) => {
         break;
       }
 
+      case 'delays': {
+        if (!loaded || !evaluator) throw new Error('chainSearch worker received delays before init');
+        const results: (ChainResult | null)[] = [];
+        const total = msg.delays.length;
+        for (let i = 0; i < total; i++) {
+          results.push(
+            evaluator.evaluate(msg.chain, { delays: msg.delays[i], ...(msg.handoff ? { handoff: msg.handoff } : {}) })
+          );
+          post({ type: 'progress', requestId: msg.requestId, done: i + 1, total, heapMB: heap(), ...memoFields() });
+        }
+        post({ type: 'delays', requestId: msg.requestId, results, heapMB: heap(), ...memoFields() });
+        break;
+      }
+
       case 'integrity': {
         if (!loaded) throw new Error('chainSearch worker received integrity before init');
         // LOW-TE GATE (temporary until Joo's PR 717 merges): the low-TE opening rides along.

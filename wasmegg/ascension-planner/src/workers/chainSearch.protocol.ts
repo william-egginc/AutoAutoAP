@@ -84,13 +84,27 @@ export interface StartsRequest {
   fresh: boolean;
 }
 
+/**
+ * One route priced with several sets of planned waits before its prestiges (search/delays.ts, "Try
+ * waiting before each prestige"): `delays[k][i]` seconds after stop i, for set k. On the worker's own
+ * evaluator, so what comes before each set's first wait is shared through the memo.
+ */
+export interface DelaysRequest {
+  kind: 'delays';
+  requestId: number;
+  chain: number[];
+  delays: number[][];
+  handoff?: import('@/search/chain').HandoffChoice;
+}
+
 export type WorkerRequest =
   | InitRequest
   | EvaluateRequest
   | IntegrityRequest
   | BuildUpTailsRequest
   | LiveFreshRequest
-  | StartsRequest;
+  | StartsRequest
+  | DelaysRequest;
 
 export interface InitDoneMessage extends WithHeap {
   type: 'init-done';
@@ -154,6 +168,13 @@ export interface LiveFreshResultMessage {
   builds: import('@/search/precomputedLeg').BuildParams[];
 }
 
+export interface DelaysResultMessage extends WithHeap {
+  type: 'delays';
+  requestId: number;
+  /** The route priced with each set of waits, in the order sent; null where it could not be. */
+  results: (import('@/search/types').ChainResult | null)[];
+}
+
 export interface StartsResultMessage extends WithHeap {
   type: 'starts';
   requestId: number;
@@ -179,6 +200,7 @@ export interface WithHeap {
 
 export type WorkerResponse =
   | StartsResultMessage
+  | DelaysResultMessage
   | InitDoneMessage
   | ProgressMessage
   | EvaluateResultMessage

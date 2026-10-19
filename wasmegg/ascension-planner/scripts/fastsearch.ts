@@ -103,7 +103,8 @@ import { getThresholdForTE } from '@/lib/truthEggs';
 import { countUnavailable, describeAvailability, isConstrained, nextAvailable,
          type Availability } from '@/search/availability';
 import { meetsAll, usableMilestones, type LegArrival, type Milestone } from '@/search/milestones';
-import { createChainEvaluator } from '@/search/chain';
+import { createChainEvaluator, type HandoffChoice } from '@/search/chain';
+import { searchWaits, waitSearchBound, waitSearchLegs, needleText, hoursText, type Waits, type WaitReport } from '@/search/delays';
 import { CONTINUE_MAX_SECONDS, CONTINUE_PIN_MAX_SECONDS, CONTINUE_WARN_SECONDS, LAST_DATEABLE_SECONDS, buildUpVariantForCheck, integrityWaitSeconds } from '@/search/leg';
 import { firstAscensionFromFlags, type FirstAscension } from '@/search/firstAscension';
 import { INTEGRITY_BLOCK_SECONDS, INTEGRITY_WARN_SECONDS, describeDuration, integrityMessage, longContinueMessage } from '@/search/rules';
@@ -492,6 +493,17 @@ THE SITE'S SEARCHES  (Auto Planner > Fastest route and Highest TE by a date)
   --by-date "YYYY-MM-DD HH:MM"
                             Highest TE by a date, in --timezone.
   --egg-day [YEAR]          The same, by Egg Day: 14 July, 9:00 AM Pacific, the next one by default.
+
+  Try waiting before each prestige (src/search/delays.ts)
+  --try-delays              Price ONE route (--stages "197;222;247;285" --final 313, one value per
+                            stop) with a wait of 1-24 h before each prestige, the farm laying
+                            meanwhile, then the waits together (coordinate descent). Prints each
+                            prestige's best wait, its gain, and how sharp it is ("off by 2 h costs
+                            40 h"). With --egg-day or --by-date it also shows the spare at the date.
+  --delay-max H             Longest wait tried (default 24).   --delay-near H  needle window (default 3)
+  --delay-passes N          Descent passes for the waits together (default 2).  --singles-only: skip them
+  --handoff now|hour        Prestige at once (default, as the searches) or on the next whole hour
+                            (as the instant answer's Check exactly).
 
   Smart search
   --seed "195 219 248"      Starting route; the final target is added for you.
@@ -1147,6 +1159,7 @@ function planInputs(o: {
  */
 async function makeWorkerPool(jobs: number): Promise<{
   evaluate: EvaluateBatch;
+  evaluateDelays: (chain: number[], sets: number[][], handoff?: HandoffChoice) => Promise<(ChainResult | null)[]>;
   legSims: () => number;
   close: () => void;
 }> {
@@ -1216,7 +1229,35 @@ async function makeWorkerPool(jobs: number): Promise<{
     return { results, legSims, workersUsed: buckets.filter(b => b.length).length };
   };
 
-  return { evaluate, legSims: () => legSimTotal, close: () => kids.forEach(c => c.kill()) };
+  // --try-delays: one route, many sets of waits, dealt round-robin (each child's memo keeps what comes
+  // before the waits); results in the order given.
+  const evaluateDelays = async (chain: number[], sets: number[][], handoff?: HandoffChoice) => {
+    const groups: number[][][] = Array.from({ length: jobs }, () => []);
+    const where: [number, number][] = [];
+    sets.forEach((d, i) => {
+      groups[i % jobs].push(d);
+      where.push([i % jobs, groups[i % jobs].length - 1]);
+    });
+    const replies = await Promise.all(
+      groups.map((g, i) =>
+        new Promise<(ChainResult | null)[]>((res, rej) => {
+          if (!g.length) return res([]);
+          const c = kids[i];
+          const onMessage = (m: any) => {
+            c.off('message', onMessage);
+            if (m?.error) return rej(new Error('worker ' + i + ': ' + m.error));
+            legSimTotal += m.legSims as number;
+            res(m.results as (ChainResult | null)[]);
+          };
+          c.on('message', onMessage);
+          c.send({ chain, delays: g, ...(handoff && handoff !== 'now' ? { handoff } : {}) });
+        })
+      )
+    );
+    return where.map(([w, k]) => replies[w][k] ?? null);
+  };
+
+  return { evaluate, evaluateDelays, legSims: () => legSimTotal, close: () => kids.forEach(c => c.kill()) };
 }
 
 /** `--worker`: load the player once, then price whatever arrives over IPC. Never returns. */
@@ -1225,6 +1266,16 @@ async function runWorker(inputs: SearchInputs): Promise<void> {
   let last = 0;
   process.on('message', (m: any) => {
     try {
+      // --try-delays: one route with each set of waits, results kept in order (nulls included).
+      if (Array.isArray(m.delays)) {
+        const results = (m.delays as number[][]).map(d =>
+          evaluator.evaluate(m.chain as number[], { delays: d, ...(m.handoff ? { handoff: m.handoff } : {}) })
+        );
+        const legSims = evaluator.legSims - last;
+        last = evaluator.legSims;
+        process.send!({ results, legSims });
+        return;
+      }
       const results: ChainResult[] = [];
       for (const chain of m.chains as number[][]) {
         const r = evaluator.evaluate(chain);
@@ -1395,6 +1446,127 @@ async function runExhaustive(
  * Web Worker pool, progress goes to stdout instead of a progress bar, and the answer is printed
  * and optionally written rather than rendered.
  */
+/**
+ * `--try-delays`: ONE route (--stages, one value per stop, plus --final) with a wait of 1..24 h before
+ * each prestige, the old farm laying meanwhile (search/chain.ts `delays`), then the waits together
+ * (search/delays.ts). Stops stay whole TE: stopping short of one always lost (aaap-tools/
+ * partial-te-2026-10.md). Prints each prestige's best wait, its gain, and how sharp it is.
+ */
+async function runTryDelays(
+  inputs: SearchInputs,
+  o: { jobs: number; tz: string; planStart: number; final: number; t0: number }
+): Promise<void> {
+  const stages = arg('stages');
+  if (!stages) throw new Error('--try-delays prices one route: give it --stages "197;222;247;285" --final 313');
+  const stops = stages.split(';').map(g => parseGroup(g));
+  if (stops.some(g => g.length !== 1)) throw new Error('--try-delays: one value per stop in --stages (it prices one route)');
+  const chain = [...stops.map(g => g[0]), o.final];
+  for (let i = 1; i < chain.length; i++) {
+    if (!(chain[i] > chain[i - 1])) throw new Error('--try-delays: each stop must be above the one before');
+  }
+  const handoffArg = arg('handoff') ?? 'now';
+  if (handoffArg !== 'now' && handoffArg !== 'hour') throw new Error('--handoff must be now or hour');
+  const handoff = handoffArg as HandoffChoice;
+  const deadline = has('egg-day')
+    ? eggDayDeadline()
+    : has('by-date')
+      ? (() => {
+          const m = /^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})$/.exec((arg('by-date') ?? '').trim());
+          if (!m) throw new Error('--by-date must look like "2027-03-01 18:00" (in --timezone), or use --egg-day');
+          return getLocalTimestampInTimezone(m[1], m[2], o.tz);
+        })()
+      : null;
+  const opts = {
+    maxHours: has('delay-max') ? Math.max(1, Math.floor(+arg('delay-max')!)) : 24,
+    near: has('delay-near') ? Math.max(0, Math.floor(+arg('delay-near')!)) : 3,
+    passes: has('delay-passes') ? Math.max(0, Math.floor(+arg('delay-passes')!)) : 2,
+    singlesOnly: has('singles-only'),
+  };
+  const bound = waitSearchBound(chain.length, opts);
+  const legs = waitSearchLegs(chain.length, opts);
+  const jobs = Math.max(1, o.jobs);
+  console.log(
+    `try waiting before each prestige: ${chain.join(' ')} (${handoff === 'hour' ? 'prestige on the next whole hour' : 'prestige at once'}), ` +
+      `waits 1-${opts.maxHours} h${opts.singlesOnly ? ', one at a time' : `, then together (up to ${opts.passes} passes)`}.`
+  );
+  console.log(
+    `  at most ${bound} routes, about ${legs} ascensions simulated; at ~10-15 s an ascension on ${jobs} worker${jobs === 1 ? '' : 's'}: ` +
+      `~${Math.max(1, Math.round((legs * 12) / jobs / 60))} min`
+  );
+
+  const pool = jobs > 1 ? await makeWorkerPool(jobs) : null;
+  const inline = pool ? null : createChainEvaluator(inputs);
+  const price = async (sets: Waits[]) => {
+    const secs = sets.map(w => w.map(h => h * 3600));
+    if (pool) return pool.evaluateDelays(chain, secs, handoff);
+    return secs.map(d => inline!.evaluate(chain, { delays: d, handoff }));
+  };
+  let report: WaitReport;
+  try {
+    report = await searchWaits(chain, price, {
+      ...opts,
+      onProgress: (done, most) => process.stdout.write(`\r  priced ${done} routes (at most ${most})   `),
+    });
+  } finally {
+    pool?.close();
+  }
+  process.stdout.write('\n');
+  printWaitReport(report, { tz: o.tz, planStart: o.planStart, deadline, near: opts.near });
+  console.log(`  ${report.priced} routes priced in ${((Date.now() - o.t0) / 60000).toFixed(1)} min`);
+}
+
+/** The report as text: the route at once, each prestige's best wait, then the waits together. */
+function printWaitReport(
+  r: WaitReport,
+  o: { tz: string; planStart: number; deadline: number | null; near: number }
+): void {
+  const when = (t: number | null) =>
+    t == null
+      ? '?'
+      : new Date(t * 1000).toLocaleString('en-US', {
+          timeZone: o.tz, weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
+        });
+  const ends = (sec: number) =>
+    `ends ${when(o.planStart + sec)}` +
+    (o.deadline != null ? `, ${hoursText(Math.abs(o.deadline - o.planStart - sec))} ${o.deadline - o.planStart - sec >= 0 ? 'spare' : 'LATE'}` : '');
+  if (r.baseSeconds == null) {
+    console.log('  the route could not be priced as it is');
+    return;
+  }
+  console.log(`  at once: ${ends(r.baseSeconds)}`);
+  console.log('  one prestige at a time:');
+  for (const s of r.singles) {
+    const head = `    after ${s.stop} (reached ${when(s.reachedAt)}): `;
+    if (s.bestHours === 0 || s.gainSeconds <= 0) {
+      console.log(head + 'prestige at once (no wait up to the limit helps)');
+      continue;
+    }
+    const at = s.reachedAt != null ? ` (prestige ${when(s.reachedAt + s.bestHours * 3600)})` : '';
+    const sharp = needleText(s.needle, s.bestHours);
+    console.log(head + `wait ${s.bestHours} h${at}: ${hoursText(s.gainSeconds)} sooner` + (sharp ? `; ${sharp}` : ''));
+  }
+  // The whole curve per prestige, hours sooner (+) or later (-) than at once, for anyone checking.
+  console.log('  each wait, hours sooner (+) or later (-) than prestiging at once:');
+  for (const s of r.singles) {
+    const cells = s.curve.map((v, h) => `${h}:${v == null ? '-' : ((r.baseSeconds! - v) / 3600).toFixed(1)}`);
+    console.log(`    after ${s.stop}: ${cells.join(' ')}`);
+  }
+  const c = r.combined;
+  if (!c) return;
+  console.log(
+    `  together: waits ${c.waits.map((w, i) => `${w} h after ${r.chain[i]}`).join(', ')}: ${ends(c.seconds)}, ` +
+      `${hoursText(c.gainSeconds)} sooner than at once` +
+      (c.settled ? '' : ` (descent stopped after ${c.passes} passes; more might find more)`)
+  );
+  c.waits.forEach((w, i) => {
+    if (!w) return;
+    const at = c.reachedAt[i] != null ? `reach ${r.chain[i]} ${when(c.reachedAt[i])}, prestige ${when(c.reachedAt[i]! + w * 3600)}` : '';
+    const sharp = needleText(c.needles[i], w);
+    console.log(`    ${at}${sharp ? `; ${sharp}` : ''}`);
+  });
+  if (r.stopped) console.log('  (stopped early)');
+}
+
 async function runPlanSearch(
   inputs: SearchInputs,
   o: {
@@ -1693,6 +1865,8 @@ function effortTier(): EffortTier {
  * on this script's own evaluator, which is what the what-ifs and diagnostics need.
  */
 function isSiteMode(): boolean {
+  // --try-delays prices one route on this script's own evaluator, whatever date it is read against.
+  if (has('try-delays')) return false;
   if (has('bands') || has('suggest') || has('preset') || has('by-date') || has('egg-day')) return true;
   return has('effort') && !has('direct');
 }
@@ -2125,7 +2299,7 @@ async function main() {
   if (siteMode && has('jobs') && jobs > availableParallelism()) {
     Object.defineProperty(globalThis.navigator, 'hardwareConcurrency', { value: jobs, configurable: true });
   }
-  const planMode = has('effort') || has('exhaustive') || siteMode;
+  const planMode = has('effort') || has('exhaustive') || siteMode || has('try-delays');
   checkSiteFlags(siteMode);
   let pinned: ReturnType<typeof readRunRecord> = null;
   let outRecord: (() => void) | undefined;
@@ -2379,6 +2553,8 @@ async function main() {
         '. Pass --allow-stall to run it anyway.');
     }
   }
+
+  if (has('try-delays')) return runTryDelays(inputs, { jobs, tz, planStart, final, t0 });
 
   if (siteMode) {
     process.exitCode = await runSiteSearch(

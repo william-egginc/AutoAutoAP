@@ -151,6 +151,10 @@ export interface LegSummary {
   /** Seconds the prestige at the end of this leg waited for the player to become available. 0 when
    *  no schedule is set, or when the leg already ended inside it. */
   sleepDelaySeconds?: number;
+  /** A wait before the prestige that was planned rather than forced by the player's hours (search/chain.ts
+   *  `EvaluateChainOptions.delays`, search/delays.ts), seconds; the farm keeps laying through it. Absent
+   *  when none. The prestige is at `endTime + plannedWaitSeconds + sleepDelaySeconds`. */
+  plannedWaitSeconds?: number;
   /** Total seconds this leg's SHIFTS were held back waiting for the availability window, when
    *  `deferShifts` is on. Zero otherwise. Separate from `sleepDelaySeconds` (the prestige wait)
    *  because they are different costs: one is you not being there to tap prestige, the other is

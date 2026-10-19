@@ -255,6 +255,17 @@ export interface ChainSearchPool {
     onDone?: (done: number, total: number) => void
   ): Promise<(number | null)[]>;
   /**
+   * One route priced with each set of planned waits before its prestiges (seconds after each stop;
+   * search/delays.ts), shared out across the workers. Resolves with each result in the order given
+   * (null where it failed). Optional: test pools leave it out.
+   */
+  evaluateDelays?(
+    chain: number[],
+    delays: number[][],
+    opts?: { handoff?: import('./chain').HandoffChoice },
+    onDone?: (done: number, total: number) => void
+  ): Promise<(ChainResult | null)[]>;
+  /**
    * Change the worker ceiling while a run is going. Held to [1, logical cores] like `size`, and
    * returns the size it settled on.
    *
@@ -785,6 +796,51 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
               g.length
             )) as { seconds: (number | null)[] };
             return reply.seconds;
+          } finally {
+            progressHooks.delete(requestId);
+          }
+        })
+      );
+      return where.map(([w, k]) => replies[w][k] ?? null);
+    },
+
+    async evaluateDelays(chain, delays, opts = {}, onDone) {
+      if (!delays.length) return [];
+      const n = Math.max(1, Math.min(size, delays.length));
+      // Dealt round-robin: each worker simulates what comes before the waits once (its memo), then
+      // only the ascensions after each set's first wait.
+      const groups: number[][][] = Array.from({ length: n }, () => []);
+      const where: [number, number][] = [];
+      delays.forEach((d, i) => {
+        groups[i % n].push([...d]);
+        where.push([i % n, groups[i % n].length - 1]);
+      });
+      const done = new Map<number, number>();
+      const replies = await Promise.all(
+        groups.map(async (g, w) => {
+          const pw = await workerAt(w);
+          const requestId = ++nextRequestId;
+          progressHooks.set(requestId, (d: number) => {
+            done.set(w, d);
+            onDone?.(
+              [...done.values()].reduce((a, b) => a + b, 0),
+              delays.length
+            );
+          });
+          try {
+            const reply = (await send(
+              pw,
+              {
+                kind: 'delays',
+                requestId,
+                chain: [...chain],
+                delays: g,
+                ...(opts.handoff && opts.handoff !== 'now' ? { handoff: opts.handoff } : {}),
+              },
+              `worker ${w} (waits before prestiges)`,
+              g.length
+            )) as { results: (ChainResult | null)[] };
+            return reply.results;
           } finally {
             progressHooks.delete(requestId);
           }

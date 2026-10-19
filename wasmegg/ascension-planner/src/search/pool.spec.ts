@@ -83,6 +83,19 @@ class FakeWorker {
       this.emit({ type: 'starts', requestId: msg.requestId, seconds: msg.starts.map(s => 1000 + (s % 97)) });
       return;
     }
+    if (msg.kind === 'delays') {
+      // A stand-in that depends on the waits and the handoff, so a set answered out of order shows.
+      this.emit({
+        type: 'delays',
+        requestId: msg.requestId,
+        results: msg.delays.map(d => ({
+          chain: msg.chain,
+          seconds: 1000 + d.reduce((a, b) => a + b, 0) + (msg.handoff === 'hour' ? 0.5 : 0),
+          legs: [],
+        })),
+      });
+      return;
+    }
     for (let i = 0; i < msg.chains.length; i++) {
       this.emit({
         type: 'progress',
@@ -497,6 +510,17 @@ describe('evaluateStarts', () => {
     const out = await pool.evaluateStarts([150, 490], starts, { fresh: true }, done => ticks.push(done));
     expect(out).toEqual(starts.map(s => 1000 + (s % 97)));
     expect(Math.max(...ticks)).toBe(starts.length);
+    pool.terminate();
+  });
+});
+
+describe('evaluateDelays', () => {
+  it('shares the sets of waits across the workers and answers them in the order given', async () => {
+    const pool = await createChainSearchPool({} as never, { size: 3, spawn: () => new FakeWorker() as never });
+    const sets = [[0, 0], [3600, 0], [7200, 0], [0, 3600], [0, 7200]];
+    const out = await pool.evaluateDelays!([197, 222, 313], sets, { handoff: 'hour' });
+    expect(out.map(r => r?.seconds)).toEqual([1000.5, 4600.5, 8200.5, 4600.5, 8200.5]);
+    expect(await pool.evaluateDelays!([197, 313], [])).toEqual([]);
     pool.terminate();
   });
 });

@@ -65,10 +65,24 @@ export interface MemoSettings {
  */
 export type HandoffChoice = 'now' | 'hour' | 'sooner';
 
+/** How `evaluate` prices a chain beyond its stops. */
+export interface EvaluateChainOptions {
+  handoff?: HandoffChoice;
+  keepLast?: boolean;
+  /**
+   * A planned wait before each prestige, seconds (search/delays.ts, "Try waiting before each
+   * prestige"): entry i is how long the player waits after reaching stop i before prestiging into
+   * the next ascension. The farm keeps laying meanwhile, credited as for the player's hours below
+   * (the same model as the simulator laying on: aaap-tools/partial-te-2026-10.md). The player's
+   * hours then apply from the end of the wait. Absent, or all zero, prices exactly as before.
+   */
+  delays?: number[];
+}
+
 export interface ChainEvaluator {
   /** Simulate `chain` (last entry must be the final target). Null when some leg was unevaluable.
    *  `keepLast` overrides the memo setting of the same name for this chain. */
-  evaluate(chain: number[], opts?: { handoff?: HandoffChoice; keepLast?: boolean }): ChainResult | null;
+  evaluate(chain: number[], opts?: EvaluateChainOptions): ChainResult | null;
   /** Change how the memo is kept from now on. A smaller capacity drops the least recently used at
    *  once; nothing else is lost. */
   setMemo(settings: MemoSettings): void;
@@ -215,13 +229,21 @@ export function createChainEvaluator(inputs: SearchInputs, memoSettings: MemoSet
       if (settings.keepLast !== undefined) keepLastDefault = settings.keepLast;
     },
 
-    evaluate(chain: number[], opts?: { handoff?: HandoffChoice; keepLast?: boolean }): ChainResult | null {
+    evaluate(chain: number[], opts?: EvaluateChainOptions): ChainResult | null {
       let state: EngineState | null = null;
       let time = inputs.planStart;
       let te = inputs.currentTE;
       const legs: ChainResult['legs'] = [];
       const handoff = opts?.handoff ?? 'now';
       const keepLast = opts?.keepLast ?? keepLastDefault;
+      // Planned waits before each prestige (whole seconds, never negative); none on the last stop.
+      const delays = (opts?.delays ?? []).map(d => (Number.isFinite(d) && d > 0 ? Math.round(d) : 0));
+      const delayAt = (i: number) => (i < chain.length - 1 ? delays[i] ?? 0 : 0);
+      // The waits before step i's start are part of what it is priced from, so of its memo key.
+      const waitsKey = (i: number) => {
+        const before = delays.slice(0, i);
+        return before.some(d => d > 0) ? `|d${before.join(',')}` : '';
+      };
       // The next whole hour, still inside the player's hours.
       const onTheHour = (t: number) => {
         const h = Math.ceil(t / 3600) * 3600;
@@ -236,7 +258,7 @@ export function createChainEvaluator(inputs: SearchInputs, memoSettings: MemoSet
 
       for (let i = 0; i < chain.length; i++) {
         // 'now' keeps the plain prefix as its key, so it shares the memo exactly as before.
-        const key = (handoff === 'now' ? '' : `${handoff}|`) + chain.slice(0, i + 1).join(',');
+        const key = (handoff === 'now' ? '' : `${handoff}|`) + chain.slice(0, i + 1).join(',') + waitsKey(i);
         let segs = memo.get(key);
         // Least recently USED goes first, not least recently added: a By a date run comes back to a
         // set's early legs round after round while every route's own last leg is used once, and with
@@ -318,7 +340,10 @@ export function createChainEvaluator(inputs: SearchInputs, memoSettings: MemoSet
 
           const rawEnd = leg.summary.endTime;
           const isFinalLeg = i === chain.length - 1 && s === segs.length - 1;
-          const handoff = schedule && !isFinalLeg && !stopped ? nextAvailable(rawEnd, schedule) : rawEnd;
+          // A planned wait (opts.delays) only after the step's last segment, and never after time off.
+          const wait = s === segs.length - 1 && !stopped && !isFinalLeg ? delayAt(i) : 0;
+          const handoff =
+            schedule && !isFinalLeg && !stopped ? nextAvailable(rawEnd + wait, schedule) : rawEnd + wait;
 
           legs.push({
             key: leg.key,
@@ -341,7 +366,8 @@ export function createChainEvaluator(inputs: SearchInputs, memoSettings: MemoSet
               schedule
             ),
             shifts,
-            sleepDelaySeconds: handoff - rawEnd,
+            sleepDelaySeconds: handoff - rawEnd - wait,
+            ...(wait > 0 ? { plannedWaitSeconds: wait } : {}),
             shiftDelaySeconds: shiftDelay,
             ...(leg.timeOff ? { timeOff: leg.timeOff } : {}),
             ...(leg.afterTimeOff ? { afterTimeOff: true as const } : {}),

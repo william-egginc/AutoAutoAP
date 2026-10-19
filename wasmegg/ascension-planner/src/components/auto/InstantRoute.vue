@@ -487,6 +487,14 @@
               data-testid="simulate-note"
               >{{ simulateCaveat(dateBoxOf(result.byDate).chain, dateBoxCount(result.byDate)) }}</span
             >
+            <!-- Waiting before each prestige (search/delays.ts): on request, on the route Check exactly found. -->
+            <WaitBeforePrestige
+              v-if="exactStatus === 'done' && dateExact"
+              :chain="dateExact.chain"
+              :zone="zone"
+              :deadline="deadline"
+              :disabled="runBusy"
+            />
             <InstantShareCheck
               v-if="instantUrl"
               v-model:share-this="shareThis"
@@ -762,6 +770,13 @@
             data-testid="simulate-note"
             >{{ simulateCaveat(boxLead.chain) }}</span
           >
+          <!-- Waiting before each prestige (search/delays.ts): on request, on the route shown. -->
+          <WaitBeforePrestige
+            v-if="exactStatus === 'done' && exactOf(boxLead)"
+            :chain="boxLead.chain"
+            :zone="zone"
+            :disabled="runBusy"
+          />
           <InstantShareCheck
             v-if="instantUrl"
             v-model:share-this="shareThis"
@@ -1035,6 +1050,7 @@ import StrongerCheck from './StrongerCheck.vue';
 import { holdsRoutes, instantIntegrity, lowTeOpeningNote } from '@/search/instantIntegrity';
 import { cutRoute, type FindContext } from '@/search/strongerCheck';
 import FollowButton from '../FollowButton.vue';
+import WaitBeforePrestige from './WaitBeforePrestige.vue';
 import { screenGoalKey } from '@/lib/follow';
 import { rowAtOnce, rowLine, type AtOnceItem } from '@/search/lightAtOnce';
 import { isConstrained } from '@/search/availability';
