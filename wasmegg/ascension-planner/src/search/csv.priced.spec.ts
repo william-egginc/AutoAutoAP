@@ -71,7 +71,7 @@ describe('every priced route in the By a date CSV', () => {
     const firstLeg = lines.findIndex(l => /^\d/.test(l));
     expect(head).toBeGreaterThan(firstLeg);
     expect(lines.findIndex(l => l.startsWith('priced,'))).toBe(head + 1);
-    expect(csv).toContain('# every route priced, one summary line each');
+    expect(csv).toContain('# every route priced: one summary line each');
     // The leg section stops at the cap: the third kept route has its summary line only.
     const legRoutes = new Set(lines.filter(l => /^\d/.test(l)).map(l => l.split(',')[1]));
     expect([...legRoutes]).toEqual(['198 252', '195 248']);

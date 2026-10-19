@@ -141,7 +141,7 @@ describe('widen and run from Nearby routes', () => {
   const fn = panel.slice(panel.indexOf('async function widenAndRun'), panel.indexOf('const atCeiling'));
   it("opens Nearby routes' boxes in Exhaustive and runs Exhaustive", () => {
     expect(fn).toContain('if (result.value?.simple) openInAdvanced();');
-    expect(fn).toContain("await start(false, 'boxes')");
+    expect(fn).toContain("await start(false, 'boxes', true)");
     expect(fn).not.toContain('simple.value');
   });
   it("the box to widen is found among Nearby routes' boxes for its answer", () => {

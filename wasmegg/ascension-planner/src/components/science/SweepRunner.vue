@@ -360,6 +360,7 @@
 
 <script setup lang="ts">
 import { thisDevice } from '@/search/device';
+import { confirmBigBox } from '@/composables/useBigBoxConfirm';
 import { plural } from '@/lib/format';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useShareIdentity } from '@/composables/useShareResult';
@@ -523,6 +524,17 @@ const canStart = computed(
  */
 async function start(): Promise<void> {
   if (!canStart.value) return;
+  // Above 100,000 routes it asks first, as the Full sweep's Start does (search/bigBox.ts,
+  // BigBoxConfirm.vue): a Cancel starts nothing and leaves this window as it was.
+  const yes = await confirmBigBox({
+    routes: chainCount.value,
+    seconds: hours.value * 3600,
+    workers: store.workerBudget,
+    basis: measuredCost.value ? `measured on ${thisDevice()}` : speedSource.value,
+    device: thisDevice(),
+    where: 'site',
+  });
+  if (!yes || !canStart.value) return;
   const request = props.request;
   const nick = effectiveNickname.value;
   const state = { request, phase: 'starting' as const, report: null };

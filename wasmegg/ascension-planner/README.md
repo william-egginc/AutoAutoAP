@@ -159,6 +159,7 @@ node dist-search/fastsearch.js submit --from run1 --nickname Me --yes
 - `--backup FILE` runs fully offline. `--player-id EI... --save-backup me.json` fetches a save once.
 - `--out DIR` writes `run.csv.gz` and `submission.json` and keeps a resume point; run the same command
   again after a kill and it carries on. `--dry-run` says what would run and stops.
+- A box above 100,000 routes asks `Continue? [y/N]` before it runs (again above 500,000); `--yes` skips that, and without a terminal to answer it stops and says to add `--yes`.
 - Sending (`--submit`, or `submit --from`) is the same send the site makes, anonymous unless
   `--nickname`. To any collector not on your own machine it needs `--yes`, or nothing leaves.
   What-ifs (`--add-artifact`, `--mod`) are never sent.
