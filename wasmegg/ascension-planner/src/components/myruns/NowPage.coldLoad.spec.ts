@@ -159,10 +159,13 @@ describe('the cold load, in the source', () => {
     const fs = await import('node:fs');
     const path = await import('node:path');
     const app = fs.readFileSync(path.resolve(__dirname, '../../App.vue'), 'utf8');
-    expect(app).toContain('const storesFromSave = computed(() => initialStateStore.hasData && initialStateStore.lastBackupTime > 0);');
-    expect(app).toContain('watch([plannerTab, playerId, loading, storesSetUpFromSave], loadSaveForMyRuns);');
-    expect(app).toMatch(/myRunsReady = true;\s+loadSaveForMyRuns\(\);\s+\}\);/);
-    expect(app).toContain('if (myRunsLoadFor === playerId.value || searchActive.value || uiStore.runSaveLoaded) return;');
+    // The save prep lives in composables/useAutoSave.ts (shared with the Joo site's AppJoo.vue).
+    const save = fs.readFileSync(path.resolve(__dirname, '../../composables/useAutoSave.ts'), 'utf8');
+    expect(save).toContain('const storesFromSave = computed(() => initialStateStore.hasData && initialStateStore.lastBackupTime > 0);');
+    expect(save).toContain('watch([plannerTab, playerId, loading, storesSetUpFromSave], loadSaveForMyRuns);');
+    expect(save).toMatch(/myRunsReady = true;\s+loadSaveForMyRuns\(\);/);
+    expect(app).toMatch(/startMyRuns\(\);\s+\}\);/);
+    expect(save).toContain('if (myRunsLoadFor === playerId.value || searchActive.value || uiStore.runSaveLoaded) return;');
   });
 
   it('the board’s look-alike TE and My runs’ summary read the save’s own TE, never the stores’', async () => {

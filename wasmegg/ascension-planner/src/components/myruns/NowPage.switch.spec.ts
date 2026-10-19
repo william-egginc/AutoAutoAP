@@ -184,7 +184,8 @@ describe('the switch, in the source', () => {
   it('App sets the stores up from the save in hand on My runs when the switch left the TE claimed-only', async () => {
     const fs = await import('node:fs');
     const path = await import('node:path');
-    const app = fs.readFileSync(path.resolve(__dirname, '../../App.vue'), 'utf8');
+    // The save prep lives in composables/useAutoSave.ts (shared with the Joo site's AppJoo.vue).
+    const app = fs.readFileSync(path.resolve(__dirname, '../../composables/useAutoSave.ts'), 'utf8');
     expect(app).toContain('chainSearchStore.currentTE === saveTEOf(initialStateStore.rawBackup)');
     expect(app).toContain('void (inHand ? setUpFromSaveInHand() : prepareAutoPlanner());');
     expect(app).toContain('await initPlanFuture(playerId.value, raw);');
