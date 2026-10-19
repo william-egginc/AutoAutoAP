@@ -100,6 +100,9 @@ export interface FindOptions {
   deadline?: number;
   /** Told after each number of ascensions is done (k of `maxAscensions`), for a progress line. */
   onProgress?: (done: number, of: number) => void;
+  /** Awaited before each number of ascensions; it may throw to stop the search (a newer request
+   *  came, latestOnly.ts), so a superseded run stops mid-search rather than at its end. */
+  pause?: () => Promise<void>;
   /** Filled in with what the search did, for tuning. */
   stats?: { expanded: number; sweeps: number; cached: number };
   /** False: start the moment the last one ends and shift the sale by the minutes past the hour
@@ -479,6 +482,7 @@ export async function findRoutes(o: FindOptions): Promise<FoundRoutes & { altern
 
   for (let k = 0; k < K; k++) {
     o.onProgress?.(k, K);
+    if (k && o.pause) await o.pause();
     // Upward through the TEs: every arrival at k ascensions spreads to k + 1.
     const tes = [...arrivals[k].keys()].filter(te => te < top).sort((a, b) => a - b);
     if (k === 0 && o.firstLegs) {

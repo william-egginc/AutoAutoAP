@@ -75,8 +75,9 @@ export async function workOutAnswer(
     final: FINAL_TE,
     maxAscensions: MAX_ASCENSIONS,
     ...(onProgress ? { onProgress } : {}),
+    ...(pause ? { pause } : {}),
   });
-  // The route search runs to its end; a superseded run stops here, before the polish.
+  // A superseded run stops at the search's pauses (between numbers of ascensions), or here, before the polish.
   if (pause) await pause();
   const polished = polishFound(table.lookup, { ...base, ...STRONG_POLISH }, found);
   return { best: polished.best, byAscensions: polished.byAscensions, byDate: polished.byDate, byDateByAscensions: polished.byDateByAscensions };

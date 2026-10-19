@@ -83,3 +83,31 @@ describe('the first ascension: continue or a fresh start (firstLegOptions)', () 
     expect(legs(forever).map(l => l.label)).toEqual(['1-sale']);
   });
 });
+
+describe('a superseded search (pause)', () => {
+  const o = { table, startTE: TE, start: LAST_HOUR + 180, final: TE + 3, maxAscensions: 3 };
+
+  it('awaits the pause between numbers of ascensions, not before the first', async () => {
+    const at: number[] = [];
+    let k = 0;
+    await findRoutes({ ...o, onProgress: d => (k = d), pause: async () => void at.push(k) });
+    expect(at[0]).toBe(1);
+    expect(at.length).toBeGreaterThan(0);
+  });
+
+  it('stops mid-search when the pause throws', async () => {
+    let expanded = 0;
+    const stats = { expanded: 0, sweeps: 0, cached: 0 };
+    const run = findRoutes({
+      ...o,
+      stats,
+      pause: async () => {
+        expanded = stats.expanded;
+        throw new Error('superseded');
+      },
+    });
+    await expect(run).rejects.toThrow('superseded');
+    // Nothing expanded after the pause.
+    expect(stats.expanded).toBe(expanded);
+  });
+});
