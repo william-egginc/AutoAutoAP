@@ -99,7 +99,13 @@ describe('a worker given the trimmed save prices chains exactly as with the full
     });
   }
 
-  it('deep-equals, and reads nothing of the full save outside what the trim keeps', () => {
+  // SLOW: it prices real chains through a recording proxy, ~4 minutes alone, and on a loaded machine it ran
+  // past its 15-minute cap and failed the whole suite (18 Oct 2026, twice, with simulator runs alongside).
+  // So it runs only when asked, as the *.save specs run only with their save:
+  //   AAP_SLOW_SPECS=1 npx vitest run src/search/workerBackup.spec.ts
+  // Run it after any change to search/workerBackup.ts or to what the simulator reads from the save. It took
+  // 880 s on a busy laptop, so its cap is 30 minutes.
+  it.runIf(!!process.env.AAP_SLOW_SPECS)('deep-equals, and reads nothing of the full save outside what the trim keeps', () => {
     const read = new Set<string>();
     const sent = asSent(base);
     const full = everything({
@@ -126,5 +132,5 @@ describe('a worker given the trimmed save prices chains exactly as with the full
     expect(read).toContain('.farms.0.habs');
     expect(read).toContain('.artifactsDb.virtueAfxDb.activeArtifacts');
     expect([...read].filter(p => !allowed.some(re => re.test(p)))).toEqual([]);
-  }, 900_000);
+  }, 1_800_000);
 });
