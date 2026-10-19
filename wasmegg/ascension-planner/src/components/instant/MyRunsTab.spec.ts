@@ -10,6 +10,7 @@ import { useInitialStateStore } from '@/stores/initialState';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { TE_BREAKPOINTS } from '@/lib/truthEggs';
 import type { AnswerRow } from '@/instant/instantAnswer';
+import type { PlanEntry } from '@/instant/plansOnDevice';
 import MyRunsTab from './MyRunsTab.vue';
 import InstantRows from './InstantRows.vue';
 import NoInstantAnswer, { noAnswerWords } from './NoInstantAnswer.vue';
@@ -42,6 +43,36 @@ describe('My runs tab (server render)', () => {
     expect(html).toContain('data-testid="instant-answer"');
     expect(html).toContain('From your TE 250, any hour');
     expect(html).not.toContain('board');
+  });
+
+  it('Your plans on this device, after the instant answer: empty', async () => {
+    const html = await render(MyRunsTab, { plans: [] }, loadSave);
+    expect(html).toContain('Your plans on this device');
+    expect(html).toContain('Kept in this browser only; nothing is sent anywhere.');
+    expect(html).toContain('No plans yet: press Simulate this plan on a route above.');
+    expect(html).not.toContain('data-testid="plans-clear"');
+    expect(html.indexOf('data-testid="instant-answer"')).toBeLessThan(html.indexOf('data-testid="plans-on-device"'));
+  });
+
+  it('Your plans on this device: one card per plan, with Simulate again and Clear', async () => {
+    const T = Date.parse('2027-01-04T17:00:00Z') / 1000;
+    const plans: PlanEntry[] = [
+      { chain: [300, 400, 490], goal: 'Race to 490', simulatedAt: T * 1000, start: T, a1: '2-sale', finishAt: T + 12.25 * 86400, days: 12.25 },
+      { chain: [350, 470], goal: 'Egg Day 2027', simulatedAt: (T - 3600) * 1000, start: T, a1: 'continue', finishAt: T + 30 * 86400, te: 470 },
+    ];
+    const html = await render(MyRunsTab, { plans, playerId: 'EI1234567890123456' }, loadSave);
+    expect(html.match(/data-testid="plan-entry"/g)).toHaveLength(2);
+    expect(html.match(/data-testid="plan-again"/g)).toHaveLength(2);
+    expect(html).toContain('data-testid="plans-clear"');
+    expect(html).toContain('300 → 400 → 490');
+    expect(html).toContain('Race to 490');
+    expect(html).toContain('12.3 d');
+    expect(html).toContain('Egg Day 2027');
+    expect(html).toContain('470 TE, last ascension');
+    // 12-hour times in the planner's timezone (Denver): simulated 10:00 am.
+    expect(html).toMatch(/Simulated Jan 4, 2027, 10:00\s?AM/);
+    expect(html).not.toContain('EI1234567890123456');
+    expect(html).not.toContain('No plans yet');
   });
 
   it('offers the three goals: Fastest to 490, Egg Day, another date', async () => {

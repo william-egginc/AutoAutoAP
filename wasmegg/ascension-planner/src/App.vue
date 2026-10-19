@@ -429,7 +429,7 @@
       </div>
 
       <div v-else-if="plannerTab === 'myruns' && playerId && !loading">
-        <MyRunsTab @simulate="simulateFromInstant" />
+        <MyRunsTab :player-id="playerId" @simulate="simulateFromInstant" />
       </div>
 
       <!-- Undo Confirmation Dialog -->

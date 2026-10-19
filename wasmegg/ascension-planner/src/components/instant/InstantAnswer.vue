@@ -84,11 +84,13 @@ import { continueTail, hasVirtueFarm, siloSeconds, staleSaveNote } from '@/insta
 import { createBaseEngineState, getSimulationContext } from '@/engine/adapter';
 import type { BuildParams } from '@/instant/precomputedLeg';
 import type { SimulateRequest } from '@/instant/simulatePlan';
+import { entryFromRow, type PlanEntry } from '@/instant/plansOnDevice';
 import type { InstantWorkerRequest, InstantWorkerResponse } from '@/instant/instant.worker';
 import NoInstantAnswer from './NoInstantAnswer.vue';
 import InstantRows from './InstantRows.vue';
 
-const emit = defineEmits<{ simulate: [req: SimulateRequest] }>();
+/** `plan`: what "Your plans on this device" keeps of the row (goal, finish or TE). */
+const emit = defineEmits<{ simulate: [req: SimulateRequest, plan: PlanEntry] }>();
 
 const initialState = useInitialStateStore();
 const planner = useAutoPlannerStore();
@@ -112,6 +114,15 @@ const deadline = computed<number | undefined>(() => {
   if (goal.value === 'date' && /^\d{4}-\d{2}-\d{2}$/.test(dateText.value))
     return getLocalTimestampInTimezone(dateText.value, '09:00', timezone.value);
   return undefined;
+});
+/** The goal as the plans list says it. */
+const goalLabel = computed(() => {
+  if (goal.value === 'fastest') return 'Race to 490';
+  if (goal.value === 'eggday') return `Egg Day ${eggDayYear}`;
+  const dl = deadline.value;
+  return dl === undefined
+    ? 'By a date'
+    : `By ${new Intl.DateTimeFormat('en-US', { timeZone: timezone.value, month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(dl * 1000))}`;
 });
 const goalWords = computed(() => (deadline.value === undefined ? '490 TE' : 'any TE by then'));
 
@@ -245,7 +256,12 @@ async function run(): Promise<void> {
 
 function simulate(row: AnswerRow): void {
   const first = row.route.legs[0];
-  emit('simulate', { chain: [...row.route.chain], start: first?.start ?? Date.now() / 1000, a1: first?.label ?? '' });
+  const a1 = first?.label ?? '';
+  emit(
+    'simulate',
+    { chain: [...row.route.chain], start: first?.start ?? Date.now() / 1000, a1 },
+    entryFromRow(row, goalLabel.value, foundFor.value !== undefined, a1)
+  );
 }
 
 onMounted(() => {
