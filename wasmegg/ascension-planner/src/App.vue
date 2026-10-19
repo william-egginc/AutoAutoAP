@@ -86,7 +86,7 @@
                   "
                   @click="plannerTab = 'myruns'"
                 >
-                  My runs
+                  Find a run
                 </button>
               </div>
             </div>
@@ -425,11 +425,12 @@
       </div>
 
       <div v-else-if="plannerTab === 'automatic' && playerId && !loading">
-        <AutomaticPlanner />
+        <div id="auto-ap"><AutomaticPlanner /></div>
       </div>
 
+      <!-- Find a run (plannerTab 'myruns' kept as the value). -->
       <div v-else-if="plannerTab === 'myruns' && playerId && !loading">
-        <MyRunsTab :player-id="playerId" @simulate="simulateFromInstant" />
+        <FindARun :player-id="playerId" @simulate="simulateFromInstant" @edit-setup="editSetup" />
       </div>
 
       <!-- Undo Confirmation Dialog -->
@@ -557,7 +558,8 @@ import LoadingOverlay from '@/components/LoadingOverlay.vue';
 import PlanLibrary from '@/components/PlanLibrary.vue';
 import PlanSelectionDialog from '@/components/PlanSelectionDialog.vue';
 import AutomaticPlanner from '@/components/auto/AutomaticPlanner.vue';
-import MyRunsTab from '@/components/instant/MyRunsTab.vue';
+import FindARun from '@/components/instant/FindARun.vue';
+import { nextTick } from 'vue';
 import { requestSimulate, type SimulateRequest } from '@/instant/simulatePlan';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useSalesStore } from '@/stores/sales';
@@ -904,11 +906,19 @@ async function handleRefreshReconcile() {
   }
 }
 
-/** My runs' "Simulate this plan": the route into the Auto Planner's form, then the Auto tab as its own
- *  button opens it; the planner runs it when it mounts (instant/simulatePlan.ts). */
+/** Find a run's "Import into the planner" (and Saved runs' "Open in the planner"): the route into the
+ *  Auto Planner's form, then the Auto tab as its own button opens it (it remounts while the fresh
+ *  backup loads); the planner runs it when it mounts (instant/simulatePlan.ts). */
 function simulateFromInstant(req: SimulateRequest) {
   requestSimulate(useAutoPlannerStore(), req);
   void handleAutoPlannerTabClick();
+}
+
+/** Find a run's "Edit setup": the Auto Planner tab, scrolled to Joo's own form (start time, timezone). */
+async function editSetup() {
+  await handleAutoPlannerTabClick();
+  await nextTick();
+  document.getElementById('auto-ap')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 async function handleAutoPlannerTabClick() {

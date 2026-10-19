@@ -1,72 +1,102 @@
 <!--
-  The instant answer (ported in small from the AutoAutoAP fork): the best route for each number of
-  ascensions from the precomputed table, to 490 TE or to the highest TE by a date, worked out on a
-  worker in a few seconds. Each route opens in the Auto Planner ("Simulate this plan"), whose own
-  simulator gives the exact dates. No exact check, hours or sharing here.
+  Find a run's body (the instant answer, ported in small from the AutoAutoAP fork): "I want to…" (reach
+  490 TE, or the most TE by a date, Egg Day by default), the setup line, the Filters (built, disabled
+  for now), then the best route for each number of ascensions from the precomputed table, worked out on
+  a worker in a few seconds. A row opens to its ascensions' starts and ends (estimates) and the buttons
+  Import into the planner (Joo's Auto Planner on that route, whose own simulator gives exact dates) and
+  Save this plan (the Auto Planner tab's Saved runs).
 -->
 <template>
-  <div class="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-4 sm:p-6 space-y-4" data-testid="instant-answer">
-    <div class="flex flex-wrap items-center justify-between gap-3">
+  <div class="space-y-4" data-testid="instant-answer">
+    <!-- I want to… -->
+    <section class="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-4 sm:p-6 space-y-3" data-testid="find-goal">
+      <h2 class="text-sm font-black text-slate-900 uppercase tracking-tight">I want to…</h2>
+      <div class="flex flex-wrap items-center gap-2">
+        <!-- Which goal, like Joo's Manual / Auto switch. -->
+        <div class="bg-slate-50 p-1 rounded-2xl border border-slate-200/50 flex flex-wrap gap-1" role="tablist">
+          <button
+            v-for="g in goals"
+            :key="g.value"
+            type="button"
+            class="px-3 py-1.5 max-sm:min-h-[44px] rounded-xl text-[10px] font-black uppercase tracking-[0.12em] transition-all"
+            :class="goal === g.value ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-slate-600'"
+            :data-testid="`instant-goal-${g.value}`"
+            @click="goal = g.value"
+          >
+            {{ g.label }}
+          </button>
+        </div>
+        <template v-if="goal === 'date'">
+          <label class="sr-only" for="instant-date">Date</label>
+          <input
+            id="instant-date"
+            v-model="dateText"
+            type="date"
+            class="bg-white border border-slate-200 rounded-xl px-3 py-1.5 max-sm:min-h-[44px] text-xs font-bold text-slate-700"
+            data-testid="instant-date"
+          />
+          <span class="text-[10px] text-slate-400">{{ deadlineHint }}</span>
+        </template>
+      </div>
+      <p class="text-[11px] text-slate-500 leading-relaxed" data-testid="find-setup">
+        {{ saveWords }} · setup: any hour, no time off ·
+        <button
+          type="button"
+          class="underline text-indigo-600 font-bold max-sm:min-h-[44px]"
+          data-testid="find-edit-setup"
+          @click="emit('editSetup')"
+        >
+          Edit setup
+        </button>
+      </p>
+    </section>
+
+    <FindFilters />
+
+    <!-- The rows -->
+    <section class="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-4 sm:p-6 space-y-3" data-testid="find-results">
       <div>
-        <h2 class="text-sm font-black text-slate-900 uppercase tracking-tight">Instant answer</h2>
-        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-          From your TE {{ startTE }}, any hour
+        <h2 class="text-sm font-black text-slate-900 uppercase tracking-tight" data-testid="find-heading">{{ heading }}</h2>
+        <p v-if="rows.length" class="text-[11px] text-slate-500" data-testid="find-sub">
+          {{ countsText(rows) }} ascensions · times are estimates until you check a route exactly
         </p>
       </div>
-      <!-- Which goal, like Joo's Manual / Auto switch. -->
-      <div class="bg-slate-50 p-1 rounded-2xl border border-slate-200/50 flex flex-wrap gap-1" role="tablist">
-        <button
-          v-for="g in goals"
-          :key="g.value"
-          type="button"
-          class="px-3 py-1.5 max-sm:min-h-[44px] rounded-xl text-[10px] font-black uppercase tracking-[0.12em] transition-all"
-          :class="goal === g.value ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-slate-600'"
-          :data-testid="`instant-goal-${g.value}`"
-          @click="goal = g.value"
+
+      <p v-if="staleNote" class="text-[11px] text-amber-700" data-testid="instant-stale">{{ staleNote }}</p>
+      <NoInstantAnswer v-if="noAnswer" :reason="noAnswer" />
+      <p v-else-if="status === 'loading'" class="text-xs text-slate-500" data-testid="instant-loading">{{ loadingText }}</p>
+      <p v-else-if="status === 'error'" class="text-xs text-red-600">The instant answer couldn’t run: {{ errorText }}</p>
+      <template v-else-if="status === 'done' && shown">
+        <p v-if="!rows.length" class="text-xs text-slate-500">No route reaches {{ goalWords }} on the table.</p>
+        <InstantRows
+          v-else
+          :rows="rows"
+          :dated="shown.dated"
+          :timezone="timezone"
+          :saved="savedOfGoal"
+          @simulate="simulate"
+          @save="save"
+        />
+        <p
+          v-if="gearCaveat"
+          class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"
+          data-testid="instant-gear-differs"
         >
-          {{ g.label }}
-        </button>
-      </div>
-    </div>
-
-    <div v-if="goal === 'date'" class="flex flex-wrap items-center gap-2">
-      <label class="text-[9px] font-black text-slate-500 uppercase tracking-widest" for="instant-date">Date</label>
-      <input
-        id="instant-date"
-        v-model="dateText"
-        type="date"
-        class="bg-white border border-slate-200 rounded-xl px-3 py-1.5 max-sm:min-h-[44px] text-xs font-bold text-slate-700"
-        data-testid="instant-date"
-      />
-      <span class="text-[10px] text-slate-400">9:00 am, your timezone</span>
-    </div>
-
-    <p v-if="staleNote" class="text-[11px] text-amber-700" data-testid="instant-stale">{{ staleNote }}</p>
-    <NoInstantAnswer v-if="noAnswer" :reason="noAnswer" />
-    <p v-else-if="status === 'loading'" class="text-xs text-slate-500" data-testid="instant-loading">{{ loadingText }}</p>
-    <p v-else-if="status === 'error'" class="text-xs text-red-600">The instant answer couldn’t run: {{ errorText }}</p>
-    <template v-else-if="status === 'done' && shown">
-      <p v-if="!rows.length" class="text-xs text-slate-500">No route reaches {{ goalWords }} on the table.</p>
-      <InstantRows v-else :rows="rows" :dated="shown.dated" :timezone="timezone" @simulate="simulate" />
-      <p
-        v-if="gearCaveat"
-        class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"
-        data-testid="instant-gear-differs"
-      >
-        {{ gearCaveat }}
-      </p>
-      <p class="text-[10px] text-slate-500 leading-relaxed" data-testid="instant-caveat">
-        Any hour: every ascension starts on the next whole hour after the last one ends, day or night.
-        <template v-if="midAscension">
-          The first is whichever is sooner: finishing your current ascension without buying anything (continue), or a
-          fresh start (prestige now).
-        </template>
-        <template v-else>The first is a fresh start (prestige now) on your save’s eggs.</template>
-        Fresh ascensions run at your delivery rate ({{ (scale * 100).toFixed(1) }}% of the table’s). The Auto Planner
-        is the exact check (“Simulate this plan”)<template v-if="gearCaveat">.</template
-        ><template v-else>: its dates can differ from these by a fraction of a percent, earlier or later.</template>
-      </p>
-    </template>
+          {{ gearCaveat }}
+        </p>
+        <p class="text-[10px] text-slate-500 leading-relaxed" data-testid="instant-caveat">
+          Any hour: every ascension starts on the next whole hour after the last one ends, day or night.
+          <template v-if="midAscension">
+            The first is whichever is sooner: finishing your current ascension without buying anything (continue), or a
+            fresh start (prestige now).
+          </template>
+          <template v-else>The first is a fresh start (prestige now) on your save’s eggs.</template>
+          Fresh ascensions run at your delivery rate ({{ (scale * 100).toFixed(1) }}% of the table’s). The Auto Planner
+          is the exact check (“Import into the planner”)<template v-if="gearCaveat">.</template
+          ><template v-else>: its dates can differ from these by a fraction of a percent, earlier or later.</template>
+        </p>
+      </template>
+    </section>
   </div>
 </template>
 
@@ -75,7 +105,6 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useInitialStateStore } from '@/stores/initialState';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { getLocalTimestampInTimezone } from '@/lib/events';
-import { formatUnixToDateInput } from '@/lib/format';
 import type { FoundRoutes } from '@/instant/routeFinder';
 import type { TableHeader } from '@/instant/precomputedTable';
 import {
@@ -98,52 +127,77 @@ import { answer, isNewest, newRequestId, tableHeader } from '@/instant/instantCl
 import { getSimulationContext } from '@/engine/adapter';
 import type { BuildParams } from '@/instant/precomputedLeg';
 import type { SimulateRequest } from '@/instant/simulatePlan';
-import { entryFromRow, type PlanEntry } from '@/instant/plansOnDevice';
+import { SIM_VERSION } from '@/instant/simVersion';
+import { countsText, dayText, gearLabel, rowsByBest, whenAgo } from '@/instant/findRun';
+import { entryFromRow, planId, RACE_GOAL, type PlanEntry } from '@/instant/plansOnDevice';
 import NoInstantAnswer from './NoInstantAnswer.vue';
 import InstantRows from './InstantRows.vue';
+import FindFilters from './FindFilters.vue';
 
-/** `plan`: what "Your plans on this device" keeps of the row (goal, finish or TE). */
-const emit = defineEmits<{ simulate: [req: SimulateRequest, plan: PlanEntry] }>();
+const props = defineProps<{
+  /** The saved runs' ids (plansOnDevice.ts planId): those rows say "Saved ✓". */
+  savedIds?: string[];
+}>();
+const emit = defineEmits<{
+  simulate: [req: SimulateRequest];
+  save: [plan: PlanEntry];
+  editSetup: [];
+}>();
 
 const initialState = useInitialStateStore();
 const planner = useAutoPlannerStore();
 
 const TABLE_URL = `${import.meta.env.BASE_URL}precompute/table.bin`;
 
-type Goal = 'fastest' | 'eggday' | 'date';
+type Goal = 'race' | 'date';
 const eggDayYear = nextEggDayYear();
 const goals: { value: Goal; label: string }[] = [
-  { value: 'fastest', label: 'Fastest to 490' },
-  { value: 'eggday', label: `Egg Day ${eggDayYear}` },
-  { value: 'date', label: 'Another date' },
+  { value: 'race', label: 'Reach 490 TE' },
+  { value: 'date', label: 'Get the most TE by a date' },
 ];
-const goal = ref<Goal>('fastest');
+/** Egg Day by default. */
+const goal = ref<Goal>('date');
 const timezone = computed(() => planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
-const dateText = ref(formatUnixToDateInput(Date.now() / 1000 + 60 * 86400, timezone.value));
+const EGG_DAY = /^(\d{4})-07-14$/;
+const dateText = ref(`${eggDayYear}-07-14`);
 /** Now, to the minute: a date whose 9:00 am has gone by is said to have passed. */
 const nowSeconds = ref(Math.floor(Date.now() / 1000));
 let clock: ReturnType<typeof setInterval> | undefined;
 
-/** By a date: the unix second (9:00 am in the planner's timezone for another date). */
+/** Egg Day's year when the date picked is an Egg Day (14 July: 9:00 am Pacific). */
+const eggDayPicked = computed(() => {
+  const m = EGG_DAY.exec(dateText.value);
+  return m ? Number(m[1]) : null;
+});
+/** By a date: the unix second (Egg Day 9:00 am Pacific; another date 9:00 am in the planner's timezone). */
 const deadline = computed<number | undefined>(() => {
-  if (goal.value === 'eggday') return eggDaySeconds(eggDayYear);
-  if (goal.value === 'date' && /^\d{4}-\d{2}-\d{2}$/.test(dateText.value))
-    return getLocalTimestampInTimezone(dateText.value, '09:00', timezone.value);
+  if (goal.value !== 'date') return undefined;
+  if (eggDayPicked.value !== null) return eggDaySeconds(eggDayPicked.value);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateText.value)) return getLocalTimestampInTimezone(dateText.value, '09:00', timezone.value);
   return undefined;
 });
+const deadlineHint = computed(() =>
+  eggDayPicked.value !== null ? `Egg Day ${eggDayPicked.value}, 9:00 am Pacific` : '9:00 am, your timezone'
+);
 /** The goal now chosen, as answers are matched to it. */
 const chosen = computed<AnsweredGoal>(() => ({
-  dated: goal.value !== 'fastest',
+  dated: goal.value === 'date',
   ...(deadline.value !== undefined ? { deadline: deadline.value } : {}),
 }));
-/** The goal as the plans list says it. */
+/** The goal as the heading and the saved runs say it. */
 function labelFor(g: AnsweredGoal): string {
-  if (!g.dated) return 'Race to 490';
-  if (g.deadline === eggDaySeconds(eggDayYear)) return `Egg Day ${eggDayYear}`;
-  return g.deadline === undefined
-    ? 'By a date'
-    : `By ${new Intl.DateTimeFormat('en-US', { timeZone: timezone.value, month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(g.deadline * 1000))}`;
+  if (!g.dated) return RACE_GOAL;
+  if (g.deadline === undefined) return 'By a date';
+  for (const y of [eggDayYear - 1, eggDayYear, eggDayYear + 1, eggDayYear + 2])
+    if (g.deadline === eggDaySeconds(y)) return `Egg Day ${y}`;
+  return `By ${dayText(g.deadline, timezone.value)}`;
 }
+const heading = computed(() => {
+  const g = shown.value ?? chosen.value;
+  if (!g.dated) return 'Your best runs to 490 TE';
+  const l = labelFor(g);
+  return l === 'By a date' ? 'Your best runs by a date' : `Your best runs by ${l.replace(/^By /, '')}`;
+});
 const goalWords = computed(() => (shown.value?.dated ? 'any TE by then' : '490 TE'));
 
 /*
@@ -157,6 +211,13 @@ const start = computed(() =>
 );
 const startTE = computed(() => start.value.te);
 const farm = computed(() => farmFromBackup(backup.value));
+/** When the loaded save was made (unix seconds; 0 unknown). */
+const saveTime = computed(() => saveSyncSeconds(backup.value) || initialState.lastBackupTime || 0);
+const saveWords = computed(() =>
+  saveTime.value
+    ? `Using your save of ${whenAgo(saveTime.value, nowSeconds.value, timezone.value)}`
+    : 'Using your loaded save'
+);
 
 const status = ref<'idle' | 'loading' | 'done' | 'error'>('idle');
 const loadingText = ref('');
@@ -186,12 +247,12 @@ const scale = computed(() =>
     : 1
 );
 
+/** How far the save's gear is from the table's (null before the table's header is read). */
+const gap = computed(() =>
+  header.value ? { bonusShort: header.value.cteBonus - earningsBonus(backup.value), scale: scale.value } : null
+);
 /** Below TE 340 with gear other than the table's: the answer can be a few percent off (gearDiffers.ts). */
-const gearCaveat = computed(() => {
-  if (!header.value) return null;
-  const gap = { bonusShort: header.value.cteBonus - earningsBonus(backup.value), scale: scale.value };
-  return gearDiffers(startTE.value, gap) ? gearDiffersText(gap) : null;
-});
+const gearCaveat = computed(() => (gap.value && gearDiffers(startTE.value, gap.value) ? gearDiffersText(gap.value) : null));
 
 /** On a virtue farm: leg 1 can be continue (continueTail.ts). */
 const midAscension = computed(() => hasVirtueFarm(farm.value));
@@ -221,9 +282,17 @@ function contAt(at: number, delivered: number[]): BuildParams | null {
   }
 }
 
+/** The rows shown, the best first. */
 const rows = computed<AnswerRow[]>(() =>
-  found.value && shown.value ? rowsShown(found.value, shown.value.deadline) : []
+  found.value && shown.value ? rowsByBest(rowsShown(found.value, shown.value.deadline), shown.value.dated) : []
 );
+/** The rows of this goal already saved (by their route). */
+const savedOfGoal = computed<string[]>(() => {
+  const g = shown.value;
+  if (!g) return [];
+  const goalLabel = labelFor(g);
+  return rows.value.filter(r => props.savedIds?.includes(planId({ goal: goalLabel, chain: r.route.chain }))).map(r => r.route.chain.join(' '));
+});
 
 /** What an answer is kept under for a moment (instantClient.ts): the save and the goal. */
 function answerKey(dl: number | undefined): string {
@@ -282,16 +351,29 @@ async function run(): Promise<void> {
   }
 }
 
+/** Import into the planner: the route into Joo's Auto Planner (nothing is recorded). */
 function simulate(row: AnswerRow): void {
   // Only rows of the goal now chosen (they are the only ones shown); never a race row as a date plan.
+  if (!shown.value) return;
+  const first = row.route.legs[0];
+  emit('simulate', { chain: [...row.route.chain], start: first?.start ?? Date.now() / 1000, a1: first?.label ?? '' });
+}
+
+/** Save this plan: the row with its estimate times, into the Saved runs. */
+function save(row: AnswerRow): void {
   const g = shown.value;
   if (!g) return;
-  const first = row.route.legs[0];
-  const a1 = first?.label ?? '';
   emit(
-    'simulate',
-    { chain: [...row.route.chain], start: first?.start ?? Date.now() / 1000, a1 },
-    entryFromRow(row, labelFor(g), g.dated, a1)
+    'save',
+    entryFromRow(row, {
+      goal: labelFor(g),
+      dated: g.dated,
+      ...(g.deadline !== undefined ? { deadline: g.deadline } : {}),
+      a1: row.route.legs[0]?.label ?? '',
+      simVersion: SIM_VERSION,
+      gear: gearLabel(gap.value),
+      ...(saveTime.value ? { saveTime: saveTime.value } : {}),
+    })
   );
 }
 

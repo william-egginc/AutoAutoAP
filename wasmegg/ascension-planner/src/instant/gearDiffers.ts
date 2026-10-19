@@ -47,6 +47,6 @@ export function gearDiffersText(gap: GearGap): string {
     `its at full research). Ascensions that start below about TE ${FULL_RESEARCH_TE} can take a few percent more or ` +
     `less than these, and may need a longer build (one more research sale) than shown: your earnings set, and how ` +
     `your delivery gear does before research is complete, aren’t fully taken off. From there up they match. ` +
-    `“Simulate this plan” gives your own times.`
+    `“Import into the planner” gives your own times.`
   );
 }
