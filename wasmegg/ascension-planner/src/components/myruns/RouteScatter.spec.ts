@@ -90,9 +90,32 @@ describe('Your routes at a glance', () => {
     const comp = read('RouteScatter.vue');
     expect(comp).toContain("matchMedia('(max-width: 639px)')");
     expect(comp).toMatch(/@pointerenter=/);
-    expect(comp).toMatch(/@click="tap\(/);
+    expect(comp).toMatch(/@click="onPlotClick"/);
+    expect(comp).toMatch(/nearestPoint\(drawn\.value/);
     expect(comp).toMatch(/@keydown="onKey"/);
     expect(comp).toContain('aria-live="polite"');
+  });
+});
+
+describe('Your routes at a glance on a phone', () => {
+  const comp = read('RouteScatter.vue');
+  it('bigger marks and 22 px hit areas under 640 px, desktop sizes kept', () => {
+    expect(comp).toMatch(/dot = computed\(\(\) => \(narrow\.value \? 6\.4 : 4\.5\)\)/);
+    expect(comp).toMatch(/hitR = computed\(\(\) => \(narrow\.value \? 22 : 12\)\)/);
+    expect(comp).toContain(':r="hitR"');
+  });
+  it('the card goes under the picture on a phone, with a 44 px clear button; the hover card stays above on a wide screen', () => {
+    expect(comp).toMatch(/v-if="activeCard && !narrow"\s+class="pointer-events-none absolute/);
+    expect(comp).toMatch(/v-if="activeCard && narrow"/);
+    expect(comp).toContain('data-testid="my-runs-scatter-card-close"');
+    expect(comp).toContain('w-11 min-w-[44px]');
+    expect(comp).toContain('@click="clearActive"');
+  });
+  it('the Goal select and the toggle buttons are 44 px tall on a phone', async () => {
+    expect(comp.match(/min-h-\[44px\]/g)!.length).toBeGreaterThanOrEqual(3);
+    const html = await renderHtml(RouteScatter, { ...base, rows: [race(490, [300, 490], 11)] });
+    expect(html).toMatch(/<select[^>]*min-h-\[44px\]/);
+    expect(html).toMatch(/<button[^>]*min-h-\[44px\][^>]*my-runs-scatter-x-asc|<button[^>]*my-runs-scatter-x-asc/);
   });
 });
 

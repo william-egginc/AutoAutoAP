@@ -436,3 +436,23 @@ export function tickText(v: number, axis: ScatterX | ScatterY | 'days', zone: st
   if (axis === 'asc' || axis === 'te') return String(Math.round(v));
   return Number.isInteger(v) ? String(v) : v.toFixed(1);
 }
+
+/** The point nearest a tap, by distance in the picture's own units, or null when none is within `maxDist`. A tie goes to
+ *  the later point (the picture draws the best last, so it is the one on top). Overlapping hit areas can't mislead it. */
+export function nearestPoint<T extends { x: number; y: number }>(
+  pts: readonly T[],
+  x: number,
+  y: number,
+  maxDist: number
+): T | null {
+  let best: T | null = null;
+  let bestD = Infinity;
+  for (const q of pts) {
+    const d = Math.hypot(q.x - x, q.y - y);
+    if (d <= maxDist && d <= bestD) {
+      best = q;
+      bestD = d;
+    }
+  }
+  return best;
+}

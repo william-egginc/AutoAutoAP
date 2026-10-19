@@ -36,7 +36,7 @@
             <span class="text-slate-500">Goal</span>
             <select
               v-model="goalKey"
-              class="rounded-lg border-slate-200 py-1 pl-2 pr-7 text-[12px] font-bold text-slate-700"
+              class="min-h-[44px] rounded-lg border-slate-200 py-1 pl-2 pr-7 text-[12px] font-bold text-slate-700 sm:min-h-0"
               data-testid="my-runs-scatter-goal"
             >
               <option v-for="g in built.goals" :key="g.key" :value="g.key">{{ g.label }} ({{ g.count }})</option>
@@ -80,6 +80,7 @@
             tabindex="0"
             :aria-label="`${summary} Use the arrow keys to step through the routes.`"
             @keydown="onKey"
+            @click="onPlotClick"
             @pointerleave="!pinned && (active = null)"
           >
             <!-- Grid and axes: hairlines, recessive. -->
@@ -128,10 +129,10 @@
             <g v-for="d in drawn" :key="d.p.id" :data-from="d.p.from" :data-level="d.p.level">
               <rect
                 v-if="d.p.from === 'saved'"
-                :x="d.x - 4.5"
-                :y="d.y - 4.5"
-                width="9"
-                height="9"
+                :x="d.x - dot"
+                :y="d.y - dot"
+                :width="dot * 2"
+                :height="dot * 2"
                 :transform="`rotate(45 ${d.x} ${d.y})`"
                 :fill="LEVEL_COLOURS[d.p.level]"
                 stroke="#fcfcfb"
@@ -141,7 +142,7 @@
                 v-else
                 :cx="d.x"
                 :cy="d.y"
-                r="4.5"
+                :r="dot"
                 :fill="d.p.from === 'maybe' ? '#fcfcfb' : LEVEL_COLOURS[d.p.level]"
                 :stroke="d.p.from === 'maybe' ? LEVEL_COLOURS[d.p.level] : '#fcfcfb'"
                 stroke-width="2"
@@ -150,24 +151,23 @@
                 v-if="active === d.p.id"
                 :cx="d.x"
                 :cy="d.y"
-                r="8"
+                :r="dot + 3.5"
                 fill="none"
                 stroke="#4f46e5"
                 stroke-width="2"
               />
-              <!-- The hit area: bigger than the mark. -->
+              <!-- The hit area: bigger than the mark (22 px across on a phone). A tap picks the nearest point (onPlotClick). -->
               <circle
                 :cx="d.x"
                 :cy="d.y"
-                r="12"
+                :r="hitR"
                 fill="transparent"
                 class="cursor-pointer"
-                @pointerenter="!pinned && (active = d.p.id)"
-                @click="tap(d.p.id)"
+                @pointerenter="!narrow && !pinned && (active = d.p.id)"
               />
             </g>
             <g v-if="bestDrawn" pointer-events="none" data-testid="my-runs-scatter-best">
-              <circle :cx="bestDrawn.x" :cy="bestDrawn.y" r="9" fill="none" stroke="#0b0b0b" stroke-width="1.5" />
+              <circle :cx="bestDrawn.x" :cy="bestDrawn.y" :r="dot + 4.5" fill="none" stroke="#0b0b0b" stroke-width="1.5" />
               <text
                 :x="bestDrawn.x + (bestDrawn.x > W - 60 ? -12 : 12)"
                 :y="bestDrawn.y - 8"
@@ -183,13 +183,33 @@
 
           <!-- The card for the route under the pointer, tapped or stepped to. Text only (escaped). -->
           <div
-            v-if="activeCard"
+            v-if="activeCard && !narrow"
             class="pointer-events-none absolute z-10 max-w-[18rem] rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] leading-snug text-slate-600 shadow-lg"
             :style="activeCard.style"
             data-testid="my-runs-scatter-card"
           >
             <p class="font-mono-premium font-bold text-slate-900 break-words">{{ activeCard.lines[0] }}</p>
             <p v-for="(l, k) in activeCard.lines.slice(1)" :key="k">{{ l }}</p>
+          </div>
+          <!-- On a phone the card sits under the picture, in the flow, so it never covers a point. -->
+          <div
+            v-if="activeCard && narrow"
+            class="mt-2 flex items-start gap-2 rounded-lg border border-slate-200 bg-white pl-3 text-[11px] leading-snug text-slate-600"
+            data-testid="my-runs-scatter-card"
+          >
+            <div class="min-w-0 flex-1 py-2">
+              <p class="font-mono-premium font-bold text-slate-900 break-words">{{ activeCard.lines[0] }}</p>
+              <p v-for="(l, k) in activeCard.lines.slice(1)" :key="k">{{ l }}</p>
+            </div>
+            <button
+              type="button"
+              class="flex h-11 min-h-[44px] w-11 min-w-[44px] shrink-0 items-center justify-center rounded-lg text-[18px] font-bold text-slate-500"
+              aria-label="Clear the selected route"
+              data-testid="my-runs-scatter-card-close"
+              @click="clearActive"
+            >
+              ×
+            </button>
           </div>
           <p class="sr-only" aria-live="polite">{{ activeCard ? activeCard.lines.join('. ') : '' }}</p>
         </div>
@@ -282,7 +302,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { BoardRow } from '@/lib/leaderboardRank';
 import {
   FROM_ORDER,
@@ -296,6 +316,7 @@ import {
   defaultGoal,
   fromName,
   levelName,
+  nearestPoint,
   niceTicks,
   pointLines,
   scatterNotes,
@@ -335,10 +356,23 @@ const T = 18;
 const B = 34;
 
 const open = ref(props.startOpen);
+// A phone (under 640 px): the plot gets bigger marks and touch areas, and the card goes under it.
+const narrow = ref(false);
+let narrowQuery: MediaQueryList | null = null;
+const onNarrow = () => {
+  narrow.value = !!narrowQuery?.matches;
+};
 onMounted(() => {
-  if (props.startOpen || typeof window === 'undefined' || !window.matchMedia) return;
-  open.value = !window.matchMedia('(max-width: 639px)').matches;
+  if (typeof window === 'undefined' || !window.matchMedia) return;
+  narrowQuery = window.matchMedia('(max-width: 639px)');
+  onNarrow();
+  narrowQuery.addEventListener?.('change', onNarrow);
+  if (!props.startOpen) open.value = !narrow.value;
 });
+onBeforeUnmount(() => narrowQuery?.removeEventListener?.('change', onNarrow));
+// Marks and hit areas in the picture's units (it is 640 wide, about 324 px on a phone, so 1 unit is about 0.5 px there).
+const dot = computed(() => (narrow.value ? 6.4 : 4.5));
+const hitR = computed(() => (narrow.value ? 22 : 12));
 const listOpen = ref(false);
 
 const savedCount = computed(() => props.savedRuns.length + props.savedAnswers.length);
@@ -375,7 +409,7 @@ const countWords = computed(() => {
 });
 
 const pill = (on: boolean) =>
-  `rounded-lg border px-2.5 py-1 text-[12px] font-bold ${
+  `min-h-[44px] rounded-lg border px-3 py-1 text-[12px] font-bold sm:min-h-0 sm:px-2.5 ${
     on
       ? 'border-indigo-400 bg-indigo-50 text-indigo-900'
       : 'border-slate-200 bg-white text-slate-600 hover:border-indigo-300'
@@ -451,6 +485,20 @@ function tap(id: string): void {
   }
   active.value = id;
   pinned.value = true;
+}
+function clearActive(): void {
+  active.value = null;
+  pinned.value = false;
+}
+/** A tap or click on the picture picks the point nearest to it (in the picture's units), not whichever hit circle is on top. */
+function onPlotClick(e: MouseEvent): void {
+  const svg = e.currentTarget as SVGSVGElement | null;
+  const box = svg?.getBoundingClientRect();
+  if (!box || !box.width || !box.height) return;
+  const x = ((e.clientX - box.left) / box.width) * W;
+  const y = ((e.clientY - box.top) / box.height) * H;
+  const hit = nearestPoint(drawn.value, x, y, hitR.value);
+  if (hit) tap(hit.p.id);
 }
 /** Left and right step through the routes across the picture; Escape lets go. */
 function onKey(e: KeyboardEvent): void {
