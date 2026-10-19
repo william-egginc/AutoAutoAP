@@ -425,6 +425,7 @@
       </div>
 
       <div v-else-if="plannerTab === 'automatic' && playerId && !loading">
+        <SavedRuns :player-id="playerId" @open="simulateFromInstant" />
         <div id="auto-ap"><AutomaticPlanner /></div>
       </div>
 
@@ -559,6 +560,7 @@ import PlanLibrary from '@/components/PlanLibrary.vue';
 import PlanSelectionDialog from '@/components/PlanSelectionDialog.vue';
 import AutomaticPlanner from '@/components/auto/AutomaticPlanner.vue';
 import FindARun from '@/components/instant/FindARun.vue';
+import SavedRuns from '@/components/instant/SavedRuns.vue';
 import { nextTick } from 'vue';
 import { requestSimulate, type SimulateRequest } from '@/instant/simulatePlan';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';

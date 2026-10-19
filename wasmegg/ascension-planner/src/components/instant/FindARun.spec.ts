@@ -1,7 +1,7 @@
 /**
- * Find a run, rendered on the server (vue/server-renderer; Joo's
+ * Find a run and the Auto Planner tab's Saved runs, rendered on the server (vue/server-renderer; Joo's
  * repo has no component test library): what a player sees before any worker runs, the rows and an
- * opened row. Plus source checks of the card and of App.vue's tabs.
+ * opened row, the saved list. Plus source checks of the card and of App.vue's tabs.
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -16,6 +16,7 @@ import type { AnswerRow } from '@/instant/instantAnswer';
 import type { PlanEntry } from '@/instant/plansOnDevice';
 import FindARun from './FindARun.vue';
 import InstantRows from './InstantRows.vue';
+import SavedRuns from './SavedRuns.vue';
 import NoInstantAnswer, { noAnswerWords } from './NoInstantAnswer.vue';
 
 async function render(component: object, props: Record<string, unknown> = {}, setup?: () => void): Promise<string> {
@@ -176,6 +177,99 @@ describe('Find a run’s rows (server render)', () => {
   });
 });
 
+describe('Saved runs on the Auto Planner tab (server render)', () => {
+  const NOW = Date.parse('2026-10-19T16:47:00Z') / 1000; // Oct 19, 9:47 am Pacific
+  const plan = (over: Partial<PlanEntry> = {}): PlanEntry => ({
+    chain: [160, 188, 195, 197, 218, 247],
+    goal: 'Egg Day 2027',
+    dated: true,
+    savedAt: (NOW - 13 * 3600) * 1000,
+    saveTime: NOW - 13 * 3600 - 12 * 60,
+    start: NOW - 13 * 3600,
+    a1: '2-sale',
+    ascensions: [
+      { to: 160, start: NOW - 13 * 3600, end: NOW + 86400, kind: 'estimate' },
+      { to: 188, start: NOW + 86400, end: NOW + 4 * 86400, kind: 'estimate' },
+    ],
+    simVersion: '2026-10-19-joo717',
+    gear: 'maxed gear',
+    te: 247,
+    finishAt: NOW + 200 * 86400,
+    ...over,
+  });
+  const withSave = (at: number) => () => {
+    loadSave();
+    useInitialStateStore().lastBackupTime = at;
+  };
+
+  it('empty', async () => {
+    const t = text(await render(SavedRuns, { plans: [], now: NOW }, loadSave));
+    expect(t).toContain('Saved runs');
+    expect(t).toContain('No saved runs yet. Find a run and press Save this plan.');
+    expect(t).not.toContain('Clear all');
+  });
+
+  it('with entries: title, count, route, the saved line; Clear all', async () => {
+    const race = plan({
+      chain: [166, 197, 223, 251, 300, 400, 490],
+      goal: 'Reach 490 TE',
+      dated: false,
+      te: undefined,
+      days: 100,
+      finishAt: Date.parse('2029-02-18T20:44:00Z') / 1000,
+    });
+    const html = await render(SavedRuns, { plans: [plan(), race], now: NOW, playerId: ID }, withSave(NOW - 13 * 3600 - 12 * 60));
+    const t = text(html);
+    expect(html.match(/data-testid="saved-entry"/g)).toHaveLength(2);
+    expect(t).toContain('kept on this device (2)');
+    expect(t).toContain('▸ Egg Day 2027 · 247 TE · 6 asc · 160 188 195 197 218 247');
+    expect(t).toContain('Saved Oct 18 at 8:47 pm (13 hours ago), from your save of Oct 18 at 8:35 pm');
+    expect(t).toContain('Reach 490 TE · Feb 18, 2029 · 7 asc · 166 197 223 251 300 400 490');
+    expect(t).toContain('Clear all');
+    expect(t).not.toContain('next:');
+    expect(html).not.toContain(ID);
+  });
+
+  it('a run from an older save says so', async () => {
+    const old = plan({ savedAt: (NOW - 9 * 86400) * 1000, saveTime: NOW - 9 * 86400 - 600 });
+    const t = text(await render(SavedRuns, { plans: [old], now: NOW }, withSave(NOW - 2 * 3600)));
+    expect(t).toContain('Saved Oct 10 at 9:47 am (9 days ago): older than your current save');
+  });
+
+  it('next shift only with an exact check', async () => {
+    const next = { egg: 'Kindness', at: NOW + 4 * 86400 };
+    const est = text(await render(SavedRuns, { plans: [plan({ next })], now: NOW }, withSave(NOW - 14 * 3600)));
+    expect(est).not.toContain('next:');
+    const exact = plan({ next, ascensions: [{ to: 160, start: NOW, end: NOW + 86400, kind: 'exact' }] });
+    const t = text(await render(SavedRuns, { plans: [exact], now: NOW }, withSave(NOW - 14 * 3600)));
+    expect(t).toContain('· next: shift to Kindness Oct 23 at 9:47 am (in 4 days)');
+  });
+
+  it('an opened run: Open in the planner, the calendar placeholder, Delete, the ascensions marked estimate/exact', async () => {
+    const p = plan({ ascensions: [...plan().ascensions.slice(0, 1), { ...plan().ascensions[1], kind: 'exact' }] });
+    const html = await render(
+      SavedRuns,
+      { plans: [p], now: NOW, opened: 'Egg Day 2027|160 188 195 197 218 247' },
+      withSave(NOW - 14 * 3600)
+    );
+    const t = text(html);
+    expect(t).toContain('▾ Egg Day 2027');
+    expect(t).toContain('Open in the planner');
+    expect(html).toMatch(/disabled aria-disabled="true" title="Coming next"[^>]*data-testid="saved-calendar">\s*Add shifts to calendar/);
+    expect(t).toContain('Delete');
+    expect(t).toContain('Ascension Starts Ends');
+    expect(t).toMatch(/1 · 160 TE Sun, Oct 18 at 8:47 pm Tue, Oct 20 at 9:47 am estimate/);
+    expect(t).toMatch(/2 · 188 TE Tue, Oct 20 at 9:47 am Fri, Oct 23 at 9:47 am exact/);
+    expect(html.match(/w-full sm:w-auto min-h-\[44px\]/g)).toHaveLength(3);
+  });
+
+  it('an older entry (no times kept) still opens', async () => {
+    const p = plan({ ascensions: [], simVersion: '', gear: '', saveTime: undefined });
+    const t = text(await render(SavedRuns, { plans: [p], now: NOW, opened: 'Egg Day 2027|160 188 195 197 218 247' }, loadSave));
+    expect(t).toContain('This older entry kept no ascension times.');
+  });
+});
+
 describe('the card and the tabs (source)', () => {
   const src = readFileSync(fileURLToPath(new URL('./InstantAnswer.vue', import.meta.url)), 'utf8');
   const app = readFileSync(fileURLToPath(new URL('../../App.vue', import.meta.url)), 'utf8');
@@ -217,11 +311,13 @@ describe('the card and the tabs (source)', () => {
     expect(src).toMatch(/max-sm:min-h-\[44px\][^"]*"\s+:class="goal === g.value/);
   });
 
-  it('App.vue: the tabs are Manual Planner, Auto Planner, Find a run (no My runs)', () => {
+  it('App.vue: the tabs are Manual Planner, Auto Planner, Find a run (no My runs); Saved runs over Joo’s Auto-AP', () => {
     expect(app).toMatch(/>\s*Find a run\s*</);
     expect(app).not.toMatch(/>\s*My runs\s*</);
     expect(app).toContain('<FindARun ');
     expect(app).not.toContain('MyRunsTab');
+    expect(app.indexOf('<SavedRuns ')).toBeGreaterThan(-1);
+    expect(app.indexOf('<SavedRuns ')).toBeLessThan(app.indexOf('<AutomaticPlanner />'));
   });
 });
 
