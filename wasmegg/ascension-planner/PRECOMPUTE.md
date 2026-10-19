@@ -243,7 +243,7 @@ the same process could otherwise differ.
 ### Keeping tables in step with the simulator
 
 - **The stamp.** Each table header carries the `SIM_VERSION` its cells came from
-  (`src/search/simVersion.ts`, now `2026-10-13-lowte-gate`). The page says so when a table's stamp
+  (`src/search/simVersion.ts`, now `2026-10-19-joo717`). The page says so when a table's stamp
   differs from the code's (`tableSimMismatch`), and `--generate` will not mix simulators in one DIR
   without `--allow-sim-change`.
 - **The guard.** `src/search/simVersion.spec.ts` hashes `src/engine`, `src/auto`,
@@ -257,12 +257,13 @@ the same process could otherwise differ.
   table's source dir, with the same `--backup` and `--reference` or `--combos/--combo` it was built
   with. The last full bit-check, on 13 Oct 2026 at 6:44 pm on the merged low-TE build: 13 tables × 15
   cells, 195 of 195 identical.
-- **The low-TE gate** (`src/auto/lowTeOpening.ts`, temporary until Joo's PR 717 merges): a fresh build
-  that starts below TE 120 (`LOW_TE_TABLE_FLOOR`, the lowest start any deployed table covers) and
-  stalls on its first I1 runs Joo's low-TE rounds instead. Every build at or above TE 120 runs exactly
-  as before, so no table cell changed; the tables hold the standard opening only, and the page tells an
-  account whose fresh build takes the low-TE opening that its low-TE dates are rough
-  (`src/search/instantIntegrity.ts` `lowTeOpeningNote`).
+- **Joo's PR 717** (merged 19 Oct 2026, `SIM_VERSION` `2026-10-19-joo717`): the opening runs in C1/K1/I1
+  rounds, each I1 capped at 4 hours, until the habs are maxed (at most 10 rounds); C2/K2 are dropped
+  when they buy nothing; C2 ends with an earnings buy that looks ahead to R1; C3 unlocks Tier 12 if
+  C1/C2 didn't. It replaced our low-TE gate, and it moves cells at every TE (most at low TE and on weak
+  gear), so every table built before it is from the older simulator and must be regenerated.
+  `--rounds-probe --tes ..` shows, per start TE, how many rounds the opening takes and whether it hits
+  the 10-round backstop (where the last I1 is uncapped).
 
 The full procedure is on the wiki:
 [Tables and the route finder](https://github.com/william-egginc/AutoAutoAP/wiki/Tables-and-the-route-finder)

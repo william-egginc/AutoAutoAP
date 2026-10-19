@@ -60,8 +60,8 @@ export function instantIntegrity(
   return {
     kind: 'warn',
     wait,
-    // LOW-TE GATE (temporary until Joo's PR 717 merges): "an", not "its first": on the low-TE path the
-    // wait measured is the last round's (search/leg.ts `integrityCheck`).
+    // "an", not "its first": with the opening in rounds the wait measured is the last round's
+    // (search/leg.ts `integrityCheck`).
     text:
       `Times on your account include an Integrity wait of ${long}: a fresh ascension here sits on an ` +
       `Integrity shift that long before it can afford its habs (a healthy account is through it in under an hour).` +
@@ -75,19 +75,16 @@ export function holdsRoutes(s: InstantIntegrity): boolean {
 }
 
 /**
- * LOW-TE GATE (temporary until Joo's PR 717 merges): the instant answer's label for an account whose
- * fresh ascension takes the low-TE opening (auto/lowTeOpening.ts). The tables were built with the
- * standard opening only (no table cell takes the low-TE one), so their dates for the player's own
- * low-TE ascensions are not the simulator's: said here, and Check exactly prices the real opening.
- * '' when there is nothing to say.
+ * The instant answer's label for an account whose fresh ascension needs more than one round of the
+ * opening (C1, K1, I1; auto/ascension.ts runC1K1I1Segment): it can't max its habs in one 4-hour I1.
+ * Not a warning: the rounds are the plan, and the tables and Check exactly both price them. '' when
+ * one round is enough.
  */
-export function lowTeOpeningNote(info: { rounds: number; openingSeconds: number } | null | undefined): string {
-  if (!info || !(info.rounds > 0)) return '';
-  const rounds = info.rounds === 1 ? 'once' : `${info.rounds} times`;
+export function openingRoundsNote(info: { rounds: number; openingSeconds: number } | null | undefined): string {
+  if (!info || !(info.rounds > 1)) return '';
   return (
-    `Low-TE opening: a fresh ascension on this account can't afford its habs in one Integrity shift, so it ` +
-    `goes round research, vehicles and habs (C1, K1, I1) ${rounds} first, about ` +
-    `${describeDuration(info.openingSeconds)} before its habs are maxed. The instant answer's tables use the ` +
-    `standard opening, so its dates for your low-TE ascensions are rough; Check exactly prices the low-TE opening.`
+    `Opening in rounds: a fresh ascension on this account can't max its habs in one Integrity shift, so it ` +
+    `goes round research, vehicles and habs (C1, K1, I1) ${info.rounds} times first, about ` +
+    `${describeDuration(info.openingSeconds)} before its habs are maxed. Every date here includes them.`
   );
 }

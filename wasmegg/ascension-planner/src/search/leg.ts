@@ -15,11 +15,15 @@
  * is the hotspot.
  */
 import { computeSnapshot } from '@/engine/compute';
-import { runUntilShift, deriveNextStartState, runContinueCurrent, runAscensionFromC3Variant } from '@/auto/ascension';
+import {
+  runUntilShift,
+  deriveNextStartState,
+  runContinueCurrent,
+  runAscensionFromC3Variant,
+  MAX_OPENING_ROUNDS,
+} from '@/auto/ascension';
 import { runC3Variants, type C3Variant } from '@/auto/shifts/c3';
 import { runBuildUpUntilC3 } from '@/auto/buildUp';
-// LOW-TE GATE (temporary until Joo's PR 717 merges)
-import { MAX_OPENING_ROUNDS } from '@/auto/lowTeOpening';
 import { isResearchSaleActive } from '@/lib/events';
 import { paramsOf } from './tableBuild';
 import { heldSecondsOf, holdForPlayer } from '@/auto/hold';
@@ -761,24 +765,24 @@ export function integrityWaitSeconds(inputs: SearchInputs): number | null {
   return integrityCheck(inputs).seconds;
 }
 
-/** LOW-TE GATE (temporary until Joo's PR 717 merges): a fresh build that took the low-TE opening
- *  (auto/lowTeOpening.ts): its rounds of C1/K1/I1 and how long they took, plan start to max habs. */
-export interface LowTeOpeningInfo {
+/** A fresh build's opening (auto/ascension.ts runC1K1I1Segment): its rounds of C1/K1/I1 and how long
+ *  they took, plan start to max habs. */
+export interface OpeningRoundsInfo {
   rounds: number;
   openingSeconds: number;
 }
 
 /**
- * `integrityWaitSeconds`, with the low-TE opening when the fresh build took it.
+ * `integrityWaitSeconds`, with the opening's rounds.
  *
- * LOW-TE GATE (temporary until Joo's PR 717 merges): on the low-TE path every I1 but the last round's
- * is capped at 4 hours and the rounds are the plan, not a stall, so the first Integrity shift no
- * longer says anything. There the wait is the last round's I1 only when the opening ran into its
- * backstop (round `MAX_OPENING_ROUNDS`, whose I1 is uncapped): that is the stall the rounds could not
- * fix, and the same lines (an hour, a week) apply to it. An opening that maxed its habs inside the
- * backstop has no stall (0). Builds off the low-TE path are measured exactly as before.
+ * The opening runs in rounds (Joo's PR 717): every I1 but the last round's is capped at 4 hours, so a
+ * round that ends with the habs unmaxed is the plan going round again, not a stall. The stall the rounds
+ * cannot fix is the uncapped I1 of the last round (`MAX_OPENING_ROUNDS`): measured there, from that I1
+ * to the next shift, and the same lines (an hour, a week) apply. An opening that maxes its habs inside
+ * the backstop has no stall (0), however many rounds it took. `opening` reports the rounds when there
+ * is more than one, else null.
  */
-export function integrityCheck(inputs: SearchInputs): { seconds: number | null; lowTe: LowTeOpeningInfo | null } {
+export function integrityCheck(inputs: SearchInputs): { seconds: number | null; opening: OpeningRoundsInfo | null } {
   const b = cloneBaseState(inputs);
   b.currentEgg = 'curiosity';
   b.population = 1;
@@ -789,24 +793,19 @@ export function integrityCheck(inputs: SearchInputs): { seconds: number | null; 
   try {
     pre = runUntilShift(b, ctx, 'C3');
   } catch {
-    return { seconds: null, lowTe: null };
+    return { seconds: null, opening: null };
   }
   const shifts = shiftInstants(pre.actions, inputs.planStart);
-  const rounds = pre.state.lowTeOpening;
-  if (rounds) {
-    // The opening ends at the shift after its last I1 (C2, K2 or R1).
-    let last = -1;
-    shifts.forEach((s, i) => {
-      if (s.egg === 'integrity') last = i;
-    });
-    if (last < 0) return { seconds: null, lowTe: null };
-    const end = shifts[last + 1]?.at ?? inputs.planStart + pre.elapsedSeconds;
-    const lowTe = { rounds, openingSeconds: Math.max(0, end - inputs.planStart) };
-    return { seconds: rounds >= MAX_OPENING_ROUNDS ? Math.max(0, end - shifts[last].at) : 0, lowTe };
-  }
-  const at = shifts.findIndex(s => s.egg === 'integrity');
-  if (at < 0) return { seconds: null, lowTe: null };
-  // The next shift ends the wait; with none inside the precompute, the wait runs to its end.
-  const until = shifts[at + 1]?.at ?? inputs.planStart + pre.elapsedSeconds;
-  return { seconds: Math.max(0, until - shifts[at].at), lowTe: null };
+  // The opening's I1s are its Integrity shifts (nothing after it, up to C3, goes to Integrity).
+  const i1s = shifts.flatMap((s, i) => (s.egg === 'integrity' ? [i] : []));
+  if (i1s.length === 0) return { seconds: null, opening: null };
+  const rounds = i1s.length;
+  const last = i1s[rounds - 1];
+  // The opening ends at the shift after its last I1 (C2, K2 or R1); with none, at the precompute's end.
+  const end = shifts[last + 1]?.at ?? inputs.planStart + pre.elapsedSeconds;
+  const opening = rounds > 1 ? { rounds, openingSeconds: Math.max(0, end - inputs.planStart) } : null;
+  // One round: its I1 maxed the habs inside the cap, measured as always. The backstop round: its
+  // uncapped I1 is the stall. Anything between: the rounds fixed it.
+  const seconds = rounds === 1 || rounds >= MAX_OPENING_ROUNDS ? Math.max(0, end - shifts[last].at) : 0;
+  return { seconds, opening };
 }

@@ -235,9 +235,9 @@ export interface ChainSearchPool {
   /** The integrity check (search/rules.ts), run on the first worker against the pool's own inputs:
    *  how long a fresh ascension from the plan start sits on its first Integrity shift. */
   integrityWait(): Promise<number | null>;
-  /** LOW-TE GATE (temporary until Joo's PR 717 merges): the low-TE opening the last `integrityWait`
-   *  found (search/leg.ts `integrityCheck`), or null. Optional: test pools leave it out. */
-  integrityLowTe?(): import('./leg').LowTeOpeningInfo | null;
+  /** The opening rounds the last `integrityWait` found when there was more than one (search/leg.ts
+   *  `integrityCheck`), or null. Optional: test pools leave it out. */
+  integrityRounds?(): import('./leg').OpeningRoundsInfo | null;
   /** "Continue my build-up" as the instant answer's tails (search/leg.ts `buildUpTailParams`), on the
    *  first worker against the pool's own inputs: empty without a farm in the save. */
   buildUpTails(): Promise<import('./precomputedLeg').BuildParams[]>;
@@ -638,8 +638,8 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
   // throws HERE, when the user presses Start, instead of surfacing mid-run an hour later.
   await workerAt(0);
 
-  // LOW-TE GATE (temporary until Joo's PR 717 merges): the last integrity check's low-TE opening.
-  let lastLowTe: import('./leg').LowTeOpeningInfo | null = null;
+  // The last integrity check's opening rounds (more than one), or null.
+  let lastRounds: import('./leg').OpeningRoundsInfo | null = null;
 
   return {
     get size(): number {
@@ -801,15 +801,14 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
         'worker 0 (integrity check)'
       )) as {
         seconds: number | null;
-        lowTe?: import('./leg').LowTeOpeningInfo | null;
+        opening?: import('./leg').OpeningRoundsInfo | null;
       };
-      // LOW-TE GATE (temporary until Joo's PR 717 merges)
-      lastLowTe = reply.lowTe ?? null;
+      lastRounds = reply.opening ?? null;
       return reply.seconds;
     },
 
-    integrityLowTe(): import('./leg').LowTeOpeningInfo | null {
-      return lastLowTe;
+    integrityRounds(): import('./leg').OpeningRoundsInfo | null {
+      return lastRounds;
     },
 
     async buildUpTails(): Promise<import('./precomputedLeg').BuildParams[]> {

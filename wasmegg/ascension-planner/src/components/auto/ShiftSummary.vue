@@ -128,12 +128,14 @@ import { getResearchById, getResearchByTier } from '@/calculations/commonResearc
 import { getVehicleType } from '@/lib/vehicles';
 import { getHabById, type HabId } from '../../lib/habs';
 import { getArtifact, getStone } from '@/lib/artifacts/data';
+import type { RarityCode, StoneOption } from '@/lib/artifacts/types';
 import type { VirtueEgg } from '@/types';
+import type { Action } from '@/types/actions/meta';
 
 const props = defineProps<{
   title: string;
   egg: VirtueEgg;
-  actions: any[];
+  actions: Action[];
   duration: number;
   cost: number;
   costType: 'SE' | 'Virtue';
@@ -175,7 +177,31 @@ const eggThemes: Record<VirtueEgg, { bg: string; text: string }> = {
 const eggTheme = computed(() => eggThemes[props.egg] || eggThemes.curiosity);
 
 // Order the summary pills appear in, regardless of shift type. Edit this to reorder them.
-const CATEGORY_ORDER = ['loadout', 'silos', 'habs', 'vehicles', 'peakELR', 'te', 'overtake', 'research'] as const;
+const CATEGORY_ORDER = ['loadout', 'silos', 'habs', 'vehicles', 'peakELR', 'te', 'research'] as const;
+type SummaryCategory = (typeof CATEGORY_ORDER)[number];
+
+// Pill variants; the template switches on isPremium/isLoadout/isPeakELR in that order.
+type SummaryItem = { category: SummaryCategory } & (
+  | { isPremium: true; text: string }
+  | {
+      isPremium?: false;
+      isLoadout: true;
+      setNames: string[];
+      artifacts: { iconPath: string; tier: number; rarity: RarityCode; name: string }[];
+      stones: { iconPath: string; tier: number; name: string; count: number }[];
+    }
+  | { isPremium?: false; isLoadout?: false; isPeakELR: true; text: string }
+  | { isPremium: false; isLoadout?: false; isPeakELR?: false; name: string; delta: string }
+);
+
+// eggsLaid/peakELR ride along on a shift's first action, whatever its type (see ascension.ts).
+function payloadEggsLaid(action: Action): number | undefined {
+  return 'eggsLaid' in action.payload ? action.payload.eggsLaid : undefined;
+}
+
+function payloadPeakELR(action: Action): number | undefined {
+  return 'peakELR' in action.payload ? action.payload.peakELR : undefined;
+}
 
 // Rarity background tint, matching ArtifactSelector.vue's color scheme.
 function rarityBg(rarityCode: string): string {
@@ -192,8 +218,11 @@ function rarityBg(rarityCode: string): string {
 }
 
 const totalEggsLaid = computed(() => {
-  const eggAction = props.actions.find(a => a.payload?.eggsLaid !== undefined);
-  return eggAction ? eggAction.payload.eggsLaid : 0;
+  for (const action of props.actions) {
+    const eggsLaid = payloadEggsLaid(action);
+    if (eggsLaid !== undefined) return eggsLaid;
+  }
+  return 0;
 });
 
 const summaryItems = computed(() => {
@@ -205,7 +234,13 @@ const summaryItems = computed(() => {
   const finalVehicles: Record<number, { id: number; trainLength?: number }> = {};
   const finalHabs: Record<number, number> = {};
   let finalSiloCount = 0;
-  const equippedArtifacts: any[] = [];
+  const equippedArtifacts: {
+    name: string;
+    tier: number;
+    rarity: RarityCode;
+    iconPath: string;
+    stones: { name: string; tier: number; iconPath: string }[];
+  }[] = [];
   const equippedSets: string[] = [];
 
   // Shared by change_artifacts/update_artifact_set/equip_artifact_set below — each one replaces
@@ -218,13 +253,13 @@ const summaryItems = computed(() => {
         if (artifact) {
           const stones = (slot.stones || [])
             .map((s: string | null) => (s ? getStone(s) : null))
-            .filter((s: any) => s !== null);
+            .filter((s): s is StoneOption => s !== null);
           equippedArtifacts.push({
             name: artifact.familyName,
             tier: artifact.tier,
             rarity: artifact.rarityCode,
             iconPath: artifact.iconPath,
-            stones: stones.map((s: any) => ({ name: s.familyName, tier: s.tier, iconPath: s.iconPath })),
+            stones: stones.map(s => ({ name: s.familyName, tier: s.tier, iconPath: s.iconPath })),
           });
         }
       }
@@ -275,37 +310,24 @@ if (!(researchId in startResearch)) startResearch[researchId] = fromLevel;
     }
   }
 
-    const items: any[] = [];
+    const items: SummaryItem[] = [];
 
     // --- Peak ELR / K3 Wait ---
-    const peakELRAction = props.actions.find(a => a.payload?.peakELR !== undefined);
-    if (peakELRAction) {
+    const peakELR = props.actions.map(payloadPeakELR).find(v => v !== undefined);
+    if (peakELR !== undefined) {
       items.push({
         category: 'peakELR',
         isPeakELR: true,
-        text: `Peak Delivery Rate: ${formatNumber(peakELRAction.payload.peakELR * 3600, 3)}/hr`,
+        text: `Peak Delivery Rate: ${formatNumber(peakELR * 3600, 3)}/hr`,
       });
     }
     // --- TE Earned ---
-    const teWaitActions = props.actions.filter(a => a.type === 'wait_for_te' || a.payload?.isTEWait);
-    if (teWaitActions.length > 0) {
-      const totalTE = teWaitActions.reduce((sum, a) => sum + (a.payload.teGained || a.payload.teEarned || 0), 0);
-      if (totalTE > 0) {
-        items.push({
-          category: 'te',
-          isPremium: true,
-          text: `+${totalTE} Truth Eggs`,
-        });
-      }
-    }
-
-    // --- Overtake Info ---
-    const overtakeAction = props.actions.find(a => a.type === 'virtual_overtake_info');
-    if (overtakeAction) {
+    const totalTE = props.actions.reduce((sum, a) => sum + (a.type === 'wait_for_te' ? a.payload.teGained || 0 : 0), 0);
+    if (totalTE > 0) {
       items.push({
-        category: 'overtake',
-        isPeakELR: true,
-        text: `Overtakes 1-sale in ${overtakeAction.payload.daysToOvertake.toFixed(1)}d`,
+        category: 'te',
+        isPremium: true,
+        text: `+${totalTE} Truth Eggs`,
       });
     }
 
@@ -326,7 +348,7 @@ if (!(researchId in startResearch)) startResearch[researchId] = fromLevel;
       category: 'loadout',
       isLoadout: true,
       setNames: equippedSets,
-      artifacts: equippedArtifacts.map((art: any) => ({
+      artifacts: equippedArtifacts.map(art => ({
         iconPath: art.iconPath,
         tier: art.tier,
         rarity: art.rarity,
@@ -342,21 +364,22 @@ if (!(researchId in startResearch)) startResearch[researchId] = fromLevel;
   }
 
   // --- Habs ---
-  let hasCU = false;
-  let highestHabId = -1;
+  // Every slot's final hab this shift, grouped by type (highest tier first) — a capped I1 can end
+  // with a mix, e.g. 2 Chicken Universes plus 2 interim habs.
   const habCounts: Record<number, number> = {};
-
   for (const habId of Object.values(finalHabs)) {
-    if (habId === 18) hasCU = true;
-    if (habId > highestHabId) highestHabId = habId;
     habCounts[habId] = (habCounts[habId] || 0) + 1;
   }
 
-  if (hasCU) {
-    items.push({ category: 'habs', isPremium: true, text: `${habCounts[18]}x Chicken Universe` });
-  } else if (highestHabId >= 0) {
-    const habName = getHabById(highestHabId as HabId)?.name || 'Hab';
-    items.push({ category: 'habs', isPremium: false, name: `Hab Upgrade`, delta: `to ${habName}` });
+  const habIdsDesc = Object.keys(habCounts).map(Number).sort((a, b) => b - a);
+  for (const habId of habIdsDesc) {
+    const count = habCounts[habId];
+    if (habId === 18) {
+      items.push({ category: 'habs', isPremium: true, text: `Chicken Universe ${count}x` });
+    } else {
+      const habName = getHabById(habId as HabId)?.name || 'Hab';
+      items.push({ category: 'habs', isPremium: false, name: habName, delta: `${count}x` });
+    }
   }
 
   // --- Vehicles ---

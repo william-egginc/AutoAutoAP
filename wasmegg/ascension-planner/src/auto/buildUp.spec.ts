@@ -22,8 +22,15 @@ const result = (name: string, s: EngineState, seconds: number, egg?: string): Sh
 
 vi.mock('./shifts/c1', () => ({ runC1: (s: EngineState) => result('C1', s, 1800) }));
 vi.mock('./shifts/k1', () => ({ runK1: (s: EngineState) => result('K1 shift', s, 1800, 'kindness') }));
-vi.mock('./shifts/i1', () => ({ runI1: (s: EngineState) => result('I1 shift', s, 99999, 'integrity') }));
-vi.mock('./shifts/c2', () => ({ runC2: (s: EngineState) => result('C2 shift', s, 14400, 'curiosity') }));
+vi.mock('./shifts/i1', () => ({
+  I1_TIME_LIMIT_SECONDS: 4 * 3600,
+  habsMaxed: () => true,
+  runI1: (s: EngineState) => result('I1 shift', s, 99999, 'integrity'),
+}));
+vi.mock('./shifts/c2', () => ({
+  runC2: (s: EngineState) => result('C2 shift', s, 14400, 'curiosity'),
+  runR1LookaheadEarningsBuy: (s: EngineState) => ({ actions: [], elapsedSeconds: 0, endState: s }),
+}));
 vi.mock('./shifts/k2', () => ({ runK2: (s: EngineState) => result('K2 shift', s, 99999, 'kindness') }));
 vi.mock('./shifts/r1', () => ({ runR1: (s: EngineState) => result('R1 shift', s, 3600, 'resilience') }));
 vi.mock('./shifts/helpers/vehicles', () => ({
@@ -41,6 +48,15 @@ vi.mock('./shifts/helpers/milestones', () => ({
   runTierUnlockMilestone: (s: EngineState) => ({ actions: [], elapsedSeconds: 0, endState: s }),
 }));
 vi.mock('@/calculations/commonResearch', () => ({ getResearchById: () => null, isTierUnlocked: () => true }));
+// The opening rounds and the C2/K2 skip are covered by buildUp.rounds.spec.ts; here every shift buys.
+vi.mock('./ascension', () => ({
+  SKIP_WHEN_NO_PURCHASES: new Set<string>(),
+  isPurchase: () => true,
+  tagShiftName: () => {},
+  runC1K1I1Segment: () => {
+    throw new Error('no rounds here');
+  },
+}));
 vi.mock('./hold', () => ({
   eggOfShift: () => null,
   holdForPlayer: (s: EngineState, _c: unknown, _t: number, e: number) => ({ heldSeconds: 0, actions: [], state: s, elapsedSeconds: e }),

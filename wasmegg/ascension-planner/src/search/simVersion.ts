@@ -23,14 +23,14 @@
  * (`tableSimMismatch`) and says so on the instant answer when they differ; it also rides in the CSV
  * header and the instant record.
  */
-export const SIM_VERSION = '2026-10-13-lowte-gate';
+export const SIM_VERSION = '2026-10-19-joo717';
 
 /** The simulator code the guard hashes (repo-relative to wasmegg/ascension-planner): directories
  *  are taken whole, every .ts but the specs. */
 export const SIM_SOURCES = ['src/engine', 'src/auto', 'src/search/tableBuild.ts', 'src/search/precomputedLeg.ts'];
 
 /** sha256 of SIM_SOURCES as simVersion.spec.ts computes it. See the note at the top. */
-export const SIM_SOURCE_HASH = 'f074f328d7ac39bee70852b3598f1f34c8a88eee2d7701c2854398ca878a3a7c';
+export const SIM_SOURCE_HASH = '70df180db247f5c05cb2cc3c315135f5121a7a865c572510ed91373bba052251';
 
 /**
  * Why a table's cells may not match this page's simulator, or null when they do. A table with no

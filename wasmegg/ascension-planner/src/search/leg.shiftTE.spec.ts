@@ -23,30 +23,35 @@ import { eggTE } from './leg';
 import { VIRTUE_EGGS } from '@/types';
 import type { ChainResult } from './types';
 
-/** Recorded on this fixture before ShiftMoment.te existed: [at, egg switched to, egg left]. */
+/** Recorded on this fixture: [at, egg switched to, egg left]. First before ShiftMoment.te existed (15 Oct
+ *  2026); re-recorded at the Joo PR 717 merge (19 Oct 2026, SIM_VERSION 2026-10-19-joo717), where the
+ *  opening's rounds replaced a ~165-day first I1 (241.3 days for the leg before, 16.3 after). Re-record
+ *  with SHIFTTE_GOLDEN_PRINT=1 only when the simulator's results change on purpose. */
 const BEFORE = {
-  seconds: 20844400.35885477,
+  seconds: 1410518.5035481453,
   startTime: 1790859600,
-  endTime: 1811704000.3588548,
-  durationSeconds: 20844400.358854692,
+  endTime: 1792270118.5035481,
+  durationSeconds: 1410518.503548117,
   key: '1-sale',
   endTE: 192,
   shifts: [
     [1790861349.4107058, 'kindness', 'curiosity'],
     [1790862865.0780554, 'integrity', 'kindness'],
-    [1805159981.4405875, 'curiosity', 'integrity'],
-    [1805159981.5070517, 'kindness', 'curiosity'],
-    [1805160134.719131, 'resilience', 'kindness'],
-    [1805160134.9371696, 'curiosity', 'resilience'],
-    [1805160134.9371696, 'humility', 'curiosity'],
-    [1805160134.9371696, 'kindness', 'humility'],
-    [1808713719.6810021, 'integrity', 'kindness'],
+    [1790863616.0352676, 'curiosity', 'integrity'],
+    [1790864711.3002753, 'kindness', 'curiosity'],
+    [1790864717.103002, 'integrity', 'kindness'],
+    [1790864733.414759, 'resilience', 'integrity'],
+    [1790864754.5340643, 'curiosity', 'resilience'],
+    [1791018171.5381534, 'humility', 'curiosity'],
+    [1791018171.5381534, 'kindness', 'humility'],
+    [1791043200, 'curiosity', 'kindness'],
+    [1791608561.2172203, 'integrity', 'curiosity'],
   ] as [number, string, string][],
   endEggs: {
     delivered: [
-      3282500000307806700, 3510000000064018400, 3282500000000000000, 3282500010416016000, 3510000000064018400,
+      3510000000343879000, 3510000000343879000, 3282500000000000000, 3282503261526989300, 3291106990925773000,
     ],
-    te: [38, 39, 38, 38, 39],
+    te: [39, 39, 38, 38, 38],
     egg: 'integrity',
   },
 };
@@ -59,8 +64,22 @@ beforeAll(async () => {
 
 describe('ShiftMoment.te on a simulated leg', () => {
   it("changes nothing the search scores: the route's numbers are the ones recorded before", () => {
-    expect(route.seconds).toBe(BEFORE.seconds);
     const leg = route.legs[0];
+    if (process.env.SHIFTTE_GOLDEN_PRINT)
+      console.log(
+        'GOLDEN ' +
+          JSON.stringify({
+            seconds: route.seconds,
+            startTime: leg.startTime,
+            endTime: leg.endTime,
+            durationSeconds: leg.durationSeconds,
+            key: leg.key,
+            endTE: leg.endTE,
+            shifts: leg.shifts!.map(s => [s.at, s.egg, s.fromEgg]),
+            endEggs: leg.endEggs,
+          })
+      );
+    expect(route.seconds).toBe(BEFORE.seconds);
     expect(leg.startTime).toBe(BEFORE.startTime);
     expect(leg.endTime).toBe(BEFORE.endTime);
     expect(leg.durationSeconds).toBe(BEFORE.durationSeconds);

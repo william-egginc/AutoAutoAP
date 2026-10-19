@@ -72,7 +72,7 @@ import are his. What our branch adds around it:
 - First-ascension choices: **Finish without buying** (Joo's "Continue Asc.") and **Prestige now**, kept in step with the per-ascension dropdown.
 - **Time off** windows, applied to plans sent from a search and carried in the JSON export and the plan library.
 - **Simulate this plan** from the instant answer, Nearby routes and Exhaustive: it hands over the route, the start and the legs.
-- The low-TE gate: below TE 120, a fresh build whose habs would stall past 4 hours runs Joo's C1/K1/I1 rounds (a port of his PR 717, temporary until it merges).
+- Joo's PR 717 is merged: the opening runs in C1/K1/I1 rounds until the habs are maxed (it replaced our low-TE gate on 19 Oct 2026). Our hours and Continue my build-up follow the rounds.
 
 Single run does **not** plan around awake hours or Continue my build-up (those are in the Fastest and By a date searches), and it
 does not find stops for you. Full list with code locations and commits:
@@ -121,7 +121,7 @@ only a missing file. That is why the Netlify command is `make -C ../../lib && pn
 
 One spec file: `npx vitest run path/to/file.spec.ts`. Tests force `VITE_SUBMIT_URL` to empty, so no
 spec reaches a real collector. Some specs (for example `src/search/chain.spec.ts`,
-`src/auto/lowTeOpening.save.spec.ts`) need a private save and are skipped when it is absent.
+`src/auto/openingRounds.save.spec.ts`) need a private save and are skipped when it is absent.
 `pnpm build` also warns when `src/` has commits newer than `release.ts`.
 
 Serve the app on `localhost` or over HTTPS. Over plain HTTP on a LAN, `crypto.subtle` does not exist
@@ -274,8 +274,7 @@ Paths are relative to this folder. The full module map is on
 
 - `src/auto/`, `src/engine/`: Joo's simulator (and upstream's engine). Keep edits minimal and marked;
   any change can move results. `src/auto/shifts/` holds the per-shift build logic (C1, K1, I1, C3, ...).
-  Our hooks there: `hold.ts` (your hours), `buildUp.ts` (Continue my build-up), `lowTeOpening.ts`
-  (the low-TE gate, temporary until Joo's PR 717 merges).
+  Our hooks there: `hold.ts` (your hours), `buildUp.ts` (Continue my build-up).
 - `src/search/`: our layer: the route finder, Check exactly and the Stronger check, the searches
   (`driver.ts`, `effort.ts`, `exhaustive.ts`, `deadline.ts`), the CSV, sending, the tables'
   leg pricing, and the sim-version guard.

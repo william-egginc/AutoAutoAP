@@ -75,13 +75,13 @@
       {{ errorText }}
     </p>
     <InstantIntegrity v-if="status !== 'loading' && !atTarget" :state="integrity" />
-    <!-- LOW-TE GATE (temporary until Joo's PR 717 merges): search/instantIntegrity.ts lowTeOpeningNote. -->
+    <!-- The opening's rounds on a low-earnings account: search/instantIntegrity.ts openingRoundsNote. -->
     <p
-      v-if="status !== 'loading' && !atTarget && lowTeNote"
+      v-if="status !== 'loading' && !atTarget && roundsNote"
       class="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-[11px] leading-relaxed text-sky-900"
-      data-testid="instant-lowte"
+      data-testid="instant-rounds"
     >
-      {{ lowTeNote }}
+      {{ roundsNote }}
     </p>
 
     <!-- A table from an older simulator (search/simVersion.ts): still shown, said so. -->
@@ -1016,7 +1016,7 @@ import {
 } from '@/search/prestigeBy';
 import InstantIntegrity from './InstantIntegrity.vue';
 import StrongerCheck from './StrongerCheck.vue';
-import { holdsRoutes, instantIntegrity, lowTeOpeningNote } from '@/search/instantIntegrity';
+import { holdsRoutes, instantIntegrity, openingRoundsNote } from '@/search/instantIntegrity';
 import { cutRoute, type FindContext } from '@/search/strongerCheck';
 import FollowButton from '../FollowButton.vue';
 import { screenGoalKey } from '@/lib/follow';
@@ -2100,8 +2100,7 @@ const integrity = computed(() =>
   )
 );
 const integrityHold = computed(() => holdsRoutes(integrity.value));
-// LOW-TE GATE (temporary until Joo's PR 717 merges)
-const lowTeNote = computed(() => lowTeOpeningNote(store.integrityLowTe));
+const roundsNote = computed(() => openingRoundsNote(store.integrityRounds));
 /** Why the table's cells may not be this simulator's (search/simVersion.ts), or null. */
 const simNote = computed(() => tableSimMismatch(header.value));
 watch(

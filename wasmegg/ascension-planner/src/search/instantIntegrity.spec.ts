@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { holdsRoutes, instantIntegrity } from './instantIntegrity';
+import { holdsRoutes, instantIntegrity, openingRoundsNote } from './instantIntegrity';
 import { renderHtml, textOf } from '@/test/renderComponent';
 import InstantIntegrity from '@/components/auto/InstantIntegrity.vue';
 import type { CteParts } from './rules';
@@ -67,5 +67,19 @@ describe('InstantIntegrity.vue', () => {
     const checking = textOf(await renderHtml(InstantIntegrity, { state: { kind: 'checking' } }));
     expect(checking).toBe('Checking whether this account can build…');
     expect(textOf(await renderHtml(InstantIntegrity, { state: { kind: 'none' } }))).toBe('');
+  });
+});
+
+describe("the instant answer's opening-rounds label", () => {
+  it('says nothing when one round maxes the habs, or when not measured', () => {
+    expect(openingRoundsNote(null)).toBe('');
+    expect(openingRoundsNote({ rounds: 1, openingSeconds: 3600 })).toBe('');
+  });
+
+  it('names the rounds and how long the opening takes', () => {
+    const note = openingRoundsNote({ rounds: 3, openingSeconds: 15 * 3600 });
+    expect(note).toContain('3 times');
+    expect(note).toContain('15.0 hours');
+    expect(note).toContain('Every date here includes them');
   });
 });
