@@ -160,6 +160,7 @@
               >
                 <SendingText v-if="stopAsked" text="Stopping" /><template v-else>Stop and keep the best</template>
               </button>
+              <p v-if="stopAsked" class="text-[11px] text-slate-600" data-testid="stopping-note">{{ STOPPING_NOTE }}</p>
             </template>
             <template v-else>
               <p v-if="!quickBest" class="text-[12px] text-slate-700 leading-relaxed">
@@ -650,6 +651,7 @@
           >
             <SendingText v-if="store.stopRequested" text="Stopping" /><template v-else>Stop that run</template>
           </button>
+          <p v-if="store.isRunning && store.stopRequested" class="w-full text-[11px] text-slate-600" data-testid="stopping-note">{{ STOPPING_NOTE }}</p>
         </div>
         <RunErrorNotes
           v-if="reportKind === k"
@@ -965,6 +967,7 @@ import ShareResult from './ShareResult.vue';
 import SentByRunNote from './SentByRunNote.vue';
 import ShareStatus from './ShareStatus.vue';
 import SendingText from './SendingText.vue';
+import { STOPPING_NOTE } from '@/search/stopNote';
 import { useByDateShare, useShareIdentity } from '@/composables/useShareResult';
 import { useShareExtras } from '@/composables/useShareExtras';
 import { agreeThisVisit } from '@/composables/useConsent';

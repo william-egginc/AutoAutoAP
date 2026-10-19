@@ -83,6 +83,7 @@
       ></div>
       <div v-else class="h-full w-1/3 rounded-full bg-indigo-400/70 animate-pulse"></div>
     </div>
+    <p v-if="stopping" class="text-[10px] text-white/70 leading-snug" data-testid="stopping-note">{{ STOPPING_NOTE }}</p>
     <p v-if="p.stage" class="text-[10px] text-white/60 truncate">{{ p.stage }}</p>
     <!-- What the screen's own progress block used to add (lib/runDetails.ts; the in-page header, bar and time
          line went on 16 Oct 2026, so this bar is the one progress display). Folded: the line above is enough
@@ -130,6 +131,7 @@ import { NAMES, fastestName } from '@/lib/siteNav';
 import { showDateTime } from '@/lib/displayTime';
 import { formatTimeLeft } from '@/search/sweepEstimate';
 import SendingText from './SendingText.vue';
+import { STOPPING_NOTE } from '@/search/stopNote';
 import { queueCountLine } from '@/lib/queueCount';
 import { runDetailLine } from '@/lib/runDetails';
 import { durationLabel } from '@/composables/useRunClock';
