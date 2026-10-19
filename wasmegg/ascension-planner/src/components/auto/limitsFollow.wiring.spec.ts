@@ -65,8 +65,13 @@ describe('By a date, Exhaustive: box 1 follows the best By a date route’s coun
       /if \(!ascFollows\.value \|\| linked\.value \|\| store\.deadlineRunning \|\| store\.preparing\) return;/
     );
     expect(byDate).toMatch(
-      /watch\(\[dateBestCount, \(\) => store\.deadlineRunning, \(\) => store\.preparing\], followDateBest/
+      /watch\(\[followCount, \(\) => store\.deadlineRunning, \(\) => store\.preparing\], followDateBest/
     );
+  });
+  it("with no instant answer, follows the count of an answer it can centre on (the quick scan's)", () => {
+    expect(byDate).toContain('const followCount = computed(() => dateBestCount.value ?? answerBestCount.value);');
+    expect(byDate).toContain('canCentreOn({ answer, deadline: deadline.value, currentTE: store.currentTE })');
+    expect(byDate).toContain('const n = boxCountFromBest(followCount.value);');
   });
   it('every path that sets the boxes on purpose stops it', () => {
     for (const fn of [

@@ -475,7 +475,7 @@
                       suggestion.around.join(' ')
                     }}), {{ suggestion.halfWidth }} TE either side{{
                       suggestion.step > 1 ? `, every ${suggestion.step} TE` : ''
-                    }}
+                    }}<template v-if="suggestion.coarse">. {{ COARSE_SUGGESTION_NOTE }}</template>
                   </template>
                   <template v-else>
                     measured shape, from {{ plural(suggestion.runs, 'run') }} across {{ suggestion.accounts }} accounts
@@ -559,7 +559,10 @@
               <template #row-after="{ row, k }">
                 <span v-if="row.asc >= 2 && extraSugs[k]" class="block text-[10px] text-slate-500">
                   Suggest would fill in {{ plural(extraSugs[k]!.chains, 'route') }}, about
-                  {{ chainsTimeLabel(extraSugs[k]!.chains) }}
+                  {{ chainsTimeLabel(extraSugs[k]!.chains)
+                  }}<template v-if="extraCoarse(k)"
+                    >. {{ COARSE_SUGGESTION_NOTE }}</template
+                  >
                 </span>
               </template>
               <template #footer>
@@ -1154,7 +1157,7 @@ import {
   SUGGESTABLE_ASCENSIONS,
   formatHours,
 } from '@/search/exhaustive';
-import { routeFromBands, spaceBySliders, type SpaceSliderPos } from '@/search/deadlineSuggest';
+import { COARSE_SUGGESTION_NOTE, routeFromBands, spaceBySliders, type SpaceSliderPos } from '@/search/deadlineSuggest';
 import SpaceSliders from './SpaceSliders.vue';
 import RoutesToTry from './RoutesToTry.vue';
 import KeptBoxNote from './KeptBoxNote.vue';
@@ -1306,6 +1309,8 @@ type SpaceSuggestion =
       halfWidth: number;
       step: number;
       fromInstant: boolean;
+      /** Coarsened to stay under the budget (deadlineSuggest.ts `cappedStopsByWidth`). */
+      coarse: boolean;
     };
 const NO_SLIDERS: SpaceSliderPos = { widthIx: null, stepIx: null };
 function spaceFor(n: number, maxChains: number, sl: SpaceSliderPos = NO_SLIDERS): SpaceSuggestion | null {
@@ -1325,6 +1330,7 @@ function spaceFor(n: number, maxChains: number, sl: SpaceSliderPos = NO_SLIDERS)
       halfWidth: around.halfWidth,
       step: around.step,
       fromInstant: !!route,
+      coarse: !!around.coarse,
     };
   return plain;
 }
@@ -1691,6 +1697,11 @@ const rowSliders = (row: ExtraRow): SpaceSliderPos => ({ widthIx: row.widthIx ??
 const extraSugs = computed(() =>
   extraChains.value.map(row => (row.asc >= 2 ? spaceFor(row.asc, extraBudget(row), rowSliders(row)) : null))
 );
+/** An added chain's suggestion was coarsened to stay under its budget (the note says so). */
+function extraCoarse(k: number): boolean {
+  const s = extraSugs.value[k];
+  return s?.kind === 'instant' && s.coarse;
+}
 const extraViews = computed(() => extraChains.value.map((row, k) => viewOf(extraSugs.value[k], rowSliders(row))));
 /** The box holds bands the player typed, not ones the panel wrote. */
 function extraTyped(k: number): boolean {

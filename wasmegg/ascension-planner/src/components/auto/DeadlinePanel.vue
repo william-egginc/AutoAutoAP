@@ -253,6 +253,9 @@
               <p v-if="chains[k].restored && row.asc >= 2" class="text-[10px] text-slate-400">
                 Restored from the unfinished run (the sliders apply when you press Suggest a space).
               </p>
+              <span v-if="coarseRows[k]" class="block text-[10px] text-amber-700" data-test="coarse-note">{{
+                COARSE_SUGGESTION_NOTE
+              }}</span>
             </template>
             <!-- A step wider than the ± leaves only the centre of every stop after the first (the user, 5 Oct:
                ±3 every 10 gave "231; 277"). Say so rather than let it look like a bug. -->
@@ -886,6 +889,7 @@ import {
   autoFallbackNote,
   awaitInstant,
   betterRoute,
+  canCentreOn,
   needsQuickScan,
   quickScanSpec,
   runAutoWiden,
@@ -962,7 +966,7 @@ import {
   type DeadlineRunSpec,
   type SavedDeadlineResult,
 } from '@/search/deadlineStore';
-import { SPACE_STEPS, SPACE_WIDTHS, stopsByWidth } from '@/search/deadlineSuggest';
+import { COARSE_SUGGESTION_NOTE, SPACE_STEPS, SPACE_WIDTHS, cappedStopsByWidth } from '@/search/deadlineSuggest';
 import { boxCountFromBest } from '@/lib/limitsFollow';
 import { BY_DATE_LEVELS, simpleByDateSpace, widthForLevel, type ByDateLevel, type SimpleSpace } from '@/search/simpleByDate';
 import { firstTime } from '@/lib/linkOnce';
@@ -1498,7 +1502,7 @@ function centreRow(k: number): void {
  * planner), else evenly spaced. Also sets the last-stop range around it when that is empty.
  */
 /** What Suggest a space would put in chain `k`'s box right now, without changing anything. */
-function suggestion(k: number): { text: string; from: string; lastGuess: number } | null {
+function suggestion(k: number): { text: string; from: string; lastGuess: number; coarse: boolean } | null {
   const row = chains.value[k];
   if (!row) return null;
   const n = Math.max(1, Math.min(8, Math.floor(row.asc || 1)));
@@ -1521,11 +1525,21 @@ function suggestion(k: number): { text: string; from: string; lastGuess: number 
           ? `Box ${k + 1} was suggested around your route, ${base.around.join(' ')}.`
           : `Box ${k + 1} was spaced evenly: no answer or route to start from yet.`;
   // Sized to the slider (search/deadlineSuggest.ts): the first stop at every TE from just above
-  // yours, the later ones as fine and as wide as the size allows.
+  // yours, the later ones as fine and as wide as the size allows, and never over MAX_SUGGESTED_SETS
+  // (coarser steps first): a TE 93 box at ±30 every TE was 57,650,850 sets.
   const lastHi = lastRange.value?.[1] ?? Math.min(490, lastGuess + 20);
-  const sug = stopsByWidth(te, early, lastHi, widthOf(row), stepOf(row));
-  return sug ? { text: sug.text, from, lastGuess } : null;
+  const sug = cappedStopsByWidth(te, early, lastHi, widthOf(row), stepOf(row));
+  return sug ? { text: sug.text, from, lastGuess, coarse: sug.coarse } : null;
 }
+
+/** Per chain: its box is Suggest a space's, coarsened to stay under MAX_SUGGESTED_SETS (the note says so). */
+const coarseRows = computed(() =>
+  chains.value.map((row, k) => {
+    if (!row.auto || row.asc < 2 || !row.text) return false;
+    const sug = suggestion(k);
+    return !!sug?.coarse && sug.text === row.text;
+  })
+);
 
 function suggestRow(k: number): void {
   const row = chains.value[k];
@@ -1576,6 +1590,23 @@ function removeRow(k: number): void {
 /** The instant answer's best By a date route's count (InstantRoute's lead, stores/stronger.ts). */
 const dateBestCount = computed(() => stronger.instant.date?.chain.length ?? null);
 /**
+ * With no instant answer (below TE 120), the best count of a By a date answer the boxes can centre on
+ * (autoWiden.ts `canCentreOn`: this date, priced near this TE), e.g. the quick scan's. The default box
+ * follows it, so Suggest a space centres on that answer's own route ("answer") rather than spacing a
+ * count it never tried evenly: the quick scan answers 1 to 5 ascensions, and a 6-ascension box spaced
+ * evenly was the 57,650,850-set box of the 18 Oct beta test.
+ */
+const answerBestCount = computed(() => {
+  const r = store.deadlineResult;
+  if (!r || !deadline.value) return null;
+  const answer = { deadline: r.deadline, te: r.te, chains: r.byStops.map(x => x.chain) };
+  if (!canCentreOn({ answer, deadline: deadline.value, currentTE: store.currentTE })) return null;
+  const best = r.routes[0]?.chain;
+  return best && r.byStops.some(x => x.chain.length === best.length) ? best.length : null;
+});
+/** The count the default box follows: the instant answer's, else that answer's. */
+const followCount = computed(() => dateBestCount.value ?? answerBestCount.value);
+/**
  * The one default box follows that count (lib/limitsFollow.ts `boxCountFromBest`, 1..8): it was a fixed
  * 4, so a player whose best By a date route had 6 ascensions proved the best of 4s. Only the default:
  * one box, filled by Suggest a space or empty, not restored or from a request, and only while nothing
@@ -1583,11 +1614,15 @@ const dateBestCount = computed(() => stronger.instant.date?.chain.length ?? null
  */
 function followDateBest(): void {
   if (!ascFollows.value || linked.value || store.deadlineRunning || store.preparing) return;
-  const n = boxCountFromBest(dateBestCount.value);
+  const n = boxCountFromBest(followCount.value);
   const row = chains.value[0];
   if (n === null || chains.value.length !== 1 || !row || row.restored || row.centre) return;
   if (row.text && !row.auto) return;
-  if (row.asc === n) return;
+  if (row.asc === n) {
+    // Same count, but an answer to centre on may have just arrived (a run ended): re-suggest around it.
+    if (dateBestCount.value === null && row.auto && store.currentTE > 0) suggestRow(0);
+    return;
+  }
   row.asc = n;
   if (n < 2) {
     row.text = '';
@@ -1733,7 +1768,7 @@ watch(
   { immediate: true }
 );
 // Box 1 follows the instant answer's count (`followDateBest`), after `linked` and the first fill.
-watch([dateBestCount, () => store.deadlineRunning, () => store.preparing], followDateBest, { immediate: true });
+watch([followCount, () => store.deadlineRunning, () => store.preparing], followDateBest, { immediate: true });
 
 // The boxes outlive the screen and the save (kept refs), so a box filled for another account -- or
 // for this one before its TE moved past the first stops -- can describe no playable route at all

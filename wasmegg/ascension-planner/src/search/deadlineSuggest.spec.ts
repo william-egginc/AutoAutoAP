@@ -152,16 +152,21 @@ describe('spaceBySliders (the Full sweep sliders)', () => {
     expect(s.bands[0][0]).toBe(187);
   });
 
-  it('is not capped by the budget once moved', () => {
+  // Was "is not capped by the budget once moved": moved sliders ran to millions of routes (18 Oct
+  // 2026), so they are held to the budget too, coarser steps first (deadlineSuggest.ts cappedStopsByWidth).
+  it('is held to the budget once moved, by coarser steps, and says so', () => {
     const s = spaceBySliders(141, route, { widthIx: SPACE_WIDTHS.length - 1, stepIx: 0 }, 1_000)!;
-    expect(s.sets).toBeGreaterThan(1_000);
+    expect(s.sets).toBeLessThanOrEqual(1_000);
+    expect(s.coarse).toBe(true);
+    expect(s.step).toBeGreaterThan(1);
   });
 
-  it('moving one slider pins the other where the default put it', () => {
+  it('moving one slider pins the other where the default put it (when that fits the budget)', () => {
     const auto = routeSpace(141, route, 75_000)!;
-    const s = spaceBySliders(141, route, { widthIx: SPACE_WIDTHS.indexOf(15), stepIx: null }, 75_000)!;
+    const s = spaceBySliders(141, route, { widthIx: SPACE_WIDTHS.indexOf(5), stepIx: null }, 75_000)!;
     expect(s.step).toBe(SPACE_STEPS[nearestIx(SPACE_STEPS, auto.step)]);
-    expect(s.halfWidth).toBe(15);
+    expect(s.halfWidth).toBe(5);
+    expect(s.coarse).toBe(false);
   });
 
   it('is null for a route with no early stop', () => {

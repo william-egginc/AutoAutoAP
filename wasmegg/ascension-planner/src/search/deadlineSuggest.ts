@@ -200,6 +200,60 @@ export function stopsByWidth(
   };
 }
 
+/**
+ * The most sets of early stops a suggested box may hold (By a date's Exhaustive: Suggest a space, the
+ * default box, the sliders). Every set is about log2(span) + 2 routes, so this is about 80,000 routes:
+ * a few hours on a typical machine. A box the player types is never capped.
+ *
+ * WHY (the user's beta test, 18 Oct 2026, a TE 93 account with no instant answer): `stopsByWidth` grows
+ * as about (2w + 1) x (2w / step + 1)^(stops - 1), with no ceiling. Six ascensions spaced evenly up to
+ * the quick scan's last stop (182; its answers cover 1 to 5 ascensions, so a 6-ascension box had none
+ * to centre on), ±30 at every TE, came out at 57,650,850 sets, about 230 million routes, "4.4 years";
+ * the default ±10 every 2 TE at 8 ascensions is 21.6 million. Find started it with no warning.
+ */
+export const MAX_SUGGESTED_SETS = 20_000;
+/** The box's helper text when `cappedStopsByWidth` had to coarsen the steps to stay under the cap. */
+export const COARSE_SUGGESTION_NOTE = 'Coarse steps so this stays small; narrow them where you want to look closer.';
+/** Steps tried, finer to coarser, when a suggestion is over the cap. Past the ± itself every stop after
+ *  the first is just its centre, so the box always fits in the end. */
+const COARSE_STEPS = [1, 2, 3, 5, 10, 15, 20, 30, 60];
+
+/**
+ * `stopsByWidth`, never over `maxSets` sets (`MAX_SUGGESTED_SETS` by default), counted as the panel
+ * counts them (`countBandShapes`, its "sets of early stops"). The ± and step asked for when they fit;
+ * else the same ± at the next coarser step that fits (`coarse`: say so, `COARSE_SUGGESTION_NOTE`);
+ * else, only when even every stop after the first at its centre is too many, a narrower ±. Null when
+ * the stops don't fit between your TE and the last stop.
+ */
+export function cappedStopsByWidth(
+  currentTE: number,
+  early: number[],
+  lastHi: number,
+  halfWidth: number,
+  step: number,
+  maxSets: number = MAX_SUGGESTED_SETS
+): (StopSuggestion & { halfWidth: number; step: number; coarse: boolean }) | null {
+  const cap = Math.max(1, Math.floor(maxSets));
+  const w = Math.max(0, Math.floor(halfWidth));
+  const s = Math.max(1, Math.floor(step));
+  const asked = stopsByWidth(currentTE, early, lastHi, w, s);
+  if (!asked) return null;
+  if (asked.sets <= cap) return { ...asked, halfWidth: w, step: s, coarse: false };
+  for (const c of COARSE_STEPS) {
+    if (c <= s) continue;
+    const sug = stopsByWidth(currentTE, early, lastHi, w, c);
+    if (sug && sug.sets <= cap) return { ...sug, halfWidth: w, step: c, coarse: true };
+  }
+  // Every later stop at its centre and still too many (only a cap far below the first stop's own
+  // width): the ± narrows, coarsest step kept.
+  const last = COARSE_STEPS[COARSE_STEPS.length - 1];
+  for (let n = w - 1; n >= 0; n--) {
+    const sug = stopsByWidth(currentTE, early, lastHi, n, last);
+    if (sug && sug.sets <= cap) return { ...sug, halfWidth: n, step: last, coarse: true };
+  }
+  return null;
+}
+
 /** Where a chain's suggested space is centred, and how to say so. */
 export interface SuggestBase {
   /** The early stops (one per ascension before the last) and the last stop guessed. */
@@ -276,7 +330,7 @@ export interface SpaceSliderPos {
   widthIx: number | null;
   stepIx: number | null;
 }
-export type SlidSpace = StopSuggestion & { halfWidth: number; step: number; moved: boolean };
+export type SlidSpace = StopSuggestion & { halfWidth: number; step: number; moved: boolean; coarse?: boolean };
 
 /** What the sliders show before they are moved: 5 TE either side, every 2 TE (what `routeSpace` finds
  *  at the Full sweep's default size). */
@@ -317,8 +371,10 @@ export function spaceBySliders(
   const early = route.slice(0, -1);
   const last = route[route.length - 1];
   if (!early.length || !(last > currentTE)) return null;
-  const s = stopsByWidth(currentTE, early, last, halfWidth, step);
-  return s && { ...s, halfWidth, step, moved: true };
+  // Moved sliders are still a suggestion: held to the same `maxChains` the unmoved ones are (wide and
+  // fine at 8 ascensions ran to tens of millions), coarser steps first (`coarse`).
+  const s = cappedStopsByWidth(currentTE, early, last, halfWidth, step, maxChains);
+  return s && { ...s, moved: true };
 }
 
 /** One chain's own Suggest-a-space slider positions (By a date's rows). */
