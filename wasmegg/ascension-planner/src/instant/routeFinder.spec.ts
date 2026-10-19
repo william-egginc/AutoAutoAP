@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { canonicalDelivered, pacificHourOfWeek, type BuildParams } from './precomputedLeg';
-import { findRoutes, nextHour, priceLeg, startInSale, type BuildLookup } from './routeFinder';
+import { findRoutes, firstLegOptions, nextHour, priceLeg, startInSale, type BuildLookup } from './routeFinder';
 import { getNextSaleEnd, isResearchSaleActive } from '@/lib/events';
 
 const TE = 300;
@@ -53,5 +53,33 @@ describe('the sale’s last hour (startInSale)', () => {
     const { best } = await findRoutes({ table, startTE: TE, start: LAST_HOUR + 180, final: TE + 1, maxAscensions: 1 });
     expect(best?.legs[0].start).toBe(LAST_HOUR + 180);
     expect(best!.end).toBeLessThan(SALE_END + 3600);
+  });
+});
+
+describe('the first ascension: continue or a fresh start (firstLegOptions)', () => {
+  const start = SALE_END + 2 * 86400;
+  // Continuing: no build to make, the same delivery, so it only has the eggs to lay.
+  const quick: BuildParams = { ...build(0, 0) };
+  // Continuing a farm that has a month of purchases left: slower than a fresh start's week.
+  const slow: BuildParams = { ...build(30 * 86400, 0) };
+  const legs = (cont: BuildParams | null) =>
+    firstLegOptions({ table, startTE: TE, start, final: TE + 1, delivered: canonicalDelivered(TE), cont });
+
+  it('takes whichever is faster, continuing or a fresh start', () => {
+    expect(legs(quick).map(l => l.label)).toEqual(['continue']);
+    expect(legs(slow).map(l => l.label)).toEqual(['1-sale']);
+    expect(legs(null).map(l => l.label)).toEqual(['1-sale']);
+  });
+
+  it('continue starts at once; a fresh start on the next whole hour', async () => {
+    // Continue lays from the plan start; the fresh start's purchases wait for the next hour first.
+    expect(legs(quick)[0].end).toBeLessThan(legs(null)[0].end);
+    const found = await findRoutes({ table, startTE: TE, start, final: TE + 1, maxAscensions: 1, firstLegs: legs(quick) });
+    expect(found.best?.legs[0]).toMatchObject({ label: 'continue', start });
+  });
+
+  it('never a continue longer than half a year', () => {
+    const forever: BuildParams = { ...build(400 * 86400, 0) };
+    expect(legs(forever).map(l => l.label)).toEqual(['1-sale']);
   });
 });

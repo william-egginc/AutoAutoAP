@@ -40,6 +40,7 @@
       <span class="text-[10px] text-slate-400">9:00 am, your timezone</span>
     </div>
 
+    <p v-if="staleNote" class="text-[11px] text-amber-700" data-testid="instant-stale">{{ staleNote }}</p>
     <NoInstantAnswer v-if="noAnswer" :reason="noAnswer" />
     <p v-else-if="status === 'loading'" class="text-xs text-slate-500" data-testid="instant-loading">{{ loadingText }}</p>
     <p v-else-if="status === 'error'" class="text-xs text-red-600">The instant answer couldn’t run: {{ errorText }}</p>
@@ -47,10 +48,14 @@
       <p v-if="!rows.length" class="text-xs text-slate-500">No route reaches {{ goalWords }} on the table.</p>
       <InstantRows v-else :rows="rows" :dated="deadline !== undefined" :timezone="timezone" @simulate="simulate" />
       <p class="text-[10px] text-slate-500 leading-relaxed" data-testid="instant-caveat">
-        Any hour: every ascension starts on the next whole hour after the last one ends, day or night. The first is a
-        fresh start (prestige now) on your save’s eggs, at your delivery rate ({{ (scale * 100).toFixed(1) }}% of the
-        table’s). The Auto Planner ascends at once, so “Simulate this plan” can finish a little sooner: its dates are
-        the exact ones.
+        Any hour: every ascension starts on the next whole hour after the last one ends, day or night.
+        <template v-if="midAscension">
+          The first is whichever is sooner: finishing your current ascension without buying anything (continue), or a
+          fresh start (prestige now).
+        </template>
+        <template v-else>The first is a fresh start (prestige now) on your save’s eggs.</template>
+        Fresh ascensions run at your delivery rate ({{ (scale * 100).toFixed(1) }}% of the table’s). The Auto Planner
+        ascends at once, so “Simulate this plan” can finish a little sooner: its dates are the exact ones.
       </p>
     </template>
   </div>
@@ -75,6 +80,9 @@ import {
   type NoAnswer,
 } from '@/instant/instantAnswer';
 import { deliveryScale } from '@/instant/deliveryScale';
+import { continueTail, hasVirtueFarm, siloSeconds, staleSaveNote } from '@/instant/continueTail';
+import { createBaseEngineState, getSimulationContext } from '@/engine/adapter';
+import type { BuildParams } from '@/instant/precomputedLeg';
 import type { SimulateRequest } from '@/instant/simulatePlan';
 import type { InstantWorkerRequest, InstantWorkerResponse } from '@/instant/instant.worker';
 import NoInstantAnswer from './NoInstantAnswer.vue';
@@ -136,6 +144,36 @@ const scale = computed(() =>
     : 1
 );
 
+/** On a virtue farm: leg 1 can be continue (continueTail.ts). */
+const midAscension = computed(() => hasVirtueFarm(initialState.currentFarmState));
+/** The save's age, said in one line when it is over an hour. */
+const staleNote = computed(() => {
+  const farm = initialState.currentFarmState;
+  const sync = hasVirtueFarm(farm) ? farm!.lastStepTime : initialState.lastBackupTime;
+  return staleSaveNote(
+    sync,
+    Date.now() / 1000,
+    siloSeconds(farm?.numSilos, initialState.epicResearchLevels?.['silo_capacity'])
+  );
+});
+
+/** Continue's tail from `start` on the save as loaded, or null (no farm, or it can't be worked out). */
+function contAt(start: number, delivered: number[]): BuildParams | null {
+  if (!midAscension.value) return null;
+  try {
+    return continueTail({
+      farm: initialState.currentFarmState,
+      backup: initialState.rawBackup,
+      base: createBaseEngineState(null),
+      context: getSimulationContext(),
+      start,
+      delivered,
+    });
+  } catch {
+    return null;
+  }
+}
+
 const rows = computed<AnswerRow[]>(() => (found.value ? rowsShown(found.value, foundFor.value) : []));
 
 let worker: Worker | null = null;
@@ -182,11 +220,15 @@ async function run(): Promise<void> {
     return;
   }
   const dl = deadline.value;
+  const now = Math.floor(Date.now() / 1000);
+  const cont = contAt(now, start.value.delivered);
   const req: AnswerRequest = {
     startTE: startTE.value,
-    start: Math.floor(Date.now() / 1000),
+    start: now,
     delivered: [...start.value.delivered],
     deliveryScale: scale.value,
+    // A plain copy: it goes to the worker.
+    ...(cont ? { cont: JSON.parse(JSON.stringify(cont)) as BuildParams } : {}),
     ...(dl !== undefined ? { deadline: dl } : {}),
   };
   const a = await ask({ kind: 'answer', id: ++nextId, url: TABLE_URL, req });

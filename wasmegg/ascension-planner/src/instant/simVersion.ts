@@ -6,12 +6,18 @@
  * only the stamps listed here, each a simulator whose results are Joo's to the bit. A table with no
  * stamp, or another one, gets no instant answer (the card says the table is still being built).
  *
+ * No guard hashes Joo's simulator code here (the fork has one over its own engine): this page leaves
+ * his code unchanged, so the stamp is changed by hand when his results change.
+ *
  * WHEN TO CHANGE IT. When Joo's simulator changes its results (any cell would move), the old tables
  * no longer match it: give it a new stamp here, and rebuild the table (or restamp it once a bit-check
  * shows its cells unchanged). A table built by another simulator (e.g. the AutoAutoAP fork's) may be
  * added only after such a bit-check shows its cells identical to this one's.
  */
-export const SIM_VERSION = 'joo-upstream-6e118a72';
+/** The PC's maxed table (built on the fork's joo-lite b70ced72): 51 of its cells, TE 75-339 at five
+ *  hours of the week, are bit-identical to this simulator's (Joo's upstream 6e118a72, unchanged here;
+ *  aaap-tools notes/joo-fork-bitcheck.md, 19 Oct 2026), so its stamp is this page's. */
+export const SIM_VERSION = '2026-10-19-joo717';
 
 /** Every stamp whose cells are this page's simulator's. */
 export const ACCEPTED_SIM_VERSIONS: readonly string[] = [SIM_VERSION];

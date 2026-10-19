@@ -8,8 +8,8 @@
  *      on every mount and would otherwise put the old form back. Then App.vue opens the Auto tab with
  *      his own handler (fresh backup, as his tab button does).
  *   2. When the Auto planner mounts, `runPendingSimulate` (called from AutomaticPlanner.vue) pins A1 to
- *      the build the answer priced (a fresh '2-sale', '1-sale-tier13', ... : the instant answer never
- *      continues the ascension in progress) and runs his `generate`. A2 onwards are his own pick, the
+ *      what the answer priced (a fresh '2-sale', '1-sale-tier13', ..., or 'continue': finishing the
+ *      ascension in progress) and runs his `generate`. A2 onwards are his own pick, the
  *      fastest variant, as the table picks.
  *
  * Nothing else of his planner is touched; a plain Generate press afterwards is his as always.
@@ -35,14 +35,15 @@ export interface SimulateRequest {
   chain: number[];
   /** Unix seconds its first ascension starts. */
   start: number;
-  /** The first ascension's build, as Joo's planner names its variants ('2-sale', '1-sale-tier13'). */
+  /** The first ascension's build, as Joo's planner names its variants ('2-sale', '1-sale-tier13',
+   *  'continue'). */
   a1: string;
 }
 
 /** A request waiting for the Auto planner to mount (one at a time; the newest wins). */
 let pending: { a1: VariantKey | null } | null = null;
 
-const VARIANT = /^[123]-sale(-tier13)?$/;
+const VARIANT = /^([123]-sale(-tier13)?|continue)$/;
 
 /** Fill Joo's Auto planner form with the route, and leave A1's build for `runPendingSimulate`. */
 export function requestSimulate(planner: PlannerStore, req: SimulateRequest): void {

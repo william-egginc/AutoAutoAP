@@ -5,7 +5,8 @@
  * shows `rowsShown`.
  *
  * What it assumes, said on the card: the first ascension is a fresh build (prestige now, on the next
- * whole hour) from the save's own egg counts; every later one on the next whole hour after the last
+ * whole hour) from the save's own egg counts, or finishing the ascension in progress without buying
+ * anything (continue) when that is sooner; every later one on the next whole hour after the last
  * ends, at any hour of the day; the save's delivery rate (deliveryScale.ts) on the maxed table's
  * builds. Joo's planner ("Simulate this plan") ascends at once instead, so its times can be a little
  * sooner.
@@ -13,8 +14,8 @@
 import { countTEThresholdsPassed } from '@/lib/truthEggs';
 import { getLocalTimestampInTimezone } from '@/lib/events';
 import type { VirtueEgg } from '@/types';
-import { EGG_ORDER } from './precomputedLeg';
-import { findRoutes, polishFound, type FoundRoutes, type Route } from './routeFinder';
+import { EGG_ORDER, type BuildParams } from './precomputedLeg';
+import { findRoutes, firstLegOptions, polishFound, type FoundRoutes, type Route } from './routeFinder';
 import type { Table, TableHeader } from './precomputedTable';
 import { tableSimMismatch } from './simVersion';
 
@@ -33,6 +34,8 @@ export interface AnswerRequest {
   /** Eggs delivered per egg at the start (EGG_ORDER). */
   delivered: number[];
   deliveryScale: number;
+  /** Continue current ascension (continueTail.ts), or null/absent for a fresh first ascension only. */
+  cont?: BuildParams | null;
   /** By a date: the unix second. Without it, the fastest route to FINAL_TE. */
   deadline?: number;
 }
@@ -43,10 +46,23 @@ export async function workOutAnswer(
   req: AnswerRequest,
   onProgress?: (done: number, of: number) => void
 ): Promise<FoundRoutes> {
+  // With a farm in progress, the first ascension is continue or the fresh build, whichever is sooner.
+  const firstLegs = req.cont
+    ? firstLegOptions({
+        table: table.lookup,
+        startTE: req.startTE,
+        start: req.start,
+        final: FINAL_TE,
+        deliveryScale: req.deliveryScale,
+        delivered: req.delivered,
+        cont: req.cont,
+      })
+    : undefined;
   const base = {
     startTE: req.startTE,
     start: req.start,
     startDelivered: req.delivered,
+    ...(firstLegs ? { firstLegs } : {}),
     deliveryScale: req.deliveryScale,
     ...(req.deadline !== undefined ? { deadline: req.deadline } : {}),
   };

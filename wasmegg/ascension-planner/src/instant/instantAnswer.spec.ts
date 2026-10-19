@@ -123,6 +123,17 @@ describe('workOutAnswer and rowsShown', () => {
     expect(best.endTE).toBeLessThan(FINAL_TE);
   });
 
+  it('with a farm in progress, leg 1 is continue when that is sooner, and the routes carry on from it', async () => {
+    // A farm that lays fast and has nothing to buy: continue beats a fresh build's purchases.
+    const cont = { sales: 0, tier13: false, waitStart: 0, saleEnd: 0, peakELR: 5e16, delivered: canonicalDelivered(FROM) };
+    const found = await workOutAnswer(table, { ...req, cont });
+    const rows = rowsShown(found);
+    expect(rows.some(r => r.route.legs[0].label === 'continue')).toBe(true);
+    for (const r of rows.filter(r => r.route.legs[0].label === 'continue')) expect(r.route.legs[0].start).toBe(START);
+    const fresh = await workOutAnswer(table, req);
+    expect(found.best!.end).toBeLessThanOrEqual(fresh.best!.end);
+  });
+
   it('a slower delivery rate never finishes sooner', async () => {
     const full = await workOutAnswer(table, req);
     const half = await workOutAnswer(table, { ...req, deliveryScale: 0.5 });

@@ -71,5 +71,9 @@ describe('"Simulate this plan" into Joo’s Auto Planner', () => {
     requestSimulate(planner, { chain: [490], start: START, a1: 'first' });
     runPendingSimulate(planner, generate);
     expect(planner.planVariantOverrides).toEqual({});
+    // Continue current ascension is one of his variants too.
+    requestSimulate(planner, { chain: [300, 490], start: START, a1: 'continue' });
+    runPendingSimulate(planner, generate);
+    expect(planner.planVariantOverrides).toEqual({ 0: 'continue' });
   });
 });

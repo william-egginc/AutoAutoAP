@@ -23,8 +23,9 @@
  * (`rebase`, exact): the times of a route found here are the simulator's.
  *
  * Ported from the AutoAutoAP fork (search/routeFinder.ts). Left out: hours ("works inside my hours"),
- * waiting hours, and a first ascension worked out elsewhere (continue / build-up): here the first
- * ascension is always a fresh build from the table, moved onto the save's own egg counts.
+ * waiting hours, and the build-up first leg. The first ascension is a fresh build from the table on
+ * the save's own egg counts, or finishing the one in progress (continue), whichever is sooner
+ * (`firstLegOptions`).
  */
 import {
   bestTailTo,
@@ -64,6 +65,17 @@ export interface Route {
   seconds: number;
 }
 
+/** A first ascension worked out outside the table (`firstLegOptions`): where it ends and when. */
+export interface FirstLeg {
+  to: number;
+  endTE: number;
+  end: number;
+  /** Eggs delivered per egg when it ends (EGG_ORDER). */
+  delivered: number[];
+  /** 'continue', or the fresh build's variant ('2-sale', ...). */
+  label: string;
+}
+
 export interface FindOptions {
   table: BuildLookup;
   /** The TE the plan starts from and the unix second it starts. */
@@ -75,6 +87,8 @@ export interface FindOptions {
   /** Eggs delivered per egg at the start (EGG_ORDER); the table's canonical share of `startTE` if
    *  left out. Each route carries its own counts forward from here. */
   startDelivered?: number[];
+  /** Instead of a fresh build at `startTE`, these first ascensions (one per checkpoint). */
+  firstLegs?: FirstLeg[];
   /** Scale the peak delivery rate (a player's delivery against the table's, deliveryScale.ts). */
   deliveryScale?: number;
   /** Arrivals kept per TE and number of ascensions (`DEFAULT_KEEP`). */
@@ -467,6 +481,27 @@ export async function findRoutes(o: FindOptions): Promise<FoundRoutes & { altern
     o.onProgress?.(k, K);
     // Upward through the TEs: every arrival at k ascensions spreads to k + 1.
     const tes = [...arrivals[k].keys()].filter(te => te < top).sort((a, b) => a - b);
+    if (k === 0 && o.firstLegs) {
+      const start = arrivals[0].get(o.startTE)![0];
+      for (const f of o.firstLegs) {
+        relax(1, Math.min(f.endTE, top), {
+          time: f.end,
+          delivered: f.delivered,
+          prev: start,
+          leg: {
+            from: o.startTE,
+            to: f.to,
+            endTE: f.endTE,
+            start: start.time,
+            end: f.end,
+            sales: 0,
+            tier13: false,
+            label: f.label,
+          },
+        });
+      }
+      continue;
+    }
     const items: ArrivalItem[] = [];
     for (const te of tes)
       for (const l of arrivals[k].get(te)!)
@@ -524,6 +559,8 @@ export async function findRoutes(o: FindOptions): Promise<FoundRoutes & { altern
 export interface PolishOptions {
   startTE: number;
   start: number;
+  /** As FindOptions: the first ascensions, else a fresh one from `startDelivered`. */
+  firstLegs?: FirstLeg[];
   startDelivered?: number[];
   deliveryScale?: number;
   deadline?: number;
@@ -578,6 +615,16 @@ export function priceChain(
   for (let i = from; i < chain.length; i++) {
     const target = chain[i];
     if (target <= te) return (remember(i, false), null);
+    if (i === 0 && o.firstLegs) {
+      const f = o.firstLegs.find(x => x.to === target);
+      if (!f) return (remember(i, false), null);
+      legs.push({ from: o.startTE, to: target, endTE: f.endTE, start: o.start, end: f.end, sales: 0, tier13: false, label: f.label });
+      t = f.end;
+      te = f.endTE;
+      eggs = f.delivered;
+      remember(i, true);
+      continue;
+    }
     const p = priceLeg(table, te, t, eggs, target, scale);
     if (!p) return (remember(i, false), null);
     legs.push({
@@ -713,4 +760,71 @@ export function polishFound(table: BuildLookup, o: PolishOptions, found: FoundRo
           null
         );
   return { best, byAscensions, byDate, byDateByAscensions };
+}
+
+/** Continue is not a candidate past this (the fork's search/rules.ts CONTINUE_MAX_SECONDS): a year on
+ *  one farm is not a plan. */
+export const CONTINUE_MAX_SECONDS = 183 * 86400;
+
+export interface FirstLegOptions {
+  table: BuildLookup;
+  startTE: number;
+  start: number;
+  final: number;
+  deliveryScale?: number;
+  /** The save's eggs delivered on each egg at the plan start (EGG_ORDER). */
+  delivered: number[];
+  /** Finishing the ascension in progress (continueTail.ts), at the farm's own rate, or null. */
+  cont: BuildParams | null;
+}
+
+function eggsOf(sweep: TailSweep, i: number): number[] {
+  const out = [0, 0, 0, 0, 0];
+  sweep.deliveredInto(i, out);
+  return out;
+}
+
+/**
+ * The first ascension to every checkpoint (the fork's `firstLegOptions` under its default setting,
+ * without the build-up): the fresh build from the table (on the next whole hour, or at once inside
+ * the sale's last hours), moved onto the save's eggs, or continuing the ascension in progress when it
+ * is strictly sooner (ties go to the fresh start, as Joo's pickVariant meets those first).
+ */
+export function firstLegOptions(o: FirstLegOptions): FirstLeg[] {
+  const freshAt = nextHour(o.start);
+  const row = o.startTE;
+  const fresh = scaled(o.table(row, pacificHourOfWeek(freshAt)) ?? [], o.deliveryScale ?? 1).map(b =>
+    rebase(b, row, o.delivered)
+  );
+  const lowest = Math.floor(o.startTE) + 1;
+  const freshSweeps = fresh.map(b => sweepTails(b, o.final, 0, lowest));
+  const late = freshAt !== o.start ? startInSale(o.table, row, o.start) : null;
+  const lateFresh = late ? scaled(late.builds, o.deliveryScale ?? 1).map(b => rebase(b, row, o.delivered)) : [];
+  const lateSweeps = lateFresh.map(b => sweepTails(b, o.final, late!.lateBy, lowest));
+  const contSweep = o.cont ? sweepTails(o.cont, o.final, 0, lowest) : null;
+  const out: FirstLeg[] = [];
+  for (let target = lowest; target <= o.final; target++) {
+    const fp = fastest(freshSweeps, fresh, target);
+    const lp = late ? fastest(lateSweeps, lateFresh, target) : null;
+    const onHour = fp
+      ? { seconds: fp.sweep.seconds[fp.i] + (freshAt - o.start), endTE: fp.sweep.endTE[fp.i], delivered: eggsOf(fp.sweep, fp.i), build: fp.build }
+      : null;
+    const now = lp
+      ? { seconds: lp.sweep.seconds[lp.i], endTE: lp.sweep.endTE[lp.i], delivered: eggsOf(lp.sweep, lp.i), build: lp.build }
+      : null;
+    const f = now && (!onHour || now.seconds < onHour.seconds) ? now : onHour;
+    const ci = contSweep ? target - contSweep.from : -1;
+    const c =
+      contSweep && ci >= 0 && ci < contSweep.seconds.length && contSweep.seconds[ci] <= CONTINUE_MAX_SECONDS
+        ? { seconds: contSweep.seconds[ci], endTE: contSweep.endTE[ci], delivered: eggsOf(contSweep, ci) }
+        : null;
+    const pick =
+      c && (!f || c.seconds < f.seconds)
+        ? { ...c, label: 'continue' }
+        : f
+          ? { seconds: f.seconds, endTE: f.endTE, delivered: f.delivered, label: `${f.build.sales}-sale${f.build.tier13 ? '-tier13' : ''}` }
+          : null;
+    if (pick) out.push({ to: target, endTE: pick.endTE, end: o.start + pick.seconds, delivered: pick.delivered, label: pick.label });
+  }
+  return out;
 }
