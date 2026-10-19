@@ -15,7 +15,7 @@ describe('InstantRoute layout', () => {
     expect(table).toBeLessThan(button);
   });
   it('Fastest: the table is inside the card, above its buttons', () => {
-    const card = t.indexOf('>Fastest route</div>');
+    const card = t.indexOf('>Fastest route</span>');
     const table = t.indexOf('v-for="r in shownRows"');
     const button = t.indexOf('Check all again', card);
     expect(table).toBeGreaterThan(card);

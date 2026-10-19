@@ -242,10 +242,11 @@ describe('Follow this route buttons', () => {
   });
 
   it('sits beside the existing buttons, each with its goal', () => {
+    // The box's button follows the route the box shows (Q6: the fewest-ascensions pick when Prefer fewer is on).
     const route = read('../auto/InstantRoute.vue');
-    expect(route).toContain('<FollowButton class="mt-1 ml-2" primary :chain="lead.chain" :goal-key="followGoal" from="answer" />');
+    expect(route).toContain('<FollowButton class="mt-1 ml-2" primary :chain="boxLead.chain" :goal-key="followGoal" from="answer" />');
     expect(route).toContain(
-      '<FollowButton class="mt-1 ml-2" primary :chain="(dateExact ?? tableDate(result.byDate)).chain" :goal-key="followGoal" from="answer" />'
+      '<FollowButton class="mt-1 ml-2" primary :chain="dateBoxOf(result.byDate).chain" :goal-key="followGoal" from="answer" />'
     );
     expect(route).toContain('<FollowButton v-if="r.chain.length" :chain="r.chain" :goal-key="followGoal" from="count" />');
     expect(route).toContain(

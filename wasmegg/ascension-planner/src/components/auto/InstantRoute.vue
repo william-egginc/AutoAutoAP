@@ -210,48 +210,59 @@
 
       <template v-if="result && deadline">
         <div class="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 space-y-1">
-          <div class="text-[10px] font-black uppercase tracking-widest text-emerald-700">
-            Highest TE by {{ show(deadline) }}
+          <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span class="text-[10px] font-black uppercase tracking-widest text-emerald-700"
+              >Highest TE by {{ show(deadline) }}</span
+            >
+            <!-- Q6: the box leads with the fewest ascensions inside the player's margin (search/preferFewer.ts). -->
+            <span
+              v-if="preferPicked"
+              class="px-1.5 py-0.5 rounded bg-emerald-700 text-white text-[9px] font-black uppercase tracking-widest"
+              data-testid="prefer-fewer-chip"
+              >{{ preferCopy.chip }}</span
+            >
           </div>
           <template v-if="result.byDate">
             <!-- The simulator's answer leads once it is in; the table's stays beside it. -->
             <div class="flex flex-wrap items-baseline gap-x-3">
               <span class="text-2xl font-black text-slate-900"
-                >{{ (dateExact ?? tableDate(result.byDate)).endTE }} TE</span
+                >{{ dateBoxOf(result.byDate).endTE }} TE</span
               >
               <span
                 class="text-lg font-black"
                 :class="
-                  spareOf(dateExact ?? tableDate(result.byDate)) < TIGHT_SECONDS ? 'text-amber-700' : 'text-emerald-800'
+                  spareOf(dateBoxOf(result.byDate)) < TIGHT_SECONDS ? 'text-amber-700' : 'text-emerald-800'
                 "
-                >{{ days(spareOf(dateExact ?? tableDate(result.byDate))) }} to spare</span
+                >{{ days(spareOf(dateBoxOf(result.byDate))) }} to spare</span
               >
               <span
-                v-if="spareOf(dateExact ?? tableDate(result.byDate)) < TIGHT_SECONDS"
+                v-if="spareOf(dateBoxOf(result.byDate)) < TIGHT_SECONDS"
                 class="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[9px] font-black uppercase tracking-widest"
                 >tight</span
               >
               <span v-if="dateExact" class="text-[11px] font-bold text-emerald-700">exact, your account</span>
             </div>
             <div class="font-mono-premium text-sm font-bold text-slate-800">
-              {{ (dateExact ?? tableDate(result.byDate)).chain.join(' → ') }}
+              {{ dateBoxOf(result.byDate).chain.join(' → ') }}
             </div>
             <div class="text-[12px] text-slate-700">
-              Reached {{ show((dateExact ?? tableDate(result.byDate)).end) }} ·
-              {{ (dateExact ?? tableDate(result.byDate)).chain.length }} ascensions
+              Reached {{ show(dateBoxOf(result.byDate).end) }} ·
+              {{ dateBoxOf(result.byDate).chain.length }} ascensions
             </div>
+            <PreferFewerNote :copy="preferCopy" goal="date" :showing-best="preferShowBest" @toggle="preferShowBest = !preferShowBest" />
+            <!-- "Prestige by" is worked out on the highest-TE route: not shown over another one. -->
             <PrestigeByLine
-              v-if="prestigeFlag.enabled.value"
+              v-if="prestigeFlag.enabled.value && !preferPicked"
               :line="prestige?.line ?? null"
               :status="prestigeStatus"
               :mismatch="prestigeMismatch"
               :beta="prestigeFlag.beta"
             />
             <RouteExtras
-              v-if="dateExact && legsFor(dateExact.chain)"
-              :chain="dateExact.chain"
-              :legs="legsFor(dateExact.chain)"
-              :reach-at="dateExact.end"
+              v-if="dateExact && legsFor(dateBoxOf(result.byDate).chain)"
+              :chain="dateBoxOf(result.byDate).chain"
+              :legs="legsFor(dateBoxOf(result.byDate).chain)"
+              :reach-at="dateBoxOf(result.byDate).end"
               :zone="zone"
             />
             <!-- Every number of ascensions, inside the answer's card above its buttons (the user, 12 Oct 2026).
@@ -266,6 +277,7 @@
                 Your hours move shifts inside each ascension, which the instant answer can’t see; Check exactly decides.
                 With your hours on it also prices each count’s next-best route (about one more route per count).
               </p>
+              <PreferFewerControl v-model="preferMargin" goal="date" />
               <div class="overflow-x-auto" data-testid="counts-scroll">
                 <table class="w-full min-w-[32rem] text-[12px]" data-testid="counts-table">
                   <thead>
@@ -281,7 +293,7 @@
                     <template v-for="r in dateRows" :key="r.legs.length">
                     <tr
                       class="border-t border-slate-100"
-                      :class="dateExact && dateExactByK[r.legs.length]?.chain === dateExact.chain ? 'bg-emerald-50/60' : ''"
+                      :class="dateRowLit(r) ? 'bg-emerald-50/60' : ''"
                     >
                       <td class="py-1.5 pr-2 font-bold text-slate-800 whitespace-nowrap align-top">
                         <!-- The arrow: when each stop and egg happens, from Check exactly's legs (RouteTimeline.vue). -->
@@ -297,6 +309,13 @@
                           {{ openRow === key(dateRowChain(r)) ? '⌄' : '›' }}
                         </button>
                         {{ r.legs.length }}
+                        <span
+                          v-if="datePickedRow(r)"
+                          class="block text-[9px] font-black uppercase tracking-widest text-emerald-700"
+                          :title="preferCopy.chip"
+                          data-testid="prefer-fewer-row"
+                          >shown above</span
+                        >
                       </td>
                       <td class="py-1.5 pr-2 text-slate-600 align-top">
                         <span class="whitespace-nowrap">{{ r.legs[r.legs.length - 1].endTE }} TE</span> ·
@@ -448,16 +467,16 @@
               type="button"
               class="mt-1 ml-2 px-3 py-1.5 rounded-lg border border-emerald-700 text-emerald-800 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-50"
               :title="SIMULATE_TITLE"
-              @click="openPlan((dateExact ?? tableDate(result.byDate)).chain)"
+              @click="openPlan(dateBoxOf(result.byDate).chain)"
             >
               Simulate this plan
             </button>
-            <FollowButton class="mt-1 ml-2" primary :chain="(dateExact ?? tableDate(result.byDate)).chain" :goal-key="followGoal" from="answer" />
+            <FollowButton class="mt-1 ml-2" primary :chain="dateBoxOf(result.byDate).chain" :goal-key="followGoal" from="answer" />
             <span
-              v-if="simulateCaveat((dateExact ?? tableDate(result.byDate)).chain, result.byDate.legs.length)"
+              v-if="simulateCaveat(dateBoxOf(result.byDate).chain, dateBoxCount(result.byDate))"
               class="block mt-1 text-[10px] leading-snug text-amber-700"
               data-testid="simulate-note"
-              >{{ simulateCaveat((dateExact ?? tableDate(result.byDate)).chain, result.byDate.legs.length) }}</span
+              >{{ simulateCaveat(dateBoxOf(result.byDate).chain, dateBoxCount(result.byDate)) }}</span
             >
             <InstantShareCheck
               v-if="instantUrl"
@@ -485,32 +504,43 @@
       </template>
 
       <template v-if="result && !deadline">
-        <div v-if="lead" class="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 space-y-1">
-          <div class="text-[10px] font-black uppercase tracking-widest text-emerald-700">Fastest route</div>
-          <div class="font-mono-premium text-base font-black text-slate-900">{{ lead.chain.join(' → ') }}</div>
-          <div v-if="exactOf(lead)" class="text-[12px] text-slate-800">
-            Reaches {{ store.finalTE }} on <b>{{ show(exactOf(lead)!.end) }}</b> · {{ days(exactOf(lead)!.seconds) }} ·
-            {{ plural(lead.legs.length, 'ascension') }}
+        <div v-if="boxLead" class="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 space-y-1">
+          <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span class="text-[10px] font-black uppercase tracking-widest text-emerald-700">Fastest route</span>
+            <!-- Q6: the box leads with the fewest ascensions inside the player's margin (search/preferFewer.ts). -->
+            <span
+              v-if="preferPicked"
+              class="px-1.5 py-0.5 rounded bg-emerald-700 text-white text-[9px] font-black uppercase tracking-widest"
+              data-testid="prefer-fewer-chip"
+              >{{ preferCopy.chip }}</span
+            >
+          </div>
+          <div class="font-mono-premium text-base font-black text-slate-900">{{ boxLead.chain.join(' → ') }}</div>
+          <div v-if="exactOf(boxLead)" class="text-[12px] text-slate-800">
+            Reaches {{ store.finalTE }} on <b>{{ show(exactOf(boxLead)!.end) }}</b> · {{ days(exactOf(boxLead)!.seconds) }} ·
+            {{ plural(boxLead.legs.length, 'ascension') }}
             <span class="text-[11px] font-bold text-emerald-700">exact, your account</span>
           </div>
-          <div :class="exactOf(lead) ? 'text-[11px] text-slate-500' : 'text-[12px] text-slate-700'">
-            {{ exactOf(lead) ? 'The instant answer said ' : 'Reaches ' + store.finalTE + ' on '
-            }}<b v-if="!exactOf(lead)">{{ show(lead.end) }}</b
-            ><template v-else>{{ show(lead.end) }}</template> · {{ days(lead.seconds)
-            }}<template v-if="!exactOf(lead)"> · {{ plural(lead.legs.length, 'ascension') }}</template>
+          <div :class="exactOf(boxLead) ? 'text-[11px] text-slate-500' : 'text-[12px] text-slate-700'">
+            {{ exactOf(boxLead) ? 'The instant answer said ' : 'Reaches ' + store.finalTE + ' on '
+            }}<b v-if="!exactOf(boxLead)">{{ show(boxLead.end) }}</b
+            ><template v-else>{{ show(boxLead.end) }}</template> · {{ days(boxLead.seconds)
+            }}<template v-if="!exactOf(boxLead)"> · {{ plural(boxLead.legs.length, 'ascension') }}</template>
           </div>
+          <PreferFewerNote :copy="preferCopy" goal="fastest" :showing-best="preferShowBest" @toggle="preferShowBest = !preferShowBest" />
+          <!-- "Prestige by" is worked out on the fastest route: not shown over another one. -->
           <PrestigeByLine
-            v-if="prestigeFlag.enabled.value"
+            v-if="prestigeFlag.enabled.value && !preferPicked"
             :line="prestige?.line ?? null"
             :status="prestigeStatus"
             :mismatch="prestigeMismatch"
             :beta="prestigeFlag.beta"
           />
           <RouteExtras
-            v-if="exactOf(lead)"
-            :chain="lead.chain"
-            :legs="exactOf(lead)!.legs"
-            :reach-at="exactOf(lead)!.end"
+            v-if="exactOf(boxLead)"
+            :chain="boxLead.chain"
+            :legs="exactOf(boxLead)!.legs"
+            :reach-at="exactOf(boxLead)!.end"
             :zone="zone"
           />
           <!-- Every number of ascensions, inside the answer's card above its buttons (the user, 12 Oct 2026).
@@ -523,6 +553,7 @@
               Your hours move shifts inside each ascension, which the instant answer can’t see; Check exactly decides.
               With your hours on it also prices each count’s next-best route (about one more route per count).
             </p>
+            <PreferFewerControl v-model="preferMargin" goal="fastest" />
             <div class="overflow-x-auto" data-testid="counts-scroll">
               <table class="w-full min-w-[32rem] text-[12px]" data-testid="counts-table">
                 <thead>
@@ -536,7 +567,7 @@
                 </thead>
                 <tbody>
                   <template v-for="r in shownRows" :key="r.legs.length">
-                  <tr class="border-t border-slate-100" :class="r === lead ? 'bg-emerald-50/60' : ''">
+                  <tr class="border-t border-slate-100" :class="r === boxLead ? 'bg-emerald-50/60' : ''">
                     <td class="py-1.5 pr-2 font-bold text-slate-800 whitespace-nowrap align-top">
                       <!-- The arrow: when each stop and egg happens, from Check exactly's legs (RouteTimeline.vue). -->
                       <button
@@ -551,6 +582,13 @@
                         {{ openRow === key(r.chain) ? '⌄' : '›' }}
                       </button>
                       {{ r.legs.length }}
+                      <span
+                        v-if="preferPicked && r === boxLead"
+                        class="block text-[9px] font-black uppercase tracking-widest text-emerald-700"
+                        :title="preferCopy.chip"
+                        data-testid="prefer-fewer-row"
+                        >shown above</span
+                      >
                     </td>
                     <td class="py-1.5 pr-2 text-slate-700 whitespace-nowrap align-top">{{ show(r.end) }}</td>
                     <td class="py-1.5 pr-2 text-slate-500 align-top">
@@ -659,14 +697,14 @@
             when that ends sooner), and Check exactly prices it the same way. Light, under Search nearby, then prices
             these routes ascending at once, on your hours.
           </p>
-          <p v-if="atOnceNote(exactOf(lead))" class="text-[11px] font-bold text-emerald-800">
-            {{ atOnceNote(exactOf(lead)) }}
+          <p v-if="atOnceNote(exactOf(boxLead))" class="text-[11px] font-bold text-emerald-800">
+            {{ atOnceNote(exactOf(boxLead)) }}
           </p>
-          <p v-if="reranked && result.best" class="text-[11px] text-amber-800">
+          <p v-if="reranked && result.best && !preferPicked" class="text-[11px] text-amber-800">
             The instant answer ranked the {{ result.best.legs.length }}-ascension route first ({{
               result.best.chain.join(' ')
             }}); on your account the full simulator has this one
-            {{ days(exactOf(result.best)!.end - exactOf(lead)!.end) }} sooner.
+            {{ days(exactOf(result.best)!.end - exactOf(lead!)!.end) }} sooner.
           </p>
           <p v-if="exactStatus === 'running'" class="text-[11px] text-emerald-800 flex items-center gap-2">
             <span
@@ -704,16 +742,16 @@
             type="button"
             class="mt-1 ml-2 px-3 py-1.5 rounded-lg border border-emerald-700 text-emerald-800 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-50"
             :title="SIMULATE_TITLE"
-            @click="openPlan(lead.chain)"
+            @click="openPlan(boxLead.chain)"
           >
             Simulate this plan
           </button>
-          <FollowButton class="mt-1 ml-2" primary :chain="lead.chain" :goal-key="followGoal" from="answer" />
+          <FollowButton class="mt-1 ml-2" primary :chain="boxLead.chain" :goal-key="followGoal" from="answer" />
           <span
-            v-if="simulateCaveat(lead.chain)"
+            v-if="simulateCaveat(boxLead.chain)"
             class="block mt-1 text-[10px] leading-snug text-amber-700"
             data-testid="simulate-note"
-            >{{ simulateCaveat(lead.chain) }}</span
+            >{{ simulateCaveat(boxLead.chain) }}</span
           >
           <InstantShareCheck
             v-if="instantUrl"
@@ -994,6 +1032,21 @@ import {
   type SecondWin,
 } from '@/search/hoursRunnerUp';
 import { nearTieOf, type NearTie } from '@/search/nearTie';
+import {
+  choosePreferFewer,
+  preferFewerCopy,
+  readPreferFewer,
+  shiftCount,
+  writePreferFewer,
+  type PreferChoice,
+  type PreferCopy,
+  type PreferGoal,
+  type PreferMargin,
+  type PreferRow,
+  type PreferSetting,
+} from '@/search/preferFewer';
+import PreferFewerControl from './PreferFewerControl.vue';
+import PreferFewerNote from './PreferFewerNote.vue';
 import { useIntegrityProbe } from '@/composables/useIntegrityProbe';
 import { useInstantDuringSearch } from '@/composables/useInstantDuringSearch';
 import {
@@ -2594,6 +2647,91 @@ watch([result, exactStatus], () => {
 /** The route the box leads with: the simulator's fastest once known, else the table's. */
 const lead = computed(() => exactBest.value ?? result.value?.best ?? null);
 const reranked = computed(() => !!exactBest.value && exactBest.value !== result.value?.best);
+
+/**
+ * PREFER FEWER ASCENSIONS (Q6, Wolfcry1993; search/preferFewer.ts). The green box may lead with the route with the
+ * fewest ascensions inside the player's margin of the best (Fastest: in time; By a date: in TE). ONLY the box:
+ * `lead` and `dateExact` stay the best for everything else (the summary for the result cards, Light, the searches'
+ * suggestions, Prestige by, the share). Right now follows the chosen route only through the box's own Follow this
+ * route button. Remembered per browser, one value per screen; "Show the fastest instead ›" shows the best for now.
+ * The numbers are the box's own: Check exactly's once it is in (shifts from its legs), the instant answer's until
+ * then (no shifts: none are said).
+ */
+const preferSetting = ref<PreferSetting>(readPreferFewer());
+watch(preferSetting, s => writePreferFewer(s), { deep: true });
+const preferGoal = computed<PreferGoal>(() => (props.deadline ? 'date' : 'fastest'));
+const preferMargin = computed<PreferMargin>({
+  get: () => preferSetting.value[preferGoal.value],
+  set: m => {
+    preferSetting.value = { ...preferSetting.value, [preferGoal.value]: m };
+  },
+});
+const preferShowBest = ref(false);
+watch(preferMargin, () => {
+  preferShowBest.value = false;
+});
+const fastestChoice = computed<PreferChoice<Route> | null>(() => {
+  const best = lead.value;
+  if (props.deadline || !result.value || !best) return null;
+  const exactMode = !!exactBest.value;
+  const rowOf = (r: Route): PreferRow<Route> | null => {
+    if (!exactMode) return { item: r, ascensions: r.legs.length, finish: r.end, shifts: null };
+    const e = exactOf(r);
+    return e ? { item: r, ascensions: r.legs.length, finish: e.end, shifts: shiftCount(e.legs, r.legs.length) } : null;
+  };
+  const top = rowOf(best);
+  if (!top) return null;
+  const others = rows.value.filter(r => r !== best).map(rowOf);
+  return choosePreferFewer('fastest', [top, ...others.filter((r): r is PreferRow<Route> => !!r)], preferMargin.value, top);
+});
+const dateChoice = computed<PreferChoice<DateExact> | null>(() => {
+  const deadline = props.deadline;
+  const found = result.value;
+  if (!deadline || !found?.byDate) return null;
+  const exactMode = !!dateExact.value;
+  const best = dateExact.value ?? tableDate(found.byDate);
+  const rowOf = (d: DateExact): PreferRow<DateExact> => ({
+    item: d,
+    ascensions: d.chain.length,
+    finish: d.end,
+    endTE: d.endTE,
+    spare: deadline - d.end,
+    shifts: exactMode ? shiftCount(legsFor(d.chain), d.chain.length) : null,
+  });
+  // Check exactly's answer for each count once it is in (a count that misses is left out), the table's until then.
+  const others = dateRows.value
+    .map(r => (exactMode ? dateExactByK.value[r.legs.length] : tableDate(r)))
+    .filter((d): d is DateExact => !!d && key(d.chain) !== key(best.chain));
+  const top = rowOf(best);
+  return choosePreferFewer('date', [top, ...others.map(rowOf)], preferMargin.value, top);
+});
+const preferChoice = computed<PreferChoice<unknown> | null>(() => (props.deadline ? dateChoice.value : fastestChoice.value));
+const preferCopy = computed<PreferCopy>(() =>
+  preferFewerCopy<unknown>(preferChoice.value, preferGoal.value, preferMargin.value, show)
+);
+/** The box leads with another route than the best now. */
+const preferPicked = computed(() => preferChoice.value?.state === 'fewer' && !preferShowBest.value);
+/** Fastest: the route the box shows. */
+const boxLead = computed<Route | null>(() =>
+  preferPicked.value && fastestChoice.value ? fastestChoice.value.chosen.item : lead.value
+);
+/** By a date: the answer the box shows (the best: Check exactly's once in, else the table's). */
+function dateBoxOf(fallback: Route): DateExact {
+  if (preferPicked.value && dateChoice.value) return dateChoice.value.chosen.item;
+  return dateExact.value ?? tableDate(fallback);
+}
+/** The count Simulate's note reads for the box: the chosen route's, else the table answer's as before. */
+function dateBoxCount(fallback: Route): number {
+  return preferPicked.value && dateChoice.value ? dateChoice.value.chosen.ascensions : fallback.legs.length;
+}
+/** By a date's counts row lit as the box's: the chosen one, else Check exactly's best as before. */
+function dateRowLit(r: Route): boolean {
+  if (preferPicked.value && dateChoice.value) return key(dateRowChain(r)) === key(dateChoice.value.chosen.item.chain);
+  return !!dateExact.value && dateExactByK.value[r.legs.length]?.chain === dateExact.value.chain;
+}
+function datePickedRow(r: Route): boolean {
+  return preferPicked.value && dateRowLit(r);
+}
 
 /**
  * Fastest route only: a read-only summary of the route the box leads with, for the result cards

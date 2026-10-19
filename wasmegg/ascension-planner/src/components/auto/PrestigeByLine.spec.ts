@@ -58,7 +58,8 @@ describe('PrestigeByLine', () => {
     const uses = template.match(/<PrestigeByLine[\s\S]*?\/>/g) ?? [];
     expect(uses).toHaveLength(2);
     for (const u of uses) {
-      expect(u).toContain('v-if="prestigeFlag.enabled.value"');
+      // Not over a route Prefer fewer ascensions picked instead of the best (Q6): it is worked out on the best.
+      expect(u).toContain('v-if="prestigeFlag.enabled.value && !preferPicked"');
       expect(u).toContain(':beta="prestigeFlag.beta"');
     }
     // The work itself checks the flag before it starts.
