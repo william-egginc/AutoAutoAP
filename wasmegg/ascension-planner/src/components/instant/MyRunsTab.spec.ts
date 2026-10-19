@@ -1,31 +1,18 @@
 /**
  * The My runs tab and the instant answer's pieces, rendered on the server (vue/server-renderer; Joo's
- * repo has no component test library): what a player sees before any worker or board read runs.
+ * repo has no component test library): what a player sees before any worker runs.
  */
 import { describe, expect, it } from 'vitest';
 import { createSSRApp, h } from 'vue';
 import { renderToString } from 'vue/server-renderer';
 import { createPinia, setActivePinia } from 'pinia';
-import { allPossibleTiers } from 'lib/artifacts/data';
 import { useInitialStateStore } from '@/stores/initialState';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
-import { accountKey, bestVirtueArtifacts, type BoardRow } from '@/instant/myRuns';
 import { TE_BREAKPOINTS } from '@/lib/truthEggs';
 import type { AnswerRow } from '@/instant/instantAnswer';
 import MyRunsTab from './MyRunsTab.vue';
 import InstantRows from './InstantRows.vue';
 import NoInstantAnswer, { noAnswerWords } from './NoInstantAnswer.vue';
-
-function item(family: string, tier: number, rarity: number) {
-  const t = (allPossibleTiers as { afx_id: number; afx_level: number; family: { id: string }; tier_number: number }[]).find(
-    x => x.family.id === family && x.tier_number === tier
-  )!;
-  return { quantity: 1, artifact: { spec: { name: t.afx_id, level: t.afx_level, rarity } } };
-}
-const backup = {
-  userName: 'Testerson',
-  artifactsDb: { virtueAfxDb: { inventoryItems: [item('puzzle-cube', 4, 3), item('tungsten-ankh', 4, 3)] } },
-};
 
 async function render(component: object, props: Record<string, unknown> = {}, setup?: () => void): Promise<string> {
   const pinia = createPinia();
@@ -37,24 +24,9 @@ async function render(component: object, props: Record<string, unknown> = {}, se
 }
 
 describe('My runs tab (server render)', () => {
-  const labels = bestVirtueArtifacts(backup);
-  const row = (o: Partial<BoardRow>): BoardRow => ({
-    id: 'x',
-    chain: [300, 400, 490],
-    durationDays: 12.25,
-    finalTE: 490,
-    timezone: 'America/Denver',
-    artifacts: labels,
-    currentTE: 200,
-    level: 'thorough',
-    startUtc: '2026-10-01T15:00:00Z',
-    receivedAt: '2026-10-01T16:00:00Z',
-    ...o,
-  });
   const loadSave = () => {
     const s = useInitialStateStore();
     s.hasData = true;
-    s.rawBackup = backup as never;
     s.initialEggsDelivered = {
       curiosity: TE_BREAKPOINTS[49],
       kindness: TE_BREAKPOINTS[49],
@@ -65,41 +37,15 @@ describe('My runs tab (server render)', () => {
     useAutoPlannerStore().timezone = 'America/Denver';
   };
 
-  it('shows the instant answer first, then only the board rows that look like this account’s', async () => {
-    expect(accountKey('America/Denver', labels)).toContain('America/Denver::');
-    const html = await render(
-      MyRunsTab,
-      {
-        rows: [
-          row({ id: 'mine' }),
-          row({ id: 'paris', timezone: 'Europe/Paris', chain: [111, 490] }),
-          row({ id: 'higher', backupTE: 400, chain: [222, 490] }),
-          row({ id: 'coded', acct: 'abc', nickname: 'Someone else', chain: [333, 490] }),
-        ],
-      },
-      loadSave
-    );
-    expect(html.indexOf('data-testid="instant-answer"')).toBeGreaterThan(-1);
-    expect(html.indexOf('data-testid="instant-answer"')).toBeLessThan(html.indexOf('data-testid="my-runs-list"'));
-    expect(html.match(/data-testid="my-run"/g)).toHaveLength(1);
-    expect(html).toContain('300 → 400 → 490');
-    expect(html).toContain('Race to 490');
-    expect(html).toContain('12.3 d');
-    expect(html).toContain('thorough');
-    expect(html).not.toContain('111 → 490');
-    expect(html).not.toContain('222 → 490');
-    expect(html).not.toContain('333 → 490');
-    // From the save's TE, any hour.
+  it('shows the instant answer, from the save’s TE, and nothing from the board', async () => {
+    const html = await render(MyRunsTab, {}, loadSave);
+    expect(html).toContain('data-testid="instant-answer"');
     expect(html).toContain('From your TE 250, any hour');
-  });
-
-  it('says so when nothing looks like the account’s', async () => {
-    const html = await render(MyRunsTab, { rows: [row({ timezone: 'UTC' })] }, loadSave);
-    expect(html).toContain('data-testid="my-runs-empty"');
+    expect(html).not.toContain('board');
   });
 
   it('offers the three goals: Fastest to 490, Egg Day, another date', async () => {
-    const html = await render(MyRunsTab, { rows: [] }, loadSave);
+    const html = await render(MyRunsTab, {}, loadSave);
     expect(html).toContain('Fastest to 490');
     expect(html).toMatch(/Egg Day 20\d\d/);
     expect(html).toContain('Another date');
