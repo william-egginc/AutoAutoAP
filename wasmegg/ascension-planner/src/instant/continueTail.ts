@@ -99,6 +99,6 @@ export function staleSaveNote(syncSeconds: number | null | undefined, startSecon
   const h = gap / 3600;
   const age = h < 48 ? `${Math.round(h)} hours` : `${Math.round(h / 24)} days`;
   return gap > silo
-    ? `Your save is ${age} old, longer than your silos hold, so these answers (and the Auto Planner's) won't be accurate: open Egg, Inc., let it sync, then load a fresh save.`
+    ? `Your save is ${age} old, longer than your silos hold, so these answers (and the Auto Planner's) won't be accurate: this page counts only what the silos hold, the Auto Planner counts the whole gap, so the first ascension can differ. Open Egg, Inc., let it sync, then load a fresh save.`
     : `Your save is ${age} old: anything you bought since is not in it. Load a fresh save if you have played.`;
 }
